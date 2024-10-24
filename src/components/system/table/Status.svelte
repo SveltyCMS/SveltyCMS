@@ -13,17 +13,18 @@
 
 <!-- Display different badges for different statuses -->
 <div
-	class="grid w-full max-w-full grid-cols-1 items-center justify-start overflow-hidden text-left sm:grid-cols-2 {value.toUpperCase() === 'Published'
-		? 'gradient-primary badge rounded'
+	class=" grid w-full max-w-full grid-cols-1 items-center justify-start overflow-hidden rounded py-1.5 text-left sm:grid-cols-2
+		{value.toUpperCase() === 'PUBLISHED'
+		? 'gradient-primary'
 		: value.toUpperCase() === 'UNPUBLISHED'
-			? 'gradient-yellow badge rounded'
+			? 'gradient-yellow'
 			: value.toUpperCase() === 'SCHEDULE'
-				? 'gradient-pink badge rounded'
+				? 'gradient-pink'
 				: value.toUpperCase() === 'CLONE'
-					? 'gradient-secondary badge rounded'
+					? 'gradient-secondary'
 					: value.toUpperCase() === 'TESTING'
-						? 'gradient-error badge rounded'
-						: 'badge rounded  text-center'} "
+						? 'gradient-error'
+						: 'badge'} rounded text-center"
 >
 	{#if value.toUpperCase() == 'PUBLISHED'}
 		<iconify-icon icon="bi:hand-thumbs-up-fill" width="20" class=" mx-auto" />

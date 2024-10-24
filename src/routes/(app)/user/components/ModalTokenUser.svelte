@@ -1,8 +1,13 @@
 <!-- 
-@files src/components/user/ModalTokenUser.svelte 
-@description Modal for generating user registration email token 
--->
+@files: src/components/user/ModalTokenUser.svelte 
+@description: Modal component for generating user registration email tokens 
 
+Features:
+- API-based token creation
+- Email sending integration
+- Proper error handling
+- Accurate success/failure feedback
+-->
 <script lang="ts">
 	import type { PageData } from '../$types';
 	import { page } from '$app/stores';
@@ -23,10 +28,10 @@
 
 	// Skeleton & Stores
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
-
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
+	// Form state initialization
 	if (!addUserForm) {
 		addUserForm = {
 			email: '',
@@ -76,10 +81,10 @@
 	// Define default role and token validity options
 	let roleSelected: string = roles[1]?._id || ''; // Ensure the correct type
 	let expiresIn = '2 hrs'; // Set the default validity
-	let expiresInLabel = '';
+	let expiresInLabel = '2 hrs';
 	let expirationTime: number | undefined;
 
-	// Define the validity options and their corresponding seconds
+	// Define the validity options
 	const validityOptions = [
 		{ label: '2 hrs', value: '2 hrs', seconds: 2 * 60 * 60 },
 		{ label: '12 hrs', value: '12 hrs', seconds: 12 * 60 * 60 },
@@ -87,6 +92,7 @@
 		{ label: '1 week', value: '1 week', seconds: 7 * 24 * 60 * 60 }
 	];
 
+	// Update form values when selections change
 	$: {
 		$form.role = roleSelected;
 		$form.expiresIn = expiresIn;
@@ -99,7 +105,6 @@
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 </script>
 
-<!-- @component This example creates a simple form modal. -->
 {#if $modalStore[0]}
 	<div class="modal-example-form {cBase}">
 		<header class={`text-center dark:text-primary-500 ${cHeader}`}>
@@ -109,7 +114,7 @@
 			{$modalStore[0]?.body ?? '(body missing)'}
 		</article>
 
-		<form class="modal-form {cForm}" method="post" action="?/addUser" id="addUser" use:enhance>
+		<form class="modal-form {cForm}" method="POST" action="/api/user/createToken" id="addUser" use:enhance>
 			<!-- Email field -->
 			<div class="group relative mb-6 w-full">
 				<FloatingInput
@@ -131,7 +136,9 @@
 
 			<!-- User Role -->
 			<div class="flex flex-col gap-2 sm:flex-row">
-				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}</div>
+				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">
+					{m.form_userrole()}
+				</div>
 				<div class="flex-auto">
 					<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
 						{#if roles && roles.length > 0}
@@ -143,7 +150,6 @@
 										roleSelected = r._id;
 										console.log('Selected Role:', roleSelected);
 									}}
-									role="button"
 									tabindex="0"
 									aria-label={`Role: ${r.name}`}
 									aria-pressed={roleSelected === r._id ? 'true' : 'false'}
@@ -163,7 +169,9 @@
 
 			<!-- Token validity -->
 			<div class="flex flex-col gap-1 pb-6 sm:flex-row sm:gap-2">
-				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.modaltokenuser_tokenvalidity()}</div>
+				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">
+					{m.modaltokenuser_tokenvalidity()}
+				</div>
 				<div class="flex-auto">
 					<div class="flex flex-wrap justify-center gap-1 space-x-2 sm:justify-start sm:gap-2">
 						{#each validityOptions as option}
@@ -193,11 +201,16 @@
 				</div>
 			</div>
 
+			<!-- Footer buttons -->
 			<footer class="flex items-center justify-between {parent.regionFooter}">
 				<!-- Cancel -->
-				<button class="variant-outline-secondary btn" on:click={parent.onClose}>{m.button_cancel()}</button>
+				<button on:click={parent.onClose} type="button" aria-label={m.button_cancel()} class="variant-outline-secondary btn">
+					{m.button_cancel()}
+				</button>
 				<!-- Send -->
-				<button type="submit" class="variant-filled-tertiary btn dark:variant-filled-primary {parent.buttonPositive}">{m.button_send()}</button>
+				<button type="submit" aria-label={m.button_send()} class="variant-filled-tertiary btn dark:variant-filled-primary {parent.buttonPositive}">
+					{m.button_send()}
+				</button>
 			</footer>
 		</form>
 	</div>
