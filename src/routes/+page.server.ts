@@ -78,4 +78,5 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		logger.error(message);
 		throw error(404, { message });
 	}
+
 };

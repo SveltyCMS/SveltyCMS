@@ -18,6 +18,7 @@ import fs from 'fs/promises';
 import crypto from 'crypto';
 import path from 'path';
 import * as ts from 'typescript';
+import { publicEnv } from '../../../../config/public';
 
 // Cache for transpiled modules to avoid recompiling unchanged files
 const cache = new Map<string, string>();
@@ -29,7 +30,10 @@ interface CompileOptions {
 
 export async function compile(options: CompileOptions = {}): Promise<void> {
 	// Destructure options with default values from environment variables
-	const { collectionsFolderJS = process.env.COLLECTIONS_FOLDER_JS, collectionsFolderTS = process.env.COLLECTIONS_FOLDER_TS } = options;
+	const {
+		collectionsFolderJS = process.env.COLLECTIONS_FOLDER_JS,
+		collectionsFolderTS = process.env.COLLECTIONS_FOLDER_TS
+	} = options;
 
 	// Validate that folder paths are provided
 	if (!collectionsFolderJS || !collectionsFolderTS) {
@@ -81,12 +85,14 @@ async function shouldRecompile(tsFilePath: string, jsFilePath: string): Promise<
 
 	// If JS file doesn't exist, recompilation is necessary
 	if (!jsStats) return true;
+	// If TS file doesn't exist, recompilation is not necessary
+	if (!tsStats) return false;
 
 	// Compare file hashes and modification times
 	const contentHash = await getFileHash(tsFilePath);
 	const existingHash = await getExistingHash(jsFilePath);
 
-	return contentHash !== existingHash || (tsStats && jsStats && tsStats.mtime > jsStats.mtime);
+	return (contentHash !== existingHash) || (tsStats.mtime > jsStats.mtime);
 }
 
 async function transpileCode(content: string, filePath: string): Promise<string> {

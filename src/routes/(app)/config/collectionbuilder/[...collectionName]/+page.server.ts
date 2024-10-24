@@ -36,6 +36,7 @@ import { permissionConfigs } from '@src/auth/permissionManager';
 
 // System Logger
 import { logger } from '@utils/logger';
+import { generateCollectionFieldTypes, generateCollectionTypes } from "@root/src/utils/collectionTypes";
 
 type fields = ReturnType<WidgetType[keyof WidgetType]>;
 
@@ -62,7 +63,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 
 		const { _id, ...rest } = user;
-		return { user: { id: _id.toString(), ...rest } };
+		return { user: { ...rest, id: _id.toString(),  } };
 	} catch (err) {
 		if (err instanceof Error && 'status' in err) {
 			// This is likely a redirect or an error we've already handled
@@ -102,17 +103,10 @@ export const actions: Actions = {
 		import widgets from '@components/widgets';
 		import type { Schema } from '@src/collections/types';
 		export const schema: Schema = {
-			// Collection Name coming from filename so not needed
-
-			// Optional & Icon, status, slug
-			// See for possible Icons https://icon-sets.iconify.design/
 			icon: '${collectionIcon}',
 			status: '${collectionStatus}',
 			description: '${collectionDescription}',
 			slug: '${collectionSlug}',
-
-			// Defined Fields that are used in your Collection
-			// Widget fields can be inspected for individual options
 			fields: ${JSON.stringify(fields)}
 		};`;
 
@@ -127,6 +121,8 @@ export const actions: Actions = {
 			}
 			fs.writeFileSync(`${import.meta.env.collectionsFolderTS}/${collectionName}.ts`, content);
 			await compile();
+			await generateCollectionTypes();
+			await generateCollectionFieldTypes();
 			await updateCollections(true);
 			await getCollectionModels();
 			return { status: 200 };
@@ -206,7 +202,7 @@ async function goThrough(object: any, fields): Promise<string> {
 							}
 						}
 
-						field[key] = `🗑️widgets.${field[key].widget.Name}(${JSON.stringify(field[key].widget.GuiFields, (k, value) =>
+						field[key] = `🗑️widgets.${field[key].widget.key}(${JSON.stringify(field[key].widget.GuiFields, (k, value) =>
 							typeof value === 'string' ? String(value.replace(/\s*🗑️\s*/g, '🗑️').trim()) : value
 						)})🗑️`;
 

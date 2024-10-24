@@ -17,7 +17,8 @@ import type { Unsubscriber } from 'svelte/store';
 import { initWidgets } from '@components/widgets';
 
 // Types
-import type { Schema, CollectionNames } from './types';
+import { type Schema, type CollectionNames } from './types';
+import { CollectionNamesArray } from './types'
 
 // System logger
 import { logger } from '@utils/logger';
@@ -30,7 +31,7 @@ let collectionModelsCache: Partial<Record<CollectionNames, Schema>> | null = nul
 
 // Type Guard Function to validate collection names
 export function isCollectionName(name: string): name is CollectionNames {
-	return ['ImageArray', 'Media', 'Menu', 'Names', 'Posts', 'Relation', 'WidgetTest'].includes(name);
+	return CollectionNamesArray.includes(name);
 }
 
 // Function to get collections with cache support
