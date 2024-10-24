@@ -25,12 +25,14 @@ const EXCLUDED_FILES = new Set(['index.ts', 'types.ts', 'config.ts']);
 export async function generateCollectionTypes(): Promise<void> {
 	try {
 		const files = await getCollectionFiles();
-		const collections = `export type CollectionNames = ${files.map((file) => `'${path.basename(file, '.ts')}'`).join('|')};`;
+		const collections = `export type CollectionNames = ${files.map((file) => `'${path.basename(file, '.ts')}'`).join('|')};\n`;
+		const collectionsNameArray = `export const CollectionNamesArray = [${files.map((file) => `'${path.basename(file, '.ts')}'`).join(', ')}];\n`;
 
 		let types = await fs.readFile(TYPES_FILE, 'utf-8');
 		types = types.replace(/export\s+type\s+CollectionNames\s?=\s?.*?;/gms, '');
+		types = types.replace(/export\s+const\s+CollectionNamesArray:\s+string\[\]\s+?=\s?.*?;/gms, '');
 		types += collections;
-
+		types += collectionsNameArray;
 		await fs.writeFile(TYPES_FILE, types);
 	} catch (error) {
 		console.error('Error generating collection types:', error);
@@ -42,18 +44,18 @@ export async function generateCollectionTypes(): Promise<void> {
 export async function generateCollectionFieldTypes(): Promise<void> {
 	try {
 		const files = await getCollectionFiles();
-		const collections: Record<string, string> = {};
+		const collections: Record<string, string[]> = {};
 
 		for (const file of files) {
 			const content = await fs.readFile(path.join(COLLECTIONS_DIR, file), 'utf-8');
 			const { fields } = await processCollectionFile(content);
-			collections[path.basename(file, '.ts')] = fields.join('|');
+			collections[path.basename(file, '.ts')] = fields;
 		}
 
-		console.debug("Generate Types: ",collections);
 		let types = await fs.readFile(TYPES_FILE, 'utf-8');
 		types = types.replace(/\n*export\s+type\s+CollectionContent\s?=\s?.*?};/gms, '');
-		types += `\nexport type CollectionContent = ${JSON.stringify(collections).replace(/"/g, '')};`;
+		types += `\nexport type CollectionContent = ${JSON.stringify(collections, null, 2).replace(/"(\w+)":/g, '$1:')};`;
+		console.debug("Generate Types: ", types);
 
 		await fs.writeFile(TYPES_FILE, types);
 	} catch (error) {
@@ -83,9 +85,14 @@ async function processCollectionFile(content: string): Promise<{ fields: string[
 		module: ts.ModuleKind.ESNext
 	});
 
-	const { default: data } = await import('data:text/javascript,' + transpiledContent);
+	const data = await import('data:text/javascript;base64,' + toBase64(transpiledContent));
 
 	return {
-		fields: data.fields.map((field: any) => field.db_fieldName || field.label)
+		fields: data.schema.fields.map((field: any) => field.db_fieldName || field.label)
 	};
+}
+
+
+function toBase64(str: string) {
+	return Buffer.from(str, 'utf-8').toString('base64');
 }

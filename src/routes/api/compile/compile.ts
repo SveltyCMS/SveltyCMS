@@ -31,8 +31,8 @@ interface CompileOptions {
 export async function compile(options: CompileOptions = {}): Promise<void> {
 	// Destructure options with default values from environment variables
 	const {
-		collectionsFolderJS = publicEnv.COLLECTIONS_FOLDER_JS ?? './collections',
-		collectionsFolderTS = publicEnv.COLLECTIONS_FOLDER_TS ?? './src/collections' 
+		collectionsFolderJS = process.env.COLLECTIONS_FOLDER_JS,
+		collectionsFolderTS = process.env.COLLECTIONS_FOLDER_TS
 	} = options;
 
 	// Validate that folder paths are provided
@@ -85,12 +85,14 @@ async function shouldRecompile(tsFilePath: string, jsFilePath: string): Promise<
 
 	// If JS file doesn't exist, recompilation is necessary
 	if (!jsStats) return true;
+	// If TS file doesn't exist, recompilation is not necessary
+	if (!tsStats) return false;
 
 	// Compare file hashes and modification times
 	const contentHash = await getFileHash(tsFilePath);
 	const existingHash = await getExistingHash(jsFilePath);
 
-	return contentHash !== existingHash || (tsStats && jsStats && tsStats.mtime > jsStats.mtime);
+	return (contentHash !== existingHash) || (tsStats.mtime > jsStats.mtime);
 }
 
 async function transpileCode(content: string, filePath: string): Promise<string> {

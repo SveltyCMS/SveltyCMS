@@ -36,6 +36,7 @@ import { permissionConfigs } from '@src/auth/permissionManager';
 
 // System Logger
 import { logger } from '@utils/logger';
+import { generateCollectionFieldTypes, generateCollectionTypes } from "@root/src/utils/collectionTypes";
 
 type fields = ReturnType<WidgetType[keyof WidgetType]>;
 
@@ -62,7 +63,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 
 		const { _id, ...rest } = user;
-		return { user: { id: _id.toString(), ...rest } };
+		return { user: { ...rest, id: _id.toString(),  } };
 	} catch (err) {
 		if (err instanceof Error && 'status' in err) {
 			// This is likely a redirect or an error we've already handled
@@ -120,6 +121,8 @@ export const actions: Actions = {
 			}
 			fs.writeFileSync(`${import.meta.env.collectionsFolderTS}/${collectionName}.ts`, content);
 			await compile();
+			await generateCollectionTypes();
+			await generateCollectionFieldTypes();
 			await updateCollections(true);
 			await getCollectionModels();
 			return { status: 200 };
