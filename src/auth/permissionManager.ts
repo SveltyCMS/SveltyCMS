@@ -15,7 +15,7 @@ import { getCollectionFiles } from '@src/routes/api/getCollections/getCollection
 
 // Permissions
 import { permissions as configPermissions, setPermissions } from '@root/config/permissions';
-import { PermissionAction, PermissionType } from "@root/config/permissionTypes";
+import { PermissionAction, PermissionType } from '@src/auth/permissionTypes';
 import type { Permission as AuthPermission } from './types';
 import type { PermissionConfig } from './permissionCheck';
 

@@ -7,7 +7,7 @@
 
 import { error } from '@sveltejs/kit';
 import type { User, ContextType, Permission } from './types';
-import { PermissionAction, PermissionType } from "@root/config/permissionTypes";
+import { PermissionAction, PermissionType } from '@src/auth/permissionTypes';
 import { roles as configRoles } from '@root/config/roles';
 import { getAllPermissions } from './permissionManager';
 

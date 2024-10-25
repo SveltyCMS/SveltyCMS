@@ -16,8 +16,7 @@
 	import { writable } from 'svelte/store';
 	import { page } from '$app/stores';
 	import type { Permission, Role } from '@src/auth/types';
-	
-	import { PermissionType } from "@root/config/permissionTypes";
+	import { PermissionType } from '@src/auth/permissionTypes';
 
 	// Components
 	import Loading from '@components/Loading.svelte';

@@ -5,7 +5,6 @@
 
 import type { Permission } from '@src/auth/types'; // Import Permission type from the centralized types file
 
-
 // List of all permissions available in the CMS
 export let permissions: Permission[] = [];
 

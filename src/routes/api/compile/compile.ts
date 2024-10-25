@@ -84,6 +84,7 @@ async function shouldRecompile(tsFilePath: string, jsFilePath: string): Promise<
 
 	// If JS file doesn't exist, recompilation is necessary
 	if (!jsStats) return true;
+
 	// If TS file doesn't exist, recompilation is not necessary
 	if (!tsStats) return false;
 
@@ -91,7 +92,7 @@ async function shouldRecompile(tsFilePath: string, jsFilePath: string): Promise<
 	const contentHash = await getFileHash(tsFilePath);
 	const existingHash = await getExistingHash(jsFilePath);
 
-	return (contentHash !== existingHash) || (tsStats.mtime > jsStats.mtime);
+	return contentHash !== existingHash || tsStats.mtime > jsStats.mtime;
 }
 
 async function transpileCode(content: string, filePath: string): Promise<string> {

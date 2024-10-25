@@ -15,7 +15,7 @@ describe('Role and Permission Access Management', () => {
 });
 
 import { Auth } from '@src/auth';
-import { PermissionAction } from "@root/config/permissionTypes";
+import { PermissionAction } from '@src/auth/permissionTypes';
 import type { Role, User } from '@src/auth/types';
 import { checkUserPermission, loadUserPermissions } from '@src/auth/permissionCheck';
 import { getPermissionByName, getAllPermissions, syncPermissions } from '@src/auth/permissionManager';
