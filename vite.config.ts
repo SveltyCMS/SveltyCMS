@@ -105,9 +105,9 @@ export default defineConfig({
 			config() {
 				return {
 					define: {
+						'import.meta.env.root': JSON.stringify(Path.posix.join('/', __dirname.replace(parsed.root, ''))),
 						'import.meta.env.collectionsFolderJS': JSON.stringify(collectionsFolderJS),
-						'import.meta.env.collectionsFolderTS': JSON.stringify(collectionsFolderTS),
-						'import.meta.env.root': JSON.stringify(Path.posix.join('/', __dirname.replace(parsed.root, '')))
+						'import.meta.env.collectionsFolderTS': JSON.stringify(collectionsFolderTS)
 					}
 				};
 			},
@@ -124,8 +124,8 @@ export default defineConfig({
 	},
 	resolve: {
 		alias: {
-			'@src': resolve(__dirname, './src'),
 			'@root': resolve(__dirname, './'),
+			'@src': resolve(__dirname, './src'),
 			'@components': resolve(__dirname, './src/components')
 		}
 	},

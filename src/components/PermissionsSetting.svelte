@@ -11,9 +11,7 @@ Features:
 	// Auth
 	import type { Role } from '@src/auth/types';
 	import { icon } from '@src/auth/types';
-	import { PermissionAction } from '@root/config/permissions';
-
-	import { createRandomID } from '@utils/utils';
+	import { PermissionAction } from '@src/auth/permissionTypes';
 
 	// Skeleton
 	import { getToastStore } from '@skeletonlabs/skeleton';

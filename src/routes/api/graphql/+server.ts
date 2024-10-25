@@ -36,7 +36,7 @@ import { createClient } from 'redis';
 // Permission Management
 import { checkUserPermission, PermissionConfig } from '@src/auth/permissionCheck';
 import { registerPermission } from '@src/auth/permissionManager';
-import { PermissionAction, PermissionType } from '@root/config/permissions';
+import { PermissionAction, PermissionType } from '@src/auth/permissionTypes';
 
 // System Logger
 import { logger } from '@utils/logger';
