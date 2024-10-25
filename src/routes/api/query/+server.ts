@@ -35,7 +35,7 @@ import type { Schema } from '@src/collections/types';
 import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
-import { getCollections, isCollectionName } from '@src/collections';
+import { getCollections } from '@src/collections';
 import { _GET } from './GET';
 import { _POST } from './POST';
 import { _PATCH } from './PATCH';
@@ -47,53 +47,58 @@ import { logger } from '@utils/logger';
 
 // Helper function to check user permissions
 async function checkUserPermissions(data: FormData, cookies: any) {
-	// Retrieve the session ID from cookies
-	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
-	// Retrieve the user ID from the form data
-	const user_id = data.get('user_id') as string;
+	try {
+		// Retrieve the session ID from cookies
+		const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
+		// Retrieve the user ID from the form data
+		const user_id = data.get('user_id') as string;
 
-	if (!auth) {
-		throw Error('Auth is not initialized');
+		if (!auth) {
+			throw new Error('Auth is not initialized');
+		}
+
+		// Authenticate user based on user ID or session ID
+		const user = user_id ? ((await auth.checkUser({ user_id: user_id })) as User) : ((await auth.validateSession({ session_id })) as User);
+
+		if (!user) {
+			throw new Error('Unauthorized');
+		}
+
+		// Retrieve the collection name from the form data
+		const collectionName = data.get('collectionName') as string;
+		if (!collectionName) {
+			throw new Error('Collection name is required');
+		}
+
+		// Get the schema for the specified collection
+		const collections = await getCollections();
+		const collection_schema = collections[collectionName] as Schema;
+
+		if (!collection_schema) {
+			throw new Error('Collection not found');
+		}
+
+		// Check read and write permissions for the user
+		const has_read_access = collection_schema?.permissions?.[user.role]?.read !== false;
+		const has_write_access = collection_schema?.permissions?.[user.role]?.write !== false;
+
+		return { user, collection_schema, has_read_access, has_write_access };
+	} catch (error) {
+		logger.error(`Error in checkUserPermissions: ${error instanceof Error ? error.message : String(error)}`);
+		throw error;
 	}
-
-	// Authenticate user based on user ID or session ID
-	const user = user_id ? ((await auth.checkUser({ user_id: user_id })) as User) : ((await auth.validateSession({ session_id })) as User);
-
-	if (!user) {
-		throw Error('Unauthorized');
-	}
-
-	// Retrieve the collection name from the form data
-	const collectionName = data.get('collectionName') as string;
-
-	// Get the schema for the specified collection
-	if (!isCollectionName(collectionName)) {
-		throw Error('Invalid collection name');
-	}
-
-	const collection_schema = (await getCollections())[collectionName] as Schema;
-
-	if (!collection_schema) {
-		throw Error('Collection not found');
-	}
-
-	// Check read and write permissions for the user
-	const has_read_access = collection_schema?.permissions?.[user.role]?.read !== false;
-	const has_write_access = collection_schema?.permissions?.[user.role]?.write !== false;
-
-	return { user, collection_schema, has_read_access, has_write_access };
 }
 
 // Main POST handler
 export const POST: RequestHandler = async ({ request, cookies }) => {
-	// Retrieve data from the request form
-	const data = await request.formData();
-	// Retrieve the method from the form data
-	const method = data.get('method') as string;
-
-	logger.info('Received request', { method, user_id: data.get('user_id') });
-
 	try {
+		// Retrieve data from the request form
+		const data = await request.formData();
+		// Retrieve the method from the form data
+		const method = data.get('method') as string;
+
+		logger.info('Received request', { method, user_id: data.get('user_id') });
+
 		// Check user permissions
 		const { user, collection_schema, has_read_access, has_write_access } = await checkUserPermissions(data, cookies);
 		logger.debug('User permissions checked', { user: user._id, has_read_access, has_write_access, collectionName: collection_schema.name });
@@ -150,9 +155,12 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		}
 	} catch (error) {
 		// Handle error by checking its type
-		const status = error.message === 'Unauthorized' ? 401 : error.message.includes('Forbidden') ? 403 : 500;
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-		logger.error('Error processing request', { error: errorMessage });
-		return new Response(errorMessage, { status });
+		const status = errorMessage === 'Unauthorized' ? 401 : errorMessage.includes('Forbidden') ? 403 : 500;
+		logger.error(`Error processing request: ${errorMessage}`);
+		return new Response(errorMessage, {
+			status,
+			headers: { 'Content-Type': 'application/json' }
+		});
 	}
 };
