@@ -65,7 +65,7 @@ configPaths.forEach((path) => {
 });
 
 // Initial compilation of collections
-compile({ collectionsFolderJS, collectionsFolderTS });
+await compile({ collectionsFolderJS, collectionsFolderTS });
 
 export default defineConfig({
 	plugins: [

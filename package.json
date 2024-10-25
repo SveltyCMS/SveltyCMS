@@ -9,7 +9,7 @@
 		"dev": "bun run vite dev || vite dev",
 		"devv": "LAUNCH_EDITOR='code' bun vite --open || LAUNCH_EDITOR='code' vite --open",
 		"-- BUILD ---------------------------------------------": "",
-		"build": "bun run paraglide-js compile --project ./project.inlang && bun run vite build || paraglide-js compile --project ./project.inlang && vite build",
+		"build": "paraglide-js compile --project ./project.inlang && vite build",
 		"-- CHECK & TEST ---------------------------------------": "",
 		"check": "bun svelte-kit sync && bun svelte-check --tsconfig ./tsconfig.json --threshold error || svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --threshold error",
 		"check:watch": "bun svelte-kit sync && bun svelte-check --tsconfig ./tsconfig.json --watch || svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
