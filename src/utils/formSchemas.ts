@@ -1,6 +1,6 @@
 /**
- * @file formSchemas.ts
- * @description Defines Zod schemas for various forms used in the application.
+ * @file: src/utils/formSchemas.ts
+ * @description: Defines Zod schemas for various forms used in the application.
  *
  * This file contains:
  * - Reusable schema definitions for common fields like username, email, and password.
@@ -122,7 +122,7 @@ export const signUpOAuthFormSchema = z.object({
 export const addUserTokenSchema = z.object({
 	email,
 	role,
-	password: z.string(),
+	// password: z.string(),
 	expiresIn: z.string(),
 	expiresInLabel: z.string()
 });

@@ -415,5 +415,8 @@
 	"mediaConfig_MEDIA_FOLDER_helper": "La carpeta donde se almacenarán los archivos multimedia del sitio. (predeterminado: 'archivos multimedia')",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "Configuración de formato y calidad para archivos multimedia. (predeterminado: formato: 'original', calidad: 80)",
 	"mediaConfig_MEDIASERVER_URL_helper": "La URL del servidor de medios. (el valor predeterminado es localhost como: '')",
+	"login_demo_title": "MODO DEMOSTRACIÓN DE SveltyCMS",
+	"login_demo_message": "Este sitio se reiniciará cada 10 minutos.",
+	"login_demo_nextreset": "Próximo reinicio en:",
 	"signup_password": "Contraseña"
 }

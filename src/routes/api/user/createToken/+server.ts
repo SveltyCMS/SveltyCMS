@@ -1,6 +1,6 @@
 /**
- * @file src/routes/api/user/createToken/+server.ts
- * @description API endpoint for creating user registration tokens and sending invitation emails
+ * @file: src/routes/api/user/createToken/+server.ts
+ * @description: API endpoint for creating user registration tokens and sending invitation emails
  *
  * This module provides functionality to:
  * - Create new registration tokens for inviting users
@@ -15,8 +15,6 @@
  * - Error handling and logging
  * - Email sending using the sendMail API
  *
- * Usage:
- * This endpoint is used to create new registration tokens for inviting users to register and send invitation emails.
  */
 
 import { json } from '@sveltejs/kit';
@@ -35,7 +33,6 @@ import { addUserTokenSchema } from '@utils/formSchemas';
 
 // Roles
 import { roles } from '@root/config/roles';
-
 // ParaglideJS
 import { languageTag } from '@src/paraglide/runtime';
 
@@ -54,9 +51,11 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 		}
 
 		const body = await request.json();
+		logger.debug('Received token creation request:', body); // Debug log
 
 		// Validate input using the existing schema
 		const validatedData = addUserTokenSchema.parse(body);
+		logger.debug('Validated data:', validatedData); // Debug log
 
 		const tokenAdapter = new TokenAdapter();
 
@@ -73,6 +72,7 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 		// Find the role object based on the role ID
 		const role = roles.find((r) => r._id === validatedData.role);
 		if (!role) {
+			logger.error('Invalid role:', validatedData.role);
 			throw error(400, 'Invalid role');
 		}
 
@@ -131,27 +131,14 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 			throw error(500, 'Failed to send invitation email');
 		}
 
-		logger.info('Registration token created and invitation sent successfully', {
-			email: validatedData.email,
-			role: validatedData.role,
-			expiresIn: validatedData.expiresIn,
-			expiresInLabel: validatedData.expiresInLabel
+		// Successful response
+		return json({ success: true, message: 'Token created and email sent' });
+	} catch (err: any) {
+		logger.error('Error in createToken API:', {
+			message: err.message,
+			stack: err.stack,
+			details: err
 		});
-
-		return json({
-			success: true,
-			token,
-			email: validatedData.email,
-			role: validatedData.role,
-			expiresIn: validatedData.expiresIn,
-			expiresInLabel: validatedData.expiresInLabel
-		});
-	} catch (err) {
-		if (err.name === 'ZodError') {
-			logger.warn('Invalid input for createToken API:', err.errors);
-			throw error(400, 'Invalid input: ' + err.errors.map((e) => e.message).join(', '));
-		}
-		logger.error('Error in createToken API:', err);
-		throw error(500, 'Failed to create registration token');
+		throw error(500, 'An internal server error occurred');
 	}
 };

@@ -3331,6 +3331,30 @@ export const mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper = () => `Ustawienia 
 export const mediaConfig_MEDIASERVER_URL_helper = () => `Adres URL serwera multimediów. (domyślnie jest to localhost jako: '')`
 
 
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_demo_title = () => `TRYB DEMO SveltyCMS`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_demo_message = () => `Ta strona będzie resetowana co 10 minut.`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_demo_nextreset = () => `Następny reset za:`
+
+
 export { signup_password } from "./en.js"
 
 export { modaledit_tokenemailaddress } from "./en.js"

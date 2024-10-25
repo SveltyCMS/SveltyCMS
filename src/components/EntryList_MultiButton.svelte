@@ -61,27 +61,27 @@
 				break;
 			case 'publish':
 				mode.set('view');
-				$modifyEntry('publish');
+				$modifyEntry('published');
 				break;
 			case 'unpublish':
 				mode.set('view');
-				$modifyEntry('unpublish');
+				$modifyEntry('unpublished');
 				break;
 			case 'schedule':
 				mode.set('view');
-				$modifyEntry('schedule');
+				$modifyEntry('scheduled');
 				break;
 			case 'clone':
 				mode.set('view');
-				$modifyEntry('clone');
+				$modifyEntry('cloned');
 				break;
 			case 'delete':
 				mode.set('view');
-				$modifyEntry('delete');
+				$modifyEntry('deleted');
 				break;
 			case 'test':
 				mode.set('view');
-				$modifyEntry('test');
+				$modifyEntry('testing');
 				break;
 			default:
 				// Handle other actions here

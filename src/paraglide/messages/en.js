@@ -3334,6 +3334,30 @@ export const mediaConfig_MEDIASERVER_URL_helper = () => `The URL of the media se
 
 
 /**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_demo_title = () => `SveltyCMS DEMO MODE`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_demo_message = () => `This site will reset every 10 min.`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_demo_nextreset = () => `Next reset in:`
+
+
+/**
  * Failed to resolve message signup_password for languageTag "en". 
  * @returns {string}
  */

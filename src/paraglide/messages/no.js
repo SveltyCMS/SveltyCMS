@@ -3331,6 +3331,30 @@ export const mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper = () => `Format- og 
 export const mediaConfig_MEDIASERVER_URL_helper = () => `URL-en til medieserveren. (standard er lokalvert som: '')`
 
 
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_demo_title = () => `SveltyCMS DEMO MODUS`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_demo_message = () => `Denne siden tilbakestilles hvert 10. minutt.`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_demo_nextreset = () => `Neste tilbakestilling om:`
+
+
 export { signup_password } from "./en.js"
 
 export { modaledit_tokenemailaddress } from "./en.js"

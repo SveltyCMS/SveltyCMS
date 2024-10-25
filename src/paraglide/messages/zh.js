@@ -3330,6 +3330,30 @@ export const mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper = () => `媒体文�
 export const mediaConfig_MEDIASERVER_URL_helper = () => `媒体服务器的 URL。（默认为 localhost：''）`
 
 
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_demo_title = () => `SveltyCMS 演示模式`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_demo_message = () => `此站点每 10 分钟重置一次。`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_demo_nextreset = () => `下次重置时间为：`
+
+
 export { signup_password } from "./en.js"
 
 export { modaledit_tokenemailaddress } from "./en.js"

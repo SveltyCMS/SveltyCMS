@@ -3330,6 +3330,30 @@ export const mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper = () => `Paramètres
 export const mediaConfig_MEDIASERVER_URL_helper = () => `L'URL du serveur multimédia. (la valeur par défaut est localhost comme : ')`
 
 
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_demo_title = () => `MODE DÉMO DE SveltyCMS`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_demo_message = () => `Ce site sera réinitialisé toutes les 10 minutes.`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_demo_nextreset = () => `Prochaine réinitialisation dans :`
+
+
 export { signup_password } from "./en.js"
 
 export { modaledit_tokenemailaddress } from "./en.js"

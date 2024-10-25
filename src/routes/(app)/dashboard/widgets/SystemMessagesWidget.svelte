@@ -1,3 +1,22 @@
+<!--
+@file: src/routes/(app)/dashboard/widgets/MemoryWidget.svelte
+@description:  Dashboard widget for displaying system messages with improved rendering and error handling.
+
+This widget displays the last 5 system messages added to the database.
+
+
+Features:
+- Responsive doughnut chart visualization
+- Theme-aware rendering (light/dark mode support)
+- Real-time data updates
+- Customizable widget properties (size, position, etc.)
+- Improved error handling and data validation
+- Proper lifecycle management
+- Enhanced debugging and logging
+
+Usage:
+<SystemMessagesWidget label="System Messages" />
+-->
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import axios from 'axios';

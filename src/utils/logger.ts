@@ -13,7 +13,7 @@
  * - Support for custom log targets (e.g., file, database)
  */
 
-import { browser, dev } from '$app/environment'; // Detects if the code is running in the browser
+import { browser } from '$app/environment'; // Detects if the code is running in the browser
 import { publicEnv } from '@root/config/public'; // Import environment configuration
 
 // Define the possible log levels
@@ -72,12 +72,10 @@ const config = {
 
 // Helper to determine if the log level is enabled
 const isLogLevelEnabled = (level: LogLevel): boolean => {
-	const currentLogLevel = dev
-		? 'debug'
-		: publicEnv.LOG_LEVELS.includes(import.meta.env.VITE_LOG_LEVEL as LogLevel)
-			? (import.meta.env.VITE_LOG_LEVEL as LogLevel)
-			: 'error';
-	return LOG_LEVEL_MAP[level].priority <= LOG_LEVEL_MAP[currentLogLevel].priority;
+	// Retrieve the highest allowed log level from LOG_LEVELS
+	const highestAllowedLevel = publicEnv.LOG_LEVELS[0];
+	const currentLogLevel = LOG_LEVEL_MAP[highestAllowedLevel].priority;
+	return LOG_LEVEL_MAP[level].priority <= currentLogLevel;
 };
 
 const applyColor = (level: LogLevel, message: string): string => {
@@ -175,27 +173,26 @@ const formatValue = (value: LoggableValue): string => {
 
 // ProcessLog function
 const processLog = async (level: LogLevel, message: string, ...args: LoggableValue[]): Promise<void> => {
+	// Only proceed if the log level is enabled
 	if (!isLogLevelEnabled(level)) return;
 
 	const timestamp = getTimestamp();
 	const levelStr = `[${level.toUpperCase()}]`;
 	const maskedArgs = args.map((arg) => maskSensitiveData(arg));
 
-	// Format the entire message, including numbers within template literals
 	const formattedMessage = formatValue(message);
-
-	// Format args
 	const formattedArgs = maskedArgs.map(formatValue).join(' ');
 
 	const coloredLevelStr = applyColor(level, levelStr);
 	const fullMessage = `${timestamp} ${coloredLevelStr}: ${formattedMessage} ${formattedArgs}`;
 
+	// Log to the console
 	if (browser) {
 		console.log(fullMessage, BROWSER_STYLES[level], '');
 	} else {
 		process.stdout.write(`${fullMessage}\n`);
 
-		// File logging (without colors)
+		// Write to log file if on the server
 		if (!browser) {
 			try {
 				const { writeFile } = await import('fs/promises');
@@ -209,6 +206,7 @@ const processLog = async (level: LogLevel, message: string, ...args: LoggableVal
 		}
 	}
 
+	// Call any custom log targets
 	if (config.customLogTarget) {
 		config.customLogTarget(level, message, maskedArgs);
 	}

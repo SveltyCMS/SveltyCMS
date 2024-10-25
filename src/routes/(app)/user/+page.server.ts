@@ -38,18 +38,9 @@ export const load: PageServerLoad = async (event) => {
 		const roles: Role[] = event.locals.roles || [];
 		const isFirstUser: boolean = event.locals.isFirstUser;
 		const hasManageUsersPermission: boolean = event.locals.hasManageUsersPermission;
-
-		logger.debug(`User from event.locals: ${JSON.stringify(user)}`);
-		logger.debug(`Roles from event.locals: ${JSON.stringify(roles)}`);
-		logger.debug(`Is first user: ${isFirstUser}`);
-		logger.debug(`Has manage users permission: ${hasManageUsersPermission}`);
-		logger.debug(`event ${JSON.stringify(event, null, 2)}`);
-
 		const addUserForm = await superValidate(event, zod(addUserTokenSchema));
 		const changePasswordForm = await superValidate(event, zod(changePasswordSchema));
 
-		logger.debug(`addUserForm: ${JSON.stringify(addUserForm)}`);
-		logger.debug(`changePasswordForm: ${JSON.stringify(changePasswordForm)}`);
 		// Prepare user object for return, ensuring _id is a string
 		const safeUser = user
 			? {

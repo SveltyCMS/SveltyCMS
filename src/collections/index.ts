@@ -157,7 +157,7 @@ async function getImports(recompile: boolean = false): Promise<Partial<Record<Co
 
 		// Development/Building mode
 		if (dev || building) {
-			logger.debug('Running in dev or building mode');
+			logger.debug(`Running in {${dev ? 'dev' : 'building'}} mode`);
 			const modules = import.meta.glob(['./*.ts', '!./index.ts', '!./types.ts', '!./config.ts']);
 			for (const [modulePath, moduleImport] of Object.entries(modules)) {
 				const name = modulePath.replace(/\.ts$/, '').replace('./', '');

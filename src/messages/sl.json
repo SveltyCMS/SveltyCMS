@@ -414,5 +414,8 @@
 	"mediaConfig_IMAGE_SIZE_helper": "Velikosti slik, ki jih bo spletno mesto ustvarilo. (privzeto: {sm: 600, md: 900, lg: 1200}",
 	"mediaConfig_MEDIA_FOLDER_helper": "Mapa, v kateri bodo shranjene medijske datoteke spletnega mesta. (privzeto: 'mediaFiles')",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "Nastavitve formata in kakovosti predstavnostnih datotek. (privzeto: format: 'izvirnik', kakovost: 80)",
-	"mediaConfig_MEDIASERVER_URL_helper": "URL medijskega strežnika. (privzeto je lokalni gostitelj kot: '')"
+	"mediaConfig_MEDIASERVER_URL_helper": "URL medijskega strežnika. (privzeto je lokalni gostitelj kot: '')",
+	"login_demo_title": "DEMO NAČIN SveltyCMS",
+	"login_demo_message": "To spletno mesto se ponastavi vsakih 10 minut.",
+	"login_demo_nextreset": "Naslednja ponastavitev čez:"
 }

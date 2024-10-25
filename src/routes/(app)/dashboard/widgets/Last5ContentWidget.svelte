@@ -1,13 +1,36 @@
+<!--
+@file: src/routes/(app)/dashboard/widgets/Last5ContentWidget.svelte
+@description:  A reusable widget component for displaying last 5 content information with improved rendering and error handling.
+
+This widget fetches and displays real-time disk usage data, including:
+- Total disk space
+- Used disk space
+- Free disk space
+- Usage percentages
+
+Features:
+- Responsive doughnut chart visualization
+- Theme-aware rendering (light/dark mode support)
+- Real-time data updates
+- Customizable widget properties (size, position, etc.)
+- Improved error handling and data validation
+- Proper lifecycle management
+- Enhanced debugging and logging
+
+Usage:
+<Last5ContentWidget label="Last 5 Content" />
+-->
+
 <script lang="ts">
-	export let id: string = crypto.randomUUID();
-	export let x: number = 0;
-	export let y: number = 0;
-	export let w: number = 2;
-	export let h: number = 5;
-	export let min: { w: number; h: number } = { w: 1, h: 1 };
+	export const id: string = crypto.randomUUID();
+	export const x: number = 0;
+	export const y: number = 0;
+	export const w: number = 2;
+	export const h: number = 5;
+	export const min: { w: number; h: number } = { w: 1, h: 1 };
 	export let max: { w: number; h: number } | undefined;
-	export let movable: boolean = true;
-	export let resizable: boolean = true;
+	export const movable: boolean = true;
+	export const resizable: boolean = true;
 
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
@@ -25,8 +48,12 @@
 			const data = await res.json();
 			contentInfo.set(data);
 			loading.set(false);
-		} catch (err) {
-			error.set(err.message);
+		} catch (err: unknown) {
+			if (err instanceof Error) {
+				error.set(err.message);
+			} else {
+				error.set('An unknown error occurred');
+			}
 			loading.set(false);
 		}
 	});

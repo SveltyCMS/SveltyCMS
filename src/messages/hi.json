@@ -414,5 +414,8 @@
 	"mediaConfig_IMAGE_SIZE_helper": "छवियों के आकार जो साइट द्वारा उत्पन्न किए जाएंगे. (डिफ़ॉल्ट: {sm: 600, md: 900, lg: 1200}",
 	"mediaConfig_MEDIA_FOLDER_helper": "वह फ़ोल्डर जहाँ साइट की मीडिया फ़ाइलें संग्रहीत की जाएँगी. (डिफ़ॉल्ट: 'मीडियाफ़ाइल्स')",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "मीडिया फ़ाइलों के लिए प्रारूप और गुणवत्ता सेटिंग्स. (डिफ़ॉल्ट: प्रारूप: 'मूल', गुणवत्ता: 80)",
-	"mediaConfig_MEDIASERVER_URL_helper": "मीडिया सर्वर का URL. (डिफ़ॉल्ट लोकलहोस्ट है: '')"
+	"mediaConfig_MEDIASERVER_URL_helper": "मीडिया सर्वर का URL. (डिफ़ॉल्ट लोकलहोस्ट है: '')",
+	"login_demo_title": "SveltyCMS डेमो मोड",
+	"login_demo_message": "यह साइट हर 10 मिनट में रीसेट हो जाएगी।",
+	"login_demo_nextreset": "अगला रीसेट:"
 }

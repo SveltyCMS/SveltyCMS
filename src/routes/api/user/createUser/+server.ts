@@ -1,6 +1,6 @@
 /**
- * @file src/routes/api/user/createUser/+server.ts
- * @description API endpoint for creating a new user in the CMS.
+ * @file: src/routes/api/user/createUser/+server.ts
+ * @description: API endpoint for creating a new user in the CMS.
  *
  * This endpoint handles POST requests to create a new user. It leverages the
  * agnostic authentication system to ensure database independence.
@@ -10,9 +10,6 @@
  * - Input validation and error handling
  * - Comprehensive logging for monitoring and debugging
  * - Secure error responses to prevent information leakage
- *
- * @requires auth - The agnostic authentication system
- * @requires logger - The system-wide logging utility
  */
 
 import type { RequestHandler } from '@sveltejs/kit';

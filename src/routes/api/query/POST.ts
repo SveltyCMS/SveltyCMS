@@ -84,8 +84,8 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
 		// Remove file entries from body
 		fileIDS.forEach((id) => delete body[id]);
 
-		// Set the status to 'PUBLISHED' and assign a new ObjectId
-		body['status'] = 'PUBLISHED';
+		// Set the status to 'published' and assign a new ObjectId
+		body['status'] = 'published';
 		body._id = dbAdapter.generateId();
 		logger.debug(`Document prepared for insertion with ID: ${body._id}`);
 
@@ -113,7 +113,7 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
 		logger.debug(`Updated body: ${JSON.stringify(body)} `);
 
 		// Insert the new document into the collection
-		const result = await collection.insertMany([body], { lean: true }); // No scehema validation with lean: true
+		const result = await collection.insertMany([body]);
 
 		logger.info(`Document inserted with ID: ${result[0]._id}`);
 		// Return the result as a JSON response

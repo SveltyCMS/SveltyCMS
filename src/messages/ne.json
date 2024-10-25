@@ -415,6 +415,9 @@
 	"mediaConfig_MEDIA_FOLDER_helper": "फोल्डर जहाँ साइटका मिडिया फाइलहरू भण्डारण गरिनेछ। (पूर्वनिर्धारित: 'mediaFiles')",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "मिडिया फाइलहरूको लागि ढाँचा र गुणस्तर सेटिङहरू। (पूर्वनिर्धारित: ढाँचा: 'मूल', गुणस्तर: 80)",
 	"mediaConfig_MEDIASERVER_URL_helper": "मिडिया सर्भरको URL। (पूर्वनिर्धारित रूपमा स्थानीय होस्ट हो: '')",
+	"login_demo_title": "SveltyCMS डेमो मोड",
+	"login_demo_message": "यो साइट प्रत्येक 10 मिनेट रिसेट हुनेछ।",
+	"login_demo_nextreset": "अर्को रिसेट मा:",
 	"modaledit_tokenemailaddress": "इ - मेल ठेगाना",
 	"modaltokenuser_email_address": "इ - मेल ठेगाना"
 }

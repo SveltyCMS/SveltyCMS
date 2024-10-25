@@ -414,5 +414,8 @@
 	"mediaConfig_IMAGE_SIZE_helper": "Розміри зображень, які створить сайт.",
 	"mediaConfig_MEDIA_FOLDER_helper": "Папка, в якій будуть зберігатися медіафайли сайту. (за замовчуванням: 'mediaFiles')",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "Налаштування формату та якості медіафайлів. (за замовчуванням: формат: \"оригінал\", якість: 80)",
-	"mediaConfig_MEDIASERVER_URL_helper": "URL медіасервера. (за замовчуванням локальний хост як: '')"
+	"mediaConfig_MEDIASERVER_URL_helper": "URL медіасервера. (за замовчуванням локальний хост як: '')",
+	"login_demo_title": "ДЕМО-РЕЖИМ SveltyCMS",
+	"login_demo_message": "Цей сайт скидається кожні 10 хвилин.",
+	"login_demo_nextreset": "Наступне скидання через:"
 }

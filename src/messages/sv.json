@@ -414,5 +414,8 @@
 	"mediaConfig_IMAGE_SIZE_helper": "Storleken på bilder som webbplatsen kommer att generera. (standard: {sm: 600, md: 900, lg: 1200}",
 	"mediaConfig_MEDIA_FOLDER_helper": "Mappen där webbplatsens mediefiler kommer att lagras. (standard: 'mediaFiles')",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "Format- och kvalitetsinställningar för mediefiler. (standard: format: 'original', kvalitet: 80)",
-	"mediaConfig_MEDIASERVER_URL_helper": "Mediaserverns URL. (standard är lokalvärd som: '')"
+	"mediaConfig_MEDIASERVER_URL_helper": "Mediaserverns URL. (standard är lokalvärd som: '')",
+	"login_demo_title": "SveltyCMS DEMO-LÄGE",
+	"login_demo_message": "Den här sidan återställs var 10:e minut.",
+	"login_demo_nextreset": "Nästa återställning om:"
 }

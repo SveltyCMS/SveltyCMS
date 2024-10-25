@@ -1,6 +1,6 @@
 <!--
-@file  src/components/EntryList.svelte
-@description  EntryList component to display collections.
+@file:  src/components/EntryList.svelte
+@description:  EntryList component to display collections
 
 Features:
 - Search
@@ -110,20 +110,11 @@ Features:
 	let currentPage: number = entryListPaginationSettings.currentPage || 1; // Set initial currentPage value
 	let rowsPerPage: number = entryListPaginationSettings.rowsPerPage || 10; // Set initial rowsPerPage value
 	const rowsPerPageOptions = [5, 10, 25, 50, 100, 500]; // Set initial rowsPerPage value options
+	let totalItems = 0; // Initialize totalItems
 
 	// Declare isFirstPage and isLastPage variables
 	let isFirstPage: boolean;
 	let isLastPage: boolean;
-
-	// Define the rowsPerPageHandler function
-	function rowsPerPageHandler(event: Event) {
-		// Get the selected value from the event
-		const selectedValue = (event.target as HTMLSelectElement).value;
-		// Update the rows per page value
-		rowsPerPage = parseInt(selectedValue); // Assuming rowsPerPage is a number
-		// Optionally, you can call the refreshTableData function here if needed
-		refreshTableData();
-	}
 
 	// This function refreshes the data displayed in a table by fetching new data from an API endpoint and updating the tableData and options variables.
 	async function refreshTableData(fetch = true) {
@@ -346,18 +337,18 @@ Features:
 			try {
 				// Call the appropriate API endpoint based on the status
 				switch (status) {
-					case 'delete':
-						// If the status is 'Delete', call the delete endpoint
+					case 'deleted':
+						// If the status is 'deleted', call the delete endpoint
 						await deleteData({ data: formData, collectionName: $collection.name as any });
 						break;
-					case 'publish':
-					case 'unpublish':
-					case 'test':
-						// If the status is 'Publish', 'Unpublish', 'Schedule', or 'Clone', call the patch endpoint
+					case 'published':
+					case 'unpublished':
+					case 'testing':
+						// If the status is 'testing', call the publish endpoint
 						await setStatus({ data: formData, collectionName: $collection.name as any });
 						break;
-					case 'clone':
-					case 'schedule':
+					case 'cloned':
+					case 'scheduled':
 						// Trigger a toast message indicating that the feature is not yet implemented
 						const toast = {
 							message: 'Feature not yet implemented.',
@@ -379,7 +370,7 @@ Features:
 		};
 
 		// If more than one row is selected or the status is 'delete', show confirmation modal
-		if (modifyList.length > 1 || status === 'delete') {
+		if (modifyList.length > 1 || status === 'deleted') {
 			const modalData: ModalSettings = {
 				type: 'confirm',
 				title: m.entrylist_title(),
@@ -696,20 +687,22 @@ Features:
 			</table>
 		</div>
 
-		<!-- Pagination  -->
+		<!-- Pagination -->
 		<div class="sticky bottom-0 left-0 right-0 mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
 			<TablePagination
 				{currentPage}
 				{pagesCount}
 				{rowsPerPage}
 				{rowsPerPageOptions}
+				{totalItems}
 				on:updatePage={(e) => {
 					currentPage = e.detail;
-					refreshTableData();
+					refreshTableData(true);
 				}}
 				on:updateRowsPerPage={(e) => {
 					rowsPerPage = e.detail;
-					refreshTableData();
+					currentPage = 1;
+					refreshTableData(true);
 				}}
 			/>
 		</div>

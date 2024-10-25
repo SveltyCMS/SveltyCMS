@@ -12,7 +12,7 @@
 	const dispatch = createEventDispatcher();
 
 	export let checked = false;
-	export let iconStatus = 'undefined';
+	export let iconStatus: string | undefined;
 
 	function handleIconClick() {
 		checked = !checked;
@@ -34,13 +34,14 @@
 		aria-checked={checked ? 'true' : 'false'}
 		aria-labelledby={checked ? 'true' : 'false'}
 		role="checkbox"
-		class="flex h-[26px] w-[26px] items-center justify-center rounded border-[3px] bg-white dark:bg-transparent"
-		class:border-yellow-500={iconStatus === 'unpublished'}
-		class:border-primary-500={iconStatus === 'published'}
-		class:border-pink-500={iconStatus === 'scheduled'}
-		class:border-red-500={iconStatus === 'testing'}
-		class:border-surface-800={iconStatus === undefined}
-		class:dark:border-surface-400={!iconStatus}
+		class="flex h-[26px] w-[26px] items-center justify-center rounded border-[3px] bg-white dark:bg-transparent
+        {iconStatus === 'unpublished' ? 'border-yellow-500' : ''}
+        {iconStatus === 'published' ? 'border-primary-500' : ''}
+        {iconStatus === 'scheduled' ? 'border-pink-500' : ''}
+        {iconStatus === 'testing' ? 'border-red-500' : ''}
+        {iconStatus === undefined ? 'border-surface-800' : ''} 
+        {!iconStatus ? 'dark:border-surface-400' : ''}
+    "
 	>
 		{#if checked && $storeListboxValue === 'delete'}
 			<!--Red Cross icon 3d-->

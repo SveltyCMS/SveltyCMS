@@ -1,3 +1,21 @@
+<!--
+@file: src/routes/(app)/dashboard/widgets/UserActivityWidget.svelte
+@description:  Dashboard widget for displaying user activity with improved rendering and error handling.
+
+This widget displays the current last 5 activities users
+
+Features:
+- Responsive doughnut chart visualization
+- Theme-aware rendering (light/dark mode support)
+- Real-time data updates
+- Customizable widget properties (size, position, etc.)
+- Improved error handling and data validation
+- Proper lifecycle management
+- Enhanced debugging and logging
+
+Usage:
+<UserActivityWidget label="User Activity" />
+-->
 <script lang="ts">
 	import { onMount } from 'svelte';
 

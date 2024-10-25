@@ -3331,6 +3331,30 @@ export const mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper = () => `मिड�
 export const mediaConfig_MEDIASERVER_URL_helper = () => `मिडिया सर्भरको URL। (पूर्वनिर्धारित रूपमा स्थानीय होस्ट हो: '')`
 
 
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_demo_title = () => `SveltyCMS डेमो मोड`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_demo_message = () => `यो साइट प्रत्येक 10 मिनेट रिसेट हुनेछ।`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_demo_nextreset = () => `अर्को रिसेट मा:`
+
+
 export { signup_password } from "./en.js"
 
 /**

@@ -414,5 +414,8 @@
 	"mediaConfig_IMAGE_SIZE_helper": "Le dimensioni delle immagini che il sito genererà. (impostazione predefinita: {sm: 600, md: 900, lg: 1200}",
 	"mediaConfig_MEDIA_FOLDER_helper": "La cartella in cui verranno archiviati i file multimediali del sito. (predefinito: 'mediaFiles')",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "Impostazioni di formato e qualità per i file multimediali. (predefinito: formato: 'originale', qualità: 80)",
-	"mediaConfig_MEDIASERVER_URL_helper": "L'URL del server multimediale. (l'impostazione predefinita è localhost come: '')"
+	"mediaConfig_MEDIASERVER_URL_helper": "L'URL del server multimediale. (l'impostazione predefinita è localhost come: '')",
+	"login_demo_title": "MODALITÀ DEMO DI SveltyCMS",
+	"login_demo_message": "Questo sito verrà reimpostato ogni 10 minuti.",
+	"login_demo_nextreset": "Prossimo reset in:"
 }
