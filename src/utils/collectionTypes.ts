@@ -26,7 +26,7 @@ export async function generateCollectionTypes(): Promise<void> {
 	try {
 		const files = await getCollectionFiles();
 		const collections = `export type CollectionNames = ${files.map((file) => `'${path.basename(file, '.ts')}'`).join('|')};\n`;
-		const collectionsNameArray = `export const CollectionNamesArray = [${files.map((file) => `'${path.basename(file, '.ts')}'`).join(', ')}];\n`;
+		const collectionsNameArray = `export const CollectionNamesArray: string[] = [${files.map((file) => `'${path.basename(file, '.ts')}'`).join(', ')}];\n`;
 
 		let types = await fs.readFile(TYPES_FILE, 'utf-8');
 		types = types.replace(/export\s+type\s+CollectionNames\s?=\s?.*?;/gms, '');
