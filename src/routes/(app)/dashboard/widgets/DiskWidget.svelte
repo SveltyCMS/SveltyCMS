@@ -1,6 +1,6 @@
 <!--
-@file src/routes/(app)/dashboard/widgets/DiskWidget.svelte
-@description A reusable widget component for displaying disk usage information with improved rendering and error handling.
+@file: src/routes/(app)/dashboard/widgets/DiskWidget.svelte
+@description: A reusable widget component for displaying disk usage information with improved rendering and error handling.
 
 This widget fetches and displays real-time disk usage data, including:
 - Total disk space
@@ -16,6 +16,9 @@ Features:
 - Improved error handling and data validation
 - Proper lifecycle management
 - Enhanced debugging and logging
+
+Usage:
+<DiskWidget label="Disk Usage" />
 -->
 
 <script lang="ts">

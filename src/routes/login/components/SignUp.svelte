@@ -7,7 +7,6 @@
 
 	import type { PageData } from '../$types';
 	import { createEventDispatcher } from 'svelte';
-	const dispatch = createEventDispatcher();
 
 	// Stores
 	import { page } from '$app/stores';
@@ -42,7 +41,7 @@
 	// Function to handle the "Back" button click
 	function handleBack(event: Event) {
 		event.stopPropagation();
-		dispatch('back');
+		active = undefined;
 	}
 
 	const { form, constraints, allErrors, errors, enhance, delayed } = superForm<any>(FormSchemaSignUp, {

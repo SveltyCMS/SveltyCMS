@@ -1,3 +1,22 @@
+<!--
+@file: src/routes/(app)/dashboard/widgets/Last5MediaWidget.svelte
+@description:  A reusable widget component for displaying last 5 media information with improved rendering and error handling.
+
+This widget displays the last 5 media added to the database.
+
+Features:
+- Responsive doughnut chart visualization
+- Theme-aware rendering (light/dark mode support)
+- Real-time data updates
+- Customizable widget properties (size, position, etc.)
+- Improved error handling and data validation
+- Proper lifecycle management
+- Enhanced debugging and logging
+
+Usage:
+<Last5MediaWidget label="Last 5 Media" />
+-->
+
 <script lang="ts">
 	import { onMount } from 'svelte';
 

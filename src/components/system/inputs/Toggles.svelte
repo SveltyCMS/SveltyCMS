@@ -7,8 +7,8 @@
 	export let label: string = '';
 	export const icon: any = null;
 	export let labelColor: string = 'text-primary-500'; // Default label color
-	export let iconOn: string = 'wpf:invisible'; // Default icon when toggle is on
-	export let iconOff: string = 'gridicons:not-visible'; // Default icon when toggle is off
+	export let iconOn: string = ''; // Default icon when toggle is on
+	export let iconOff: string = ''; // Default icon when toggle is off
 
 	const random = crypto.randomUUID();
 

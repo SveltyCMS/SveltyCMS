@@ -3335,6 +3335,30 @@ export const mediaConfig_MEDIASERVER_URL_helper = () => `La URL del servidor de 
  * @returns {string}
  */
 /* @__NO_SIDE_EFFECTS__ */
+export const login_demo_title = () => `MODO DEMOSTRACIÓN DE SveltyCMS`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_demo_message = () => `Este sitio se reiniciará cada 10 minutos.`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_demo_nextreset = () => `Próximo reinicio en:`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
 export const signup_password = () => `Contraseña`
 
 

@@ -1,9 +1,20 @@
-<!-- @files src/routes/login/+page.svelte
-@description Login page -->
+<!-- 
+@file: Authentication Form Component for SveltyCMS
+@description: This component handles both SignIn and SignUp functionality for the SveltyCMS.
+
+Features:
+ - Dual SignIn and SignUp functionality with dynamic form switching
+ - Dynamic language selection with a debounced input field or dropdown for multiple languages
+ - Demo mode support with auto-reset timer displayed when active
+ - Initial form display adapts based on environment variables (`SEASON`, `DEMO`, and `firstUserExists`)
+ - Reset state functionality for easy return to initial screen
+ - Accessibility features for language selection and form navigation
+-->
 
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 	import type { PageData } from './$types';
+	import { onMount, onDestroy } from 'svelte';
 
 	// Components
 	import SignIn from './components/SignIn.svelte';
@@ -11,21 +22,27 @@
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 
 	// Stores
+	import { page } from '$app/stores';
 	import { systemLanguage } from '@stores/store';
 
 	// ParaglideJS
 	import { languageTag } from '@src/paraglide/runtime';
+	import * as m from '@src/paraglide/messages';
 
 	const _languageTag = languageTag(); // Get the current language tag
 
 	let inputlanguagevalue = '';
 	// Use the inferred return type of languageTag
 	type LanguageCode = ReturnType<typeof languageTag>;
+	let debounceTimeout: ReturnType<typeof setTimeout>;
 
 	function handleLanguageSelection(event: Event) {
 		const target = event.target as HTMLInputElement;
-		const selectedLanguage = target.value.toLowerCase() as LanguageCode;
-		systemLanguage.set(selectedLanguage);
+		clearTimeout(debounceTimeout);
+		debounceTimeout = setTimeout(() => {
+			const selectedLanguage = target.value.toLowerCase() as LanguageCode;
+			systemLanguage.set(selectedLanguage);
+		}, 300);
 	}
 
 	$: filteredLanguages = publicEnv.AVAILABLE_SYSTEM_LANGUAGES.filter((value: string) => (value ? value.includes(inputlanguagevalue) : true));
@@ -42,15 +59,11 @@
 	// Set initial FirstUserExists state
 	const pageData = $page.data as PageData;
 	const firstUserExists = pageData.firstUserExists;
-
-	// Set initial active state based on firstUserExists
-	let active: undefined | 0 | 1 = firstUserExists ? undefined : 1;
-	let background: 'white' | '#242728' = firstUserExists ? 'white' : '#242728';
+	// Set initial active states for SignIn and SignUp
+	let active: undefined | 0 | 1 = publicEnv.SEASONS || publicEnv.DEMO ? undefined : firstUserExists ? undefined : 1;
+	let background: 'white' | '#242728' = publicEnv.SEASONS || publicEnv.DEMO ? '#242728' : firstUserExists ? 'white' : '#242728';
 
 	export let data: PageData;
-
-	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
 
 	let timeRemaining: { minutes: number; seconds: number } = { minutes: 0, seconds: 0 };
 	let interval: ReturnType<typeof setInterval>;
@@ -77,16 +90,24 @@
 	}
 
 	// Set up the interval to update the countdown every second
-	onMount(() => {
-		updateTimeRemaining();
-		interval = setInterval(updateTimeRemaining, 1000);
-		return () => clearInterval(interval);
-	});
+	// Database resets every 10 minutes only if you drop it form your server)
+
+	if (publicEnv.DEMO) {
+		onMount(() => {
+			updateTimeRemaining();
+			interval = setInterval(updateTimeRemaining, 1000);
+			return () => clearInterval(interval);
+		});
+
+		onDestroy(() => {
+			clearInterval(interval);
+		});
+	}
 
 	// Function to reset to initial state
 	function resetToInitialState() {
-		active = firstUserExists ? undefined : 1;
-		background = firstUserExists ? 'white' : '#242728';
+		active = publicEnv.SEASONS || publicEnv.DEMO ? 0 : firstUserExists ? undefined : 1;
+		background = publicEnv.SEASONS || publicEnv.DEMO ? '#242728' : firstUserExists ? 'white' : '#242728';
 	}
 
 	// Special case for the first user on fresh installation
@@ -119,27 +140,28 @@
 	/>
 
 	{#if active == undefined}
-		<!-- DEMO MODE -->
-		{#if publicEnv.DEMO == true}
+		{#if publicEnv.DEMO}
+			<!-- DEMO MODE -->
 			<div
-				class="absolute bottom-8 left-1/2 flex min-w-[350px] -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center rounded-xl bg-error-500 p-4 text-center text-white md:bottom-1"
+				class="absolute bottom-2 left-1/2 flex min-w-[350px] -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center rounded-xl bg-error-500 p-3 text-center text-white sm:bottom-12"
+				aria-live="polite"
+				aria-atomic="true"
 			>
-				<p class="text-2xl font-bold">SveltyCMS DEMO MODE</p>
-				<p>This site will reset every 10 min.</p>
+				<p class="text-2xl font-bold">{m.login_demo_title()}</p>
+				<p>{m.login_demo_message()}</p>
 				<p class="text-xl font-bold">
-					Next reset in: {timeRemaining.minutes}:{timeRemaining.seconds < 10 ? `0${timeRemaining.seconds}` : timeRemaining.seconds}
+					{m.login_demo_nextreset()}
+					{timeRemaining.minutes}:{timeRemaining.seconds < 10 ? `0${timeRemaining.seconds}` : timeRemaining.seconds}
 				</p>
 			</div>
 		{/if}
 
-		<!-- CSS Logo -->
+		<!-- CMS Logo -->
 		<SveltyCMSLogoFull />
 
 		<!-- Language Select -->
-		<div
-			class="absolute bottom-1/4 left-1/2 flex -translate-x-1/2 -translate-y-1/2 transform cursor-pointer items-center justify-center rounded-full dark:text-black"
-		>
-			<!-- Autocomplete input -->
+		<div class="absolute bottom-1/4 left-1/2 flex -translate-x-1/2 transform items-center justify-center rounded-full dark:text-black">
+			<!-- Autocomplete Language input -->
 			{#if publicEnv.AVAILABLE_SYSTEM_LANGUAGES.length > 5}
 				<input
 					id="languageAuto"
@@ -164,10 +186,10 @@
 					name="language"
 					bind:value={$systemLanguage}
 					aria-label="Select Language"
-					class="rounded-full border-2 border-white bg-[#242728] uppercase text-white focus:ring-2 focus:ring-blue-500 active:ring active:ring-blue-300"
+					class="rounded-full border-2 bg-[#242728] uppercase text-white focus:ring-2 focus:ring-blue-500"
 				>
 					{#each filteredLanguages as locale}
-						<option value={locale} selected={locale === _languageTag}>{locale.toUpperCase()}</option>
+						<option value={locale} class="uppercase">{locale.toUpperCase()}</option>
 					{/each}
 				</select>
 			{/if}

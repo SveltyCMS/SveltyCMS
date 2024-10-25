@@ -414,5 +414,8 @@
 	"mediaConfig_IMAGE_SIZE_helper": "サイトが生成する画像のサイズ。(デフォルト: {sm: 600, md: 900, lg: 1200}",
 	"mediaConfig_MEDIA_FOLDER_helper": "サイトのメディア ファイルが保存されるフォルダー。(デフォルト: 'mediaFiles')",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "メディア ファイルの形式と品質の設定。(デフォルト: 形式: 'オリジナル'、品質: 80)",
-	"mediaConfig_MEDIASERVER_URL_helper": "メディア サーバーの URL。(デフォルトは localhost です: '')"
+	"mediaConfig_MEDIASERVER_URL_helper": "メディア サーバーの URL。(デフォルトは localhost です: '')",
+	"login_demo_title": "SveltyCMS デモモード",
+	"login_demo_message": "このサイトは10分ごとにリセットされます。",
+	"login_demo_nextreset": "次回のリセットまで:"
 }

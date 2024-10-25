@@ -3330,6 +3330,30 @@ export const mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper = () => `ფორ�
 export const mediaConfig_MEDIASERVER_URL_helper = () => `მედია სერვერის URL. (ნაგულისხმევი არის ლოკალური ჰოსტი, როგორც: '')`
 
 
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_demo_title = () => `SveltyCMS დემო რეჟიმი`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_demo_message = () => `ეს საიტი გადაიტვირთება ყოველ 10 წუთში.`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_demo_nextreset = () => `შემდეგი გადატვირთვა:`
+
+
 export { signup_password } from "./en.js"
 
 export { modaledit_tokenemailaddress } from "./en.js"

@@ -414,5 +414,8 @@
 	"mediaConfig_IMAGE_SIZE_helper": "სურათების ზომები, რომლებსაც საიტი გამოიმუშავებს. (ნაგულისხმევი: {sm: 600, md: 900, lg: 1200}",
 	"mediaConfig_MEDIA_FOLDER_helper": "საქაღალდე, სადაც შეინახება საიტის მედია ფაილები. (ნაგულისხმევი: 'mediaFiles')",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "ფორმატის და ხარისხის პარამეტრები მედია ფაილებისთვის. (ნაგულისხმევი: ფორმატი: „ორიგინალი“, ხარისხი: 80)",
-	"mediaConfig_MEDIASERVER_URL_helper": "მედია სერვერის URL. (ნაგულისხმევი არის ლოკალური ჰოსტი, როგორც: '')"
+	"mediaConfig_MEDIASERVER_URL_helper": "მედია სერვერის URL. (ნაგულისხმევი არის ლოკალური ჰოსტი, როგორც: '')",
+	"login_demo_title": "SveltyCMS დემო რეჟიმი",
+	"login_demo_message": "ეს საიტი გადაიტვირთება ყოველ 10 წუთში.",
+	"login_demo_nextreset": "შემდეგი გადატვირთვა:"
 }

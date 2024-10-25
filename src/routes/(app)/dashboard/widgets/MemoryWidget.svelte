@@ -1,3 +1,25 @@
+<!--
+@file: src/routes/(app)/dashboard/widgets/MemoryWidget.svelte
+@description:  A reusable widget component for displaying memory usage information with improved rendering and error handling.
+
+This widget fetches and displays real-time memory usage data, including:
+- Total memory
+- Used memory
+- Free memory
+- Usage percentages
+
+Features:
+- Responsive doughnut chart visualization
+- Theme-aware rendering (light/dark mode support)
+- Real-time data updates
+- Customizable widget properties (size, position, etc.)
+- Improved error handling and data validation
+- Proper lifecycle management
+- Enhanced debugging and logging
+
+Usage:
+<MemoryWidget label="Memory Usage" />
+-->
 <script lang="ts">
 	import { onMount, onDestroy, getContext } from 'svelte';
 	import { writable, get } from 'svelte/store';

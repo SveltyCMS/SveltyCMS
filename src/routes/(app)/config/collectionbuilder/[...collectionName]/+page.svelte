@@ -33,7 +33,7 @@
 	const collectionName = $page.params.collectionName;
 
 	// Default widget data (tab1)
-	const name = $mode == 'edit' ? ($collectionValue ? $collectionValue.name : collectionName) : collectionName;
+	let name = $mode == 'edit' ? ($collectionValue ? $collectionValue.name : collectionName) : collectionName;
 
 	// Page title
 	let pageTitle: string;
@@ -57,6 +57,8 @@
 			pageTitle = pageTitle.replace(new RegExp(`\\b${highlightedPart}\\b`, 'g'), highlightedPart);
 		}
 	}
+
+	$: name = $mode == 'edit' ? ($collectionValue ? $collectionValue.name : collectionName) : $page.params.collectionName;
 
 	function handlePageTitleUpdate(e: CustomEvent<string>) {
 		highlightedPart = e.detail;

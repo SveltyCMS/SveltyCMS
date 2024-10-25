@@ -5,7 +5,7 @@
 Features:
 - Supports light/dark themes based on global theme settings
 - Customizable widget sizes with default and minimum size restrictions
- Accessible by keyboard and screen readers with proper aria-labels
+- Accessible by keyboard and screen readers with proper aria-labels
 - Responsive and optimized for performance
 - Uses efficient data fetching with cache-busting
 

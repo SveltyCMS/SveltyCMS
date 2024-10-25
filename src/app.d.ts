@@ -27,8 +27,11 @@ declare global {
 		// interface Platform {}
 		interface Locals {
 			user?: {
-				id: string;
+				_id: string; //mongodb
+				email: string;
 				role: string;
+				avatar?: string;
+				permissions: string[];
 				// Add other relevant user properties here
 			} | null;
 			collections?: any; // Replace 'any' with your actual Collections type if available

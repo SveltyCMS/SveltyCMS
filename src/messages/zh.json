@@ -414,5 +414,8 @@
 	"mediaConfig_IMAGE_SIZE_helper": "网站将生成的图像的大小。（默认值： {sm: 600, md: 900, lg: 1200}",
 	"mediaConfig_MEDIA_FOLDER_helper": "存储网站媒体文件的文件夹。（默认值：‘mediaFiles’）",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "媒体文件的格式和质量设置。（默认：格式：“原始”，质量：80）",
-	"mediaConfig_MEDIASERVER_URL_helper": "媒体服务器的 URL。（默认为 localhost：''）"
+	"mediaConfig_MEDIASERVER_URL_helper": "媒体服务器的 URL。（默认为 localhost：''）",
+	"login_demo_title": "SveltyCMS 演示模式",
+	"login_demo_message": "此站点每 10 分钟重置一次。",
+	"login_demo_nextreset": "下次重置时间为："
 }

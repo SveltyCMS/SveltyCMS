@@ -1,6 +1,6 @@
 <!-- 
 @files src/routes/(app)/config/collectionbuilder/[...collectionName]/tabs/CollectionWidget/tabsFields/Specific.svelte
-@description This component displays the specific tab fields.
+@description This component displays specific tab fields.
 -->
 
 <script lang="ts">
@@ -12,30 +12,25 @@
 
 	// Skeleton Stores
 	import { getModalStore } from '@skeletonlabs/skeleton';
-	const modalStore = getModalStore();
-
 	import { targetWidget } from '@stores/collectionStore';
 
-	// Get the keys of the widgets object
-	const widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
-	export let guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
+	const modalStore = getModalStore();
 
-	// Function to handle permission updates
-	function handleToggle(event: CustomEvent, property: string) {
+	// Define widget keys and excluded fields for specificity
+	const defaultFields = ['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width', 'permissions'];
+
+	// Reactive statements to derive widget-related data
+	$: currentWidgetName = $modalStore[0]?.value?.widget?.Name;
+	$: currentGuiSchema = currentWidgetName ? widgets[currentWidgetName]?.GuiSchema : null;
+	$: specificFields = currentGuiSchema ? Object.keys(currentGuiSchema).filter((key) => !defaultFields.includes(key)) : [];
+
+	/** Updates the target widget property */
+	function handleToggle(event: CustomEvent<boolean>, property: string) {
 		targetWidget.update((w) => {
 			w[property] = event.detail;
 			return w;
 		});
 	}
-
-	// Get current widget schema
-	$: currentWidgetName = $modalStore[0]?.value?.widget?.Name;
-	$: currentGuiSchema = currentWidgetName ? widgets[currentWidgetName]?.GuiSchema : null;
-
-	// Get specific fields (excluding default fields)
-	const defaultFields = ['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width', 'permissions'];
-
-	$: specificFields = currentGuiSchema ? Object.keys(currentGuiSchema).filter((key) => !defaultFields.includes(key)) : [];
 </script>
 
 {#if $modalStore[0] && currentGuiSchema && specificFields.length > 0}

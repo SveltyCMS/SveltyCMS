@@ -17467,6 +17467,132 @@ export const mediaConfig_MEDIASERVER_URL_helper = (params = {}, options = {}) =>
  * @returns {string}
  */
 /* @__NO_SIDE_EFFECTS__ */
+export const login_demo_title = (params = {}, options = {}) => {
+	return {
+		da: da.login_demo_title,
+		de: de.login_demo_title,
+		en: en.login_demo_title,
+		es: es.login_demo_title,
+		fi: fi.login_demo_title,
+		fr: fr.login_demo_title,
+		hi: hi.login_demo_title,
+		it: it.login_demo_title,
+		ja: ja.login_demo_title,
+		ka: ka.login_demo_title,
+		ne: ne.login_demo_title,
+		nl: nl.login_demo_title,
+		no: no.login_demo_title,
+		pl: pl.login_demo_title,
+		pt: pt.login_demo_title,
+		sl: sl.login_demo_title,
+		sr: sr.login_demo_title,
+		sv: sv.login_demo_title,
+		tr: tr.login_demo_title,
+		uk: uk.login_demo_title,
+		ur: ur.login_demo_title,
+		zh: zh.login_demo_title
+	}[options.languageTag ?? languageTag()]()
+}
+
+
+
+/**
+ * This message has been compiled by [inlang paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs).
+ *
+ * - Don't edit the message's code. Use [Sherlock (VS Code extension)](https://inlang.com/m/r7kp499g/app-inlang-ideExtension),
+ *   the [web editor](https://inlang.com/m/tdozzpar/app-inlang-finkLocalizationEditor) instead, or edit the translation files manually.
+ * 
+ * - The params are NonNullable<unknown> because the inlang SDK does not provide information on the type of a param (yet).
+ * 
+ * @param {{}} params
+ * @param {{ languageTag?: "en" | "da" | "de" | "es" | "fi" | "fr" | "hi" | "it" | "ja" | "ka" | "ne" | "nl" | "no" | "pl" | "pt" | "sl" | "sr" | "sv" | "tr" | "ur" | "uk" | "zh" }} options
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_demo_message = (params = {}, options = {}) => {
+	return {
+		da: da.login_demo_message,
+		de: de.login_demo_message,
+		en: en.login_demo_message,
+		es: es.login_demo_message,
+		fi: fi.login_demo_message,
+		fr: fr.login_demo_message,
+		hi: hi.login_demo_message,
+		it: it.login_demo_message,
+		ja: ja.login_demo_message,
+		ka: ka.login_demo_message,
+		ne: ne.login_demo_message,
+		nl: nl.login_demo_message,
+		no: no.login_demo_message,
+		pl: pl.login_demo_message,
+		pt: pt.login_demo_message,
+		sl: sl.login_demo_message,
+		sr: sr.login_demo_message,
+		sv: sv.login_demo_message,
+		tr: tr.login_demo_message,
+		uk: uk.login_demo_message,
+		ur: ur.login_demo_message,
+		zh: zh.login_demo_message
+	}[options.languageTag ?? languageTag()]()
+}
+
+
+
+/**
+ * This message has been compiled by [inlang paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs).
+ *
+ * - Don't edit the message's code. Use [Sherlock (VS Code extension)](https://inlang.com/m/r7kp499g/app-inlang-ideExtension),
+ *   the [web editor](https://inlang.com/m/tdozzpar/app-inlang-finkLocalizationEditor) instead, or edit the translation files manually.
+ * 
+ * - The params are NonNullable<unknown> because the inlang SDK does not provide information on the type of a param (yet).
+ * 
+ * @param {{}} params
+ * @param {{ languageTag?: "en" | "da" | "de" | "es" | "fi" | "fr" | "hi" | "it" | "ja" | "ka" | "ne" | "nl" | "no" | "pl" | "pt" | "sl" | "sr" | "sv" | "tr" | "ur" | "uk" | "zh" }} options
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_demo_nextreset = (params = {}, options = {}) => {
+	return {
+		da: da.login_demo_nextreset,
+		de: de.login_demo_nextreset,
+		en: en.login_demo_nextreset,
+		es: es.login_demo_nextreset,
+		fi: fi.login_demo_nextreset,
+		fr: fr.login_demo_nextreset,
+		hi: hi.login_demo_nextreset,
+		it: it.login_demo_nextreset,
+		ja: ja.login_demo_nextreset,
+		ka: ka.login_demo_nextreset,
+		ne: ne.login_demo_nextreset,
+		nl: nl.login_demo_nextreset,
+		no: no.login_demo_nextreset,
+		pl: pl.login_demo_nextreset,
+		pt: pt.login_demo_nextreset,
+		sl: sl.login_demo_nextreset,
+		sr: sr.login_demo_nextreset,
+		sv: sv.login_demo_nextreset,
+		tr: tr.login_demo_nextreset,
+		uk: uk.login_demo_nextreset,
+		ur: ur.login_demo_nextreset,
+		zh: zh.login_demo_nextreset
+	}[options.languageTag ?? languageTag()]()
+}
+
+
+
+/**
+ * This message has been compiled by [inlang paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs).
+ *
+ * - Don't edit the message's code. Use [Sherlock (VS Code extension)](https://inlang.com/m/r7kp499g/app-inlang-ideExtension),
+ *   the [web editor](https://inlang.com/m/tdozzpar/app-inlang-finkLocalizationEditor) instead, or edit the translation files manually.
+ * 
+ * - The params are NonNullable<unknown> because the inlang SDK does not provide information on the type of a param (yet).
+ * 
+ * @param {{}} params
+ * @param {{ languageTag?: "en" | "da" | "de" | "es" | "fi" | "fr" | "hi" | "it" | "ja" | "ka" | "ne" | "nl" | "no" | "pl" | "pt" | "sl" | "sr" | "sv" | "tr" | "ur" | "uk" | "zh" }} options
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
 export const signup_password = (params = {}, options = {}) => {
 	return {
 		da: da.signup_password,

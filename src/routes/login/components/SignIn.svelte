@@ -7,12 +7,11 @@
 
 	import type { PageData } from '../$types';
 	import { createEventDispatcher } from 'svelte';
-	const dispatch = createEventDispatcher();
 
 	// Function to handle the "Back" button click
 	function handleBack(event: Event) {
 		event.stopPropagation();
-		dispatch('back');
+		active = undefined;
 	}
 
 	// Superforms
@@ -539,7 +538,7 @@
 						<input type="email" name="email" bind:value={$resetForm.email} hidden />
 
 						<div class="mt-4 flex items-center justify-between">
-							<button type="submit" class="variant-filled-surface btn ml-2 mt-6">
+							<button type="submit" aria-label={m.signin_savenewpassword()} class="variant-filled-surface btn ml-2 mt-6">
 								{m.signin_savenewpassword()}
 								<!-- Loading indicators -->
 								{#if $resetDelayed}
@@ -550,8 +549,8 @@
 							<!-- Back button  -->
 							<button
 								type="button"
+								aria-label={m.button_back()}
 								class="variant-filled-surface btn-icon"
-								aria-label="Back"
 								on:click={() => {
 									PWforgot = false;
 									PWreset = false;
@@ -563,7 +562,15 @@
 					</form>
 				{/if}
 			{:else}
-				<p class="text-center text-lg text-gray-600">No users exist yet. Please sign up to create the first admin account.</p>
+				<button
+					on:click={() => (active = 0)}
+					type="button"
+					aria-label="Signup"
+					class="variant-ghost btn mt-2 w-full flex-col justify-center text-surface-500"
+				>
+					<p class="font-bold text-error-500">No users exist yet.</p>
+					<p>Please sign up to create the <span class="font-bold text-tertiary-500">first admin </span> account.</p>
+				</button>
 			{/if}
 		</div>
 	{/if}
