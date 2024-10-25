@@ -32,7 +32,8 @@
 	import PermissionGuard from '@components/PermissionGuard.svelte';
 
 	import type { PermissionConfig } from '@src/auth/permissionCheck';
-	import { PermissionAction } from '@root/config/permissions';
+	
+	import { PermissionAction } from "@root/config/permissionTypes";
 
 	// Define permissions for different contexts
 	const modaleEditFormConfig: PermissionConfig = {

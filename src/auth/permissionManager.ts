@@ -14,7 +14,8 @@ import { error } from '@sveltejs/kit';
 import { getCollectionFiles } from '@src/routes/api/getCollections/getCollectionFiles';
 
 // Permissions
-import { permissions as configPermissions, PermissionAction, PermissionType, setPermissions } from '@root/config/permissions';
+import { permissions as configPermissions, setPermissions } from '@root/config/permissions';
+import { PermissionAction, PermissionType } from "@root/config/permissionTypes";
 import type { Permission as AuthPermission } from './types';
 import type { PermissionConfig } from './permissionCheck';
 

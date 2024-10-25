@@ -11,7 +11,7 @@
  * Imported throughout the auth system to ensure type consistency and safety.
  */
 
-import { PermissionAction as ConfigPermissionAction, PermissionType } from '../../config/permissions';
+import { PermissionAction as ConfigPermissionAction, PermissionType } from '../../config/permissionTypes';
 
 // Type aliases for identifiers
 export type RoleId = string;

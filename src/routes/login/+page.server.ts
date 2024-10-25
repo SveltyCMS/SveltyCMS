@@ -63,7 +63,7 @@ function calculatePasswordStrength(password: string): number {
 async function fetchAndRedirectToFirstCollection() {
 	try {
 		const collections = await getCollections();
-		logger.info('Fetched collections:', collections);
+		// logger.info('Fetched collections:', collections);
 		if (collections && Object.keys(collections).length > 0) {
 			const firstCollectionKey = Object.keys(collections)[0];
 			const firstCollection = collections[firstCollectionKey];

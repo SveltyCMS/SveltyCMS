@@ -53,8 +53,8 @@ export async function generateCollectionFieldTypes(): Promise<void> {
 		}
 
 		let types = await fs.readFile(TYPES_FILE, 'utf-8');
-		types = types.replace(/\n*export\s+type\s+CollectionContent\s?=\s?.*?};/gms, '');
-		types += `\nexport type CollectionContent = ${JSON.stringify(collections, null, 2).replace(/"(\w+)":/g, '$1:')};`;
+		types = types.replace(/export\s+type\s+CollectionContent\s?=\s?.*?};/gms, '');
+		types += `\nexport type CollectionContent = ${JSON.stringify(collections, null, 2).replace(/"(\w+)":/g, '$1:')};\n`;
 		console.debug("Generate Types: ", types);
 
 		await fs.writeFile(TYPES_FILE, types);
@@ -85,7 +85,7 @@ async function processCollectionFile(content: string): Promise<{ fields: string[
 		module: ts.ModuleKind.ESNext
 	});
 
-	const data = await import('data:text/javascript;base64,' + toBase64(transpiledContent));
+	const data = await import('data:text/javascript;base64,' + toBase64(transpiledContent));  /* @vite-ignore */
 
 	return {
 		fields: data.schema.fields.map((field: any) => field.db_fieldName || field.label)

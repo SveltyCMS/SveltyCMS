@@ -18,7 +18,6 @@ import fs from 'fs/promises';
 import crypto from 'crypto';
 import path from 'path';
 import * as ts from 'typescript';
-import { publicEnv } from '../../../../config/public';
 
 // Cache for transpiled modules to avoid recompiling unchanged files
 const cache = new Map<string, string>();
