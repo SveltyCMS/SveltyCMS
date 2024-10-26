@@ -30,10 +30,10 @@ import { checkUserPermission } from '@src/auth/permissionCheck';
 import { logger } from '@utils/logger';
 
 // Input validation
-import { z } from 'zod';
+import { object, string, type ValiError } from 'valibot';
 
-const deleteTokensSchema = z.object({
-	user_id: z.string()
+const deleteTokensSchema = object({
+	user_id: string()
 });
 
 export const DELETE: RequestHandler = async ({ request, locals }) => {
@@ -69,9 +69,10 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 			message: 'All tokens deleted successfully'
 		});
 	} catch (err) {
-		if (err instanceof z.ZodError) {
-			logger.warn('Invalid input for deleteTokens API:', err.errors);
-			throw error(400, 'Invalid input: ' + err.errors.map((e) => e.message).join(', '));
+		if ((err as ValiError).issues) {
+			const valiError = err as ValiError;
+			logger.warn('Invalid input for deleteTokens API:', valiError.issues);
+			throw error(400, 'Invalid input: ' + valiError.issues.map((issue) => issue.message).join(', '));
 		}
 		logger.error('Error in deleteTokens API:', err);
 		throw error(500, 'Failed to delete tokens');

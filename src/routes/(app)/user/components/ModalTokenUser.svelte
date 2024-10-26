@@ -44,12 +44,12 @@ Features:
 
 	// Superforms
 	import { superForm } from 'sveltekit-superforms/client';
-	import { zod } from 'sveltekit-superforms/adapters';
+	import { valibot } from 'sveltekit-superforms/adapters';
 	import { addUserTokenSchema } from '@utils/formSchemas';
 
 	const { form, allErrors, errors, enhance } = superForm(addUserForm as Record<string, unknown>, {
 		id: 'addUser',
-		validators: zod(addUserTokenSchema),
+		validators: valibot(addUserTokenSchema),
 		applyAction: true,
 		taintedMessage: '',
 		dataType: 'json',

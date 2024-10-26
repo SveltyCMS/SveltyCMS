@@ -15,7 +15,7 @@
 	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 	import { superForm } from 'sveltekit-superforms/client';
 	import { signUpFormSchema } from '@utils/formSchemas';
-	import { zod } from 'sveltekit-superforms/adapters';
+	import { valibot } from 'sveltekit-superforms/adapters';
 
 	// Components
 	import SignupIcon from './icons/SignupIcon.svelte';
@@ -46,7 +46,7 @@
 
 	const { form, constraints, allErrors, errors, enhance, delayed } = superForm<any>(FormSchemaSignUp, {
 		id: 'signup',
-		validators: firstUserExists ? zod(signUpFormSchema) : zod(signUpFormSchema.innerType().omit({ token: true })),
+		validators: firstUserExists ? valibot(signUpFormSchema) : valibot(signUpFormSchema),
 		// Clear form on success.
 		resetForm: true,
 		// Prevent page invalidation, which would clear the other form when the load function executes again.
@@ -58,7 +58,6 @@
 
 		onSubmit: ({ cancel }) => {
 			// handle login form submission
-
 			if ($allErrors.length > 0) cancel();
 		},
 

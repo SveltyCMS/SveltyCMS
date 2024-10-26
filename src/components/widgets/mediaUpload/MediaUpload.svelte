@@ -15,12 +15,12 @@
 	import { mode, collectionValue } from '@stores/collectionStore';
 
 	// Components
-	import type { MediaImage } from '@utils/media/mediaModels';
+	import type { MediaImage, Thumbnail } from '@utils/media/mediaModels';
 	import FileInput from '@components/system/inputs/FileInput.svelte';
 
 	let isFlipped = false; // State variable to track flip button
 
-	export let field: FieldType;
+	export let field: FieldType & { path: string };
 	export let value: File | MediaImage = $collectionValue[getFieldName(field)]; // pass file directly from imageArray
 
 	let _data: File | MediaImage | undefined = value;
@@ -30,37 +30,45 @@
 	$: updated = _data !== value;
 
 	// Define the validation schema for this widget
-	import * as z from 'zod';
+	import { object, string, number, union, instance, custom, pipe, record, type Input, type Output, type ValiError } from 'valibot';
 
-	const widgetSchema = z.union([
-		z
-			.instanceof(File)
-			.refine(
-				(file) => ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif', 'image/svg+xml'].includes(file.type),
-				'Invalid file format'
-			),
-		z.object({
-			_id: z.string(),
-			name: z.string(),
-			type: z.string(),
-			size: z.number(),
-			path: z.string(),
-			thumbnail: z.object({
-				url: z.string()
-			}),
-			lastModified: z.number()
-		})
-	]);
+	const validImageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif', 'image/svg+xml'];
+
+	const fileSchema = pipe(
+		instance(File),
+		custom((input: File) => validImageTypes.includes(input.type), 'Invalid file format')
+	);
+
+	const thumbnailSchema = object({
+		width: number(),
+		height: number(),
+		url: string()
+	});
+
+	const mediaImageSchema = object({
+		_id: string(),
+		name: string(),
+		type: string(),
+		size: number(),
+		path: string(),
+		thumbnails: record(string(), thumbnailSchema),
+		createdAt: number(),
+		updatedAt: number()
+	});
+
+	const widgetSchema = union([fileSchema, mediaImageSchema]);
+	type WidgetSchemaType = Input<typeof widgetSchema>;
 
 	// Generic validation function that uses the provided schema to validate the input
-	function validateSchema(schema: z.ZodSchema, data: any): string | null {
+	function validateSchema(data: any): string | null {
 		try {
-			schema.parse(data);
+			widgetSchema.parse(data);
 			validationStore.clearError(getFieldName(field));
 			return null; // No error
 		} catch (error) {
-			if (error instanceof z.ZodError) {
-				const errorMessage = error.errors[0]?.message || 'Invalid input';
+			if ((error as ValiError<typeof widgetSchema>).issues) {
+				const valiError = error as ValiError<typeof widgetSchema>;
+				const errorMessage = valiError.issues[0]?.message || 'Invalid input';
 				validationStore.setError(getFieldName(field), errorMessage);
 				return errorMessage;
 			}
@@ -72,7 +80,7 @@
 	function validateInput() {
 		if (debounceTimeout) clearTimeout(debounceTimeout);
 		debounceTimeout = window.setTimeout(() => {
-			validationError = validateSchema(widgetSchema, _data);
+			validationError = validateSchema(_data);
 		}, 300);
 	}
 
@@ -92,6 +100,10 @@
 		// If not updated value is not changed and is MediaImage type so send back only id
 		return updated || $mode === 'create' ? _data : { _id: (value as MediaImage)?._id };
 	};
+
+	function getTimestamp(date: Date | number): number {
+		return typeof date === 'number' ? date : date.getTime();
+	}
 </script>
 
 {#if !_data}
@@ -119,7 +131,7 @@
 			<div class="flex items-center justify-between">
 				{#if !isFlipped}
 					<img
-						src={_data instanceof File ? URL.createObjectURL(_data) : _data.thumbnail.url}
+						src={_data instanceof File ? URL.createObjectURL(_data) : _data.thumbnails.thumbnail.url}
 						alt=""
 						class="col-span-11 m-auto max-h-[200px] max-w-[500px] rounded"
 					/>
@@ -130,9 +142,13 @@
 						<p class="">Path:</p>
 						<p class="font-bold text-tertiary-500 dark:text-primary-500">{_data.path}</p>
 						<p class="">{m.widget_ImageUpload_Uploaded()}</p>
-						<p class="font-bold text-tertiary-500 dark:text-primary-500">{convertTimestampToDateString(_data.lastModified)}</p>
+						<p class="font-bold text-tertiary-500 dark:text-primary-500">
+							{convertTimestampToDateString(getTimestamp(_data instanceof File ? _data.lastModified : _data.createdAt))}
+						</p>
 						<p class="">{m.widget_ImageUpload_LastModified()}</p>
-						<p class="font-bold text-tertiary-500 dark:text-primary-500">{convertTimestampToDateString(_data.lastModified)}</p>
+						<p class="font-bold text-tertiary-500 dark:text-primary-500">
+							{convertTimestampToDateString(getTimestamp(_data instanceof File ? _data.lastModified : _data.updatedAt))}
+						</p>
 					</div>
 				{/if}
 

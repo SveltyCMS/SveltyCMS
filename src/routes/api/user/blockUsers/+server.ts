@@ -12,7 +12,7 @@
  * - Session invalidation for blocked users
  * - Admin count check to ensure at least one admin remains
  * - Permission checking
- * - Input validation using Zod
+ * - Input validation using Valibot
  * - Error handling and logging
  *
  * Usage:
@@ -33,12 +33,12 @@ import { checkUserPermission } from '@src/auth/permissionCheck';
 import { logger } from '@utils/logger';
 
 // Input validation
-import { z } from 'zod';
+import { array, object, string, type ValiError } from 'valibot';
 
-const blockUsersSchema = z.array(
-	z.object({
-		id: z.string(),
-		role: z.string()
+const blockUsersSchema = array(
+	object({
+		id: string(),
+		role: string()
 	})
 );
 
@@ -91,9 +91,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			message: `${users.length} users blocked successfully`
 		});
 	} catch (err) {
-		if (err instanceof z.ZodError) {
-			logger.warn('Invalid input for blockUsers API:', err.errors);
-			throw error(400, 'Invalid input: ' + err.errors.map((e) => e.message).join(', '));
+		if ((err as ValiError).issues) {
+			const valiError = err as ValiError;
+			logger.warn('Invalid input for blockUsers API:', valiError.issues);
+			throw error(400, 'Invalid input: ' + valiError.issues.map((issue) => issue.message).join(', '));
 		}
 		logger.error('Error in blockUsers API:', err);
 		throw error(500, 'Failed to block users');

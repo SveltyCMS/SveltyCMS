@@ -17,6 +17,7 @@
  */
 
 import type { PageServerLoad } from './$types';
+import { error } from '@sveltejs/kit';
 
 // Auth
 import type { User, Role, Token } from '@src/auth/types';
@@ -24,7 +25,7 @@ import type { User, Role, Token } from '@src/auth/types';
 // Superforms
 import { superValidate } from 'sveltekit-superforms/server';
 import { addUserTokenSchema, changePasswordSchema } from '@utils/formSchemas';
-import { zod } from 'sveltekit-superforms/adapters';
+import { valibot } from 'sveltekit-superforms/adapters';
 
 // System Logger
 import { logger } from '@utils/logger';
@@ -38,8 +39,8 @@ export const load: PageServerLoad = async (event) => {
 		const roles: Role[] = event.locals.roles || [];
 		const isFirstUser: boolean = event.locals.isFirstUser;
 		const hasManageUsersPermission: boolean = event.locals.hasManageUsersPermission;
-		const addUserForm = await superValidate(event, zod(addUserTokenSchema));
-		const changePasswordForm = await superValidate(event, zod(changePasswordSchema));
+		const addUserForm = await superValidate(event, valibot(addUserTokenSchema));
+		const changePasswordForm = await superValidate(event, valibot(changePasswordSchema));
 
 		// Prepare user object for return, ensuring _id is a string
 		const safeUser = user

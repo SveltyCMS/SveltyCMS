@@ -17,7 +17,7 @@ import { RateLimiter } from 'sveltekit-rate-limiter/server';
 // Superforms
 import { fail, message, superValidate } from 'sveltekit-superforms';
 import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, signUpOAuthFormSchema } from '@utils/formSchemas';
-import { zod } from 'sveltekit-superforms/adapters';
+import { valibot } from 'sveltekit-superforms/adapters';
 
 // Auth
 import { auth, googleAuth, initializationPromise } from '@src/databases/db';
@@ -220,12 +220,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		}
 
 		// SignIn
-		const loginForm = await superValidate(zod(loginFormSchema));
-		const forgotForm = await superValidate(zod(forgotFormSchema));
-		const resetForm = await superValidate(zod(resetFormSchema));
-		const signUpForm = firstUserExists
-			? await superValidate(zod(signUpFormSchema.innerType().omit({ token: true })))
-			: await superValidate(zod(signUpFormSchema));
+		const loginForm = await superValidate(valibot(loginFormSchema));
+		const forgotForm = await superValidate(valibot(forgotFormSchema));
+		const resetForm = await superValidate(valibot(resetFormSchema));
+		const signUpForm = await superValidate(valibot(signUpFormSchema));
 
 		// Return Data & Forms in load
 		return {
@@ -242,10 +240,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		// Return a minimal set of data to allow the page to render
 		return {
 			firstUserExists: false,
-			loginForm: await superValidate(zod(loginFormSchema)),
-			forgotForm: await superValidate(zod(forgotFormSchema)),
-			resetForm: await superValidate(zod(resetFormSchema)),
-			signUpForm: await superValidate(zod(signUpFormSchema)),
+			loginForm: await superValidate(valibot(loginFormSchema)),
+			forgotForm: await superValidate(valibot(forgotFormSchema)),
+			resetForm: await superValidate(valibot(resetFormSchema)),
+			signUpForm: await superValidate(valibot(signUpFormSchema)),
 			error: 'Authentication system is not available. Please try again later.'
 		};
 	}
@@ -272,7 +270,7 @@ export const actions: Actions = {
 			return fail(500, { message: 'An error occurred while processing your request.' });
 		}
 
-		const signUpForm = await superValidate(event, zod(signUpFormSchema));
+		const signUpForm = await superValidate(event, valibot(signUpFormSchema));
 
 		// Validate
 		const username = signUpForm.data.username;
@@ -342,7 +340,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			const signUpOAuthForm = await superValidate(event, zod(signUpOAuthFormSchema));
+			const signUpOAuthForm = await superValidate(event, valibot(signUpOAuthFormSchema));
 			logger.debug(`signUpOAuthForm: ${JSON.stringify(signUpOAuthForm)}`);
 
 			const lang = signUpOAuthForm.data.lang;
@@ -391,7 +389,7 @@ export const actions: Actions = {
 			return fail(429, { message: 'Too many requests. Please try again later.' });
 		}
 
-		const signInForm = await superValidate(event, zod(loginFormSchema));
+		const signInForm = await superValidate(event, valibot(loginFormSchema));
 
 		// Validate
 		if (!signInForm.valid) return fail(400, { signInForm });
@@ -423,7 +421,7 @@ export const actions: Actions = {
 			return fail(429, { message: 'Too many requests. Please try again later.' });
 		}
 
-		const pwforgottenForm = await superValidate(event, zod(forgotFormSchema));
+		const pwforgottenForm = await superValidate(event, valibot(forgotFormSchema));
 		logger.debug(`pwforgottenForm: ${JSON.stringify(pwforgottenForm)}`);
 
 		// Validate
@@ -488,7 +486,7 @@ export const actions: Actions = {
 			return fail(429, { message: 'Too many requests. Please try again later.' });
 		}
 
-		const pwresetForm = await superValidate(event, zod(resetFormSchema));
+		const pwresetForm = await superValidate(event, valibot(resetFormSchema));
 
 		// Validate
 		const password = pwresetForm.data.password;

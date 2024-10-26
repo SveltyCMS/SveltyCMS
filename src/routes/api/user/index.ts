@@ -27,7 +27,7 @@ import { json, type RequestHandler } from '@sveltejs/kit';
 import { auth } from '@src/databases/db';
 import { superValidate } from 'sveltekit-superforms/server';
 import { addUserTokenSchema } from '@utils/formSchemas';
-import { zod } from 'sveltekit-superforms/adapters';
+import { valibot } from 'sveltekit-superforms/adapters';
 import { error } from '@sveltejs/kit';
 // System Logger
 import { logger } from '@utils/logger';
@@ -56,7 +56,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			throw error(500, 'Internal Server Error');
 		}
 
-		const addUserForm = await superValidate(request, zod(addUserTokenSchema));
+		const addUserForm = await superValidate(request, valibot(addUserTokenSchema));
 		if (!addUserForm.valid) {
 			logger.warn('Invalid form data received');
 			return json({ form: addUserForm, message: 'Invalid form data' }, { status: 400 });
@@ -65,7 +65,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const { email, role, expiresIn } = addUserForm.data;
 		logger.info('Received request to create user', { email, role });
 
-		const expirationTimes = {
+		const expirationTimes: Record<string, number> = {
 			'2 hrs': 7200,
 			'12 hrs': 43200,
 			'2 days': 172800,
@@ -85,7 +85,8 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		const newUser = await auth.createUser({ email, role, lastAuthMethod: 'password', isRegistered: false });
-		const token = await auth.createToken(newUser._id, expirationTime * 1000);
+		const expiresAt = new Date(Date.now() + expirationTime * 1000);
+		const token = await auth.createToken(newUser._id, expiresAt);
 
 		logger.info('User created successfully', { userId: newUser._id });
 
@@ -96,7 +97,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		logger.error('Error creating user', { error: errorMessage });
-		return json({ success: false, error: `Error creating user: ${error.message}` }, { status: 500 });
+		return json({ success: false, error: `Error creating user: ${errorMessage}` }, { status: 500 });
 	}
 };
 

@@ -1,150 +1,147 @@
 /**
  * @file: src/utils/formSchemas.ts
- * @description: Defines Zod schemas for various forms used in the application.
+ * @description: Defines Valibot schemas for various forms used in the application.
  *
- * This file contains:
- * - Reusable schema definitions for common fields like username, email, and password.
- * - Form-specific schemas for different functionalities such as login, signup, password reset, etc.
- *
- * Key schemas include:
- * - loginFormSchema: For user login
- * - forgotFormSchema: For initiating password reset
- * - resetFormSchema: For setting a new password
- * - signUpFormSchema: For user registration
- * - changePasswordSchema: For changing user password
- * - addUserSchema: For adding new users (likely admin functionality)
- *
- * The schemas use internationalized error messages from ParaglideJS.
- *
- * @requires zod - For schema definition and validation
+ * @requires valibot - For schema definition and validation
  * @requires @root/config/public - For accessing public environment variables
  * @requires @src/paraglide/messages - For internationalized error messages
- *
- * @constant MIN_PASSWORD_LENGTH - Minimum required password length, set from environment or defaulting to 8
  */
 
 import { publicEnv } from '@root/config/public';
 
-import { z } from 'zod';
-
-const MIN_PASSWORD_LENGTH = publicEnv.PASSWORD_STRENGTH || 8;
+import { string, boolean, object, optional, minLength, maxLength, email as emailValidator, regex, pipe, custom, type Type } from 'valibot';
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
 
-// Define re-usable Schemas
-const username = z
-	.string({ required_error: m.formSchemas_usernameRequired() })
-	.regex(/^[a-zA-Z0-9@$!%*#]+$/, { message: m.formSchemas_usernameregex() })
-	.min(2, { message: m.formSchemas_username_min() })
-	.max(24, { message: m.formSchemas_username_max() })
-	.trim();
+const MIN_PASSWORD_LENGTH = publicEnv.PASSWORD_STRENGTH || 8;
 
-const email = z
-	.string({ required_error: m.formSchemas_EmailisRequired() })
-	.email({ message: m.formSchemas_Emailvalid() })
-	.transform((value) => value.toLowerCase()); // Convert email to lowercase before validation
+// Reusable Field-Level Schemas with `pipe`
+const usernameSchema = pipe(
+	string(),
+	minLength(2, m.formSchemas_username_min()),
+	maxLength(24, m.formSchemas_username_max()),
+	regex(/^[a-zA-Z0-9@$!%*#]+$/, m.formSchemas_usernameregex())
+);
 
-const password = z
-	.string({ required_error: m.formSchemas_PasswordisRequired() })
-	.min(MIN_PASSWORD_LENGTH)
-	.regex(new RegExp(`^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{${MIN_PASSWORD_LENGTH},}$`), {
-		message: m.formSchemas_PasswordMessage({ passwordStrength: MIN_PASSWORD_LENGTH })
-	})
-	.trim();
+const emailSchema = pipe(string(), emailValidator(m.formSchemas_Emailvalid()));
 
-const confirm_password = z
-	.string({ required_error: m.formSchemas_PasswordisRequired() })
-	.min(MIN_PASSWORD_LENGTH)
-	.regex(new RegExp(`^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{${MIN_PASSWORD_LENGTH},}$`), {
-		message: m.formSchemas_PasswordMessage({ passwordStrength: MIN_PASSWORD_LENGTH })
-	})
-	.trim();
+const passwordSchema = pipe(
+	string(),
+	minLength(MIN_PASSWORD_LENGTH, m.formSchemas_PasswordMessage({ passwordStrength: MIN_PASSWORD_LENGTH })),
+	regex(
+		new RegExp(`^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{${MIN_PASSWORD_LENGTH},}$`),
+		m.formSchemas_PasswordMessage({ passwordStrength: MIN_PASSWORD_LENGTH })
+	)
+);
 
-const role = z.string();
+const confirmPasswordSchema = string();
+const roleSchema = string();
+const tokenSchema = pipe(string(), minLength(16, m.formSchemas_Emailvalid()));
 
-const token = z.string().min(16); //registration user token
+// Form Schemas------------------------------------
 
-// Actual Form Schemas------------------------------------
-
-// SignIn Schema ------------------------------------
-export const loginFormSchema = z.object({
-	email,
-	password,
-	isToken: z.boolean()
+// Login Form Schema
+export const loginFormSchema = object({
+	email: emailSchema,
+	password: passwordSchema,
+	isToken: boolean()
 });
 
-// SignIn Forgotten Password ------------------------------------
-export const forgotFormSchema = z.object({
-	email: z.string({ required_error: m.formSchemas_EmailisRequired() }).email({ message: m.formSchemas_Emailvalid() })
-	// lang: z.string() // used for svelty-email
+// Forgot Password Form Schema
+export const forgotFormSchema = object({
+	email: emailSchema
 });
 
-// SignIn Reset Password ------------------------------------
-interface SignInResetFormData {
+// Reset Password Form Schema
+const resetFormSchemaBase = object({
+	password: passwordSchema,
+	confirm_password: confirmPasswordSchema,
+	token: tokenSchema,
+	email: emailSchema
+});
+
+type ResetFormType = {
 	password: string;
 	confirm_password: string;
 	token: string;
-	// lang: string;
-}
-export const resetFormSchema = z
-	.object({
-		password,
-		confirm_password,
-		token,
-		email
-		//lang: z.string(), // used for svelty-email
-	})
-	.refine((data: SignInResetFormData) => data.password === data.confirm_password, m.formSchemas_Passwordmatch());
+	email: string;
+};
 
-// Sign Up User ------------------------------------
-export const signUpFormSchema = z
-	.object({
-		username,
-		email,
-		password,
-		confirm_password,
-		token: z.string().optional() // Make it optional if it's not always required
-	})
-	.refine((data) => data.password === data.confirm_password, {
-		message: m.formSchemas_Passwordmatch(),
-		path: ['confirm_password'] // Set error on confirm_password field
-	});
+export const resetFormSchema = pipe(
+	resetFormSchemaBase,
+	custom<ResetFormType>((input) => input.password === input.confirm_password, m.formSchemas_Passwordmatch())
+);
 
-// Google Oauth token ------------------------------------
-export const signUpOAuthFormSchema = z.object({
-	// username
-	// token
-	lang: z.string()
+// Sign Up User Form Schema
+const signUpFormSchemaBase = object({
+	username: usernameSchema,
+	email: emailSchema,
+	password: passwordSchema,
+	confirm_password: confirmPasswordSchema,
+	token: optional(string())
 });
 
-// Validate New User Token ------------------------------------
-export const addUserTokenSchema = z.object({
-	email,
-	role,
-	// password: z.string(),
-	expiresIn: z.string(),
-	expiresInLabel: z.string()
+type SignUpFormType = {
+	username: string;
+	email: string;
+	password: string;
+	confirm_password: string;
+	token?: string;
+};
+
+export const signUpFormSchema = pipe(
+	signUpFormSchemaBase,
+	custom<SignUpFormType>((input) => input.password === input.confirm_password, m.formSchemas_Passwordmatch())
+);
+
+// Google OAuth Token Schema
+export const signUpOAuthFormSchema = object({
+	lang: string()
 });
 
-// Change Password ------------------------------------
-export const changePasswordSchema = z
-	.object({
-		password,
-		confirm_password
-	})
-	.refine((data) => data.password === data.confirm_password, {
-		message: m.formSchemas_Passwordmatch(),
-		path: ['confirmPassword']
-	});
-
-// Widget Email Schema ------------------------------------
-export const widgetEmailSchema = z.object({
-	email
+// Validate New User Token Schema
+export const addUserTokenSchema = object({
+	email: emailSchema,
+	role: roleSchema,
+	expiresIn: string(),
+	expiresInLabel: string()
 });
 
-// Add User Schema ------------------------------------
-export const addUserSchema = z.object({
-	email,
-	role
+// Change Password Form Schema
+const changePasswordSchemaBase = object({
+	password: passwordSchema,
+	confirm_password: confirmPasswordSchema
 });
+
+type ChangePasswordType = {
+	password: string;
+	confirm_password: string;
+};
+
+export const changePasswordSchema = pipe(
+	changePasswordSchemaBase,
+	custom<ChangePasswordType>((input) => input.password === input.confirm_password, m.formSchemas_Passwordmatch())
+);
+
+// Widget Email Schema
+export const widgetEmailSchema = object({
+	email: emailSchema
+});
+
+// Add User Schema
+export const addUserSchema = object({
+	email: emailSchema,
+	role: roleSchema
+});
+
+// Type exports
+export type LoginFormSchema = Type<typeof loginFormSchema>;
+export type ForgotFormSchema = Type<typeof forgotFormSchema>;
+export type ResetFormSchema = Type<typeof resetFormSchema>;
+export type SignUpFormSchema = Type<typeof signUpFormSchema>;
+export type SignUpOAuthFormSchema = Type<typeof signUpOAuthFormSchema>;
+export type AddUserTokenSchema = Type<typeof addUserTokenSchema>;
+export type ChangePasswordSchema = Type<typeof changePasswordSchema>;
+export type WidgetEmailSchema = Type<typeof widgetEmailSchema>;
+export type AddUserSchema = Type<typeof addUserSchema>;

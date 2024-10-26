@@ -27,35 +27,30 @@
 
 	let files: FileList;
 
-	// Zod validation schema
-	import z from 'zod';
-	const imageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml', 'image/gif'];
+	// Valibot validation schema
+	import { object, instance, custom, pipe, type Input, type ValiError } from 'valibot';
 
-	const avatarSchema = z.object({
-		file: z
-			.instanceof(Blob)
-			.optional()
-			.superRefine((val, ctx) => {
-				if (val) {
-					if (val.size > 5242880) {
-						ctx.addIssue({
-							code: z.ZodIssueCode.custom,
-							message: m.modaledit_avatarfilesize()
-						});
-					}
-					const lastFile = val;
-					if (imageTypes.includes(lastFile.type)) {
-						const fileReader = new FileReader();
-						fileReader.onload = (e) => {
-							if (e.target instanceof FileReader) {
-								avatarSrc.set(e.target.result as string);
-							}
-						};
-						fileReader.readAsDataURL(lastFile as Blob);
-					}
-				}
-			})
+	const imageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml', 'image/gif'];
+	const MAX_FILE_SIZE = 5242880; // 5MB
+
+	const fileSchema = pipe(
+		instance(Blob),
+		custom((input: Blob) => {
+			if (input.size > MAX_FILE_SIZE) {
+				throw new Error(m.modaledit_avatarfilesize());
+			}
+			if (!imageTypes.includes(input.type)) {
+				throw new Error('Invalid file type');
+			}
+			return true;
+		})
+	);
+
+	const avatarSchema = object({
+		file: fileSchema
 	});
+
+	type AvatarSchemaType = Input<typeof avatarSchema>;
 
 	// Handle file input change
 	function onChange(e: Event) {
@@ -80,12 +75,16 @@
 
 		try {
 			avatarSchema.parse({ file });
+			await uploadAvatar(file);
 		} catch (error) {
+			if ((error as ValiError<typeof avatarSchema>).issues) {
+				const valiError = error as ValiError<typeof avatarSchema>;
+				console.error(valiError.issues[0]?.message);
+				return;
+			}
 			console.error((error as Error).message);
 			return;
 		}
-
-		await uploadAvatar(file);
 	}
 
 	// Upload avatar

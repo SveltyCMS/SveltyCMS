@@ -8,7 +8,7 @@
  * Features:
  * - User attribute updates using the agnostic auth interface
  * - Permission checking
- * - Input validation using Zod
+ * - Input validation using Valibot
  * - Error handling and logging
  *
  * Usage:
@@ -29,18 +29,23 @@ import { checkUserPermission } from '@src/auth/permissionCheck';
 import { logger } from '@utils/logger';
 
 // Input validation
-import { z } from 'zod';
+import { object, string, email, optional, minLength, maxLength, type ValiError } from 'valibot';
 
-const updateUserAttributesSchema = z.object({
-	user_id: z.string(),
-	userData: z
-		.object({
-			email: z.string().email().optional(),
-			username: z.string().min(2).max(50).optional(),
-			role: z.string().optional()
-			// Add other fields as needed, matching your User type
-		})
-		.strict()
+const userDataSchema = object(
+	{
+		email: optional(pipe(string(), email())),
+		username: optional(
+			pipe(string(), minLength(2, 'Username must be at least 2 characters'), maxLength(50, 'Username must not exceed 50 characters'))
+		),
+		role: optional(string())
+		// Add other fields as needed, matching your User type
+	},
+	{ strict: true }
+);
+
+const updateUserAttributesSchema = object({
+	user_id: string(),
+	userData: userDataSchema
 });
 
 export const PUT: RequestHandler = async ({ request, locals }) => {
@@ -82,9 +87,10 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 			user: updatedUser
 		});
 	} catch (err) {
-		if (err instanceof z.ZodError) {
-			logger.warn('Invalid input for updateUserAttributes API:', err.errors);
-			throw error(400, 'Invalid input: ' + err.errors.map((e) => e.message).join(', '));
+		if ((err as ValiError).issues) {
+			const valiError = err as ValiError;
+			logger.warn('Invalid input for updateUserAttributes API:', valiError.issues);
+			throw error(400, 'Invalid input: ' + valiError.issues.map((issue) => issue.message).join(', '));
 		}
 		logger.error('Error in updateUserAttributes API:', err);
 		throw error(500, 'Failed to update user attributes');

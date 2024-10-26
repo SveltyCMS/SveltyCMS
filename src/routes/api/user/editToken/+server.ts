@@ -30,14 +30,14 @@ import { checkUserPermission } from '@src/auth/permissionCheck';
 import { logger } from '@utils/logger';
 
 // Input validation
-import { z } from 'zod';
+import { object, string, optional, email, type ValiError } from 'valibot';
 
-const editTokenSchema = z.object({
-	tokenId: z.string(),
-	newTokenData: z.object({
-		email: z.string().email().optional(),
-		expires: z.date().optional(),
-		type: z.string().optional()
+const editTokenSchema = object({
+	tokenId: string(),
+	newTokenData: object({
+		email: optional(email()),
+		expires: optional(string()), // We'll parse this to Date later
+		type: optional(string())
 	})
 });
 
@@ -60,6 +60,11 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 		// Validate input
 		const validatedData = editTokenSchema.parse(body);
 
+		// Convert expires string to Date if it exists
+		if (validatedData.newTokenData.expires) {
+			validatedData.newTokenData.expires = new Date(validatedData.newTokenData.expires);
+		}
+
 		const tokenAdapter = new TokenAdapter();
 
 		// Update the token
@@ -75,9 +80,10 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 			message: 'Token updated successfully'
 		});
 	} catch (err) {
-		if (err instanceof z.ZodError) {
-			logger.warn('Invalid input for editToken API:', err.errors);
-			throw error(400, 'Invalid input: ' + err.errors.map((e) => e.message).join(', '));
+		if ((err as ValiError).issues) {
+			const valiError = err as ValiError;
+			logger.warn('Invalid input for editToken API:', valiError.issues);
+			throw error(400, 'Invalid input: ' + valiError.issues.map((issue) => issue.message).join(', '));
 		}
 		logger.error('Error in editToken API:', err);
 		throw error(500, 'Failed to update token');

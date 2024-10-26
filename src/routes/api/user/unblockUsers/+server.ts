@@ -8,7 +8,7 @@
  * Features:
  * - Bulk user unblocking
  * - Permission checking
- * - Input validation using Zod
+ * - Input validation using Valibot
  * - Error handling and logging
  *
  * Usage:
@@ -29,10 +29,10 @@ import { checkUserPermission } from '@src/auth/permissionCheck';
 import { logger } from '@utils/logger';
 
 // Input validation
-import { z } from 'zod';
+import { object, array, string, minLength, type ValiError } from 'valibot';
 
-const unblockUsersSchema = z.object({
-	user_ids: z.array(z.string()).nonempty()
+const unblockUsersSchema = object({
+	user_ids: array(string(), [minLength(1, 'At least one user ID must be provided')])
 });
 
 export const PUT: RequestHandler = async ({ request, locals }) => {
@@ -75,9 +75,10 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 			unblockedUsers
 		});
 	} catch (err) {
-		if (err instanceof z.ZodError) {
-			logger.warn('Invalid input for unblockUsers API:', err.errors);
-			throw error(400, 'Invalid input: ' + err.errors.map((e) => e.message).join(', '));
+		if ((err as ValiError).issues) {
+			const valiError = err as ValiError;
+			logger.warn('Invalid input for unblockUsers API:', valiError.issues);
+			throw error(400, 'Invalid input: ' + valiError.issues.map((issue) => issue.message).join(', '));
 		}
 		logger.error('Error in unblockUsers API:', err);
 		throw error(500, 'Failed to unblock users');
