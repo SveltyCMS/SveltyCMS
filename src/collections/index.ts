@@ -18,7 +18,6 @@ import { initWidgets } from '@components/widgets';
 
 // Types
 import { type Schema, type CollectionNames } from './types';
-import { CollectionNamesArray } from './types'
 
 // System logger
 import { logger } from '@utils/logger';
@@ -28,11 +27,6 @@ let importsCache: Partial<Record<CollectionNames, Schema>> = {};
 let unsubscribe: Unsubscriber | undefined;
 // Cache for collection models
 let collectionModelsCache: Partial<Record<CollectionNames, Schema>> | null = null;
-
-// Type Guard Function to validate collection names
-export function isCollectionName(name: string): name is CollectionNames {
-	return CollectionNamesArray.includes(name);
-}
 
 // Function to get collections with cache support
 export async function getCollections(): Promise<Partial<Record<CollectionNames, Schema>>> {
@@ -56,6 +50,7 @@ export async function getCollections(): Promise<Partial<Record<CollectionNames, 
 		});
 	});
 }
+
 // Function to update collections
 export const updateCollections = async (recompile: boolean = false): Promise<void> => {
 	logger.debug('Starting updateCollections');
@@ -85,18 +80,29 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 			}
 		}
 
+		// Add ids to categories and ensure collection names are defined
+		const categoriesWithIds = _categories.map((cat, index) => ({
+			id: index + 1,
+			name: cat.name,
+			icon: cat.icon,
+			collections: cat.collections
+				.filter((col): col is Schema & { name: CollectionNames } => col.name !== undefined)
+				.map((col) => ({
+					...col,
+					id: Math.floor(Math.random() * 10000)
+				}))
+		}));
+
 		const _collections: Partial<Record<CollectionNames, Schema>> = {};
-		_categories.forEach((category) => {
+		categoriesWithIds.forEach((category) => {
 			category.collections.forEach((col) => {
-				if (col.name && isCollectionName(col.name)) {
-					_collections[col.name] = col;
-				}
+				_collections[col.name] = col;
 			});
 		});
 
 		logger.debug(`Collections processed. Count: ${Object.keys(_collections).length}`);
 
-		categories.set(_categories);
+		categories.set(categoriesWithIds);
 		collections.set(_collections as Record<CollectionNames, Schema>);
 		unAssigned.set(Object.values(imports).filter((x) => !Object.values(_collections).includes(x)));
 
@@ -141,15 +147,11 @@ async function getImports(recompile: boolean = false): Promise<Partial<Record<Co
 
 	try {
 		const processModule = async (name: string, module: any) => {
-			if (!isCollectionName(name)) {
-				logger.error(`Invalid collection name: ${name}`);
-				return; // Skip invalid module
-			}
 			const collection = (module as { schema: Schema })?.schema ?? {};
 			if (collection) {
-				collection.name = name;
+				collection.name = name as CollectionNames;
 				collection.icon = collection.icon || 'iconoir:info-empty';
-				importsCache[name] = collection;
+				importsCache[name as CollectionNames] = collection;
 			} else {
 				logger.error(`Error importing collection: ${name}`);
 			}

@@ -26,7 +26,6 @@ import type { User } from '@src/auth/types';
 
 import { dbAdapter, getCollectionModels } from '@src/databases/db';
 import { modifyRequest } from './modifyRequest';
-import { isCollectionName } from '@src/collections/index'; // Import the type guard function
 
 // System logger
 import { logger } from '@utils/logger';
@@ -42,10 +41,10 @@ export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: 
 			return new Response('Internal server error: Database adapter not initialized', { status: 500 });
 		}
 
-		// Validate the collection name using the type guard
-		if (!schema.name || !isCollectionName(schema.name)) {
-			logger.error('Invalid or undefined schema name.');
-			return new Response('Invalid or undefined schema name.', { status: 400 });
+		// Validate the collection name using type checking
+		if (!schema.name) {
+			logger.error('Schema name is undefined.');
+			return new Response('Schema name is undefined.', { status: 400 });
 		}
 
 		// Fetch collection models via the dbAdapter
@@ -98,7 +97,7 @@ export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: 
 
 		// Perform the deletion in the main collection
 		const result = await collection.deleteMany({ _id: { $in: idsArray } });
-		logger.info(`Documents deleted: ${result.deletedCount} for schema: ${schema.name}`);
+		logger.info(`Documents deleted: ${result} for schema: ${schema.name}`);
 
 		// Return the result as a JSON response
 		return new Response(JSON.stringify(result), {

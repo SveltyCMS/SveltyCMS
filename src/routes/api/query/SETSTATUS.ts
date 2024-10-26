@@ -20,7 +20,6 @@
 
 import type { Schema } from '@src/collections/types';
 import { dbAdapter, getCollectionModels } from '@src/databases/db';
-import { isCollectionName } from '@src/collections/index'; // Import the type guard function
 
 // System logger
 import { logger } from '@utils/logger';
@@ -36,10 +35,10 @@ export const _SETSTATUS = async ({ data, schema }: { data: FormData; schema: Sch
 			return new Response('Internal server error: Database adapter not initialized', { status: 500 });
 		}
 
-		// Validate the collection name using the type guard
-		if (!schema.name || !isCollectionName(schema.name)) {
-			logger.error('Invalid or undefined schema name.');
-			return new Response('Invalid or undefined schema name.', { status: 400 });
+		// Validate the collection name
+		if (!schema.name) {
+			logger.error('Schema name is undefined.');
+			return new Response('Schema name is undefined.', { status: 400 });
 		}
 
 		const collections = await getCollectionModels(); // Get collection models from the database
@@ -71,7 +70,7 @@ export const _SETSTATUS = async ({ data, schema }: { data: FormData; schema: Sch
 
 		// Update the status of the documents with the specified IDs
 		const result = await collection.updateMany({ _id: { $in: ids } }, { $set: { status } });
-		logger.info(`Status updated for ${result.modifiedCount} documents in ${schema.name}`);
+		logger.info(`Status updated for ${result} documents in ${schema.name}`);
 
 		return new Response(JSON.stringify(result), {
 			status: 200,
