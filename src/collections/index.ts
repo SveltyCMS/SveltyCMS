@@ -75,8 +75,8 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 			try {
 				const config = `config.js?${Math.floor(Date.now() / 1000)}`; // Update cache timestamp
 				const { createCategories: newCreateCategories } = browser
-					? await import(/* @vite-ignore */ `/api/importCollection/${config}`)
-					: await import(/* @vite-ignore */ `${import.meta.env.VITE_COLLECTIONS_FOLDER_JS}${config}`);
+					? await import(/* @vite-ignore */ `/api/importCollection/${config}?_t=${Math.floor(Date.now() / 1000)}`)
+					: await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${config}`);
 				_categories = newCreateCategories(fullImports);
 				logger.debug('New categories created successfully');
 			} catch (importError) {
@@ -183,8 +183,8 @@ async function getImports(recompile: boolean = false): Promise<Partial<Record<Co
 				try {
 					const collectionModule =
 						typeof window !== 'undefined'
-							? (await axios.get(`/api/getCollection?fileName=${file}?${Math.floor(Date.now() / 1000)}`)).data
-							: await import(/* @vite-ignore */ `${import.meta.env.VITE_COLLECTIONS_FOLDER_JS}${file}?${Math.floor(Date.now() / 1000)}`);
+							? (await axios.get(`/api/getCollection?fileName=${file}?_t=${Math.floor(Date.now() / 1000)}`)).data
+							: await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${file}`);
 
 					await processModule(name, collectionModule);
 				} catch (moduleError) {
