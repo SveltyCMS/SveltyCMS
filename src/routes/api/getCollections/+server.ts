@@ -26,6 +26,31 @@ export const GET: RequestHandler = async ({ url }) => {
 	}
 };
 
+// Safely parse collection file content
+function safeParseCollectionFile(content: string) {
+	try {
+		// Remove any potential executable code patterns
+		const sanitizedContent = content
+			.replace(/\bfunction\b/g, '"function"')
+			.replace(/\beval\b/g, '"eval"')
+			.replace(/\bnew\b/g, '"new"')
+			.replace(/\bclass\b/g, '"class"');
+
+		// Parse the content as JSON
+		const parsed = JSON.parse(sanitizedContent);
+
+		// Validate the structure
+		if (typeof parsed !== 'object' || parsed === null) {
+			throw new Error('Invalid collection file structure');
+		}
+
+		return { default: parsed };
+	} catch (err) {
+		logger.error('Error parsing collection file:', err);
+		throw new Error('Invalid collection file format');
+	}
+}
+
 async function handleSingleFileRequest(fileNameQuery: string) {
 	// Extract just the filename to prevent directory traversal
 	const fileName = path.basename(fileNameQuery);
@@ -46,8 +71,9 @@ async function handleSingleFileRequest(fileNameQuery: string) {
 
 		// Read the file content
 		const fileContent = await fs.readFile(filePath, 'utf-8');
-		// Parse the file content (Note: ensure all files are trusted)
-		const result = { default: eval(`(${fileContent})`) };
+
+		// Safely parse the file content
+		const result = safeParseCollectionFile(fileContent);
 
 		logger.info(`Retrieved collection file: ${fileName}`);
 		// Return the file content as JSON

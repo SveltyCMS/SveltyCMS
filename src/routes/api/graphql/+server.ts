@@ -7,21 +7,11 @@
  * - User-related schemas and resolvers
  * - Media-related schemas and resolvers
  * - Access management permission definition and checking
- *
- * Features:
- * - Dynamic schema generation based on registered collections
- * - Integration with Redis for caching (optional)
- * - Error handling and logging
- * - Support for various query types (collections, users, media)
- * - Permission-based access control for access management
- *
- * Usage:
- * This endpoint handles GraphQL queries at /api/graphql
- * Supports both GET and POST methods
  */
 
 import { privateEnv } from '@root/config/private';
-import type { RequestEvent } from '@sveltejs/kit';
+import type { RequestHandler } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 
 // GraphQL Yoga
 import { createSchema, createYoga } from 'graphql-yoga';
@@ -34,21 +24,23 @@ import { dbAdapter } from '@src/databases/db';
 import { createClient } from 'redis';
 
 // Permission Management
-import { checkUserPermission, PermissionConfig } from '@src/auth/permissionCheck';
+import { checkUserPermission } from '@src/auth/permissionCheck';
 import { registerPermission } from '@src/auth/permissionManager';
 import { PermissionAction, PermissionType } from '@src/auth/permissionTypes';
 
 // System Logger
 import { logger } from '@utils/logger';
 
-// Define and register the access management permission
-const accessManagementPermission: PermissionConfig = {
+// Define the access management permission configuration
+const accessManagementPermission = {
 	contextId: 'config/accessManagement',
 	name: 'Access Management',
 	action: PermissionAction.MANAGE,
 	contextType: PermissionType.CONFIGURATION,
 	description: 'Allows management of user access and permissions'
 };
+
+// Register the permission
 registerPermission(accessManagementPermission);
 
 // Initialize Redis client if needed
@@ -89,31 +81,31 @@ async function setupGraphQL() {
 		const { typeDefs: collectionsTypeDefs, collections } = await registerCollections();
 
 		const typeDefs = `
-      ${collectionsTypeDefs}
-      ${userTypeDefs()}
-      ${mediaTypeDefs()}
-      
-      type AccessManagementPermission {
-        contextId: String!
-        name: String!
-        action: String!
-        contextType: String!
-        description: String
-      }
-      
-      type Query {
-        ${Object.values(collections)
-					.map((collection) => `${collection.name}: [${collection.name}]`)
-					.join('\n')}
-        users: [User]
-        mediaImages: [MediaImage]
-        mediaDocuments: [MediaDocument]
-        mediaAudio: [MediaAudio]
-        mediaVideos: [MediaVideo]
-        mediaRemote: [MediaRemote]
-        accessManagementPermission: AccessManagementPermission
-      }
-    `;
+            ${collectionsTypeDefs}
+            ${userTypeDefs()}
+            ${mediaTypeDefs()}
+            
+            type AccessManagementPermission {
+                contextId: String!
+                name: String!
+                action: String!
+                contextType: String!
+                description: String
+            }
+            
+            type Query {
+                ${Object.values(collections)
+									.map((collection) => `${collection.name}: [${collection.name}]`)
+									.join('\n')}
+                users: [User]
+                mediaImages: [MediaImage]
+                mediaDocuments: [MediaDocument]
+                mediaAudio: [MediaAudio]
+                mediaVideos: [MediaVideo]
+                mediaRemote: [MediaRemote]
+                accessManagementPermission: AccessManagementPermission
+            }
+        `;
 
 		const resolvers = {
 			Query: {
@@ -134,7 +126,7 @@ async function setupGraphQL() {
 			}
 		};
 
-		const yogaApp = createYoga<RequestEvent>({
+		const yogaApp = createYoga<RequestHandler>({
 			schema: createSchema({
 				typeDefs,
 				resolvers
@@ -169,7 +161,7 @@ const handler = async (event: RequestEvent) => {
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		logger.error('Error handling GraphQL request:', { error: errorMessage });
-		return json({ success: false, error: `Error handling GraphQL request: ${error.message}` }, { status: 500 });
+		return json({ success: false, error: `Error handling GraphQL request: ${errorMessage}` }, { status: 500 });
 	}
 };
 
