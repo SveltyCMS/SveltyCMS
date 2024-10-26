@@ -73,7 +73,7 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 		if (!dev && !building) {
 			logger.debug('Fetching new createCategories function');
 			try {
-				const config = `config.js?${Math.floor(Date.now() / 1000)}`; // Update cache timestamp
+				const config = `config.js`; // Update cache timestamp
 				const { createCategories: newCreateCategories } = browser
 					? await import(/* @vite-ignore */ `/api/importCollection/${config}?_t=${Math.floor(Date.now() / 1000)}`)
 					: await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${config}`);
@@ -183,7 +183,7 @@ async function getImports(recompile: boolean = false): Promise<Partial<Record<Co
 				try {
 					const collectionModule =
 						typeof window !== 'undefined'
-							? (await axios.get(`/api/getCollection?fileName=${file}?_t=${Math.floor(Date.now() / 1000)}`)).data
+							? (await axios.get(`/api/importCollection/${file}?_t=${Math.floor(Date.now() / 1000)}`)).data
 							: await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${file}`);
 
 					await processModule(name, collectionModule);
