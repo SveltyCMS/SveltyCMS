@@ -56,7 +56,6 @@ const widgets = {
 	Relation, // Rating - Visual representation of a numeric range.
 	RemoteVideo, // RemoteVideo - for youtube/vimeo(/Twitch/ticktock), grabbing Title/Duration,Dimension,User
 	RichText, // Rich Text - fully extensible Lexical Rich Text editor
-	// RichTextLexical, // Lexical Rich Text - fully extensible Lexical Rich Text editor
 	// SelectList, // SelectList - dropdown / pick list style value selector
 	Seo, // Seo - Basic Seo Title /Description with preview
 	Text // Text - A Simple text input

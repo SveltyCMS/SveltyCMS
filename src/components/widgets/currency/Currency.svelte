@@ -12,8 +12,8 @@
 	import { contentLanguage, validationStore } from '@stores/store';
 	import { mode, collectionValue } from '@stores/collectionStore';
 
-	// zod validation
-	import * as z from 'zod';
+	// Valibot validation
+	import { object, string, number, boolean, optional, regex, pipe, parse, type InferInput, type ValiError } from 'valibot';
 
 	export let field: FieldType;
 
@@ -61,25 +61,30 @@
 	}
 
 	// Define the validation schema for this widget
-	const widgetSchema = z.object({
-		value: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid currency format, must be a valid number with up to 2 decimal places'),
-		db_fieldName: z.string(),
-		icon: z.string().optional(),
-		color: z.string().optional(),
-		size: z.string().optional(),
-		width: z.number().optional(),
-		required: z.boolean().optional()
+	const valueSchema = pipe(string(), regex(/^\d+(\.\d{1,2})?$/, 'Invalid currency format, must be a valid number with up to 2 decimal places'));
+
+	const widgetSchema = object({
+		value: valueSchema,
+		db_fieldName: string(),
+		icon: optional(string()),
+		color: optional(string()),
+		size: optional(string()),
+		width: optional(number()),
+		required: optional(boolean())
 	});
 
+	type WidgetSchemaType = InferInput<typeof widgetSchema>;
+
 	// Generic validation function that uses the provided schema to validate the input
-	function validateSchema(schema: z.ZodSchema, data: any): string | null {
+	function validateSchema(data: unknown): string | null {
 		try {
-			schema.parse(data);
+			parse(widgetSchema, data);
 			validationStore.clearError(fieldName);
 			return null; // No error
 		} catch (error) {
-			if (error instanceof z.ZodError) {
-				const errorMessage = error.errors[0]?.message || 'Invalid input';
+			if ((error as ValiError<typeof widgetSchema>).issues) {
+				const valiError = error as ValiError<typeof widgetSchema>;
+				const errorMessage = valiError.issues[0]?.message || 'Invalid input';
 				validationStore.setError(fieldName, errorMessage);
 				return errorMessage;
 			}
@@ -91,7 +96,7 @@
 	function validateInput() {
 		if (debounceTimeout) clearTimeout(debounceTimeout);
 		debounceTimeout = window.setTimeout(() => {
-			validationError = validateSchema(widgetSchema, _data[_language]);
+			validationError = validateSchema(_data[_language]);
 		}, 300);
 	}
 
@@ -102,10 +107,6 @@
 			return 'bg-red-600';
 		} else if (field?.maxlength && length > field?.maxlength) {
 			return 'bg-red-600';
-			// } else if (field?.count && length === field?.count) {
-			// 	return 'bg-green-600';
-			// } else if (field?.count && length > field?.count) {
-			// 	return 'bg-orange-600';
 		} else if (field?.minlength) {
 			return '!variant-filled-surface';
 		} else {

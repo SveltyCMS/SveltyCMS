@@ -30,13 +30,13 @@
 	let validationError: string | null = null;
 
 	// Define the validation schema for this widget
-	import { object, string, number, union, instance, custom, pipe, record, type Input, type Output, type ValiError } from 'valibot';
+	import { object, string, number, union, instance, check, pipe, record, parse, type InferInput, type ValiError } from 'valibot';
 
 	const validImageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif', 'image/svg+xml'];
 
 	const fileSchema = pipe(
 		instance(File),
-		custom((input: File) => validImageTypes.includes(input.type), 'Invalid file format')
+		check((input: File) => validImageTypes.includes(input.type), 'Invalid file format')
 	);
 
 	const thumbnailSchema = object({
@@ -57,12 +57,12 @@
 	});
 
 	const widgetSchema = union([fileSchema, mediaImageSchema]);
-	type WidgetSchemaType = Input<typeof widgetSchema>;
+	type WidgetSchemaType = InferInput<typeof widgetSchema>;
 
 	// Generic validation function that uses the provided schema to validate the input
-	function validateSchema(data: any): string | null {
+	function validateSchema(data: unknown): string | null {
 		try {
-			widgetSchema.parse(data);
+			parse(widgetSchema, data);
 			validationStore.clearError(getFieldName(field));
 			return null; // No error
 		} catch (error) {

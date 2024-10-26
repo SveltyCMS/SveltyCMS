@@ -29,7 +29,7 @@ import { checkUserPermission } from '@src/auth/permissionCheck';
 import { logger } from '@utils/logger';
 
 // Input validation
-import { object, string, pipe, email, optional, minLength, maxLength, type ValiError } from 'valibot';
+import { object, string, email, optional, minLength, maxLength, pipe, type ValiError } from 'valibot';
 
 const userDataSchema = object(
 	{

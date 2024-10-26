@@ -12,8 +12,8 @@
 	import { validationStore } from '@stores/store';
 	import { mode, collectionValue } from '@stores/collectionStore';
 
-	// zod validation
-	import * as z from 'zod';
+	// Valibot validation
+	import { string, email as emailValidator, pipe, parse, type InferInput, type ValiError } from 'valibot';
 
 	export let field: FieldType;
 
@@ -30,17 +30,20 @@
 	let initialRender = true;
 
 	// Define the validation schema for this widget
-	const widgetSchema = z.string().email({ message: 'Please enter a valid email address' });
+	const widgetSchema = pipe(string(), emailValidator('Please enter a valid email address'));
+
+	type WidgetSchemaType = InferInput<typeof widgetSchema>;
 
 	// Generic validation function that uses the provided schema to validate the input
-	function validateSchema(schema: z.ZodSchema, data: any): string | null {
+	function validateSchema(data: unknown): string | null {
 		try {
-			schema.parse(data);
+			parse(widgetSchema, data);
 			validationStore.clearError(fieldName);
 			return null; // No error
 		} catch (error) {
-			if (error instanceof z.ZodError) {
-				const errorMessage = error.errors[0]?.message || 'Invalid input';
+			if ((error as ValiError<typeof widgetSchema>).issues) {
+				const valiError = error as ValiError<typeof widgetSchema>;
+				const errorMessage = valiError.issues[0]?.message || 'Invalid input';
 				validationStore.setError(fieldName, errorMessage);
 				return errorMessage;
 			}
@@ -53,7 +56,7 @@
 		if (debounceTimeout) clearTimeout(debounceTimeout);
 		debounceTimeout = window.setTimeout(() => {
 			if (!initialRender) {
-				validationError = validateSchema(widgetSchema, _data[_language]);
+				validationError = validateSchema(_data[_language]);
 			} else {
 				initialRender = false;
 			}
