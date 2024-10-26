@@ -29,48 +29,46 @@
 	$: count = _data[_language]?.length ?? 0;
 
 	const getBadgeClass = (length: number) => {
-		if (field?.minlength && length < field?.minlength) {
-			return 'bg-red-600';
-		} else if (field?.maxlength && length > field?.maxlength) {
-			return 'bg-red-600';
-		} else if (field?.count && length === field?.count) {
-			return 'bg-green-600';
-		} else if (field?.count && length > field?.count) {
-			return 'bg-orange-600';
-		} else if (field?.minlength) {
-			return '!variant-filled-surface';
-		} else {
-			return '!variant-ghost-surface';
-		}
+		if (field?.minlength && length < field?.minlength) return 'bg-red-600';
+		else if (field?.maxlength && length > field?.maxlength) return 'bg-red-600';
+		else if (field?.count && length === field?.count) return 'bg-green-600';
+		else if (field?.count && length > field?.count) return 'bg-orange-600';
+		else if (field?.minlength) return '!variant-filled-surface';
+		else return '!variant-ghost-surface';
 	};
 
-	// zod validation
-	import * as z from 'zod';
+	// Valibot validation
+	import { object, string, number, boolean, optional, minLength, maxLength, pipe, parse, type InferInput, type ValiError } from 'valibot';
 
 	// Define the validation schema for the text field
-	const widgetSchema = z.object({
-		value: z
-			.string()
-			.min(field?.minlength || 0, `Minimum length is ${field?.minlength}`)
-			.max(field?.maxlength || Infinity, `Maximum length is ${field?.maxlength}`)
-			.optional(),
-		db_fieldName: z.string(),
-		icon: z.string().optional(),
-		color: z.string().optional(),
-		width: z.number().optional(),
-		required: z.boolean().optional()
+	const valueSchema = pipe(
+		string(),
+		field?.minlength ? minLength(field.minlength, `Minimum length is ${field.minlength}`) : string(),
+		field?.maxlength ? maxLength(field.maxlength, `Maximum length is ${field.maxlength}`) : string()
+	);
+
+	const widgetSchema = object({
+		value: optional(valueSchema),
+		db_fieldName: string(),
+		icon: optional(string()),
+		color: optional(string()),
+		width: optional(number()),
+		required: optional(boolean())
 	});
 
+	type WidgetSchemaType = InferInput<typeof widgetSchema>;
+
 	// Generic validation function that uses the provided schema to validate the input
-	function validateSchema(schema: z.ZodSchema, data: any): string | null {
+	function validateSchema(data: unknown): string | null {
 		try {
-			schema.parse(data);
+			parse(widgetSchema, data);
 			validationStore.clearError(fieldName);
 			return null; // No error
 		} catch (error) {
-			if (error instanceof z.ZodError) {
+			if ((error as ValiError<typeof widgetSchema>).issues) {
 				console.debug('Validation error : ', error);
-				const errorMessage = error.errors[0]?.message || 'Invalid input';
+				const valiError = error as ValiError<typeof widgetSchema>;
+				const errorMessage = valiError.issues[0]?.message || 'Invalid input';
 				validationStore.setError(fieldName, errorMessage);
 				return errorMessage;
 			}
@@ -82,7 +80,10 @@
 	function validateInput() {
 		if (debounceTimeout) clearTimeout(debounceTimeout);
 		debounceTimeout = window.setTimeout(() => {
-			validationError = validateSchema(widgetSchema, { value: _data[_language], db_fieldName: getFieldName(field) });
+			validationError = validateSchema({
+				value: _data[_language],
+				db_fieldName: getFieldName(field)
+			});
 		}, 300);
 	}
 

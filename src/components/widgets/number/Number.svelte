@@ -12,7 +12,30 @@
 	import { mode, collectionValue } from '@stores/collectionStore';
 
 	import { getFieldName } from '@utils/utils';
-	export let field: FieldType;
+
+	// Valibot validation
+	import {
+		object,
+		string,
+		number as numberSchema,
+		boolean,
+		optional,
+		regex,
+		pipe,
+		parse,
+		transform,
+		custom,
+		type InferInput,
+		type ValiError
+	} from 'valibot';
+
+	// Extend FieldType to include number-specific properties
+	interface NumberFieldType extends FieldType {
+		minValue?: number;
+		maxValue?: number;
+	}
+
+	export let field: NumberFieldType;
 
 	const fieldName = getFieldName(field);
 	export let value = $collectionValue[fieldName] || {};
@@ -27,31 +50,44 @@
 
 	export const WidgetData = async () => _data;
 
-	// Define the validation schema for this widget
-	import * as z from 'zod';
+	// Define number validation schema with transformations and validations
+	const valueSchema = pipe(
+		string(),
+		regex(/^\d+(\.\d{1,2})?$/, 'Invalid number format, must be a valid number with up to 2 decimal places'),
+		transform((value) => parseFloat(value)),
+		custom((value) => {
+			if (field.minValue !== undefined && value < field.minValue) {
+				throw new Error(`Value must be at least ${field.minValue}`);
+			}
+			if (field.maxValue !== undefined && value > field.maxValue) {
+				throw new Error(`Value must not exceed ${field.maxValue}`);
+			}
+			return true;
+		})
+	);
 
-	const widgetSchema = z.object({
-		value: z
-			.string()
-			.regex(/^\d+(\.\d{1,2})?$/, 'Invalid number format, must be a valid number with up to 2 decimal places')
-			.optional(),
-		db_fieldName: z.string(),
-		icon: z.string().optional(),
-		color: z.string().optional(),
-		size: z.string().optional(),
-		width: z.number().optional(),
-		required: z.boolean().optional()
+	const widgetSchema = object({
+		value: optional(valueSchema),
+		db_fieldName: string(),
+		icon: optional(string()),
+		color: optional(string()),
+		size: optional(string()),
+		width: optional(numberSchema()),
+		required: optional(boolean())
 	});
 
-	// Generic validation function that uses the provided schema to validate the input
-	function validateSchema(schema: z.ZodSchema, data: any): string | null {
+	type WidgetSchemaType = InferInput<typeof widgetSchema>;
+
+	// Validate function for schema
+	function validateSchema(data: unknown): string | null {
 		try {
-			schema.parse(data);
+			parse(widgetSchema, data);
 			validationStore.clearError(fieldName);
-			return null; // No error
+			return null;
 		} catch (error) {
-			if (error instanceof z.ZodError) {
-				const errorMessage = error.errors[0]?.message || 'Invalid input';
+			if ((error as ValiError<typeof widgetSchema>).issues) {
+				const valiError = error as ValiError<typeof widgetSchema>;
+				const errorMessage = valiError.issues[0]?.message || 'Invalid input';
 				validationStore.setError(fieldName, errorMessage);
 				return errorMessage;
 			}
@@ -59,7 +95,7 @@
 		}
 	}
 
-	// Handle number input formatting and validation with debounce
+	// Handle input with debounce and parsing
 	function handleInput(event: Event) {
 		const target = event.target as HTMLInputElement;
 		const value = target.value;
@@ -83,9 +119,9 @@
 		return numberWithDecimalSeparator.substring(1, 2);
 	}
 
-	// Validate the input using the generic validateSchema function
+	// Trigger validation
 	function validateInput() {
-		validationError = validateSchema(widgetSchema, { value: _data[_language] });
+		validationError = validateSchema({ value: _data[_language] });
 	}
 
 	// Reactive statement to update character count for badge display

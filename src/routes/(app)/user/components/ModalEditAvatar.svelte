@@ -28,14 +28,17 @@
 	let files: FileList;
 
 	// Valibot validation schema
-	import { object, instance, custom, pipe, type Input, type ValiError } from 'valibot';
+	import { object, instance, check, pipe, parse, type InferInput, type ValiError } from 'valibot';
 
 	const imageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml', 'image/gif'];
 	const MAX_FILE_SIZE = 5242880; // 5MB
 
+	const blobSchema = instance(Blob);
+	type BlobType = InferInput<typeof blobSchema>;
+
 	const fileSchema = pipe(
-		instance(Blob),
-		custom((input: Blob) => {
+		blobSchema,
+		check((input: BlobType) => {
 			if (input.size > MAX_FILE_SIZE) {
 				throw new Error(m.modaledit_avatarfilesize());
 			}
@@ -50,7 +53,7 @@
 		file: fileSchema
 	});
 
-	type AvatarSchemaType = Input<typeof avatarSchema>;
+	type AvatarSchemaType = InferInput<typeof avatarSchema>;
 
 	// Handle file input change
 	function onChange(e: Event) {
@@ -74,7 +77,7 @@
 		const file = files[0];
 
 		try {
-			avatarSchema.parse({ file });
+			parse(avatarSchema, { file });
 			await uploadAvatar(file);
 		} catch (error) {
 			if ((error as ValiError<typeof avatarSchema>).issues) {

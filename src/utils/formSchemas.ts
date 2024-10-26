@@ -9,7 +9,7 @@
 
 import { publicEnv } from '@root/config/public';
 
-import { string, boolean, object, optional, minLength, maxLength, email as emailValidator, regex, pipe, custom, type Type } from 'valibot';
+import { string, boolean, strictObject, optional, minLength, maxLength, email as emailValidator, regex, pipe, check, type InferInput } from 'valibot';
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
@@ -42,39 +42,32 @@ const tokenSchema = pipe(string(), minLength(16, m.formSchemas_Emailvalid()));
 // Form Schemas------------------------------------
 
 // Login Form Schema
-export const loginFormSchema = object({
+export const loginFormSchema = strictObject({
 	email: emailSchema,
 	password: passwordSchema,
 	isToken: boolean()
 });
 
 // Forgot Password Form Schema
-export const forgotFormSchema = object({
+export const forgotFormSchema = strictObject({
 	email: emailSchema
 });
 
 // Reset Password Form Schema
-const resetFormSchemaBase = object({
+const resetFormSchemaBase = strictObject({
 	password: passwordSchema,
 	confirm_password: confirmPasswordSchema,
 	token: tokenSchema,
 	email: emailSchema
 });
 
-type ResetFormType = {
-	password: string;
-	confirm_password: string;
-	token: string;
-	email: string;
-};
-
 export const resetFormSchema = pipe(
 	resetFormSchemaBase,
-	custom<ResetFormType>((input) => input.password === input.confirm_password, m.formSchemas_Passwordmatch())
+	check((input) => input.password === input.confirm_password, m.formSchemas_Passwordmatch())
 );
 
 // Sign Up User Form Schema
-const signUpFormSchemaBase = object({
+const signUpFormSchemaBase = strictObject({
 	username: usernameSchema,
 	email: emailSchema,
 	password: passwordSchema,
@@ -82,26 +75,18 @@ const signUpFormSchemaBase = object({
 	token: optional(string())
 });
 
-type SignUpFormType = {
-	username: string;
-	email: string;
-	password: string;
-	confirm_password: string;
-	token?: string;
-};
-
 export const signUpFormSchema = pipe(
 	signUpFormSchemaBase,
-	custom<SignUpFormType>((input) => input.password === input.confirm_password, m.formSchemas_Passwordmatch())
+	check((input) => input.password === input.confirm_password, m.formSchemas_Passwordmatch())
 );
 
 // Google OAuth Token Schema
-export const signUpOAuthFormSchema = object({
+export const signUpOAuthFormSchema = strictObject({
 	lang: string()
 });
 
 // Validate New User Token Schema
-export const addUserTokenSchema = object({
+export const addUserTokenSchema = strictObject({
 	email: emailSchema,
 	role: roleSchema,
 	expiresIn: string(),
@@ -109,39 +94,34 @@ export const addUserTokenSchema = object({
 });
 
 // Change Password Form Schema
-const changePasswordSchemaBase = object({
+const changePasswordSchemaBase = strictObject({
 	password: passwordSchema,
 	confirm_password: confirmPasswordSchema
 });
 
-type ChangePasswordType = {
-	password: string;
-	confirm_password: string;
-};
-
 export const changePasswordSchema = pipe(
 	changePasswordSchemaBase,
-	custom<ChangePasswordType>((input) => input.password === input.confirm_password, m.formSchemas_Passwordmatch())
+	check((input) => input.password === input.confirm_password, m.formSchemas_Passwordmatch())
 );
 
 // Widget Email Schema
-export const widgetEmailSchema = object({
+export const widgetEmailSchema = strictObject({
 	email: emailSchema
 });
 
 // Add User Schema
-export const addUserSchema = object({
+export const addUserSchema = strictObject({
 	email: emailSchema,
 	role: roleSchema
 });
 
 // Type exports
-export type LoginFormSchema = Type<typeof loginFormSchema>;
-export type ForgotFormSchema = Type<typeof forgotFormSchema>;
-export type ResetFormSchema = Type<typeof resetFormSchema>;
-export type SignUpFormSchema = Type<typeof signUpFormSchema>;
-export type SignUpOAuthFormSchema = Type<typeof signUpOAuthFormSchema>;
-export type AddUserTokenSchema = Type<typeof addUserTokenSchema>;
-export type ChangePasswordSchema = Type<typeof changePasswordSchema>;
-export type WidgetEmailSchema = Type<typeof widgetEmailSchema>;
-export type AddUserSchema = Type<typeof addUserSchema>;
+export type LoginFormSchema = InferInput<typeof loginFormSchema>;
+export type ForgotFormSchema = InferInput<typeof forgotFormSchema>;
+export type ResetFormSchema = InferInput<typeof resetFormSchema>;
+export type SignUpFormSchema = InferInput<typeof signUpFormSchema>;
+export type SignUpOAuthFormSchema = InferInput<typeof signUpOAuthFormSchema>;
+export type AddUserTokenSchema = InferInput<typeof addUserTokenSchema>;
+export type ChangePasswordSchema = InferInput<typeof changePasswordSchema>;
+export type WidgetEmailSchema = InferInput<typeof widgetEmailSchema>;
+export type AddUserSchema = InferInput<typeof addUserSchema>;

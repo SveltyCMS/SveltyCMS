@@ -5,7 +5,6 @@
 
 <script lang="ts">
 	import type { Rich_Text } from './types';
-
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
 	import { updateTranslationProgress, getFieldName } from '@utils/utils';
@@ -13,6 +12,9 @@
 	// Stores
 	import { contentLanguage } from '@stores/store';
 	import { mode, collectionValue } from '@stores/collectionStore';
+
+	// Valibot validation
+	import { object, string, boolean, optional, pipe, parse, type InferInput, type ValiError } from 'valibot';
 
 	export let field: FieldType;
 
@@ -43,27 +45,31 @@
 		});
 	});
 
-	import * as z from 'zod';
+	// Define validation schema
+	const richTextSchema = object({
+		db_fieldName: string(),
+		label: optional(string()),
+		translated: optional(boolean())
+	});
 
-	var widgetValueObject = {
+	type RichTextSchemaType = InferInput<typeof richTextSchema>;
+
+	const widgetValueObject = {
 		db_fieldName: field.db_fieldName,
 		label: field.label
-		// translated: field.translated
 	};
-
-	const richTextSchema = z.object({
-		db_fieldName: z.string(),
-		label: z.string().optional(),
-		translated: z.boolean().optional()
-	});
 
 	let validationError: string | null = null;
 
 	$: validationError = (() => {
 		try {
-			richTextSchema.parse(widgetValueObject);
+			parse(richTextSchema, widgetValueObject);
 			return null;
 		} catch (error) {
+			if ((error as ValiError<typeof richTextSchema>).issues) {
+				const valiError = error as ValiError<typeof richTextSchema>;
+				return valiError.issues[0]?.message || 'Invalid input';
+			}
 			return (error as Error).message;
 		}
 	})();

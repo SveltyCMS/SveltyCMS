@@ -13,6 +13,9 @@
 
 	import { getFieldName } from '@utils/utils';
 
+	// Valibot validation
+	import { object, string, number, boolean, optional, regex, pipe, parse, type InferInput, type ValiError } from 'valibot';
+
 	export let field: FieldType;
 
 	const fieldName = getFieldName(field);
@@ -26,32 +29,31 @@
 
 	export const WidgetData = async () => _data;
 
-	// zod validation
-	import * as z from 'zod';
+	// Define base schema for phone number with validation
+	const valueSchema = pipe(string(), regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format, must be a valid international number'));
 
-	// Define the validation schema for the phone number widget
-	const widgetSchema = z.object({
-		value: z
-			.string()
-			.regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format, must be a valid international number')
-			.optional(),
-		db_fieldName: z.string(),
-		icon: z.string().optional(),
-		color: z.string().optional(),
-		size: z.string().optional(),
-		width: z.number().optional(),
-		required: z.boolean().optional()
+	const widgetSchema = object({
+		value: optional(valueSchema),
+		db_fieldName: string(),
+		icon: optional(string()),
+		color: optional(string()),
+		size: optional(string()),
+		width: optional(number()),
+		required: optional(boolean())
 	});
 
-	// Generic validation function that uses the provided schema to validate the input
-	function validateSchema(schema: z.ZodSchema, data: any): string | null {
+	type WidgetSchemaType = InferInput<typeof widgetSchema>;
+
+	// Validate function for schema
+	function validateSchema(data: unknown): string | null {
 		try {
-			schema.parse(data);
+			parse(widgetSchema, data);
 			validationStore.clearError(fieldName);
-			return null; // No error
+			return null;
 		} catch (error) {
-			if (error instanceof z.ZodError) {
-				const errorMessage = error.errors[0]?.message || 'Invalid input';
+			if ((error as ValiError<typeof widgetSchema>).issues) {
+				const valiError = error as ValiError<typeof widgetSchema>;
+				const errorMessage = valiError.issues[0]?.message || 'Invalid input';
 				validationStore.setError(fieldName, errorMessage);
 				return errorMessage;
 			}
@@ -59,7 +61,7 @@
 		}
 	}
 
-	// Validate the input using the generic validateSchema function with debounce
+	// Handle input with debounce
 	function handleInput(event: Event) {
 		const target = event.target as HTMLInputElement;
 		if (debounceTimeout) clearTimeout(debounceTimeout);
@@ -68,8 +70,9 @@
 		}, 300);
 	}
 
+	// Trigger validation
 	function validateInput() {
-		validationError = validateSchema(widgetSchema, { value: _data[_language] });
+		validationError = validateSchema({ value: _data[_language] });
 	}
 </script>
 
