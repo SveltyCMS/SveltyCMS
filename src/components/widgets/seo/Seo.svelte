@@ -1,6 +1,7 @@
 <!-- 
 @file src/components/widgets/seo/Seo.svelte
-@description - SEO widget
+@description - SEO widget for managing meta title, description, and robots meta tags
+
 -->
 
 <script lang="ts">
@@ -39,12 +40,12 @@
 
 	let _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
 
-	// Initialize _data for the current language
+	// Initialize _data for the current language if not exists
 	if (!_data[_language]) {
 		_data[_language] = {};
 	}
 
-	// Initialize title, description, and robotsMeta from _data
+	// Initialize title, description, and robotsMeta from _data with defaults
 	let title = _data[_language].title || '';
 	let description = _data[_language].description || '';
 	let robotsMeta = _data[_language].robotsMeta || 'index, follow';
@@ -61,7 +62,7 @@
 	let seoKeywords: string[] = [];
 	let validationError: string | null = null;
 
-	// Reactive statement to update progress
+	// Calculate SEO score progress
 	$: progress = Math.round((score / (8 * 3)) * 100);
 
 	// Update _data whenever title, description, or robotsMeta change
@@ -74,13 +75,14 @@
 		};
 	}
 
-	// Update translation progress
+	// Update translation progress whenever _data changes
 	$: updateTranslationProgress(_data, field);
 
 	onMount(() => {
 		hostUrl = window.location.origin;
 	});
 
+	// Calculate text width for proper display
 	function calculateCharacterWidth(text: string, fontSize: number, fontFamily: string) {
 		const span = document.createElement('span');
 		span.style.fontSize = `${fontSize}px`;
@@ -92,12 +94,13 @@
 		return characterWidth;
 	}
 
+	// Handle title changes
 	function handleTitleChange(event: Event) {
 		title = (event.target as HTMLInputElement).value;
 		titleCharacterWidth = calculateCharacterWidth(title, 16, 'Arial');
 		suggestions = analyze(title, description);
 	}
-
+	// Handle description changes
 	function handleDescriptionChange(event: Event) {
 		description = (event.target as HTMLInputElement).value;
 		descriptionCharacterWidth = calculateCharacterWidth(description, 14, 'Arial');
@@ -243,18 +246,3 @@
 		{validationError}
 	</p>
 {/if}
-
-<style lang="postcss">
-	.input-label {
-		color: gray;
-	}
-	.input-label.green {
-		color: green;
-	}
-	.input-label.orange {
-		color: orange;
-	}
-	.input-label.red {
-		color: red;
-	}
-</style>

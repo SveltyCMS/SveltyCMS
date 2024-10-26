@@ -15,24 +15,20 @@
  * - Link creation between collections
  * - Integration with modifyRequest for custom widget processing
  * - Comprehensive error handling and logging
- *
- * Usage:
- * Called by the main query handler for POST operations
- * Expects FormData with field values for the new document
- *
- * Note: This handler assumes that user authentication and authorization
- * have already been performed by the calling function.
+
  */
 
 // Types
 import type { Schema } from '@src/collections/types';
 import type { User } from '@src/auth/types';
 
+// Database
 import { dbAdapter, getCollectionModels } from '@src/databases/db';
-import { modifyRequest } from './modifyRequest';
-import { isCollectionName } from '@src/collections/index'; // Import the type guard function
 
-// System logger
+// Utils
+import { modifyRequest } from './modifyRequest';
+
+// System Logger
 import { logger } from '@utils/logger';
 
 // Function to handle POST requests for a specified collection
@@ -46,8 +42,8 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
 			return new Response('Internal server error: Database adapter not initialized', { status: 500 });
 		}
 
-		// Validate the collection name using the type guard
-		if (!schema.name || !isCollectionName(schema.name)) {
+		// Validate schema name
+		if (!schema.name) {
 			logger.error('Invalid or undefined schema name.');
 			return new Response('Invalid or undefined schema name.', { status: 400 });
 		}

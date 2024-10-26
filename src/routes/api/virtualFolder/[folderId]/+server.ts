@@ -19,23 +19,36 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { dbAdapter } from '@src/databases/db';
 import { logger } from '@utils/logger';
+import type { LoggableValue } from '@utils/logger';
+import type { MediaBase } from '@utils/media/mediaModels';
 
 // Define the structure of a virtual folder
 interface VirtualFolder {
 	_id: string;
 	name: string;
-	parent?: string | null;
+	parent: string | null;
 	path: string;
 }
 
 // Define the structure of folder contents
 interface FolderContents {
 	subfolders: VirtualFolder[];
-	mediaFiles: any[]; // Replace 'any' with a more specific type if available
+	mediaFiles: MediaBase[];
+}
+
+// Define update data type
+interface VirtualFolderUpdateData {
+	name?: string;
+	parent?: string | null;
+	path?: string;
 }
 
 // Retrieve or create the root folder
 async function getRootFolder(): Promise<VirtualFolder> {
+	if (!dbAdapter) {
+		throw new Error('Database adapter is not initialized');
+	}
+
 	const rootFolder = await dbAdapter.findOne('VirtualFolder', {
 		name: publicEnv.MEDIA_FOLDER,
 		parent: null
@@ -43,11 +56,17 @@ async function getRootFolder(): Promise<VirtualFolder> {
 
 	if (!rootFolder) {
 		// Create root folder if it doesn't exist
-		return await dbAdapter.createVirtualFolder({
+		const newRootFolder = await dbAdapter.createVirtualFolder({
 			name: publicEnv.MEDIA_FOLDER,
 			parent: null,
 			path: publicEnv.MEDIA_FOLDER
 		});
+
+		if (!newRootFolder) {
+			throw new Error('Failed to create root folder');
+		}
+
+		return newRootFolder;
 	}
 
 	return rootFolder;
@@ -61,10 +80,18 @@ function errorResponse(message: string, status: number = 500) {
 
 // Recursively update paths of child folders
 async function updateChildPaths(folderId: string, newParentPath: string) {
-	const children = await dbAdapter.find('VirtualFolder', { parent: folderId });
+	if (!dbAdapter) {
+		throw new Error('Database adapter is not initialized');
+	}
+
+	const children = await dbAdapter.findMany('VirtualFolder', { parent: folderId });
+
 	for (const child of children) {
 		const newPath = `${newParentPath}/${child.name}`;
-		await dbAdapter.updateVirtualFolder(child._id, { path: newPath });
+		await dbAdapter.updateVirtualFolder(child._id, {
+			path: newPath,
+			parent: folderId
+		});
 		await updateChildPaths(child._id, newPath);
 	}
 }
@@ -88,22 +115,21 @@ export const GET: RequestHandler = async ({ params }) => {
 		// Fetch folder contents
 		let contents: FolderContents;
 		try {
-			contents = await dbAdapter.getVirtualFolderContents(folder._id.toString());
-		} catch (error) {
-			logger.warn('Error fetching folder contents:', error);
+			const folderContents = await dbAdapter.getVirtualFolderContents(folder._id.toString());
+			contents = {
+				subfolders: Array.isArray(folderContents?.subfolders) ? folderContents.subfolders : [],
+				mediaFiles: Array.isArray(folderContents?.mediaFiles) ? folderContents.mediaFiles : []
+			};
+		} catch (err) {
+			const error = err as Error;
+			logger.warn('Error fetching folder contents:', error.message as LoggableValue);
 			contents = { subfolders: [], mediaFiles: [] };
 		}
-
-		// Ensure contents has the correct structure
-		const safeContents: FolderContents = {
-			subfolders: Array.isArray(contents?.subfolders) ? contents.subfolders : [],
-			mediaFiles: Array.isArray(contents?.mediaFiles) ? contents.mediaFiles : []
-		};
 
 		// Return folder info and contents
 		return json({
 			success: true,
-			contents: safeContents,
+			contents,
 			folder: {
 				id: folder._id,
 				name: folder.name,
@@ -111,8 +137,9 @@ export const GET: RequestHandler = async ({ params }) => {
 				ariaLabel: `Folder: ${folder.name}`
 			}
 		});
-	} catch (error) {
-		return errorResponse(`Failed to fetch folder contents: ${error}`, 500);
+	} catch (err) {
+		const error = err as Error;
+		return errorResponse(`Failed to fetch folder contents: ${error.message}`, 500);
 	}
 };
 
@@ -159,8 +186,9 @@ export const POST: RequestHandler = async ({ params, request }) => {
 			},
 			{ status: 201 }
 		);
-	} catch (error) {
-		return errorResponse(`Failed to create subfolder: ${error}`, 500);
+	} catch (err) {
+		const error = err as Error;
+		return errorResponse(`Failed to create subfolder: ${error.message}`, 500);
 	}
 };
 
@@ -169,6 +197,10 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 	const { folderId } = params;
 
 	try {
+		if (!dbAdapter) {
+			return errorResponse('Database adapter is not initialized', 500);
+		}
+
 		const { name, parent } = await request.json();
 
 		if (!name) {
@@ -192,7 +224,7 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 		}
 
 		// Prepare update data
-		const updateData: Partial<VirtualFolder> = { name };
+		const updateData: VirtualFolderUpdateData = { name };
 		if (newParent) {
 			updateData.parent = newParent._id;
 			updateData.path = `${newParent.path}/${name}`;
@@ -218,8 +250,9 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 				ariaLabel: `Updated folder: ${updatedFolder.name}`
 			}
 		});
-	} catch (error) {
-		return errorResponse(`Failed to update folder: ${error}`, 500);
+	} catch (err) {
+		const error = err as Error;
+		return errorResponse(`Failed to update folder: ${error.message}`, 500);
 	}
 };
 
@@ -228,6 +261,10 @@ export const DELETE: RequestHandler = async ({ params }) => {
 	const { folderId } = params;
 
 	try {
+		if (!dbAdapter) {
+			return errorResponse('Database adapter is not initialized', 500);
+		}
+
 		if (folderId === 'root') {
 			return errorResponse('Cannot delete root folder', 400);
 		}
@@ -253,7 +290,8 @@ export const DELETE: RequestHandler = async ({ params }) => {
 			message: `Folder "${folder.name}" deleted successfully`,
 			ariaLabel: `Deleted folder: ${folder.name}`
 		});
-	} catch (error) {
-		return errorResponse(`Failed to delete folder: ${error}`, 500);
+	} catch (err) {
+		const error = err as Error;
+		return errorResponse(`Failed to delete folder: ${error.message}`, 500);
 	}
 };

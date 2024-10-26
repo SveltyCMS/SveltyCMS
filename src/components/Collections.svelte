@@ -54,7 +54,7 @@
 
 	interface Collection {
 		id: number;
-		name: string;
+		name: CollectionNames;
 		permissions?: any;
 		icon?: string;
 		slug?: string;
@@ -99,6 +99,23 @@
 
 	// Determine if the current mode is 'media'
 	$: isMediaMode = $mode === 'media';
+
+	// Type guard to ensure collection name is valid
+	function isValidCollectionName(name: string): name is CollectionNames {
+		return ['ImageArray', 'Media', 'Menu', 'Names', 'Posts', 'Relation', 'WidgetTest'].includes(name);
+	}
+
+	// Helper function to safely set collection
+	function safeSetCollection(col: Collection) {
+		if (isValidCollectionName(col.name)) {
+			collection.set({
+				...col,
+				icon: col.icon || 'default-icon'
+			} as Schema);
+		} else {
+			console.error(`Invalid collection name: ${col.name}`);
+		}
+	}
 </script>
 
 <!-- displays all collection parents and their Children as accordion -->
@@ -184,7 +201,6 @@
 					<!-- Collection Children -->
 					<svelte:fragment slot="content">
 						<!-- filtered by User Role Permission -->
-
 						{#each category.collections.filter((c) => modeSet == 'edit' || c?.permissions?.[user?.role]?.read != false) as _collection, index}
 							{#if $sidebarState.left === 'full'}
 								<!-- Sidebar Expanded -->
@@ -203,10 +219,7 @@
 											shouldShowNextButton.set(true);
 										}
 
-										collection.set({
-											..._collection,
-											icon: _collection.icon || 'default-icon' // Provide a default icon value if icon is undefined
-										});
+										safeSetCollection(_collection);
 									}}
 								>
 									<iconify-icon icon={_collection.icon} width="24" class="px-2 py-1 text-error-600" />
@@ -228,10 +241,7 @@
 											handleSidebarToggle();
 										}
 
-										collection.set({
-											..._collection,
-											icon: _collection.icon || 'default-icon' // Provide a default icon value if icon is undefined
-										});
+										safeSetCollection(_collection);
 									}}
 								>
 									<p class="text-xs capitalize">{_collection.name}</p>

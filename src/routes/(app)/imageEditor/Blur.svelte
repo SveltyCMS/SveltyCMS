@@ -84,7 +84,6 @@
 
 			transformer = new Konva.Transformer({
 				nodes: [blurRegion],
-				rotateEnabled: true,
 				borderDash: [5, 5],
 				borderStrokeWidth: 1,
 				borderStroke: 'white',
@@ -94,7 +93,7 @@
 				anchorCornerRadius: 6,
 				enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
 				rotateAnchorOffset: 30,
-				rotateEnabled: false // Disable default rotate anchor
+				rotateEnabled: false // Disable rotate functionality
 			});
 
 			// Add custom rotate anchor at the bottom
@@ -140,9 +139,10 @@
 		canvas.width = stage.width();
 		canvas.height = stage.height();
 		const context = canvas.getContext('2d');
+		const image = imageNode.image();
 
-		if (context && imageNode.image()) {
-			context.drawImage(imageNode.image(), 0, 0, canvas.width, canvas.height);
+		if (context && image) {
+			context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
 			const rect = blurRegion.getClientRect({ relativeTo: stage });
 

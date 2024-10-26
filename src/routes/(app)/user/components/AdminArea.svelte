@@ -22,9 +22,44 @@
 	import { Avatar } from '@skeletonlabs/skeleton';
 	import ModalTokenUser from './ModalTokenUser.svelte';
 	import { getModalStore } from '@skeletonlabs/skeleton';
+	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
+
+	// Types
+	interface AdminUser {
+		_id: string;
+		blocked: boolean;
+		avatar?: string;
+		email: string;
+		username: string;
+		role: string;
+		activeSessions: number;
+		lastAccess: string;
+		createdAt: string;
+		updatedAt: string;
+		[key: string]: any; // Allow for dynamic properties
+	}
+
+	interface AdminToken {
+		user_id: string;
+		blocked: boolean;
+		email: string;
+		expiresIn: string;
+		createdAt: string;
+		updatedAt: string;
+		[key: string]: any; // Allow for dynamic properties
+	}
+
+	interface AdminData {
+		users: AdminUser[];
+		tokens: AdminToken[];
+	}
+
+	interface PageData {
+		adminData: AdminData | null;
+		manageUsersPermissionConfig: any; // Type this based on your permission config structure
+	}
 
 	const modalStore = getModalStore();
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 
 	export let data: PageData;
 
@@ -82,9 +117,6 @@
 		refreshTableData();
 	}
 
-	const userTableData = [];
-	const tokenTableData = [];
-
 	const tableHeadersUser = [
 		{ label: m.adminarea_user_id(), key: '_id' },
 		{ label: m.adminarea_blocked(), key: 'blocked' },
@@ -129,8 +161,7 @@
 	export let selectedRows: any[] = [];
 
 	let tableHeaders: Array<{ label: string; name: string }> = [];
-	let tableData: any[] = [];
-	const tableDataUserToken: any[] = [];
+	let tableData: (AdminUser | AdminToken)[] = [];
 
 	let displayTableHeaders: { label: string; name: string; id: string; visible: boolean }[] =
 		userPaginationSettings.displayTableHeaders.length > 0
@@ -141,7 +172,7 @@
 	const selectedMap = writable({});
 
 	let filters: { [key: string]: string } = userPaginationSettings.filters || {};
-	let filteredTableData: any[] = [];
+	let filteredTableData: (AdminUser | AdminToken)[] = [];
 	const waitFilter = debounce(300);
 
 	let pagesCount: number = userPaginationSettings.pagesCount || 1;
@@ -158,12 +189,14 @@
 			}, 400);
 
 			// Use the data provided by the server
-			tableData = showUserList ? data.adminData!.users : data.adminData!.tokens;
+			if (data.adminData) {
+				tableData = showUserList ? data.adminData.users : data.adminData.tokens;
+			}
 
 			const tableHeaders = showUserList ? tableHeadersUser : tableHeaderToken;
 
 			tableData = tableData.map((item) => {
-				const formattedItem = {};
+				const formattedItem: { [key: string]: any } = {};
 				for (const header of tableHeaders) {
 					const { key } = header;
 					if (key === 'avatar') {
@@ -175,7 +208,7 @@
 						}
 					}
 				}
-				return formattedItem;
+				return formattedItem as AdminUser | AdminToken;
 			});
 
 			filters = {};
@@ -223,7 +256,7 @@
 		filteredTableData = tableData.filter((item) => {
 			return Object.entries(item).some(([key, value]) => {
 				if (filters[key]) {
-					return (value as string).toString().toLowerCase().includes(filters[key].toLowerCase());
+					return String(value).toLowerCase().includes(filters[key].toLowerCase());
 				} else {
 					return true;
 				}
@@ -275,7 +308,7 @@
 				<span class="whitespace-normal break-words">{m.adminarea_emailtoken()}</span>
 			</button>
 
-			{#if tableDataUserToken}
+			{#if data.adminData?.tokens.length}
 				<button on:click={toggleUserToken} class="gradient-secondary btn w-full text-white sm:max-w-xs">
 					<iconify-icon icon="material-symbols:key-outline" color="white" width="18" class="mr-1" />
 					<span>{showUsertoken ? m.adminarea_hideusertoken() : m.adminarea_showtoken()}</span>
@@ -442,7 +475,7 @@
 											width="22"
 											class="origin-center duration-300 ease-in-out"
 											class:up={sorting.isSorted === 1}
-											class:invisible={sorting.isSorted == 0 || sorting.sortedBy != header.label}
+											class:invisible={sorting.isSorted === 0 || sorting.sortedBy !== header.label}
 										/>
 									</div>
 								</th>
@@ -458,11 +491,11 @@
 									handleCRUDAction(row);
 								}}
 							>
-								<TableIcons bind:checked={selectedMap[index]} />
+								<TableIcons bind:checked={selectedMap[index]} iconStatus="single" />
 								{#each showUserList ? tableHeadersUser : tableHeaderToken as header}
 									<td class="text-center">
 										{#if header.key === 'blocked'}
-											<Boolean value={row[header.key] === 'true'} />
+											<Boolean value={String(row[header.key]) === 'true'} />
 										{:else if showUserList && header.key === 'avatar'}
 											<Avatar src={row[header.key]} fallback="/Default_User.svg" width="w-8" />
 										{:else if header.key === 'role'}

@@ -9,26 +9,22 @@
  * - Batch status update for multiple documents
  * - Support for all collections defined in the schema
  * - Error handling and logging
- *
- * Usage:
- * Called by the main query handler for SETSTATUS operations
- * Expects FormData with 'ids' (JSON array of document IDs) and 'status' fields
- *
- * Note: This handler assumes that user authentication and authorization
- * have already been performed by the calling function.
+
  */
 
 import type { Schema } from '@src/collections/types';
-import { dbAdapter, getCollectionModels } from '@src/databases/db';
-import { isCollectionName } from '@src/collections/index'; // Import the type guard function
+import type { User } from '@src/auth/types';
 
-// System logger
+// Database
+import { dbAdapter, getCollectionModels } from '@src/databases/db';
+
+// System Logger
 import { logger } from '@utils/logger';
 
 // Function to handle SETSTATUS requests for a specified collection
-export const _SETSTATUS = async ({ data, schema }: { data: FormData; schema: Schema }) => {
+export const _SETSTATUS = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {
 	try {
-		logger.debug(`SETSTATUS request received for schema: ${schema.name}`);
+		logger.debug(`SETSTATUS request received for schema: ${schema.name}`, { user: user._id });
 
 		// Ensure the database adapter is initialized
 		if (!dbAdapter) {
@@ -36,8 +32,8 @@ export const _SETSTATUS = async ({ data, schema }: { data: FormData; schema: Sch
 			return new Response('Internal server error: Database adapter not initialized', { status: 500 });
 		}
 
-		// Validate the collection name using the type guard
-		if (!schema.name || !isCollectionName(schema.name)) {
+		// Validate schema name
+		if (!schema.name) {
 			logger.error('Invalid or undefined schema name.');
 			return new Response('Invalid or undefined schema name.', { status: 400 });
 		}
@@ -56,22 +52,22 @@ export const _SETSTATUS = async ({ data, schema }: { data: FormData; schema: Sch
 		const status = data.get('status');
 
 		if (!idsJson || !status) {
-			logger.warn('Missing required fields: ids or status');
+			logger.warn('Missing required fields: ids or status', { user: user._id });
 			return new Response('Missing required fields', { status: 400 });
 		}
 
 		const ids = JSON.parse(idsJson as string);
 
 		if (!Array.isArray(ids) || ids.length === 0) {
-			logger.warn('Invalid or empty ids array');
+			logger.warn('Invalid or empty ids array', { user: user._id });
 			return new Response('Invalid ids format', { status: 400 });
 		}
 
-		logger.debug(`Updating status to '${status}' for ${ids.length} documents`);
+		logger.debug(`Updating status to '${status}' for ${ids.length} documents`, { user: user._id });
 
 		// Update the status of the documents with the specified IDs
 		const result = await collection.updateMany({ _id: { $in: ids } }, { $set: { status } });
-		logger.info(`Status updated for ${result.modifiedCount} documents in ${schema.name}`);
+		logger.info(`Status updated for ${result.modifiedCount} documents in ${schema.name}`, { user: user._id });
 
 		return new Response(JSON.stringify(result), {
 			status: 200,
@@ -79,7 +75,7 @@ export const _SETSTATUS = async ({ data, schema }: { data: FormData; schema: Sch
 		});
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-		logger.error(`Error occurred during SETSTATUS request: ${errorMessage}`);
+		logger.error(`Error occurred during SETSTATUS request: ${errorMessage}`, { user: user._id });
 		return new Response(errorMessage, { status: 500 });
 	}
 };

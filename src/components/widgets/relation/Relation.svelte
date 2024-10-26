@@ -34,24 +34,24 @@
 	let validationError: string | null = null;
 	let debounceTimeout: number | undefined;
 
-	// zod validation
-	import * as z from 'zod';
+	// valibot validation
+	import * as v from 'valibot';
 
 	// Define the validation schema for the relation widget
-	const widgetSchema = z.object({
-		_id: z.string().optional(),
-		display: z.string().min(1, 'Selection is required').optional()
+	const widgetSchema = v.object({
+		_id: v.optional(v.string()),
+		display: v.optional(v.pipe(v.string(), v.minLength(1, 'Selection is required')))
 	});
 
 	// Generic validation function that uses the provided schema to validate the input
-	function validateSchema(schema: z.ZodSchema, data: any): string | null {
+	function validateSchema(schema: typeof widgetSchema, data: any): string | null {
 		try {
-			schema.parse(data);
+			v.parse(schema, data);
 			validationStore.clearError(fieldName);
 			return null; // No error
 		} catch (error) {
-			if (error instanceof z.ZodError) {
-				const errorMessage = error.errors[0]?.message || 'Invalid input';
+			if (error instanceof v.ValiError) {
+				const errorMessage = error.issues[0]?.message || 'Invalid input';
 				validationStore.setError(fieldName, errorMessage);
 				return errorMessage;
 			}

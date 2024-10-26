@@ -38,6 +38,11 @@ const deleteTokensSchema = object({
 
 export const DELETE: RequestHandler = async ({ request, locals }) => {
 	try {
+		// Check if user is authenticated
+		if (!locals.user) {
+			throw error(401, 'Authentication required');
+		}
+
 		// Check if the user has permission to delete tokens
 		const { hasPermission } = await checkUserPermission(locals.user, {
 			contextId: 'config/userManagement',

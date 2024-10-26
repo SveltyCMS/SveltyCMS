@@ -6,7 +6,7 @@
  * - Form data handling and conversion (obj2formData, col2formData)
  * - File and media operations (sanitize, formatBytes, deleteOldTrashFiles)
  * - Date and time formatting (convertTimestampToDateString, formatUptime, ReadableExpireIn)
- * - Data manipulation and validation (extractData, deepCopy, validateZod)
+ * - Data manipulation and validation (extractData, deepCopy, validateValibot)
  * - Internationalization helpers (getTextDirection, updateTranslationProgress)
  * - Database operations (find, findById, saveFormData, deleteData)
  * - UI-related utilities (getGuiFields, motion)
@@ -16,7 +16,7 @@
  *
  * The module also defines important constants and types used across the application.
  *
- * @requires various - Including fs, axios, zod, and custom types/interfaces
+ * @requires various - Including fs, axios, valibot, and custom types/interfaces
  * @requires @stores/store - For accessing Svelte stores
  * @requires @root/config/public - For accessing public environment variables
  *
@@ -26,7 +26,7 @@
 import { publicEnv } from '@root/config/public';
 import { error } from '@sveltejs/kit';
 import axios from 'axios';
-import type { z } from 'zod';
+import type { BaseSchema } from 'valibot';
 
 // Auth
 import type { User } from '@src/auth/types';
@@ -507,12 +507,30 @@ export function debounce(delay?: number) {
 	};
 }
 
-export function validateZod<T>(schema: z.Schema<T>, value?: T): null | { [P in keyof T]?: string[] | undefined } {
-	const res = schema.safeParse(value);
-	if (res.success || !value) {
+export function validateValibot<T>(schema: BaseSchema<T, T, any>, value?: T): null | { [P in keyof T]?: string[] } {
+	try {
+		// Use safeParse instead of parse for validation
+		const result = schema.safeParse(value);
+		if (result.success) {
+			return null;
+		}
+
+		const fieldErrors = {} as { [P in keyof T]?: string[] };
+		const issues = result.issues || [];
+
+		for (const issue of issues) {
+			const path = issue.path?.[0]?.key as keyof T;
+			if (path) {
+				if (!fieldErrors[path]) {
+					fieldErrors[path] = [];
+				}
+				fieldErrors[path]!.push(issue.message);
+			}
+		}
+
+		return fieldErrors;
+	} catch (error) {
 		return null;
-	} else {
-		return res.error.flatten().fieldErrors as any;
 	}
 }
 

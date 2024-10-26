@@ -14,8 +14,8 @@
 	// Skeleton
 	import { Ratings } from '@skeletonlabs/skeleton';
 
-	// zod validation
-	import * as z from 'zod';
+	// valibot validation
+	import * as v from 'valibot';
 
 	export let field: FieldType;
 
@@ -36,24 +36,26 @@
 	let debounceTimeout: number | undefined;
 
 	// Define the validation schema for the rating widget
-	const widgetSchema = z.object({
-		value: z.number().min(1, 'Rating must be at least 1 star').max(maxRating, `Rating cannot exceed ${maxRating} stars`).optional(),
-		db_fieldName: z.string(),
-		icon: z.string().optional(),
-		color: z.string().optional(),
-		width: z.number().optional(),
-		required: z.boolean().optional()
+	const widgetSchema = v.object({
+		value: v.optional(
+			v.pipe(v.number(), v.minValue(1, 'Rating must be at least 1 star'), v.maxValue(maxRating, `Rating cannot exceed ${maxRating} stars`))
+		),
+		db_fieldName: v.string(),
+		icon: v.optional(v.string()),
+		color: v.optional(v.string()),
+		width: v.optional(v.number()),
+		required: v.optional(v.boolean())
 	});
 
 	// Generic validation function that uses the provided schema to validate the input
-	function validateSchema(schema: z.ZodSchema, data: any): string | null {
+	function validateSchema(schema: typeof widgetSchema, data: any): string | null {
 		try {
-			schema.parse(data);
+			v.parse(schema, data);
 			validationStore.clearError(fieldName);
 			return null; // No error
 		} catch (error) {
-			if (error instanceof z.ZodError) {
-				const errorMessage = error.errors[0]?.message || 'Invalid input';
+			if (error instanceof v.ValiError) {
+				const errorMessage = error.issues[0]?.message || 'Invalid input';
 				validationStore.setError(fieldName, errorMessage);
 				return errorMessage;
 			}

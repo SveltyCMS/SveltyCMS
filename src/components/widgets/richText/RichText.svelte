@@ -28,10 +28,11 @@
 	// TipTap
 	import StarterKit from '@tiptap/starter-kit'; // enables you to use the editor
 	import { Editor, Extension } from '@tiptap/core'; // enables you to use the editor
+	import { Transaction } from '@tiptap/pm/state'; // adds support for <a> tags
 	import TextStyle from './extensions/TextStyle'; // enables you to set the text style
+	import TextAlign from '@tiptap/extension-text-align'; //adds a text align attribute to a specified list of nodes
 	import FontFamily from '@tiptap/extension-font-family'; // enables you to set the font family
 	import Color from '@tiptap/extension-color'; // enables you to set the font color
-	import TextAlign from '@tiptap/extension-text-align'; //adds a text align attribute to a specified list of nodes
 	import Link from '@tiptap/extension-link'; // adds support for <a> tags
 	import Youtube from '@tiptap/extension-youtube'; // adds support for <a> tags
 
@@ -51,6 +52,7 @@
 
 	const _data = $mode == 'create' ? { content: {}, header: {} } : value;
 	$: _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
+	let previous_language = _language;
 
 	contentLanguage.subscribe(async (val) => {
 		await tick();
@@ -93,7 +95,10 @@
 			onTransaction: ({ transaction }) => {
 				// force re-render so `editor.isActive` works as expected
 				active_dropDown = '';
-				handleImageDeletes(transaction);
+				if (previous_language == _language) {
+					handleImageDeletes(transaction);
+				}
+				previous_language = _language;
 				editor = editor;
 				deb(() => {
 					let content = editor.getHTML();
@@ -107,25 +112,31 @@
 		});
 	});
 
-	function handleImageDeletes(transaction) {
-		const getImageIds = (fragment) => {
-			const srcs = new Set();
+	function handleImageDeletes(transaction: Transaction) {
+		const getImageIds = (fragment: Transaction['doc']['content']) => {
+			let srcs = new Set<string>();
+			let obj = new Map<string, { id: string; src: string }>();
 			fragment.forEach((node) => {
 				if (node.type.name === 'image') {
 					srcs.add(node.attrs.media_image);
+					obj.set(node.attrs.id, { id: node.attrs.id, src: node.attrs.src });
 				}
 			});
-			return srcs;
+			return { srcs, obj };
 		};
 
-		const currentIds = getImageIds(transaction.doc.content);
-		const previousIds = getImageIds(transaction.before.content);
-
+		let current = getImageIds(transaction.doc.content);
+		let previous = getImageIds(transaction.before.content);
 		// Determine which images were deleted
-		const deletedImageIds = [...previousIds].filter((id) => !currentIds.has(id)) as string[];
+		let deletedImageSrcs = [...previous.srcs].filter((src) => src && !current.srcs.has(src)) as string[];
+		for (let obj of previous.obj) {
+			if (!current.obj.has(obj[0])) {
+				images[obj[0]] && delete images[obj[0]];
+			}
+		}
 
-		if (deletedImageIds.length > 0) {
-			meta_data.add('media_images_remove', deletedImageIds);
+		if (deletedImageSrcs.length > 0) {
+			meta_data.add('media_images_remove', deletedImageSrcs);
 		}
 	}
 
@@ -437,7 +448,7 @@
 
 			<!-- Image -->
 			<FileInput
-				closeButton
+				closeButton={false}
 				bind:show={showImageDialog}
 				class="fixed  left-1/2 top-0 z-10 -translate-x-1/2 bg-white"
 				on:change={async (e) => {
@@ -475,11 +486,7 @@
 	button.active {
 		color: rgb(0, 255, 123);
 	}
-	.buttons::before,
-	.buttons::after {
-		content: '';
-		margin: auto;
-	}
+
 	:global(.tiptap) {
 		outline: none;
 	}

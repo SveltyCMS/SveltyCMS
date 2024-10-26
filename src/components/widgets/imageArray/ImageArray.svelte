@@ -19,8 +19,8 @@
 	// Skeleton
 	import { FileDropzone, ProgressBar, Avatar } from '@skeletonlabs/skeleton';
 
-	// zod validation
-	import * as z from 'zod';
+	// valibot validation
+	import * as v from 'valibot';
 
 	export let field: FieldType;
 
@@ -41,27 +41,27 @@
 	}
 
 	// Define the validation schema for this widget
-	const widgetSchema = z.array(
-		z.object({
-			file: z
-				.instanceof(File)
-				.refine((file) => file.size <= 10 * 1024 * 1024, 'File size must be less than 10MB')
-				.refine(
-					(file) => ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif', 'image/svg+xml'].includes(file.type),
-					'Invalid file format'
-				)
-		})
-	);
+	const fileSchema = v.object({
+		file: v.instance(File, 'Must be a file').pipe(
+			v.custom((file) => file.size <= 10 * 1024 * 1024, 'File size must be less than 10MB'),
+			v.custom(
+				(file) => ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif', 'image/svg+xml'].includes(file.type),
+				'Invalid file format'
+			)
+		)
+	});
+
+	const widgetSchema = v.array(fileSchema);
 
 	// Generic validation function that uses the provided schema to validate the input
-	function validateSchema(schema: z.ZodSchema, data: any): string | null {
+	function validateSchema(schema: typeof widgetSchema, data: any): string | null {
 		try {
-			schema.parse(data);
+			v.parse(schema, data);
 			validationStore.clearError(name);
 			return null; // No error
 		} catch (error) {
-			if (error instanceof z.ZodError) {
-				const errorMessage = error.errors[0]?.message || 'Invalid input';
+			if (error instanceof v.ValiError) {
+				const errorMessage = error.issues[0]?.message || 'Invalid input';
 				validationStore.setError(name, errorMessage);
 				return errorMessage;
 			}

@@ -14,16 +14,20 @@
 	$: selected = items.filter((item) => item.active())[0];
 
 	let expanded = false;
-	let header: HTMLDivElement;
+	let header: HTMLButtonElement;
 
 	function setPosition(node: HTMLDivElement) {
+		if (!header) return;
+
 		const parent = header.parentElement as HTMLElement;
-		node.style.minWidth = header.offsetWidth + 'px';
+		if (!parent) return;
+
+		node.style.minWidth = `${header.offsetWidth}px`;
 		const left_pos = header.getBoundingClientRect().left - parent.getBoundingClientRect().left;
 		if (left_pos + node.offsetWidth > parent.offsetWidth) {
 			node.style.right = '0';
 		} else {
-			node.style.left = left_pos < 0 ? '0' : left_pos + 'px';
+			node.style.left = left_pos < 0 ? '0' : `${left_pos}px`;
 		}
 	}
 </script>
@@ -98,5 +102,34 @@
 
 	.arrow_up::after {
 		transform: rotate(225deg);
+	}
+
+	.items {
+		position: absolute;
+		top: 100%;
+		margin-top: 5px;
+		background: var(--color-surface-500);
+		border-radius: 4px;
+		box-shadow: 0px 0px 3px 0px #3e1717;
+		display: flex;
+		flex-direction: column;
+		gap: 5px;
+		padding: 10px;
+		z-index: 20;
+	}
+
+	.items button {
+		padding: 5px;
+		border-radius: 4px;
+		transition: background-color 0.2s ease-in-out;
+	}
+
+	.items button:hover {
+		background-color: var(--color-surface-600);
+	}
+
+	.items button.active {
+		background-color: var(--color-primary-500);
+		color: white;
 	}
 </style>

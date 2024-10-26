@@ -35,7 +35,7 @@ import type { Schema } from '@src/collections/types';
 import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
-import { getCollections, isCollectionName } from '@src/collections';
+import { getCollections } from '@src/collections';
 import { _GET } from './GET';
 import { _POST } from './POST';
 import { _PATCH } from './PATCH';
@@ -66,11 +66,11 @@ async function checkUserPermissions(data: FormData, cookies: any) {
 	// Retrieve the collection name from the form data
 	const collectionName = data.get('collectionName') as string;
 
-	// Get the schema for the specified collection
-	if (!isCollectionName(collectionName)) {
-		throw Error('Invalid collection name');
+	if (!collectionName) {
+		throw Error('Collection name is required');
 	}
 
+	// Get the schema for the specified collection
 	const collection_schema = (await getCollections())[collectionName] as Schema;
 
 	if (!collection_schema) {

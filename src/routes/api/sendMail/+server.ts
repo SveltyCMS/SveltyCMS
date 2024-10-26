@@ -25,6 +25,7 @@
 
 import { privateEnv } from '@root/config/private';
 import { publicEnv } from '@root/config/public';
+import { json } from '@sveltejs/kit';
 
 // Svelty-email
 import { render } from 'svelty-email';
@@ -37,6 +38,7 @@ import { languageTag } from '@src/paraglide/runtime';
 
 // System Logger
 import { logger } from '@utils/logger';
+import type { LoggableValue } from '@utils/logger';
 
 // Email templates
 import userToken from '@components/emails/userToken.svelte';
@@ -47,9 +49,6 @@ import updatedPassword from '@components/emails/updatedPassword.svelte';
 // Types
 import type { ComponentType } from 'svelte';
 import type { RequestHandler } from './$types';
-
-// Svelte error handling
-import { error } from '@sveltejs/kit';
 
 interface EmailProps {
 	sitename?: string;
@@ -69,6 +68,12 @@ const templates: Record<string, ComponentType> = {
 	updatedPassword
 };
 
+// Generate a standardized error response
+function errorResponse(message: string, status: number = 500) {
+	logger.error(message);
+	return json({ success: false, error: message }, { status });
+}
+
 export const POST: RequestHandler = async ({ request }) => {
 	const { email, subject, message, templateName, props } = await request.json();
 	const userLanguage = languageTag(); // Get the user's language
@@ -76,11 +81,10 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	try {
 		await sendMail(email, subject, message, templateName, props, userLanguage);
-		return new Response('Email sent successfully', { status: 200 });
+		return json({ success: true, message: 'Email sent successfully' });
 	} catch (err) {
-		const message = `Error sending email: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
-		throw error(500, { message });
+		const error = err as Error;
+		return errorResponse(`Error sending email: ${error.message}`);
 	}
 };
 
@@ -120,9 +124,9 @@ async function sendMail(email: string, subject: string, message: string, templat
 	try {
 		const info = await transporter.sendMail(mailOptions);
 		logger.info('Email sent successfully', { email, subject, messageId: info.messageId });
-	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : String(error);
-		logger.error('Error sending email:', { error: errorMessage });
-		return json({ success: false, error: `Error sending email: ${error.message}` }, { status: 500 });
+	} catch (err) {
+		const error = err as Error;
+		logger.error('Error sending email:', { error: error.message as LoggableValue });
+		throw error;
 	}
 }

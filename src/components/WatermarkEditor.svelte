@@ -15,12 +15,13 @@ Usage:
 <script lang="ts">
 	import WatermarkSelector from './WatermarkSelector.svelte';
 	import WatermarkSettings from './WatermarkSettings.svelte';
+	import type { MediaType } from '@utils/media/mediaModels';
 
 	// Props
-	export let mediaItems = [];
+	export let mediaItems: MediaType[] = [];
 
 	// Local state
-	let selectedMedia = null;
+	let selectedMedia: MediaType | null = null;
 	let size = '100%';
 	let opacity = 1;
 	let positionX = 0;
@@ -28,7 +29,7 @@ Usage:
 	let rotation = 0;
 
 	// Handle media selection
-	function handleMediaSelect(media) {
+	function handleMediaSelect(media: MediaType) {
 		selectedMedia = media;
 	}
 </script>

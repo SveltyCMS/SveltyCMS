@@ -25,28 +25,28 @@
 	export let myData: any = null;
 	$: myData;
 
-	// zod validation
-	import * as z from 'zod';
+	// valibot validation
+	import * as v from 'valibot';
 
 	// Define the validation schema for the remote video URL input
-	const widgetSchema = z.object({
-		value: z.string().url('Invalid URL format').min(1, 'Video URL is required').optional(),
-		db_fieldName: z.string(),
-		icon: z.string().optional(),
-		color: z.string().optional(),
-		width: z.number().optional(),
-		required: z.boolean().optional()
+	const widgetSchema = v.object({
+		value: v.optional(v.pipe(v.string(), v.minLength(1, 'Video URL is required'), v.url('Invalid URL format'))),
+		db_fieldName: v.string(),
+		icon: v.optional(v.string()),
+		color: v.optional(v.string()),
+		width: v.optional(v.number()),
+		required: v.optional(v.boolean())
 	});
 
 	// Generic validation function that uses the provided schema to validate the input
-	function validateSchema(schema: z.ZodSchema, data: any): string | null {
+	function validateSchema(schema: typeof widgetSchema, data: any): string | null {
 		try {
-			schema.parse(data);
+			v.parse(schema, data);
 			validationStore.clearError(fieldName);
 			return null; // No error
 		} catch (error) {
-			if (error instanceof z.ZodError) {
-				const errorMessage = error.errors[0]?.message || 'Invalid input';
+			if (error instanceof v.ValiError) {
+				const errorMessage = error.issues[0]?.message || 'Invalid input';
 				validationStore.setError(fieldName, errorMessage);
 				return errorMessage;
 			}

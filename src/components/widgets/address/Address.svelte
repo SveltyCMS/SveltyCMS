@@ -24,7 +24,9 @@
 	import MapboxLanguage from '@mapbox/mapbox-gl-language';
 
 	// https://docs.mapbox.com/help/glossary/access-token/
-	mapboxgl.accessToken = privateEnv.MAPBOX_API_TOKEN;
+	if (privateEnv.MAPBOX_API_TOKEN) {
+		mapboxgl.accessToken = privateEnv.MAPBOX_API_TOKEN;
+	}
 
 	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';
@@ -138,7 +140,7 @@
 	const language = new MapboxLanguage();
 
 	const geocoder = new MapboxGeocoder({
-		accessToken: mapboxgl.accessToken,
+		accessToken: mapboxgl.accessToken || '',
 		mapboxgl: mapboxgl
 	});
 
@@ -164,7 +166,7 @@
 		// TODO: display admin user language
 		map.addControl(
 			new MapboxGeocoder({
-				accessToken: mapboxgl.accessToken,
+				accessToken: mapboxgl.accessToken || '',
 				mapboxgl: mapboxgl
 			})
 		);
@@ -205,33 +207,32 @@
 		required: field.required
 	};
 
-	const addressSchema = z.object({
-		db_fieldName: z.string(),
-		icon: z.string().optional(),
-		required: z.boolean().optional()
+	// valibot validation
+	import * as v from 'valibot';
+
+	const addressSchema = v.object({
+		db_fieldName: v.string(),
+		icon: v.optional(v.string()),
+		required: v.optional(v.boolean())
 	});
 
-	// zod validation
-	import * as z from 'zod';
-
 	// Customize the error messages for each rule
-	const validateSchema = z.object({
-		db_fieldName: z.string(),
-		icon: z.string().optional(),
-		color: z.string().optional(),
-		size: z.string().optional(),
-		width: z.number().optional(),
-		required: z.boolean().optional()
+	const validateSchema = v.object({
+		db_fieldName: v.string(),
+		icon: v.optional(v.string()),
+		color: v.optional(v.string()),
+		size: v.optional(v.string()),
+		width: v.optional(v.number()),
+		required: v.optional(v.boolean())
 	});
 
 	function validateInput() {
 		try {
-			// Change .parseAsync to .parse
-			validateSchema.parse(_data[_language]);
+			v.parse(validateSchema, _data[_language]);
 			validationError = '';
 		} catch (error: unknown) {
-			if (error instanceof z.ZodError) {
-				validationError = error.errors[0].message;
+			if (error instanceof v.ValiError) {
+				validationError = error.issues[0].message;
 			}
 		}
 	}

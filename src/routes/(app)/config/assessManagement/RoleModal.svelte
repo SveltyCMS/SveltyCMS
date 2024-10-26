@@ -2,7 +2,7 @@
 	import type { SvelteComponent } from 'svelte';
 
 	// Stores
-	import { writable } from 'svelte/store';
+	import { writable, type Writable } from 'svelte/store';
 	import { getModalStore } from '@skeletonlabs/skeleton';
 
 	// Auth
@@ -20,13 +20,19 @@
 	export let roleDescription: string;
 	export let currentGroupName: string;
 	// export let availablePermissions = writable<Permission[]>([]);
-	export let selectedPermissions = [];
+	export let selectedPermissions: Writable<string[]> = writable([]);
 
 	const modalStore = getModalStore();
 
 	const saveRole = () => {
 		if ($modalStore[0].response) {
-			$modalStore[0].response({ roleName, roleDescription, currentGroupName, selectedPermissions, currentRoleId });
+			$modalStore[0].response({
+				roleName,
+				roleDescription,
+				currentGroupName,
+				selectedPermissions: $selectedPermissions,
+				currentRoleId
+			});
 		}
 		modalStore.close();
 	};
@@ -36,12 +42,15 @@
 	};
 
 	const togglePermissionSelection = (permissionId: string) => {
-		const index = selectedPermissions.findIndex((cur) => cur === permissionId);
-		if (index > -1) {
-			selectedPermissions.splice(index, 1);
-		} else {
-			selectedPermissions.push(permissionId);
-		}
+		selectedPermissions.update((permissions) => {
+			const index = permissions.findIndex((cur) => cur === permissionId);
+			if (index > -1) {
+				permissions.splice(index, 1);
+			} else {
+				permissions.push(permissionId);
+			}
+			return permissions;
+		});
 	};
 
 	// Base Classes

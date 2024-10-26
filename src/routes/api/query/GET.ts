@@ -15,24 +15,21 @@
  * - Total count and pages count calculation
  * - Content language handling
  * - Error handling and logging
- *
- * Usage:
- * Called by the main query handler for GET operations
- * Accepts parameters for schema, user, sorting, filtering, content language, and pagination
- *
- * Note: This handler assumes that user authentication and authorization
- * have already been performed by the calling function.
  */
+
 import { publicEnv } from '@root/config/public';
 
 // Types
 import type { Schema } from '@src/collections/types';
 import type { User } from '@src/auth/types';
+
+// Database
 import { dbAdapter, getCollectionModels } from '@src/databases/db';
+
+// Utils
 import { modifyRequest } from './modifyRequest';
 import widgets from '@components/widgets';
 import { getFieldName, get_elements_by_id } from '@utils/utils';
-import { isCollectionName } from '@src/collections/index'; // Import the type guard function
 
 // System Logger
 import { logger } from '@utils/logger';
@@ -64,8 +61,8 @@ export async function _GET({
 			return new Response('Internal server error: Database adapter not initialized', { status: 500 });
 		}
 
-		// Validate the collection name using the type guard
-		if (!schema.name || !isCollectionName(schema.name)) {
+		// Validate schema name
+		if (!schema.name) {
 			logger.error(`Invalid or undefined schema name: ${schema.name}`);
 			return new Response('Invalid or undefined schema name.', { status: 400 });
 		}

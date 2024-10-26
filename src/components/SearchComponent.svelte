@@ -22,8 +22,22 @@ Features:
 	// Stores
 	import { isSearchVisible, globalSearchIndex, triggerActionStore } from '@utils/globalSearchIndex';
 
+	// Types
+	interface Trigger {
+		path: string;
+		action?: (() => void | Promise<void>)[];
+	}
+
+	interface SearchResult {
+		title: string;
+		description: string;
+		keywords: string[];
+		triggers: Record<string, Trigger>;
+		distance?: number;
+	}
+
 	// Define the searchResults array and searchQuery variable
-	let searchResults: any[] = [];
+	let searchResults: SearchResult[] = [];
 	let searchQuery = '';
 	let inputRef: HTMLInputElement;
 	let selectedIndex = -1; // Track the currently selected result
@@ -69,7 +83,7 @@ Features:
 		selectedIndex = -1; // Reset selection when results change
 	}
 
-	function handleResultClick(result: any, triggerKey: string) {
+	function handleResultClick(result: SearchResult, triggerKey: string) {
 		const trigger = result.triggers[triggerKey];
 
 		if (typeof trigger === 'object' && trigger !== null && 'path' in trigger && 'action' in trigger) {
@@ -81,8 +95,10 @@ Features:
 			}
 
 			// Store the trigger actions array in the triggerActionStore
-			triggerActionStore.set(action || []);
-		} else {
+			if (action) {
+				triggerActionStore.set(action);
+			}
+		} else if (trigger && typeof trigger.path === 'string') {
 			goto(trigger.path);
 		}
 
@@ -155,9 +171,11 @@ Features:
 							<!-- Path for items with one trigger -->
 							{#if Object.entries(result.triggers).length === 1}
 								{#each Object.entries(result.triggers) as [, trigger]}
-									<span class="w-[50px] text-xs text-primary-500">
-										{trigger.path}
-									</span>
+									{#if trigger && typeof trigger.path === 'string'}
+										<span class="w-[50px] text-xs text-primary-500">
+											{trigger.path}
+										</span>
+									{/if}
 								{/each}
 							{/if}
 						</div>
@@ -166,13 +184,15 @@ Features:
 						{#if Object.entries(result.triggers).length > 1}
 							<div class="grid text-sm sm:col-span-2">
 								{#each Object.entries(result.triggers) as [triggerKey, trigger]}
-									<button
-										class="flex items-center justify-between px-6 py-1 hover:bg-surface-500"
-										on:click|stopPropagation={() => handleResultClick(result, triggerKey)}
-									>
-										<HighlightedText text={triggerKey} term={searchQuery} />
-										<span class="text-xs text-primary-500">{trigger.path}</span>
-									</button>
+									{#if trigger && typeof trigger.path === 'string'}
+										<button
+											class="flex items-center justify-between px-6 py-1 hover:bg-surface-500"
+											on:click|stopPropagation={() => handleResultClick(result, triggerKey)}
+										>
+											<HighlightedText text={triggerKey} term={searchQuery} />
+											<span class="text-xs text-primary-500">{trigger.path}</span>
+										</button>
+									{/if}
 								{/each}
 							</div>
 						{/if}

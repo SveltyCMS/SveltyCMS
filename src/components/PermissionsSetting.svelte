@@ -21,7 +21,7 @@ Features:
 
 	// Props
 	export let roles: Role[] = [];
-	export let permissions: any;
+	export const permissions: any = {};
 
 	// Define the type for a role with permissions
 	interface RoleWithPermissions {

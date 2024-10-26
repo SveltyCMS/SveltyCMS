@@ -10,7 +10,8 @@ import type { Permission } from '@src/auth/types';
 
 // Define a new `Schema` interface that represents the shape of an object with several properties
 export interface Schema {
-	name?: CollectionNames; // Ensure name matches a key in CollectionNames
+	id: number; // Required ID for collections
+	name: CollectionNames; // Required name that matches a key in CollectionNames
 	label?: string; // Optional label that will display instead of name if used
 	slug?: string; // Optional Slug for the collection
 	links?: Array<keyof CollectionNames>; // Ensure links are valid collection names
@@ -22,6 +23,8 @@ export interface Schema {
 	strict?: boolean; // Optional strict mode
 	revision?: boolean; // Optional revisions
 	livePreview?: boolean; // Optional live preview
+	path?: string; // Optional path for folder-based structure
+	categoryIcon?: string; // Optional icon for the category
 }
 
 // Define a new `Collection` interface that represents the shape of an object with several properties

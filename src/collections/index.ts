@@ -1,13 +1,14 @@
 /**
  * @file src/collections/index.ts
- * @description Index file for collections. Manages collection loading, caching, and updates.
+ * @description Index file for collections. Manages collection loading, caching, and updates using a folder-based structure.
  */
 
 import { error } from '@sveltejs/kit';
 import { browser, building, dev } from '$app/environment';
 import axios from 'axios';
-import { createCategories } from './config';
+import deepmerge from 'deepmerge';
 import { getCollectionFiles } from '@api/getCollections/getCollectionFiles';
+import { createRandomID } from '@utils/utils';
 
 // Stores
 import { categories, collections, unAssigned, collection, collectionValue, mode } from '@stores/collectionStore';
@@ -28,9 +29,75 @@ let unsubscribe: Unsubscriber | undefined;
 // Cache for collection models
 let collectionModelsCache: Partial<Record<CollectionNames, Schema>> | null = null;
 
-// Type Guard Function to validate collection names
-export function isCollectionName(name: string): name is CollectionNames {
-	return ['ImageArray', 'Media', 'Menu', 'Names', 'Posts', 'Relation', 'WidgetTest'].includes(name);
+// Function to parse path and create nested categories
+function parsePath(path: string): string[] {
+	// Handle :: notation for virtual paths
+	return path.split('::').map((segment) => segment.trim());
+}
+
+// Function to merge permissions recursively
+function mergePermissions(parentPerms: Record<string, any> = {}, childPerms: Record<string, any> = {}): Record<string, any> {
+	return deepmerge(parentPerms, childPerms);
+}
+
+interface CategoryNode {
+	id: number;
+	name: string;
+	icon: string;
+	collections: Schema[];
+	subcategories: Record<string, CategoryNode>;
+}
+
+// Function to create categories from folder structure
+async function createCategoriesFromPath(collections: Schema[]): Promise<Array<{ id: number; name: string; icon: string; collections: Schema[] }>> {
+	const categoryTree: Record<string, CategoryNode> = {};
+
+	for (const col of collections) {
+		if (!col.path) continue;
+
+		const pathSegments = parsePath(col.path);
+		let currentLevel = categoryTree;
+		let currentPermissions = {};
+
+		for (const segment of pathSegments) {
+			if (!currentLevel[segment]) {
+				const randomId = await createRandomID();
+				currentLevel[segment] = {
+					id: parseInt(randomId.toString().slice(0, 8), 16),
+					name: segment,
+					icon: col.categoryIcon || 'iconoir:category',
+					collections: [],
+					subcategories: {}
+				};
+			}
+
+			// Merge permissions along the path
+			currentPermissions = mergePermissions(currentPermissions, col.permissions || {});
+
+			if (segment === pathSegments[pathSegments.length - 1]) {
+				currentLevel[segment].collections.push(col);
+			}
+
+			currentLevel = currentLevel[segment].subcategories;
+		}
+	}
+
+	// Convert tree to flat array
+	const result: Array<{ id: number; name: string; icon: string; collections: Schema[] }> = [];
+
+	function processCategory(category: CategoryNode) {
+		result.push({
+			id: category.id,
+			name: category.name,
+			icon: category.icon,
+			collections: category.collections
+		});
+
+		Object.values(category.subcategories).forEach(processCategory);
+	}
+
+	Object.values(categoryTree).forEach(processCategory);
+	return result;
 }
 
 // Function to get collections with cache support
@@ -55,6 +122,7 @@ export async function getCollections(): Promise<Partial<Record<CollectionNames, 
 		});
 	});
 }
+
 // Function to update collections
 export const updateCollections = async (recompile: boolean = false): Promise<void> => {
 	logger.debug('Starting updateCollections');
@@ -68,30 +136,16 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 		logger.debug(`Imports fetched. Count: ${Object.keys(imports).length}`);
 
 		const fullImports = imports as Record<CollectionNames, Schema>;
-		let _categories = createCategories(fullImports);
-
-		if (!dev && !building) {
-			logger.debug('Fetching new createCategories function');
-			try {
-				const config = `config.js?${Math.floor(Date.now() / 1000)}`; // Update cache timestamp
-				const { createCategories: newCreateCategories } = browser
-					? await import(/* @vite-ignore */ `/api/importCollection/${config}?_t=${Math.floor(Date.now() / 1000)}`)
-					: await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${config}`);
-				_categories = newCreateCategories(fullImports);
-				logger.debug('New categories created successfully');
-			} catch (importError) {
-				logger.error(`Error importing new createCategories function: ${importError}`);
-			}
-		}
+		const _categories = await createCategoriesFromPath(Object.values(fullImports));
 
 		const _collections: Partial<Record<CollectionNames, Schema>> = {};
-		_categories.forEach((category) => {
-			category.collections.forEach((col) => {
-				if (col.name && isCollectionName(col.name)) {
+		for (const category of _categories) {
+			for (const col of category.collections) {
+				if (col.name) {
 					_collections[col.name] = col;
 				}
-			});
-		});
+			}
+		}
 
 		logger.debug(`Collections processed. Count: ${Object.keys(_collections).length}`);
 
@@ -140,15 +194,22 @@ async function getImports(recompile: boolean = false): Promise<Partial<Record<Co
 
 	try {
 		const processModule = async (name: string, module: any) => {
-			if (!isCollectionName(name)) {
-				logger.error(`Invalid collection name: ${name}`);
-				return; // Skip invalid module
-			}
 			const collection = (module as { schema: Schema })?.schema ?? {};
 			if (collection) {
-				collection.name = name;
+				const randomId = await createRandomID();
+				collection.name = name as CollectionNames;
 				collection.icon = collection.icon || 'iconoir:info-empty';
-				importsCache[name] = collection;
+				collection.id = parseInt(randomId.toString().slice(0, 8), 16); // Generate ID from random hex
+				// Extract path from module location if not explicitly set
+				if (!collection.path) {
+					const modulePath = module.__file || '';
+					collection.path = modulePath
+						.split('/')
+						.slice(0, -1) // Remove filename
+						.filter(Boolean)
+						.join('::');
+				}
+				importsCache[name as CollectionNames] = collection as Schema;
 			} else {
 				logger.error(`Error importing collection: ${name}`);
 			}
@@ -157,9 +218,10 @@ async function getImports(recompile: boolean = false): Promise<Partial<Record<Co
 		// Development/Building mode
 		if (dev || building) {
 			logger.debug(`Running in {${dev ? 'dev' : 'building'}} mode`);
-			const modules = import.meta.glob(['./*.ts', '!./index.ts', '!./types.ts', '!./config.ts']);
+			// Recursively import all .ts files from collections directory
+			const modules = import.meta.glob(['./**/*.ts', '!./index.ts', '!./types.ts']);
 			for (const [modulePath, moduleImport] of Object.entries(modules)) {
-				const name = modulePath.replace(/\.ts$/, '').replace('./', '');
+				const name = modulePath.split('/').pop()?.replace(/\.ts$/, '') || '';
 				const module = await moduleImport();
 				await processModule(name, module);
 			}

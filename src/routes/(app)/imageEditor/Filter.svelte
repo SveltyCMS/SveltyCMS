@@ -5,10 +5,27 @@
 
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
+	import Konva from 'konva';
+
+	export let stage: Konva.Stage;
+	export let layer: Konva.Layer;
+	export let imageNode: Konva.Image;
 
 	const dispatch = createEventDispatcher();
 
-	let filters = {
+	interface Filters {
+		brightness: number;
+		contrast: number;
+		saturation: number;
+		hue: number;
+		blur: number;
+		sepia: boolean;
+		invert: boolean;
+		grayscale: boolean;
+		[key: string]: number | boolean;
+	}
+
+	let filters: Filters = {
 		brightness: 0,
 		contrast: 0,
 		saturation: 0,
@@ -21,6 +38,50 @@
 
 	function applyFilter(filterType: string, value: number | boolean) {
 		filters[filterType] = value;
+
+		// Apply filters to the image node
+		const activeFilters: ((imageData: ImageData) => void)[] = [];
+
+		if (filters.brightness !== 0) {
+			activeFilters.push(Konva.Filters.Brighten);
+			imageNode.brightness(filters.brightness);
+		}
+
+		if (filters.contrast !== 0) {
+			activeFilters.push(Konva.Filters.Contrast);
+			imageNode.contrast(filters.contrast);
+		}
+
+		if (filters.saturation !== 0) {
+			activeFilters.push(Konva.Filters.HSL);
+			imageNode.saturation(filters.saturation);
+		}
+
+		if (filters.hue !== 0) {
+			activeFilters.push(Konva.Filters.HSL);
+			imageNode.hue(filters.hue);
+		}
+
+		if (filters.blur > 0) {
+			activeFilters.push(Konva.Filters.Blur);
+			imageNode.blurRadius(filters.blur);
+		}
+
+		if (filters.sepia) {
+			activeFilters.push(Konva.Filters.Sepia);
+		}
+
+		if (filters.invert) {
+			activeFilters.push(Konva.Filters.Invert);
+		}
+
+		if (filters.grayscale) {
+			activeFilters.push(Konva.Filters.Grayscale);
+		}
+
+		imageNode.filters(activeFilters);
+		layer.batchDraw();
+
 		dispatch('filter', { filterType, value });
 	}
 
@@ -35,6 +96,15 @@
 			invert: false,
 			grayscale: false
 		};
+
+		imageNode.filters([]);
+		imageNode.brightness(0);
+		imageNode.contrast(0);
+		imageNode.saturation(0);
+		imageNode.hue(0);
+		imageNode.blurRadius(0);
+		layer.batchDraw();
+
 		dispatch('resetFilters');
 	}
 

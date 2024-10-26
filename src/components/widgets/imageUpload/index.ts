@@ -15,7 +15,7 @@ import { dbAdapter } from '@src/databases/db'; // Import your database adapter
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
 
-const mediaService = new MediaService(); // Initialize MediaService instance
+const mediaService = new MediaService(dbAdapter!);
 
 /**
  * Defines ImageUpload widget Parameters

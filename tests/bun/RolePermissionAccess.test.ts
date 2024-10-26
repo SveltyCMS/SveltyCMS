@@ -1,3 +1,5 @@
+/// <reference types="bun-types" />
+
 import { describe, test, expect, vi } from 'bun:test';
 
 // Mock SvelteKit-specific environment import
@@ -22,8 +24,8 @@ import { getPermissionByName, getAllPermissions, syncPermissions } from '@src/au
 
 // Mock database adapter
 const mockDbAdapter = {
-	createUser: async () => ({ _id: 'user1', email: 'user@example.com', role: 'user', permissions: new Set() }),
-	getUserByEmail: async () => ({ _id: 'user1', email: 'user@example.com', role: 'user', permissions: new Set() }),
+	createUser: async () => ({ _id: 'user1', email: 'user@example.com', role: 'user', permissions: [] }),
+	getUserByEmail: async () => ({ _id: 'user1', email: 'user@example.com', role: 'user', permissions: [] }),
 	updateUserAttributes: async () => {}
 	// Add other required methods with mock implementations
 };
@@ -83,7 +85,7 @@ describe('Role and Permission Access Management', () => {
 			_id: 'user1',
 			email: 'user@example.com',
 			role: 'user',
-			permissions: new Set(['user:read', 'user:create'])
+			permissions: ['user:read', 'user:create']
 		};
 
 		const { hasPermission: canCreateUser } = await checkUserPermission(user, {
@@ -108,7 +110,7 @@ describe('Role and Permission Access Management', () => {
 			_id: 'admin1',
 			email: 'admin@example.com',
 			role: 'admin',
-			permissions: new Set()
+			permissions: []
 		};
 
 		const { hasPermission: canDoAnything } = await checkUserPermission(adminUser, {
@@ -125,7 +127,7 @@ describe('Role and Permission Access Management', () => {
 			_id: 'user1',
 			email: 'user@example.com',
 			role: 'user',
-			permissions: new Set()
+			permissions: []
 		};
 
 		const userPermissions = await loadUserPermissions(user);

@@ -12,8 +12,8 @@
 	import { validationStore } from '@stores/store';
 	import { mode, collectionValue } from '@stores/collectionStore';
 
-	// zod validation
-	import * as z from 'zod';
+	// valibot validation
+	import * as v from 'valibot';
 
 	export let field: FieldType;
 
@@ -28,25 +28,25 @@
 	export const WidgetData = async () => _data;
 
 	// Define the validation schema for this widget
-	const widgetSchema = z.object({
-		value: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Invalid date-time format, must be YYYY-MM-DDTHH:MM'),
-		db_fieldName: z.string(),
-		icon: z.string().optional(),
-		color: z.string().optional(),
-		size: z.string().optional(),
-		width: z.number().optional(),
-		required: z.boolean().optional()
+	const widgetSchema = v.object({
+		value: v.pipe(v.string(), v.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Invalid date-time format, must be YYYY-MM-DDTHH:MM')),
+		db_fieldName: v.string(),
+		icon: v.optional(v.string()),
+		color: v.optional(v.string()),
+		size: v.optional(v.string()),
+		width: v.optional(v.number()),
+		required: v.optional(v.boolean())
 	});
 
 	// Generic validation function that uses the provided schema to validate the input
-	function validateSchema(schema: z.ZodSchema, data: any): string | null {
+	function validateSchema(schema: typeof widgetSchema, data: any): string | null {
 		try {
-			schema.parse(data);
+			v.parse(schema, data);
 			validationStore.clearError(fieldName);
 			return null; // No error
 		} catch (error) {
-			if (error instanceof z.ZodError) {
-				const errorMessage = error.errors[0]?.message || 'Invalid input';
+			if (error instanceof v.ValiError) {
+				const errorMessage = error.issues[0]?.message || 'Invalid input';
 				validationStore.setError(fieldName, errorMessage);
 				return errorMessage;
 			}
