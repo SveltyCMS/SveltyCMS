@@ -7,12 +7,8 @@
  * - File caching to avoid unnecessary recompilation
  * - Content hashing for change detection
  * - Concurrent file operations for improved performance
- * - Modular functions for cleaner, maintainable code
- * - Error handling and logging using console.log
- *
- * Usage:
- * import { compile } from './compile';
- * await compile();
+ * - Support for nested category structure
+ * - Error handling and logging
  */
 
 import fs from 'fs/promises';
@@ -61,7 +57,7 @@ async function getTypescriptFiles(folder: string, subdir: string = ''): Promise<
 			// Recursively get files from subdirectories
 			const subFiles = await getTypescriptFiles(folder, relativePath);
 			files.push(...subFiles);
-		} else if (entry.isFile() && entry.name.endsWith('.ts') && entry.name !== 'index.ts' && entry.name !== 'types.ts') {
+		} else if (entry.isFile() && entry.name.endsWith('.ts') && !['index.ts', 'types.ts', 'categories.ts'].includes(entry.name)) {
 			files.push(relativePath);
 		}
 	}
@@ -70,8 +66,10 @@ async function getTypescriptFiles(folder: string, subdir: string = ''): Promise<
 }
 
 async function createOutputDirectories(files: string[], srcFolder: string, destFolder: string): Promise<void> {
+	// Get all unique directory paths from the files
 	const directories = new Set(files.map((file) => path.dirname(file)).filter((dir) => dir !== '.'));
 
+	// Create each directory in the output folder
 	for (const dir of directories) {
 		const outputDir = path.join(destFolder, dir);
 		await fs.mkdir(outputDir, { recursive: true });
@@ -81,7 +79,7 @@ async function createOutputDirectories(files: string[], srcFolder: string, destF
 async function compileFile(file: string, srcFolder: string, destFolder: string): Promise<void> {
 	const tsFilePath = path.join(srcFolder, file);
 	const jsFilePath = path.join(destFolder, file.replace(/\.ts$/, '.js'));
-	const shortPath = `/collections/${file.replace(/\.ts$/, '.js')}`; // Keep subdirectory structure in path
+	const shortPath = `/collections/${file.replace(/\.ts$/, '.js')}`;
 
 	try {
 		// Check if recompilation is necessary

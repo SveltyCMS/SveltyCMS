@@ -1,70 +1,64 @@
 /**
  * @file src/collections/categories.ts
- * @description Defines the configuration for collection categories including icons and order
+ * @description Category configuration generated from folder structure
+ *
+ * ⚠️ WARNING: This is an auto-generated file.
+ * DO NOT MODIFY DIRECTLY - Changes will be overwritten by the CMS.
+ *
+ * This file is generated from:
+ * 1. Folder structure in src/collections/
+ * 2. GUI updates via /api/save-categories
+ * 3. System updates via /api/updateCategories
+ *
+ * Translations are stored in the database, not in this file.
  */
 
-interface CategoryConfig {
+interface CategoryData {
 	icon: string;
-	order: number;
-	subcategories?: Record<string, CategoryConfig>;
+	name: string;
+	subcategories?: Record<string, CategoryData>;
 }
 
-// Configuration for collection categories
-// Lower order numbers appear first
-export const categoryConfig: Record<string, CategoryConfig> = {
+// Auto-generated category configuration
+export const categoryConfig: Record<string, CategoryData> = {
 	Collections: {
 		icon: 'bi:collection',
-		order: 10,
+		name: 'Collections',
 		subcategories: {
 			Posts: {
-				icon: 'bi:file-text',
-				order: 11
+				icon: 'bi:folder',
+				name: 'Posts',
+				subcategories: {
+					Posts: {
+						icon: 'bi:file-text',
+						name: 'Posts'
+					}
+				}
 			},
 			Media: {
 				icon: 'bi:image',
-				order: 12
+				name: 'Media'
+			},
+			Names: {
+				icon: 'bi:person',
+				name: 'Names'
+			},
+			Relation: {
+				icon: 'bi:link',
+				name: 'Relation'
+			},
+			WidgetTest: {
+				icon: 'bi:grid',
+				name: 'Widget Test'
+			},
+			ImageArray: {
+				icon: 'bi:images',
+				name: 'Image Array'
 			}
 		}
 	},
 	Menu: {
 		icon: 'bi:list',
-		order: 20
+		name: 'Menu'
 	}
 };
-
-// Helper function to get full category path configuration
-export function getCategoryConfig(path: string): CategoryConfig | undefined {
-	const segments = path.split('/');
-	let current = categoryConfig[segments[0]];
-
-	for (let i = 1; i < segments.length; i++) {
-		if (!current?.subcategories?.[segments[i]]) {
-			return undefined;
-		}
-		current = current.subcategories[segments[i]];
-	}
-
-	return current;
-}
-
-// Helper function to flatten category config for backward compatibility
-export function flattenCategoryConfig(): Record<string, CategoryConfig> {
-	const flattened: Record<string, CategoryConfig> = {};
-
-	function flatten(config: Record<string, CategoryConfig>, prefix = '') {
-		for (const [key, value] of Object.entries(config)) {
-			const fullPath = prefix ? `${prefix}/${key}` : key;
-			flattened[fullPath] = {
-				icon: value.icon,
-				order: value.order
-			};
-
-			if (value.subcategories) {
-				flatten(value.subcategories, fullPath);
-			}
-		}
-	}
-
-	flatten(categoryConfig);
-	return flattened;
-}

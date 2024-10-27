@@ -1,8 +1,10 @@
-<p style="border: none; margin-bottom:0; padding-bottom: 0;" align="center">
+# <p style="border: none; margin-bottom:0; padding-bottom: 0;" align="center">
+
       <picture>
       <source media="(prefers-color-scheme: dark)" srcset="https://github.com/SveltyCMS/SveltyCMS/blob/main/static/SveltyCMS.png">
       <img width="200" alt="SveltyCMS logo" src="https://github.com/SveltyCMS/SveltyCMS/blob/main/static/SveltyCMS.png">
     </picture>
+
  </p>
 
 <h1 align="center"><strong>SveltyCMS</strong></h1>
@@ -77,41 +79,97 @@ To clone our [repository](https://github.com/SveltyCMS/SveltyCMS.git) you need t
 
 ```bash
 git clone https://github.com/SveltyCMS/SveltyCMS.git
-
 cd SveltyCMS
 ```
 
 ### Install all dependencies
 
-Install [Node.js](https://nodejs.org/en) to get started which ships with npm.
+Install stable [Node.js](https://nodejs.org/en) to get started. Then choose your preferred package manager:
 
-We recommend the faster [pnpm](https://pnpm.io) package manager. [Yarn](https://yarnpkg.com) and the [bun.sh](https://bun.sh) can also be used as well. Adapt the command accordingly.
+<details open>
+<summary><b>npm</b></summary>
 
 ```bash
+# Install dependencies
 npm install
+
+# Start CLI Installer
+npm run installer
+
+# Development
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
 ```
+
+</details>
+
+<details>
+<summary><b>pnpm</b></summary>
+
+```bash
+# Install pnpm if you haven't already
+npm install -g pnpm
+
+# Install dependencies
+pnpm install
+
+# Start CLI Installer
+pnpm run installer
+
+# Development
+pnpm run dev
+
+# Build for production
+pnpm run build
+
+# Preview production build
+pnpm run preview
+```
+
+</details>
+
+<details>
+<summary><b>bun</b></summary>
+
+```bash
+# Install bun if you haven't already
+curl -fsSL https://bun.sh/install | bash
+
+# Install dependencies
+bun install
+
+# Start CLI Installer
+bun run installer
+
+# Development
+bun run dev
+
+# Build for production
+bun run build
+
+# Preview production build
+bun run preview
+```
+
+</details>
 
 ### Setup via CLI Installer
 
 This project uses a public/private configuration to store sensitive information, such as API keys and database passwords.
 
-To set up the SvelteCMC project, you just need to start the CLI Installer. Minium requirements are a Database and Email to get started :
+To set up the SvelteCMC project, you just need to start the CLI Installer. Minimum requirements are a Database and Email to get started.
 
-```bash
-npm run installer
-```
+### Development and Production
 
-### Start the application for development or production once CLI Installer was run.
+See our `package.json` for more information about development, build, preview, format, lint & testing commands.
 
-See our `package.json` for more information like development, build, preview, format, lint & testing.
-
-Here the most used commands:
-
-```bash
-npm run dev       # run development on localhost:5173
-npm run build     # build for production
-npm run preview   # to run preview on localhost:4173
-```
+Development server runs on `localhost:5173`
+Preview server runs on `localhost:4173`
 
 ## :lock: Authentication & Security
 
@@ -185,7 +243,7 @@ Thank you for helping us maintain a consistent and predictable release process! 
 
 # Contributing
 
-We welcome all kinds of contributions! Please see our [`CONTRIBUTING.md`](https://github.com/SveltyCMS/SveltyCMS/CONTRIBUTING.md) for details on how to get started with this.
+We welcome all kinds of contributions! Please see our [`CONTRIBUTING.md`](https://github.com/SveltyCMS/SvelteCMS/CONTRIBUTING.md) for details on how to get started with this.
 
 ## :moneybag: Sponsoring
 

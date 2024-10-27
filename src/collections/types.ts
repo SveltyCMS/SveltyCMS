@@ -11,18 +11,17 @@ import type { Permission } from '@src/auth/types';
 // Define the base Schema interface
 export interface Schema {
 	id: number; // Unique ID for collections
-	name: CollectionNames; // Optional label that will display instead of name if used
+	name: CollectionNames; // Collection name
 	label?: string; // Optional label that will display instead of name if used
 	slug?: string; // Optional Slug for the collection
 	icon?: string; // Optional icon
 	description?: string; // Optional description for the collection
 	strict?: boolean; // Optional strict mode
 	revision?: boolean; // Optional revisions
-	path?: string; // Optional path for folder-based structure
-	order?: number; // Optional order within category
+	path?: string; // Path within the collections folder structure
 	permissions?: Permission; // Optional permission restrictions
 	livePreview?: boolean; // Optional live preview
-	status?: 'draft' | 'published' | 'unpublished' | 'scheduled' | 'cloned'; // Optional default status how to create new entries
+	status?: 'draft' | 'published' | 'unpublished' | 'scheduled' | 'cloned'; // Optional default status
 	links?: Array<keyof CollectionNames>; // Optional links to other collections
 	fields: ReturnType<(typeof widgets)[keyof typeof widgets]>[];
 }
@@ -64,7 +63,6 @@ export interface Category {
 	id: number;
 	name: string;
 	icon: string;
-	order: number;
 	collections: Schema[];
 }
 
@@ -72,4 +70,11 @@ export interface Category {
 export interface FilteredCategory extends Category {
 	open?: boolean;
 	level?: number;
+}
+
+// Category data interface for configuration
+export interface CategoryData {
+	icon: string;
+	name: string;
+	subcategories?: Record<string, CategoryData>;
 }
