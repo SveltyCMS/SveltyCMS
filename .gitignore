@@ -22,7 +22,7 @@ vite.config.ts.timestamp-*
 trash/
 media/
 mediaFiles/
-collections/
+collections/*
 logs/
 .node-version
 
@@ -50,3 +50,5 @@ yarn-error.log*
 
 #paraglide.js
 src/paraglide/**/*.js
+
+
