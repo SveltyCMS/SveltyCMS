@@ -1,17 +1,18 @@
 <!-- 
  @file src/routes/(app)/config/collection/+page.svelte
- @description This component sets up and displays the collection page. It provides a user-friendly interface for creating, editing, and deleting collections.
+ @description This component sets up and displays the collection page with nested category support.
 -->
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { categoryConfig } from '@src/collections/categories';
+	import { createRandomID } from '@utils/utils';
 
 	// Stores
-	import { categories, collectionValue, mode, unAssigned } from '@stores/collectionStore';
+	import { collectionValue, mode } from '@stores/collectionStore';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
-	import Unassigned from './[...collectionName]/Unassigned.svelte';
 	import Board from './Board.svelte';
 	import ModalCategory from './ModalCategory.svelte';
 
@@ -23,32 +24,79 @@
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
-	// Modal Trigger - New Category
-	function modalAddCategory(): void {
-		const modalComponent: ModalComponent = {
-			// Pass a reference to your custom component
-			ref: ModalCategory,
+	let currentConfig = categoryConfig;
 
-			// Provide default slot content as a template literal
-			slot: '<p>Edit Form</p>'
+	// Modal Trigger - New Category
+	function modalAddCategory(existingCategory?: { name: string; icon: string }): void {
+		const modalComponent: ModalComponent = {
+			ref: ModalCategory,
+			props: {
+				existingCategory
+			}
 		};
 		const d: ModalSettings = {
 			type: 'component',
-			title: 'Add New Category',
-			body: 'Enter Unique Name and an Icon for your new category column',
+			title: existingCategory ? 'Edit Category' : 'Add New Category',
+			body: existingCategory ? 'Modify Category Details' : 'Enter Unique Name and an Icon for your new category column',
 			component: modalComponent,
-			response: (r: any) => {
+			response: async (r: any) => {
 				if (r) {
-					availableCollection = [
-						...availableCollection,
-						{
-							id: r.newCategoryName.toLowerCase().replace(/\s/g, '-'),
-							name: r.newCategoryName,
-							icon: r.newCategoryIcon,
-							items: []
+					if (existingCategory) {
+						// Update existing category
+						const newConfig = { ...currentConfig };
+						Object.entries(newConfig).forEach(([key, category]) => {
+							if (category.name === existingCategory.name) {
+								category.name = r.newCategoryName;
+								category.icon = r.newCategoryIcon;
+							}
+							// Also check subcategories
+							if (category.subcategories) {
+								Object.entries(category.subcategories).forEach(([subKey, subCategory]) => {
+									if (subCategory.name === existingCategory.name) {
+										subCategory.name = r.newCategoryName;
+										subCategory.icon = r.newCategoryIcon;
+									}
+								});
+							}
+						});
+						updateConfig(newConfig);
+					} else {
+						// Add new category
+						const newConfig = { ...currentConfig };
+						const categoryKey = r.newCategoryName.toLowerCase().replace(/\s+/g, '-');
+						const newCategoryId = await createRandomID();
+
+						// Add new category under Collections if it exists
+						if (newConfig.Collections) {
+							newConfig.Collections.subcategories = {
+								...newConfig.Collections.subcategories,
+								[categoryKey]: {
+									id: newCategoryId,
+									name: r.newCategoryName,
+									icon: r.newCategoryIcon,
+									subcategories: {}
+								}
+							};
+						} else {
+							// Create Collections category if it doesn't exist
+							const collectionsId = await createRandomID();
+							newConfig.Collections = {
+								id: collectionsId,
+								name: 'Collections',
+								icon: 'bi:collection',
+								subcategories: {
+									[categoryKey]: {
+										id: newCategoryId,
+										name: r.newCategoryName,
+										icon: r.newCategoryIcon,
+										subcategories: {}
+									}
+								}
+							};
 						}
-					];
-					console.log('response:', r);
+
+						updateConfig(newConfig);
+					}
 				}
 			}
 		};
@@ -65,73 +113,38 @@
 			slug: '',
 			fields: []
 		});
-		// Navigate to the route where you handle creating new collections
 		goto('/config/collectionbuilder/new');
 	}
 
-	// Define the structure of an unassigned collection
-	$: UnassignedCollections = $unAssigned.map((collection) => ({
-		id: crypto.randomUUID(),
-		name: collection.name,
-		icon: collection.icon,
-		items: $unAssigned.map((collection: any) => ({
-			id: crypto.randomUUID(),
-			name: collection.name,
-			icon: collection.icon,
-			collections: collection
-		}))
-	}));
-
-	// Define the structure of an Assigned collection
-	$: availableCollection = $categories.map((category) => ({
-		id: crypto.randomUUID(),
-		name: category.name,
-		icon: category.icon,
-		items: category.collections.map((collection: any) => ({
-			id: crypto.randomUUID(),
-			name: collection.name,
-			icon: collection.icon,
-			collections: collection
-		}))
-	}));
-
-	// Update the Assigned collection(s) where the item was dropped
-	function handleBoardUpdated(newColumnsData: any) {
-		availableCollection = newColumnsData;
-	}
-
-	// Update the Unassigned collection where the item was dropped
-	function handleUnassignedUpdated(newItems: any) {
-		UnassignedCollections = newItems;
-	}
-
 	// Saving changes to the config.ts
-	async function handleSaveClick() {
+	async function updateConfig(newConfig: Record<string, any>) {
 		try {
-			const response = await fetch('/api/updateConfig', {
+			const response = await fetch('/api/updateCategories', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
 				},
-				body: JSON.stringify(availableCollection)
+				body: JSON.stringify(newConfig)
 			});
 
-			if (response.status === 200) {
-				showToast('Config file updated successfully', 'success');
-			} else if (response.status === 304) {
-				// Provide a custom message for 304 status
-				showToast('No changes detected, config file not updated', 'info');
+			const result = await response.json();
+
+			if (response.ok) {
+				showToast('Categories updated successfully', 'success');
+				currentConfig = newConfig;
 			} else {
-				const responseText = await response.text();
-				showToast(`Error updating config file: ${responseText}`, 'error');
+				const errorMessage = result.error || 'Error updating categories';
+				console.error('Update categories error:', result);
+				showToast(errorMessage, 'error');
 			}
 		} catch (error) {
-			showToast('Network error occurred while updating config file', 'error');
+			console.error('Network error:', error);
+			showToast('Network error occurred while updating categories', 'error');
 		}
 	}
 
 	// Show corresponding Toast messages
-	function showToast(message, type) {
+	function showToast(message: string, type: 'success' | 'info' | 'error') {
 		const backgrounds = {
 			success: 'variant-filled-primary',
 			info: 'variant-filled-tertiary',
@@ -151,7 +164,11 @@
 
 <div class="my-2 flex w-full justify-around gap-2 lg:ml-auto lg:mt-0 lg:w-auto lg:flex-row">
 	<!-- add new Category-->
-	<button on:click={modalAddCategory} type="button" class="variant-filled-tertiary btn-sm flex items-center justify-between gap-1 rounded font-bold">
+	<button
+		on:click={() => modalAddCategory()}
+		type="button"
+		class="variant-filled-tertiary btn flex items-center justify-between gap-1 rounded font-bold dark:variant-filled-primary"
+	>
 		<iconify-icon icon="bi:collection" width="18" class="text-white" />
 		{m.collection_addcategory()}
 	</button>
@@ -160,13 +177,13 @@
 	<button
 		on:click={handleAddCollectionClick}
 		type="button"
-		class="variant-filled-success btn-sm flex items-center justify-between gap-1 rounded font-bold"
+		class="variant-filled-surface btn flex items-center justify-between gap-1 rounded font-bold"
 	>
-		<iconify-icon icon="material-symbols:category" width="18" class="text-white" />
+		<iconify-icon icon="material-symbols:category" width="18" />
 		{m.collection_addcollection()}
 	</button>
 
-	<button type="button" on:click={handleSaveClick} class="variant-filled-tertiary btn gap-2 !text-white dark:variant-filled-primary lg:ml-4">
+	<button type="button" on:click={() => updateConfig(currentConfig)} class="variant-filled-primary btn gap-2 lg:ml-4">
 		<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
 		{m.button_save()}
 	</button>
@@ -174,16 +191,9 @@
 
 <div class="max-h-[calc(100vh-65px)] overflow-auto">
 	<div class="wrapper mb-2">
-		{#if !availableCollection}
-			<p class="my-2 text-center">{m.collection_first()}</p>
-		{:else}
-			<p class="mb-4 text-center dark:text-primary-500">{m.collection_text_description()}</p>
+		<p class="mb-4 text-center dark:text-primary-500">{m.collection_text_description()}</p>
 
-			<!-- display unassigned collections -->
-			<Unassigned items={UnassignedCollections} onDrop={handleUnassignedUpdated} />
-
-			<!-- display collections -->
-			<Board columns={availableCollection} onFinalUpdate={handleBoardUpdated} />
-		{/if}
+		<!-- display collections -->
+		<Board categoryConfig={currentConfig} onEditCategory={modalAddCategory} />
 	</div>
 </div>

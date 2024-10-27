@@ -14,6 +14,7 @@
  */
 
 interface CategoryData {
+	id: string;
 	icon: string;
 	name: string;
 	subcategories?: Record<string, CategoryData>;
@@ -22,42 +23,51 @@ interface CategoryData {
 // Auto-generated category configuration
 export const categoryConfig: Record<string, CategoryData> = {
 	Collections: {
+		id: 'cat_01',
 		icon: 'bi:collection',
 		name: 'Collections',
 		subcategories: {
 			Posts: {
+				id: 'cat_02',
 				icon: 'bi:folder',
 				name: 'Posts',
 				subcategories: {
 					Posts: {
+						id: 'cat_03',
 						icon: 'bi:file-text',
 						name: 'Posts'
 					}
 				}
 			},
 			Media: {
+				id: 'cat_04',
 				icon: 'bi:image',
 				name: 'Media'
 			},
 			Names: {
+				id: 'cat_05',
 				icon: 'bi:person',
 				name: 'Names'
 			},
 			Relation: {
+				id: 'cat_06',
 				icon: 'bi:link',
 				name: 'Relation'
 			},
 			WidgetTest: {
+				id: 'cat_07',
 				icon: 'bi:grid',
 				name: 'Widget Test'
 			},
 			ImageArray: {
+				id: 'cat_08',
 				icon: 'bi:images',
 				name: 'Image Array'
 			}
 		}
 	},
 	Menu: {
+		id: 'cat_09',
 		icon: 'bi:list',
 		name: 'Menu'
 	}
