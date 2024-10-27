@@ -36,10 +36,10 @@ export const POST: RequestHandler = async ({ request }) => {
 			order: typeof category.order === 'number' ? category.order : index * 10 // Preserve existing order or use index-based
 		}));
 
-		const newConfigFileContent = generateCategoriesFileContent(transformedData);
-		const existingContent = await readExistingConfig(categoriesFilePath);
+		const newConfigFileContent = _generateCategoriesFileContent(transformedData);
+		const existingContent = await _readExistingConfig(categoriesFilePath);
 
-		if (shouldUpdateConfig(newConfigFileContent, existingContent)) {
+		if (_shouldUpdateConfig(newConfigFileContent, existingContent)) {
 			await fs.writeFile(categoriesFilePath, newConfigFileContent);
 			logger.info('Categories file updated successfully by API');
 			return new Response('Categories file updated successfully', { status: 200 });
@@ -55,7 +55,7 @@ export const POST: RequestHandler = async ({ request }) => {
 };
 
 // Generate the categories file content
-export function generateCategoriesFileContent(data: any[]): string {
+export function _generateCategoriesFileContent(data: any[]): string {
 	let content = `/**
  * @file src/collections/categories.ts
  * @description Defines the configuration for collection categories including icons and order
@@ -84,7 +84,7 @@ export const categoryConfig: Record<string, CategoryConfig> = {
 }
 
 // Reads the existing configuration file
-async function readExistingConfig(filePath: string): Promise<string> {
+async function _readExistingConfig(filePath: string): Promise<string> {
 	try {
 		return await fs.readFile(filePath, 'utf8');
 	} catch (error) {
@@ -99,7 +99,7 @@ async function readExistingConfig(filePath: string): Promise<string> {
 }
 
 // Compares the new configuration content with the existing one
-function shouldUpdateConfig(newContent: string, existingContent: string): boolean {
+function _shouldUpdateConfig(newContent: string, existingContent: string): boolean {
 	const newContentHash = crypto.createHash('md5').update(newContent).digest('hex');
 	const existingContentHash = existingContent ? crypto.createHash('md5').update(existingContent).digest('hex') : '';
 	return newContentHash !== existingContentHash;

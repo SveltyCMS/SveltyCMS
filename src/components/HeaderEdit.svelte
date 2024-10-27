@@ -95,32 +95,60 @@
 		return typeof widget?.validateWidget === 'function';
 	}
 
+	// Type guard to check if field is translatable
+	function isTranslatable(field: any): boolean {
+		return 'translated' in field && field.translated === true;
+	}
+
 	// Save form data with validation
 	async function saveData() {
 		let validationPassed = true;
 
 		// Access the fields property of the collection
 		const fields = $collection.fields;
+		const getData = {};
 
-		// Validate all fields
+		// Get current language
+		const currentLanguage = get(contentLanguage);
+
+		// Validate all fields and prepare getData object
 		for (const field of fields) {
+			const fieldName = getFieldName(field);
 			if (hasValidateWidget(field.widget)) {
 				const error = await field.widget.validateWidget();
 				if (error) {
-					validationStore.setError(getFieldName(field), error);
+					validationStore.setError(fieldName, error);
 					validationPassed = false;
 				} else {
-					validationStore.clearError(getFieldName(field));
+					validationStore.clearError(fieldName);
+					getData[fieldName] = () => {
+						const value = $collectionValue[fieldName];
+						// Initialize language object if field is translated
+						if (isTranslatable(field) && typeof value !== 'object') {
+							return { [currentLanguage]: value };
+						}
+						return value;
+					};
 				}
+			} else {
+				// If no validation widget, still collect the data
+				getData[fieldName] = () => {
+					const value = $collectionValue[fieldName];
+					// Initialize language object if field is translated
+					if (isTranslatable(field) && typeof value !== 'object') {
+						return { [currentLanguage]: value };
+					}
+					return value;
+				};
 			}
 		}
 
 		// If validation passed, save the data
 		if (validationPassed) {
 			try {
-				logger.debug('Saving data...', `${JSON.stringify($collectionValue)}`);
+				logger.debug('Saving data...', `${JSON.stringify(getData)}`);
 				await saveFormData({
-					data: $collectionValue,
+					data: getData,
 					_collection: $collection,
 					_mode: $mode,
 					id: $collectionValue._id ?? '',
@@ -213,9 +241,11 @@
 				</div>
 
 				<!-- Save Content -->
-				<button type="button" on:click={saveData} class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:hidden">
-					<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
-				</button>
+				{#if ['edit', 'create'].includes($mode)}
+					<button type="button" on:click={saveData} class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:hidden">
+						<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
+					</button>
+				{/if}
 
 				<!-- DropDown to show more Buttons -->
 				<button type="button" on:keydown on:click={() => (showMore = !showMore)} class="variant-ghost-surface btn-icon">

@@ -15,7 +15,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { promisify } from 'util';
 import { backupCategoryFiles } from './backup-utils';
-import { generateCategoriesFileContent } from '../updateCategories/+server';
+import { _generateCategoriesFileContent } from '../updateCategories/+server';
 
 // System Logger
 import { logger } from '@utils/logger';
@@ -56,7 +56,7 @@ async function saveCategoryFile(categoryData: any[]): Promise<void> {
 
 	try {
 		// Generate the categories file content using the shared function
-		const content = generateCategoriesFileContent(categoryData);
+		const content = _generateCategoriesFileContent(categoryData);
 
 		// Write the file directly
 		await fs.writeFile(categoriesPath, content, 'utf-8');
