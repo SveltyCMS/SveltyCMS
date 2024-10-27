@@ -39,14 +39,9 @@
 	$: SeoTitle = $page.data.SeoTitle || defaultTitle;
 	$: SeoDescription = $page.data.SeoDescription || defaultDescription;
 	$: ogImage = $page.data.ogImage || '/SveltyCMS.png';
-
-	let selectedTheme: string = 'src/themes/SveltyCMS/SveltyCMSTheme.css'; // Default theme path
 </script>
 
 <svelte:head>
-	<!-- Insert dynamic theme link -->
-	<link rel="stylesheet" href={selectedTheme} />
-
 	<!-- Basic SEO -->
 	<title>{SeoTitle}</title>
 	<meta name="description" content={SeoDescription} />

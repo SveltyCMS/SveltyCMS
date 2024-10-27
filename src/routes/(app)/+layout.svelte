@@ -150,17 +150,12 @@ Key features:
 		isCollectionsLoaded = true;
 	}
 
-	let selectedTheme: string = 'src/themes/SveltyCMS/SveltyCMSTheme.css'; // Default theme path
-
 	// SEO
 	const SeoTitle = `${publicEnv.SITE_NAME} - powered with sveltekit`;
 	const SeoDescription = `${publicEnv.SITE_NAME} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;
 </script>
 
 <svelte:head>
-	<!-- Insert dynamic theme link -->
-	<link rel="stylesheet" href={selectedTheme} />
-
 	<!-- Dark Mode -->
 	{@html '<script>(' + setInitialClassState.toString() + ')();</script>'}
 

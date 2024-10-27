@@ -57,7 +57,7 @@ module.exports = {
 		forms,
 		typography,
 		// Append the Skeleton plugin (after other plugins)
-		//skeleton({ themes: { preset: [{ name: "skeleton", enhancements: true }]}}),
+
 		skeleton({
 			themes: {
 				custom: [SveltyCMSTheme]

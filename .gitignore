@@ -19,11 +19,11 @@ vite.config.ts.timestamp-*
 
 # SveltyCMS
 /tmp
-trash/
-media/
+trash/*
+media/*
 mediaFiles/
 collections/*
-logs/
+logs/*
 .node-version
 
 # Ensure src/utils/media and its contents are not ignored
