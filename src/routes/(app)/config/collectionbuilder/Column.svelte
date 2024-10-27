@@ -25,7 +25,6 @@
 	}
 
 	function handleCollectionClick(item: any) {
-		// Set the mode to edit when clicking on a collection
 		mode.set('edit');
 
 		// Navigate to the route for viewing the collection's details
