@@ -1,14 +1,21 @@
 /**
  * @file src/collections/index.ts
- * @description Index file for collections. Manages collection loading, caching, and updates using a folder-based structure.
+ * @description Index file for collections Management.
+ *
+ * Features:
+ * - Caching and efficient data structures
+ * - Collection loading, caching, and updates
+ * - Category creation from folder structure
+ * - Widget initialization
+ * - Error handling
  */
 
 import { error } from '@sveltejs/kit';
 import { browser, building, dev } from '$app/environment';
 import axios from 'axios';
-import deepmerge from 'deepmerge';
 import { getCollectionFiles } from '@api/getCollections/getCollectionFiles';
 import { createRandomID } from '@utils/utils';
+import { categoryConfig } from './categories';
 
 // Stores
 import { categories, collections, unAssigned, collection, collectionValue, mode } from '@stores/collectionStore';
@@ -18,85 +25,137 @@ import type { Unsubscriber } from 'svelte/store';
 import { initWidgets } from '@components/widgets';
 
 // Types
-import type { Schema, CollectionNames } from './types';
+import type { Schema, CollectionNames, Category } from './types';
 
-// System logger
+// System Logger
 import { logger } from '@utils/logger';
 
-// Cache for collection models
-let importsCache: Partial<Record<CollectionNames, Schema>> = {};
+// Constants for batch processing
+const BATCH_SIZE = 50; // Number of collections to process per batch
+const CONCURRENT_BATCHES = 5; // Number of concurrent batches
+
+// Cache and efficient data structures
+let importsCache: Record<CollectionNames, Schema> = {} as Record<CollectionNames, Schema>;
 let unsubscribe: Unsubscriber | undefined;
-// Cache for collection models
-let collectionModelsCache: Partial<Record<CollectionNames, Schema>> | null = null;
-
-// Function to parse path and create nested categories
-function parsePath(path: string): string[] {
-	// Handle :: notation for virtual paths
-	return path.split('::').map((segment) => segment.trim());
-}
-
-// Function to merge permissions recursively
-function mergePermissions(parentPerms: Record<string, any> = {}, childPerms: Record<string, any> = {}): Record<string, any> {
-	return deepmerge(parentPerms, childPerms);
-}
+let collectionModelsCache: Record<CollectionNames, Schema> | null = null;
+const categoryLookup = new Map<string, CategoryNode>();
+const collectionsByCategory = new Map<string, Set<Schema>>();
 
 interface CategoryNode {
 	id: number;
 	name: string;
 	icon: string;
+	order: number;
 	collections: Schema[];
-	subcategories: Record<string, CategoryNode>;
+	subcategories?: Map<string, CategoryNode>;
 }
 
 // Function to create categories from folder structure
-async function createCategoriesFromPath(collections: Schema[]): Promise<Array<{ id: number; name: string; icon: string; collections: Schema[] }>> {
-	const categoryTree: Record<string, CategoryNode> = {};
+async function createCategoriesFromPath(collections: Schema[]): Promise<Category[]> {
+	categoryLookup.clear();
+	collectionsByCategory.clear();
 
+	// Process collections in batches
+	const batches = chunks(collections, BATCH_SIZE);
+
+	// Process batches with concurrency limit
+	for (let i = 0; i < batches.length; i += CONCURRENT_BATCHES) {
+		const currentBatches = batches.slice(i, i + CONCURRENT_BATCHES);
+		await Promise.all(currentBatches.map(processBatch));
+	}
+
+	// Flatten and sort the category hierarchy
+	const result = flattenAndSortCategories();
+	logger.debug('Created categories:', result);
+	return result;
+}
+
+// Helper function to create chunks
+function chunks<T>(arr: T[], size: number): T[][] {
+	return Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size));
+}
+
+// Process a batch of collections
+async function processBatch(collections: Schema[]): Promise<void> {
 	for (const col of collections) {
-		if (!col.path) continue;
+		if (!col.path) {
+			logger.warn(`Collection ${col.name} has no path`);
+			continue;
+		}
 
-		const pathSegments = parsePath(col.path);
-		let currentLevel = categoryTree;
-		let currentPermissions = {};
+		// Split path into segments for nested categories
+		const pathSegments = col.path.split('/');
+		let currentPath = '';
+		let currentMap = categoryLookup;
 
-		for (const segment of pathSegments) {
-			if (!currentLevel[segment]) {
+		// Create or update category nodes for each path segment
+		for (let i = 0; i < pathSegments.length; i++) {
+			const segment = pathSegments[i];
+			currentPath = currentPath ? `${currentPath}/${segment}` : segment;
+
+			if (!currentMap.has(segment)) {
 				const randomId = await createRandomID();
-				currentLevel[segment] = {
+				const config = categoryConfig[currentPath] || {
+					icon: 'iconoir:category',
+					order: 999
+				};
+
+				const newNode: CategoryNode = {
 					id: parseInt(randomId.toString().slice(0, 8), 16),
 					name: segment,
-					icon: col.categoryIcon || 'iconoir:category',
+					icon: config.icon,
+					order: config.order,
 					collections: [],
-					subcategories: {}
+					subcategories: new Map()
 				};
+
+				currentMap.set(segment, newNode);
+				categoryLookup.set(currentPath, newNode);
+				collectionsByCategory.set(currentPath, new Set());
 			}
 
-			// Merge permissions along the path
-			currentPermissions = mergePermissions(currentPermissions, col.permissions || {});
-
-			if (segment === pathSegments[pathSegments.length - 1]) {
-				currentLevel[segment].collections.push(col);
+			// If this is the last segment, add the collection
+			if (i === pathSegments.length - 1) {
+				const categoryNode = categoryLookup.get(currentPath);
+				if (categoryNode) {
+					categoryNode.collections.push(col);
+					collectionsByCategory.get(currentPath)?.add(col);
+				}
 			}
 
-			currentLevel = currentLevel[segment].subcategories;
+			const nextNode = currentMap.get(segment);
+			if (nextNode?.subcategories) {
+				currentMap = nextNode.subcategories;
+			}
 		}
 	}
+}
 
-	// Convert tree to flat array
-	const result: Array<{ id: number; name: string; icon: string; collections: Schema[] }> = [];
+// Helper function to flatten and sort the category hierarchy
+function flattenAndSortCategories(): Category[] {
+	const result: Category[] = [];
 
-	function processCategory(category: CategoryNode) {
-		result.push({
-			id: category.id,
-			name: category.name,
-			icon: category.icon,
-			collections: category.collections
+	// Convert Map entries to array and sort
+	const sortedCategories = Array.from(categoryLookup.entries()).sort(([, a], [, b]) => a.order - b.order);
+
+	for (const [path, category] of sortedCategories) {
+		// Sort collections within category
+		const collections = Array.from(collectionsByCategory.get(path) || []).sort((a, b) => {
+			if (a.order !== undefined && b.order !== undefined) {
+				return a.order - b.order;
+			}
+			return a.order !== undefined ? -1 : b.order !== undefined ? 1 : 0;
 		});
 
-		Object.values(category.subcategories).forEach(processCategory);
+		result.push({
+			id: category.id,
+			name: path,
+			icon: category.icon,
+			order: category.order,
+			collections
+		});
 	}
 
-	Object.values(categoryTree).forEach(processCategory);
 	return result;
 }
 
@@ -128,15 +187,14 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 	logger.debug('Starting updateCollections');
 
 	if (recompile) {
-		importsCache = {}; // Clear cache
+		importsCache = {} as Record<CollectionNames, Schema>;
 	}
 
 	try {
 		const imports = await getImports(recompile);
 		logger.debug(`Imports fetched. Count: ${Object.keys(imports).length}`);
 
-		const fullImports = imports as Record<CollectionNames, Schema>;
-		const _categories = await createCategoriesFromPath(Object.values(fullImports));
+		const _categories = await createCategoriesFromPath(Object.values(imports));
 
 		const _collections: Partial<Record<CollectionNames, Schema>> = {};
 		for (const category of _categories) {
@@ -148,20 +206,22 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 		}
 
 		logger.debug(`Collections processed. Count: ${Object.keys(_collections).length}`);
+		logger.debug('Setting categories:', _categories);
 
+		// Set the stores
 		categories.set(_categories);
 		collections.set(_collections as Record<CollectionNames, Schema>);
 		unAssigned.set(Object.values(imports).filter((x) => !Object.values(_collections).includes(x)));
 
-		if (typeof window === 'undefined') {
-			logger.debug('Fetching collection models in server-side environment');
+		// Only try to fetch collection models if we're server-side and not in development mode
+		if (typeof window === 'undefined' && !dev) {
 			try {
 				const { getCollectionModels } = await import('@src/databases/db');
-				await getCollectionModels();
-				logger.debug('Collection models fetched successfully');
+				await getCollectionModels().catch((err) => {
+					logger.warn(`Failed to fetch collection models: ${err}. This is expected during initial setup.`);
+				});
 			} catch (dbError) {
-				logger.error(`Error fetching collection models: ${dbError}`);
-				throw error(500, `Failed to fetch collection models: ${dbError}`);
+				logger.warn(`Database not ready: ${dbError}. This is expected during initial setup.`);
 			}
 		}
 
@@ -172,43 +232,42 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 		logger.info(`Collections updated successfully. Count: ${Object.keys(_collections).length}`);
 	} catch (err) {
 		logger.error(`Error in updateCollections: ${err}`);
-		throw error(500, `Failed to update collections: ${err}`);
+		// Don't throw error here, just log it and continue
+		// This allows the collections to still be loaded even if DB isn't ready
 	}
 };
 
 // Initialize collections
 updateCollections().catch((err) => {
-	logger.error(`Failed to initialize collections: ${err}`);
-	throw error(500, `Failed to initialize collections: ${err}`);
+	logger.warn(`Note: Collections initialization encountered an issue: ${err}. This is expected during initial setup.`);
 });
 
 // Function to get imports based on environment
-async function getImports(recompile: boolean = false): Promise<Partial<Record<CollectionNames, Schema>>> {
+async function getImports(recompile: boolean = false): Promise<Record<CollectionNames, Schema>> {
 	logger.debug('Starting getImports function');
 
 	// Return from cache if available
-	if (!recompile && Object.keys(importsCache).length) {
+	if (!recompile && Object.keys(importsCache).length > 0) {
 		logger.debug('Returning from cache');
 		return importsCache;
 	}
 
 	try {
-		const processModule = async (name: string, module: any) => {
+		const processModule = async (name: string, module: any, modulePath: string) => {
 			const collection = (module as { schema: Schema })?.schema ?? {};
 			if (collection) {
 				const randomId = await createRandomID();
 				collection.name = name as CollectionNames;
 				collection.icon = collection.icon || 'iconoir:info-empty';
-				collection.id = parseInt(randomId.toString().slice(0, 8), 16); // Generate ID from random hex
-				// Extract path from module location if not explicitly set
-				if (!collection.path) {
-					const modulePath = module.__file || '';
-					collection.path = modulePath
-						.split('/')
-						.slice(0, -1) // Remove filename
-						.filter(Boolean)
-						.join('::');
-				}
+				collection.id = parseInt(randomId.toString().slice(0, 8), 16);
+
+				// Extract path from module location
+				const pathSegments = modulePath.split('/');
+				// Remove the filename and 'collections' from the path
+				const collectionPath = pathSegments.slice(1, -1).join('/');
+				collection.path = collectionPath;
+				logger.debug(`Set path for collection ${name} to ${collection.path}`);
+
 				importsCache[name as CollectionNames] = collection as Schema;
 			} else {
 				logger.error(`Error importing collection: ${name}`);
@@ -218,12 +277,26 @@ async function getImports(recompile: boolean = false): Promise<Partial<Record<Co
 		// Development/Building mode
 		if (dev || building) {
 			logger.debug(`Running in {${dev ? 'dev' : 'building'}} mode`);
-			// Recursively import all .ts files from collections directory
-			const modules = import.meta.glob(['./**/*.ts', '!./index.ts', '!./types.ts']);
-			for (const [modulePath, moduleImport] of Object.entries(modules)) {
-				const name = modulePath.split('/').pop()?.replace(/\.ts$/, '') || '';
-				const module = await moduleImport();
-				await processModule(name, module);
+			// Look for TypeScript files in src/collections directory
+			const modules = import.meta.glob(['./**/*.ts', '!./index.ts', '!./categories.ts', '!./types.ts']);
+
+			// Process modules in batches
+			const entries = Object.entries(modules);
+			const batches = chunks(entries, BATCH_SIZE);
+
+			for (let i = 0; i < batches.length; i += CONCURRENT_BATCHES) {
+				const currentBatches = batches.slice(i, i + CONCURRENT_BATCHES);
+				await Promise.all(
+					currentBatches.map(async (batch) => {
+						await Promise.all(
+							batch.map(async ([modulePath, moduleImport]) => {
+								const name = modulePath.split('/').pop()?.replace(/\.ts$/, '') || '';
+								const module = await moduleImport();
+								await processModule(name, module, modulePath);
+							})
+						);
+					})
+				);
 			}
 		} else {
 			// Production mode
@@ -240,18 +313,30 @@ async function getImports(recompile: boolean = false): Promise<Partial<Record<Co
 				files = [];
 			}
 
-			for (const file of files) {
-				const name = file.replace(/\.js$/, '');
-				try {
-					const collectionModule =
-						typeof window !== 'undefined'
-							? (await axios.get(`/api/getCollection?fileName=${file}?_t=${Math.floor(Date.now() / 1000)}`)).data
-							: await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${file}`);
+			// Process files in batches
+			const batches = chunks(files, BATCH_SIZE);
 
-					await processModule(name, collectionModule);
-				} catch (moduleError) {
-					logger.error(`Error processing module ${name}: ${moduleError instanceof Error ? moduleError.message : String(moduleError)}`);
-				}
+			for (let i = 0; i < batches.length; i += CONCURRENT_BATCHES) {
+				const currentBatches = batches.slice(i, i + CONCURRENT_BATCHES);
+				await Promise.all(
+					currentBatches.map(async (batch) => {
+						await Promise.all(
+							batch.map(async (file) => {
+								const name = file.replace(/\.js$/, '');
+								try {
+									const collectionModule =
+										typeof window !== 'undefined'
+											? (await axios.get(`/api/getCollection?fileName=${file}?_t=${Math.floor(Date.now() / 1000)}`)).data
+											: await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${file}`);
+
+									await processModule(name, collectionModule, file);
+								} catch (moduleError) {
+									logger.error(`Error processing module ${name}: ${moduleError instanceof Error ? moduleError.message : String(moduleError)}`);
+								}
+							})
+						);
+					})
+				);
 			}
 		}
 

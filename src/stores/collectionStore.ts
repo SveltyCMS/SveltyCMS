@@ -11,7 +11,7 @@
  */
 
 import { writable, type Writable } from 'svelte/store';
-import type { CollectionNames, Schema } from '@src/collections/types';
+import type { CollectionNames, Schema, Category } from '@src/collections/types';
 
 // Stores for managing collections and their states
 export const collections = writable({}) as Writable<{ [key in CollectionNames]: Schema }>; // Stores dynamic collections, allowing runtime modification.
@@ -41,17 +41,5 @@ export const statusMap = {
 	testing: 'testing'
 };
 
-interface Collection extends Omit<Schema, 'name'> {
-	id: number;
-	name: CollectionNames;
-}
-
-//  Initialize categories store with an array structure
-export const categories: Writable<
-	Array<{
-		id: number;
-		name: string;
-		icon: string;
-		collections: Array<Collection>;
-	}>
-> = writable();
+//  Initialize categories store with proper typing
+export const categories: Writable<Category[]> = writable([]);

@@ -1,10 +1,11 @@
 <!-- 
 @file src/components/Collections.svelte
-@description Collections component.
+@description Collections component with support for nested categories.
 -->
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 
 	// Stores
 	import { get } from 'svelte/store';
@@ -15,7 +16,7 @@
 	import { screenSize } from '@stores/screenSizeStore';
 
 	// Types
-	import type { Schema, CollectionNames } from '@src/collections/types';
+	import type { Schema, CollectionNames, Category, FilteredCategory } from '@src/collections/types';
 
 	// Auth
 	import type { User } from '@src/auth/types';
@@ -44,77 +45,74 @@
 	let search = '';
 	let searchShow = false;
 
-	interface Category {
-		id: number;
-		name: string;
-		icon: string;
-		collections: Collection[];
-		open?: boolean;
-	}
+	let filteredCategories: FilteredCategory[] = [];
 
-	interface Collection {
-		id: number;
-		name: CollectionNames;
-		permissions?: any;
-		icon?: string;
-		slug?: string;
-		fields: any[];
-		strict?: boolean;
-		status?: 'draft' | 'published' | 'unpublished' | 'scheduled' | 'cloned';
-	}
+	// Define filterCategories function with support for nested categories
+	function filterCategories(search: string, categories: Category[]): FilteredCategory[] {
+		if (!categories || !Array.isArray(categories)) {
+			console.debug('Categories is not an array:', categories);
+			return [];
+		}
 
-	// Define filteredCategories variable as an array of Category objects
-	let filteredCategories: Category[] = ($categories as Category[]) || [];
+		// Helper function to get category level from path
+		function getCategoryLevel(path: string): number {
+			return path.split('/').length - 1;
+		}
 
-	// Define filterCategories function
-	function filterCategories(search: string, categories: Category[]) {
-		// Reduce $categories array to create new array of filtered categories
-		filteredCategories = categories.reduce((acc: Category[], category: Category) => {
+		// Reduce categories array to create new array of filtered categories
+		const filtered = categories.reduce((acc: FilteredCategory[], category: Category) => {
 			// Filter collections in current category by name
-			const filteredCollections = category.collections.filter((collection: Collection) => {
-				// Check if collection and collection.name are not undefined before accessing the name property
+			const filteredCollections = category.collections.filter((collection: Schema) => {
 				return collection && collection.name && collection.name.toLowerCase().includes(search.toLowerCase());
 			});
 
-			// Add new category object to accumulator with filtered collections and open property set to true if search is not empty
+			// Add category if it matches search or has matching collections
 			if (filteredCollections.length > 0 || (search === '' && category.name.toLowerCase().includes(search.toLowerCase()))) {
-				// Add new category object to accumulator with filtered collections and open property set to true if search is not empty
 				acc.push({
 					...category,
 					collections: filteredCollections,
-					open: filteredCollections.length > 0 && search !== ''
+					open: filteredCollections.length > 0 && search !== '',
+					level: getCategoryLevel(category.name)
 				});
 			}
 
-			// Return accumulator
 			return acc;
 		}, []);
 
-		// Filter out categories with no visible collections
-		filteredCategories = filteredCategories.filter((category) => category.collections.length > 0);
+		// Sort categories by level and then by order
+		filtered.sort((a, b) => {
+			if (a.level === b.level) {
+				return a.order - b.order;
+			}
+			return (a.level || 0) - (b.level || 0);
+		});
 
-		// Return filtered categories
-		return filteredCategories;
+		console.debug('Filtered categories:', filtered);
+		return filtered;
+	}
+
+	// Subscribe to categories store changes
+	$: {
+		console.debug('Categories store value:', $categories);
+		if ($categories && Array.isArray($categories)) {
+			filteredCategories = filterCategories(search, $categories);
+			console.debug('Filtered categories after update:', filteredCategories);
+		}
 	}
 
 	// Determine if the current mode is 'media'
 	$: isMediaMode = $mode === 'media';
 
-	// Type guard to ensure collection name is valid
-	function isValidCollectionName(name: string): name is CollectionNames {
-		return ['ImageArray', 'Media', 'Menu', 'Names', 'Posts', 'Relation', 'WidgetTest'].includes(name);
-	}
-
-	// Helper function to safely set collection
-	function safeSetCollection(col: Collection) {
-		if (isValidCollectionName(col.name)) {
-			collection.set({
-				...col,
-				icon: col.icon || 'default-icon'
-			} as Schema);
-		} else {
-			console.error(`Invalid collection name: ${col.name}`);
+	onMount(() => {
+		console.debug('Component mounted, initial categories:', $categories);
+		if ($categories && Array.isArray($categories)) {
+			filteredCategories = filterCategories(search, $categories);
 		}
+	});
+
+	// Helper function to get indentation class based on level
+	function getIndentClass(level: number = 0): string {
+		return `pl-${level * 4}`;
 	}
 </script>
 
@@ -173,85 +171,86 @@
 		{/if}
 
 		<!-- Collections Accordion -->
-		<!-- TODO: Apply Tooltip for collapsed  -->
 		<Accordion autocollapse regionControl="btn bg-surface-400 dark:bg-surface-500 uppercase text-white hover:!bg-surface-300">
 			<!-- Collection Parents -->
-			{#each filteredCategories as category}
-				<AccordionItem
-					bind:open={category.open}
-					regionPanel={`divide-y dark:divide-black my-0 overflow-y-auto`}
-					class="divide-y rounded-md bg-surface-300 dark:divide-black"
-				>
-					<svelte:fragment slot="lead">
-						<!-- TODO: Tooltip not fully working -->
-						<iconify-icon icon={category.icon} width="24" class="text-error-500 rtl:ml-2" use:popup={popupCollections} />
-					</svelte:fragment>
+			{#if filteredCategories.length > 0}
+				{#each filteredCategories as category (category.id)}
+					<AccordionItem
+						bind:open={category.open}
+						regionPanel={`divide-y dark:divide-black my-0 overflow-y-auto`}
+						class={`divide-y rounded-md bg-surface-300 dark:divide-black ${getIndentClass(category.level)}`}
+					>
+						<svelte:fragment slot="lead">
+							<iconify-icon icon={category.icon} width="24" class="text-error-500 rtl:ml-2" use:popup={popupCollections} />
+						</svelte:fragment>
 
-					<svelte:fragment slot="summary">
-						{#if $sidebarState.left === 'full'}
-							<!-- TODO: Translation not updating -->
-							<p class="text-white">{category.name}</p>
-						{/if}
-						<div class="card variant-filled-secondary p-4" data-popup="popupHover">
-							<p>{category.name}</p>
-							<div class="variant-filled-secondary arrow" />
-						</div>
-					</svelte:fragment>
-
-					<!-- Collection Children -->
-					<svelte:fragment slot="content">
-						<!-- filtered by User Role Permission -->
-						{#each category.collections.filter((c) => modeSet == 'edit' || c?.permissions?.[user?.role]?.read != false) as _collection, index}
+						<svelte:fragment slot="summary">
 							{#if $sidebarState.left === 'full'}
-								<!-- Sidebar Expanded -->
-								<div
-									role="button"
-									tabindex={index}
-									class="-mx-4 flex flex-row items-center bg-surface-300 py-1 pl-3 hover:bg-surface-400 hover:text-white dark:text-black hover:dark:text-white"
-									on:keydown
-									on:click={() => {
-										if ($mode === 'edit') {
-											mode.set('view');
-											handleSidebarToggle();
-										} else {
-											mode.set(modeSet);
-											handleSidebarToggle();
-											shouldShowNextButton.set(true);
-										}
-
-										safeSetCollection(_collection);
-									}}
-								>
-									<iconify-icon icon={_collection.icon} width="24" class="px-2 py-1 text-error-600" />
-									<p class="mr-auto text-center capitalize">{_collection.name}</p>
-								</div>
-							{:else}
-								<!-- Sidebar Collapsed -->
-								<div
-									role="button"
-									tabindex={index}
-									class="-mx-4 flex flex-col items-center py-1 hover:bg-surface-400 hover:text-white dark:text-black hover:dark:text-white"
-									on:keydown
-									on:click={() => {
-										if ($mode === 'edit') {
-											mode.set('view');
-											handleSidebarToggle();
-										} else {
-											mode.set(modeSet);
-											handleSidebarToggle();
-										}
-
-										safeSetCollection(_collection);
-									}}
-								>
-									<p class="text-xs capitalize">{_collection.name}</p>
-									<iconify-icon icon={_collection.icon} width="24" class="text-error-600" />
-								</div>
+								<p class="text-white">{category.name.split('/').pop()}</p>
 							{/if}
-						{/each}
-					</svelte:fragment>
-				</AccordionItem>
-			{/each}
+							<div class="card variant-filled-secondary p-4" data-popup="popupHover">
+								<p>{category.name.split('/').pop()}</p>
+								<div class="variant-filled-secondary arrow" />
+							</div>
+						</svelte:fragment>
+
+						<!-- Collection Children -->
+						<svelte:fragment slot="content">
+							<!-- filtered by User Role Permission -->
+							{#each category.collections.filter((c) => modeSet == 'edit' || c?.permissions?.[user?.role]?.read != false) as _collection, index}
+								{#if $sidebarState.left === 'full'}
+									<!-- Sidebar Expanded -->
+									<div
+										role="button"
+										tabindex={index}
+										class="-mx-4 flex flex-row items-center bg-surface-300 py-1 pl-3 hover:bg-surface-400 hover:text-white dark:text-black hover:dark:text-white"
+										on:keydown
+										on:click={() => {
+											if ($mode === 'edit') {
+												mode.set('view');
+												handleSidebarToggle();
+											} else {
+												mode.set(modeSet);
+												handleSidebarToggle();
+												shouldShowNextButton.set(true);
+											}
+
+											collection.set(_collection);
+										}}
+									>
+										<iconify-icon icon={_collection.icon} width="24" class="px-2 py-1 text-error-600" />
+										<p class="mr-auto text-center capitalize">{_collection.name}</p>
+									</div>
+								{:else}
+									<!-- Sidebar Collapsed -->
+									<div
+										role="button"
+										tabindex={index}
+										class="-mx-4 flex flex-col items-center py-1 hover:bg-surface-400 hover:text-white dark:text-black hover:dark:text-white"
+										on:keydown
+										on:click={() => {
+											if ($mode === 'edit') {
+												mode.set('view');
+												handleSidebarToggle();
+											} else {
+												mode.set(modeSet);
+												handleSidebarToggle();
+											}
+
+											collection.set(_collection);
+										}}
+									>
+										<p class="text-xs capitalize">{_collection.name}</p>
+										<iconify-icon icon={_collection.icon} width="24" class="text-error-600" />
+									</div>
+								{/if}
+							{/each}
+						</svelte:fragment>
+					</AccordionItem>
+				{/each}
+			{:else}
+				<div class="p-4 text-center text-gray-500">No collections found</div>
+			{/if}
 		</Accordion>
 
 		<!-- Media Gallery Button -->

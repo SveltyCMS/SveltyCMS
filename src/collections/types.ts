@@ -8,26 +8,26 @@ import type widgets from '@components/widgets';
 // Auth
 import type { Permission } from '@src/auth/types';
 
-// Define a new `Schema` interface that represents the shape of an object with several properties
+// Define the base Schema interface
 export interface Schema {
-	id: number; // Required ID for collections
-	name: CollectionNames; // Required name that matches a key in CollectionNames
+	id: number; // Unique ID for collections
+	name: CollectionNames; // Optional label that will display instead of name if used
 	label?: string; // Optional label that will display instead of name if used
 	slug?: string; // Optional Slug for the collection
-	links?: Array<keyof CollectionNames>; // Ensure links are valid collection names
-	icon?: string; // Optional icon for the collection
+	icon?: string; // Optional icon
 	description?: string; // Optional description for the collection
-	status?: 'draft' | 'published' | 'unpublished' | 'scheduled' | 'cloned';
-	permissions?: Permission; // Optional permission restrictions
-	fields: ReturnType<(typeof widgets)[keyof typeof widgets]>[]; // Array of fields
 	strict?: boolean; // Optional strict mode
 	revision?: boolean; // Optional revisions
-	livePreview?: boolean; // Optional live preview
 	path?: string; // Optional path for folder-based structure
-	categoryIcon?: string; // Optional icon for the category
+	order?: number; // Optional order within category
+	permissions?: Permission; // Optional permission restrictions
+	livePreview?: boolean; // Optional live preview
+	status?: 'draft' | 'published' | 'unpublished' | 'scheduled' | 'cloned'; // Optional default status how to create new entries
+	links?: Array<keyof CollectionNames>; // Optional links to other collections
+	fields: ReturnType<(typeof widgets)[keyof typeof widgets]>[];
 }
 
-// Define a new `Collection` interface that represents the shape of an object with several properties
+// Collection content type mapping
 export type CollectionContent = {
 	imageArray: ['ImageArray'];
 	Menu: ['Menu'];
@@ -56,4 +56,20 @@ export type CollectionContent = {
 	];
 };
 
-export type CollectionNames = 'ImageArray' | 'Media' | 'Menu' | 'Names' | 'Posts' | 'Relation' | 'WidgetTest';
+// Valid collection names
+export type CollectionNames = keyof CollectionContent;
+
+// Category interface
+export interface Category {
+	id: number;
+	name: string;
+	icon: string;
+	order: number;
+	collections: Schema[];
+}
+
+// Extended category interface for UI
+export interface FilteredCategory extends Category {
+	open?: boolean;
+	level?: number;
+}
