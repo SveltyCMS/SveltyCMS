@@ -35,23 +35,40 @@ export async function updateImports(): Promise<void> {
 		logger.info('Updated index.ts file with lazy loading for collections');
 		await runPrettier();
 	} catch (error) {
-		logger.error('Error updating imports:', error);
+		logger.error('Error updating imports:', error as Error);
 		throw error;
 	}
 }
 
-// Retrieve all collection files excluding certain files
-async function getCollectionFiles(): Promise<string[]> {
-	const allFiles = await fs.readdir(COLLECTIONS_DIR);
-	return allFiles.filter((file) => !EXCLUDED_FILES.has(file) && file.endsWith('.ts'));
+// Recursively get all collection files from directories
+async function getCollectionFiles(dir: string = COLLECTIONS_DIR): Promise<{ path: string; name: string }[]> {
+	const entries = await fs.readdir(dir, { withFileTypes: true });
+	const files: { path: string; name: string }[] = [];
+
+	for (const entry of entries) {
+		const fullPath = path.join(dir, entry.name);
+		if (entry.isDirectory()) {
+			files.push(...(await getCollectionFiles(fullPath)));
+		} else if (entry.isFile() && entry.name.endsWith('.ts') && !EXCLUDED_FILES.has(entry.name)) {
+			// Get relative path from collections directory
+			const relativePath = path.relative(COLLECTIONS_DIR, fullPath);
+			// Remove .ts extension for the name
+			const name = path.basename(entry.name, '.ts');
+			files.push({
+				path: relativePath.replace(/\\/g, '/'), // Ensure forward slashes for imports
+				name
+			});
+		}
+	}
+
+	return files;
 }
 
 // Generate dynamic import content for lazy loading collections
-function generateUpdatedContent(files: string[]): string {
+function generateUpdatedContent(files: { path: string; name: string }[]): string {
 	const allCollections = `const allCollections = {\n${files
-		.map((file) => {
-			const name = path.basename(file, '.ts');
-			return `  ${name}: () => import('./${name}'),`;
+		.map(({ path: filePath, name }) => {
+			return `  ${name}: () => import('./${filePath}'),`;
 		})
 		.join('\n')}\n};`;
 

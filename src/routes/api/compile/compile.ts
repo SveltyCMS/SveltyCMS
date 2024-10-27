@@ -3,11 +3,12 @@
  * @description Compiles TypeScript files from the collections folder into JavaScript files.
  *
  * Features:
- * - File caching to avoid unnecessary recompilation.
- * - Content hashing for change detection.
- * - Concurrent file operations for improved performance.
- * - Modular functions for cleaner, maintainable code.
- * - Error handling and logging using console.log.
+ * - Recursive directory scanning for nested collections
+ * - File caching to avoid unnecessary recompilation
+ * - Content hashing for change detection
+ * - Concurrent file operations for improved performance
+ * - Modular functions for cleaner, maintainable code
+ * - Error handling and logging using console.log
  *
  * Usage:
  * import { compile } from './compile';
@@ -42,20 +43,45 @@ export async function compile(options: CompileOptions = {}): Promise<void> {
 	// Get list of TypeScript files to compile
 	const files = await getTypescriptFiles(collectionsFolderTS);
 
+	// Create necessary subdirectories in the JS folder
+	await createOutputDirectories(files, collectionsFolderTS, collectionsFolderJS);
+
 	// Compile all files concurrently
 	await Promise.all(files.map((file) => compileFile(file, collectionsFolderTS, collectionsFolderJS)));
 }
 
-async function getTypescriptFiles(folder: string): Promise<string[]> {
-	// Read directory and filter for .ts files, excluding index.ts
-	const files = await fs.readdir(folder);
-	return files.filter((file) => file.endsWith('.ts') && file !== 'index.ts');
+async function getTypescriptFiles(folder: string, subdir: string = ''): Promise<string[]> {
+	const files: string[] = [];
+	const entries = await fs.readdir(path.join(folder, subdir), { withFileTypes: true });
+
+	for (const entry of entries) {
+		const relativePath = path.join(subdir, entry.name);
+
+		if (entry.isDirectory()) {
+			// Recursively get files from subdirectories
+			const subFiles = await getTypescriptFiles(folder, relativePath);
+			files.push(...subFiles);
+		} else if (entry.isFile() && entry.name.endsWith('.ts') && entry.name !== 'index.ts' && entry.name !== 'types.ts') {
+			files.push(relativePath);
+		}
+	}
+
+	return files;
+}
+
+async function createOutputDirectories(files: string[], srcFolder: string, destFolder: string): Promise<void> {
+	const directories = new Set(files.map((file) => path.dirname(file)).filter((dir) => dir !== '.'));
+
+	for (const dir of directories) {
+		const outputDir = path.join(destFolder, dir);
+		await fs.mkdir(outputDir, { recursive: true });
+	}
 }
 
 async function compileFile(file: string, srcFolder: string, destFolder: string): Promise<void> {
 	const tsFilePath = path.join(srcFolder, file);
 	const jsFilePath = path.join(destFolder, file.replace(/\.ts$/, '.js'));
-	const shortPath = `/collections/${path.basename(jsFilePath)}`; // Shorten the path to /collections/filename.js
+	const shortPath = `/collections/${file.replace(/\.ts$/, '.js')}`; // Keep subdirectory structure in path
 
 	try {
 		// Check if recompilation is necessary
@@ -99,7 +125,10 @@ async function transpileCode(content: string, filePath: string): Promise<string>
 	if (!code) {
 		// Transpile TypeScript to JavaScript
 		const transpileResult = ts.transpileModule(content, {
-			compilerOptions: { target: ts.ScriptTarget.ESNext }
+			compilerOptions: {
+				target: ts.ScriptTarget.ESNext,
+				module: ts.ModuleKind.ESNext
+			}
 		});
 
 		code = modifyTranspiledCode(transpileResult.outputText);
@@ -118,6 +147,9 @@ function modifyTranspiledCode(code: string): string {
 }
 
 async function writeCompiledFile(filePath: string, code: string, originalContent: string): Promise<void> {
+	// Create the directory if it doesn't exist
+	await fs.mkdir(path.dirname(filePath), { recursive: true });
+
 	// Add content hash to the file for future comparisons
 	const contentHash = await getContentHash(originalContent);
 	const updatedCode = `// ${contentHash}\n${code}`;
