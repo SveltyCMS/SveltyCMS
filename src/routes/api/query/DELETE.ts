@@ -11,7 +11,8 @@
  * - Multiple document deletion support
  * - Associated link cleanup
  * - Pre-deletion request modification
- * - Error handling and logging
+ * - Performance monitoring with visual indicators
+ * - Comprehensive error handling and logging
  */
 
 import type { Schema } from '@src/collections/types';
@@ -26,8 +27,18 @@ import { modifyRequest } from './modifyRequest';
 // System Logger
 import { logger } from '@utils/logger';
 
+// Performance monitoring utilities
+const getPerformanceEmoji = (responseTime: number): string => {
+	if (responseTime < 100) return '🚀'; // Super fast
+	if (responseTime < 500) return '⚡'; // Fast
+	if (responseTime < 1000) return '⏱️'; // Moderate
+	if (responseTime < 3000) return '🕰️'; // Slow
+	return '🐢'; // Very slow
+};
+
 // Function to handle DELETE requests for a specified collection
 export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {
+	const start = performance.now();
 	try {
 		logger.debug(`DELETE request received for schema: ${schema.name}, user_id: ${user._id}`);
 
@@ -68,44 +79,83 @@ export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: 
 			return new Response('No valid IDs provided for deletion', { status: 400 });
 		}
 
-		// Modify request for each ID and handle associated link deletions
+		// Process deletions with performance tracking
+		const modifyStart = performance.now();
 		await Promise.all(
-			idsArray.map(async (id: any) => {
-				await modifyRequest({
-					collection,
-					data: [{ _id: id }],
-					user,
-					fields: schema.fields,
-					type: 'DELETE'
-				});
-				logger.debug(`Request modified for ID: ${id}`);
+			idsArray.map(async (id: any, index: number) => {
+				const itemStart = performance.now();
+				try {
+					// Modify request for the current ID
+					await modifyRequest({
+						collection,
+						data: [{ _id: id }],
+						user,
+						fields: schema.fields,
+						type: 'DELETE'
+					});
 
-				const linkedDeletions = (schema.links || []).map((link) =>
-					dbAdapter!.deleteMany(link.toString(), {
-						_link_id: id,
-						_linked_collection: schema.name
-					})
-				);
-				await Promise.all(linkedDeletions);
-				logger.debug(`Links deleted for ID: ${id} in related collections`);
+					// Handle associated link deletions
+					const linkedDeletions = (schema.links || []).map((link) =>
+						dbAdapter!.deleteMany(link.toString(), {
+							_link_id: id,
+							_linked_collection: schema.name
+						})
+					);
+					await Promise.all(linkedDeletions);
+
+					const itemDuration = performance.now() - itemStart;
+					const itemEmoji = getPerformanceEmoji(itemDuration);
+					logger.debug(`Item ${index + 1}/${idsArray.length} processed in ${itemDuration.toFixed(2)}ms ${itemEmoji}`);
+				} catch (itemError) {
+					const errorMessage = itemError instanceof Error ? itemError.message : 'Unknown error';
+					logger.error(`Error processing item ${index + 1}: ${errorMessage}`);
+					// Continue with other items
+				}
 			})
 		);
 
+		const modifyDuration = performance.now() - modifyStart;
+		const modifyEmoji = getPerformanceEmoji(modifyDuration);
+		logger.debug(`Request modifications completed in ${modifyDuration.toFixed(2)}ms ${modifyEmoji}`);
+
 		// Perform the deletion in the main collection
+		const deleteStart = performance.now();
 		const deletedCount = await collection.deleteMany({ _id: { $in: idsArray } });
-		logger.info(`Documents deleted: ${deletedCount} for schema: ${schema.name}`);
+		const deleteDuration = performance.now() - deleteStart;
+		const deleteEmoji = getPerformanceEmoji(deleteDuration);
+
+		logger.info(`Deleted ${deletedCount} documents in ${deleteDuration.toFixed(2)}ms ${deleteEmoji} for schema: ${schema.name}`);
+
+		const totalDuration = performance.now() - start;
+		const totalEmoji = getPerformanceEmoji(totalDuration);
+		logger.info(`DELETE operation completed in ${totalDuration.toFixed(2)}ms ${totalEmoji}`);
 
 		// Return the result as a JSON response
-		return new Response(JSON.stringify({ deletedCount }), {
-			status: 200,
-			headers: {
-				'Content-Type': 'application/json',
-				'X-Content-Type-Options': 'nosniff'
+		return new Response(
+			JSON.stringify({
+				deletedCount,
+				performance: {
+					total: totalDuration,
+					modify: modifyDuration,
+					delete: deleteDuration
+				}
+			}),
+			{
+				status: 200,
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Content-Type-Options': 'nosniff'
+				}
 			}
-		});
+		);
 	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-		logger.error(`Error occurred during DELETE request for schema: ${schema.name}, user_id: ${user._id}: ${errorMessage}`);
+		const duration = performance.now() - start;
+		const emoji = getPerformanceEmoji(duration);
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		const errorStack = error instanceof Error ? error.stack : '';
+		logger.error(`DELETE operation failed after ${duration.toFixed(2)}ms ${emoji} for schema: ${schema.name}: ${errorMessage}`, {
+			stack: errorStack
+		});
 		return new Response(errorMessage, { status: 500 });
 	}
 };

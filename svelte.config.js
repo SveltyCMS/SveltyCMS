@@ -27,14 +27,14 @@ const config = {
 			routes: 'src/routes' // Make sure routes are in a folder named 'routes'
 		},
 		alias: {
-			'@root': './',
-			'@src': './src/*',
-			'@api': './src/routes/api/*',
-			'@components': './src/components/*',
-			'@collections': './src/collections/*',
-			'@utils': './src/utils/*',
-			'@stores': './src/stores/*',
-			'@static': 'static/',
+			'@root': '.',
+			'@src': './src',
+			'@api': './src/routes/api',
+			'@components': './src/components',
+			'@collections': './src/collections',
+			'@utils': './src/utils',
+			'@stores': './src/stores',
+			'@static': './static',
 			$paraglide: './src/paraglide'
 		}
 	},

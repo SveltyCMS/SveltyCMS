@@ -50,6 +50,10 @@ export class SessionAdapter implements Partial<authDBInterface> {
 	// Create a new session
 	async createSession(sessionData: { user_id: string; expires: Date }): Promise<Session> {
 		try {
+			// First, invalidate any existing active sessions for this user
+			await this.invalidateAllUserSessions(sessionData.user_id);
+
+			// Then create the new session
 			const session = new this.SessionModel(sessionData);
 			await session.save();
 			logger.info(`Session created for user: ${sessionData.user_id}`);
@@ -129,8 +133,11 @@ export class SessionAdapter implements Partial<authDBInterface> {
 	// Invalidate all sessions for a user
 	async invalidateAllUserSessions(user_id: string): Promise<void> {
 		try {
-			await this.SessionModel.deleteMany({ user_id });
-			logger.debug('All sessions invalidated for user', { user_id });
+			const result = await this.SessionModel.deleteMany({
+				user_id,
+				expires: { $gt: new Date() } // Only delete active (non-expired) sessions
+			});
+			logger.debug(`Invalidated ${result.deletedCount} active sessions for user`, { user_id });
 		} catch (err) {
 			const message = `Error in SessionAdapter.invalidateAllUserSessions: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);

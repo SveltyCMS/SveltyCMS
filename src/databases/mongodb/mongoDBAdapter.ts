@@ -239,9 +239,9 @@ export class MongoDBAdapter implements dbInterface {
 		}
 	}
 
-	// Generate an ID using ObjectId
-	generateId(): string | mongoose.Types.ObjectId {
-		return new mongoose.Types.ObjectId(); //required for MongoDB id as ObjectId
+	// Update generateId to always return string
+	generateId(): string {
+		return new mongoose.Types.ObjectId().toString(); //required for MongoDB id as ObjectId
 	}
 
 	// Convert a string ID to a MongoDB ObjectId
@@ -874,7 +874,7 @@ export class MongoDBAdapter implements dbInterface {
 		logger.debug(`Setting user preferences for userId: ${userId}`);
 
 		try {
-			await SystemPreferencesModel.updateOne({ userId }, { $set: { preferences, screenSize: preferences.screenSize } }, { upsert: true }).exec();
+			await SystemPreferencesModel.updateOne({ userId }, { $set: { preferences } }, { upsert: true }).exec();
 			logger.info(`User preferences set successfully for userId: ${userId}`);
 		} catch (error) {
 			const err = error as Error;

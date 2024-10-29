@@ -5,11 +5,21 @@
 <script lang="ts">
 	// Component
 	import Column from './Column.svelte';
+
+	// Store
+	import { categories } from '@stores/collectionStore';
+
+	// Types
+	import type { CategoryData } from '@src/collections/types';
+
+	// Utils
+	import { createRandomID } from '@utils/utils';
+
 	// Svelte DND-actions
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
 
-	export let categoryConfig: Record<string, any>;
+	export let categoryConfig: Record<string, CategoryData>;
 	export let onEditCategory: (category: { name: string; icon: string }) => void;
 
 	interface DndItem {
@@ -22,23 +32,23 @@
 	}
 
 	// Convert categoryConfig to format needed for dnd-actions
-	function createStructuredItems(config: Record<string, any>): DndItem[] {
+	function createStructuredItems(config: Record<string, CategoryData>): DndItem[] {
 		return Object.entries(config).map(([key, category]) => {
 			const items: DndItem[] = [];
 
 			if (category.subcategories) {
-				Object.entries(category.subcategories).forEach(([subKey, subCategory]: [string, any]) => {
+				Object.entries(category.subcategories).forEach(([subKey, subCategory]: [string, CategoryData]) => {
 					// Check if this subcategory has its own subcategories
 					if (subCategory.subcategories && Object.keys(subCategory.subcategories).length > 0) {
 						// It's a category with nested items
 						items.push({
-							id: subCategory.id || subKey,
+							id: subKey,
 							name: subCategory.name,
 							icon: subCategory.icon,
 							isCategory: true,
 							parentId: key,
-							items: Object.entries(subCategory.subcategories).map(([collKey, coll]: [string, any]) => ({
-								id: coll.id || collKey,
+							items: Object.entries(subCategory.subcategories).map(([collKey, coll]: [string, CategoryData]) => ({
+								id: collKey,
 								name: coll.name,
 								icon: coll.icon,
 								isCategory: false,
@@ -48,7 +58,7 @@
 					} else {
 						// It's a direct collection
 						items.push({
-							id: subCategory.id || subKey,
+							id: subKey,
 							name: subCategory.name,
 							icon: subCategory.icon,
 							isCategory: false,
@@ -59,7 +69,7 @@
 			}
 
 			return {
-				id: category.id || key,
+				id: key,
 				name: category.name,
 				icon: category.icon,
 				isCategory: true,
@@ -74,80 +84,151 @@
 		structuredItems = e.detail.items;
 	}
 
-	function handleDndFinalize(e: CustomEvent<{ items: DndItem[] }>) {
+	async function handleDndFinalize(e: CustomEvent<{ items: DndItem[] }>) {
 		const newItems = e.detail.items;
+		const previousItems = structuredItems;
 
-		// If an item was moved to top level, remove it from its original parent
-		// but keep its own items if it's a category
-		newItems.forEach((item) => {
-			if (item.parentId) {
-				// Find and remove from original parent
-				newItems.forEach((parentItem) => {
-					if (parentItem.items) {
-						parentItem.items = parentItem.items.filter((i) => i.id !== item.id);
+		try {
+			// If an item was moved to top level, remove it from its original parent
+			// but keep its own items if it's a category
+			newItems.forEach((item) => {
+				if (item.parentId) {
+					// Find and remove from original parent
+					newItems.forEach((parentItem) => {
+						if (parentItem.items) {
+							parentItem.items = parentItem.items.filter((i) => i.id !== item.id);
+						}
+					});
+
+					// Clear the parentId as it's now a top-level item
+					delete item.parentId;
+
+					// Ensure all items in the moved category also have their parentIds updated
+					if (item.items) {
+						item.items = item.items.map((subItem) => ({
+							...subItem,
+							parentId: item.id
+						}));
 					}
-				});
-
-				// Clear the parentId as it's now a top-level item
-				delete item.parentId;
-
-				// Ensure all items in the moved category also have their parentIds updated
-				if (item.items) {
-					item.items = item.items.map((subItem) => ({
-						...subItem,
-						parentId: item.id
-					}));
 				}
-			}
-		});
+			});
 
-		structuredItems = newItems;
-		handleUpdate(newItems);
+			structuredItems = newItems;
+			const newConfig = await convertToConfig(newItems);
+
+			// Update local store
+			categories.set(newConfig);
+
+			// Persist to backend
+			const response = await fetch('/api/save-categories', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(newConfig)
+			});
+
+			if (!response.ok) {
+				throw new Error('Failed to save category changes');
+			}
+
+			// Update the parent component
+			categoryConfig = newConfig;
+		} catch (error) {
+			console.error('Error saving category structure:', error);
+			alert('Failed to save category changes. Please try again.');
+
+			// Revert changes on error
+			structuredItems = previousItems;
+			const revertedConfig = await convertToConfig(previousItems);
+			categories.set(revertedConfig);
+			categoryConfig = revertedConfig;
+		}
 	}
 
-	function handleUpdate(newItems: DndItem[]) {
-		// Convert the dnd format back to categoryConfig format
-		const newConfig = newItems.reduce((acc: Record<string, any>, item) => {
-			acc[item.id] = {
-				id: item.id,
+	async function convertToConfig(items: DndItem[]): Promise<Record<string, CategoryData>> {
+		const result: Record<string, CategoryData> = {};
+
+		for (const item of items) {
+			const id = item.id || (await createRandomID());
+			result[id] = {
+				id,
 				name: item.name,
 				icon: item.icon
 			};
 
-			if (item.items && item.items.length > 0) {
-				acc[item.id].subcategories = item.items.reduce((subAcc: Record<string, any>, subItem) => {
-					if (subItem.isCategory && subItem.items) {
+			if (item.items?.length) {
+				result[id].subcategories = {};
+				for (const subItem of item.items) {
+					const subId = subItem.id || (await createRandomID());
+					if (subItem.isCategory && subItem.items?.length) {
 						// Handle nested categories
-						subAcc[subItem.id] = {
-							id: subItem.id,
+						result[id].subcategories[subId] = {
+							id: subId,
 							name: subItem.name,
 							icon: subItem.icon,
-							subcategories: subItem.items.reduce((nestedAcc: Record<string, any>, nestedItem) => {
-								nestedAcc[nestedItem.id] = {
-									id: nestedItem.id,
-									name: nestedItem.name,
-									icon: nestedItem.icon
-								};
-								return nestedAcc;
-							}, {})
+							subcategories: {}
 						};
+
+						// Handle nested items
+						for (const nestedItem of subItem.items) {
+							const nestedId = nestedItem.id || (await createRandomID());
+							result[id].subcategories[subId].subcategories![nestedId] = {
+								id: nestedId,
+								name: nestedItem.name,
+								icon: nestedItem.icon
+							};
+						}
 					} else {
 						// Handle direct collections
-						subAcc[subItem.id] = {
-							id: subItem.id,
+						result[id].subcategories[subId] = {
+							id: subId,
 							name: subItem.name,
 							icon: subItem.icon
 						};
 					}
-					return subAcc;
-				}, {});
+				}
+			}
+		}
+
+		return result;
+	}
+
+	async function handleUpdate(newItems: DndItem[]) {
+		const previousItems = structuredItems;
+
+		try {
+			const newConfig = await convertToConfig(newItems);
+
+			// Update local store
+			categories.set(newConfig);
+
+			// Persist to backend
+			const response = await fetch('/api/save-categories', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(newConfig)
+			});
+
+			if (!response.ok) {
+				throw new Error('Failed to save category changes');
 			}
 
-			return acc;
-		}, {});
+			// Update local state
+			structuredItems = newItems;
+			categoryConfig = newConfig;
+		} catch (error) {
+			console.error('Error saving category structure:', error);
+			alert('Failed to save category changes. Please try again.');
 
-		// Update the parent component
-		categoryConfig = newConfig;
+			// Revert changes on error
+			structuredItems = previousItems;
+			const revertedConfig = await convertToConfig(previousItems);
+			categories.set(revertedConfig);
+			categoryConfig = revertedConfig;
+		}
 	}
 
 	const flipDurationMs = 300;

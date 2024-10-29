@@ -5,18 +5,14 @@
  */
 
 import { publicEnv } from '@root/config/public';
-import { redirect, error } from '@sveltejs/kit';
+import { redirect, error, type HttpError } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-// Collections
-import { getCollections } from '@src/collections';
-import type { Schema, CollectionNames } from '@src/collections/types';
+// Collection Manager
+import { collectionManager } from '@src/collections/CollectionManager';
 
 // System Logger
 import { logger } from '@utils/logger';
-
-// Define the Collections type
-type Collections = Record<CollectionNames, Schema>;
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	logger.debug('Load function started in +page.server.ts');
@@ -38,30 +34,18 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		return { user, permissions };
 	}
 
-	let collections: Collections;
+	try {
+		// Get collections directly from CollectionManager
+		const { collections } = collectionManager.getCollectionData();
+		logger.debug(`Collections retrieved: ${collections ? collections.length : 'None'}`);
 
-	if (!locals.collections) {
-		try {
-			collections = await getCollections();
-			if (!collections) {
-				throw new Error('getCollections returned undefined');
-			}
-			locals.collections = collections;
-		} catch (err) {
-			const message = `Error in load.getCollections: ${err instanceof Error ? err.message : String(err)}`;
+		if (!collections || collections.length === 0) {
+			const message = 'No collections found to redirect';
 			logger.error(message);
-			throw error(500, { message });
+			throw error(404, { message });
 		}
-	} else {
-		collections = locals.collections as Collections;
-	}
 
-	logger.debug(`Collections retrieved: ${collections ? Object.keys(collections).join(', ') : 'None'}`);
-
-	if (collections && Object.keys(collections).length > 0) {
-		const firstCollectionKey = Object.keys(collections)[0] as CollectionNames;
-		const firstCollection = collections[firstCollectionKey];
-
+		const firstCollection = collections[0];
 		if (!firstCollection || !firstCollection.name) {
 			const message = 'First collection or its name is undefined';
 			logger.error(message);
@@ -73,9 +57,15 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 		logger.info(`Redirecting to first collection: ${firstCollection.name} with URL: ${redirectUrl}`);
 		throw redirect(302, redirectUrl);
-	} else {
-		const message = 'No collections found to redirect';
+	} catch (err) {
+		// If it's a redirect or an HTTP error, rethrow it
+		if ((err as HttpError)?.status === 302 || (err as HttpError)?.status) {
+			throw err;
+		}
+
+		// Otherwise, it's an unexpected error
+		const message = `Error getting collections: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message);
-		throw error(404, { message });
+		throw error(500, { message });
 	}
 };

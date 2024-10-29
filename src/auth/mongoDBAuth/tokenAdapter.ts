@@ -16,7 +16,9 @@
  * Usage:
  * Used by the auth system to manage authentication tokens in a MongoDB database
  */
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
+import type { Document, Model } from 'mongoose';
+
 import crypto from 'crypto';
 import { error } from '@sveltejs/kit';
 

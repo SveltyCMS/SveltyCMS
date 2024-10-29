@@ -2,6 +2,7 @@
  * @file src/routes/api/getCollections/+server.ts
  * @description
  * API endpoint for retrieving collection files or a specific collection file.
+ * Implements memory and optional Redis caching for improved performance.
  */
 
 import { error, json, type RequestHandler } from '@sveltejs/kit';
@@ -9,9 +10,16 @@ import { getCollectionFiles } from './getCollectionFiles';
 import { logger } from '@src/utils/logger';
 import path from 'path';
 import fs from 'fs/promises';
+import { browser } from '$app/environment';
+
+// Redis
+import { isRedisEnabled, getCache, setCache } from '@src/databases/redis';
 
 // Set the collections folder path, use environment variable if available
 const collectionsFolder = process.env.VITE_COLLECTIONS_FOLDER || './collections';
+
+// Cache TTL
+const CACHE_TTL = 300; // 5 minutes
 
 export const GET: RequestHandler = async ({ url }) => {
 	// Get the fileName query parameter
@@ -52,6 +60,18 @@ function safeParseCollectionFile(content: string) {
 }
 
 async function handleSingleFileRequest(fileNameQuery: string) {
+	// Try to get from Redis cache first
+	if (!browser && isRedisEnabled()) {
+		const cacheKey = `api:collection_file:${fileNameQuery}`;
+		const cached = await getCache(cacheKey);
+		if (cached) {
+			logger.debug('Returning cached collection file', { fileName: fileNameQuery });
+			return json(cached, {
+				headers: { 'Content-Type': 'application/json' }
+			});
+		}
+	}
+
 	// Extract just the filename to prevent directory traversal
 	const fileName = path.basename(fileNameQuery);
 	// Construct the full file path
@@ -75,6 +95,12 @@ async function handleSingleFileRequest(fileNameQuery: string) {
 		// Safely parse the file content
 		const result = safeParseCollectionFile(fileContent);
 
+		// Cache in Redis if available
+		if (!browser && isRedisEnabled()) {
+			const cacheKey = `api:collection_file:${fileNameQuery}`;
+			await setCache(cacheKey, result, CACHE_TTL);
+		}
+
 		logger.info(`Retrieved collection file: ${fileName}`);
 		// Return the file content as JSON
 		return json(result, {
@@ -87,9 +113,27 @@ async function handleSingleFileRequest(fileNameQuery: string) {
 }
 
 async function handleAllFilesRequest() {
+	// Try to get from Redis cache first
+	if (!browser && isRedisEnabled()) {
+		const cacheKey = 'api:collection_files:all';
+		const cached = await getCache<string[]>(cacheKey);
+		if (cached) {
+			logger.debug('Returning cached collection files list');
+			return json(cached, {
+				headers: { 'Content-Type': 'application/json' }
+			});
+		}
+	}
+
 	try {
 		// Get all collection files
 		const files = await getCollectionFiles();
+
+		// Cache in Redis if available
+		if (!browser && isRedisEnabled()) {
+			await setCache('api:collection_files:all', files, CACHE_TTL);
+		}
+
 		logger.info('Collection files retrieved successfully');
 
 		// Return the list of files as JSON

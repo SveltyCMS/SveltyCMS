@@ -30,11 +30,11 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		// Parse the request body to get user data
 		const userData = await request.json();
-		logger.info('Received request to create user', { email: userData.email });
+		logger.debug('Received request to create user', { email: userData.email });
 
 		// Create the user using the agnostic auth interface
 		const newUser = await auth.createUser(userData);
-		logger.info('User created successfully', { userId: newUser._id });
+		logger.debug('User created successfully', { userId: newUser._id });
 
 		// Return the newly created user data
 		return json(newUser);

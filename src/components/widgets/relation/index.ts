@@ -1,6 +1,7 @@
 /**
 @file src/components/widgets/relation/index.ts
-@description - relation index file.
+@description - Relation widget index which exports the widget function
+
 */
 
 const WIDGET_NAME = 'Relation' as const;
@@ -8,9 +9,10 @@ const WIDGET_NAME = 'Relation' as const;
 import { getFieldName, getGuiFields } from '@utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 import type { CollectionContent, CollectionNames, Schema } from '@src/collections/types';
-import { getCollections } from '@src/collections';
+import { collectionManager } from '@src/collections/CollectionManager';
 import widgets, { type ModifyRequestParams } from '@components/widgets';
 import deepmerge from 'deepmerge';
+import type { CollectionModel } from '@src/databases/dbInterface';
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
@@ -21,7 +23,8 @@ import * as m from '@src/paraglide/messages';
 const widget = <K extends CollectionContent[T][number], T extends CollectionNames & keyof CollectionContent>(params: Params<K, T>) => {
 	// Define the display function
 	const display = async ({ data, collection, field, entry, contentLanguage }) => {
-		const relative_collection = (await getCollections())[field.relation];
+		const { collections } = collectionManager.getCollectionData();
+		const relative_collection = collections[field.relation];
 		const relative_field = relative_collection?.fields.find((f) => getFieldName(f) == field.displayPath);
 
 		return data?.[getFieldName(relative_field)]
@@ -83,18 +86,26 @@ widget.modifyRequest = async ({ field, data, user, type, id }: ModifyRequestPara
 	if (type !== 'GET' || !_data) {
 		return;
 	}
+
 	const { getCollectionModels } = await import('@src/databases/db');
-	const relative_collection = (await getCollectionModels())[field.relation];
-	const relative_collection_schema = (await getCollections())[field.relation] as Schema;
-	const response = (await relative_collection.findById(_data)) as any;
+	const models = await getCollectionModels();
+	const relative_collection = models[field.relation] as CollectionModel;
+	const { collections } = collectionManager.getCollectionData();
+	const relative_collection_schema = collections[field.relation] as Schema;
+
+	// Use find method with _id query
+	const [response] = await relative_collection.find({ _id: _data });
+	if (!response) return;
+
 	const result = {};
+
 	for (const key in relative_collection_schema.fields) {
 		const _field = relative_collection_schema.fields[key];
 		const widget = widgets[_field.widget.Name];
-		result[getFieldName(_field)] = response?.[getFieldName(_field)];
-		const data = {
+		result[getFieldName(_field)] = response[getFieldName(_field)];
+		const fieldData = {
 			get() {
-				return response?.[getFieldName(_field)];
+				return response[getFieldName(_field)];
 			},
 			update(newData) {
 				result[getFieldName(_field)] = newData;
@@ -103,7 +114,7 @@ widget.modifyRequest = async ({ field, data, user, type, id }: ModifyRequestPara
 		await widget.modifyRequest({
 			collection: relative_collection,
 			field: _field as ReturnType<typeof widget>,
-			data,
+			data: fieldData,
 			user,
 			type,
 			id
@@ -116,12 +127,13 @@ widget.modifyRequest = async ({ field, data, user, type, id }: ModifyRequestPara
 widget.aggregations = {
 	filters: async (info) => {
 		const field = info.field as ReturnType<typeof widget>;
-		const relative_collection = (await getCollections())[field.relation];
+		const { collections } = collectionManager.getCollectionData();
+		const relative_collection = collections[field.relation];
 		const relative_field = relative_collection?.fields.find((f) => getFieldName(f) == field.displayPath);
 		const widget = widgets[relative_field.widget.Name];
 		const new_field = deepmerge(relative_field, {
 			db_fieldName: 'relation.' + getFieldName(relative_field)
-		}); //use db_fieldName since it overrides label.
+		});
 		return (
 			widget?.aggregations?.filters({
 				field: new_field,
@@ -133,12 +145,13 @@ widget.aggregations = {
 
 	sorts: async (info) => {
 		const field = info.field as ReturnType<typeof widget>;
-		const relative_collection = (await getCollections())[field.relation];
+		const { collections } = collectionManager.getCollectionData();
+		const relative_collection = collections[field.relation];
 		const relative_field = relative_collection?.fields.find((f) => getFieldName(f) == field.displayPath);
 		const widget = widgets[relative_field.widget.Name];
 		const new_field = deepmerge(relative_field, {
 			db_fieldName: 'relation.' + getFieldName(relative_field)
-		}); //use db_fieldName since it overrides label.
+		});
 		return (
 			widget?.aggregations?.sorts({
 				field: new_field,
@@ -149,6 +162,9 @@ widget.aggregations = {
 	}
 } as Aggregations;
 
-// Export FieldType interface and widget function
-export interface FieldType extends ReturnType<typeof widget> {}
+// Export widget function and its type
+export type FieldType = ReturnType<typeof widget> & {
+	relation: CollectionNames;
+	displayPath: string;
+};
 export default widget;

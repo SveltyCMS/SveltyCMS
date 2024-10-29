@@ -43,6 +43,12 @@ export async function backupCategoryFiles() {
 
 		const categoriesBackup = path.join(BACKUP_DIR, `categories.backup.${timestamp}.ts`);
 
+		// Read the current file to verify it's valid before backing up
+		const currentContent = await fs.readFile(path.join(COLLECTIONS_DIR, 'categories.ts'), 'utf-8');
+		if (!currentContent.includes('export const categoryConfig')) {
+			throw new Error('Current categories file appears to be invalid');
+		}
+
 		await fs.copyFile(path.join(COLLECTIONS_DIR, 'categories.ts'), categoriesBackup);
 
 		// Limit backups to BACKUP_LIMIT
@@ -56,6 +62,7 @@ export async function backupCategoryFiles() {
 			const toDelete = backups.slice(BACKUP_LIMIT);
 			for (const file of toDelete) {
 				await fs.unlink(path.join(BACKUP_DIR, file));
+				logger.info(`Deleted old backup: ${file}`);
 			}
 		}
 
@@ -87,6 +94,10 @@ export async function restoreCategoryFiles() {
 			.sort()
 			.reverse();
 
+		if (backups.length === 0) {
+			throw new Error('No backup files found');
+		}
+
 		const timestamps = [...new Set(backups.map((file) => file.split('.')[2]))];
 		const choices = timestamps.map((timestamp) => ({
 			name: new Date(timestamp.replace(/-/g, ':')).toString(),
@@ -99,7 +110,16 @@ export async function restoreCategoryFiles() {
 		});
 
 		if (selectedTimestamp) {
-			await fs.copyFile(path.join(BACKUP_DIR, `categories.backup.${selectedTimestamp}.ts`), path.join(COLLECTIONS_DIR, 'categories.ts'));
+			const backupPath = path.join(BACKUP_DIR, `categories.backup.${selectedTimestamp}.ts`);
+			const targetPath = path.join(COLLECTIONS_DIR, 'categories.ts');
+
+			// Verify backup file is valid before restoring
+			const backupContent = await fs.readFile(backupPath, 'utf-8');
+			if (!backupContent.includes('export const categoryConfig')) {
+				throw new Error('Backup file appears to be invalid');
+			}
+
+			await fs.copyFile(backupPath, targetPath);
 			logger.info('Category restore completed successfully', { selectedTimestamp });
 		} else {
 			logger.info('Category restore cancelled');
@@ -122,13 +142,13 @@ export async function backupFilesExist() {
 	}
 }
 
-// Check if category file exists
+// Check if category file exists and is valid
 export async function categoryFileExists() {
 	const categoriesPath = path.join(COLLECTIONS_DIR, 'categories.ts');
 
 	try {
-		await fs.access(categoriesPath);
-		return true;
+		const content = await fs.readFile(categoriesPath, 'utf-8');
+		return content.includes('export const categoryConfig');
 	} catch (error) {
 		logger.error('Error checking category file existence:', error as Error);
 		return false;

@@ -11,35 +11,44 @@
  * Features:
  * - Support for custom widget-based filtering and sorting
  * - Pagination with skip and limit
- * - Aggregation pipeline for complex queries
+ * - Optimized queries for better database compatibility
  * - Total count and pages count calculation
  * - Content language handling
  * - Error handling and logging
+ * - Performance monitoring with visual indicators
  */
-
-import { publicEnv } from '@root/config/public';
 
 // Types
 import type { Schema } from '@src/collections/types';
 import type { User } from '@src/auth/types';
+import type { CollectionModel } from '@src/databases/dbInterface';
 
 // Database
 import { dbAdapter, getCollectionModels } from '@src/databases/db';
 
 // Utils
-import { modifyRequest } from './modifyRequest';
+import { modifyRequest } from '@src/routes/api/query/modifyRequest';
 import widgets from '@components/widgets';
 import { getFieldName, get_elements_by_id } from '@utils/utils';
 
 // System Logger
 import { logger } from '@utils/logger';
 
+// Performance monitoring utilities
+const getPerformanceEmoji = (responseTime: number): string => {
+	if (responseTime < 100) return '🚀'; // Super fast
+	if (responseTime < 500) return '⚡'; // Fast
+	if (responseTime < 1000) return '⏱️'; // Moderate
+	if (responseTime < 3000) return '🕰️'; // Slow
+	return '🐢'; // Very slow
+};
+
 // Function to handle GET requests for a specified collection
 export async function _GET({
 	schema,
 	sort = {},
 	filter = {},
-	contentLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE,
+	contentLanguage,
 	user,
 	limit = 0,
 	page = 1
@@ -48,10 +57,11 @@ export async function _GET({
 	user: User;
 	sort?: { [key: string]: number };
 	filter?: { [key: string]: string };
-	contentLanguage?: string;
+	contentLanguage: string;
 	limit?: number;
 	page?: number;
 }) {
+	const start = performance.now();
 	try {
 		logger.debug(`GET request received for schema: ${schema.name}, user_id: ${user._id}`);
 
@@ -70,7 +80,7 @@ export async function _GET({
 		const collections = await getCollectionModels(); // Get collection models from the database
 		logger.debug(`Collection models retrieved: ${Object.keys(collections).join(', ')}`);
 
-		const collection = collections[schema.name]; // Get the specific collection based on the schema name
+		const collection = collections[schema.name] as CollectionModel; // Get the specific collection based on the schema name
 		// Check if the collection exists
 		if (!collection) {
 			logger.error(`Collection not found for schema: ${schema.name}`);
@@ -98,7 +108,6 @@ export async function _GET({
 						aggregations.push(..._aggregations);
 					} catch (error) {
 						logger.error(`Error in widget filter aggregation for field ${fieldName}: ${error}`);
-						// Continue with other fields instead of breaking the entire request
 					}
 				}
 				if (widget.aggregations?.sorts && _sort) {
@@ -111,28 +120,27 @@ export async function _GET({
 						aggregations.push(..._aggregations);
 					} catch (error) {
 						logger.error(`Error in widget sort aggregation for field ${fieldName}: ${error}`);
-						// Continue with other fields instead of breaking the entire request
 					}
 				}
 			}
 		}
 
-		// Execute the aggregation pipeline
-		let entries, totalCount;
+		// Execute queries separately for better compatibility
+		let entries = [],
+			total = 0;
 		try {
-			[{ entries, totalCount }] = await collection.aggregate([
-				{
-					$facet: {
-						entries: [...aggregations, { $skip: skip }, ...(limit ? [{ $limit: limit }] : [])],
-						totalCount: [...aggregations, { $count: 'total' }]
-					}
-				}
-			]);
-			logger.debug(
-				`Aggregation pipeline executed successfully. Entries: ${entries.length}, Total count: ${totalCount.length > 0 ? totalCount[0].total : 0}`
-			);
+			// Get total count first
+			const countResult = await collection.aggregate([...aggregations, { $count: 'total' }]);
+			total = countResult[0]?.total ?? 0;
+
+			// Then get paginated entries
+			entries = await collection.aggregate([...aggregations, { $skip: skip }, ...(limit ? [{ $limit: limit }] : [])]);
+
+			const queryDuration = performance.now() - start;
+			const queryEmoji = getPerformanceEmoji(queryDuration);
+			logger.debug(`Queries executed in ${queryDuration.toFixed(2)}ms ${queryEmoji}. Entries: ${entries.length}, Total: ${total}`);
 		} catch (error) {
-			logger.error(`Error executing aggregation pipeline: ${error}`);
+			logger.error(`Error executing queries: ${error}`);
 			return new Response('Error executing database query', { status: 500 });
 		}
 
@@ -148,7 +156,6 @@ export async function _GET({
 			logger.debug(`Request modified for ${entries.length} entries`);
 		} catch (error) {
 			logger.error(`Error in modifyRequest: ${error}`);
-			// Continue with the original entries if modifyRequest fails
 		}
 
 		// Get all collected IDs and modify request
@@ -157,21 +164,53 @@ export async function _GET({
 			logger.debug('get_elements_by_id.getAll executed successfully');
 		} catch (error) {
 			logger.error(`Error in get_elements_by_id.getAll: ${error}`);
-			// Continue even if this step fails
 		}
 
-		// Calculate total count and pages count
-		const total = totalCount[0]?.total ?? 0;
+		// Calculate pages count
 		const pagesCount = limit > 0 ? Math.ceil(total / limit) : 1;
 
-		logger.info(`GET request completed. Total count: ${total}, Pages count: ${pagesCount}`);
+		const duration = performance.now() - start;
+		const emoji = getPerformanceEmoji(duration);
+		logger.info(`GET request completed in ${duration.toFixed(2)}ms ${emoji}. Total: ${total}, Pages: ${pagesCount}`);
 
 		// Return the response with entry list and pages count
-		return new Response(JSON.stringify({ entryList: entries, pagesCount }), { headers: { 'Content-Type': 'application/json' } });
+		return new Response(
+			JSON.stringify({
+				success: true,
+				entryList: entries,
+				pagesCount,
+				performance: {
+					total: duration
+				}
+			}),
+			{
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Content-Type-Options': 'nosniff'
+				}
+			}
+		);
 	} catch (error) {
+		const duration = performance.now() - start;
+		const emoji = getPerformanceEmoji(duration);
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
 		const errorStack = error instanceof Error ? error.stack : '';
-		logger.error(`Error occurred during GET request: ${errorMessage}`, { stack: errorStack });
-		return new Response(errorMessage, { status: 500 });
+		logger.error(`Error in GET request after ${duration.toFixed(2)}ms ${emoji}: ${errorMessage}`, { stack: errorStack });
+		return new Response(
+			JSON.stringify({
+				success: false,
+				error: errorMessage,
+				performance: {
+					total: duration
+				}
+			}),
+			{
+				status: 500,
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Content-Type-Options': 'nosniff'
+				}
+			}
+		);
 	}
 }

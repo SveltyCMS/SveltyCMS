@@ -30,7 +30,9 @@ import { error } from '@sveltejs/kit';
 // Auth
 import { Auth } from '@src/auth';
 
-import { getCollections, updateCollections } from '@src/collections';
+// Collection Manager
+import { collectionManager } from '@src/collections/CollectionManager';
+
 import { getPermissionByName, getAllPermissions, syncPermissions } from '@src/auth/permissionManager';
 
 // Adapters Interfaces
@@ -217,12 +219,20 @@ async function initializeAdapters(): Promise<void> {
 		if (!browser) {
 			await initializeMediaFolder();
 			await connectToDatabase();
-			await updateCollections();
-			const collections = await getCollections();
 
-			if (Object.keys(collections).length === 0) {
-				throw error(500, 'No collections found after initialization');
+			// Initialize CollectionManager first and wait for it
+			logger.debug('Initializing CollectionManager...');
+			await collectionManager.initialize();
+
+			// Get collection data after initialization
+			const { collections } = collectionManager.getCollectionData();
+			if (!collections || collections.length === 0) {
+				const error = 'No collections found after CollectionManager initialization';
+				logger.error(error);
+				throw new Error(error);
 			}
+			logger.debug('CollectionManager initialized with collections:', { count: collections.length });
+
 			if (!dbAdapter) {
 				throw error(500, 'Database adapter not initialized');
 			}
@@ -235,7 +245,6 @@ async function initializeAdapters(): Promise<void> {
 
 			// Ensure revision handling is initialized
 			await initializeRevisions();
-
 			await syncPermissions();
 		}
 
@@ -297,7 +306,6 @@ export async function getCollectionModels() {
 		// Log the correct count after all collections have been fetched and assigned
 		const modelCount = Object.keys(collectionsModels).length;
 		logger.debug('Collection models fetched successfully', { modelCount });
-
 		return models;
 	} catch (err) {
 		const message = `Error in getCollectionModels: ${err instanceof Error ? err.message : String(err)}`;

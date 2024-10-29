@@ -9,7 +9,9 @@ import { publicEnv } from '@root/config/public';
 import { dev } from '$app/environment';
 import { error, redirect, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { getCollections } from '@src/collections';
+
+// Collection Manager
+import { collectionManager } from '@src/collections/CollectionManager';
 
 // Rate Limiter
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
@@ -62,11 +64,11 @@ function calculatePasswordStrength(password: string): number {
 // Helper function to fetch and redirect to the first collection
 async function fetchAndRedirectToFirstCollection() {
 	try {
-		const collections = await getCollections();
-		logger.info('Fetched collections:', collections);
-		if (collections && Object.keys(collections).length > 0) {
-			const firstCollectionKey = Object.keys(collections)[0];
-			const firstCollection = collections[firstCollectionKey];
+		const { collections } = collectionManager.getCollectionData();
+		// logger.debug('Fetched collections:', collections);
+
+		if (collections && collections.length > 0) {
+			const firstCollection = collections[0];
 			if (firstCollection && firstCollection.name) {
 				logger.info(`Redirecting to first collection: ${firstCollection.name}`);
 				return `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${firstCollection.name}`;

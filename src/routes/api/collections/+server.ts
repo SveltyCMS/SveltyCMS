@@ -1,49 +1,132 @@
 /**
  * @file src/routes/api/collections/+server.ts
- * @description API endpoint for collection management
+ * @description API endpoints for collection management
  *
  * Features:
- * - Collection type generation
- * - Support for nested category structure
- * - Collection field type generation
+ * - Collection data retrieval with Memory cache or optional Redis caching
+ * - Collection structure updates
+ * - Category management
+ * - Type generation
  */
 
-import { json } from '@sveltejs/kit';
-import { generateCollectionTypes, generateCollectionFieldTypes } from '@utils/collectionTypes';
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { error, json, type RequestHandler } from '@sveltejs/kit';
+import { browser } from '$app/environment';
+
+// Collection Manager
+import { collectionManager } from '@src/collections/CollectionManager';
+
+// Redis
+import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/redis';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@src/utils/logger';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// Cache TTL
+const CACHE_TTL = 300; // 5 minutes
 
-export async function GET() {
+export const GET: RequestHandler = async ({ url }) => {
 	try {
-		// Generate the collection types
-		await generateCollectionTypes();
-		logger.info('Collection types generated successfully');
+		const action = url.searchParams.get('action');
+		const name = url.searchParams.get('name');
 
-		// Generate field types
-		await generateCollectionFieldTypes();
-		logger.info('Collection field types generated successfully');
-
-		// Read the generated types file
-		const typesPath = join(__dirname, '..', '..', '..', 'collections', 'types.ts');
-		const typesContent = readFileSync(typesPath, 'utf-8');
-
-		// Extract CollectionNames from the content
-		const match = typesContent.match(/export\s+type\s+CollectionNames\s?=\s?(.*?);/);
-		if (match) {
-			const collections = match[1].split('|').map((name) => name.replace(/['"]/g, ''));
-			return json(collections);
+		// Try to get from Redis cache first
+		if (!browser && isRedisEnabled()) {
+			const cacheKey = `api:collections:${action || 'default'}${name ? `:${name}` : ''}`;
+			const cached = await getCache(cacheKey);
+			if (cached) {
+				logger.debug('Returning cached collection data', { action, name });
+				return json(cached);
+			}
 		}
 
-		throw new Error('Failed to extract CollectionNames');
-	} catch (error) {
-		logger.error('Error in /api/collections:', error);
-		return json({ error: 'Failed to fetch collections' }, { status: 500 });
+		const { collections, categories } = collectionManager.getCollectionData();
+		let response;
+		let collection;
+
+		switch (action) {
+			case 'structure':
+				// Return full collection structure with categories
+				logger.info('Returning collection structure');
+				response = {
+					success: true,
+					data: { collections, categories }
+				};
+				break;
+
+			case 'names':
+				// Return just collection names
+				logger.info('Returning collection names');
+				response = collections.map((col) => col.name);
+				break;
+
+			case 'collection':
+				// Return a specific collection
+				if (!name) {
+					throw error(400, 'Collection name is required');
+				}
+
+				collection = collections.find((c) => c.name === name);
+				if (!collection) {
+					throw error(404, 'Collection not found');
+				}
+
+				logger.info(`Returning collection: ${name}`);
+				response = collection;
+				break;
+
+			default:
+				// Default: return basic collection data
+				logger.info('Returning basic collection data');
+				response = {
+					success: true,
+					collections: collections.map(({ name, icon, path }) => ({
+						name,
+						icon,
+						path
+					}))
+				};
+		}
+
+		// Cache in Redis if available
+		if (!browser && isRedisEnabled()) {
+			const cacheKey = `api:collections:${action || 'default'}${name ? `:${name}` : ''}`;
+			await setCache(cacheKey, response, CACHE_TTL);
+		}
+
+		return json(response);
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		logger.error('Error in collections API:', message);
+		throw error(500, `Failed to process collections request: ${message}`);
 	}
-}
+};
+
+export const POST: RequestHandler = async ({ request }) => {
+	try {
+		const data = await request.json();
+		const action = data.action;
+
+		switch (action) {
+			case 'recompile':
+				// Clear Redis cache if available
+				if (!browser && isRedisEnabled()) {
+					await clearCache('api:collections:*');
+				}
+
+				// Force recompilation of collections
+				await collectionManager.updateCollections(true);
+				logger.info('Collections recompiled successfully');
+				return json({
+					success: true,
+					message: 'Collections recompiled successfully'
+				});
+
+			default:
+				throw error(400, 'Invalid action');
+		}
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		logger.error('Error in collections API:', message);
+		throw error(500, `Failed to process collections request: ${message}`);
+	}
+};

@@ -11,14 +11,12 @@
  * - Support for custom widget-based data modifications
  * - Asynchronous processing of each entry in the data array
  * - Data accessor pattern for safe data manipulation
+ * - Performance monitoring with visual indicators
  * - Detailed logging for debugging purposes
  *
  * Usage:
  * Called by various query handlers (GET, POST, etc.) to modify request data
  * before final processing or database operations.
- *
- * Note: This function assumes that the widgets have a 'modifyRequest' method
- * if they need to perform custom modifications.
  */
 
 import widgets from '@components/widgets';
@@ -47,12 +45,23 @@ interface ModifyRequestParams {
 	type: string;
 }
 
+// Performance monitoring utilities
+const getPerformanceEmoji = (responseTime: number): string => {
+	if (responseTime < 100) return '🚀'; // Super fast
+	if (responseTime < 500) return '⚡'; // Fast
+	if (responseTime < 1000) return '⏱️'; // Moderate
+	if (responseTime < 3000) return '🕰️'; // Slow
+	return '🐢'; // Very slow
+};
+
 // Function to modify request data based on field widgets
 export async function modifyRequest({ data, fields, collection, user, type }: ModifyRequestParams) {
+	const start = performance.now();
 	try {
 		logger.debug(`Starting modifyRequest for type: ${type}, user: ${user._id}, collection: ${collection.modelName}`);
 
 		for (const field of fields) {
+			const fieldStart = performance.now();
 			const widget = widgets[field.widget.Name];
 			const fieldName = getFieldName(field);
 
@@ -60,7 +69,8 @@ export async function modifyRequest({ data, fields, collection, user, type }: Mo
 
 			if (widget && 'modifyRequest' in widget) {
 				data = await Promise.all(
-					data.map(async (entry: any) => {
+					data.map(async (entry: any, index: number) => {
+						const entryStart = performance.now();
 						try {
 							const entryCopy = { ...entry };
 							const dataAccessor = {
@@ -72,7 +82,7 @@ export async function modifyRequest({ data, fields, collection, user, type }: Mo
 								}
 							};
 
-							logger.debug(`Calling modifyRequest for entry: ${entryCopy._id}, field: ${fieldName}`);
+							logger.debug(`Processing entry ${index + 1}/${data.length} for field: ${fieldName}`);
 
 							try {
 								await widget.modifyRequest({
@@ -84,33 +94,45 @@ export async function modifyRequest({ data, fields, collection, user, type }: Mo
 									id: entryCopy._id,
 									meta_data: entryCopy.meta_data
 								});
+
+								const entryDuration = performance.now() - entryStart;
+								const entryEmoji = getPerformanceEmoji(entryDuration);
+								logger.debug(`Entry ${index + 1} processed in ${entryDuration.toFixed(2)}ms ${entryEmoji}`);
 							} catch (widgetError) {
-								const errorMessage = widgetError instanceof Error ? widgetError.message : 'Unknown error occurred in widget';
+								const errorMessage = widgetError instanceof Error ? widgetError.message : 'Unknown widget error';
 								const errorStack = widgetError instanceof Error ? widgetError.stack : '';
-								logger.error(`Error in widget.modifyRequest for field ${fieldName}: ${errorMessage}`, { stack: errorStack });
-								// Don't rethrow the error, just log it and continue with the next entry
+								logger.error(`Widget error for field ${fieldName}, entry ${index + 1}: ${errorMessage}`, { stack: errorStack });
 							}
 
 							return entryCopy;
 						} catch (error) {
-							const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+							const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 							const errorStack = error instanceof Error ? error.stack : '';
-							logger.error(`Error modifying entry: ${errorMessage}`, { stack: errorStack });
+							logger.error(`Error processing entry ${index + 1}: ${errorMessage}`, { stack: errorStack });
 							return entry;
 						}
 					})
 				);
+
+				const fieldDuration = performance.now() - fieldStart;
+				const fieldEmoji = getPerformanceEmoji(fieldDuration);
+				logger.debug(`Field ${fieldName} processed in ${fieldDuration.toFixed(2)}ms ${fieldEmoji}`);
 			} else {
-				logger.warn(`No widget or modifyRequest function found for field: ${field.widget.Name}`);
+				logger.warn(`No modifyRequest handler for widget: ${field.widget.Name}`);
 			}
 		}
 
-		logger.debug(`ModifyRequest completed for ${data.length} entries`);
+		const duration = performance.now() - start;
+		const emoji = getPerformanceEmoji(duration);
+		logger.info(`ModifyRequest completed in ${duration.toFixed(2)}ms ${emoji} for ${data.length} entries`);
+
 		return data;
 	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+		const duration = performance.now() - start;
+		const emoji = getPerformanceEmoji(duration);
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 		const errorStack = error instanceof Error ? error.stack : '';
-		logger.error(`Error in modifyRequest: ${errorMessage}`, { stack: errorStack });
-		throw Error(errorMessage);
+		logger.error(`ModifyRequest failed after ${duration.toFixed(2)}ms ${emoji}: ${errorMessage}`, { stack: errorStack });
+		throw error;
 	}
 }

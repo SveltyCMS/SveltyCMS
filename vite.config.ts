@@ -29,9 +29,9 @@ import { paraglide } from '@inlang/paraglide-vite';
 // https://kit.svelte.dev/faq#read-package-jsonimport { readFileSync } from 'fs'
 import { fileURLToPath } from 'url';
 import { compile } from './src/routes/api/compile/compile';
-import { generateCollectionFieldTypes, generateCollectionTypes } from './src/utils/collectionTypes';
+import { generateCollectionTypes, generateCollectionFieldTypes } from './src/utils/collectionTypes';
 
-// Get package.json version info on app start
+// Get package.json version info
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 
 // Get current file and directory info
@@ -39,16 +39,16 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = Path.dirname(__filename);
 const parsed = Path.parse(__dirname);
 
-// Define paths for collections, ensuring cross-platform compatibility
+// Define paths for collections
 const collectionsFolderJS = Path.posix.join('/', __dirname.replace(parsed.root, ''), 'collections/');
 const collectionsFolderTS = Path.posix.join('/', __dirname.replace(parsed.root, ''), 'src/collections/');
 
-// Define the directory where config files should reside
+// Define config directory paths
 const configDir = resolve(__dirname, 'config');
 const privateConfigPath = resolve(configDir, 'private.ts');
 const publicConfigPath = resolve(configDir, 'public.ts');
 
-// Check if the config files exist, if not, run the installer script
+// Check config files
 const configPaths = [privateConfigPath, publicConfigPath];
 
 configPaths.forEach((path) => {
@@ -71,10 +71,48 @@ export default defineConfig({
 	plugins: [
 		sveltekit(),
 		{
-			name: 'vite:dynamic-config-updater',
-			// Handles hot module reloads (HMR) for config and collection files,
+			name: 'collection-handler',
 			async handleHotUpdate({ file, server }) {
+				// Handle collection file changes
+				if (/src[/\\]collections[/\\](?!index\.ts|types\.ts|categories\.ts).*\.ts$/.test(file)) {
+					console.log('Collection file changed:', file);
+					try {
+						// Compile the changed collection
+						await compile({ collectionsFolderJS, collectionsFolderTS });
+
+						// Generate updated types
+						await generateCollectionTypes();
+						await generateCollectionFieldTypes();
+
+						// Notify client to reload collections
+						server.ws.send({
+							type: 'custom',
+							event: 'collections-updated',
+							data: { file }
+						});
+
+						// Trigger HMR for affected modules
+						return [];
+					} catch (error) {
+						console.error('Error processing collection change:', error);
+						return [];
+					}
+				}
+
+				// Handle category file changes
+				if (/src[/\\]collections[/\\]categories\.ts$/.test(file)) {
+					console.log('Categories file changed:', file);
+					server.ws.send({
+						type: 'custom',
+						event: 'categories-updated',
+						data: { file }
+					});
+					return [];
+				}
+
+				// Handle config file changes
 				if (/config[/\\](permissions|roles)\.ts$/.test(file)) {
+					console.log('Config file changed:', file);
 					// Clear module cache to force re-import
 					const permissionsPath = resolve(__dirname, 'config');
 					const rolesPath = resolve(__dirname, 'config', 'roles.ts');
@@ -91,15 +129,10 @@ export default defineConfig({
 					setLoadedRoles(roles);
 					setLoadedPermissions(permissions);
 
-					console.log('Roles and permissions reloaded from config');
-
+					console.log('Roles and permissions reloaded');
 					// Trigger HMR for affected modules
 					server.ws.send({ type: 'full-reload' });
-				} else if (/src[/\\]collections/.test(file)) {
-					// Recompile collections and update types if collections are modified
-					await compile({ collectionsFolderJS, collectionsFolderTS });
-					generateCollectionTypes();
-					generateCollectionFieldTypes();
+					return [];
 				}
 			},
 			config() {

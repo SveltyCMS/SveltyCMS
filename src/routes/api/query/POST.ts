@@ -14,8 +14,8 @@
  * - Unique ID generation for new documents
  * - Link creation between collections
  * - Integration with modifyRequest for custom widget processing
+ * - Performance monitoring with visual indicators
  * - Comprehensive error handling and logging
-
  */
 
 // Types
@@ -31,8 +31,18 @@ import { modifyRequest } from './modifyRequest';
 // System Logger
 import { logger } from '@utils/logger';
 
+// Performance monitoring utilities
+const getPerformanceEmoji = (responseTime: number): string => {
+	if (responseTime < 100) return '🚀'; // Super fast
+	if (responseTime < 500) return '⚡'; // Fast
+	if (responseTime < 1000) return '⏱️'; // Moderate
+	if (responseTime < 3000) return '🕰️'; // Slow
+	return '🐢'; // Very slow
+};
+
 // Function to handle POST requests for a specified collection
 export const _POST = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {
+	const start = performance.now();
 	try {
 		logger.debug(`POST request received for schema: ${schema.name}, user_id: ${user._id}`);
 
@@ -58,6 +68,8 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
 			return new Response('Collection not found', { status: 404 });
 		}
 
+		// Parse form data with performance tracking
+		const parseStart = performance.now();
 		const body: { [key: string]: any } = {};
 		const fileIDS: string[] = [];
 
@@ -75,7 +87,9 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
 				body[key] = value;
 			}
 		}
-		logger.debug(`Form data parsed for ${Object.keys(body).length} fields`);
+		const parseDuration = performance.now() - parseStart;
+		const parseEmoji = getPerformanceEmoji(parseDuration);
+		logger.debug(`Form data parsed in ${parseDuration.toFixed(2)}ms ${parseEmoji} for ${Object.keys(body).length} fields`);
 
 		// Remove file entries from body
 		fileIDS.forEach((id) => delete body[id]);
@@ -85,11 +99,15 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
 		body._id = dbAdapter.generateId();
 		logger.debug(`Document prepared for insertion with ID: ${body._id}`);
 
-		// Modify request with the updated body
+		// Modify request with performance tracking
+		const modifyStart = performance.now();
 		await modifyRequest({ data: [body], fields: schema.fields, collection, user, type: 'POST' });
-		logger.debug(`Request modified for document ID: ${body._id}`);
+		const modifyDuration = performance.now() - modifyStart;
+		const modifyEmoji = getPerformanceEmoji(modifyDuration);
+		logger.debug(`Request modified in ${modifyDuration.toFixed(2)}ms ${modifyEmoji} for document ID: ${body._id}`);
 
-		// Handle links if any
+		// Handle links with performance tracking
+		const linkStart = performance.now();
 		if (body._links) {
 			for (const _collection in body._links) {
 				const linkedCollection = collections[_collection];
@@ -106,20 +124,64 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
 				body._links[_collection] = newLinkId;
 			}
 		}
-		logger.debug(`Updated body: ${JSON.stringify(body)} `);
+		const linkDuration = performance.now() - linkStart;
+		const linkEmoji = getPerformanceEmoji(linkDuration);
+		logger.debug(`Links processed in ${linkDuration.toFixed(2)}ms ${linkEmoji}`);
 
-		// Insert the new document into the collection
+		// Insert the new document with performance tracking
+		const insertStart = performance.now();
 		const result = await collection.insertMany([body]);
+		const insertDuration = performance.now() - insertStart;
+		const insertEmoji = getPerformanceEmoji(insertDuration);
 
-		logger.info(`Document inserted with ID: ${result[0]._id}`);
-		// Return the result as a JSON response
-		return new Response(JSON.stringify(result), {
-			status: 201,
-			headers: { 'Content-Type': 'application/json' }
-		});
+		const totalDuration = performance.now() - start;
+		const totalEmoji = getPerformanceEmoji(totalDuration);
+		logger.info(
+			`Document inserted in ${insertDuration.toFixed(2)}ms ${insertEmoji}, total operation time: ${totalDuration.toFixed(2)}ms ${totalEmoji}`
+		);
+
+		// Return the result with performance metrics
+		return new Response(
+			JSON.stringify({
+				success: true,
+				result,
+				performance: {
+					total: totalDuration,
+					parse: parseDuration,
+					modify: modifyDuration,
+					links: linkDuration,
+					insert: insertDuration
+				}
+			}),
+			{
+				status: 201,
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Content-Type-Options': 'nosniff'
+				}
+			}
+		);
 	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-		logger.error(`Error occurred during POST request: ${errorMessage}`);
-		return new Response(errorMessage, { status: 500 });
+		const duration = performance.now() - start;
+		const emoji = getPerformanceEmoji(duration);
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		const errorStack = error instanceof Error ? error.stack : '';
+		logger.error(`POST operation failed after ${duration.toFixed(2)}ms ${emoji} for schema: ${schema.name}: ${errorMessage}`, { stack: errorStack });
+		return new Response(
+			JSON.stringify({
+				success: false,
+				error: errorMessage,
+				performance: {
+					total: duration
+				}
+			}),
+			{
+				status: 500,
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Content-Type-Options': 'nosniff'
+				}
+			}
+		);
 	}
 };

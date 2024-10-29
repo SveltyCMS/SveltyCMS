@@ -1,6 +1,11 @@
 <!-- 
-@files src/routes/(app)/config/collectionbuilder/[...collectionName]/tabs/CollectionForm.svelte
-@description This component displays the collection form.
+@files: src/routes/(app)/config/collectionbuilder/[...collectionName]/tabs/CollectionForm.svelte
+@description: This component displays the collection form.
+
+Features:
+- Collection Name
+- Collection Icon
+- Collection Description
 -->
 
 <script lang="ts">
@@ -20,7 +25,8 @@
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 	import type { Schema, CollectionNames } from '@src/collections/types';
 
-	import { getCollections } from '@src/collections';
+	// Collection Manager
+	import { collectionManager } from '@src/collections/CollectionManager';
 	import { createEventDispatcher } from 'svelte';
 
 	const dispatch = createEventDispatcher();
@@ -31,15 +37,13 @@
 	// Check if collection Name exists set mode edit or create
 	const collectionExists = Object.values($collections).some((x) => x.name === collectionName);
 	if (collectionExists) {
-		// fetch the collection from the API
-		getCollections().then((data: Partial<Record<CollectionNames, Schema>>) => {
+		// Get collection data from CollectionManager
+		const { collections: collectionData } = collectionManager.getCollectionData();
+		const collection = collectionData.find((x) => x?.name === collectionName);
+		if (collection) {
 			mode.set('edit');
-			// Safely access the collection, allowing for undefined values
-			const collection = Object.values(data).find((x) => x?.name === collectionName);
-			if (collection) {
-				collectionValue.set(collection); // current collection
-			}
-		});
+			collectionValue.set(collection); // current collection
+		}
 	} else {
 		collectionValue.set({
 			...$collectionValue,

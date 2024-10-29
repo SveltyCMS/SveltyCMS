@@ -29,12 +29,12 @@ Key features:
 	// Stores
 	import { page } from '$app/stores';
 	import { contentLanguage, systemLanguage, isLoading } from '@stores/store';
-	import { collection, collectionValue, collections } from '@stores/collectionStore';
+	import { collection, collections } from '@stores/collectionStore';
 	import { sidebarState } from '@stores/sidebarStore';
-	import { screenSize } from '@stores/screenSizeStore';
+	import { screenSize, ScreenSize } from '@stores/screenSizeStore';
 
 	// Components
-	import { getCollections } from '@collections';
+	import { collectionManager } from '@collections/CollectionManager';
 	import Loading from '@components/Loading.svelte';
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import LeftSidebar from '@components/LeftSidebar.svelte';
@@ -60,10 +60,14 @@ Key features:
 	let isNonCriticalDataLoaded = false;
 	let loadError: Error | null = null;
 
-	// Function to load critical data (collections)
+	// Function to initialize collections using CollectionManager
 	async function initializeCollections() {
 		try {
-			await getCollections();
+			const { collections: loadedCollections } = collectionManager.getCollectionData();
+			if (loadedCollections.length === 0) {
+				// Only update if collections haven't been loaded yet
+				await collectionManager.updateCollections();
+			}
 			isCollectionsLoaded = true;
 		} catch (error) {
 			console.error('Error loading collections:', error);
@@ -81,8 +85,8 @@ Key features:
 	// Function to handle collection changes
 	function handleCollectionChange(newCollection) {
 		if (!newCollection || !newCollection.name) return;
-		// $collectionValue = {};
-		// collectionValue.set({})
+
+		// If the new collection is different from the current one, navigate to the new collection
 		const newPath = `/${$contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${newCollection.name}`;
 		if ($page.url.pathname !== newPath) {
 			goto(newPath);
@@ -97,14 +101,11 @@ Key features:
 		if (!lang) return;
 		const dir = getTextDirection(lang);
 		if (!dir) return;
-		// This need be replace with svelte equivalent code
-		const rootNode = document.body?.parentElement;
-		if (!rootNode) return;
 		document.documentElement.dir = dir;
 		document.documentElement.lang = lang;
 	});
 
-	// On page load get the saved theme
+	// Theme management
 	const updateThemeBasedOnSystemPreference = (event) => {
 		const prefersDarkMode = event.matches;
 		setModeUserPrefers(prefersDarkMode);
@@ -112,16 +113,16 @@ Key features:
 		localStorage.setItem('theme', prefersDarkMode ? 'dark' : 'light');
 	};
 
-	// Define the onKeyDown function at the top level of the script block
+	// Keyboard shortcuts
 	const onKeyDown = (event: KeyboardEvent) => {
 		if (event.altKey && event.key === 's') {
-			isSearchVisible.update((prev) => !prev);
 			event.preventDefault();
+			isSearchVisible.update((v) => !v);
 		}
 	};
 
 	onMount(() => {
-		// Match media query for dark mode preference
+		// Theme initialization
 		const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 		mediaQuery.addEventListener('change', updateThemeBasedOnSystemPreference);
 
@@ -133,19 +134,21 @@ Key features:
 			setModeCurrent(newMode);
 		}
 
-		// Keyboard event listener for toggling search visibility
-		document.addEventListener('keydown', onKeyDown);
+		// Event listeners
+		window.addEventListener('keydown', onKeyDown);
 
+		// Initialize data
 		initializeCollections();
 		loadNonCriticalData();
 
 		return () => {
 			// Cleanup: remove event listeners
 			mediaQuery.removeEventListener('change', updateThemeBasedOnSystemPreference);
-			document.removeEventListener('keydown', onKeyDown);
+			window.removeEventListener('keydown', onKeyDown);
 		};
 	});
 
+	// Update collection loaded state when store changes
 	$: if ($collections && Object.keys($collections).length > 0) {
 		isCollectionsLoaded = true;
 	}
@@ -221,21 +224,19 @@ Key features:
 							<HeaderEdit />
 						</header>
 					{/if}
-					<!-- Router Slot -->
 
-					<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+					<!-- Router Slot -->
 					<div
-						on:keydown={onKeyDown}
 						role="main"
 						class="relative h-full flex-grow overflow-auto {$sidebarState.left === 'full' ? 'mx-2' : 'mx-1'} {$screenSize === 'lg'
 							? 'mb-2'
 							: 'mb-16'}"
 					>
-						<!-- {#key $page.url} -->
 						<Toast />
 						<Modal />
 
-						{#if $screenSize !== 'lg'}
+						<!-- Floating Nav -->
+						{#if $screenSize !== ScreenSize.LG && $screenSize !== ScreenSize.XL}
 							<FloatingNav />
 						{/if}
 
@@ -250,21 +251,11 @@ Key features:
 							</div>
 						{:else}
 							<slot />
-
-							<!--<div>mode : {$mode}</div>							
-								<div>screenSize : {$screenSize}</div>
-								<div>sidebarState.left : {$sidebarState.left}</div>
-								<div>sidebarState.right : {$sidebarState.right}</div>
-								<div>sidebarState.pageheader : {$sidebarState.pageheader}</div>
-								<div>sidebarState.pagefooter : {$sidebarState.pagefooter}</div>
-								<div>sidebarState.header : {$sidebarState.header}</div>
-								<div>sidebarState.footer : {$sidebarState.footer}</div> -->
 						{/if}
 
 						{#if isNonCriticalDataLoaded}
-							<!-- Render components that depend on non-critical data -->
+							<!-- Non-critical data components -->
 						{/if}
-						<!-- {/key} -->
 					</div>
 
 					<!-- Page Footer -->
