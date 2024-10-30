@@ -17,7 +17,8 @@
  * Usage:
  * Utilized by the auth system to manage user accounts in a MongoDB database
  */
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
+import type { Document } from 'mongoose';
 import { roles as configRoles } from '@root/config/roles';
 import { error } from '@sveltejs/kit';
 
@@ -27,6 +28,7 @@ import { getPermissionByName, getAllPermissions } from '../permissionManager';
 // Types
 import type { Permission, Role, User } from '../types';
 import type { authDBInterface } from '../authDBInterface';
+import type { PaginationOption } from '../authDBInterface';
 
 // System Logging
 import { logger } from '@utils/logger';
@@ -60,7 +62,7 @@ export const UserSchema = new Schema(
 );
 
 export class UserAdapter implements Partial<authDBInterface> {
-	private UserModel: Model<User & Document>;
+	private UserModel: mongoose.Model<User & Document>;
 
 	constructor() {
 		this.UserModel = mongoose.models.auth_users || mongoose.model<User & Document>('auth_users', UserSchema);
@@ -95,6 +97,74 @@ export class UserAdapter implements Partial<authDBInterface> {
 		} catch (err) {
 			const message = `Error in UserAdapter.updateUserAttributes: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, { user_id });
+			throw error(500, message);
+		}
+	}
+
+	// Get all users with optional filtering, sorting, and pagination
+	async getAllUsers(options?: PaginationOption): Promise<User[]> {
+		try {
+			let query = this.UserModel.find(options?.filter || {}).lean();
+
+			if (options?.sort) {
+				const sortOptions: Record<string, 1 | -1> = {};
+				if (Array.isArray(options.sort)) {
+					options.sort.forEach(([field, direction]) => {
+						sortOptions[field] = direction === 'asc' ? 1 : -1;
+					});
+				} else {
+					Object.entries(options.sort).forEach(([field, direction]) => {
+						sortOptions[field] = direction === 'asc' ? 1 : -1;
+					});
+				}
+				query = query.sort(sortOptions);
+			}
+
+			if (typeof options?.offset === 'number') {
+				query = query.skip(options.offset);
+			}
+			if (typeof options?.limit === 'number') {
+				query = query.limit(options.limit);
+			}
+
+			const users = await query.exec();
+			logger.debug('All users retrieved');
+			return users.map((user) => {
+				user._id = user._id.toString();
+				return user as User;
+			});
+		} catch (err) {
+			const message = `Error in UserAdapter.getAllUsers: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { options });
+			throw error(500, message);
+		}
+	}
+
+	// Get the count of users
+	async getUserCount(filter?: Record<string, unknown>): Promise<number> {
+		try {
+			const count = await this.UserModel.countDocuments(filter || {});
+			logger.debug(`User count retrieved: ${count}`);
+			return count;
+		} catch (err) {
+			const message = `Error in UserAdapter.getUserCount: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { filter });
+			throw error(500, message);
+		}
+	}
+
+	// Get users with a permission
+	async getUsersWithPermission(permissionName: string): Promise<User[]> {
+		try {
+			const users = await this.UserModel.find({ permissions: permissionName }).lean();
+			logger.debug(`Users with permission ${permissionName} retrieved`);
+			return users.map((user) => {
+				user._id = user._id.toString();
+				return user as User;
+			});
+		} catch (err) {
+			const message = `Error in UserAdapter.getUsersWithPermission: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { permissionName });
 			throw error(500, message);
 		}
 	}
@@ -266,68 +336,6 @@ export class UserAdapter implements Partial<authDBInterface> {
 		} catch (err) {
 			const message = `Error in UserAdapter.getUserByEmail: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, { email });
-			throw error(500, message);
-		}
-	}
-
-	// Get all users with optional filtering, sorting, and pagination
-	async getAllUsers(options?: {
-		limit?: number;
-		skip?: number;
-		sort?: { [key: string]: 1 | -1 } | [string, 1 | -1][];
-		filter?: Record<string, unknown>;
-	}): Promise<User[]> {
-		try {
-			let query = this.UserModel.find(options?.filter || {}).lean();
-
-			if (options?.sort) {
-				query = query.sort(options.sort as any);
-			}
-			if (typeof options?.skip === 'number') {
-				query = query.skip(options.skip);
-			}
-			if (typeof options?.limit === 'number') {
-				query = query.limit(options.limit);
-			}
-
-			const users = await query.exec();
-			logger.debug('All users retrieved');
-			return users.map((user) => {
-				user._id = user._id.toString();
-				return user as User;
-			});
-		} catch (err) {
-			const message = `Error in UserAdapter.getAllUsers: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { options });
-			throw error(500, message);
-		}
-	}
-
-	// Get the count of users
-	async getUserCount(filter?: Record<string, unknown>): Promise<number> {
-		try {
-			const count = await this.UserModel.countDocuments(filter || {});
-			logger.debug(`User count retrieved: ${count}`);
-			return count;
-		} catch (err) {
-			const message = `Error in UserAdapter.getUserCount: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { filter });
-			throw error(500, message);
-		}
-	}
-
-	// Get users with a permission
-	async getUsersWithPermission(permissionName: string): Promise<User[]> {
-		try {
-			const users = await this.UserModel.find({ permissions: permissionName }).lean();
-			logger.debug(`Users with permission ${permissionName} retrieved`);
-			return users.map((user) => {
-				user._id = user._id.toString();
-				return user as User;
-			});
-		} catch (err) {
-			const message = `Error in UserAdapter.getUsersWithPermission: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { permissionName });
 			throw error(500, message);
 		}
 	}

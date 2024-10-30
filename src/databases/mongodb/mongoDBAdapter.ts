@@ -33,8 +33,9 @@ import type { ScreenSize } from '@stores/screenSizeStore';
 import type { UserPreferences, WidgetPreference } from '@stores/userPreferences';
 
 // Database
-import mongoose, { Schema, Model, Document, type FilterQuery, type UpdateQuery } from 'mongoose';
-import type { dbInterface, Draft, Revision, Theme, Widget, SystemVirtualFolder } from '../dbInterface';
+import mongoose, { Schema } from 'mongoose';
+import type { Document, Model, FilterQuery, UpdateQuery } from 'mongoose';
+import type { dbInterface, Draft, Revision, Theme, Widget, SystemPreferences, SystemVirtualFolder } from '../dbInterface';
 
 import { UserSchema } from '@src/auth/mongoDBAuth/userAdapter';
 import { TokenSchema } from '@src/auth/mongoDBAuth/tokenAdapter';
@@ -61,11 +62,9 @@ const mediaSchema = new Schema(
 			size: { type: Number }, // The size for the media
 			width: { type: Number }, // The width for the media
 			height: { type: Number } // The height for the media
-		}, // The thumbnails of media
+		} // The thumbnails of media
 		// url: { type: String, required: true }, // The URL of the media
 		// altText: { type: String, required: true }, // The alt text for the media
-		createdAt: { type: Number, default: () => Math.floor(Date.now() / 1000) }, // The date the media was created
-		updatedAt: { type: Number, default: () => Math.floor(Date.now() / 1000) } // The date the media was last updated
 	},
 	{ timestamps: false, collection: 'media' } // Explicitly set the collection name
 );
@@ -80,8 +79,6 @@ const DraftModel =
 				originalDocumentId: { type: Schema.Types.Mixed, required: true }, // Or Schema.Types.String
 				collectionId: { type: Schema.Types.Mixed, required: true }, // The ID of the collection
 				content: { type: Schema.Types.Mixed, required: true }, // The content of the draft
-				createdAt: { type: Number, default: () => Math.floor(Date.now() / 1000) }, // Creation timestamp
-				updatedAt: { type: Number, default: () => Math.floor(Date.now() / 1000) }, // Last update timestamp
 				status: { type: String, enum: ['draft', 'published'], default: 'draft' }, // Status of the draft
 				createdBy: { type: Schema.Types.Mixed, ref: 'auth_users', required: true } // The user who created the draft
 			},
@@ -100,7 +97,6 @@ const RevisionModel =
 				documentId: { type: Schema.Types.Mixed, required: true }, // ID of the document
 				createdBy: { type: Schema.Types.Mixed, ref: 'auth_users', required: true }, // ID of the user who created the revision
 				content: { type: Schema.Types.Mixed, required: true }, // Content of the revision
-				createdAt: { type: Number, default: () => Math.floor(Date.now() / 1000) }, // Creation timestamp
 				version: { type: Number, required: true } // Version number of the revision
 			},
 			{ timestamps: false, collection: 'collection_revisions' }
@@ -116,9 +112,7 @@ const ThemeModel =
 			{
 				name: { type: String, required: true, unique: true }, // Name of the theme
 				path: { type: String, required: true }, // Path to the theme file
-				isDefault: { type: Boolean, default: false }, // Whether the theme is the default theme
-				createdAt: { type: Number, default: () => Math.floor(Date.now() / 1000) }, // Creation timestamp
-				updatedAt: { type: Number, default: () => Math.floor(Date.now() / 1000) } // Last updated timestamp
+				isDefault: { type: Boolean, default: false } // Whether the theme is the default theme
 			},
 			{ timestamps: false, collection: 'system_themes' }
 		)
@@ -132,9 +126,7 @@ const WidgetModel =
 		new Schema(
 			{
 				name: { type: String, required: true, unique: true }, // Name of the widget
-				isActive: { type: Boolean, default: true }, // Whether the widget is active
-				createdAt: { type: Number, default: () => Math.floor(Date.now() / 1000) }, // Creation timestamp
-				updatedAt: { type: Number, default: () => Math.floor(Date.now() / 1000) } // Last update timestamp
+				isActive: { type: Boolean, default: true } // Whether the widget is active
 			},
 			{ timestamps: false, collection: 'system_widgets' }
 		)
@@ -147,27 +139,9 @@ const SystemPreferencesModel =
 		'SystemPreferences',
 		new Schema(
 			{
-				userId: { type: String, required: true, unique: true }, // User identifier
-				screenSize: { type: String, enum: ['mobile', 'tablet', 'desktop'], required: true }, // Screen size context
-				preferences: {
-					type: [
-						{
-							id: { type: String, required: true }, // Component ID
-							component: { type: String, required: true }, // Component type or name
-							label: { type: String, required: true }, // Label for the component
-							x: { type: Number, required: true }, // X position on the screen
-							y: { type: Number, required: true }, // Y position on the screen
-							w: { type: Number, required: true }, // Width of the component
-							h: { type: Number, required: true }, // Height of the component
-							min: { w: { type: Number }, h: { type: Number } }, // Minimum size constraints
-							max: { w: { type: Number }, h: { type: Number } }, // Maximum size constraints
-							movable: { type: Boolean, default: true }, // Whether the component can be moved
-							resizable: { type: Boolean, default: true }, // Whether the component can be resized
-							screenSize: { type: String, enum: ['mobile', 'tablet', 'desktop'], required: true } // Screen size context
-						}
-					],
-					default: []
-				}
+				_id: { type: String, required: true }, // The ID of the SystemPreferences
+				name: { type: String, required: true }, // The name of the SystemPreferences
+				isActive: { type: Boolean, default: true } // Whether the SystemPreferences is active
 			},
 			{ timestamps: false, collection: 'system_preferences' } // Explicitly set the collection name
 		)
@@ -276,8 +250,6 @@ export class MongoDBAdapter implements dbInterface {
 
 						const schemaObject = new mongoose.Schema(
 							{
-								createdAt: { type: Number }, // Unix timestamp in seconds
-								updatedAt: { type: Number }, // Unix timestamp in seconds
 								createdBy: { type: String }, // ID of the user who created the document
 								revisionsEnabled: { type: Boolean }, // Flag indicating if revisions are enabled
 								translationStatus: { type: Schema.Types.Mixed, default: {} } // Translation status, mixed type allows any structure
@@ -536,7 +508,7 @@ export class MongoDBAdapter implements dbInterface {
 
 			// Update the draft content and timestamp
 			draft.content = content;
-			draft.updatedAt = Math.floor(Date.now() / 1000);
+			draft.updatedAt = new Date();
 			await draft.save();
 
 			logger.info(`Draft ${draft_id} updated successfully.`);
@@ -687,8 +659,8 @@ export class MongoDBAdapter implements dbInterface {
 			const widget = new WidgetModel({
 				...widgetData,
 				isActive: widgetData.isActive ?? false,
-				createdAt: Math.floor(Date.now() / 1000),
-				updatedAt: Math.floor(Date.now() / 1000)
+				createdAt: new Date(),
+				updatedAt: new Date()
 			});
 			await widget.save();
 			logger.info(`Widget ${widgetData.name} installed successfully.`);
@@ -729,7 +701,7 @@ export class MongoDBAdapter implements dbInterface {
 	// Activate a widget
 	async activateWidget(widgetName: string): Promise<void> {
 		try {
-			const result = await WidgetModel.updateOne({ name: widgetName }, { $set: { isActive: true, updatedAt: Math.floor(Date.now() / 1000) } }).exec();
+			const result = await WidgetModel.updateOne({ name: widgetName }, { $set: { isActive: true, updatedAt: new Date() } }).exec();
 			if (result.modifiedCount === 0) {
 				throw Error(`Widget with name ${widgetName} not found or already active.`);
 			}
@@ -744,10 +716,7 @@ export class MongoDBAdapter implements dbInterface {
 	// Deactivate a widget
 	async deactivateWidget(widgetName: string): Promise<void> {
 		try {
-			const result = await WidgetModel.updateOne(
-				{ name: widgetName },
-				{ $set: { isActive: false, updatedAt: Math.floor(Date.now() / 1000) } }
-			).exec();
+			const result = await WidgetModel.updateOne({ name: widgetName }, { $set: { isActive: false, updatedAt: new Date() } }).exec();
 			if (result.modifiedCount === 0) {
 				throw Error(`Widget with name ${widgetName} not found or already inactive.`);
 			}
@@ -762,7 +731,7 @@ export class MongoDBAdapter implements dbInterface {
 	// Update a widget
 	async updateWidget(widgetName: string, updateData: any): Promise<void> {
 		try {
-			const result = await WidgetModel.updateOne({ name: widgetName }, { $set: { ...updateData, updatedAt: Math.floor(Date.now() / 1000) } }).exec();
+			const result = await WidgetModel.updateOne({ name: widgetName }, { $set: { ...updateData, updatedAt: new Date() } }).exec();
 			if (result.modifiedCount === 0) {
 				throw Error(`Widget with name ${widgetName} not found or no changes applied.`);
 			}
@@ -841,8 +810,8 @@ export class MongoDBAdapter implements dbInterface {
 					name: theme.name,
 					path: theme.path,
 					isDefault: theme.isDefault ?? false,
-					createdAt: theme.createdAt ?? Math.floor(Date.now() / 1000),
-					updatedAt: theme.updatedAt ?? Math.floor(Date.now() / 1000)
+					createdAt: theme.createdAt ?? new Date(),
+					updatedAt: theme.updatedAt ?? new Date()
 				})),
 				{ ordered: false }
 			); // Use ordered: false to ignore duplicates

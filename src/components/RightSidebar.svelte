@@ -9,13 +9,9 @@
 	import { saveLayerStore, shouldShowNextButton, validationStore } from '@stores/store';
 	import { collection, mode, modifyEntry, collectionValue } from '@stores/collectionStore';
 	import { handleSidebarToggle } from '@stores/sidebarStore';
-	import { saveFormData, convertTimestampToDateString, getFieldName } from '@utils/utils';
-
-	// Auth
-	import type { User } from '@src/auth/types';
-	const user: User = $page.data.user;
-	import { roles } from '@root/config/roles';
-
+	import { saveFormData, convertTimestampToDateString, getFieldName, meta_data } from '@utils/utils';
+	// Get data from page store
+	const { roles, user } = $page.data;
 	// Components
 	import Toggles from './system/inputs/Toggles.svelte';
 	import ScheduleModal from './ScheduleModal.svelte';
@@ -25,8 +21,8 @@
 	import { languageTag } from '@src/paraglide/runtime';
 
 	// Skeleton
-	import { getModalStore, Autocomplete, popup } from '@skeletonlabs/skeleton';
-	import type { AutocompleteOption, ModalComponent, ModalSettings, PopupSettings } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@skeletonlabs/skeleton';
+	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 	import { logger } from '@src/utils/logger';
 
 	const modalStore = getModalStore();
@@ -46,6 +42,13 @@
 			response: (r: { date: string; action: string } | boolean) => {
 				if (typeof r === 'object') {
 					schedule = r.date;
+					if (r.action === 'schedule') {
+						collectionValue.update((cv) => ({
+							...cv,
+							status: 'scheduled',
+							_scheduled: new Date(r.date).getTime()
+						}));
+					}
 				}
 			}
 		};
@@ -60,8 +63,8 @@
 
 	// Map the status to boolean
 	let isPublished = $collectionValue?.status === 'published';
-	let inputPopupUser = '';
 	let schedule = $collectionValue._scheduled ? new Date($collectionValue._scheduled).toISOString().slice(0, 16) : '';
+	let createdAtDate = $collectionValue.createdAt ? new Date($collectionValue.createdAt * 1000).toISOString().slice(0, 16) : '';
 
 	// Function to toggle the status
 	function toggleStatus() {
@@ -79,43 +82,75 @@
 		updated: convertTimestampToDateString($collectionValue.updatedAt)
 	};
 
-	// Type guard to check if the widget has a validateWidget method
-	function hasValidateWidget(widget: any): widget is { validateWidget: () => Promise<string | null> } {
-		return typeof widget?.validateWidget === 'function';
+	// Type guard to check if the widget result has a validateWidget method
+	function hasValidateWidget(widgetInstance: any): widgetInstance is { validateWidget: () => Promise<string | null> } {
+		return typeof widgetInstance?.validateWidget === 'function';
 	}
 
 	// Save form data with validation
 	async function saveData() {
 		let validationPassed = true;
+		const getData = {};
 
-		// Access the fields property of the collection
-		const fields = $collection.fields;
-		const data = {};
-		// Validate all fields
-		for (const field of fields) {
-			if (hasValidateWidget(field.widget)) {
-				const error = await field.widget.validateWidget();
+		// Clear any existing meta_data
+		meta_data.clear();
+
+		// Validate all fields and collect data
+		for (const field of $collection.fields) {
+			const fieldName = getFieldName(field);
+			const fieldValue = $collectionValue[fieldName];
+			const widgetInstance = field.widget(fieldValue);
+
+			if (hasValidateWidget(widgetInstance)) {
+				const error = await widgetInstance.validateWidget();
 				if (error) {
-					validationStore.setError(getFieldName(field), error);
+					validationStore.setError(fieldName, error);
 					validationPassed = false;
 				} else {
-					validationStore.clearError(getFieldName(field));
-					data[getFieldName(field)] = $collectionValue[getFieldName(field)];
+					validationStore.clearError(fieldName);
+					getData[fieldName] = () => fieldValue;
 				}
+			} else {
+				getData[fieldName] = () => fieldValue;
 			}
-			data[getFieldName(field)] = $collection.fields[getFieldName(field)];
+		}
+
+		// Add system fields
+		if ($mode === 'create') {
+			getData['createdAt'] = () => (createdAtDate ? Math.floor(new Date(createdAtDate).getTime() / 1000) : Math.floor(Date.now() / 1000));
+			getData['updatedAt'] = getData['createdAt'];
+			getData['createdBy'] = () => user?.username;
+		} else {
+			getData['updatedAt'] = () => Math.floor(Date.now() / 1000);
+			getData['updatedBy'] = () => user?.username;
+			if (createdAtDate) {
+				getData['createdAt'] = () => Math.floor(new Date(createdAtDate).getTime() / 1000);
+			}
+		}
+
+		// Add ID if in edit mode
+		if ($mode === 'edit' && $collectionValue._id) {
+			getData['_id'] = () => $collectionValue._id;
+		}
+
+		// Add status
+		getData['status'] = () => $collectionValue.status || 'unpublished';
+
+		// Add schedule if set
+		if (schedule) {
+			getData['_scheduled'] = () => new Date(schedule).getTime();
 		}
 
 		// If validation passed, save the data
 		if (validationPassed) {
 			try {
-				logger.debug('Saving data...', `${JSON.stringify({ collectionValue: $collectionValue, data: data })}`);
+				logger.debug('Saving data...', `${JSON.stringify({ mode: $mode, collection: $collection.name })}`);
 
 				await saveFormData({
-					data: data,
+					data: getData,
 					_collection: $collection,
 					_mode: $mode,
-					id: $collectionValue._id ?? '',
+					id: $collectionValue._id,
 					user
 				});
 
@@ -125,24 +160,6 @@
 				console.error('Failed to save data:', err);
 			}
 		}
-	}
-
-	// Autocomplete user list
-	const userList: AutocompleteOption[] = roles.map((role) => ({
-		label: role.name,
-		value: role.name,
-		keywords: role.description
-	}));
-
-	const popupSettingsUser: PopupSettings = {
-		event: 'focus-click',
-		target: 'popupAutocomplete',
-		placement: 'right'
-	};
-
-	function onPopupUserSelect(event: CustomEvent) {
-		console.log(event.detail);
-		throw Error('Function not implemented.');
 	}
 </script>
 
@@ -186,7 +203,7 @@
 					<button
 						type="button"
 						on:click={() => $modifyEntry('cloned')}
-						disabled={!$collection?.permissions?.[user.role]?.write || !$collection?.permissions?.[user.role]?.create}
+						disabled={!($collection?.permissions?.[user.role]?.write && $collection?.permissions?.[user.role]?.create)}
 						class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn w-full gap-2 text-white"
 						aria-label="Clone entry"
 					>
@@ -210,31 +227,45 @@
 			<main class="mt-2 flex w-full flex-col items-center justify-center gap-2 text-left dark:text-white">
 				<p class="w-full border-b text-center font-bold uppercase text-tertiary-500 dark:text-primary-500">Publish Options:</p>
 
-				<!-- Authored by autocomplete -->
-				<div class="flex w-full flex-col items-start justify-center">
-					<p class="mb-1">{m.sidebar_authoredby()}</p>
-					<div class="relative z-50 w-full">
-						<input
-							class="autocomplete variant-filled-surface w-full text-sm"
-							type="search"
-							name="autocomplete-search"
-							bind:value={inputPopupUser}
-							placeholder="Search..."
-							use:popup={popupSettingsUser}
-							aria-label="Search user"
-						/>
-						<div data-popup="popupAutocomplete">
-							<Autocomplete bind:input={inputPopupUser} options={userList} on:selection={onPopupUserSelect} />
-						</div>
-					</div>
-				</div>
-
 				<!-- Scheduled on -->
 				<div class="mt-2 flex w-full flex-col items-start justify-center">
-					<p class="mb-1">{m.sidebar_authoredon()}</p>
-					<button class="variant-filled-surface w-full p-2 text-left text-sm" on:click={openScheduleModal} aria-label="Schedule publication">
+					{#if schedule}
+						<p class="mb-1">Will be published on:</p>
+					{/if}
+					<button
+						on:click={openScheduleModal}
+						aria-label="Schedule publication"
+						class="variant-filled-surface btn w-full text-tertiary-500 dark:text-primary-500"
+					>
 						{schedule ? new Date(schedule).toLocaleString() : 'Schedule publication'}
 					</button>
+				</div>
+
+				<!-- Created At -->
+				<div class="mt-2 flex w-full flex-col items-start justify-center">
+					<p class="mb-1">Created At:</p>
+					<input
+						type="datetime-local"
+						bind:value={createdAtDate}
+						class="input variant-filled-surface text-tertiary-500 dark:text-primary-500"
+						aria-label="Set creation date"
+					/>
+				</div>
+
+				<!-- User Info -->
+				<div class="mt-2 flex w-full flex-col items-start justify-center">
+					<p class="mb-1">Created by:</p>
+					<div class="variant-filled-surface w-full p-2 text-center text-tertiary-500 dark:text-primary-500">
+						{$collectionValue.createdBy || user.username}
+					</div>
+
+					{#if $collectionValue.updatedBy}
+						<p class="mt-1">Last updated by:</p>
+
+						<div class="variant-filled-surface w-full p-2 text-center text-tertiary-500 dark:text-primary-500">
+							{$collectionValue.updatedBy || user.username}
+						</div>
+					{/if}
 				</div>
 			</main>
 

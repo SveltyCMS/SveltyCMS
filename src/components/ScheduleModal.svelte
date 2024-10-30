@@ -36,7 +36,7 @@ Ensure that the necessary stores and utility functions are available.
 	type ActionType = 'published' | 'unpublished' | 'deleted' | 'scheduled' | 'cloned' | 'testing';
 
 	let scheduleDate: string = '';
-	let action: ActionType = ($modalStore[0]?.meta?.initialAction as ActionType) || 'schedule';
+	let action: ActionType = ($modalStore[0]?.meta?.initialAction as ActionType) || 'scheduled';
 	let errorMessage: string = '';
 
 	const actionOptions: Array<{ value: ActionType; label: string }> = [
@@ -63,39 +63,48 @@ Ensure that the necessary stores and utility functions are available.
 	async function onFormSubmit(): Promise<void> {
 		if (!validateForm()) return;
 
-		const scheduledTime = new Date(scheduleDate).getTime();
-
 		try {
-			for (const entryId of $selectedEntries) {
-				const entry = $collectionValue[entryId];
-				if (!entry) continue;
-
-				const updateData = {
-					_id: entryId,
-					_scheduled: scheduledTime,
-					_scheduledAction: action
-				};
-
-				// Create a FormData object to match the expected type
-				const formData = new FormData();
-				Object.entries(updateData).forEach(([key, value]) => {
-					formData.append(key, value.toString());
-				});
-
-				await saveFormData({
-					data: formData,
-					_collection: $collection,
-					_mode: 'edit',
-					id: entryId,
-					user: user
-				});
-			}
-
-			$modifyEntry(action);
-
+			// Update the modal response with the schedule data
 			if ($modalStore[0].response) {
-				$modalStore[0].response(true);
+				$modalStore[0].response({
+					date: scheduleDate,
+					action: 'schedule'
+				});
 			}
+
+			// If we have selected entries, update them
+			if ($selectedEntries && $selectedEntries.length > 0) {
+				const scheduledTime = new Date(scheduleDate).getTime();
+
+				for (const entryId of $selectedEntries) {
+					const entry = $collectionValue[entryId];
+					if (!entry) continue;
+
+					const updateData = {
+						_id: entryId,
+						_scheduled: scheduledTime,
+						_scheduledAction: action,
+						status: 'scheduled'
+					};
+
+					// Create a FormData object to match the expected type
+					const formData = new FormData();
+					Object.entries(updateData).forEach(([key, value]) => {
+						formData.append(key, value.toString());
+					});
+
+					await saveFormData({
+						data: formData,
+						_collection: $collection,
+						_mode: 'edit',
+						id: entryId,
+						user: user
+					});
+				}
+
+				$modifyEntry(action);
+			}
+
 			modalStore.close();
 		} catch (error) {
 			console.error('Error scheduling entries:', error);
@@ -121,7 +130,14 @@ Ensure that the necessary stores and utility functions are available.
 		<form class="modal-form {cForm}" on:submit|preventDefault={onFormSubmit}>
 			<label class="label">
 				<span>Schedule Date and Time</span>
-				<input type="datetime-local" bind:value={scheduleDate} class="input" required aria-describedby="schedule-date-error" />
+				<input
+					type="datetime-local"
+					bind:value={scheduleDate}
+					class="input"
+					required
+					min={new Date().toISOString().slice(0, 16)}
+					aria-describedby="schedule-date-error"
+				/>
 			</label>
 
 			<label class="label">

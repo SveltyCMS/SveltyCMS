@@ -16,6 +16,7 @@ export type CollectionNames = string;
 type WidgetKeys = keyof typeof widgets;
 type WidgetTypes = (typeof widgets)[WidgetKeys];
 export type Field = {
+	widget(widget: any): unknown;
 	type: WidgetKeys;
 	config: WidgetTypes;
 	modifyRequest?: (args: ModifyRequestParams<(typeof widgets)[WidgetKeys]>) => Promise<object>;

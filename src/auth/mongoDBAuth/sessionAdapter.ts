@@ -17,7 +17,8 @@
  * Utilized by the auth system to manage user sessions in a MongoDB database
  */
 
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
+import type { Document } from 'mongoose';
 import { error } from '@sveltejs/kit';
 
 // Types
@@ -38,7 +39,7 @@ export const SessionSchema = new Schema(
 );
 
 export class SessionAdapter implements Partial<authDBInterface> {
-	private SessionModel: Model<Session & Document>;
+	private SessionModel: mongoose.Model<Session & Document>;
 	private userAdapter: UserAdapter;
 
 	constructor() {
