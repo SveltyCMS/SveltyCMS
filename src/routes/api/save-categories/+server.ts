@@ -20,6 +20,9 @@ import { _generateCategoriesFileContent } from '../updateCategories/+server';
 // System Logger
 import { logger } from '@utils/logger';
 
+// Import the CategoryData type from the shared types
+import type { CategoryData } from '@src/collections/types';
+
 const execAsync = promisify(exec);
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -27,8 +30,15 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	try {
 		// Validate category data
-		if (!Array.isArray(categoryData)) {
-			throw new Error('Invalid category data format. Expected an array.');
+		if (!categoryData || typeof categoryData !== 'object') {
+			throw new Error('Invalid category data format. Expected a Record<string, CategoryData>.');
+		}
+
+		// Validate the structure of the category data
+		for (const [key, value] of Object.entries(categoryData)) {
+			if (!value || typeof value !== 'object' || !value.name || !value.icon) {
+				throw new Error(`Invalid category data for key "${key}". Each category must have a name and icon.`);
+			}
 		}
 
 		// Backup the current category configuration before saving
@@ -51,7 +61,7 @@ export const POST: RequestHandler = async ({ request }) => {
 };
 
 // Save category file
-async function saveCategoryFile(categoryData: any[]): Promise<void> {
+async function saveCategoryFile(categoryData: Record<string, CategoryData>): Promise<void> {
 	const categoriesPath = path.join(process.cwd(), 'src', 'collections', 'categories.ts');
 
 	try {

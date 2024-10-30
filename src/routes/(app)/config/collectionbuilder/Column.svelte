@@ -4,6 +4,7 @@
 -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import type { CategoryData } from '@src/collections/types';
 
 	// Stores
 	import { mode, categories } from '@stores/collectionStore';
@@ -20,7 +21,7 @@
 	export let level = 0;
 	export let onUpdate: (items: any[]) => void;
 	export let isCategory = false;
-	export let onEditCategory: (category: { name: string; icon: string }) => void;
+	export let onEditCategory: (category: Pick<CategoryData, 'name' | 'icon'>) => void;
 
 	const flipDurationMs = 200;
 
@@ -35,8 +36,6 @@
 
 	function handleCollectionClick(item: any) {
 		mode.set('edit');
-
-		// Navigate to the route for viewing the collection's details
 		goto(`/config/collectionbuilder/${item.name}`);
 	}
 
@@ -52,11 +51,11 @@
 	import ModalAddCategory from './ModalCategory.svelte';
 
 	// Modal
-	function editCategory(category: any): void {
+	async function editCategory(category: Pick<CategoryData, 'name' | 'icon'>): Promise<void> {
 		const modalComponent: ModalComponent = {
 			ref: ModalAddCategory,
 			props: {
-				existingCategory: category // Pass the entire category object
+				existingCategory: category
 			}
 		};
 		const d: ModalSettings = {
@@ -64,18 +63,53 @@
 			title: m.column_edit_category(),
 			body: m.column_modify_category(),
 			component: modalComponent,
-			response: (updatedCategory) => {
-				const categoryToEdit = currentCategories.filter((cat: any) => cat.name === category.name);
+			response: async (updatedCategory) => {
 				if (updatedCategory) {
-					if (categoryToEdit.length > 0) {
-						categories.update((category) => {
-							return category.map((existingCategory) => {
-								if (existingCategory.name === categoryToEdit[0].name) {
-									existingCategory.name = updatedCategory.newCategoryName;
-									existingCategory.icon = updatedCategory.newCategoryIcon;
+					try {
+						// Update local store
+						categories.update((cats) => {
+							const newCategories = { ...cats };
+							Object.keys(newCategories).forEach((key) => {
+								if (newCategories[key].name === category.name) {
+									newCategories[key] = {
+										...newCategories[key],
+										name: updatedCategory.newCategoryName,
+										icon: updatedCategory.newCategoryIcon
+									};
 								}
-								return existingCategory;
 							});
+							return newCategories;
+						});
+
+						// Persist to backend
+						const response = await fetch('/api/save-categories', {
+							method: 'POST',
+							headers: {
+								'Content-Type': 'application/json'
+							},
+							body: JSON.stringify($categories)
+						});
+
+						if (!response.ok) {
+							throw new Error('Failed to save category changes');
+						}
+					} catch (error) {
+						console.error('Error saving category:', error);
+						alert('Failed to save category changes. Please try again.');
+
+						// Revert store changes on error
+						categories.update((cats) => {
+							const newCategories = { ...cats };
+							Object.keys(newCategories).forEach((key) => {
+								if (newCategories[key].name === updatedCategory.newCategoryName) {
+									newCategories[key] = {
+										...newCategories[key],
+										name: category.name,
+										icon: category.icon
+									};
+								}
+							});
+							return newCategories;
 						});
 					}
 				}
@@ -90,16 +124,14 @@
 	{#if isCategory}
 		<div class="flex items-center justify-between rounded bg-surface-300/10 p-2">
 			<div class="flex items-center gap-2">
-				<iconify-icon icon="mdi:grid" width="18" class="opacity-50" />
+				<iconify-icon icon="mdi:drag" width="18" class="cursor-move opacity-50" />
 				<iconify-icon {icon} width="18" class="text-error-500" />
-				<span class="font-bold text-primary-500 dark:text-tertiary-500">{name}</span>
+				<span class="font-bold text-tertiary-500 dark:text-primary-500">{name}</span>
 			</div>
-			<div class="flex items-center gap-2">
-				<button class="opacity-50 hover:opacity-100" on:click={handleCategoryEdit}>
-					<iconify-icon icon="mdi:pen" width="18" />
-				</button>
-				<iconify-icon icon="mdi:dots-vertical" width="18" />
-			</div>
+
+			<button on:click={handleCategoryEdit} aria-label="Edit">
+				<iconify-icon icon="mdi:pen" width="18" class="text-tertiary-500 dark:text-primary-500" />
+			</button>
 		</div>
 	{:else}
 		<div class="my-0.5 flex items-center justify-between rounded bg-surface-300/10 p-2">
@@ -108,7 +140,7 @@
 				<iconify-icon {icon} width="18" class="text-error-500" />
 				<span class="text-black dark:text-white">{name}</span>
 			</div>
-			<button class="opacity-50 hover:opacity-100" on:click={() => handleCollectionClick({ name })}>
+			<button on:click={() => handleCollectionClick({ name })} aria-label="Edit">
 				<iconify-icon icon="mdi:pen" width="18" />
 			</button>
 		</div>

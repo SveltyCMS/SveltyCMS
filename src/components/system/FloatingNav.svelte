@@ -1,14 +1,22 @@
 <!-- 
-@file src/components/system/FloatingNav.svelte 
-@description Floating nav component for mobile
+@file: src/components/system/FloatingNav.svelte 
+@description: Floating nav component for mobile view
+
+Features:
+- Floating nav for mobile view	
+- Keyboard navigation support
+- Accessibility features
+
+Usage:
+Import and use <FloatingNav /> in your Svelte application.
 -->
 
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import { tick, onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { motion } from '@utils/utils';
-	import { fade } from 'svelte/transition';
+	import { fade, scale } from 'svelte/transition';
+	import { elasticOut } from 'svelte/easing';
 
 	// Auth
 	import type { User } from '@src/auth/types';
@@ -17,11 +25,11 @@
 	import { page } from '$app/stores';
 	import { mode } from '@stores/collectionStore';
 	import { handleSidebarToggle } from '@stores/sidebarStore';
+	import { isSearchVisible, triggerActionStore } from '@utils/globalSearchIndex';
 
 	// Skeleton
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
-	const dispatch = createEventDispatcher();
 
 	// Type Definitions
 	interface Endpoint {
@@ -30,10 +38,13 @@
 			path: string;
 		};
 		icon: string;
+		label: string;
 		color?: string;
 		x?: number;
 		y?: number;
 		angle?: number;
+		action?: () => void;
+		ariaLabel?: string;
 	}
 
 	interface ButtonInfo {
@@ -64,48 +75,68 @@
 		{
 			// Home
 			url: { external: false, path: `/` },
-			icon: 'solar:home-bold'
+			icon: 'solar:home-bold',
+			label: 'Navigate to Home',
+			ariaLabel: 'Navigate to home page'
 		},
 		{
 			// User
 			url: { external: false, path: `/user` },
 			icon: 'radix-icons:avatar',
-			color: 'bg-orange-500'
+			label: 'User Profile Settings',
+			color: 'bg-orange-500',
+			ariaLabel: 'Open user profile settings'
 		},
 		{
 			// Collection builder
 			url: { external: false, path: `/config/collectionbuilder` },
-			icon: 'fluent-mdl2:build-definition'
+			icon: 'fluent-mdl2:build-definition',
+			label: 'Collection Builder',
+			ariaLabel: 'Open collection builder'
 		},
 		{
 			// Image Editor
 			url: { external: false, path: `/imageEditor` },
 			icon: 'tdesign:image-edit',
-			color: 'bg-error-500'
+			label: 'Image Editor',
+			color: 'bg-error-500',
+			ariaLabel: 'Open image editor'
 		},
 		{
 			// Graphql Yoga Explorer
 			url: { external: true, path: `/api/graphql` },
 			icon: 'teenyicons:graphql-outline',
-			color: 'bg-pink-500'
+			label: 'GraphQL Explorer',
+			color: 'bg-pink-500',
+			ariaLabel: 'Open GraphQL explorer'
 		},
 		{
 			// Marketplace
 			url: { external: true, path: `https://www.sveltycms.com` },
 			icon: 'icon-park-outline:shopping-bag',
-			color: 'bg-primary-700'
+			label: 'Visit Marketplace',
+			color: 'bg-primary-700',
+			ariaLabel: 'Visit SveltyCMS marketplace'
 		},
 		{
 			// System Configuration
 			url: { external: false, path: `/config` },
 			icon: 'mynaui:config',
-			color: 'bg-surface-400'
+			label: 'System Configuration',
+			color: 'bg-surface-400',
+			ariaLabel: 'Open system configuration'
 		},
 		{
 			// GlobalSearch
-			url: { external: false, path: 'globalsearch' },
+			url: { external: false, path: '' },
 			icon: 'material-symbols:search-rounded',
-			color: 'bg-error-500'
+			label: 'Global Search',
+			color: 'bg-error-500',
+			ariaLabel: 'Open global search (Alt + S)',
+			action: () => {
+				isSearchVisible.update((v) => !v);
+				triggerActionStore.set([]);
+			}
 		}
 	].filter((endpoint) => {
 		if (user?.role === 'admin') return true;
@@ -252,29 +283,29 @@
 	function handleMainKeyDown(e: KeyboardEvent): void {
 		if (e.key === 'Enter' || e.key === ' ') {
 			showRoutes = !showRoutes;
+			e.preventDefault();
 		}
 	}
 
 	// Event handler for keydown on endpoint buttons
 	function handleEndpointKeydown(event: KeyboardEvent, endpoint: Endpoint): void {
 		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
 			handleEndpointClick(endpoint);
 		}
 	}
 
 	// Function to handle endpoint click
 	function handleEndpointClick(endpoint: Endpoint): void {
-		if (endpoint.url.path === 'globalsearch') {
-			dispatch('globalsearch');
+		if (endpoint.action) {
+			endpoint.action();
+		} else if (endpoint.url.external) {
+			location.href = endpoint.url.path || '/';
 		} else {
 			mode.set('view');
 			modalStore.clear();
 			handleSidebarToggle();
-			if (endpoint.url.external) {
-				location.href = endpoint.url.path || '/';
-			} else {
-				goto(endpoint.url.path || '/');
-			}
+			goto(endpoint.url.path || '/');
 		}
 		showRoutes = false;
 	}
@@ -318,144 +349,156 @@
 	// Function to handle key presses
 	function handleKeyPress(event: KeyboardEvent) {
 		if (event.altKey && event.key === 's') {
-			dispatch('globalsearch');
+			event.preventDefault();
+			isSearchVisible.update((v) => !v);
+			triggerActionStore.set([]);
 		}
 	}
+
+	function handleEscapeKey(event: KeyboardEvent) {
+		if (event.key === 'Escape' && showRoutes) {
+			showRoutes = false;
+		}
+	}
+
+	onMount(() => {
+		window.addEventListener('keydown', handleEscapeKey);
+		return () => {
+			window.removeEventListener('keydown', handleEscapeKey);
+		};
+	});
 </script>
 
-<!-- Start Nav Button-->
+<!-- Main Navigation Button -->
 <div
 	bind:this={firstCircle}
-	aria-label="Open navigation"
+	aria-label="Toggle Navigation Menu"
 	role="button"
 	aria-expanded={showRoutes}
+	aria-haspopup="true"
+	aria-controls="navigation-menu"
 	use:drag
-	class="circle flex touch-none items-center justify-center bg-tertiary-500"
+	class="fixed z-[99999999] flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer touch-none items-center justify-center rounded-full bg-tertiary-500 transition-transform duration-200 hover:scale-110 focus:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2"
 	style="top:{(Math.min(buttonInfo.y, window.innerHeight - buttonRadius) / window.innerHeight) * 100}%;
-           left:{(Math.min(
-		isRightToLeft() ? buttonRadius : buttonInfo.x, // Change left position based on RTL
-		window.innerWidth - buttonRadius
-	) /
-		window.innerWidth) *
-		100}%;
-           width:{buttonInfo.radius * 2}px;
-           height:{buttonInfo.radius * 2}px"
+           left:{(Math.min(isRightToLeft() ? buttonRadius : buttonInfo.x, window.innerWidth - buttonRadius) / window.innerWidth) * 100}%;"
 	tabindex="0"
 	on:keydown={handleMainKeyDown}
 >
-	<iconify-icon icon="tdesign:map-route-planning" width="36" style="color:white" />
+	<iconify-icon icon="tdesign:map-route-planning" width="36" style="color:white" aria-hidden="true" />
 </div>
 
 <!-- Show the routes when the component is visible -->
 {#if showRoutes}
-	<button on:click={() => (showRoutes = false)} class="fixed left-0 top-0 z-[9999999]">
-		<svg bind:this={svg} xmlns="http://www.w3.org/2000/svg" use:setDash>
-			<line bind:this={firstLine} x1={buttonInfo.x} y1={buttonInfo.y} x2={center.x} y2={center.y} />
+	<div class="fixed inset-0 z-[9999998]" role="dialog" aria-modal="true" aria-label="Navigation Menu" transition:fade={{ duration: 150 }}>
+		<!-- Large centered circle background -->
+		<div
+			class="fixed left-1/2 top-1/2 -z-10 h-[340px] w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-full border bg-tertiary-500/40"
+			transition:scale={{ duration: 200, easing: elasticOut }}
+		/>
+
+		<!-- SVG Lines -->
+		<svg bind:this={svg} xmlns="http://www.w3.org/2000/svg" use:setDash aria-hidden="true" class="svg-container">
+			<line bind:this={firstLine} x1={buttonInfo.x} y1={buttonInfo.y} x2={center.x} y2={center.y} class="nav-line" />
 			{#each endpointsWithPositions.slice(1) as endpoint}
-				<line x1={center.x} y1={center.y} x2={endpoint.x} y2={endpoint.y} />
+				<line x1={center.x} y1={center.y} x2={endpoint.x} y2={endpoint.y} class="nav-line" />
 			{/each}
 		</svg>
 
-		<!-- Home button -->
-		<div
-			transition:fade
-			class="absolute left-1/2 top-1/4 -z-10 h-[340px] w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-full border bg-tertiary-500/40"
-			style="top:{center.y}px;left:{center.x}px;visibility:hidden; animation: showEndPoints 0.2s 0.2s forwards"
-		></div>
+		<!-- Navigation Menu -->
+		<div id="navigation-menu" role="menu" class="fixed inset-0 z-[9999999]">
+			<!-- Center circle -->
+			<div
+				class="absolute left-1/2 top-1/2 -z-10 h-[340px] w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-full border bg-tertiary-500/40"
+				transition:scale={{ duration: 200, easing: elasticOut }}
+			/>
 
-		<!-- Other endpoint buttons -->
-		<div
-			bind:this={circles[0]}
-			role="button"
-			aria-label="Home"
-			tabindex="0"
-			on:click={() => handleEndpointClick(endpointsWithPositions[0])}
-			on:keydown={(event) => handleEndpointKeydown(event, endpointsWithPositions[0])}
-			class="circle flex items-center justify-center border-2 bg-gray-600"
-			style="top:{center.y}px;left:{center.x}px;visibility:hidden; animation:
-			showEndPoints 0.2s 0.2s forwards"
-		>
-			<iconify-icon width="32" style="color:white" icon="solar:home-bold" />
+			<!-- Home button -->
+			<div
+				bind:this={circles[0]}
+				role="menuitem"
+				aria-label={endpointsWithPositions[0].ariaLabel || endpointsWithPositions[0].label}
+				tabindex="0"
+				on:click={() => handleEndpointClick(endpointsWithPositions[0])}
+				on:keydown={(event) => handleEndpointKeydown(event, endpointsWithPositions[0])}
+				class="endpoint-circle group fixed z-[99999999] flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-2 bg-gray-600 transition-transform duration-200 hover:scale-110 focus:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2"
+				style="top:{center.y}px;left:{center.x}px;"
+			>
+				<iconify-icon width="32" style="color:white" icon="solar:home-bold" aria-hidden="true" />
+				<div
+					class="tooltip absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[calc(100%+8px)] scale-90 whitespace-nowrap rounded bg-black/80 px-2 py-1 text-xs text-white opacity-0 transition-all group-hover:scale-100 group-hover:opacity-100 group-focus:scale-100 group-focus:opacity-100"
+					role="tooltip"
+				>
+					{endpointsWithPositions[0].label}
+					<div class="tooltip-arrow" />
+				</div>
+			</div>
+
+			<!-- Other endpoint buttons -->
+			{#each endpointsWithPositions.slice(1) as endpoint, index}
+				<div
+					bind:this={circles[index + 1]}
+					role="menuitem"
+					aria-label={endpoint.ariaLabel || endpoint.label}
+					tabindex="0"
+					on:click={() => handleEndpointClick(endpoint)}
+					on:keydown={(event) => handleEndpointKeydown(event, endpoint)}
+					class="endpoint-circle group fixed z-[99999999] flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full transition-transform duration-200 {endpoint.color ||
+						'bg-tertiary-500'} hover:scale-110 focus:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2"
+					style="top:{endpoint.y}px;left:{endpoint.x}px;"
+				>
+					<iconify-icon width="32" style="color:white" icon={endpoint.icon} aria-hidden="true" />
+					<div
+						class="tooltip absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[calc(100%+8px)] scale-90 whitespace-nowrap rounded bg-black/80 px-2 py-1 text-xs text-white opacity-0 transition-all group-hover:scale-100 group-hover:opacity-100 group-focus:scale-100 group-focus:opacity-100"
+						role="tooltip"
+					>
+						{endpoint.label}
+						<div class="tooltip-arrow" />
+					</div>
+				</div>
+			{/each}
 		</div>
 
-		{#each endpointsWithPositions.slice(1) as endpoint, index}
-			<div
-				bind:this={circles[index + 1]}
-				role="button"
-				aria-label={endpoint.icon}
-				tabindex="0"
-				on:click={() => handleEndpointClick(endpoint)}
-				on:keydown={(event) => handleEndpointKeydown(event, endpoint)}
-				class="circle flex items-center justify-center {endpoint.color || 'bg-tertiary-500'}"
-				style="top:{endpoint.y}px;left:{endpoint.x}px;animation:
-				showEndPoints 0.2s 0.4s forwards"
-				transition:fade={{ delay: 200, duration: 200 }}
-			>
-				<!-- Icon for the button -->
-				<iconify-icon width="32" style="color:white" icon={endpoint.icon} />
-			</div>
-		{/each}
-	</button>
+		<!-- Close button overlay -->
+		<button on:click={() => (showRoutes = false)} class="absolute inset-0 z-[-1] h-full w-full" aria-label="Close Navigation Menu" />
+	</div>
 {/if}
 
 <style lang="postcss">
-	div {
-		width: 100vw;
-		height: 100vh;
+	/* SVG styles */
+	.svg-container {
+		@apply pointer-events-none fixed inset-0 h-full w-full;
 	}
 
-	.circle {
-		position: fixed;
-		transform: translate(-50%, -50%);
-		border-radius: 50%;
-		width: 50px;
-		height: 50px;
-		cursor: pointer;
-		z-index: 99999999;
-		transition: transform 0.2s;
-	}
-
-	.circle:not(:first-of-type):hover {
-		transform: translate(-50%, -50%) scale(1.5);
-	}
-
-	.circle:not(:first-of-type):active {
-		transform: translate(-50%, -50%) scale(1) !important;
-	}
-
-	.circle:first-of-type:active {
-		transform: translate(-50%, -50%) scale(0.9) !important;
-	}
-
-	svg {
-		position: fixed;
-		left: 0;
-		top: 0;
-		height: 100%;
-		width: 100%;
-		pointer-events: none;
-	}
-
-	line {
+	.nav-line {
 		stroke: #da1f1f;
 		stroke-width: 3;
 		pointer-events: none;
 	}
 
-	@keyframes showEndPoints {
-		from {
-			visibility: hidden;
-		}
-		to {
-			opacity: 1;
-			visibility: visible;
-		}
+	/* Tooltip arrow */
+	.tooltip-arrow {
+		@apply absolute left-1/2 top-full h-0 w-0 -translate-x-1/2;
+		border-left: 4px solid transparent;
+		border-right: 4px solid transparent;
+		border-top: 4px solid rgba(0, 0, 0, 0.8);
 	}
 
-	button {
-		background: none;
-		border: none;
-		padding: 0;
-		margin: 0;
+	/* Endpoint animations */
+	.endpoint-circle {
+		opacity: 0;
+		animation: showEndPoints 0.2s ease-out forwards;
+	}
+
+	@keyframes showEndPoints {
+		0% {
+			opacity: 0;
+			visibility: hidden;
+			transform: translate(-50%, -50%) scale(0.5);
+		}
+		100% {
+			opacity: 1;
+			visibility: visible;
+			transform: translate(-50%, -50%) scale(1);
+		}
 	}
 </style>

@@ -292,15 +292,38 @@ const handleCachedApiRequest = async (event: any, resolve: any, apiEndpoint: str
 
 	logger.debug(`Cache miss for ${cacheKey}, resolving request`);
 	const response = await resolve(event);
-	const responseData = await response.json();
 
-	await cacheStore.set(cacheKey, responseData, new Date(Date.now() + 300 * 1000)); // Cache for 5 minutes
-	logger.debug(`Stored ${cacheKey} in cache`);
+	// Clone the response so we can read it multiple times
+	const clonedResponse = response.clone();
 
-	return new Response(JSON.stringify(responseData), {
-		status: 200,
-		headers: { 'Content-Type': 'application/json' }
-	});
+	try {
+		// Special handling for GraphQL responses
+		if (apiEndpoint === 'graphql') {
+			// For GraphQL, we'll pass through the response as-is
+			return response;
+		}
+
+		// For other API endpoints, handle as JSON
+		const responseData = await response.json();
+
+		// Only cache successful responses
+		if (response.ok) {
+			await cacheStore.set(cacheKey, responseData, new Date(Date.now() + 300 * 1000)); // Cache for 5 minutes
+			logger.debug(`Stored ${cacheKey} in cache`);
+		}
+
+		return new Response(JSON.stringify(responseData), {
+			status: response.status,
+			headers: {
+				'Content-Type': 'application/json',
+				...Object.fromEntries(response.headers)
+			}
+		});
+	} catch (err) {
+		logger.error(`Error processing API response for ${apiEndpoint}: ${err}`);
+		// If JSON parsing fails, return the original response
+		return clonedResponse;
+	}
 };
 
 // Add security headers to the response

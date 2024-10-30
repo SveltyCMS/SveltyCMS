@@ -17,11 +17,8 @@ import { json } from '@sveltejs/kit';
 // System Logger
 import { logger } from '@utils/logger';
 
-interface CategoryData {
-	icon: string;
-	name: string;
-	subcategories?: Record<string, CategoryData>;
-}
+// Import the CategoryData type from the shared types
+import type { CategoryData } from '@src/collections/types';
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {
@@ -71,11 +68,7 @@ export function _generateCategoriesFileContent(data: Record<string, CategoryData
  * Translations are stored in the database, not in this file.
  */
 
-interface CategoryData {
-    icon: string;
-    name: string;
-    subcategories?: Record<string, CategoryData>;
-}
+import type { CategoryData } from './types';
 
 // Auto-generated category configuration
 export const categoryConfig: Record<string, CategoryData> = `;

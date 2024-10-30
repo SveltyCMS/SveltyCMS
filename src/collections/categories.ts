@@ -13,12 +13,7 @@
  * Translations are stored in the database, not in this file.
  */
 
-interface CategoryData {
-	id: string;
-	icon: string;
-	name: string;
-	subcategories?: Record<string, CategoryData>;
-}
+import type { CategoryData } from './types';
 
 // Auto-generated category configuration
 export const categoryConfig: Record<string, CategoryData> = {

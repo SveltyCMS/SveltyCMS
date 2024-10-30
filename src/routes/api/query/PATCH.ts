@@ -1,10 +1,24 @@
 /**
  * @file src/routes/api/query/PATCH.ts
  * @description Handler for PATCH operations on collections.
+ *
+ * This module provides functionality to:
+ * - Update documents in a specified collection
+ * - Perform pre-update modifications via modifyRequest
+ * - Track performance metrics
+ *
+ * Features:
+ * - Document update support
+ * - Pre-update request modification
+ * - Performance monitoring with visual indicators
+ * - Comprehensive error handling and logging
  */
 
 import type { Schema } from '@src/collections/types';
 import type { User } from '@src/auth/types';
+
+// Database
+import { getCollectionModels } from '@src/databases/db';
 
 // Utils
 import { modifyRequest } from './modifyRequest';
@@ -12,22 +26,108 @@ import { modifyRequest } from './modifyRequest';
 // System Logger
 import { logger } from '@utils/logger';
 
+// Performance monitoring utilities
+const getPerformanceEmoji = (responseTime: number): string => {
+	if (responseTime < 100) return '🚀'; // Super fast
+	if (responseTime < 500) return '⚡'; // Fast
+	if (responseTime < 1000) return '⏱️'; // Moderate
+	if (responseTime < 3000) return '🕰️'; // Slow
+	return '🐢'; // Very slow
+};
+
 // Function to handle PATCH requests for a specified collection
 export async function _PATCH({ data, schema, user }: { data: FormData; schema: Schema; user: User }) {
+	const start = performance.now();
 	try {
+		logger.debug(`PATCH request received for schema: ${schema.name}, user_id: ${user._id}`);
+
 		// Validate schema name
 		if (!schema.name) {
 			logger.error('Invalid or undefined schema name.');
-			throw new Error('Invalid schema name');
+			return new Response('Invalid schema name', { status: 400 });
 		}
 
-		// Perform pre-update modifications
-		const result = await modifyRequest({ data, schema, user });
-		logger.info(`Document updated successfully in ${schema.name}`, { user: user._id });
+		// Get collection models
+		const collections = await getCollectionModels();
+		const collection = collections[schema.name];
+		if (!collection) {
+			logger.error(`Collection not found for schema: ${schema.name}`);
+			return new Response('Collection not found', { status: 404 });
+		}
 
-		return new Response(JSON.stringify(result));
+		// Parse update data
+		const updateData = data.get('data');
+		if (!updateData) {
+			logger.error('No update data provided');
+			return new Response('No update data provided', { status: 400 });
+		}
+
+		const parsedData = JSON.parse(updateData as string);
+
+		// Perform pre-update modifications with performance tracking
+		const modifyStart = performance.now();
+		const result = await modifyRequest({
+			data: [parsedData],
+			collection,
+			fields: schema.fields,
+			user,
+			type: 'PATCH'
+		});
+		const modifyDuration = performance.now() - modifyStart;
+		const modifyEmoji = getPerformanceEmoji(modifyDuration);
+		logger.debug(`Request modifications completed in ${modifyDuration.toFixed(2)}ms ${modifyEmoji}`);
+
+		// Update the document
+		const updateStart = performance.now();
+		const updateResult = await collection.updateOne({ _id: parsedData._id }, result[0]);
+		const updateDuration = performance.now() - updateStart;
+		const updateEmoji = getPerformanceEmoji(updateDuration);
+		logger.debug(`Document update completed in ${updateDuration.toFixed(2)}ms ${updateEmoji}`);
+
+		const totalDuration = performance.now() - start;
+		const totalEmoji = getPerformanceEmoji(totalDuration);
+		logger.info(`PATCH operation completed in ${totalDuration.toFixed(2)}ms ${totalEmoji} for schema: ${schema.name}`, { user: user._id });
+
+		// Return the result with performance metrics
+		return new Response(
+			JSON.stringify({
+				success: true,
+				result: updateResult,
+				performance: {
+					total: totalDuration,
+					modify: modifyDuration,
+					update: updateDuration
+				}
+			}),
+			{
+				status: 200,
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Content-Type-Options': 'nosniff'
+				}
+			}
+		);
 	} catch (error) {
-		logger.error('Error in PATCH operation:', error instanceof Error ? error.message : String(error));
-		throw error;
+		const duration = performance.now() - start;
+		const emoji = getPerformanceEmoji(duration);
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		const errorStack = error instanceof Error ? error.stack : '';
+		logger.error(`PATCH operation failed after ${duration.toFixed(2)}ms ${emoji} for schema: ${schema.name}: ${errorMessage}`, { stack: errorStack });
+		return new Response(
+			JSON.stringify({
+				success: false,
+				error: errorMessage,
+				performance: {
+					total: duration
+				}
+			}),
+			{
+				status: 500,
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Content-Type-Options': 'nosniff'
+				}
+			}
+		);
 	}
 }

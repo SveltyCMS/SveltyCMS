@@ -3,13 +3,16 @@
 @description This component displays a modal for editing a category.
 -->
 <script lang="ts">
+	import type { CategoryData } from '@src/collections/types';
+	import { createRandomID } from '@utils/utils';
+
 	// Props
 	/** Exposes parent props to this component. */
 	export let parent: any;
-	export let existingCategory: any = { name: '', icon: '' };
+	export let existingCategory: Partial<CategoryData> = { name: '', icon: '' };
 
 	// Stores
-	import { categories, unAssigned } from '@stores/collectionStore';
+	import { categories } from '@stores/collectionStore';
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 
@@ -21,54 +24,80 @@
 
 	// Form Data
 	const formData = {
-		newCategoryName: existingCategory.name,
-		newCategoryIcon: existingCategory.icon
+		newCategoryName: existingCategory.name ?? '',
+		newCategoryIcon: existingCategory.icon ?? ''
 	};
 
 	// We've created a custom submit function to pass the response and close the modal.
-	function onFormSubmit(): void {
-		if ($modalStore[0].response) $modalStore[0].response(formData);
+	async function onFormSubmit(): Promise<void> {
+		if ($modalStore[0].response) {
+			if (!existingCategory.id) {
+				// Generate new ID for new categories
+				const newId = await createRandomID();
+				$modalStore[0].response({ ...formData, id: newId });
+			} else {
+				$modalStore[0].response(formData);
+			}
+		}
 		modalStore.close();
 	}
 
-	function deleteCategory(): void {
-		if (existingCategory.collections === undefined || existingCategory.collections.length === 0) {
-			// console.log('No associated collections. Proceeding with deletion...');
-
+	async function deleteCategory(): Promise<void> {
+		if (!existingCategory.subcategories || Object.keys(existingCategory.subcategories).length === 0) {
 			// Define the confirmation modal
 			const confirmModal: ModalSettings = {
 				type: 'confirm',
 				title: 'Please Confirm',
 				body: 'Are you sure you wish to delete this category?',
-				response: (r: boolean) => {
+				response: async (r: boolean) => {
 					if (r) {
-						// User confirmed, proceed with deletion
+						try {
+							// Update local store
+							categories.update((existingCategories) => {
+								const newCategories = { ...existingCategories };
+								if (existingCategory.name) {
+									// Find and delete the category
+									Object.keys(newCategories).forEach((key) => {
+										if (newCategories[key].name === existingCategory.name) {
+											delete newCategories[key];
+										}
+									});
+								}
+								return newCategories;
+							});
 
-						// Remove the category from the store
-						categories.update((existingCategories) => {
-							//console.log('Updated Categories:', categories);
-							return existingCategories.filter((category) => category.name !== existingCategory.name);
-						});
+							// Persist to backend
+							const response = await fetch('/api/save-categories', {
+								method: 'POST',
+								headers: {
+									'Content-Type': 'application/json'
+								},
+								body: JSON.stringify($categories)
+							});
 
-						// Add the collections to the unAssigned store
-						unAssigned.update((existingUnassigned) => {
-							const collections = Array.isArray(existingCategory.collections) ? existingCategory.collections : [];
-							//console.log('Collections to be unassigned:', collections);
-							return [...existingUnassigned, ...collections];
-						});
-					} else {
-						// User cancelled, do not delete
-						console.log('User cancelled deletion.');
+							if (!response.ok) {
+								throw new Error('Failed to save category changes');
+							}
+						} catch (error) {
+							console.error('Error deleting category:', error);
+							alert('Failed to delete category. Please try again.');
+
+							// Revert store changes on error
+							if (existingCategory.id) {
+								categories.update((cats) => ({
+									...cats,
+									[existingCategory.id as string]: existingCategory as CategoryData
+								}));
+							}
+						}
 					}
 				}
 			};
 
-			// Trigger the confirmation modal
 			modalStore.trigger(confirmModal);
-			// Close the modal
-			modalStore.close();
+			modalStore.close(); // Close the modal
 		} else {
-			alert('Cannot delete category with associated collections.');
+			alert('Cannot delete category with subcategories.');
 		}
 	}
 
@@ -99,7 +128,6 @@
 
 		<footer class="modal-footer flex {existingCategory.name ? 'justify-between' : 'justify-end'} {parent.regionFooter}">
 			{#if existingCategory.name}
-				<!-- Check if existing category is being edited -->
 				<button type="button" on:click={deleteCategory} class="variant-filled-error btn">
 					<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden md:inline">{m.button_delete()}</span>
 				</button>

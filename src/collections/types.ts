@@ -4,9 +4,22 @@
 */
 
 import type widgets from '@components/widgets';
+import type { ModifyRequestParams } from '@components/widgets';
 
 // Auth
 import type { Permission } from '@src/auth/types';
+
+// Collection names are dynamic, based on the files in the collections directory
+export type CollectionNames = string;
+
+// Widget field type definition
+type WidgetKeys = keyof typeof widgets;
+type WidgetTypes = (typeof widgets)[WidgetKeys];
+export type Field = {
+	type: WidgetKeys;
+	config: WidgetTypes;
+	modifyRequest?: (args: ModifyRequestParams<(typeof widgets)[WidgetKeys]>) => Promise<object>;
+};
 
 // Define the base Schema interface
 export interface Schema {
@@ -22,47 +35,21 @@ export interface Schema {
 	permissions?: Permission; // Optional permission restrictions
 	livePreview?: boolean; // Optional live preview
 	status?: 'draft' | 'published' | 'unpublished' | 'scheduled' | 'cloned'; // Optional default status
-	links?: Array<keyof CollectionNames>; // Optional links to other collections
-	fields: ReturnType<(typeof widgets)[keyof typeof widgets]>[];
+	links?: Array<CollectionNames>; // Optional links to other collections
+	fields: Field[]; // Collection fields
 }
 
 // Collection content type mapping
 export type CollectionContent = {
-	imageArray: ['ImageArray'];
-	Menu: ['Menu'];
-	Media: ['Image'];
-	Names: ['First Name', 'Last Name'];
-	Posts: ['Email', 'Test', 'Image'];
-	Posts2: ['Text', 'Text2', 'Text3'];
-	Relation: ['Relation M2M to Posts'];
-	WidgetTest: [
-		'First',
-		'Middle',
-		'Last',
-		'Full Text option',
-		'Email',
-		'RemoteVideo',
-		'Date',
-		'DateTime',
-		'Number',
-		'Currency',
-		'Phone Number',
-		'Radio',
-		'Checkbox',
-		'ColorPicker',
-		'Rating',
-		'RichText'
-	];
+	[key: string]: string[]; // Dynamic mapping of collection names to their content types
 };
-
-// Valid collection names
-export type CollectionNames = keyof CollectionContent;
 
 // Category interface
 export interface Category {
 	id: number;
 	name: string;
 	icon: string;
+	order?: number;
 	collections: Schema[];
 }
 
@@ -74,7 +61,9 @@ export interface FilteredCategory extends Category {
 
 // Category data interface for configuration
 export interface CategoryData {
+	id: string;
 	icon: string;
 	name: string;
+	order?: number;
 	subcategories?: Record<string, CategoryData>;
 }

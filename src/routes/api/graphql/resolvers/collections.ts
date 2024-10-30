@@ -19,11 +19,13 @@
  * Used by the main GraphQL setup to generate collection-specific schemas and resolvers
  */
 
-import { getCollections } from '@collections';
 import widgets from '@components/widgets';
 import { getFieldName } from '@utils/utils';
 import deepmerge from 'deepmerge';
 import { dbAdapter } from '@src/databases/db';
+
+// Collection Manager
+import { collectionManager } from '@src/collections/CollectionManager';
 
 // System Logger
 import { logger } from '@utils/logger';
@@ -36,6 +38,7 @@ interface Collection {
 		};
 		extract?: boolean;
 		fields?: any[];
+		label?: string;
 	}>;
 }
 
@@ -47,14 +50,14 @@ interface WidgetSchema {
 
 // Registers collection schemas dynamically.
 export async function registerCollections() {
-	const collections = await getCollections();
-	logger.debug(`Collections fetched: ${Object.keys(collections).join(', ')}`);
+	const { collections } = collectionManager.getCollectionData();
+	logger.debug(`Collections fetched: ${collections.map((c) => c.name).join(', ')}`);
 
 	const typeDefsSet = new Set<string>();
 	const resolvers: { [key: string]: any } = { Query: {} };
 	const collectionSchemas: string[] = [];
 
-	for (const collection of Object.values(collections) as Collection[]) {
+	for (const collection of collections as Collection[]) {
 		if (!collection.name) {
 			logger.error('Collection name is undefined:', collection);
 			continue;
@@ -84,7 +87,7 @@ export async function registerCollections() {
 			if (schema) {
 				schema.graphql.split(/(?=type.*?{)/).forEach((type) => typeDefsSet.add(type));
 
-				if (field.extract && field.fields?.length > 0) {
+				if (field.extract && field.fields && field.fields.length > 0) {
 					for (const _field of field.fields) {
 						const nestedSchema = widgets[_field.widget.Name]?.GraphqlSchema?.({
 							field: _field,
@@ -131,7 +134,7 @@ export async function registerCollections() {
 export async function collectionsResolvers(redisClient: any, privateEnv: any) {
 	const { resolvers, collections } = await registerCollections();
 
-	for (const collection of Object.values(collections) as Collection[]) {
+	for (const collection of collections as Collection[]) {
 		if (!collection.name) {
 			logger.error('Collection name is undefined:', collection);
 			continue;
@@ -148,29 +151,45 @@ export async function collectionsResolvers(redisClient: any, privateEnv: any) {
 			const skip = (page - 1) * limit;
 
 			try {
+				const cacheKey = `${collection.name}:${page}:${limit}`;
+
+				// Try to get from cache first
 				if (privateEnv.USE_REDIS === true && redisClient) {
-					const cachedResult = await redisClient.get(`${collection.name}:${page}:${limit}`);
+					const cachedResult = await redisClient.get(cacheKey);
 					if (cachedResult) {
 						logger.debug(`Cache hit for collection: ${collection.name}, page: ${page}, limit: ${limit}`);
 						return JSON.parse(cachedResult);
 					}
 				}
 
-				const dbResult = await dbAdapter.findMany(collection.name, { status: { $ne: 'unpublished' } }, { sort: { createdAt: -1 }, skip, limit });
+				// Query database
+				const query = { status: { $ne: 'unpublished' } };
+				const options = { sort: { createdAt: -1 }, skip, limit };
+				const dbResult = await dbAdapter.findMany(collection.name, query, options);
 
+				// Process dates
 				dbResult.forEach((doc: any) => {
-					doc.createdAt = new Date(doc.createdAt).toISOString();
-					doc.updatedAt = new Date(doc.updatedAt).toISOString();
+					try {
+						doc.createdAt = doc.createdAt ? new Date(doc.createdAt).toISOString() : new Date().toISOString();
+						doc.updatedAt = doc.updatedAt ? new Date(doc.updatedAt).toISOString() : doc.createdAt;
+					} catch (error) {
+						const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+						logger.warn(`Date conversion failed for document in ${collection.name}: ${errorMessage}`);
+						doc.createdAt = new Date().toISOString();
+						doc.updatedAt = doc.createdAt;
+					}
 				});
 
+				// Cache the result
 				if (privateEnv.USE_REDIS === true && redisClient) {
-					await redisClient.set(`${collection.name}:${page}:${limit}`, JSON.stringify(dbResult), 'EX', 60 * 60); // Cache for 1 hour by default
+					await redisClient.set(cacheKey, JSON.stringify(dbResult), 'EX', 60 * 60); // 1 hour cache
 					logger.debug(`Cache set for collection: ${collection.name}, page: ${page}, limit: ${limit}`);
 				}
 
 				return dbResult;
 			} catch (error) {
-				logger.error(`Error fetching data for collection ${collection.name}:`, error);
+				const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+				logger.error(`Error fetching data for collection ${collection.name}: ${errorMessage}`);
 				throw error;
 			}
 		};

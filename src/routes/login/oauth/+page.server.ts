@@ -5,13 +5,16 @@
 
 import { dev } from '$app/environment';
 import { publicEnv } from '@root/config/public';
-import { redirect, error } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 // Auth
 import { google } from 'googleapis';
 
-import { getCollections } from '@src/collections';
+// Collection Manager
+import { collectionManager } from '@src/collections/CollectionManager';
+
+// Utils
 import { saveAvatarImage } from '@utils/media/mediaStorage';
 
 // Stores
@@ -37,6 +40,28 @@ async function sendWelcomeEmail(fetchFn: (input: RequestInfo | URL, init?: Reque
 		logger.debug(`Welcome email sent to ${email}`);
 	} catch (err) {
 		logger.error('Error sending welcome email:', err as Error);
+	}
+}
+
+// Helper function to fetch and redirect to the first collection
+async function fetchAndRedirectToFirstCollection(): Promise<string> {
+	try {
+		const { collections } = collectionManager.getCollectionData();
+		// logger.debug('Fetched collections:', collections);
+
+		if (collections && collections.length > 0) {
+			const firstCollection = collections[0];
+			if (firstCollection && firstCollection.name) {
+				const redirectUrl = `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${firstCollection.name}`;
+				logger.info(`Redirecting to first collection: ${firstCollection.name} with URL: ${redirectUrl}`);
+				return redirectUrl;
+			}
+		}
+		logger.warn('No collections found');
+		return '/';
+	} catch (err) {
+		logger.error('Error fetching collections:', err);
+		return '/';
 	}
 }
 
@@ -87,7 +112,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, locals }) => {
 		if (!user) {
 			// Handle new user creation
 			let avatarUrl: string | null = null;
-			// Fetch  & Save the Google user's avatar
+			// Fetch & Save the Google user's avatar
 			if (googleUser.picture) {
 				const response = await fetch(googleUser.picture);
 				const avatarFile = new File([await response.blob()], 'avatar.jpg', { type: 'image/jpeg' });
@@ -137,18 +162,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, locals }) => {
 			avatar: avatarUrl ?? googleUser.picture
 		});
 		logger.info('Successfully created session and set cookie');
+
 		// Redirect to the first collection
-		const collections = await getCollections();
-		if (collections && Object.keys(collections).length > 0) {
-			const firstCollectionKey = Object.keys(collections)[0];
-			const firstCollection = collections[firstCollectionKey];
-			const redirectUrl = `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${firstCollection.name}`;
-			logger.info(`Redirecting to first collection: ${firstCollection.name} with URL: ${redirectUrl}`);
-			throw redirect(302, redirectUrl);
-		} else {
-			logger.error('No collections found to redirect');
-			throw redirect(302, '/');
-		}
+		const redirectUrl = await fetchAndRedirectToFirstCollection();
+		throw redirect(302, redirectUrl);
 	} catch (e) {
 		logger.error('Error during login process:', e as Error);
 		throw redirect(302, '/login');

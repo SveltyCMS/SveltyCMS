@@ -8,8 +8,8 @@
  * Features:
  * - Batch status update for multiple documents
  * - Support for all collections defined in the schema
- * - Error handling and logging
-
+ * - Performance monitoring with visual indicators
+ * - Comprehensive error handling and logging
  */
 
 import type { Schema } from '@src/collections/types';
@@ -21,8 +21,18 @@ import { dbAdapter, getCollectionModels } from '@src/databases/db';
 // System Logger
 import { logger } from '@utils/logger';
 
+// Performance monitoring utilities
+const getPerformanceEmoji = (responseTime: number): string => {
+	if (responseTime < 100) return '🚀'; // Super fast
+	if (responseTime < 500) return '⚡'; // Fast
+	if (responseTime < 1000) return '⏱️'; // Moderate
+	if (responseTime < 3000) return '🕰️'; // Slow
+	return '🐢'; // Very slow
+};
+
 // Function to handle SETSTATUS requests for a specified collection
 export const _SETSTATUS = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {
+	const start = performance.now();
 	try {
 		logger.debug(`SETSTATUS request received for schema: ${schema.name}`, { user: user._id });
 
@@ -38,8 +48,13 @@ export const _SETSTATUS = async ({ data, schema, user }: { data: FormData; schem
 			return new Response('Invalid or undefined schema name.', { status: 400 });
 		}
 
-		const collections = await getCollectionModels(); // Get collection models from the database
-		const collection = collections[schema.name]; // Get the specific collection based on the schema name
+		// Get collection models with performance tracking
+		const modelStart = performance.now();
+		const collections = await getCollectionModels();
+		const collection = collections[schema.name];
+		const modelDuration = performance.now() - modelStart;
+		const modelEmoji = getPerformanceEmoji(modelDuration);
+		logger.debug(`Collection models retrieved in ${modelDuration.toFixed(2)}ms ${modelEmoji}`);
 
 		// Check if the collection exists
 		if (!collection) {
@@ -48,6 +63,7 @@ export const _SETSTATUS = async ({ data, schema, user }: { data: FormData; schem
 		}
 
 		// Parse the IDs and status from the form data
+		const parseStart = performance.now();
 		const idsJson = data.get('ids');
 		const status = data.get('status');
 
@@ -63,19 +79,69 @@ export const _SETSTATUS = async ({ data, schema, user }: { data: FormData; schem
 			return new Response('Invalid ids format', { status: 400 });
 		}
 
-		logger.debug(`Updating status to '${status}' for ${ids.length} documents`, { user: user._id });
-
-		// Update the status of the documents with the specified IDs
-		const result = await collection.updateMany({ _id: { $in: ids } }, { $set: { status } });
-		logger.info(`Status updated for ${result.modifiedCount} documents in ${schema.name}`, { user: user._id });
-
-		return new Response(JSON.stringify(result), {
-			status: 200,
-			headers: { 'Content-Type': 'application/json' }
+		const parseDuration = performance.now() - parseStart;
+		const parseEmoji = getPerformanceEmoji(parseDuration);
+		logger.debug(`Data parsed in ${parseDuration.toFixed(2)}ms ${parseEmoji}. Updating status to '${status}' for ${ids.length} documents`, {
+			user: user._id
 		});
+
+		// Update the status of the documents with performance tracking
+		const updateStart = performance.now();
+		const result = await collection.updateMany({ _id: { $in: ids } }, { $set: { status } });
+		const updateDuration = performance.now() - updateStart;
+		const updateEmoji = getPerformanceEmoji(updateDuration);
+
+		const totalDuration = performance.now() - start;
+		const totalEmoji = getPerformanceEmoji(totalDuration);
+		logger.info(
+			`Status updated for ${result.modifiedCount} documents in ${updateDuration.toFixed(2)}ms ${updateEmoji}, total time: ${totalDuration.toFixed(2)}ms ${totalEmoji}`,
+			{ user: user._id }
+		);
+
+		// Return the result with performance metrics
+		return new Response(
+			JSON.stringify({
+				success: true,
+				result,
+				performance: {
+					total: totalDuration,
+					models: modelDuration,
+					parse: parseDuration,
+					update: updateDuration
+				}
+			}),
+			{
+				status: 200,
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Content-Type-Options': 'nosniff'
+				}
+			}
+		);
 	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-		logger.error(`Error occurred during SETSTATUS request: ${errorMessage}`, { user: user._id });
-		return new Response(errorMessage, { status: 500 });
+		const duration = performance.now() - start;
+		const emoji = getPerformanceEmoji(duration);
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		const errorStack = error instanceof Error ? error.stack : '';
+		logger.error(`SETSTATUS operation failed after ${duration.toFixed(2)}ms ${emoji} for schema: ${schema.name}: ${errorMessage}`, {
+			user: user._id,
+			stack: errorStack
+		});
+		return new Response(
+			JSON.stringify({
+				success: false,
+				error: errorMessage,
+				performance: {
+					total: duration
+				}
+			}),
+			{
+				status: 500,
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Content-Type-Options': 'nosniff'
+				}
+			}
+		);
 	}
 };
