@@ -7,9 +7,10 @@
 	import { goto } from '$app/navigation';
 	import { categoryConfig } from '@src/collections/categories';
 	import { createRandomID } from '@utils/utils';
+	import type { CategoryData } from '@src/collections/types';
 
 	// Stores
-	import { collectionValue, mode } from '@stores/collectionStore';
+	import { collectionValue, mode, categories } from '@stores/collectionStore';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -25,6 +26,11 @@
 	const modalStore = getModalStore();
 
 	let currentConfig = categoryConfig;
+
+	// Initialize the categories store with the current config
+	$: {
+		categories.set(currentConfig);
+	}
 
 	// Modal Trigger - New Category
 	function modalAddCategory(existingCategory?: { name: string; icon: string }): void {
@@ -59,43 +65,24 @@
 								});
 							}
 						});
-						updateConfig(newConfig);
+						currentConfig = newConfig;
+						categories.set(newConfig);
 					} else {
-						// Add new category
+						// Add new category at the end of the list
 						const newConfig = { ...currentConfig };
 						const categoryKey = r.newCategoryName.toLowerCase().replace(/\s+/g, '-');
 						const newCategoryId = await createRandomID();
 
-						// Add new category under Collections if it exists
-						if (newConfig.Collections) {
-							newConfig.Collections.subcategories = {
-								...newConfig.Collections.subcategories,
-								[categoryKey]: {
-									id: newCategoryId,
-									name: r.newCategoryName,
-									icon: r.newCategoryIcon,
-									subcategories: {}
-								}
-							};
-						} else {
-							// Create Collections category if it doesn't exist
-							const collectionsId = await createRandomID();
-							newConfig.Collections = {
-								id: collectionsId,
-								name: 'Collections',
-								icon: 'bi:collection',
-								subcategories: {
-									[categoryKey]: {
-										id: newCategoryId,
-										name: r.newCategoryName,
-										icon: r.newCategoryIcon,
-										subcategories: {}
-									}
-								}
-							};
-						}
+						// Add the new category as a top-level category
+						newConfig[categoryKey] = {
+							id: newCategoryId,
+							name: r.newCategoryName,
+							icon: r.newCategoryIcon,
+							subcategories: {}
+						};
 
-						updateConfig(newConfig);
+						currentConfig = newConfig;
+						categories.set(newConfig);
 					}
 				}
 			}
@@ -117,14 +104,17 @@
 	}
 
 	// Saving changes to the config.ts
-	async function updateConfig(newConfig: Record<string, any>) {
+	async function updateConfig(newConfig: Record<string, CategoryData>) {
 		try {
-			const response = await fetch('/api/updateCategories', {
+			const response = await fetch('/api/categories', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
 				},
-				body: JSON.stringify(newConfig)
+				body: JSON.stringify({
+					categories: newConfig,
+					save: true
+				})
 			});
 
 			const result = await response.json();
@@ -132,6 +122,7 @@
 			if (response.ok) {
 				showToast('Categories updated successfully', 'success');
 				currentConfig = newConfig;
+				categories.set(newConfig);
 			} else {
 				const errorMessage = result.error || 'Error updating categories';
 				console.error('Update categories error:', result);

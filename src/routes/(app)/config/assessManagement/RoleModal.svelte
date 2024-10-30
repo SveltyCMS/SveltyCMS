@@ -2,7 +2,6 @@
 	import type { SvelteComponent } from 'svelte';
 
 	// Stores
-	import { writable, type Writable } from 'svelte/store';
 	import { getModalStore } from '@skeletonlabs/skeleton';
 
 	// Auth
@@ -19,73 +18,49 @@
 	export let roleName: string;
 	export let roleDescription: string;
 	export let currentGroupName: string;
-	// export let availablePermissions = writable<Permission[]>([]);
-	export let selectedPermissions: Writable<string[]> = writable([]);
+	export let selectedPermissions: string[] = [];
+
+	// Local form state
+	let formName = roleName;
+	let formDescription = roleDescription;
 
 	const modalStore = getModalStore();
 
-	const saveRole = () => {
-		if ($modalStore[0].response) {
-			$modalStore[0].response({
-				roleName,
-				roleDescription,
+	function onFormSubmit(): void {
+		const modal = $modalStore[0];
+		if (modal?.response) {
+			modal.response({
+				roleName: formName,
+				roleDescription: formDescription,
 				currentGroupName,
-				selectedPermissions: $selectedPermissions,
+				selectedPermissions,
 				currentRoleId
 			});
 		}
 		modalStore.close();
-	};
-
-	const closeModal = () => {
-		modalStore.close();
-	};
-
-	const togglePermissionSelection = (permissionId: string) => {
-		selectedPermissions.update((permissions) => {
-			const index = permissions.findIndex((cur) => cur === permissionId);
-			if (index > -1) {
-				permissions.splice(index, 1);
-			} else {
-				permissions.push(permissionId);
-			}
-			return permissions;
-		});
-	};
-
-	// Base Classes
-	const cBase = 'card p-4 w-modal shadow-xl space-y-4';
-	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	}
 </script>
 
-<!-- @component This example creates a simple form modal. -->
+<div class="card w-modal space-y-4 p-4 shadow-xl">
+	<header class="text-center text-2xl font-bold">
+		{isEditMode ? 'Edit Role' : 'Create New Role'}
+	</header>
 
-{#if $modalStore[0]}
-	<div class="modal-avatar {cBase}">
-		<header class={`text-center text-primary-500 ${cHeader}`}>
-			{$modalStore[0]?.title ?? '(title missing)'}
-		</header>
-		<article class="text-center text-sm">
-			{$modalStore[0]?.body ?? '(body missing)'}
-		</article>
+	<form class="modal-form space-y-4 border border-surface-500 p-4 rounded-container-token" on:submit|preventDefault={onFormSubmit}>
+		<label class="label">
+			<span>Role Name:</span>
+			<input type="text" bind:value={formName} placeholder="Role Name" class="input" required />
+		</label>
 
-		<form class="modal-form {cForm}">
-			<label class="label">
-				<span>Role Name:</span>
-				<input type="text" bind:value={roleName} placeholder="Role Name" class="input" />
-			</label>
+		<label class="label">
+			<span>Role Description:</span>
+			<textarea bind:value={formDescription} placeholder="Role Description" class="input" rows="3" />
+		</label>
+	</form>
 
-			<label class="label">
-				<span>Role Description:</span>
-				<textarea bind:value={roleDescription} placeholder="Role Description" class="input"></textarea>
-			</label>
-		</form>
-		<footer class="modal-footer {parent.regionFooter} justify-between">
-			<button class="variant-outline-secondary btn" on:click={parent.onClose}>
-				{m.button_cancel()}
-			</button>
-			<button on:click={saveRole} class="variant-filled-primary btn">{isEditMode ? 'Update' : 'Create Role'}</button>
-		</footer>
-	</div>
-{/if}
+	<!-- Footer -->
+	<footer class="modal-footer flex justify-end gap-4">
+		<button class="variant-ghost-surface btn" on:click={parent.onClose}>{m.button_cancel()}</button>
+		<button class="variant-filled-primary btn" on:click={onFormSubmit}>{isEditMode ? 'Update' : 'Create'}</button>
+	</footer>
+</div>

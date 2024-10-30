@@ -21,7 +21,7 @@ import { logger } from '@utils/logger';
 
 const COLLECTIONS_DIR = path.join(process.cwd(), 'src', 'collections');
 const BACKUP_DIR = path.join(COLLECTIONS_DIR, 'backup');
-const BACKUP_LIMIT = 5; // Max number of backups to keep
+const BACKUP_LIMIT = 2; //max 2 backups
 
 async function ensureDir(dir: string) {
 	try {
@@ -51,7 +51,7 @@ export async function backupCategoryFiles() {
 
 		await fs.copyFile(path.join(COLLECTIONS_DIR, 'categories.ts'), categoriesBackup);
 
-		// Limit backups to BACKUP_LIMIT
+		// Limit backups to BACKUP_LIMIT (2)
 		const files = await fs.readdir(BACKUP_DIR);
 		const backups = files
 			.filter((file) => file.startsWith('categories.backup'))

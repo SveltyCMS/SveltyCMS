@@ -27,8 +27,8 @@
 		name: string;
 		icon: string;
 		isCategory: boolean;
+		isCollection?: boolean;
 		items?: DndItem[];
-		parentId?: string;
 	}
 
 	// Convert categoryConfig to format needed for dnd-actions
@@ -38,206 +38,143 @@
 
 			if (category.subcategories) {
 				Object.entries(category.subcategories).forEach(([subKey, subCategory]: [string, CategoryData]) => {
-					// Check if this subcategory has its own subcategories
-					if (subCategory.subcategories && Object.keys(subCategory.subcategories).length > 0) {
-						// It's a category with nested items
+					if (subCategory.isCollection) {
+						// It's a collection
 						items.push({
-							id: subKey,
-							name: subCategory.name,
-							icon: subCategory.icon,
-							isCategory: true,
-							parentId: key,
-							items: Object.entries(subCategory.subcategories).map(([collKey, coll]: [string, CategoryData]) => ({
-								id: collKey,
-								name: coll.name,
-								icon: coll.icon,
-								isCategory: false,
-								parentId: subKey
-							}))
-						});
-					} else {
-						// It's a direct collection
-						items.push({
-							id: subKey,
+							id: subCategory.id || subKey,
 							name: subCategory.name,
 							icon: subCategory.icon,
 							isCategory: false,
-							parentId: key
+							isCollection: true
+						});
+					} else if (subCategory.subcategories && Object.keys(subCategory.subcategories).length > 0) {
+						// It's a category with nested items
+						items.push({
+							id: subCategory.id || subKey,
+							name: subCategory.name,
+							icon: subCategory.icon,
+							isCategory: true,
+							isCollection: false,
+							items: Object.entries(subCategory.subcategories).map(([collKey, coll]: [string, CategoryData]) => ({
+								id: coll.id || collKey,
+								name: coll.name,
+								icon: coll.icon,
+								isCategory: !coll.isCollection,
+								isCollection: coll.isCollection
+							}))
+						});
+					} else {
+						// It's an empty category
+						items.push({
+							id: subCategory.id || subKey,
+							name: subCategory.name,
+							icon: subCategory.icon,
+							isCategory: true,
+							isCollection: false,
+							items: []
 						});
 					}
 				});
 			}
 
 			return {
-				id: key,
+				id: category.id || key,
 				name: category.name,
 				icon: category.icon,
 				isCategory: true,
+				isCollection: false,
 				items
 			};
 		});
 	}
 
-	$: structuredItems = createStructuredItems(categoryConfig);
+	let structuredItems = createStructuredItems(categoryConfig);
 
 	function handleDndConsider(e: CustomEvent<{ items: DndItem[] }>) {
 		structuredItems = e.detail.items;
 	}
 
-	async function handleDndFinalize(e: CustomEvent<{ items: DndItem[] }>) {
-		const newItems = e.detail.items;
-		const previousItems = structuredItems;
-
-		try {
-			// If an item was moved to top level, remove it from its original parent
-			// but keep its own items if it's a category
-			newItems.forEach((item) => {
-				if (item.parentId) {
-					// Find and remove from original parent
-					newItems.forEach((parentItem) => {
-						if (parentItem.items) {
-							parentItem.items = parentItem.items.filter((i) => i.id !== item.id);
-						}
-					});
-
-					// Clear the parentId as it's now a top-level item
-					delete item.parentId;
-
-					// Ensure all items in the moved category also have their parentIds updated
-					if (item.items) {
-						item.items = item.items.map((subItem) => ({
-							...subItem,
-							parentId: item.id
-						}));
-					}
-				}
-			});
-
-			structuredItems = newItems;
-			const newConfig = await convertToConfig(newItems);
-
-			// Update local store
-			categories.set(newConfig);
-
-			// Persist to backend
-			const response = await fetch('/api/save-categories', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify(newConfig)
-			});
-
-			if (!response.ok) {
-				throw new Error('Failed to save category changes');
-			}
-
-			// Update the parent component
-			categoryConfig = newConfig;
-		} catch (error) {
-			console.error('Error saving category structure:', error);
-			alert('Failed to save category changes. Please try again.');
-
-			// Revert changes on error
-			structuredItems = previousItems;
-			const revertedConfig = await convertToConfig(previousItems);
-			categories.set(revertedConfig);
-			categoryConfig = revertedConfig;
-		}
+	function handleDndFinalize(e: CustomEvent<{ items: DndItem[] }>) {
+		structuredItems = e.detail.items;
+		const newConfig = convertToConfig(structuredItems);
+		categories.set(newConfig);
+		categoryConfig = newConfig;
 	}
 
-	async function convertToConfig(items: DndItem[]): Promise<Record<string, CategoryData>> {
+	function convertToConfig(items: DndItem[]): Record<string, CategoryData> {
 		const result: Record<string, CategoryData> = {};
 
-		for (const item of items) {
-			const id = item.id || (await createRandomID());
-			result[id] = {
-				id,
+		items.forEach((item) => {
+			// Create base category/collection
+			result[item.id] = {
+				id: item.id,
 				name: item.name,
-				icon: item.icon
+				icon: item.icon,
+				isCollection: item.isCollection ?? false,
+				subcategories: {}
 			};
 
-			if (item.items?.length) {
-				result[id].subcategories = {};
-				for (const subItem of item.items) {
-					const subId = subItem.id || (await createRandomID());
-					if (subItem.isCategory && subItem.items?.length) {
+			// Handle subcategories and collections
+			if (item.items && item.items.length > 0) {
+				item.items.forEach((subItem) => {
+					const subcategories = result[item.id].subcategories!;
+
+					if (subItem.isCategory && subItem.items && subItem.items.length > 0) {
 						// Handle nested categories
-						result[id].subcategories[subId] = {
-							id: subId,
+						subcategories[subItem.id] = {
+							id: subItem.id,
 							name: subItem.name,
 							icon: subItem.icon,
+							isCollection: subItem.isCollection ?? false,
 							subcategories: {}
 						};
 
 						// Handle nested items
-						for (const nestedItem of subItem.items) {
-							const nestedId = nestedItem.id || (await createRandomID());
-							result[id].subcategories[subId].subcategories![nestedId] = {
-								id: nestedId,
+						subItem.items.forEach((nestedItem) => {
+							const nestedSubcategories = subcategories[subItem.id].subcategories!;
+							nestedSubcategories[nestedItem.id] = {
+								id: nestedItem.id,
 								name: nestedItem.name,
-								icon: nestedItem.icon
+								icon: nestedItem.icon,
+								isCollection: nestedItem.isCollection ?? false
 							};
-						}
+						});
 					} else {
-						// Handle direct collections
-						result[id].subcategories[subId] = {
-							id: subId,
+						// Handle direct collections or empty categories
+						subcategories[subItem.id] = {
+							id: subItem.id,
 							name: subItem.name,
-							icon: subItem.icon
+							icon: subItem.icon,
+							isCollection: subItem.isCollection ?? false,
+							...(subItem.isCategory ? { subcategories: {} } : {})
 						};
 					}
-				}
+				});
 			}
-		}
+		});
 
 		return result;
 	}
 
-	async function handleUpdate(newItems: DndItem[]) {
-		const previousItems = structuredItems;
-
-		try {
-			const newConfig = await convertToConfig(newItems);
-
-			// Update local store
-			categories.set(newConfig);
-
-			// Persist to backend
-			const response = await fetch('/api/save-categories', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify(newConfig)
-			});
-
-			if (!response.ok) {
-				throw new Error('Failed to save category changes');
-			}
-
-			// Update local state
-			structuredItems = newItems;
-			categoryConfig = newConfig;
-		} catch (error) {
-			console.error('Error saving category structure:', error);
-			alert('Failed to save category changes. Please try again.');
-
-			// Revert changes on error
-			structuredItems = previousItems;
-			const revertedConfig = await convertToConfig(previousItems);
-			categories.set(revertedConfig);
-			categoryConfig = revertedConfig;
-		}
+	function handleUpdate(newItems: DndItem[]) {
+		structuredItems = newItems;
+		const newConfig = convertToConfig(newItems);
+		categories.set(newConfig);
+		categoryConfig = newConfig;
 	}
 
 	const flipDurationMs = 300;
 </script>
 
-<div class="mx-auto w-full max-w-7xl p-4">
-	<div class="p-4" use:dndzone={{ items: structuredItems, flipDurationMs }} on:consider={handleDndConsider} on:finalize={handleDndFinalize}>
+<div class="h-auto w-auto max-w-full overflow-y-auto p-1">
+	<div
+		use:dndzone={{ items: structuredItems, flipDurationMs, centreDraggedOnCursor: true }}
+		on:consider={handleDndConsider}
+		on:finalize={handleDndFinalize}
+		class="min-h-[2em]"
+	>
 		{#each structuredItems as item (item.id)}
-			<div animate:flip={{ duration: flipDurationMs }} class="mb-4">
+			<div animate:flip={{ duration: flipDurationMs }} class="my-1 w-full">
 				<Column
 					name={item.name}
 					icon={item.icon}

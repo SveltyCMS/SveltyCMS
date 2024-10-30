@@ -11,7 +11,7 @@
  */
 
 import { writable, type Writable } from 'svelte/store';
-import type { CollectionNames, Schema, Category } from '@src/collections/types';
+import type { CollectionNames, Schema, CategoryData } from '@src/collections/types';
 
 // Stores for managing collections and their states
 export const collections = writable({}) as Writable<{ [key in CollectionNames]: Schema }>; // Stores dynamic collections, allowing runtime modification.
@@ -42,4 +42,4 @@ export const statusMap = {
 };
 
 //  Initialize categories store with proper typing
-export const categories: Writable<Category[]> = writable([]);
+export const categories: Writable<Record<string, CategoryData>> = writable({});

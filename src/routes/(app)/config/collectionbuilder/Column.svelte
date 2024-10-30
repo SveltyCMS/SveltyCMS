@@ -66,13 +66,13 @@
 			response: async (updatedCategory) => {
 				if (updatedCategory) {
 					try {
-						// Update local store
+						// Update local store only, saving will happen when save button is clicked
 						categories.update((cats) => {
 							const newCategories = { ...cats };
-							Object.keys(newCategories).forEach((key) => {
-								if (newCategories[key].name === category.name) {
+							Object.entries(newCategories).forEach(([key, value]) => {
+								if (value.name === category.name) {
 									newCategories[key] = {
-										...newCategories[key],
+										...value,
 										name: updatedCategory.newCategoryName,
 										icon: updatedCategory.newCategoryIcon
 									};
@@ -80,30 +80,17 @@
 							});
 							return newCategories;
 						});
-
-						// Persist to backend
-						const response = await fetch('/api/save-categories', {
-							method: 'POST',
-							headers: {
-								'Content-Type': 'application/json'
-							},
-							body: JSON.stringify($categories)
-						});
-
-						if (!response.ok) {
-							throw new Error('Failed to save category changes');
-						}
 					} catch (error) {
-						console.error('Error saving category:', error);
-						alert('Failed to save category changes. Please try again.');
+						console.error('Error updating category:', error);
+						alert('Failed to update category. Please try again.');
 
 						// Revert store changes on error
 						categories.update((cats) => {
 							const newCategories = { ...cats };
-							Object.keys(newCategories).forEach((key) => {
-								if (newCategories[key].name === updatedCategory.newCategoryName) {
+							Object.entries(newCategories).forEach(([key, value]) => {
+								if (value.name === updatedCategory.newCategoryName) {
 									newCategories[key] = {
-										...newCategories[key],
+										...value,
 										name: category.name,
 										icon: category.icon
 									};
@@ -120,7 +107,7 @@
 	}
 </script>
 
-<div class="my-1 w-full" style="padding-left: {paddingLeft}">
+<div class="my-0.5 w-full" style="padding-left: {paddingLeft}">
 	{#if isCategory}
 		<div class="flex items-center justify-between rounded bg-surface-300/10 p-2">
 			<div class="flex items-center gap-2">
@@ -134,7 +121,7 @@
 			</button>
 		</div>
 	{:else}
-		<div class="my-0.5 flex items-center justify-between rounded bg-surface-300/10 p-2">
+		<div class="flex items-center justify-between rounded bg-surface-300/10 p-2">
 			<div class="flex items-center gap-2">
 				<iconify-icon icon="mdi:drag" width="18" class="cursor-move opacity-50" />
 				<iconify-icon {icon} width="18" class="text-error-500" />
@@ -147,14 +134,14 @@
 	{/if}
 
 	{#if items?.length > 0}
-		<div class="min-h-[2em] w-full" use:dndzone={{ items, flipDurationMs }} on:consider={handleDndConsider} on:finalize={handleDndFinalize}>
+		<section use:dndzone={{ items, flipDurationMs, centreDraggedOnCursor: true }} on:consider={handleDndConsider} on:finalize={handleDndFinalize}>
 			{#each items as item (item.id)}
-				<div animate:flip={{ duration: flipDurationMs }} class="w-full">
+				<div animate:flip={{ duration: flipDurationMs }} class="mx-0.5 p-0.5">
 					<svelte:self
 						name={item.name}
 						icon={item.icon}
 						items={item.items || []}
-						level={level + 1}
+						level={level + 0.25}
 						isCategory={item.isCategory}
 						onUpdate={(newItems) => {
 							item.items = newItems;
@@ -164,6 +151,6 @@
 					/>
 				</div>
 			{/each}
-		</div>
+		</section>
 	{/if}
 </div>

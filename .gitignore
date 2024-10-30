@@ -54,3 +54,4 @@ yarn-error.log*
 
 #paraglide.js
 src/paraglide/**/*.js
+src/collections/backup/categories.backup.2024-10-30T20-55-20-227Z.ts
