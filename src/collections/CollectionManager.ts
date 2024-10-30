@@ -252,7 +252,7 @@ class CollectionManager {
 				const collections: Schema[] = [];
 
 				if (process.env.NODE_ENV === 'development') {
-					const modules = await import.meta.glob('/src/collections/**/*.ts', {
+					const modules = await import.meta.glob('/config/collections/**/*.ts', {
 						eager: true
 					});
 
