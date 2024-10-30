@@ -25,6 +25,7 @@ mediaFiles/
 collections/*
 logs/*
 .node-version
+bun.lockb
 
 # Collections
 src/collections/categories.ts  # Auto-generated file
