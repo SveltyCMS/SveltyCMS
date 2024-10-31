@@ -6,9 +6,8 @@
  * DO NOT MODIFY DIRECTLY - Changes will be overwritten by the CMS.
  *
  * This file is generated from:
- * 1. Folder structure in src/collections/
- * 2. GUI updates via /api/save-categories
- * 3. System updates via /api/updateCategories
+ * 1. Folder structure in config/collections/
+ * 2. GUI & System updates via src/routes/api/categories
  *
  * Translations are stored in the database, not in this file.
  */
@@ -18,52 +17,66 @@ import type { CategoryData } from './types';
 // Auto-generated category configuration
 export const categoryConfig: Record<string, CategoryData> = {
 	Collections: {
-		id: 'cat_01',
-		icon: 'bi:collection',
+		id: 'c1',
+		icon: 'bi:folder',
 		name: 'Collections',
 		subcategories: {
 			Posts: {
-				id: 'cat_02',
+				id: 'c1.1',
 				icon: 'bi:folder',
 				name: 'Posts',
 				subcategories: {
 					Posts: {
-						id: 'cat_03',
+						id: 'c1.1.1',
 						icon: 'bi:file-text',
-						name: 'Posts'
+						name: 'Posts',
+						isCollection: true
 					}
 				}
 			},
 			Media: {
-				id: 'cat_04',
+				id: 'c1.2',
 				icon: 'bi:image',
-				name: 'Media'
+				name: 'Media',
+				isCollection: true
 			},
 			Names: {
-				id: 'cat_05',
+				id: 'c1.3',
 				icon: 'bi:person',
-				name: 'Names'
+				name: 'Names',
+				isCollection: true
 			},
 			Relation: {
-				id: 'cat_06',
+				id: 'c1.4',
 				icon: 'bi:link',
-				name: 'Relation'
+				name: 'Relation',
+				isCollection: true
 			},
 			WidgetTest: {
-				id: 'cat_07',
+				id: 'c1.5',
 				icon: 'bi:grid',
-				name: 'Widget Test'
+				name: 'Widget Test',
+				isCollection: true
 			},
 			ImageArray: {
-				id: 'cat_08',
+				id: 'c1.6',
 				icon: 'bi:images',
-				name: 'Image Array'
+				name: 'Image Array',
+				isCollection: true
 			}
 		}
 	},
 	Menu: {
-		id: 'cat_09',
-		icon: 'bi:list',
-		name: 'Menu'
+		id: 'c2',
+		icon: 'bi:folder',
+		name: 'Menu',
+		subcategories: {
+			Menu: {
+				id: 'c2.1',
+				icon: 'bi:list',
+				name: 'Menu',
+				isCollection: true
+			}
+		}
 	}
 };

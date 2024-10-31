@@ -28,7 +28,6 @@
 	// TipTap
 	import StarterKit from '@tiptap/starter-kit'; // enables you to use the editor
 	import { Editor, Extension } from '@tiptap/core'; // enables you to use the editor
-	import { Transaction } from '@tiptap/pm/state'; // adds support for <a> tags
 	import TextStyle from './extensions/TextStyle'; // enables you to set the text style
 	import TextAlign from '@tiptap/extension-text-align'; //adds a text align attribute to a specified list of nodes
 	import FontFamily from '@tiptap/extension-font-family'; // enables you to set the font family
@@ -112,11 +111,11 @@
 		});
 	});
 
-	function handleImageDeletes(transaction: Transaction) {
-		const getImageIds = (fragment: Transaction['doc']['content']) => {
+	function handleImageDeletes(transaction: any) {
+		const getImageIds = (fragment: any) => {
 			let srcs = new Set<string>();
 			let obj = new Map<string, { id: string; src: string }>();
-			fragment.forEach((node) => {
+			fragment.forEach((node: any) => {
 				if (node.type.name === 'image') {
 					srcs.add(node.attrs.media_image);
 					obj.set(node.attrs.id, { id: node.attrs.id, src: node.attrs.src });

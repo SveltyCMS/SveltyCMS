@@ -5,7 +5,7 @@
  *
  * This module provides a function to:
  * - Read all files from the collections directory asynchronously
- * - Filter out specific files (config.js, types.js, and non-JavaScript files)
+ * - Filter out specific files (categories.js, types.js, and non-JavaScript files)
  * - Return a list of valid collection files
  * - Support memory and Redis caching for improved performance
  *
@@ -67,7 +67,7 @@ async function calculateDirectoryHash(directoryPath: string): Promise<string> {
 		const dirState = JSON.stringify(stats.sort((a, b) => a.name.localeCompare(b.name)));
 		return crypto.createHash('md5').update(dirState).digest('hex');
 	} catch (error) {
-		logger.error('Error calculating directory hash:', error);
+		logger.error('Error calculating directory hash:', error as Error);
 		return '';
 	}
 }
@@ -99,7 +99,7 @@ export async function getCollectionFiles(): Promise<string[]> {
 		// Filter the list to only include .js files that are not config.js or types.js
 		const filteredFiles = files.filter((file) => {
 			const isJSFile = path.extname(file) === '.js';
-			const isNotExcluded = !['config.js', 'types.js', 'categories.js', 'index.js'].includes(file);
+			const isNotExcluded = !['types.js', 'categories.js', 'index.js'].includes(file);
 			return isJSFile && isNotExcluded;
 		});
 

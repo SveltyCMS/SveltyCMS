@@ -41,7 +41,7 @@ const parsed = Path.parse(__dirname);
 
 // Define paths for collections
 const collectionsFolderJS = Path.posix.join('/', __dirname.replace(parsed.root, ''), 'collections/');
-const collectionsFolderTS = Path.posix.join('/', __dirname.replace(parsed.root, ''), 'src/collections/');
+const collectionsFolderTS = Path.posix.join('/', __dirname.replace(parsed.root, ''), 'config/collections/');
 
 // Define config directory paths
 const configDir = resolve(__dirname, 'config');

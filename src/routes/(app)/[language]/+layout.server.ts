@@ -61,6 +61,7 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 		theme: theme || DEFAULT_THEME,
 		language,
 		user: {
+			username: user.username,
 			role: user.role,
 			avatar: user.avatar
 		}

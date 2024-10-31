@@ -8,7 +8,7 @@
 	import { onMount } from 'svelte';
 
 	// Types
-	import type { Schema, CategoryData, Category } from '@src/collections/types';
+	import type { Schema, CategoryData } from '@src/collections/types';
 
 	// Stores
 	import { get } from 'svelte/store';
@@ -45,10 +45,11 @@
 	let search = '';
 	let searchShow = false;
 
-	interface FilteredCategoryData extends Category {
+	interface FilteredCategoryData extends CategoryData {
 		open?: boolean;
 		level?: number;
-		path?: string;
+		collections?: Schema[];
+		subcategories?: Record<string, FilteredCategoryData>;
 	}
 
 	let filteredCategories: FilteredCategoryData[] = [];
@@ -62,31 +63,67 @@
 	}
 
 	// Function to flatten and filter categories
-	function filterCategories(search: string, cats: Category[]): FilteredCategoryData[] {
-		if (!cats || cats.length === 0) {
-			console.debug('Categories array is empty');
+	function filterCategories(search: string, cats: Record<string, CategoryData>): FilteredCategoryData[] {
+		if (!cats || Object.keys(cats).length === 0) {
+			console.debug('Categories object is empty');
 			return [];
 		}
 
-		// Create flattened categories with levels
-		const flattened: FilteredCategoryData[] = cats.map((cat) => ({
-			...cat,
-			level: 0,
-			open: false,
-			path: cat.name
-		}));
+		const flattened: FilteredCategoryData[] = [];
 
-		// Filter categories based on search
-		const filtered = flattened.filter((category) => {
-			const nameMatch = category.name.toLowerCase().includes(search.toLowerCase());
-			const collectionsMatch = category.collections?.some((col) => col.name?.toLowerCase().includes(search.toLowerCase()));
-			return nameMatch || collectionsMatch || search === '';
+		function processCategory(category: CategoryData, level: number = 0): FilteredCategoryData {
+			const flatCategory: FilteredCategoryData = {
+				...category,
+				level,
+				open: false,
+				collections: [],
+				subcategories: {}
+			};
+
+			// Process subcategories and collections
+			if (category.subcategories) {
+				Object.entries(category.subcategories).forEach(([key, subItem]) => {
+					if (subItem.isCollection) {
+						// Add collection
+						const collectionSchema = $collections[subItem.name];
+						if (collectionSchema && (!modeSet || modeSet === 'edit' || collectionSchema?.permissions?.[user?.role]?.read !== false)) {
+							flatCategory.collections?.push({
+								...collectionSchema,
+								icon: subItem.icon // Use the icon from categories.ts
+							});
+						}
+					} else {
+						// Process subcategory recursively
+						const processedSubCategory = processCategory(subItem, level + 1);
+						flatCategory.subcategories![key] = processedSubCategory;
+					}
+				});
+			}
+
+			return flatCategory;
+		}
+
+		// Process all top-level categories
+		Object.entries(cats).forEach(([key, category]) => {
+			if (!category.isCollection) {
+				const processed = processCategory(category);
+
+				// Add to flattened list if matches search or has matching children
+				const nameMatch = category.name.toLowerCase().includes(search.toLowerCase());
+				const hasMatchingCollections = processed.collections?.some((col) => col.name?.toLowerCase().includes(search.toLowerCase()));
+				const hasMatchingSubcategories = Object.values(processed.subcategories || {}).some(
+					(sub) =>
+						sub.name.toLowerCase().includes(search.toLowerCase()) ||
+						sub.collections?.some((col) => col.name?.toLowerCase().includes(search.toLowerCase()))
+				);
+
+				if (search === '' || nameMatch || hasMatchingCollections || hasMatchingSubcategories) {
+					flattened.push(processed);
+				}
+			}
 		});
 
-		// Sort categories by name
-		filtered.sort((a, b) => a.name.localeCompare(b.name));
-
-		return filtered;
+		return flattened;
 	}
 
 	// Subscribe to categories and collections store changes
@@ -121,6 +158,11 @@
 			shouldShowNextButton.set(true);
 		}
 		collection.set(_collection);
+	}
+
+	// Generate unique key for collection items
+	function getCollectionKey(_collection: Schema, categoryId: string): string {
+		return `${categoryId}-${_collection.name}-${_collection.id || Date.now()}`;
 	}
 </script>
 
@@ -179,7 +221,7 @@
 				{#each filteredCategories as category (category.id)}
 					<AccordionItem
 						bind:open={category.open}
-						regionPanel={`divide-y dark:divide-black my-0 overflow-y-auto`}
+						regionPanel="divide-y dark:divide-black my-0 overflow-y-auto"
 						class={`divide-y rounded-md bg-surface-300 dark:divide-black ${getIndentClass(category.level)}`}
 					>
 						<svelte:fragment slot="lead">
@@ -196,15 +238,14 @@
 							</div>
 						</svelte:fragment>
 
-						<!-- Collection Children -->
 						<svelte:fragment slot="content">
-							{#if category.collections && category.collections.length > 0}
-								{#each category.collections.filter((c) => modeSet == 'edit' || c?.permissions?.[user?.role]?.read != false) as _collection, index}
+							{#if category.collections?.length}
+								{#each category.collections as _collection (getCollectionKey(_collection, category.id))}
 									{#if $sidebarState.left === 'full'}
 										<!-- Sidebar Expanded -->
 										<div
 											role="button"
-											tabindex={index}
+											tabindex={0}
 											class="-mx-4 flex flex-row items-center bg-surface-300 py-1 pl-3 hover:bg-surface-400 hover:text-white dark:text-black hover:dark:text-white"
 											on:keydown
 											on:click={() => handleCollectionSelect(_collection)}
@@ -216,7 +257,7 @@
 										<!-- Sidebar Collapsed -->
 										<div
 											role="button"
-											tabindex={index}
+											tabindex={0}
 											class="-mx-4 flex flex-col items-center py-1 hover:bg-surface-400 hover:text-white dark:text-black hover:dark:text-white"
 											on:keydown
 											on:click={() => handleCollectionSelect(_collection)}
@@ -225,6 +266,62 @@
 											<iconify-icon icon={_collection.icon} width="24" class="text-error-600" />
 										</div>
 									{/if}
+								{/each}
+							{/if}
+
+							{#if category.subcategories}
+								{#each Object.entries(category.subcategories) as [key, subCategory] (key)}
+									<AccordionItem
+										bind:open={subCategory.open}
+										regionPanel="divide-y dark:divide-black my-0 overflow-y-auto"
+										class={`divide-y rounded-md bg-surface-300 dark:divide-black ${getIndentClass(subCategory.level)}`}
+									>
+										<svelte:fragment slot="lead">
+											<iconify-icon icon={subCategory.icon} width="24" class="text-error-500 rtl:ml-2" use:popup={popupCollections} />
+										</svelte:fragment>
+
+										<svelte:fragment slot="summary">
+											{#if $sidebarState.left === 'full'}
+												<p class="text-white">{subCategory.name}</p>
+											{/if}
+											<div class="card variant-filled-secondary p-4" data-popup="popupHover">
+												<p>{subCategory.name}</p>
+												<div class="variant-filled-secondary arrow" />
+											</div>
+										</svelte:fragment>
+
+										<svelte:fragment slot="content">
+											{#if subCategory.collections?.length}
+												{#each subCategory.collections as _collection (getCollectionKey(_collection, subCategory.id))}
+													{#if $sidebarState.left === 'full'}
+														<!-- Sidebar Expanded -->
+														<div
+															role="button"
+															tabindex={0}
+															class="-mx-4 flex flex-row items-center bg-surface-300 py-1 pl-3 hover:bg-surface-400 hover:text-white dark:text-black hover:dark:text-white"
+															on:keydown
+															on:click={() => handleCollectionSelect(_collection)}
+														>
+															<iconify-icon icon={_collection.icon} width="24" class="px-2 py-1 text-error-600" />
+															<p class="mr-auto text-center capitalize">{_collection.name}</p>
+														</div>
+													{:else}
+														<!-- Sidebar Collapsed -->
+														<div
+															role="button"
+															tabindex={0}
+															class="-mx-4 flex flex-col items-center py-1 hover:bg-surface-400 hover:text-white dark:text-black hover:dark:text-white"
+															on:keydown
+															on:click={() => handleCollectionSelect(_collection)}
+														>
+															<p class="text-xs capitalize">{_collection.name}</p>
+															<iconify-icon icon={_collection.icon} width="24" class="text-error-600" />
+														</div>
+													{/if}
+												{/each}
+											{/if}
+										</svelte:fragment>
+									</AccordionItem>
 								{/each}
 							{/if}
 						</svelte:fragment>

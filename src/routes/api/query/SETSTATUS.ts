@@ -66,6 +66,8 @@ export const _SETSTATUS = async ({ data, schema, user }: { data: FormData; schem
 		const parseStart = performance.now();
 		const idsJson = data.get('ids');
 		const status = data.get('status');
+		const scheduledTime = data.get('_scheduled');
+		const scheduledAction = data.get('_scheduledAction');
 
 		if (!idsJson || !status) {
 			logger.warn('Missing required fields: ids or status', { user: user._id });
@@ -85,9 +87,35 @@ export const _SETSTATUS = async ({ data, schema, user }: { data: FormData; schem
 			user: user._id
 		});
 
+		// Prepare update data
+		const updateData: Record<string, FormDataEntryValue | undefined> = { status };
+
+		// Add scheduling data if status is 'scheduled'
+		if (status === 'scheduled') {
+			if (!scheduledTime) {
+				logger.warn('Missing scheduled time for scheduled status', { user: user._id });
+				return new Response('Missing scheduled time', { status: 400 });
+			}
+			updateData._scheduled = scheduledTime;
+			if (scheduledAction) {
+				updateData._scheduledAction = scheduledAction;
+			}
+		}
+
 		// Update the status of the documents with performance tracking
 		const updateStart = performance.now();
-		const result = await collection.updateMany({ _id: { $in: ids } }, { $set: { status } });
+		const result = await collection.updateMany(
+			{ _id: { $in: ids } },
+			{
+				$set: updateData,
+				...(status !== 'scheduled' && {
+					$unset: {
+						_scheduled: '',
+						_scheduledAction: ''
+					}
+				})
+			}
+		);
 		const updateDuration = performance.now() - updateStart;
 		const updateEmoji = getPerformanceEmoji(updateDuration);
 

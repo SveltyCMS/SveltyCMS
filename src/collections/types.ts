@@ -16,6 +16,7 @@ export type CollectionNames = string;
 type WidgetKeys = keyof typeof widgets;
 type WidgetTypes = (typeof widgets)[WidgetKeys];
 export type Field = {
+	widget(widget: any): unknown;
 	type: WidgetKeys;
 	config: WidgetTypes;
 	modifyRequest?: (args: ModifyRequestParams<(typeof widgets)[WidgetKeys]>) => Promise<object>;
@@ -49,7 +50,7 @@ export interface Category {
 	id: number;
 	name: string;
 	icon: string;
-	order?: number;
+
 	collections: Schema[];
 }
 
@@ -64,6 +65,7 @@ export interface CategoryData {
 	id: string;
 	icon: string;
 	name: string;
-	order?: number;
+
+	isCollection?: boolean; // Flag to identify if this is a collection (.ts file)
 	subcategories?: Record<string, CategoryData>;
 }

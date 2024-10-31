@@ -29,14 +29,6 @@ It provides the following functionality:
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
-	// Define the getTooltipSettings function here
-	const getTooltipSettings = (description: string): PopupSettings => ({
-		event: 'hover',
-		content: description,
-		placement: 'right',
-		trigger: 'hover focus'
-	});
-
 	// Svelte DND-actions
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
@@ -55,11 +47,8 @@ It provides the following functionality:
 	const isLoading = writable(true);
 	const error = writable<string | null>(null);
 
-	// Modal state and form inputs
-	let isModalOpen = false;
+	// Modal state
 	let isEditMode = false;
-	let roleName: string = '';
-	let roleDescription: string = '';
 	let currentRoleId: string | null = null;
 	let currentGroupName: string = '';
 
@@ -97,30 +86,29 @@ It provides the following functionality:
 	const openModal = (role: Role | null = null, groupName: string = '') => {
 		isEditMode = !!role;
 		currentRoleId = role ? role._id : null;
-		roleName = role ? role.name : '';
-		roleDescription = role ? role.description || '' : '';
 		currentGroupName = groupName || '';
 		selectedPermissions = role?.permissions || [];
-		isModalOpen = true;
-		const modalComponent: ModalComponent = {
-			ref: RoleModal,
-			props: {
-				isEditMode,
-				currentRoleId,
-				roleName,
-				roleDescription,
-				currentGroupName,
-				selectedPermissions,
-				availablePermissions
-			}
-		};
+
 		const modal: ModalSettings = {
 			type: 'component',
-			component: modalComponent,
+			component: {
+				ref: RoleModal,
+				props: {
+					isEditMode,
+					currentRoleId,
+					roleName: role?.name || '',
+					roleDescription: role?.description || '',
+					currentGroupName,
+					selectedPermissions
+				}
+			},
 			title: isEditMode ? 'Edit Role' : 'Create Role',
-			body: isEditMode ? 'Edit an existing Role' : 'Create and describe a new Role',
-			response: (role) => {
-				saveRole(role);
+			buttonTextCancel: 'Cancel',
+			buttonTextConfirm: isEditMode ? 'Update' : 'Create',
+			response: (formData: any) => {
+				if (formData) {
+					saveRole(formData);
+				}
 			}
 		};
 		modalStore.trigger(modal);
@@ -131,7 +119,7 @@ It provides the following functionality:
 		if (!roleName) return;
 
 		const newRole: Role = {
-			_id: currentRoleId ?? createRandomID(), // Ensure _id is provided
+			_id: currentRoleId ?? createRandomID(),
 			name: roleName,
 			description: roleDescription,
 			groupName: currentGroupName,
@@ -140,20 +128,17 @@ It provides the following functionality:
 
 		if (!isEditMode) {
 			const id = createRandomID();
-			items.push({ ...newRole, _id: id, id });
-			items = [...items];
-			roles.set(items);
-			setRoleData(items);
+			items = [...items, { ...newRole, _id: id, id }];
 		} else {
 			const index = items.findIndex((cur) => cur._id === currentRoleId);
 			const item = items[index];
-			items.splice(index, 1, { ...item, ...newRole });
+			items[index] = { ...item, ...newRole };
 			items = [...items];
-			roles.set(items);
-			setRoleData(items);
 		}
 
-		// Notify the parent about the number of changes
+		roles.set(items);
+		setRoleData(items);
+
 		if (updateModifiedCount) {
 			updateModifiedCount(items.length);
 		}
@@ -180,8 +165,9 @@ It provides the following functionality:
 		for (const roleId of $selectedRoles) {
 			const index = items.findIndex((cur) => cur._id === roleId);
 			items.splice(index, 1);
-			roles.set(items);
 		}
+		items = [...items];
+		roles.set(items);
 		selectedRoles.set(new Set());
 
 		// Notify the parent about the number of changes
@@ -221,6 +207,14 @@ It provides the following functionality:
 			updateModifiedCount(items.length);
 		}
 	}
+
+	function getPopupSettings(roleId: string): PopupSettings {
+		return {
+			event: 'hover',
+			target: `role-${roleId}`,
+			placement: 'right'
+		};
+	}
 </script>
 
 {#if $isLoading}
@@ -256,7 +250,7 @@ It provides the following functionality:
 						on:finalize={handleFinalize}
 					>
 						{#each items as role (role.id)}
-							<div class=" animate-flip flex items-center justify-between rounded border p-4 hover:bg-surface-500 md:flex-row">
+							<div class="animate-flip flex items-center justify-between rounded border p-4 hover:bg-surface-500 md:flex-row">
 								<div class="flex items-center gap-2">
 									<!-- Drag Icon -->
 									<iconify-icon icon="mdi:drag" width="18" class="cursor-move text-gray-500 dark:text-gray-300" />
@@ -269,12 +263,18 @@ It provides the following functionality:
 									<span class="flex items-center text-xl font-semibold text-tertiary-500 dark:text-primary-500">
 										{role.name}
 
-										<iconify-icon
-											icon="material-symbols:info"
-											width="18"
-											class="ml-1 text-tertiary-500 dark:text-primary-500"
-											use:popup={getTooltipSettings(role.description)}
-										/>
+										{#if role.description}
+											<iconify-icon
+												icon="material-symbols:info"
+												width="18"
+												class="ml-1 text-tertiary-500 dark:text-primary-500"
+												use:popup={getPopupSettings(role._id)}
+											/>
+											<div class="card variant-filled-surface p-4" data-popup="role-{role._id}">
+												{role.description}
+												<div class="arrow" />
+											</div>
+										{/if}
 									</span>
 								</div>
 

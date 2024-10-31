@@ -17,7 +17,7 @@
 -->
 
 <script lang="ts">
-	import { getFieldName, saveFormData } from '@utils/utils';
+	import { getFieldName, saveFormData, meta_data } from '@utils/utils';
 
 	// Components
 	import TranslationStatus from './TranslationStatus.svelte';
@@ -29,7 +29,6 @@
 
 	// Modal Trigger - Schedule
 	function openScheduleModal(): void {
-		// console.log('Triggered - modalScheduleForm');
 		const modalComponent: ModalComponent = {
 			// Pass a reference to your custom component
 			ref: ScheduleModal,
@@ -39,15 +38,20 @@
 
 		const d: ModalSettings = {
 			type: 'component',
-			// NOTE: title, body, response, etc are supported!
 			title: 'Scheduler',
 			body: 'Set a date and time to schedule this entry.',
 			component: modalComponent,
 			// Pass arbitrary data to the component
 			response: (r: { date: string; action: string } | boolean) => {
 				if (typeof r === 'object') {
-					const schedule = r.date;
-					// Handle the scheduled action (r.action) as needed
+					schedule = r.date;
+					if (r.action === 'schedule') {
+						collectionValue.update((cv) => ({
+							...cv,
+							status: 'scheduled',
+							_scheduled: new Date(r.date).getTime()
+						}));
+					}
 				}
 			}
 		};
@@ -64,11 +68,13 @@
 
 	// Auth
 	import type { User } from '@src/auth/types';
-	const user: User = $page.data.user;
+	$: user = $page.data.user as User;
 
 	let previousLanguage = get(contentLanguage);
 	let previousTabSet = get(tabSet);
 	let tempData = {};
+	let schedule = $collectionValue._scheduled ? new Date($collectionValue._scheduled).toISOString().slice(0, 16) : '';
+	let createdAtDate = $collectionValue.createdAt ? new Date($collectionValue.createdAt * 1000).toISOString().slice(0, 16) : '';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -90,9 +96,9 @@
 		}
 	}
 
-	// Type guard to check if the widget has a validateWidget method
-	function hasValidateWidget(widget: any): widget is { validateWidget: () => Promise<string | null> } {
-		return typeof widget?.validateWidget === 'function';
+	// Type guard to check if the widget result has a validateWidget method
+	function hasValidateWidget(widgetInstance: any): widgetInstance is { validateWidget: () => Promise<string | null> } {
+		return typeof widgetInstance?.validateWidget === 'function';
 	}
 
 	// Type guard to check if field is translatable
@@ -103,55 +109,80 @@
 	// Save form data with validation
 	async function saveData() {
 		let validationPassed = true;
-
-		// Access the fields property of the collection
-		const fields = $collection.fields;
 		const getData = {};
+
+		// Clear any existing meta_data
+		meta_data.clear();
 
 		// Get current language
 		const currentLanguage = get(contentLanguage);
 
-		// Validate all fields and prepare getData object
-		for (const field of fields) {
+		// Validate all fields and collect data
+		for (const field of $collection.fields) {
 			const fieldName = getFieldName(field);
-			if (hasValidateWidget(field.widget)) {
-				const error = await field.widget.validateWidget();
+			const fieldValue = $collectionValue[fieldName];
+			const widgetInstance = field.widget(fieldValue);
+
+			if (hasValidateWidget(widgetInstance)) {
+				const error = await widgetInstance.validateWidget();
 				if (error) {
 					validationStore.setError(fieldName, error);
 					validationPassed = false;
 				} else {
 					validationStore.clearError(fieldName);
 					getData[fieldName] = () => {
-						const value = $collectionValue[fieldName];
-						// Initialize language object if field is translated
-						if (isTranslatable(field) && typeof value !== 'object') {
-							return { [currentLanguage]: value };
+						if (isTranslatable(field)) {
+							return typeof fieldValue === 'object' ? fieldValue : { [currentLanguage]: fieldValue };
 						}
-						return value;
+						return fieldValue;
 					};
 				}
 			} else {
-				// If no validation widget, still collect the data
 				getData[fieldName] = () => {
-					const value = $collectionValue[fieldName];
-					// Initialize language object if field is translated
-					if (isTranslatable(field) && typeof value !== 'object') {
-						return { [currentLanguage]: value };
+					if (isTranslatable(field)) {
+						return typeof fieldValue === 'object' ? fieldValue : { [currentLanguage]: fieldValue };
 					}
-					return value;
+					return fieldValue;
 				};
 			}
+		}
+
+		// Add system fields
+		if ($mode === 'create') {
+			getData['createdAt'] = () => (createdAtDate ? Math.floor(new Date(createdAtDate).getTime() / 1000) : Math.floor(Date.now() / 1000));
+			getData['updatedAt'] = getData['createdAt'];
+			getData['createdBy'] = () => user.username;
+		} else {
+			getData['updatedAt'] = () => Math.floor(Date.now() / 1000);
+			getData['updatedBy'] = () => user.username;
+			if (createdAtDate) {
+				getData['createdAt'] = () => Math.floor(new Date(createdAtDate).getTime() / 1000);
+			}
+		}
+
+		// Add ID if in edit mode
+		if ($mode === 'edit' && $collectionValue._id) {
+			getData['_id'] = () => $collectionValue._id;
+		}
+
+		// Add status
+		getData['status'] = () => $collectionValue.status || 'unpublished';
+
+		// Add schedule if set
+		if (schedule) {
+			getData['_scheduled'] = () => new Date(schedule).getTime();
 		}
 
 		// If validation passed, save the data
 		if (validationPassed) {
 			try {
-				logger.debug('Saving data...', `${JSON.stringify(getData)}`);
+				logger.debug('Saving data...', `${JSON.stringify({ mode: $mode, collection: $collection.name })}`);
+
 				await saveFormData({
 					data: getData,
 					_collection: $collection,
 					_mode: $mode,
-					id: $collectionValue._id ?? '',
+					id: $collectionValue._id,
 					user
 				});
 
@@ -242,7 +273,13 @@
 
 				<!-- Save Content -->
 				{#if ['edit', 'create'].includes($mode)}
-					<button type="button" on:click={saveData} class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:hidden">
+					<button
+						type="button"
+						on:click={saveData}
+						disabled={$collection?.permissions?.[user.role]?.write === false}
+						class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:hidden"
+						aria-label="Save entry"
+					>
 						<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
 					</button>
 				{/if}
@@ -259,7 +296,6 @@
 			</div>
 		{/if}
 
-		<!-- TODO: fix button icon switch -->
 		<!-- Cancel/Reload -->
 		{#if !$headerActionButton}
 			<button type="button" on:click={handleCancel} class="variant-ghost-surface btn-icon">
@@ -274,73 +310,103 @@
 </header>
 
 {#if showMore}
-	<div class="-mx-2 mb-2 flex items-center justify-center gap-3 pt-2">
-		<div class="flex flex-col items-center justify-center">
-			<!-- Delete Content -->
-			<!-- disabled={!$collection?.permissions?.[userRole]?.delete} -->
-			<button type="button" on:click={() => $modifyEntry('deleted')} class="gradient-error gradient-error-hover gradient-error-focus btn-icon">
-				<iconify-icon icon="icomoon-free:bin" width="24" />
-			</button>
-		</div>
+	<div class="-mx-2 mb-2 flex flex-col items-center justify-center gap-3 pt-2">
+		<!-- Action Buttons -->
+		<div class="flex items-center justify-center gap-3">
+			<div class="flex flex-col items-center justify-center">
+				<!-- Delete Content -->
+				<button
+					type="button"
+					on:click={() => $modifyEntry('deleted')}
+					disabled={$collection?.permissions?.[user.role]?.delete === false}
+					class="gradient-error gradient-error-hover gradient-error-focus btn-icon"
+					aria-label="Delete entry"
+				>
+					<iconify-icon icon="icomoon-free:bin" width="24" />
+				</button>
+			</div>
 
-		<!-- Clone Content -->
-		{#if $mode == 'edit'}
-			{#if $collectionValue.status == 'unpublished'}
+			<!-- Clone Content -->
+			{#if $mode == 'edit'}
+				{#if $collectionValue.status == 'unpublished'}
+					<div class="flex flex-col items-center justify-center">
+						<button
+							type="button"
+							on:click={() => $modifyEntry('published')}
+							disabled={!($collection?.permissions?.[user.role]?.write && $collection?.permissions?.[user.role]?.create)}
+							class="gradient-tertiary gradient-tertiary-hover gradient-tertiary-focus btn-icon"
+							aria-label="Publish entry"
+						>
+							<iconify-icon icon="bi:hand-thumbs-up-fill" width="24" />
+						</button>
+					</div>
+
+					<div class="flex flex-col items-center justify-center">
+						<button
+							type="button"
+							on:click={openScheduleModal}
+							disabled={!$collection?.permissions?.[user.role]?.write}
+							class="gradient-pink gradient-pink-hover gradient-pink-focus btn-icon"
+							aria-label="Schedule entry"
+						>
+							<iconify-icon icon="bi:clock" width="24" />
+						</button>
+					</div>
+				{:else}
+					<div class="flex flex-col items-center justify-center">
+						<button
+							type="button"
+							on:click={() => $modifyEntry('unpublished')}
+							disabled={!$collection?.permissions?.[user.role]?.write}
+							class="gradient-yellow gradient-yellow-hover gradient-yellow-focus btn-icon"
+							aria-label="Unpublish entry"
+						>
+							<iconify-icon icon="bi:pause-circle" width="24" />
+						</button>
+					</div>
+				{/if}
+
 				<div class="flex flex-col items-center justify-center">
 					<button
 						type="button"
-						on:click={() => $modifyEntry('published')}
+						on:click={() => $modifyEntry('cloned')}
 						disabled={!($collection?.permissions?.[user.role]?.write && $collection?.permissions?.[user.role]?.create)}
-						class="gradient-tertiary gradient-tertiary-hover gradient-tertiary-focus btn-icon"
+						class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn-icon"
+						aria-label="Clone entry"
 					>
-						<iconify-icon icon="bi:hand-thumbs-up-fill" width="24" />
-					</button>
-				</div>
-
-				<div class="flex flex-col items-center justify-center">
-					<button
-						type="button"
-						on:click={openScheduleModal}
-						disabled={!$collection?.permissions?.[user.role]?.write}
-						class="gradient-pink gradient-pink-hover gradient-pink-focus btn-icon"
-					>
-						<iconify-icon icon="bi:clock" width="24" />
-					</button>
-				</div>
-			{:else}
-				<div class="flex flex-col items-center justify-center">
-					<button
-						type="button"
-						on:click={() => $modifyEntry('unpublished')}
-						disabled={!$collection?.permissions?.[user.role]?.write}
-						class="gradient-yellow gradient-yellow-hover gradient-yellow-focus btn-icon"
-					>
-						<iconify-icon icon="bi:pause-circle" width="24" />
+						<iconify-icon icon="bi:clipboard-data-fill" width="24" />
 					</button>
 				</div>
 			{/if}
+		</div>
 
-			<div class="flex flex-col items-center justify-center">
-				<button
-					type="button"
-					on:click={() => $modifyEntry('scheduled')}
-					disabled={!$collection?.permissions?.[user.role]?.write}
-					class="gradient-pink gradient-pink-hover gradient-pink-focus btn-icon"
-				>
-					<iconify-icon icon="bi:clock" width="24" />
-				</button>
+		<!-- Info Section -->
+		<div class="w-full px-4">
+			<!-- Created At -->
+			<div class="mt-2 flex w-full flex-col items-start justify-center">
+				<p class="mb-1 text-sm">Created At</p>
+				<input
+					type="datetime-local"
+					bind:value={createdAtDate}
+					class="variant-filled-surface w-full p-2 text-left text-sm"
+					aria-label="Set creation date"
+				/>
 			</div>
 
-			<div class="flex flex-col items-center justify-center">
-				<button
-					type="button"
-					on:click={() => $modifyEntry('cloned')}
-					disabled={!($collection?.permissions?.[user.role]?.write && $collection?.permissions?.[user.role]?.create)}
-					class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn-icon"
-				>
-					<iconify-icon icon="bi:clipboard-data-fill" width="24" />
-				</button>
+			<!-- Schedule Info -->
+			{#if schedule}
+				<div class="mt-2 text-sm text-tertiary-500">
+					Will be published on {new Date(schedule).toLocaleString()}
+				</div>
+			{/if}
+
+			<!-- User Info -->
+			<div class="mt-2 text-sm">
+				<p>Created by: {$collectionValue.createdBy || user.username}</p>
+				{#if $collectionValue.updatedBy}
+					<p class="text-tertiary-500">Last updated by {$collectionValue.updatedBy}</p>
+				{/if}
 			</div>
-		{/if}
+		</div>
 	</div>
 {/if}

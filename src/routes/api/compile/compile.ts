@@ -57,7 +57,11 @@ async function getTypescriptFiles(folder: string, subdir: string = ''): Promise<
 			// Recursively get files from subdirectories
 			const subFiles = await getTypescriptFiles(folder, relativePath);
 			files.push(...subFiles);
-		} else if (entry.isFile() && entry.name.endsWith('.ts') && !['index.ts', 'types.ts', 'categories.ts'].includes(entry.name)) {
+		} else if (
+			entry.isFile() &&
+			entry.name.endsWith('.ts') &&
+			!['index.ts', 'types.ts', 'categories.ts', 'CollectionManager.ts'].includes(entry.name)
+		) {
 			files.push(relativePath);
 		}
 	}

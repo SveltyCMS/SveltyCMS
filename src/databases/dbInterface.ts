@@ -32,16 +32,24 @@ export interface Theme {
 	name: string; // The name of the theme
 	path: string; // The path to the theme file
 	isDefault: boolean; // Whether the theme is the default theme
-	createdAt: number; // Creation timestamp of the theme (Unix timestamp in seconds)
-	updatedAt: number; // Last update timestamp of the theme (Unix timestamp in seconds)
+	createdAt: Date; // Creation timestamp of the theme
+	updatedAt: Date; // Last update timestamp of the theme
 }
 
 export interface Widget {
 	_id: string; // The ID of the widget
 	name: string; // The name of the widget
 	isActive: boolean; // Whether the widget is active
-	createdAt: number; // Creation timestamp of the widget (Unix timestamp in seconds)
-	updatedAt: number; // Last update timestamp of the widget (Unix timestamp in seconds)
+	createdAt: Date; // Creation timestamp of the widget
+	updatedAt: Date; // Last update timestamp of the widget
+}
+
+export interface SystemPreferences {
+	_id: string; // The ID of the SystemPreferences
+	name: string; // The name of the SystemPreferences
+	isActive: boolean; // Whether the SystemPreferences is active
+	createdAt: Date; // Creation timestamp of the SystemPreferences
+	updatedAt: Date; // Last update timestamp of the SystemPreferences
 }
 
 export interface SystemVirtualFolder {
@@ -58,8 +66,8 @@ export interface Draft {
 	collectionId: string; // ID of the collection the draft belongs to
 	createdBy: string; // ID of the user who created the draft
 	content: any; // Content of the draft
-	createdAt: number; // Creation timestamp of the draft (Unix timestamp in seconds)
-	updatedAt: number; // Last update timestamp of the draft (Unix timestamp in seconds)
+	createdAt: Date; // Creation timestamp of the draft
+	updatedAt: Date; // Last update timestamp of the draft
 	status: 'draft' | 'published'; // Status of the draft
 }
 
@@ -70,7 +78,7 @@ export interface Revision {
 	documentId: string; // ID of the document
 	createdBy: string; // ID of the user who created the revision
 	content: any; // Content of the revision
-	createdAt: number; // Creation timestamp of the revision (Unix timestamp in seconds)
+	createdAt: Date; // Creation timestamp of the revision
 	version: number; // Version number of the revision
 }
 
@@ -85,6 +93,7 @@ export interface CollectionModel {
 	deleteMany(query: object): Promise<number>;
 	countDocuments(query?: object): Promise<number>;
 }
+
 // Define the dbInterface with specific return types
 export interface dbInterface {
 	// Database Connection and Setup Methods
