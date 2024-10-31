@@ -3355,6 +3355,30 @@ export const login_demo_message = () => `Цей сайт скидається к
 export const login_demo_nextreset = () => `Наступне скидання через:`
 
 
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_happy_diwali = () => `Щасливого Дівалі`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_Happy_Holi = () => `Щасливого Холі`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_happy_navratri = () => `Щасливого Навратрі`
+
+
 export { signup_password } from "./en.js"
 
 export { modaledit_tokenemailaddress } from "./en.js"

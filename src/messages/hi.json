@@ -417,5 +417,8 @@
 	"mediaConfig_MEDIASERVER_URL_helper": "मीडिया सर्वर का URL. (डिफ़ॉल्ट लोकलहोस्ट है: '')",
 	"login_demo_title": "SveltyCMS डेमो मोड",
 	"login_demo_message": "यह साइट हर 10 मिनट में रीसेट हो जाएगी।",
-	"login_demo_nextreset": "अगला रीसेट:"
+	"login_demo_nextreset": "अगला रीसेट:",
+	"login_happy_diwali": "दीपावली की हार्दिक शुभकामनाएं",
+	"login_Happy_Holi": "होली की शुभकामनाएं",
+	"login_happy_navratri": "नवरात्रि की हार्दिक शुभकामनाएं"
 }

@@ -88,7 +88,8 @@
 					// Create a new widget object with the selected widget data
 					const newWidget = {
 						widget: { key: selectedWidget, Name: selectedWidget },
-						GuiFields: getGuiFields({ key: selectedWidget }, widgets[selectedWidget].GuiSchema)
+						GuiFields: getGuiFields({ key: selectedWidget }, widgets[selectedWidget].GuiSchema),
+						permissions: {} // Initialize empty permissions object
 					};
 					// Call modalWidgetForm with the new widget object
 					modalWidgetForm(newWidget);
@@ -101,6 +102,10 @@
 	// Modal 2 to Edit a selected widget
 	function modalWidgetForm(selectedWidget: any): void {
 		const c: ModalComponent = { ref: ModalWidgetForm };
+		// Ensure permissions object exists
+		if (!selectedWidget.permissions) {
+			selectedWidget.permissions = {};
+		}
 		targetWidget.set(selectedWidget);
 		const modal: ModalSettings = {
 			type: 'component',

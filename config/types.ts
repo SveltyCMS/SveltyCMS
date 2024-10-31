@@ -87,6 +87,9 @@ type MediaOutputFormatQuality = {
 	quality: number;
 };
 
+// Define supported season regions
+type SeasonRegion = 'Western_Europe' | 'South_Asia' | 'East_Asia';
+
 export const createPublicConfig = <const C, S extends AvailableLanguageTag, const V extends { [key: string]: number }>(arg: {
 	// Define you hostname where you site is running
 	HOST_DEV: string; // Hostname for development eg. http://localhost:5173
@@ -135,7 +138,7 @@ export const createPublicConfig = <const C, S extends AvailableLanguageTag, cons
 
 	// Seasons Icons for login page. Set to `true` to enable
 	SEASONS?: boolean;
-	SEASON_REGION?: string;
+	SEASON_REGION?: SeasonRegion; // Restricted to Western_Europe, South_Asia, or East_Asia
 
 	// Github VERSION synchronization to display updated
 	PKG_VERSION?: string;

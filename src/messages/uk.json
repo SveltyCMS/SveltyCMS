@@ -417,5 +417,8 @@
 	"mediaConfig_MEDIASERVER_URL_helper": "URL медіасервера. (за замовчуванням локальний хост як: '')",
 	"login_demo_title": "ДЕМО-РЕЖИМ SveltyCMS",
 	"login_demo_message": "Цей сайт скидається кожні 10 хвилин.",
-	"login_demo_nextreset": "Наступне скидання через:"
+	"login_demo_nextreset": "Наступне скидання через:",
+	"login_happy_diwali": "Щасливого Дівалі",
+	"login_Happy_Holi": "Щасливого Холі",
+	"login_happy_navratri": "Щасливого Навратрі"
 }

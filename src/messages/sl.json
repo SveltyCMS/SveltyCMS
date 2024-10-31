@@ -417,5 +417,8 @@
 	"mediaConfig_MEDIASERVER_URL_helper": "URL medijskega strežnika. (privzeto je lokalni gostitelj kot: '')",
 	"login_demo_title": "DEMO NAČIN SveltyCMS",
 	"login_demo_message": "To spletno mesto se ponastavi vsakih 10 minut.",
-	"login_demo_nextreset": "Naslednja ponastavitev čez:"
+	"login_demo_nextreset": "Naslednja ponastavitev čez:",
+	"login_happy_diwali": "Vesel Diwali",
+	"login_Happy_Holi": "Vesel Holi",
+	"login_happy_navratri": "Srečno Navratri"
 }

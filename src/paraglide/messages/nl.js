@@ -3355,6 +3355,30 @@ export const login_demo_message = () => `Deze site wordt elke 10 minuten gereset
 export const login_demo_nextreset = () => `Volgende reset over:`
 
 
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_happy_diwali = () => `Fijne Diwali`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_Happy_Holi = () => `Fijne Holi`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_happy_navratri = () => `Fijne Navratri`
+
+
 export { signup_password } from "./en.js"
 
 export { modaledit_tokenemailaddress } from "./en.js"

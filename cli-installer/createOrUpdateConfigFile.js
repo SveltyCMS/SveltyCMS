@@ -158,7 +158,7 @@ export async function createOrUpdateConfigFile(configData) {
 
             // Seasons/Events for login page (Default: false)
             SEASONS: ${configData?.SEASONS || 'false'}, // Set to true to enable seasonal decorations
-            SEASON_REGION: '${configData?.SEASON_REGION || 'Europe'}' // Currently only 'Europe' is supported
+            SEASON_REGION: '${configData?.SEASON_REGION || 'Global'}', // Options: 'Europe' (European festivals), 'Asia' (Asian festivals), 'Global' (Both)
         });
     `;
 

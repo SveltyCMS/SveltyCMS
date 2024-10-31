@@ -3358,6 +3358,30 @@ export const login_demo_nextreset = () => `Next reset in:`
 
 
 /**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_happy_diwali = () => `Happy Diwali`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_Happy_Holi = () => `Happy Holi`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_happy_navratri = () => `Happy Navratri`
+
+
+/**
  * Failed to resolve message signup_password for languageTag "en". 
  * @returns {string}
  */

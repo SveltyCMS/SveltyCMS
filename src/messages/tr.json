@@ -417,5 +417,8 @@
 	"mediaConfig_MEDIASERVER_URL_helper": "Medya sunucusunun URL'si. (varsayılan olarak localhost şu şekildedir: '')",
 	"login_demo_title": "SveltyCMS DEMO MODU",
 	"login_demo_message": "Bu site her 10 dakikada bir sıfırlanacaktır.",
-	"login_demo_nextreset": "Bir sonraki sıfırlama:"
+	"login_demo_nextreset": "Bir sonraki sıfırlama:",
+	"login_happy_diwali": "Mutlu Divaliler",
+	"login_Happy_Holi": "Mutlu bayramlar",
+	"login_happy_navratri": "Mutlu Navratri"
 }

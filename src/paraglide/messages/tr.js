@@ -3355,6 +3355,30 @@ export const login_demo_message = () => `Bu site her 10 dakikada bir sıfırlana
 export const login_demo_nextreset = () => `Bir sonraki sıfırlama:`
 
 
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_happy_diwali = () => `Mutlu Divaliler`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_Happy_Holi = () => `Mutlu bayramlar`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_happy_navratri = () => `Mutlu Navratri`
+
+
 export { signup_password } from "./en.js"
 
 export { modaledit_tokenemailaddress } from "./en.js"

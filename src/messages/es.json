@@ -418,5 +418,8 @@
 	"login_demo_title": "MODO DEMOSTRACIÓN DE SveltyCMS",
 	"login_demo_message": "Este sitio se reiniciará cada 10 minutos.",
 	"login_demo_nextreset": "Próximo reinicio en:",
+	"login_happy_diwali": "Feliz Diwali",
+	"login_Happy_Holi": "Feliz Holi",
+	"login_happy_navratri": "Feliz Navratri",
 	"signup_password": "Contraseña"
 }

@@ -4,7 +4,7 @@
  */
 
 import type { Role } from '../src/auth/types';
-import { permissions } from './permissions'; // Import the permissions list
+import { permissions } from '../src/auth/permissions';
 
 export const roles: Role[] = [
 	{

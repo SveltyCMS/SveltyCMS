@@ -3355,6 +3355,30 @@ export const login_demo_message = () => `यो साइट प्रत्य�
 export const login_demo_nextreset = () => `अर्को रिसेट मा:`
 
 
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_happy_diwali = () => `शुभ दीपावली`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_Happy_Holi = () => `होलीको शुभकामना`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_happy_navratri = () => `शुभ नवरात्रि`
+
+
 export { signup_password } from "./en.js"
 
 /**
