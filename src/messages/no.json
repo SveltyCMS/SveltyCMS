@@ -417,5 +417,8 @@
 	"mediaConfig_MEDIASERVER_URL_helper": "URL-en til medieserveren. (standard er lokalvert som: '')",
 	"login_demo_title": "SveltyCMS DEMO MODUS",
 	"login_demo_message": "Denne siden tilbakestilles hvert 10. minutt.",
-	"login_demo_nextreset": "Neste tilbakestilling om:"
+	"login_demo_nextreset": "Neste tilbakestilling om:",
+	"login_happy_diwali": "Glad Diwali",
+	"login_Happy_Holi": "God Holi",
+	"login_happy_navratri": "Glad Navratri"
 }

@@ -1,9 +1,9 @@
 /**
- * @file config/permissions.ts
- * @description Configuration prompts for the Permissions section
+ * @file src/auth/permissions.ts
+ * @description Core permissions management for the auth system
  */
 
-import type { Permission } from '@src/auth/types'; // Import Permission type from the centralized types file
+import type { Permission } from './types'; // Updated import path
 
 // List of all permissions available in the CMS
 export let permissions: Permission[] = [];

@@ -417,5 +417,8 @@
 	"mediaConfig_MEDIASERVER_URL_helper": "メディア サーバーの URL。(デフォルトは localhost です: '')",
 	"login_demo_title": "SveltyCMS デモモード",
 	"login_demo_message": "このサイトは10分ごとにリセットされます。",
-	"login_demo_nextreset": "次回のリセットまで:"
+	"login_demo_nextreset": "次回のリセットまで:",
+	"login_happy_diwali": "ディワリおめでとう",
+	"login_Happy_Holi": "ハッピーホーリー",
+	"login_happy_navratri": "ナヴラトリおめでとう"
 }

@@ -3355,6 +3355,30 @@ export const login_demo_message = () => `یہ سائٹ ہر 10 منٹ میں د�
 export const login_demo_nextreset = () => `اگلا ری سیٹ اس میں:`
 
 
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_happy_diwali = () => `دیوالی مبارک ہو۔`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_Happy_Holi = () => `ہولی مبارک ہو۔`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_happy_navratri = () => `نوراتری مبارک ہو۔`
+
+
 export { signup_password } from "./en.js"
 
 export { modaledit_tokenemailaddress } from "./en.js"

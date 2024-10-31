@@ -418,5 +418,8 @@
 	"login_demo_title": "СвелтиЦМС ДЕМО МОДЕ",
 	"login_demo_message": "Ова локација ће се ресетовати сваких 10 минута.",
 	"login_demo_nextreset": "Следеће ресетовање у:",
+	"login_happy_diwali": "Срећан Дивали",
+	"login_Happy_Holi": "Срећан Холи",
+	"login_happy_navratri": "Срећан Навратри",
 	"userpage_email": "Емаил:"
 }

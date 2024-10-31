@@ -33,6 +33,8 @@ import type { WidgetType } from '@components/widgets';
 import { getCollectionModels } from '@src/databases/db';
 import { checkUserPermission } from '@src/auth/permissionCheck';
 import { permissionConfigs } from '@src/auth/permissionManager';
+import { roles } from '@root/config/roles';
+import { permissions } from '@src/auth/permissions';
 
 // System Logger
 import { logger } from '@utils/logger';
@@ -63,7 +65,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 
 		const { _id, ...rest } = user;
-		return { user: { ...rest, id: _id.toString() } };
+		return {
+			user: { ...rest, id: _id.toString() },
+			roles, // Add roles data
+			permissions, // Add permissions data
+			permissionConfigs // Add permission configs
+		};
 	} catch (err) {
 		if (err instanceof Error && 'status' in err) {
 			// This is likely a redirect or an error we've already handled

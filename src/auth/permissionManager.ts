@@ -14,7 +14,7 @@ import { error } from '@sveltejs/kit';
 import { getCollectionFiles } from '@src/routes/api/getCollections/getCollectionFiles';
 
 // Permissions
-import { permissions as configPermissions, setPermissions } from '@root/config/permissions';
+import { permissions as configPermissions, setPermissions } from '@src/auth/permissions';
 import { PermissionAction, PermissionType } from '@src/auth/permissionTypes';
 import type { Permission as AuthPermission } from './types';
 import type { PermissionConfig } from './permissionCheck';
@@ -192,6 +192,12 @@ export async function syncPermissions(): Promise<void> {
 
 export const permissionConfigs: Record<string, PermissionConfig> = {
 	// Config Permissions
+	collectionManagement: {
+		contextId: 'config/collectionManagement',
+		name: 'Collection Management',
+		action: PermissionAction.MANAGE,
+		contextType: 'system'
+	},
 	collectionbuilder: {
 		contextId: 'config/collectionbuilder',
 		name: 'Collection Builder Management',

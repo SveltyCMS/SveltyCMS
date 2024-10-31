@@ -3354,6 +3354,30 @@ export const login_demo_message = () => `ეს საიტი გადაი�
 export const login_demo_nextreset = () => `შემდეგი გადატვირთვა:`
 
 
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_happy_diwali = () => `ბედნიერი დივალი`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_Happy_Holi = () => `ბედნიერი ჰოლი`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_happy_navratri = () => `ბედნიერი ნავრატრი`
+
+
 export { signup_password } from "./en.js"
 
 export { modaledit_tokenemailaddress } from "./en.js"

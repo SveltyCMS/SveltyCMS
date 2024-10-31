@@ -9,7 +9,7 @@ import type { PageServerLoad } from './$types';
 // Auth
 import { checkUserPermission } from '@src/auth/permissionCheck';
 import { permissionConfigs } from '@src/auth/permissionManager';
-import { permissions as allPermissions } from '@root/config/permissions';
+import { permissions as allPermissions } from '@src/auth/permissions';
 
 // System Logger
 import { logger } from '@utils/logger';

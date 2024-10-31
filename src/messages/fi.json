@@ -417,5 +417,8 @@
 	"mediaConfig_MEDIASERVER_URL_helper": "Mediapalvelimen URL-osoite. (oletus on localhost muodossa: '')",
 	"login_demo_title": "SveltyCMS-DEMOTILA",
 	"login_demo_message": "Tämä sivusto nollataan 10 minuutin välein.",
-	"login_demo_nextreset": "Seuraava nollaus:"
+	"login_demo_nextreset": "Seuraava nollaus:",
+	"login_happy_diwali": "Hyvää Diwalia",
+	"login_Happy_Holi": "Hyvää Holia",
+	"login_happy_navratri": "Hyvää Navratria"
 }

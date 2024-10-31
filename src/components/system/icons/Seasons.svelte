@@ -1,12 +1,23 @@
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
-
 	import { Confetti } from 'svelte-confetti';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Calculate Easter Sunday
+	// Animation for powder particles
+	let particles = Array(30)
+		.fill()
+		.map(() => ({
+			id: Math.random(),
+			x: Math.random() * 300 - 150,
+			y: Math.random() * 200 - 100,
+			scale: 0.5 + Math.random() * 0.5,
+			color: `hsl(${Math.random() * 360}, 70%, 50%)`,
+			blur: 3 + Math.random() * 5
+		}));
+
+	// Calculate Easter Sunday (Gregorian calendar)
 	function calculateEasterSunday(year: number): Date {
 		const f = Math.floor;
 		const G = year % 19;
@@ -28,44 +39,216 @@
 		return easterSunday;
 	}
 
+	// Calculate Chinese New Year (lunisolar calendar)
+	function calculateChineseNewYear(year: number): Date {
+		// Chinese New Year falls between Jan 21 and Feb 20
+		const base = new Date(year, 0, 21); // Jan 21
+		const lunarOffset = Math.floor(
+			((year - 1900) * 365.25 + // Days since 1900
+				(year - 1900) / 4 - // Leap year adjustment
+				(year - 1900) / 100 + // Century adjustment
+				(year - 1900) / 400) % // 400-year cycle
+				29.5305882 // Lunar month length
+		);
+		base.setDate(base.getDate() + lunarOffset);
+		return base;
+	}
+
+	// Calculate Mid-Autumn Festival (15th day of 8th lunar month)
+	function calculateMidAutumnFestival(year: number): Date {
+		const base = new Date(year, 8, 15); // Approximate date
+		return base;
+	}
+
+	// Calculate Dragon Boat Festival (5th day of 5th lunar month)
+	function calculateDragonBoatFestival(year: number): Date {
+		const base = new Date(year, 5, 5); // Approximate date
+		return base;
+	}
+
+	// Calculate Cherry Blossom Season
+	function isCherryBlossomSeason(date: Date): boolean {
+		return date.getMonth() === 3; // April is cherry blossom season
+	}
+
+	// Calculate Diwali (lunisolar calendar)
+	function calculateDiwali(year: number): Date {
+		// Diwali usually falls between mid-October and mid-November
+		const baseDate = new Date(year, 9, 15); // October 15
+		const lunarPhase = ((year - 1900) * 12.37) % 30; // Approximate lunar phase
+		const daysToAdd = Math.floor(lunarPhase + 15) % 30;
+		baseDate.setDate(baseDate.getDate() + daysToAdd);
+		return baseDate;
+	}
+
+	// Calculate Holi (Full moon day in Phalguna month)
+	function calculateHoli(year: number): Date {
+		return new Date(year, 2, 15); // Approximate date in March
+	}
+
+	// Calculate Navratri (Nine nights festival)
+	function calculateNavratri(year: number): Date {
+		return new Date(year, 9, 7); // Approximate start date in October
+	}
+
 	// Get current date / year
 	const date = new Date();
 	const year = date.getFullYear();
 
-	// Seasons
+	// Western European Festivals
 	const isNewYear = date.getMonth() === 0 && date.getDate() === 1;
+	const isValentine = date.getMonth() === 1 && date.getDate() === 14;
+	const isMayDay = date.getMonth() === 4 && date.getDate() === 1;
 	const isHalloween = date.getMonth() === 9 && date.getDate() === 31;
 	const isDecember = date.getMonth() === 11;
+	const isChristmas = date.getMonth() === 11 && date.getDate() === 25;
 	const easterSunday = calculateEasterSunday(year);
 	const eastertideEndDate = calculateEastertideEndDate(year);
 	const isEaster = date >= easterSunday && date <= eastertideEndDate;
+
+	// East Asian Festivals
+	const chineseNewYear = calculateChineseNewYear(year);
+	const isChineseNewYear = Math.abs(date.getTime() - chineseNewYear.getTime()) < 24 * 60 * 60 * 1000 * 3; // 3 days celebration
+	const midAutumnFestival = calculateMidAutumnFestival(year);
+	const isMidAutumnFestival = Math.abs(date.getTime() - midAutumnFestival.getTime()) < 24 * 60 * 60 * 1000; // 1 day
+	const dragonBoatFestival = calculateDragonBoatFestival(year);
+	const isDragonBoatFestival = Math.abs(date.getTime() - dragonBoatFestival.getTime()) < 24 * 60 * 60 * 1000; // 1 day
+	const isCherryBlossom = isCherryBlossomSeason(date);
+
+	// South Asian Festivals
+	const diwali = calculateDiwali(year);
+	const isDiwali = Math.abs(date.getTime() - diwali.getTime()) < 24 * 60 * 60 * 1000 * 5; // 5 days celebration
+	const holi = calculateHoli(year);
+	const isHoli = Math.abs(date.getTime() - holi.getTime()) < 24 * 60 * 60 * 1000 * 2; // 2 days celebration
+	const navratri = calculateNavratri(year);
+	const isNavratri = Math.abs(date.getTime() - navratri.getTime()) < 24 * 60 * 60 * 1000 * 9; // 9 days celebration
 </script>
 
-{#if publicEnv.SEASONS === true && publicEnv.SEASON_REGION === 'Europe'}
-	{#if isNewYear && !isDecember}
-		<div class="absolute left-1/2 top-[-50px] justify-center">
-			<Confetti noGravity x={[-1, 1]} y={[-1, 1]} delay={[0, 50]} colorRange={[0, 120]} />
-			<Confetti noGravity x={[-1, 1]} y={[-1, 1]} delay={[550, 550]} colorRange={[120, 240]} />
-			<Confetti noGravity x={[-1, 1]} y={[-1, 1]} delay={[1000, 1050]} colorRange={[240, 360]} />
-		</div>
-		<p class="absolute left-[-40px] top-[-50px] justify-center whitespace-nowrap text-2xl font-bold text-error-500">
-			{m.login_new_year()}
-			{new Date().getFullYear()}
-		</p>
+{#if publicEnv.SEASONS === true}
+	{#if publicEnv.SEASON_REGION === 'Western_Europe'}
+		{#if isNewYear && !isDecember}
+			<div class="absolute left-1/2 top-[-50px] justify-center">
+				<Confetti noGravity x={[-1, 1]} y={[-1, 1]} delay={[0, 50]} colorRange={[0, 120]} />
+				<Confetti noGravity x={[-1, 1]} y={[-1, 1]} delay={[550, 550]} colorRange={[120, 240]} />
+				<Confetti noGravity x={[-1, 1]} y={[-1, 1]} delay={[1000, 1050]} colorRange={[240, 360]} />
+			</div>
+			<p class="absolute left-[-40px] top-[-50px] justify-center whitespace-nowrap text-2xl font-bold text-error-500">
+				{m.login_new_year()}
+				{new Date().getFullYear()}
+			</p>
+		{/if}
+
+		{#if isValentine}
+			<div class="absolute left-1/2 top-[-50px] justify-center">
+				<iconify-icon icon="mdi:heart" width="40" class="absolute -left-[60px] -top-[20px] text-red-600"></iconify-icon>
+				<iconify-icon icon="mdi:cards-heart" width="40" class="absolute -right-[60px] -top-[20px] text-pink-500"></iconify-icon>
+			</div>
+		{/if}
+
+		{#if isEaster}
+			<iconify-icon icon="mdi:egg-easter" width="40" class="absolute -top-[18px] left-3 -rotate-[25deg] text-tertiary-500"></iconify-icon>
+			<iconify-icon icon="game-icons:easter-egg" width="40" class="absolute -top-[27px] right-[1em] rotate-12 text-yellow-500"></iconify-icon>
+			<iconify-icon icon="game-icons:high-grass" width="40" class="absolute -top-[35px] left-10 -rotate-[14deg] text-green-500"></iconify-icon>
+			<iconify-icon icon="mdi:easter" width="70" class="absolute -top-[61px] right-9 rotate-6 text-red-500"></iconify-icon>
+		{/if}
+
+		{#if isMayDay}
+			<iconify-icon icon="noto:tulip" width="60" class="absolute -right-[20px] -top-[25px] rotate-12"></iconify-icon>
+			<iconify-icon icon="fluent-emoji:tulip" width="40" class="absolute -left-[10px] top-[5px] -rotate-12"></iconify-icon>
+			<iconify-icon icon="noto:sunflower" width="50" class="absolute -top-[48px] right-12"></iconify-icon>
+		{/if}
+
+		{#if isHalloween}
+			<img src="/seasons/Halloween.avif" alt="Spider" class="absolute -bottom-[170px] left-0" />
+		{/if}
+
+		{#if isChristmas}
+			<img src="/seasons/SantaHat.avif" alt="Santa hat" class="absolute -right-5 -top-5 h-20 w-20" />
+			<iconify-icon icon="mdi:pine-tree" width="40" class="absolute -top-[35px] left-3 text-green-600"></iconify-icon>
+		{/if}
 	{/if}
 
-	{#if isEaster}
-		<iconify-icon icon="mdi:egg-easter" width="40" class="absolute -top-[18px] left-3 -rotate-[25deg] text-tertiary-500"></iconify-icon>
-		<iconify-icon icon="game-icons:easter-egg" width="40" class="absolute -top-[27px] right-[1em] rotate-12 text-yellow-500"></iconify-icon>
-		<iconify-icon icon="game-icons:high-grass" width="40" class="absolute -top-[35px] left-10 -rotate-[14deg] text-green-500"></iconify-icon>
-		<iconify-icon icon="mdi:easter" width="70" class="absolute -top-[61px] right-9 rotate-6 text-red-500"></iconify-icon>
+	{#if publicEnv.SEASON_REGION === 'East_Asia'}
+		{#if isChineseNewYear}
+			<div class="absolute left-1/2 top-[-50px] justify-center">
+				<Confetti noGravity x={[-1, 1]} y={[-1, 1]} delay={[0, 50]} colorRange={[0, 60]} />
+				<iconify-icon icon="noto:lantern" width="40" class="absolute -left-[60px] -top-[20px] text-red-600"></iconify-icon>
+				<iconify-icon icon="noto:dragon-face" width="40" class="absolute -right-[60px] -top-[20px]"></iconify-icon>
+			</div>
+			<p class="absolute left-[-40px] top-[-50px] justify-center whitespace-nowrap text-2xl font-bold text-red-600">{m.login_new_year()}</p>
+		{/if}
+
+		{#if isCherryBlossom}
+			<div class="absolute left-1/2 top-[-50px] justify-center">
+				<iconify-icon icon="noto:cherry-blossom" width="40" class="absolute -left-[60px] -top-[20px] text-pink-400"></iconify-icon>
+				<iconify-icon icon="noto:cherry-blossom" width="60" class="absolute -right-[140px] top-[40px] text-pink-300"></iconify-icon>
+				<iconify-icon icon="noto:white-flower" width="60" class="absolute -left-[140px] top-[40px] text-pink-300"></iconify-icon>
+			</div>
+		{/if}
+
+		{#if isDragonBoatFestival}
+			<div class="absolute left-1/2 top-[-50px] justify-center">
+				<iconify-icon icon="noto:dragon" width="100" class="absolute -left-[00px] -top-[35px] rotate-12"></iconify-icon>
+			</div>
+		{/if}
+
+		{#if isMidAutumnFestival}
+			<div class="absolute left-1/2 top-[-50px] justify-center">
+				<iconify-icon icon="noto:full-moon" width="80" class="absolute -left-[100px] -top-[10px]"></iconify-icon>
+				<iconify-icon icon="noto:moon-cake" width="60" class="absolute -right-[120px] top-[220px]"></iconify-icon>
+			</div>
+		{/if}
 	{/if}
 
-	{#if isHalloween}
-		<img src="/seasons/Halloween.avif" alt="Spider" class="absolute -bottom-[170px] left-0" />
-	{/if}
+	{#if publicEnv.SEASON_REGION === 'South_Asia'}
+		{#if isDiwali}
+			<div class="absolute left-1/2 top-[-50px] justify-center">
+				<Confetti noGravity x={[-1, 1]} y={[-1, 1]} delay={[0, 50]} colorRange={[30, 60]} />
+				<iconify-icon icon="noto:diya-lamp" width="70" class="absolute left-[120px] top-[190px]"></iconify-icon>
+				<iconify-icon icon="noto:sparkles" width="50" class="absolute -right-[160px] top-[120px] text-yellow-500"></iconify-icon>
+				<iconify-icon icon="noto:sparkles" width="50" class="absolute -right-[200px] top-[100px] rotate-90 text-warning-500"></iconify-icon>
+			</div>
+			<p class="absolute -left-[10px] top-[170px] justify-center whitespace-nowrap text-3xl font-bold italic text-yellow-600">
+				{m.login_happy_diwali()}
+			</p>
+		{/if}
 
-	{#if isDecember && !isNewYear}
-		<img src="/seasons/SantaHat.avif" alt="Santa hat" class="absolute -right-5 -top-5 h-20 w-20" />
+		{#if isHoli}
+			<div class="absolute inset-0 flex">
+				<!-- Powder  -->
+				<div class="h-full w-full translate-y-8 bg-gradient-to-b from-red-300/80 via-red-400/80 to-transparent blur-xl"></div>
+				<div class="h-full w-full translate-y-12 bg-gradient-to-b from-yellow-200/80 via-yellow-300/80 to-transparent blur-xl"></div>
+				<div class="h-full w-full translate-y-8 bg-gradient-to-b from-green-300/80 via-green-400/80 to-transparent blur-xl"></div>
+				<div class="h-full w-full translate-y-12 bg-gradient-to-b from-cyan-300/80 via-cyan-400/80 to-transparent blur-xl"></div>
+				<div class="h-full w-full translate-y-8 bg-gradient-to-b from-blue-300/80 via-blue-400/80 to-transparent blur-xl"></div>
+				<div class="h-full w-full translate-y-12 bg-gradient-to-b from-purple-300/80 via-purple-400/80 to-transparent blur-xl"></div>
+			</div>
+
+			<div class="absolute left-1/2 top-[-50px] justify-center">
+				<Confetti noGravity x={[-1, 1]} y={[-1, 1]} delay={[0, 50]} colorRange={[0, 360]} />
+				<iconify-icon icon="noto:balloon" width="40" class="absolute -left-[60px] -top-[20px] text-purple-500"></iconify-icon>
+				<iconify-icon icon="noto:balloon" width="50" class="absolute right-[60px] top-[20px] text-green-500"></iconify-icon>
+				<iconify-icon icon="game-icons:powder" width="50" class="absolute -right-[150px] top-[220px] text-primary-500"></iconify-icon>
+				<iconify-icon icon="game-icons:powder" width="30" class="absolute -right-[120px] top-[220px] -rotate-12 text-warning-500"></iconify-icon>
+			</div>
+			<p
+				class="absolute -left-[30px] top-[170px] justify-center bg-gradient-to-br from-pink-500 to-violet-500 box-decoration-clone bg-clip-text text-4xl font-bold text-transparent"
+			>
+				{m.login_Happy_Holi()}
+			</p>
+		{/if}
+		{#if isNavratri}
+			<div class="absolute left-1/2 top-[-50px] justify-center">
+				<iconify-icon icon="noto:prayer-beads" width="40" class="absolute -left-[100px] top-[30px]"></iconify-icon>
+				<iconify-icon icon="token-branded:starl" width="40" class="absolute -right-[60px] -top-[20px]"></iconify-icon>
+				<iconify-icon icon="token-branded:starl" width="60" class="absolute -right-[160px] top-[50px]"></iconify-icon>
+			</div>
+
+			<p
+				class="absolute -left-[30px] top-[170px] justify-center text-nowrap bg-gradient-to-br from-pink-500 to-warning-500 box-decoration-clone bg-clip-text text-4xl font-bold text-transparent"
+			>
+				{m.login_happy_navratri()}
+			</p>
+		{/if}
 	{/if}
 {/if}

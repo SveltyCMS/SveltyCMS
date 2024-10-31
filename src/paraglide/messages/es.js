@@ -3359,6 +3359,30 @@ export const login_demo_nextreset = () => `Próximo reinicio en:`
  * @returns {string}
  */
 /* @__NO_SIDE_EFFECTS__ */
+export const login_happy_diwali = () => `Feliz Diwali`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_Happy_Holi = () => `Feliz Holi`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const login_happy_navratri = () => `Feliz Navratri`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
 export const signup_password = () => `Contraseña`
 
 

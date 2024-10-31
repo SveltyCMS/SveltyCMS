@@ -323,8 +323,9 @@ const systemConfig: ConfigCategory = {
 		},
 		SEASON_REGION: {
 			type: 'string',
-			default: 'Europe',
+			default: 'Western_Europe',
 			helper: m.systemConfig_SEASON_REGION_helper(),
+			allowedValues: ['Western_Europe', 'South_Asia', 'East_Asia'],
 			icon: 'mdi:earth'
 		}
 	}

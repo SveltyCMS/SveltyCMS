@@ -417,5 +417,8 @@
 	"mediaConfig_MEDIASERVER_URL_helper": "De URL van de mediaserver. (standaard is localhost als: '')",
 	"login_demo_title": "SveltyCMS DEMO-MODUS",
 	"login_demo_message": "Deze site wordt elke 10 minuten gereset.",
-	"login_demo_nextreset": "Volgende reset over:"
+	"login_demo_nextreset": "Volgende reset over:",
+	"login_happy_diwali": "Fijne Diwali",
+	"login_Happy_Holi": "Fijne Holi",
+	"login_happy_navratri": "Fijne Navratri"
 }
