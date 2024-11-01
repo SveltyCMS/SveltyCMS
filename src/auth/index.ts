@@ -24,7 +24,7 @@ import fs from 'fs/promises';
 import path from 'path';
 
 // Types
-import type { Cookie, User, Session, Token, Role, Permission } from './types';
+import type { Cookie, User, Session, Token, Role, Permission, SessionStore } from './types';
 import type { authDBInterface } from './authDBInterface';
 
 import { roles as configRoles } from '@root/config/roles';
@@ -48,15 +48,6 @@ const DEFAULT_SESSION_EXPIRATION_SECONDS = 3600; // 1 hour
 import { logger } from '@utils/logger';
 
 export const SESSION_COOKIE_NAME = 'auth_sessions';
-
-// Session Store Interface
-export interface SessionStore {
-	get(session_id: string): Promise<User | null>;
-	set(session_id: string, user: User, expiration: Date): Promise<void>;
-	delete(session_id: string): Promise<void>;
-	validateWithDB(session_id: string, dbValidationFn: (session_id: string) => Promise<User | null>): Promise<User | null>;
-	close(): Promise<void>;
-}
 
 // Define Argon2 attributes configuration
 const argon2Attributes = {

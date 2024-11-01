@@ -21,7 +21,6 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	import MediaGallery from '@src/routes/(app)/mediagallery/+page.svelte';
 
 	//System logger
-	import { logger } from '@utils/logger';
 
 	let forwardBackward = false; // Track if using browser history
 	let initialLoadComplete = false; // Track initial load
@@ -83,7 +82,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		document.title = `${$collection?.name || 'Loading...'} - Your Site Title`;
 		document.querySelector('meta[name="description"]')?.setAttribute('content', `View and manage entries for ${$collection?.name || '...'}.`);
 	}
-	$: logger.debug(`Page view $collectionValue: ${JSON.stringify($collectionValue)}`);
+	$: console.debug(`Page view $collectionValue: ${JSON.stringify($collectionValue)}`);
 </script>
 
 <div class="content h-full">

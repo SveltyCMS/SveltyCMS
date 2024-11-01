@@ -22,7 +22,8 @@ import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, s
 import { valibot } from 'sveltekit-superforms/adapters';
 
 // Auth
-import { auth, googleAuth, initializationPromise } from '@src/databases/db';
+import { auth, initializationPromise } from '@src/databases/db';
+import { googleAuth } from "@root/src/auth/googleAuth";
 import { google } from 'googleapis';
 import type { User } from '@src/auth/types';
 import type { Cookies } from '@sveltejs/kit';
