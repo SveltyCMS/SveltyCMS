@@ -97,7 +97,7 @@ async function sendMail(email: string, subject: string, message: string, templat
 			ciphers: 'SSLv3'
 		},
 		requireTLS: true,
-		port: 465,
+		port: privateEnv.SMTP_PORT,
 		debug: true,
 		auth: {
 			user: privateEnv.SMTP_EMAIL,
