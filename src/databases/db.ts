@@ -228,7 +228,6 @@ async function initializeAdapters(): Promise<void> {
 			if (!collections || collections.length === 0) {
 				const error = 'No collections found after CollectionManager initialization';
 				logger.error(error);
-				throw new Error(error);
 			}
 			logger.debug('CollectionManager initialized with collections:', { count: collections.length });
 
