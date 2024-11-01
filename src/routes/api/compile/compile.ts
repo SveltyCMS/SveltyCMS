@@ -35,6 +35,7 @@ export async function compile(options: CompileOptions = {}): Promise<void> {
 
 	// Ensure the output directory exists
 	await fs.mkdir(collectionsFolderJS, { recursive: true });
+	await fs.mkdir(collectionsFolderTS, { recursive: true });
 
 	// Get list of TypeScript files to compile
 	const files = await getTypescriptFiles(collectionsFolderTS);

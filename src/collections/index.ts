@@ -16,6 +16,7 @@ import axios from 'axios';
 import { getCollectionFiles } from '@api/getCollections/getCollectionFiles';
 import { createRandomID } from '@utils/utils';
 import { categoryConfig } from './categories';
+import {  getCollectionModels } from '@src/databases/db';
 
 // Stores
 import { categories, collections, unAssigned, collection, collectionValue, mode } from '@stores/collectionStore';
@@ -216,7 +217,6 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 		// Only try to fetch collection models if we're server-side and not in development mode
 		if (typeof window === 'undefined' && !dev) {
 			try {
-				const { getCollectionModels } = await import('@src/databases/db');
 				await getCollectionModels().catch((err) => {
 					logger.warn(`Failed to fetch collection models: ${err}. This is expected during initial setup.`);
 				});

@@ -106,7 +106,13 @@ It handles widget configuration, permissions, and specific options.
 			</TabGroup>
 
 			<!-- Tab Panels -->
-			<svelte:component this={tabSet === 0 ? Default : tabSet === 1 ? Permission : Specific} bind:guiSchema bind:tabSet />
+			{#if tabSet === 0}
+				<Default {guiSchema} />
+			{:else if tabSet === 1}
+				<Permission  />
+			{:else if tabSet === 2}		
+				<Specific  />
+			{/if}
 		</form>
 
 		<footer class="{parent.regionFooter} justify-between">

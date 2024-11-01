@@ -13,7 +13,7 @@ import { collectionManager } from '@src/collections/CollectionManager';
 import widgets, { type ModifyRequestParams } from '@components/widgets';
 import deepmerge from 'deepmerge';
 import type { CollectionModel } from '@src/databases/dbInterface';
-
+import { getCollectionModels } from "@src/databases/db";
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
 
@@ -86,17 +86,9 @@ widget.modifyRequest = async ({ field, data, user, type, id }: ModifyRequestPara
 	if (type !== 'GET' || !_data) {
 		return;
 	}
-
-	const { getCollectionModels } = await import('@src/databases/db');
-	const models = await getCollectionModels();
-	const relative_collection = models[field.relation] as CollectionModel;
-	const { collections } = collectionManager.getCollectionData();
-	const relative_collection_schema = collections[field.relation] as Schema;
-
-	// Use find method with _id query
-	const [response] = await relative_collection.find({ _id: _data });
-	if (!response) return;
-
+	const relative_collection = (await getCollectionModels())[field.relation];
+	const relative_collection_schema = (await getCollections())[field.relation] as Schema;
+	const response = (await relative_collection.findById(_data)) as any;
 	const result = {};
 
 	for (const key in relative_collection_schema.fields) {

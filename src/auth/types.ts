@@ -290,3 +290,12 @@ export interface Schema {
 	permissions?: RolePermissions; // Role-based permissions associated with the schema
 	fields: any[]; // Array of fields defined in the schema
 }
+// Session Store Interface
+
+export interface SessionStore {
+	get(session_id: string): Promise<User | null>;
+	set(session_id: string, user: User, expiration: Date): Promise<void>;
+	delete(session_id: string): Promise<void>;
+	validateWithDB(session_id: string, dbValidationFn: (session_id: string) => Promise<User | null>): Promise<User | null>;
+	close(): Promise<void>;
+}

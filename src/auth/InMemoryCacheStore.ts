@@ -20,7 +20,7 @@ import { browser } from '$app/environment';
 import { error } from '@sveltejs/kit';
 
 // Types
-import type { SessionStore } from './index';
+import type { SessionStore } from "./types";
 import type { User } from './types';
 
 // System Logger
