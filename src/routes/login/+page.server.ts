@@ -94,7 +94,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		// Check if the auth object is initialized
 		if (!auth) {
 			logger.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error: Authentication system is not initialized');
+			throw Error('Authentication system is not initialized');
 		}
 
 		// Check if locals is defined
@@ -140,7 +140,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			logger.debug('Entering OAuth flow in load function');
 			try {
 				if (!googleAuth) {
-					throw error(500, 'Google OAuth is not initialized');
+					throw Error('Google OAuth is not initialized');
 				}
 
 				logger.debug('Fetching tokens using authorization code...');
