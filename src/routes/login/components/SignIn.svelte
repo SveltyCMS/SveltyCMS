@@ -174,22 +174,12 @@
 					formElement.classList.add('wiggle');
 					setTimeout(() => formElement.classList.remove('wiggle'), 300);
 					return;
-				} else if (result.data !== undefined) {
-					// Update variables to display reset form page
+				} else {
+					// Show success message and switch to reset form
+					// Switch to reset password form first before toast is send
 					PWreset = true;
 
-					// // Update the $resetForm object directly
-					$resetForm = {
-						...$resetForm,
-						email: result.data.email,
-						token: result.data.token
-					};
-
-					// Update the registration_token and hide_email variables
-					registration_token = result.data.token;
-					hide_email = result.data.email;
-
-					// Trigger the Forgotten toast
+					// User needs to click email link first
 					const t = {
 						message: m.signin_forgottontoast(),
 						// Provide any utility or variant background style:
@@ -199,6 +189,7 @@
 						classes: 'border-1 !rounded-md'
 					};
 					toastStore.trigger(t);
+
 					return;
 				}
 			}
