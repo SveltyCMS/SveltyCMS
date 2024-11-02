@@ -140,7 +140,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			logger.debug('Entering OAuth flow in load function');
 			try {
 				if (!googleAuth) {
-					throw Error('Google OAuth is not initialized');
+					throw error(500, 'Google OAuth is not initialized');
 				}
 
 				logger.debug('Fetching tokens using authorization code...');
@@ -337,6 +337,7 @@ export const actions: Actions = {
 	// OAuth Sign-Up
 	OAuth: async (event) => {
 		logger.debug('OAuth action called');
+		let authUrl = '';
 
 		if (await limiter.isLimited(event)) {
 			return fail(429, { message: 'Too many requests. Please try again later.' });
@@ -357,10 +358,11 @@ export const actions: Actions = {
 
 			const scopes = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'];
 
-			const authUrl = googleAuthClient.generateAuthUrl({
+			authUrl = googleAuthClient.generateAuthUrl({
 				access_type: 'offline',
 				scope: scopes.join(' '),
-				redirect_uri: `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`
+				redirect_uri: `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`,
+				prompt: 'select_account'
 			});
 
 			logger.debug(`Generated redirect URL: ${authUrl}`);
@@ -376,14 +378,16 @@ export const actions: Actions = {
 			}
 
 			// Redirect to the Google OAuth URL
-			logger.debug('Redirecting to Google OAuth URL');
-			return { status: 302, headers: { Location: authUrl } };
+			
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Detailed error in OAuth action: ${err.message}`);
 			logger.error(`Error stack: ${err.stack}`);
 			return fail(500, { message: `OAuth error: ${err.message}` });
 		}
+
+		logger.debug('Redirecting to Google OAuth URL');
+		redirect(302, authUrl);
 	},
 
 	// Function for handling the SignIn form submission and user authentication
@@ -756,3 +760,4 @@ async function resetPWCheck(password: string, token: string, email: string, expi
 		throw Error(`Password reset failed: ${err.message}`);
 	}
 }
+

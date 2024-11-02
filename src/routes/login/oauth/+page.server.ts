@@ -5,11 +5,14 @@
 
 import { dev } from '$app/environment';
 import { publicEnv } from '@root/config/public';
-import { redirect } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 // Auth
 import { google } from 'googleapis';
+
+//Db
+import { auth, initializationPromise } from '@src/databases/db';
 
 // Collection Manager
 import { collectionManager } from '@src/collections/CollectionManager';
@@ -22,6 +25,7 @@ import { systemLanguage } from '@stores/store';
 
 // System Logger
 import { logger } from '@utils/logger';
+import { googleAuth } from '@src/auth/googleAuth';
 
 // Send welcome email
 async function sendWelcomeEmail(fetchFn: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>, email: string, username: string) {
@@ -67,6 +71,11 @@ async function fetchAndRedirectToFirstCollection(): Promise<string> {
 
 export const load: PageServerLoad = async ({ url, cookies, fetch, locals }) => {
 	await initializationPromise; // Ensure initialization is complete
+
+	if (!auth) {
+		logger.error('Authentication system is not initialized');
+		throw error(500, 'Internal Server Error: Authentication system is not initialized');
+	}
 	logger.debug('OAuth load function called');
 	logger.debug(`Full URL: ${url.toString()}`);
 
@@ -106,7 +115,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, locals }) => {
 		}
 
 		// Check if user exists
-		let user = await auth.checkUser({ email });
+		let user = await auth?.checkUser({ email });
 		const isFirst = locals.isFirstUser;
 
 		if (!user) {
@@ -120,17 +129,20 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, locals }) => {
 			}
 
 			// Create the new user
-			user = await auth.createUser({
-				email,
-				username: googleUser.name ?? '',
-				firstName: googleUser.given_name,
-				lastName: googleUser.family_name,
-				avatar: avatarUrl ?? googleUser.picture,
-				role: isFirst ? 'admin' : 'user',
-				lastAuthMethod: 'google',
-				isRegistered: true,
-				blocked: false
-			});
+			user = await auth.createUser(
+				{
+					email,
+					username: googleUser.name ?? '',
+					firstName: googleUser.given_name,
+					lastName: googleUser.family_name,
+					avatar: avatarUrl ?? googleUser.picture,
+					role: isFirst ? 'admin' : 'user',
+					lastAuthMethod: 'google',
+					isRegistered: true,
+					blocked: false
+				},
+				true
+			);
 
 			await sendWelcomeEmail(fetch, email, googleUser.name || '');
 		}
@@ -139,37 +151,29 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, locals }) => {
 			throw new Error('User ID is missing after creation or retrieval');
 		}
 
-		// Create User Session
-		const { user: authenticatedUser, sessionId } = await handleLogin(email, '', true); // Using empty password for OAuth
+		// Create User Session and set cookie
+		const session = await auth?.createSession({ user_id: user._id });
+		const sessionCookie = auth?.createSessionCookie(session);
 
-		if (!authenticatedUser) {
-			throw new Error('Failed to authenticate user');
-		}
-
-		cookies.set(SESSION_COOKIE_NAME, sessionId, {
-			path: '/',
-			httpOnly: true,
-			secure: !dev,
-			sameSite: 'strict',
-			maxAge: 30 * 24 * 60 * 60 // 30 days
-		});
+		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 
 		// Update user attributes
 		await auth.updateUserAttributes(user._id.toString(), {
+			email: googleUser.email!,
 			lastAuthMethod: 'google',
-			firstName: googleUser.given_name,
-			lastName: googleUser.family_name,
-			avatar: avatarUrl ?? googleUser.picture
+			firstName: googleUser.given_name ?? "",
+			lastName: googleUser.family_name ?? "",
+			avatar:  googleUser.picture ?? ""
 		});
 		logger.info('Successfully created session and set cookie');
 
-		// Redirect to the first collection
-		const redirectUrl = await fetchAndRedirectToFirstCollection();
-		throw redirect(302, redirectUrl);
 	} catch (e) {
-		logger.error('Error during login process:', e as Error);
-		throw redirect(302, '/login');
+		logger.error('Error during login process:', `${JSON.stringify(e)}`);
+		throw Error('Error during login process', e);
 	}
+	const redirectUrl = await fetchAndRedirectToFirstCollection();
+
+	redirect(302, redirectUrl);
 };
 
 export const actions: Actions = {

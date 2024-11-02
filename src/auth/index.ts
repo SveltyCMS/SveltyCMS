@@ -78,17 +78,17 @@ export class Auth {
 	}
 
 	// Create a new user with hashed password
-	async createUser(userData: Partial<User>): Promise<User> {
+	async createUser(userData: Partial<User>, oauth: boolean = false): Promise<User> {
 		try {
 			const { email, password, username, role, lastAuthMethod, isRegistered } = userData;
 
-			if (!email || !password) {
+			if (!email || (!oauth && !password)) {
 				throw error(400, 'Email and password are required to create a user');
 			}
 
 			// Hash the password
 			let hashedPassword: string | undefined;
-			if (password) {
+			if ((!oauth && !password)) {
 				if (!argon2) {
 					throw error(500, 'Argon2 is not available in this environment');
 				}
