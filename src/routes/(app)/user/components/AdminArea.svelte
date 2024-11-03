@@ -1,7 +1,9 @@
+<!-- AdminArea.svelte -->
 <script lang="ts">
 	import type { PageData } from '../$types';
 	import { writable } from 'svelte/store';
 	import { asAny, debounce } from '@utils/utils';
+	import { PermissionAction, PermissionType } from '@src/auth/permissionTypes';
 
 	// Components
 	import Multibutton from './Multibutton.svelte';
@@ -33,20 +35,20 @@
 		username: string;
 		role: string;
 		activeSessions: number;
-		lastAccess: string;
-		createdAt: string;
-		updatedAt: string;
-		[key: string]: any; // Allow for dynamic properties
+		lastAccess: Date;
+		createdAt: Date;
+		updatedAt: Date;
+		[key: string]: any;
 	}
 
 	interface AdminToken {
-		user_id: string;
+		token: string;
 		blocked: boolean;
 		email: string;
-		expiresIn: string;
-		createdAt: string;
-		updatedAt: string;
-		[key: string]: any; // Allow for dynamic properties
+		expires: Date;
+		createdAt: Date;
+		updatedAt: Date;
+		[key: string]: any;
 	}
 
 	interface AdminData {
@@ -56,17 +58,35 @@
 
 	interface PageData {
 		adminData: AdminData | null;
-		manageUsersPermissionConfig: any; // Type this based on your permission config structure
+		manageUsersPermissionConfig: any;
 	}
 
 	const modalStore = getModalStore();
-
 	export let data: PageData;
-
-	// Use data.manageUsersPermissionConfig directly
 	const manageUsersPermissionConfig = data.manageUsersPermissionConfig;
 
-	// Modal Trigger - Generate User Registration email Token
+	let showUserList = false;
+	let showUsertoken = false;
+	let isLoading = false;
+	let loadingTimer: any;
+	let globalSearchValue = '';
+	let searchShow = false;
+	let filterShow = false;
+	let columnShow = false;
+	let SelectAll = false;
+
+	const selectedMap = writable<Record<number, boolean>>({});
+	let selectedRows: any[] = [];
+	let tableData: (AdminUser | AdminToken)[] = [];
+	let filteredTableData: (AdminUser | AdminToken)[] = [];
+
+	// Update selectedRows whenever selectedMap changes
+	$: selectedRows = Object.entries($selectedMap)
+		.filter(([_, isSelected]) => isSelected)
+		.map(([index]) => ({
+			data: filteredTableData[parseInt(index)]
+		}));
+
 	function modalTokenUser(): void {
 		const modalComponent: ModalComponent = {
 			ref: ModalTokenUser,
@@ -81,12 +101,8 @@
 				return;
 			}
 		};
-
 		modalStore.trigger(d);
 	}
-
-	let showUserList = false;
-	let showUsertoken = false;
 
 	// Svelte-dnd-action
 	import { flip } from 'svelte/animate';
@@ -101,9 +117,6 @@
 	function handleDndFinalize(event: any) {
 		displayTableHeaders = event.detail.items;
 	}
-
-	let isLoading = false;
-	let loadingTimer: any; // recommended time of around 200-300ms
 
 	function toggleUserList() {
 		showUserList = !showUserList;
@@ -131,18 +144,13 @@
 	];
 
 	const tableHeaderToken = [
-		{ label: m.adminarea_user_id(), key: 'user_id' },
+		{ label: m.adminarea_token(), key: 'token' },
 		{ label: m.adminarea_blocked(), key: 'blocked' },
 		{ label: m.form_email(), key: 'email' },
 		{ label: m.adminarea_expiresin(), key: 'expiresIn' },
 		{ label: m.adminarea_createat(), key: 'createdAt' },
 		{ label: m.adminarea_updatedat(), key: 'updatedAt' }
 	];
-
-	let globalSearchValue = '';
-	let searchShow = false;
-	let filterShow = false;
-	let columnShow = false;
 
 	let userPaginationSettings: any = localStorage.getItem('userPaginationSettings')
 		? JSON.parse(localStorage.getItem('userPaginationSettings') as string)
@@ -158,27 +166,38 @@
 	let density: string = userPaginationSettings.density || 'normal';
 	let selectAllColumns = true;
 
-	export let selectedRows: any[] = [];
-
 	let tableHeaders: Array<{ label: string; name: string }> = [];
-	let tableData: (AdminUser | AdminToken)[] = [];
 
 	let displayTableHeaders: { label: string; name: string; id: string; visible: boolean }[] =
 		userPaginationSettings.displayTableHeaders.length > 0
 			? userPaginationSettings.displayTableHeaders
 			: tableData.map((header) => ({ ...header, visible: true }));
 
-	let SelectAll = false;
-	const selectedMap = writable({});
-
 	let filters: { [key: string]: string } = userPaginationSettings.filters || {};
-	let filteredTableData: (AdminUser | AdminToken)[] = [];
 	const waitFilter = debounce(300);
 
 	let pagesCount: number = userPaginationSettings.pagesCount || 1;
 	let currentPage: number = userPaginationSettings.currentPage || 1;
 	let rowsPerPage: number = userPaginationSettings.rowsPerPage || 10;
 	const rowsPerPageOptions = [2, 10, 25, 50, 100, 500];
+
+	function formatDate(dateStr: string | Date): string {
+		try {
+			const date = new Date(dateStr);
+			if (date instanceof Date && !isNaN(date.getTime())) {
+				return new Intl.DateTimeFormat('default', {
+					year: 'numeric',
+					month: 'short',
+					day: '2-digit',
+					hour: '2-digit',
+					minute: '2-digit'
+				}).format(date);
+			}
+		} catch (error) {
+			console.error('Date formatting error:', error);
+		}
+		return 'Invalid Date';
+	}
 
 	async function refreshTableData() {
 		loadingTimer && clearTimeout(loadingTimer);
@@ -188,24 +207,30 @@
 				isLoading = true;
 			}, 400);
 
-			// Use the data provided by the server
 			if (data.adminData) {
 				tableData = showUserList ? data.adminData.users : data.adminData.tokens;
 			}
 
 			const tableHeaders = showUserList ? tableHeadersUser : tableHeaderToken;
 
-			tableData = tableData.map((item) => {
+			tableData = tableData.map((item, index) => {
 				const formattedItem: { [key: string]: any } = {};
 				for (const header of tableHeaders) {
 					const { key } = header;
 					if (key === 'avatar') {
 						formattedItem[key] = item[key] || '/Default_User.svg';
+					} else if (['createdAt', 'updatedAt', 'lastAccess'].includes(key)) {
+						formattedItem[key] = formatDate(item[key]);
+					} else if (key === 'expiresIn') {
+						formattedItem[key] = formatDate(item.expires);
+					} else if (key === 'role') {
+						if (index === 0) {
+							formattedItem[key] = 'admin';
+						} else {
+							formattedItem[key] = item[key] || 'user';
+						}
 					} else {
 						formattedItem[key] = item[key] ?? 'NO DATA';
-						if (['createdAt', 'updatedAt', 'expiresIn'].includes(key) && item[key]) {
-							formattedItem[key] = new Date(item[key]).toLocaleString();
-						}
 					}
 				}
 				return formattedItem as AdminUser | AdminToken;
@@ -228,6 +253,8 @@
 			}
 
 			SelectAll = false;
+			selectedMap.set({});
+
 			const totalRows = tableData.length;
 			pagesCount = Math.ceil(totalRows / rowsPerPage);
 
@@ -238,11 +265,13 @@
 			const startIndex = (currentPage - 1) * rowsPerPage;
 			const endIndex = startIndex + rowsPerPage;
 			tableData = tableData.slice(startIndex, endIndex);
+			filteredTableData = [...tableData];
 
 			isLoading = false;
 			clearTimeout(loadingTimer);
 		} else {
 			tableData = [];
+			filteredTableData = [];
 		}
 	}
 	refreshTableData();
@@ -273,13 +302,13 @@
 
 	function process_selectAll(selectAll: boolean) {
 		if (selectAll) {
-			for (const item in tableData) {
-				selectedMap[item] = true;
-			}
+			const newSelectedMap: Record<number, boolean> = {};
+			filteredTableData.forEach((_, index) => {
+				newSelectedMap[index] = true;
+			});
+			selectedMap.set(newSelectedMap);
 		} else {
-			for (const item in selectedMap) {
-				selectedMap[item] = false;
-			}
+			selectedMap.set({});
 		}
 	}
 
@@ -290,10 +319,6 @@
 	}
 
 	let currentAction = null;
-
-	function handleCRUDAction(action: any) {
-		currentAction = action;
-	}
 </script>
 
 <div class="flex flex-col">
@@ -308,12 +333,14 @@
 				<span class="whitespace-normal break-words">{m.adminarea_emailtoken()}</span>
 			</button>
 
-			{#if data.adminData?.tokens.length}
+			<PermissionGuard
+				config={{ contextId: 'user:manage', name: 'Manage User Tokens', action: PermissionAction.MANAGE, contextType: PermissionType.USER }}
+			>
 				<button on:click={toggleUserToken} class="gradient-secondary btn w-full text-white sm:max-w-xs">
 					<iconify-icon icon="material-symbols:key-outline" color="white" width="18" class="mr-1" />
 					<span>{showUsertoken ? m.adminarea_hideusertoken() : m.adminarea_showtoken()}</span>
 				</button>
-			{/if}
+			</PermissionGuard>
 
 			<button on:click={toggleUserList} class="gradient-tertiary btn w-full text-white sm:max-w-xs">
 				<iconify-icon icon="mdi:account-circle" color="white" width="18" class="mr-1" />
@@ -340,9 +367,9 @@
 
 			<div class="order-2 flex items-center justify-center sm:order-3">
 				{#if showUserList}
-					<Multibutton {selectedRows} on:crudAction={handleCRUDAction} />
+					<Multibutton {selectedRows} />
 				{:else if showUsertoken}
-					<MultibuttonToken {selectedRows} on:crudAction={handleCRUDAction} />
+					<MultibuttonToken {selectedRows} />
 				{/if}
 			</div>
 		</div>
@@ -485,13 +512,8 @@
 
 					<tbody>
 						{#each filteredTableData as row, index}
-							<tr
-								class="divide-x divide-surface-400"
-								on:click={() => {
-									handleCRUDAction(row);
-								}}
-							>
-								<TableIcons bind:checked={selectedMap[index]} iconStatus="single" />
+							<tr class="divide-x divide-surface-400">
+								<TableIcons bind:checked={$selectedMap[index]} iconStatus="single" />
 								{#each showUserList ? tableHeadersUser : tableHeaderToken as header}
 									<td class="text-center">
 										{#if header.key === 'blocked'}

@@ -37,8 +37,8 @@ const userDataSchema = object(
 		username: optional(
 			pipe(string(), minLength(2, 'Username must be at least 2 characters'), maxLength(50, 'Username must not exceed 50 characters'))
 		),
-		role: optional(string())
-		// Add other fields as needed, matching your User type
+		role: optional(string()),
+		password: optional(pipe(string(), minLength(8, 'Password must be at least 8 characters')))
 	},
 	{ strict: true }
 );
@@ -50,16 +50,35 @@ const updateUserAttributesSchema = object({
 
 export const PUT: RequestHandler = async ({ request, locals }) => {
 	try {
-		// Check if the user has permission to update user attributes
-		const { hasPermission } = await checkUserPermission(locals.user, {
-			contextId: 'config/userManagement',
-			name: 'Update User Attributes',
-			action: 'manage',
-			contextType: 'system'
-		});
+		const body = await request.json();
+		const { user_id, userData } = body;
 
-		if (!hasPermission) {
-			throw error(403, 'Unauthorized to update user attributes');
+		// Special handling for password changes - user can only change their own password
+		if (userData.password && user_id !== locals.user?._id) {
+			const { hasPermission } = await checkUserPermission(locals.user, {
+				contextId: 'config/userManagement',
+				name: 'Update User Attributes',
+				action: 'manage',
+				contextType: 'system'
+			});
+
+			if (!hasPermission) {
+				throw error(403, "Unauthorized to change other user's password");
+			}
+		}
+
+		// For other attribute changes, check general permission
+		if (Object.keys(userData).some((key) => key !== 'password')) {
+			const { hasPermission } = await checkUserPermission(locals.user, {
+				contextId: 'config/userManagement',
+				name: 'Update User Attributes',
+				action: 'manage',
+				contextType: 'system'
+			});
+
+			if (!hasPermission) {
+				throw error(403, 'Unauthorized to update user attributes');
+			}
 		}
 
 		// Ensure the authentication system is initialized
@@ -67,8 +86,6 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error');
 		}
-
-		const body = await request.json();
 
 		// Validate input
 		const validatedData = updateUserAttributesSchema.parse(body);

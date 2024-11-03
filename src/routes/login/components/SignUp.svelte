@@ -240,13 +240,13 @@
 				{/if}
 
 				{#if privateEnv.USE_GOOGLE_OAUTH === false}
-					<!-- Email signin only -->
+					<!-- Email SignIn only -->
 					<button type="submit" class="variant-filled btn mt-4 uppercase" aria-label={m.form_signup()}>
 						{m.form_signup()}
 						{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 					</button>
 
-					<!-- Email + Oauth signin  -->
+					<!-- Email + OAuth signin  -->
 				{:else if privateEnv.USE_GOOGLE_OAUTH === true && !activeOauth}
 					<div class="btn-group mt-4 border border-secondary-500 text-white [&>*+*]:border-secondary-500">
 						<button type="submit" class="btn w-3/4 bg-surface-200 text-black hover:text-white" aria-label={m.form_signup()}>

@@ -32,77 +32,110 @@ Features:
 	const modalStore = getModalStore();
 
 	// Form state initialization
-	if (!addUserForm) {
-		addUserForm = {
-			email: '',
-			role: '',
-			password: '',
-			expiresIn: '',
-			expiresInLabel: ''
-		} as unknown as PageData['addUserForm'];
-	}
+	const initialForm = {
+		email: '',
+		role: roles[1]?._id || '',
+		expiresIn: 2,
+		expiresInLabel: '2 hrs'
+	};
 
 	// Superforms
 	import { superForm } from 'sveltekit-superforms/client';
 	import { valibot } from 'sveltekit-superforms/adapters';
 	import { addUserTokenSchema } from '@utils/formSchemas';
 
-	const { form, allErrors, errors, enhance } = superForm(addUserForm as Record<string, unknown>, {
+	const { form, errors } = superForm(initialForm, {
 		id: 'addUser',
 		validators: valibot(addUserTokenSchema),
-		applyAction: true,
-		taintedMessage: '',
+		taintedMessage: null,
 		dataType: 'json',
-
-		onSubmit: ({ cancel }) => {
-			// Trigger the toast
-			const t = {
-				message: '<iconify-icon icon="mdi:email-fast-outline" color="white" width="24" class="mr-1"></iconify-icon> Email Invite Sent',
-				background: 'gradient-tertiary',
-				timeout: 3000,
-				classes: 'border-1 !rounded-md'
-			};
-			toastStore.trigger(t);
-
-			if ($allErrors.length > 0) cancel();
-		},
-
-		onResult: async ({ result, cancel }) => {
-			cancel();
-			let response: string | undefined;
-			if (result.type == 'success') {
-				response = result.data?.message;
+		onResult: async ({ result }) => {
+			if (result.type === 'success') {
+				const t = {
+					message: '<iconify-icon icon="mdi:email-fast-outline" color="white" width="24" class="mr-1"></iconify-icon> Email Invite Sent',
+					background: 'gradient-tertiary',
+					timeout: 3000,
+					classes: 'border-1 !rounded-md'
+				};
+				toastStore.trigger(t);
 				modalStore.close();
 				await invalidateAll();
+			} else {
+				const t = {
+					message: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${
+						result.error?.message || 'Failed to send invite'
+					}`,
+					background: 'variant-filled-error',
+					timeout: 3000,
+					classes: 'border-1 !rounded-md'
+				};
+				toastStore.trigger(t);
 			}
 		}
 	});
 
-	// Define default role and token validity options
-	let roleSelected: string = roles[1]?._id || ''; // Ensure the correct type
-	let expiresIn = '2 hrs'; // Set the default validity
-	let expiresInLabel = '2 hrs';
-	let expirationTime: number | undefined;
-
 	// Define the validity options
 	const validityOptions = [
-		{ label: '2 hrs', value: '2 hrs', seconds: 2 * 60 * 60 },
-		{ label: '12 hrs', value: '12 hrs', seconds: 12 * 60 * 60 },
-		{ label: '2 days', value: '2 days', seconds: 2 * 24 * 60 * 60 },
-		{ label: '1 week', value: '1 week', seconds: 7 * 24 * 60 * 60 }
+		{ label: '2 hrs', value: 2 },
+		{ label: '12 hrs', value: 12 },
+		{ label: '2 days', value: 48 },
+		{ label: '1 week', value: 168 }
 	];
-
-	// Update form values when selections change
-	$: {
-		$form.role = roleSelected;
-		$form.expiresIn = expiresIn;
-		$form.expiresInLabel = expiresInLabel;
-	}
 
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
 	const cHeader = 'text-2xl font-bold';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+
+	async function handleSubmit(event: Event) {
+		event.preventDefault();
+
+		try {
+			const response = await fetch('/api/user/createToken', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					email: $form.email,
+					role: $form.role,
+					expiresIn: $form.expiresIn,
+					expiresInLabel: $form.expiresInLabel
+				})
+			});
+
+			const result = await response.json();
+
+			if (response.ok) {
+				const t = {
+					message: '<iconify-icon icon="mdi:email-fast-outline" color="white" width="24" class="mr-1"></iconify-icon> Email Invite Sent',
+					background: 'gradient-tertiary',
+					timeout: 3000,
+					classes: 'border-1 !rounded-md'
+				};
+				toastStore.trigger(t);
+				modalStore.close();
+				await invalidateAll();
+			} else {
+				const t = {
+					message: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${result.message || 'Failed to send invite'}`,
+					background: 'variant-filled-error',
+					timeout: 3000,
+					classes: 'border-1 !rounded-md'
+				};
+				toastStore.trigger(t);
+			}
+		} catch (error) {
+			console.error('Error submitting form:', error);
+			const t = {
+				message: '<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> Failed to send invite',
+				background: 'variant-filled-error',
+				timeout: 3000,
+				classes: 'border-1 !rounded-md'
+			};
+			toastStore.trigger(t);
+		}
+	}
 </script>
 
 {#if $modalStore[0]}
@@ -114,7 +147,7 @@ Features:
 			{$modalStore[0]?.body ?? '(body missing)'}
 		</article>
 
-		<form class="modal-form {cForm}" method="POST" action="/api/user/createToken" id="addUser" use:enhance>
+		<form class="modal-form {cForm}" on:submit={handleSubmit}>
 			<!-- Email field -->
 			<div class="group relative mb-6 w-full">
 				<FloatingInput
@@ -145,16 +178,15 @@ Features:
 							{#each roles as r (r._id)}
 								<button
 									type="button"
-									class="chip {roleSelected === r._id ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+									class="chip {$form.role === r._id ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
 									on:click={() => {
-										roleSelected = r._id;
-										console.log('Selected Role:', roleSelected);
+										$form.role = r._id;
 									}}
 									tabindex="0"
 									aria-label={`Role: ${r.name}`}
-									aria-pressed={roleSelected === r._id ? 'true' : 'false'}
+									aria-pressed={$form.role === r._id ? 'true' : 'false'}
 								>
-									{#if roleSelected === r._id}
+									{#if $form.role === r._id}
 										<span><iconify-icon icon="fa:check" /></span>
 									{/if}
 									<span class="capitalize">{r.name}</span>
@@ -176,17 +208,16 @@ Features:
 					<div class="flex flex-wrap justify-center gap-1 space-x-2 sm:justify-start sm:gap-2">
 						{#each validityOptions as option}
 							<span
-								class="chip {expiresIn === option.value ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+								class="chip {$form.expiresIn === option.value ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
 								on:click={() => {
-									expiresIn = option.value;
-									expirationTime = option.seconds;
-									expiresInLabel = option.label;
+									$form.expiresIn = option.value;
+									$form.expiresInLabel = option.label;
 								}}
 								on:keypress
 								role="button"
 								tabindex="0"
 							>
-								{#if expiresIn === option.value}
+								{#if $form.expiresIn === option.value}
 									<span><iconify-icon icon="fa:check" /></span>
 								{/if}
 								<span class="capitalize">{option.label}</span>

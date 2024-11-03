@@ -1,6 +1,6 @@
 <!-- 
-@files src/components/user/ModalTokenUser.svelte
-@description Modal for generating user registration email token
+@files src/components/user/ModalEditToken.svelte
+@description Modal for editing user registration token
 -->
 
 <script lang="ts">
@@ -10,15 +10,14 @@
 	// Get data from page store
 	const { roles, user } = $page.data;
 
-	//console.log('Roles:', roles); // Add this line to log roles
-
 	// Props
 	export let parent: any;
 	let formElement: HTMLFormElement;
 
 	// Skeleton & Stores
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
+	const toastStore = getToastStore();
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -43,30 +42,82 @@
 	};
 
 	// Custom submit function to pass the response and close the modal
-	function onFormSubmit(): void {
-		console.log('modal submitted.');
-		if ($modalStore[0].response) $modalStore[0].response(formData);
+	async function onFormSubmit(): Promise<void> {
+		try {
+			const response = await fetch('/api/user/editToken', {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					tokenId: formData.token,
+					newTokenData: {
+						role: formData.role
+					}
+				})
+			});
 
-		modalStore.close();
+			if (response.ok) {
+				const t = {
+					message: '<iconify-icon icon="mdi:check" color="white" width="24" class="mr-1"></iconify-icon> Token updated successfully',
+					background: 'gradient-tertiary',
+					timeout: 3000,
+					classes: 'border-1 !rounded-md'
+				};
+				toastStore.trigger(t);
+				modalStore.close();
+				await invalidateAll();
+			} else {
+				const data = await response.json();
+				throw new Error(data.message || 'Failed to update token');
+			}
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Failed to update token';
+			const t = {
+				message: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${message}`,
+				background: 'variant-filled-error',
+				timeout: 3000,
+				classes: 'border-1 !rounded-md'
+			};
+			toastStore.trigger(t);
+		}
 	}
 
-	const deleteToken = async () => {
-		const res = await fetch(`?/deleteToken`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify([
-				{
-					user_id: user_id,
-					role: role
-				}
-			])
-		});
+	async function deleteToken(): Promise<void> {
+		try {
+			const response = await fetch('/api/user/deleteToken', {
+				method: 'DELETE',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify([{ token: formData.token }])
+			});
 
-		if (res.status === 200) {
-			modalStore.close();
-			await invalidateAll();
+			if (response.ok) {
+				const t = {
+					message: '<iconify-icon icon="mdi:check" color="white" width="24" class="mr-1"></iconify-icon> Token deleted successfully',
+					background: 'gradient-tertiary',
+					timeout: 3000,
+					classes: 'border-1 !rounded-md'
+				};
+				toastStore.trigger(t);
+				modalStore.close();
+				await invalidateAll();
+			} else {
+				const data = await response.json();
+				throw new Error(data.message || 'Failed to delete token');
+			}
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Failed to delete token';
+			const t = {
+				message: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${message}`,
+				background: 'variant-filled-error',
+				timeout: 3000,
+				classes: 'border-1 !rounded-md'
+			};
+			toastStore.trigger(t);
 		}
-	};
+	}
 
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
@@ -83,8 +134,6 @@
 		<article class="text-center text-sm">
 			{$modalStore[0]?.body ?? '(body missing)'}
 		</article>
-		<!-- Enable for debugging: -->
-		<!-- <pre>{JSON.stringify(formData, null, 2)}</pre> -->
 		<form class="modal-form {cForm}" bind:this={formElement} id="change_user_form">
 			<!-- Username field -->
 			<div class="group relative z-0 mb-6 w-full">

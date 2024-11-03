@@ -23,13 +23,13 @@ import { error } from '@sveltejs/kit';
 
 // Auth
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
-import { checkUserPermission } from '@src/auth/permissionCheck';
 
 // System Logger
 import { logger } from '@utils/logger';
 
 // Input validation
 import { addUserTokenSchema } from '@utils/formSchemas';
+import { parse } from 'valibot';
 
 // Roles
 import { roles } from '@root/config/roles';
@@ -51,7 +51,7 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 		}
 
 		const body = await request.json();
-		logger.debug('Received token creation request:', body); // Debug log
+		logger.debug('Received token creation request:', body);
 
 		// Validate input using the existing schema
 		const validatedData = addUserTokenSchema.parse(body);
@@ -59,11 +59,16 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 
 		const tokenAdapter = new TokenAdapter();
 
-		// Parse the expiresIn string to get the number of hours
-		const expiresInHours = parseInt(validatedData.expiresIn);
-		if (isNaN(expiresInHours)) {
-			throw error(400, 'Invalid expiresIn value');
+		// Check if a token already exists for this email
+		const existingTokens = await tokenAdapter.getAllTokens({ email: validatedData.email });
+		if (existingTokens && existingTokens.length > 0) {
+			logger.warn('Token already exists for email:', validatedData.email);
+			throw error(400, { message: 'A registration token already exists for this email' });
 		}
+
+		// Get expiration hours from the validated data
+		const expiresInHours = validatedData.expiresIn;
+		logger.debug('Expiration hours:', expiresInHours);
 
 		// Calculate expiration date
 		const expires = new Date();
@@ -73,33 +78,25 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 		const role = roles.find((r) => r._id === validatedData.role);
 		if (!role) {
 			logger.error('Invalid role:', validatedData.role);
-			throw error(400, 'Invalid role');
+			throw error(400, { message: 'Invalid role' });
 		}
 
 		// Check if user already exists
-		const existingUser = await locals.auth.checkUser({ email: validatedData.email });
+		const existingUser = await auth.checkUser({ email: validatedData.email });
 		if (existingUser) {
-			throw error(400, 'User with this email already exists');
+			logger.error('User already exists:', validatedData.email);
+			throw error(400, { message: 'User with this email already exists' });
 		}
 
-		// Create a pending user with the specified role
-		const pendingUser = await locals.auth.createUser({
-			email: validatedData.email,
-			role: role._id,
-			permissions: role.permissions,
-			isRegistered: false
-		});
-
-		if (!pendingUser || !pendingUser._id) {
-			throw error(500, 'Failed to create pending user');
-		}
-
+		// Create a registration token
 		const token = await tokenAdapter.createToken({
-			user_id: pendingUser._id,
+			user_id: crypto.randomUUID(), // Temporary ID until user registers
 			email: validatedData.email,
 			expires,
 			type: 'registration'
 		});
+
+		logger.debug('Created token:', token);
 
 		// Send invitation email
 		const emailResponse = await fetch('/api/sendMail', {
@@ -123,22 +120,46 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 			})
 		});
 
+		const emailResult = await emailResponse.json();
+		logger.debug('Email API response:', { status: emailResponse.status, result: emailResult });
+
 		if (!emailResponse.ok) {
-			logger.error('Failed to send invitation email', { email: validatedData.email, status: emailResponse.status });
-			// Delete the pending user and token if email fails
-			await locals.auth.deleteUser(pendingUser._id);
-			await tokenAdapter.deleteToken(token);
-			throw error(500, 'Failed to send invitation email');
+			logger.error('Failed to send invitation email', {
+				email: validatedData.email,
+				status: emailResponse.status,
+				result: emailResult
+			});
+			// Delete the token if email fails
+			await tokenAdapter.consumeToken(token);
+			throw error(500, { message: emailResult.error || 'Failed to send invitation email' });
 		}
 
-		// Successful response
-		return json({ success: true, message: 'Token created and email sent' });
+		logger.info('Token created and email sent successfully', {
+			email: validatedData.email,
+			role: role.name,
+			expiresIn: validatedData.expiresInLabel
+		});
+
+		// Return success response
+		return json({
+			success: true,
+			message: 'Token created and email sent successfully'
+		});
 	} catch (err: any) {
+		// If it's already a SvelteKit error response, pass it through
+		if (err.status && err.body) {
+			throw err;
+		}
+
 		logger.error('Error in createToken API:', {
 			message: err.message,
 			stack: err.stack,
 			details: err
 		});
-		throw error(500, 'An internal server error occurred');
+
+		// Return a formatted error response
+		throw error(500, {
+			message: err.message || 'An internal server error occurred'
+		});
 	}
 };

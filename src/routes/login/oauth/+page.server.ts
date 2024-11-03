@@ -92,16 +92,37 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, locals }) => {
 		logger.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error: Authentication system is not initialized');
 	}
-	logger.debug('OAuth load function called');
-	logger.debug(`Full URL: ${url.toString()}`);
+
+	// Check if this is the first user
+	let firstUserExists = false;
+	try {
+		firstUserExists = (await auth.getUserCount()) !== 0;
+		logger.debug(`First user exists: ${firstUserExists}`);
+	} catch (err) {
+		logger.error('Error fetching user count:', err);
+		throw error(500, 'Error checking first user status');
+	}
 
 	const code = url.searchParams.get('code');
 	logger.debug(`Authorization code from URL: ${code}`);
 
+	// For first user, directly redirect to Google OAuth
+	if (!firstUserExists && !code) {
+		try {
+			const authUrl = await generateGoogleAuthUrl();
+			throw redirect(302, authUrl);
+		} catch (err) {
+			logger.error('Error generating OAuth URL:', err);
+			throw error(500, 'Failed to initialize OAuth');
+		}
+	}
+
 	if (!code) {
-		logger.warn('No authorization code found in URL');
-		// If there's no code, we just return and let the page render
-		return {};
+		logger.debug('No authorization code found in URL, showing token input form');
+		// Return first user status for the page to render appropriately
+		return {
+			isFirstUser: !firstUserExists
+		};
 	}
 
 	try {
@@ -132,7 +153,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, locals }) => {
 
 		// Check if user exists
 		let user = await auth?.checkUser({ email });
-		const isFirst = locals.isFirstUser;
+		const isFirst = !firstUserExists;
 
 		if (!user) {
 			// Handle new user creation
@@ -158,6 +179,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, locals }) => {
 				true
 			);
 
+			// Always send welcome email for new users
 			await sendWelcomeEmail(fetch, email, googleUser.name || '');
 		} else {
 			// Update existing user's avatar if they have a Google avatar
@@ -183,7 +205,6 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, locals }) => {
 		// Create User Session and set cookie
 		const session = await auth?.createSession({ user_id: user._id });
 		const sessionCookie = auth?.createSessionCookie(session);
-
 		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 
 		logger.info('Successfully created session and set cookie');
@@ -198,7 +219,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, locals }) => {
 
 export const actions: Actions = {
 	// default action
-	default: async ({ request }) => {
+
+	OAuth: async ({ request }) => {
+		// For non-first users, validate token
 		const data = await request.formData();
 		const token = data.get('token');
 

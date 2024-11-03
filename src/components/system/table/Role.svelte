@@ -11,6 +11,10 @@
 
 	// Determine if the roles array is defined and has the required elements
 	const roleClasses = (roleId: string) => {
+		// Handle admin role specifically
+		if (roleId === 'admin') {
+			return 'badge gradient-primary';
+		}
 		const role = roles.find((r) => r._id === roleId);
 		if (!role) return 'text-white'; // Default class if role not found
 		switch (roleId) {
@@ -28,6 +32,10 @@
 	};
 
 	const iconForRole = (roleId: string) => {
+		// Handle admin role specifically
+		if (roleId === 'admin') {
+			return 'material-symbols:verified-outline';
+		}
 		switch (roleId) {
 			case roles[0]?._id:
 				return 'material-symbols:verified-outline';
@@ -42,7 +50,13 @@
 		}
 	};
 
-	const roleName = (roleId: string) => roles.find((r) => r._id === roleId)?.name || 'Unknown';
+	const roleName = (roleId: string) => {
+		// Handle admin role specifically
+		if (roleId === 'admin') {
+			return 'Administrator';
+		}
+		return roles.find((r) => r._id === roleId)?.name || 'Unknown';
+	};
 </script>
 
 <div class={roleClasses(value)}>

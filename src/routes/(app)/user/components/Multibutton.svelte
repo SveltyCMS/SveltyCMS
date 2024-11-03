@@ -26,45 +26,78 @@
 		target: 'Combobox',
 		placement: 'bottom-end',
 		closeQuery: '.listbox-item'
-		//state: (e: any) => console.log('tooltip', e)
 	};
+
+	function showErrorToast(message: string) {
+		const t = {
+			message: `<iconify-icon icon="mdi:alert" color="white" width="26" class="mr-1"></iconify-icon> ${message}`,
+			background: 'gradient-error',
+			timeout: 3000,
+			classes: 'border-1 !rounded-md'
+		};
+		toastStore.trigger(t);
+	}
+
+	function showSuccessToast(message: string, background: string = 'gradient-primary') {
+		const t = {
+			message: `<iconify-icon icon="mdi:check-outline" color="white" width="26" class="mr-1"></iconify-icon> ${message}`,
+			background,
+			timeout: 3000,
+			classes: 'border-1 !rounded-md'
+		};
+		toastStore.trigger(t);
+	}
 
 	// modals
 	function modalUserForm(): void {
-		if (selectedRows.length === 0) return; // Trigger the toast
-		// console.log(selectedRows[0].data);
+		if (selectedRows.length === 0) {
+			showErrorToast('Please select a user to edit');
+			return;
+		}
+
+		if (selectedRows.length > 1) {
+			showErrorToast('Please select only one user to edit');
+			return;
+		}
 
 		const modalComponent: ModalComponent = {
-			// Pass a reference to your custom component
 			ref: ModalEditForm,
-			// Add your props as key/value pairs
 			props: {
 				isGivenData: true,
 				username: selectedRows[0].data.username,
 				email: selectedRows[0].data.email,
 				role: selectedRows[0].data.role,
-				user_id: selectedRows[0].data.user_id
+				user_id: selectedRows[0].data._id
 			},
-			// Provide default slot content as a template literal
 			slot: '<p>Edit Form</p>'
 		};
 		const d: ModalSettings = {
 			type: 'component',
-			// NOTE: title, body, response, etc are supported!
 			title: 'Edit User Data',
 			body: 'Modify your data and then press Save.',
 			component: modalComponent,
-			// Pass arbitrary data to the component
 			response: async (r: any) => {
 				if (r) {
-					const res = await fetch('?/updateUserAttributes', {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ ...r })
-					});
+					try {
+						const res = await fetch('/api/user/updateUserAttributes', {
+							method: 'PUT',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({
+								user_id: selectedRows[0].data._id,
+								userData: r
+							})
+						});
 
-					if (res.status === 200) {
-						await invalidateAll();
+						if (res.ok) {
+							showSuccessToast('User Updated');
+							await invalidateAll();
+						} else {
+							const data = await res.json();
+							showErrorToast(data.message || 'Failed to update user');
+						}
+					} catch (error) {
+						console.error('Error updating user:', error);
+						showErrorToast('Failed to update user');
 					}
 				}
 			}
@@ -72,34 +105,47 @@
 		modalStore.trigger(d);
 	}
 
-	function modalConfirm(action: 'delete' | 'block' | 'unblock'): void {
+	async function modalConfirm(action: 'delete' | 'block' | 'unblock'): Promise<void> {
+		if (selectedRows.length === 0) {
+			showErrorToast(`Please select user(s) to ${action}`);
+			return;
+		}
+
 		let modalTitle: string;
 		let modalBody: string;
 		let modalButtonText: string;
 		let toastMessage: string;
 		let toastBackground: string;
+		let endpoint: string;
+		let method: string;
 
 		switch (action) {
 			case 'delete':
 				modalTitle = 'Please Confirm User Deletion';
 				modalBody = 'Are you sure you wish to delete this user?';
 				modalButtonText = 'Delete User';
-				toastMessage = '<iconify-icon icon="mdi:check-outline" color="white" width="26" class="mr-1"></iconify-icon> User Deleted';
+				toastMessage = 'User Deleted';
 				toastBackground = 'gradient-error';
+				endpoint = '/api/user/deleteUsers';
+				method = 'DELETE';
 				break;
 			case 'block':
 				modalTitle = 'Please Confirm User Block';
 				modalBody = 'Are you sure you wish to block this user?';
 				modalButtonText = 'Block User';
-				toastMessage = '<iconify-icon icon="mdi:check-outline" color="white" width="26" class="mr-1"></iconify-icon> User Blocked';
+				toastMessage = 'User Blocked';
 				toastBackground = 'gradient-yellow';
+				endpoint = '/api/user/blockUsers';
+				method = 'PUT';
 				break;
 			case 'unblock':
 				modalTitle = 'Please Confirm User Unblock';
 				modalBody = 'Are you sure you wish to unblock this user?';
 				modalButtonText = 'Unblock User';
-				toastMessage = '<iconify-icon icon="mdi:check-outline" color="white" width="26" class="mr-1"></iconify-icon> User Unblocked';
+				toastMessage = 'User Unblocked';
 				toastBackground = 'gradient-primary';
+				endpoint = '/api/user/unblockUsers';
+				method = 'PUT';
 				break;
 			default:
 				throw Error(`Invalid action ${action}`);
@@ -107,38 +153,31 @@
 
 		const d: ModalSettings = {
 			type: 'confirm',
-
-			// Data
 			title: modalTitle,
 			body: modalBody,
 			buttonTextConfirm: modalButtonText,
 
-			//TODO : Add corresponding buttonPositive color
-			// modalClasses: '!bg-gradient-to-br from-error-700 via-error-500 to-error-300',
-
-			// TRUE if confirm pressed, FALSE if cancel pressed
 			response: async (r: boolean) => {
 				if (!r) return;
-				const endpoint = action === 'delete' ? 'deleteUser' : action === 'block' ? 'blockUser' : 'unblockUser';
-				const res = await fetch(`?/${endpoint}`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify(selectedRows.map((row) => row.data))
-				});
 
-				// Trigger the toast
-				const t = {
-					message: toastMessage,
-					// Provide any utility or variant background style:
-					background: toastBackground,
-					timeout: 3000,
-					// Add your custom classes here:
-					classes: 'border-1 !rounded-md'
-				};
-				toastStore.trigger(t);
+				try {
+					const user_ids = selectedRows.map((row) => row.data._id);
+					const res = await fetch(endpoint, {
+						method,
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ user_ids })
+					});
 
-				if (res.status === 200) {
-					await invalidateAll();
+					if (res.ok) {
+						showSuccessToast(toastMessage, toastBackground);
+						await invalidateAll();
+					} else {
+						const data = await res.json();
+						showErrorToast(data.message || `Failed to ${action} user(s)`);
+					}
+				} catch (error) {
+					console.error(`Error ${action}ing user:`, error);
+					showErrorToast(`Failed to ${action} user(s)`);
 				}
 			}
 		};
@@ -146,7 +185,7 @@
 		modalStore.trigger(d);
 	}
 
-	const getButtonAndIconValues = (listboxValue: string, action: string) => {
+	const getButtonAndIconValues = (listboxValue: string) => {
 		let buttonClass = '';
 		let iconValue = '';
 
@@ -173,28 +212,28 @@
 				break;
 		}
 
-		// edit user
-		if (action === 'edit') {
-			modalUserForm();
-		}
-		// delete user
-		else if (action === 'delete') {
-			modalConfirm('delete');
-		}
-		// unblock user
-		else if (action === 'unblock') {
-			modalConfirm('unblock');
-		}
-		// block user
-		else if (action === 'block') {
-			modalConfirm('block');
-		}
-
 		return {
 			buttonClass: `btn ${buttonClass} rounded-none w-48 justify-between`,
 			iconValue
 		};
 	};
+
+	function handleAction() {
+		switch (listboxValue) {
+			case 'edit':
+				modalUserForm();
+				break;
+			case 'delete':
+				modalConfirm('delete');
+				break;
+			case 'unblock':
+				modalConfirm('unblock');
+				break;
+			case 'block':
+				modalConfirm('block');
+				break;
+		}
+	}
 </script>
 
 <!-- Multibutton group-->
@@ -202,12 +241,11 @@
 	<!-- Action button  -->
 	<button
 		type="button"
-		on:click={() => {
-			getButtonAndIconValues(listboxValue, listboxValue);
-		}}
-		class="{getButtonAndIconValues(listboxValue, listboxValue).buttonClass} w-full font-semibold uppercase hover:bg-primary-400"
+		on:click={handleAction}
+		class="{getButtonAndIconValues(listboxValue).buttonClass} w-full font-semibold uppercase hover:bg-primary-400"
+		disabled={selectedRows.length === 0}
 	>
-		<iconify-icon icon={getButtonAndIconValues(listboxValue, listboxValue).iconValue} width="20" class="mr-2 text-white" />
+		<iconify-icon icon={getButtonAndIconValues(listboxValue).iconValue} width="20" class="mr-2 text-white" />
 		{listboxValue ?? 'create'}
 	</button>
 
@@ -218,6 +256,7 @@
 		<iconify-icon icon="mdi:chevron-down" width="20" class="text-white" />
 	</button>
 </div>
+
 <!-- Dropdown/Listbox -->
 <div class="overflow-hiddens card z-10 w-48 rounded-sm bg-surface-500 text-white" data-popup="Combobox">
 	<ListBox rounded="rounded-sm" active="variant-filled-primary" hover="hover:bg-surface-300" class="divide-y">

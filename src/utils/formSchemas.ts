@@ -9,7 +9,20 @@
 
 import { publicEnv } from '@root/config/public';
 
-import { string, boolean, strictObject, optional, minLength, maxLength, email as emailValidator, regex, pipe, check, type InferInput } from 'valibot';
+import {
+	string,
+	boolean,
+	strictObject,
+	optional,
+	minLength,
+	maxLength,
+	email as emailValidator,
+	regex,
+	pipe,
+	check,
+	type InferInput,
+	number
+} from 'valibot';
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
@@ -89,7 +102,7 @@ export const signUpOAuthFormSchema = strictObject({
 export const addUserTokenSchema = strictObject({
 	email: emailSchema,
 	role: roleSchema,
-	expiresIn: string(),
+	expiresIn: number(),
 	expiresInLabel: string()
 });
 
