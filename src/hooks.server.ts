@@ -119,9 +119,23 @@ const getUserFromSessionId = async (session_id: string | undefined): Promise<any
 			}
 		} catch (err) {
 			logger.error(`Session validation error: ${err}`);
+			// Clear the invalid session cookie
+			return null;
 		}
 	} else {
-		await cacheStore.set(session_id, user, new Date(Date.now() + 3600 * 1000));
+		try {
+			// Double-check the session is still valid in the database
+			const validSession = await auth.validateSession({ session_id });
+			if (!validSession) {
+				await cacheStore.delete(session_id);
+				return null;
+			}
+			await cacheStore.set(session_id, user, new Date(Date.now() + 3600 * 1000));
+		} catch (err) {
+			logger.error(`Session revalidation error: ${err}`);
+			await cacheStore.delete(session_id);
+			return null;
+		}
 	}
 	return user;
 };
@@ -159,11 +173,24 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 	const start = performance.now();
 	logger.debug('Starting handleAuth function');
-	await initializationPromise;
-	logger.debug('Database initialization complete');
+
+	try {
+		await initializationPromise;
+		logger.debug('Database initialization complete');
+	} catch (err) {
+		logger.error(`Database initialization failed: ${err}`);
+		// If database initialization fails, redirect to login
+		if (!isPublicOrOAuthRoute(event.url.pathname)) {
+			throw redirect(302, '/login');
+		}
+	}
 
 	if (!auth) {
 		logger.error('Authentication system is not available');
+		// If auth system is not available, redirect to login
+		if (!isPublicOrOAuthRoute(event.url.pathname)) {
+			throw redirect(302, '/login');
+		}
 		throw error(500, 'Authentication system is not available');
 	}
 
@@ -171,6 +198,12 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	logger.debug(`Session ID from cookie: ${session_id || 'Not present'}`);
 
 	const user = await getUserFromSessionId(session_id);
+
+	// If session is invalid, clear the cookie
+	if (session_id && !user) {
+		event.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+	}
+
 	logger.debug(`User from session: ${user ? JSON.stringify(user) : 'Not found'}`);
 
 	event.locals.user = user;
@@ -181,35 +214,49 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	const isApiRequest = event.url.pathname.startsWith('/api/');
 
 	// Check if this is the first user, regardless of session
-	const userCount = await auth.getUserCount();
+	let userCount = 0;
+	try {
+		userCount = await auth.getUserCount();
+	} catch (err) {
+		logger.error(`Failed to get user count: ${err}`);
+		// If we can't get user count, assume it's not first user for safety
+		if (!isPublicOrOAuthRoute(event.url.pathname)) {
+			throw redirect(302, '/login');
+		}
+	}
+
 	const isFirstUser = userCount === 0;
 	event.locals.isFirstUser = isFirstUser;
 	logger.debug(`Is first user: ${isFirstUser}, Total users: ${userCount}`);
 
 	if (user) {
-		// Fetch user roles
-		event.locals.roles = await auth.getAllRoles();
-		logger.debug(`Roles retrieved for user ${user.email}: ${JSON.stringify(event.locals.roles)}`);
+		try {
+			// Fetch user roles
+			event.locals.roles = await auth.getAllRoles();
+			logger.debug(`Roles retrieved for user ${user.email}: ${JSON.stringify(event.locals.roles)}`);
 
-		// Check for admin permissions
-		const manageUsersPermissionConfig = {
-			contextId: 'config/userManagement',
-			requiredRole: 'admin',
-			action: 'manage',
-			contextType: 'system'
-		};
-		const { hasPermission } = await checkUserPermission(user, manageUsersPermissionConfig);
-		event.locals.hasManageUsersPermission = hasPermission;
-		logger.debug(`User ${user.email} has manage users permission: ${hasPermission}`);
+			// Check for admin permissions
+			const manageUsersPermissionConfig = {
+				contextId: 'config/userManagement',
+				requiredRole: 'admin',
+				action: 'manage',
+				contextType: 'system'
+			};
+			const { hasPermission } = await checkUserPermission(user, manageUsersPermissionConfig);
+			event.locals.hasManageUsersPermission = hasPermission;
+			logger.debug(`User ${user.email} has manage users permission: ${hasPermission}`);
 
-		// Fetch admin data if user has permission
-		if (user.isAdmin || hasPermission) {
-			try {
+			// Fetch admin data if user has permission
+			if (user.isAdmin || hasPermission) {
 				event.locals.allUsers = await auth.getAllUsers();
 				event.locals.allTokens = await auth.getAllTokens();
 				logger.debug(`Retrieved ${event.locals.allUsers.length} users and ${event.locals.allTokens.length} tokens for admin`);
-			} catch (fetchError) {
-				logger.error(`Error fetching admin data: ${(fetchError as Error).message}`);
+			}
+		} catch (err) {
+			logger.error(`Error fetching user data: ${err}`);
+			// If we can't fetch user data, session might be invalid
+			if (!isPublicOrOAuthRoute(event.url.pathname)) {
+				throw redirect(302, '/login');
 			}
 		}
 	}

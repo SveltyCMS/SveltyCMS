@@ -47,6 +47,22 @@ async function sendWelcomeEmail(fetchFn: (input: RequestInfo | URL, init?: Reque
 	}
 }
 
+// Helper function to fetch and save Google avatar
+async function fetchAndSaveGoogleAvatar(avatarUrl: string): Promise<string | null> {
+	try {
+		const response = await fetch(avatarUrl);
+		if (!response.ok) {
+			throw new Error(`Failed to fetch avatar: ${response.statusText}`);
+		}
+		const blob = await response.blob();
+		const avatarFile = new File([blob], 'google-avatar.jpg', { type: 'image/jpeg' });
+		return await saveAvatarImage(avatarFile, 'avatars');
+	} catch (err) {
+		logger.error('Error fetching and saving Google avatar:', err as Error);
+		return null;
+	}
+}
+
 // Helper function to fetch and redirect to the first collection
 async function fetchAndRedirectToFirstCollection(): Promise<string> {
 	try {
@@ -123,9 +139,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, locals }) => {
 			let avatarUrl: string | null = null;
 			// Fetch & Save the Google user's avatar
 			if (googleUser.picture) {
-				const response = await fetch(googleUser.picture);
-				const avatarFile = new File([await response.blob()], 'avatar.jpg', { type: 'image/jpeg' });
-				avatarUrl = await saveAvatarImage(avatarFile, 'avatars');
+				avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture);
 			}
 
 			// Create the new user
@@ -135,7 +149,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, locals }) => {
 					username: googleUser.name ?? '',
 					firstName: googleUser.given_name,
 					lastName: googleUser.family_name,
-					avatar: avatarUrl ?? googleUser.picture,
+					avatar: avatarUrl,
 					role: isFirst ? 'admin' : 'user',
 					lastAuthMethod: 'google',
 					isRegistered: true,
@@ -145,6 +159,21 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, locals }) => {
 			);
 
 			await sendWelcomeEmail(fetch, email, googleUser.name || '');
+		} else {
+			// Update existing user's avatar if they have a Google avatar
+			let avatarUrl: string | null = null;
+			if (googleUser.picture) {
+				avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture);
+			}
+
+			// Update user attributes including the new avatar if available
+			await auth.updateUserAttributes(user._id.toString(), {
+				email: googleUser.email!,
+				lastAuthMethod: 'google',
+				firstName: googleUser.given_name ?? '',
+				lastName: googleUser.family_name ?? '',
+				...(avatarUrl && { avatar: avatarUrl }) // Only update avatar if we successfully downloaded and saved it
+			});
 		}
 
 		if (!user?._id) {
@@ -157,16 +186,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, locals }) => {
 
 		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 
-		// Update user attributes
-		await auth.updateUserAttributes(user._id.toString(), {
-			email: googleUser.email!,
-			lastAuthMethod: 'google',
-			firstName: googleUser.given_name ?? "",
-			lastName: googleUser.family_name ?? "",
-			avatar:  googleUser.picture ?? ""
-		});
 		logger.info('Successfully created session and set cookie');
-
 	} catch (e) {
 		logger.error('Error during login process:', `${JSON.stringify(e)}`);
 		throw Error('Error during login process', e);

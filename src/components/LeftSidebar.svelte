@@ -3,6 +3,10 @@
 @description LeftSidebar component
 -->
 
+<script context="module" lang="ts">
+	declare const __VERSION__: string;
+</script>
+
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 	import { goto, invalidateAll } from '$app/navigation';
@@ -20,6 +24,7 @@
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import SiteName from '@components/SiteName.svelte';
 	import Collections from '@components/Collections.svelte';
+	import { getLanguageName } from '@utils/languageUtils';
 
 	// Skeleton components and utilities
 	import { Avatar, popup, modeCurrent, type PopupSettings, setModeUserPrefers, setModeCurrent } from '@skeletonlabs/skeleton';
@@ -64,13 +69,52 @@
 	import * as m from '@src/paraglide/messages';
 	import { languageTag } from '@src/paraglide/runtime';
 
+	// Define language type based on available languages
+	type AvailableLanguage = (typeof publicEnv.AVAILABLE_SYSTEM_LANGUAGES)[number];
+
 	let _languageTag = languageTag(); // Get the current language tag
 
-	function handleLocaleChange(event: any) {
-		$systemLanguage = event.target.value;
+	// Enhanced language selector
+	let searchQuery = '';
+	let isDropdownOpen = false;
+	let searchInput: HTMLInputElement;
+	let debounceTimeout: ReturnType<typeof setTimeout>;
+
+	function handleLanguageSelection(lang: AvailableLanguage) {
+		clearTimeout(debounceTimeout);
+		debounceTimeout = setTimeout(() => {
+			$systemLanguage = lang;
+			_languageTag = lang;
+			isDropdownOpen = false;
+			searchQuery = '';
+		}, 300);
 	}
-	const inputlangeuagevalue = '';
-	$: filteredLanguages = publicEnv.AVAILABLE_SYSTEM_LANGUAGES.filter((value) => (value ? value.includes(inputlangeuagevalue) : true));
+
+	// Sort languages alphabetically
+	$: availableLanguages = [...publicEnv.AVAILABLE_SYSTEM_LANGUAGES].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')));
+
+	$: filteredLanguages = availableLanguages.filter(
+		(lang: string) =>
+			getLanguageName(lang, $systemLanguage).toLowerCase().includes(searchQuery.toLowerCase()) ||
+			getLanguageName(lang, 'en').toLowerCase().includes(searchQuery.toLowerCase())
+	) as AvailableLanguage[];
+
+	function handleClickOutside(event: MouseEvent) {
+		const target = event.target as HTMLElement;
+		if (!target.closest('.language-selector')) {
+			isDropdownOpen = false;
+			searchQuery = '';
+		}
+	}
+
+	$: if (typeof window !== 'undefined') {
+		if (isDropdownOpen) {
+			window.addEventListener('click', handleClickOutside);
+			setTimeout(() => searchInput?.focus(), 0);
+		} else {
+			window.removeEventListener('click', handleClickOutside);
+		}
+	}
 
 	let handleClick: any;
 
@@ -145,6 +189,13 @@
 		setModeCurrent(newMode);
 		localStorage.setItem('theme', newMode ? 'light' : 'dark');
 	};
+
+	function handleSelectChange(event: Event) {
+		const target = event.target as HTMLSelectElement;
+		if (target) {
+			handleLanguageSelection(target.value as AvailableLanguage);
+		}
+	}
 </script>
 
 <div class="flex h-full w-full flex-col justify-between">
@@ -223,19 +274,62 @@
 				</div>
 			</div>
 
-			<!-- System Language i18n Handling -->
-			<div class={$sidebarState.left === 'full' ? 'order-3 row-span-2  ' : 'order-2'} use:popup={SystemLanguageTooltip}>
-				<select
-					bind:value={_languageTag}
-					on:change={handleLocaleChange}
-					class="variant-filled-surface !appearance-none rounded-full uppercase text-white {$sidebarState.left === 'full'
-						? 'btn-icon px-2.5 py-2'
-						: 'btn-icon-sm px-1.5 py-0'}"
-				>
-					{#each filteredLanguages as locale}
-						<option value={locale} selected={locale === _languageTag}>{locale.toUpperCase()}</option>
-					{/each}
-				</select>
+			<!-- Enhanced System Language Selector -->
+			<div class={$sidebarState.left === 'full' ? 'order-3 row-span-2' : 'order-2'} use:popup={SystemLanguageTooltip}>
+				<div class="language-selector relative">
+					{#if publicEnv.AVAILABLE_SYSTEM_LANGUAGES.length > 5}
+						<button
+							class="variant-filled-surface btn-icon flex items-center justify-between gap-2 uppercase text-white {$sidebarState.left === 'full'
+								? 'px-2.5 py-2'
+								: 'px-1.5 py-0'}"
+							on:click|stopPropagation={() => (isDropdownOpen = !isDropdownOpen)}
+						>
+							<span>{_languageTag}</span>
+							<svg class="h-4 w-4 transition-transform {isDropdownOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+							</svg>
+						</button>
+
+						{#if isDropdownOpen}
+							<div class="absolute -top-40 left-20 z-50 mt-1 w-48 rounded-lg border bg-surface-700 shadow-lg">
+								<div class="border-b border-surface-600 p-2">
+									<input
+										type="text"
+										bind:this={searchInput}
+										bind:value={searchQuery}
+										placeholder="Search language..."
+										class="w-full rounded-md bg-surface-800 px-3 py-2 text-white placeholder:text-surface-400 focus:outline-none focus:ring-2"
+									/>
+								</div>
+
+								<div class="max-h-48 divide-y divide-surface-600 overflow-y-auto py-1">
+									{#each filteredLanguages as lang}
+										<button
+											class="flex w-full items-center justify-between px-4 py-2 text-left text-white hover:bg-surface-600 {_languageTag === lang
+												? 'bg-surface-600'
+												: ''}"
+											on:click={() => handleLanguageSelection(lang)}
+										>
+											<span>{getLanguageName(lang)} ({lang.toUpperCase()})</span>
+										</button>
+									{/each}
+								</div>
+							</div>
+						{/if}
+					{:else}
+						<select
+							bind:value={_languageTag}
+							on:change={handleSelectChange}
+							class="variant-filled-surface !appearance-none rounded-full uppercase text-white {$sidebarState.left === 'full'
+								? 'btn-icon px-2.5 py-2'
+								: 'btn-icon-sm px-1.5 py-0'}"
+						>
+							{#each availableLanguages as lang}
+								<option value={lang} selected={lang === _languageTag}>{lang.toUpperCase()}</option>
+							{/each}
+						</select>
+					{/if}
+				</div>
 
 				<!-- Popup Tooltip with the arrow element -->
 				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="SystemLanguage">
@@ -331,3 +425,43 @@
 		</div>
 	</div>
 </div>
+
+<style>
+	/* Scrollbar styling */
+	.overflow-y-auto {
+		scrollbar-width: thin;
+		scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+	}
+
+	.overflow-y-auto::-webkit-scrollbar {
+		width: 6px;
+	}
+
+	.overflow-y-auto::-webkit-scrollbar-track {
+		background: transparent;
+	}
+
+	.overflow-y-auto::-webkit-scrollbar-thumb {
+		background-color: rgba(156, 163, 175, 0.5);
+		border-radius: 3px;
+	}
+
+	/* Language dropdown scrollbar */
+	.language-selector .overflow-y-auto {
+		scrollbar-width: thin;
+		scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+	}
+
+	.language-selector .overflow-y-auto::-webkit-scrollbar {
+		width: 4px;
+	}
+
+	.language-selector .overflow-y-auto::-webkit-scrollbar-track {
+		background: transparent;
+	}
+
+	.language-selector .overflow-y-auto::-webkit-scrollbar-thumb {
+		background-color: rgba(156, 163, 175, 0.5);
+		border-radius: 2px;
+	}
+</style>
