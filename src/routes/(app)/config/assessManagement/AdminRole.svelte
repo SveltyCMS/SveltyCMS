@@ -119,7 +119,7 @@ It provides functionality to:
 				showToast('Network error occurred while updating config file', 'error');
 			}
 			hasChanges.set(false);
-			notification.set('Admin role updated successfully.');
+			notification.set('Admin role changed. Click "Save" at the top to apply changes.');
 		} catch (err) {
 			notification.set(`Failed to save admin role: ${err instanceof Error ? err.message : String(err)}`);
 		} finally {
