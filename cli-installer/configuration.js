@@ -20,7 +20,7 @@ import { configureGoogle } from './config/google.js';
 import { configureRedis } from './config/redis.js';
 import { configureMapbox } from './config/mapbox.js';
 import { configureTiktok } from './config/tiktok.js';
-import { configureOpenAI } from './config/openai.js';
+import { configureLLM } from './config/llm.js'; // Replaces OpenAI configuration
 
 const REQUIRED_FIELDS = {
 	database: 'DB_HOST',
@@ -42,7 +42,7 @@ const OPTIONS = [
 	{ value: 'Redis', label: 'Redis', hint: 'Configure Redis cache' },
 	{ value: 'Mapbox', label: 'Mapbox', hint: 'Configure Mapbox API' },
 	{ value: 'Tiktok', label: 'Tiktok', hint: 'Configure Tiktok API' },
-	{ value: 'OpenAI', label: 'OpenAI', hint: 'Define OpenAI API' },
+	{ value: 'LLM', label: 'LLM	', hint: 'Define LLMAPI' },
 	{ value: 'Exit', label: 'Save & Exit', hint: 'Save & Exit the installer' }
 ];
 
@@ -153,7 +153,7 @@ export const configurationPrompt = async () => {
 					Redis: configureRedis,
 					Mapbox: configureMapbox,
 					Tiktok: configureTiktok,
-					OpenAI: configureOpenAI
+					LLM: configureLLM
 				}[selectedOption];
 
 				const result = await configureFunction(configData);

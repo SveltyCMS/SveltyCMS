@@ -66,9 +66,15 @@ export const createPrivateConfig = (arg: {
 	USE_TIKTOK?: boolean;
 	TIKTOK_TOKEN?: string;
 
-	// OpenAI - Chat GPT - to be added to Lexical - See https://beta.openai.com/docs/api-reference/authentication
-	USE_OPEN_AI?: boolean;
-	VITE_OPEN_AI_KEY?: string;
+	// Large Language Model API configurations
+	LLM_APIS?: {
+		[key: string]: {
+			enabled: boolean; // Flag to enable/disable this LLM API
+			apiKey: string; // API key for authentication
+			model?: string; // Model name or type (e.g., 'gpt-4' for ChatGPT, 'claude' for Claude, etc.)
+			baseUrl?: string; // Base URL for the LLM API endpoint
+		};
+	};
 
 	// Roles and Permissions
 	ROLES: Role[];
