@@ -7,8 +7,10 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { TabGroup, Tab, CodeBlock, clipboard } from '@skeletonlabs/skeleton';
+	import { TabGroup, Tab, CodeBlock, clipboard, getToastStore } from '@skeletonlabs/skeleton';
 	$: $tabSet = 0;
+
+	const toastStore = getToastStore();
 
 	export let fields: typeof $collection.fields | undefined = undefined;
 	export let root = true; // if Fields is not part of any widget.
@@ -33,6 +35,17 @@
 
 	function handleRevert(event: MouseEvent) {
 		alert('Function not implemented.');
+	}
+
+	function handleCopyUrl() {
+		navigator.clipboard.writeText(apiUrl).then(() => {
+			toastStore.trigger({
+				message: '<iconify-icon icon="ph:copy" color="white" width="24" class="mr-1"></iconify-icon> Copied to clipboard.',
+				background: 'gradient-primary',
+				timeout: 3000,
+				classes: 'border-1 !rounded-md'
+			});
+		});
 	}
 
 	function getTabHeaderVisibility() {
@@ -186,7 +199,7 @@
 					<!-- label -->
 					<p class="flex items-center">
 						<span class="mr-1">API URL:</span>
-						<iconify-icon icon="ph:copy" use:clipboard={apiUrl} class="pb-6 text-tertiary-500 dark:text-primary-500" />
+						<iconify-icon icon="ph:copy" on:click={handleCopyUrl} class="pb- cursor-pointer text-tertiary-500 dark:text-primary-500" />
 					</p>
 					<!-- Url -->
 					<button class="btn text-wrap text-left" on:click={() => window.open(apiUrl, '_blank')} title={apiUrl}>
