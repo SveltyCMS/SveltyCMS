@@ -30,7 +30,10 @@ Features:
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { TabGroup, Tab, CodeBlock, clipboard } from '@skeletonlabs/skeleton';
+	import { TabGroup, Tab, CodeBlock, clipboard, getToastStore } from '@skeletonlabs/skeleton';
+	$: $tabSet = 0;
+
+	const toastStore = getToastStore();
 
 	// Props
 	export let fields: typeof $collection.fields | undefined = undefined;
@@ -62,16 +65,16 @@ Features:
 		apiUrl = `${dev ? 'http://localhost:5173' : publicEnv.SITE_NAME}/api/${String($collection.name)}/${id}`;
 	}
 
-	// Functions and helpers
-	// async function loadTranslationProgress() {
-	// 	translationProgress = {};
-	// 	fields?.forEach((field) => {
-	// 		if ((field as any).translated) {
-	// 			// Type assertion
-	// 			translationProgress[getFieldName(field)] = Math.random(); // Simulated progress
-	// 		}
-	// 	});
-	// }
+	function handleCopyUrl() {
+		navigator.clipboard.writeText(apiUrl).then(() => {
+			toastStore.trigger({
+				message: '<iconify-icon icon="ph:copy" color="white" width="24" class="mr-1"></iconify-icon> Copied to clipboard.',
+				background: 'gradient-primary',
+				timeout: 3000,
+				classes: 'border-1 !rounded-md'
+			});
+		});
+	}
 
 	function handleRevert() {
 		// Implement revert logic
@@ -260,10 +263,12 @@ Features:
 					<div class="variant-ghost-error mb-4 py-2 text-center font-bold">{m.fields_api_nodata()}</div>
 				{:else}
 					<div class="wrapper relative z-0 mb-4 flex w-full items-center justify-start gap-1">
+						<!-- label -->
 						<p class="flex items-center">
 							<span class="mr-1">API URL:</span>
-							<iconify-icon icon="ph:copy" use:clipboard={apiUrl} class="pb-6 text-tertiary-500 dark:text-primary-500" />
+							<iconify-icon icon="ph:copy" on:click={handleCopyUrl} class="pb- cursor-pointer text-tertiary-500 dark:text-primary-500" />
 						</p>
+						<!-- Url -->
 						<button class="btn text-wrap text-left" on:click={() => window.open(apiUrl, '_blank')} title={apiUrl}>
 							<span class="text-wrap text-tertiary-500 dark:text-primary-500">{apiUrl}</span>
 						</button>
