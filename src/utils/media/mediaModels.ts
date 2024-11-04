@@ -3,7 +3,7 @@
  * @description Defines media models and interfaces for the CMS
  */
 
-import { SIZES } from '@utils/utils';
+import { publicEnv } from '@root/config/public'; // Adjust import path if needed
 
 // Enum representing media types
 export enum MediaTypeEnum {
@@ -25,7 +25,7 @@ export enum Permission {
 export interface MediaVersion {
 	version: number;
 	url: string;
-	createdAt: number; // Unix timestamp
+	createdAt: Date;
 	createdBy: string;
 }
 
@@ -54,11 +54,11 @@ export interface MediaBase {
 	mimeType: string;
 	size: number;
 	user: string;
-	createdAt: Date; // Unix timestamp
-	updatedAt: Date; // Unix timestamp
+	createdAt: Date;
+	updatedAt: Date;
 	metadata?: Record<string, any>;
 	isDeleted?: boolean;
-	deletedAt?: number; // Unix timestamp
+	deletedAt?: Date;
 	versions: MediaVersion[];
 	access: MediaAccess;
 }
@@ -68,7 +68,7 @@ export interface MediaImage extends MediaBase {
 	type: MediaTypeEnum.Image; // Discriminator
 	width: number;
 	height: number;
-	thumbnails: Record<keyof typeof SIZES, Thumbnail>; // Dynamic keys based on SIZES
+	thumbnails: Record<keyof typeof publicEnv.IMAGE_SIZES, Thumbnail>; // Dynamic keys based on IMAGE_SIZES
 }
 
 // Represents a document media item

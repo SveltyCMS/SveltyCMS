@@ -6,11 +6,27 @@
 import mime from 'mime-types';
 import Path from 'path';
 import { publicEnv } from '@root/config/public';
-import { sanitize, formatBytes, SIZES } from '@utils/utils';
+import { sanitize, formatBytes } from '@utils/utils';
 import type { MediaBase } from '@utils/media/mediaModels';
 
+// Convert IMAGE_SIZES to an array of size configurations
+const imageSizes: Array<{ name: string; width: number; height: number }> = Object.keys(publicEnv.IMAGE_SIZES).map((key) => ({
+	name: key,
+	width: publicEnv.IMAGE_SIZES[key].width,
+	height: publicEnv.IMAGE_SIZES[key].height
+}));
+
+// Media categories definition
+export const mediaCategories = {
+	Images: ['Original', 'Thumbnail', ...imageSizes.map((size) => size.name)],
+	Audio: [],
+	Videos: [],
+	Documents: [],
+	RemoteVideos: []
+} as const;
+
 // Constructs the full media URL based on the environment.
-export function constructMediaUrl(mediaItem: MediaBase, size?: keyof typeof SIZES): string {
+export function constructMediaUrl(mediaItem: MediaBase, size?: keyof typeof publicEnv.IMAGE_SIZES): string {
 	if (publicEnv.MEDIASERVER_URL) {
 		return `${publicEnv.MEDIASERVER_URL}/${mediaItem.url}`;
 	} else {
@@ -22,8 +38,15 @@ export function constructMediaUrl(mediaItem: MediaBase, size?: keyof typeof SIZE
 	}
 }
 
-// Constructs a URL for a media item based on its path, type, and other parameters
-export function constructUrl(path: string, hash: string, fileName: string, format: string, collectionName: string, size?: string): string {
+// Constructs a URL for a media item based on its path, type, and other parameters.
+export function constructUrl(
+	path: string,
+	hash: string,
+	fileName: string,
+	format: string,
+	collectionName: string,
+	size?: keyof typeof publicEnv.IMAGE_SIZES
+): string {
 	let urlPath: string;
 
 	switch (path) {
@@ -40,17 +63,12 @@ export function constructUrl(path: string, hash: string, fileName: string, forma
 	if (publicEnv.MEDIASERVER_URL) {
 		return `${publicEnv.MEDIASERVER_URL}/files/${urlPath}`;
 	} else {
-		// If MEDIA_FOLDER is intended to be a URL path
-		// return Path.posix.join(publicEnv.MEDIA_FOLDER, urlPath);
 		return urlPath;
-
-		// If MEDIA_FOLDER is a filesystem path and you need a file path instead:
-		// return Path.join(publicEnv.MEDIA_FOLDER, urlPath);
 	}
 }
 
 // Returns the URL for accessing a media item.
-export function getMediaUrl(mediaItem: MediaBase, collectionName: string, size?: keyof typeof SIZES): string {
+export function getMediaUrl(mediaItem: MediaBase, collectionName: string, size?: keyof typeof publicEnv.IMAGE_SIZES): string {
 	return constructUrl(mediaItem.path, mediaItem.hash, mediaItem.name, Path.extname(mediaItem.name).slice(1), collectionName, size);
 }
 

@@ -23,6 +23,8 @@ import { error } from '@sveltejs/kit';
 
 // Auth
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
+import { checkUserPermission } from '@src/auth/permissionCheck';
+import { auth } from '@src/auth';
 
 // System Logger
 import { logger } from '@utils/logger';
@@ -39,12 +41,7 @@ import { languageTag } from '@src/paraglide/runtime';
 export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 	try {
 		// Check if the user has permission to create tokens
-		const { hasPermission } = await checkUserPermission(locals.user, {
-			contextId: 'config/userManagement',
-			name: 'Create Registration Token',
-			action: 'manage',
-			contextType: 'system'
-		});
+		const hasPermission = checkUserPermission('user.create', locals.user);
 
 		if (!hasPermission) {
 			throw error(403, 'Unauthorized to create registration tokens');
@@ -54,8 +51,8 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 		logger.debug('Received token creation request:', body);
 
 		// Validate input using the existing schema
-		const validatedData = addUserTokenSchema.parse(body);
-		logger.debug('Validated data:', validatedData); // Debug log
+		const validatedData = parse(addUserTokenSchema, body);
+		logger.debug('Validated data:', validatedData);
 
 		const tokenAdapter = new TokenAdapter();
 
@@ -67,7 +64,10 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 		}
 
 		// Get expiration hours from the validated data
-		const expiresInHours = validatedData.expiresIn;
+		const expiresInHours = Number(validatedData.expiresIn);
+		if (isNaN(expiresInHours)) {
+			throw error(400, { message: 'Invalid expiration time' });
+		}
 		logger.debug('Expiration hours:', expiresInHours);
 
 		// Calculate expiration date
@@ -111,9 +111,9 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 				templateName: 'userToken',
 				props: {
 					email: validatedData.email,
-					role: role.name,
-					token,
-					expiresIn: validatedData.expiresIn,
+					role: role.name, // Send role name instead of ID
+					token: token,
+					expiresIn: expiresInHours,
 					expiresInLabel: validatedData.expiresInLabel,
 					languageTag: languageTag()
 				}
