@@ -3170,30 +3170,6 @@ export const tiktokConfig_TIKTOK_TOKEN_helper = () => `Provide the TikTok API to
  * @returns {string}
  */
 /* @__NO_SIDE_EFFECTS__ */
-export const openaiConfig_Description = () => `OpenAI API settings for ChatGPT integration.`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const openaiConfig_USE_OPEN_AI_helper = () => `Enable or disable OpenAI API integration.`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const openaiConfig_OPEN_AI_KEY_helper = () => `Provide the OpenAI API key.`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
 export const systemConfig_Description = () => `Public site settings configurations.`
 
 
@@ -3531,3 +3507,35 @@ export const modaleditform_confirmpassword = () => "modaleditform_confirmpasswor
  */
 /* @__NO_SIDE_EFFECTS__ */
 export const modaleditform_userrole = () => "modaleditform_userrole"
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_description = () => `LLM Configuration`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_useLLM = () => `Enable LLM Integration`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_llmProvider = () => `LLM Provider (e.g., OpenAI, Claude, Gemimi, etc)`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_apiKey = () => `LLM API Key`

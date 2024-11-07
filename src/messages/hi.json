@@ -394,9 +394,6 @@
 	"tiktokConfig_Description": "TikTok API सेटिंग्स.",
 	"tiktokConfig_USE_TIKTOK_helper": "TikTok API एकीकरण को सक्षम या अक्षम करें।",
 	"tiktokConfig_TIKTOK_TOKEN_helper": "TikTok API टोकन प्रदान करें.",
-	"openaiConfig_Description": "ChatGPT एकीकरण के लिए OpenAI API सेटिंग्स.",
-	"openaiConfig_USE_OPEN_AI_helper": "OpenAI API एकीकरण को सक्षम या अक्षम करें.",
-	"openaiConfig_OPEN_AI_KEY_helper": "OpenAI API कुंजी प्रदान करें.",
 	"systemConfig_Description": "सार्वजनिक साइट सेटिंग कॉन्फ़िगरेशन.",
 	"systemConfig_SITE_NAME_helper": "साइट का नाम (डिफ़ॉल्ट: 'SveltyCMS').",
 	"systemConfig_BODY_SIZE_LIMIT_helper": "बॉडी आकार सीमा निर्धारित करता है (डिफ़ॉल्ट: 100mb).",
@@ -420,5 +417,9 @@
 	"login_demo_nextreset": "अगला रीसेट:",
 	"login_happy_diwali": "दीपावली की हार्दिक शुभकामनाएं",
 	"login_Happy_Holi": "होली की शुभकामनाएं",
-	"login_happy_navratri": "नवरात्रि की हार्दिक शुभकामनाएं"
+	"login_happy_navratri": "नवरात्रि की हार्दिक शुभकामनाएं",
+	"llmConfig_description": "एलएलएम कॉन्फ़िगरेशन",
+	"llmConfig_useLLM": "LLM एकीकरण सक्षम करें",
+	"llmConfig_llmProvider": "एलएलएम प्रदाता (उदाहरण के लिए, ओपनएआई, क्लाउड, जेमिमी, आदि)",
+	"llmConfig_apiKey": "एलएलएम एपीआई कुंजी"
 }

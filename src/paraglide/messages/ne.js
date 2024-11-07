@@ -3168,30 +3168,6 @@ export const tiktokConfig_TIKTOK_TOKEN_helper = () => `TikTok API टोकन �
  * @returns {string}
  */
 /* @__NO_SIDE_EFFECTS__ */
-export const openaiConfig_Description = () => `ChatGPT एकीकरणका लागि OpenAI API सेटिङहरू।`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const openaiConfig_USE_OPEN_AI_helper = () => `OpenAI API एकीकरण सक्षम वा असक्षम पार्नुहोस्।`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const openaiConfig_OPEN_AI_KEY_helper = () => `OpenAI API कुञ्जी प्रदान गर्नुहोस्।`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
 export const systemConfig_Description = () => `सार्वजनिक साइट सेटिङहरू कन्फिगरेसनहरू।`
 
 
@@ -3428,3 +3404,34 @@ export { modaleditform_username } from "./en.js"
 export { modaleditform_confirmpassword } from "./en.js"
 
 export { modaleditform_userrole } from "./en.js"
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_description = () => `LLM कन्फिगरेसन`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_useLLM = () => `LLM एकीकरण सक्षम गर्नुहोस्`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_llmProvider = () => `LLM प्रदायक (जस्तै, OpenAI, Claude, Gemimi, आदि)`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_apiKey = () => `LLM API कुञ्जी`

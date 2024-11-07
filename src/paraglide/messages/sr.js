@@ -3168,30 +3168,6 @@ export const tiktokConfig_TIKTOK_TOKEN_helper = () => `Наведите ТикТ
  * @returns {string}
  */
 /* @__NO_SIDE_EFFECTS__ */
-export const openaiConfig_Description = () => `ОпенАИ АПИ подешавања за ЦхатГПТ интеграцију.`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const openaiConfig_USE_OPEN_AI_helper = () => `Омогућите или онемогућите интеграцију ОпенАИ АПИ-ја.`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const openaiConfig_OPEN_AI_KEY_helper = () => `Наведите ОпенАИ АПИ кључ.`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
 export const systemConfig_Description = () => `Конфигурације подешавања јавних сајтова.`
 
 
@@ -3422,3 +3398,34 @@ export { modaleditform_username } from "./en.js"
 export { modaleditform_confirmpassword } from "./en.js"
 
 export { modaleditform_userrole } from "./en.js"
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_description = () => `ЛЛМ Цонфигуратион`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_useLLM = () => `Омогућите ЛЛМ интеграцију`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_llmProvider = () => `ЛЛМ добављач (нпр. ОпенАИ, Цлауде, Гемими, итд.)`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_apiKey = () => `ЛЛМ АПИ кључ`

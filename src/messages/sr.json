@@ -394,9 +394,6 @@
 	"tiktokConfig_Description": "Подешавања ТикТок АПИ-ја.",
 	"tiktokConfig_USE_TIKTOK_helper": "Омогућите или онемогућите интеграцију ТикТок АПИ-ја.",
 	"tiktokConfig_TIKTOK_TOKEN_helper": "Наведите ТикТок АПИ токен.",
-	"openaiConfig_Description": "ОпенАИ АПИ подешавања за ЦхатГПТ интеграцију.",
-	"openaiConfig_USE_OPEN_AI_helper": "Омогућите или онемогућите интеграцију ОпенАИ АПИ-ја.",
-	"openaiConfig_OPEN_AI_KEY_helper": "Наведите ОпенАИ АПИ кључ.",
 	"systemConfig_Description": "Конфигурације подешавања јавних сајтова.",
 	"systemConfig_SITE_NAME_helper": "Назив сајта (подразумевано: 'СвелтиЦМС').",
 	"systemConfig_BODY_SIZE_LIMIT_helper": "Дефинише ограничење величине тела (подразумевано: 100мб).",
@@ -421,5 +418,9 @@
 	"login_happy_diwali": "Срећан Дивали",
 	"login_Happy_Holi": "Срећан Холи",
 	"login_happy_navratri": "Срећан Навратри",
+	"llmConfig_description": "ЛЛМ Цонфигуратион",
+	"llmConfig_useLLM": "Омогућите ЛЛМ интеграцију",
+	"llmConfig_llmProvider": "ЛЛМ добављач (нпр. ОпенАИ, Цлауде, Гемими, итд.)",
+	"llmConfig_apiKey": "ЛЛМ АПИ кључ",
 	"userpage_email": "Емаил:"
 }

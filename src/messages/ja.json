@@ -394,9 +394,6 @@
 	"tiktokConfig_Description": "TikTok API 設定。",
 	"tiktokConfig_USE_TIKTOK_helper": "TikTok API 統合を有効または無効にします。",
 	"tiktokConfig_TIKTOK_TOKEN_helper": "TikTok API トークンを提供します。",
-	"openaiConfig_Description": "ChatGPT 統合用の OpenAI API 設定。",
-	"openaiConfig_USE_OPEN_AI_helper": "OpenAI API 統合を有効または無効にします。",
-	"openaiConfig_OPEN_AI_KEY_helper": "OpenAI API キーを提供します。",
 	"systemConfig_Description": "パブリックサイトの設定構成。",
 	"systemConfig_SITE_NAME_helper": "サイトの名前 (デフォルト: 'SveltyCMS')。",
 	"systemConfig_BODY_SIZE_LIMIT_helper": "本文のサイズ制限を定義します (デフォルト: 100 MB)。",
@@ -420,5 +417,9 @@
 	"login_demo_nextreset": "次回のリセットまで:",
 	"login_happy_diwali": "ディワリおめでとう",
 	"login_Happy_Holi": "ハッピーホーリー",
-	"login_happy_navratri": "ナヴラトリおめでとう"
+	"login_happy_navratri": "ナヴラトリおめでとう",
+	"llmConfig_description": "LLM 構成",
+	"llmConfig_useLLM": "LLM統合を有効にする",
+	"llmConfig_llmProvider": "LLM プロバイダー (OpenAI、Claude、Gemimi など)",
+	"llmConfig_apiKey": "LLM API キー"
 }
