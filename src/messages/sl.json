@@ -394,9 +394,6 @@
 	"tiktokConfig_Description": "Nastavitve TikTok API.",
 	"tiktokConfig_USE_TIKTOK_helper": "Omogočite ali onemogočite integracijo TikTok API.",
 	"tiktokConfig_TIKTOK_TOKEN_helper": "Zagotovite žeton TikTok API.",
-	"openaiConfig_Description": "Nastavitve OpenAI API za integracijo ChatGPT.",
-	"openaiConfig_USE_OPEN_AI_helper": "Omogočite ali onemogočite integracijo OpenAI API.",
-	"openaiConfig_OPEN_AI_KEY_helper": "Navedite ključ OpenAI API.",
 	"systemConfig_Description": "Konfiguracije nastavitev javnega mesta.",
 	"systemConfig_SITE_NAME_helper": "Ime spletnega mesta (privzeto: 'SveltyCMS').",
 	"systemConfig_BODY_SIZE_LIMIT_helper": "Določa omejitev velikosti telesa (privzeto: 100 mb).",
@@ -420,5 +417,9 @@
 	"login_demo_nextreset": "Naslednja ponastavitev čez:",
 	"login_happy_diwali": "Vesel Diwali",
 	"login_Happy_Holi": "Vesel Holi",
-	"login_happy_navratri": "Srečno Navratri"
+	"login_happy_navratri": "Srečno Navratri",
+	"llmConfig_description": "Konfiguracija LLM",
+	"llmConfig_useLLM": "Omogoči integracijo LLM",
+	"llmConfig_llmProvider": "Ponudnik LLM (npr. OpenAI, Claude, Gemimi itd.)",
+	"llmConfig_apiKey": "Ključ API LLM"
 }

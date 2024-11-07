@@ -394,9 +394,6 @@
 	"tiktokConfig_Description": "TikTok API-inställningar.",
 	"tiktokConfig_USE_TIKTOK_helper": "Aktivera eller inaktivera TikTok API-integration.",
 	"tiktokConfig_TIKTOK_TOKEN_helper": "Ange TikTok API-token.",
-	"openaiConfig_Description": "OpenAI API-inställningar för ChatGPT-integration.",
-	"openaiConfig_USE_OPEN_AI_helper": "Aktivera eller inaktivera OpenAI API-integration.",
-	"openaiConfig_OPEN_AI_KEY_helper": "Ange OpenAI API-nyckeln.",
 	"systemConfig_Description": "Inställningar för offentliga webbplatser.",
 	"systemConfig_SITE_NAME_helper": "Namnet på webbplatsen (standard: 'SveltyCMS').",
 	"systemConfig_BODY_SIZE_LIMIT_helper": "Definierar kroppsstorleksgräns (standard: 100mb).",
@@ -420,5 +417,9 @@
 	"login_demo_nextreset": "Nästa återställning om:",
 	"login_happy_diwali": "Glad Diwali",
 	"login_Happy_Holi": "Glad Holi",
-	"login_happy_navratri": "Glad Navratri"
+	"login_happy_navratri": "Glad Navratri",
+	"llmConfig_description": "LLM-konfiguration",
+	"llmConfig_useLLM": "Aktivera LLM-integration",
+	"llmConfig_llmProvider": "LLM-leverantör (t.ex. OpenAI, Claude, Gemimi, etc)",
+	"llmConfig_apiKey": "LLM API-nyckel"
 }

@@ -394,9 +394,6 @@
 	"tiktokConfig_Description": "TikTok API 设置。",
 	"tiktokConfig_USE_TIKTOK_helper": "启用或禁用 TikTok API 集成。",
 	"tiktokConfig_TIKTOK_TOKEN_helper": "提供 TikTok API 令牌。",
-	"openaiConfig_Description": "用于 ChatGPT 集成的 OpenAI API 设置。",
-	"openaiConfig_USE_OPEN_AI_helper": "启用或禁用 OpenAI API 集成。",
-	"openaiConfig_OPEN_AI_KEY_helper": "提供 OpenAI API 密钥。",
 	"systemConfig_Description": "公共站点设置配置。",
 	"systemConfig_SITE_NAME_helper": "站点的名称（默认值：“SveltyCMS”）。",
 	"systemConfig_BODY_SIZE_LIMIT_helper": "定义主体大小限制（默认值：100mb）。",
@@ -420,5 +417,9 @@
 	"login_demo_nextreset": "下次重置时间为：",
 	"login_happy_diwali": "排灯节快乐",
 	"login_Happy_Holi": "洒红节快乐",
-	"login_happy_navratri": "九夜节快乐"
+	"login_happy_navratri": "九夜节快乐",
+	"llmConfig_description": "LLM 配置",
+	"llmConfig_useLLM": "启用 LLM 集成",
+	"llmConfig_llmProvider": "LLM 提供商（例如 OpenAI、Claude、Gemimi 等）",
+	"llmConfig_apiKey": "LLM API 密钥"
 }

@@ -394,9 +394,6 @@
 	"tiktokConfig_Description": "TikTok API პარამეტრები.",
 	"tiktokConfig_USE_TIKTOK_helper": "ჩართეთ ან გამორთეთ TikTok API ინტეგრაცია.",
 	"tiktokConfig_TIKTOK_TOKEN_helper": "მიაწოდეთ TikTok API ჟეტონი.",
-	"openaiConfig_Description": "OpenAI API პარამეტრები ChatGPT ინტეგრაციისთვის.",
-	"openaiConfig_USE_OPEN_AI_helper": "ჩართეთ ან გამორთეთ OpenAI API ინტეგრაცია.",
-	"openaiConfig_OPEN_AI_KEY_helper": "მიაწოდეთ OpenAI API გასაღები.",
 	"systemConfig_Description": "საჯარო საიტის პარამეტრების კონფიგურაციები.",
 	"systemConfig_SITE_NAME_helper": "საიტის სახელი (ნაგულისხმევი: 'SveltyCMS').",
 	"systemConfig_BODY_SIZE_LIMIT_helper": "განსაზღვრავს სხეულის ზომის ლიმიტს (ნაგულისხმევი: 100 მბ).",
@@ -420,5 +417,9 @@
 	"login_demo_nextreset": "შემდეგი გადატვირთვა:",
 	"login_happy_diwali": "ბედნიერი დივალი",
 	"login_Happy_Holi": "ბედნიერი ჰოლი",
-	"login_happy_navratri": "ბედნიერი ნავრატრი"
+	"login_happy_navratri": "ბედნიერი ნავრატრი",
+	"llmConfig_description": "LLM კონფიგურაცია",
+	"llmConfig_useLLM": "ჩართეთ LLM ინტეგრაცია",
+	"llmConfig_llmProvider": "LLM პროვაიდერი (მაგ., OpenAI, Claude, Gemimi და ა.შ.)",
+	"llmConfig_apiKey": "LLM API გასაღები"
 }

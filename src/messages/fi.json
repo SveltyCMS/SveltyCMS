@@ -394,9 +394,6 @@
 	"tiktokConfig_Description": "TikTok API -asetukset.",
 	"tiktokConfig_USE_TIKTOK_helper": "Ota TikTok API-integraatio käyttöön tai poista se käytöstä.",
 	"tiktokConfig_TIKTOK_TOKEN_helper": "Anna TikTok API -tunnus.",
-	"openaiConfig_Description": "OpenAI API -asetukset ChatGPT-integraatioon.",
-	"openaiConfig_USE_OPEN_AI_helper": "Ota OpenAI API-integraatio käyttöön tai poista se käytöstä.",
-	"openaiConfig_OPEN_AI_KEY_helper": "Anna OpenAI API-avain.",
 	"systemConfig_Description": "Julkisen sivuston asetusten määritykset.",
 	"systemConfig_SITE_NAME_helper": "Sivuston nimi (oletus: \"SveltyCMS\").",
 	"systemConfig_BODY_SIZE_LIMIT_helper": "Määrittää kehon kokorajoituksen (oletus: 100 Mt).",
@@ -420,5 +417,9 @@
 	"login_demo_nextreset": "Seuraava nollaus:",
 	"login_happy_diwali": "Hyvää Diwalia",
 	"login_Happy_Holi": "Hyvää Holia",
-	"login_happy_navratri": "Hyvää Navratria"
+	"login_happy_navratri": "Hyvää Navratria",
+	"llmConfig_description": "LLM-kokoonpano",
+	"llmConfig_useLLM": "Ota LLM-integraatio käyttöön",
+	"llmConfig_llmProvider": "LLM-palveluntarjoaja (esim. OpenAI, Claude, Gemimi jne.)",
+	"llmConfig_apiKey": "LLM API-avain"
 }

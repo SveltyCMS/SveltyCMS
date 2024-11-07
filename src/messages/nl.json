@@ -394,9 +394,6 @@
 	"tiktokConfig_Description": "TikTok API-instellingen.",
 	"tiktokConfig_USE_TIKTOK_helper": "Schakel TikTok API-integratie in of uit.",
 	"tiktokConfig_TIKTOK_TOKEN_helper": "Geef het TikTok API-token op.",
-	"openaiConfig_Description": "OpenAI API-instellingen voor ChatGPT-integratie.",
-	"openaiConfig_USE_OPEN_AI_helper": "Schakel OpenAI API-integratie in of uit.",
-	"openaiConfig_OPEN_AI_KEY_helper": "Geef de OpenAI API-sleutel op.",
 	"systemConfig_Description": "Configuraties van openbare site-instellingen.",
 	"systemConfig_SITE_NAME_helper": "De naam van de site (standaard: 'SveltyCMS').",
 	"systemConfig_BODY_SIZE_LIMIT_helper": "Definieert de limiet voor de lichaamsgrootte (standaard: 100 MB).",
@@ -420,5 +417,9 @@
 	"login_demo_nextreset": "Volgende reset over:",
 	"login_happy_diwali": "Fijne Diwali",
 	"login_Happy_Holi": "Fijne Holi",
-	"login_happy_navratri": "Fijne Navratri"
+	"login_happy_navratri": "Fijne Navratri",
+	"llmConfig_description": "LLM-configuratie",
+	"llmConfig_useLLM": "LLM-integratie inschakelen",
+	"llmConfig_llmProvider": "LLM-provider (bijv. OpenAI, Claude, Gemimi, enz.)",
+	"llmConfig_apiKey": "LLM API-sleutel"
 }

@@ -394,9 +394,6 @@
 	"tiktokConfig_Description": "TikTok API-Einstellungen.",
 	"tiktokConfig_USE_TIKTOK_helper": "Aktivieren oder deaktivieren Sie die TikTok-API-Integration.",
 	"tiktokConfig_TIKTOK_TOKEN_helper": "Geben Sie das TikTok-API-Token an.",
-	"openaiConfig_Description": "OpenAI-API-Einstellungen für die ChatGPT-Integration.",
-	"openaiConfig_USE_OPEN_AI_helper": "Aktivieren oder deaktivieren Sie die OpenAI API-Integration.",
-	"openaiConfig_OPEN_AI_KEY_helper": "Geben Sie den OpenAI-API-Schlüssel an.",
 	"systemConfig_Description": "Konfigurationen öffentlicher Site-Einstellungen.",
 	"systemConfig_SITE_NAME_helper": "Der Name der Site (Standard: „SveltyCMS“).",
 	"systemConfig_BODY_SIZE_LIMIT_helper": "Definiert die Textgrößenbeschränkung (Standard: 100 MB).",
@@ -420,5 +417,9 @@
 	"login_demo_nextreset": "Nächster Reset in:",
 	"login_happy_diwali": "Frohes Diwali",
 	"login_Happy_Holi": "Frohes Holi",
-	"login_happy_navratri": "Frohes Navratri"
+	"login_happy_navratri": "Frohes Navratri",
+	"llmConfig_description": "LLM-Konfiguration",
+	"llmConfig_useLLM": "LLM-Integration aktivieren",
+	"llmConfig_llmProvider": "LLM-Anbieter (z. B. OpenAI, Claude, Gemimi usw.)",
+	"llmConfig_apiKey": "LLM API-Schlüssel"
 }

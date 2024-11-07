@@ -25,7 +25,7 @@
  * - redisConfig: Configuration settings for Redis, including host, port, and authentication.
  * - mapboxConfig: Configuration settings for Mapbox API integration.
  * - tiktokConfig: Configuration settings for TikTok integration.
- * - openaiConfig: Configuration settings for OpenAI API integration.
+ * - llmConfig: Configuration settings for LLM integration.
  * - systemConfig: System-wide settings, including site name, server hosts, body size
  *   limits, password strength, and seasonal features.
  * - languageConfig: Language-related settings, including default and available content
@@ -251,20 +251,26 @@ const tiktokConfig: ConfigCategory = {
 	}
 };
 
-const openaiConfig: ConfigCategory = {
-	description: m.openaiConfig_Description(),
+const llmConfig: ConfigCategory = {
+	description: m.llmConfig_description(),
 	icon: 'mdi:robot',
 	fields: {
-		USE_OPEN_AI: {
+		USE_LLM: {
 			type: 'boolean',
 			default: false,
-			helper: m.openaiConfig_USE_OPEN_AI_helper(),
-			icon: 'mdi:robot'
+			helper: m.llmConfig_useLLM(),
+			icon: 'mdi:toggle-switch'
 		},
-		VITE_OPEN_AI_KEY: {
+		LLM_PROVIDER: {
 			type: 'string',
 			default: '',
-			helper: m.openaiConfig_OPEN_AI_KEY_helper(),
+			helper: m.llmConfig_llmProvider(),
+			icon: 'mdi:domain'
+		},
+		LLM_API_KEY: {
+			type: 'string',
+			default: '',
+			helper: m.llmConfig_apiKey(),
 			icon: 'mdi:key'
 		}
 	}
@@ -278,7 +284,7 @@ const privateConfigCategories = {
 	redis: redisConfig,
 	mapbox: mapboxConfig,
 	tiktok: tiktokConfig,
-	openai: openaiConfig
+	llm: llmConfig
 };
 
 const systemConfig: ConfigCategory = {

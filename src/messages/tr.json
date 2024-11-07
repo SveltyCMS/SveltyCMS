@@ -394,9 +394,6 @@
 	"tiktokConfig_Description": "TikTok API ayarları.",
 	"tiktokConfig_USE_TIKTOK_helper": "TikTok API entegrasyonunu etkinleştirin veya devre dışı bırakın.",
 	"tiktokConfig_TIKTOK_TOKEN_helper": "TikTok API jetonunu sağlayın.",
-	"openaiConfig_Description": "ChatGPT entegrasyonu için OpenAI API ayarları.",
-	"openaiConfig_USE_OPEN_AI_helper": "OpenAI API entegrasyonunu etkinleştirin veya devre dışı bırakın.",
-	"openaiConfig_OPEN_AI_KEY_helper": "OpenAI API anahtarını sağlayın.",
 	"systemConfig_Description": "Genel site ayarları yapılandırmaları.",
 	"systemConfig_SITE_NAME_helper": "Sitenin adı (varsayılan: 'SveltyCMS').",
 	"systemConfig_BODY_SIZE_LIMIT_helper": "Gövde boyutu sınırını tanımlar (varsayılan: 100mb).",
@@ -420,5 +417,9 @@
 	"login_demo_nextreset": "Bir sonraki sıfırlama:",
 	"login_happy_diwali": "Mutlu Divaliler",
 	"login_Happy_Holi": "Mutlu bayramlar",
-	"login_happy_navratri": "Mutlu Navratri"
+	"login_happy_navratri": "Mutlu Navratri",
+	"llmConfig_description": "LLM Yapılandırması",
+	"llmConfig_useLLM": "LLM Entegrasyonunu Etkinleştir",
+	"llmConfig_llmProvider": "LLM Sağlayıcısı (örn. OpenAI, Claude, Gemimi, vb.)",
+	"llmConfig_apiKey": "LLM API Anahtarı"
 }

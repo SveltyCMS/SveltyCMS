@@ -3168,30 +3168,6 @@ export const tiktokConfig_TIKTOK_TOKEN_helper = () => `TikTok API ٹوکن فر�
  * @returns {string}
  */
 /* @__NO_SIDE_EFFECTS__ */
-export const openaiConfig_Description = () => `ChatGPT انضمام کے لیے OpenAI API کی ترتیبات۔`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const openaiConfig_USE_OPEN_AI_helper = () => `OpenAI API انضمام کو فعال یا غیر فعال کریں۔`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const openaiConfig_OPEN_AI_KEY_helper = () => `OpenAI API کلید فراہم کریں۔`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
 export const systemConfig_Description = () => `عوامی سائٹ کی ترتیبات کی ترتیب۔`
 
 
@@ -3505,3 +3481,35 @@ export const modaleditform_confirmpassword = () => `پاس ورڈ کی تصدی�
  */
 /* @__NO_SIDE_EFFECTS__ */
 export const modaleditform_userrole = () => `صارف کا کردار:`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_description = () => `ایل ایل ایم کنفیگریشن`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_useLLM = () => `ایل ایل ایم انٹیگریشن کو فعال کریں۔`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_llmProvider = () => `LLM فراہم کنندہ (مثال کے طور پر، OpenAI، Claude، Gemimi، وغیرہ)`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_apiKey = () => `LLM API کلید`

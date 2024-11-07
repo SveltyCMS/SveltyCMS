@@ -394,9 +394,6 @@
 	"tiktokConfig_Description": "Налаштування TikTok API.",
 	"tiktokConfig_USE_TIKTOK_helper": "Увімкніть або вимкніть інтеграцію TikTok API.",
 	"tiktokConfig_TIKTOK_TOKEN_helper": "Надайте маркер TikTok API.",
-	"openaiConfig_Description": "Налаштування OpenAI API для інтеграції ChatGPT.",
-	"openaiConfig_USE_OPEN_AI_helper": "Увімкніть або вимкніть інтеграцію OpenAI API.",
-	"openaiConfig_OPEN_AI_KEY_helper": "Надайте ключ OpenAI API.",
 	"systemConfig_Description": "Конфігурації параметрів публічного сайту.",
 	"systemConfig_SITE_NAME_helper": "Назва сайту (за замовчуванням: \"SveltyCMS\").",
 	"systemConfig_BODY_SIZE_LIMIT_helper": "Визначає обмеження розміру тіла (за замовчуванням: 100 Мб).",
@@ -420,5 +417,9 @@
 	"login_demo_nextreset": "Наступне скидання через:",
 	"login_happy_diwali": "Щасливого Дівалі",
 	"login_Happy_Holi": "Щасливого Холі",
-	"login_happy_navratri": "Щасливого Навратрі"
+	"login_happy_navratri": "Щасливого Навратрі",
+	"llmConfig_description": "Конфігурація LLM",
+	"llmConfig_useLLM": "Увімкнути інтеграцію LLM",
+	"llmConfig_llmProvider": "Постачальник LLM (наприклад, OpenAI, Claude, Gemimi тощо)",
+	"llmConfig_apiKey": "Ключ API LLM"
 }
