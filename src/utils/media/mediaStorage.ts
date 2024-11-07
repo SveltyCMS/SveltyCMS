@@ -15,7 +15,7 @@ import { setCache } from '@root/src/databases/redis';
 
 // Media type definitions
 import type { MediaRemoteVideo, MediaAccess } from './mediaModels';
-import { MediaTypeEnum } from './mediaModels';
+import { MediaTypeEnum, Permission } from './mediaModels';
 
 import { hashFileContent, getSanitizedFileName } from './mediaProcessing';
 import { constructUrl } from './mediaUtils';
@@ -27,9 +27,6 @@ import type { Role } from '@src/auth/types';
 
 // System logger instance
 import { logger } from '@utils/logger';
-
-// Default max file size (100MB) if not specified in publicEnv
-const DEFAULT_MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB in bytes
 
 // Image sizes, including defaults
 const SIZES = { ...publicEnv.IMAGE_SIZES, original: 0, thumbnail: 200 } as const;
@@ -54,6 +51,83 @@ async function getS3Client() {
 		}
 	}
 	return s3Client;
+}
+
+// Moves a file to the trash folder
+export async function moveMediaToTrash(url: string, collectionName: string): Promise<void> {
+	try {
+		if (!url) {
+			throw new Error('URL is required');
+		}
+
+		const trashDir = Path.join(publicEnv.MEDIA_FOLDER, '.trash');
+
+		// Create trash directory if it doesn't exist
+		if (!fs.existsSync(trashDir)) {
+			fs.mkdirSync(trashDir, { recursive: true });
+		}
+
+		if (publicEnv.MEDIASERVER_URL) {
+			// Handle S3 storage
+			const s3 = await getS3Client();
+			if (!s3) {
+				throw new Error('S3 client is not available');
+			}
+
+			// Copy to trash folder in S3
+			const trashKey = `.trash/${Path.basename(url)}`;
+			await s3
+				.copyObject({
+					Bucket: process.env.AWS_S3_BUCKET || '',
+					CopySource: `${process.env.AWS_S3_BUCKET}/${url}`,
+					Key: trashKey
+				})
+				.promise();
+
+			// Delete original
+			await s3
+				.deleteObject({
+					Bucket: process.env.AWS_S3_BUCKET || '',
+					Key: url
+				})
+				.promise();
+
+			logger.info('File moved to trash in S3', { originalUrl: url, trashUrl: trashKey });
+		} else {
+			// Handle local storage
+			const sourcePath = Path.join(publicEnv.MEDIA_FOLDER, url);
+			const trashPath = Path.join(trashDir, Path.basename(url));
+
+			if (!fs.existsSync(sourcePath)) {
+				throw new Error('Source file does not exist');
+			}
+
+			// Move file to trash
+			fs.renameSync(sourcePath, trashPath);
+			logger.info('File moved to trash locally', { originalPath: sourcePath, trashPath });
+		}
+
+		// Update database record if available
+		if (dbAdapter) {
+			const fileRecord = await dbAdapter.findOne(collectionName, { url });
+			if (fileRecord) {
+				await dbAdapter.updateOne(
+					collectionName,
+					{ _id: fileRecord._id },
+					{
+						$set: {
+							deletedAt: new Date(),
+							status: 'trashed'
+						}
+					}
+				);
+				logger.info('Database record updated for trashed file', { fileId: fileRecord._id });
+			}
+		}
+	} catch (err) {
+		logger.error('Error moving file to trash:', err instanceof Error ? err : new Error(String(err)));
+		throw err;
+	}
 }
 
 // Saves a file to local disk or cloud storage
@@ -116,8 +190,8 @@ export async function saveRemoteMedia(
 			name: fileName,
 			path: 'remote_media',
 			url,
-			type: MediaTypeEnum.RemoteVideo, // Correct enum assignment
-			size: parseInt(response.headers.get('content-length') || '0', 10), // Get size from response
+			type: MediaTypeEnum.RemoteVideo,
+			size: parseInt(response.headers.get('content-length') || '0', 10),
 			user: user_id,
 			createdAt: new Date(),
 			updatedAt: new Date(),
@@ -132,20 +206,17 @@ export async function saveRemoteMedia(
 				}
 			],
 			access: [
-				// User-specific permissions
-				{ userId: user_id, permissions: [Permission.Read, Permission.Write, Permission.Delete] },
-				// Role-based permissions
+				{
+					userId: user_id,
+					permissions: [Permission.Read, Permission.Write, Permission.Delete]
+				},
 				...roles.flatMap((role) =>
 					role.permissions.map((permissionId) => ({
 						roleId: role._id,
-						permissions: [Permission[permissionId as keyof typeof Permission]] // Map to Permission enum
+						permissions: [Permission[permissionId as keyof typeof Permission]]
 					}))
 				),
-				// Existing access permissions
-				...access.map((item) => ({
-					...item,
-					permissions: item.permissions || [] // Ensure permissions is present
-				}))
+				...access
 			]
 		};
 
@@ -171,7 +242,7 @@ export async function saveRemoteMedia(
 		return { id, fileInfo };
 	} catch (error) {
 		logger.error('Error saving remote media:', error instanceof Error ? error : new Error(String(error)));
-		throw error; // Re-throw the error
+		throw error;
 	}
 }
 
@@ -194,19 +265,19 @@ export async function saveResizedImages(
 	const thumbnails: Record<string, { url: string; width: number; height: number }> = {};
 
 	for (const size in SIZES) {
-		if (size === 'original') continue; // Skip original size
+		if (size === 'original') continue;
 		const resizedImage = await sharp(buffer)
 			.rotate()
-			.resize({ width: SIZES[size] }) // Resize image
+			.resize({ width: SIZES[size] })
 			.toFormat(format, {
 				quality: publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.quality,
-				...(format === 'webp' && { effort: 6 }), // Increased WebP compression effort
-				...(format === 'avif' && { effort: 9 }) // High AVIF compression effort
+				...(format === 'webp' && { effort: 6 }),
+				...(format === 'avif' && { effort: 9 })
 			})
-			.toBuffer({ resolveWithObject: true }); // Get resized buffer
+			.toBuffer({ resolveWithObject: true });
 
-		const resizedUrl = constructUrl(path, hash, `${fileName}-${size}`, format, collectionName); // Construct URL
-		await saveFileToDisk(resizedImage.data, resizedUrl); // Save resized image
+		const resizedUrl = constructUrl(path, hash, `${fileName}-${size}`, format, collectionName);
+		await saveFileToDisk(resizedImage.data, resizedUrl);
 
 		thumbnails[size] = {
 			url: resizedUrl,
@@ -223,28 +294,28 @@ export async function saveResizedImages(
 export async function saveAvatarImage(file: File, path: 'avatars' | string): Promise<string> {
 	try {
 		const arrayBuffer = await file.arrayBuffer();
-		const buffer = Buffer.from(arrayBuffer); // Convert file to buffer
-		const hash = crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20); // Generate hash
+		const buffer = Buffer.from(arrayBuffer);
+		const hash = crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
 
-		const existingFile = dbAdapter ? await dbAdapter.findOne('media_images', { hash }) : null; // Check if file exists
+		const existingFile = dbAdapter ? await dbAdapter.findOne('media_images', { hash }) : null;
 
 		if (existingFile) {
 			let fileUrl = `${publicEnv.MEDIA_FOLDER}/${existingFile.thumbnail.url}`;
 			if (publicEnv.MEDIASERVER_URL) {
-				fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`; // Get URL for media server
+				fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`;
 			}
-			return fileUrl; // Return existing file URL
+			return fileUrl;
 		}
 
-		const { fileNameWithoutExt, ext } = getSanitizedFileName(file.name); // Sanitize the file name
-		const sanitizedBlobName = sanitize(fileNameWithoutExt); // Sanitize the name for storage
+		const { fileNameWithoutExt, ext } = getSanitizedFileName(file.name);
+		const sanitizedBlobName = sanitize(fileNameWithoutExt);
 		const format =
 			ext === '.svg' ? 'svg' : publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format === 'original' ? ext : publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format;
 
-		const url = `media/images/${hash}-${sanitizedBlobName}${ext}`; // Construct URL
-		await saveFileToDisk(buffer, url); // Save the file
+		const url = `media/images/${hash}-${sanitizedBlobName}${ext}`;
+		await saveFileToDisk(buffer, url);
 
-		const avatars = await saveResizedImages(buffer, hash, sanitizedBlobName, path, format, 'avatars'); // Save resized versions
+		const avatars = await saveResizedImages(buffer, hash, sanitizedBlobName, path, format, 'avatars');
 
 		const fileInfo = {
 			hash,
@@ -258,18 +329,18 @@ export async function saveAvatarImage(file: File, path: 'avatars' | string): Pro
 
 		if (!dbAdapter) throw Error('Database adapter not initialized.');
 
-		await dbAdapter.insertOne('media_images', fileInfo); // Save file info to DB
-		return `${publicEnv.MEDIA_FOLDER}/${url}`; // Return saved file URL
+		await dbAdapter.insertOne('media_images', fileInfo);
+		return `${publicEnv.MEDIA_FOLDER}/${url}`;
 	} catch (err) {
 		logger.error('Error saving avatar image:', err as Error);
-		throw err; // Re-throw the error
+		throw err;
 	}
 }
 
 // Deletes a file from storage (disk or cloud)
 export async function deleteFile(url: string): Promise<void> {
 	if (publicEnv.MEDIASERVER_URL) {
-		const s3 = await getS3Client(); // Get S3 client
+		const s3 = await getS3Client();
 		if (!s3) throw Error('S3 client is not available.');
 
 		await s3
@@ -277,11 +348,11 @@ export async function deleteFile(url: string): Promise<void> {
 				Bucket: process.env.AWS_S3_BUCKET || '',
 				Key: url
 			})
-			.promise(); // Delete from S3
+			.promise();
 		logger.info('File deleted from S3', { url });
 	} else {
 		const filePath = Path.join(publicEnv.MEDIA_FOLDER, url);
-		fs.unlinkSync(filePath); // Delete from local disk
+		fs.unlinkSync(filePath);
 		logger.info('File deleted from local disk', { url });
 	}
 }
@@ -300,14 +371,14 @@ export async function getFile(url: string): Promise<Buffer> {
 			.promise();
 
 		logger.info('File retrieved from S3', { url });
-		return Buffer.from(data.Body as ArrayBuffer); // Return the file buffer
+		return Buffer.from(data.Body as ArrayBuffer);
 	} else {
 		const filePath = Path.join(publicEnv.MEDIA_FOLDER, url);
-		if (!fs.existsSync(filePath)) throw error(404, 'File not found'); // Check if file exists
+		if (!fs.existsSync(filePath)) throw error(404, 'File not found');
 
-		const buffer = await fs.promises.readFile(filePath); // Read the file
+		const buffer = await fs.promises.readFile(filePath);
 		logger.info('File retrieved from local disk', { url });
-		return buffer; // Return the file buffer
+		return buffer;
 	}
 }
 
@@ -323,23 +394,22 @@ export async function fileExists(url: string): Promise<boolean> {
 					Bucket: process.env.AWS_S3_BUCKET || '',
 					Key: url
 				})
-				.promise(); // Check S3 object
+				.promise();
 			logger.info('File exists in S3', { url });
-			return true; // File exists
+			return true;
 		} catch (error) {
-			if (error instanceof Error && error.message.includes('NotFound')) return false; // File not found
-			throw error; // Other errors
+			if (error instanceof Error && error.message.includes('NotFound')) return false;
+			throw error;
 		}
 	} else {
 		const filePath = Path.join(publicEnv.MEDIA_FOLDER, url);
-		const exists = fs.existsSync(filePath); // Check local file
+		const exists = fs.existsSync(filePath);
 		logger.info('File exists on local disk', { url, exists });
-		return exists; // Return file existence
+		return exists;
 	}
 }
 
 // Cleans up media directory by removing unused files
 export async function cleanMediaDirectory(): Promise<void> {
-	// Logic to clean up old or unused files can be implemented here
-	logger.info('Media directory cleanup triggered.'); // Log cleanup action
+	logger.info('Media directory cleanup triggered.');
 }
