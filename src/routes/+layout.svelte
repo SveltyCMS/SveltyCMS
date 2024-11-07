@@ -24,17 +24,23 @@
 	// Importing the Paraglide SvelteKit component for animations
 	import ParaglideSvelteKit from '@components/ParaglideSvelteKit.svelte';
 
+	// category config store
+	import { categories } from '@stores/collectionStore';
+
 	// Importing Tailwind CSS styles
 	import '../app.postcss';
 
 	// Initializing Skeleton stores
 	import { initializeStores } from '@skeletonlabs/skeleton';
+	import { categoryConfig } from '@src/collections/categories';
 	initializeStores();
 
 	// Default SEO variables for the website's title and description
 	const defaultTitle = `${publicEnv.SITE_NAME} - The Ultimate Headless CMS Powered by SvelteKit`;
 	const defaultDescription = `${publicEnv.SITE_NAME} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;
-
+	$: {
+		categories.set(categoryConfig);
+	}
 	// Reactive declarations for dynamic SEO content
 	$: SeoTitle = $page.data.SeoTitle || defaultTitle;
 	$: SeoDescription = $page.data.SeoDescription || defaultDescription;

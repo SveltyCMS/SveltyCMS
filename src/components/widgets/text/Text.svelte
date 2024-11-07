@@ -86,10 +86,7 @@
 		try {
 			if (debounceTimeout) clearTimeout(debounceTimeout);
 			debounceTimeout = window.setTimeout(() => {
-				validationError = validateSchema({
-					value: _data[_language],
-					db_fieldName: getFieldName(field)
-				});
+				validationError = validateSchema(_data[_language]);
 			}, 300);
 		} catch (error) {
 			console.error('Validation error:', error);

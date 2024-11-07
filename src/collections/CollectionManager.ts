@@ -36,6 +36,10 @@ import { initWidgets } from '@components/widgets';
 // Import category config directly
 import { categoryConfig } from './categories';
 
+// file system
+import fs from 'fs/promises';
+import path from "path";
+
 interface ProcessedModule {
 	schema?: Partial<Schema>;
 }
@@ -409,7 +413,19 @@ class CollectionManager {
 
 	// Get compiled collection files
 	private async getCompiledCollectionFiles(): Promise<string[]> {
-		return [];
+		const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || './collections';
+
+		const files = await fs.readdir(compiledDirectoryPath);
+		logger.debug('Files read from directory', { directory: compiledDirectoryPath, files });
+
+		// Filter the list to only include .js files that are not excluded
+		const filteredFiles = files.filter((file) => {
+			const isJSFile = path.extname(file) === '.js';
+			const isNotExcluded = !['types.js', 'categories.js', 'index.js'].includes(file);
+			return isJSFile && isNotExcluded;
+		});
+
+		return filteredFiles ?? [];
 	}
 
 	// Read file with retry mechanism
