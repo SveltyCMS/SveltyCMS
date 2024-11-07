@@ -23,7 +23,7 @@ import { valibot } from 'sveltekit-superforms/adapters';
 
 // Auth
 import { auth, initializationPromise } from '@src/databases/db';
-import { googleAuth } from "@root/src/auth/googleAuth";
+import { googleAuth } from '@root/src/auth/googleAuth';
 import { google } from 'googleapis';
 import type { User } from '@src/auth/types';
 import type { Cookies } from '@sveltejs/kit';
@@ -378,7 +378,6 @@ export const actions: Actions = {
 			}
 
 			// Redirect to the Google OAuth URL
-			
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Detailed error in OAuth action: ${err.message}`);

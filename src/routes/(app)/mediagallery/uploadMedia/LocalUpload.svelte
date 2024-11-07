@@ -7,6 +7,7 @@
 	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	import ModalUploadMedia from './ModalUploadMedia.svelte';
+	import { goto } from '$app/navigation';
 
 	let files: File[] = [];
 	let input: HTMLInputElement;
@@ -115,6 +116,9 @@
 					background: 'variant-filled-success'
 				});
 				files = []; // Clear the files array after successful upload
+
+				// Navigate back to media gallery after successful upload
+				goto('/mediagallery');
 			} else {
 				throw Error(result.error || 'Upload failed');
 			}

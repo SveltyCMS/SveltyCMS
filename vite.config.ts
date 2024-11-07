@@ -111,27 +111,23 @@ export default defineConfig({
 				}
 
 				// Handle config file changes
-				if (/config[/\\](permissions|roles)\.ts$/.test(file)) {
-					console.log('Config file changed:', file);
-					// Clear module cache to force re-import
-					const permissionsPath = resolve(__dirname, 'config');
-					const rolesPath = resolve(__dirname, 'config', 'roles.ts');
+				if (/config[/\\]roles\.ts$/.test(file)) {
+					console.log('Roles file changed:', file);
+					try {
+						// Clear module cache to force re-import
+						const rolesPath = `file://${Path.resolve(__dirname, 'config', 'roles.ts')}`;
+						// Dynamically reimport updated roles & permissions
+						const { roles } = await import(rolesPath + `?update=${Date.now()}`);
+						// Update roles and permissions in the application
+						const { setLoadedRoles } = await import('./src/auth/types');
+						setLoadedRoles(roles);
 
-					delete require.cache[require.resolve(permissionsPath)];
-					delete require.cache[require.resolve(rolesPath)];
-
-					// Dynamically reimport updated roles & permissions
-					const { roles } = await import(rolesPath);
-					const { permissions } = await import(permissionsPath);
-
-					// Update roles and permissions in the application
-					const { setLoadedRoles, setLoadedPermissions } = await import('./src/auth/types');
-					setLoadedRoles(roles);
-					setLoadedPermissions(permissions);
-
-					console.log('Roles and permissions reloaded');
-					// Trigger HMR for affected modules
-					server.ws.send({ type: 'full-reload' });
+						console.log('Roles reloaded');
+						// Trigger HMR for affected modules
+						server.ws.send({ type: 'full-reload' });
+					} catch (error) {
+						console.error('Error reloading roles:', error);
+					}
 					return [];
 				}
 			},

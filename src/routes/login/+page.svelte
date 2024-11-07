@@ -24,32 +24,53 @@ Features:
 	// Stores
 	import { page } from '$app/stores';
 	import { systemLanguage } from '@stores/store';
+	import type { Writable } from 'svelte/store';
+	import { getLanguageName } from '@utils/languageUtils';
 
 	// ParaglideJS
-	import { languageTag } from '@src/paraglide/runtime';
 	import * as m from '@src/paraglide/messages';
 
-	const _languageTag = languageTag(); // Get the current language tag
+	type SystemLanguage = typeof systemLanguage extends Writable<infer T> ? T : never;
 
-	let inputlanguagevalue = '';
-	// Use the inferred return type of languageTag
-	type LanguageCode = ReturnType<typeof languageTag>;
+	let searchQuery = '';
+	let isDropdownOpen = false;
+	let searchInput: HTMLInputElement;
 	let debounceTimeout: ReturnType<typeof setTimeout>;
 
-	function handleLanguageSelection(event: Event) {
-		const target = event.target as HTMLInputElement;
+	function handleLanguageSelection(lang: SystemLanguage) {
 		clearTimeout(debounceTimeout);
 		debounceTimeout = setTimeout(() => {
-			const selectedLanguage = target.value.toLowerCase() as LanguageCode;
-			systemLanguage.set(selectedLanguage);
+			systemLanguage.set(lang);
+			isDropdownOpen = false;
+			searchQuery = '';
 		}, 300);
 	}
 
-	$: filteredLanguages = publicEnv.AVAILABLE_SYSTEM_LANGUAGES.filter((value: string) => (value ? value.includes(inputlanguagevalue) : true));
+	// Sort languages alphabetically
+	$: availableLanguages = [...publicEnv.AVAILABLE_SYSTEM_LANGUAGES].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')));
 
-	// Ensure all available languages are included
-	$: if (!inputlanguagevalue) {
-		filteredLanguages = publicEnv.AVAILABLE_SYSTEM_LANGUAGES;
+	$: filteredLanguages = availableLanguages.filter(
+		(lang: string) =>
+			getLanguageName(lang, $systemLanguage).toLowerCase().includes(searchQuery.toLowerCase()) ||
+			getLanguageName(lang, 'en').toLowerCase().includes(searchQuery.toLowerCase())
+	) as SystemLanguage[];
+
+	function handleClickOutside(event: MouseEvent) {
+		const target = event.target as HTMLElement;
+		if (!target.closest('.language-selector')) {
+			isDropdownOpen = false;
+			searchQuery = '';
+		}
+	}
+
+	$: if (typeof window !== 'undefined') {
+		if (isDropdownOpen) {
+			window.addEventListener('click', handleClickOutside);
+			// Focus search input when dropdown opens
+			setTimeout(() => searchInput?.focus(), 0);
+		} else {
+			window.removeEventListener('click', handleClickOutside);
+		}
 	}
 
 	// Access package version from environment variable
@@ -160,50 +181,92 @@ Features:
 		<SveltyCMSLogoFull />
 
 		<!-- Language Select -->
-		<div class="absolute bottom-1/4 left-1/2 flex -translate-x-1/2 transform items-center justify-center rounded-full dark:text-black">
-			<!-- Autocomplete Language input -->
+		<div class="language-selector absolute bottom-1/4 left-1/2 -translate-x-1/2 transform">
 			{#if publicEnv.AVAILABLE_SYSTEM_LANGUAGES.length > 5}
-				<input
-					id="languageAuto"
-					name="language"
-					type="text"
-					list="locales"
-					bind:value={inputlanguagevalue}
-					on:input={handleLanguageSelection}
-					placeholder={_languageTag}
-					aria-label="Enter Language"
-					class="w-1/2 rounded-full border-2 bg-[#242728] uppercase text-white placeholder:text-white focus:ring-2"
-				/>
-				<datalist id="locales" class="w-1/2 divide-y divide-white uppercase">
-					{#each publicEnv.AVAILABLE_SYSTEM_LANGUAGES as locale}
-						<option class="uppercase text-error-500">{locale.toUpperCase()}</option>
-					{/each}
-				</datalist>
+				<div class="relative">
+					<!-- Current Language Display -->
+					<button
+						class="flex items-center justify-between gap-2 rounded-full border-2 bg-[#242728] px-4 py-2 text-white hover:bg-[#363a3b] focus:ring-2"
+						on:click|stopPropagation={() => (isDropdownOpen = !isDropdownOpen)}
+					>
+						<span>{getLanguageName($systemLanguage)} ({$systemLanguage.toUpperCase()})</span>
+						<svg class="h-5 w-5 transition-transform {isDropdownOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+						</svg>
+					</button>
+
+					<!-- Dropdown -->
+					{#if isDropdownOpen}
+						<div class="absolute -left-6 -top-3 z-10 mt-2 w-48 rounded-lg border bg-[#242728] shadow-lg">
+							<!-- Search Input -->
+							<div class="border-b border-gray-700 p-2">
+								<input
+									type="text"
+									bind:this={searchInput}
+									bind:value={searchQuery}
+									placeholder="Search language..."
+									class="w-full rounded-md bg-[#363a3b] px-3 py-2 text-white placeholder:text-gray-400 focus:outline-none focus:ring-2"
+								/>
+							</div>
+
+							<!-- Language List -->
+							<div class="max-h-48 divide-y divide-gray-700 overflow-y-auto py-1">
+								{#each filteredLanguages as lang}
+									<button
+										class="flex w-full items-center justify-between px-4 py-2 text-left text-white hover:bg-[#363a3b] {$systemLanguage === lang
+											? 'bg-[#363a3b]'
+											: ''}"
+										on:click={() => handleLanguageSelection(lang)}
+									>
+										<span>{getLanguageName(lang)} ({lang.toUpperCase()})</span>
+									</button>
+								{/each}
+							</div>
+						</div>
+					{/if}
+				</div>
 			{:else}
-				<!-- Dropdown select -->
-				<select
-					id="languageSelect"
-					name="language"
-					bind:value={$systemLanguage}
-					aria-label="Select Language"
-					class="rounded-full border-2 bg-[#242728] uppercase text-white focus:ring-2 focus:ring-blue-500"
-				>
-					{#each filteredLanguages as locale}
-						<option value={locale} class="uppercase">{locale.toUpperCase()}</option>
+				<!-- Simple dropdown for 5 or fewer languages -->
+				<select bind:value={$systemLanguage} class="rounded-full border-2 bg-[#242728] px-4 py-2 text-white focus:ring-2">
+					{#each availableLanguages as lang}
+						<option value={lang}>{getLanguageName(lang)} ({lang.toUpperCase()})</option>
 					{/each}
 				</select>
 			{/if}
 		</div>
 
 		<!-- CMS Version -->
-		<a
-			href="https://github.com/SveltyCMS/SveltyCMS"
-			target="_blank"
-			rel="noopener"
-			class="absolute bottom-5 left-1/2 right-1/3 flex min-w-[100px] max-w-[250px] -translate-x-1/2 -translate-y-1/2 transform justify-center gap-6 rounded-full bg-gradient-to-r from-surface-50/20 to-[#242728]/20"
-		>
-			<p class="text-[#242728]">Ver.</p>
-			<p class="text-white">{pkg}</p>
-		</a>
+		{#if !isDropdownOpen}
+			<a
+				href="https://github.com/SveltyCMS/SveltyCMS"
+				target="_blank"
+				rel="noopener"
+				class="absolute bottom-5 left-1/2 right-1/3 z-0 flex min-w-[100px] max-w-[250px] -translate-x-1/2 -translate-y-1/2 transform justify-center gap-6 rounded-full bg-gradient-to-r from-surface-50/20 to-[#242728]/20"
+			>
+				<p class="text-[#242728]">Ver.</p>
+				<p class="text-white">{pkg}</p>
+			</a>
+		{/if}
 	{/if}
 </div>
+
+<style>
+	/* Scrollbar styling */
+	.overflow-y-auto {
+		scrollbar-width: thin;
+		scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+	}
+
+	.overflow-y-auto::-webkit-scrollbar {
+		width: 6px;
+	}
+
+	.overflow-y-auto::-webkit-scrollbar-track {
+		background: transparent;
+	}
+
+	.overflow-y-auto::-webkit-scrollbar-thumb {
+		background-color: rgba(156, 163, 175, 0.5);
+		border-radius: 3px;
+	}
+</style>

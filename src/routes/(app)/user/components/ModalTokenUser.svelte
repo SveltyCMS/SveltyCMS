@@ -35,10 +35,10 @@ Features:
 	if (!addUserForm) {
 		addUserForm = {
 			email: '',
-			role: '',
+			role: roles[1]?._id || '',
 			password: '',
-			expiresIn: '',
-			expiresInLabel: ''
+			expiresIn: 2,
+			expiresInLabel: '2 hrs'
 		} as unknown as PageData['addUserForm'];
 	}
 
@@ -55,41 +55,55 @@ Features:
 		dataType: 'json',
 
 		onSubmit: ({ cancel }) => {
-			// Trigger the toast
-			const t = {
-				message: '<iconify-icon icon="mdi:email-fast-outline" color="white" width="24" class="mr-1"></iconify-icon> Email Invite Sent',
-				background: 'gradient-tertiary',
-				timeout: 3000,
-				classes: 'border-1 !rounded-md'
-			};
-			toastStore.trigger(t);
-
 			if ($allErrors.length > 0) cancel();
 		},
 
-		onResult: async ({ result, cancel }) => {
-			cancel();
-			let response: string | undefined;
-			if (result.type == 'success') {
-				response = result.data?.message;
+		onResult: async ({ result }) => {
+			if (result.type === 'success') {
+				const t = {
+					message: '<iconify-icon icon="mdi:email-fast-outline" color="white" width="24" class="mr-1"></iconify-icon> Email Invite Sent',
+					background: 'gradient-tertiary',
+					timeout: 3000,
+					classes: 'border-1 !rounded-md'
+				};
+				toastStore.trigger(t);
 				modalStore.close();
 				await invalidateAll();
+			} else if (result.type === 'error') {
+				const t = {
+					message: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${
+						result.error?.message || 'Failed to send invite'
+					}`,
+					background: 'variant-filled-error',
+					timeout: 3000,
+					classes: 'border-1 !rounded-md'
+				};
+				toastStore.trigger(t);
+			} else if (result.type === 'failure') {
+				const t = {
+					message: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${
+						result.data?.message || 'Failed to send invite'
+					}`,
+					background: 'variant-filled-error',
+					timeout: 3000,
+					classes: 'border-1 !rounded-md'
+				};
+				toastStore.trigger(t);
 			}
 		}
 	});
 
 	// Define default role and token validity options
 	let roleSelected: string = roles[1]?._id || ''; // Ensure the correct type
-	let expiresIn = '2 hrs'; // Set the default validity
+	let expiresIn = 2; // Set the default validity as number
 	let expiresInLabel = '2 hrs';
-	let expirationTime: number | undefined;
 
-	// Define the validity options
+	// Define the validity options with proper number values
 	const validityOptions = [
-		{ label: '2 hrs', value: '2 hrs', seconds: 2 * 60 * 60 },
-		{ label: '12 hrs', value: '12 hrs', seconds: 12 * 60 * 60 },
-		{ label: '2 days', value: '2 days', seconds: 2 * 24 * 60 * 60 },
-		{ label: '1 week', value: '1 week', seconds: 7 * 24 * 60 * 60 }
+		{ label: '2 hrs', value: 2 },
+		{ label: '12 hrs', value: 12 },
+		{ label: '2 days', value: 48 },
+		{ label: '1 week', value: 168 }
 	];
 
 	// Update form values when selections change
@@ -148,7 +162,6 @@ Features:
 									class="chip {roleSelected === r._id ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
 									on:click={() => {
 										roleSelected = r._id;
-										console.log('Selected Role:', roleSelected);
 									}}
 									tabindex="0"
 									aria-label={`Role: ${r.name}`}
@@ -179,7 +192,6 @@ Features:
 								class="chip {expiresIn === option.value ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
 								on:click={() => {
 									expiresIn = option.value;
-									expirationTime = option.seconds;
 									expiresInLabel = option.label;
 								}}
 								on:keypress

@@ -12,13 +12,13 @@ function generateRandomJWTSecret(length = 32) {
 
 // Create or Update Config File
 export async function createOrUpdateConfigFile(configData) {
-	// Private configuration content
+	// Generate private configuration file content
 	const privateConfigContent = `
         /**
-         * Do not Edit as the file will be overwritten by Cli Installer !!!
-         * Rather use 'npm installer' to start the installer
+         * Do not Edit as the file will be overwritten by CLI Installer!!!
+         * Use 'npm installer' to start the installer
          *
-         * The PRIVATE configuration for the application,
+         * PRIVATE configuration for the application
          */
 
         import { createPrivateConfig } from './types';
@@ -27,12 +27,12 @@ export async function createOrUpdateConfigFile(configData) {
             // Define the database type (Default: 'mongodb')
             DB_TYPE: '${configData?.DB_TYPE || 'mongodb'}',
 
-            // Define the database connection
+            // Database connection details
             DB_HOST: '${configData?.DB_HOST || ''}',
             DB_PORT: ${configData?.DB_PORT || ''},
             DB_NAME: '${configData?.DB_NAME || 'SveltyCMS'}',
 
-            // Define the database username & password if required
+            // Optional database credentials
             DB_USER: '${configData?.DB_USER || ''}',
             DB_PASSWORD: '${configData?.DB_PASSWORD || ''}',
 
@@ -53,7 +53,7 @@ export async function createOrUpdateConfigFile(configData) {
             REDIS_PORT: ${configData?.REDIS_PORT || 6379}, // The port number of your Redis server.
             REDIS_PASSWORD: '${configData?.REDIS_PASSWORD || ''}', // The password for your Redis server (if any).
 
-            // Session configuration
+            // Session Management configuration
 	        SESSION_CLEANUP_INTERVAL: ${configData?.SESSION_CLEANUP_INTERVAL || 6000}, // 1 minute
 	        MAX_IN_MEMORY_SESSIONS: ${configData?.MAX_IN_MEMORY_SESSIONS || 10000}, // 10000 sessions
 	        DB_VALIDATION_PROBABILITY: ${configData?.DB_VALIDATION_PROBABILITY || 0.1}, // 10% of sessions will be validated
@@ -75,20 +75,19 @@ export async function createOrUpdateConfigFile(configData) {
             USE_TIKTOK: ${configData?.USE_TIKTOK || 'false'}, // Set to true to enable
             TIKTOK_TOKEN: '${configData?.TIKTOK_TOKEN || ''}', // TIKTOK Token
 
-            // OpenAI - Chat GPT - to be added to Lexical - See https://beta.openai.com/docs/api-reference/authentication
-            USE_OPEN_AI: ${configData?.USE_OPEN_AI || 'false'}, // Set to true to enable
-            VITE_OPEN_AI_KEY: '${configData?.VITE_OPEN_AI_KEY || ''}', // OpenAI Key
-           
+            // Large Language Model API configurations
+            LLM_APIS: ${JSON.stringify(configData?.LLM_APIS || {}, null, 4)},
+
             // Secret key for signing and verifying JSON Web Tokens (JWTs)
             JWT_SECRET_KEY: '${configData?.JWT_SECRET_KEY || generateRandomJWTSecret()}',
 
-            // Roles & Permissions
+            // Roles & permissions arrays
             ROLES: [], 
             PERMISSIONS: [],
         });
     `;
 
-	// Public configuration content
+	// Generate public configuration file content
 	const imageSizes = configData?.IMAGE_SIZES
 		? typeof configData.IMAGE_SIZES === 'string'
 			? configData.IMAGE_SIZES
@@ -97,10 +96,10 @@ export async function createOrUpdateConfigFile(configData) {
 
 	const publicConfigContent = `
         /**
-         * Do not Edit as the file will be overwritten by Cli Installer !!!
-         * Rather use 'npm installer' to start the installer
+         * Do not Edit as the file will be overwritten by CLI Installer!!!
+         * Use 'npm installer' to start the installer
          *
-         * The PUBLIC configuration for the application,
+         * PUBLIC configuration for the application
          */
 
         import { createPublicConfig } from './types';
@@ -166,15 +165,12 @@ export async function createOrUpdateConfigFile(configData) {
 		// Create or update the config directory
 		const configDir = path.join(process.cwd(), 'config');
 		await fs.mkdir(configDir, { recursive: true });
-		//console.log('Config directory created or already exists.');
 
 		// Write private config file
 		await fs.writeFile(path.join(configDir, 'private.ts'), privateConfigContent, 'utf-8');
-		//console.log('Private configuration file created.');
 
 		// Write public config file
 		await fs.writeFile(path.join(configDir, 'public.ts'), publicConfigContent, 'utf-8');
-		//console.log('Public configuration file created.');
 
 		console.log('Configuration files created successfully!');
 	} catch (error) {

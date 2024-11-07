@@ -46,6 +46,7 @@ It provides the following functionality:
 	const selectedRoles = writable<Set<string>>(new Set());
 	const isLoading = writable(true);
 	const error = writable<string | null>(null);
+	let modifiedRoles = new Set<string>();
 
 	// Modal state
 	let isEditMode = false;
@@ -68,8 +69,10 @@ It provides the following functionality:
 
 	const loadRoleGroups = async () => {
 		try {
-			roles.set(roleData.map((cur) => ({ ...cur, id: cur._id })));
-			items = roleData.map((cur) => ({ ...cur, id: cur._id }));
+			// Add id property for dndzone while keeping _id for data
+			const rolesWithId = roleData.map((role) => ({ ...role, id: role._id }));
+			roles.set(rolesWithId);
+			items = rolesWithId;
 		} catch (err) {
 			error.set(`Failed to load roles: ${err instanceof Error ? err.message : String(err)}`);
 		}
@@ -118,8 +121,10 @@ It provides the following functionality:
 		const { roleName, roleDescription, currentGroupName, selectedPermissions, currentRoleId } = role;
 		if (!roleName) return;
 
-		const newRole: Role = {
-			_id: currentRoleId ?? createRandomID(),
+		const roleId = currentRoleId ?? (await createRandomID());
+		const newRole = {
+			_id: roleId,
+			id: roleId, // Add id for dndzone
 			name: roleName,
 			description: roleDescription,
 			groupName: currentGroupName,
@@ -127,23 +132,25 @@ It provides the following functionality:
 		};
 
 		if (!isEditMode) {
-			const id = createRandomID();
-			items = [...items, { ...newRole, _id: id, id }];
+			items = [...items, newRole];
+			modifiedRoles.add(roleId);
+			showToast('Role added. Click "Save" at the top to apply changes.', 'info');
 		} else {
 			const index = items.findIndex((cur) => cur._id === currentRoleId);
-			const item = items[index];
-			items[index] = { ...item, ...newRole };
+			items[index] = newRole;
 			items = [...items];
+			modifiedRoles.add(currentRoleId);
+			showToast('Role updated. Click "Save" at the top to apply changes.', 'info');
 		}
 
 		roles.set(items);
-		setRoleData(items);
+		// Remove id property when sending data to parent
+		const cleanedItems = items.map(({ id, ...item }) => item);
+		setRoleData(cleanedItems);
 
 		if (updateModifiedCount) {
-			updateModifiedCount(items.length);
+			updateModifiedCount(modifiedRoles.size);
 		}
-
-		showToast('Role saved successfully', 'success');
 	};
 
 	// Show corresponding Toast messages
@@ -165,14 +172,20 @@ It provides the following functionality:
 		for (const roleId of $selectedRoles) {
 			const index = items.findIndex((cur) => cur._id === roleId);
 			items.splice(index, 1);
+			modifiedRoles.add(roleId);
 		}
 		items = [...items];
 		roles.set(items);
 		selectedRoles.set(new Set());
+		showToast('Roles deleted. Click "Save" at the top to apply changes.', 'info');
+
+		// Remove id property when sending data to parent
+		const cleanedItems = items.map(({ id, ...item }) => item);
+		setRoleData(cleanedItems);
 
 		// Notify the parent about the number of changes
 		if (updateModifiedCount) {
-			updateModifiedCount(items.length);
+			updateModifiedCount(modifiedRoles.size);
 		}
 	};
 
@@ -190,21 +203,30 @@ It provides the following functionality:
 	function handleSort(e) {
 		items = [...e.detail.items];
 		roles.set(items);
+		modifiedRoles.add(e.detail.items[e.detail.info.id]._id);
+
+		// Remove id property when sending data to parent
+		const cleanedItems = items.map(({ id, ...item }) => item);
+		setRoleData(cleanedItems);
 
 		// Notify the parent about the number of changes
 		if (updateModifiedCount) {
-			updateModifiedCount(items.length);
+			updateModifiedCount(modifiedRoles.size);
 		}
 	}
 
 	function handleFinalize(e) {
 		items = [...e.detail.items];
 		roles.set(items);
-		setRoleData(items);
+		modifiedRoles.add(e.detail.items[e.detail.info.id]._id);
+
+		// Remove id property when sending data to parent
+		const cleanedItems = items.map(({ id, ...item }) => item);
+		setRoleData(cleanedItems);
 
 		// Notify the parent about the number of changes
 		if (updateModifiedCount) {
-			updateModifiedCount(items.length);
+			updateModifiedCount(modifiedRoles.size);
 		}
 	}
 

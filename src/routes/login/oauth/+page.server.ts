@@ -47,6 +47,22 @@ async function sendWelcomeEmail(fetchFn: (input: RequestInfo | URL, init?: Reque
 	}
 }
 
+// Helper function to fetch and save Google avatar
+async function fetchAndSaveGoogleAvatar(avatarUrl: string): Promise<string | null> {
+	try {
+		const response = await fetch(avatarUrl);
+		if (!response.ok) {
+			throw new Error(`Failed to fetch avatar: ${response.statusText}`);
+		}
+		const blob = await response.blob();
+		const avatarFile = new File([blob], 'google-avatar.jpg', { type: 'image/jpeg' });
+		return await saveAvatarImage(avatarFile, 'avatars');
+	} catch (err) {
+		logger.error('Error fetching and saving Google avatar:', err as Error);
+		return null;
+	}
+}
+
 // Helper function to fetch and redirect to the first collection
 async function fetchAndRedirectToFirstCollection(): Promise<string> {
 	try {
@@ -76,16 +92,37 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, locals }) => {
 		logger.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error: Authentication system is not initialized');
 	}
-	logger.debug('OAuth load function called');
-	logger.debug(`Full URL: ${url.toString()}`);
+
+	// Check if this is the first user
+	let firstUserExists = false;
+	try {
+		firstUserExists = (await auth.getUserCount()) !== 0;
+		logger.debug(`First user exists: ${firstUserExists}`);
+	} catch (err) {
+		logger.error('Error fetching user count:', err);
+		throw error(500, 'Error checking first user status');
+	}
 
 	const code = url.searchParams.get('code');
 	logger.debug(`Authorization code from URL: ${code}`);
 
+	// For first user, directly redirect to Google OAuth
+	if (!firstUserExists && !code) {
+		try {
+			const authUrl = await generateGoogleAuthUrl();
+			throw redirect(302, authUrl);
+		} catch (err) {
+			logger.error('Error generating OAuth URL:', err);
+			throw error(500, 'Failed to initialize OAuth');
+		}
+	}
+
 	if (!code) {
-		logger.warn('No authorization code found in URL');
-		// If there's no code, we just return and let the page render
-		return {};
+		logger.debug('No authorization code found in URL, showing token input form');
+		// Return first user status for the page to render appropriately
+		return {
+			isFirstUser: !firstUserExists
+		};
 	}
 
 	try {
@@ -116,16 +153,14 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, locals }) => {
 
 		// Check if user exists
 		let user = await auth?.checkUser({ email });
-		const isFirst = locals.isFirstUser;
+		const isFirst = !firstUserExists;
 
 		if (!user) {
 			// Handle new user creation
 			let avatarUrl: string | null = null;
 			// Fetch & Save the Google user's avatar
 			if (googleUser.picture) {
-				const response = await fetch(googleUser.picture);
-				const avatarFile = new File([await response.blob()], 'avatar.jpg', { type: 'image/jpeg' });
-				avatarUrl = await saveAvatarImage(avatarFile, 'avatars');
+				avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture);
 			}
 
 			// Create the new user
@@ -135,7 +170,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, locals }) => {
 					username: googleUser.name ?? '',
 					firstName: googleUser.given_name,
 					lastName: googleUser.family_name,
-					avatar: avatarUrl ?? googleUser.picture,
+					avatar: avatarUrl,
 					role: isFirst ? 'admin' : 'user',
 					lastAuthMethod: 'google',
 					isRegistered: true,
@@ -144,7 +179,23 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, locals }) => {
 				true
 			);
 
+			// Always send welcome email for new users
 			await sendWelcomeEmail(fetch, email, googleUser.name || '');
+		} else {
+			// Update existing user's avatar if they have a Google avatar
+			let avatarUrl: string | null = null;
+			if (googleUser.picture) {
+				avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture);
+			}
+
+			// Update user attributes including the new avatar if available
+			await auth.updateUserAttributes(user._id.toString(), {
+				email: googleUser.email!,
+				lastAuthMethod: 'google',
+				firstName: googleUser.given_name ?? '',
+				lastName: googleUser.family_name ?? '',
+				...(avatarUrl && { avatar: avatarUrl }) // Only update avatar if we successfully downloaded and saved it
+			});
 		}
 
 		if (!user?._id) {
@@ -154,19 +205,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, locals }) => {
 		// Create User Session and set cookie
 		const session = await auth?.createSession({ user_id: user._id });
 		const sessionCookie = auth?.createSessionCookie(session);
-
 		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 
-		// Update user attributes
-		await auth.updateUserAttributes(user._id.toString(), {
-			email: googleUser.email!,
-			lastAuthMethod: 'google',
-			firstName: googleUser.given_name ?? "",
-			lastName: googleUser.family_name ?? "",
-			avatar:  googleUser.picture ?? ""
-		});
 		logger.info('Successfully created session and set cookie');
-
 	} catch (e) {
 		logger.error('Error during login process:', `${JSON.stringify(e)}`);
 		throw Error('Error during login process', e);
@@ -178,7 +219,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, locals }) => {
 
 export const actions: Actions = {
 	// default action
-	default: async ({ request }) => {
+
+	OAuth: async ({ request }) => {
+		// For non-first users, validate token
 		const data = await request.formData();
 		const token = data.get('token');
 

@@ -23,10 +23,13 @@
 
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
+import fs from 'fs/promises';
+import path from 'path';
 
 // Authorization
-import { initializationPromise, authAdapter } from '@src/databases/db';
+import { initializationPromise } from '@src/databases/db';
 import { getAllPermissions } from '@src/auth/permissionManager';
+import { roles as configRoles } from '@root/config/roles';
 
 // System Logger
 import { logger } from '@utils/logger';
@@ -38,8 +41,15 @@ const ROLE_NAME_PATTERN = /^[a-zA-Z0-9-_\s]+$/;
 export const POST: RequestHandler = async ({ request, locals }) => {
 	// Authorization check
 	const user = locals.user;
-	if (!user || !user.isAdmin) {
-		logger.warn('Unauthorized attempt to update permissions', { userId: user?._id });
+	if (!user) {
+		logger.warn('Unauthorized attempt to update permissions - no user');
+		return json({ success: false, error: 'Unauthorized' }, { status: 403 });
+	}
+
+	// Check if user has admin role
+	const userRole = configRoles.find((role) => role._id === user.role);
+	if (!userRole?.isAdmin) {
+		logger.warn('Unauthorized attempt to update permissions', { userId: user._id });
 		return json({ success: false, error: 'Unauthorized' }, { status: 403 });
 	}
 
@@ -68,7 +78,58 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			timestamp: new Date().toISOString()
 		});
 
-		await authAdapter?.setAllRoles(roles);
+		// Update the roles configuration file
+		const rolesFilePath = path.resolve('config/roles.ts');
+
+		// Format roles as TypeScript object literals
+		const formattedRoles = roles
+			.map((role) => {
+				// Format each role as a TypeScript object literal, excluding the 'id' property
+				const props = Object.entries(role)
+					.filter(([key]) => key !== 'id')
+					.map(([key, value]) => {
+						if (key === 'permissions' && role.isAdmin) {
+							return `\t\tpermissions: permissions.map((p) => p._id) // All permissions`;
+						}
+						if (typeof value === 'string') {
+							return `\t\t${key}: '${value}'`;
+						}
+						if (Array.isArray(value)) {
+							return `\t\t${key}: ${JSON.stringify(value)}`;
+						}
+						return `\t\t${key}: ${value}`;
+					})
+					.join(',\n');
+
+				return `\t{\n${props}\n\t}`;
+			})
+			.join(',\n');
+
+		const rolesFileContent = `/**
+ * @file config/roles.ts
+ * @description  Role configuration file
+ */
+
+import type { Role } from '../src/auth/types';
+import { permissions } from '../src/auth/permissions';
+
+export const roles: Role[] = [\n${formattedRoles}\n];
+
+// Function to register a new role
+export function registerRole(newRole: Role): void {
+	const exists = roles.some((role) => role._id === newRole._id); // Use _id for consistency
+	if (!exists) {
+		roles.push(newRole);
+	}
+}
+
+// Function to register multiple roles
+export function registerRoles(newRoles: Role[]): void {
+	newRoles.forEach(registerRole);
+}
+`;
+
+		await fs.writeFile(rolesFilePath, rolesFileContent, 'utf8');
 
 		// Log successful update
 		logger.info('Roles and permissions updated successfully', {
@@ -126,9 +187,12 @@ async function validateRoles(roles: any[]): Promise<{ isValid: boolean; error?: 
 			roleNames.add(role.name.toLowerCase());
 
 			// Validate permissions
-			for (const permission of role.permissions) {
-				if (!permissionIds.has(permission)) {
-					return { isValid: false, error: `Invalid permission: ${permission} in role: ${role.name}` };
+			if (!role.isAdmin) {
+				// Skip permission validation for admin role since it's dynamic
+				for (const permission of role.permissions) {
+					if (!permissionIds.has(permission)) {
+						return { isValid: false, error: `Invalid permission: ${permission} in role: ${role.name}` };
+					}
 				}
 			}
 

@@ -2,29 +2,8 @@
  * @file src/routes/api/getCollections/getCollectionFiles.ts
  * @description
  * Asynchronous utility function for retrieving collection files.
- *
- * This module provides a function to:
- * - Read all files from the collections directory asynchronously
- * - Filter out specific files (categories.js, types.js, and non-JavaScript files)
- * - Return a list of valid collection files
- * - Support memory and Redis caching for improved performance
- *
- * Features:
- * - Asynchronous file reading for improved performance
- * - Filtering of non-collection files
- * - Error handling and logging
- * - File extension validation
- * - Memory and Redis caching support
- * - File hash validation for cache invalidation
- *
- * Usage:
- * import { getCollectionFiles } from './getCollectionFiles';
- * const collectionFiles = await getCollectionFiles();
  */
 
-import fs from 'fs/promises';
-import path from 'path';
-import crypto from 'crypto';
 import { browser } from '$app/environment';
 
 // System Logger
@@ -47,8 +26,33 @@ class CollectionError extends Error {
 	}
 }
 
+// Define types for Node.js modules
+type FSModule = typeof import('fs/promises');
+type PathModule = typeof import('path');
+type CryptoModule = typeof import('crypto');
+
+// Create a module loader that only runs on the server
+const loadServerModules = async () => {
+	if (browser) {
+		return null;
+	}
+
+	const [fs, path, crypto] = await Promise.all([
+		import('fs/promises') as Promise<FSModule>,
+		import('path') as Promise<PathModule>,
+		import('crypto') as Promise<CryptoModule>
+	]);
+
+	return { fs, path, crypto };
+};
+
 // Calculate directory hash for cache invalidation
 async function calculateDirectoryHash(directoryPath: string): Promise<string> {
+	const modules = await loadServerModules();
+	if (!modules) return '';
+
+	const { fs, path, crypto } = modules;
+
 	try {
 		const files = await fs.readdir(directoryPath);
 		const stats = await Promise.all(
@@ -74,6 +78,17 @@ async function calculateDirectoryHash(directoryPath: string): Promise<string> {
 
 // This function returns a list of all the valid collection files in the specified directory.
 export async function getCollectionFiles(): Promise<string[]> {
+	if (browser) {
+		throw new CollectionError('This function is server-only.');
+	}
+
+	const modules = await loadServerModules();
+	if (!modules) {
+		throw new CollectionError('Failed to load server modules');
+	}
+
+	const { fs, path } = modules;
+
 	try {
 		// Ensure the collections folder path is absolute
 		const directoryPath = path.resolve(collectionsFolder);
@@ -82,7 +97,7 @@ export async function getCollectionFiles(): Promise<string[]> {
 		const dirHash = await calculateDirectoryHash(directoryPath);
 
 		// Try to get from Redis cache first
-		if (!browser && isRedisEnabled() && dirHash) {
+		if (isRedisEnabled() && dirHash) {
 			const cacheKey = 'collection_files:list';
 			const cachedData = await getCache<{ hash: string; files: string[] }>(cacheKey);
 
@@ -96,7 +111,7 @@ export async function getCollectionFiles(): Promise<string[]> {
 		const files = await fs.readdir(directoryPath);
 		logger.debug('Files read from directory', { directory: directoryPath, files });
 
-		// Filter the list to only include .js files that are not config.js or types.js
+		// Filter the list to only include .js files that are not excluded
 		const filteredFiles = files.filter((file) => {
 			const isJSFile = path.extname(file) === '.js';
 			const isNotExcluded = !['types.js', 'categories.js', 'index.js'].includes(file);
@@ -110,7 +125,7 @@ export async function getCollectionFiles(): Promise<string[]> {
 		}
 
 		// Cache in Redis if available
-		if (!browser && isRedisEnabled() && dirHash) {
+		if (isRedisEnabled() && dirHash) {
 			const cacheKey = 'collection_files:list';
 			await setCache(cacheKey, { hash: dirHash, files: filteredFiles }, CACHE_TTL);
 		}
@@ -131,6 +146,13 @@ export async function getCollectionFiles(): Promise<string[]> {
 
 // Helper function to check if a file is a valid collection file
 export async function isValidCollectionFile(filePath: string): Promise<boolean> {
+	if (browser) return false;
+
+	const modules = await loadServerModules();
+	if (!modules) return false;
+
+	const { fs, path } = modules;
+
 	try {
 		// Check file extension
 		if (path.extname(filePath) !== '.js') {
