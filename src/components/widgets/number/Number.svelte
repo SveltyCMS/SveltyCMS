@@ -54,8 +54,9 @@
 	const valueSchema = pipe(
 		string(),
 		regex(/^\d+(\.\d{1,2})?$/, 'Invalid number format, must be a valid number with up to 2 decimal places'),
-		transform((value) => parseFloat(value)),
-		custom((value) => {
+		transform((value: string) => parseFloat(value)),
+		custom((input: unknown) => {
+			const value = input as number;
 			if (field.minValue !== undefined && value < field.minValue) {
 				throw new Error(`Value must be at least ${field.minValue}`);
 			}
@@ -104,6 +105,7 @@
 		if (value[value.length - 1] !== decimalSeparator) {
 			const number = parseFloat(value.replace(new RegExp(`[^0-9${decimalSeparator}]`, 'g'), '').replace(decimalSeparator, '.'));
 			if (!isNaN(number)) {
+				_data[_language] = number;
 				target.value = new Intl.NumberFormat(language, { maximumFractionDigits: 2 }).format(number);
 			} else {
 				target.value = value;

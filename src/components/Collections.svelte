@@ -1,6 +1,15 @@
 <!-- 
 @file src/components/Collections.svelte
-@description Collections component with support for nested categories.
+@description Collections component 
+
+Features: 
+- display collections
+- search collections with clear button
+- support for nested categories with autocollapse
+- responsive sidebar integration
+- media gallery support
+- improved subcategory search and padding
+	
 -->
 
 <script lang="ts">
@@ -8,7 +17,7 @@
 	import { onMount } from 'svelte';
 
 	// Types
-	import type { Schema, CategoryData } from '@src/collections/types';
+	import type { Schema, CategoryData, Category } from '@src/collections/types';
 
 	// Stores
 	import { get } from 'svelte/store';
@@ -37,7 +46,6 @@
 		target: 'popupHover',
 		placement: 'right'
 	};
-
 	// Import VirtualFolders component
 	import VirtualFolders from '@components/VirtualFolders.svelte';
 
@@ -45,92 +53,96 @@
 	let search = '';
 	let searchShow = false;
 
-	interface FilteredCategoryData extends CategoryData {
-		open?: boolean;
-		level?: number;
-		collections?: Schema[];
-		subcategories?: Record<string, FilteredCategoryData>;
+	interface FilteredCategory extends Category {
+		open: boolean;
+		level: number;
 	}
 
-	let filteredCategories: FilteredCategoryData[] = [];
+	let filteredCategories: FilteredCategory[] = [];
 
-	// Function to get collections for a category
-	function getCollectionsForCategory(path: string): Schema[] {
-		return Object.values($collections).filter((col) => {
-			if (!col.path) return false;
-			return col.path === path;
-		});
-	}
+	// Function to flatten and filter categories with improved subcategory search
+	function filterCategories(searchTerm: string, cats: Record<string, CategoryData>): FilteredCategory[] {
+		if (!cats || Object.keys(cats).length === 0) return [];
 
-	// Function to flatten and filter categories
-	function filterCategories(search: string, cats: Record<string, CategoryData>): FilteredCategoryData[] {
-		if (!cats || Object.keys(cats).length === 0) {
-			console.debug('Categories object is empty');
-			return [];
-		}
+		function processCategory(category: CategoryData, level: number = 0): FilteredCategory | null {
+			const idStr = category.id.replace(/\D/g, '');
+			const id = idStr ? parseInt(idStr) : Date.now();
 
-		const flattened: FilteredCategoryData[] = [];
-
-		function processCategory(category: CategoryData, level: number = 0): FilteredCategoryData {
-			const flatCategory: FilteredCategoryData = {
-				...category,
-				level,
-				open: false,
+			const processed: FilteredCategory = {
+				id,
+				name: category.name,
+				icon: category.icon,
 				collections: [],
+				level,
+				open: searchTerm !== '', // Auto-open categories when searching
 				subcategories: {}
 			};
 
-			// Process subcategories and collections
+			// Process subcategories
+			let hasMatchingContent = false;
 			if (category.subcategories) {
-				Object.entries(category.subcategories).forEach(([key, subItem]) => {
-					if (subItem.isCollection) {
-						// Add collection
-						const collectionSchema = $collections[subItem.name];
-						if (collectionSchema && (!modeSet || modeSet === 'edit' || collectionSchema?.permissions?.[user?.role]?.read !== false)) {
-							flatCategory.collections?.push({
+				Object.entries(category.subcategories).forEach(([key, subCat]) => {
+					if (subCat.isCollection) {
+						const collectionId = parseInt(subCat.id.replace(/\D/g, '') || Date.now().toString());
+						const collectionSchema = $collections[key];
+
+						if (collectionSchema) {
+							const collection = {
 								...collectionSchema,
-								icon: subItem.icon // Use the icon from categories.ts
-							});
+								id: collectionId,
+								icon: subCat.icon || collectionSchema.icon,
+								fields: collectionSchema.fields || []
+							};
+
+							if (searchTerm === '' || collection.name.toLowerCase().includes(searchTerm.toLowerCase())) {
+								processed.collections.push(collection);
+								hasMatchingContent = true;
+							}
 						}
 					} else {
-						// Process subcategory recursively
-						const processedSubCategory = processCategory(subItem, level + 1);
-						flatCategory.subcategories![key] = processedSubCategory;
+						const processedSub = processCategory(subCat, level + 1);
+						if (processedSub) {
+							processed.subcategories![key] = processedSub;
+							hasMatchingContent = true;
+						}
 					}
 				});
 			}
 
-			return flatCategory;
+			const searchLower = searchTerm.toLowerCase();
+			const nameMatches = category.name.toLowerCase().includes(searchLower);
+
+			return searchTerm === '' || nameMatches || hasMatchingContent ? processed : null;
 		}
 
-		// Process all top-level categories
-		Object.entries(cats).forEach(([key, category]) => {
-			if (!category.isCollection) {
-				const processed = processCategory(category);
-
-				// Add to flattened list if matches search or has matching children
-				const nameMatch = category.name.toLowerCase().includes(search.toLowerCase());
-				const hasMatchingCollections = processed.collections?.some((col) => col.name?.toLowerCase().includes(search.toLowerCase()));
-				const hasMatchingSubcategories = Object.values(processed.subcategories || {}).some(
-					(sub) =>
-						sub.name.toLowerCase().includes(search.toLowerCase()) ||
-						sub.collections?.some((col) => col.name?.toLowerCase().includes(search.toLowerCase()))
-				);
-
-				if (search === '' || nameMatch || hasMatchingCollections || hasMatchingSubcategories) {
-					flattened.push(processed);
-				}
-			}
-		});
-
-		return flattened;
+		// Process only root categories (Collections and Menu)
+		return Object.entries(cats)
+			.filter(([name]) => name === 'Collections' || name === 'Menu')
+			.map(([, cat]) => processCategory(cat))
+			.filter((cat): cat is FilteredCategory => cat !== null);
 	}
 
-	// Subscribe to categories and collections store changes
+	// Subscribe to categories and collections store changes and handle search
 	$: {
 		if ($categories && $collections) {
 			filteredCategories = filterCategories(search, $categories);
 		}
+	}
+
+	// Handle search input
+	function handleSearch(event: Event) {
+		const target = event.target as HTMLInputElement;
+		search = target.value;
+		filteredCategories = filterCategories(search, $categories);
+	}
+
+	// Clear search
+	function clearSearch() {
+		search = '';
+		filteredCategories = filterCategories('', $categories);
+		// Focus the search input after clearing
+		const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
+		if (searchInput) searchInput.focus();
 	}
 
 	// Determine if the current mode is 'media'
@@ -138,38 +150,46 @@
 
 	onMount(() => {
 		if ($categories && $collections) {
-			filteredCategories = filterCategories(search, $categories);
+			filteredCategories = filterCategories('', $categories);
 		}
 	});
 
 	// Helper function to get indentation class based on level
-	function getIndentClass(level: number = 0): string {
-		return `pl-${level * 4}`;
+	function getIndentClass(level: number): string {
+		return `pl-${level * 2}`; // Reduced padding for better space utilization
 	}
 
 	// Handle collection selection
 	function handleCollectionSelect(_collection: Schema) {
 		if ($mode === 'edit') {
 			mode.set('view');
-			handleSidebarToggle();
 		} else {
 			mode.set(modeSet);
-			handleSidebarToggle();
 			shouldShowNextButton.set(true);
 		}
 		collection.set(_collection);
+		handleSidebarToggle();
 	}
 
 	// Generate unique key for collection items
 	function getCollectionKey(_collection: Schema, categoryId: string): string {
 		return `${categoryId}-${_collection.name}-${_collection.id || Date.now()}`;
 	}
+
+	// Track open states for subcategories
+	let subCategoryOpenStates: Record<string, boolean> = {};
+
+	// Handle subcategory accordion state
+	function handleSubcategoryToggle(categoryId: string, subcategoryKey: string) {
+		const key = `${categoryId}-${subcategoryKey}`;
+		subCategoryOpenStates[key] = !subCategoryOpenStates[key];
+		subCategoryOpenStates = { ...subCategoryOpenStates };
+	}
 </script>
 
-<!-- displays all collection parents and their Children as accordion -->
-<div class="mt-2 overflow-y-auto">
+<div class="mt-2">
 	{#if !isMediaMode}
-		<!-- Search -->
+		<!-- Search Input -->
 		{#if $sidebarState.left === 'collapsed'}
 			<button
 				type="button"
@@ -187,41 +207,36 @@
 				<iconify-icon icon="ic:outline-search" width="24" />
 			</button>
 		{:else}
-			<div class="input-group input-group-divider mb-2 grid grid-cols-[auto_1fr_auto]">
+			<div class="input-group input-group-divider mb-2 grid grid-cols-[1fr_auto]">
 				<input
 					type="text"
 					placeholder={m.collections_search()}
 					bind:value={search}
-					on:input={(e) => {
-						filterCategories(e.currentTarget.value, $categories);
-					}}
-					on:keydown={(e) => e.key === 'Enter'}
+					on:input={handleSearch}
 					on:focus={() => (searchShow = false)}
-					class="input h-12 w-64 outline-none transition-all duration-500 ease-in-out"
+					class="input h-12 outline-none transition-all duration-500 ease-in-out"
 				/>
-				{#if search}
-					<button
-						on:click={() => {
-							search = '';
-							filterCategories('', $categories);
-						}}
-						class="variant-filled-surface w-12"
-						aria-label="Clear search"
-					>
-						<iconify-icon icon="ic:outline-search-off" width="24" />
-					</button>
-				{/if}
+				<button on:click={clearSearch} class="variant-filled-surface w-12" aria-label="Clear search">
+					<iconify-icon icon="ic:outline-search-off" width="24" />
+				</button>
 			</div>
 		{/if}
 
 		<!-- Collections Accordion -->
-		<Accordion autocollapse regionControl="btn bg-surface-400 dark:bg-surface-500 uppercase text-white hover:!bg-surface-300">
-			<!-- Collection Parents -->
+		<Accordion
+			autocollapse
+			spacing="space-y-1"
+			rounded="rounded-container-token"
+			padding="py-2 px-4"
+			regionControl="btn bg-surface-400 dark:bg-surface-500 uppercase text-white hover:!bg-surface-300"
+			hover="hover:bg-primary-hover-token"
+			caretOpen="rotate-180"
+		>
 			{#if filteredCategories.length > 0}
 				{#each filteredCategories as category (category.id)}
 					<AccordionItem
 						bind:open={category.open}
-						regionPanel="divide-y dark:divide-black my-0 overflow-y-auto"
+						regionPanel="divide-y dark:divide-black my-0"
 						class={`divide-y rounded-md bg-surface-300 dark:divide-black ${getIndentClass(category.level)}`}
 					>
 						<svelte:fragment slot="lead">
@@ -239,90 +254,90 @@
 						</svelte:fragment>
 
 						<svelte:fragment slot="content">
+							<!-- Collections in this category -->
 							{#if category.collections?.length}
-								{#each category.collections as _collection (getCollectionKey(_collection, category.id))}
-									{#if $sidebarState.left === 'full'}
-										<!-- Sidebar Expanded -->
-										<div
-											role="button"
-											tabindex={0}
-											class="-mx-4 flex flex-row items-center bg-surface-300 py-1 pl-3 hover:bg-surface-400 hover:text-white dark:text-black hover:dark:text-white"
-											on:keydown
-											on:click={() => handleCollectionSelect(_collection)}
-										>
+								{#each category.collections as _collection (getCollectionKey(_collection, category.id.toString()))}
+									<div
+										role="button"
+										tabindex={0}
+										class="-mx-4 flex {$sidebarState.left === 'full'
+											? 'flex-row items-center pl-3'
+											: 'flex-col items-center'} py-1 hover:bg-surface-400 hover:text-white"
+										on:keydown
+										on:click={() => handleCollectionSelect(_collection)}
+									>
+										{#if $sidebarState.left === 'full'}
 											<iconify-icon icon={_collection.icon} width="24" class="px-2 py-1 text-error-600" />
 											<p class="mr-auto text-center capitalize">{_collection.name}</p>
-										</div>
-									{:else}
-										<!-- Sidebar Collapsed -->
-										<div
-											role="button"
-											tabindex={0}
-											class="-mx-4 flex flex-col items-center py-1 hover:bg-surface-400 hover:text-white dark:text-black hover:dark:text-white"
-											on:keydown
-											on:click={() => handleCollectionSelect(_collection)}
-										>
+										{:else}
 											<p class="text-xs capitalize">{_collection.name}</p>
 											<iconify-icon icon={_collection.icon} width="24" class="text-error-600" />
-										</div>
-									{/if}
+										{/if}
+									</div>
 								{/each}
 							{/if}
 
-							{#if category.subcategories}
-								{#each Object.entries(category.subcategories) as [key, subCategory] (key)}
-									<AccordionItem
-										bind:open={subCategory.open}
-										regionPanel="divide-y dark:divide-black my-0 overflow-y-auto"
-										class={`divide-y rounded-md bg-surface-300 dark:divide-black ${getIndentClass(subCategory.level)}`}
-									>
-										<svelte:fragment slot="lead">
-											<iconify-icon icon={subCategory.icon} width="24" class="text-error-500 rtl:ml-2" use:popup={popupCollections} />
-										</svelte:fragment>
+							<!-- Subcategories with Autocollapse -->
+							{#if category.subcategories && Object.keys(category.subcategories).length > 0}
+								<Accordion
+									autocollapse
+									spacing="space-y-1"
+									rounded="rounded-container-token"
+									padding="py-1"
+									regionControl="btn bg-surface-300 dark:bg-surface-400 uppercase text-white hover:!bg-surface-300"
+									hover="hover:bg-primary-hover-token"
+									caretOpen="rotate-180"
+									class="-mr-4"
+								>
+									{#each Object.entries(category.subcategories) as [key, subCategory] (key)}
+										<div class={getIndentClass(category.level + 1)}>
+											<AccordionItem
+												bind:open={subCategoryOpenStates[`${category.id}-${key}`]}
+												on:click={() => handleSubcategoryToggle(category.id.toString(), key)}
+												regionPanel="divide-y dark:divide-black my-0"
+												class="divide-y rounded-md bg-surface-300 dark:bg-surface-400"
+											>
+												<svelte:fragment slot="lead">
+													<iconify-icon icon={subCategory.icon} width="24" class="text-error-500 rtl:ml-2" use:popup={popupCollections} />
+												</svelte:fragment>
 
-										<svelte:fragment slot="summary">
-											{#if $sidebarState.left === 'full'}
-												<p class="text-white">{subCategory.name}</p>
-											{/if}
-											<div class="card variant-filled-secondary p-4" data-popup="popupHover">
-												<p>{subCategory.name}</p>
-												<div class="variant-filled-secondary arrow" />
-											</div>
-										</svelte:fragment>
-
-										<svelte:fragment slot="content">
-											{#if subCategory.collections?.length}
-												{#each subCategory.collections as _collection (getCollectionKey(_collection, subCategory.id))}
+												<svelte:fragment slot="summary">
 													{#if $sidebarState.left === 'full'}
-														<!-- Sidebar Expanded -->
-														<div
-															role="button"
-															tabindex={0}
-															class="-mx-4 flex flex-row items-center bg-surface-300 py-1 pl-3 hover:bg-surface-400 hover:text-white dark:text-black hover:dark:text-white"
-															on:keydown
-															on:click={() => handleCollectionSelect(_collection)}
-														>
-															<iconify-icon icon={_collection.icon} width="24" class="px-2 py-1 text-error-600" />
-															<p class="mr-auto text-center capitalize">{_collection.name}</p>
-														</div>
-													{:else}
-														<!-- Sidebar Collapsed -->
-														<div
-															role="button"
-															tabindex={0}
-															class="-mx-4 flex flex-col items-center py-1 hover:bg-surface-400 hover:text-white dark:text-black hover:dark:text-white"
-															on:keydown
-															on:click={() => handleCollectionSelect(_collection)}
-														>
-															<p class="text-xs capitalize">{_collection.name}</p>
-															<iconify-icon icon={_collection.icon} width="24" class="text-error-600" />
-														</div>
+														<p class="uppercase text-white">{subCategory.name}</p>
 													{/if}
-												{/each}
-											{/if}
-										</svelte:fragment>
-									</AccordionItem>
-								{/each}
+													<div class="card variant-filled-secondary p-4" data-popup="popupHover">
+														<p class="uppercase">{subCategory.name}</p>
+														<div class="variant-filled-secondary arrow" />
+													</div>
+												</svelte:fragment>
+
+												<svelte:fragment slot="content">
+													{#if subCategory.collections?.length}
+														{#each subCategory.collections as _collection (getCollectionKey(_collection, subCategory.id.toString()))}
+															<div
+																role="button"
+																tabindex={0}
+																class="-mx-4 flex {$sidebarState.left === 'full'
+																	? 'flex-row items-center pl-3'
+																	: 'flex-col items-center'} py-1 hover:bg-surface-400 hover:text-white"
+																on:keydown
+																on:click={() => handleCollectionSelect(_collection)}
+															>
+																{#if $sidebarState.left === 'full'}
+																	<iconify-icon icon={_collection.icon} width="24" class="px-2 py-1 text-error-600" />
+																	<p class="mr-auto text-center capitalize">{_collection.name}</p>
+																{:else}
+																	<p class="text-xs capitalize">{_collection.name}</p>
+																	<iconify-icon icon={_collection.icon} width="24" class="text-error-600" />
+																{/if}
+															</div>
+														{/each}
+													{/if}
+												</svelte:fragment>
+											</AccordionItem>
+										</div>
+									{/each}
+								</Accordion>
 							{/if}
 						</svelte:fragment>
 					</AccordionItem>
@@ -333,57 +348,44 @@
 		</Accordion>
 
 		<!-- Media Gallery Button -->
-		{#if $sidebarState.left === 'full'}
-			<!-- Sidebar Expanded -->
-			<button
-				class="btn mt-1 flex w-full flex-row items-center justify-start bg-surface-400 py-2 pl-2 text-white dark:bg-surface-500"
-				on:click={() => {
-					mode.set('media');
-					goto('/mediagallery');
-					if (get(screenSize) === 'sm') {
-						toggleSidebar('left', 'hidden');
-					}
-				}}
-			>
+		<button
+			class="btn mt-1 flex w-full {$sidebarState.left === 'full'
+				? 'flex-row justify-start pl-2'
+				: 'flex-col'} items-center bg-surface-400 py-{$sidebarState.left === 'full'
+				? '2'
+				: '1'} hover:!bg-surface-400 hover:text-white dark:bg-surface-500"
+			on:click={() => {
+				mode.set('media');
+				goto('/mediagallery');
+				if (get(screenSize) === 'sm') {
+					toggleSidebar('left', 'hidden');
+				}
+				if ($sidebarState.left !== 'full') handleSidebarToggle();
+			}}
+		>
+			{#if $sidebarState.left === 'full'}
 				<iconify-icon icon="bi:images" width="24" class="px-2 py-1 text-primary-600 rtl:ml-2" />
-				<p class="mr-auto text-center uppercase">{m.Collections_MediaGallery()}</p>
-			</button>
-		{:else}
-			<!-- Sidebar Collapsed -->
-			<button
-				class="btn mt-2 flex w-full flex-col items-center bg-surface-400 py-1 pl-2 hover:!bg-surface-400 hover:text-white dark:bg-surface-500 dark:text-white"
-				on:click={() => {
-					mode.set('media');
-					goto('/mediagallery');
-					handleSidebarToggle();
-					if (get(screenSize) === 'sm') {
-						toggleSidebar('left', 'hidden');
-					}
-				}}
-			>
+				<p class="mr-auto text-center uppercase text-white">{m.Collections_MediaGallery()}</p>
+			{:else}
 				<p class="text-xs uppercase text-white">{m.Collections_MediaGallery()}</p>
 				<iconify-icon icon="bi:images" width="24" class="text-primary-500" />
-			</button>
-		{/if}
+			{/if}
+		</button>
+	{:else if $sidebarState.left === 'full'}
+		<button
+			class="btn mt-1 flex w-full flex-row items-center justify-start bg-surface-400 py-2 pl-2 text-white dark:bg-surface-500"
+			on:click={() => {
+				mode.set('view');
+				if (get(screenSize) === 'sm') {
+					toggleSidebar('left', 'hidden');
+				}
+			}}
+		>
+			<iconify-icon icon="bi:collection" width="24" class="px-2 py-1 text-error-500 rtl:ml-2" />
+			<p class="mr-auto text-center uppercase">Collections</p>
+		</button>
 	{:else}
-		<!-- When in media mode, display virtual folders and a 'Return to Collections' button -->
-		{#if $sidebarState.left === 'full'}
-			<!-- Sidebar Expanded -->
-			<button
-				class="btn mt-1 flex w-full flex-row items-center justify-start bg-surface-400 py-2 pl-2 text-white dark:bg-surface-500"
-				on:click={() => {
-					mode.set('view');
-					if (get(screenSize) === 'sm') {
-						toggleSidebar('left', 'hidden');
-					}
-				}}
-			>
-				<iconify-icon icon="bi:collection" width="24" class="px-2 py-1 text-error-500 rtl:ml-2" />
-				<p class="mr-auto text-center uppercase">Collections</p>
-			</button>
-		{:else}
-			<!-- Display Virtual Folders -->
-			<VirtualFolders />
-		{/if}
+		<!-- Display Virtual Folders -->
+		<VirtualFolders />
 	{/if}
 </div>

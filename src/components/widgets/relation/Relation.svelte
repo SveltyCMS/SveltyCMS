@@ -138,52 +138,64 @@
 	}
 </script>
 
-{#if !expanded && !showDropDown}
-	<div class="relative mb-1 flex w-screen min-w-[200px] max-w-full items-center justify-start gap-0.5 rounded border py-1 pl-10 pr-2">
-		<button class="flex-grow text-center dark:text-primary-500" on:click={openDropDown} aria-haspopup="listbox" aria-expanded={showDropDown}>
-			{@html selected?.display || display || 'select new'}
-		</button>
+<div class="input-container relative mb-4">
+	{#if !expanded && !showDropDown}
+		<div class="relative mb-1 flex w-screen min-w-[200px] max-w-full items-center justify-start gap-0.5 rounded border py-1 pl-10 pr-2">
+			<button class="flex-grow text-center dark:text-primary-500" on:click={openDropDown} aria-haspopup="listbox" aria-expanded={showDropDown}>
+				{@html selected?.display || display || 'select new'}
+			</button>
 
-		<div class="ml-auto flex items-center pr-2">
-			{#if $mode === 'create'}
+			<div class="ml-auto flex items-center pr-2">
+				{#if $mode === 'create'}
+					<button
+						on:click={() => {
+							expanded = !expanded;
+							entryMode = 'create';
+							fieldsData = {};
+							selected = undefined;
+							relation_entry = {};
+						}}
+						class="btn-icon"
+						aria-label="Create new relation"
+					>
+						<iconify-icon icon="icons8:plus" width="30" class="dark:text-primary-500" />
+					</button>
+				{/if}
 				<button
 					on:click={() => {
 						expanded = !expanded;
-						entryMode = 'create';
+						entryMode = 'edit';
 						fieldsData = {};
 						selected = undefined;
-						relation_entry = {};
 					}}
-					class="btn-icon"
-					aria-label="Create new relation"
+					class="btn-icons"
+					aria-label="Edit relation"
 				>
-					<iconify-icon icon="icons8:plus" width="30" class="dark:text-primary-500" />
+					<iconify-icon icon="mdi:pen" width="28" class="dark:text-primary-500" />
 				</button>
-			{/if}
-			<button
-				on:click={() => {
-					expanded = !expanded;
-					entryMode = 'edit';
-					fieldsData = {};
-					selected = undefined;
-				}}
-				class="btn-icons"
-				aria-label="Edit relation"
-			>
-				<iconify-icon icon="mdi:pen" width="28" class="dark:text-primary-500" />
-			</button>
+			</div>
 		</div>
-	</div>
-{:else if !expanded && showDropDown}
-	<DropDown {dropDownData} {field} bind:selected bind:showDropDown on:select={validateInput} />
-{:else}
-	<Fields fields={relationCollection?.fields} root={false} bind:fieldsData customData={relation_entry} />
-	{(($saveFunction.fn = save), '')}
-{/if}
+	{:else if !expanded && showDropDown}
+		<DropDown {dropDownData} {field} bind:selected bind:showDropDown on:select={validateInput} />
+	{:else}
+		<Fields fields={relationCollection?.fields} root={false} bind:fieldsData customData={relation_entry} />
+		{(($saveFunction.fn = save), '')}
+	{/if}
 
-<!-- Error Message -->
-{#if validationError}
-	<p id={`${fieldName}-error`} class="text-center text-sm text-error-500">
-		{validationError}
-	</p>
-{/if}
+	<!-- Error Message -->
+	{#if validationError}
+		<p id={`${field.db_fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+			{validationError}
+		</p>
+	{/if}
+</div>
+
+<style lang="postcss">
+	.input-container {
+		min-height: 2.5rem;
+	}
+
+	.error {
+		border-color: rgb(239 68 68);
+	}
+</style>

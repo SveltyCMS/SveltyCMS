@@ -10,15 +10,19 @@ import type { ModifyRequestParams } from '@components/widgets';
 import type { Permission } from '@src/auth/types';
 
 // Collection names are dynamic, based on the files in the collections directory
-export type CollectionNames = string;
 
 // Widget field type definition
 type WidgetKeys = keyof typeof widgets;
 type WidgetTypes = (typeof widgets)[WidgetKeys];
+
+// Extended field type with display and callback properties
 export type Field = {
-	widget(widget: any): unknown;
+	widget: WidgetTypes;
 	type: WidgetKeys;
 	config: WidgetTypes;
+	label: string;
+	display?: (args: { data: any; collection: string; field: Field; entry: any; contentLanguage: string }) => Promise<string> | string;
+	callback?: (args: { data: any }) => void;
 	modifyRequest?: (args: ModifyRequestParams<(typeof widgets)[WidgetKeys]>) => Promise<object>;
 };
 
@@ -50,8 +54,8 @@ export interface Category {
 	id: number;
 	name: string;
 	icon: string;
-
-	collections: Schema[];
+	collections: Schema[]; // Collections within this category
+	subcategories?: Record<string, Category>; // Added subcategories support
 }
 
 // Extended category interface for UI
@@ -65,7 +69,16 @@ export interface CategoryData {
 	id: string;
 	icon: string;
 	name: string;
-
 	isCollection?: boolean; // Flag to identify if this is a collection (.ts file)
-	subcategories?: Record<string, CategoryData>;
+	subcategories?: Record<string, CategoryData>; // Nested subcategories
+	collections?: Schema[]; // Optional array of collections directly within the category
 }
+
+// Processed category data interface for UI usage
+export interface ProcessedCategoryData extends CategoryData {
+	open: boolean; // Indicates if the category is open in UI
+	level: number; // Hierarchy level in nested structure
+	collections: Schema[]; // Collections in the category
+	subcategories: Record<string, ProcessedCategoryData>; // Nested subcategories after processing
+}
+export type CollectionNames = 'CollectionManager' | 'categories';

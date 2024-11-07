@@ -12,8 +12,7 @@ import type { CollectionContent, CollectionNames, Schema } from '@src/collection
 import { collectionManager } from '@src/collections/CollectionManager';
 import widgets, { type ModifyRequestParams } from '@components/widgets';
 import deepmerge from 'deepmerge';
-import type { CollectionModel } from '@src/databases/dbInterface';
-import { getCollectionModels } from "@src/databases/db";
+import { getCollectionModels } from '@src/databases/db';
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
 
@@ -87,7 +86,7 @@ widget.modifyRequest = async ({ field, data, user, type, id }: ModifyRequestPara
 		return;
 	}
 	const relative_collection = (await getCollectionModels())[field.relation];
-	const relative_collection_schema = (await getCollections())[field.relation] as Schema;
+	const relative_collection_schema = collectionManager.getCollectionData().collections[field.relation] as Schema;
 	const response = (await relative_collection.findById(_data)) as any;
 	const result = {};
 

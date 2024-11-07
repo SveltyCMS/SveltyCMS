@@ -27,7 +27,7 @@ import { checkUserPermission } from '@src/auth/permissionCheck';
 import { getAllPermissions } from '@src/auth/permissionManager';
 
 // Cache
-import { cacheStore } from '@src/cacheStore/index.server';
+import { getCacheStore } from '@src/cacheStore/index.server';
 
 // System Logger
 import { logger } from '@utils/logger';
@@ -110,6 +110,7 @@ const createHtmlResponse = (message: string, status: number): never => {
 // Get user from session ID, using cache if available
 const getUserFromSessionId = async (session_id: string | undefined): Promise<any> => {
 	if (!session_id) return null;
+	const cacheStore = getCacheStore();
 	let user = await cacheStore.get(session_id);
 	if (!user) {
 		try {
@@ -407,6 +408,7 @@ export const handle: Handle = sequence(handleStaticAssetCaching, handleRateLimit
 
 // Helper function to invalidate API cache
 export const invalidateApiCache = async (apiEndpoint: string, userId: string): Promise<void> => {
+	const cacheStore = getCacheStore();
 	const cacheKey = `api:${apiEndpoint}:${userId}`;
 	await cacheStore.delete(cacheKey);
 	logger.debug(`Invalidated cache for ${cacheKey}`);

@@ -23,6 +23,9 @@
 	import TranslationStatus from './TranslationStatus.svelte';
 	import ScheduleModal from './ScheduleModal.svelte';
 
+	// Types
+	import type { CategoryData } from '@src/collections/types';
+
 	// Skeleton
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
@@ -80,6 +83,42 @@
 	import * as m from '@src/paraglide/messages';
 	import { logger } from '@src/utils/logger';
 
+	// Find the parent category name for the current collection
+	$: categoryName = (() => {
+		if (!$collection?.name || !$categories) return '';
+
+		// Helper function to find parent category name
+		const findParentCategory = (categories: Record<string, CategoryData>): string => {
+			// Only process root categories (Collections and Menu)
+			for (const [rootName, rootCategory] of Object.entries(categories)) {
+				if (rootName !== 'Collections' && rootName !== 'Menu') continue;
+
+				if (rootCategory.subcategories) {
+					// Check each subcategory
+					for (const [subName, subCat] of Object.entries(rootCategory.subcategories as Record<string, CategoryData>)) {
+						// Case 1: Direct collection in subcategories (like Media, Names)
+						if (subCat.isCollection && subName === $collection.name) {
+							return rootCategory.name;
+						}
+
+						// Case 2: Collection in nested subcategories (like Posts/Posts)
+						if (!subCat.isCollection && subCat.subcategories) {
+							for (const [nestedName, nestedCat] of Object.entries(subCat.subcategories as Record<string, CategoryData>)) {
+								if (nestedCat.isCollection && nestedName === $collection.name) {
+									// Return the immediate parent name (e.g. "Posts" for Posts/Posts)
+									return subCat.name;
+								}
+							}
+						}
+					}
+				}
+			}
+			return '';
+		};
+
+		return findParentCategory($categories);
+	})();
+
 	$: {
 		if ($tabSet !== previousTabSet) {
 			tempData[previousLanguage] = get(collectionValue);
@@ -121,7 +160,8 @@
 		for (const field of $collection.fields) {
 			const fieldName = getFieldName(field);
 			const fieldValue = $collectionValue[fieldName];
-			const widgetInstance = field.widget(fieldValue);
+			// Use widget property directly as it's now an instance
+			const widgetInstance = field.widget;
 
 			if (hasValidateWidget(widgetInstance)) {
 				const error = await widgetInstance.validateWidget();
@@ -242,13 +282,12 @@
 				</div>
 			{/if}
 
-			<!--TODO: fix {#if $categories && $categories[0]} -->
-			{#if $categories && $categories[0]}
+			{#if $collection?.name && $categories}
 				<div class="ml-2 flex flex-col text-left text-gray-400 dark:text-gray-300">
 					<div class="text-sm font-bold uppercase text-tertiary-500 dark:text-primary-500">{$mode}:</div>
 					<div class="text-xs capitalize">
-						{$categories[0].name}
-						<span class="uppercase text-tertiary-500 dark:text-primary-500">{$collection?.name}</span>
+						{categoryName}
+						<span class="uppercase text-tertiary-500 dark:text-primary-500">{$collection.name}</span>
 					</div>
 				</div>
 			{/if}

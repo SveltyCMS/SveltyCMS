@@ -13,7 +13,7 @@
 	import { mode, collectionValue } from '@stores/collectionStore';
 
 	// Valibot validation
-	import { string, email as emailValidator, pipe, parse, type InferInput, type ValiError } from 'valibot';
+	import { string, email as emailValidator, pipe, parse, type ValiError, nonEmpty } from 'valibot';
 
 	export let field: FieldType;
 
@@ -27,63 +27,99 @@
 
 	let validationError: string | null = null;
 	let debounceTimeout: number | undefined;
-	let initialRender = true;
+	let inputElement: HTMLInputElement | null = null;
 
-	// Define the validation schema for this widget
-	const widgetSchema = pipe(string(), emailValidator('Please enter a valid email address'));
+	// Create validation schema for email
+	const emailSchema = pipe(string(), emailValidator('Please enter a valid email address'));
 
-	type WidgetSchemaType = InferInput<typeof widgetSchema>;
-
-	// Generic validation function that uses the provided schema to validate the input
-	function validateSchema(data: unknown): string | null {
+	// Validation function
+	function validateInput() {
 		try {
-			parse(widgetSchema, data);
-			validationStore.clearError(fieldName);
-			return null; // No error
+			if (debounceTimeout) clearTimeout(debounceTimeout);
+			debounceTimeout = window.setTimeout(() => {
+				try {
+					const value = _data[_language];
+
+					// First validate if required
+					if (field?.required && (!value || value.trim() === '')) {
+						validationError = 'This field is required';
+						validationStore.setError(fieldName, validationError);
+						return;
+					}
+
+					// Then validate email format if value exists
+					if (value && value.trim() !== '') {
+						parse(emailSchema, value);
+					}
+
+					validationError = null;
+					validationStore.clearError(fieldName);
+				} catch (error) {
+					if ((error as ValiError<typeof emailSchema>).issues) {
+						const valiError = error as ValiError<typeof emailSchema>;
+						validationError = valiError.issues[0]?.message || 'Invalid input';
+						validationStore.setError(fieldName, validationError);
+					}
+				}
+			}, 300);
 		} catch (error) {
-			if ((error as ValiError<typeof widgetSchema>).issues) {
-				const valiError = error as ValiError<typeof widgetSchema>;
-				const errorMessage = valiError.issues[0]?.message || 'Invalid input';
-				validationStore.setError(fieldName, errorMessage);
-				return errorMessage;
-			}
-			return 'Invalid input';
+			console.error('Validation error:', error);
+			validationError = 'An unexpected error occurred during validation';
+			validationStore.setError(fieldName, 'Validation error');
 		}
 	}
 
-	// Debounced validation function
-	function validateInput() {
+	// Focus management
+	import { onMount, onDestroy } from 'svelte';
+
+	onMount(() => {
+		if (field?.required && !_data[_language]) {
+			inputElement?.focus();
+		}
+	});
+
+	onDestroy(() => {
 		if (debounceTimeout) clearTimeout(debounceTimeout);
-		debounceTimeout = window.setTimeout(() => {
-			if (!initialRender) {
-				validationError = validateSchema(_data[_language]);
-			} else {
-				initialRender = false;
-			}
-		}, 300);
-	}
+	});
 
 	// Export WidgetData for data binding with Fields.svelte
 	export const WidgetData = async () => _data;
 </script>
 
-<!-- Email Input -->
-<input
-	type="email"
-	aria-label={field?.label || field?.db_fieldName}
-	bind:value={_data[_language]}
-	on:input={validateInput}
-	name={field.db_fieldName}
-	id={field.db_fieldName}
-	placeholder={field.placeholder || field.db_fieldName}
-	class="input text-black dark:text-primary-500"
-	aria-invalid={!!validationError}
-	aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
-/>
+<div class="input-container relative mb-4">
+	<!-- Email Input -->
+	<input
+		type="email"
+		bind:this={inputElement}
+		aria-label={field?.label || field?.db_fieldName}
+		bind:value={_data[_language]}
+		on:blur={validateInput}
+		name={field.db_fieldName}
+		id={field.db_fieldName}
+		placeholder={field.placeholder || field.db_fieldName}
+		required={field?.required}
+		class="input w-full text-black dark:text-primary-500"
+		class:error={!!validationError}
+		aria-invalid={!!validationError}
+		aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
+		aria-required={field?.required}
+		data-testid="email-input"
+	/>
 
-<!-- Error Message -->
-{#if validationError}
-	<p id={`${field.db_fieldName}-error`} class="text-center text-sm text-error-500">
-		{validationError}
-	</p>
-{/if}
+	<!-- Error Message -->
+	{#if validationError}
+		<p id={`${field.db_fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+			{validationError}
+		</p>
+	{/if}
+</div>
+
+<style lang="postcss">
+	.input-container {
+		min-height: 2.5rem;
+	}
+
+	.error {
+		border-color: rgb(239 68 68);
+	}
+</style>

@@ -106,76 +106,93 @@
 	}
 </script>
 
-{#if !_data}
-	<!-- File Input -->
-	<FileInput
-		bind:value={_data}
-		bind:multiple={field.multiupload}
-		on:change={validateInput}
-		aria-invalid={!!validationError}
-		aria-describedby={validationError ? `${getFieldName(field)}-error` : undefined}
-	/>
-{:else}
-	<div class="flex w-full max-w-full flex-col border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700">
-		<!-- Preview -->
-		<div class="mx-2 flex flex-col gap-2">
-			<!-- Image Header -->
-			<div class="flex items-center justify-between gap-2">
-				<p class="text-left">{m.widget_ImageUpload_Name()} <span class="text-tertiary-500 dark:text-primary-500">{_data.name}</span></p>
+<div class="input-container relative mb-4">
+	{#if !_data}
+		<!-- File Input -->
+		<div class:error={!!validationError}>
+			<FileInput
+				bind:value={_data}
+				bind:multiple={field.multiupload}
+				on:change={validateInput}
+				aria-invalid={!!validationError}
+				aria-describedby={validationError ? `${getFieldName(field)}-error` : undefined}
+			/>
+		</div>
+	{:else}
+		<div
+			class="flex w-full max-w-full flex-col border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700"
+			class:error={!!validationError}
+		>
+			<!-- Preview -->
+			<div class="mx-2 flex flex-col gap-2">
+				<!-- Image Header -->
+				<div class="flex items-center justify-between gap-2">
+					<p class="text-left">{m.widget_ImageUpload_Name()} <span class="text-tertiary-500 dark:text-primary-500">{_data.name}</span></p>
 
-				<p class="text-left">
-					{m.widget_ImageUpload_Size()} <span class="text-tertiary-500 dark:text-primary-500">{(_data.size / 1024).toFixed(2)} KB</span>
-				</p>
-			</div>
-			<!-- Image -->
-			<div class="flex items-center justify-between">
-				{#if !isFlipped}
-					<img
-						src={_data instanceof File ? URL.createObjectURL(_data) : _data.thumbnails.thumbnail.url}
-						alt=""
-						class="col-span-11 m-auto max-h-[200px] max-w-[500px] rounded"
-					/>
-				{:else}
-					<div class="col-span-11 ml-2 grid grid-cols-2 gap-1 text-left">
-						<p class="">{m.widget_ImageUpload_Type()}</p>
-						<p class="font-bold text-tertiary-500 dark:text-primary-500">{_data.type}</p>
-						<p class="">Path:</p>
-						<p class="font-bold text-tertiary-500 dark:text-primary-500">{_data.path}</p>
-						<p class="">{m.widget_ImageUpload_Uploaded()}</p>
-						<p class="font-bold text-tertiary-500 dark:text-primary-500">
-							{convertTimestampToDateString(getTimestamp(_data instanceof File ? _data.lastModified : _data.createdAt))}
-						</p>
-						<p class="">{m.widget_ImageUpload_LastModified()}</p>
-						<p class="font-bold text-tertiary-500 dark:text-primary-500">
-							{convertTimestampToDateString(getTimestamp(_data instanceof File ? _data.lastModified : _data.updatedAt))}
-						</p>
-					</div>
-				{/if}
-
-				<!-- Buttons -->
-				<div class="col-span-1 flex flex-col items-end justify-between gap-2 p-2">
-					<!-- Flip -->
-					<button on:click={() => (isFlipped = !isFlipped)} class="variant-ghost btn-icon">
-						<iconify-icon
-							icon="uiw:reload"
-							width="24"
-							class={isFlipped ? ' rotate-90 text-yellow-500 transition-transform duration-300' : 'text-white  transition-transform duration-300'}
+					<p class="text-left">
+						{m.widget_ImageUpload_Size()} <span class="text-tertiary-500 dark:text-primary-500">{(_data.size / 1024).toFixed(2)} KB</span>
+					</p>
+				</div>
+				<!-- Image -->
+				<div class="flex items-center justify-between">
+					{#if !isFlipped}
+						<img
+							src={_data instanceof File ? URL.createObjectURL(_data) : _data.thumbnails.sm.url}
+							alt=""
+							class="col-span-11 m-auto max-h-[200px] max-w-[500px] rounded"
 						/>
-					</button>
+					{:else}
+						<div class="col-span-11 ml-2 grid grid-cols-2 gap-1 text-left">
+							<p class="">{m.widget_ImageUpload_Type()}</p>
+							<p class="font-bold text-tertiary-500 dark:text-primary-500">{_data.type}</p>
+							<p class="">Path:</p>
+							<p class="font-bold text-tertiary-500 dark:text-primary-500">{_data.path}</p>
+							<p class="">{m.widget_ImageUpload_Uploaded()}</p>
+							<p class="font-bold text-tertiary-500 dark:text-primary-500">
+								{convertTimestampToDateString(getTimestamp(_data instanceof File ? _data.lastModified : _data.createdAt))}
+							</p>
+							<p class="">{m.widget_ImageUpload_LastModified()}</p>
+							<p class="font-bold text-tertiary-500 dark:text-primary-500">
+								{convertTimestampToDateString(getTimestamp(_data instanceof File ? _data.lastModified : _data.updatedAt))}
+							</p>
+						</div>
+					{/if}
 
-					<!-- Delete -->
-					<button on:click={() => (_data = undefined)} class="variant-ghost btn-icon">
-						<iconify-icon icon="material-symbols:delete-outline" width="30" class="text-error-500" />
-					</button>
+					<!-- Buttons -->
+					<div class="col-span-1 flex flex-col items-end justify-between gap-2 p-2">
+						<!-- Flip -->
+						<button on:click={() => (isFlipped = !isFlipped)} class="variant-ghost btn-icon">
+							<iconify-icon
+								icon="uiw:reload"
+								width="24"
+								class={isFlipped ? ' rotate-90 text-yellow-500 transition-transform duration-300' : 'text-white  transition-transform duration-300'}
+							/>
+						</button>
+
+						<!-- Delete -->
+						<button on:click={() => (_data = undefined)} class="variant-ghost btn-icon">
+							<iconify-icon icon="material-symbols:delete-outline" width="30" class="text-error-500" />
+						</button>
+					</div>
 				</div>
 			</div>
 		</div>
-	</div>
-{/if}
+	{/if}
 
-<!-- Error Message -->
-{#if validationError}
-	<p id={`${getFieldName(field)}-error`} class="text-center text-sm text-error-500">
-		{validationError}
-	</p>
-{/if}
+	<!-- Error Message -->
+	{#if validationError}
+		<p id={`${getFieldName(field)}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+			{validationError}
+		</p>
+	{/if}
+</div>
+
+<style lang="postcss">
+	.input-container {
+		min-height: 2.5rem;
+	}
+
+	.error {
+		border-color: rgb(239 68 68);
+	}
+</style>

@@ -12,6 +12,9 @@
 	import { contentLanguage, validationStore } from '@stores/store';
 	import { mode, collectionValue } from '@stores/collectionStore';
 
+	// Valibot validation
+	import { string, pipe, parse, type ValiError, nonEmpty } from 'valibot';
+
 	export let field: FieldType;
 
 	const fieldName = getFieldName(field);
@@ -24,84 +27,110 @@
 
 	let validationError: string | null = null;
 	let debounceTimeout: number | undefined;
+	let inputElement: HTMLInputElement | null = null;
 
-	export const WidgetData = async () => _data;
+	// Create validation schema for radio
+	const radioSchema = pipe(string(), nonEmpty('Selection is required'));
 
-	// Valibot validation
-	import { object, string, number, boolean, optional, minLength, pipe, parse, type InferInput, type ValiError } from 'valibot';
-
-	// Define the validation schema for the radio widget
-	const valueSchema = pipe(string(), minLength(1, 'Selection is required'));
-
-	const widgetSchema = object({
-		value: optional(valueSchema),
-		db_fieldName: string(),
-		icon: optional(string()),
-		color: optional(string()),
-		width: optional(number()),
-		required: optional(boolean())
-	});
-
-	type WidgetSchemaType = InferInput<typeof widgetSchema>;
-
-	// Generic validation function that uses the provided schema to validate the input
-	function validateSchema(data: unknown): string | null {
+	// Validation function
+	function validateInput() {
 		try {
-			parse(widgetSchema, data);
-			validationStore.clearError(fieldName);
-			return null; // No error
+			if (debounceTimeout) clearTimeout(debounceTimeout);
+			debounceTimeout = window.setTimeout(() => {
+				try {
+					const value = _data[_language];
+
+					// First validate if required
+					if (field?.required && (!value || value.trim() === '')) {
+						validationError = 'This field is required';
+						validationStore.setError(fieldName, validationError);
+						return;
+					}
+
+					// Then validate value if exists
+					if (value && value.trim() !== '') {
+						parse(radioSchema, value);
+					}
+
+					validationError = null;
+					validationStore.clearError(fieldName);
+				} catch (error) {
+					if ((error as ValiError<typeof radioSchema>).issues) {
+						const valiError = error as ValiError<typeof radioSchema>;
+						validationError = valiError.issues[0]?.message || 'Invalid input';
+						validationStore.setError(fieldName, validationError);
+					}
+				}
+			}, 300);
 		} catch (error) {
-			if ((error as ValiError<typeof widgetSchema>).issues) {
-				const valiError = error as ValiError<typeof widgetSchema>;
-				const errorMessage = valiError.issues[0]?.message || 'Invalid input';
-				validationStore.setError(fieldName, errorMessage);
-				return errorMessage;
-			}
-			return 'Invalid input';
+			console.error('Validation error:', error);
+			validationError = 'An unexpected error occurred during validation';
+			validationStore.setError(fieldName, 'Validation error');
 		}
 	}
 
-	// Handle input changes with debounce
-	function handleInput(event: Event) {
-		if (debounceTimeout) clearTimeout(debounceTimeout);
-		debounceTimeout = window.setTimeout(() => {
-			validateInput();
-		}, 300);
-	}
+	// Focus management and cleanup
+	import { onMount, onDestroy } from 'svelte';
 
-	// Validate the input using the generic validateSchema function
-	function validateInput() {
-		validationError = validateSchema({ value: _data[_language] });
-	}
+	onMount(() => {
+		if (field?.required && !_data[_language]) {
+			inputElement?.focus();
+		}
+	});
+
+	onDestroy(() => {
+		if (debounceTimeout) clearTimeout(debounceTimeout);
+	});
+
+	export const WidgetData = async () => _data;
 </script>
 
-<div class="flex w-full items-center gap-2">
-	<!-- Radio -->
-	<input
-		id={fieldName}
-		type="radio"
-		bind:value={_data.value}
-		on:input|preventDefault={handleInput}
-		color={field.color}
-		class="input float-left mr-4 mt-1 h-4 w-4 cursor-pointer appearance-none rounded-full border border-surface-300 bg-white bg-contain bg-center bg-no-repeat align-top text-black transition duration-200 checked:border-tertiary-600 checked:bg-tertiary-600 focus:outline-none dark:text-white"
-		aria-describedby={validationError ? `${fieldName}-error` : undefined}
-	/>
+<div class="input-container relative mb-4">
+	<div class="flex w-full items-center gap-2">
+		<!-- Radio -->
+		<input
+			bind:this={inputElement}
+			id={fieldName}
+			type="radio"
+			bind:value={_data.value}
+			on:blur={validateInput}
+			color={field.color}
+			required={field?.required}
+			class="input float-left mr-4 mt-1 h-4 w-4 cursor-pointer appearance-none rounded-full border border-surface-300 bg-white bg-contain bg-center bg-no-repeat align-top text-black transition duration-200 checked:border-tertiary-600 checked:bg-tertiary-600 focus:outline-none dark:text-white"
+			aria-describedby={validationError ? `${fieldName}-error` : undefined}
+			aria-required={field?.required}
+			data-testid="radio-input"
+		/>
 
-	<!-- Label -->
-	<input
-		type="text"
-		id={`label-${fieldName}`}
-		on:input={handleInput}
-		placeholder="Define Label"
-		bind:value={_data[_language]}
-		class="input text-black dark:text-primary-500"
-		aria-labelledby={`label-${fieldName}`}
-	/>
+		<!-- Label -->
+		<input
+			type="text"
+			id={`label-${fieldName}`}
+			on:blur={validateInput}
+			placeholder="Define Label"
+			bind:value={_data[_language]}
+			required={field?.required}
+			class="input w-full text-black dark:text-primary-500"
+			class:error={!!validationError}
+			aria-labelledby={`label-${fieldName}`}
+			aria-required={field?.required}
+		/>
+	</div>
+
+	<!-- Error Message -->
+	{#if validationError}
+		<p id={`${field.db_fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+			{validationError}
+		</p>
+	{/if}
 </div>
 
-<!-- Error Message -->
-{#if validationError}
-	<p id={`${fieldName}-error`} class="text-center text-sm text-error-500">
-		{validationError}
-	</p>
-{/if}
+<style lang="postcss">
+	.input-container {
+		min-height: 2.5rem;
+	}
+
+	.error {
+		border-color: rgb(239 68 68);
+	}
+</style>

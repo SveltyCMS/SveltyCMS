@@ -11,7 +11,7 @@
 	import { meta_data, createRandomID, debounce, getFieldName, updateTranslationProgress } from '@utils/utils';
 
 	// Stores
-	import { contentLanguage } from '@stores/store';
+	import { contentLanguage, validationStore } from '@stores/store';
 	import { mode, collectionValue } from '@stores/collectionStore';
 
 	// Components
@@ -26,14 +26,14 @@
 	import { ListBox } from '@skeletonlabs/skeleton';
 
 	// TipTap
-	import StarterKit from '@tiptap/starter-kit'; // enables you to use the editor
-	import { Editor, Extension } from '@tiptap/core'; // enables you to use the editor
-	import TextStyle from './extensions/TextStyle'; // enables you to set the text style
-	import TextAlign from '@tiptap/extension-text-align'; //adds a text align attribute to a specified list of nodes
-	import FontFamily from '@tiptap/extension-font-family'; // enables you to set the font family
-	import Color from '@tiptap/extension-color'; // enables you to set the font color
-	import Link from '@tiptap/extension-link'; // adds support for <a> tags
-	import Youtube from '@tiptap/extension-youtube'; // adds support for <a> tags
+	import StarterKit from '@tiptap/starter-kit';
+	import { Editor, Extension } from '@tiptap/core';
+	import TextStyle from './extensions/TextStyle';
+	import TextAlign from '@tiptap/extension-text-align';
+	import FontFamily from '@tiptap/extension-font-family';
+	import Color from '@tiptap/extension-color';
+	import Link from '@tiptap/extension-link';
+	import Youtube from '@tiptap/extension-youtube';
 
 	export let field: FieldType;
 	export const WidgetData = async () => ({ images, data: _data });
@@ -45,6 +45,7 @@
 	let showVideoDialog = false;
 	const images = {};
 	let active_dropDown = '';
+	let validationError: string | null = null;
 
 	export let value = $collectionValue[fieldName] || { content: {}, header: {} };
 	console.log($collectionValue);
@@ -60,6 +61,18 @@
 
 	$: updateTranslationProgress(_data.content, field);
 	const deb = debounce(500);
+
+	// Validation function
+	function validateContent() {
+		if (field?.required && (!_data.content[_language] || _data.content[_language] === '<p></p>')) {
+			validationError = 'Content is required';
+			validationStore.setError(fieldName, validationError);
+			return false;
+		}
+		validationError = null;
+		validationStore.clearError(fieldName);
+		return true;
+	}
 
 	onMount(() => {
 		editor = new Editor({
@@ -103,6 +116,7 @@
 					let content = editor.getHTML();
 					content == '<p></p>' && (content = '');
 					_data.content[_language] = content;
+					validateContent();
 				});
 			}
 		});
@@ -257,9 +271,6 @@
 			name: 'video',
 			icon: 'fa6-solid:video',
 			onClick: () => {
-				// editor.commands.setYoutubeVideo({
-				// 	src: 'https://www.youtube.com/watch?v=Q2x2KdHtZ_w'
-				// });
 				showVideoDialog = true;
 			},
 			active: () => editor.isActive('video')
@@ -310,15 +321,24 @@
 	}
 </script>
 
-<input type="text" bind:value={_data.header[_language]} placeholder="Title" class="input mt-2 !w-full" />
+<div class="input-container relative mb-4">
+	<input
+		type="text"
+		bind:value={_data.header[_language]}
+		placeholder="Title"
+		class="input mt-2 !w-full"
+		class:error={!!validationError}
+		aria-invalid={!!validationError}
+		aria-describedby={validationError ? `${fieldName}-error` : undefined}
+	/>
 
-<!-- Rich Text Editor -->
-<div class="m-auto flex max-h-[500px] w-full flex-col items-center gap-2 overflow-auto">
-	{#if editor}
-		<!-- Toolbar -->
-		<div class="sticky top-0 z-10 flex w-full items-center justify-center gap-1">
-			<!-- textTypes -->
-			<!-- <button class="variant-filled btn w-48 items-center justify-between" use:popup={popupCombobox}>
+	<!-- Rich Text Editor -->
+	<div class="m-auto flex max-h-[500px] w-full flex-col items-center gap-2 overflow-auto">
+		{#if editor}
+			<!-- Toolbar -->
+			<div class="sticky top-0 z-10 flex w-full items-center justify-center gap-1">
+				<!-- textTypes -->
+				<!-- <button class="variant-filled btn w-48 items-center justify-between" use:popup={popupCombobox}>
 				<span class="capitalize">{textTypes[editor.getAttributes('textTypes').textType] ?? 'Types'}</span>
 				<span><iconify-icon icon="mdi:chevron-down" width="20" /></span>
 			</button>
@@ -336,8 +356,8 @@
 				</ListBox>
 			</div> -->
 
-			<!-- fonts -->
-			<!-- <button class="variant-filled btn w-48 justify-between" use:popup={popupCombobox}>
+				<!-- fonts -->
+				<!-- <button class="variant-filled btn w-48 justify-between" use:popup={popupCombobox}>
 				<span class="capitalize">{fonts.find((font) => font.name === editor.getAttributes('fonts').fontName)?.name ?? 'Fonts'}</span>
 
 				<span><iconify-icon icon="mdi:chevron-down" width="20" /></span>
@@ -356,55 +376,59 @@
 				</ListBox>
 			</div> -->
 
-			<!-- TextType -->
-			<DropDown show={show('textType')} items={textTypes} label="Text" bind:active={active_dropDown} key="textType" />
-			<!-- Font -->
-			<DropDown key="font" show={show('font')} items={fonts} icon="gravity-ui:text" label="Font" bind:active={active_dropDown} />
-			<!-- Color -->
-			<ColorSelector
-				key="color"
-				bind:active={active_dropDown}
-				show={show('color')}
-				color={editor.getAttributes('textStyle').color || '#000000'}
-				on:change={(e) => editor.chain().focus().setColor(e.detail).run()}
-			/>
+				<!-- TextType -->
+				<DropDown show={show('textType')} items={textTypes} label="Text" bind:active={active_dropDown} key="textType" />
+				<!-- Font -->
+				<DropDown key="font" show={show('font')} items={fonts} icon="gravity-ui:text" label="Font" bind:active={active_dropDown} />
+				<!-- Color -->
+				<ColorSelector
+					key="color"
+					bind:active={active_dropDown}
+					show={show('color')}
+					color={editor.getAttributes('textStyle').color || '#000000'}
+					on:change={(e) => editor.chain().focus().setColor(e.detail).run()}
+				/>
 
-			<button class="btn-group" class:hidden={!show('fontSize')}>
-				<!-- Size -->
-				<button
-					on:click={() => {
-						fontSize--;
-						editor.chain().focus().setFontSize(fontSize).run();
-					}}
-				>
-					<iconify-icon icon="bi:dash-lg" width="22" />
+				<button class="btn-group" class:hidden={!show('fontSize')}>
+					<!-- Size -->
+					<button
+						on:click={() => {
+							fontSize--;
+							editor.chain().focus().setFontSize(fontSize).run();
+						}}
+					>
+						<iconify-icon icon="bi:dash-lg" width="22" />
+					</button>
+
+					<input type="text" class="w-[30px] text-center outline-none" bind:value={fontSize} />
+
+					<button
+						on:click={() => {
+							fontSize++;
+							editor.chain().focus().setFontSize(fontSize).run();
+						}}
+					>
+						<iconify-icon icon="bi:plus-lg" width="22" />
+					</button>
 				</button>
 
-				<input type="text" class="w-[30px] text-center outline-none" bind:value={fontSize} />
+				<button class="divide-x">
+					<!-- Bold -->
+					<button class:hidden={!show('bold')} on:click={() => editor.chain().focus().toggleBold().run()} class:active={editor.isActive('bold')}>
+						<iconify-icon icon="bi:type-bold" width="22" />
+					</button>
 
-				<button
-					on:click={() => {
-						fontSize++;
-						editor.chain().focus().setFontSize(fontSize).run();
-					}}
-				>
-					<iconify-icon icon="bi:plus-lg" width="22" />
-				</button>
-			</button>
+					<!-- Italic -->
+					<button
+						class:hidden={!show('italic')}
+						on:click={() => editor.chain().focus().toggleItalic().run()}
+						class:active={editor.isActive('italic')}
+					>
+						<iconify-icon icon="bi:type-italic" width="22" />
+					</button>
 
-			<button class="divide-x">
-				<!-- Bold -->
-				<button class:hidden={!show('bold')} on:click={() => editor.chain().focus().toggleBold().run()} class:active={editor.isActive('bold')}>
-					<iconify-icon icon="bi:type-bold" width="22" />
-				</button>
-
-				<!-- Italic -->
-				<button class:hidden={!show('italic')} on:click={() => editor.chain().focus().toggleItalic().run()} class:active={editor.isActive('italic')}>
-					<iconify-icon icon="bi:type-italic" width="22" />
-				</button>
-
-				<!-- Underline -->
-				<!-- <button
+					<!-- Underline -->
+					<!-- <button
 					class:hidden={!show('underline')}
 					on:click={() => editor.chain().focus().toggleStrike().run()}
 					class:active={editor.isActive('underline')}
@@ -412,71 +436,83 @@
 					<iconify-icon icon="bi:type-underline" width="22" />
 				</button> -->
 
-				<!-- Strikethrough -->
-				<button class:hidden={!show('strike')} on:click={() => editor.chain().focus().toggleStrike().run()} class:active={editor.isActive('strike')}>
-					<iconify-icon icon="bi:type-strikethrough" width="22" />
+					<!-- Strikethrough -->
+					<button
+						class:hidden={!show('strike')}
+						on:click={() => editor.chain().focus().toggleStrike().run()}
+						class:active={editor.isActive('strike')}
+					>
+						<iconify-icon icon="bi:type-strikethrough" width="22" />
+					</button>
+
+					<!-- Link -->
+					<button
+						class:hidden={!show('link')}
+						on:click={() => editor.chain().focus().toggleLink({ href: 'https://google.com' }).run()}
+						class:active={editor.isActive('link')}
+					>
+						<iconify-icon icon="bi:link-45deg" width="20" />
+					</button>
 				</button>
 
-				<!-- Link -->
-				<button
-					class:hidden={!show('link')}
-					on:click={() => editor.chain().focus().toggleLink({ href: 'https://google.com' }).run()}
-					class:active={editor.isActive('link')}
-				>
-					<iconify-icon icon="bi:link-45deg" width="20" />
-				</button>
-			</button>
+				<!-- Align -->
+				<DropDown key="align" show={show('align')} items={alignText} label="Align" bind:active={active_dropDown} />
+				<!-- Insert -->
+				<DropDown key="insert" show={show('insert')} items={inserts} icon="typcn:plus" label="Insert" bind:active={active_dropDown} />
+				<!-- Float -->
+				<DropDown key="float" show={show('float')} items={floats} icon="grommet-icons:text-wrap" label="Text Wrap" bind:active={active_dropDown} />
 
-			<!-- Align -->
-			<DropDown key="align" show={show('align')} items={alignText} label="Align" bind:active={active_dropDown} />
-			<!-- Insert -->
-			<DropDown key="insert" show={show('insert')} items={inserts} icon="typcn:plus" label="Insert" bind:active={active_dropDown} />
-			<!-- Float -->
-			<DropDown key="float" show={show('float')} items={floats} icon="grommet-icons:text-wrap" label="Text Wrap" bind:active={active_dropDown} />
+				<!-- Image -->
+				<ImageDescription
+					bind:active={active_dropDown}
+					key="description"
+					show={show('description')}
+					value={editor.getAttributes('image').description}
+					on:submit={(e) => {
+						editor.chain().focus().setImageDescription(e.detail).run();
+					}}
+				/>
 
-			<!-- Image -->
-			<ImageDescription
-				bind:active={active_dropDown}
-				key="description"
-				show={show('description')}
-				value={editor.getAttributes('image').description}
-				on:submit={(e) => {
-					editor.chain().focus().setImageDescription(e.detail).run();
-				}}
-			/>
+				<!-- Image -->
+				<FileInput
+					closeButton={false}
+					bind:show={showImageDialog}
+					class="fixed left-1/2 top-0 z-10 -translate-x-1/2 bg-white"
+					on:change={async (e) => {
+						const data = e.detail;
+						let url;
+						if (data instanceof File) {
+							url = URL.createObjectURL(data);
+							const image_id = (await createRandomID()).toString();
+							images[image_id] = data;
+							editor.chain().focus().setImage({ src: url, id: image_id }).run();
+						} else {
+							url = data.original.url;
+							editor.chain().focus().setImage({ src: url, storage_image: data._id }).run();
+						}
+					}}
+				/>
 
-			<!-- Image -->
-			<FileInput
-				closeButton={false}
-				bind:show={showImageDialog}
-				class="fixed  left-1/2 top-0 z-10 -translate-x-1/2 bg-white"
-				on:change={async (e) => {
-					const data = e.detail;
-					let url;
-					if (data instanceof File) {
-						url = URL.createObjectURL(data);
-						const image_id = (await createRandomID()).toString();
-						images[image_id] = data;
-						editor.chain().focus().setImage({ src: url, id: image_id }).run();
-					} else {
-						url = data.original.url;
+				<!-- Video -->
+				<VideoDialog bind:show={showVideoDialog} {editor} />
+			</div>
+		{/if}
 
-						editor.chain().focus().setImage({ src: url, storage_image: data._id }).run();
-					}
-				}}
-			/>
+		<!-- Text Area  -->
+		<div
+			on:pointerdown|self={() => editor.commands.focus('end')}
+			bind:this={element}
+			class="RichText min-h-[calc(100vh-80px)] w-full flex-grow cursor-text overflow-auto"
+			class:error={!!validationError}
+		/>
+	</div>
 
-			<!-- Video -->
-			<VideoDialog bind:show={showVideoDialog} {editor} />
-		</div>
+	<!-- Error Message -->
+	{#if validationError}
+		<p id={`${fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+			{validationError}
+		</p>
 	{/if}
-
-	<!-- Text Area  -->
-	<div
-		on:pointerdown|self={() => editor.commands.focus('end')}
-		bind:this={element}
-		class="RichText min-h-[calc(100vh-80px)] w-full flex-grow cursor-text overflow-auto"
-	/>
 </div>
 
 <style lang="postcss">
@@ -492,5 +528,13 @@
 
 	:global(.ProseMirror-selectednode img) {
 		box-shadow: 0px 0px 4px 0px #34363699 inset;
+	}
+
+	.input-container {
+		min-height: 2.5rem;
+	}
+
+	.error {
+		border-color: rgb(239 68 68);
 	}
 </style>

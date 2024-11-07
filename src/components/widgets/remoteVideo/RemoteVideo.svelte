@@ -83,26 +83,29 @@
 	}
 </script>
 
-<input
-	type="url"
-	bind:value
-	on:change={handleSubmit}
-	on:input={validateInput}
-	name={field?.db_fieldName}
-	id={field?.db_fieldName}
-	placeholder={field?.placeholder || field?.db_fieldName}
-	required={field?.required}
-	class="input text-black dark:text-primary-500"
-	aria-invalid={!!validationError}
-	aria-describedby={validationError ? `${fieldName}-error` : undefined}
-/>
+<div class="input-container relative mb-4">
+	<input
+		type="url"
+		bind:value
+		on:change={handleSubmit}
+		on:input={validateInput}
+		name={field?.db_fieldName}
+		id={field?.db_fieldName}
+		placeholder={field?.placeholder || field?.db_fieldName}
+		required={field?.required}
+		class="input w-full text-black dark:text-primary-500"
+		class:error={!!validationError}
+		aria-invalid={!!validationError}
+		aria-describedby={validationError ? `${fieldName}-error` : undefined}
+	/>
 
-<!-- Error Message -->
-{#if validationError}
-	<p id={`${fieldName}-error`} class="text-center text-sm text-error-500">
-		{validationError}
-	</p>
-{/if}
+	<!-- Error Message -->
+	{#if validationError}
+		<p id={`${field.db_fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+			{validationError}
+		</p>
+	{/if}
+</div>
 
 {#if myData?.videoUrl}
 	<div class="overflow-hidden rounded shadow-lg md:flex md:flex-row">
@@ -132,3 +135,13 @@
 		</a>
 	</div>
 {/if}
+
+<style lang="postcss">
+	.input-container {
+		min-height: 2.5rem;
+	}
+
+	.error {
+		border-color: rgb(239 68 68);
+	}
+</style>

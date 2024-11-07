@@ -10,7 +10,7 @@
 	import { updateTranslationProgress, getFieldName } from '@utils/utils';
 
 	// Stores
-	import { contentLanguage } from '@stores/store';
+	import { contentLanguage, validationStore } from '@stores/store';
 	import { mode, collectionValue } from '@stores/collectionStore';
 
 	// ParaglideJS
@@ -61,7 +61,6 @@
 	}
 
 	function onPopupDemoSelect(event: any): void {
-		// console.log('Selected option value:', event.detail.value);
 		inputPopupDemo = event.detail.label;
 	}
 
@@ -70,14 +69,12 @@
 		target: 'CountryCombobox',
 		placement: 'bottom',
 		closeQuery: '.listbox-item'
-		// state: (e: any) => console.log('tooltip', e)
 	};
 
 	let listboxValue: string = 'Germany';
 
 	// https://stefangabos.github.io/world_countries/
 	import countries from './countries.json';
-	// import '/node_modules/flag-icons/css/flag-icons.min.css';
 
 	const selectedCountry = '';
 
@@ -94,6 +91,7 @@
 	}
 
 	export let field: any = undefined;
+	const fieldName = getFieldName(field);
 	export let value = {
 		latitude: 0,
 		longitude: 0,
@@ -124,6 +122,7 @@
 	$: updateTranslationProgress(_data, field);
 
 	let validationError: string | null = null;
+	let debounceTimeout: number | undefined;
 
 	export const WidgetData = async () => _data;
 
@@ -201,183 +200,198 @@
 			})
 		);
 	}
-	var widgetValueObject = {
-		db_fieldName: field.db_fieldName,
-		icon: field.icon,
-		required: field.required
-	};
 
 	// valibot validation
 	import * as v from 'valibot';
 
 	const addressSchema = v.object({
-		db_fieldName: v.string(),
-		icon: v.optional(v.string()),
-		required: v.optional(v.boolean())
-	});
-
-	// Customize the error messages for each rule
-	const validateSchema = v.object({
-		db_fieldName: v.string(),
-		icon: v.optional(v.string()),
-		color: v.optional(v.string()),
-		size: v.optional(v.string()),
-		width: v.optional(v.number()),
-		required: v.optional(v.boolean())
+		latitude: v.number(),
+		longitude: v.number(),
+		name: v.string(),
+		street: v.string(),
+		zip: v.string(),
+		city: v.string(),
+		country: v.string()
 	});
 
 	function validateInput() {
-		try {
-			v.parse(validateSchema, _data[_language]);
-			validationError = '';
-		} catch (error: unknown) {
-			if (error instanceof v.ValiError) {
-				validationError = error.issues[0].message;
+		if (debounceTimeout) clearTimeout(debounceTimeout);
+		debounceTimeout = window.setTimeout(() => {
+			try {
+				v.parse(addressSchema, value);
+				validationError = null;
+				validationStore.clearError(fieldName);
+			} catch (error) {
+				if (error instanceof v.ValiError) {
+					validationError = error.issues[0].message;
+					validationStore.setError(fieldName, validationError);
+				}
 			}
-		}
+		}, 300);
 	}
 </script>
 
-{#if privateEnv.MAPBOX_API_TOKEN}
-	<address class="w-full">
-		<div class="mb-1 flex justify-between gap-2">
-			<button class="variant-filled-primary btn btn-base rounded-md text-white" aria-label={m.widget_address_getfromaddress()}>
-				<iconify-icon icon="bi:map" width="16" class="mr-2" />
-				{m.widget_address_getfromaddress()}
-			</button>
-		</div>
-
-		<label for="latitude">{m.widget_address_geocoordinates()}</label>
-		<div class="flex justify-center gap-2">
-			<input
-				required
-				type="text"
-				id="latitude"
-				name="latitude"
-				placeholder={m.widget_address_latitude()}
-				class="input rounded-md"
-				bind:value={value.latitude}
-				aria-label={m.widget_address_latitude()}
-			/>
-
-			<input
-				required
-				type="text"
-				id="longitude"
-				name="longitude"
-				placeholder={m.widget_address_longitude()}
-				class="input rounded-md"
-				bind:value={value.longitude}
-				aria-label={m.widget_address_longitude()}
-			/>
-		</div>
-		<br />
-
-		<form>
-			<label for="name">{m.widget_address_name()}</label>
-			<input
-				required
-				type="text"
-				id="name"
-				name="name"
-				autocomplete="name"
-				placeholder={m.widget_address_name()}
-				class="input rounded-md"
-				bind:value={value.name}
-				aria-label={m.widget_address_name()}
-			/>
-
-			<label for="street-address">{m.widget_address_street()}</label>
-			<input
-				type="text"
-				id="street-address"
-				name="street-address"
-				autocomplete="street-address"
-				placeholder={m.widget_address_street()}
-				required
-				enterkeyhint="next"
-				class="input rounded-md"
-				bind:value={value.street}
-				aria-label={m.widget_address_street()}
-			/>
-
-			<label for="postal-code">{m.widget_address_zip()}</label>
-			<input
-				required
-				type="text"
-				id="postal-code"
-				name="postal-code"
-				placeholder={m.widget_address_zip()}
-				autocomplete="postal-code"
-				enterkeyhint="next"
-				class="input rounded-md"
-				bind:value={value.zip}
-				aria-label={m.widget_address_zip()}
-			/>
-
-			<label for="city">{m.widget_address_city()}</label>
-			<input
-				required
-				type="text"
-				id="city"
-				name="city"
-				placeholder={m.widget_address_city()}
-				enterkeyhint="next"
-				class="input rounded-md"
-				bind:value={value.city}
-				aria-label={m.widget_address_city()}
-			/>
-
-			<!-- Country with search Combobox -->
-
-			<div>
-				<button class="input btn mt-2 w-full justify-between" use:popup={CountryCombobox}>
-					<span class="capitalize">{listboxValue ?? 'Combobox'}</span>
-					<i class="fa-solid fa-caret-down opacity-50" />
+<div class="input-container relative mb-4">
+	{#if privateEnv.MAPBOX_API_TOKEN}
+		<address class="w-full" class:error={!!validationError}>
+			<div class="mb-1 flex justify-between gap-2">
+				<button class="variant-filled-primary btn btn-base rounded-md text-white" aria-label={m.widget_address_getfromaddress()}>
+					<iconify-icon icon="bi:map" width="16" class="mr-2" />
+					{m.widget_address_getfromaddress()}
 				</button>
-				<div class="card overflow-hidden shadow-xl" data-popup="CountryCombobox">
-					<Autocomplete on:keyup={searchCountry}>
-						<input type="text" placeholder="Search countries..." />
-					</Autocomplete>
-					<ListBox rounded="rounded-none">
-						{#each filteredCountries as country}
-							<ListBoxItem
-								class="flex gap-2"
-								name="medium"
-								bind:value={country.en}
-								bind:group={listboxValue}
-								on:change={() => {
-									value.country = country.alpha2;
-								}}
-							>
-								<span class="fi fi-{country.alpha2} mt-1" />
-								{country.en} - <span class="mt-1 uppercase">{country.alpha2}</span>
-							</ListBoxItem>
-						{/each}
-					</ListBox>
-				</div>
 			</div>
-		</form>
-	</address>
-	<!-- Error Message -->
-	{#if validationError !== null}
-		<p class="text-center text-sm text-error-500">{validationError}</p>
+
+			<label for="latitude">{m.widget_address_geocoordinates()}</label>
+			<div class="flex justify-center gap-2">
+				<input
+					required
+					type="text"
+					id="latitude"
+					name="latitude"
+					placeholder={m.widget_address_latitude()}
+					class="input rounded-md"
+					bind:value={value.latitude}
+					on:input={validateInput}
+					aria-label={m.widget_address_latitude()}
+					aria-invalid={!!validationError}
+					aria-describedby={validationError ? `${fieldName}-error` : undefined}
+				/>
+
+				<input
+					required
+					type="text"
+					id="longitude"
+					name="longitude"
+					placeholder={m.widget_address_longitude()}
+					class="input rounded-md"
+					bind:value={value.longitude}
+					on:input={validateInput}
+					aria-label={m.widget_address_longitude()}
+					aria-invalid={!!validationError}
+					aria-describedby={validationError ? `${fieldName}-error` : undefined}
+				/>
+			</div>
+			<br />
+
+			<form>
+				<label for="name">{m.widget_address_name()}</label>
+				<input
+					required
+					type="text"
+					id="name"
+					name="name"
+					autocomplete="name"
+					placeholder={m.widget_address_name()}
+					class="input rounded-md"
+					bind:value={value.name}
+					on:input={validateInput}
+					aria-label={m.widget_address_name()}
+					aria-invalid={!!validationError}
+					aria-describedby={validationError ? `${fieldName}-error` : undefined}
+				/>
+
+				<label for="street-address">{m.widget_address_street()}</label>
+				<input
+					type="text"
+					id="street-address"
+					name="street-address"
+					autocomplete="street-address"
+					placeholder={m.widget_address_street()}
+					required
+					enterkeyhint="next"
+					class="input rounded-md"
+					bind:value={value.street}
+					on:input={validateInput}
+					aria-label={m.widget_address_street()}
+					aria-invalid={!!validationError}
+					aria-describedby={validationError ? `${fieldName}-error` : undefined}
+				/>
+
+				<label for="postal-code">{m.widget_address_zip()}</label>
+				<input
+					required
+					type="text"
+					id="postal-code"
+					name="postal-code"
+					placeholder={m.widget_address_zip()}
+					autocomplete="postal-code"
+					enterkeyhint="next"
+					class="input rounded-md"
+					bind:value={value.zip}
+					on:input={validateInput}
+					aria-label={m.widget_address_zip()}
+					aria-invalid={!!validationError}
+					aria-describedby={validationError ? `${fieldName}-error` : undefined}
+				/>
+
+				<label for="city">{m.widget_address_city()}</label>
+				<input
+					required
+					type="text"
+					id="city"
+					name="city"
+					placeholder={m.widget_address_city()}
+					enterkeyhint="next"
+					class="input rounded-md"
+					bind:value={value.city}
+					on:input={validateInput}
+					aria-label={m.widget_address_city()}
+					aria-invalid={!!validationError}
+					aria-describedby={validationError ? `${fieldName}-error` : undefined}
+				/>
+
+				<!-- Country with search Combobox -->
+				<div>
+					<button class="input btn mt-2 w-full justify-between" use:popup={CountryCombobox}>
+						<span class="capitalize">{listboxValue ?? 'Combobox'}</span>
+						<i class="fa-solid fa-caret-down opacity-50" />
+					</button>
+					<div class="card overflow-hidden shadow-xl" data-popup="CountryCombobox">
+						<Autocomplete on:keyup={searchCountry}>
+							<input type="text" placeholder="Search countries..." />
+						</Autocomplete>
+						<ListBox rounded="rounded-none">
+							{#each filteredCountries as country}
+								<ListBoxItem
+									class="flex gap-2"
+									name="medium"
+									bind:value={country.en}
+									bind:group={listboxValue}
+									on:change={() => {
+										value.country = country.alpha2;
+										validateInput();
+									}}
+								>
+									<span class="fi fi-{country.alpha2} mt-1" />
+									{country.en} - <span class="mt-1 uppercase">{country.alpha2}</span>
+								</ListBoxItem>
+							{/each}
+						</ListBox>
+					</div>
+				</div>
+			</form>
+		</address>
+
+		<!-- Error Message -->
+		{#if validationError}
+			<p id={`${fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+				{validationError}
+			</p>
+		{/if}
 	{/if}
-{/if}
-<label for="city">Country Autocomplete</label>
-<input
-	class="autocomplete input"
-	type="search"
-	name="autocomplete-search"
-	bind:value={inputPopupDemo}
-	placeholder="Search..."
-	use:popup={popupSettings}
-/>
-<div data-popup="popupAutocomplete">
-	<Autocomplete
-		bind:input={inputPopupDemo}
-		options={countryOptions}
-		on:selection={onPopupDemoSelect}
-		class="z-10 w-full justify-start bg-surface-900"
-	/>
 </div>
+
+<style lang="postcss">
+	.input-container {
+		min-height: 2.5rem;
+	}
+
+	.error {
+		border-color: rgb(239 68 68);
+	}
+
+	:global(.mapboxgl-ctrl-geocoder) {
+		max-width: none;
+		width: 100%;
+	}
+</style>

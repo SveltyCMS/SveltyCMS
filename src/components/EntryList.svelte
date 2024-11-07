@@ -18,6 +18,9 @@ Features:
 	import { asAny, debounce, getFieldName, meta_data } from '@utils/utils';
 	import { deleteData, getData, setStatus } from '@utils/data';
 
+	// Types
+	import type { CategoryData } from '@src/collections/types';
+
 	// Stores
 	import { get } from 'svelte/store';
 	import { contentLanguage, systemLanguage } from '@stores/store';
@@ -170,24 +173,25 @@ Features:
 					const obj: { [key: string]: any } = {};
 
 					for (const field of $collection.fields) {
-						if ('callback' in field) {
+						if (field.callback && typeof field.callback === 'function') {
 							field.callback({ data });
 							handleSidebarToggle();
 						}
 
 						// Status
 						// TODO: Add Localized status states, Pay attention to Status.svelte modifier
-
 						obj.status = entry.status ? entry.status.charAt(0).toUpperCase() + entry.status.slice(1) : 'N/A';
 
 						// Collection fields
-						obj[field.label] = await field.display?.({
-							data: entry[getFieldName(field)],
-							collection: $collection.name,
-							field,
-							entry,
-							contentLanguage: $contentLanguage
-						});
+						if (field.display) {
+							obj[field.label] = await field.display({
+								data: entry[getFieldName(field)],
+								collection: $collection.name,
+								field,
+								entry,
+								contentLanguage: $contentLanguage
+							});
+						}
 					}
 
 					// Add createdAt and updatedAt properties localized to the system language
@@ -390,6 +394,43 @@ Features:
 	};
 
 	$: isCollectionEmpty = tableData.length === 0;
+
+	// Get the first category name from the categories store
+	// Find the parent category name for the current collection
+	$: categoryName = (() => {
+		if (!$collection?.name || !$categories) return '';
+
+		// Helper function to find parent category name
+		const findParentCategory = (categories: Record<string, CategoryData>): string => {
+			// Only process root categories (Collections and Menu)
+			for (const [rootName, rootCategory] of Object.entries(categories)) {
+				if (rootName !== 'Collections' && rootName !== 'Menu') continue;
+
+				if (rootCategory.subcategories) {
+					// Check each subcategory
+					for (const [subName, subCat] of Object.entries(rootCategory.subcategories)) {
+						// Case 1: Direct collection in subcategories (like Media, Names)
+						if (subCat.isCollection && subName === $collection.name) {
+							return rootCategory.name;
+						}
+
+						// Case 2: Collection in nested subcategories (like Posts/Posts)
+						if (!subCat.isCollection && subCat.subcategories) {
+							for (const [nestedName, nestedCat] of Object.entries(subCat.subcategories)) {
+								if (nestedCat.isCollection && nestedName === $collection.name) {
+									// Return the immediate parent name (e.g. "Posts" for Posts/Posts)
+									return subCat.name;
+								}
+							}
+						}
+					}
+				}
+			}
+			return '';
+		};
+
+		return findParentCategory($categories);
+	})();
 </script>
 
 <!--Table -->
@@ -413,9 +454,10 @@ Features:
 			{/if}
 			<!-- Collection type with icon -->
 			<!-- TODO: Translate Collection Name -->
+
 			<div class="mr-1 flex flex-col {!$sidebarState.left ? 'ml-2' : 'ml-1 sm:ml-2'}">
-				{#if $categories.length}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300 rtl:text-left">
-						{$categories[0].name}
+				{#if categoryName}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300 rtl:text-left">
+						{categoryName}
 					</div>
 				{/if}
 				<div class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl">

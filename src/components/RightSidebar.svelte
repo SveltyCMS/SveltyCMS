@@ -82,7 +82,7 @@
 		updated: convertTimestampToDateString($collectionValue.updatedAt)
 	};
 
-	// Type guard to check if the widget result has a validateWidget method
+	// Type guard to check if the widget has a validateWidget method
 	function hasValidateWidget(widgetInstance: any): widgetInstance is { validateWidget: () => Promise<string | null> } {
 		return typeof widgetInstance?.validateWidget === 'function';
 	}
@@ -99,7 +99,9 @@
 		for (const field of $collection.fields) {
 			const fieldName = getFieldName(field);
 			const fieldValue = $collectionValue[fieldName];
-			const widgetInstance = field.widget(fieldValue);
+
+			// Use the widget property directly since it's now a widget instance
+			const widgetInstance = field.widget;
 
 			if (hasValidateWidget(widgetInstance)) {
 				const error = await widgetInstance.validateWidget();

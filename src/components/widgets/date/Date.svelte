@@ -68,19 +68,32 @@
 	}
 </script>
 
-<!-- Date Input -->
-<input
-	type="date"
-	bind:value={_data[_language]}
-	on:input|preventDefault={validateInput}
-	class="input text-black dark:text-primary-500"
-	aria-invalid={!!validationError}
-	aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
-/>
+<div class="input-container relative mb-4">
+	<!-- Date Input -->
+	<input
+		type="date"
+		bind:value={_data[_language]}
+		on:input|preventDefault={validateInput}
+		class="input w-full text-black dark:text-primary-500"
+		class:error={!!validationError}
+		aria-invalid={!!validationError}
+		aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
+	/>
 
-<!-- Error Message -->
-{#if validationError}
-	<p id={`${field.db_fieldName}-error`} class="text-error-500">
-		{validationError}
-	</p>
-{/if}
+	<!-- Error Message -->
+	{#if validationError}
+		<p id={`${field.db_fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+			{validationError}
+		</p>
+	{/if}
+</div>
+
+<style lang="postcss">
+	.input-container {
+		min-height: 2.5rem;
+	}
+
+	.error {
+		border-color: rgb(239 68 68);
+	}
+</style>

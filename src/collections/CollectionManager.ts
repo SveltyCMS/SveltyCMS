@@ -384,7 +384,7 @@ class CollectionManager {
 	// Extract path from file path
 	private extractPathFromFilePath(filePath: string): string {
 		const parts = filePath.split('/');
-		const collectionsIndex = parts.findIndex((part) => part === 'collections');
+		const collectionsIndex = parts.findIndex((part) => part === 'collections' || part === 'config/collections');
 		if (collectionsIndex === -1) return '';
 
 		// Get all parts after 'collections'
@@ -393,17 +393,7 @@ class CollectionManager {
 		// Remove file extension from last segment
 		pathSegments[pathSegments.length - 1] = pathSegments[pathSegments.length - 1].replace(/\.(ts|js)$/, '');
 
-		// Handle nested collections (like Posts/Posts.ts)
-		if (pathSegments.length >= 2) {
-			const lastSegment = pathSegments[pathSegments.length - 1];
-			const parentSegment = pathSegments[pathSegments.length - 2];
-
-			// If the last two segments are the same (e.g., Posts/Posts), remove the last one
-			if (lastSegment === parentSegment) {
-				pathSegments.pop();
-			}
-		}
-
+		// Build the path maintaining the full hierarchy
 		return pathSegments.join('/');
 	}
 
@@ -440,7 +430,18 @@ class CollectionManager {
 				}
 
 				const cols = await this.loadCollections();
-				const cats = await this.createCategories();
+				const categoryArray = await this.createCategories();
+
+				// Convert category array to record structure
+				const categoryRecord: Record<string, CategoryData> = {};
+				categoryArray.forEach((cat) => {
+					categoryRecord[cat.name] = {
+						id: cat.id.toString(),
+						name: cat.name,
+						icon: cat.icon,
+						subcategories: {}
+					};
+				});
 
 				const collectionRecord: Record<CollectionNames, Schema> = {} as Record<CollectionNames, Schema>;
 				cols.forEach((col) => {
@@ -449,7 +450,7 @@ class CollectionManager {
 					}
 				});
 
-				categories.set(cats);
+				categories.set(categoryRecord);
 				collections.set(collectionRecord);
 				unAssigned.set(cols.filter((x) => !Object.values(collectionRecord).includes(x)));
 
@@ -479,6 +480,7 @@ class CollectionManager {
 			const categoryStructure: Record<string, CategoryData> = {};
 			const collectionsList = Array.from(this.collectionCache.values()).map((entry) => entry.value);
 
+			// Process collections into category structure
 			for (const collection of collectionsList) {
 				if (!collection.path) {
 					logger.warn(`Collection ${collection.name} has no path`);
@@ -503,24 +505,51 @@ class CollectionManager {
 							id: randomId.toString(),
 							name: part,
 							icon: config.icon,
-							subcategories: {}
+							subcategories: {},
+							collections: []
 						};
 					}
 
 					if (index === pathParts.length - 1) {
+						// This is a collection, add it to the current category
+						if (!currentLevel[part].collections) {
+							currentLevel[part].collections = [];
+						}
+						currentLevel[part].collections.push(collection);
 						currentLevel[part].icon = collection.icon || currentLevel[part].icon;
+						currentLevel[part].isCollection = true;
 					}
 
 					currentLevel = currentLevel[part].subcategories!;
 				}
 			}
 
-			const categoryArray: Category[] = Object.entries(categoryStructure).map(([name, cat]) => ({
-				id: parseInt(cat.id),
-				name,
-				icon: cat.icon,
-				collections: collectionsList.filter((col) => col.path?.startsWith(name))
-			}));
+			// Convert category structure to array format
+			const processCategory = (name: string, cat: CategoryData, parentPath: string = ''): Category => {
+				const currentPath = parentPath ? `${parentPath}/${name}` : name;
+				const subcategories: Record<string, Category> = {};
+
+				// Process subcategories recursively
+				if (cat.subcategories) {
+					Object.entries(cat.subcategories).forEach(([subName, subCat]) => {
+						if (!subCat.isCollection) {
+							subcategories[subName] = processCategory(subName, subCat, currentPath);
+						}
+					});
+				}
+
+				return {
+					id: parseInt(cat.id),
+					name,
+					icon: cat.icon,
+					collections: cat.collections || [],
+					subcategories: Object.keys(subcategories).length > 0 ? subcategories : undefined
+				};
+			};
+
+			const categoryArray: Category[] = Object.entries(categoryStructure)
+				.filter(([, cat]) => !cat.isCollection)
+				.map(([name, cat]) => processCategory(name, cat));
 
 			// Cache in Redis if available
 			if (!browser && isRedisEnabled()) {

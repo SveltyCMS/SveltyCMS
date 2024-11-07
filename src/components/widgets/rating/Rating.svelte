@@ -14,8 +14,8 @@
 	// Skeleton
 	import { Ratings } from '@skeletonlabs/skeleton';
 
-	// valibot validation
-	import * as v from 'valibot';
+	// Valibot validation
+	import { number, pipe, parse, type ValiError, minValue, maxValue, nonNullable } from 'valibot';
 
 	export let field: FieldType;
 
@@ -35,69 +35,94 @@
 	let validationError: string | null = null;
 	let debounceTimeout: number | undefined;
 
-	// Define the validation schema for the rating widget
-	const widgetSchema = v.object({
-		value: v.optional(
-			v.pipe(v.number(), v.minValue(1, 'Rating must be at least 1 star'), v.maxValue(maxRating, `Rating cannot exceed ${maxRating} stars`))
-		),
-		db_fieldName: v.string(),
-		icon: v.optional(v.string()),
-		color: v.optional(v.string()),
-		width: v.optional(v.number()),
-		required: v.optional(v.boolean())
-	});
+	// Create validation schema for rating
+	const ratingSchema = pipe(number(), minValue(1, 'Rating must be at least 1 star'), maxValue(maxRating, `Rating cannot exceed ${maxRating} stars`));
 
-	// Generic validation function that uses the provided schema to validate the input
-	function validateSchema(schema: typeof widgetSchema, data: any): string | null {
+	// Validation function
+	function validateInput() {
 		try {
-			v.parse(schema, data);
-			validationStore.clearError(fieldName);
-			return null; // No error
+			if (debounceTimeout) clearTimeout(debounceTimeout);
+			debounceTimeout = window.setTimeout(() => {
+				try {
+					const value = _data.value;
+
+					// First validate if required
+					if (field?.required && (value === undefined || value === null)) {
+						validationError = 'This field is required';
+						validationStore.setError(fieldName, validationError);
+						return;
+					}
+
+					// Then validate rating if value exists
+					if (value !== undefined && value !== null) {
+						parse(ratingSchema, value);
+					}
+
+					validationError = null;
+					validationStore.clearError(fieldName);
+				} catch (error) {
+					if ((error as ValiError<typeof ratingSchema>).issues) {
+						const valiError = error as ValiError<typeof ratingSchema>;
+						validationError = valiError.issues[0]?.message || 'Invalid input';
+						validationStore.setError(fieldName, validationError);
+					}
+				}
+			}, 300);
 		} catch (error) {
-			if (error instanceof v.ValiError) {
-				const errorMessage = error.issues[0]?.message || 'Invalid input';
-				validationStore.setError(fieldName, errorMessage);
-				return errorMessage;
-			}
-			return 'Invalid input';
+			console.error('Validation error:', error);
+			validationError = 'An unexpected error occurred during validation';
+			validationStore.setError(fieldName, 'Validation error');
 		}
 	}
 
-	// Handle rating click with debounce
+	// Handle rating click
 	function handleIconClick(event: CustomEvent<{ index: number }>): void {
-		if (debounceTimeout) clearTimeout(debounceTimeout);
-		debounceTimeout = window.setTimeout(() => {
-			_data.value = event.detail.index;
-			validateInput();
-		}, 300);
+		_data.value = event.detail.index;
+		validateInput();
 	}
 
-	// Validate the input using the generic validateSchema function
-	function validateInput() {
-		validationError = validateSchema(widgetSchema, { value: _data.value });
-	}
+	// Cleanup on destroy
+	import { onDestroy } from 'svelte';
+
+	onDestroy(() => {
+		if (debounceTimeout) clearTimeout(debounceTimeout);
+	});
 
 	// Export WidgetData for data binding with Fields.svelte
 	export const WidgetData = async () => _data;
 </script>
 
-<!-- Ratings -->
-<Ratings
-	bind:value={_data.value}
-	max={maxRating}
-	interactive
-	on:icon={handleIconClick}
-	aria-invalid={!!validationError}
-	aria-describedby={validationError ? `${fieldName}-error` : undefined}
->
-	<svelte:fragment slot="empty"><iconify-icon icon={iconEmpty} width={size} {color}></iconify-icon></svelte:fragment>
-	<svelte:fragment slot="half"><iconify-icon icon={iconHalf} width={size} {color}></iconify-icon></svelte:fragment>
-	<svelte:fragment slot="full"><iconify-icon icon={iconFull} width={size} {color}></iconify-icon></svelte:fragment>
-</Ratings>
+<div class="input-container relative mb-4">
+	<!-- Ratings -->
+	<Ratings
+		bind:value={_data.value}
+		max={maxRating}
+		interactive
+		on:icon={handleIconClick}
+		aria-invalid={!!validationError}
+		aria-describedby={validationError ? `${fieldName}-error` : undefined}
+		aria-required={field?.required}
+		data-testid="rating-input"
+	>
+		<svelte:fragment slot="empty"><iconify-icon icon={iconEmpty} width={size} {color}></iconify-icon></svelte:fragment>
+		<svelte:fragment slot="half"><iconify-icon icon={iconHalf} width={size} {color}></iconify-icon></svelte:fragment>
+		<svelte:fragment slot="full"><iconify-icon icon={iconFull} width={size} {color}></iconify-icon></svelte:fragment>
+	</Ratings>
 
-<!-- Error Message -->
-{#if validationError}
-	<p id={`${fieldName}-error`} class="text-center text-sm text-error-500">
-		{validationError}
-	</p>
-{/if}
+	<!-- Error Message -->
+	{#if validationError}
+		<p id={`${field.db_fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+			{validationError}
+		</p>
+	{/if}
+</div>
+
+<style lang="postcss">
+	.input-container {
+		min-height: 2.5rem;
+	}
+
+	.error {
+		border-color: rgb(239 68 68);
+	}
+</style>

@@ -115,61 +115,74 @@
 	};
 </script>
 
-<div class="variant-filled-surface btn-group flex w-full rounded">
-	{#if field?.prefix}
-		<button class="!px-2">{field?.prefix}</button>
-	{/if}
+<div class="input-container relative mb-4">
+	<div class="variant-filled-surface btn-group flex w-full rounded">
+		{#if field?.prefix}
+			<button class="!px-2">{field?.prefix}</button>
+		{/if}
 
-	<input
-		type="text"
-		bind:value={_data[_language]}
-		bind:this={numberInput}
-		on:input|preventDefault={handleInput}
-		name={field?.db_fieldName}
-		id={field?.db_fieldName}
-		placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}
-		required={field?.required}
-		minlength={field?.minlength}
-		maxlength={field?.maxlength}
-		step={field?.step}
-		class="input text-black dark:text-primary-500"
-		aria-invalid={!!validationError}
-		aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
-		on:blur={validateInput}
-	/>
+		<input
+			type="text"
+			bind:value={_data[_language]}
+			bind:this={numberInput}
+			on:input|preventDefault={handleInput}
+			name={field?.db_fieldName}
+			id={field?.db_fieldName}
+			placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}
+			required={field?.required}
+			minlength={field?.minlength}
+			maxlength={field?.maxlength}
+			step={field?.step}
+			class="input text-black dark:text-primary-500"
+			class:error={!!validationError}
+			aria-invalid={!!validationError}
+			aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
+			on:blur={validateInput}
+		/>
 
-	<!-- suffix -->
-	{#if field?.suffix}
-		<button class="!px-1">
-			{#if field?.minlength || field?.maxlength}
-				<span class="badge mr-1 rounded-full {getBadgeClass(count)}">
-					{#if field?.minlength && field?.maxlength}
-						{count}/{field?.maxlength}
-					{:else if field?.maxlength}
-						{count}/{field?.maxlength}
-					{:else if field?.minlength}
-						min {field?.minlength}
-					{/if}
-				</span>
-			{/if}
-			{field?.suffix}
-		</button>
-	{:else if field?.minlength || field?.maxlength}
-		<span class="badge rounded-none {getBadgeClass(count)}">
-			{#if field?.minlength && field?.maxlength}
-				{count}/{field?.maxlength}
-			{:else if field?.maxlength}
-				{count}/{field?.maxlength}
-			{:else if field?.minlength}
-				min {field?.minlength}
-			{/if}
-		</span>
+		<!-- suffix -->
+		{#if field?.suffix}
+			<button class="!px-1">
+				{#if field?.minlength || field?.maxlength}
+					<span class="badge mr-1 rounded-full {getBadgeClass(count)}">
+						{#if field?.minlength && field?.maxlength}
+							{count}/{field?.maxlength}
+						{:else if field?.maxlength}
+							{count}/{field?.maxlength}
+						{:else if field?.minlength}
+							min {field?.minlength}
+						{/if}
+					</span>
+				{/if}
+				{field?.suffix}
+			</button>
+		{:else if field?.minlength || field?.maxlength}
+			<span class="badge rounded-none {getBadgeClass(count)}">
+				{#if field?.minlength && field?.maxlength}
+					{count}/{field?.maxlength}
+				{:else if field?.maxlength}
+					{count}/{field?.maxlength}
+				{:else if field?.minlength}
+					min {field?.minlength}
+				{/if}
+			</span>
+		{/if}
+	</div>
+
+	<!-- Error Message -->
+	{#if validationError}
+		<p id={`${field.db_fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+			{validationError}
+		</p>
 	{/if}
 </div>
 
-<!-- Error Message -->
-{#if validationError}
-	<p id={`${field.db_fieldName}-error`} class="text-center text-sm text-error-500">
-		{validationError}
-	</p>
-{/if}
+<style lang="postcss">
+	.input-container {
+		min-height: 2.5rem;
+	}
+
+	.error {
+		border-color: rgb(239 68 68);
+	}
+</style>
