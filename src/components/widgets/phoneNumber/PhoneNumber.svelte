@@ -14,87 +14,115 @@
 	import { getFieldName } from '@utils/utils';
 
 	// Valibot validation
-	import { object, string, number, boolean, optional, regex, pipe, parse, type InferInput, type ValiError } from 'valibot';
+	import { string, regex, pipe, parse, type ValiError, nonEmpty } from 'valibot';
 
-	export let field: FieldType;
 
 	const fieldName = getFieldName(field);
-	export let value = $collectionValue[fieldName] || {};
 
-	const _data = $mode === 'create' ? {} : value;
+	const _data = $state($mode === 'create' ? {} : value);
 	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
 
-	let validationError: string | null = null;
+	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
+	let inputElement: HTMLInputElement | null = $state(null);
 
-	export const WidgetData = async () => _data;
+	// Create validation schema for phone number
+	const phoneSchema = pipe(string(), regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format, must be a valid international number'));
 
-	// Define base schema for phone number with validation
-	const valueSchema = pipe(string(), regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format, must be a valid international number'));
-
-	const widgetSchema = object({
-		value: optional(valueSchema),
-		db_fieldName: string(),
-		icon: optional(string()),
-		color: optional(string()),
-		size: optional(string()),
-		width: optional(number()),
-		required: optional(boolean())
-	});
-
-	type WidgetSchemaType = InferInput<typeof widgetSchema>;
-
-	// Validate function for schema
-	function validateSchema(data: unknown): string | null {
+	// Validation function
+	function validateInput() {
 		try {
-			parse(widgetSchema, data);
-			validationStore.clearError(fieldName);
-			return null;
+			if (debounceTimeout) clearTimeout(debounceTimeout);
+			debounceTimeout = window.setTimeout(() => {
+				try {
+					const value = _data[_language];
+
+					// First validate if required
+					if (field?.required && (!value || value.trim() === '')) {
+						validationError = 'This field is required';
+						validationStore.setError(fieldName, validationError);
+						return;
+					}
+
+					// Then validate phone format if value exists
+					if (value && value.trim() !== '') {
+						parse(phoneSchema, value);
+					}
+
+					validationError = null;
+					validationStore.clearError(fieldName);
+				} catch (error) {
+					if ((error as ValiError<typeof phoneSchema>).issues) {
+						const valiError = error as ValiError<typeof phoneSchema>;
+						validationError = valiError.issues[0]?.message || 'Invalid input';
+						validationStore.setError(fieldName, validationError);
+					}
+				}
+			}, 300);
 		} catch (error) {
-			if ((error as ValiError<typeof widgetSchema>).issues) {
-				const valiError = error as ValiError<typeof widgetSchema>;
-				const errorMessage = valiError.issues[0]?.message || 'Invalid input';
-				validationStore.setError(fieldName, errorMessage);
-				return errorMessage;
-			}
-			return 'Invalid input';
+			console.error('Validation error:', error);
+			validationError = 'An unexpected error occurred during validation';
+			validationStore.setError(fieldName, 'Validation error');
 		}
 	}
 
-	// Handle input with debounce
-	function handleInput(event: Event) {
-		const target = event.target as HTMLInputElement;
-		if (debounceTimeout) clearTimeout(debounceTimeout);
-		debounceTimeout = window.setTimeout(() => {
-			validateInput();
-		}, 300);
+	// Focus management
+	import { onMount, onDestroy } from 'svelte';
+	interface Props {
+		field: FieldType;
+		value?: any;
 	}
 
-	// Trigger validation
-	function validateInput() {
-		validationError = validateSchema({ value: _data[_language] });
-	}
+	let { field, value = $collectionValue[fieldName] || {} }: Props = $props();
+
+	onMount(() => {
+		if (field?.required && !_data[_language]) {
+			inputElement?.focus();
+		}
+	});
+
+	onDestroy(() => {
+		if (debounceTimeout) clearTimeout(debounceTimeout);
+	});
+
+	export const WidgetData = async () => _data;
 </script>
 
-<div class="variant-filled-surface btn-group flex w-full rounded">
-	<input
-		type="tel"
-		bind:value={_data[_language]}
-		on:input|preventDefault={handleInput}
-		name={field?.db_fieldName}
-		id={field?.db_fieldName}
-		placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}
-		required={field?.required}
-		readonly={field?.readonly}
-		class="input text-black dark:text-primary-500"
-		aria-invalid={!!validationError}
-		aria-describedby={validationError ? `${fieldName}-error` : undefined}
-	/>
+<div class="input-container relative mb-4">
+	<div class="variant-filled-surface btn-group flex w-full rounded">
+		<input
+			type="tel"
+			bind:this={inputElement}
+			bind:value={_data[_language]}
+			onblur={validateInput}
+			name={field?.db_fieldName}
+			id={field?.db_fieldName}
+			placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}
+			required={field?.required}
+			readonly={field?.readonly}
+			class="input w-full text-black dark:text-primary-500"
+			class:error={!!validationError}
+			aria-invalid={!!validationError}
+			aria-describedby={validationError ? `${fieldName}-error` : undefined}
+			aria-required={field?.required}
+			data-testid="phone-input"
+		/>
+	</div>
+
+	<!-- Error Message -->
+	{#if validationError}
+		<p id={`${field.db_fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+			{validationError}
+		</p>
+	{/if}
 </div>
 
-<!-- Error Message -->
-{#if validationError}
-	<p id={`${fieldName}-error`} class="text-center text-sm text-error-500">
-		{validationError}
-	</p>
-{/if}
+<style lang="postcss">
+	.input-container {
+		min-height: 2.5rem;
+	}
+
+	.error {
+		border-color: rgb(239 68 68);
+	}
+</style>

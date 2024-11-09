@@ -5,21 +5,40 @@
 
 <script lang="ts">
 	import Konva from 'konva';
-	import { onMount, createEventDispatcher } from 'svelte';
 
-	export let stage: Konva.Stage;
-	export let layer: Konva.Layer;
-	export let imageNode: Konva.Image;
+	interface Props {
+		stage: Konva.Stage;
+		layer: Konva.Layer;
+		imageNode: Konva.Image;
+		'on:focalPointChange'?: (point: { x: number; y: number }) => void;
+		'on:focalPointRemoved'?: () => void;
+	}
 
-	let focalPoint: Konva.Group | null = null;
-	let focalPointActive = false;
-	let relativeX: number = 0;
-	let relativeY: number = 0;
-	const dispatch = createEventDispatcher();
+	let {
+		stage,
+		layer,
+		imageNode,
+		'on:focalPointChange': onFocalPointChange = () => {},
+		'on:focalPointRemoved': onFocalPointRemoved = () => {}
+	}: Props = $props();
 
-	onMount(() => {
-		createFocalPoint(); // Create focal point at the center of the image when the component mounts
+	let focalPoint: Konva.Group | null = $state(null);
+	let focalPointActive = $state(false);
+	let relativeX: number = $state(0);
+	let relativeY: number = $state(0);
+
+	// Initialize focal point and event listeners
+	$effect.root(() => {
+		createFocalPoint(); // Create focal point at the center of the image
 		setupEventListeners();
+
+		// Cleanup function
+		return () => {
+			if (focalPoint) {
+				focalPoint.destroy();
+			}
+			stage.off('click');
+		};
 	});
 
 	function createFocalPoint() {
@@ -115,7 +134,7 @@
 		relativeX = Number(relativeX.toFixed(2));
 		relativeY = Number(relativeY.toFixed(2));
 
-		dispatch('focalPointChange', { x: relativeX, y: relativeY });
+		onFocalPointChange({ x: relativeX, y: relativeY });
 		layer.draw();
 	}
 
@@ -133,7 +152,7 @@
 			focalPointActive = false;
 			relativeX = 0;
 			relativeY = 0;
-			dispatch('focalPointRemoved');
+			onFocalPointRemoved();
 		}
 		layer.draw();
 	}
@@ -149,7 +168,7 @@
 		</div>
 	</div>
 	<div class="mt-4 flex justify-around gap-4">
-		<button on:click={removeFocalPoint} class="variant-filled-error btn"> Remove Focal Point </button>
-		<button on:click={resetFocalPoint} class="variant-filled-primary btn"> Reset Focal Point </button>
+		<button onclick={removeFocalPoint} class="variant-filled-error btn"> Remove Focal Point </button>
+		<button onclick={resetFocalPoint} class="variant-filled-primary btn"> Reset Focal Point </button>
 	</div>
 </div>

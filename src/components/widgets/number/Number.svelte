@@ -4,6 +4,8 @@
 -->
 
 <script lang="ts">
+	import { preventDefault } from 'svelte/legacy';
+
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
 
@@ -35,17 +37,21 @@
 		maxValue?: number;
 	}
 
-	export let field: NumberFieldType;
 
 	const fieldName = getFieldName(field);
-	export let value = $collectionValue[fieldName] || {};
+	interface Props {
+		field: NumberFieldType;
+		value?: any;
+	}
 
-	const _data = $mode === 'create' ? {} : value;
+	let { field, value = $collectionValue[fieldName] || {} }: Props = $props();
+
+	const _data = $state($mode === 'create' ? {} : value);
 	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
-	let validationError: string | null = null;
+	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
 
-	let numberInput: HTMLInputElement;
+	let numberInput: HTMLInputElement = $state();
 	const language = $contentLanguage;
 
 	export const WidgetData = async () => _data;
@@ -54,8 +60,9 @@
 	const valueSchema = pipe(
 		string(),
 		regex(/^\d+(\.\d{1,2})?$/, 'Invalid number format, must be a valid number with up to 2 decimal places'),
-		transform((value) => parseFloat(value)),
-		custom((value) => {
+		transform((value: string) => parseFloat(value)),
+		custom((input: unknown) => {
+			const value = input as number;
 			if (field.minValue !== undefined && value < field.minValue) {
 				throw new Error(`Value must be at least ${field.minValue}`);
 			}
@@ -104,6 +111,7 @@
 		if (value[value.length - 1] !== decimalSeparator) {
 			const number = parseFloat(value.replace(new RegExp(`[^0-9${decimalSeparator}]`, 'g'), '').replace(decimalSeparator, '.'));
 			if (!isNaN(number)) {
+				_data[_language] = number;
 				target.value = new Intl.NumberFormat(language, { maximumFractionDigits: 2 }).format(number);
 			} else {
 				target.value = value;
@@ -125,7 +133,7 @@
 	}
 
 	// Reactive statement to update character count for badge display
-	$: count = _data[_language]?.length ?? 0;
+	let count = $derived(_data[_language]?.length ?? 0);
 
 	const getBadgeClass = (length: number) => {
 		if (field?.minlength && length < field?.minlength) {
@@ -149,7 +157,7 @@
 		type="text"
 		bind:value={_data[_language]}
 		bind:this={numberInput}
-		on:input|preventDefault={handleInput}
+		oninput={preventDefault(handleInput)}
 		name={field?.db_fieldName}
 		id={field?.db_fieldName}
 		placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}

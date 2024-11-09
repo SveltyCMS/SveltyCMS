@@ -1,32 +1,77 @@
+<!--
+@file: /src/components/Dropdown.svelte
+@description: A customizable dropdown component that allows selection from a list of items. It supports custom styling, item modification, and an optional icon.
+-->
+
 <script lang="ts">
 	import { twMerge } from 'tailwind-merge';
 
-	export let items: any;
-	export let selected = items[0];
-	export let label: string = '';
-	export const modifier = (input) => input;
-	export const icon: string | undefined = undefined;
+	// Define props using $props
+	let {
+		items, // Array of selectable items
+		selected = items[0], // Currently selected item, default to first item
+		label = '', // Optional label for the dropdown
+		modifier = (input: any) => input, // Function to modify how items are displayed
+		icon = undefined, // Optional icon for the dropdown
+		class: className = '' // Custom class for the dropdown container
+	} = $props<{
+		items: any[];
+		selected?: any;
+		label?: string;
+		modifier?: (input: any) => any;
+		icon?: string | undefined;
+		class?: string;
+	}>();
 
-	let expanded = false;
+	// State for dropdown expansion and selected item
+	let expanded = $state(false);
+	let currentSelected = $state(selected);
+
+	// Derived state for filtered items
+	let filteredItems = $derived(items.filter((item) => item !== currentSelected));
+
+	// Toggle dropdown expansion
+	function toggleExpanded() {
+		expanded = !expanded;
+	}
+
+	// Handle item selection
+	function selectItem(item: any) {
+		currentSelected = item;
+		expanded = false;
+	}
+
+	// Effect to update currentSelected when the selected prop changes
+	$effect(() => {
+		currentSelected = selected;
+	});
 </script>
 
-<div class="overflow-hidden {twMerge('bg-surface-500', $$props.class)}">
-	<button on:click={() => (expanded = !expanded)} class="variant-filled-tertiary btn dark:variant-ghost-primary" class:selected={expanded}>
-		{selected || label}
+<!-- Dropdown container -->
+<div class={twMerge('overflow-hidden bg-surface-500', className)}>
+	<!-- Dropdown button -->
+	<button
+		onclick={toggleExpanded}
+		class="variant-filled-tertiary btn dark:variant-ghost-primary"
+		aria-label="Toggle Dropdown"
+		class:selected={expanded}
+	>
+		{currentSelected || label}
 	</button>
 </div>
 
-<!-- Dropdown -->
+<!-- Dropdown content -->
 {#if expanded}
+	<!-- Dropdown header -->
 	<div class="mb-3 border-b text-center text-tertiary-500 dark:text-primary-500">Choose your Widget</div>
+
+	<!-- Dropdown items -->
 	<div class="flex flex-wrap items-center justify-center gap-2">
-		{#each items.filter((item) => item !== selected) as item}
+		{#each filteredItems as item}
 			<button
+				onclick={() => selectItem(item)}
 				class="variant-filled-warning btn relative hover:variant-filled-secondary dark:variant-outline-warning"
-				on:click={() => {
-					selected = item;
-					expanded = false;
-				}}
+				aria-label={modifier(item)}
 			>
 				<span class="text-surface-700 dark:text-white">{modifier(item)}</span>
 			</button>

@@ -16,28 +16,35 @@ Wrap content that requires permission checks within the PermissionGuard componen
 	import type { PermissionConfig } from '@src/auth/permissionCheck';
 	import type { User, Permissions } from '@src/auth/types'; // Assuming these types exist
 
-	// Prop to receive permission configuration
-	export let config: PermissionConfig | undefined;
+	
 
-	// Prop to customize messages (optional)
-	export let messages = {
+	
+	interface Props {
+		// Prop to receive permission configuration
+		config: PermissionConfig | undefined;
+		// Prop to customize messages (optional)
+		messages?: any;
+		children?: import('svelte').Snippet;
+	}
+
+	let { config, messages = {
 		rateLimited: 'Rate limit reached. Please try again later.',
 		missingConfig: 'Permission configuration is missing.',
 		insufficientPermissions: 'You do not have permission to access this content.'
-	};
+	}, children }: Props = $props();
 
 	// Reactive variables from page store with type assertions
-	$: user = $page.data.user as User | undefined;
-	$: permissions = ($page.data.permissions || {}) as Permissions;
+	let user = $derived($page.data.user as User | undefined);
+	let permissions = $derived(($page.data.permissions || {}) as Permissions);
 
 	// Computed values
-	$: permissionData = config?.contextId ? permissions[config.contextId] || {} : {};
-	$: isAdmin = user?.role?.toLowerCase() === 'admin';
-	$: hasPermission = isAdmin || permissionData.hasPermission || false;
-	$: isRateLimited = permissionData.isRateLimited || false;
+	let permissionData = $derived(config?.contextId ? permissions[config.contextId] || {} : {});
+	let isAdmin = $derived(user?.role?.toLowerCase() === 'admin');
+	let hasPermission = $derived(isAdmin || permissionData.hasPermission || false);
+	let isRateLimited = $derived(permissionData.isRateLimited || false);
 
 	// Function to determine if content should be shown
-	$: shouldShowContent = config && hasPermission && !isRateLimited;
+	let shouldShowContent = $derived(config && hasPermission && !isRateLimited);
 
 	// Debugging function (can be enabled in development)
 	// function logDebugInfo() {
@@ -59,7 +66,7 @@ Wrap content that requires permission checks within the PermissionGuard componen
 </script>
 
 {#if shouldShowContent}
-	<slot />
+	{@render children?.()}
 {:else if config}
 	{#if isRateLimited}
 		<p class="text-warning-500" role="alert">{messages.rateLimited}</p>

@@ -3355,6 +3355,38 @@ export const login_Happy_Holi = () => `Hyvää Holia`
 export const login_happy_navratri = () => `Hyvää Navratria`
 
 
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_description = () => `LLM-kokoonpano`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_useLLM = () => `Ota LLM-integraatio käyttöön`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_llmProvider = () => `LLM-palveluntarjoaja (esim. OpenAI, Claude, Gemimi jne.)`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_apiKey = () => `LLM API-avain`
+
+
 export { signup_password } from "./en.js"
 
 export { modaledit_tokenemailaddress } from "./en.js"
@@ -3392,34 +3424,3 @@ export { modaleditform_username } from "./en.js"
 export { modaleditform_confirmpassword } from "./en.js"
 
 export { modaleditform_userrole } from "./en.js"
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_description = () => `LLM-kokoonpano`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_useLLM = () => `Ota LLM-integraatio käyttöön`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_llmProvider = () => `LLM-palveluntarjoaja (esim. OpenAI, Claude, Gemimi jne.)`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_apiKey = () => `LLM API-avain`

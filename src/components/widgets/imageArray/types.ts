@@ -13,7 +13,35 @@ import PermissionsSetting from '@components/PermissionsSetting.svelte';
 import type { Permission } from '@src/auth/types';
 
 import { getFieldName } from '@utils/utils';
-import widgets from '@components/widgets';
+
+// Display function type
+export type DISPLAY = ({
+	data,
+	collection,
+	field,
+	entry,
+	contentLanguage
+}: {
+	data: any;
+	collection: any;
+	field: any;
+	entry: any;
+	contentLanguage: string;
+}) => Promise<string>;
+
+/**
+ * Widget interface for type safety
+ */
+export interface IWidget {
+	Name: string;
+	modifyRequest?: ModifyRequestFn;
+	GraphqlSchema?: (args: { label: string; collection: string }) => { graphql: string };
+}
+
+/**
+ * ModifyRequest type for widget
+ */
+export type ModifyRequestFn = (args: { collection: any; field: any; data: any; user: any; type: string; id?: string }) => Promise<void>;
 
 /**
  * Defines ImageArray widget Parameters
@@ -25,7 +53,6 @@ export type Params = {
 	db_fieldName?: string;
 	widget?: any;
 	required?: boolean;
-	// translated?: boolean;
 	icon?: string;
 	helper?: string;
 	width?: number;
@@ -34,11 +61,22 @@ export type Params = {
 	permissions?: Permission[];
 
 	// Widget Specific parameters
-	fields: any;
+	fields: Array<{
+		widget: IWidget;
+		[key: string]: any;
+	}>;
 	uploader_label: string;
 	uploader_display?: DISPLAY;
 	uploader_db_fieldName?: string;
 	uploader_path: string;
+};
+
+/**
+ * GraphQL Schema type
+ */
+type GraphqlSchema = (params: { field: any; collection: string }) => {
+	typeName: string | null;
+	graphql: string;
 };
 
 /**
@@ -50,7 +88,6 @@ export const GuiSchema = {
 	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },
 	required: { widget: Toggles, required: false },
-	// translated: { widget: Toggles, required: false },
 	icon: { widget: IconifyPicker, required: false },
 	width: { widget: Input, required: false },
 
@@ -68,7 +105,13 @@ export const GuiSchema = {
 export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
 	let fieldTypes = '';
 	for (const _field of field.fields) {
-		fieldTypes += widgets[_field.widget.Name].GraphqlSchema({ label: getFieldName(_field, true), collection }).graphql + '\n';
+		if (_field.widget?.GraphqlSchema) {
+			fieldTypes +=
+				_field.widget.GraphqlSchema({
+					label: getFieldName(_field, true),
+					collection
+				}).graphql + '\n';
+		}
 	}
 
 	return {

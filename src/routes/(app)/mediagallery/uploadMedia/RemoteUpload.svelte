@@ -5,7 +5,7 @@
 <script lang="ts">
 	import { getToastStore } from '@skeletonlabs/skeleton';
 
-	let remoteUrls: string[] = [];
+	let remoteUrls: string[] = $state([]);
 	const toastStore = getToastStore();
 
 	function handleRemoteUrlInput(event: Event) {
@@ -64,8 +64,8 @@
 		placeholder="Paste Remote URLs here, one per line..."
 		rows="6"
 		class="textarea w-full"
-		on:input={handleRemoteUrlInput}
-	/>
+		oninput={handleRemoteUrlInput}
+	></textarea>
 	<!-- Upload Button -->
-	<button class="variant-filled-primary btn mt-2" on:click={uploadRemoteUrls}> Upload URLs </button>
+	<button class="variant-filled-primary btn mt-2" onclick={uploadRemoteUrls}> Upload URLs </button>
 </div>

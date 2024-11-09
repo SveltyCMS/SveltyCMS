@@ -1,18 +1,55 @@
+<!-- 
+@files src/components/system/builder/InputSwitch.svelte
+@description InputSwitch component
+-->
+
 <script lang="ts">
 	import { sanitizePermissions } from '@src/auth/types';
 
-	export let value: any = null;
-	export let widget: any;
-	export let key: string;
-	export let iconselected: string | null = null;
-	export let permissions: any = null;
+	// Define props using $props()
+	const props = $props<{
+		value: any;
+		widget: any; // Consider using a more specific type if possible
+		key: string;
+		iconselected?: string | null;
+		permissions?: any;
+	}>();
 
-	$: if (key == 'display' && value?.default == true) {
-		value = '';
-	}
-	$: if (key == 'permissions' && value) {
-		value = sanitizePermissions(value);
+	// Create state variables for mutable props
+	let value = $state(props.value ?? null);
+	let iconselected = $state(props.iconselected ?? null);
+	let permissions = $state(props.permissions ?? null);
+
+	// Use $effect for side effects
+	$effect(() => {
+		if (props.key === 'display' && value?.default === true) {
+			value = '';
+		}
+	});
+
+	$effect(() => {
+		if (props.key === 'permissions' && value) {
+			permissions = sanitizePermissions(value);
+		}
+	});
+
+	// Update local state when props change
+	$effect(() => {
+		value = props.value ?? null;
+		iconselected = props.iconselected ?? null;
+		permissions = props.permissions ?? null;
+	});
+
+	// Function to update the parent component
+	function updateParent() {
+		dispatchEvent(
+			new CustomEvent('update', {
+				detail: { value, iconselected, permissions }
+			})
+		);
 	}
 </script>
 
-<svelte:component this={widget} bind:value bind:iconselected bind:permissions on:update on:toggle label={key} theme="dark" />
+{#if props.widget}
+	<props.widget bind:value bind:iconselected bind:permissions on:update={updateParent} on:toggle label={props.key} theme="dark" />
+{/if}

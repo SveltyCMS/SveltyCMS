@@ -18,22 +18,32 @@
 	import { contentLanguage, validationStore } from '@stores/store';
 	import { mode, collectionValue } from '@stores/collectionStore';
 
-	export let field: FieldType;
+	// Valibot validation
+	import { string, pipe, parse, type ValiError, minLength, maxLength, nonEmpty, nullable } from 'valibot';
+
+	interface Props {
+		field: FieldType;
+		value?: any;
+	}
+
+	let { field, value = {} }: Props = $props();
 
 	const fieldName = getFieldName(field);
-	export let value = $collectionValue[fieldName] || {};
+	value = value || $collectionValue[fieldName] || {};
 
-	const _data = $mode === 'create' ? {} : value;
-
-	$: _language = field?.translated ? $contentLanguage.toLowerCase() : publicEnv.DEFAULT_CONTENT_LANGUAGE.toLowerCase();
-	$: updateTranslationProgress(_data, field);
-
-	let validationError: string | null = null;
+	let _data = $state($mode === 'create' ? {} : value);
+	let validationError = $state<string | null>(null);
 	let debounceTimeout: number | undefined;
-	let inputElement: HTMLInputElement | null = null;
+	let inputElement = $state<HTMLInputElement | null>(null);
 
-	// Reactive statement to update count with memoization
-	$: count = _data[_language]?.length ?? 0;
+	// Computed values
+	let _language = $derived(field?.translated ? $contentLanguage.toLowerCase() : publicEnv.DEFAULT_CONTENT_LANGUAGE.toLowerCase());
+	let count = $derived(_data[_language]?.length ?? 0);
+
+	// Update translation progress when data or field changes
+	$effect(() => {
+		updateTranslationProgress(_data, field);
+	});
 
 	// Memoized badge class calculation
 	const badgeClassCache = new Map<string, string>();
@@ -53,40 +63,47 @@
 		return result;
 	};
 
-	// Valibot validation
-	import { string, minLength, maxLength, pipe, parse, type ValiError } from 'valibot';
+	let validationSchema = field?.required ? pipe(string(), nonEmpty()) : nullable(string());
 
-	// Define the validation schema for the text field
-	$: valueSchema = pipe(
-		string(),
-		field?.minlength ? minLength(field.minlength, `Minimum length is ${field.minlength}`) : string(),
-		field?.maxlength ? maxLength(field.maxlength, `Maximum length is ${field.maxlength}`) : string()
-	);
-
-	// Generic validation function that uses the provided schema to validate the input
-	function validateSchema(data: unknown): string | null {
-		try {
-			parse(valueSchema, data);
-			validationStore.clearError(fieldName);
-			return null; // No error
-		} catch (error) {
-			if ((error as ValiError<typeof valueSchema>).issues) {
-				console.debug('Validation error : ', error);
-				const valiError = error as ValiError<typeof valueSchema>;
-				const errorMessage = valiError.issues[0]?.message || 'Invalid input';
-				validationStore.setError(fieldName, errorMessage);
-				return errorMessage;
-			}
-			return 'Invalid input';
-		}
-	}
-
-	// Debounced validation function with error boundary
+	// Validation function using Valibot schema
 	function validateInput() {
 		try {
 			if (debounceTimeout) clearTimeout(debounceTimeout);
 			debounceTimeout = window.setTimeout(() => {
-				validationError = validateSchema(_data[_language]);
+				try {
+					const value = _data[_language];
+
+					// First validate the value exists if required
+					if (field?.required && !value) {
+						validationError = 'This field is required';
+						validationStore.setError(fieldName, validationError);
+						return;
+					}
+
+					// Then validate string constraints if value exists
+					if (value) {
+						if (field?.minlength && value.length < field.minlength) {
+							validationError = `Minimum length is ${field.minlength}`;
+							validationStore.setError(fieldName, validationError);
+							return;
+						}
+						if (field?.maxlength && value.length > field.maxlength) {
+							validationError = `Maximum length is ${field.maxlength}`;
+							validationStore.setError(fieldName, validationError);
+							return;
+						}
+					}
+
+					parse(validationSchema, value);
+					validationError = null;
+					validationStore.clearError(fieldName);
+				} catch (error) {
+					if ((error as ValiError<typeof validationSchema>).issues) {
+						const valiError = error as ValiError<typeof validationSchema>;
+						validationError = valiError.issues[0]?.message || 'Invalid input';
+						validationStore.setError(fieldName, validationError);
+					}
+				}
 			}, 300);
 		} catch (error) {
 			console.error('Validation error:', error);
@@ -112,65 +129,78 @@
 	export const WidgetData = async () => _data;
 </script>
 
-<div class="variant-filled-surface btn-group flex w-full rounded" role="group">
-	{#if field?.prefix}
-		<button class="!px-2" aria-label={`${field.prefix} prefix`}>
-			{field?.prefix}
-		</button>
-	{/if}
+<div class="input-container relative mb-4">
+	<div class="variant-filled-surface btn-group flex w-full rounded" role="group">
+		{#if field?.prefix}
+			<button class="!px-2" aria-label={`${field.prefix} prefix`}>
+				{field?.prefix}
+			</button>
+		{/if}
 
-	<input
-		type="text"
-		bind:value={_data[_language]}
-		on:blur={validateInput}
-		name={field?.db_fieldName}
-		id={field?.db_fieldName}
-		bind:this={inputElement}
-		placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}
-		required={field?.required}
-		disabled={field?.disabled}
-		readonly={field?.readonly}
-		minlength={field?.minlength}
-		maxlength={field?.maxlength}
-		class="input w-full flex-1 rounded-none text-black dark:text-primary-500"
-		aria-invalid={!!validationError}
-		aria-describedby={validationError ? `${fieldName}-error` : undefined}
-		aria-required={field?.required}
-		data-testid="text-input"
-	/>
+		<input
+			type="text"
+			bind:value={_data[_language]}
+			onblur={validateInput}
+			name={field?.db_fieldName}
+			id={field?.db_fieldName}
+			bind:this={inputElement}
+			placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}
+			required={field?.required}
+			disabled={field?.disabled}
+			readonly={field?.readonly}
+			minlength={field?.minlength}
+			maxlength={field?.maxlength}
+			class="input w-full flex-1 rounded-none text-black dark:text-primary-500"
+			class:error={!!validationError}
+			aria-invalid={!!validationError}
+			aria-describedby={validationError ? `${fieldName}-error` : undefined}
+			aria-required={field?.required}
+			data-testid="text-input"
+		/>
 
-	<!-- suffix and count -->
-	{#if field?.suffix || field?.count || field?.minlength || field?.maxlength}
-		<div class="flex items-center" role="status" aria-live="polite">
-			{#if field?.count || field?.minlength || field?.maxlength}
-				<span class="badge mr-1 rounded-full {getBadgeClass(count)}" aria-label="Character count">
-					{#if field?.count && field?.minlength && field?.maxlength}
-						{count}/{field?.maxlength}
-					{:else if field?.count && field?.maxlength}
-						{count}/{field?.maxlength}
-					{:else if field?.count && field?.minlength}
-						{count} => {field?.minlength}
-					{:else if field?.minlength && field?.maxlength}
-						{count} => {field?.minlength}/{field?.maxlength}
-					{:else if field?.count}
-						{count}/{field?.count}
-					{:else if field?.maxlength}
-						{count}/{field?.maxlength}
-					{:else if field?.minlength}
-						min {field?.minlength}
-					{/if}
-				</span>
-			{/if}
-			{#if field?.suffix}
-				<span class="!px-1" aria-label={`${field.suffix} suffix`}>{field?.suffix}</span>
-			{/if}
-		</div>
+		<!-- suffix and count -->
+		{#if field?.suffix || field?.count || field?.minlength || field?.maxlength}
+			<div class="flex items-center" role="status" aria-live="polite">
+				{#if field?.count || field?.minlength || field?.maxlength}
+					<span class="badge mr-1 rounded-full {getBadgeClass(count)}" aria-label="Character count">
+						{#if field?.count && field?.minlength && field?.maxlength}
+							{count}/{field?.maxlength}
+						{:else if field?.count && field?.maxlength}
+							{count}/{field?.maxlength}
+						{:else if field?.count && field?.minlength}
+							{count} => {field?.minlength}
+						{:else if field?.minlength && field?.maxlength}
+							{count} => {field?.minlength}/{field?.maxlength}
+						{:else if field?.count}
+							{count}/{field?.count}
+						{:else if field?.maxlength}
+							{count}/{field?.maxlength}
+						{:else if field?.minlength}
+							min {field?.minlength}
+						{/if}
+					</span>
+				{/if}
+				{#if field?.suffix}
+					<span class="!px-1" aria-label={`${field.suffix} suffix`}>{field?.suffix}</span>
+				{/if}
+			</div>
+		{/if}
+	</div>
+
+	<!-- Error Message -->
+	{#if validationError}
+		<p id={`${fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+			{validationError}
+		</p>
 	{/if}
 </div>
 
-<!-- Error Message -->
-{#if validationError}
-	<p id={`${fieldName}-error`} class="text-center text-xs text-error-500" role="alert">
-		{validationError}
-	</p>
-{/if}
+<style lang="postcss">
+	.input-container {
+		min-height: 2.5rem;
+	}
+
+	.error {
+		border-color: rgb(239 68 68);
+	}
+</style>

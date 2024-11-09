@@ -15,9 +15,14 @@
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 
-	// Props for password and confirm password
-	export let password: string = '';
-	export let confirmPassword: string = '';
+	
+	interface Props {
+		// Props for password and confirm password
+		password?: string;
+		confirmPassword?: string;
+	}
+
+	let { password = '', confirmPassword = '' }: Props = $props();
 
 	// Customizable password strength thresholds
 	const MIN_PASSWORD_LENGTH = publicEnv.PASSWORD_STRENGTH || 8;
@@ -57,12 +62,12 @@
 	}
 
 	// Reactive variables
-	$: longerPassword = password.length >= confirmPassword.length ? password : confirmPassword;
-	$: score = calculateScore(longerPassword);
-	$: feedback = getFeedback(score);
-	$: colorClasses = getColorClasses(score);
-	$: percentage = Math.min(100, (longerPassword.length / GREEN_LENGTH) * 100);
-	$: showStrength = password.length > 0 || confirmPassword.length > 0;
+	let longerPassword = $derived(password.length >= confirmPassword.length ? password : confirmPassword);
+	let score = $derived(calculateScore(longerPassword));
+	let feedback = $derived(getFeedback(score));
+	let colorClasses = $derived(getColorClasses(score));
+	let percentage = $derived(Math.min(100, (longerPassword.length / GREEN_LENGTH) * 100));
+	let showStrength = $derived(password.length > 0 || confirmPassword.length > 0);
 </script>
 
 {#if showStrength}

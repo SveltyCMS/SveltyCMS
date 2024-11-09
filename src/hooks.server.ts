@@ -21,7 +21,7 @@ import { sequence } from '@sveltejs/kit/hooks';
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
 
 // Auth and Database Adapters
-import { auth, initializationPromise } from '@src/databases/db';
+import { auth, initializationPromise, dbAdapter } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import { checkUserPermission } from '@src/auth/permissionCheck';
 import { getAllPermissions } from '@src/auth/permissionManager';
@@ -114,9 +114,10 @@ const getUserFromSessionId = async (session_id: string | undefined): Promise<any
 	let user = await cacheStore.get(session_id);
 	if (!user) {
 		try {
-			user = await auth.validateSession({ session_id });
+			user = await auth?.validateSession({ session_id });
 			if (user) {
-				await cacheStore.set(session_id, user, new Date(Date.now() + 3600 * 1000));
+				// Extended session duration to 24 hours
+				await cacheStore.set(session_id, user, new Date(Date.now() + 24 * 3600 * 1000));
 			}
 		} catch (err) {
 			logger.error(`Session validation error: ${err}`);
@@ -126,12 +127,13 @@ const getUserFromSessionId = async (session_id: string | undefined): Promise<any
 	} else {
 		try {
 			// Double-check the session is still valid in the database
-			const validSession = await auth.validateSession({ session_id });
+			const validSession = await auth?.validateSession({ session_id });
 			if (!validSession) {
 				await cacheStore.delete(session_id);
 				return null;
 			}
-			await cacheStore.set(session_id, user, new Date(Date.now() + 3600 * 1000));
+			// Extend session on activity
+			await cacheStore.set(session_id, user, new Date(Date.now() + 24 * 3600 * 1000));
 		} catch (err) {
 			logger.error(`Session revalidation error: ${err}`);
 			await cacheStore.delete(session_id);
@@ -175,24 +177,26 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	const start = performance.now();
 	logger.debug('Starting handleAuth function');
 
+	// Wait for database initialization
 	try {
 		await initializationPromise;
 		logger.debug('Database initialization complete');
-	} catch (err) {
-		logger.error(`Database initialization failed: ${err}`);
-		// If database initialization fails, redirect to login
-		if (!isPublicOrOAuthRoute(event.url.pathname)) {
-			throw redirect(302, '/login');
-		}
-	}
 
-	if (!auth) {
-		logger.error('Authentication system is not available');
-		// If auth system is not available, redirect to login
+		if (!dbAdapter) {
+			logger.error('Database adapter not initialized');
+			throw error(500, 'Database system is not available');
+		}
+
+		if (!auth) {
+			logger.error('Authentication system not initialized');
+			throw error(500, 'Authentication system is not available');
+		}
+	} catch (err) {
+		logger.error(`System initialization failed: ${err}`);
 		if (!isPublicOrOAuthRoute(event.url.pathname)) {
 			throw redirect(302, '/login');
 		}
-		throw error(500, 'Authentication system is not available');
+		return resolve(event);
 	}
 
 	const session_id = event.cookies.get(SESSION_COOKIE_NAME);
@@ -263,15 +267,13 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	}
 
 	const responseTime = performance.now() - start;
-
 	logger.debug(
 		`Route ${event.url.pathname} - ${responseTime.toFixed(2)}ms ${getPerformanceEmoji(responseTime)}: isPublicRoute=${isPublicRoute}, isApiRequest=${isApiRequest}`
 	);
 
 	if (isOAuthRoute(event.url.pathname)) {
 		logger.debug('OAuth route detected, passing through');
-		const response = await resolve(event);
-		return response;
+		return resolve(event);
 	}
 
 	if (!user && !isPublicRoute && !isFirstUser) {
@@ -289,9 +291,8 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		return handleApiRequest(event, resolve, user);
 	}
 
-	const response = await resolve(event);
 	logger.debug('Proceeding with normal request handling');
-	return response;
+	return resolve(event);
 };
 
 // Handle API requests, including permission checks and caching
@@ -327,6 +328,7 @@ const handleApiRequest = async (event: any, resolve: any, user: any): Promise<Re
 
 // Handle cached API requests
 const handleCachedApiRequest = async (event: any, resolve: any, apiEndpoint: string, userId: string): Promise<Response> => {
+	const cacheStore = getCacheStore();
 	const cacheKey = `api:${apiEndpoint}:${userId}`;
 	const cachedResponse = await cacheStore.get(cacheKey);
 

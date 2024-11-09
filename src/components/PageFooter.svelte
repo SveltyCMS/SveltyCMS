@@ -14,10 +14,10 @@ Usage:
 	import { convertTimestampToDateString } from '@utils/utils';
 
 	// Convert timestamp to Date string
-	$: dates = {
+	let dates = $derived({
 		created: convertTimestampToDateString($collectionValue.createdAt),
 		updated: convertTimestampToDateString($collectionValue.updatedAt)
-	};
+	});
 </script>
 
 <h2 class="text-center !text-sm font-bold uppercase text-tertiary-500 dark:text-primary-500">

@@ -18,10 +18,15 @@ Usage:
 		name: string;
 	};
 
-	// Component props
-	export let mediaItems: MediaItem[] = [];
-	export let selectedMedia: MediaItem | null = null;
-	export let onSelect: (media: MediaItem) => void;
+	
+	interface Props {
+		// Component props
+		mediaItems?: MediaItem[];
+		selectedMedia?: MediaItem | null;
+		onSelect: (media: MediaItem) => void;
+	}
+
+	let { mediaItems = [], selectedMedia = null, onSelect }: Props = $props();
 
 	// Handle selection of a media item
 	function handleSelect(media: MediaItem) {
@@ -42,8 +47,8 @@ Usage:
 		<button
 			type="button"
 			class="cursor-pointer overflow-hidden rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-			on:click={() => handleSelect(media)}
-			on:keydown={(e) => handleKeydown(e, media)}
+			onclick={() => handleSelect(media)}
+			onkeydown={(e) => handleKeydown(e, media)}
 			aria-checked={media === selectedMedia}
 			role="radio"
 			tabindex={index === 0 ? 0 : -1}

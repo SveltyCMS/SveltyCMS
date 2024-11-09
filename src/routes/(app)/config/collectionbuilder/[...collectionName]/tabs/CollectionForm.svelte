@@ -27,9 +27,12 @@ Features:
 
 	// Collection Manager
 	import { collectionManager } from '@src/collections/CollectionManager';
-	import { createEventDispatcher } from 'svelte';
 
-	const dispatch = createEventDispatcher();
+	interface Props {
+		'on:updatePageTitle'?: (title: string) => void;
+	}
+
+	let { 'on:updatePageTitle': onUpdatePageTitle = () => {} }: Props = $props();
 
 	// Extract the collection name from the URL
 	const collectionName = $page.params.collectionName;
@@ -80,10 +83,22 @@ Features:
 	};
 
 	// Form fields
-	let DBName = '';
-	let searchQuery = '';
-	const statuses = ['published', 'unpublished', 'draft', 'schedule', 'cloned'];
-	let autoUpdateSlug = true;
+	let searchQuery = $state('');
+	let autoUpdateSlug = $state(true);
+	let selectedIcon = $state($collectionValue.icon || '');
+
+	// Derived values
+	let DBName = $derived($collectionValue.name ? $collectionValue.name.toLowerCase().replace(/ /g, '_') : '');
+
+	// Update collection value when icon changes
+	$effect(() => {
+		if (selectedIcon !== $collectionValue.icon) {
+			collectionValue.set({
+				...$collectionValue,
+				icon: selectedIcon
+			});
+		}
+	});
 
 	function handleNameInput() {
 		if ($collectionValue.name) {
@@ -91,7 +106,7 @@ Features:
 			window.history.replaceState({}, '', `/config/collectionbuilder/${$collectionValue.name}`);
 
 			// Update the page title
-			dispatch('updatePageTitle', $collectionValue.name);
+			onUpdatePageTitle($collectionValue.name);
 
 			// Update the linked slug input
 			$collectionValue.slug = $collectionValue.name.toLowerCase().replace(/\s+/g, '_');
@@ -114,23 +129,26 @@ Features:
 		autoUpdateSlug = false;
 	}
 
-	$: {
+	// Update slug and page title when collection value changes
+	$effect(() => {
 		if ($collectionValue) {
-			// Update DBName lowercase and replace Spaces
-			DBName = $collectionValue.name ? $collectionValue.name.toLowerCase().replace(/ /g, '_') : '';
 			// Automatically update slug when name changes
 			if (autoUpdateSlug) {
 				$collectionValue.slug = $collectionValue.name ? $collectionValue.name.toLowerCase().replace(/ /g, '_') : '';
 			}
+
+			// Update page title based on mode and collection name
 			if ($mode == 'edit') {
-				dispatch('updatePageTitle', `Edit <span class="text-primary-500">${$collectionValue.name}</span> Collection`);
+				onUpdatePageTitle(`Edit <span class="text-primary-500">${$collectionValue.name}</span> Collection`);
 			} else if ($collectionValue.name) {
-				dispatch('updatePageTitle', `Create <span class="text-primary-500">${$collectionValue.name}</span> Collection`);
+				onUpdatePageTitle(`Create <span class="text-primary-500">${$collectionValue.name}</span> Collection`);
 			} else {
-				dispatch('updatePageTitle', `Create <span class="text-primary-500">new</span> Collection`);
+				onUpdatePageTitle(`Create <span class="text-primary-500">new</span> Collection`);
 			}
 		}
-	}
+	});
+
+	const statuses = ['published', 'unpublished', 'draft', 'schedule', 'cloned'];
 
 	function handleNextClick() {
 		tabSet.set(1);
@@ -145,7 +163,8 @@ Features:
 	<div class="w-full items-center sm:flex">
 		<label for="name" class="flex-grow-1 relative mr-2 flex w-36">
 			{m.collection_name()} <span class="mx-1 text-error-500">*</span>
-			<iconify-icon icon="material-symbols:info" use:popup={NameTooltip} width="18" class="ml-1 text-tertiary-500 dark:text-primary-500" /></label
+			<iconify-icon icon="material-symbols:info" use:popup={NameTooltip} width="18" class="ml-1 text-tertiary-500 dark:text-primary-500"
+			></iconify-icon></label
 		>
 
 		<div class="w-full">
@@ -154,8 +173,9 @@ Features:
 				required
 				id="name"
 				bind:value={$collectionValue.name}
-				on:input={handleNameInput}
+				oninput={handleNameInput}
 				placeholder={m.collection_name_placeholder()}
+				aria-label={m.collection_name()}
 				class="input text-black dark:text-primary-500"
 			/>
 
@@ -172,7 +192,7 @@ Features:
 			<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Name">
 				<p>{m.collection_name_tooltip1()}</p>
 				<p>{m.collection_name_tooltip2()}</p>
-				<div class="variant-filled arrow" />
+				<div class="variant-filled arrow"></div>
 			</div>
 		</div>
 	</div>
@@ -185,29 +205,31 @@ Features:
 	<div class="w-full items-center sm:flex">
 		<label for="icon" class="flex-grow-1 relative mr-2 flex w-36">
 			{m.collectionname_labelicon()}
-			<iconify-icon icon="material-symbols:info" use:popup={IconTooltip} width="18" class="ml-1 text-tertiary-500 dark:text-primary-500" />
+			<iconify-icon icon="material-symbols:info" use:popup={IconTooltip} width="18" class="ml-1 text-tertiary-500 dark:text-primary-500"
+			></iconify-icon>
 		</label>
 
 		<!-- Popup Tooltip with the arrow element -->
 		<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Icon">
 			<p>{m.collection_icon_tooltip()}</p>
-			<div class="variant-filled arrow" />
+			<div class="variant-filled arrow"></div>
 		</div>
 
-		<IconifyPicker bind:searchQuery bind:icon={$collectionValue['icon']} bind:iconselected={$collectionValue['icon']} />
+		<IconifyPicker bind:iconselected={selectedIcon} bind:searchQuery />
 	</div>
 
 	<!-- Slug -->
 	<div class="items-center sm:flex">
 		<label for="slug" class="flex-grow-1 relative mr-2 flex w-36">
 			{m.collection_slug()}
-			<iconify-icon icon="material-symbols:info" use:popup={SlugTooltip} width="18" class="ml-1 text-tertiary-500 dark:text-primary-500" />
+			<iconify-icon icon="material-symbols:info" use:popup={SlugTooltip} width="18" class="ml-1 text-tertiary-500 dark:text-primary-500"
+			></iconify-icon>
 		</label>
 
 		<!-- Popup Tooltip with the arrow element -->
 		<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Slug">
 			<p>{m.collection_slug_tooltip()}</p>
-			<div class="variant-filled arrow" />
+			<div class="variant-filled arrow"></div>
 		</div>
 
 		<input
@@ -223,13 +245,14 @@ Features:
 	<div class="items-center sm:flex">
 		<label for="description" class="flex-grow-1 relative mr-2 flex w-36">
 			{m.collectionname_description()}
-			<iconify-icon icon="material-symbols:info" use:popup={DescriptionTooltip} width="18" class="ml-1 text-tertiary-500 dark:text-primary-500" />
+			<iconify-icon icon="material-symbols:info" use:popup={DescriptionTooltip} width="18" class="ml-1 text-tertiary-500 dark:text-primary-500"
+			></iconify-icon>
 		</label>
 
 		<!-- Popup Tooltip with the arrow element -->
 		<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Description">
 			<p>{m.collection_description()}</p>
-			<div class="variant-filled arrow" />
+			<div class="variant-filled arrow"></div>
 		</div>
 
 		<textarea
@@ -239,20 +262,21 @@ Features:
 			bind:value={$collectionValue.description}
 			placeholder={m.collection_description_placeholder()}
 			class="input text-black dark:text-primary-500"
-		/>
+		></textarea>
 	</div>
 
 	<!-- Status -->
 	<div class="items-center sm:flex">
 		<label for="status" class="flex-grow-1 relative mr-2 flex w-36">
 			{m.collection_status()}
-			<iconify-icon icon="material-symbols:info" use:popup={StatusTooltip} width="18" class="ml-1 text-tertiary-500 dark:text-primary-500" />
+			<iconify-icon icon="material-symbols:info" use:popup={StatusTooltip} width="18" class="ml-1 text-tertiary-500 dark:text-primary-500"
+			></iconify-icon>
 		</label>
 
 		<!-- Popup Tooltip with the arrow element -->
 		<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Status">
 			<p>{m.collection_status_tooltip()}</p>
-			<div class="variant-filled arrow" />
+			<div class="variant-filled arrow"></div>
 		</div>
 
 		<select id="status" bind:value={$collectionValue.status} class="input text-black dark:text-primary-500">
@@ -266,5 +290,5 @@ Features:
 <!-- Buttons Cancel & Next-->
 <div class="mt-2 flex justify-between">
 	<a href="/config/collectionbuilder" class="variant-filled-secondary btn mt-2">{m.button_cancel()}</a>
-	<button type="button" on:click={handleNextClick} class="variant-filled-tertiary btn mt-2 dark:variant-filled-primary">{m.button_next()}</button>
+	<button type="button" onclick={handleNextClick} class="variant-filled-tertiary btn mt-2 dark:variant-filled-primary">{m.button_next()}</button>
 </div>

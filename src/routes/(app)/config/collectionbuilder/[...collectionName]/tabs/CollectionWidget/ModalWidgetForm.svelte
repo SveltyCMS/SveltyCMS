@@ -22,21 +22,28 @@ It handles widget configuration, permissions, and specific options.
 	import { getModalStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 
-	let tabSet: number = 0;
+	let tabSet: number = $state(0);
 
 	// Props
-	/** Exposes parent props to this component. */
-	export let parent: SvelteComponent;
+
+	interface Props {
+		/** Exposes parent props to this component. */
+		parent: SvelteComponent;
+	}
+
+	let { parent }: Props = $props();
 
 	// Local variables
-	$: modalData = $modalStore[0];
-	$: widgetKey = modalData?.value?.widget?.key as keyof typeof widgets;
-	$: guiSchema = widgets[widgetKey]?.GuiSchema || widgets;
+	let modalData = $derived($modalStore[0]);
+	let widgetKey = $derived(modalData?.value?.widget?.key as keyof typeof widgets);
+	let guiSchema = $derived(widgets[widgetKey]?.GuiSchema || widgets);
 
 	// Derive options from guiSchema
-	$: options = guiSchema ? Object.keys(guiSchema) : [];
-	$: specificOptions = options.filter(
-		(option) => !['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width', 'permissions'].includes(option)
+	let options = $derived(guiSchema ? Object.keys(guiSchema) : []);
+	let specificOptions = $derived(
+		options.filter(
+			(option) => !['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width', 'permissions'].includes(option)
+		)
 	);
 
 	// We've created a custom submit function to pass the response and close the modal.
@@ -81,7 +88,7 @@ It handles widget configuration, permissions, and specific options.
 				<!-- Default Tab -->
 				<Tab bind:group={tabSet} name="tab1" value={0}>
 					<div class="flex items-center gap-1">
-						<iconify-icon icon="mdi:required" width="24" class="text-tertiary-500 dark:text-primary-500" />
+						<iconify-icon icon="mdi:required" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 						<span>Default</span>
 					</div>
 				</Tab>
@@ -89,7 +96,7 @@ It handles widget configuration, permissions, and specific options.
 				<!-- Permissions Tab -->
 				<Tab bind:group={tabSet} name="tab2" value={1}>
 					<div class="flex items-center gap-1">
-						<iconify-icon icon="mdi:security-lock" width="24" class="text-tertiary-500 dark:text-primary-500" />
+						<iconify-icon icon="mdi:security-lock" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 						<span>{m.system_permission()}</span>
 					</div>
 				</Tab>
@@ -98,7 +105,7 @@ It handles widget configuration, permissions, and specific options.
 				{#if specificOptions.length > 0}
 					<Tab bind:group={tabSet} name="tab3" value={2}>
 						<div class="flex items-center gap-1">
-							<iconify-icon icon="ph:star-fill" width="24" class="text-tertiary-500 dark:text-primary-500" />
+							<iconify-icon icon="ph:star-fill" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							<span>Specific</span>
 						</div>
 					</Tab>
@@ -109,23 +116,23 @@ It handles widget configuration, permissions, and specific options.
 			{#if tabSet === 0}
 				<Default {guiSchema} />
 			{:else if tabSet === 1}
-				<Permission  />
-			{:else if tabSet === 2}		
-				<Specific  />
+				<Permission />
+			{:else if tabSet === 2}
+				<Specific />
 			{/if}
 		</form>
 
 		<footer class="{parent.regionFooter} justify-between">
 			<!-- Delete Button -->
-			<button type="button" on:click={deleteWidget} class="variant-filled-error btn">
-				<iconify-icon icon="icomoon-free:bin" width="24" />
+			<button type="button" onclick={deleteWidget} aria-label="Delete" class="variant-filled-error btn">
+				<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
 				<span class="hidden sm:block">{m.button_delete()}</span>
 			</button>
 
 			<!-- Cancel & Save Buttons -->
 			<div class="flex justify-between gap-4">
-				<button type="button" class="btn {parent.buttonNeutral}" on:click={parent.onClose}>{m.button_cancel()}</button>
-				<button type="button" class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button>
+				<button type="button" aria-label={m.button_cancel()} class="btn {parent.buttonNeutral}" onclick={parent.onClose}>{m.button_cancel()}</button>
+				<button type="button" aria-label={m.button_save()} class="btn {parent.buttonPositive}" onclick={onFormSubmit}>{m.button_save()}</button>
 			</div>
 		</footer>
 	</div>

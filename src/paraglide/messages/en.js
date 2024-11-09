@@ -3358,6 +3358,38 @@ export const login_happy_navratri = () => `Happy Navratri`
 
 
 /**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_description = () => `LLM Configuration`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_useLLM = () => `Enable LLM Integration`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_llmProvider = () => `LLM Provider (e.g., OpenAI, Claude, Gemimi, etc)`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_apiKey = () => `LLM API Key`
+
+
+/**
  * Failed to resolve message signup_password for languageTag "en". 
  * @returns {string}
  */
@@ -3507,35 +3539,3 @@ export const modaleditform_confirmpassword = () => "modaleditform_confirmpasswor
  */
 /* @__NO_SIDE_EFFECTS__ */
 export const modaleditform_userrole = () => "modaleditform_userrole"
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_description = () => `LLM Configuration`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_useLLM = () => `Enable LLM Integration`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_llmProvider = () => `LLM Provider (e.g., OpenAI, Claude, Gemimi, etc)`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_apiKey = () => `LLM API Key`

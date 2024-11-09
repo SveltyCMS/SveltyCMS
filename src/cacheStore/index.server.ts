@@ -3,12 +3,10 @@ import { privateEnv } from '@root/config/private';
 import { InMemorySessionStore } from '@src/auth/InMemoryCacheStore';
 import { RedisCacheStore } from '@src/auth/RedisCacheStore';
 
-
-
-export const getCacheStore = () => { 
+export const getCacheStore = () => {
 	if (!global.cacheStore) {
 		// Initialize cache to be used
 		global.cacheStore = privateEnv.USE_REDIS ? new RedisCacheStore() : new InMemorySessionStore();
 	}
 	return global.cacheStore;
-}
+};

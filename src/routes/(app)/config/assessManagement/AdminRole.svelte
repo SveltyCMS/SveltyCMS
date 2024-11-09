@@ -24,8 +24,7 @@ It provides functionality to:
 
 	const toastStore = getToastStore();
 
-	export let roleData;
-	export let setRoleData;
+	let { roleData, setRoleData } = $props();
 
 	// State stores
 	const roles = writable<Role[]>([]);
@@ -151,7 +150,7 @@ It provides functionality to:
 
 		<!-- Dropdown to select admin role -->
 		<label for="adminRole" class="block text-sm text-surface-300">Select new Administrator Role:</label>
-		<select id="adminRole" class="input" on:change={handleRoleChange} bind:value={$selectedAdminRole}>
+		<select id="adminRole" class="input" onchange={handleRoleChange} bind:value={$selectedAdminRole}>
 			{#each $roles as role}
 				<option value={role._id}>{role.name}</option>
 			{/each}
@@ -165,10 +164,10 @@ It provides functionality to:
 			</p>
 			<div class="mt-4 flex justify-between">
 				<!-- cancel -->
-				<button on:click={cancelChanges} class="variant-filled-secondary btn"> Cancel </button>
+				<button onclick={cancelChanges} class="variant-filled-secondary btn"> Cancel </button>
 
 				<!-- Save -->
-				<button on:click={saveAdminRole} class="variant-filled-tertiary btn" disabled={$isSaving}>
+				<button onclick={saveAdminRole} class="variant-filled-tertiary btn" disabled={$isSaving}>
 					{#if $isSaving}
 						Saving...
 					{:else}

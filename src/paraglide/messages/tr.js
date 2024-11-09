@@ -3355,6 +3355,38 @@ export const login_Happy_Holi = () => `Mutlu bayramlar`
 export const login_happy_navratri = () => `Mutlu Navratri`
 
 
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_description = () => `LLM Yapılandırması`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_useLLM = () => `LLM Entegrasyonunu Etkinleştir`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_llmProvider = () => `LLM Sağlayıcısı (örn. OpenAI, Claude, Gemimi, vb.)`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_apiKey = () => `LLM API Anahtarı`
+
+
 export { signup_password } from "./en.js"
 
 export { modaledit_tokenemailaddress } from "./en.js"
@@ -3392,34 +3424,3 @@ export { modaleditform_username } from "./en.js"
 export { modaleditform_confirmpassword } from "./en.js"
 
 export { modaleditform_userrole } from "./en.js"
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_description = () => `LLM Yapılandırması`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_useLLM = () => `LLM Entegrasyonunu Etkinleştir`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_llmProvider = () => `LLM Sağlayıcısı (örn. OpenAI, Claude, Gemimi, vb.)`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_apiKey = () => `LLM API Anahtarı`

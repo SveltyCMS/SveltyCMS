@@ -3354,6 +3354,38 @@ export const login_Happy_Holi = () => `ハッピーホーリー`
 export const login_happy_navratri = () => `ナヴラトリおめでとう`
 
 
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_description = () => `LLM 構成`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_useLLM = () => `LLM統合を有効にする`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_llmProvider = () => `LLM プロバイダー (OpenAI、Claude、Gemimi など)`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_apiKey = () => `LLM API キー`
+
+
 export { signup_password } from "./en.js"
 
 export { modaledit_tokenemailaddress } from "./en.js"
@@ -3391,34 +3423,3 @@ export { modaleditform_username } from "./en.js"
 export { modaleditform_confirmpassword } from "./en.js"
 
 export { modaleditform_userrole } from "./en.js"
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_description = () => `LLM 構成`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_useLLM = () => `LLM統合を有効にする`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_llmProvider = () => `LLM プロバイダー (OpenAI、Claude、Gemimi など)`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_apiKey = () => `LLM API キー`

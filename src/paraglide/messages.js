@@ -17593,6 +17593,174 @@ export const login_happy_navratri = (params = {}, options = {}) => {
  * @returns {string}
  */
 /* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_description = (params = {}, options = {}) => {
+	return {
+		da: da.llmConfig_description,
+		de: de.llmConfig_description,
+		en: en.llmConfig_description,
+		es: es.llmConfig_description,
+		fi: fi.llmConfig_description,
+		fr: fr.llmConfig_description,
+		hi: hi.llmConfig_description,
+		it: it.llmConfig_description,
+		ja: ja.llmConfig_description,
+		ka: ka.llmConfig_description,
+		ne: ne.llmConfig_description,
+		nl: nl.llmConfig_description,
+		no: no.llmConfig_description,
+		pl: pl.llmConfig_description,
+		pt: pt.llmConfig_description,
+		sl: sl.llmConfig_description,
+		sr: sr.llmConfig_description,
+		sv: sv.llmConfig_description,
+		tr: tr.llmConfig_description,
+		uk: uk.llmConfig_description,
+		ur: ur.llmConfig_description,
+		zh: zh.llmConfig_description
+	}[options.languageTag ?? languageTag()]()
+}
+
+
+
+/**
+ * This message has been compiled by [inlang paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs).
+ *
+ * - Don't edit the message's code. Use [Sherlock (VS Code extension)](https://inlang.com/m/r7kp499g/app-inlang-ideExtension),
+ *   the [web editor](https://inlang.com/m/tdozzpar/app-inlang-finkLocalizationEditor) instead, or edit the translation files manually.
+ * 
+ * - The params are NonNullable<unknown> because the inlang SDK does not provide information on the type of a param (yet).
+ * 
+ * @param {{}} params
+ * @param {{ languageTag?: "en" | "da" | "de" | "es" | "fi" | "fr" | "hi" | "it" | "ja" | "ka" | "ne" | "nl" | "no" | "pl" | "pt" | "sl" | "sr" | "sv" | "tr" | "ur" | "uk" | "zh" }} options
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_useLLM = (params = {}, options = {}) => {
+	return {
+		da: da.llmConfig_useLLM,
+		de: de.llmConfig_useLLM,
+		en: en.llmConfig_useLLM,
+		es: es.llmConfig_useLLM,
+		fi: fi.llmConfig_useLLM,
+		fr: fr.llmConfig_useLLM,
+		hi: hi.llmConfig_useLLM,
+		it: it.llmConfig_useLLM,
+		ja: ja.llmConfig_useLLM,
+		ka: ka.llmConfig_useLLM,
+		ne: ne.llmConfig_useLLM,
+		nl: nl.llmConfig_useLLM,
+		no: no.llmConfig_useLLM,
+		pl: pl.llmConfig_useLLM,
+		pt: pt.llmConfig_useLLM,
+		sl: sl.llmConfig_useLLM,
+		sr: sr.llmConfig_useLLM,
+		sv: sv.llmConfig_useLLM,
+		tr: tr.llmConfig_useLLM,
+		uk: uk.llmConfig_useLLM,
+		ur: ur.llmConfig_useLLM,
+		zh: zh.llmConfig_useLLM
+	}[options.languageTag ?? languageTag()]()
+}
+
+
+
+/**
+ * This message has been compiled by [inlang paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs).
+ *
+ * - Don't edit the message's code. Use [Sherlock (VS Code extension)](https://inlang.com/m/r7kp499g/app-inlang-ideExtension),
+ *   the [web editor](https://inlang.com/m/tdozzpar/app-inlang-finkLocalizationEditor) instead, or edit the translation files manually.
+ * 
+ * - The params are NonNullable<unknown> because the inlang SDK does not provide information on the type of a param (yet).
+ * 
+ * @param {{}} params
+ * @param {{ languageTag?: "en" | "da" | "de" | "es" | "fi" | "fr" | "hi" | "it" | "ja" | "ka" | "ne" | "nl" | "no" | "pl" | "pt" | "sl" | "sr" | "sv" | "tr" | "ur" | "uk" | "zh" }} options
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_llmProvider = (params = {}, options = {}) => {
+	return {
+		da: da.llmConfig_llmProvider,
+		de: de.llmConfig_llmProvider,
+		en: en.llmConfig_llmProvider,
+		es: es.llmConfig_llmProvider,
+		fi: fi.llmConfig_llmProvider,
+		fr: fr.llmConfig_llmProvider,
+		hi: hi.llmConfig_llmProvider,
+		it: it.llmConfig_llmProvider,
+		ja: ja.llmConfig_llmProvider,
+		ka: ka.llmConfig_llmProvider,
+		ne: ne.llmConfig_llmProvider,
+		nl: nl.llmConfig_llmProvider,
+		no: no.llmConfig_llmProvider,
+		pl: pl.llmConfig_llmProvider,
+		pt: pt.llmConfig_llmProvider,
+		sl: sl.llmConfig_llmProvider,
+		sr: sr.llmConfig_llmProvider,
+		sv: sv.llmConfig_llmProvider,
+		tr: tr.llmConfig_llmProvider,
+		uk: uk.llmConfig_llmProvider,
+		ur: ur.llmConfig_llmProvider,
+		zh: zh.llmConfig_llmProvider
+	}[options.languageTag ?? languageTag()]()
+}
+
+
+
+/**
+ * This message has been compiled by [inlang paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs).
+ *
+ * - Don't edit the message's code. Use [Sherlock (VS Code extension)](https://inlang.com/m/r7kp499g/app-inlang-ideExtension),
+ *   the [web editor](https://inlang.com/m/tdozzpar/app-inlang-finkLocalizationEditor) instead, or edit the translation files manually.
+ * 
+ * - The params are NonNullable<unknown> because the inlang SDK does not provide information on the type of a param (yet).
+ * 
+ * @param {{}} params
+ * @param {{ languageTag?: "en" | "da" | "de" | "es" | "fi" | "fr" | "hi" | "it" | "ja" | "ka" | "ne" | "nl" | "no" | "pl" | "pt" | "sl" | "sr" | "sv" | "tr" | "ur" | "uk" | "zh" }} options
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_apiKey = (params = {}, options = {}) => {
+	return {
+		da: da.llmConfig_apiKey,
+		de: de.llmConfig_apiKey,
+		en: en.llmConfig_apiKey,
+		es: es.llmConfig_apiKey,
+		fi: fi.llmConfig_apiKey,
+		fr: fr.llmConfig_apiKey,
+		hi: hi.llmConfig_apiKey,
+		it: it.llmConfig_apiKey,
+		ja: ja.llmConfig_apiKey,
+		ka: ka.llmConfig_apiKey,
+		ne: ne.llmConfig_apiKey,
+		nl: nl.llmConfig_apiKey,
+		no: no.llmConfig_apiKey,
+		pl: pl.llmConfig_apiKey,
+		pt: pt.llmConfig_apiKey,
+		sl: sl.llmConfig_apiKey,
+		sr: sr.llmConfig_apiKey,
+		sv: sv.llmConfig_apiKey,
+		tr: tr.llmConfig_apiKey,
+		uk: uk.llmConfig_apiKey,
+		ur: ur.llmConfig_apiKey,
+		zh: zh.llmConfig_apiKey
+	}[options.languageTag ?? languageTag()]()
+}
+
+
+
+/**
+ * This message has been compiled by [inlang paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs).
+ *
+ * - Don't edit the message's code. Use [Sherlock (VS Code extension)](https://inlang.com/m/r7kp499g/app-inlang-ideExtension),
+ *   the [web editor](https://inlang.com/m/tdozzpar/app-inlang-finkLocalizationEditor) instead, or edit the translation files manually.
+ * 
+ * - The params are NonNullable<unknown> because the inlang SDK does not provide information on the type of a param (yet).
+ * 
+ * @param {{}} params
+ * @param {{ languageTag?: "en" | "da" | "de" | "es" | "fi" | "fr" | "hi" | "it" | "ja" | "ka" | "ne" | "nl" | "no" | "pl" | "pt" | "sl" | "sr" | "sv" | "tr" | "ur" | "uk" | "zh" }} options
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
 export const signup_password = (params = {}, options = {}) => {
 	return {
 		da: da.signup_password,
@@ -18373,174 +18541,6 @@ export const modaleditform_userrole = (params = {}, options = {}) => {
 		uk: uk.modaleditform_userrole,
 		ur: ur.modaleditform_userrole,
 		zh: zh.modaleditform_userrole
-	}[options.languageTag ?? languageTag()]()
-}
-
-
-
-/**
- * This message has been compiled by [inlang paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs).
- *
- * - Don't edit the message's code. Use [Sherlock (VS Code extension)](https://inlang.com/m/r7kp499g/app-inlang-ideExtension),
- *   the [web editor](https://inlang.com/m/tdozzpar/app-inlang-finkLocalizationEditor) instead, or edit the translation files manually.
- * 
- * - The params are NonNullable<unknown> because the inlang SDK does not provide information on the type of a param (yet).
- * 
- * @param {{}} params
- * @param {{ languageTag?: "en" | "da" | "de" | "es" | "fi" | "fr" | "hi" | "it" | "ja" | "ka" | "ne" | "nl" | "no" | "pl" | "pt" | "sl" | "sr" | "sv" | "tr" | "ur" | "uk" | "zh" }} options
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_description = (params = {}, options = {}) => {
-	return {
-		da: da.llmConfig_description,
-		de: de.llmConfig_description,
-		en: en.llmConfig_description,
-		es: es.llmConfig_description,
-		fi: fi.llmConfig_description,
-		fr: fr.llmConfig_description,
-		hi: hi.llmConfig_description,
-		it: it.llmConfig_description,
-		ja: ja.llmConfig_description,
-		ka: ka.llmConfig_description,
-		ne: ne.llmConfig_description,
-		nl: nl.llmConfig_description,
-		no: no.llmConfig_description,
-		pl: pl.llmConfig_description,
-		pt: pt.llmConfig_description,
-		sl: sl.llmConfig_description,
-		sr: sr.llmConfig_description,
-		sv: sv.llmConfig_description,
-		tr: tr.llmConfig_description,
-		uk: uk.llmConfig_description,
-		ur: ur.llmConfig_description,
-		zh: zh.llmConfig_description
-	}[options.languageTag ?? languageTag()]()
-}
-
-
-
-/**
- * This message has been compiled by [inlang paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs).
- *
- * - Don't edit the message's code. Use [Sherlock (VS Code extension)](https://inlang.com/m/r7kp499g/app-inlang-ideExtension),
- *   the [web editor](https://inlang.com/m/tdozzpar/app-inlang-finkLocalizationEditor) instead, or edit the translation files manually.
- * 
- * - The params are NonNullable<unknown> because the inlang SDK does not provide information on the type of a param (yet).
- * 
- * @param {{}} params
- * @param {{ languageTag?: "en" | "da" | "de" | "es" | "fi" | "fr" | "hi" | "it" | "ja" | "ka" | "ne" | "nl" | "no" | "pl" | "pt" | "sl" | "sr" | "sv" | "tr" | "ur" | "uk" | "zh" }} options
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_useLLM = (params = {}, options = {}) => {
-	return {
-		da: da.llmConfig_useLLM,
-		de: de.llmConfig_useLLM,
-		en: en.llmConfig_useLLM,
-		es: es.llmConfig_useLLM,
-		fi: fi.llmConfig_useLLM,
-		fr: fr.llmConfig_useLLM,
-		hi: hi.llmConfig_useLLM,
-		it: it.llmConfig_useLLM,
-		ja: ja.llmConfig_useLLM,
-		ka: ka.llmConfig_useLLM,
-		ne: ne.llmConfig_useLLM,
-		nl: nl.llmConfig_useLLM,
-		no: no.llmConfig_useLLM,
-		pl: pl.llmConfig_useLLM,
-		pt: pt.llmConfig_useLLM,
-		sl: sl.llmConfig_useLLM,
-		sr: sr.llmConfig_useLLM,
-		sv: sv.llmConfig_useLLM,
-		tr: tr.llmConfig_useLLM,
-		uk: uk.llmConfig_useLLM,
-		ur: ur.llmConfig_useLLM,
-		zh: zh.llmConfig_useLLM
-	}[options.languageTag ?? languageTag()]()
-}
-
-
-
-/**
- * This message has been compiled by [inlang paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs).
- *
- * - Don't edit the message's code. Use [Sherlock (VS Code extension)](https://inlang.com/m/r7kp499g/app-inlang-ideExtension),
- *   the [web editor](https://inlang.com/m/tdozzpar/app-inlang-finkLocalizationEditor) instead, or edit the translation files manually.
- * 
- * - The params are NonNullable<unknown> because the inlang SDK does not provide information on the type of a param (yet).
- * 
- * @param {{}} params
- * @param {{ languageTag?: "en" | "da" | "de" | "es" | "fi" | "fr" | "hi" | "it" | "ja" | "ka" | "ne" | "nl" | "no" | "pl" | "pt" | "sl" | "sr" | "sv" | "tr" | "ur" | "uk" | "zh" }} options
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_llmProvider = (params = {}, options = {}) => {
-	return {
-		da: da.llmConfig_llmProvider,
-		de: de.llmConfig_llmProvider,
-		en: en.llmConfig_llmProvider,
-		es: es.llmConfig_llmProvider,
-		fi: fi.llmConfig_llmProvider,
-		fr: fr.llmConfig_llmProvider,
-		hi: hi.llmConfig_llmProvider,
-		it: it.llmConfig_llmProvider,
-		ja: ja.llmConfig_llmProvider,
-		ka: ka.llmConfig_llmProvider,
-		ne: ne.llmConfig_llmProvider,
-		nl: nl.llmConfig_llmProvider,
-		no: no.llmConfig_llmProvider,
-		pl: pl.llmConfig_llmProvider,
-		pt: pt.llmConfig_llmProvider,
-		sl: sl.llmConfig_llmProvider,
-		sr: sr.llmConfig_llmProvider,
-		sv: sv.llmConfig_llmProvider,
-		tr: tr.llmConfig_llmProvider,
-		uk: uk.llmConfig_llmProvider,
-		ur: ur.llmConfig_llmProvider,
-		zh: zh.llmConfig_llmProvider
-	}[options.languageTag ?? languageTag()]()
-}
-
-
-
-/**
- * This message has been compiled by [inlang paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs).
- *
- * - Don't edit the message's code. Use [Sherlock (VS Code extension)](https://inlang.com/m/r7kp499g/app-inlang-ideExtension),
- *   the [web editor](https://inlang.com/m/tdozzpar/app-inlang-finkLocalizationEditor) instead, or edit the translation files manually.
- * 
- * - The params are NonNullable<unknown> because the inlang SDK does not provide information on the type of a param (yet).
- * 
- * @param {{}} params
- * @param {{ languageTag?: "en" | "da" | "de" | "es" | "fi" | "fr" | "hi" | "it" | "ja" | "ka" | "ne" | "nl" | "no" | "pl" | "pt" | "sl" | "sr" | "sv" | "tr" | "ur" | "uk" | "zh" }} options
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_apiKey = (params = {}, options = {}) => {
-	return {
-		da: da.llmConfig_apiKey,
-		de: de.llmConfig_apiKey,
-		en: en.llmConfig_apiKey,
-		es: es.llmConfig_apiKey,
-		fi: fi.llmConfig_apiKey,
-		fr: fr.llmConfig_apiKey,
-		hi: hi.llmConfig_apiKey,
-		it: it.llmConfig_apiKey,
-		ja: ja.llmConfig_apiKey,
-		ka: ka.llmConfig_apiKey,
-		ne: ne.llmConfig_apiKey,
-		nl: nl.llmConfig_apiKey,
-		no: no.llmConfig_apiKey,
-		pl: pl.llmConfig_apiKey,
-		pt: pt.llmConfig_apiKey,
-		sl: sl.llmConfig_apiKey,
-		sr: sr.llmConfig_apiKey,
-		sv: sv.llmConfig_apiKey,
-		tr: tr.llmConfig_apiKey,
-		uk: uk.llmConfig_apiKey,
-		ur: ur.llmConfig_apiKey,
-		zh: zh.llmConfig_apiKey
 	}[options.languageTag ?? languageTag()]()
 }
 

@@ -12,29 +12,33 @@ Import and use <Autocomplete options={yourOptions} on:select={handleSelection} /
 -->
 
 <script lang="ts">
-	import { onMount, createEventDispatcher } from 'svelte';
+	interface Props {
+		options?: string[];
+		placeholder?: string;
+		'on:select'?: (selectedOption: string) => void;
+	}
 
-	export let options: string[] = [];
-	export let placeholder = 'Select an option';
+	let { options = [], placeholder = 'Select an option', 'on:select': onSelect = () => {} }: Props = $props();
 
-	let keyword = '';
-	let filteredOptions: string[] = [];
-	let showDropdown = false;
-	let selectedIndex = -1;
+	let keyword = $state('');
+	let filteredOptions = $state<string[]>([]);
+	let showDropdown = $state(false);
+	let selectedIndex = $state(-1);
 
-	const dispatch = createEventDispatcher<{ select: string }>();
-
-	$: filteredOptions = options.filter((option) => option.toLowerCase().includes(keyword.toLowerCase()));
-
-	onMount(() => {
-		filteredOptions = options;
+	// Initialize and update filtered options whenever keyword or options change
+	$effect.root(() => {
+		if (keyword === '') {
+			filteredOptions = [...options];
+		} else {
+			filteredOptions = options.filter((option) => option.toLowerCase().includes(keyword.toLowerCase()));
+		}
 	});
 
 	// Define your custom select function here if it's a custom function
 	function selectOption(selectedOption: string) {
 		keyword = selectedOption;
 		showDropdown = false;
-		dispatch('select', selectedOption);
+		onSelect(selectedOption);
 	}
 
 	// Handle keyboard navigation
@@ -75,13 +79,13 @@ Import and use <Autocomplete options={yourOptions} on:select={handleSelection} /
 		bind:value={keyword}
 		{placeholder}
 		class="input w-full rounded-full border-2 border-white px-5 py-3 uppercase text-white placeholder:text-white"
-		on:input={() => {
+		oninput={() => {
 			showDropdown = true;
 			selectedIndex = -1;
 		}}
-		on:focus={() => (showDropdown = true)}
-		on:blur={() => setTimeout(() => (showDropdown = false), 200)}
-		on:keydown={handleKeydown}
+		onfocus={() => (showDropdown = true)}
+		onblur={() => setTimeout(() => (showDropdown = false), 200)}
+		onkeydown={handleKeydown}
 		aria-expanded={showDropdown}
 		aria-autocomplete="list"
 		aria-controls="autocomplete-list"
@@ -99,7 +103,7 @@ Import and use <Autocomplete options={yourOptions} on:select={handleSelection} /
 					aria-selected={index === selectedIndex}
 					class="cursor-pointer border-b border-gray-200 px-5 py-3 text-left uppercase transition-colors hover:bg-slate-100"
 					class:bg-slate-200={index === selectedIndex}
-					on:mousedown={() => selectOption(option)}
+					onmousedown={() => selectOption(option)}
 				>
 					{option}
 				</li>
@@ -110,9 +114,9 @@ Import and use <Autocomplete options={yourOptions} on:select={handleSelection} /
 	<button
 		type="button"
 		class="absolute right-4 top-1/2 -translate-y-1/2 transform text-white"
-		on:click={toggleDropdown}
+		onclick={toggleDropdown}
 		aria-label={showDropdown ? 'Close options' : 'Show options'}
 	>
-		<iconify-icon icon="iconamoon:arrow-down-2-light" width="24" />
+		<iconify-icon icon="iconamoon:arrow-down-2-light" width="24"></iconify-icon>
 	</button>
 </div>

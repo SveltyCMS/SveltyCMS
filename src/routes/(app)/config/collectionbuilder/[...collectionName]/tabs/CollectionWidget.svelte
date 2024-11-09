@@ -17,56 +17,65 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Event dispatcher
-	import { createEventDispatcher } from 'svelte';
-	const dispatch = createEventDispatcher();
-
 	// Skeleton
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	import ModalWidgetForm from './CollectionWidget/ModalWidgetForm.svelte';
 	import ModalSelectWidget from './CollectionWidget/ModalSelectWidget.svelte';
+
+	interface Props {
+		'on:save'?: () => void;
+	}
+
+	let { 'on:save': onSave = () => {} }: Props = $props();
+
 	const modalStore = getModalStore();
 
 	// Extract the collection name from the URL
 	const collectionName = $page.params.collectionName;
 
-	// Fields
-	let fields = $collectionValue.fields.map((field, index) => {
-		//console.log('Processing field:', field); // Debug log
+	// Helper function to map fields
+	function mapFieldsWithWidgets(fields: any[]) {
+		return fields.map((field, index) => {
+			const widgetType =
+				field.widget?.key || // For new widgets
+				field.widget?.Name || // For existing widgets
+				field.__type || // For schema-defined widgets
+				field.type || // Backup type field
+				Object.keys(widgets).find((key) => field[key]) || // Check if field has widget property
+				'Unknown Widget'; // Fallback
 
-		// Try to detect widget type from all possible locations
-		const widgetType =
-			field.widget?.key || // For new widgets
-			field.widget?.Name || // For existing widgets
-			field.__type || // For schema-defined widgets
-			field.type || // Backup type field
-			Object.keys(widgets).find((key) => field[key]) || // Check if field has widget property
-			'Unknown Widget'; // Fallback
+			return {
+				id: index + 1,
+				...field,
+				widget: {
+					key: widgetType,
+					Name: widgetType,
+					...field.widget
+				}
+			};
+		});
+	}
 
-		// console.log('Detected widget type:', widgetType); // Debug log
+	// Use state for fields
+	let fields = $state(mapFieldsWithWidgets($collectionValue.fields));
 
-		return {
-			id: index + 1,
-			...field,
-			widget: {
-				key: widgetType,
-				Name: widgetType,
-				...field.widget
-			}
-		};
+	// Update fields when collectionValue changes
+	$effect(() => {
+		fields = mapFieldsWithWidgets($collectionValue.fields);
 	});
+
 	// Collection headers
 	const headers = ['Id', 'Icon', 'Name', 'DBName', 'Widget'];
 
 	// svelte-dnd-action
 	const flipDurationMs = 300;
 
-	const handleDndConsider = (e: any) => {
+	const handleDndConsider = (e: CustomEvent<{ items: any[] }>) => {
 		fields = e.detail.items;
 	};
 
-	const handleDndFinalize = (e: any) => {
+	const handleDndFinalize = (e: CustomEvent<{ items: any[] }>) => {
 		fields = e.detail.items;
 	};
 
@@ -79,9 +88,7 @@
 			title: 'Select a Widget',
 			body: 'Select your widget and then press submit.',
 			value: selected, // Pass the selected widget as the initial value
-			response: (r: any) => {
-				console.log('Modal response:', r); // Debugging line
-
+			response: (r: { selectedWidget: string } | undefined) => {
 				if (!r) return;
 				const { selectedWidget } = r;
 				if (selectedWidget) {
@@ -120,11 +127,12 @@
 
 				if (existingIndex !== -1) {
 					// If the existing widget is found, update its properties
-					fields = [
+					const updatedFields = [
 						...fields.slice(0, existingIndex), // Copy widgets before the updated one
 						{ ...r }, // Update the existing widget
 						...fields.slice(existingIndex + 1) // Copy widgets after the updated one
 					];
+					fields = updatedFields;
 				} else {
 					// If the existing widget is not found, add it as a new widget
 					const newField = {
@@ -146,7 +154,7 @@
 	// Function to save data by sending a POST request
 	async function handleCollectionSave() {
 		try {
-			fields = fields.map((field) => {
+			const updatedFields = fields.map((field) => {
 				const GuiFields = getGuiFields({ key: field.widget.Name }, widgets[field.widget.Name].GuiSchema);
 				for (const [property, value] of Object.entries(field)) {
 					if (typeof value !== 'object' && property !== 'id') {
@@ -159,31 +167,14 @@
 
 			// Update the collection fields
 			collectionValue.update((c) => {
-				c.fields = fields;
+				c.fields = updatedFields;
 				return c;
 			});
 
-			dispatch('save');
+			onSave();
 		} catch (error) {
 			console.error('Error saving collection:', error);
 		}
-	}
-
-	$: {
-		fields = $collectionValue.fields.map((field, index) => {
-			const widgetType =
-				field.widget?.key || field.widget?.Name || field.__type || field.type || Object.keys(widgets).find((key) => field[key]) || 'Unknown Widget';
-
-			return {
-				id: index + 1,
-				...field,
-				widget: {
-					key: widgetType,
-					Name: widgetType,
-					...field.widget
-				}
-			};
-		});
 	}
 </script>
 
@@ -204,13 +195,13 @@
 						{field.id}
 					</div>
 
-					<iconify-icon icon={field.icon} width="24" class="text-tertiary-500" />
+					<iconify-icon icon={field.icon} width="24" class="text-tertiary-500"></iconify-icon>
 					<div class="font-bold dark:text-primary-500">{field.label}</div>
 					<div class=" ">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
 					<div class=" ">{field.widget?.key || field.__type || 'Unknown Widget'}</div>
 
-					<button on:click={() => modalWidgetForm(field)} type="button" aria-label={m.button_edit()} class="variant-ghost-primary btn-icon ml-auto">
-						<iconify-icon icon="ic:baseline-edit" width="24" class="dark:text-white" />
+					<button onclick={() => modalWidgetForm(field)} type="button" aria-label={m.button_edit()} class="variant-ghost-primary btn-icon ml-auto">
+						<iconify-icon icon="ic:baseline-edit" width="24" class="dark:text-white"></iconify-icon>
 					</button>
 				</div>
 			{/each}
@@ -218,16 +209,16 @@
 	</div>
 	<div>
 		<div class="mt-2 flex items-center justify-center gap-3">
-			<button on:click={() => modalSelectWidget(null)} class="variant-filled-tertiary btn" aria-label={m.collection_widgetfield_addFields()}>
+			<button onclick={() => modalSelectWidget(null)} class="variant-filled-tertiary btn" aria-label={m.collection_widgetfield_addFields()}>
 				{m.collection_widgetfield_addFields()}
 			</button>
 		</div>
 		<div class=" flex items-center justify-between">
-			<button on:click={() => ($tabSet = 0)} type="button" aria-label={m.button_previous()} class="variant-filled-secondary btn mt-2 justify-end">
+			<button onclick={() => ($tabSet = 0)} type="button" aria-label={m.button_previous()} class="variant-filled-secondary btn mt-2 justify-end">
 				{m.button_previous()}
 			</button>
 			<button
-				on:click={handleCollectionSave}
+				onclick={handleCollectionSave}
 				type="button"
 				aria-label={m.button_save()}
 				class="variant-filled-tertiary btn mt-2 justify-end dark:variant-filled-primary dark:text-black">{m.button_save()}</button

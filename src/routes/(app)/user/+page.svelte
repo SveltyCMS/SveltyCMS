@@ -36,16 +36,19 @@
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
-	export let data: PageData;
-	$: ({ user, isFirstUser } = data);
+	// Props using Svelte 5 runes
+	let { data } = $props<{ data: PageData }>();
+	let { user, isFirstUser } = $derived(data);
 
-	// Initialize avatarSrc with user's avatar or default
-	$: if (user) {
-		avatarSrc.set(user.avatar || '/Default_User.svg');
-	}
+	// Initialize avatarSrc with user's avatar or default using effect
+	$effect.root(() => {
+		if (user) {
+			avatarSrc.set(user.avatar || '/Default_User.svg');
+		}
+	});
 
 	// Define password as 'hash-password'
-	let password = 'hash-password';
+	let password = $state('hash-password');
 
 	// Function to execute actions
 	function executeActions() {
@@ -166,7 +169,7 @@
 				<Avatar src={`${$avatarSrc}?t=${Date.now()}`} initials="AV" rounded-none class="w-32" />
 
 				<!-- Edit button -->
-				<button on:click={modalEditAvatar} class="gradient-primary w-30 badge absolute top-8 text-white sm:top-4">{m.userpage_editavatar()}</button>
+				<button onclick={modalEditAvatar} class="gradient-primary w-30 badge absolute top-8 text-white sm:top-4">{m.userpage_editavatar()}</button>
 				<!-- User ID -->
 				<div class="gradient-secondary badge mt-1 w-full max-w-xs text-white">
 					{m.userpage_user_id()}<span class="ml-2">{user?._id || 'N/A'}</span>
@@ -195,14 +198,18 @@
 
 					<div class="mt-4 flex flex-col justify-between gap-2 sm:flex-row sm:gap-1">
 						<!-- Edit Modal Button -->
-						<button on:click={modalUserForm} class="gradient-tertiary btn w-full max-w-sm text-white {isFirstUser ? '' : 'mx-auto md:mx-0'}">
-							<iconify-icon icon="bi:pencil-fill" color="white" width="18" class="mr-1" />{m.userpage_edit_usersetting()}
+						<button
+							onclick={modalUserForm}
+							aria-label={m.userpage_edit_usersetting()}
+							class="gradient-tertiary btn w-full max-w-sm text-white {isFirstUser ? '' : 'mx-auto md:mx-0'}"
+						>
+							<iconify-icon icon="bi:pencil-fill" color="white" width="18" class="mr-1"></iconify-icon>{m.userpage_edit_usersetting()}
 						</button>
 
 						<!-- Delete Modal Button (reverse logic for isFirstUser)-->
 						{#if isFirstUser}
-							<button on:click={modalConfirm} class="gradient-error btn w-full max-w-sm text-white">
-								<iconify-icon icon="bi:trash3-fill" color="white" width="18" class="mr-1" />
+							<button onclick={modalConfirm} aria-label={m.button_delete()} class="gradient-error btn w-full max-w-sm text-white">
+								<iconify-icon icon="bi:trash3-fill" color="white" width="18" class="mr-1"></iconify-icon>
 								{m.button_delete()}
 							</button>
 						{/if}
@@ -215,7 +222,7 @@
 	<!-- Admin area -->
 	<PermissionGuard config={permissionConfigs.adminAreaPermissionConfig}>
 		<div class="wrapper2">
-			<AdminArea {data} />
+			<AdminArea adminData={data.adminData} manageUsersPermissionConfig={permissionConfigs.manageUsersPermissionConfig} />
 		</div>
 	</PermissionGuard>
 </div>

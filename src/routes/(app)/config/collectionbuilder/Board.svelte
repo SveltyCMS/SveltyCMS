@@ -17,10 +17,12 @@
 
 	// Svelte DND-actions
 	import { flip } from 'svelte/animate';
-	import { dndzone } from 'svelte-dnd-action';
+	import { dndzone, type DndEvent } from 'svelte-dnd-action';
 
-	export let categoryConfig: Record<string, CategoryData>;
-	export let onEditCategory: (category: { name: string; icon: string }) => void;
+	interface Props {
+		categoryConfig: Record<string, CategoryData>;
+		onEditCategory: (category: { name: string; icon: string }) => void;
+	}
 
 	interface DndItem {
 		id: string;
@@ -30,6 +32,24 @@
 		isCollection?: boolean;
 		items?: DndItem[];
 	}
+
+	let { categoryConfig = $bindable(), onEditCategory }: Props = $props();
+
+	// State variables
+	let structuredItems = $state<DndItem[]>([]);
+	let isDragging = $state(false);
+	let dragError = $state<string | null>(null);
+
+	// Convert categoryConfig to DndItems when it changes
+	$effect(() => {
+		try {
+			structuredItems = createStructuredItems(categoryConfig);
+			dragError = null;
+		} catch (error) {
+			console.error('Error creating structured items:', error);
+			dragError = error instanceof Error ? error.message : 'Error creating structured items';
+		}
+	});
 
 	// Convert categoryConfig to format needed for dnd-actions
 	function createStructuredItems(config: Record<string, CategoryData>): DndItem[] {
@@ -88,17 +108,30 @@
 		});
 	}
 
-	let structuredItems = createStructuredItems(categoryConfig);
-
-	function handleDndConsider(e: CustomEvent<{ items: DndItem[] }>) {
-		structuredItems = e.detail.items;
+	function handleDndConsider(e: CustomEvent<DndEvent<DndItem>>) {
+		isDragging = true;
+		try {
+			structuredItems = e.detail.items;
+			dragError = null;
+		} catch (error) {
+			console.error('Error handling DnD consider:', error);
+			dragError = error instanceof Error ? error.message : 'Error handling drag operation';
+		}
 	}
 
-	function handleDndFinalize(e: CustomEvent<{ items: DndItem[] }>) {
-		structuredItems = e.detail.items;
-		const newConfig = convertToConfig(structuredItems);
-		categories.set(newConfig);
-		categoryConfig = newConfig;
+	function handleDndFinalize(e: CustomEvent<DndEvent<DndItem>>) {
+		try {
+			structuredItems = e.detail.items;
+			const newConfig = convertToConfig(structuredItems);
+			categories.set(newConfig);
+			categoryConfig = newConfig;
+			dragError = null;
+		} catch (error) {
+			console.error('Error handling DnD finalize:', error);
+			dragError = error instanceof Error ? error.message : 'Error finalizing drag operation';
+		} finally {
+			isDragging = false;
+		}
 	}
 
 	function convertToConfig(items: DndItem[]): Record<string, CategoryData> {
@@ -157,24 +190,38 @@
 	}
 
 	function handleUpdate(newItems: DndItem[]) {
-		structuredItems = newItems;
-		const newConfig = convertToConfig(newItems);
-		categories.set(newConfig);
-		categoryConfig = newConfig;
+		try {
+			structuredItems = newItems;
+			const newConfig = convertToConfig(newItems);
+			categories.set(newConfig);
+			categoryConfig = newConfig;
+			dragError = null;
+		} catch (error) {
+			console.error('Error handling update:', error);
+			dragError = error instanceof Error ? error.message : 'Error updating items';
+		}
 	}
 
 	const flipDurationMs = 300;
 </script>
 
-<div class="h-auto w-auto max-w-full overflow-y-auto p-1">
+<div class="h-auto w-auto max-w-full overflow-y-auto p-1" role="region" aria-label="Collection Board" aria-busy={isDragging}>
+	{#if dragError}
+		<div class="mb-4 rounded bg-error-500/10 p-4 text-error-500" role="alert">
+			{dragError}
+		</div>
+	{/if}
+
 	<div
 		use:dndzone={{ items: structuredItems, flipDurationMs, centreDraggedOnCursor: true }}
-		on:consider={handleDndConsider}
-		on:finalize={handleDndFinalize}
+		onconsider={handleDndConsider}
+		onfinalize={handleDndFinalize}
 		class="min-h-[2em]"
+		role="list"
+		aria-label="Collection Categories"
 	>
 		{#each structuredItems as item (item.id)}
-			<div animate:flip={{ duration: flipDurationMs }} class="my-1 w-full">
+			<div animate:flip={{ duration: flipDurationMs }} class="my-1 w-full" role="listitem" aria-label={item.name}>
 				<Column
 					name={item.name}
 					icon={item.icon}

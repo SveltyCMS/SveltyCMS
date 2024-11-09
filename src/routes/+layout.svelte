@@ -33,18 +33,26 @@
 	// Initializing Skeleton stores
 	import { initializeStores } from '@skeletonlabs/skeleton';
 	import { categoryConfig } from '@src/collections/categories';
+
 	initializeStores();
 
 	// Default SEO variables for the website's title and description
 	const defaultTitle = `${publicEnv.SITE_NAME} - The Ultimate Headless CMS Powered by SvelteKit`;
 	const defaultDescription = `${publicEnv.SITE_NAME} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;
-	$: {
-		categories.set(categoryConfig);
+
+	categories.set(categoryConfig);
+
+	// Props
+	interface Props {
+		children?: import('svelte').Snippet;
 	}
+
+	let { children }: Props = $props();
+
 	// Reactive declarations for dynamic SEO content
-	$: SeoTitle = $page.data.SeoTitle || defaultTitle;
-	$: SeoDescription = $page.data.SeoDescription || defaultDescription;
-	$: ogImage = $page.data.ogImage || '/SveltyCMS.png';
+	let SeoTitle = $derived($page.data.SeoTitle || defaultTitle);
+	let SeoDescription = $derived($page.data.SeoDescription || defaultDescription);
+	let ogImage = $derived($page.data.ogImage || '/SveltyCMS.png');
 </script>
 
 <svelte:head>
@@ -71,5 +79,5 @@
 </svelte:head>
 
 <ParaglideSvelteKit>
-	<slot />
+	{@render children?.()}
 </ParaglideSvelteKit>

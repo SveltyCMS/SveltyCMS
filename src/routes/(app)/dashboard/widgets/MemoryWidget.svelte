@@ -24,9 +24,10 @@ Usage:
 	import { onMount, onDestroy, getContext } from 'svelte';
 	import { writable, get } from 'svelte/store';
 	import Chart from 'chart.js/auto';
+	import type { ChartConfiguration, Plugin, ArcElement } from 'chart.js';
 	import 'chartjs-adapter-date-fns';
 
-	export let label;
+	let { label } = $props();
 	export const id: string = crypto.randomUUID();
 	export const x: number = 0;
 	export const y: number = 0;
@@ -45,8 +46,8 @@ Usage:
 		freeMemPercentage: 0
 	});
 
-	let chart;
-	let chartCanvas;
+	let chart = $state<Chart<'doughnut', number[], string> | undefined>(undefined);
+	let chartCanvas = $state<HTMLCanvasElement | undefined>(undefined);
 
 	async function fetchData() {
 		try {
@@ -58,9 +59,9 @@ Usage:
 		}
 	}
 
-	const textCenterPlugin = {
+	const textCenterPlugin: Plugin<'doughnut'> = {
 		id: 'textCenterPlugin',
-		beforeDraw: (chart) => {
+		beforeDraw(chart, args, options) {
 			const ctx = chart.ctx;
 			const { width, height } = chart;
 			const memoryInfoValue = get(memoryInfo);
@@ -76,8 +77,8 @@ Usage:
 			chart.data.datasets[0].data.forEach((value, index) => {
 				const percentage = index === 0 ? memoryInfoValue.usedMemPercentage : memoryInfoValue.freeMemPercentage;
 				const meta = chart.getDatasetMeta(0);
-				const element = meta.data[index];
-				const angle = (element.startAngle + element.endAngle) / 2;
+				const arc = meta.data[index] as ArcElement;
+				const angle = (arc.startAngle + arc.endAngle) / 2;
 				const posX = width / 2 + Math.cos(angle) * (width / 4);
 				const posY = height / 2 + Math.sin(angle) * (height / 4);
 				ctx.fillText(`${percentage.toFixed(2)}%`, posX, posY);
@@ -91,52 +92,56 @@ Usage:
 		await fetchData();
 		const { usedMemMb, freeMemMb } = get(memoryInfo);
 
-		chart = new Chart(chartCanvas, {
-			type: 'doughnut',
-			data: {
-				labels: ['Used', 'Free'],
-				datasets: [
-					{
-						data: [usedMemMb, freeMemMb],
-						backgroundColor: ['rgba(255, 99, 132, 0.2)', 'rgba(54, 162, 235, 0.2)'],
-						borderColor: ['rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)'],
-						borderWidth: 1
-					}
-				]
-			},
-			options: {
-				responsive: true,
-				maintainAspectRatio: false,
-				plugins: {
-					tooltip: {
-						callbacks: {
-							label: function (context) {
-								const label = context.label || '';
-								const value = typeof context.raw === 'number' ? context.raw : 0;
-								const dataSet = context.chart.data.datasets[0].data as number[];
-								const totalMemMb = dataSet.reduce((a, b) => (a ?? 0) + (b ?? 0), 0);
-								const percentage = totalMemMb ? (value / totalMemMb) * 100 : 0;
-								return `${(value / 1024).toFixed(2)} GB (${percentage.toFixed(2)}%)`;
+		if (chartCanvas) {
+			const config: ChartConfiguration<'doughnut', number[], string> = {
+				type: 'doughnut',
+				data: {
+					labels: ['Used', 'Free'],
+					datasets: [
+						{
+							data: [usedMemMb, freeMemMb],
+							backgroundColor: ['rgba(255, 99, 132, 0.2)', 'rgba(54, 162, 235, 0.2)'],
+							borderColor: ['rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)'],
+							borderWidth: 1
+						}
+					]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: false,
+					plugins: {
+						tooltip: {
+							callbacks: {
+								label: function (context) {
+									const label = context.label || '';
+									const value = typeof context.raw === 'number' ? context.raw : 0;
+									const dataSet = context.chart.data.datasets[0].data as number[];
+									const totalMemMb = dataSet.reduce((a, b) => (a ?? 0) + (b ?? 0), 0);
+									const percentage = totalMemMb ? (value / totalMemMb) * 100 : 0;
+									return `${(value / 1024).toFixed(2)} GB (${percentage.toFixed(2)}%)`;
+								}
 							}
 						}
 					}
-				}
-			},
-			plugins: [textCenterPlugin] // Register the plugin here
-		});
+				},
+				plugins: [textCenterPlugin]
+			};
+
+			chart = new Chart(chartCanvas, config);
+		}
 
 		const interval = setInterval(fetchData, 5000);
 		onDestroy(() => clearInterval(interval));
 	});
 
-	// Update chart when data changes
-	$: {
+	// Update chart when memory data changes
+	$effect(() => {
 		if (chart) {
 			const { usedMemMb, freeMemMb } = get(memoryInfo);
 			chart.data.datasets[0].data = [usedMemMb, freeMemMb];
 			chart.update();
 		}
-	}
+	});
 </script>
 
 <!-- Widget UI -->

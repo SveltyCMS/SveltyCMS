@@ -22,15 +22,21 @@
 	import { fade } from 'svelte/transition';
 	import Grid, { GridItem } from 'svelte-grid-extended';
 
-	export let data: { user: { id: string } };
+	interface Props {
+		data: { user: { id: string } };
+	}
 
-	let items: WidgetPreference[] = [];
-	let dropdownOpen = false;
-	let gridElement: HTMLElement;
+	let { data }: Props = $props();
 
-	$: itemSize = $screenSize === 'sm' ? { width: 150, height: 150 } : $screenSize === 'md' ? { width: 200, height: 200 } : { width: 250, height: 250 };
+	let items: WidgetPreference[] = $state([]);
+	let dropdownOpen = $state(false);
+	let gridElement: HTMLElement = $state();
 
-	$: cols = $screenSize === 'sm' ? 2 : $screenSize === 'md' ? 3 : 4;
+	let itemSize = $derived(
+		$screenSize === 'sm' ? { width: 150, height: 150 } : $screenSize === 'md' ? { width: 200, height: 200 } : { width: 250, height: 250 }
+	);
+
+	let cols = $derived($screenSize === 'sm' ? 2 : $screenSize === 'md' ? 3 : 4);
 
 	function resetGrid() {
 		items = [];
@@ -137,11 +143,11 @@
 		items = Array.isArray(loadedItems) ? loadedItems : [];
 	});
 
-	$: currentTheme = $theme;
+	let currentTheme = $derived($theme);
 
-	$: availableWidgets = Object.keys(widgetComponents).filter((componentName) => !items.some((item) => item.component === componentName));
+	let availableWidgets = $derived(Object.keys(widgetComponents).filter((componentName) => !items.some((item) => item.component === componentName)));
 
-	$: canAddMoreWidgets = availableWidgets.length > 0 && items.length < cols * Math.floor(gridElement?.clientHeight / itemSize.height || 0);
+	let canAddMoreWidgets = $derived(availableWidgets.length > 0 && items.length < cols * Math.floor(gridElement?.clientHeight / itemSize.height || 0));
 </script>
 
 <div class="my-2 flex items-center justify-between gap-2">
@@ -151,8 +157,8 @@
 	</div>
 
 	<!-- Back Button -->
-	<button on:click={() => history.back()} class="variant-outline-primary btn-icon">
-		<iconify-icon icon="ri:arrow-left-line" width="20" />
+	<button onclick={() => history.back()} aria-label="Back" class="variant-outline-primary btn-icon">
+		<iconify-icon icon="ri:arrow-left-line" width="20"></iconify-icon>
 	</button>
 </div>
 
@@ -161,13 +167,13 @@
 		{#if canAddMoreWidgets}
 			<div class="relative">
 				<button
-					on:click={toggleDropdown}
+					onclick={toggleDropdown}
 					type="button"
-					class="variant-filled-tertiary btn gap-2 !text-white dark:variant-filled-primary"
 					aria-haspopup="true"
 					aria-expanded={dropdownOpen}
+					class="variant-filled-tertiary btn gap-2 !text-white dark:variant-filled-primary"
 				>
-					<iconify-icon icon="carbon:add-filled" width="24" class="text-white" />
+					<iconify-icon icon="carbon:add-filled" width="24" class="text-white"></iconify-icon>
 					Add
 				</button>
 				{#if dropdownOpen}
@@ -177,7 +183,7 @@
 					>
 						{#each availableWidgets as componentName}
 							<button
-								on:click={() => addNewItem(componentName)}
+								onclick={() => addNewItem(componentName)}
 								type="button"
 								class="block w-full px-4 py-2 text-left hover:bg-gray-200 dark:hover:bg-gray-700"
 							>
@@ -188,7 +194,7 @@
 				{/if}
 			</div>
 		{/if}
-		<button class="variant-filled-warning btn" on:click={resetGrid}>Reset All</button>
+		<button class="variant-filled-warning btn" onclick={resetGrid}>Reset All</button>
 	</div>
 </div>
 
@@ -209,11 +215,12 @@
 				>
 					<div transition:fade={{ duration: 300 }} class="relative h-full w-full">
 						<div class="absolute right-1 top-1 z-10">
-							<button on:click={() => remove(item.id)} class="btn-icon" aria-label="Remove Widget">✕</button>
+							<button onclick={() => remove(item.id)} class="btn-icon" aria-label="Remove Widget">✕</button>
 						</div>
 						<div class="h-full w-full rounded-md border border-surface-500 bg-surface-100 p-2 shadow-2xl dark:bg-surface-700">
 							{#if widgetComponents[item.component]}
-								<svelte:component this={widgetComponents[item.component].component} label={item.label} {currentTheme} />
+								{@const SvelteComponent = widgetComponents[item.component].component}
+								<SvelteComponent label={item.label} {currentTheme} />
 							{:else}
 								<div>Widget not found: {item.component}</div>
 							{/if}

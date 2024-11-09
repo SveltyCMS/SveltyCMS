@@ -1,7 +1,28 @@
+<!-- 
+@files src/components/system/buttons/MultiButton.svelte
+@description - MultiButton component	
+-->
+
 <script lang="ts">
+	// Stores
 	import { mode, modifyEntry } from '@stores/collectionStore';
 
-	export let buttons = {
+	// Props
+	const props = $props<{
+		buttons?: Record<
+			string,
+			{
+				fn: () => void;
+				icon: string;
+				bg_color: string;
+				color: string;
+			}
+		>;
+		defaultButton?: string;
+	}>();
+
+	// Default buttons object
+	const defaultButtons = {
 		Create: {
 			fn: () => {
 				mode.set('create');
@@ -12,7 +33,7 @@
 		},
 		Delete: {
 			fn: () => {
-				$modifyEntry('deleted');
+				$modifyEntry('delete');
 			},
 			icon: 'tdesign:delete-1',
 			bg_color: 'red',
@@ -20,7 +41,7 @@
 		},
 		Publish: {
 			fn: () => {
-				$modifyEntry('published');
+				$modifyEntry('publish');
 			},
 			icon: '',
 			bg_color: 'lime',
@@ -28,7 +49,7 @@
 		},
 		Unpublish: {
 			fn: () => {
-				$modifyEntry('unpublished');
+				$modifyEntry('unpublish');
 			},
 			icon: '',
 			bg_color: 'orange',
@@ -36,18 +57,34 @@
 		},
 		Test: {
 			fn: () => {
-				$modifyEntry('testing');
+				$modifyEntry('test');
 			},
 			icon: '',
 			bg_color: 'brown',
 			color: 'white'
 		}
 	};
-	export let defaultButton: keyof typeof buttons = 'Create';
-	$: defaultButton = $mode == 'modify' ? 'Delete' : 'Create';
-	let expanded = false;
-	$: expanded = $mode == 'modify' ? expanded : false;
-	$: activeArrow = $mode == 'modify';
+
+	let buttons = $state(props.buttons || defaultButtons);
+	let defaultButton = $state(props.defaultButton || 'Create');
+	let expanded = $state(false);
+	let activeArrow = $state(false);
+
+	$effect(() => {
+		defaultButton = $mode === 'modify' ? 'Delete' : 'Create';
+	});
+
+	$effect(() => {
+		expanded = $mode === 'modify' ? expanded : false;
+	});
+
+	$effect(() => {
+		activeArrow = $mode === 'modify';
+	});
+
+	function toggleExpanded() {
+		expanded = !expanded;
+	}
 </script>
 
 <div class="wrapper md:w-[200px]">
@@ -55,15 +92,18 @@
 		style="--color:{buttons[defaultButton].color};background-color:{buttons[defaultButton].bg_color}"
 		class="default flex flex-grow items-center justify-center max-md:!p-[10px]"
 		class:rounded-bl-[10px]={!expanded}
-		on:click={buttons[defaultButton].fn}
-		><iconify-icon class="md:hidden" icon={buttons[defaultButton].icon} />
+		aria-label="Create"
+		onclick={buttons[defaultButton].fn}
+	>
+		<iconify-icon class="md:hidden" icon={buttons[defaultButton].icon}></iconify-icon>
 		<span class="max-md:hidden">
 			{defaultButton}
 		</span>
 	</button>
 	<button
-		on:click={() => (expanded = !expanded)}
-		class=" relative w-[50px] rounded-r-[10px] hover:active:scale-95"
+		onclick={toggleExpanded}
+		class="relative w-[50px] rounded-r-[10px] hover:active:scale-95"
+		aria-label="Expand/Collapse"
 		class:cursor-pointer={activeArrow}
 		class:pointer-events-none={!activeArrow}
 		style="background-color: rgb(37, 36, 36);"
@@ -72,21 +112,22 @@
 	</button>
 	<div class="buttons overflow-hidden rounded-b-[10px]" class:expanded>
 		{#each Object.keys(buttons) as button}
-			{#if button != defaultButton && button != 'Create' && $mode == 'modify'}
+			{#if button != defaultButton && button != 'Create' && $mode === 'modify'}
 				<button
+					onclick={buttons[button].fn}
+					aria-label={button}
 					style="--color:{buttons[button].color};--bg-color:{buttons[button].bg_color || 'rgb(37, 36, 36)'}"
 					class="nested w-full"
-					on:click={buttons[button].fn}
 				>
-					<iconify-icon icon={buttons[button].icon} />
-					{button}</button
-				>
+					<iconify-icon icon={buttons[button].icon}></iconify-icon>
+					{button}
+				</button>
 			{/if}
 		{/each}
 	</div>
 </div>
 
-<style>
+<style lang="postcss">
 	.arrow {
 		position: absolute;
 		left: 43%;

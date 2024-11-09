@@ -3355,6 +3355,38 @@ export const login_Happy_Holi = () => `Срећан Холи`
 export const login_happy_navratri = () => `Срећан Навратри`
 
 
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_description = () => `ЛЛМ Цонфигуратион`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_useLLM = () => `Омогућите ЛЛМ интеграцију`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_llmProvider = () => `ЛЛМ добављач (нпр. ОпенАИ, Цлауде, Гемими, итд.)`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_apiKey = () => `ЛЛМ АПИ кључ`
+
+
 export { signup_password } from "./en.js"
 
 export { modaledit_tokenemailaddress } from "./en.js"
@@ -3398,34 +3430,3 @@ export { modaleditform_username } from "./en.js"
 export { modaleditform_confirmpassword } from "./en.js"
 
 export { modaleditform_userrole } from "./en.js"
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_description = () => `ЛЛМ Цонфигуратион`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_useLLM = () => `Омогућите ЛЛМ интеграцију`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_llmProvider = () => `ЛЛМ добављач (нпр. ОпенАИ, Цлауде, Гемими, итд.)`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_apiKey = () => `ЛЛМ АПИ кључ`

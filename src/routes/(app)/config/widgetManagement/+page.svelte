@@ -12,7 +12,7 @@
 		status: 'active' | 'inactive';
 	};
 
-	let installedWidgets: Widget[] = [];
+	let installedWidgets: Widget[] = $state([]);
 	let activeWidgets: string[] = []; // Placeholder until implemented
 
 	onMount(async () => {
@@ -65,7 +65,7 @@
 {#each installedWidgets as widget}
 	<div class="my- flex items-center justify-between border-b pb-2">
 		<span>{widget.name}</span>
-		<button class="ml-4 rounded border px-4 py-2" on:click={() => toggleWidgetStatus(widget)}>
+		<button class="ml-4 rounded border px-4 py-2" onclick={() => toggleWidgetStatus(widget)}>
 			{widget.status === 'active' ? 'Deactivate' : 'Activate'}
 		</button>
 	</div>
@@ -80,10 +80,10 @@
 		href="https://www.sveltyCMS.com"
 		target="_blank"
 		rel="noopener noreferrer"
-		class="variant-ghost-primary btn w-full gap-2 py-6"
 		aria-label={m.config_Martketplace()}
+		class="variant-ghost-primary btn w-full gap-2 py-6"
 	>
-		<iconify-icon icon="icon-park-outline:shopping-bag" width="28" class="text-white" />
+		<iconify-icon icon="icon-park-outline:shopping-bag" width="28" class="text-white"></iconify-icon>
 		<p class="uppercase">{m.config_Martketplace()}</p>
 	</a>
 {/if}

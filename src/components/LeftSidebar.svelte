@@ -3,11 +3,13 @@
 @description LeftSidebar component
 -->
 
-<script context="module" lang="ts">
+<script module lang="ts">
 	declare const __VERSION__: string;
 </script>
 
 <script lang="ts">
+	import { run, stopPropagation } from 'svelte/legacy';
+
 	import { publicEnv } from '@root/config/public';
 	import { goto, invalidateAll } from '$app/navigation';
 	import axios from 'axios';
@@ -72,12 +74,12 @@
 	// Define language type based on available languages
 	type AvailableLanguage = (typeof publicEnv.AVAILABLE_SYSTEM_LANGUAGES)[number];
 
-	let _languageTag = languageTag(); // Get the current language tag
+	let _languageTag = $state(languageTag()); // Get the current language tag
 
 	// Enhanced language selector
-	let searchQuery = '';
-	let isDropdownOpen = false;
-	let searchInput: HTMLInputElement;
+	let searchQuery = $state('');
+	let isDropdownOpen = $state(false);
+	let searchInput: HTMLInputElement = $state();
 	let debounceTimeout: ReturnType<typeof setTimeout>;
 
 	function handleLanguageSelection(lang: AvailableLanguage) {
@@ -91,13 +93,17 @@
 	}
 
 	// Sort languages alphabetically
-	$: availableLanguages = [...publicEnv.AVAILABLE_SYSTEM_LANGUAGES].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')));
+	let availableLanguages = $derived(
+		[...publicEnv.AVAILABLE_SYSTEM_LANGUAGES].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
+	);
 
-	$: filteredLanguages = availableLanguages.filter(
-		(lang: string) =>
-			getLanguageName(lang, $systemLanguage).toLowerCase().includes(searchQuery.toLowerCase()) ||
-			getLanguageName(lang, 'en').toLowerCase().includes(searchQuery.toLowerCase())
-	) as AvailableLanguage[];
+	let filteredLanguages = $derived(
+		availableLanguages.filter(
+			(lang: string) =>
+				getLanguageName(lang, $systemLanguage).toLowerCase().includes(searchQuery.toLowerCase()) ||
+				getLanguageName(lang, 'en').toLowerCase().includes(searchQuery.toLowerCase())
+		) as AvailableLanguage[]
+	);
 
 	function handleClickOutside(event: MouseEvent) {
 		const target = event.target as HTMLElement;
@@ -107,18 +113,18 @@
 		}
 	}
 
-	$: if (typeof window !== 'undefined') {
-		if (isDropdownOpen) {
-			window.addEventListener('click', handleClickOutside);
-			setTimeout(() => searchInput?.focus(), 0);
-		} else {
-			window.removeEventListener('click', handleClickOutside);
+	run(() => {
+		if (typeof window !== 'undefined') {
+			if (isDropdownOpen) {
+				window.addEventListener('click', handleClickOutside);
+				setTimeout(() => searchInput?.focus(), 0);
+			} else {
+				window.removeEventListener('click', handleClickOutside);
+			}
 		}
-	}
+	});
 
-	let handleClick: any;
-
-	$: handleClick = () => {
+	let handleClick: any = $derived(() => {
 		if (!$page.url.href.includes('user')) {
 			mode.set('view');
 			handleSidebarToggle();
@@ -127,7 +133,7 @@
 		if (get(screenSize) === 'sm') {
 			toggleSidebar('left', 'hidden'); // Hide the left sidebar on mobile
 		}
-	};
+	});
 
 	// SignOut function
 	async function signOut() {
@@ -208,8 +214,8 @@
 	{:else}
 		<!-- Corporate Identity Collapsed-->
 		<div class="gap flex justify-start">
-			<button type="button" on:click={() => toggleSidebar('left', 'hidden')} class="variant-ghost-surface btn-icon mt-1">
-				<iconify-icon icon="mingcute:menu-fill" width="24" />
+			<button type="button" onclick={() => toggleSidebar('left', 'hidden')} aria-label="Open Sidebar" class="variant-ghost-surface btn-icon mt-1">
+				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
 
 			<a href="/" aria-label="SveltyCMS Logo" class="flex justify-center pt-2 !no-underline">
@@ -221,17 +227,18 @@
 	<!-- Button to expand/collapse sidebar -->
 	<button
 		type="button"
-		class="absolute top-2 z-20 flex items-center justify-center !rounded-full border-[3px] dark:border-black ltr:-right-3 rtl:-left-3"
-		on:click={() => {
+		onclick={() => {
 			toggleSidebar('left', $sidebarState.left === 'full' ? 'collapsed' : 'full');
 			userPreferredState.set($sidebarState.left === 'full' ? 'collapsed' : 'full');
 		}}
+		aria-label="Expand/Collapse Sidebar"
+		class="absolute top-2 z-20 flex items-center justify-center !rounded-full border-[3px] dark:border-black ltr:-right-3 rtl:-left-3"
 	>
 		<iconify-icon
 			icon="bi:arrow-left-circle-fill"
 			width="30"
 			class={`rounded-full bg-surface-500 text-white hover:cursor-pointer hover:bg-error-600 dark:bg-white dark:text-surface-600 dark:hover:bg-error-600 ${$sidebarState.left === 'full' ? 'rotate-0 rtl:rotate-180' : 'rotate-180 rtl:rotate-0'}`}
-		/>
+		></iconify-icon>
 	</button>
 
 	<!--SideBar Middle -->
@@ -239,15 +246,15 @@
 
 	<!-- Sidebar Left Footer -->
 	<div class="mb-2 mt-auto bg-white dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900">
-		<div class="mx-1 mb-1 border-0 border-t border-surface-400" />
+		<div class="mx-1 mb-1 border-0 border-t border-surface-400"></div>
 
 		<div class="{$sidebarState.left === 'full' ? 'grid-cols-3 grid-rows-3' : 'grid-cols-2 grid-rows-2'} grid items-center justify-center">
 			<!-- Avatar with user settings -->
 			<div class={$sidebarState.left === 'full' ? 'order-1 row-span-2' : 'order-1'}>
 				<button
 					use:popup={UserTooltip}
-					on:click={handleClick}
-					on:keypress={handleClick}
+					onclick={handleClick}
+					onkeypress={handleClick}
 					class="btn-icon relative cursor-pointer flex-col items-center justify-center text-center !no-underline md:row-span-2"
 				>
 					<Avatar
@@ -270,7 +277,7 @@
 				<!-- Popup Tooltip with the arrow element -->
 				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="User">
 					{m.applayout_userprofile()}
-					<div class="variant-filled arrow" />
+					<div class="variant-filled arrow"></div>
 				</div>
 			</div>
 
@@ -282,7 +289,7 @@
 							class="variant-filled-surface btn-icon flex items-center justify-between gap-2 uppercase text-white {$sidebarState.left === 'full'
 								? 'px-2.5 py-2'
 								: 'px-1.5 py-0'}"
-							on:click|stopPropagation={() => (isDropdownOpen = !isDropdownOpen)}
+							onclick={stopPropagation(() => (isDropdownOpen = !isDropdownOpen))}
 						>
 							<span>{_languageTag}</span>
 							<svg class="h-4 w-4 transition-transform {isDropdownOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -308,7 +315,7 @@
 											class="flex w-full items-center justify-between px-4 py-2 text-left text-white hover:bg-surface-600 {_languageTag === lang
 												? 'bg-surface-600'
 												: ''}"
-											on:click={() => handleLanguageSelection(lang)}
+											onclick={() => handleLanguageSelection(lang)}
 										>
 											<span>{getLanguageName(lang)} ({lang.toUpperCase()})</span>
 										</button>
@@ -319,7 +326,7 @@
 					{:else}
 						<select
 							bind:value={_languageTag}
-							on:change={handleSelectChange}
+							onchange={handleSelectChange}
 							class="variant-filled-surface !appearance-none rounded-full uppercase text-white {$sidebarState.left === 'full'
 								? 'btn-icon px-2.5 py-2'
 								: 'btn-icon-sm px-1.5 py-0'}"
@@ -334,81 +341,84 @@
 				<!-- Popup Tooltip with the arrow element -->
 				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="SystemLanguage">
 					{m.applayout_systemlanguage()}
-					<div class="variant-filled arrow" />
+					<div class="variant-filled arrow"></div>
 				</div>
 			</div>
 
 			<!-- light/dark mode switch -->
 			<div class={$sidebarState.left === 'full' ? 'order-2' : 'order-3'}>
-				<button
-					use:popup={SwitchThemeTooltip}
-					on:click={toggleTheme}
-					aria-label="Toggle Theme"
-					class="btn-icon hover:bg-surface-500 hover:text-white"
-				>
+				<button use:popup={SwitchThemeTooltip} onclick={toggleTheme} aria-label="Toggle Theme" class="btn-icon hover:bg-surface-500 hover:text-white">
 					{#if !$modeCurrent}
-						<iconify-icon icon="bi:sun" width="22" />
+						<iconify-icon icon="bi:sun" width="22"></iconify-icon>
 					{:else}
-						<iconify-icon icon="bi:moon-fill" width="22" />
+						<iconify-icon icon="bi:moon-fill" width="22"></iconify-icon>
 					{/if}
 				</button>
 
 				<!-- Popup Tooltip with the arrow element -->
 				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="SwitchTheme">
 					{m.applayout_switchmode({ $modeCurrent: !$modeCurrent ? 'Light' : 'Dark' })}
-					<div class="variant-filled arrow" />
+					<div class="variant-filled arrow"></div>
 				</div>
 			</div>
 
 			<!-- Sign Out -->
 			<div class={$sidebarState.left === 'full' ? 'order-4' : 'order-4'}>
-				<button use:popup={SignOutTooltip} on:click={signOut} type="submit" value="Sign out" class="btn-icon hover:bg-surface-500 hover:text-white">
-					<iconify-icon icon="uil:signout" width="26" />
+				<button
+					use:popup={SignOutTooltip}
+					onclick={signOut}
+					type="submit"
+					value="Sign out"
+					aria-label="Sign Out"
+					class="btn-icon hover:bg-surface-500 hover:text-white"
+				>
+					<iconify-icon icon="uil:signout" width="26"></iconify-icon>
 				</button>
 
 				<!-- Popup Tooltip with the arrow element -->
 				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="SignOutButton">
 					{m.applayout_signout()}
-					<div class="variant-filled arrow" />
+					<div class="variant-filled arrow"></div>
 				</div>
 			</div>
 
 			<!-- System Configuration -->
 			<div class={$sidebarState.left === 'full' ? 'order-5' : 'order-6'}>
 				<button
-					class="btn-icon pt-1.5 hover:bg-surface-500 hover:text-white"
 					use:popup={ConfigTooltip}
-					on:click={() => {
+					onclick={() => {
 						mode.set('view');
 						handleSidebarToggle();
 						if (get(screenSize) === 'sm') {
 							toggleSidebar('left', 'hidden');
 						}
 					}}
+					aria-label="System Configuration"
+					class="btn-icon pt-1.5 hover:bg-surface-500 hover:text-white"
 				>
-					<a href="/config">
-						<iconify-icon icon="material-symbols:build-circle" width="32" />
+					<a href="/config" aria-label="System Configuration">
+						<iconify-icon icon="material-symbols:build-circle" width="32"></iconify-icon>
 					</a>
 				</button>
 
 				<!-- Popup Tooltip with the arrow element -->
 				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Config">
 					{m.applayout_systemconfiguration()}
-					<div class="variant-filled arrow" />
+					<div class="variant-filled arrow"></div>
 				</div>
 			</div>
 
 			<!-- Github discussions -->
 			<div class="{$sidebarState.left === 'full' ? 'order-7' : 'order-7 hidden'} ">
 				<a href="https://github.com/SveltyCMS/SveltyCMS/discussions" target="blank">
-					<button use:popup={GithubTooltip} class="btn-icon hover:bg-surface-500 hover:text-white">
-						<iconify-icon icon="grommet-icons:github" width="30" />
+					<button use:popup={GithubTooltip} aria-label="Github Discussions" class="btn-icon hover:bg-surface-500 hover:text-white">
+						<iconify-icon icon="grommet-icons:github" width="30"></iconify-icon>
 					</button>
 
 					<!-- Popup Tooltip with the arrow element -->
 					<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Github">
 						{m.applayout_githubdiscussion()}
-						<div class="variant-filled arrow" />
+						<div class="variant-filled arrow"></div>
 					</div>
 				</a>
 			</div>
@@ -417,7 +427,9 @@
 			<div class={$sidebarState.left === 'full' ? 'order-6' : 'order-5'}>
 				<a href="https://github.com/SveltyCMS/SveltyCMS/" target="blank">
 					<span class="{$sidebarState.left === 'full' ? 'py-1' : 'py-0'} {$pkgBgColor} badge rounded-xl text-black hover:text-white"
-						>{#if $sidebarState.left === 'full'}{m.applayout_version()}{/if}
+						>{#if $sidebarState.left === 'full'}
+							{m.applayout_version()}
+						{/if}
 						{pkg}
 					</span>
 				</a>
@@ -426,7 +438,7 @@
 	</div>
 </div>
 
-<style>
+<style lang="postcss">
 	/* Scrollbar styling */
 	.overflow-y-auto {
 		scrollbar-width: thin;

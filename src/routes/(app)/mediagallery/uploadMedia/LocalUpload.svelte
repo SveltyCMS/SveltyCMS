@@ -10,8 +10,8 @@
 	import { goto } from '$app/navigation';
 
 	let files: File[] = [];
-	let input: HTMLInputElement;
-	let dropZone: HTMLDivElement;
+	let input: HTMLInputElement = $state();
+	let dropZone: HTMLDivElement = $state();
 
 	const modalStore = getModalStore();
 	const toastStore = getToastStore();
@@ -134,16 +134,16 @@
 
 <div
 	bind:this={dropZone}
-	on:drop={handleFileDrop}
-	on:dragover={handleDragOver}
-	on:dragleave={handleDragLeave}
+	ondrop={handleFileDrop}
+	ondragover={handleDragOver}
+	ondragleave={handleDragLeave}
 	class="mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700"
 	role="cell"
 	tabindex="0"
 	aria-dropeffect="none"
 >
 	<div class="grid grid-cols-6 items-center p-4">
-		<iconify-icon icon="fa6-solid:file-arrow-up" width="40" />
+		<iconify-icon icon="fa6-solid:file-arrow-up" width="40"></iconify-icon>
 
 		<div class="col-span-5 space-y-4 text-center">
 			<p class="font-bold">
@@ -153,7 +153,7 @@
 
 			<p class="text-sm opacity-75">Multiple files allowed</p>
 
-			<button on:click={() => input.click()} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary"> Browse Files </button>
+			<button onclick={() => input.click()} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary"> Browse Files </button>
 
 			<!-- File Size Limit -->
 			<p class="mt-2 text-sm text-tertiary-500 dark:text-primary-500">Max File Size: XX MB</p>
@@ -161,5 +161,5 @@
 	</div>
 
 	<!-- File Input -->
-	<input bind:this={input} type="file" hidden multiple on:change={onChange} />
+	<input bind:this={input} type="file" hidden multiple onchange={onChange} />
 </div>

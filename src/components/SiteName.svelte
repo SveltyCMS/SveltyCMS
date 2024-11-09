@@ -6,13 +6,17 @@
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 
-	export let char: string | null = null;
+	interface Props {
+		char?: string | null;
+	}
+
+	let { char = null }: Props = $props();
 
 	const siteName = publicEnv.SITE_NAME;
 	const targetSiteName = 'SveltyCMS';
 
-	let mainPart = siteName;
-	let lastPart = '';
+	let mainPart = $state(siteName);
+	let lastPart = $state('');
 
 	if (siteName === targetSiteName) {
 		mainPart = siteName.slice(0, -3); // Get everything except the last character

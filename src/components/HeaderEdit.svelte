@@ -17,11 +17,17 @@
 -->
 
 <script lang="ts">
+	import { run, createBubbler } from 'svelte/legacy';
+
+	const bubble = createBubbler();
 	import { getFieldName, saveFormData, meta_data } from '@utils/utils';
 
 	// Components
 	import TranslationStatus from './TranslationStatus.svelte';
 	import ScheduleModal from './ScheduleModal.svelte';
+
+	// Types
+	import type { CategoryData } from '@src/collections/types';
 
 	// Skeleton
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
@@ -68,33 +74,71 @@
 
 	// Auth
 	import type { User } from '@src/auth/types';
-	$: user = $page.data.user as User;
+	let user = $derived($page.data.user as User);
 
 	let previousLanguage = get(contentLanguage);
-	let previousTabSet = get(tabSet);
-	let tempData = {};
-	let schedule = $collectionValue._scheduled ? new Date($collectionValue._scheduled).toISOString().slice(0, 16) : '';
-	let createdAtDate = $collectionValue.createdAt ? new Date($collectionValue.createdAt * 1000).toISOString().slice(0, 16) : '';
+	let previousTabSet = $state(get(tabSet));
+	let tempData = $state({});
+	let schedule = $state($collectionValue._scheduled ? new Date($collectionValue._scheduled).toISOString().slice(0, 16) : '');
+	let createdAtDate = $state($collectionValue.createdAt ? new Date($collectionValue.createdAt * 1000).toISOString().slice(0, 16) : '');
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { logger } from '@src/utils/logger';
 
-	$: {
+	// Find the parent category name for the current collection
+	let categoryName = $derived(
+		(() => {
+			if (!$collection?.name || !$categories) return '';
+
+			// Helper function to find parent category name
+			const findParentCategory = (categories: Record<string, CategoryData>): string => {
+				// Only process root categories (Collections and Menu)
+				for (const [rootName, rootCategory] of Object.entries(categories)) {
+					if (rootName !== 'Collections' && rootName !== 'Menu') continue;
+
+					if (rootCategory.subcategories) {
+						// Check each subcategory
+						for (const [subName, subCat] of Object.entries(rootCategory.subcategories as Record<string, CategoryData>)) {
+							// Case 1: Direct collection in subcategories (like Media, Names)
+							if (subCat.isCollection && subName === $collection.name) {
+								return rootCategory.name;
+							}
+
+							// Case 2: Collection in nested subcategories (like Posts/Posts)
+							if (!subCat.isCollection && subCat.subcategories) {
+								for (const [nestedName, nestedCat] of Object.entries(subCat.subcategories as Record<string, CategoryData>)) {
+									if (nestedCat.isCollection && nestedName === $collection.name) {
+										// Return the immediate parent name (e.g. "Posts" for Posts/Posts)
+										return subCat.name;
+									}
+								}
+							}
+						}
+					}
+				}
+				return '';
+			};
+
+			return findParentCategory($categories);
+		})()
+	);
+
+	run(() => {
 		if ($tabSet !== previousTabSet) {
 			tempData[previousLanguage] = get(collectionValue);
 			previousTabSet = $tabSet;
 		}
-	}
+	});
 
-	$: {
+	run(() => {
 		if ($mode === 'view') {
 			tempData = {};
 		}
 		if ($mode === 'edit' && $collectionValue.status === 'published') {
 			$modifyEntry('unpublished');
 		}
-	}
+	});
 
 	// Type guard to check if the widget result has a validateWidget method
 	function hasValidateWidget(widgetInstance: any): widgetInstance is { validateWidget: () => Promise<string | null> } {
@@ -121,7 +165,8 @@
 		for (const field of $collection.fields) {
 			const fieldName = getFieldName(field);
 			const fieldValue = $collectionValue[fieldName];
-			const widgetInstance = field.widget(fieldValue);
+			// Use widget property directly as it's now an instance
+			const widgetInstance = field.widget;
 
 			if (hasValidateWidget(widgetInstance)) {
 				const error = await widgetInstance.validateWidget();
@@ -204,12 +249,18 @@
 		mode.set('edit');
 	}
 
-	export let showMore = false;
-	$: if ($mode === 'edit' || $mode === 'create') {
-		showMore = false;
+	interface Props {
+		showMore?: boolean;
 	}
 
-	let next = () => {};
+	let { showMore = $bindable(false) }: Props = $props();
+	run(() => {
+		if ($mode === 'edit' || $mode === 'create') {
+			showMore = false;
+		}
+	});
+
+	let next = $state(() => {});
 	saveLayerStore.subscribe((value) => {
 		next = value;
 		shouldShowNextButton.set(false);
@@ -226,11 +277,12 @@
 		{#if $sidebarState.left === 'hidden'}
 			<button
 				type="button"
-				on:keydown
-				on:click={() => toggleSidebar('left', get(screenSize) === 'lg' ? 'full' : 'collapsed')}
+				onkeydown={bubble('keydown')}
+				onclick={() => toggleSidebar('left', get(screenSize) === 'lg' ? 'full' : 'collapsed')}
+				aria-label="Toggle Sidebar"
 				class="variant-ghost-surface btn-icon mt-1"
 			>
-				<iconify-icon icon="mingcute:menu-fill" width="24" />
+				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
 		{/if}
 
@@ -238,17 +290,16 @@
 		<div class="flex {!$sidebarState.left ? 'ml-2' : 'ml-1'}">
 			{#if $collection && $collection.icon}
 				<div class="flex items-center justify-center">
-					<iconify-icon icon={$collection.icon} width="24" class="text-error-500" />
+					<iconify-icon icon={$collection.icon} width="24" class="text-error-500"></iconify-icon>
 				</div>
 			{/if}
 
-			<!--TODO: fix {#if $categories && $categories[0]} -->
-			{#if $categories && $categories[0]}
+			{#if $collection?.name && $categories}
 				<div class="ml-2 flex flex-col text-left text-gray-400 dark:text-gray-300">
 					<div class="text-sm font-bold uppercase text-tertiary-500 dark:text-primary-500">{$mode}:</div>
 					<div class="text-xs capitalize">
-						{$categories[0].name}
-						<span class="uppercase text-tertiary-500 dark:text-primary-500">{$collection?.name}</span>
+						{categoryName}
+						<span class="uppercase text-tertiary-500 dark:text-primary-500">{$collection.name}</span>
 					</div>
 				</div>
 			{/if}
@@ -261,8 +312,8 @@
 		{#if $screenSize !== 'lg'}
 			{#if $shouldShowNextButton}
 				<!-- Next Button  -->
-				<button type="button" on:click={next} class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:btn">
-					<iconify-icon icon="carbon:next-filled" width="24" class="text-white" />
+				<button type="button" onclick={next} aria-label="Next" class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:btn">
+					<iconify-icon icon="carbon:next-filled" width="24" class="text-white"></iconify-icon>
 					<span class="hidden md:block">{m.button_next()}</span>
 				</button>
 			{:else}
@@ -275,18 +326,24 @@
 				{#if ['edit', 'create'].includes($mode)}
 					<button
 						type="button"
-						on:click={saveData}
+						onclick={saveData}
 						disabled={$collection?.permissions?.[user.role]?.write === false}
 						class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:hidden"
 						aria-label="Save entry"
 					>
-						<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
+						<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
 					</button>
 				{/if}
 
 				<!-- DropDown to show more Buttons -->
-				<button type="button" on:keydown on:click={() => (showMore = !showMore)} class="variant-ghost-surface btn-icon">
-					<iconify-icon icon="material-symbols:filter-list-rounded" width="30" />
+				<button
+					type="button"
+					onkeydown={bubble('keydown')}
+					onclick={() => (showMore = !showMore)}
+					aria-label="Show more"
+					class="variant-ghost-surface btn-icon"
+				>
+					<iconify-icon icon="material-symbols:filter-list-rounded" width="30"></iconify-icon>
 				</button>
 			{/if}
 		{:else}
@@ -298,12 +355,12 @@
 
 		<!-- Cancel/Reload -->
 		{#if !$headerActionButton}
-			<button type="button" on:click={handleCancel} class="variant-ghost-surface btn-icon">
-				<iconify-icon icon="material-symbols:close" width="24" />
+			<button type="button" onclick={handleCancel} aria-label="Cancel" class="variant-ghost-surface btn-icon">
+				<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 			</button>
 		{:else}
-			<button type="button" on:click={handleReload} class="variant-ghost-surface btn-icon">
-				<iconify-icon icon="fa:refresh" width="24" class="text-tertiary-500 dark:text-primary-500" />
+			<button type="button" onclick={handleReload} aria-label="Reload" class="variant-ghost-surface btn-icon">
+				<iconify-icon icon="fa:refresh" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 			</button>
 		{/if}
 	</div>
@@ -317,12 +374,12 @@
 				<!-- Delete Content -->
 				<button
 					type="button"
-					on:click={() => $modifyEntry('deleted')}
+					onclick={() => $modifyEntry('deleted')}
 					disabled={$collection?.permissions?.[user.role]?.delete === false}
 					class="gradient-error gradient-error-hover gradient-error-focus btn-icon"
 					aria-label="Delete entry"
 				>
-					<iconify-icon icon="icomoon-free:bin" width="24" />
+					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
 				</button>
 			</div>
 
@@ -332,36 +389,36 @@
 					<div class="flex flex-col items-center justify-center">
 						<button
 							type="button"
-							on:click={() => $modifyEntry('published')}
+							onclick={() => $modifyEntry('published')}
 							disabled={!($collection?.permissions?.[user.role]?.write && $collection?.permissions?.[user.role]?.create)}
 							class="gradient-tertiary gradient-tertiary-hover gradient-tertiary-focus btn-icon"
 							aria-label="Publish entry"
 						>
-							<iconify-icon icon="bi:hand-thumbs-up-fill" width="24" />
+							<iconify-icon icon="bi:hand-thumbs-up-fill" width="24"></iconify-icon>
 						</button>
 					</div>
 
 					<div class="flex flex-col items-center justify-center">
 						<button
 							type="button"
-							on:click={openScheduleModal}
+							onclick={openScheduleModal}
 							disabled={!$collection?.permissions?.[user.role]?.write}
 							class="gradient-pink gradient-pink-hover gradient-pink-focus btn-icon"
 							aria-label="Schedule entry"
 						>
-							<iconify-icon icon="bi:clock" width="24" />
+							<iconify-icon icon="bi:clock" width="24"></iconify-icon>
 						</button>
 					</div>
 				{:else}
 					<div class="flex flex-col items-center justify-center">
 						<button
 							type="button"
-							on:click={() => $modifyEntry('unpublished')}
+							onclick={() => $modifyEntry('unpublished')}
 							disabled={!$collection?.permissions?.[user.role]?.write}
 							class="gradient-yellow gradient-yellow-hover gradient-yellow-focus btn-icon"
 							aria-label="Unpublish entry"
 						>
-							<iconify-icon icon="bi:pause-circle" width="24" />
+							<iconify-icon icon="bi:pause-circle" width="24"></iconify-icon>
 						</button>
 					</div>
 				{/if}
@@ -369,12 +426,12 @@
 				<div class="flex flex-col items-center justify-center">
 					<button
 						type="button"
-						on:click={() => $modifyEntry('cloned')}
+						onclick={() => $modifyEntry('cloned')}
 						disabled={!($collection?.permissions?.[user.role]?.write && $collection?.permissions?.[user.role]?.create)}
-						class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn-icon"
 						aria-label="Clone entry"
+						class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn-icon"
 					>
-						<iconify-icon icon="bi:clipboard-data-fill" width="24" />
+						<iconify-icon icon="bi:clipboard-data-fill" width="24"></iconify-icon>
 					</button>
 				</div>
 			{/if}

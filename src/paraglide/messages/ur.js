@@ -3355,6 +3355,38 @@ export const login_Happy_Holi = () => `ہولی مبارک ہو۔`
 export const login_happy_navratri = () => `نوراتری مبارک ہو۔`
 
 
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_description = () => `ایل ایل ایم کنفیگریشن`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_useLLM = () => `ایل ایل ایم انٹیگریشن کو فعال کریں۔`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_llmProvider = () => `LLM فراہم کنندہ (مثال کے طور پر، OpenAI، Claude، Gemimi، وغیرہ)`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_apiKey = () => `LLM API کلید`
+
+
 export { signup_password } from "./en.js"
 
 export { modaledit_tokenemailaddress } from "./en.js"
@@ -3481,35 +3513,3 @@ export const modaleditform_confirmpassword = () => `پاس ورڈ کی تصدی�
  */
 /* @__NO_SIDE_EFFECTS__ */
 export const modaleditform_userrole = () => `صارف کا کردار:`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_description = () => `ایل ایل ایم کنفیگریشن`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_useLLM = () => `ایل ایل ایم انٹیگریشن کو فعال کریں۔`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_llmProvider = () => `LLM فراہم کنندہ (مثال کے طور پر، OpenAI، Claude، Gemimi، وغیرہ)`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_apiKey = () => `LLM API کلید`

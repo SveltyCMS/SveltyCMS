@@ -17,16 +17,21 @@ Usage:
 	import WatermarkSettings from './WatermarkSettings.svelte';
 	import type { MediaType } from '@utils/media/mediaModels';
 
-	// Props
-	export let mediaItems: MediaType[] = [];
+	
+	interface Props {
+		// Props
+		mediaItems?: MediaType[];
+	}
+
+	let { mediaItems = [] }: Props = $props();
 
 	// Local state
-	let selectedMedia: MediaType | null = null;
-	let size = '100%';
-	let opacity = 1;
-	let positionX = 0;
-	let positionY = 0;
-	let rotation = 0;
+	let selectedMedia: MediaType | null = $state(null);
+	let size = $state('100%');
+	let opacity = $state(1);
+	let positionX = $state(0);
+	let positionY = $state(0);
+	let rotation = $state(0);
 
 	// Handle media selection
 	function handleMediaSelect(media: MediaType) {

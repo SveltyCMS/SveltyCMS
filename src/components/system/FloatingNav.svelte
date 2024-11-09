@@ -54,101 +54,142 @@ Import and use <FloatingNav /> in your Svelte application.
 	}
 
 	// Initialize navigation_info safely
-	let navigation_info: Record<string, ButtonInfo> = {};
-	const storedNavigation = localStorage.getItem('navigation');
-	if (storedNavigation) {
-		navigation_info = JSON.parse(storedNavigation);
-	}
+	let navigation_info = $state<Record<string, ButtonInfo>>(
+		(() => {
+			const storedNavigation = localStorage.getItem('navigation');
+			return storedNavigation ? JSON.parse(storedNavigation) : {};
+		})()
+	);
 
-	const buttonRadius: number = 25; // home button size
-	let showRoutes: boolean = false;
+	const buttonRadius = 25; // home button size
+	let showRoutes = $state(false);
 
 	const center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-	let firstLine: SVGLineElement;
-	let firstCircle: HTMLDivElement;
-	const circles: HTMLDivElement[] = [];
-	let svg: SVGSVGElement;
+	let firstLine = $state<SVGLineElement | undefined>(undefined);
+	let firstCircle = $state<HTMLDivElement | undefined>(undefined);
+	let circles = $state<HTMLDivElement[]>([]);
+	let svg = $state<SVGSVGElement | undefined>(undefined);
 	const user: User = $page.data.user;
 
 	// Endpoint definition with URL and icon only
-	let endpoints: Endpoint[] = [
-		{
-			// Home
-			url: { external: false, path: `/` },
-			icon: 'solar:home-bold',
-			label: 'Navigate to Home',
-			ariaLabel: 'Navigate to home page'
-		},
-		{
-			// User
-			url: { external: false, path: `/user` },
-			icon: 'radix-icons:avatar',
-			label: 'User Profile Settings',
-			color: 'bg-orange-500',
-			ariaLabel: 'Open user profile settings'
-		},
-		{
-			// Collection builder
-			url: { external: false, path: `/config/collectionbuilder` },
-			icon: 'fluent-mdl2:build-definition',
-			label: 'Collection Builder',
-			ariaLabel: 'Open collection builder'
-		},
-		{
-			// Image Editor
-			url: { external: false, path: `/imageEditor` },
-			icon: 'tdesign:image-edit',
-			label: 'Image Editor',
-			color: 'bg-error-500',
-			ariaLabel: 'Open image editor'
-		},
-		{
-			// Graphql Yoga Explorer
-			url: { external: true, path: `/api/graphql` },
-			icon: 'teenyicons:graphql-outline',
-			label: 'GraphQL Explorer',
-			color: 'bg-pink-500',
-			ariaLabel: 'Open GraphQL explorer'
-		},
-		{
-			// Marketplace
-			url: { external: true, path: `https://www.sveltycms.com` },
-			icon: 'icon-park-outline:shopping-bag',
-			label: 'Visit Marketplace',
-			color: 'bg-primary-700',
-			ariaLabel: 'Visit SveltyCMS marketplace'
-		},
-		{
-			// System Configuration
-			url: { external: false, path: `/config` },
-			icon: 'mynaui:config',
-			label: 'System Configuration',
-			color: 'bg-surface-400',
-			ariaLabel: 'Open system configuration'
-		},
-		{
-			// GlobalSearch
-			url: { external: false, path: '' },
-			icon: 'material-symbols:search-rounded',
-			label: 'Global Search',
-			color: 'bg-error-500',
-			ariaLabel: 'Open global search (Alt + S)',
-			action: () => {
-				isSearchVisible.update((v) => !v);
-				triggerActionStore.set([]);
+	let endpoints = $state<Endpoint[]>(
+		[
+			{
+				// Home
+				url: { external: false, path: `/` },
+				icon: 'solar:home-bold',
+				label: 'Navigate to Home',
+				ariaLabel: 'Navigate to home page'
+			},
+			{
+				// User
+				url: { external: false, path: `/user` },
+				icon: 'radix-icons:avatar',
+				label: 'User Profile Settings',
+				color: 'bg-orange-500',
+				ariaLabel: 'Open user profile settings'
+			},
+			{
+				// Collection builder
+				url: { external: false, path: `/config/collectionbuilder` },
+				icon: 'fluent-mdl2:build-definition',
+				label: 'Collection Builder',
+				ariaLabel: 'Open collection builder'
+			},
+			{
+				// Image Editor
+				url: { external: false, path: `/imageEditor` },
+				icon: 'tdesign:image-edit',
+				label: 'Image Editor',
+				color: 'bg-error-500',
+				ariaLabel: 'Open image editor'
+			},
+			{
+				// Graphql Yoga Explorer
+				url: { external: true, path: `/api/graphql` },
+				icon: 'teenyicons:graphql-outline',
+				label: 'GraphQL Explorer',
+				color: 'bg-pink-500',
+				ariaLabel: 'Open GraphQL explorer'
+			},
+			{
+				// Marketplace
+				url: { external: true, path: `https://www.sveltycms.com` },
+				icon: 'icon-park-outline:shopping-bag',
+				label: 'Visit Marketplace',
+				color: 'bg-primary-700',
+				ariaLabel: 'Visit SveltyCMS marketplace'
+			},
+			{
+				// System Configuration
+				url: { external: false, path: `/config` },
+				icon: 'mynaui:config',
+				label: 'System Configuration',
+				color: 'bg-surface-400',
+				ariaLabel: 'Open system configuration'
+			},
+			{
+				// GlobalSearch
+				url: { external: false, path: '' },
+				icon: 'material-symbols:search-rounded',
+				label: 'Global Search',
+				color: 'bg-error-500',
+				ariaLabel: 'Open global search (Alt + S)',
+				action: () => {
+					isSearchVisible.update((v) => !v);
+					triggerActionStore.set([]);
+				}
+			}
+		].filter((endpoint) => {
+			if (user?.role === 'admin') return true;
+			else if (endpoint.url.path === '/collection') return false;
+			else return true;
+		})
+	);
+
+	interface Props {
+		buttonInfo?: ButtonInfo;
+	}
+
+	let {
+		buttonInfo = $bindable({
+			x: window.innerWidth - buttonRadius * 3,
+			y: window.innerHeight - buttonRadius * 3,
+			radius: buttonRadius
+		})
+	}: Props = $props();
+
+	// Function to calculate endpoint coordinates and angles
+	function calculateEndpoint(index: number, totalEndpoints: number, radius: number): { x: number; y: number; angle: number } {
+		const angle = ((Math.PI * 2) / totalEndpoints) * (index + 1.25); // Adjust angle for centering
+		const x = center.x + radius * Math.cos(angle);
+		const y = center.y + radius * Math.sin(angle);
+		return { x, y, angle };
+	}
+
+	// Calculate endpoint positions and angles based on their index
+	let endpointsWithPositions = $derived(
+		endpoints.map((endpoint, index) => ({
+			...endpoint,
+			...calculateEndpoint(index, endpoints.length, 140) // Adjust radius as needed
+		}))
+	);
+
+	// Update line animations when showRoutes changes
+	$effect(() => {
+		if (!showRoutes && svg) {
+			let first = true;
+			for (const lineElement of svg.children) {
+				const el = lineElement as SVGLineElement;
+				el.style.transition = first ? 'stroke-dashoffset 0.2s 0.2s' : 'stroke-dashoffset 0.2s';
+				el.style.strokeDashoffset = el.style.strokeDasharray = el.getTotalLength().toString();
+				first = false;
+			}
+			for (const circle of circles) {
+				circle.style.display = 'none';
 			}
 		}
-	].filter((endpoint) => {
-		if (user?.role === 'admin') return true;
-		else if (endpoint.url.path === '/collection') return false;
-		else return true;
 	});
-
-	export let buttonInfo: ButtonInfo = {
-		x: window.innerWidth - buttonRadius * 3, // right corner, adjusted inward by button's diameter
-		y: window.innerHeight - buttonRadius * 3, // bottom corner, adjusted inward
-		radius: buttonRadius
-	};
 
 	// Update buttonInfo from localStorage on mount
 	onMount(() => {
@@ -197,20 +238,6 @@ Import and use <FloatingNav /> in your Svelte application.
 		const replaced = params.reduce((acc, param) => acc.replace(param, ''), pathname);
 		return params.length > 0 ? replaced : pathname;
 	}
-
-	// Function to calculate endpoint coordinates and angles
-	function calculateEndpoint(index: number, totalEndpoints: number, radius: number): { x: number; y: number; angle: number } {
-		const angle = ((Math.PI * 2) / totalEndpoints) * (index + 1.25); // Adjust angle for centering
-		const x = center.x + radius * Math.cos(angle);
-		const y = center.y + radius * Math.sin(angle);
-		return { x, y, angle };
-	}
-
-	// Calculate endpoint positions and angles based on their index
-	$: endpointsWithPositions = endpoints.map((endpoint, index) => ({
-		...endpoint,
-		...calculateEndpoint(index, endpoints.length, 140) // Adjust radius as needed
-	}));
 
 	// Show the routes when the component is visible
 	function drag(node: HTMLDivElement) {
@@ -324,24 +351,6 @@ Import and use <FloatingNav /> in your Svelte application.
 		}
 	}
 
-	// Reverse the dash
-	function reverse() {
-		if (!svg) return;
-		let first = true;
-		for (const lineElement of svg.children) {
-			const el = lineElement as SVGLineElement;
-			el.style.transition = first ? 'stroke-dashoffset 0.2s 0.2s' : 'stroke-dashoffset 0.2s ';
-			el.style.strokeDashoffset = el.style.strokeDasharray = el.getTotalLength().toString();
-			first = false;
-		}
-		for (const circle of circles) {
-			circle.style.display = 'none';
-		}
-	}
-
-	// Animate the dash
-	$: if (!showRoutes) reverse();
-
 	function isRightToLeft(): boolean {
 		return document.documentElement.dir === 'rtl';
 	}
@@ -382,9 +391,9 @@ Import and use <FloatingNav /> in your Svelte application.
 	style="top:{(Math.min(buttonInfo.y, window.innerHeight - buttonRadius) / window.innerHeight) * 100}%;
            left:{(Math.min(isRightToLeft() ? buttonRadius : buttonInfo.x, window.innerWidth - buttonRadius) / window.innerWidth) * 100}%;"
 	tabindex="0"
-	on:keydown={handleMainKeyDown}
+	onkeydown={handleMainKeyDown}
 >
-	<iconify-icon icon="tdesign:map-route-planning" width="36" style="color:white" aria-hidden="true" />
+	<iconify-icon icon="tdesign:map-route-planning" width="36" style="color:white" aria-hidden="true"></iconify-icon>
 </div>
 
 <!-- Show the routes when the component is visible -->
@@ -394,7 +403,7 @@ Import and use <FloatingNav /> in your Svelte application.
 		<div
 			class="fixed left-1/2 top-1/2 -z-10 h-[340px] w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-full border bg-tertiary-500/40"
 			transition:scale={{ duration: 200, easing: elasticOut }}
-		/>
+		></div>
 
 		<!-- SVG Lines -->
 		<svg bind:this={svg} xmlns="http://www.w3.org/2000/svg" use:setDash aria-hidden="true" class="svg-container">
@@ -410,7 +419,7 @@ Import and use <FloatingNav /> in your Svelte application.
 			<div
 				class="absolute left-1/2 top-1/2 -z-10 h-[340px] w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-full border bg-tertiary-500/40"
 				transition:scale={{ duration: 200, easing: elasticOut }}
-			/>
+			></div>
 
 			<!-- Home button -->
 			<div
@@ -418,18 +427,18 @@ Import and use <FloatingNav /> in your Svelte application.
 				role="menuitem"
 				aria-label={endpointsWithPositions[0].ariaLabel || endpointsWithPositions[0].label}
 				tabindex="0"
-				on:click={() => handleEndpointClick(endpointsWithPositions[0])}
-				on:keydown={(event) => handleEndpointKeydown(event, endpointsWithPositions[0])}
+				onclick={() => handleEndpointClick(endpointsWithPositions[0])}
+				onkeydown={(event) => handleEndpointKeydown(event, endpointsWithPositions[0])}
 				class="endpoint-circle group fixed z-[99999999] flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-2 bg-gray-600 transition-transform duration-200 hover:scale-110 focus:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2"
 				style="top:{center.y}px;left:{center.x}px;"
 			>
-				<iconify-icon width="32" style="color:white" icon="solar:home-bold" aria-hidden="true" />
+				<iconify-icon width="32" style="color:white" icon="solar:home-bold" aria-hidden="true"></iconify-icon>
 				<div
 					class="tooltip absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[calc(100%+8px)] scale-90 whitespace-nowrap rounded bg-black/80 px-2 py-1 text-xs text-white opacity-0 transition-all group-hover:scale-100 group-hover:opacity-100 group-focus:scale-100 group-focus:opacity-100"
 					role="tooltip"
 				>
 					{endpointsWithPositions[0].label}
-					<div class="tooltip-arrow" />
+					<div class="tooltip-arrow"></div>
 				</div>
 			</div>
 
@@ -440,26 +449,26 @@ Import and use <FloatingNav /> in your Svelte application.
 					role="menuitem"
 					aria-label={endpoint.ariaLabel || endpoint.label}
 					tabindex="0"
-					on:click={() => handleEndpointClick(endpoint)}
-					on:keydown={(event) => handleEndpointKeydown(event, endpoint)}
+					onclick={() => handleEndpointClick(endpoint)}
+					onkeydown={(event) => handleEndpointKeydown(event, endpoint)}
 					class="endpoint-circle group fixed z-[99999999] flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full transition-transform duration-200 {endpoint.color ||
 						'bg-tertiary-500'} hover:scale-110 focus:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2"
 					style="top:{endpoint.y}px;left:{endpoint.x}px;"
 				>
-					<iconify-icon width="32" style="color:white" icon={endpoint.icon} aria-hidden="true" />
+					<iconify-icon width="32" style="color:white" icon={endpoint.icon} aria-hidden="true"></iconify-icon>
 					<div
 						class="tooltip absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[calc(100%+8px)] scale-90 whitespace-nowrap rounded bg-black/80 px-2 py-1 text-xs text-white opacity-0 transition-all group-hover:scale-100 group-hover:opacity-100 group-focus:scale-100 group-focus:opacity-100"
 						role="tooltip"
 					>
 						{endpoint.label}
-						<div class="tooltip-arrow" />
+						<div class="tooltip-arrow"></div>
 					</div>
 				</div>
 			{/each}
 		</div>
 
 		<!-- Close button overlay -->
-		<button on:click={() => (showRoutes = false)} class="absolute inset-0 z-[-1] h-full w-full" aria-label="Close Navigation Menu" />
+		<button onclick={() => (showRoutes = false)} class="absolute inset-0 z-[-1] h-full w-full" aria-label="Close Navigation Menu"></button>
 	</div>
 {/if}
 

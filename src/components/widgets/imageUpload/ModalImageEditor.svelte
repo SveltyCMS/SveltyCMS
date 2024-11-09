@@ -5,16 +5,28 @@
 	import { getModalStore } from '@skeletonlabs/skeleton';
 
 	// Props
-	/** Exposes parent props to this component. */
-	export let parent: SvelteComponent;
+	
 
-	export let _data: any;
-	export let field: any;
-	export let updated: any;
-	export let value: any;
-	export let mediaOnSelect: any;
+	interface Props {
+		/** Exposes parent props to this component. */
+		parent: SvelteComponent;
+		_data: any;
+		field: any;
+		updated: any;
+		value: any;
+		mediaOnSelect: any; // const modalStore = getModalStore();
+	}
 
-	// const modalStore = getModalStore();
+	let {
+		parent,
+		_data,
+		field,
+		updated,
+		value,
+		mediaOnSelect
+	}: Props = $props();
+
+	
 
 	// // Notes: Use `w-screen h-screen` to fit the visible canvas size.
 	// const cBase = 'bg-surface-100-800-token w-screen h-screen p-4 flex justify-center items-center';

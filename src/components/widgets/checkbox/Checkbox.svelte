@@ -4,6 +4,7 @@
 -->
 
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
 	import { updateTranslationProgress, getFieldName } from '@utils/utils';
@@ -15,20 +16,30 @@
 	// Valibot validation
 	import { object, string, number, boolean, optional, minLength, pipe, parse, type InferInput, type ValiError } from 'valibot';
 
-	export let field: FieldType;
+	interface Props {
+		field: FieldType;
+		value?: any;
+	}
+
+	let { field, value = {} }: Props = $props();
 
 	const fieldName = getFieldName(field);
-	export let value = $collectionValue[fieldName] || {};
+	value = value || $collectionValue[fieldName] || {};
 
-	const _data = $mode === 'create' ? {} : value;
-
-	$: _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
-	$: updateTranslationProgress(_data, field);
-
-	let validationError: string | null = null;
+	let _data = $state($mode === 'create' ? {} : value);
+	let validationError = $state<string | null>(null);
 	let debounceTimeout: number | undefined;
 
-	export const WidgetData = async () => _data;
+	// Computed values
+	let _language = $derived(field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE);
+
+	// Initialize data structure and update translation progress
+	$effect(() => {
+		if (!_data[_language]) {
+			_data[_language] = { checked: false, label: '' };
+		}
+		updateTranslationProgress(_data, field);
+	});
 
 	// Define the validation schema for this widget
 	const labelSchema = pipe(string(), minLength(1, 'Label cannot be empty'));
@@ -70,38 +81,59 @@
 			validationError = validateSchema(_data[_language]);
 		}, 300);
 	}
+
+	// Cleanup on component destroy
+	onDestroy(() => {
+		if (debounceTimeout) clearTimeout(debounceTimeout);
+	});
+
+	export const WidgetData = async () => _data;
 </script>
 
-<div class="flex w-full items-center gap-2">
-	<!-- Checkbox -->
-	<input
-		id={field.db_fieldName}
-		type="checkbox"
-		color={field.color}
-		bind:checked={_data[_language].checked}
-		on:input={validateInput}
-		class="h-[${field.size}] w-[${field.size}] mr-4 rounded"
-		aria-label={field?.label || field?.db_fieldName}
-		aria-invalid={!!validationError}
-		aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
-	/>
+<div class="checkbox-container relative mb-4">
+	<div class="flex w-full items-center gap-2">
+		<!-- Checkbox -->
+		<input
+			id={field.db_fieldName}
+			type="checkbox"
+			color={field.color}
+			bind:checked={_data[_language].checked}
+			oninput={validateInput}
+			class="h-[${field.size}] w-[${field.size}] mr-4 rounded"
+			class:error={!!validationError}
+			aria-label={field?.label || field?.db_fieldName}
+			aria-invalid={!!validationError}
+			aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
+		/>
 
-	<!-- Label -->
-	<input
-		type="text"
-		placeholder="Define Label"
-		bind:value={_data[_language].label}
-		on:input={validateInput}
-		class="input text-black dark:text-primary-500"
-		aria-label="Checkbox Label"
-		aria-invalid={!!validationError}
-		aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
-	/>
+		<!-- Label -->
+		<input
+			type="text"
+			placeholder="Define Label"
+			bind:value={_data[_language].label}
+			oninput={validateInput}
+			class="input text-black dark:text-primary-500"
+			class:error={!!validationError}
+			aria-label="Checkbox Label"
+			aria-invalid={!!validationError}
+			aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
+		/>
+	</div>
+
+	<!-- Error Message -->
+	{#if validationError}
+		<p id={`${field.db_fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+			{validationError}
+		</p>
+	{/if}
 </div>
 
-<!-- Error Message -->
-{#if validationError}
-	<p id={`${field.db_fieldName}-error`} class="text-center text-sm text-error-500">
-		{validationError}
-	</p>
-{/if}
+<style lang="postcss">
+	.checkbox-container {
+		min-height: 2.5rem;
+	}
+
+	.error {
+		border-color: rgb(239 68 68);
+	}
+</style>

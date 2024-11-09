@@ -7,29 +7,33 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	export let description: string;
-	export let descriptionCharacterWidth: number;
-	export let handleDescriptionChange: (event: Event) => void;
+	interface Props {
+		description: string;
+		descriptionCharacterWidth: number;
+		handleDescriptionChange: (event: Event) => void;
+	}
+
+	let { description = $bindable(), descriptionCharacterWidth, handleDescriptionChange }: Props = $props();
 
 	// Compute class based on description length
-	$: computedClass =
-		description.length >= 120 && description.length <= 165
+	let computedClass =
+		$derived(description.length >= 120 && description.length <= 165
 			? 'input-label green'
 			: description.length >= 30 && description.length <= 119
 				? 'input-label orange'
 				: description.length < 30
 					? 'input-label'
-					: 'input-label red';
+					: 'input-label red');
 
 	// Compute status message based on description length
-	$: descriptionStatus =
-		description.length >= 120 && description.length <= 165
+	let descriptionStatus =
+		$derived(description.length >= 120 && description.length <= 165
 			? 'Optimal length'
 			: description.length >= 30 && description.length <= 119
 				? 'Length is acceptable'
 				: description.length < 30
 					? 'Too short'
-					: 'Too long';
+					: 'Too long');
 </script>
 
 <label for="description-input" class={computedClass}>
@@ -59,10 +63,10 @@
 	rows="2"
 	cols="50"
 	bind:value={description}
-	on:input={handleDescriptionChange}
+	oninput={handleDescriptionChange}
 	class="input text-black dark:text-primary-500"
 	aria-describedby="description-status"
-/>
+></textarea>
 
 <style>
 	.input-label {

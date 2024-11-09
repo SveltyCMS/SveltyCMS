@@ -15,12 +15,17 @@
 	const modalStore = getModalStore();
 
 	// Props
-	/** Exposes parent props to this component. */
-	export let parent: any;
-	export let existingCategory: any = { name: '', icon: '' };
+
+	interface Props {
+		/** Exposes parent props to this component. */
+		parent: any;
+		existingCategory?: any;
+	}
+
+	let { parent, existingCategory = { name: '', icon: '' } }: Props = $props();
 
 	// Define the search term variable
-	let searchTerm: string = '';
+	let searchTerm: string = $state('');
 
 	// Define the widget type
 	type WidgetType = keyof typeof widgets;
@@ -29,7 +34,7 @@
 	const widget_keys = Object.keys(widgets) as WidgetType[];
 
 	// Define the selected widget variable
-	let selected: WidgetType | null = null;
+	let selected: WidgetType | null = $state(null);
 
 	// Debugging: Log the initial widget keys and search term
 	console.log('Initial widget keys:', widget_keys);
@@ -83,16 +88,17 @@
 					{#if item && widgets[item]?.GuiSchema}
 						{#if item.toLowerCase().includes(searchTerm.toLowerCase())}
 							<button
-								class="variant-outline-warning btn relative flex items-center justify-start gap-1 {selected === item
-									? 'bg-primary-500'
-									: ' variant-outline-warning hover:variant-ghost-warning'}"
-								on:click={() => {
+								onclick={() => {
 									console.log('Widget selected:', item);
 									selected = item;
 									onFormSubmit();
 								}}
+								aria-label={item}
+								class="variant-outline-warning btn relative flex items-center justify-start gap-1 {selected === item
+									? 'bg-primary-500'
+									: ' variant-outline-warning hover:variant-ghost-warning'}"
 							>
-								<iconify-icon icon={widgets[item]?.Icon} width="22" class="mr-1 text-tertiary-500" />
+								<iconify-icon icon={widgets[item]?.Icon} width="22" class="mr-1 text-tertiary-500"></iconify-icon>
 								<span class="text-surface-700 dark:text-white">{item}</span>
 
 								<!-- helpericon -->
@@ -101,12 +107,12 @@
 									width="20"
 									use:popup={getIconTooltip(item)}
 									class="absolute -right-1.5 -top-1.5 text-primary-500"
-								/>
+								></iconify-icon>
 							</button>
 							<!-- IconTooltip -->
 							<div class="card variant-filled-secondary z-50 max-w-sm p-4" data-popup={item}>
 								<p>{widgets[item]?.Description}</p>
-								<div class="variant-filled-secondary arrow" />
+								<div class="variant-filled-secondary arrow"></div>
 							</div>
 						{/if}
 					{/if}
@@ -116,7 +122,7 @@
 
 		<footer class="flex {existingCategory.name ? 'justify-between' : 'justify-end'} {parent.regionFooter}">
 			<div class="flex gap-2">
-				<button class="variant-outline-secondary btn" on:click={parent.onClose}>{m.button_cancel()}</button>
+				<button class="variant-outline-secondary btn" onclick={parent.onClose}>{m.button_cancel()}</button>
 				<!-- <button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button> -->
 			</div>
 		</footer>

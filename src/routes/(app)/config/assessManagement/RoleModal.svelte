@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { preventDefault } from 'svelte/legacy';
+
 	import type { SvelteComponent } from 'svelte';
 
 	// Stores
@@ -11,18 +13,31 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Props
-	/** Exposes parent props to this component. */
-	export let parent: SvelteComponent;
-	export let isEditMode: boolean;
-	export let currentRoleId: string;
-	export let roleName: string;
-	export let roleDescription: string;
-	export let currentGroupName: string;
-	export let selectedPermissions: string[] = [];
+	
+	interface Props {
+		/** Exposes parent props to this component. */
+		parent: SvelteComponent;
+		isEditMode: boolean;
+		currentRoleId: string;
+		roleName: string;
+		roleDescription: string;
+		currentGroupName: string;
+		selectedPermissions?: string[];
+	}
+
+	let {
+		parent,
+		isEditMode,
+		currentRoleId,
+		roleName,
+		roleDescription,
+		currentGroupName,
+		selectedPermissions = []
+	}: Props = $props();
 
 	// Local form state
-	let formName = roleName;
-	let formDescription = roleDescription;
+	let formName = $state(roleName);
+	let formDescription = $state(roleDescription);
 
 	const modalStore = getModalStore();
 
@@ -46,7 +61,7 @@
 		{isEditMode ? 'Edit Role' : 'Create New Role'}
 	</header>
 
-	<form class="modal-form space-y-4 border border-surface-500 p-4 rounded-container-token" on:submit|preventDefault={onFormSubmit}>
+	<form class="modal-form space-y-4 border border-surface-500 p-4 rounded-container-token" onsubmit={preventDefault(onFormSubmit)}>
 		<label class="label">
 			<span>Role Name:</span>
 			<input type="text" bind:value={formName} placeholder="Role Name" class="input" required />
@@ -54,13 +69,13 @@
 
 		<label class="label">
 			<span>Role Description:</span>
-			<textarea bind:value={formDescription} placeholder="Role Description" class="input" rows="3" />
+			<textarea bind:value={formDescription} placeholder="Role Description" class="input" rows="3"></textarea>
 		</label>
 	</form>
 
 	<!-- Footer -->
 	<footer class="modal-footer flex justify-end gap-4">
-		<button class="variant-ghost-surface btn" on:click={parent.onClose}>{m.button_cancel()}</button>
-		<button class="variant-filled-primary btn" on:click={onFormSubmit}>{isEditMode ? 'Update' : 'Create'}</button>
+		<button class="variant-ghost-surface btn" onclick={parent.onClose}>{m.button_cancel()}</button>
+		<button class="variant-filled-primary btn" onclick={onFormSubmit}>{isEditMode ? 'Update' : 'Create'}</button>
 	</footer>
 </div>

@@ -4,6 +4,8 @@
 -->
 
 <script lang="ts">
+	import { run, preventDefault } from 'svelte/legacy';
+
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
 	import { getFieldName } from '@utils/utils';
@@ -15,17 +17,21 @@
 	// Valibot validation
 	import { object, string, number, boolean, optional, regex, pipe, parse, type InferInput, type ValiError } from 'valibot';
 
-	export let field: FieldType;
 
 	const fieldName = getFieldName(field);
-	export let value = $collectionValue[fieldName] || {};
+	interface Props {
+		field: FieldType;
+		value?: any;
+	}
 
-	const _data = $mode === 'create' ? {} : value;
+	let { field, value = $collectionValue[fieldName] || {} }: Props = $props();
+
+	const _data = $state($mode === 'create' ? {} : value);
 	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
-	let validationError: string | null = null;
+	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
 
-	let numberInput: HTMLInputElement;
+	let numberInput: HTMLInputElement = $state();
 	const language = $contentLanguage;
 
 	export const WidgetData = async () => _data;
@@ -49,16 +55,18 @@
 		return numberWithDecimalSeparator.substring(1, 2);
 	}
 
-	$: if (numberInput) {
-		const value = numberInput.value;
-		const decimalSeparator = getDecimalSeparator(language);
-		const number = parseFloat(value.replace(new RegExp(`[^0-9${decimalSeparator}]`, 'g'), '').replace(decimalSeparator, '.'));
-		if (!isNaN(number)) {
-			numberInput.value = new Intl.NumberFormat(language, { maximumFractionDigits: 20 }).format(number);
-		} else {
-			numberInput.value = value;
+	run(() => {
+		if (numberInput) {
+			const value = numberInput.value;
+			const decimalSeparator = getDecimalSeparator(language);
+			const number = parseFloat(value.replace(new RegExp(`[^0-9${decimalSeparator}]`, 'g'), '').replace(decimalSeparator, '.'));
+			if (!isNaN(number)) {
+				numberInput.value = new Intl.NumberFormat(language, { maximumFractionDigits: 20 }).format(number);
+			} else {
+				numberInput.value = value;
+			}
 		}
-	}
+	});
 
 	// Define the validation schema for this widget
 	const valueSchema = pipe(string(), regex(/^\d+(\.\d{1,2})?$/, 'Invalid currency format, must be a valid number with up to 2 decimal places'));
@@ -101,7 +109,7 @@
 	}
 
 	// Reactive statement to update count
-	$: count = _data[_language]?.length ?? 0;
+	let count = $derived(_data[_language]?.length ?? 0);
 	const getBadgeClass = (length: number) => {
 		if (field?.minlength && length < field?.minlength) {
 			return 'bg-red-600';
@@ -115,61 +123,74 @@
 	};
 </script>
 
-<div class="variant-filled-surface btn-group flex w-full rounded">
-	{#if field?.prefix}
-		<button class="!px-2">{field?.prefix}</button>
-	{/if}
+<div class="input-container relative mb-4">
+	<div class="variant-filled-surface btn-group flex w-full rounded">
+		{#if field?.prefix}
+			<button class="!px-2">{field?.prefix}</button>
+		{/if}
 
-	<input
-		type="text"
-		bind:value={_data[_language]}
-		bind:this={numberInput}
-		on:input|preventDefault={handleInput}
-		name={field?.db_fieldName}
-		id={field?.db_fieldName}
-		placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}
-		required={field?.required}
-		minlength={field?.minlength}
-		maxlength={field?.maxlength}
-		step={field?.step}
-		class="input text-black dark:text-primary-500"
-		aria-invalid={!!validationError}
-		aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
-		on:blur={validateInput}
-	/>
+		<input
+			type="text"
+			bind:value={_data[_language]}
+			bind:this={numberInput}
+			oninput={preventDefault(handleInput)}
+			name={field?.db_fieldName}
+			id={field?.db_fieldName}
+			placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}
+			required={field?.required}
+			minlength={field?.minlength}
+			maxlength={field?.maxlength}
+			step={field?.step}
+			class="input text-black dark:text-primary-500"
+			class:error={!!validationError}
+			aria-invalid={!!validationError}
+			aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
+			onblur={validateInput}
+		/>
 
-	<!-- suffix -->
-	{#if field?.suffix}
-		<button class="!px-1">
-			{#if field?.minlength || field?.maxlength}
-				<span class="badge mr-1 rounded-full {getBadgeClass(count)}">
-					{#if field?.minlength && field?.maxlength}
-						{count}/{field?.maxlength}
-					{:else if field?.maxlength}
-						{count}/{field?.maxlength}
-					{:else if field?.minlength}
-						min {field?.minlength}
-					{/if}
-				</span>
-			{/if}
-			{field?.suffix}
-		</button>
-	{:else if field?.minlength || field?.maxlength}
-		<span class="badge rounded-none {getBadgeClass(count)}">
-			{#if field?.minlength && field?.maxlength}
-				{count}/{field?.maxlength}
-			{:else if field?.maxlength}
-				{count}/{field?.maxlength}
-			{:else if field?.minlength}
-				min {field?.minlength}
-			{/if}
-		</span>
+		<!-- suffix -->
+		{#if field?.suffix}
+			<button class="!px-1">
+				{#if field?.minlength || field?.maxlength}
+					<span class="badge mr-1 rounded-full {getBadgeClass(count)}">
+						{#if field?.minlength && field?.maxlength}
+							{count}/{field?.maxlength}
+						{:else if field?.maxlength}
+							{count}/{field?.maxlength}
+						{:else if field?.minlength}
+							min {field?.minlength}
+						{/if}
+					</span>
+				{/if}
+				{field?.suffix}
+			</button>
+		{:else if field?.minlength || field?.maxlength}
+			<span class="badge rounded-none {getBadgeClass(count)}">
+				{#if field?.minlength && field?.maxlength}
+					{count}/{field?.maxlength}
+				{:else if field?.maxlength}
+					{count}/{field?.maxlength}
+				{:else if field?.minlength}
+					min {field?.minlength}
+				{/if}
+			</span>
+		{/if}
+	</div>
+
+	<!-- Error Message -->
+	{#if validationError}
+		<p id={`${field.db_fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+			{validationError}
+		</p>
 	{/if}
 </div>
 
-<!-- Error Message -->
-{#if validationError}
-	<p id={`${field.db_fieldName}-error`} class="text-center text-sm text-error-500">
-		{validationError}
-	</p>
-{/if}
+<style lang="postcss">
+	.input-container {
+		min-height: 2.5rem;
+	}
+
+	.error {
+		border-color: rgb(239 68 68);
+	}
+</style>

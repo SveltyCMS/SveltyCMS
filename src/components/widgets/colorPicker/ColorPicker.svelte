@@ -17,13 +17,17 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	export let field: FieldType;
 
 	const fieldName = getFieldName(field);
-	export let value = $collectionValue[fieldName] || {};
+	interface Props {
+		field: FieldType;
+		value?: any;
+	}
 
-	const _data = $mode === 'create' ? {} : value;
-	let validationError: string | null = null;
+	let { field, value = $collectionValue[fieldName] || {} }: Props = $props();
+
+	const _data = $state($mode === 'create' ? {} : value);
+	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
 
 	export const WidgetData = async () => _data;
@@ -63,34 +67,48 @@
 	}
 </script>
 
-<div class="flex w-full items-center gap-2">
-	<!-- Color picker -->
-	<input
-		type="color"
-		bind:value={_data.color}
-		class="h-11 w-11 rounded border-0"
-		on:input={validateInput}
-		aria-label="Color picker"
-		aria-invalid={!!validationError}
-		aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
-	/>
+<div class="input-container relative mb-4">
+	<div class="flex w-full items-center gap-2">
+		<!-- Color picker -->
+		<input
+			type="color"
+			bind:value={_data.color}
+			class="h-11 w-11 rounded border-0"
+			class:error={!!validationError}
+			oninput={validateInput}
+			aria-label="Color picker"
+			aria-invalid={!!validationError}
+			aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
+		/>
 
-	<!-- Hex Value -->
-	<input
-		type="text"
-		bind:value={_data.color}
-		on:input={validateInput}
-		placeholder={m.colorPicker_hex()}
-		class="input text-black dark:text-primary-500"
-		aria-label="Hex color value"
-		aria-invalid={!!validationError}
-		aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
-	/>
+		<!-- Hex Value -->
+		<input
+			type="text"
+			bind:value={_data.color}
+			oninput={validateInput}
+			placeholder={m.colorPicker_hex()}
+			class="input text-black dark:text-primary-500"
+			class:error={!!validationError}
+			aria-label="Hex color value"
+			aria-invalid={!!validationError}
+			aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
+		/>
+	</div>
+
+	<!-- Error Message -->
+	{#if validationError}
+		<p id={`${field.db_fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+			{validationError}
+		</p>
+	{/if}
 </div>
 
-<!-- Error Message -->
-{#if validationError}
-	<p id={`${field.db_fieldName}-error`} class="text-center text-sm text-error-500">
-		{validationError}
-	</p>
-{/if}
+<style lang="postcss">
+	.input-container {
+		min-height: 2.5rem;
+	}
+
+	.error {
+		border-color: rgb(239 68 68);
+	}
+</style>

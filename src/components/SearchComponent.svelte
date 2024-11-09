@@ -3,12 +3,12 @@
 @description Search Component for Svelte CMS
 
 Features:
-- Fuzzy search with edit distance calculation
-- Real-time search results
+- Fuzzy search with optimized edit distance calculation
+- Real-time search results with debounced input
 - Keyboard navigation support
 - Responsive design
-- Accessibility improvements
-
+- Enhanced accessibility
+- Performance optimized state management
 -->
 
 <script lang="ts">
@@ -36,16 +36,25 @@ Features:
 		distance?: number;
 	}
 
-	// Define the searchResults array and searchQuery variable
-	let searchResults: SearchResult[] = [];
-	let searchQuery = '';
-	let inputRef: HTMLInputElement;
-	let selectedIndex = -1; // Track the currently selected result
+	// State management using Svelte 5's $state
+	let searchResults: SearchResult[] = $state([]);
+	let searchQuery = $state('');
+	let inputRef: HTMLInputElement | null = $state(null);
+	let selectedIndex = $state(-1); // Track the currently selected result
 
-	// Function to perform fuzzy search
-	async function fuzzySearch(query: string) {
+	// Debounce function for search optimization
+	function debounce<T extends (...args: any[]) => void>(fn: T, delay: number): (...args: Parameters<T>) => void {
+		let timeoutId: ReturnType<typeof setTimeout>;
+		return (...args: Parameters<T>) => {
+			clearTimeout(timeoutId);
+			timeoutId = setTimeout(() => fn(...args), delay);
+		};
+	}
+
+	// Optimized fuzzy search with debouncing
+	const debouncedFuzzySearch = debounce(async (query: string) => {
 		// If the query is empty, clear the search results and return
-		if (query === '') {
+		if (!query) {
 			searchResults = [];
 			return;
 		}
@@ -53,78 +62,102 @@ Features:
 		const index = $globalSearchIndex;
 		const upperQuery = query.toUpperCase();
 
+		// Optimize performance by pre-calculating query-related values
+		const threshold = Math.floor(query.length * 0.9);
+
 		// Calculate distances and filter results
 		const results = index
 			.map((result) => {
-				// Ensure we always have a number for distance calculations
-				const titleDistance = getEditDistance(upperQuery, result.title.toUpperCase()) ?? Infinity;
-				const keywordDistances = result.keywords.map((keyword) => getEditDistance(upperQuery, keyword.toUpperCase()) ?? Infinity);
+				// Cache uppercase title and keywords for performance
+				const upperTitle = result.title.toUpperCase();
+				const upperKeywords = result.keywords.map((k) => k.toUpperCase());
+
+				// Quick exact match check before expensive edit distance calculation
+				if (upperTitle === upperQuery || upperKeywords.includes(upperQuery)) {
+					return { ...result, distance: 0 };
+				}
+
+				// Calculate edit distances only if necessary
+				const titleDistance = getEditDistance(upperQuery, upperTitle) ?? Infinity;
+				const keywordDistances = upperKeywords.map((keyword) => getEditDistance(upperQuery, keyword) ?? Infinity);
+
 				return {
 					...result,
 					distance: Math.min(titleDistance, ...keywordDistances)
 				};
 			})
 			.filter((result) => {
-				const threshold = Math.floor(query.length * 0.9);
+				const upperTitle = result.title.toUpperCase();
 				return (
 					result.distance <= threshold ||
-					result.title.toUpperCase().includes(upperQuery) ||
+					upperTitle.includes(upperQuery) ||
 					result.keywords.some((keyword) => keyword.toUpperCase().includes(upperQuery))
 				);
 			})
 			.sort((a, b) => a.distance - b.distance);
 
-		// Prioritize exact matches
-		const exactMatches = results.filter(
-			(result) => result.title.toUpperCase() === upperQuery || result.keywords.some((keyword) => keyword.toUpperCase() === upperQuery)
-		);
-
-		searchResults = exactMatches.length > 0 ? exactMatches.slice(0, 5) : results.slice(0, 5);
+		// Update state with top 5 results
+		searchResults = results.slice(0, 5);
 		selectedIndex = -1; // Reset selection when results change
-	}
+	}, 150); // 150ms debounce delay for optimal performance
 
-	function handleResultClick(result: SearchResult, triggerKey: string) {
-		const trigger = result.triggers[triggerKey];
+	function handleResultClick(result: SearchResult, triggerKey: string, event?: MouseEvent) {
+		if (event) {
+			event.stopPropagation();
+		}
 
-		if (typeof trigger === 'object' && trigger !== null && 'path' in trigger && 'action' in trigger) {
+		const trigger = result.triggers[triggerKey] as Trigger;
+
+		if (trigger) {
 			const { path, action } = trigger;
 
-			// Navigate to the appropriate page if it's not the current page
+			// Navigate if path is different
 			if (window.location.pathname !== path) {
 				goto(path);
 			}
 
-			// Store the trigger actions array in the triggerActionStore
+			// Handle actions if present
 			if (action) {
 				triggerActionStore.set(action);
 			}
-		} else if (trigger && typeof trigger.path === 'string') {
-			goto(trigger.path);
 		}
 
 		isSearchVisible.set(false);
 	}
 
-	// Handle keyboard navigation
-	const onKeyDown = (event: KeyboardEvent) => {
-		// Escape key closes the search component
-		if (event.key === 'Escape' && $isSearchVisible) {
-			isSearchVisible.set(false);
-		} else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-			event.preventDefault();
-			selectedIndex = (selectedIndex + (event.key === 'ArrowDown' ? 1 : -1) + searchResults.length) % searchResults.length;
-		} else if (event.key === 'Enter' && selectedIndex >= 0) {
-			const result = searchResults[selectedIndex];
-			handleResultClick(result, Object.keys(result.triggers)[0]);
+	// Keyboard navigation handler
+	function onKeyDown(event: KeyboardEvent) {
+		switch (event.key) {
+			case 'Escape':
+				if ($isSearchVisible) {
+					event.preventDefault();
+					isSearchVisible.set(false);
+				}
+				break;
+			case 'ArrowDown':
+			case 'ArrowUp':
+				event.preventDefault();
+				if (searchResults.length > 0) {
+					const direction = event.key === 'ArrowDown' ? 1 : -1;
+					selectedIndex = (selectedIndex + direction + searchResults.length) % searchResults.length;
+				}
+				break;
+			case 'Enter':
+				if (selectedIndex >= 0 && searchResults[selectedIndex]) {
+					event.preventDefault();
+					const result = searchResults[selectedIndex];
+					handleResultClick(result, Object.keys(result.triggers)[0]);
+				}
+				break;
 		}
-	};
+	}
 
 	// Close search on outside click
-	const handleClickOutside = (event: MouseEvent) => {
+	function handleClickOutside(event: MouseEvent) {
 		if ($isSearchVisible && event.target && !(event.target as Element).closest('.search-component')) {
 			isSearchVisible.set(false);
 		}
-	};
+	}
 
 	onMount(() => {
 		if (inputRef) inputRef.focus();
@@ -134,28 +167,39 @@ Features:
 </script>
 
 {#if $isSearchVisible}
-	<div class="search-component fixed inset-0 z-50 flex flex-col items-center justify-center bg-gray-900/50 backdrop-blur-sm">
+	<div
+		class="search-component fixed inset-0 z-50 flex flex-col items-center justify-center bg-gray-900/50 backdrop-blur-sm"
+		role="dialog"
+		aria-label="Global Search"
+	>
 		<!-- Search input -->
 		<input
 			bind:value={searchQuery}
 			bind:this={inputRef}
-			on:input={() => fuzzySearch(searchQuery)}
-			on:keydown={onKeyDown}
-			type="text"
+			oninput={() => debouncedFuzzySearch(searchQuery)}
+			onkeydown={onKeyDown}
+			type="search"
 			placeholder="Global Search ..."
 			aria-label="Search input"
+			aria-controls="search-results"
 			class="input mx-2 w-full max-w-xl rounded-md border-4 !border-primary-500 px-4 py-2"
 		/>
 
 		<!-- Search results -->
-		<ul class="mt-1 grid w-full max-w-xl overflow-auto rounded px-2 py-1 leading-loose bg-surface-active-token" role="listbox">
+		<ul
+			id="search-results"
+			class="mt-1 grid w-full max-w-xl overflow-auto rounded px-2 py-1 leading-loose bg-surface-active-token"
+			role="listbox"
+			aria-label="Search results"
+		>
 			{#each searchResults as result, index (result.title)}
-				<li role="option" aria-selected={index === selectedIndex}>
+				<li role="option" aria-selected={index === selectedIndex} class="focus-within:outline-none focus-within:ring-2 focus-within:ring-primary-500">
 					<button
 						class="w-full border-b text-left text-white last:border-0 last:pb-2 hover:bg-surface-400 {index === selectedIndex
 							? 'bg-surface-500'
 							: ''}"
-						on:click={() => handleResultClick(result, Object.keys(result.triggers)[0])}
+						onclick={() => handleResultClick(result, Object.keys(result.triggers)[0])}
+						aria-label={`${result.title}: ${result.description}`}
 					>
 						<div class="grid auto-cols-auto grid-flow-col">
 							<!-- Highlighted title -->
@@ -171,7 +215,7 @@ Features:
 							<!-- Path for items with one trigger -->
 							{#if Object.entries(result.triggers).length === 1}
 								{#each Object.entries(result.triggers) as [, trigger]}
-									{#if trigger && typeof trigger.path === 'string'}
+									{#if trigger && 'path' in trigger}
 										<span class="w-[50px] text-xs text-primary-500">
 											{trigger.path}
 										</span>
@@ -184,14 +228,15 @@ Features:
 						{#if Object.entries(result.triggers).length > 1}
 							<div class="grid text-sm sm:col-span-2">
 								{#each Object.entries(result.triggers) as [triggerKey, trigger]}
-									{#if trigger && typeof trigger.path === 'string'}
-										<button
-											class="flex items-center justify-between px-6 py-1 hover:bg-surface-500"
-											on:click|stopPropagation={() => handleResultClick(result, triggerKey)}
+									{#if trigger && 'path' in trigger}
+										<a
+											class="flex cursor-pointer items-center justify-between px-6 py-1 hover:bg-surface-500"
+											onclick={(e) => handleResultClick(result, triggerKey, e)}
+											aria-label={`${triggerKey} - ${trigger.path}`}
 										>
 											<HighlightedText text={triggerKey} term={searchQuery} />
 											<span class="text-xs text-primary-500">{trigger.path}</span>
-										</button>
+										</a>
 									{/if}
 								{/each}
 							</div>

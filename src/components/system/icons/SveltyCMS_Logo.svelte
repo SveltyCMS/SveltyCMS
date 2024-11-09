@@ -1,6 +1,15 @@
+<!-- 
+@files src/components/system/icons/SveltyCMS_Logo.svelte
+@description - Dynamic SveltyCMS_Logo component
+-->
 <script lang="ts">
-	export let fill = 'red';
-	export let className = '';
+	// Props
+	interface Props {
+		fill?: string;
+		className?: string;
+	}
+
+	let { fill = 'red', className = '' }: Props = $props();
 </script>
 
 <svg width="72" height="57" xmlns="http://www.w3.org/2000/svg" xml:space="preserve" {fill} class={className} viewBox="0 0 72 57">

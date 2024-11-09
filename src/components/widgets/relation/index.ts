@@ -12,7 +12,7 @@ import type { CollectionContent, CollectionNames, Schema } from '@src/collection
 import { collectionManager } from '@src/collections/CollectionManager';
 import widgets, { type ModifyRequestParams } from '@components/widgets';
 import deepmerge from 'deepmerge';
-import { getCollectionModels } from "@src/databases/db";
+import { getCollectionModels } from '@src/databases/db';
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
 

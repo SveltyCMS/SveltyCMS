@@ -3,10 +3,14 @@
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import type { Editor } from '@tiptap/core';
 
-	export let show = false;
-	export let editor: Editor;
-	let insert_url = false;
-	let youtube_url = '';
+	interface Props {
+		show?: boolean;
+		editor: Editor;
+	}
+
+	let { show = $bindable(false), editor }: Props = $props();
+	let insert_url = $state(false);
+	let youtube_url = $state('');
 	function addVideo() {
 		editor.chain().focus().setYoutubeVideo({ src: youtube_url }).run();
 		youtube_url = '';
@@ -28,7 +32,7 @@
 				class="relative mt-2 flex h-[200px] w-[500px] max-w-full select-none flex-col items-center justify-center gap-4 border-2 border-dashed border-[#c1c1c1] px-[50px]"
 			>
 				<FloatingInput bind:value={youtube_url} theme="light" name="Youtube URL" label="Youtube URL" />
-				<button on:click={addVideo} class="btn">Add Video</button>
+				<button onclick={addVideo} class="btn">Add Video</button>
 			</div>
 		{:else}
 			<div
@@ -38,7 +42,7 @@
 				<p>or</p>
 				<div class="flex w-full justify-center gap-2">
 					<button class="btn">Browse locally</button>
-					<button class="btn" on:click={() => (insert_url = true)}>YouTube</button>
+					<button class="btn" onclick={() => (insert_url = true)}>YouTube</button>
 				</div>
 			</div>
 		{/if}

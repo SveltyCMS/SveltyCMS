@@ -1,24 +1,22 @@
+<!-- 
+@file src/routes/login/components/SignIn.svelte
+@description SignIn component with OAuth support
+-->
+
 <script lang="ts">
 	import { privateEnv } from '@root/config/private';
 	import { browser } from '$app/environment';
 
 	// Stores
 	import { page } from '$app/stores';
-
 	import type { PageData } from '../$types';
-	import { createEventDispatcher } from 'svelte';
-
-	// Function to handle the "Back" button click
-	function handleBack(event: Event) {
-		event.stopPropagation();
-		active = undefined;
-	}
 
 	// Superforms
-	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 	import { superForm } from 'sveltekit-superforms/client';
 	import { valibot } from 'sveltekit-superforms/adapters';
 	import { loginFormSchema, forgotFormSchema, resetFormSchema } from '@utils/formSchemas';
+	import type { SuperValidated } from 'sveltekit-superforms';
+	import type { LoginFormSchema, ForgotFormSchema, ResetFormSchema } from '@utils/formSchemas';
 
 	// Components
 	import SiteName from '@components/SiteName.svelte';
@@ -35,38 +33,66 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	let showPassword = false;
+	// Props
+	const {
+		active = $bindable(undefined),
+		FormSchemaLogin,
+		FormSchemaForgot,
+		FormSchemaReset,
+		onClick = () => {},
+		onPointerEnter = () => {},
+		onBack = () => {},
+		isTransitioning = false
+	} = $props<{
+		active?: undefined | 0 | 1;
+		FormSchemaLogin: SuperValidated<LoginFormSchema>;
+		FormSchemaForgot: SuperValidated<ForgotFormSchema>;
+		FormSchemaReset: SuperValidated<ResetFormSchema>;
+		onClick?: () => void;
+		onPointerEnter?: () => void;
+		onBack?: () => void;
+		isTransitioning?: boolean;
+	}>();
 
-	export let registration_token = '';
-	export let hide_email = '';
+	// State management
+	let PWforgot = $state(false);
+	let PWreset = $state(false);
+	let showPassword = $state(false);
+	let formElement = $state<HTMLFormElement | null>(null);
+	let tabIndex = $state(1);
+	let isSubmitting = $state(false);
+	let registration_token = $state('');
+	let hide_email = $state('');
 
-	export let active: undefined | 0 | 1 = undefined;
-	export const show = false;
-	export let PWforgot: boolean = false;
-	export let PWreset: boolean = false;
+	// Pre-calculate tab indices
+	const emailTabIndex = 1;
+	const passwordTabIndex = 2;
+	const confirmPasswordTabIndex = 3;
+	const forgotPasswordTabIndex = 4;
 
 	const pageData = $page.data as PageData;
 	const firstUserExists = pageData.firstUserExists;
 
-	// Redirect from email to restore password page
-	const current_url = browser ? window.location.href : '';
+	// URL handling
+	const current_url = $state(browser ? window.location.href : '');
 
-	if (current_url.includes('/login') && current_url.search('token') > -1) {
-		// Set flags and extract token/email for password reset flow
+	// Side effect for URL token handling
+	$effect(() => {
+		if (current_url.includes('/login') && current_url.search('token') > -1) {
+			// Set flags and extract token/email for password reset flow
+			PWforgot = true;
+			PWreset = true;
+			const start = current_url.indexOf('=') + 1;
+			const end = current_url.indexOf('&');
+			registration_token = current_url.slice(start, end);
 
-		PWforgot = true;
-		PWreset = true;
-		const start = current_url.indexOf('=') + 1;
-		const end = current_url.indexOf('&');
-		registration_token = current_url.slice(start, end);
+			const emailStart = current_url.indexOf('email=') + 6;
+			hide_email = current_url.slice(emailStart, current_url.length);
+		}
+	});
 
-		const emailStart = current_url.indexOf('email=') + 6;
-		hide_email = current_url.slice(emailStart, current_url.length);
-	}
-
-	// Login Form
-	export let FormSchemaLogin: PageData['loginForm'];
-	const { form, constraints, allErrors, errors, enhance, delayed } = superForm<any>(FormSchemaLogin, {
+	// Login form setup
+	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaLogin, {
 		id: 'login',
 		validators: valibot(loginFormSchema),
 		// Clear form on success.
@@ -79,70 +105,83 @@
 		multipleSubmits: 'prevent',
 
 		onSubmit: ({ cancel }) => {
-			// Submit email as lowercase only
-			$form.email = $form.email.toLowerCase();
+			if (isTransitioning || isSubmitting) {
+				cancel();
+				return;
+			}
+			isSubmitting = true;
+
+			if (typeof $form.email === 'string') {
+				$form.email = $form.email.toLowerCase(); // Submit email as lowercase only
+			}
 
 			// handle login form submission
 			if ($allErrors.length > 0) {
 				cancel();
-				formElement.classList.add('wiggle');
-				setTimeout(() => formElement.classList.remove('wiggle'), 300);
+				isSubmitting = false;
+				formElement?.classList.add('wiggle');
+				setTimeout(() => formElement?.classList.remove('wiggle'), 300);
 			}
 		},
 
 		onResult: ({ result, cancel }) => {
-			// handle SignIn form result
-			if (result.type == 'redirect') {
+			if (result.type === 'redirect') {
 				// Trigger the toast
-				const t = {
+				toastStore.trigger({
 					message: m.signin_signinsuccess(),
 					// Provide any utility or variant background style:
 					background: 'variant-filled-primary',
 					timeout: 4000,
 					// Add your custom classes here:
 					classes: 'border-1 !rounded-md'
-				};
-				toastStore.trigger(t);
+				});
+				isSubmitting = false;
 				return;
 			}
 			cancel();
 
 			// add wiggle animation to form element
-			formElement.classList.add('wiggle');
-			setTimeout(() => formElement.classList.remove('wiggle'), 300);
+			formElement?.classList.add('wiggle');
+			setTimeout(() => {
+				formElement?.classList.remove('wiggle');
+				isSubmitting = false;
+			}, 300);
 		}
 	});
 
-	// Forgot Form
-	export let FormSchemaForgot: PageData['forgotForm'];
+	// Forgot Form setup
 	const {
 		form: forgotForm,
 		allErrors: forgotAllErrors,
 		errors: forgotErrors,
 		enhance: forgotEnhance,
 		delayed: forgotDelayed
-	} = superForm<any>(FormSchemaForgot, {
+	} = superForm(FormSchemaForgot, {
 		id: 'forgot',
 		validators: valibot(forgotFormSchema),
-		// Clear form on success.
 		resetForm: true,
-		// Prevent page invalidation, which would clear the other form when the load function executes again.
 		invalidateAll: false,
-		// other options
 		applyAction: true,
 		taintedMessage: '',
 		multipleSubmits: 'prevent',
 
 		onSubmit: ({ cancel }) => {
-			// Submit email as lowercase only
-			$forgotForm.email = $forgotForm.email.toLowerCase();
+			if (isTransitioning || isSubmitting) {
+				cancel();
+				return;
+			}
+			isSubmitting = true;
+
+			if (typeof $forgotForm.email === 'string') {
+				$forgotForm.email = $forgotForm.email.toLowerCase(); // Submit email as lowercase only
+			}
 
 			// handle login form submission
 			if ($allErrors.length > 0) {
 				cancel();
-
-				formElement.classList.add('wiggle');
-				setTimeout(() => formElement.classList.remove('wiggle'), 300);
+				isSubmitting = false;
+				formElement?.classList.add('wiggle');
+				setTimeout(() => formElement?.classList.remove('wiggle'), 300);
 			}
 		},
 
@@ -156,75 +195,76 @@
 				});
 
 				// Trigger the toast
-				const t = {
+				toastStore.trigger({
 					message: errorMessages,
 					// Provide any utility or variant background style:
 					background: 'variant-filled-primary',
 					timeout: 4000,
 					// Add your custom classes here:
 					classes: 'border-1 !rounded-md'
-				};
-				toastStore.trigger(t);
+				});
+				isSubmitting = false;
 				return;
 			}
 
 			if (result.type === 'success') {
 				if (result.data !== undefined && result.data.status === false) {
 					PWreset = false;
-					formElement.classList.add('wiggle');
-					setTimeout(() => formElement.classList.remove('wiggle'), 300);
+					formElement?.classList.add('wiggle');
+					setTimeout(() => {
+						formElement?.classList.remove('wiggle');
+						isSubmitting = false;
+					}, 300);
 					return;
 				} else {
-					// Show success message and switch to reset form
-					// Switch to reset password form first before toast is send
 					PWreset = true;
-
-					// User needs to click email link first
-					const t = {
+					toastStore.trigger({
 						message: m.signin_forgottontoast(),
-						// Provide any utility or variant background style:
 						background: 'variant-filled-primary',
 						timeout: 4000,
-						// Add your custom classes here:
 						classes: 'border-1 !rounded-md'
-					};
-					toastStore.trigger(t);
-
+					});
+					isSubmitting = false;
 					return;
 				}
 			}
 
 			cancel();
-
-			// add wiggle animation to form element
-			formElement.classList.add('wiggle');
-			setTimeout(() => formElement.classList.remove('wiggle'), 300);
+			formElement?.classList.add('wiggle');
+			setTimeout(() => {
+				formElement?.classList.remove('wiggle');
+				isSubmitting = false;
+			}, 300);
 		}
 	});
 
-	// Reset Form
-	export let FormSchemaReset: PageData['resetForm'];
+	// Reset Form setup
 	const {
 		form: resetForm,
 		allErrors: resetAllErrors,
 		errors: resetErrors,
 		enhance: resetEnhance,
 		delayed: resetDelayed
-	} = superForm<any>(FormSchemaReset, {
+	} = superForm(FormSchemaReset, {
 		id: 'reset',
 		validators: valibot(resetFormSchema),
-		// Clear form on success.
 		resetForm: true,
-		// Prevent page invalidation, which would clear the other form when the load function executes again.
 		invalidateAll: false,
-		// other options
 		applyAction: true,
 		taintedMessage: '',
 		multipleSubmits: 'prevent',
 
 		onSubmit: ({ cancel }) => {
-			// handle login form submission
-			if ($allErrors.length > 0) cancel();
+			if (isTransitioning || isSubmitting) {
+				cancel();
+				return;
+			}
+			isSubmitting = true;
+
+			if ($allErrors.length > 0) {
+				cancel();
+				isSubmitting = false;
+			}
 		},
 
 		onResult: ({ result, cancel }) => {
@@ -232,73 +272,92 @@
 			PWreset = false;
 			PWforgot = false;
 
-			if (result.type === 'error') {
-				// Extract and format error messages
-				let errorMessages = '';
-				allErrors.subscribe((errors) => {
-					errorMessages = errors.map((error) => error.messages.join(', ')).join('; ');
-				});
-			} else if (result.type === 'success') {
+			if (result.type === 'success' || result.type === 'redirect') {
 				// Trigger the Reset toast
-				const t = {
+				toastStore.trigger({
 					message: m.signin_restpasswordtoast(),
 					// Provide any utility or variant background style:
 					background: 'variant-filled-primary',
-					timeout: 4000,
+					timeout: result.type === 'redirect' ? 3000 : 4000,
 					// Add your custom classes here:
 					classes: 'border-1 !rounded-md'
-				};
-				toastStore.trigger(t);
-			} else if (result.type === 'redirect') {
-				// Trigger the toast
-				const t = {
-					message: m.signin_restpasswordtoast(),
-					// Provide any utility or variant background style:
-					background: 'variant-filled-primary',
-					timeout: 3000,
-					// Add your custom classes here:
-					classes: 'border-1 !rounded-md'
-				};
-				toastStore.trigger(t);
-				return;
+				});
+				isSubmitting = false;
+				if (result.type === 'redirect') return;
 			}
 
 			cancel();
-
-			// add wiggle animation to form element (only if result type is not "success" or "redirect")
-			formElement.classList.add('wiggle');
-			setTimeout(() => formElement.classList.remove('wiggle'), 300);
+			formElement?.classList.add('wiggle');
+			setTimeout(() => {
+				formElement?.classList.remove('wiggle');
+				isSubmitting = false;
+			}, 300);
 		}
 	});
 
-	let formElement: HTMLFormElement; // reactive statement when systemLanguage changes
+	// Event handlers
+	function handleOAuth() {
+		if (isTransitioning || isSubmitting) return;
+		isSubmitting = true;
+		const form = document.createElement('form');
+		form.method = 'post';
+		form.action = '?/OAuth';
+		document.body.appendChild(form);
+		form.submit();
+		document.body.removeChild(form);
+		setTimeout(() => {
+			isSubmitting = false;
+		}, 300);
+	}
 
-	$: $forgotForm = { ...$forgotForm };
+	// Function to handle back button click
+	function handleBack(event: Event) {
+		if (isTransitioning || isSubmitting) return;
+		event.stopPropagation();
+		onBack();
+	}
 
-	$resetForm = {
-		...$resetForm,
-		email: hide_email,
-		token: registration_token
-	};
+	// Function to handle icon click
+	function handleIconClick() {
+		if (isTransitioning || isSubmitting) return;
+		onClick();
+	}
+
+	// Function to handle forgot password click
+	function handleForgotPassword() {
+		if (isTransitioning || isSubmitting) return;
+		PWforgot = true;
+		PWreset = false;
+	}
+
+	// Class computations
+	const isActive = $derived(active === 0);
+	const isInactive = $derived(active !== undefined && active !== 0);
+	const isHover = $derived(active === undefined || active === 1);
+	const isDisabled = $derived(isTransitioning || isSubmitting);
+
+	const baseClasses = 'hover relative flex items-center';
 </script>
 
 <Toast />
 
-<!-- svelte-ignore a11y-no-static-element-interactions -->
 <section
-	on:click
-	on:pointerenter
-	on:keydown
-	class="hover relative flex items-center"
-	class:active={active == 0}
-	class:inactive={active !== undefined && active !== 0}
-	class:hover={active == undefined || active == 1}
+	onclick={onClick}
+	onkeydown={(e) => e.key === 'Enter' && onClick?.()}
+	onpointerenter={onPointerEnter}
+	role="button"
+	tabindex={tabIndex}
+	class={baseClasses}
+	class:active={isActive}
+	class:inactive={isInactive}
+	class:hover={isHover}
+	class:pointer-events-none={isDisabled}
 >
-	{#if active == 0}
+	{#if active === 0}
 		<!-- CSS Logo -->
 		<div class="hidden xl:block"><SveltyCMSLogoFull /></div>
 
-		<div class="mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto p-4 lg:w-1/2" class:hide={active != 0}>
+		<div class="mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto p-4 lg:w-1/2" class:hide={active !== 0}>
 			<div class="mb-1 flex flex-row gap-2">
 				<SveltyCMSLogo className="w-14" fill="red" />
 
@@ -318,7 +377,7 @@
 			<div class="-mt-2 flex items-center justify-end gap-2 text-right text-xs text-error-500">
 				{m.form_required()}
 
-				<button on:click={handleBack} class="variant-outline-secondary btn-icon" aria-label="Back">
+				<button onclick={handleBack} aria-label="Back" class="variant-outline-secondary btn-icon">
 					<iconify-icon icon="ri:arrow-right-line" width="20" class="text-black"></iconify-icon>
 				</button>
 			</div>
@@ -326,13 +385,13 @@
 			{#if firstUserExists}
 				<!-- Sign In -->
 				{#if !PWforgot && !PWreset}
-					<!-- <SuperDebug data={$form} display={dev} /> -->
-					<form method="post" action="?/signIn" use:enhance bind:this={formElement} class="flex w-full flex-col gap-3" class:hide={active != 0}>
+					<form method="post" action="?/signIn" use:enhance bind:this={formElement} class="flex w-full flex-col gap-3" class:hide={active !== 0}>
 						<!-- Email field -->
 						<FloatingInput
 							id="emailsignIn"
 							name="email"
 							type="email"
+							tabindex={emailTabIndex}
 							bind:value={$form.email}
 							label={m.form_emailaddress()}
 							{...$constraints.email}
@@ -347,9 +406,10 @@
 							id="passwordsignIn"
 							name="password"
 							type="password"
+							tabindex={passwordTabIndex}
 							bind:value={$form.password}
 							{...$constraints.password}
-							bind:showPassword
+							{showPassword}
 							label={m.form_password()}
 							icon="mdi:lock"
 							iconColor="black"
@@ -363,18 +423,14 @@
 								<button type="submit" class="variant-filled-surface btn w-full sm:w-auto" aria-label={m.form_signin()}>
 									{m.form_signin()}
 									<!-- Loading indicators -->
-									{#if $delayed}
-										<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />
-									{/if}
+									{#if $delayed || isSubmitting}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 								</button>
 
-								{#if privateEnv.USE_GOOGLE_OAUTH == true}
-									<form method="post" action="?/OAuth" class="flex w-full sm:w-auto">
-										<button type="submit" class="variant-filled-surface btn w-full sm:w-auto" aria-label="OAuth">
-											<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mt-1"></iconify-icon>
-											<p>OAuth</p>
-										</button>
-									</form>
+								{#if privateEnv.USE_GOOGLE_OAUTH === true}
+									<button type="button" onclick={handleOAuth} aria-label="OAuth" class="variant-filled-surface btn w-full sm:w-auto">
+										<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mt-1"></iconify-icon>
+										<p>OAuth</p>
+									</button>
 								{/if}
 							</div>
 
@@ -384,10 +440,8 @@
 									type="button"
 									class="variant-ringed-surface btn w-full text-black sm:w-auto"
 									aria-label={m.signin_forgottenpassword()}
-									on:click={() => {
-										PWforgot = true;
-										PWreset = false;
-									}}
+									tabindex={forgotPasswordTabIndex}
+									onclick={handleForgotPassword}
 									>{m.signin_forgottenpassword()}
 								</button>
 							</div>
@@ -397,19 +451,23 @@
 
 				<!-- Forgotten Password -->
 				{#if PWforgot && !PWreset}
-					<!-- <SuperDebug data={$forgotForm} display={dev} /> -->
-					<form method="post" action="?/forgotPW" use:forgotEnhance bind:this={formElement} class="flex w-full flex-col gap-3">
-						<div class="mb-2 text-center text-sm text-black">
-							<p class="mb-2 text-xs text-tertiary-500">{m.signin_forgottenpasswordtext()}</p>
-						</div>
+					<form
+						method="post"
+						action="?/forgotPassword"
+						use:forgotEnhance
+						bind:this={formElement}
+						class="flex w-full flex-col gap-3"
+						class:hide={active !== 0}
+					>
 						<!-- Email field -->
 						<FloatingInput
-							id="emailforgotPW"
+							id="emailforgot"
 							name="email"
 							type="email"
+							tabindex={emailTabIndex}
 							bind:value={$forgotForm.email}
-							required
 							label={m.form_emailaddress()}
+							{...$constraints.email}
 							icon="mdi:email"
 							iconColor="black"
 							textColor="black"
@@ -426,8 +484,6 @@
 							</span>
 						{/if}
 
-						<!-- <input type="hidden" name="lang" bind:value={$forgotForm.lang} hidden /> -->
-
 						<div class="mt-4 flex items-center justify-between">
 							<button type="submit" class="variant-filled-surface btn" aria-label={m.form_resetpassword()}>
 								{m.form_resetpassword()}
@@ -443,7 +499,7 @@
 								type="button"
 								class="variant-filled-surface btn-icon"
 								aria-label="Back"
-								on:click={() => {
+								onclick={() => {
 									PWforgot = false;
 									PWreset = false;
 								}}
@@ -456,21 +512,31 @@
 
 				<!-- Reset Password -->
 				{#if PWforgot && PWreset}
-					<!-- <SuperDebug data={$resetForm} /> -->
-					<form method="post" action="?/resetPW" use:resetEnhance bind:this={formElement} class="flex w-full flex-col gap-3">
-						<!-- Password field -->
+					<form
+						method="post"
+						action="?/resetPassword"
+						use:resetEnhance
+						bind:this={formElement}
+						class="flex w-full flex-col gap-3"
+						class:hide={active !== 0}
+					>
+						<!-- Hidden fields -->
+						<input type="hidden" name="email" bind:value={$resetForm.email} />
+						<input type="hidden" name="token" bind:value={$resetForm.token} />
 
+						<!-- Password field -->
 						<FloatingInput
-							id="passwordresetPW"
+							id="passwordreset"
 							name="password"
 							type="password"
+							tabindex={passwordTabIndex}
 							bind:value={$resetForm.password}
-							bind:showPassword
+							{...$constraints.password}
+							{showPassword}
 							label={m.form_password()}
 							icon="mdi:lock"
 							iconColor="black"
 							textColor="black"
-							required
 						/>
 						{#if $resetErrors.password}
 							<span class="invalid text-xs text-error-500">
@@ -478,18 +544,19 @@
 							</span>
 						{/if}
 
-						<!-- Password  Confirm field -->
+						<!-- Confirm Password field -->
 						<FloatingInput
-							id="confirm_passwordresetPW"
+							id="confirm_passwordreset"
 							name="confirm_password"
 							type="password"
+							tabindex={confirmPasswordTabIndex}
 							bind:value={$resetForm.confirm_password}
-							bind:showPassword
+							{...$constraints.confirm_password}
+							{showPassword}
 							label={m.form_confirmpassword()}
 							icon="mdi:lock"
 							iconColor="black"
 							textColor="black"
-							required
 						/>
 						{#if $resetErrors.confirm_password}
 							<span class="invalid text-xs text-error-500">
@@ -499,14 +566,13 @@
 
 						<!-- Password Strength Indicator -->
 						<PasswordStrength password={$resetForm.password} confirmPassword={$resetForm.confirm_password} />
-
 						<!-- Registration Token -->
 						<FloatingInput
 							id="tokenresetPW"
 							name="token"
 							type="password"
 							bind:value={$resetForm.token}
-							bind:showPassword
+							{showPassword}
 							label={m.signin_registrationtoken()}
 							icon="mdi:lock"
 							iconColor="black"
@@ -542,7 +608,7 @@
 								type="button"
 								aria-label={m.button_back()}
 								class="variant-filled-surface btn-icon"
-								on:click={() => {
+								onclick={() => {
 									PWforgot = false;
 									PWreset = false;
 								}}
@@ -553,12 +619,7 @@
 					</form>
 				{/if}
 			{:else}
-				<button
-					on:click={() => (active = 0)}
-					type="button"
-					aria-label="Signup"
-					class="variant-ghost btn mt-2 w-full flex-col justify-center text-surface-500"
-				>
+				<button onclick={onClick} type="button" aria-label="Signup" class="variant-ghost btn mt-2 w-full flex-col justify-center text-surface-500">
 					<p class="font-bold text-error-500">No users exist yet.</p>
 					<p>Please sign up to create the <span class="font-bold text-tertiary-500">first admin </span> account.</p>
 				</button>
@@ -566,7 +627,7 @@
 		</div>
 	{/if}
 
-	<SigninIcon show={active == 1 || active == undefined} />
+	<SigninIcon show={active === 1 || active === undefined} onClick={handleIconClick} disabled={isTransitioning || isSubmitting} />
 </section>
 
 <style lang="postcss">

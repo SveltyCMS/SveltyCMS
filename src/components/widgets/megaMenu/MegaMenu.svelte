@@ -17,25 +17,30 @@
 
 	import { currentChild, type FieldType } from '.';
 	import { extractData, getFieldName } from '@utils/utils';
+	import type { Field } from '@src/collections/types';
 
-	export let field: FieldType;
 	const fieldName = getFieldName(field);
 
 	$translationProgress.show = false;
 
-	export let value = $collectionValue[fieldName];
 	export const WidgetData = async () => _data;
 
-	let MENU_CONTAINER: HTMLUListElement;
-	let showFields = false;
-	let depth = 0;
-	let _data: { [key: string]: any; children: any[] } = $mode === 'create' ? null : value;
-	let fieldsData = {};
+	let MENU_CONTAINER: HTMLUListElement = $state();
+	let showFields = $state(false);
+	let depth = $state(0);
+	let _data: { [key: string]: any; children: any[] } = $state($mode === 'create' ? null : value);
+	let fieldsData = $state({});
 	const saveMode = $mode;
-	let validationError: string | null = null;
+	let validationError: string | null = $state(null);
 
 	// Validation schema for each menu layer
 	import * as v from 'valibot';
+	interface Props {
+		field: FieldType;
+		value?: any;
+	}
+
+	let { field, value = $collectionValue[fieldName] }: Props = $props();
 
 	const widgetSchema = v.object({
 		name: v.pipe(v.string(), v.minLength(1, 'Menu name is required')),
@@ -87,41 +92,66 @@
 			$saveFunction.reset();
 		}
 	}
+
+	// Transform fields to match Field type
+	function transformFields(fields: any[]): Field[] {
+		return fields.map((f) => ({
+			...f,
+			type: f.widget.Name,
+			config: f.widget
+		}));
+	}
+
+	let currentFields = $derived(field.fields[depth] ? transformFields(field.fields[depth]) : []);
 </script>
 
-{#if !_data}
-	<p class="text-center font-bold text-tertiary-500">
-		{m.widget_megamenu_title()}
-	</p>
-{/if}
+<div class="menu-container relative mb-4">
+	{#if !_data}
+		<p class="text-center font-bold text-tertiary-500">
+			{m.widget_megamenu_title()}
+		</p>
+	{/if}
 
-<!-- First Menu Entry -->
-{#if !_data || showFields}
-	{#key depth}
-		{(fieldsData = {}) && ''}
-		<Fields
-			fields={field.fields[depth]}
-			root={false}
-			bind:fieldsData
-			customData={$currentChild}
-			aria-invalid={!!validationError}
-			aria-describedby={validationError ? `${fieldName}-error` : undefined}
-		/>
-	{/key}
-	{(($saveFunction.fn = saveLayer), '')}
-{/if}
+	<!-- First Menu Entry -->
+	{#if !_data || showFields}
+		<div class:error={!!validationError}>
+			{#key depth}
+				{(fieldsData = {}) && ''}
+				<Fields
+					fields={currentFields}
+					root={false}
+					bind:fieldsData
+					customData={$currentChild}
+					aria-invalid={!!validationError}
+					aria-describedby={validationError ? `${fieldName}-error` : undefined}
+				/>
+			{/key}
+			{(($saveFunction.fn = saveLayer), '')}
+		</div>
+	{/if}
 
-<!-- Show children -->
-{#if _data}
-	<ul bind:this={MENU_CONTAINER} class:hidden={depth != 0} class="children MENU_CONTAINER">
-		<div class="w-screen"></div>
-		<ListNode {MENU_CONTAINER} self={_data} bind:depth bind:showFields maxDepth={field.fields.length} />
-	</ul>
-{/if}
+	<!-- Show children -->
+	{#if _data}
+		<ul bind:this={MENU_CONTAINER} class:hidden={depth != 0} class="children MENU_CONTAINER" class:error={!!validationError}>
+			<div class="w-screen"></div>
+			<ListNode {MENU_CONTAINER} self={_data} bind:depth bind:showFields maxDepth={field.fields.length} />
+		</ul>
+	{/if}
 
-<!-- Error Message -->
-{#if validationError}
-	<p id={`${fieldName}-error`} class="text-center text-sm text-error-500">
-		{validationError}
-	</p>
-{/if}
+	<!-- Error Message -->
+	{#if validationError}
+		<p id={`${fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+			{validationError}
+		</p>
+	{/if}
+</div>
+
+<style lang="postcss">
+	.menu-container {
+		min-height: 2.5rem;
+	}
+
+	.error {
+		border-color: rgb(239 68 68);
+	}
+</style>

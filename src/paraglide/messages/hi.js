@@ -3355,6 +3355,38 @@ export const login_Happy_Holi = () => `होली की शुभकामन
 export const login_happy_navratri = () => `नवरात्रि की हार्दिक शुभकामनाएं`
 
 
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_description = () => `एलएलएम कॉन्फ़िगरेशन`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_useLLM = () => `LLM एकीकरण सक्षम करें`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_llmProvider = () => `एलएलएम प्रदाता (उदाहरण के लिए, ओपनएआई, क्लाउड, जेमिमी, आदि)`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const llmConfig_apiKey = () => `एलएलएम एपीआई कुंजी`
+
+
 export { signup_password } from "./en.js"
 
 export { modaledit_tokenemailaddress } from "./en.js"
@@ -3392,34 +3424,3 @@ export { modaleditform_username } from "./en.js"
 export { modaleditform_confirmpassword } from "./en.js"
 
 export { modaleditform_userrole } from "./en.js"
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_description = () => `एलएलएम कॉन्फ़िगरेशन`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_useLLM = () => `LLM एकीकरण सक्षम करें`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_llmProvider = () => `एलएलएम प्रदाता (उदाहरण के लिए, ओपनएआई, क्लाउड, जेमिमी, आदि)`
-
-
-/**
- * 
- * @returns {string}
- */
-/* @__NO_SIDE_EFFECTS__ */
-export const llmConfig_apiKey = () => `एलएलएम एपीआई कुंजी`

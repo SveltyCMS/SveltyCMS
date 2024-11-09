@@ -21,17 +21,22 @@
 	// Components
 	import Loading from '@components/Loading.svelte';
 
-	// Props passed from +page.svelte
-	export let roleData;
-	export let setRoleData;
-	export let updateModifiedCount;
+	
+	interface Props {
+		// Props passed from +page.svelte
+		roleData: any;
+		setRoleData: any;
+		updateModifiedCount: any;
+	}
+
+	let { roleData, setRoleData, updateModifiedCount }: Props = $props();
 
 	const permissionsList = writable<Permission[]>([]);
 	const roles = writable<Role[]>([]);
 	const isLoading = writable(true);
 	const error = writable<string | null>(null);
 
-	let searchTerm = '';
+	let searchTerm = $state('');
 	let modifiedPermissions = new Set<string>();
 
 	const getGroups = (filteredPermissions: Permission[]) => {
@@ -117,12 +122,12 @@
 	};
 
 	// Reactive statements for filtered permissions and current user ID
-	$: filteredPermissions = $permissionsList.filter((permission) => permission._id?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
-	$: groups = getGroups(filteredPermissions);
+	let filteredPermissions = $derived($permissionsList.filter((permission) => permission._id?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false));
+	let groups = $derived(getGroups(filteredPermissions));
 
 	// Reactive statements and variables
-	$: adminRole = $roles.find((role) => role.isAdmin);
-	$: nonAdminRolesCount = $roles.filter((role) => !role.isAdmin).length;
+	let adminRole = $derived($roles.find((role) => role.isAdmin));
+	let nonAdminRolesCount = $derived($roles.filter((role) => !role.isAdmin).length);
 </script>
 
 {#if $isLoading}
@@ -195,7 +200,7 @@
 													<input
 														type="checkbox"
 														checked={role.permissions.includes(permission._id)}
-														on:change={() => toggleRole(permission._id, role._id)}
+														onchange={() => toggleRole(permission._id, role._id)}
 														class="form-checkbox"
 													/>
 												</td>

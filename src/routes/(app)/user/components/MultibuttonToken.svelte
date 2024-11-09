@@ -22,8 +22,8 @@
 	import ModalEditToken from './ModalEditToken.svelte';
 
 	// Popup Combobox
-	let listboxValue: string = 'edit';
-	export let selectedRows;
+	let listboxValue: string = $state('edit');
+	let { selectedRows } = $props();
 
 	const Combobox: PopupSettings = {
 		event: 'click',
@@ -202,19 +202,19 @@
 	<!-- Action button  -->
 	<button
 		type="button"
-		on:click={() => {
+		onclick={() => {
 			getButtonAndIconValues(listboxValue, listboxValue);
 		}}
 		class="{getButtonAndIconValues(listboxValue, listboxValue).buttonClass} w-full font-semibold uppercase hover:bg-primary-400"
 	>
-		<iconify-icon icon={getButtonAndIconValues(listboxValue, listboxValue).iconValue} width="20" class="mr-2 text-white" />
+		<iconify-icon icon={getButtonAndIconValues(listboxValue, listboxValue).iconValue} width="20" class="mr-2 text-white"></iconify-icon>
 		{listboxValue ?? 'create'}
 	</button>
 
-	<span class="border border-white" />
+	<span class="border border-white"></span>
 	<!-- Dropdown button -->
-	<button class="divide-x-2 rounded-r-sm bg-surface-500 hover:!bg-surface-800" use:popup={Combobox}>
-		<iconify-icon icon="mdi:chevron-down" width="20" class="text-white" />
+	<button use:popup={Combobox} aria-label="Toggle dropdown" class="divide-x-2 rounded-r-sm bg-surface-500 hover:!bg-surface-800">
+		<iconify-icon icon="mdi:chevron-down" width="20" class="text-white"></iconify-icon>
 	</button>
 </div>
 <!-- Dropdown/Listbox -->
@@ -222,14 +222,18 @@
 	<ListBox rounded="rounded-sm" active="variant-filled-primary" hover="hover:bg-surface-300" class="divide-y">
 		{#if listboxValue != 'edit'}
 			<ListBoxItem bind:group={listboxValue} name="medium" value="edit" active="variant-filled-primary" hover="gradient-primary-hover"
-				><svelte:fragment slot="lead"><iconify-icon icon="bi:pencil-fill" width="20" class="mr-1" /></svelte:fragment>
+				>{#snippet lead()}
+					<iconify-icon icon="bi:pencil-fill" width="20" class="mr-1"></iconify-icon>
+				{/snippet}
 				{m.button_edit()}
 			</ListBoxItem>
 		{/if}
 
 		{#if listboxValue != 'delete'}
 			<ListBoxItem bind:group={listboxValue} name="medium" value="delete" active="variant-filled-error" hover="gradient-error-hover"
-				><svelte:fragment slot="lead"><iconify-icon icon="bi:trash3-fill" width="20" class="mr-1" /></svelte:fragment>
+				>{#snippet lead()}
+					<iconify-icon icon="bi:trash3-fill" width="20" class="mr-1"></iconify-icon>
+				{/snippet}
 
 				{m.button_delete()}
 			</ListBoxItem>

@@ -6,7 +6,8 @@
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 	import { saveFormData, getFieldName } from '@utils/utils';
-	import type { FieldType } from '.';
+	import type { Params as FieldType } from './types';
+	import { createEventDispatcher } from 'svelte';
 
 	// Stores
 	import { loadingProgress, validationStore } from '@stores/store';
@@ -22,33 +23,42 @@
 	// valibot validation
 	import * as v from 'valibot';
 
-	export let field: FieldType;
+	const dispatch = createEventDispatcher();
 
-	let files: any = [];
-	const _fieldsValue: any = [];
-	let name: any;
-	const optimizedFileName: string | undefined = undefined;
-	const optimizedMimeType: string | undefined = undefined;
-	let hashValue: string | undefined;
-	let selectedFiles: string[] = [];
-	let collapsedAll = false;
-	let validationError: string | null = null;
+	// Props using $props
+	let { field } = $props<{ field: FieldType }>();
 
-	if (field.db_fieldName) {
-		name = getFieldName(field);
-	} else {
-		name = 'defaultName';
-	}
+	// State management using $state
+	let files = $state<File[]>([]);
+	let _fieldsValue = $state<Record<string, () => any>>({});
+	let selectedFiles = $state<string[]>([]);
+	let collapsedAll = $state(false);
+	let validationError = $state<string | null>(null);
+	let name = $state<string>('defaultName');
+
+	// Derived values using $derived
+	const optimizedFileName = $derived<string | undefined>(undefined);
+	const optimizedMimeType = $derived<string | undefined>(undefined);
+	const hashValue = $derived<string | undefined>(undefined);
+
+	// Effect for name initialization
+	$effect(() => {
+		if (field.db_fieldName) {
+			name = getFieldName(field);
+		}
+	});
 
 	// Define the validation schema for this widget
 	const fileSchema = v.object({
-		file: v.instance(File, 'Must be a file').pipe(
-			v.custom((file) => file.size <= 10 * 1024 * 1024, 'File size must be less than 10MB'),
-			v.custom(
-				(file) => ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif', 'image/svg+xml'].includes(file.type),
-				'Invalid file format'
-			)
-		)
+		file: v
+			.custom<File>((value): value is File => value instanceof File, 'Must be a file')
+			.transform((file) => {
+				if (file.size > 10 * 1024 * 1024) throw new Error('File size must be less than 10MB');
+				if (!['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif', 'image/svg+xml'].includes(file.type)) {
+					throw new Error('Invalid file format');
+				}
+				return file;
+			})
 	});
 
 	const widgetSchema = v.array(fileSchema);
@@ -71,29 +81,29 @@
 
 	export const WidgetData = async () => {
 		for (let i = 0; i < files.length; i++) {
-			const fieldsData = _fieldsValue[i];
+			const fieldsData = _fieldsValue[i] || {};
 
 			for (const key in fieldsData) {
 				console.log(await fieldsData[key]());
 			}
 
 			fieldsData.id = crypto.randomUUID();
-
 			await saveFormData(fieldsData);
 		}
 		if (!files.length) {
-			const fieldsData = _fieldsValue;
-			await saveFormData({ data: fieldsData });
+			await saveFormData({ data: _fieldsValue });
 		}
 	};
 
 	// update added files
 	function onDropzoneChangeHandler(e: Event): void {
 		const input = e.target as HTMLInputElement;
-		const newFiles = Array.from(input.files || []);
-		selectedFiles = newFiles.map((file) => file.name);
-		files = newFiles;
-		validateInput();
+		if (input.files) {
+			const newFiles = Array.from(input.files);
+			selectedFiles = newFiles.map((file) => file.name);
+			files = newFiles;
+			validateInput();
+		}
 	}
 
 	// Validate the input using the generic validateSchema function
@@ -105,12 +115,12 @@
 	}
 
 	const flipDurationMs = 200;
-	const handleDndConsider = (e) => {
+	const handleDndConsider = (e: { detail: { items: Array<{ data: File }> } }) => {
 		const updatedItems = e.detail.items;
 		files = updatedItems.map((item) => item.data);
 	};
 
-	const handleDndFinalize = (e) => {
+	const handleDndFinalize = (e: { detail: { items: Array<{ data: File }> } }) => {
 		const updatedItems = e.detail.items;
 		files = updatedItems.map((item) => item.data);
 	};
@@ -119,14 +129,15 @@
 		collapsedAll = !collapsedAll;
 
 		if (Array.isArray(files)) {
-			files.forEach((file) => {
-				file.collapsed = collapsedAll ? false : !file.collapsed;
-			});
+			files = files.map((file) => ({
+				...file,
+				collapsed: collapsedAll ? false : !file.collapsed
+			}));
 		}
 	}
 
 	function toggleCollapse(index: number) {
-		files[index].collapsed = !files[index].collapsed;
+		files = files.map((file, i) => (i === index ? { ...file, collapsed: !file.collapsed } : file));
 	}
 
 	function deleteImage(index: number) {
@@ -135,7 +146,7 @@
 		}
 
 		if (index >= 0 && index < files.length) {
-			files.splice(index, 1);
+			files = files.filter((_, i) => i !== index);
 
 			if (files.length === 0 || files.every((file) => file.collapsed)) {
 				collapsedAll = false;
@@ -146,8 +157,15 @@
 	}
 
 	function addMoreImages() {
-		console.log('addMoreImages:');
+		dispatch('addMore');
 	}
+
+	// Create a FileList-like object for FileDropzone
+	$derived(() => {
+		const dataTransfer = new DataTransfer();
+		files.forEach((file) => dataTransfer.items.add(file));
+		return dataTransfer.files;
+	});
 </script>
 
 {#if files.length > 0}
@@ -226,7 +244,7 @@
 		</li>
 	</ol>
 {:else}
-	<FileDropzone {name} bind:files accept="image/*" type="file" multiple on:change={onDropzoneChangeHandler}>
+	<FileDropzone {name} accept="image/*" type="file" multiple on:change={onDropzoneChangeHandler}>
 		<svelte:fragment slot="lead"><iconify-icon icon="fa6-solid:file-arrow-up" width="45"></iconify-icon></svelte:fragment>
 		<svelte:fragment slot="message"
 			><span class="font-bold">Upload <span class="text-primary-500">Multiple </span>files</span> or drag & drop</svelte:fragment

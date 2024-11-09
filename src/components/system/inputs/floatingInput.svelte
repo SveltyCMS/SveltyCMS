@@ -1,144 +1,128 @@
 <!-- 
  @file src/components/system/inputs/floatingInput.svelte
- @description FloatingInput component
-
-This FloatingInput component has the following properties:
-
-- type: The type of the input element. Can be either 'text' or 'password'.
-- value: The value of the input element.
-- label: The text to display in the floating label.
-- icon: The icon to display next to the input element.
-- labelClass: Additional classes to apply to the label element.
-- inputClass: Additional classes to apply to the input element.
-- error: The error message to display. Can be either a string or a function that returns a string.
-- name: The name of the input element.
-- required: Whether the input is required. Defaults to false.
-- disabled: Whether the input is disabled. Defaults to false.
-- minlength: The minimum length of the input value.
-- maxlength: The maximum length of the input value.
-- onInput: A callback function that is called when the input value changes.
+ @description FloatingInput component for handling text and password inputs with floating labels
  -->
 
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
-	const dispatch = createEventDispatcher();
+	type AutocompleteType = 'on' | 'off' | null;
+	type InputType = 'text' | 'email' | 'password';
+	type BackgroundColorType = 'light' | 'dark';
 
-	function handleClick(event) {
-		event.stopPropagation();
-		dispatch('click', event);
-	}
-
-	// Define an interface for the input properties
-	interface InputProps {
+	let {
+		value = $bindable(''),
+		showPassword = false,
+		disabled = false,
+		icon = '',
+		iconColor = 'gray-500',
+		inputClass = '',
+		label = '',
+		labelClass = '',
+		minlength,
+		maxlength,
+		name = '',
+		required = false,
+		showPasswordBackgroundColor = 'light',
+		textColor = '!text-error-500',
+		type = 'text',
+		tabindex = 0,
+		id = '',
+		autocomplete = null,
+		onClick,
+		onInput
+	} = $props<{
+		value?: string;
+		showPassword?: boolean;
 		disabled?: boolean;
 		icon?: string;
 		iconColor?: string;
 		inputClass?: string;
 		label?: string;
 		labelClass?: string;
-		maxlength?: number;
 		minlength?: number;
-		id?: string;
+		maxlength?: number;
 		name?: string;
-		onInput?: (value: string) => void;
 		required?: boolean;
-		showPasswordBackgroundColor?: 'light' | 'dark';
+		showPasswordBackgroundColor?: BackgroundColorType;
 		textColor?: string;
-		type?: 'text' | 'email' | 'password';
-		value?: string;
-		autocomplete?: 'on' | 'off';
+		type?: InputType;
+		tabindex?: number;
+		id?: string;
+		autocomplete?: AutocompleteType;
+		onClick?: (event: MouseEvent) => void;
+		onInput?: (value: string) => void;
+	}>();
+
+	let inputElement = $state<HTMLInputElement>();
+	let currentId = $state(id || getIdValue(label));
+	let isPasswordVisible = $state(showPassword);
+
+	function handleClick(event: MouseEvent): void {
+		event.stopPropagation();
+		onClick?.(event);
 	}
 
-	export let disabled: InputProps['disabled'] = false;
-	export let icon: InputProps['icon'] = '';
-	export let iconColor: InputProps['iconColor'] = 'gray-500';
-
-	export let inputClass: InputProps['inputClass'] = '';
-	export let label: InputProps['label'] = '';
-	export let labelClass: InputProps['labelClass'] = '';
-	export let minlength: InputProps['minlength'] = undefined;
-	export let maxlength: InputProps['maxlength'] = undefined;
-	export let name: InputProps['name'] = '';
-	export const onInput: InputProps['onInput'] = (value) => {};
-	export let required: InputProps['required'] = false;
-	export let showPasswordBackgroundColor: InputProps['showPasswordBackgroundColor'] = 'light';
-	export let textColor: InputProps['textColor'] = '!text-error-500';
-	export let type: 'password' | 'text' | 'email' = 'text';
-	export let value: InputProps['value'] = '';
-	export let tabindex: number = 0;
-	export let id: string = getIdValue(label) || 'defaultInputId';
-	export let autocomplete: string = getAutocompleteValue(label);
-	export let showPassword = false;
-
-	let inputElement: HTMLInputElement;
-
-	function getAutocompleteValue(label: string | undefined): string {
-		if (label === undefined) {
-			return '';
+	function handleIconKeyDown(event: KeyboardEvent): void {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			togglePasswordVisibility(event);
 		}
-		// Add checks for other types of labels here
-		return '';
 	}
 
-	function getIdValue(label: string | undefined): string {
-		if (label === undefined || label.trim() === '') {
-			return 'defaultInputId';
+	function getIdValue(label: string): string {
+		return label?.trim() ? label.toLowerCase().replace(/\s+/g, '-') : 'defaultInputId';
+	}
+
+	function togglePasswordVisibility(event: Event): void {
+		event.preventDefault();
+		isPasswordVisible = !isPasswordVisible;
+	}
+
+	$effect(() => {
+		if (type === 'password' && inputElement) {
+			inputElement.type = isPasswordVisible ? 'text' : 'password';
 		}
-		return label.toLowerCase().replace(/\s+/g, '-');
-	}
-
-	const togglePasswordVisibility = () => {
-		showPassword = !showPassword;
-	};
-
-	function initInput(node: HTMLInputElement) {
-		node.type = type;
-	}
-	$: if (type === 'password') showPassword ? inputElement && (inputElement.type = 'text') : inputElement && (inputElement.type = 'password');
+	});
 </script>
 
 <div class="group relative w-full">
 	<input
-		use:initInput
 		bind:this={inputElement}
-		on:input
-		on:keydown
-		on:click={handleClick}
 		bind:value
-		{autocomplete}
-		class="{inputClass} peer relative block w-full appearance-none rounded-none border-0 border-b-2 border-surface-300 bg-transparent pl-6 !text-{textColor} focus:border-tertiary-600 focus:!outline-none focus:ring-0 dark:border-surface-400 dark:focus:border-tertiary-500"
-		{id}
+		oninput={(e) => onInput?.(e.currentTarget.value)}
+		onclick={handleClick}
+		autocomplete={autocomplete || undefined}
+		id={currentId}
 		{name}
 		{required}
 		{disabled}
-		{...minlength !== undefined && { minlength }}
-		{...maxlength !== undefined && { maxlength }}
-		{...autocomplete && { autocomplete }}
-		aria-describedby="{id}-error"
+		{minlength}
+		{maxlength}
+		aria-describedby="{currentId}-error"
+		class="{inputClass} peer relative block w-full appearance-none border-0 border-b-2 border-surface-300 bg-transparent pl-6 !text-{textColor} focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-400 dark:focus:border-tertiary-500"
 	/>
 
 	{#if icon}
-		<iconify-icon aria-hidden="true" {icon} width="18" class="absolute top-3 text-{iconColor}" />
+		<iconify-icon aria-hidden="true" {icon} width="1.125em" class="absolute top-3 text-{iconColor}"></iconify-icon>
 	{/if}
 
 	{#if type === 'password'}
 		<iconify-icon
 			{tabindex}
 			role="button"
+			icon={isPasswordVisible ? 'bi:eye-fill' : 'bi:eye-slash-fill'}
 			aria-label="Toggle password visibility"
-			icon={showPassword ? 'bi:eye-fill' : 'bi:eye-slash-fill'}
+			aria-pressed={isPasswordVisible}
 			class={`absolute right-0 ${showPasswordBackgroundColor === 'light' ? 'text-surface-700' : 'text-surface-300'}`}
-			width="24"
-			on:keydown
-			on:click|preventDefault={togglePasswordVisibility}
-		/>
+			width="1.5em"
+			onkeydown={handleIconKeyDown}
+			onclick={togglePasswordVisibility}
+		></iconify-icon>
 	{/if}
 
 	{#if label}
 		<label
-			for={id}
-			class="{labelClass} pointer-events-none absolute left-6 transform text-sm text-surface-400 transition-all duration-200 ease-in-out peer-placeholder-shown:-top-1 peer-placeholder-shown:text-base peer-placeholder-shown:text-surface-400 peer-focus:-left-0 peer-focus:-top-1.5 peer-focus:text-xs peer-focus:text-tertiary-500 {value &&
-				'-left-0 -top-1.5 text-xs text-tertiary-500'}"
+			for={currentId}
+			class="{labelClass} pointer-events-none absolute left-6 transform text-sm text-surface-400 transition-all duration-200 ease-in-out peer-placeholder-shown:-top-1 peer-placeholder-shown:text-base peer-placeholder-shown:text-surface-400 peer-focus:-left-0 peer-focus:-top-1.5 peer-focus:text-xs peer-focus:text-tertiary-500"
 		>
 			{label}
 			{#if required}

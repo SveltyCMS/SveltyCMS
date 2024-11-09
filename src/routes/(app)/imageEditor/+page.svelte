@@ -26,19 +26,19 @@
 	// Konva
 	import Konva from 'konva';
 
-	let imageFile: File | null = null;
+	let imageFile: File | null = $state(null);
 	let selectedImage: string = '';
-	let stage: Konva.Stage;
-	let layer: Konva.Layer;
-	let imageNode: Konva.Image;
-	let containerRef: HTMLDivElement;
-	let activeState = '';
-	let blurActive = false;
+	let stage: Konva.Stage = $state();
+	let layer: Konva.Layer = $state();
+	let imageNode: Konva.Image = $state();
+	let containerRef: HTMLDivElement = $state();
+	let activeState = $state('');
+	let blurActive = $state(false);
 	let updatedImageFile: File | null = null;
 	let stateHistory: string[] = [];
 	let currentStateIndex = -1;
-	let canUndo = false;
-	let canRedo = false;
+	let canUndo = $state(false);
+	let canRedo = $state(false);
 
 	onMount(() => {
 		const { params } = $page;
@@ -244,16 +244,16 @@
 </div>
 
 <div class="mb-2 flex items-center justify-between gap-2">
-	<input class="input my-2 h-10" type="file" accept="image/*" on:change={handleImageUpload} aria-label="Upload image file" />
+	<input class="input my-2 h-10" type="file" accept="image/*" onchange={handleImageUpload} aria-label="Upload image file" />
 	{#if imageFile}
-		<button on:click={handleUndo} disabled={!canUndo} class="variant-outline-tertiary btn-icon dark:variant-outline-secondary" aria-label="Undo">
-			<iconify-icon icon="mdi:undo" width="24" class="text-tertiary-600" />
+		<button onclick={handleUndo} disabled={!canUndo} aria-label="Undo" class="variant-outline-tertiary btn-icon dark:variant-outline-secondary">
+			<iconify-icon icon="mdi:undo" width="24" class="text-tertiary-600"></iconify-icon>
 		</button>
-		<button on:click={handleRedo} disabled={!canRedo} class="variant-outline-tertiary btn-icon dark:variant-outline-secondary" aria-label="Redo">
-			<iconify-icon icon="mdi:redo" width="24" class="text-tertiary-600" />
+		<button onclick={handleRedo} disabled={!canRedo} aria-label="Redo" class="variant-outline-tertiary btn-icon dark:variant-outline-secondary">
+			<iconify-icon icon="mdi:redo" width="24" class="text-tertiary-600"></iconify-icon>
 		</button>
-		<button type="button" on:click={handleSave} class="variant-filled-tertiary btn-icon btn-icon dark:variant-filled-primary" aria-label="Save">
-			<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
+		<button type="button" onclick={handleSave} aria-label="Save" class="variant-filled-tertiary btn-icon btn-icon dark:variant-filled-primary">
+			<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
 		</button>
 	{/if}
 </div>
@@ -319,40 +319,40 @@
 		<!-- Tool Controls -->
 		{#if activeState === ''}
 			<div class="relative mt-1 flex flex-wrap items-center justify-center gap-2">
-				<button on:click={() => toggleTool('rotate')} aria-label="Rotate" class="mx-2">
-					<iconify-icon icon="mdi:rotate-right" width="24" class="text-tertiary-600" />
+				<button onclick={() => toggleTool('rotate')} aria-label="Rotate" class="mx-2">
+					<iconify-icon icon="mdi:rotate-right" width="24" class="text-tertiary-600"></iconify-icon>
 					Rotate
 				</button>
-				<button on:click={() => toggleTool('blur')} aria-label="Blur" class="mx-2">
-					<iconify-icon icon="mdi:blur" width="24" class="text-tertiary-600" />
+				<button onclick={() => toggleTool('blur')} aria-label="Blur" class="mx-2">
+					<iconify-icon icon="mdi:blur" width="24" class="text-tertiary-600"></iconify-icon>
 					Blur
 				</button>
-				<button on:click={() => toggleTool('crop')} aria-label="Crop" class="mx-2">
-					<iconify-icon icon="mdi:crop" width="24" class="text-tertiary-600" />
+				<button onclick={() => toggleTool('crop')} aria-label="Crop" class="mx-2">
+					<iconify-icon icon="mdi:crop" width="24" class="text-tertiary-600"></iconify-icon>
 					Crop
 				</button>
-				<button on:click={() => toggleTool('zoom')} aria-label="Zoom" class="mx-2">
-					<iconify-icon icon="mdi:magnify" width="24" class="text-tertiary-600" />
+				<button onclick={() => toggleTool('zoom')} aria-label="Zoom" class="mx-2">
+					<iconify-icon icon="mdi:magnify" width="24" class="text-tertiary-600"></iconify-icon>
 					Zoom
 				</button>
-				<button on:click={() => toggleTool('focalpoint')} aria-label="Focal Point" class="mx-2">
-					<iconify-icon icon="mdi:focus-field" width="24" class="text-tertiary-600" />
+				<button onclick={() => toggleTool('focalpoint')} aria-label="Focal Point" class="mx-2">
+					<iconify-icon icon="mdi:focus-field" width="24" class="text-tertiary-600"></iconify-icon>
 					Focal Point
 				</button>
-				<button on:click={() => toggleTool('watermark')} aria-label="Watermark" class="mx-2">
-					<iconify-icon icon="mdi:watermark" width="24" class="text-tertiary-600" />
+				<button onclick={() => toggleTool('watermark')} aria-label="Watermark" class="mx-2">
+					<iconify-icon icon="mdi:watermark" width="24" class="text-tertiary-600"></iconify-icon>
 					Watermark
 				</button>
-				<button on:click={() => toggleTool('filter')} aria-label="Filter" class="mx-2">
-					<iconify-icon icon="mdi:filter-variant" width="24" class="text-tertiary-600" />
+				<button onclick={() => toggleTool('filter')} aria-label="Filter" class="mx-2">
+					<iconify-icon icon="mdi:filter-variant" width="24" class="text-tertiary-600"></iconify-icon>
 					Filter
 				</button>
-				<button on:click={() => toggleTool('textoverlay')} aria-label="Add Text" class="mx-2">
-					<iconify-icon icon="mdi:format-text" width="24" class="text-tertiary-600" />
+				<button onclick={() => toggleTool('textoverlay')} aria-label="Add Text" class="mx-2">
+					<iconify-icon icon="mdi:format-text" width="24" class="text-tertiary-600"></iconify-icon>
 					Add Text
 				</button>
-				<button on:click={() => toggleTool('shapeoverlay')} aria-label="Add Shape" class="mx-2">
-					<iconify-icon icon="mdi:shape" width="24" class="text-tertiary-600" />
+				<button onclick={() => toggleTool('shapeoverlay')} aria-label="Add Shape" class="mx-2">
+					<iconify-icon icon="mdi:shape" width="24" class="text-tertiary-600"></iconify-icon>
 					Add Shape
 				</button>
 			</div>

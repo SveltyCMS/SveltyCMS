@@ -20,12 +20,15 @@ Usage:
 <script lang="ts">
 	import { onMount } from 'svelte';
 
-	export let text = ''; // Full text to display
-	export let term = ''; // Term to highlight
-	export let charLimit = 200; // Limit before 'Show More' appears
+	interface Props {
+		text?: string; // Full text to display
+		term?: string; // Term to highlight
+		charLimit?: number; // Limit before 'Show More' appears
+	}
 
-	let isExpanded = false; // State for toggling 'Show More'
-	let displayText = ''; // Text to display (limited or full)
+	let { text = '', term = '', charLimit = 200 }: Props = $props();
+
+	let isExpanded = $state(false); // State for toggling 'Show More'
 
 	// Escapes special characters in the search term
 	function escapeRegex(term: string): string {
@@ -44,28 +47,21 @@ Usage:
 	// Toggles between limited and full text
 	function toggleText() {
 		isExpanded = !isExpanded;
-		updateDisplayText();
 	}
 
-	// Updates the displayed text based on the limit and expansion state
-	function updateDisplayText() {
-		displayText = isExpanded || text.length <= charLimit ? highlightText(text, term) : highlightText(text.slice(0, charLimit) + '...', term);
-	}
-
-	// Update displayText when the component is mounted and when props change
-	onMount(updateDisplayText);
-	$: updateDisplayText();
+	// Compute displayText based on text, term, charLimit, and isExpanded
+	let displayText = $derived(() => {
+		const shouldLimit = !isExpanded && text.length > charLimit;
+		const limitedText = shouldLimit ? text.slice(0, charLimit) + '...' : text;
+		return highlightText(limitedText, term);
+	});
 </script>
 
 <div role="region" aria-live="polite">
 	{@html displayText}
 
 	{#if text.length > charLimit}
-		<button
-			on:click={toggleText}
-			class="text-blue-500 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500"
-			aria-expanded={isExpanded}
-		>
+		<button onclick={toggleText} class="text-blue-500 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500" aria-expanded={isExpanded}>
 			{isExpanded ? 'Show Less' : 'Show More'}
 		</button>
 	{/if}

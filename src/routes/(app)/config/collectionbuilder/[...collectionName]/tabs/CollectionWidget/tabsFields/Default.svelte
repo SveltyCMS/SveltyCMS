@@ -19,7 +19,11 @@
 
 	// Get the keys of the widgets object
 	const widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
-	export let guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
+	interface Props {
+		guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
+	}
+
+	let { guiSchema }: Props = $props();
 
 	// Function to handle toggle updates
 	function handleToggle(event: CustomEvent, property: string) {

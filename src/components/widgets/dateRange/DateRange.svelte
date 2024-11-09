@@ -4,6 +4,8 @@
 -->
 
 <script lang="ts">
+	import { preventDefault } from 'svelte/legacy';
+
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
 	import { getFieldName } from '@utils/utils';
@@ -15,17 +17,21 @@
 	// valibot validation
 	import * as v from 'valibot';
 
-	export let field: FieldType;
 
 	const fieldName = getFieldName(field);
-	export let value = $collectionValue[fieldName] || {};
+	interface Props {
+		field: FieldType;
+		value?: any;
+	}
 
-	const _data = $mode === 'create' ? {} : value;
+	let { field, value = $collectionValue[fieldName] || {} }: Props = $props();
+
+	const _data = $state($mode === 'create' ? {} : value);
 	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
-	let validationError: string | null = null;
+	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
 
-	let endDateValue: string | null = null;
+	let endDateValue: string | null = $state(null);
 
 	export const WidgetData = async () => _data;
 
@@ -79,35 +85,53 @@
 	}
 </script>
 
-<div class="flex flex-col space-y-4">
-	<!-- Start Date -->
-	<label for="start-date" class="text-sm font-medium">Start Date:</label>
-	<input
-		id="start-date"
-		type="date"
-		bind:value={_data[_language]}
-		on:input|preventDefault={validateInput}
-		class="input text-black dark:text-primary-500"
-		aria-invalid={!!validationError}
-		aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
-	/>
+<div class="input-container relative mb-4">
+	<div class="flex flex-col space-y-4">
+		<!-- Start Date -->
+		<div>
+			<label for="start-date" class="text-sm font-medium">Start Date:</label>
+			<input
+				id="start-date"
+				type="date"
+				bind:value={_data[_language]}
+				oninput={preventDefault(validateInput)}
+				class="input w-full text-black dark:text-primary-500"
+				class:error={!!validationError}
+				aria-invalid={!!validationError}
+				aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
+			/>
+		</div>
 
-	<!-- End Date -->
-	<label for="end-date" class="text-sm font-medium">End Date:</label>
-	<input
-		id="end-date"
-		type="date"
-		bind:value={endDateValue}
-		on:input|preventDefault={validateInput}
-		class="input text-black dark:text-primary-500"
-		aria-invalid={!!validationError}
-		aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
-	/>
+		<!-- End Date -->
+		<div>
+			<label for="end-date" class="text-sm font-medium">End Date:</label>
+			<input
+				id="end-date"
+				type="date"
+				bind:value={endDateValue}
+				oninput={preventDefault(validateInput)}
+				class="input w-full text-black dark:text-primary-500"
+				class:error={!!validationError}
+				aria-invalid={!!validationError}
+				aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
+			/>
+		</div>
+	</div>
+
+	<!-- Error Message -->
+	{#if validationError}
+		<p id={`${field.db_fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+			{validationError}
+		</p>
+	{/if}
 </div>
 
-<!-- Error Message -->
-{#if validationError}
-	<p id={`${field.db_fieldName}-error`} class="text-center text-sm text-error-500">
-		{validationError}
-	</p>
-{/if}
+<style lang="postcss">
+	.input-container {
+		min-height: 8rem; /* Increased to accommodate two inputs */
+	}
+
+	.error {
+		border-color: rgb(239 68 68);
+	}
+</style>

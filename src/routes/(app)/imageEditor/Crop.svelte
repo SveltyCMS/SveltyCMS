@@ -4,21 +4,33 @@
 -->
 
 <script lang="ts">
-	import { createEventDispatcher, onMount } from 'svelte';
 	import Konva from 'konva';
 
-	export let stage: Konva.Stage;
-	export let layer: Konva.Layer;
-	export let imageNode: Konva.Image;
+	interface Props {
+		stage: Konva.Stage;
+		layer: Konva.Layer;
+		imageNode: Konva.Image;
+		'on:cropApplied'?: () => void;
+		'on:cancelCrop'?: () => void;
+		'on:cropReset'?: () => void;
+	}
 
-	const dispatch = createEventDispatcher();
+	let {
+		stage,
+		layer,
+		imageNode,
+		'on:cropApplied': onCropApplied = () => {},
+		'on:cancelCrop': onCancelCrop = () => {},
+		'on:cropReset': onCropReset = () => {}
+	} = $props() as Props;
 
-	let cropShape: 'rectangle' | 'square' | 'circular' = 'rectangle';
-	let cropTool: Konva.Rect | Konva.Circle;
-	let transformer: Konva.Transformer;
-	let cropOverlay: Konva.Rect;
+	let cropShape = $state<'rectangle' | 'square' | 'circular'>('rectangle');
+	let cropTool = $state<Konva.Rect | Konva.Circle | null>(null);
+	let transformer = $state<Konva.Transformer | null>(null);
+	let cropOverlay = $state<Konva.Rect | null>(null);
 
-	onMount(() => {
+	// Initialize crop tool
+	$effect.root(() => {
 		initCropTool();
 	});
 
@@ -103,6 +115,8 @@
 	}
 
 	function applyCrop() {
+		if (!cropTool || !cropOverlay || !transformer) return;
+
 		const cropCanvas = document.createElement('canvas');
 		const cropContext = cropCanvas.getContext('2d');
 
@@ -152,29 +166,30 @@
 			imageNode.y(0);
 
 			// Remove crop tool and overlay
-			cropTool.destroy();
-			cropOverlay.destroy();
-			transformer.destroy();
+			cropTool?.destroy();
+			cropOverlay?.destroy();
+			transformer?.destroy();
 			layer.batchDraw();
 
-			dispatch('cropApplied');
+			onCropApplied();
 		};
 	}
 
 	function cancelCrop() {
-		dispatch('cancelCrop');
+		onCancelCrop();
 	}
 
 	function resetCrop() {
 		initCropTool();
-		dispatch('cropReset');
+		onCropReset();
 	}
 
-	$: {
+	// Effect to reinitialize crop tool when shape changes
+	$effect.root(() => {
 		if (cropShape) {
 			initCropTool();
 		}
-	}
+	});
 </script>
 
 <!-- Crop Controls UI -->
@@ -190,10 +205,10 @@
 		</div>
 	</div>
 	<div class="mt-4 flex justify-around gap-4">
-		<button on:click={cancelCrop} class="variant-filled-error btn">Cancel</button>
-		<button on:click={resetCrop} class="variant-outline btn">Reset</button>
-		<button on:click={applyCrop} class="variant-filled-primary btn">
-			<iconify-icon icon="mdi:crop" width="20" />
+		<button onclick={cancelCrop} aria-label="Cancel Crop" class="variant-filled-error btn">Cancel</button>
+		<button onclick={resetCrop} aria-label="Reset Crop" class="variant-outline btn">Reset</button>
+		<button onclick={applyCrop} aria-label="Apply Crop" class="variant-filled-primary btn">
+			<iconify-icon icon="mdi:crop" width="20"></iconify-icon>
 			Apply Crop
 		</button>
 	</div>

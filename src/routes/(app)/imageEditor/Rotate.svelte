@@ -5,19 +5,33 @@
 -->
 
 <script lang="ts">
-	import { createEventDispatcher, onMount } from 'svelte';
 	import Konva from 'konva';
 
-	export let stage: Konva.Stage;
-	export let layer: Konva.Layer;
-	export let imageNode: Konva.Image;
+	interface Props {
+		stage: Konva.Stage;
+		layer: Konva.Layer;
+		imageNode: Konva.Image;
+		'on:rotate'?: (data: { angle: number }) => void;
+		'on:rotateApplied'?: (data: { angle: number }) => void;
+		'on:rotateCancelled'?: () => void;
+		'on:rotateReset'?: () => void;
+	}
 
-	const dispatch = createEventDispatcher();
+	let {
+		stage,
+		layer,
+		imageNode,
+		'on:rotate': onRotate = () => {},
+		'on:rotateApplied': onRotateApplied = () => {},
+		'on:rotateCancelled': onRotateCancelled = () => {},
+		'on:rotateReset': onRotateReset = () => {}
+	}: Props = $props();
 
-	let rotationAngle = 0;
-	let gridLayer: Konva.Layer;
+	let rotationAngle = $state(0);
+	let gridLayer = $state<Konva.Layer | null>(null);
 
-	onMount(() => {
+	// Initialize grid layer
+	$effect.root(() => {
 		createGridLayer();
 	});
 
@@ -86,37 +100,37 @@
 		centerRotationPoint();
 		imageNode.rotation(rotationAngle);
 		layer.batchDraw();
-		gridLayer.show(); // Show the grid when rotating
-		gridLayer.batchDraw();
-		dispatch('rotate', { angle: rotationAngle });
+		gridLayer?.show(); // Show the grid when rotating
+		gridLayer?.batchDraw();
+		onRotate({ angle: rotationAngle });
 	}
 
 	function applyRotation() {
-		gridLayer.hide(); // Hide the grid when rotation is applied
+		gridLayer?.hide(); // Hide the grid when rotation is applied
 		layer.batchDraw();
-		dispatch('rotateApplied', { angle: rotationAngle });
+		onRotateApplied({ angle: rotationAngle });
 	}
 
 	function cancelRotation() {
 		resetRotation();
-		gridLayer.hide(); // Hide the grid when rotation is canceled
+		gridLayer?.hide(); // Hide the grid when rotation is canceled
 		layer.batchDraw();
-		dispatch('rotateCancelled');
+		onRotateCancelled();
 	}
 
 	function resetRotation() {
 		rotationAngle = 0;
 		imageNode.rotation(0);
-		gridLayer.hide(); // Hide the grid when resetting
+		gridLayer?.hide(); // Hide the grid when resetting
 		layer.batchDraw();
-		dispatch('rotateReset');
+		onRotateReset();
 	}
 </script>
 
 <div class="wrapper">
 	<div class="flex items-center justify-around">
-		<button on:click={rotateLeft} class="btn flex flex-col items-center" aria-label="Rotate Left">
-			<iconify-icon icon="mdi:rotate-left" width="24" />
+		<button onclick={rotateLeft} aria-label="Rotate Left" class="btn flex flex-col items-center">
+			<iconify-icon icon="mdi:rotate-left" width="24"></iconify-icon>
 			<span class="text-xs text-tertiary-500 dark:text-primary-500">Left</span>
 		</button>
 
@@ -125,8 +139,8 @@
 			<span class="ml-2 text-tertiary-500 dark:text-primary-500">{rotationAngle}°</span>
 		</label>
 
-		<button on:click={rotateRight} class=" btn flex flex-col items-center" aria-label="Rotate Right">
-			<iconify-icon icon="mdi:rotate-right" width="24" />
+		<button onclick={rotateRight} aria-label="Rotate Right" class="btn flex flex-col items-center">
+			<iconify-icon icon="mdi:rotate-right" width="24"></iconify-icon>
 			<span class="text-xs text-tertiary-500 dark:text-primary-500">Right</span>
 		</button>
 	</div>
@@ -139,14 +153,14 @@
 			max="180"
 			step="1"
 			bind:value={rotationAngle}
-			on:input={rotateCustom}
+			oninput={rotateCustom}
 			class="h-2 w-full cursor-pointer rounded-full bg-gray-300"
 		/>
 	</div>
 
 	<div class="mt-4 flex justify-around gap-4">
-		<button on:click={cancelRotation} class="variant-filled-error btn">Cancel</button>
-		<button on:click={resetRotation} class="variant-outline btn">Reset</button>
-		<button on:click={applyRotation} class="variant-filled-primary btn">Apply</button>
+		<button onclick={cancelRotation} class="variant-filled-error btn">Cancel</button>
+		<button onclick={resetRotation} class="variant-outline btn">Reset</button>
+		<button onclick={applyRotation} class="variant-filled-primary btn">Apply</button>
 	</div>
 </div>

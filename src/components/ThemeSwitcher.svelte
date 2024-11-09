@@ -20,7 +20,7 @@ Features:
 	import type { Theme } from '@src/databases/dbInterface';
 
 	let currentTheme: Theme | null = null;
-	let isDarkMode: boolean = false;
+	let isDarkMode: boolean = $state(false);
 	let systemPreference: 'light' | 'dark' = 'light';
 
 	// Function to get the system's color scheme preference
@@ -81,14 +81,14 @@ Features:
 </script>
 
 <button
-	on:click={toggleTheme}
+	onclick={toggleTheme}
 	class="rounded-full p-2 transition-colors duration-200 ease-in-out hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:hover:bg-gray-700"
 	aria-label={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}
 >
 	{#if isDarkMode}
-		<iconify-icon icon="bi:sun-fill" width="18" class="text-yellow-400" />
+		<iconify-icon icon="bi:sun-fill" width="18" class="text-yellow-400"></iconify-icon>
 	{:else}
-		<iconify-icon icon="bi:moon-fill" width="18" class="text-indigo-400" />
+		<iconify-icon icon="bi:moon-fill" width="18" class="text-indigo-400"></iconify-icon>
 	{/if}
 </button>
 
