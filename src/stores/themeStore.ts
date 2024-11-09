@@ -1,82 +1,215 @@
 /**
  * @file src/stores/themeStore.ts
- * @description Theme store using Svelte 5 Runes with reactive state management
- *
- * This module provides a centralized store for managing the application's theme.
- * It utilizes Svelte 5 Runes for reactive state management and handles theme
- * initialization and updates through API calls.
+ * @description Theme management using Svelte stores
  *
  * Features:
- * - Reactive theme state management using Svelte 5 Runes
+ * - Reactive theme state management with auto-refresh
  * - Asynchronous theme initialization from server
  * - Theme updating with server synchronization
  * - Error handling for API calls
  * - TypeScript support with custom Theme type
- *
- * Usage:
- * 1. Import the store and functions:
- *    import { themeStore, initializeThemeStore, updateTheme } from './themeStore';
- *
- * 2. Initialize the theme store (typically in your app's entry point):
- *    await initializeThemeStore();
- *
- * 3. Access the current theme reactively:
- *    $: currentTheme = themeStore.currentTheme;
- *
- * 4. Update the theme:
- *    await updateTheme('dark');
- *
- * Note: Ensure that the API endpoints ('/api/get-current-theme' and '/api/change-theme')
- * are properly set up on your server to handle theme operations.
  */
 
+import { writable, derived } from 'svelte/store';
 import type { Theme } from '@src/databases/dbInterface';
 
-// Create a state object that contains the current theme
-export const themeStore = $state({
-	currentTheme: null as Theme | null
-});
-
-// Initializes the theme store by fetching the current theme from the server.
-export async function initializeThemeStore() {
-	try {
-		const response = await fetch('/api/get-current-theme');
-		if (response.ok) {
-			themeStore.currentTheme = await response.json();
-		} else {
-			console.error('Failed to fetch the current theme:', response.statusText);
-			themeStore.currentTheme = null;
-		}
-	} catch (error) {
-		console.error('Error initializing theme store:', error);
-		themeStore.currentTheme = null;
-	}
+// Types
+interface ThemeState {
+	currentTheme: Theme | null;
+	isLoading: boolean;
+	error: string | null;
+	lastUpdateAttempt: Date | null;
 }
 
-// Updates the theme by sending a request to the server's ThemeManager
-export async function updateTheme(themeName: string): Promise<void> {
-	try {
-		const response = await fetch('/api/change-theme', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ themeName })
-		});
+// Create base stores
+const createThemeStores = () => {
+	let refreshInterval: NodeJS.Timeout | null = null;
 
-		const result = await response.json();
+	// Initial state
+	const initialState: ThemeState = {
+		currentTheme: null,
+		isLoading: false,
+		error: null,
+		lastUpdateAttempt: null
+	};
 
-		if (result.success) {
-			const updatedThemeResponse = await fetch('/api/get-current-theme');
-			if (updatedThemeResponse.ok) {
-				themeStore.currentTheme = await updatedThemeResponse.json();
-			} else {
-				console.warn('Failed to fetch the updated theme:', updatedThemeResponse.statusText);
-			}
-		} else {
-			console.error('Failed to change theme:', result.error);
-			alert('Failed to change theme: ' + result.error);
-		}
-	} catch (error) {
-		console.error('Error changing theme:', error);
-		alert('An error occurred while changing the theme.');
+	// Base store
+	const state = writable<ThemeState>(initialState);
+
+	// Derived values
+	const hasTheme = derived(state, ($state) => !!$state.currentTheme);
+	const themeName = derived(state, ($state) => $state.currentTheme?.name ?? 'default');
+	const isDefault = derived(state, ($state) => $state.currentTheme?.isDefault ?? false);
+	const canUpdate = derived(state, ($state) => !$state.isLoading);
+
+	// Helper functions
+	function isThemeStale(): boolean {
+		let isStale = true;
+		state.subscribe(($state) => {
+			if (!$state.lastUpdateAttempt) return true;
+			const twentyFourHours = 24 * 60 * 60 * 1000;
+			isStale = Date.now() - $state.lastUpdateAttempt.getTime() > twentyFourHours;
+		})();
+		return isStale;
 	}
+
+	// Start auto-refresh for stale theme
+	function startAutoRefresh() {
+		if (typeof window === 'undefined') return;
+
+		// Check every hour
+		refreshInterval = setInterval(
+			() => {
+				if (isThemeStale()) {
+					initialize().catch(console.error);
+				}
+			},
+			60 * 60 * 1000
+		);
+	}
+
+	// Stop auto-refresh
+	function stopAutoRefresh() {
+		if (refreshInterval) {
+			clearInterval(refreshInterval);
+			refreshInterval = null;
+		}
+	}
+
+	// Initialize theme
+	async function initialize() {
+		let currentState: ThemeState;
+		state.subscribe((s) => {
+			currentState = s;
+		})();
+
+		if (currentState.isLoading) return;
+
+		state.update((s) => ({ ...s, isLoading: true, error: null }));
+
+		try {
+			const response = await fetch('/api/get-current-theme');
+			if (!response.ok) {
+				throw new Error(`Failed to fetch theme: ${response.statusText}`);
+			}
+
+			const theme = await response.json();
+			state.update((s) => ({
+				...s,
+				currentTheme: theme,
+				lastUpdateAttempt: new Date(),
+				isLoading: false
+			}));
+		} catch (error) {
+			state.update((s) => ({
+				...s,
+				error: error instanceof Error ? error.message : 'Failed to initialize theme',
+				currentTheme: null,
+				isLoading: false
+			}));
+		}
+	}
+
+	// Update theme
+	async function updateTheme(themeName: string): Promise<void> {
+		let currentState: ThemeState;
+		state.subscribe((s) => {
+			currentState = s;
+		})();
+
+		if (currentState.isLoading) {
+			throw new Error('Theme update already in progress');
+		}
+
+		state.update((s) => ({ ...s, isLoading: true, error: null }));
+
+		try {
+			// Send update request
+			const updateResponse = await fetch('/api/change-theme', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ themeName })
+			});
+
+			const result = await updateResponse.json();
+
+			if (!result.success) {
+				throw new Error(result.error || 'Failed to update theme');
+			}
+
+			// Fetch updated theme
+			const themeResponse = await fetch('/api/get-current-theme');
+			if (!themeResponse.ok) {
+				throw new Error(`Failed to fetch updated theme: ${themeResponse.statusText}`);
+			}
+
+			const theme = await themeResponse.json();
+			state.update((s) => ({
+				...s,
+				currentTheme: theme,
+				lastUpdateAttempt: new Date(),
+				isLoading: false
+			}));
+		} catch (error) {
+			state.update((s) => ({
+				...s,
+				error: error instanceof Error ? error.message : 'Failed to update theme',
+				isLoading: false
+			}));
+			throw error;
+		}
+	}
+
+	// Reset error state
+	function clearError() {
+		state.update((s) => ({ ...s, error: null }));
+	}
+
+	// Initialize auto-refresh
+	if (typeof window !== 'undefined') {
+		startAutoRefresh();
+	}
+
+	return {
+		// Base store
+		state,
+
+		// Derived values
+		hasTheme,
+		themeName,
+		isDefault,
+		canUpdate,
+
+		// Methods
+		initialize,
+		updateTheme,
+		clearError,
+		stopAutoRefresh
+	};
+};
+
+// Create and export stores
+const stores = createThemeStores();
+
+// Export main store with full interface
+export const themeStore = {
+	subscribe: stores.state.subscribe,
+	initialize: stores.initialize,
+	updateTheme: stores.updateTheme,
+	clearError: stores.clearError
+};
+
+// Export derived values
+export const hasTheme = { subscribe: stores.hasTheme.subscribe };
+export const themeName = { subscribe: stores.themeName.subscribe };
+export const isDefault = { subscribe: stores.isDefault.subscribe };
+export const canUpdate = { subscribe: stores.canUpdate.subscribe };
+
+// Export initialization and update functions for direct use
+export const initializeThemeStore = stores.initialize;
+export const updateTheme = stores.updateTheme;
+
+// Cleanup on module unload
+if (typeof window !== 'undefined') {
+	window.addEventListener('unload', stores.stopAutoRefresh);
 }

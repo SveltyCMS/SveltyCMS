@@ -36,7 +36,7 @@
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
-	// Props using Svelte 5 runes
+	// Props
 	let { data } = $props<{ data: PageData }>();
 	let { user, isFirstUser } = $derived(data);
 

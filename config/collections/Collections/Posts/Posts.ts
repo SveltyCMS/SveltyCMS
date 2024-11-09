@@ -36,14 +36,14 @@ export const schema: Schema = {
 			required: true,
 			icon: 'ri:t-box-line',
 			placeholder: 'Enter Test Placeholder'
-		}),
-
-		widgets.ImageUpload({
-			label: 'Image',
-			required: true,
-			icon: 'material-symbols:image-outline',
-			folder: 'images' //This save to images folder, and is not globally available
 		})
+
+		// widgets.ImageUpload({
+		// 	label: 'Image',
+		// 	required: true,
+		// 	icon: 'material-symbols:image-outline',
+		// 	folder: 'images' //This save to images folder, and is not globally available
+		// })
 
 		// widgets.MediaUpload({
 		//     label: 'Media',

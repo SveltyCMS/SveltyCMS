@@ -1,6 +1,13 @@
 <!-- 
 @file src/components/widgets/remoteVideo/RemoteVideo.svelte
 @description - RemoteVideo widget
+
+Features:
+- Fetches video data from a remote URL
+- Displays the video thumbnail
+- Displays the video title
+- Displays the video duration
+
 -->
 
 <script lang="ts">
@@ -23,7 +30,7 @@
 
 	const fieldName = getFieldName(field);
 
-	// State management using Svelte 5 $state
+	// States
 	let value = $state(collectionValue[fieldName] || '');
 	let validationError = $state<string | null>(null);
 	let debounceTimeout = $state<number | undefined>(undefined);

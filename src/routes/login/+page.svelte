@@ -2,7 +2,6 @@
 @file: Authentication Form Component for SveltyCMS
 @description: This component handles both SignIn and SignUp functionality for the SveltyCMS.
 
-
 Features:
  - Dual SignIn and SignUp functionality with dynamic form switching
  - Dynamic language selection with a debounced input field or dropdown for multiple languages
@@ -33,7 +32,12 @@ Features:
 
 	type SystemLanguage = typeof systemLanguage extends Writable<infer T> ? T : never;
 
-	// State Management using Svelte 5 Runes
+	// State Management
+	const pageData = $page.data as PageData;
+	const firstUserExists = pageData.firstUserExists;
+	let active = $state<undefined | 0 | 1>(publicEnv.SEASONS || publicEnv.DEMO ? undefined : firstUserExists ? undefined : 1);
+	let background = $state<'white' | '#242728'>(publicEnv.SEASONS || publicEnv.DEMO ? '#242728' : firstUserExists ? 'white' : '#242728');
+	let timeRemaining = $state({ minutes: 0, seconds: 0 });
 	let searchQuery = $state('');
 	let isDropdownOpen = $state(false);
 	let searchInput = $state<HTMLInputElement | null>(null);
@@ -59,13 +63,6 @@ Features:
 	// Package version
 	// @ts-expect-error reading from vite.config.js
 	const pkg = __VERSION__;
-
-	// Initial state management
-	const pageData = $page.data as PageData;
-	const firstUserExists = pageData.firstUserExists;
-	let active = $state<undefined | 0 | 1>(publicEnv.SEASONS || publicEnv.DEMO ? undefined : firstUserExists ? undefined : 1);
-	let background = $state<'white' | '#242728'>(publicEnv.SEASONS || publicEnv.DEMO ? '#242728' : firstUserExists ? 'white' : '#242728');
-	let timeRemaining = $state({ minutes: 0, seconds: 0 });
 
 	// Form validation
 	if (!data.loginForm || !data.forgotForm || !data.resetForm || !data.signUpForm) {

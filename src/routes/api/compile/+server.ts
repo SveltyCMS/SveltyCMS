@@ -9,11 +9,6 @@
  * - updateCollections: Function imported from `@collections` to update collections post-compilation.
  * - compile: Function imported from `./compile` to handle the compilation logic.
  * - logger: Logger utility from `@utils/logger` to record system logs for debugging and error handling.
- *
- * @function GET
- * @description The GET request handler executes the `compile` function and updates
- * collections. It logs the process start, completion, and any errors, returning
- * either a 200 (success) or 500 (error) HTTP response.
  */
 
 import type { RequestHandler } from '@sveltejs/kit';

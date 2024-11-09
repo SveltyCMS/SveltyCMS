@@ -17,10 +17,8 @@
 -->
 
 <script lang="ts">
-	import { run, createBubbler } from 'svelte/legacy';
-
-	const bubble = createBubbler();
 	import { getFieldName, saveFormData, meta_data } from '@utils/utils';
+	import { publicEnv } from '@root/config/public';
 
 	// Components
 	import TranslationStatus from './TranslationStatus.svelte';
@@ -28,17 +26,41 @@
 
 	// Types
 	import type { CategoryData } from '@src/collections/types';
+	import type { CollectionValue } from '@stores/collectionStore';
 
 	// Skeleton
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 
+	// Stores
+	import { page } from '$app/stores';
+	import { collection, categories, collectionValue, mode, modifyEntry, statusMap } from '@stores/collectionStore';
+	import { toggleSidebar, sidebarState } from '@stores/sidebarStore';
+	import { screenSize } from '@stores/screenSizeStore';
+	import { contentLanguage, tabSet, validationStore, headerActionButton } from '@stores/store';
+
+	// Auth
+	import type { User } from '@src/auth/types';
+	let user = $derived($page.data.user as User);
+
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
+
+	// State declarations
+	let isOpen = $state(false);
+	let previousLanguage = $state($contentLanguage);
+	let previousTabSet = $state($tabSet);
+	let tempData = $state({});
+	let schedule = $state($collectionValue?._scheduled ? new Date($collectionValue._scheduled).toISOString().slice(0, 16) : '');
+	let createdAtDate = $state($collectionValue?.createdAt ? new Date($collectionValue.createdAt * 1000).toISOString().slice(0, 16) : '');
+	let saveLayerStore = $state(async () => {});
+	let showMore = $state(false);
+	let next = $state(() => {});
+
 	// Modal Trigger - Schedule
 	function openScheduleModal(): void {
 		const modalComponent: ModalComponent = {
-			// Pass a reference to your custom component
 			ref: ScheduleModal,
-			// Provide default slot content as a template literal
 			slot: '<p>Edit Form</p>'
 		};
 
@@ -47,44 +69,22 @@
 			title: 'Scheduler',
 			body: 'Set a date and time to schedule this entry.',
 			component: modalComponent,
-			// Pass arbitrary data to the component
 			response: (r: { date: string; action: string } | boolean) => {
 				if (typeof r === 'object') {
 					schedule = r.date;
 					if (r.action === 'schedule') {
-						collectionValue.update((cv) => ({
-							...cv,
-							status: 'scheduled',
+						const newValue: CollectionValue = {
+							...$collectionValue,
+							status: statusMap.scheduled,
 							_scheduled: new Date(r.date).getTime()
-						}));
+						};
+						collectionValue.set(newValue);
 					}
 				}
 			}
 		};
 		modalStore.trigger(d);
 	}
-
-	// Stores
-	import { get } from 'svelte/store';
-	import { page } from '$app/stores';
-	import { contentLanguage, saveLayerStore, headerActionButton, shouldShowNextButton, tabSet, validationStore } from '@stores/store';
-	import { collection, categories, collectionValue, mode, modifyEntry } from '@stores/collectionStore';
-	import { toggleSidebar, sidebarState, handleSidebarToggle } from '@stores/sidebarStore';
-	import { screenSize } from '@stores/screenSizeStore';
-
-	// Auth
-	import type { User } from '@src/auth/types';
-	let user = $derived($page.data.user as User);
-
-	let previousLanguage = get(contentLanguage);
-	let previousTabSet = $state(get(tabSet));
-	let tempData = $state({});
-	let schedule = $state($collectionValue._scheduled ? new Date($collectionValue._scheduled).toISOString().slice(0, 16) : '');
-	let createdAtDate = $state($collectionValue.createdAt ? new Date($collectionValue.createdAt * 1000).toISOString().slice(0, 16) : '');
-
-	//ParaglideJS
-	import * as m from '@src/paraglide/messages';
-	import { logger } from '@src/utils/logger';
 
 	// Find the parent category name for the current collection
 	let categoryName = $derived(
@@ -124,20 +124,30 @@
 		})()
 	);
 
-	run(() => {
+	$effect(() => {
 		if ($tabSet !== previousTabSet) {
-			tempData[previousLanguage] = get(collectionValue);
+			tempData[previousLanguage] = $collectionValue;
 			previousTabSet = $tabSet;
 		}
 	});
 
-	run(() => {
+	$effect(() => {
 		if ($mode === 'view') {
 			tempData = {};
 		}
-		if ($mode === 'edit' && $collectionValue.status === 'published') {
-			$modifyEntry('unpublished');
+		if ($mode === 'edit' && $collectionValue?.status === statusMap.published) {
+			$modifyEntry?.(statusMap.unpublished);
 		}
+	});
+
+	$effect(() => {
+		if ($mode === 'edit' || $mode === 'create') {
+			showMore = false;
+		}
+	});
+
+	$effect(() => {
+		next = saveLayerStore;
 	});
 
 	// Type guard to check if the widget result has a validateWidget method
@@ -152,19 +162,18 @@
 
 	// Save form data with validation
 	async function saveData() {
+		if (!$collection) return;
+
 		let validationPassed = true;
 		const getData = {};
 
 		// Clear any existing meta_data
 		meta_data.clear();
 
-		// Get current language
-		const currentLanguage = get(contentLanguage);
-
 		// Validate all fields and collect data
 		for (const field of $collection.fields) {
 			const fieldName = getFieldName(field);
-			const fieldValue = $collectionValue[fieldName];
+			const fieldValue = $collectionValue?.[fieldName];
 			// Use widget property directly as it's now an instance
 			const widgetInstance = field.widget;
 
@@ -177,7 +186,7 @@
 					validationStore.clearError(fieldName);
 					getData[fieldName] = () => {
 						if (isTranslatable(field)) {
-							return typeof fieldValue === 'object' ? fieldValue : { [currentLanguage]: fieldValue };
+							return typeof fieldValue === 'object' ? fieldValue : { [$contentLanguage]: fieldValue };
 						}
 						return fieldValue;
 					};
@@ -185,7 +194,7 @@
 			} else {
 				getData[fieldName] = () => {
 					if (isTranslatable(field)) {
-						return typeof fieldValue === 'object' ? fieldValue : { [currentLanguage]: fieldValue };
+						return typeof fieldValue === 'object' ? fieldValue : { [$contentLanguage]: fieldValue };
 					}
 					return fieldValue;
 				};
@@ -206,12 +215,12 @@
 		}
 
 		// Add ID if in edit mode
-		if ($mode === 'edit' && $collectionValue._id) {
+		if ($mode === 'edit' && $collectionValue?._id) {
 			getData['_id'] = () => $collectionValue._id;
 		}
 
 		// Add status
-		getData['status'] = () => $collectionValue.status || 'unpublished';
+		getData['status'] = () => $collectionValue?.status || statusMap.unpublished;
 
 		// Add schedule if set
 		if (schedule) {
@@ -227,12 +236,12 @@
 					data: getData,
 					_collection: $collection,
 					_mode: $mode,
-					id: $collectionValue._id,
+					id: $collectionValue?._id,
 					user
 				});
 
 				mode.set('view');
-				handleSidebarToggle();
+				toggleSidebar('left', $screenSize === 'lg' ? 'full' : 'collapsed');
 			} catch (err) {
 				console.error('Failed to save data:', err);
 			}
@@ -242,29 +251,17 @@
 	// function to undo the changes made by handleButtonClick
 	function handleCancel() {
 		mode.set('view');
-		handleSidebarToggle();
+		toggleSidebar('left', $screenSize === 'lg' ? 'full' : 'collapsed');
 	}
 
 	function handleReload() {
 		mode.set('edit');
 	}
 
-	interface Props {
-		showMore?: boolean;
+	// Handle entry modifications
+	function handleModifyEntry(status: keyof typeof statusMap) {
+		$modifyEntry?.(status);
 	}
-
-	let { showMore = $bindable(false) }: Props = $props();
-	run(() => {
-		if ($mode === 'edit' || $mode === 'create') {
-			showMore = false;
-		}
-	});
-
-	let next = $state(() => {});
-	saveLayerStore.subscribe((value) => {
-		next = value;
-		shouldShowNextButton.set(false);
-	});
 </script>
 
 <header
@@ -277,8 +274,7 @@
 		{#if $sidebarState.left === 'hidden'}
 			<button
 				type="button"
-				onkeydown={bubble('keydown')}
-				onclick={() => toggleSidebar('left', get(screenSize) === 'lg' ? 'full' : 'collapsed')}
+				onclick={() => toggleSidebar('left', $screenSize === 'lg' ? 'full' : 'collapsed')}
 				aria-label="Toggle Sidebar"
 				class="variant-ghost-surface btn-icon mt-1"
 			>
@@ -310,7 +306,7 @@
 		<!-- Check if user role has access to collection -->
 		<!-- mobile mode -->
 		{#if $screenSize !== 'lg'}
-			{#if $shouldShowNextButton}
+			{#if showMore}
 				<!-- Next Button  -->
 				<button type="button" onclick={next} aria-label="Next" class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:btn">
 					<iconify-icon icon="carbon:next-filled" width="24" class="text-white"></iconify-icon>
@@ -336,13 +332,7 @@
 				{/if}
 
 				<!-- DropDown to show more Buttons -->
-				<button
-					type="button"
-					onkeydown={bubble('keydown')}
-					onclick={() => (showMore = !showMore)}
-					aria-label="Show more"
-					class="variant-ghost-surface btn-icon"
-				>
+				<button type="button" onclick={() => (showMore = !showMore)} aria-label="Show more" class="variant-ghost-surface btn-icon">
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30"></iconify-icon>
 				</button>
 			{/if}
@@ -374,7 +364,7 @@
 				<!-- Delete Content -->
 				<button
 					type="button"
-					onclick={() => $modifyEntry('deleted')}
+					onclick={() => handleModifyEntry(statusMap.deleted)}
 					disabled={$collection?.permissions?.[user.role]?.delete === false}
 					class="gradient-error gradient-error-hover gradient-error-focus btn-icon"
 					aria-label="Delete entry"
@@ -385,11 +375,11 @@
 
 			<!-- Clone Content -->
 			{#if $mode == 'edit'}
-				{#if $collectionValue.status == 'unpublished'}
+				{#if $collectionValue?.status == statusMap.unpublished}
 					<div class="flex flex-col items-center justify-center">
 						<button
 							type="button"
-							onclick={() => $modifyEntry('published')}
+							onclick={() => handleModifyEntry(statusMap.published)}
 							disabled={!($collection?.permissions?.[user.role]?.write && $collection?.permissions?.[user.role]?.create)}
 							class="gradient-tertiary gradient-tertiary-hover gradient-tertiary-focus btn-icon"
 							aria-label="Publish entry"
@@ -413,7 +403,7 @@
 					<div class="flex flex-col items-center justify-center">
 						<button
 							type="button"
-							onclick={() => $modifyEntry('unpublished')}
+							onclick={() => handleModifyEntry(statusMap.unpublished)}
 							disabled={!$collection?.permissions?.[user.role]?.write}
 							class="gradient-yellow gradient-yellow-hover gradient-yellow-focus btn-icon"
 							aria-label="Unpublish entry"
@@ -426,7 +416,7 @@
 				<div class="flex flex-col items-center justify-center">
 					<button
 						type="button"
-						onclick={() => $modifyEntry('cloned')}
+						onclick={() => handleModifyEntry(statusMap.cloned)}
 						disabled={!($collection?.permissions?.[user.role]?.write && $collection?.permissions?.[user.role]?.create)}
 						aria-label="Clone entry"
 						class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn-icon"
@@ -459,8 +449,8 @@
 
 			<!-- User Info -->
 			<div class="mt-2 text-sm">
-				<p>Created by: {$collectionValue.createdBy || user.username}</p>
-				{#if $collectionValue.updatedBy}
+				<p>Created by: {$collectionValue?.createdBy || user.username}</p>
+				{#if $collectionValue?.updatedBy}
 					<p class="text-tertiary-500">Last updated by {$collectionValue.updatedBy}</p>
 				{/if}
 			</div>

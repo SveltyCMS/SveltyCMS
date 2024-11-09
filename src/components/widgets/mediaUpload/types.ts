@@ -18,7 +18,7 @@ import { SIZES } from '@utils/utils';
  * Defines MediaUpload widget Parameters
  */
 
-enum WATERMARK_POSITION {
+export enum WATERMARK_POSITION {
 	'top-left' = 'top-left',
 	'top-center' = 'top-center',
 	'top-right' = 'top-right',

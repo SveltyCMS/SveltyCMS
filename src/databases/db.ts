@@ -55,6 +55,7 @@ let authAdapter: authDBInterface | null = null;
 let auth: Auth | null = null;
 
 let isInitialized = false; // Flag to track initialization status
+let isConnected = false; // Flag to track database connection status
 let initializationPromise: Promise<void> | null = null;
 
 const MAX_RETRIES = 5; // Maximum number of DB connection retries
@@ -123,11 +124,17 @@ async function connectToDatabase(retries = MAX_RETRIES): Promise<void> {
 		throw error(500, 'Database adapter not initialized');
 	}
 
+	if (isConnected) {
+		logger.info('Database already connected');
+		return;
+	}
+
 	logger.info(`\x1b[33m\x1b[5mTrying to connect to your defined ${privateEnv.DB_NAME} database ...\x1b[0m`);
 
 	for (let attempt = 1; attempt <= retries; attempt++) {
 		try {
 			await dbAdapter.connect();
+			isConnected = true;
 			logger.info(`\x1b[32mConnection to ${privateEnv.DB_NAME} database successful!\x1b[0m ===> Enjoying your \x1b[31m${publicEnv.SITE_NAME}\x1b[0m`);
 			return;
 		} catch (err) {
@@ -213,35 +220,41 @@ async function initializeAdapters(): Promise<void> {
 	}
 
 	try {
+		// Step 1: Load adapters first
 		await loadAdapters();
 
 		if (!browser) {
-			await initializeMediaFolder();
+			// Step 2: Connect to database before any other initialization
 			await connectToDatabase();
 
-			// Initialize CollectionManager first and wait for it
+			// Step 3: Initialize media folder (filesystem operation, can be done in parallel)
+			await initializeMediaFolder();
+
+			// Step 4: Setup database models
+			if (!dbAdapter) {
+				throw error(500, 'Database adapter not initialized');
+			}
+
+			// Initialize database models first
+			await dbAdapter.setupAuthModels();
+			await dbAdapter.setupMediaModels();
+			await dbAdapter.getCollectionModels();
+
+			// Step 5: Initialize CollectionManager after models are set up
 			logger.debug('Initializing CollectionManager...');
 			await collectionManager.initialize();
 
 			// Get collection data after initialization
 			const { collections } = collectionManager.getCollectionData();
 			if (!collections || collections.length === 0) {
-				const error = 'No collections found after CollectionManager initialization';
-				logger.error(error);
-			}
-			logger.debug('CollectionManager initialized with collections:', { count: collections.length });
-
-			if (!dbAdapter) {
-				throw error(500, 'Database adapter not initialized');
+				logger.warn('No collections found after CollectionManager initialization');
+			} else {
+				logger.debug('CollectionManager initialized with collections:', { count: collections.length });
 			}
 
+			// Step 6: Initialize remaining components
 			await initializeDefaultTheme(dbAdapter);
 			await initializeVirtualFolders();
-			await dbAdapter.setupAuthModels();
-			await dbAdapter.setupMediaModels();
-			await dbAdapter.getCollectionModels();
-
-			// Ensure revision handling is initialized
 			await initializeRevisions();
 			await syncPermissions();
 		}
@@ -250,6 +263,7 @@ async function initializeAdapters(): Promise<void> {
 			throw error(500, 'Authentication adapter not initialized');
 		}
 
+		// Step 7: Initialize authentication
 		auth = new Auth(authAdapter);
 		logger.debug('Authentication adapter initialized.');
 
@@ -259,7 +273,8 @@ async function initializeAdapters(): Promise<void> {
 		const message = `Error in initializeAdapters: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message);
 		isInitialized = false; // Reset initialization flag on error
-		throw error(500, message); // Re-throw the error to be caught by the promise
+		isConnected = false; // Reset connection flag on error
+		throw error(500, message);
 	}
 }
 
@@ -312,5 +327,5 @@ export async function getCollectionModels() {
 	}
 }
 
-// Export functions
-export { collectionsModels, auth, initializationPromise, dbAdapter, authAdapter };
+// Export functions and state
+export { collectionsModels, auth, initializationPromise, dbAdapter, authAdapter, isConnected };

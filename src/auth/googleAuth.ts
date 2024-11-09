@@ -19,19 +19,35 @@ let googleAuthClient: any = null;
 
 // Initialize Google OAuth client with ID, secret, and redirect URL
 async function googleAuth() {
-	if (googleAuthClient) return googleAuthClient;
 	if (!privateEnv.GOOGLE_CLIENT_ID || !privateEnv.GOOGLE_CLIENT_SECRET) {
 		logger.warn('Google client ID and secret are not provided. OAuth unavailable.');
 		return null;
 	}
-	logger.debug('Setting up Google OAuth2...');
-	const { google } = await import('googleapis');
-	googleAuthClient = new google.auth.OAuth2(
-		privateEnv.GOOGLE_CLIENT_ID,
-		privateEnv.GOOGLE_CLIENT_SECRET,
-		`${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`
-	);
-	return googleAuthClient;
+
+	try {
+		if (!googleAuthClient) {
+			logger.debug('Setting up Google OAuth2...');
+			const { google } = await import('googleapis');
+			googleAuthClient = new google.auth.OAuth2(
+				privateEnv.GOOGLE_CLIENT_ID,
+				privateEnv.GOOGLE_CLIENT_SECRET,
+				`${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`
+			);
+		}
+
+		return googleAuthClient;
+	} catch (err) {
+		const error = err instanceof Error ? err.message : 'Unknown error initializing Google OAuth client';
+		logger.error('Error initializing Google OAuth client:', error);
+		return null;
+	}
 }
 
-export { googleAuth };
+// Set credentials for the OAuth client
+function setCredentials(credentials: any) {
+	if (googleAuthClient) {
+		googleAuthClient.setCredentials(credentials);
+	}
+}
+
+export { googleAuth, setCredentials };
