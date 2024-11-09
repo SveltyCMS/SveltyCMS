@@ -13,11 +13,62 @@
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	export let data: PageData;
-	let isLoading = true;
+	interface Props {
+		data: PageData;
+	}
 
-	if (data) {
-		isLoading = false; // Process or display data
+	let { data } = $props();
+
+	let isLoading = $state(true);
+	let token = $state('');
+	let formError = $state('');
+	let isFormValid = $state(false);
+
+	// Update form validation when token changes
+	$effect: {
+		isFormValid = token.length >= 16 && token.length <= 48;
+	}
+
+	// Handle form submission
+	async function handleSubmit(event: SubmitEvent) {
+		event.preventDefault();
+		if (!isFormValid) {
+			formError = 'Invalid token length';
+			return;
+		}
+
+		isLoading = true;
+		formError = '';
+
+		try {
+			const form = event.target as HTMLFormElement;
+			const formData = new FormData(form);
+			const response = await fetch(form.action, {
+				method: 'POST',
+				body: formData
+			});
+
+			if (!response.ok) {
+				throw new Error('OAuth authentication failed');
+			}
+
+			// Redirect will be handled by the server
+		} catch (error) {
+			formError = error instanceof Error ? error.message : 'Authentication failed';
+			isLoading = false;
+		}
+	}
+
+	// Handle cancel button
+	function handleCancel() {
+		window.history.back();
+	}
+
+	// Effect for initial data loading
+	$effect: {
+		if (data) {
+			isLoading = false;
+		}
 	}
 </script>
 
@@ -25,25 +76,57 @@
 	{#if isLoading}
 		<Loading />
 	{:else}
-		<form class="card m-2 flex flex-col items-center gap-2 rounded border p-2 sm:p-6" method="post" action="?/OAuth">
+		<form class="card m-2 flex flex-col items-center gap-2 rounded border p-2 sm:p-6" method="post" action="?/OAuth" onsubmit={handleSubmit}>
 			<!-- CSS Logo -->
 			<SveltyCMSLogoFull />
 
 			<!-- Input Token -->
 			<label>
-				<h2 class="mb-2 text-center text-xl font-bold text-primary-500">{m.oauth_entertoken()}</h2>
-				<input placeholder={m.oauth_placeholder()} class="input" type="text" name="token" minlength="16" maxlength="48" />
+				<h2 class="mb-2 text-center text-xl font-bold text-primary-500">
+					{m.oauth_entertoken()}
+				</h2>
+				<input
+					bind:value={token}
+					placeholder={m.oauth_placeholder()}
+					class="input"
+					type="text"
+					name="token"
+					minlength="16"
+					maxlength="48"
+					aria-invalid={!isFormValid}
+					aria-describedby={formError ? 'error-message' : undefined}
+				/>
 			</label>
+
+			<!-- Error Message -->
+			{#if formError}
+				<p id="error-message" class="text-error-500" role="alert">
+					{formError}
+				</p>
+			{/if}
+
 			<div class="mt-2 flex w-full justify-between gap-1 sm:gap-2">
 				<!-- Cancel Button -->
-				<button class="variant-filled btn">{m.button_cancel()}</button>
+				<button type="button" onclick={handleCancel} aria-label={m.button_cancel()} class="variant-filled btn">
+					{m.button_cancel()}
+				</button>
 
 				<!-- Submit Button -->
-				<button type="submit" class="variant-filled btn items-center">
-					<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mr-1" />
+				<button type="submit" disabled={!isFormValid || isLoading} aria-label={m.button_send()} class="variant-filled btn items-center">
+					<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mr-1"></iconify-icon>
 					<p>{m.oauth_signup()}</p>
 				</button>
 			</div>
 		</form>
 	{/if}
 </div>
+
+<style>
+	.input:invalid {
+		border-color: var(--color-error-500);
+	}
+
+	.input[aria-invalid='true'] {
+		border-color: var(--color-error-500);
+	}
+</style>

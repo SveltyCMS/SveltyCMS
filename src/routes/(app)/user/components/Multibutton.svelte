@@ -18,8 +18,8 @@
 	import { invalidateAll } from '$app/navigation';
 
 	// Popup Combobox
-	let listboxValue: string = 'edit';
-	export let selectedRows;
+	let listboxValue: string = $state('edit');
+	let { selectedRows } = $props();
 
 	const Combobox: PopupSettings = {
 		event: 'click',
@@ -241,19 +241,19 @@
 	<!-- Action button  -->
 	<button
 		type="button"
-		on:click={handleAction}
+		onclick={handleAction}
 		class="{getButtonAndIconValues(listboxValue).buttonClass} w-full font-semibold uppercase hover:bg-primary-400"
 		disabled={selectedRows.length === 0}
 	>
-		<iconify-icon icon={getButtonAndIconValues(listboxValue).iconValue} width="20" class="mr-2 text-white" />
+		<iconify-icon icon={getButtonAndIconValues(listboxValue).iconValue} width="20" class="mr-2 text-white"></iconify-icon>
 		{listboxValue ?? 'create'}
 	</button>
 
-	<span class="border border-white" />
+	<span class="border border-white"></span>
 
 	<!-- Dropdown button -->
 	<button class="divide-x-2 rounded-r-sm bg-surface-500 hover:!bg-surface-800" use:popup={Combobox}>
-		<iconify-icon icon="mdi:chevron-down" width="20" class="text-white" />
+		<iconify-icon icon="mdi:chevron-down" width="20" class="text-white"></iconify-icon>
 	</button>
 </div>
 
@@ -262,28 +262,36 @@
 	<ListBox rounded="rounded-sm" active="variant-filled-primary" hover="hover:bg-surface-300" class="divide-y">
 		{#if listboxValue != 'edit'}
 			<ListBoxItem bind:group={listboxValue} name="medium" value="edit" active="variant-filled-primary" hover="gradient-primary-hover"
-				><svelte:fragment slot="lead"><iconify-icon icon="bi:pencil-fill" width="20" class="mr-1" /></svelte:fragment>
+				>{#snippet lead()}
+								<iconify-icon icon="bi:pencil-fill" width="20" class="mr-1"></iconify-icon>
+							{/snippet}
 				Edit
 			</ListBoxItem>
 		{/if}
 
 		{#if listboxValue != 'delete'}
 			<ListBoxItem bind:group={listboxValue} name="medium" value="delete" active="variant-filled-error" hover="gradient-error-hover"
-				><svelte:fragment slot="lead"><iconify-icon icon="bi:trash3-fill" width="20" class="mr-1" /></svelte:fragment>
+				>{#snippet lead()}
+								<iconify-icon icon="bi:trash3-fill" width="20" class="mr-1"></iconify-icon>
+							{/snippet}
 				Delete
 			</ListBoxItem>
 		{/if}
 
 		{#if listboxValue != 'unblock'}
 			<ListBoxItem bind:group={listboxValue} name="medium" value="unblock" active="bg-yellow-500" hover="gradient-yellow-hover"
-				><svelte:fragment slot="lead"><iconify-icon icon="material-symbols:lock-open" width="20" class="mr-1" /></svelte:fragment>
+				>{#snippet lead()}
+								<iconify-icon icon="material-symbols:lock-open" width="20" class="mr-1"></iconify-icon>
+							{/snippet}
 				Unblock
 			</ListBoxItem>
 		{/if}
 
 		{#if listboxValue != 'block'}
 			<ListBoxItem bind:group={listboxValue} name="medium" value="block" active="bg-pink-700" hover="gradient-pink-hover"
-				><svelte:fragment slot="lead"><iconify-icon icon="material-symbols:lock" width="20" class="mr-1" /></svelte:fragment>
+				>{#snippet lead()}
+								<iconify-icon icon="material-symbols:lock" width="20" class="mr-1"></iconify-icon>
+							{/snippet}
 				Block
 			</ListBoxItem>
 		{/if}

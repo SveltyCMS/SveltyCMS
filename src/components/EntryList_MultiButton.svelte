@@ -4,8 +4,6 @@
 -->
 
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
-
 	// Stores
 	import { storeListboxValue } from '@stores/store';
 	import { mode, modifyEntry } from '@stores/collectionStore';
@@ -20,27 +18,51 @@
 	// Skeleton
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
 
-	export let isCollectionEmpty: boolean;
+	type ActionType = 'create' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'delete' | 'test';
+	type ModifyType = 'published' | 'unpublished' | 'scheduled' | 'cloned' | 'deleted' | 'testing';
+
+	interface Props {
+		isCollectionEmpty?: boolean;
+		'on:create'?: () => void;
+		'on:publish'?: () => void;
+		'on:unpublish'?: () => void;
+		'on:schedule'?: () => void;
+		'on:clone'?: () => void;
+		'on:delete'?: () => void;
+		'on:test'?: () => void;
+	}
+
+	// Props using Svelte 5 runes
+	let {
+		isCollectionEmpty = false,
+		'on:create': onCreate = () => {},
+		'on:publish': onPublish = () => {},
+		'on:unpublish': onUnpublish = () => {},
+		'on:schedule': onSchedule = () => {},
+		'on:clone': onClone = () => {},
+		'on:delete': onDelete = () => {},
+		'on:test': onTest = () => {}
+	}: Props = $props();
 
 	const modalStore = getModalStore();
-	const dispatch = createEventDispatcher();
+
+	// State variables using Svelte 5 runes
+	let dropdownOpen = $state(false);
+	let actionname = $state('');
+	let buttonClass = $state('');
+	let iconValue = $state('');
 
 	// Modal Trigger - Schedule
 	function openScheduleModal(): void {
-		// console.log('Triggered - modalScheduleForm');
 		const modalComponent: ModalComponent = {
-			// Pass a reference to your custom component
 			ref: ScheduleModal,
-			// Provide default slot content as a template literal
 			slot: '<p>Edit Form</p>'
 		};
 		const modalSettings: ModalSettings = {
 			type: 'component',
-			// NOTE: title, body, response, etc are supported!
 			title: 'Scheduler',
 			body: 'Set a date and time to schedule this entry.',
 			component: modalComponent,
-			// Pass arbitrary data to the component
 			response: (r: boolean) => {
 				if (r) console.log('Scheduling successful');
 			}
@@ -48,57 +70,62 @@
 		modalStore.trigger(modalSettings);
 	}
 
-	let dropdownOpen = false;
-	let actionname: string;
-	let buttonClass: string;
-	let iconValue: string;
+	function handleButtonClick(event: Event) {
+		event.preventDefault();
 
-	function handleButtonClick() {
+		if (!$modifyEntry) return;
+
 		switch ($storeListboxValue) {
 			case 'create':
 				mode.set('create');
 				handleSidebarToggle();
+				onCreate();
 				break;
 			case 'publish':
 				mode.set('view');
 				$modifyEntry('published');
+				onPublish();
 				break;
 			case 'unpublish':
 				mode.set('view');
 				$modifyEntry('unpublished');
+				onUnpublish();
 				break;
 			case 'schedule':
 				mode.set('view');
 				$modifyEntry('scheduled');
+				onSchedule();
 				break;
 			case 'clone':
 				mode.set('view');
 				$modifyEntry('cloned');
+				onClone();
 				break;
 			case 'delete':
 				mode.set('view');
 				$modifyEntry('deleted');
+				onDelete();
 				break;
 			case 'test':
 				mode.set('view');
 				$modifyEntry('testing');
+				onTest();
 				break;
 			default:
-				// Handle other actions here
 				break;
 		}
 
-		dispatch($storeListboxValue);
 		dropdownOpen = false;
 	}
 
 	// handleOptionClick for Button Dropdown
-	function handleOptionClick(value: string): void {
-		storeListboxValue.set(value as 'create' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'delete' | 'test');
+	function handleOptionClick(event: Event, value: ActionType): void {
+		event.preventDefault();
+		storeListboxValue.set(value);
 		dropdownOpen = false;
 	}
 
-	const buttonMap: Record<string, [string, string, string, string]> = {
+	const buttonMap: Record<ActionType, [string, string, string, string]> = {
 		create: [m.entrylist_multibutton_create(), 'gradient-tertiary', 'ic:round-plus', 'text-tertiary-500'],
 		publish: [m.entrylist_multibutton_publish(), 'gradient-primary', 'bi:hand-thumbs-up-fill', 'text-primary-500'],
 		unpublish: [m.entrylist_multibutton_unpublish(), 'gradient-yellow', 'bi:pause-circle', 'text-yellow-500'],
@@ -108,38 +135,45 @@
 		test: [m.entrylist_multibutton_testing(), 'gradient-error', 'icon-park-outline:preview-open', 'text-error-500']
 	};
 
-	// a reactive statement that runs whenever storeListboxValue is updated
-	$: {
-		[actionname, buttonClass, iconValue] = buttonMap[$storeListboxValue] || ['', '', '', ''];
+	// Update button display when storeListboxValue changes using root effect
+	$effect.root(() => {
+		[actionname, buttonClass, iconValue] = buttonMap[$storeListboxValue as ActionType] || ['', '', '', ''];
 		buttonClass = `btn ${buttonClass} rounded-none w-36 justify-between`;
-	}
+	});
 
-	$: if (isCollectionEmpty && $storeListboxValue !== 'create') {
-		storeListboxValue.set('create');
-	}
+	// Handle empty collection state using root effect
+	$effect.root(() => {
+		if (isCollectionEmpty && $storeListboxValue !== 'create') {
+			storeListboxValue.set('create');
+		}
+	});
 </script>
 
 <!-- Multibutton group-->
 <div class="relative z-20 mt-1 font-medium text-white">
 	<div class="variant-filled-token btn-group flex overflow-hidden rounded-l-full rounded-r-md rtl:rounded rtl:rounded-r-full">
 		<!-- Left button -->
-		<button type="button" class={`w-[60px] md:w-auto rtl:rotate-180 ${buttonClass} rounded-l-full`} on:click|preventDefault={handleButtonClick}>
+		<button type="button" class={`w-[60px] md:w-auto rtl:rotate-180 ${buttonClass} rounded-l-full`} onclick={handleButtonClick}>
 			<span class="grid grid-cols-[24px_auto] items-center gap-2 rtl:rotate-180">
-				<iconify-icon icon={iconValue} width="24" class="text-white" />
+				<iconify-icon icon={iconValue} width="24" class="text-white"></iconify-icon>
 				<span class="hidden text-left md:block">{actionname}</span>
 			</span>
 		</button>
 
 		<!-- White line -->
-		<div class="border-l-[3px] border-white" />
+		<div class="border-l-[3px] border-white"></div>
 
 		<!-- Dropdown button -->
 		<button
 			type="button"
 			class="flex w-[42px] items-center justify-center rounded-r-md bg-surface-400 dark:bg-surface-600"
-			on:click|preventDefault={() => (dropdownOpen = !dropdownOpen)}
+			aria-label="Toggle dropdown"
+			onclick={(e) => {
+				e.preventDefault();
+				dropdownOpen = !dropdownOpen;
+			}}
 		>
-			<iconify-icon icon="mdi:chevron-down" width="24" class="text-white" />
+			<iconify-icon icon="mdi:chevron-down" width="24" class="text-white"></iconify-icon>
 		</button>
 	</div>
 
@@ -147,16 +181,17 @@
 		<ul
 			class="drops absolute right-2 top-full z-50 mt-1 max-h-[300px] divide-y divide-white overflow-y-auto rounded bg-surface-400 dark:bg-surface-700 rtl:left-2 rtl:right-auto"
 		>
-			{#each Object.keys(buttonMap) as type}
+			{#each Object.entries(buttonMap) as [type, [label, gradient, icon]]}
 				{#if $storeListboxValue !== type}
-					<li class={`hover:text-white gradient-${buttonMap[type][1]}-hover gradient-${buttonMap[type][1]}-focus`}>
+					<li class={`hover:text-white gradient-${gradient}-hover gradient-${gradient}-focus`}>
 						<button
 							type="button"
-							class={`btn flex w-full justify-between gap-2 gradient-${buttonMap[type][1]} ${buttonMap[type][1]}-hover ${buttonMap[type][1]}-focus`}
-							on:click|preventDefault={() => handleOptionClick(type)}
+							onclick={(e) => handleOptionClick(e, type as ActionType)}
+							aria-label={label}
+							class={`btn flex w-full justify-between gap-2 gradient-${gradient} ${gradient}-hover ${gradient}-focus`}
 						>
-							<iconify-icon icon={buttonMap[type][2]} width="24" class=""></iconify-icon>
-							<p class="w-full">{buttonMap[type][0]}</p>
+							<iconify-icon {icon} width="24" class=""></iconify-icon>
+							<p class="w-full">{label}</p>
 						</button>
 					</li>
 				{/if}

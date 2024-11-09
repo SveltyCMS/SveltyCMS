@@ -1,6 +1,7 @@
 <!--
 @file src/routes/(app)/mediagallery/MediaGrid.svelte
 @description Grid view component for the media gallery. Displays media items in a responsive grid layout with file information and actions.
+
 Key features:
 - Responsive grid layout for media items
 - Display of file name, size, and type
@@ -11,22 +12,24 @@ Key features:
 -->
 
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
-
 	// Utils
 	import { formatBytes } from '@utils/utils';
 	import { getMediaUrl } from '@utils/media/mediaUtils';
+	import type { MediaBase } from '@utils/media/mediaModels';
 
 	// Skeleton
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
 
-	export let filteredFiles;
-	export let gridSize;
+	interface Props {
+		filteredFiles?: MediaBase[];
+		gridSize?: 'small' | 'medium' | 'large';
+		'on:deleteImage'?: (file: MediaBase) => void;
+	}
 
-	const dispatch = createEventDispatcher();
+	let { filteredFiles = [], gridSize, 'on:deleteImage': onDeleteImage = () => {} }: Props = $props();
 
 	// Initialize the showInfo array with false values
-	const showInfo = Array.from({ length: filteredFiles.length }, () => false);
+	let showInfo = $state(Array.from({ length: filteredFiles.length }, () => false));
 
 	// Popup Tooltips
 	const FileTooltip: PopupSettings = {
@@ -35,28 +38,33 @@ Key features:
 		placement: 'right'
 	};
 
-	function handleDelete(file) {
-		dispatch('deleteImage', file);
+	function handleDelete(file: MediaBase) {
+		onDeleteImage(file);
 	}
+
+	// Update showInfo array when filteredFiles length changes
+	$effect(() => {
+		showInfo = Array.from({ length: filteredFiles.length }, () => false);
+	});
 </script>
 
 <div class="flex flex-wrap items-center gap-4 overflow-auto">
 	{#if filteredFiles.length === 0}
 		<div class="mx-auto text-center text-tertiary-500 dark:text-primary-500">
-			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2" />
+			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2"></iconify-icon>
 			<p class="text-lg">No media found</p>
 		</div>
 	{:else}
 		{#each filteredFiles as file, index}
 			<div
-				on:mouseenter={() => (showInfo[index] = true)}
-				on:mouseleave={() => (showInfo[index] = false)}
+				onmouseenter={() => (showInfo[index] = true)}
+				onmouseleave={() => (showInfo[index] = false)}
 				role="button"
 				tabindex="0"
 				class="card border border-surface-300 dark:border-surface-500"
 			>
 				<header class="m-2 flex w-auto items-center justify-between">
-					<button use:popup={FileTooltip} class="btn-icon" aria-label="File Info">
+					<button use:popup={FileTooltip} aria-label="File Info" class="btn-icon">
 						<iconify-icon icon="raphael:info" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					</button>
 
@@ -92,13 +100,12 @@ Key features:
 									{/if}
 								{/each}
 							</tbody>
-							<div class="variant-filled arrow" />
 						</table>
 					</div>
-					<button class="btn-icon" aria-label="Edit">
-						<iconify-icon icon="mdi:pen" width="24" class="data:text-primary-500 text-tertiary-500"> </iconify-icon>
+					<button aria-label="Edit" class="btn-icon">
+						<iconify-icon icon="mdi:pen" width="24" class="data:text-primary-500 text-tertiary-500"></iconify-icon>
 					</button>
-					<button on:click={() => handleDelete(file)} class="btn-icon" aria-label="Delete">
+					<button onclick={() => handleDelete(file)} aria-label="Delete" class="btn-icon">
 						<iconify-icon icon="icomoon-free:bin" width="24" class="text-error-500"> </iconify-icon>
 					</button>
 				</header>

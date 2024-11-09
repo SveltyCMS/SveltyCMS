@@ -19,7 +19,7 @@ Key features:
 	import 'iconify-icon';
 
 	import { publicEnv } from '@root/config/public';
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 
 	// Utils
@@ -52,20 +52,62 @@ Key features:
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 	initializeStores();
 
-	export let data: any;
+	interface Props {
+		data: {
+			language: string;
+			[key: string]: any;
+		};
+		children?: import('svelte').Snippet;
+	}
 
-	$: contentLanguage.set(data.language);
+	let { data, children }: Props = $props();
 
-	let isCollectionsLoaded = false;
-	let isNonCriticalDataLoaded = false;
-	let loadError: Error | null = null;
+	// State variables
+	let isCollectionsLoaded = $state(false);
+	let isNonCriticalDataLoaded = $state(false);
+	let loadError = $state<Error | null>(null);
+	let mediaQuery: MediaQueryList;
+
+	// Update content language when data changes
+	$effect(() => {
+		contentLanguage.set(data.language);
+	});
+
+	// Handle collection changes
+	$effect(() => {
+		const newCollection = $collection;
+		if (!newCollection?.name) return;
+
+		const newPath = `/${$contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${newCollection.name}`;
+		if ($page.url.pathname !== newPath) {
+			goto(newPath);
+		}
+	});
+
+	// Update collection loaded state when store changes
+	$effect(() => {
+		if ($collections && Object.keys($collections).length > 0) {
+			isCollectionsLoaded = true;
+		}
+	});
+
+	// Handle system language changes
+	$effect(() => {
+		const lang = $systemLanguage;
+		if (!lang) return;
+
+		const dir = getTextDirection(lang);
+		if (!dir) return;
+
+		document.documentElement.dir = dir;
+		document.documentElement.lang = lang;
+	});
 
 	// Function to initialize collections using CollectionManager
 	async function initializeCollections() {
 		try {
 			const { collections: loadedCollections } = collectionManager.getCollectionData();
 			if (loadedCollections.length === 0) {
-				// Only update if collections haven't been loaded yet
 				await collectionManager.updateCollections();
 			}
 			isCollectionsLoaded = true;
@@ -77,53 +119,29 @@ Key features:
 
 	// Function to load non-critical data
 	async function loadNonCriticalData() {
-		// Simulate loading of additional data
 		await new Promise((resolve) => setTimeout(resolve, 2000));
 		isNonCriticalDataLoaded = true;
 	}
 
-	// Function to handle collection changes
-	function handleCollectionChange(newCollection) {
-		if (!newCollection || !newCollection.name) return;
-
-		// If the new collection is different from the current one, navigate to the new collection
-		const newPath = `/${$contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${newCollection.name}`;
-		if ($page.url.pathname !== newPath) {
-			goto(newPath);
-		}
-	}
-
-	// Subscribe to changes in the collection store
-	$: handleCollectionChange($collection);
-
-	// Subscribe to Setup System language
-	systemLanguage.subscribe((lang) => {
-		if (!lang) return;
-		const dir = getTextDirection(lang);
-		if (!dir) return;
-		document.documentElement.dir = dir;
-		document.documentElement.lang = lang;
-	});
-
 	// Theme management
-	const updateThemeBasedOnSystemPreference = (event) => {
+	function updateThemeBasedOnSystemPreference(event: MediaQueryListEvent) {
 		const prefersDarkMode = event.matches;
 		setModeUserPrefers(prefersDarkMode);
 		setModeCurrent(prefersDarkMode);
 		localStorage.setItem('theme', prefersDarkMode ? 'dark' : 'light');
-	};
+	}
 
 	// Keyboard shortcuts
-	const onKeyDown = (event: KeyboardEvent) => {
+	function onKeyDown(event: KeyboardEvent) {
 		if (event.altKey && event.key === 's') {
 			event.preventDefault();
 			isSearchVisible.update((v) => !v);
 		}
-	};
+	}
 
 	onMount(() => {
 		// Theme initialization
-		const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+		mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 		mediaQuery.addEventListener('change', updateThemeBasedOnSystemPreference);
 
 		// Check for saved theme preference in localStorage
@@ -140,18 +158,13 @@ Key features:
 		// Initialize data
 		initializeCollections();
 		loadNonCriticalData();
-
-		return () => {
-			// Cleanup: remove event listeners
-			mediaQuery.removeEventListener('change', updateThemeBasedOnSystemPreference);
-			window.removeEventListener('keydown', onKeyDown);
-		};
 	});
 
-	// Update collection loaded state when store changes
-	$: if ($collections && Object.keys($collections).length > 0) {
-		isCollectionsLoaded = true;
-	}
+	onDestroy(() => {
+		// Cleanup: remove event listeners
+		mediaQuery?.removeEventListener('change', updateThemeBasedOnSystemPreference);
+		window.removeEventListener('keydown', onKeyDown);
+	});
 
 	// SEO
 	const SeoTitle = `${publicEnv.SITE_NAME} - powered with sveltekit`;
@@ -195,7 +208,7 @@ Key features:
 {:else}
 	<!-- hack as root +layout cannot be overwritten ? -->
 	{#if $page.url.pathname === '/login'}
-		<slot />
+		{@render children?.()}
 	{:else}
 		<!-- Body -->
 		<div class="flex h-lvh flex-col">
@@ -250,7 +263,7 @@ Key features:
 								<Loading />
 							</div>
 						{:else}
-							<slot />
+							{@render children?.()}
 						{/if}
 
 						{#if isNonCriticalDataLoaded}

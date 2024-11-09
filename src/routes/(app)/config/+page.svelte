@@ -21,21 +21,23 @@
 	type DynamicPermissions = Record<string, PermissionConfig>;
 
 	// Get server-side data
-	$: user = $page.data.user; // User information from server
-	$: dynamicPermissions = $page.data.permissionConfigs as DynamicPermissions; // Dynamically loaded permissions
+	let user = $derived($page.data.user); // User information from server
+	let dynamicPermissions = $derived($page.data.permissionConfigs as DynamicPermissions); // Dynamically loaded permissions
 
 	// Create a mapping from contextId to dynamic permissions for easier access
-	$: permissionConfigs = Object.fromEntries(
-		Object.values(dynamicPermissions).map((permission) => [
-			permission.contextId.split('/')[1], // Extract the contextId from permission id (e.g., 'collectionbuilder' from 'config:collectionbuilder')
-			{
-				contextId: permission.contextId,
-				name: permission.name, // Ensure the `name` property is included
-				action: permission.action,
-				contextType: permission.contextType // Ensure this matches the expected type
-			}
-		])
-	) as Record<string, PermissionConfig>;
+	let permissionConfigs = $derived(
+		Object.fromEntries(
+			Object.values(dynamicPermissions).map((permission) => [
+				permission.contextId.split('/')[1], // Extract the contextId from permission id (e.g., 'collectionbuilder' from 'config:collectionbuilder')
+				{
+					contextId: permission.contextId,
+					name: permission.name, // Ensure the `name` property is included
+					action: permission.action,
+					contextType: permission.contextType // Ensure this matches the expected type
+				}
+			])
+		) as Record<string, PermissionConfig>
+	);
 </script>
 
 <!-- Page Title with Back Button -->
@@ -51,7 +53,7 @@
 				class="config-btn variant-outline-tertiary dark:variant-outline-secondary"
 				aria-label={m.config_collectionbuilder()}
 			>
-				<iconify-icon icon="fluent-mdl2:build-definition" class="config-icon text-tertiary-600" />
+				<iconify-icon icon="fluent-mdl2:build-definition" class="config-icon text-tertiary-600"></iconify-icon>
 				<p class="config-text">{m.config_collectionbuilder()}</p>
 			</a>
 		</PermissionGuard>
@@ -62,18 +64,18 @@
 				href="/api/graphql"
 				target="_blank"
 				rel="noopener noreferrer"
-				class="config-btn variant-outline-tertiary dark:variant-outline-secondary"
 				aria-label={m.config_graphql()}
+				class="config-btn variant-outline-tertiary dark:variant-outline-secondary"
 			>
-				<iconify-icon icon="teenyicons:graphql-solid" class="config-icon text-warning-600" />
+				<iconify-icon icon="teenyicons:graphql-solid" class="config-icon text-warning-600"></iconify-icon>
 				<p class="config-text">{m.config_graphql()}</p>
 			</a>
 		</PermissionGuard>
 
 		<!-- Editor -->
 		<PermissionGuard config={permissionConfigs.imageeditor}>
-			<a href="/imageEditor" class="config-btn variant-outline-tertiary dark:variant-outline-secondary" aria-label={m.config_imageeditor()}>
-				<iconify-icon icon="bi:image" class="config-icon text-primary-600" />
+			<a href="/imageEditor" aria-label={m.config_imageeditor()} class="config-btn variant-outline-tertiary dark:variant-outline-secondary">
+				<iconify-icon icon="bi:image" class="config-icon text-primary-600"></iconify-icon>
 				<p class="config-text">{m.config_imageeditor()}</p>
 			</a>
 		</PermissionGuard>
@@ -81,7 +83,7 @@
 		<!-- Dashboard -->
 		<PermissionGuard config={permissionConfigs.dashboard}>
 			<a href="/dashboard" class="config-btn variant-outline-tertiary dark:variant-outline-secondary" aria-label={m.config_Dashboard()}>
-				<iconify-icon icon="bi:bar-chart-line" class="config-icon text-error-600" />
+				<iconify-icon icon="bi:bar-chart-line" class="config-icon text-error-600"></iconify-icon>
 				<p class="config-text">{m.config_Dashboard()}</p>
 			</a>
 		</PermissionGuard>
@@ -94,38 +96,38 @@
 			class="config-btn variant-ghost-primary"
 			aria-label={m.config_Martketplace()}
 		>
-			<iconify-icon icon="icon-park-outline:shopping-bag" class="config-icon text-white" />
+			<iconify-icon icon="icon-park-outline:shopping-bag" class="config-icon text-white"></iconify-icon>
 			<p class="config-text">{m.config_Martketplace()}</p>
 		</a>
 
 		<!-- Widget Management -->
 		<PermissionGuard config={permissionConfigs.widgetManagement}>
-			<a href="/config/widgetManagement" class="config-btn variant-ghost-primary">
-				<iconify-icon icon="mdi:widgets" class="config-icon text-white" />
+			<a href="/config/widgetManagement" aria-label="Widget Management" class="config-btn variant-ghost-primary">
+				<iconify-icon icon="mdi:widgets" class="config-icon text-white"></iconify-icon>
 				<p class="config-text">Widget Management</p>
 			</a>
 		</PermissionGuard>
 
 		<!-- Theme Management -->
 		<PermissionGuard config={permissionConfigs.themeManagement}>
-			<a href="/config/themeManagement" class="config-btn variant-ghost-primary">
-				<iconify-icon icon="ph:layout" class="config-icon text-white" />
+			<a href="/config/themeManagement" aria-label="Theme Management" class="config-btn variant-ghost-primary">
+				<iconify-icon icon="ph:layout" class="config-icon text-white"></iconify-icon>
 				<p class="config-text">Themes</p>
 			</a>
 		</PermissionGuard>
 
 		<!-- Settings -->
 		<PermissionGuard config={permissionConfigs.settings}>
-			<a href="/config/systemsetting" class="config-btn variant-ghost-error" aria-label="System Settings">
-				<iconify-icon icon="uil:setting" class="config-icon text-white" />
+			<a href="/config/systemsetting" aria-label="System Settings" class="config-btn variant-ghost-error">
+				<iconify-icon icon="uil:setting" class="config-icon text-white"></iconify-icon>
 				<p class="config-text">Settings</p>
 			</a>
 		</PermissionGuard>
 
 		<!-- Access Management -->
 		<PermissionGuard config={permissionConfigs.accessManagement}>
-			<a href="/config/assessManagement" class="config-btn variant-ghost-error" aria-label="Access Management">
-				<iconify-icon icon="mdi:account-group" class="config-icon text-white" />
+			<a href="/config/assessManagement" aria-label="Access Management" class="config-btn variant-ghost-error">
+				<iconify-icon icon="mdi:account-group" class="config-icon text-white"></iconify-icon>
 				<p class="config-text">Access Management</p>
 			</a>
 		</PermissionGuard>

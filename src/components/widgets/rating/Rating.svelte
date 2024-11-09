@@ -17,22 +17,14 @@
 	// Valibot validation
 	import { number, pipe, parse, type ValiError, minValue, maxValue, nonNullable } from 'valibot';
 
-	export let field: FieldType;
 
-	export let maxRating = 5;
-	export let color = 'warning-500';
-	export let size = 25;
-	export let iconEmpty = 'material-symbols:star-outline';
-	export let iconHalf = 'material-symbols:star-half';
-	export let iconFull = 'material-symbols:star';
 
 	const fieldName = getFieldName(field);
-	export let value = $collectionValue[fieldName] || {};
 
 	// Initialize _data based on mode
-	const _data = $mode === 'create' ? {} : value;
+	const _data = $state($mode === 'create' ? {} : value);
 
-	let validationError: string | null = null;
+	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
 
 	// Create validation schema for rating
@@ -83,6 +75,27 @@
 
 	// Cleanup on destroy
 	import { onDestroy } from 'svelte';
+	interface Props {
+		field: FieldType;
+		maxRating?: number;
+		color?: string;
+		size?: number;
+		iconEmpty?: string;
+		iconHalf?: string;
+		iconFull?: string;
+		value?: any;
+	}
+
+	let {
+		field,
+		maxRating = 5,
+		color = 'warning-500',
+		size = 25,
+		iconEmpty = 'material-symbols:star-outline',
+		iconHalf = 'material-symbols:star-half',
+		iconFull = 'material-symbols:star',
+		value = $collectionValue[fieldName] || {}
+	}: Props = $props();
 
 	onDestroy(() => {
 		if (debounceTimeout) clearTimeout(debounceTimeout);
@@ -104,9 +117,15 @@
 		aria-required={field?.required}
 		data-testid="rating-input"
 	>
-		<svelte:fragment slot="empty"><iconify-icon icon={iconEmpty} width={size} {color}></iconify-icon></svelte:fragment>
-		<svelte:fragment slot="half"><iconify-icon icon={iconHalf} width={size} {color}></iconify-icon></svelte:fragment>
-		<svelte:fragment slot="full"><iconify-icon icon={iconFull} width={size} {color}></iconify-icon></svelte:fragment>
+		{#snippet empty()}
+				<iconify-icon icon={iconEmpty} width={size} {color}></iconify-icon>
+			{/snippet}
+		{#snippet half()}
+				<iconify-icon icon={iconHalf} width={size} {color}></iconify-icon>
+			{/snippet}
+		{#snippet full()}
+				<iconify-icon icon={iconFull} width={size} {color}></iconify-icon>
+			{/snippet}
 	</Ratings>
 
 	<!-- Error Message -->

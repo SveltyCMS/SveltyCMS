@@ -5,14 +5,26 @@
 	import { getModalStore } from '@skeletonlabs/skeleton';
 
 	// Props
-	/** Exposes parent props to this component. */
-	export let parent: SvelteComponent;
+	
 
-	export let _data: any;
-	export let field: any;
-	export let updated: any;
-	export let value: any;
-	export let mediaOnSelect: any;
+	interface Props {
+		/** Exposes parent props to this component. */
+		parent: SvelteComponent;
+		_data: any;
+		field: any;
+		updated: any;
+		value: any;
+		mediaOnSelect: any;
+	}
+
+	let {
+		parent,
+		_data,
+		field,
+		updated,
+		value,
+		mediaOnSelect
+	}: Props = $props();
 
 	const modalStore = getModalStore();
 

@@ -18,22 +18,32 @@
 	import { contentLanguage, validationStore } from '@stores/store';
 	import { mode, collectionValue } from '@stores/collectionStore';
 
-	export let field: FieldType;
+	// Valibot validation
+	import { string, pipe, parse, type ValiError, minLength, maxLength, nonEmpty, nullable } from 'valibot';
+
+	interface Props {
+		field: FieldType;
+		value?: any;
+	}
+
+	let { field, value = {} }: Props = $props();
 
 	const fieldName = getFieldName(field);
-	export let value = $collectionValue[fieldName] || {};
+	value = value || $collectionValue[fieldName] || {};
 
-	const _data = $mode === 'create' ? {} : value;
-
-	$: _language = field?.translated ? $contentLanguage.toLowerCase() : publicEnv.DEFAULT_CONTENT_LANGUAGE.toLowerCase();
-	$: updateTranslationProgress(_data, field);
-
-	let validationError: string | null = null;
+	let _data = $state($mode === 'create' ? {} : value);
+	let validationError = $state<string | null>(null);
 	let debounceTimeout: number | undefined;
-	let inputElement: HTMLInputElement | null = null;
+	let inputElement = $state<HTMLInputElement | null>(null);
 
-	// Reactive statement to update count with memoization
-	$: count = _data[_language]?.length ?? 0;
+	// Computed values
+	let _language = $derived(field?.translated ? $contentLanguage.toLowerCase() : publicEnv.DEFAULT_CONTENT_LANGUAGE.toLowerCase());
+	let count = $derived(_data[_language]?.length ?? 0);
+
+	// Update translation progress when data or field changes
+	$effect(() => {
+		updateTranslationProgress(_data, field);
+	});
 
 	// Memoized badge class calculation
 	const badgeClassCache = new Map<string, string>();
@@ -52,9 +62,6 @@
 		badgeClassCache.set(key, result);
 		return result;
 	};
-
-	// Valibot validation
-	import { string, pipe, parse, type ValiError, minLength, maxLength, nonEmpty, nullable } from 'valibot';
 
 	let validationSchema = field?.required ? pipe(string(), nonEmpty()) : nullable(string());
 
@@ -133,7 +140,7 @@
 		<input
 			type="text"
 			bind:value={_data[_language]}
-			on:blur={validateInput}
+			onblur={validateInput}
 			name={field?.db_fieldName}
 			id={field?.db_fieldName}
 			bind:this={inputElement}

@@ -5,39 +5,54 @@
 -->
 
 <script lang="ts">
-	import { createEventDispatcher, onMount } from 'svelte';
-	import type Konva from 'konva';
+	import Konva from 'konva';
 
-	enum WATERMARK_POSITION {
-		'top-left' = 'top-left',
-		'top-center' = 'top-center',
-		'top-right' = 'top-right',
-		'center-left' = 'center-left',
-		'center' = 'center',
-		'center-right' = 'center-right',
-		'bottom-left' = 'bottom-left',
-		'bottom-center' = 'bottom-center',
-		'bottom-right' = 'bottom-right'
+	const WATERMARK_POSITION = {
+		'top-left': 'top-left',
+		'top-center': 'top-center',
+		'top-right': 'top-right',
+		'center-left': 'center-left',
+		center: 'center',
+		'center-right': 'center-right',
+		'bottom-left': 'bottom-left',
+		'bottom-center': 'bottom-center',
+		'bottom-right': 'bottom-right'
+	} as const;
+
+	type WatermarkPosition = (typeof WATERMARK_POSITION)[keyof typeof WATERMARK_POSITION];
+
+	interface WatermarkSettings {
+		watermarkFile: File | null;
+		position: WatermarkPosition;
+		opacity: number;
+		scale: number;
+		offsetX: number;
+		offsetY: number;
+		rotation: number;
 	}
 
-	export let stage: Konva.Stage;
-	export let layer: Konva.Layer;
-	export let imageNode: Konva.Image;
+	interface Props {
+		stage: Konva.Stage;
+		layer: Konva.Layer;
+		imageNode: Konva.Image;
+		'on:change'?: (settings: WatermarkSettings) => void;
+	}
 
-	let watermarkFile: File | null = null;
-	let position: WATERMARK_POSITION = WATERMARK_POSITION.center;
-	let opacity = 1;
-	let scale = 100;
-	let offsetX = 0;
-	let offsetY = 0;
-	let rotation = 0;
+	let { stage, layer, imageNode, 'on:change': onChange = () => {} }: Props = $props();
 
-	const dispatch = createEventDispatcher();
+	let watermarkFile: File | null = $state(null);
+	let position: WatermarkPosition = $state(WATERMARK_POSITION.center);
+	let opacity = $state(1);
+	let scale = $state(100);
+	let offsetX = $state(0);
+	let offsetY = $state(0);
+	let rotation = $state(0);
 
-	let watermarkPreview: string | null = null;
-	let watermarkNode: Konva.Image | null = null;
+	let watermarkPreview: string | null = $state(null);
+	let watermarkNode: Konva.Image | null = $state(null);
 
-	onMount(() => {
+	// Cleanup effect
+	$effect.root(() => {
 		return () => {
 			if (watermarkNode) {
 				watermarkNode.destroy();
@@ -124,7 +139,7 @@
 
 	function handleChange() {
 		applyWatermark();
-		dispatch('change', {
+		onChange({
 			watermarkFile,
 			position,
 			opacity,
@@ -171,12 +186,12 @@
 		{#if watermarkPreview}
 			<div class="relative mb-2 h-32 w-32">
 				<img src={watermarkPreview} alt="Watermark preview" class="border-base-300 h-full w-full rounded border object-contain" />
-				<button class="bg-error absolute -right-2 -top-2 rounded-full p-1 text-xs text-white" on:click={removeWatermark}> X </button>
+				<button class="bg-error absolute -right-2 -top-2 rounded-full p-1 text-xs text-white" onclick={removeWatermark}> X </button>
 			</div>
 		{:else}
 			<label class="btn-primary btn mb-2">
 				Upload Watermark
-				<input type="file" accept="image/*" on:change={handleFileChange} class="hidden" />
+				<input type="file" accept="image/*" onchange={handleFileChange} class="hidden" />
 			</label>
 		{/if}
 	</div>
@@ -184,7 +199,7 @@
 	<div class="mb-4 grid grid-cols-2 gap-4">
 		<label class="flex flex-col">
 			<span class="mb-1">Position:</span>
-			<select bind:value={position} on:change={handleChange} class="input-bordered input">
+			<select bind:value={position} onchange={handleChange} class="input-bordered input">
 				{#each Object.entries(WATERMARK_POSITION) as [key, value]}
 					<option {value}>{key}</option>
 				{/each}
@@ -193,29 +208,29 @@
 
 		<label class="flex flex-col">
 			<span class="mb-1">Opacity: {formatValue(opacity)}</span>
-			<input type="range" min="0" max="1" step="0.05" bind:value={opacity} on:input={handleChange} class="range" />
+			<input type="range" min="0" max="1" step="0.05" bind:value={opacity} oninput={handleChange} class="range" />
 		</label>
 
 		<label class="flex flex-col">
 			<span class="mb-1">Scale: {formatValue(scale, '%')}</span>
-			<input type="range" min="10" max="200" step="1" bind:value={scale} on:input={handleChange} class="range" />
+			<input type="range" min="10" max="200" step="1" bind:value={scale} oninput={handleChange} class="range" />
 		</label>
 
 		<label class="flex flex-col">
 			<span class="mb-1">Rotation: {formatValue(rotation, '°')}</span>
-			<input type="range" min="0" max="360" step="1" bind:value={rotation} on:input={handleChange} class="range" />
+			<input type="range" min="0" max="360" step="1" bind:value={rotation} oninput={handleChange} class="range" />
 		</label>
 	</div>
 
 	<div class="mb-4 grid grid-cols-2 gap-4">
 		<label class="flex flex-col">
 			<span class="mb-1">Offset X: {formatValue(offsetX, 'px')}</span>
-			<input type="range" min="-100" max="100" step="1" bind:value={offsetX} on:input={handleChange} class="range" />
+			<input type="range" min="-100" max="100" step="1" bind:value={offsetX} oninput={handleChange} class="range" />
 		</label>
 
 		<label class="flex flex-col">
 			<span class="mb-1">Offset Y: {formatValue(offsetY, 'px')}</span>
-			<input type="range" min="-100" max="100" step="1" bind:value={offsetY} on:input={handleChange} class="range" />
+			<input type="range" min="-100" max="100" step="1" bind:value={offsetY} oninput={handleChange} class="range" />
 		</label>
 	</div>
 </div>

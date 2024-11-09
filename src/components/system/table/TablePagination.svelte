@@ -4,23 +4,34 @@
 -->
 
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	export let currentPage: number = 1; // Default value for current page number
-	export let pagesCount: number = 1; // Default value for total number of pages
-	export let rowsPerPage: number = 10; // Default value to control rows per page (optional)
-	export let rowsPerPageOptions = [5, 10, 25, 50, 100, 500]; // Options for rows per page (optional)
-	export let totalItems: number = 0; // Total number of items in the table (optional)
+	// Define event types
+	type Events = {
+		updatePage: number;
+		updateRowsPerPage: number;
+	};
 
-	const dispatch = createEventDispatcher();
+	const props = $props<{
+		currentPage?: number; // Default value for current page number
+		pagesCount?: number; // Default value for total number of pages
+		rowsPerPage?: number; // Default value to control rows per page (optional)
+		rowsPerPageOptions?: number[]; // Options for rows per page (optional)
+		totalItems?: number; // Total number of items in the table (optional)
+	}>();
+
+	// State declarations
+	let currentPage = $state(props.currentPage ?? 1);
+	let pagesCount = $state(props.pagesCount ?? 1);
+	let rowsPerPage = $state(props.rowsPerPage ?? 10);
+	let totalItems = $state(props.totalItems ?? 0);
+	let rowsPerPageOptions = $state(props.rowsPerPageOptions ?? [5, 10, 25, 50, 100, 500]);
 
 	// Go to page
 	function goToPage(page: number) {
 		if (page >= 1 && page <= pagesCount) {
-			dispatch('updatePage', page);
+			dispatchEvent(new CustomEvent('updatePage', { detail: page }));
 		}
 	}
 
@@ -28,18 +39,23 @@
 	function changeRowsPerPage(event: Event) {
 		const value = parseInt((event.target as HTMLSelectElement).value);
 		if (!isNaN(value)) {
-			dispatch('updateRowsPerPage', value);
+			dispatchEvent(new CustomEvent('updateRowsPerPage', { detail: value }));
 		}
 	}
 
-	// Reactive declarations with proper dependencies
-	$: pagesCount = Math.max(Math.ceil(totalItems / rowsPerPage), 1);
-	$: currentPage = Math.min(Math.max(currentPage, 1), pagesCount);
-	$: isFirstPage = currentPage <= 1;
-	$: isLastPage = currentPage >= pagesCount;
+	// Reactive effects
+	$effect(() => {
+		pagesCount = Math.max(Math.ceil(totalItems / rowsPerPage), 1);
+	});
 
-	// Calculate current page items
-	$: currentPageItems = currentPage === pagesCount ? totalItems - rowsPerPage * (currentPage - 1) : rowsPerPage;
+	$effect(() => {
+		currentPage = Math.min(Math.max(currentPage, 1), pagesCount);
+	});
+
+	// Derived values
+	let isFirstPage = $derived(currentPage <= 1);
+	let isLastPage = $derived(currentPage >= pagesCount);
+	let currentPageItems = $derived(currentPage === pagesCount ? totalItems - rowsPerPage * (currentPage - 1) : rowsPerPage);
 </script>
 
 <!-- Pagination info -->
@@ -59,13 +75,13 @@
 <!-- Pagination controls -->
 <div class="variant-outline btn-group" aria-label="Pagination">
 	<!-- First page button -->
-	<button on:click={() => goToPage(1)} disabled={isFirstPage} type="button" aria-label="Go to first page" title="First Page" class="btn">
+	<button onclick={() => goToPage(1)} disabled={isFirstPage} type="button" aria-label="Go to first page" title="First Page" class="btn">
 		<iconify-icon icon="material-symbols:first-page" width="24"></iconify-icon>
 	</button>
 
 	<!-- Previous page button -->
 	<button
-		on:click={() => goToPage(currentPage - 1)}
+		onclick={() => goToPage(currentPage - 1)}
 		disabled={isFirstPage}
 		type="button"
 		aria-label="Go to previous page"
@@ -78,7 +94,7 @@
 	<!-- Rows per page select dropdown -->
 	<select
 		value={rowsPerPage}
-		on:change={changeRowsPerPage}
+		onchange={changeRowsPerPage}
 		aria-label="Rows per page"
 		class="mt-0.5 bg-transparent text-center text-tertiary-500 dark:text-primary-500"
 	>
@@ -91,12 +107,12 @@
 	</select>
 
 	<!-- Next page button -->
-	<button on:click={() => goToPage(currentPage + 1)} disabled={isLastPage} type="button" aria-label="Go to next page" class="btn">
+	<button onclick={() => goToPage(currentPage + 1)} disabled={isLastPage} type="button" aria-label="Go to next page" class="btn">
 		<iconify-icon icon="material-symbols:chevron-right" width="24"></iconify-icon>
 	</button>
 
 	<!-- Last page button -->
-	<button on:click={() => goToPage(pagesCount)} disabled={isLastPage} type="button" aria-label="Go to last page" class="btn">
+	<button onclick={() => goToPage(pagesCount)} disabled={isLastPage} type="button" aria-label="Go to last page" class="btn">
 		<iconify-icon icon="material-symbols:last-page" width="24"></iconify-icon>
 	</button>
 </div>

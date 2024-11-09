@@ -3,6 +3,7 @@
 @description This component displays a collection with nested items support.
 -->
 <script lang="ts">
+	import Column from './Column.svelte';
 	import { goto } from '$app/navigation';
 	import type { CategoryData } from '@src/collections/types';
 
@@ -11,46 +12,90 @@
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+
 	// Svelte DND-actions
 	import { flip } from 'svelte/animate';
-	import { dndzone } from 'svelte-dnd-action';
+	import { dndzone, type DndEvent } from 'svelte-dnd-action';
 
-	export let name: string;
-	export let icon: string;
-	export let items: any[] = [];
-	export let level = 0;
-	export let onUpdate: (items: any[]) => void;
-	export let isCategory = false;
-	export let onEditCategory: (category: Pick<CategoryData, 'name' | 'icon'>) => void;
+	// Skeleton
+	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
+	import ModalAddCategory from './ModalCategory.svelte';
 
+	interface Props {
+		name: string;
+		icon: string;
+		items?: DndItem[];
+		level?: number;
+		onUpdate: (items: DndItem[]) => void;
+		isCategory?: boolean;
+		onEditCategory: (category: Pick<CategoryData, 'name' | 'icon'>) => void;
+	}
+
+	interface DndItem {
+		id: string;
+		name: string;
+		icon: string;
+		isCategory: boolean;
+		items?: DndItem[];
+	}
+
+	interface CategoryUpdateResponse {
+		newCategoryName: string;
+		newCategoryIcon: string;
+	}
+
+	let { name, icon, items = $bindable([]), level = 0, onUpdate, isCategory = false, onEditCategory }: Props = $props();
+
+	// State variables
+	let isDragging = $state(false);
+	let updateError = $state<string | null>(null);
+	let isUpdating = $state(false);
+
+	const modalStore = getModalStore();
 	const flipDurationMs = 200;
 
-	function handleDndConsider(e: CustomEvent<{ items: any[] }>) {
-		items = e.detail.items;
+	// Computed values
+	let paddingLeft = $derived(level === 0 ? '0' : `${level * 1.5}rem`);
+
+	function handleDndConsider(e: CustomEvent<DndEvent<DndItem>>) {
+		isDragging = true;
+		try {
+			items = e.detail.items;
+			updateError = null;
+		} catch (error) {
+			console.error('Error handling DnD consider:', error);
+			updateError = error instanceof Error ? error.message : 'Error handling drag operation';
+		}
 	}
 
-	function handleDndFinalize(e: CustomEvent<{ items: any[] }>) {
-		items = e.detail.items;
-		onUpdate(items);
+	function handleDndFinalize(e: CustomEvent<DndEvent<DndItem>>) {
+		try {
+			items = e.detail.items;
+			onUpdate(items);
+			updateError = null;
+		} catch (error) {
+			console.error('Error handling DnD finalize:', error);
+			updateError = error instanceof Error ? error.message : 'Error finalizing drag operation';
+		} finally {
+			isDragging = false;
+		}
 	}
 
-	function handleCollectionClick(item: any) {
-		mode.set('edit');
-		goto(`/config/collectionbuilder/${item.name}`);
+	async function handleCollectionClick(item: Pick<DndItem, 'name'>) {
+		try {
+			mode.set('edit');
+			await goto(`/config/collectionbuilder/${item.name}`);
+		} catch (error) {
+			console.error('Error navigating to collection:', error);
+			updateError = error instanceof Error ? error.message : 'Error navigating to collection';
+		}
 	}
 
 	function handleCategoryEdit() {
 		onEditCategory({ name, icon });
 	}
 
-	$: paddingLeft = level === 0 ? '0' : `${level * 1.5}rem`;
-
-	// Skeleton
-	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
-	const modalStore = getModalStore();
-	import ModalAddCategory from './ModalCategory.svelte';
-
-	// Modal
+	// Modal handling
 	async function editCategory(category: Pick<CategoryData, 'name' | 'icon'>): Promise<void> {
 		const modalComponent: ModalComponent = {
 			ref: ModalAddCategory,
@@ -58,86 +103,104 @@
 				existingCategory: category
 			}
 		};
-		const d: ModalSettings = {
+
+		const modalSettings: ModalSettings = {
 			type: 'component',
 			title: m.column_edit_category(),
 			body: m.column_modify_category(),
 			component: modalComponent,
-			response: async (updatedCategory) => {
-				if (updatedCategory) {
-					try {
-						// Update local store only, saving will happen when save button is clicked
-						categories.update((cats) => {
-							const newCategories = { ...cats };
-							Object.entries(newCategories).forEach(([key, value]) => {
-								if (value.name === category.name) {
-									newCategories[key] = {
-										...value,
-										name: updatedCategory.newCategoryName,
-										icon: updatedCategory.newCategoryIcon
-									};
-								}
-							});
-							return newCategories;
-						});
-					} catch (error) {
-						console.error('Error updating category:', error);
-						alert('Failed to update category. Please try again.');
+			response: async (response: CategoryUpdateResponse | boolean) => {
+				if (!response || typeof response === 'boolean') return;
 
-						// Revert store changes on error
-						categories.update((cats) => {
-							const newCategories = { ...cats };
-							Object.entries(newCategories).forEach(([key, value]) => {
-								if (value.name === updatedCategory.newCategoryName) {
-									newCategories[key] = {
-										...value,
-										name: category.name,
-										icon: category.icon
-									};
-								}
-							});
-							return newCategories;
+				isUpdating = true;
+				updateError = null;
+
+				try {
+					// Update local store only, saving will happen when save button is clicked
+					categories.update((cats) => {
+						const newCategories = { ...cats };
+						Object.entries(newCategories).forEach(([key, value]) => {
+							if (value.name === category.name) {
+								newCategories[key] = {
+									...value,
+									name: response.newCategoryName,
+									icon: response.newCategoryIcon
+								};
+							}
 						});
-					}
+						return newCategories;
+					});
+				} catch (error) {
+					console.error('Error updating category:', error);
+					updateError = error instanceof Error ? error.message : 'Failed to update category';
+
+					// Revert store changes on error
+					categories.update((cats) => {
+						const newCategories = { ...cats };
+						Object.entries(newCategories).forEach(([key, value]) => {
+							if (value.name === response.newCategoryName) {
+								newCategories[key] = {
+									...value,
+									name: category.name,
+									icon: category.icon
+								};
+							}
+						});
+						return newCategories;
+					});
+				} finally {
+					isUpdating = false;
 				}
 			}
 		};
 
-		modalStore.trigger(d);
+		modalStore.trigger(modalSettings);
 	}
 </script>
 
-<div class="my-0.5 w-full" style="padding-left: {paddingLeft}">
+<div class="my-0.5 w-full" style="padding-left: {paddingLeft}" role="listitem" aria-busy={isDragging || isUpdating}>
+	{#if updateError}
+		<div class="mb-2 rounded bg-error-500/10 p-2 text-error-500" role="alert">
+			{updateError}
+		</div>
+	{/if}
+
 	{#if isCategory}
 		<div class="flex items-center justify-between rounded bg-surface-300/10 p-2">
 			<div class="flex items-center gap-2">
-				<iconify-icon icon="mdi:drag" width="18" class="cursor-move opacity-50" />
-				<iconify-icon {icon} width="18" class="text-error-500" />
+				<iconify-icon icon="mdi:drag" width="18" class="cursor-move opacity-50" role="button" aria-label="Drag to reorder"></iconify-icon>
+				<iconify-icon {icon} width="18" class="text-error-500" aria-hidden="true"></iconify-icon>
 				<span class="font-bold text-tertiary-500 dark:text-primary-500">{name}</span>
 			</div>
 
-			<button on:click={handleCategoryEdit} aria-label="Edit">
-				<iconify-icon icon="mdi:pen" width="18" class="text-tertiary-500 dark:text-primary-500" />
+			<button onclick={handleCategoryEdit} aria-label={`Edit category ${name}`} disabled={isUpdating}>
+				<iconify-icon icon="mdi:pen" width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 			</button>
 		</div>
 	{:else}
 		<div class="flex items-center justify-between rounded bg-surface-300/10 p-2">
 			<div class="flex items-center gap-2">
-				<iconify-icon icon="mdi:drag" width="18" class="cursor-move opacity-50" />
-				<iconify-icon {icon} width="18" class="text-error-500" />
+				<iconify-icon icon="mdi:drag" width="18" class="cursor-move opacity-50" role="button" aria-label="Drag to reorder"></iconify-icon>
+				<iconify-icon {icon} width="18" class="text-error-500" aria-hidden="true"></iconify-icon>
 				<span class="text-black dark:text-white">{name}</span>
 			</div>
-			<button on:click={() => handleCollectionClick({ name })} aria-label="Edit">
-				<iconify-icon icon="mdi:pen" width="18" />
+			<button onclick={() => handleCollectionClick({ name })} aria-label={`Edit collection ${name}`} disabled={isUpdating}>
+				<iconify-icon icon="mdi:pen" width="18"></iconify-icon>
 			</button>
 		</div>
 	{/if}
 
 	{#if items?.length > 0}
-		<section use:dndzone={{ items, flipDurationMs, centreDraggedOnCursor: true }} on:consider={handleDndConsider} on:finalize={handleDndFinalize}>
+		<section
+			use:dndzone={{ items, flipDurationMs, centreDraggedOnCursor: true }}
+			onconsider={handleDndConsider}
+			onfinalize={handleDndFinalize}
+			role="list"
+			aria-label={`${isCategory ? 'Category' : 'Collection'} items`}
+		>
 			{#each items as item (item.id)}
 				<div animate:flip={{ duration: flipDurationMs }} class="mx-0.5 p-0.5">
-					<svelte:self
+					<Column
 						name={item.name}
 						icon={item.icon}
 						items={item.items || []}

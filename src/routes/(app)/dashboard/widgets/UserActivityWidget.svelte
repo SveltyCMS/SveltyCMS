@@ -28,7 +28,7 @@ Usage:
 		activities: Activity[];
 	}
 
-	let activities: Activity[] = [];
+	let activities: Activity[] = $state([]);
 
 	onMount(async () => {
 		const res = await fetch('/api/users');
@@ -37,7 +37,7 @@ Usage:
 		activities = users.flatMap((user) => user.activities);
 	});
 
-	export let label;
+	let { label } = $props();
 </script>
 
 <section>

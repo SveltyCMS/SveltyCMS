@@ -18,8 +18,8 @@
 	import { ProgressBar } from '@skeletonlabs/skeleton';
 	import { logger } from '@src/utils/logger';
 
-	let isOpen = false;
-	let completionStatus = 0;
+	let isOpen = $state(false);
+	let completionStatus = $state(0);
 
 	// Handles the language change
 	function handleChange(event) {
@@ -84,11 +84,11 @@
 				id="options-menu"
 				aria-haspopup="true"
 				aria-expanded={isOpen}
-				on:click={toggleDropdown}
+				onclick={toggleDropdown}
 			>
 				{$contentLanguage.toUpperCase()}
 
-				<iconify-icon icon="mingcute:down-line" width="20" class="text-surface-500" />
+				<iconify-icon icon="mingcute:down-line" width="20" class="text-surface-500"></iconify-icon>
 			</button>
 
 			<ProgressBar
@@ -109,7 +109,7 @@
 				<div class="flex flex-col py-2" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
 					{#each publicEnv.AVAILABLE_CONTENT_LANGUAGES as lang}
 						<button
-							on:click={() => handleChange({ target: { value: lang } })}
+							onclick={() => handleChange({ target: { value: lang } })}
 							class="mx-2 py-1 hover:bg-surface-50 hover:dark:text-black"
 							role="menuitem"
 						>
@@ -160,8 +160,8 @@
 	<select
 		class="variant-ghost-surface rounded-t border-surface-500 dark:text-white"
 		bind:value={$contentLanguage}
-		on:change={handleChange}
-		on:focus={() => {
+		onchange={handleChange}
+		onfocus={() => {
 			closeOpenStates();
 		}}
 	>

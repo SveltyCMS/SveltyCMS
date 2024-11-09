@@ -16,10 +16,15 @@ Usage:
 	import { onMount, onDestroy } from 'svelte';
 	import { writable, get } from 'svelte/store';
 	import Chart from 'chart.js/auto';
+	import type { ChartConfiguration } from 'chart.js';
 	import 'chartjs-adapter-date-fns';
 
-	// Props for widget configuration
-	export let label = 'CPU Usage';
+	interface Props {
+		// Props for widget configuration
+		label?: string;
+	}
+
+	let { label = 'CPU Usage' }: Props = $props();
 	export const id: string = crypto.randomUUID();
 	export const x: number = 0;
 	export const y: number = 0;
@@ -33,8 +38,8 @@ Usage:
 	// CPU info store
 	const cpuInfo = writable<{ cpuUsage: number[]; timeStamps: string[] }>({ cpuUsage: [], timeStamps: [] });
 
-	let chart: Chart;
-	let chartCanvas: HTMLCanvasElement;
+	let chart = $state<Chart<'line', number[], string> | undefined>(undefined);
+	let chartCanvas = $state<HTMLCanvasElement | undefined>(undefined);
 	let interval: ReturnType<typeof setInterval>;
 
 	// Fetch CPU data from the server with cache-busting
@@ -58,59 +63,62 @@ Usage:
 
 		const { cpuUsage, timeStamps } = get(cpuInfo);
 
-		// Initialize the Chart
-		chart = new Chart(chartCanvas, {
-			type: 'line',
-			data: {
-				labels: timeStamps,
-				datasets: [
-					{
-						label: 'CPU Usage (%)',
-						data: cpuUsage,
-						borderColor: 'rgba(75, 192, 192, 1)',
-						backgroundColor: 'rgba(75, 192, 192, 0.2)',
-						fill: true
-					}
-				]
-			},
-			options: {
-				scales: {
-					x: {
-						type: 'time',
-						time: {
-							unit: 'second'
+		if (chartCanvas) {
+			const config: ChartConfiguration<'line', number[], string> = {
+				type: 'line',
+				data: {
+					labels: timeStamps,
+					datasets: [
+						{
+							label: 'CPU Usage (%)',
+							data: cpuUsage,
+							borderColor: 'rgba(75, 192, 192, 1)',
+							backgroundColor: 'rgba(75, 192, 192, 0.2)',
+							fill: true
+						}
+					]
+				},
+				options: {
+					scales: {
+						x: {
+							type: 'time',
+							time: {
+								unit: 'second'
+							}
+						},
+						y: {
+							beginAtZero: true,
+							max: 100
 						}
 					},
-					y: {
-						beginAtZero: true,
-						max: 100
-					}
-				},
-				responsive: true,
-				maintainAspectRatio: false,
-				plugins: {
-					tooltip: {
-						callbacks: {
-							label: (context) => `Usage: ${context.raw}%`
+					responsive: true,
+					maintainAspectRatio: false,
+					plugins: {
+						tooltip: {
+							callbacks: {
+								label: (context) => `Usage: ${context.raw}%`
+							}
 						}
 					}
 				}
-			}
-		});
+			};
+
+			chart = new Chart(chartCanvas, config);
+		}
 
 		// Poll for new CPU data every 5 seconds
 		interval = setInterval(fetchData, 5000);
 	});
 
 	// Update the chart whenever the data changes
-	$: {
+	$effect(() => {
 		if (chart) {
 			const { cpuUsage, timeStamps } = get(cpuInfo);
 			chart.data.labels = timeStamps;
 			chart.data.datasets[0].data = cpuUsage;
 			chart.update();
 		}
-	}
+	});
 
 	// Clean up on component destruction
 	onDestroy(() => {

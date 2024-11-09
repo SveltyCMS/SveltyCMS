@@ -22,13 +22,16 @@
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
-	// Props
-	export let parent: any;
-
-	let files: FileList;
+	let files: FileList = $state();
 
 	// Valibot validation schema
 	import { object, instance, check, pipe, parse, type InferInput, type ValiError } from 'valibot';
+	interface Props {
+		// Props
+		parent: any;
+	}
+
+	let { parent }: Props = $props();
 
 	const imageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml', 'image/gif'];
 	const MAX_FILE_SIZE = 5242880; // 5MB
@@ -178,7 +181,7 @@
 					aria-label="Upload avatar"
 					slotLead="flex flex-col justify-center items-center"
 				>
-					<svelte:fragment slot="lead">
+					{#snippet lead()}
 						<!-- icon -->
 						<svg xmlns="http://www.w3.org/2000/svg" width="3.5em" height="3.5em" viewBox="0 0 24 24"
 							><g fill="none" fill-rule="evenodd"
@@ -190,8 +193,10 @@
 								/></g
 							></svg
 						>
-					</svelte:fragment>
-					<svelte:fragment slot="meta">{m.modaledit_avatarfilesallowed()}</svelte:fragment>
+					{/snippet}
+					{#snippet meta()}
+						{m.modaledit_avatarfilesallowed()}
+					{/snippet}
 				</FileDropzone>
 			</div>
 			{#if !files}
@@ -202,8 +207,9 @@
 		<footer class="modal-footer {parent.regionFooter} justify-between">
 			<!-- Delete Avatar -->
 			{#if $avatarSrc !== '/Default_User.svg'}
-				<button type="button" on:click={deleteAvatar} class="variant-filled-error btn">
-					<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.button_delete()}</span>
+				<button type="button" onclick={deleteAvatar} class="variant-filled-error btn">
+					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
+					<span class="hidden sm:block">{m.button_delete()}</span>
 				</button>
 			{:else}
 				<div></div>
@@ -211,11 +217,11 @@
 			{/if}
 			<div class="flex justify-between gap-2">
 				<!-- Cancel -->
-				<button class="variant-outline-secondary btn" on:click={parent.onClose}>
+				<button class="variant-outline-secondary btn" onclick={parent.onClose}>
 					{m.button_cancel()}
 				</button>
 				<!-- Save -->
-				<button class="variant-filled-tertiary btn btn dark:variant-filled-primary {parent.buttonPositive}" on:click={onFormSubmit}
+				<button class="variant-filled-tertiary btn btn dark:variant-filled-primary {parent.buttonPositive}" onclick={onFormSubmit}
 					>{m.button_save()}
 				</button>
 			</div>

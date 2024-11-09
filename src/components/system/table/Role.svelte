@@ -6,8 +6,12 @@
 <script lang="ts">
 	// Auth
 	import { getLoadedRoles } from '@src/auth/types';
-	let roles = getLoadedRoles() || []; // Ensure roles is an array
-	export let value: string;
+
+	let roles = $state(getLoadedRoles() || []); // Ensure roles is an array
+
+	let { value } = $props<{
+		value: string;
+	}>();
 
 	// Determine if the roles array is defined and has the required elements
 	const roleClasses = (roleId: string) => {
@@ -61,7 +65,7 @@
 
 <div class={roleClasses(value)}>
 	{#if iconForRole(value)}
-		<iconify-icon icon={iconForRole(value)} width="20" class="mr-2" /> {roleName(value)}
+		<iconify-icon icon={iconForRole(value)} width="20" class="mr-2"></iconify-icon> {roleName(value)}
 	{:else}
 		<span>{roleName(value)}</span>
 	{/if}

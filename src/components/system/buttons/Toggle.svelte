@@ -1,18 +1,38 @@
+<!-- 
+@files src/components/system/buttons/Toggle.svelte
+@description - Toggle component	
+-->
 <script lang="ts">
 	import { twMerge } from 'tailwind-merge';
-	export let trackClass = '';
-	export let thumbClass = '';
-	export let value = false;
-	export let width = 80;
-	export let height = 40;
-	export let label = '';
-	export let labelClass = '';
+
+	let {
+		trackClass = '',
+		thumbClass = '',
+		value = $bindable(false),
+		width = 80,
+		height = 40,
+		label = '',
+		labelClass = ''
+	} = $props<{
+		trackClass?: string;
+		thumbClass?: string;
+		value?: boolean;
+		width?: number;
+		height?: number;
+		label?: string;
+		labelClass?: string;
+	}>();
 </script>
 
 <div class="container">
 	<p class={twMerge('text-white ', labelClass)}>{label}</p>
-	<button on:click={() => (value = !value)} class={twMerge('track bg-white ', trackClass)} style="width: {width}px; height: {height}px">
-		<div class:checked={value} class={twMerge('thumb bg-gray-400', thumbClass)} style="width: {width / 2}px; height: {height}px" />
+	<button
+		onclick={() => (value = !value)}
+		class={twMerge('track bg-white ', trackClass)}
+		style="width: {width}px; height: {height}px"
+		aria-label="Toggle button"
+	>
+		<div class:checked={value} class={twMerge('thumb bg-gray-400', thumbClass)} style="width: {width / 2}px; height: {height}px"></div>
 	</button>
 </div>
 

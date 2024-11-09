@@ -19,24 +19,28 @@
 	import { extractData, getFieldName } from '@utils/utils';
 	import type { Field } from '@src/collections/types';
 
-	export let field: FieldType;
 	const fieldName = getFieldName(field);
 
 	$translationProgress.show = false;
 
-	export let value = $collectionValue[fieldName];
 	export const WidgetData = async () => _data;
 
-	let MENU_CONTAINER: HTMLUListElement;
-	let showFields = false;
-	let depth = 0;
-	let _data: { [key: string]: any; children: any[] } = $mode === 'create' ? null : value;
-	let fieldsData = {};
+	let MENU_CONTAINER: HTMLUListElement = $state();
+	let showFields = $state(false);
+	let depth = $state(0);
+	let _data: { [key: string]: any; children: any[] } = $state($mode === 'create' ? null : value);
+	let fieldsData = $state({});
 	const saveMode = $mode;
-	let validationError: string | null = null;
+	let validationError: string | null = $state(null);
 
 	// Validation schema for each menu layer
 	import * as v from 'valibot';
+	interface Props {
+		field: FieldType;
+		value?: any;
+	}
+
+	let { field, value = $collectionValue[fieldName] }: Props = $props();
 
 	const widgetSchema = v.object({
 		name: v.pipe(v.string(), v.minLength(1, 'Menu name is required')),
@@ -98,7 +102,7 @@
 		}));
 	}
 
-	$: currentFields = field.fields[depth] ? transformFields(field.fields[depth]) : [];
+	let currentFields = $derived(field.fields[depth] ? transformFields(field.fields[depth]) : []);
 </script>
 
 <div class="menu-container relative mb-4">

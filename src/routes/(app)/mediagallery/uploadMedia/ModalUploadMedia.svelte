@@ -4,6 +4,8 @@
 -->
 
 <script lang="ts">
+	import { run, preventDefault } from 'svelte/legacy';
+
 	// Skeleton
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
@@ -11,17 +13,23 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	export let parent: any;
-	export let sectionName: string;
-	export let files: File[] = []; // This holds all files, both initially provided and newly added
-	export let onDelete: (file: File) => void;
-	export let uploadFiles: Function;
+	interface Props {
+		parent: any;
+		sectionName: string;
+		files?: File[]; // This holds all files, both initially provided and newly added
+		onDelete: (file: File) => void;
+		uploadFiles: Function;
+	}
 
-	let fileSet = new Set<string>(); // To track unique files by name and size
-	let duplicateWarning = '';
+	let { parent, sectionName, files = $bindable([]), onDelete, uploadFiles }: Props = $props();
+
+	let fileSet = $state(new Set<string>()); // To track unique files by name and size
+	let duplicateWarning = $state('');
 
 	// Initialize fileSet to prevent duplicates
-	$: fileSet = new Set(files.map((file) => `${file.name}-${file.size}`));
+	run(() => {
+		fileSet = new Set(files.map((file) => `${file.name}-${file.size}`));
+	});
 
 	// Generate thumbnail URL or icon based on file type
 	function generateThumbnail(file: File): string {
@@ -124,15 +132,15 @@
 		<article class="hidden text-center sm:block">{$modalStore[0]?.body ?? '(body missing)'}</article>
 		<!-- Enable for debugging: -->
 
-		<form id="upload-form" class={cForm} action="/mediagallery" method="post" on:submit|preventDefault={onFormSubmit}>
+		<form id="upload-form" class={cForm} action="/mediagallery" method="post" onsubmit={preventDefault(onFormSubmit)}>
 			<!-- Show all media as cards with delete buttons -->
 			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
 				{#each files as file (file.name + file.size)}
 					<div class="card card-hover relative">
 						<!-- Delete buttons -->
 						<div class="absolute right-0 top-2 flex w-full justify-end px-2 opacity-0 hover:opacity-100">
-							<button on:click={() => handleDelete(file)} class="variant-ghost-surface btn-icon">
-								<iconify-icon icon="material-symbols:delete" width="24" class="text-error-500" />
+							<button onclick={() => handleDelete(file)} aria-label="Delete" class="variant-ghost-surface btn-icon">
+								<iconify-icon icon="material-symbols:delete" width="24" class="text-error-500"></iconify-icon>
 							</button>
 						</div>
 
@@ -148,7 +156,7 @@
 										Your browser does not support the audio element.
 									</audio>
 								{:else}
-									<iconify-icon icon={generateThumbnail(file)} width="80" height="80" />
+									<iconify-icon icon={generateThumbnail(file)} width="80" height="80"></iconify-icon>
 								{/if}
 							{:else}
 								<p>Loading thumbnail...</p>
@@ -165,7 +173,7 @@
 						<!-- Media Type & Size -->
 						<div class="flex flex-grow items-center justify-between p-1 dark:bg-surface-700">
 							<div class="flex items-center gap-1">
-								<iconify-icon icon={generateThumbnail(file)} width="16" height="16" />
+								<iconify-icon icon={generateThumbnail(file)} width="16" height="16"></iconify-icon>
 								<span>{formatMimeType(file.type)}</span>
 							</div>
 							<span class="variant-ghost-tertiary badge">{(file.size / 1024).toFixed(2)} KB</span>
@@ -178,7 +186,7 @@
 			<div class="mb-4 mt-2 flex items-center justify-between border-t border-surface-400 p-4">
 				<div class="mb-4 mt-2 flex items-center gap-2">
 					<label for="file-input" class="block text-tertiary-500 dark:text-primary-500">Add more files:</label>
-					<input id="file-input" type="file" multiple on:change={handleFileInputChange} />
+					<input id="file-input" type="file" multiple onchange={handleFileInputChange} />
 				</div>
 				{#if duplicateWarning}
 					<p class="variant-filled-error rounded px-2 py-4">{duplicateWarning}</p>
@@ -187,7 +195,7 @@
 		</form>
 
 		<footer class="modal-footer m-4 flex w-full justify-between {parent.regionFooter}">
-			<button class="variant-outline-secondary btn" on:click={handleCancel}>{m.button_cancel()}</button>
+			<button class="variant-outline-secondary btn" onclick={handleCancel}>{m.button_cancel()}</button>
 			<button type="submit" form="upload-form" class="variant-filled-primary btn {parent.buttonPositive}">{m.button_save()}</button>
 		</footer>
 	</div>

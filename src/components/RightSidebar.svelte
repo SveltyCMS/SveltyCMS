@@ -55,16 +55,16 @@
 		modalStore.trigger(modalSettings);
 	}
 
-	let next = () => {};
+	let next = $state(() => {});
 	saveLayerStore.subscribe((value) => {
 		next = value;
 		shouldShowNextButton.set(false);
 	});
 
 	// Map the status to boolean
-	let isPublished = $collectionValue?.status === 'published';
-	let schedule = $collectionValue._scheduled ? new Date($collectionValue._scheduled).toISOString().slice(0, 16) : '';
-	let createdAtDate = $collectionValue.createdAt ? new Date($collectionValue.createdAt * 1000).toISOString().slice(0, 16) : '';
+	let isPublished = $state($collectionValue?.status === 'published');
+	let schedule = $state($collectionValue._scheduled ? new Date($collectionValue._scheduled).toISOString().slice(0, 16) : '');
+	let createdAtDate = $state($collectionValue.createdAt ? new Date($collectionValue.createdAt * 1000).toISOString().slice(0, 16) : '');
 
 	// Function to toggle the status
 	function toggleStatus() {
@@ -77,10 +77,10 @@
 	}
 
 	// Convert timestamps to date strings
-	$: dates = {
+	let dates = $derived({
 		created: convertTimestampToDateString($collectionValue.createdAt),
 		updated: convertTimestampToDateString($collectionValue.updatedAt)
-	};
+	});
 
 	// Type guard to check if the widget has a validateWidget method
 	function hasValidateWidget(widgetInstance: any): widgetInstance is { validateWidget: () => Promise<string | null> } {
@@ -170,8 +170,8 @@
 {#if ['edit', 'create'].includes($mode) || $collection.permissions?.[user.role]?.write !== false}
 	<div class="flex h-full w-full flex-col justify-between px-1 py-2">
 		{#if $shouldShowNextButton && $mode === 'create'}
-			<button type="button" on:click={next} class="variant-filled-primary btn w-full gap-2">
-				<iconify-icon icon="carbon:next-filled" width="24" class="font-extrabold text-white" />
+			<button type="button" onclick={next} aria-label="Next" class="variant-filled-primary btn w-full gap-2">
+				<iconify-icon icon="carbon:next-filled" width="24" class="font-extrabold text-white"></iconify-icon>
 				{m.button_next()}
 			</button>
 		{:else}
@@ -179,12 +179,12 @@
 				<!-- Save button -->
 				<button
 					type="button"
-					on:click={saveData}
+					onclick={saveData}
 					disabled={$collection?.permissions?.[user.role]?.write === false}
 					class="variant-filled-primary btn w-full gap-2"
 					aria-label="Save entry"
 				>
-					<iconify-icon icon="material-symbols:save" width="24" class="font-extrabold text-white" />
+					<iconify-icon icon="material-symbols:save" width="24" class="font-extrabold text-white"></iconify-icon>
 					Save
 				</button>
 
@@ -204,23 +204,23 @@
 					<!-- Clone button -->
 					<button
 						type="button"
-						on:click={() => $modifyEntry('cloned')}
+						onclick={() => $modifyEntry('cloned')}
 						disabled={!($collection?.permissions?.[user.role]?.write && $collection?.permissions?.[user.role]?.create)}
 						class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn w-full gap-2 text-white"
 						aria-label="Clone entry"
 					>
-						<iconify-icon icon="bi:clipboard-data-fill" width="24" />Clone<span class="text-primary-500">{$collection?.name}</span>
+						<iconify-icon icon="bi:clipboard-data-fill" width="24"></iconify-icon>Clone<span class="text-primary-500">{$collection?.name}</span>
 					</button>
 
 					<!-- Delete button -->
 					<button
 						type="button"
-						on:click={() => $modifyEntry('deleted')}
+						onclick={() => $modifyEntry('deleted')}
 						disabled={$collection?.permissions?.[user.role]?.delete === false}
 						class="variant-filled-error btn w-full"
 						aria-label="Delete entry"
 					>
-						<iconify-icon icon="icomoon-free:bin" width="24" />Delete
+						<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>Delete
 					</button>
 				{/if}
 			</header>
@@ -235,7 +235,7 @@
 						<p class="mb-1">Will be published on:</p>
 					{/if}
 					<button
-						on:click={openScheduleModal}
+						onclick={openScheduleModal}
 						aria-label="Schedule publication"
 						class="variant-filled-surface btn w-full text-tertiary-500 dark:text-primary-500"
 					>

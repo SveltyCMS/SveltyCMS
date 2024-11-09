@@ -4,6 +4,8 @@
 -->
 
 <script lang="ts">
+	import { onDestroy } from 'svelte';
+
 	// Stores
 	import { contentLanguage, saveFunction, validationStore } from '@stores/store';
 	import { collectionValue, mode, collection, collections } from '@stores/collectionStore';
@@ -12,35 +14,93 @@
 	import DropDown from './DropDown.svelte';
 	import Fields from '@components/Fields.svelte';
 
+	// Types
 	import type { FieldType } from '.';
 
 	// Utils
 	import { getData } from '@utils/data';
 	import { extractData, findById, getFieldName, saveFormData } from '@utils/utils';
 
-	export let field: FieldType;
-	const fieldName = getFieldName(field);
-	export const value = $collectionValue[fieldName];
-	export let expanded = false;
+	// Valibot validation
+	import * as v from 'valibot';
 
-	let dropDownData: any;
-	let selected: { display: any; _id: any } | undefined = undefined;
-	let fieldsData = {};
-	let showDropDown = false;
-	let entryMode: 'create' | 'edit' | 'choose' = 'choose';
-	let relation_entry: any;
+	interface Props {
+		field: FieldType;
+		expanded?: boolean;
+	}
+
+	interface RelationData {
+		_id: string;
+		display: string;
+		[key: string]: any;
+	}
+
+	let { field, expanded = $bindable(false) }: Props = $props();
+
+	const fieldName = getFieldName(field);
+	const value = $collectionValue[fieldName];
 	const relationCollection = $collections[field?.relation];
 
-	let validationError: string | null = null;
+	// State variables
+	let dropDownData = $state<any[]>([]);
+	let selected = $state<{ display: any; _id: any } | undefined>(undefined);
+	let fieldsData = $state<Record<string, any>>({});
+	let showDropDown = $state(false);
+	let entryMode = $state<'create' | 'edit' | 'choose'>('choose');
+	let relation_entry = $state<Record<string, any> | undefined>(undefined);
+	let validationError = $state<string | null>(null);
 	let debounceTimeout: number | undefined;
-
-	// valibot validation
-	import * as v from 'valibot';
+	let display = $state('');
 
 	// Define the validation schema for the relation widget
 	const widgetSchema = v.object({
 		_id: v.optional(v.string()),
 		display: v.optional(v.pipe(v.string(), v.minLength(1, 'Selection is required')))
+	});
+
+	// Extract and display data
+	$effect(() => {
+		if (!field) return;
+
+		async function updateDisplay() {
+			let data: any;
+			if ($mode === 'edit') {
+				if (entryMode === 'edit' || entryMode === 'create') {
+					data = await extractData(fieldsData);
+				} else if (entryMode === 'choose') {
+					if (typeof value === 'string') {
+						data = await findById(value, relationCollection?.name || '');
+					} else {
+						data = value;
+					}
+				}
+				if (!relation_entry) relation_entry = data;
+			} else {
+				data = await extractData(fieldsData);
+			}
+
+			data = data[field.displayPath] ? data : value;
+			data = $mode === 'create' ? {} : data;
+
+			const displayResult = await field?.display({
+				data,
+				field,
+				collection: $collection,
+				entry: $collectionValue,
+				contentLanguage: $contentLanguage
+			});
+
+			display = displayResult || '';
+		}
+
+		updateDisplay();
+	});
+
+	// Validate when selected changes
+	$effect(() => {
+		if (selected !== undefined) {
+			validateInput();
+		}
 	});
 
 	// Generic validation function that uses the provided schema to validate the input
@@ -67,116 +127,96 @@
 		}, 300);
 	}
 
-	export const WidgetData = async () => {
-		let relation_id = '';
-		if (!field) return;
-		if (entryMode === 'create') {
-			relation_id = (await saveFormData({ data: fieldsData, _collection: relationCollection, _mode: 'create' }))[0]?._id;
-		} else if (entryMode === 'choose') {
-			relation_id = selected?._id;
-		} else if (entryMode === 'edit') {
-			relation_id = (
-				await saveFormData({
-					data: fieldsData,
-					_collection: relationCollection,
-					_mode: 'edit',
-					id: relation_entry._id
-				})
-			)[0]?._id;
-		}
-		validateInput();
-		return validationError ? null : relation_id;
-	};
-
 	async function openDropDown() {
 		if (!field) return;
-		dropDownData = (
-			await getData({
-				collectionName: field.relation as any,
-				limit: 10
-			})
-		).entryList;
-
+		const result = await getData({
+			collectionName: field.relation as any,
+			limit: 10
+		});
+		dropDownData = result.entryList;
 		showDropDown = true;
 		entryMode = 'choose';
 	}
-
-	let display = '';
-
-	$: (async (_) => {
-		let data: any;
-		if ($mode === 'edit' && field) {
-			if (entryMode === 'edit' || entryMode === 'create') {
-				data = await extractData(fieldsData);
-			} else if (entryMode === 'choose') {
-				if (typeof value === 'string') {
-					data = await findById(value, relationCollection?.name as string);
-				} else {
-					data = value;
-				}
-			}
-			!relation_entry && (relation_entry = data);
-		} else {
-			data = await extractData(fieldsData);
-		}
-
-		data = data[field.displayPath] ? data : value;
-		data = $mode === 'create' ? {} : data;
-		display = await field?.display({
-			data,
-			field,
-			collection: $collection,
-			entry: $collectionValue,
-			contentLanguage: $contentLanguage
-		});
-	})(expanded);
 
 	function save() {
 		expanded = false;
 		$saveFunction.reset();
 		validateInput();
 	}
+
+	export const WidgetData = async () => {
+		let relation_id = '';
+		if (!field) return;
+
+		try {
+			if (entryMode === 'create') {
+				const result = await saveFormData({ data: fieldsData, _collection: relationCollection, _mode: 'create' });
+				relation_id = result[0]?._id || '';
+			} else if (entryMode === 'choose') {
+				relation_id = selected?._id || '';
+			} else if (entryMode === 'edit' && relation_entry?._id) {
+				const result = await saveFormData({
+					data: fieldsData,
+					_collection: relationCollection,
+					_mode: 'edit',
+					id: relation_entry._id
+				});
+				relation_id = result[0]?._id || '';
+			}
+
+			validateInput();
+			return validationError ? null : relation_id;
+		} catch (error) {
+			console.error('Error in WidgetData:', error);
+			return null;
+		}
+	};
+
+	// Cleanup on destroy
+	onDestroy(() => {
+		if (debounceTimeout) clearTimeout(debounceTimeout);
+	});
 </script>
 
 <div class="input-container relative mb-4">
 	{#if !expanded && !showDropDown}
 		<div class="relative mb-1 flex w-screen min-w-[200px] max-w-full items-center justify-start gap-0.5 rounded border py-1 pl-10 pr-2">
-			<button class="flex-grow text-center dark:text-primary-500" on:click={openDropDown} aria-haspopup="listbox" aria-expanded={showDropDown}>
+			<button class="flex-grow text-center dark:text-primary-500" onclick={openDropDown} aria-haspopup="listbox" aria-expanded={showDropDown}>
 				{@html selected?.display || display || 'select new'}
 			</button>
 
 			<div class="ml-auto flex items-center pr-2">
 				{#if $mode === 'create'}
 					<button
-						on:click={() => {
+						onclick={() => {
 							expanded = !expanded;
 							entryMode = 'create';
 							fieldsData = {};
 							selected = undefined;
 							relation_entry = {};
 						}}
-						class="btn-icon"
 						aria-label="Create new relation"
+						class="btn-icon"
 					>
-						<iconify-icon icon="icons8:plus" width="30" class="dark:text-primary-500" />
+						<iconify-icon icon="icons8:plus" width="30" class="dark:text-primary-500"></iconify-icon>
 					</button>
 				{/if}
 				<button
-					on:click={() => {
+					onclick={() => {
 						expanded = !expanded;
 						entryMode = 'edit';
 						fieldsData = {};
 						selected = undefined;
 					}}
-					class="btn-icons"
 					aria-label="Edit relation"
+					class="btn-icons"
 				>
-					<iconify-icon icon="mdi:pen" width="28" class="dark:text-primary-500" />
+					<iconify-icon icon="mdi:pen" width="28" class="dark:text-primary-500"></iconify-icon>
 				</button>
 			</div>
 		</div>
 	{:else if !expanded && showDropDown}
-		<DropDown {dropDownData} {field} bind:selected bind:showDropDown on:select={validateInput} />
+		<DropDown {dropDownData} {field} bind:selected bind:showDropDown />
 	{:else}
 		<Fields fields={relationCollection?.fields} root={false} bind:fieldsData customData={relation_entry} />
 		{(($saveFunction.fn = save), '')}

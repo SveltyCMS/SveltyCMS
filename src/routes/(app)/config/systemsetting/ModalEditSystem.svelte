@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { run, preventDefault } from 'svelte/legacy';
+
 	import type { SvelteComponent } from 'svelte';
 	import { privateConfigCategories, publicConfigCategories } from '@root/config/guiConfig';
 	import { privateEnv } from '@root/config/private';
@@ -14,14 +16,24 @@
 	const modalStore = getModalStore();
 	const cBase = 'bg-surface-100-800-token w-screen h-screen p-4 flex justify-center items-center';
 
-	let formData = {};
-	let errors = {};
+	let formData = $state({});
+	let errors = $state({});
 
-	export let parent: SvelteComponent;
-	export let title: string;
-	export let configCategory: string;
-	export let description: string;
-	export let isPrivate: boolean;
+	interface Props {
+		parent: SvelteComponent;
+		title: string;
+		configCategory: string;
+		description: string;
+		isPrivate: boolean;
+	}
+
+	let {
+		parent,
+		title,
+		configCategory,
+		description,
+		isPrivate
+	}: Props = $props();
 
 	interface ConfigField<T> {
 		type: T;
@@ -79,10 +91,12 @@
 	}
 
 	// Initialize form data with actual values or defaults
-	$: formData = configData.reduce((acc, { key, value }) => {
-		acc[key] = value;
-		return acc;
-	}, {});
+	run(() => {
+		formData = configData.reduce((acc, { key, value }) => {
+			acc[key] = value;
+			return acc;
+		}, {});
+	});
 
 	// Popup Tooltips
 	function getPopupSettings(key: string): PopupSettings {
@@ -101,20 +115,20 @@
 				<h2 class="h2 mb-2 capitalize text-tertiary-500 dark:text-primary-500">{title} Setup:</h2>
 				<p>{description}</p>
 			</div>
-			<form on:submit|preventDefault={handleSubmit} class="wrapper w-full flex-grow overflow-y-auto p-4">
+			<form onsubmit={preventDefault(handleSubmit)} class="wrapper w-full flex-grow overflow-y-auto p-4">
 				{#each configData as { key, value, type, helper, icon, allowedValues }}
 					<div class="mb-4">
 						<label class="mb-2 block" for={key}>
-							<iconify-icon {icon} width="18" class="mr-2 text-tertiary-500 dark:text-primary-500" />
+							<iconify-icon {icon} width="18" class="mr-2 text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							{key}
 							<span use:popup={getPopupSettings(key)} class=" ml-2 p-0">
-								<iconify-icon icon="mdi:help-circle-outline" width="18" class=" text-gray-600" />
+								<iconify-icon icon="mdi:help-circle-outline" width="18" class=" text-gray-600"></iconify-icon>
 							</span>
 
 							<!-- Popup Tooltip with the arrow element -->
 							<div class="card variant-filled z-50 max-w-sm p-2" data-popup={`popup${key}`}>
 								{helper}
-								<div class="variant-filled arrow" />
+								<div class="variant-filled arrow"></div>
 							</div>
 						</label>
 
@@ -141,7 +155,7 @@
 				{/each}
 			</form>
 			<div class="bg-surface-100-800-token sticky bottom-0 z-10 m-2 flex w-full justify-between py-2">
-				<button type="button" class="variant-filled btn" on:click={parent.onClose}>{m.button_cancel()}</button>
+				<button type="button" class="variant-filled btn" onclick={parent.onClose}>{m.button_cancel()}</button>
 				<button type="submit" class="variant-filled btn">{m.button_save()}</button>
 			</div>
 		</div>

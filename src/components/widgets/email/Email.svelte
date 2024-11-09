@@ -4,6 +4,7 @@
 -->
 
 <script lang="ts">
+	import { onMount, onDestroy } from 'svelte';
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
 	import { updateTranslationProgress, getFieldName } from '@utils/utils';
@@ -15,19 +16,28 @@
 	// Valibot validation
 	import { string, email as emailValidator, pipe, parse, type ValiError, nonEmpty } from 'valibot';
 
-	export let field: FieldType;
+	interface Props {
+		field: FieldType;
+		value?: any;
+	}
+
+	let { field, value = {} }: Props = $props();
 
 	const fieldName = getFieldName(field);
-	export let value = $collectionValue[fieldName] || {};
+	value = value || $collectionValue[fieldName] || {};
 
-	const _data: Record<string, string> = $mode === 'create' ? {} : value;
+	let _data = $state<Record<string, string>>($mode === 'create' ? {} : value);
+	let validationError = $state<string | null>(null);
+	let debounceTimeout: number | undefined;
+	let inputElement = $state<HTMLInputElement | null>(null);
+
+	// Language is constant since email is not translatable
 	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
 
-	$: updateTranslationProgress(_data, field);
-
-	let validationError: string | null = null;
-	let debounceTimeout: number | undefined;
-	let inputElement: HTMLInputElement | null = null;
+	// Update translation progress when data changes
+	$effect(() => {
+		updateTranslationProgress(_data, field);
+	});
 
 	// Create validation schema for email
 	const emailSchema = pipe(string(), emailValidator('Please enter a valid email address'));
@@ -70,14 +80,13 @@
 	}
 
 	// Focus management
-	import { onMount, onDestroy } from 'svelte';
-
 	onMount(() => {
 		if (field?.required && !_data[_language]) {
 			inputElement?.focus();
 		}
 	});
 
+	// Cleanup
 	onDestroy(() => {
 		if (debounceTimeout) clearTimeout(debounceTimeout);
 	});
@@ -93,7 +102,7 @@
 		bind:this={inputElement}
 		aria-label={field?.label || field?.db_fieldName}
 		bind:value={_data[_language]}
-		on:blur={validateInput}
+		onblur={validateInput}
 		name={field.db_fieldName}
 		id={field.db_fieldName}
 		placeholder={field.placeholder || field.db_fieldName}

@@ -17,13 +17,17 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	export let field: FieldType;
 
 	const fieldName = getFieldName(field);
-	export let value = $collectionValue[fieldName] || {};
+	interface Props {
+		field: FieldType;
+		value?: any;
+	}
 
-	const _data = $mode === 'create' ? {} : value;
-	let validationError: string | null = null;
+	let { field, value = $collectionValue[fieldName] || {} }: Props = $props();
+
+	const _data = $state($mode === 'create' ? {} : value);
+	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
 
 	export const WidgetData = async () => _data;
@@ -71,7 +75,7 @@
 			bind:value={_data.color}
 			class="h-11 w-11 rounded border-0"
 			class:error={!!validationError}
-			on:input={validateInput}
+			oninput={validateInput}
 			aria-label="Color picker"
 			aria-invalid={!!validationError}
 			aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
@@ -81,7 +85,7 @@
 		<input
 			type="text"
 			bind:value={_data.color}
-			on:input={validateInput}
+			oninput={validateInput}
 			placeholder={m.colorPicker_hex()}
 			class="input text-black dark:text-primary-500"
 			class:error={!!validationError}

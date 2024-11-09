@@ -1,46 +1,60 @@
-<script>
-	import { createEventDispatcher } from 'svelte';
+<!--
+@file src/components/widgets/richText/components/ImageDescription.svelte
+@description - Image Description
+-->
 
-	export let show = false;
-	export let value = '';
-	export let key = '';
-	export let active = '';
-
-	$: _value = value;
-	$: key != active && (show_input = false);
-
-	let show_input = false;
-	$: {
-		show_input = false;
-		show;
+<script lang="ts">
+	interface Props {
+		show?: boolean;
+		value?: string;
+		key?: string;
+		active?: string;
+		onSubmit?: (value: string) => void;
 	}
 
-	const ev = createEventDispatcher();
+	let { show = false, value = '', key = '', active = $bindable(''), onSubmit }: Props = $props();
+
+	let _value = $state(value);
+
+	$effect(() => {
+		_value = value;
+	});
+
+	$effect(() => {
+		if (key !== active) {
+			show_input = false;
+		}
+	});
+
+	let show_input = $state(false);
+
+	$effect(() => {
+		if (!show) {
+			show_input = false;
+		}
+	});
+
+	function handleKeydown(e: KeyboardEvent & { currentTarget: HTMLInputElement }) {
+		if (e.key === 'Enter') {
+			show_input = false;
+			onSubmit?.(_value);
+		}
+	}
+
+	function handleClick() {
+		show_input = !show_input;
+		active = key;
+	}
 </script>
 
 <div class:hidden={!show}>
-	<button
-		on:click={() => {
-			show_input = !show_input;
-			active = key;
-		}}
-		class="flex items-center"
-	>
-		<iconify-icon icon="material-symbols:description" width="20" />
+	<button onclick={handleClick} aria-label="Description" class="flex items-center">
+		<iconify-icon icon="material-symbols:description" width="20"></iconify-icon>
 		description
 	</button>
 	{#if show_input}
 		<div class="description">
-			<input
-				type="text"
-				bind:value={_value}
-				on:keydown={(e) => {
-					if (e.key == 'Enter') {
-						show_input = false;
-						ev('submit', _value);
-					}
-				}}
-			/>
+			<input type="text" bind:value={_value} onkeydown={handleKeydown} />
 		</div>
 	{/if}
 </div>

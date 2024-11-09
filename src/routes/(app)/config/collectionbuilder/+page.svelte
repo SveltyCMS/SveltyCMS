@@ -22,15 +22,29 @@
 
 	// Skeleton
 	import { getToastStore, getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
+
+	interface CategoryModalResponse {
+		newCategoryName: string;
+		newCategoryIcon: string;
+	}
+
+	interface ApiResponse {
+		error?: string;
+		[key: string]: any;
+	}
+
+	// State variables
+	let currentConfig = $state<Record<string, CategoryData>>(categoryConfig);
+	let isLoading = $state(false);
+	let apiError = $state<string | null>(null);
+
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
-	let currentConfig = categoryConfig;
-
 	// Initialize the categories store with the current config
-	$: {
+	$effect(() => {
 		categories.set(currentConfig);
-	}
+	});
 
 	// Modal Trigger - New Category
 	function modalAddCategory(existingCategory?: { name: string; icon: string }): void {
@@ -40,54 +54,66 @@
 				existingCategory
 			}
 		};
-		const d: ModalSettings = {
+
+		const modalSettings: ModalSettings = {
 			type: 'component',
 			title: existingCategory ? 'Edit Category' : 'Add New Category',
 			body: existingCategory ? 'Modify Category Details' : 'Enter Unique Name and an Icon for your new category column',
 			component: modalComponent,
-			response: async (r: any) => {
-				if (r) {
+			response: async (response: CategoryModalResponse | boolean) => {
+				if (!response || typeof response === 'boolean') return;
+
+				try {
 					if (existingCategory) {
-						// Update existing category
-						const newConfig = { ...currentConfig };
-						Object.entries(newConfig).forEach(([key, category]) => {
-							if (category.name === existingCategory.name) {
-								category.name = r.newCategoryName;
-								category.icon = r.newCategoryIcon;
-							}
-							// Also check subcategories
-							if (category.subcategories) {
-								Object.entries(category.subcategories).forEach(([subKey, subCategory]) => {
-									if (subCategory.name === existingCategory.name) {
-										subCategory.name = r.newCategoryName;
-										subCategory.icon = r.newCategoryIcon;
-									}
-								});
-							}
-						});
-						currentConfig = newConfig;
-						categories.set(newConfig);
+						await updateExistingCategory(existingCategory, response);
 					} else {
-						// Add new category at the end of the list
-						const newConfig = { ...currentConfig };
-						const categoryKey = r.newCategoryName.toLowerCase().replace(/\s+/g, '-');
-						const newCategoryId = await createRandomID();
-
-						// Add the new category as a top-level category
-						newConfig[categoryKey] = {
-							id: newCategoryId,
-							name: r.newCategoryName,
-							icon: r.newCategoryIcon,
-							subcategories: {}
-						};
-
-						currentConfig = newConfig;
-						categories.set(newConfig);
+						await addNewCategory(response);
 					}
+				} catch (error) {
+					console.error('Error handling modal response:', error);
+					showToast('Error updating categories', 'error');
 				}
 			}
 		};
-		modalStore.trigger(d);
+
+		modalStore.trigger(modalSettings);
+	}
+
+	async function updateExistingCategory(existingCategory: { name: string; icon: string }, response: CategoryModalResponse) {
+		const newConfig = { ...currentConfig };
+		Object.entries(newConfig).forEach(([key, category]) => {
+			if (category.name === existingCategory.name) {
+				category.name = response.newCategoryName;
+				category.icon = response.newCategoryIcon;
+			}
+			// Also check subcategories
+			if (category.subcategories) {
+				Object.entries(category.subcategories).forEach(([subKey, subCategory]) => {
+					if (subCategory.name === existingCategory.name) {
+						subCategory.name = response.newCategoryName;
+						subCategory.icon = response.newCategoryIcon;
+					}
+				});
+			}
+		});
+		currentConfig = newConfig;
+		categories.set(newConfig);
+	}
+
+	async function addNewCategory(response: CategoryModalResponse) {
+		const newConfig = { ...currentConfig };
+		const categoryKey = response.newCategoryName.toLowerCase().replace(/\s+/g, '-');
+		const newCategoryId = await createRandomID();
+
+		newConfig[categoryKey] = {
+			id: newCategoryId,
+			name: response.newCategoryName,
+			icon: response.newCategoryIcon,
+			subcategories: {}
+		};
+
+		currentConfig = newConfig;
+		categories.set(newConfig);
 	}
 
 	function handleAddCollectionClick() {
@@ -105,6 +131,9 @@
 
 	// Saving changes to the config.ts
 	async function updateConfig(newConfig: Record<string, CategoryData>) {
+		isLoading = true;
+		apiError = null;
+
 		try {
 			const response = await fetch('/api/categories', {
 				method: 'POST',
@@ -117,7 +146,7 @@
 				})
 			});
 
-			const result = await response.json();
+			const result: ApiResponse = await response.json();
 
 			if (response.ok) {
 				showToast('Categories updated successfully', 'success');
@@ -126,11 +155,16 @@
 			} else {
 				const errorMessage = result.error || 'Error updating categories';
 				console.error('Update categories error:', result);
+				apiError = errorMessage;
 				showToast(errorMessage, 'error');
 			}
 		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : 'Network error occurred';
 			console.error('Network error:', error);
-			showToast('Network error occurred while updating categories', 'error');
+			apiError = errorMessage;
+			showToast(`Network error: ${errorMessage}`, 'error');
+		} finally {
+			isLoading = false;
 		}
 	}
 
@@ -156,35 +190,55 @@
 <div class="my-2 flex w-full justify-around gap-2 lg:ml-auto lg:mt-0 lg:w-auto lg:flex-row">
 	<!-- add new Category-->
 	<button
-		on:click={() => modalAddCategory()}
+		onclick={() => modalAddCategory()}
 		type="button"
+		aria-label="Add New Category"
 		class="variant-filled-tertiary btn flex items-center justify-between gap-1 rounded font-bold dark:variant-filled-primary"
+		disabled={isLoading}
 	>
-		<iconify-icon icon="bi:collection" width="18" class="text-white" />
+		<iconify-icon icon="bi:collection" width="18" class="text-white"></iconify-icon>
 		{m.collection_addcategory()}
 	</button>
 
 	<!-- add new Collection-->
 	<button
-		on:click={handleAddCollectionClick}
+		onclick={handleAddCollectionClick}
 		type="button"
+		aria-label="Add New Collection"
 		class="variant-filled-surface btn flex items-center justify-between gap-1 rounded font-bold"
+		disabled={isLoading}
 	>
-		<iconify-icon icon="material-symbols:category" width="18" />
+		<iconify-icon icon="material-symbols:category" width="18"></iconify-icon>
 		{m.collection_addcollection()}
 	</button>
 
-	<button type="button" on:click={() => updateConfig(currentConfig)} class="variant-filled-primary btn gap-2 lg:ml-4">
-		<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
+	<button
+		type="button"
+		onclick={() => updateConfig(currentConfig)}
+		aria-label="Save"
+		class="variant-filled-primary btn gap-2 lg:ml-4"
+		disabled={isLoading}
+	>
+		{#if isLoading}
+			<iconify-icon icon="eos-icons:loading" width="24" class="animate-spin text-white"></iconify-icon>
+		{:else}
+			<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
+		{/if}
 		{m.button_save()}
 	</button>
 </div>
+
+{#if apiError}
+	<div class="mb-4 rounded bg-error-500/10 p-4 text-error-500" role="alert">
+		{apiError}
+	</div>
+{/if}
 
 <div class="max-h-[calc(100vh-65px)] overflow-auto">
 	<div class="wrapper mb-2">
 		<p class="mb-4 text-center dark:text-primary-500">{m.collection_text_description()}</p>
 
 		<!-- display collections -->
-		<Board categoryConfig={currentConfig} onEditCategory={modalAddCategory} />
+		<Board {categoryConfig} onEditCategory={modalAddCategory} />
 	</div>
 </div>

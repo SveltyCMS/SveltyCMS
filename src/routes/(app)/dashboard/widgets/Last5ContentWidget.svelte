@@ -28,12 +28,16 @@ Usage:
 	export const w: number = 2;
 	export const h: number = 5;
 	export const min: { w: number; h: number } = { w: 1, h: 1 };
-	export let max: { w: number; h: number } | undefined;
 	export const movable: boolean = true;
 	export const resizable: boolean = true;
 
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
+	interface Props {
+		max: { w: number; h: number } | undefined;
+	}
+
+	let { max }: Props = $props();
 
 	const contentInfo = writable<any[]>([]);
 	const loading = writable<boolean>(true);

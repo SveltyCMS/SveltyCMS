@@ -7,7 +7,7 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	export let value;
+	let { value = $bindable() } = $props();
 </script>
 
 <label for="robots-meta-select" class="label text-black dark:text-primary-500">

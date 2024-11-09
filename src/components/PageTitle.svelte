@@ -12,6 +12,9 @@ Functions
 @prop {string} backUrl - The URL to go back to
 -->
 <script lang="ts">
+	import { run, createBubbler } from 'svelte/legacy';
+
+	const bubble = createBubbler();
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 
@@ -30,16 +33,28 @@ Functions
 		backUrl?: string;
 	}
 
-	export let name: PageTitleProps['name'];
-	export let highlight: PageTitleProps['highlight'] = '';
-	export let icon: PageTitleProps['icon'];
-	export let iconColor: PageTitleProps['iconColor'] = 'text-tertiary-500 dark:text-primary-500';
-	export let iconSize: PageTitleProps['iconSize'] = '32';
-	export let showBackButton: PageTitleProps['showBackButton'] = false;
-	export let backUrl: PageTitleProps['backUrl'] = '';
+	interface Props {
+		name: PageTitleProps['name'];
+		highlight?: PageTitleProps['highlight'];
+		icon: PageTitleProps['icon'];
+		iconColor?: PageTitleProps['iconColor'];
+		iconSize?: PageTitleProps['iconSize'];
+		showBackButton?: PageTitleProps['showBackButton'];
+		backUrl?: PageTitleProps['backUrl'];
+	}
+
+	let {
+		name,
+		highlight = '',
+		icon,
+		iconColor = 'text-tertiary-500 dark:text-primary-500',
+		iconSize = '32',
+		showBackButton = false,
+		backUrl = ''
+	}: Props = $props();
 
 	let calculatedTitle: string;
-	let titleParts: string[];
+	let titleParts: string[] = $state();
 
 	// Function to handle back button click
 	function handleBackClick() {
@@ -81,11 +96,11 @@ Functions
 		window.addEventListener('resize', calculateMaxChars);
 	});
 
-	$: {
+	run(() => {
 		name; // reactive dependency
 		highlight; // reactive dependency
 		calculateMaxChars(); // Recalculate when the title or screen size changes
-	}
+	});
 </script>
 
 <div class="my-1 flex w-full items-center justify-between">
@@ -95,11 +110,12 @@ Functions
 		{#if $sidebarState.left === 'hidden'}
 			<button
 				type="button"
-				on:keydown
-				on:click={() => toggleSidebar('left', get(screenSize) === 'lg' ? 'full' : 'collapsed')}
+				onkeydown={bubble('keydown')}
+				onclick={() => toggleSidebar('left', get(screenSize) === 'lg' ? 'full' : 'collapsed')}
+				aria-label="Open Sidebar"
 				class="variant-ghost-surface btn-icon"
 			>
-				<iconify-icon icon="mingcute:menu-fill" width="24" />
+				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
 		{/if}
 
@@ -107,7 +123,7 @@ Functions
 		<h1 class="h1 ml-2 flex items-center gap-1 truncate font-bold">
 			<!-- Icon -->
 			{#if icon}
-				<iconify-icon {icon} width={iconSize} class={`mr-1 ${iconColor} sm:mr-2`} />
+				<iconify-icon {icon} width={iconSize} class={`mr-1 ${iconColor} sm:mr-2`}></iconify-icon>
 			{/if}
 			<!-- Title -->
 			<span>
@@ -124,8 +140,8 @@ Functions
 
 	<!-- Right Section: Back Button -->
 	{#if showBackButton}
-		<button on:click={handleBackClick} aria-label="Go back" class="variant-outline-tertiary btn-icon dark:variant-outline-primary">
-			<iconify-icon icon="ri:arrow-left-line" width="24" />
+		<button onclick={handleBackClick} aria-label="Go back" class="variant-outline-tertiary btn-icon dark:variant-outline-primary">
+			<iconify-icon icon="ri:arrow-left-line" width="24"></iconify-icon>
 		</button>
 	{/if}
 </div>

@@ -11,10 +11,14 @@
 
 	const dispatch = createEventDispatcher();
 
-	export let checked = false;
-	export let iconStatus: string | undefined;
+	// Use let instead of const to allow modification of checked
+	let { checked = $bindable(false), iconStatus } = $props<{
+		checked?: boolean;
+		iconStatus?: string;
+	}>();
 
-	function handleIconClick() {
+	function handleIconClick(event: Event) {
+		event.stopPropagation();
 		checked = !checked;
 		// Dispatch the appropriate event based on the new checked state
 		dispatch(checked ? 'true' : 'false');
@@ -22,15 +26,15 @@
 
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Enter' || event.key === ' ') {
-			handleIconClick();
+			handleIconClick(event);
 		}
 	}
 </script>
 
-<td on:click|stopPropagation={handleIconClick} class="!pl-[10px]">
+<td onclick={handleIconClick} class="!pl-[10px]">
 	<button
-		on:keydown={handleKeydown}
-		on:click|stopPropagation={handleIconClick}
+		onkeydown={handleKeydown}
+		onclick={handleIconClick}
 		aria-checked={checked ? 'true' : 'false'}
 		aria-labelledby={checked ? 'true' : 'false'}
 		role="checkbox"

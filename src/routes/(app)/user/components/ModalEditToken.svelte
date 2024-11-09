@@ -10,9 +10,8 @@
 	// Get data from page store
 	const { roles, user } = $page.data;
 
-	// Props
-	export let parent: any;
-	let formElement: HTMLFormElement;
+	
+	let formElement: HTMLFormElement = $state();
 
 	// Skeleton & Stores
 	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
@@ -22,24 +21,36 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	export let token: string;
-	export let email: string;
-	export let role: string;
-	export let user_id: string;
+	interface Props {
+		// Props
+		parent: any;
+		token: string;
+		email: string;
+		role: string;
+		user_id: string;
+	}
+
+	let {
+		parent,
+		token,
+		email,
+		role,
+		user_id
+	}: Props = $props();
 
 	// Form Data
-	const formData = {
+	const formData = $state({
 		user_id: user_id,
 		email: email,
 		token: token,
 		role: role
-	};
+	});
 
-	const errorStatus = {
+	const errorStatus = $state({
 		user_id: { status: false, msg: '' },
 		email: { status: false, msg: '' },
 		token: { status: false, msg: '' }
-	};
+	});
 
 	// Custom submit function to pass the response and close the modal
 	async function onFormSubmit(): Promise<void> {
@@ -137,10 +148,10 @@
 		<form class="modal-form {cForm}" bind:this={formElement} id="change_user_form">
 			<!-- Username field -->
 			<div class="group relative z-0 mb-6 w-full">
-				<iconify-icon icon="mdi:user-circle" width="18" class="absolute left-0 top-3.5 text-gray-400" />
+				<iconify-icon icon="mdi:user-circle" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
 				<input
 					bind:value={formData.user_id}
-					on:keydown={() => (errorStatus.user_id.status = false)}
+					onkeydown={() => (errorStatus.user_id.status = false)}
 					color={errorStatus.user_id.status ? 'red' : 'base'}
 					type="text"
 					name="username"
@@ -165,10 +176,10 @@
 
 			<!-- Email field -->
 			<div class="group relative z-0 mb-6 w-full">
-				<iconify-icon icon="mdi:email" width="18" class="absolute left-0 top-3.5 text-gray-400" />
+				<iconify-icon icon="mdi:email" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
 				<input
 					bind:value={formData.email}
-					on:keydown={() => (errorStatus.email.status = false)}
+					onkeydown={() => (errorStatus.email.status = false)}
 					color={errorStatus.email.status ? 'red' : 'base'}
 					type="email"
 					name="email"
@@ -191,10 +202,10 @@
 			</div>
 			<!-- Token field -->
 			<div class="group relative z-0 mb-6 w-full">
-				<iconify-icon icon="mdi:token" width="18" class="absolute left-0 top-3.5 text-gray-400" />
+				<iconify-icon icon="mdi:token" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
 				<input
 					bind:value={formData.token}
-					on:keydown={() => (errorStatus.token.status = false)}
+					onkeydown={() => (errorStatus.token.status = false)}
 					color={errorStatus.token.status ? 'red' : 'base'}
 					type="text"
 					name="token"
@@ -228,10 +239,10 @@
 									<button
 										type="button"
 										class="chip {formData.role === r._id ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
-										on:click={() => (formData.role = r._id)}
+										onclick={() => (formData.role = r._id)}
 									>
 										{#if formData.role === r._id}
-											<span><iconify-icon icon="fa:check" /></span>
+											<span><iconify-icon icon="fa:check"></iconify-icon></span>
 										{/if}
 										<span class="capitalize">{r.name}</span>
 									</button>
@@ -247,15 +258,15 @@
 
 		<footer class="{parent.regionFooter} flex items-center justify-between">
 			<!-- Delete -->
-			<button type="button" on:click={deleteToken} class="variant-filled-error btn">
-				<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.button_delete()}</span>
+			<button type="button" onclick={deleteToken} class="variant-filled-error btn">
+				<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon><span class="hidden sm:block">{m.button_delete()}</span>
 			</button>
 
 			<div class="flex justify-between gap-2">
 				<!-- Cancel -->
-				<button class="variant-outline-secondary btn" on:click={parent.onClose}>{m.button_cancel()}</button>
+				<button class="variant-outline-secondary btn" onclick={parent.onClose}>{m.button_cancel()}</button>
 				<!-- Save -->
-				<button class="variant-filled-tertiary btn btn dark:variant-filled-primary{parent.buttonPositive}" on:click={onFormSubmit}
+				<button class="variant-filled-tertiary btn btn dark:variant-filled-primary{parent.buttonPositive}" onclick={onFormSubmit}
 					>{m.button_save()}</button
 				>
 			</div>

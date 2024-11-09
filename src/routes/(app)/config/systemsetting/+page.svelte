@@ -111,11 +111,12 @@
 <div class="my-2 mt-2 grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3">
 	{#each categories as { name, category, config, isPrivate }}
 		<button
-			on:click={() => openModal(name, category, config.description, isPrivate)}
+			onclick={() => openModal(name, category, config.description, isPrivate)}
+			aria-label={config.description}
 			class="variant-outline-primary btn flex items-center justify-center gap-2"
 		>
 			<div class="grid grid-cols-1 justify-items-center">
-				<iconify-icon icon={config.icon} width="28" class="text-tertiary-500 dark:text-primary-500" />
+				<iconify-icon icon={config.icon} width="28" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 				<span class="capitalize">{name}</span>
 			</div>
 		</button>

@@ -9,10 +9,9 @@ import ImageUpload from '../imageUpload';
 
 import { getFieldName, getGuiFields } from '@utils/utils';
 import type { Params as ImageUpload_Params } from '../imageUpload/types';
-import { type Params, GuiSchema, GraphqlSchema } from './types';
+import { type Params, type DISPLAY, GuiSchema, GraphqlSchema } from './types';
 
 import type { ModifyRequestParams } from '..';
-import widgets from '..';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
@@ -33,16 +32,12 @@ const widget = (params: Params) => {
 	const uploader = params.fields[0] as ImageUpload_Params;
 
 	// Define the display function
-	let display: any;
-
-	if (!params.display) {
-		display = async ({ entry }) => {
-			return `<img class='max-w-[200px] inline-block' src="${entry[getFieldName(uploader)]?.thumbnail?.url}" />`;
-		};
-		display.default = true;
-	} else {
-		display = params.display;
-	}
+	const display: DISPLAY =
+		params.display ??
+		(async ({ entry }) => {
+			const thumbnailUrl = entry[getFieldName(uploader)]?.thumbnail?.url;
+			return thumbnailUrl ? `<img class='max-w-[200px] inline-block' src="${thumbnailUrl}" />` : '';
+		});
 
 	// Define the widget object
 	const widget = {
@@ -56,7 +51,6 @@ const widget = (params: Params) => {
 		display,
 		label: params.label,
 		db_fieldName: params.db_fieldName,
-		// translated: params.translated,
 		required: params.required,
 		icon: params.icon,
 		width: params.width,
@@ -82,13 +76,15 @@ const widget = (params: Params) => {
 widget.modifyRequest = async ({ field, data, user, type, id, collection }: ModifyRequestParams<typeof widget>) => {
 	const _data = data.get();
 	console.log('data:', _data);
-	return;
+
+	// Process each field
 	for (const _field of field.fields) {
-		const widget = widgets[_field.widget.Name];
-		if ('modifyRequest' in widget) {
-			await widget.modifyRequest({
+		// Get the widget instance directly from the field
+		const widgetInstance = _field.widget;
+		if (widgetInstance?.modifyRequest) {
+			await widgetInstance.modifyRequest({
 				collection,
-				field: _field as ReturnType<typeof widget>,
+				field: _field,
 				data: _data[getFieldName(_field)],
 				user,
 				type,
@@ -108,6 +104,5 @@ widget.toString = () => '';
 widget.Icon = 'bi:images';
 widget.Description = m.widget_ImageArray_description();
 
-// Export FieldType interface and widget function
-export interface FieldType extends ReturnType<typeof widget> {}
+// Export widget function
 export default widget;

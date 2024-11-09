@@ -14,7 +14,7 @@ import type sharp from 'sharp';
 import { setCache } from '@root/src/databases/redis';
 
 // Media type definitions
-import type { MediaRemoteVideo, MediaAccess } from './mediaModels';
+import type { MediaRemoteVideo, MediaAccess, MediaImage, ResizedImage, Thumbnail } from './mediaModels';
 import { MediaTypeEnum, Permission } from './mediaModels';
 
 import { hashFileContent, getSanitizedFileName } from './mediaProcessing';
@@ -23,7 +23,6 @@ import { sanitize } from '@utils/utils';
 
 // Database adapter for authentication
 import { dbAdapter } from '@src/databases/db';
-import type { Role } from '@src/auth/types';
 
 // System logger instance
 import { logger } from '@utils/logger';
@@ -35,7 +34,7 @@ let s3Client: any = null;
 
 // Dynamically imports AWS SDK and returns an S3 client
 async function getS3Client() {
-	if (typeof window !== 'undefined') return null; // Prevent execution in the browser
+	if (typeof window !== 'undefined') return null;
 
 	if (!s3Client) {
 		try {
@@ -133,7 +132,6 @@ export async function moveMediaToTrash(url: string, collectionName: string): Pro
 // Saves a file to local disk or cloud storage
 export async function saveFileToDisk(buffer: Buffer, url: string): Promise<void> {
 	if (publicEnv.MEDIASERVER_URL) {
-		// Save to cloud storage (e.g., S3)
 		const s3 = await getS3Client();
 		if (s3) {
 			await s3
@@ -148,12 +146,11 @@ export async function saveFileToDisk(buffer: Buffer, url: string): Promise<void>
 			throw Error('S3 client is not available. Unable to save file to cloud storage.');
 		}
 	} else {
-		// Save to local storage
 		const fullPath = Path.join(publicEnv.MEDIA_FOLDER, url);
 		const dir = Path.dirname(fullPath);
 
 		if (!fs.existsSync(dir)) {
-			fs.mkdirSync(dir, { recursive: true }); // Create directory if it doesn't exist
+			fs.mkdirSync(dir, { recursive: true });
 		}
 
 		await fs.promises.writeFile(fullPath, buffer);
@@ -162,13 +159,7 @@ export async function saveFileToDisk(buffer: Buffer, url: string): Promise<void>
 }
 
 // Saves a remote media file to the database
-export async function saveRemoteMedia(
-	fileUrl: string,
-	collectionName: string,
-	user_id: string,
-	access: MediaAccess[] = [],
-	roles: Role[] = []
-): Promise<{ id: string; fileInfo: MediaRemoteVideo }> {
+export async function saveRemoteMedia(fileUrl: string, collectionName: string, user_id: string): Promise<{ id: string; fileInfo: MediaRemoteVideo }> {
 	try {
 		// Fetch the media file from the provided URL
 		const response = await fetch(fileUrl);
@@ -176,13 +167,18 @@ export async function saveRemoteMedia(
 
 		// Get buffer from fetched response
 		const arrayBuffer = await response.arrayBuffer();
-		const buffer = Buffer.from(arrayBuffer); // Convert ArrayBuffer to Buffer
-		const hash = await hashFileContent(buffer); // Create hash for the file content
+		const hash = await hashFileContent(arrayBuffer); // Use arrayBuffer directly for hashing
 
 		// Extract and sanitize the file name
 		const fileName = decodeURI(fileUrl.split('/').pop() ?? 'defaultName');
 		const { fileNameWithoutExt, ext } = getSanitizedFileName(fileName);
 		const url = `remote_media/${hash}-${fileNameWithoutExt}.${ext}`;
+
+		// Create user access entry with all permissions
+		const userAccess: MediaAccess = {
+			userId: user_id,
+			permissions: [Permission.Read, Permission.Write, Permission.Delete]
+		};
 
 		// Construct file info object for the remote video
 		const fileInfo: MediaRemoteVideo = {
@@ -205,19 +201,8 @@ export async function saveRemoteMedia(
 					createdBy: user_id
 				}
 			],
-			access: [
-				{
-					userId: user_id,
-					permissions: [Permission.Read, Permission.Write, Permission.Delete]
-				},
-				...roles.flatMap((role) =>
-					role.permissions.map((permissionId) => ({
-						roleId: role._id,
-						permissions: [Permission[permissionId as keyof typeof Permission]]
-					}))
-				),
-				...access
-			]
+			access: userAccess,
+			mimeType: mime.lookup(url) || 'application/octet-stream'
 		};
 
 		// Ensure the database adapter is initialized
@@ -254,7 +239,7 @@ export async function saveResizedImages(
 	collectionName: string,
 	ext: string,
 	path: string
-): Promise<Record<string, { url: string; width: number; height: number }>> {
+): Promise<Record<string, ResizedImage>> {
 	const sharp = (await import('sharp')).default;
 
 	const format =
@@ -262,7 +247,7 @@ export async function saveResizedImages(
 			? (ext as keyof sharp.FormatEnum)
 			: (publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format as keyof sharp.FormatEnum);
 
-	const thumbnails: Record<string, { url: string; width: number; height: number }> = {};
+	const thumbnails: Record<string, ResizedImage> = {};
 
 	for (const size in SIZES) {
 		if (size === 'original') continue;
@@ -315,22 +300,58 @@ export async function saveAvatarImage(file: File, path: 'avatars' | string): Pro
 		const url = `media/images/${hash}-${sanitizedBlobName}${ext}`;
 		await saveFileToDisk(buffer, url);
 
-		const avatars = await saveResizedImages(buffer, hash, sanitizedBlobName, path, format, 'avatars');
+		const resizedImages = await saveResizedImages(buffer, hash, sanitizedBlobName, path, format, 'avatars');
 
-		const fileInfo = {
+		// Ensure we have a thumbnail
+		if (!resizedImages.thumbnail) {
+			throw new Error('Failed to generate thumbnail');
+		}
+
+		// Create thumbnails record with required sizes
+		const thumbnails: Record<keyof typeof publicEnv.IMAGE_SIZES, Thumbnail> = {
+			sm: resizedImages.sm || { url: '', width: 0, height: 0 },
+			md: resizedImages.md || { url: '', width: 0, height: 0 },
+			lg: resizedImages.lg || { url: '', width: 0, height: 0 }
+		};
+
+		const fileInfo: MediaImage = {
 			hash,
 			name: file.name,
 			path: 'media/images',
 			url,
+			type: MediaTypeEnum.Image,
+			size: buffer.length,
+			mimeType: mime.lookup(url) || 'application/octet-stream',
 			createdAt: new Date(Date.now()),
 			updatedAt: new Date(Date.now()),
-			versions: [{ ...avatars }]
+			versions: [
+				{
+					version: 1,
+					url,
+					createdAt: new Date(Date.now()),
+					createdBy: 'system'
+				}
+			],
+			thumbnail: resizedImages.thumbnail,
+			thumbnails,
+			width: 0,
+			height: 0,
+			user: 'system',
+			access: {
+				permissions: [Permission.Read, Permission.Write]
+			}
 		};
 
 		if (!dbAdapter) throw Error('Database adapter not initialized.');
 
 		await dbAdapter.insertOne('media_images', fileInfo);
-		return `${publicEnv.MEDIA_FOLDER}/${url}`;
+
+		// Return the thumbnail URL for avatar usage
+		let fileUrl = `${publicEnv.MEDIA_FOLDER}/${resizedImages.thumbnail.url}`;
+		if (publicEnv.MEDIASERVER_URL) {
+			fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`;
+		}
+		return fileUrl;
 	} catch (err) {
 		logger.error('Error saving avatar image:', err as Error);
 		throw err;

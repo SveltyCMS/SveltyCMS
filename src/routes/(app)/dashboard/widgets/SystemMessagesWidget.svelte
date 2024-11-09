@@ -29,7 +29,7 @@ Usage:
 	}
 
 	// Define the type of the messages array
-	let messages: SystemMessage[] = [];
+	let messages: SystemMessage[] = $state([]);
 
 	// Skeleton popup settings
 	const RemoveTooltip: PopupSettings = {
@@ -38,8 +38,12 @@ Usage:
 		placement: 'right'
 	};
 
-	export let label: string;
-	export let currentTheme: string;
+	interface Props {
+		label: string;
+		currentTheme: string;
+	}
+
+	let { label, currentTheme }: Props = $props();
 
 	onMount(async () => {
 		try {

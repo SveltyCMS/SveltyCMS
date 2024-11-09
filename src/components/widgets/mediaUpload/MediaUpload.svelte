@@ -18,19 +18,20 @@
 	import type { MediaImage, Thumbnail } from '@utils/media/mediaModels';
 	import FileInput from '@components/system/inputs/FileInput.svelte';
 
-	let isFlipped = false; // State variable to track flip button
+	let isFlipped = $state(false); // State variable to track flip button
 
-	export let field: FieldType & { path: string };
-	export let value: File | MediaImage = $collectionValue[getFieldName(field)]; // pass file directly from imageArray
-
-	let _data: File | MediaImage | undefined = value;
-	let validationError: string | null = null;
+	let _data: File | MediaImage | undefined = $state(value);
+	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
-
-	$: updated = _data !== value;
 
 	// Define the validation schema for this widget
 	import { object, string, number, union, instance, check, pipe, record, parse, type InferInput, type ValiError } from 'valibot';
+	interface Props {
+		field: FieldType & { path: string };
+		value?: File | MediaImage; // pass file directly from imageArray
+	}
+
+	let { field = $bindable(), value = $collectionValue[getFieldName(field)] }: Props = $props();
 
 	const validImageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif', 'image/svg+xml'];
 
@@ -104,6 +105,7 @@
 	function getTimestamp(date: Date | number): number {
 		return typeof date === 'number' ? date : date.getTime();
 	}
+	let updated = $derived(_data !== value);
 </script>
 
 <div class="input-container relative mb-4">
@@ -161,17 +163,17 @@
 					<!-- Buttons -->
 					<div class="col-span-1 flex flex-col items-end justify-between gap-2 p-2">
 						<!-- Flip -->
-						<button on:click={() => (isFlipped = !isFlipped)} class="variant-ghost btn-icon">
+						<button onclick={() => (isFlipped = !isFlipped)} aria-label="Flip" class="variant-ghost btn-icon">
 							<iconify-icon
 								icon="uiw:reload"
 								width="24"
 								class={isFlipped ? ' rotate-90 text-yellow-500 transition-transform duration-300' : 'text-white  transition-transform duration-300'}
-							/>
+							></iconify-icon>
 						</button>
 
 						<!-- Delete -->
-						<button on:click={() => (_data = undefined)} class="variant-ghost btn-icon">
-							<iconify-icon icon="material-symbols:delete-outline" width="30" class="text-error-500" />
+						<button onclick={() => (_data = undefined)} aria-label="Delete" class="variant-ghost btn-icon">
+							<iconify-icon icon="material-symbols:delete-outline" width="30" class="text-error-500"></iconify-icon>
 						</button>
 					</div>
 				</div>

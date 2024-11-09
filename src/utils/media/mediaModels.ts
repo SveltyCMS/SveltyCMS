@@ -3,7 +3,7 @@
  * @description Defines media models and interfaces for the CMS
  */
 
-import { publicEnv } from '@root/config/public'; // Adjust import path if needed
+import { publicEnv } from '@root/config/public';
 
 // Enum representing media types
 export enum MediaTypeEnum {
@@ -68,7 +68,8 @@ export interface MediaImage extends MediaBase {
 	type: MediaTypeEnum.Image; // Discriminator
 	width: number;
 	height: number;
-	thumbnails: Record<keyof typeof publicEnv.IMAGE_SIZES, Thumbnail>; // Dynamic keys based on IMAGE_SIZES
+	thumbnail: Thumbnail;
+	thumbnails: Record<keyof typeof publicEnv.IMAGE_SIZES, Thumbnail>;
 }
 
 // Represents a document media item
@@ -100,3 +101,13 @@ export interface MediaRemoteVideo extends MediaBase {
 
 // Union type for all media items
 export type MediaType = MediaImage | MediaDocument | MediaAudio | MediaVideo | MediaRemoteVideo;
+
+// Type for resized image versions
+export interface ResizedImage {
+	url: string;
+	width: number;
+	height: number;
+}
+
+// Type for image sizes
+export type ImageSizes = Record<string, ResizedImage>;

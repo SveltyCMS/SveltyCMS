@@ -4,31 +4,33 @@
 -->
 
 <script lang="ts">
-	import { onMount, createEventDispatcher } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { tick } from 'svelte';
 
-	export let content: string = '';
-	export let language: string = 'en';
-	export let keywords: string[] = [];
-
-	let heatmapData: { word: string; heatLevel: number; isKeyword: boolean }[] = [];
-	let keywordDensity: { [key: string]: number } = {};
-	const dispatch = createEventDispatcher();
-	let debounceTimer: number | undefined;
-
-	$: {
-		clearTimeout(debounceTimer);
-		debounceTimer = window.setTimeout(() => {
-			generateHeatmap();
-		}, 300);
+	interface HeatmapData {
+		heatmapData: Array<{ word: string; heatLevel: number; isKeyword: boolean }>;
+		keywordDensity: Record<string, number>;
 	}
+
+	interface Props {
+		content?: string;
+		language?: string;
+		keywords?: string[];
+		'on:heatmapGenerated'?: (data: HeatmapData) => void;
+	}
+
+	// Props with default values
+	let { content = '', language = 'en', keywords = [], 'on:heatmapGenerated': onHeatmapGenerated = () => {} }: Props = $props();
+
+	let heatmapData = $state<Array<{ word: string; heatLevel: number; isKeyword: boolean }>>([]);
+	let keywordDensity = $state<Record<string, number>>({});
+	let debounceTimer = $state<number | undefined>();
 
 	async function generateHeatmap() {
 		if (!content) {
 			heatmapData = [];
 			keywordDensity = {};
-			dispatch('heatmapGenerated', { heatmapData, keywordDensity });
+			onHeatmapGenerated({ heatmapData, keywordDensity });
 			return;
 		}
 
@@ -41,7 +43,7 @@
 		}));
 
 		analyzeKeywordDensity(words);
-		dispatch('heatmapGenerated', { heatmapData, keywordDensity });
+		onHeatmapGenerated({ heatmapData, keywordDensity });
 		await tick();
 	}
 
@@ -67,15 +69,23 @@
 
 	function analyzeKeywordDensity(words: string[]) {
 		const totalWords = words.length;
-		keywordDensity = keywords.reduce(
-			(acc, keyword) => {
-				const count = words.filter((word) => word.toLowerCase() === keyword.toLowerCase()).length;
-				acc[keyword] = (count / totalWords) * 100;
-				return acc;
-			},
-			{} as { [key: string]: number }
-		);
+		const result: Record<string, number> = {};
+
+		for (const keyword of keywords) {
+			const count = words.filter((word) => word.toLowerCase() === keyword.toLowerCase()).length;
+			result[keyword] = (count / totalWords) * 100;
+		}
+
+		keywordDensity = result;
 	}
+
+	// Effect to handle content changes with debounce
+	$effect.root(() => {
+		clearTimeout(debounceTimer);
+		debounceTimer = window.setTimeout(() => {
+			generateHeatmap();
+		}, 300);
+	});
 </script>
 
 <div class="heatmap-content">

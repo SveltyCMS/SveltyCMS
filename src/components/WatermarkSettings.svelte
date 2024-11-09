@@ -12,12 +12,23 @@ Usage:
 -->
 
 <script lang="ts">
-	// Export props for external binding
-	export let size = '100%';
-	export let opacity = 1;
-	export let positionX = 0;
-	export let positionY = 0;
-	export let rotation = 0;
+	
+	interface Props {
+		// Export props for external binding
+		size?: string;
+		opacity?: number;
+		positionX?: number;
+		positionY?: number;
+		rotation?: number;
+	}
+
+	let {
+		size = $bindable('100%'),
+		opacity = $bindable(1),
+		positionX = $bindable(0),
+		positionY = $bindable(0),
+		rotation = $bindable(0)
+	}: Props = $props();
 
 	// Handle size input change
 	function handleSizeChange(event: Event) {
@@ -58,7 +69,7 @@ Usage:
 			id="size"
 			type="text"
 			bind:value={size}
-			on:input={handleSizeChange}
+			oninput={handleSizeChange}
 			placeholder="e.g., 100px or 50%"
 			aria-label="Watermark size"
 		/>
@@ -73,7 +84,7 @@ Usage:
 			max="1"
 			step="0.1"
 			bind:value={opacity}
-			on:input={handleOpacityChange}
+			oninput={handleOpacityChange}
 			aria-label="Watermark opacity"
 		/>
 	</div>
@@ -84,7 +95,7 @@ Usage:
 			id="positionX"
 			type="number"
 			bind:value={positionX}
-			on:input={handlePositionXChange}
+			oninput={handlePositionXChange}
 			aria-label="Watermark horizontal position"
 		/>
 	</div>
@@ -95,7 +106,7 @@ Usage:
 			id="positionY"
 			type="number"
 			bind:value={positionY}
-			on:input={handlePositionYChange}
+			oninput={handlePositionYChange}
 			aria-label="Watermark vertical position"
 		/>
 	</div>
@@ -106,7 +117,7 @@ Usage:
 			id="rotation"
 			type="number"
 			bind:value={rotation}
-			on:input={handleRotationChange}
+			oninput={handleRotationChange}
 			aria-label="Watermark rotation in degrees"
 		/>
 	</div>

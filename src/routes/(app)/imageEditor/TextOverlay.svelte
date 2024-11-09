@@ -7,23 +7,26 @@
 
 <script lang="ts">
 	import Konva from 'konva';
-	import { createEventDispatcher, onMount } from 'svelte';
 
-	export let stage: Konva.Stage;
-	export let layer: Konva.Layer;
-	export let imageNode: Konva.Image;
+	interface Props {
+		stage: Konva.Stage;
+		layer: Konva.Layer;
+		imageNode: Konva.Image;
+		'on:exitTextOverlay'?: () => void;
+	}
 
-	let text = '';
-	let fontSize = 24;
-	let textColor = '#ffffff';
-	let fontFamily = 'Arial';
-	let textAlign = 'left';
-	let fontStyle = 'normal';
-	let selectedText: Konva.Text | null = null;
+	let { stage, layer, imageNode, 'on:exitTextOverlay': onExitTextOverlay = () => {} }: Props = $props();
 
-	const dispatch = createEventDispatcher();
+	let text = $state('');
+	let fontSize = $state(24);
+	let textColor = $state('#ffffff');
+	let fontFamily = $state('Arial');
+	let textAlign = $state('left');
+	let fontStyle = $state('normal');
+	let selectedText: Konva.Text | null = $state(null);
 
-	onMount(() => {
+	// Initialize stage event listeners
+	$effect.root(() => {
 		stage.on('click', (e) => {
 			if (e.target instanceof Konva.Text) {
 				selectText(e.target);
@@ -31,6 +34,11 @@
 				deselectText();
 			}
 		});
+
+		// Cleanup function
+		return () => {
+			stage.off('click');
+		};
 	});
 
 	function addText() {
@@ -142,7 +150,7 @@
 	}
 
 	function exitTextOverlay() {
-		dispatch('exitTextOverlay');
+		onExitTextOverlay();
 	}
 </script>
 
@@ -150,14 +158,14 @@
 <div class="wrapper">
 	<h3 class=" relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Text Overlay</h3>
 
-	<button on:click={exitTextOverlay} class="variant-ghost-primary btn-icon absolute -top-2 right-2 font-bold"> Exit </button>
+	<button onclick={exitTextOverlay} class="variant-ghost-primary btn-icon absolute -top-2 right-2 font-bold"> Exit </button>
 
-	<input type="text" bind:value={text} on:keydown={(e) => e.key === 'Enter' && addText()} placeholder="Enter text" class="input" />
+	<input type="text" bind:value={text} onkeydown={(e) => e.key === 'Enter' && addText()} placeholder="Enter text" class="input" />
 
 	<div class="flex items-center justify-between space-x-2">
-		<input type="number" bind:value={fontSize} on:input={updateSelectedText} min="8" max="72" class="input w-16" />
-		<input type="color" bind:value={textColor} on:input={updateSelectedText} class="h-8 w-8" />
-		<select bind:value={fontFamily} on:change={updateSelectedText} class="input select">
+		<input type="number" bind:value={fontSize} oninput={updateSelectedText} min="8" max="72" class="input w-16" />
+		<input type="color" bind:value={textColor} oninput={updateSelectedText} class="h-8 w-8" />
+		<select bind:value={fontFamily} onchange={updateSelectedText} class="input select">
 			<option value="Arial">Arial</option>
 			<option value="Helvetica">Helvetica</option>
 			<option value="Times New Roman">Times New Roman</option>
@@ -165,12 +173,12 @@
 		</select>
 	</div>
 	<div class="flex items-center justify-between space-x-2">
-		<select bind:value={textAlign} on:change={updateSelectedText} class="input select">
+		<select bind:value={textAlign} onchange={updateSelectedText} class="input select">
 			<option value="left">Left</option>
 			<option value="center">Center</option>
 			<option value="right">Right</option>
 		</select>
-		<select bind:value={fontStyle} on:change={updateSelectedText} class="input select">
+		<select bind:value={fontStyle} onchange={updateSelectedText} class="input select">
 			<option value="normal">Normal</option>
 			<option value="bold">Bold</option>
 			<option value="italic">Italic</option>
@@ -178,8 +186,8 @@
 		</select>
 	</div>
 	<div class="flex justify-between space-x-2">
-		<button on:click={deleteSelectedText} class="variant-filled-error btn" disabled={!selectedText}> Delete Selected </button>
-		<button on:click={resetTextOverlay} class="variant-outline btn"> Reset </button>
-		<button on:click={addText} class="variant-filled-primary btn"> Add Text </button>
+		<button onclick={deleteSelectedText} class="variant-filled-error btn" disabled={!selectedText}> Delete Selected </button>
+		<button onclick={resetTextOverlay} class="variant-outline btn"> Reset </button>
+		<button onclick={addText} class="variant-filled-primary btn"> Add Text </button>
 	</div>
 </div>

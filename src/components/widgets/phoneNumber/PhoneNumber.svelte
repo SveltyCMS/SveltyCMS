@@ -16,17 +16,15 @@
 	// Valibot validation
 	import { string, regex, pipe, parse, type ValiError, nonEmpty } from 'valibot';
 
-	export let field: FieldType;
 
 	const fieldName = getFieldName(field);
-	export let value = $collectionValue[fieldName] || {};
 
-	const _data = $mode === 'create' ? {} : value;
+	const _data = $state($mode === 'create' ? {} : value);
 	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
 
-	let validationError: string | null = null;
+	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
-	let inputElement: HTMLInputElement | null = null;
+	let inputElement: HTMLInputElement | null = $state(null);
 
 	// Create validation schema for phone number
 	const phoneSchema = pipe(string(), regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format, must be a valid international number'));
@@ -70,6 +68,12 @@
 
 	// Focus management
 	import { onMount, onDestroy } from 'svelte';
+	interface Props {
+		field: FieldType;
+		value?: any;
+	}
+
+	let { field, value = $collectionValue[fieldName] || {} }: Props = $props();
 
 	onMount(() => {
 		if (field?.required && !_data[_language]) {
@@ -90,7 +94,7 @@
 			type="tel"
 			bind:this={inputElement}
 			bind:value={_data[_language]}
-			on:blur={validateInput}
+			onblur={validateInput}
 			name={field?.db_fieldName}
 			id={field?.db_fieldName}
 			placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}

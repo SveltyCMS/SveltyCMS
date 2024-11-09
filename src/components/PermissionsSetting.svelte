@@ -7,20 +7,22 @@ Features:
 - Permission presets
 -->
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import { roles } from '@root/config/roles';
 	import { PermissionAction } from '@src/auth/permissionTypes';
 	import { getToastStore } from '@skeletonlabs/skeleton';
 
-	const dispatch = createEventDispatcher();
 	const toastStore = getToastStore();
 
-	// Props
-	export let permissions: Record<string, Record<PermissionAction, boolean>> = {};
+	interface Props {
+		permissions?: Record<string, Record<PermissionAction, boolean>>;
+		'on:update'?: (permissions: Record<string, Record<PermissionAction, boolean>>) => void;
+	}
+
+	let { permissions = {}, 'on:update': onUpdate = () => {} }: Props = $props();
 
 	// Local state
-	let error: string | null = null;
-	let searchQuery = '';
+	let error: string | null = $state(null);
+	let searchQuery = $state('');
 
 	// Convert permissions object to include all roles with default values
 	function initializePermissions() {
@@ -45,7 +47,7 @@ Features:
 		return initializedPermissions;
 	}
 
-	let permissionsState = initializePermissions();
+	let permissionsState = $state(initializePermissions());
 
 	// Function to toggle permission
 	function togglePermission(roleId: string, action: PermissionAction) {
@@ -75,7 +77,7 @@ Features:
 			return acc;
 		}, {});
 
-		dispatch('update', cleanedPermissions);
+		onUpdate(cleanedPermissions);
 	}
 
 	// Show toast messages
@@ -93,7 +95,7 @@ Features:
 	}
 
 	// Filter roles based on search
-	$: filteredRoles = roles.filter((role) => role.name.toLowerCase().includes(searchQuery.toLowerCase()));
+	let filteredRoles = $derived(roles.filter((role) => role.name.toLowerCase().includes(searchQuery.toLowerCase())));
 
 	// Icons for different permission actions
 	const actionIcons = {
@@ -111,7 +113,7 @@ Features:
 {#if error}
 	<div class="p-4 text-center text-error-500" role="alert">
 		<p>Error: {error}</p>
-		<button on:click={() => (error = null)} class="variant-filled-primary btn mt-2">Dismiss</button>
+		<button onclick={() => (error = null)} class="variant-filled-primary btn mt-2">Dismiss</button>
 	</div>
 {:else}
 	<div class="flex flex-col gap-4">
@@ -127,7 +129,7 @@ Features:
 						{#each Object.values(PermissionAction) as action}
 							<th scope="col" class="px-4 py-2">
 								<div class="flex items-center justify-center gap-2">
-									<iconify-icon icon={actionIcons[action]} width="18" />
+									<iconify-icon icon={actionIcons[action]} width="18"></iconify-icon>
 									{action}
 								</div>
 							</th>
@@ -151,12 +153,12 @@ Features:
 							{#each Object.values(PermissionAction) as action}
 								<td class="px-4 py-2">
 									<button
-										on:click={() => togglePermission(role._id, action)}
-										class={`btn ${permissionsState[role._id]?.[action] ? 'variant-filled-success' : 'variant-filled-error'}`}
+										onclick={() => togglePermission(role._id, action)}
 										disabled={role.isAdmin}
 										aria-label={`${permissionsState[role._id]?.[action] ? 'Disable' : 'Enable'} ${action} for ${role.name}`}
+										class={`btn ${permissionsState[role._id]?.[action] ? 'variant-filled-success' : 'variant-filled-error'}`}
 									>
-										<iconify-icon icon={actionIcons[action]} width="18" />
+										<iconify-icon icon={actionIcons[action]} width="18"></iconify-icon>
 									</button>
 								</td>
 							{/each}

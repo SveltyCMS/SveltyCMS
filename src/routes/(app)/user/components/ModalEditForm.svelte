@@ -9,8 +9,7 @@
 	import { invalidateAll } from '$app/navigation';
 
 	// Props
-	/** Exposes parent props to this component. */
-	export let parent: any;
+	
 
 	// Skelton & Stores
 	import { getModalStore } from '@skeletonlabs/skeleton';
@@ -44,30 +43,43 @@
 
 	const isFirstUser = $page.data.isFirstUser;
 
-	export let isGivenData: boolean = false;
-	export let username: string | null = null;
-	export let email: string | null = null;
-	export let role: string | null = null;
-	export let user_id: string | null = null;
+	interface Props {
+		/** Exposes parent props to this component. */
+		parent: any;
+		isGivenData?: boolean;
+		username?: string | null;
+		email?: string | null;
+		role?: string | null;
+		user_id?: string | null;
+	}
+
+	let {
+		parent,
+		isGivenData = false,
+		username = null,
+		email = null,
+		role = null,
+		user_id = null
+	}: Props = $props();
 
 	// Form Data Initialization
-	const formData = {
+	const formData = $state({
 		user_id: isGivenData ? user_id : user?._id,
 		username: isGivenData ? (username ?? '') : (user?.username ?? ''),
 		email: isGivenData ? (email ?? '') : (user?.email ?? ''),
 		password: '',
 		confirmPassword: '',
 		role: isGivenData ? (role ?? '') : (user?.role ?? '')
-	};
+	});
 
-	let showPassword = false;
+	let showPassword = $state(false);
 
-	const errorStatus = {
+	const errorStatus = $state({
 		username: { status: false, msg: '' },
 		email: { status: false, msg: '' },
 		password: { status: false, msg: '' },
 		confirm: { status: false, msg: '' }
-	};
+	});
 
 	// Check if user is editing their own profile
 	const isOwnProfile = user_id === user?._id || !isGivenData;
@@ -99,7 +111,7 @@
 	const cHeader = 'text-2xl font-bold';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 
-	let formElement: HTMLFormElement;
+	let formElement: HTMLFormElement = $state();
 
 	async function deleteUser() {
 		const formData = new FormData(formElement);
@@ -126,7 +138,7 @@
 		<form class="modal-form {cForm}" bind:this={formElement} id="change_user_form">
 			<!-- Username field -->
 			<div class="group relative z-0 mb-6 w-full">
-				<iconify-icon icon="mdi:user-circle" width="18" class="absolute left-0 top-3.5 text-gray-400" />
+				<iconify-icon icon="mdi:user-circle" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
 				<FloatingInput
 					type="text"
 					name="username"
@@ -147,7 +159,7 @@
 			{#if isGivenData ? role : user?.role === 'admin'}
 				<!-- Email field -->
 				<div class="group relative z-0 mb-6 w-full">
-					<iconify-icon icon="mdi:email" width="18" class="absolute left-0 top-3.5 text-gray-400" />
+					<iconify-icon icon="mdi:email" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
 					<FloatingInput
 						type="email"
 						name="email"
@@ -166,7 +178,7 @@
 			{:else}
 				<!-- only show email but normal user cant change it -->
 				<div class="group relative z-0 mb-6 w-full">
-					<iconify-icon icon="mdi:email" width="18" class="absolute left-0 top-3.5 text-gray-400" />
+					<iconify-icon icon="mdi:email" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
 					<FloatingInput
 						type="email"
 						name="email"
@@ -189,7 +201,7 @@
 			{#if isOwnProfile}
 				<!-- Password field -->
 				<div class="group relative z-0 mb-6 w-full">
-					<iconify-icon icon="mdi:password" width="18" class="absolute left-0 top-3.5 text-gray-400" />
+					<iconify-icon icon="mdi:password" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
 					{#if showPassword}
 						<FloatingInput
 							type="text"
@@ -212,11 +224,11 @@
 						/>
 					{/if}
 
-					<button type="button" class="absolute right-2 top-2" on:click={() => (showPassword = !showPassword)}>
+					<button type="button" class="absolute right-2 top-2" onclick={() => (showPassword = !showPassword)}>
 						{#if showPassword}
-							<iconify-icon icon="bi:eye-fill" color="base" width="24" />
+							<iconify-icon icon="bi:eye-fill" color="base" width="24"></iconify-icon>
 						{:else}
-							<iconify-icon icon="bi:eye-slash-fill" class="text-surface-500" width="24" />
+							<iconify-icon icon="bi:eye-slash-fill" class="text-surface-500" width="24"></iconify-icon>
 						{/if}
 					</button>
 
@@ -229,7 +241,7 @@
 
 				<!-- Password Confirm -->
 				<div class="group relative z-0 mb-6 w-full">
-					<iconify-icon icon="mdi:password" width="18" class="absolute left-0 top-3.5 text-gray-400" />
+					<iconify-icon icon="mdi:password" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
 
 					{#if showPassword}
 						<FloatingInput
@@ -253,11 +265,11 @@
 						/>
 					{/if}
 
-					<button type="button" class="absolute right-2 top-2" on:click={() => (showPassword = !showPassword)}>
+					<button type="button" class="absolute right-2 top-2" onclick={() => (showPassword = !showPassword)}>
 						{#if showPassword}
-							<iconify-icon icon="bi:eye-fill" color="base" width="24" />
+							<iconify-icon icon="bi:eye-fill" color="base" width="24"></iconify-icon>
 						{:else}
-							<iconify-icon icon="bi:eye-slash-fill" class="text-surface-500" width="24" />
+							<iconify-icon icon="bi:eye-slash-fill" class="text-surface-500" width="24"></iconify-icon>
 						{/if}
 					</button>
 
@@ -280,13 +292,13 @@
 									<button
 										type="button"
 										class="chip {isRoleActive(role._id) ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
-										on:click={() => {
+										onclick={() => {
 											formData.role = role._id;
 											console.log('Selected Role:', formData.role);
 										}}
 									>
 										{#if isRoleActive(role._id)}
-											<span><iconify-icon icon="fa:check" /></span>
+											<span><iconify-icon icon="fa:check"></iconify-icon></span>
 										{/if}
 										<span class="capitalize">{role.name}</span>
 									</button>
@@ -304,11 +316,11 @@
 				{#if isFirstUser}
 					<button
 						type="button"
-						on:click={deleteUser}
+						onclick={deleteUser}
 						class="variant-filled-error btn"
 						disabled={!isFirstUser && (!isGivenData || user._id == user_id)}
 					>
-						<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.button_delete()}</span>
+						<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon><span class="hidden sm:block">{m.button_delete()}</span>
 					</button>
 				{:else}
 					<div></div>
@@ -317,9 +329,9 @@
 
 				<div class="flex justify-between gap-4">
 					<!-- Cancel -->
-					<button type="button" class="variant-outline-secondary btn" on:click={() => parent.onClose()}>{m.button_cancel()}</button>
+					<button type="button" class="variant-outline-secondary btn" onclick={() => parent.onClose()}>{m.button_cancel()}</button>
 					<!-- Save -->
-					<button type="submit" class="variant-filled-tertiary btn btn dark:variant-filled-primary {parent.buttonPositive}" on:click={onFormSubmit}
+					<button type="submit" class="variant-filled-tertiary btn btn dark:variant-filled-primary {parent.buttonPositive}" onclick={onFormSubmit}
 						>{m.button_save()}</button
 					>
 				</div>

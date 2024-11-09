@@ -1,22 +1,33 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
-
 	// Color Picker
 	import ColorPicker, { ChromeVariant } from 'svelte-awesome-color-picker';
 
-	export let color = '';
-	export let show = false;
-	export let key = '';
-	export let active = '';
+	interface Props {
+		color?: string;
+		show?: boolean;
+		key?: string;
+		active?: string;
+		onChange?: (color: string) => void;
+	}
 
-	let expanded = false;
-	const dispatch = createEventDispatcher();
-	let header: HTMLDivElement;
+	let { color = $bindable(''), show = false, key = '', active = $bindable(''), onChange }: Props = $props();
 
-	$: key != active && (expanded = false);
-	$: dispatch('change', color);
+	let expanded = $state(false);
+	let header = $state<HTMLDivElement | null>(null);
+
+	$effect(() => {
+		if (key !== active) {
+			expanded = false;
+		}
+	});
+
+	$effect(() => {
+		onChange?.(color);
+	});
 
 	function setPosition(node: HTMLDivElement) {
+		if (!header) return;
+
 		const parent = header.parentElement as HTMLElement;
 		const left_pos = header.getBoundingClientRect().left - parent.getBoundingClientRect().left;
 		if (left_pos + node.offsetWidth > parent.offsetWidth) {
@@ -25,10 +36,15 @@
 			node.style.left = left_pos < 0 ? '0' : left_pos + 'px';
 		}
 	}
+
+	function handleClick() {
+		expanded = !expanded;
+		active = key;
+	}
 </script>
 
 <div class="wrapper" class:hidden={!show} bind:this={header}>
-	<button class="selected arrow" class:arrow_up={expanded} on:click={() => (expanded = !expanded)}>
+	<button type="button" onclick={handleClick} aria-label="Select color" class="selected arrow" class:arrow_up={expanded}>
 		<iconify-icon icon="fluent-mdl2:color-solid" width="20"></iconify-icon>
 	</button>
 	{#if expanded}
@@ -58,13 +74,10 @@
 	}
 	.pallette {
 		position: fixed;
-
 		top: 100%;
-
 		padding: 10px;
 		margin-top: 10px;
 		cursor: pointer;
-
 		display: flex;
 		flex-direction: column;
 		align-items: start;

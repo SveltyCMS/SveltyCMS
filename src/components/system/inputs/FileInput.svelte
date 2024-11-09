@@ -1,12 +1,9 @@
-<!-- 
-@file src/components/system/inputs/FileInput.svelte
-@description Component for file input
--->
+<!-- @file src/components/system/inputs/FileInput.svelte -->
+<!-- @description Component for file input with improved Svelte 5 compatibility -->
 
 <script lang="ts">
 	import { asAny } from '@utils/utils';
 	import type { MediaImage } from '@utils/media/mediaModels';
-	import { createEventDispatcher } from 'svelte';
 	import { twMerge } from 'tailwind-merge';
 
 	// Component
@@ -15,51 +12,87 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	export let value: File | MediaImage | undefined = undefined;
-	export let multiple = false;
-	export let show = true;
-	export const closeButton = false;
+	// Props
+	interface Props {
+		value?: File | MediaImage;
+		multiple?: boolean;
+		show?: boolean;
+		className?: string;
+		onChange?: (value: File | MediaImage) => void;
+	}
 
-	const ev = createEventDispatcher();
-	let input: HTMLInputElement;
-	let showMedia = false;
+	let { value = undefined, multiple = false, show = true, className = '', onChange }: Props = $props();
 
-	let mediaOnSelect = (data: MediaImage) => {
+	let input = $state<HTMLInputElement | null>(null);
+	let showMedia = $state(false);
+
+	let mediaOnSelect = $state((data: MediaImage) => {
 		show = false;
 		showMedia = false;
 		value = data;
-		ev('change', value);
-	};
+		onChange?.(value);
+	});
 
-	const onChange = () => {
-		if (input.files?.length == 0) return;
-		value = input.files?.[0] as File;
+	function handleMediaSelect(data: MediaImage) {
 		show = false;
-		ev('change', value);
-	};
+		showMedia = false;
+		value = data;
+		onChange?.(value);
+	}
+
+	function handleFileChange() {
+		if (!input?.files || input.files.length === 0) return;
+		const file = input.files[0];
+		value = file;
+		show = false;
+		onChange?.(value);
+	}
+
+	function handleDrop(e: DragEvent) {
+		e.preventDefault();
+		const file = e?.dataTransfer?.files[0];
+		if (file) {
+			value = file;
+			onChange?.(value);
+		}
+	}
+
+	function handleDragOver(e: DragEvent) {
+		e.preventDefault();
+		const target = e.target as HTMLElement;
+		target.style.borderColor = '#6bdfff';
+	}
+
+	function handleDragLeave(e: DragEvent) {
+		e.preventDefault();
+		const target = e.target as HTMLElement;
+		target.style.removeProperty('border-color');
+	}
+
+	function openFileInput() {
+		input?.click();
+	}
+
+	function toggleMedia(show: boolean) {
+		showMedia = show;
+	}
 </script>
 
 {#if show}
 	<!-- Upload Dropzone -->
 	<div
-		on:drop|preventDefault={(e) => {
-			value = e?.dataTransfer?.files[0];
-		}}
-		on:dragover|preventDefault={(e) => {
-			asAny(e.target).style.borderColor = '#6bdfff';
-		}}
-		on:dragleave|preventDefault={(e) => {
-			asAny(e.target).style.removeProperty('border-color');
-		}}
+		ondrop={handleDrop}
+		ondragover={handleDragOver}
+		ondragleave={handleDragLeave}
 		role="cell"
 		tabindex="0"
 		class={twMerge(
 			'relative mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700',
-			$$props.class
+			className
 		)}
 	>
 		<div class="grid grid-cols-6 items-center p-4">
-			<iconify-icon icon="fa6-solid:file-arrow-up" width="40" />
+			<iconify-icon icon="fa6-solid:file-arrow-up" width="40"></iconify-icon>
 
 			<div class="col-span-5">
 				{#if !show}
@@ -75,35 +108,28 @@
 				{/if}
 				<p class="text-sm opacity-75">{m.widget_ImageUpload_Allowed()}.</p>
 
-				<!-- TODO: Change according to type -->
-
-				<!-- {#if types == 'image'}
-					<p class="text-sm opacity-75">only image allowed</p>
-				{:else if types == 'video'}
-					<p class="text-sm opacity-75">only video allowed,</p>
-				{:else if types == 'audio'}
-					<p class="text-sm opacity-75">only audio allowed,</p>
-				{:else if types == 'document'}
-					<p class="text-sm opacity-75">only document allowed</p>
-				{/if} -->
-
 				<div class="flex w-full justify-center gap-2">
-					<button on:click={() => input.click()} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary"
-						>{m.widget_ImageUpload_BrowseNew()}</button
+					<button
+						onclick={openFileInput}
+						aria-label={m.widget_ImageUpload_BrowseNew()}
+						class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary"
 					>
-					<!-- {#if showMedia} -->
-					<button on:click={() => (showMedia = true)} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary">
+						{m.widget_ImageUpload_BrowseNew()}
+					</button>
+
+					<button
+						onclick={() => toggleMedia(true)}
+						aria-label={m.widget_ImageUpload_SelectMedia()}
+						class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary"
+					>
 						{m.widget_ImageUpload_SelectMedia()}
 					</button>
-					<!-- {/if} -->
 				</div>
-				<!-- File Size Limit -->
-				<!-- <p class="mt- 2 text-sm text-tertiary-500 dark:text-primary-500">Max File Size: {sizelimit}</p> -->
 			</div>
 		</div>
 
 		<!-- File Input -->
-		<input bind:this={input} type="file" accept="image/*,image/webp,image/avif,image/svg+xml" hidden {multiple} on:change={onChange} />
+		<input bind:this={input} type="file" accept="image/*,image/webp,image/avif,image/svg+xml" hidden {multiple} onchange={handleFileChange} />
 	</div>
 
 	<!-- Show existing Media Images -->
@@ -113,11 +139,11 @@
 		>
 			<div class="bg-surface-100-800-token flex items-center justify-between border-b p-2">
 				<p class="ml-auto font-bold text-black dark:text-primary-500">{m.widget_ImageUpload_SelectImage()}</p>
-				<button on:click={() => (showMedia = false)} class="variant-ghost-secondary btn-icon ml-auto">
-					<iconify-icon icon="material-symbols:close" width="24" class="text-tertiary-500 dark:text-primary-500" />
+				<button onclick={() => toggleMedia(false)} aria-label="Close" class="variant-ghost-secondary btn-icon ml-auto">
+					<iconify-icon icon="material-symbols:close" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 				</button>
 			</div>
-			<Media bind:onselect={mediaOnSelect} />
+			<Media onselect={handleMediaSelect} />
 		</div>
 	{/if}
 {/if}

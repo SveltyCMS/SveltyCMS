@@ -1,135 +1,84 @@
+<!--
+@file: /src/components/Dropdown.svelte
+@description: A customizable dropdown component that allows selection from a list of items. It supports custom styling, item modification, and an optional icon.
+-->
+
 <script lang="ts">
-	export let icon = '';
-	export let label = '';
-	export let show = false;
-	export let active = '';
-	export let key: string;
-	export let items: {
-		name: string;
-		icon?: string;
-		onClick: () => void;
-		active: () => boolean;
-	}[] = [];
-	$: key != active && (expanded = false);
-	$: selected = items.filter((item) => item.active())[0];
+	import { twMerge } from 'tailwind-merge';
 
-	let expanded = false;
-	let header: HTMLButtonElement;
+	// Define props using $props
+	let {
+		items, // Array of selectable items
+		selected = items[0], // Currently selected item, default to first item
+		label = '', // Optional label for the dropdown
+		modifier = (input: any) => input, // Function to modify how items are displayed
+		icon = undefined, // Optional icon for the dropdown
+		class: className = '', // Custom class for the dropdown container
+		show = true, // Whether to show the dropdown
+		active = $bindable('') // Currently active dropdown
+	} = $props<{
+		items: any[];
+		selected?: any;
+		label?: string;
+		modifier?: (input: any) => any;
+		icon?: string | undefined;
+		class?: string;
+		show?: boolean;
+		active?: string;
+	}>();
 
-	function setPosition(node: HTMLDivElement) {
-		if (!header) return;
+	// State for dropdown expansion and selected item
+	let expanded = $state(false);
+	let currentSelected = $state(selected);
 
-		const parent = header.parentElement as HTMLElement;
-		if (!parent) return;
+	// Derived state for filtered items
+	let filteredItems = $derived(items.filter((item) => item !== currentSelected));
 
-		node.style.minWidth = `${header.offsetWidth}px`;
-		const left_pos = header.getBoundingClientRect().left - parent.getBoundingClientRect().left;
-		if (left_pos + node.offsetWidth > parent.offsetWidth) {
-			node.style.right = '0';
-		} else {
-			node.style.left = left_pos < 0 ? '0' : `${left_pos}px`;
-		}
+	// Toggle dropdown expansion
+	function toggleExpanded() {
+		expanded = !expanded;
 	}
+
+	// Handle item selection
+	function selectItem(item: any) {
+		currentSelected = item;
+		expanded = false;
+	}
+
+	// Effect to update currentSelected when the selected prop changes
+	$effect(() => {
+		currentSelected = selected;
+	});
 </script>
 
-<button
-	class="wrapper"
-	bind:this={header}
-	class:hidden={!show}
-	on:click={() => {
-		expanded = !expanded;
-		active = key;
-	}}
->
-	<button class="selected arrow" class:arrow_up={expanded}>
-		<iconify-icon icon={icon || selected?.icon} width="20"></iconify-icon>
-
-		<p class="max-w-[80px] overflow-hidden whitespace-nowrap">{selected ? selected.name : label}</p>
+<!-- Dropdown container -->
+<div class={twMerge('overflow-hidden bg-surface-500', className)} class:hidden={!show}>
+	<!-- Dropdown button -->
+	<button
+		onclick={toggleExpanded}
+		class="variant-filled-tertiary btn dark:variant-ghost-primary"
+		aria-label="Toggle Dropdown"
+		class:selected={expanded}
+	>
+		{currentSelected || label}
 	</button>
+</div>
 
-	<!-- Dropdown menu -->
-	{#if expanded}
-		<div class="items" use:setPosition>
-			<!-- DropDown list -->
-			{#each items as item}
-				<button
-					class="flex items-center gap-[5px]"
-					on:click|stopPropagation={() => {
-						item.onClick();
-						expanded = false;
-					}}
-					class:active={item.active}
-				>
-					<iconify-icon icon={item.icon} width="20"></iconify-icon>
-					{item.name}
-				</button>
-			{/each}
-		</div>
-	{/if}
-</button>
+<!-- Dropdown content -->
+{#if expanded}
+	<!-- Dropdown header -->
+	<div class="mb-3 border-b text-center text-tertiary-500 dark:text-primary-500">Choose your Widget</div>
 
-<style lang="postcss">
-	.selected {
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		gap: 5px;
-		text-wrap: nowrap;
-		text-overflow: ellipsis ' [..]';
-	}
-	.wrapper {
-		z-index: 10;
-		position: relative;
-		width: 150px;
-		box-shadow: 0px 0px 3px 0px #3e1717;
-		padding: 10px;
-		cursor: pointer;
-		border-radius: 4px;
-	}
-
-	.arrow::after {
-		content: '';
-		transform: translateY(-50%);
-		border: solid #6b6b6b;
-		border-width: 0 3px 3px 0;
-		display: inline-block;
-		padding: 3px;
-		transform: rotate(45deg);
-		margin-right: 10px;
-		transition: transform 0.1s ease-in;
-		margin-left: auto;
-	}
-
-	.arrow_up::after {
-		transform: rotate(225deg);
-	}
-
-	.items {
-		position: absolute;
-		top: 100%;
-		margin-top: 5px;
-		background: var(--color-surface-500);
-		border-radius: 4px;
-		box-shadow: 0px 0px 3px 0px #3e1717;
-		display: flex;
-		flex-direction: column;
-		gap: 5px;
-		padding: 10px;
-		z-index: 20;
-	}
-
-	.items button {
-		padding: 5px;
-		border-radius: 4px;
-		transition: background-color 0.2s ease-in-out;
-	}
-
-	.items button:hover {
-		background-color: var(--color-surface-600);
-	}
-
-	.items button.active {
-		background-color: var(--color-primary-500);
-		color: white;
-	}
-</style>
+	<!-- Dropdown items -->
+	<div class="flex flex-wrap items-center justify-center gap-2">
+		{#each filteredItems as item}
+			<button
+				onclick={() => selectItem(item)}
+				class="variant-filled-warning btn relative hover:variant-filled-secondary dark:variant-outline-warning"
+				aria-label={modifier(item)}
+			>
+				<span class="text-surface-700 dark:text-white">{modifier(item)}</span>
+			</button>
+		{/each}
+	</div>
+{/if}

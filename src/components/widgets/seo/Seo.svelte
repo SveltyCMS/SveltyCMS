@@ -1,7 +1,6 @@
 <!-- 
 @file src/components/widgets/seo/Seo.svelte
 @description - SEO widget for managing meta title, description, and robots meta tags
-
 -->
 
 <script lang="ts">
@@ -27,63 +26,70 @@
 	import RobotsMetaInput from './RobotsMetaInput.svelte';
 	import SeoPreview from './SeoPreview.svelte';
 
-	export let field;
-	const fieldName = getFieldName(field);
-	export let value = $collectionValue[fieldName] || {};
+	interface Props {
+		field: any;
+		value?: any;
+	}
 
 	interface Suggestion {
 		text: string;
 		impact: number;
 	}
 
-	const _data = $mode === 'create' ? {} : value;
+	let { field, value = {} }: Props = $props();
 
-	let _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
+	const fieldName = getFieldName(field);
+	value = value || $collectionValue[fieldName] || {};
 
-	// Initialize _data for the current language if not exists
-	if (!_data[_language]) {
-		_data[_language] = {};
-	}
+	// State variables
+	let _data = $state($mode === 'create' ? {} : value);
+	let _language = $state(field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE);
+	let title = $state('');
+	let description = $state('');
+	let robotsMeta = $state('index, follow');
+	let titleCharacterWidth = $state(0);
+	let descriptionCharacterWidth = $state(0);
+	let SeoPreviewToggle = $state(false);
+	let progress = $state(0);
+	let suggestions = $state<Suggestion[]>([]);
+	let hostUrl = $state('');
+	let showHeatmap = $state(false);
+	let seoKeywords = $state<string[]>([]);
+	let validationError = $state<string | null>(null);
+	let score = $state(0);
 
-	// Initialize title, description, and robotsMeta from _data with defaults
-	let title = _data[_language].title || '';
-	let description = _data[_language].description || '';
-	let robotsMeta = _data[_language].robotsMeta || 'index, follow';
+	// Initialize data structure
+	$effect(() => {
+		if (!_data[_language]) {
+			_data[_language] = {};
+		}
+		title = _data[_language].title || '';
+		description = _data[_language].description || '';
+		robotsMeta = _data[_language].robotsMeta || 'index, follow';
+	});
 
-	let titleCharacterWidth = 0;
-	let descriptionCharacterWidth = 0;
-	let SeoPreviewToggle: boolean = false;
-	let score = 0;
-	let progress = 0;
-	let suggestions: Suggestion[] = [];
-	let hostUrl = '';
-	let showHeatmap: boolean = false;
-	let seoContent = '';
-	let seoKeywords: string[] = [];
-	let validationError: string | null = null;
+	// Update progress when score changes
+	$effect(() => {
+		progress = Math.round((score / (8 * 3)) * 100);
+	});
 
-	// Calculate SEO score progress
-	$: progress = Math.round((score / (8 * 3)) * 100);
-
-	// Update _data whenever title, description, or robotsMeta change
-	$: {
+	// Update _data when inputs change
+	$effect(() => {
 		_data[_language] = {
 			..._data[_language],
 			title,
 			description,
 			robotsMeta
 		};
-	}
-
-	// Update translation progress whenever _data changes
-	$: updateTranslationProgress(_data, field);
+		updateTranslationProgress(_data, field);
+	});
 
 	onMount(() => {
 		hostUrl = window.location.origin;
 	});
 
 	// Calculate text width for proper display
-	function calculateCharacterWidth(text: string, fontSize: number, fontFamily: string) {
+	function calculateCharacterWidth(text: string, fontSize: number, fontFamily: string): number {
 		const span = document.createElement('span');
 		span.style.fontSize = `${fontSize}px`;
 		span.style.fontFamily = fontFamily;
@@ -101,6 +107,7 @@
 		suggestions = analyze(title, description);
 		validateSeo();
 	}
+
 	// Handle description changes
 	function handleDescriptionChange(event: Event) {
 		description = (event.target as HTMLInputElement).value;
@@ -114,7 +121,7 @@
 		return [];
 	}
 
-	function validateSeo() {
+	function validateSeo(): boolean {
 		if (field?.required && (!title || !description)) {
 			validationError = 'Title and description are required';
 			validationStore.setError(fieldName, validationError);
@@ -125,7 +132,7 @@
 		return true;
 	}
 
-	function handleHeatmapGenerated(event: CustomEvent) {
+	function handleHeatmapGenerated(event: CustomEvent<{ heatmapData: any; keywordDensity: any }>) {
 		const { heatmapData, keywordDensity } = event.detail;
 		console.log('Heatmap data:', heatmapData);
 		console.log('Keyword density:', keywordDensity);
@@ -162,7 +169,7 @@
 		<RobotsMetaInput bind:value={robotsMeta} />
 	</div>
 
-	<button class="toggle-heatmap" on:click={toggleHeatmap}>
+	<button class="toggle-heatmap" onclick={toggleHeatmap}>
 		{showHeatmap ? 'Hide' : 'Show'} Heatmap
 	</button>
 
@@ -171,10 +178,9 @@
 			<h3>SEO Content Heatmap</h3>
 			<div class="input-group">
 				<label for="seo-keywords">Enter keywords (comma-separated):</label>
-				<input id="seo-keywords" type="text" on:input={handleKeywordsInput} placeholder="keyword1, keyword2, ..." />
+				<input id="seo-keywords" type="text" oninput={handleKeywordsInput} placeholder="keyword1, keyword2, ..." />
 			</div>
-			<!-- Corrected prop name to 'keywords' -->
-			<Heatmap content={seoContent} language={$contentLanguage} keywords={seoKeywords} on:heatmapGenerated={handleHeatmapGenerated} />
+			<Heatmap content={title + ' ' + description} language={$contentLanguage} keywords={seoKeywords} on:heatmapGenerated={handleHeatmapGenerated} />
 		</div>
 	{/if}
 
@@ -190,15 +196,15 @@
 			<div class="flex flex-col items-center justify-start text-xs sm:text-sm">
 				<div class="gap sm:flex sm:gap-4">
 					<div class="flex justify-center gap-2">
-						<iconify-icon icon="mdi:close-octagon" class="text-error-500" width="20" />
+						<iconify-icon icon="mdi:close-octagon" class="text-error-500" width="20"></iconify-icon>
 						<span class="flex-auto">0 - 49</span>
 					</div>
 					<div class="flex justify-center gap-2">
-						<span><iconify-icon icon="bi:hand-thumbs-up-fill" width="20" class="text-tertiary-500" /></span>
+						<span><iconify-icon icon="bi:hand-thumbs-up-fill" width="20" class="text-tertiary-500"></iconify-icon></span>
 						<span class="flex-auto">50 - 79</span>
 					</div>
 					<div class="flex justify-center gap-2">
-						<span><iconify-icon icon="material-symbols:check-circle-outline" class="text-success-500" width="20" /></span>
+						<span><iconify-icon icon="material-symbols:check-circle-outline" class="text-success-500" width="20"></iconify-icon></span>
 						<span class="flex-auto">80 - 100</span>
 					</div>
 				</div>
@@ -219,15 +225,15 @@
 				<div class="mb-2 flex items-center justify-between lg:justify-start lg:gap-5">
 					<h3 class="">{m.widget_seo_suggestionlist()}</h3>
 					<div class="flex items-center gap-2">
-						<iconify-icon icon="mdi:close-octagon" class="text-error-500" width="24" />
+						<iconify-icon icon="mdi:close-octagon" class="text-error-500" width="24"></iconify-icon>
 						<span class="flex-auto">0 - 49</span>
 					</div>
 					<div class="flex items-center gap-2">
-						<span><iconify-icon icon="bi:hand-thumbs-up-fill" width="24" class="text-tertiary-500" /></span>
+						<span><iconify-icon icon="bi:hand-thumbs-up-fill" width="24" class="text-tertiary-500"></iconify-icon></span>
 						<span class="flex-auto">50 - 79</span>
 					</div>
 					<div class="flex items-center gap-2">
-						<span><iconify-icon icon="material-symbols:check-circle-outline" class="text-success-500" width="24" /></span>
+						<span><iconify-icon icon="material-symbols:check-circle-outline" class="text-success-500" width="24"></iconify-icon></span>
 						<span class="flex-auto">80 - 100</span>
 					</div>
 				</div>
@@ -242,11 +248,11 @@
 			<li class="flex items-start p-1">
 				<div class="mr-4 flex-none">
 					{#if suggestion.impact === 3}
-						<iconify-icon icon="material-symbols:check-circle-outline" class="text-success-500" width="24" />
+						<iconify-icon icon="material-symbols:check-circle-outline" class="text-success-500" width="24"></iconify-icon>
 					{:else if suggestion.impact === 2}
-						<iconify-icon icon="bi:hand-thumbs-up-fill" width="24" class="text-tertiary-500" />
+						<iconify-icon icon="bi:hand-thumbs-up-fill" width="24" class="text-tertiary-500"></iconify-icon>
 					{:else}
-						<iconify-icon icon="mdi:close-octagon" class="text-error-500" width="24" />
+						<iconify-icon icon="mdi:close-octagon" class="text-error-500" width="24"></iconify-icon>
 					{/if}
 				</div>
 				<span class="flex-auto text-sm">{suggestion.text}</span>

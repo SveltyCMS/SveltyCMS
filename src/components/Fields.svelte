@@ -3,7 +3,7 @@
 @description: This component renders form fields for a collection, handles field editing,
 revision management, live preview, and API data display. 
 
-Features:
+Key features:
 - Dynamic field rendering based on collection schema
 - Tab-based interface for different views (Edit, Revision, Live Preview, API)
 - Real-time translation progress updates
@@ -14,7 +14,6 @@ Features:
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
-	import { onMount, afterUpdate } from 'svelte';
 	import { asAny, getFieldName, pascalToCamelCase } from '@utils/utils';
 
 	// Auth
@@ -30,59 +29,54 @@ Features:
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { TabGroup, Tab, CodeBlock, clipboard, getToastStore } from '@skeletonlabs/skeleton';
-	$: $tabSet = 0;
-
-	const toastStore = getToastStore();
+	import { TabGroup, Tab, CodeBlock, clipboard } from '@skeletonlabs/skeleton';
 
 	// Props
-	export let fields: typeof $collection.fields | undefined = undefined;
-	export let root = true; // if Fields is not part of any widget.
-	export let fieldsData: Record<string, any> = {};
-	export let customData: Record<string, any> = {};
+	interface Props {
+		fields?: NonNullable<typeof $collection>['fields'] | undefined;
+		root?: boolean;
+		fieldsData?: Record<string, any>;
+		customData?: Record<string, any>;
+		value?: any;
+	}
+
+	let { fields = undefined, root = true, fieldsData = $bindable({}), customData = {}, ...restProps }: Props = $props();
 
 	// Local state
-	let apiUrl = '';
-	let isLoading = true;
+	let apiUrl = $state('');
+	let isLoading = $state(true);
+
+	// Derived state
+	let derivedFields = $derived(fields || ($collection?.fields ?? []));
 
 	// Dynamic import of widget components
-	const modules = import.meta.glob('@components/widgets/*/*.svelte');
+	const modules: Record<string, { default: any }> = import.meta.glob('@components/widgets/*/*.svelte', { eager: true });
 
 	// Lifecycle
-	onMount(async () => {
+	$effect(() => {
 		isLoading = false;
 	});
 
-	afterUpdate(() => {
-		// logger.debug("afterUPdtdaed: ", `${JSON.stringify({"collectionValue": $collectionValue, fieldsData})}`);
+	$effect(() => {
 		if (root) collectionValue.set({ ...collectionValue, ...fieldsData });
 	});
 
 	// Reactive statements
-	$: if ($collectionValue) {
-		const id = $collectionValue._id;
-		// Convert $collection.name to a string if it's a symbol
-		apiUrl = `${dev ? 'http://localhost:5173' : publicEnv.SITE_NAME}/api/${String($collection.name)}/${id}`;
-	}
+	$effect(() => {
+		if ($collectionValue) {
+			const id = $collectionValue._id;
+			apiUrl = `${dev ? 'http://localhost:5173' : publicEnv.SITE_NAME}/api/${$collection?.name ?? ''}/${id}`;
+		}
+	});
 
-	function handleCopyUrl() {
-		navigator.clipboard.writeText(apiUrl).then(() => {
-			toastStore.trigger({
-				message: '<iconify-icon icon="ph:copy" color="white" width="24" class="mr-1"></iconify-icon> Copied to clipboard.',
-				background: 'gradient-primary',
-				timeout: 3000,
-				classes: 'border-1 !rounded-md'
-			});
-		});
-	}
-
+	// Functions and helpers
 	function handleRevert() {
 		// Implement revert logic
 		console.warn('Revert function not implemented');
 	}
 
 	function getTabHeaderVisibility() {
-		return user.roles !== 'admin' && !$collection.revision;
+		return user.roles !== 'admin' && !$collection?.revision;
 	}
 
 	function filterFieldsByPermission(fields: any[], userRole: string) {
@@ -94,18 +88,21 @@ Features:
 
 	function getLivePreviewContent() {
 		// Ensure $collection.name is a string
-		return `<div>Live Preview Content for ${String($collection.name)}</div>`;
+		return `<div>Live Preview Content for ${$collection?.name ?? ''}</div>`;
 	}
 
-	$: filteredFields = filterFieldsByPermission(fields || $collection.fields, user.role);
-	$: console.debug($translationProgress);
+	let filteredFields = $derived(filterFieldsByPermission(derivedFields, user.role));
+
+	$effect(() => {
+		console.debug($translationProgress);
+	});
 </script>
 
 {#if isLoading}
 	<div class="loading">Loading fields...</div>
 {:else}
 	<TabGroup
-		justify="{$collection.revision === true ? 'justify-between md:justify-around' : 'justify-center '} items-center"
+		justify="{$collection?.revision === true ? 'justify-between md:justify-around' : 'justify-center '} items-center"
 		rounded="rounded-tl-container-token rounded-tr-container-token"
 		flex="flex-1 items-center"
 		active="border-b border-tertiary-500 dark:border-primary-500 variant-soft-secondary"
@@ -115,24 +112,24 @@ Features:
 		<!-- Tab headers -->
 		<Tab bind:group={$tabSet} name="tab1" value={0}>
 			<div class="flex items-center gap-1">
-				<iconify-icon icon="mdi:pen" width="24" class="text-tertiary-500 dark:text-primary-500" />
+				<iconify-icon icon="mdi:pen" width="24" class="text-tertiary-500 dark:text-primary-500"> </iconify-icon>
 				<p>{m.fields_edit()}</p>
 			</div>
 		</Tab>
 
-		{#if $collection.revision === true}
+		{#if $collection?.revision === true}
 			<Tab bind:group={$tabSet} name="tab2" value={1}>
 				<div class="flex items-center gap-1">
-					<iconify-icon icon="pepicons-pop:countdown" width="24" class="text-tertiary-500 dark:text-primary-500" />
+					<iconify-icon icon="pepicons-pop:countdown" width="24" class="text-tertiary-500 dark:text-primary-500"> </iconify-icon>
 					<p>Ver. <span class="variant-outline-tertiary badge rounded-full dark:variant-outline-primary">1</span></p>
 				</div>
 			</Tab>
 		{/if}
 
-		{#if $collection.livePreview === true}
+		{#if $collection?.livePreview === true}
 			<Tab bind:group={$tabSet} name="tab3" value={2}>
 				<div class="flex items-center gap-1">
-					<iconify-icon icon="mdi:eye-outline" width="24" class="text-tertiary-500 dark:text-primary-500" />
+					<iconify-icon icon="mdi:eye-outline" width="24" class="text-tertiary-500 dark:text-primary-500"> </iconify-icon>
 					<p>Preview</p>
 				</div>
 			</Tab>
@@ -141,7 +138,7 @@ Features:
 		{#if user.roles === 'admin'}
 			<Tab bind:group={$tabSet} name="tab4" value={3}>
 				<div class="flex items-center gap-1">
-					<iconify-icon icon="ant-design:api-outlined" width="24" class="text-tertiary-500 dark:text-primary-500" />
+					<iconify-icon icon="ant-design:api-outlined" width="24" class="text-tertiary-500 dark:text-primary-500"> </iconify-icon>
 					<p>API</p>
 				</div>
 			</Tab>
@@ -169,12 +166,12 @@ Features:
 										<div class="flex gap-2">
 											{#if field.translated}
 												<div class="flex items-center gap-1 px-2">
-													<iconify-icon icon="bi:translate" color="dark" width="18" class="text-sm" />
-													<div class="text-sm font-bold text-error-500">
+													<iconify-icon icon="bi:translate" color="dark" width="18" class="text-sm"> </iconify-icon>
+													<div class="text-xs font-normal text-error-500">
 														{$contentLanguage?.toUpperCase() ?? 'EN'}
 													</div>
 													<!-- Display translation progress -->
-													<div class="text-sm">
+													<div class="text-xs font-normal">
 														({Math.round(
 															($translationProgress[$contentLanguage]?.translated.has(`${$collection?.name}.${getFieldName(field)}`) ? 1 : 0) * 100
 														)}%)
@@ -183,26 +180,22 @@ Features:
 											{/if}
 
 											{#if field.icon}
-												<iconify-icon icon={field.icon} color="dark" width="22" />
+												<iconify-icon icon={field.icon} color="dark" width="22"> </iconify-icon>
 											{/if}
 										</div>
 									</div>
 
 									<!-- Widget Input -->
-									{#await modules[`/src/components/widgets/${pascalToCamelCase(field.widget.Name)}/${field.widget.Name}.svelte`]() then widget}
-										<svelte:component
-											this={asAny(widget).default}
-											field={asAny(field)}
-											bind:WidgetData={fieldsData[getFieldName(field)]}
-											bind:value={customData[getFieldName(field)]}
-											{...$$props}
-										/>
-
-										<!-- Display validation error below the widget if any
-										{#if $validationStore[getFieldName(field)]}
-											<p class="text-center text-sm text-error-500">{$validationStore[getFieldName(field)]}</p>
-										{/if} -->
-									{/await}
+									{#if field.widget}
+										{@const widgetPath = `/src/components/widgets/${pascalToCamelCase(field.widget.Name)}/${field.widget.Name}.svelte`}
+										{@const WidgetComponent = modules[widgetPath]?.default}
+										{#if WidgetComponent}
+											<!-- Using dynamic component directly without svelte:component in runes mode -->
+											<WidgetComponent {field} bind:WidgetData={fieldsData[getFieldName(field)]} bind:value={customData[getFieldName(field)]} />
+										{:else}
+											<p>Widget not found: {field.widget.Name}</p>
+										{/if}
+									{/if}
 								</div>
 							{/if}
 						{/each}
@@ -212,7 +205,7 @@ Features:
 				<!-- Revision tab content -->
 				<div class="mb-2 flex items-center justify-between gap-2">
 					<p class="text-center text-tertiary-500 dark:text-primary-500">{m.fields_revision_compare()}</p>
-					<button class="variant-outline-tertiary btn dark:variant-ghost-primary" on:click={handleRevert}>{m.fields_revision_revert()}</button>
+					<button class="variant-outline-tertiary btn dark:variant-ghost-primary" onclick={handleRevert}>{m.fields_revision_revert()}</button>
 				</div>
 				<select class="select mb-2">
 					<option value="1">{m.fields_revision_most_recent()}</option>
@@ -249,7 +242,7 @@ Features:
 						/>
 					</div>
 				</div>
-			{:else if $tabSet === 2 && $collection.livePreview === true}
+			{:else if $tabSet === 2 && $collection?.livePreview === true}
 				<!-- Live Preview tab content -->
 				<div class="wrapper">
 					<h2 class="mb-4 text-center text-xl font-bold text-tertiary-500 dark:text-primary-500">Live Preview</h2>
@@ -263,13 +256,11 @@ Features:
 					<div class="variant-ghost-error mb-4 py-2 text-center font-bold">{m.fields_api_nodata()}</div>
 				{:else}
 					<div class="wrapper relative z-0 mb-4 flex w-full items-center justify-start gap-1">
-						<!-- label -->
 						<p class="flex items-center">
 							<span class="mr-1">API URL:</span>
-							<iconify-icon icon="ph:copy" on:click={handleCopyUrl} class="pb- cursor-pointer text-tertiary-500 dark:text-primary-500" />
+							<iconify-icon icon="ph:copy" use:clipboard={apiUrl} class="pb-6 text-tertiary-500 dark:text-primary-500"> </iconify-icon>
 						</p>
-						<!-- Url -->
-						<button class="btn text-wrap text-left" on:click={() => window.open(apiUrl, '_blank')} title={apiUrl}>
+						<button class="btn text-wrap text-left" onclick={() => window.open(apiUrl, '_blank')} title={apiUrl}>
 							<span class="text-wrap text-tertiary-500 dark:text-primary-500">{apiUrl}</span>
 						</button>
 					</div>

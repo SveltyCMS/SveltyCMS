@@ -1,54 +1,61 @@
 /**
  * @file src/stores/themeStore.ts
- * @description Simplified theme store that interfaces with ThemeManager via API calls.
+ * @description Theme store using Svelte 5 Runes with reactive state management
  *
- * This module provides:
- * - A writable store for the current theme
- * - Initialization of the theme from the server
- * - Updating the theme through API interactions
+ * This module provides a centralized store for managing the application's theme.
+ * It utilizes Svelte 5 Runes for reactive state management and handles theme
+ * initialization and updates through API calls.
  *
- * @requires svelte/store - For creating and managing Svelte stores
+ * Features:
+ * - Reactive theme state management using Svelte 5 Runes
+ * - Asynchronous theme initialization from server
+ * - Theme updating with server synchronization
+ * - Error handling for API calls
+ * - TypeScript support with custom Theme type
  *
- * @exports theme - A writable store holding the current theme object
- * @exports initializeThemeStore - Function to initialize the theme store with server data
- * @exports updateTheme - Function to update the theme via API call
+ * Usage:
+ * 1. Import the store and functions:
+ *    import { themeStore, initializeThemeStore, updateTheme } from './themeStore';
+ *
+ * 2. Initialize the theme store (typically in your app's entry point):
+ *    await initializeThemeStore();
+ *
+ * 3. Access the current theme reactively:
+ *    $: currentTheme = themeStore.currentTheme;
+ *
+ * 4. Update the theme:
+ *    await updateTheme('dark');
+ *
+ * Note: Ensure that the API endpoints ('/api/get-current-theme' and '/api/change-theme')
+ * are properly set up on your server to handle theme operations.
  */
 
-import { writable } from 'svelte/store';
-import type { Theme } from '@src/databases/dbInterface'; // Ensure the correct import path
+import type { Theme } from '@src/databases/dbInterface';
 
-// Create a writable store to hold the current theme
-export const theme = writable<Theme | null>(null);
+// Create a state object that contains the current theme
+export const themeStore = $state({
+	currentTheme: null as Theme | null
+});
 
-/**
- * Initializes the theme store by fetching the current theme from the server.
- * Should be called during the application's bootstrap process.
- */
+// Initializes the theme store by fetching the current theme from the server.
 export async function initializeThemeStore() {
 	try {
 		const response = await fetch('/api/get-current-theme');
 		if (response.ok) {
-			const currentTheme: Theme = await response.json();
-			theme.set(currentTheme);
+			themeStore.currentTheme = await response.json();
 		} else {
 			console.error('Failed to fetch the current theme:', response.statusText);
-			// Optionally, set a fallback theme
-			theme.set(null);
+			themeStore.currentTheme = null;
 		}
 	} catch (error) {
 		console.error('Error initializing theme store:', error);
-		// Optionally, set a fallback theme
-		theme.set(null);
+		themeStore.currentTheme = null;
 	}
 }
 
-/**
- * Updates the theme by sending a request to the server's ThemeManager.
- * @param themeName - The name of the theme to switch to
- */
+// Updates the theme by sending a request to the server's ThemeManager
 export async function updateTheme(themeName: string): Promise<void> {
 	try {
-		// Send a request to change the theme
 		const response = await fetch('/api/change-theme', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
@@ -58,23 +65,18 @@ export async function updateTheme(themeName: string): Promise<void> {
 		const result = await response.json();
 
 		if (result.success) {
-			// Fetch the updated theme from the server to ensure synchronization
 			const updatedThemeResponse = await fetch('/api/get-current-theme');
 			if (updatedThemeResponse.ok) {
-				const updatedTheme: Theme = await updatedThemeResponse.json();
-				theme.set(updatedTheme);
+				themeStore.currentTheme = await updatedThemeResponse.json();
 			} else {
 				console.warn('Failed to fetch the updated theme:', updatedThemeResponse.statusText);
-				// Optionally, set a fallback theme or handle accordingly
 			}
 		} else {
 			console.error('Failed to change theme:', result.error);
 			alert('Failed to change theme: ' + result.error);
-			// Optionally, handle the error (e.g., revert UI changes)
 		}
 	} catch (error) {
 		console.error('Error changing theme:', error);
 		alert('An error occurred while changing the theme.');
-		// Optionally, handle the error (e.g., revert UI changes)
 	}
 }

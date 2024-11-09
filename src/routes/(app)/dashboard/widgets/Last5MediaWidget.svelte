@@ -33,7 +33,7 @@ Usage:
 	}
 
 	// Define the type of the media array
-	let media: MediaSchema[] = [];
+	let media: MediaSchema[] = $state([]);
 
 	onMount(async () => {
 		const res = await fetch('/api/media');
@@ -41,7 +41,7 @@ Usage:
 		media = data.data;
 	});
 
-	export let label;
+	let { label } = $props();
 </script>
 
 <section>

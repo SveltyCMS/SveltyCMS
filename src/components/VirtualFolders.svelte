@@ -28,14 +28,18 @@ Usage:
 	// Toast notifications
 	const toastStore = getToastStore();
 
-	// Component props and state
-	export let currentFolder: { _id: string; name: string; path: string[] } | null = null;
+	interface Props {
+		// Component props and state
+		currentFolder?: { _id: string; name: string; path: string[] } | null;
+	}
+
+	let { currentFolder = null }: Props = $props();
 	let folders: Array<{
 		_id: string;
 		name: string;
 		path: string[];
 		parent?: string | null;
-	}> = [];
+	}> = $state([]);
 	let newFolderName = '';
 
 	// Determine if a folder is the root folder
@@ -193,20 +197,21 @@ Usage:
 	{#if $sidebarState.left === 'full'}
 		<!-- Sidebar Expanded -->
 		<button
+			onclick={returnToCollections}
+			aria-label="Return to Collections"
 			class="btn mt-1 flex w-full flex-row items-center justify-start bg-surface-400 py-2 pl-2 text-white dark:bg-surface-500"
-			on:click={returnToCollections}
 		>
-			<iconify-icon icon="mdi:folder-multiple-outline" width="24" class="px-2 py-1 text-primary-600 rtl:ml-2" />
+			<iconify-icon icon="mdi:folder-multiple-outline" width="24" class="px-2 py-1 text-primary-600 rtl:ml-2"></iconify-icon>
 			<p class="mr-auto text-center uppercase">Collections</p>
 		</button>
 	{:else}
 		<!-- Sidebar Collapsed -->
 		<button
+			onclick={returnToCollections}
 			aria-label="Return to Collections"
 			class="btn mt-2 flex-col bg-surface-400 uppercase text-white hover:!bg-surface-300 dark:bg-surface-500"
-			on:click={returnToCollections}
 		>
-			<iconify-icon icon="bi:collection" width="24" class="text-error-500" />
+			<iconify-icon icon="bi:collection" width="24" class="text-error-500"></iconify-icon>
 			<p class="text-xs uppercase text-white">Collections</p>
 		</button>
 	{/if}
@@ -218,8 +223,8 @@ Usage:
 				{#if $sidebarState.left === 'full'}
 					<!-- Sidebar Expanded -->
 					<div class="nowrap variant-outline-surface flex w-full">
-						<button on:click={() => openFolder(folder._id)} class="btn flex items-center space-x-2 p-2" aria-label={`Open folder: ${folder.name}`}>
-							<iconify-icon icon="mdi:folder" width="28" class="text-yellow-500" />
+						<button onclick={() => openFolder(folder._id)} aria-label={`Open folder: ${folder.name}`} class="btn flex items-center space-x-2 p-2">
+							<iconify-icon icon="mdi:folder" width="28" class="text-yellow-500"></iconify-icon>
 							<span class="flex-1 overflow-hidden text-ellipsis text-left text-sm">{folder.name}</span>
 						</button>
 					</div>
@@ -228,8 +233,8 @@ Usage:
 					<div
 						class="nowrap mt-2 flex w-full flex-col items-center rounded bg-surface-400 uppercase text-white hover:!bg-surface-300 dark:bg-surface-500"
 					>
-						<button on:click={() => openFolder(folder._id)} class="btn flex flex-col items-center p-2" aria-label={`Open folder: ${folder.name}`}>
-							<iconify-icon icon="mdi:folder" width="28" class="text-yellow-500" />
+						<button onclick={() => openFolder(folder._id)} aria-label={`Open folder: ${folder.name}`} class="btn flex flex-col items-center p-2">
+							<iconify-icon icon="mdi:folder" width="28" class="text-yellow-500"></iconify-icon>
 							<span class="text-xs">{folder.name}</span>
 						</button>
 					</div>

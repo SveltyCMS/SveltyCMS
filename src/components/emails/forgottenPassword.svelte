@@ -10,7 +10,6 @@
 	// Components
 	import SiteName from '@components/SiteName.svelte';
 
-	export let tokenLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD;
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -25,15 +24,27 @@
 		token: string;
 		expiresIn: string;
 	}
-	export let email: EmailProps['email'];
 
-	//TODO: send rest to domain? Token and delete used token
-	export let token: EmailProps['token'];
-	export let resetLink: EmailProps['resetLink'];
-	export let expiresIn: EmailProps['expiresIn'];
+	
 
 	// Readable ExpireIn time sec to year
 	import { ReadableExpireIn } from '@utils/utils';
+	interface Props {
+		tokenLink?: any;
+		email: EmailProps['email'];
+		//TODO: send rest to domain? Token and delete used token
+		token: EmailProps['token'];
+		resetLink: EmailProps['resetLink'];
+		expiresIn: EmailProps['expiresIn'];
+	}
+
+	let {
+		tokenLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD,
+		email,
+		token,
+		resetLink,
+		expiresIn
+	}: Props = $props();
 
 	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
 

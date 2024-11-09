@@ -6,23 +6,26 @@
 
 <script lang="ts">
 	import Konva from 'konva';
-	import { onMount, createEventDispatcher } from 'svelte';
 
-	export let stage: Konva.Stage;
-	export let layer: Konva.Layer;
-	export let imageNode: Konva.Image;
+	interface Props {
+		stage: Konva.Stage;
+		layer: Konva.Layer;
+		imageNode: Konva.Image;
+		'on:exitZoomResize'?: () => void;
+	}
 
-	let scale = 1;
-	let width = imageNode.width();
-	let height = imageNode.height();
+	let { stage, layer, imageNode, 'on:exitZoomResize': onExitZoomResize = () => {} } = $props() as Props;
+
+	let scale = $state(1);
+	let width = $state(imageNode.width());
+	let height = $state(imageNode.height());
 	let minScale = 0.1;
 	let maxScale = 5;
-	let maintainAspectRatio = true;
+	let maintainAspectRatio = $state(true);
 	let zoomSpeed = 0.1;
 
-	const dispatch = createEventDispatcher();
-
-	onMount(() => {
+	// Initialize stage event listeners
+	$effect.root(() => {
 		centerImage();
 
 		stage.on('wheel', (e) => {
@@ -35,6 +38,13 @@
 		});
 
 		stage.draggable(true);
+
+		// Cleanup function
+		return () => {
+			stage.off('wheel');
+			stage.off('dblclick');
+			stage.draggable(false);
+		};
 	});
 
 	function zoom(delta: number) {
@@ -104,7 +114,7 @@
 	}
 
 	function exitZoomResize() {
-		dispatch('exitZoomResize');
+		onExitZoomResize();
 	}
 </script>
 
@@ -112,10 +122,10 @@
 <div
 	class="variant-filled-surface btn-group btn-group absolute bottom-32 left-1/2 z-50 -translate-x-1/2 transform items-center space-x-4 rounded-full border p-2 opacity-90"
 >
-	<button class="btn-icon" on:click={() => zoom(-zoomSpeed)} aria-label="Zoom Out">-</button>
+	<button class="btn-icon" onclick={() => zoom(-zoomSpeed)} aria-label="Zoom Out">-</button>
 	<span class="min-w-[20px] text-center text-sm font-semibold text-tertiary-500 dark:text-primary-500">{Math.round(scale * 100)}%</span>
-	<button class="btn-icon" on:click={() => zoom(zoomSpeed)} aria-label="Zoom In">+</button>
-	<button class="btn rounded-none border-l border-surface-200" on:click={resetZoom} aria-label="Reset Zoom">Reset</button>
+	<button class="btn-icon" onclick={() => zoom(zoomSpeed)} aria-label="Zoom In">+</button>
+	<button class="btn rounded-none border-l border-surface-200" onclick={resetZoom} aria-label="Reset Zoom">Reset</button>
 </div>
 
 <!-- Resize and Exit Controls -->
@@ -123,11 +133,11 @@
 	<div class="flex items-center justify-around space-x-2">
 		<label class="label text-center">
 			Width:
-			<input type="number" bind:value={width} on:input={() => updateDimensions('width')} class=" input text-center" />
+			<input type="number" bind:value={width} oninput={() => updateDimensions('width')} class=" input text-center" />
 		</label>
 		<label class="label text-center">
 			Height:
-			<input type="number" bind:value={height} on:input={() => updateDimensions('height')} class="input text-center" />
+			<input type="number" bind:value={height} oninput={() => updateDimensions('height')} class="input text-center" />
 		</label>
 	</div>
 	<div class="flex items-center justify-around space-x-2">
@@ -137,7 +147,7 @@
 		</label>
 	</div>
 	<div class="mt-4 flex justify-between space-x-2">
-		<button on:click={resize} class="variant-filled-primary btn w-full">Apply Resize</button>
-		<button on:click={exitZoomResize} class="variant-outline btn w-full">Exit</button>
+		<button onclick={resize} class="variant-filled-primary btn w-full">Apply Resize</button>
+		<button onclick={exitZoomResize} class="variant-outline btn w-full">Exit</button>
 	</div>
 </div>

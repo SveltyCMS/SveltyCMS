@@ -15,6 +15,8 @@ Ensure that the necessary stores and utility functions are available.
 -->
 
 <script lang="ts">
+	import { preventDefault } from 'svelte/legacy';
+
 	import { page } from '$app/stores';
 	import { modifyEntry, selectedEntries, collectionValue, collection } from '@stores/collectionStore';
 	import { saveFormData } from '@utils/utils';
@@ -28,16 +30,21 @@ Ensure that the necessary stores and utility functions are available.
 	const modalStore = getModalStore();
 
 	// Props
-	/** Exposes parent props to this component. */
-	export let parent: any;
+	
+	interface Props {
+		/** Exposes parent props to this component. */
+		parent: any;
+	}
+
+	let { parent }: Props = $props();
 
 	const user: User = $page.data.user;
 
 	type ActionType = 'published' | 'unpublished' | 'deleted' | 'scheduled' | 'cloned' | 'testing';
 
-	let scheduleDate: string = '';
-	let action: ActionType = ($modalStore[0]?.meta?.initialAction as ActionType) || 'scheduled';
-	let errorMessage: string = '';
+	let scheduleDate: string = $state('');
+	let action: ActionType = $state(($modalStore[0]?.meta?.initialAction as ActionType) || 'scheduled');
+	let errorMessage: string = $state('');
 
 	const actionOptions: Array<{ value: ActionType; label: string }> = [
 		{ value: 'published', label: m.entrylist_multibutton_publish() },
@@ -45,7 +52,7 @@ Ensure that the necessary stores and utility functions are available.
 		{ value: 'deleted', label: m.button_delete() }
 	];
 
-	$: isFormValid = scheduleDate !== '' && action !== undefined;
+	let isFormValid = $derived(scheduleDate !== '' && action !== undefined);
 
 	function validateForm(): boolean {
 		if (!scheduleDate) {
@@ -127,7 +134,7 @@ Ensure that the necessary stores and utility functions are available.
 			{$modalStore[0]?.body ?? 'Select a date, time, and action to schedule for the selected entries.'}
 		</article>
 
-		<form class="modal-form {cForm}" on:submit|preventDefault={onFormSubmit}>
+		<form class="modal-form {cForm}" onsubmit={preventDefault(onFormSubmit)}>
 			<label class="label">
 				<span>Schedule Date and Time</span>
 				<input
@@ -155,10 +162,10 @@ Ensure that the necessary stores and utility functions are available.
 		</form>
 
 		<footer class="modal-footer {parent.regionFooter}">
-			<button type="button" class="btn {parent?.buttonNeutral}" on:click={parent?.onClose} aria-label="Cancel scheduling">
+			<button type="button" class="btn {parent?.buttonNeutral}" onclick={parent?.onClose} aria-label="Cancel scheduling">
 				{m.button_cancel()}
 			</button>
-			<button type="submit" class="btn {parent?.buttonPositive}" on:click={onFormSubmit} disabled={!isFormValid} aria-label="Save schedule">
+			<button type="submit" class="btn {parent?.buttonPositive}" onclick={onFormSubmit} disabled={!isFormValid} aria-label="Save schedule">
 				{m.button_save()}
 			</button>
 		</footer>

@@ -7,29 +7,33 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	export let title: string;
-	export let titleCharacterWidth: number;
-	export let handleTitleChange: (event: Event) => void;
+	interface Props {
+		title: string;
+		titleCharacterWidth: number;
+		handleTitleChange: (event: Event) => void;
+	}
+
+	let { title = $bindable(), titleCharacterWidth, handleTitleChange }: Props = $props();
 
 	// Compute class based on title length
-	$: computedClass =
-		title.length >= 50 && title.length <= 60
+	let computedClass =
+		$derived(title.length >= 50 && title.length <= 60
 			? 'input-label green'
 			: title.length >= 30 && title.length <= 49
 				? 'input-label orange'
 				: title.length < 30
 					? 'input-label'
-					: 'input-label red';
+					: 'input-label red');
 
 	// Compute status message based on title length
-	$: titleStatus =
-		title.length >= 50 && title.length <= 60
+	let titleStatus =
+		$derived(title.length >= 50 && title.length <= 60
 			? 'Optimal length'
 			: title.length >= 30 && title.length <= 49
 				? 'Length is acceptable'
 				: title.length < 30
 					? 'Too short'
-					: 'Too long';
+					: 'Too long');
 </script>
 
 <label for="title-input" class={computedClass}>
@@ -59,7 +63,7 @@
 	placeholder={m.widget_seo_suggestionseotitle()}
 	required
 	bind:value={title}
-	on:input={handleTitleChange}
+	oninput={handleTitleChange}
 	aria-describedby="title-status"
 />
 

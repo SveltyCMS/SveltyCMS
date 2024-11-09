@@ -31,7 +31,7 @@ It provides an interface for users to:
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	let roles = $page.data.roles;
+	let roles = $state($page.data.roles);
 	const isLoading = writable(false);
 
 	// Track the number of modified permissions
@@ -106,12 +106,12 @@ It provides an interface for users to:
 	<!-- Row 2 (on mobile): Save and Reset Buttons -->
 	<div class="lgd:mt-0 mt-2 flex items-center justify-center gap-4 lg:justify-end">
 		<!-- Save with changes -->
-		<button on:click={() => saveAllRoles()} aria-label="Save" class="variant-filled-tertiary btn" disabled={!$modifiedPermissions}>
+		<button onclick={() => saveAllRoles()} aria-label="Save" class="variant-filled-tertiary btn" disabled={!$modifiedPermissions}>
 			Save ({$modifiedCount})
 		</button>
 
 		<!-- Reset -->
-		<button on:click={resetChanges} aria-label="Reset" class="variant-filled-secondary btn" disabled={!$modifiedPermissions}> Reset </button>
+		<button onclick={resetChanges} aria-label="Reset" class="variant-filled-secondary btn" disabled={!$modifiedPermissions}> Reset </button>
 	</div>
 </div>
 
@@ -131,7 +131,7 @@ It provides an interface for users to:
 			<!-- User Permissions -->
 			<Tab bind:group={$tabSet} name="permissions" value={0}>
 				<div class="flex items-center gap-1">
-					<iconify-icon icon="mdi:shield-lock-outline" width="28" class="text-black dark:text-white" />
+					<iconify-icon icon="mdi:shield-lock-outline" width="28" class="text-black dark:text-white"></iconify-icon>
 					<span class={$tabSet === 0 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>{m.system_permission()}</span>
 				</div>
 			</Tab>
@@ -139,7 +139,7 @@ It provides an interface for users to:
 			<!-- User Roles -->
 			<Tab bind:group={$tabSet} name="roles" value={1}>
 				<div class="flex items-center gap-1">
-					<iconify-icon icon="mdi:account-group" width="28" class="text-black dark:text-white" />
+					<iconify-icon icon="mdi:account-group" width="28" class="text-black dark:text-white"></iconify-icon>
 					<span class={$tabSet === 1 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>{m.system_roles()}</span>
 				</div>
 			</Tab>
@@ -147,21 +147,23 @@ It provides an interface for users to:
 			<!-- Admin Role -->
 			<Tab bind:group={$tabSet} name="admin" value={2}>
 				<div class="flex items-center gap-1">
-					<iconify-icon icon="mdi:account-cog" width="28" class="text-black dark:text-white" />
+					<iconify-icon icon="mdi:account-cog" width="28" class="text-black dark:text-white"></iconify-icon>
 					<span class={$tabSet === 2 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>Admin</span>
 				</div>
 			</Tab>
 
 			<!-- Tab Panels -->
-			<svelte:fragment slot="panel">
-				{#if $tabSet === 0}
-					<Permissions roleData={roles} {setRoleData} {updateModifiedCount} />
-				{:else if $tabSet === 1}
-					<Roles roleData={roles} {setRoleData} {updateModifiedCount} />
-				{:else}
-					<AdminRole roleData={roles} {setRoleData} />
-				{/if}
-			</svelte:fragment>
+			{#snippet panel()}
+					
+					{#if $tabSet === 0}
+						<Permissions roleData={roles} {setRoleData} {updateModifiedCount} />
+					{:else if $tabSet === 1}
+						<Roles roleData={roles} {setRoleData} {updateModifiedCount} />
+					{:else}
+						<AdminRole roleData={roles} {setRoleData} />
+					{/if}
+				
+					{/snippet}
 		</TabGroup>
 	</div>
 {/if}

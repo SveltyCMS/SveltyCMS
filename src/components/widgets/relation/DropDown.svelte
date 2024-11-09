@@ -1,29 +1,45 @@
 <script lang="ts">
+	import { run, createBubbler } from 'svelte/legacy';
+
+	const bubble = createBubbler();
 	import type { FieldType } from '.';
 
 	// Stores
 	import { contentLanguage } from '@stores/store';
 	import { collection, collectionValue } from '@stores/collectionStore';
 
-	export let dropDownData: any[] = [];
-	export let selected: { display: any; _id: any } | undefined = undefined;
-	export let field: FieldType | undefined;
-	export let showDropDown = true;
+	interface Props {
+		dropDownData?: any[];
+		selected?: { display: any; _id: any } | undefined;
+		field: FieldType | undefined;
+		showDropDown?: boolean;
+	}
 
-	let search = '';
-	let options: Array<{ display: any; _id: any }> = [];
-	let filtered = options;
+	let {
+		dropDownData = [],
+		selected = $bindable(undefined),
+		field,
+		showDropDown = $bindable(true)
+	}: Props = $props();
+
+	let search = $state('');
+	let options: Array<{ display: any; _id: any }> = $state([]);
+	let filtered = $state(options);
 
 	console.log(dropDownData);
 
-	$: Promise.all(
-		dropDownData.map(async (item) => ({
-			display: await field?.display({ data: item, collection: $collection, field, entry: $collectionValue, contentLanguage: $contentLanguage }),
-			_id: item._id
-		}))
-	).then((res) => (options = res));
+	run(() => {
+		Promise.all(
+			dropDownData.map(async (item) => ({
+				display: await field?.display({ data: item, collection: $collection, field, entry: $collectionValue, contentLanguage: $contentLanguage }),
+				_id: item._id
+			}))
+		).then((res) => (options = res));
+	});
 
-	$: filtered = options.filter((item) => item.display.includes(search));
+	run(() => {
+		filtered = options.filter((item) => item.display.includes(search));
+	});
 </script>
 
 <input class="input w-full" placeholder="search..." bind:value={search} />
@@ -31,8 +47,8 @@
 <div class="overflow-auto">
 	{#each filtered as option}
 		<button
-			on:keydown
-			on:click={() => {
+			onkeydown={bubble('keydown')}
+			onclick={() => {
 				selected = option;
 				showDropDown = false;
 			}}

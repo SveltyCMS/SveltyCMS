@@ -4,7 +4,7 @@
 -->
 
 <script lang="ts">
-	import { theme, updateTheme } from '@stores/themeStore';
+	import { themeStore, updateTheme } from '@stores/themeStore';
 	import type { Theme } from '@src/databases/dbInterface';
 
 	// ParaglideJS
@@ -13,11 +13,11 @@
 	// Component
 	import PageTitle from '@components/PageTitle.svelte';
 
-	let selectedTheme: Theme | null = null;
-	let livePreviewTheme: Theme | null = null;
+	let selectedTheme = $state<Theme | null>(null);
+	let livePreviewTheme = $state<Theme | null>(null);
 
 	// This will hold the custom themes
-	let customThemes: Theme[] = [];
+	let customThemes = $state<Theme[]>([]);
 
 	// Load custom themes dynamically
 	loadCustomThemes();
@@ -32,27 +32,39 @@
 			name: key.split('/')[3],
 			path: value as string,
 			isDefault: false,
-			createdAt: Date.now(),
-			updatedAt: Date.now()
+			createdAt: new Date(),
+			updatedAt: new Date()
 		}));
 	}
 
 	// Combine default theme with dynamically loaded custom themes
-	$: themes = [
+	let themes = $derived([
 		{
 			_id: 'default-theme',
 			name: 'SveltyCMSTheme',
 			path: '/path/to/default/theme.css',
 			isDefault: true,
-			createdAt: Date.now(),
-			updatedAt: Date.now()
+			createdAt: new Date(),
+			updatedAt: new Date()
 		},
 		...customThemes
-	];
+	]);
 
-	// Reactions to theme changes
-	$: if (selectedTheme) updateTheme(selectedTheme.name);
-	$: if (livePreviewTheme) updateTheme(livePreviewTheme.name);
+	// Effects for theme changes
+	$effect.root(() => {
+		if (selectedTheme) updateTheme(selectedTheme.name);
+	});
+
+	$effect.root(() => {
+		if (livePreviewTheme) updateTheme(livePreviewTheme.name);
+	});
+
+	// Initialize selectedTheme with current theme
+	$effect.root(() => {
+		if (themeStore.currentTheme) {
+			selectedTheme = themeStore.currentTheme;
+		}
+	});
 
 	function applyTheme(theme: Theme) {
 		selectedTheme = theme;
@@ -80,7 +92,7 @@
 
 <div class="mb-4">
 	<label for="theme-select" class="mb-2 block font-bold">Current System Theme:</label>
-	<select id="theme-select" bind:value={selectedTheme} class="select" on:change={handleThemeChange}>
+	<select id="theme-select" bind:value={selectedTheme} class="select" onchange={handleThemeChange}>
 		{#each themes as theme (theme._id)}
 			<option value={theme}>{theme.name}</option>
 		{/each}
@@ -91,10 +103,10 @@
 	<h3 class="font-bold">Available Themes:</h3>
 	{#each customThemes as theme (theme._id)}
 		<button
-			on:mouseover={() => previewThemeChange(theme)}
-			on:focus={() => previewThemeChange(theme)}
-			on:mouseout={resetPreview}
-			on:blur={resetPreview}
+			onmouseover={() => previewThemeChange(theme)}
+			onfocus={() => previewThemeChange(theme)}
+			onmouseout={resetPreview}
+			onblur={resetPreview}
 			class="variant-outline-tertiary btn mt-2"
 		>
 			Preview {theme.name}
@@ -112,10 +124,10 @@
 		href="https://www.sveltyCMS.com"
 		target="_blank"
 		rel="noopener noreferrer"
-		class="variant-ghost-primary btn w-full gap-2 py-6"
 		aria-label={m.config_Martketplace()}
+		class="variant-ghost-primary btn w-full gap-2 py-6"
 	>
-		<iconify-icon icon="icon-park-outline:shopping-bag" width="28" class="text-white" />
+		<iconify-icon icon="icon-park-outline:shopping-bag" width="28" class="text-white"></iconify-icon>
 		<p class="uppercase">{m.config_Martketplace()}</p>
 	</a>
 {/if}

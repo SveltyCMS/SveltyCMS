@@ -4,19 +4,21 @@
 -->
 
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	export let title: string;
-	export let description: string;
-	export let hostUrl: string;
-	export let SeoPreviewToggle: boolean;
+	interface Props {
+		title: string;
+		description: string;
+		hostUrl: string;
+		SeoPreviewToggle: boolean;
+		'on:togglePreview'?: () => void;
+	}
 
-	const dispatch = createEventDispatcher();
+	let { title, description, hostUrl, SeoPreviewToggle, 'on:togglePreview': onTogglePreview = () => {} }: Props = $props();
 
 	function handleTogglePreview() {
-		dispatch('togglePreview');
+		onTogglePreview();
 	}
 </script>
 
@@ -27,18 +29,20 @@
 
 	<div class="absolute left-0 top-1 flex justify-between gap-2">
 		<button
-			on:click={handleTogglePreview}
+			onclick={handleTogglePreview}
+			aria-label="Preview"
 			class="{SeoPreviewToggle ? 'hidden' : 'block'} variant-filled-tertiary btn btn-sm flex items-center justify-center"
 		>
-			<iconify-icon icon="ion:desktop-outline" width="20" class="mr-1" />
+			<iconify-icon icon="ion:desktop-outline" width="20" class="mr-1"></iconify-icon>
 			{m.widget_seo_suggestionwidthdesktop()}
 		</button>
 
 		<button
-			on:click={handleTogglePreview}
+			onclick={handleTogglePreview}
+			aria-label="Preview"
 			class="{SeoPreviewToggle ? 'block' : 'hidden'} variant-filled-tertiary btn flex items-center justify-center"
 		>
-			<iconify-icon icon="bi:phone" width="18" class="mr-1" />
+			<iconify-icon icon="bi:phone" width="18" class="mr-1"></iconify-icon>
 			{m.widget_seo_suggestionwidthmobile()}
 		</button>
 	</div>
@@ -47,7 +51,7 @@
 		<!-- Mobile Preview -->
 		<div class="min-h-30 card variant-glass-secondary mx-auto mt-4 max-w-sm p-1 sm:p-2 md:p-4">
 			<p class="flex items-center !text-xs text-surface-400">
-				<iconify-icon icon="mdi:world" width="18" class="mr-2 text-white" />{hostUrl}
+				<iconify-icon icon="mdi:world" width="18" class="mr-2 text-white"></iconify-icon>{hostUrl}
 			</p>
 			<p class="text-sm !font-medium text-primary-500 sm:px-4">
 				{title}
@@ -60,7 +64,7 @@
 		<!-- Desktop Preview -->
 		<div class="card variant-glass-secondary mt-4 p-1 sm:p-2 md:p-4">
 			<p class="flex items-center !text-xs text-surface-400 sm:px-4">
-				<iconify-icon icon="mdi:world" width="18" class="mr-2 text-white" />{hostUrl}
+				<iconify-icon icon="mdi:world" width="18" class="mr-2 text-white"></iconify-icon>{hostUrl}
 			</p>
 			<p class="!font-medium text-primary-500 sm:px-4">
 				{title}

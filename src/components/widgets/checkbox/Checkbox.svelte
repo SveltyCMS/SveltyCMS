@@ -4,6 +4,7 @@
 -->
 
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
 	import { updateTranslationProgress, getFieldName } from '@utils/utils';
@@ -15,25 +16,30 @@
 	// Valibot validation
 	import { object, string, number, boolean, optional, minLength, pipe, parse, type InferInput, type ValiError } from 'valibot';
 
-	export let field: FieldType;
-
-	const fieldName = getFieldName(field);
-	export let value = $collectionValue[fieldName] || {};
-
-	const _data = $mode === 'create' ? {} : value;
-
-	$: _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
-	$: updateTranslationProgress(_data, field);
-
-	// Initialize the data structure if it doesn't exist
-	$: if (!_data[_language]) {
-		_data[_language] = { checked: false, label: '' };
+	interface Props {
+		field: FieldType;
+		value?: any;
 	}
 
-	let validationError: string | null = null;
+	let { field, value = {} }: Props = $props();
+
+	const fieldName = getFieldName(field);
+	value = value || $collectionValue[fieldName] || {};
+
+	let _data = $state($mode === 'create' ? {} : value);
+	let validationError = $state<string | null>(null);
 	let debounceTimeout: number | undefined;
 
-	export const WidgetData = async () => _data;
+	// Computed values
+	let _language = $derived(field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE);
+
+	// Initialize data structure and update translation progress
+	$effect(() => {
+		if (!_data[_language]) {
+			_data[_language] = { checked: false, label: '' };
+		}
+		updateTranslationProgress(_data, field);
+	});
 
 	// Define the validation schema for this widget
 	const labelSchema = pipe(string(), minLength(1, 'Label cannot be empty'));
@@ -75,6 +81,13 @@
 			validationError = validateSchema(_data[_language]);
 		}, 300);
 	}
+
+	// Cleanup on component destroy
+	onDestroy(() => {
+		if (debounceTimeout) clearTimeout(debounceTimeout);
+	});
+
+	export const WidgetData = async () => _data;
 </script>
 
 <div class="checkbox-container relative mb-4">
@@ -85,7 +98,7 @@
 			type="checkbox"
 			color={field.color}
 			bind:checked={_data[_language].checked}
-			on:input={validateInput}
+			oninput={validateInput}
 			class="h-[${field.size}] w-[${field.size}] mr-4 rounded"
 			class:error={!!validationError}
 			aria-label={field?.label || field?.db_fieldName}
@@ -98,7 +111,7 @@
 			type="text"
 			placeholder="Define Label"
 			bind:value={_data[_language].label}
-			on:input={validateInput}
+			oninput={validateInput}
 			class="input text-black dark:text-primary-500"
 			class:error={!!validationError}
 			aria-label="Checkbox Label"

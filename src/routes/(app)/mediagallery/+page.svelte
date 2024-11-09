@@ -7,7 +7,6 @@ Features:
 - Search for media files
 - Filter media files by type
 - Navigate through media files
-
 -->
 
 <script lang="ts">
@@ -404,13 +403,13 @@ Features:
 	<!-- Row 2 (on mobile): Save and Reset Buttons -->
 	<div class="lgd:mt-0 flex items-center justify-center gap-4 lg:justify-end">
 		<!-- Add folder -->
-		<button on:click={openAddFolderModal} class="variant-filled-tertiary btn gap-2" aria-label="Add folder">
+		<button onclick={openAddFolderModal} aria-label="Add folder" class="variant-filled-tertiary btn gap-2">
 			<iconify-icon icon="mdi:folder-add-outline" width="24"> </iconify-icon>
 			Add folder
 		</button>
 
 		<!-- Add Media -->
-		<button on:click={() => goto('/mediagallery/uploadMedia')} class="variant-filled-primary btn gap-2" aria-label="Add Media">
+		<button onclick={() => goto('/mediagallery/uploadMedia')} aria-label="Add Media" class="variant-filled-primary btn gap-2">
 			<iconify-icon icon="carbon:add-filled" width="24"> </iconify-icon>
 			Add Media
 		</button>
@@ -426,7 +425,7 @@ Features:
 		<div class="input-group input-group-divider grid max-w-md grid-cols-[auto_1fr_auto]">
 			<input id="globalSearch" type="text" placeholder="Search" class="input" bind:value={globalSearchValue} />
 			{#if globalSearchValue}
-				<button on:click={() => (globalSearchValue = '')} class="variant-filled-surface w-12" aria-label="Clear search">
+				<button onclick={() => (globalSearchValue = '')} aria-label="Clear search" class="variant-filled-surface w-12">
 					<iconify-icon icon="ic:outline-search-off" width="24"> </iconify-icon>
 				</button>
 			{/if}
@@ -438,10 +437,11 @@ Features:
 				<select id="mediaType" bind:value={selectedMediaType} class="input">
 					{#each mediaTypes as type}
 						<option value={type.value}>
-							<p class="flex items-center gap-2">
+							<!-- <p class="flex items-center gap-2">
 								<iconify-icon icon={type.icon} width="24" class="text-primary-500"> </iconify-icon>
 								<span class="uppercase">{type.value}</span>
-							</p>
+							</p> -->
+							<iconify-icon icon={type.icon} width="24" class="text-primary-500"> <span class="uppercase">{type.value}</span> </iconify-icon>
 						</option>
 					{/each}
 				</select>
@@ -449,7 +449,7 @@ Features:
 
 			<div class="flex flex-col text-center">
 				<label for="sortButton">Sort</label>
-				<button id="sortButton" class="variant-ghost-surface btn" aria-label="Sort">
+				<button id="sortButton" aria-label="Sort" class="variant-ghost-surface btn">
 					<iconify-icon icon="flowbite:sort-outline" width="24"> </iconify-icon>
 				</button>
 			</div>
@@ -459,12 +459,12 @@ Features:
 					<div class="flex sm:divide-x sm:divide-gray-500">
 						{#if view === 'grid'}
 							<button
-								on:click={() => {
+								onclick={() => {
 									view = 'table';
 									storeUserPreference(view, gridSize, tableSize);
 								}}
-								class="btn flex flex-col items-center justify-center px-1"
 								aria-label="table"
+								class="btn flex flex-col items-center justify-center px-1"
 							>
 								<p class="text-center text-xs">Display</p>
 								<iconify-icon icon="material-symbols:grid-view-rounded" height="42" style={`color: text-black dark:text-white`}> </iconify-icon>
@@ -472,12 +472,12 @@ Features:
 							</button>
 						{:else}
 							<button
-								on:click={() => {
+								onclick={() => {
 									view = 'grid';
 									storeUserPreference(view, gridSize, tableSize);
 								}}
-								class="btn flex flex-col items-center justify-center px-1"
 								aria-label="Grid"
+								class="btn flex flex-col items-center justify-center px-1"
 							>
 								<p class="text-center text-xs">Display</p>
 								<iconify-icon icon="material-symbols:list-alt-outline" height="44" style={`color: text-black dark:text-white`}> </iconify-icon>
@@ -490,18 +490,18 @@ Features:
 					<p class="text-xs">Size</p>
 					<div class="divide-surface-00 flex divide-x">
 						{#if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
-							<button on:click={handleClick} type="button" class="px-1" aria-label="Small">
+							<button onclick={handleClick} type="button" aria-label="Small" class="px-1">
 								<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40" style={`color:text-black dark:text-white`}>
 								</iconify-icon>
 								<p class="text-xs">Small</p>
 							</button>
 						{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
-							<button on:click={handleClick} type="button" class="px-1" aria-label="Medium">
+							<button onclick={handleClick} type="button" aria-label="Medium" class="px-1">
 								<iconify-icon icon="material-symbols:grid-on-sharp" height="40" style={`color: text-black dark:text-white`}> </iconify-icon>
 								<p class="text-xs">Medium</p>
 							</button>
 						{:else}
-							<button on:click={handleClick} type="button" class="px-1" aria-label="Large">
+							<button onclick={handleClick} type="button" aria-label="Large" class="px-1">
 								<iconify-icon icon="material-symbols:grid-view" height="40" style={`color: text-black dark:text-white`}> </iconify-icon>
 								<p class="text-xs">Large</p>
 							</button>
@@ -518,7 +518,7 @@ Features:
 			<div class="input-group input-group-divider grid max-w-md grid-cols-[auto_1fr_auto]">
 				<input bind:value={globalSearchValue} id="globalSearchMd" type="text" placeholder="Search" class="input" />
 				{#if globalSearchValue}
-					<button on:click={() => (globalSearchValue = '')} class="variant-filled-surface w-12" aria-label="Clear search">
+					<button onclick={() => (globalSearchValue = '')} class="variant-filled-surface w-12" aria-label="Clear search">
 						<iconify-icon icon="ic:outline-search-off" width="24"> </iconify-icon>
 					</button>
 				{/if}
@@ -531,10 +531,11 @@ Features:
 				<select id="mediaTypeMd" bind:value={selectedMediaType}>
 					{#each mediaTypes as type}
 						<option value={type.value}>
-							<p class="flex items-center justify-between gap-2">
+							<!-- <p class="flex items-center justify-between gap-2">
 								<iconify-icon icon={type.icon} width="24" class="mr-2 text-primary-500"> </iconify-icon>
 								<span class="uppercase">{type.value}</span>
-							</p>
+							</p> -->
+							<iconify-icon icon={type.icon} width="24" class="mr-2 text-primary-500"> <span class="uppercase">{type.value}</span></iconify-icon>
 						</option>
 					{/each}
 				</select>
@@ -553,7 +554,7 @@ Features:
 				Display
 				<div class="flex divide-x divide-gray-500">
 					<button
-						on:click={() => {
+						onclick={() => {
 							view = 'grid';
 							storeUserPreference(view, gridSize, tableSize);
 						}}
@@ -564,7 +565,7 @@ Features:
 						<br /> <span class="text-tertiary-500 dark:text-primary-500">Grid</span>
 					</button>
 					<button
-						on:click={() => {
+						onclick={() => {
 							view = 'table';
 							storeUserPreference(view, gridSize, tableSize);
 						}}
@@ -582,17 +583,17 @@ Features:
 				Size
 				<div class="flex divide-x divide-gray-500">
 					{#if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
-						<button on:click={handleClick} type="button" class="px-1 md:px-2" aria-label="Small">
+						<button onclick={handleClick} type="button" class="px-1 md:px-2" aria-label="Small">
 							<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40"> </iconify-icon>
 							<br /><span class="text-tertiary-500 dark:text-primary-500">Small</span>
 						</button>
 					{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
-						<button on:click={handleClick} type="button" class="px-1 md:px-2" aria-label="Medium">
+						<button onclick={handleClick} type="button" class="px-1 md:px-2" aria-label="Medium">
 							<iconify-icon icon="material-symbols:grid-on-sharp" height="40"> </iconify-icon>
 							<br /><span class="text-tertiary-500 dark:text-primary-500">Medium</span>
 						</button>
 					{:else}
-						<button on:click={handleClick} type="button" class="px-1 md:px-2" aria-label="Large">
+						<button onclick={handleClick} type="button" class="px-1 md:px-2" aria-label="Large">
 							<iconify-icon icon="material-symbols:grid-view" height="40"> </iconify-icon>
 							<br /><span class="text-tertiary-500 dark:text-primary-500">Large</span>
 						</button>

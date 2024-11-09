@@ -20,10 +20,15 @@ Usage
 		path: string[];
 	};
 
-	// Define props with proper typing
-	export let breadcrumb: string[];
-	export let openFolder: (folderId: string | null) => void;
-	export let folders: Folder[];
+	
+	interface Props {
+		// Define props with proper typing
+		breadcrumb: string[];
+		openFolder: (folderId: string | null) => void;
+		folders: Folder[];
+	}
+
+	let { breadcrumb, openFolder, folders }: Props = $props();
 
 	// Function to handle breadcrumb item click
 	function handleBreadcrumbClick(index: number) {
@@ -45,14 +50,14 @@ Usage
 			<li class="flex items-center">
 				<button
 					class="btn-sm flex items-center text-xs hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-					on:click={() => handleBreadcrumbClick(index)}
+					onclick={() => handleBreadcrumbClick(index)}
 					aria-current={index === breadcrumb.length - 1 ? 'page' : undefined}
 				>
 					{#if index === 0}
-						<iconify-icon icon="mdi:home" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true" />
+						<iconify-icon icon="mdi:home" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="ml-1">{crumb}</span>
 					{:else}
-						<iconify-icon icon="mdi:folder" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true" />
+						<iconify-icon icon="mdi:folder" width="18" class="text-tertiary-500 dark:text-primary-500" aria-hidden="true"></iconify-icon>
 						<span class="ml-1">{crumb}</span>
 					{/if}
 				</button>

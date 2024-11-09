@@ -9,6 +9,9 @@ Features:
 - Accurate success/failure feedback
 -->
 <script lang="ts">
+	import { run, createBubbler } from 'svelte/legacy';
+
+	const bubble = createBubbler();
 	import type { PageData } from '../$types';
 	import { page } from '$app/stores';
 	import { invalidateAll } from '$app/navigation';
@@ -23,8 +26,6 @@ Features:
 	// Components
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 
-	export let addUserForm: PageData['addUserForm'];
-	export let parent: any;
 
 	// Skeleton & Stores
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
@@ -46,6 +47,12 @@ Features:
 	import { superForm } from 'sveltekit-superforms/client';
 	import { valibot } from 'sveltekit-superforms/adapters';
 	import { addUserTokenSchema } from '@utils/formSchemas';
+	interface Props {
+		addUserForm: PageData['addUserForm'];
+		parent: any;
+	}
+
+	let { addUserForm = $bindable(), parent }: Props = $props();
 
 	const { form, allErrors, errors, enhance } = superForm(addUserForm as Record<string, unknown>, {
 		id: 'addUser',
@@ -94,9 +101,9 @@ Features:
 	});
 
 	// Define default role and token validity options
-	let roleSelected: string = roles[1]?._id || ''; // Ensure the correct type
-	let expiresIn = 2; // Set the default validity as number
-	let expiresInLabel = '2 hrs';
+	let roleSelected: string = $state(roles[1]?._id || ''); // Ensure the correct type
+	let expiresIn = $state(2); // Set the default validity as number
+	let expiresInLabel = $state('2 hrs');
 
 	// Define the validity options with proper number values
 	const validityOptions = [
@@ -107,11 +114,11 @@ Features:
 	];
 
 	// Update form values when selections change
-	$: {
+	run(() => {
 		$form.role = roleSelected;
 		$form.expiresIn = expiresIn;
 		$form.expiresInLabel = expiresInLabel;
-	}
+	});
 
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
@@ -160,7 +167,7 @@ Features:
 								<button
 									type="button"
 									class="chip {roleSelected === r._id ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
-									on:click={() => {
+									onclick={() => {
 										roleSelected = r._id;
 									}}
 									tabindex="0"
@@ -168,7 +175,7 @@ Features:
 									aria-pressed={roleSelected === r._id ? 'true' : 'false'}
 								>
 									{#if roleSelected === r._id}
-										<span><iconify-icon icon="fa:check" /></span>
+										<span><iconify-icon icon="fa:check"></iconify-icon></span>
 									{/if}
 									<span class="capitalize">{r.name}</span>
 								</button>
@@ -190,16 +197,16 @@ Features:
 						{#each validityOptions as option}
 							<span
 								class="chip {expiresIn === option.value ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
-								on:click={() => {
+								onclick={() => {
 									expiresIn = option.value;
 									expiresInLabel = option.label;
 								}}
-								on:keypress
+								onkeypress={bubble('keypress')}
 								role="button"
 								tabindex="0"
 							>
 								{#if expiresIn === option.value}
-									<span><iconify-icon icon="fa:check" /></span>
+									<span><iconify-icon icon="fa:check"></iconify-icon></span>
 								{/if}
 								<span class="capitalize">{option.label}</span>
 							</span>
@@ -216,7 +223,7 @@ Features:
 			<!-- Footer buttons -->
 			<footer class="flex items-center justify-between {parent.regionFooter}">
 				<!-- Cancel -->
-				<button on:click={parent.onClose} type="button" aria-label={m.button_cancel()} class="variant-outline-secondary btn">
+				<button onclick={parent.onClose} type="button" aria-label={m.button_cancel()} class="variant-outline-secondary btn">
 					{m.button_cancel()}
 				</button>
 				<!-- Send -->

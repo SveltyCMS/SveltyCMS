@@ -7,6 +7,7 @@
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
 	import { updateTranslationProgress, getFieldName } from '@utils/utils';
+	import { onMount, onDestroy } from 'svelte';
 
 	// Stores
 	import { contentLanguage, validationStore } from '@stores/store';
@@ -15,19 +16,28 @@
 	// Valibot validation
 	import { string, pipe, parse, type ValiError, nonEmpty } from 'valibot';
 
-	export let field: FieldType;
+	interface Props {
+		field: FieldType;
+		value?: any;
+	}
+
+	let { field, value = {} }: Props = $props();
 
 	const fieldName = getFieldName(field);
-	export let value = $collectionValue[fieldName] || {};
+	value = value || $collectionValue[fieldName] || {};
 
-	const _data = $mode === 'create' ? {} : value;
-
-	$: _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
-	$: updateTranslationProgress(_data, field);
-
-	let validationError: string | null = null;
+	let _data = $state($mode === 'create' ? {} : value);
+	let validationError = $state<string | null>(null);
 	let debounceTimeout: number | undefined;
-	let inputElement: HTMLInputElement | null = null;
+	let inputElement = $state<HTMLInputElement | null>(null);
+
+	// Computed values
+	let _language = $derived(field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE);
+
+	// Update translation progress when data or field changes
+	$effect(() => {
+		updateTranslationProgress(_data, field);
+	});
 
 	// Create validation schema for radio
 	const radioSchema = pipe(string(), nonEmpty('Selection is required'));
@@ -70,8 +80,6 @@
 	}
 
 	// Focus management and cleanup
-	import { onMount, onDestroy } from 'svelte';
-
 	onMount(() => {
 		if (field?.required && !_data[_language]) {
 			inputElement?.focus();
@@ -93,7 +101,7 @@
 			id={fieldName}
 			type="radio"
 			bind:value={_data.value}
-			on:blur={validateInput}
+			onblur={validateInput}
 			color={field.color}
 			required={field?.required}
 			class="input float-left mr-4 mt-1 h-4 w-4 cursor-pointer appearance-none rounded-full border border-surface-300 bg-white bg-contain bg-center bg-no-repeat align-top text-black transition duration-200 checked:border-tertiary-600 checked:bg-tertiary-600 focus:outline-none dark:text-white"
@@ -106,7 +114,7 @@
 		<input
 			type="text"
 			id={`label-${fieldName}`}
-			on:blur={validateInput}
+			onblur={validateInput}
 			placeholder="Define Label"
 			bind:value={_data[_language]}
 			required={field?.required}
