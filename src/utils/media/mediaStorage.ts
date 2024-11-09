@@ -14,7 +14,7 @@ import type sharp from 'sharp';
 import { setCache } from '@root/src/databases/redis';
 
 // Media type definitions
-import type { MediaRemoteVideo, MediaAccess, MediaImage, ResizedImage, Thumbnail } from './mediaModels';
+import type { MediaRemoteVideo, MediaAccess, MediaImage, ResizedImage } from './mediaModels';
 import { MediaTypeEnum, Permission } from './mediaModels';
 
 import { hashFileContent, getSanitizedFileName } from './mediaProcessing';
@@ -276,7 +276,7 @@ export async function saveResizedImages(
 }
 
 // Saves an avatar image to disk and database
-export async function saveAvatarImage(file: File, path: 'avatars' | string): Promise<string> {
+export async function saveAvatarImage(file: File): Promise<string> {
 	try {
 		const arrayBuffer = await file.arrayBuffer();
 		const buffer = Buffer.from(arrayBuffer);
@@ -285,57 +285,63 @@ export async function saveAvatarImage(file: File, path: 'avatars' | string): Pro
 		const existingFile = dbAdapter ? await dbAdapter.findOne('media_images', { hash }) : null;
 
 		if (existingFile) {
-			let fileUrl = `${publicEnv.MEDIA_FOLDER}/${existingFile.thumbnail.url}`;
+			let fileUrl = existingFile.thumbnail?.url;
 			if (publicEnv.MEDIASERVER_URL) {
 				fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`;
 			}
 			return fileUrl;
 		}
 
-		const { fileNameWithoutExt, ext } = getSanitizedFileName(file.name);
+		const { fileNameWithoutExt } = getSanitizedFileName(file.name);
 		const sanitizedBlobName = sanitize(fileNameWithoutExt);
-		const format =
-			ext === '.svg' ? 'svg' : publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format === 'original' ? ext : publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format;
 
-		const url = `media/images/${hash}-${sanitizedBlobName}${ext}`;
-		await saveFileToDisk(buffer, url);
+		// For avatars, we only create one AVIF thumbnail
+		const sharp = (await import('sharp')).default;
 
-		const resizedImages = await saveResizedImages(buffer, hash, sanitizedBlobName, path, format, 'avatars');
+		const resizedImage = await sharp(buffer)
+			.rotate()
+			.resize({ width: SIZES.thumbnail })
+			.toFormat('avif', {
+				quality: publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.quality,
+				effort: 9
+			})
+			.toBuffer({ resolveWithObject: true });
 
-		// Ensure we have a thumbnail
-		if (!resizedImages.thumbnail) {
-			throw new Error('Failed to generate thumbnail');
-		}
+		const thumbnailUrl = `avatars/original/${hash}-${sanitizedBlobName}thumbnail.avif`;
+		await saveFileToDisk(resizedImage.data, thumbnailUrl);
 
-		// Create thumbnails record with required sizes
-		const thumbnails: Record<keyof typeof publicEnv.IMAGE_SIZES, Thumbnail> = {
-			sm: resizedImages.sm || { url: '', width: 0, height: 0 },
-			md: resizedImages.md || { url: '', width: 0, height: 0 },
-			lg: resizedImages.lg || { url: '', width: 0, height: 0 }
+		const thumbnail = {
+			url: thumbnailUrl,
+			width: resizedImage.info.width,
+			height: resizedImage.info.height
 		};
 
 		const fileInfo: MediaImage = {
 			hash,
 			name: file.name,
-			path: 'media/images',
-			url,
+			path: 'avatars/original',
+			url: thumbnailUrl,
 			type: MediaTypeEnum.Image,
 			size: buffer.length,
-			mimeType: mime.lookup(url) || 'application/octet-stream',
+			mimeType: 'image/avif',
 			createdAt: new Date(Date.now()),
 			updatedAt: new Date(Date.now()),
 			versions: [
 				{
 					version: 1,
-					url,
+					url: thumbnailUrl,
 					createdAt: new Date(Date.now()),
 					createdBy: 'system'
 				}
 			],
-			thumbnail: resizedImages.thumbnail,
-			thumbnails,
-			width: 0,
-			height: 0,
+			thumbnail,
+			thumbnails: {
+				sm: thumbnail,
+				md: thumbnail,
+				lg: thumbnail
+			},
+			width: resizedImage.info.width,
+			height: resizedImage.info.height,
 			user: 'system',
 			access: {
 				permissions: [Permission.Read, Permission.Write]
@@ -347,7 +353,7 @@ export async function saveAvatarImage(file: File, path: 'avatars' | string): Pro
 		await dbAdapter.insertOne('media_images', fileInfo);
 
 		// Return the thumbnail URL for avatar usage
-		let fileUrl = `${publicEnv.MEDIA_FOLDER}/${resizedImages.thumbnail.url}`;
+		let fileUrl = thumbnailUrl;
 		if (publicEnv.MEDIASERVER_URL) {
 			fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`;
 		}

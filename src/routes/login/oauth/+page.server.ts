@@ -25,7 +25,7 @@ import { systemLanguage } from '@stores/store';
 
 // System Logger
 import { logger } from '@utils/logger';
-import { googleAuth } from '@src/auth/googleAuth';
+import { googleAuth, setCredentials } from '@src/auth/googleAuth';
 
 // Types
 interface GoogleUserInfo {
@@ -38,19 +38,25 @@ interface GoogleUserInfo {
 }
 
 // Generate Google OAuth URL
-async function generateGoogleAuthUrl(): Promise<string> {
+async function generateGoogleAuthUrl(token?: string | null): Promise<string> {
 	const googleAuthClient = await googleAuth();
 	if (!googleAuthClient) {
 		throw new Error('Google OAuth is not initialized');
 	}
 
 	const scopes = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'];
+	const baseUrl = `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`;
 
-	return googleAuthClient.generateAuthUrl({
+	const authUrl = googleAuthClient.generateAuthUrl({
 		access_type: 'offline',
 		scope: scopes.join(' '),
-		redirect_uri: `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`
+		redirect_uri: baseUrl,
+		state: token ? encodeURIComponent(token) : undefined, // Pass token in state parameter
+		prompt: 'consent'
 	});
+
+	logger.debug(`Generated OAuth URL: ${authUrl}`);
+	return authUrl;
 }
 
 // Send welcome email
@@ -82,7 +88,7 @@ async function fetchAndSaveGoogleAvatar(avatarUrl: string): Promise<string | nul
 		}
 		const blob = await response.blob();
 		const avatarFile = new File([blob], 'google-avatar.jpg', { type: 'image/jpeg' });
-		const savedUrl = await saveAvatarImage(avatarFile, 'avatars');
+		const savedUrl = await saveAvatarImage(avatarFile);
 
 		if (!savedUrl) {
 			throw new Error('Failed to save avatar image');
@@ -117,7 +123,13 @@ async function fetchAndRedirectToFirstCollection(): Promise<string> {
 }
 
 // Handle Google OAuth user data
-async function handleGoogleUser(googleUser: GoogleUserInfo, isFirst: boolean, cookies: Cookies, fetchFn: typeof fetch): Promise<void> {
+async function handleGoogleUser(
+	googleUser: GoogleUserInfo,
+	isFirst: boolean,
+	token: string | null,
+	cookies: Cookies,
+	fetchFn: typeof fetch
+): Promise<void> {
 	const email = googleUser.email;
 	if (!email) {
 		throw new Error('Google did not return an email address');
@@ -131,6 +143,19 @@ async function handleGoogleUser(googleUser: GoogleUserInfo, isFirst: boolean, co
 	let user = await auth?.checkUser({ email });
 
 	if (!user) {
+		// For non-first users, require a token
+		if (!isFirst && !token) {
+			throw new Error('Registration token is required for new users');
+		}
+
+		// For non-first users, validate the token
+		if (!isFirst && token) {
+			const tokenValidation = await auth?.validateToken(token);
+			if (!tokenValidation?.isValid) {
+				throw new Error('Invalid or expired registration token');
+			}
+		}
+
 		// Handle new user creation
 		let avatarUrl: string | null = null;
 		if (googleUser.picture) {
@@ -201,7 +226,11 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	}
 
 	const code = url.searchParams.get('code');
+	const state = url.searchParams.get('state'); // Get token from state parameter
+	const token = state ? decodeURIComponent(state) : null;
+
 	logger.debug(`Authorization code from URL: ${code}`);
+	logger.debug(`Registration token from state: ${token}`);
 
 	// For first user, directly redirect to Google OAuth
 	if (!firstUserExists && !code) {
@@ -214,10 +243,20 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		}
 	}
 
+	// For non-first users without a token, show token input form
+	if (firstUserExists && !token && !code) {
+		logger.debug('No token provided for non-first user, showing token input form');
+		return {
+			isFirstUser: !firstUserExists,
+			requiresToken: true
+		};
+	}
+
 	if (!code) {
 		logger.debug('No authorization code found in URL, showing token input form');
 		return {
-			isFirstUser: !firstUserExists
+			isFirstUser: !firstUserExists,
+			requiresToken: firstUserExists
 		};
 	}
 
@@ -229,20 +268,21 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 
 		logger.debug('Fetching tokens using authorization code...');
 		const { tokens } = await googleAuthClient.getToken(code);
-		googleAuthClient.setCredentials(tokens);
+		setCredentials(tokens);
 
 		// Fetch Google user profile
 		const oauth2 = google.oauth2({ auth: googleAuthClient, version: 'v2' });
 		const { data: googleUser } = await oauth2.userinfo.get();
 
-		await handleGoogleUser(googleUser as GoogleUserInfo, !firstUserExists, cookies, fetch);
+		await handleGoogleUser(googleUser as GoogleUserInfo, !firstUserExists, token, cookies, fetch);
 		logger.info('Successfully created session and set cookie');
 
 		const redirectUrl = await fetchAndRedirectToFirstCollection();
 		throw redirect(302, redirectUrl);
 	} catch (err) {
-		logger.error('Error during login process:', err instanceof Error ? err.message : String(err));
-		throw error(500, 'Error during login process');
+		const errorMessage = err instanceof Error ? err.message : 'Unknown error during login process';
+		logger.error('Error during login process:', errorMessage);
+		throw error(500, errorMessage);
 	}
 };
 
@@ -251,16 +291,14 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const token = data.get('token');
 
-		if (!token || typeof token !== 'string') {
-			return { success: false, message: 'Invalid token' };
-		}
-
 		try {
-			const authUrl = await generateGoogleAuthUrl();
+			// Generate OAuth URL with token in state parameter
+			const authUrl = await generateGoogleAuthUrl(token?.toString() || null);
 			throw redirect(302, authUrl);
 		} catch (err) {
-			logger.error('Error during OAuth initialization:', err instanceof Error ? err.message : String(err));
-			return { success: false, message: 'Failed to initialize OAuth' };
+			const errorMessage = err instanceof Error ? err.message : 'Failed to initialize OAuth';
+			logger.error('Error during OAuth initialization:', errorMessage);
+			return { success: false, message: errorMessage };
 		}
 	}
 };

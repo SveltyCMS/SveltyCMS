@@ -10,9 +10,10 @@
  */
 
 import { publicEnv } from '@root/config/public';
+import { writable, derived } from 'svelte/store';
 
 // Paraglidejs
-import * as m from '@src/paraglide/messages.js';
+import * as m from '@src/paraglide/messages';
 import { setLanguageTag, type AvailableLanguageTag } from '@src/paraglide/runtime';
 
 // Define interfaces
@@ -32,201 +33,173 @@ interface SaveFunction {
 	reset: () => void;
 }
 
-// Main application state manager
-class AppStateManager {
-	// State declaration
-	$state = {
+// Create base stores
+const createBaseStores = () => {
+	// Language and i18n
+	const systemLanguage = writable<AvailableLanguageTag>(publicEnv.DEFAULT_SYSTEM_LANGUAGE);
+	const contentLanguage = writable<AvailableLanguageTag>(publicEnv.DEFAULT_CONTENT_LANGUAGE);
+	const messages = writable({ ...m });
+
+	// Translation status
+	const translationStatus = writable({});
+	const completionStatus = writable(0);
+	const translationStatusOpen = writable(false);
+	const translationProgress = writable<TranslationProgress | { show: boolean }>({ show: false });
+
+	// UI state
+	const tabSet = writable(0);
+	const headerActionButton = writable<ConstructorOfATypedSvelteComponent | string | undefined>(undefined);
+	const headerActionButton2 = writable<ConstructorOfATypedSvelteComponent | string | undefined>(undefined);
+	const pkgBgColor = writable('variant-filled-primary');
+	const drawerExpanded = writable(true);
+	const storeListboxValue = writable('create');
+
+	// Loading state
+	const loadingProgress = writable(0);
+	const isLoading = writable(false);
+
+	// Image handling
+	const avatarSrc = writable('/Default_User.svg');
+	const file = writable<File | null>(null);
+	const saveEditedImage = writable(false);
+
+	// Save functionality
+	const saveFunction = writable<SaveFunction>({
+		fn: () => {},
+		reset: () => {}
+	});
+	const saveLayerStore = writable(async () => {});
+	const shouldShowNextButton = writable(false);
+
+	// Validation
+	const validationErrors = writable<ValidationErrors>({});
+
+	// Derived values
+	const isSystemLanguageSet = derived(systemLanguage, ($systemLanguage) => !!$systemLanguage);
+	const hasTranslationProgress = derived(translationStatus, ($translationStatus) => Object.keys($translationStatus).length > 0);
+	const isDrawerCollapsed = derived(drawerExpanded, ($drawerExpanded) => !$drawerExpanded);
+	const canSave = derived([isLoading, saveFunction], ([$isLoading, $saveFunction]) => !$isLoading && !!$saveFunction.fn);
+
+	// Initialize language tag
+	systemLanguage.subscribe((value) => {
+		if (value) {
+			setLanguageTag(value);
+			messages.set({ ...m });
+		}
+	});
+
+	return {
 		// Language and i18n
-		systemLanguage: publicEnv.DEFAULT_SYSTEM_LANGUAGE as AvailableLanguageTag,
-		contentLanguage: publicEnv.DEFAULT_CONTENT_LANGUAGE as AvailableLanguageTag,
-		messages: { ...m },
+		systemLanguage,
+		contentLanguage,
+		messages,
 
 		// Translation status
-		translationStatus: {},
-		completionStatus: 0,
-		translationStatusOpen: false,
-		translationProgress: { show: false } as TranslationProgress | { show: boolean },
+		translationStatus,
+		completionStatus,
+		translationStatusOpen,
+		translationProgress,
 
 		// UI state
-		tabSet: 0,
-		headerActionButton: undefined as ConstructorOfATypedSvelteComponent | string | undefined,
-		headerActionButton2: undefined as ConstructorOfATypedSvelteComponent | string | undefined,
-		pkgBgColor: 'variant-filled-primary',
-		drawerExpanded: true,
-		storeListboxValue: 'create',
+		tabSet,
+		headerActionButton,
+		headerActionButton2,
+		pkgBgColor,
+		drawerExpanded,
+		storeListboxValue,
 
 		// Loading state
-		loadingProgress: 0,
-		isLoading: false,
+		loadingProgress,
+		isLoading,
 
 		// Image handling
-		avatarSrc: '/Default_User.svg',
-		file: null as File | null,
-		saveEditedImage: false,
+		avatarSrc,
+		file,
+		saveEditedImage,
 
 		// Save functionality
-		saveFunction: {
-			fn: () => {},
-			reset: () => {}
-		} as SaveFunction,
-		saveLayerStore: async () => {},
-		shouldShowNextButton: false,
+		saveFunction,
+		saveLayerStore,
+		shouldShowNextButton,
 
 		// Validation
-		validationErrors: {} as ValidationErrors
+		validationErrors,
+
+		// Derived values
+		isSystemLanguageSet,
+		hasTranslationProgress,
+		isDrawerCollapsed,
+		canSave
 	};
-
-	// Computed values
-	get $derived() {
-		return {
-			isSystemLanguageSet: !!this.$state.systemLanguage,
-			hasTranslationProgress: Object.keys(this.$state.translationStatus).length > 0,
-			isDrawerCollapsed: !this.$state.drawerExpanded,
-			canSave: !this.$state.isLoading && !!this.$state.saveFunction.fn
-		};
-	}
-
-	// Table headers (constant)
-	readonly tableHeaders = ['id', 'email', 'username', 'role', 'createdAt'] as const;
-
-	constructor() {
-		// Initialize language tag
-		if (this.$state.systemLanguage) {
-			setLanguageTag(this.$state.systemLanguage);
-			this.$state.messages = { ...m };
-		}
-	}
-
-	// Language methods
-	setSystemLanguage(lang: AvailableLanguageTag) {
-		this.$state.systemLanguage = lang;
-		setLanguageTag(lang);
-		this.$state.messages = { ...m };
-	}
-
-	setContentLanguage(lang: AvailableLanguageTag) {
-		this.$state.contentLanguage = lang;
-	}
-
-	// Translation methods
-	updateTranslationStatus(status: any) {
-		this.$state.translationStatus = status;
-	}
-
-	setTranslationProgress(progress: TranslationProgress | { show: boolean }) {
-		this.$state.translationProgress = progress;
-	}
-
-	// UI state methods
-	setTabSet(value: number) {
-		this.$state.tabSet = value;
-	}
-
-	setHeaderActionButton(component: ConstructorOfATypedSvelteComponent | string) {
-		this.$state.headerActionButton = component;
-	}
-
-	toggleDrawer() {
-		this.$state.drawerExpanded = !this.$state.drawerExpanded;
-	}
-
-	// Loading methods
-	setLoading(isLoading: boolean) {
-		this.$state.isLoading = isLoading;
-	}
-
-	updateLoadingProgress(progress: number) {
-		this.$state.loadingProgress = progress;
-	}
-
-	// Image handling methods
-	setAvatarSrc(src: string) {
-		this.$state.avatarSrc = src;
-	}
-
-	setFile(file: File | null) {
-		this.$state.file = file;
-	}
-
-	// Save functionality methods
-	setSaveFunction(fn: SaveFunction['fn'], reset: () => void) {
-		this.$state.saveFunction = { fn, reset };
-	}
-
-	// Validation methods
-	setValidationError(fieldName: string, errorMessage: string | null) {
-		this.$state.validationErrors = {
-			...this.$state.validationErrors,
-			[fieldName]: errorMessage
-		};
-	}
-
-	clearValidationError(fieldName: string) {
-		const newErrors = { ...this.$state.validationErrors };
-		delete newErrors[fieldName];
-		this.$state.validationErrors = newErrors;
-	}
-
-	hasValidationError(fieldName: string): boolean {
-		return !!this.$state.validationErrors[fieldName];
-	}
-
-	getValidationError(fieldName: string): string | null {
-		return this.$state.validationErrors[fieldName] || null;
-	}
-}
-
-// Create and export singleton instance
-export const appState = new AppStateManager();
-
-// For backward compatibility with existing code that uses stores
-export const systemLanguage = {
-	subscribe: (fn: (value: AvailableLanguageTag) => void) => {
-		fn(appState.$state.systemLanguage);
-		return () => {};
-	},
-	set: (value: AvailableLanguageTag) => appState.setSystemLanguage(value)
 };
 
-export const contentLanguage = {
-	subscribe: (fn: (value: AvailableLanguageTag) => void) => {
-		fn(appState.$state.contentLanguage);
-		return () => {};
-	},
-	set: (value: AvailableLanguageTag) => appState.setContentLanguage(value)
-};
+// Create and export stores
+const stores = createBaseStores();
 
-export const messages = {
-	subscribe: (fn: (value: typeof m) => void) => {
-		fn(appState.$state.messages);
-		return () => {};
-	},
-	set: (value: typeof m) => {
-		appState.$state.messages = value;
-	}
-};
+// Export individual stores
+export const {
+	systemLanguage,
+	contentLanguage,
+	messages,
+	translationStatus,
+	completionStatus,
+	translationStatusOpen,
+	translationProgress,
+	tabSet,
+	headerActionButton,
+	headerActionButton2,
+	pkgBgColor,
+	drawerExpanded,
+	storeListboxValue,
+	loadingProgress,
+	isLoading,
+	avatarSrc,
+	file,
+	saveEditedImage,
+	saveFunction,
+	saveLayerStore,
+	shouldShowNextButton,
+	validationErrors,
+	isSystemLanguageSet,
+	hasTranslationProgress,
+	isDrawerCollapsed,
+	canSave
+} = stores;
 
-// Export avatar store
-export const avatarSrc = {
-	subscribe: (fn: (value: string) => void) => {
-		fn(appState.$state.avatarSrc);
-		return () => {};
-	},
-	set: (value: string) => appState.setAvatarSrc(value)
-};
+// Export table headers constant
+export const tableHeaders = ['id', 'email', 'username', 'role', 'createdAt'] as const;
 
-// Export other stores and constants
-export const { tableHeaders } = appState;
+// Export indexer
 export const indexer = undefined;
 
 // Export validation store interface
 export const validationStore = {
-	subscribe: (fn: (value: ValidationErrors) => void) => {
-		fn(appState.$state.validationErrors);
-		return () => {};
+	subscribe: validationErrors.subscribe,
+	setError: (fieldName: string, errorMessage: string | null) => {
+		validationErrors.update((errors) => ({
+			...errors,
+			[fieldName]: errorMessage
+		}));
 	},
-	setError: (fieldName: string, errorMessage: string | null) => appState.setValidationError(fieldName, errorMessage),
-	clearError: (fieldName: string) => appState.clearValidationError(fieldName),
-	getError: (fieldName: string) => appState.getValidationError(fieldName),
-	hasError: (fieldName: string) => appState.hasValidationError(fieldName)
+	clearError: (fieldName: string) => {
+		validationErrors.update((errors) => {
+			const newErrors = { ...errors };
+			delete newErrors[fieldName];
+			return newErrors;
+		});
+	},
+	getError: (fieldName: string) => {
+		let error: string | null = null;
+		validationErrors.subscribe((errors) => {
+			error = errors[fieldName] || null;
+		})();
+		return error;
+	},
+	hasError: (fieldName: string) => {
+		let hasError = false;
+		validationErrors.subscribe((errors) => {
+			hasError = !!errors[fieldName];
+		})();
+		return hasError;
+	}
 };

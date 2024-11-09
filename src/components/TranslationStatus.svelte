@@ -1,30 +1,35 @@
 <!-- 
  @file src/components/TranslationStatus.svelte 
  @description Translation status component. 
- -->
+-->
 
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 	import { getFieldName } from '@utils/utils';
-
-	// Stores
 	import { contentLanguage, translationStatusOpen, translationProgress } from '@stores/store';
-	import { collectionValue, mode, collection } from '@stores/collectionStore';
+	import { mode } from '@stores/collectionStore';
 
-	//ParaglideJS
-	import * as m from '@src/paraglide/messages';
-
-	// Skeleton
 	import { ProgressBar } from '@skeletonlabs/skeleton';
-	import { logger } from '@src/utils/logger';
 
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
+	import type { AvailableLanguageTag } from '@src/paraglide/runtime';
+
+	// State declarations
 	let isOpen = $state(false);
 	let completionStatus = $state(0);
 
 	// Handles the language change
-	function handleChange(event) {
-		const selectedLanguage = event.target.value.toLowerCase();
+	function handleChange(event: Event & { currentTarget: EventTarget & HTMLSelectElement }) {
+		const selectedLanguage = event.currentTarget.value.toLowerCase() as AvailableLanguageTag;
 		contentLanguage.set(selectedLanguage);
+		isOpen = false;
+		translationStatusOpen.set(false);
+	}
+
+	// Handle language button click
+	function handleLanguageClick(lang: AvailableLanguageTag) {
+		contentLanguage.set(lang);
 		isOpen = false;
 		translationStatusOpen.set(false);
 	}
@@ -50,32 +55,34 @@
 		}
 	}
 
-	translationProgress.subscribe(() => {
+	// Effect to update completion status when translation progress changes
+	$effect(() => {
 		if ($translationProgress.show) {
 			let total = 0;
 			let totalTranslated = 0;
 			for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES) {
-				if (!$translationProgress[lang]) continue;
-				totalTranslated += $translationProgress[lang].translated.size;
-				total += $translationProgress[lang].total.size;
+				const progress = $translationProgress[lang];
+				if (!progress || typeof progress === 'boolean') continue;
+				totalTranslated += progress.translated.size;
+				total += progress.total.size;
 			}
-
 			completionStatus = Math.round((totalTranslated / total) * 100);
 		} else {
 			completionStatus = 0;
 		}
 	});
 
-	mode.subscribe(() => {
+	// Effect to update translation progress based on mode
+	$effect(() => {
 		if ($mode !== 'view') {
-			$translationProgress = { show: true };
+			translationProgress.set({ show: true });
 		} else {
-			$translationProgress = { show: false };
+			translationProgress.set({ show: false });
 		}
 	});
 </script>
 
-{#if $mode == 'edit' && $collection}
+{#if $mode === 'edit'}
 	<!-- Language -->
 	<div class="relative mt-1 inline-block text-left">
 		<div>
@@ -87,7 +94,6 @@
 				onclick={toggleDropdown}
 			>
 				{$contentLanguage.toUpperCase()}
-
 				<iconify-icon icon="mingcute:down-line" width="20" class="text-surface-500"></iconify-icon>
 			</button>
 
@@ -109,14 +115,14 @@
 				<div class="flex flex-col py-2" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
 					{#each publicEnv.AVAILABLE_CONTENT_LANGUAGES as lang}
 						<button
-							onclick={() => handleChange({ target: { value: lang } })}
+							onclick={() => handleLanguageClick(lang as AvailableLanguageTag)}
 							class="mx-2 py-1 hover:bg-surface-50 hover:dark:text-black"
 							role="menuitem"
 						>
 							<div class="flex items-center justify-between gap-1">
 								<span class="font-bold">{lang.toUpperCase()}</span>
 								<span class="text-xs">
-									{#if $translationProgress[lang] && $translationProgress[lang].translated && $translationProgress[lang].total}
+									{#if $translationProgress[lang] && typeof $translationProgress[lang] !== 'boolean' && $translationProgress[lang].translated && $translationProgress[lang].total}
 										{Math.round(($translationProgress[lang].translated.size / $translationProgress[lang].total.size) * 100)}%
 									{:else}
 										0%
@@ -124,7 +130,7 @@
 								</span>
 							</div>
 
-							{#if $translationProgress[lang] && $translationProgress[lang].translated && $translationProgress[lang].total}
+							{#if $translationProgress[lang] && typeof $translationProgress[lang] !== 'boolean' && $translationProgress[lang].translated && $translationProgress[lang].total}
 								<ProgressBar
 									value={Math.round(($translationProgress[lang].translated.size / $translationProgress[lang].total.size) * 100)}
 									labelledby={lang.toUpperCase()}
@@ -159,7 +165,7 @@
 	<!-- Language -->
 	<select
 		class="variant-ghost-surface rounded-t border-surface-500 dark:text-white"
-		bind:value={$contentLanguage}
+		value={$contentLanguage}
 		onchange={handleChange}
 		onfocus={() => {
 			closeOpenStates();

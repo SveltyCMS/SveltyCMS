@@ -10,20 +10,22 @@ Features:
 - Array of uploaded files
 */
 
-const WIDGET_NAME = 'MediaUpload' as const; // Defines MediaUpload widget Parameters
+const WIDGET_NAME = 'MediaUpload' as const;
+
+import { publicEnv } from '@root/config/public';
+
+// Media
+import { MediaService } from '@utils/media/MediaService';
+import type { MediaType, MediaAccess } from '@utils/media/mediaModels';
+import { Permission } from '@utils/media/mediaModels';
 
 import { getFieldName, getGuiFields, get_elements_by_id, meta_data } from '@utils/utils';
-import { MediaService } from '@utils/media/MediaService';
 import { dbAdapter } from '@src/databases/db';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 import { type ModifyRequestParams } from '..';
-import type { MediaType } from '@utils/media/mediaModels';
 
-// Initialize MediaService if dbAdapter is available
-const mediaService = dbAdapter ? new MediaService(dbAdapter) : null;
-if (!mediaService) {
-	console.error('Failed to initialize MediaService: Database adapter is not available');
-}
+// System Logger
+import { logger } from '@utils/logger';
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
@@ -40,6 +42,54 @@ function hasMediaId(media: MediaType): media is MediaType & { _id: string } {
 	return media._id !== undefined && typeof media._id === 'string';
 }
 
+// Type guard for string data
+function isValidString(data: unknown): data is string {
+	return typeof data === 'string' && data.length > 0;
+}
+
+// Type guard for info with contentLanguage
+interface AggregationInfo {
+	field: any;
+	contentLanguage?: string;
+	filter?: string;
+	sort?: number;
+}
+
+function getLanguage(info: AggregationInfo): string {
+	return info.contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE;
+}
+
+// Helper function to safely get element by ID
+async function safeGetElementById(id: unknown, callback: (data: any) => void): Promise<void> {
+	if (isValidString(id)) {
+		await get_elements_by_id.add('media_files', id, callback);
+	}
+}
+
+// Helper function to ensure valid ID
+function ensureValidId(id: unknown): string {
+	if (!isValidString(id)) {
+		throw new Error('Invalid ID provided');
+	}
+	return id;
+}
+
+// Helper function to get MediaService instance
+function getMediaService(): MediaService {
+	if (!dbAdapter) {
+		throw new Error('Database adapter is not initialized');
+	}
+	try {
+		const service = new MediaService(dbAdapter);
+		logger.info('MediaService initialized successfully');
+		return service;
+	} catch (err) {
+		const message = `Failed to initialize MediaService: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw new Error(message);
+	}
+}
+
 const widget = (params: Params) => {
 	// Define the display function with reactive state
 	let display: any;
@@ -53,7 +103,7 @@ const widget = (params: Params) => {
 				} else if (data instanceof File) {
 					return URL.createObjectURL(data);
 				}
-				return data?.thumbnail?.url;
+				return data?.thumbnail?.url || '';
 			});
 
 			// Use $derived for computed display content
@@ -66,7 +116,7 @@ const widget = (params: Params) => {
 					case 'document':
 						return `<a class='max-w-[200px] inline-block' href="${url}" target="_blank">${data?.name || 'Document'}</a>`;
 					default:
-						return `<img class='max-w-[200px] inline-block' src="${url}" />`;
+						return `<img class='max-w-[200px] inline-block' src="${url}" alt="Media preview" />`;
 				}
 			});
 
@@ -107,13 +157,13 @@ const widget = (params: Params) => {
 		responsive: $state(params.responsive),
 		customDisplayComponent: params.customDisplayComponent,
 		watermark: $state({
-			url: params.watermark?.url,
-			position: params.watermark?.position,
-			opacity: params.watermark?.opacity,
-			scale: params.watermark?.scale,
-			offsetX: params.watermark?.offsetX,
-			offsetY: params.watermark?.offsetY,
-			rotation: params.watermark?.rotation
+			url: params.watermark?.url || '',
+			position: params.watermark?.position || 'center',
+			opacity: params.watermark?.opacity || 1,
+			scale: params.watermark?.scale || 1,
+			offsetX: params.watermark?.offsetX || 0,
+			offsetY: params.watermark?.offsetY || 0,
+			rotation: params.watermark?.rotation || 0
 		})
 	};
 
@@ -141,23 +191,27 @@ widget.modifyRequest = async ({ data, type, id }: ModifyRequestParams<typeof wid
 		requestState.loading = true;
 		const _data = data.get();
 		const extendedMetaData = meta_data as unknown as ExtendedMetaData;
+		const validId = ensureValidId(id);
 
 		switch (type) {
 			case 'GET':
-				if (typeof _data === 'string') {
-					data.update(null);
-					get_elements_by_id.add('media_files', _data, (newData) => data.update(newData));
-				}
+				data.update(null);
+				await safeGetElementById(_data, (newData) => data.update(newData));
 				break;
 			case 'POST':
 			case 'PATCH':
 				if (_data instanceof File) {
-					if (!mediaService) {
-						throw new Error('MediaService is not initialized');
-					}
+					// Initialize MediaService when needed
+					const mediaService = getMediaService();
+
+					// Define proper access permissions
+					const access: MediaAccess = {
+						userId: validId,
+						permissions: [Permission.Read, Permission.Write, Permission.Delete]
+					};
 
 					// Use mediaService to save the file
-					const savedMedia = await mediaService.saveMedia(_data, id, { public: true });
+					const savedMedia = await mediaService.saveMedia(_data, validId, access);
 
 					// Verify we have a valid media object with ID
 					if (!hasMediaId(savedMedia)) {
@@ -178,7 +232,8 @@ widget.modifyRequest = async ({ data, type, id }: ModifyRequestParams<typeof wid
 
 					// Update used_by reference
 					if (dbAdapter) {
-						await dbAdapter.updateOne('media_files', { _id: savedMedia._id }, { $addToSet: { used_by: id } });
+						await dbAdapter.updateOne('media_files', { _id: savedMedia._id }, { $addToSet: { used_by: validId } });
+						logger.info(`Updated media file usage reference: ${savedMedia._id}`);
 					}
 				} else if (_data && typeof _data === 'object' && '_id' in _data) {
 					const mediaId = String(_data._id); // Convert to string explicitly
@@ -186,17 +241,24 @@ widget.modifyRequest = async ({ data, type, id }: ModifyRequestParams<typeof wid
 				}
 				break;
 			case 'DELETE':
-				if (_data && typeof _data === 'string' && mediaService) {
+				if (isValidString(_data)) {
+					// Initialize MediaService when needed
+					const mediaService = getMediaService();
+
 					// Use mediaService to delete the file
 					await mediaService.deleteMedia(_data);
+					logger.info(`Deleted media file: ${_data}`);
 				} else if (dbAdapter) {
-					await dbAdapter.updateMany('media_files', {}, { $pull: { used_by: id } });
+					await dbAdapter.updateMany('media_files', {}, { $pull: { used_by: validId } });
+					logger.info('Removed all media file references');
 				}
 				break;
 		}
 		requestState.success = true;
-	} catch (error) {
-		requestState.error = error instanceof Error ? error.message : 'Unknown error';
+	} catch (err) {
+		const errorMessage = err instanceof Error ? err.message : String(err);
+		requestState.error = errorMessage;
+		logger.error(`Error in mediaUpload widget: ${errorMessage}`);
 	} finally {
 		requestState.loading = false;
 	}
@@ -204,26 +266,28 @@ widget.modifyRequest = async ({ data, type, id }: ModifyRequestParams<typeof wid
 
 // Widget Aggregations with reactive state
 widget.aggregations = {
-	filters: async (info) => {
+	filters: async (info: AggregationInfo) => {
 		const field = info.field as ReturnType<typeof widget>;
 		const fieldName = $derived(() => getFieldName(field));
+		const language = getLanguage(info);
 
 		return [
 			{
 				$match: {
-					[`${fieldName}.header.${info.contentLanguage}`]: {
-						$regex: info.filter,
+					[`${fieldName}.header.${language}`]: {
+						$regex: info.filter || '',
 						$options: 'i'
 					}
 				}
 			}
 		];
 	},
-	sorts: async (info) => {
+	sorts: async (info: AggregationInfo) => {
 		const field = info.field as ReturnType<typeof widget>;
 		const fieldName = $derived(() => getFieldName(field));
+		const language = getLanguage(info);
 
-		return [{ $sort: { [`${fieldName}.original.name`]: info.sort } }];
+		return [{ $sort: { [`${fieldName}.${language}`]: info.sort || 1 } }];
 	}
 } as Aggregations;
 

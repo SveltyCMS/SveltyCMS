@@ -162,5 +162,9 @@
 	},
 	"patchedDependencies": {
 		"sveltekit-superforms@2.20.0": "patches/sveltekit-superforms@2.20.0.patch"
+	},
+	"overrides": {
+		"punycode": "^2.3.1",
+		"mongodb-connection-string-url": "^3.0.0"
 	}
 }

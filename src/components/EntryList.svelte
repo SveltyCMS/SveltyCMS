@@ -73,12 +73,12 @@ Features:
 	let columnShow = false;
 
 	// Retrieve entryListPaginationSettings from local storage or set default values for each collection
-	const entryListPaginationSettingsKey = `entryListPaginationSettings_${$collection.name}`;
+	const entryListPaginationSettingsKey = `entryListPaginationSettings_${$collection?.name}`;
 	let entryListPaginationSettings: any =
 		browser && localStorage.getItem(entryListPaginationSettingsKey)
 			? JSON.parse(localStorage.getItem(entryListPaginationSettingsKey) as string)
 			: {
-					collectionName: $collection.name,
+					collectionName: $collection?.name,
 					density: 'normal',
 					sorting: { sortedBy: '', isSorted: 0 },
 					currentPage: 1,
@@ -127,7 +127,7 @@ Features:
 		}
 
 		// If the collection name is empty, return
-		if (!$collection.name) return;
+		if (!$collection?.name) return;
 
 		// If fetch is true, set isLoading to true
 		if (fetch) {
@@ -139,7 +139,7 @@ Features:
 			// Fetch data using getData function
 			try {
 				data = await getData({
-					collectionName: $collection.name as any,
+					collectionName: $collection?.name as any,
 					page: currentPage,
 					limit: rowsPerPage, // assuming rowsPerPage is defined
 					contentLanguage: $contentLanguage,
@@ -186,7 +186,7 @@ Features:
 						if (field.display) {
 							obj[field.label] = await field.display({
 								data: entry[getFieldName(field)],
-								collection: $collection.name,
+								collection: $collection?.name,
 								field,
 								entry,
 								contentLanguage: $contentLanguage
@@ -205,7 +205,7 @@ Features:
 		}
 
 		// For rendering Table data
-		tableHeaders = $collection.fields.map((field) => ({ label: field.label, name: getFieldName(field) }));
+		tableHeaders = $collection?.fields.map((field) => ({ label: field.label, name: getFieldName(field) }));
 		tableHeaders.push({ label: 'createdAt', name: 'createdAt' }, { label: 'updatedAt', name: 'updatedAt' }, { label: 'status', name: 'status' });
 
 		// Update displayTableHeaders based on entryListPaginationSettings
@@ -242,7 +242,7 @@ Features:
 	$: {
 		entryListPaginationSettings = {
 			...entryListPaginationSettings,
-			collectionName: $collection.name,
+			collectionName: $collection?.name,
 			filters,
 			sorting,
 			density,
@@ -343,13 +343,13 @@ Features:
 				switch (status) {
 					case 'deleted':
 						// If the status is 'deleted', call the delete endpoint
-						await deleteData({ data: formData, collectionName: $collection.name as any });
+						await deleteData({ data: formData, collectionName: $collection?.name as any });
 						break;
 					case 'published':
 					case 'unpublished':
 					case 'testing':
 						// If the status is 'testing', call the publish endpoint
-						await setStatus({ data: formData, collectionName: $collection.name as any });
+						await setStatus({ data: formData, collectionName: $collection?.name as any });
 						break;
 					case 'cloned':
 					case 'scheduled':
@@ -447,9 +447,10 @@ Features:
 					type="button"
 					on:keydown
 					on:click={() => toggleSidebar('left', get(screenSize) === 'lg' ? 'full' : 'collapsed')}
+					aria-label="Open Sidebar"
 					class="variant-ghost-surface btn-icon mt-1"
 				>
-					<iconify-icon icon="mingcute:menu-fill" width="24" />
+					<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 				</button>
 			{/if}
 			<!-- Collection type with icon -->
@@ -461,8 +462,10 @@ Features:
 					</div>
 				{/if}
 				<div class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl">
-					{#if $collection.icon}<span> <iconify-icon icon={$collection.icon} width="24" class="mr-1 text-error-500 sm:mr-2" /></span>{/if}
-					{#if $collection.name}
+					{#if $collection?.icon}<span>
+							<iconify-icon icon={$collection.icon} width="24" class="mr-1 text-error-500 sm:mr-2"></iconify-icon></span
+						>{/if}
+					{#if $collection?.name}
 						<div class="flex max-w-[65px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
 							{$collection.name}
 						</div>
@@ -547,7 +550,7 @@ Features:
 
 								// Reset the entryListPaginationSettings to the default state
 								entryListPaginationSettings = {
-									collectionName: $collection.name,
+									collectionName: $collection?.name,
 									density: 'normal',
 									sorting: { sortedBy: '', isSorted: 0 },
 									currentPage: 1,
@@ -566,7 +569,7 @@ Features:
 								refreshTableData();
 							}}
 						>
-							<iconify-icon icon="material-symbols-light:device-reset" width="30" class="text-tertiary-500" />
+							<iconify-icon icon="material-symbols-light:device-reset" width="30" class="text-tertiary-500"></iconify-icon>
 							Reset
 						</button>
 					</div>
@@ -596,7 +599,7 @@ Features:
 								}}
 							>
 								{#if header.visible}
-									<span><iconify-icon icon="fa:check" /></span>
+									<span><iconify-icon icon="fa:check"></iconify-icon></span>
 								{/if}
 								<span class="ml-2 capitalize">{header.name}</span>
 							</button>
@@ -616,13 +619,14 @@ Features:
 								<!-- Clear All Filters Button -->
 								{#if Object.keys(filters).length > 0}
 									<button
-										class="variant-outline btn-icon"
 										on:click={() => {
 											// Clear all filters
 											filters = {};
 										}}
+										aria-label="Clear All Filters"
+										class="variant-outline btn-icon"
 									>
-										<iconify-icon icon="material-symbols:close" width="24" />
+										<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 									</button>
 								{/if}
 							</th>
@@ -681,7 +685,7 @@ Features:
 								<div class="relative flex items-center justify-center text-center">
 									<!-- TODO: fix if content is translated -->
 									{#if data?.entryList[0]?.translated}
-										<iconify-icon icon="bi:translate" width="14" class="absolute right-0 top-0 text-sm text-white" />
+										<iconify-icon icon="bi:translate" width="14" class="absolute right-0 top-0 text-sm text-white"></iconify-icon>
 										{header.label}
 									{:else}
 										{header.label}
@@ -693,7 +697,7 @@ Features:
 										class="origin-center duration-300 ease-in-out"
 										class:up={sorting.isSorted === 1}
 										class:invisible={sorting.isSorted == 0 || sorting.sortedBy != header.label}
-									/>
+									></iconify-icon>
 								</div>
 							</th>
 						{/each}
@@ -751,9 +755,9 @@ Features:
 	{:else}
 		<!-- Display a message when no data is yet available -->
 		<div class="text-center text-tertiary-500 dark:text-primary-500">
-			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2" />
+			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2"></iconify-icon>
 			<p class="text-lg">
-				No {$collection.name} Data
+				No {$collection?.name} Data
 			</p>
 		</div>
 	{/if}

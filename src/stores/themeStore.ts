@@ -1,6 +1,6 @@
 /**
  * @file src/stores/themeStore.ts
- * @description Theme management
+ * @description Theme management using Svelte stores
  *
  * Features:
  * - Reactive theme state management with auto-refresh
@@ -8,67 +8,84 @@
  * - Theme updating with server synchronization
  * - Error handling for API calls
  * - TypeScript support with custom Theme type
- *
  */
 
+import { writable, derived } from 'svelte/store';
 import type { Theme } from '@src/databases/dbInterface';
 
-// Theme manager class
-class ThemeManager {
-	private refreshInterval: NodeJS.Timeout | null = null;
+// Types
+interface ThemeState {
+	currentTheme: Theme | null;
+	isLoading: boolean;
+	error: string | null;
+	lastUpdateAttempt: Date | null;
+}
 
-	// State declaration
-	$state = {
-		currentTheme: null as Theme | null,
+// Create base stores
+const createThemeStores = () => {
+	let refreshInterval: NodeJS.Timeout | null = null;
+
+	// Initial state
+	const initialState: ThemeState = {
+		currentTheme: null,
 		isLoading: false,
-		error: null as string | null,
-		lastUpdateAttempt: null as Date | null
+		error: null,
+		lastUpdateAttempt: null
 	};
 
-	// Computed values
-	get $derived() {
-		return {
-			hasTheme: !!this.$state.currentTheme,
-			themeName: this.$state.currentTheme?.name ?? 'default',
-			isDefault: this.$state.currentTheme?.isDefault ?? false,
-			canUpdate: !this.$state.isLoading
-		};
-	}
+	// Base store
+	const state = writable<ThemeState>(initialState);
 
-	constructor() {
-		// Set up auto-refresh in browser environment
-		if (typeof window !== 'undefined') {
-			this.startAutoRefresh();
-		}
+	// Derived values
+	const hasTheme = derived(state, ($state) => !!$state.currentTheme);
+	const themeName = derived(state, ($state) => $state.currentTheme?.name ?? 'default');
+	const isDefault = derived(state, ($state) => $state.currentTheme?.isDefault ?? false);
+	const canUpdate = derived(state, ($state) => !$state.isLoading);
+
+	// Helper functions
+	function isThemeStale(): boolean {
+		let isStale = true;
+		state.subscribe(($state) => {
+			if (!$state.lastUpdateAttempt) return true;
+			const twentyFourHours = 24 * 60 * 60 * 1000;
+			isStale = Date.now() - $state.lastUpdateAttempt.getTime() > twentyFourHours;
+		})();
+		return isStale;
 	}
 
 	// Start auto-refresh for stale theme
-	private startAutoRefresh() {
+	function startAutoRefresh() {
+		if (typeof window === 'undefined') return;
+
 		// Check every hour
-		this.refreshInterval = setInterval(
+		refreshInterval = setInterval(
 			() => {
-				if (this.isThemeStale()) {
-					this.initialize().catch(console.error);
+				if (isThemeStale()) {
+					initialize().catch(console.error);
 				}
 			},
 			60 * 60 * 1000
-		); // Check every hour
+		);
 	}
 
 	// Stop auto-refresh
-	private stopAutoRefresh() {
-		if (this.refreshInterval) {
-			clearInterval(this.refreshInterval);
-			this.refreshInterval = null;
+	function stopAutoRefresh() {
+		if (refreshInterval) {
+			clearInterval(refreshInterval);
+			refreshInterval = null;
 		}
 	}
 
 	// Initialize theme
-	async initialize() {
-		if (this.$state.isLoading) return;
+	async function initialize() {
+		let currentState: ThemeState;
+		state.subscribe((s) => {
+			currentState = s;
+		})();
 
-		this.$state.isLoading = true;
-		this.$state.error = null;
+		if (currentState.isLoading) return;
+
+		state.update((s) => ({ ...s, isLoading: true, error: null }));
 
 		try {
 			const response = await fetch('/api/get-current-theme');
@@ -77,24 +94,34 @@ class ThemeManager {
 			}
 
 			const theme = await response.json();
-			this.$state.currentTheme = theme;
-			this.$state.lastUpdateAttempt = new Date();
+			state.update((s) => ({
+				...s,
+				currentTheme: theme,
+				lastUpdateAttempt: new Date(),
+				isLoading: false
+			}));
 		} catch (error) {
-			this.$state.error = error instanceof Error ? error.message : 'Failed to initialize theme';
-			this.$state.currentTheme = null;
-		} finally {
-			this.$state.isLoading = false;
+			state.update((s) => ({
+				...s,
+				error: error instanceof Error ? error.message : 'Failed to initialize theme',
+				currentTheme: null,
+				isLoading: false
+			}));
 		}
 	}
 
 	// Update theme
-	async updateTheme(themeName: string): Promise<void> {
-		if (this.$state.isLoading) {
+	async function updateTheme(themeName: string): Promise<void> {
+		let currentState: ThemeState;
+		state.subscribe((s) => {
+			currentState = s;
+		})();
+
+		if (currentState.isLoading) {
 			throw new Error('Theme update already in progress');
 		}
 
-		this.$state.isLoading = true;
-		this.$state.error = null;
+		state.update((s) => ({ ...s, isLoading: true, error: null }));
 
 		try {
 			// Send update request
@@ -116,48 +143,73 @@ class ThemeManager {
 				throw new Error(`Failed to fetch updated theme: ${themeResponse.statusText}`);
 			}
 
-			this.$state.currentTheme = await themeResponse.json();
-			this.$state.lastUpdateAttempt = new Date();
+			const theme = await themeResponse.json();
+			state.update((s) => ({
+				...s,
+				currentTheme: theme,
+				lastUpdateAttempt: new Date(),
+				isLoading: false
+			}));
 		} catch (error) {
-			this.$state.error = error instanceof Error ? error.message : 'Failed to update theme';
+			state.update((s) => ({
+				...s,
+				error: error instanceof Error ? error.message : 'Failed to update theme',
+				isLoading: false
+			}));
 			throw error;
-		} finally {
-			this.$state.isLoading = false;
 		}
 	}
 
 	// Reset error state
-	clearError() {
-		this.$state.error = null;
+	function clearError() {
+		state.update((s) => ({ ...s, error: null }));
 	}
 
-	// Check if theme is stale (hasn't been updated in 24 hours)
-	isThemeStale(): boolean {
-		if (!this.$state.lastUpdateAttempt) return true;
-
-		const twentyFourHours = 24 * 60 * 60 * 1000;
-		return Date.now() - this.$state.lastUpdateAttempt.getTime() > twentyFourHours;
+	// Initialize auto-refresh
+	if (typeof window !== 'undefined') {
+		startAutoRefresh();
 	}
 
-	// Cleanup method
-	destroy() {
-		this.stopAutoRefresh();
-	}
-}
+	return {
+		// Base store
+		state,
 
-// Create and export singleton instance
-export const themeManager = new ThemeManager();
+		// Derived values
+		hasTheme,
+		themeName,
+		isDefault,
+		canUpdate,
 
-// For backward compatibility with existing code
-export const themeStore = {
-	subscribe: (fn: (value: { currentTheme: Theme | null }) => void) => {
-		fn({ currentTheme: themeManager.$state.currentTheme });
-		return () => {
-			themeManager.destroy();
-		};
-	}
+		// Methods
+		initialize,
+		updateTheme,
+		clearError,
+		stopAutoRefresh
+	};
 };
 
-// Export initialization and update functions
-export const initializeThemeStore = () => themeManager.initialize();
-export const updateTheme = (themeName: string) => themeManager.updateTheme(themeName);
+// Create and export stores
+const stores = createThemeStores();
+
+// Export main store with full interface
+export const themeStore = {
+	subscribe: stores.state.subscribe,
+	initialize: stores.initialize,
+	updateTheme: stores.updateTheme,
+	clearError: stores.clearError
+};
+
+// Export derived values
+export const hasTheme = { subscribe: stores.hasTheme.subscribe };
+export const themeName = { subscribe: stores.themeName.subscribe };
+export const isDefault = { subscribe: stores.isDefault.subscribe };
+export const canUpdate = { subscribe: stores.canUpdate.subscribe };
+
+// Export initialization and update functions for direct use
+export const initializeThemeStore = stores.initialize;
+export const updateTheme = stores.updateTheme;
+
+// Cleanup on module unload
+if (typeof window !== 'undefined') {
+	window.addEventListener('unload', stores.stopAutoRefresh);
+}

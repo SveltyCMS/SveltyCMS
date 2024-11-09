@@ -1,15 +1,12 @@
 <!-- 
 @file src/components/ParaglideSvelteKit.svelte
-@description ParaglideSvelteKit component
+@description ParaglideSvelteKit component 
 -->
 
 <script lang="ts">
 	import { browser } from '$app/environment';
-
-	// Stores
-	import { systemLanguage } from '@stores/store';
-
 	import { languageTag, onSetLanguageTag, setLanguageTag } from '@src/paraglide/runtime';
+	import { systemLanguage } from '@stores/store';
 	import type { Snippet } from 'svelte';
 
 	// All available language codes from src/messages
@@ -41,8 +38,8 @@
 		children?: Snippet;
 	}>();
 
-	// Initialize the language tag with $state
-	let _languageTag = $state<() => LanguageCode>(() => languageTag());
+	// Initialize the language tag
+	let _languageTag = $state(() => languageTag());
 
 	// Check if the environment is not server-side rendering (SSR)
 	if (import.meta.env.SSR === false) {

@@ -9,6 +9,7 @@
 	// Components
 	import Loading from '@components/Loading.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
+	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -26,13 +27,13 @@
 
 	// Update form validation when token changes
 	$effect: {
-		isFormValid = token.length >= 16 && token.length <= 48;
+		isFormValid = !data.requiresToken || (token.length >= 16 && token.length <= 48);
 	}
 
 	// Handle form submission
 	async function handleSubmit(event: SubmitEvent) {
 		event.preventDefault();
-		if (!isFormValid) {
+		if (data.requiresToken && !isFormValid) {
 			formError = 'Invalid token length';
 			return;
 		}
@@ -80,23 +81,30 @@
 			<!-- CSS Logo -->
 			<SveltyCMSLogoFull />
 
-			<!-- Input Token -->
-			<label>
-				<h2 class="mb-2 text-center text-xl font-bold text-primary-500">
-					{m.oauth_entertoken()}
-				</h2>
-				<input
-					bind:value={token}
-					placeholder={m.oauth_placeholder()}
-					class="input"
-					type="text"
-					name="token"
-					minlength="16"
-					maxlength="48"
-					aria-invalid={!isFormValid}
-					aria-describedby={formError ? 'error-message' : undefined}
-				/>
-			</label>
+			{#if data.requiresToken}
+				<!-- Token Input Form -->
+				<label>
+					<h2 class="mb-2 text-center text-xl font-bold text-primary-500">
+						{m.oauth_entertoken()}
+					</h2>
+					<FloatingInput
+						id="token"
+						name="token"
+						type="text"
+						required
+						bind:value={token}
+						label={m.signup_registrationtoken()}
+						icon="mdi:key-chain"
+						iconColor="white"
+						textColor="white"
+						showPasswordBackgroundColor="dark"
+						inputClass="text-white"
+						autocomplete="off"
+						minlength={16}
+						maxlength={48}
+					/>
+				</label>
+			{/if}
 
 			<!-- Error Message -->
 			{#if formError}
@@ -123,10 +131,6 @@
 
 <style>
 	.input:invalid {
-		border-color: var(--color-error-500);
-	}
-
-	.input[aria-invalid='true'] {
 		border-color: var(--color-error-500);
 	}
 </style>
