@@ -32,7 +32,7 @@
 		'on:test'?: () => void;
 	}
 
-	// Props using Svelte 5 runes
+	// Props
 	let {
 		isCollectionEmpty = false,
 		'on:create': onCreate = () => {},
@@ -46,7 +46,7 @@
 
 	const modalStore = getModalStore();
 
-	// State variables using Svelte 5 runes
+	// States
 	let dropdownOpen = $state(false);
 	let actionname = $state('');
 	let buttonClass = $state('');

@@ -9,6 +9,7 @@
  * - Concurrent file operations for improved performance
  * - Support for nested category structure
  * - Error handling and logging
+ * - Cleanup of orphaned collection files
  */
 
 import fs from 'fs/promises';
@@ -45,6 +46,9 @@ export async function compile(options: CompileOptions = {}): Promise<void> {
 
 	// Compile all files concurrently
 	await Promise.all(files.map((file) => compileFile(file, collectionsFolderTS, collectionsFolderJS)));
+
+	// Clean up orphaned collection files
+	await cleanupOrphanedFiles(collectionsFolderTS, collectionsFolderJS);
 }
 
 async function getTypescriptFiles(folder: string, subdir: string = ''): Promise<string[]> {
@@ -68,6 +72,67 @@ async function getTypescriptFiles(folder: string, subdir: string = ''): Promise<
 	}
 
 	return files;
+}
+
+async function cleanupOrphanedFiles(srcFolder: string, destFolder: string): Promise<void> {
+	try {
+		// Get list of valid TypeScript source files
+		const validFiles = await getTypescriptFiles(srcFolder);
+		const validJsFiles = new Set(validFiles.map((file) => file.replace(/\.ts$/, '.js')));
+
+		// Get all JS files in the destination folder
+		async function getAllJsFiles(folder: string, subdir: string = ''): Promise<string[]> {
+			const files: string[] = [];
+			const entries = await fs.readdir(path.join(folder, subdir), { withFileTypes: true });
+
+			for (const entry of entries) {
+				const relativePath = path.join(subdir, entry.name);
+
+				if (entry.isDirectory()) {
+					const subFiles = await getAllJsFiles(folder, relativePath);
+					files.push(...subFiles);
+				} else if (entry.isFile() && entry.name.endsWith('.js')) {
+					files.push(relativePath);
+				}
+			}
+
+			return files;
+		}
+
+		const existingJsFiles = await getAllJsFiles(destFolder);
+
+		// Remove orphaned JS files
+		for (const jsFile of existingJsFiles) {
+			if (!validJsFiles.has(jsFile)) {
+				const fullPath = path.join(destFolder, jsFile);
+				// Use ANSI red color code for orphaned file messages
+				console.log(`\x1b[31mRemoving orphaned collection file:\x1b[0m \x1b[34m${jsFile}\x1b[0m`);
+				await fs.unlink(fullPath);
+			}
+		}
+
+		// Clean up empty directories
+		async function removeEmptyDirs(folder: string): Promise<boolean> {
+			const entries = await fs.readdir(folder, { withFileTypes: true });
+
+			for (const entry of entries) {
+				if (entry.isDirectory()) {
+					const fullPath = path.join(folder, entry.name);
+					const isEmpty = await removeEmptyDirs(fullPath);
+					if (isEmpty) {
+						await fs.rmdir(fullPath);
+					}
+				}
+			}
+
+			const remainingEntries = await fs.readdir(folder);
+			return remainingEntries.length === 0;
+		}
+
+		await removeEmptyDirs(destFolder);
+	} catch (error) {
+		console.error(`Error cleaning up orphaned files: ${error instanceof Error ? error.message : String(error)}`);
+	}
 }
 
 async function createOutputDirectories(files: string[], srcFolder: string, destFolder: string): Promise<void> {

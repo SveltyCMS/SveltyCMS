@@ -1,5 +1,13 @@
-<!-- @file src/components/system/inputs/FileInput.svelte -->
-<!-- @description Component for file input with improved Svelte 5 compatibility -->
+<!-- 
+@file src/components/system/inputs/FileInput.svelte
+@description Component for file input 
+
+Features:
+- File input 
+- Multiple file input
+- Drag and drop
+
+-->
 
 <script lang="ts">
 	import { asAny } from '@utils/utils';

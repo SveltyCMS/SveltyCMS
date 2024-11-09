@@ -1,6 +1,6 @@
 <!-- 
 @file src/routes/login/components/SignUp.svelte
-@description SignUp component
+@description SignUp component with optional OAuth support
 -->
 
 <script lang="ts">

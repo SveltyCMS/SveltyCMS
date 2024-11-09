@@ -1,13 +1,15 @@
 /**
 @file src/components/widgets/index.ts
-@description - Widgets index file.
+@description - Widgets index file to import all widgets.
+
+
 */
 
 import type { Model, User, WidgetId } from '@src/auth/types';
 // import { getActiveWidgets } from '@src/routes/(app)/config/widgetManagement/widgetManager';
 
 // System logger
-// import { logger } from '@utils/logger';
+import { logger } from '@utils/logger';
 
 // Widgets
 import Address from './address';
@@ -19,10 +21,7 @@ import DateTime from './dateTime';
 import DateRange from './dateRange';
 import Email from './email';
 // import Group from './group';
-import ImageArray from './imageArray';
-// import ImageEditor from './imageEditor';
-// import ImageEditorPage from './imageEditorPage';
-import ImageUpload from './imageUpload';
+import MediaUpload from './mediaUpload';
 import MegaMenu from './megaMenu';
 import Number from './number';
 import PhoneNumber from './phoneNumber';
@@ -57,8 +56,7 @@ const widgetsInit = {
 	DateRange, // DateRange - date with start / Finish timestamps
 	Email, // Email - validates the entry is a properly formatted email
 	// Group, // Group - nest fields within an object with condition & tabs
-	ImageUpload, // ImageUpload - allows image upload with editor
-	ImageArray, // ImageArray - allows multiple image upload with editor
+	MediaUpload, // MediaUpload - for uploading Media like images, videos, audio
 	MegaMenu, // MegaMenu - Flexible Menu with possible hierarchy
 	Number, // Number - field that enforces that its value be a number
 	PhoneNumber, // PhoneNumber - Field checking for phone/Fax numbers
@@ -86,9 +84,18 @@ export type WidgetType = {
 // Create and initialize widgets object
 const widgets = widgetsInit as WidgetType;
 
-// Initialize global widgets immediately
-if (typeof globalThis !== 'undefined') {
-	(globalThis as any).widgets = widgets;
+// Export initWidgets function that ensures widgets are properly initialized
+export function initWidgets(): void {
+	try {
+		// Initialize global widgets
+		if (typeof globalThis !== 'undefined') {
+			(globalThis as any).widgets = widgets;
+		}
+		logger.info('Widgets initialized successfully');
+	} catch (error) {
+		logger.error('Failed to initialize widgets:', error as Error);
+		throw new Error('Widget initialization failed');
+	}
 }
 
 // Export a function to get the widgets object

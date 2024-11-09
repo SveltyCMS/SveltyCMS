@@ -36,6 +36,7 @@ import { initWidgets } from '@components/widgets';
 // Import category config directly
 import { categoryConfig } from './categories';
 
+// Rest of the interfaces and constants remain the same...
 interface ProcessedModule {
 	schema?: Partial<Schema>;
 }
@@ -61,6 +62,7 @@ const getPerformanceEmoji = (responseTime: number): string => {
 	if (responseTime < 3000) return '🕰️'; // Slow
 	return '🐢'; // Very slow
 };
+
 class CollectionManager {
 	private static instance: CollectionManager | null = null;
 	private collectionCache: Map<string, CacheEntry<Schema>> = new Map();
@@ -225,7 +227,14 @@ class CollectionManager {
 
 		try {
 			await this.measurePerformance(async () => {
-				initWidgets();
+				try {
+					// Initialize widgets with proper error handling
+					initWidgets();
+				} catch (error) {
+					logger.error('Widget initialization failed:', error as Error);
+					throw new Error('Widget initialization failed');
+				}
+
 				await this.updateCollections(true);
 				this.initialized = true;
 			}, 'Collection Manager Initialization');
@@ -450,17 +459,19 @@ class CollectionManager {
 					}
 				});
 
+				// Update stores using store.set() method
 				categories.set(categoryRecord);
 				collections.set(collectionRecord);
 				unAssigned.set(cols.filter((x) => !Object.values(collectionRecord).includes(x)));
-
 				collection.set({} as Schema);
 				collectionValue.set({});
 				mode.set('view');
 
 				logger.info(`Collections updated successfully. Count: ${cols.length}`);
 			} catch (err) {
-				logger.error(`Error in updateCollections: ${err}`);
+				const errorMessage = err instanceof Error ? err.message : String(err);
+				logger.error(`Error in updateCollections: ${errorMessage}`);
+				throw new Error(`Failed to update collections: ${errorMessage}`);
 			}
 		}, 'Update Collections');
 	}

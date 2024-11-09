@@ -36,7 +36,7 @@ Features:
 		distance?: number;
 	}
 
-	// State management using Svelte 5's $state
+	// States
 	let searchResults: SearchResult[] = $state([]);
 	let searchQuery = $state('');
 	let inputRef: HTMLInputElement | null = $state(null);

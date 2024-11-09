@@ -160,12 +160,11 @@
 		type="text"
 		id="icon"
 		bind:value={searchQuery}
-		placeholder={iconselected ? `Replace Icon:    ${iconselected}` : m.iconpicker_placeholder()}
+		placeholder={iconselected ? `Replace Icon: ${iconselected}` : m.iconpicker_placeholder()}
 		class="input w-full text-black dark:text-primary-500"
 		oninput={() => debouncedSearch(searchQuery, selectedLibrary)}
 		onfocus={showLibrariesAndDropdown}
 		aria-label="Search icons"
-		aria-expanded={showDropdown}
 		aria-controls="icon-dropdown"
 		aria-describedby={searchError ? 'search-error' : undefined}
 	/>
@@ -216,6 +215,7 @@
 							class="flex items-center justify-center p-2 hover:rounded hover:bg-primary-500"
 							aria-label={`Select icon ${icon}`}
 							role="option"
+							aria-selected={iconselected === icon}
 						>
 							<iconify-icon {icon} width="24" aria-hidden="true"></iconify-icon>
 						</button>
