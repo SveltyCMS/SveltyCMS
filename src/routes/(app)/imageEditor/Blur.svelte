@@ -1,7 +1,16 @@
 <!-- 
 @file src/routes/(app)/imageEditor/Blur.svelte
-@description This component allows users to apply a blur effect to a specific region of an image within a Konva stage.
+@component
+**Blur effect component using Konva canvas used for image editing**
+
+### Props 
+- `stage`: Konva.Stage - The Konva stage where the image is displayed.
+- `layer`: Konva.Layer - The Konva layer where the image and effects are added.
+- `imageNode`: Konva.Image - The Konva image node representing the original image.
+- `on:blurReset` (optional): Function to be called when the blur effect is reset.
+- `on:blurApplied` (optional): Function to be called when the blur effect is applied.
 -->
+
 <script lang="ts">
 	import Konva from 'konva';
 

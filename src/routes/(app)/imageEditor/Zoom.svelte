@@ -1,7 +1,14 @@
 <!-- 
-@file: ImageZoomResize.svelte
-@description: This component allows users to zoom and resize an image within a Konva stage. 
-              It provides zoom controls as well as options to resize the image while maintaining the aspect ratio.
+@file src/routes/(app)/imageEditor/Zoom.svelte
+@component
+**This component allows users to zoom and resize an image within a Konva stage**
+It provides zoom controls as well as options to resize the image while maintaining the aspect ratio
+
+#### Props
+- `stage`: Konva.Stage - The Konva stage where the image is displayed.
+- `layer`: Konva.Layer - The Konva layer where the image and effects are added.
+- `imageNode`: Konva.Image - The Konva image node representing the original image.
+- `on:exitZoomResize` (optional): Function to be called when the zoom and resize is exited.
 -->
 
 <script lang="ts">

@@ -17,7 +17,6 @@
 	// Valibot validation
 	import { object, string, number, boolean, optional, regex, pipe, parse, type InferInput, type ValiError } from 'valibot';
 
-
 	const fieldName = getFieldName(field);
 	interface Props {
 		field: FieldType;

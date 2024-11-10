@@ -27,13 +27,7 @@
 		isPrivate: boolean;
 	}
 
-	let {
-		parent,
-		title,
-		configCategory,
-		description,
-		isPrivate
-	}: Props = $props();
+	let { parent, title, configCategory, description, isPrivate }: Props = $props();
 
 	interface ConfigField<T> {
 		type: T;

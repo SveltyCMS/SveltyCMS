@@ -1,6 +1,7 @@
 <!-- 
 @file src/components/ModalEditForm.svelte
-@description A modal for editing user data.
+@component
+**A modal for editing user data like username, email, password, and role**
 -->
 
 <script lang="ts">
@@ -9,7 +10,6 @@
 	import { invalidateAll } from '$app/navigation';
 
 	// Props
-	
 
 	// Skelton & Stores
 	import { getModalStore } from '@skeletonlabs/skeleton';
@@ -53,14 +53,7 @@
 		user_id?: string | null;
 	}
 
-	let {
-		parent,
-		isGivenData = false,
-		username = null,
-		email = null,
-		role = null,
-		user_id = null
-	}: Props = $props();
+	let { parent, isGivenData = false, username = null, email = null, role = null, user_id = null }: Props = $props();
 
 	// Form Data Initialization
 	const formData = $state({

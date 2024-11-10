@@ -1,6 +1,14 @@
 <!--
-@file: src/routes/(app)/dashboard/widgets/MemoryWidget.svelte
-@description:  A reusable widget component for displaying memory usage information with improved rendering and error handling.
+@file src/routes/(app)/dashboard/widgets/MemoryWidget.svelte
+@component
+**A reusable widget component for displaying memory usage information with improved rendering and error handling**
+
+```tsx
+<MemoryWidget label="Memory Usage" />
+```
+
+### Props
+- `label`: The label for the widget (default: 'Memory Usage')
 
 This widget fetches and displays real-time memory usage data, including:
 - Total memory
@@ -16,9 +24,6 @@ Features:
 - Improved error handling and data validation
 - Proper lifecycle management
 - Enhanced debugging and logging
-
-Usage:
-<MemoryWidget label="Memory Usage" />
 -->
 <script lang="ts">
 	import { onMount, onDestroy, getContext } from 'svelte';

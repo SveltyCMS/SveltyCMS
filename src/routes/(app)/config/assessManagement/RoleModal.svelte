@@ -13,7 +13,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Props
-	
+
 	interface Props {
 		/** Exposes parent props to this component. */
 		parent: SvelteComponent;
@@ -25,15 +25,7 @@
 		selectedPermissions?: string[];
 	}
 
-	let {
-		parent,
-		isEditMode,
-		currentRoleId,
-		roleName,
-		roleDescription,
-		currentGroupName,
-		selectedPermissions = []
-	}: Props = $props();
+	let { parent, isEditMode, currentRoleId, roleName, roleDescription, currentGroupName, selectedPermissions = [] }: Props = $props();
 
 	// Local form state
 	let formName = $state(roleName);

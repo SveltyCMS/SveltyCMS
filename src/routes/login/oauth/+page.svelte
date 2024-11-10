@@ -25,9 +25,11 @@
 	let formError = $state('');
 	let isFormValid = $state(false);
 
-	// Update form validation when token changes
-	$effect: {
-		isFormValid = !data.requiresToken || (token.length >= 16 && token.length <= 48);
+	// Update form validation when token changes using derived state
+	$derived: {
+		const currentToken = token;
+		const currentRequiresToken = data.requiresToken;
+		isFormValid = !currentRequiresToken || (currentToken.length >= 16 && currentToken.length <= 48);
 	}
 
 	// Handle form submission
@@ -65,9 +67,10 @@
 		window.history.back();
 	}
 
-	// Effect for initial data loading
-	$effect: {
-		if (data) {
+	// Effect for initial data loading using derived state
+	$derived: {
+		const currentData = data;
+		if (currentData) {
 			isLoading = false;
 		}
 	}
@@ -128,9 +131,3 @@
 		</form>
 	{/if}
 </div>
-
-<style>
-	.input:invalid {
-		border-color: var(--color-error-500);
-	}
-</style>

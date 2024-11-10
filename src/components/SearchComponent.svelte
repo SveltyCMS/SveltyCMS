@@ -194,26 +194,27 @@ Features:
 		>
 			{#each searchResults as result, index (result.title)}
 				<li role="option" aria-selected={index === selectedIndex} class="focus-within:outline-none focus-within:ring-2 focus-within:ring-primary-500">
-					<button
-						class="w-full border-b text-left text-white last:border-0 last:pb-2 hover:bg-surface-400 {index === selectedIndex
-							? 'bg-surface-500'
-							: ''}"
-						onclick={() => handleResultClick(result, Object.keys(result.triggers)[0])}
-						aria-label={`${result.title}: ${result.description}`}
-					>
-						<div class="grid auto-cols-auto grid-flow-col">
-							<!-- Highlighted title -->
-							<span class="whitespace-nowrap font-bold text-primary-500">
-								<HighlightedText text={result.title + ' : '} term={searchQuery} />
-							</span>
+					{#if Object.entries(result.triggers).length === 1}
+						<button
+							type="button"
+							class="w-full border-b text-left text-white last:border-0 last:pb-2 hover:bg-surface-400 {index === selectedIndex
+								? 'bg-surface-500'
+								: ''}"
+							onclick={() => handleResultClick(result, Object.keys(result.triggers)[0])}
+							aria-label={`${result.title}: ${result.description}`}
+						>
+							<div class="grid auto-cols-auto grid-flow-col">
+								<!-- Highlighted title -->
+								<span class="whitespace-nowrap font-bold text-primary-500">
+									<HighlightedText text={result.title + ' : '} term={searchQuery} />
+								</span>
 
-							<!-- Highlighted description -->
-							<span class="col-span-2 text-sm">
-								<HighlightedText text={result.description} term={searchQuery} />
-							</span>
+								<!-- Highlighted description -->
+								<span class="col-span-2 text-sm">
+									<HighlightedText text={result.description} term={searchQuery} />
+								</span>
 
-							<!-- Path for items with one trigger -->
-							{#if Object.entries(result.triggers).length === 1}
+								<!-- Path for single trigger -->
 								{#each Object.entries(result.triggers) as [, trigger]}
 									{#if trigger && 'path' in trigger}
 										<span class="w-[50px] text-xs text-primary-500">
@@ -221,27 +222,35 @@ Features:
 										</span>
 									{/if}
 								{/each}
-							{/if}
-						</div>
-
-						<!-- Multiple triggers -->
-						{#if Object.entries(result.triggers).length > 1}
-							<div class="grid text-sm sm:col-span-2">
-								{#each Object.entries(result.triggers) as [triggerKey, trigger]}
-									{#if trigger && 'path' in trigger}
-										<a
-											class="flex cursor-pointer items-center justify-between px-6 py-1 hover:bg-surface-500"
-											onclick={(e) => handleResultClick(result, triggerKey, e)}
-											aria-label={`${triggerKey} - ${trigger.path}`}
-										>
-											<HighlightedText text={triggerKey} term={searchQuery} />
-											<span class="text-xs text-primary-500">{trigger.path}</span>
-										</a>
-									{/if}
-								{/each}
 							</div>
-						{/if}
-					</button>
+						</button>
+					{:else}
+						<!-- Result header for multiple triggers -->
+						<div class="border-b p-2">
+							<div class="font-bold text-primary-500">
+								<HighlightedText text={result.title} term={searchQuery} />
+							</div>
+							<div class="text-sm text-white">
+								<HighlightedText text={result.description} term={searchQuery} />
+							</div>
+						</div>
+						<!-- Multiple triggers list -->
+						<div class="grid text-sm">
+							{#each Object.entries(result.triggers) as [triggerKey, trigger]}
+								{#if trigger && 'path' in trigger}
+									<button
+										type="button"
+										class="flex cursor-pointer items-center justify-between px-6 py-1 text-left text-white hover:bg-surface-500"
+										onclick={(e) => handleResultClick(result, triggerKey, e)}
+										aria-label={`${triggerKey} - ${trigger.path}`}
+									>
+										<HighlightedText text={triggerKey} term={searchQuery} />
+										<span class="text-xs text-primary-500">{trigger.path}</span>
+									</button>
+								{/if}
+							{/each}
+						</div>
+					{/if}
 				</li>
 			{/each}
 		</ul>

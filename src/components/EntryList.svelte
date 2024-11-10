@@ -1,6 +1,15 @@
 <!--
 @file:  src/components/EntryList.svelte
-@description:  EntryList component to display collections
+@component
+**EntryList component to display collections data.**
+
+```tsx
+<EntryList />
+```
+
+#### Props
+- `collection` - The collection object to display data from.
+- `mode` - The current mode of the component. Can be 'view', 'edit', 'create', 'delete', 'modify', or 'media'.
 
 Features:
 - Search

@@ -1,6 +1,7 @@
 <!-- 
 @files src/components/emails/updatedPassword.svelte
-@description updatedPassword Email component
+@component
+**updatedPassword Email component to reset existing password**
 -->
 
 <script lang="ts">
@@ -20,7 +21,6 @@
 	// Auth
 	import type { User } from '@src/auth/types';
 	const username: User = $page.data.user.username;
-
 
 	// svelty-email
 	import { Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';

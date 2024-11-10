@@ -1,6 +1,16 @@
 <!-- 
 @file src/components/widgets/seo/SeoPreview.svelte
-@description - SEO Preview widget
+@component
+**SEO Preview widget for SEO Widget**
+
+```tsx
+<SeoPreview bind:title={title} bind:description={description} bind:hostUrl={hostUrl} bind:SeoPreviewToggle={SeoPreviewToggle} />
+```
+#### Props
+- `title` {string} - Title text
+- `description` {string} - Description text
+- `hostUrl` {string} - Host URL
+- `SeoPreviewToggle` {boolean} - Preview toggle
 -->
 
 <script lang="ts">

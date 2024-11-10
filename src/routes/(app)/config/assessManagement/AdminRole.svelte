@@ -1,6 +1,13 @@
 <!--
 @file src/routes/(app)/config/adminRoleManagement/AdminRoleManagement.svelte
-@description This component manages the selection and updating of the administrator role within the application. 
+@component
+**This component manages the selection and updating of the administrator role within the application**
+
+```tsx
+<AdminRole bind:roleData={roleData} />
+```
+### Props
+- `roleData`: An object containing role data, including the current admin role and available roles.
 
 It provides functionality to:
 - Load and display available roles, excluding the current administrator role.

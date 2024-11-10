@@ -1,6 +1,14 @@
 <!--
 @file src/routes/(app)/dashboard/widgets/CPUWidget.svelte
-@description Reusable widget for displaying CPU usage data with support for dynamic sizing, light/dark mode, and a11y improvements.
+@component
+**Reusable widget for displaying CPU usage data with support for dynamic sizing, light/dark mode, and a11y improvements**
+
+```tsx
+<CPUWidget label="CPU Usage" />
+```
+
+### Props
+- `label`: The label for the widget (default: 'CPU Usage')
 
 Features:
 - Supports light/dark themes based on global theme settings
@@ -8,10 +16,8 @@ Features:
 - Accessible by keyboard and screen readers with proper aria-labels
 - Responsive and optimized for performance
 - Uses efficient data fetching with cache-busting
-
-Usage:
-<CPUWidget label="CPU Usage" />
 -->
+
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { writable, get } from 'svelte/store';

@@ -1,6 +1,13 @@
 <!-- 
 @file src/components/LeftSidebar.svelte 
-@description LeftSidebar component
+@component
+**LeftSidebar component displaying collection fields, publish options and translation status.**
+
+```tsx
+<LeftSidebar collection={collection} />
+```
+#### Props
+- `collection` {object} - Collection object
 -->
 
 <script module lang="ts">

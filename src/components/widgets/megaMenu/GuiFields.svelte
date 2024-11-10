@@ -1,7 +1,14 @@
 <!--
 @file src/components/widgets/megaMenu/GuiFields.svelte
-@description GUI component for building menu fields in a mega menu structure. 
-             Allows adding multiple levels of menu items and configuring their fields.
+@component
+**GUI component for building menu fields in a mega menu structure**
+Allows adding multiple levels of menu items and configuring their fields
+
+```tsx
+<GuiFields bind:value={value} />
+```
+**Props:**
+- `value` - {Array<Array<any>>} - Array of menu levels
 -->
 <script lang="ts">
 	// Components

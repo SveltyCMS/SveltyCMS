@@ -1,6 +1,13 @@
 <!-- 
 @file src/components/Media.svelte
-@description Media component with accessibility updates and button nesting resolved
+@component
+**Media component with accessibility updates and button nesting resolved**
+
+```tsx
+<Media bind:files={files} />
+```
+#### Props
+- `files` {array} - Array of media files
 -->
 
 <script lang="ts">
@@ -11,22 +18,34 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	let files: MediaImage[] = [];
-	let search = '';
-	const searchDeb = debounce(500);
-	const showInfo = Array.from({ length: files.length }, () => false);
+	// State management using Svelte 5's $state
+	let files = $state<MediaImage[]>([]);
+	let search = $state('');
+	let showInfo = $state(Array.from({ length: files.length }, () => false));
 
-	export let onselect: (file: MediaImage) => void = () => {};
+	// Props using Svelte 5's $props
+	let { onselect = (file: MediaImage) => {} } = $props<{
+		onselect?: (file: MediaImage) => void;
+	}>();
+
+	const searchDeb = debounce(500);
 
 	async function refresh() {
-		await axios.get('/media/getAll').then((res) => (files = res.data));
+		const res = await axios.get('/media/getAll');
+		files = res.data;
+		// Update showInfo array length when files change
+		showInfo = Array.from({ length: files.length }, () => false);
 	}
+
+	// Initial load
 	refresh();
 
-	$: {
-		searchDeb(() => refresh());
-		search;
-	}
+	// Reactive search using $derived
+	let searchEffect = $derived(() => {
+		if (search !== undefined) {
+			searchDeb(() => refresh());
+		}
+	});
 
 	function toggleInfo(event: Event, index: number) {
 		event.stopPropagation();
@@ -65,10 +84,10 @@
 					>
 						<iconify-icon icon="raphael:info" width="25" class="text-tertiary-500"></iconify-icon>
 					</span>
-					<p class="mx-auto pr-[30px] text-white">{file.thumbnails.sm.name}</p>
+					<p class="mx-auto pr-[30px] text-white">{file.name}</p>
 				</div>
 				{#if !showInfo[index]}
-					<img src={file.thumbnails.sm.url} alt={file.thumbnails.sm.name} class="mx-auto mt-auto max-h-[calc(100%-35px)] rounded-md" />
+					<img src={file.thumbnails.sm.url} alt={file.name} class="mx-auto mt-auto max-h-[calc(100%-35px)] rounded-md" />
 				{:else}
 					<table class="mt-[30px] min-h-[calc(100%-30px)] w-full">
 						<tbody class="table-compact">

@@ -1,6 +1,14 @@
 <!-- 
 @files src/components/user/Multibutton.svelte
-@description  A multibutton component for user management.
+@component
+**A multibutton component for user management.**
+
+```tsx
+<Multibutton bind:selectedRows={selectedRows} />
+```
+
+#### Props
+- `selectedRows` {array} - Array of selected rows	
 -->
 
 <script lang="ts">
@@ -21,21 +29,37 @@
 	import { invalidateAll } from '$app/navigation';
 	import ModalEditToken from './ModalEditToken.svelte';
 
+	interface TokenData {
+		token: string;
+		email: string;
+		role: string;
+		user_id: string;
+		[key: string]: any;
+	}
+
+	interface SelectedRow {
+		data: TokenData;
+	}
+
 	// Popup Combobox
-	let listboxValue: string = $state('edit');
-	let { selectedRows } = $props();
+	let listboxValue = $state('edit');
+	let { selectedRows } = $props<{
+		selectedRows: SelectedRow[];
+	}>();
+
+	// Derived values
+	let isDisabled = $derived(selectedRows.length === 0);
 
 	const Combobox: PopupSettings = {
 		event: 'click',
 		target: 'Combobox',
 		placement: 'bottom-end',
 		closeQuery: '.listbox-item'
-		//state: (e: any) => console.log('tooltip', e)
 	};
 
 	// modals
 	function modalUserForm(): void {
-		if (selectedRows.length === 0) return; // Trigger the toast
+		if (isDisabled) return; // Trigger the toast
 		const t = {
 			message: '<iconify-icon icon="mdi:check-outline" color="white" width="26" class="mr-1"></iconify-icon> User Data Updated',
 			// Provide any utility or variant background style:
@@ -45,9 +69,6 @@
 			classes: 'border-1 !rounded-md'
 		};
 		toastStore.trigger(t);
-
-		// console.log('No user selected');
-		//console.log(selectedRows[0].data);
 
 		const modalComponent: ModalComponent = {
 			// Pass a reference to your custom component
@@ -82,7 +103,6 @@
 					}
 				}
 			},
-
 			meta: { foo: 'bar', fizz: 'buzz', fn: ModalEditForm }
 		};
 		modalStore.trigger(d);
@@ -113,8 +133,6 @@
 				throw Error(`Invalid action ${action}`);
 		}
 
-		//console.log('entered');
-
 		const d: ModalSettings = {
 			type: 'confirm',
 
@@ -133,7 +151,7 @@
 				const res = await fetch(`?/${endpoint}`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify(selectedRows.map((row: any) => row.data))
+					body: JSON.stringify(selectedRows.map((row) => row.data))
 				});
 
 				if (res.status === 200) {
@@ -198,7 +216,7 @@
 </script>
 
 <!-- Multibutton group-->
-<div class="btn-group relative rounded-md text-white">
+<div class="btn-group relative rounded-md text-white" role="group" aria-label="Token management actions">
 	<!-- Action button  -->
 	<button
 		type="button"
@@ -206,35 +224,60 @@
 			getButtonAndIconValues(listboxValue, listboxValue);
 		}}
 		class="{getButtonAndIconValues(listboxValue, listboxValue).buttonClass} w-full font-semibold uppercase hover:bg-primary-400"
+		aria-label={`${listboxValue} selected tokens`}
+		disabled={isDisabled}
+		aria-disabled={isDisabled}
 	>
-		<iconify-icon icon={getButtonAndIconValues(listboxValue, listboxValue).iconValue} width="20" class="mr-2 text-white"></iconify-icon>
-		{listboxValue ?? 'create'}
+		<iconify-icon
+			icon={getButtonAndIconValues(listboxValue, listboxValue).iconValue}
+			width="20"
+			class="mr-2 text-white"
+			role="presentation"
+			aria-hidden="true"
+		></iconify-icon>
+		<span>{listboxValue ?? 'create'}</span>
 	</button>
 
-	<span class="border border-white"></span>
+	<span class="border border-white" aria-hidden="true"></span>
+
 	<!-- Dropdown button -->
-	<button use:popup={Combobox} aria-label="Toggle dropdown" class="divide-x-2 rounded-r-sm bg-surface-500 hover:!bg-surface-800">
-		<iconify-icon icon="mdi:chevron-down" width="20" class="text-white"></iconify-icon>
+	<button
+		use:popup={Combobox}
+		aria-label="Open actions menu"
+		aria-haspopup="true"
+		aria-expanded="false"
+		class="divide-x-2 rounded-r-sm bg-surface-500 hover:!bg-surface-800"
+		disabled={isDisabled}
+		aria-disabled={isDisabled}
+	>
+		<iconify-icon icon="mdi:chevron-down" width="20" class="text-white" role="presentation" aria-hidden="true"></iconify-icon>
 	</button>
 </div>
+
 <!-- Dropdown/Listbox -->
-<div class="overflow-hiddens card z-10 w-48 rounded-sm bg-surface-500 text-white" data-popup="Combobox">
+<div class="overflow-hiddens card z-10 w-48 rounded-sm bg-surface-500 text-white" data-popup="Combobox" role="menu" aria-label="Available actions">
 	<ListBox rounded="rounded-sm" active="variant-filled-primary" hover="hover:bg-surface-300" class="divide-y">
 		{#if listboxValue != 'edit'}
-			<ListBoxItem bind:group={listboxValue} name="medium" value="edit" active="variant-filled-primary" hover="gradient-primary-hover"
-				>{#snippet lead()}
-					<iconify-icon icon="bi:pencil-fill" width="20" class="mr-1"></iconify-icon>
+			<ListBoxItem
+				bind:group={listboxValue}
+				name="medium"
+				value="edit"
+				active="variant-filled-primary"
+				hover="gradient-primary-hover"
+				role="menuitem"
+			>
+				{#snippet lead()}
+					<iconify-icon icon="bi:pencil-fill" width="20" class="mr-1" role="presentation" aria-hidden="true"></iconify-icon>
 				{/snippet}
 				{m.button_edit()}
 			</ListBoxItem>
 		{/if}
 
 		{#if listboxValue != 'delete'}
-			<ListBoxItem bind:group={listboxValue} name="medium" value="delete" active="variant-filled-error" hover="gradient-error-hover"
-				>{#snippet lead()}
-					<iconify-icon icon="bi:trash3-fill" width="20" class="mr-1"></iconify-icon>
+			<ListBoxItem bind:group={listboxValue} name="medium" value="delete" active="variant-filled-error" hover="gradient-error-hover" role="menuitem">
+				{#snippet lead()}
+					<iconify-icon icon="bi:trash3-fill" width="20" class="mr-1" role="presentation" aria-hidden="true"></iconify-icon>
 				{/snippet}
-
 				{m.button_delete()}
 			</ListBoxItem>
 		{/if}

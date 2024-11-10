@@ -17,7 +17,6 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-
 	const fieldName = getFieldName(field);
 	interface Props {
 		field: FieldType;

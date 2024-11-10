@@ -1,14 +1,28 @@
 /**
  * @file src/auth/types.ts
- * @description Type definitions and utility functions for the authentication system.
+ * @description Authentication types, interfaces, and utility functions.
  *
- * This module defines types, interfaces, and helper functions for:
- * - Users, roles, and permissions
- * - Sessions and tokens
- * - Authentication-related data structures and operations
+ * This module provides the foundational types, interfaces, and helper functions
+ * related to user authentication, roles, permissions, sessions, and tokens in the system.
+ *
+ * Primary functionalities include:
+ * - Defining role-based permissions for users
+ * - Managing session and token information
+ * - Helper functions for checking user roles and permissions
+ *
+ * Exports:
+ * - `Role`, `Permission`, `User`, `Session`, `Token`, `RateLimit`, etc.
+ * - Utilities for managing roles, permissions, and sessions
  *
  * Usage:
- * Imported throughout the auth system to ensure type consistency and safety.
+ * This module is used throughout the authentication system to ensure type consistency and safety.
+ * It is primarily imported by services handling user authentication and authorization logic.
+ *
+ * Example:
+ * ```tsx
+ * import { hasPermission } from 'src/auth/types';
+ * const hasReadPermission = hasPermission(user, 'read', 'system');
+ * ```
  */
 
 import { PermissionAction as ConfigPermissionAction, PermissionType } from '../../src/auth/permissionTypes';
@@ -25,6 +39,8 @@ export interface Role {
 	isAdmin?: boolean; // Indicates if the role has admin privileges
 	permissions: string[]; // Array of permission IDs associated with the role
 	groupName?: string; // Optional group name associated with the role
+	icon?: string; // Optional icon for the role (e.g., for UI display)
+	color?: string; // Optional color for the role (e.g., for UI display)
 }
 
 // Permission Interface

@@ -1,6 +1,16 @@
 <!-- 
  @file src/components/widgets/text/Text.svelte 
- @description Text field with 
+ @component
+ **Text field widget component to display text input field with prefix and suffix and count**
+
+```tsx
+<Text bind:field={field} />
+```
+**Props:**
+- `field` - {FieldType} - Field type
+- `value` - {any} - Field value
+- `data` - {any} - Field data
+
  
  Features: 
  - Count and length badge

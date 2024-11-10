@@ -1,6 +1,18 @@
 <!-- 
 @file src/components/system/table/TableFilter.svelte
-@description Filter component for table
+@component
+**Table Filter component for displaying search, filter, and column controls.**
+
+```tsx
+<TableFilter  bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
+```
+
+#### Props
+- `globalSearchValue` {string}: The current value of the global search input (default: '')
+- `searchShow` {boolean}: Whether the search input is visible (default: false)
+- `filterShow` {boolean}: Whether the filter controls are visible (default: false)
+- `columnShow` {boolean}: Whether the column controls are visible (default: false)
+- `density` {string}: The density of the table (default: 'normal')
 -->
 
 <script lang="ts">

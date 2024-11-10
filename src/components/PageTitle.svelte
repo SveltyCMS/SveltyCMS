@@ -1,16 +1,24 @@
 <!-- 
-@file src/components/PageTitle.svelte
-@description PageTitle component
+@file`src/components/PageTitle.svelte` 
+@component
+**Page title with optional back button and icon** 
 
-Functions
-@prop {string} name - The name of the page
-@prop {string} highlight - The part of the name to be highlighted
-@prop {string} icon - The icon of the page
-@prop {string} iconColor - The color of the icon
-@prop {string} iconSize - The size of the icon
-@prop {boolean} showBackButton - Whether to show the back button
-@prop {string} backUrl - The URL to go back to
+```tsx
+<PageTitle 
+  name="Dashboard" icon="bi:bar-chart-line" highlight="Dash" iconColor="text-primary-500" iconSize="24" showBackButton={true}  backUrl="/home" />
+```
+#### Props - Required 
+- `name` {string} - Page title*
+- `icon` {string} - Icon name from [iconify](https://iconify.design/)**  
+#### Props - Optional 
+- `highlight` {string} - Part of `name` to highlight* 
+- `iconColor` - {string} - Icon color **(default `text-tertiary-500`)**
+- `iconSize` - {string} - Icon size **(default `32`)**
+- `showBackButton` - {string} - Whether to show the back button **(default `false`)**
+- `backUrl`- {string} - Page URL or `/URL` for back button navigation 
+- `color` - {string} - Background or text color for the title* **(default `blue`)**
 -->
+
 <script lang="ts">
 	import { run, createBubbler } from 'svelte/legacy';
 

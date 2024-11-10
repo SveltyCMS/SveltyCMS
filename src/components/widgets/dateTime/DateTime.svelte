@@ -17,7 +17,6 @@
 	// valibot validation
 	import * as v from 'valibot';
 
-
 	const fieldName = getFieldName(field);
 	interface Props {
 		field: FieldType;

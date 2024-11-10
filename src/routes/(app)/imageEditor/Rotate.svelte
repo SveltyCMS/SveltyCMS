@@ -1,7 +1,17 @@
 <!-- 
-@file: src/routes/(app)/imageEditor/Rotate.svelte
-@description: This component provides rotation controls for an image within a Konva stage. 
-              Users can rotate the image left, right, or by a custom angle, with options to apply or cancel the rotation.
+@file src/routes/(app)/imageEditor/Rotate.svelte
+@component
+**This component provides rotation controls for an image within a Konva stage**
+Users can rotate the image left, right, or by a custom angle, with options to apply or cancel the rotation.
+
+#### Props 
+- `stage`: Konva.Stage - The Konva stage where the image is displayed.
+- `layer`: Konva.Layer - The Konva layer where the image and effects are added.
+- `imageNode`: Konva.Image - The Konva image node representing the original image.
+- `on:rotate` (optional): Function to be called when a rotation is applied.
+- `on:rotateApplied` (optional): Function to be called when the rotation is applied.
+- `on:rotateCancelled` (optional): Function to be called when the rotation is canceled.
+- `on:rotateReset` (optional): Function to be called when the rotation is reset.
 -->
 
 <script lang="ts">

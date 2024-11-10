@@ -29,7 +29,7 @@ Features:
 		onChange?: (value: File | MediaImage) => void;
 	}
 
-	let { value = undefined, multiple = false, show = true, className = '', onChange }: Props = $props();
+	let { value = undefined, multiple = false, show = $bindable(true), className = '', onChange }: Props = $props();
 
 	let input = $state<HTMLInputElement | null>(null);
 	let showMedia = $state(false);

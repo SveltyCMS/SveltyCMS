@@ -1,15 +1,14 @@
 <!-- 
 @file src/routes/(app)/[language]/+error.svelte
-@description This Svelte component displays an error page for the application. 
-It provides a user-friendly interface for handling various error states, such as 404 (Not Found). 
+@component
+**Displays an Error page for the SveltyCMS**
 
 Features: 
 - Dynamic display of error status and message based on the error encountered. 
 - Rotating animation effect for the site name to enhance visual appeal. 
 - Clear call-to-action link to return to the homepage.
 
-Usage: 
-This error component is automatically rendered when an error occurs during route handling.  
+Usage: This error component is automatically rendered when an error occurs during route handling.
 -->
 
 <script lang="ts">

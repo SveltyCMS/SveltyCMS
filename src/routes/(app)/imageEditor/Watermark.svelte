@@ -1,7 +1,14 @@
 <!-- 
 @file: /src/routes/(app)/imageEditor/Watermark.svelte
-@description: This component allows users to add, position, and customize a watermark overlay on an image.
-              Users can adjust the watermark's position, opacity, scale, rotation, and offsets.
+@component
+**This component allows users to add, position, and customize a watermark overlay on an image**
+Users can adjust the watermark's position, opacity, scale, rotation, and offsets
+
+#### Props 
+- `stage`: Konva.Stage - The Konva stage where the image is displayed.
+- `layer`: Konva.Layer - The Konva layer where the image and effects are added.
+- `imageNode`: Konva.Image - The Konva image node representing the original image.
+- `on:change` (optional): Function to be called when the watermark settings change.
 -->
 
 <script lang="ts">

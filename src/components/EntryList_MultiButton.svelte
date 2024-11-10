@@ -1,6 +1,21 @@
 <!--
- @files src/components/EntryList_MultiButton.svelte
-@description EntryList_MultiButton component.
+@files src/components/EntryList_MultiButton.svelte
+@component
+**EntryList_MultiButton component for creating, publishing, unpublishing, scheduling, cloning, deleting and testing entries.**
+
+```tsx
+<EntryList_MultiButton />
+```
+
+#### Props
+- `isCollectionEmpty` {boolean} - Boolean value indicating whether the collection is empty
+- `on:create` {function} - Function to call when the create button is clicked
+- `on:publish` {function} - Function to call when the publish button is clicked
+- `on:unpublish` {function} - Function to call when the unpublish button is clicked
+- `on:schedule` {function} - Function to call when the schedule button is clicked
+- `on:clone` {function} - Function to call when the clone button is clicked
+- `on:delete` {function} - Function to call when the delete button is clicked
+- `on:test` {function} - Function to call when the test button is clicked
 -->
 
 <script lang="ts">

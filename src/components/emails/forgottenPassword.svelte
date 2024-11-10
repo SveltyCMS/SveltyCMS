@@ -1,6 +1,7 @@
 <!-- 
 @files src/components/emails/forgottenPassword.svelte
-@description forgottenPassword Email component
+@component
+**forgottenPassword Email component to reset password**
 -->
 
 <script lang="ts">
@@ -9,7 +10,6 @@
 
 	// Components
 	import SiteName from '@components/SiteName.svelte';
-
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -25,8 +25,6 @@
 		expiresIn: string;
 	}
 
-	
-
 	// Readable ExpireIn time sec to year
 	import { ReadableExpireIn } from '@utils/utils';
 	interface Props {
@@ -38,13 +36,7 @@
 		expiresIn: EmailProps['expiresIn'];
 	}
 
-	let {
-		tokenLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD,
-		email,
-		token,
-		resetLink,
-		expiresIn
-	}: Props = $props();
+	let { tokenLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD, email, token, resetLink, expiresIn }: Props = $props();
 
 	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
 

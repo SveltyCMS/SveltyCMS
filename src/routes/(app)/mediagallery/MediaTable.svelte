@@ -1,6 +1,15 @@
 <!--
 @file src/routes/(app)/mediagallery/MediaTable.svelte
-@description Table view component for the media gallery. Displays media items in a responsive table layout with sortable columns.
+@component
+**Table view component for the media gallery. Displays media items in a responsive table layout with sortable columns**
+
+```tsx
+<MediaTable filteredFiles={filteredFiles} tableSize="small" />
+```
+#### Props
+- `filteredFiles: MediaBase[]`: An array of media items to be displayed in the table view.
+- `tableSize: 'small' | 'medium' | 'large'`: The size of the table layout to be used.
+
 Key features:
 - Responsive table layout for media items
 - Sortable columns for name, size, type, and date
@@ -19,13 +28,13 @@ Key features:
 	interface Props {
 		filteredFiles?: MediaBase[];
 		tableSize?: 'small' | 'medium' | 'large';
-		'on:deleteImage'?: (file: MediaBase) => void;
+		ondeleteImage?: (file: MediaBase) => void;
 	}
 
-	let { filteredFiles = $bindable([]), tableSize, 'on:deleteImage': onDeleteImage = () => {} }: Props = $props();
+	let { filteredFiles = $bindable([]), tableSize, ondeleteImage = () => {} }: Props = $props();
 
 	function handleDelete(file: MediaBase) {
-		onDeleteImage(file);
+		ondeleteImage(file);
 	}
 
 	// Sorting functionality

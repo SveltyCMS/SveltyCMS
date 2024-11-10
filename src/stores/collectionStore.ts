@@ -125,6 +125,10 @@ export const collection = {
 	set: stores.collection.set
 };
 
+/**
+The `collectionValue` store contains the current value of the collection being edited.
+- If the collection is not found, it will be set to an empty object.
+*/
 export const collectionValue = {
 	subscribe: stores.collectionValue.subscribe,
 	set: stores.collectionValue.set,
@@ -133,6 +137,15 @@ export const collectionValue = {
 	}
 };
 
+/**
+The `mode` store determines the editing mode of the user, which can be:
+- 'view': For viewing content.
+- 'edit': For editing existing content.
+- 'create': For creating new content.
+- 'delete': For deleting content.
+- 'modify': For modifying content.
+- 'media': For media-related actions.
+*/
 export const mode = {
 	subscribe: stores.mode.subscribe,
 	set: stores.mode.set

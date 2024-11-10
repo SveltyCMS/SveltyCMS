@@ -1,8 +1,14 @@
 <!--
-@file: src/routes/(app)/dashboard/widgets/SystemMessagesWidget.svelte
-@description: Dashboard widget for displaying system messages with improved rendering and error handling.
+@file src/routes/(app)/dashboard/widgets/SystemMessagesWidget.svelte
+@component 
+**Dashboard widget for displaying system messages with improved rendering and error handling**
 
-This widget displays the last 5 system messages added to the database.
+```tsx
+<SystemMessagesWidget label="System Messages" />
+```
+
+### Props
+- `label`: The label for the widget (default: 'System Messages')
 
 Features:
 - Responsive doughnut chart visualization
@@ -12,9 +18,6 @@ Features:
 - Improved error handling and data validation
 - Proper lifecycle management
 - Enhanced debugging and logging
-
-Usage:
-<SystemMessagesWidget label="System Messages" />
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';

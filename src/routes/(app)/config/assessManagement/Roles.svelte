@@ -1,6 +1,13 @@
 <!--
 @file src/routes/(app)/config/accessManagement/Roles.svelte
-@description This component manages roles within the application's access management system. 
+@component
+**This component manages roles within the application's access management system**
+
+```tsx
+<Roles />
+```
+### Props
+- `roleData`: An object containing role data, including the current admin role and available roles.
 
 It provides the following functionality:
 - Load and display roles and their associated permissions.

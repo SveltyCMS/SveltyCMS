@@ -22,7 +22,7 @@ import { encrypt, decrypt } from '@utils/encryption';
 import { error } from '@sveltejs/kit';
 
 // Types
-import type { SessionStore } from "./types";
+import type { SessionStore } from './types';
 import type { User } from './types';
 
 // Redis

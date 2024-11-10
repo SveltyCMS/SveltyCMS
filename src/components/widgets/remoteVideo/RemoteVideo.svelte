@@ -1,13 +1,19 @@
 <!-- 
 @file src/components/widgets/remoteVideo/RemoteVideo.svelte
-@description - RemoteVideo widget
+@component
+**RemoteVideo widget to embed remote videos in your content.**
+
+```tsx
+<RemoteVideo bind:value={value} />
+```
+#### Props
+- `value` {string} - Remote video URL
 
 Features:
 - Fetches video data from a remote URL
 - Displays the video thumbnail
 - Displays the video title
 - Displays the video duration
-
 -->
 
 <script lang="ts">

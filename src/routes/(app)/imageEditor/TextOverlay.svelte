@@ -1,8 +1,15 @@
 <!-- 
 @file: /src/routes/(app)/imageEditor/TextOverlay.svelte
-@description: This component allows users to overlay text onto an image in the image editor.
-              Users can adjust the text content, font size, color, alignment, and style.
-              The text is draggable, and the component supports multiple text overlays on the canvas.
+@component
+**This component allows users to overlay text onto an image in the image editor**
+Users can adjust the text content, font size, color, alignment, and style.
+The text is draggable, and the component supports multiple text overlays on the canvas
+
+#### Props 
+- `stage`: Konva.Stage - The Konva stage where the image is displayed.
+- `layer`: Konva.Layer - The Konva layer where the image and effects are added.
+- `imageNode`: Konva.Image - The Konva image node representing the original image.
+- `on:exitTextOverlay` (optional): Function to be called when the text overlay is exited.
 -->
 
 <script lang="ts">

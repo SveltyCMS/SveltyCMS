@@ -1,6 +1,13 @@
 <!-- 
 @file src/components/widgets/number/Number.svelte
-@description - Number widget
+@component
+**Number widget component that allows users to enter a number**
+
+```tsx	
+<Number bind:field={field} />
+```	
+**Props:**
+- `field` - {FieldType} - Field type
 -->
 
 <script lang="ts">
@@ -36,7 +43,6 @@
 		minValue?: number;
 		maxValue?: number;
 	}
-
 
 	const fieldName = getFieldName(field);
 	interface Props {

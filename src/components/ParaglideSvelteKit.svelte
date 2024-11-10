@@ -1,6 +1,7 @@
 <!-- 
 @file src/components/ParaglideSvelteKit.svelte
-@description ParaglideSvelteKit component 
+@component
+**ParaglideSvelteKit component for handling translations and localization.**
 -->
 
 <script lang="ts">

@@ -1,6 +1,14 @@
 <!-- 
 @file src/routes/(app)/imageEditor/FocalPoint.svelte
-@description This component allows users to set or reset a focal point on the image.
+@component
+**This component allows users to set or reset a focal point on the image**
+
+### Props 
+- `stage`: Konva.Stage - The Konva stage where the image is displayed.
+- `layer`: Konva.Layer - The Konva layer where the image and effects are added.
+- `imageNode`: Konva.Image - The Konva image node representing the original image.
+- `on:focalPointChange` (optional): Function to be called when the focal point is changed.
+- `on:focalPointRemoved` (optional): Function to be called when the focal point is removed.
 -->
 
 <script lang="ts">

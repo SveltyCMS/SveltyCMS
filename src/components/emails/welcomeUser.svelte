@@ -1,6 +1,7 @@
 <!-- 
 @files src/components/emails/welcomeUser.svelte
-@description welcomeUser Email component
+@component
+**welcomeUser Email component to send welcome email to new user signup**
 -->
 
 <script lang="ts">
@@ -13,8 +14,6 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { systemLanguage } from '@stores/store';
-
-
 
 	// Svelty-email
 	import { Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';

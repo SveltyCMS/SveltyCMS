@@ -1,6 +1,13 @@
 <!-- 
 @file src/components/widgets/megaMenu/ListNode.svelte
-@description ListNode component for a mega menu with nested structure and drag-and-drop functionality
+@component
+**ListNode component for a mega menu with nested structure and drag-and-drop functionality**
+
+```tsx
+<ListNode bind:field={field} />
+```
+**Props:**
+- `field` - {FieldType} - Field type
 -->
 
 <script lang="ts">

@@ -1,6 +1,14 @@
 <!-- 
 @file src/components/system/table/Status.svelte
-@description Status component for table 
+@component
+**Status component for table displaying different badges for different statuses.**
+
+Value can be: published, unpublished, schedule, clone, testing
+```tsx
+<Status value="published" />
+```
+@props
+- `value` {string}: The status value to display
 -->
 
 <script lang="ts">

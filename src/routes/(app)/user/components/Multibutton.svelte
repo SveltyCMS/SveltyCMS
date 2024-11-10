@@ -1,25 +1,64 @@
 <!-- 
 @files src/components/user/Multibutton.svelte
-@description A multibutton component for user management.
+@component
+**A unified multibutton component for managing users and tokens**
+
+```tsx
+<Multibutton bind:selectedRows={selectedRows} type="user" />
+```
+#### Props
+- `selectedRows` {array} - Array of selected rows
+- `type` {"user" | "token"} - Type of data to manage
 -->
 
 <script lang="ts">
+	import { invalidateAll } from '$app/navigation';
+
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
+
 	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
+	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
+	import ModalEditForm from './ModalEditForm.svelte';
+	import ModalEditToken from './ModalEditToken.svelte';
+
+	interface UserData {
+		_id: string;
+		username: string;
+		email: string;
+		role: string;
+	}
+
+	interface TokenData {
+		token: string;
+		email: string;
+		role: string;
+		user_id: string;
+	}
+
+	interface SelectedRow {
+		data: UserData | TokenData;
+	}
+
+	type ActionType = 'edit' | 'delete' | 'block' | 'unblock';
+
+	// Popup Combobox
+	let listboxValue = $state<ActionType>('edit');
+	let { selectedRows, type = 'user' } = $props<{
+		selectedRows: SelectedRow[];
+		type: 'user' | 'token';
+	}>();
+
+	// Derived values
+	let isDisabled = $derived(selectedRows.length === 0);
+	let isMultipleSelected = $derived(selectedRows.length > 1);
 
 	const modalStore = getModalStore();
 	const toastStore = getToastStore();
-
-	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
-	import ModalEditForm from './ModalEditForm.svelte';
-	import { invalidateAll } from '$app/navigation';
-
-	// Popup Combobox
-	let listboxValue: string = $state('edit');
-	let { selectedRows } = $props();
 
 	const Combobox: PopupSettings = {
 		event: 'click',
@@ -28,272 +67,191 @@
 		closeQuery: '.listbox-item'
 	};
 
-	function showErrorToast(message: string) {
-		const t = {
-			message: `<iconify-icon icon="mdi:alert" color="white" width="26" class="mr-1"></iconify-icon> ${message}`,
-			background: 'gradient-error',
+	const actionConfig = {
+		edit: {
+			buttonClass: 'gradient-primary',
+			iconValue: 'bi:pencil-fill',
+			modalTitle: () => (type === 'user' ? m.adminarea_title() : m.multibuttontoken_modaltitle()),
+			modalBody: () => (type === 'user' ? 'Modify your data and then press Save.' : m.multibuttontoken_modalbody()),
+			endpoint: () => (type === 'user' ? '/api/user/updateUserAttributes' : '?/editToken'),
+			method: () => (type === 'user' ? 'PUT' : 'POST'),
+			toastMessage: () => `${type === 'user' ? 'User' : 'Token'} Updated`,
+			toastBackground: 'gradient-primary'
+		},
+		delete: {
+			buttonClass: 'gradient-error',
+			iconValue: 'bi:trash3-fill',
+			modalTitle: () => (type === 'user' ? 'Please Confirm User Deletion' : m.multibuttontoken_deletetitle()),
+			modalBody: () => (type === 'user' ? 'Are you sure you wish to delete this user?' : m.multibuttontoken_deletebody()),
+			endpoint: () => (type === 'user' ? '/api/user/deleteUsers' : '?/deleteToken'),
+			method: () => (type === 'user' ? 'DELETE' : 'POST'),
+			toastMessage: () => `${type === 'user' ? 'User' : 'Token'} Deleted`,
+			toastBackground: 'gradient-error'
+		},
+		block: {
+			buttonClass: 'gradient-pink',
+			iconValue: 'material-symbols:lock',
+			modalTitle: () => (type === 'user' ? 'Please Confirm User Block' : m.multibuttontoken_blocktitle()),
+			modalBody: () => (type === 'user' ? 'Are you sure you wish to block this user?' : m.multibuttontoken_blockbody()),
+			endpoint: () => (type === 'user' ? '/api/user/blockUsers' : '?/blockToken'),
+			method: () => (type === 'user' ? 'PUT' : 'POST'),
+			toastMessage: () => `${type === 'user' ? 'User' : 'Token'} Blocked`,
+			toastBackground: 'gradient-yellow'
+		},
+		unblock: {
+			buttonClass: 'gradient-yellow',
+			iconValue: 'material-symbols:lock-open',
+			modalTitle: () => (type === 'user' ? 'Please Confirm User Unblock' : m.multibuttontoken_unblocktitle()),
+			modalBody: () => (type === 'user' ? 'Are you sure you wish to unblock this user?' : m.multibuttontoken_unblockbody()),
+			endpoint: () => (type === 'user' ? '/api/user/unblockUsers' : '?/unblockToken'),
+			method: () => (type === 'user' ? 'PUT' : 'POST'),
+			toastMessage: () => `${type === 'user' ? 'User' : 'Token'} Unblocked`,
+			toastBackground: 'gradient-primary'
+		}
+	} as const;
+
+	function showToast(message: string, isError = false, background = 'gradient-primary') {
+		toastStore.trigger({
+			message: `<iconify-icon icon="${isError ? 'mdi:alert' : 'mdi:check-outline'}" color="white" width="26" class="mr-1"></iconify-icon> ${message}`,
+			background: isError ? 'gradient-error' : background,
 			timeout: 3000,
 			classes: 'border-1 !rounded-md'
-		};
-		toastStore.trigger(t);
+		});
 	}
 
-	function showSuccessToast(message: string, background: string = 'gradient-primary') {
-		const t = {
-			message: `<iconify-icon icon="mdi:check-outline" color="white" width="26" class="mr-1"></iconify-icon> ${message}`,
-			background,
-			timeout: 3000,
-			classes: 'border-1 !rounded-md'
-		};
-		toastStore.trigger(t);
-	}
-
-	// modals
-	function modalUserForm(): void {
-		if (selectedRows.length === 0) {
-			showErrorToast('Please select a user to edit');
+	async function handleAction(action: ActionType) {
+		if (isDisabled) {
+			showToast(`Please select ${type}(s) to ${action}`, true);
 			return;
 		}
 
-		if (selectedRows.length > 1) {
-			showErrorToast('Please select only one user to edit');
+		if (action === 'edit' && isMultipleSelected) {
+			showToast(`Please select only one ${type} to edit`, true);
 			return;
 		}
 
-		const modalComponent: ModalComponent = {
-			ref: ModalEditForm,
-			props: {
-				isGivenData: true,
-				username: selectedRows[0].data.username,
-				email: selectedRows[0].data.email,
-				role: selectedRows[0].data.role,
-				user_id: selectedRows[0].data._id
-			},
-			slot: '<p>Edit Form</p>'
-		};
-		const d: ModalSettings = {
-			type: 'component',
-			title: 'Edit User Data',
-			body: 'Modify your data and then press Save.',
-			component: modalComponent,
+		const config = actionConfig[action];
+		const isEdit = action === 'edit';
+
+		const modalComponent = isEdit
+			? ({
+					ref: type === 'user' ? ModalEditForm : ModalEditToken,
+					props:
+						type === 'user'
+							? {
+									isGivenData: true,
+									username: (selectedRows[0].data as UserData).username,
+									email: selectedRows[0].data.email,
+									role: selectedRows[0].data.role,
+									user_id: (selectedRows[0].data as UserData)._id
+								}
+							: {
+									token: (selectedRows[0].data as TokenData).token,
+									email: selectedRows[0].data.email,
+									role: selectedRows[0].data.role,
+									user_id: (selectedRows[0].data as TokenData).user_id
+								},
+					slot: '<p>Edit Form</p>'
+				} as ModalComponent)
+			: undefined;
+
+		const modalSettings: ModalSettings = {
+			type: isEdit ? 'component' : 'confirm',
+			title: config.modalTitle(),
+			body: config.modalBody(),
+			...(isEdit && { component: modalComponent }),
 			response: async (r: any) => {
-				if (r) {
-					try {
-						const res = await fetch('/api/user/updateUserAttributes', {
-							method: 'PUT',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({
-								user_id: selectedRows[0].data._id,
-								userData: r
-							})
-						});
-
-						if (res.ok) {
-							showSuccessToast('User Updated');
-							await invalidateAll();
-						} else {
-							const data = await res.json();
-							showErrorToast(data.message || 'Failed to update user');
-						}
-					} catch (error) {
-						console.error('Error updating user:', error);
-						showErrorToast('Failed to update user');
-					}
-				}
-			}
-		};
-		modalStore.trigger(d);
-	}
-
-	async function modalConfirm(action: 'delete' | 'block' | 'unblock'): Promise<void> {
-		if (selectedRows.length === 0) {
-			showErrorToast(`Please select user(s) to ${action}`);
-			return;
-		}
-
-		let modalTitle: string;
-		let modalBody: string;
-		let modalButtonText: string;
-		let toastMessage: string;
-		let toastBackground: string;
-		let endpoint: string;
-		let method: string;
-
-		switch (action) {
-			case 'delete':
-				modalTitle = 'Please Confirm User Deletion';
-				modalBody = 'Are you sure you wish to delete this user?';
-				modalButtonText = 'Delete User';
-				toastMessage = 'User Deleted';
-				toastBackground = 'gradient-error';
-				endpoint = '/api/user/deleteUsers';
-				method = 'DELETE';
-				break;
-			case 'block':
-				modalTitle = 'Please Confirm User Block';
-				modalBody = 'Are you sure you wish to block this user?';
-				modalButtonText = 'Block User';
-				toastMessage = 'User Blocked';
-				toastBackground = 'gradient-yellow';
-				endpoint = '/api/user/blockUsers';
-				method = 'PUT';
-				break;
-			case 'unblock':
-				modalTitle = 'Please Confirm User Unblock';
-				modalBody = 'Are you sure you wish to unblock this user?';
-				modalButtonText = 'Unblock User';
-				toastMessage = 'User Unblocked';
-				toastBackground = 'gradient-primary';
-				endpoint = '/api/user/unblockUsers';
-				method = 'PUT';
-				break;
-			default:
-				throw Error(`Invalid action ${action}`);
-		}
-
-		const d: ModalSettings = {
-			type: 'confirm',
-			title: modalTitle,
-			body: modalBody,
-			buttonTextConfirm: modalButtonText,
-
-			response: async (r: boolean) => {
 				if (!r) return;
 
 				try {
-					const user_ids = selectedRows.map((row) => row.data._id);
-					const res = await fetch(endpoint, {
-						method,
+					const body =
+						type === 'user'
+							? JSON.stringify(
+									isEdit
+										? { user_id: (selectedRows[0].data as UserData)._id, userData: r }
+										: { user_ids: selectedRows.map((row) => (row.data as UserData)._id) }
+								)
+							: JSON.stringify(isEdit ? { ...r } : selectedRows.map((row) => row.data));
+
+					const res = await fetch(config.endpoint(), {
+						method: config.method(),
 						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ user_ids })
+						body
 					});
 
 					if (res.ok) {
-						showSuccessToast(toastMessage, toastBackground);
+						showToast(config.toastMessage(), false, config.toastBackground);
 						await invalidateAll();
 					} else {
 						const data = await res.json();
-						showErrorToast(data.message || `Failed to ${action} user(s)`);
+						showToast(data.message || `Failed to ${action} ${type}`, true);
 					}
 				} catch (error) {
-					console.error(`Error ${action}ing user:`, error);
-					showErrorToast(`Failed to ${action} user(s)`);
+					console.error(`Error ${action}ing ${type}:`, error);
+					showToast(`Failed to ${action} ${type}`, true);
 				}
 			}
 		};
 
-		modalStore.trigger(d);
+		modalStore.trigger(modalSettings);
 	}
 
-	const getButtonAndIconValues = (listboxValue: string) => {
-		let buttonClass = '';
-		let iconValue = '';
-
-		switch (listboxValue) {
-			case 'edit':
-				buttonClass = 'gradient-primary';
-				iconValue = 'bi:pencil-fill';
-				break;
-			case 'delete':
-				buttonClass = 'gradient-error';
-				iconValue = 'bi:trash3-fill';
-				break;
-			case 'unblock':
-				buttonClass = 'gradient-yellow';
-				iconValue = 'material-symbols:lock-open';
-				break;
-			case 'block':
-				buttonClass = 'gradient-pink';
-				iconValue = 'material-symbols:lock';
-				break;
-			default:
-				buttonClass = 'variant-filled';
-				iconValue = 'material-symbols:edit';
-				break;
-		}
-
-		return {
-			buttonClass: `btn ${buttonClass} rounded-none w-48 justify-between`,
-			iconValue
-		};
-	};
-
-	function handleAction() {
-		switch (listboxValue) {
-			case 'edit':
-				modalUserForm();
-				break;
-			case 'delete':
-				modalConfirm('delete');
-				break;
-			case 'unblock':
-				modalConfirm('unblock');
-				break;
-			case 'block':
-				modalConfirm('block');
-				break;
-		}
-	}
+	let buttonConfig = $derived({
+		class: `btn ${actionConfig[listboxValue].buttonClass} rounded-none w-48 justify-between w-full font-semibold uppercase hover:bg-primary-400`,
+		icon: actionConfig[listboxValue].iconValue
+	});
 </script>
 
 <!-- Multibutton group-->
-<div class="btn-group relative rounded-md text-white">
+<div class="btn-group relative rounded-md text-white" role="group" aria-label="{type} management actions">
 	<!-- Action button  -->
 	<button
 		type="button"
-		onclick={handleAction}
-		class="{getButtonAndIconValues(listboxValue).buttonClass} w-full font-semibold uppercase hover:bg-primary-400"
-		disabled={selectedRows.length === 0}
+		onclick={() => handleAction(listboxValue)}
+		class={buttonConfig.class}
+		aria-label={`${listboxValue} selected ${type}s`}
+		disabled={isDisabled}
+		aria-disabled={isDisabled}
 	>
-		<iconify-icon icon={getButtonAndIconValues(listboxValue).iconValue} width="20" class="mr-2 text-white"></iconify-icon>
-		{listboxValue ?? 'create'}
+		<iconify-icon icon={buttonConfig.icon} width="20" class="mr-2 text-white" role="presentation" aria-hidden="true"></iconify-icon>
+		<span>{listboxValue}</span>
 	</button>
 
-	<span class="border border-white"></span>
+	<span class="border border-white" aria-hidden="true"></span>
 
 	<!-- Dropdown button -->
-	<button class="divide-x-2 rounded-r-sm bg-surface-500 hover:!bg-surface-800" use:popup={Combobox}>
-		<iconify-icon icon="mdi:chevron-down" width="20" class="text-white"></iconify-icon>
+	<button
+		use:popup={Combobox}
+		aria-label="Open actions menu"
+		aria-haspopup="true"
+		aria-expanded="false"
+		class="divide-x-2 rounded-r-sm bg-surface-500 hover:!bg-surface-800"
+		disabled={isDisabled}
+		aria-disabled={isDisabled}
+	>
+		<iconify-icon icon="mdi:chevron-down" width="20" class="text-white" role="presentation" aria-hidden="true"></iconify-icon>
 	</button>
 </div>
 
 <!-- Dropdown/Listbox -->
-<div class="overflow-hiddens card z-10 w-48 rounded-sm bg-surface-500 text-white" data-popup="Combobox">
+<div class="overflow-hiddens card z-10 w-48 rounded-sm bg-surface-500 text-white" data-popup="Combobox" role="menu" aria-label="Available actions">
 	<ListBox rounded="rounded-sm" active="variant-filled-primary" hover="hover:bg-surface-300" class="divide-y">
-		{#if listboxValue != 'edit'}
-			<ListBoxItem bind:group={listboxValue} name="medium" value="edit" active="variant-filled-primary" hover="gradient-primary-hover"
-				>{#snippet lead()}
-								<iconify-icon icon="bi:pencil-fill" width="20" class="mr-1"></iconify-icon>
-							{/snippet}
-				Edit
-			</ListBoxItem>
-		{/if}
-
-		{#if listboxValue != 'delete'}
-			<ListBoxItem bind:group={listboxValue} name="medium" value="delete" active="variant-filled-error" hover="gradient-error-hover"
-				>{#snippet lead()}
-								<iconify-icon icon="bi:trash3-fill" width="20" class="mr-1"></iconify-icon>
-							{/snippet}
-				Delete
-			</ListBoxItem>
-		{/if}
-
-		{#if listboxValue != 'unblock'}
-			<ListBoxItem bind:group={listboxValue} name="medium" value="unblock" active="bg-yellow-500" hover="gradient-yellow-hover"
-				>{#snippet lead()}
-								<iconify-icon icon="material-symbols:lock-open" width="20" class="mr-1"></iconify-icon>
-							{/snippet}
-				Unblock
-			</ListBoxItem>
-		{/if}
-
-		{#if listboxValue != 'block'}
-			<ListBoxItem bind:group={listboxValue} name="medium" value="block" active="bg-pink-700" hover="gradient-pink-hover"
-				>{#snippet lead()}
-								<iconify-icon icon="material-symbols:lock" width="20" class="mr-1"></iconify-icon>
-							{/snippet}
-				Block
-			</ListBoxItem>
-		{/if}
+		{#each Object.entries(actionConfig) as [action, config]}
+			{#if action !== listboxValue}
+				<ListBoxItem
+					bind:group={listboxValue}
+					name="medium"
+					value={action}
+					active="variant-filled-primary"
+					hover="gradient-primary-hover"
+					role="menuitem"
+				>
+					{#snippet lead()}
+						<iconify-icon icon={config.iconValue} width="20" class="mr-1" role="presentation" aria-hidden="true"></iconify-icon>
+					{/snippet}
+					{action}
+				</ListBoxItem>
+			{/if}
+		{/each}
 	</ListBox>
 </div>

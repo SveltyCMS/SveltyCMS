@@ -5,7 +5,6 @@
 	import { getModalStore } from '@skeletonlabs/skeleton';
 
 	// Props
-	
 
 	interface Props {
 		/** Exposes parent props to this component. */
@@ -17,14 +16,7 @@
 		mediaOnSelect: any;
 	}
 
-	let {
-		parent,
-		_data,
-		field,
-		updated,
-		value,
-		mediaOnSelect
-	}: Props = $props();
+	let { parent, _data, field, updated, value, mediaOnSelect }: Props = $props();
 
 	const modalStore = getModalStore();
 

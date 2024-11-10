@@ -1,6 +1,7 @@
 <!-- 
 @files src/components/user/ModalEditToken.svelte
-@description Modal for editing user registration token
+@component
+**Modal for editing user registration token for adding new users**
 -->
 
 <script lang="ts">
@@ -10,7 +11,6 @@
 	// Get data from page store
 	const { roles, user } = $page.data;
 
-	
 	let formElement: HTMLFormElement = $state();
 
 	// Skeleton & Stores
@@ -30,13 +30,7 @@
 		user_id: string;
 	}
 
-	let {
-		parent,
-		token,
-		email,
-		role,
-		user_id
-	}: Props = $props();
+	let { parent, token, email, role, user_id }: Props = $props();
 
 	// Form Data
 	const formData = $state({

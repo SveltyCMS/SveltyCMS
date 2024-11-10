@@ -1,6 +1,16 @@
 <!-- 
 @file src/routes/(app)/imageEditor/Crop.svelte
-@description This component provides cropping functionality for an image within a Konva stage, allowing users to define a crop area and apply the crop.
+@component
+**This component provides cropping functionality for an image within a Konva stage, allowing users to define a crop area and apply the crop**
+ 
+
+### Props 
+- `stage`: Konva.Stage - The Konva stage where the image is displayed.
+- `layer`: Konva.Layer - The Konva layer where the image and effects are added.
+- `imageNode`: Konva.Image - The Konva image node representing the original image.
+- `on:cropApplied` (optional): Function to be called when the crop is applied.
+- `on:cancelCrop` (optional): Function to be called when the crop is canceled.
+- `on:cropReset` (optional): Function to be called when the crop is reset.
 -->
 
 <script lang="ts">

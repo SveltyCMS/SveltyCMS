@@ -16,6 +16,7 @@
 import { privateEnv } from '@root/config/private';
 import { redirect, error, type Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
+import { building } from '$app/environment';
 
 // Rate Limiter
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
@@ -155,7 +156,7 @@ const handleStaticAssetCaching: Handle = async ({ event, resolve }) => {
 
 // Handle rate limiting
 const handleRateLimit: Handle = async ({ event, resolve }) => {
-	if (isStaticAsset(event.url.pathname) || isLocalhost(event.getClientAddress())) {
+	if (isStaticAsset(event.url.pathname) || isLocalhost(event.getClientAddress()) || building) {
 		return resolve(event);
 	}
 
@@ -172,6 +173,15 @@ const handleRateLimit: Handle = async ({ event, resolve }) => {
 
 // Handle authentication, authorization, and API caching
 const handleAuth: Handle = async ({ event, resolve }) => {
+	// Skip full initialization during build
+	if (building) {
+		event.locals.user = null;
+		event.locals.permissions = [];
+		event.locals.session_id = null;
+		event.locals.isFirstUser = false;
+		return resolve(event);
+	}
+
 	if (isStaticAsset(event.url.pathname)) return resolve(event);
 
 	const start = performance.now();
@@ -358,7 +368,7 @@ const handleCachedApiRequest = async (event: any, resolve: any, apiEndpoint: str
 
 		// Only cache successful responses
 		if (response.ok) {
-			await cacheStore.set(cacheKey, responseData, new Date(Date.now() + 300 * 1000)); // Cache for 5 minutes
+			await cacheStore.set(cacheKey, responseData, new Date(Date.now() + 300 * 1000));
 			logger.debug(`Stored ${cacheKey} in cache`);
 		}
 

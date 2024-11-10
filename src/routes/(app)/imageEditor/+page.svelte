@@ -1,6 +1,12 @@
 <!-- 
 @file: /src/routes/(app)/imageEditor/+page.svelte
-@description: This is the main page component for the image editor. It handles uploading images, applying various editing tools (crop, blur, rotate, zoom, focal point, watermark, filters, text overlay, and shape overlay), and saving the edited image.
+@component
+**An image editor component that handles uploading images**
+Users can upload an image, applying various editing tools (crop, blur, rotate, zoom, focal point, watermark, filters, text overlay, and shape overlay), and saving the edited image.
+
+#### Props
+- `imageFile` (optional): File object of the uploaded image.
+
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';

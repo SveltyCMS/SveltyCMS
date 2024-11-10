@@ -1,6 +1,15 @@
 <!-- 
 @file src/components/PermissionsSetting.svelte
-@description Enhanced Permissions Setting Component for managing widget field permissions
+@component
+**Enhanced Permissions Setting Component for managing widget field permissions**
+
+```tsx
+<PermissionsSetting />
+```
+####	Props:
+- `permissions` {object} - The current permissions object
+- `on:update` {function} - A function to update the permissions object
+
 Features:
 - Shows admin role info separately
 - Bulk permission actions

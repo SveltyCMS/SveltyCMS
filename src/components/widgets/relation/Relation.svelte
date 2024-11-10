@@ -1,6 +1,13 @@
 <!-- 
 @file src/components/widgets/relation/Relation.svelte
-@description - Relation widget
+@component
+**Relation widget component to display relation field#**
+
+```tsx
+<Relation bind:field={field} />
+```
+**Props:**
+- `field` - {FieldType} - Field type
 -->
 
 <script lang="ts">

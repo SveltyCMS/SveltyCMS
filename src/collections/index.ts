@@ -16,7 +16,7 @@ import axios from 'axios';
 import { getCollectionFiles } from '@api/getCollections/getCollectionFiles';
 import { createRandomID } from '@utils/utils';
 import { categoryConfig } from './categories';
-import {  getCollectionModels } from '@src/databases/db';
+import { getCollectionModels } from '@src/databases/db';
 
 // Stores
 import { categories, collections, unAssigned, collection, collectionValue, mode } from '@stores/collectionStore';

@@ -1,65 +1,41 @@
-<!-- 
+<!--
 @file src/components/system/table/Role.svelte
-@description Role component for table 
--->
+@component
+**Role component for displaying different badges based on user roles.**
 
+```tsx
+<Role value={roles[0]?._id} />
+```
+@props
+- `value` {string}: The role ID to display
+-->
 <script lang="ts">
 	// Auth
 	import { getLoadedRoles } from '@src/auth/types';
+	let roles = $state(getLoadedRoles() || []);
 
-	let roles = $state(getLoadedRoles() || []); // Ensure roles is an array
-
-	let { value } = $props<{
-		value: string;
-	}>();
+	// Ensure roles is an array
+	let { value } = $props<{ value: string }>();
 
 	// Determine if the roles array is defined and has the required elements
 	const roleClasses = (roleId: string) => {
-		// Handle admin role specifically
-		if (roleId === 'admin') {
-			return 'badge gradient-primary';
-		}
 		const role = roles.find((r) => r._id === roleId);
-		if (!role) return 'text-white'; // Default class if role not found
-		switch (roleId) {
-			case roles[0]?._id:
-				return 'badge gradient-primary';
-			case roles[1]?._id:
-				return 'badge gradient-pink';
-			case roles[2]?._id:
-				return 'badge gradient-tertiary';
-			case roles[3]?._id:
-				return 'badge gradient-secondary';
-			default:
-				return 'text-white';
-		}
+		if (!role) return 'text-white';
+		// Default class if role not found
+		return role.color || 'text-white';
+		// Use color defined in the role
 	};
-
 	const iconForRole = (roleId: string) => {
-		// Handle admin role specifically
-		if (roleId === 'admin') {
-			return 'material-symbols:verified-outline';
-		}
-		switch (roleId) {
-			case roles[0]?._id:
-				return 'material-symbols:verified-outline';
-			case roles[1]?._id:
-				return 'material-symbols:supervised-user-circle';
-			case roles[2]?._id:
-				return 'mdi:user-edit';
-			case roles[3]?._id:
-				return 'material-symbols:supervised-user-circle';
-			default:
-				return '';
-		}
+		const role = roles.find((r) => r._id === roleId);
+		if (!role) return '';
+		// Return empty if role not found
+		return role.icon || '';
+		// Use icon defined in the role
 	};
-
 	const roleName = (roleId: string) => {
-		// Handle admin role specifically
-		if (roleId === 'admin') {
-			return 'Administrator';
-		}
-		return roles.find((r) => r._id === roleId)?.name || 'Unknown';
+		const role = roles.find((r) => r._id === roleId);
+		if (!role) return 'Unknown';
+		return role.name || 'Unknown';
 	};
 </script>
 

@@ -1,15 +1,19 @@
 <!-- 
 @file src/components/system/table/TableIcons.svelte
-@description Icon component for table 
+@component
+**Icon component for table**
+
+```tsx
+<TableIcons checked={true} />
+```
+@props
+- `checked` {boolean}: The checked state of the icon
+- `iconStatus` {string}: The status of the icon
 -->
 
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
-
 	// Stores
 	import { storeListboxValue } from '@stores/store';
-
-	const dispatch = createEventDispatcher();
 
 	// Use let instead of const to allow modification of checked
 	let { checked = $bindable(false), iconStatus } = $props<{
@@ -17,13 +21,19 @@
 		iconStatus?: string;
 	}>();
 
+	// Function to handle icon click and emit custom events
 	function handleIconClick(event: Event) {
 		event.stopPropagation();
 		checked = !checked;
-		// Dispatch the appropriate event based on the new checked state
-		dispatch(checked ? 'true' : 'false');
+		// Dispatch a custom event based on the new checked state
+		const customEvent = new CustomEvent(checked ? 'checked' : 'unchecked', {
+			detail: { checked },
+			bubbles: true
+		});
+		dispatchEvent(customEvent);
 	}
 
+	// Handle Enter or Space key presses for accessibility
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Enter' || event.key === ' ') {
 			handleIconClick(event);
@@ -39,14 +49,14 @@
 		aria-labelledby={checked ? 'true' : 'false'}
 		role="checkbox"
 		class="flex h-[26px] w-[26px] items-center justify-center rounded border-[3px] bg-white dark:bg-transparent
-        {iconStatus === 'unpublished' ? 'border-yellow-500' : ''}
-        {iconStatus === 'published' ? 'border-primary-500' : ''}
-        {iconStatus === 'scheduled' ? 'border-pink-500' : ''}
-        {iconStatus === 'testing' ? 'border-red-500' : ''}
-        {iconStatus === undefined ? 'border-surface-800' : ''} 
-        {!iconStatus ? 'dark:border-surface-400' : ''}
-    "
+			{iconStatus === 'unpublished' ? 'border-yellow-500' : ''}
+			{iconStatus === 'published' ? 'border-primary-500' : ''}
+			{iconStatus === 'scheduled' ? 'border-pink-500' : ''}
+			{iconStatus === 'testing' ? 'border-red-500' : ''}
+			{iconStatus === undefined ? 'border-surface-800' : ''} 
+			{!iconStatus ? 'dark:border-surface-400' : ''}"
 	>
+		<!-- Icons rendered based on checked and storeListboxValue -->
 		{#if checked && $storeListboxValue === 'delete'}
 			<!--Red Cross icon 3d-->
 			<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 224 224">

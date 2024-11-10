@@ -1,12 +1,13 @@
 <!-- 
 @file src/components/PageFooter.svelte
-@description PageFooter component displaying collection information using Tailwind CSS
+@component
+**PageFooter component displaying collection name, creation and update dates**
 
-Features: 
-Displays collection name, creation and update dates
-
-Usage:
+```tsx
 <PageFooter />
+```
+#### Props
+- `collection` {object} - Collection object
 -->
 
 <script lang="ts">
@@ -15,8 +16,8 @@ Usage:
 
 	// Convert timestamp to Date string
 	let dates = $derived({
-		created: convertTimestampToDateString($collectionValue.createdAt),
-		updated: convertTimestampToDateString($collectionValue.updatedAt)
+		created: convertTimestampToDateString(collectionValue.createdAt),
+		updated: convertTimestampToDateString(collectionValue.updatedAt)
 	});
 </script>
 
