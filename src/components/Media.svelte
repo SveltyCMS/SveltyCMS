@@ -18,30 +18,34 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// State management using Svelte 5's $state
-	let files = $state<MediaImage[]>([]);
-	let search = $state('');
-	let showInfo = $state(Array.from({ length: files.length }, () => false));
-
 	// Props using Svelte 5's $props
 	let { onselect = (file: MediaImage) => {} } = $props<{
 		onselect?: (file: MediaImage) => void;
 	}>();
+
+	// State declarations using $state
+	let files = $state<MediaImage[]>([]);
+	let search = $state('');
+	let showInfo = $state<boolean[]>([]);
+
+	// Create a separate state updater function
+	function updateShowInfo() {
+		showInfo = Array.from({ length: files.length }, () => false);
+	}
 
 	const searchDeb = debounce(500);
 
 	async function refresh() {
 		const res = await axios.get('/media/getAll');
 		files = res.data;
-		// Update showInfo array length when files change
-		showInfo = Array.from({ length: files.length }, () => false);
+		updateShowInfo(); // Update showInfo when files change
 	}
 
 	// Initial load
 	refresh();
 
-	// Reactive search using $derived
-	let searchEffect = $derived(() => {
+	// Search effect using $effect instead of $derived
+	$effect(() => {
 		if (search !== undefined) {
 			searchDeb(() => refresh());
 		}
@@ -49,7 +53,9 @@
 
 	function toggleInfo(event: Event, index: number) {
 		event.stopPropagation();
-		showInfo[index] = !showInfo[index];
+		const newShowInfo = [...showInfo];
+		newShowInfo[index] = !newShowInfo[index];
+		showInfo = newShowInfo; // Properly update the state array
 	}
 </script>
 
@@ -62,7 +68,7 @@
 {:else}
 	<div class="header flex items-center gap-2">
 		<label for="search" class="font-bold text-tertiary-500 dark:text-primary-500">Media</label>
-		<input type="text" bind:value={search} placeholder="Search" class="input" />
+		<input type="text" bind:value={search} placeholder="Search" class="input" id="search" />
 	</div>
 	<div class="flex max-h-[calc(100%-55px)] flex-wrap items-center justify-center overflow-auto">
 		{#each files as file, index}

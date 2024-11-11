@@ -15,7 +15,6 @@
 	import type { CustomDragEvent } from './types';
 	import { currentChild } from '.';
 	import { debounce } from '@utils/utils';
-	import XIcon from '@components/system/icons/XIcon.svelte';
 	// Self-import to replace svelte:self
 	import ListNode from './ListNode.svelte';
 
@@ -73,7 +72,12 @@
 
 	$effect(() => {
 		if (showFields) {
-			$headerActionButton2 = XIcon;
+			$headerActionButton2 = `
+				<iconify-icon
+					icon="material-symbols:close"
+					width="32"
+				></iconify-icon>
+			`;
 		}
 	});
 

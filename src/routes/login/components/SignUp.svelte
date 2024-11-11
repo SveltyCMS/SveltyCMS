@@ -37,15 +37,13 @@
 		FormSchemaSignUp,
 		onClick = () => {},
 		onPointerEnter = () => {},
-		onBack = () => {},
-		isTransitioning = false
+		onBack = () => {}
 	} = $props<{
 		active?: undefined | 0 | 1;
 		FormSchemaSignUp: SuperValidated<SignUpFormSchema>;
 		onClick?: () => void;
 		onPointerEnter?: () => void;
 		onBack?: () => void;
-		isTransitioning?: boolean;
 	}>();
 
 	const pageData = $page.data as PageData;
@@ -56,7 +54,6 @@
 	let response = $state<any>(undefined);
 	let formElement = $state<HTMLFormElement | null>(null);
 	let showPassword = $state(false);
-	let isSubmitting = $state(false);
 
 	// Pre-calculate tab indices
 	const usernameTabIndex = 1;
@@ -79,21 +76,13 @@
 		multipleSubmits: 'prevent', // prevent multiple submits
 
 		onSubmit: ({ cancel }) => {
-			if (isTransitioning || isSubmitting) {
-				cancel();
-				return;
-			}
-			isSubmitting = true;
-
 			if ($allErrors.length > 0) {
 				cancel();
-				isSubmitting = false;
 			}
 		},
 
 		onResult: ({ result, cancel }) => {
 			if (result.type == 'redirect') {
-				isSubmitting = false;
 				return;
 			}
 			cancel();
@@ -102,7 +91,6 @@
 			formElement?.classList.add('wiggle');
 			setTimeout(() => {
 				formElement?.classList.remove('wiggle');
-				isSubmitting = false;
 			}, 300);
 
 			if (result.type == 'success') {
@@ -131,46 +119,39 @@
 
 	// Event handlers
 	function handleOAuth() {
-		if (isTransitioning || isSubmitting) return;
-		isSubmitting = true;
 		const form = document.createElement('form');
 		form.method = 'post';
 		form.action = '?/OAuth';
 		document.body.appendChild(form);
 		form.submit();
 		document.body.removeChild(form);
-		setTimeout(() => {
-			isSubmitting = false;
-		}, 300);
+		setTimeout(() => {}, 300);
 	}
 
 	function handleBack(event: Event) {
-		if (isTransitioning || isSubmitting) return;
 		event.stopPropagation();
 		onBack();
 	}
 
-	function handleIconClick() {
-		if (isTransitioning || isSubmitting) return;
-		onClick();
+	function handlePointerEnter() {
+		onPointerEnter();
 	}
 
-	function handlePointerEnter() {
-		if (isTransitioning || isSubmitting) return;
-		onPointerEnter();
+	function handleFormClick(event: Event) {
+		event.stopPropagation();
+		onClick();
 	}
 
 	// Class computations
 	const isActive = $derived(active === 1);
 	const isInactive = $derived(active !== undefined && active !== 1);
 	const isHover = $derived(active === undefined || active === 0);
-	const isDisabled = $derived(isTransitioning || isSubmitting);
 
 	const baseClasses = 'hover relative flex items-center overflow-y-auto';
 </script>
 
 <section
-	onclick={onClick}
+	onclick={handleFormClick}
 	onkeydown={(e) => e.key === 'Enter' && onClick?.()}
 	onpointerenter={handlePointerEnter}
 	role="button"
@@ -179,7 +160,6 @@
 	class:active={isActive}
 	class:inactive={isInactive}
 	class:hover={isHover}
-	class:pointer-events-none={isDisabled}
 >
 	{#if active === 1}
 		<!-- CSS Logo -->
@@ -332,16 +312,16 @@
 					<!-- Email SignIn only -->
 					<button type="submit" class="variant-filled btn mt-4 uppercase" aria-label={m.form_signup()}>
 						{m.form_signup()}
-						{#if $delayed || isSubmitting}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
+						{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 					</button>
 
 					<!-- Email + OAuth signin  -->
 				{:else}
 					<div class="btn-group mt-4 border border-secondary-500 text-white [&>*+*]:border-secondary-500">
-						<button type="submit" class="btn w-3/4 bg-surface-200 text-black hover:text-white" aria-label={m.form_signup()}>
+						<button type="submit" class="btn w-3/4 rounded-none bg-surface-200 text-black hover:text-white" aria-label={m.form_signup()}>
 							<span class="w-full text-black hover:text-white">{m.form_signup()}</span>
 							<!-- Loading indicators -->
-							{#if $delayed || isSubmitting}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
+							{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 						</button>
 
 						<button type="button" onclick={handleOAuth} aria-label="OAuth" class="btn flex w-1/4 items-center justify-center">
@@ -354,7 +334,7 @@
 		</div>
 	{/if}
 
-	<SignupIcon show={active === 0 || active === undefined} onClick={handleIconClick} disabled={isTransitioning || isSubmitting} />
+	<SignupIcon show={active === 0 || active === undefined} onClick={handleFormClick} />
 </section>
 
 <style lang="postcss">
@@ -385,7 +365,7 @@
 		animation: wiggle 0.3s forwards;
 	}
 	@keyframes wiggle {
-		0% {
+		from {
 			transform: translateX(0);
 		}
 		25% {

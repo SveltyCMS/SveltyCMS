@@ -149,7 +149,7 @@
 			aria-label={isPasswordVisible ? 'Hide password' : 'Show password'}
 			aria-pressed={isPasswordVisible}
 			class={`absolute right-0 ${showPasswordBackgroundColor === 'light' ? 'text-surface-700' : 'text-surface-300'}`}
-			width="1.5em"
+			width="24"
 			onkeydown={handleIconKeyDown}
 			onclick={togglePasswordVisibility}
 		></iconify-icon>
@@ -158,7 +158,8 @@
 	{#if label}
 		<label
 			for={currentId}
-			class="{labelClass} pointer-events-none absolute left-6 transform text-sm text-surface-400 transition-all duration-200 ease-in-out peer-placeholder-shown:-top-1 peer-placeholder-shown:text-base peer-placeholder-shown:text-surface-400 peer-focus:-left-0 peer-focus:-top-1.5 peer-focus:text-xs peer-focus:text-tertiary-500"
+			class="{labelClass} pointer-events-none absolute left-6 transform text-sm text-surface-400 transition-all duration-200 ease-in-out peer-placeholder-shown:-top-1 peer-placeholder-shown:text-base peer-placeholder-shown:text-surface-400 peer-focus:-left-0 peer-focus:-top-1.5 peer-focus:text-xs peer-focus:text-tertiary-500 {value &&
+				'-left-0 -top-1.5 text-xs text-tertiary-500'}"
 		>
 			{label}
 			{#if required}

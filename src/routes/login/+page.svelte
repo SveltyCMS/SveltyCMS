@@ -69,8 +69,8 @@ Features:
 		throw new Error('Required form schemas are missing');
 	}
 
+	// Language selection
 	function handleLanguageSelection(lang: SystemLanguage) {
-		if (isTransitioning) return;
 		clearTimeout(debounceTimeout);
 		debounceTimeout = setTimeout(() => {
 			systemLanguage.set(lang);
@@ -79,8 +79,8 @@ Features:
 		}, 300);
 	}
 
+	// Function to handle clicks outside of the language selector
 	function handleClickOutside(event: MouseEvent) {
-		if (isTransitioning) return;
 		const target = event.target as HTMLElement;
 		if (!target.closest('.language-selector')) {
 			isDropdownOpen = false;
@@ -142,10 +142,10 @@ Features:
 	}
 
 	// Special case for the first user on fresh installation
-	function handleSignInClick() {
-		if (isTransitioning) return;
-		isTransitioning = true;
-
+	function handleSignInClick(event?: Event) {
+		if (event) {
+			event.stopPropagation();
+		}
 		// First reset to initial state to show the logo
 		active = undefined;
 		background = 'white';
@@ -159,48 +159,38 @@ Features:
 				active = 0; // Show SignIn for existing users
 				background = 'white';
 			}
-			isTransitioning = false;
 		}, 300);
 	}
 
 	// Handle SignUp click
-	function handleSignUpClick() {
-		if (isTransitioning) return;
-		isTransitioning = true;
-
-		// First reset to initial state to show the logo
-		active = undefined;
+	function handleSignUpClick(event?: Event) {
+		if (event) {
+			event.stopPropagation();
+		}
+		active = 1;
 		background = '#242728';
-
-		// Then after a short delay, transition to signup
-		setTimeout(() => {
-			active = 1;
-			background = '#242728';
-			isTransitioning = false;
-		}, 300);
 	}
 
 	// Handle pointer enter events
 	function handleSignInPointerEnter() {
-		if (active === undefined && !isTransitioning) {
+		if (active === undefined) {
 			background = 'white';
 		}
 	}
 
 	function handleSignUpPointerEnter() {
-		if (active === undefined && !isTransitioning) {
+		if (active === undefined) {
 			background = '#242728';
 		}
 	}
 
 	// Handle dropdown toggle
 	function handleDropdownToggle() {
-		if (isTransitioning) return;
 		isDropdownOpen = !isDropdownOpen;
 	}
 </script>
 
-<div class={`flex min-h-lvh w-full overflow-y-auto bg-${background} ${isTransitioning ? 'pointer-events-none' : ''} transition-colors duration-300`}>
+<div class={`flex min-h-lvh w-full overflow-y-auto bg-${background} transition-colors duration-300`}>
 	<SignIn
 		{active}
 		FormSchemaLogin={data.loginForm}
@@ -209,7 +199,6 @@ Features:
 		onClick={handleSignInClick}
 		onPointerEnter={handleSignInPointerEnter}
 		onBack={resetToInitialState}
-		{isTransitioning}
 	/>
 
 	<SignUp
@@ -218,7 +207,6 @@ Features:
 		onClick={handleSignUpClick}
 		onPointerEnter={handleSignUpPointerEnter}
 		onBack={resetToInitialState}
-		{isTransitioning}
 	/>
 
 	{#if active == undefined}
@@ -253,7 +241,6 @@ Features:
 					<button
 						class="flex items-center justify-between gap-2 rounded-full border-2 bg-[#242728] px-4 py-2 text-white transition-colors duration-300 hover:bg-[#363a3b] focus:ring-2"
 						onclick={handleDropdownToggle}
-						disabled={isTransitioning}
 					>
 						<span>{getLanguageName($systemLanguage)} ({$systemLanguage.toUpperCase()})</span>
 						<svg
@@ -276,7 +263,6 @@ Features:
 									bind:this={searchInput}
 									bind:value={searchQuery}
 									placeholder="Search language..."
-									disabled={isTransitioning}
 									class="w-full rounded-md bg-[#363a3b] px-3 py-2 text-white transition-colors duration-300 placeholder:text-gray-400 focus:outline-none focus:ring-2"
 								/>
 							</div>
@@ -290,7 +276,6 @@ Features:
 											? 'bg-[#363a3b]'
 											: ''}"
 										onclick={() => handleLanguageSelection(lang)}
-										disabled={isTransitioning}
 									>
 										<span>{getLanguageName(lang)} ({lang.toUpperCase()})</span>
 									</button>
@@ -304,7 +289,6 @@ Features:
 				<select
 					bind:value={$systemLanguage}
 					class="rounded-full border-2 bg-[#242728] px-4 py-2 text-white transition-colors duration-300 focus:ring-2"
-					disabled={isTransitioning}
 				>
 					{#each availableLanguages as lang}
 						<option value={lang}>{getLanguageName(lang)} ({lang.toUpperCase()})</option>
