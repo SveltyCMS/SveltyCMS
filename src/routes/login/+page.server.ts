@@ -759,3 +759,4 @@ async function resetPWCheck(password: string, token: string, email: string, expi
 		throw Error(`Password reset failed: ${err.message}`);
 	}
 }
+

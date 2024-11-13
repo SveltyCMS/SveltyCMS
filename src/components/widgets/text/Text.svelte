@@ -40,10 +40,9 @@
 		WidgetData?: any;
 	}
 
-	let { field, WidgetData = $bindable() }: Props = $props();
+	let { field, value=$collectionValue[getFieldName(field)] || {}, WidgetData = $bindable() }: Props = $props();
 
 	// Initialize value separately to avoid $state() in prop destructuring
-	let value = collectionValue()[getFieldName(field)] || {};
 	
 	let _data = $state(mode() == 'create' ? {} : value);
 
@@ -140,6 +139,9 @@
 			if (debounceTimeout) clearTimeout(debounceTimeout);
 			badgeClassCache.clear();
 		};
+	});
+	$effect(() => {
+		console.debug('Data : ', _data[_language]);
 	});
 </script>
 

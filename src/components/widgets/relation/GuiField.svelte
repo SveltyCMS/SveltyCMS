@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Schema, CollectionNames } from '@collections/types';
+	import type { Schema, CollectionNames } from '@src/collections/types';
 
 	// Stores
 	import { collections } from '@stores/collectionStore';

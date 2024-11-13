@@ -34,7 +34,7 @@ Key features:
 	import { screenSize, ScreenSize } from '@stores/screenSizeStore';
 
 	// Components
-	import { collectionManager } from '@collections/CollectionManager';
+	import { collectionManager } from '@src/collections/CollectionManager';
 	import Loading from '@components/Loading.svelte';
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import LeftSidebar from '@components/LeftSidebar.svelte';
@@ -53,14 +53,10 @@ Key features:
 	initializeStores();
 
 	interface Props {
-		data: {
-			language: string;
-			[key: string]: any;
-		};
 		children?: import('svelte').Snippet;
 	}
 
-	let { data, children }: Props = $props();
+	let {  children }: Props = $props();
 
 	// State variables
 	let isCollectionsLoaded = $state(false);
@@ -69,9 +65,9 @@ Key features:
 	let mediaQuery: MediaQueryList;
 
 	// Update content language when data changes
-	$effect(() => {
-		contentLanguage.set(data.language);
-	});
+	// $effect(() => {
+	// 	contentLanguage.set(data.language);
+	// });
 
 	// Handle collection changes
 	$effect(() => {
@@ -80,7 +76,8 @@ Key features:
 
 		const newPath = `/${$contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${newCollection.name}`;
 		if ($page.url.pathname !== newPath) {
-			goto(newPath);
+			// console.debug('Redirecting to new path:', newPath, newCollection);
+			// goto(newPath);
 		}
 	});
 

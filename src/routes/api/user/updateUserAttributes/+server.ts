@@ -29,7 +29,8 @@ import { checkUserPermission } from '@src/auth/permissionCheck';
 import { logger } from '@utils/logger';
 
 // Input validation
-import { object, string, email, optional, minLength, maxLength, pipe, type ValiError } from 'valibot';
+import { object, string, email, optional, minLength, maxLength, pipe, parse, type ValiError } from 'valibot';
+import { PermissionAction } from "@root/src/auth/permissionTypes";
 
 const userDataSchema = object(
 	{
@@ -51,14 +52,14 @@ const updateUserAttributesSchema = object({
 export const PUT: RequestHandler = async ({ request, locals }) => {
 	try {
 		const body = await request.json();
-		const { user_id, userData } = body;
+		const { user_id,  newUserData } = body;
 
 		// Special handling for password changes - user can only change their own password
-		if (userData.password && user_id !== locals.user?._id) {
+		if (newUserData.password && locals.user && user_id !== locals.user?._id) {
 			const { hasPermission } = await checkUserPermission(locals.user, {
 				contextId: 'config/userManagement',
 				name: 'Update User Attributes',
-				action: 'manage',
+				action: PermissionAction.MANAGE,
 				contextType: 'system'
 			});
 
@@ -68,11 +69,11 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// For other attribute changes, check general permission
-		if (Object.keys(userData).some((key) => key !== 'password')) {
+		if (locals.user && Object.keys(newUserData).some((key) => key !== 'password')) {
 			const { hasPermission } = await checkUserPermission(locals.user, {
 				contextId: 'config/userManagement',
 				name: 'Update User Attributes',
-				action: 'manage',
+				action: PermissionAction.MANAGE,
 				contextType: 'system'
 			});
 
@@ -88,8 +89,11 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// Validate input
-		const validatedData = updateUserAttributesSchema.parse(body);
-
+		const validatedData = parse(updateUserAttributesSchema, {
+			user_id,
+			userData: newUserData
+		}, {});
+	
 		// Update the user attributes using the agnostic auth interface
 		const updatedUser = await auth.updateUserAttributes(validatedData.user_id, validatedData.userData);
 
@@ -104,11 +108,12 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 			user: updatedUser
 		});
 	} catch (err) {
-		if ((err as ValiError).issues) {
-			const valiError = err as ValiError;
+		if ((err as ValiError<typeof updateUserAttributesSchema>).issues) {
+			const valiError = err as ValiError<typeof updateUserAttributesSchema>;
 			logger.warn('Invalid input for updateUserAttributes API:', valiError.issues);
-			throw error(400, 'Invalid input: ' + valiError.issues.map((issue) => issue.message).join(', '));
+			throw error(400, 'Invalid input: ' + JSON.stringify(valiError.issues.map((issue) => issue.message).join(', '), null, 2));
 		}
+		console.error('Error in updateUserAttributes API:', err);
 		logger.error('Error in updateUserAttributes API:', err);
 		throw error(500, 'Failed to update user attributes');
 	}

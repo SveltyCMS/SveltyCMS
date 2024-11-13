@@ -4,7 +4,7 @@
  */
 
 import type { User } from '@src/auth/types';
-import type { Schema } from '@collections/types';
+import type { Schema } from '@src/collections/types';
 
 // Define the Serializable type
 export type Serializable = {

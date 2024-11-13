@@ -288,6 +288,8 @@ export async function saveAvatarImage(file: File): Promise<string> {
 			let fileUrl = existingFile.thumbnail?.url;
 			if (publicEnv.MEDIASERVER_URL) {
 				fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`;
+			} else {
+				fileUrl =`${publicEnv.MEDIA_FOLDER}/${fileUrl}`;
 			}
 			return fileUrl;
 		}
@@ -307,7 +309,7 @@ export async function saveAvatarImage(file: File): Promise<string> {
 			})
 			.toBuffer({ resolveWithObject: true });
 
-		const thumbnailUrl = `avatars/original/${hash}-${sanitizedBlobName}thumbnail.avif`;
+		const thumbnailUrl = `avatars/${hash}-${sanitizedBlobName}thumbnail.avif`;
 		await saveFileToDisk(resizedImage.data, thumbnailUrl);
 
 		const thumbnail = {
@@ -356,7 +358,10 @@ export async function saveAvatarImage(file: File): Promise<string> {
 		let fileUrl = thumbnailUrl;
 		if (publicEnv.MEDIASERVER_URL) {
 			fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`;
+		} else {
+			fileUrl =`${publicEnv.MEDIA_FOLDER}/${fileUrl}`;
 		}
+
 		return fileUrl;
 	} catch (err) {
 		logger.error('Error saving avatar image:', err as Error);
