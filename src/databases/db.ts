@@ -201,7 +201,13 @@ async function initializeVirtualFolders() {
 				parent: undefined,
 				path: publicEnv.MEDIA_FOLDER
 			});
-			logger.info('Default root virtual folder created:', rootFolder);
+
+			// Log only the essential information
+			logger.info('Default root virtual folder created:', {
+				name: rootFolder.name,
+				path: rootFolder.path,
+				id: rootFolder._id?.toString() || 'No ID'
+			});
 		} else {
 			logger.info(`Found ${virtualFolders.length} virtual folders.`);
 		}

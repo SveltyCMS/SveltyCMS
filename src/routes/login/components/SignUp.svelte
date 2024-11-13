@@ -1,6 +1,15 @@
 <!-- 
 @file src/routes/login/components/SignUp.svelte
-@description SignUp component with optional OAuth support
+@component
+**SignUp component with optional OAuth support**
+
+Features:
+ - Dual SignIn and SignUp functionality with dynamic form switching
+ - Dynamic language selection with a debounced input field or dropdown for multiple languages
+ - Demo mode support with auto-reset timer displayed when active
+ - Initial form display adapts based on environment variables (`SEASON`, `DEMO`, and `firstUserExists`)
+ - Reset state functionality for easy return to initial screen
+ - Accessibility features for language selection and form navigation
 -->
 
 <script lang="ts">

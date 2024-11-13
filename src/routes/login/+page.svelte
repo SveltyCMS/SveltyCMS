@@ -1,6 +1,7 @@
 <!-- 
-@file: Authentication Form Component for SveltyCMS
-@description: This component handles both SignIn and SignUp functionality for the SveltyCMS.
+@file Authentication Form Component for SveltyCMS
+@component
+**This component handles both SignIn and SignUp functionality for the SveltyCMS**
 
 Features:
  - Dual SignIn and SignUp functionality with dynamic form switching
@@ -14,7 +15,6 @@ Features:
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 	import type { PageData } from './$types';
-	import { onMount, onDestroy } from 'svelte';
 
 	// Components
 	import SignIn from './components/SignIn.svelte';
@@ -22,19 +22,17 @@ Features:
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 
 	// Stores
-	import { page } from '$app/stores';
 	import { systemLanguage } from '@stores/store';
-	import type { Writable } from 'svelte/store';
 	import { getLanguageName } from '@utils/languageUtils';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	type SystemLanguage = typeof systemLanguage extends Writable<infer T> ? T : never;
+	// Props
+	const { data } = $props<{ data: PageData }>();
 
 	// State Management
-	const pageData = $page.data as PageData;
-	const firstUserExists = pageData.firstUserExists;
+	const firstUserExists = $state(data.firstUserExists);
 	let active = $state<undefined | 0 | 1>(publicEnv.SEASONS || publicEnv.DEMO ? undefined : firstUserExists ? undefined : 1);
 	let background = $state<'white' | '#242728'>(publicEnv.SEASONS || publicEnv.DEMO ? '#242728' : firstUserExists ? 'white' : '#242728');
 	let timeRemaining = $state({ minutes: 0, seconds: 0 });
@@ -43,9 +41,6 @@ Features:
 	let searchInput = $state<HTMLInputElement | null>(null);
 	let isTransitioning = $state(false);
 	let debounceTimeout = $state<ReturnType<typeof setTimeout>>();
-
-	// Props using $props rune
-	const { data } = $props<{ data: PageData }>();
 
 	// Derived state using $derived rune
 	const availableLanguages = $derived(
@@ -57,20 +52,15 @@ Features:
 			(lang: string) =>
 				getLanguageName(lang, $systemLanguage).toLowerCase().includes(searchQuery.toLowerCase()) ||
 				getLanguageName(lang, 'en').toLowerCase().includes(searchQuery.toLowerCase())
-		) as SystemLanguage[]
+		)
 	);
 
 	// Package version
 	// @ts-expect-error reading from vite.config.js
 	const pkg = __VERSION__;
 
-	// Form validation
-	if (!data.loginForm || !data.forgotForm || !data.resetForm || !data.signUpForm) {
-		throw new Error('Required form schemas are missing');
-	}
-
 	// Language selection
-	function handleLanguageSelection(lang: SystemLanguage) {
+	function handleLanguageSelection(lang: string) {
 		clearTimeout(debounceTimeout);
 		debounceTimeout = setTimeout(() => {
 			systemLanguage.set(lang);
@@ -99,7 +89,6 @@ Features:
 	});
 
 	// Demo mode timer management
-	// Function to calculate the time remaining until the next reset
 	function calculateTimeRemaining() {
 		const now = new Date();
 		const minutes = now.getMinutes();
@@ -117,18 +106,17 @@ Features:
 		timeRemaining = calculateTimeRemaining();
 	}
 
-	let interval: ReturnType<typeof setInterval>;
-
 	// Set up the interval to update the countdown every second
-	// Database resets every 10 minutes only if you drop it form your server)
-	if (publicEnv.DEMO) {
-		onMount(() => {
+	$effect(() => {
+		let interval: ReturnType<typeof setInterval> | undefined;
+		if (publicEnv.DEMO) {
 			updateTimeRemaining();
 			interval = setInterval(updateTimeRemaining, 1000);
-		});
-
-		onDestroy(() => clearInterval(interval));
-	}
+			return () => {
+				if (interval) clearInterval(interval);
+			};
+		}
+	});
 
 	// State management functions
 	function resetToInitialState() {

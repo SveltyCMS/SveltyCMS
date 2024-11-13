@@ -27,8 +27,9 @@ import { privateEnv } from '@root/config/private';
 import { publicEnv } from '@root/config/public';
 import { json } from '@sveltejs/kit';
 
-// Svelty-email
-import { render } from 'svelty-email';
+import type { Component, ComponentProps, SvelteComponent } from 'svelte';
+import { render } from 'svelte/server';
+import { convert } from 'html-to-text';
 
 import nodemailer from 'nodemailer';
 import type Mail from 'nodemailer/lib/mailer';
@@ -68,6 +69,32 @@ const templates: Record<string, ComponentType> = {
 	updatedPassword
 };
 
+// Render email with HTML and plain text versions
+const renderEmail = async <Comp extends SvelteComponent<any> | Component<any>, Props extends ComponentProps<Comp> = ComponentProps<Comp>>(
+	component: Comp,
+	props?: Props
+) => {
+	const rendered = render(component as any, {
+		props
+	});
+
+	const doctype = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">';
+
+	const html = `${doctype}${rendered.body}`;
+
+	const text = convert(rendered.body, {
+		selectors: [
+			{ selector: 'img', format: 'skip' },
+			{ selector: '#__svelte-email-preview', format: 'skip' }
+		]
+	});
+
+	return {
+		html,
+		text
+	};
+};
+
 // Generate a standardized error response
 function errorResponse(message: string, status: number = 500) {
 	logger.error(message);
@@ -105,9 +132,10 @@ async function sendMail(email: string, subject: string, message: string, templat
 		}
 	});
 
-	const emailHtml = render({
-		template: templates[templateName],
-		props: { ...props, languageTag: lang }
+	// Render email with both HTML and plain text
+	const renderedEmail = await renderEmail(templates[templateName], {
+		...props,
+		languageTag: lang
 	});
 
 	const mailOptions: Mail.Options = {
@@ -117,8 +145,8 @@ async function sendMail(email: string, subject: string, message: string, templat
 		},
 		to: email,
 		subject,
-		text: message,
-		html: emailHtml
+		text: renderedEmail.text,
+		html: renderedEmail.html
 	};
 
 	try {
