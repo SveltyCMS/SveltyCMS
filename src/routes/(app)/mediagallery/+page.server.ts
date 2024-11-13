@@ -29,48 +29,10 @@ import { logger, type LoggableValue } from '@utils/logger';
 
 // Helper function to convert _id and other nested objects to string
 function convertIdToString(obj: any): any {
-	const stack: any[] = [{ parent: null, key: '', value: obj }];
-	const seen = new WeakSet();
-	const root = Array.isArray(obj) ? [] : {};
-
-	while (stack.length) {
-		const { parent, key, value } = stack.pop();
-
-		// If value is not an object, assign directly
-		if (value === null || typeof value !== 'object') {
-			if (parent) parent[key] = value;
-			continue;
-		}
-
-		// Handle circular references
-		if (seen.has(value)) {
-			if (parent) parent[key] = value;
-			continue;
-		}
-		seen.add(value);
-
-		// Initialize object or array
-		const result = Array.isArray(value) ? [] : {};
-		if (parent) parent[key] = result;
-
-		// Process each key/value pair or array element
-		for (const k in value) {
-			if (value[k] === null) {
-				result[k] = null;
-			} else if (k === '_id' || k === 'parent') {
-				result[k] = value[k]?.toString() || null; // Convert _id or parent to string
-			} else if (Buffer.isBuffer(value[k])) {
-				result[k] = value[k].toString('hex'); // Convert Buffer to hex string
-			} else if (typeof value[k] === 'object') {
-				// Add object to the stack for further processing
-				stack.push({ parent: result, key: k, value: value[k] });
-			} else {
-				result[k] = value[k]; // Assign primitive values
-			}
-		}
+	if (typeof obj === "object" && obj?.hasOwnProperty("_id")) {
+		obj._id = obj._id.toString();
 	}
-
-	return root;
+	return obj;
 }
 
 export const load: PageServerLoad = async ({ locals }) => {

@@ -44,7 +44,7 @@ export class SessionAdapter implements Partial<authDBInterface> {
 
 	constructor() {
 		// Create the Session model if it doesn't exist
-		this.SessionModel = mongoose.models.auth_sessions || mongoose.model<Session & Document>('auth_sessions', SessionSchema);
+		this.SessionModel = mongoose?.models?.auth_sessions || mongoose?.model<Session & Document>?.('auth_sessions', SessionSchema);
 		this.userAdapter = new UserAdapter();
 	}
 

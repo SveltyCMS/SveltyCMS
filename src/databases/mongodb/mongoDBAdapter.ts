@@ -71,8 +71,8 @@ const mediaSchema = new Schema(
 
 // Define the Draft model if it doesn't exist already
 const DraftModel =
-	mongoose.models.Draft ||
-	mongoose.model<Draft>(
+	mongoose?.models?.Draft ||
+	mongoose?.model<Draft>?.(
 		'Draft',
 		new Schema(
 			{
@@ -88,8 +88,8 @@ const DraftModel =
 
 // Define the Revision model if it doesn't exist already
 const RevisionModel =
-	mongoose.models.Revision ||
-	mongoose.model<Revision>(
+	mongoose?.models?.Revision ||
+	mongoose?.model<Revision>?.(
 		'Revision',
 		new Schema(
 			{
@@ -105,8 +105,8 @@ const RevisionModel =
 
 // Create the Theme model if it doesn't exist already
 const ThemeModel =
-	mongoose.models.Theme ||
-	mongoose.model<Theme>(
+	mongoose?.models?.Theme ||
+	mongoose?.model<Theme>?.(
 		'Theme',
 		new Schema(
 			{
@@ -120,8 +120,8 @@ const ThemeModel =
 
 // Create the Widget model if it doesn't exist already
 const WidgetModel =
-	mongoose.models.Widget ||
-	mongoose.model<Widget>(
+	mongoose?.models?.Widget ||
+	mongoose?.model<Widget>?.(
 		'Widget',
 		new Schema(
 			{
@@ -134,8 +134,8 @@ const WidgetModel =
 
 // Define the System Preferences schema for user layout and screen size
 const SystemPreferencesModel =
-	mongoose.models.SystemPreferences ||
-	mongoose.model<SystemPreferences>(
+	mongoose?.models?.SystemPreferences ||
+	mongoose?.model<SystemPreferences>?.(
 		'SystemPreferences',
 		new Schema(
 			{
@@ -149,8 +149,8 @@ const SystemPreferencesModel =
 
 // Define the SystemVirtualFolder model only if it doesn't already exist
 const SystemVirtualFolderModel =
-	mongoose.models.SystemVirtualFolder ||
-	mongoose.model<SystemVirtualFolder>(
+	mongoose?.models?.SystemVirtualFolder ||
+	mongoose?.model<SystemVirtualFolder>?.(
 		'SystemVirtualFolder',
 		new Schema(
 			{
@@ -229,7 +229,7 @@ export class MongoDBAdapter implements dbInterface {
 
 		if (this.collectionsInitialized) {
 			logger.debug('Collections already initialized, skipping reinitialization.');
-			return mongoose.models as Record<string, Model<any>>;
+			return mongoose?.models as Record<string, Model<any>>;
 		}
 
 		return new Promise<Record<string, Model<any>>>((resolve, reject) => {
@@ -262,9 +262,9 @@ export class MongoDBAdapter implements dbInterface {
 							}
 						);
 
-						if (mongoose.models[collection.name]) {
+						if (mongoose?.models[collection.name]) {
 							logger.debug(`Collection model for ${collection.name} already exists.`);
-							collectionsModels[collection.name] = mongoose.models[collection.name];
+							collectionsModels[collection.name] = mongoose?.models[collection.name];
 						} else {
 							logger.debug(`Creating new collection model for ${collection.name}.`);
 							collectionsModels[collection.name] = mongoose.model(collection.name, schemaObject);
@@ -305,7 +305,7 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Helper method to set up models if they don't already exist
 	private setupModel(name: string, schema: Schema) {
-		if (!mongoose.models[name]) {
+		if (!mongoose?.models[name]) {
 			mongoose.model(name, schema);
 			logger.debug(`${name} model created.`);
 		} else {
@@ -325,7 +325,7 @@ export class MongoDBAdapter implements dbInterface {
 	// Set up widget models
 	setupWidgetModels(): void {
 		// This will ensure that the Widget model is created or reused
-		if (!mongoose.models.Widget) {
+		if (!mongoose?.models?.Widget) {
 			mongoose.model('Widget', WidgetModel.schema);
 			logger.info('Widget model created.');
 		} else {
@@ -337,7 +337,7 @@ export class MongoDBAdapter implements dbInterface {
 	// Implementing findOne method
 	async findOne<T extends Document>(collection: string, query: FilterQuery<T>): Promise<T | null> {
 		try {
-			const model = mongoose.models[collection] as Model<T>;
+			const model = mongoose?.models?.[collection] as Model<T>;
 			if (!model) {
 				logger.error(`Collection ${collection} does not exist.`);
 				throw Error(`Collection ${collection} does not exist.`);
@@ -353,7 +353,7 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Implementing findMany method
 	async findMany<T extends Document>(collection: string, query: FilterQuery<T>): Promise<T[]> {
-		const model = mongoose.models[collection] as Model<T>;
+		const model = mongoose?.models?.[collection] as Model<T>;
 		if (!model) {
 			logger.error(`findMany failed. Collection ${collection} does not exist.`);
 			throw Error(`findMany failed. Collection ${collection} does not exist.`);
@@ -364,7 +364,7 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Implementing insertOne method
 	async insertOne<T extends Document>(collection: string, doc: Partial<T>): Promise<T> {
-		const model = mongoose.models[collection] as Model<T>;
+		const model = mongoose?.models?.[collection] as Model<T>;
 		if (!model) {
 			logger.error(`insertOne failed. Collection ${collection} does not exist.`);
 			throw Error(`insertOne failed. Collection ${collection} does not exist.`);
@@ -381,7 +381,7 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Implementing insertMany method
 	async insertMany(collection: string, docs: Partial<Document>[]): Promise<any[]> {
-		const model = mongoose.models[collection];
+		const model = mongoose?.models?.[collection];
 		if (!model) {
 			logger.error(`insertMany failed. Collection ${collection} does not exist.`);
 			throw Error(`insertMany failed. Collection ${collection} does not exist.`);
@@ -398,7 +398,7 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Implementing updateOne method
 	async updateOne<T extends Document>(collection: string, query: FilterQuery<T>, update: UpdateQuery<T>): Promise<any> {
-		const model = mongoose.models[collection] as Model<T>;
+		const model = mongoose?.models?.[collection] as Model<T>;
 		if (!model) {
 			logger.error(`updateOne failed. Collection ${collection} does not exist.`);
 			throw Error(`updateOne failed. Collection ${collection} does not exist.`);
@@ -415,7 +415,7 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Implementing updateMany method
 	async updateMany<T extends Document>(collection: string, query: FilterQuery<T>, update: UpdateQuery<T>): Promise<any> {
-		const model = mongoose.models[collection] as Model<T>;
+		const model = mongoose?.models?.[collection] as Model<T>;
 		if (!model) {
 			logger.error(`updateMany failed. Collection ${collection} does not exist.`);
 			throw Error(`updateMany failed. Collection ${collection} does not exist.`);
@@ -432,7 +432,7 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Implementing deleteOne method
 	async deleteOne<T extends Document>(collection: string, query: FilterQuery<T>): Promise<number> {
-		const model = mongoose.models[collection] as Model<T>;
+		const model = mongoose?.models?.[collection] as Model<T>;
 		if (!model) {
 			throw Error(`Collection ${collection} not found`);
 		}
@@ -448,7 +448,7 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Implementing deleteMany method
 	async deleteMany<T extends Document>(collection: string, query: FilterQuery<T>): Promise<number> {
-		const model = mongoose.models[collection] as Model<T>;
+		const model = mongoose?.models?.[collection] as Model<T>;
 		if (!model) {
 			throw Error(`Collection ${collection} not found`);
 		}
@@ -464,7 +464,7 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Implementing countDocuments method
 	async countDocuments<T extends Document>(collection: string, query?: FilterQuery<T>): Promise<number> {
-		const model = mongoose.models[collection] as Model<T>;
+		const model = mongoose?.models?.[collection] as Model<T>;
 		if (!model) {
 			logger.error(`countDocuments failed. Collection ${collection} does not exist.`);
 			throw Error(`countDocuments failed. Collection ${collection} does not exist.`);
@@ -1073,11 +1073,11 @@ export class MongoDBAdapter implements dbInterface {
 	// Fetch the last five collections
 	async getLastFiveCollections(): Promise<any[]> {
 		try {
-			const collectionNames = Object.keys(mongoose.models);
+			const collectionNames = Object.keys(mongoose?.models ?? {});
 			const recentCollections: any[] = [];
 
 			for (const collectionName of collectionNames) {
-				const model = mongoose.models[collectionName];
+				const model = mongoose?.models?.[collectionName];
 				const recentDocs = await model.find().sort({ createdAt: -1 }).limit(5).lean().exec();
 				recentCollections.push({ collectionName, recentDocs });
 			}
@@ -1094,7 +1094,7 @@ export class MongoDBAdapter implements dbInterface {
 	// Fetch logged-in users
 	async getLoggedInUsers(): Promise<any[]> {
 		try {
-			const sessionModel = mongoose.models['auth_sessions'];
+			const sessionModel = mongoose?.models?.['auth_sessions'];
 			if (!sessionModel) {
 				throw Error('auth_sessions collection does not exist.');
 			}
@@ -1123,7 +1123,7 @@ export class MongoDBAdapter implements dbInterface {
 			const recentMedia: any[] = [];
 
 			for (const schemaName of mediaSchemas) {
-				const model = mongoose.models[schemaName];
+				const model = mongoose?.models?.[schemaName];
 				if (model) {
 					const recentDocs = await model.find().sort({ createdAt: -1 }).limit(5).lean().exec();
 					recentMedia.push(...recentDocs);

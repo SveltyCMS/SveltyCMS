@@ -69,7 +69,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		let parentPath = '';
 		if (parent) {
-			const parentFolder = await dbAdapter.findOne('VirtualFolder', { _id: parent });
+			const parentFolder = await dbAdapter.findOne('SystemVirtualFolder', { _id: parent });
 			if (!parentFolder) {
 				return json({ success: false, error: 'Parent folder not found' }, { status: 404 });
 			}

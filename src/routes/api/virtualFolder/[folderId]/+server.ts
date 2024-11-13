@@ -49,7 +49,7 @@ async function getRootFolder(): Promise<VirtualFolder> {
 		throw new Error('Database adapter is not initialized');
 	}
 
-	const rootFolder = await dbAdapter.findOne('VirtualFolder', {
+	const rootFolder = await dbAdapter.findOne('SystemVirtualFolder', {
 		name: publicEnv.MEDIA_FOLDER,
 		parent: null
 	});
@@ -84,7 +84,7 @@ async function updateChildPaths(folderId: string, newParentPath: string) {
 		throw new Error('Database adapter is not initialized');
 	}
 
-	const children = await dbAdapter.findMany('VirtualFolder', { parent: folderId });
+	const children = await dbAdapter.findMany('SystemVirtualFolder', { parent: folderId });
 
 	for (const child of children) {
 		const newPath = `${newParentPath}/${child.name}`;
@@ -106,7 +106,7 @@ export const GET: RequestHandler = async ({ params }) => {
 		}
 
 		// Handle root folder specially
-		const folder = folderId === 'root' ? await getRootFolder() : await dbAdapter.findOne('VirtualFolder', { _id: folderId });
+		const folder = folderId === 'root' ? await getRootFolder() : await dbAdapter.findOne('SystemVirtualFolder', { _id: folderId });
 
 		if (!folder) {
 			return errorResponse('Folder not found', 404);
@@ -159,7 +159,7 @@ export const POST: RequestHandler = async ({ params, request }) => {
 		}
 
 		// Get parent folder (root or specified)
-		const parentFolder = folderId === 'root' ? await getRootFolder() : await dbAdapter.findOne('VirtualFolder', { _id: folderId });
+		const parentFolder = folderId === 'root' ? await getRootFolder() : await dbAdapter.findOne('SystemVirtualFolder', { _id: folderId });
 
 		if (!parentFolder) {
 			return errorResponse('Parent folder not found', 404);
@@ -208,7 +208,7 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 		}
 
 		// Get folder to update
-		const folder = folderId === 'root' ? await getRootFolder() : await dbAdapter.findOne('VirtualFolder', { _id: folderId });
+		const folder = folderId === 'root' ? await getRootFolder() : await dbAdapter.findOne('SystemVirtualFolder', { _id: folderId });
 
 		if (!folder) {
 			return errorResponse('Folder not found', 404);
@@ -270,7 +270,7 @@ export const DELETE: RequestHandler = async ({ params }) => {
 		}
 
 		// Find folder to delete
-		const folder = await dbAdapter.findOne('VirtualFolder', { _id: folderId });
+		const folder = await dbAdapter.findOne('SystemVirtualFolder', { _id: folderId });
 		if (!folder) {
 			return errorResponse('Folder not found', 404);
 		}

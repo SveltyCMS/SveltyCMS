@@ -46,7 +46,7 @@ export class TokenAdapter implements Partial<authDBInterface> {
 
 	constructor() {
 		// Create the Token model
-		this.TokenModel = mongoose.models.auth_tokens || mongoose.model<Token & Document>('auth_tokens', TokenSchema);
+		this.TokenModel = mongoose?.models?.auth_tokens || mongoose?.model<Token & Document>?.('auth_tokens', TokenSchema);
 	}
 
 	// Helper function for centralized logging
