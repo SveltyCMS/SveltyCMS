@@ -135,7 +135,7 @@ Features:
 			event.stopPropagation();
 		}
 		// First reset to initial state to show the logo
-		active = undefined;
+		active = 0;
 		background = 'white';
 
 		// Then after a short delay, transition to signin
@@ -180,7 +180,7 @@ Features:
 
 <div class={`flex min-h-lvh w-full overflow-y-auto bg-${background} transition-colors duration-300`}>
 	<SignIn
-		{active}
+		bind:active
 		FormSchemaLogin={data.loginForm}
 		FormSchemaForgot={data.forgotForm}
 		FormSchemaReset={data.resetForm}
