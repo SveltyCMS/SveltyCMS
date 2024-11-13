@@ -1,5 +1,5 @@
 /**
- * @file src/collections/Menu.ts
+ * @file config/collections/Menu.ts
  * @description Collection file for Menu
  */
 import widgets from '@components/widgets';

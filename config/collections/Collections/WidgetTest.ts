@@ -1,5 +1,5 @@
 /**
- * @file src/collections/WidgetTest.ts
+ * @file config/collections/WidgetTest.ts
  * @description Collection file for WidgetTest
  */
 
