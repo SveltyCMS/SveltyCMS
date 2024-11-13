@@ -7,7 +7,7 @@
 	import { createRandomID } from '@utils/utils';
 
 	// Stores
-	import { categories } from '@stores/collectionStore';
+	import { categories } from '@root/src/stores/collectionStore.svelte';
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 
 	// Components

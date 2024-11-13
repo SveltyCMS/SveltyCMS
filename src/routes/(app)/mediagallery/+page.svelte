@@ -1,12 +1,16 @@
 <!-- 
 @file src/routes/(app)/mediagallery/+page.svelte 
-@description This component sets up and displays the media gallery page. 
+@component 
+**This page is used to display the media gallery page**
+
+This page displays a collection of media files, such as images, documents, audio, and video.
 It provides a user-friendly interface for searching, filtering, and navigating through media files.
 
 Features:
 - Search for media files
 - Filter media files by type
 - Navigate through media files
+
 -->
 
 <script lang="ts">
@@ -16,7 +20,7 @@ Features:
 	import axios from 'axios';
 
 	// Stores
-	import { mode } from '@stores/collectionStore';
+	import { mode } from '@root/src/stores/collectionStore.svelte';
 
 	// Utils & Media
 	import { config, toFormData, SIZES } from '@utils/utils';

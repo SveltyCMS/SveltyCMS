@@ -7,13 +7,10 @@
 	import Column from './Column.svelte';
 
 	// Store
-	import { categories } from '@stores/collectionStore';
+	import { categories } from '@root/src/stores/collectionStore.svelte';
 
 	// Types
 	import type { CategoryData } from '@src/collections/types';
-
-	// Utils
-	import { createRandomID } from '@utils/utils';
 
 	// Svelte DND-actions
 	import { flip } from 'svelte/animate';

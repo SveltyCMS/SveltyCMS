@@ -15,7 +15,7 @@
 
 	// Stores
 	import { contentLanguage, saveFunction, validationStore } from '@stores/store';
-	import { collectionValue, mode, collection, collections } from '@stores/collectionStore';
+	import { collectionValue, mode, collection, collections } from '@root/src/stores/collectionStore.svelte';
 
 	// Components
 	import DropDown from './DropDown.svelte';
@@ -25,8 +25,8 @@
 	import type { FieldType } from '.';
 
 	// Utils
-	import { getData } from '@utils/data';
-	import { extractData, findById, getFieldName, saveFormData } from '@utils/utils';
+	import { getData, saveFormData } from '@utils/data';
+	import { extractData, findById, getFieldName } from '@utils/utils';
 
 	// Valibot validation
 	import * as v from 'valibot';

@@ -33,9 +33,9 @@ Features:
 	// Stores
 	import { get } from 'svelte/store';
 	import { contentLanguage, systemLanguage } from '@stores/store';
-	import { mode, collectionValue, modifyEntry, statusMap, collection, categories } from '@stores/collectionStore';
+	import { mode, collectionValue, modifyEntry, statusMap, collection, categories } from '@root/src/stores/collectionStore.svelte';
 	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@stores/sidebarStore';
-	import { screenSize } from '@stores/screenSizeStore';
+	import { screenSize } from '@root/src/stores/screenSizeStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -82,7 +82,7 @@ Features:
 	let columnShow = false;
 
 	// Retrieve entryListPaginationSettings from local storage or set default values for each collection
-	const entryListPaginationSettingsKey = `entryListPaginationSettings_${$collection?.name}`;
+	const entryListPaginationSettingsKey = `entryListPaginationSettings_${String($collection?.name)}`;
 	let entryListPaginationSettings: any =
 		browser && localStorage.getItem(entryListPaginationSettingsKey)
 			? JSON.parse(localStorage.getItem(entryListPaginationSettingsKey) as string)
@@ -195,7 +195,7 @@ Features:
 						if (field.display) {
 							obj[field.label] = await field.display({
 								data: entry[getFieldName(field)],
-								collection: $collection?.name,
+								collection: ($collection?.name ?? '').toString(), // Convert to string
 								field,
 								entry,
 								contentLanguage: $contentLanguage
@@ -649,8 +649,9 @@ Features:
 											icon="material-symbols:search-rounded"
 											label={m.entrylist_filter()}
 											name={header.name}
-											on:input={(e) => {
-												const value = asAny(e.target).value;
+											on:input={(e: InputEvent) => {
+												const inputElement = e.target as HTMLInputElement;
+												const value = inputElement.value;
 												if (value) {
 													waitFilter(() => {
 														filters[header.name] = value;

@@ -12,9 +12,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { dndzone } from 'svelte-dnd-action';
-	import { userPreferences, type WidgetPreference } from '@stores/userPreferences';
-	import { screenSize, type ScreenSize } from '@stores/screenSizeStore';
-	import { theme } from '@stores/themeStore';
+	import { userPreferences, type WidgetPreference } from '@root/src/stores/userPreferences.svelte';
+	import { screenSize, type ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
+	import { theme } from '@root/src/stores/themeStore.svelte';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -34,7 +34,7 @@
 
 	let items: WidgetPreference[] = $state([]);
 	let dropdownOpen = $state(false);
-	let gridElement: HTMLElement = $state();
+	let gridElement: HTMLElement | undefined = $state();
 
 	let cols = $derived($screenSize === 'sm' ? 2 : $screenSize === 'md' ? 3 : 4);
 
@@ -62,7 +62,7 @@
 	}
 
 	function toggleSize(id: string) {
-		items = items.map(item => {
+		items = items.map((item) => {
 			if (item.id === id) {
 				const isExpanded = item.w > 1 || item.h > 1;
 				return {
@@ -81,7 +81,7 @@
 		if (componentInfo) {
 			// Find the first available position
 			let position = findFirstAvailablePosition();
-			
+
 			const newItem: WidgetPreference = {
 				id: crypto.randomUUID(),
 				component: componentName,
@@ -102,10 +102,12 @@
 	}
 
 	function findFirstAvailablePosition() {
-		const grid = Array(20).fill(null).map(() => Array(cols).fill(false));
-		
+		const grid = Array(20)
+			.fill(null)
+			.map(() => Array(cols).fill(false));
+
 		// Mark occupied positions
-		items.forEach(item => {
+		items.forEach((item) => {
 			for (let y = item.y; y < item.y + item.h; y++) {
 				for (let x = item.x; x < item.x + item.w; x++) {
 					if (y < grid.length && x < cols) {
@@ -155,11 +157,7 @@
 
 	let currentTheme = $derived($theme);
 
-	let availableWidgets = $derived(
-		Object.keys(widgetComponents).filter((componentName) => 
-			!items.some((item) => item.component === componentName)
-		)
-	);
+	let availableWidgets = $derived(Object.keys(widgetComponents).filter((componentName) => !items.some((item) => item.component === componentName)));
 
 	let canAddMoreWidgets = $derived(availableWidgets.length > 0);
 
@@ -226,8 +224,8 @@
 
 <div class="relative min-h-screen p-4" bind:this={gridElement}>
 	{#if items && items.length > 0}
-		<div 
-			class="grid gap-4" 
+		<div
+			class="grid gap-4"
 			style="grid-template-columns: repeat({cols}, minmax(0, 1fr));"
 			use:dndzone={{
 				items,
@@ -237,7 +235,7 @@
 			on:finalize={handleDndFinalize}
 		>
 			{#each items as item (item.id)}
-				<div 
+				<div
 					transition:fade={{ duration: 300 }}
 					class="relative cursor-grab active:cursor-grabbing"
 					style="
@@ -246,16 +244,13 @@
 					"
 				>
 					<div class="absolute right-1 top-1 z-10 flex gap-1">
-						<button 
-							onclick={() => toggleSize(item.id)} 
-							class="btn-icon" 
+						<button
+							onclick={() => toggleSize(item.id)}
+							class="btn-icon"
 							aria-label="Toggle Widget Size"
-							title={item.w > 1 || item.h > 1 ? "Shrink" : "Expand"}
+							title={item.w > 1 || item.h > 1 ? 'Shrink' : 'Expand'}
 						>
-							<iconify-icon 
-								icon={item.w > 1 || item.h > 1 ? "mdi:arrow-collapse" : "mdi:arrow-expand"} 
-								width="16"
-							/>
+							<iconify-icon icon={item.w > 1 || item.h > 1 ? 'mdi:arrow-collapse' : 'mdi:arrow-expand'} width="16" />
 						</button>
 						<button onclick={() => remove(item.id)} class="btn-icon" aria-label="Remove Widget">✕</button>
 					</div>

@@ -1,6 +1,8 @@
 <!-- 
 @files src/routes/(app)/config/collection/Column.svelte
-@description This component displays a collection with nested items support.
+@component
+**This component displays a collection with nested items support**
+
 -->
 <script lang="ts">
 	import Column from './Column.svelte';
@@ -8,7 +10,7 @@
 	import type { CategoryData } from '@src/collections/types';
 
 	// Stores
-	import { mode, categories } from '@stores/collectionStore';
+	import { mode, categories } from '@root/src/stores/collectionStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

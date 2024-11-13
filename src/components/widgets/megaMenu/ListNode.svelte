@@ -20,7 +20,7 @@
 
 	// Stores
 	import { translationProgress, contentLanguage, shouldShowNextButton, headerActionButton2 } from '@stores/store';
-	import { mode } from '@stores/collectionStore';
+	import { mode } from '@root/src/stores/collectionStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

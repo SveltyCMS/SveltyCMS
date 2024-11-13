@@ -21,7 +21,7 @@ Features:
 
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { theme, updateTheme } from '@stores/themeStore';
+	import { theme, updateTheme } from '@root/src/stores/themeStore.svelte';
 	import type { Theme } from '@src/databases/dbInterface';
 
 	let currentTheme: Theme | null = null;
@@ -74,14 +74,14 @@ Features:
 	});
 
 	// Subscribe to theme changes and apply the new theme
-	const unsubscribe = theme.subscribe((value: Theme | null) => {
-		currentTheme = value;
+	let unsubscribe = theme.subscribe(() => {
+		currentTheme = $theme;
 		applyTheme(currentTheme);
 	});
 
 	// Cleanup function to unsubscribe from the theme store
 	onDestroy(() => {
-		unsubscribe();
+		unsubscribe;
 	});
 </script>
 

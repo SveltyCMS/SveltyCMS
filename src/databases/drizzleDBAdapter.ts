@@ -26,7 +26,7 @@ import { createRandomID } from '@utils/utils';
 import type { dbInterface } from './dbInterface';
 
 //Stores
-import { collections } from '@stores/collectionStore';
+import { collections } from '@root/src/stores/collectionStore.svelte';
 import type { Unsubscriber } from 'svelte/store';
 
 // Drizzel
@@ -207,7 +207,7 @@ export class DrizzleDBAdapter implements dbInterface {
 		return result[0].count;
 	}
 
-	generateId(): string {
+	async generateId(): Promise<string> {
 		return createRandomID();
 	}
 

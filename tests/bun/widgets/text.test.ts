@@ -3,10 +3,10 @@
 import { expect, test, describe, beforeEach, mock } from 'bun:test';
 import { render, fireEvent, cleanup } from '@testing-library/svelte';
 import { get } from 'svelte/store';
-import Text from '../../../src/components/widgets/text/Text.svelte';
-import widget from '../../../src/components/widgets/text';
-import { contentLanguage, validationStore } from '../../../src/stores/store';
-import { mode, collectionValue } from '../../../src/stores/collectionStore';
+import Text from '@src/components/widgets/text/Text.svelte';
+import widget from '@src/components/widgets/text';
+import { contentLanguage, validationStore } from '@stores/store';
+import { mode, collectionValue } from '@stores/collectionStore.svelte';
 
 // Mock config
 const publicEnv = {

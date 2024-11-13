@@ -25,9 +25,9 @@
 	import { page } from '$app/stores';
 	import { get } from 'svelte/store';
 	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store';
-	import { mode } from '@stores/collectionStore';
+	import { mode } from '@root/src/stores/collectionStore.svelte';
 	import { toggleSidebar, sidebarState, userPreferredState, handleSidebarToggle } from '@stores/sidebarStore';
-	import { screenSize } from '@stores/screenSizeStore';
+	import { screenSize } from '@root/src/stores/screenSizeStore.svelte';
 
 	// Import components and utilities
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
@@ -86,7 +86,7 @@
 	// Enhanced language selector
 	let searchQuery = $state('');
 	let isDropdownOpen = $state(false);
-	let searchInput: HTMLInputElement = $state();
+	let searchInput: HTMLInputElement | undefined = $state();
 	let debounceTimeout: ReturnType<typeof setTimeout>;
 
 	function handleLanguageSelection(lang: AvailableLanguage) {

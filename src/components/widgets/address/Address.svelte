@@ -1,6 +1,13 @@
 <!-- 
 @file src/components/widgets/address/Address.svelte
-@description - Address widget
+@component
+**Address widget**
+
+```tsx
+<Address bind:field={field} />
+```
+**Props:**
+- `field` - {FieldType} - Field type
 -->
 
 <script lang="ts">
@@ -12,7 +19,7 @@
 
 	// Stores
 	import { contentLanguage, validationStore } from '@stores/store';
-	import { mode, collectionValue } from '@stores/collectionStore';
+	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

@@ -1,6 +1,13 @@
 <!-- 
 @file src/components/widgets/email/Email.svelte
-@description - Email widget
+@component
+**Email widget**
+
+```tsx
+<Email bind:field={field} />
+```
+**Props:**
+- `field` - {FieldType} - Field type
 -->
 
 <script lang="ts">
@@ -11,7 +18,7 @@
 
 	// Stores
 	import { validationStore } from '@stores/store';
-	import { mode, collectionValue } from '@stores/collectionStore';
+	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
 
 	// Valibot validation
 	import { string, email as emailValidator, pipe, parse, type ValiError, nonEmpty } from 'valibot';

@@ -94,7 +94,7 @@ export async function moveMediaToTrash(url: string, collectionName: string): Pro
 			logger.info('File moved to trash in S3', { originalUrl: url, trashUrl: trashKey });
 		} else {
 			// Handle local storage
-			const sourcePath = Path.join(publicEnv.MEDIA_FOLDER, url);
+			const sourcePath = Path.join(url);
 			const trashPath = Path.join(trashDir, Path.basename(url));
 
 			if (!fs.existsSync(sourcePath)) {
@@ -289,7 +289,7 @@ export async function saveAvatarImage(file: File): Promise<string> {
 			if (publicEnv.MEDIASERVER_URL) {
 				fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`;
 			} else {
-				fileUrl =`${publicEnv.MEDIA_FOLDER}/${fileUrl}`;
+				fileUrl = `${publicEnv.MEDIA_FOLDER}/${fileUrl}`;
 			}
 			return fileUrl;
 		}
@@ -359,7 +359,7 @@ export async function saveAvatarImage(file: File): Promise<string> {
 		if (publicEnv.MEDIASERVER_URL) {
 			fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`;
 		} else {
-			fileUrl =`${publicEnv.MEDIA_FOLDER}/${fileUrl}`;
+			fileUrl = `${publicEnv.MEDIA_FOLDER}/${fileUrl}`;
 		}
 
 		return fileUrl;

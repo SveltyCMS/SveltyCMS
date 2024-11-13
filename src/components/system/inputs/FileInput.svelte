@@ -1,16 +1,19 @@
 <!-- 
 @file src/components/system/inputs/FileInput.svelte
-@description Component for file input 
+@component
+**FileInput component**
+
+```tsx
+<FileInput />
+``` 
 
 Features:
 - File input 
 - Multiple file input
 - Drag and drop
-
 -->
 
 <script lang="ts">
-	import { asAny } from '@utils/utils';
 	import type { MediaImage } from '@utils/media/mediaModels';
 	import { twMerge } from 'tailwind-merge';
 
@@ -33,13 +36,6 @@ Features:
 
 	let input = $state<HTMLInputElement | null>(null);
 	let showMedia = $state(false);
-
-	let mediaOnSelect = $state((data: MediaImage) => {
-		show = false;
-		showMedia = false;
-		value = data;
-		onChange?.(value);
-	});
 
 	function handleMediaSelect(data: MediaImage) {
 		show = false;

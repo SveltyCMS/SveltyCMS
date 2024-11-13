@@ -13,7 +13,7 @@
 <script lang="ts">
 	// Stores
 	import { saveFunction, translationProgress, shouldShowNextButton, validationStore } from '@stores/store';
-	import { collectionValue, mode } from '@stores/collectionStore';
+	import { collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
 
 	// Components
 	import Fields from '@components/Fields.svelte';

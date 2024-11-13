@@ -17,7 +17,7 @@ It handles widget configuration, permissions, and specific options.
 	import * as m from '@src/paraglide/messages';
 
 	// Stores
-	import { collectionValue, targetWidget } from '@stores/collectionStore';
+	import { collectionValue, targetWidget } from '@root/src/stores/collectionStore.svelte';
 
 	import { getModalStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();

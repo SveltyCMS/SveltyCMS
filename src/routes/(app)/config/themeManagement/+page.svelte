@@ -4,7 +4,7 @@
 -->
 
 <script lang="ts">
-	import { themeStore, updateTheme } from '@stores/themeStore';
+	import { themeStore, updateTheme } from '@root/src/stores/themeStore.svelte';
 	import type { Theme } from '@src/databases/dbInterface';
 
 	// ParaglideJS
@@ -52,11 +52,11 @@
 
 	// Effects for theme changes
 	$effect.root(() => {
-		if (selectedTheme) updateTheme(selectedTheme.name);
+		if (selectedTheme) updateTheme(selectedTheme);
 	});
 
 	$effect.root(() => {
-		if (livePreviewTheme) updateTheme(livePreviewTheme.name);
+		if (livePreviewTheme) updateTheme(livePreviewTheme);
 	});
 
 	// Initialize selectedTheme with current theme
@@ -77,7 +77,7 @@
 
 	function resetPreview() {
 		livePreviewTheme = null;
-		if (selectedTheme) updateTheme(selectedTheme.name);
+		if (selectedTheme) updateTheme(selectedTheme);
 	}
 
 	function handleThemeChange() {

@@ -1,6 +1,13 @@
 <!-- 
 @file src/components/widgets/dateTime/DateTime.svelte
-@description - DateTime widget
+@component
+**DateTime widget**
+
+```tsx
+<DateTime bind:field={field} />
+```
+**Props:**
+- `field` - {FieldType} - Field type
 -->
 
 <script lang="ts">
@@ -12,7 +19,7 @@
 
 	// Stores
 	import { validationStore } from '@stores/store';
-	import { mode, collectionValue } from '@stores/collectionStore';
+	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
 
 	// valibot validation
 	import * as v from 'valibot';

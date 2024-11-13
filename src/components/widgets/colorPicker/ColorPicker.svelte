@@ -1,6 +1,13 @@
 <!-- 
 @file src/components/widgets/colorPicker/ColorPicker.svelte
-@description - ColorPicker widget
+@component
+**ColorPicker widget**
+
+```tsx
+<ColorPicker bind:field={field} />
+```
+**Props:**
+- `field` - {FieldType} - Field type
 -->
 
 <script lang="ts">
@@ -9,7 +16,7 @@
 
 	// Stores
 	import { validationStore } from '@stores/store';
-	import { mode, collectionValue } from '@stores/collectionStore';
+	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
 
 	// valibot validation
 	import * as v from 'valibot';
@@ -17,13 +24,13 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	const fieldName = getFieldName(field);
 	interface Props {
 		field: FieldType;
 		value?: any;
 	}
+	let { field, value = {} }: Props = $props();
 
-	let { field, value = $collectionValue[fieldName] || {} }: Props = $props();
+	const fieldName = getFieldName(field);
 
 	const _data = $state($mode === 'create' ? {} : value);
 	let validationError: string | null = $state(null);

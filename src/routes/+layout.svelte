@@ -1,15 +1,15 @@
 <!-- 
  @file src/routes/+layout.svelte
- @description This Svelte component serves as the layout for the entire application. 
+ @component 
+ **This Svelte component serves as the layout for the entire application**
+
+ Key features:
  It sets up the global w, manages SEO metadata, and initializes required stores for the Skeleton UI framework.
  
  Features:
  - Dynamic theme management based on user preferences or defaults.
  - SEO optimization with Open Graph and Twitter Card metadata for enhanced social sharing.
  - Initialization of Skeleton stores for UI components.
- 
- Usage:
- The layout wraps all routes and provides a consistent theme and structure across the application.
   -->
 
 <script lang="ts">
@@ -25,7 +25,7 @@
 	import ParaglideSvelteKit from '@components/ParaglideSvelteKit.svelte';
 
 	// category config store
-	import { categories } from '@stores/collectionStore';
+	import { categories } from '@root/src/stores/collectionStore.svelte';
 
 	// Importing Tailwind CSS styles
 	import '../app.postcss';

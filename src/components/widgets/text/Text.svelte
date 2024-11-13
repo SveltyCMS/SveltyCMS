@@ -27,7 +27,7 @@
 	import { updateTranslationProgress, getFieldName } from '@src/utils/utils';
 
 	// Stores
-	import { mode, collectionValue } from '@src/stores/collectionStore';
+	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
 	import { contentLanguage, validationStore } from '@src/stores/store';
 
 	// Valibot validation
@@ -40,17 +40,13 @@
 		WidgetData?: any;
 	}
 
-	let { field, value=$collectionValue[getFieldName(field)] || {}, WidgetData = $bindable() }: Props = $props();
+	let { field, value = $collectionValue[getFieldName(field)] || {}, WidgetData = $bindable() }: Props = $props();
 
 	// Initialize value separately to avoid $state() in prop destructuring
-	
+
 	let _data = $state(mode() == 'create' ? {} : value);
 
-	let _language = $derived(
-		field?.translated 
-			? $contentLanguage.toLowerCase() 
-			: publicEnv.DEFAULT_CONTENT_LANGUAGE.toLowerCase()
-	);
+	let _language = $derived(field?.translated ? $contentLanguage.toLowerCase() : publicEnv.DEFAULT_CONTENT_LANGUAGE.toLowerCase());
 
 	let count = $derived(_data[_language]?.length ?? 0);
 

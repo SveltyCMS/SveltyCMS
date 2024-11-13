@@ -12,7 +12,7 @@
 	// Stores
 	import { page } from '$app/stores';
 	import { tabSet } from '@stores/store';
-	import { mode, collectionValue } from '@stores/collectionStore';
+	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -225,9 +225,9 @@
 
 		<!-- Tab Panels -->
 		{#if $tabSet === 0}
-			<CollectionForm on:updatePageTitle={handlePageTitleUpdate} />
+			<CollectionForm onupdatePageTitle={handlePageTitleUpdate} />
 		{:else if $tabSet === 1}
-			<CollectionWidget on:save={handleCollectionSave} />
+			<CollectionWidget onsave={handleCollectionSave} />
 		{/if}
 	</TabGroup>
 </div>

@@ -12,7 +12,7 @@
 
 	// Stores
 	import { validationStore } from '@stores/store';
-	import { mode, collectionValue } from '@stores/collectionStore';
+	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
 
 	// Components
 	import type { MediaImage, Thumbnail } from '@utils/media/mediaModels';
@@ -20,7 +20,9 @@
 
 	let isFlipped = $state(false); // State variable to track flip button
 
-	let _data: File | MediaImage | undefined = $state(value);
+	let mediaValue: any; // or any other appropriate type
+
+	let _data: File | MediaImage | undefined = $state(mediaValue);
 	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
 
@@ -113,7 +115,7 @@
 		<!-- File Input -->
 		<div class:error={!!validationError}>
 			<FileInput
-				bind:value={_data}
+				bindvalue={_data}
 				bind:multiple={field.multiupload}
 				on:change={validateInput}
 				aria-invalid={!!validationError}

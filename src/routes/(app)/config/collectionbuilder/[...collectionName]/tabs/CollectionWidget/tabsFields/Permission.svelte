@@ -1,6 +1,11 @@
 <!-- 
 @files src/routes/(app)/config/collectionbuilder/[...collectionName]/tabs/CollectionWidget/tabsFields/Permission.svelte
-@description This component handles permission settings for widget fields.
+@component
+**This component handles permission settings for widget fields**
+
+Features:
+- Permissions settings
+
 -->
 
 <script lang="ts">
@@ -9,7 +14,7 @@
 
 	// Skeleton Stores
 	import { getModalStore } from '@skeletonlabs/skeleton';
-	import { targetWidget } from '@stores/collectionStore';
+	import { targetWidget } from '@root/src/stores/collectionStore.svelte';
 
 	const modalStore = getModalStore();
 

@@ -12,14 +12,18 @@
 -->
 
 <script lang="ts">
+	import { saveFormData } from '../utils/data';
+
 	// Stores
 	import { page } from '$app/stores';
 	import { saveLayerStore, shouldShowNextButton, validationStore } from '@stores/store';
-	import { collection, mode, modifyEntry, collectionValue } from '@stores/collectionStore';
+	import { collection, mode, modifyEntry, collectionValue } from '@root/src/stores/collectionStore.svelte';
 	import { handleSidebarToggle } from '@stores/sidebarStore';
-	import { saveFormData, convertTimestampToDateString, getFieldName, meta_data } from '@utils/utils';
+	import { convertTimestampToDateString, getFieldName, meta_data } from '@utils/utils';
+
 	// Get data from page store
 	const { roles, user } = $page.data;
+
 	// Components
 	import Toggles from './system/inputs/Toggles.svelte';
 	import ScheduleModal from './ScheduleModal.svelte';

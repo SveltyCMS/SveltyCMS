@@ -1,6 +1,13 @@
 <!-- 
 @file src/components/widgets/checkbox/Checkbox.svelte
-@description - Checkbox widget
+@component
+**Checkbox widget**
+
+```tsx
+<Checkbox bind:field={field} />
+```
+**Props:**
+- `field` - {FieldType} - Field type
 -->
 
 <script lang="ts">
@@ -11,7 +18,7 @@
 
 	// Stores
 	import { contentLanguage, validationStore } from '@stores/store';
-	import { mode, collectionValue } from '@stores/collectionStore';
+	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
 
 	// Valibot validation
 	import { object, string, number, boolean, optional, minLength, pipe, parse, type InferInput, type ValiError } from 'valibot';

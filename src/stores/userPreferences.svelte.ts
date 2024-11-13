@@ -1,6 +1,6 @@
 /**
- * @file src/stores/userPreferences.ts
- * @description User preferences management using Svelte stores
+ * @file src/stores/userPreferences.svelte.ts
+ * @description User preferences management using Svelte 5 runes
  *
  * Features:
  * - Widget preferences for different screen sizes
@@ -10,8 +10,8 @@
  * - Error handling and recovery
  */
 
-import { writable, derived } from 'svelte/store';
-import { ScreenSize } from '@stores/screenSizeStore';
+import { store } from '@src/utils/reactivity.svelte';
+import { ScreenSize } from '@stores/screenSizeStore.svelte';
 import { browser } from '$app/environment';
 import { dbAdapter, initializationPromise } from '@src/databases/db';
 
@@ -48,7 +48,7 @@ interface PreferencesState {
 }
 
 // Create base stores
-const createPreferencesStores = () => {
+function createPreferencesStores() {
 	let syncInterval: NodeJS.Timeout | null = null;
 
 	// Initial state
@@ -66,20 +66,18 @@ const createPreferencesStores = () => {
 	};
 
 	// Base store
-	const state = writable<PreferencesState>(initialState);
+	const state = store<PreferencesState>(initialState);
 
 	// Derived values
-	const hasPreferences = derived(state, ($state) => Object.values($state.preferences).some((widgets) => widgets.length > 0));
-	const widgetCount = derived(state, ($state) => Object.values($state.preferences).reduce((sum, widgets) => sum + widgets.length, 0));
-	const canSync = derived(state, ($state) => !$state.isLoading && !!$state.currentUserId);
+	const hasPreferences = $derived(Object.values(state().preferences).some((widgets) => widgets.length > 0));
+
+	const widgetCount = $derived(Object.values(state().preferences).reduce((sum, widgets) => sum + widgets.length, 0));
+
+	const canSync = $derived(!state().isLoading && !!state().currentUserId);
 
 	// Helper function to get widgets for a specific screen size
-	function getScreenSizeWidgets(size: ScreenSize) {
-		let widgets: WidgetPreference[] = [];
-		state.subscribe(($state) => {
-			widgets = $state.preferences[size];
-		})();
-		return widgets;
+	function getScreenSizeWidgets(size: ScreenSize): WidgetPreference[] {
+		return state().preferences[size];
 	}
 
 	// Ensure database is initialized
@@ -96,11 +94,10 @@ const createPreferencesStores = () => {
 		// Check every 5 minutes
 		syncInterval = setInterval(
 			() => {
-				state.subscribe(($state) => {
-					if ($state.currentUserId && (!$state.lastSyncTime || Date.now() - $state.lastSyncTime.getTime() > 30 * 60 * 1000)) {
-						loadPreferences($state.currentUserId).catch(console.error);
-					}
-				})();
+				const currentState = state();
+				if (currentState.currentUserId && (!currentState.lastSyncTime || Date.now() - currentState.lastSyncTime.getTime() > 30 * 60 * 1000)) {
+					loadPreferences(currentState.currentUserId).catch(console.error);
+				}
 			},
 			5 * 60 * 1000
 		);
@@ -116,10 +113,7 @@ const createPreferencesStores = () => {
 
 	// Set preferences for a specific screen size
 	async function setPreference(userId: string, screenSize: ScreenSize, widgets: WidgetPreference[]) {
-		let currentState: PreferencesState;
-		state.subscribe((s) => {
-			currentState = s;
-		})();
+		const currentState = state();
 
 		if (currentState.isLoading) return;
 
@@ -156,10 +150,7 @@ const createPreferencesStores = () => {
 
 	// Load preferences from database
 	async function loadPreferences(userId: string) {
-		let currentState: PreferencesState;
-		state.subscribe((s) => {
-			currentState = s;
-		})();
+		const currentState = state();
 
 		if (currentState.isLoading) return;
 
@@ -191,10 +182,7 @@ const createPreferencesStores = () => {
 
 	// Clear all preferences
 	async function clearPreferences(userId: string) {
-		let currentState: PreferencesState;
-		state.subscribe((s) => {
-			currentState = s;
-		})();
+		const currentState = state();
 
 		if (currentState.isLoading) return;
 
@@ -232,10 +220,7 @@ const createPreferencesStores = () => {
 
 	// Add a widget to preferences
 	async function addWidget(userId: string, screenSize: ScreenSize, widget: WidgetPreference) {
-		let currentState: PreferencesState;
-		state.subscribe((s) => {
-			currentState = s;
-		})();
+		const currentState = state();
 
 		if (currentState.isLoading) return;
 
@@ -272,10 +257,7 @@ const createPreferencesStores = () => {
 
 	// Remove a widget from preferences
 	async function removeWidget(userId: string, screenSize: ScreenSize, widgetId: string) {
-		let currentState: PreferencesState;
-		state.subscribe((s) => {
-			currentState = s;
-		})();
+		const currentState = state();
 
 		if (currentState.isLoading) return;
 
@@ -333,7 +315,7 @@ const createPreferencesStores = () => {
 		removeWidget,
 		stopAutoSync
 	};
-};
+}
 
 // Create and export stores
 const stores = createPreferencesStores();
@@ -349,9 +331,17 @@ export const userPreferences = {
 };
 
 // Export derived values
-export const hasPreferences = { subscribe: stores.hasPreferences.subscribe };
-export const widgetCount = { subscribe: stores.widgetCount.subscribe };
-export const canSync = { subscribe: stores.canSync.subscribe };
+export const hasPreferences = {
+	subscribe: () => stores.hasPreferences
+};
+
+export const widgetCount = {
+	subscribe: () => stores.widgetCount
+};
+
+export const canSync = {
+	subscribe: () => stores.canSync
+};
 
 // Export helper function
 export const getScreenSizeWidgets = stores.getScreenSizeWidgets;

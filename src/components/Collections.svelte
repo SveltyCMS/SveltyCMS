@@ -30,9 +30,9 @@ Features:
 	import { get } from 'svelte/store';
 	import { page } from '$app/stores';
 	import { shouldShowNextButton } from '@stores/store';
-	import { mode, collection, categories, collections } from '@stores/collectionStore';
+	import { mode, collection, categories, collections } from '@root/src/stores/collectionStore.svelte';
 	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@stores/sidebarStore';
-	import { screenSize } from '@stores/screenSizeStore';
+	import { screenSize } from '@root/src/stores/screenSizeStore.svelte';
 
 	// Auth
 	import type { User } from '@src/auth/types';
@@ -183,7 +183,7 @@ Features:
 
 	// Generate unique key for collection items
 	function getCollectionKey(_collection: Schema, categoryId: string): string {
-		return `${categoryId}-${_collection.name}-${_collection.id || Date.now()}`;
+		return `${categoryId}-${String(_collection.name)}-${_collection.id || Date.now()}`;
 	}
 
 	// Track open states for subcategories
