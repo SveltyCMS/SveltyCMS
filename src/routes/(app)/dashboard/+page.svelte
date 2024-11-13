@@ -1,10 +1,17 @@
 <!-- 
 @file src/routes/(app)/dashboard/+page.svelte
-@description This file sets up and displays the dashboard page. It provides a user-friendly interface for managing system resources and system messages.
+@component
+**This file sets up and displays the dashboard page. It provides a user-friendly interface for managing system resources and system messages**
+
+```tsx
+<Dashboard />
+```
+
 -->
 
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { dndzone } from 'svelte-dnd-action';
 	import { userPreferences, type WidgetPreference } from '@stores/userPreferences';
 	import { screenSize, type ScreenSize } from '@stores/screenSizeStore';
 	import { theme } from '@stores/themeStore';
@@ -17,10 +24,7 @@
 	import Last5MediaWidget from './widgets/Last5MediaWidget.svelte';
 	import UserActivityWidget from './widgets/UserActivityWidget.svelte';
 	import SystemMessagesWidget from './widgets/SystemMessagesWidget.svelte';
-
-	// Svelte-grid
 	import { fade } from 'svelte/transition';
-	import Grid, { GridItem } from 'svelte-grid-extended';
 
 	interface Props {
 		data: { user: { id: string } };
@@ -32,27 +36,7 @@
 	let dropdownOpen = $state(false);
 	let gridElement: HTMLElement = $state();
 
-	let itemSize = $derived(
-		$screenSize === 'sm' ? { width: 150, height: 150 } : $screenSize === 'md' ? { width: 200, height: 200 } : { width: 250, height: 250 }
-	);
-
 	let cols = $derived($screenSize === 'sm' ? 2 : $screenSize === 'md' ? 3 : 4);
-
-	function resetGrid() {
-		items = [];
-		userPreferences.clearPreferences(data.user.id);
-	}
-
-	function remove(id: string) {
-		console.log('Removing widget with id:', id);
-		items = items.filter((item) => item.id !== id);
-		saveWidgets();
-	}
-
-	function saveWidgets() {
-		console.log('Saving widgets:', items);
-		userPreferences.setPreference(data.user.id, $screenSize, items);
-	}
 
 	const widgetComponents = {
 		CPUWidget: { component: CPUWidget, name: 'CPU Usage' },
@@ -63,74 +47,100 @@
 		SystemMessagesWidget: { component: SystemMessagesWidget, name: 'System Messages' }
 	};
 
-	function findEmptySpace(gridWidth: number, gridHeight: number): { x: number; y: number } | null {
-		const grid = Array(gridHeight)
-			.fill(null)
-			.map(() => Array(gridWidth).fill(false));
+	function resetGrid() {
+		items = [];
+		userPreferences.clearPreferences(data.user.id);
+	}
 
-		// Mark occupied spaces
-		items.forEach((item) => {
+	function remove(id: string) {
+		items = items.filter((item) => item.id !== id);
+		saveWidgets();
+	}
+
+	function saveWidgets() {
+		userPreferences.setPreference(data.user.id, $screenSize, items);
+	}
+
+	function toggleSize(id: string) {
+		items = items.map(item => {
+			if (item.id === id) {
+				const isExpanded = item.w > 1 || item.h > 1;
+				return {
+					...item,
+					w: isExpanded ? 1 : Math.min(item.max.w, 2),
+					h: isExpanded ? 1 : Math.min(item.max.h, 2)
+				};
+			}
+			return item;
+		});
+		saveWidgets();
+	}
+
+	function addNewItem(componentName: string) {
+		const componentInfo = widgetComponents[componentName];
+		if (componentInfo) {
+			// Find the first available position
+			let position = findFirstAvailablePosition();
+			
+			const newItem: WidgetPreference = {
+				id: crypto.randomUUID(),
+				component: componentName,
+				label: componentInfo.name,
+				x: position.x,
+				y: position.y,
+				w: 1,
+				h: 1,
+				min: { w: 1, h: 1 },
+				max: { w: 2, h: 2 },
+				movable: true,
+				resizable: true
+			};
+			items = [...items, newItem];
+			saveWidgets();
+		}
+		dropdownOpen = false;
+	}
+
+	function findFirstAvailablePosition() {
+		const grid = Array(20).fill(null).map(() => Array(cols).fill(false));
+		
+		// Mark occupied positions
+		items.forEach(item => {
 			for (let y = item.y; y < item.y + item.h; y++) {
 				for (let x = item.x; x < item.x + item.w; x++) {
-					if (y < gridHeight && x < gridWidth) {
+					if (y < grid.length && x < cols) {
 						grid[y][x] = true;
 					}
 				}
 			}
 		});
 
-		// Find first empty space
-		for (let y = 0; y < gridHeight; y++) {
-			for (let x = 0; x < gridWidth; x++) {
+		// Find first empty position
+		for (let y = 0; y < grid.length; y++) {
+			for (let x = 0; x < cols; x++) {
 				if (!grid[y][x]) {
 					return { x, y };
 				}
 			}
 		}
 
-		return null; // No empty space found
+		// Fallback to adding at the end
+		return { x: 0, y: items.length };
 	}
 
-	function addNewItem(componentName: string) {
-		const componentInfo = widgetComponents[componentName];
-		if (componentInfo) {
-			const gridWidth = Math.floor(gridElement.clientWidth / itemSize.width);
-			const gridHeight = Math.floor(gridElement.clientHeight / itemSize.height);
-			const emptySpace = findEmptySpace(gridWidth, gridHeight);
-
-			if (emptySpace) {
-				const newItem: WidgetPreference = {
-					id: crypto.randomUUID(),
-					component: componentName,
-					label: componentInfo.name,
-					x: emptySpace.x,
-					y: emptySpace.y,
-					w: 1,
-					h: 1,
-					min: { w: 1, h: 1 },
-					max: { w: 2, h: 2 },
-					movable: true,
-					resizable: true
-				};
-				items = [...items, newItem];
-				saveWidgets();
-			} else {
-				console.warn('No empty space available for new widget');
-			}
-		} else {
-			console.error('Component not found:', componentName);
-		}
-		dropdownOpen = false;
+	function handleDndConsider(e: CustomEvent<{ items: WidgetPreference[] }>) {
+		items = e.detail.items;
 	}
 
-	function handleLayoutChange(event: CustomEvent) {
-		if (Array.isArray(event.detail)) {
-			items = event.detail.map((item) => ({
-				...items.find((i) => i.id === item.id),
-				...item
-			}));
-			saveWidgets();
-		}
+	function handleDndFinalize(e: CustomEvent<{ items: WidgetPreference[] }>) {
+		items = e.detail.items;
+		// Update positions after drag
+		items = items.map((item, index) => ({
+			...item,
+			x: index % cols,
+			y: Math.floor(index / cols)
+		}));
+		saveWidgets();
 	}
 
 	function toggleDropdown() {
@@ -145,9 +155,25 @@
 
 	let currentTheme = $derived($theme);
 
-	let availableWidgets = $derived(Object.keys(widgetComponents).filter((componentName) => !items.some((item) => item.component === componentName)));
+	let availableWidgets = $derived(
+		Object.keys(widgetComponents).filter((componentName) => 
+			!items.some((item) => item.component === componentName)
+		)
+	);
 
-	let canAddMoreWidgets = $derived(availableWidgets.length > 0 && items.length < cols * Math.floor(gridElement?.clientHeight / itemSize.height || 0));
+	let canAddMoreWidgets = $derived(availableWidgets.length > 0);
+
+	const dndOptions = {
+		dragDisabled: false,
+		dropTargetStyle: {
+			outline: 'rgba(255, 255, 255, 0.3) solid 2px'
+		},
+		transformDraggedElement: (draggedEl: HTMLElement) => {
+			draggedEl.style.cursor = 'grabbing';
+			draggedEl.style.opacity = '0.8';
+			draggedEl.style.transform = 'scale(1.05)';
+		}
+	};
 </script>
 
 <div class="my-2 flex items-center justify-between gap-2">
@@ -198,37 +224,52 @@
 	</div>
 </div>
 
-<div class="relative h-screen" bind:this={gridElement}>
+<div class="relative min-h-screen p-4" bind:this={gridElement}>
 	{#if items && items.length > 0}
-		<Grid {cols} {itemSize} on:change={handleLayoutChange}>
+		<div 
+			class="grid gap-4" 
+			style="grid-template-columns: repeat({cols}, minmax(0, 1fr));"
+			use:dndzone={{
+				items,
+				...dndOptions
+			}}
+			on:consider={handleDndConsider}
+			on:finalize={handleDndFinalize}
+		>
 			{#each items as item (item.id)}
-				<GridItem
-					id={item.id}
-					x={item.x}
-					y={item.y}
-					w={item.w}
-					h={item.h}
-					min={item.min}
-					max={item.max}
-					movable={item.movable}
-					resizable={item.resizable}
+				<div 
+					transition:fade={{ duration: 300 }}
+					class="relative cursor-grab active:cursor-grabbing"
+					style="
+						grid-column: {item.x + 1} / span {item.w}; 
+						grid-row: {item.y + 1} / span {item.h};
+					"
 				>
-					<div transition:fade={{ duration: 300 }} class="relative h-full w-full">
-						<div class="absolute right-1 top-1 z-10">
-							<button onclick={() => remove(item.id)} class="btn-icon" aria-label="Remove Widget">✕</button>
-						</div>
-						<div class="h-full w-full rounded-md border border-surface-500 bg-surface-100 p-2 shadow-2xl dark:bg-surface-700">
-							{#if widgetComponents[item.component]}
-								{@const SvelteComponent = widgetComponents[item.component].component}
-								<SvelteComponent label={item.label} {currentTheme} />
-							{:else}
-								<div>Widget not found: {item.component}</div>
-							{/if}
-						</div>
+					<div class="absolute right-1 top-1 z-10 flex gap-1">
+						<button 
+							onclick={() => toggleSize(item.id)} 
+							class="btn-icon" 
+							aria-label="Toggle Widget Size"
+							title={item.w > 1 || item.h > 1 ? "Shrink" : "Expand"}
+						>
+							<iconify-icon 
+								icon={item.w > 1 || item.h > 1 ? "mdi:arrow-collapse" : "mdi:arrow-expand"} 
+								width="16"
+							/>
+						</button>
+						<button onclick={() => remove(item.id)} class="btn-icon" aria-label="Remove Widget">✕</button>
 					</div>
-				</GridItem>
+					<div class="h-full w-full rounded-md border border-surface-500 bg-surface-100 p-2 shadow-2xl dark:bg-surface-700">
+						{#if widgetComponents[item.component]}
+							{@const SvelteComponent = widgetComponents[item.component].component}
+							<SvelteComponent label={item.label} {currentTheme} />
+						{:else}
+							<div>Widget not found: {item.component}</div>
+						{/if}
+					</div>
+				</div>
 			{/each}
-		</Grid>
+		</div>
 	{:else}
 		<p class="text-center text-tertiary-500 dark:text-primary-500">No widgets added yet. Use the "Add" button to add widgets.</p>
 	{/if}

@@ -1,5 +1,5 @@
 /**
- * @file src/collections/Relation.ts
+ * @file config/collections/Relation.ts
  * @description Collection file for Relation
  */
 

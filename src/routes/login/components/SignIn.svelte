@@ -1,6 +1,15 @@
 <!-- 
 @file src/routes/login/components/SignIn.svelte
-@description SignIn component with OAuth support
+@component
+**SignIn component with OAuth support**
+
+Features:
+ - Dual SignIn and SignUp functionality with dynamic form switching
+ - Dynamic language selection with a debounced input field or dropdown for multiple languages
+ - Demo mode support with auto-reset timer displayed when active
+ - Initial form display adapts based on environment variables (`SEASON`, `DEMO`, and `firstUserExists`)
+ - Reset state functionality for easy return to initial screen
+ - Accessibility features for language selection and form navigation
 -->
 
 <script lang="ts">
@@ -306,7 +315,7 @@
 	// Class computations
 	const isActive = $derived(active === 0);
 	const isInactive = $derived(active !== undefined && active !== 0);
-	const isHover = $derived(active === undefined || active === 0); // Fixed: Changed active === 1 to active === 0
+	const isHover = $derived(active === undefined || active === 1);
 
 	const baseClasses = 'hover relative flex items-center';
 </script>
@@ -329,8 +338,7 @@
 		<div class="hidden xl:block"><SveltyCMSLogoFull /></div>
 
 		<div
-			role="presentation"
-			onclick={(e) => e.stopPropagation()}
+			
 			class="mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto p-4 lg:w-1/2"
 			class:hide={active !== 0}
 		>

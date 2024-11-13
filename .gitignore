@@ -5,6 +5,7 @@
 /.svelte-kit
 /package
 package-lock.json
+bun.lockb
 node_modules
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
@@ -25,7 +26,7 @@ mediaFiles/
 collections/*
 logs/*
 .node-version
-bun.lockb
+
 
 # Collections
 src/collections/categories.ts  # Auto-generated file

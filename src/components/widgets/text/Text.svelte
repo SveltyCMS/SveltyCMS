@@ -19,41 +19,53 @@
 -->
 
 <script lang="ts">
-	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
-	import { updateTranslationProgress, getFieldName } from '@utils/utils';
-	import { onMount, onDestroy } from 'svelte';
+	import type { FieldType } from '.';
+
+	// Utils
+	import { track } from '@src/utils/reactivity.svelte';
+	import { updateTranslationProgress, getFieldName } from '@src/utils/utils';
 
 	// Stores
-	import { contentLanguage, validationStore } from '@stores/store';
-	import { mode, collectionValue } from '@stores/collectionStore';
+	import { mode, collectionValue } from '@src/stores/collectionStore';
+	import { contentLanguage, validationStore } from '@src/stores/store';
 
 	// Valibot validation
 	import { string, pipe, parse, type ValiError, minLength, maxLength, nonEmpty, nullable } from 'valibot';
 
+	// Props
 	interface Props {
 		field: FieldType;
 		value?: any;
+		WidgetData?: any;
 	}
 
-	let { field, value = {} }: Props = $props();
+	let { field, WidgetData = $bindable() }: Props = $props();
 
-	const fieldName = getFieldName(field);
-	value = value || $collectionValue[fieldName] || {};
+	// Initialize value separately to avoid $state() in prop destructuring
+	let value = collectionValue()[getFieldName(field)] || {};
+	
+	let _data = $state(mode() == 'create' ? {} : value);
 
-	let _data = $state($mode === 'create' ? {} : value);
-	let validationError = $state<string | null>(null);
-	let debounceTimeout: number | undefined;
-	let inputElement = $state<HTMLInputElement | null>(null);
+	let _language = $derived(
+		field?.translated 
+			? $contentLanguage.toLowerCase() 
+			: publicEnv.DEFAULT_CONTENT_LANGUAGE.toLowerCase()
+	);
 
-	// Computed values
-	let _language = $derived(field?.translated ? $contentLanguage.toLowerCase() : publicEnv.DEFAULT_CONTENT_LANGUAGE.toLowerCase());
 	let count = $derived(_data[_language]?.length ?? 0);
 
-	// Update translation progress when data or field changes
-	$effect(() => {
-		updateTranslationProgress(_data, field);
-	});
+	track(
+		() => updateTranslationProgress(_data, field),
+		() => _data[_language]
+	);
+
+	WidgetData = async () => _data;
+
+	// Validation and error state
+	let validationError = $state<string | null>(null);
+	let debounceTimeout: number | undefined;
+	let inputElement: HTMLInputElement | null = null;
 
 	// Memoized badge class calculation
 	const badgeClassCache = new Map<string, string>();
@@ -86,7 +98,7 @@
 					// First validate the value exists if required
 					if (field?.required && !value) {
 						validationError = 'This field is required';
-						validationStore.setError(fieldName, validationError);
+						validationStore.setError(getFieldName(field), validationError);
 						return;
 					}
 
@@ -94,49 +106,41 @@
 					if (value) {
 						if (field?.minlength && value.length < field.minlength) {
 							validationError = `Minimum length is ${field.minlength}`;
-							validationStore.setError(fieldName, validationError);
+							validationStore.setError(getFieldName(field), validationError);
 							return;
 						}
 						if (field?.maxlength && value.length > field.maxlength) {
 							validationError = `Maximum length is ${field.maxlength}`;
-							validationStore.setError(fieldName, validationError);
+							validationStore.setError(getFieldName(field), validationError);
 							return;
 						}
 					}
 
 					parse(validationSchema, value);
 					validationError = null;
-					validationStore.clearError(fieldName);
+					validationStore.clearError(getFieldName(field));
 				} catch (error) {
 					if ((error as ValiError<typeof validationSchema>).issues) {
 						const valiError = error as ValiError<typeof validationSchema>;
 						validationError = valiError.issues[0]?.message || 'Invalid input';
-						validationStore.setError(fieldName, validationError);
+						validationStore.setError(getFieldName(field), validationError);
 					}
 				}
 			}, 300);
 		} catch (error) {
 			console.error('Validation error:', error);
 			validationError = 'An unexpected error occurred during validation';
-			validationStore.setError(fieldName, 'Validation error');
+			validationStore.setError(getFieldName(field), 'Validation error');
 		}
 	}
 
-	// Cleanup on component destroy
-	onDestroy(() => {
-		if (debounceTimeout) clearTimeout(debounceTimeout);
-		badgeClassCache.clear();
+	// Cleanup function
+	$effect(() => {
+		return () => {
+			if (debounceTimeout) clearTimeout(debounceTimeout);
+			badgeClassCache.clear();
+		};
 	});
-
-	// Focus management
-	onMount(() => {
-		if (field?.required && !_data[_language]) {
-			inputElement?.focus();
-		}
-	});
-
-	// Export WidgetData for data binding with Fields.svelte
-	export const WidgetData = async () => _data;
 </script>
 
 <div class="input-container relative mb-4">
@@ -150,7 +154,7 @@
 		<input
 			type="text"
 			bind:value={_data[_language]}
-			onblur={validateInput}
+			on:blur={validateInput}
 			name={field?.db_fieldName}
 			id={field?.db_fieldName}
 			bind:this={inputElement}
@@ -163,7 +167,7 @@
 			class="input w-full flex-1 rounded-none text-black dark:text-primary-500"
 			class:error={!!validationError}
 			aria-invalid={!!validationError}
-			aria-describedby={validationError ? `${fieldName}-error` : undefined}
+			aria-describedby={validationError ? `${getFieldName(field)}-error` : undefined}
 			aria-required={field?.required}
 			data-testid="text-input"
 		/>
@@ -199,7 +203,7 @@
 
 	<!-- Error Message -->
 	{#if validationError}
-		<p id={`${fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+		<p id={`${getFieldName(field)}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
 			{validationError}
 		</p>
 	{/if}
