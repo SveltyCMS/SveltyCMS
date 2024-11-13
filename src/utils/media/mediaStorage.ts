@@ -309,7 +309,7 @@ export async function saveAvatarImage(file: File): Promise<string> {
 			})
 			.toBuffer({ resolveWithObject: true });
 
-		const thumbnailUrl = `avatars/original/${hash}-${sanitizedBlobName}thumbnail.avif`;
+		const thumbnailUrl = `avatars/${hash}-${sanitizedBlobName}thumbnail.avif`;
 		await saveFileToDisk(resizedImage.data, thumbnailUrl);
 
 		const thumbnail = {

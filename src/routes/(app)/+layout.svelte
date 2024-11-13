@@ -34,7 +34,7 @@ Key features:
 	import { screenSize, ScreenSize } from '@stores/screenSizeStore';
 
 	// Components
-	import { collectionManager } from '@collections/CollectionManager';
+	import { collectionManager } from '@src/collections/CollectionManager';
 	import Loading from '@components/Loading.svelte';
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import LeftSidebar from '@components/LeftSidebar.svelte';

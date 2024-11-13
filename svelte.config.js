@@ -31,7 +31,7 @@ const config = {
 			'@src': './src',
 			'@api': './src/routes/api',
 			'@components': './src/components',
-			'@collections': './src/collections',
+			'@collections': './config/collections',
 			'@utils': './src/utils',
 			'@stores': './src/stores',
 			'@static': './static',

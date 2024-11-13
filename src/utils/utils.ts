@@ -32,7 +32,7 @@ import type { BaseSchema } from 'valibot';
 import type { User } from '@src/auth/types';
 import { addData, updateData, handleRequest } from '@utils/data';
 
-import type { CollectionNames, Schema } from '@collections/types';
+import type { CollectionNames, Schema } from '@src/collections/types';
 
 // Stores
 import { get } from 'svelte/store';

@@ -22,14 +22,14 @@ import type { RequestHandler } from '@sveltejs/kit';
 
 // Types
 import type { User } from '@src/auth/types';
-import type { Schema } from '@collections/types';
+import type { Schema } from '@src/collections/types';
 
 // Auth
 import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // Collection Manager
-import { collectionManager } from '@collections/CollectionManager';
+import { collectionManager } from '@src/collections/CollectionManager';
 
 // Import handlers
 import { _GET } from './GET';

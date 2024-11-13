@@ -8,7 +8,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	import { goto } from '$app/navigation';
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
-	import type { Schema } from '@collections/types';
+	import type { Schema } from '@src/collections/types';
 
 	// Stores
 	import { page } from '$app/stores';
