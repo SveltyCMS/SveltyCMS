@@ -1,6 +1,17 @@
 <!-- 
 @files src/routes/(app)/mediagallery/uploadMedia/ModalUploadMedia.svelte
-@description This page is used to upload media to the media gallery. 
+@component
+**This page is used to upload media to the media gallery**
+
+```tsx
+<ModalUploadMedia parent={parent} sectionName={sectionName} files={files} onDelete={onDelete} uploadFiles={uploadFiles} />
+```
+#### Props
+- `parent` {any} - Parent component
+- `sectionName` {string} - Name of the section
+- `files` {File[]} - Array of files to be uploaded **Optional**
+- `onDelete` {Function} - Function to delete a file
+- `uploadFiles` {Function} - Function to upload files
 -->
 
 <script lang="ts">

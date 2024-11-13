@@ -1,6 +1,13 @@
 <!-- 
 @file src/components/widgets/megaMenu/MegaMenu.svelte
-@description - MegaMenu widget
+@component
+**MegaMenu widget component to create a mega menu with nested structure and drag-and-drop functionality**
+
+```tsx
+<MegaMenu bind:field={field} />
+```
+**Props:**
+- `field` - {FieldType} - Field type
 -->
 
 <script lang="ts">

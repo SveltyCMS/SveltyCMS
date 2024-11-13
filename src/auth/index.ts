@@ -88,7 +88,7 @@ export class Auth {
 
 			// Hash the password
 			let hashedPassword: string | undefined;
-			if ((!oauth && !password)) {
+			if (!oauth && !password) {
 				if (!argon2) {
 					throw error(500, 'Argon2 is not available in this environment');
 				}

@@ -1,6 +1,14 @@
 <!--
 @file: src/routes/(app)/dashboard/widgets/Last5ContentWidget.svelte
-@description:  A reusable widget component for displaying last 5 content information with improved rendering and error handling.
+@component
+**A reusable widget component for displaying last 5 content information with improved rendering and error handling**
+
+```tsx
+<Last5ContentWidget label="Last 5 Content" />
+```
+
+### Props
+- `label`: The label for the widget (default: 'Last 5 Content')
 
 This widget fetches and displays real-time disk usage data, including:
 - Total disk space
@@ -16,9 +24,6 @@ Features:
 - Improved error handling and data validation
 - Proper lifecycle management
 - Enhanced debugging and logging
-
-Usage:
-<Last5ContentWidget label="Last 5 Content" />
 -->
 
 <script lang="ts">

@@ -1,6 +1,13 @@
 <!-- 
 @file src/components/widgets/rating/Rating.svelte
-@description - Rating widget
+@component
+**Rating widget component to display a rating input.**
+
+```tsx
+<Rating bind:field={field} />
+```
+**Props:**
+- `field` - {FieldType} - Field type
 -->
 
 <script lang="ts">
@@ -16,8 +23,6 @@
 
 	// Valibot validation
 	import { number, pipe, parse, type ValiError, minValue, maxValue, nonNullable } from 'valibot';
-
-
 
 	const fieldName = getFieldName(field);
 
@@ -118,14 +123,14 @@
 		data-testid="rating-input"
 	>
 		{#snippet empty()}
-				<iconify-icon icon={iconEmpty} width={size} {color}></iconify-icon>
-			{/snippet}
+			<iconify-icon icon={iconEmpty} width={size} {color}></iconify-icon>
+		{/snippet}
 		{#snippet half()}
-				<iconify-icon icon={iconHalf} width={size} {color}></iconify-icon>
-			{/snippet}
+			<iconify-icon icon={iconHalf} width={size} {color}></iconify-icon>
+		{/snippet}
 		{#snippet full()}
-				<iconify-icon icon={iconFull} width={size} {color}></iconify-icon>
-			{/snippet}
+			<iconify-icon icon={iconFull} width={size} {color}></iconify-icon>
+		{/snippet}
 	</Ratings>
 
 	<!-- Error Message -->

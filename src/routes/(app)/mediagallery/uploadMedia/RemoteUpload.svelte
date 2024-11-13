@@ -1,6 +1,13 @@
 <!-- 
 @files src/routes/(app)/mediagallery/uploadMedia/RemoteUpload.svelte
-@description This page is used to Remote Urls to the media gallery.
+@component
+**This page is used to Remote Urls to the media gallery**
+
+```tsx
+<RemoteUpload remoteUrls={remoteUrls} toastStore={toastStore} />
+```
+- `remoteUrls` {string[]} - Array of remote URLs
+- `toastStore` {any} - Toast store
 -->
 <script lang="ts">
 	import { getToastStore } from '@skeletonlabs/skeleton';

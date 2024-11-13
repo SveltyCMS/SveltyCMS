@@ -154,16 +154,14 @@ It provides an interface for users to:
 
 			<!-- Tab Panels -->
 			{#snippet panel()}
-					
-					{#if $tabSet === 0}
-						<Permissions roleData={roles} {setRoleData} {updateModifiedCount} />
-					{:else if $tabSet === 1}
-						<Roles roleData={roles} {setRoleData} {updateModifiedCount} />
-					{:else}
-						<AdminRole roleData={roles} {setRoleData} />
-					{/if}
-				
-					{/snippet}
+				{#if $tabSet === 0}
+					<Permissions roleData={roles} {setRoleData} {updateModifiedCount} />
+				{:else if $tabSet === 1}
+					<Roles roleData={roles} {setRoleData} {updateModifiedCount} />
+				{:else}
+					<AdminRole roleData={roles} {setRoleData} />
+				{/if}
+			{/snippet}
 		</TabGroup>
 	</div>
 {/if}

@@ -11,7 +11,6 @@ import type { Permission } from '@src/auth/types';
 
 // Collection names are dynamic, based on the files in the collections directory
 
-
 // Widget field type definition
 type WidgetKeys = keyof typeof widgets;
 type WidgetTypes = (typeof widgets)[WidgetKeys];
@@ -82,4 +81,4 @@ export interface ProcessedCategoryData extends CategoryData {
 	collections: Schema[]; // Collections in the category
 	subcategories: Record<string, ProcessedCategoryData>; // Nested subcategories after processing
 }
-export type CollectionNames = 'CollectionManager'|'categories';
+export type CollectionNames = 'CollectionManager' | 'categories';

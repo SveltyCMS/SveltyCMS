@@ -1,7 +1,19 @@
-<script lang="ts">
-	import { run, createBubbler } from 'svelte/legacy';
+<!--
+@file src/components/widgets/relation/DropDown.svelte
+@component
+**Dropdown widget for relation field#**
 
-	const bubble = createBubbler();
+```tsx
+	<DropDown bind:dropDownData={dropDownData} bind:selected={selected} bind:field={field} bind:showDropDown={showDropDown} />
+```
+**Props:**
+- `dropDownData` - {any[]} - Array of data to display in the dropdown
+- `selected` - {any} - ASelected option
+- `field` - {FieldType} - Field type  **(default: undefined)**
+- `showDropDown` - {boolean} - Show dropdown **(default: true)**
+-->
+
+<script lang="ts">
 	import type { FieldType } from '.';
 
 	// Stores
@@ -15,44 +27,62 @@
 		showDropDown?: boolean;
 	}
 
-	let {
-		dropDownData = [],
-		selected = $bindable(undefined),
-		field,
-		showDropDown = $bindable(true)
-	}: Props = $props();
+	let { dropDownData = [], selected = $bindable(undefined), field, showDropDown = $bindable(true) }: Props = $props();
 
 	let search = $state('');
 	let options: Array<{ display: any; _id: any }> = $state([]);
-	let filtered = $state(options);
+	let filtered: Array<{ display: any; _id: any }> = $state([]);
 
-	console.log(dropDownData);
+	// Use derived state for filtered options based on search and options
+	$derived: {
+		const currentSearch = search.toLowerCase();
+		const currentOptions = [...options];
+		filtered = currentOptions.filter((item) => String(item.display).toLowerCase().includes(currentSearch));
+	}
 
-	run(() => {
-		Promise.all(
-			dropDownData.map(async (item) => ({
-				display: await field?.display({ data: item, collection: $collection, field, entry: $collectionValue, contentLanguage: $contentLanguage }),
-				_id: item._id
-			}))
-		).then((res) => (options = res));
-	});
+	// Initialize options when dropDownData changes
+	$effect: {
+		const initializeOptions = async () => {
+			const res = await Promise.all(
+				dropDownData.map(async (item) => ({
+					display: await field?.display({
+						data: item,
+						collection: $collection,
+						field,
+						entry: $collectionValue,
+						contentLanguage: $contentLanguage
+					}),
+					_id: item._id
+				}))
+			);
+			options = res;
+		};
 
-	run(() => {
-		filtered = options.filter((item) => item.display.includes(search));
-	});
+		initializeOptions();
+	}
+
+	function handleKeydown(event: KeyboardEvent) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			const target = event.target as HTMLButtonElement;
+			target.click();
+		}
+	}
 </script>
 
-<input class="input w-full" placeholder="search..." bind:value={search} />
+<input class="input w-full" placeholder="search..." bind:value={search} type="search" aria-label="Search options" />
 
-<div class="overflow-auto">
+<div class="overflow-auto" role="listbox">
 	{#each filtered as option}
 		<button
-			onkeydown={bubble('keydown')}
+			onkeydown={handleKeydown}
 			onclick={() => {
 				selected = option;
 				showDropDown = false;
 			}}
 			class="item text-token m-1 cursor-pointer border border-surface-400 bg-surface-400 p-1 text-center text-lg"
+			role="option"
+			aria-selected={selected?._id === option._id}
 		>
 			{@html option.display}
 		</button>

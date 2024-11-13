@@ -18,7 +18,6 @@ Usage:
 		name: string;
 	};
 
-	
 	interface Props {
 		// Component props
 		mediaItems?: MediaItem[];

@@ -1,17 +1,22 @@
 <!--
 @file src/components/ThemeSwitcher.svelte
-@description - ThemeSwitcher component for toggling between light & dark themes
+@component
+**ThemeSwitcher component for toggling between light & dark themes**
+
+```tsx
+<ThemeSwitcher />	
+```
+
+#### Props:
+- `theme` {object} - The current theme object from the theme store
+- `updateTheme` {function} - A function to update the theme in the theme store	
 
 Features:
-- Toggles between light and dark themes using the theme store
 - Persists theme preference through API calls
 - Supports system preference for initial theme
-- Improves accessibility with proper labeling and keyboard support
 - Adds smooth transition effect when switching themes
 - Implements prefers-color-scheme media query for system preference
 - Listens for system preference changes
-
-
 -->
 
 <script lang="ts">

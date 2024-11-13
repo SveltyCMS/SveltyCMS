@@ -1,6 +1,7 @@
 <!-- 
 @file src/components/user/ModalEditAvatar.svelte
-@description Modal for editing user avatar.
+@component
+**Modal for editing user avatar thumbnail image**
 -->
 
 <script lang="ts">

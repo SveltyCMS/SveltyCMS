@@ -1,6 +1,15 @@
 <!-- 
 @file src/routes/(app)/imageEditor/Filter.svelte
-@description This component allows users to apply various filters to an image, such as brightness, contrast, saturation, hue, blur, and more.
+@component
+**This component allows users to apply various filters to an image, such as brightness, contrast, saturation, hue, blur, and more**
+
+### Props 
+- `stage`: Konva.Stage - The Konva stage where the image is displayed.
+- `layer`: Konva.Layer - The Konva layer where the image and effects are added.
+- `imageNode`: Konva.Image - The Konva image node representing the original image.
+- `on:filter` (optional): Function to be called when a filter is applied.
+- `on:resetFilters` (optional): Function to be called when the filters are reset.
+- `on:exitFilters` (optional): Function to be called when the filters are exited.
 -->
 
 <script lang="ts">

@@ -1,6 +1,13 @@
 <!-- 
 @file src/components/widgets/seo/Seo.svelte
-@description - SEO widget for managing meta title, description, and robots meta tags
+@component
+**SEO widget for managing meta title, description, and robots meta tags**
+
+```tsx
+<Seo bind:value={value} />
+```
+#### Props
+- `value` {object} - SEO object
 -->
 
 <script lang="ts">
@@ -184,7 +191,7 @@
 		</div>
 	{/if}
 
-	<SeoPreview {title} {description} {hostUrl} {SeoPreviewToggle} on:togglePreview={togglePreview} />
+	<SeoPreview {title} {description} {hostUrl} {SeoPreviewToggle} ontogglePreview={togglePreview} />
 
 	<!-- Mobile ProgressRadial display -->
 	<div class="md:hidden">

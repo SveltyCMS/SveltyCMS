@@ -1,6 +1,13 @@
 <!-- 
 @file src/components/system/table/Boolean.svelte
-@description Boolean component for table 
+@component 
+**Boolean component for displaying 'Yes' or 'No' with badges in a table**
+
+```tsx
+<Boolean value={true} />
+  ```
+@props
+- `value` {boolean}: The boolean value to display
 -->
 
 <script lang="ts">

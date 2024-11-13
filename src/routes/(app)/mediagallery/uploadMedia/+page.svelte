@@ -1,6 +1,7 @@
 <!-- 
 @files src/routes/(app)/mediagallery/uploadMedia/+page.svelte
-@description This page is used to upload media to the media gallery.
+@component
+**This page is used to upload media to the media gallery**
 -->
 
 <script lang="ts">

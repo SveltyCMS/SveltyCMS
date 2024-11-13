@@ -1,6 +1,13 @@
 <!-- 
 @file src/components/SiteName.svelte
-@description SiteName component
+@component
+**SiteName component for displaying the site name**
+
+```tsx
+<SiteName  char="CMS" />
+```
+#### Props
+- `char` {string} - Character to be used to highlight the site name
 -->
 
 <script lang="ts">

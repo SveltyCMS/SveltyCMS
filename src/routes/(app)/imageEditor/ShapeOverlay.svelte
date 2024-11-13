@@ -1,7 +1,13 @@
 <!-- 
-@file: /src/routes/(app)/imageEditor/ShapeOverlay.svelte
-@description: This component allows users to overlay shapes (rectangles, circles, ellipses) onto an image. 
-              Users can adjust the fill color, stroke color, stroke width, opacity, and manage the shape's position on the canvas.
+@file /src/routes/(app)/imageEditor/ShapeOverlay.svelte
+@component
+**This component allows users to overlay shapes (rectangles, circles, ellipses) onto an image**
+Users can adjust the fill color, stroke color, stroke width, opacity, and manage the shape's position on the canvas
+
+#### Props 
+- `stage`: Konva.Stage - The Konva stage where the image is displayed.
+- `layer`: Konva.Layer - The Konva layer where the image and effects are added.
+- `on:exitShapeOverlay` (optional): Function to be called when the shape overlay is exited.
 -->
 
 <script lang="ts">

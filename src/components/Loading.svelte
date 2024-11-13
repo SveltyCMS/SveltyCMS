@@ -1,12 +1,14 @@
 <!-- 
 @file src/components/Loading.svelte
-@description  Loading component with animated circles and customizable text
-
-Features:
-Animated loading circles, customizable text, timed animation, performance optimizations
-
-Usage:
+@component
+**Loading component with animated circles and customizable text regions**
+```tsx
 <Loading customTopText="Please wait" customBottomText="Loading..." />
+```
+#### Props
+- `customTopText` {string} - Custom text to display above the loading circles
+- `customBottomText` {string} - Custom text to display below the loading circles
+
 -->
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
@@ -17,7 +19,6 @@ Usage:
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	
 	interface Props {
 		// Props for custom text
 		customTopText?: string | undefined;
@@ -28,7 +29,7 @@ Usage:
 
 	let isAnimating = $state(true);
 	let animationTimeout: ReturnType<typeof setTimeout> | null = null;
-	const animationDuration = 20000; // 20 seconds
+	const animationDuration = 30000; // 30 seconds
 
 	onMount(() => {
 		// Stop animations after the specified duration

@@ -12,7 +12,6 @@ Usage:
 -->
 
 <script lang="ts">
-	
 	interface Props {
 		// Export props for external binding
 		size?: string;

@@ -1,6 +1,15 @@
 <!-- 
 @file src/components/widgets/seo/TitleInput.svelte
-@description - Title widget for SEO Widget
+@component
+**Title widget for SEO Widget**
+
+```tsx	
+<Title bind:title={title} bind:titleCharacterWidth={titleCharacterWidth} bind:handleTitleChange={handleTitleChange} />
+```
+#### Props
+- `title` {string} - Title text
+- `titleCharacterWidth` {number} - Title text character width
+- `handleTitleChange` {function} - Title text change handler
 -->
 
 <script lang="ts">
@@ -16,24 +25,26 @@
 	let { title = $bindable(), titleCharacterWidth, handleTitleChange }: Props = $props();
 
 	// Compute class based on title length
-	let computedClass =
-		$derived(title.length >= 50 && title.length <= 60
+	let computedClass = $derived(
+		title.length >= 50 && title.length <= 60
 			? 'input-label green'
 			: title.length >= 30 && title.length <= 49
 				? 'input-label orange'
 				: title.length < 30
 					? 'input-label'
-					: 'input-label red');
+					: 'input-label red'
+	);
 
 	// Compute status message based on title length
-	let titleStatus =
-		$derived(title.length >= 50 && title.length <= 60
+	let titleStatus = $derived(
+		title.length >= 50 && title.length <= 60
 			? 'Optimal length'
 			: title.length >= 30 && title.length <= 49
 				? 'Length is acceptable'
 				: title.length < 30
 					? 'Too short'
-					: 'Too long');
+					: 'Too long'
+	);
 </script>
 
 <label for="title-input" class={computedClass}>

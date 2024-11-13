@@ -1,6 +1,18 @@
 <!-- 
  @file  src/components/HeaderEdit.svelte
- @description  HeaderEdit component manages the collection entry header for both "edit" and "view" modes. It provides functionality for toggling sidebar visibility, saving form data, handling modal dialogs for scheduling, and managing language or tab-specific temporary data. The header also adapts to mobile/desktop views and offers options for actions like publishing, deleting, or scheduling entries, while maintaining accessibility and responsive design.
+ @component
+ **HeaderEdit component**
+ The HeaderEdit component manages the collection entry header for both "edit" and "view" modes. 
+ It provides functionality for toggling sidebar visibility, saving form data, handling modal dialogs for scheduling, 
+ and managing language or tab-specific temporary data. The header also adapts to mobile/desktop views 
+ and offers options for actions like publishing, deleting, or scheduling entries, while maintaining accessibility and responsive design.
+
+ ```tsx
+ <HeaderEdit />
+ ```
+
+ #### Props:
+ - `collection` {object} - Collection object
 
  Features:
  - Sidebar toggle (for mobile/desktop)

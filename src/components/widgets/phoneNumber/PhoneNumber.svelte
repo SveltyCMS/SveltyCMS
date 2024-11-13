@@ -1,6 +1,13 @@
 <!-- 
 @file src/components/widgets/phoneNumber/PhoneNumber.svelte
-@description - PhoneNumber widget
+@component
+**PhoneNumber widget component that allows users to enter a phone number**
+
+```tsx
+<PhoneNumber bind:field={field} />
+```
+**Props:**
+- `field` - {FieldType} - Field type
 -->
 
 <script lang="ts">
@@ -15,7 +22,6 @@
 
 	// Valibot validation
 	import { string, regex, pipe, parse, type ValiError, nonEmpty } from 'valibot';
-
 
 	const fieldName = getFieldName(field);
 

@@ -1,14 +1,20 @@
 <!-- 
 @file src/components/Autocomplete.svelte
-@description Autocomplete component for selecting options from a list
+@component
+**Autocomplete component for selecting options from a list**
+
+```tsx
+<Autocomplete options={yourOptions} on:select={handleSelection} />
+```
+
+#### Props
+- `options` {array} - Array of options to be displayed in the dropdown
+- `on:select` {function} - Function to be called when an option is selected
 
 Features:
 - Filters options based on user input
 - Keyboard navigation support
 - Customizable placeholder
-
-Usage:
-Import and use <Autocomplete options={yourOptions} on:select={handleSelection} /> in your Svelte application.
 -->
 
 <script lang="ts">

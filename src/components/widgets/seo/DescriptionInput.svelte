@@ -1,6 +1,15 @@
 <!-- 
 @file src/components/widgets/seo/DescriptionInput.svelte
-@description - Description widget for SEO Widget
+@component
+**Description widget for SEO Widget**
+
+```tsx
+<Description bind:description={description} bind:descriptionCharacterWidth={descriptionCharacterWidth} bind:handleDescriptionChange={handleDescriptionChange} />
+```
+#### Props
+- `description` {string} - Description text
+- `descriptionCharacterWidth` {number} - Description text character width
+- `handleDescriptionChange` {function} - Description text change handler
 -->
 
 <script lang="ts">
@@ -16,24 +25,26 @@
 	let { description = $bindable(), descriptionCharacterWidth, handleDescriptionChange }: Props = $props();
 
 	// Compute class based on description length
-	let computedClass =
-		$derived(description.length >= 120 && description.length <= 165
+	let computedClass = $derived(
+		description.length >= 120 && description.length <= 165
 			? 'input-label green'
 			: description.length >= 30 && description.length <= 119
 				? 'input-label orange'
 				: description.length < 30
 					? 'input-label'
-					: 'input-label red');
+					: 'input-label red'
+	);
 
 	// Compute status message based on description length
-	let descriptionStatus =
-		$derived(description.length >= 120 && description.length <= 165
+	let descriptionStatus = $derived(
+		description.length >= 120 && description.length <= 165
 			? 'Optimal length'
 			: description.length >= 30 && description.length <= 119
 				? 'Length is acceptable'
 				: description.length < 30
 					? 'Too short'
-					: 'Too long');
+					: 'Too long'
+	);
 </script>
 
 <label for="description-input" class={computedClass}>
@@ -68,7 +79,7 @@
 	aria-describedby="description-status"
 ></textarea>
 
-<style>
+<style lang="postcss">
 	.input-label {
 		color: gray;
 	}

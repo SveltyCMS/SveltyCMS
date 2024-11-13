@@ -1,6 +1,13 @@
 <!-- 
 @file src/components/widgets/megaMenu/ListNode.svelte
-@description ListNode component for a mega menu with nested structure and drag-and-drop functionality
+@component
+**ListNode component for a mega menu with nested structure and drag-and-drop functionality**
+
+```tsx
+<ListNode bind:field={field} />
+```
+**Props:**
+- `field` - {FieldType} - Field type
 -->
 
 <script lang="ts">
@@ -8,7 +15,6 @@
 	import type { CustomDragEvent } from './types';
 	import { currentChild } from '.';
 	import { debounce } from '@utils/utils';
-	import XIcon from '@components/system/icons/XIcon.svelte';
 	// Self-import to replace svelte:self
 	import ListNode from './ListNode.svelte';
 
@@ -66,7 +72,12 @@
 
 	$effect(() => {
 		if (showFields) {
-			$headerActionButton2 = XIcon;
+			$headerActionButton2 = `
+				<iconify-icon
+					icon="material-symbols:close"
+					width="32"
+				></iconify-icon>
+			`;
 		}
 	});
 

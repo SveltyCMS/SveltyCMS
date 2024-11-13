@@ -30,7 +30,7 @@ Ensure that the necessary stores and utility functions are available.
 	const modalStore = getModalStore();
 
 	// Props
-	
+
 	interface Props {
 		/** Exposes parent props to this component. */
 		parent: any;

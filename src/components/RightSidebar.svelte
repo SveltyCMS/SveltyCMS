@@ -1,6 +1,14 @@
 <!-- 
 @file src/components/RightSidebar.svelte
-@description RightSidebar component. 
+@component
+**RightSidebar component displaying collection fields, publish options and translation status.**
+
+```tsx
+<RightSidebar />	
+```	
+#### Props
+- `collection` {object} - Collection object
+
 -->
 
 <script lang="ts">
@@ -23,7 +31,6 @@
 	// Skeleton
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-	import { logger } from '@src/utils/logger';
 
 	const modalStore = getModalStore();
 

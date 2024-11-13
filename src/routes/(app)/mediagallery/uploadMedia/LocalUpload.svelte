@@ -1,6 +1,20 @@
 <!-- 
 @files src/routes/(app)/mediagallery/uploadMedia/LocalUpload.svelte
-@description This page is used to local upload media to the media gallery.
+@component
+**This page is used to local upload media to the media gallery**
+
+```tsx
+<LocalUpload  files={files} uploadFiles={uploadFiles} onDelete={onDelete} onFormSubmit={onFormSubmit} onCancel={onCancel} onClose={onClose} />
+```
+
+### Props
+- `files` {File[]} - Array of files to be uploaded
+- `uploadFiles` {Function} - Function to upload files
+- `onDelete` {Function} - Function to delete a file
+- `onFormSubmit` {Function} - Function to handle form submission
+- `onCancel` {Function} - Function to cancel the upload
+- `onClose` {Function} - Function to close the modal
+
 -->
 
 <script lang="ts">

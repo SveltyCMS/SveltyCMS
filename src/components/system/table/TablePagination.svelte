@@ -1,17 +1,24 @@
 <!-- 
 @file src/components/system/table/TablePagination.svelte
-@description Table pagination component
+@component
+**Table pagination component for displaying pagination controls.**
+
+```tsx
+<TablePagination currentPage={1} pagesCount={1} rowsPerPage={10} rowsPerPageOptions={[5, 10, 25, 50, 100, 500]} totalItems={0} />
+```
+
+@props
+- `currentPage` {number}: The current page number (default: 1)
+- `pagesCount` {number}: The total number of pages (default: 1)
+- `rowsPerPage` {number}: The number of rows per page (default: 10)
+- `rowsPerPageOptions` {number[]}: An array of options for rows per page (default: [5, 10, 25, 50, 100, 500])
+- `totalItems` {number}: The total number of items in the table (default: 0)
+	
 -->
 
 <script lang="ts">
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-
-	// Define event types
-	type Events = {
-		updatePage: number;
-		updateRowsPerPage: number;
-	};
 
 	const props = $props<{
 		currentPage?: number; // Default value for current page number
@@ -31,7 +38,8 @@
 	// Go to page
 	function goToPage(page: number) {
 		if (page >= 1 && page <= pagesCount) {
-			dispatchEvent(new CustomEvent('updatePage', { detail: page }));
+			const event = new CustomEvent('updatePage', { detail: page });
+			dispatchEvent(event);
 		}
 	}
 
@@ -39,7 +47,8 @@
 	function changeRowsPerPage(event: Event) {
 		const value = parseInt((event.target as HTMLSelectElement).value);
 		if (!isNaN(value)) {
-			dispatchEvent(new CustomEvent('updateRowsPerPage', { detail: value }));
+			const customEvent = new CustomEvent('updateRowsPerPage', { detail: value });
+			dispatchEvent(customEvent);
 		}
 	}
 
@@ -65,7 +74,7 @@
 		<span class="text-tertiary-500 dark:text-primary-500">{currentPage}</span>
 		<span>{m.entrylist_of()}</span>
 		<span class="text-tertiary-500 dark:text-primary-500">{pagesCount}</span>
-		<span class="ml-4">
+		<span class="ml-4" aria-label="Current items shown">
 			Showing <span class="text-tertiary-500 dark:text-primary-500">{currentPageItems}</span> of
 			<span class="text-tertiary-500 dark:text-primary-500">{totalItems}</span> items
 		</span>
@@ -73,10 +82,18 @@
 </div>
 
 <!-- Pagination controls -->
-<div class="variant-outline btn-group" aria-label="Pagination">
+<nav class="variant-outline btn-group" aria-label="Table pagination" role="navigation">
 	<!-- First page button -->
-	<button onclick={() => goToPage(1)} disabled={isFirstPage} type="button" aria-label="Go to first page" title="First Page" class="btn">
-		<iconify-icon icon="material-symbols:first-page" width="24"></iconify-icon>
+	<button
+		onclick={() => goToPage(1)}
+		disabled={isFirstPage}
+		type="button"
+		aria-label="Go to first page"
+		title="First Page"
+		class="btn"
+		aria-disabled={isFirstPage}
+	>
+		<iconify-icon icon="material-symbols:first-page" width="24" role="presentation" aria-hidden="true"></iconify-icon>
 	</button>
 
 	<!-- Previous page button -->
@@ -87,16 +104,18 @@
 		aria-label="Go to previous page"
 		title="Previous Page"
 		class="btn"
+		aria-disabled={isFirstPage}
 	>
-		<iconify-icon icon="material-symbols:chevron-left" width="24"></iconify-icon>
+		<iconify-icon icon="material-symbols:chevron-left" width="24" role="presentation" aria-hidden="true"></iconify-icon>
 	</button>
 
 	<!-- Rows per page select dropdown -->
 	<select
 		value={rowsPerPage}
 		onchange={changeRowsPerPage}
-		aria-label="Rows per page"
+		aria-label="Select number of rows per page"
 		class="mt-0.5 bg-transparent text-center text-tertiary-500 dark:text-primary-500"
+		title="Rows per page"
 	>
 		{#each rowsPerPageOptions as pageSize}
 			<option class="bg-surface-500 text-white" value={pageSize}>
@@ -107,12 +126,28 @@
 	</select>
 
 	<!-- Next page button -->
-	<button onclick={() => goToPage(currentPage + 1)} disabled={isLastPage} type="button" aria-label="Go to next page" class="btn">
-		<iconify-icon icon="material-symbols:chevron-right" width="24"></iconify-icon>
+	<button
+		onclick={() => goToPage(currentPage + 1)}
+		disabled={isLastPage}
+		type="button"
+		aria-label="Go to next page"
+		title="Next Page"
+		class="btn"
+		aria-disabled={isLastPage}
+	>
+		<iconify-icon icon="material-symbols:chevron-right" width="24" role="presentation" aria-hidden="true"></iconify-icon>
 	</button>
 
 	<!-- Last page button -->
-	<button onclick={() => goToPage(pagesCount)} disabled={isLastPage} type="button" aria-label="Go to last page" class="btn">
-		<iconify-icon icon="material-symbols:last-page" width="24"></iconify-icon>
+	<button
+		onclick={() => goToPage(pagesCount)}
+		disabled={isLastPage}
+		type="button"
+		aria-label="Go to last page"
+		title="Last Page"
+		class="btn"
+		aria-disabled={isLastPage}
+	>
+		<iconify-icon icon="material-symbols:last-page" width="24" role="presentation" aria-hidden="true"></iconify-icon>
 	</button>
-</div>
+</nav>

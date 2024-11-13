@@ -1,9 +1,17 @@
 <!-- 
 @file src/components/IconifyPicker.svelte
-@description IconifyPicker component for selecting icons from Iconify libraries
+@component
+**IconifyPicker component for selecting icons from Iconify libraries**
+
+```tsx
+<IconifyPicker bind:iconselected />
+```
+
+### Props
+- `iconselected` {string} - Selected icon name
+- `searchQuery` {string} - Search query for icons
+
 @features Search icons, pagination, library selection, icon preview
-@dependencies @iconify/svelte, ParaglideJS
-@usage <IconifyPicker bind:iconselected />
 -->
 
 <script lang="ts">

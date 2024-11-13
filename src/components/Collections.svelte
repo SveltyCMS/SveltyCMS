@@ -1,6 +1,14 @@
 <!-- 
 @file src/components/Collections.svelte
-@description Collections component 
+@component
+**Collections component to display & filter collections and categories.**
+
+```tsx
+<Collections />
+```
+
+@props
+- `mode` - The current mode of the component. Can be 'view', 'edit', 'create', 'delete', 'modify', or 'media'.
 
 Features: 
 - display collections
@@ -8,8 +16,7 @@ Features:
 - support for nested categories with autocollapse
 - responsive sidebar integration
 - media gallery support
-- improved subcategory search and padding
-	
+- improved subcategory search and padding	
 -->
 
 <script lang="ts">

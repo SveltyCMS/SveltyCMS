@@ -21,7 +21,6 @@
 	// Components
 	import Loading from '@components/Loading.svelte';
 
-	
 	interface Props {
 		// Props passed from +page.svelte
 		roleData: any;
@@ -122,7 +121,9 @@
 	};
 
 	// Reactive statements for filtered permissions and current user ID
-	let filteredPermissions = $derived($permissionsList.filter((permission) => permission._id?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false));
+	let filteredPermissions = $derived(
+		$permissionsList.filter((permission) => permission._id?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
+	);
 	let groups = $derived(getGroups(filteredPermissions));
 
 	// Reactive statements and variables

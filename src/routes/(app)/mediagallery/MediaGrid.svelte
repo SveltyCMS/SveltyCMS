@@ -1,6 +1,14 @@
 <!--
 @file src/routes/(app)/mediagallery/MediaGrid.svelte
-@description Grid view component for the media gallery. Displays media items in a responsive grid layout with file information and actions.
+@component
+**Grid view component for the media gallery. Displays media items in a responsive grid layout with file information and actions**
+
+```tsx
+<MediaGrid filteredFiles={filteredFiles} gridSize="small" />
+```
+#### Props
+- `filteredFiles: MediaBase[]`: An array of media items to be displayed in the grid view.
+- `gridSize: 'small' | 'medium' | 'large'`: The size of the grid layout to be used.	
 
 Key features:
 - Responsive grid layout for media items
@@ -23,10 +31,10 @@ Key features:
 	interface Props {
 		filteredFiles?: MediaBase[];
 		gridSize?: 'small' | 'medium' | 'large';
-		'on:deleteImage'?: (file: MediaBase) => void;
+		ondeleteImage?: (file: MediaBase) => void;
 	}
 
-	let { filteredFiles = [], gridSize, 'on:deleteImage': onDeleteImage = () => {} }: Props = $props();
+	let { filteredFiles = [], gridSize, ondeleteImage = () => {} }: Props = $props();
 
 	// Initialize the showInfo array with false values
 	let showInfo = $state(Array.from({ length: filteredFiles.length }, () => false));
@@ -39,7 +47,7 @@ Key features:
 	};
 
 	function handleDelete(file: MediaBase) {
-		onDeleteImage(file);
+		ondeleteImage(file);
 	}
 
 	// Update showInfo array when filteredFiles length changes

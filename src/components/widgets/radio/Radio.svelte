@@ -1,6 +1,13 @@
 <!-- 
 @file src/components/widgets/radio/Radio.svelte
-@description - Radio widget
+@component 
+**Radio widget component that allows users to select a single option from a list of options.**
+
+```tsx
+<Radio bind:field={field} />
+```
+**Props:**
+- `field` - {FieldType} - Field type
 -->
 
 <script lang="ts">

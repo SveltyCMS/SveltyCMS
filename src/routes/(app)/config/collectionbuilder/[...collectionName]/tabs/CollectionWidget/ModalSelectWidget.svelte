@@ -15,7 +15,6 @@
 	const modalStore = getModalStore();
 
 	// Props
-
 	interface Props {
 		/** Exposes parent props to this component. */
 		parent: any;
@@ -36,9 +35,11 @@
 	// Define the selected widget variable
 	let selected: WidgetType | null = $state(null);
 
-	// Debugging: Log the initial widget keys and search term
-	console.log('Initial widget keys:', widget_keys);
-	console.log('Search term:', searchTerm);
+	// Log changes in an effect
+	$effect(() => {
+		console.log('Widget keys:', widget_keys);
+		console.log('Search term:', searchTerm);
+	});
 
 	// We've created a custom submit function to pass the response and close the modal.
 	function onFormSubmit(): void {

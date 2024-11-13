@@ -1,6 +1,20 @@
 <!--
 @file src/components/VirtualFolder.svelte
-@description VirtualFolder component for managing virtual folders in a media gallery
+@component
+**VirtualFolder component for managing virtual folders in a media gallery**
+
+```tsx
+<VirtualFolder {currentFolder} />
+```
+@props
+- `currentFolder` (object): The currently selected folder.
+
+@events
+- `updateFolder` (event): Emits an event when a folder is updated.
+- `deleteFolder` (event): Emits an event when a folder is deleted.
+- `createFolder` (event): Emits an event when a new folder is created.
+- `navigateToFolder` (event): Emits an event when a folder is navigated to.
+- `returnToCollections` (event): Emits an event when the "Return to Collections" button is clicked
 
 Features:
 - Fetches and displays virtual folders
@@ -10,9 +24,6 @@ Features:
 - Navigates between folders
 - Includes a "Return to Collections" button
 - Supports both narrow and wide sidebar states
-
-Usage:
-<VirtualFolder {currentFolder} />
 -->
 
 <script lang="ts">

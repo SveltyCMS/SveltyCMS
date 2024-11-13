@@ -1,6 +1,7 @@
 <!-- 
 @files src/components/emails/userToken.svelte
-@description userToken Email component
+@component
+**userToken Email component to send user token invite to email**
 -->
 
 <script lang="ts">
@@ -26,7 +27,7 @@
 		expiresIn?: string;
 		expiresInLabel?: string;
 	}
-	
+
 	interface Props {
 		email: EmailProps['email'];
 		// export let sitename: EmailProps['sitename'];

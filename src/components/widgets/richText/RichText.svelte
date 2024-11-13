@@ -43,7 +43,7 @@
 	let showVideoDialog = $state(false);
 	let images = $state({});
 	let active_dropDown = $state('');
-	let validationError: string | null = null;
+	let validationError = $state<string | null>(null);
 
 	interface Props {
 		field: FieldType;
@@ -56,12 +56,17 @@
 
 	let _data = $state($mode === 'create' ? { content: {}, header: {} } : value);
 
+	// Language handling with derived state
 	let _language = $derived(field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE);
-	let previous_language = _language;
+	let previous_language = $state('');
 
+	// Track language changes and update content
 	$effect(() => {
-		if (editor && $contentLanguage) {
-			editor.commands.setContent(_data.content[$contentLanguage] || '');
+		if (editor && _language) {
+			if (previous_language !== _language) {
+				editor.commands.setContent(_data.content[_language] || '');
+				previous_language = _language;
+			}
 		}
 	});
 
@@ -122,17 +127,16 @@
 			onTransaction: ({ transaction }) => {
 				// force re-render so `editor.isActive` works as expected
 				active_dropDown = '';
-				if (previous_language == _language) {
+				if (previous_language === _language) {
 					handleImageDeletes(transaction);
 				}
-				previous_language = _language;
 				editor = editor;
 				deb(() => {
 					if (!editor) return;
 					let content = editor.getHTML();
 					content == '<p></p>' && (content = '');
 					_data.content[_language] = content;
-					validateContent();
+					validateContent(); // This will now properly update the state
 				});
 			}
 		});
@@ -381,20 +385,19 @@
 		editor?.commands.focus('end');
 	}
 
-	function handleFileChange(e: CustomEvent<File | MediaImage>) {
+	function handleFileChange(value: File | MediaImage) {
 		if (!editor) return;
 
-		const file = e.detail;
 		let url;
-		if (file instanceof File) {
-			url = URL.createObjectURL(file);
+		if (value instanceof File) {
+			url = URL.createObjectURL(value);
 			let image_id = createRandomID().toString();
-			images[image_id] = file;
+			images[image_id] = value;
 			editor.chain().focus().setImage({ src: url, id: image_id }).run();
 		} else {
 			// Use the MediaImage url property directly
-			url = file.url;
-			editor.chain().focus().setImage({ src: url, storage_image: file._id }).run();
+			url = value.url;
+			editor.chain().focus().setImage({ src: url, storage_image: value._id }).run();
 		}
 	}
 </script>
@@ -532,12 +535,7 @@
 				/>
 
 				<!-- Image -->
-				<FileInput
-					closeButton={false}
-					bind:show={showImageDialog}
-					on:change={handleFileChange}
-					className="fixed left-1/2 top-0 z-10 -translate-x-1/2 bg-white"
-				/>
+				<FileInput bind:show={showImageDialog} onChange={handleFileChange} className="fixed left-1/2 top-0 z-10 -translate-x-1/2 bg-white" />
 
 				<!-- Video -->
 				<VideoDialog bind:show={showVideoDialog} {editor} />

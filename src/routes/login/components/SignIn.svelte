@@ -41,8 +41,7 @@
 		FormSchemaReset,
 		onClick = () => {},
 		onPointerEnter = () => {},
-		onBack = () => {},
-		isTransitioning = false
+		onBack = () => {}
 	} = $props<{
 		active?: undefined | 0 | 1;
 		FormSchemaLogin: SuperValidated<LoginFormSchema>;
@@ -51,7 +50,6 @@
 		onClick?: () => void;
 		onPointerEnter?: () => void;
 		onBack?: () => void;
-		isTransitioning?: boolean;
 	}>();
 
 	// State management
@@ -60,7 +58,6 @@
 	let showPassword = $state(false);
 	let formElement = $state<HTMLFormElement | null>(null);
 	let tabIndex = $state(1);
-	let isSubmitting = $state(false);
 	let registration_token = $state('');
 	let hide_email = $state('');
 
@@ -69,7 +66,6 @@
 	const passwordTabIndex = 2;
 	const confirmPasswordTabIndex = 3;
 	const forgotPasswordTabIndex = 4;
-
 	const pageData = $page.data as PageData;
 	const firstUserExists = pageData.firstUserExists;
 
@@ -105,12 +101,6 @@
 		multipleSubmits: 'prevent',
 
 		onSubmit: ({ cancel }) => {
-			if (isTransitioning || isSubmitting) {
-				cancel();
-				return;
-			}
-			isSubmitting = true;
-
 			if (typeof $form.email === 'string') {
 				$form.email = $form.email.toLowerCase(); // Submit email as lowercase only
 			}
@@ -118,7 +108,7 @@
 			// handle login form submission
 			if ($allErrors.length > 0) {
 				cancel();
-				isSubmitting = false;
+
 				formElement?.classList.add('wiggle');
 				setTimeout(() => formElement?.classList.remove('wiggle'), 300);
 			}
@@ -135,7 +125,7 @@
 					// Add your custom classes here:
 					classes: 'border-1 !rounded-md'
 				});
-				isSubmitting = false;
+
 				return;
 			}
 			cancel();
@@ -144,7 +134,6 @@
 			formElement?.classList.add('wiggle');
 			setTimeout(() => {
 				formElement?.classList.remove('wiggle');
-				isSubmitting = false;
 			}, 300);
 		}
 	});
@@ -166,20 +155,14 @@
 		multipleSubmits: 'prevent',
 
 		onSubmit: ({ cancel }) => {
-			if (isTransitioning || isSubmitting) {
-				cancel();
-				return;
-			}
-			isSubmitting = true;
-
 			if (typeof $forgotForm.email === 'string') {
-				$forgotForm.email = $forgotForm.email.toLowerCase(); // Submit email as lowercase only
+				$forgotForm.email = $forgotForm.email.toLowerCase();
 			}
 
 			// handle login form submission
 			if ($allErrors.length > 0) {
 				cancel();
-				isSubmitting = false;
+
 				formElement?.classList.add('wiggle');
 				setTimeout(() => formElement?.classList.remove('wiggle'), 300);
 			}
@@ -203,7 +186,7 @@
 					// Add your custom classes here:
 					classes: 'border-1 !rounded-md'
 				});
-				isSubmitting = false;
+
 				return;
 			}
 
@@ -213,7 +196,6 @@
 					formElement?.classList.add('wiggle');
 					setTimeout(() => {
 						formElement?.classList.remove('wiggle');
-						isSubmitting = false;
 					}, 300);
 					return;
 				} else {
@@ -224,7 +206,7 @@
 						timeout: 4000,
 						classes: 'border-1 !rounded-md'
 					});
-					isSubmitting = false;
+
 					return;
 				}
 			}
@@ -233,7 +215,6 @@
 			formElement?.classList.add('wiggle');
 			setTimeout(() => {
 				formElement?.classList.remove('wiggle');
-				isSubmitting = false;
 			}, 300);
 		}
 	});
@@ -255,15 +236,8 @@
 		multipleSubmits: 'prevent',
 
 		onSubmit: ({ cancel }) => {
-			if (isTransitioning || isSubmitting) {
-				cancel();
-				return;
-			}
-			isSubmitting = true;
-
 			if ($allErrors.length > 0) {
 				cancel();
-				isSubmitting = false;
 			}
 		},
 
@@ -282,7 +256,7 @@
 					// Add your custom classes here:
 					classes: 'border-1 !rounded-md'
 				});
-				isSubmitting = false;
+
 				if (result.type === 'redirect') return;
 			}
 
@@ -290,42 +264,41 @@
 			formElement?.classList.add('wiggle');
 			setTimeout(() => {
 				formElement?.classList.remove('wiggle');
-				isSubmitting = false;
 			}, 300);
 		}
 	});
 
 	// Event handlers
 	function handleOAuth() {
-		if (isTransitioning || isSubmitting) return;
-		isSubmitting = true;
 		const form = document.createElement('form');
 		form.method = 'post';
 		form.action = '?/OAuth';
 		document.body.appendChild(form);
 		form.submit();
 		document.body.removeChild(form);
-		setTimeout(() => {
-			isSubmitting = false;
-		}, 300);
+		setTimeout(() => {}, 300);
 	}
 
 	// Function to handle back button click
 	function handleBack(event: Event) {
-		if (isTransitioning || isSubmitting) return;
 		event.stopPropagation();
-		onBack();
+		if (PWforgot || PWreset) {
+			PWforgot = false;
+			PWreset = false;
+		} else {
+			onBack();
+		}
 	}
 
 	// Function to handle icon click
-	function handleIconClick() {
-		if (isTransitioning || isSubmitting) return;
+	function handleFormClick(event: Event) {
+		event.stopPropagation();
 		onClick();
 	}
 
 	// Function to handle forgot password click
-	function handleForgotPassword() {
-		if (isTransitioning || isSubmitting) return;
+	function handleForgotPassword(event: Event) {
+		event.stopPropagation();
 		PWforgot = true;
 		PWreset = false;
 	}
@@ -333,8 +306,7 @@
 	// Class computations
 	const isActive = $derived(active === 0);
 	const isInactive = $derived(active !== undefined && active !== 0);
-	const isHover = $derived(active === undefined || active === 1);
-	const isDisabled = $derived(isTransitioning || isSubmitting);
+	const isHover = $derived(active === undefined || active === 0); // Fixed: Changed active === 1 to active === 0
 
 	const baseClasses = 'hover relative flex items-center';
 </script>
@@ -342,7 +314,7 @@
 <Toast />
 
 <section
-	onclick={onClick}
+	onclick={handleFormClick}
 	onkeydown={(e) => e.key === 'Enter' && onClick?.()}
 	onpointerenter={onPointerEnter}
 	role="button"
@@ -351,13 +323,17 @@
 	class:active={isActive}
 	class:inactive={isInactive}
 	class:hover={isHover}
-	class:pointer-events-none={isDisabled}
 >
 	{#if active === 0}
 		<!-- CSS Logo -->
 		<div class="hidden xl:block"><SveltyCMSLogoFull /></div>
 
-		<div class="mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto p-4 lg:w-1/2" class:hide={active !== 0}>
+		<div
+			role="presentation"
+			onclick={(e) => e.stopPropagation()}
+			class="mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto p-4 lg:w-1/2"
+			class:hide={active !== 0}
+		>
 			<div class="mb-1 flex flex-row gap-2">
 				<SveltyCMSLogo className="w-14" fill="red" />
 
@@ -423,7 +399,7 @@
 								<button type="submit" class="variant-filled-surface btn w-full sm:w-auto" aria-label={m.form_signin()}>
 									{m.form_signin()}
 									<!-- Loading indicators -->
-									{#if $delayed || isSubmitting}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
+									{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 								</button>
 
 								{#if privateEnv.USE_GOOGLE_OAUTH === true}
@@ -442,7 +418,8 @@
 									aria-label={m.signin_forgottenpassword()}
 									tabindex={forgotPasswordTabIndex}
 									onclick={handleForgotPassword}
-									>{m.signin_forgottenpassword()}
+								>
+									{m.signin_forgottenpassword()}
 								</button>
 							</div>
 						</div>
@@ -627,7 +604,7 @@
 		</div>
 	{/if}
 
-	<SigninIcon show={active === 1 || active === undefined} onClick={handleIconClick} disabled={isTransitioning || isSubmitting} />
+	<SigninIcon show={active === 1 || active === undefined} onClick={handleFormClick} />
 </section>
 
 <style lang="postcss">
@@ -658,7 +635,7 @@
 		animation: wiggle 0.3s forwards;
 	}
 	@keyframes wiggle {
-		0% {
+		from {
 			transform: translateX(0);
 		}
 		25% {

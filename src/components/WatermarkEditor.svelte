@@ -17,7 +17,6 @@ Usage:
 	import WatermarkSettings from './WatermarkSettings.svelte';
 	import type { MediaType } from '@utils/media/mediaModels';
 
-	
 	interface Props {
 		// Props
 		mediaItems?: MediaType[];

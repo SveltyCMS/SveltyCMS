@@ -20,7 +20,6 @@ Usage
 		path: string[];
 	};
 
-	
 	interface Props {
 		// Define props with proper typing
 		breadcrumb: string[];

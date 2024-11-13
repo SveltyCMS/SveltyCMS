@@ -1,6 +1,13 @@
 <!-- 
 @file src/components/widgets/seo/RobotsMetaInput.svelte
-@description - Robots Meta widget for SEO Widget
+@component
+**Robots Meta widget for SEO Widget**
+
+```tsx
+<RobotsMeta bind:value={robotsMeta} />
+```
+#### Props
+- `value` {string} - Robots meta value like: "index, follow"
 -->
 
 <script lang="ts">

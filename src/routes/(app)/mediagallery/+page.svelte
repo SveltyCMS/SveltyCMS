@@ -20,7 +20,7 @@ Features:
 
 	// Utils & Media
 	import { config, toFormData, SIZES } from '@utils/utils';
-	import { MediaTypeEnum, type MediaImage, type MediaType } from '@utils/media/mediaModels';
+	import { MediaTypeEnum, type MediaImage, type MediaType, type MediaBase } from '@utils/media/mediaModels';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -35,37 +35,70 @@ Features:
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
-	// System Looger
+	// System Logger
 	import { logger } from '@src/utils/logger';
 
-	// Prop to receive data from the server
-	export let data: { user: any; media: any[]; virtualFolders: any[] } | undefined = {
-		user: undefined,
-		media: [],
-		virtualFolders: []
+	// Props using runes
+	const { data = { user: undefined, media: [], virtualFolders: [] } } = $props<{
+		data?: { user: any; media: any[]; virtualFolders: any[] };
+	}>();
+
+	// State using runes
+	let files = $state<MediaImage[]>([]);
+	let folders = $state<{ _id: string; name: string; path: string[]; parent?: string | null }[]>([]);
+	let currentFolder = $state<{ _id: string; name: string; path: string[] } | null>(null);
+	let breadcrumb = $state<string[]>([]);
+
+	let globalSearchValue = $state('');
+	let selectedMediaType = $state<'All' | MediaTypeEnum>('All');
+	let view = $state<'grid' | 'table'>('grid');
+	let gridSize = $state<'small' | 'medium' | 'large'>('small');
+	let tableSize = $state<'small' | 'medium' | 'large'>('small');
+
+	type MediaTypeOption = {
+		value: 'All' | MediaTypeEnum;
+		label: string;
 	};
 
-	let files: MediaImage[] = [];
-	let folders: { _id: string; name: string; path: string[]; parent?: string | null }[] = [];
-	let currentFolder: { _id: string; name: string; path: string[] } | null = null;
-	let breadcrumb: string[] = [];
+	// Media types with proper typing
+	const mediaTypes: MediaTypeOption[] = [
+		{ value: 'All', label: 'ALL' },
+		{ value: MediaTypeEnum.Image, label: 'IMAGE' },
+		{ value: MediaTypeEnum.Document, label: 'DOCUMENT' },
+		{ value: MediaTypeEnum.Audio, label: 'AUDIO' },
+		{ value: MediaTypeEnum.Video, label: 'VIDEO' },
+		{ value: MediaTypeEnum.RemoteVideo, label: 'REMOTE VIDEO' }
+	];
 
-	let globalSearchValue = '';
-	let selectedMediaType = 'All';
-	let view: 'grid' | 'table' = 'grid';
-	let gridSize: 'small' | 'medium' | 'large' = 'small';
-	let tableSize: 'small' | 'medium' | 'large' = 'small';
+	// Derived filtered files
+	let filteredFiles = $derived(
+		files.filter((file) => {
+			if (file.type === MediaTypeEnum.Image) {
+				const sizeKey = Object.keys(SIZES).find((size) => file[size]?.name);
+
+				if (sizeKey && file[sizeKey]?.name) {
+					return (
+						file[sizeKey].name.toLowerCase().includes(globalSearchValue.toLowerCase()) &&
+						(selectedMediaType === 'All' || file.type === selectedMediaType)
+					);
+				}
+				return false;
+			} else {
+				return file.name.toLowerCase().includes(globalSearchValue.toLowerCase()) && (selectedMediaType === 'All' || file.type === selectedMediaType);
+			}
+		})
+	);
 
 	onMount(() => {
 		mode.set('media');
-		console.log('Received data:', data); // Ensure this logs a valid structure
+		console.log('Received data:', data);
 
 		if (data && data.virtualFolders) {
 			folders = data.virtualFolders.map((folder) => ({
 				...folder,
 				path: Array.isArray(folder.path) ? folder.path : folder?.path?.split('/')
 			}));
-			console.log('Processed folders:', folders); // Ensure the structure is as expected
+			console.log('Processed folders:', folders);
 		} else {
 			console.error('Virtual folders data is missing or in unexpected format');
 			folders = [];
@@ -79,6 +112,15 @@ Features:
 
 		fetchMediaFiles();
 		updateBreadcrumb();
+
+		// Initialize user preferences
+		const userPreference = getUserPreferenceFromLocalStorageOrCookie();
+		if (userPreference) {
+			const [preferredView, preferredGridSize, preferredTableSize] = userPreference?.split('/');
+			view = preferredView as 'grid' | 'table';
+			gridSize = preferredGridSize as 'small' | 'medium' | 'large';
+			tableSize = preferredTableSize as 'small' | 'medium' | 'large';
+		}
 	});
 
 	// Open add virtual folder modal
@@ -311,9 +353,9 @@ Features:
 	}
 
 	// Handle delete image
-	async function handleDeleteImage(event: CustomEvent<MediaType>) {
+	async function handleDeleteImage(file: MediaBase) {
 		try {
-			const q = toFormData({ method: 'POST', image: event.detail?._id ?? '' });
+			const q = toFormData({ method: 'POST', image: file._id ?? '' });
 			const response = await axios.post('?/api/mediaHandler/', q, {
 				...config,
 				withCredentials: true // This ensures cookies are sent with the request
@@ -348,15 +390,6 @@ Features:
 		return localStorage.getItem('GalleryUserPreference');
 	}
 
-	// Initialize user preferences
-	const userPreference = getUserPreferenceFromLocalStorageOrCookie();
-	if (userPreference) {
-		const [preferredView, preferredGridSize, preferredTableSize] = userPreference?.split('/');
-		view = preferredView as 'grid' | 'table';
-		gridSize = preferredGridSize as 'small' | 'medium' | 'large';
-		tableSize = preferredTableSize as 'small' | 'medium' | 'large';
-	}
-
 	// Handle view change
 	function handleClick() {
 		if (view === 'grid') {
@@ -367,32 +400,15 @@ Features:
 		storeUserPreference(view, gridSize, tableSize);
 	}
 
-	// Media types
-	const mediaTypes = [
-		{ value: 'All', icon: '' },
-		{ value: 'Image', icon: 'mdi:image' },
-		{ value: 'Document', icon: 'mdi:file-document' },
-		{ value: 'Audio', icon: 'mdi:speaker' },
-		{ value: 'Video', icon: 'mdi:movie' },
-		{ value: 'RemoteVideo', icon: 'mdi:video-remote' }
-	];
+	// Event handlers
+	function handleViewChange(newView: 'grid' | 'table') {
+		view = newView;
+		storeUserPreference(view, gridSize, tableSize);
+	}
 
-	// Reactive statement to filter files
-	$: filteredFiles = files.filter((file) => {
-		if (file.type === MediaTypeEnum.Image) {
-			const sizeKey = Object.keys(SIZES).find((size) => file[size]?.name);
-
-			if (sizeKey && file[sizeKey]?.name) {
-				return (
-					file[sizeKey].name.toLowerCase().includes(globalSearchValue.toLowerCase()) &&
-					(selectedMediaType === 'All' || file.type === selectedMediaType)
-				);
-			}
-			return false;
-		} else {
-			return file.name.toLowerCase().includes(globalSearchValue.toLowerCase()) && (selectedMediaType === 'All' || file.type === selectedMediaType);
-		}
-	});
+	function clearSearch() {
+		globalSearchValue = '';
+	}
 </script>
 
 <!-- Page Title and Actions -->
@@ -404,13 +420,13 @@ Features:
 	<div class="lgd:mt-0 flex items-center justify-center gap-4 lg:justify-end">
 		<!-- Add folder -->
 		<button onclick={openAddFolderModal} aria-label="Add folder" class="variant-filled-tertiary btn gap-2">
-			<iconify-icon icon="mdi:folder-add-outline" width="24"> </iconify-icon>
+			<iconify-icon icon="mdi:folder-add-outline" width="24"></iconify-icon>
 			Add folder
 		</button>
 
 		<!-- Add Media -->
 		<button onclick={() => goto('/mediagallery/uploadMedia')} aria-label="Add Media" class="variant-filled-primary btn gap-2">
-			<iconify-icon icon="carbon:add-filled" width="24"> </iconify-icon>
+			<iconify-icon icon="carbon:add-filled" width="24"></iconify-icon>
 			Add Media
 		</button>
 	</div>
@@ -426,7 +442,7 @@ Features:
 			<input id="globalSearch" type="text" placeholder="Search" class="input" bind:value={globalSearchValue} />
 			{#if globalSearchValue}
 				<button onclick={() => (globalSearchValue = '')} aria-label="Clear search" class="variant-filled-surface w-12">
-					<iconify-icon icon="ic:outline-search-off" width="24"> </iconify-icon>
+					<iconify-icon icon="ic:outline-search-off" width="24"></iconify-icon>
 				</button>
 			{/if}
 		</div>
@@ -436,13 +452,7 @@ Features:
 				<label for="mediaType">Type</label>
 				<select id="mediaType" bind:value={selectedMediaType} class="input">
 					{#each mediaTypes as type}
-						<option value={type.value}>
-							<!-- <p class="flex items-center gap-2">
-								<iconify-icon icon={type.icon} width="24" class="text-primary-500"> </iconify-icon>
-								<span class="uppercase">{type.value}</span>
-							</p> -->
-							<iconify-icon icon={type.icon} width="24" class="text-primary-500"> <span class="uppercase">{type.value}</span> </iconify-icon>
-						</option>
+						<option value={type.value}>{type.label}</option>
 					{/each}
 				</select>
 			</div>
@@ -450,7 +460,7 @@ Features:
 			<div class="flex flex-col text-center">
 				<label for="sortButton">Sort</label>
 				<button id="sortButton" aria-label="Sort" class="variant-ghost-surface btn">
-					<iconify-icon icon="flowbite:sort-outline" width="24"> </iconify-icon>
+					<iconify-icon icon="flowbite:sort-outline" width="24"></iconify-icon>
 				</button>
 			</div>
 
@@ -458,29 +468,15 @@ Features:
 				<div class="flex flex-col items-center justify-center">
 					<div class="flex sm:divide-x sm:divide-gray-500">
 						{#if view === 'grid'}
-							<button
-								onclick={() => {
-									view = 'table';
-									storeUserPreference(view, gridSize, tableSize);
-								}}
-								aria-label="table"
-								class="btn flex flex-col items-center justify-center px-1"
-							>
+							<button onclick={() => handleViewChange('table')} aria-label="table" class="btn flex flex-col items-center justify-center px-1">
 								<p class="text-center text-xs">Display</p>
-								<iconify-icon icon="material-symbols:grid-view-rounded" height="42" style={`color: text-black dark:text-white`}> </iconify-icon>
+								<iconify-icon icon="material-symbols:grid-view-rounded" height="42" style={`color: text-black dark:text-white`}></iconify-icon>
 								<p class="text-xs">Table</p>
 							</button>
 						{:else}
-							<button
-								onclick={() => {
-									view = 'grid';
-									storeUserPreference(view, gridSize, tableSize);
-								}}
-								aria-label="Grid"
-								class="btn flex flex-col items-center justify-center px-1"
-							>
+							<button onclick={() => handleViewChange('grid')} aria-label="Grid" class="btn flex flex-col items-center justify-center px-1">
 								<p class="text-center text-xs">Display</p>
-								<iconify-icon icon="material-symbols:list-alt-outline" height="44" style={`color: text-black dark:text-white`}> </iconify-icon>
+								<iconify-icon icon="material-symbols:list-alt-outline" height="44" style={`color: text-black dark:text-white`}></iconify-icon>
 								<p class="text-center text-xs">Grid</p>
 							</button>
 						{/if}
@@ -491,18 +487,18 @@ Features:
 					<div class="divide-surface-00 flex divide-x">
 						{#if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
 							<button onclick={handleClick} type="button" aria-label="Small" class="px-1">
-								<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40" style={`color:text-black dark:text-white`}>
-								</iconify-icon>
+								<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40" style={`color:text-black dark:text-white`}
+								></iconify-icon>
 								<p class="text-xs">Small</p>
 							</button>
 						{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
 							<button onclick={handleClick} type="button" aria-label="Medium" class="px-1">
-								<iconify-icon icon="material-symbols:grid-on-sharp" height="40" style={`color: text-black dark:text-white`}> </iconify-icon>
+								<iconify-icon icon="material-symbols:grid-on-sharp" height="40" style={`color: text-black dark:text-white`}></iconify-icon>
 								<p class="text-xs">Medium</p>
 							</button>
 						{:else}
 							<button onclick={handleClick} type="button" aria-label="Large" class="px-1">
-								<iconify-icon icon="material-symbols:grid-view" height="40" style={`color: text-black dark:text-white`}> </iconify-icon>
+								<iconify-icon icon="material-symbols:grid-view" height="40" style={`color: text-black dark:text-white`}></iconify-icon>
 								<p class="text-xs">Large</p>
 							</button>
 						{/if}
@@ -518,8 +514,8 @@ Features:
 			<div class="input-group input-group-divider grid max-w-md grid-cols-[auto_1fr_auto]">
 				<input bind:value={globalSearchValue} id="globalSearchMd" type="text" placeholder="Search" class="input" />
 				{#if globalSearchValue}
-					<button onclick={() => (globalSearchValue = '')} class="variant-filled-surface w-12" aria-label="Clear search">
-						<iconify-icon icon="ic:outline-search-off" width="24"> </iconify-icon>
+					<button onclick={clearSearch} class="variant-filled-surface w-12" aria-label="Clear search">
+						<iconify-icon icon="ic:outline-search-off" width="24"></iconify-icon>
 					</button>
 				{/if}
 			</div>
@@ -530,13 +526,7 @@ Features:
 			<div class="input-group">
 				<select id="mediaTypeMd" bind:value={selectedMediaType}>
 					{#each mediaTypes as type}
-						<option value={type.value}>
-							<!-- <p class="flex items-center justify-between gap-2">
-								<iconify-icon icon={type.icon} width="24" class="mr-2 text-primary-500"> </iconify-icon>
-								<span class="uppercase">{type.value}</span>
-							</p> -->
-							<iconify-icon icon={type.icon} width="24" class="mr-2 text-primary-500"> <span class="uppercase">{type.value}</span></iconify-icon>
-						</option>
+						<option value={type.value}>{type.label}</option>
 					{/each}
 				</select>
 			</div>
@@ -545,7 +535,7 @@ Features:
 		<div class="mb-8 flex flex-col justify-center gap-1 text-center">
 			<label for="sortButton">Sort</label>
 			<button id="sortButton" class="variant-ghost-surface btn" aria-label="Sort">
-				<iconify-icon icon="flowbite:sort-outline" width="24"> </iconify-icon>
+				<iconify-icon icon="flowbite:sort-outline" width="24"></iconify-icon>
 			</button>
 		</div>
 
@@ -553,27 +543,14 @@ Features:
 			<div class="hidden flex-col items-center sm:flex">
 				Display
 				<div class="flex divide-x divide-gray-500">
-					<button
-						onclick={() => {
-							view = 'grid';
-							storeUserPreference(view, gridSize, tableSize);
-						}}
-						class="px-2"
-						aria-label="Grid"
-					>
-						<iconify-icon icon="material-symbols:grid-view-rounded" height="40" style={`color: ${view === 'grid' ? 'black dark:white' : 'grey'}`} />
+					<button onclick={() => handleViewChange('grid')} class="px-2" aria-label="Grid">
+						<iconify-icon icon="material-symbols:grid-view-rounded" height="40" style={`color: ${view === 'grid' ? 'black dark:white' : 'grey'}`}
+						></iconify-icon>
 						<br /> <span class="text-tertiary-500 dark:text-primary-500">Grid</span>
 					</button>
-					<button
-						onclick={() => {
-							view = 'table';
-							storeUserPreference(view, gridSize, tableSize);
-						}}
-						class="px-2"
-						aria-label="Table"
-					>
-						<iconify-icon icon="material-symbols:list-alt-outline" height="40" style={`color: ${view === 'table' ? 'black dark:white' : 'grey'}`}>
-						</iconify-icon>
+					<button onclick={() => handleViewChange('table')} class="px-2" aria-label="Table">
+						<iconify-icon icon="material-symbols:list-alt-outline" height="40" style={`color: ${view === 'table' ? 'black dark:white' : 'grey'}`}
+						></iconify-icon>
 						<br /><span class="text-tertiary-500 dark:text-primary-500">Table</span>
 					</button>
 				</div>
@@ -584,17 +561,17 @@ Features:
 				<div class="flex divide-x divide-gray-500">
 					{#if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
 						<button onclick={handleClick} type="button" class="px-1 md:px-2" aria-label="Small">
-							<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40"> </iconify-icon>
+							<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40"></iconify-icon>
 							<br /><span class="text-tertiary-500 dark:text-primary-500">Small</span>
 						</button>
 					{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
 						<button onclick={handleClick} type="button" class="px-1 md:px-2" aria-label="Medium">
-							<iconify-icon icon="material-symbols:grid-on-sharp" height="40"> </iconify-icon>
+							<iconify-icon icon="material-symbols:grid-on-sharp" height="40"></iconify-icon>
 							<br /><span class="text-tertiary-500 dark:text-primary-500">Medium</span>
 						</button>
 					{:else}
 						<button onclick={handleClick} type="button" class="px-1 md:px-2" aria-label="Large">
-							<iconify-icon icon="material-symbols:grid-view" height="40"> </iconify-icon>
+							<iconify-icon icon="material-symbols:grid-view" height="40"></iconify-icon>
 							<br /><span class="text-tertiary-500 dark:text-primary-500">Large</span>
 						</button>
 					{/if}
@@ -604,8 +581,8 @@ Features:
 	</div>
 
 	{#if view === 'grid'}
-		<MediaGrid {filteredFiles} {gridSize} on:deleteImage={handleDeleteImage} />
+		<MediaGrid {filteredFiles} {gridSize} ondeleteImage={handleDeleteImage} />
 	{:else}
-		<MediaTable {filteredFiles} {tableSize} on:deleteImage={handleDeleteImage} />
+		<MediaTable {filteredFiles} {tableSize} ondeleteImage={handleDeleteImage} />
 	{/if}
 </div>

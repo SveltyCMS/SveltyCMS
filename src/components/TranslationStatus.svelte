@@ -1,6 +1,22 @@
 <!-- 
  @file src/components/TranslationStatus.svelte 
- @description Translation status component. 
+ @component
+ **Translation status component for displaying translation progress per language in a progress bar with percentage.**
+
+ ```tsx
+ <TranslationStatus />	
+ ```	
+
+ ### Props:
+ - `mode` {object} - The current mode object from the mode store
+ - `collection` {object} - The current collection object from the collection store
+
+
+ ### Features:
+ - Persists translation progress through API calls
+ - Displays translation progress per language in a progress bar with percentage
+ - Handles language selection and translation progress updates
+ 
 -->
 
 <script lang="ts">

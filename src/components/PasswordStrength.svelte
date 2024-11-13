@@ -15,7 +15,6 @@
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 
-	
 	interface Props {
 		// Props for password and confirm password
 		password?: string;

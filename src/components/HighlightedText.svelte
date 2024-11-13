@@ -1,25 +1,29 @@
 <!-- 
 @file src/components/HighlightedText.svelte
-@description Enhanced HighlightedText component
+@component
+**Enhanced HighlightedText component that highlights a term in a given text**
+
+```tsx
+<HighlightedText 
+	text="Your long text here" 
+	term="search term" 
+	charLimit={200} 
+/>
+```
+
+#### Props
+- `text` {string} - Full text to display
+- `term` {string} - Term to highlight
+- `charLimit` {number} - Limit before 'Show More' appears
 
 Features:
-- Case-insensitive term highlighting
 - Custom highlight colors using Tailwind classes
 - Character limit with "Show More" functionality
 - Debounced highlighting for performance
 - Accessible highlighting using ARIA attributes
-
-Usage: 
-<HighlightedText 
-  text="Your long text here" 
-  term="search term" 
-  charLimit={200} 
-/>
 -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
-
 	interface Props {
 		text?: string; // Full text to display
 		term?: string; // Term to highlight

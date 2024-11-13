@@ -1,24 +1,30 @@
 <!--
 @file src/components/PermissionGuard.svelte
-@description Guard component for permission-based access control
+@component
+**PermissionGuard component for permission-based access control that wraps content with conditional rendering and error handling**
+
+```tsx
+<PermissionGuard {config}>
+	<ContentToProtect />
+</PermissionGuard>
+```
+
+#### Props:
+- `config`: Permission configuration object
+- `messages`: Custom messages for different scenarios
+
 Features:
 - Checks user permissions based on provided configuration
 - Handles admin roles, regular permissions, and rate limiting
 - Provides fallback content for missing configurations or insufficient permissions
 - Improved type safety and error handling
-Usage:
-Import and use <PermissionGuard {config}> in your Svelte application.
-Wrap content that requires permission checks within the PermissionGuard component.
 -->
 
 <script lang="ts">
 	import { page } from '$app/stores';
 	import type { PermissionConfig } from '@src/auth/permissionCheck';
-	import type { User, Permissions } from '@src/auth/types'; // Assuming these types exist
+	import type { User } from '@src/auth/types'; // Assuming these types exist
 
-	
-
-	
 	interface Props {
 		// Prop to receive permission configuration
 		config: PermissionConfig | undefined;
@@ -27,11 +33,15 @@ Wrap content that requires permission checks within the PermissionGuard componen
 		children?: import('svelte').Snippet;
 	}
 
-	let { config, messages = {
-		rateLimited: 'Rate limit reached. Please try again later.',
-		missingConfig: 'Permission configuration is missing.',
-		insufficientPermissions: 'You do not have permission to access this content.'
-	}, children }: Props = $props();
+	let {
+		config,
+		messages = {
+			rateLimited: 'Rate limit reached. Please try again later.',
+			missingConfig: 'Permission configuration is missing.',
+			insufficientPermissions: 'You do not have permission to access this content.'
+		},
+		children
+	}: Props = $props();
 
 	// Reactive variables from page store with type assertions
 	let user = $derived($page.data.user as User | undefined);

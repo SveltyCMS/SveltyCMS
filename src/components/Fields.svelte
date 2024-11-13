@@ -1,7 +1,14 @@
 <!--
 @file src/components/Fields.svelte
-@description: This component renders form fields for a collection, handles field editing,
+@component
+**Fields component that renders collection fields to enter/edit & display data per language**
 revision management, live preview, and API data display. 
+
+```tsx
+<Fields />
+```
+#### Props
+- `fields` {NonNullable<typeof $collection>['fields']} - Collection fields
 
 Key features:
 - Dynamic field rendering based on collection schema

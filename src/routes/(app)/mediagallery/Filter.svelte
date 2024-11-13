@@ -1,6 +1,15 @@
 <!-- 
  @files src/routes/(app)/mediagallery/Filter.svelte
-@description This component displays a filter for the media gallery.
+@component
+**This component displays a filter for the media gallery**
+
+```tsx
+<Filter globalSearchValue={globalSearchValue} selectedMediaType={selectedMediaType} mediaTypes={mediaTypes} />
+```
+#### Props
+- `globalSearchValue: string`: The current value of the global search input.
+- `selectedMediaType: string`: The currently selected media type.
+- `mediaTypes: { value: string; icon: string }[]`: An array of media type options.
 -->
 <script lang="ts">
 	export let globalSearchValue: string;
