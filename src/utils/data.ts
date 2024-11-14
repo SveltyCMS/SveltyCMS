@@ -12,7 +12,7 @@
  *
  * Features:
  * - Centralized error handling and logging
- * - Type-safe collection names using CollectionNames type
+ * - Type-safe collection names using CollectionTypes 
  * - Consistent API request formatting
  * - Support for pagination, filtering, and sorting in getData
  *
@@ -56,7 +56,7 @@ export async function handleRequest(data: FormData, method: string) {
 
 // Function to get data from a specified collection
 export async function getData(query: {
-	collectionName: keyof CollectionTypes;
+	CollectionTypes: keyof CollectionTypes;
 	page?: number;
 	limit?: number;
 	contentLanguage?: string;
@@ -71,31 +71,31 @@ export async function getData(query: {
 }
 
 // Function to add data to a specified collection
-export async function addData({ data, collectionName }: { data: FormData; collectionName: keyof CollectionTypes }) {
-	data.append('collectionName', collectionName);
+export async function addData({ data, collectionTypes }: { data: FormData; CollectionTypes: keyof CollectionTypes }) {
+	data.append('CollectionTypes', collectionTypes);
 	data.append('method', 'POST');
 	return await axios.post(`/api/query`, data, config).then((res) => res.data);
 }
 
 // Function to update data in a specified collection
-export async function updateData({ data, collectionName }: { data: FormData; collectionName: keyof CollectionTypes }) {
-	data.append('collectionName', collectionName);
+export async function updateData({ data, collectionTypes }: { data: FormData; CollectionTypes: keyof CollectionTypes }) {
+	data.append('CollectionTypes', collectionTypes);
 	data.append('method', 'PATCH');
 	return await axios.post(`/api/query`, data, config).then((res) => res.data);
 }
 
 // Move FormData to trash folder and delete trash files older than 30 days
-export async function deleteData({ data, collectionName }: { data: FormData; collectionName: CollectionTypes }) {
-	data.append('collectionName', collectionName);
+export async function deleteData({ data, collectionTypes }: { data: FormData; CollectionTypes: CollectionTypes }) {
+	data.append('CollectionTypes', collectionTypes);
 	data.append('method', 'DELETE');
 
 	try {
-		logger.debug(`Deleting data for collection: ${collectionName}`);
+		logger.debug(`Deleting data for collection: ${collectionTypes}`);
 		const response = await axios.post(`/api/query`, data, config);
-		logger.debug(`Data deleted successfully for collection: ${collectionName}`);
+		logger.debug(`Data deleted successfully for collection: ${collectionTypes}`);
 		return response.data;
 	} catch (err) {
-		const message = `Error deleting data for collection ${collectionName}: ${err instanceof Error ? err.message : String(err)}`;
+		const message = `Error deleting data for collection ${collectionTypes}: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message);
 		if (axios.isAxiosError(err)) {
 			logger.error('Axios error details:', {
@@ -109,8 +109,8 @@ export async function deleteData({ data, collectionName }: { data: FormData; col
 }
 
 // Function to set the status of data in a specified collection
-export async function setStatus({ data, collectionName }: { data: FormData; collectionName: keyof CollectionTypes }) {
-	data.append('collectionName', collectionName);
+export async function setStatus({ data, collectionTypes }: { data: FormData; collectionTypes: keyof CollectionTypes }) {
+	data.append('CollectionTypes', collectionTypes);
 	data.append('method', 'SETSTATUS');
 	return await axios.post(`/api/query`, data, config).then((res) => res.data);
 }
@@ -172,7 +172,7 @@ export async function saveFormData({
 				formData.append('createdAt', Math.floor(Date.now() / 1000).toString());
 				formData.append('updatedAt', (formData.get('createdAt') as string) || '');
 
-				return await addData({ data: formData, collectionName: $collection.name as any });
+				return await addData({ data: formData, collectionTypes: $collection.name as any });
 
 			case 'edit':
 				logger.debug('Saving data in edit mode.');
@@ -198,12 +198,12 @@ export async function saveFormData({
 
 					const revisionFormData = new FormData();
 					revisionFormData.append('data', JSON.stringify(newRevision));
-					revisionFormData.append('collectionName', $collection.name as any);
+					revisionFormData.append('collectionTypes', $collection.name as any);
 
 					await handleRequest(revisionFormData, 'POST');
 				}
 
-				return await updateData({ data: formData, collectionName: $collection.path as any });
+				return await updateData({ data: formData, collectionTypes: $collection.path as any });
 
 			default: {
 				const message = `Unhandled mode: ${$mode}`;

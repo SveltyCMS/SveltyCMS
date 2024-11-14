@@ -26,7 +26,7 @@ import type { Unsubscriber } from 'svelte/store';
 import { initWidgets } from '@components/widgets';
 
 // Types
-import type { Schema, CollectionNames, Category } from './types';
+import type { Schema, CollectionTypes, Category } from './types';
 
 // System Logger
 import { logger } from '@utils/logger';
@@ -36,9 +36,9 @@ const BATCH_SIZE = 50; // Number of collections to process per batch
 const CONCURRENT_BATCHES = 5; // Number of concurrent batches
 
 // Cache and efficient data structures
-let importsCache: Record<CollectionNames, Schema> = {} as Record<CollectionNames, Schema>;
+let importsCache: Record<CollectionTypes, Schema> = {} as Record<CollectionTypes, Schema>;
 let unsubscribe: Unsubscriber | undefined;
-let collectionModelsCache: Record<CollectionNames, Schema> | null = null;
+let collectionModelsCache: Record<CollectionTypes, Schema> | null = null;
 const categoryLookup = new Map<string, CategoryNode>();
 const collectionsByCategory = new Map<string, Set<Schema>>();
 
@@ -161,7 +161,7 @@ function flattenAndSortCategories(): Category[] {
 }
 
 // Function to get collections with cache support
-export async function getCollections(): Promise<Partial<Record<CollectionNames, Schema>>> {
+export async function getCollections(): Promise<Partial<Record<CollectionTypes, Schema>>> {
 	logger.debug('Starting getCollections');
 	// Initialize widgets
 	initWidgets();
@@ -172,7 +172,7 @@ export async function getCollections(): Promise<Partial<Record<CollectionNames, 
 		return collectionModelsCache;
 	}
 
-	return new Promise<Partial<Record<CollectionNames, Schema>>>((resolve) => {
+	return new Promise<Partial<Record<CollectionTypes, Schema>>>((resolve) => {
 		unsubscribe = collections.subscribe((cols) => {
 			if (Object.keys(cols).length > 0) {
 				unsubscribe?.();
@@ -188,7 +188,7 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 	logger.debug('Starting updateCollections');
 
 	if (recompile) {
-		importsCache = {} as Record<CollectionNames, Schema>;
+		importsCache = {} as Record<CollectionTypes, Schema>;
 	}
 
 	try {
@@ -197,7 +197,7 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 
 		const _categories = await createCategoriesFromPath(Object.values(imports));
 
-		const _collections: Partial<Record<CollectionNames, Schema>> = {};
+		const _collections: Partial<Record<CollectionTypes, Schema>> = {};
 		for (const category of _categories) {
 			for (const col of category.collections) {
 				if (col.name) {
@@ -211,7 +211,7 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 
 		// Set the stores
 		categories.set(_categories);
-		collections.set(_collections as Record<CollectionNames, Schema>);
+		collections.set(_collections as Record<CollectionTypes, Schema>);
 		unAssigned.set(Object.values(imports).filter((x) => !Object.values(_collections).includes(x)));
 
 		// Only try to fetch collection models if we're server-side and not in development mode
@@ -238,12 +238,17 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 };
 
 // Initialize collections
-updateCollections().catch((err) => {
-	logger.warn(`Note: Collections initialization encountered an issue: ${err}. This is expected during initial setup.`);
-});
+(async () => {
+	try {
+		await updateCollections();
+		logger.info('Collections initialized successfully');
+	} catch (err) {
+		logger.warn(`Note: Initialization encountered an issue: ${err}. This is expected during initial setup.`);
+	}
+})();
 
 // Function to get imports based on environment
-async function getImports(recompile: boolean = false): Promise<Record<CollectionNames, Schema>> {
+async function getImports(recompile: boolean = false): Promise<Record<CollectionTypes, Schema>> {
 	logger.debug('Starting getImports function');
 
 	// Return from cache if available
@@ -257,7 +262,7 @@ async function getImports(recompile: boolean = false): Promise<Record<Collection
 			const collection = (module as { schema: Schema })?.schema ?? {};
 			if (collection) {
 				const randomId = await createRandomID();
-				collection.name = name as CollectionNames;
+				collection.name = name as CollectionTypes;
 				collection.icon = collection.icon || 'iconoir:info-empty';
 				collection.id = parseInt(randomId.toString().slice(0, 8), 16);
 
@@ -268,7 +273,7 @@ async function getImports(recompile: boolean = false): Promise<Record<Collection
 				collection.path = collectionPath;
 				logger.debug(`Set path for collection ${name} to ${collection.path}`);
 
-				importsCache[name as CollectionNames] = collection as Schema;
+				importsCache[name as CollectionTypes] = collection as Schema;
 			} else {
 				logger.error(`Error importing collection: ${name}`);
 			}

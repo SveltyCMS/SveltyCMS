@@ -1,5 +1,5 @@
 /**
- * @file src/routes/(app)/config/collection/[...collectionName]/+page.server.ts
+ * @file src/routes/(app)/config/collection/[...collectionTypes]/+page.server.ts
  * @description Server-side logic for collection management in the CMS.
  *
  * This module handles:
@@ -38,7 +38,7 @@ import { permissions } from '@src/auth/permissions';
 
 // System Logger
 import { logger } from '@utils/logger';
-import { generateCollectionFieldTypes, generateCollectionTypes } from '@root/src/utils/collectionTypes';
+import { generateCollectionFieldTypes, generateCollectionTypes } from '@root/src/utils/CollectionTypes';
 
 type fields = ReturnType<WidgetType[keyof WidgetType]>;
 
@@ -89,7 +89,7 @@ export const actions: Actions = {
 			const formData = await request.formData();
 			const fieldsData = formData.get('fields') as string;
 			const originalName = JSON.parse(formData.get('originalName') as string);
-			const collectionName = JSON.parse(formData.get('collectionName') as string);
+			const CollectionTypes = JSON.parse(formData.get('CollectionTypes') as string);
 			const collectionIcon = JSON.parse(formData.get('icon') as string);
 			const collectionSlug = JSON.parse(formData.get('slug') as string);
 			const collectionDescription = JSON.parse(formData.get('description') as string);
@@ -102,8 +102,8 @@ export const actions: Actions = {
 			// Generate fields as formatted string
 			let content = `
 		/**
-		 * @file src/collections/${collectionName}.ts
-		 * @description Collection file for ${collectionName}
+		 * @file src/collections/${CollectionTypes}.ts
+		 * @description Collection file for ${CollectionTypes}
 		 */
 
 		${imports}
@@ -130,10 +130,10 @@ export const actions: Actions = {
 			content = content.replace(/["']🗑️|🗑️["']/g, '').replace(/🗑️/g, '');
 			content = await prettier.format(content, { ...(prettierConfig as any), parser: 'typescript' });
 
-			if (originalName && originalName !== collectionName) {
-				fs.renameSync(`${import.meta.env.collectionsFolderTS}/${originalName}.ts`, `${import.meta.env.collectionsFolderTS}/${collectionName}.ts`);
+			if (originalName && originalName !== CollectionTypes) {
+				fs.renameSync(`${import.meta.env.collectionsFolderTS}/${originalName}.ts`, `${import.meta.env.collectionsFolderTS}/${CollectionTypes}.ts`);
 			}
-			fs.writeFileSync(`${import.meta.env.collectionsFolderTS}/${collectionName}.ts`, content);
+			fs.writeFileSync(`${import.meta.env.collectionsFolderTS}/${CollectionTypes}.ts`, content);
 			await compile();
 			await generateCollectionTypes();
 			await generateCollectionFieldTypes();
@@ -175,8 +175,8 @@ export const actions: Actions = {
 	deleteCollections: async ({ request }) => {
 		try {
 			const formData = await request.formData();
-			const collectionName = JSON.parse(formData.get('collectionName') as string);
-			fs.unlinkSync(`${import.meta.env.collectionsFolderTS}/${collectionName}.ts`);
+			const CollectionTypes = JSON.parse(formData.get('CollectionTypes') as string);
+			fs.unlinkSync(`${import.meta.env.collectionsFolderTS}/${CollectionTypes}.ts`);
 			await compile();
 			await updateCollections(true);
 			await getCollectionModels();

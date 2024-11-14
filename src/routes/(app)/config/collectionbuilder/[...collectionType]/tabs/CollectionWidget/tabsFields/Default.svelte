@@ -1,5 +1,5 @@
 <!-- 
-@files src/routes/(app)/config/collectionbuilder/[...collectionName]/tabs/CollectionWidget/tabsFields/Default.svelte
+@files src/routes/(app)/config/collectionbuilder/[...collectionTypes]/tabs/CollectionWidget/tabsFields/Default.svelte
 @component
 **This component displays the default tab fields**
 

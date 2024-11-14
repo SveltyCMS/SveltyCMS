@@ -106,10 +106,10 @@ export class DrizzleDBAdapter implements dbInterface {
 
 		// Subscribe to collections store
 		this.unsubscribe = collections.subscribe(async (cols) => {
-			for (const [collectionName, collection] of Object.entries(cols)) {
-				if (!this.tables[collectionName]) {
-					logger.debug(`Setting up table for collection: ${collectionName}`);
-					await this.setupTable(collectionName, collection);
+			for (const [collectionTypes, collection] of Object.entries(cols)) {
+				if (!this.tables[collectionTypes]) {
+					logger.debug(`Setting up table for collection: ${collectionTypes}`);
+					await this.setupTable(collectionTypes, collection);
 				}
 			}
 		});
@@ -117,19 +117,19 @@ export class DrizzleDBAdapter implements dbInterface {
 		logger.debug('DrizzleDBAdapter initialization complete.');
 	}
 
-	async setupTable(collectionName: string, collection: any): Promise<void> {
-		const tableSql = this.generateTableSQL(collectionName, collection);
+	async setupTable(collectionTypes: string, collection: any): Promise<void> {
+		const tableSql = this.generateTableSQL(collectionTypes, collection);
 		try {
 			await dbClient.execute(tableSql);
-			this.tables[collectionName] = true;
-			logger.info(`Table created for collection: ${collectionName}`);
+			this.tables[collectionTypes] = true;
+			logger.info(`Table created for collection: ${collectionTypes}`);
 		} catch (error) {
-			logger.error(`Error creating table for collection: ${collectionName}. Error: ${(error as Error).message}`);
+			logger.error(`Error creating table for collection: ${collectionTypes}. Error: ${(error as Error).message}`);
 			throw error;
 		}
 	}
 
-	generateTableSQL(collectionName: string, collection: any): string {
+	generateTableSQL(collectionTypes: string, collection: any): string {
 		const columns = collection.fields
 			.map((field: any) => {
 				const type = this.getSQLType(field.type);
@@ -137,7 +137,7 @@ export class DrizzleDBAdapter implements dbInterface {
 			})
 			.join(', ');
 
-		return `CREATE TABLE IF NOT EXISTS ${collectionName} (${columns});`;
+		return `CREATE TABLE IF NOT EXISTS ${collectionTypes} (${columns});`;
 	}
 
 	getSQLType(fieldType: string): string {

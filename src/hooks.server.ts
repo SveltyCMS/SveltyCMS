@@ -173,6 +173,11 @@ const handleRateLimit: Handle = async ({ event, resolve }) => {
 
 // Handle authentication, authorization, and API caching
 const handleAuth: Handle = async ({ event, resolve }) => {
+	// Skip authentication for error pages
+	if (event.url.pathname === '/404' || event.url.pathname.endsWith('/error')) {
+		return resolve(event);
+	}
+
 	// Skip full initialization during build
 	if (building) {
 		event.locals.user = null;

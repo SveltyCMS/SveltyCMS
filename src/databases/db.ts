@@ -246,7 +246,7 @@ async function initializeAdapters(): Promise<void> {
 			await dbAdapter.setupMediaModels();
 			await dbAdapter.getCollectionModels();
 
-			// Step 5: Initialize CollectionManager after models are set up
+			// Step 5: Initialize CollectionManager
 			logger.debug('Initializing CollectionManager...');
 			await collectionManager.initialize();
 

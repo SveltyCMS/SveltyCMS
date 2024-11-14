@@ -19,6 +19,8 @@ import { browser } from '$app/environment';
 
 // Types
 import type { Schema, CollectionTypes, Category, CategoryData } from './types';
+import { CollectionRegistry } from './types';
+import { collectionRegistry } from './registry';
 
 // Utils
 import { createRandomID } from '@utils/utils';
@@ -288,7 +290,7 @@ class CollectionManager {
 								const randomId = await createRandomID();
 								const processed: Schema = {
 									...schema,
-									name: name as CollectionNames,
+									name: name as CollectionTypes,
 									id: parseInt(randomId.toString().slice(0, 8), 16),
 									icon: schema.icon || 'iconoir:info-empty',
 									path: this.extractPathFromFilePath(path),
@@ -467,7 +469,7 @@ class CollectionManager {
 					};
 				});
 
-				const collectionRecord: Record<CollectionNames, Schema> = {} as Record<CollectionNames, Schema>;
+				const collectionRecord: Record<CollectionTypes, Schema> = {} as Record<CollectionTypes, Schema>;
 				cols.forEach((col) => {
 					if (col.name) {
 						collectionRecord[col.name] = col;
@@ -601,4 +603,4 @@ class CollectionManager {
 export const collectionManager = CollectionManager.getInstance();
 
 // Export types
-export type { Schema, CollectionNames, Category, CategoryData };
+export type { Schema, CollectionTypes, Category, CategoryData };

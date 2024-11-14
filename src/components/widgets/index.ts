@@ -1,8 +1,6 @@
 /**
 @file src/components/widgets/index.ts
-@description - Widgets index file to import all widgets.
-
-
+@description - Widgets index file to import all widgets and initialize them.
 */
 
 import type { Model, User, WidgetId } from '@src/auth/types';
@@ -45,7 +43,7 @@ export type ModifyRequestParams<T extends (...args: any) => any> = {
 	meta_data?: { [key: string]: any };
 };
 
-// Initialize widgets object first
+// Initialize widgets object with all available widgets
 const widgetsInit = {
 	Address, // Address flexible Address fields
 	Checkbox, // Checkbox - boolean true / false checkbox
@@ -76,7 +74,7 @@ const widgetsInit = {
 type K = (typeof widgetsInit)[keyof typeof widgetsInit]['Name'];
 
 export type WidgetType = {
-	[key in K]: (typeof widgetsInit)[key] & {
+	[key in K]: (typeof widgetsInit)[keyof typeof widgetsInit] & {
 		modifyRequest: (args: ModifyRequestParams<(typeof widgetsInit)[keyof typeof widgetsInit]>) => Promise<object>;
 	};
 };

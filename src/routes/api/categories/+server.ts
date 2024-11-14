@@ -75,12 +75,12 @@ async function processDirectory(dirPath: string, existingCategories: Record<stri
 	for (const item of items) {
 		if (!item.endsWith('.ts')) continue;
 
-		const collectionName = path.parse(item).name;
-		const existingCategory = getExistingCategory(collectionName);
+		const collectionTypes = path.parse(item).name;
+		const existingCategory = getExistingCategory(collectionTypes);
 
-		categories[collectionName] = {
+		categories[CollectionTypes] = {
 			id: existingCategory?.id || `c${crypto.randomBytes(4).toString('hex')}`,
-			name: collectionName.replace(/([A-Z])/g, ' $1').trim(),
+			name: collectionTypes.replace(/([A-Z])/g, ' $1').trim(),
 			icon: existingCategory?.icon || 'bi:file-text',
 			isCollection: true
 		};

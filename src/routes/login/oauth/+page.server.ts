@@ -53,8 +53,9 @@ async function generateGoogleAuthUrl(token?: string | null): Promise<string> {
 		access_type: 'offline',
 		scope: scopes.join(' '),
 		redirect_uri: baseUrl,
-		state: token ? encodeURIComponent(token) : undefined, // Pass token in state parameter
-		prompt: 'consent'
+		state: token ? encodeURIComponent(token) : undefined,
+		prompt: 'consent',
+		include_granted_scopes: true
 	});
 
 	logger.debug(`Generated OAuth URL: ${authUrl}`);
@@ -222,7 +223,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		}
 
 		// Extensive logging for OAuth redirect
-		logger.debug('OAuth Redirect URL Details:');
+		logger.debug('OAuth Callback Details:');
 		logger.debug(`Full URL: ${url.toString()}`);
 		logger.debug(`Host: ${url.host}`);
 		logger.debug(`Pathname: ${url.pathname}`);
@@ -239,24 +240,25 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		}
 
 		const code = url.searchParams.get('code');
-		const state = url.searchParams.get('state'); // Get token from state parameter
+		const state = url.searchParams.get('state');
 		const token = state ? decodeURIComponent(state) : null;
 
 		logger.debug(`Authorization code from URL: ${code}`);
 		logger.debug(`Registration token from state: ${token}`);
 		logger.debug(`Is First User: ${!firstUserExists}`);
 
-		// Detailed logging for different scenarios
-		if (!firstUserExists && !code) {
-			logger.debug('No first user and no code - redirecting to OAuth');
-			try {
-				const authUrl = await generateGoogleAuthUrl();
-				throw redirect(302, authUrl);
-			} catch (err) {
-				logger.error('Error generating OAuth URL:', err);
-				throw error(500, 'Failed to initialize OAuth');
+		// If no code is present, handle initial OAuth flow
+		if (!code) {
+			if (!firstUserExists) {
+				logger.debug('No first user and no code - redirecting to OAuth');
+				try {
+					const authUrl = await generateGoogleAuthUrl();
+					throw redirect(302, authUrl);
+				} catch (err) {
+					logger.error('Error generating OAuth URL:', err);
+					throw error(500, 'Failed to initialize OAuth');
+				}
 			}
-		}
 
 		// For non-first users without a token, show token input form
 		if (firstUserExists && !token && !code) {
@@ -275,36 +277,66 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			};
 		}
 
+		// Process OAuth callback
 		try {
 			const googleAuthClient = await googleAuth();
 			if (!googleAuthClient) {
-				throw new Error('Google OAuth is not initialized');
+				logger.error('Google OAuth client initialization failed');
+				throw error(500, 'OAuth service is not available');
 			}
 
-			logger.debug('Fetching tokens using authorization code...');
-			const { tokens } = await googleAuthClient.getToken(code);
+			const redirectUri = `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`;
+			logger.debug(`Using redirect URI for token exchange: ${redirectUri}`);
+
+			const { tokens } = await googleAuthClient.getToken({
+				code,
+				redirect_uri: redirectUri
+			});
+
+			if (!tokens) {
+				logger.error('Failed to obtain tokens from Google');
+				throw error(500, 'Failed to authenticate with Google');
+			}
+
 			setCredentials(tokens);
 
 			// Fetch Google user profile
 			const oauth2 = google.oauth2({ auth: googleAuthClient, version: 'v2' });
 			const { data: googleUser } = await oauth2.userinfo.get();
 
+			if (!googleUser) {
+				logger.error('Failed to fetch Google user profile');
+				throw error(500, 'Could not retrieve user information');
+			}
+
 			await handleGoogleUser(googleUser as GoogleUserInfo, !firstUserExists, token, cookies, fetch);
-			logger.info('Successfully created session and set cookie');
+			logger.info('Successfully processed OAuth callback and created session');
+
+			// Redirect to first collection
+			const redirectUrl = await fetchAndRedirectToFirstCollection();
+			logger.debug(`Redirecting to: ${redirectUrl}`);
+			throw redirect(302, redirectUrl);
+
 		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : 'Unknown error during OAuth process';
-			logger.error('Error during login process:', err);
+			if (err instanceof Error && 'status' in err && err.status === 302) {
+				throw err;
+			}
+
+			const errorMessage = err instanceof Error ? err.message : 'Unknown error during OAuth callback';
+			logger.error('OAuth callback processing error:', {
+				error: err,
+				stack: err instanceof Error ? err.stack : undefined,
+				code,
+				token
+			});
 			throw error(500, errorMessage);
 		}
-
-		try {
-			const redirectUrl = await fetchAndRedirectToFirstCollection();
-			redirect(302, redirectUrl);
-		} catch (err) {
-			logger.error('Error during redirection:', err);
-			throw error(500, 'Failed to redirect after OAuth process');
-		}
 	} catch (err) {
+		// Only throw error if it's not already a redirect
+		if (err instanceof Error && 'status' in err && err.status === 302) {
+			throw err;
+		}
+
 		const errorMessage = err instanceof Error ? err.message : 'Unknown error during OAuth process';
 		logger.error('Comprehensive OAuth Error:', {
 			message: errorMessage,

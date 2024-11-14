@@ -53,7 +53,7 @@ async function getS3Client() {
 }
 
 // Moves a file to the trash folder
-export async function moveMediaToTrash(url: string, collectionName: string): Promise<void> {
+export async function moveMediaToTrash(url: string, collectionTypes: string): Promise<void> {
 	try {
 		if (!url) {
 			throw new Error('URL is required');
@@ -108,10 +108,10 @@ export async function moveMediaToTrash(url: string, collectionName: string): Pro
 
 		// Update database record if available
 		if (dbAdapter) {
-			const fileRecord = await dbAdapter.findOne(collectionName, { url });
+			const fileRecord = await dbAdapter.findOne(collectionTypes, { url });
 			if (fileRecord) {
 				await dbAdapter.updateOne(
-					collectionName,
+					collectionTypes,
 					{ _id: fileRecord._id },
 					{
 						$set: {
@@ -159,7 +159,7 @@ export async function saveFileToDisk(buffer: Buffer, url: string): Promise<void>
 }
 
 // Saves a remote media file to the database
-export async function saveRemoteMedia(fileUrl: string, collectionName: string, user_id: string): Promise<{ id: string; fileInfo: MediaRemoteVideo }> {
+export async function saveRemoteMedia(fileUrl: string, collectionTypes: string, user_id: string): Promise<{ id: string; fileInfo: MediaRemoteVideo }> {
 	try {
 		// Fetch the media file from the provided URL
 		const response = await fetch(fileUrl);
@@ -223,7 +223,7 @@ export async function saveRemoteMedia(fileUrl: string, collectionName: string, u
 		const id = await dbAdapter.insertOne('media_remote_videos', fileInfo);
 		await setCache(`media:${id}`, fileInfo, 3600); // Cache for 1 hour
 
-		logger.info('Remote media saved to database', { collectionName, fileInfo });
+		logger.info('Remote media saved to database', { collectionTypes, fileInfo });
 		return { id, fileInfo };
 	} catch (error) {
 		logger.error('Error saving remote media:', error instanceof Error ? error : new Error(String(error)));
@@ -236,7 +236,7 @@ export async function saveResizedImages(
 	buffer: Buffer,
 	hash: string,
 	fileName: string,
-	collectionName: string,
+	collectionTypes: string,
 	ext: string,
 	path: string
 ): Promise<Record<string, ResizedImage>> {
@@ -261,7 +261,7 @@ export async function saveResizedImages(
 			})
 			.toBuffer({ resolveWithObject: true });
 
-		const resizedUrl = constructUrl(path, hash, `${fileName}-${size}`, format, collectionName);
+		const resizedUrl = constructUrl(path, hash, `${fileName}-${size}`, format, collectionTypes);
 		await saveFileToDisk(resizedImage.data, resizedUrl);
 
 		thumbnails[size] = {

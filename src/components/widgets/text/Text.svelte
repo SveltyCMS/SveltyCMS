@@ -152,7 +152,7 @@
 		<input
 			type="text"
 			bind:value={_data[_language]}
-			on:blur={validateInput}
+			onblur={validateInput}
 			name={field?.db_fieldName}
 			id={field?.db_fieldName}
 			bind:this={inputElement}

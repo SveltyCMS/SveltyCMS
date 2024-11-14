@@ -10,10 +10,18 @@
  */
 
 import { store } from '@src/utils/reactivity.svelte';
-import type { CollectionTypes, Schema, CategoryData } from '@src/collections/types';
+import type { Schema, CategoryData } from '@src/collections/types';
+import type { Permission } from '@src/auth/types';
 
 // Define types
 type ModeType = 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
+type CollectionType = string; // Base type for collection names
+
+// Widget interface
+interface Widget {
+    permissions: Record<string, Record<string, boolean>>;
+    [key: string]: any; // Allow other properties
+}
 
 // Status map for various collection states
 export const statusMap = {
@@ -26,45 +34,33 @@ export const statusMap = {
 } as const;
 
 // Create reactive stores
-export const collections = store<{ [key in CollectionTypes]: Schema }>({} as { [key in CollectionTypes]: Schema });
+export const collections = store<{ [key: CollectionType]: Schema }>({} as { [key: CollectionType]: Schema });
 export const unAssigned = store<Schema[]>([]);
 export const collection = store<Schema>({} as Schema);
 export const collectionValue = store({} as { [key: string]: any });
 export const mode = store<ModeType>('view');
 export const modifyEntry = store((_: keyof typeof statusMap): any => {});
 export const selectedEntries = store<string[]>([]);
-export const targetWidget = store({});
+export const targetWidget = store<Widget>({ permissions: {} });
 export const categories = store<Record<string, CategoryData>>({});
 
-// Reactive calculations
-export const totalCollections = store(0);
-export const hasSelectedEntries = store(false);
-export const activeCollectionName = store<string | undefined>(undefined);
-
-// Update derived values whenever the source stores change
-collections.subscribe(($collections) => {
-	totalCollections.set(Object.keys($collections).length);
-});
-
-selectedEntries.subscribe(($selectedEntries) => {
-	hasSelectedEntries.set($selectedEntries.length > 0);
-});
-
-collection.subscribe(($collection) => {
-	activeCollectionName.set($collection?.name);
-});
+// Reactive calculations using store
+export const totalCollections = store(() => Object.keys(collections.value).length);
+export const hasSelectedEntries = store(() => selectedEntries.value.length > 0);
+export const currentCollectionName = store(() => collection.value?.name);
 
 // Helper functions for selected entries
 export const selectedEntriesActions = {
 	addEntry: (entryId: string) => {
-		const current = selectedEntries();
+		const current = selectedEntries.value;
 		if (!current.includes(entryId)) {
 			selectedEntries.set([...current, entryId]);
 		}
 	},
 
 	removeEntry: (entryId: string) => {
-		selectedEntries.set(selectedEntries().filter((id) => id !== entryId));
+		const currentEntries = selectedEntries.value;
+		selectedEntries.set(currentEntries.filter((id) => id !== entryId));
 	},
 
 	clear: () => {

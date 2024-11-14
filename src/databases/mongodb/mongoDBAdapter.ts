@@ -252,8 +252,8 @@ export class MongoDBAdapter implements dbInterface {
 					continue;
 				}
 
-				const collectionName = String(collection.name);
-				logger.debug(`Setting up collection model for ${collectionName}`);
+				const collectionTypes = String(collection.name);
+				logger.debug(`Setting up collection model for ${collectionTypes}`);
 
 				// Define base schema definition with more flexible typing
 				const schemaDefinition: Record<string, SchemaDefinitionProperty> = {
@@ -281,7 +281,7 @@ export class MongoDBAdapter implements dbInterface {
 						const fieldType = this.mapFieldType(field.type || 'string');
 
 						// Check if the config has a required property, default to false
-						const isRequired = field.config && typeof field.config === 'object' && 'required' in field.config ? Boolean(field.config) : false;
+						const isRequired = field.config?.required === true;
 
 						// Explicitly type the field definition
 						schemaDefinition[fieldKey] = {
@@ -295,18 +295,18 @@ export class MongoDBAdapter implements dbInterface {
 					typeKey: '$type',
 					strict: true,
 					timestamps: true,
-					collection: collectionName.toLowerCase()
+					collection: CollectionTypes.toLowerCase()
 				};
 
 				// Safely create or retrieve model
-				const existingModel = mongoose.models[collectionName];
+				const existingModel = mongoose.models[collectionTypes];
 				if (existingModel) {
-					logger.debug(`Collection model for ${collectionName} already exists.`);
-					collectionsModels[collectionName] = existingModel;
+					logger.debug(`Collection model for ${collectionTypes} already exists.`);
+					collectionsModels[collectionTypes] = existingModel;
 				} else {
-					logger.debug(`Creating new collection model for ${collectionName}.`);
+					logger.debug(`Creating new collection model for ${collectionTypes}.`);
 					const schema = new mongoose.Schema(schemaDefinition, schemaOptions);
-					collectionsModels[collectionName] = mongoose.model(collectionName, schema);
+					collectionsModels[collectionTypes] = mongoose.model(collectionTypes, schema);
 				}
 			}
 
@@ -1120,13 +1120,13 @@ export class MongoDBAdapter implements dbInterface {
 	// Fetch the last five collections
 	async getLastFiveCollections(): Promise<any[]> {
 		try {
-			const collectionNames = Object.keys(mongoose.models);
+			const collectionTypes = Object.keys(mongoose.models);
 			const recentCollections: any[] = [];
 
-			for (const collectionName of collectionNames) {
-				const model = mongoose.models[collectionName];
+			for (const collectionTypes of collectionTypes) {
+				const model = mongoose.models[collectionTypes];
 				const recentDocs = await model.find().sort({ createdAt: -1 }).limit(5).lean().exec();
-				recentCollections.push({ collectionName, recentDocs });
+				recentCollections.push({ collectionTypes, recentDocs });
 			}
 
 			logger.info(`Fetched last five documents from ${recentCollections.length} collections.`);

@@ -1,5 +1,5 @@
 <!-- 
-@files src/routes/(app)/config/collectionbuilder/[...collectionName]/tabs/CollectionForm.svelte
+@files src/routes/(app)/config/collectionbuilder/[...collectionTypes]/tabs/CollectionForm.svelte
 @component
 **This component displays the collection form**
 
@@ -27,7 +27,6 @@ Features:
 
 	// Collection Manager
 	import { collectionManager } from '@src/collections/CollectionManager';
-	import type { Schema, CollectionTypes } from '@src/collections/types';
 
 	interface Props {
 		'on:updatePageTitle'?: (title: string) => void;
@@ -36,14 +35,14 @@ Features:
 	let { 'on:updatePageTitle': onUpdatePageTitle = () => {} }: Props = $props();
 
 	// Extract the collection name from the URL
-	let CollectionTypes = $page.params.CollectionTypes;
+	let collectionTypes = $page.params.CollectionTypes;
 
 	// Check if collection Name exists set mode edit or create
-	const collectionExists = Object.values($collections).some((x) => x.name === CollectionTypes);
+	const collectionExists = Object.values($collections).some((x) => x.name === collectionTypes);
 	if (collectionExists) {
 		// Get collection data from CollectionManager
 		const { collections: collectionData } = collectionManager.getCollectionData();
-		const collection = collectionData.find((x) => x?.name === CollectionTypes);
+		const collection = collectionData.find((x) => x?.name === collectionTypes);
 		if (collection) {
 			mode.set('edit');
 			collectionValue.set(collection); // current collection
@@ -52,7 +51,7 @@ Features:
 		collectionValue.set({
 			...$collectionValue,
 			fields: $collectionValue.fields ? $collectionValue.fields : [],
-			name: CollectionTypes
+			name: collectionTypes
 		});
 	}
 
