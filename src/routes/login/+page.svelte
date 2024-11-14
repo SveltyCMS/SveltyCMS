@@ -55,6 +55,9 @@ Features:
 		)
 	);
 
+	// Ensure a valid language is always used
+	const currentLanguage = $derived($systemLanguage && publicEnv.AVAILABLE_SYSTEM_LANGUAGES.includes($systemLanguage) ? $systemLanguage : 'en');
+
 	// Package version
 	// @ts-expect-error reading from vite.config.js
 	const pkg = __VERSION__;
@@ -63,7 +66,7 @@ Features:
 	function handleLanguageSelection(lang: string) {
 		clearTimeout(debounceTimeout);
 		debounceTimeout = setTimeout(() => {
-			systemLanguage.set(lang);
+			systemLanguage.set(lang as typeof $systemLanguage);
 			isDropdownOpen = false;
 			searchQuery = '';
 		}, 300);
@@ -230,7 +233,7 @@ Features:
 						class="flex items-center justify-between gap-2 rounded-full border-2 bg-[#242728] px-4 py-2 text-white transition-colors duration-300 hover:bg-[#363a3b] focus:ring-2"
 						onclick={handleDropdownToggle}
 					>
-						<span>{getLanguageName($systemLanguage)} ({$systemLanguage.toUpperCase()})</span>
+						<span>{getLanguageName(currentLanguage)} ({currentLanguage.toUpperCase()})</span>
 						<svg
 							class="h-5 w-5 transition-transform duration-300 {isDropdownOpen ? 'rotate-180' : ''}"
 							fill="none"
@@ -259,7 +262,7 @@ Features:
 							<div class="max-h-48 divide-y divide-gray-700 overflow-y-auto py-1">
 								{#each filteredLanguages as lang}
 									<button
-										class="flex w-full items-center justify-between px-4 py-2 text-left text-white transition-colors duration-300 hover:bg-[#363a3b] {$systemLanguage ===
+										class="flex w-full items-center justify-between px-4 py-2 text-left text-white transition-colors duration-300 hover:bg-[#363a3b] {currentLanguage ===
 										lang
 											? 'bg-[#363a3b]'
 											: ''}"
