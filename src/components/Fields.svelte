@@ -30,7 +30,7 @@ Key features:
 
 	// Stores
 	import { contentLanguage, tabSet, validationStore, translationProgress } from '@stores/store';
-	import { collection, collectionValue, mode } from '@stores/collectionStore';
+	import { collection, collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -72,7 +72,7 @@ Key features:
 	$effect(() => {
 		if ($collectionValue) {
 			const id = $collectionValue._id;
-			apiUrl = `${dev ? 'http://localhost:5173' : publicEnv.SITE_NAME}/api/${$collection?.name ?? ''}/${id}`;
+			apiUrl = `${dev ? 'http://localhost:5173' : publicEnv.SITE_NAME}/api/${String($collection?.name) ?? ''}/${id}`;
 		}
 	});
 
@@ -95,7 +95,7 @@ Key features:
 
 	function getLivePreviewContent() {
 		// Ensure $collection.name is a string
-		return `<div>Live Preview Content for ${$collection?.name ?? ''}</div>`;
+		return `<div>Live Preview Content for ${String($collection?.name) ?? ''}</div>`;
 	}
 
 	let filteredFields = $derived(filterFieldsByPermission(derivedFields, user.role));
@@ -180,7 +180,7 @@ Key features:
 													<!-- Display translation progress -->
 													<div class="text-xs font-normal">
 														({Math.round(
-															($translationProgress[$contentLanguage]?.translated.has(`${$collection?.name}.${getFieldName(field)}`) ? 1 : 0) * 100
+															$translationProgress[$contentLanguage]?.translated.has(`${String($collection?.name)}.${getFieldName(field)}`) ? 1 : 0
 														)}%)
 													</div>
 												</div>

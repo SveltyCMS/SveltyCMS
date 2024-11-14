@@ -21,7 +21,7 @@
 <script lang="ts">
 	// Stores
 	import { storeListboxValue } from '@stores/store';
-	import { mode, modifyEntry } from '@stores/collectionStore';
+	import { mode, modifyEntry } from '@root/src/stores/collectionStore.svelte';
 	import { handleSidebarToggle } from '@stores/sidebarStore';
 
 	// Components

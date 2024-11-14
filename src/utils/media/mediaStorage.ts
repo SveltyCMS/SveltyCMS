@@ -289,7 +289,7 @@ export async function saveAvatarImage(file: File): Promise<string> {
 			if (publicEnv.MEDIASERVER_URL) {
 				fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`;
 			} else {
-				fileUrl =`${publicEnv.MEDIA_FOLDER}/${fileUrl}`;
+				fileUrl = `${publicEnv.MEDIA_FOLDER}/${fileUrl}`;
 			}
 			return fileUrl;
 		}
@@ -359,7 +359,7 @@ export async function saveAvatarImage(file: File): Promise<string> {
 		if (publicEnv.MEDIASERVER_URL) {
 			fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`;
 		} else {
-			fileUrl =`${publicEnv.MEDIA_FOLDER}/${fileUrl}`;
+			fileUrl = `${publicEnv.MEDIA_FOLDER}/${fileUrl}`;
 		}
 
 		return fileUrl;

@@ -1,6 +1,13 @@
 <!-- 
 @file src/components/widgets/richText/RichText.svelte
-@description - RichText TipTap widget
+@component
+**RichText TipTap widget component**
+
+```tsx
+<RichText bind:field={field} />
+```
+**Props:**
+- `field` - {FieldType} - Field type
 -->
 
 <script lang="ts">
@@ -13,7 +20,7 @@
 
 	// Stores
 	import { contentLanguage, validationStore } from '@stores/store';
-	import { mode, collectionValue } from '@stores/collectionStore';
+	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
 
 	// Components
 	import DropDown from './components/DropDown.svelte';

@@ -1,6 +1,6 @@
 /**
- * @file src/stores/imageEditorStore.ts
- * @description Manages the image editor
+ * @file src/stores/imageEditorStore.svelte.ts
+ * @description Manages the image editor using Svelte 5 runes
  *
  * This provides functionality to:
  * - Undo and redo actions in the image editor
@@ -9,7 +9,7 @@
  * - Update image editor state reactively
  */
 
-import { writable, derived } from 'svelte/store';
+import { store } from '@src/utils/reactivity.svelte';
 import type Konva from 'konva';
 
 // Types
@@ -28,26 +28,26 @@ interface ImageEditorState {
 	imageNode: Konva.Image | null;
 }
 
-// Create base stores
-const createImageEditorStores = () => {
-	// Initial state
-	const initialState: ImageEditorState = {
-		file: null,
-		saveEditedImage: false,
-		editHistory: [],
-		currentHistoryIndex: -1,
-		stage: null,
-		layer: null,
-		imageNode: null
-	};
+// Initial state
+const initialState: ImageEditorState = {
+	file: null,
+	saveEditedImage: false,
+	editHistory: [],
+	currentHistoryIndex: -1,
+	stage: null,
+	layer: null,
+	imageNode: null
+};
 
+// Create base stores
+function createImageEditorStores() {
 	// Base store
-	const state = writable<ImageEditorState>(initialState);
+	const state = store<ImageEditorState>(initialState);
 
 	// Derived values
-	const canUndo = derived(state, ($state) => $state.currentHistoryIndex >= 0);
-	const canRedo = derived(state, ($state) => $state.currentHistoryIndex < $state.editHistory.length - 1);
-	const hasActiveImage = derived(state, ($state) => !!$state.file && !!$state.imageNode);
+	const canUndo = $derived(state().currentHistoryIndex >= 0);
+	const canRedo = $derived(state().currentHistoryIndex < state().editHistory.length - 1);
+	const hasActiveImage = $derived(!!state().file && !!state().imageNode);
 
 	// Methods to update state
 	function setFile(file: File | null) {
@@ -124,15 +124,10 @@ const createImageEditorStores = () => {
 	}
 
 	return {
-		// Base store
 		state,
-
-		// Derived values
 		canUndo,
 		canRedo,
 		hasActiveImage,
-
-		// Methods
 		setFile,
 		setSaveEditedImage,
 		setStage,
@@ -144,7 +139,7 @@ const createImageEditorStores = () => {
 		clearHistory,
 		reset
 	};
-};
+}
 
 // Create and export stores
 const stores = createImageEditorStores();
@@ -165,9 +160,9 @@ export const imageEditorStore = {
 };
 
 // Export derived values
-export const canUndo = { subscribe: stores.canUndo.subscribe };
-export const canRedo = { subscribe: stores.canRedo.subscribe };
-export const hasActiveImage = { subscribe: stores.hasActiveImage.subscribe };
+export const canUndo = { subscribe: () => stores.canUndo };
+export const canRedo = { subscribe: () => stores.canRedo };
+export const hasActiveImage = { subscribe: () => stores.hasActiveImage };
 
 // Export types
 export type { EditAction, ImageEditorState };

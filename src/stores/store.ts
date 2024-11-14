@@ -10,7 +10,7 @@
  */
 
 import { publicEnv } from '@root/config/public';
-import { writable, derived } from 'svelte/store';
+import { store } from '@src/utils/reactivity.svelte';
 
 // Paraglidejs
 import * as m from '@src/paraglide/messages';
@@ -21,13 +21,6 @@ interface ValidationErrors {
 	[fieldName: string]: string | null;
 }
 
-interface TranslationProgress {
-	[key: string]: {
-		total: Set<any>;
-		translated: Set<any>;
-	};
-}
-
 interface SaveFunction {
 	fn: (args?: unknown) => unknown;
 	reset: () => void;
@@ -36,49 +29,45 @@ interface SaveFunction {
 // Create base stores
 const createBaseStores = () => {
 	// Language and i18n
-	const systemLanguage = writable<AvailableLanguageTag>(publicEnv.DEFAULT_SYSTEM_LANGUAGE);
-	const contentLanguage = writable<AvailableLanguageTag>(publicEnv.DEFAULT_CONTENT_LANGUAGE);
-	const messages = writable({ ...m });
+	const systemLanguage = store<AvailableLanguageTag>(publicEnv.DEFAULT_SYSTEM_LANGUAGE);
+	const contentLanguage = store<AvailableLanguageTag>(publicEnv.DEFAULT_CONTENT_LANGUAGE);
+	const messages = store({ ...m });
 
 	// Translation status
-	const translationStatus = writable({});
-	const completionStatus = writable(0);
-	const translationStatusOpen = writable(false);
-	const translationProgress = writable<TranslationProgress | { show: boolean }>({ show: false });
+	const translationStatus = store({});
+	const completionStatus = store(0);
+	const translationStatusOpen = store(false);
+	const translationProgress = store({
+		show: false
+	} as { [key: string]: { total: any[]; translated: any[] } } | { show: boolean });
 
 	// UI state
-	const tabSet = writable(0);
-	const headerActionButton = writable<ConstructorOfATypedSvelteComponent | string | undefined>(undefined);
-	const headerActionButton2 = writable<ConstructorOfATypedSvelteComponent | string | undefined>(undefined);
-	const pkgBgColor = writable('variant-filled-primary');
-	const drawerExpanded = writable(true);
-	const storeListboxValue = writable('create');
+	const tabSet = store(0);
+	const headerActionButton = store<ConstructorOfATypedSvelteComponent | string | undefined>(undefined);
+	const headerActionButton2 = store<ConstructorOfATypedSvelteComponent | string | undefined>(undefined);
+	const pkgBgColor = store('variant-filled-primary');
+	const drawerExpanded = store(true);
+	const storeListboxValue = store('create');
 
 	// Loading state
-	const loadingProgress = writable(0);
-	const isLoading = writable(false);
+	const loadingProgress = store(0);
+	const isLoading = store(false);
 
 	// Image handling
-	const avatarSrc = writable('/Default_User.svg');
-	const file = writable<File | null>(null);
-	const saveEditedImage = writable(false);
+	const avatarSrc = store('/Default_User.svg');
+	const file = store<File | null>(null);
+	const saveEditedImage = store(false);
 
 	// Save functionality
-	const saveFunction = writable<SaveFunction>({
+	const saveFunction = store<SaveFunction>({
 		fn: () => {},
 		reset: () => {}
 	});
-	const saveLayerStore = writable(async () => {});
-	const shouldShowNextButton = writable(false);
+	const saveLayerStore = store(async () => {});
+	const shouldShowNextButton = store(false);
 
 	// Validation
-	const validationErrors = writable<ValidationErrors>({});
-
-	// Derived values
-	const isSystemLanguageSet = derived(systemLanguage, ($systemLanguage) => !!$systemLanguage);
-	const hasTranslationProgress = derived(translationStatus, ($translationStatus) => Object.keys($translationStatus).length > 0);
-	const isDrawerCollapsed = derived(drawerExpanded, ($drawerExpanded) => !$drawerExpanded);
-	const canSave = derived([isLoading, saveFunction], ([$isLoading, $saveFunction]) => !$isLoading && !!$saveFunction.fn);
+	const validationErrors = store<ValidationErrors>({});
 
 	// Initialize language tag
 	systemLanguage.subscribe((value) => {
@@ -123,13 +112,7 @@ const createBaseStores = () => {
 		shouldShowNextButton,
 
 		// Validation
-		validationErrors,
-
-		// Derived values
-		isSystemLanguageSet,
-		hasTranslationProgress,
-		isDrawerCollapsed,
-		canSave
+		validationErrors
 	};
 };
 
@@ -159,11 +142,7 @@ export const {
 	saveFunction,
 	saveLayerStore,
 	shouldShowNextButton,
-	validationErrors,
-	isSystemLanguageSet,
-	hasTranslationProgress,
-	isDrawerCollapsed,
-	canSave
+	validationErrors
 } = stores;
 
 // Export table headers constant

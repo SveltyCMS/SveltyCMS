@@ -1,6 +1,6 @@
 /* 
 @file src/collections/types.ts
-@description - Collection Types
+@description - Collection Type Definition for Collection Manager
 */
 
 import type widgets from '@components/widgets';
@@ -29,7 +29,7 @@ export type Field = {
 // Define the base Schema interface
 export interface Schema {
 	id: number; // Unique ID for collections
-	name: CollectionNames; // Collection name
+	name?: keyof CollectionTypes; // Collection name
 	label?: string; // Optional label that will display instead of name if used
 	slug?: string; // Optional Slug for the collection
 	icon?: string; // Optional icon
@@ -40,7 +40,7 @@ export interface Schema {
 	permissions?: Permission; // Optional permission restrictions
 	livePreview?: boolean; // Optional live preview
 	status?: 'draft' | 'published' | 'unpublished' | 'scheduled' | 'cloned'; // Optional default status
-	links?: Array<CollectionNames>; // Optional links to other collections
+	links?: Array<keyof CollectionTypes>; // Optional links to other collections
 	fields: Field[]; // Collection fields
 }
 
@@ -81,4 +81,7 @@ export interface ProcessedCategoryData extends CategoryData {
 	collections: Schema[]; // Collections in the category
 	subcategories: Record<string, ProcessedCategoryData>; // Nested subcategories after processing
 }
-export type CollectionNames = 'CollectionManager' | 'categories';
+
+// Collection types
+export type CollectionTypes = 'CollectionManager' | 'categories';
+export type CollectionNames = 'CollectionManager'|'categories';

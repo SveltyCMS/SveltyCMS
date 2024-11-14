@@ -10,16 +10,16 @@
  * - Error handling
  */
 
+import axios from 'axios';
 import { error } from '@sveltejs/kit';
 import { browser, building, dev } from '$app/environment';
-import axios from 'axios';
 import { getCollectionFiles } from '@api/getCollections/getCollectionFiles';
 import { createRandomID } from '@utils/utils';
 import { categoryConfig } from './categories';
 import { getCollectionModels } from '@src/databases/db';
 
 // Stores
-import { categories, collections, unAssigned, collection, collectionValue, mode } from '@stores/collectionStore';
+import { categories, collections, unAssigned, collection, collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
 import type { Unsubscriber } from 'svelte/store';
 
 // Components

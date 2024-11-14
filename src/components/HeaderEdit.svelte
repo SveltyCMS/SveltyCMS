@@ -29,8 +29,8 @@
 -->
 
 <script lang="ts">
-	import { getFieldName, saveFormData, meta_data } from '@utils/utils';
-	import { publicEnv } from '@root/config/public';
+	import { getFieldName, meta_data } from '@utils/utils';
+	import { saveFormData } from '../utils/data';
 
 	// Components
 	import TranslationStatus from './TranslationStatus.svelte';
@@ -38,7 +38,6 @@
 
 	// Types
 	import type { CategoryData } from '@src/collections/types';
-	import type { CollectionValue } from '@stores/collectionStore';
 
 	// Skeleton
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
@@ -46,9 +45,9 @@
 
 	// Stores
 	import { page } from '$app/stores';
-	import { collection, categories, collectionValue, mode, modifyEntry, statusMap } from '@stores/collectionStore';
+	import { collection, categories, collectionValue, mode, modifyEntry, statusMap } from '@root/src/stores/collectionStore.svelte';
 	import { toggleSidebar, sidebarState } from '@stores/sidebarStore';
-	import { screenSize } from '@stores/screenSizeStore';
+	import { screenSize } from '@root/src/stores/screenSizeStore.svelte';
 	import { contentLanguage, tabSet, validationStore, headerActionButton } from '@stores/store';
 
 	// Auth

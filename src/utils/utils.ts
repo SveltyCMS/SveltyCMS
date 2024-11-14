@@ -8,7 +8,7 @@
  * - Date and time formatting (convertTimestampToDateString, formatUptime, ReadableExpireIn)
  * - Data manipulation and validation (extractData, deepCopy, validateValibot)
  * - Internationalization helpers (getTextDirection, updateTranslationProgress)
- * - Database operations (find, findById, saveFormData, deleteData)
+ * - Database operations (find, findById)
  * - UI-related utilities (getGuiFields, motion)
  * - String manipulation (pascalToCamelCase, getEditDistance)
  * - Cryptographic functions (createRandomID, sha256)
@@ -24,20 +24,13 @@
  */
 
 import { publicEnv } from '@root/config/public';
-import { error } from '@sveltejs/kit';
 import axios from 'axios';
-import type { BaseSchema } from 'valibot';
-
-// Auth
-import type { User } from '@src/auth/types';
-import { addData, updateData, handleRequest } from '@utils/data';
-
-import type { CollectionNames, Schema } from '@src/collections/types';
+import * as v from 'valibot';
+import type { BaseIssue, BaseSchema } from 'valibot';
 
 // Stores
 import { get } from 'svelte/store';
 import { translationProgress, contentLanguage } from '@stores/store';
-import { collectionValue, mode, collection } from '@stores/collectionStore';
 
 // System Logger
 import { logger, type LoggableValue } from '@utils/logger';
@@ -65,33 +58,38 @@ export const getGuiFields = (fieldParams: { [key: string]: any }, GuiSchema: { [
 export const obj2formData = (obj: Record<string, any>) => {
 	const formData = new FormData();
 
-	for (const key in obj) {
-		const value = obj[key];
-
-		const data = JSON.stringify(value, (k, val) => {
-			// Early return for specific conditions
-			if (!val && val !== false) return undefined;
-			if (k === 'schema') return undefined;
-			if (k === 'display' && val?.default) return undefined;
-			if (k === 'display') return `🗑️${val}🗑️`.replace(/display/g, 'function display');
-			if (k === 'widget') return { key: val.key, GuiFields: val.GuiFields };
-			if (typeof val === 'function') return `🗑️${val}🗑️`;
-
-			return val;
-		});
-
-		if (data) {
-			formData.append(key, data);
+	const transformValue = (key: string, value: any): any => {
+		// Define specific handling cases
+		if (!value && value !== false) return undefined;
+		if (key === 'schema') return undefined;
+		if (key === 'display') {
+			if (value?.default) return undefined;
+			return `🗑️${value}🗑️`.replaceAll('display', 'function display');
 		}
+		if (key === 'widget') {
+			return { key: value.key, GuiFields: value.GuiFields };
+		}
+		if (typeof value === 'function') return `🗑️${value}🗑️`;
+		return value;
+	};
+
+	// Iterate over entries to avoid redundant lookups
+	for (const [key, originalValue] of Object.entries(obj)) {
+		const transformedValue = transformValue(key, originalValue);
+		if (transformedValue === undefined) continue; // Skip invalid values
+
+		const serialized = JSON.stringify(transformedValue);
+		if (serialized) formData.append(key, serialized); // Append only valid data
 	}
 
 	return formData;
 };
 
-// Converts data to FormData object
+// Converts data to FormData object with optimized file handling and type safety
 export const col2formData = async (getData: { [Key: string]: () => any }) => {
+	// used to save data
 	const formData = new FormData();
-	const data = {};
+	const data: Record<string, any> = {};
 
 	// Debugging: Log the initial object state
 	logger.debug('Initial data object:', `${JSON.stringify(getData)}`);
@@ -173,6 +171,7 @@ export function parse(obj: any) {
 
 // Converts fields to schema object
 export const fieldsToSchema = (fields: Array<any>) => {
+	// removes widget, so it does not set up in db
 	let schema: any = {};
 	for (const field of fields) {
 		schema = { ...schema, ...field.schema };
@@ -238,139 +237,8 @@ export function getFieldName(field: any, sanitize = false) {
 	return (field?.db_fieldName || field?.label) as string;
 }
 
-// Save Collections data to the database
-export async function saveFormData({
-	data,
-	_collection,
-	_mode,
-	id,
-	// user_id,
-	user
-}: {
-	data: FormData | { [Key: string]: () => any };
-	_collection?: Schema;
-	_mode?: 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
-	id?: string;
-	user_id?: string;
-	user?: User;
-	// dbAdapter?: any;
-	// authAdapter?: any;
-}) {
-	logger.debug('saveFormData was called');
-
-	const $mode = _mode || get(mode);
-	const $collection = _collection || get(collection);
-	const $collectionValue = get(collectionValue);
-
-	// Debugging: Log the incoming data
-	logger.debug('Incoming data:', data);
-
-	// Convert the collection data to FormData if not already an instance of FormData
-	const formData = data instanceof FormData ? data : await col2formData(data);
-
-	if (_mode === 'edit' && !id) {
-		const message = 'ID is required for edit mode.';
-		logger.error(message);
-		throw error(400, message);
-	}
-
-	if (!formData) {
-		const message = 'FormData is empty, unable to save.';
-		logger.error(message);
-		throw error(400, message);
-	}
-
-	// Debugging: Log the generated FormData
-	logger.debug('Generated FormData:');
-	for (const [key, value] of formData.entries()) {
-		logger.debug(`FormData key: ${key}, value: ${value}`);
-	}
-
-	if (!meta_data.is_empty()) {
-		formData.append('_meta_data', JSON.stringify(meta_data.get()));
-	}
-
-	formData.append('status', $collectionValue.status || 'unpublished');
-
-	const username = user ? user.username : 'Unknown';
-
-	try {
-		switch ($mode) {
-			case 'create':
-				logger.debug('Saving data in create mode.');
-				formData.append('createdAt', Math.floor(Date.now() / 1000).toString());
-				formData.append('updatedAt', formData.get('createdAt') as string);
-
-				return await addData({ data: formData, collectionName: $collection.name as any });
-
-			case 'edit':
-				logger.debug('Saving data in edit mode.');
-				formData.append('_id', id || $collectionValue._id);
-				formData.append('updatedAt', Math.floor(Date.now() / 1000).toString());
-
-				if ($collection.revision) {
-					logger.debug('Creating new revision.');
-					const newRevision = {
-						...$collectionValue,
-						_id: await createRandomID(),
-						__v: [
-							...($collectionValue.__v || []),
-							{
-								revisionNumber: $collectionValue.__v ? $collectionValue.__v.length : 0,
-								editedAt: Math.floor(Date.now() / 1000).toString(),
-								editedBy: { username },
-								changes: {}
-							}
-						]
-					};
-
-					const revisionFormData = new FormData();
-					revisionFormData.append('data', JSON.stringify(newRevision));
-					revisionFormData.append('collectionName', $collection.name as any);
-
-					await handleRequest(revisionFormData, 'POST');
-				}
-
-				return await updateData({ data: formData, collectionName: $collection.name as any });
-
-			default: {
-				const message = `Unhandled mode: ${$mode}`;
-				logger.error(message);
-				throw error(400, message);
-			}
-		}
-	} catch (err) {
-		const message = `Failed to save data in mode ${$mode}: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
-		throw error(500, message);
-	}
-}
-
-// Move FormData to trash folder and delete trash files older than 30 days
-export async function deleteData({ data, collectionName }: { data: FormData; collectionName: CollectionNames }) {
-	data.append('collectionName', collectionName);
-	data.append('method', 'DELETE');
-
-	try {
-		logger.debug(`Deleting data for collection: ${collectionName}`);
-		const response = await axios.post(`/api/query`, data, config);
-		logger.debug(`Data deleted successfully for collection: ${collectionName}`);
-		return response.data;
-	} catch (err) {
-		const message = `Error deleting data for collection ${collectionName}: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
-		if (axios.isAxiosError(err)) {
-			logger.error('Axios error details:', {
-				response: err.response?.data,
-				status: err.response?.status,
-				headers: err.response?.headers
-			});
-		}
-		throw error(500, message);
-	}
-}
-
 export async function extractData(fieldsData: any): Promise<{ [key: string]: any }> {
+	// extract data from fieldsData because FieldsData is async
 	const temp = {};
 	for (const key in fieldsData) {
 		temp[key] = await fieldsData[key]();
@@ -507,29 +375,30 @@ export function debounce(delay?: number) {
 	};
 }
 
-export function validateValibot<T>(schema: BaseSchema<T, T, any>, value?: T): null | { [P in keyof T]?: string[] } {
+// Validates data against a Valibot schema, returning errors or null if valid
+export function validateValibot<T>(schema: BaseSchema<T, T, BaseIssue<unknown>>, value?: T): null | { [P in keyof T]?: string[] } {
 	try {
-		// Use safeParse instead of parse for validation
-		const result = schema.safeParse(value);
+		// Use v.safeParse to handle parsing
+		const result = v.safeParse(schema, value);
+
 		if (result.success) {
-			return null;
+			return null; // No errors
 		}
 
 		const fieldErrors = {} as { [P in keyof T]?: string[] };
-		const issues = result.issues || [];
 
-		for (const issue of issues) {
+		// Iterate over issues and populate field errors
+		for (const issue of result.issues) {
 			const path = issue.path?.[0]?.key as keyof T;
 			if (path) {
-				if (!fieldErrors[path]) {
-					fieldErrors[path] = [];
-				}
+				fieldErrors[path] = fieldErrors[path] || [];
 				fieldErrors[path]!.push(issue.message);
 			}
 		}
 
 		return fieldErrors;
 	} catch (error) {
+		logger.error('Validation error:', error as LoggableValue);
 		return null;
 	}
 }
@@ -604,28 +473,29 @@ export function getEditDistance(a: string, b: string): number | undefined {
 	return normalizedDistance;
 }
 
+// Update translation progress
 export function updateTranslationProgress(data, field) {
 	const languages = publicEnv.AVAILABLE_CONTENT_LANGUAGES;
-	const $translationProgress = get(translationProgress);
-	const $collection = get(collection);
+	translationProgress.update((current) => {
+		for (const lang of languages) {
+			if (!current[lang]) {
+				current[lang] = { total: new Set(), translated: new Set() };
+			}
 
-	for (const lang of languages) {
-		if (!$translationProgress[lang]) {
-			$translationProgress[lang] = { total: new Set(), translated: new Set() };
-		}
-
-		if (field?.translated) {
-			$translationProgress[lang].total.add(`${$collection.name}.${getFieldName(field)}`);
-			if (data[lang]) {
-				$translationProgress[lang].translated.add(`${$collection.name}.${getFieldName(field)}`);
-			} else {
-				$translationProgress[lang].translated.delete(`${$collection.name}.${getFieldName(field)}`);
+			if (field?.translated) {
+				current[lang].total.add(field);
+				if (data[lang]) {
+					current[lang].translated.add(field);
+				} else {
+					current[lang].translated.delete(field);
+				}
 			}
 		}
-	}
-	translationProgress.set($translationProgress);
+		return current;
+	});
 }
 
+// Get elements by ID
 export const get_elements_by_id = {
 	store: {},
 	add(collection: string, id: string, callback: (data: any) => void) {
@@ -639,6 +509,7 @@ export const get_elements_by_id = {
 			this.store[collection][id].push(callback);
 		}
 	},
+
 	async getAll(dbAdapter: any) {
 		const store = this.store;
 		this.store = {};
@@ -748,7 +619,7 @@ export function sha256(buffer: Buffer) {
 	});
 }
 
-function hex(buffer) {
+function hex(buffer: ArrayBuffer): string {
 	let digest = '';
 	const view = new DataView(buffer);
 	for (let i = 0; i < view.byteLength; i += 4) {
@@ -758,6 +629,5 @@ function hex(buffer) {
 		const paddedValue = (padding + stringValue).slice(-padding.length);
 		digest += paddedValue;
 	}
-
-	return digest;
+	return digest; // Return the digest
 }

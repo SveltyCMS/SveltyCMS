@@ -18,7 +18,7 @@ import crypto from 'crypto';
 import { browser } from '$app/environment';
 
 // Types
-import type { Schema, CollectionNames, Category, CategoryData } from './types';
+import type { Schema, CollectionTypes, Category, CategoryData } from './types';
 
 // Utils
 import { createRandomID } from '@utils/utils';
@@ -28,7 +28,7 @@ import { logger } from '@utils/logger';
 import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/redis';
 
 // Stores
-import { categories, collections, unAssigned, collection, collectionValue, mode } from '@stores/collectionStore';
+import { categories, collections, unAssigned, collection, collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
 
 // Components
 import { initWidgets } from '@components/widgets';
@@ -38,7 +38,7 @@ import { categoryConfig } from './categories';
 
 // file system
 import fs from 'fs/promises';
-import path from "path";
+import path from 'path';
 
 interface ProcessedModule {
 	schema?: Partial<Schema>;
@@ -188,7 +188,7 @@ class CollectionManager {
 	}
 
 	// Lazy loading with Redis support
-	private async lazyLoadCollection(name: CollectionNames): Promise<Schema | null> {
+	private async lazyLoadCollection(name: CollectionTypes): Promise<Schema | null> {
 		const cacheKey = `collection_${name}`;
 
 		// Try getting from cache (Redis or memory)
@@ -374,7 +374,7 @@ class CollectionManager {
 				const randomId = await createRandomID();
 				const processed: Schema = {
 					...schema,
-					name: name as CollectionNames,
+					name: name as CollectionTypes,
 					id: parseInt(randomId.toString().slice(0, 8), 16),
 					icon: schema.icon || 'iconoir:info-empty',
 					path: this.extractPathFromFilePath(filePath),

@@ -18,7 +18,7 @@
 
 	// Stores
 	import { contentLanguage } from '@stores/store';
-	import { collection, collectionValue } from '@stores/collectionStore';
+	import { collection, collectionValue } from '@root/src/stores/collectionStore.svelte';
 
 	interface Props {
 		dropDownData?: any[];

@@ -14,7 +14,7 @@ import widgets, { type ModifyRequestParams } from '..';
 // Stores
 import { writable, type Writable } from 'svelte/store';
 import { headerActionButton2 } from '@stores/store';
-import { collectionValue, mode } from '@stores/collectionStore';
+import { collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';

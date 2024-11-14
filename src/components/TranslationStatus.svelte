@@ -23,7 +23,7 @@
 	import { publicEnv } from '@root/config/public';
 	import { getFieldName } from '@utils/utils';
 	import { contentLanguage, translationStatusOpen, translationProgress } from '@stores/store';
-	import { mode } from '@stores/collectionStore';
+	import { mode } from '@root/src/stores/collectionStore.svelte';
 
 	import { ProgressBar } from '@skeletonlabs/skeleton';
 
@@ -73,14 +73,15 @@
 
 	// Effect to update completion status when translation progress changes
 	$effect(() => {
-		if ($translationProgress.show) {
+		const progress = translationProgress();
+		if (progress.show) {
 			let total = 0;
 			let totalTranslated = 0;
 			for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES) {
-				const progress = $translationProgress[lang];
-				if (!progress || typeof progress === 'boolean') continue;
-				totalTranslated += progress.translated.size;
-				total += progress.total.size;
+				const langProgress = progress[lang];
+				if (!langProgress || typeof langProgress === 'boolean') continue;
+				totalTranslated += langProgress.translated.size;
+				total += langProgress.total.size;
 			}
 			completionStatus = Math.round((totalTranslated / total) * 100);
 		} else {
@@ -91,9 +92,9 @@
 	// Effect to update translation progress based on mode
 	$effect(() => {
 		if ($mode !== 'view') {
-			translationProgress.set({ show: true });
+			translationProgress.update((current) => ({ ...current, show: true }));
 		} else {
-			translationProgress.set({ show: false });
+			translationProgress.update((current) => ({ ...current, show: false }));
 		}
 	});
 </script>
@@ -138,23 +139,23 @@
 							<div class="flex items-center justify-between gap-1">
 								<span class="font-bold">{lang.toUpperCase()}</span>
 								<span class="text-xs">
-									{#if $translationProgress[lang] && typeof $translationProgress[lang] !== 'boolean' && $translationProgress[lang].translated && $translationProgress[lang].total}
-										{Math.round(($translationProgress[lang].translated.size / $translationProgress[lang].total.size) * 100)}%
+									{#if translationProgress()[lang] && typeof translationProgress()[lang] !== 'boolean' && translationProgress()[lang].translated && translationProgress()[lang].total}
+										{Math.round((translationProgress()[lang].translated.size / translationProgress()[lang].total.size) * 100)}%
 									{:else}
 										0%
 									{/if}
 								</span>
 							</div>
 
-							{#if $translationProgress[lang] && typeof $translationProgress[lang] !== 'boolean' && $translationProgress[lang].translated && $translationProgress[lang].total}
+							{#if translationProgress()[lang] && typeof translationProgress()[lang] !== 'boolean' && translationProgress()[lang].translated && translationProgress()[lang].total}
 								<ProgressBar
-									value={Math.round(($translationProgress[lang].translated.size / $translationProgress[lang].total.size) * 100)}
+									value={Math.round((translationProgress()[lang].translated.size / translationProgress()[lang].total.size) * 100)}
 									labelledby={lang.toUpperCase()}
 									min={0}
 									max={100}
 									rounded="none"
 									height="h-1"
-									meter={getColor(Math.round(($translationProgress[lang].translated.size / $translationProgress[lang].total.size) * 100))}
+									meter={getColor(Math.round((translationProgress()[lang].translated.size / translationProgress()[lang].total.size) * 100))}
 									track="bg-surface-300 dark:bg-surface-300 transition-all"
 								/>
 							{/if}

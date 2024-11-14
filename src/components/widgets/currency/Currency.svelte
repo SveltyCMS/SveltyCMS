@@ -1,6 +1,13 @@
 <!-- 
 @file src/components/widgets/currency/Currency.svelte
-@description - Currency widget
+@component
+**Currency widget**
+
+```tsx
+<Currency bind:field={field} />
+```
+**Props:**
+- `field` - {FieldType} - Field type
 -->
 
 <script lang="ts">
@@ -12,7 +19,7 @@
 
 	// Stores
 	import { contentLanguage, validationStore } from '@stores/store';
-	import { mode, collectionValue } from '@stores/collectionStore';
+	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
 
 	// Valibot validation
 	import { object, string, number, boolean, optional, regex, pipe, parse, type InferInput, type ValiError } from 'valibot';

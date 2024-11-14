@@ -15,22 +15,22 @@ Ensure that the necessary stores and utility functions are available.
 -->
 
 <script lang="ts">
-	import { preventDefault } from 'svelte/legacy';
-
 	import { page } from '$app/stores';
-	import { modifyEntry, selectedEntries, collectionValue, collection } from '@stores/collectionStore';
-	import { saveFormData } from '@utils/utils';
+	import { modifyEntry, selectedEntries, collectionValue, collection } from '@root/src/stores/collectionStore.svelte';
+	import { saveFormData } from '../utils/data';
+
 	// Auth
 	import type { User } from '@src/auth/types';
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+
 	// Skeleton
 	import { getModalStore } from '@skeletonlabs/skeleton';
 
 	const modalStore = getModalStore();
 
 	// Props
-
 	interface Props {
 		/** Exposes parent props to this component. */
 		parent: any;
@@ -134,7 +134,7 @@ Ensure that the necessary stores and utility functions are available.
 			{$modalStore[0]?.body ?? 'Select a date, time, and action to schedule for the selected entries.'}
 		</article>
 
-		<form class="modal-form {cForm}" onsubmit={preventDefault(onFormSubmit)}>
+		<form class="modal-form {cForm}" onsubmit={onFormSubmit}>
 			<label class="label">
 				<span>Schedule Date and Time</span>
 				<input

@@ -27,10 +27,10 @@
 import { privateEnv } from '@root/config/private';
 
 // Stores
-import { collections } from '@stores/collectionStore';
+import { collections } from '@root/src/stores/collectionStore.svelte';
 import type { Unsubscriber } from 'svelte/store';
-import type { ScreenSize } from '@stores/screenSizeStore';
-import type { UserPreferences, WidgetPreference } from '@stores/userPreferences';
+import type { ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
+import type { UserPreferences, WidgetPreference } from '@root/src/stores/userPreferences.svelte';
 
 // Database
 import mongoose, { Schema } from 'mongoose';
@@ -246,7 +246,7 @@ export class MongoDBAdapter implements dbInterface {
 							continue;
 						}
 
-						logger.debug(`Setting up collection model for ${collection.name}`);
+						logger.debug(`Setting up collection model for ${String(collection.name)}`);
 
 						const schemaObject = new mongoose.Schema(
 							{

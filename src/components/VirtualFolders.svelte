@@ -32,8 +32,8 @@ Features:
 	import { goto } from '$app/navigation';
 	import { publicEnv } from '@root/config/public';
 	import { sidebarState, toggleSidebar } from '@stores/sidebarStore';
-	import { screenSize } from '@stores/screenSizeStore';
-	import { mode } from '@stores/collectionStore';
+	import { screenSize } from '@root/src/stores/screenSizeStore.svelte';
+	import { mode } from '@root/src/stores/collectionStore.svelte';
 	import { get } from 'svelte/store';
 
 	// Toast notifications

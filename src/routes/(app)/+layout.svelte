@@ -1,6 +1,7 @@
 <!--
 @file src/routes/(app)/+layout.svelte
-@description: This component renders the entire app with improved loading strategy.
+@component
+**This component renders the entire app with improved loading strategy and dynamic theme management**
 
 Key features:
 -     Skeleton UI framework for SvelteKit
@@ -29,9 +30,9 @@ Key features:
 	// Stores
 	import { page } from '$app/stores';
 	import { contentLanguage, systemLanguage, isLoading } from '@stores/store';
-	import { collection, collections } from '@stores/collectionStore';
+	import { collection, collections } from '@root/src/stores/collectionStore.svelte';
 	import { sidebarState } from '@stores/sidebarStore';
-	import { screenSize, ScreenSize } from '@stores/screenSizeStore';
+	import { screenSize, ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
 
 	// Components
 	import { collectionManager } from '@src/collections/CollectionManager';
@@ -56,7 +57,7 @@ Key features:
 		children?: import('svelte').Snippet;
 	}
 
-	let {  children }: Props = $props();
+	let { children }: Props = $props();
 
 	// State variables
 	let isCollectionsLoaded = $state(false);
@@ -74,7 +75,7 @@ Key features:
 		const newCollection = $collection;
 		if (!newCollection?.name) return;
 
-		const newPath = `/${$contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${newCollection.name}`;
+		const newPath = `/${$contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${String(newCollection.name)}`;
 		if ($page.url.pathname !== newPath) {
 			// console.debug('Redirecting to new path:', newPath, newCollection);
 			// goto(newPath);

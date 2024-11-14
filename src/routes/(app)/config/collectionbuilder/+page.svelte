@@ -1,6 +1,19 @@
 <!-- 
  @file src/routes/(app)/config/collection/+page.svelte
- @description This component sets up and displays the collection page with nested category support.
+ @component
+ **This component sets up and displays the collection page with nested category support**
+
+ Features:
+ - Collection Name
+ - Collection Icon
+ - Collection Description
+ - Collection Status
+ - Collection Slug
+ - Collection Description
+ - Collection Permissions
+ - Collection Fields
+ - Collection Categories
+ 
 -->
 
 <script lang="ts">
@@ -10,7 +23,7 @@
 	import type { CategoryData } from '@src/collections/types';
 
 	// Stores
-	import { collectionValue, mode, categories } from '@stores/collectionStore';
+	import { collectionValue, mode, categories } from '@root/src/stores/collectionStore.svelte';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';

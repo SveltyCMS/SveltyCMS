@@ -29,7 +29,7 @@
 	// Stores
 	import { get } from 'svelte/store';
 	import { sidebarState, toggleSidebar } from '@stores/sidebarStore';
-	import { screenSize } from '@stores/screenSizeStore';
+	import { screenSize } from '@root/src/stores/screenSizeStore.svelte';
 
 	interface PageTitleProps {
 		name: string;
@@ -62,7 +62,7 @@
 	}: Props = $props();
 
 	let calculatedTitle: string;
-	let titleParts: string[] = $state();
+	let titleParts: string[] = $state([]);
 
 	// Function to handle back button click
 	function handleBackClick() {

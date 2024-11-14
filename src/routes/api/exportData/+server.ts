@@ -26,7 +26,7 @@ import { _GET } from '@api/query/GET';
 
 // Stores
 import { get } from 'svelte/store';
-import { collections } from '@stores/collectionStore';
+import { collections } from '@root/src/stores/collectionStore.svelte';
 
 // System Logger
 import { logger } from '@utils/logger';

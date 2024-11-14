@@ -102,23 +102,26 @@ async function fetchAndSaveGoogleAvatar(avatarUrl: string): Promise<string | nul
 }
 
 // Helper function to fetch and redirect to the first collection
-async function fetchAndRedirectToFirstCollection(): Promise<string> {
+async function fetchAndRedirectToFirstCollection() {
 	try {
 		const { collections } = collectionManager.getCollectionData();
+		// logger.debug('Fetched collections:', collections);
 
 		if (collections && collections.length > 0) {
 			const firstCollection = collections[0];
-			if (firstCollection?.name) {
-				const redirectUrl = `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${firstCollection.name}`;
-				logger.info(`Redirecting to first collection: ${firstCollection.name} with URL: ${redirectUrl}`);
-				return redirectUrl;
+			if (firstCollection && firstCollection.name) {
+				logger.info(`Redirecting to first collection: ${firstCollection.name}`);
+				return `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${firstCollection.name}`;
+			} else {
+				logger.warn('First collection found but name is missing', firstCollection);
 			}
+		} else {
+			logger.warn('No collections found');
 		}
-		logger.warn('No collections found');
-		return '/';
+		return '/'; // Redirect to home if no collections are found
 	} catch (err) {
 		logger.error('Error fetching collections:', err);
-		return '/';
+		return '/'; // Redirect to home in case of error
 	}
 }
 
@@ -276,14 +279,13 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 
 		await handleGoogleUser(googleUser as GoogleUserInfo, !firstUserExists, token, cookies, fetch);
 		logger.info('Successfully created session and set cookie');
-
-		const redirectUrl = await fetchAndRedirectToFirstCollection();
-		throw redirect(302, redirectUrl);
 	} catch (err) {
 		const errorMessage = err instanceof Error ? err.message : 'Unknown error during login process';
-		logger.error('Error during login process:', errorMessage);
-		throw error(500, errorMessage);
+		logger.error('Error during login process:', err as Error);
+		throw error(500, err);
 	}
+	const redirectUrl = await fetchAndRedirectToFirstCollection();
+	redirect(302, redirectUrl);
 };
 
 export const actions: Actions = {

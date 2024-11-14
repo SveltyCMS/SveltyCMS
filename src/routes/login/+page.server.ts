@@ -361,8 +361,8 @@ export const actions: Actions = {
 			authUrl = googleAuthClient.generateAuthUrl({
 				access_type: 'offline',
 				scope: scopes.join(' '),
-				redirect_uri: `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`,
-				prompt: 'select_account'
+				redirect_uri: `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`
+				// prompt: 'select_account'
 			});
 
 			logger.debug(`Generated redirect URL: ${authUrl}`);
@@ -759,4 +759,3 @@ async function resetPWCheck(password: string, token: string, email: string, expi
 		throw Error(`Password reset failed: ${err.message}`);
 	}
 }
-

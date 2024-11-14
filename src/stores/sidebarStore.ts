@@ -15,8 +15,8 @@
  */
 
 import { writable, derived, get } from 'svelte/store';
-import { screenSize, ScreenSize } from './screenSizeStore';
-import { mode } from './collectionStore';
+import { screenSize, ScreenSize } from './screenSizeStore.svelte';
+import { mode } from './collectionStore.svelte';
 
 // Types for sidebar visibility states
 type SidebarVisibility = 'hidden' | 'collapsed' | 'full';

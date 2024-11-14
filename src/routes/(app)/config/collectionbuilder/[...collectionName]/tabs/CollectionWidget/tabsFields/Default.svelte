@@ -1,6 +1,18 @@
 <!-- 
 @files src/routes/(app)/config/collectionbuilder/[...collectionName]/tabs/CollectionWidget/tabsFields/Default.svelte
-@description This component displays the default tab fields.
+@component
+**This component displays the default tab fields**
+
+Features:
+- Label
+- Display
+- DB Field Name
+- Required
+- Translated
+- Icon
+- Helper
+- Width
+
 -->
 
 <script lang="ts">
@@ -15,7 +27,7 @@
 	const modalStore = getModalStore();
 
 	// Stores
-	import { targetWidget } from '@stores/collectionStore';
+	import { targetWidget } from '@root/src/stores/collectionStore.svelte';
 
 	// Get the keys of the widgets object
 	const widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
@@ -46,16 +58,24 @@
 	<div class="options-table">
 		{#each ['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width'] as property}
 			{#if property === 'icon'}
-				<InputSwitch bind:iconselected={$targetWidget[property]} widget={asAny(guiSchema[property]?.widget)} key={property} />
+				<InputSwitch
+					value={$targetWidget[property] || false}
+					iconselected={$targetWidget[property]}
+					widget={asAny(guiSchema[property]?.widget)}
+					key={property}
+					on:change={(e) => {
+						$targetWidget[property] = e.detail;
+					}}
+				/>
 			{:else if property === 'translated' || property === 'required'}
 				<InputSwitch
-					bind:value={$targetWidget[property]}
+					value={$targetWidget[property]}
 					widget={asAny(guiSchema[property]?.widget)}
 					key={property}
 					on:toggle={(e) => handleToggle(e, property)}
 				/>
 			{:else}
-				<InputSwitch bind:value={$targetWidget[property]} widget={asAny(guiSchema[property]?.widget)} key={property} />
+				<InputSwitch value={$targetWidget[property]} widget={asAny(guiSchema[property]?.widget)} key={property} />
 			{/if}
 		{/each}
 	</div>

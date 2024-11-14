@@ -18,7 +18,7 @@
 
 	// Stores
 	import { contentLanguage, validationStore } from '@stores/store';
-	import { mode, collectionValue } from '@stores/collectionStore';
+	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
 
 	// Valibot validation
 	import { string, pipe, parse, type ValiError, nonEmpty } from 'valibot';

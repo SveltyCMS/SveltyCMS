@@ -1,6 +1,6 @@
 /**
- * @file src/stores/screenSizeStore.ts
- * @description Manages the screen size states using Svelte stores
+ * @file src/stores/screenSizeStore.svelte.ts
+ * @description Manages the screen size states using Svelte 5 runes
  *
  * Features:
  * - Enum for different screen sizes
@@ -10,7 +10,7 @@
  * - Debounced screen size updates
  */
 
-import { writable, derived } from 'svelte/store';
+import { store } from '@src/utils/reactivity.svelte';
 
 // Enum for screen sizes
 export enum ScreenSize {
@@ -41,22 +41,22 @@ function getScreenSizeName(width: number): ScreenSize {
 }
 
 // Create base stores
-const createScreenSizeStores = () => {
+function createScreenSizeStores() {
 	// Initialize with default values
 	const initialWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
 	const initialHeight = typeof window !== 'undefined' ? window.innerHeight : 768;
 	const initialSize = getScreenSizeName(initialWidth);
 
 	// Base stores
-	const currentSize = writable<ScreenSize>(initialSize);
-	const width = writable<number>(initialWidth);
-	const height = writable<number>(initialHeight);
+	const currentSize = store<ScreenSize>(initialSize);
+	const width = store<number>(initialWidth);
+	const height = store<number>(initialHeight);
 
 	// Derived values
-	const isMobile = derived(currentSize, ($size) => $size === ScreenSize.SM);
-	const isTablet = derived(currentSize, ($size) => $size === ScreenSize.MD);
-	const isDesktop = derived(currentSize, ($size) => $size === ScreenSize.LG || $size === ScreenSize.XL);
-	const isLargeScreen = derived(currentSize, ($size) => $size === ScreenSize.XL);
+	const isMobile = $derived(currentSize() === ScreenSize.SM);
+	const isTablet = $derived(currentSize() === ScreenSize.MD);
+	const isDesktop = $derived(currentSize() === ScreenSize.LG || currentSize() === ScreenSize.XL);
+	const isLargeScreen = $derived(currentSize() === ScreenSize.XL);
 
 	// Debounce function
 	function debounce(fn: () => void, delay: number): () => void {
@@ -112,7 +112,7 @@ const createScreenSizeStores = () => {
 		setupListener,
 		updateScreenSize
 	};
-};
+}
 
 // Create and export stores
 const stores = createScreenSizeStores();
@@ -124,18 +124,18 @@ export const screenSize = {
 };
 
 export const screenWidth = {
-	subscribe: stores.width.subscribe
+	subscribe: () => stores.width()
 };
 
 export const screenHeight = {
-	subscribe: stores.height.subscribe
+	subscribe: () => stores.height()
 };
 
 // Export derived values
-export const isMobile = { subscribe: stores.isMobile.subscribe };
-export const isTablet = { subscribe: stores.isTablet.subscribe };
-export const isDesktop = { subscribe: stores.isDesktop.subscribe };
-export const isLargeScreen = { subscribe: stores.isLargeScreen.subscribe };
+export const isMobile = { subscribe: () => stores.isMobile };
+export const isTablet = { subscribe: () => stores.isTablet };
+export const isDesktop = { subscribe: () => stores.isDesktop };
+export const isLargeScreen = { subscribe: () => stores.isLargeScreen };
 
 // Export setup function
 export const setupScreenSizeListener = stores.setupListener;

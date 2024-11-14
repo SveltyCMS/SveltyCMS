@@ -4,26 +4,24 @@
 -->
 
 <script lang="ts">
-	import { preventDefault } from 'svelte/legacy';
-
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
 	import { getFieldName } from '@utils/utils';
 
 	// Stores
 	import { validationStore } from '@stores/store';
-	import { mode, collectionValue } from '@stores/collectionStore';
+	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
 
 	// valibot validation
 	import * as v from 'valibot';
 
+	let { field, value = {} }: Props = $props();
 	const fieldName = getFieldName(field);
+
 	interface Props {
 		field: FieldType;
 		value?: any;
 	}
-
-	let { field, value = $collectionValue[fieldName] || {} }: Props = $props();
 
 	const _data = $state($mode === 'create' ? {} : value);
 	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
@@ -93,7 +91,7 @@
 				id="start-date"
 				type="date"
 				bind:value={_data[_language]}
-				oninput={preventDefault(validateInput)}
+				oninput={validateInput}
 				class="input w-full text-black dark:text-primary-500"
 				class:error={!!validationError}
 				aria-invalid={!!validationError}
@@ -108,7 +106,7 @@
 				id="end-date"
 				type="date"
 				bind:value={endDateValue}
-				oninput={preventDefault(validateInput)}
+				oninput={validateInput}
 				class="input w-full text-black dark:text-primary-500"
 				class:error={!!validationError}
 				aria-invalid={!!validationError}

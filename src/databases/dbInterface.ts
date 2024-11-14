@@ -23,8 +23,8 @@
  * swapping of database backends without changing the application logic.
  */
 
-import type { ScreenSize } from '@stores/screenSizeStore';
-import type { UserPreferences, WidgetPreference } from '@stores/userPreferences';
+import type { ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
+import type { UserPreferences, WidgetPreference } from '@root/src/stores/userPreferences.svelte';
 
 // Define a Theme type for better type safety
 export interface Theme {

@@ -1,14 +1,16 @@
 <!-- 
 @file: src/components/system/FloatingNav.svelte 
-@description: Floating nav component for mobile view
+@component#
+**Floating nav component for mobile view**
+
+```tsx
+<FloatingNav />
+```
 
 Features:
 - Floating nav for mobile view	
 - Keyboard navigation support
 - Accessibility features
-
-Usage:
-Import and use <FloatingNav /> in your Svelte application.
 -->
 
 <script lang="ts">
@@ -23,7 +25,7 @@ Import and use <FloatingNav /> in your Svelte application.
 
 	// Stores
 	import { page } from '$app/stores';
-	import { mode } from '@stores/collectionStore';
+	import { mode } from '@root/src/stores/collectionStore.svelte';
 	import { handleSidebarToggle } from '@stores/sidebarStore';
 	import { isSearchVisible, triggerActionStore } from '@utils/globalSearchIndex';
 

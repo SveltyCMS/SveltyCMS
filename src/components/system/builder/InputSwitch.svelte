@@ -1,6 +1,11 @@
 <!-- 
 @files src/components/system/builder/InputSwitch.svelte
-@description InputSwitch component
+@component
+**InputSwitch component**
+
+Features:
+- Dynamic rendering of input fields based on provided widget
+
 -->
 
 <script lang="ts">
@@ -9,7 +14,7 @@
 	// Define props using $props()
 	const props = $props<{
 		value: any;
-		widget: any; // Consider using a more specific type if possible
+		widget: any;
 		key: string;
 		iconselected?: string | null;
 		permissions?: any;
@@ -25,19 +30,22 @@
 		if (props.key === 'display' && value?.default === true) {
 			value = '';
 		}
+
+		// Only update the parent component if the value has changed
+		if (value !== props.value) {
+			updateParent();
+		}
 	});
 
 	$effect(() => {
 		if (props.key === 'permissions' && value) {
 			permissions = sanitizePermissions(value);
-		}
-	});
 
-	// Update local state when props change
-	$effect(() => {
-		value = props.value ?? null;
-		iconselected = props.iconselected ?? null;
-		permissions = props.permissions ?? null;
+			// Only update the parent component if the permissions have changed
+			if (permissions !== props.permissions) {
+				updateParent();
+			}
+		}
 	});
 
 	// Function to update the parent component

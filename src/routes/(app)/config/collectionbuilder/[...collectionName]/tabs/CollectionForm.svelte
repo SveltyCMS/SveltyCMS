@@ -1,6 +1,7 @@
 <!-- 
-@files: src/routes/(app)/config/collectionbuilder/[...collectionName]/tabs/CollectionForm.svelte
-@description: This component displays the collection form.
+@files src/routes/(app)/config/collectionbuilder/[...collectionName]/tabs/CollectionForm.svelte
+@component
+**This component displays the collection form**
 
 Features:
 - Collection Name
@@ -12,7 +13,7 @@ Features:
 	// Stores
 	import { page } from '$app/stores';
 	import { tabSet } from '@stores/store';
-	import { mode, collectionValue, collections } from '@stores/collectionStore';
+	import { mode, collectionValue, collections } from '@root/src/stores/collectionStore.svelte';
 
 	// Components
 	import IconifyPicker from '@components/IconifyPicker.svelte';
@@ -23,10 +24,10 @@ Features:
 	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
-	import type { Schema, CollectionNames } from '@src/collections/types';
 
 	// Collection Manager
 	import { collectionManager } from '@src/collections/CollectionManager';
+	import type { Schema, CollectionTypes } from '@src/collections/types';
 
 	interface Props {
 		'on:updatePageTitle'?: (title: string) => void;
@@ -35,14 +36,14 @@ Features:
 	let { 'on:updatePageTitle': onUpdatePageTitle = () => {} }: Props = $props();
 
 	// Extract the collection name from the URL
-	const collectionName = $page.params.collectionName;
+	let CollectionTypes = $page.params.CollectionTypes;
 
 	// Check if collection Name exists set mode edit or create
-	const collectionExists = Object.values($collections).some((x) => x.name === collectionName);
+	const collectionExists = Object.values($collections).some((x) => x.name === CollectionTypes);
 	if (collectionExists) {
 		// Get collection data from CollectionManager
 		const { collections: collectionData } = collectionManager.getCollectionData();
-		const collection = collectionData.find((x) => x?.name === collectionName);
+		const collection = collectionData.find((x) => x?.name === CollectionTypes);
 		if (collection) {
 			mode.set('edit');
 			collectionValue.set(collection); // current collection
@@ -51,7 +52,7 @@ Features:
 		collectionValue.set({
 			...$collectionValue,
 			fields: $collectionValue.fields ? $collectionValue.fields : [],
-			name: collectionName
+			name: CollectionTypes
 		});
 	}
 

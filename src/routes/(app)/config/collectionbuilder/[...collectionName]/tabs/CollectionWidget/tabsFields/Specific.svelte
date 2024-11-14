@@ -1,6 +1,11 @@
 <!-- 
 @files src/routes/(app)/config/collectionbuilder/[...collectionName]/tabs/CollectionWidget/tabsFields/Specific.svelte
-@description This component displays specific tab fields.
+@component
+**This component displays specific tab fields for a widget**
+
+Features:
+- Specific tab fields
+
 -->
 
 <script lang="ts">
@@ -12,7 +17,7 @@
 
 	// Skeleton Stores
 	import { getModalStore } from '@skeletonlabs/skeleton';
-	import { targetWidget } from '@stores/collectionStore';
+	import { targetWidget } from '@root/src/stores/collectionStore.svelte';
 
 	const modalStore = getModalStore();
 
@@ -36,7 +41,7 @@
 {#if $modalStore[0] && currentGuiSchema && specificFields.length > 0}
 	{#each specificFields as property}
 		<InputSwitch
-			bind:value={$targetWidget[property]}
+			value={$targetWidget[property]}
 			on:toggle={(e) => handleToggle(e, property)}
 			widget={asAny(currentGuiSchema[property]?.widget)}
 			key={property}
