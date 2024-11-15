@@ -93,7 +93,7 @@ export const CollectionRegistry = {
 } as const;
 
 // Collection types - represents all possible collection types in the system
-export type CollectionTypes = keyof typeof CollectionRegistry;
+
 
 // Type alias for collection names
-export type CollectionName = CollectionTypes;
+export type CollectionName = CollectionTypes;export type CollectionTypes = 'CollectionManager'|'categories';
