@@ -19,8 +19,7 @@ import { browser } from '$app/environment';
 
 // Types
 import type { Schema, CollectionTypes, Category, CategoryData } from './types';
-import { CollectionRegistry } from './types';
-import { collectionRegistry } from './registry';
+// import { CollectionRegistry } from './types';
 
 // Utils
 import { createRandomID } from '@utils/utils';
