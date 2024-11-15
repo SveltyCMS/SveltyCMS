@@ -19,6 +19,7 @@
 <script lang="ts">
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import { onDestroy } from 'svelte';
 
 	const props = $props<{
 		currentPage?: number; // Default value for current page number
@@ -28,43 +29,67 @@
 		totalItems?: number; // Total number of items in the table (optional)
 	}>();
 
-	// State declarations
+	// State declarations with memoization
 	let currentPage = $state(props.currentPage ?? 1);
 	let pagesCount = $state(props.pagesCount ?? 1);
 	let rowsPerPage = $state(props.rowsPerPage ?? 10);
 	let totalItems = $state(props.totalItems ?? 0);
 	let rowsPerPageOptions = $state(props.rowsPerPageOptions ?? [5, 10, 25, 50, 100, 500]);
 
-	// Go to page
+	// Go to page with debounce
+	let pageUpdateTimeout: number | undefined;
 	function goToPage(page: number) {
 		if (page >= 1 && page <= pagesCount) {
-			const event = new CustomEvent('updatePage', { detail: page });
-			dispatchEvent(event);
+			// Clear any existing timeout
+			if (pageUpdateTimeout) {
+				clearTimeout(pageUpdateTimeout);
+			}
+
+			// Set a new timeout
+			pageUpdateTimeout = window.setTimeout(() => {
+				const event = new CustomEvent('updatePage', { detail: page });
+				dispatchEvent(event);
+			}, 100); // 100ms debounce
 		}
 	}
 
-	// Change rows per page
+	// Change rows per page with debounce
+	let rowsUpdateTimeout: number | undefined;
 	function changeRowsPerPage(event: Event) {
 		const value = parseInt((event.target as HTMLSelectElement).value);
 		if (!isNaN(value)) {
-			const customEvent = new CustomEvent('updateRowsPerPage', { detail: value });
-			dispatchEvent(customEvent);
+			// Clear any existing timeout
+			if (rowsUpdateTimeout) {
+				clearTimeout(rowsUpdateTimeout);
+			}
+
+			// Set a new timeout
+			rowsUpdateTimeout = window.setTimeout(() => {
+				const customEvent = new CustomEvent('updateRowsPerPage', { detail: value });
+				dispatchEvent(customEvent);
+			}, 100); // 100ms debounce
 		}
 	}
 
-	// Reactive effects
+	// Update state when props change
 	$effect(() => {
-		pagesCount = Math.max(Math.ceil(totalItems / rowsPerPage), 1);
+		if (props.currentPage !== undefined) currentPage = props.currentPage;
+		if (props.pagesCount !== undefined) pagesCount = props.pagesCount;
+		if (props.rowsPerPage !== undefined) rowsPerPage = props.rowsPerPage;
+		if (props.totalItems !== undefined) totalItems = props.totalItems;
+		if (props.rowsPerPageOptions !== undefined) rowsPerPageOptions = props.rowsPerPageOptions;
 	});
 
-	$effect(() => {
-		currentPage = Math.min(Math.max(currentPage, 1), pagesCount);
-	});
-
-	// Derived values
+	// Derived values with memoization
 	let isFirstPage = $derived(currentPage <= 1);
 	let isLastPage = $derived(currentPage >= pagesCount);
-	let currentPageItems = $derived(currentPage === pagesCount ? totalItems - rowsPerPage * (currentPage - 1) : rowsPerPage);
+	let currentPageItems = $derived(currentPage === pagesCount ? Math.min(totalItems - rowsPerPage * (currentPage - 1), rowsPerPage) : rowsPerPage);
+
+	// Cleanup on destroy
+	onDestroy(() => {
+		if (pageUpdateTimeout) clearTimeout(pageUpdateTimeout);
+		if (rowsUpdateTimeout) clearTimeout(rowsUpdateTimeout);
+	});
 </script>
 
 <!-- Pagination info -->
@@ -82,7 +107,7 @@
 </div>
 
 <!-- Pagination controls -->
-<nav class="variant-outline btn-group" aria-label="Table pagination" role="navigation">
+<nav class="variant-outline btn-group" aria-label="Table pagination">
 	<!-- First page button -->
 	<button
 		onclick={() => goToPage(1)}

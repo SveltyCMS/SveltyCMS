@@ -1,5 +1,5 @@
 <!-- 
-@files src/routes/(app)/config/collectionbuilder/[...collectionName]/tabs/CollectionWidget.svelte
+@files src/routes/(app)/config/collectionbuilder/[...CollectionTypes]/tabs/CollectionWidget.svelte
 @description This component displays the collection widget.
 -->
 
@@ -32,7 +32,7 @@
 	const modalStore = getModalStore();
 
 	// Extract the collection name from the URL
-	const collectionName = $page.params.collectionName;
+	const CollectionTypes = $page.params.CollectionTypes;
 
 	// Helper function to map fields
 	function mapFieldsWithWidgets(fields: any[]) {
@@ -181,7 +181,7 @@
 <div class="flex flex-col">
 	<div class="variant-outline-tertiary rounded-t-md p-2 text-center dark:variant-outline-primary">
 		<p>
-			{m.collection_widgetfield_addrequired()} <span class="text-tertiary-500 dark:text-primary-500">{collectionName}</span> Collection inputs.
+			{m.collection_widgetfield_addrequired()} <span class="text-tertiary-500 dark:text-primary-500">{CollectionTypes}</span> Collection inputs.
 		</p>
 		<p class="mb-2">{m.collection_widgetfield_drag()}</p>
 	</div>

@@ -31,14 +31,13 @@
 
 	let search = $state('');
 	let options: Array<{ display: any; _id: any }> = $state([]);
-	let filtered: Array<{ display: any; _id: any }> = $state([]);
 
 	// Use derived state for filtered options based on search and options
-	$derived: {
-		const currentSearch = search.toLowerCase();
-		const currentOptions = [...options];
-		filtered = currentOptions.filter((item) => String(item.display).toLowerCase().includes(currentSearch));
-	}
+	let filtered = $derived(
+		options.filter((item) => 
+			String(item.display).toLowerCase().includes(search.toLowerCase())
+		)
+	);
 
 	// Initialize options when dropDownData changes
 	$effect: {

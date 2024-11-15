@@ -16,14 +16,14 @@ Features:
 		labelColor = 'text-primary-500',
 		iconOn = '',
 		iconOff = '',
-		onChange
+		onchange
 	} = $props<{
 		value?: boolean;
 		label?: string;
 		labelColor?: string; // Default label color
 		iconOn?: string; // Default icon when toggle is on
 		iconOff?: string; // Default icon when toggle is off
-		onChange?: (checked: boolean) => void;
+		onchange?: (checked: boolean) => void;
 	}>();
 
 	const random = crypto.randomUUID();
@@ -32,7 +32,7 @@ Features:
 	function handleToggle(event: Event) {
 		const checked = (event.target as HTMLInputElement).checked;
 		value = checked;
-		onChange?.(checked);
+		onchange?.(checked);
 	}
 </script>
 

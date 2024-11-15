@@ -84,7 +84,7 @@ export function userTypeDefs() {
 
 // Resolvers with pagination support
 export function userResolvers(dbAdapter: dbInterface) {
-	const fetchWithPagination = async (collectionName: string, pagination: { page: number; limit: number }) => {
+	const fetchWithPagination = async (collectionTypes: string, pagination: { page: number; limit: number }) => {
 		if (!dbAdapter) {
 			logger.error('Database adapter is not initialized');
 			throw Error('Database adapter is not initialized');
@@ -94,12 +94,12 @@ export function userResolvers(dbAdapter: dbInterface) {
 		const skip = (page - 1) * limit;
 
 		try {
-			const users = await dbAdapter.findMany(collectionName, {}, { sort: { lastActiveAt: -1 }, skip, limit });
-			logger.info(`Fetched ${collectionName}`, { count: users.length });
+			const users = await dbAdapter.findMany(collectionTypes, {}, { sort: { lastActiveAt: -1 }, skip, limit });
+			logger.info(`Fetched ${collectionTypes}`, { count: users.length });
 			return users;
 		} catch (error) {
-			logger.error(`Error fetching data for ${collectionName}:`, error);
-			throw Error(`Failed to fetch data for ${collectionName}`);
+			logger.error(`Error fetching data for ${collectionTypes}:`, error);
+			throw Error(`Failed to fetch data for ${collectionTypes}`);
 		}
 	};
 

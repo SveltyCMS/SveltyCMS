@@ -13,8 +13,8 @@
  * - Initialization check to ensure database is ready
  *
  * Usage:
- * GET /api/find?collection=<collectionName>&id=<documentId>
- * GET /api/find?collection=<collectionName>&query=<jsonQuery>&page=<page>&limit=<limit>
+ * GET /api/find?collection=<collectionTypes>&id=<documentId>
+ * GET /api/find?collection=<collectionTypes>&query=<jsonQuery>&page=<page>&limit=<limit>
  */
 
 import type { RequestHandler } from './$types';
@@ -26,31 +26,31 @@ import { validateUserPermission } from '@src/auth/permissionManager';
 import { logger } from '@utils/logger';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-	const collectionName = url.searchParams.get('collection');
+	const collectionTypes = url.searchParams.get('collection');
 	const id = url.searchParams.get('id');
 	const queryParam = url.searchParams.get('query');
 
-	logger.debug(`API Find request - Collection: ${collectionName}, ID: ${id}, Query: ${queryParam}`);
+	logger.debug(`API Find request - Collection: ${collectionTypes}, ID: ${id}, Query: ${queryParam}`);
 
 	try {
 		// Wait for initialization to complete
 		await initializationPromise;
 
 		// Check if the collection name is provided
-		if (!collectionName) {
+		if (!collectionTypes) {
 			logger.warn('Collection name not provided');
 			throw error(400, 'Collection name is required');
 		}
 
 		// Validate that the collection exists in the collectionsModels
-		const collection = collectionsModels[collectionName];
+		const collection = collectionsModels[collectionTypes];
 		if (!collection) {
-			logger.error(`Collection not found: ${collectionName}`);
-			throw error(404, `Collection not found: ${collectionName}`);
+			logger.error(`Collection not found: ${collectionTypes}`);
+			throw error(404, `Collection not found: ${collectionTypes}`);
 		}
 
 		// Check if the user has permission to read from this collection
-		const requiredPermission = `${collectionName}:read`;
+		const requiredPermission = `${collectionTypes}:read`;
 		if (!validateUserPermission(locals.permissions, requiredPermission)) {
 			logger.warn(`User lacks required permission: ${requiredPermission}`);
 			throw error(403, `Forbidden: Insufficient permissions for ${requiredPermission}`);
@@ -60,10 +60,10 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 		// If an ID is provided, find the document by ID
 		if (id) {
-			result = await findById(collection, id, collectionName);
+			result = await findById(collection, id, collectionTypes);
 		} else if (queryParam) {
 			// If a query is provided, find documents that match the query
-			result = await findByQuery(collection, queryParam, collectionName);
+			result = await findByQuery(collection, queryParam, collectionTypes);
 		} else {
 			logger.warn('Neither ID nor query provided');
 			throw error(400, 'Either id or query parameter is required');
@@ -75,35 +75,35 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			headers: { 'Content-Type': 'application/json' }
 		});
 	} catch (err) {
-		return handleError(err, 'GET operation', { collectionName, id, queryParam });
+		return handleError(err, 'GET operation', { collectionTypes, id, queryParam });
 	}
 };
 
 // Function to retrieve a document by its ID
-async function findById(collection: any, id: string, collectionName: string) {
+async function findById(collection: any, id: string, collectionTypes: string) {
 	try {
-		logger.debug(`Attempting to find document by ID: ${id} in collection: ${collectionName}`);
+		logger.debug(`Attempting to find document by ID: ${id} in collection: ${collectionTypes}`);
 		const document = await collection.findById(id);
 		if (!document) {
-			logger.warn(`Document not found with ID: ${id} in collection: ${collectionName}`);
-			throw error(404, `Document not found with ID: ${id} in collection: ${collectionName}`);
+			logger.warn(`Document not found with ID: ${id} in collection: ${collectionTypes}`);
+			throw error(404, `Document not found with ID: ${id} in collection: ${collectionTypes}`);
 		}
-		logger.info(`Document found by ID: ${id} in collection: ${collectionName}`);
+		logger.info(`Document found by ID: ${id} in collection: ${collectionTypes}`);
 		return document;
 	} catch (err) {
-		logger.error(`Failed to retrieve document by ID: ${id} in collection: ${collectionName}`, { error: err });
+		logger.error(`Failed to retrieve document by ID: ${id} in collection: ${collectionTypes}`, { error: err });
 		throw error(500, `Failed to retrieve document: ${err instanceof Error ? err.message : 'Unknown error'}`);
 	}
 }
 
 // Function to retrieve documents based on a query with pagination support
-async function findByQuery(collection: any, queryParam: string, collectionName: string) {
+async function findByQuery(collection: any, queryParam: string, collectionTypes: string) {
 	let query;
 	try {
 		query = JSON.parse(queryParam);
-		logger.debug(`Parsed query for collection ${collectionName}:`, query);
+		logger.debug(`Parsed query for collection ${collectionTypes}:`, query);
 	} catch (err) {
-		logger.error(`Invalid JSON query provided for collection ${collectionName}`, { queryParam, error: err });
+		logger.error(`Invalid JSON query provided for collection ${collectionTypes}`, { queryParam, error: err });
 		throw error(400, `Invalid JSON query: ${err instanceof Error ? err.message : 'Unknown error'}`);
 	}
 
@@ -112,15 +112,15 @@ async function findByQuery(collection: any, queryParam: string, collectionName: 
 		const limit = parseInt(query.limit, 10) || 10;
 		const skip = (page - 1) * limit;
 
-		logger.debug(`Executing query on collection ${collectionName} with pagination: page ${page}, limit ${limit}`);
+		logger.debug(`Executing query on collection ${collectionTypes} with pagination: page ${page}, limit ${limit}`);
 		const documents = await collection.find(query).skip(skip).limit(limit);
 		if (documents.length === 0) {
-			logger.warn(`No documents found matching query in collection ${collectionName}: ${JSON.stringify(query)}`);
+			logger.warn(`No documents found matching query in collection ${collectionTypes}: ${JSON.stringify(query)}`);
 			return { documents: [], total: 0, page, pages: 0 };
 		}
 
 		const totalDocuments = await collection.countDocuments(query);
-		logger.info(`Documents found by query in collection ${collectionName}: ${documents.length}, Total: ${totalDocuments}`);
+		logger.info(`Documents found by query in collection ${collectionTypes}: ${documents.length}, Total: ${totalDocuments}`);
 		return {
 			documents,
 			total: totalDocuments,
@@ -128,7 +128,7 @@ async function findByQuery(collection: any, queryParam: string, collectionName: 
 			pages: Math.ceil(totalDocuments / limit)
 		};
 	} catch (err) {
-		logger.error(`Failed to retrieve documents by query in collection ${collectionName}`, { error: err, query });
+		logger.error(`Failed to retrieve documents by query in collection ${collectionTypes}`, { error: err, query });
 		throw error(500, `Failed to retrieve documents: ${err instanceof Error ? err.message : 'Unknown error'}`);
 	}
 }

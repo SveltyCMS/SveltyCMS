@@ -146,7 +146,7 @@
 		min-height: 2.5rem;
 	}
 
-	.error {
+	/* .error {
 		border-color: rgb(239 68 68);
-	}
+	} */
 </style>

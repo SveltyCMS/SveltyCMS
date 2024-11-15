@@ -1,5 +1,5 @@
 <!-- 
-@files src/routes/(app)/config/collectionbuilder/[...collectionName]/tabs/CollectionWidget/tabsFields/Specific.svelte
+@files src/routes/(app)/config/collectionbuilder/[...collectionTypes]/tabs/CollectionWidget/tabsFields/Specific.svelte
 @component
 **This component displays specific tab fields for a widget**
 

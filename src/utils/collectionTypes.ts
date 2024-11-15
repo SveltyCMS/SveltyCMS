@@ -1,5 +1,5 @@
 /**
- * @file collectionTypes.ts
+ * @file src/utils/collectionTypes.ts
  * @description Utility functions for generating TypeScript types for collections in a SvelteKit CMS project.
  *
  * This file contains two main functions:
@@ -25,10 +25,10 @@ const EXCLUDED_FILES = new Set(['index.ts', 'types.ts', 'config.ts']);
 export async function generateCollectionTypes(): Promise<void> {
 	try {
 		const files = await getCollectionFiles();
-		const collections = `export type CollectionNames = ${files.map((file) => `'${path.basename(file, '.ts')}'`).join('|')};`;
+		const collections = `export type CollectionTypes = ${files.map((file) => `'${path.basename(file, '.ts')}'`).join('|')};`;
 
 		let types = await fs.readFile(TYPES_FILE, 'utf-8');
-		types = types.replace(/export\s+type\s+CollectionNames\s?=\s?.*?;/gms, '');
+		types = types.replace(/export\s+type\s+CollectionTypes\s?=\s?.*?;/gms, '');
 		types += collections;
 
 		await fs.writeFile(TYPES_FILE, types);

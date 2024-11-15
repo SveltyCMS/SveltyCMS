@@ -137,7 +137,7 @@
 	async function openDropDown() {
 		if (!field) return;
 		const result = await getData({
-			collectionName: field.relation as any,
+			CollectionTypes: field.relation as any,
 			limit: 10
 		});
 		dropDownData = result.entryList;
@@ -242,7 +242,7 @@
 		min-height: 2.5rem;
 	}
 
-	.error {
+	/* .error {
 		border-color: rgb(239 68 68);
-	}
+	} */
 </style>

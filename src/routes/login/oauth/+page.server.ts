@@ -47,12 +47,15 @@ async function generateGoogleAuthUrl(token?: string | null): Promise<string> {
 	const scopes = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'];
 	const baseUrl = `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`;
 
+	logger.debug(`Generating OAuth URL with base URL: ${baseUrl}`);
+
 	const authUrl = googleAuthClient.generateAuthUrl({
 		access_type: 'offline',
 		scope: scopes.join(' '),
 		redirect_uri: baseUrl,
-		state: token ? encodeURIComponent(token) : undefined, // Pass token in state parameter
-		prompt: 'consent'
+		state: token ? encodeURIComponent(token) : undefined,
+		prompt: 'consent',
+		include_granted_scopes: true
 	});
 
 	logger.debug(`Generated OAuth URL: ${authUrl}`);
@@ -211,81 +214,141 @@ async function handleGoogleUser(
 }
 
 export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
-	await initializationPromise; // Ensure initialization is complete
-
-	if (!auth) {
-		logger.error('Authentication system is not initialized');
-		throw error(500, 'Internal Server Error: Authentication system is not initialized');
-	}
-
-	// Check if this is the first user
-	let firstUserExists = false;
 	try {
-		firstUserExists = (await auth.getUserCount()) !== 0;
-		logger.debug(`First user exists: ${firstUserExists}`);
-	} catch (err) {
-		logger.error('Error fetching user count:', err);
-		throw error(500, 'Error checking first user status');
-	}
+		await initializationPromise; // Ensure initialization is complete
 
-	const code = url.searchParams.get('code');
-	const state = url.searchParams.get('state'); // Get token from state parameter
-	const token = state ? decodeURIComponent(state) : null;
+		if (!auth) {
+			logger.error('Authentication system is not initialized');
+			throw error(500, 'Internal Server Error: Authentication system is not initialized');
+		}
 
-	logger.debug(`Authorization code from URL: ${code}`);
-	logger.debug(`Registration token from state: ${token}`);
+		// Extensive logging for OAuth redirect
+		logger.debug('OAuth Callback Details:');
+		logger.debug(`Full URL: ${url.toString()}`);
+		logger.debug(`Host: ${url.host}`);
+		logger.debug(`Pathname: ${url.pathname}`);
+		logger.debug(`Search Params: ${url.searchParams.toString()}`);
 
-	// For first user, directly redirect to Google OAuth
-	if (!firstUserExists && !code) {
+		// Check if this is the first user
+		let firstUserExists = false;
 		try {
-			const authUrl = await generateGoogleAuthUrl();
-			throw redirect(302, authUrl);
+			firstUserExists = (await auth.getUserCount()) !== 0;
+			logger.debug(`First user exists: ${firstUserExists}`);
 		} catch (err) {
-			logger.error('Error generating OAuth URL:', err);
-			throw error(500, 'Failed to initialize OAuth');
-		}
-	}
-
-	// For non-first users without a token, show token input form
-	if (firstUserExists && !token && !code) {
-		logger.debug('No token provided for non-first user, showing token input form');
-		return {
-			isFirstUser: !firstUserExists,
-			requiresToken: true
-		};
-	}
-
-	if (!code) {
-		logger.debug('No authorization code found in URL, showing token input form');
-		return {
-			isFirstUser: !firstUserExists,
-			requiresToken: firstUserExists
-		};
-	}
-
-	try {
-		const googleAuthClient = await googleAuth();
-		if (!googleAuthClient) {
-			throw new Error('Google OAuth is not initialized');
+			logger.error('Error fetching user count:', err);
+			throw error(500, 'Error checking first user status');
 		}
 
-		logger.debug('Fetching tokens using authorization code...');
-		const { tokens } = await googleAuthClient.getToken(code);
-		setCredentials(tokens);
+		const code = url.searchParams.get('code');
+		const state = url.searchParams.get('state');
+		const token = state ? decodeURIComponent(state) : null;
 
-		// Fetch Google user profile
-		const oauth2 = google.oauth2({ auth: googleAuthClient, version: 'v2' });
-		const { data: googleUser } = await oauth2.userinfo.get();
+		logger.debug(`Authorization code from URL: ${code}`);
+		logger.debug(`Registration token from state: ${token}`);
+		logger.debug(`Is First User: ${!firstUserExists}`);
 
-		await handleGoogleUser(googleUser as GoogleUserInfo, !firstUserExists, token, cookies, fetch);
-		logger.info('Successfully created session and set cookie');
+		// If no code is present, handle initial OAuth flow
+		if (!code) {
+			if (!firstUserExists) {
+				logger.debug('No first user and no code - redirecting to OAuth');
+				try {
+					const authUrl = await generateGoogleAuthUrl();
+					throw redirect(302, authUrl);
+				} catch (err) {
+					logger.error('Error generating OAuth URL:', err);
+					throw error(500, 'Failed to initialize OAuth');
+				}
+			}
+
+		// For non-first users without a token, show token input form
+		if (firstUserExists && !token && !code) {
+			logger.debug('First user exists, no token, no code - showing token input form');
+			return {
+				isFirstUser: !firstUserExists,
+				requiresToken: true
+			};
+		}
+
+		if (!code) {
+			logger.debug('No authorization code found, showing token input form');
+			return {
+				isFirstUser: !firstUserExists,
+				requiresToken: firstUserExists
+			};
+		}
+
+		// Process OAuth callback
+		try {
+			const googleAuthClient = await googleAuth();
+			if (!googleAuthClient) {
+				logger.error('Google OAuth client initialization failed');
+				throw error(500, 'OAuth service is not available');
+			}
+
+			const redirectUri = `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`;
+			logger.debug(`Using redirect URI for token exchange: ${redirectUri}`);
+
+			const { tokens } = await googleAuthClient.getToken({
+				code,
+				redirect_uri: redirectUri
+			});
+
+			if (!tokens) {
+				logger.error('Failed to obtain tokens from Google');
+				throw error(500, 'Failed to authenticate with Google');
+			}
+
+			setCredentials(tokens);
+
+			// Fetch Google user profile
+			const oauth2 = google.oauth2({ auth: googleAuthClient, version: 'v2' });
+			const { data: googleUser } = await oauth2.userinfo.get();
+
+			if (!googleUser) {
+				logger.error('Failed to fetch Google user profile');
+				throw error(500, 'Could not retrieve user information');
+			}
+
+			await handleGoogleUser(googleUser as GoogleUserInfo, !firstUserExists, token, cookies, fetch);
+			logger.info('Successfully processed OAuth callback and created session');
+
+			// Redirect to first collection
+			const redirectUrl = await fetchAndRedirectToFirstCollection();
+			logger.debug(`Redirecting to: ${redirectUrl}`);
+			throw redirect(302, redirectUrl);
+
+		} catch (err) {
+			if (err instanceof Error && 'status' in err && err.status === 302) {
+				throw err;
+			}
+
+			const errorMessage = err instanceof Error ? err.message : 'Unknown error during OAuth callback';
+			logger.error('OAuth callback processing error:', {
+				error: err,
+				stack: err instanceof Error ? err.stack : undefined,
+				code,
+				token
+			});
+			throw error(500, errorMessage);
+		}
 	} catch (err) {
-		const errorMessage = err instanceof Error ? err.message : 'Unknown error during login process';
-		logger.error('Error during login process:', err as Error);
-		throw error(500, err);
+		// Only throw error if it's not already a redirect
+		if (err instanceof Error && 'status' in err && err.status === 302) {
+			throw err;
+		}
+
+		const errorMessage = err instanceof Error ? err.message : 'Unknown error during OAuth process';
+		logger.error('Comprehensive OAuth Error:', {
+			message: errorMessage,
+			stack: err instanceof Error ? err.stack : 'No stack trace',
+			fullError: err
+		});
+
+		throw error(500, {
+			message: 'OAuth Processing Failed',
+			details: errorMessage
+		});
 	}
-	const redirectUrl = await fetchAndRedirectToFirstCollection();
-	redirect(302, redirectUrl);
 };
 
 export const actions: Actions = {

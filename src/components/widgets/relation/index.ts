@@ -8,7 +8,7 @@ const WIDGET_NAME = 'Relation' as const;
 
 import { getFieldName, getGuiFields } from '@utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
-import type { CollectionContent, CollectionNames, Schema } from '@src/collections/types';
+import type { CollectionContent, CollectionTypes, Schema } from '@src/collections/types';
 import { collectionManager } from '@src/collections/CollectionManager';
 import widgets, { type ModifyRequestParams } from '@components/widgets';
 import deepmerge from 'deepmerge';
@@ -19,7 +19,7 @@ import * as m from '@src/paraglide/messages';
 /**
  * Defines Relation widget Parameters
  */
-const widget = <K extends CollectionContent[T][number], T extends CollectionNames & keyof CollectionContent>(params: Params<K, T>) => {
+const widget = <K extends CollectionContent[T][number], T extends CollectionTypes & keyof CollectionContent>(params: Params<K, T>) => {
 	// Define the display function
 	const display = async ({ data, collection, field, entry, contentLanguage }) => {
 		const { collections } = collectionManager.getCollectionData();
@@ -155,7 +155,7 @@ widget.aggregations = {
 
 // Export widget function and its type
 export type FieldType = ReturnType<typeof widget> & {
-	relation: CollectionNames;
+	relation: CollectionTypes;
 	displayPath: string;
 };
 export default widget;

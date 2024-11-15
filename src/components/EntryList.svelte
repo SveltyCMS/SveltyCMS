@@ -87,7 +87,7 @@ Features:
 		browser && localStorage.getItem(entryListPaginationSettingsKey)
 			? JSON.parse(localStorage.getItem(entryListPaginationSettingsKey) as string)
 			: {
-					collectionName: $collection?.name,
+					CollectionTypes: $collection?.name,
 					density: 'normal',
 					sorting: { sortedBy: '', isSorted: 0 },
 					currentPage: 1,
@@ -148,7 +148,7 @@ Features:
 			// Fetch data using getData function
 			try {
 				data = await getData({
-					collectionName: $collection?.name as any,
+					CollectionTypes: $collection?.name as any,
 					page: currentPage,
 					limit: rowsPerPage, // assuming rowsPerPage is defined
 					contentLanguage: $contentLanguage,
@@ -251,7 +251,7 @@ Features:
 	$: {
 		entryListPaginationSettings = {
 			...entryListPaginationSettings,
-			collectionName: $collection?.name,
+			CollectionTypes: $collection?.name,
 			filters,
 			sorting,
 			density,
@@ -352,13 +352,13 @@ Features:
 				switch (status) {
 					case 'deleted':
 						// If the status is 'deleted', call the delete endpoint
-						await deleteData({ data: formData, collectionName: $collection?.name as any });
+						await deleteData({ data: formData, CollectionTypes: $collection?.name as any });
 						break;
 					case 'published':
 					case 'unpublished':
 					case 'testing':
 						// If the status is 'testing', call the publish endpoint
-						await setStatus({ data: formData, collectionName: $collection?.name as any });
+						await setStatus({ data: formData, CollectionTypes: $collection?.name as any });
 						break;
 					case 'cloned':
 					case 'scheduled':
@@ -559,7 +559,7 @@ Features:
 
 								// Reset the entryListPaginationSettings to the default state
 								entryListPaginationSettings = {
-									collectionName: $collection?.name,
+									CollectionTypes: $collection?.name,
 									density: 'normal',
 									sorting: { sortedBy: '', isSorted: 0 },
 									currentPage: 1,

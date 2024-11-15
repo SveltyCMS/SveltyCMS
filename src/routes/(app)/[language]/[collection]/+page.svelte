@@ -29,6 +29,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	let forwardBackward = $state(false); // Track if using browser history
 	let initialLoadComplete = $state(false); // Track initial load
 	let navigationError = $state<string | null>(null);
+	let lastCollectionValue = $state<any>(null); // Track last collection value for debug
 
 	// Handle collection initialization and navigation
 	$effect(() => {
@@ -100,11 +101,24 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		}
 	});
 
-	// Debug logging for collection value changes
+	// Debug logging for collection value changes with debounce
+	let debugLogTimeout: number | undefined;
 	$effect(() => {
-		if (import.meta.env.DEV) {
-			console.debug('Page view collectionValue:', $collectionValue);
+		if (!import.meta.env.DEV) return;
+
+		// Only log if value has actually changed
+		if (JSON.stringify(lastCollectionValue) === JSON.stringify($collectionValue)) return;
+
+		// Clear any existing timeout
+		if (debugLogTimeout) {
+			clearTimeout(debugLogTimeout);
 		}
+
+		// Set a new timeout
+		debugLogTimeout = window.setTimeout(() => {
+			console.debug('Page view collectionValue:', $collectionValue);
+			lastCollectionValue = structuredClone($collectionValue);
+		}, 100); // 100ms debounce
 	});
 
 	// Handle browser history navigation
@@ -130,6 +144,9 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	onDestroy(() => {
 		if (browser) {
 			window.removeEventListener('popstate', handlePopState);
+		}
+		if (debugLogTimeout) {
+			clearTimeout(debugLogTimeout);
 		}
 	});
 </script>

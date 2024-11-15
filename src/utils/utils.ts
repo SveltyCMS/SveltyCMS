@@ -181,19 +181,19 @@ export const fieldsToSchema = (fields: Array<any>) => {
 };
 
 // Finds documents in collection that match query
-export async function find(query: object, collectionName: string) {
-	if (!collectionName) {
+export async function find(query: object, collectionTypes: string) {
+	if (!collectionTypes) {
 		logger.warn('find called without a collection name');
 		return;
 	}
 	const _query = JSON.stringify(query);
 	try {
-		logger.debug(`Calling /api/find for collection: ${collectionName} with query: ${_query}`);
-		const response = await axios.get(`/api/find?collection=${collectionName}&query=${_query}`);
-		logger.debug(`Received response from /api/find for collection: ${collectionName}`);
+		logger.debug(`Calling /api/find for collection: ${collectionTypes} with query: ${_query}`);
+		const response = await axios.get(`/api/find?collection=${collectionTypes}&query=${_query}`);
+		logger.debug(`Received response from /api/find for collection: ${collectionTypes}`);
 		return response.data;
 	} catch (err) {
-		logger.error(`Error in find function for collection ${collectionName}:`, err as LoggableValue);
+		logger.error(`Error in find function for collection ${collectionTypes}:`, err as LoggableValue);
 		if (axios.isAxiosError(err)) {
 			logger.error('Axios error details:', {
 				response: err.response?.data,
@@ -206,18 +206,18 @@ export async function find(query: object, collectionName: string) {
 }
 
 // Finds document in collection with specified ID
-export async function findById(id: string, collectionName: string) {
-	if (!id || !collectionName) {
-		logger.warn(`findById called with invalid parameters. ID: ${id}, Collection: ${collectionName}`);
+export async function findById(id: string, collectionTypes: string) {
+	if (!id || !CollectionTypes) {
+		logger.warn(`findById called with invalid parameters. ID: ${id}, Collection: ${collectionTypes}`);
 		return;
 	}
 	try {
-		logger.debug(`Calling /api/find for collection: ${collectionName} with ID: ${id}`);
-		const response = await axios.get(`/api/find?collection=${collectionName}&id=${id}`);
-		logger.debug(`Received response from /api/find for collection: ${collectionName} with ID: ${id}`);
+		logger.debug(`Calling /api/find for collection: ${collectionTypes} with ID: ${id}`);
+		const response = await axios.get(`/api/find?collection=${collectionTypes}&id=${id}`);
+		logger.debug(`Received response from /api/find for collection: ${collectionTypes} with ID: ${id}`);
 		return response.data;
 	} catch (err) {
-		logger.error(`Error in findById function for collection ${collectionName} and ID ${id}:`, err as LoggableValue);
+		logger.error(`Error in findById function for collection ${collectionTypes} and ID ${id}:`, err as LoggableValue);
 		if (axios.isAxiosError(err)) {
 			logger.error('Axios error details:', {
 				response: err.response?.data,

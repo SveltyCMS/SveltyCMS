@@ -28,9 +28,9 @@
 		onDrop(e.detail.items);
 	}
 
-	function handleCollectionClick(collectionName: string) {
+	function handleCollectionClick(CollectionTypes: string) {
 		// Define the logic for handling the click on a collection
-		goto(`/collection/${collectionName}/edit`);
+		goto(`/collection/${CollectionTypes}/edit`);
 	}
 </script>
 

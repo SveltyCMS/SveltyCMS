@@ -21,6 +21,10 @@ export type Field = {
 	type: WidgetKeys;
 	config: WidgetTypes;
 	label: string;
+	required?: boolean;
+	unique?: boolean;
+	default?: any;
+	validate?: (value: any) => boolean | Promise<boolean>;
 	display?: (args: { data: any; collection: string; field: Field; entry: any; contentLanguage: string }) => Promise<string> | string;
 	callback?: (args: { data: any }) => void;
 	modifyRequest?: (args: ModifyRequestParams<(typeof widgets)[WidgetKeys]>) => Promise<object>;
@@ -82,6 +86,14 @@ export interface ProcessedCategoryData extends CategoryData {
 	subcategories: Record<string, ProcessedCategoryData>; // Nested subcategories after processing
 }
 
-// Collection types
-export type CollectionTypes = 'CollectionManager' | 'categories';
-export type CollectionNames = 'CollectionManager'|'categories';
+// Collection Registry - defines all available collections
+export const CollectionRegistry = {
+    CollectionManager: 'CollectionManager',
+    categories: 'categories'
+} as const;
+
+// Collection types - represents all possible collection types in the system
+export type CollectionTypes = keyof typeof CollectionRegistry;
+
+// Type alias for collection names
+export type CollectionName = CollectionTypes;

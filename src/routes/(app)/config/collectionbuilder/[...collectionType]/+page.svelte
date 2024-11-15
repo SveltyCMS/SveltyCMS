@@ -1,5 +1,5 @@
 <!-- 
-@files src/routes/(app)/config/collectionbuilder/[...collectionName]/+page.svelte
+@files src/routes/(app)/config/collectionbuilder/[...collectionTypes]/+page.svelte
 @description  This component sets up and displays the collection page. It provides a user-friendly interface for creating, editing, and deleting collections.
 -->
 <script lang="ts">
@@ -30,10 +30,10 @@
 	const toastStore = getToastStore();
 
 	// Extract the collection name from the URL
-	const collectionName = $page.params.collectionName;
+	const CollectionTypes = $page.params.CollectionTypes;
 
 	// Default widget data (tab1)
-	let name = $state($mode == 'edit' ? ($collectionValue ? $collectionValue.name : collectionName) : collectionName);
+	let name = $state($mode == 'edit' ? ($collectionValue ? $collectionValue.name : CollectionTypes) : CollectionTypes);
 
 	// Page title
 	let pageTitle = $state('');
@@ -43,17 +43,17 @@
 	$effect.root(() => {
 		// Set the base page title according to the mode
 		if ($mode === 'edit') {
-			pageTitle = `Edit ${collectionName} Collection`;
-		} else if (collectionName) {
-			pageTitle = `Create ${collectionName} Collection`;
+			pageTitle = `Edit ${CollectionTypes} Collection`;
+		} else if (CollectionTypes) {
+			pageTitle = `Create ${CollectionTypes} Collection`;
 		} else {
 			pageTitle = 'Create new Collection';
 		}
 
-		// Ensure the highlighted part (e.g., collectionName) is unique in the title
-		highlightedPart = collectionName || 'new';
+		// Ensure the highlighted part (e.g., CollectionTypes) is unique in the title
+		highlightedPart = CollectionTypes || 'new';
 
-		// Avoid repeating the collectionName if it's already included in the string
+		// Avoid repeating the CollectionTypes if it's already included in the string
 		if (pageTitle.includes(highlightedPart)) {
 			pageTitle = pageTitle.replace(new RegExp(`\\b${highlightedPart}\\b`, 'g'), highlightedPart);
 		}
@@ -61,7 +61,7 @@
 
 	// Effect to update name based on mode and collection value
 	$effect.root(() => {
-		name = $mode == 'edit' ? ($collectionValue ? $collectionValue.name : collectionName) : $page.params.collectionName;
+		name = $mode == 'edit' ? ($collectionValue ? $collectionValue.name : CollectionTypes) : $page.params.CollectionTypes;
 	});
 
 	interface PageTitleEvent {
@@ -89,7 +89,7 @@
 			$mode == 'edit'
 				? obj2formData({
 						originalName: $collectionValue.name,
-						collectionName: name,
+						CollectionTypes: name,
 						icon: $collectionValue.icon,
 						status: $collectionValue.status,
 						slug: $collectionValue.slug,
@@ -98,7 +98,7 @@
 						fields: $collectionValue.fields
 					})
 				: obj2formData({
-						collectionName: name,
+						CollectionTypes: name,
 						icon: $collectionValue.icon,
 						status: $collectionValue.status,
 						slug: $collectionValue.slug,
@@ -138,7 +138,7 @@
 			response: (r: boolean) => {
 				if (r) {
 					// Send the form data to the server
-					axios.post(`?/deleteCollections`, obj2formData({ collectionName: $collectionValue.name }), {
+					axios.post(`?/deleteCollections`, obj2formData({ CollectionTypes: $collectionValue.name }), {
 						headers: {
 							'Content-Type': 'multipart/form-data'
 						}

@@ -27,14 +27,16 @@
 import { privateEnv } from '@root/config/private';
 
 // Stores
-import { collections } from '@root/src/stores/collectionStore.svelte';
 import type { Unsubscriber } from 'svelte/store';
 import type { ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
 import type { UserPreferences, WidgetPreference } from '@root/src/stores/userPreferences.svelte';
 
+// Types
+import type { Field } from '@src/collections/types';
+
 // Database
 import mongoose, { Schema } from 'mongoose';
-import type { Document, Model, FilterQuery, UpdateQuery } from 'mongoose';
+import type { Document, Model, FilterQuery, UpdateQuery, SchemaDefinitionProperty } from 'mongoose';
 import type { dbInterface, Draft, Revision, Theme, Widget, SystemPreferences, SystemVirtualFolder } from '../dbInterface';
 
 import { UserSchema } from '@src/auth/mongoDBAuth/userAdapter';
@@ -228,65 +230,110 @@ export class MongoDBAdapter implements dbInterface {
 		logger.debug('getCollectionModels called');
 
 		if (this.collectionsInitialized) {
-			logger.debug('Collections already initialized, skipping reinitialization.');
+			logger.debug('Collections already initialized, returning existing models.');
 			return mongoose.models as Record<string, Model<any>>;
 		}
 
-		return new Promise<Record<string, Model<any>>>((resolve, reject) => {
-			this.unsubscribe = collections.subscribe(async (collectionsData) => {
-				if (collectionsData) {
-					const collectionsModels: { [key: string]: Model<any> } = {};
-					// Map to collection names only
-					const collectionNames = Object.values(collectionsData).map((collection) => collection.name);
-					logger.debug('Collections found:', { collectionNames });
+		try {
+			// Use CollectionManager to get collections synchronously
+			const { collectionManager } = await import('@src/collections/CollectionManager');
+			const loadedCollections = collectionManager.getCollectionData().collections;
 
-					for (const collection of Object.values(collectionsData)) {
-						if (!collection.name) {
-							logger.warn('Collection without a name encountered:', { collection });
-							continue;
-						}
+			if (!loadedCollections || loadedCollections.length === 0) {
+				logger.warn('No collections found to set up models.');
+				return {};
+			}
 
-						logger.debug(`Setting up collection model for ${String(collection.name)}`);
+			const collectionsModels: { [key: string]: Model<any> } = {};
 
-						const schemaObject = new mongoose.Schema(
-							{
-								createdBy: { type: String }, // ID of the user who created the document
-								revisionsEnabled: { type: Boolean }, // Flag indicating if revisions are enabled
-								translationStatus: { type: Schema.Types.Mixed, default: {} } // Translation status, mixed type allows any structure
-							},
-							{
-								typeKey: '$type',
-								strict: true, // Enable strict mode
-								timestamps: false,
-								collection: collection.name.toLowerCase() // Explicitly set the collection name to avoid duplicates
-							}
-						);
-
-						if (mongoose.models[collection.name]) {
-							logger.debug(`Collection model for ${collection.name} already exists.`);
-							collectionsModels[collection.name] = mongoose.models[collection.name];
-						} else {
-							logger.debug(`Creating new collection model for ${collection.name}.`);
-							collectionsModels[collection.name] = mongoose.model(collection.name, schemaObject);
-							logger.info(`Collection ${collection.name} created.`);
-						}
-
-						logger.info(`Collection model for ${collection.name} set up successfully.`);
-					}
-
-					if (this.unsubscribe) {
-						this.unsubscribe();
-					}
-					this.unsubscribe = undefined;
-					this.collectionsInitialized = true;
-					logger.info('MongoDB adapter collection models setup complete.');
-					resolve(collectionsModels);
-				} else {
-					logger.warn('No collections found to set up models.');
-					reject(new Error('No collections found to set up models.'));
+			for (const collection of loadedCollections) {
+				if (!collection.name) {
+					logger.warn('Collection without a name encountered:', { collection });
+					continue;
 				}
-			});
-		});
+
+				const collectionTypes = String(collection.name);
+				logger.debug(`Setting up collection model for ${collectionTypes}`);
+
+				// Define base schema definition with more flexible typing
+				const schemaDefinition: Record<string, SchemaDefinitionProperty> = {
+					createdBy: {
+						type: String,
+						required: false
+					},
+					revisionsEnabled: {
+						type: Boolean,
+						required: false
+					},
+					translationStatus: {
+						type: mongoose.Schema.Types.Mixed,
+						default: {}
+					}
+				};
+
+				// Add dynamic fields from collection schema with type safety
+				if (collection.fields) {
+					collection.fields.forEach((field: Field) => {
+						// Use field.label as the key if no specific name is provided
+						const fieldKey = field.label.toLowerCase().replace(/\s+/g, '_');
+
+						// Determine field type based on widget type
+						const fieldType = this.mapFieldType(field.type || 'string');
+
+						// Check if the config has a required property, default to false
+						const isRequired = field.config?.required === true;
+
+						// Explicitly type the field definition
+						schemaDefinition[fieldKey] = {
+							type: fieldType,
+							required: isRequired
+						} as SchemaDefinitionProperty;
+					});
+				}
+
+				const schemaOptions = {
+					typeKey: '$type',
+					strict: true,
+					timestamps: true,
+					collection: CollectionTypes.toLowerCase()
+				};
+
+				// Safely create or retrieve model
+				const existingModel = mongoose.models[collectionTypes];
+				if (existingModel) {
+					logger.debug(`Collection model for ${collectionTypes} already exists.`);
+					collectionsModels[collectionTypes] = existingModel;
+				} else {
+					logger.debug(`Creating new collection model for ${collectionTypes}.`);
+					const schema = new mongoose.Schema(schemaDefinition, schemaOptions);
+					collectionsModels[collectionTypes] = mongoose.model(collectionTypes, schema);
+				}
+			}
+
+			this.collectionsInitialized = true;
+			logger.info('MongoDB adapter collection models setup complete.');
+			return collectionsModels;
+		} catch (error) {
+			const err = error as Error;
+			logger.error('Failed to get collection models:', { error: err.message });
+			throw new Error(`Failed to get collection models: ${err.message}`);
+		}
+	}
+
+	// Helper method to map field types with improved type safety
+	private mapFieldType(type: string): any {
+		const typeMap: Record<string, any> = {
+			string: String,
+			number: Number,
+			boolean: Boolean,
+			date: Date,
+			object: mongoose.Schema.Types.Mixed,
+			array: Array,
+			text: String,
+			richtext: String,
+			media: mongoose.Schema.Types.Mixed
+		};
+		return typeMap[type.toLowerCase()] || String;
 	}
 
 	// Set up authentication models
@@ -1073,13 +1120,13 @@ export class MongoDBAdapter implements dbInterface {
 	// Fetch the last five collections
 	async getLastFiveCollections(): Promise<any[]> {
 		try {
-			const collectionNames = Object.keys(mongoose.models);
+			const collectionTypes = Object.keys(mongoose.models);
 			const recentCollections: any[] = [];
 
-			for (const collectionName of collectionNames) {
-				const model = mongoose.models[collectionName];
+			for (const collectionTypes of collectionTypes) {
+				const model = mongoose.models[collectionTypes];
 				const recentDocs = await model.find().sort({ createdAt: -1 }).limit(5).lean().exec();
-				recentCollections.push({ collectionName, recentDocs });
+				recentCollections.push({ collectionTypes, recentDocs });
 			}
 
 			logger.info(`Fetched last five documents from ${recentCollections.length} collections.`);

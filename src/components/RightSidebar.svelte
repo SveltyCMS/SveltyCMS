@@ -74,8 +74,8 @@
 
 	// Map the status to boolean
 	let isPublished = $state($collectionValue?.status === 'published');
-	let schedule = $state($collectionValue._scheduled ? new Date($collectionValue._scheduled).toISOString().slice(0, 16) : '');
-	let createdAtDate = $state($collectionValue.createdAt ? new Date($collectionValue.createdAt * 1000).toISOString().slice(0, 16) : '');
+	let schedule = $state($collectionValue?._scheduled ? new Date($collectionValue._scheduled).toISOString().slice(0, 16) : '');
+	let createdAtDate = $state($collectionValue?.createdAt ? new Date($collectionValue.createdAt * 1000).toISOString().slice(0, 16) : '');
 
 	// Function to toggle the status
 	function toggleStatus() {
@@ -89,8 +89,8 @@
 
 	// Convert timestamps to date strings
 	let dates = $derived({
-		created: convertTimestampToDateString($collectionValue.createdAt),
-		updated: convertTimestampToDateString($collectionValue.updatedAt)
+		created: convertTimestampToDateString($collectionValue?.createdAt),
+		updated: convertTimestampToDateString($collectionValue?.updatedAt)
 	});
 
 	// Type guard to check if the widget has a validateWidget method
@@ -178,7 +178,7 @@
 
 <!-- Desktop Right Sidebar -->
 <!-- Check if user has create or write permission -->
-{#if ['edit', 'create'].includes($mode) || $collection.permissions?.[user.role]?.write !== false}
+{#if ['edit', 'create'].includes($mode) || $collection?.permissions?.[user?.role]?.write !== false}
 	<div class="flex h-full w-full flex-col justify-between px-1 py-2">
 		{#if $shouldShowNextButton && $mode === 'create'}
 			<button type="button" onclick={next} aria-label="Next" class="variant-filled-primary btn w-full gap-2">
@@ -191,7 +191,9 @@
 				<button
 					type="button"
 					onclick={saveData}
-					disabled={$collection?.permissions?.[user.role]?.write === false}
+					disabled={$collection?.permissions?.[user?.role]?.write === false ||
+						$collection?.permissions === undefined ||
+						$collection?.permissions[user?.role] === undefined}
 					class="variant-filled-primary btn w-full gap-2"
 					aria-label="Save entry"
 				>
@@ -207,7 +209,7 @@
 						iconOn="ic:baseline-check-circle"
 						iconOff="material-symbols:close"
 						bind:value={isPublished}
-						on:toggle={toggleStatus}
+						onchange={toggleStatus}
 					/>
 				</div>
 
@@ -216,7 +218,9 @@
 					<button
 						type="button"
 						onclick={() => $modifyEntry('cloned')}
-						disabled={!($collection?.permissions?.[user.role]?.write && $collection?.permissions?.[user.role]?.create)}
+						disabled={!($collection?.permissions?.[user?.role]?.write !== false && $collection?.permissions?.[user?.role]?.create !== false) ||
+							$collection?.permissions === undefined ||
+							$collection?.permissions[user?.role] === undefined}
 						class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn w-full gap-2 text-white"
 						aria-label="Clone entry"
 					>
@@ -227,7 +231,9 @@
 					<button
 						type="button"
 						onclick={() => $modifyEntry('deleted')}
-						disabled={$collection?.permissions?.[user.role]?.delete === false}
+						disabled={$collection?.permissions?.[user?.role]?.delete === false ||
+							$collection?.permissions === undefined ||
+							$collection?.permissions[user?.role] === undefined}
 						class="variant-filled-error btn w-full"
 						aria-label="Delete entry"
 					>
@@ -269,14 +275,14 @@
 				<div class="mt-2 flex w-full flex-col items-start justify-center">
 					<p class="mb-1">Created by:</p>
 					<div class="variant-filled-surface w-full p-2 text-center text-tertiary-500 dark:text-primary-500">
-						{$collectionValue.createdBy || user.username}
+						{$collectionValue?.createdBy || user?.username}
 					</div>
 
-					{#if $collectionValue.updatedBy}
+					{#if $collectionValue?.updatedBy}
 						<p class="mt-1">Last updated by:</p>
 
 						<div class="variant-filled-surface w-full p-2 text-center text-tertiary-500 dark:text-primary-500">
-							{$collectionValue.updatedBy || user.username}
+							{$collectionValue?.updatedBy || user?.username}
 						</div>
 					{/if}
 				</div>
@@ -286,7 +292,7 @@
 				<p class="mb-2 text-center text-tertiary-500 dark:text-primary-500">
 					{new Date().toLocaleString(languageTag(), { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
 				</p>
-			{:else}
+			{:else if dates}
 				<footer class="mb-1 mt-2">
 					{#each Object.entries(dates) as [key, value]}
 						<div class="flex items-center justify-center gap-2 text-[12px]">

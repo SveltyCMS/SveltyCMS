@@ -28,10 +28,13 @@ async function googleAuth() {
 		if (!googleAuthClient) {
 			logger.debug('Setting up Google OAuth2...');
 			const { google } = await import('googleapis');
+			const redirectUri = `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`;
+			logger.debug(`Using OAuth redirect URI: ${redirectUri}`);
+			
 			googleAuthClient = new google.auth.OAuth2(
 				privateEnv.GOOGLE_CLIENT_ID,
 				privateEnv.GOOGLE_CLIENT_SECRET,
-				`${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`
+				redirectUri
 			);
 		}
 
