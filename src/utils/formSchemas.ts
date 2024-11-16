@@ -17,11 +17,13 @@ import {
 	minLength,
 	maxLength,
 	email as emailValidator,
+	number,
 	regex,
 	pipe,
 	check,
 	type InferInput,
-	number
+	nullable,
+	transform
 } from 'valibot';
 
 // ParaglideJS
@@ -29,18 +31,33 @@ import * as m from '@src/paraglide/messages';
 
 const MIN_PASSWORD_LENGTH = publicEnv.PASSWORD_STRENGTH || 8;
 
-// Reusable Field-Level Schemas with `pipe`
+// Reusable Field-Level Schemas with `pipe` and undefined handling
 const usernameSchema = pipe(
-	string(),
+	optional(string()),
+	transform((value) => {
+		if (value === null || value === undefined) return '';
+		return value;
+	}),
 	minLength(2, m.formSchemas_username_min()),
 	maxLength(24, m.formSchemas_username_max()),
 	regex(/^[a-zA-Z0-9@$!%*#]+$/, m.formSchemas_usernameregex())
 );
 
-const emailSchema = pipe(string(), emailValidator(m.formSchemas_Emailvalid()));
+const emailSchema = pipe(
+	optional(string()),
+	transform((value) => {
+		if (value === null || value === undefined) return '';
+		return value;
+	}),
+	emailValidator(m.formSchemas_Emailvalid())
+);
 
 const passwordSchema = pipe(
-	string(),
+	optional(string()),
+	transform((value) => {
+		if (value === null || value === undefined) return '';
+		return value;
+	}),
 	minLength(MIN_PASSWORD_LENGTH, m.formSchemas_PasswordMessage({ passwordStrength: MIN_PASSWORD_LENGTH })),
 	regex(
 		new RegExp(`^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{${MIN_PASSWORD_LENGTH},}$`),
@@ -48,9 +65,30 @@ const passwordSchema = pipe(
 	)
 );
 
-const confirmPasswordSchema = string();
-const roleSchema = string();
-const tokenSchema = pipe(string(), minLength(16, m.formSchemas_Emailvalid()));
+const confirmPasswordSchema = pipe(
+	optional(string()),
+	transform((value) => {
+		if (value === null || value === undefined) return '';
+		return value;
+	})
+);
+
+const roleSchema = pipe(
+	optional(string()),
+	transform((value) => {
+		if (value === null || value === undefined) return '';
+		return value;
+	})
+);
+
+const tokenSchema = pipe(
+	optional(string()),
+	transform((value) => {
+		if (value === null || value === undefined) return '';
+		return value;
+	}),
+	minLength(16, m.formSchemas_Emailvalid())
+);
 
 // Form Schemas------------------------------------
 
@@ -58,7 +96,10 @@ const tokenSchema = pipe(string(), minLength(16, m.formSchemas_Emailvalid()));
 export const loginFormSchema = strictObject({
 	email: emailSchema,
 	password: passwordSchema,
-	isToken: boolean()
+	isToken: pipe(
+		optional(boolean()),
+		transform((value) => value ?? false)
+	)
 });
 
 // Forgot Password Form Schema
@@ -69,7 +110,7 @@ export const forgotFormSchema = strictObject({
 // Reset Password Form Schema
 const resetFormSchemaBase = strictObject({
 	password: passwordSchema,
-	confirm_password: confirmPasswordSchema,
+	confirm_password: passwordSchema,
 	token: tokenSchema,
 	email: emailSchema
 });
@@ -84,8 +125,14 @@ const signUpFormSchemaBase = strictObject({
 	username: usernameSchema,
 	email: emailSchema,
 	password: passwordSchema,
-	confirm_password: confirmPasswordSchema,
-	token: optional(string())
+	confirm_password: passwordSchema,
+	token: optional(pipe(
+		optional(string()),
+		transform((value) => {
+			if (value === null || value === undefined) return '';
+			return value;
+		})
+	))
 });
 
 export const signUpFormSchema = pipe(
@@ -95,21 +142,37 @@ export const signUpFormSchema = pipe(
 
 // Google OAuth Token Schema
 export const signUpOAuthFormSchema = strictObject({
-	lang: string()
+	lang: pipe(
+		nullable(string()),
+		transform((value) => value === null ? undefined : value)
+	)
 });
 
 // Validate New User Token Schema
 export const addUserTokenSchema = strictObject({
 	email: emailSchema,
 	role: roleSchema,
-	expiresIn: number(),
-	expiresInLabel: string()
+	expiresIn: pipe(
+		nullable(number()),
+		transform((value) => value === null ? 24 : value)
+	),
+	expiresInLabel: pipe(
+		nullable(string()),
+		transform((value) => value === null ? undefined : value)
+	)
 });
 
 // Change Password Form Schema
 const changePasswordSchemaBase = strictObject({
 	password: passwordSchema,
-	confirm_password: confirmPasswordSchema
+	confirm_password: passwordSchema,
+	currentPassword: optional(pipe(
+		optional(string()),
+		transform((value) => {
+			if (value === null || value === undefined) return '';
+			return value;
+		})
+	))
 });
 
 export const changePasswordSchema = pipe(

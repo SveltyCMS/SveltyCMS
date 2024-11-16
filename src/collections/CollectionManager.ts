@@ -199,7 +199,7 @@ class CollectionManager {
 		}
 
 		// Load if not cached
-		const path = `src/collections/${name}.ts`;
+		const path = `config/collections/${name}.ts`;
 		try {
 			const content = await this.readFile(path);
 			const schema = await this.processCollectionFile(path, content);
@@ -264,9 +264,8 @@ class CollectionManager {
 				const collections: Schema[] = [];
 
 				if (process.env.NODE_ENV === 'development') {
-					const modules = await import.meta.glob('/config/collections/**/*.ts', {
-						eager: true
-					});
+					// Use glob pattern for importing collection files
+					const modules = import.meta.glob('/config/collections/**/*.ts', { eager: true });
 
 					const filteredModules = Object.entries(modules).filter(([path]) => {
 						const fileName = path.split('/').pop() || '';
@@ -280,34 +279,38 @@ class CollectionManager {
 						return countB - countA;
 					});
 
-					for (const [path, moduleSchema] of filteredModules) {
-						const schema = (moduleSchema as ProcessedModule)?.schema;
-
-						if (!schema) {
-							logger.error(`No schema found in ${path}`);
-							continue;  // Skip this iteration instead of returning null
+					for (const [filePath, moduleSchema] of filteredModules) {
+						const schema = (moduleSchema as any)?.schema;
+						if (!schema || typeof schema !== 'object') {
+							logger.error(`Invalid or missing schema in ${filePath}`);
+							throw new Error(`Invalid or missing schema in ${filePath}`);
 						}
 
-						const name = path
+						// Ensure required fields are present
+						if (!schema.fields) {
+							schema.fields = [];
+						}
+
+						const name = filePath
 							.split('/')
 							.pop()
 							?.replace(/\.(ts|js)$/, '');
 						if (!name) {
-							logger.error(`Could not extract name from ${path}`);
+							logger.error(`Could not extract name from ${filePath}`);
 							continue;  // Skip this iteration instead of returning null
 						}
 
 						const randomId = await createRandomID();
 						const processed: Schema = {
 							...schema,
-							name: name as CollectionTypes, // Type assertion is safe here since the name comes from valid collection files
+							name, // Remove type assertion as name can now be string
 							id: parseInt(randomId.toString().slice(0, 8), 16),
 							icon: schema.icon || 'iconoir:info-empty',
-							path: this.extractPathFromFilePath(path),
+							path: this.extractPathFromFilePath(filePath),
 							fields: schema.fields || []
 						};
 						collections.push(processed);
-						await this.setCacheValue(path, processed, this.collectionCache);
+						await this.setCacheValue(filePath, processed, this.collectionCache);
 					}
 				} else {
 					// Production mode implementation
@@ -365,10 +368,19 @@ class CollectionManager {
 					return cachedSchema;
 				}
 
-				const schema = (await import(filePath))?.default?.schema;
-				if (!schema) {
-					logger.error(`No schema found in ${filePath}`);
-					throw new Error(`No schema found in ${filePath}`);
+				// Use glob pattern for importing collection files
+				const modules = import.meta.glob('/config/collections/**/*.ts', { eager: true });
+				const moduleSchema = modules[filePath];
+				let schema = (moduleSchema as any)?.schema;
+
+				if (!schema || typeof schema !== 'object') {
+					logger.error(`Invalid or missing schema in ${filePath}`);
+					throw new Error(`Invalid or missing schema in ${filePath}`);
+				}
+
+				// Ensure required fields are present
+				if (!schema.fields) {
+					schema.fields = [];
 				}
 
 				const name = filePath
@@ -383,7 +395,7 @@ class CollectionManager {
 				const randomId = await createRandomID();
 				const processed: Schema = {
 					...schema,
-					name: name as CollectionTypes, // Type assertion is safe here since the name comes from valid collection files
+					name, // Remove type assertion as name can now be string
 					id: parseInt(randomId.toString().slice(0, 8), 16),
 					icon: schema.icon || 'iconoir:info-empty',
 					path: this.extractPathFromFilePath(filePath),
