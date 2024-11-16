@@ -33,7 +33,7 @@
 		value?: File | MediaImage; // pass file directly from imageArray
 	}
 
-	let { field = $bindable(), value = $collectionValue[getFieldName(field)] }: Props = $props();
+	let { field = $bindable(), value = collectionValue.valuevalue[getFieldName(field)] }: Props = $props();
 
 	const validImageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif', 'image/svg+xml'];
 
@@ -94,14 +94,14 @@
 			}
 		}
 
-		if (!(value instanceof File) && !(_data instanceof File) && _data?._id !== value?._id && value?._id && $mode === 'edit') {
+		if (!(value instanceof File) && !(_data instanceof File) && _data?._id !== value?._id && value?._id && mode.value === 'edit') {
 			meta_data.add('media_images_remove', [value._id.toString()]);
 		}
 
 		validateInput();
 
 		// If not updated value is not changed and is MediaImage type so send back only id
-		return updated || $mode === 'create' ? _data : { _id: (value as MediaImage)?._id };
+		return updated || mode.value === 'create' ? _data : { _id: (value as MediaImage)?._id };
 	};
 
 	function getTimestamp(date: Date | number): number {

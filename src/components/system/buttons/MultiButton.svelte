@@ -75,21 +75,15 @@ Features:
 		}
 	};
 	let buttons = $state(props.buttons || defaultButtons);
-	let defaultButton = $state(props.defaultButton || 'Create');
 	let expanded = $state(false);
-	let activeArrow = $state(false);
 
-	$effect(() => {
-		defaultButton = $mode === 'modify' ? 'Delete' : 'Create';
-	});
+	let defaultButton = $derived(props.defaultButton || (mode.value === 'modify' ? 'Delete' : 'Create'));
 
-	$effect(() => {
-		expanded = $mode === 'modify' ? expanded : false;
-	});
+	$effect(()=> {
+		expanded = mode.value === 'modify' ? expanded : false;
+	})
 
-	$effect(() => {
-		activeArrow = $mode === 'modify';
-	});
+	let activeArrow = $derived(mode.value === 'modify');
 
 	function toggleExpanded() {
 		expanded = !expanded;
@@ -123,7 +117,7 @@ Features:
 	</button>
 	<div class="overflow-hidden rounded-b-lg transition-all" class:expanded>
 		{#each Object.keys(buttons) as button}
-			{#if button != defaultButton && button != 'Create' && $mode === 'modify'}
+			{#if button != defaultButton && button != 'Create' && mode.value === 'modify'}
 				<button
 					onclick={buttons[button].fn}
 					aria-label={button}

@@ -248,17 +248,16 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		logger.debug(`Is First User: ${!firstUserExists}`);
 
 		// If no code is present, handle initial OAuth flow
-		if (!code) {
-			if (!firstUserExists) {
+		if (!code && !firstUserExists) {
 				logger.debug('No first user and no code - redirecting to OAuth');
 				try {
 					const authUrl = await generateGoogleAuthUrl();
-					throw redirect(302, authUrl);
+					redirect(302, authUrl);
 				} catch (err) {
 					logger.error('Error generating OAuth URL:', err);
 					throw error(500, 'Failed to initialize OAuth');
 				}
-			}
+		}
 
 		// For non-first users without a token, show token input form
 		if (firstUserExists && !token && !code) {
@@ -313,9 +312,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			logger.info('Successfully processed OAuth callback and created session');
 
 			// Redirect to first collection
-			const redirectUrl = await fetchAndRedirectToFirstCollection();
-			logger.debug(`Redirecting to: ${redirectUrl}`);
-			throw redirect(302, redirectUrl);
+
 
 		} catch (err) {
 			if (err instanceof Error && 'status' in err && err.status === 302) {
@@ -331,7 +328,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			});
 			throw error(500, errorMessage);
 		}
-	} catch (err) {
+
+
+	}
+	catch (err) {
 		// Only throw error if it's not already a redirect
 		if (err instanceof Error && 'status' in err && err.status === 302) {
 			throw err;
@@ -349,6 +349,12 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			details: errorMessage
 		});
 	}
+
+
+	const redirectUrl = await fetchAndRedirectToFirstCollection();
+	logger.debug(`Redirecting to: ${redirectUrl}`);
+	throw redirect(302, redirectUrl);
+
 };
 
 export const actions: Actions = {

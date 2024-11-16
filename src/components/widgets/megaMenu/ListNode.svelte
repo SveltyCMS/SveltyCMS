@@ -353,8 +353,8 @@
 					$currentChild = self;
 					depth = level + 1;
 					showFields = true;
-					$mode = 'create';
-					$translationProgress.show = true;
+					mode.set('create');
+					translationProgress.value.show = true;
 					$shouldShowNextButton = true;
 				}}
 				aria-label="Add child item"
@@ -369,10 +369,10 @@
 			onclick={(event) => {
 				event.stopPropagation();
 				$currentChild = self;
-				$mode = 'edit';
+				mode.set('edit');
 				depth = level;
 				showFields = true;
-				$translationProgress.show = true;
+				translationProgress.value.show = true;
 				$shouldShowNextButton = true;
 			}}
 			aria-label="Edit item"

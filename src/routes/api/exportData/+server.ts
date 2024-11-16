@@ -25,7 +25,6 @@ import { publicEnv } from '@root/config/public';
 import { _GET } from '@api/query/GET';
 
 // Stores
-import { get } from 'svelte/store';
 import { collections } from '@root/src/stores/collectionStore.svelte';
 
 // System Logger
@@ -41,11 +40,11 @@ export const GET: RequestHandler = async ({ locals }) => {
 		logger.debug('User has permission to export data');
 
 		// Retrieve collections from the store
-		const $collections = get(collections);
+		const $collections = collections.value;
 		logger.debug('Collections retrieved from store');
 
 		// Fetch data from all collections concurrently
-		const data = await fetchAllCollectionData($collections, locals.user);
+		const data = await fetchAllCollectionData(collections.value, locals.user);
 
 		// Ensure the EXTRACT_DATA_PATH environment variable is configured
 		if (!publicEnv.EXTRACT_DATA_PATH) {

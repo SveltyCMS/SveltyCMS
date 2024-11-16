@@ -82,7 +82,7 @@ async function checkUserPermissions(data: FormData, cookies: any) {
 
 		// Get the schema for the specified collection from CollectionManager
 		const { collections } = collectionManager.getCollectionData();
-		const collection_schema = collections.find((c) => c.name === CollectionTypes) as Schema;
+		const collection_schema = collections.find((c) => c.name === collectionTypes) as Schema;
 
 		if (!collection_schema) {
 			throw Error('Collection not found');

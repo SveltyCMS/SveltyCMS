@@ -161,7 +161,7 @@ export async function saveFormData({
 	if (!meta_data.is_empty()) formData.append('_meta_data', JSON.stringify(meta_data.get()));
 
 	// Safely append status with a default value
-	formData.append('status', ($collectionValue?.status || 'unpublished').toString());
+	formData.append('status', (collectionValue.value?.status || 'unpublished').toString());
 
 	const username = user ? user.username : 'Unknown';
 
@@ -177,18 +177,18 @@ export async function saveFormData({
 			case 'edit':
 				logger.debug('Saving data in edit mode.');
 				// Safely append _id with fallback
-				formData.append('_id', (id || $collectionValue?._id || '').toString());
+				formData.append('_id', (id || collectionValue.value?._id || '').toString());
 				formData.append('updatedAt', Math.floor(Date.now() / 1000).toString());
 
 				if ($collection.revision) {
 					logger.debug('Creating new revision.');
 					const newRevision = {
-						...$collectionValue,
+						...collectionValue.value,
 						_id: await createRandomID(),
 						__v: [
-							...($collectionValue?.__v || []),
+							...(collectionValue.value?.__v || []),
 							{
-								revisionNumber: $collectionValue?.__v ? $collectionValue.__v.length : 0,
+								revisionNumber: collectionValue.value?.__v ? collectionValue.value.__v.length : 0,
 								editedAt: Math.floor(Date.now() / 1000).toString(),
 								editedBy: { username },
 								changes: {}
@@ -203,7 +203,7 @@ export async function saveFormData({
 					await handleRequest(revisionFormData, 'POST');
 				}
 
-				return await updateData({ data: formData, collectionTypes: $collection.path as any });
+				return await updateData({ data: formData, CollectionTypes: $collection.path as any });
 
 			default: {
 				const message = `Unhandled mode: ${$mode}`;

@@ -84,7 +84,7 @@ Ensure that the necessary stores and utility functions are available.
 				const scheduledTime = new Date(scheduleDate).getTime();
 
 				for (const entryId of $selectedEntries) {
-					const entry = $collectionValue[entryId];
+					const entry = collectionValue.value[entryId];
 					if (!entry) continue;
 
 					const updateData = {

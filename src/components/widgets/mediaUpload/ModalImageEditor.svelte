@@ -39,7 +39,7 @@
 	// import type { Stage } from 'konva/lib/Stage';
 	// import type { Group } from 'konva/lib/Group';
 
-	// if ($mode == 'edit') {
+	// if (mode.value == 'edit') {
 	// 	(value as MediaImage)?.thumbnail?.url &&
 	// 		axios.get((value as MediaImage).thumbnail.url, { responseType: 'blob' }).then(({ data }) => {
 	// 			if (value instanceof File) return;

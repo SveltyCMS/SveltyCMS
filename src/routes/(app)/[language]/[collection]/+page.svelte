@@ -33,9 +33,9 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 
 	// Handle collection initialization and navigation
 	$effect(() => {
-		if (!$collections || !$page.params.collection) return;
+		if (!collections.value || !$page.params.collection) return;
 
-		const selectedCollection = $collections[$page.params.collection];
+		const selectedCollection = collections.value[$page.params.collection];
 		if (selectedCollection) {
 			collection.set(selectedCollection as Schema);
 			initialLoadComplete = true;
@@ -53,7 +53,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 
 		try {
 			if (!forwardBackward) {
-				goto(`/${$contentLanguage}/${$collection.name}`);
+				goto(`/${contentLanguage.value}/${collection.value.name?.toString()}`);
 			}
 		} catch (error) {
 			navigationError = error instanceof Error ? error.message : 'Navigation error occurred';
@@ -68,8 +68,8 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		if (forwardBackward || !initialLoadComplete) return;
 
 		try {
-			if ($collection?.name) {
-				goto(`/${$contentLanguage}/${$collection.name}`);
+			if (collection.value.name) {
+				goto(`/${contentLanguage.value}/${collection.value.name?.toString()}`);
 			} else {
 				navigationError = 'Collection or collection name is undefined after language change.';
 				console.error(navigationError);
@@ -80,14 +80,14 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 			console.error('Language change error:', error);
 		}
 	});
+	const title =  $derived(`${collection.value?.name?.toString() || 'Loading...'} - Your Site Title`);
+	const description = `View and manage entries for ${collection?.value.name?.toString() || '...'}.`;
 
 	// Update SEO metadata
 	$effect(() => {
 		if (!browser) return;
 
-		const title = `${$collection?.name || 'Loading...'} - Your Site Title`;
-		const description = `View and manage entries for ${$collection?.name || '...'}.`;
-
+		
 		document.title = title;
 
 		const metaDescription = document.querySelector('meta[name="description"]');
@@ -107,7 +107,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		if (!import.meta.env.DEV) return;
 
 		// Only log if value has actually changed
-		if (JSON.stringify(lastCollectionValue) === JSON.stringify($collectionValue)) return;
+		if (JSON.stringify(lastCollectionValue) === JSON.stringify(collectionValue.value)) return;
 
 		// Clear any existing timeout
 		if (debugLogTimeout) {
@@ -116,15 +116,15 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 
 		// Set a new timeout
 		debugLogTimeout = window.setTimeout(() => {
-			console.debug('Page view collectionValue:', $collectionValue);
-			lastCollectionValue = structuredClone($collectionValue);
+			console.debug('Page view collectionValue:', collectionValue.value);
+			lastCollectionValue = structuredClone(collectionValue.value);
 		}, 100); // 100ms debounce
 	});
 
 	// Handle browser history navigation
 	function handlePopState() {
 		forwardBackward = true;
-		const selectedCollection = $collections[$page.params.collection];
+		const selectedCollection = collections.value[$page.params.collection];
 		if (selectedCollection) {
 			collection.set(selectedCollection as Schema);
 			navigationError = null;
@@ -157,13 +157,13 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 			{navigationError}
 		</div>
 	{:else if $collection}
-		{#if $mode === 'view' || $mode === 'modify'}
+		{#if mode.value === 'view' || mode.value === 'modify'}
 			<EntryList />
-		{:else if ['edit', 'create'].includes($mode)}
+		{:else if ['edit', 'create'].includes(mode.value)}
 			<div id="fields_container" class="fields max-h-[calc(100vh-60px)] overflow-y-auto max-md:max-h-[calc(100vh-120px)]">
-				<Fields fields={$collection.fields} fieldsData={$collection.fields} customData={$collectionValue} root={false} />
+				<Fields fields={$collection.fields} fieldsData={$collection.fields} customData={collectionValue.value} root={false} />
 			</div>
-		{:else if $mode === 'media' && $page.params.collection}
+		{:else if mode.value === 'media' && $page.params.collection}
 			<MediaGallery />
 		{/if}
 	{:else}

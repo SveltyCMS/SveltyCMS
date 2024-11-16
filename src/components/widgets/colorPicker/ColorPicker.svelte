@@ -32,7 +32,7 @@
 
 	const fieldName = getFieldName(field);
 
-	const _data = $state($mode === 'create' ? {} : value);
+	const _data = $state(mode.value === 'create' ? {} : value);
 	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
 

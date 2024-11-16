@@ -26,7 +26,7 @@ Features:
 	// Stores
 	import { page } from '$app/stores';
 	import { mode } from '@root/src/stores/collectionStore.svelte';
-	import { handleSidebarToggle } from '@stores/sidebarStore';
+	import { handleSidebarToggle } from '@root/src/stores/sidebarStore.svelte';
 	import { isSearchVisible, triggerActionStore } from '@utils/globalSearchIndex';
 
 	// Skeleton

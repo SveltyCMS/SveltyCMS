@@ -18,7 +18,7 @@
 	import { page } from '$app/stores';
 	import { saveLayerStore, shouldShowNextButton, validationStore } from '@stores/store';
 	import { collection, mode, modifyEntry, collectionValue } from '@root/src/stores/collectionStore.svelte';
-	import { handleSidebarToggle } from '@stores/sidebarStore';
+	import { handleSidebarToggle } from '@root/src/stores/sidebarStore.svelte';
 	import { convertTimestampToDateString, getFieldName, meta_data } from '@utils/utils';
 
 	// Get data from page store
@@ -73,9 +73,9 @@
 	});
 
 	// Map the status to boolean
-	let isPublished = $state($collectionValue?.status === 'published');
-	let schedule = $state($collectionValue?._scheduled ? new Date($collectionValue._scheduled).toISOString().slice(0, 16) : '');
-	let createdAtDate = $state($collectionValue?.createdAt ? new Date($collectionValue.createdAt * 1000).toISOString().slice(0, 16) : '');
+	let isPublished = $state(collectionValue.value?.status === 'published');
+	let schedule = $state(collectionValue.value?._scheduled ? new Date(collectionValue()._scheduled).toISOString().slice(0, 16) : '');
+	let createdAtDate = $state(collectionValue.value?.createdAt ? new Date(collectionValue().createdAt * 1000).toISOString().slice(0, 16) : '');
 
 	// Function to toggle the status
 	function toggleStatus() {
@@ -89,8 +89,8 @@
 
 	// Convert timestamps to date strings
 	let dates = $derived({
-		created: convertTimestampToDateString($collectionValue?.createdAt),
-		updated: convertTimestampToDateString($collectionValue?.updatedAt)
+		created: convertTimestampToDateString(collectionValue.value.createdAt),
+		updated: convertTimestampToDateString(collectionValue.value.updatedAt)
 	});
 
 	// Type guard to check if the widget has a validateWidget method
@@ -107,9 +107,9 @@
 		meta_data.clear();
 
 		// Validate all fields and collect data
-		for (const field of $collection.fields) {
+		for (const field of collection.value.fields) {
 			const fieldName = getFieldName(field);
-			const fieldValue = $collectionValue[fieldName];
+			const fieldValue = collectionValue.value[fieldName];
 
 			// Use the widget property directly since it's now a widget instance
 			const widgetInstance = field.widget;
@@ -129,7 +129,7 @@
 		}
 
 		// Add system fields
-		if ($mode === 'create') {
+		if (mode.value === 'create') {
 			getData['createdAt'] = () => (createdAtDate ? Math.floor(new Date(createdAtDate).getTime() / 1000) : Math.floor(Date.now() / 1000));
 			getData['updatedAt'] = getData['createdAt'];
 			getData['createdBy'] = () => user?.username;
@@ -142,12 +142,12 @@
 		}
 
 		// Add ID if in edit mode
-		if ($mode === 'edit' && $collectionValue._id) {
-			getData['_id'] = () => $collectionValue._id;
+		if (mode.value === 'edit' && collectionValue.value._id) {
+			getData['_id'] = () => collectionValue.value._id;
 		}
 
 		// Add status
-		getData['status'] = () => $collectionValue.status || 'unpublished';
+		getData['status'] = () => collectionValue.value.status || 'unpublished';
 
 		// Add schedule if set
 		if (schedule) {
@@ -157,13 +157,13 @@
 		// If validation passed, save the data
 		if (validationPassed) {
 			try {
-				console.debug('Saving data...', `${JSON.stringify({ mode: $mode, collection: $collection.name })}`);
+				console.debug('Saving data...', `${JSON.stringify({ mode: mode.value, collection: collection.value.name })}`);
 
 				await saveFormData({
 					data: getData,
-					_collection: $collection,
-					_mode: $mode,
-					id: $collectionValue._id,
+					_collection: collection.value,
+					_mode: mode.value,
+					id: collectionValue.value._id,
 					user
 				});
 
@@ -174,13 +174,17 @@
 			}
 		}
 	}
+
+	$effect(() => {
+		console.debug(" Mode: ", mode.value, collection.value.permissions?.[user.role]?.write)
+	})
 </script>
 
 <!-- Desktop Right Sidebar -->
 <!-- Check if user has create or write permission -->
-{#if ['edit', 'create'].includes($mode) || $collection?.permissions?.[user?.role]?.write !== false}
+{#if ['edit', 'create'].includes(mode.value) || collection.value.permissions?.[user.role]?.write !== false}
 	<div class="flex h-full w-full flex-col justify-between px-1 py-2">
-		{#if $shouldShowNextButton && $mode === 'create'}
+		{#if $shouldShowNextButton && mode.value === 'create'}
 			<button type="button" onclick={next} aria-label="Next" class="variant-filled-primary btn w-full gap-2">
 				<iconify-icon icon="carbon:next-filled" width="24" class="font-extrabold text-white"></iconify-icon>
 				{m.button_next()}
@@ -191,9 +195,7 @@
 				<button
 					type="button"
 					onclick={saveData}
-					disabled={$collection?.permissions?.[user?.role]?.write === false ||
-						$collection?.permissions === undefined ||
-						$collection?.permissions[user?.role] === undefined}
+					disabled={collection.value?.permissions?.[user.role]?.write === false}
 					class="variant-filled-primary btn w-full gap-2"
 					aria-label="Save entry"
 				>
@@ -209,31 +211,27 @@
 						iconOn="ic:baseline-check-circle"
 						iconOff="material-symbols:close"
 						bind:value={isPublished}
-						onchange={toggleStatus}
+						onChange={toggleStatus}
 					/>
 				</div>
 
-				{#if $mode === 'edit'}
+				{#if mode.value === 'edit'}
 					<!-- Clone button -->
 					<button
 						type="button"
 						onclick={() => $modifyEntry('cloned')}
-						disabled={!($collection?.permissions?.[user?.role]?.write !== false && $collection?.permissions?.[user?.role]?.create !== false) ||
-							$collection?.permissions === undefined ||
-							$collection?.permissions[user?.role] === undefined}
+						disabled={!(collection.value?.permissions?.[user.role]?.write && collection.value?.permissions?.[user.role]?.create)}
 						class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn w-full gap-2 text-white"
 						aria-label="Clone entry"
 					>
-						<iconify-icon icon="bi:clipboard-data-fill" width="24"></iconify-icon>Clone<span class="text-primary-500">{$collection?.name}</span>
+						<iconify-icon icon="bi:clipboard-data-fill" width="24"></iconify-icon>Clone<span class="text-primary-500">{collection.value?.name}</span>
 					</button>
 
 					<!-- Delete button -->
 					<button
 						type="button"
 						onclick={() => $modifyEntry('deleted')}
-						disabled={$collection?.permissions?.[user?.role]?.delete === false ||
-							$collection?.permissions === undefined ||
-							$collection?.permissions[user?.role] === undefined}
+						disabled={collection.value?.permissions?.[user.role]?.delete === false}
 						class="variant-filled-error btn w-full"
 						aria-label="Delete entry"
 					>
@@ -275,20 +273,20 @@
 				<div class="mt-2 flex w-full flex-col items-start justify-center">
 					<p class="mb-1">Created by:</p>
 					<div class="variant-filled-surface w-full p-2 text-center text-tertiary-500 dark:text-primary-500">
-						{$collectionValue?.createdBy || user?.username}
+						{collectionValue.value.createdBy || user.username}
 					</div>
 
-					{#if $collectionValue?.updatedBy}
+					{#if collectionValue.value.updatedBy}
 						<p class="mt-1">Last updated by:</p>
 
 						<div class="variant-filled-surface w-full p-2 text-center text-tertiary-500 dark:text-primary-500">
-							{$collectionValue?.updatedBy || user?.username}
+							{collectionValue.value.updatedBy || user.username}
 						</div>
 					{/if}
 				</div>
 			</main>
 
-			{#if $mode === 'create'}
+			{#if mode.value === 'create'}
 				<p class="mb-2 text-center text-tertiary-500 dark:text-primary-500">
 					{new Date().toLocaleString(languageTag(), { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
 				</p>

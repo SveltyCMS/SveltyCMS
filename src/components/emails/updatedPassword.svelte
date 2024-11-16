@@ -55,7 +55,7 @@
 	};
 </script>
 
-<Html lang={$systemLanguage}>
+<Html lang={systemLanguage.value}>
 	<Head>
 		<title>Your password for {publicEnv.SITE_NAME} was changed</title>
 		<meta name="description" content="Your password for {publicEnv.SITE_NAME} was changed" />

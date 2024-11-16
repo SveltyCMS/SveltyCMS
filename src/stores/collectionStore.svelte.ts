@@ -11,7 +11,7 @@
 
 import { store } from '@src/utils/reactivity.svelte';
 import type { Schema, CategoryData } from '@src/collections/types';
-import type { Permission } from '@src/auth/types';
+// import type { Permission } from '@src/auth/types';
 
 // Define types
 type ModeType = 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';

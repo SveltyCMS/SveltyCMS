@@ -58,11 +58,11 @@
 	}
 
 	// Use state for fields
-	let fields = $state(mapFieldsWithWidgets($collectionValue.fields));
+	let fields = $state(mapFieldsWithWidgets(collectionValue.value.fields));
 
 	// Update fields when collectionValue changes
 	$effect(() => {
-		fields = mapFieldsWithWidgets($collectionValue.fields);
+		fields = mapFieldsWithWidgets(collectionValue.value.fields);
 	});
 
 	// Collection headers

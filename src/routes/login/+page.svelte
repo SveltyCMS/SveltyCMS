@@ -30,7 +30,6 @@ Features:
 
 	// Props
 	const { data } = $props<{ data: PageData }>();
-
 	// State Management
 	const firstUserExists = $state(data.firstUserExists);
 	let active = $state<undefined | 0 | 1>(publicEnv.SEASONS || publicEnv.DEMO ? undefined : firstUserExists ? undefined : 1);
@@ -50,7 +49,7 @@ Features:
 	const filteredLanguages = $derived(
 		availableLanguages.filter(
 			(lang: string) =>
-				getLanguageName(lang, $systemLanguage).toLowerCase().includes(searchQuery.toLowerCase()) ||
+				getLanguageName(lang, systemLanguage.value).toLowerCase().includes(searchQuery.toLowerCase()) ||
 				getLanguageName(lang, 'en').toLowerCase().includes(searchQuery.toLowerCase())
 		)
 	);
@@ -278,7 +277,7 @@ Features:
 			{:else}
 				<!-- Simple dropdown for 5 or fewer languages -->
 				<select
-					bind:value={$systemLanguage}
+					bind:value={systemLanguage.value}
 					class="rounded-full border-2 bg-[#242728] px-4 py-2 text-white transition-colors duration-300 focus:ring-2"
 				>
 					{#each availableLanguages as lang}

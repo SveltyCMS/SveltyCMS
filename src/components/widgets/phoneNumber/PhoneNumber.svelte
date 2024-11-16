@@ -25,7 +25,7 @@
 
 	const fieldName = getFieldName(field);
 
-	const _data = $state($mode === 'create' ? {} : value);
+	const _data = $state(mode.value === 'create' ? {} : value);
 	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
 
 	let validationError: string | null = $state(null);
@@ -79,7 +79,7 @@
 		value?: any;
 	}
 
-	let { field, value = $collectionValue[fieldName] || {} }: Props = $props();
+	let { field, value = collectionValue.valuevaluevaluevaluevalue[fieldName] || {} }: Props = $props();
 
 	onMount(() => {
 		if (field?.required && !_data[_language]) {

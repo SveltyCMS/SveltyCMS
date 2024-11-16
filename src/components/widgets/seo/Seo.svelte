@@ -46,10 +46,10 @@
 	let { field, value = {} }: Props = $props();
 
 	const fieldName = getFieldName(field);
-	value = value || $collectionValue[fieldName] || {};
+	value = value || collectionValue.value[fieldName] || {};
 
 	// State variables
-	let _data = $state($mode === 'create' ? {} : value);
+	let _data = $state(mode.value === 'create' ? {} : value);
 	let _language = $state(field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE);
 	let title = $state('');
 	let description = $state('');

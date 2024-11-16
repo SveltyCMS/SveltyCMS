@@ -118,18 +118,11 @@ function createScreenSizeStores() {
 const stores = createScreenSizeStores();
 
 // Export individual stores and values
-export const screenSize = {
-	subscribe: stores.currentSize.subscribe,
-	set: stores.currentSize.set
-};
+export const screenSize = stores.currentSize;
 
-export const screenWidth = {
-	subscribe: () => stores.width()
-};
+export const screenWidth = stores.width;
 
-export const screenHeight = {
-	subscribe: () => stores.height()
-};
+export const screenHeight = stores.height;
 
 // Export derived values
 export const isMobile = { subscribe: () => stores.isMobile };

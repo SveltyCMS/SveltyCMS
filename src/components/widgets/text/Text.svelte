@@ -40,7 +40,7 @@
 		WidgetData?: any;
 	}
 
-	let { field, value = $collectionValue[getFieldName(field)] || {}, WidgetData = $bindable() }: Props = $props();
+	let { field, value = collectionValue.value[getFieldName(field)] || {}, WidgetData = $bindable() }: Props = $props();
 
 	// Initialize value separately to avoid $state() in prop destructuring
 

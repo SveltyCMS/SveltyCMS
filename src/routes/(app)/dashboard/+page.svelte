@@ -231,8 +231,8 @@
 				items,
 				...dndOptions
 			}}
-			on:consider={handleDndConsider}
-			on:finalize={handleDndFinalize}
+			onconsider={handleDndConsider}
+			onfinalize={handleDndFinalize}
 		>
 			{#each items as item (item.id)}
 				<div

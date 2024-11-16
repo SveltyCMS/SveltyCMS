@@ -58,10 +58,10 @@
 		WidgetData?: any;
 	}
 
-	let { field, value = $collectionValue[getFieldName(field)] || { content: {}, header: {} }, WidgetData = $bindable() }: Props = $props();
+	let { field, value = collectionValue.value[getFieldName(field)] || { content: {}, header: {} }, WidgetData = $bindable() }: Props = $props();
 	WidgetData = async () => ({ images, data: _data });
 
-	let _data = $state($mode === 'create' ? { content: {}, header: {} } : value);
+	let _data = $state(mode.value === 'create' ? { content: {}, header: {} } : value);
 
 	// Language handling with derived state
 	let _language = $derived(field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE);

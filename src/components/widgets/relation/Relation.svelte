@@ -45,8 +45,8 @@
 	let { field, expanded = $bindable(false) }: Props = $props();
 
 	const fieldName = getFieldName(field);
-	const value = $collectionValue[fieldName];
-	const relationCollection = $collections[field?.relation];
+	const value = collectionValue.value[fieldName];
+	const relationCollection = collections.value[field?.relation];
 
 	// State variables
 	let dropDownData = $state<any[]>([]);
@@ -71,7 +71,7 @@
 
 		async function updateDisplay() {
 			let data: any;
-			if ($mode === 'edit') {
+			if (mode.value === 'edit') {
 				if (entryMode === 'edit' || entryMode === 'create') {
 					data = await extractData(fieldsData);
 				} else if (entryMode === 'choose') {
@@ -87,13 +87,13 @@
 			}
 
 			data = data[field.displayPath] ? data : value;
-			data = $mode === 'create' ? {} : data;
+			data = mode.value === 'create' ? {} : data;
 
 			const displayResult = await field?.display({
 				data,
 				field,
 				collection: $collection,
-				entry: $collectionValue,
+				entry: collectionValue.value,
 				contentLanguage: $contentLanguage
 			});
 
@@ -193,7 +193,7 @@
 			</button>
 
 			<div class="ml-auto flex items-center pr-2">
-				{#if $mode === 'create'}
+				{#if mode.value === 'create'}
 					<button
 						onclick={() => {
 							expanded = !expanded;
