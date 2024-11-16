@@ -19,7 +19,6 @@ import { browser } from '$app/environment';
 
 // Types
 import type { Schema, CollectionTypes, Category, CategoryData } from './types';
-// import { CollectionRegistry } from './types';
 
 // Utils
 import { createRandomID } from '@utils/utils';
@@ -283,22 +282,32 @@ class CollectionManager {
 
 					for (const [path, moduleSchema] of filteredModules) {
 						const schema = (moduleSchema as ProcessedModule)?.schema;
-						if (schema) {
-							const name = path.split('/').pop()?.replace(/\.ts$/, '');
-							if (name) {
-								const randomId = await createRandomID();
-								const processed: Schema = {
-									...schema,
-									name: name as CollectionTypes,
-									id: parseInt(randomId.toString().slice(0, 8), 16),
-									icon: schema.icon || 'iconoir:info-empty',
-									path: this.extractPathFromFilePath(path),
-									fields: schema.fields || []
-								};
-								collections.push(processed);
-								await this.setCacheValue(path, processed, this.collectionCache);
-							}
+
+						if (!schema) {
+							logger.error(`No schema found in ${path}`);
+							continue;  // Skip this iteration instead of returning null
 						}
+
+						const name = path
+							.split('/')
+							.pop()
+							?.replace(/\.(ts|js)$/, '');
+						if (!name) {
+							logger.error(`Could not extract name from ${path}`);
+							continue;  // Skip this iteration instead of returning null
+						}
+
+						const randomId = await createRandomID();
+						const processed: Schema = {
+							...schema,
+							name: name as CollectionTypes, // Type assertion is safe here since the name comes from valid collection files
+							id: parseInt(randomId.toString().slice(0, 8), 16),
+							icon: schema.icon || 'iconoir:info-empty',
+							path: this.extractPathFromFilePath(path),
+							fields: schema.fields || []
+						};
+						collections.push(processed);
+						await this.setCacheValue(path, processed, this.collectionCache);
 					}
 				} else {
 					// Production mode implementation
@@ -349,18 +358,17 @@ class CollectionManager {
 				const fileHash = crypto.createHash('md5').update(content).digest('hex');
 				const hashCacheKey = `hash_${filePath}`;
 
+				// Check if file has changed
 				const cachedHash = await this.getCacheValue(hashCacheKey, this.fileHashCache);
-				if (cachedHash === fileHash) {
-					const cached = await this.getCacheValue(filePath, this.collectionCache);
-					if (cached) return cached;
+				const cachedSchema = await this.getCacheValue(filePath, this.collectionCache);
+				if (cachedHash === fileHash && cachedSchema) {
+					return cachedSchema;
 				}
 
-				const module = (await import(/* @vite-ignore */ filePath)) as ProcessedModule;
-				const schema = module.schema;
-
+				const schema = (await import(filePath))?.default?.schema;
 				if (!schema) {
 					logger.error(`No schema found in ${filePath}`);
-					return null;
+					throw new Error(`No schema found in ${filePath}`);
 				}
 
 				const name = filePath
@@ -369,13 +377,13 @@ class CollectionManager {
 					?.replace(/\.(ts|js)$/, '');
 				if (!name) {
 					logger.error(`Could not extract name from ${filePath}`);
-					return null;
+					throw new Error(`Could not extract name from ${filePath}`);
 				}
 
 				const randomId = await createRandomID();
 				const processed: Schema = {
 					...schema,
-					name: name as CollectionTypes,
+					name: name as CollectionTypes, // Type assertion is safe here since the name comes from valid collection files
 					id: parseInt(randomId.toString().slice(0, 8), 16),
 					icon: schema.icon || 'iconoir:info-empty',
 					path: this.extractPathFromFilePath(filePath),
@@ -389,7 +397,7 @@ class CollectionManager {
 			} catch (err) {
 				const errorMessage = err instanceof Error ? err.message : String(err);
 				logger.error(`Error processing collection file ${filePath}: ${errorMessage}`);
-				return null;
+				throw err; // Re-throw the error instead of returning null
 			}
 		});
 	}
@@ -510,7 +518,7 @@ class CollectionManager {
 			// Process collections into category structure
 			for (const collection of collectionsList) {
 				if (!collection.path) {
-					logger.warn(`Collection ${collection.name} has no path`);
+					logger.warn(`Collection ${String(collection.name)} has no path`);
 					continue;
 				}
 

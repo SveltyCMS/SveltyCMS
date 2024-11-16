@@ -107,8 +107,10 @@ async function fetchAndSaveGoogleAvatar(avatarUrl: string): Promise<string | nul
 // Helper function to fetch and redirect to the first collection
 async function fetchAndRedirectToFirstCollection() {
 	try {
+		// Wait for collections to be loaded
+		await collectionManager.initialize();
 		const { collections } = collectionManager.getCollectionData();
-		// logger.debug('Fetched collections:', collections);
+		logger.debug('Available collections:', collections);
 
 		if (collections && collections.length > 0) {
 			const firstCollection = collections[0];
@@ -149,13 +151,11 @@ async function handleGoogleUser(
 	let user = await auth?.checkUser({ email });
 
 	if (!user) {
-		// For non-first users, require a token
-		if (!isFirst && !token) {
-			throw new Error('Registration token is required for new users');
-		}
-
-		// For non-first users, validate the token
-		if (!isFirst && token) {
+		// Only require token for new users (not first user)
+		if (!isFirst) {
+			if (!token) {
+				throw new Error('Registration token is required for new users');
+			}
 			const tokenValidation = await auth?.validateToken(token);
 			if (!tokenValidation?.isValid) {
 				throw new Error('Invalid or expired registration token');
@@ -187,6 +187,7 @@ async function handleGoogleUser(
 		// Send welcome email for new users
 		await sendWelcomeEmail(fetchFn, email, googleUser.name || '');
 	} else {
+		// Existing user - no token required for sign-in
 		// Update existing user's avatar if they have a Google avatar
 		let avatarUrl: string | null = null;
 		if (googleUser.picture) {
@@ -308,6 +309,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 				throw error(500, 'Could not retrieve user information');
 			}
 
+			// Handle user creation/update and session creation
 			await handleGoogleUser(googleUser as GoogleUserInfo, !firstUserExists, token, cookies, fetch);
 			logger.info('Successfully processed OAuth callback and created session');
 
@@ -315,7 +317,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 
 
 		} catch (err) {
-			if (err instanceof Error && 'status' in err && err.status === 302) {
+			if (err instanceof Error && 'status' in err && err.status === 302 || err.status === 303) {
 				throw err;
 			}
 
@@ -326,14 +328,23 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 				code,
 				token
 			});
-			throw error(500, errorMessage);
+
+			// Provide more detailed error information
+			const errorDetails = err instanceof Error ? err.stack : 'No stack trace available';
+			throw error(500, {
+				message: 'OAuth Processing Failed',
+				details: errorMessage,
+				stack: errorDetails,
+				code: code ? 'Present' : 'Missing',
+				token: token ? 'Present' : 'Missing'
+			});
 		}
 
 
 	}
 	catch (err) {
 		// Only throw error if it's not already a redirect
-		if (err instanceof Error && 'status' in err && err.status === 302) {
+		if (err instanceof Error && 'status' in err && (err.status === 302 || err.status === 303)) {
 			throw err;
 		}
 
@@ -344,9 +355,11 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			fullError: err
 		});
 
+		// Provide more detailed error information for the user
 		throw error(500, {
-			message: 'OAuth Processing Failed',
-			details: errorMessage
+			message: 'OAuth Authentication Failed',
+			details: errorMessage,
+			type: err instanceof Error ? err.constructor.name : 'Unknown Error Type'
 		});
 	}
 
@@ -365,7 +378,12 @@ export const actions: Actions = {
 		try {
 			// Generate OAuth URL with token in state parameter
 			const authUrl = await generateGoogleAuthUrl(token?.toString() || null);
-			throw redirect(302, authUrl);
+			return {
+				status: 302,
+				headers: {
+					Location: authUrl
+				}
+			};
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : 'Failed to initialize OAuth';
 			logger.error('Error during OAuth initialization:', errorMessage);
