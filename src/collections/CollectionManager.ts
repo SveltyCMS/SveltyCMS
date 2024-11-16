@@ -371,7 +371,7 @@ class CollectionManager {
 				// Use glob pattern for importing collection files
 				const modules = import.meta.glob('/config/collections/**/*.ts', { eager: true });
 				const moduleSchema = modules[filePath];
-				let schema = (moduleSchema as any)?.schema;
+				const schema = (moduleSchema as any)?.schema;
 
 				if (!schema || typeof schema !== 'object') {
 					logger.error(`Invalid or missing schema in ${filePath}`);
