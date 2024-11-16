@@ -130,7 +130,7 @@
 	};
 </script>
 
-<Html lang={$systemLanguage}>
+<Html lang={systemLanguage.value}>
 	<Head>
 		<title>User Registration token for {publicEnv.SITE_NAME}</title>
 		<meta name="description" content="User Registration token for {publicEnv.SITE_NAME}" />

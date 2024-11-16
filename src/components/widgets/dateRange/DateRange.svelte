@@ -23,7 +23,7 @@
 		value?: any;
 	}
 
-	const _data = $state($mode === 'create' ? {} : value);
+	const _data = $state(mode.value === 'create' ? {} : value);
 	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
 	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;

@@ -51,9 +51,9 @@
 
 	// Effect to handle language changes
 	$effect(() => {
-		if ($systemLanguage) {
-			setLanguageTag($systemLanguage); // Update the language tag
-			browser && globalThis.localStorage.setItem('systemLanguage', $systemLanguage);
+		if (systemLanguage.value) {
+			setLanguageTag(systemLanguage.value); // Update the language tag
+			browser && globalThis.localStorage.setItem('systemLanguage', systemLanguage.value);
 		}
 	});
 </script>

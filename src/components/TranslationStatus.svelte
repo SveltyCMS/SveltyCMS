@@ -33,7 +33,23 @@
 
 	// State declarations
 	let isOpen = $state(false);
-	let completionStatus = $state(0);
+	let completionStatus = $derived.by(()=> {
+		const progress = translationProgress();
+		if (progress.show) {
+			let total = 0;
+			let totalTranslated = 0;
+			for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES) {
+				const langProgress = progress[lang];
+				if (!langProgress || typeof langProgress === 'boolean') continue;
+				totalTranslated += langProgress.translated.size;
+				total += langProgress.total.size;
+			}
+			return Math.round((totalTranslated / total) * 100);
+		} else {
+			return 0;
+		}
+
+	});
 
 	// Handles the language change
 	function handleChange(event: Event & { currentTarget: EventTarget & HTMLSelectElement }) {
@@ -71,35 +87,17 @@
 		}
 	}
 
-	// Effect to update completion status when translation progress changes
-	$effect(() => {
-		const progress = translationProgress();
-		if (progress.show) {
-			let total = 0;
-			let totalTranslated = 0;
-			for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES) {
-				const langProgress = progress[lang];
-				if (!langProgress || typeof langProgress === 'boolean') continue;
-				totalTranslated += langProgress.translated.size;
-				total += langProgress.total.size;
-			}
-			completionStatus = Math.round((totalTranslated / total) * 100);
-		} else {
-			completionStatus = 0;
-		}
-	});
-
 	// Effect to update translation progress based on mode
-	$effect(() => {
-		if ($mode !== 'view') {
-			translationProgress.update((current) => ({ ...current, show: true }));
-		} else {
-			translationProgress.update((current) => ({ ...current, show: false }));
-		}
-	});
+	// $effect(() => {
+	// 	if (mode.value !== 'view') {
+	// 		translationProgress.update((current) => ({ ...current, show: true }));
+	// 	} else {
+	// 		translationProgress.update((current) => ({ ...current, show: false }));
+	// 	}
+	// });
 </script>
 
-{#if $mode === 'edit'}
+{#if mode.value === 'edit'}
 	<!-- Language -->
 	<div class="relative mt-1 inline-block text-left">
 		<div>
@@ -110,7 +108,7 @@
 				aria-expanded={isOpen}
 				onclick={toggleDropdown}
 			>
-				{$contentLanguage.toUpperCase()}
+				{contentLanguage.value.toUpperCase()}
 				<iconify-icon icon="mingcute:down-line" width="20" class="text-surface-500"></iconify-icon>
 			</button>
 
@@ -182,7 +180,7 @@
 	<!-- Language -->
 	<select
 		class="variant-ghost-surface rounded-t border-surface-500 dark:text-white"
-		value={$contentLanguage}
+		value={contentLanguage.value}
 		onchange={handleChange}
 		onfocus={() => {
 			closeOpenStates();

@@ -26,6 +26,8 @@
 
 import { privateEnv } from '@root/config/private';
 
+import { collectionManager } from '@src/collections/CollectionManager';
+
 // Stores
 import type { Unsubscriber } from 'svelte/store';
 import type { ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
@@ -73,7 +75,7 @@ const mediaSchema = new Schema(
 
 // Define the Draft model if it doesn't exist already
 const DraftModel =
-	mongoose.models.Draft ||
+	mongoose.models?.Draft ||
 	mongoose.model<Draft>(
 		'Draft',
 		new Schema(
@@ -90,7 +92,7 @@ const DraftModel =
 
 // Define the Revision model if it doesn't exist already
 const RevisionModel =
-	mongoose.models.Revision ||
+	mongoose.models?.Revision ||
 	mongoose.model<Revision>(
 		'Revision',
 		new Schema(
@@ -107,7 +109,7 @@ const RevisionModel =
 
 // Create the Theme model if it doesn't exist already
 const ThemeModel =
-	mongoose.models.Theme ||
+	mongoose.models?.Theme ||
 	mongoose.model<Theme>(
 		'Theme',
 		new Schema(
@@ -122,7 +124,7 @@ const ThemeModel =
 
 // Create the Widget model if it doesn't exist already
 const WidgetModel =
-	mongoose.models.Widget ||
+	mongoose.models?.Widget ||
 	mongoose.model<Widget>(
 		'Widget',
 		new Schema(
@@ -136,7 +138,7 @@ const WidgetModel =
 
 // Define the System Preferences schema for user layout and screen size
 const SystemPreferencesModel =
-	mongoose.models.SystemPreferences ||
+	mongoose.models?.SystemPreferences ||
 	mongoose.model<SystemPreferences>(
 		'SystemPreferences',
 		new Schema(
@@ -151,7 +153,7 @@ const SystemPreferencesModel =
 
 // Define the SystemVirtualFolder model only if it doesn't already exist
 const SystemVirtualFolderModel =
-	mongoose.models.SystemVirtualFolder ||
+	mongoose.models?.SystemVirtualFolder ||
 	mongoose.model<SystemVirtualFolder>(
 		'SystemVirtualFolder',
 		new Schema(
@@ -292,12 +294,13 @@ export class MongoDBAdapter implements dbInterface {
 				}
 
 				const schemaOptions = {
-					typeKey: '$type',
+					// typeKey: '$type',
 					strict: true,
 					timestamps: true,
-					collection: CollectionTypes.toLowerCase()
+					collection: collectionTypes.toLowerCase()
 				};
 
+				console.debug('schemaDefinition:', schemaDefinition);
 				// Safely create or retrieve model
 				const existingModel = mongoose.models[collectionTypes];
 				if (existingModel) {

@@ -22,7 +22,7 @@
 	// Stores
 	import { storeListboxValue } from '@stores/store';
 	import { mode, modifyEntry } from '@root/src/stores/collectionStore.svelte';
-	import { handleSidebarToggle } from '@stores/sidebarStore';
+	import { handleSidebarToggle } from '@root/src/stores/sidebarStore.svelte';
 
 	// Components
 	import ScheduleModal from './ScheduleModal.svelte';

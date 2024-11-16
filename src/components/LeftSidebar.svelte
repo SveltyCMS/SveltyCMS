@@ -26,7 +26,7 @@
 	import { get } from 'svelte/store';
 	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store';
 	import { mode } from '@root/src/stores/collectionStore.svelte';
-	import { toggleSidebar, sidebarState, userPreferredState, handleSidebarToggle } from '@stores/sidebarStore';
+	import { toggleSidebar, sidebarState, userPreferredState, handleSidebarToggle } from '@root/src/stores/sidebarStore.svelte';
 	import { screenSize } from '@root/src/stores/screenSizeStore.svelte';
 
 	// Import components and utilities
@@ -92,7 +92,7 @@
 	function handleLanguageSelection(lang: AvailableLanguage) {
 		clearTimeout(debounceTimeout);
 		debounceTimeout = setTimeout(() => {
-			$systemLanguage = lang;
+			systemLanguage.set(lang);
 			_languageTag = lang;
 			isDropdownOpen = false;
 			searchQuery = '';
@@ -107,7 +107,7 @@
 	let filteredLanguages = $derived(
 		availableLanguages.filter(
 			(lang: string) =>
-				getLanguageName(lang, $systemLanguage).toLowerCase().includes(searchQuery.toLowerCase()) ||
+				getLanguageName(lang, systemLanguage.value).toLowerCase().includes(searchQuery.toLowerCase()) ||
 				getLanguageName(lang, 'en').toLowerCase().includes(searchQuery.toLowerCase())
 		) as AvailableLanguage[]
 	);
@@ -213,7 +213,7 @@
 
 <div class="flex h-full w-full flex-col justify-between">
 	<!-- Corporate Identity Full-->
-	{#if $sidebarState.left === 'full'}
+	{#if sidebarState.sidebar.value.left === 'full'}
 		<a href="/" aria-label="SveltyCMS Logo" class="flex pt-2 !no-underline">
 			<SveltyCMSLogo fill="red" className="h-9 -ml-2" />
 			<span class="text-token relative text-2xl font-bold"><SiteName /> </span>
@@ -235,8 +235,8 @@
 	<button
 		type="button"
 		onclick={() => {
-			toggleSidebar('left', $sidebarState.left === 'full' ? 'collapsed' : 'full');
-			userPreferredState.set($sidebarState.left === 'full' ? 'collapsed' : 'full');
+			toggleSidebar('left', sidebarState.sidebar.value.left === 'full' ? 'collapsed' : 'full');
+			userPreferredState.set(sidebarState.sidebar.value.left === 'full' ? 'collapsed' : 'full');
 		}}
 		aria-label="Expand/Collapse Sidebar"
 		class="absolute top-2 z-20 flex items-center justify-center !rounded-full border-[3px] dark:border-black ltr:-right-3 rtl:-left-3"
@@ -244,7 +244,7 @@
 		<iconify-icon
 			icon="bi:arrow-left-circle-fill"
 			width="30"
-			class={`rounded-full bg-surface-500 text-white hover:cursor-pointer hover:bg-error-600 dark:bg-white dark:text-surface-600 dark:hover:bg-error-600 ${$sidebarState.left === 'full' ? 'rotate-0 rtl:rotate-180' : 'rotate-180 rtl:rotate-0'}`}
+			class={`rounded-full bg-surface-500 text-white hover:cursor-pointer hover:bg-error-600 dark:bg-white dark:text-surface-600 dark:hover:bg-error-600 ${sidebarState.sidebar.value.left === 'full' ? 'rotate-0 rtl:rotate-180' : 'rotate-180 rtl:rotate-0'}`}
 		></iconify-icon>
 	</button>
 
@@ -255,9 +255,9 @@
 	<div class="mb-2 mt-auto bg-white dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900">
 		<div class="mx-1 mb-1 border-0 border-t border-surface-400"></div>
 
-		<div class="{$sidebarState.left === 'full' ? 'grid-cols-3 grid-rows-3' : 'grid-cols-2 grid-rows-2'} grid items-center justify-center">
+		<div class="{sidebarState.sidebar.value.left === 'full' ? 'grid-cols-3 grid-rows-3' : 'grid-cols-2 grid-rows-2'} grid items-center justify-center">
 			<!-- Avatar with user settings -->
-			<div class={$sidebarState.left === 'full' ? 'order-1 row-span-2' : 'order-1'}>
+			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-1 row-span-2' : 'order-1'}>
 				<button
 					use:popup={UserTooltip}
 					onclick={handleClick}
@@ -268,10 +268,10 @@
 						src={$avatarSrc && $avatarSrc.startsWith('data:') ? $avatarSrc : $avatarSrc ? `/${$avatarSrc}?t=${Date.now()}` : '/Default_User.svg'}
 						alt="Avatar"
 						initials="AV"
-						class="mx-auto {$sidebarState.left === 'full' ? 'w-[40px]' : 'w-[35px]'}"
+						class="mx-auto {sidebarState.sidebar.value.left === 'full' ? 'w-[40px]' : 'w-[35px]'}"
 					/>
 					<div class="-mt-1 text-center text-[10px] uppercase text-black dark:text-white">
-						{#if $sidebarState.left === 'full'}
+						{#if sidebarState.sidebar.value.left === 'full'}
 							{#if user?.username}
 								<div class=" -ml-1.5">
 									{user?.username}
@@ -289,11 +289,11 @@
 			</div>
 
 			<!-- Enhanced System Language Selector -->
-			<div class={$sidebarState.left === 'full' ? 'order-3 row-span-2' : 'order-2'} use:popup={SystemLanguageTooltip}>
+			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-3 row-span-2' : 'order-2'} use:popup={SystemLanguageTooltip}>
 				<div class="language-selector relative">
 					{#if publicEnv.AVAILABLE_SYSTEM_LANGUAGES.length > 5}
 						<button
-							class="variant-filled-surface btn-icon flex items-center justify-between gap-2 uppercase text-white {$sidebarState.left === 'full'
+							class="variant-filled-surface btn-icon flex items-center justify-between gap-2 uppercase text-white {sidebarState.sidebar.value.left === 'full'
 								? 'px-2.5 py-2'
 								: 'px-1.5 py-0'}"
 							onclick={stopPropagation(() => (isDropdownOpen = !isDropdownOpen))}
@@ -334,7 +334,7 @@
 						<select
 							bind:value={_languageTag}
 							onchange={handleSelectChange}
-							class="variant-filled-surface !appearance-none rounded-full uppercase text-white {$sidebarState.left === 'full'
+							class="variant-filled-surface !appearance-none rounded-full uppercase text-white {sidebarState.sidebar.value.left === 'full'
 								? 'btn-icon px-2.5 py-2'
 								: 'btn-icon-sm px-1.5 py-0'}"
 						>
@@ -353,7 +353,7 @@
 			</div>
 
 			<!-- light/dark mode switch -->
-			<div class={$sidebarState.left === 'full' ? 'order-2' : 'order-3'}>
+			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-2' : 'order-3'}>
 				<button use:popup={SwitchThemeTooltip} onclick={toggleTheme} aria-label="Toggle Theme" class="btn-icon hover:bg-surface-500 hover:text-white">
 					{#if !$modeCurrent}
 						<iconify-icon icon="bi:sun" width="22"></iconify-icon>
@@ -370,7 +370,7 @@
 			</div>
 
 			<!-- Sign Out -->
-			<div class={$sidebarState.left === 'full' ? 'order-4' : 'order-4'}>
+			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-4' : 'order-4'}>
 				<button
 					use:popup={SignOutTooltip}
 					onclick={signOut}
@@ -390,7 +390,7 @@
 			</div>
 
 			<!-- System Configuration -->
-			<div class={$sidebarState.left === 'full' ? 'order-5' : 'order-6'}>
+			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-5' : 'order-6'}>
 				<button
 					use:popup={ConfigTooltip}
 					onclick={() => {
@@ -416,7 +416,7 @@
 			</div>
 
 			<!-- Github discussions -->
-			<div class="{$sidebarState.left === 'full' ? 'order-7' : 'order-7 hidden'} ">
+			<div class="{sidebarState.sidebar.value.left === 'full' ? 'order-7' : 'order-7 hidden'} ">
 				<a href="https://github.com/SveltyCMS/SveltyCMS/discussions" target="blank">
 					<button use:popup={GithubTooltip} aria-label="Github Discussions" class="btn-icon hover:bg-surface-500 hover:text-white">
 						<iconify-icon icon="grommet-icons:github" width="30"></iconify-icon>
@@ -431,10 +431,10 @@
 			</div>
 
 			<!-- CMS Version -->
-			<div class={$sidebarState.left === 'full' ? 'order-6' : 'order-5'}>
+			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-6' : 'order-5'}>
 				<a href="https://github.com/SveltyCMS/SveltyCMS/" target="blank">
-					<span class="{$sidebarState.left === 'full' ? 'py-1' : 'py-0'} {$pkgBgColor} badge rounded-xl text-black hover:text-white"
-						>{#if $sidebarState.left === 'full'}
+					<span class="{sidebarState.sidebar.value.left === 'full' ? 'py-1' : 'py-0'} {$pkgBgColor} badge rounded-xl text-black hover:text-white"
+						>{#if sidebarState.sidebar.value.left === 'full'}
 							{m.applayout_version()}
 						{/if}
 						{pkg}

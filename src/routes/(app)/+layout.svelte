@@ -31,7 +31,7 @@ Key features:
 	import { page } from '$app/stores';
 	import { contentLanguage, systemLanguage, isLoading } from '@stores/store';
 	import { collection, collections } from '@root/src/stores/collectionStore.svelte';
-	import { sidebarState } from '@stores/sidebarStore';
+	import {  sidebarState } from '@root/src/stores/sidebarStore.svelte';
 	import { screenSize, ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
 
 	// Components
@@ -75,7 +75,7 @@ Key features:
 		const newCollection = $collection;
 		if (!newCollection?.name) return;
 
-		const newPath = `/${$contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${String(newCollection.name)}`;
+		const newPath = `/${contentLanguage.value || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${String(newCollection.name)}`;
 		if ($page.url.pathname !== newPath) {
 			// console.debug('Redirecting to new path:', newPath, newCollection);
 			// goto(newPath);
@@ -84,14 +84,14 @@ Key features:
 
 	// Update collection loaded state when store changes
 	$effect(() => {
-		if ($collections && Object.keys($collections).length > 0) {
+		if (collections.value && Object.keys(collections.value).length > 0) {
 			isCollectionsLoaded = true;
 		}
 	});
 
 	// Handle system language changes
 	$effect(() => {
-		const lang = $systemLanguage;
+		const lang = systemLanguage.value;
 		if (!lang) return;
 
 		const dir = getTextDirection(lang);
@@ -211,15 +211,15 @@ Key features:
 		<!-- Body -->
 		<div class="flex h-lvh flex-col">
 			<!-- Header -->
-			{#if $sidebarState.header !== 'hidden'}
+			{#if sidebarState.sidebar.value.header !== 'hidden'}
 				<header class="sticky top-0 z-10 bg-tertiary-500">Header</header>
 			{/if}
 
 			<div class="flex flex-1 overflow-hidden">
 				<!-- Sidebar Left -->
-				{#if $sidebarState.left !== 'hidden'}
+				{#if sidebarState.sidebar.value.left !== 'hidden'}
 					<aside
-						class="max-h-dvh {$sidebarState.left === 'full'
+						class="max-h-dvh {sidebarState.sidebar.value.left === 'full'
 							? 'w-[220px]'
 							: 'w-fit'} relative border-r bg-white !px-2 text-center dark:border-surface-500 dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900"
 					>
@@ -230,7 +230,7 @@ Key features:
 				<!-- Content Area -->
 				<main class="relative w-full flex-1 overflow-hidden">
 					<!-- Page Header -->
-					{#if $sidebarState.pageheader !== 'hidden'}
+					{#if sidebarState.sidebar.value.header !== 'hidden'}
 						<header class="sticky top-0 z-10 w-full">
 							<HeaderEdit />
 						</header>
@@ -239,7 +239,7 @@ Key features:
 					<!-- Router Slot -->
 					<div
 						role="main"
-						class="relative h-full flex-grow overflow-auto {$sidebarState.left === 'full' ? 'mx-2' : 'mx-1'} {$screenSize === 'lg'
+						class="relative h-full flex-grow overflow-auto {sidebarState.sidebar.value.left === 'full' ? 'mx-2' : 'mx-1'} {$screenSize === 'lg'
 							? 'mb-2'
 							: 'mb-16'}"
 					>
@@ -270,7 +270,7 @@ Key features:
 					</div>
 
 					<!-- Page Footer -->
-					{#if $sidebarState.pagefooter !== 'hidden'}
+					{#if sidebarState.sidebar.pagefooter !== 'hidden'}
 						<footer
 							class="sticky left-0 top-[calc(100%-51px)] z-10 w-full border-t bg-surface-50 bg-gradient-to-b px-1 text-center dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
 						>
@@ -280,7 +280,7 @@ Key features:
 				</main>
 
 				<!-- Sidebar Right -->
-				{#if $sidebarState.right !== 'hidden'}
+				{#if sidebarState.sidebar.value.right !== 'hidden'}
 					<aside
 						class="max-h-dvh w-[220px] border-l bg-surface-50 bg-gradient-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
 					>
@@ -290,7 +290,7 @@ Key features:
 			</div>
 
 			<!-- Footer -->
-			{#if $sidebarState.footer !== 'hidden'}
+			{#if sidebarState.sidebar.value.footer !== 'hidden'}
 				<footer class="bg-blue-500">Footer</footer>
 			{/if}
 		</div>

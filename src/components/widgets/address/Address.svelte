@@ -91,7 +91,7 @@
 	let map = $state<mapboxgl.Map | null>(null);
 
 	// Computed values
-	let _language = $derived(field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE);
+	let _language = $derived(field?.translated ? contentLanguage.value : publicEnv.DEFAULT_CONTENT_LANGUAGE);
 
 	// Initialize value if needed
 	$effect(() => {

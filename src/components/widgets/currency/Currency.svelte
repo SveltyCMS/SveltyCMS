@@ -30,15 +30,15 @@
 		value?: any;
 	}
 
-	let { field, value = $collectionValue[fieldName] || {} }: Props = $props();
+	let { field, value = collectionValue.value[fieldName] || {} }: Props = $props();
 
-	const _data = $state($mode === 'create' ? {} : value);
+	const _data = $state(mode.value === 'create' ? {} : value);
 	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
 	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
 
 	let numberInput: HTMLInputElement = $state();
-	const language = $contentLanguage;
+	const language = contentLanguage.value;
 
 	export const WidgetData = async () => _data;
 

@@ -118,7 +118,7 @@
 	};
 </script>
 
-<Html lang={$systemLanguage}>
+<Html lang={systemLanguage.value}>
 	<Head>
 		<title>Reset your password for {publicEnv.SITE_NAME}</title>
 		<meta name="description" content="Reset your password for {publicEnv.SITE_NAME}" />

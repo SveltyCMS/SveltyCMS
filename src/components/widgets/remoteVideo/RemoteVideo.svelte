@@ -43,7 +43,7 @@ Features:
 	let myData = $state<any>(null);
 
 	// Get the derived value
-	const _data = $derived($mode === 'create' ? {} : value);
+	const _data = $derived(mode.value === 'create' ? {} : value);
 
 	// Export widget data function
 	export const WidgetData = async () => _data;

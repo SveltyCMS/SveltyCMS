@@ -27,7 +27,7 @@
 	const fieldName = getFieldName(field);
 
 	// Initialize _data based on mode
-	const _data = $state($mode === 'create' ? {} : value);
+	const _data = $state(mode.value === 'create' ? {} : value);
 
 	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
@@ -99,7 +99,7 @@
 		iconEmpty = 'material-symbols:star-outline',
 		iconHalf = 'material-symbols:star-half',
 		iconFull = 'material-symbols:star',
-		value = $collectionValue[fieldName] || {}
+		value = collectionValue.value[fieldName] || {}
 	}: Props = $props();
 
 	onDestroy(() => {

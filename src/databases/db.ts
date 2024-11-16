@@ -244,7 +244,6 @@ async function initializeAdapters(): Promise<void> {
 			// Initialize database models first
 			await dbAdapter.setupAuthModels();
 			await dbAdapter.setupMediaModels();
-			await dbAdapter.getCollectionModels();
 
 			// Step 5: Initialize CollectionManager
 			logger.debug('Initializing CollectionManager...');
@@ -257,6 +256,8 @@ async function initializeAdapters(): Promise<void> {
 			} else {
 				logger.debug('CollectionManager initialized with collections:', { count: collections.length });
 			}
+	
+			await dbAdapter.getCollectionModels();
 
 			// Step 6: Initialize remaining components
 			await initializeDefaultTheme(dbAdapter);

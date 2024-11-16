@@ -31,7 +31,7 @@ Features:
 	import { getToastStore } from '@skeletonlabs/skeleton';
 	import { goto } from '$app/navigation';
 	import { publicEnv } from '@root/config/public';
-	import { sidebarState, toggleSidebar } from '@stores/sidebarStore';
+	import { sidebarState, toggleSidebar } from '@root/src/stores/sidebarStore.svelte';
 	import { screenSize } from '@root/src/stores/screenSizeStore.svelte';
 	import { mode } from '@root/src/stores/collectionStore.svelte';
 	import { get } from 'svelte/store';
@@ -205,7 +205,7 @@ Features:
 
 <div class="mt-2 overflow-y-auto">
 	<!-- Return to Collections Button -->
-	{#if $sidebarState.left === 'full'}
+	{#if sidebarState.sidebar.value.left === 'full'}
 		<!-- Sidebar Expanded -->
 		<button
 			onclick={returnToCollections}
@@ -231,7 +231,7 @@ Features:
 	{#if folders.length > 0}
 		<div class="relative flex flex-wrap">
 			{#each folders.filter((f) => !currentFolder || f.parent === currentFolder?._id) as folder (folder._id)}
-				{#if $sidebarState.left === 'full'}
+				{#if sidebarState.sidebar.value.left === 'full'}
 					<!-- Sidebar Expanded -->
 					<div class="nowrap variant-outline-surface flex w-full">
 						<button onclick={() => openFolder(folder._id)} aria-label={`Open folder: ${folder.name}`} class="btn flex items-center space-x-2 p-2">

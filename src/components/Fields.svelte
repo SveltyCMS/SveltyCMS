@@ -9,7 +9,8 @@ revision management, live preview, and API data display.
 ```
 #### Props
 - `fields` {NonNullable<typeof $collection>['fields']} - Collection fields
-
+- `ariaInvalid` {boolean} - Aria-invalid attribute for accessibility
+- `ariaDescribedby` {string} - Aria-describedby attribute for accessibility
 Key features:
 - Dynamic field rendering based on collection schema
 - Tab-based interface for different views (Edit, Revision, Live Preview, API)
@@ -45,6 +46,8 @@ Key features:
 		fieldsData?: Record<string, any>;
 		customData?: Record<string, any>;
 		value?: any;
+		ariaInvalid?: boolean;
+		ariaDescribedby? : string
 	}
 
 	let { fields = undefined, root = true, fieldsData = $bindable({}), customData = {}, ...restProps }: Props = $props();
@@ -70,8 +73,8 @@ Key features:
 
 	// Reactive statements
 	$effect(() => {
-		if ($collectionValue) {
-			const id = $collectionValue._id;
+		if (collectionValue.value) {
+			const id = collectionValue.value._id;
 			apiUrl = `${dev ? 'http://localhost:5173' : publicEnv.SITE_NAME}/api/${String($collection?.name) ?? ''}/${id}`;
 		}
 	});
@@ -99,10 +102,6 @@ Key features:
 	}
 
 	let filteredFields = $derived(filterFieldsByPermission(derivedFields, user.role));
-
-	$effect(() => {
-		console.debug($translationProgress);
-	});
 </script>
 
 {#if isLoading}
@@ -180,7 +179,9 @@ Key features:
 													<!-- Display translation progress -->
 													<div class="text-xs font-normal">
 														({Math.round(
-															$translationProgress[$contentLanguage]?.translated.has(`${String($collection?.name)}.${getFieldName(field)}`) ? 1 : 0
+															translationProgress.value[$contentLanguage]?.translated.has(`${String($collection?.name)}.${getFieldName(field)}`)
+																? 1
+																: 0
 														)}%)
 													</div>
 												</div>
@@ -230,7 +231,7 @@ Key features:
 							lineNumbers={true}
 							text="text-xs text-left w-full"
 							buttonLabel=""
-							code={JSON.stringify($collectionValue, null, 2)}
+							code={JSON.stringify(collectionValue.value, null, 2)}
 						/>
 					</div>
 					<div
@@ -245,7 +246,7 @@ Key features:
 							lineNumbers={true}
 							text="text-xs text-left text-white dark:text-tertiary-500"
 							buttonLabel=""
-							code={JSON.stringify($collectionValue, null, 2)}
+							code={JSON.stringify(collectionValue.value, null, 2)}
 						/>
 					</div>
 				</div>
@@ -259,7 +260,7 @@ Key features:
 				</div>
 			{:else if $tabSet === 3}
 				<!-- API Json tab content -->
-				{#if $collectionValue == null}
+				{#if collectionValue.value == null}
 					<div class="variant-ghost-error mb-4 py-2 text-center font-bold">{m.fields_api_nodata()}</div>
 				{:else}
 					<div class="wrapper relative z-0 mb-4 flex w-full items-center justify-start gap-1">
@@ -278,7 +279,7 @@ Key features:
 						lineNumbers={true}
 						text="text-xs w-full"
 						buttonLabel="Copy"
-						code={JSON.stringify($collectionValue, null, 2)}
+						code={JSON.stringify(collectionValue.value, null, 2)}
 					/>
 				{/if}
 			{/if}

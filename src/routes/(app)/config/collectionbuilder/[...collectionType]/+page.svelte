@@ -33,7 +33,7 @@
 	const CollectionTypes = $page.params.CollectionTypes;
 
 	// Default widget data (tab1)
-	let name = $state($mode == 'edit' ? ($collectionValue ? $collectionValue.name : CollectionTypes) : CollectionTypes);
+	let name = $state(mode.value == 'edit' ? (collectionValue.value ? collectionValue.value.name : collectionName) : collectionName);
 
 	// Page title
 	let pageTitle = $state('');
@@ -42,7 +42,7 @@
 	// Effect to update page title based on mode and collection name
 	$effect.root(() => {
 		// Set the base page title according to the mode
-		if ($mode === 'edit') {
+		if (mode.value === 'edit') {
 			pageTitle = `Edit ${CollectionTypes} Collection`;
 		} else if (CollectionTypes) {
 			pageTitle = `Create ${CollectionTypes} Collection`;
@@ -61,7 +61,7 @@
 
 	// Effect to update name based on mode and collection value
 	$effect.root(() => {
-		name = $mode == 'edit' ? ($collectionValue ? $collectionValue.name : CollectionTypes) : $page.params.CollectionTypes;
+		name = mode.value == 'edit' ? (collectionValue.value ? collectionValue.value.name : CollectionTypes) : $page.params.CollectionTypes;
 	});
 
 	interface PageTitleEvent {
@@ -70,7 +70,7 @@
 
 	function handlePageTitleUpdate(e: CustomEvent<string>) {
 		highlightedPart = e.detail;
-		if ($mode === 'edit') {
+		if (mode.value === 'edit') {
 			pageTitle = `Edit ${highlightedPart} Collection`;
 		} else {
 			pageTitle = `Create ${highlightedPart} Collection`;
@@ -80,31 +80,31 @@
 	// Function to save data by sending a POST request
 	async function handleCollectionSave() {
 		// Delete key from fields
-		$collectionValue.fields.forEach((field: any) => {
+		collectionValue.value.fields.forEach((field: any) => {
 			delete field.key;
 		});
 
 		// Prepare form data
 		const data =
-			$mode == 'edit'
+			mode.value == 'edit'
 				? obj2formData({
-						originalName: $collectionValue.name,
+						originalName: collectionValue.value.name,
 						CollectionTypes: name,
-						icon: $collectionValue.icon,
-						status: $collectionValue.status,
-						slug: $collectionValue.slug,
-						description: $collectionValue.description,
-						permissions: $collectionValue.permissions,
-						fields: $collectionValue.fields
+						icon: collectionValue.value.icon,
+						status: collectionValue.value.status,
+						slug: collectionValue.value.slug,
+						description: collectionValue.value.description,
+						permissions: collectionValue.value.permissions,
+						fields: collectionValue.value.fields
 					})
 				: obj2formData({
 						CollectionTypes: name,
-						icon: $collectionValue.icon,
-						status: $collectionValue.status,
-						slug: $collectionValue.slug,
-						description: $collectionValue.description,
-						permissions: $collectionValue.permissions,
-						fields: $collectionValue.fields
+						icon: collectionValue.value.icon,
+						status: collectionValue.value.status,
+						slug: collectionValue.value.slug,
+						description: collectionValue.value.description,
+						permissions: collectionValue.value.permissions,
+						fields: collectionValue.value.fields
 					});
 
 		// Send the form data to the server
@@ -129,7 +129,7 @@
 	}
 
 	function handleCollectionDelete() {
-		console.log('Delete collection:', $collectionValue.name);
+		console.log('Delete collection:', collectionValue.value.name);
 		// Define the confirmation modal
 		const confirmModal: ModalSettings = {
 			type: 'confirm',
@@ -138,7 +138,7 @@
 			response: (r: boolean) => {
 				if (r) {
 					// Send the form data to the server
-					axios.post(`?/deleteCollections`, obj2formData({ CollectionTypes: $collectionValue.name }), {
+					axios.post(`?/deleteCollections`, obj2formData({ CollectionTypes: collectionValue.value.name }), {
 						headers: {
 							'Content-Type': 'multipart/form-data'
 						}
@@ -182,7 +182,7 @@
 	</button>
 </div>
 
-{#if $mode == 'edit'}
+{#if mode.value == 'edit'}
 	<div class="flex justify-center gap-3">
 		<button
 			type="button"

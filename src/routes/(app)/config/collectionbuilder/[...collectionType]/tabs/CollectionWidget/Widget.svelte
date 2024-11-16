@@ -36,7 +36,7 @@
 
 	// Fields state
 	let fields = $state(
-		$collectionValue.fields.map((field, index) => ({
+		collectionValue.value.fields.map((field, index) => ({
 			id: index + 1,
 			...field
 		}))
@@ -44,7 +44,7 @@
 
 	// Effect to update fields when collection value changes
 	$effect.root(() => {
-		fields = $collectionValue.fields.map((field, index) => ({
+		fields = collectionValue.value.fields.map((field, index) => ({
 			id: index + 1,
 			...field
 		}));

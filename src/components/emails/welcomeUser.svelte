@@ -54,7 +54,7 @@
 	};
 </script>
 
-<Html lang={$systemLanguage}>
+<Html lang={systemLanguage.value}>
 	<Head>
 		<title>Welcome to <SiteName /></title>
 		<meta name="description" content="Welcome to <SiteName />" />

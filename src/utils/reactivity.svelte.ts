@@ -29,7 +29,7 @@ interface Store<T> {
 export function store<T>(v?: T) {
 	let value = $state(v) as T; // Create reactive state
 	const f = (() => value) as Store<T>; // Callable function wrapper
-
+	
 	// Update value using a transformation function
 	f.update = (f) => {
 		value = f(value);

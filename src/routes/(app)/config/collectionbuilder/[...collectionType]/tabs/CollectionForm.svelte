@@ -38,7 +38,7 @@ Features:
 	let collectionTypes = $page.params.CollectionTypes;
 
 	// Check if collection Name exists set mode edit or create
-	const collectionExists = Object.values($collections).some((x) => x.name === collectionTypes);
+	const collectionExists = Object.values(collections.value).some((x) => x.name === collectionTypes);
 	if (collectionExists) {
 		// Get collection data from CollectionManager
 		const { collections: collectionData } = collectionManager.getCollectionData();
@@ -49,8 +49,8 @@ Features:
 		}
 	} else {
 		collectionValue.set({
-			...$collectionValue,
-			fields: $collectionValue.fields ? $collectionValue.fields : [],
+			...collectionValue.value,
+			fields: collectionValue.value.fields ? collectionValue.value.fields : [],
 			name: collectionTypes
 		});
 	}
@@ -85,31 +85,31 @@ Features:
 	// Form fields
 	let searchQuery = $state('');
 	let autoUpdateSlug = $state(true);
-	let selectedIcon = $state($collectionValue.icon || '');
+	let selectedIcon = $state(collectionValue.value.icon || '');
 
 	// Derived values
-	let DBName = $derived($collectionValue.name ? $collectionValue.name.toLowerCase().replace(/ /g, '_') : '');
+	let DBName = $derived(collectionValue.value.name ? collectionValue.value.name.toLowerCase().replace(/ /g, '_') : '');
 
 	// Update collection value when icon changes
 	$effect(() => {
-		if (selectedIcon !== $collectionValue.icon) {
+		if (selectedIcon !== collectionValue.value.icon) {
 			collectionValue.set({
-				...$collectionValue,
+				...collectionValue.value,
 				icon: selectedIcon
 			});
 		}
 	});
 
 	function handleNameInput() {
-		if ($collectionValue.name) {
+		if (collectionValue.value.name) {
 			// Update the URL
-			window.history.replaceState({}, '', `/config/collectionbuilder/${$collectionValue.name}`);
+			window.history.replaceState({}, '', `/config/collectionbuilder/${collectionValue.value.name}`);
 
 			// Update the page title
-			onUpdatePageTitle($collectionValue.name);
+			onUpdatePageTitle(collectionValue.value.name);
 
 			// Update the linked slug input
-			$collectionValue.slug = $collectionValue.name.toLowerCase().replace(/\s+/g, '_');
+			collectionValue.value.slug = collectionValue.value.name.toLowerCase().replace(/\s+/g, '_');
 
 			// Call the `onSlugInput` function to update the slug variable
 			onSlugInput();
@@ -118,12 +118,12 @@ Features:
 
 	function onSlugInput() {
 		// Update the slug field whenever the name field is changed
-		if ($collectionValue.name) {
+		if (collectionValue.value.name) {
 			collectionValue.set({
-				...$collectionValue,
-				slug: $collectionValue.name.toLowerCase().replace(/\s+/g, '_')
+				...collectionValue.value,
+				slug: collectionValue.value.name.toLowerCase().replace(/\s+/g, '_')
 			});
-			return $collectionValue.slug;
+			return collectionValue.value.slug;
 		}
 		// Disable automatic slug updates
 		autoUpdateSlug = false;
@@ -131,17 +131,17 @@ Features:
 
 	// Update slug and page title when collection value changes
 	$effect(() => {
-		if ($collectionValue) {
+		if (collectionValue.value) {
 			// Automatically update slug when name changes
 			if (autoUpdateSlug) {
-				$collectionValue.slug = $collectionValue.name ? $collectionValue.name.toLowerCase().replace(/ /g, '_') : '';
+				collectionValue.update((current)=> ({...current, slug: collectionValue.value.name ? collectionValue.value.name.toLowerCase().replace(/ /g, '_') : ''})) ;
 			}
 
 			// Update page title based on mode and collection name
-			if ($mode == 'edit') {
-				onUpdatePageTitle(`Edit <span class="text-primary-500">${$collectionValue.name}</span> Collection`);
-			} else if ($collectionValue.name) {
-				onUpdatePageTitle(`Create <span class="text-primary-500">${$collectionValue.name}</span> Collection`);
+			if (mode.value == 'edit') {
+				onUpdatePageTitle(`Edit <span class="text-primary-500">${collectionValue.value.name}</span> Collection`);
+			} else if (collectionValue.value.name) {
+				onUpdatePageTitle(`Create <span class="text-primary-500">${collectionValue.value.name}</span> Collection`);
 			} else {
 				onUpdatePageTitle(`Create <span class="text-primary-500">new</span> Collection`);
 			}
@@ -172,14 +172,14 @@ Features:
 				type="text"
 				required
 				id="name"
-				bind:value={$collectionValue.name}
+				bind:value={collectionValue.value.name}
 				oninput={handleNameInput}
 				placeholder={m.collection_name_placeholder()}
 				aria-label={m.collection_name()}
 				class="input text-black dark:text-primary-500"
 			/>
 
-			{#if $collectionValue && $collectionValue.name}
+			{#if collectionValue.value && collectionValue.value.name}
 				<p class="mb-3 sm:mb-0">
 					{m.collection_DBname()} <span class="font-bold text-tertiary-500 dark:text-primary-500">{DBName}</span>
 				</p>
@@ -235,7 +235,7 @@ Features:
 		<input
 			type="text"
 			id="slug"
-			bind:value={$collectionValue.slug}
+			bind:value={collectionValue.value.slug}
 			placeholder={m.collection_slug_input()}
 			class="input text-black dark:text-primary-500"
 		/>
@@ -259,7 +259,7 @@ Features:
 			id="description"
 			rows="2"
 			cols="50"
-			bind:value={$collectionValue.description}
+			bind:value={collectionValue.value.description}
 			placeholder={m.collection_description_placeholder()}
 			class="input text-black dark:text-primary-500"
 		></textarea>
@@ -279,7 +279,7 @@ Features:
 			<div class="variant-filled arrow"></div>
 		</div>
 
-		<select id="status" bind:value={$collectionValue.status} class="input text-black dark:text-primary-500">
+		<select id="status" bind:value={collectionValue.value.status} class="input text-black dark:text-primary-500">
 			{#each statuses as statusOption}
 				<option value={statusOption} class="">{statusOption}</option>
 			{/each}

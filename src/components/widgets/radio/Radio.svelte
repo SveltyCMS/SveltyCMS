@@ -31,9 +31,9 @@
 	let { field, value = {} }: Props = $props();
 
 	const fieldName = getFieldName(field);
-	value = value || $collectionValue[fieldName] || {};
+	value = value || collectionValue.value[fieldName] || {};
 
-	let _data = $state($mode === 'create' ? {} : value);
+	let _data = $state(mode.value === 'create' ? {} : value);
 	let validationError = $state<string | null>(null);
 	let debounceTimeout: number | undefined;
 	let inputElement = $state<HTMLInputElement | null>(null);

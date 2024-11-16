@@ -31,12 +31,12 @@ Features:
 	import { page } from '$app/stores';
 	import { shouldShowNextButton } from '@stores/store';
 	import { mode, collection, categories, collections } from '@root/src/stores/collectionStore.svelte';
-	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@stores/sidebarStore';
+	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@root/src/stores/sidebarStore.svelte';
 	import { screenSize } from '@root/src/stores/screenSizeStore.svelte';
 
 	// Auth
 	import type { User } from '@src/auth/types';
-	const user: User = $page.data.user;
+	// const user: User = $page.data.user;
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -94,7 +94,7 @@ Features:
 				Object.entries(category.subcategories).forEach(([key, subCat]) => {
 					if (subCat.isCollection) {
 						const collectionId = parseInt(subCat.id.replace(/\D/g, '') || Date.now().toString());
-						const collectionSchema = $collections[key];
+						const collectionSchema = collections.value[key];
 
 						if (collectionSchema) {
 							const collection = {
@@ -104,7 +104,7 @@ Features:
 								fields: collectionSchema.fields || []
 							};
 
-							if (searchTerm === '' || collection.name.toLowerCase().includes(searchTerm.toLowerCase())) {
+							if (searchTerm === '' || (collection.name as string).toLowerCase().includes(searchTerm.toLowerCase())) {
 								processed.collections.push(collection);
 								hasMatchingContent = true;
 							}
@@ -134,7 +134,7 @@ Features:
 
 	// Subscribe to categories and collections store changes and handle search
 	$effect(() => {
-		if ($categories && $collections) {
+		if ($categories && collections.value) {
 			filteredCategories = filterCategories(search, $categories);
 		}
 	});
@@ -156,10 +156,10 @@ Features:
 	}
 
 	// Determine if the current mode is 'media'
-	let isMediaMode = $derived($mode === 'media');
+	let isMediaMode = $derived(mode.value === 'media');
 
 	onMount(() => {
-		if ($categories && $collections) {
+		if ($categories && collections.value) {
 			filteredCategories = filterCategories('', $categories);
 		}
 	});
@@ -171,7 +171,7 @@ Features:
 
 	// Handle collection selection
 	function handleCollectionSelect(_collection: Schema) {
-		if ($mode === 'edit') {
+		if (mode.value === 'edit') {
 			mode.set('view');
 		} else {
 			mode.set(modeSet);
@@ -207,14 +207,14 @@ Features:
 <div class="mt-2">
 	{#if !isMediaMode}
 		<!-- Search Input -->
-		{#if $sidebarState.left === 'collapsed'}
+		{#if sidebarState.sidebar.value.left === 'collapsed'}
 			<button
 				type="button"
 				onclick={() => {
 					if (get(screenSize) === 'sm') {
 						toggleSidebar('left', 'hidden');
 					} else {
-						sidebarState.update((state) => ({ ...state, left: 'full' }));
+						sidebarState.sidebar.update((state) => ({ ...state, left: 'full' }));
 					}
 					searchShow = true;
 				}}
@@ -261,7 +261,7 @@ Features:
 						{/snippet}
 
 						{#snippet summary()}
-							{#if $sidebarState.left === 'full'}
+							{#if sidebarState.sidebar.value.left === 'full'}
 								<p class="text-white">{category.name}</p>
 							{/if}
 							<div class="card variant-filled-secondary p-4" data-popup="popupHover">
@@ -277,13 +277,13 @@ Features:
 									<div
 										role="button"
 										tabindex={0}
-										class="-mx-4 flex {$sidebarState.left === 'full'
+										class="-mx-4 flex {sidebarState.sidebar.value.left === 'full'
 											? 'flex-row items-center pl-3'
 											: 'flex-col items-center'} py-1 hover:bg-surface-400 hover:text-white"
 										onkeydown={handleKeydown}
 										onclick={() => handleCollectionSelect(_collection)}
 									>
-										{#if $sidebarState.left === 'full'}
+										{#if sidebarState.sidebar.value.left === 'full'}
 											<iconify-icon icon={_collection.icon} width="24" class="px-2 py-1 text-error-600"></iconify-icon>
 											<p class="mr-auto text-center capitalize">{_collection.name}</p>
 										{:else}
@@ -320,7 +320,7 @@ Features:
 												{/snippet}
 
 												{#snippet summary()}
-													{#if $sidebarState.left === 'full'}
+													{#if sidebarState.sidebar.value.left === 'full'}
 														<p class="uppercase text-white">{subCategory.name}</p>
 													{/if}
 													<div class="card variant-filled-secondary p-4" data-popup="popupHover">
@@ -335,13 +335,13 @@ Features:
 															<div
 																role="button"
 																tabindex={0}
-																class="-mx-4 flex {$sidebarState.left === 'full'
+																class="-mx-4 flex {sidebarState.sidebar.value.left === 'full'
 																	? 'flex-row items-center pl-3'
 																	: 'flex-col items-center'} py-1 hover:bg-surface-400 hover:text-white"
 																onkeydown={handleKeydown}
 																onclick={() => handleCollectionSelect(_collection)}
 															>
-																{#if $sidebarState.left === 'full'}
+																{#if sidebarState.sidebar.value.left === 'full'}
 																	<iconify-icon icon={_collection.icon} width="24" class="px-2 py-1 text-error-600"></iconify-icon>
 																	<p class="mr-auto text-center capitalize">{_collection.name}</p>
 																{:else}
@@ -367,9 +367,9 @@ Features:
 
 		<!-- Media Gallery Button -->
 		<button
-			class="btn mt-1 flex w-full {$sidebarState.left === 'full'
+			class="btn mt-1 flex w-full {sidebarState.sidebar.value.left === 'full'
 				? 'flex-row justify-start pl-2'
-				: 'flex-col'} items-center bg-surface-400 py-{$sidebarState.left === 'full'
+				: 'flex-col'} items-center bg-surface-400 py-{sidebarState.sidebar.value.left === 'full'
 				? '2'
 				: '1'} hover:!bg-surface-400 hover:text-white dark:bg-surface-500"
 			onclick={() => {
@@ -378,10 +378,10 @@ Features:
 				if (get(screenSize) === 'sm') {
 					toggleSidebar('left', 'hidden');
 				}
-				if ($sidebarState.left !== 'full') handleSidebarToggle();
+				if (sidebarState.sidebar.value.left !== 'full') handleSidebarToggle();
 			}}
 		>
-			{#if $sidebarState.left === 'full'}
+			{#if sidebarState.sidebar.value.left === 'full'}
 				<iconify-icon icon="bi:images" width="24" class="px-2 py-1 text-primary-600 rtl:ml-2"></iconify-icon>
 				<p class="mr-auto text-center uppercase text-white">{m.Collections_MediaGallery()}</p>
 			{:else}
@@ -389,7 +389,7 @@ Features:
 				<iconify-icon icon="bi:images" width="24" class="text-primary-500"></iconify-icon>
 			{/if}
 		</button>
-	{:else if $sidebarState.left === 'full'}
+	{:else if sidebarState.sidebar.value.left === 'full'}
 		<button
 			class="btn mt-1 flex w-full flex-row items-center justify-start bg-surface-400 py-2 pl-2 text-white dark:bg-surface-500"
 			onclick={() => {

@@ -48,7 +48,7 @@
 						data: item,
 						collection: $collection,
 						field,
-						entry: $collectionValue,
+						entry: collectionValue.value,
 						contentLanguage: $contentLanguage
 					}),
 					_id: item._id

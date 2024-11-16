@@ -28,7 +28,7 @@
 
 	// Stores
 	import { get } from 'svelte/store';
-	import { sidebarState, toggleSidebar } from '@stores/sidebarStore';
+	import { sidebarState, toggleSidebar } from '@root/src/stores/sidebarStore.svelte';
 	import { screenSize } from '@root/src/stores/screenSizeStore.svelte';
 
 	interface PageTitleProps {
@@ -76,7 +76,7 @@
 	// Function to calculate maximum number of characters based on screen width
 	function calculateMaxChars() {
 		const containerWidth = window.innerWidth;
-		const hamburgerWidth = $sidebarState.left === 'hidden' ? 50 : 0; // Approximate width of the hamburger icon + margins only if sidebar is hidden
+		const hamburgerWidth = sidebarState.sidebar.value.left === 'hidden' ? 50 : 0; // Approximate width of the hamburger icon + margins only if sidebar is hidden
 		const backButtonWidth = showBackButton ? 60 : 0; // Approximate width of the back button + margins
 		const padding = 32; // Approximate padding/margins on both sides
 		const availableWidth = containerWidth - (hamburgerWidth + backButtonWidth + padding);
@@ -115,7 +115,7 @@
 	<!-- Left Section: Hamburger and Page Title -->
 	<div class="flex items-center">
 		<!-- Hamburger Menu -->
-		{#if $sidebarState.left === 'hidden'}
+		{#if sidebarState.sidebar.value.left === 'hidden'}
 			<button
 				type="button"
 				onkeydown={bubble('keydown')}

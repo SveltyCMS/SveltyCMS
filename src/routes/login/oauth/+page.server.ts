@@ -249,15 +249,32 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		logger.debug(`Is First User: ${!firstUserExists}`);
 
 		// If no code is present, handle initial OAuth flow
+		if (!code && !firstUserExists) {
+				logger.debug('No first user and no code - redirecting to OAuth');
+				try {
+					const authUrl = await generateGoogleAuthUrl();
+					redirect(302, authUrl);
+				} catch (err) {
+					logger.error('Error generating OAuth URL:', err);
+					throw error(500, 'Failed to initialize OAuth');
+				}
+		}
+
+		// For non-first users without a token, show token input form
+		if (firstUserExists && !token && !code) {
+			logger.debug('First user exists, no token, no code - showing token input form');
+			return {
+				isFirstUser: !firstUserExists,
+				requiresToken: true
+			};
+		}
+
 		if (!code) {
-			// For first user or sign-in, redirect to Google OAuth
-			try {
-				const authUrl = await generateGoogleAuthUrl(token);
-				throw redirect(303, authUrl);
-			} catch (err) {
-				logger.error('Error generating OAuth URL:', err);
-				throw error(500, 'Failed to initialize OAuth');
-			}
+			logger.debug('No authorization code found, showing token input form');
+			return {
+				isFirstUser: !firstUserExists,
+				requiresToken: firstUserExists
+			};
 		}
 
 		// Process OAuth callback
@@ -296,13 +313,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			await handleGoogleUser(googleUser as GoogleUserInfo, !firstUserExists, token, cookies, fetch);
 			logger.info('Successfully processed OAuth callback and created session');
 
-			// Initialize collection manager and get redirect path
-			await collectionManager.initialize();
-			const redirectPath = await fetchAndRedirectToFirstCollection();
-			logger.debug(`Redirecting to: ${redirectPath}`);
-			
-			// Use 303 See Other for the redirect after successful POST
-			throw redirect(303, redirectPath);
+			// Redirect to first collection
+
 
 		} catch (err) {
 			if (err instanceof Error && 'status' in err && err.status === 302 || err.status === 303) {
@@ -327,7 +339,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 				token: token ? 'Present' : 'Missing'
 			});
 		}
-	} catch (err) {
+
+
+	}
+	catch (err) {
 		// Only throw error if it's not already a redirect
 		if (err instanceof Error && 'status' in err && (err.status === 302 || err.status === 303)) {
 			throw err;
@@ -347,6 +362,12 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			type: err instanceof Error ? err.constructor.name : 'Unknown Error Type'
 		});
 	}
+
+
+	const redirectUrl = await fetchAndRedirectToFirstCollection();
+	logger.debug(`Redirecting to: ${redirectUrl}`);
+	throw redirect(302, redirectUrl);
+
 };
 
 export const actions: Actions = {

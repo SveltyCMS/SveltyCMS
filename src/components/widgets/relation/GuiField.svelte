@@ -17,7 +17,7 @@
 	let _value = $state<CollectionTypes>(
 		typeof value === 'string'
 			? (value as CollectionTypes)
-			: (Object.values($collections).find((entry) => {
+			: (Object.values(collections.value).find((entry) => {
 					return typeof value !== 'string' && entry[1].name === value.name;
 				})?.[0] as CollectionTypes) || ('null' as CollectionTypes)
 	);
@@ -28,7 +28,7 @@
 	});
 
 	// Prepare items for dropdown with proper typing
-	const items: CollectionTypes[] = Object.values($collections).map((collection) => collection.name as CollectionTypes);
+	const items: CollectionTypes[] = Object.values(collections.value).map((collection) => collection.name as CollectionTypes);
 
 	// Update _value when selected changes in DropDown
 	function handleSelect(selected: CollectionTypes) {

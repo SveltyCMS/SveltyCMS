@@ -34,7 +34,7 @@ Features:
 	import { get } from 'svelte/store';
 	import { contentLanguage, systemLanguage } from '@stores/store';
 	import { mode, collectionValue, modifyEntry, statusMap, collection, categories } from '@root/src/stores/collectionStore.svelte';
-	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@stores/sidebarStore';
+	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@root/src/stores/sidebarStore.svelte';
 	import { screenSize } from '@root/src/stores/screenSizeStore.svelte';
 
 	// ParaglideJS
@@ -204,8 +204,8 @@ Features:
 					}
 
 					// Add createdAt and updatedAt properties localized to the system language
-					obj.createdAt = entry.createdAt ? new Date(Number(entry.createdAt) * 1000).toLocaleString($systemLanguage) : 'N/A';
-					obj.updatedAt = entry.updatedAt ? new Date(Number(entry.updatedAt) * 1000).toLocaleString($systemLanguage) : 'N/A';
+					obj.createdAt = entry.createdAt ? new Date(Number(entry.createdAt) * 1000).toLocaleString(systemLanguage.value) : 'N/A';
+					obj.updatedAt = entry.updatedAt ? new Date(Number(entry.updatedAt) * 1000).toLocaleString(systemLanguage.value) : 'N/A';
 					obj._id = entry._id; // Add _id property
 
 					return obj;
@@ -310,7 +310,7 @@ Features:
 	// Reset collectionValue when mode changes
 	mode.subscribe(() => {
 		meta_data.clear();
-		if ($mode == 'view') {
+		if (mode.value == 'view') {
 			collectionValue.set({});
 		}
 	});
@@ -407,7 +407,7 @@ Features:
 	// Get the first category name from the categories store
 	// Find the parent category name for the current collection
 	$: categoryName = (() => {
-		if (!$collection?.name || !$categories) return '';
+		if (!$collection?.name || !categories.value) return '';
 
 		// Helper function to find parent category name
 		const findParentCategory = (categories: Record<string, CategoryData>): string => {
@@ -438,7 +438,7 @@ Features:
 			return '';
 		};
 
-		return findParentCategory($categories);
+		return findParentCategory(categories.value);
 	})();
 </script>
 
@@ -451,7 +451,7 @@ Features:
 		<!-- Row 1 for Mobile -->
 		<div class="flex items-center justify-between">
 			<!-- Hamburger -->
-			{#if $sidebarState.left === 'hidden'}
+			{#if sidebarState.sidebar.value.left === 'hidden'}
 				<button
 					type="button"
 					on:keydown
@@ -465,7 +465,7 @@ Features:
 			<!-- Collection type with icon -->
 			<!-- TODO: Translate Collection Name -->
 
-			<div class="mr-1 flex flex-col {!$sidebarState.left ? 'ml-2' : 'ml-1 sm:ml-2'}">
+			<div class="mr-1 flex flex-col {!sidebarState.sidebar.value.left ? 'ml-2' : 'ml-1 sm:ml-2'}">
 				{#if categoryName}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300 rtl:text-left">
 						{categoryName}
 					</div>

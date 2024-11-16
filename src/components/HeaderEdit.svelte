@@ -46,7 +46,7 @@
 	// Stores
 	import { page } from '$app/stores';
 	import { collection, categories, collectionValue, mode, modifyEntry, statusMap } from '@root/src/stores/collectionStore.svelte';
-	import { toggleSidebar, sidebarState } from '@stores/sidebarStore';
+	import { toggleSidebar, sidebarState } from '@root/src/stores/sidebarStore.svelte';
 	import { screenSize } from '@root/src/stores/screenSizeStore.svelte';
 	import { contentLanguage, tabSet, validationStore, headerActionButton } from '@stores/store';
 
@@ -62,8 +62,8 @@
 	let previousLanguage = $state($contentLanguage);
 	let previousTabSet = $state($tabSet);
 	let tempData = $state({});
-	let schedule = $state($collectionValue?._scheduled ? new Date($collectionValue._scheduled).toISOString().slice(0, 16) : '');
-	let createdAtDate = $state($collectionValue?.createdAt ? new Date($collectionValue.createdAt * 1000).toISOString().slice(0, 16) : '');
+	let schedule = $state(collectionValue.value?._scheduled ? new Date(collectionValue.value._scheduled).toISOString().slice(0, 16) : '');
+	let createdAtDate = $state(collectionValue.value?.createdAt ? new Date(collectionValue.value.createdAt * 1000).toISOString().slice(0, 16) : '');
 	let saveLayerStore = $state(async () => {});
 	let showMore = $state(false);
 	let next = $state(() => {});
@@ -85,7 +85,7 @@
 					schedule = r.date;
 					if (r.action === 'schedule') {
 						const newValue: CollectionValue = {
-							...$collectionValue,
+							...collectionValue.value,
 							status: statusMap.scheduled,
 							_scheduled: new Date(r.date).getTime()
 						};
@@ -100,7 +100,7 @@
 	// Find the parent category name for the current collection
 	let categoryName = $derived(
 		(() => {
-			if (!$collection?.name || !$categories) return '';
+			if (!$collection?.name || !categories.value) return '';
 
 			// Helper function to find parent category name
 			const findParentCategory = (categories: Record<string, CategoryData>): string => {
@@ -131,28 +131,28 @@
 				return '';
 			};
 
-			return findParentCategory($categories);
+			return findParentCategory(categories.value);
 		})()
 	);
 
 	$effect(() => {
 		if ($tabSet !== previousTabSet) {
-			tempData[previousLanguage] = $collectionValue;
+			tempData[previousLanguage] = collectionValue.value;
 			previousTabSet = $tabSet;
 		}
 	});
 
 	$effect(() => {
-		if ($mode === 'view') {
+		if (mode.value === 'view') {
 			tempData = {};
 		}
-		if ($mode === 'edit' && $collectionValue?.status === statusMap.published) {
+		if (mode.value === 'edit' && collectionValue.value?.status === statusMap.published) {
 			$modifyEntry?.(statusMap.unpublished);
 		}
 	});
 
 	$effect(() => {
-		if ($mode === 'edit' || $mode === 'create') {
+		if (mode.value === 'edit' || mode.value === 'create') {
 			showMore = false;
 		}
 	});
@@ -184,7 +184,7 @@
 		// Validate all fields and collect data
 		for (const field of $collection.fields) {
 			const fieldName = getFieldName(field);
-			const fieldValue = $collectionValue?.[fieldName];
+			const fieldValue = collectionValue.value?.[fieldName];
 			// Use widget property directly as it's now an instance
 			const widgetInstance = field.widget;
 
@@ -213,7 +213,7 @@
 		}
 
 		// Add system fields
-		if ($mode === 'create') {
+		if (mode.value === 'create') {
 			getData['createdAt'] = () => (createdAtDate ? Math.floor(new Date(createdAtDate).getTime() / 1000) : Math.floor(Date.now() / 1000));
 			getData['updatedAt'] = getData['createdAt'];
 			getData['createdBy'] = () => user.username;
@@ -226,12 +226,12 @@
 		}
 
 		// Add ID if in edit mode
-		if ($mode === 'edit' && $collectionValue?._id) {
-			getData['_id'] = () => $collectionValue._id;
+		if (mode.value === 'edit' && collectionValue.value?._id) {
+			getData['_id'] = () => collectionValue.value._id;
 		}
 
 		// Add status
-		getData['status'] = () => $collectionValue?.status || statusMap.unpublished;
+		getData['status'] = () => collectionValue.value?.status || statusMap.unpublished;
 
 		// Add schedule if set
 		if (schedule) {
@@ -241,13 +241,13 @@
 		// If validation passed, save the data
 		if (validationPassed) {
 			try {
-				console.debug('Saving data...', `${JSON.stringify({ mode: $mode, collection: $collection.name })}`);
+				console.debug('Saving data...', `${JSON.stringify({ mode: mode.value, collection: $collection.name })}`);
 
 				await saveFormData({
 					data: getData,
 					_collection: $collection,
-					_mode: $mode,
-					id: $collectionValue?._id,
+					_mode: mode.value,
+					id: collectionValue.value?._id,
 					user
 				});
 
@@ -282,7 +282,7 @@
 >
 	<div class="flex items-center justify-start">
 		<!-- Hamburger -->
-		{#if $sidebarState.left === 'hidden'}
+		{#if sidebarState.sidebar.value.left === 'hidden'}
 			<button
 				type="button"
 				onclick={() => toggleSidebar('left', $screenSize === 'lg' ? 'full' : 'collapsed')}
@@ -294,16 +294,16 @@
 		{/if}
 
 		<!-- Collection type with icon -->
-		<div class="flex {!$sidebarState.left ? 'ml-2' : 'ml-1'}">
+		<div class="flex {!sidebarState.sidebar.value.left ? 'ml-2' : 'ml-1'}">
 			{#if $collection && $collection.icon}
 				<div class="flex items-center justify-center">
 					<iconify-icon icon={$collection.icon} width="24" class="text-error-500"></iconify-icon>
 				</div>
 			{/if}
 
-			{#if $collection?.name && $categories}
+			{#if $collection?.name && categories.value}
 				<div class="ml-2 flex flex-col text-left text-gray-400 dark:text-gray-300">
-					<div class="text-sm font-bold uppercase text-tertiary-500 dark:text-primary-500">{$mode}:</div>
+					<div class="text-sm font-bold uppercase text-tertiary-500 dark:text-primary-500">{mode.value}:</div>
 					<div class="text-xs capitalize">
 						{categoryName}
 						<span class="uppercase text-tertiary-500 dark:text-primary-500">{$collection.name}</span>
@@ -330,7 +330,7 @@
 				</div>
 
 				<!-- Save Content -->
-				{#if ['edit', 'create'].includes($mode)}
+				{#if ['edit', 'create'].includes(mode.value)}
 					<button
 						type="button"
 						onclick={saveData}
@@ -385,8 +385,8 @@
 			</div>
 
 			<!-- Clone Content -->
-			{#if $mode == 'edit'}
-				{#if $collectionValue?.status == statusMap.unpublished}
+			{#if mode.value == 'edit'}
+				{#if collectionValue.value?.status == statusMap.unpublished}
 					<div class="flex flex-col items-center justify-center">
 						<button
 							type="button"
@@ -460,9 +460,9 @@
 
 			<!-- User Info -->
 			<div class="mt-2 text-sm">
-				<p>Created by: {$collectionValue?.createdBy || user.username}</p>
-				{#if $collectionValue?.updatedBy}
-					<p class="text-tertiary-500">Last updated by {$collectionValue.updatedBy}</p>
+				<p>Created by: {collectionValue.valuevalue?.createdBy || user.username}</p>
+				{#if collectionValue.value?.updatedBy}
+					<p class="text-tertiary-500">Last updated by {collectionValue.value.updatedBy}</p>
 				{/if}
 			</div>
 		</div>

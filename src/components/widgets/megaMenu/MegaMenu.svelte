@@ -25,29 +25,31 @@
 	import { currentChild, type FieldType } from '.';
 	import { extractData, getFieldName } from '@utils/utils';
 	import type { Field } from '@src/collections/types';
+	// Validation schema for each menu layer
+	import * as v from 'valibot';
+	
+	interface Props {
+		field: FieldType;
+		value?: any;
+	}
 
+	let { field, value = collectionValue()[getFieldName(field)] }: Props = $props();
 	const fieldName = getFieldName(field);
 
-	$translationProgress.show = false;
+	translationProgress.update((current)=> ({...current, show: false}))
 
 	export const WidgetData = async () => _data;
 
 	let MENU_CONTAINER: HTMLUListElement = $state();
 	let showFields = $state(false);
 	let depth = $state(0);
-	let _data: { [key: string]: any; children: any[] } = $state($mode === 'create' ? null : value);
+	let _data: { [key: string]: any; children: any[] } = $state(mode.value === 'create' ? null : value);
 	let fieldsData = $state({});
-	const saveMode = $mode;
+	const saveMode = mode.value;
 	let validationError: string | null = $state(null);
 
-	// Validation schema for each menu layer
-	import * as v from 'valibot';
-	interface Props {
-		field: FieldType;
-		value?: any;
-	}
-
-	let { field, value = $collectionValue[fieldName] }: Props = $props();
+	
+	
 
 	const widgetSchema = v.object({
 		name: v.pipe(v.string(), v.minLength(1, 'Menu name is required')),
@@ -84,11 +86,11 @@
 		if (!validationError) {
 			if (!_data) {
 				_data = { ..._fieldsData, children: [] };
-			} else if ($mode === 'edit') {
+			} else if (mode.value === 'edit') {
 				for (const key in _fieldsData) {
 					$currentChild[key] = _fieldsData[key];
 				}
-			} else if ($mode === 'create' && $currentChild.children) {
+			} else if (mode.value === 'create' && $currentChild.children) {
 				$currentChild.children.push({ ..._fieldsData, children: [] });
 			}
 			_data = _data;
@@ -129,8 +131,8 @@
 					root={false}
 					bind:fieldsData
 					customData={$currentChild}
-					aria-invalid={!!validationError}
-					aria-describedby={validationError ? `${fieldName}-error` : undefined}
+					ariaInvalid={!!validationError}
+					ariaDescribedby={validationError ? `${fieldName}-error` : undefined}
 				/>
 			{/key}
 			{(($saveFunction.fn = saveLayer), '')}

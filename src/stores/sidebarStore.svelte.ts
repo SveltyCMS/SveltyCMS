@@ -14,9 +14,9 @@
  * - Integration with application mode for context-aware layout adjustments
  */
 
-import { writable, derived, get } from 'svelte/store';
 import { screenSize, ScreenSize } from './screenSizeStore.svelte';
 import { mode } from './collectionStore.svelte';
+import { store } from "../utils/reactivity.svelte";
 
 // Types for sidebar visibility states
 type SidebarVisibility = 'hidden' | 'collapsed' | 'full';
@@ -45,10 +45,10 @@ function getDefaultLeftState(size: ScreenSize): SidebarVisibility {
 // Create base stores
 const createSidebarStores = () => {
 	let resizeObserver: ResizeObserver | null = null;
-	const initialSize = get(screenSize);
+	const initialSize = screenSize.value;
 
 	// Base stores
-	const sidebar = writable<SidebarState>({
+	const sidebar = store<SidebarState>({
 		left: getDefaultLeftState(initialSize),
 		right: 'hidden',
 		pageheader: 'hidden',
@@ -57,17 +57,16 @@ const createSidebarStores = () => {
 		footer: 'hidden'
 	});
 
-	const userPreferred = writable<SidebarVisibility>('collapsed');
-	const isInitialized = writable(false);
+	const userPreferred = store<SidebarVisibility>('collapsed');
+	const isInitialized = store(false);
 
 	// Derived values
-	const isLeftVisible = derived(sidebar, ($sidebar) => $sidebar.left !== 'hidden');
-	const isRightVisible = derived(sidebar, ($sidebar) => $sidebar.right !== 'hidden');
-	const isHeaderVisible = derived(sidebar, ($sidebar) => $sidebar.header !== 'hidden');
-	const isFooterVisible = derived(sidebar, ($sidebar) => $sidebar.footer !== 'hidden');
-	const isMobileLayout = derived(screenSize, ($size) => $size === ScreenSize.SM);
-	const isTabletLayout = derived(screenSize, ($size) => $size === ScreenSize.MD);
-	const isDesktopLayout = derived(screenSize, ($size) => $size === ScreenSize.LG || $size === ScreenSize.XL);
+
+	const isLeftVisible = $derived(() => sidebar.value.left !== 'hidden');
+	const isRightVisible = $derived(() => sidebar.value.right !== 'hidden');
+	const isHeaderVisible = $derived(() => sidebar.value.header !== 'hidden');
+	const isFooterVisible = $derived(() => sidebar.value.footer !== 'hidden');
+
 
 	// Layout handlers
 	function handleMobileLayout(currentMode: string) {
@@ -108,8 +107,8 @@ const createSidebarStores = () => {
 
 	// Handle sidebar toggle based on mode and screen size
 	function handleSidebarToggle() {
-		const currentSize = get(screenSize);
-		const currentMode = get(mode);
+		const currentSize = screenSize.value;
+		const currentMode = mode.value;
 
 		if (currentSize === ScreenSize.SM) {
 			handleMobileLayout(currentMode);
@@ -130,13 +129,13 @@ const createSidebarStores = () => {
 
 	// Initialize sidebar manager
 	function initialize() {
-		if (get(isInitialized) || typeof window === 'undefined') {
+		if (isInitialized.value || typeof window === 'undefined') {
 			return;
 		}
 
 		// Set up ResizeObserver for screen size changes
 		resizeObserver = new ResizeObserver(() => {
-			if (get(screenSize)) {
+			if (screenSize.value) {
 				handleSidebarToggle();
 			}
 		});
@@ -169,9 +168,6 @@ const createSidebarStores = () => {
 		isRightVisible,
 		isHeaderVisible,
 		isFooterVisible,
-		isMobileLayout,
-		isTabletLayout,
-		isDesktopLayout,
 
 		// Functions
 		toggleSidebar,
@@ -182,33 +178,22 @@ const createSidebarStores = () => {
 };
 
 // Create and export stores
-const stores = createSidebarStores();
+export const sidebarState =  createSidebarStores();
 
 // Export individual stores with their full store interface
-export const sidebarState = {
-	subscribe: stores.sidebar.subscribe,
-	set: stores.sidebar.set
-};
-
 export const userPreferredState = {
-	subscribe: stores.userPreferred.subscribe,
-	set: stores.userPreferred.set
+	subscribe: sidebarState.userPreferred.subscribe,
+	set: sidebarState.userPreferred.set,
+	update: sidebarState.userPreferred.update
 };
 
-// Export derived values
-export const isLeftVisible = { subscribe: stores.isLeftVisible.subscribe };
-export const isRightVisible = { subscribe: stores.isRightVisible.subscribe };
-export const isHeaderVisible = { subscribe: stores.isHeaderVisible.subscribe };
-export const isFooterVisible = { subscribe: stores.isFooterVisible.subscribe };
-export const isMobileLayout = { subscribe: stores.isMobileLayout.subscribe };
-export const isTabletLayout = { subscribe: stores.isTabletLayout.subscribe };
-export const isDesktopLayout = { subscribe: stores.isDesktopLayout.subscribe };
+
 
 // Export functions
-export const toggleSidebar = stores.toggleSidebar;
-export const handleSidebarToggle = stores.handleSidebarToggle;
+export const toggleSidebar = sidebarState.toggleSidebar;
+export const handleSidebarToggle = sidebarState.handleSidebarToggle;
 
 // Initialize the sidebar manager
 if (typeof window !== 'undefined') {
-	stores.initialize();
+	sidebarState.initialize();
 }

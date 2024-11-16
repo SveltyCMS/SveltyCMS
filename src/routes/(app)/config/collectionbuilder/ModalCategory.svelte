@@ -122,7 +122,7 @@
 							headers: {
 								'Content-Type': 'application/json'
 							},
-							body: JSON.stringify($categories)
+							body: JSON.stringify(categories.value)
 						});
 
 						if (!response.ok) {
