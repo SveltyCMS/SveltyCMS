@@ -97,9 +97,9 @@ Features:
 	});
 
 	// Login form setup
-	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaLogin, {
+	const { form, constraints, allErrors, errors, enhance, delayed } = superForm<LoginFormSchema>(FormSchemaLogin, {
 		id: 'login',
-		validators: valibot(loginFormSchema),
+		validators: valibot(FormSchemaLogin),
 		// Clear form on success.
 		resetForm: true,
 		// Prevent page invalidation, which would clear the other form when the load function executes again.
@@ -154,9 +154,9 @@ Features:
 		errors: forgotErrors,
 		enhance: forgotEnhance,
 		delayed: forgotDelayed
-	} = superForm(FormSchemaForgot, {
+	} = superForm<ForgotFormSchema>(FormSchemaForgot, {
 		id: 'forgot',
-		validators: valibot(forgotFormSchema),
+		validators: valibot(FormSchemaForgot),
 		resetForm: true,
 		invalidateAll: false,
 		applyAction: true,
@@ -235,9 +235,9 @@ Features:
 		errors: resetErrors,
 		enhance: resetEnhance,
 		delayed: resetDelayed
-	} = superForm(FormSchemaReset, {
+	} = superForm<ResetFormSchema>(FormSchemaReset, {
 		id: 'reset',
-		validators: valibot(resetFormSchema),
+		validators: valibot(FormSchemaReset),
 		resetForm: true,
 		invalidateAll: false,
 		applyAction: true,
@@ -337,11 +337,7 @@ Features:
 		<!-- CSS Logo -->
 		<div class="hidden xl:block"><SveltyCMSLogoFull /></div>
 
-		<div
-			
-			class="mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto p-4 lg:w-1/2"
-			class:hide={active !== 0}
-		>
+		<div class="mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto p-4 lg:w-1/2" class:hide={active !== 0}>
 			<div class="mb-1 flex flex-row gap-2">
 				<SveltyCMSLogo className="w-14" fill="red" />
 
@@ -536,18 +532,12 @@ Features:
 							type="password"
 							tabindex={confirmPasswordTabIndex}
 							bind:value={$resetForm.confirm_password}
-							{...$constraints.confirm_password}
 							{showPassword}
 							label={m.form_confirmpassword()}
 							icon="mdi:lock"
 							iconColor="black"
 							textColor="black"
 						/>
-						{#if $resetErrors.confirm_password}
-							<span class="invalid text-xs text-error-500">
-								{$resetErrors.confirm_password}
-							</span>
-						{/if}
 
 						<!-- Password Strength Indicator -->
 						<PasswordStrength password={$resetForm.password} confirmPassword={$resetForm.confirm_password} />

@@ -30,10 +30,19 @@ export type Field = {
 	modifyRequest?: (args: ModifyRequestParams<(typeof widgets)[WidgetKeys]>) => Promise<object>;
 };
 
+// Collection Registry - defines all available collections
+export const CollectionRegistry = {
+    CollectionManager: 'CollectionManager',
+    categories: 'categories'
+} as const;
+
+// Define the collection types from the registry
+
+
 // Define the base Schema interface
 export interface Schema {
 	id: number; // Unique ID for collections
-	name?: keyof CollectionTypes; // Collection name
+	name: CollectionTypes | string; // Collection name can be from registry or dynamic
 	label?: string; // Optional label that will display instead of name if used
 	slug?: string; // Optional Slug for the collection
 	icon?: string; // Optional icon
@@ -44,7 +53,7 @@ export interface Schema {
 	permissions?: Permission; // Optional permission restrictions
 	livePreview?: boolean; // Optional live preview
 	status?: 'draft' | 'published' | 'unpublished' | 'scheduled' | 'cloned'; // Optional default status
-	links?: Array<keyof CollectionTypes>; // Optional links to other collections
+	links?: Array<CollectionTypes>; // Optional links to other collections
 	fields: Field[]; // Collection fields
 }
 
@@ -86,14 +95,5 @@ export interface ProcessedCategoryData extends CategoryData {
 	subcategories: Record<string, ProcessedCategoryData>; // Nested subcategories after processing
 }
 
-// Collection Registry - defines all available collections
-export const CollectionRegistry = {
-    CollectionManager: 'CollectionManager',
-    categories: 'categories'
-} as const;
-
-// Collection types - represents all possible collection types in the system
-
-
-// Type alias for collection names
-export type CollectionName = CollectionTypes;export type CollectionTypes = 'CollectionManager'|'categories';
+// Collection types
+export type CollectionTypes = 'CollectionManager'|'categories';
