@@ -21,277 +21,213 @@ import { dbAdapter } from '@src/databases/db';
 import { logger } from '@utils/logger';
 import type { LoggableValue } from '@utils/logger';
 import type { MediaBase } from '@utils/media/mediaModels';
+import type { SystemVirtualFolder } from '@src/databases/dbInterface';
+import { 
+    type FolderContents, 
+    type VirtualFolderUpdateData,
+    type FolderResponse,
+    VirtualFolderError 
+} from '@src/types/virtualFolder';
 
-// Define the structure of a virtual folder
-interface VirtualFolder {
-	_id: string;
-	name: string;
-	parent: string | null;
-	path: string;
+// Utility function to validate database connection
+function validateDb(): void {
+    if (!dbAdapter) {
+        throw new VirtualFolderError('Database adapter is not initialized', 500, 'DB_NOT_INITIALIZED');
+    }
 }
 
-// Define the structure of folder contents
-interface FolderContents {
-	subfolders: VirtualFolder[];
-	mediaFiles: MediaBase[];
-}
-
-// Define update data type
-interface VirtualFolderUpdateData {
-	name?: string;
-	parent?: string | null;
-	path?: string;
+// Utility function to format folder response
+function formatFolderResponse(folder: SystemVirtualFolder, action: string = ''): FolderResponse {
+    return {
+        id: folder._id,
+        name: folder.name,
+        path: folder.path,
+        ariaLabel: action ? `${action} folder: ${folder.name}` : `Folder: ${folder.name}`
+    };
 }
 
 // Retrieve or create the root folder
-async function getRootFolder(): Promise<VirtualFolder> {
-	if (!dbAdapter) {
-		throw new Error('Database adapter is not initialized');
-	}
+async function getRootFolder(): Promise<SystemVirtualFolder> {
+    validateDb();
 
-	const rootFolder = await dbAdapter.findOne('VirtualFolder', {
-		name: publicEnv.MEDIA_FOLDER,
-		parent: null
-	});
+    const rootFolder = await dbAdapter.findOne('SystemVirtualFolder', {
+        name: publicEnv.MEDIA_FOLDER,
+        parent: null
+    });
 
-	if (!rootFolder) {
-		// Create root folder if it doesn't exist
-		const newRootFolder = await dbAdapter.createVirtualFolder({
-			name: publicEnv.MEDIA_FOLDER,
-			parent: null,
-			path: publicEnv.MEDIA_FOLDER
-		});
+    if (rootFolder) return rootFolder;
 
-		if (!newRootFolder) {
-			throw new Error('Failed to create root folder');
-		}
+    const newRootFolder = await dbAdapter.createVirtualFolder({
+        name: publicEnv.MEDIA_FOLDER,
+        parent: null,
+        path: publicEnv.MEDIA_FOLDER
+    });
 
-		return newRootFolder;
-	}
+    if (!newRootFolder) {
+        throw new VirtualFolderError('Failed to create root folder', 500, 'ROOT_CREATION_FAILED');
+    }
 
-	return rootFolder;
-}
-
-// Generate a standardized error response
-function errorResponse(message: string, status: number = 500) {
-	logger.error(message);
-	return json({ success: false, error: message }, { status });
+    return newRootFolder;
 }
 
 // Recursively update paths of child folders
-async function updateChildPaths(folderId: string, newParentPath: string) {
-	if (!dbAdapter) {
-		throw new Error('Database adapter is not initialized');
-	}
+async function updateChildPaths(folderId: string, newParentPath: string): Promise<void> {
+    validateDb();
 
-	const children = await dbAdapter.findMany('VirtualFolder', { parent: folderId });
-
-	for (const child of children) {
-		const newPath = `${newParentPath}/${child.name}`;
-		await dbAdapter.updateVirtualFolder(child._id, {
-			path: newPath,
-			parent: folderId
-		});
-		await updateChildPaths(child._id, newPath);
-	}
+    const children = await dbAdapter.findMany('SystemVirtualFolder', { parent: folderId });
+    
+    await Promise.all(children.map(async (child) => {
+        const newPath = `${newParentPath}/${child.name}`;
+        await dbAdapter.updateVirtualFolder(child._id, {
+            path: newPath,
+            parent: folderId
+        });
+        await updateChildPaths(child._id, newPath);
+    }));
 }
 
-// GET: Retrieve folder contents
-export const GET: RequestHandler = async ({ params }) => {
-	const { folderId } = params;
-
-	try {
-		if (!dbAdapter) {
-			return errorResponse('Database adapter is not initialized', 500);
-		}
-
-		// Handle root folder specially
-		const folder = folderId === 'root' ? await getRootFolder() : await dbAdapter.findOne('VirtualFolder', { _id: folderId });
-
-		if (!folder) {
-			return errorResponse('Folder not found', 404);
-		}
-
-		// Fetch folder contents
-		let contents: FolderContents;
-		try {
-			const folderContents = await dbAdapter.getVirtualFolderContents(folder._id.toString());
-			contents = {
-				subfolders: Array.isArray(folderContents?.subfolders) ? folderContents.subfolders : [],
-				mediaFiles: Array.isArray(folderContents?.mediaFiles) ? folderContents.mediaFiles : []
-			};
-		} catch (err) {
-			const error = err as Error;
-			logger.warn('Error fetching folder contents:', error.message as LoggableValue);
-			contents = { subfolders: [], mediaFiles: [] };
-		}
-
-		// Return folder info and contents
-		return json({
-			success: true,
-			contents,
-			folder: {
-				id: folder._id,
-				name: folder.name,
-				path: folder.path,
-				ariaLabel: `Folder: ${folder.name}`
-			}
-		});
-	} catch (err) {
-		const error = err as Error;
-		return errorResponse(`Failed to fetch folder contents: ${error.message}`, 500);
-	}
+// Error handler wrapper for request handlers
+const handleRequest = (handler: (params: any, data?: any) => Promise<Response>) => {
+    return async ({ params, request }: { params: any, request?: Request }) => {
+        try {
+            validateDb();
+            return await handler(params, request ? await request.json() : undefined);
+        } catch (err) {
+            const error = err as Error;
+            const status = err instanceof VirtualFolderError ? err.status : 500;
+            logger.error(`${error.name}: ${error.message}`);
+            return json({ success: false, error: error.message }, { status });
+        }
+    };
 };
+
+// GET: Retrieve folder contents
+export const GET: RequestHandler = handleRequest(async ({ folderId }) => {
+    const folder = folderId === 'root' 
+        ? await getRootFolder() 
+        : await dbAdapter.findOne('SystemVirtualFolder', { _id: folderId });
+
+    if (!folder) {
+        throw new VirtualFolderError('Folder not found', 404, 'FOLDER_NOT_FOUND');
+    }
+
+    const folderContents = await dbAdapter.getVirtualFolderContents(folder._id.toString());
+    const contents: FolderContents = {
+        subfolders: Array.isArray(folderContents?.subfolders) ? folderContents.subfolders : [],
+        mediaFiles: Array.isArray(folderContents?.mediaFiles) ? folderContents.mediaFiles : []
+    };
+
+    return json({
+        success: true,
+        contents,
+        folder: formatFolderResponse(folder)
+    });
+});
 
 // POST: Create a new subfolder
-export const POST: RequestHandler = async ({ params, request }) => {
-	const { folderId } = params;
+export const POST: RequestHandler = handleRequest(async ({ folderId }, data) => {
+    const { name } = data;
+    if (!name) {
+        throw new VirtualFolderError('Folder name is required', 400, 'NAME_REQUIRED');
+    }
 
-	try {
-		if (!dbAdapter) {
-			return errorResponse('Database adapter is not initialized', 500);
-		}
+    const parentFolder = folderId === 'root' 
+        ? await getRootFolder() 
+        : await dbAdapter.findOne('SystemVirtualFolder', { _id: folderId });
 
-		const { name } = await request.json();
+    if (!parentFolder) {
+        throw new VirtualFolderError('Parent folder not found', 404, 'PARENT_NOT_FOUND');
+    }
 
-		if (!name) {
-			return errorResponse('Folder name is required', 400);
-		}
+    const newPath = `${parentFolder.path}/${name}`;
+    const newFolder = await dbAdapter.createVirtualFolder({
+        name,
+        parent: parentFolder._id,
+        path: newPath
+    });
 
-		// Get parent folder (root or specified)
-		const parentFolder = folderId === 'root' ? await getRootFolder() : await dbAdapter.findOne('VirtualFolder', { _id: folderId });
+    logger.info(`Subfolder created: ${name} under folderId ${parentFolder._id}`);
 
-		if (!parentFolder) {
-			return errorResponse('Parent folder not found', 404);
-		}
-
-		// Create new folder
-		const newPath = `${parentFolder.path}/${name}`;
-		const newFolder = await dbAdapter.createVirtualFolder({
-			name,
-			parent: parentFolder._id,
-			path: newPath
-		});
-
-		logger.info(`Subfolder created: ${name} under folderId ${parentFolder._id}`);
-
-		// Return new folder info
-		return json(
-			{
-				success: true,
-				folder: {
-					...newFolder,
-					ariaLabel: `New folder: ${name}`
-				}
-			},
-			{ status: 201 }
-		);
-	} catch (err) {
-		const error = err as Error;
-		return errorResponse(`Failed to create subfolder: ${error.message}`, 500);
-	}
-};
+    return json(
+        {
+            success: true,
+            folder: formatFolderResponse(newFolder, 'New')
+        },
+        { status: 201 }
+    );
+});
 
 // PATCH: Update folder details
-export const PATCH: RequestHandler = async ({ params, request }) => {
-	const { folderId } = params;
+export const PATCH: RequestHandler = handleRequest(async ({ folderId }, data) => {
+    const { name, parent } = data;
+    if (!name) {
+        throw new VirtualFolderError('Folder name is required', 400, 'NAME_REQUIRED');
+    }
 
-	try {
-		if (!dbAdapter) {
-			return errorResponse('Database adapter is not initialized', 500);
-		}
+    const folder = folderId === 'root' 
+        ? await getRootFolder() 
+        : await dbAdapter.findOne('SystemVirtualFolder', { _id: folderId });
 
-		const { name, parent } = await request.json();
+    if (!folder) {
+        throw new VirtualFolderError('Folder not found', 404, 'FOLDER_NOT_FOUND');
+    }
 
-		if (!name) {
-			return errorResponse('Folder name is required', 400);
-		}
+    let newParent: SystemVirtualFolder | null = null;
+    if (parent) {
+        newParent = parent === 'root' 
+            ? await getRootFolder() 
+            : await dbAdapter.findOne('SystemVirtualFolder', { _id: parent });
+        
+        if (!newParent) {
+            throw new VirtualFolderError('New parent folder not found', 404, 'PARENT_NOT_FOUND');
+        }
+    }
 
-		// Get folder to update
-		const folder = folderId === 'root' ? await getRootFolder() : await dbAdapter.findOne('VirtualFolder', { _id: folderId });
+    const updateData: VirtualFolderUpdateData = {
+        name,
+        ...(newParent && {
+            parent: newParent._id,
+            path: `${newParent.path}/${name}`
+        }),
+        ...(!newParent && {
+            path: `${folder.path.split('/').slice(0, -1).join('/')}/${name}`
+        })
+    };
 
-		if (!folder) {
-			return errorResponse('Folder not found', 404);
-		}
+    const updatedFolder = await dbAdapter.updateVirtualFolder(folder._id, updateData);
+    if (newParent) {
+        await updateChildPaths(folder._id, updatedFolder.path);
+    }
 
-		// Handle parent folder change
-		let newParent: VirtualFolder | null = null;
-		if (parent) {
-			newParent = parent === 'root' ? await getRootFolder() : await dbAdapter.findOne('VirtualFolder', { _id: parent });
-			if (!newParent) {
-				return errorResponse('New parent folder not found', 404);
-			}
-		}
+    logger.info(`Folder with ID ${folder._id} updated successfully`);
 
-		// Prepare update data
-		const updateData: VirtualFolderUpdateData = { name };
-		if (newParent) {
-			updateData.parent = newParent._id;
-			updateData.path = `${newParent.path}/${name}`;
-		} else {
-			updateData.path = `${folder.path.split('/').slice(0, -1).join('/')}/${name}`;
-		}
-
-		// Update folder
-		const updatedFolder = await dbAdapter.updateVirtualFolder(folder._id, updateData);
-
-		// Update child paths if parent changed
-		if (newParent) {
-			await updateChildPaths(folder._id, updatedFolder.path);
-		}
-
-		logger.info(`Folder with ID ${folder._id} updated successfully`);
-
-		// Return updated folder info
-		return json({
-			success: true,
-			folder: {
-				...updatedFolder,
-				ariaLabel: `Updated folder: ${updatedFolder.name}`
-			}
-		});
-	} catch (err) {
-		const error = err as Error;
-		return errorResponse(`Failed to update folder: ${error.message}`, 500);
-	}
-};
+    return json({
+        success: true,
+        folder: formatFolderResponse(updatedFolder, 'Updated')
+    });
+});
 
 // DELETE: Remove a folder and its contents
-export const DELETE: RequestHandler = async ({ params }) => {
-	const { folderId } = params;
+export const DELETE: RequestHandler = handleRequest(async ({ folderId }) => {
+    if (folderId === 'root') {
+        throw new VirtualFolderError('Cannot delete root folder', 400, 'ROOT_DELETE_FORBIDDEN');
+    }
 
-	try {
-		if (!dbAdapter) {
-			return errorResponse('Database adapter is not initialized', 500);
-		}
+    const folder = await dbAdapter.findOne('SystemVirtualFolder', { _id: folderId });
+    if (!folder) {
+        throw new VirtualFolderError('Folder not found', 404, 'FOLDER_NOT_FOUND');
+    }
 
-		if (folderId === 'root') {
-			return errorResponse('Cannot delete root folder', 400);
-		}
+    const success = await dbAdapter.deleteVirtualFolder(folderId);
+    if (!success) {
+        throw new VirtualFolderError('Folder deletion failed', 500, 'DELETE_FAILED');
+    }
 
-		// Find folder to delete
-		const folder = await dbAdapter.findOne('VirtualFolder', { _id: folderId });
-		if (!folder) {
-			return errorResponse('Folder not found', 404);
-		}
+    logger.info(`Folder with ID ${folderId} deleted successfully`);
 
-		// Delete folder
-		const success = await dbAdapter.deleteVirtualFolder(folderId);
-
-		if (!success) {
-			return errorResponse('Folder deletion failed', 500);
-		}
-
-		logger.info(`Folder with ID ${folderId} deleted successfully`);
-
-		// Return success message
-		return json({
-			success: true,
-			message: `Folder "${folder.name}" deleted successfully`,
-			ariaLabel: `Deleted folder: ${folder.name}`
-		});
-	} catch (err) {
-		const error = err as Error;
-		return errorResponse(`Failed to delete folder: ${error.message}`, 500);
-	}
-};
+    return json({
+        success: true,
+        message: `Folder "${folder.name}" deleted successfully`,
+        ariaLabel: `Deleted folder: ${folder.name}`
+    });
+});

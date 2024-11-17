@@ -51,6 +51,14 @@ interface CategoryNode {
 	subcategories?: Map<string, CategoryNode>;
 }
 
+interface CategoryData {
+	id: string;
+	name: string;
+	icon: string;
+	collections: Schema[];
+	subcategories: Record<string, CategoryData>;
+}
+
 // Function to create categories from folder structure
 async function createCategoriesFromPath(collections: Schema[]): Promise<Category[]> {
 	categoryLookup.clear();
@@ -66,7 +74,9 @@ async function createCategoriesFromPath(collections: Schema[]): Promise<Category
 	}
 
 	// Flatten and sort the category hierarchy
-	const result = flattenAndSortCategories();
+	const categoriesObject = flattenAndSortCategories();
+	// Convert the object to an array
+	const result = Object.values(categoriesObject);
 	logger.debug('Created categories:', result);
 	return result;
 }
@@ -133,8 +143,8 @@ async function processBatch(collections: Schema[]): Promise<void> {
 }
 
 // Helper function to flatten and sort the category hierarchy
-function flattenAndSortCategories(): Category[] {
-	const result: Category[] = [];
+function flattenAndSortCategories(): Record<string, CategoryData> {
+	const result: Record<string, CategoryData> = {};
 
 	// Convert Map entries to array and sort
 	const sortedCategories = Array.from(categoryLookup.entries()).sort(([, a], [, b]) => a.order - b.order);
@@ -148,13 +158,13 @@ function flattenAndSortCategories(): Category[] {
 			return a.order !== undefined ? -1 : b.order !== undefined ? 1 : 0;
 		});
 
-		result.push({
-			id: category.id,
-			name: path,
+		result[path] = {
+			id: category.id.toString(),
+			name: category.name,
 			icon: category.icon,
-			order: category.order,
-			collections
-		});
+			collections,
+			subcategories: {}
+		};
 	}
 
 	return result;

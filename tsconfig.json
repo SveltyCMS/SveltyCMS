@@ -4,7 +4,7 @@
 	"compilerOptions": {
 		"moduleResolution": "bundler", // which module resolution strategy to use
 		"target": "ESNext", // which level of JS support to target
-		"module": "ESNext", // which module system to use
+		"module": "NodeNext", // which module system to use
 
 		/**
 		 * svelte-preprocess cannot figure out whether you have
@@ -30,6 +30,7 @@
 		"checkJs": true, // check javascript files
 		"allowJs": true, // allow javascript files
 		"strict": true, //enforce strict type checking
+		"noEmit": true, // prevent tsconfig error "overwriting input files" - Vite handles the build and ignores this
 
 		"emitDecoratorMetadata": false, //	emit decorator metadata
 		"forceConsistentCasingInFileNames": true, // force consistent casing in file names

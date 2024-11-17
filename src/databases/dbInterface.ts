@@ -55,7 +55,7 @@ export interface SystemPreferences {
 export interface SystemVirtualFolder {
 	_id: string; // The ID of the virtual folder
 	name: string; // The name of the virtual folder
-	parent: string; // The ID of the parent folder
+	parent: string | null;  // Updated to allow null for root folder
 	path: string; // The path of the virtual folder
 }
 

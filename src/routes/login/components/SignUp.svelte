@@ -72,9 +72,9 @@ Features:
 	const tokenTabIndex = 5;
 
 	// Form setup with Svelte 5 optimizations
-	const { form, constraints, allErrors, errors, enhance, delayed } = superForm<SignUpFormSchema>(FormSchemaSignUp, {
+	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaSignUp, {
 		id: 'signup',
-		validators: valibot(signUpFormSchema),
+		dataType: 'json',
 		// Clear form on success.
 		resetForm: true,
 		// Prevent page invalidation, which would clear the other form when the load function executes again.
