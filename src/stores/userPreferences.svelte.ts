@@ -10,7 +10,7 @@
  * - Error handling and recovery
  */
 
-import { store } from '@src/utils/reactivity.svelte';
+import { store } from '@utils/reactivity.svelte';
 import { ScreenSize } from '@stores/screenSizeStore.svelte';
 import { browser } from '$app/environment';
 import { dbAdapter, initializationPromise } from '@src/databases/db';

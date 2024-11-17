@@ -267,9 +267,9 @@ async function getImports(recompile: boolean = false): Promise<Record<Collection
 				collection.id = parseInt(randomId.toString().slice(0, 8), 16);
 
 				// Extract path from module location
-				const pathSegments = modulePath.split('/');
-				// Remove the filename and 'collections' from the path
-				const collectionPath = pathSegments.slice(1, -1).join('/');
+				const pathSegments = modulePath.split('/config/collections/')[1]?.split('/') || [];
+				// Get the collection path without the filename
+				const collectionPath = pathSegments.slice(0, -1).join('/');
 				collection.path = collectionPath;
 				logger.debug(`Set path for collection ${name} to ${collection.path}`);
 
@@ -282,8 +282,16 @@ async function getImports(recompile: boolean = false): Promise<Record<Collection
 		// Development/Building mode
 		if (dev || building) {
 			logger.debug(`Running in {${dev ? 'dev' : 'building'}} mode`);
-			// Look for TypeScript files in src/collections directory
-			const modules = import.meta.glob(['./**/*.ts', '!./index.ts', '!./categories.ts', '!./types.ts']);
+			// Look for TypeScript files in config/collections directory
+			const modules = import.meta.glob([
+				'../../config/collections/**/*.ts', 
+				'!../../config/collections/**/index.ts',      // Exclude any index files
+				'!../../config/collections/**/types.ts',      // Exclude type definitions
+				'!../../config/collections/**/utils/**/*.ts'  // Exclude utility files
+			], {
+				eager: false,
+				import: 'default'
+			});
 
 			// Process modules in batches
 			const entries = Object.entries(modules);

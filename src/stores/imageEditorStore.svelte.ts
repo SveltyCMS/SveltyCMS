@@ -9,7 +9,7 @@
  * - Update image editor state reactively
  */
 
-import { store } from '@src/utils/reactivity.svelte';
+import { store } from '@utils/reactivity.svelte';
 import type Konva from 'konva';
 
 // Types

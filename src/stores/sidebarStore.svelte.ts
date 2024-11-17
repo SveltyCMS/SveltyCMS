@@ -16,7 +16,7 @@
 
 import { screenSize, ScreenSize } from './screenSizeStore.svelte';
 import { mode } from './collectionStore.svelte';
-import { store } from "../utils/reactivity.svelte";
+import { store } from "@utils/reactivity.svelte";
 
 // Types for sidebar visibility states
 type SidebarVisibility = 'hidden' | 'collapsed' | 'full';
