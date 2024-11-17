@@ -33,7 +33,7 @@ const MIN_PASSWORD_LENGTH = publicEnv.PASSWORD_STRENGTH || 8;
 
 // Reusable Field-Level Schemas with `pipe` and undefined handling
 const usernameSchema = pipe(
-	optional(string()),
+	string(),
 	transform((value) => {
 		if (value === null || value === undefined) return '';
 		return value;
@@ -44,7 +44,7 @@ const usernameSchema = pipe(
 );
 
 const emailSchema = pipe(
-	optional(string()),
+	string(),
 	transform((value) => {
 		if (value === null || value === undefined) return '';
 		return value;
@@ -53,7 +53,7 @@ const emailSchema = pipe(
 );
 
 const passwordSchema = pipe(
-	optional(string()),
+	string(),
 	transform((value) => {
 		if (value === null || value === undefined) return '';
 		return value;
@@ -66,7 +66,7 @@ const passwordSchema = pipe(
 );
 
 const confirmPasswordSchema = pipe(
-	optional(string()),
+	string(),
 	transform((value) => {
 		if (value === null || value === undefined) return '';
 		return value;
@@ -74,7 +74,7 @@ const confirmPasswordSchema = pipe(
 );
 
 const roleSchema = pipe(
-	optional(string()),
+	string(),
 	transform((value) => {
 		if (value === null || value === undefined) return '';
 		return value;
@@ -82,7 +82,7 @@ const roleSchema = pipe(
 );
 
 const tokenSchema = pipe(
-	optional(string()),
+	string(),
 	transform((value) => {
 		if (value === null || value === undefined) return '';
 		return value;
@@ -97,7 +97,7 @@ export const loginFormSchema = strictObject({
 	email: emailSchema,
 	password: passwordSchema,
 	isToken: pipe(
-		optional(boolean()),
+		boolean(),
 		transform((value) => value ?? false)
 	)
 });
@@ -127,7 +127,7 @@ const signUpFormSchemaBase = strictObject({
 	password: passwordSchema,
 	confirm_password: passwordSchema,
 	token: optional(pipe(
-		optional(string()),
+		string(),
 		transform((value) => {
 			if (value === null || value === undefined) return '';
 			return value;
@@ -167,7 +167,7 @@ const changePasswordSchemaBase = strictObject({
 	password: passwordSchema,
 	confirm_password: passwordSchema,
 	currentPassword: optional(pipe(
-		optional(string()),
+		string(),
 		transform((value) => {
 			if (value === null || value === undefined) return '';
 			return value;

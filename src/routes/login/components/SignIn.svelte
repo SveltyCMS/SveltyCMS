@@ -99,7 +99,7 @@ Features:
 	// Login form setup
 	const { form, constraints, allErrors, errors, enhance, delayed } = superForm<LoginFormSchema>(FormSchemaLogin, {
 		id: 'login',
-		validators: valibot(FormSchemaLogin),
+		validators: valibot(loginFormSchema),
 		// Clear form on success.
 		resetForm: true,
 		// Prevent page invalidation, which would clear the other form when the load function executes again.
@@ -156,7 +156,7 @@ Features:
 		delayed: forgotDelayed
 	} = superForm<ForgotFormSchema>(FormSchemaForgot, {
 		id: 'forgot',
-		validators: valibot(FormSchemaForgot),
+		validators: valibot(forgotFormSchema),
 		resetForm: true,
 		invalidateAll: false,
 		applyAction: true,
@@ -237,7 +237,7 @@ Features:
 		delayed: resetDelayed
 	} = superForm<ResetFormSchema>(FormSchemaReset, {
 		id: 'reset',
-		validators: valibot(FormSchemaReset),
+		validators: valibot(resetFormSchema),
 		resetForm: true,
 		invalidateAll: false,
 		applyAction: true,
