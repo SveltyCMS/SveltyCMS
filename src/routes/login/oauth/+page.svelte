@@ -76,7 +76,7 @@
 	}
 </script>
 
-<div class="grid h-full w-full place-items-center bg-[#242728]">
+<div class="grid h-full w-full place-items-center bg-[#242728]" use:Loading={load}>
 	{#if isLoading}
 		<Loading />
 	{:else}
