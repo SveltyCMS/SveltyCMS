@@ -13,6 +13,8 @@
 - `rowsPerPage` {number}: The number of rows per page (default: 10)
 - `rowsPerPageOptions` {number[]}: An array of options for rows per page (default: [5, 10, 25, 50, 100, 500])
 - `totalItems` {number}: The total number of items in the table (default: 0)
+- `onUpdatePage` {(page: number) => void}: Event handler for updating the current page
+- `onUpdateRowsPerPage` {(rows: number) => void}: Event handler for updating the number of rows per page
 	
 -->
 
@@ -27,6 +29,8 @@
 		rowsPerPage?: number; // Default value to control rows per page (optional)
 		rowsPerPageOptions?: number[]; // Options for rows per page (optional)
 		totalItems?: number; // Total number of items in the table (optional)
+		onUpdatePage?: (page: number) => void;
+		onUpdateRowsPerPage?: (rows: number) => void;
 	}>();
 
 	// State declarations with memoization
@@ -47,8 +51,7 @@
 
 			// Set a new timeout
 			pageUpdateTimeout = window.setTimeout(() => {
-				const event = new CustomEvent('updatePage', { detail: page });
-				dispatchEvent(event);
+				props.onUpdatePage?.(page);
 			}, 100); // 100ms debounce
 		}
 	}
@@ -65,8 +68,7 @@
 
 			// Set a new timeout
 			rowsUpdateTimeout = window.setTimeout(() => {
-				const customEvent = new CustomEvent('updateRowsPerPage', { detail: value });
-				dispatchEvent(customEvent);
+				props.onUpdateRowsPerPage?.(value);
 			}, 100); // 100ms debounce
 		}
 	}

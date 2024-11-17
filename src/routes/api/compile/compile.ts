@@ -26,29 +26,47 @@ interface CompileOptions {
 }
 
 export async function compile(options: CompileOptions = {}): Promise<void> {
-	// Destructure options with default values from environment variables
-	const { collectionsFolderJS = process.env.COLLECTIONS_FOLDER_JS, collectionsFolderTS = process.env.COLLECTIONS_FOLDER_TS } = options;
+	// Set default paths relative to the project root
+	const defaultTSPath = path.join(process.cwd(), 'config/collections');
+	const defaultJSPath = path.join(process.cwd(), 'dist/collections');
 
-	// Validate that folder paths are provided
-	if (!collectionsFolderJS || !collectionsFolderTS) {
-		throw new Error('Collections folders not specified');
+	// Destructure options with default values
+	const { 
+		collectionsFolderJS = process.env.COLLECTIONS_FOLDER_JS || defaultJSPath, 
+		collectionsFolderTS = process.env.COLLECTIONS_FOLDER_TS || defaultTSPath 
+	} = options;
+
+	try {
+		// Ensure the output directory exists
+		await fs.mkdir(collectionsFolderJS, { recursive: true });
+
+		// Check if source directory exists
+		try {
+			await fs.access(collectionsFolderTS);
+		} catch (err) {
+			throw new Error(`Collections source directory not found: ${collectionsFolderTS}`);
+		}
+
+		// Get list of TypeScript files to compile
+		const files = await getTypescriptFiles(collectionsFolderTS);
+
+		if (files.length === 0) {
+			console.warn(`No TypeScript files found in ${collectionsFolderTS}`);
+			return;
+		}
+
+		// Create necessary subdirectories in the JS folder
+		await createOutputDirectories(files, collectionsFolderTS, collectionsFolderJS);
+
+		// Compile all files concurrently
+		await Promise.all(files.map((file) => compileFile(file, collectionsFolderTS, collectionsFolderJS)));
+
+		// Clean up orphaned collection files
+		await cleanupOrphanedFiles(collectionsFolderTS, collectionsFolderJS);
+	} catch (error) {
+		console.error('Compilation error:', error);
+		throw error;
 	}
-
-	// Ensure the output directory exists
-	await fs.mkdir(collectionsFolderJS, { recursive: true });
-	await fs.mkdir(collectionsFolderTS, { recursive: true });
-
-	// Get list of TypeScript files to compile
-	const files = await getTypescriptFiles(collectionsFolderTS);
-
-	// Create necessary subdirectories in the JS folder
-	await createOutputDirectories(files, collectionsFolderTS, collectionsFolderJS);
-
-	// Compile all files concurrently
-	await Promise.all(files.map((file) => compileFile(file, collectionsFolderTS, collectionsFolderJS)));
-
-	// Clean up orphaned collection files
-	await cleanupOrphanedFiles(collectionsFolderTS, collectionsFolderJS);
 }
 
 async function getTypescriptFiles(folder: string, subdir: string = ''): Promise<string[]> {
