@@ -67,8 +67,8 @@
 				const isExpanded = item.w > 1 || item.h > 1;
 				return {
 					...item,
-					w: isExpanded ? 1 : Math.min(item.max.w, 2),
-					h: isExpanded ? 1 : Math.min(item.max.h, 2)
+					w: isExpanded ? 1 : Math.min(item.max?.w ?? 2, 2),
+					h: isExpanded ? 1 : Math.min(item.max?.h ?? 2, 2)
 				};
 			}
 			return item;
@@ -166,10 +166,10 @@
 		dropTargetStyle: {
 			outline: 'rgba(255, 255, 255, 0.3) solid 2px'
 		},
-		transformDraggedElement: (draggedEl: HTMLElement) => {
-			draggedEl.style.cursor = 'grabbing';
-			draggedEl.style.opacity = '0.8';
-			draggedEl.style.transform = 'scale(1.05)';
+		transformDraggedElement: (element: HTMLElement | undefined) => {
+			if (element) {
+				element.style.transform = 'rotate(5deg)';
+			}
 		}
 	};
 </script>
@@ -229,7 +229,13 @@
 			style="grid-template-columns: repeat({cols}, minmax(0, 1fr));"
 			use:dndzone={{
 				items,
-				...dndOptions
+				dragDisabled: false,
+				dropTargetStyle: { outline: '2px solid var(--color-primary-500)' },
+				transformDraggedElement: (element: HTMLElement | undefined) => {
+					if (element) {
+						element.style.transform = 'rotate(5deg)';
+					}
+				}
 			}}
 			onconsider={handleDndConsider}
 			onfinalize={handleDndFinalize}
@@ -250,7 +256,7 @@
 							aria-label="Toggle Widget Size"
 							title={item.w > 1 || item.h > 1 ? 'Shrink' : 'Expand'}
 						>
-							<iconify-icon icon={item.w > 1 || item.h > 1 ? 'mdi:arrow-collapse' : 'mdi:arrow-expand'} width="16" />
+							<iconify-icon icon={item.w > 1 || item.h > 1 ? 'mdi:arrow-collapse' : 'mdi:arrow-expand'} width="16"></iconify-icon>
 						</button>
 						<button onclick={() => remove(item.id)} class="btn-icon" aria-label="Remove Widget">✕</button>
 					</div>

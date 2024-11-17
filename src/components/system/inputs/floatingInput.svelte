@@ -54,8 +54,8 @@
 		tabindex = 0,
 		id = '',
 		autocomplete = null,
-		onClick,
-		onInput
+		onClick = undefined,
+		onInput = undefined
 	} = $props<{
 		value?: string;
 		showPassword?: boolean;
@@ -75,8 +75,8 @@
 		tabindex?: number;
 		id?: string;
 		autocomplete?: AutocompleteType;
-		onClick?: (event: MouseEvent) => void;
-		onInput?: (value: string) => void;
+		onClick?: ((event: MouseEvent) => void) | undefined;
+		onInput?: ((value: string) => void) | undefined;
 	}>();
 
 	let inputElement = $state<HTMLInputElement>();
@@ -121,20 +121,18 @@
 		bind:this={inputElement}
 		bind:value
 		{name}
-		{required}
-		{disabled}
 		{minlength}
 		{maxlength}
+		{required}
+		{disabled}
 		{tabindex}
-		id={currentId}
-		{type}
+		{autocomplete}
 		onclick={handleClick}
 		oninput={(e) => onInput?.(e.currentTarget.value)}
-		autocomplete={autocomplete || undefined}
-		aria-invalid={false}
-		aria-required={required}
-		aria-describedby="{currentId}-error"
-		class="{inputClass} peer relative block w-full appearance-none border-0 border-b-2 border-surface-300 bg-transparent pl-6 !text-{textColor} focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-400 dark:focus:border-tertiary-500"
+		type={isPasswordVisible ? 'text' : type}
+		class="peer block w-full appearance-none rounded-lg border border-gray-300 bg-transparent px-2.5 pb-2.5 pt-4 text-sm text-gray-900 focus:border-primary-600 focus:outline-none focus:ring-0 dark:border-gray-600 dark:text-white dark:focus:border-primary-500 {inputClass}"
+		placeholder=" "
+		{id}
 	/>
 
 	{#if icon}

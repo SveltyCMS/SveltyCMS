@@ -38,7 +38,7 @@ import { permissions } from '@src/auth/permissions';
 
 // System Logger
 import { logger } from '@utils/logger';
-import { generateCollectionFieldTypes, generateCollectionTypes } from '@root/src/utils/CollectionTypes';
+import { generateCollectionFieldTypes, generateCollectionTypes } from '@root/src/utils/collectionTypes';
 
 type fields = ReturnType<WidgetType[keyof WidgetType]>;
 

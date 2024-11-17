@@ -15,6 +15,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { updateCollections } from '@collections';
 import { compile } from './compile';
 import { error, json } from '@sveltejs/kit';
+
 // System Logger
 import { logger } from '@utils/logger';
 
@@ -51,12 +52,13 @@ export const GET: RequestHandler = async ({ url }) => {
 		await updateCollections(forceUpdate);
 		logger.info('Collections updated successfully');
 
-		isCompiling = false;
-		return json({ success: true, message: 'Compilation and collection update completed' });
+		return json({ success: true, message: 'Compilation and update completed successfully' });
 	} catch (err) {
-		isCompiling = false;
 		const errorMessage = err instanceof Error ? err.message : String(err);
-		logger.error('Error during compilation process', { error: errorMessage });
-		throw error(500, 'Compilation process failed: ' + errorMessage);
+		logger.error('Compilation failed', { error: errorMessage });
+		isCompiling = false;
+		throw error(500, errorMessage);
+	} finally {
+		isCompiling = false;
 	}
 };
