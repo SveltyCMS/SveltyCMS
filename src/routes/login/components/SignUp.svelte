@@ -25,7 +25,6 @@ Features:
 	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 	import { superForm } from 'sveltekit-superforms/client';
 	import { signUpFormSchema } from '@utils/formSchemas';
-	import { valibot } from 'sveltekit-superforms/adapters';
 	import type { SignUpFormSchema } from '@utils/formSchemas';
 	import type { SuperValidated } from 'sveltekit-superforms';
 
