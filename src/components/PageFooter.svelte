@@ -22,7 +22,7 @@
 </script>
 
 <h2 class="text-center !text-sm font-bold uppercase text-tertiary-500 dark:text-primary-500">
-	{$collection?.name} Info:
+	{collection.value?.name} Info:
 </h2>
 
 <div class="grid grid-cols-2 items-center gap-x-2 pb-1 text-[12px] leading-tight">

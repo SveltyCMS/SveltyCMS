@@ -175,9 +175,7 @@
 		}
 	}
 
-	$effect(() => {
-		console.debug(" Mode: ", mode.value, collection.value.permissions?.[user.role]?.write)
-	})
+	
 </script>
 
 <!-- Desktop Right Sidebar -->

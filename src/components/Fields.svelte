@@ -8,7 +8,7 @@ revision management, live preview, and API data display.
 <Fields />
 ```
 #### Props
-- `fields` {NonNullable<typeof $collection>['fields']} - Collection fields
+- `fields` {NonNullable<typeof collection.value>['fields']} - Collection fields
 - `ariaInvalid` {boolean} - Aria-invalid attribute for accessibility
 - `ariaDescribedby` {string} - Aria-describedby attribute for accessibility
 Key features:
@@ -41,7 +41,7 @@ Key features:
 
 	// Props
 	interface Props {
-		fields?: NonNullable<typeof $collection>['fields'] | undefined;
+		fields?: NonNullable<typeof collection.value>['fields'] | undefined;
 		root?: boolean;
 		fieldsData?: Record<string, any>;
 		customData?: Record<string, any>;
@@ -57,7 +57,7 @@ Key features:
 	let isLoading = $state(true);
 
 	// Derived state
-	let derivedFields = $derived(fields || ($collection?.fields ?? []));
+	let derivedFields = $derived(fields || (collection.value?.fields ?? []));
 
 	// Dynamic import of widget components
 	const modules: Record<string, { default: any }> = import.meta.glob('@components/widgets/*/*.svelte', { eager: true });
@@ -75,7 +75,7 @@ Key features:
 	$effect(() => {
 		if (collectionValue.value) {
 			const id = collectionValue.value._id;
-			apiUrl = `${dev ? 'http://localhost:5173' : publicEnv.SITE_NAME}/api/${String($collection?.name) ?? ''}/${id}`;
+			apiUrl = `${dev ? 'http://localhost:5173' : publicEnv.SITE_NAME}/api/${String(collection.value?.name) ?? ''}/${id}`;
 		}
 	});
 
@@ -86,7 +86,7 @@ Key features:
 	}
 
 	function getTabHeaderVisibility() {
-		return user.roles !== 'admin' && !$collection?.revision;
+		return user.roles !== 'admin' && !collection.value?.revision;
 	}
 
 	function filterFieldsByPermission(fields: any[], userRole: string) {
@@ -97,8 +97,8 @@ Key features:
 	}
 
 	function getLivePreviewContent() {
-		// Ensure $collection.name is a string
-		return `<div>Live Preview Content for ${String($collection?.name) ?? ''}</div>`;
+		// Ensure collection.value.name is a string
+		return `<div>Live Preview Content for ${String(collection.value?.name) ?? ''}</div>`;
 	}
 
 	let filteredFields = $derived(filterFieldsByPermission(derivedFields, user.role));
@@ -108,7 +108,7 @@ Key features:
 	<div class="loading">Loading fields...</div>
 {:else}
 	<TabGroup
-		justify="{$collection?.revision === true ? 'justify-between md:justify-around' : 'justify-center '} items-center"
+		justify="{collection.value?.revision === true ? 'justify-between md:justify-around' : 'justify-center '} items-center"
 		rounded="rounded-tl-container-token rounded-tr-container-token"
 		flex="flex-1 items-center"
 		active="border-b border-tertiary-500 dark:border-primary-500 variant-soft-secondary"
@@ -123,7 +123,7 @@ Key features:
 			</div>
 		</Tab>
 
-		{#if $collection?.revision === true}
+		{#if collection.value?.revision === true}
 			<Tab bind:group={$tabSet} name="tab2" value={1}>
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="pepicons-pop:countdown" width="24" class="text-tertiary-500 dark:text-primary-500"> </iconify-icon>
@@ -132,7 +132,7 @@ Key features:
 			</Tab>
 		{/if}
 
-		{#if $collection?.livePreview === true}
+		{#if collection.value?.livePreview === true}
 			<Tab bind:group={$tabSet} name="tab3" value={2}>
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="mdi:eye-outline" width="24" class="text-tertiary-500 dark:text-primary-500"> </iconify-icon>
@@ -174,12 +174,12 @@ Key features:
 												<div class="flex items-center gap-1 px-2">
 													<iconify-icon icon="bi:translate" color="dark" width="18" class="text-sm"> </iconify-icon>
 													<div class="text-xs font-normal text-error-500">
-														{$contentLanguage?.toUpperCase() ?? 'EN'}
+														{contentLanguage.value?.toUpperCase() ?? 'EN'}
 													</div>
 													<!-- Display translation progress -->
 													<div class="text-xs font-normal">
 														({Math.round(
-															translationProgress.value[$contentLanguage]?.translated.has(`${String($collection?.name)}.${getFieldName(field)}`)
+															translationProgress.value[contentLanguage.value]?.translated.has(`${String(collection.value?.name)}.${getFieldName(field)}`)
 																? 1
 																: 0
 														)}%)
@@ -250,7 +250,7 @@ Key features:
 						/>
 					</div>
 				</div>
-			{:else if $tabSet === 2 && $collection?.livePreview === true}
+			{:else if $tabSet === 2 && collection.value?.livePreview === true}
 				<!-- Live Preview tab content -->
 				<div class="wrapper">
 					<h2 class="mb-4 text-center text-xl font-bold text-tertiary-500 dark:text-primary-500">Live Preview</h2>

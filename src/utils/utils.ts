@@ -207,7 +207,7 @@ export async function find(query: object, collectionTypes: string) {
 
 // Finds document in collection with specified ID
 export async function findById(id: string, collectionTypes: string) {
-	if (!id || !CollectionTypes) {
+	if (!id || !collectionTypes) {
 		logger.warn(`findById called with invalid parameters. ID: ${id}, Collection: ${collectionTypes}`);
 		return;
 	}

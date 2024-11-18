@@ -38,6 +38,7 @@ Features:
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import { valibot } from "sveltekit-superforms/adapters";
 
 	// Props
 	const {
@@ -73,7 +74,7 @@ Features:
 	// Form setup with Svelte 5 optimizations
 	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaSignUp, {
 		id: 'signup',
-		dataType: 'json',
+		validators: valibot(signUpFormSchema),
 		// Clear form on success.
 		resetForm: true,
 		// Prevent page invalidation, which would clear the other form when the load function executes again.

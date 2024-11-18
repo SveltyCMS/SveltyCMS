@@ -78,7 +78,7 @@ async function processDirectory(dirPath: string, existingCategories: Record<stri
 		const collectionTypes = path.parse(item).name;
 		const existingCategory = getExistingCategory(collectionTypes);
 
-		categories[CollectionTypes] = {
+		categories[collectionTypes] = {
 			id: existingCategory?.id || `c${crypto.randomBytes(4).toString('hex')}`,
 			name: collectionTypes.replace(/([A-Z])/g, ' $1').trim(),
 			icon: existingCategory?.icon || 'bi:file-text',

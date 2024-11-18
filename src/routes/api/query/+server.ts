@@ -74,7 +74,7 @@ async function checkUserPermissions(data: FormData, cookies: any) {
 		}
 
 		// Retrieve the collection name from the form data
-		const collectionTypes = data.get('CollectionTypes') as string;
+		const collectionTypes = data.get('collectionTypes') as string;
 
 		if (!collectionTypes) {
 			throw Error('Collection name is required');

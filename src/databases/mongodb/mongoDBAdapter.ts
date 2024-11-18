@@ -26,7 +26,6 @@
 
 import { privateEnv } from '@root/config/private';
 
-import { collectionManager } from '@src/collections/CollectionManager';
 
 // Stores
 import type { Unsubscriber } from 'svelte/store';
@@ -300,7 +299,7 @@ export class MongoDBAdapter implements dbInterface {
 					collection: collectionTypes.toLowerCase()
 				};
 
-				console.debug('schemaDefinition:', schemaDefinition);
+				// console.debug('schemaDefinition:', schemaDefinition);
 				// Safely create or retrieve model
 				const existingModel = mongoose.models[collectionTypes];
 				if (existingModel) {
@@ -1126,8 +1125,8 @@ export class MongoDBAdapter implements dbInterface {
 			const collectionTypes = Object.keys(mongoose.models);
 			const recentCollections: any[] = [];
 
-			for (const collectionTypes of collectionTypes) {
-				const model = mongoose.models[collectionTypes];
+			for (const collectionType of collectionTypes) {
+				const model = mongoose.models[collectionType];
 				const recentDocs = await model.find().sort({ createdAt: -1 }).limit(5).lean().exec();
 				recentCollections.push({ collectionTypes, recentDocs });
 			}

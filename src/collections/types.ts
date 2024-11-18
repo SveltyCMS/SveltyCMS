@@ -96,4 +96,4 @@ export interface ProcessedCategoryData extends CategoryData {
 }
 
 // Collection types
-export type CollectionTypes = 'CollectionManager'|'categories';
+export type CollectionTypes = 'categories'|'CollectionManager';

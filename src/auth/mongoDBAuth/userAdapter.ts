@@ -65,7 +65,7 @@ export class UserAdapter implements Partial<authDBInterface> {
 	private UserModel: mongoose.Model<User & Document>;
 
 	constructor() {
-		this.UserModel = mongoose.models.auth_users || mongoose.model<User & Document>('auth_users', UserSchema);
+		this.UserModel = mongoose.models?.auth_users || mongoose.model<User & Document>('auth_users', UserSchema);
 	}
 
 	// Create a new user

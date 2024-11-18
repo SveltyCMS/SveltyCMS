@@ -23,7 +23,7 @@
 import fs from 'fs';
 import prettier from 'prettier';
 import prettierConfig from '@root/.prettierrc.json';
-import { updateCollections } from '@collections';
+import { updateCollections } from '@src/collections';
 import { compile } from '@api/compile/compile';
 import { redirect, type Actions, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
@@ -89,7 +89,7 @@ export const actions: Actions = {
 			const formData = await request.formData();
 			const fieldsData = formData.get('fields') as string;
 			const originalName = JSON.parse(formData.get('originalName') as string);
-			const CollectionTypes = JSON.parse(formData.get('CollectionTypes') as string);
+			const collectionTypes = JSON.parse(formData.get('collectionTypes') as string);
 			const collectionIcon = JSON.parse(formData.get('icon') as string);
 			const collectionSlug = JSON.parse(formData.get('slug') as string);
 			const collectionDescription = JSON.parse(formData.get('description') as string);
@@ -102,8 +102,8 @@ export const actions: Actions = {
 			// Generate fields as formatted string
 			let content = `
 		/**
-		 * @file src/collections/${CollectionTypes}.ts
-		 * @description Collection file for ${CollectionTypes}
+		 * @file src/collections/${collectionTypes}.ts
+		 * @description Collection file for ${collectionTypes}
 		 */
 
 		${imports}
@@ -130,10 +130,10 @@ export const actions: Actions = {
 			content = content.replace(/["']🗑️|🗑️["']/g, '').replace(/🗑️/g, '');
 			content = await prettier.format(content, { ...(prettierConfig as any), parser: 'typescript' });
 
-			if (originalName && originalName !== CollectionTypes) {
-				fs.renameSync(`${import.meta.env.collectionsFolderTS}/${originalName}.ts`, `${import.meta.env.collectionsFolderTS}/${CollectionTypes}.ts`);
+			if (originalName && originalName !== collectionTypes) {
+				fs.renameSync(`${import.meta.env.collectionsFolderTS}/${originalName}.ts`, `${import.meta.env.collectionsFolderTS}/${collectionTypes}.ts`);
 			}
-			fs.writeFileSync(`${import.meta.env.collectionsFolderTS}/${CollectionTypes}.ts`, content);
+			fs.writeFileSync(`${import.meta.env.collectionsFolderTS}/${collectionTypes}.ts`, content);
 			await compile();
 			await generateCollectionTypes();
 			await generateCollectionFieldTypes();
@@ -175,8 +175,8 @@ export const actions: Actions = {
 	deleteCollections: async ({ request }) => {
 		try {
 			const formData = await request.formData();
-			const CollectionTypes = JSON.parse(formData.get('CollectionTypes') as string);
-			fs.unlinkSync(`${import.meta.env.collectionsFolderTS}/${CollectionTypes}.ts`);
+			const collectionTypes = JSON.parse(formData.get('collectionTypes') as string);
+			fs.unlinkSync(`${import.meta.env.collectionsFolderTS}/${collectionTypes}.ts`);
 			await compile();
 			await updateCollections(true);
 			await getCollectionModels();

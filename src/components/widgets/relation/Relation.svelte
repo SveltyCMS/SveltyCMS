@@ -137,7 +137,7 @@
 	async function openDropDown() {
 		if (!field) return;
 		const result = await getData({
-			CollectionTypes: field.relation as any,
+			collectionTypes: field.relation as any,
 			limit: 10
 		});
 		dropDownData = result.entryList;

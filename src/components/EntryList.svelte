@@ -82,12 +82,12 @@ Features:
 	let columnShow = $state(false);
 
 	// Retrieve entryListPaginationSettings from local storage or set default values for each collection
-	const entryListPaginationSettingsKey = `entryListPaginationSettings_${String($collection?.name)}`;
+	const entryListPaginationSettingsKey = `entryListPaginationSettings_${String(collection.value?.name)}`;
 	let entryListPaginationSettings: any =
 		browser && localStorage.getItem(entryListPaginationSettingsKey)
 			? JSON.parse(localStorage.getItem(entryListPaginationSettingsKey) as string)
 			: {
-					CollectionTypes: $collection?.name,
+					collectionTypes: collection.value?.name,
 					density: 'normal',
 					sorting: { sortedBy: '', isSorted: 0 },
 					currentPage: 1,
@@ -147,7 +147,7 @@ Features:
 		}
 
 		// If the collection name is empty, return
-		if (!$collection?.name) return;
+		if (!collection.value?.name) return;
 
 		// If fetch is true, set isLoading to true
 		if (fetch) {
@@ -157,12 +157,13 @@ Features:
 			}, 400);
 
 			// Fetch data using getData function
+			// console.debug('Fetching data...', collection.value );
 			try {
 				data = await getData({
-					CollectionTypes: $collection?.name as any,
+					collectionTypes: collection.value?.name as any,
 					page: currentPage,
 					limit: rowsPerPage, // assuming rowsPerPage is defined
-					contentLanguage: $contentLanguage,
+					contentLanguage: contentLanguage.value,
 					filter: JSON.stringify(filters),
 					sort: JSON.stringify(
 						sorting.isSorted
@@ -192,7 +193,7 @@ Features:
 				data.entryList.map(async (entry) => {
 					const obj: { [key: string]: any } = {};
 
-					for (const field of $collection.fields) {
+					for (const field of collection.value.fields) {
 						if (field.callback && typeof field.callback === 'function') {
 							field.callback({ data });
 							handleSidebarToggle();
@@ -206,7 +207,7 @@ Features:
 						if (field.display) {
 							obj[field.label] = await field.display({
 								data: entry[getFieldName(field)],
-								collection: ($collection?.name ?? '').toString(), // Convert to string
+								collection: (collection.value?.name ?? '').toString(), // Convert to string
 								field,
 								entry,
 								contentLanguage: $contentLanguage
@@ -225,7 +226,7 @@ Features:
 		}
 
 		// For rendering Table data
-		tableHeaders = $collection?.fields.map((field) => ({
+		tableHeaders = collection.value?.fields.map((field) => ({
 			label: field.label,
 			name: getFieldName(field),
 			id: getFieldName(field),
@@ -271,7 +272,7 @@ Features:
 	$effect(() => {
 		entryListPaginationSettings = {
 			...entryListPaginationSettings,
-			CollectionTypes: $collection?.name,
+			collectionTypes: collection.value?.name,
 			filters,
 			sorting,
 			density,
@@ -284,8 +285,8 @@ Features:
 
 	// Trigger refreshTableData based on collection, filters, sorting, and currentPage
 	$effect(() => {
-		refreshTableData();
-		$collection;
+		if (collection.value) refreshTableData();
+		collection.value;
 		filters;
 		sorting;
 		currentPage;
@@ -293,15 +294,14 @@ Features:
 
 	// Trigger refreshTableData when contentLanguage changes, but don't fetch data
 	$effect(() => {
-		refreshTableData(false);
+		// refreshTableData(false);
 		filters = {};
-		$contentLanguage;
 	});
 
 	// Reset currentPage to 1 when the collection changes
 	$effect(() => {
 		currentPage = 1;
-		$collection;
+		collection.value;
 	});
 
 	// Tick All Rows
@@ -330,7 +330,13 @@ Features:
 	});
 
 	// Reset collectionValue when mode changes
-	mode.subscribe(() => {
+	// mode.subscribe(() => {
+	// 	meta_data.clear();
+	// 	if (mode.value == 'view') {
+	// 		collectionValue.set({});
+	// 	}
+	// });
+	$effect(() => {
 		meta_data.clear();
 		if (mode.value == 'view') {
 			collectionValue.set({});
@@ -338,7 +344,7 @@ Features:
 	});
 
 	// Tick Row - modify STATUS of an Entry
-	$modifyEntry = async (status: keyof typeof statusMap) => {
+	modifyEntry.set(async (status: keyof typeof statusMap) => {
 		// Initialize an array to store the IDs of the items to be modified
 		const modifyList: Array<string> = [];
 		// Loop over the selectedMap object
@@ -365,13 +371,13 @@ Features:
 				switch (status) {
 					case 'deleted':
 						// If the status is 'deleted', call the delete endpoint
-						await deleteData({ data: formData, CollectionTypes: $collection?.name as any });
+						await deleteData({ data: formData, collectionTypes: collection.value?.name as any });
 						break;
 					case 'published':
 					case 'unpublished':
 					case 'testing':
 						// If the status is 'testing', call the publish endpoint
-						await setStatus({ data: formData, collectionTypes: $collection?.name as any });
+						await setStatus({ data: formData, collectionTypes: collection.value?.name as any });
 						break;
 					case 'cloned':
 					case 'scheduled':
@@ -413,10 +419,10 @@ Features:
 			// If only one row is selected and status is not 'delete', directly proceed with modification
 			handleConfirmation(true);
 		}
-	};
+	});
 
-	let categoryName = $derived(() => {
-		if (!$collection?.name || !$categories) return '';
+	let categoryName = $derived.by(() => {
+		if (!collection.value?.name || !categories.value) return '';
 
 		// Helper function to find parent category name
 		const findParentCategory = (categories: Record<string, CategoryData>): string => {
@@ -428,14 +434,14 @@ Features:
 					// Check each subcategory
 					for (const [subName, subCat] of Object.entries(rootCategory.subcategories)) {
 						// Case 1: Direct collection in subcategories (like Media, Names)
-						if (subCat.isCollection && subName === $collection.name) {
+						if (subCat.isCollection && subName === collection.value.name) {
 							return rootCategory.name;
 						}
 
 						// Case 2: Collection in nested subcategories (like Posts/Posts)
 						if (!subCat.isCollection && subCat.subcategories) {
 							for (const [nestedName, nestedCat] of Object.entries(subCat.subcategories)) {
-								if (nestedCat.isCollection && nestedName === $collection.name) {
+								if (nestedCat.isCollection && nestedName === collection.value.name) {
 									// Return the immediate parent name (e.g. "Posts" for Posts/Posts)
 									return subCat.name;
 								}
@@ -447,7 +453,7 @@ Features:
 			return '';
 		};
 
-		return findParentCategory($categories);
+		return findParentCategory(categories.value);
 	});
 
 	let isCollectionEmpty = $derived(tableData.length === 0);
@@ -482,11 +488,13 @@ Features:
 					</div>
 				{/if}
 				<div class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl">
-					{#if $collection?.icon}<span> <iconify-icon icon={$collection.icon} width="24" class="mr-1 text-error-500 sm:mr-2"></iconify-icon></span>
+					{#if collection.value?.icon}<span>
+							<iconify-icon icon={collection.value.icon} width="24" class="mr-1 text-error-500 sm:mr-2"></iconify-icon></span
+						>
 					{/if}
-					{#if $collection?.name}
+					{#if collection.value?.name}
 						<div class="flex max-w-[65px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
-							{$collection.name}
+							{collection.value.name}
 						</div>
 					{/if}
 				</div>
@@ -569,7 +577,7 @@ Features:
 
 								// Reset the entryListPaginationSettings to the default state
 								entryListPaginationSettings = {
-									CollectionTypes: $collection?.name,
+									collectionTypes: collection.value?.name,
 									density: 'normal',
 									sorting: { sortedBy: '', isSorted: 0 },
 									currentPage: 1,
@@ -775,7 +783,7 @@ Features:
 		<div class="text-center text-tertiary-500 dark:text-primary-500">
 			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2"></iconify-icon>
 			<p class="text-lg">
-				No {$collection?.name} Data
+				No {collection.value?.name} Data
 			</p>
 		</div>
 	{/if}

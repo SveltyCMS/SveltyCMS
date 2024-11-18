@@ -102,7 +102,7 @@ Ensure that the necessary stores and utility functions are available.
 
 					await saveFormData({
 						data: formData,
-						_collection: $collection,
+						_collection: collection.value,
 						_mode: 'edit',
 						id: entryId,
 						user: user

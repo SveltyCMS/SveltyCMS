@@ -40,6 +40,7 @@ const crypto = !browser ? await import('crypto') : null;
 const fs = !browser ? await import('fs/promises') : null;
 const path = !browser ? await import('path') : null;
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface ProcessedModule {
 	schema?: Partial<Schema>;
 }
@@ -448,7 +449,7 @@ class CollectionManager {
 
 		// Filter the list to only include .js files that are not excluded
 		const filteredFiles = files.filter((file) => {
-			const isJSFile = path.extname(file) === '.js';
+			const isJSFile = path?.extname(file) === '.js';
 			const isNotExcluded = !['types.js', 'categories.js', 'index.js'].includes(file);
 			return isJSFile && isNotExcluded;
 		});

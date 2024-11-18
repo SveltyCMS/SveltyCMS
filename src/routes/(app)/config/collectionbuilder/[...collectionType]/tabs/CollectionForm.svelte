@@ -35,7 +35,7 @@ Features:
 	let { 'on:updatePageTitle': onUpdatePageTitle = () => {} }: Props = $props();
 
 	// Extract the collection name from the URL
-	let collectionTypes = $page.params.CollectionTypes;
+	let collectionTypes = $page.params.collectionTypes;
 
 	// Check if collection Name exists set mode edit or create
 	const collectionExists = Object.values(collections.value).some((x) => x.name === collectionTypes);
