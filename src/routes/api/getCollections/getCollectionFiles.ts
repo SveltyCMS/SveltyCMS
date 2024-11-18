@@ -92,6 +92,11 @@ export async function getCollectionFiles(): Promise<string[]> {
 	try {
 		// Ensure the collections folder path is absolute
 		const directoryPath = path.resolve(collectionsFolder);
+		const systemPath = path.join(directoryPath, 'system');
+
+		// Create directories if they don't exist
+		await fs.mkdir(directoryPath, { recursive: true });
+		await fs.mkdir(systemPath, { recursive: true });
 
 		// Calculate directory hash
 		const dirHash = await calculateDirectoryHash(directoryPath);

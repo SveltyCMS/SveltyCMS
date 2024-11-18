@@ -36,9 +36,18 @@ import { initWidgets } from '@components/widgets';
 import { categoryConfig } from './categories';
 
 // Server-side imports
-const crypto = !browser ? await import('crypto') : null;
-const fs = !browser ? await import('fs/promises') : null;
-const path = !browser ? await import('path') : null;
+let crypto: typeof import('crypto') | null = null;
+let fs: typeof import('fs/promises') | null = null;
+let path: typeof import('path') | null = null;
+
+if (!browser) {
+    const imports = await Promise.all([
+        import('crypto'),
+        import('fs/promises'),
+        import('path')
+    ]);
+    [crypto, fs, path] = imports;
+}
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface ProcessedModule {

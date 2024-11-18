@@ -19,8 +19,9 @@ import path from 'path';
 // System Logger
 import { logger } from '@utils/logger';
 
-const COLLECTIONS_DIR = path.join(process.cwd(), 'src', 'collections');
-const BACKUP_DIR = path.join(COLLECTIONS_DIR, 'backup');
+const SYSTEM_COLLECTIONS_DIR = path.join(process.cwd(), 'src', 'collections');
+const USER_COLLECTIONS_DIR = path.join(process.cwd(), 'config', 'collections');
+const BACKUP_DIR = path.join(SYSTEM_COLLECTIONS_DIR, 'backup');
 const BACKUP_LIMIT = 2; //max 2 backups
 
 async function ensureDir(dir: string) {
@@ -44,12 +45,12 @@ export async function backupCategoryFiles() {
 		const categoriesBackup = path.join(BACKUP_DIR, `categories.backup.${timestamp}.ts`);
 
 		// Read the current file to verify it's valid before backing up
-		const currentContent = await fs.readFile(path.join(COLLECTIONS_DIR, 'categories.ts'), 'utf-8');
+		const currentContent = await fs.readFile(path.join(USER_COLLECTIONS_DIR, 'categories.ts'), 'utf-8');
 		if (!currentContent.includes('export const categoryConfig')) {
 			throw new Error('Current categories file appears to be invalid');
 		}
 
-		await fs.copyFile(path.join(COLLECTIONS_DIR, 'categories.ts'), categoriesBackup);
+		await fs.copyFile(path.join(USER_COLLECTIONS_DIR, 'categories.ts'), categoriesBackup);
 
 		// Limit backups to BACKUP_LIMIT (2)
 		const files = await fs.readdir(BACKUP_DIR);
@@ -111,7 +112,7 @@ export async function restoreCategoryFiles() {
 
 		if (selectedTimestamp) {
 			const backupPath = path.join(BACKUP_DIR, `categories.backup.${selectedTimestamp}.ts`);
-			const targetPath = path.join(COLLECTIONS_DIR, 'categories.ts');
+			const targetPath = path.join(USER_COLLECTIONS_DIR, 'categories.ts');
 
 			// Verify backup file is valid before restoring
 			const backupContent = await fs.readFile(backupPath, 'utf-8');
@@ -144,7 +145,7 @@ export async function backupFilesExist() {
 
 // Check if category file exists and is valid
 export async function categoryFileExists() {
-	const categoriesPath = path.join(COLLECTIONS_DIR, 'categories.ts');
+	const categoriesPath = path.join(USER_COLLECTIONS_DIR, 'categories.ts');
 
 	try {
 		const content = await fs.readFile(categoriesPath, 'utf-8');
