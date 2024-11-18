@@ -10,7 +10,7 @@
  * - TypeScript support with custom Theme type
  */
 
-import { store } from '@src/utils/reactivity.svelte';
+import { store } from '@utils/reactivity.svelte';
 import type { Theme } from '@src/databases/dbInterface';
 import { dbAdapter } from '@src/databases/db';
 

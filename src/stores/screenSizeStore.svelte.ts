@@ -10,7 +10,7 @@
  * - Debounced screen size updates
  */
 
-import { store } from '@src/utils/reactivity.svelte';
+import { store } from '@utils/reactivity.svelte';
 
 // Enum for screen sizes
 export enum ScreenSize {

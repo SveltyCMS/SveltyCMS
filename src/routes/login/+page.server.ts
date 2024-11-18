@@ -17,9 +17,10 @@ import { collectionManager } from '@src/collections/CollectionManager';
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
 
 // Superforms
-import { fail, message, superValidate } from 'sveltekit-superforms';
-import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, signUpOAuthFormSchema } from '@utils/formSchemas';
+import { superValidate } from 'sveltekit-superforms/server';
 import { valibot } from 'sveltekit-superforms/adapters';
+import { fail, message } from 'sveltekit-superforms/server';
+import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, signUpOAuthFormSchema } from '@utils/formSchemas';
 
 // Auth
 import { auth, initializationPromise } from '@src/databases/db';
@@ -85,6 +86,13 @@ async function fetchAndRedirectToFirstCollection() {
 		return '/'; // Redirect to home in case of error
 	}
 }
+
+// Define wrapped schemas for caching
+const wrappedLoginSchema = valibot(loginFormSchema);
+const wrappedForgotSchema = valibot(forgotFormSchema);
+const wrappedResetSchema = valibot(resetFormSchema);
+const wrappedSignUpSchema = valibot(signUpFormSchema);
+const wrappedSignUpOAuthSchema = valibot(signUpOAuthFormSchema);
 
 export const load: PageServerLoad = async ({ url, cookies, fetch, request, locals }) => {
 	try {

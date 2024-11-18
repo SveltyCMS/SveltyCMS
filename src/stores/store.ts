@@ -10,7 +10,7 @@
  */
 
 import { publicEnv } from '@root/config/public';
-import { store } from '@src/utils/reactivity.svelte';
+import { store } from '@utils/reactivity.svelte';
 
 // Paraglidejs
 import * as m from '@src/paraglide/messages';

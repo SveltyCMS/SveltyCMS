@@ -97,7 +97,7 @@ Features:
 	});
 
 	// Login form setup
-	const { form, constraints, allErrors, errors, enhance, delayed } = superForm<LoginFormSchema>(FormSchemaLogin, {
+	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaLogin, {
 		id: 'login',
 		validators: valibot(loginFormSchema),
 		// Clear form on success.
@@ -150,11 +150,12 @@ Features:
 	// Forgot Form setup
 	const {
 		form: forgotForm,
+		constraints: forgotConstraints,
 		allErrors: forgotAllErrors,
 		errors: forgotErrors,
 		enhance: forgotEnhance,
 		delayed: forgotDelayed
-	} = superForm<ForgotFormSchema>(FormSchemaForgot, {
+	} = superForm(FormSchemaForgot, {
 		id: 'forgot',
 		validators: valibot(forgotFormSchema),
 		resetForm: true,
@@ -231,11 +232,12 @@ Features:
 	// Reset Form setup
 	const {
 		form: resetForm,
+		constraints: resetConstraints,
 		allErrors: resetAllErrors,
 		errors: resetErrors,
 		enhance: resetEnhance,
 		delayed: resetDelayed
-	} = superForm<ResetFormSchema>(FormSchemaReset, {
+	} = superForm(FormSchemaReset, {
 		id: 'reset',
 		validators: valibot(resetFormSchema),
 		resetForm: true,
@@ -448,7 +450,7 @@ Features:
 							tabindex={emailTabIndex}
 							bind:value={$forgotForm.email}
 							label={m.form_emailaddress()}
-							{...$constraints.email}
+							{...$forgotConstraints.email}
 							icon="mdi:email"
 							iconColor="black"
 							textColor="black"
@@ -512,7 +514,7 @@ Features:
 							type="password"
 							tabindex={passwordTabIndex}
 							bind:value={$resetForm.password}
-							{...$constraints.password}
+							{...$resetConstraints.password}
 							{showPassword}
 							label={m.form_password()}
 							icon="mdi:lock"

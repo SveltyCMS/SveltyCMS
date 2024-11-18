@@ -51,6 +51,14 @@ interface CategoryNode {
 	subcategories?: Map<string, CategoryNode>;
 }
 
+interface CategoryData {
+	id: string;
+	name: string;
+	icon: string;
+	collections: Schema[];
+	subcategories: Record<string, CategoryData>;
+}
+
 // Function to create categories from folder structure
 async function createCategoriesFromPath(collections: Schema[]): Promise<Category[]> {
 	categoryLookup.clear();
@@ -66,7 +74,9 @@ async function createCategoriesFromPath(collections: Schema[]): Promise<Category
 	}
 
 	// Flatten and sort the category hierarchy
-	const result = flattenAndSortCategories();
+	const categoriesObject = flattenAndSortCategories();
+	// Convert the object to an array
+	const result = Object.values(categoriesObject);
 	logger.debug('Created categories:', result);
 	return result;
 }
@@ -133,8 +143,8 @@ async function processBatch(collections: Schema[]): Promise<void> {
 }
 
 // Helper function to flatten and sort the category hierarchy
-function flattenAndSortCategories(): Category[] {
-	const result: Category[] = [];
+function flattenAndSortCategories(): Record<string, CategoryData> {
+	const result: Record<string, CategoryData> = {};
 
 	// Convert Map entries to array and sort
 	const sortedCategories = Array.from(categoryLookup.entries()).sort(([, a], [, b]) => a.order - b.order);
@@ -148,13 +158,13 @@ function flattenAndSortCategories(): Category[] {
 			return a.order !== undefined ? -1 : b.order !== undefined ? 1 : 0;
 		});
 
-		result.push({
-			id: category.id,
-			name: path,
+		result[path] = {
+			id: category.id.toString(),
+			name: category.name,
 			icon: category.icon,
-			order: category.order,
-			collections
-		});
+			collections,
+			subcategories: {}
+		};
 	}
 
 	return result;
@@ -267,9 +277,9 @@ async function getImports(recompile: boolean = false): Promise<Record<Collection
 				collection.id = parseInt(randomId.toString().slice(0, 8), 16);
 
 				// Extract path from module location
-				const pathSegments = modulePath.split('/');
-				// Remove the filename and 'collections' from the path
-				const collectionPath = pathSegments.slice(1, -1).join('/');
+				const pathSegments = modulePath.split('/config/collections/')[1]?.split('/') || [];
+				// Get the collection path without the filename
+				const collectionPath = pathSegments.slice(0, -1).join('/');
 				collection.path = collectionPath;
 				logger.debug(`Set path for collection ${name} to ${collection.path}`);
 
@@ -282,8 +292,16 @@ async function getImports(recompile: boolean = false): Promise<Record<Collection
 		// Development/Building mode
 		if (dev || building) {
 			logger.debug(`Running in {${dev ? 'dev' : 'building'}} mode`);
-			// Look for TypeScript files in src/collections directory
-			const modules = import.meta.glob(['./**/*.ts', '!./index.ts', '!./categories.ts', '!./types.ts']);
+			// Look for TypeScript files in config/collections directory
+			const modules = import.meta.glob([
+				'../../config/collections/**/*.ts', 
+				'!../../config/collections/**/index.ts',      // Exclude any index files
+				'!../../config/collections/**/types.ts',      // Exclude type definitions
+				'!../../config/collections/**/utils/**/*.ts'  // Exclude utility files
+			], {
+				eager: false,
+				import: 'default'
+			});
 
 			// Process modules in batches
 			const entries = Object.entries(modules);

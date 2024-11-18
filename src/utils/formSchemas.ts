@@ -10,20 +10,20 @@
 import { publicEnv } from '@root/config/public';
 
 import {
-	string,
-	boolean,
-	strictObject,
-	optional,
-	minLength,
-	maxLength,
-	email as emailValidator,
-	number,
-	regex,
-	pipe,
-	check,
-	type InferInput,
-	nullable,
-	transform
+    string,
+    boolean,    
+    optional,
+    minLength,
+    maxLength,
+    email as emailValidator,
+    number,
+    regex,
+    object,
+    pipe,
+    forward,
+    partialCheck,
+    type InferInput,
+    nullable
 } from 'valibot';
 
 // ParaglideJS
@@ -31,7 +31,7 @@ import * as m from '@src/paraglide/messages';
 
 const MIN_PASSWORD_LENGTH = publicEnv.PASSWORD_STRENGTH || 8;
 
-// Reusable Field-Level Schemas with `pipe` and undefined handling
+// Reusable Field-Level Schemas
 const usernameSchema = pipe(
 	string(),
 	transform((value) => {
@@ -103,21 +103,26 @@ export const loginFormSchema = strictObject({
 });
 
 // Forgot Password Form Schema
-export const forgotFormSchema = strictObject({
-	email: emailSchema
+export const forgotFormSchema = object({
+    email: emailSchema
 });
 
 // Reset Password Form Schema
-const resetFormSchemaBase = strictObject({
-	password: passwordSchema,
-	confirm_password: passwordSchema,
-	token: tokenSchema,
-	email: emailSchema
-});
-
 export const resetFormSchema = pipe(
-	resetFormSchemaBase,
-	check((input) => input.password === input.confirm_password, m.formSchemas_Passwordmatch())
+    object({
+        password: passwordSchema,
+        confirm_password: string(),
+        token: tokenSchema,
+        email: emailSchema
+    }),
+    forward(
+        partialCheck(
+            [['password'], ['confirm_password']],
+            (input) => input.password === input.confirm_password,
+            m.formSchemas_Passwordmatch()
+        ),
+        ['confirm_password']
+    )
 );
 
 // Sign Up User Form Schema
@@ -141,25 +146,16 @@ export const signUpFormSchema = pipe(
 );
 
 // Google OAuth Token Schema
-export const signUpOAuthFormSchema = strictObject({
-	lang: pipe(
-		nullable(string()),
-		transform((value) => value === null ? undefined : value)
-	)
+export const signUpOAuthFormSchema = object({
+    lang: nullable(string())
 });
 
 // Validate New User Token Schema
-export const addUserTokenSchema = strictObject({
-	email: emailSchema,
-	role: roleSchema,
-	expiresIn: pipe(
-		nullable(number()),
-		transform((value) => value === null ? 24 : value)
-	),
-	expiresInLabel: pipe(
-		nullable(string()),
-		transform((value) => value === null ? undefined : value)
-	)
+export const addUserTokenSchema = object({
+    email: emailSchema,
+    role: string(),
+    expiresIn: nullable(number()),
+    expiresInLabel: nullable(string())
 });
 
 // Change Password Form Schema
@@ -176,19 +172,30 @@ const changePasswordSchemaBase = strictObject({
 });
 
 export const changePasswordSchema = pipe(
-	changePasswordSchemaBase,
-	check((input) => input.password === input.confirm_password, m.formSchemas_Passwordmatch())
+    object({
+        password: passwordSchema,
+        confirm_password: string(),
+        old_password: optional(string())
+    }),
+    forward(
+        partialCheck(
+            [['password'], ['confirm_password']],
+            (input) => input.password === input.confirm_password,
+            m.formSchemas_Passwordmatch()
+        ),
+        ['confirm_password']
+    )
 );
 
 // Widget Email Schema
-export const widgetEmailSchema = strictObject({
-	email: emailSchema
+export const widgetEmailSchema = object({
+    email: emailSchema
 });
 
 // Add User Schema
-export const addUserSchema = strictObject({
-	email: emailSchema,
-	role: roleSchema
+export const addUserSchema = object({
+    email: emailSchema,
+    role: string()
 });
 
 // Type exports
