@@ -32,7 +32,7 @@
 	const modalStore = getModalStore();
 
 	// Extract the collection name from the URL
-	const CollectionTypes = $page.params.CollectionTypes;
+	const collectionTypes = $page.params.collectionTypes;
 
 	// Fields state
 	let fields = $state(
@@ -156,7 +156,7 @@
 <div class="flex flex-col">
 	<div class="variant-outline-tertiary rounded-t-md p-2 text-center dark:variant-outline-primary">
 		<p>
-			{m.collection_widgetfield_addrequired()} <span class="text-tertiary-500 dark:text-primary-500">{CollectionTypes}</span> Collection inputs.
+			{m.collection_widgetfield_addrequired()} <span class="text-tertiary-500 dark:text-primary-500">{collectionTypes}</span> Collection inputs.
 		</p>
 		<p class="mb-2">{m.collection_widgetfield_drag()}</p>
 	</div>

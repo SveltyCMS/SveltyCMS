@@ -38,6 +38,7 @@ Features:
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import { valibot } from "sveltekit-superforms/adapters";
 
 	// Props
 	const {

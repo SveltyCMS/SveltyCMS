@@ -30,7 +30,7 @@
 	const toastStore = getToastStore();
 
 	// Extract the collection name from the URL
-	const CollectionTypes = $page.params.CollectionTypes;
+	const collectionTypes = $page.params.collectionTypes;
 
 	// Default widget data (tab1)
 	let name = $state(mode.value == 'edit' ? (collectionValue.value ? collectionValue.value.name : collectionName) : collectionName);
@@ -43,17 +43,17 @@
 	$effect.root(() => {
 		// Set the base page title according to the mode
 		if (mode.value === 'edit') {
-			pageTitle = `Edit ${CollectionTypes} Collection`;
-		} else if (CollectionTypes) {
-			pageTitle = `Create ${CollectionTypes} Collection`;
+			pageTitle = `Edit ${collectionTypes} Collection`;
+		} else if (collectionTypes) {
+			pageTitle = `Create ${collectionTypes} Collection`;
 		} else {
 			pageTitle = 'Create new Collection';
 		}
 
-		// Ensure the highlighted part (e.g., CollectionTypes) is unique in the title
-		highlightedPart = CollectionTypes || 'new';
+		// Ensure the highlighted part (e.g., collectionTypes) is unique in the title
+		highlightedPart = collectionTypes || 'new';
 
-		// Avoid repeating the CollectionTypes if it's already included in the string
+		// Avoid repeating the collectionTypes if it's already included in the string
 		if (pageTitle.includes(highlightedPart)) {
 			pageTitle = pageTitle.replace(new RegExp(`\\b${highlightedPart}\\b`, 'g'), highlightedPart);
 		}
@@ -61,7 +61,7 @@
 
 	// Effect to update name based on mode and collection value
 	$effect.root(() => {
-		name = mode.value == 'edit' ? (collectionValue.value ? collectionValue.value.name : CollectionTypes) : $page.params.CollectionTypes;
+		name = mode.value == 'edit' ? (collectionValue.value ? collectionValue.value.name : collectionTypes) : $page.params.collectionTypes;
 	});
 
 	interface PageTitleEvent {
@@ -89,7 +89,7 @@
 			mode.value == 'edit'
 				? obj2formData({
 						originalName: collectionValue.value.name,
-						CollectionTypes: name,
+						collectionTypes: name,
 						icon: collectionValue.value.icon,
 						status: collectionValue.value.status,
 						slug: collectionValue.value.slug,
@@ -98,7 +98,7 @@
 						fields: collectionValue.value.fields
 					})
 				: obj2formData({
-						CollectionTypes: name,
+						collectionTypes: name,
 						icon: collectionValue.value.icon,
 						status: collectionValue.value.status,
 						slug: collectionValue.value.slug,
@@ -138,7 +138,7 @@
 			response: (r: boolean) => {
 				if (r) {
 					// Send the form data to the server
-					axios.post(`?/deleteCollections`, obj2formData({ CollectionTypes: collectionValue.value.name }), {
+					axios.post(`?/deleteCollections`, obj2formData({ collectionTypes: collectionValue.value.name }), {
 						headers: {
 							'Content-Type': 'multipart/form-data'
 						}

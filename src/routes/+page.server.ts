@@ -27,6 +27,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		logger.info('User not authenticated, redirecting to login');
 		throw redirect(302, '/login');
 	}
+	const { collections } = collectionManager.getCollectionData();
+
 
 	// If we're already on a specific route (not the root), don't redirect
 	if (url.pathname !== '/') {
@@ -36,7 +38,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	try {
 		// Get collections directly from CollectionManager
-		const { collections } = collectionManager.getCollectionData();
 		logger.debug(`Collections retrieved: ${collections ? collections.length : 'None'}`);
 
 		if (!collections || collections.length === 0) {

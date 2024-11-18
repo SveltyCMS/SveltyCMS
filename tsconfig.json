@@ -4,7 +4,7 @@
 	"compilerOptions": {
 		"moduleResolution": "bundler", // which module resolution strategy to use
 		"target": "ESNext", // which level of JS support to target
-		"module": "NodeNext", // which module system to use
+		"module": "ESNext", // which module system to use
 
 		/**
 		 * svelte-preprocess cannot figure out whether you have
@@ -38,14 +38,15 @@
 
 		"types": ["@sveltejs/kit"], //	add types
 		"noImplicitAny": false,
-		"outDir": "../build"
+		"outDir": "../build",
+			
 	},
 
 	/**
 	 * Use global.d.ts instead of compilerOptions.types
 	 * to avoid limiting type declarations.
 	 */
-	"includes": ["src/**/*.ts", "src/**/*.svelte", "types/**/*.ts"],
+	"includes": ["src/**/*.ts", "src/**/*.svelte", "types/**/*.ts", "config/**/*.ts"],
 	"exclude": [".svelte-kit", "node_modules"],
 	"noUnusedLocals": true,
 	"noUnusedParameters": true

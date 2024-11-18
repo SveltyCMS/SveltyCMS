@@ -12,7 +12,6 @@
  */
 
 import type { User, Session, Token } from './types';
-
 // Pagination and Sorting Options Types
 type SortOption = { [key: string]: 'asc' | 'desc' } | [string, 'asc' | 'desc'][];
 export type PaginationOption = { limit?: number; offset?: number; sort?: SortOption; filter?: Record<string, unknown> };

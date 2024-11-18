@@ -49,18 +49,17 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 
 	// Handle collection changes and navigation
 	$effect(() => {
-		if (!$collection?.name) return;
+		if (!collection?.value.name) return;
 
 		try {
 			if (!forwardBackward) {
+				forwardBackward = true;
 				goto(`/${contentLanguage.value}/${collection.value.name?.toString()}`);
 			}
 		} catch (error) {
 			navigationError = error instanceof Error ? error.message : 'Navigation error occurred';
 			console.error('Navigation error:', error);
-		} finally {
-			forwardBackward = false;
-		}
+		} 
 	});
 
 	// Handle language changes
@@ -116,8 +115,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 
 		// Set a new timeout
 		debugLogTimeout = window.setTimeout(() => {
-			console.debug('Page view collectionValue:', collectionValue.value);
-			lastCollectionValue = structuredClone(collectionValue.value);
+			lastCollectionValue = Object.assign({}, collectionValue.value);
 		}, 100); // 100ms debounce
 	});
 
@@ -149,6 +147,8 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 			clearTimeout(debugLogTimeout);
 		}
 	});
+
+	console.debug("Colelction value", collection.value);
 </script>
 
 <div class="content h-full">
@@ -156,12 +156,12 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		<div class="error text-error-500" role="alert">
 			{navigationError}
 		</div>
-	{:else if $collection}
+	{:else if collection.value}
 		{#if mode.value === 'view' || mode.value === 'modify'}
 			<EntryList />
 		{:else if ['edit', 'create'].includes(mode.value)}
 			<div id="fields_container" class="fields max-h-[calc(100vh-60px)] overflow-y-auto max-md:max-h-[calc(100vh-120px)]">
-				<Fields fields={$collection.fields} fieldsData={$collection.fields} customData={collectionValue.value} root={false} />
+				<Fields fields={collection.value.fields} fieldsData={collection.value.fields} customData={collectionValue.value} root={false} />
 			</div>
 		{:else if mode.value === 'media' && $page.params.collection}
 			<MediaGallery />

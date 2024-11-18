@@ -72,13 +72,13 @@ Key features:
 
 	// Handle collection changes
 	$effect(() => {
-		const newCollection = $collection;
+		const newCollection = collection.value;
 		if (!newCollection?.name) return;
 
 		const newPath = `/${contentLanguage.value || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${String(newCollection.name)}`;
 		if ($page.url.pathname !== newPath) {
-			// console.debug('Redirecting to new path:', newPath, newCollection);
-			// goto(newPath);
+			console.debug('Redirecting to new path:', newPath, newCollection);
+			goto(newPath);
 		}
 	});
 

@@ -84,7 +84,7 @@
 				if (typeof r === 'object') {
 					schedule = r.date;
 					if (r.action === 'schedule') {
-						const newValue: CollectionValue = {
+						const newValue = {
 							...collectionValue.value,
 							status: statusMap.scheduled,
 							_scheduled: new Date(r.date).getTime()
@@ -100,7 +100,7 @@
 	// Find the parent category name for the current collection
 	let categoryName = $derived(
 		(() => {
-			if (!$collection?.name || !categories.value) return '';
+			if (!collection.value?.name || !categories.value) return '';
 
 			// Helper function to find parent category name
 			const findParentCategory = (categories: Record<string, CategoryData>): string => {
@@ -112,14 +112,14 @@
 						// Check each subcategory
 						for (const [subName, subCat] of Object.entries(rootCategory.subcategories as Record<string, CategoryData>)) {
 							// Case 1: Direct collection in subcategories (like Media, Names)
-							if (subCat.isCollection && subName === $collection.name) {
+							if (subCat.isCollection && subName === collection.value.name) {
 								return rootCategory.name;
 							}
 
 							// Case 2: Collection in nested subcategories (like Posts/Posts)
 							if (!subCat.isCollection && subCat.subcategories) {
 								for (const [nestedName, nestedCat] of Object.entries(subCat.subcategories as Record<string, CategoryData>)) {
-									if (nestedCat.isCollection && nestedName === $collection.name) {
+									if (nestedCat.isCollection && nestedName === collection.value.name) {
 										// Return the immediate parent name (e.g. "Posts" for Posts/Posts)
 										return subCat.name;
 									}
@@ -173,7 +173,7 @@
 
 	// Save form data with validation
 	async function saveData() {
-		if (!$collection) return;
+		if (!collection.value) return;
 
 		let validationPassed = true;
 		const getData = {};
@@ -182,7 +182,7 @@
 		meta_data.clear();
 
 		// Validate all fields and collect data
-		for (const field of $collection.fields) {
+		for (const field of collection.value.fields) {
 			const fieldName = getFieldName(field);
 			const fieldValue = collectionValue.value?.[fieldName];
 			// Use widget property directly as it's now an instance
@@ -241,11 +241,11 @@
 		// If validation passed, save the data
 		if (validationPassed) {
 			try {
-				console.debug('Saving data...', `${JSON.stringify({ mode: mode.value, collection: $collection.name })}`);
+				console.debug('Saving data...', `${JSON.stringify({ mode: mode.value, collection: collection.value.name })}`);
 
 				await saveFormData({
 					data: getData,
-					_collection: $collection,
+					_collection: collection.value,
 					_mode: mode.value,
 					id: collectionValue.value?._id,
 					user
@@ -295,18 +295,18 @@
 
 		<!-- Collection type with icon -->
 		<div class="flex {!sidebarState.sidebar.value.left ? 'ml-2' : 'ml-1'}">
-			{#if $collection && $collection.icon}
+			{#if collection.value && collection.value.icon}
 				<div class="flex items-center justify-center">
-					<iconify-icon icon={$collection.icon} width="24" class="text-error-500"></iconify-icon>
+					<iconify-icon icon={collection.value.icon} width="24" class="text-error-500"></iconify-icon>
 				</div>
 			{/if}
 
-			{#if $collection?.name && categories.value}
+			{#if collection.value?.name && categories.value}
 				<div class="ml-2 flex flex-col text-left text-gray-400 dark:text-gray-300">
 					<div class="text-sm font-bold uppercase text-tertiary-500 dark:text-primary-500">{mode.value}:</div>
 					<div class="text-xs capitalize">
 						{categoryName}
-						<span class="uppercase text-tertiary-500 dark:text-primary-500">{$collection.name}</span>
+						<span class="uppercase text-tertiary-500 dark:text-primary-500">{collection.value.name}</span>
 					</div>
 				</div>
 			{/if}
@@ -334,7 +334,7 @@
 					<button
 						type="button"
 						onclick={saveData}
-						disabled={$collection?.permissions?.[user.role]?.write === false}
+						disabled={collection.value?.permissions?.[user.role]?.write === false}
 						class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:hidden"
 						aria-label="Save entry"
 					>
@@ -376,7 +376,7 @@
 				<button
 					type="button"
 					onclick={() => handleModifyEntry(statusMap.deleted)}
-					disabled={$collection?.permissions?.[user.role]?.delete === false}
+					disabled={collection.value?.permissions?.[user.role]?.delete === false}
 					class="gradient-error gradient-error-hover gradient-error-focus btn-icon"
 					aria-label="Delete entry"
 				>
@@ -391,7 +391,7 @@
 						<button
 							type="button"
 							onclick={() => handleModifyEntry(statusMap.published)}
-							disabled={!($collection?.permissions?.[user.role]?.write && $collection?.permissions?.[user.role]?.create)}
+							disabled={!(collection.value?.permissions?.[user.role]?.write && collection.value?.permissions?.[user.role]?.create)}
 							class="gradient-tertiary gradient-tertiary-hover gradient-tertiary-focus btn-icon"
 							aria-label="Publish entry"
 						>
@@ -403,7 +403,7 @@
 						<button
 							type="button"
 							onclick={openScheduleModal}
-							disabled={!$collection?.permissions?.[user.role]?.write}
+							disabled={!collection.value?.permissions?.[user.role]?.write}
 							class="gradient-pink gradient-pink-hover gradient-pink-focus btn-icon"
 							aria-label="Schedule entry"
 						>
@@ -415,7 +415,7 @@
 						<button
 							type="button"
 							onclick={() => handleModifyEntry(statusMap.unpublished)}
-							disabled={!$collection?.permissions?.[user.role]?.write}
+							disabled={!collection.value?.permissions?.[user.role]?.write}
 							class="gradient-yellow gradient-yellow-hover gradient-yellow-focus btn-icon"
 							aria-label="Unpublish entry"
 						>
@@ -428,7 +428,7 @@
 					<button
 						type="button"
 						onclick={() => handleModifyEntry(statusMap.cloned)}
-						disabled={!($collection?.permissions?.[user.role]?.write && $collection?.permissions?.[user.role]?.create)}
+						disabled={!(collection.value?.permissions?.[user.role]?.write && collection.value?.permissions?.[user.role]?.create)}
 						aria-label="Clone entry"
 						class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn-icon"
 					>
@@ -460,7 +460,7 @@
 
 			<!-- User Info -->
 			<div class="mt-2 text-sm">
-				<p>Created by: {collectionValue.valuevalue?.createdBy || user.username}</p>
+				<p>Created by: {collectionValue.value?.createdBy || user.username}</p>
 				{#if collectionValue.value?.updatedBy}
 					<p class="text-tertiary-500">Last updated by {collectionValue.value.updatedBy}</p>
 				{/if}

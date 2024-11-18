@@ -63,7 +63,7 @@
 
 	// States
 	let dropdownOpen = $state(false);
-	let actionname = $state('');
+	let actionName = $state('');
 	let buttonClass = $state('');
 	let iconValue = $state('');
 
@@ -88,9 +88,9 @@
 	function handleButtonClick(event: Event) {
 		event.preventDefault();
 
-		if (!$modifyEntry) return;
+		if (!modifyEntry.value) return;
 
-		switch ($storeListboxValue) {
+		switch (storeListboxValue.value) {
 			case 'create':
 				mode.set('create');
 				handleSidebarToggle();
@@ -98,32 +98,32 @@
 				break;
 			case 'publish':
 				mode.set('view');
-				$modifyEntry('published');
+				modifyEntry.value('published');
 				onPublish();
 				break;
 			case 'unpublish':
 				mode.set('view');
-				$modifyEntry('unpublished');
+				modifyEntry.value('unpublished');
 				onUnpublish();
 				break;
 			case 'schedule':
 				mode.set('view');
-				$modifyEntry('scheduled');
+				modifyEntry.value('scheduled');
 				onSchedule();
 				break;
 			case 'clone':
 				mode.set('view');
-				$modifyEntry('cloned');
+				modifyEntry.value('cloned');
 				onClone();
 				break;
 			case 'delete':
 				mode.set('view');
-				$modifyEntry('deleted');
+				modifyEntry.value('deleted');
 				onDelete();
 				break;
 			case 'test':
 				mode.set('view');
-				$modifyEntry('testing');
+				modifyEntry.value('testing');
 				onTest();
 				break;
 			default:
@@ -152,13 +152,13 @@
 
 	// Update button display when storeListboxValue changes using root effect
 	$effect.root(() => {
-		[actionname, buttonClass, iconValue] = buttonMap[$storeListboxValue as ActionType] || ['', '', '', ''];
+		[actionName, buttonClass, iconValue] = buttonMap[storeListboxValue.value as ActionType] || ['', '', '', ''];
 		buttonClass = `btn ${buttonClass} rounded-none w-36 justify-between`;
 	});
 
 	// Handle empty collection state using root effect
 	$effect.root(() => {
-		if (isCollectionEmpty && $storeListboxValue !== 'create') {
+		if (isCollectionEmpty && storeListboxValue.value !== 'create') {
 			storeListboxValue.set('create');
 		}
 	});
@@ -171,7 +171,7 @@
 		<button type="button" class={`w-[60px] md:w-auto rtl:rotate-180 ${buttonClass} rounded-l-full`} onclick={handleButtonClick}>
 			<span class="grid grid-cols-[24px_auto] items-center gap-2 rtl:rotate-180">
 				<iconify-icon icon={iconValue} width="24" class="text-white"></iconify-icon>
-				<span class="hidden text-left md:block">{actionname}</span>
+				<span class="hidden text-left md:block">{actionName}</span>	
 			</span>
 		</button>
 
@@ -197,7 +197,7 @@
 			class="drops absolute right-2 top-full z-50 mt-1 max-h-[300px] divide-y divide-white overflow-y-auto rounded bg-surface-400 dark:bg-surface-700 rtl:left-2 rtl:right-auto"
 		>
 			{#each Object.entries(buttonMap) as [type, [label, gradient, icon]]}
-				{#if $storeListboxValue !== type}
+				{#if storeListboxValue.value !== type}
 					<li class={`hover:text-white gradient-${gradient}-hover gradient-${gradient}-focus`}>
 						<button
 							type="button"

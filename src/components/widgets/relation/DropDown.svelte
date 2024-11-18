@@ -46,7 +46,7 @@
 				dropDownData.map(async (item) => ({
 					display: await field?.display({
 						data: item,
-						collection: $collection,
+						collection: collection.value,
 						field,
 						entry: collectionValue.value,
 						contentLanguage: $contentLanguage
