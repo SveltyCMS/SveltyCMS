@@ -21,48 +21,43 @@ import * as ts from 'typescript';
 const cache = new Map<string, string>();
 
 interface CompileOptions {
-	collectionsFolderJS?: string;
-	collectionsFolderTS?: string;
+	systemCollectionsPath?: string;
+	userCollectionsPath?: string;
+	compiledCollectionsPath?: string;
 }
 
 export async function compile(options: CompileOptions = {}): Promise<void> {
 	// Set default paths relative to the project root
-	const defaultTSPath = path.join(process.cwd(), 'config/collections');
-	const defaultJSPath = path.join(process.cwd(), 'dist/collections');
+	const defaultUserPath = path.join(process.cwd(), 'config/collections');
+	const defaultCompiledPath = path.join(process.cwd(), 'collections');
 
 	// Destructure options with default values
 	const { 
-		collectionsFolderJS = process.env.COLLECTIONS_FOLDER_JS || defaultJSPath, 
-		collectionsFolderTS = process.env.COLLECTIONS_FOLDER_TS || defaultTSPath 
+		userCollectionsPath = process.env.USER_COLLECTIONS_PATH || defaultUserPath,
+		compiledCollectionsPath = process.env.COMPILED_COLLECTIONS_PATH || defaultCompiledPath
 	} = options;
 
 	try {
 		// Ensure the output directory exists
-		await fs.mkdir(collectionsFolderJS, { recursive: true });
+		await fs.mkdir(compiledCollectionsPath, { recursive: true });
 
-		// Check if source directory exists
-		try {
-			await fs.access(collectionsFolderTS);
-		} catch (err) {
-			throw new Error(`Collections source directory not found: ${collectionsFolderTS}`);
-		}
+		// Get TypeScript files from user collections only (system collections are not compiled)
+		const userFiles = await getTypescriptFiles(userCollectionsPath);
 
-		// Get list of TypeScript files to compile
-		const files = await getTypescriptFiles(collectionsFolderTS);
+		// Create output directories for user collection files
+		await createOutputDirectories(userFiles, userCollectionsPath, compiledCollectionsPath);
+		
+		// Compile user collection files
+		const compilePromises = userFiles.map(file => compileFile(
+			file, 
+			userCollectionsPath, 
+			compiledCollectionsPath
+		));
 
-		if (files.length === 0) {
-			console.warn(`No TypeScript files found in ${collectionsFolderTS}`);
-			return;
-		}
+		await Promise.all(compilePromises);
 
-		// Create necessary subdirectories in the JS folder
-		await createOutputDirectories(files, collectionsFolderTS, collectionsFolderJS);
-
-		// Compile all files concurrently
-		await Promise.all(files.map((file) => compileFile(file, collectionsFolderTS, collectionsFolderJS)));
-
-		// Clean up orphaned collection files
-		await cleanupOrphanedFiles(collectionsFolderTS, collectionsFolderJS);
+		// Cleanup orphaned files only in the compiled collections directory
+		await cleanupOrphanedFiles(userCollectionsPath, compiledCollectionsPath);
 	} catch (error) {
 		console.error('Compilation error:', error);
 		throw error;
@@ -83,6 +78,7 @@ async function getTypescriptFiles(folder: string, subdir: string = ''): Promise<
 		} else if (
 			entry.isFile() &&
 			entry.name.endsWith('.ts') &&
+			!entry.name.startsWith('_') && // Ignore files starting with underscore
 			!['index.ts', 'types.ts', 'categories.ts', 'CollectionManager.ts'].includes(entry.name)
 		) {
 			files.push(relativePath);

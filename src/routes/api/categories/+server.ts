@@ -13,6 +13,9 @@ import type { CategoryData } from '@src/collections/types';
 import crypto from 'crypto';
 import { backupCategoryFiles } from './backup-utils';
 
+// Collection paths
+const COLLECTIONS_PATH = path.join(process.cwd(), 'config', 'collections');
+
 // Generate categories file content with proper headers
 function generateCategoriesFileContent(data: Record<string, CategoryData>): string {
 	return `/**
@@ -91,7 +94,7 @@ async function processDirectory(dirPath: string, existingCategories: Record<stri
 
 // Move collection files to match their new category locations
 async function moveCollectionFiles(oldConfig: Record<string, CategoryData>, newConfig: Record<string, CategoryData>) {
-	const collectionsPath = path.join(process.cwd(), 'config', 'collections');
+	const collectionsPath = COLLECTIONS_PATH;
 
 	// Find all collections and their paths in a config
 	function findCollections(config: Record<string, CategoryData>, currentPath: string = ''): Map<string, string> {
@@ -197,8 +200,8 @@ export const POST: RequestHandler = async ({ request }) => {
 			});
 		}
 
-		const categoriesPath = path.join(process.cwd(), 'src', 'collections', 'categories.ts');
-		const collectionsPath = path.join(process.cwd(), 'config', 'collections');
+		const categoriesPath = path.join(process.cwd(), 'config', 'collections', 'categories.ts');
+		const collectionsPath = COLLECTIONS_PATH;
 
 		// Check if we need to process directory structure
 		const exists = await categoriesFileExists(categoriesPath);
@@ -278,7 +281,7 @@ export const PUT: RequestHandler = async ({ request }) => {
 
 		if (updateCategory(categories, categoryId)) {
 			// Generate new content
-			const categoriesPath = path.join(process.cwd(), 'src', 'collections', 'categories.ts');
+			const categoriesPath = path.join(process.cwd(), 'config', 'collections', 'categories.ts');
 			const newContent = generateCategoriesFileContent(categories);
 			const existingContent = await readExistingConfig(categoriesPath);
 

@@ -20,7 +20,6 @@
 
 import { error } from '@sveltejs/kit';
 import { privateEnv } from '@root/config/private';
-import fs from 'fs/promises';
 import path from 'path';
 
 // Types
@@ -453,7 +452,7 @@ export class Auth {
     `.trim();
 
 		try {
-			await fs.writeFile(configPath, content, 'utf8');
+			await writeConfigFile(configPath, content);
 			logger.info('Config file updated with new roles and permissions');
 		} catch (err) {
 			const errMsg = err instanceof Error ? err.message : String(err);
@@ -548,19 +547,19 @@ export class Auth {
 			}
 
 			if (await argon2.verify(user.password, password)) {
-				await this.db.updateUserAttributes(user._id, { failedAttempts: 0, lockoutUntil: null });
+				await this.db.updateUserAttributes(user._id!, { failedAttempts: 0, lockoutUntil: null });
 				logger.info(`User logged in: ${user._id}`);
 				return user; // Return user on successful login
 			} else {
 				const failedAttempts = (user.failedAttempts || 0) + 1;
 				if (failedAttempts >= 5) {
 					const lockoutUntil = new Date(Date.now() + 30 * 60 * 1000); // Lockout for 30 minutes
-					await this.db.updateUserAttributes(user._id, { failedAttempts, lockoutUntil });
+					await this.db.updateUserAttributes(user._id!, { failedAttempts, lockoutUntil });
 					const message = `User locked out due to too many failed attempts: ${user._id}`;
 					logger.warn(message);
 					throw error(403, { message: 'Account is temporarily locked due to too many failed attempts. Please try again later.' });
 				} else {
-					await this.db.updateUserAttributes(user._id, { failedAttempts });
+					await this.db.updateUserAttributes(user._id!, { failedAttempts });
 					const message = `Invalid login attempt for user: ${user._id}`;
 					logger.warn(message);
 					throw error(401, { message: 'Invalid credentials. Please try again.' });

@@ -135,8 +135,9 @@ export default defineConfig({
 				return {
 					define: {
 						'import.meta.env.root': JSON.stringify(Path.posix.join('/', __dirname.replace(parsed.root, ''))),
-						'import.meta.env.collectionsFolderJS': JSON.stringify(collectionsFolderJS),
-						'import.meta.env.collectionsFolderTS': JSON.stringify(collectionsFolderTS)
+						'import.meta.env.systemCollectionsPath': JSON.stringify(Path.join(__dirname, 'src/collections')),
+						'import.meta.env.userCollectionsPath': JSON.stringify(Path.join(__dirname, 'config/collections')),
+						'import.meta.env.compiledCollectionsPath': JSON.stringify(Path.join(__dirname, 'collections'))
 					}
 				};
 			},
@@ -155,7 +156,8 @@ export default defineConfig({
 		alias: {
 			'@root': resolve(__dirname, './'),
 			'@src': resolve(__dirname, './src'),
-			'@components': resolve(__dirname, './src/components')
+			'@components': resolve(__dirname, './src/components'),
+			'@collections': resolve(__dirname, './src/collections')
 		}
 	},
 	define: {

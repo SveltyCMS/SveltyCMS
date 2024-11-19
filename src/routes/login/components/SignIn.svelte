@@ -22,8 +22,6 @@ Features:
 
 	// Superforms
 	import { superForm } from 'sveltekit-superforms/client';
-	import { valibot } from 'sveltekit-superforms/adapters';
-	import { loginFormSchema, forgotFormSchema, resetFormSchema } from '@utils/formSchemas';
 	import type { SuperValidated } from 'sveltekit-superforms';
 	import type { LoginFormSchema, ForgotFormSchema, ResetFormSchema } from '@utils/formSchemas';
 

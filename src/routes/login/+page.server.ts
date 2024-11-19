@@ -7,7 +7,7 @@ import { privateEnv } from '@root/config/private';
 import { publicEnv } from '@root/config/public';
 
 import { dev } from '$app/environment';
-import { error, redirect, type Actions } from '@sveltejs/kit';
+import { error, redirect, fail, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Collection Manager
@@ -19,8 +19,14 @@ import { RateLimiter } from 'sveltekit-rate-limiter/server';
 // Superforms
 import { superValidate } from 'sveltekit-superforms/server';
 import { valibot } from 'sveltekit-superforms/adapters';
-import { fail, message } from 'sveltekit-superforms/server';
-import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, signUpOAuthFormSchema } from '@utils/formSchemas';
+import { message } from 'sveltekit-superforms/server';
+import { 
+    loginFormSchema, 
+    forgotFormSchema, 
+    resetFormSchema, 
+    signUpFormSchema, 
+    signUpOAuthFormSchema
+} from '@utils/formSchemas';
 
 // Auth
 import { auth, initializationPromise } from '@src/databases/db';
@@ -132,12 +138,11 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		// Check if the first user exists in the database
 		let firstUserExists = false;
 		try {
-			firstUserExists = (await auth.getUserCount()) !== 0;
-			logger.debug(`First user exists: ${firstUserExists}`);
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error fetching user count: ${err.message}`);
-			throw Error(`Error fetching user count: ${err.message}`);
+			const userCount = await auth.getUserCount();
+			firstUserExists = userCount > 0;
+		} catch (err) {
+			logger.error('Error fetching user count:', err);
+			throw Error(`Error during login process: ${err.message}`);
 		}
 
 		const code = url.searchParams.get('code');
@@ -231,10 +236,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		}
 
 		// SignIn
-		const loginForm = await superValidate(valibot(loginFormSchema));
-		const forgotForm = await superValidate(valibot(forgotFormSchema));
-		const resetForm = await superValidate(valibot(resetFormSchema));
-		const signUpForm = await superValidate(valibot(signUpFormSchema));
+		const loginForm = await superValidate(wrappedLoginSchema);
+		const forgotForm = await superValidate(wrappedForgotSchema);
+		const resetForm = await superValidate(wrappedResetSchema);
+		const signUpForm = await superValidate(wrappedSignUpSchema);
 
 		// Return Data & Forms in load
 		return {
@@ -251,10 +256,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		// Return a minimal set of data to allow the page to render
 		return {
 			firstUserExists: false,
-			loginForm: await superValidate(valibot(loginFormSchema)),
-			forgotForm: await superValidate(valibot(forgotFormSchema)),
-			resetForm: await superValidate(valibot(resetFormSchema)),
-			signUpForm: await superValidate(valibot(signUpFormSchema)),
+			loginForm: await superValidate(wrappedLoginSchema),
+			forgotForm: await superValidate(wrappedForgotSchema),
+			resetForm: await superValidate(wrappedResetSchema),
+			signUpForm: await superValidate(wrappedSignUpSchema),
 			error: 'Authentication system is not available. Please try again later.'
 		};
 	}
@@ -281,7 +286,7 @@ export const actions: Actions = {
 			return fail(500, { message: 'An error occurred while processing your request.' });
 		}
 
-		const signUpForm = await superValidate(event, valibot(signUpFormSchema));
+		const signUpForm = await superValidate(event, wrappedSignUpSchema);
 
 		// Validate
 		const username = signUpForm.data.username;
@@ -352,7 +357,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			const signUpOAuthForm = await superValidate(event, valibot(signUpOAuthFormSchema));
+			const signUpOAuthForm = await superValidate(event, wrappedSignUpOAuthSchema);
 			logger.debug(`signUpOAuthForm: ${JSON.stringify(signUpOAuthForm)}`);
 
 			const lang = signUpOAuthForm.data.lang;
@@ -403,7 +408,7 @@ export const actions: Actions = {
 			return fail(429, { message: 'Too many requests. Please try again later.' });
 		}
 
-		const signInForm = await superValidate(event, valibot(loginFormSchema));
+		const signInForm = await superValidate(event, wrappedLoginSchema);
 
 		// Validate
 		if (!signInForm.valid) return fail(400, { signInForm });
@@ -435,7 +440,7 @@ export const actions: Actions = {
 			return fail(429, { message: 'Too many requests. Please try again later.' });
 		}
 
-		const pwforgottenForm = await superValidate(event, valibot(forgotFormSchema));
+		const pwforgottenForm = await superValidate(event, wrappedForgotSchema);
 		logger.debug(`pwforgottenForm: ${JSON.stringify(pwforgottenForm)}`);
 
 		// Validate
@@ -500,7 +505,7 @@ export const actions: Actions = {
 			return fail(429, { message: 'Too many requests. Please try again later.' });
 		}
 
-		const pwresetForm = await superValidate(event, valibot(resetFormSchema));
+		const pwresetForm = await superValidate(event, wrappedResetSchema);
 
 		// Validate
 		const password = pwresetForm.data.password;
