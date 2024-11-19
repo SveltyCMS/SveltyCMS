@@ -18,10 +18,8 @@
  * Central module for handling all authentication-related operations in the application
  */
 
-import { error } from '@sveltejs/kit/server';
+import { error } from '@sveltejs/kit';
 import { privateEnv } from '@root/config/private';
-import { readConfigFile, writeConfigFile } from '$lib/server/fs-utils';
-import fs from 'fs/promises';
 import path from 'path';
 
 // Types

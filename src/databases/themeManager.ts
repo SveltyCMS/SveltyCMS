@@ -15,8 +15,8 @@ export const DEFAULT_THEME: Theme = {
 	name: 'SveltyCMSTheme',
 	path: '/src/themes/SveltyCMS/SveltyCMSTheme.css',
 	isDefault: true,
-	createdAt: Math.floor(Date.now() / 1000),
-	updatedAt: Math.floor(Date.now() / 1000)
+	createdAt: new Date(),
+	updatedAt: new Date()
 };
 
 export class ThemeManager {
