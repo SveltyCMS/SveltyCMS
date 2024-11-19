@@ -33,6 +33,7 @@
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import SiteName from '@components/SiteName.svelte';
 	import Collections from '@components/Collections.svelte';
+	import VirtualFolders from '@components/VirtualFolders.svelte';
 	import { getLanguageName } from '@utils/languageUtils';
 
 	// Skeleton components and utilities
@@ -255,7 +256,9 @@
 	<div class="mb-2 mt-auto bg-white dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900">
 		<div class="mx-1 mb-1 border-0 border-t border-surface-400"></div>
 
-		<div class="{sidebarState.sidebar.value.left === 'full' ? 'grid-cols-3 grid-rows-3' : 'grid-cols-2 grid-rows-2'} grid items-center justify-center">
+		<div
+			class="{sidebarState.sidebar.value.left === 'full' ? 'grid-cols-3 grid-rows-3' : 'grid-cols-2 grid-rows-2'} grid items-center justify-center"
+		>
 			<!-- Avatar with user settings -->
 			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-1 row-span-2' : 'order-1'}>
 				<button
@@ -293,7 +296,8 @@
 				<div class="language-selector relative">
 					{#if publicEnv.AVAILABLE_SYSTEM_LANGUAGES.length > 5}
 						<button
-							class="variant-filled-surface btn-icon flex items-center justify-between gap-2 uppercase text-white {sidebarState.sidebar.value.left === 'full'
+							class="variant-filled-surface btn-icon flex items-center justify-between gap-2 uppercase text-white {sidebarState.sidebar.value.left ===
+							'full'
 								? 'px-2.5 py-2'
 								: 'px-1.5 py-0'}"
 							onclick={stopPropagation(() => (isDropdownOpen = !isDropdownOpen))}

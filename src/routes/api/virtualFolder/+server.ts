@@ -29,7 +29,6 @@ import { publicEnv } from '@root/config/public';
 import { logger } from '@utils/logger';
 import { createDirectory, deleteDirectory } from '@utils/fileUploading';
 
-import type { SystemVirtualFolder } from '@src/databases/dbInterface';
 
 // GET: Retrieve all virtual folders or contents of a specific folder
 export const GET: RequestHandler = async ({ url }) => {

@@ -190,8 +190,8 @@ Features:
 
 			const { data } = await axios.get(`/api/virtualFolder/${folderId}`);
 			if (data.success) {
-				// Correctly assign mediaFiles to files
-				files = data.contents.mediaFiles;
+				// Ensure mediaFiles is always an array
+				files = Array.isArray(data.contents?.mediaFiles) ? data.contents.mediaFiles : [];
 				console.log('Fetched media files:', files);
 			} else {
 				throw new Error(data.error || 'Unknown error');

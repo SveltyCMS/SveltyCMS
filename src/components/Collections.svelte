@@ -250,7 +250,7 @@ Features:
 			caretOpen="rotate-180"
 		>
 			{#if filteredCategories.length > 0}
-				{#each filteredCategories as category (category.id)}
+				{#each filteredCategories as category (category.name)}
 					<AccordionItem
 						bind:open={category.open}
 						regionPanel="divide-y dark:divide-black my-0"
@@ -273,7 +273,7 @@ Features:
 						{#snippet content()}
 							<!-- Collections in this category -->
 							{#if category.collections?.length}
-								{#each category.collections as _collection (getCollectionKey(_collection, category.id.toString()))}
+								{#each category.collections as _collection (getCollectionKey(_collection, category.name.toString()))}
 									<div
 										role="button"
 										tabindex={0}
@@ -309,8 +309,8 @@ Features:
 									{#each Object.entries(category.subcategories) as [key, subCategory] (key)}
 										<div class={getIndentClass(category.level + 1)}>
 											<AccordionItem
-												bind:open={subCategoryOpenStates[`${category.id}-${key}`]}
-												onclick={() => handleSubcategoryToggle(category.id.toString(), key)}
+												bind:open={subCategoryOpenStates[`${category.name}-${key}`]}
+												onclick={() => handleSubcategoryToggle(category.name.toString(), key)}
 												regionPanel="divide-y dark:divide-black my-0"
 												class="divide-y rounded-md bg-surface-300 dark:bg-surface-400"
 											>
@@ -331,7 +331,7 @@ Features:
 
 												{#snippet content()}
 													{#if subCategory.collections?.length}
-														{#each subCategory.collections as _collection (getCollectionKey(_collection, subCategory.id.toString()))}
+														{#each subCategory.collections as _collection (getCollectionKey(_collection, subCategory.name.toString()))}
 															<div
 																role="button"
 																tabindex={0}

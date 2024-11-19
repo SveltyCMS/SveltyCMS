@@ -1,89 +1,113 @@
+<!--
+@file src/routes/(app)/config/widgetManagement/+page.svelte
+@component
+**This file sets up and displays the widget management page. It provides a user-friendly interface for managing widgets and their activation status.**
+
+Features:
+- List all available widgets
+- Toggle widget status (active/inactive)
+- View widget details (name, description, icon)
+-->
+
 <script lang="ts">
 	import { onMount } from 'svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Component
+	// Components
 	import PageTitle from '@components/PageTitle.svelte';
+	import Loading from '@components/Loading.svelte';
 
-	type Widget = {
+	// Widget Manager
+	import { type WidgetStatus, loadWidgets, getActiveWidgets, updateWidgetStatus, activeWidgets } from '@components/widgets/widgetManager';
+
+	interface Widget {
 		name: string;
-		status: 'active' | 'inactive';
-	};
+		description: string;
+		icon: string;
+		status: WidgetStatus;
+	}
 
 	let installedWidgets: Widget[] = $state([]);
-	let activeWidgets: string[] = []; // Placeholder until implemented
+	let error: string | null = $state(null);
 
+	// Load widgets on mount
 	onMount(async () => {
 		try {
-			const widgets = await loadWidgets(); // Replace with actual implementation
-			activeWidgets = await getActiveWidgets(); // Replace with actual implementation
-			installedWidgets = widgets.map((widget) => ({
-				...widget,
-				status: activeWidgets.includes(widget.name) ? 'active' : 'inactive'
+			const widgets = loadWidgets();
+			const active = await getActiveWidgets();
+
+			// Transform widgets into the format we need
+			installedWidgets = Object.entries(widgets).map(([name, widget]) => ({
+				name: widget.Name,
+				description: widget.Description || 'No description available',
+				icon: widget.Icon || 'mdi:puzzle',
+				status: active.includes(widget.Name) ? 'active' : 'inactive'
 			}));
-		} catch (error) {
-			console.error('Failed to load widgets:', error);
-			// Display an error message to the user
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to load widgets';
+			console.error('Failed to load widgets:', err);
 		}
 	});
 
-	async function loadWidgets(): Promise<Widget[]> {
-		// Implement your logic to fetch installed widgets from the server or local storage
-		return []; // Replace with actual implementation
-	}
-
-	async function getActiveWidgets(): Promise<string[]> {
-		// Implement your logic to fetch currently active widgets from the server or local storage
-		return []; // Replace with actual implementation
-	}
-
-	async function toggleWidgetStatus(widget: Widget) {
-		const newStatus = widget.status === 'active' ? 'inactive' : 'active';
+	// Toggle widget status
+	async function toggleWidget(widget: Widget) {
 		try {
-			// Implement your logic to update the widget status
+			const newStatus = widget.status === 'active' ? 'inactive' : 'active';
 			await updateWidgetStatus(widget.name, newStatus);
 			widget.status = newStatus;
-		} catch (error) {
-			console.error(`Failed to update widget status for ${widget.name}:`, error);
-			// Display an informative message to the user about the failure
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to update widget status';
+			console.error('Failed to update widget status:', err);
 		}
-	}
-
-	// Example implementation of updateWidgetStatus
-	async function updateWidgetStatus(widgetName: string, newStatus: string) {
-		// Implement your logic to update the widget status
-		// This might involve calling an API endpoint or updating a local data store
-		console.log(`Updating widget status for ${widgetName} to ${newStatus}`);
 	}
 </script>
 
 <!-- Page Title with Back Button -->
 <PageTitle name="Widget Management" icon="mdi:widgets" showBackButton={true} backUrl="/config" />
 
-{#each installedWidgets as widget}
-	<div class="my- flex items-center justify-between border-b pb-2">
-		<span>{widget.name}</span>
-		<button class="ml-4 rounded border px-4 py-2" onclick={() => toggleWidgetStatus(widget)}>
-			{widget.status === 'active' ? 'Deactivate' : 'Activate'}
-		</button>
+{#if loading}
+	<div class="flex h-48 items-center justify-center">
+		<Loading />
 	</div>
-{/each}
+{:else if error}
+	<div class="alert variant-filled-error" role="alert">
+		<iconify-icon icon="mdi:alert" width="20"></iconify-icon>
+		<span>{error}</span>
+	</div>
+{:else}
+	<div class="card p-4">
+		{#each installedWidgets as widget}
+			<div class="my-2 flex items-center justify-between border-b pb-2">
+				<div class="flex items-center gap-2">
+					<iconify-icon icon={widget.icon} width="24"></iconify-icon>
+					<div>
+						<h3 class="text-lg font-semibold">{widget.name}</h3>
+						<p class="text-sm text-tertiary-500 dark:text-primary-500">{widget.description}</p>
+					</div>
+				</div>
+				<button class="btn variant-{widget.status === 'active' ? 'filled' : 'ghost'}-primary" onclick={() => toggleWidget(widget)}>
+					{widget.status === 'active' ? 'Deactivated' : 'Activate'}
+				</button>
+			</div>
+		{/each}
 
-{#if installedWidgets.length === 0}
-	<p class="my-2 text-center text-tertiary-500 dark:text-primary-500">
-		There are currently no widgets available. Visit the SveltyCMS marketplace to find new widgets and extend your system.
-	</p>
+		{#if installedWidgets.length === 0}
+			<p class="my-2 text-center text-tertiary-500 dark:text-primary-500">
+				There are currently no widgets available. Visit the SveltyCMS marketplace to find new widgets and extend your system.
+			</p>
 
-	<a
-		href="https://www.sveltyCMS.com"
-		target="_blank"
-		rel="noopener noreferrer"
-		aria-label={m.config_Martketplace()}
-		class="variant-ghost-primary btn w-full gap-2 py-6"
-	>
-		<iconify-icon icon="icon-park-outline:shopping-bag" width="28" class="text-white"></iconify-icon>
-		<p class="uppercase">{m.config_Martketplace()}</p>
-	</a>
+			<a
+				href="https://www.sveltyCMS.com"
+				target="_blank"
+				rel="noopener noreferrer"
+				aria-label={m.config_Martketplace()}
+				class="variant-ghost-primary btn w-full gap-2 py-6"
+			>
+				<iconify-icon icon="icon-park-outline:shopping-bag" width="28" class="text-white"></iconify-icon>
+				<p class="uppercase">{m.config_Martketplace()}</p>
+			</a>
+		{/if}
+	</div>
 {/if}

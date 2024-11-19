@@ -106,14 +106,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 					convertIdToString({
 						...item,
 						type: media_types[index].split('_')[1],
-						url: constructUrl('global', item.hash, item.thumbnail.name, item.thumbnail.name.split('.').pop(), media_types[index]),
-						thumbnailUrl: constructUrl(
-							'global',
-							item.hash,
-							`${item.thumbnail.name}-thumbnail`,
-							item.thumbnail.name.split('.').pop(),
-							media_types[index]
-						)
+						url: item.thumbnail?.name
+							? constructUrl('global', item.hash, item.thumbnail.name, item.thumbnail.name.split('.').pop(), media_types[index])
+							: '',
+						thumbnailUrl: item.thumbnail?.name
+							? constructUrl(
+								'global',
+								item.hash,
+								`${item.thumbnail.name}-thumbnail`,
+								item.thumbnail.name.split('.').pop(),
+								media_types[index]
+							)
+							: ''
 					})
 				)
 		);

@@ -4,8 +4,7 @@
 */
 
 import type { Model, User, WidgetId } from '@src/auth/types';
-// import { getActiveWidgets } from '@src/routes/(app)/config/widgetManagement/widgetManager';
-
+// import { activeWidgets, loadWidgets } from './widgetManager';
 // System logger
 import { logger } from '@utils/logger';
 
