@@ -38,7 +38,27 @@
 
 	// Props
 	let { data } = $props<{ data: PageData }>();
-	let { user, isFirstUser } = $derived(data);
+	let { user: serverUser, isFirstUser } = $derived(data);
+
+	// Make user data reactive
+	let user = $state({
+		...serverUser,
+		username: serverUser?.username || '',
+		email: serverUser?.email || '',
+		avatar: serverUser?.avatar || '/Default_User.svg'
+	});
+
+	// Keep user data in sync with server data
+	$effect(() => {
+		if (serverUser) {
+			user = {
+				...serverUser,
+				username: serverUser.username || '',
+				email: serverUser.email || '',
+				avatar: serverUser.avatar || '/Default_User.svg'
+			};
+		}
+	});
 
 	// Initialize avatarSrc with user's avatar or default using effect
 	$effect.root(() => {

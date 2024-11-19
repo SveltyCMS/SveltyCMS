@@ -24,13 +24,13 @@
 	import { onDestroy } from 'svelte';
 
 	const props = $props<{
-		currentPage?: number; // Default value for current page number
-		pagesCount?: number; // Default value for total number of pages
-		rowsPerPage?: number; // Default value to control rows per page (optional)
-		rowsPerPageOptions?: number[]; // Options for rows per page (optional)
-		totalItems?: number; // Total number of items in the table (optional)
-		onUpdatePage?: (page: number) => void;
-		onUpdateRowsPerPage?: (rows: number) => void;
+		currentPage?: number; // Default value for currentPage
+		pagesCount?: number; // Default value for pagesCount
+		rowsPerPage?: number; // Default value for rowsPerPage
+		rowsPerPageOptions?: number[]; // Default value for rowsPerPageOptions
+		totalItems?: number; // Default value for totalItems
+		onUpdatePage?: (page: number) => void; // Event handler for updating the current page
+		onUpdateRowsPerPage?: (rows: number) => void; // Event handler for updating the number of rows per page
 	}>();
 
 	// State declarations with memoization
@@ -39,6 +39,10 @@
 	let rowsPerPage = $state(props.rowsPerPage ?? 10);
 	let totalItems = $state(props.totalItems ?? 0);
 	let rowsPerPageOptions = $state(props.rowsPerPageOptions ?? [5, 10, 25, 50, 100, 500]);
+
+	// Derived values
+	const isFirstPage = $derived(currentPage === 1);
+	const isLastPage = $derived(currentPage === pagesCount);
 
 	// Go to page with debounce
 	let pageUpdateTimeout: number | undefined;
@@ -51,46 +55,23 @@
 
 			// Set a new timeout
 			pageUpdateTimeout = window.setTimeout(() => {
+				currentPage = page;
 				props.onUpdatePage?.(page);
-			}, 100); // 100ms debounce
+			}, 200); // 200ms debounce
 		}
 	}
 
-	// Change rows per page with debounce
-	let rowsUpdateTimeout: number | undefined;
-	function changeRowsPerPage(event: Event) {
-		const value = parseInt((event.target as HTMLSelectElement).value);
-		if (!isNaN(value)) {
-			// Clear any existing timeout
-			if (rowsUpdateTimeout) {
-				clearTimeout(rowsUpdateTimeout);
-			}
-
-			// Set a new timeout
-			rowsUpdateTimeout = window.setTimeout(() => {
-				props.onUpdateRowsPerPage?.(value);
-			}, 100); // 100ms debounce
-		}
+	// Update rows per page
+	function updateRowsPerPage(rows: number) {
+		rowsPerPage = rows;
+		props.onUpdateRowsPerPage?.(rows);
 	}
 
-	// Update state when props change
-	$effect(() => {
-		if (props.currentPage !== undefined) currentPage = props.currentPage;
-		if (props.pagesCount !== undefined) pagesCount = props.pagesCount;
-		if (props.rowsPerPage !== undefined) rowsPerPage = props.rowsPerPage;
-		if (props.totalItems !== undefined) totalItems = props.totalItems;
-		if (props.rowsPerPageOptions !== undefined) rowsPerPageOptions = props.rowsPerPageOptions;
-	});
-
-	// Derived values with memoization
-	let isFirstPage = $derived(currentPage <= 1);
-	let isLastPage = $derived(currentPage >= pagesCount);
-	let currentPageItems = $derived(currentPage === pagesCount ? Math.min(totalItems - rowsPerPage * (currentPage - 1), rowsPerPage) : rowsPerPage);
-
-	// Cleanup on destroy
+	// Cleanup on component destroy
 	onDestroy(() => {
-		if (pageUpdateTimeout) clearTimeout(pageUpdateTimeout);
-		if (rowsUpdateTimeout) clearTimeout(rowsUpdateTimeout);
+		if (pageUpdateTimeout) {
+			clearTimeout(pageUpdateTimeout);
+		}
 	});
 </script>
 
@@ -102,7 +83,7 @@
 		<span>{m.entrylist_of()}</span>
 		<span class="text-tertiary-500 dark:text-primary-500">{pagesCount}</span>
 		<span class="ml-4" aria-label="Current items shown">
-			Showing <span class="text-tertiary-500 dark:text-primary-500">{currentPageItems}</span> of
+			Showing <span class="text-tertiary-500 dark:text-primary-500">{rowsPerPage}</span> of
 			<span class="text-tertiary-500 dark:text-primary-500">{totalItems}</span> items
 		</span>
 	</div>
@@ -139,7 +120,7 @@
 	<!-- Rows per page select dropdown -->
 	<select
 		value={rowsPerPage}
-		onchange={changeRowsPerPage}
+		onchange={(event) => updateRowsPerPage(parseInt((event.target as HTMLSelectElement).value))}
 		aria-label="Select number of rows per page"
 		class="mt-0.5 bg-transparent text-center text-tertiary-500 dark:text-primary-500"
 		title="Rows per page"

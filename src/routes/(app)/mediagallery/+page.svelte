@@ -74,7 +74,7 @@ Features:
 		{ value: MediaTypeEnum.RemoteVideo, label: 'REMOTE VIDEO' }
 	];
 
-	// Derived filtered files
+	// Computed value for filtered files
 	let filteredFiles = $derived(
 		files.filter((file) => {
 			if (file.type === MediaTypeEnum.Image) {

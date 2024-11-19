@@ -5,8 +5,10 @@
 
 import { browser } from '$app/environment';
 import { writable, type Writable, get } from 'svelte/store';
-import { logger } from '@utils/logger';
 import deepmerge from 'deepmerge';
+
+// System Logger
+import { logger } from '@utils/logger';
 
 // Types
 import type { ModifyRequestParams } from './index';
@@ -21,8 +23,8 @@ export interface WidgetConfig {
 
 export interface Widget {
   Name: string;
-  description?: string;
-  icon?: string;
+  Description?: string;
+  Icon?: string;
   modifyRequest?: (params: ModifyRequestParams<any>) => Promise<any>;
 }
 
@@ -56,8 +58,8 @@ export function loadWidgets() {
         // Add metadata to the function
         Object.assign(widgets[widget.Name], {
           Name: widget.Name,
-          Description: widget.description,
-          Icon: widget.icon
+          Description: widget.Description,
+          Icon: widget.Icon
         });
       }
     } catch (error) {

@@ -22,9 +22,9 @@ Features:
 	import { type WidgetStatus, loadWidgets, getActiveWidgets, updateWidgetStatus, activeWidgets } from '@components/widgets/widgetManager';
 
 	interface Widget {
-		name: string;
-		description: string;
-		icon: string;
+		Name: string;
+		Description: string;
+		Icon: string;
 		status: WidgetStatus;
 	}
 
@@ -39,9 +39,9 @@ Features:
 
 			// Transform widgets into the format we need
 			installedWidgets = Object.entries(widgets).map(([name, widget]) => ({
-				name: widget.Name,
-				description: widget.Description || 'No description available',
-				icon: widget.Icon || 'mdi:puzzle',
+				Name: widget.Name,
+				Description: widget.Description || 'No description available',
+				Icon: widget.Icon || 'mdi:puzzle',
 				status: active.includes(widget.Name) ? 'active' : 'inactive'
 			}));
 		} catch (err) {
@@ -54,7 +54,7 @@ Features:
 	async function toggleWidget(widget: Widget) {
 		try {
 			const newStatus = widget.status === 'active' ? 'inactive' : 'active';
-			await updateWidgetStatus(widget.name, newStatus);
+			await updateWidgetStatus(widget.Name, newStatus);
 			widget.status = newStatus;
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to update widget status';
@@ -68,22 +68,25 @@ Features:
 
 <div class="card p-4">
 	{#each installedWidgets as widget}
-		<div class="my-2 flex items-center justify-between border-b pb-2">
-			<div class="flex items-center gap-2">
-				<iconify-icon icon={widget.icon} width="24"></iconify-icon>
+		<div class="flex min-h-[70px] items-center justify-between border-b hover:bg-surface-300 dark:hover:bg-surface-500">
+			<div class="flex items-center">
+				<iconify-icon icon={widget.Icon} width="38" class="mr-2 text-error-500"></iconify-icon>
 				<div>
-					<h3 class="text-lg font-semibold">{widget.name}</h3>
-					<p class="text-sm text-tertiary-500 dark:text-primary-500">{widget.description}</p>
+					<h3 class="text-lg font-semibold">{widget.Name}</h3>
+					<p class="text-wrap text-sm text-tertiary-500 dark:text-primary-500">{widget.Description}</p>
 				</div>
 			</div>
-			<button class="btn variant-{widget.status === 'active' ? 'filled' : 'ghost'}-primary" onclick={() => toggleWidget(widget)}>
-				{widget.status === 'active' ? 'Deactivated' : 'Activate'}
+			<button
+				class="btn mx-2 min-w-[200px] variant-{widget.status === 'active' ? 'ghost-error ' : 'filled-primary'}"
+				onclick={() => toggleWidget(widget)}
+			>
+				{widget.status === 'active' ? 'Deactivate' : 'Activate'}
 			</button>
 		</div>
 	{/each}
 
 	{#if installedWidgets.length === 0}
-		<p class="my-2 text-center text-tertiary-500 dark:text-primary-500">
+		<p class="text-center text-tertiary-500 dark:text-primary-500">
 			There are currently no widgets available. Visit the SveltyCMS marketplace to find new widgets and extend your system.
 		</p>
 
@@ -92,7 +95,7 @@ Features:
 			target="_blank"
 			rel="noopener noreferrer"
 			aria-label={m.config_Martketplace()}
-			class="variant-ghost-primary btn w-full gap-2 py-6"
+			class="variant-ghost-primary btn w-full"
 		>
 			<iconify-icon icon="icon-park-outline:shopping-bag" width="28" class="text-white"></iconify-icon>
 			<p class="uppercase">{m.config_Martketplace()}</p>

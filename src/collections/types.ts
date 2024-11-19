@@ -38,6 +38,7 @@ export const CollectionRegistry = {
 
 // Define the base Schema interface
 export interface Schema {
+	id: number;
 	name?: CollectionTypes | string; // Collection name can be from registry or dynamic
 	label?: string; // Optional label that will display instead of name if used
 	slug?: string; // Optional Slug for the collection

@@ -9,7 +9,7 @@
 		"dev": "vite dev",
 		"devv": "LAUNCH_EDITOR='code' vite --open",
 		"-- BUILD ---------------------------------------------": "",
-		"build": "paraglide-js compile --project ./project.inlang && vite build",
+		"build": "vite build",
 		"-- CHECK & TEST ---------------------------------------": "",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --threshold error",
 		"check:watch": " svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
@@ -22,6 +22,7 @@
 		"format": "prettier --write .",
 		"-- OTHER ----------------------------------------------": "",
 		"preview": "vite preview",
+		"paraglide": "paraglide-js compile --project ./project.inlang",
 		"translate": "npx @inlang/cli machine translate --project ./project.inlang"
 	},
 	"license": "MIT",

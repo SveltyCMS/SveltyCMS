@@ -28,15 +28,10 @@ Features:
 
 	// Stores
 	import { get } from 'svelte/store';
-	import { page } from '$app/stores';
 	import { shouldShowNextButton } from '@stores/store';
 	import { mode, collection, categories, collections } from '@root/src/stores/collectionStore.svelte';
 	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@root/src/stores/sidebarStore.svelte';
 	import { screenSize } from '@root/src/stores/screenSizeStore.svelte';
-
-	// Auth
-	import type { User } from '@src/auth/types';
-	// const user: User = $page.data.user;
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -183,7 +178,8 @@ Features:
 
 	// Generate unique key for collection items
 	function getCollectionKey(_collection: Schema, categoryId: string): string {
-		return `${categoryId}-${String(_collection.name)}-${_collection.id || Date.now()}`;
+		// The collection should already have an ID from the category processing
+		return `${categoryId}-${String(_collection.name)}-${_collection.id}`;
 	}
 
 	// Track open states for subcategories
