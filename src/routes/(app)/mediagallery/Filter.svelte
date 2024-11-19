@@ -11,6 +11,7 @@
 - `selectedMediaType: string`: The currently selected media type.
 - `mediaTypes: { value: string; icon: string }[]`: An array of media type options.
 -->
+
 <script lang="ts">
 	export let globalSearchValue: string;
 	export let selectedMediaType: string;

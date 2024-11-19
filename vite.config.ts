@@ -161,7 +161,7 @@ export default defineConfig({
 		}
 	},
 	define: {
-		__VERSION__: JSON.stringify(pkg.version), // Define global version variable from package.json
-		SUPERFORMS_LEGACY: true // Legacy flag for SuperForms (if needed)
+		'__VERSION__': JSON.stringify(pkg.version), // Define global version variable from package.json
+		'SUPERFORMS_LEGACY': true // Legacy flag for SuperForms (if needed)
 	}
 });

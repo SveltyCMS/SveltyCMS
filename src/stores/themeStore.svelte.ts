@@ -37,13 +37,13 @@ function createThemeStores() {
 	// Base store
 	const state = store<ThemeState>(initialState);
 
-	// Derived values
-	const theme = $derived(state().currentTheme);
-	const hasTheme = $derived(!!state().currentTheme);
-	const themeName = $derived(state().currentTheme?.name ?? 'default');
-	const isDefault = $derived(state().currentTheme?.isDefault ?? false);
-	const isLoading = $derived(state().isLoading);
-	const error = $derived(state().error);
+	// Subscribe to theme changess
+	const theme = store(state().currentTheme);
+	const hasTheme = store(!!state().currentTheme);
+	const themeName = store(state().currentTheme?.name ?? 'default');
+	const isDefault = store(state().currentTheme?.isDefault ?? false);
+	const isLoading = store(state().isLoading);
+	const error = store(state().error);
 
 	// Initialize theme from database
 	async function initialize() {
@@ -74,13 +74,22 @@ function createThemeStores() {
 		state.update((s) => ({ ...s, isLoading: true, error: null }));
 
 		try {
-			// If a string is passed, find the theme by name
-			const themeToUpdate =
-				typeof newTheme === 'string'
-					? { name: newTheme, _id: '', path: '', isDefault: false, createdAt: new Date(), updatedAt: new Date() }
-					: newTheme;
+			// If a string is passed, create a basic theme object
+			const themeToUpdate = typeof newTheme === 'string' 
+				? { 
+					name: newTheme, 
+					_id: '', 
+					path: '', 
+					isDefault: false, 
+					createdAt: new Date(), 
+					updatedAt: new Date() 
+				} 
+				: newTheme;
 
+			// Update the theme in the database
 			await dbAdapter?.setDefaultTheme(themeToUpdate.name);
+
+			// Update the local state
 			state.update((s) => ({
 				...s,
 				currentTheme: themeToUpdate,
@@ -88,14 +97,20 @@ function createThemeStores() {
 				lastUpdateAttempt: new Date()
 			}));
 
+			// Update the document class for immediate visual feedback
+			if (typeof window !== 'undefined') {
+				document.documentElement.classList.toggle('dark', themeToUpdate.name === 'dark');
+			}
+
 			return themeToUpdate;
 		} catch (err) {
+			const errorMessage = err instanceof Error ? err.message : 'Failed to update theme';
 			state.update((s) => ({
 				...s,
-				error: err instanceof Error ? err.message : 'Failed to update theme',
+				error: errorMessage,
 				isLoading: false
 			}));
-			throw err;
+			throw new Error(`Failed to update theme: ${errorMessage}`);
 		}
 	}
 

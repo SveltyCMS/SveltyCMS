@@ -1,6 +1,18 @@
 <!-- 
 @files src/routes/(app)/config/+page.svelte
-@description This file sets up and displays the config page. It provides a user-friendly interface for managing configuration settings. 
+@component
+**This file sets up and displays the config page. It provides a user-friendly interface for managing configuration settings**
+
+Features:
+- Collection builder
+- GraphQL API
+- Image editor
+- Dashboard
+- Market Place
+- Widget Management
+- Theme Management
+- Settings
+- Access Management
 -->
 
 <script lang="ts">
@@ -21,7 +33,6 @@
 	type DynamicPermissions = Record<string, PermissionConfig>;
 
 	// Get server-side data
-	let user = $derived($page.data.user); // User information from server
 	let dynamicPermissions = $derived($page.data.permissionConfigs as DynamicPermissions); // Dynamically loaded permissions
 
 	// Create a mapping from contextId to dynamic permissions for easier access
