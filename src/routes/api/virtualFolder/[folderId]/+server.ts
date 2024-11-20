@@ -16,18 +16,20 @@
 
 import { publicEnv } from '@root/config/public';
 import { json } from '@sveltejs/kit';
+
 import type { RequestHandler } from './$types';
-import { dbAdapter } from '@src/databases/db';
-import { logger } from '@utils/logger';
-import type { LoggableValue } from '@utils/logger';
-import type { MediaBase } from '@utils/media/mediaModels';
 import type { SystemVirtualFolder } from '@src/databases/dbInterface';
+import { dbAdapter } from '@src/databases/db';
+
 import { 
     type FolderContents, 
     type VirtualFolderUpdateData,
     type FolderResponse,
     VirtualFolderError 
 } from '@src/types/virtualFolder';
+
+// System Logger
+import { logger } from '@utils/logger';
 
 // Utility function to validate database connection
 function validateDb(): void {
@@ -111,10 +113,10 @@ export const GET: RequestHandler = handleRequest(async ({ folderId }) => {
         throw new VirtualFolderError('Folder not found', 404, 'FOLDER_NOT_FOUND');
     }
 
-    const folderContents = await dbAdapter.getVirtualFolderContents(folder._id.toString());
+    const folderContents = await dbAdapter.getVirtualFolderContents(folder._id.toString()) || { subfolders: [], mediaFiles: [] };
     const contents: FolderContents = {
-        subfolders: Array.isArray(folderContents?.subfolders) ? folderContents.subfolders : [],
-        mediaFiles: Array.isArray(folderContents?.mediaFiles) ? folderContents.mediaFiles : []
+        subfolders: Array.isArray(folderContents.subfolders) ? folderContents.subfolders : [],
+        mediaFiles: Array.isArray(folderContents.mediaFiles) ? folderContents.mediaFiles : []
     };
 
     return json({

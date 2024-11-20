@@ -31,7 +31,6 @@ Features:
 	import type { CategoryData } from '@src/collections/types';
 
 	// Stores
-	import { get } from 'svelte/store';
 	import { contentLanguage, systemLanguage } from '@stores/store';
 	import { mode, collectionValue, modifyEntry, statusMap, collection, categories } from '@root/src/stores/collectionStore.svelte';
 	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@root/src/stores/sidebarStore.svelte';
@@ -139,6 +138,13 @@ Features:
 	let isFirstPage: boolean;
 	let isLastPage: boolean;
 
+	// Derived stores for reactive values
+	const currentLanguage = $derived(contentLanguage.value);
+	const currentSystemLanguage = $derived(systemLanguage.value);
+	const currentMode = $derived(mode.value);
+	const currentCollection = $derived(collection.value);
+	const currentScreenSize = $derived(screenSize.value);
+
 	// This function refreshes the data displayed in a table by fetching new data from an API endpoint and updating the tableData and options variables.
 	async function refreshTableData(fetch = true) {
 		// Clear loading timer
@@ -147,7 +153,7 @@ Features:
 		}
 
 		// If the collection name is empty, return
-		if (!collection.value?.name) return;
+		if (!currentCollection?.name) return;
 
 		// If fetch is true, set isLoading to true
 		if (fetch) {
@@ -157,13 +163,12 @@ Features:
 			}, 400);
 
 			// Fetch data using getData function
-			// console.debug('Fetching data...', collection.value );
 			try {
 				data = await getData({
-					collectionTypes: collection.value?.name as any,
+					collectionTypes: currentCollection?.name as any,
 					page: currentPage,
-					limit: rowsPerPage, // assuming rowsPerPage is defined
-					contentLanguage: contentLanguage.value,
+					limit: rowsPerPage,
+					contentLanguage: currentLanguage,
 					filter: JSON.stringify(filters),
 					sort: JSON.stringify(
 						sorting.isSorted
@@ -193,32 +198,31 @@ Features:
 				data.entryList.map(async (entry) => {
 					const obj: { [key: string]: any } = {};
 
-					for (const field of collection.value.fields) {
+					for (const field of currentCollection.fields) {
 						if (field.callback && typeof field.callback === 'function') {
 							field.callback({ data });
 							handleSidebarToggle();
 						}
 
 						// Status
-						// TODO: Add Localized status states, Pay attention to Status.svelte modifier
 						obj.status = entry.status ? entry.status.charAt(0).toUpperCase() + entry.status.slice(1) : 'N/A';
 
 						// Collection fields
 						if (field.display) {
 							obj[field.label] = await field.display({
 								data: entry[getFieldName(field)],
-								collection: (collection.value?.name ?? '').toString(), // Convert to string
+								collection: (currentCollection?.name ?? '').toString(),
 								field,
 								entry,
-								contentLanguage: $contentLanguage
+								contentLanguage: currentLanguage
 							});
 						}
 					}
 
 					// Add createdAt and updatedAt properties localized to the system language
-					obj.createdAt = entry.createdAt ? new Date(Number(entry.createdAt) * 1000).toLocaleString(systemLanguage.value) : 'N/A';
-					obj.updatedAt = entry.updatedAt ? new Date(Number(entry.updatedAt) * 1000).toLocaleString(systemLanguage.value) : 'N/A';
-					obj._id = entry._id; // Add _id property
+					obj.createdAt = entry.createdAt ? new Date(Number(entry.createdAt) * 1000).toLocaleString(currentSystemLanguage) : 'N/A';
+					obj.updatedAt = entry.updatedAt ? new Date(Number(entry.updatedAt) * 1000).toLocaleString(currentSystemLanguage) : 'N/A';
+					obj._id = entry._id;
 
 					return obj;
 				})
@@ -226,7 +230,7 @@ Features:
 		}
 
 		// For rendering Table data
-		tableHeaders = collection.value?.fields.map((field) => ({
+		tableHeaders = currentCollection?.fields.map((field) => ({
 			label: field.label,
 			name: getFieldName(field),
 			id: getFieldName(field),
@@ -272,7 +276,7 @@ Features:
 	$effect(() => {
 		entryListPaginationSettings = {
 			...entryListPaginationSettings,
-			collectionTypes: collection.value?.name,
+			collectionTypes: currentCollection?.name,
 			filters,
 			sorting,
 			density,
@@ -285,11 +289,7 @@ Features:
 
 	// Trigger refreshTableData based on collection, filters, sorting, and currentPage
 	$effect(() => {
-		if (collection.value) refreshTableData();
-		collection.value;
-		filters;
-		sorting;
-		currentPage;
+		if (currentCollection) refreshTableData();
 	});
 
 	// Trigger refreshTableData when contentLanguage changes, but don't fetch data
@@ -300,22 +300,31 @@ Features:
 
 	// Reset currentPage to 1 when the collection changes
 	$effect(() => {
-		currentPage = 1;
-		collection.value;
+		if (currentCollection) {
+			currentPage = 1;
+		}
+	});
+
+	// Reset collectionValue when mode changes
+	$effect(() => {
+		if (currentMode === 'view') {
+			meta_data.clear();
+			collectionValue.set({});
+		}
 	});
 
 	// Tick All Rows
 	function process_selectAll(selectAll: boolean) {
 		if (selectAll) {
 			// Iterate only over visible entries
-			for (const item in tableData) {
-				selectedMap[item] = true;
-			}
+			tableData.forEach((entry) => {
+				selectedMap[entry.id] = true;
+			});
 		} else {
 			// Clear all selections
-			for (const item in selectedMap) {
-				selectedMap[item] = false;
-			}
+			Object.keys(selectedMap).forEach((key) => {
+				selectedMap[key] = false;
+			});
 		}
 	}
 
@@ -327,20 +336,6 @@ Features:
 	// Update Tick Single Row
 	$effect(() => {
 		Object.values(selectedMap).includes(true) ? mode.set('modify') : mode.set('view');
-	});
-
-	// Reset collectionValue when mode changes
-	// mode.subscribe(() => {
-	// 	meta_data.clear();
-	// 	if (mode.value == 'view') {
-	// 		collectionValue.set({});
-	// 	}
-	// });
-	$effect(() => {
-		meta_data.clear();
-		if (mode.value == 'view') {
-			collectionValue.set({});
-		}
 	});
 
 	// Tick Row - modify STATUS of an Entry
@@ -371,13 +366,13 @@ Features:
 				switch (status) {
 					case 'deleted':
 						// If the status is 'deleted', call the delete endpoint
-						await deleteData({ data: formData, collectionTypes: collection.value?.name as any });
+						await deleteData({ data: formData, collectionTypes: currentCollection?.name as any });
 						break;
 					case 'published':
 					case 'unpublished':
 					case 'testing':
 						// If the status is 'testing', call the publish endpoint
-						await setStatus({ data: formData, collectionTypes: collection.value?.name as any });
+						await setStatus({ data: formData, collectionTypes: currentCollection?.name as any });
 						break;
 					case 'cloned':
 					case 'scheduled':
@@ -422,7 +417,7 @@ Features:
 	});
 
 	let categoryName = $derived.by(() => {
-		if (!collection.value?.name || !categories.value) return '';
+		if (!currentCollection?.name || !categories.value) return '';
 
 		// Helper function to find parent category name
 		const findParentCategory = (categories: Record<string, CategoryData>): string => {
@@ -434,14 +429,14 @@ Features:
 					// Check each subcategory
 					for (const [subName, subCat] of Object.entries(rootCategory.subcategories)) {
 						// Case 1: Direct collection in subcategories (like Media, Names)
-						if (subCat.isCollection && subName === collection.value.name) {
+						if (subCat.isCollection && subName === currentCollection.name) {
 							return rootCategory.name;
 						}
 
 						// Case 2: Collection in nested subcategories (like Posts/Posts)
 						if (!subCat.isCollection && subCat.subcategories) {
 							for (const [nestedName, nestedCat] of Object.entries(subCat.subcategories)) {
-								if (nestedCat.isCollection && nestedName === collection.value.name) {
+								if (nestedCat.isCollection && nestedName === currentCollection.name) {
 									// Return the immediate parent name (e.g. "Posts" for Posts/Posts)
 									return subCat.name;
 								}
@@ -472,7 +467,7 @@ Features:
 				<button
 					type="button"
 					onkeydown={() => {}}
-					onclick={() => toggleSidebar('left', get(screenSize) === 'lg' ? 'full' : 'collapsed')}
+					onclick={() => toggleSidebar('left', currentScreenSize === 'lg' ? 'full' : 'collapsed')}
 					aria-label="Open Sidebar"
 					class="variant-ghost-surface btn-icon mt-1"
 				>
@@ -488,13 +483,13 @@ Features:
 					</div>
 				{/if}
 				<div class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl">
-					{#if collection.value?.icon}<span>
-							<iconify-icon icon={collection.value.icon} width="24" class="mr-1 text-error-500 sm:mr-2"></iconify-icon></span
+					{#if currentCollection?.icon}<span>
+							<iconify-icon icon={currentCollection.icon} width="24" class="mr-1 text-error-500 sm:mr-2"></iconify-icon></span
 						>
 					{/if}
-					{#if collection.value?.name}
+					{#if currentCollection?.name}
 						<div class="flex max-w-[65px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
-							{collection.value.name}
+							{currentCollection.name}
 						</div>
 					{/if}
 				</div>
@@ -513,14 +508,15 @@ Features:
 				<iconify-icon icon="material-symbols:filter-list-rounded" width="30"> </iconify-icon>
 			</button>
 
-			<!-- Content Language -->
+			<!-- Translation Content Language -->
 			<div class="mt-1 sm:hidden">
 				<TranslationStatus />
 			</div>
 
-			<!-- Table Filter -->
+			<!-- Table Filter with Translation Content Language -->
 			<div class="relative mt-1 hidden items-center justify-center gap-2 sm:flex">
 				<TableFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density />
+
 				<TranslationStatus />
 			</div>
 			<!-- MultiButton -->
@@ -577,7 +573,7 @@ Features:
 
 								// Reset the entryListPaginationSettings to the default state
 								entryListPaginationSettings = {
-									collectionTypes: collection.value?.name,
+									collectionTypes: currentCollection?.name,
 									density: 'normal',
 									sorting: { sortedBy: '', isSorted: 0 },
 									currentPage: 1,
@@ -685,7 +681,15 @@ Features:
 					{/if}
 
 					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-						<TableIcons bind:checked={SelectAll} iconStatus="all" />
+						<TableIcons 
+							checked={SelectAll}
+							onCheck={(checked) => {
+								SelectAll = checked;
+								for (const key in selectedMap) {
+									selectedMap[key] = checked;
+								}
+							}}
+						/>
 
 						{#each tableHeaders as header}
 							<th
@@ -733,7 +737,12 @@ Features:
 				<tbody>
 					{#each tableData as row, index}
 						<tr class="divide-x divide-surface-400">
-							<TableIcons iconStatus={data?.entryList[index]?.status} bind:checked={selectedMap[index]} />
+							<TableIcons 
+								checked={selectedMap[index] || false}
+								onCheck={(checked) => {
+									selectedMap[index] = checked;
+								}}
+							/>
 
 							{#each tableHeaders as header}
 								<td
@@ -765,13 +774,13 @@ Features:
 				{currentPage}
 				{pagesCount}
 				{rowsPerPage}
-				{rowsPerPageOptions}
+				rowsPerPageOptions={[5, 10, 25, 50, 100, 500]}
 				{totalItems}
-				onUpdatePage={(page: number) => {
+				onUpdatePage={(page) => {
 					currentPage = page;
 					refreshTableData(true);
 				}}
-				onUpdateRowsPerPage={(rows: number) => {
+				onUpdateRowsPerPage={(rows) => {
 					rowsPerPage = rows;
 					currentPage = 1;
 					refreshTableData(true);
@@ -783,7 +792,7 @@ Features:
 		<div class="text-center text-tertiary-500 dark:text-primary-500">
 			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2"></iconify-icon>
 			<p class="text-lg">
-				No {collection.value?.name} Data
+				No {currentCollection?.name} Data
 			</p>
 		</div>
 	{/if}

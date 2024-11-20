@@ -11,6 +11,7 @@
 - `selectedMediaType: string`: The currently selected media type.
 - `mediaTypes: { value: string; icon: string }[]`: An array of media type options.
 -->
+
 <script lang="ts">
 	export let globalSearchValue: string;
 	export let selectedMediaType: string;
@@ -38,11 +39,9 @@
 			<select id="mediaType" bind:value={selectedMediaType} class="input">
 				{#each mediaTypes as type}
 					<option value={type.value}>
-						<!-- <p class="flex items-center gap-2">
-							<iconify-icon icon={type.icon} width="24" class="text-primary-500"> </iconify-icon>
+						<iconify-icon icon={type.icon} width="24" class="text-primary-500">
 							<span class="uppercase">{type.value}</span>
-						</p> -->
-						<iconify-icon icon={type.icon} width="24" class="text-primary-500"><span class="uppercase">{type.value}</span> </iconify-icon>
+						</iconify-icon>
 					</option>
 				{/each}
 			</select>

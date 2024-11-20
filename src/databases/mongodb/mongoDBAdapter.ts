@@ -26,7 +26,6 @@
 
 import { privateEnv } from '@root/config/private';
 
-
 // Stores
 import type { Unsubscriber } from 'svelte/store';
 import type { ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
@@ -49,6 +48,7 @@ import { logger } from '@utils/logger';
 
 // Media
 import type { MediaBase, MediaType } from '@utils/media/mediaModels';
+import { MediaTypeEnum } from '@utils/media/mediaModels';
 
 // Theme
 import { DEFAULT_THEME } from '@src/databases/themeManager';
@@ -112,14 +112,14 @@ const ThemeModel =
 	mongoose.model<Theme>(
 		'Theme',
 		new Schema(
-			{
+	{
 				name: { type: String, required: true, unique: true }, // Name of the theme
 				path: { type: String, required: true }, // Path to the theme file
 				isDefault: { type: Boolean, default: false } // Whether the theme is the default theme
-			},
-			{ timestamps: false, collection: 'system_themes' }
+	},
+			{ timestamps: true, collection: 'system_themes' }
 		)
-	);
+);
 
 // Create the Widget model if it doesn't exist already
 const WidgetModel =
@@ -158,7 +158,7 @@ const SystemVirtualFolderModel =
 		new Schema(
 			{
 				name: { type: String, required: true },
-				parent: { type: String, ref: 'SystemVirtualFolder', default: null }, // Allow null for root folders
+				parent: { type: Schema.Types.ObjectId, ref: 'SystemVirtualFolder', default: null }, // Allow null for root folders
 				path: { type: String, required: true }
 			},
 			{ collection: 'system_virtualfolders' } // Explicitly set the collection name to system_virtualfolders
@@ -281,8 +281,8 @@ export class MongoDBAdapter implements dbInterface {
 						// Determine field type based on widget type
 						const fieldType = this.mapFieldType(field.type || 'string');
 
-						// Check if the config has a required property, default to false
-						const isRequired = field.config?.required === true;
+						// Check for required property directly on the field
+						const isRequired = field.required === true;
 
 						// Explicitly type the field definition
 						schemaDefinition[fieldKey] = {
@@ -983,7 +983,7 @@ export class MongoDBAdapter implements dbInterface {
 	// Get contents of a virtual folder
 	async getVirtualFolderContents(folderId: string): Promise<any[]> {
 		try {
-			const objectId = this.convertId(folderId);
+					const objectId = this.convertId(folderId);
 			const folder = await SystemVirtualFolderModel.findById(objectId);
 			if (!folder) throw Error('Folder not found');
 

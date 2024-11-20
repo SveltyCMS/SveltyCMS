@@ -9,28 +9,29 @@
 @props
 - `checked` {boolean}: The checked state of the icon
 - `iconStatus` {string}: The status of the icon
+- `onCheck` {(checked: boolean) => void}: Callback function for check event
 -->
 
 <script lang="ts">
 	// Stores
 	import { storeListboxValue } from '@stores/store';
 
-	// Use let instead of const to allow modification of checked
-	let { checked = $bindable(false), iconStatus } = $props<{
+	// Props declaration using proper Svelte 5 syntax
+	let {
+		checked = false,
+		iconStatus,
+		onCheck = (checked: boolean) => {}
+	} = $props<{
 		checked?: boolean;
 		iconStatus?: string;
+		onCheck?: (checked: boolean) => void;
 	}>();
 
 	// Function to handle icon click and emit custom events
 	function handleIconClick(event: Event) {
 		event.stopPropagation();
 		checked = !checked;
-		// Dispatch a custom event based on the new checked state
-		const customEvent = new CustomEvent(checked ? 'checked' : 'unchecked', {
-			detail: { checked },
-			bubbles: true
-		});
-		dispatchEvent(customEvent);
+		onCheck(checked);
 	}
 
 	// Handle Enter or Space key presses for accessibility

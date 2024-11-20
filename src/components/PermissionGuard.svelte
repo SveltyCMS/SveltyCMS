@@ -24,6 +24,7 @@ Features:
 	import { page } from '$app/stores';
 	import type { PermissionConfig } from '@src/auth/permissionCheck';
 	import type { User } from '@src/auth/types'; // Assuming these types exist
+	import { store } from '@src/utils/reactivity.svelte';
 
 	interface Props {
 		// Prop to receive permission configuration
@@ -43,18 +44,20 @@ Features:
 		children
 	}: Props = $props();
 
+	// Create reactive stores
+	const loading = store(false);
 	// Reactive variables from page store with type assertions
 	let user = $derived($page.data.user as User | undefined);
 	let permissions = $derived(($page.data.permissions || {}) as Permissions);
 
-	// Computed values
+	// Computed values with stores
 	let permissionData = $derived(config?.contextId ? permissions[config.contextId] || {} : {});
 	let isAdmin = $derived(user?.role?.toLowerCase() === 'admin');
 	let hasPermission = $derived(isAdmin || permissionData.hasPermission || false);
 	let isRateLimited = $derived(permissionData.isRateLimited || false);
 
 	// Function to determine if content should be shown
-	let shouldShowContent = $derived(config && hasPermission && !isRateLimited);
+	let shouldShowContent = $derived(config && hasPermission && !isRateLimited && !loading());
 
 	// Debugging function (can be enabled in development)
 	// function logDebugInfo() {

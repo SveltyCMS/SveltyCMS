@@ -9,7 +9,6 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import type { Schema } from '@src/collections/types';
 
@@ -23,16 +22,15 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	import EntryList from '@components/EntryList.svelte';
 	import MediaGallery from '@src/routes/(app)/mediagallery/+page.svelte';
 
-	type ViewMode = 'view' | 'modify' | 'edit' | 'create' | 'media';
-
-	// State variables
-	let forwardBackward = $state(false); // Track if using browser history
-	let initialLoadComplete = $state(false); // Track initial load
+	// State variables using Svelte 5 runes
+	let forwardBackward = $state(false);
+	let initialLoadComplete = $state(false);
 	let navigationError = $state<string | null>(null);
-	let lastCollectionValue = $state<any>(null); // Track last collection value for debug
+	let currentCollectionName = $state<string | undefined>(undefined);
+	let currentLanguage = $state<string | undefined>(undefined);
 
-	// Handle collection initialization and navigation
-	$effect(() => {
+	// Initialize collection
+	function initializeCollection() {
 		if (!collections.value || !$page.params.collection) return;
 
 		const selectedCollection = collections.value[$page.params.collection];
@@ -40,53 +38,67 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 			collection.set(selectedCollection as Schema);
 			initialLoadComplete = true;
 			navigationError = null;
+			currentCollectionName = selectedCollection.name?.toString();
+			currentLanguage = contentLanguage.value;
 		} else if (initialLoadComplete) {
 			navigationError = `Collection not found: ${$page.params.collection}`;
 			console.error(navigationError);
 			goto('/404');
 		}
+	}
+
+	// Handle browser events with cleanup
+	$effect(() => {
+		if (!browser) return;
+
+		window.addEventListener('popstate', handlePopState);
+		initializeCollection();
+
+		return () => {
+			window.removeEventListener('popstate', handlePopState);
+		};
 	});
 
-	// Handle collection changes and navigation
+	// Handle collection changes
 	$effect(() => {
-		if (!collection?.value.name) return;
+		if (!initialLoadComplete || !collection?.value?.name) return;
 
-		try {
-			if (!forwardBackward) {
-				forwardBackward = true;
-				goto(`/${contentLanguage.value}/${collection.value.name?.toString()}`);
-			}
-		} catch (error) {
-			navigationError = error instanceof Error ? error.message : 'Navigation error occurred';
-			console.error('Navigation error:', error);
-		} 
+		const newCollectionName = collection.value.name.toString();
+		if (newCollectionName === currentCollectionName) return;
+
+		currentCollectionName = newCollectionName;
+		if (!forwardBackward) {
+			forwardBackward = true;
+			goto(`/${contentLanguage.value}/${newCollectionName}`).then(() => {
+				forwardBackward = false;
+			});
+		}
 	});
 
 	// Handle language changes
 	$effect(() => {
-		if (forwardBackward || !initialLoadComplete) return;
+		if (!initialLoadComplete || !collection?.value?.name) return;
 
-		try {
-			if (collection.value.name) {
-				goto(`/${contentLanguage.value}/${collection.value.name?.toString()}`);
-			} else {
-				navigationError = 'Collection or collection name is undefined after language change.';
-				console.error(navigationError);
-				goto('/404');
-			}
-		} catch (error) {
-			navigationError = error instanceof Error ? error.message : 'Language change error occurred';
-			console.error('Language change error:', error);
-		}
+		const newLanguage = contentLanguage.value;
+		if (newLanguage === currentLanguage) return;
+
+		currentLanguage = newLanguage;
+		goto(`/${newLanguage}/${collection.value.name.toString()}`);
 	});
-	const title =  $derived(`${collection.value?.name?.toString() || 'Loading...'} - Your Site Title`);
-	const description = `View and manage entries for ${collection?.value.name?.toString() || '...'}.`;
+
+	// Handle browser history navigation
+	function handlePopState() {
+		forwardBackward = true;
+		initializeCollection();
+	}
 
 	// Update SEO metadata
 	$effect(() => {
-		if (!browser) return;
+		if (!browser || !collection?.value?.name) return;
 
-		
+		const title = `${collection.value.name.toString()} - Your Site Title`;
+		const description = `View and manage entries for ${collection.value.name.toString()}.`;
+
 		document.title = title;
 
 		const metaDescription = document.querySelector('meta[name="description"]');
@@ -99,56 +111,6 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 			document.head.appendChild(meta);
 		}
 	});
-
-	// Debug logging for collection value changes with debounce
-	let debugLogTimeout: number | undefined;
-	$effect(() => {
-		if (!import.meta.env.DEV) return;
-
-		// Only log if value has actually changed
-		if (JSON.stringify(lastCollectionValue) === JSON.stringify(collectionValue.value)) return;
-
-		// Clear any existing timeout
-		if (debugLogTimeout) {
-			clearTimeout(debugLogTimeout);
-		}
-
-		// Set a new timeout
-		debugLogTimeout = window.setTimeout(() => {
-			lastCollectionValue = Object.assign({}, collectionValue.value);
-		}, 100); // 100ms debounce
-	});
-
-	// Handle browser history navigation
-	function handlePopState() {
-		forwardBackward = true;
-		const selectedCollection = collections.value[$page.params.collection];
-		if (selectedCollection) {
-			collection.set(selectedCollection as Schema);
-			navigationError = null;
-		} else {
-			navigationError = `Collection not found during browser navigation: ${$page.params.collection}`;
-			console.error(navigationError);
-			goto('/404');
-		}
-	}
-
-	onMount(() => {
-		if (browser) {
-			window.addEventListener('popstate', handlePopState);
-		}
-	});
-
-	onDestroy(() => {
-		if (browser) {
-			window.removeEventListener('popstate', handlePopState);
-		}
-		if (debugLogTimeout) {
-			clearTimeout(debugLogTimeout);
-		}
-	});
-
-	console.debug("Colelction value", collection.value);
 </script>
 
 <div class="content h-full">

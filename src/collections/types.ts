@@ -36,13 +36,10 @@ export const CollectionRegistry = {
     categories: 'categories'
 } as const;
 
-// Define the collection types from the registry
-
-
 // Define the base Schema interface
 export interface Schema {
-	id: number; // Unique ID for collections
-	name: CollectionTypes | string; // Collection name can be from registry or dynamic
+	id: number;
+	name?: CollectionTypes | string; // Collection name can be from registry or dynamic
 	label?: string; // Optional label that will display instead of name if used
 	slug?: string; // Optional Slug for the collection
 	icon?: string; // Optional icon

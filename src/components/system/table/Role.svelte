@@ -12,30 +12,49 @@
 <script lang="ts">
 	// Auth
 	import { getLoadedRoles } from '@src/auth/types';
-	let roles = $state(getLoadedRoles() || []);
+	import { roles as configRoles } from '@root/config/roles';
+
+	let roles = $state(getLoadedRoles() || configRoles);
 
 	// Ensure roles is an array
 	let { value } = $props<{ value: string }>();
 
+	// Initialize roles from config if not loaded
+	$effect(() => {
+		const loadedRoles = getLoadedRoles();
+		if (!loadedRoles || loadedRoles.length === 0) {
+			roles = configRoles;
+		} else {
+			roles = loadedRoles;
+		}
+	});
+
 	// Determine if the roles array is defined and has the required elements
 	const roleClasses = (roleId: string) => {
 		const role = roles.find((r) => r._id === roleId);
-		if (!role) return 'text-white';
-		// Default class if role not found
+		if (!role) {
+			const defaultRole = configRoles.find((r) => r._id === 'user');
+			return defaultRole?.color || 'text-white';
+		}
 		return role.color || 'text-white';
-		// Use color defined in the role
 	};
+
 	const iconForRole = (roleId: string) => {
 		const role = roles.find((r) => r._id === roleId);
-		if (!role) return '';
-		// Return empty if role not found
-		return role.icon || '';
-		// Use icon defined in the role
+		if (!role) {
+			const defaultRole = configRoles.find((r) => r._id === 'user');
+			return defaultRole?.icon || 'material-symbols:person';
+		}
+		return role.icon || 'material-symbols:person';
 	};
+
 	const roleName = (roleId: string) => {
 		const role = roles.find((r) => r._id === roleId);
-		if (!role) return 'Unknown';
-		return role.name || 'Unknown';
+		if (!role) {
+			const defaultRole = configRoles.find((r) => r._id === 'user');
+			return defaultRole?.name || 'User';
+		}
+		return role.name || 'User';
 	};
 </script>
 

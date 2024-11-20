@@ -27,13 +27,13 @@
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 
 	// Types
-	interface AdminUser {
+	interface UserData {
 		_id: string;
+		username: string;
+		email: string;
+		role: string;
 		blocked: boolean;
 		avatar?: string;
-		email: string;
-		username: string;
-		role: string;
 		activeSessions: number;
 		lastAccess: Date;
 		createdAt: Date;
@@ -41,10 +41,12 @@
 		[key: string]: any;
 	}
 
-	interface AdminToken {
+	interface TokenData {
 		token: string;
-		blocked: boolean;
 		email: string;
+		role: string;
+		user_id: string;
+		blocked: boolean;
 		expires: Date;
 		createdAt: Date;
 		updatedAt: Date;
@@ -52,8 +54,8 @@
 	}
 
 	interface AdminData {
-		users: AdminUser[];
-		tokens: AdminToken[];
+		users: UserData[];
+		tokens: TokenData[];
 	}
 
 	interface TableHeader {
@@ -88,8 +90,9 @@
 	let columnShow = $state(false);
 	let SelectAll = $state(false);
 	let selectedMap = $state<Record<number, boolean>>({});
-	let tableData = $state<(AdminUser | AdminToken)[]>([]);
-	let filteredTableData = $state<(AdminUser | AdminToken)[]>([]);
+	let tableData = $state<(UserData | TokenData)[]>([]);
+	let filteredTableData = $state<(UserData | TokenData)[]>([]);
+	let selectedRows = $state<SelectedRow[]>([]);
 	let density = $state(
 		localStorage.getItem('userPaginationSettings') ? JSON.parse(localStorage.getItem('userPaginationSettings') as string).density : 'normal'
 	);
@@ -99,14 +102,18 @@
 	let rowsPerPage = $state(10);
 	let filters = $state<{ [key: string]: string }>({});
 
-	// Derived values
-	let selectedRows = $derived(() => {
-		return Object.entries(selectedMap)
+	$effect(() => {
+		selectedRows = Object.entries(selectedMap)
 			.filter(([_, isSelected]) => isSelected)
 			.map(([index]) => ({
 				data: filteredTableData[parseInt(index)]
 			}));
 	});
+
+	// Derived values
+	interface SelectedRow {
+		data: UserData | TokenData;
+	}
 
 	let displayTableHeaders = $state<TableHeader[]>(
 		localStorage.getItem('userPaginationSettings') &&
@@ -134,7 +141,7 @@
 
 	function modalTokenUser(): void {
 		const modalComponent: ModalComponent = {
-			ref: ModalTokenUser,
+			ref: ModalEditToken,
 			slot: '<p>Edit Form</p>'
 		};
 		const d: ModalSettings = {
@@ -152,6 +159,7 @@
 	// Svelte-dnd-action
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
+	import ModalEditToken from './ModalEditToken.svelte';
 
 	const flipDurationMs = 300;
 
@@ -215,115 +223,53 @@
 		return 'Invalid Date';
 	}
 
-	async function refreshTableData() {
-		if (loadingTimer) clearTimeout(loadingTimer);
+	// Refresh table data with current filters and sorting
+	function refreshTableData() {
+		// Apply filters and sorting to tableData
+		let filtered = [...tableData];
 
-		if (showUserList || showUsertoken) {
-			loadingTimer = setTimeout(() => {
-				isLoading = true;
-			}, 400);
-
-			if (adminData) {
-				const newTableData = showUserList ? adminData.users : adminData.tokens;
-				tableData = newTableData;
-			}
-
-			const currentTableHeaders = showUserList ? tableHeadersUser : tableHeaderToken;
-
-			const formattedTableData = tableData.map((item, index) => {
-				const formattedItem: { [key: string]: any } = {};
-				for (const header of currentTableHeaders) {
-					const { key } = header;
-					if (key === 'avatar') {
-						formattedItem[key] = item[key] || '/Default_User.svg';
-					} else if (['createdAt', 'updatedAt', 'lastAccess'].includes(key)) {
-						formattedItem[key] = formatDate(item[key]);
-					} else if (key === 'expiresIn') {
-						formattedItem[key] = formatDate(item.expires);
-					} else if (key === 'role') {
-						if (index === 0) {
-							formattedItem[key] = 'admin';
-						} else {
-							formattedItem[key] = item[key] || 'user';
-						}
-					} else {
-						formattedItem[key] = item[key] ?? 'NO DATA';
-					}
-				}
-				return formattedItem as AdminUser | AdminToken;
-			});
-
-			tableData = formattedTableData;
-			filters = {};
-
-			if (displayTableHeaders.length === 0 && tableData.length > 0) {
-				displayTableHeaders = Object.keys(tableData[0]).map((key) => ({
-					label: key,
-					name: key,
-					visible: true,
-					id: crypto.randomUUID()
-				}));
-			}
-
-			SelectAll = false;
-			selectedMap = {};
-
-			const totalRows = tableData.length;
-			pagesCount = Math.ceil(totalRows / rowsPerPage);
-
-			if (currentPage > pagesCount) {
-				currentPage = 1;
-			}
-
-			const startIndex = (currentPage - 1) * rowsPerPage;
-			const endIndex = startIndex + rowsPerPage;
-			const paginatedData = tableData.slice(startIndex, endIndex);
-			tableData = paginatedData;
-			filteredTableData = [...paginatedData];
-
-			isLoading = false;
-			if (loadingTimer) clearTimeout(loadingTimer);
-		} else {
-			tableData = [];
-			filteredTableData = [];
+		// Apply global search if value exists
+		if (globalSearchValue) {
+			filtered = filtered.filter((row) => Object.values(row).some((value) => String(value).toLowerCase().includes(globalSearchValue.toLowerCase())));
 		}
+
+		// Apply column filters
+		Object.entries(filters).forEach(([key, value]) => {
+			if (value) {
+				filtered = filtered.filter((row) => String(row[key]).toLowerCase().includes(value.toLowerCase()));
+			}
+		});
+
+		// Apply sorting
+		if (sorting.sortedBy && sorting.isSorted !== 0) {
+			filtered.sort((a, b) => {
+				const aValue = String(a[sorting.sortedBy]).toLowerCase();
+				const bValue = String(b[sorting.sortedBy]).toLowerCase();
+				return sorting.isSorted === 1 ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+			});
+		}
+
+		// Update filtered data and calculate pages
+		filteredTableData = filtered;
+		pagesCount = Math.ceil(filtered.length / rowsPerPage);
+		currentPage = Math.min(currentPage, pagesCount);
 	}
 
-	// Effects
+	// Initialize table data when adminData changes
 	$effect(() => {
-		const settings = {
-			filters,
-			sorting,
-			density,
-			currentPage,
-			rowsPerPage,
-			displayTableHeaders
-		};
-		localStorage.setItem('userPaginationSettings', JSON.stringify(settings));
-	});
-
-	$effect(() => {
-		const newFilteredData = tableData.filter((item) => {
-			return Object.entries(item).some(([key, value]) => {
-				if (filters[key]) {
-					return String(value).toLowerCase().includes(filters[key].toLowerCase());
-				}
-				return true;
-			});
-		});
-		filteredTableData = newFilteredData;
-	});
-
-	$effect(() => {
-		if (SelectAll) {
-			const newSelectedMap: Record<number, boolean> = {};
-			filteredTableData.forEach((_, index) => {
-				newSelectedMap[index] = true;
-			});
-			selectedMap = newSelectedMap;
-		} else {
-			selectedMap = {};
+		if (adminData) {
+			if (showUserList) {
+				tableData = adminData.users;
+			} else if (showUsertoken) {
+				tableData = adminData.tokens;
+			}
+			refreshTableData();
 		}
+	});
+
+	// Refresh table data when filters change
+	$effect(() => {
+		refreshTableData();
 	});
 
 	function handleCheckboxChange() {
@@ -335,8 +281,7 @@
 		selectAllColumns = !allColumnsVisible;
 	}
 
-	function handleInputChange(e: Event, headerKey: string) {
-		const value = asAny(e.target).value;
+	function handleInputChange(value: string, headerKey: string) {
 		if (value) {
 			waitFilter(() => {
 				filters = { ...filters, [headerKey]: value };
@@ -366,36 +311,34 @@
 		{m.adminarea_adminarea()}
 	</p>
 
-	<PermissionGuard config={manageUsersPermissionConfig}>
-		<div class="flex flex-col flex-wrap items-center justify-evenly gap-2 sm:flex-row xl:justify-between">
-			<button onclick={modalTokenUser} aria-label={m.adminarea_emailtoken()} class="gradient-primary btn w-full text-white sm:max-w-xs">
-				<iconify-icon icon="material-symbols:mail" color="white" width="18" class="mr-1"></iconify-icon>
-				<span class="whitespace-normal break-words">{m.adminarea_emailtoken()}</span>
-			</button>
+	<div class="flex flex-col flex-wrap items-center justify-evenly gap-2 sm:flex-row xl:justify-between">
+		<button onclick={modalTokenUser} aria-label={m.adminarea_emailtoken()} class="gradient-primary btn w-full text-white sm:max-w-xs">
+			<iconify-icon icon="material-symbols:mail" color="white" width="18" class="mr-1"></iconify-icon>
+			<span class="whitespace-normal break-words">{m.adminarea_emailtoken()}</span>
+		</button>
 
-			<PermissionGuard
-				config={{ contextId: 'user:manage', name: 'Manage User Tokens', action: PermissionAction.MANAGE, contextType: PermissionType.USER }}
-			>
-				<button
-					onclick={toggleUserToken}
-					aria-label={showUsertoken ? m.adminarea_hideusertoken() : m.adminarea_showtoken()}
-					class="gradient-secondary btn w-full text-white sm:max-w-xs"
-				>
-					<iconify-icon icon="material-symbols:key-outline" color="white" width="18" class="mr-1"></iconify-icon>
-					<span>{showUsertoken ? m.adminarea_hideusertoken() : m.adminarea_showtoken()}</span>
-				</button>
-			</PermissionGuard>
-
+		<PermissionGuard
+			config={{ contextId: 'user:manage', name: 'Manage User Tokens', action: PermissionAction.MANAGE, contextType: PermissionType.USER }}
+		>
 			<button
-				onclick={toggleUserList}
-				aria-label={showUserList ? m.adminarea_hideuserlist() : m.adminarea_showuserlist()}
-				class="gradient-tertiary btn w-full text-white sm:max-w-xs"
+				onclick={toggleUserToken}
+				aria-label={showUsertoken ? m.adminarea_hideusertoken() : m.adminarea_showtoken()}
+				class="gradient-secondary btn w-full text-white sm:max-w-xs"
 			>
-				<iconify-icon icon="mdi:account-circle" color="white" width="18" class="mr-1"></iconify-icon>
-				<span>{showUserList ? m.adminarea_hideuserlist() : m.adminarea_showuserlist()}</span>
+				<iconify-icon icon="material-symbols:key-outline" color="white" width="18" class="mr-1"></iconify-icon>
+				<span>{showUsertoken ? m.adminarea_hideusertoken() : m.adminarea_showtoken()}</span>
 			</button>
-		</div>
-	</PermissionGuard>
+		</PermissionGuard>
+
+		<button
+			onclick={toggleUserList}
+			aria-label={showUserList ? m.adminarea_hideuserlist() : m.adminarea_showuserlist()}
+			class="gradient-tertiary btn w-full text-white sm:max-w-xs"
+		>
+			<iconify-icon icon="mdi:account-circle" color="white" width="18" class="mr-1"></iconify-icon>
+			<span>{showUserList ? m.adminarea_hideuserlist() : m.adminarea_showuserlist()}</span>
+		</button>
+	</div>
 
 	{#if isLoading}
 		<Loading />
@@ -491,7 +434,7 @@
 												icon="material-symbols:search-rounded"
 												label={m.entrylist_filter()}
 												name={header.key}
-												oninput={(e) => handleInputChange(e, header.key)}
+												onInput={(value) => handleInputChange(value, header.key)}
 											/>
 										</div>
 									</th>
@@ -500,7 +443,15 @@
 						{/if}
 
 						<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-							<TableIcons bind:checked={SelectAll} iconStatus="all" />
+							<TableIcons
+								checked={SelectAll}
+								onCheck={(checked) => {
+									SelectAll = checked;
+									for (const key in selectedMap) {
+										selectedMap[key] = checked;
+									}
+								}}
+							/>
 
 							{#each showUserList ? tableHeadersUser : tableHeaderToken as header}
 								<th
@@ -530,7 +481,12 @@
 					<tbody>
 						{#each filteredTableData as row, index}
 							<tr class="divide-x divide-surface-400">
-								<TableIcons bind:checked={selectedMap[index]} iconStatus="single" />
+								<TableIcons
+									checked={selectedMap[index] || false}
+									onCheck={(checked) => {
+										selectedMap[index] = checked;
+									}}
+								/>
 								{#each showUserList ? tableHeadersUser : tableHeaderToken as header}
 									<td class="text-center">
 										{#if header.key === 'blocked'}
@@ -557,8 +513,16 @@
 					{pagesCount}
 					{rowsPerPage}
 					rowsPerPageOptions={[2, 10, 25, 50, 100, 500]}
-					on:updatePage={handlePageUpdate}
-					on:updateRowsPerPage={handleRowsPerPageUpdate}
+					totalItems={filteredTableData.length}
+					onUpdatePage={(page) => {
+						currentPage = page;
+						refreshTableData();
+					}}
+					onUpdateRowsPerPage={(rows) => {
+						rowsPerPage = rows;
+						currentPage = 1;
+						refreshTableData();
+					}}
 				/>
 			</div>
 		{:else}

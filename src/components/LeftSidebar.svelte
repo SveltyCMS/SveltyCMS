@@ -15,8 +15,6 @@
 </script>
 
 <script lang="ts">
-	import { run, stopPropagation } from 'svelte/legacy';
-
 	import { publicEnv } from '@root/config/public';
 	import { goto, invalidateAll } from '$app/navigation';
 	import axios from 'axios';
@@ -87,8 +85,36 @@
 	let searchQuery = $state('');
 	let isDropdownOpen = $state(false);
 	let searchInput: HTMLInputElement | undefined = $state();
+	let dropdownRef = $state<HTMLElement | null>(null);
 	let debounceTimeout: ReturnType<typeof setTimeout>;
 
+	// Computed values
+	const availableLanguages = $derived(
+		[...publicEnv.AVAILABLE_SYSTEM_LANGUAGES].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
+	);
+
+	const filteredLanguages = $derived(
+		availableLanguages.filter(
+			(lang: string) =>
+				getLanguageName(lang, systemLanguage.value).toLowerCase().includes(searchQuery.toLowerCase()) ||
+				getLanguageName(lang, 'en').toLowerCase().includes(searchQuery.toLowerCase())
+		) as AvailableLanguage[]
+	);
+
+	// Click outside effect
+	$effect(() => {
+		const handleClick = (event: MouseEvent) => {
+			if (dropdownRef && !dropdownRef.contains(event.target as Node)) {
+				isDropdownOpen = false;
+				searchQuery = '';
+			}
+		};
+
+		document.addEventListener('click', handleClick);
+		return () => document.removeEventListener('click', handleClick);
+	});
+
+	// Event handlers
 	function handleLanguageSelection(lang: AvailableLanguage) {
 		clearTimeout(debounceTimeout);
 		debounceTimeout = setTimeout(() => {
@@ -98,49 +124,6 @@
 			searchQuery = '';
 		}, 300);
 	}
-
-	// Sort languages alphabetically
-	let availableLanguages = $derived(
-		[...publicEnv.AVAILABLE_SYSTEM_LANGUAGES].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
-	);
-
-	let filteredLanguages = $derived(
-		availableLanguages.filter(
-			(lang: string) =>
-				getLanguageName(lang, systemLanguage.value).toLowerCase().includes(searchQuery.toLowerCase()) ||
-				getLanguageName(lang, 'en').toLowerCase().includes(searchQuery.toLowerCase())
-		) as AvailableLanguage[]
-	);
-
-	function handleClickOutside(event: MouseEvent) {
-		const target = event.target as HTMLElement;
-		if (!target.closest('.language-selector')) {
-			isDropdownOpen = false;
-			searchQuery = '';
-		}
-	}
-
-	run(() => {
-		if (typeof window !== 'undefined') {
-			if (isDropdownOpen) {
-				window.addEventListener('click', handleClickOutside);
-				setTimeout(() => searchInput?.focus(), 0);
-			} else {
-				window.removeEventListener('click', handleClickOutside);
-			}
-		}
-	});
-
-	let handleClick: any = $derived(() => {
-		if (!$page.url.href.includes('user')) {
-			mode.set('view');
-			handleSidebarToggle();
-			goto(`/user`);
-		}
-		if (get(screenSize) === 'sm') {
-			toggleSidebar('left', 'hidden'); // Hide the left sidebar on mobile
-		}
-	});
 
 	// SignOut function
 	async function signOut() {
@@ -255,13 +238,21 @@
 	<div class="mb-2 mt-auto bg-white dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900">
 		<div class="mx-1 mb-1 border-0 border-t border-surface-400"></div>
 
-		<div class="{sidebarState.sidebar.value.left === 'full' ? 'grid-cols-3 grid-rows-3' : 'grid-cols-2 grid-rows-2'} grid items-center justify-center">
+		<div
+			class="{sidebarState.sidebar.value.left === 'full' ? 'grid-cols-3 grid-rows-3' : 'grid-cols-2 grid-rows-2'} grid items-center justify-center"
+		>
 			<!-- Avatar with user settings -->
 			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-1 row-span-2' : 'order-1'}>
 				<button
 					use:popup={UserTooltip}
-					onclick={handleClick}
-					onkeypress={handleClick}
+					onclick={(e) => {
+						e.stopPropagation();
+					}}
+					onkeypress={(e) => {
+						e.stopPropagation();
+						if (e.key === 'Enter' || e.key === ' ') {
+						}
+					}}
 					class="btn-icon relative cursor-pointer flex-col items-center justify-center text-center !no-underline md:row-span-2"
 				>
 					<Avatar
@@ -290,13 +281,17 @@
 
 			<!-- Enhanced System Language Selector -->
 			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-3 row-span-2' : 'order-2'} use:popup={SystemLanguageTooltip}>
-				<div class="language-selector relative">
+				<div class="language-selector relative" bind:this={dropdownRef}>
 					{#if publicEnv.AVAILABLE_SYSTEM_LANGUAGES.length > 5}
 						<button
-							class="variant-filled-surface btn-icon flex items-center justify-between gap-2 uppercase text-white {sidebarState.sidebar.value.left === 'full'
+							class="variant-filled-surface btn-icon flex items-center justify-between uppercase text-white {sidebarState.sidebar.value.left ===
+							'full'
 								? 'px-2.5 py-2'
 								: 'px-1.5 py-0'}"
-							onclick={stopPropagation(() => (isDropdownOpen = !isDropdownOpen))}
+							onclick={(e) => {
+								e.stopPropagation();
+								isDropdownOpen = !isDropdownOpen;
+							}}
 						>
 							<span>{_languageTag}</span>
 							<svg class="h-4 w-4 transition-transform {isDropdownOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -352,7 +347,7 @@
 				</div>
 			</div>
 
-			<!-- light/dark mode switch -->
+			<!-- Light/Dark mode switch -->
 			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-2' : 'order-3'}>
 				<button use:popup={SwitchThemeTooltip} onclick={toggleTheme} aria-label="Toggle Theme" class="btn-icon hover:bg-surface-500 hover:text-white">
 					{#if !$modeCurrent}
@@ -449,7 +444,7 @@
 	/* Scrollbar styling */
 	.overflow-y-auto {
 		scrollbar-width: thin;
-		scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+		scrollbar-color: rgb(var(--color-surface-500)) transparent;
 	}
 
 	.overflow-y-auto::-webkit-scrollbar {
@@ -461,26 +456,8 @@
 	}
 
 	.overflow-y-auto::-webkit-scrollbar-thumb {
-		background-color: rgba(156, 163, 175, 0.5);
+		background-color: rgb(var(--color-surface-500));
 		border-radius: 3px;
-	}
-
-	/* Language dropdown scrollbar */
-	.language-selector .overflow-y-auto {
-		scrollbar-width: thin;
-		scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
-	}
-
-	.language-selector .overflow-y-auto::-webkit-scrollbar {
-		width: 4px;
-	}
-
-	.language-selector .overflow-y-auto::-webkit-scrollbar-track {
-		background: transparent;
-	}
-
-	.language-selector .overflow-y-auto::-webkit-scrollbar-thumb {
-		background-color: rgba(156, 163, 175, 0.5);
-		border-radius: 2px;
+		border: transparent;
 	}
 </style>

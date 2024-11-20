@@ -1,17 +1,12 @@
 /**
  * @file src/stores/sidebarStore.ts
  * @description Manages the sidebar and responsive layout states using Svelte stores
- *
- * This module provides functionality to:
- * - Define and manage sidebar states for different parts of the layout
- * - Handle responsive sidebar behavior based on screen width and application mode
- *
- * Key features:
- * - Responsive design handling with ScreenSize enum and screenSize store
- * - SidebarState interface defining states for various layout components
- * - Reactive stores for managing the current state of layout components
- * - Functions for toggling sidebar states and handling responsive behavior
- * - Integration with application mode for context-aware layout adjustments
+ * 
+ * Features:	
+ * - Sidebar state management with Svelte stores
+ * - Responsive layout updates based on screen size and collection mode
+ * - Lazy initialization and cleanup
+ * 
  */
 
 import { screenSize, ScreenSize } from './screenSizeStore.svelte';
@@ -31,122 +26,110 @@ export interface SidebarState {
 	footer: SidebarVisibility;
 }
 
-// Helper function to get default left state based on screen size
-function getDefaultLeftState(size: ScreenSize): SidebarVisibility {
-	if (size === ScreenSize.SM) {
-		return 'hidden';
-	} else if (size === ScreenSize.MD) {
-		return 'collapsed';
-	} else {
-		return 'full';
-	}
-}
-
 // Create base stores
 const createSidebarStores = () => {
 	let resizeObserver: ResizeObserver | null = null;
 	const initialSize = screenSize.value;
 
-	// Base stores
-	const sidebar = store<SidebarState>({
-		left: getDefaultLeftState(initialSize),
-		right: 'hidden',
-		pageheader: 'hidden',
-		pagefooter: 'hidden',
-		header: 'hidden',
-		footer: 'hidden'
-	});
+	// Memoized default state calculation
+	const getDefaultState = (size: ScreenSize, isViewMode: boolean): SidebarState => {
+		switch (size) {
+			case ScreenSize.SM:
+				return {
+					left: 'hidden',
+					right: 'hidden',
+					pageheader: isViewMode ? 'hidden' : 'full',
+					pagefooter: isViewMode ? 'hidden' : 'full',
+					header: 'hidden',
+					footer: 'hidden'
+				};
+			case ScreenSize.MD:
+				return {
+					left: isViewMode ? 'collapsed' : 'hidden',
+					right: 'hidden',
+					pageheader: isViewMode ? 'hidden' : 'full',
+					pagefooter: isViewMode ? 'hidden' : 'full',
+					header: 'hidden',
+					footer: 'hidden'
+				};
+			default:
+				return {
+					left: isViewMode ? 'full' : 'collapsed',
+					right: isViewMode ? 'hidden' : 'full',
+					pageheader: isViewMode ? 'hidden' : 'full',
+					pagefooter: isViewMode ? 'hidden' : 'full',
+					header: 'hidden',
+					footer: 'hidden'
+				};
+		}
+	};
 
+	// Base stores with initial states
+	const sidebar = store<SidebarState>(getDefaultState(initialSize, mode.value === 'view' || mode.value === 'media'));
 	const userPreferred = store<SidebarVisibility>('collapsed');
 	const isInitialized = store(false);
 
-	// Derived values
+	// Memoized visibility computations
+	const visibilityStores = {
+		left: store(() => sidebar.value.left !== 'hidden'),
+		right: store(() => sidebar.value.right !== 'hidden'),
+		header: store(() => sidebar.value.header !== 'hidden'),
+		footer: store(() => sidebar.value.footer !== 'hidden')
+	};
 
-	const isLeftVisible = $derived(() => sidebar.value.left !== 'hidden');
-	const isRightVisible = $derived(() => sidebar.value.right !== 'hidden');
-	const isHeaderVisible = $derived(() => sidebar.value.header !== 'hidden');
-	const isFooterVisible = $derived(() => sidebar.value.footer !== 'hidden');
+	// Batch update helper
+	const batchUpdate = (newState: Partial<SidebarState>) => {
+		sidebar.update(current => ({ ...current, ...newState }));
+	};
 
-
-	// Layout handlers
-	function handleMobileLayout(currentMode: string) {
-		const isViewMode = currentMode === 'view' || currentMode === 'media';
-		sidebar.set({
-			left: 'hidden',
-			right: 'hidden',
-			pageheader: isViewMode ? 'hidden' : 'full',
-			pagefooter: isViewMode ? 'hidden' : 'full',
-			header: 'hidden',
-			footer: 'hidden'
-		});
-	}
-
-	function handleTabletLayout(currentMode: string) {
-		const isViewMode = currentMode === 'view' || currentMode === 'media';
-		sidebar.set({
-			left: isViewMode ? 'collapsed' : 'hidden',
-			right: 'hidden',
-			pageheader: isViewMode ? 'hidden' : 'full',
-			pagefooter: isViewMode ? 'hidden' : 'full',
-			header: 'hidden',
-			footer: 'hidden'
-		});
-	}
-
-	function handleDesktopLayout(currentMode: string) {
-		const isViewMode = currentMode === 'view' || currentMode === 'media';
-		sidebar.set({
-			left: isViewMode ? 'full' : 'collapsed',
-			right: isViewMode ? 'hidden' : 'full',
-			pageheader: isViewMode ? 'hidden' : 'full',
-			pagefooter: 'hidden',
-			header: 'hidden',
-			footer: 'hidden'
-		});
-	}
-
-	// Handle sidebar toggle based on mode and screen size
-	function handleSidebarToggle() {
+	// Optimized layout handler
+	function updateLayout() {
 		const currentSize = screenSize.value;
-		const currentMode = mode.value;
-
-		if (currentSize === ScreenSize.SM) {
-			handleMobileLayout(currentMode);
-		} else if (currentSize === ScreenSize.MD) {
-			handleTabletLayout(currentMode);
-		} else {
-			handleDesktopLayout(currentMode);
-		}
+		const isViewMode = mode.value === 'view' || mode.value === 'media';
+		
+		// Batch update the entire state at once
+		sidebar.set(getDefaultState(currentSize, isViewMode));
 	}
 
-	// Toggle sidebar visibility
+	// Toggle sidebar visibility with batched updates
 	function toggleSidebar(side: keyof SidebarState, state: SidebarVisibility) {
-		sidebar.update(($sidebar) => ({
-			...$sidebar,
-			[side]: state
-		}));
+		batchUpdate({ [side]: state });
 	}
 
-	// Initialize sidebar manager
+	// Lazy initialization
+	let initPromise: Promise<void> | null = null;
 	function initialize() {
 		if (isInitialized.value || typeof window === 'undefined') {
-			return;
+			return Promise.resolve();
 		}
 
-		// Set up ResizeObserver for screen size changes
-		resizeObserver = new ResizeObserver(() => {
-			if (screenSize.value) {
-				handleSidebarToggle();
-			}
-		});
+		if (!initPromise) {
+			initPromise = new Promise<void>((resolve) => {
+				// Batch initial setup
+				const setup = () => {
+					if (resizeObserver) return;
 
-		// Observe document body for size changes
-		resizeObserver.observe(document.body);
+					resizeObserver = new ResizeObserver(() => {
+						if (screenSize.value) {
+							requestAnimationFrame(updateLayout);
+						}
+					});
 
-		// Initial toggle
-		handleSidebarToggle();
+					resizeObserver.observe(document.body);
+					updateLayout();
+					isInitialized.set(true);
+					resolve();
+				};
 
-		isInitialized.set(true);
+				if (document.readyState === 'loading') {
+					window.addEventListener('DOMContentLoaded', setup);
+				} else {
+					setup();
+				}
+			});
+		}
+
+		return initPromise;
 	}
 
 	// Cleanup method
@@ -155,6 +138,7 @@ const createSidebarStores = () => {
 			resizeObserver.disconnect();
 			resizeObserver = null;
 		}
+		initPromise = null;
 	}
 
 	return {
@@ -163,22 +147,22 @@ const createSidebarStores = () => {
 		userPreferred,
 		isInitialized,
 
-		// Derived values
-		isLeftVisible,
-		isRightVisible,
-		isHeaderVisible,
-		isFooterVisible,
+		// Visibility stores
+		isLeftVisible: visibilityStores.left,
+		isRightVisible: visibilityStores.right,
+		isHeaderVisible: visibilityStores.header,
+		isFooterVisible: visibilityStores.footer,
 
 		// Functions
 		toggleSidebar,
-		handleSidebarToggle,
+		updateLayout,
 		initialize,
 		destroy
 	};
 };
 
 // Create and export stores
-export const sidebarState =  createSidebarStores();
+export const sidebarState = createSidebarStores();
 
 // Export individual stores with their full store interface
 export const userPreferredState = {
@@ -187,11 +171,9 @@ export const userPreferredState = {
 	update: sidebarState.userPreferred.update
 };
 
-
-
 // Export functions
 export const toggleSidebar = sidebarState.toggleSidebar;
-export const handleSidebarToggle = sidebarState.handleSidebarToggle;
+export const handleSidebarToggle = sidebarState.updateLayout;
 
 // Initialize the sidebar manager
 if (typeof window !== 'undefined') {
