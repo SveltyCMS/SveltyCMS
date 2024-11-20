@@ -65,7 +65,10 @@ configPaths.forEach((path) => {
 });
 
 // Initial compilation of collections
-await compile({ collectionsFolderJS, collectionsFolderTS });
+await compile({ 
+    systemCollectionsPath: collectionsFolderTS,
+    userCollectionsPath: collectionsFolderJS 
+});
 
 export default defineConfig({
 	plugins: [
@@ -78,7 +81,10 @@ export default defineConfig({
 					console.log('Collection file changed:', file);
 					try {
 						// Compile the changed collection
-						await compile({ collectionsFolderJS, collectionsFolderTS });
+						await compile({ 
+                            systemCollectionsPath: collectionsFolderTS,
+                            userCollectionsPath: collectionsFolderJS 
+                        });
 
 						// Generate updated types
 						await generateCollectionTypes();
