@@ -59,6 +59,7 @@ Features:
 	// Svelte-dnd-action
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
+	import { untrack } from "svelte";
 
 	const flipDurationMs = 300;
 
@@ -308,8 +309,11 @@ Features:
 	// Reset collectionValue when mode changes
 	$effect(() => {
 		if (currentMode === 'view') {
-			meta_data.clear();
-			collectionValue.set({});
+			untrack(() => {
+				meta_data.clear();
+				collectionValue.set({});
+			});
+
 		}
 	});
 
