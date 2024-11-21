@@ -19,8 +19,7 @@ import { privateEnv } from '@root/config/private';
 
 import crypto from 'crypto';
 
-// const ENCRYPTION_KEY = privateEnv.ENCRYPTION_KEY; // Fixed encryption key
-const ENCRYPTION_KEY = 'privateEnv.ENCRYPTION_KEY';
+const ENCRYPTION_KEY = privateEnv.ENCRYPTION_KEY;
 const IV_LENGTH = 16; // For AES, this is always 16
 
 // Encrypts a string

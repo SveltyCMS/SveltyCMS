@@ -9,6 +9,8 @@ import mime from 'mime-types';
 import { Buffer } from 'buffer';
 import { sha256, removeExtension, sanitize } from '@utils/utils';
 import { error } from '@sveltejs/kit';
+import { MediaTypeEnum } from './mediaModels';
+import type { ImageMetadata, MediaImage, MediaAccess, Thumbnail } from './mediaModels';
 
 // System Logger
 import { logger } from '@utils/logger';
@@ -33,10 +35,10 @@ async function fileToImage(file: File): Promise<HTMLImageElement> {
 }
 
 // Extracts metadata from an image file
-export async function extractMetadata(file: File): Promise<Record<string, any>> {
+export async function extractMetadata(file: File): Promise<ImageMetadata> {
 	try {
 		const img = await fileToImage(file);
-		const metadata = {
+		const metadata: ImageMetadata = {
 			width: img.width,
 			height: img.height,
 			format: mime.lookup(file.name) || file.type,
@@ -100,7 +102,7 @@ export async function resizeImage(file: File, width: number, height: number): Pr
 }
 
 // Save images dynamically based on publicEnv.IMAGE_SIZES
-export async function saveImage(file: File, destination: string): Promise<string> {
+export async function saveImage(file: File, destination: string, userId: string, access: MediaAccess): Promise<MediaImage> {
 	try {
 		const metadata = await extractMetadata(file);
 		const { fileNameWithoutExt, ext } = getSanitizedFileName(file.name);
@@ -123,40 +125,73 @@ export async function saveImage(file: File, destination: string): Promise<string
 		await fs.promises.writeFile(originalPath, Buffer.from(await file.arrayBuffer()));
 
 		// Immediately generate and save the thumbnail
-		const thumbnailBlob = await resizeImage(file, 150, 150); // Example thumbnail size
+		const thumbnailBlob = await resizeImage(file, 150, 150);
 		await fs.promises.writeFile(thumbnailPath, Buffer.from(await thumbnailBlob.arrayBuffer()));
 
+		const thumbnailData: Thumbnail = {
+			url: thumbnailPath,
+			width: 150,
+			height: 150
+		};
+
 		// Now process other sizes in the background
-		const imageSizes = Object.keys(publicEnv.IMAGE_SIZES).map((key) => ({
+		const imageSizes = (Object.keys(publicEnv.IMAGE_SIZES) as Array<keyof typeof publicEnv.IMAGE_SIZES>).map((key) => ({
 			name: key,
 			width: publicEnv.IMAGE_SIZES[key],
 			height: publicEnv.IMAGE_SIZES[key]
 		}));
 
-		// Check for valid size configurations
-		if (!Array.isArray(imageSizes) || imageSizes.length === 0) {
-			throw error(500, 'No valid image sizes specified in IMAGE_SIZES configuration.');
-		}
+		const thumbnails: Record<keyof typeof publicEnv.IMAGE_SIZES, Thumbnail> = {} as Record<keyof typeof publicEnv.IMAGE_SIZES, Thumbnail>;
 
 		// Process each size asynchronously
-		imageSizes.forEach(async (sizeConfig) => {
-			const { name, width, height } = sizeConfig;
-			if (!name || !width || !height) {
-				throw error(500, 'Each size configuration must include name, width, and height.');
-			}
+		await Promise.all(
+			imageSizes.map(async (sizeConfig) => {
+				const { name, width, height } = sizeConfig;
+				if (!name || !width || !height) {
+					throw error(500, 'Each size configuration must include name, width, and height.');
+				}
 
-			const resizedBlob = await resizeImage(file, width, height);
-			const path = `${destination}/Images/${name}/${newFileName}`;
+				const resizedBlob = await resizeImage(file, width, height);
+				const path = `${destination}/images/${name}/${newFileName}`;
+				await fs.promises.mkdir(`${destination}/images/${name}`, { recursive: true });
+				await fs.promises.writeFile(path, Buffer.from(await resizedBlob.arrayBuffer()));
 
-			// Log each resizing operation
-			logger.info(`Saving ${name} image to ${path}`);
+				thumbnails[name] = {
+					url: path,
+					width,
+					height
+				};
+			})
+		);
 
-			// Save the resized file to the local filesystem
-			await fs.promises.mkdir(`${destination}/Images/${name}`, { recursive: true });
-			await fs.promises.writeFile(path, Buffer.from(await resizedBlob.arrayBuffer()));
-		});
+		// Create and return the MediaImage object
+		const mediaImage: MediaImage = {
+			type: MediaTypeEnum.Image,
+			hash,
+			name: newFileName,
+			path: destination,
+			url: originalPath,
+			mimeType: metadata.mimeType,
+			size: metadata.size,
+			width: metadata.width,
+			height: metadata.height,
+			user: userId,
+			createdAt: new Date(),
+			updatedAt: new Date(),
+			metadata: {
+				dimensions: {
+					width: metadata.width,
+					height: metadata.height
+				},
+				format: metadata.format
+			},
+			versions: [],
+			access,
+			thumbnail: thumbnailData,
+			thumbnails
+		};
 
-		return originalPath; // Return only the original path
+		return mediaImage;
 	} catch (err) {
 		const message = `Error saving image: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message);

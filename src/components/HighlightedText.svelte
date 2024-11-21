@@ -39,13 +39,29 @@ Features:
 		return term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 	}
 
-	// Highlights the matching term
-	function highlightText(text: string, term: string): string {
-		if (!term) return text;
+	// Splits text into segments for highlighting
+	function splitTextForHighlight(text: string, term: string): Array<{ text: string; isHighlighted: boolean }> {
+		if (!term) return [{ text, isHighlighted: false }];
 
 		const escapedTerm = escapeRegex(term);
-		const regex = new RegExp(escapedTerm, 'gi'); // Case-insensitive global match
-		return text.replace(regex, (match) => `<mark class="bg-warning-500 px-1">${match}</mark>`);
+		const regex = new RegExp(escapedTerm, 'gi');
+		const segments: Array<{ text: string; isHighlighted: boolean }> = [];
+		let lastIndex = 0;
+
+		text.replace(regex, (match, index) => {
+			if (index > lastIndex) {
+				segments.push({ text: text.slice(lastIndex, index), isHighlighted: false });
+			}
+			segments.push({ text: match, isHighlighted: true });
+			lastIndex = index + match.length;
+			return match;
+		});
+
+		if (lastIndex < text.length) {
+			segments.push({ text: text.slice(lastIndex), isHighlighted: false });
+		}
+
+		return segments;
 	}
 
 	// Toggles between limited and full text
@@ -53,16 +69,24 @@ Features:
 		isExpanded = !isExpanded;
 	}
 
-	// Compute displayText based on text, term, charLimit, and isExpanded
-	let displayText = $derived(() => {
+	// Compute displayText and segments based on text, term, charLimit, and isExpanded
+	let displayText = $state([] as Array<{ text: string; isHighlighted: boolean }>);
+
+	$effect(() => {
 		const shouldLimit = !isExpanded && text.length > charLimit;
 		const limitedText = shouldLimit ? text.slice(0, charLimit) + '...' : text;
-		return highlightText(limitedText, term);
+		displayText = splitTextForHighlight(limitedText, term);
 	});
 </script>
 
 <div role="region" aria-live="polite">
-	{@html displayText}
+	{#each displayText as segment}
+		{#if segment.isHighlighted}
+			<mark class="bg-warning-500 px-1">{segment.text}</mark>
+		{:else}
+			<span>{segment.text}</span>
+		{/if}
+	{/each}
 
 	{#if text.length > charLimit}
 		<button onclick={toggleText} class="text-blue-500 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500" aria-expanded={isExpanded}>

@@ -30,7 +30,7 @@ import { logger } from '@utils/logger';
 
 // Input validation
 import { object, string, email, optional, minLength, maxLength, pipe, parse, type ValiError } from 'valibot';
-import { PermissionAction } from "@root/src/auth/permissionTypes";
+import { PermissionAction } from '@root/src/auth/permissionTypes';
 
 const userDataSchema = object(
 	{
@@ -52,7 +52,7 @@ const updateUserAttributesSchema = object({
 export const PUT: RequestHandler = async ({ request, locals }) => {
 	try {
 		const body = await request.json();
-		const { user_id,  newUserData } = body;
+		const { user_id, newUserData } = body;
 
 		// Special handling for password changes - user can only change their own password
 		if (newUserData.password && locals.user && user_id !== locals.user?._id) {
@@ -89,11 +89,15 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// Validate input
-		const validatedData = parse(updateUserAttributesSchema, {
-			user_id,
-			userData: newUserData
-		}, {});
-	
+		const validatedData = parse(
+			updateUserAttributesSchema,
+			{
+				user_id,
+				userData: newUserData
+			},
+			{}
+		);
+
 		// Update the user attributes using the agnostic auth interface
 		const updatedUser = await auth.updateUserAttributes(validatedData.user_id, validatedData.userData);
 

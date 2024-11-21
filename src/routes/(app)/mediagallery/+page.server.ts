@@ -28,10 +28,16 @@ import { dbAdapter } from '@src/databases/db';
 import { logger, type LoggableValue } from '@utils/logger';
 
 // Helper function to convert _id and other nested objects to string
-function convertIdToString(obj: any): any {
-	const stack: any[] = [{ parent: null, key: '', value: obj }];
+interface StackItem {
+	parent: Record<string, unknown> | Array<unknown> | null;
+	key: string;
+	value: unknown;
+}
+
+function convertIdToString(obj: Record<string, unknown> | Array<unknown>): Record<string, unknown> | Array<unknown> {
+	const stack: StackItem[] = [{ parent: null, key: '', value: obj }];
 	const seen = new WeakSet();
-	const root = Array.isArray(obj) ? [] : {};
+	const root: Record<string, unknown> | Array<unknown> = Array.isArray(obj) ? [] : {};
 
 	while (stack.length) {
 		const { parent, key, value } = stack.pop();
@@ -87,7 +93,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 
 		// Convert user._id to a string to ensure it's serializable
-		const serializedUser = convertIdToString(user);
+		const userData = convertIdToString(user);
 		const folderIdentifier = publicEnv.MEDIA_FOLDER;
 
 		// Fetch media files
@@ -110,13 +116,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 							? constructUrl('global', item.hash, item.thumbnail.name, item.thumbnail.name.split('.').pop(), media_types[index])
 							: '',
 						thumbnailUrl: item.thumbnail?.name
-							? constructUrl(
-								'global',
-								item.hash,
-								`${item.thumbnail.name}-thumbnail`,
-								item.thumbnail.name.split('.').pop(),
-								media_types[index]
-							)
+							? constructUrl('global', item.hash, `${item.thumbnail.name}-thumbnail`, item.thumbnail.name.split('.').pop(), media_types[index])
 							: ''
 					})
 				)

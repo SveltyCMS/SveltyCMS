@@ -27,7 +27,7 @@
 	import type { Field } from '@src/collections/types';
 	// Validation schema for each menu layer
 	import * as v from 'valibot';
-	
+
 	interface Props {
 		field: FieldType;
 		value?: any;
@@ -36,7 +36,7 @@
 	let { field, value = collectionValue()[getFieldName(field)] }: Props = $props();
 	const fieldName = getFieldName(field);
 
-	translationProgress.update((current)=> ({...current, show: false}))
+	translationProgress.update((current) => ({ ...current, show: false }));
 
 	export const WidgetData = async () => _data;
 
@@ -47,9 +47,6 @@
 	let fieldsData = $state({});
 	const saveMode = mode.value;
 	let validationError: string | null = $state(null);
-
-	
-	
 
 	const widgetSchema = v.object({
 		name: v.pipe(v.string(), v.minLength(1, 'Menu name is required')),

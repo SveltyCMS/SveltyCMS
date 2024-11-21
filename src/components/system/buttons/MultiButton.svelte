@@ -79,9 +79,9 @@ Features:
 
 	let defaultButton = $derived(props.defaultButton || (mode.value === 'modify' ? 'Delete' : 'Create'));
 
-	$effect(()=> {
+	$effect(() => {
 		expanded = mode.value === 'modify' ? expanded : false;
-	})
+	});
 
 	let activeArrow = $derived(mode.value === 'modify');
 

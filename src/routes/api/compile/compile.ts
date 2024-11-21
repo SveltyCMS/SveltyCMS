@@ -32,7 +32,7 @@ export async function compile(options: CompileOptions = {}): Promise<void> {
 	const defaultCompiledPath = path.join(process.cwd(), 'collections');
 
 	// Destructure options with default values
-	const { 
+	const {
 		userCollectionsPath = process.env.USER_COLLECTIONS_PATH || defaultUserPath,
 		compiledCollectionsPath = process.env.COMPILED_COLLECTIONS_PATH || defaultCompiledPath
 	} = options;
@@ -46,13 +46,9 @@ export async function compile(options: CompileOptions = {}): Promise<void> {
 
 		// Create output directories for user collection files
 		await createOutputDirectories(userFiles, userCollectionsPath, compiledCollectionsPath);
-		
+
 		// Compile user collection files
-		const compilePromises = userFiles.map(file => compileFile(
-			file, 
-			userCollectionsPath, 
-			compiledCollectionsPath
-		));
+		const compilePromises = userFiles.map((file) => compileFile(file, userCollectionsPath, compiledCollectionsPath));
 
 		await Promise.all(compilePromises);
 

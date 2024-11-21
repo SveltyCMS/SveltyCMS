@@ -171,7 +171,7 @@
 		<button type="button" class={`w-[60px] md:w-auto rtl:rotate-180 ${buttonClass} rounded-l-full`} onclick={handleButtonClick}>
 			<span class="grid grid-cols-[24px_auto] items-center gap-2 rtl:rotate-180">
 				<iconify-icon icon={iconValue} width="24" class="text-white"></iconify-icon>
-				<span class="hidden text-left md:block">{actionName}</span>	
+				<span class="hidden text-left md:block">{actionName}</span>
 			</span>
 		</button>
 

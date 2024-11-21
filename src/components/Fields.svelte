@@ -47,7 +47,7 @@ Key features:
 		customData?: Record<string, any>;
 		value?: any;
 		ariaInvalid?: boolean;
-		ariaDescribedby? : string
+		ariaDescribedby?: string;
 	}
 
 	let { fields = undefined, root = true, fieldsData = $bindable({}), customData = {}, ...restProps }: Props = $props();
@@ -179,7 +179,9 @@ Key features:
 													<!-- Display translation progress -->
 													<div class="text-xs font-normal">
 														({Math.round(
-															translationProgress.value[contentLanguage.value]?.translated.has(`${String(collection.value?.name)}.${getFieldName(field)}`)
+															translationProgress.value[contentLanguage.value]?.translated.has(
+																`${String(collection.value?.name)}.${getFieldName(field)}`
+															)
 																? 1
 																: 0
 														)}%)

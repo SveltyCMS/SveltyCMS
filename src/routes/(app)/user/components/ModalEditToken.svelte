@@ -11,10 +11,11 @@
 	// Get data from page store
 	const { roles, user } = $page.data;
 
-	let formElement: HTMLFormElement = $state();
+	let formElement: HTMLFormElement | null = $state(null);
 
 	// Skeleton & Stores
 	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+	import type { ModalComponent } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 	const toastStore = getToastStore();
 
@@ -23,14 +24,18 @@
 
 	interface Props {
 		// Props
-		parent: any;
+		parent: ModalComponent['props'] & {
+			regionFooter?: string;
+			onClose?: (event: MouseEvent) => void;
+			buttonPositive?: string;
+		};
 		token: string;
 		email: string;
 		role: string;
 		user_id: string;
 	}
 
-	let { parent, token, email, role, user_id }: Props = $props();
+	let { parent = { regionFooter: 'modal-footer p-4' }, token, email, role, user_id }: Props = $props();
 
 	// Form Data
 	const formData = $state({
@@ -250,7 +255,7 @@
 			{/if}
 		</form>
 
-		<footer class="{parent.regionFooter} flex items-center justify-between">
+		<footer class="modal-footer flex items-center justify-between p-4 {parent?.regionFooter ?? ''}">
 			<!-- Delete -->
 			<button type="button" onclick={deleteToken} class="variant-filled-error btn">
 				<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon><span class="hidden sm:block">{m.button_delete()}</span>
@@ -258,9 +263,9 @@
 
 			<div class="flex justify-between gap-2">
 				<!-- Cancel -->
-				<button class="variant-outline-secondary btn" onclick={parent.onClose}>{m.button_cancel()}</button>
+				<button class="variant-outline-secondary btn" onclick={parent?.onClose}>{m.button_cancel()}</button>
 				<!-- Save -->
-				<button class="variant-filled-tertiary btn btn dark:variant-filled-primary{parent.buttonPositive}" onclick={onFormSubmit}
+				<button class="variant-filled-tertiary btn btn dark:variant-filled-primary{parent?.buttonPositive ?? ''}" onclick={onFormSubmit}
 					>{m.button_save()}</button
 				>
 			</div>

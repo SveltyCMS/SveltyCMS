@@ -29,7 +29,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 	const { collections } = collectionManager.getCollectionData();
 
-
 	// If we're already on a specific route (not the root), don't redirect
 	if (url.pathname !== '/') {
 		logger.debug(`Already on a specific route: ${url.pathname}, not redirecting`);

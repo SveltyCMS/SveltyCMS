@@ -8,7 +8,7 @@
  * - Flexible state management with subscription, update, and trigger methods
  */
 
-import { untrack} from 'svelte';
+import { untrack } from 'svelte';
 
 // Enhanced reactive store interface
 interface Store<T> {
@@ -50,7 +50,7 @@ export function store<T>(initialValue?: T): Store<T> {
 	// Force reactivity trigger by modifying the value temporarily
 	reactiveStore.trigger = () => {
 		const current = value;
-		value = null as any;
+		value = null as unknown as T;
 		value = current;
 	};
 
@@ -66,7 +66,7 @@ export function store<T>(initialValue?: T): Store<T> {
 }
 
 // Execute a function with untracked execution and track dependencies
-export function track(effectFn: () => unknown, dependencies: () => any) {
+export function track(effectFn: () => unknown, dependencies: () => unknown) {
 	$effect(() => {
 		untrack(effectFn); // Execute the effect without tracking
 		dependencies(); // Track reactivity dependencies

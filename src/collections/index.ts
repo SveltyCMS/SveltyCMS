@@ -17,6 +17,7 @@ import { getCollectionFiles } from '@api/getCollections/getCollectionFiles';
 import { createRandomID } from '@utils/utils';
 import { categoryConfig } from './categories';
 import { getCollectionModels } from '@src/databases/db';
+import type { ProcessedModule } from './CollectionManager';
 
 // Stores
 import { categories, collections, unAssigned, collection, collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
@@ -268,7 +269,7 @@ async function getImports(recompile: boolean = false): Promise<Record<Collection
 	}
 
 	try {
-		const processModule = async (name: string, module: any, modulePath: string) => {
+		const processModule = async (name: string, module: ProcessedModule, modulePath: string) => {
 			const collection = (module as { schema: Schema })?.schema ?? {};
 			if (collection) {
 				const randomId = await createRandomID();
@@ -293,15 +294,18 @@ async function getImports(recompile: boolean = false): Promise<Record<Collection
 		if (dev || building) {
 			logger.debug(`Running in {${dev ? 'dev' : 'building'}} mode`);
 			// Look for TypeScript files in config/collections directory
-			const modules = import.meta.glob([
-				'../../config/collections/**/*.ts', 
-				'!../../config/collections/**/index.ts',      // Exclude any index files
-				'!../../config/collections/**/types.ts',      // Exclude type definitions
-				'!../../config/collections/**/utils/**/*.ts'  // Exclude utility files
-			], {
-				eager: false,
-				import: 'default'
-			});
+			const modules = import.meta.glob(
+				[
+					'../../config/collections/**/*.ts',
+					'!../../config/collections/**/index.ts', // Exclude any index files
+					'!../../config/collections/**/types.ts', // Exclude type definitions
+					'!../../config/collections/**/utils/**/*.ts' // Exclude utility files
+				],
+				{
+					eager: false,
+					import: 'default'
+				}
+			);
 
 			// Process modules in batches
 			const entries = Object.entries(modules);

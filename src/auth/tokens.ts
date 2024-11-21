@@ -24,8 +24,15 @@ import { error } from '@sveltejs/kit';
 // System Logger
 import { logger } from '@utils/logger';
 
+// Type for log additional info
+interface LogAdditionalInfo {
+	user_id?: string;
+	email?: string;
+	token?: string;
+}
+
 // Helper function for centralized logging
-function log(level: 'info' | 'debug' | 'warn' | 'error', message: string, additionalInfo: any = {}) {
+function log(level: 'info' | 'debug' | 'warn' | 'error', message: string, additionalInfo: LogAdditionalInfo = {}) {
 	logger[level](`${message} ${JSON.stringify(additionalInfo)}`);
 }
 

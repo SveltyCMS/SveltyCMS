@@ -31,7 +31,7 @@ Key features:
 	import { page } from '$app/stores';
 	import { contentLanguage, systemLanguage, isLoading } from '@stores/store';
 	import { collection, collections } from '@root/src/stores/collectionStore.svelte';
-	import {  sidebarState } from '@root/src/stores/sidebarStore.svelte';
+	import { sidebarState } from '@root/src/stores/sidebarStore.svelte';
 	import { screenSize, ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
 
 	// Components

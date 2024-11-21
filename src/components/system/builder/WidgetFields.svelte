@@ -221,12 +221,14 @@
 <!-- Edit individual selected widget  -->
 {#if currentField}
 	<div
-		class="fixed -top-16 left-0 z-20 flex h-full w-full flex-col items-center justify-center overflow-auto bg-white dark:bg-surface-900 {sidebarState.sidebar.value.left ===
-		'full'
+		class="fixed -top-16 left-0 z-20 flex h-full w-full flex-col items-center justify-center overflow-auto bg-white dark:bg-surface-900 {sidebarState
+			.sidebar.value.left === 'full'
 			? 'left-[220px] '
 			: 'left-0 '}"
 	>
-		<div class="fixed top-0 flex items-center justify-between {sidebarState.sidebar.value.left === 'full' ? 'left-[220px] w-full' : 'left-0 w-screen'}">
+		<div
+			class="fixed top-0 flex items-center justify-between {sidebarState.sidebar.value.left === 'full' ? 'left-[220px] w-full' : 'left-0 w-screen'}"
+		>
 			<PageTitle name="Edit Widget" icon="material-symbols:ink-pen" iconColor="text-primary-500" />
 
 			<div class="flex gap-2">

@@ -46,7 +46,7 @@
 		};
 	});
 
-	function handleMouseDown(e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) {
+	function handleMouseDown() {
 		if (blurRegion) return;
 
 		isSelecting = true;
@@ -54,7 +54,7 @@
 		startPoint = pos ? { x: pos.x, y: pos.y } : null;
 	}
 
-	function handleMouseMove(e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) {
+	function handleMouseMove() {
 		if (!isSelecting || !startPoint) return;
 
 		const pos = stage.getPointerPosition();

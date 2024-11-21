@@ -20,16 +20,12 @@
 -->
 
 <script lang="ts">
-	import { run, createBubbler } from 'svelte/legacy';
-
-	const bubble = createBubbler();
-	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 
 	// Stores
 	import { get } from 'svelte/store';
 	import { sidebarState, toggleSidebar } from '@root/src/stores/sidebarStore.svelte';
-	import { screenSize } from '@root/src/stores/screenSizeStore.svelte';
+	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 
 	interface PageTitleProps {
 		name: string;
@@ -61,8 +57,8 @@
 		backUrl = ''
 	}: Props = $props();
 
-	let calculatedTitle: string;
-	let titleParts: string[] = $state([]);
+	let calculatedTitle = $state(name);
+	let titleParts = $state<string[]>([name]);
 
 	// Function to handle back button click
 	function handleBackClick() {
@@ -99,12 +95,18 @@
 		}
 	}
 
-	onMount(() => {
+	// Replace onMount with $effect for initialization and cleanup
+	$effect(() => {
 		calculateMaxChars();
-		window.addEventListener('resize', calculateMaxChars);
+		const resizeHandler = () => calculateMaxChars();
+		window.addEventListener('resize', resizeHandler);
+
+		// Cleanup function (equivalent to onDestroy)
+		return () => window.removeEventListener('resize', resizeHandler);
 	});
 
-	run(() => {
+	// Reactive effects for name and highlight changes
+	$effect(() => {
 		name; // reactive dependency
 		highlight; // reactive dependency
 		calculateMaxChars(); // Recalculate when the title or screen size changes
@@ -118,7 +120,6 @@
 		{#if sidebarState.sidebar.value.left === 'hidden'}
 			<button
 				type="button"
-				onkeydown={bubble('keydown')}
 				onclick={() => toggleSidebar('left', get(screenSize) === 'lg' ? 'full' : 'collapsed')}
 				aria-label="Open Sidebar"
 				class="variant-ghost-surface btn-icon"

@@ -55,7 +55,7 @@ export function registerPermission(permission: PermissionConfig): void {
 }
 
 // Converts a config permission to an auth permission type
-function convertToAuthPermission(permission: any): AuthPermission {
+function convertToAuthPermission(permission: PermissionConfig): AuthPermission {
 	return {
 		...permission,
 		action: permission.action as PermissionAction

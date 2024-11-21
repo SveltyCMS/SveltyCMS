@@ -250,14 +250,14 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 
 		// If no code is present, handle initial OAuth flow
 		if (!code && !firstUserExists) {
-				logger.debug('No first user and no code - redirecting to OAuth');
-				try {
-					const authUrl = await generateGoogleAuthUrl();
-					redirect(302, authUrl);
-				} catch (err) {
-					logger.error('Error generating OAuth URL:', err);
-					throw error(500, 'Failed to initialize OAuth');
-				}
+			logger.debug('No first user and no code - redirecting to OAuth');
+			try {
+				const authUrl = await generateGoogleAuthUrl();
+				redirect(302, authUrl);
+			} catch (err) {
+				logger.error('Error generating OAuth URL:', err);
+				throw error(500, 'Failed to initialize OAuth');
+			}
 		}
 
 		// For non-first users without a token, show token input form
@@ -314,10 +314,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			logger.info('Successfully processed OAuth callback and created session');
 
 			// Redirect to first collection
-
-
 		} catch (err) {
-			if (err instanceof Error && 'status' in err && err.status === 302 || err.status === 303) {
+			if ((err instanceof Error && 'status' in err && err.status === 302) || err.status === 303) {
 				throw err;
 			}
 
@@ -339,10 +337,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 				token: token ? 'Present' : 'Missing'
 			});
 		}
-
-
-	}
-	catch (err) {
+	} catch (err) {
 		// Only throw error if it's not already a redirect
 		if (err instanceof Error && 'status' in err && (err.status === 302 || err.status === 303)) {
 			throw err;
@@ -363,11 +358,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		});
 	}
 
-
 	const redirectUrl = await fetchAndRedirectToFirstCollection();
 	logger.debug(`Redirecting to: ${redirectUrl}`);
 	throw redirect(302, redirectUrl);
-
 };
 
 export const actions: Actions = {
@@ -378,16 +371,14 @@ export const actions: Actions = {
 		try {
 			// Generate OAuth URL with token in state parameter
 			const authUrl = await generateGoogleAuthUrl(token?.toString() || null);
-			return {
-				status: 302,
-				headers: {
-					Location: authUrl
-				}
-			};
+			throw redirect(302, authUrl);
 		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : 'Failed to initialize OAuth';
-			logger.error('Error during OAuth initialization:', errorMessage);
-			return { success: false, message: errorMessage };
+			if (err instanceof Error) {
+				const errorMessage = err.message || 'Failed to initialize OAuth';
+				logger.error('Error during OAuth initialization:', errorMessage);
+				throw error(500, { message: errorMessage });
+			}
+			throw err;
 		}
 	}
 };

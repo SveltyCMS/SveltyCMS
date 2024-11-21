@@ -25,6 +25,27 @@ import { validateUserPermission } from '@src/auth/permissionManager';
 // System Logger
 import { logger } from '@utils/logger';
 
+// Types
+interface DatabaseCollection {
+	findById(id: string): Promise<unknown>;
+	find(query: unknown): {
+		skip(n: number): {
+			limit(n: number): Promise<unknown[]>;
+		};
+	};
+	countDocuments(query: unknown): Promise<number>;
+}
+
+interface QueryParams {
+	page?: string;
+	limit?: string;
+	[key: string]: unknown;
+}
+
+interface ErrorWithStatus extends Error {
+	status?: number;
+}
+
 export const GET: RequestHandler = async ({ url, locals }) => {
 	const collectionTypes = url.searchParams.get('collection');
 	const id = url.searchParams.get('id');
@@ -80,7 +101,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 };
 
 // Function to retrieve a document by its ID
-async function findById(collection: any, id: string, collectionTypes: string) {
+async function findById(collection: DatabaseCollection, id: string, collectionTypes: string) {
 	try {
 		logger.debug(`Attempting to find document by ID: ${id} in collection: ${collectionTypes}`);
 		const document = await collection.findById(id);
@@ -97,7 +118,7 @@ async function findById(collection: any, id: string, collectionTypes: string) {
 }
 
 // Function to retrieve documents based on a query with pagination support
-async function findByQuery(collection: any, queryParam: string, collectionTypes: string) {
+async function findByQuery(collection: DatabaseCollection, queryParam: string, collectionTypes: string) {
 	let query;
 	try {
 		query = JSON.parse(queryParam);
@@ -134,7 +155,7 @@ async function findByQuery(collection: any, queryParam: string, collectionTypes:
 }
 
 // Enhanced error handling function
-function handleError(err: any, operation: string, context: Record<string, any>): Response {
+function handleError(err: ErrorWithStatus, operation: string, context: Record<string, unknown>): Response {
 	const errorDetails = {
 		message: err instanceof Error ? err.message : String(err),
 		stack: err instanceof Error ? err.stack : undefined,

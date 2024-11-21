@@ -65,9 +65,9 @@ configPaths.forEach((path) => {
 });
 
 // Initial compilation of collections
-await compile({ 
-    systemCollectionsPath: collectionsFolderTS,
-    userCollectionsPath: collectionsFolderJS 
+await compile({
+	systemCollectionsPath: collectionsFolderTS,
+	userCollectionsPath: collectionsFolderJS
 });
 
 export default defineConfig({
@@ -81,10 +81,10 @@ export default defineConfig({
 					console.log('Collection file changed:', file);
 					try {
 						// Compile the changed collection
-						await compile({ 
-                            systemCollectionsPath: collectionsFolderTS,
-                            userCollectionsPath: collectionsFolderJS 
-                        });
+						await compile({
+							systemCollectionsPath: collectionsFolderTS,
+							userCollectionsPath: collectionsFolderJS
+						});
 
 						// Generate updated types
 						await generateCollectionTypes();
@@ -158,6 +158,14 @@ export default defineConfig({
 	server: {
 		fs: { allow: ['static', '.'] } // Allow serving files from specific directories
 	},
+	build: {
+		target: 'esnext',
+		rollupOptions: {
+			output: {
+				format: 'esm'
+			}
+		}
+	},
 	resolve: {
 		alias: {
 			'@root': resolve(__dirname, './'),
@@ -167,7 +175,7 @@ export default defineConfig({
 		}
 	},
 	define: {
-		'__VERSION__': JSON.stringify(pkg.version), // Define global version variable from package.json
-		'SUPERFORMS_LEGACY': true // Legacy flag for SuperForms (if needed)
+		__VERSION__: JSON.stringify(pkg.version), // Define global version variable from package.json
+		SUPERFORMS_LEGACY: true // Legacy flag for SuperForms (if needed)
 	}
 });

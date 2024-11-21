@@ -75,16 +75,17 @@ function createThemeStores() {
 
 		try {
 			// If a string is passed, create a basic theme object
-			const themeToUpdate = typeof newTheme === 'string' 
-				? { 
-					name: newTheme, 
-					_id: '', 
-					path: '', 
-					isDefault: false, 
-					createdAt: new Date(), 
-					updatedAt: new Date() 
-				} 
-				: newTheme;
+			const themeToUpdate =
+				typeof newTheme === 'string'
+					? {
+							name: newTheme,
+							_id: '',
+							path: '',
+							isDefault: false,
+							createdAt: new Date(),
+							updatedAt: new Date()
+						}
+					: newTheme;
 
 			// Update the theme in the database
 			await dbAdapter?.setDefaultTheme(themeToUpdate.name);

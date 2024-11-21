@@ -10,27 +10,33 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Props
-	let { addField = $bindable(false), fields = $bindable([]) } = $props<{
+	let {
+		addField = $bindable(false),
+		fields = $bindable([]),
+		onFieldsChange
+	}: {
 		addField?: boolean;
 		fields?: any[];
-	}>();
+		onFieldsChange?: (fields: any[]) => void;
+	} = $props();
 
 	function toggleAddField() {
-		addField.set(true);
+		addField = true;
 	}
 
 	function updateFields(newFields: any[]) {
-		fields.set(newFields);
+		fields = newFields;
+		onFieldsChange?.(newFields);
 	}
 </script>
 
 <div class="flex flex-col">
-	{#if addField()}
+	{#if addField}
 		<AddWidget bind:fields bind:addField />
 	{:else}
 		<button class="variant-filled-tertiary btn mb-4 mt-1 dark:variant-filled-primary" onclick={toggleAddField}>
 			{m.WidgetBuilder_AddColectionField()}
 		</button>
-		<WidgetFields fields={$fields} onFieldsUpdate={updateFields} />
+		<WidgetFields {fields} onFieldsUpdate={updateFields} />
 	{/if}
 </div>

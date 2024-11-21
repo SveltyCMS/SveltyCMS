@@ -10,7 +10,7 @@
 import type { PipelineStage } from 'mongoose';
 import type { Theme } from '@src/databases/dbInterface'; // Ensure correct import path
 
-declare const __VERSION__: string;  // Declare __VERSION__
+declare const __VERSION__: string; // Declare __VERSION__
 
 declare global {
 	/// <reference path="./types/**/*.d.ts" />

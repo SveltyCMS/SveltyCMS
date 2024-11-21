@@ -46,6 +46,15 @@ registerPermission(accessManagementPermission);
 // Initialize Redis client if needed
 let redisClient: ReturnType<typeof createClient> | null = null;
 
+// Create a cache client adapter that matches our CacheClient interface
+const cacheClient =
+	privateEnv.USE_REDIS === true
+		? {
+				get: async (key: string) => redisClient?.get(key) || null,
+				set: async (key: string, value: string, ex: string, duration: number) => redisClient?.set(key, value, { EX: duration })
+			}
+		: null;
+
 if (privateEnv.USE_REDIS === true) {
 	logger.info('Initializing Redis client');
 	// Create Redis client
@@ -109,7 +118,7 @@ async function setupGraphQL() {
 
 		const resolvers = {
 			Query: {
-				...(await collectionsResolvers(redisClient, privateEnv)),
+				...(await collectionsResolvers(cacheClient, privateEnv)),
 				...userResolvers(dbAdapter),
 				...mediaResolvers(dbAdapter),
 				accessManagementPermission: async (_, __, context) => {

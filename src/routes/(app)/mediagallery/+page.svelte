@@ -14,17 +14,15 @@ Features:
 -->
 
 <script lang="ts">
-	import { publicEnv } from '@root/config/public';
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
 	import axios from 'axios';
 
 	// Stores
 	import { mode } from '@root/src/stores/collectionStore.svelte';
 
 	// Utils & Media
-	import { config, toFormData, SIZES } from '@utils/utils';
-	import { MediaTypeEnum, type MediaImage, type MediaType, type MediaBase } from '@utils/media/mediaModels';
+	import { config, toFormData } from '@utils/utils';
+	import { MediaTypeEnum, type MediaImage, type MediaBase } from '@utils/media/mediaModels';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -33,24 +31,36 @@ Features:
 	import MediaTable from './MediaTable.svelte';
 
 	// Skeleton
-	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings } from '@skeletonlabs/skeleton';
-
+	import { getToastStore } from '@skeletonlabs/skeleton';
 	const toastStore = getToastStore();
-	const modalStore = getModalStore();
 
-	// System Logger
-	import { logger } from '@src/utils/logger';
+	// Types
+	interface VirtualFolder {
+		_id: string;
+		name: string;
+		path: string[] | string;
+		parent?: string | null;
+	}
+
+	type Folder = {
+		_id: string;
+		name: string;
+		path: string[];
+	};
 
 	// Props using runes
 	const { data = { user: undefined, media: [], virtualFolders: [] } } = $props<{
-		data?: { user: any; media: any[]; virtualFolders: any[] };
+		data?: {
+			user: { _id: string; email: string; role: string } | undefined;
+			media: MediaBase[];
+			virtualFolders: VirtualFolder[];
+		};
 	}>();
 
 	// State using runes
 	let files = $state<MediaImage[]>([]);
-	let folders = $state<{ _id: string; name: string; path: string[]; parent?: string | null }[]>([]);
-	let currentFolder = $state<{ _id: string; name: string; path: string[] } | null>(null);
+	let folders = $state<VirtualFolder[]>([]);
+	let currentFolder = $state<VirtualFolder | null>(null);
 	let breadcrumb = $state<string[]>([]);
 
 	let globalSearchValue = $state('');
@@ -78,107 +88,126 @@ Features:
 	let filteredFiles = $derived(
 		files.filter((file) => {
 			if (file.type === MediaTypeEnum.Image) {
-				const sizeKey = Object.keys(SIZES).find((size) => file[size]?.name);
-
-				if (sizeKey && file[sizeKey]?.name) {
-					return (
-						file[sizeKey].name.toLowerCase().includes(globalSearchValue.toLowerCase()) &&
-						(selectedMediaType === 'All' || file.type === selectedMediaType)
-					);
-				}
-				return false;
+				return (
+					(file.name || '').toLowerCase().includes(globalSearchValue.toLowerCase()) &&
+					(selectedMediaType === 'All' || file.type === selectedMediaType)
+				);
 			} else {
-				return file.name.toLowerCase().includes(globalSearchValue.toLowerCase()) && (selectedMediaType === 'All' || file.type === selectedMediaType);
+				return (
+					(file.name || '').toLowerCase().includes(globalSearchValue.toLowerCase()) &&
+					(selectedMediaType === 'All' || file.type === selectedMediaType)
+				);
 			}
 		})
 	);
 
-	onMount(() => {
+	// Computed folders for breadcrumb
+	let breadcrumbFolders = $derived(
+		folders.map((folder) => ({
+			_id: folder._id,
+			name: folder.name,
+			path: Array.isArray(folder.path) ? folder.path : folder.path.split('/')
+		}))
+	);
+
+	// Handle user preferences
+	function storeUserPreference(view: 'grid' | 'table', gridSize: 'small' | 'medium' | 'large', tableSize: 'small' | 'medium' | 'large') {
+		localStorage.setItem('GalleryUserPreference', `${view}/${gridSize}/${tableSize}`);
+	}
+
+	function getUserPreferenceFromLocalStorageOrCookie(): string | null {
+		return localStorage.getItem('GalleryUserPreference');
+	}
+
+	// Initialize component with runes
+	$effect(() => {
 		mode.set('media');
 		console.log('Received data:', data);
 
 		if (data && data.virtualFolders) {
-			folders = data.virtualFolders.map((folder) => ({
+			folders = data.virtualFolders.map((folder: VirtualFolder) => ({
 				...folder,
-				path: Array.isArray(folder.path) ? folder.path : folder?.path?.split('/')
+				path: Array.isArray(folder.path) ? folder.path : folder.path?.split('/')
 			}));
-			console.log('Processed folders:', folders);
-		} else {
-			console.error('Virtual folders data is missing or in unexpected format');
-			folders = [];
-
-			toastStore.trigger({
-				message: 'Error loading folder structure',
-				background: 'variant-filled-error',
-				timeout: 3000
-			});
 		}
 
-		fetchMediaFiles();
-		updateBreadcrumb();
+		if (data && data.media) {
+			files = data.media;
+		}
 
-		// Initialize user preferences
+		// Load user preferences
 		const userPreference = getUserPreferenceFromLocalStorageOrCookie();
 		if (userPreference) {
-			const [preferredView, preferredGridSize, preferredTableSize] = userPreference?.split('/');
+			const [preferredView, preferredGridSize, preferredTableSize] = userPreference.split('/');
 			view = preferredView as 'grid' | 'table';
 			gridSize = preferredGridSize as 'small' | 'medium' | 'large';
 			tableSize = preferredTableSize as 'small' | 'medium' | 'large';
 		}
 	});
 
-	// Open add virtual folder modal
-	function openAddFolderModal() {
-		// Default to MEDIA_FOLDER, which should represent the root directory
-		let currentFolderPath = publicEnv.MEDIA_FOLDER;
-
-		// Check if the currentFolder is set (i.e., the user is in a subfolder)
-		if (currentFolder) {
-			currentFolderPath = currentFolder.path.join('/'); // Update the path to the current folder's path
+	// Function to update breadcrumb based on current folder
+	function updateBreadcrumb() {
+		if (!currentFolder) {
+			breadcrumb = [];
+			return;
 		}
-
-		const modal: ModalSettings = {
-			type: 'prompt',
-			title: 'Add Folder',
-			// Apply inline style or use a CSS class to make the current folder path display in a different color
-			body: `Creating subfolder in: <span class="text-tertiary-500 dark:text-primary-500">${currentFolderPath}</span>`, // Display the current folder path in a different color
-			response: (r: string) => {
-				if (r) createFolder(r); // Pass the new folder name to createFolder function
-			}
-		};
-
-		modalStore.trigger(modal); // Trigger the modal to open
+		breadcrumb = Array.isArray(currentFolder.path) ? currentFolder.path : currentFolder.path.split('/');
 	}
 
-	async function updateFolder(folderId: string, newName: string, newParentId?: string) {
+	// Create a new folder
+	async function createFolder(folderName: string) {
 		try {
-			console.log(`Updating folder: ${folderId} with new name: ${newName}`);
+			const parentId = currentFolder?._id || 'root';
 			const response = await fetch('/api/virtualFolder', {
-				method: 'PATCH',
+				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ folderId, name: newName, parent: newParentId })
+				body: JSON.stringify({ name: folderName, parent: parentId })
 			});
 
 			const result = await response.json();
 
 			if (result.success) {
-				console.log('Folder updated successfully:', result);
+				folders = await fetchUpdatedFolders();
 				toastStore.trigger({
-					message: 'Folder updated successfully',
+					message: 'Folder created successfully',
 					background: 'variant-filled-success',
 					timeout: 3000
 				});
-				folders = await fetchUpdatedFolders(); // Refresh the folders list
 			} else {
-				throw Error(result.error);
+				throw new Error(result.error || 'Failed to create folder');
 			}
 		} catch (error) {
-			console.error('Error updating folder:', error);
+			console.error('Error creating folder:', error);
 			toastStore.trigger({
-				message: 'Failed to update folder',
+				message: 'Failed to create folder',
 				background: 'variant-filled-error',
 				timeout: 3000
 			});
+		}
+	}
+
+	// Fetch updated folders
+	async function fetchUpdatedFolders() {
+		try {
+			const response = await fetch('/api/virtualFolder');
+			const result = await response.json();
+
+			if (result.success) {
+				return result.folders.map((folder: VirtualFolder) => ({
+					...folder,
+					path: Array.isArray(folder.path) ? folder.path : folder.path?.split('/')
+				}));
+			} else {
+				throw new Error(result.error || 'Failed to fetch folders');
+			}
+		} catch (error) {
+			console.error('Error fetching updated folders:', error);
+			toastStore.trigger({
+				message: 'Failed to fetch folders',
+				background: 'variant-filled-error',
+				timeout: 3000
+			});
+			return [];
 		}
 	}
 
@@ -211,153 +240,46 @@ Features:
 		}
 	}
 
-	// Create virtual folder with existence check
-	async function createFolder(name: string) {
-		try {
-			const parentFolder = currentFolder ? folders.find((f) => f._id === currentFolder?._id) : null;
-			const newPath = parentFolder ? `${parentFolder.path.join('/')}/${name}` : `${publicEnv.MEDIA_FOLDER}/${name}`;
-
-			// Check if the folder already exists
-			logger.debug(`Checking if folder exists: ${newPath}  currentFolder:`, folders);
-			const existingFolder = folders.find((folder) => folder?.path?.join('/') === newPath);
-			if (existingFolder) {
-				console.log('Folder already exists:', existingFolder);
-				toastStore.trigger({
-					message: 'Folder already exists.',
-					background: 'variant-filled-warning',
-					timeout: 3000
-				});
-				return;
-			}
-
-			console.log(`Creating new folder: ${name} with path: ${newPath}`);
-			const response = await fetch('/api/virtualFolder', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					name,
-					parent: currentFolder ? currentFolder._id : undefined,
-					path: newPath
-				})
-			});
-
-			const result = await response.json();
-
-			if (result.success) {
-				console.log('Folder created successfully:', result);
-				toastStore.trigger({
-					message: 'Folder created successfully',
-					background: 'variant-filled-success',
-					timeout: 3000
-				});
-				folders = await fetchUpdatedFolders(); // Refresh folder list
-			} else {
-				throw Error(result.error);
-			}
-		} catch (error) {
-			console.error('Error creating folder:', error);
-			toastStore.trigger({
-				message: 'Failed to create folder',
-				background: 'variant-filled-error',
-				timeout: 3000
-			});
-		}
-	}
-
 	// Open virtual folder
 	async function openFolder(folderId: string | null) {
-		console.log(`Opening folder: ${folderId}`);
-
-		if (folderId === null) {
-			// Navigate to root
-			currentFolder = null;
-		} else {
-			// Set current folder to the selected one
-			currentFolder = folders.find((f) => f._id === folderId) || null;
-		}
-
-		console.log('Current folder set to:', currentFolder);
-
-		// Update breadcrumb based on the current folder
-		updateBreadcrumb();
-
-		// Fetch and display subfolders immediately after setting currentFolder
-		if (currentFolder) {
-			folders = await fetchUpdatedFolders();
-		}
-
-		// Fetch media files for the current folder
-		await fetchMediaFiles();
-	}
-
-	// Fetch updated folders
-	async function fetchUpdatedFolders() {
 		try {
-			console.log('Fetching updated folders');
-			const response = await fetch('/api/virtualFolder');
-			const result = await response.json();
-
-			if (result.success && result.folders) {
-				const updatedFolders = result.folders.map((folder) => ({
-					...folder,
-					path: Array.isArray(folder.path) ? folder.path : folder?.path?.split('/') // Ensure path is always an array
-				}));
-				console.log('Updated folders:', updatedFolders);
-				return updatedFolders;
+			if (folderId === null) {
+				// Navigate to root
+				currentFolder = null;
 			} else {
-				throw Error(result.error || 'Failed to fetch folders');
+				// Set current folder to the selected one
+				currentFolder = folders.find((f) => f._id === folderId) || null;
 			}
-		} catch (error) {
-			console.error('Error fetching folders:', error);
-			toastStore.trigger({
-				message: 'Error fetching folders',
-				background: 'variant-filled-error',
-				timeout: 3000
-			});
-			return [];
-		}
-	}
 
-	async function deleteFolder(folderId: string) {
-		try {
-			console.log(`Deleting folder: ${folderId}`);
-			const response = await fetch('/api/virtualFolder', {
-				method: 'DELETE',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ folderId })
-			});
+			// Update breadcrumb based on the current folder
+			updateBreadcrumb();
 
-			const result = await response.json();
-
-			if (result.success) {
-				console.log('Folder deleted successfully:', result);
-				toastStore.trigger({
-					message: 'Folder deleted successfully',
-					background: 'variant-filled-success',
-					timeout: 3000
-				});
-				folders = await fetchUpdatedFolders(); // Refresh the folders list
-			} else {
-				throw Error(result.error);
+			// Fetch and display subfolders immediately after setting currentFolder
+			if (currentFolder) {
+				folders = await fetchUpdatedFolders();
 			}
+
+			// Fetch media files for the current folder
+			await fetchMediaFiles();
 		} catch (error) {
-			console.error('Error deleting folder:', error);
+			console.error('Error opening folder:', error);
 			toastStore.trigger({
-				message: 'Failed to delete folder',
+				message: 'Failed to open folder',
 				background: 'variant-filled-error',
 				timeout: 3000
 			});
 		}
 	}
 
-	// Update breadcrumb
-	function updateBreadcrumb() {
-		if (currentFolder && currentFolder.path) {
-			breadcrumb = [publicEnv.MEDIA_FOLDER, ...currentFolder.path.slice(1)];
-		} else {
-			breadcrumb = [publicEnv.MEDIA_FOLDER];
-		}
-		console.log('Updated breadcrumb:', breadcrumb);
+	// Handle view change
+	function handleViewChange(newView: 'grid' | 'table') {
+		view = newView;
+		storeUserPreference(view, gridSize, tableSize);
+	}
+
+	// Clear search
+	function clearSearch() {
+		globalSearchValue = '';
 	}
 
 	// Handle delete image
@@ -388,35 +310,6 @@ Features:
 			});
 		}
 	}
-
-	// Handle user preferences
-	function storeUserPreference(view: 'grid' | 'table', gridSize: 'small' | 'medium' | 'large', tableSize: 'small' | 'medium' | 'large') {
-		localStorage.setItem('GalleryUserPreference', `${view}/${gridSize}/${tableSize}`);
-	}
-
-	function getUserPreferenceFromLocalStorageOrCookie(): string | null {
-		return localStorage.getItem('GalleryUserPreference');
-	}
-
-	// Handle view change
-	function handleClick() {
-		if (view === 'grid') {
-			gridSize = gridSize === 'small' ? 'medium' : gridSize === 'medium' ? 'large' : 'small';
-		} else {
-			tableSize = tableSize === 'small' ? 'medium' : tableSize === 'medium' ? 'large' : 'small';
-		}
-		storeUserPreference(view, gridSize, tableSize);
-	}
-
-	// Event handlers
-	function handleViewChange(newView: 'grid' | 'table') {
-		view = newView;
-		storeUserPreference(view, gridSize, tableSize);
-	}
-
-	function clearSearch() {
-		globalSearchValue = '';
-	}
 </script>
 
 <!-- Page Title and Actions -->
@@ -427,7 +320,7 @@ Features:
 	<!-- Row 2 (on mobile): Save and Reset Buttons -->
 	<div class="lgd:mt-0 flex items-center justify-center gap-4 lg:justify-end">
 		<!-- Add folder -->
-		<button onclick={openAddFolderModal} aria-label="Add folder" class="variant-filled-tertiary btn gap-2">
+		<button onclick={() => createFolder('New Folder')} aria-label="Add folder" class="variant-filled-tertiary btn gap-2">
 			<iconify-icon icon="mdi:folder-add-outline" width="24"></iconify-icon>
 			Add folder
 		</button>
@@ -441,7 +334,7 @@ Features:
 </div>
 
 <!-- Breadcrumb Navigation -->
-<Breadcrumb {breadcrumb} {folders} {openFolder} />
+<Breadcrumb {breadcrumb} folders={breadcrumbFolders} {openFolder} />
 
 <div class="wrapper overflow-auto">
 	<div class="mb-8 flex w-full flex-col justify-center gap-1 md:hidden">
@@ -494,18 +387,33 @@ Features:
 					<p class="text-xs">Size</p>
 					<div class="divide-surface-00 flex divide-x">
 						{#if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
-							<button onclick={handleClick} type="button" aria-label="Small" class="px-1">
+							<button
+								onclick={() => (gridSize = gridSize === 'small' ? 'medium' : gridSize === 'medium' ? 'large' : 'small')}
+								type="button"
+								aria-label="Small"
+								class="px-1"
+							>
 								<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40" style={`color:text-black dark:text-white`}
 								></iconify-icon>
 								<p class="text-xs">Small</p>
 							</button>
 						{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
-							<button onclick={handleClick} type="button" aria-label="Medium" class="px-1">
+							<button
+								onclick={() => (gridSize = gridSize === 'small' ? 'medium' : gridSize === 'medium' ? 'large' : 'small')}
+								type="button"
+								aria-label="Medium"
+								class="px-1"
+							>
 								<iconify-icon icon="material-symbols:grid-on-sharp" height="40" style={`color: text-black dark:text-white`}></iconify-icon>
 								<p class="text-xs">Medium</p>
 							</button>
 						{:else}
-							<button onclick={handleClick} type="button" aria-label="Large" class="px-1">
+							<button
+								onclick={() => (gridSize = gridSize === 'small' ? 'medium' : gridSize === 'medium' ? 'large' : 'small')}
+								type="button"
+								aria-label="Large"
+								class="px-1"
+							>
 								<iconify-icon icon="material-symbols:grid-view" height="40" style={`color: text-black dark:text-white`}></iconify-icon>
 								<p class="text-xs">Large</p>
 							</button>
@@ -568,17 +476,32 @@ Features:
 				Size
 				<div class="flex divide-x divide-gray-500">
 					{#if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
-						<button onclick={handleClick} type="button" class="px-1 md:px-2" aria-label="Small">
+						<button
+							onclick={() => (gridSize = gridSize === 'small' ? 'medium' : gridSize === 'medium' ? 'large' : 'small')}
+							type="button"
+							class="px-1 md:px-2"
+							aria-label="Small"
+						>
 							<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40"></iconify-icon>
 							<br /><span class="text-tertiary-500 dark:text-primary-500">Small</span>
 						</button>
 					{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
-						<button onclick={handleClick} type="button" class="px-1 md:px-2" aria-label="Medium">
+						<button
+							onclick={() => (gridSize = gridSize === 'small' ? 'medium' : gridSize === 'medium' ? 'large' : 'small')}
+							type="button"
+							class="px-1 md:px-2"
+							aria-label="Medium"
+						>
 							<iconify-icon icon="material-symbols:grid-on-sharp" height="40"></iconify-icon>
 							<br /><span class="text-tertiary-500 dark:text-primary-500">Medium</span>
 						</button>
 					{:else}
-						<button onclick={handleClick} type="button" class="px-1 md:px-2" aria-label="Large">
+						<button
+							onclick={() => (gridSize = gridSize === 'small' ? 'medium' : gridSize === 'medium' ? 'large' : 'small')}
+							type="button"
+							class="px-1 md:px-2"
+							aria-label="Large"
+						>
 							<iconify-icon icon="material-symbols:grid-view" height="40"></iconify-icon>
 							<br /><span class="text-tertiary-500 dark:text-primary-500">Large</span>
 						</button>

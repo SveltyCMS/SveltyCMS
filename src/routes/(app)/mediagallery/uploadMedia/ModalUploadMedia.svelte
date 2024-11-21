@@ -25,11 +25,16 @@
 	import * as m from '@src/paraglide/messages';
 
 	interface Props {
-		parent: any;
+		parent: {
+			type: string;
+			id?: string;
+			name?: string;
+			[key: string]: unknown;
+		};
 		sectionName: string;
 		files?: File[]; // This holds all files, both initially provided and newly added
 		onDelete: (file: File) => void;
-		uploadFiles: Function;
+		uploadFiles: (files: File[]) => Promise<void>;
 	}
 
 	let { parent, sectionName, files = $bindable([]), onDelete, uploadFiles }: Props = $props();

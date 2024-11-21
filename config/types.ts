@@ -155,4 +155,4 @@ export const createPublicConfig = <const C, S extends AvailableLanguageTag, cons
 	// DEMO Mode
 	DEMO?: boolean;
 }) => arg;
-type NoInfer<T> = [T][T extends any ? 0 : never];
+type NoInfer<T> = [T][T extends unknown ? 0 : never];

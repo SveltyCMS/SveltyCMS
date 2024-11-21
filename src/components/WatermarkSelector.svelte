@@ -12,28 +12,24 @@ Usage:
 -->
 
 <script lang="ts">
-	// Define the structure of a media item
-	type MediaItem = {
-		url: string;
-		name: string;
-	};
+	import type { MediaType } from '@utils/media/mediaModels';
 
 	interface Props {
 		// Component props
-		mediaItems?: MediaItem[];
-		selectedMedia?: MediaItem | null;
-		onSelect: (media: MediaItem) => void;
+		mediaItems?: MediaType[];
+		selectedMedia?: MediaType | null;
+		onSelect: (media: MediaType) => void;
 	}
 
 	let { mediaItems = [], selectedMedia = null, onSelect }: Props = $props();
 
 	// Handle selection of a media item
-	function handleSelect(media: MediaItem) {
+	function handleSelect(media: MediaType) {
 		onSelect(media);
 	}
 
 	// Handle keyboard navigation
-	function handleKeydown(event: KeyboardEvent, media: MediaItem) {
+	function handleKeydown(event: KeyboardEvent, media: MediaType) {
 		if (event.key === 'Enter' || event.key === ' ') {
 			event.preventDefault();
 			handleSelect(media);

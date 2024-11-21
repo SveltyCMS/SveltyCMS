@@ -26,6 +26,13 @@ Features:
 	import type { User } from '@src/auth/types'; // Assuming these types exist
 	import { store } from '@src/utils/reactivity.svelte';
 
+	interface Permissions {
+		[contextId: string]: {
+			hasPermission: boolean;
+			isRateLimited: boolean;
+		};
+	}
+
 	interface Props {
 		// Prop to receive permission configuration
 		config: PermissionConfig | undefined;
@@ -51,7 +58,11 @@ Features:
 	let permissions = $derived(($page.data.permissions || {}) as Permissions);
 
 	// Computed values with stores
-	let permissionData = $derived(config?.contextId ? permissions[config.contextId] || {} : {});
+	let permissionData = $derived(
+		config?.contextId
+			? permissions[config.contextId] || { hasPermission: false, isRateLimited: false }
+			: { hasPermission: false, isRateLimited: false }
+	);
 	let isAdmin = $derived(user?.role?.toLowerCase() === 'admin');
 	let hasPermission = $derived(isAdmin || permissionData.hasPermission || false);
 	let isRateLimited = $derived(permissionData.isRateLimited || false);

@@ -21,7 +21,7 @@
 	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
 
 	// Valibot validation
-	import { string, email as emailValidator, pipe, parse, type ValiError, nonEmpty } from 'valibot';
+	import { string, email as emailValidator, pipe, parse, type ValiError } from 'valibot';
 
 	interface Props {
 		field: FieldType;

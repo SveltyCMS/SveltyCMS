@@ -128,10 +128,18 @@ export class DrizzleAuthAdapter implements authDBInterface {
 	// Get the count of users
 	async getUserCount(filter?: object): Promise<number> {
 		try {
-			const result = await db
-				.select({ count: sql`count(*)` })
-				.from(users)
-				.get();
+			let query = db.select({ count: sql`count(*)` }).from(users);
+
+			if (filter && Object.keys(filter).length > 0) {
+				// Apply filters dynamically
+				Object.entries(filter).forEach(([key, value]) => {
+					if (key in users) {
+						query = query.where(eq(users[key as keyof typeof users], value));
+					}
+				});
+			}
+
+			const result = await query.get();
 			return result?.count as number;
 		} catch (error) {
 			logger.error(`Failed to get user count: ${(error as Error).message}`);
@@ -361,7 +369,7 @@ export class DrizzleAuthAdapter implements authDBInterface {
 	async getRoleById(role_id: string): Promise<Role | null> {
 		try {
 			const role = await db.select().from(roles).where(eq(roles.id, role_id)).get();
-			return role ? (role as Role) : null;
+			return role as Role | null;
 		} catch (error) {
 			logger.error(`Failed to get role by ID: ${(error as Error).message}`);
 			throw error;
@@ -386,7 +394,7 @@ export class DrizzleAuthAdapter implements authDBInterface {
 	async getRoleByName(name: string): Promise<Role | null> {
 		try {
 			const role = await db.select().from(roles).where(eq(roles.name, name)).get();
-			return role ? (role as Role) : null;
+			return role as Role | null;
 		} catch (error) {
 			logger.error(`Failed to get role by name: ${(error as Error).message}`);
 			throw error;
@@ -425,7 +433,7 @@ export class DrizzleAuthAdapter implements authDBInterface {
 	async getPermissionById(permission_id: string): Promise<Permission | null> {
 		try {
 			const permission = await db.select().from(permissions).where(eq(permissions.id, permission_id)).get();
-			return permission ? (permission as Permission) : null;
+			return permission as Permission | null;
 		} catch (error) {
 			logger.error(`Failed to get permission by ID: ${(error as Error).message}`);
 			throw error;
@@ -450,7 +458,7 @@ export class DrizzleAuthAdapter implements authDBInterface {
 	async getPermissionByName(name: string): Promise<Permission | null> {
 		try {
 			const permission = await db.select().from(permissions).where(eq(permissions.name, name)).get();
-			return permission ? (permission as Permission) : null;
+			return permission as Permission | null;
 		} catch (error) {
 			logger.error(`Failed to get permission by name: ${(error as Error).message}`);
 			throw error;

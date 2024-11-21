@@ -19,17 +19,23 @@
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 	import { Avatar } from '@skeletonlabs/skeleton';
 	import { FileDropzone } from '@skeletonlabs/skeleton';
+	import type { ModalComponent } from '@skeletonlabs/skeleton';
 
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
-	let files: FileList = $state();
+	let files: FileList | null = $state(null);
 
 	// Valibot validation schema
 	import { object, instance, check, pipe, parse, type InferInput, type ValiError } from 'valibot';
+
 	interface Props {
 		// Props
-		parent: any;
+		parent: ModalComponent['props'] & {
+			regionFooter?: string;
+			onClose?: (event: MouseEvent) => void;
+			buttonPositive?: string;
+		};
 	}
 
 	let { parent }: Props = $props();
@@ -57,11 +63,12 @@
 		file: fileSchema
 	});
 
-	type AvatarSchemaType = InferInput<typeof avatarSchema>;
-
 	// Handle file input change
 	function onChange(e: Event) {
-		files = (e.target as HTMLInputElement).files!;
+		const inputFiles = (e.target as HTMLInputElement).files;
+		if (!inputFiles || inputFiles.length === 0) return;
+
+		files = inputFiles;
 		const lastFile = files[files.length - 1];
 		console.log('Selected file:', lastFile);
 

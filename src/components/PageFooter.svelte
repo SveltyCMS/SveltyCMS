@@ -16,8 +16,8 @@
 
 	// Convert timestamp to Date string
 	let dates = $derived({
-		created: convertTimestampToDateString(collectionValue.value.createdAt),
-		updated: convertTimestampToDateString(collectionValue.value.updatedAt)
+		created: convertTimestampToDateString(Number(collectionValue.value?.createdAt) || 0),
+		updated: convertTimestampToDateString(Number(collectionValue.value?.updatedAt) || 0)
 	});
 </script>
 

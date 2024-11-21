@@ -8,6 +8,7 @@
 	import axios from 'axios';
 	import { onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
+	import type { User } from '@src/auth/types';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -30,7 +31,6 @@
 	import ModalEditAvatar from './components/ModalEditAvatar.svelte';
 	import ModalEditForm from './components/ModalEditForm.svelte';
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
-
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 
 	const toastStore = getToastStore();
@@ -41,33 +41,39 @@
 	let { user: serverUser, isFirstUser } = $derived(data);
 
 	// Make user data reactive
-	let user = $state({
-		...serverUser,
-		username: serverUser?.username || '',
-		email: serverUser?.email || '',
-		avatar: serverUser?.avatar || '/Default_User.svg'
+	let user = $state<User>({
+		_id: '',
+		email: '',
+		username: '',
+		role: '',
+		avatar: '/Default_User.svg',
+		permissions: []
 	});
 
 	// Keep user data in sync with server data
 	$effect(() => {
 		if (serverUser) {
 			user = {
-				...serverUser,
-				username: serverUser.username || '',
-				email: serverUser.email || '',
-				avatar: serverUser.avatar || '/Default_User.svg'
+				_id: serverUser._id ?? '',
+				email: serverUser.email ?? '',
+				username: serverUser.username ?? '',
+				role: serverUser.role ?? '',
+				avatar: serverUser.avatar ?? '/Default_User.svg',
+				permissions: serverUser.permissions ?? []
 			};
 		}
 	});
 
 	// Initialize avatarSrc with user's avatar or default using effect
 	$effect.root(() => {
-		if (user) {
-			avatarSrc.set(user.avatar || '/Default_User.svg');
+		if (user?.avatar) {
+			avatarSrc.set(user.avatar);
+		} else {
+			avatarSrc.set('/Default_User.svg');
 		}
 	});
 
-	// Define password as 'hash-password'
+	// Define password as state
 	let password = $state('hash-password');
 
 	// Function to execute actions
@@ -97,15 +103,17 @@
 			slot: '<p>Edit Form</p>'
 		};
 
+		type UserFormResponse = Partial<Pick<User, 'username' | 'email' | 'role' | 'avatar'>>;
+
 		const d: ModalSettings = {
 			type: 'component',
 			title: m.usermodaluser_edittitle(),
 			body: m.usermodaluser_editbody(),
 			component: modalComponent,
-			response: async (r: any) => {
+			response: async (r: UserFormResponse) => {
 				if (r) {
 					console.log('Response:', r);
-					const data = { user_id: user?._id, newUserData: r };
+					const data = { user_id: user._id, newUserData: r };
 					const res = await axios.put('/api/user/updateUserAttributes', data);
 					const t = {
 						message: '<iconify-icon icon="mdi:check-outline" color="white" width="26" class="mr-1"></iconify-icon> User Data Updated',
@@ -242,7 +250,7 @@
 	<!-- Admin area -->
 	<PermissionGuard config={permissionConfigs.adminAreaPermissionConfig}>
 		<div class="wrapper2">
-			<AdminArea adminData={data.adminData} manageUsersPermissionConfig={permissionConfigs.manageUsersPermissionConfig} />
+			<AdminArea adminData={data.adminData} />
 		</div>
 	</PermissionGuard>
 </div>

@@ -134,7 +134,10 @@ Features:
 		if (collectionValue.value) {
 			// Automatically update slug when name changes
 			if (autoUpdateSlug) {
-				collectionValue.update((current)=> ({...current, slug: collectionValue.value.name ? collectionValue.value.name.toLowerCase().replace(/ /g, '_') : ''})) ;
+				collectionValue.update((current) => ({
+					...current,
+					slug: collectionValue.value.name ? collectionValue.value.name.toLowerCase().replace(/ /g, '_') : ''
+				}));
 			}
 
 			// Update page title based on mode and collection name

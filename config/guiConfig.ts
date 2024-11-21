@@ -46,16 +46,16 @@ import * as m from '@src/paraglide/messages';
 // Config fields
 interface ConfigField<T> {
 	type: T;
-	default: any;
+	default: T;
 	helper: string;
-	allowedValues?: any[];
+	allowedValues?: T[];
 	icon: string;
 }
 // Config categories
 interface ConfigCategory {
 	description: string;
 	icon: string;
-	fields: { [key: string]: ConfigField<any> };
+	fields: { [key: string]: ConfigField<string | number | boolean> };
 }
 
 const databaseConfig: ConfigCategory = {

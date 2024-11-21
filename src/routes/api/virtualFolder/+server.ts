@@ -29,7 +29,6 @@ import { publicEnv } from '@root/config/public';
 import { logger } from '@utils/logger';
 import { createDirectory, deleteDirectory } from '@utils/fileUploading';
 
-
 // GET: Retrieve all virtual folders or contents of a specific folder
 export const GET: RequestHandler = async ({ url }) => {
 	const folderId = url.searchParams.get('folderId');

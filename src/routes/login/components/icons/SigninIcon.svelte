@@ -10,24 +10,24 @@
 	let {
 		show = $bindable(true),
 		disabled = false,
-		onClick = (event: MouseEvent | KeyboardEvent) => {}
+		onClick = () => {}
 	} = $props<{
 		show?: boolean;
 		disabled?: boolean;
-		onClick?: (event: MouseEvent | KeyboardEvent) => void;
+		onClick?: () => void;
 	}>();
 
 	function handleClick(event: MouseEvent) {
 		if (disabled) return;
-		event.stopPropagation(); // Prevent event bubbling
-		onClick(event);
+		event.stopPropagation();
+		onClick(event); // Ensure onClick uses the event meaningfully
 	}
 
 	function handleKeyDown(event: KeyboardEvent) {
 		if (disabled) return;
 		if (event.key === 'Enter') {
-			event.stopPropagation(); // Prevent event bubbling
-			onClick(event);
+			event.stopPropagation();
+			onClick(event); // Ensure onClick uses the event meaningfully
 		}
 	}
 </script>

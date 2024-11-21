@@ -49,24 +49,20 @@ const widgetsInit = {
 	ColorPicker, // Color Picker - choice of color
 	Currency, // Currency - define input with a currency string and suffix
 	Date, // Date - date field that saves a timestamp
-	DateTime, // Date - date / time field that saves a timestamp
-	DateRange, // DateRange - date with start / Finish timestamps
-	Email, // Email - validates the entry is a properly formatted email
-	// Group, // Group - nest fields within an object with condition & tabs
-	MediaUpload, // MediaUpload - for uploading Media like images, videos, audio
-	MegaMenu, // MegaMenu - Flexible Menu with possible hierarchy
-	Number, // Number - field that enforces that its value be a number
-	PhoneNumber, // PhoneNumber - Field checking for phone/Fax numbers
-	Radio, // Radio - radio button group, allowing only one value to be selected
-	Rating, // Relation - assign relationships to other collections
-	Relation, // Rating - Visual representation of a numeric range.
-	RemoteVideo, // RemoteVideo - for youtube/vimeo(/Twitch/ticktock), grabbing Title/Duration,Dimension,User
-	RichText, // Rich Text - fully extensible Lexical Rich Text editor
-	// SelectList, // SelectList - dropdown / pick list style value selector
-	Seo, // Seo - Basic Seo Title /Description with preview
-	Text // Text - A Simple text input
-	// Textarea, // Textarea - allows a bit larger of a text editor
-	// Url // Url - Link to internal / External hyperlinks
+	DateTime, // DateTime - date and time field that saves a timestamp
+	DateRange, // DateRange - date range field that saves two timestamps
+	Email, // Email - email field with validation
+	MediaUpload, // MediaUpload - upload media files
+	MegaMenu, // MegaMenu - menu builder
+	Number, // Number - number field with validation
+	PhoneNumber, // PhoneNumber - phone number field with validation
+	Radio, // Radio - radio button field
+	Rating, // Rating - rating field
+	Relation, // Relation - relation field
+	RemoteVideo, // RemoteVideo - remote video field
+	RichText, // RichText - rich text editor
+	Seo, // Seo - seo fields
+	Text // Text - text field
 };
 
 // Define widget types after initialization
@@ -78,27 +74,25 @@ export type WidgetType = {
 	};
 };
 
+// Export widgets object for direct use
+export const widgets = widgetsInit;
+
 // Create and initialize widgets object
-const widgets = widgetsInit as WidgetType;
+const widgetsInstance = widgetsInit as WidgetType;
 
 // Export initWidgets function that ensures widgets are properly initialized
 export function initWidgets(): void {
 	try {
-		// Initialize global widgets
-		if (typeof globalThis !== 'undefined') {
-			(globalThis as any).widgets = widgets;
-		}
 		logger.info('Widgets initialized successfully');
 	} catch (error) {
-		logger.error('Failed to initialize widgets:', error as Error);
-		throw new Error('Widget initialization failed');
+		logger.error('Failed to initialize widgets:', error);
 	}
 }
 
 // Export a function to get the widgets object
 export function getWidgets() {
-	return widgets;
+	return widgetsInstance;
 }
 
 // Export default widgets object
-export default widgets;
+export default widgetsInstance;

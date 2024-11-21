@@ -10,9 +10,11 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 import PermissionsSetting from '@components/PermissionsSetting.svelte';
 
 // Auth
-import type { Permission } from '@src/auth/types';
+import type { Permission, RateLimit } from '@src/auth/types';
 
 import { SIZES } from '@utils/utils';
+
+import type { ComponentType } from 'svelte';
 
 /**
  * Defines MediaUpload widget Parameters
@@ -30,12 +32,14 @@ export enum WATERMARK_POSITION {
 	'bottom-right' = 'bottom-right'
 }
 
+export type DISPLAY = (data: { data: unknown; collection?: string; field?: unknown; entry?: unknown; contentLanguage?: string }) => Promise<string>;
+
 export type Params = {
 	// default required parameters
 	label: string;
 	display?: DISPLAY;
 	db_fieldName?: string;
-	widget?: any;
+	widget?: ComponentType;
 	required?: boolean;
 	translated?: boolean;
 	icon?: string;
@@ -49,22 +53,22 @@ export type Params = {
 	folder: string | 'global' | 'unique';
 	type?: string | 'image' | 'audio' | 'video' | 'document' | 'remotevideo';
 	allowedtypes?: string[];
-	multiupload?: boolean; // Ensure this is included for multi-file uploads
+	multiupload?: boolean;
 	sizelimit?: number;
 	extensions?: string;
-	metadata?: Record<string, any>;
+	metadata?: Record<string, unknown>;
 	tags?: string[];
 	categories?: string[];
 	responsive?: boolean;
-	customDisplayComponent?: any;
+	customDisplayComponent?: ComponentType;
 	watermark?: {
-		url: string; // URL of the watermark image
-		position?: WATERMARK_POSITION; // Optional position (defaults to center)
-		opacity?: number; // Opacity between 0 and 1 (defaults to 1)
-		scale?: number; // Scale watermark size as a percentage (defaults to 100)
-		offsetX?: number; // Offset watermark position in pixels (horizontal)
-		offsetY?: number; // Offset watermark position in pixels (vertical)
-		rotation?: number; // Rotate watermark in degrees
+		url: string;
+		position?: WATERMARK_POSITION;
+		opacity?: number;
+		scale?: number;
+		offsetX?: number;
+		offsetY?: number;
+		rotation?: number;
 	};
 };
 
@@ -178,7 +182,7 @@ export const GraphqlSchema = ({ label, collection }: { label: string; collection
 	return typeDefs;
 };
 
-const getType = (widget: any): string => {
+const getType = (widget: ComponentType): string => {
 	switch (widget) {
 		case Input:
 			return 'String';

@@ -49,7 +49,7 @@ function isValidString(data: unknown): data is string {
 
 // Type guard for info with contentLanguage
 interface AggregationInfo {
-	field: any;
+	field: MediaBase;
 	contentLanguage?: string;
 	filter?: string;
 	sort?: number;
@@ -60,7 +60,7 @@ function getLanguage(info: AggregationInfo): string {
 }
 
 // Helper function to safely get element by ID
-async function safeGetElementById(id: unknown, callback: (data: any) => void): Promise<void> {
+async function safeGetElementById(id: unknown, callback: (data: MediaType) => void): Promise<void> {
 	if (isValidString(id)) {
 		await get_elements_by_id.add('media_files', id, callback);
 	}
@@ -92,7 +92,7 @@ function getMediaService(): MediaService {
 
 const widget = (params: Params) => {
 	// Define the display function with reactive state
-	let display: any;
+	let display: (({ data }: { data: MediaType | FileList | File }) => string) | undefined;
 
 	if (!params.display) {
 		display = async ({ data }) => {

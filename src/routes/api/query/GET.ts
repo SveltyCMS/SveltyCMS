@@ -23,6 +23,15 @@ import type { Schema } from '@src/collections/types';
 import type { User } from '@src/auth/types';
 import type { CollectionModel } from '@src/databases/dbInterface';
 
+// Interface for database aggregation operations
+export interface AggregationPipeline {
+	$match?: Record<string, unknown>;
+	$sort?: Record<string, number>;
+	$skip?: number;
+	$limit?: number;
+	[key: string]: unknown;
+}
+
 // Database
 import { dbAdapter, getCollectionModels } from '@src/databases/db';
 
@@ -87,7 +96,7 @@ export async function _GET({
 			return new Response('Collection not found', { status: 404 });
 		}
 
-		const aggregations: any[] = [];
+		const aggregations: AggregationPipeline[] = [];
 		const skip = (page - 1) * limit; // Calculate the number of documents to skip for pagination
 
 		// Build aggregation pipelines for sorting and filtering

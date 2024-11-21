@@ -36,20 +36,15 @@ import { initWidgets } from '@components/widgets';
 import { categoryConfig } from './categories';
 
 // Server-side imports
-let crypto: typeof import('crypto') | null = null;
+
 let fs: typeof import('fs/promises') | null = null;
 let path: typeof import('path') | null = null;
 
 if (!browser) {
-    const imports = await Promise.all([
-        import('crypto'),
-        import('fs/promises'),
-        import('path')
-    ]);
-    [crypto, fs, path] = imports;
+	const imports = await Promise.all([ import('fs/promises'), import('path')]);
+	[ fs, path] = imports;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface ProcessedModule {
 	schema?: Partial<Schema>;
 }
@@ -274,8 +269,8 @@ class CollectionManager {
 				const collections: Schema[] = [];
 
 				if (process.env.NODE_ENV === 'development') {
-					// Use glob pattern for importing collection files
-					const modules = import.meta.glob('/config/collections/**/*.ts', { eager: true });
+					// Use dynamic imports instead of eager loading
+					const modules = await import.meta.glob('/config/collections/**/*.ts', { eager: true });
 
 					const filteredModules = Object.entries(modules).filter(([path]) => {
 						const fileName = path.split('/').pop() || '';
@@ -289,38 +284,55 @@ class CollectionManager {
 						return countB - countA;
 					});
 
-					for (const [filePath, moduleSchema] of filteredModules) {
-						const schema = (moduleSchema as any)?.schema;
-						if (!schema || typeof schema !== 'object') {
-							logger.error(`Invalid or missing schema in ${filePath}`);
-							throw new Error(`Invalid or missing schema in ${filePath}`);
-						}
+					for (const [filePath, moduleContent] of filteredModules) {
+						try {
+							// Extract schema from module content
+							const moduleSchema = moduleContent as { schema?: Partial<Schema> };
+							const schema = moduleSchema?.schema;
 
-						// Ensure required fields are present
-						if (!schema.fields) {
-							schema.fields = [];
-						}
+							if (!schema || typeof schema !== 'object') {
+								logger.error(`Invalid or missing schema in ${filePath}`);
+								continue;
+							}
 
-						const name = filePath
-							.split('/')
-							.pop()
-							?.replace(/\.(ts|js)$/, '');
-						if (!name) {
-							logger.error(`Could not extract name from ${filePath}`);
-							continue;  // Skip this iteration instead of returning null
-						}
+							// Ensure required fields are present
+							if (!schema.fields) {
+								schema.fields = [];
+							}
 
-						const randomId = await createRandomID();
-						const processed: Schema = {
-							...schema,
-							name, // Remove type assertion as name can now be string
-							id: parseInt(randomId.toString().slice(0, 8), 16),
-							icon: schema.icon || 'iconoir:info-empty',
-							path: this.extractPathFromFilePath(filePath),
-							fields: schema.fields || []
-						};
-						collections.push(processed);
-						await this.setCacheValue(filePath, processed, this.collectionCache);
+							const name = filePath
+								.split('/')
+								.pop()
+								?.replace(/\.(ts|js)$/, '');
+							if (!name) {
+								logger.error(`Could not extract name from ${filePath}`);
+								continue;
+							}
+
+							const randomId = await createRandomID();
+							const processed: Schema = {
+								...schema,
+								name,
+								id: parseInt(randomId.toString().slice(0, 8), 16),
+								icon: schema.icon || 'iconoir:info-empty',
+								path: this.extractPathFromFilePath(filePath),
+								fields: schema.fields || [],
+								permissions: schema.permissions || {},
+								livePreview: schema.livePreview || false,
+								strict: schema.strict || false,
+								revision: schema.revision || false,
+								description: schema.description || '',
+								label: schema.label || name,
+								slug: schema.slug || name.toLowerCase()
+							};
+
+							collections.push(processed);
+							await this.setCacheValue(filePath, processed, this.collectionCache);
+						} catch (err) {
+							const errorMessage = err instanceof Error ? err.message : String(err);
+							logger.error(`Failed to process module ${filePath}:`, { error: errorMessage });
+							continue;
+						}
 					}
 				} else {
 					// Production mode implementation
@@ -366,69 +378,63 @@ class CollectionManager {
 
 	// Process collection file with improved error handling
 	private async processCollectionFile(filePath: string, content: string): Promise<Schema | null> {
-		return this.retryOperation(async () => {
-			try {
-				if (!browser && crypto) {
-					// Server-side hash calculation
-					const hash = crypto.createHash('md5').update(content).digest('hex');
-					const hashCacheKey = `hash_${filePath}`;
+		try {
+			// Process the module content
+			const moduleData = await this.processModule(content);
 
-					// Check if file has changed
-					const cachedHash = await this.getCacheValue(hashCacheKey, this.fileHashCache);
-					const cachedSchema = await this.getCacheValue(filePath, this.collectionCache);
-					if (cachedHash === hash && cachedSchema) {
-						return cachedSchema;
-					}
-
-				// Use glob pattern for importing collection files
-				const modules = import.meta.glob('/config/collections/**/*.ts', { eager: true });
-				const moduleSchema = modules[filePath];
-				const schema = (moduleSchema as any)?.schema;
-
-					if (!schema || typeof schema !== 'object') {
-						logger.error(`Invalid or missing schema in ${filePath}`);
-						throw new Error(`Invalid or missing schema in ${filePath}`);
-					}
-
-					// Ensure required fields are present
-					if (!schema.fields) {
-						schema.fields = [];
-					}
-
-					const name = filePath
-						.split('/')
-						.pop()
-						?.replace(/\.(ts|js)$/, '');
-					if (!name) {
-						logger.error(`Could not extract name from ${filePath}`);
-						throw new Error(`Could not extract name from ${filePath}`);
-					}
-
-					const randomId = await createRandomID();
-					const processed: Schema = {
-						...schema,
-						name, // Remove type assertion as name can now be string
-						id: parseInt(randomId.toString().slice(0, 8), 16),
-						icon: schema.icon || 'iconoir:info-empty',
-						path: this.extractPathFromFilePath(filePath),
-						fields: schema.fields || []
-					};
-
-					await this.setCacheValue(hashCacheKey, hash, this.fileHashCache);
-					await this.setCacheValue(filePath, processed, this.collectionCache);
-
-					return processed;
-				} else {
-					// Browser-side - skip hash calculation or use a different method
-					logger.debug('Skipping hash calculation in browser environment');
-					return null; // Replace with actual processing
-				}
-			} catch (err) {
-				const errorMessage = err instanceof Error ? err.message : String(err);
-				logger.error(`Error processing collection file ${filePath}: ${errorMessage}`);
-				throw err; // Re-throw the error instead of returning null
+			if (!moduleData || !moduleData.schema) {
+				logger.error(`Invalid collection file format: ${filePath}`, { 
+					hasModuleData: !!moduleData,
+					hasSchema: !!(moduleData && moduleData.schema)
+				});
+				return null;
 			}
-		});
+
+			// Extract the name from the file path
+			const name = filePath
+				.split('/')
+				.pop()
+				?.replace(/\.(ts|js)$/, '');
+
+			if (!name) {
+				logger.error(`Could not extract name from ${filePath}`);
+				return null;
+			}
+
+			// Generate a random ID for the collection
+			const randomId = await createRandomID();
+			
+			// Create the processed schema with proper type checking
+			const baseSchema = moduleData.schema as Partial<Schema>;
+			const processedSchema: Schema = {
+				id: parseInt(randomId.toString().slice(0, 8), 16),
+				name: name,
+				label: baseSchema.label || name,
+				slug: baseSchema.slug || name.toLowerCase(),
+				icon: baseSchema.icon || 'iconoir:info-empty',
+				description: baseSchema.description || '',
+				strict: baseSchema.strict || false,
+				revision: baseSchema.revision || false,
+				path: filePath,
+				permissions: baseSchema.permissions || {},
+				livePreview: baseSchema.livePreview || false,
+				fields: Array.isArray(baseSchema.fields) ? baseSchema.fields : []
+			};
+
+			// Create the MongoDB model for this collection
+			if (!browser) {
+				const { dbAdapter } = await import('@src/databases/db');
+				if (dbAdapter) {
+					await dbAdapter.createCollectionModel(processedSchema);
+				}
+			}
+
+			return processedSchema;
+		} catch (err) {
+			const errorMessage = err instanceof Error ? err.message : String(err);
+			logger.error(`Failed to process collection file ${filePath}:`, { error: errorMessage });
+			return null;
+		}
 	}
 
 	// Extract path from file path
@@ -473,7 +479,7 @@ class CollectionManager {
 			const response = await axios.get(`/api/collections/file?path=${encodeURIComponent(filePath)}`);
 			return response.data;
 		}
-		
+
 		// Server-side file reading
 		if (!fs) throw new Error('File system operations are only available on the server');
 		return fs.readFile(filePath, 'utf-8');

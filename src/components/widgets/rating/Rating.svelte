@@ -16,70 +16,15 @@
 
 	// Stores
 	import { validationStore } from '@stores/store';
-	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
+	import { mode } from '@root/src/stores/collectionStore.svelte';
 
 	// Skeleton
 	import { Ratings } from '@skeletonlabs/skeleton';
 
 	// Valibot validation
-	import { number, pipe, parse, type ValiError, minValue, maxValue, nonNullable } from 'valibot';
+	import { number, pipe, parse, minValue, maxValue } from 'valibot';
+	import { writable } from 'svelte/store';
 
-	const fieldName = getFieldName(field);
-
-	// Initialize _data based on mode
-	const _data = $state(mode.value === 'create' ? {} : value);
-
-	let validationError: string | null = $state(null);
-	let debounceTimeout: number | undefined;
-
-	// Create validation schema for rating
-	const ratingSchema = pipe(number(), minValue(1, 'Rating must be at least 1 star'), maxValue(maxRating, `Rating cannot exceed ${maxRating} stars`));
-
-	// Validation function
-	function validateInput() {
-		try {
-			if (debounceTimeout) clearTimeout(debounceTimeout);
-			debounceTimeout = window.setTimeout(() => {
-				try {
-					const value = _data.value;
-
-					// First validate if required
-					if (field?.required && (value === undefined || value === null)) {
-						validationError = 'This field is required';
-						validationStore.setError(fieldName, validationError);
-						return;
-					}
-
-					// Then validate rating if value exists
-					if (value !== undefined && value !== null) {
-						parse(ratingSchema, value);
-					}
-
-					validationError = null;
-					validationStore.clearError(fieldName);
-				} catch (error) {
-					if ((error as ValiError<typeof ratingSchema>).issues) {
-						const valiError = error as ValiError<typeof ratingSchema>;
-						validationError = valiError.issues[0]?.message || 'Invalid input';
-						validationStore.setError(fieldName, validationError);
-					}
-				}
-			}, 300);
-		} catch (error) {
-			console.error('Validation error:', error);
-			validationError = 'An unexpected error occurred during validation';
-			validationStore.setError(fieldName, 'Validation error');
-		}
-	}
-
-	// Handle rating click
-	function handleIconClick(event: CustomEvent<{ index: number }>): void {
-		_data.value = event.detail.index;
-		validateInput();
-	}
-
-	// Cleanup on destroy
-	import { onDestroy } from 'svelte';
 	interface Props {
 		field: FieldType;
 		maxRating?: number;
@@ -99,8 +44,61 @@
 		iconEmpty = 'material-symbols:star-outline',
 		iconHalf = 'material-symbols:star-half',
 		iconFull = 'material-symbols:star',
-		value = collectionValue.value[fieldName] || {}
+		value = field.default ?? null
 	}: Props = $props();
+
+	const fieldName = getFieldName(field);
+
+	// Initialize _data based on mode
+	let _data = mode.value === 'create' ? {} : value;
+
+	// Create a writable store for validation error
+	const validationErrorStore = writable<string | null>(null);
+	let debounceTimeout: number | undefined;
+
+	// Create validation schema for rating
+	const ratingSchema = pipe(number(), minValue(1, 'Rating must be at least 1 star'), maxValue(maxRating, `Rating cannot exceed ${maxRating} stars`));
+
+	// Validation function
+	function validateInput() {
+		try {
+			if (debounceTimeout) clearTimeout(debounceTimeout);
+			debounceTimeout = window.setTimeout(() => {
+				try {
+					const value = _data.value;
+
+					// First validate if required
+					if (field?.required && (value === undefined || value === null)) {
+						validationErrorStore.set('This field is required');
+						validationStore.setError(fieldName, 'This field is required');
+						return;
+					}
+
+					// Then validate the value
+					if (value !== undefined && value !== null) {
+						parse(ratingSchema, value);
+						validationErrorStore.set(null);
+						validationStore.clearError(fieldName);
+					}
+				} catch (err) {
+					const message = err instanceof Error ? err.message : 'Invalid rating value';
+					validationErrorStore.set(message);
+					validationStore.setError(fieldName, message);
+				}
+			}, 300);
+		} catch (err) {
+			console.error('Validation error:', err);
+		}
+	}
+
+	// Handle rating click
+	function handleIconClick(event: CustomEvent<{ index: number }>): void {
+		_data.value = event.detail.index;
+		validateInput();
+	}
+
+	// Cleanup on destroy
+	import { onDestroy } from 'svelte';
 
 	onDestroy(() => {
 		if (debounceTimeout) clearTimeout(debounceTimeout);
@@ -117,8 +115,8 @@
 		max={maxRating}
 		interactive
 		on:icon={handleIconClick}
-		aria-invalid={!!validationError}
-		aria-describedby={validationError ? `${fieldName}-error` : undefined}
+		aria-invalid={$validationErrorStore}
+		aria-describedby={$validationErrorStore ? `${fieldName}-error` : undefined}
 		aria-required={field?.required}
 		data-testid="rating-input"
 	>
@@ -134,9 +132,9 @@
 	</Ratings>
 
 	<!-- Error Message -->
-	{#if validationError}
+	{#if $validationErrorStore}
 		<p id={`${field.db_fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
-			{validationError}
+			{$validationErrorStore}
 		</p>
 	{/if}
 </div>
