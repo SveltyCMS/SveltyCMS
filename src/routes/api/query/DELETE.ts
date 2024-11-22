@@ -18,6 +18,11 @@
 import type { Schema } from '@src/collections/types';
 import type { User } from '@src/auth/types';
 
+// Interface for document ID
+export interface DocumentId {
+	_id: string;
+}
+
 // Database
 import { dbAdapter, getCollectionModels } from '@src/databases/db';
 
@@ -82,7 +87,7 @@ export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: 
 		// Process deletions with performance tracking
 		const modifyStart = performance.now();
 		await Promise.all(
-			idsArray.map(async (id: any, index: number) => {
+			idsArray.map(async (id: string, index: number) => {
 				const itemStart = performance.now();
 				try {
 					// Modify request for the current ID

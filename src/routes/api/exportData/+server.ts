@@ -30,6 +30,25 @@ import { collections } from '@root/src/stores/collectionStore.svelte';
 // System Logger
 import { logger } from '@utils/logger';
 
+// Types
+import type { User } from '@src/auth/types';
+
+interface DatabaseCollection {
+	name: string;
+}
+
+interface CollectionEntry {
+	_id: string;
+	status?: string;
+	createdAt?: string;
+	updatedAt?: string;
+	[key: string]: unknown;
+}
+
+interface CollectionResponse {
+	entryList: CollectionEntry[];
+}
+
 export const GET: RequestHandler = async ({ locals }) => {
 	try {
 		// Check if the user has the necessary permissions
@@ -38,10 +57,6 @@ export const GET: RequestHandler = async ({ locals }) => {
 			throw error(403, 'Forbidden: Insufficient permissions');
 		}
 		logger.debug('User has permission to export data');
-
-		// Retrieve collections from the store
-		const $collections = collections.value;
-		logger.debug('Collections retrieved from store');
 
 		// Fetch data from all collections concurrently
 		const data = await fetchAllCollectionData(collections.value, locals.user);
@@ -72,12 +87,12 @@ export const GET: RequestHandler = async ({ locals }) => {
 };
 
 // Fetches data from all collections concurrently
-async function fetchAllCollectionData(collections: any, user: any) {
-	const fetchPromises = Object.values(collections).map(async (collection: any) => {
-		const name = collection.name as string;
+async function fetchAllCollectionData(collections: Record<string, DatabaseCollection>, user: User) {
+	const fetchPromises = Object.values(collections).map(async (collection: DatabaseCollection) => {
+		const name = collection.name;
 		logger.debug(`Fetching data for collection: ${name}`);
 		const response = await _GET({ schema: collection, user });
-		const { entryList } = await response.json();
+		const { entryList } = (await response.json()) as CollectionResponse;
 		return [name, entryList];
 	});
 
@@ -86,7 +101,7 @@ async function fetchAllCollectionData(collections: any, user: any) {
 }
 
 // Writes the provided data to a file at the specified file path
-async function writeDataToFile(data: any, filePath: string) {
+async function writeDataToFile(data: Record<string, CollectionEntry[]>, filePath: string) {
 	const jsonData = JSON.stringify(data).replace(/\/media/g, 'media');
 	await fs.writeFile(path.resolve(filePath), jsonData);
 }

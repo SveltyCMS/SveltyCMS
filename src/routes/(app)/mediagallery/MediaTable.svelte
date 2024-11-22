@@ -125,10 +125,7 @@ Key features:
 			{#each paginatedFiles as file}
 				<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
 					<td class="w-10">
-						<TableIcons 
-							checked={selectedFiles.has(file.name)}
-							onCheck={(checked) => handleSelection(file, checked)}
-						/>
+						<TableIcons checked={selectedFiles.has(file.name)} onCheck={(checked) => handleSelection(file, checked)} />
 					</td>
 					<td>
 						<img

@@ -22,9 +22,10 @@ Features:
 -->
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { untrack } from 'svelte';
 
 	// Utils
-	import { asAny, debounce, getFieldName, meta_data } from '@utils/utils';
+	import { debounce, getFieldName, meta_data } from '@utils/utils';
 	import { deleteData, getData, setStatus } from '@utils/data';
 
 	// Types
@@ -132,7 +133,6 @@ Features:
 	let pagesCount = $state<number>(entryListPaginationSettings.pagesCount || 1); // Initialize pagesCount
 	let currentPage = $state<number>(entryListPaginationSettings.currentPage || 1); // Set initial currentPage value
 	let rowsPerPage = $state<number>(entryListPaginationSettings.rowsPerPage || 10); // Set initial rowsPerPage value
-	const rowsPerPageOptions = [5, 10, 25, 50, 100, 500]; // Set initial rowsPerPage value options
 	let totalItems = $state<number>(0); // Initialize totalItems
 
 	// Declare isFirstPage and isLastPage variables
@@ -313,7 +313,6 @@ Features:
 				meta_data.clear();
 				collectionValue.set({});
 			});
-
 		}
 	});
 
@@ -685,7 +684,7 @@ Features:
 					{/if}
 
 					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-						<TableIcons 
+						<TableIcons
 							checked={SelectAll}
 							onCheck={(checked) => {
 								SelectAll = checked;
@@ -741,7 +740,7 @@ Features:
 				<tbody>
 					{#each tableData as row, index}
 						<tr class="divide-x divide-surface-400">
-							<TableIcons 
+							<TableIcons
 								checked={selectedMap[index] || false}
 								onCheck={(checked) => {
 									selectedMap[index] = checked;

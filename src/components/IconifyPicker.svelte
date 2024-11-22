@@ -30,7 +30,16 @@
 	interface IconLibrary {
 		name: string;
 		total: number;
-		[key: string]: any;
+		prefix?: string;
+		version?: string;
+		author?: string;
+		license?: string;
+		samples?: string[];
+		height?: number;
+		displayHeight?: number;
+		category?: string;
+		palette?: boolean;
+		hidden?: boolean;
 	}
 
 	let { iconselected = $bindable(), searchQuery = $bindable('') }: Props = $props();

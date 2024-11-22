@@ -251,6 +251,7 @@
 					onkeypress={(e) => {
 						e.stopPropagation();
 						if (e.key === 'Enter' || e.key === ' ') {
+							e.preventDefault();
 						}
 					}}
 					class="btn-icon relative cursor-pointer flex-col items-center justify-center text-center !no-underline md:row-span-2"

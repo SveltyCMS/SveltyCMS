@@ -22,7 +22,7 @@ import { building } from '$app/environment';
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
 
 // Auth and Database Adapters
-import { auth, initializationPromise, dbAdapter } from '@src/databases/db';
+import { auth, initializationPromise } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import { checkUserPermission } from '@src/auth/permissionCheck';
 import { getAllPermissions } from '@src/auth/permissionManager';
@@ -172,142 +172,157 @@ const handleRateLimit: Handle = async ({ event, resolve }) => {
 };
 
 // Handle authentication, authorization, and API caching
-const handleAuth: Handle = async ({ event, resolve }) => {
-	// Skip authentication for error pages
-	if (event.url.pathname === '/404' || event.url.pathname.endsWith('/error')) {
-		return resolve(event);
-	}
-
-	// Skip full initialization during build
+export const handleAuth: Handle = async ({ event, resolve }) => {
+	// Skip during build
 	if (building) {
-		event.locals.user = null;
-		event.locals.permissions = [];
-		event.locals.session_id = null;
-		event.locals.isFirstUser = false;
-		return resolve(event);
+		return await resolve(event);
 	}
 
-	if (isStaticAsset(event.url.pathname)) return resolve(event);
-
-	const start = performance.now();
-	logger.debug('Starting handleAuth function');
-
-	// Wait for database initialization
 	try {
-		await initializationPromise;
-		logger.debug('Database initialization complete');
-
-		if (!dbAdapter) {
-			logger.error('Database adapter not initialized');
-			throw error(500, 'Database system is not available');
+		// Wait for initialization to complete
+		if (initializationPromise) {
+			await initializationPromise;
 		}
 
-		if (!auth) {
-			logger.error('Authentication system not initialized');
-			throw error(500, 'Authentication system is not available');
-		}
-	} catch (err) {
-		logger.error(`System initialization failed: ${err}`);
-		if (!isPublicOrOAuthRoute(event.url.pathname)) {
-			throw redirect(302, '/login');
-		}
-		return resolve(event);
-	}
-
-	const session_id = event.cookies.get(SESSION_COOKIE_NAME);
-	logger.debug(`Session ID from cookie: ${session_id || 'Not present'}`);
-
-	const user = await getUserFromSessionId(session_id);
-
-	// If session is invalid, clear the cookie
-	if (session_id && !user) {
-		event.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
-	}
-
-	logger.debug(`User from session: ${user ? JSON.stringify(user) : 'Not found'}`);
-
-	event.locals.user = user;
-	event.locals.permissions = user?.permissions || [];
-	event.locals.session_id = session_id;
-
-	const isPublicRoute = isPublicOrOAuthRoute(event.url.pathname);
-	const isApiRequest = event.url.pathname.startsWith('/api/');
-
-	// Check if this is the first user, regardless of session
-	let userCount = 0;
-	try {
-		userCount = await auth.getUserCount();
-	} catch (err) {
-		logger.error(`Failed to get user count: ${err}`);
-		// If we can't get user count, assume it's not first user for safety
-		if (!isPublicOrOAuthRoute(event.url.pathname)) {
-			throw redirect(302, '/login');
-		}
-	}
-
-	const isFirstUser = userCount === 0;
-	event.locals.isFirstUser = isFirstUser;
-	logger.debug(`Is first user: ${isFirstUser}, Total users: ${userCount}`);
-
-	if (user) {
+		const session_id = event.cookies.get(SESSION_COOKIE_NAME);
+		let user = null;
+		
 		try {
-			// Fetch user roles
-			event.locals.roles = await auth.getAllRoles();
-			logger.debug(`Roles retrieved for user ${user.email}: ${JSON.stringify(event.locals.roles)}`);
-
-			// Check for admin permissions
-			const manageUsersPermissionConfig = {
-				contextId: 'config/userManagement',
-				requiredRole: 'admin',
-				action: 'manage',
-				contextType: 'system'
-			};
-			const { hasPermission } = await checkUserPermission(user, manageUsersPermissionConfig);
-			event.locals.hasManageUsersPermission = hasPermission;
-			logger.debug(`User ${user.email} has manage users permission: ${hasPermission}`);
-
-			// Fetch admin data if user has permission
-			if (user.isAdmin || hasPermission) {
-				event.locals.allUsers = await auth.getAllUsers();
-				event.locals.allTokens = await auth.getAllTokens();
-				logger.debug(`Retrieved ${event.locals.allUsers.length} users and ${event.locals.allTokens.length} tokens for admin`);
-			}
+			user = await getUserFromSessionId(session_id);
 		} catch (err) {
-			logger.error(`Error fetching user data: ${err}`);
-			// If we can't fetch user data, session might be invalid
+			logger.error(`Failed to get user from session: ${err}`);
+			event.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+		}
+
+		// If session is invalid, clear the cookie
+		if (session_id && !user) {
+			event.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+		}
+
+		logger.debug(`User from session: ${user ? JSON.stringify(user) : 'Not found'}`);
+
+		event.locals.user = user;
+		event.locals.permissions = user?.permissions || [];
+		event.locals.session_id = session_id;
+
+		const isPublicRoute = isPublicOrOAuthRoute(event.url.pathname);
+		const isApiRequest = event.url.pathname.startsWith('/api/');
+
+		// Check if this is the first user, regardless of session
+		let userCount = 0;
+		let isFirstUser = false;
+		
+		try {
+			userCount = await auth.getUserCount();
+			isFirstUser = userCount === 0;
+		} catch (err) {
+			logger.error(`Failed to get user count: ${err}`);
+			// If we can't get user count and this isn't a public route, redirect to login
 			if (!isPublicOrOAuthRoute(event.url.pathname)) {
+				if (isApiRequest) {
+					throw error(401, 'Unauthorized');
+				}
 				throw redirect(302, '/login');
 			}
 		}
-	}
 
-	const responseTime = performance.now() - start;
-	logger.debug(
-		`Route ${event.url.pathname} - ${responseTime.toFixed(2)}ms ${getPerformanceEmoji(responseTime)}: isPublicRoute=${isPublicRoute}, isApiRequest=${isApiRequest}`
-	);
+		event.locals.isFirstUser = isFirstUser;
+		logger.debug(`Is first user: ${isFirstUser}, Total users: ${userCount}`);
 
-	if (isOAuthRoute(event.url.pathname)) {
-		logger.debug('OAuth route detected, passing through');
+		if (user) {
+			try {
+				// Fetch user roles
+				event.locals.roles = await auth.getAllRoles();
+				logger.debug(`Roles retrieved for user ${user.email}: ${JSON.stringify(event.locals.roles)}`);
+
+				// Check for admin permissions
+				const manageUsersPermissionConfig = {
+					contextId: 'config/userManagement',
+					requiredRole: 'admin',
+					action: 'manage',
+					contextType: 'system'
+				};
+				
+				try {
+					const { hasPermission } = await checkUserPermission(user, manageUsersPermissionConfig);
+					event.locals.hasManageUsersPermission = hasPermission;
+					logger.debug(`User ${user.email} has manage users permission: ${hasPermission}`);
+
+					// Fetch admin data if user has permission
+					if (user.isAdmin || hasPermission) {
+						const [users, tokens] = await Promise.allSettled([
+							auth.getAllUsers(),
+							auth.getAllTokens()
+						]);
+
+						event.locals.allUsers = users.status === 'fulfilled' ? users.value : [];
+						event.locals.allTokens = tokens.status === 'fulfilled' ? tokens.value : { tokens: [], count: 0 };
+						
+						logger.debug(`Retrieved ${event.locals.allUsers.length} users and ${event.locals.allTokens.tokens.length} tokens for admin`);
+					}
+				} catch (err) {
+					logger.error(`Error checking user permissions: ${err}`);
+					event.locals.hasManageUsersPermission = false;
+				}
+			} catch (err) {
+				logger.error(`Error fetching user data: ${err}`);
+				// Continue with the request but with limited permissions
+				event.locals.roles = [];
+				event.locals.hasManageUsersPermission = false;
+			}
+		}
+
+		const responseTime = performance.now() - event.startTime;
+		logger.debug(
+			`Route ${event.url.pathname} - ${responseTime.toFixed(2)}ms ${getPerformanceEmoji(responseTime)}: isPublicRoute=${isPublicRoute}, isApiRequest=${isApiRequest}`
+		);
+
+		if (isOAuthRoute(event.url.pathname)) {
+			logger.debug('OAuth route detected, passing through');
+			return resolve(event);
+		}
+
+		if (!user && !isPublicRoute && !isFirstUser) {
+			logger.debug('User not authenticated and not on public route, redirecting to login');
+			if (isApiRequest) {
+				throw error(401, 'Unauthorized');
+			}
+			throw redirect(302, '/login');
+		}
+
+		if (user && isPublicRoute && !isOAuthRoute(event.url.pathname)) {
+			logger.debug('Authenticated user on public route, redirecting to home');
+			throw redirect(302, '/');
+		}
+
+		if (isApiRequest && user) {
+			logger.debug('Handling API request for authenticated user');
+			return handleApiRequest(event, resolve, user);
+		}
+
+		logger.debug('Proceeding with normal request handling');
 		return resolve(event);
-	}
+	} catch (err) {
+		// Check if this is a redirect response
+		if (err && typeof err === 'object' && 'status' in err && 'location' in err) {
+			logger.debug(`Redirecting to ${(err as any).location}`);
+			throw err; // Re-throw redirect responses
+		}
 
-	if (!user && !isPublicRoute && !isFirstUser) {
-		logger.debug('User not authenticated and not on public route, redirecting to login');
-		throw isApiRequest ? error(401, 'Unauthorized') : redirect(302, '/login');
+		// Log other errors
+		logger.error(`Error in handleAuth: ${err instanceof Error ? err.message : JSON.stringify(err)}`);
+		
+		// For API requests, return a JSON error
+		if (event.url.pathname.startsWith('/api/')) {
+			return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
+				status: 500,
+				headers: { 'Content-Type': 'application/json' }
+			});
+		}
+		
+		// For other errors, throw a 500
+		throw error(500, 'Internal Server Error');
 	}
-
-	if (user && isPublicRoute && !isOAuthRoute(event.url.pathname)) {
-		logger.debug('Authenticated user on public route, redirecting to home');
-		return redirect(302, '/');
-	}
-
-	if (isApiRequest && user) {
-		logger.debug('Handling API request for authenticated user');
-		return handleApiRequest(event, resolve, user);
-	}
-
-	logger.debug('Proceeding with normal request handling');
-	return resolve(event);
 };
 
 // Handle API requests, including permission checks and caching

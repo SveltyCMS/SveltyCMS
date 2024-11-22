@@ -16,6 +16,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import ts from 'typescript';
+import type { Field } from '@src/collections/types';
 
 const COLLECTIONS_DIR = 'src/collections';
 const TYPES_FILE = path.join(COLLECTIONS_DIR, 'types.ts');
@@ -85,6 +86,6 @@ async function processCollectionFile(content: string): Promise<{ fields: string[
 	const { default: data } = await import('data:text/javascript,' + transpiledContent);
 
 	return {
-		fields: data.fields.map((field: any) => field.db_fieldName || field.label)
+		fields: data.fields.map((field: Field) => field.db_fieldName || field.label)
 	};
 }

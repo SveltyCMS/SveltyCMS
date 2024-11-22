@@ -10,12 +10,13 @@
 import { dev } from '$app/environment';
 import { privateEnv } from '@root/config/private';
 import { publicEnv } from '@root/config/public';
+import type { OAuth2Client, Credentials } from 'google-auth-library';
 
 // System Logger
 import { logger } from '../utils/logger';
 
 // Google OAuth
-let googleAuthClient: any = null;
+let googleAuthClient: OAuth2Client | null = null;
 
 // Initialize Google OAuth client with ID, secret, and redirect URL
 async function googleAuth() {
@@ -30,12 +31,8 @@ async function googleAuth() {
 			const { google } = await import('googleapis');
 			const redirectUri = `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`;
 			logger.debug(`Using OAuth redirect URI: ${redirectUri}`);
-			
-			googleAuthClient = new google.auth.OAuth2(
-				privateEnv.GOOGLE_CLIENT_ID,
-				privateEnv.GOOGLE_CLIENT_SECRET,
-				redirectUri
-			);
+
+			googleAuthClient = new google.auth.OAuth2(privateEnv.GOOGLE_CLIENT_ID, privateEnv.GOOGLE_CLIENT_SECRET, redirectUri);
 		}
 
 		return googleAuthClient;
@@ -47,7 +44,7 @@ async function googleAuth() {
 }
 
 // Set credentials for the OAuth client
-function setCredentials(credentials: any) {
+function setCredentials(credentials: Credentials) {
 	if (googleAuthClient) {
 		googleAuthClient.setCredentials(credentials);
 	}

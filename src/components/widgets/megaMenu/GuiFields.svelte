@@ -1,13 +1,7 @@
 <!--
-@file src/components/widgets/megaMenu/GuiFields.svelte
-@component
-**GUI component for building menu fields in a mega menu structure**
-Allows adding multiple levels of menu items and configuring their fields
-
-```tsx
-<GuiFields bind:value={value} />
-```
-**Props:**
+@component GuiFields.svelte
+@description - GUI fields component for mega menu
+@props
 - `value` - {Array<Array<any>>} - Array of menu levels
 -->
 <script lang="ts">
@@ -30,12 +24,12 @@ Allows adding multiple levels of menu items and configuring their fields
 <div class="box-border flex w-[99%] flex-col items-center overflow-auto border p-2">
 	<p>Menu Fields</p>
 
-	<button onclick={addLevel} class="variant-filled-primary btn">Add Level</button>
+	<button class="variant-filled-tertiary btn mb-4 mt-1 dark:variant-filled-primary" onclick={addLevel}>Add Level</button>
 
 	{#each value as level, index}
 		<div class="m-3 border border-dashed border-white p-3 text-center">
 			<p>level {index + 1}</p>
-			<WidgetBuilder fields={level} />
+			<WidgetBuilder fields={level} onFieldsChange={(newFields) => updateLevel(index, newFields)} />
 		</div>
 	{/each}
 </div>

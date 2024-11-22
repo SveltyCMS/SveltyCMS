@@ -33,14 +33,10 @@
 	let options: Array<{ display: any; _id: any }> = $state([]);
 
 	// Use derived state for filtered options based on search and options
-	let filtered = $derived(
-		options.filter((item) => 
-			String(item.display).toLowerCase().includes(search.toLowerCase())
-		)
-	);
+	let filtered = $derived(options.filter((item) => String(item.display).toLowerCase().includes(search.toLowerCase())));
 
 	// Initialize options when dropDownData changes
-	$effect: {
+	{
 		const initializeOptions = async () => {
 			const res = await Promise.all(
 				dropDownData.map(async (item) => ({

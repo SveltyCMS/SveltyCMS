@@ -12,14 +12,15 @@
 
 <script lang="ts">
 	import type { MediaImage } from '@utils/media/mediaModels';
-	import { SIZES, formatBytes, debounce } from '@utils/utils';
+	import { debounce } from '@utils/utils';
 	import axios from 'axios';
+	import { publicEnv } from '@root/config/public';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Props using Svelte 5's $props
-	let { onselect = (file: MediaImage) => {} } = $props<{
+	let { onselect = () => {} } = $props<{
 		onselect?: (file: MediaImage) => void;
 	}>();
 
@@ -27,6 +28,7 @@
 	let files = $state<MediaImage[]>([]);
 	let search = $state('');
 	let showInfo = $state<boolean[]>([]);
+	let thumbnailSizes = $state<(keyof typeof publicEnv.IMAGE_SIZES)[]>(['sm', 'md', 'lg']);
 
 	// Create a separate state updater function
 	function updateShowInfo() {
@@ -97,18 +99,17 @@
 				{:else}
 					<table class="mt-[30px] min-h-[calc(100%-30px)] w-full">
 						<tbody class="table-compact">
-							{#each Object.keys(SIZES) as size}
-								<tr>
-									<td class="!pl-[10px]">
-										{size}
-									</td>
-									<td>
-										{file.thumbnails[size].width}x{file.thumbnails[size].height}
-									</td>
-									<td>
-										{formatBytes(file.thumbnails[size].size)}
-									</td>
-								</tr>
+							{#each thumbnailSizes as size}
+								{#if file.thumbnails && file.thumbnails[size]}
+									<tr>
+										<td class="!pl-[10px]">
+											{size}
+										</td>
+										<td>
+											{file.thumbnails[size].width}x{file.thumbnails[size].height}
+										</td>
+									</tr>
+								{/if}
 							{/each}
 						</tbody>
 					</table>

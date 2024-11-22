@@ -31,7 +31,38 @@ export type Params = {
 	permissions?: Permission[];
 
 	// Widget Specific parameters
+	defaultCountry?: string;
+	mapCenter?: {
+		lat: number;
+		lng: number;
+	};
+	zoom?: number;
 };
+
+/**
+ * Defines Address Data Structure
+ */
+export interface AddressData {
+	latitude: string | number;
+	longitude: string | number;
+	name: string;
+	street: string;
+	houseNumber: string;
+	postalCode: string;
+	city: string;
+	country: string;
+}
+
+/**
+ * Defines Country Data Structure
+ */
+export interface Country {
+	id: number;
+	alpha2: string;
+	alpha3: string;
+	en: string;
+	[key: string]: string | number; // For other language codes
+}
 
 /**
  * Defines Address GuiSchema
@@ -47,9 +78,16 @@ export const GuiSchema = {
 	width: { widget: Input, required: false },
 
 	// Permissions
-	permissions: { widget: PermissionsSetting, required: false }
+	permissions: { widget: PermissionsSetting, required: false },
 
 	// Widget Specific parameters
+	defaultCountry: { widget: Input, required: false },
+	mapCenter: {
+		widget: Input,
+		required: false,
+		helper: 'Format: lat,lng (e.g. 51.5074,-0.1278)'
+	},
+	zoom: { widget: Input, required: false }
 };
 
 /**

@@ -4,7 +4,7 @@
 **Admin area for managing users and tokens**
 -->
 <script lang="ts">
-	import { asAny, debounce } from '@utils/utils';
+	import { debounce } from '@utils/utils';
 	import { PermissionAction, PermissionType } from '@src/auth/permissionTypes';
 
 	// Components
@@ -60,7 +60,7 @@
 
 	interface TableHeader {
 		label: string;
-		name: string;
+		key: string;
 		visible: boolean;
 		id: string;
 	}
@@ -71,19 +71,40 @@
 	}
 
 	// Props
-	let { adminData, manageUsersPermissionConfig } = $props<{
+	let { adminData } = $props<{
 		adminData: AdminData | null;
-		manageUsersPermissionConfig: any;
 	}>();
 
 	const modalStore = getModalStore();
 	const waitFilter = debounce(300);
 
+	// Table header definitions
+	const tableHeadersUser = [
+		{ label: m.adminarea_user_id(), key: '_id' },
+		{ label: m.adminarea_blocked(), key: 'blocked' },
+		{ label: m.form_avatar(), key: 'avatar' },
+		{ label: m.form_email(), key: 'email' },
+		{ label: m.form_username(), key: 'username' },
+		{ label: m.form_role(), key: 'role' },
+		{ label: m.adminarea_activesession(), key: 'activeSessions' },
+		{ label: m.adminarea_lastaccess(), key: 'lastAccess' },
+		{ label: m.adminarea_createat(), key: 'createdAt' },
+		{ label: m.adminarea_updatedat(), key: 'updatedAt' }
+	] as const;
+
+	const tableHeaderToken = [
+		{ label: m.adminarea_token(), key: 'token' },
+		{ label: m.adminarea_blocked(), key: 'blocked' },
+		{ label: m.form_email(), key: 'email' },
+		{ label: m.adminarea_expiresin(), key: 'expiresIn' },
+		{ label: m.adminarea_createat(), key: 'createdAt' },
+		{ label: m.adminarea_updatedat(), key: 'updatedAt' }
+	] as const;
+
 	// State Management using Svelte 5's $ prefix
 	let showUserList = $state(false);
 	let showUsertoken = $state(false);
 	let isLoading = $state(false);
-	let loadingTimer = $state<NodeJS.Timeout | null>(null);
 	let globalSearchValue = $state('');
 	let searchShow = $state(false);
 	let filterShow = $state(false);
@@ -102,6 +123,31 @@
 	let rowsPerPage = $state(10);
 	let filters = $state<{ [key: string]: string }>({});
 
+	// Initialize displayTableHeaders
+	let displayTableHeaders = $state<TableHeader[]>(
+		localStorage.getItem('userPaginationSettings')
+			? JSON.parse(localStorage.getItem('userPaginationSettings') as string).displayTableHeaders.map((header: Partial<TableHeader>) => ({
+					...header,
+					id: crypto.randomUUID()
+				}))
+			: tableHeadersUser.map((header) => ({
+					label: header.label,
+					key: header.key,
+					visible: true,
+					id: crypto.randomUUID()
+				}))
+	);
+
+	// Update displayTableHeaders when view changes
+	$effect(() => {
+		displayTableHeaders = (showUserList ? tableHeadersUser : tableHeaderToken).map((header) => ({
+			label: header.label,
+			key: header.key,
+			visible: true,
+			id: crypto.randomUUID()
+		}));
+	});
+
 	$effect(() => {
 		selectedRows = Object.entries(selectedMap)
 			.filter(([_, isSelected]) => isSelected)
@@ -114,20 +160,6 @@
 	interface SelectedRow {
 		data: UserData | TokenData;
 	}
-
-	let displayTableHeaders = $state<TableHeader[]>(
-		localStorage.getItem('userPaginationSettings') &&
-			JSON.parse(localStorage.getItem('userPaginationSettings') as string).displayTableHeaders?.length > 0
-			? JSON.parse(localStorage.getItem('userPaginationSettings') as string).displayTableHeaders.map((header: any) => ({
-					...header,
-					id: crypto.randomUUID()
-				}))
-			: []
-	);
-
-	let tableHeaders = $derived(() => {
-		return displayTableHeaders.filter((header) => header.visible);
-	});
 
 	let sorting = $state<SortingState>({
 		sortedBy: '',
@@ -181,46 +213,6 @@
 		showUsertoken = !showUsertoken;
 		showUserList = false;
 		refreshTableData();
-	}
-
-	const tableHeadersUser = [
-		{ label: m.adminarea_user_id(), key: '_id' },
-		{ label: m.adminarea_blocked(), key: 'blocked' },
-		{ label: m.form_avatar(), key: 'avatar' },
-		{ label: m.form_email(), key: 'email' },
-		{ label: m.form_username(), key: 'username' },
-		{ label: m.form_role(), key: 'role' },
-		{ label: m.adminarea_activesession(), key: 'activeSessions' },
-		{ label: m.adminarea_lastaccess(), key: 'lastAccess' },
-		{ label: m.adminarea_createat(), key: 'createdAt' },
-		{ label: m.adminarea_updatedat(), key: 'updatedAt' }
-	] as const;
-
-	const tableHeaderToken = [
-		{ label: m.adminarea_token(), key: 'token' },
-		{ label: m.adminarea_blocked(), key: 'blocked' },
-		{ label: m.form_email(), key: 'email' },
-		{ label: m.adminarea_expiresin(), key: 'expiresIn' },
-		{ label: m.adminarea_createat(), key: 'createdAt' },
-		{ label: m.adminarea_updatedat(), key: 'updatedAt' }
-	] as const;
-
-	function formatDate(dateStr: string | Date): string {
-		try {
-			const date = new Date(dateStr);
-			if (date instanceof Date && !isNaN(date.getTime())) {
-				return new Intl.DateTimeFormat('default', {
-					year: 'numeric',
-					month: 'short',
-					day: '2-digit',
-					hour: '2-digit',
-					minute: '2-digit'
-				}).format(date);
-			}
-		} catch (error) {
-			console.error('Date formatting error:', error);
-		}
-		return 'Invalid Date';
 	}
 
 	// Refresh table data with current filters and sorting
@@ -291,16 +283,6 @@
 			delete newFilters[headerKey];
 			filters = newFilters;
 		}
-	}
-
-	function handlePageUpdate(e: CustomEvent) {
-		currentPage = e.detail;
-		refreshTableData();
-	}
-
-	function handleRowsPerPageUpdate(e: CustomEvent) {
-		rowsPerPage = e.detail;
-		refreshTableData();
 	}
 
 	refreshTableData();
@@ -397,7 +379,7 @@
 									{#if header.visible}
 										<span><iconify-icon icon="fa:check"></iconify-icon></span>
 									{/if}
-									<span class="ml-2 capitalize">{header.name}</span>
+									<span class="ml-2 capitalize">{header.label}</span>
 								</button>
 							{/each}
 						</section>
@@ -426,7 +408,7 @@
 									{/if}
 								</th>
 
-								{#each showUserList ? tableHeadersUser : tableHeaderToken as header}
+								{#each displayTableHeaders.filter((header) => header.visible) as header}
 									<th>
 										<div class="flex items-center justify-between">
 											<FloatingInput
@@ -453,7 +435,7 @@
 								}}
 							/>
 
-							{#each showUserList ? tableHeadersUser : tableHeaderToken as header}
+							{#each displayTableHeaders.filter((header) => header.visible) as header}
 								<th
 									onclick={() => {
 										sorting = {
@@ -487,7 +469,7 @@
 										selectedMap[index] = checked;
 									}}
 								/>
-								{#each showUserList ? tableHeadersUser : tableHeaderToken as header}
+								{#each displayTableHeaders.filter((header) => header.visible) as header}
 									<td class="text-center">
 										{#if header.key === 'blocked'}
 											<Boolean value={String(row[header.key]) === 'true'} />
@@ -495,6 +477,8 @@
 											<Avatar src={row[header.key]} fallback="/Default_User.svg" width="w-8" />
 										{:else if header.key === 'role'}
 											<Role value={row[header.key]} />
+										{:else if header.key === 'createdAt' || header.key === 'updatedAt' || header.key === 'lastAccess'}
+											{new Date(row[header.key]).toLocaleString()}
 										{:else}
 											{@html row[header.key]}
 										{/if}

@@ -40,13 +40,19 @@
 		WidgetData?: any;
 	}
 
-	let { field, value = $bindable(collectionValue.value[getFieldName(field)] ?? {
-		[contentLanguage.value]: ''
-	}), WidgetData = $bindable() }: Props = $props	();
+	let {
+		field,
+		value = $bindable(
+			collectionValue.value[getFieldName(field)] ?? {
+				[contentLanguage.value]: ''
+			}
+		),
+		WidgetData = $bindable()
+	}: Props = $props();
 
 	// Initialize value separately to avoid $state() in prop destructuring
 
-	let _data = $state(mode() == 'create' ? {[contentLanguage.value.toLowerCase()]: ''} : value);
+	let _data = $state(mode() == 'create' ? { [contentLanguage.value.toLowerCase()]: '' } : value);
 
 	let _language = $derived(field?.translated ? contentLanguage.value.toLowerCase() : publicEnv.DEFAULT_CONTENT_LANGUAGE.toLowerCase());
 

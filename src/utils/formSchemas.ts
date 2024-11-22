@@ -26,28 +26,13 @@ import {
 	transform,
 	strictObject,
 	check,
-	trim,
-	ValiError,
-	safeParse
+	trim
 } from 'valibot';
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
 
 const MIN_PASSWORD_LENGTH = publicEnv.PASSWORD_STRENGTH || 8;
-
-// --- Async functions for validations that require external checks ---
-async function checkUsernameAvailability(username: string): Promise<boolean> {
-	// Replace with your actual async logic (API call, etc.)
-	await new Promise((resolve) => setTimeout(resolve, 500));
-	return username !== 'existinguser';
-}
-
-async function verifyOldPassword(oldPassword: string, email: string): Promise<boolean> {
-	// Replace with your actual logic (API call, etc.)
-	await new Promise((resolve) => setTimeout(resolve, 500));
-	return oldPassword === 'oldpassword123'; // Replace with your actual logic
-}
 
 // --- Reusable Username Schemas ---
 const usernameSchema = pipe(
@@ -86,13 +71,6 @@ const confirmPasswordSchema = pipe(
 	transform((value) => value ?? '')
 );
 
-// --- Reusable Role Schemas ---
-const roleSchema = pipe(
-	string(),
-	trim(),
-	transform((value) => value ?? '')
-);
-
 // --- Reusable Token Schemas ---
 const tokenSchema = pipe(
 	string(),
@@ -122,7 +100,7 @@ export const forgotFormSchema = object({
 export const resetFormSchema = pipe(
 	object({
 		password: passwordSchema,
-		confirm_password: confirmPasswordSchema, // Use confirmPasswordSchema here
+		confirm_password: confirmPasswordSchema,
 		token: tokenSchema,
 		email: emailSchema
 	}),
@@ -139,7 +117,7 @@ export const signUpFormSchema = pipe(
 		email: emailSchema,
 		password: passwordSchema,
 		confirm_password: confirmPasswordSchema,
-		token: optional(nullable(string()))  // Make token optional and nullable
+		token: optional(nullable(string()))
 	}),
 	check((input) => input.password === input.confirm_password, m.formSchemas_Passwordmatch())
 );
@@ -164,55 +142,6 @@ export const changePasswordSchema = object({
 	confirm_password: string()
 });
 
-// Example of how to call both synchronous and async validations in a SvelteKit action
-export async function handlePasswordChange(formData: FormData) {
-	try {
-		const email = String(formData.get('email'));
-		const oldPassword = String(formData.get('old_password'));
-		const password = String(formData.get('password'));
-		const confirmPassword = String(formData.get('confirm_password'));
-
-		// Use safeParse instead of parse
-		const result = safeParse(changePasswordSchema, {
-			old_password: oldPassword,
-			password: password,
-			confirm_password: confirmPassword
-		});
-
-		if (!result.success) {
-			// Handle validation errors
-			throw new ValiError(result.issues);
-		}
-
-		const validatedData = result.output;
-
-		// 2. Asynchronous validation (AFTER synchronous validation)
-		const isOldPasswordCorrect = await verifyOldPassword(validatedData.old_password, email);
-
-		if (!isOldPasswordCorrect) {
-			throw new Error('formSchemas_IncorrectOldPassword');
-		}
-
-		if (validatedData.password !== validatedData.confirm_password) {
-			throw new Error(m.formSchemas_Passwordmatch());
-		}
-
-		// If both validations pass, proceed with the password update
-		console.log('Password change successful:', validatedData);
-		// ... (your logic to update the password)
-	} catch (error) {
-		// Handle validation errors
-		if (error instanceof Error) {
-			if (error.message === 'formSchemas_IncorrectOldPassword') {
-				// Specific error message
-			}
-		}
-
-		console.error('Password change failed:', error);
-		throw error; // Re-throw error to be handled by SvelteKit
-	}
-}
-
 // Widget Email Schema
 export const widgetEmailSchema = object({
 	email: emailSchema
@@ -224,7 +153,7 @@ export const addUserSchema = object({
 	role: string()
 });
 
-//  Type Exports
+// Type Exports
 export type LoginFormSchema = InferInput<typeof loginFormSchema>;
 export type ForgotFormSchema = InferInput<typeof forgotFormSchema>;
 export type ResetFormSchema = InferInput<typeof resetFormSchema>;

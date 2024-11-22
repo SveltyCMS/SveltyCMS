@@ -24,6 +24,12 @@ import type { RequestHandler } from '@sveltejs/kit';
 import type { User } from '@src/auth/types';
 import type { Schema } from '@src/collections/types';
 
+// Interface for cookies
+export interface CookieData {
+	get: (name: string) => string | undefined;
+	[key: string]: unknown;
+}
+
 // Auth
 import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
@@ -54,7 +60,7 @@ const getPerformanceEmoji = (responseTime: number): string => {
 };
 
 // Helper function to check user permissions
-async function checkUserPermissions(data: FormData, cookies: any) {
+async function checkUserPermissions(data: FormData, cookies: CookieData) {
 	const start = performance.now();
 	try {
 		// Retrieve the session ID from cookies

@@ -55,7 +55,9 @@ Features:
 	);
 
 	// Ensure a valid language is always used
-	const currentLanguage = $derived(systemLanguage.value && publicEnv.AVAILABLE_SYSTEM_LANGUAGES.includes(systemLanguage.value) ? systemLanguage.value : 'en');
+	const currentLanguage = $derived(
+		systemLanguage.value && publicEnv.AVAILABLE_SYSTEM_LANGUAGES.includes(systemLanguage.value) ? systemLanguage.value : 'en'
+	);
 
 	// Package version
 	// @ts-expect-error reading from vite.config.js

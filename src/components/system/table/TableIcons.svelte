@@ -20,11 +20,11 @@
 	let {
 		checked = false,
 		iconStatus,
-		onCheck = (checked: boolean) => {}
+		onCheck = () => {}
 	} = $props<{
 		checked?: boolean;
 		iconStatus?: string;
-		onCheck?: (checked: boolean) => void;
+		onCheck?: (isChecked: boolean) => void;
 	}>();
 
 	// Function to handle icon click and emit custom events

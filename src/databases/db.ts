@@ -177,7 +177,7 @@ async function initializeMediaFolder() {
 	try {
 		// Check if the media folder exists
 		await fs.access(mediaFolderPath);
-		logger.info(`Media folder already exists: ${mediaFolderPath}`);
+		logger.info(`Media folder already exists: ${path.relative(publicEnv.ROOT_DIR, mediaFolderPath)}`);
 	} catch {
 		// If the folder does not exist, create it
 		logger.info(`Media folder not found. Creating new folder: ${mediaFolderPath}`);
@@ -256,7 +256,7 @@ async function initializeAdapters(): Promise<void> {
 			} else {
 				logger.debug('CollectionManager initialized with collections:', { count: collections.length });
 			}
-	
+
 			await dbAdapter.getCollectionModels();
 
 			// Step 6: Initialize remaining components
@@ -303,6 +303,7 @@ if (!initializationPromise) {
 			const message = `Initialization promise rejected with error: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
 			initializationPromise = null;
+			throw err;
 		});
 }
 

@@ -38,7 +38,7 @@
 		searchShow = false;
 		filterShow = false;
 		columnShow = false;
-		translationStatusOpen.set(false);
+		$translationStatusOpen = false;
 	}
 </script>
 

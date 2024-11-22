@@ -22,12 +22,23 @@
 
 import fs from 'fs';
 import prettier from 'prettier';
-import prettierConfig from '@root/.prettierrc.json';
 import { updateCollections } from '@src/collections';
-import { compile } from '@api/compile/compile';
+import { compile } from '@root/src/routes/api/compile/compile';
 import { redirect, type Actions, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import type { WidgetType } from '@components/widgets';
+import widgets from '@components/widgets'; // Import widgets directly
+
+// Load Prettier config
+async function getPrettierConfig() {
+	try {
+		const config = await prettier.resolveConfig(process.cwd());
+		return { ...config, parser: 'typescript' };
+	} catch (err) {
+		logger.warn('Failed to load Prettier config, using defaults:', err);
+		return { parser: 'typescript' };
+	}
+}
 
 // Auth
 import { getCollectionModels } from '@src/databases/db';
@@ -38,7 +49,7 @@ import { permissions } from '@src/auth/permissions';
 
 // System Logger
 import { logger } from '@utils/logger';
-import { generateCollectionFieldTypes, generateCollectionTypes } from '@root/src/utils/collectionTypes';
+import { generateCollectionFieldTypes, generateCollectionTypes } from '@utils/collectionTypes';
 
 type fields = ReturnType<WidgetType[keyof WidgetType]>;
 
@@ -107,7 +118,6 @@ export const actions: Actions = {
 		 */
 
 		${imports}
-		import widgets from '@components/widgets';
 		import type { Schema } from '@src/collections/types';
 		export const schema: Schema = {
 			// Collection Name coming from filename so not needed
@@ -128,7 +138,8 @@ export const actions: Actions = {
 
 			content = content.replace(/\\n|\\t/g, '').replace(/\\/g, '');
 			content = content.replace(/["']🗑️|🗑️["']/g, '').replace(/🗑️/g, '');
-			content = await prettier.format(content, { ...(prettierConfig as any), parser: 'typescript' });
+			const prettierConfig = await getPrettierConfig();
+			content = await prettier.format(content, prettierConfig);
 
 			if (originalName && originalName !== collectionTypes) {
 				fs.renameSync(`${import.meta.env.collectionsFolderTS}/${originalName}.ts`, `${import.meta.env.collectionsFolderTS}/${collectionTypes}.ts`);
@@ -158,7 +169,8 @@ export const actions: Actions = {
             }
             `;
 			config = config.replace(/["']🗑️|🗑️["']/g, '').replace(/🗑️/g, '');
-			config = await prettier.format(config, { ...(prettierConfig as any), parser: 'typescript' });
+			const prettierConfig = await getPrettierConfig();
+			config = await prettier.format(config, prettierConfig);
 			fs.writeFileSync(`${import.meta.env.collectionsFolderTS}/config.ts`, config);
 			await compile();
 			await updateCollections(true);
@@ -192,7 +204,6 @@ export const actions: Actions = {
 // Recursively goes through a collection's fields
 async function goThrough(object: any, fields): Promise<string> {
 	try {
-		const widgets = (await import('@components/widgets')).default;
 		const imports = new Set<string>();
 
 		// Asynchronously processes a field recursively

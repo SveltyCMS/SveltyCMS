@@ -12,7 +12,7 @@
  *
  * Features:
  * - Centralized error handling and logging
- * - Type-safe collection names using CollectionTypes 
+ * - Type-safe collection names using CollectionTypes
  * - Consistent API request formatting
  * - Support for pagination, filtering, and sorting in getData
  *
@@ -22,15 +22,16 @@
  */
 
 import axios from 'axios';
+import { error } from '@sveltejs/kit';
 import { col2formData, config, createRandomID, toFormData } from './utils';
+import type { CollectionTypes, Schema, User } from '@src/types';
+import type { Entry } from '@src/types/Entry';
 
-import type { CollectionTypes, Schema } from '@src/collections/types';
+// Store
+import { collection, collectionValue, mode } from '../stores/collectionStore.svelte';
 
 // System Logs
 import { logger } from '@utils/logger';
-import type { User } from '../auth/types';
-import { collection, collectionValue, mode } from '../stores/collectionStore.svelte';
-import { error } from '@sveltejs/kit';
 
 // Helper function to handle API requests
 export async function handleRequest(data: FormData, method: string) {
@@ -63,9 +64,9 @@ export async function getData(query: {
 	filter?: string;
 	sort?: string;
 }) {
-	const q = toFormData({ method: 'GET',  ...query });
+	const q = toFormData({ method: 'GET', ...query });
 	return (await axios.post('/api/query', q).then((data) => data.data)) as {
-		entryList: [any];
+		entryList: Entry[];
 		pagesCount: number;
 	};
 }
@@ -123,7 +124,7 @@ export async function saveFormData({
 	id,
 	user
 }: {
-	data: FormData | { [Key: string]: () => any };
+	data: FormData | { [Key: string]: () => unknown };
 	_collection?: Schema;
 	_mode?: 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
 	id?: string;
@@ -173,7 +174,7 @@ export async function saveFormData({
 				formData.append('createdAt', Math.floor(Date.now() / 1000).toString());
 				formData.append('updatedAt', (formData.get('createdAt') as string) || '');
 
-				return await addData({ data: formData, collectionTypes: $collection.name as any });
+				return await addData({ data: formData, collectionTypes: $collection.name as keyof CollectionTypes });
 
 			case 'edit':
 				logger.debug('Saving data in edit mode.');
@@ -199,12 +200,12 @@ export async function saveFormData({
 
 					const revisionFormData = new FormData();
 					revisionFormData.append('data', JSON.stringify(newRevision));
-					revisionFormData.append('collectionTypes', $collection.name as any);
+					revisionFormData.append('collectionTypes', $collection.name as keyof CollectionTypes);
 
 					await handleRequest(revisionFormData, 'POST');
 				}
 
-				return await updateData({ data: formData, collectionTypes: $collection.path as any });
+				return await updateData({ data: formData, collectionTypes: $collection.path as keyof CollectionTypes });
 
 			default: {
 				const message = `Unhandled mode: ${$mode}`;

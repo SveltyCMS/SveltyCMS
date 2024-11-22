@@ -23,7 +23,27 @@
  */
 
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { tiktok, twitch, vimeo, youtube } from '@components/widgets/remoteVideo/video';
+import { tiktok, twitch, vimeo, youtube, type YoutubeData } from '@components/widgets/remoteVideo/video';
+
+// Define types for each platform's response
+interface BaseVideoData {
+	videoTitle: string;
+	videoThumbnail: string;
+	videoUrl: string;
+}
+
+interface VimeoData extends BaseVideoData {
+	user_name: string;
+	upload_date: string;
+	duration: string;
+	width: string;
+	height: string;
+}
+
+type TwitchData = BaseVideoData;
+type TiktokData = BaseVideoData;
+
+type VideoData = YoutubeData | VimeoData | TwitchData | TiktokData;
 
 // System Logs
 import { logger } from '@utils/logger';
@@ -50,7 +70,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const parsedUrl = new URL(decodeURIComponent(url));
 		const hostname = parsedUrl.hostname;
 
-		let videoData: any;
+		let videoData: VideoData;
 
 		// Use a lookup object to map the URL to the corresponding function
 		if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {

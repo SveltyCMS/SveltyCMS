@@ -38,6 +38,15 @@ import { roles } from '@root/config/roles';
 // ParaglideJS
 import { languageTag } from '@src/paraglide/runtime';
 
+// Error interface for better type safety
+interface ApiError extends Error {
+	status?: number;
+	body?: {
+		message: string;
+		[key: string]: unknown;
+	};
+}
+
 export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 	try {
 		// Check if the user has permission to create tokens
@@ -145,21 +154,24 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 			success: true,
 			message: 'Token created and email sent successfully'
 		});
-	} catch (err: any) {
+	} catch (err: unknown) {
+		// Type guard for API errors
+		const error = err as ApiError;
+
 		// If it's already a SvelteKit error response, pass it through
-		if (err.status && err.body) {
-			throw err;
+		if (error.status && error.body) {
+			throw error;
 		}
 
 		logger.error('Error in createToken API:', {
-			message: err.message,
-			stack: err.stack,
-			details: err
+			message: error.message,
+			stack: error.stack,
+			details: error
 		});
 
 		// Return a formatted error response
 		throw error(500, {
-			message: err.message || 'An internal server error occurred'
+			message: error.message || 'An internal server error occurred'
 		});
 	}
 };

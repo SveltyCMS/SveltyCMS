@@ -21,8 +21,13 @@
 	import { handleSidebarToggle } from '@root/src/stores/sidebarStore.svelte';
 	import { convertTimestampToDateString, getFieldName, meta_data } from '@utils/utils';
 
+	// Type definitions
+	interface GetDataField {
+		[key: string]: () => string | number | boolean | null | undefined;
+	}
+
 	// Get data from page store
-	const { roles, user } = $page.data;
+	const { user } = $page.data;
 
 	// Components
 	import Toggles from './system/inputs/Toggles.svelte';
@@ -74,8 +79,11 @@
 
 	// Map the status to boolean
 	let isPublished = $state(collectionValue.value?.status === 'published');
-	let schedule = $state(collectionValue.value?._scheduled ? new Date(collectionValue()._scheduled).toISOString().slice(0, 16) : '');
-	let createdAtDate = $state(collectionValue.value?.createdAt ? new Date(collectionValue().createdAt * 1000).toISOString().slice(0, 16) : '');
+	let schedule = $state(collectionValue.value?._scheduled ? new Date(Number(collectionValue.value._scheduled)).toISOString().slice(0, 16) : '');
+
+	let createdAtDate = $state(
+		collectionValue.value?.createdAt ? new Date(Number(collectionValue.value.createdAt) * 1000).toISOString().slice(0, 16) : ''
+	);
 
 	// Function to toggle the status
 	function toggleStatus() {
@@ -89,8 +97,8 @@
 
 	// Convert timestamps to date strings
 	let dates = $derived({
-		created: convertTimestampToDateString(collectionValue.value.createdAt),
-		updated: convertTimestampToDateString(collectionValue.value.updatedAt)
+		created: convertTimestampToDateString(typeof collectionValue.value.createdAt === 'number' ? collectionValue.value.createdAt : 0),
+		updated: convertTimestampToDateString(typeof collectionValue.value.updatedAt === 'number' ? collectionValue.value.updatedAt : 0)
 	});
 
 	// Type guard to check if the widget has a validateWidget method
@@ -101,7 +109,7 @@
 	// Save form data with validation
 	async function saveData() {
 		let validationPassed = true;
-		const getData = {};
+		const getData: GetDataField = {};
 
 		// Clear any existing meta_data
 		meta_data.clear();
@@ -109,7 +117,7 @@
 		// Validate all fields and collect data
 		for (const field of collection.value.fields) {
 			const fieldName = getFieldName(field);
-			const fieldValue = collectionValue.value[fieldName];
+			const fieldValue = collectionValue.value[fieldName] as string | number | boolean | null | undefined;
 
 			// Use the widget property directly since it's now a widget instance
 			const widgetInstance = field.widget;
@@ -132,10 +140,10 @@
 		if (mode.value === 'create') {
 			getData['createdAt'] = () => (createdAtDate ? Math.floor(new Date(createdAtDate).getTime() / 1000) : Math.floor(Date.now() / 1000));
 			getData['updatedAt'] = getData['createdAt'];
-			getData['createdBy'] = () => user?.username;
+			getData['createdBy'] = () => user?.username ?? '';
 		} else {
 			getData['updatedAt'] = () => Math.floor(Date.now() / 1000);
-			getData['updatedBy'] = () => user?.username;
+			getData['updatedBy'] = () => user?.username ?? '';
 			if (createdAtDate) {
 				getData['createdAt'] = () => Math.floor(new Date(createdAtDate).getTime() / 1000);
 			}
@@ -143,11 +151,11 @@
 
 		// Add ID if in edit mode
 		if (mode.value === 'edit' && collectionValue.value._id) {
-			getData['_id'] = () => collectionValue.value._id;
+			getData['_id'] = () => collectionValue.value._id as string;
 		}
 
 		// Add status
-		getData['status'] = () => collectionValue.value.status || 'unpublished';
+		getData['status'] = () => (collectionValue.value.status as string) || 'unpublished';
 
 		// Add schedule if set
 		if (schedule) {
@@ -163,7 +171,7 @@
 					data: getData,
 					_collection: collection.value,
 					_mode: mode.value,
-					id: collectionValue.value._id,
+					id: collectionValue.value._id as string | undefined,
 					user
 				});
 
@@ -174,8 +182,6 @@
 			}
 		}
 	}
-
-	
 </script>
 
 <!-- Desktop Right Sidebar -->
@@ -193,7 +199,7 @@
 				<button
 					type="button"
 					onclick={saveData}
-					disabled={collection.value?.permissions?.[user.role]?.write === false}
+					disabled={collection.value.permissions?.[user.role]?.write === false}
 					class="variant-filled-primary btn w-full gap-2"
 					aria-label="Save entry"
 				>
@@ -218,7 +224,7 @@
 					<button
 						type="button"
 						onclick={() => $modifyEntry('cloned')}
-						disabled={!(collection.value?.permissions?.[user.role]?.write && collection.value?.permissions?.[user.role]?.create)}
+						disabled={collection.value.permissions?.[user.role]?.create === false && collection.value.permissions?.[user.role]?.write === false}
 						class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn w-full gap-2 text-white"
 						aria-label="Clone entry"
 					>
@@ -229,7 +235,7 @@
 					<button
 						type="button"
 						onclick={() => $modifyEntry('deleted')}
-						disabled={collection.value?.permissions?.[user.role]?.delete === false}
+						disabled={collection.value.permissions?.[user.role]?.delete === false}
 						class="variant-filled-error btn w-full"
 						aria-label="Delete entry"
 					>

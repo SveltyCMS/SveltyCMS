@@ -15,6 +15,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import type { ErrnoException } from 'node:fs';
 
 // System Logger
 import { logger } from '@utils/logger';
@@ -27,7 +28,7 @@ const BACKUP_LIMIT = 2; //max 2 backups
 async function ensureDir(dir: string) {
 	try {
 		await fs.mkdir(dir, { recursive: true });
-	} catch (error: any) {
+	} catch (error: NodeJS.ErrnoException) {
 		if (error.code !== 'EEXIST') {
 			logger.error(`Error creating directory ${dir}:`, error);
 			throw error;

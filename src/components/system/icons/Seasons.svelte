@@ -5,18 +5,6 @@
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Animation for powder particles
-	let particles = Array(30)
-		.fill()
-		.map(() => ({
-			id: Math.random(),
-			x: Math.random() * 300 - 150,
-			y: Math.random() * 200 - 100,
-			scale: 0.5 + Math.random() * 0.5,
-			color: `hsl(${Math.random() * 360}, 70%, 50%)`,
-			blur: 3 + Math.random() * 5
-		}));
-
 	// Calculate Easter Sunday (Gregorian calendar)
 	function calculateEasterSunday(year: number): Date {
 		const f = Math.floor;

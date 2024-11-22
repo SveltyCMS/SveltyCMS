@@ -24,8 +24,11 @@ import { logger } from '@utils/logger';
 import type { dbInterface } from '@src/databases/dbInterface';
 import type { User } from '@src/auth/types';
 
+// GraphQL types
+type GraphQLValue = string | number | boolean | Date | object | GraphQLValue[];
+
 // Helper function to map TypeScript types to GraphQL types
-function mapTypeToGraphQLType(value: any): string {
+function mapTypeToGraphQLType(value: GraphQLValue): string {
 	if (Array.isArray(value)) {
 		return `[${mapTypeToGraphQLType(value[0])}]`;
 	}
@@ -44,7 +47,7 @@ function mapTypeToGraphQLType(value: any): string {
 }
 
 // Helper function to generate GraphQL type definitions from a TypeScript type
-function generateGraphQLTypeDefsFromType<T extends Record<string, any>>(type: T, typeName: string): string {
+function generateGraphQLTypeDefsFromType<T extends Record<string, GraphQLValue>>(type: T, typeName: string): string {
 	const fields = Object.entries(type)
 		.map(([key, value]) => `${key}: ${mapTypeToGraphQLType(value)}`)
 		.join('\n');
@@ -104,6 +107,6 @@ export function userResolvers(dbAdapter: dbInterface) {
 	};
 
 	return {
-		users: async (_: any, args: { pagination: { page: number; limit: number } }) => await fetchWithPagination('auth_users', args.pagination)
+		users: async (_: unknown, args: { pagination: { page: number; limit: number } }) => await fetchWithPagination('auth_users', args.pagination)
 	};
 }

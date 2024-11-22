@@ -17,7 +17,7 @@
  * Used by the auth system to manage authentication tokens in a MongoDB database
  */
 import mongoose, { Schema } from 'mongoose';
-import type { Document } from 'mongoose';
+import type { Document, Types } from 'mongoose';
 
 import crypto from 'crypto';
 import { error } from '@sveltejs/kit';
@@ -148,7 +148,16 @@ export class TokenAdapter implements Partial<authDBInterface> {
 		}
 	}
 
-	private formatToken(token: any): Token {
+	private formatToken(
+		token: Document & {
+			_id: Types.ObjectId;
+			user_id: string;
+			token: string;
+			email: string;
+			expires: Date;
+			type: string;
+		}
+	): Token {
 		return {
 			...token,
 			_id: token._id.toString(),

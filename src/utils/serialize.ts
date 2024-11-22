@@ -31,7 +31,7 @@ export function serializeUser(user: User): Serializable {
 }
 
 function serializeCollection(collection: Schema) {
-	function serialize(obj: any) {
+	function serialize(obj: unknown) {
 		if (obj instanceof Date) {
 			return obj.toISOString();
 		}
@@ -63,7 +63,7 @@ export interface Entry {
 	_id?: string | { toString(): string };
 	// Define other properties of your entry object here
 	// e.g., name: string, createdAt: Date, etc.
-	[key: string]: any; // Allow for any additional properties
+	[key: string]: string | number | boolean | null | Date | { toString(): string } | undefined;
 }
 
 // Serializes a single entry by converting ObjectId fields to strings

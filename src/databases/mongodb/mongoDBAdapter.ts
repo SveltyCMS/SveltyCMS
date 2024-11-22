@@ -36,7 +36,7 @@ import type { Field } from '@src/collections/types';
 
 // Database
 import mongoose, { Schema } from 'mongoose';
-import type { Document, Model, FilterQuery, UpdateQuery, SchemaDefinitionProperty } from 'mongoose';
+import type { Document, Types, Model, FilterQuery, UpdateQuery, SchemaDefinitionProperty } from 'mongoose';
 import type { dbInterface, Draft, Revision, Theme, Widget, SystemPreferences, SystemVirtualFolder } from '../dbInterface';
 
 import { UserSchema } from '@src/auth/mongoDBAuth/userAdapter';
@@ -112,14 +112,14 @@ const ThemeModel =
 	mongoose.model<Theme>(
 		'Theme',
 		new Schema(
-	{
+			{
 				name: { type: String, required: true, unique: true }, // Name of the theme
 				path: { type: String, required: true }, // Path to the theme file
 				isDefault: { type: Boolean, default: false } // Whether the theme is the default theme
-	},
+			},
 			{ timestamps: true, collection: 'system_themes' }
 		)
-);
+	);
 
 // Create the Widget model if it doesn't exist already
 const WidgetModel =
@@ -236,89 +236,18 @@ export class MongoDBAdapter implements dbInterface {
 		}
 
 		try {
-			// Use CollectionManager to get collections synchronously
-			const { collectionManager } = await import('@src/collections/CollectionManager');
-			const loadedCollections = collectionManager.getCollectionData().collections;
+			// Initialize base models without waiting for collections
+			const baseModels: Record<string, Model<any>> = {};
 
-			if (!loadedCollections || loadedCollections.length === 0) {
-				logger.warn('No collections found to set up models.');
-				return {};
-			}
-
-			const collectionsModels: { [key: string]: Model<any> } = {};
-
-			for (const collection of loadedCollections) {
-				if (!collection.name) {
-					logger.warn('Collection without a name encountered:', { collection });
-					continue;
-				}
-
-				const collectionTypes = String(collection.name);
-				logger.debug(`Setting up collection model for ${collectionTypes}`);
-
-				// Define base schema definition with more flexible typing
-				const schemaDefinition: Record<string, SchemaDefinitionProperty> = {
-					createdBy: {
-						type: String,
-						required: false
-					},
-					revisionsEnabled: {
-						type: Boolean,
-						required: false
-					},
-					translationStatus: {
-						type: mongoose.Schema.Types.Mixed,
-						default: {}
-					}
-				};
-
-				// Add dynamic fields from collection schema with type safety
-				if (collection.fields) {
-					collection.fields.forEach((field: Field) => {
-						// Use field.label as the key if no specific name is provided
-						const fieldKey = field.label.toLowerCase().replace(/\s+/g, '_');
-
-						// Determine field type based on widget type
-						const fieldType = this.mapFieldType(field.type || 'string');
-
-						// Check for required property directly on the field
-						const isRequired = field.required === true;
-
-						// Explicitly type the field definition
-						schemaDefinition[fieldKey] = {
-							type: fieldType,
-							required: isRequired
-						} as SchemaDefinitionProperty;
-					});
-				}
-
-				const schemaOptions = {
-					// typeKey: '$type',
-					strict: true,
-					timestamps: true,
-					collection: collectionTypes.toLowerCase()
-				};
-
-				// console.debug('schemaDefinition:', schemaDefinition);
-				// Safely create or retrieve model
-				const existingModel = mongoose.models[collectionTypes];
-				if (existingModel) {
-					logger.debug(`Collection model for ${collectionTypes} already exists.`);
-					collectionsModels[collectionTypes] = existingModel;
-				} else {
-					logger.debug(`Creating new collection model for ${collectionTypes}.`);
-					const schema = new mongoose.Schema(schemaDefinition, schemaOptions);
-					collectionsModels[collectionTypes] = mongoose.model(collectionTypes, schema);
-				}
-			}
-
+			// Mark collections as initialized to prevent circular dependency
 			this.collectionsInitialized = true;
-			logger.info('MongoDB adapter collection models setup complete.');
-			return collectionsModels;
-		} catch (error) {
-			const err = error as Error;
-			logger.error('Failed to get collection models:', { error: err.message });
-			throw new Error(`Failed to get collection models: ${err.message}`);
+
+			// Return base models - collections will be added later as needed
+			return baseModels;
+		} catch (err) {
+			const errorMessage = err instanceof Error ? err.message : String(err);
+			logger.error('Failed to get collection models:', { error: errorMessage });
+			return {};
 		}
 	}
 
@@ -526,6 +455,61 @@ export class MongoDBAdapter implements dbInterface {
 			logger.error(`Error counting documents in ${collection}: ${err.message}`);
 			throw Error(`Error counting documents in ${collection}: ${err.message}`);
 		}
+	}
+
+	// Create a collection model
+	async createCollectionModel(collection: any): Promise<Model<any>> {
+		if (!collection.name) {
+			throw new Error('Collection must have a name');
+		}
+
+		const collectionName = String(collection.name);
+		logger.debug(`Creating collection model for ${collectionName}`);
+
+		// Check if model already exists
+		if (mongoose.models[collectionName]) {
+			return mongoose.models[collectionName];
+		}
+
+		// Define base schema definition
+		const schemaDefinition: Record<string, SchemaDefinitionProperty> = {
+			createdBy: {
+				type: String,
+				required: false
+			},
+			revisionsEnabled: {
+				type: Boolean,
+				required: false
+			},
+			translationStatus: {
+				type: mongoose.Schema.Types.Mixed,
+				default: {}
+			}
+		};
+
+		// Add fields from collection schema
+		if (collection.fields) {
+			collection.fields.forEach((field: Field) => {
+				const fieldKey = field.label.toLowerCase().replace(/\s+/g, '_');
+				const fieldType = this.mapFieldType(field.type || 'string');
+				const isRequired = field.required === true;
+
+				schemaDefinition[fieldKey] = {
+					type: fieldType,
+					required: isRequired
+				} as SchemaDefinitionProperty;
+			});
+		}
+
+		const schemaOptions = {
+			strict: true,
+			timestamps: true,
+			collection: collectionName.toLowerCase()
+		};
+
+		// Create and return the model
+		const schema = new mongoose.Schema(schemaDefinition, schemaOptions);
+		return mongoose.model(collectionName, schema);
 	}
 
 	// Methods for Draft and Revision Management
@@ -983,7 +967,7 @@ export class MongoDBAdapter implements dbInterface {
 	// Get contents of a virtual folder
 	async getVirtualFolderContents(folderId: string): Promise<any[]> {
 		try {
-					const objectId = this.convertId(folderId);
+			const objectId = this.convertId(folderId);
 			const folder = await SystemVirtualFolderModel.findById(objectId);
 			if (!folder) throw Error('Folder not found');
 

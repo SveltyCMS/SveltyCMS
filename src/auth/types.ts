@@ -26,6 +26,7 @@
  */
 
 import { PermissionAction as ConfigPermissionAction, PermissionType } from '../../src/auth/permissionTypes';
+import type { Field } from '../collections/types';
 
 // Type aliases for identifiers
 export type RoleId = string;
@@ -43,6 +44,17 @@ export interface Role {
 	color?: string; // Optional color for the role (e.g., for UI display)
 }
 
+// RolePermissions Interface
+export interface RolePermissions {
+	[role: string]: {
+		create?: boolean;
+		read?: boolean;
+		write?: boolean;
+		delete?: boolean;
+		manage?: boolean;
+	};
+}
+
 // Permission Interface
 export interface Permission {
 	_id: string; // Use _id for a unique identifier
@@ -53,6 +65,7 @@ export interface Permission {
 	contextType?: string; // Type of context, e.g., "system", "configuration" (optional)
 	requiredRole?: string; // Role required to use this permission, e.g., "admin", "user" (optional)
 	description?: string; // Optional description for the permission
+	rolePermissions?: RolePermissions; // Role-based permissions
 }
 
 // Constants for Context Types
@@ -291,23 +304,16 @@ export interface Model<T> {
 // Additional Types
 export type WidgetId = string; // Unique identifier for a widget
 
-// RolePermissions Interface
-export interface RolePermissions {
-	[role: string]: {
-		[action in ConfigPermissionAction]?: boolean; // Defines actions permitted for each role
-	};
-}
-
 // Schema Interface
 export interface Schema {
 	icon?: string; // Optional icon representing the schema
 	status?: string; // Optional status of the schema
 	revision?: boolean; // Indicates if the schema supports revisions
 	permissions?: RolePermissions; // Role-based permissions associated with the schema
-	fields: any[]; // Array of fields defined in the schema
+	fields: Field[]; // Array of fields defined in the schema, using the Field type from collections/types
 }
-// Session Store Interface
 
+// Session Store Interface
 export interface SessionStore {
 	get(session_id: string): Promise<User | null>;
 	set(session_id: string, user: User, expiration: Date): Promise<void>;

@@ -23,6 +23,7 @@ import widgets from '@components/widgets';
 import { getFieldName } from '@utils/utils';
 import deepmerge from 'deepmerge';
 import { dbAdapter } from '@src/databases/db';
+import type { GraphQLFieldResolver } from 'graphql';
 
 // Collection Manager
 import { collectionManager } from '@src/collections/CollectionManager';
@@ -30,22 +31,47 @@ import { collectionManager } from '@src/collections/CollectionManager';
 // System Logger
 import { logger } from '@utils/logger';
 
+interface CollectionField {
+	widget: {
+		Name: string;
+	};
+	extract?: boolean;
+	fields?: CollectionField[];
+	label?: string;
+}
+
 interface Collection {
 	name: string;
-	fields: Array<{
-		widget: {
-			Name: string;
-		};
-		extract?: boolean;
-		fields?: any[];
-		label?: string;
-	}>;
+	fields: CollectionField[];
 }
 
 interface WidgetSchema {
 	graphql: string;
 	typeName: string;
-	resolver?: any;
+	resolver?: Record<string, GraphQLFieldResolver<unknown, unknown>>;
+}
+
+interface DocumentBase {
+	_id: string;
+	createdAt: string;
+	updatedAt: string;
+	[key: string]: unknown;
+}
+
+// Type for document with extracted fields
+interface DocumentWithFields extends DocumentBase {
+	[fieldName: string]: unknown;
+}
+
+interface ResolverContext {
+	Query: Record<string, GraphQLFieldResolver<unknown, unknown>>;
+	[key: string]: Record<string, GraphQLFieldResolver<unknown, unknown>>;
+}
+
+// Define a generic cache interface instead of depending on Redis
+interface CacheClient {
+	get(key: string): Promise<string | null>;
+	set(key: string, value: string, ex: string, duration: number): Promise<unknown>;
 }
 
 // Registers collection schemas dynamically.
@@ -54,7 +80,7 @@ export async function registerCollections() {
 	logger.debug(`Collections fetched: ${collections.map((c) => c.name).join(', ')}`);
 
 	const typeDefsSet = new Set<string>();
-	const resolvers: { [key: string]: any } = { Query: {} };
+	const resolvers: ResolverContext = { Query: {} };
 	const collectionSchemas: string[] = [];
 
 	for (const collection of collections as Collection[]) {
@@ -98,7 +124,7 @@ export async function registerCollections() {
 						if (nestedSchema) {
 							collectionSchema += `${getFieldName(_field, true)}: ${nestedSchema.typeName}\n`;
 							deepmerge(resolvers[collection.name], {
-								[getFieldName(_field, true)]: (parent: any) => parent[getFieldName(_field)]
+								[getFieldName(_field, true)]: (parent: DocumentWithFields) => parent[getFieldName(_field)]
 							});
 						} else {
 							logger.warn(`Nested schema not found for field: ${getFieldName(_field, true)}`);
@@ -107,7 +133,7 @@ export async function registerCollections() {
 				} else {
 					collectionSchema += `${getFieldName(field, true)}: ${schema.typeName}\n`;
 					deepmerge(resolvers[collection.name], {
-						[getFieldName(field, true)]: (parent: any) => parent[getFieldName(field)]
+						[getFieldName(field, true)]: (parent: DocumentWithFields) => parent[getFieldName(field)]
 					});
 				}
 			}
@@ -131,7 +157,7 @@ export async function registerCollections() {
 }
 
 // Builds resolvers for querying collection data.
-export async function collectionsResolvers(redisClient: any, privateEnv: any) {
+export async function collectionsResolvers(cacheClient: CacheClient | null, privateEnv: { USE_REDIS?: boolean }) {
 	const { resolvers, collections } = await registerCollections();
 
 	for (const collection of collections as Collection[]) {
@@ -141,7 +167,7 @@ export async function collectionsResolvers(redisClient: any, privateEnv: any) {
 		}
 
 		// Add pagination to the resolver
-		resolvers.Query[collection.name] = async (_: any, args: { pagination: { page: number; limit: number } }) => {
+		resolvers.Query[collection.name] = async (_: unknown, args: { pagination: { page: number; limit: number } }) => {
 			if (!dbAdapter) {
 				logger.error('Database adapter is not initialized');
 				throw Error('Database adapter is not initialized');
@@ -154,8 +180,8 @@ export async function collectionsResolvers(redisClient: any, privateEnv: any) {
 				const cacheKey = `${collection.name}:${page}:${limit}`;
 
 				// Try to get from cache first
-				if (privateEnv.USE_REDIS === true && redisClient) {
-					const cachedResult = await redisClient.get(cacheKey);
+				if (privateEnv.USE_REDIS === true && cacheClient) {
+					const cachedResult = await cacheClient.get(cacheKey);
 					if (cachedResult) {
 						logger.debug(`Cache hit for collection: ${collection.name}, page: ${page}, limit: ${limit}`);
 						return JSON.parse(cachedResult);
@@ -168,7 +194,7 @@ export async function collectionsResolvers(redisClient: any, privateEnv: any) {
 				const dbResult = await dbAdapter.findMany(collection.name, query, options);
 
 				// Process dates
-				dbResult.forEach((doc: any) => {
+				dbResult.forEach((doc: DocumentBase) => {
 					try {
 						doc.createdAt = doc.createdAt ? new Date(doc.createdAt).toISOString() : new Date().toISOString();
 						doc.updatedAt = doc.updatedAt ? new Date(doc.updatedAt).toISOString() : doc.createdAt;
@@ -181,8 +207,8 @@ export async function collectionsResolvers(redisClient: any, privateEnv: any) {
 				});
 
 				// Cache the result
-				if (privateEnv.USE_REDIS === true && redisClient) {
-					await redisClient.set(cacheKey, JSON.stringify(dbResult), 'EX', 60 * 60); // 1 hour cache
+				if (privateEnv.USE_REDIS === true && cacheClient) {
+					await cacheClient.set(cacheKey, JSON.stringify(dbResult), 'EX', 60 * 60); // 1 hour cache
 					logger.debug(`Cache set for collection: ${collection.name}, page: ${page}, limit: ${limit}`);
 				}
 

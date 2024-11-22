@@ -1,17 +1,17 @@
 /**
  * @file src/stores/sidebarStore.ts
  * @description Manages the sidebar and responsive layout states using Svelte stores
- * 
- * Features:	
+ *
+ * Features:
  * - Sidebar state management with Svelte stores
  * - Responsive layout updates based on screen size and collection mode
  * - Lazy initialization and cleanup
- * 
+ *
  */
 
 import { screenSize, ScreenSize } from './screenSizeStore.svelte';
 import { mode } from './collectionStore.svelte';
-import { store } from "@utils/reactivity.svelte";
+import { store } from '@utils/reactivity.svelte';
 
 // Types for sidebar visibility states
 type SidebarVisibility = 'hidden' | 'collapsed' | 'full';
@@ -79,14 +79,14 @@ const createSidebarStores = () => {
 
 	// Batch update helper
 	const batchUpdate = (newState: Partial<SidebarState>) => {
-		sidebar.update(current => ({ ...current, ...newState }));
+		sidebar.update((current) => ({ ...current, ...newState }));
 	};
 
 	// Optimized layout handler
 	function updateLayout() {
 		const currentSize = screenSize.value;
 		const isViewMode = mode.value === 'view' || mode.value === 'media';
-		
+
 		// Batch update the entire state at once
 		sidebar.set(getDefaultState(currentSize, isViewMode));
 	}

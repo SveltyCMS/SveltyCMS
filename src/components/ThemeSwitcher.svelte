@@ -20,7 +20,6 @@ Features:
 -->
 
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
 	import { theme, updateTheme } from '@root/src/stores/themeStore.svelte';
 	import type { Theme } from '@src/databases/dbInterface';
 
@@ -39,13 +38,6 @@ Features:
 		return theme?.name === 'dark' || false;
 	}
 
-	// Function to apply the theme to the document
-	function applyTheme(newTheme: Theme | null) {
-		isDarkMode = isThemeDark(newTheme);
-		document.documentElement.classList.toggle('dark', isDarkMode);
-		document.documentElement.style.colorScheme = isDarkMode ? 'dark' : 'light';
-	}
-
 	// Function to toggle between light and dark themes
 	async function toggleTheme() {
 		const newThemeName = isDarkMode ? 'light' : 'dark';
@@ -53,35 +45,39 @@ Features:
 	}
 
 	// Media query for system preference
-	let mediaQuery: MediaQueryList;
+	let mediaQuery: MediaQueryList | null = $state(null);
 
-	onMount(() => {
-		systemPreference = getSystemPreference();
+	// Handle system preference changes
+	function handleChange(e: MediaQueryListEvent) {
+		systemPreference = e.matches ? 'dark' : 'light';
+		// You might want to update the theme here if you want to follow system preference
+		// This depends on your app's requirements
+	}
 
-		// Listen for system preference changes
-		mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-		const handleChange = (e: MediaQueryListEvent) => {
-			systemPreference = e.matches ? 'dark' : 'light';
-			// You might want to update the theme here if you want to follow system preference
-			// This depends on your app's requirements
-		};
-		mediaQuery.addEventListener('change', handleChange);
-
-		// Cleanup function to remove the listener
-		return () => {
-			mediaQuery.removeEventListener('change', handleChange);
-		};
+	// Initialize system preference and media query listener
+	$effect(() => {
+		if (typeof window !== 'undefined') {
+			systemPreference = getSystemPreference();
+			mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+			mediaQuery?.addEventListener('change', handleChange);
+		}
 	});
 
-	// Subscribe to theme changes and apply the new theme
-	let unsubscribe = theme.subscribe(() => {
+	// Watch theme changes and apply them
+	$effect(() => {
 		currentTheme = $theme;
-		applyTheme(currentTheme);
+		isDarkMode = isThemeDark(currentTheme);
+		document.documentElement.classList.toggle('dark', isDarkMode);
+		document.documentElement.style.colorScheme = isDarkMode ? 'dark' : 'light';
 	});
 
-	// Cleanup function to unsubscribe from the theme store
-	onDestroy(() => {
-		unsubscribe;
+	// Cleanup media query listener
+	$effect.root(() => {
+		return () => {
+			if (mediaQuery) {
+				mediaQuery.removeEventListener('change', handleChange);
+			}
+		};
 	});
 </script>
 
@@ -97,7 +93,7 @@ Features:
 	{/if}
 </button>
 
-<style>
+<style lang="postcss">
 	/* Global styles for smooth theme transition */
 	:global(body) {
 		transition:

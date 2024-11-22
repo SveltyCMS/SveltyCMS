@@ -12,74 +12,63 @@
 
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { FieldType } from '.';
 	import { privateEnv } from '@root/config/private';
-	import { publicEnv } from '@root/config/public';
 	import { updateTranslationProgress, getFieldName } from '@utils/utils';
 
 	// Stores
-	import { contentLanguage, validationStore } from '@stores/store';
-	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
+	import { validationStore } from '@stores/store';
+	import { type Field } from '@root/src/collections/types';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Mapbox
+	import type { Map as MapboxMap } from 'mapbox-gl';
 	import mapboxgl from 'mapbox-gl';
-	import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
 	import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
 	import 'mapbox-gl/dist/mapbox-gl.css';
 	import MapboxLanguage from '@mapbox/mapbox-gl-language';
+	import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
 
 	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
 	import { Autocomplete } from '@skeletonlabs/skeleton';
-	import type { AutocompleteOption } from '@skeletonlabs/skeleton';
 
 	// Valibot validation
 	import * as v from 'valibot';
 
-	// Countries data
+	// Countries data and types
 	import countries from './countries.json';
+	import type { AddressData, Country } from './types';
 
 	// Initialize Mapbox
-	if (privateEnv.MAPBOX_API_TOKEN) {
-		mapboxgl.accessToken = privateEnv.MAPBOX_API_TOKEN;
+	const mapboxToken = privateEnv.MAPBOX_API_TOKEN;
+	const isMapboxEnabled = privateEnv.USE_MAPBOX && mapboxToken;
+
+	// Set the Mapbox token before map initialization
+	if (isMapboxEnabled && mapboxToken) {
+		mapboxgl.accessToken = mapboxToken;
 	}
 
 	interface Props {
-		field?: any;
-		value?: any;
-		widgetValue?: any;
-	}
-
-	interface AddressData {
-		latitude: number;
-		longitude: number;
-		name: string;
-		street: string;
-		zip: string;
-		city: string;
-		country: string;
-	}
-
-	interface CountryOption extends AutocompleteOption {
-		alpha2?: string;
+		field?: Field;
+		value?: AddressData;
 	}
 
 	const defaultAddress: AddressData = {
-		latitude: 0,
-		longitude: 0,
+		latitude: '0',
+		longitude: '0',
 		name: '',
 		street: '',
-		zip: '',
+		houseNumber: '',
+		postalCode: '',
 		city: '',
 		country: ''
 	};
 
-	let { field, value = $bindable(defaultAddress), widgetValue = $bindable() }: Props = $props();
+	let { field, value = defaultAddress }: Props = $props();
 
 	const fieldName = getFieldName(field);
 
@@ -87,11 +76,21 @@
 	let validationError = $state<string | null>(null);
 	let debounceTimeout: number | undefined;
 	let listboxValue = $state('Germany');
-	let filteredCountries = $state(countries);
-	let map = $state<mapboxgl.Map | null>(null);
+	let searchQuery = $state('');
+	let filteredCountries = $state<Country[]>(countries as Country[]);
+	let map: MapboxMap;
 
-	// Computed values
-	let _language = $derived(field?.translated ? contentLanguage.value : publicEnv.DEFAULT_CONTENT_LANGUAGE);
+	// Update filtered countries when search query changes
+	$effect(() => {
+		if (!searchQuery) {
+			filteredCountries = countries as Country[];
+			return;
+		}
+		const query = searchQuery.toLowerCase();
+		filteredCountries = (countries as Country[]).filter(
+			(country) => country.en.toLowerCase().includes(query) || String(country.id).toLowerCase().includes(query)
+		);
+	});
 
 	// Initialize value if needed
 	$effect(() => {
@@ -105,11 +104,6 @@
 		updateTranslationProgress({}, field);
 	});
 
-	// Sync widgetValue with value
-	$effect(() => {
-		widgetValue = { ...value };
-	});
-
 	// Popup settings
 	const CountryCombobox: PopupSettings = {
 		event: 'click',
@@ -117,24 +111,6 @@
 		placement: 'bottom',
 		closeQuery: '.listbox-item'
 	};
-
-	// Convert countries to options
-	const countryOptions: CountryOption[] = countries.map((country) => ({
-		label: country.en,
-		value: country.id,
-		...country
-	}));
-
-	// Validation schema
-	const addressSchema = v.object({
-		latitude: v.number(),
-		longitude: v.number(),
-		name: v.string(),
-		street: v.string(),
-		zip: v.string(),
-		city: v.string(),
-		country: v.string()
-	});
 
 	function validateInput() {
 		if (debounceTimeout) clearTimeout(debounceTimeout);
@@ -152,32 +128,30 @@
 		}, 300);
 	}
 
+	// Improved country search function
 	function searchCountry(event: Event) {
-		const query = (event.target as HTMLInputElement).value.toLowerCase();
-		filteredCountries = countries.filter((country) =>
-			Object.values(country).some((value) => typeof value === 'string' && value.toLowerCase().includes(query))
-		);
+		searchQuery = (event.target as HTMLInputElement).value;
 	}
 
-	function initMap(container: HTMLElement) {
-		if (!mapboxgl.accessToken) return;
+	function initMap() {
+		if (!isMapboxEnabled) return;
 
 		map = new mapboxgl.Map({
 			container: 'map',
 			style: 'mapbox://styles/mapbox/streets-v12',
 			center: [6.6054765, 51.3395072],
 			zoom: 10
-		});
+		}) as MapboxMap;
 
 		const language = new MapboxLanguage();
 		map.addControl(language);
 
-		map.addControl(
-			new MapboxGeocoder({
-				accessToken: mapboxgl.accessToken,
-				mapboxgl: mapboxgl
-			})
-		);
+		const geocoder = new MapboxGeocoder({
+			accessToken: mapboxToken,
+			mapboxgl: mapboxgl
+		});
+
+		map.addControl(geocoder);
 
 		map.on('load', () => {
 			map?.resize();
@@ -191,33 +165,40 @@
 
 		marker.on('dragend', (e) => {
 			const lngLat = e.target.getLngLat();
-			value.latitude = lngLat.lat;
-			value.longitude = lngLat.lng;
+			if (value) {
+				value.latitude = lngLat.lat.toString();
+				value.longitude = lngLat.lng.toString();
+			}
 		});
 
-		map.addControl(
-			new mapboxgl.GeolocateControl({
-				positionOptions: {
-					enableHighAccuracy: true
-				},
-				trackUserLocation: true,
-				showUserHeading: true
-			})
-		);
+		map.addControl(new mapboxgl.NavigationControl());
+		map.addControl(new mapboxgl.FullscreenControl());
 	}
 
 	onMount(() => {
 		const container = document.getElementById('map');
 		if (container) {
-			initMap(container);
+			initMap();
 		}
+	});
+
+	// Validation schema
+	const addressSchema = v.object({
+		latitude: v.number(),
+		longitude: v.number(),
+		name: v.string(),
+		street: v.string(),
+		houseNumber: v.string(),
+		postalCode: v.string(),
+		city: v.string(),
+		country: v.string()
 	});
 
 	export const WidgetData = async () => value;
 </script>
 
 <div class="input-container relative mb-4">
-	{#if privateEnv.MAPBOX_API_TOKEN}
+	{#if isMapboxEnabled}
 		<address class="w-full" class:error={!!validationError}>
 			<div class="mb-1 flex justify-between gap-2">
 				<button aria-label={m.widget_address_getfromaddress()} class="variant-filled-primary btn btn-base rounded-md text-white">
@@ -292,6 +273,20 @@
 					aria-describedby={validationError ? `${fieldName}-error` : undefined}
 				/>
 
+				<label for="house-number">House Number</label>
+				<input
+					type="text"
+					id="house-number"
+					name="house-number"
+					placeholder="House Number"
+					class="input rounded-md"
+					bind:value={value.houseNumber}
+					oninput={validateInput}
+					aria-label="House Number"
+					aria-invalid={!!validationError}
+					aria-describedby={validationError ? `${fieldName}-error` : undefined}
+				/>
+
 				<label for="postal-code">{m.widget_address_zip()}</label>
 				<input
 					required
@@ -302,7 +297,7 @@
 					autocomplete="postal-code"
 					enterkeyhint="next"
 					class="input rounded-md"
-					bind:value={value.zip}
+					bind:value={value.postalCode}
 					oninput={validateInput}
 					aria-label={m.widget_address_zip()}
 					aria-invalid={!!validationError}
@@ -342,13 +337,13 @@
 									name="medium"
 									bind:value={country.en}
 									bind:group={listboxValue}
-									on:change={() => {
-										value.country = country.alpha2;
+									onchange={() => {
+										value.country = String(country.id);
 										validateInput();
 									}}
 								>
-									<span class="fi fi-{country.alpha2} mt-1"></span>
-									{country.en} - <span class="mt-1 uppercase">{country.alpha2}</span>
+									<span class="fi fi-{country.id} mt-1"></span>
+									{country.en} - <span class="mt-1 uppercase">{country.id}</span>
 								</ListBoxItem>
 							{/each}
 						</ListBox>
@@ -359,7 +354,7 @@
 
 		<!-- Error Message -->
 		{#if validationError}
-			<p id={`${fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+			<p id={`${fieldName}-error}`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
 				{validationError}
 			</p>
 		{/if}

@@ -106,7 +106,7 @@ async function backupFilesExist() {
 		await ensureDir(BACKUP_DIR);
 		const files = await fs.readdir(BACKUP_DIR);
 		return files.some((file) => file.startsWith('private.backup') || file.startsWith('public.backup'));
-	} catch (error) {
+	} catch {
 		return false;
 	}
 }

@@ -10,7 +10,6 @@ Features:
 -->
 
 <script lang="ts">
-	import { asAny } from '@utils/utils';
 	import type { MediaImage } from '@utils/media/mediaModels';
 	import { twMerge } from 'tailwind-merge';
 

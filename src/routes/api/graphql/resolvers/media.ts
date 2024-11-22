@@ -1,10 +1,10 @@
 /**
- * @file src/routes/api/graphql/resolvers/collections.ts
- * @description Dynamic GraphQL schema and resolver generation for collections.
+ * @file src/routes/api/graphql/resolvers/media.ts
+ * @description Dynamic GraphQL schema and resolver generation for media.
  *
  * This module provides functionality to:
- * - Dynamically register collection schemas based on the CMS configuration
- * - Generate GraphQL type definitions and resolvers for each collection
+ * - Dynamically register media schemas based on the CMS configuration
+ * - Generate GraphQL type definitions and resolvers for each media type
  * - Handle complex field types and nested structures
  * - Integrate with Redis for caching (if enabled)
  *
@@ -16,14 +16,15 @@
  * - Error handling and logging
  *
  * Usage:
- * - Used by the main GraphQL setup to generate collection-specific schemas and resolvers
- * - Provides the foundation for querying collection data through the GraphQL API
+ * - Used by the main GraphQL setup to generate media-specific schemas and resolvers
+ * - Provides the foundation for querying media data through the GraphQL API
  */
 
 import { dbAdapter } from '@src/databases/db';
 // System Logs
 import { logger } from '@utils/logger';
-// Registers collection schemas dynamically.
+
+// Registers media schemas dynamically.
 export function mediaTypeDefs() {
 	return `
         type MediaImage {
@@ -68,7 +69,18 @@ export function mediaTypeDefs() {
     `;
 }
 
-// Builds resolvers for querying collection data with pagination support.
+// GraphQL Types
+interface PaginationArgs {
+	pagination: {
+		page: number;
+		limit: number;
+	};
+}
+
+// GraphQL parent type for media resolvers
+type MediaResolverParent = unknown;
+
+// Builds resolvers for querying media data with pagination support.
 export function mediaResolvers() {
 	const fetchWithPagination = async (collectionTypes: string, pagination: { page: number; limit: number }) => {
 		if (!dbAdapter) {
@@ -90,11 +102,10 @@ export function mediaResolvers() {
 	};
 
 	return {
-		mediaImages: async (_: any, args: { pagination: { page: number; limit: number } }) => await fetchWithPagination('media_images', args.pagination),
-		mediaDocuments: async (_: any, args: { pagination: { page: number; limit: number } }) =>
-			await fetchWithPagination('media_documents', args.pagination),
-		mediaAudio: async (_: any, args: { pagination: { page: number; limit: number } }) => await fetchWithPagination('media_audio', args.pagination),
-		mediaVideos: async (_: any, args: { pagination: { page: number; limit: number } }) => await fetchWithPagination('media_videos', args.pagination),
-		mediaRemote: async (_: any, args: { pagination: { page: number; limit: number } }) => await fetchWithPagination('media_remote', args.pagination)
+		mediaImages: async (_: MediaResolverParent, args: PaginationArgs) => await fetchWithPagination('media_images', args.pagination),
+		mediaDocuments: async (_: MediaResolverParent, args: PaginationArgs) => await fetchWithPagination('media_documents', args.pagination),
+		mediaAudio: async (_: MediaResolverParent, args: PaginationArgs) => await fetchWithPagination('media_audio', args.pagination),
+		mediaVideos: async (_: MediaResolverParent, args: PaginationArgs) => await fetchWithPagination('media_videos', args.pagination),
+		mediaRemote: async (_: MediaResolverParent, args: PaginationArgs) => await fetchWithPagination('media_remote', args.pagination)
 	};
 }

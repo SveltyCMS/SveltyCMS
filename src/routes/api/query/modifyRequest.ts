@@ -36,9 +36,20 @@ interface Field {
 	};
 }
 
+interface DataAccessor<T> {
+	get(): T;
+	update(newData: T): void;
+}
+
+interface EntryData {
+	_id?: string;
+	meta_data?: Record<string, unknown>;
+	[key: string]: unknown;
+}
+
 // Define the parameters for the function
 interface ModifyRequestParams {
-	data: any[];
+	data: EntryData[];
 	fields: Field[];
 	collection: CollectionModel;
 	user: User;
@@ -69,15 +80,15 @@ export async function modifyRequest({ data, fields, collection, user, type }: Mo
 
 			if (widget && 'modifyRequest' in widget) {
 				data = await Promise.all(
-					data.map(async (entry: any, index: number) => {
+					data.map(async (entry: EntryData, index: number) => {
 						const entryStart = performance.now();
 						try {
 							const entryCopy = { ...entry };
-							const dataAccessor = {
+							const dataAccessor: DataAccessor<unknown> = {
 								get() {
 									return entryCopy[fieldName];
 								},
-								update(newData: any) {
+								update(newData: unknown) {
 									entryCopy[fieldName] = newData;
 								}
 							};

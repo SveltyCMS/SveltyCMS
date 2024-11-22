@@ -43,6 +43,35 @@ export interface Thumbnail {
 	height: number;
 }
 
+// Metadata interface for media items
+export interface MediaMetadata {
+	title?: string;
+	description?: string;
+	keywords?: string[];
+	copyright?: string;
+	author?: string;
+	dimensions?: {
+		width?: number;
+		height?: number;
+		depth?: number;
+	};
+	location?: {
+		latitude?: number;
+		longitude?: number;
+		altitude?: number;
+	};
+	[key: string]: unknown;
+}
+
+// Image metadata interface
+export interface ImageMetadata {
+	width: number;
+	height: number;
+	format: string;
+	size: number;
+	mimeType: string;
+}
+
 // Base interface for all media types
 export interface MediaBase {
 	_id?: string; // Unique identifier
@@ -56,7 +85,7 @@ export interface MediaBase {
 	user: string;
 	createdAt: Date;
 	updatedAt: Date;
-	metadata?: Record<string, any>;
+	metadata?: MediaMetadata;
 	isDeleted?: boolean;
 	deletedAt?: Date;
 	versions: MediaVersion[];

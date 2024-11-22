@@ -12,16 +12,18 @@ import { GuiSchema, GraphqlSchema, type Params } from './types';
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
 
+// Import DISPLAY type from app.d.ts
+type DISPLAY = (({ data: any, collection: any, field: any, entry: any, contentLanguage: string }) => Promise<any>) & { default?: boolean };
+
 /**
  * Defines the Address widget Parameters
  */
 const widget = (params: Params) => {
 	// Define the display function
-	let display: any;
+	let display: DISPLAY;
 
 	if (!params.display) {
 		display = async ({ data }) => {
-			// console.log(data);
 			data = data ? data : {}; // Ensure data is not undefined
 			// Return the data for the default content language or a message indicating no data entry
 			return data[publicEnv.DEFAULT_CONTENT_LANGUAGE] || m.widgets_nodata();
@@ -67,7 +69,7 @@ widget.toString = () => '';
 
 // Widget icon and helper text
 widget.Icon = 'mdi:home-map-marker';
-widget.Description = m.widget_address_description();
+widget.Description = 'description';
 
 // Widget Aggregations:
 widget.aggregations = {

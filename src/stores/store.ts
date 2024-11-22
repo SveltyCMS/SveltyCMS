@@ -26,6 +26,18 @@ interface SaveFunction {
 	reset: () => void;
 }
 
+// Translation progress types
+export interface TranslationSet {
+	total: Set<string>;
+	translated: Set<string>;
+}
+
+export type TranslationProgress = {
+	[key in AvailableLanguageTag]?: TranslationSet;
+} & {
+	show: boolean;
+};
+
 // Create base stores
 const createBaseStores = () => {
 	// Language and i18n
@@ -37,9 +49,9 @@ const createBaseStores = () => {
 	const translationStatus = store({});
 	const completionStatus = store(0);
 	const translationStatusOpen = store(false);
-	const translationProgress = store({
+	const translationProgress = store<TranslationProgress>({
 		show: false
-	} as { [key: string]: { total: any[]; translated: any[] } } | { show: boolean });
+	});
 
 	// UI state
 	const tabSet = store(0);

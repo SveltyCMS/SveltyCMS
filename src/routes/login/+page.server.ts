@@ -20,13 +20,7 @@ import { RateLimiter } from 'sveltekit-rate-limiter/server';
 import { superValidate } from 'sveltekit-superforms/server';
 import { valibot } from 'sveltekit-superforms/adapters';
 import { message } from 'sveltekit-superforms/server';
-import { 
-    loginFormSchema, 
-    forgotFormSchema, 
-    resetFormSchema, 
-    signUpFormSchema, 
-    signUpOAuthFormSchema
-} from '@utils/formSchemas';
+import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, signUpOAuthFormSchema } from '@utils/formSchemas';
 
 // Auth
 import { auth, initializationPromise } from '@src/databases/db';
@@ -348,58 +342,30 @@ export const actions: Actions = {
 	},
 
 	// OAuth Sign-Up
-	OAuth: async (event) => {
-		logger.debug('OAuth action called');
-		let authUrl = '';
+	OAuth: async ({ request, url }) => {
+		const form = await superValidate(request, signUpOAuthFormSchema);
 
-		if (await limiter.isLimited(event)) {
-			return fail(429, { message: 'Too many requests. Please try again later.' });
+		if (!form.valid) {
+			return { form };
 		}
 
-		try {
-			const signUpOAuthForm = await superValidate(event, wrappedSignUpOAuthSchema);
-			logger.debug(`signUpOAuthForm: ${JSON.stringify(signUpOAuthForm)}`);
-
-			const lang = signUpOAuthForm.data.lang;
-			logger.debug(`lang: ${lang}`);
-
-			const googleAuthClient = await googleAuth();
-			if (!googleAuthClient) {
-				logger.error('Google OAuth client is not initialized');
-				return fail(500, { message: 'Google OAuth client initialization failed' });
-			}
-
-			const scopes = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'];
-
-			authUrl = googleAuthClient.generateAuthUrl({
-				access_type: 'offline',
-				scope: scopes.join(' '),
-				redirect_uri: `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`
-				// prompt: 'select_account'
-			});
-
-			logger.debug(`Generated redirect URL: ${authUrl}`);
-
-			if (!authUrl) {
-				logger.error('Error during OAuth callback: Redirect URL not generated');
-				return fail(500, { message: 'Failed to generate redirect URL.' });
-			}
-
-			// Invalidate all user sessions before redirecting
-			if (auth && event.locals.user) {
-				await auth.invalidateAllUserSessions(event.locals.user._id);
-			}
-
-			// Redirect to the Google OAuth URL
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Detailed error in OAuth action: ${err.message}`);
-			logger.error(`Error stack: ${err.stack}`);
-			return fail(500, { message: `OAuth error: ${err.message}` });
+		// Check if Google OAuth is enabled
+		if (!privateEnv.USE_GOOGLE_OAUTH) {
+			throw redirect(303, '/login');
 		}
 
-		logger.debug('Redirecting to Google OAuth URL');
-		redirect(302, authUrl);
+		// Rate limiting check
+		const rateLimitResult = await limiter.isLimited({ request });
+		if (!rateLimitResult.success) {
+			return {
+				form,
+				error: rateLimitResult.message
+			};
+		}
+
+		// Get Google OAuth URL
+		const authUrl = await getGoogleAuthUrl(url);
+		throw redirect(303, authUrl);
 	},
 
 	// Function for handling the SignIn form submission and user authentication

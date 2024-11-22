@@ -27,7 +27,7 @@ import { privateEnv } from '@root/config/private';
 import { publicEnv } from '@root/config/public';
 import { json } from '@sveltejs/kit';
 
-import type { Component, ComponentProps, SvelteComponent } from 'svelte';
+// Svelte
 import { render } from 'svelte/server';
 import { convert } from 'html-to-text';
 
@@ -69,12 +69,13 @@ const templates: Record<string, ComponentType> = {
 	updatedPassword
 };
 
+// Types for email rendering
+type EmailComponent = ComponentType<EmailProps>;
+type RenderResult = { html: string; text: string };
+
 // Render email with HTML and plain text versions
-const renderEmail = async <Comp extends SvelteComponent<any> | Component<any>, Props extends ComponentProps<Comp> = ComponentProps<Comp>>(
-	component: Comp,
-	props?: Props
-) => {
-	const rendered = render(component as any, {
+const renderEmail = async (component: EmailComponent, props?: EmailProps): Promise<RenderResult> => {
+	const rendered = render(component, {
 		props
 	});
 

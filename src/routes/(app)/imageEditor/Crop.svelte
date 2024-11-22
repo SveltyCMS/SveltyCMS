@@ -5,7 +5,6 @@
  
 
 ### Props 
-- `stage`: Konva.Stage - The Konva stage where the image is displayed.
 - `layer`: Konva.Layer - The Konva layer where the image and effects are added.
 - `imageNode`: Konva.Image - The Konva image node representing the original image.
 - `on:cropApplied` (optional): Function to be called when the crop is applied.
@@ -17,7 +16,6 @@
 	import Konva from 'konva';
 
 	interface Props {
-		stage: Konva.Stage;
 		layer: Konva.Layer;
 		imageNode: Konva.Image;
 		'on:cropApplied'?: () => void;
@@ -26,7 +24,6 @@
 	}
 
 	let {
-		stage,
 		layer,
 		imageNode,
 		'on:cropApplied': onCropApplied = () => {},

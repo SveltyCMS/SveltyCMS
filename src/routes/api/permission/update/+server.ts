@@ -34,6 +34,9 @@ import { roles as configRoles } from '@root/config/roles';
 // System Logger
 import { logger } from '@utils/logger';
 
+// Importing and using the Role type from auth/types.ts
+import type { Role } from '@src/auth/types';
+
 // Constants for validation
 const MAX_ROLE_NAME_LENGTH = 50;
 const ROLE_NAME_PATTERN = /^[a-zA-Z0-9-_\s]+$/;
@@ -151,7 +154,7 @@ export function registerRoles(newRoles: Role[]): void {
 };
 
 // Validates the complete roles array and their relationships
-async function validateRoles(roles: any[]): Promise<{ isValid: boolean; error?: string }> {
+async function validateRoles(roles: Role[]): Promise<{ isValid: boolean; error?: string }> {
 	try {
 		// Check for empty roles array
 		if (roles.length === 0) {
@@ -215,12 +218,12 @@ async function validateRoles(roles: any[]): Promise<{ isValid: boolean; error?: 
 }
 
 // Validates the basic structure of a role object
-function validateRoleStructure(role: any): boolean {
+function validateRoleStructure(role: Role): boolean {
 	return (
 		typeof role._id === 'string' &&
 		typeof role.name === 'string' &&
 		Array.isArray(role.permissions) &&
-		role.permissions.every((perm: any) => typeof perm === 'string') &&
+		role.permissions.every((perm) => typeof perm === 'string') &&
 		(role.isAdmin === undefined || typeof role.isAdmin === 'boolean') &&
 		(role.description === undefined || typeof role.description === 'string')
 	);

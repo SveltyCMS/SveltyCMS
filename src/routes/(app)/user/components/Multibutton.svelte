@@ -110,6 +110,14 @@
 		}
 	} as const;
 
+	interface ModalResponse {
+		username?: string;
+		email?: string;
+		role?: string;
+		token?: string;
+		user_id?: string;
+	}
+
 	function showToast(message: string, isError = false, background = 'gradient-primary') {
 		toastStore.trigger({
 			message: `<iconify-icon icon="${isError ? 'mdi:alert' : 'mdi:check-outline'}" color="white" width="26" class="mr-1"></iconify-icon> ${message}`,
@@ -160,7 +168,7 @@
 			title: config.modalTitle(),
 			body: config.modalBody(),
 			...(isEdit && { component: modalComponent }),
-			response: async (r: any) => {
+			response: async (r: ModalResponse | boolean) => {
 				if (!r) return;
 
 				try {

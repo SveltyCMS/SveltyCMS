@@ -293,19 +293,19 @@ export class Auth {
 		limit?: number;
 		skip?: number;
 		sort?: { [key: string]: 1 | -1 } | [string, 1 | -1][];
-		filter?: object;
+		filter?: Partial<Role>;
 	}): Promise<Role[]> {
 		let filteredRoles = [...this.roles.values()];
 
 		// Apply filtering, sorting, and pagination if options are provided
 		if (options?.filter) {
-			filteredRoles = filteredRoles.filter((role) => Object.entries(options.filter!).every(([key, value]) => (role as any)[key] === value));
+			filteredRoles = filteredRoles.filter((role) => Object.entries(options.filter!).every(([key, value]) => role[key as keyof Role] === value));
 		}
 
 		if (options?.sort) {
 			const sortKeys = Object.keys(options.sort);
 			filteredRoles.sort((a, b) =>
-				sortKeys.reduce((acc, key) => acc || ((a as any)[key] > (b as any)[key] ? 1 : -1) * (options.sort![key] as number), 0)
+				sortKeys.reduce((acc, key) => acc || (a[key as keyof Role] > b[key as keyof Role] ? 1 : -1) * (options.sort![key] as number), 0)
 			);
 		}
 

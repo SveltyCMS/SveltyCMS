@@ -7,14 +7,12 @@
 
  </p>
 
-<h1 align="center"><strong>SveltyCMS</strong></h1>
-<p align="center"><strong>(Still in Development - Support always Appreciated!!)</strong></>
+<h1 align="center"><strong>SveltyCMS - Headless CMS with Sveltekit Power</strong></h1>
+<p align="center"><strong>(Still in Development - Your Support is always Appreciated!!)</strong></>
 
 <p align="center">
-
  <img alt="Latest SemVer" src="https://img.shields.io/github/v/tag/Rar9/SveltyCMS">
-
-  <img alt="GitHub issues" src="https://img.shields.io/github/issues/Rar9/SveltyCMS">
+ <img alt="GitHub issues" src="https://img.shields.io/github/issues/Rar9/SveltyCMS">
 </p>
 
 <p align="center">
@@ -43,19 +41,19 @@
 
 <h2 align="center">A powerful Headless CMS with Sveltekit Power</h2>
 
-<h3 align="center"><strong>It's lightning fast, flexible and an easy to use modern content management system to provide a headless backend </strong></h3>
+<h3 align="center"><strong>It's lightning fast, flexible and an easy to use modern content management system to provide a headless backend</strong></h3>
 
-This Sveltekit CMS provides a backend based on a modern [SvelteKit 2](https://svelte.dev/) framework with a fast MongoDB for document database scalability and flexibility.
+This SveltyCMS headless CMS provides a powerful backend based on a modern [SvelteKit 2 / Svelte 5](https://svelte.dev) framework. Being designed to be database agnostic, we currently launch with a fast [MongoDB](https://www.mongodb.com), and will use [drizzel](https://drizzle-orm.netlify.app) for future SQL/Postgres support.
 
-New Collections can easily be implemented, due to full typescript support with already many available widgets. we offer two ways to use it, via code or via GUI.
+Content Collections can easily be implemented, due to full typescript support by using many available widgets. We offer two ways to use define your collections, via code or via a Gui based collection builder.
 
-All fields offer full translation, and customization as well as access restriction.
+All Widget fields offer full translation, and customization, validation using [valibot](https://valibot.dev] and access handling..
 
-The System language uses [Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs) a light weight JavaScript i18n library. :gb: English is our default and we offer multiple languages out of the box. More Languages can easily be extended to support further languages.
+The System language uses [Inlang's Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs) a light weight JavaScript i18n library. :gb: English is our default and we offer multiple languages out of the box. More Languages can easily be extended to support further languages.
 
-We used [tailwindcss](https://tailwindcss.com/) and a [skeleton UI toolkit](https://www.skeleton.dev/), so the CMS can be quickly optimized to your personal needs.
+We used [tailwindcss](https://tailwindcss.com) and a [skeleton UI toolkit](https://www.skeleton.dev), so the CMS can be quickly optimized to your personal needs.
 
-The Backend Data is provided via [GraphQL Yoga](https://the-guild.dev/graphql/yoga-server), to build extremely fast frontends.
+The Backend Data is provided via Rest Api or [GraphQL Yoga](https://the-guild.dev/graphql/yoga-server), to build extremely fast frontends.
 
 <p align="center">
  <img width="100%" alt="SveltyCMS Gui" src="https://github.com/SveltyCMS/SveltyCMS/blob/main/static/docs/SveltyCMS-Demo1.png">
@@ -90,7 +88,7 @@ Install stable [Node.js](https://nodejs.org/en) to get started. Then choose your
 <summary><b>npm</b></summary>
 
 ```bash
-# Install dependencies
+# Install all dependencies
 npm install
 
 # Start CLI Installer
@@ -115,7 +113,7 @@ npm run preview
 # Install pnpm if you haven't already
 npm install -g pnpm
 
-# Install dependencies
+# Install all dependencies
 pnpm install
 
 # Start CLI Installer
@@ -140,7 +138,7 @@ pnpm run preview
 # Install bun if you haven't already
 curl -fsSL https://bun.sh/install | bash
 
-# Install dependencies
+# Install all dependencies
 bun install
 
 # Start CLI Installer
@@ -160,9 +158,9 @@ bun run preview
 
 ### Setup via CLI Installer
 
-This project uses a public/private configuration to store sensitive information, such as API keys and database passwords.
+This project uses a flexible public/private configuration to store sensitive information, such as API keys and database passwords.
 
-To set up the SvelteCMC project, you just need to start the CLI Installer. Minimum requirements are a Database and Email to get started.
+To set up the SveltyCMS project, you just need to start the CLI Installer. Minimum requirements are a Database and Email to get started.
 
 ### Development and Production
 
@@ -175,9 +173,9 @@ Preview server runs on `localhost:4173`
 
 We want to keep your data Private and Secure.
 
-Our Authentication allows us to stay flexible for the future and adapt to changing security needs.
+Our extensive Authentication allows us to stay flexible for the future and adapt to changing security needs.
 
-You can sign by email and password tot he SveltyCMS or use google oauth.
+You can login into SveltyCMS by email and password or use google oauth.
 
 Field-based content access enables the allocation of varying levels of access to users according to their roles and permissions. This way, you can control who can view, edit, or delete your data.
 
@@ -258,7 +256,7 @@ Thank you for your support!
 
 ## :clap: Thanks
 
-To all our contributors without this would never have been possible
+To all our contributors without this SveltyCMS would never have been possible.
 
 # :star: Give us a star
 

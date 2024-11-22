@@ -22,6 +22,11 @@
 import type { Schema } from '@src/collections/types';
 import type { User } from '@src/auth/types';
 
+// Interface for request body data
+export interface RequestBody {
+	[key: string]: unknown;
+}
+
 // Database
 import { dbAdapter, getCollectionModels } from '@src/databases/db';
 
@@ -70,7 +75,7 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
 
 		// Parse form data with performance tracking
 		const parseStart = performance.now();
-		const body: { [key: string]: any } = {};
+		const body: RequestBody = {};
 		const fileIDS: string[] = [];
 
 		// Parse the form data and build the body object

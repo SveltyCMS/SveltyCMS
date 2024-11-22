@@ -18,8 +18,8 @@ type CollectionType = string; // Base type for collection names
 
 // Widget interface
 interface Widget {
-    permissions: Record<string, Record<string, boolean>>;
-    [key: string]: any; // Allow other properties
+	permissions: Record<string, Record<string, boolean>>;
+	[key: string]: Record<string, Record<string, boolean>> | unknown;
 }
 
 // Status map for various collection states
@@ -36,9 +36,9 @@ export const statusMap = {
 export const collections = store<{ [key: CollectionType]: Schema }>({});
 export const unAssigned = store<Schema[]>([]);
 export const collection = store<Schema>({} as Schema);
-export const collectionValue = store({} as { [key: string]: any });
+export const collectionValue = store<Record<string, unknown>>({});
 export const mode = store<ModeType>('view');
-export const modifyEntry = store((_: keyof typeof statusMap): any => {});
+export const modifyEntry = store((status: keyof typeof statusMap): void => {});
 export const selectedEntries = store<string[]>([]);
 export const targetWidget = store<Widget>({ permissions: {} });
 export const categories = store<Record<string, CategoryData>>({});
@@ -50,25 +50,25 @@ export const currentCollectionName = store(() => collection.value?.name);
 
 // Entry management
 export const entryActions = {
-    addEntry(entryId: string) {
-        selectedEntries.update(entries => [...entries, entryId]);
-    },
-    removeEntry(entryId: string) {
-        selectedEntries.update(entries => entries.filter(id => id !== entryId));
-    },
-    clear() {
-        selectedEntries.set([]);
-    }
+	addEntry(entryId: string) {
+		selectedEntries.update((entries) => [...entries, entryId]);
+	},
+	removeEntry(entryId: string) {
+		selectedEntries.update((entries) => entries.filter((id) => id !== entryId));
+	},
+	clear() {
+		selectedEntries.set([]);
+	}
 };
 
 // Helper functions for categories
 export const categoryActions = {
-    updateCategory(categoryId: string, data: CategoryData) {
-        categories.update(cats => ({
-            ...cats,
-            [categoryId]: { ...cats[categoryId], ...data }
-        }));
-    }
+	updateCategory(categoryId: string, data: CategoryData) {
+		categories.update((cats) => ({
+			...cats,
+			[categoryId]: { ...cats[categoryId], ...data }
+		}));
+	}
 };
 
 // Type exports

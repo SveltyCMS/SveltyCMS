@@ -7,7 +7,7 @@ import type widgets from '@components/widgets';
 import type { ModifyRequestParams } from '@components/widgets';
 
 // Auth
-import type { Permission } from '@src/auth/types';
+import type { Permission, RolePermissions } from '@src/auth/types';
 
 // Collection names are dynamic, based on the files in the collections directory
 
@@ -32,8 +32,8 @@ export type Field = {
 
 // Collection Registry - defines all available collections
 export const CollectionRegistry = {
-    CollectionManager: 'CollectionManager',
-    categories: 'categories'
+	CollectionManager: 'CollectionManager',
+	categories: 'categories'
 } as const;
 
 // Define the base Schema interface
@@ -47,7 +47,7 @@ export interface Schema {
 	strict?: boolean; // Optional strict mode
 	revision?: boolean; // Optional revisions
 	path?: string; // Path within the collections folder structure
-	permissions?: Permission; // Optional permission restrictions
+	permissions?: RolePermissions; // Optional permission restrictions
 	livePreview?: boolean; // Optional live preview
 	status?: 'draft' | 'published' | 'unpublished' | 'scheduled' | 'cloned'; // Optional default status
 	links?: Array<CollectionTypes>; // Optional links to other collections
@@ -93,4 +93,6 @@ export interface ProcessedCategoryData extends CategoryData {
 }
 
 // Collection types
-export type CollectionTypes = 'categories'|'CollectionManager';
+
+
+export type CollectionTypes = 'CollectionManager'|'categories';

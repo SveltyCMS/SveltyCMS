@@ -18,7 +18,7 @@ describe('Role and Permission Access Management', () => {
 
 import { Auth } from '@src/auth';
 import { PermissionAction } from '@src/auth/permissionTypes';
-import type { Role, User } from '@src/auth/types';
+import type { Role, User, authDBInterface } from '@src/auth/types';
 import { checkUserPermission, loadUserPermissions } from '@src/auth/permissionCheck';
 import { getPermissionByName, getAllPermissions, syncPermissions } from '@src/auth/permissionManager';
 
@@ -31,7 +31,7 @@ const mockDbAdapter = {
 };
 
 describe('Role and Permission Access Management', () => {
-	const auth = new Auth(mockDbAdapter as any);
+	const auth = new Auth(mockDbAdapter as authDBInterface);
 
 	test('Create and manage roles', async () => {
 		const newRole: Role = {
