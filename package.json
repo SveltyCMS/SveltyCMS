@@ -9,7 +9,7 @@
 		"dev": "vite dev",
 		"devv": "LAUNCH_EDITOR='code' vite --open",
 		"-- BUILD ---------------------------------------------": "",
-		"build": "vite build",
+		"build": "NODE_OPTIONS='--max-old-space-size=4096' vite build",
 		"-- CHECK & TEST ---------------------------------------": "",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --threshold error",
 		"check:watch": " svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
@@ -107,6 +107,7 @@
 	"dependencies": {
 		"@floating-ui/dom": "^1.6.12",
 		"@inlang/paraglide-sveltekit": "^0.12.1",
+		"@inlang/paraglide-vite": "^1.2.77",
 		"@mapbox/mapbox-gl-geocoder": "^5.0.3",
 		"@mapbox/mapbox-gl-language": "^1.0.1",
 		"@tailwindcss/forms": "^0.5.9",
@@ -142,6 +143,7 @@
 		"googleapis": "^144.0.0",
 		"graphql": "^16.9.0",
 		"graphql-yoga": "^5.10.3",
+		"html-to-text": "^9.0.5",
 		"htmlparser2": "^9.1.0",
 		"iconify-icon": "^2.1.0",
 		"konva": "^9.3.16",
@@ -158,7 +160,8 @@
 		"redis": "^4.7.0",
 		"serve-static": "^1.16.2",
 		"svelty-email": "^0.0.11",
-		"tailwind-merge": "^2.5.4"
+		"tailwind-merge": "^2.5.4",
+		"vite-plugin-inspect": "^0.8.8"
 	},
 	"patchedDependencies": {
 		"sveltekit-superforms@2.20.1": "patches/sveltekit-superforms@2.20.1.patch"

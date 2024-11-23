@@ -54,7 +54,8 @@ const config = {
 		},
 		// experimental options
 		experimental: {}
-	}
+	},
+	
 };
 
 export default config;
