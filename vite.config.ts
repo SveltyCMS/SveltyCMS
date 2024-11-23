@@ -24,7 +24,7 @@ import { execSync } from 'child_process';
 import { purgeCss } from 'vite-plugin-tailwind-purgecss';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
-import { paraglide } from '@inlang/paraglide-vite';
+import { paraglide } from '@inlang/paraglide-sveltekit/vite';
 // Gets package.json version info on app start
 // https://kit.svelte.dev/faq#read-package-jsonimport { readFileSync } from 'fs'
 import { fileURLToPath } from 'url';

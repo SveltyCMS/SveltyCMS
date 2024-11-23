@@ -14,20 +14,41 @@ export default ts.config(
 		languageOptions: {
 			globals: {
 				...globals.browser,
-				...globals.node
+				...globals.node,
+				NodeJS: true,
+				svelte: true,
+				globalThis: 'readonly'
+			},
+			parserOptions: {
+				ecmaVersion: 'latest',
+				sourceType: 'module'
 			}
 		}
 	},
 	{
 		files: ['**/*.svelte'],
-
 		languageOptions: {
 			parserOptions: {
-				parser: ts.parser
+				parser: ts.parser,
+				extraFileExtensions: ['.svelte']
 			}
 		}
 	},
 	{
-		ignores: ['build/', '.svelte-kit/', 'dist/']
+		ignores: [
+			'**/*.cjs',
+			'**/.DS_Store',
+			'**/node_modules',
+			'build',
+			'.svelte-kit',
+			'package',
+			'dist',
+			'**/.env',
+			'**/.env.*',
+			'!**/.env.example',
+			'**/pnpm-lock.yaml',
+			'**/package-lock.json',
+			'**/yarn.lock'
+		]
 	}
 );
