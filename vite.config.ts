@@ -40,8 +40,8 @@ const __dirname = Path.dirname(__filename);
 const parsed = Path.parse(__dirname);
 
 // Define paths for collections
-const collectionsFolderJS = Path.posix.join('/', __dirname.replace(parsed.root, ''), 'collections/');
-const collectionsFolderTS = Path.posix.join('/', __dirname.replace(parsed.root, ''), 'config/collections/');
+const compiledCollections = Path.posix.join('/', __dirname.replace(parsed.root, ''), 'collections/');
+const userCollections = Path.posix.join('/', __dirname.replace(parsed.root, ''), 'config/collections/');
 
 // Define config directory paths
 const configDir = resolve(__dirname, 'config');
@@ -66,8 +66,8 @@ configPaths.forEach((path) => {
 
 // Initial compilation of collections
 await compile({
-	systemCollectionsPath: collectionsFolderTS,
-	userCollectionsPath: collectionsFolderJS
+	userCollections,
+	compiledCollections
 });
 
 export default defineConfig({
@@ -82,8 +82,8 @@ export default defineConfig({
 					try {
 						// Compile the changed collection
 						await compile({
-							systemCollectionsPath: collectionsFolderTS,
-							userCollectionsPath: collectionsFolderJS
+							userCollections,
+							compiledCollections
 						});
 
 						// Generate updated types

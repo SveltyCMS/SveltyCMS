@@ -25,33 +25,32 @@
  */
 
 import { privateEnv } from '@root/config/private';
-
-// Stores
+import { browser } from '$app/environment';
+import { promises as fs } from 'fs';
+import path from 'path';
 import type { Unsubscriber } from 'svelte/store';
 import type { ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
 import type { UserPreferences, WidgetPreference } from '@root/src/stores/userPreferences.svelte';
-
-// Types
-import type { Field } from '@src/collections/types';
+import type { VirtualFolderUpdateData } from '@src/types/virtualFolder';
+import { logger } from '@src/utils/logger';
 
 // Database
 import mongoose, { Schema } from 'mongoose';
-import type { Document, Types, Model, FilterQuery, UpdateQuery, SchemaDefinitionProperty } from 'mongoose';
+import type { Document, Model, FilterQuery, UpdateQuery } from 'mongoose';
 import type { dbInterface, Draft, Revision, Theme, Widget, SystemPreferences, SystemVirtualFolder } from '../dbInterface';
 
 import { UserSchema } from '@src/auth/mongoDBAuth/userAdapter';
 import { TokenSchema } from '@src/auth/mongoDBAuth/tokenAdapter';
 import { SessionSchema } from '@src/auth/mongoDBAuth/sessionAdapter';
 
-// System Logger
-import { logger } from '@utils/logger';
-
 // Media
 import type { MediaBase, MediaType } from '@utils/media/mediaModels';
-import { MediaTypeEnum } from '@utils/media/mediaModels';
 
 // Theme
 import { DEFAULT_THEME } from '@src/databases/themeManager';
+
+// File System
+import { URL } from 'url';
 
 // Define the media schema for different media types
 const mediaSchema = new Schema(
@@ -165,9 +164,127 @@ const SystemVirtualFolderModel =
 		)
 	);
 
+import type { CollectionConfig } from '@src/collections/types';
+
+import { widgets, initWidgets } from '@src/components/widgets';
+
 export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
 	private collectionsInitialized = false;
+
+	// Helper method to recursively scan directories for collection files
+	private async scanDirectoryForCollections(dirPath: string): Promise<string[]> {
+		const collectionFiles: string[] = [];
+		try {
+			const entries = await fs.readdir(dirPath, { withFileTypes: true });
+			
+			for (const entry of entries) {
+				const fullPath = path.join(dirPath, entry.name);
+				if (entry.isDirectory()) {
+					// Recursively scan subdirectories
+					const subDirFiles = await this.scanDirectoryForCollections(fullPath);
+					collectionFiles.push(...subDirFiles);
+				} else if (entry.isFile() && entry.name.endsWith('.js')) {
+					collectionFiles.push(fullPath);
+				}
+			}
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error scanning directory ${dirPath}:`, {
+				error: err.message,
+				stack: err.stack
+			});
+		}
+		return collectionFiles;
+	}
+
+	// Sync collections with database
+	async syncCollections(): Promise<void> {
+		try {
+			if (browser) {
+				logger.debug('Skipping collection sync in browser environment');
+				return;
+			}
+
+			logger.debug('Starting collection sync...');
+			
+			// Initialize widgets globally
+			if (!globalThis.widgets) {
+				logger.debug('Initializing widgets globally...');
+				globalThis.widgets = widgets;
+				initWidgets();
+			}
+			
+			// Get path to collections directory
+			const currentFileUrl = import.meta.url;
+			const currentFilePath = new URL(currentFileUrl).pathname;
+			const collectionsPath = path.resolve(path.dirname(currentFilePath), '../../../collections');
+			
+			// Known collection directories
+			const collectionDirs = ['Collections', 'Menu'];
+			
+			for (const dir of collectionDirs) {
+				const dirPath = path.join(collectionsPath, dir);
+				try {
+					// Recursively scan for collection files
+					const collectionFiles = await this.scanDirectoryForCollections(dirPath);
+					logger.debug(`Found ${collectionFiles.length} collection files in ${dir} directory and subdirectories`);
+					
+					for (const filePath of collectionFiles) {
+						try {
+							logger.debug(`Processing collection file: ${filePath}`);
+							
+							const collection = await import(/* @vite-ignore */ filePath);
+							const collectionConfig = collection.default || collection.schema;
+							
+							if (collectionConfig) {
+								// Get collection name from the file path
+								const parsedPath = path.parse(filePath);
+								const collectionName = parsedPath.name;
+								
+								// Add name to config if not present
+								if (!collectionConfig.name) {
+									collectionConfig.name = collectionName;
+								}
+								
+								logger.debug(`Collection config for ${collectionName}:`, {
+									name: collectionConfig.name,
+									fields: collectionConfig.fields?.length || 0,
+									strict: collectionConfig.strict
+								});
+								
+								await this.createCollectionModel(collectionConfig);
+								logger.debug(`Successfully created/synced collection model for ${collectionName}`);
+							} else {
+								logger.error(`Collection file ${filePath} does not export a valid schema or default export`);
+							}
+						} catch (error) {
+							const err = error as Error;
+							logger.error(`Error importing collection ${filePath}:`, {
+								error: err.message,
+								stack: err.stack
+							});
+						}
+					}
+				} catch (error) {
+					const err = error as Error;
+					logger.error(`Error processing directory ${dir}:`, {
+						error: err.message,
+						stack: err.stack
+					});
+				}
+			}
+			
+			logger.debug('Collection sync completed successfully');
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error syncing collections:`, {
+				error: err.message,
+				stack: err.stack
+			});
+			throw new Error(`Failed to sync collections: ${err.message}`);
+		}
+	}
 
 	// Connect to MongoDB
 	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
@@ -209,6 +326,7 @@ export class MongoDBAdapter implements dbInterface {
 		try {
 			await mongoose.connect(connectionString, options);
 			logger.info(`Successfully connected to MongoDB database: ${privateEnv.DB_NAME}`);
+			await this.syncCollections();
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Failed to connect to MongoDB after ${attempts} attempts: ${err.message}`);
@@ -227,17 +345,17 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Get collection models
-	async getCollectionModels(): Promise<Record<string, any>> {
+	async getCollectionModels(): Promise<Record<string, Model<Document>>> {
 		logger.debug('getCollectionModels called');
 
 		if (this.collectionsInitialized) {
 			logger.debug('Collections already initialized, returning existing models.');
-			return mongoose.models as Record<string, Model<any>>;
+			return mongoose.models as Record<string, Model<Document>>;
 		}
 
 		try {
 			// Initialize base models without waiting for collections
-			const baseModels: Record<string, Model<any>> = {};
+			const baseModels: Record<string, Model<Document>> = {};
 
 			// Mark collections as initialized to prevent circular dependency
 			this.collectionsInitialized = true;
@@ -252,20 +370,46 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Helper method to map field types with improved type safety
-	private mapFieldType(type: string): any {
-		const typeMap: Record<string, any> = {
-			string: String,
-			number: Number,
-			boolean: Boolean,
-			date: Date,
-			object: mongoose.Schema.Types.Mixed,
-			array: Array,
-			text: String,
-			richtext: String,
-			media: mongoose.Schema.Types.Mixed
-		};
-		return typeMap[type.toLowerCase()] || String;
-	}
+	private mapFieldType(type: string): mongoose.SchemaDefinitionProperty {
+        // First check for widget types
+        const widgetTypeMap: Record<string, mongoose.SchemaDefinitionProperty> = {
+            Text: String,
+            RichText: String,
+            Number: Number,
+            Checkbox: Boolean,
+            Date: Date,
+            DateTime: Date,
+            DateRange: Object,
+            Email: String,
+            PhoneNumber: String,
+            Currency: Number,
+            Rating: Number,
+            Radio: String,
+            MediaUpload: mongoose.Schema.Types.Mixed,
+            MegaMenu: Array,
+            Relation: mongoose.Schema.Types.ObjectId,
+            RemoteVideo: String,
+            ColorPicker: String,
+            Seo: Object,
+            Address: Object
+        };
+
+        // Then check for basic types
+        const basicTypeMap: Record<string, mongoose.SchemaDefinitionProperty> = {
+            string: String,
+            number: Number,
+            boolean: Boolean,
+            date: Date,
+            object: mongoose.Schema.Types.Mixed,
+            array: Array,
+            text: String,
+            richtext: String,
+            media: mongoose.Schema.Types.Mixed
+        };
+
+        // Try widget type first, then basic type, default to Mixed
+        return widgetTypeMap[type] || basicTypeMap[type.toLowerCase()] || mongoose.Schema.Types.Mixed;
+    }
 
 	// Set up authentication models
 	setupAuthModels(): void {
@@ -358,15 +502,15 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Implementing insertMany method
-	async insertMany(collection: string, docs: Partial<Document>[]): Promise<any[]> {
-		const model = mongoose.models[collection];
+	async insertMany<T extends Document>(collection: string, docs: Partial<T>[]): Promise<T[]> {
+		const model = mongoose.models[collection] as Model<T>;
 		if (!model) {
 			logger.error(`insertMany failed. Collection ${collection} does not exist.`);
 			throw Error(`insertMany failed. Collection ${collection} does not exist.`);
 		}
 		try {
 			const result = await model.insertMany(docs);
-			return result;
+			return result as T[];
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Error inserting many documents into ${collection}: ${err.message}`);
@@ -375,7 +519,13 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Implementing updateOne method
-	async updateOne<T extends Document>(collection: string, query: FilterQuery<T>, update: UpdateQuery<T>): Promise<any> {
+	async updateOne<T extends Document>(collection: string, query: FilterQuery<T>, update: UpdateQuery<T>): Promise<{
+		acknowledged: boolean;
+		modifiedCount: number;
+		upsertedId: mongoose.Types.ObjectId | null;
+		upsertedCount: number;
+		matchedCount: number;
+	}> {
 		const model = mongoose.models[collection] as Model<T>;
 		if (!model) {
 			logger.error(`updateOne failed. Collection ${collection} does not exist.`);
@@ -392,7 +542,13 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Implementing updateMany method
-	async updateMany<T extends Document>(collection: string, query: FilterQuery<T>, update: UpdateQuery<T>): Promise<any> {
+	async updateMany<T extends Document>(collection: string, query: FilterQuery<T>, update: UpdateQuery<T>): Promise<{
+		acknowledged: boolean;
+		modifiedCount: number;
+		upsertedId: mongoose.Types.ObjectId | null;
+		upsertedCount: number;
+		matchedCount: number;
+	}> {
 		const model = mongoose.models[collection] as Model<T>;
 		if (!model) {
 			logger.error(`updateMany failed. Collection ${collection} does not exist.`);
@@ -458,64 +614,123 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Create a collection model
-	async createCollectionModel(collection: any): Promise<Model<any>> {
-		if (!collection.name) {
-			throw new Error('Collection must have a name');
-		}
+	async createCollectionModel(collection: CollectionConfig): Promise<Model<Document>> {
+        if (!collection.name) {
+            throw new Error('Collection must have a name');
+        }
 
-		const collectionName = String(collection.name);
-		logger.debug(`Creating collection model for ${collectionName}`);
+        const collectionName = String(collection.name);
+        logger.debug(`Creating collection model for ${collectionName}`);
 
-		// Check if model already exists
-		if (mongoose.models[collectionName]) {
-			return mongoose.models[collectionName];
-		}
+        // Check if model already exists
+        if (mongoose.models[collectionName]) {
+            return mongoose.models[collectionName];
+        }
 
-		// Define base schema definition
-		const schemaDefinition: Record<string, SchemaDefinitionProperty> = {
-			createdBy: {
-				type: String,
-				required: false
-			},
-			revisionsEnabled: {
-				type: Boolean,
-				required: false
-			},
-			translationStatus: {
-				type: mongoose.Schema.Types.Mixed,
-				default: {}
-			}
-		};
+        // Define base schema definition
+        const schemaDefinition: Record<string, mongoose.SchemaDefinitionProperty> = {
+            createdBy: {
+                type: String,
+                required: false
+            },
+            revisionsEnabled: {
+                type: Boolean,
+                required: false
+            },
+            translationStatus: {
+                type: mongoose.Schema.Types.Mixed,
+                default: {}
+            }
+        };
 
-		// Add fields from collection schema
-		if (collection.fields) {
-			collection.fields.forEach((field: Field) => {
-				const fieldKey = field.label.toLowerCase().replace(/\s+/g, '_');
-				const fieldType = this.mapFieldType(field.type || 'string');
-				const isRequired = field.required === true;
+        // Add fields from collection schema
+        if (collection.fields) {
+            for (const field of collection.fields) {
+                try {
+                    // Get field key from label
+                    const fieldKey = field.label?.toLowerCase().replace(/\s+/g, '_');
+                    if (!fieldKey) {
+                        logger.warn(`Field in collection ${collectionName} has no label, skipping`);
+                        continue;
+                    }
 
-				schemaDefinition[fieldKey] = {
-					type: fieldType,
-					required: isRequired
-				} as SchemaDefinitionProperty;
-			});
-		}
+                    // Get field configuration
+                    let fieldConfig;
+                    let widgetType;
 
-		const schemaOptions = {
-			strict: true,
-			timestamps: true,
-			collection: collectionName.toLowerCase()
-		};
+                    if (typeof field === 'function') {
+                        // If field is a widget function, execute it to get config
+                        const result = field({});
+                        widgetType = result.type;
+                        fieldConfig = result.config;
+                    } else if (field.type) {
+                        // If field has explicit type
+                        widgetType = field.type;
+                        fieldConfig = field;
+                    } else {
+                        // Try to determine widget type from field object
+                        const keys = Object.keys(field);
+                        widgetType = keys.find(key => 
+                            ['Text', 'RichText', 'Number', 'Checkbox', 'Date', 'DateTime', 'DateRange',
+                             'Email', 'PhoneNumber', 'Currency', 'Rating', 'Radio', 'MediaUpload',
+                             'MegaMenu', 'Relation', 'RemoteVideo', 'ColorPicker', 'Seo', 'Address'
+                            ].includes(key)
+                        ) || 'Mixed';
+                        fieldConfig = field;
+                    }
 
-		// Create and return the model
-		const schema = new mongoose.Schema(schemaDefinition, schemaOptions);
-		return mongoose.model(collectionName, schema);
-	}
+                    const isRequired = fieldConfig?.required === true;
+                    const isTranslated = fieldConfig?.translated === true;
+
+                    // Map the widget type to a MongoDB type
+                    const mongooseType = this.mapFieldType(widgetType);
+
+                    // Create the field schema
+                    let fieldSchema: mongoose.SchemaDefinitionProperty;
+
+                    if (isTranslated) {
+                        fieldSchema = {
+                            type: Map,
+                            of: mongooseType,
+                            required: isRequired,
+                            default: {}
+                        };
+                    } else {
+                        fieldSchema = {
+                            type: mongooseType,
+                            required: isRequired
+                        };
+                    }
+
+                    // Add any additional field configuration
+                    if (widgetType === 'Relation' && fieldConfig.collection) {
+                        fieldSchema.ref = fieldConfig.collection;
+                    }
+
+                    // Add the field to the schema
+                    schemaDefinition[fieldKey] = fieldSchema;
+                    logger.debug(`Added field ${fieldKey} with type ${widgetType} to collection ${collectionName}`);
+                } catch (error) {
+                    logger.error(`Error processing field in collection ${collectionName}:`, error);
+                }
+            }
+        }
+
+        const schemaOptions = {
+            strict: collection.strict !== false,
+            timestamps: true,
+            collection: collectionName.toLowerCase()
+        };
+
+        // Create and return the model
+        const schema = new mongoose.Schema(schemaDefinition, schemaOptions);
+        return mongoose.model(collectionName, schema);
+    }
 
 	// Methods for Draft and Revision Management
 
 	// Create a new draft
-	async createDraft(content: any, collectionId: string, original_document_id: string, user_id: string): Promise<Draft> {
+	async createDraft(content: Record<string, unknown>, collectionId: string, original_document_id: string, user_id: string): Promise<Draft> {
 		try {
 			const draft = new DraftModel({
 				originalDocumentId: this.convertId(original_document_id),
@@ -534,7 +749,7 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Update a draft
-	async updateDraft(draft_id: string, content: any): Promise<Draft> {
+	async updateDraft(draft_id: string, content: Record<string, unknown>): Promise<Draft> {
 		try {
 			const draft = await DraftModel.findById(draft_id);
 			if (!draft) throw Error('Draft not found');
@@ -595,7 +810,7 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Create a new revision
-	async createRevision(collectionId: string, documentId: string, userId: string, data: any): Promise<Revision> {
+	async createRevision(collectionId: string, documentId: string, userId: string, data: Record<string, unknown>): Promise<Revision> {
 		try {
 			const revision = new RevisionModel({
 				collectionId: this.convertId(collectionId),
@@ -762,7 +977,7 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Update a widget
-	async updateWidget(widgetName: string, updateData: any): Promise<void> {
+	async updateWidget(widgetName: string, updateData: Partial<Widget>): Promise<void> {
 		try {
 			const result = await WidgetModel.updateOne({ name: widgetName }, { $set: { ...updateData, updatedAt: new Date() } }).exec();
 			if (result.modifiedCount === 0) {
@@ -965,7 +1180,7 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Get contents of a virtual folder
-	async getVirtualFolderContents(folderId: string): Promise<any[]> {
+	async getVirtualFolderContents(folderId: string): Promise<Document[]> {
 		try {
 			const objectId = this.convertId(folderId);
 			const folder = await SystemVirtualFolderModel.findById(objectId);
@@ -984,14 +1199,23 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Update a virtual folder
-	async updateVirtualFolder(folderId: string, updateData: { name?: string; parent?: string }): Promise<Document | null> {
+	async updateVirtualFolder(folderId: string, updateData: VirtualFolderUpdateData): Promise<Document | null> {
 		try {
-			const updatePayload: any = { ...updateData };
+			const updatePayload: VirtualFolderUpdateData & { updatedAt: Date } = {
+				...updateData,
+				updatedAt: new Date()
+			};
+			
 			if (updateData.parent) {
-				updatePayload.parent = this.convertId(updateData.parent);
+				updatePayload.parent = this.convertId(updateData.parent).toString();
 			}
 
-			const updatedFolder = await SystemVirtualFolderModel.findByIdAndUpdate(folderId, updatePayload, { new: true }).exec();
+			const updatedFolder = await SystemVirtualFolderModel.findByIdAndUpdate(
+				folderId,
+				updatePayload,
+				{ new: true }
+			).exec();
+
 			if (!updatedFolder) {
 				throw Error(`Virtual folder with ID ${folderId} not found.`);
 			}
@@ -1087,7 +1311,7 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Fetch media in a specific folder
-	async getMediaInFolder(folder_id: string): Promise<any[]> {
+	async getMediaInFolder(folder_id: string): Promise<MediaType[]> {
 		try {
 			const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
 			const objectId = this.convertId(folder_id);
@@ -1104,28 +1328,29 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Fetch the last five collections
-	async getLastFiveCollections(): Promise<any[]> {
+	async getLastFiveCollections(): Promise<Document[]> {
 		try {
 			const collectionTypes = Object.keys(mongoose.models);
-			const recentCollections: any[] = [];
+			const recentCollections: Document[] = [];
 
 			for (const collectionType of collectionTypes) {
 				const model = mongoose.models[collectionType];
-				const recentDocs = await model.find().sort({ createdAt: -1 }).limit(5).lean().exec();
-				recentCollections.push({ collectionTypes, recentDocs });
+				if (model) {
+					const collections = await model.find().sort({ createdAt: -1 }).limit(5).lean().exec();
+					recentCollections.push(...collections);
+				}
 			}
 
-			logger.info(`Fetched last five documents from ${recentCollections.length} collections.`);
-			return recentCollections;
+			return recentCollections.sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0)).slice(0, 5);
 		} catch (error) {
 			const err = error as Error;
-			logger.error(`Error fetching last five collections: ${err.message}`);
+			logger.error(`Failed to fetch last five collections: ${err.message}`);
 			throw Error(`Failed to fetch last five collections: ${err.message}`);
 		}
 	}
 
 	// Fetch logged-in users
-	async getLoggedInUsers(): Promise<any[]> {
+	async getLoggedInUsers(): Promise<Document[]> {
 		try {
 			const sessionModel = mongoose.models['auth_sessions'];
 			if (!sessionModel) {
@@ -1142,7 +1367,12 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Fetch CMS data
-	async getCMSData(): Promise<any> {
+	async getCMSData(): Promise<{
+		collections: number;
+		media: number;
+		users: number;
+		drafts: number;
+	}> {
 		// Implement your CMS data fetching logic here
 		// This is a placeholder and should be replaced with actual implementation
 		logger.debug('Fetching CMS data...');
@@ -1150,26 +1380,23 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Fetch the last five media documents
-	async getLastFiveMedia(): Promise<any[]> {
+	async getLastFiveMedia(): Promise<MediaType[]> {
 		try {
 			const mediaSchemas = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
-			const recentMedia: any[] = [];
+			const recentMedia: MediaType[] = [];
 
 			for (const schemaName of mediaSchemas) {
 				const model = mongoose.models[schemaName];
 				if (model) {
-					const recentDocs = await model.find().sort({ createdAt: -1 }).limit(5).lean().exec();
-					recentMedia.push(...recentDocs);
-					logger.debug(`Fetched ${recentDocs.length} recent media documents for ${schemaName}`);
-				} else {
-					logger.warn(`Media schema ${schemaName} does not exist.`);
+					const media = await model.find().sort({ createdAt: -1 }).limit(5).lean().exec();
+					recentMedia.push(...(media as MediaType[]));
 				}
 			}
-			logger.info(`Fetched last five media documents across schemas.`);
-			return recentMedia;
+
+			return recentMedia.sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0)).slice(0, 5);
 		} catch (error) {
 			const err = error as Error;
-			logger.error(`Error fetching last five media documents: ${err.message}`);
+			logger.error(`Failed to fetch last five media documents: ${err.message}`);
 			throw Error(`Failed to fetch last five media documents: ${err.message}`);
 		}
 	}

@@ -21,39 +21,35 @@ import * as ts from 'typescript';
 const cache = new Map<string, string>();
 
 interface CompileOptions {
-	systemCollectionsPath?: string;
-	userCollectionsPath?: string;
-	compiledCollectionsPath?: string;
+	systemCollections?: string;
+	userCollections?: string;
+	compiledCollections?: string;
 }
 
 export async function compile(options: CompileOptions = {}): Promise<void> {
-	// Set default paths relative to the project root
-	const defaultUserPath = path.join(process.cwd(), 'config/collections');
-	const defaultCompiledPath = path.join(process.cwd(), 'collections');
-
-	// Destructure options with default values
+	// Define collection paths directly
 	const {
-		userCollectionsPath = process.env.USER_COLLECTIONS_PATH || defaultUserPath,
-		compiledCollectionsPath = process.env.COMPILED_COLLECTIONS_PATH || defaultCompiledPath
+		userCollections = path.join(__dirname, '../../../config/collections'),
+		compiledCollections = path.join(__dirname, '../../../collections'),
 	} = options;
 
 	try {
 		// Ensure the output directory exists
-		await fs.mkdir(compiledCollectionsPath, { recursive: true });
+		await fs.mkdir(compiledCollections, { recursive: true });
 
 		// Get TypeScript files from user collections only (system collections are not compiled)
-		const userFiles = await getTypescriptFiles(userCollectionsPath);
+		const userFiles = await getTypescriptFiles(userCollections);
 
 		// Create output directories for user collection files
-		await createOutputDirectories(userFiles, userCollectionsPath, compiledCollectionsPath);
+		await createOutputDirectories(userFiles, userCollections, compiledCollections);
 
 		// Compile user collection files
-		const compilePromises = userFiles.map((file) => compileFile(file, userCollectionsPath, compiledCollectionsPath));
+		const compilePromises = userFiles.map((file) => compileFile(file, userCollections, compiledCollections));
 
 		await Promise.all(compilePromises);
 
 		// Cleanup orphaned files only in the compiled collections directory
-		await cleanupOrphanedFiles(userCollectionsPath, compiledCollectionsPath);
+		await cleanupOrphanedFiles(userCollections, compiledCollections);
 	} catch (error) {
 		console.error('Compilation error:', error);
 		throw error;
@@ -235,7 +231,6 @@ async function writeCompiledFile(filePath: string, code: string, originalContent
 }
 
 async function getFileHash(filePath: string): Promise<string> {
-	// Generate MD5 hash of file content
 	const content = await fs.readFile(filePath);
 	return crypto.createHash('md5').update(content).digest('hex');
 }
