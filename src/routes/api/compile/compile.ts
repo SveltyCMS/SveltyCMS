@@ -10,6 +10,7 @@
  * - Support for nested category structure
  * - Error handling and logging
  * - Cleanup of orphaned collection files
+ * - Name conflict detection to prevent duplicate collection names
  */
 
 import fs from 'fs/promises';
@@ -38,18 +39,26 @@ export async function compile(options: CompileOptions = {}): Promise<void> {
 		await fs.mkdir(compiledCollections, { recursive: true });
 
 		// Get TypeScript files from user collections only (system collections are not compiled)
-		const userFiles = await getTypescriptFiles(userCollections);
+		try {
+			const userFiles = await getTypescriptFiles(userCollections);
+			
+			// Create output directories for user collection files
+			await createOutputDirectories(userFiles, userCollections, compiledCollections);
 
-		// Create output directories for user collection files
-		await createOutputDirectories(userFiles, userCollections, compiledCollections);
+			// Compile user collection files
+			const compilePromises = userFiles.map((file) => compileFile(file, userCollections, compiledCollections));
 
-		// Compile user collection files
-		const compilePromises = userFiles.map((file) => compileFile(file, userCollections, compiledCollections));
+			await Promise.all(compilePromises);
 
-		await Promise.all(compilePromises);
-
-		// Cleanup orphaned files only in the compiled collections directory
-		await cleanupOrphanedFiles(userCollections, compiledCollections);
+			// Cleanup orphaned files only in the compiled collections directory
+			await cleanupOrphanedFiles(userCollections, compiledCollections);
+		} catch (error) {
+			if (error instanceof Error && error.message.includes('Collection name conflict')) {
+				console.error('\x1b[31mError:\x1b[0m', error.message);
+				throw error;
+			}
+			throw error;
+		}
 	} catch (error) {
 		console.error('Compilation error:', error);
 		throw error;
@@ -58,6 +67,7 @@ export async function compile(options: CompileOptions = {}): Promise<void> {
 
 async function getTypescriptFiles(folder: string, subdir: string = ''): Promise<string[]> {
 	const files: string[] = [];
+	const collectionNames = new Set<string>();
 	const entries = await fs.readdir(path.join(folder, subdir), { withFileTypes: true });
 
 	for (const entry of entries) {
@@ -73,6 +83,12 @@ async function getTypescriptFiles(folder: string, subdir: string = ''): Promise<
 			!entry.name.startsWith('_') && // Ignore files starting with underscore
 			!['index.ts', 'types.ts', 'categories.ts', 'CollectionManager.ts'].includes(entry.name)
 		) {
+			// Check for name conflicts
+			const collectionName = entry.name.replace(/\.ts$/, '');
+			if (collectionNames.has(collectionName)) {
+				throw new Error(`Collection name conflict: "${collectionName}" is used multiple times. Collection names must be unique regardless of their directory location.`);
+			}
+			collectionNames.add(collectionName);
 			files.push(relativePath);
 		}
 	}

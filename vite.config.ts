@@ -76,8 +76,13 @@ export default defineConfig({
 		{
 			name: 'collection-handler',
 			async handleHotUpdate({ file, server }) {
-				// Handle collection file changes
-				if (/src[/\\]collections[/\\](?!index\.ts|types\.ts|categories\.ts).*\.ts$/.test(file)) {
+				// Monitor changes in:
+				// 1. config/collections/**/*.ts - User-defined collection configurations (including nested)
+				// 2. src/collections/categories.ts - Auto-generated category structure
+				if (
+					/config[/\\]collections[/\\].*[/\\].*\.ts$/.test(file) ||
+					/src[/\\]collections[/\\]categories\.ts$/.test(file)
+				) {
 					console.log('Collection file changed:', file);
 					try {
 						// Compile the changed collection
@@ -141,13 +146,14 @@ export default defineConfig({
 				return {
 					define: {
 						'import.meta.env.root': JSON.stringify(Path.posix.join('/', __dirname.replace(parsed.root, ''))),
-						'import.meta.env.systemCollectionsPath': JSON.stringify(Path.join(__dirname, 'src/collections')),
-						'import.meta.env.userCollectionsPath': JSON.stringify(Path.join(__dirname, 'config/collections')),
-						'import.meta.env.compiledCollectionsPath': JSON.stringify(Path.join(__dirname, 'collections'))
+						// 'import.meta.env.systemCollectionsPath': JSON.stringify(Path.join(__dirname, 'src/collections')),
+						'import.meta.env.userCollectionsPath': JSON.stringify(userCollections),
+						'import.meta.env.compiledCollectionsPath': JSON.stringify(compiledCollections)
 					}
 				};
 			},
 			enforce: 'post'
+
 		},
 		purgeCss(), // Purge unused Tailwind CSS classes
 		paraglide({
@@ -158,14 +164,7 @@ export default defineConfig({
 	server: {
 		fs: { allow: ['static', '.'] } // Allow serving files from specific directories
 	},
-	build: {
-		target: 'esnext',
-		rollupOptions: {
-			output: {
-				format: 'esm'
-			}
-		}
-	},
+	
 	resolve: {
 		alias: {
 			'@root': resolve(__dirname, './'),

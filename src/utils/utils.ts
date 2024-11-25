@@ -86,56 +86,28 @@ export const obj2formData = (obj: Record<string, any>) => {
 };
 
 // Converts data to FormData object with optimized file handling and type safety
-export const col2formData = async (getData: { [Key: string]: () => any }) => {
-	// used to save data
-	const formData = new FormData();
-	const data: Record<string, any> = {};
+export const col2formData = (getData: Record<string, () => Promise<unknown> | unknown>): FormData => {
+    const formData = new FormData();
+    
+    const processValue = async (value: unknown): Promise<string | Blob> => {
+        if (value instanceof Blob) return value;
+        if (value instanceof Promise) {
+            const resolvedValue = await value;
+            return processValue(resolvedValue);
+        }
+        return String(value);
+    };
 
-	// Debugging: Log the initial object state
-	logger.debug('Initial data object:', `${JSON.stringify(getData)}`);
+    const appendToForm = async () => {
+        for (const [key, getter] of Object.entries(getData)) {
+            const value = getter();
+            const processedValue = await processValue(value);
+            formData.append(key, processedValue);
+        }
+    };
 
-	const parseFiles = async (object: any) => {
-		for (const key in object) {
-			if (!(object[key] instanceof File) && typeof object[key] == 'object') {
-				parseFiles(object[key]);
-				continue;
-			} else if (!(object[key] instanceof File)) {
-				continue;
-			}
-			const uuid = (await createRandomID()).toString();
-			formData.append(uuid, object[key]);
-			object[key] = { instanceof: 'File', id: uuid, path: object[key].path };
-		}
-	};
-
-	for (const key in getData) {
-		const value = await getData[key]();
-		if (!value) continue;
-		data[key] = value;
-	}
-
-	await parseFiles(data);
-	// Debugging: Log the parsed data
-	logger.debug('Parsed data:', data);
-
-	for (const key in data) {
-		if (typeof data[key] === 'object') {
-			formData.append(key, JSON.stringify(data[key]));
-		} else {
-			formData.append(key, data[key]);
-		}
-	}
-
-	// Debugging: Log FormData entries
-	logger.debug('FormData entries:');
-	for (const [key, value] of formData.entries()) {
-		logger.debug(`FormData key: ${key}, value: ${value}`);
-	}
-
-	if (!formData.entries().next().value) {
-		return null;
-	}
-	return formData;
+    void appendToForm();
+    return formData;
 };
 
 // Helper function to sanitize file names
@@ -147,37 +119,56 @@ export function sanitize(str: string) {
 const env_sizes = publicEnv.IMAGE_SIZES;
 export const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
 
-// takes an object and recursively parses any values that can be converted to JSON
-export function parse(obj: any) {
-	for (const key in obj) {
-		try {
-			if (Array.isArray(obj[key])) {
-				for (const index of obj[key]) {
-					obj[key][index] = JSON.parse(obj[key][index]);
-				}
-			} else {
-				obj[key] = JSON.parse(obj[key]);
-			}
-		} catch (e) {
-			logger.error(`Error parsing JSON for key ${key}:`, e as LoggableValue);
-		}
+// Takes an object and recursively parses any values that can be converted to JSON
+export function parse<T>(obj: unknown): T {
+    if (typeof obj !== 'object' || obj === null) {
+        return obj as T;
+    }
 
-		if (typeof obj[key] != 'string') {
-			parse(obj[key]);
-		}
-	}
-	return obj;
+    if (Array.isArray(obj)) {
+        return obj.map(item => parse(item)) as unknown as T;
+    }
+
+    const result = {} as { [key: string]: unknown };
+    for (const [key, value] of Object.entries(obj as object)) {
+        if (typeof value === 'string') {
+            try {
+                result[key] = JSON.parse(value);
+            } catch {
+                result[key] = value;
+            }
+        } else {
+            result[key] = parse(value);
+        }
+    }
+    return result as T;
 }
 
+// Convert an object to form data
+export const toFormData = (obj: Record<string, string | number | boolean>): FormData => {
+    const formData = new FormData();
+    for (const [key, value] of Object.entries(obj)) {
+        formData.append(key, String(value));
+    }
+    return formData;
+};
+
 // Converts fields to schema object
-export const fieldsToSchema = (fields: Array<any>) => {
-	// removes widget, so it does not set up in db
-	let schema: any = {};
-	for (const field of fields) {
-		schema = { ...schema, ...field.schema };
-	}
-	delete schema.widget;
-	return schema;
+interface SchemaField {
+    type: string;
+    widget?: unknown;
+    [key: string]: unknown;
+}
+
+export const fieldsToSchema = (fields: SchemaField[]): Record<string, unknown> => {
+    const schema: Record<string, unknown> = {};
+    
+    for (const field of fields) {
+        const { type, ...rest } = field;
+        schema[type] = rest;
+    }
+    
+    return schema;
 };
 
 // Finds documents in collection that match query
@@ -230,20 +221,46 @@ export async function findById(id: string, collectionTypes: string) {
 }
 
 // Returns field's database field name or label
-export function getFieldName(field: any, sanitize = false) {
-	if (sanitize) {
-		return (field?.db_fieldName || field?.label)?.replaceAll(' ', '_');
-	}
-	return (field?.db_fieldName || field?.label) as string;
+export function getFieldName(field: Field, sanitize = false): string {
+    if (!field) return '';
+    const name = field.label || field.type;
+    return sanitize ? name.toLowerCase().replace(/\s+/g, '_') : name;
 }
 
-export async function extractData(fieldsData: any): Promise<{ [key: string]: any }> {
-	// extract data from fieldsData because FieldsData is async
-	const temp = {};
-	for (const key in fieldsData) {
-		temp[key] = await fieldsData[key]();
-	}
-	return temp;
+// Extract data from fields
+export async function extractData(fieldsData: Record<string, Field>): Promise<Record<string, unknown>> {
+    const result: Record<string, unknown> = {};
+    for (const [key, field] of Object.entries(fieldsData)) {
+        if (field.callback) {
+            result[key] = await field.callback({ data: field });
+        } else {
+            result[key] = field;
+        }
+    }
+    return result;
+}
+
+function deepCopy<T>(obj: T): T {
+    if (obj === null || typeof obj !== 'object') {
+        return obj;
+    }
+
+    if (Array.isArray(obj)) {
+        return obj.map(item => deepCopy(item)) as unknown as T;
+    }
+
+    const copy = {} as T;
+    for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+            copy[key] = deepCopy(obj[key]);
+        }
+    }
+    return copy;
+}
+
+// Remove file extension
+export function removeExtension(fileName: string): string {
+    return fileName.replace(/\.[^/.]+$/, '');
 }
 
 /**
@@ -325,38 +342,140 @@ export function ReadableExpireIn(expiresIn: string) {
 	return `${daysText} ${hoursText} ${minutesText}`.trim();
 }
 
-export function removeExtension(fileName: any) {
-	const lastDotIndex = fileName.lastIndexOf('.');
-	if (lastDotIndex === -1) {
-		return { name: fileName, ext: '' };
-	}
-	return { name: fileName.slice(0, lastDotIndex), ext: fileName.slice(lastDotIndex + 1) };
+export function updateTranslationProgress(data, field) {
+	const languages = publicEnv.AVAILABLE_CONTENT_LANGUAGES;
+	translationProgress.update((current) => {
+		for (const lang of languages) {
+			if (!current[lang]) {
+				current[lang] = { total: new Set(), translated: new Set() };
+			}
+
+			if (field?.translated) {
+				current[lang].total.add(field);
+				if (data[lang]) {
+					current[lang].translated.add(field);
+				} else {
+					current[lang].translated.delete(field);
+				}
+			}
+		}
+		return current;
+	});
 }
 
-export const asAny = (value: any) => value;
+// Get elements by ID
+interface ElementStore {
+    [key: string]: {
+        id: string;
+        callback: (data: unknown) => void;
+    }[];
+}
 
-function deepCopy(obj: any) {
-	if (typeof obj !== 'object' || obj === null) {
-		return obj;
-	}
+export const get_elements_by_id = {
+    store: {} as ElementStore,
+    add(collection: string, id: string, callback: (data: unknown) => void) {
+        if (!this.store[collection]) {
+            this.store[collection] = [];
+        }
+        this.store[collection].push({ id, callback });
+    },
+    async getAll(dbAdapter: { get: (id: string) => Promise<unknown> }) {
+        for (const collection in this.store) {
+            for (const item of this.store[collection]) {
+                const data = await dbAdapter.get(item.id);
+                item.callback(data);
+            }
+        }
+    }
+};
 
-	if (obj instanceof Date) {
-		return new Date(obj.getTime());
-	}
+// Meta data types
+interface MetaData {
+    media_images_remove?: string[];
+    [key: string]: unknown;
+}
 
-	if (obj instanceof Array) {
-		return obj.reduce((arr, item, i) => {
-			arr[i] = deepCopy(item);
-			return arr;
-		}, []);
-	}
+export const meta_data = {
+    meta_data: {} as MetaData,
+    add(key: keyof MetaData, data: unknown) {
+        this.meta_data[key] = data;
+    },
+    get(): MetaData {
+        return this.meta_data;
+    },
+    clear() {
+        this.meta_data = {};
+    },
+    is_empty(): boolean {
+        return Object.keys(this.meta_data).length === 0;
+    }
+};
 
-	if (obj instanceof Object) {
-		return Object.keys(obj).reduce((newObj, key) => {
-			newObj[key] = deepCopy(obj[key]);
-			return newObj;
-		}, {});
-	}
+// Convert data to string
+interface StringHelperParams {
+    field: Field;
+    data: unknown[];
+    path: (lang: string) => string;
+}
+
+export function toStringHelper({ field, data, path }: StringHelperParams): string {
+    if (!Array.isArray(data)) return '';
+    return data.map((item) => item.toString()).join(', ');
+}
+
+// Create a random ID
+export async function createRandomID(size = 32): Promise<string> {
+    const bytes = new Uint8Array(size);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes)
+        .map(byte => byte.toString(16).padStart(2, '0'))
+        .join('');
+}
+
+// Get random hex string
+export function getRandomHex(size: number): string {
+    const bytes = new Uint8Array(size);
+    for (let i = 0; i < size; i++) {
+        bytes[i] = Math.floor(Math.random() * 256);
+    }
+    return Array.from(bytes)
+        .map(byte => byte.toString(16).padStart(2, '0'))
+        .join('');
+}
+
+// Escape regex metacharacters
+export function escapeRegex(string: string): string {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Get current date in YYYY-MM-DD format
+export function getCurrentDate(): string {
+    const d = new Date();
+    return d.getFullYear() + '-' + 
+           String(d.getMonth() + 1).padStart(2, '0') + '-' + 
+           String(d.getDate()).padStart(2, '0');
+}
+
+// Convert hex to array buffer
+export function hex2arrayBuffer(hex: string): ArrayBuffer {
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < hex.length; i += 2) {
+        bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
+    }
+    return bytes.buffer;
+}
+
+// Convert array buffer to hex
+export function arrayBuffer2hex(buffer: ArrayBuffer): string {
+    return Array.from(new Uint8Array(buffer))
+        .map(byte => byte.toString(16).padStart(2, '0'))
+        .join('');
+}
+
+// SHA-256 hash function
+export async function sha256(buffer: ArrayBuffer): Promise<string> {
+    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+    return arrayBuffer2hex(hashBuffer);
 }
 
 export function debounce(delay?: number) {
@@ -473,161 +592,93 @@ export function getEditDistance(a: string, b: string): number | undefined {
 	return normalizedDistance;
 }
 
-// Update translation progress
-export function updateTranslationProgress(data, field) {
-	const languages = publicEnv.AVAILABLE_CONTENT_LANGUAGES;
-	translationProgress.update((current) => {
-		for (const lang of languages) {
-			if (!current[lang]) {
-				current[lang] = { total: new Set(), translated: new Set() };
-			}
-
-			if (field?.translated) {
-				current[lang].total.add(field);
-				if (data[lang]) {
-					current[lang].translated.add(field);
-				} else {
-					current[lang].translated.delete(field);
-				}
-			}
-		}
-		return current;
-	});
+// Collection name conflict checking types
+interface CollectionNameCheck {
+    exists: boolean;
+    suggestions?: string[];
+    conflictPath?: string;
 }
 
-// Get elements by ID
-export const get_elements_by_id = {
-	store: {},
-	add(collection: string, id: string, callback: (data: any) => void) {
-		if (!collection || !id) return;
-		if (!this.store[collection]) {
-			this.store[collection] = {};
-		}
-		if (!this.store[collection][id]) {
-			this.store[collection][id] = [callback];
-		} else {
-			this.store[collection][id].push(callback);
-		}
-	},
+export async function checkCollectionNameConflict(
+    name: string,
+    collectionsPath: string
+): Promise<CollectionNameCheck> {
+    try {
+        // Handle relative paths by joining with process.cwd()
+        const absolutePath = path.isAbsolute(collectionsPath)
+            ? collectionsPath
+            : path.join(process.cwd(), collectionsPath);
+        
+        const files = await getAllCollectionFiles(absolutePath);
+        const existingNames = new Set<string>();
+        let conflictPath: string | undefined;
 
-	async getAll(dbAdapter: any) {
-		const store = this.store;
-		this.store = {};
-		for (const collection in store) {
-			const ids = Object.keys(store[collection]);
-			try {
-				logger.debug(`Fetching documents for collection: ${collection}, IDs: ${ids.join(', ')}`);
-				const data = await dbAdapter.findOne(collection, { _id: { $in: ids } });
-				logger.debug(`Fetched ${data.length} documents for collection: ${collection}`);
+        // Build set of existing names and check for conflict
+        for (const file of files) {
+            const fileName = path.basename(file, '.ts');
+            if (fileName === name) {
+                // Convert absolute path to relative for display
+                conflictPath = path.relative(process.cwd(), file);
+            }
+            existingNames.add(fileName);
+        }
 
-				for (const doc of data) {
-					for (const callback of store[collection][doc._id.toString()]) {
-						callback(doc);
-					}
-				}
-			} catch (err) {
-				logger.error(`Error fetching documents for collection ${collection}:`, err as LoggableValue);
-			}
-		}
-	}
-};
+        if (conflictPath) {
+            // Generate suggestions if there's a conflict
+            const suggestions = generateNameSuggestions(name, existingNames);
+            return { exists: true, suggestions, conflictPath };
+        }
 
-function getRandomHex(size) {
-	const bytes = new Uint8Array(size);
-	for (let i = 0; i < size; i++) {
-		bytes[i] = Math.floor(Math.random() * 256);
-	}
-
-	return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+        return { exists: false };
+    } catch (error) {
+        console.error('Error checking collection name:', error);
+        return { exists: false };
+    }
 }
 
-export const createRandomID = async (id?: string) => {
-	if (id) return id;
-	return getRandomHex(16);
-};
+async function getAllCollectionFiles(dir: string): Promise<string[]> {
+    const files: string[] = [];
+    const entries = await fs.readdir(dir, { withFileTypes: true });
 
-// Meta data
-export const meta_data: {
-	meta_data: { [key: string]: any };
-	add: (key: 'media_images_remove', data: string[]) => void;
-	clear: () => void;
-	get: () => { [key: string]: any };
-	is_empty: () => boolean;
-	media_images?: { removed: string[] };
-} = {
-	meta_data: {},
-	add(key, data) {
-		switch (key) {
-			case 'media_images_remove':
-				if (!this.meta_data?.media_images) this.meta_data.media_images = { removed: [] };
-				this.meta_data.media_images.removed.push(...data);
-				break;
-		}
-	},
-	get() {
-		return this.meta_data;
-	},
-	clear() {
-		this.meta_data = {};
-	},
-	is_empty() {
-		return Object.keys(this.meta_data).length === 0;
-	}
-};
+    for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+            files.push(...await getAllCollectionFiles(fullPath));
+        } else if (
+            entry.isFile() &&
+            entry.name.endsWith('.ts') &&
+            !entry.name.startsWith('_') &&
+            !['index.ts', 'types.ts', 'categories.ts', 'CollectionManager.ts'].includes(entry.name)
+        ) {
+            files.push(fullPath);
+        }
+    }
 
-// PascalCase to camelCase
-export const pascalToCamelCase = (str: string) => {
-	return str.substring(0, 0) + str.charAt(0).toLowerCase() + str.substring(1);
-};
-
-// Escape regex metacharacters
-RegExp.escape = (string) => {
-	return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-};
-
-// Convert an object to form data
-export const toFormData = function (obj: { [key: string]: string | number }) {
-	const formData = new FormData();
-	for (const key in obj) {
-		if (typeof obj[key] == 'string') {
-			formData.append(key, obj[key] as string);
-		} else {
-			formData.append(key, JSON.stringify(obj[key]));
-		}
-	}
-	return formData;
-};
-
-// Get current date
-export function get_date() {
-	const d = new Date();
-	return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    return files;
 }
 
-// Convert data to string
-export function toStringHelper({ field, data, path }: { field: any; data: any[]; path: (lang: string) => string }) {
-	if (!data) return '';
-	if (field.translated) return path(publicEnv.DEFAULT_CONTENT_LANGUAGE);
-	return publicEnv.AVAILABLE_CONTENT_LANGUAGES.reduce((acc, lang) => {
-		return (acc += path(lang) + '\n');
-	}, '\n');
-}
+function generateNameSuggestions(name: string, existingNames: Set<string>): string[] {
+    const suggestions: string[] = [];
+    
+    // Try adding numbers
+    let counter = 1;
+    while (suggestions.length < 3 && counter <= 99) {
+        const suggestion = `${name}${counter}`;
+        if (!existingNames.has(suggestion)) {
+            suggestions.push(suggestion);
+        }
+        counter++;
+    }
 
-export function sha256(buffer: Buffer) {
-	return crypto.subtle.digest('SHA-256', buffer).then(function (hash) {
-		return hex(hash);
-	});
-}
+    // Try adding prefixes/suffixes if we need more suggestions
+    const commonPrefixes = ['New', 'Alt', 'Copy'];
+    for (const prefix of commonPrefixes) {
+        if (suggestions.length >= 5) break;
+        const suggestion = `${prefix}${name}`;
+        if (!existingNames.has(suggestion)) {
+            suggestions.push(suggestion);
+        }
+    }
 
-function hex(buffer: ArrayBuffer): string {
-	let digest = '';
-	const view = new DataView(buffer);
-	for (let i = 0; i < view.byteLength; i += 4) {
-		const value = view.getUint32(i);
-		const stringValue = value.toString(16);
-		const padding = '00000000';
-		const paddedValue = (padding + stringValue).slice(-padding.length);
-		digest += paddedValue;
-	}
-	return digest; // Return the digest
+    return suggestions;
 }

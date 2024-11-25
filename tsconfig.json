@@ -34,14 +34,24 @@
   
 	  // Extra safety checks
 	  "noUnusedLocals": true, // Error on unused local variables
-	  "noUnusedParameters": true // Error on unused parameters
+	  "noUnusedParameters": true, // Error on unused parameters
+	  "baseUrl": ".", // Added baseUrl
+	  "paths": { // Added paths
+		"@types/*": ["src/types/*"]
+	  }
 	},
   
 	/**
 	 * Use global.d.ts instead of compilerOptions.types
 	 * to avoid limiting type declarations.
 	 */
-	"include": ["src/**/*.ts", "src/**/*.svelte", "types/**/*.ts", "config/**/*.ts"],
+	"include": [ // Updated include paths
+		"src/**/*.ts",
+		"src/**/*.svelte",
+		"types/**/*.ts",
+		"config/**/*.ts",
+		"src/types/**/*.d.ts"
+	],
 	"exclude": [".svelte-kit", "node_modules"]
   
 	// Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias
@@ -50,4 +60,3 @@
 	// If you want to overwrite includes/excludes, make sure to copy over the relevant includes/excludes
 	// from the referenced tsconfig.json - TypeScript does not merge them in
   }
-  
