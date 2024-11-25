@@ -27,7 +27,7 @@ import { checkUserPermission } from '@src/auth/permissionCheck';
 import { auth } from '@src/databases/db';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Input validation
 import { addUserTokenSchema } from '@utils/formSchemas';

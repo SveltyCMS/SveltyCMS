@@ -33,7 +33,7 @@ import { get } from 'svelte/store';
 import { translationProgress, contentLanguage } from '@stores/store';
 
 // System Logger
-import { logger, type LoggableValue } from '@utils/logger';
+import { logger, type LoggableValue } from '@utils/logger.svelte';
 
 export const config = {
 	headers: {

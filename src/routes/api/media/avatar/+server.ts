@@ -1,10 +1,15 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
+
+// Auth
 import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
+
+// Media
 import { saveAvatarImage } from '@utils/media/mediaStorage';
-import { logger } from '@utils/logger';
+// System Logger
+import { logger } from '@utils/logger.svelte';
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
     const session_id = cookies.get(SESSION_COOKIE_NAME);

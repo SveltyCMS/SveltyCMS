@@ -1,6 +1,6 @@
 /**
- * @file src/utils/logger.ts
- * @description An enhanced comprehensive logger for SvelteKit applications.
+ * @file src/utils/logger.svelte.ts
+ * @description Logger for SvelteKit applications.
  *
  * Features:
  * - Performance optimization with batch logging
@@ -64,8 +64,8 @@ const LOG_LEVEL_MAP: Record<LogLevel, { priority: number; color: keyof typeof TE
 	trace: { priority: 6, color: 'cyan' } // Least restrictive: all log levels
 };
 
-// Configuration with defaults
-const config = {
+// Configuration with defaults using $state
+const config = $state({
 	logRotationSize: 5 * 1024 * 1024, // 5MB
 	logDirectory: 'logs',
 	logFileName: 'app.log',
@@ -80,12 +80,14 @@ const config = {
 		emailKeys: ['email', 'mail'],
 		customMasks: {} as Record<string, (value: string) => string>
 	} as MaskingConfig
-};
+});
 
-// Batch logging queue and timeouts
-let logQueue: LogEntry[] = [];
-let batchTimeout: NodeJS.Timeout | null = null;
-let abortTimeout: NodeJS.Timeout | null = null;
+// Batch logging state
+const state = $state({
+	queue: [] as LogEntry[],
+	batchTimeout: null as NodeJS.Timeout | null,
+	abortTimeout: null as NodeJS.Timeout | null
+});
 
 // Helper Functions
 const isLogLevelEnabled = (level: LogLevel): boolean => {
@@ -222,24 +224,41 @@ const maskSensitiveData = (data: LoggableValue): LoggableValue => {
 };
 
 // Batch processing utilities
-const abortBatch = (): void => {
-	if (!isServer) return;
-	if (abortTimeout) clearTimeout(abortTimeout);
-	abortTimeout = setTimeout(() => {
-		if (logQueue.length === 0 && batchTimeout) {
-			clearTimeout(batchTimeout);
-			batchTimeout = null;
-		}
-	}, config.batchTimeout);
-};
+function abortBatch(): void {
+	if (state.batchTimeout) {
+		clearTimeout(state.batchTimeout);
+		state.batchTimeout = null;
+	}
+	if (state.abortTimeout) {
+		clearTimeout(state.abortTimeout);
+		state.abortTimeout = null;
+	}
+}
+
+// Effect to process batches when queue changes
+$effect.root(() => {
+    $effect(() => {
+        if (state.queue.length >= config.batchSize) {
+            processBatch();
+        }
+    });
+
+    return () => {
+        abortBatch();
+    };
+});
+
+// Setup cleanup when the module is destroyed
+// $onDestroy(() => {
+//     abortBatch();
+// });
 
 // Format values (colorize types like booleans, numbers)
 const processBatch = async (): Promise<void> => {
-	if (!isServer || logQueue.length === 0) return;
+	if (!isServer || state.queue.length === 0) return;
 
-	const currentBatch = [...logQueue];
-	logQueue = [];
-
+	const currentBatch = [...state.queue];
+	state.queue = [];
 	for (const entry of currentBatch) {
 		if (config.filters.every((filter) => filter(entry))) {
 			await serverFileOps.writeToFile(entry);
@@ -249,8 +268,8 @@ const processBatch = async (): Promise<void> => {
 
 const scheduleBatchProcessing = (): void => {
 	if (!isServer) return;
-	if (batchTimeout) clearTimeout(batchTimeout);
-	batchTimeout = setTimeout(() => safeExecute(processBatch), config.batchTimeout);
+	if (state.batchTimeout) clearTimeout(state.batchTimeout);
+	state.batchTimeout = setTimeout(() => safeExecute(processBatch), config.batchTimeout);
 	abortBatch();
 };
 
@@ -332,8 +351,15 @@ const serverFileOps = isServer
 	: {
 			async initializeLogFile(): Promise<void> {},
 			async rotateLogFile(): Promise<void> {},
-			async writeToFile(_entry: LogEntry): Promise<void> {}
+			async writeToFile(): Promise<void> {}
 	  };
+
+// Initialize log file
+$effect.root(() => {
+    if (isServer) {
+        safeExecute(serverFileOps.initializeLogFile);
+    }
+});
 
 // Unified logger function
 const log = (level: LogLevel, message: string, ...args: LoggableValue[]): void => {
@@ -342,33 +368,32 @@ const log = (level: LogLevel, message: string, ...args: LoggableValue[]): void =
 
 	const timestamp = getTimestamp();
 	const maskedArgs = args.map((arg) => maskSensitiveData(arg));
-	const entry: LogEntry = { level, message, args: maskedArgs, timestamp: new Date() };
 
-	if (!isServer) {
-		console.log(
-			`${timestamp} [${level.toUpperCase()}] ${message}`,
-			...maskedArgs.map((arg) => (typeof arg === 'object' ? JSON.stringify(arg) : arg))
+	const entry: LogEntry = {
+		level,
+		message,
+		args: maskedArgs,
+		timestamp: new Date()
+	};
+
+	// Server-side console output with colors
+	if (isServer) {
+		const color = TERMINAL_COLORS[LOG_LEVEL_MAP[level].color];
+		process.stdout.write(
+			`${timestamp} ${color}[${level.toUpperCase()}]${TERMINAL_COLORS.reset}: ${message} ${maskedArgs
+				.map((arg) => formatValue(arg))
+				.join(' ')}\n`
 		);
-		return;
 	}
 
-	const color = TERMINAL_COLORS[LOG_LEVEL_MAP[level].color];
-	process.stdout.write(
-		`${timestamp} ${color}[${level.toUpperCase()}]${TERMINAL_COLORS.reset}: ${message} ${maskedArgs.map((arg) => formatValue(arg)).join(' ')}\n`
-	);
-
-	logQueue.push(entry);
+	// Update queue state
+	state.queue = [...state.queue, entry];
 	scheduleBatchProcessing();
 
 	if (config.customLogTarget) {
 		config.customLogTarget(level, message, maskedArgs);
 	}
 };
-
-// Initialize log file
-if (isServer) {
-	safeExecute(serverFileOps.initializeLogFile);
-}
 
 // Logger interface
 export const logger = {

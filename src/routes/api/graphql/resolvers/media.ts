@@ -22,7 +22,7 @@
 
 import { dbAdapter } from '@src/databases/db';
 // System Logs
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Registers media schemas dynamically.
 export function mediaTypeDefs() {

@@ -45,7 +45,7 @@ import { _DELETE } from './DELETE';
 import { _SETSTATUS } from './SETSTATUS';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Constants
 const DEFAULT_LANGUAGE = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';

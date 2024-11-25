@@ -27,7 +27,7 @@ import type { User } from '@src/auth/types';
 import type { CollectionModel } from '@src/databases/dbInterface';
 
 // System logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Define Field type locally if not available in @src/collections/types
 interface Field {

@@ -28,7 +28,7 @@ import { addUserTokenSchema, changePasswordSchema } from '@utils/formSchemas';
 import { valibot } from 'sveltekit-superforms/adapters';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Import the PermissionConfig type
 import type { PermissionConfig } from '@src/auth/permissionCheck';

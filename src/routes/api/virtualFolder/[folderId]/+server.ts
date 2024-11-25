@@ -24,7 +24,7 @@ import { dbAdapter } from '@src/databases/db';
 import { type FolderContents, type VirtualFolderUpdateData, type FolderResponse, VirtualFolderError } from '@src/types/virtualFolder';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Utility function to validate database connection
 function validateDb(): void {

@@ -23,7 +23,7 @@ import { collectionsModels, initializationPromise } from '@src/databases/db';
 import { validateUserPermission } from '@src/auth/permissionManager';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Types
 interface DatabaseCollection {

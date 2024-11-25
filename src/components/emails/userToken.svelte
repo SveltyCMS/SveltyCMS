@@ -18,100 +18,84 @@
 	// Svelty-email
 	import { Button, Container, Column, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';
 
-	interface EmailProps {
+	interface Props {
 		username?: string;
 		email?: string;
 		// sitename?: string;
 		role?: string;
 		token?: string;
-		expiresIn?: string;
-		expiresInLabel?: string;
+		tokenLink?: string;
 	}
 
-	interface Props {
-		email: EmailProps['email'];
-		// export let sitename: EmailProps['sitename'];
-		role: EmailProps['role'];
-		token: EmailProps['token'];
-		expiresInLabel: EmailProps['expiresInLabel'];
-		tokenLink?: any;
-	}
-
-	let {
-		email,
-		role,
-		token,
-		expiresInLabel,
-		tokenLink = `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login?regToken=${token}`
-	}: Props = $props();
+	let props: Props;
 
 	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
 
 	const main = {
-		backgroundColor: '#ffffff'
+		backgroundColor: '#ffffff' as const
 	};
 
 	const container = {
-		margin: '0 auto',
-		padding: '16px 0 48px',
-		width: '480px'
+		margin: '0 auto' as const,
+		padding: '16px 0 48px' as const,
+		width: '480px' as const
 	};
 
 	const label = {
-		display: 'inline-block',
-		verticalAlign: 'top',
-		width: '25%' // Update width to 35%
+		display: 'inline-block' as const,
+		verticalAlign: 'top' as const,
+		width: '25%' as const
 	};
 
 	const variable = {
-		display: 'inline-block',
-		verticalAlign: 'top',
-		width: '75%' // Update width to 65%
+		display: 'inline-block' as const,
+		verticalAlign: 'top' as const,
+		width: '75%' as const
 	};
 
 	const paragraph = {
 		fontFamily,
-		fontSize: '16px',
-		lineHeight: '26px'
+		fontSize: '16px' as const,
+		lineHeight: '26px' as const
 	};
 
 	const paragraphbold = {
 		fontFamily,
-		fontSize: '16px',
-		lineHeight: '26px',
-		fontWeight: '600'
+		fontSize: '16px' as const,
+		lineHeight: '26px' as const,
+		fontWeight: '600' as const
 	};
 
 	const review = {
-		padding: '6px',
-		backgroundColor: '#f2f3f3'
+		padding: '6px' as const,
+		backgroundColor: '#f2f3f3' as const
 	};
 
 	const btnContainer = {
-		textAlign: 'center'
+		textAlign: 'center' as const
 	};
 
 	const button = {
 		fontFamily,
-		backgroundColor: '#8ddd15',
-		borderRadius: '3px',
-		color: '#000000',
-		fontSize: '16px',
-		textDecoration: 'none',
-		textAlign: 'center',
-		display: 'block'
+		backgroundColor: '#8ddd15' as const,
+		borderRadius: '3px' as const,
+		color: '#000000' as const,
+		fontSize: '16px' as const,
+		textDecoration: 'none' as const,
+		textAlign: 'center' as const,
+		display: 'block' as const
 	};
 
 	const hr = {
-		borderColor: '#cccccc',
-		margin: '15px 0'
+		borderColor: '#cccccc' as const,
+		margin: '15px 0' as const
 	};
 
 	const footer = {
 		fontFamily,
-		color: '#8898aa',
-		fontSize: '12px',
-		textAlign: 'center'
+		color: '#8898aa' as const,
+		fontSize: '12px' as const,
+		textAlign: 'center' as const
 	};
 
 	const styleToString = (style: Record<string, string | number | null>) => {
@@ -139,7 +123,7 @@
 	<Section style={main}>
 		<Container style={container}>
 			<Section style={btnContainer}>
-				<Link href={tokenLink}>
+				<Link href={props.tokenLink || `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login?regToken=${props.token}`}>
 					<Img
 						src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png"
 						alt="{publicEnv.SITE_NAME} logo"
@@ -149,7 +133,8 @@
 				</Link>
 			</Section>
 
-			<Text style={paragraph}>You have received an Access Token to create a new user for {publicEnv.SITE_NAME}</Text>
+			<Text style={paragraph}>Hello {props.username}</Text>
+			<Text style={paragraph}>You have been invited to join {publicEnv.SITE_NAME} as {props.role}</Text>
 			<Section style={review}>
 				<Column style={label}>
 					<Text style={paragraph}>{m.usertoken_email()}</Text>
@@ -158,16 +143,24 @@
 					<Text style={paragraph}>{m.usertoken_valid()}</Text>
 				</Column>
 				<Column style={variable}>
-					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{email}</span></Text>
-					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{token}</span></Text>
-					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{role}</span></Text>
-					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{expiresInLabel}</span></Text>
+					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{props.email}</span></Text>
+					<Text style={paragraph}>Your invitation token is:</Text>
+					<Text style={paragraphbold}>{props.token}</Text>
+					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{props.role}</span></Text>
+					<Text style={paragraph}>{m.usertoken_valid()}</Text>
 				</Column>
 			</Section>
 
 			<Text style={paragraph}>{m.usertoken_button()}</Text>
 			<Section style={btnContainer}>
-				<Button pX={12} pY={12} style={button} href={tokenLink}>{m.usertoken_createuser()}</Button>
+				<Button
+					pX={12}
+					pY={12}
+					style={button}
+					href={props.tokenLink || `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login?regToken=${props.token}`}
+				>
+					{m.usertoken_createuser()}
+				</Button>
 			</Section>
 			<Hr style={hr} />
 			<Link style={footer} href="https://www.sveltycms.com">Your <SiteName /> team</Link>

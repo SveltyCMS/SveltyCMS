@@ -25,7 +25,7 @@ import { type Params, GuiSchema, GraphqlSchema } from './types';
 import { type ModifyRequestParams } from '..';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';

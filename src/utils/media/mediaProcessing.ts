@@ -10,7 +10,7 @@ import { Buffer } from 'buffer';
 import { sha256, removeExtension, sanitize } from '@utils/utils';
 import { MediaTypeEnum } from './mediaModels';
 import type { ImageMetadata, MediaImage, MediaAccess, Thumbnail } from './mediaModels';
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Get fs instance for server-side operations
 async function getFs() {

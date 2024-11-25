@@ -20,7 +20,7 @@ import { checkUserPermission } from '@src/auth/permissionCheck';
 import { permissionConfigs } from '@src/auth/permissionManager';
 
 // System Logs
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {

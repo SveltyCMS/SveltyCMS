@@ -7,7 +7,7 @@
 import { browser } from '$app/environment';
 
 // System Logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Redis
 import { isRedisEnabled, getCache, setCache } from '@src/databases/redis';

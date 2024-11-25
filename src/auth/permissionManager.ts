@@ -20,7 +20,7 @@ import type { Permission as AuthPermission } from './types';
 import type { PermissionConfig } from './permissionCheck';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Centralized and Decentralized Permissions
 let decentralizedPermissions: AuthPermission[] = [];

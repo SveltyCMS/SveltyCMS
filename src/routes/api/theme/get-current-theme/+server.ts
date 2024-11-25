@@ -7,7 +7,7 @@ import type { RequestHandler } from './$types';
 import { ThemeManager } from '@src/databases/themeManager';
 
 // System Logs
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Get the singleton ThemeManager instance
 const themeManager = ThemeManager.getInstance();

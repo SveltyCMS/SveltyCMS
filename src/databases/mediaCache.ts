@@ -10,11 +10,11 @@
 
 import { privateEnv } from '@root/config/private';
 import { browser } from '$app/environment';
-import { error } from '@sveltejs/kit';
 import type { MediaType } from '@utils/media/mediaModels';
+import type { RedisClientType } from 'redis';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Interface defining the methods required for a cache store
 interface CacheStore {
@@ -62,7 +62,7 @@ class InMemoryMediaCache implements CacheStore {
 		} catch (err) {
 			const message = `Error in InMemoryMediaCache.get: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			throw error(500, message);
+			throw new Error(message);
 		}
 	}
 
@@ -76,7 +76,7 @@ class InMemoryMediaCache implements CacheStore {
 		} catch (err) {
 			const message = `Error in InMemoryMediaCache.set: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			throw error(500, message);
+			throw new Error(message);
 		}
 	}
 
@@ -87,7 +87,7 @@ class InMemoryMediaCache implements CacheStore {
 		} catch (err) {
 			const message = `Error in InMemoryMediaCache.delete: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			throw error(500, message);
+			throw new Error(message);
 		}
 	}
 
@@ -98,7 +98,7 @@ class InMemoryMediaCache implements CacheStore {
 		} catch (err) {
 			const message = `Error in InMemoryMediaCache.clear: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			throw error(500, message);
+			throw new Error(message);
 		}
 	}
 
@@ -116,14 +116,14 @@ class InMemoryMediaCache implements CacheStore {
 		} catch (err) {
 			const message = `Error in InMemoryMediaCache.clearUserCache: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			throw error(500, message);
+			throw new Error(message);
 		}
 	}
 }
 
 // Redis-based implementation of the cache store
 class RedisMediaCache implements CacheStore {
-	private redisClient: any;
+	private redisClient: RedisClientType;
 
 	constructor() {
 		this.initializeRedis();
@@ -142,7 +142,7 @@ class RedisMediaCache implements CacheStore {
 		} catch (err) {
 			const message = `Error in RedisMediaCache.initializeRedis: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			throw error(500, message);
+			throw new Error(message);
 		}
 	}
 
@@ -154,19 +154,21 @@ class RedisMediaCache implements CacheStore {
 		} catch (err) {
 			const message = `Error in RedisMediaCache.get: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			throw error(500, message);
+			throw new Error(message);
 		}
 	}
 
 	// Store an item in Redis with expiration
 	async set(key: string, value: MediaType, expiration: Date): Promise<void> {
 		try {
-			const expirationInSeconds = Math.max(0, Math.floor((expiration.getTime() - Date.now()) / 1000));
-			await this.redisClient.setEx(key, expirationInSeconds, JSON.stringify(value));
+			const expirationSeconds = Math.max(0, Math.floor((expiration.getTime() - Date.now()) / 1000));
+			await this.redisClient.set(key, JSON.stringify(value), {
+				EX: expirationSeconds
+			});
 		} catch (err) {
 			const message = `Error in RedisMediaCache.set: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			throw error(500, message);
+			throw new Error(message);
 		}
 	}
 
@@ -177,7 +179,7 @@ class RedisMediaCache implements CacheStore {
 		} catch (err) {
 			const message = `Error in RedisMediaCache.delete: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			throw error(500, message);
+			throw new Error(message);
 		}
 	}
 
@@ -188,22 +190,30 @@ class RedisMediaCache implements CacheStore {
 		} catch (err) {
 			const message = `Error in RedisMediaCache.clear: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			throw error(500, message);
+			throw new Error(message);
 		}
 	}
 
-	// Clear all cache items for a specific user in Redis
+	// Clear all cache items for a specific user from Redis
 	async clearUserCache(userId: string): Promise<void> {
 		try {
-			const keys = await this.redisClient.keys(`media:${userId}:*`);
-			for (const key of keys) {
-				await this.redisClient.del(key);
-			}
-			logger.info(`Cleared cache for user: ${userId}`);
+			const pattern = `media:${userId}:*`;
+			let cursor = 0;
+			do {
+				const result = await this.redisClient.scan(cursor, {
+					MATCH: pattern,
+					COUNT: 100
+				});
+				cursor = result.cursor;
+				if (result.keys.length > 0) {
+					await this.redisClient.del(result.keys);
+				}
+			} while (cursor !== 0);
+			logger.info(`Cleared Redis cache for user: ${userId}`);
 		} catch (err) {
 			const message = `Error in RedisMediaCache.clearUserCache: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			throw error(500, message);
+			throw new Error(message);
 		}
 	}
 }
@@ -229,7 +239,7 @@ export class MediaCache {
 		} catch (err) {
 			const message = `Error in MediaCache.get: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			throw error(500, message);
+			throw new Error(message);
 		}
 	}
 
@@ -241,7 +251,7 @@ export class MediaCache {
 		} catch (err) {
 			const message = `Error in MediaCache.set: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			throw error(500, message);
+			throw new Error(message);
 		}
 	}
 
@@ -252,7 +262,7 @@ export class MediaCache {
 		} catch (err) {
 			const message = `Error in MediaCache.delete: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			throw error(500, message);
+			throw new Error(message);
 		}
 	}
 
@@ -263,7 +273,7 @@ export class MediaCache {
 		} catch (err) {
 			const message = `Error in MediaCache.clear: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			throw error(500, message);
+			throw new Error(message);
 		}
 	}
 
@@ -274,7 +284,7 @@ export class MediaCache {
 		} catch (err) {
 			const message = `Error in MediaCache.clearUserCache: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			throw error(500, message);
+			throw new Error(message);
 		}
 	}
 }

@@ -14,7 +14,7 @@ import { OAuth2Client } from 'google-auth-library';
 import type { Credentials } from 'google-auth-library';
 
 // System Logger
-import { logger } from '../utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Google OAuth
 let googleAuthClient: OAuth2Client | null = null;

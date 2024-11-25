@@ -1,4 +1,4 @@
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger.svelte';
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
 import { MediaService } from '@src/utils/media/MediaService';

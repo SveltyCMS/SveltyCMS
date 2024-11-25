@@ -12,7 +12,7 @@ import { roles as configRoles } from '@root/config/roles';
 import { getAllPermissions } from './permissionManager';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 export interface PermissionConfig {
 	contextId: string;

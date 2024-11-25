@@ -13,7 +13,7 @@ import type {  MediaAccess } from '@utils/media/mediaModels';
 import { Permission } from '@utils/media/mediaModels';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Helper function to get MediaService instance
 function getMediaService(): MediaService {

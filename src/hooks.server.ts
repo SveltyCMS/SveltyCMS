@@ -31,7 +31,7 @@ import { getAllPermissions } from '@src/auth/permissionManager';
 import { getCacheStore } from '@src/cacheStore/index.server';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Initialize rate limiter
 const limiter = new RateLimiter({

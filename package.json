@@ -69,7 +69,7 @@
 		"@skeletonlabs/skeleton": "^2.10.3",
 		"@skeletonlabs/tw-plugin": "^0.4.0",
 		"@sveltejs/adapter-node": "^5.2.9",
-		"@sveltejs/kit": "^2.8.2",
+		"@sveltejs/kit": "^2.8.3",
 		"@sveltejs/vite-plugin-svelte": "^4.0.1",
 		"@types/eslint": "^9.6.1",
 		"@types/mime-types": "^2.1.4",
@@ -157,7 +157,7 @@
 		"redis": "^4.7.0",
 		"serve-static": "^1.16.2",
 		"svelty-email": "^0.0.11",
-		"tailwind-merge": "^2.5.4"
+		"tailwind-merge": "^2.5.5"
 	},
 	"patchedDependencies": {
 		"sveltekit-superforms@2.20.1": "patches/sveltekit-superforms@2.20.1.patch"

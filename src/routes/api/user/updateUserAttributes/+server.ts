@@ -26,7 +26,7 @@ import { auth } from '@src/databases/db';
 import { checkUserPermission } from '@src/auth/permissionCheck';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Input validation
 import { object, string, email, optional, minLength, maxLength, pipe, parse, type ValiError } from 'valibot';

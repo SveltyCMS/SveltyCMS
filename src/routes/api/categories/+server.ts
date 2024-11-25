@@ -8,7 +8,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { collectionManager } from '@src/collections/CollectionManager';
 import fs from 'fs/promises';
 import path from 'path';
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 import type { CategoryData } from '@src/collections/types';
 import crypto from 'crypto';
 import { backupCategoryFiles } from './backup-utils';

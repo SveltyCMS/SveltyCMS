@@ -25,7 +25,7 @@ import type { Session, User } from '../types';
 import type { authDBInterface } from '../authDBInterface';
 
 // System Logging
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 import { UserAdapter } from './userAdapter';
 
 // Define the Session schema

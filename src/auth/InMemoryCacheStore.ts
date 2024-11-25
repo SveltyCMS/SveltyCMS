@@ -24,7 +24,7 @@ import type { SessionStore } from './types';
 import type { User } from './types';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // In-memory cache store
 export class InMemorySessionStore implements SessionStore {

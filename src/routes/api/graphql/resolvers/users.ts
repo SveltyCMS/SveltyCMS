@@ -18,7 +18,7 @@
  */
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Types
 import type { dbInterface } from '@src/databases/dbInterface';

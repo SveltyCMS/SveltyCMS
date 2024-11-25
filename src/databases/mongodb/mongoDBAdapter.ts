@@ -32,7 +32,7 @@ import type { Unsubscriber } from 'svelte/store';
 import type { ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
 import type { UserPreferences, WidgetPreference } from '@root/src/stores/userPreferences.svelte';
 import type { VirtualFolderUpdateData } from '@src/types/virtualFolder';
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Database
 import mongoose, { Schema } from 'mongoose';

@@ -26,7 +26,7 @@ import { dbAdapter } from '@src/databases/db';
 import { publicEnv } from '@root/config/public';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 import { createDirectory, deleteDirectory } from '@utils/fileUploading';
 
 // GET: Retrieve all virtual folders or contents of a specific folder

@@ -21,7 +21,7 @@ import type { Schema, CollectionTypes, Category, CategoryData } from './types';
 
 // Utils
 import { createRandomID } from '@utils/utils';
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Redis
 import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/redis';
@@ -43,10 +43,6 @@ let path: typeof import('path') | null = null;
 if (!browser) {
 	const imports = await Promise.all([ import('fs/promises'), import('path')]);
 	[ fs, path] = imports;
-}
-
-interface ProcessedModule {
-	schema?: Partial<Schema>;
 }
 
 interface CacheEntry<T> {

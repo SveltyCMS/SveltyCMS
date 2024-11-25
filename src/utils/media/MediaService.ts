@@ -21,7 +21,7 @@ import { validateMediaFile } from './mediaUtils';
 import { validateUserPermission as checkMediaAccess } from '@src/auth/permissionManager';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Media Cache
 import { mediaCache } from '@src/databases/mediaCache';

@@ -28,7 +28,7 @@ import { auth } from '@src/databases/db';
 import { checkUserPermission } from '@src/auth/permissionCheck';
 
 // System logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Media storage
 import { saveAvatarImage } from '@utils/media/mediaStorage';

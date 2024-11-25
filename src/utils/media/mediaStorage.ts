@@ -17,7 +17,7 @@ import { hashFileContent, getSanitizedFileName } from './mediaProcessing';
 import { constructUrl } from './mediaUtils';
 import { sanitize } from '@utils/utils';
 import { dbAdapter } from '@src/databases/db';
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Image sizes configuration
 type ImageSizesType = typeof publicEnv.IMAGE_SIZES & {

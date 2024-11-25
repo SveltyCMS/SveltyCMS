@@ -14,7 +14,7 @@
 import type { PageServerLoad } from './$types';
 
 // System Logs
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// Check if user is authenticated
