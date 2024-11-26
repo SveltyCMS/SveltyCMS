@@ -41,48 +41,53 @@ export const config = {
 	}
 };
 
+// Interface for GUI field configuration
+interface GuiFieldConfig {
+    widget: unknown;
+    required: boolean;
+}
+
 // This function generates GUI fields based on field parameters and a GUI schema.
-export const getGuiFields = (fieldParams: { [key: string]: any }, GuiSchema: { [key: string]: any }) => {
-	const guiFields = {};
-	for (const key in GuiSchema) {
-		if (Array.isArray(fieldParams[key])) {
-			guiFields[key] = deepCopy(fieldParams[key]);
-		} else {
-			guiFields[key] = fieldParams[key];
-		}
-	}
-	return guiFields;
+export const getGuiFields = (
+    fieldParams: Record<string, unknown>,
+    GuiSchema: Record<string, GuiFieldConfig>
+): Record<string, unknown> => {
+    const guiFields: Record<string, unknown> = {};
+    for (const key in GuiSchema) {
+        if (Array.isArray(fieldParams[key])) {
+            guiFields[key] = deepCopy(fieldParams[key]);
+        } else {
+            guiFields[key] = fieldParams[key];
+        }
+    }
+    return guiFields;
 };
 
 // Function to convert an object to form data
-export const obj2formData = (obj: Record<string, any>) => {
-	const formData = new FormData();
+export const obj2formData = (obj: Record<string, unknown>) => {
+    const formData = new FormData();
 
-	const transformValue = (key: string, value: any): any => {
-		// Define specific handling cases
-		if (!value && value !== false) return undefined;
-		if (key === 'schema') return undefined;
-		if (key === 'display') {
-			if (value?.default) return undefined;
-			return `🗑️${value}🗑️`.replaceAll('display', 'function display');
-		}
-		if (key === 'widget') {
-			return { key: value.key, GuiFields: value.GuiFields };
-		}
-		if (typeof value === 'function') return `🗑️${value}🗑️`;
-		return value;
-	};
+    const transformValue = (key: string, value: unknown): string | Blob => {
+        if (value instanceof Blob) {
+            return value;
+        } else if (typeof value === 'object' && value !== null) {
+            return JSON.stringify(value);
+        } else if (typeof value === 'boolean' || typeof value === 'number') {
+            return value.toString();
+        } else if (value === null || value === undefined) {
+            return '';
+        }
+        return String(value);
+    };
 
-	// Iterate over entries to avoid redundant lookups
-	for (const [key, originalValue] of Object.entries(obj)) {
-		const transformedValue = transformValue(key, originalValue);
-		if (transformedValue === undefined) continue; // Skip invalid values
+    for (const key in obj) {
+        const value = obj[key];
+        if (value !== undefined) {
+            formData.append(key, transformValue(key, value));
+        }
+    }
 
-		const serialized = JSON.stringify(transformedValue);
-		if (serialized) formData.append(key, serialized); // Append only valid data
-	}
-
-	return formData;
+    return formData;
 };
 
 // Converts data to FormData object with optimized file handling and type safety
@@ -413,12 +418,12 @@ export const meta_data = {
 
 // Convert data to string
 interface StringHelperParams {
-    field: Field;
+    field?: Field;  
     data: unknown[];
-    path: (lang: string) => string;
+    path?: (lang: string) => string;  
 }
 
-export function toStringHelper({ field, data, path }: StringHelperParams): string {
+export function toStringHelper({ data }: StringHelperParams): string {
     if (!Array.isArray(data)) return '';
     return data.map((item) => item.toString()).join(', ');
 }
@@ -681,4 +686,9 @@ function generateNameSuggestions(name: string, existingNames: Set<string>): stri
     }
 
     return suggestions;
+}
+
+// Type assertion helper - used for widget type assertions
+export function asAny<T>(value: unknown): T {
+    return value as T;
 }

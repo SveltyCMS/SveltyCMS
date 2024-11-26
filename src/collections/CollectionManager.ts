@@ -14,7 +14,7 @@
  */
 
 import axios from 'axios';
-import { browser } from '$app/environment';
+import { browser, dev } from '$app/environment';
 
 // Types
 import type { Schema, CollectionTypes, Category, CategoryData } from './types';
@@ -264,7 +264,7 @@ class CollectionManager {
 
 				const collections: Schema[] = [];
 
-				if (process.env.NODE_ENV === 'development') {
+				if (dev) {
 					// Use dynamic imports instead of eager loading
 					const modules = await import.meta.glob('/config/collections/**/*.ts', { eager: true });
 
@@ -287,7 +287,10 @@ class CollectionManager {
 							const schema = moduleSchema?.schema;
 
 							if (!schema || typeof schema !== 'object') {
-								logger.error(`Invalid or missing schema in ${filePath}`);
+								logger.error(`Invalid or missing schema in ${filePath}`, { 
+									hasModuleData: !!moduleContent,
+									hasSchema: !!(moduleContent && moduleContent.schema)
+								});
 								continue;
 							}
 

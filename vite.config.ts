@@ -170,7 +170,9 @@ export default defineConfig({
 			'@root': resolve(__dirname, './'),
 			'@src': resolve(__dirname, './src'),
 			'@components': resolve(__dirname, './src/components'),
-			'@collections': resolve(__dirname, './src/collections')
+			'@collections': resolve(__dirname, './src/collections'),
+			'@utils': resolve(__dirname, './src/utils'),
+			'@stores': resolve(__dirname, './src/stores')
 		}
 	},
 	define: {
