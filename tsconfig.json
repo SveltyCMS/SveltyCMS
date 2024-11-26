@@ -35,10 +35,6 @@
 	  // Extra safety checks
 	  "noUnusedLocals": true, // Error on unused local variables
 	  "noUnusedParameters": true, // Error on unused parameters
-	  "baseUrl": ".", // Added baseUrl
-	  "paths": { // Added paths
-		"@types/*": ["src/types/*"]
-	  }
 	},
   
 	/**
@@ -50,7 +46,8 @@
 		"src/**/*.svelte",
 		"types/**/*.ts",
 		"config/**/*.ts",
-		"src/types/**/*.d.ts"
+		"src/**/*.js",
+		"src/**/*.d.ts"
 	],
 	"exclude": [".svelte-kit", "node_modules"]
   

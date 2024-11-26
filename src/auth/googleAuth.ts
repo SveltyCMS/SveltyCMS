@@ -10,7 +10,7 @@
 import { dev } from '$app/environment';
 import { privateEnv } from '@root/config/private';
 import { publicEnv } from '@root/config/public';
-import { OAuth2Client } from 'google-auth-library';
+import type { OAuth2Client } from 'google-auth-library';
 import type { Credentials } from 'google-auth-library';
 
 // System Logger
@@ -49,11 +49,10 @@ async function googleAuth(): Promise<OAuth2Client | null> {
 }
 
 // Set credentials for the OAuth client
-function setCredentials(credentials: Credentials): void {
-    if (googleAuthClient) {
-        googleAuthClient.setCredentials(credentials);
-    } else {
-        logger.warn('Google OAuth client is not initialized. Cannot set credentials.');
+async function setCredentials(credentials: Credentials): Promise<void> {
+    const client = await googleAuth();
+    if (client) {
+        client.setCredentials(credentials);
     }
 }
 

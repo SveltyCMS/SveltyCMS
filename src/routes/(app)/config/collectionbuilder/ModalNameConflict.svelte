@@ -10,9 +10,6 @@ Features:
 <script lang="ts">
 	import { getModalStore } from '@skeletonlabs/skeleton';
 
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
-
 	interface Props {
 		conflictingName: string;
 		conflictPath: string;
@@ -52,10 +49,10 @@ Features:
 	</div>
 
 	<div class="mb-4">
-		<label class="label mb-2">
+		<label for="suggested-name" class="label mb-2">
 			<span>Choose a suggested name:</span>
 		</label>
-		<select class="select" bind:value={selectedName} disabled={useCustomName}>
+		<select id="suggested-name" class="select" bind:value={selectedName} disabled={useCustomName}>
 			{#each suggestions as suggestion}
 				<option value={suggestion}>{suggestion}</option>
 			{/each}
@@ -63,12 +60,12 @@ Features:
 	</div>
 
 	<div class="mb-4">
-		<label class="label">
+		<label for="use-custom" class="label">
 			<span>Or use a custom name:</span>
 		</label>
 		<div class="input-group">
-			<input type="checkbox" bind:checked={useCustomName} class="checkbox" />
-			<input type="text" bind:value={customName} disabled={!useCustomName} class="input" placeholder="Enter custom name" />
+			<input id="use-custom" type="checkbox" bind:checked={useCustomName} class="checkbox" />
+			<input id="custom-name" type="text" bind:value={customName} disabled={!useCustomName} class="input" placeholder="Enter custom name" aria-labelledby="use-custom" />
 		</div>
 		{#if useCustomName && customName && !validateCustomName(customName)}
 			<p class="mt-1 text-sm text-error-500">Name must start with a letter and contain only letters and numbers</p>
@@ -76,11 +73,11 @@ Features:
 	</div>
 
 	<footer class="modal-footer flex justify-end gap-4">
-		<button type="button" class="variant-ghost btn" on:click={handleCancel}> Cancel </button>
+		<button type="button" class="variant-ghost btn" onclick={handleCancel}> Cancel </button>
 		<button
 			type="button"
 			class="variant-filled-primary btn"
-			on:click={handleConfirm}
+			onclick={handleConfirm}
 			disabled={useCustomName ? !validateCustomName(customName) : !selectedName}
 		>
 			Use Selected Name

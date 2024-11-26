@@ -597,6 +597,12 @@ export function getEditDistance(a: string, b: string): number | undefined {
 	return normalizedDistance;
 }
 
+// PascalCase to camelCase conversion
+export const pascalToCamelCase = (str: string): string => {
+    if (!str) return str;
+    return str.charAt(0).toLowerCase() + str.slice(1);
+};
+
 // Collection name conflict checking types
 interface CollectionNameCheck {
     exists: boolean;

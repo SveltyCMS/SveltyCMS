@@ -26,7 +26,6 @@
 
 import { privateEnv } from '@root/config/private';
 import { browser } from '$app/environment';
-import { promises as fs } from 'fs';
 import path from 'path';
 import type { Unsubscriber } from 'svelte/store';
 import type { ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
@@ -48,9 +47,6 @@ import type { MediaBase, MediaType } from '@utils/media/mediaModels';
 
 // Theme
 import { DEFAULT_THEME } from '@src/databases/themeManager';
-
-// File System
-import { URL } from 'url';
 
 // Define the media schema for different media types
 const mediaSchema = new Schema(
@@ -176,7 +172,7 @@ export class MongoDBAdapter implements dbInterface {
 	private async scanDirectoryForCollections(dirPath: string): Promise<string[]> {
 		const collectionFiles: string[] = [];
 		try {
-			const entries = await fs.readdir(dirPath, { withFileTypes: true });
+			const entries = await import('fs').then((fs) => fs.promises.readdir(dirPath, { withFileTypes: true }));
 			
 			for (const entry of entries) {
 				const fullPath = path.join(dirPath, entry.name);
@@ -189,23 +185,19 @@ export class MongoDBAdapter implements dbInterface {
 				}
 			}
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error scanning directory ${dirPath}:`, {
-				error: err.message,
-				stack: err.stack
-			});
+			logger.error(`Error scanning directory ${dirPath}: ${error.message}`);
 		}
 		return collectionFiles;
 	}
 
 	// Sync collections with database
 	async syncCollections(): Promise<void> {
-		try {
-			if (browser) {
-				logger.debug('Skipping collection sync in browser environment');
-				return;
-			}
+		if (browser) {
+			logger.debug('Skipping collection sync in browser environment');
+			return;
+		}
 
+		try {
 			logger.debug('Starting collection sync...');
 			
 			// Initialize widgets globally
@@ -215,10 +207,21 @@ export class MongoDBAdapter implements dbInterface {
 				initWidgets();
 			}
 			
+			// Only import fs on server side
+			const { promises: fs } = await import('fs');
+			
 			// Get path to collections directory
-			const currentFileUrl = import.meta.url;
-			const currentFilePath = new URL(currentFileUrl).pathname;
-			const collectionsPath = path.resolve(path.dirname(currentFilePath), '../../../collections');
+			const collectionsPath = path.resolve(process.cwd(), 'collections');
+			
+			logger.debug('Collections path:', collectionsPath);
+			
+			// Check if collections directory exists
+			try {
+				await fs.access(collectionsPath);
+			} catch (error: unknown) {
+				logger.error(`Collections directory not found at ${collectionsPath}:`, { error });
+				return;
+			}
 			
 			// Known collection directories
 			const collectionDirs = ['Collections', 'Menu'];
@@ -259,30 +262,18 @@ export class MongoDBAdapter implements dbInterface {
 								logger.error(`Collection file ${filePath} does not export a valid schema or default export`);
 							}
 						} catch (error) {
-							const err = error as Error;
-							logger.error(`Error importing collection ${filePath}:`, {
-								error: err.message,
-								stack: err.stack
-							});
+							logger.error(`Error importing collection ${filePath}: ${error.message}`);
 						}
 					}
 				} catch (error) {
-					const err = error as Error;
-					logger.error(`Error processing directory ${dir}:`, {
-						error: err.message,
-						stack: err.stack
-					});
+					logger.error(`Error processing directory ${dir}: ${error.message}`);
 				}
 			}
 			
 			logger.debug('Collection sync completed successfully');
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error syncing collections:`, {
-				error: err.message,
-				stack: err.stack
-			});
-			throw new Error(`Failed to sync collections: ${err.message}`);
+			logger.error('Error syncing collections: ' + error.message);
+			throw new Error('Failed to sync collections');
 		}
 	}
 
@@ -323,14 +314,22 @@ export class MongoDBAdapter implements dbInterface {
 			logger.error(`MongoDB connection error: ${err.message}`);
 		});
 
-		try {
-			await mongoose.connect(connectionString, options);
-			logger.info(`Successfully connected to MongoDB database: ${privateEnv.DB_NAME}`);
-			await this.syncCollections();
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Failed to connect to MongoDB after ${attempts} attempts: ${err.message}`);
-			throw Error(`MongoDB connection failed: ${err.message}`);
+		let lastError: unknown;
+		for (let i = 1; i <= attempts; i++) {
+			try {
+				await mongoose.connect(connectionString, options);
+				logger.info(`Successfully connected to MongoDB database: ${privateEnv.DB_NAME}`);
+				await this.syncCollections();
+				return;
+			} catch (error: unknown) {
+				lastError = error;
+				if (i === attempts) {
+					logger.error(`Failed to connect to MongoDB after ${attempts} attempts: ${lastError}`);
+					throw new Error('MongoDB connection failed');
+				}
+				logger.warn(`Connection attempt ${i}/${attempts} failed, retrying...`);
+				await new Promise(resolve => setTimeout(resolve, 1000 * i)); // Exponential backoff
+			}
 		}
 	}
 
@@ -362,9 +361,8 @@ export class MongoDBAdapter implements dbInterface {
 
 			// Return base models - collections will be added later as needed
 			return baseModels;
-		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : String(err);
-			logger.error('Failed to get collection models:', { error: errorMessage });
+		} catch (error) {
+			logger.error('Failed to get collection models: ' + error.message);
 			return {};
 		}
 	}
@@ -419,9 +417,8 @@ export class MongoDBAdapter implements dbInterface {
 			this.setupModel('auth_sessions', SessionSchema);
 			logger.info('Authentication models set up successfully.');
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Failed to set up authentication models: ${err.message}`, { error: err });
-			throw Error(`Failed to set up authentication models: ${err.message}`);
+			logger.error('Failed to set up authentication models: ' + error.message);
+			throw Error('Failed to set up authentication models');
 		}
 	}
 
@@ -466,10 +463,9 @@ export class MongoDBAdapter implements dbInterface {
 			}
 			const result = await model.findOne(query).lean().exec();
 			return result as T | null; // Explicitly cast to T
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error in findOne for collection ${collection}: ${err.message}`, { error: err });
-			throw err;
+		} catch (error: unknown) {
+			logger.error(`Error in findOne for collection ${collection}:`, { error });
+			throw new Error(`Error in findOne for collection ${collection}`);
 		}
 	}
 
@@ -495,9 +491,8 @@ export class MongoDBAdapter implements dbInterface {
 			const result = await model.create(doc);
 			return result as T; // Explicitly cast to T
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error inserting document into ${collection}: ${err.message}`);
-			throw Error(`Error inserting document into ${collection}: ${err.message}`);
+			logger.error(`Error inserting document into ${collection}: ${error.message}`);
+			throw Error(`Error inserting document into ${collection}`);
 		}
 	}
 
@@ -512,9 +507,8 @@ export class MongoDBAdapter implements dbInterface {
 			const result = await model.insertMany(docs);
 			return result as T[];
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error inserting many documents into ${collection}: ${err.message}`);
-			throw Error(`Error inserting many documents into ${collection}: ${err.message}`);
+			logger.error(`Error inserting many documents into ${collection}: ${error.message}`);
+			throw Error(`Error inserting many documents into ${collection}`);
 		}
 	}
 
@@ -535,9 +529,8 @@ export class MongoDBAdapter implements dbInterface {
 			const result = await model.updateOne(query, update, { strict: false }); // strict: false for now to avoid schema errors
 			return result;
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error updating document in ${collection}: ${err.message}`);
-			throw Error(`Error updating document in ${collection}: ${err.message}`);
+			logger.error(`Error updating document in ${collection}: ${error.message}`);
+			throw Error(`Error updating document in ${collection}`);
 		}
 	}
 
@@ -558,9 +551,8 @@ export class MongoDBAdapter implements dbInterface {
 			const result = await model.updateMany(query, update).exec();
 			return result;
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error updating many documents in ${collection}: ${err.message}`);
-			throw Error(`Error updating many documents in ${collection}: ${err.message}`);
+			logger.error(`Error updating many documents in ${collection}: ${error.message}`);
+			throw Error(`Error updating many documents in ${collection}`);
 		}
 	}
 
@@ -574,9 +566,8 @@ export class MongoDBAdapter implements dbInterface {
 			const result = await model.deleteOne(query).exec();
 			return result.deletedCount ?? 0;
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error deleting document from ${collection}: ${err.message}`);
-			throw Error(`Error deleting document from ${collection}: ${err.message}`);
+			logger.error(`Error deleting document from ${collection}: ${error.message}`);
+			throw Error(`Error deleting document from ${collection}`);
 		}
 	}
 
@@ -590,9 +581,8 @@ export class MongoDBAdapter implements dbInterface {
 			const result = await model.deleteMany(query).exec();
 			return result.deletedCount ?? 0;
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error deleting many documents from ${collection}: ${err.message}`);
-			throw Error(`Error deleting many documents from ${collection}: ${err.message}`);
+			logger.error(`Error deleting many documents from ${collection}: ${error.message}`);
+			throw Error(`Error deleting many documents from ${collection}`);
 		}
 	}
 
@@ -607,9 +597,8 @@ export class MongoDBAdapter implements dbInterface {
 			const count = await model.countDocuments(query).exec();
 			return count;
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error counting documents in ${collection}: ${err.message}`);
-			throw Error(`Error counting documents in ${collection}: ${err.message}`);
+			logger.error(`Error counting documents in ${collection}: ${error.message}`);
+			throw Error(`Error counting documents in ${collection}`);
 		}
 	}
 
@@ -711,7 +700,7 @@ export class MongoDBAdapter implements dbInterface {
                     schemaDefinition[fieldKey] = fieldSchema;
                     logger.debug(`Added field ${fieldKey} with type ${widgetType} to collection ${collectionName}`);
                 } catch (error) {
-                    logger.error(`Error processing field in collection ${collectionName}:`, error);
+                    logger.error(`Error processing field in collection ${collectionName}: ${error.message}`);
                 }
             }
         }
@@ -742,9 +731,8 @@ export class MongoDBAdapter implements dbInterface {
 			logger.info(`Draft created successfully for document ID: ${original_document_id}`);
 			return draft.toObject() as Draft;
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error creating draft: ${err.message}`, { error: err });
-			throw err;
+			logger.error(`Error creating draft: ${error.message}`);
+			throw Error(`Error creating draft`);
 		}
 	}
 
@@ -764,9 +752,8 @@ export class MongoDBAdapter implements dbInterface {
 			// Return the updated draft as a plain JavaScript object and cast it to Draft
 			return draft.toObject() as Draft;
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error updating draft: ${err.message}`, { error: err });
-			throw err;
+			logger.error(`Error updating draft: ${error.message}`);
+			throw Error(`Error updating draft`);
 		}
 	}
 
@@ -788,9 +775,8 @@ export class MongoDBAdapter implements dbInterface {
 			logger.info(`Draft ${draft_id} published and revision created successfully.`);
 			return draft.toObject() as Draft;
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error publishing draft: ${err.message}`, { error: err });
-			throw err;
+			logger.error(`Error publishing draft: ${error.message}`);
+			throw Error(`Error publishing draft`);
 		}
 	}
 
@@ -803,9 +789,8 @@ export class MongoDBAdapter implements dbInterface {
 			logger.info(`Retrieved ${drafts.length} drafts for user ID: ${user_id}`);
 			return drafts;
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error retrieving drafts for user ${user_id}: ${err.message}`, { error: err });
-			throw err;
+			logger.error(`Error retrieving drafts for user ${user_id}: ${error.message}`);
+			throw Error(`Error retrieving drafts for user ${user_id}`);
 		}
 	}
 
@@ -822,9 +807,8 @@ export class MongoDBAdapter implements dbInterface {
 			logger.info(`Revision created successfully for document ID: ${documentId} in collection ID: ${collectionId}`);
 			return revision;
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error creating revision: ${err.message}`, { error: err });
-			throw Error(`Error creating revision: ${err.message}`);
+			logger.error(`Error creating revision: ${error.message}`);
+			throw Error(`Error creating revision`);
 		}
 	}
 
@@ -841,9 +825,8 @@ export class MongoDBAdapter implements dbInterface {
 			logger.info(`Revisions retrieved for document ID: ${documentId} in collection ID: ${collectionId}`);
 			return revisions;
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error retrieving revisions for document ID ${documentId} in collection ID ${collectionId}: ${err.message}`);
-			throw Error(`Failed to retrieve revisions: ${err.message}`);
+			logger.error(`Error retrieving revisions for document ID ${documentId} in collection ID ${collectionId}: ${error.message}`);
+			throw Error(`Failed to retrieve revisions`);
 		}
 	}
 
@@ -857,9 +840,8 @@ export class MongoDBAdapter implements dbInterface {
 
 			logger.info(`Revision ${revisionId} deleted successfully.`);
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error deleting revision ${revisionId}: ${err.message}`, { error: err });
-			throw Error(`Failed to delete revision: ${err.message}`);
+			logger.error(`Error deleting revision ${revisionId}: ${error.message}`);
+			throw Error(`Failed to delete revision`);
 		}
 	}
 
@@ -893,9 +875,8 @@ export class MongoDBAdapter implements dbInterface {
 
 			logger.info(`Revision ${revisionId} restored successfully to document ID: ${documentId}`);
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error restoring revision ${revisionId}: ${err.message}`, { error: err });
-			throw Error(`Failed to restore revision: ${err.message}`);
+			logger.error(`Error restoring revision ${revisionId}: ${error.message}`);
+			throw Error(`Failed to restore revision`);
 		}
 	}
 
@@ -913,9 +894,8 @@ export class MongoDBAdapter implements dbInterface {
 			await widget.save();
 			logger.info(`Widget ${widgetData.name} installed successfully.`);
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error installing widget: ${err.message}`);
-			throw Error(`Error installing widget: ${err.message}`);
+			logger.error(`Error installing widget: ${error.message}`);
+			throw Error(`Error installing widget`);
 		}
 	}
 
@@ -926,9 +906,8 @@ export class MongoDBAdapter implements dbInterface {
 			logger.info(`Fetched ${widgets.length} widgets.`);
 			return widgets;
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error fetching all widgets: ${err.message}`);
-			throw Error(`Error fetching all widgets: ${err.message}`);
+			logger.error(`Error fetching all widgets: ${error.message}`);
+			throw Error(`Error fetching all widgets`);
 		}
 	}
 
@@ -940,9 +919,8 @@ export class MongoDBAdapter implements dbInterface {
 			logger.info(`Fetched ${activeWidgetNames.length} active widgets.`);
 			return activeWidgetNames;
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error fetching active widgets: ${err.message}`);
-			throw Error(`Error fetching active widgets: ${err.message}`);
+			logger.error(`Error fetching active widgets: ${error.message}`);
+			throw Error(`Error fetching active widgets`);
 		}
 	}
 
@@ -955,9 +933,8 @@ export class MongoDBAdapter implements dbInterface {
 			}
 			logger.info(`Widget ${widgetName} activated successfully.`);
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error activating widget: ${err.message}`);
-			throw Error(`Error activating widget: ${err.message}`);
+			logger.error(`Error activating widget: ${error.message}`);
+			throw Error(`Error activating widget`);
 		}
 	}
 
@@ -970,9 +947,8 @@ export class MongoDBAdapter implements dbInterface {
 			}
 			logger.info(`Widget ${widgetName} deactivated successfully.`);
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error deactivating widget: ${err.message}`);
-			throw Error(`Error deactivating widget: ${err.message}`);
+			logger.error(`Error deactivating widget: ${error.message}`);
+			throw Error(`Error deactivating widget`);
 		}
 	}
 
@@ -985,9 +961,8 @@ export class MongoDBAdapter implements dbInterface {
 			}
 			logger.info(`Widget ${widgetName} updated successfully.`);
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error updating widget: ${err.message}`);
-			throw Error(`Error updating widget: ${err.message}`);
+			logger.error(`Error updating widget: ${error.message}`);
+			throw Error(`Error updating widget`);
 		}
 	}
 
@@ -1007,9 +982,8 @@ export class MongoDBAdapter implements dbInterface {
 
 			logger.info(`Theme ${themeName} set as default successfully.`);
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error setting default theme: ${err.message}`);
-			throw Error(`Error setting default theme: ${err.message}`);
+			logger.error(`Error setting default theme: ${error.message}`);
+			throw Error(`Error setting default theme`);
 		}
 	}
 
@@ -1038,9 +1012,8 @@ export class MongoDBAdapter implements dbInterface {
 
 			return theme;
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error fetching default theme: ${err.message}`);
-			throw Error(`Error fetching default theme: ${err.message}`);
+			logger.error(`Error fetching default theme: ${error.message}`);
+			throw Error(`Error fetching default theme`);
 		}
 	}
 
@@ -1065,9 +1038,8 @@ export class MongoDBAdapter implements dbInterface {
 			); // Use ordered: false to ignore duplicates
 			logger.info(`Stored ${themes.length} themes in the database.`);
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error storing themes: ${err.message}`);
-			throw Error(`Error storing themes: ${err.message}`);
+			logger.error(`Error storing themes: ${error.message}`);
+			throw Error(`Error storing themes`);
 		}
 	}
 
@@ -1078,9 +1050,8 @@ export class MongoDBAdapter implements dbInterface {
 			logger.info(`Fetched ${themes.length} themes.`);
 			return themes;
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error fetching all themes: ${err.message}`);
-			throw Error(`Error fetching all themes: ${err.message}`);
+			logger.error(`Error fetching all themes: ${error.message}`);
+			throw Error(`Error fetching all themes`);
 		}
 	}
 
@@ -1094,9 +1065,8 @@ export class MongoDBAdapter implements dbInterface {
 			await SystemPreferencesModel.updateOne({ userId }, { $set: { preferences } }, { upsert: true }).exec();
 			logger.info(`User preferences set successfully for userId: ${userId}`);
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Failed to set user preferences for user ${userId}. Error: ${err.message}`);
-			throw Error(`Failed to set user preferences: ${err.message}`);
+			logger.error(`Failed to set user preferences for user ${userId}: ${error.message}`);
+			throw Error(`Failed to set user preferences`);
 		}
 	}
 
@@ -1111,9 +1081,8 @@ export class MongoDBAdapter implements dbInterface {
 			logger.info(`No system preferences found for userId: ${user_id}`);
 			return null;
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Failed to retrieve system preferences for user ${user_id}. Error: ${err.message}`);
-			throw Error(`Failed to retrieve system preferences: ${err.message}`);
+			logger.error(`Failed to retrieve system preferences for user ${user_id}: ${error.message}`);
+			throw Error(`Failed to retrieve system preferences`);
 		}
 	}
 
@@ -1123,9 +1092,8 @@ export class MongoDBAdapter implements dbInterface {
 			await SystemPreferencesModel.findOneAndUpdate({ userId: user_id }, { $set: { screenSize, preferences } }, { new: true, upsert: true }).exec();
 			logger.info(`System preferences updated for userId: ${user_id}`);
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Failed to update system preferences for user ${user_id}. Error: ${err.message}`);
-			throw Error(`Failed to update system preferences: ${err.message}`);
+			logger.error(`Failed to update system preferences for user ${user_id}: ${error.message}`);
+			throw Error(`Failed to update system preferences`);
 		}
 	}
 
@@ -1139,9 +1107,8 @@ export class MongoDBAdapter implements dbInterface {
 				logger.info(`System preferences cleared for userId: ${user_id}`);
 			}
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Failed to clear system preferences for user ${user_id}. Error: ${err.message}`);
-			throw Error(`Failed to clear system preferences: ${err.message}`);
+			logger.error(`Failed to clear system preferences for user ${user_id}: ${error.message}`);
+			throw Error(`Failed to clear system preferences`);
 		}
 	}
 
@@ -1160,9 +1127,8 @@ export class MongoDBAdapter implements dbInterface {
 			logger.info(`Virtual folder '${folderData.name}' created successfully.`);
 			return folder;
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error creating virtual folder: ${err.message}`, { error: err });
-			throw err;
+			logger.error(`Error creating virtual folder: ${error.message}`);
+			throw Error(`Error creating virtual folder`);
 		}
 	}
 
@@ -1173,9 +1139,8 @@ export class MongoDBAdapter implements dbInterface {
 			logger.info(`Fetched ${folders.length} virtual folders.`);
 			return folders;
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error fetching virtual folders: ${err.message}`);
-			throw Error(`Error fetching virtual folders: ${err.message}`);
+			logger.error(`Error fetching virtual folders: ${error.message}`);
+			throw Error(`Error fetching virtual folders`);
 		}
 	}
 
@@ -1192,9 +1157,8 @@ export class MongoDBAdapter implements dbInterface {
 			logger.info(`Fetched contents for virtual folder ID: ${folderId}`);
 			return results.flat();
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error fetching contents for virtual folder ${folderId}: ${err.message}`);
-			throw Error(`Failed to fetch virtual folder contents: ${err.message}`);
+			logger.error(`Error fetching contents for virtual folder ${folderId}: ${error.message}`);
+			throw Error(`Failed to fetch virtual folder contents`);
 		}
 	}
 
@@ -1223,9 +1187,8 @@ export class MongoDBAdapter implements dbInterface {
 			logger.info(`Virtual folder ${folderId} updated successfully.`);
 			return updatedFolder;
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error updating virtual folder ${folderId}: ${err.message}`);
-			throw Error(`Failed to update virtual folder: ${err.message}`);
+			logger.error(`Error updating virtual folder ${folderId}: ${error.message}`);
+			throw Error(`Failed to update virtual folder`);
 		}
 	}
 
@@ -1241,9 +1204,8 @@ export class MongoDBAdapter implements dbInterface {
 			logger.info(`Virtual folder ${folderId} deleted successfully.`);
 			return true;
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error deleting virtual folder ${folderId}: ${err.message}`);
-			throw Error(`Failed to delete virtual folder: ${err.message}`);
+			logger.error(`Error deleting virtual folder ${folderId}: ${error.message}`);
+			throw Error(`Failed to delete virtual folder`);
 		}
 	}
 
@@ -1262,9 +1224,8 @@ export class MongoDBAdapter implements dbInterface {
 			logger.warn(`Media ${mediaId} not found in any media type collections.`);
 			return false;
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error moving media ${mediaId} to folder ${folderId}: ${err.message}`);
-			throw Error(`Failed to move media to folder: ${err.message}`);
+			logger.error(`Error moving media ${mediaId} to folder ${folderId}: ${error.message}`);
+			throw Error(`Failed to move media to folder`);
 		}
 	}
 
@@ -1284,9 +1245,8 @@ export class MongoDBAdapter implements dbInterface {
 			logger.info(`Fetched all media, total count: ${allMedia.length}`);
 			return allMedia as MediaType[];
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error fetching all media: ${err.message}`);
-			throw Error(`Error fetching all media: ${err.message}`);
+			logger.error(`Error fetching all media: ${error.message}`);
+			throw Error(`Error fetching all media`);
 		}
 	}
 
@@ -1304,9 +1264,8 @@ export class MongoDBAdapter implements dbInterface {
 			logger.warn(`Media ${mediaId} not found in any media type collections.`);
 			return false;
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error deleting media ${mediaId}: ${err.message}`);
-			throw Error(`Error deleting media: ${err.message}`);
+			logger.error(`Error deleting media ${mediaId}: ${error.message}`);
+			throw Error(`Error deleting media`);
 		}
 	}
 
@@ -1321,9 +1280,8 @@ export class MongoDBAdapter implements dbInterface {
 			logger.info(`Fetched ${mediaInFolder.length} media items in folder ID: ${folder_id}`);
 			return mediaInFolder;
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error fetching media in folder ${folder_id}: ${err.message}`);
-			throw Error(`Failed to fetch media in folder: ${err.message}`);
+			logger.error(`Error fetching media in folder ${folder_id}: ${error.message}`);
+			throw Error(`Failed to fetch media in folder`);
 		}
 	}
 
@@ -1343,9 +1301,8 @@ export class MongoDBAdapter implements dbInterface {
 
 			return recentCollections.sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0)).slice(0, 5);
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Failed to fetch last five collections: ${err.message}`);
-			throw Error(`Failed to fetch last five collections: ${err.message}`);
+			logger.error(`Failed to fetch last five collections: ${error.message}`);
+			throw Error(`Failed to fetch last five collections`);
 		}
 	}
 
@@ -1360,9 +1317,8 @@ export class MongoDBAdapter implements dbInterface {
 			logger.info(`Fetched ${activeSessions.length} active sessions.`);
 			return activeSessions;
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error fetching logged-in users: ${err.message}`);
-			throw Error(`Failed to fetch logged-in users: ${err.message}`);
+			logger.error(`Error fetching logged-in users: ${error.message}`);
+			throw Error(`Failed to fetch logged-in users`);
 		}
 	}
 
@@ -1395,9 +1351,8 @@ export class MongoDBAdapter implements dbInterface {
 
 			return recentMedia.sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0)).slice(0, 5);
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Failed to fetch last five media documents: ${err.message}`);
-			throw Error(`Failed to fetch last five media documents: ${err.message}`);
+			logger.error(`Failed to fetch last five media documents: ${error.message}`);
+			throw Error(`Failed to fetch last five media documents`);
 		}
 	}
 
@@ -1409,9 +1364,8 @@ export class MongoDBAdapter implements dbInterface {
 			await mongoose.disconnect();
 			logger.info('MongoDB adapter connection closed.');
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error disconnecting from MongoDB: ${err.message}`, { error: err });
-			throw err;
+			logger.error(`Error disconnecting from MongoDB: ${error.message}`);
+			throw Error(`Error disconnecting from MongoDB`);
 		}
 	}
 }
