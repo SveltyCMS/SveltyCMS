@@ -60,7 +60,6 @@ Features:
 	// Svelte-dnd-action
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
-	import { untrack } from "svelte";
 
 	const flipDurationMs = 300;
 
