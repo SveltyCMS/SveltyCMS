@@ -30,7 +30,7 @@ import { initWidgets } from '@components/widgets';
 import type { Schema, CollectionTypes, Category } from './types';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Constants for batch processing
 const BATCH_SIZE = 50; // Number of collections to process per batch

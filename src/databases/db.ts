@@ -44,7 +44,7 @@ import { SessionAdapter } from '@src/auth/mongoDBAuth/sessionAdapter';
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Theme
 import { DEFAULT_THEME } from '@src/databases/themeManager';

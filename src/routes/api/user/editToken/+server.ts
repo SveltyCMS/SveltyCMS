@@ -27,7 +27,7 @@ import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
 import { checkUserPermission } from '@src/auth/permissionCheck';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Input validation
 import { object, string, optional, email, type ValiError } from 'valibot';

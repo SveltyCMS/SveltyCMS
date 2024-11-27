@@ -7,13 +7,13 @@
 import { browser } from '$app/environment';
 
 // System Logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Redis
 import { isRedisEnabled, getCache, setCache } from '@src/databases/redis';
 
-// Use import.meta.env for environment variables
-const collectionsFolder = import.meta.env.VITE_COLLECTIONS_FOLDER || './collections';
+// Default collections folder path
+const DEFAULT_COLLECTIONS_FOLDER = '../../../../collections';
 
 // Cache TTL
 const CACHE_TTL = 300; // 5 minutes
@@ -43,7 +43,13 @@ const loadServerModules = async () => {
 		import('crypto') as Promise<CryptoModule>
 	]);
 
-	return { fs, path, crypto };
+	// Resolve collections folder path
+	const collectionsFolder = process.env.VITE_COLLECTIONS_FOLDER || path.resolve(
+		path.dirname(new URL(import.meta.url).pathname),
+		DEFAULT_COLLECTIONS_FOLDER
+	);
+
+	return { fs, path, crypto, collectionsFolder };
 };
 
 // Calculate directory hash for cache invalidation
@@ -87,19 +93,14 @@ export async function getCollectionFiles(): Promise<string[]> {
 		throw new CollectionError('Failed to load server modules');
 	}
 
-	const { fs, path } = modules;
+	const { fs, path, collectionsFolder } = modules;
 
 	try {
-		// Ensure the collections folder path is absolute
-		const directoryPath = path.resolve(collectionsFolder);
-		const systemPath = path.join(directoryPath, 'system');
-
-		// Create directories if they don't exist
-		await fs.mkdir(directoryPath, { recursive: true });
-		await fs.mkdir(systemPath, { recursive: true });
+		// Create main collections directory if it doesn't exist
+		await fs.mkdir(collectionsFolder, { recursive: true });
 
 		// Calculate directory hash
-		const dirHash = await calculateDirectoryHash(directoryPath);
+		const dirHash = await calculateDirectoryHash(collectionsFolder);
 
 		// Try to get from Redis cache first
 		if (isRedisEnabled() && dirHash) {
@@ -113,8 +114,8 @@ export async function getCollectionFiles(): Promise<string[]> {
 		}
 
 		// Get the list of all files in the collections directory
-		const files = await fs.readdir(directoryPath);
-		logger.debug('Files read from directory', { directory: directoryPath, files });
+		const files = await fs.readdir(collectionsFolder);
+		logger.debug('Files read from directory', { directory: collectionsFolder, files });
 
 		// Filter the list to only include .js files that are not excluded
 		const filteredFiles = files.filter((file) => {

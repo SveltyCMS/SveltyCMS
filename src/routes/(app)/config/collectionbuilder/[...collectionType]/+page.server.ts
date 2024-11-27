@@ -48,7 +48,7 @@ import { roles } from '@root/config/roles';
 import { permissions } from '@src/auth/permissions';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 import { generateCollectionFieldTypes, generateCollectionTypes } from '@utils/collectionTypes';
 
 type fields = ReturnType<WidgetType[keyof WidgetType]>;

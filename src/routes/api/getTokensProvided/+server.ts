@@ -22,7 +22,7 @@ import { privateEnv } from '@root/config/private';
 import { json, type RequestHandler } from '@sveltejs/kit';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 interface TokenStatus {
 	google: boolean;

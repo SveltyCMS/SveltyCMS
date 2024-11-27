@@ -25,7 +25,7 @@ import { constructUrl } from '@utils/media/mediaUtils';
 import { dbAdapter } from '@src/databases/db';
 
 // System Logger
-import { logger, type LoggableValue } from '@utils/logger';
+import { logger, type LoggableValue } from '@utils/logger.svelte';
 
 // Helper function to convert _id and other nested objects to string
 interface StackItem {

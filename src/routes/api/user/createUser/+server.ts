@@ -18,7 +18,7 @@ import { json, error } from '@sveltejs/kit';
 import { auth } from '@src/databases/db';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {

@@ -31,7 +31,7 @@ import { join } from 'path';
 import { createHash } from 'crypto';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 const fileCache = new Map<string, { content: Buffer; lastModified: number; etag: string }>();
 

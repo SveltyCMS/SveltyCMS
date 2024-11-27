@@ -28,7 +28,7 @@
 	// Readable ExpireIn time sec to year
 	import { ReadableExpireIn } from '@utils/utils';
 	interface Props {
-		tokenLink?: any;
+		tokenLink?: string;
 		email: EmailProps['email'];
 		//TODO: send rest to domain? Token and delete used token
 		token: EmailProps['token'];
@@ -36,70 +36,67 @@
 		expiresIn: EmailProps['expiresIn'];
 	}
 
-	let { tokenLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD, email, token, resetLink, expiresIn }: Props = $props();
+	let props: Props = $props();
 
 	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
 
 	const main = {
-		backgroundColor: '#ffffff'
+		backgroundColor: '#ffffff' as const
 	};
 
 	const container = {
-		margin: '0 auto',
-		padding: '16px 0 48px',
-		width: '480px'
+		margin: '0 auto' as const,
+		padding: '16px 0 48px' as const,
+		width: '480px' as const
 	};
 
 	const paragraph = {
 		fontFamily,
-		fontSize: '16px',
-		lineHeight: '26px'
+		fontSize: '16px' as const,
+		lineHeight: '26px' as const,
+		textAlign: 'left' as const
 	};
 
 	const paragraph_center = {
-		fontFamily,
-		fontSize: '16px',
-		lineHeight: '26px',
-		textAlign: 'center'
+		...paragraph,
+		textAlign: 'center' as const
 	};
 
 	const paragraphbold = {
-		fontFamily,
-		fontSize: '16px',
-		lineHeight: '26px',
-		fontWeight: '600'
+		...paragraph,
+		fontWeight: 'bold' as const
 	};
 
 	const review = {
-		padding: '6px',
-		backgroundColor: '#f2f3f3'
+		padding: '6px' as const,
+		backgroundColor: '#f2f3f3' as const
 	};
 
 	const btnContainer = {
-		textAlign: 'center'
+		textAlign: 'center' as const
 	};
 
 	const button = {
 		fontFamily,
-		backgroundColor: '#8ddd15',
-		borderRadius: '3px',
-		color: '#000000',
-		fontSize: '16px',
-		textDecoration: 'none',
-		textAlign: 'center',
-		display: 'block'
+		backgroundColor: '#8ddd15' as const,
+		borderRadius: '3px' as const,
+		color: '#000000' as const,
+		fontSize: '16px' as const,
+		textDecoration: 'none' as const,
+		textAlign: 'center' as const,
+		display: 'block' as const
 	};
 
 	const hr = {
-		borderColor: '#cccccc',
-		margin: '15px 0'
+		borderColor: '#cccccc' as const,
+		margin: '15px 0' as const
 	};
 
 	const footer = {
 		fontFamily,
-		color: '#8898aa',
-		fontSize: '12px',
-		textAlign: 'center'
+		color: '#8898aa' as const,
+		fontSize: '12px' as const,
+		textAlign: 'center' as const
 	};
 
 	const styleToString = (style: Record<string, string | number | null>) => {
@@ -127,7 +124,7 @@
 	<Section style={main}>
 		<Container style={container}>
 			<Section style={btnContainer}>
-				<Link href={tokenLink}>
+				<Link href={dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}>
 					<Img
 						src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png"
 						alt="{publicEnv.SITE_NAME} logo"
@@ -137,21 +134,21 @@
 					/>
 				</Link>
 			</Section>
-			<Text style={paragraph}>Hello {email}</Text>
+			<Text style={paragraph}>Hello {props.email}</Text>
 			<Text style={paragraph}>You have requested to reset your Password to get access to {publicEnv.SITE_NAME}</Text>
 			<Section style={review}>
 				<Text style={paragraph_center}>{m.forgottenpassword_token()}</Text>
-				<Text style={paragraph_center}><span style={styleToString(paragraphbold)}>{token}</span></Text>
+				<Text style={paragraph_center}><span style={styleToString(paragraphbold)}>{props.token}</span></Text>
 				<br />
 				<Text style={paragraph_center}>{m.forgottenpassword_valid()}</Text>
-				<Text style={paragraph_center}><span style={styleToString(paragraphbold)}>{ReadableExpireIn(expiresIn)}</span></Text>
+				<Text style={paragraph_center}><span style={styleToString(paragraphbold)}>{ReadableExpireIn(props.expiresIn)}</span></Text>
 			</Section>
 
 			<Text style={paragraph_center}>{m.forgottenpassword_ignore()}</Text>
 			<Text style={paragraph_center}>{m.forgottenpassword_button()}</Text>
 
 			<Section style={btnContainer}>
-				<Button pX={12} pY={12} style={button} href={resetLink}>{m.forgottenpassword_resetbutton()}</Button>
+				<Button pX={12} pY={12} style={button} href={props.resetLink}>{m.forgottenpassword_resetbutton()}</Button>
 			</Section>
 			<Hr style={hr} />
 			<Link style={footer} href="https://www.sveltycms.com">Your <SiteName /> team</Link>

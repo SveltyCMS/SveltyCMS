@@ -18,7 +18,7 @@
 import { exec } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 const COLLECTIONS_DIR = './src/collections';
 const INDEX_FILE = path.join(COLLECTIONS_DIR, 'index.ts');

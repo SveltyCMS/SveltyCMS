@@ -8,7 +8,7 @@ import { writable, type Writable, get } from 'svelte/store';
 import deepmerge from 'deepmerge';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Types
 import type { User, WidgetId } from '@src/auth/types';

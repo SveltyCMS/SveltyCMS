@@ -14,14 +14,14 @@
  */
 
 import axios from 'axios';
-import { browser } from '$app/environment';
+import { browser, dev } from '$app/environment';
 
 // Types
 import type { Schema, CollectionTypes, Category, CategoryData } from './types';
 
 // Utils
 import { createRandomID } from '@utils/utils';
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Redis
 import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/redis';
@@ -43,10 +43,6 @@ let path: typeof import('path') | null = null;
 if (!browser) {
 	const imports = await Promise.all([ import('fs/promises'), import('path')]);
 	[ fs, path] = imports;
-}
-
-interface ProcessedModule {
-	schema?: Partial<Schema>;
 }
 
 interface CacheEntry<T> {
@@ -268,7 +264,7 @@ class CollectionManager {
 
 				const collections: Schema[] = [];
 
-				if (process.env.NODE_ENV === 'development') {
+				if (dev) {
 					// Use dynamic imports instead of eager loading
 					const modules = await import.meta.glob('/config/collections/**/*.ts', { eager: true });
 
@@ -291,7 +287,10 @@ class CollectionManager {
 							const schema = moduleSchema?.schema;
 
 							if (!schema || typeof schema !== 'object') {
-								logger.error(`Invalid or missing schema in ${filePath}`);
+								logger.error(`Invalid or missing schema in ${filePath}`, { 
+									hasModuleData: !!moduleContent,
+									hasSchema: !!(moduleContent && moduleContent.schema)
+								});
 								continue;
 							}
 

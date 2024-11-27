@@ -12,7 +12,7 @@ import type { PageServerLoad } from './$types';
 import { collectionManager } from '@src/collections/CollectionManager';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	logger.debug('Load function started in +page.server.ts');

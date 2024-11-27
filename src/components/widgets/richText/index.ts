@@ -15,7 +15,7 @@ import type { MediaAccess } from '@src/utils/media/mediaModels';
 import { Permission } from '@src/utils/media/mediaModels';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';

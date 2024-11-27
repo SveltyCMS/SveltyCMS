@@ -12,7 +12,7 @@ import { permissionConfigs } from '@src/auth/permissionManager';
 import { permissions as allPermissions } from '@src/auth/permissions';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {

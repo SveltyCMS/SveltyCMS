@@ -17,40 +17,41 @@
 
 	// Svelty-email
 	import { Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';
+	
 	interface Props {
 		username?: string;
-		hostLink?: any;
+		hostLink?: string;
 	}
 
-	let { username = '', hostLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD }: Props = $props();
+	let props: Props;
 
 	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
 
 	const btnContainer = {
-		textAlign: 'center'
+		textAlign: 'center' as const
 	};
 
 	const button = {
 		fontFamily,
-		backgroundColor: '#8ddd15',
-		borderRadius: '3px',
-		color: '#000000',
-		fontSize: '16px',
-		textDecoration: 'none',
-		textAlign: 'center',
-		display: 'block'
+		backgroundColor: '#8ddd15' as const,
+		borderRadius: '3px' as const,
+		color: '#000000' as const,
+		fontSize: '16px' as const,
+		textDecoration: 'none' as const,
+		textAlign: 'center' as const,
+		display: 'block' as const
 	};
 
 	const hr = {
-		borderColor: '#cccccc',
-		margin: '15px 0'
+		borderColor: '#cccccc' as const,
+		margin: '15px 0' as const
 	};
 
 	const footer = {
 		fontFamily,
-		color: '#8898aa',
-		fontSize: '12px',
-		textAlign: 'center'
+		color: '#8898aa' as const,
+		fontSize: '12px' as const,
+		textAlign: 'center' as const
 	};
 </script>
 
@@ -64,11 +65,11 @@
 	<Section>
 		<Container>
 			<Section style={btnContainer}>
-				<Link href={hostLink}>
+				<Link href={props.hostLink || (dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD)}>
 					<Img src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png" alt={publicEnv.SITE_NAME} width="150" height="auto" />
 				</Link>
 			</Section>
-			<Text>{m.welcomeuser_username({ username })}</Text>
+			<Text>{m.welcomeuser_username({ username: props.username || '' })}</Text>
 			<Text>Welcome to <SiteName /> - a SvelteKit-powered flexible Headless CMS</Text>
 			<Text>{m.welcomeuser_headless()}</Text>
 			<Text>
@@ -78,7 +79,7 @@
 			<Text>{m.welcomeuser_thanks()}</Text>
 
 			<Section style={btnContainer}>
-				<Button pX={12} pY={12} style={button} href={hostLink}>Go   to <SiteName /></Button>
+				<Button pX={12} pY={12} style={button} href={props.hostLink || (dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD)}>Go   to <SiteName /></Button>
 			</Section>
 			<Hr style={hr} />
 			<Link style={footer} href="https://www.sveltycms.com">Your <SiteName /> team</Link>

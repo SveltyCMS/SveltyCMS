@@ -24,7 +24,7 @@ import { getCollectionModels } from '@src/databases/db';
 import { modifyRequest } from './modifyRequest';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Performance monitoring utilities
 const getPerformanceEmoji = (responseTime: number): string => {

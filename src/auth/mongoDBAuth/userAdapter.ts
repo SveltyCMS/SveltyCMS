@@ -31,7 +31,7 @@ import type { authDBInterface } from '../authDBInterface';
 import type { PaginationOption } from '../authDBInterface';
 
 // System Logging
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Define the User schema
 export const UserSchema = new Schema(

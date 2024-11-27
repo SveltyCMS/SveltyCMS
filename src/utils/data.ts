@@ -31,7 +31,7 @@ import type { Entry } from '@src/types/Entry';
 import { collection, collectionValue, mode } from '../stores/collectionStore.svelte';
 
 // System Logs
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Helper function to handle API requests
 export async function handleRequest(data: FormData, method: string) {

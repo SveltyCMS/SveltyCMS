@@ -24,7 +24,7 @@ import { saveAvatarImage } from '@utils/media/mediaStorage';
 import { systemLanguage } from '@stores/store';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 import { googleAuth, setCredentials } from '@src/auth/googleAuth';
 
 // Types

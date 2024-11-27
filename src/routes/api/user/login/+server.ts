@@ -18,7 +18,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { auth } from '@src/databases/db';
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 	if (!auth) {

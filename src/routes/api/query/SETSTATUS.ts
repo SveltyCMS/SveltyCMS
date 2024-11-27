@@ -19,7 +19,7 @@ import type { User } from '@src/auth/types';
 import { dbAdapter, getCollectionModels } from '@src/databases/db';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Performance monitoring utilities
 const getPerformanceEmoji = (responseTime: number): string => {

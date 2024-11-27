@@ -27,7 +27,7 @@ import type { Token } from '../types';
 import type { authDBInterface } from '../authDBInterface';
 
 // System Logging
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Define the Token schema
 export const TokenSchema = new Schema(

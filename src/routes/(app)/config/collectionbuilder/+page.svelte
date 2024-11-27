@@ -19,7 +19,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { categoryConfig } from '@src/collections/categories';
-	import { createRandomID } from '@utils/utils';
+	import { createRandomID, checkCollectionNameConflict } from '@utils/utils';
 	import type { CategoryData } from '@src/collections/types';
 
 	// Stores
@@ -29,6 +29,7 @@
 	import PageTitle from '@components/PageTitle.svelte';
 	import Board from './Board.svelte';
 	import ModalCategory from './ModalCategory.svelte';
+	import ModalNameConflict from './ModalNameConflict.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -129,24 +130,52 @@
 		categories.set(newConfig);
 	}
 
-	function handleAddCollectionClick() {
-		mode.set('create');
-		collectionValue.set({
-			name: 'new',
-			icon: '',
-			description: '',
-			status: 'unpublished',
-			slug: '',
-			fields: []
-		});
-		goto('/config/collectionbuilder/new');
+	// Check for name conflicts before saving
+	async function checkNameConflicts(name: string): Promise<{ canProceed: boolean; newName?: string }> {
+		const collectionsPath = 'config/collections';
+		const conflict = await checkCollectionNameConflict(name, collectionsPath);
+
+		if (conflict.exists) {
+			// Show modal with conflict info and suggestions
+			const modalComponent: ModalComponent = {
+				ref: ModalNameConflict,
+				props: {
+					conflictingName: name,
+					conflictPath: conflict.conflictPath,
+					suggestions: conflict.suggestions
+				}
+			};
+
+			const modalSettings: ModalSettings = {
+				type: 'component',
+				component: modalComponent,
+				title: 'Collection Name Conflict',
+				buttonTextCancel: 'Cancel',
+				buttonTextConfirm: 'Use Suggestion'
+			};
+
+			const response = await modalStore.trigger(modalSettings);
+
+			if (response) {
+				return { canProceed: true, newName: response.newName };
+			}
+			return { canProceed: false };
+		}
+
+		return { canProceed: true };
 	}
 
-	// Saving changes to the config.ts
-	async function updateConfig(newConfig: Record<string, CategoryData>) {
-		isLoading = true;
-		apiError = null;
+	// Handle collection save with conflict checking
+	async function handleSave(event: CustomEvent<{ name: string; data: any }>) {
+		const { name, data } = event.detail;
 
+		const nameCheck = await checkNameConflicts(name);
+		if (!nameCheck.canProceed) {
+			showToast('Collection save cancelled due to name conflict', 'error');
+			return;
+		}
+
+		const finalName = nameCheck.newName || name;
 		try {
 			const response = await fetch('/api/categories', {
 				method: 'POST',
@@ -154,7 +183,7 @@
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({
-					categories: newConfig,
+					categories: currentConfig,
 					save: true
 				})
 			});
@@ -163,8 +192,8 @@
 
 			if (response.ok) {
 				showToast('Categories updated successfully', 'success');
-				currentConfig = newConfig;
-				categories.set(newConfig);
+				currentConfig = currentConfig;
+				categories.set(currentConfig);
 			} else {
 				const errorMessage = result.error || 'Error updating categories';
 				console.error('Update categories error:', result);
@@ -181,8 +210,21 @@
 		}
 	}
 
+	function handleAddCollectionClick() {
+		mode.set('create');
+		collectionValue.set({
+			name: 'new',
+			icon: '',
+			description: '',
+			status: 'unpublished',
+			slug: '',
+			fields: []
+		});
+		goto('/config/collectionbuilder/new');
+	}
+
 	// Show corresponding Toast messages
-	function showToast(message: string, type: 'success' | 'info' | 'error') {
+	function showToast(message: string, type: 'success' | 'info' | 'error' = 'info') {
 		const backgrounds = {
 			success: 'variant-filled-primary',
 			info: 'variant-filled-tertiary',
@@ -227,7 +269,7 @@
 
 	<button
 		type="button"
-		onclick={() => updateConfig(currentConfig)}
+		onclick={() => handleSave({ detail: { name: 'categories', data: currentConfig } })}
 		aria-label="Save"
 		class="variant-filled-primary btn gap-2 lg:ml-4"
 		disabled={isLoading}

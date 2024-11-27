@@ -17,7 +17,7 @@ import { compile } from './compile';
 import { error, json } from '@sveltejs/kit';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 let isCompiling = false;
 let lastCompileTime = 0;

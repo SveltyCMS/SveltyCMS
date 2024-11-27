@@ -37,7 +37,7 @@ import { systemLanguage } from '@stores/store';
 import { roles } from '@root/config/roles';
 
 // System Logs
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 const limiter = new RateLimiter({
 	IP: [200, 'h'], // 200 requests per hour per IP

@@ -6,7 +6,7 @@
 import type { Model, User, WidgetId } from '@src/auth/types';
 // import { activeWidgets, loadWidgets } from './widgetManager';
 // System logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Widgets
 import Address from './address';

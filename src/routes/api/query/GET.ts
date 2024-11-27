@@ -41,7 +41,7 @@ import widgets from '@components/widgets';
 import { getFieldName, get_elements_by_id } from '@utils/utils';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Performance monitoring utilities
 const getPerformanceEmoji = (responseTime: number): string => {

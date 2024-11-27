@@ -3,7 +3,7 @@ import { error } from '@sveltejs/kit';
 import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import { getFile } from '@utils/media/mediaStorage';
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 export const GET: RequestHandler = async ({ url, cookies }) => {
     const session_id = cookies.get(SESSION_COOKIE_NAME);

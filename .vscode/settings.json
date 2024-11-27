@@ -5,5 +5,17 @@
 	"[svelte]": {
 		"editor.defaultFormatter": "svelte.svelte-vscode"
 	},
-	"cSpell.enableFiletypes": ["svelte"]
+	"cSpell.enableFiletypes": [
+		"svelte"
+	],
+	"[json]": {
+		"editor.defaultFormatter": "vscode.json-language-features"
+	},
+	"[jsonc]": {
+		"editor.defaultFormatter": "vscode.json-language-features"
+	},
+	"typescript.tsdk": "node_modules/typescript/lib",
+	"typescript.enablePromptUseWorkspaceTsdk": true,
+	"typescript.validate.enable": false,
+	"javascript.validate.enable": false
 }

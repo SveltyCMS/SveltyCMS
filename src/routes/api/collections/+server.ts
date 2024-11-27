@@ -19,7 +19,7 @@ import { collectionManager } from '@src/collections/CollectionManager';
 import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/redis';
 
 // System Logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Cache TTL
 const CACHE_TTL = 300; // 5 minutes
@@ -28,6 +28,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	try {
 		const action = url.searchParams.get('action');
 		const name = url.searchParams.get('name');
+		logger.debug('GET request received', { action, name });
 
 		// Try to get from Redis cache first
 		if (!browser && isRedisEnabled()) {
@@ -105,6 +106,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	try {
 		const data = await request.json();
 		const action = data.action;
+		logger.debug('POST request received', { data, action });
 
 		switch (action) {
 			case 'recompile':
@@ -126,7 +128,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
-		logger.error('Error in collections API:', message);
+		logger.error('Error in collections API:', { message, error: err });
 		throw error(500, `Failed to process collections request: ${message}`);
 	}
 };

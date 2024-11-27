@@ -35,7 +35,7 @@ import * as mariadb from 'drizzle-orm/mysql2';
 import * as postgres from 'drizzle-orm/postgres';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Define connection configuration for MariaDB and PostgreSQL
 const dbConfig = {

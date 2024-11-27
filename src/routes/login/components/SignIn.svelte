@@ -383,6 +383,7 @@ Features:
 							id="passwordsignIn"
 							name="password"
 							type="password"
+							autocomplete="current-password"
 							tabindex={passwordTabIndex}
 							bind:value={$form.password}
 							{...$constraints.password}

@@ -7,7 +7,7 @@
 
 import { error, json, type RequestHandler } from '@sveltejs/kit';
 import { getCollectionFiles } from './getCollectionFiles';
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger.svelte';
 import path from 'path';
 import fs from 'fs/promises';
 import { browser } from '$app/environment';

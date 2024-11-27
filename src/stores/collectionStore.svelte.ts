@@ -34,11 +34,13 @@ export const statusMap = {
 
 // Create reactive stores using Svelte 5 runes
 export const collections = store<{ [key: CollectionType]: Schema }>({});
+export const collectionsLoading = store<boolean>(false);
+export const collectionsError = store<string | null>(null);
 export const unAssigned = store<Schema[]>([]);
 export const collection = store<Schema>({} as Schema);
 export const collectionValue = store<Record<string, unknown>>({});
 export const mode = store<ModeType>('view');
-export const modifyEntry = store((status: keyof typeof statusMap): void => {});
+export const modifyEntry = store((): void => {});
 export const selectedEntries = store<string[]>([]);
 export const targetWidget = store<Widget>({ permissions: {} });
 export const categories = store<Record<string, CategoryData>>({});

@@ -7,7 +7,7 @@ import type { dbInterface } from './dbInterface';
 import { error } from '@sveltejs/kit';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Default theme
 export const DEFAULT_THEME: Theme = {

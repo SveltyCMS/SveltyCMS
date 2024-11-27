@@ -30,7 +30,7 @@ import { addUserTokenSchema } from '@utils/formSchemas';
 import { valibot } from 'sveltekit-superforms/adapters';
 import { error } from '@sveltejs/kit';
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 export const GET: RequestHandler = async () => {
 	try {

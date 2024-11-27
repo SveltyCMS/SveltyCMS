@@ -29,7 +29,7 @@ import { registerPermission } from '@src/auth/permissionManager';
 import { PermissionAction, PermissionType } from '@src/auth/permissionTypes';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Define the access management permission configuration
 const accessManagementPermission = {

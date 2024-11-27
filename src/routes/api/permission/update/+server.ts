@@ -32,7 +32,7 @@ import { getAllPermissions } from '@src/auth/permissionManager';
 import { roles as configRoles } from '@root/config/roles';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Importing and using the Role type from auth/types.ts
 import type { Role } from '@src/auth/types';

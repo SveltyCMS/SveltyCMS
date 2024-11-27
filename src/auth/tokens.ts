@@ -22,7 +22,7 @@ import crypto from 'crypto';
 import { error } from '@sveltejs/kit';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Type for log additional info
 interface LogAdditionalInfo {

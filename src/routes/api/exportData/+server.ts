@@ -28,7 +28,7 @@ import { _GET } from '@api/query/GET';
 import { collections } from '@root/src/stores/collectionStore.svelte';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Types
 import type { User } from '@src/auth/types';

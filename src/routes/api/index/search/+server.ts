@@ -32,7 +32,7 @@ import { SESSION_COOKIE_NAME } from '@src/auth';
 import type { RequestHandler } from '@sveltejs/kit';
 
 // System Logs
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Define the POST request handler
 export const POST: RequestHandler = async ({ cookies, request }) => {

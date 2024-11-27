@@ -18,7 +18,7 @@ import path from 'path';
 import type { ErrnoException } from 'node:fs';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 const SYSTEM_COLLECTIONS_DIR = path.join(process.cwd(), 'src', 'collections');
 const USER_COLLECTIONS_DIR = path.join(process.cwd(), 'config', 'collections');

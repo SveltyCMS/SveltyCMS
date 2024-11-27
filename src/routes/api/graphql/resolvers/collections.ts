@@ -29,7 +29,7 @@ import type { GraphQLFieldResolver } from 'graphql';
 import { collectionManager } from '@src/collections/CollectionManager';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 interface CollectionField {
 	widget: {

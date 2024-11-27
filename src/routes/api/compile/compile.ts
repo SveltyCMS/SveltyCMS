@@ -10,6 +10,7 @@
  * - Support for nested category structure
  * - Error handling and logging
  * - Cleanup of orphaned collection files
+ * - Name conflict detection to prevent duplicate collection names
  */
 
 import fs from 'fs/promises';
@@ -21,39 +22,43 @@ import * as ts from 'typescript';
 const cache = new Map<string, string>();
 
 interface CompileOptions {
-	systemCollectionsPath?: string;
-	userCollectionsPath?: string;
-	compiledCollectionsPath?: string;
+	systemCollections?: string;
+	userCollections?: string;
+	compiledCollections?: string;
 }
 
 export async function compile(options: CompileOptions = {}): Promise<void> {
-	// Set default paths relative to the project root
-	const defaultUserPath = path.join(process.cwd(), 'config/collections');
-	const defaultCompiledPath = path.join(process.cwd(), 'collections');
-
-	// Destructure options with default values
+	// Define collection paths directly
 	const {
-		userCollectionsPath = process.env.USER_COLLECTIONS_PATH || defaultUserPath,
-		compiledCollectionsPath = process.env.COMPILED_COLLECTIONS_PATH || defaultCompiledPath
+		userCollections = path.join(__dirname, '../../../config/collections'),
+		compiledCollections = path.join(__dirname, '../../../collections'),
 	} = options;
 
 	try {
 		// Ensure the output directory exists
-		await fs.mkdir(compiledCollectionsPath, { recursive: true });
+		await fs.mkdir(compiledCollections, { recursive: true });
 
 		// Get TypeScript files from user collections only (system collections are not compiled)
-		const userFiles = await getTypescriptFiles(userCollectionsPath);
+		try {
+			const userFiles = await getTypescriptFiles(userCollections);
+			
+			// Create output directories for user collection files
+			await createOutputDirectories(userFiles, userCollections, compiledCollections);
 
-		// Create output directories for user collection files
-		await createOutputDirectories(userFiles, userCollectionsPath, compiledCollectionsPath);
+			// Compile user collection files
+			const compilePromises = userFiles.map((file) => compileFile(file, userCollections, compiledCollections));
 
-		// Compile user collection files
-		const compilePromises = userFiles.map((file) => compileFile(file, userCollectionsPath, compiledCollectionsPath));
+			await Promise.all(compilePromises);
 
-		await Promise.all(compilePromises);
-
-		// Cleanup orphaned files only in the compiled collections directory
-		await cleanupOrphanedFiles(userCollectionsPath, compiledCollectionsPath);
+			// Cleanup orphaned files only in the compiled collections directory
+			await cleanupOrphanedFiles(userCollections, compiledCollections);
+		} catch (error) {
+			if (error instanceof Error && error.message.includes('Collection name conflict')) {
+				console.error('\x1b[31mError:\x1b[0m', error.message);
+				throw error;
+			}
+			throw error;
+		}
 	} catch (error) {
 		console.error('Compilation error:', error);
 		throw error;
@@ -62,6 +67,7 @@ export async function compile(options: CompileOptions = {}): Promise<void> {
 
 async function getTypescriptFiles(folder: string, subdir: string = ''): Promise<string[]> {
 	const files: string[] = [];
+	const collectionNames = new Set<string>();
 	const entries = await fs.readdir(path.join(folder, subdir), { withFileTypes: true });
 
 	for (const entry of entries) {
@@ -77,6 +83,12 @@ async function getTypescriptFiles(folder: string, subdir: string = ''): Promise<
 			!entry.name.startsWith('_') && // Ignore files starting with underscore
 			!['index.ts', 'types.ts', 'categories.ts', 'CollectionManager.ts'].includes(entry.name)
 		) {
+			// Check for name conflicts
+			const collectionName = entry.name.replace(/\.ts$/, '');
+			if (collectionNames.has(collectionName)) {
+				throw new Error(`Collection name conflict: "${collectionName}" is used multiple times. Collection names must be unique regardless of their directory location.`);
+			}
+			collectionNames.add(collectionName);
 			files.push(relativePath);
 		}
 	}
@@ -235,7 +247,6 @@ async function writeCompiledFile(filePath: string, code: string, originalContent
 }
 
 async function getFileHash(filePath: string): Promise<string> {
-	// Generate MD5 hash of file content
 	const content = await fs.readFile(filePath);
 	return crypto.createHash('md5').update(content).digest('hex');
 }

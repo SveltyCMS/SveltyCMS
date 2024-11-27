@@ -38,8 +38,8 @@ import type Mail from 'nodemailer/lib/mailer';
 import { languageTag } from '@src/paraglide/runtime';
 
 // System Logger
-import { logger } from '@utils/logger';
-import type { LoggableValue } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
+import type { LoggableValue } from '@utils/logger.svelte';
 
 // Email templates
 import userToken from '@components/emails/userToken.svelte';

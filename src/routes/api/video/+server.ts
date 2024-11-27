@@ -46,7 +46,7 @@ type TiktokData = BaseVideoData;
 type VideoData = YoutubeData | VimeoData | TwitchData | TiktokData;
 
 // System Logs
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Extracts the video ID from a YouTube URL
 function getYouTubeVideoId(url: string): string | null {

@@ -22,7 +22,7 @@ import type { LayoutServerLoad } from './$types';
 import { DEFAULT_THEME } from '@src/databases/themeManager';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Server-side load function for the layout
 export const load: LayoutServerLoad = async ({ locals, params }) => {

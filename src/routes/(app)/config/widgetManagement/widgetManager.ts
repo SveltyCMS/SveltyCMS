@@ -3,7 +3,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Path to widgets directory
 const WIDGETS_DIR = path.resolve('src/components/widgets');

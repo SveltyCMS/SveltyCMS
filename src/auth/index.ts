@@ -21,6 +21,7 @@
 import { error } from '@sveltejs/kit';
 import { privateEnv } from '@root/config/private';
 import path from 'path';
+import { dev } from '$app/environment';
 
 // Types
 import type { Cookie, User, Session, Token, Role, Permission, SessionStore } from './types';
@@ -44,7 +45,7 @@ if (typeof window === 'undefined') {
 const DEFAULT_SESSION_EXPIRATION_SECONDS = 3600; // 1 hour
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 export const SESSION_COOKIE_NAME = 'auth_sessions';
 
@@ -521,7 +522,7 @@ export class Auth {
 				path: '/',
 				httpOnly: true,
 				expires: session.expires,
-				secure: process.env.NODE_ENV === 'production' // Production by default
+				secure: !dev // Only secure in production
 			}
 		};
 	}

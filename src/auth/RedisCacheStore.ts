@@ -29,7 +29,7 @@ import type { User } from './types';
 import { createClient } from 'redis';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Redis cache store
 export class RedisCacheStore implements SessionStore {

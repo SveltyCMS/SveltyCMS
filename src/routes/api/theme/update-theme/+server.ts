@@ -10,7 +10,7 @@ import type { Theme } from '@src/databases/dbInterface';
 import { json, error } from '@sveltejs/kit';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger } from '@utils/logger.svelte';
 
 // Initialize ThemeManager singleton
 const themeManager = ThemeManager.getInstance();
