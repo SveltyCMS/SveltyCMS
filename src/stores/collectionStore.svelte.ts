@@ -40,7 +40,7 @@ export const unAssigned = store<Schema[]>([]);
 export const collection = store<Schema>({} as Schema);
 export const collectionValue = store<Record<string, unknown>>({});
 export const mode = store<ModeType>('view');
-export const modifyEntry = store((): void => {});
+export const modifyEntry = store<(status?: keyof typeof statusMap) => Promise<void>>(() => Promise.resolve());
 export const selectedEntries = store<string[]>([]);
 export const targetWidget = store<Widget>({ permissions: {} });
 export const categories = store<Record<string, CategoryData>>({});

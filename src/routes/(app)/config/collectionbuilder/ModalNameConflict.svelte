@@ -9,16 +9,17 @@ Features:
 -->
 <script lang="ts">
 	import { getModalStore } from '@skeletonlabs/skeleton';
+	const modalStore = getModalStore();
 
 	interface Props {
 		conflictingName: string;
 		conflictPath: string;
 		suggestions: string[];
+		onConfirm: (name: string) => void;
 	}
 
-	let { conflictingName = $bindable(), conflictPath = $bindable(), suggestions = $bindable([]) }: Props = $props();
+	let { conflictingName = $bindable(), conflictPath = $bindable(), suggestions = $bindable([]), onConfirm = $bindable(() => {}) }: Props = $props();
 
-	const modalStore = getModalStore();
 	let selectedName = $state(suggestions[0] || '');
 	let customName = $state('');
 	let useCustomName = $state(false);
@@ -26,7 +27,8 @@ Features:
 	function handleConfirm() {
 		const newName = useCustomName ? customName : selectedName;
 		if (newName) {
-			modalStore.close({ newName });
+			modalStore.close();
+			onConfirm(newName);
 		}
 	}
 

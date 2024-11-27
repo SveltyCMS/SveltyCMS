@@ -7,7 +7,6 @@ const WIDGET_NAME = 'RichText' as const;
 
 import { publicEnv } from '@root/config/public';
 import { getFieldName, getGuiFields } from '@utils/utils';
-import { MediaService } from '@utils/media/MediaService';
 import { GuiSchema, toString, GraphqlSchema, type Params } from './types';
 import type { ModifyRequestParams } from '..';
 import { dbAdapter } from '@src/databases/db';

@@ -22,7 +22,7 @@ Key features:
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
-	import { asAny, getFieldName, pascalToCamelCase } from '@utils/utils';
+	import { getFieldName, pascalToCamelCase } from '@utils/utils';
 
 	// Auth
 	import { page } from '$app/stores';
@@ -30,8 +30,8 @@ Key features:
 	const user = $page.data.user;
 
 	// Stores
-	import { contentLanguage, tabSet, validationStore, translationProgress } from '@stores/store';
-	import { collection, collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
+	import { contentLanguage, translationProgress } from '@stores/store';
+	import { collection, collectionValue } from '@root/src/stores/collectionStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -55,9 +55,13 @@ Key features:
 	// Local state
 	let apiUrl = $state('');
 	let isLoading = $state(true);
+	let tabSet = $state(0);
+	let tabValue = $state(0);
 
 	// Derived state
-	let derivedFields = $derived(fields || (collection.value?.fields ?? []));
+	let derivedFields = $derived(() => {
+		return fields || (collection.value?.fields ?? []);
+	});
 
 	// Dynamic import of widget components
 	const modules: Record<string, { default: any }> = import.meta.glob('@components/widgets/*/*.svelte', { eager: true });
@@ -102,6 +106,7 @@ Key features:
 	}
 
 	let filteredFields = $derived(filterFieldsByPermission(derivedFields, user.role));
+
 </script>
 
 {#if isLoading}
@@ -114,45 +119,54 @@ Key features:
 		active="border-b border-tertiary-500 dark:border-primary-500 variant-soft-secondary"
 		hover="hover:variant-soft-secondary"
 		regionList={getTabHeaderVisibility() ? 'hidden' : ''}
+		value={tabValue}
 	>
 		<!-- Tab headers -->
-		<Tab bind:group={$tabSet} name="tab1" value={0}>
-			<div class="flex items-center gap-1">
-				<iconify-icon icon="mdi:pen" width="24" class="text-tertiary-500 dark:text-primary-500"> </iconify-icon>
-				<p>{m.fields_edit()}</p>
-			</div>
+		<Tab bind:group={tabSet} name="tab1" value={0}>
+			{#snippet lead()}
+				<div class="flex items-center gap-1">
+					<iconify-icon icon="mdi:pen" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					<span>{m.fields_edit()}</span>
+				</div>
+			{/snippet}
 		</Tab>
 
 		{#if collection.value?.revision === true}
-			<Tab bind:group={$tabSet} name="tab2" value={1}>
-				<div class="flex items-center gap-1">
-					<iconify-icon icon="pepicons-pop:countdown" width="24" class="text-tertiary-500 dark:text-primary-500"> </iconify-icon>
-					<p>Ver. <span class="variant-outline-tertiary badge rounded-full dark:variant-outline-primary">1</span></p>
-				</div>
+			<Tab bind:group={tabSet} name="tab2" value={1}>
+				{#snippet lead()}
+					<div class="flex items-center gap-1">
+						<iconify-icon icon="pepicons-pop:countdown" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<p>Ver. <span class="variant-outline-tertiary badge rounded-full dark:variant-outline-primary">1</span></p>
+					</div>
+				{/snippet}
 			</Tab>
 		{/if}
 
 		{#if collection.value?.livePreview === true}
-			<Tab bind:group={$tabSet} name="tab3" value={2}>
-				<div class="flex items-center gap-1">
-					<iconify-icon icon="mdi:eye-outline" width="24" class="text-tertiary-500 dark:text-primary-500"> </iconify-icon>
-					<p>Preview</p>
-				</div>
+			<Tab bind:group={tabSet} name="tab3" value={2}>
+				{#snippet lead()}
+					<div class="flex items-center gap-1">
+						<iconify-icon icon="mdi:eye-outline" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<p>Preview</p>
+					</div>
+				{/snippet}
 			</Tab>
 		{/if}
 
 		{#if user.roles === 'admin'}
-			<Tab bind:group={$tabSet} name="tab4" value={3}>
-				<div class="flex items-center gap-1">
-					<iconify-icon icon="ant-design:api-outlined" width="24" class="text-tertiary-500 dark:text-primary-500"> </iconify-icon>
-					<p>API</p>
-				</div>
+			<Tab bind:group={tabSet} name="tab4" value={3}>
+				{#snippet lead()}
+					<div class="flex items-center gap-1">
+						<iconify-icon icon="ant-design:api-outlined" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+						<p>API</p>
+					</div>
+				{/snippet}
 			</Tab>
 		{/if}
 
 		<!-- Tab Panels -->
-		<svelte:fragment slot="panel">
-			{#if $tabSet === 0}
+		{#snippet panel()}
+			{#if tabSet === 0}
 				<div class="mb-2 text-center text-xs text-error-500">{m.fields_required()}</div>
 				<div class="rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900">
 					<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
@@ -211,7 +225,7 @@ Key features:
 						{/each}
 					</div>
 				</div>
-			{:else if $tabSet === 1}
+			{:else if tabSet === 1}
 				<!-- Revision tab content -->
 				<div class="mb-2 flex items-center justify-between gap-2">
 					<p class="text-center text-tertiary-500 dark:text-primary-500">{m.fields_revision_compare()}</p>
@@ -252,7 +266,7 @@ Key features:
 						/>
 					</div>
 				</div>
-			{:else if $tabSet === 2 && collection.value?.livePreview === true}
+			{:else if tabSet === 2 && collection.value?.livePreview === true}
 				<!-- Live Preview tab content -->
 				<div class="wrapper">
 					<h2 class="mb-4 text-center text-xl font-bold text-tertiary-500 dark:text-primary-500">Live Preview</h2>
@@ -260,7 +274,7 @@ Key features:
 						{@html getLivePreviewContent()}
 					</div>
 				</div>
-			{:else if $tabSet === 3}
+			{:else if tabSet === 3}
 				<!-- API Json tab content -->
 				{#if collectionValue.value == null}
 					<div class="variant-ghost-error mb-4 py-2 text-center font-bold">{m.fields_api_nodata()}</div>
@@ -285,6 +299,6 @@ Key features:
 					/>
 				{/if}
 			{/if}
-		</svelte:fragment>
+		{/snippet}
 	</TabGroup>
 {/if}

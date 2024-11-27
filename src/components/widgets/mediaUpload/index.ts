@@ -15,7 +15,7 @@ const WIDGET_NAME = 'MediaUpload' as const;
 import { publicEnv } from '@root/config/public';
 
 // Media
-import { MediaService } from '@utils/media/MediaService';
+//import { MediaService } from '@utils/media/MediaService';
 import type { MediaType, MediaAccess } from '@utils/media/mediaModels';
 import { Permission } from '@utils/media/mediaModels';
 
