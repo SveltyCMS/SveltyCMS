@@ -458,17 +458,28 @@ class CollectionManager {
 
 		const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || './collections';
 
-		const files = await fs.readdir(compiledDirectoryPath);
-		logger.debug('Files read from directory', { directory: compiledDirectoryPath, files });
+		// Helper function to recursively get all files
+		const getAllFiles = async (dir: string): Promise<string[]> => {
+			const entries = await fs.readdir(dir, { withFileTypes: true });
+			const files = await Promise.all(entries.map(async (entry) => {
+				const fullPath = path!.join(dir, entry.name);
+				return entry.isDirectory() ? getAllFiles(fullPath) : fullPath;
+			}));
+			return files.flat();
+		};
+
+		const allFiles = await getAllFiles(compiledDirectoryPath);
+		logger.debug('All files found recursively', { directory: compiledDirectoryPath, files: allFiles });
 
 		// Filter the list to only include .js files that are not excluded
-		const filteredFiles = files.filter((file) => {
+		const filteredFiles = allFiles.filter((file) => {
 			const isJSFile = path?.extname(file) === '.js';
-			const isNotExcluded = !['types.js', 'categories.js', 'index.js'].includes(file);
+			const fileName = path?.basename(file);
+			const isNotExcluded = !['types.js', 'categories.js', 'index.js'].includes(fileName!);
 			return isJSFile && isNotExcluded;
 		});
 
-		return filteredFiles ?? [];
+		return filteredFiles.map(file => path!.relative(compiledDirectoryPath, file)) ?? [];
 	}
 
 	// Read file with retry mechanism
