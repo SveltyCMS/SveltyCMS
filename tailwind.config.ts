@@ -20,8 +20,7 @@ import { skeleton } from '@skeletonlabs/tw-plugin';
 // Import Custom Theme
 import { SveltyCMSTheme } from './src/themes/SveltyCMS/SveltyCMSTheme';
 
-/** @type {import('tailwindcss').Config} */
-module.exports = {
+const config = {
 	// Opt for dark mode to be handled via the class method
 	darkMode: 'class',
 
@@ -65,3 +64,5 @@ module.exports = {
 		})
 	]
 } satisfies Config;
+
+export default config;

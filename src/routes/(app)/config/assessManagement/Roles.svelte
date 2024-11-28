@@ -31,13 +31,12 @@ It provides the following functionality:
 	import RoleModal from './RoleModal.svelte';
 
 	// Skeleton
-	import { getToastStore, getModalStore, type ModalComponent, type ModalSettings, type PopupSettings, popup } from '@skeletonlabs/skeleton';
+	import { getToastStore, getModalStore, type ModalSettings, type PopupSettings, popup } from '@skeletonlabs/skeleton';
 
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
 	// Svelte DND-actions
-	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
 	import { createRandomID } from '@utils/utils';
 
@@ -75,7 +74,7 @@ It provides the following functionality:
 	const loadRoleGroups = async () => {
 		try {
 			// Add id property for dndzone while keeping _id for data
-			const rolesWithId = roleData.map((role) => ({ ...role, id: role._id }));
+			const rolesWithId = roleData.map((role: Role) => ({ ...role, id: role._id }));
 			roles.set(rolesWithId);
 			items = rolesWithId;
 		} catch (err) {
@@ -91,7 +90,7 @@ It provides the following functionality:
 		}
 	};
 
-	const openModal = (role: Role | null = null, groupName: string = '') => {
+	const openModal = (role: Role | null = null, groupName = '') => {
 		isEditMode = !!role;
 		currentRoleId = role ? role._id : null;
 		currentGroupName = groupName || '';
@@ -122,7 +121,13 @@ It provides the following functionality:
 		modalStore.trigger(modal);
 	};
 
-	const saveRole = async (role) => {
+	const saveRole = async (role: { 
+		roleName: string; 
+		roleDescription: string; 
+		currentGroupName: string; 
+		selectedPermissions: string[]; 
+		currentRoleId: string | null;
+	}) => {
 		const { roleName, roleDescription, currentGroupName, selectedPermissions, currentRoleId } = role;
 		if (!roleName) return;
 
@@ -140,8 +145,8 @@ It provides the following functionality:
 			items = [...items, newRole];
 			modifiedRoles.add(roleId);
 			showToast('Role added. Click "Save" at the top to apply changes.', 'info');
-		} else {
-			const index = items.findIndex((cur) => cur._id === currentRoleId);
+		} else if (currentRoleId) {
+			const index = items.findIndex((cur: { _id: string }) => cur._id === currentRoleId);
 			items[index] = newRole;
 			items = [...items];
 			modifiedRoles.add(currentRoleId);
@@ -150,7 +155,7 @@ It provides the following functionality:
 
 		roles.set(items);
 		// Remove id property when sending data to parent
-		const cleanedItems = items.map(({ id, ...item }) => item);
+		const cleanedItems = items.map(({ id, ...item }: { id: string; [key: string]: any }) => item);
 		setRoleData(cleanedItems);
 
 		if (updateModifiedCount) {
@@ -159,7 +164,7 @@ It provides the following functionality:
 	};
 
 	// Show corresponding Toast messages
-	function showToast(message, type) {
+	function showToast(message: string, type: 'success' | 'error' | 'info' = 'info') {
 		const backgrounds = {
 			success: 'variant-filled-primary',
 			info: 'variant-filled-tertiary',
@@ -175,7 +180,7 @@ It provides the following functionality:
 
 	const deleteSelectedRoles = async () => {
 		for (const roleId of $selectedRoles) {
-			const index = items.findIndex((cur) => cur._id === roleId);
+			const index = items.findIndex((cur: { _id: string }) => cur._id === roleId);
 			items.splice(index, 1);
 			modifiedRoles.add(roleId);
 		}
@@ -185,7 +190,7 @@ It provides the following functionality:
 		showToast('Roles deleted. Click "Save" at the top to apply changes.', 'info');
 
 		// Remove id property when sending data to parent
-		const cleanedItems = items.map(({ id, ...item }) => item);
+		const cleanedItems = items.map(({ id, ...item }: { id: string; [key: string]: any }) => item);
 		setRoleData(cleanedItems);
 
 		// Notify the parent about the number of changes
@@ -205,13 +210,21 @@ It provides the following functionality:
 		});
 	};
 
-	function handleSort(e) {
+	// Types for DND events
+	type DndItem = Role & { id: string };
+	
+	function handleSort(e: CustomEvent<{
+		items: DndItem[];
+		info: {
+			id: number;
+		};
+	}>) {
 		items = [...e.detail.items];
 		roles.set(items);
 		modifiedRoles.add(e.detail.items[e.detail.info.id]._id);
 
 		// Remove id property when sending data to parent
-		const cleanedItems = items.map(({ id, ...item }) => item);
+		const cleanedItems = items.map(({ id, ...item }: { id: string; [key: string]: any }) => item);
 		setRoleData(cleanedItems);
 
 		// Notify the parent about the number of changes
@@ -220,13 +233,18 @@ It provides the following functionality:
 		}
 	}
 
-	function handleFinalize(e) {
+	function handleFinalize(e: CustomEvent<{
+		items: DndItem[];
+		info: {
+			id: number;
+		};
+	}>) {
 		items = [...e.detail.items];
 		roles.set(items);
 		modifiedRoles.add(e.detail.items[e.detail.info.id]._id);
 
 		// Remove id property when sending data to parent
-		const cleanedItems = items.map(({ id, ...item }) => item);
+		const cleanedItems = items.map(({ id, ...item }: { id: string; [key: string]: any }) => item);
 		setRoleData(cleanedItems);
 
 		// Notify the parent about the number of changes
