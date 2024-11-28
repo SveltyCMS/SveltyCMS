@@ -56,4 +56,29 @@ async function setCredentials(credentials: Credentials): Promise<void> {
     }
 }
 
-export { googleAuth, setCredentials };
+
+async function generateGoogleAuthUrl(token?: string | null): Promise<string> {
+	const googleAuthClient = await googleAuth();
+	if (!googleAuthClient) {
+		throw new Error('Google OAuth is not initialized');
+	}
+
+	const scopes = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'];
+	const baseUrl = `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`;
+
+	logger.debug(`Generating OAuth URL with base URL: ${baseUrl}`);
+
+	const authUrl = googleAuthClient.generateAuthUrl({
+		access_type: 'offline',
+		scope: scopes.join(' '),
+		redirect_uri: baseUrl,
+		state: token ? encodeURIComponent(token) : undefined,
+		prompt: 'consent',
+		include_granted_scopes: true
+	});
+
+	logger.debug(`Generated OAuth URL: ${authUrl}`);
+	return authUrl;
+}
+
+export { googleAuth, setCredentials, generateGoogleAuthUrl };
