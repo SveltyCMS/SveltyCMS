@@ -59,7 +59,7 @@ Key features:
 	let tabValue = $state(0);
 
 	// Derived state
-	let derivedFields = $derived(() => {
+	let derivedFields = $derived.by(() => {
 		return fields || (collection.value?.fields ?? []);
 	});
 
@@ -106,7 +106,6 @@ Key features:
 	}
 
 	let filteredFields = $derived(filterFieldsByPermission(derivedFields, user.role));
-
 </script>
 
 {#if isLoading}
@@ -122,7 +121,7 @@ Key features:
 		value={tabValue}
 	>
 		<!-- Tab headers -->
-		<Tab bind:group={tabSet.value} name="tab1" value={0}>
+		<Tab bind:group={tabSet} name="tab1" value={0}>
 			<div class="flex items-center gap-1">
 				<iconify-icon icon="mdi:pen" width="24" class="text-tertiary-500 dark:text-primary-500"> </iconify-icon>
 				<p>{m.fields_edit()}</p>
@@ -130,7 +129,7 @@ Key features:
 		</Tab>
 
 		{#if collection.value?.revision === true}
-			<Tab bind:group={tabSet.value} name="tab2" value={1}>
+			<Tab bind:group={tabSet} name="tab2" value={1}>
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="pepicons-pop:countdown" width="24" class="text-tertiary-500 dark:text-primary-500"> </iconify-icon>
 					<p>Ver. <span class="variant-outline-tertiary badge rounded-full dark:variant-outline-primary">1</span></p>
@@ -139,7 +138,7 @@ Key features:
 		{/if}
 
 		{#if collection.value?.livePreview === true}
-			<Tab bind:group={tabSet.value} name="tab3" value={2}>
+			<Tab bind:group={tabSet} name="tab3" value={2}>
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="mdi:eye-outline" width="24" class="text-tertiary-500 dark:text-primary-500"> </iconify-icon>
 					<p>Preview</p>
@@ -148,7 +147,7 @@ Key features:
 		{/if}
 
 		{#if user.roles === 'admin'}
-			<Tab bind:group={tabSet.value} name="tab4" value={3}>
+			<Tab bind:group={tabSet} name="tab4" value={3}>
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="ant-design:api-outlined" width="24" class="text-tertiary-500 dark:text-primary-500"> </iconify-icon>
 					<p>API</p>
@@ -158,7 +157,7 @@ Key features:
 
 		<!-- Tab Panels -->
 		<svelte:fragment slot="panel">
-			{#if tabSet.value === 0}
+			{#if tabSet === 0}
 				<div class="mb-2 text-center text-xs text-error-500">{m.fields_required()}</div>
 				<div class="rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900">
 					<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
@@ -217,7 +216,7 @@ Key features:
 						{/each}
 					</div>
 				</div>
-			{:else if tabSet.value === 1}
+			{:else if tabSet === 1}
 				<!-- Revision tab content -->
 				<div class="mb-2 flex items-center justify-between gap-2">
 					<p class="text-center text-tertiary-500 dark:text-primary-500">{m.fields_revision_compare()}</p>
@@ -258,7 +257,7 @@ Key features:
 						/>
 					</div>
 				</div>
-			{:else if tabSet.value === 2 && collection.value?.livePreview === true}
+			{:else if tabSet === 2 && collection.value?.livePreview === true}
 				<!-- Live Preview tab content -->
 				<div class="wrapper">
 					<h2 class="mb-4 text-center text-xl font-bold text-tertiary-500 dark:text-primary-500">Live Preview</h2>
@@ -266,7 +265,7 @@ Key features:
 						{@html getLivePreviewContent()}
 					</div>
 				</div>
-			{:else if tabSet.value === 3}
+			{:else if tabSet === 3}
 				<!-- API Json tab content -->
 				{#if collectionValue.value == null}
 					<div class="variant-ghost-error mb-4 py-2 text-center font-bold">{m.fields_api_nodata()}</div>
