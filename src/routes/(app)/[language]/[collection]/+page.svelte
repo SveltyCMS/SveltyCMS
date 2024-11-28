@@ -92,6 +92,10 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		initializeCollection();
 	}
 
+	$effect(() => {
+		console.debug('Collection loaded:', collectionValue.value);
+
+	})
 	// Update SEO metadata
 	$effect(() => {
 		if (!browser || !collection?.value?.name) return;
