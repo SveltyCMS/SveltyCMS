@@ -73,21 +73,21 @@ export async function getData(query: {
 
 // Function to add data to a specified collection
 export async function addData({ data, collectionTypes }: { data: FormData; collectionTypes: keyof CollectionTypes }) {
-	data.append('CollectionTypes', collectionTypes as string);
+	data.append('collectionTypes', collectionTypes as string);
 	data.append('method', 'POST');
 	return await axios.post(`/api/query`, data, config).then((res) => res.data);
 }
 
 // Function to update data in a specified collection
 export async function updateData({ data, collectionTypes }: { data: FormData; collectionTypes: keyof CollectionTypes }) {
-	data.append('CollectionTypes', collectionTypes as string);
+	data.append('collectionTypes', collectionTypes as string);
 	data.append('method', 'PATCH');
 	return await axios.post(`/api/query`, data, config).then((res) => res.data);
 }
 
 // Move FormData to trash folder and delete trash files older than 30 days
 export async function deleteData({ data, collectionTypes }: { data: FormData; collectionTypes: CollectionTypes }) {
-	data.append('CollectionTypes', collectionTypes);
+	data.append('collectionTypes', collectionTypes);
 	data.append('method', 'DELETE');
 
 	try {
@@ -111,7 +111,7 @@ export async function deleteData({ data, collectionTypes }: { data: FormData; co
 
 // Function to set the status of data in a specified collection
 export async function setStatus({ data, collectionTypes }: { data: FormData; collectionTypes: keyof CollectionTypes }) {
-	data.append('CollectionTypes', collectionTypes as string);
+	data.append('collectionTypes', collectionTypes as string);
 	data.append('method', 'SETSTATUS');
 	return await axios.post(`/api/query`, data, config).then((res) => res.data);
 }
