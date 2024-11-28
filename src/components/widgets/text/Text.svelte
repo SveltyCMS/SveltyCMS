@@ -42,11 +42,7 @@
 
 	let {
 		field,
-		value = $bindable(
-			collectionValue.value[getFieldName(field)] ?? {
-				[contentLanguage.value]: ''
-			}
-		),
+		value = $bindable(),
 		WidgetData = $bindable()
 	}: Props = $props();
 
@@ -65,6 +61,7 @@
 
 	WidgetData = async () => _data;
 
+	
 	// Validation and error state
 	let validationError = $state<string | null>(null);
 	let debounceTimeout: number | undefined;

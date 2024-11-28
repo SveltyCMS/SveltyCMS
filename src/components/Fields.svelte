@@ -50,7 +50,7 @@ Key features:
 		ariaDescribedby?: string;
 	}
 
-	let { fields = undefined, root = true, fieldsData = $bindable({}), customData = {}, ...restProps }: Props = $props();
+	let { fields = undefined, root = true, fieldsData = $bindable({}), customData = {} }: Props = $props();
 
 	// Local state
 	let apiUrl = $state('');
