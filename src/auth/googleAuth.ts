@@ -57,7 +57,7 @@ async function setCredentials(credentials: Credentials): Promise<void> {
 }
 
 
-async function generateGoogleAuthUrl(token?: string | null): Promise<string> {
+async function generateGoogleAuthUrl(token?: string | null, consent: string = "consent"): Promise<string> {
 	const googleAuthClient = await googleAuth();
 	if (!googleAuthClient) {
 		throw new Error('Google OAuth is not initialized');
@@ -73,7 +73,7 @@ async function generateGoogleAuthUrl(token?: string | null): Promise<string> {
 		scope: scopes.join(' '),
 		redirect_uri: baseUrl,
 		state: token ? encodeURIComponent(token) : undefined,
-		prompt: 'consent',
+		prompt: consent,
 		include_granted_scopes: true
 	});
 
