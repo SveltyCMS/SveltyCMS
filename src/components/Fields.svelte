@@ -50,7 +50,7 @@ Key features:
 		ariaDescribedby?: string;
 	}
 
-	let { fields = undefined, root = true, fieldsData = $bindable({}), customData = {}, ...restProps }: Props = $props();
+	let { fields = undefined, root = true, fieldsData = $bindable({}), customData = {} }: Props = $props();
 
 	// Local state
 	let apiUrl = $state('');
@@ -59,7 +59,7 @@ Key features:
 	let tabValue = $state(0);
 
 	// Derived state
-	let derivedFields = $derived(() => {
+	let derivedFields = $derived.by(() => {
 		return fields || (collection.value?.fields ?? []);
 	});
 
@@ -106,7 +106,6 @@ Key features:
 	}
 
 	let filteredFields = $derived(filterFieldsByPermission(derivedFields, user.role));
-
 </script>
 
 {#if isLoading}
@@ -123,49 +122,41 @@ Key features:
 	>
 		<!-- Tab headers -->
 		<Tab bind:group={tabSet} name="tab1" value={0}>
-			{#snippet lead()}
-				<div class="flex items-center gap-1">
-					<iconify-icon icon="mdi:pen" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					<span>{m.fields_edit()}</span>
-				</div>
-			{/snippet}
+			<div class="flex items-center gap-1">
+				<iconify-icon icon="mdi:pen" width="24" class="text-tertiary-500 dark:text-primary-500"> </iconify-icon>
+				<p>{m.fields_edit()}</p>
+			</div>
 		</Tab>
 
 		{#if collection.value?.revision === true}
 			<Tab bind:group={tabSet} name="tab2" value={1}>
-				{#snippet lead()}
-					<div class="flex items-center gap-1">
-						<iconify-icon icon="pepicons-pop:countdown" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						<p>Ver. <span class="variant-outline-tertiary badge rounded-full dark:variant-outline-primary">1</span></p>
-					</div>
-				{/snippet}
+				<div class="flex items-center gap-1">
+					<iconify-icon icon="pepicons-pop:countdown" width="24" class="text-tertiary-500 dark:text-primary-500"> </iconify-icon>
+					<p>Ver. <span class="variant-outline-tertiary badge rounded-full dark:variant-outline-primary">1</span></p>
+				</div>
 			</Tab>
 		{/if}
 
 		{#if collection.value?.livePreview === true}
 			<Tab bind:group={tabSet} name="tab3" value={2}>
-				{#snippet lead()}
-					<div class="flex items-center gap-1">
-						<iconify-icon icon="mdi:eye-outline" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						<p>Preview</p>
-					</div>
-				{/snippet}
+				<div class="flex items-center gap-1">
+					<iconify-icon icon="mdi:eye-outline" width="24" class="text-tertiary-500 dark:text-primary-500"> </iconify-icon>
+					<p>Preview</p>
+				</div>
 			</Tab>
 		{/if}
 
 		{#if user.roles === 'admin'}
 			<Tab bind:group={tabSet} name="tab4" value={3}>
-				{#snippet lead()}
-					<div class="flex items-center gap-1">
-						<iconify-icon icon="ant-design:api-outlined" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						<p>API</p>
-					</div>
-				{/snippet}
+				<div class="flex items-center gap-1">
+					<iconify-icon icon="ant-design:api-outlined" width="24" class="text-tertiary-500 dark:text-primary-500"> </iconify-icon>
+					<p>API</p>
+				</div>
 			</Tab>
 		{/if}
 
 		<!-- Tab Panels -->
-		{#snippet panel()}
+		<svelte:fragment slot="panel">
 			{#if tabSet === 0}
 				<div class="mb-2 text-center text-xs text-error-500">{m.fields_required()}</div>
 				<div class="rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900">
@@ -299,6 +290,6 @@ Key features:
 					/>
 				{/if}
 			{/if}
-		{/snippet}
+		</svelte:fragment>
 	</TabGroup>
 {/if}

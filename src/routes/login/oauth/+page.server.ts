@@ -25,7 +25,7 @@ import { systemLanguage } from '@stores/store';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-import { googleAuth, setCredentials } from '@src/auth/googleAuth';
+import { googleAuth, setCredentials, generateGoogleAuthUrl } from '@src/auth/googleAuth';
 
 // Types
 interface GoogleUserInfo {
@@ -37,30 +37,6 @@ interface GoogleUserInfo {
 	locale?: string | null;
 }
 
-// Generate Google OAuth URL
-async function generateGoogleAuthUrl(token?: string | null): Promise<string> {
-	const googleAuthClient = await googleAuth();
-	if (!googleAuthClient) {
-		throw new Error('Google OAuth is not initialized');
-	}
-
-	const scopes = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'];
-	const baseUrl = `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`;
-
-	logger.debug(`Generating OAuth URL with base URL: ${baseUrl}`);
-
-	const authUrl = googleAuthClient.generateAuthUrl({
-		access_type: 'offline',
-		scope: scopes.join(' '),
-		redirect_uri: baseUrl,
-		state: token ? encodeURIComponent(token) : undefined,
-		prompt: 'consent',
-		include_granted_scopes: true
-	});
-
-	logger.debug(`Generated OAuth URL: ${authUrl}`);
-	return authUrl;
-}
 
 // Send welcome email
 async function sendWelcomeEmail(fetchFn: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>, email: string, username: string) {
@@ -290,7 +266,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 
 			const { tokens } = await googleAuthClient.getToken({
 				code,
-				redirect_uri: redirectUri
+				redirect_uri: redirectUri,
+
 			});
 
 			if (!tokens) {
@@ -298,7 +275,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 				throw error(500, 'Failed to authenticate with Google');
 			}
 
-			setCredentials(tokens);
+			await setCredentials(tokens);
 
 			// Fetch Google user profile
 			const oauth2 = google.oauth2({ auth: googleAuthClient, version: 'v2' });

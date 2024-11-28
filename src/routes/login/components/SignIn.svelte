@@ -39,6 +39,7 @@ Features:
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import OauthLogin from "./OauthLogin.svelte";
 
 	// Props
 	const {
@@ -274,16 +275,16 @@ Features:
 		}
 	});
 
-	// Event handlers
-	function handleOAuth() {
-		const form = document.createElement('form');
-		form.method = 'post';
-		form.action = '?/OAuth';
-		document.body.appendChild(form);
-		form.submit();
-		document.body.removeChild(form);
-		setTimeout(() => {}, 300);
-	}
+	// // Event handlers
+	// function handleOAuth() {
+	// 	const form = document.createElement('form');
+	// 	form.method = 'post';
+	// 	form.action = '?/OAuth';
+	// 	document.body.appendChild(form);
+	// 	form.submit();
+	// 	document.body.removeChild(form);
+	// 	setTimeout(() => {}, 300);
+	// }
 
 	// Function to handle back button click
 	function handleBack(event: Event) {
@@ -362,7 +363,7 @@ Features:
 			{#if firstUserExists}
 				<!-- Sign In -->
 				{#if !PWforgot && !PWreset}
-					<form method="post" action="?/signIn" use:enhance bind:this={formElement} class="flex w-full flex-col gap-3" class:hide={active !== 0}>
+					<form id="signin-form" method="POST" action="?/signIn" use:enhance bind:this={formElement} class="flex w-full flex-col gap-3" class:hide={active !== 0}>
 						<!-- Email field -->
 						<FloatingInput
 							id="emailsignIn"
@@ -383,7 +384,7 @@ Features:
 							id="passwordsignIn"
 							name="password"
 							type="password"
-							autocomplete="current-password"
+							autocomplete="on"
 							tabindex={passwordTabIndex}
 							bind:value={$form.password}
 							{...$constraints.password}
@@ -395,43 +396,43 @@ Features:
 						/>
 						{#if $errors.password}<span class="invalid text-xs text-error-500">{$errors.password}</span>{/if}
 
-						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
-							<!-- Row 1 -->
-							<div class="flex w-full justify-between gap-2 sm:w-auto">
-								<button type="submit" class="variant-filled-surface btn w-full sm:w-auto" aria-label={m.form_signin()}>
-									{m.form_signin()}
-									<!-- Loading indicators -->
-									{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
-								</button>
-
-								{#if privateEnv.USE_GOOGLE_OAUTH === true}
-									<button type="button" onclick={handleOAuth} aria-label="OAuth" class="variant-filled-surface btn w-full sm:w-auto">
-										<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mt-1"></iconify-icon>
-										<p>OAuth</p>
-									</button>
-								{/if}
-							</div>
-
-							<!-- Row 2 -->
-							<div class="mt-4 flex w-full justify-between sm:mt-0 sm:w-auto">
-								<button
-									type="button"
-									class="variant-ringed-surface btn w-full text-black sm:w-auto"
-									aria-label={m.signin_forgottenpassword()}
-									tabindex={forgotPasswordTabIndex}
-									onclick={handleForgotPassword}
-								>
-									{m.signin_forgottenpassword()}
-								</button>
-							</div>
-						</div>
+						
 					</form>
+
+					<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
+						<!-- Row 1 -->
+						<div class="flex w-full justify-between gap-2 sm:w-auto">
+							<button type="submit" form="signin-form" class="variant-filled-surface btn w-full sm:w-auto" aria-label={m.form_signin()}>
+								{m.form_signin()}
+								<!-- Loading indicators -->
+								{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
+							</button>
+							<!-- OAuth Login -->
+							<OauthLogin />
+						</div>
+
+						
+
+						<!-- Row 2 -->
+						<div class="mt-4 flex w-full justify-between sm:mt-0 sm:w-auto">
+							<button
+								type="button"
+								class="variant-ringed-surface btn w-full text-black sm:w-auto"
+								aria-label={m.signin_forgottenpassword()}
+								tabindex={forgotPasswordTabIndex}
+								onclick={handleForgotPassword}
+							>
+								{m.signin_forgottenpassword()}
+							</button>
+						</div>
+					</div>
+					
 				{/if}
 
 				<!-- Forgotten Password -->
 				{#if PWforgot && !PWreset}
 					<form
-						method="post"
+						method="POST"
 						action="?/forgotPassword"
 						use:forgotEnhance
 						bind:this={formElement}
@@ -492,7 +493,7 @@ Features:
 				<!-- Reset Password -->
 				{#if PWforgot && PWreset}
 					<form
-						method="post"
+						method="POST"
 						action="?/resetPassword"
 						use:resetEnhance
 						bind:this={formElement}

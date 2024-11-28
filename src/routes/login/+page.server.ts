@@ -24,7 +24,7 @@ import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, s
 
 // Auth
 import { auth, initializationPromise } from '@src/databases/db';
-import { googleAuth } from '@root/src/auth/googleAuth';
+import { generateGoogleAuthUrl, googleAuth } from '@root/src/auth/googleAuth';
 import { google } from 'googleapis';
 import type { User } from '@src/auth/types';
 import type { Cookies } from '@sveltejs/kit';
@@ -342,30 +342,31 @@ export const actions: Actions = {
 	},
 
 	// OAuth Sign-Up
-	OAuth: async ({ request, url }) => {
-		const form = await superValidate(request, signUpOAuthFormSchema);
+	OAuth: async (event) => {
+
+		const form = await superValidate(event.request, wrappedSignUpOAuthSchema);
 
 		if (!form.valid) {
+			logger.debug(`Sign-up OAuth failed: ${form.message}`);
 			return { form };
 		}
 
 		// Check if Google OAuth is enabled
 		if (!privateEnv.USE_GOOGLE_OAUTH) {
-			throw redirect(303, '/login');
+			redirect(303, '/login');
 		}
 
 		// Rate limiting check
-		const rateLimitResult = await limiter.isLimited({ request });
-		if (!rateLimitResult.success) {
+		const rateLimitResult = await limiter.isLimited(event);
+		if (rateLimitResult) {
+			logger.info(`Rate limiting failed: ${rateLimitResult}`);
 			return {
 				form,
-				error: rateLimitResult.message
+				error: rateLimitResult
 			};
 		}
-
-		// Get Google OAuth URL
-		const authUrl = await getGoogleAuthUrl(url);
-		throw redirect(303, authUrl);
+		const authUrl = await generateGoogleAuthUrl()
+		redirect(303, authUrl);
 	},
 
 	// Function for handling the SignIn form submission and user authentication

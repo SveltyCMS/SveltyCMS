@@ -211,6 +211,10 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 		// Check if this is the first user, regardless of session
 		let userCount = 0;
 		let isFirstUser = false;
+		if(!auth)  {
+			logger.error('Auth service not initialized');
+			throw error(500, 'Auth service not initialized');
+		}
 		
 		try {
 			userCount = await auth.getUserCount();

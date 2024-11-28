@@ -10,11 +10,11 @@
 	let {
 		show = $bindable(true),
 		disabled = false,
-		onClick = () => {}
+		onClick = (_event: Event) => {}
 	} = $props<{
 		show?: boolean;
 		disabled?: boolean;
-		onClick?: () => void;
+		onClick?: (event: Event) => void;
 	}>();
 
 	function handleClick(event: MouseEvent) {

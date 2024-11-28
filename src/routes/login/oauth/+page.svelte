@@ -18,7 +18,7 @@
 		data: PageData;
 	}
 
-	let { data } = $props();
+	let { data }: Props = $props();
 
 	let isLoading = $state(true);
 	let token = $state('');
@@ -73,7 +73,7 @@
 	});
 </script>
 
-<div class="grid h-full w-full place-items-center bg-[#242728]" use:Loading={load}>
+<div class="grid h-full w-full place-items-center bg-[#242728]" >
 	{#if isLoading}
 		<Loading />
 	{:else}
