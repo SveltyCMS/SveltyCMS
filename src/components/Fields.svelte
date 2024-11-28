@@ -291,6 +291,6 @@ Key features:
 					/>
 				{/if}
 			{/if}
-		{/snippet}
+		</svelte:fragment>
 	</TabGroup>
 {/if}

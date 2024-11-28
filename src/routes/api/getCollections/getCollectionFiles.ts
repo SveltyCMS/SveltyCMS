@@ -11,6 +11,7 @@ import { logger } from '@utils/logger.svelte';
 
 // Redis
 import { isRedisEnabled, getCache, setCache } from '@src/databases/redis';
+import { fileURLToPath } from "url";
 
 // Default collections folder path
 const DEFAULT_COLLECTIONS_FOLDER = '../../../../collections';
@@ -45,7 +46,7 @@ const loadServerModules = async () => {
 
 	// Resolve collections folder path
 	const collectionsFolder = process.env.VITE_COLLECTIONS_FOLDER || path.resolve(
-		path.dirname(new URL(import.meta.url).pathname),
+		path.dirname(fileURLToPath(import.meta.url)),
 		DEFAULT_COLLECTIONS_FOLDER
 	);
 
