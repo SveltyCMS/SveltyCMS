@@ -44,7 +44,7 @@
 
 	// Get feedback message based on score
 	function getFeedback(score: number) {
-		const messages = {
+		const messages: Record<number, string> = {
 			0: 'Weak',
 			1: 'Good',
 			2: 'Strong'

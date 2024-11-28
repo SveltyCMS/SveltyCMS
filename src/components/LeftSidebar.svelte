@@ -23,9 +23,9 @@
 	import { page } from '$app/stores';
 	import { get } from 'svelte/store';
 	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store';
-	import { mode } from '@root/src/stores/collectionStore.svelte';
+	import { mode } from '@stores/collectionStore.svelte';
 	import { toggleSidebar, sidebarState, userPreferredState, handleSidebarToggle } from '@root/src/stores/sidebarStore.svelte';
-	import { screenSize } from '@root/src/stores/screenSizeStore.svelte';
+	import { screenSize } from '@stores/screenSizeStore.svelte';
 
 	// Import components and utilities
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
@@ -186,6 +186,17 @@
 		localStorage.setItem('theme', newMode ? 'light' : 'dark');
 	};
 
+	let handleUserClick = $derived(() => {
+		if (!$page.url.href.includes('user')) {
+			mode.set('view');
+			// Only handle sidebar on mobile
+			if (get(screenSize) === 'sm') {
+				toggleSidebar('left', 'hidden'); // Hide the left sidebar on mobile
+			}
+			goto('/user');
+		}
+	});
+
 	function handleSelectChange(event: Event) {
 		const target = event.target as HTMLSelectElement;
 		if (target) {
@@ -246,11 +257,13 @@
 				<button
 					use:popup={UserTooltip}
 					onclick={(e) => {
+						handleUserClick();
 						e.stopPropagation();
 					}}
 					onkeypress={(e) => {
 						e.stopPropagation();
 						if (e.key === 'Enter' || e.key === ' ') {
+							handleUserClick();
 							e.preventDefault();
 						}
 					}}

@@ -22,7 +22,7 @@ Key features:
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
-	import { asAny, getFieldName, pascalToCamelCase } from '@utils/utils';
+	import { getFieldName, pascalToCamelCase } from '@utils/utils';
 
 	// Auth
 	import { page } from '$app/stores';
@@ -30,8 +30,8 @@ Key features:
 	const user = $page.data.user;
 
 	// Stores
-	import { contentLanguage, tabSet, validationStore, translationProgress } from '@stores/store';
-	import { collection, collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
+	import { contentLanguage, translationProgress } from '@stores/store';
+	import { collection, collectionValue } from '@root/src/stores/collectionStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -55,9 +55,13 @@ Key features:
 	// Local state
 	let apiUrl = $state('');
 	let isLoading = $state(true);
+	let tabSet = $state(0);
+	let tabValue = $state(0);
 
 	// Derived state
-	let derivedFields = $derived(fields || (collection.value?.fields ?? []));
+	let derivedFields = $derived(() => {
+		return fields || (collection.value?.fields ?? []);
+	});
 
 	// Dynamic import of widget components
 	const modules: Record<string, { default: any }> = import.meta.glob('@components/widgets/*/*.svelte', { eager: true });
@@ -102,6 +106,7 @@ Key features:
 	}
 
 	let filteredFields = $derived(filterFieldsByPermission(derivedFields, user.role));
+
 </script>
 
 {#if isLoading}
@@ -114,6 +119,7 @@ Key features:
 		active="border-b border-tertiary-500 dark:border-primary-500 variant-soft-secondary"
 		hover="hover:variant-soft-secondary"
 		regionList={getTabHeaderVisibility() ? 'hidden' : ''}
+		value={tabValue}
 	>
 		<!-- Tab headers -->
 		<Tab bind:group={tabSet.value} name="tab1" value={0}>
@@ -285,6 +291,6 @@ Key features:
 					/>
 				{/if}
 			{/if}
-		</svelte:fragment>
+		{/snippet}
 	</TabGroup>
 {/if}

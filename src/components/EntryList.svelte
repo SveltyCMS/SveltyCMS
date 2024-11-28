@@ -97,7 +97,14 @@ Features:
 				};
 
 	// Initialize displayTableHeaders with proper typing
-	let displayTableHeaders = $state<{ label: string; name: string; id: string; visible: boolean }[]>(
+	interface TableHeader {
+		label: string;
+		name: string;
+		id: string;
+		visible: boolean;
+	}
+
+	let displayTableHeaders = $state<TableHeader[]>(
 		entryListPaginationSettings?.displayTableHeaders?.length > 0 ? entryListPaginationSettings.displayTableHeaders : []
 	);
 
@@ -244,7 +251,7 @@ Features:
 
 		// Update displayTableHeaders based on entryListPaginationSettings
 		if (entryListPaginationSettings.displayTableHeaders.length > 0) {
-			displayTableHeaders = entryListPaginationSettings.displayTableHeaders.map((header) => ({
+			displayTableHeaders = entryListPaginationSettings.displayTableHeaders.map((header: TableHeader) => ({
 				...header,
 				id: crypto.randomUUID() // Add unique id for each header (optional)
 			}));
@@ -341,16 +348,18 @@ Features:
 	});
 
 	// Tick Row - modify STATUS of an Entry
-	modifyEntry.set(async (status: keyof typeof statusMap) => {
+	modifyEntry.set(async (status?: keyof typeof statusMap): Promise<void> => {
+		if (!status) return Promise.resolve();
+
 		// Initialize an array to store the IDs of the items to be modified
 		const modifyList: Array<string> = [];
 		// Loop over the selectedMap object
-		for (const item in selectedMap) {
+		for (const [index, isSelected] of Object.entries(selectedMap)) {
 			// If the item is ticked, add its ID to the modifyList
-			selectedMap[item] && modifyList.push(tableData[item]._id);
+			isSelected && modifyList.push(tableData[Number(index)]._id);
 		}
 		// If no rows are selected, return
-		if (modifyList.length === 0) return;
+		if (modifyList.length === 0) return Promise.resolve();
 
 		// Function to handle confirmation modal response
 		const handleConfirmation = async (confirm: boolean) => {

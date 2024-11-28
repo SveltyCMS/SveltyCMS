@@ -24,8 +24,8 @@
 	import { goto } from '$app/navigation';
 
 	let files: File[] = [];
-	let input: HTMLInputElement = $state();
-	let dropZone: HTMLDivElement = $state();
+	let input: HTMLInputElement;
+	let dropZone: HTMLDivElement;
 
 	const modalStore = getModalStore();
 	const toastStore = getToastStore();
@@ -111,9 +111,10 @@
 		files.forEach((file) => {
 			formData.append('files', file);
 		});
+		formData.append('processType', 'save');
 
 		try {
-			const response = await fetch('/api/mediaHandler/saveMedia', {
+			const response = await fetch('/api/media/process', {
 				method: 'POST',
 				body: formData
 			});

@@ -35,7 +35,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { getToastStore, getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
+	import { getToastStore, getModalStore, type ModalSettings, type ModalComponent } from '@skeletonlabs/skeleton';
 
 	interface CategoryModalResponse {
 		newCategoryName: string;
@@ -45,6 +45,22 @@
 	interface ApiResponse {
 		error?: string;
 		[key: string]: any;
+	}
+
+	interface NameConflictResponse {
+		canProceed: boolean;
+		newName?: string;
+	}
+
+	interface ConflictResult {
+		exists: boolean;
+		conflictPath?: string;
+		suggestions?: string[];
+	}
+
+	interface ExistingCategory {
+		name: string;
+		icon: string;
 	}
 
 	// State variables
@@ -61,7 +77,7 @@
 	});
 
 	// Modal Trigger - New Category
-	function modalAddCategory(existingCategory?: { name: string; icon: string }): void {
+	function modalAddCategory(existingCategory?: ExistingCategory): void {
 		const modalComponent: ModalComponent = {
 			ref: ModalCategory,
 			props: {
@@ -93,16 +109,16 @@
 		modalStore.trigger(modalSettings);
 	}
 
-	async function updateExistingCategory(existingCategory: { name: string; icon: string }, response: CategoryModalResponse) {
+	async function updateExistingCategory(existingCategory: ExistingCategory, response: CategoryModalResponse): Promise<void> {
 		const newConfig = { ...currentConfig };
-		Object.entries(newConfig).forEach(([key, category]) => {
+		Object.entries(newConfig).forEach(([_, category]) => {
 			if (category.name === existingCategory.name) {
 				category.name = response.newCategoryName;
 				category.icon = response.newCategoryIcon;
 			}
 			// Also check subcategories
 			if (category.subcategories) {
-				Object.entries(category.subcategories).forEach(([subKey, subCategory]) => {
+				Object.entries(category.subcategories).forEach(([_, subCategory]) => {
 					if (subCategory.name === existingCategory.name) {
 						subCategory.name = response.newCategoryName;
 						subCategory.icon = response.newCategoryIcon;
@@ -114,7 +130,7 @@
 		categories.set(newConfig);
 	}
 
-	async function addNewCategory(response: CategoryModalResponse) {
+	async function addNewCategory(response: CategoryModalResponse): Promise<void> {
 		const newConfig = { ...currentConfig };
 		const categoryKey = response.newCategoryName.toLowerCase().replace(/\s+/g, '-');
 		const newCategoryId = await createRandomID();
@@ -131,86 +147,90 @@
 	}
 
 	// Check for name conflicts before saving
-	async function checkNameConflicts(name: string): Promise<{ canProceed: boolean; newName?: string }> {
+	async function checkNameConflicts(name: string): Promise<NameConflictResponse> {
 		const collectionsPath = 'config/collections';
-		const conflict = await checkCollectionNameConflict(name, collectionsPath);
+		const conflict: ConflictResult = await checkCollectionNameConflict(name, collectionsPath);
 
 		if (conflict.exists) {
-			// Show modal with conflict info and suggestions
-			const modalComponent: ModalComponent = {
-				ref: ModalNameConflict,
-				props: {
-					conflictingName: name,
-					conflictPath: conflict.conflictPath,
-					suggestions: conflict.suggestions
-				}
-			};
+			return new Promise((resolve) => {
+				const modalComponent = {
+					ref: ModalNameConflict,
+					props: {
+						conflictingName: name,
+						conflictPath: conflict.conflictPath,
+						suggestions: conflict.suggestions,
+						onConfirm: (newName: string) => {
+							modalStore.close();
+							resolve({ canProceed: true, newName });
+						}
+					}
+				};
 
-			const modalSettings: ModalSettings = {
-				type: 'component',
-				component: modalComponent,
-				title: 'Collection Name Conflict',
-				buttonTextCancel: 'Cancel',
-				buttonTextConfirm: 'Use Suggestion'
-			};
+				const modalSettings: ModalSettings = {
+					type: 'component',
+					component: modalComponent,
+					title: 'Collection Name Conflict',
+					buttonTextCancel: 'Cancel',
+					buttonTextConfirm: 'Use Suggestion'
+				};
 
-			const response = await modalStore.trigger(modalSettings);
-
-			if (response) {
-				return { canProceed: true, newName: response.newName };
-			}
-			return { canProceed: false };
+				modalStore.trigger(modalSettings);
+			});
 		}
 
 		return { canProceed: true };
 	}
 
 	// Handle collection save with conflict checking
-	async function handleSave(event: CustomEvent<{ name: string; data: any }>) {
+	function handleSave(event: CustomEvent<{ name: string; data: Record<string, CategoryData> }>): void {
 		const { name, data } = event.detail;
 
-		const nameCheck = await checkNameConflicts(name);
-		if (!nameCheck.canProceed) {
-			showToast('Collection save cancelled due to name conflict', 'error');
-			return;
-		}
-
-		const finalName = nameCheck.newName || name;
-		try {
-			const response = await fetch('/api/categories', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					categories: currentConfig,
-					save: true
-				})
-			});
-
-			const result: ApiResponse = await response.json();
-
-			if (response.ok) {
-				showToast('Categories updated successfully', 'success');
-				currentConfig = currentConfig;
-				categories.set(currentConfig);
-			} else {
-				const errorMessage = result.error || 'Error updating categories';
-				console.error('Update categories error:', result);
-				apiError = errorMessage;
-				showToast(errorMessage, 'error');
+		checkNameConflicts(name).then(async (nameCheck) => {
+			if (!nameCheck.canProceed) {
+				showToast('Collection save cancelled due to name conflict', 'error');
+				return;
 			}
-		} catch (error) {
-			const errorMessage = error instanceof Error ? error.message : 'Network error occurred';
-			console.error('Network error:', error);
-			apiError = errorMessage;
-			showToast(`Network error: ${errorMessage}`, 'error');
-		} finally {
-			isLoading = false;
-		}
+
+			const finalName = nameCheck.newName || name;
+			try {
+				isLoading = true;
+				const response = await fetch('/api/categories', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({
+						name: finalName,
+						data
+					})
+				});
+
+				const result: ApiResponse = await response.json();
+
+				if (response.ok) {
+					showToast('Categories updated successfully', 'success');
+					currentConfig = currentConfig;
+					categories.set(currentConfig);
+
+					// Create and dispatch a proper CustomEvent
+					const saveEvent = new CustomEvent('save', {
+						detail: { name: finalName, data }
+					});
+					dispatchEvent(saveEvent);
+				} else {
+					throw new Error(result.error || 'Failed to update categories');
+				}
+			} catch (error) {
+				console.error('Error saving categories:', error);
+				showToast(error instanceof Error ? error.message : 'Failed to save categories', 'error');
+				apiError = error instanceof Error ? error.message : 'Unknown error occurred';
+			} finally {
+				isLoading = false;
+			}
+		});
 	}
 
-	function handleAddCollectionClick() {
+	function handleAddCollectionClick(): void {
 		mode.set('create');
 		collectionValue.set({
 			name: 'new',
@@ -224,7 +244,7 @@
 	}
 
 	// Show corresponding Toast messages
-	function showToast(message: string, type: 'success' | 'info' | 'error' = 'info') {
+	function showToast(message: string, type: 'success' | 'info' | 'error' = 'info'): void {
 		const backgrounds = {
 			success: 'variant-filled-primary',
 			info: 'variant-filled-tertiary',
@@ -269,7 +289,7 @@
 
 	<button
 		type="button"
-		onclick={() => handleSave({ detail: { name: 'categories', data: currentConfig } })}
+		onclick={() => handleSave(new CustomEvent('save', { detail: { name: 'categories', data: currentConfig } }))}
 		aria-label="Save"
 		class="variant-filled-primary btn gap-2 lg:ml-4"
 		disabled={isLoading}

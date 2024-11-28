@@ -9,11 +9,25 @@ import { SESSION_COOKIE_NAME } from '@src/auth';
 // Media Processing
 import { extractMetadata } from '@utils/media/mediaProcessing';
 import { MediaService } from '@utils/media/MediaService';
-import type {  MediaAccess } from '@utils/media/mediaModels';
+import type { MediaType, MediaAccess } from '@utils/media/mediaModels';
 import { Permission } from '@utils/media/mediaModels';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
+
+// Response types
+interface ProcessResult {
+    success: boolean;
+    data?: MediaType | MediaType[];
+    error?: string;
+}
+
+interface FileProcessResult {
+    fileName: string;
+    success: boolean;
+    data?: MediaType;
+    error?: string;
+}
 
 // Helper function to get MediaService instance
 function getMediaService(): MediaService {
@@ -67,17 +81,66 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
         // Initialize MediaService
         const mediaService = getMediaService();
 
-        let result: any;
+        let result: ProcessResult;
         switch (processType) {
-            case 'metadata':
-                result = await extractMetadata(file);
+            case 'metadata': {
+                const file = formData.get('file');
+                if (!file || !(file instanceof File)) {
+                    logger.warn('No valid file received for metadata processing');
+                    return json({ success: false, error: 'No valid file received' }, { status: 400 });
+                }
+                const metadata = await extractMetadata(file);
+                result = { success: true, data: metadata };
                 break;
+            }
             case 'save': {
+                const files = formData.getAll('files');
+                if (files.length === 0 || !files.every(file => file instanceof File)) {
+                    logger.warn('No valid files received for saving');
+                    return json({ success: false, error: 'No valid files received' }, { status: 400 });
+                }
+
                 const access: MediaAccess = {
                     userId: user._id.toString(),
                     permissions: [Permission.Read, Permission.Write]
                 };
-                result = await mediaService.saveMedia(file, user._id.toString(), access);
+
+                // Process all files
+                const results: FileProcessResult[] = [];
+                for (const file of files) {
+                    if (file instanceof File) {
+                        try {
+                            const saveResult = await mediaService.saveMedia(file, user._id.toString(), access);
+                            results.push({
+                                fileName: file.name,
+                                success: true,
+                                data: saveResult
+                            });
+                            logger.info(`Successfully saved file: ${file.name}`, {
+                                userId: user._id,
+                                fileSize: file.size
+                            });
+                        } catch (err) {
+                            const error = err instanceof Error ? err.message : String(err);
+                            logger.error(`Error saving file ${file.name}:`, error);
+                            results.push({
+                                fileName: file.name,
+                                success: false,
+                                error
+                            });
+                        }
+                    }
+                }
+                result = { success: true, data: results };
+                break;
+            }
+            case 'delete': {
+                const mediaId = formData.get('mediaId');
+                if (!mediaId || typeof mediaId !== 'string') {
+                    return json({ success: false, error: 'Invalid media ID' }, { status: 400 });
+                }
+                await mediaService.deleteMedia(mediaId);
+                result = { success: true };
                 break;
             }
             default:
