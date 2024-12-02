@@ -101,8 +101,9 @@ Key features:
 	}
 
 	function getLivePreviewContent() {
-		// Ensure collection.value.name is a string
-		return `<div>Live Preview Content for ${String(collection.value?.name) ?? ''}</div>`;
+		// Ensure collection.value?.name is a string and handle undefined case
+		const collectionName = collection.value?.name ? String(collection.value.name) : '';
+		return `<div>Live Preview Content for Collection: <span class="font-bold text-tertiary-500 dark:text-primary-500">${collectionName}</span></div>`;
 	}
 
 	let filteredFields = $derived(filterFieldsByPermission(derivedFields, user.role));
@@ -137,6 +138,7 @@ Key features:
 			</Tab>
 		{/if}
 
+		<!-- TODO: Should not show if livePreview is false -->
 		{#if collection.value?.livePreview === true}
 			<Tab bind:group={tabSet} name="tab3" value={2}>
 				<div class="flex items-center gap-1">

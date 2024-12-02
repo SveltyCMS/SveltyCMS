@@ -86,14 +86,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	try {
-		const user = locals.user;
+		// User is already validated in hooks.server.ts
+		const { user } = locals;
 		if (!user) {
-			logger.warn('No user found in locals, redirecting to login');
 			throw redirect(302, '/login');
 		}
 
-		// Convert user._id to a string to ensure it's serializable
-		const userData = convertIdToString(user);
 		const folderIdentifier = publicEnv.MEDIA_FOLDER;
 
 		// Fetch media files
@@ -128,7 +126,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const virtualFolders = await dbAdapter.getVirtualFolders();
 		const serializedVirtualFolders = virtualFolders.map((folder) => convertIdToString(folder));
 
-		logger.info(`Fetched ${serializedVirtualFolders.length} virtual folders`);
+		logger.info(`Fetched \x1b[34m${serializedVirtualFolders.length}\x1b[0m virtual folders`);
 
 		logger.debug('Media gallery data and virtual folders loaded successfully');
 		const returnData = {

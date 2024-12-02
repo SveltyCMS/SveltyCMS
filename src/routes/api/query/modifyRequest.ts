@@ -69,14 +69,14 @@ const getPerformanceEmoji = (responseTime: number): string => {
 export async function modifyRequest({ data, fields, collection, user, type }: ModifyRequestParams) {
 	const start = performance.now();
 	try {
-		logger.debug(`Starting modifyRequest for type: ${type}, user: ${user._id}, collection: ${collection.modelName}`);
+		logger.debug(`Starting modifyRequest for type: \x1b[34m${type}\x1b[0m, user: \x1b[34m${user._id}\x1b[0m, collection: \x1b[34m${collection.modelName}\x1b[0m`);
 
 		for (const field of fields) {
 			const fieldStart = performance.now();
 			const widget = widgets[field.widget.Name];
 			const fieldName = getFieldName(field);
 
-			logger.debug(`Processing field: ${fieldName}, widget: ${field.widget.Name}`);
+			logger.debug(`Processing field: \x1b[34m${fieldName}\x1b[0m, widget: \x1b[34m${field.widget.Name}\x1b[0m`);
 
 			if (widget && 'modifyRequest' in widget) {
 				data = await Promise.all(
@@ -129,7 +129,7 @@ export async function modifyRequest({ data, fields, collection, user, type }: Mo
 				const fieldEmoji = getPerformanceEmoji(fieldDuration);
 				logger.debug(`Field ${fieldName} processed in ${fieldDuration.toFixed(2)}ms ${fieldEmoji}`);
 			} else {
-				logger.warn(`No modifyRequest handler for widget: ${field.widget.Name}`);
+				logger.warn(`No modifyRequest handler for widget: \x1b[34m${field.widget.Name}\x1b[0m`);
 			}
 		}
 

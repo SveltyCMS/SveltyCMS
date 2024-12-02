@@ -478,11 +478,11 @@ export class Auth {
 		try {
 			const tokens = await this.db.getAllTokens(filter);
 			const count = tokens.length;
-			logger.debug(`index.ts:getAllTokens Retrieved ${count} tokens`);
+			logger.debug(`index.ts:getAllTokens Retrieved \x1b[34m${count}\x1b[0m tokens`);
 			return { tokens, count };
 		} catch (err) {
 			const errMsg = err instanceof Error ? err.message : String(err);
-			logger.error(`Failed to get all tokens: ${errMsg}`);
+			logger.error(`Failed to get all tokens: \x1b[31m${errMsg}\x1b[0m`);
 			throw error(500, `Failed to get all tokens: ${errMsg}`);
 		}
 	}
@@ -492,10 +492,10 @@ export class Auth {
 		try {
 			await this.db.deleteSession(session_id);
 			await this.sessionStore.delete(session_id);
-			logger.info(`Session destroyed: ${session_id}`);
+			logger.info(`Session destroyed: \x1b[34m${session_id}\x1b[0m`);
 		} catch (err) {
 			const errMsg = err instanceof Error ? err.message : String(err);
-			logger.error(`Failed to destroy session: ${errMsg}`);
+			logger.error(`Failed to destroy session: \x1b[31m${errMsg}\x1b[0m`);
 			throw error(500, `Failed to destroy session: ${errMsg}`);
 		}
 	}
@@ -504,7 +504,7 @@ export class Auth {
 	async cleanupExpiredSessions(): Promise<void> {
 		try {
 			const deletedCount = await this.db.deleteExpiredSessions();
-			logger.info(`Cleaned up ${deletedCount} expired sessions`);
+			logger.info(`Cleaned up \x1b[34m${deletedCount}\x1b[0m expired sessions`);
 		} catch (err) {
 			const errMsg = err instanceof Error ? err.message : String(err);
 			logger.error(`Failed to clean up expired sessions: ${errMsg}`);
@@ -531,13 +531,13 @@ export class Auth {
 	async login(email: string, password: string): Promise<User | null> {
 		const user = await this.db.getUserByEmail(email);
 		if (!user || !user.password) {
-			const message = `Login failed: User not found or password not set for email: ${email}`;
+			const message = `Login failed: User not found or password not set for email: \x1b[34m${email}\x1b[0m`;
 			logger.warn(message);
 			return null; // Return null if user doesn't exist or password is not set
 		}
 
 		if (user.lockoutUntil && new Date(user.lockoutUntil) > new Date()) {
-			const message = `Login attempt for locked out account: ${email}`;
+			const message = `Login attempt for locked out account: \x1b[34m${email}\x1b[0m`;
 			logger.warn(message);
 			throw error(403, { message: 'Account is temporarily locked. Please try again later.' });
 		}
@@ -556,19 +556,19 @@ export class Auth {
 				if (failedAttempts >= 5) {
 					const lockoutUntil = new Date(Date.now() + 30 * 60 * 1000); // Lockout for 30 minutes
 					await this.db.updateUserAttributes(user._id!, { failedAttempts, lockoutUntil });
-					const message = `User locked out due to too many failed attempts: ${user._id}`;
+					const message = `User locked out due to too many failed attempts: \x1b[34m${user._id}\x1b[0m`;
 					logger.warn(message);
 					throw error(403, { message: 'Account is temporarily locked due to too many failed attempts. Please try again later.' });
 				} else {
 					await this.db.updateUserAttributes(user._id!, { failedAttempts });
-					const message = `Invalid login attempt for user: ${user._id}`;
+					const message = `Invalid login attempt for user: \x1b[34m${user._id}\x1b[0m`;
 					logger.warn(message);
 					throw error(401, { message: 'Invalid credentials. Please try again.' });
 				}
 			}
 		} catch (err) {
 			const errMsg = err instanceof Error ? err.message : String(err);
-			logger.error(`Login error: ${errMsg}`);
+			logger.error(`Login error: \x1b[31m${errMsg}\x1b[0m`);
 			throw error(500, `Login error: ${errMsg}`);
 		}
 	}
@@ -578,10 +578,10 @@ export class Auth {
 		try {
 			await this.db.deleteSession(session_id);
 			await this.sessionStore.delete(session_id);
-			logger.info(`User logged out: ${session_id}`);
+			logger.info(`User logged out: \x1b[34m${session_id}\x1b[0m`);
 		} catch (err) {
 			const errMsg = err instanceof Error ? err.message : String(err);
-			logger.error(`Failed to log out: ${errMsg}`);
+			logger.error(`Failed to log out: \x1b[31m${errMsg}\x1b[0m`);
 			throw error(500, `Failed to log out: ${errMsg}`);
 		}
 	}
@@ -589,7 +589,7 @@ export class Auth {
 	// Validate a session
 	async validateSession({ session_id }: { session_id: string }): Promise<User | null> {
 		try {
-			logger.info(`Validating session with ID: ${session_id}`);
+			logger.info('Validating session', { session_id });
 			if (!session_id) {
 				const message = 'Session ID is undefined';
 				logger.error(message);
@@ -598,16 +598,14 @@ export class Auth {
 			const user = await this.db.validateSession(session_id);
 
 			if (user) {
-				logger.info(`Session is valid for user: ${user.email}`);
+				logger.info('Session is valid', { email: user.email });
 			} else {
-				const message = `Invalid session ID: ${session_id}`;
-				logger.warn(message);
+				logger.warn('Invalid session', { session_id });
 			}
 			return user; // Return the user or null if session is invalid
 		} catch (err) {
-			const errMsg = err instanceof Error ? err.message : String(err);
-			logger.error(`Failed to validate session: ${errMsg}`);
-			throw error(500, `Failed to validate session: ${errMsg}`);
+			logger.error('Failed to validate session', { error: err instanceof Error ? err.message : String(err) });
+			throw error(500, `Failed to validate session: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	}
 
