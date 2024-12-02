@@ -77,7 +77,6 @@ Key features:
 
 		const newPath = `/${contentLanguage.value || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${String(newCollection.name)}`;
 		if ($page.url.pathname !== newPath) {
-			console.debug('Redirecting to new path:', newPath, newCollection);
 			goto(newPath);
 		}
 	});

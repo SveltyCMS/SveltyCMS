@@ -35,54 +35,54 @@ import { saveAvatarImage } from '@utils/media/mediaStorage';
 import { getCacheStore } from '@src/cacheStore/index.server';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	try {
-		// Check if the user has permission to update their avatar
-		const { hasPermission } = await checkUserPermission(locals.user, {
-			contextId: 'user/profile',
-			name: 'Update Avatar',
-			action: 'update',
-			contextType: 'user'
-		});
+  try {
+    // Check if the user has permission to update their avatar
+    const { hasPermission } = await checkUserPermission(locals.user, {
+      contextId: 'user/profile',
+      name: 'Update Avatar',
+      action: 'update',
+      contextType: 'user'
+    });
 
-		if (!hasPermission) {
-			logger.error('Unauthorized to update avatar');
-			throw error(403, 'Unauthorized to update avatar');
-		}
+    if (!hasPermission) {
+      logger.error('Unauthorized to update avatar');
+      throw error(403, 'Unauthorized to update avatar');
+    }
 
-		// Ensure the authentication system is initialized
-		if (!auth) {
-			logger.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error');
-		}
+    // Ensure the authentication system is initialized
+    if (!auth) {
+      logger.error('Authentication system is not initialized');
+      throw error(500, 'Internal Server Error');
+    }
 
-		const formData = await request.formData();
-		const avatarFile = formData.get('avatar') as File | null;
+    const formData = await request.formData();
+    const avatarFile = formData.get('avatar') as File | null;
 
-		if (!avatarFile) {
-			logger.error('No avatar file provided');
-			throw error(400, 'No avatar file provided');
-		}
+    if (!avatarFile) {
+      logger.error('No avatar file provided');
+      throw error(400, 'No avatar file provided');
+    }
 
-		// Save the avatar image
-		const avatarUrl = await saveAvatarImage(avatarFile, 'avatars');
-		// Update the user's profile with the new avatar URL
-		await auth.updateUserAttributes(locals.user._id, { avatar: avatarUrl });
+    // Save the avatar image
+    const avatarUrl = await saveAvatarImage(avatarFile)
+    // Update the user's profile with the new avatar URL
+    await auth.updateUserAttributes(locals.user._id, { avatar: avatarUrl });
 
-		const session_id = locals.session_id;
+    const session_id = locals.session_id;
 
-		const user = await auth.validateSession({ session_id });
-		const cacheStore = getCacheStore();
-		cacheStore.set(session_id, user, new Date(Date.now() + 3600 * 1000));
-		logger.info('Avatar saved successfully', { userId: locals.user.id });
+    const user = await auth.validateSession({ session_id });
+    const cacheStore = getCacheStore();
+    cacheStore.set(session_id, user, new Date(Date.now() + 3600 * 1000));
+    logger.info('Avatar saved successfully', { userId: locals.user.id });
 
-		return json({
-			success: true,
-			message: 'Avatar saved successfully',
-			avatarUrl
-		});
-	} catch (error) {
-		const err = error instanceof Error ? error : new Error(String(error));
-		logger.error(`Error in saveAvatar API: ${err.message}`);
-		return json({ success: false, message: err.message }, { status: 500 });
-	}
+    return json({
+      success: true,
+      message: 'Avatar saved successfully',
+      avatarUrl
+    });
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error(`Error in saveAvatar API: ${err.message}`);
+    return json({ success: false, message: err.message }, { status: 500 });
+  }
 };
