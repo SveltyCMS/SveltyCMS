@@ -27,26 +27,26 @@ const rolePermissionCache: Record<string, Permission[]> = {};
 // Checks if the user has the necessary permissions based on their role and the required permission configuration.
 export async function checkUserPermission(user: User, config: PermissionConfig): Promise<{ hasPermission: boolean; isRateLimited: boolean }> {
 	try {
-		logger.debug(`Starting permission check for user: ${user.email}, role: ${user.role}, config: ${JSON.stringify(config)}`);
+		logger.debug('Starting permission check', { user: { email: user.email, role: user.role }, config });
 
 		// Retrieve the user's role from the configuration
 		const userRole = configRoles.find((role) => role._id === user.role);
 
 		if (!userRole) {
-			logger.warn(`Role ${user.role} not found for user ${user.email}`);
+			logger.warn('Role not found for user', { role: user.role, email: user.email });
 			return { hasPermission: false, isRateLimited: false };
 		}
 
 		// Automatically grant permissions to users with the 'isAdmin' role property
 		if (userRole.isAdmin) {
-			logger.info(`User ${user.email} has an admin role (role: ${user.role}), automatically granting permission.`);
+			logger.info('User has admin role, automatically granting permission', { email: user.email, role: user.role });
 			return { hasPermission: true, isRateLimited: false };
 		}
 
 		// Retrieve cached role permissions or fetch them if not cached
 		let userPermissions: Permission[] = rolePermissionCache[user.role];
 		if (!userPermissions) {
-			logger.debug(`No cached permissions found for role: ${user.role}. Fetching from in-memory configuration.`);
+			logger.debug('No cached permissions found for role, fetching from in-memory configuration', { role: user.role });
 
 			// Fetch all permissions and filter by the user's role permissions
 			const allPermissions = await getAllPermissions(); // In-memory permissions
@@ -54,12 +54,12 @@ export async function checkUserPermission(user: User, config: PermissionConfig):
 
 			// Cache the result
 			rolePermissionCache[user.role] = userPermissions;
-			logger.debug(`Permissions for role ${user.role} have been cached: ${JSON.stringify(userPermissions)}`);
+			logger.debug('Permissions have been cached for role', { role: user.role, permissions: userPermissions });
 		} else {
-			logger.debug(`Using cached permissions for role: ${user.role}`);
+			logger.debug('Using cached permissions for role', { role: user.role });
 		}
 
-		logger.debug(`User permissions: ${JSON.stringify(userPermissions)}`);
+		logger.debug('User permissions', { permissions: userPermissions });
 
 		// Check if the user has the required permission
 		const hasPermission = userPermissions.some(
@@ -70,15 +70,15 @@ export async function checkUserPermission(user: User, config: PermissionConfig):
 		);
 
 		if (!hasPermission) {
-			logger.info(`User ${user.email} lacks required permission for ${config.contextId}`);
+			logger.info('User lacks required permission', { email: user.email, contextId: config.contextId });
 		} else {
-			logger.info(`User ${user.email} has required permission for ${config.contextId}`);
+			logger.info('User has required permission', { email: user.email, contextId: config.contextId });
 		}
 
 		return { hasPermission, isRateLimited: false };
 	} catch (err) {
 		const message = `Error in checkUserPermission: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message, { user: user.email, config });
+		logger.error(message, { error: err, user: { email: user.email }, config });
 		throw error(500, message);
 	}
 }
@@ -88,7 +88,7 @@ export async function loadUserPermissions(user: User): Promise<Permission[]> {
 	try {
 		const userRole = configRoles.find((role) => role._id === user.role);
 		if (!userRole) {
-			logger.warn(`Role ${user.role} not found for user ${user.email}`);
+			logger.warn('Role not found for user', { role: user.role, email: user.email });
 			return [];
 		}
 
@@ -96,7 +96,7 @@ export async function loadUserPermissions(user: User): Promise<Permission[]> {
 		return allPermissions.filter((permission) => userRole.permissions.includes(permission._id));
 	} catch (err) {
 		const message = `Error in loadUserPermissions: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message, { user: user.email });
+		logger.error(message, { error: err, user: { email: user.email } });
 		throw error(500, message);
 	}
 }

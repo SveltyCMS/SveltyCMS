@@ -31,13 +31,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	// If we're already on a specific route (not the root), don't redirect
 	if (url.pathname !== '/') {
-		logger.debug(`Already on a specific route: ${url.pathname}, not redirecting`);
+		logger.debug(`Already on a specific route: \x1b[34m${url.pathname}\x1b[0m, not redirecting`);
 		return { user, permissions };
 	}
 
 	try {
 		// Get collections directly from CollectionManager
-		logger.debug(`Collections retrieved: ${collections ? collections.length : 'None'}`);
+		logger.debug(`Collections retrieved: \x1b[34m${collections ? collections.length : 'None'}\x1b[0m`);
 
 		if (!collections || collections.length === 0) {
 			const message = 'No collections found to redirect';
@@ -55,7 +55,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
 		const redirectUrl = `/${defaultLanguage}/${firstCollection.name}`;
 
-		logger.info(`Redirecting to first collection: ${firstCollection.name} with URL: ${redirectUrl}`);
+		logger.info(`Redirecting to first collection: \x1b[34m${firstCollection.name}\x1b[0m with URL: \x1b[34m${redirectUrl}\x1b[0m`);
 		throw redirect(302, redirectUrl);
 	} catch (err) {
 		// If it's a redirect or an HTTP error, rethrow it

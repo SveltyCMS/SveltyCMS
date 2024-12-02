@@ -172,18 +172,18 @@ async function initializeDefaultTheme(dbAdapter: dbInterface): Promise<void> {
 
 // Initialize the media folder
 async function initializeMediaFolder() {
-	const mediaFolderPath = path.resolve(publicEnv.MEDIA_FOLDER);
+    const mediaFolderPath = publicEnv.MEDIA_FOLDER;
 
-	try {
-		// Check if the media folder exists
-		await fs.access(mediaFolderPath);
-		logger.info(`Media folder already exists: ${path.relative(publicEnv.ROOT_DIR, mediaFolderPath)}`);
-	} catch {
-		// If the folder does not exist, create it
-		logger.info(`Media folder not found. Creating new folder: ${mediaFolderPath}`);
-		await fs.mkdir(mediaFolderPath, { recursive: true });
-		logger.info(`Media folder created successfully: ${mediaFolderPath}`);
-	}
+    try {
+        // Check if the media folder exists
+        await fs.access(mediaFolderPath);
+        logger.info(`Media folder already exists: \x1b[34m${mediaFolderPath}\x1b[0m`);
+    } catch {
+        // If the folder does not exist, create it
+        logger.info(`Media folder not found. Creating new folder: \x1b[34m${mediaFolderPath}\x1b[0m`);
+        await fs.mkdir(mediaFolderPath, { recursive: true });
+        logger.info(`Media folder created successfully: \x1b[34m${mediaFolderPath}\x1b[0m`);
+    }
 }
 
 // Initialize virtual folders
@@ -209,7 +209,7 @@ async function initializeVirtualFolders() {
 				id: rootFolder._id?.toString() || 'No ID'
 			});
 		} else {
-			logger.info(`Found ${virtualFolders.length} virtual folders.`);
+			logger.info(`Found \x1b[34m${virtualFolders.length}\x1b[0m virtual folders.`);
 		}
 	} catch (err) {
 		const message = `Error in initializeVirtualFolders: ${err instanceof Error ? err.message : String(err)}`;

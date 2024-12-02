@@ -88,16 +88,14 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw error(500, 'Internal Server Error');
   }
 
-  try {
-    const user = locals.user;
-    if (!user) {
-      logger.warn('No user found in locals, redirecting to login');
-      throw redirect(302, '/login');
-    }
+	try {
+		// User is already validated in hooks.server.ts
+		const { user } = locals;
+		if (!user) {
+			throw redirect(302, '/login');
+		}
 
-    // Convert user._id to a string to ensure it's serializable
-    const userData = convertIdToString(user);
-    const folderIdentifier = publicEnv.MEDIA_FOLDER;
+		const folderIdentifier = publicEnv.MEDIA_FOLDER;
 
     // Fetch media files
     const media_types = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
@@ -136,16 +134,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     const serializedVirtualFolders = virtualFolders.map((folder) => convertIdToString(folder));
 
-    logger.debug('Media gallery data and virtual folders loaded successfully');
-    const returnData = {
-      user: {
-        role: user.role,
-        _id: user._id,
-        avatar: user.avatar
-      },
-      media,
-      virtualFolders: serializedVirtualFolders
-    };
+		logger.info(`Fetched \x1b[34m${serializedVirtualFolders.length}\x1b[0m virtual folders`);
+
+		logger.debug('Media gallery data and virtual folders loaded successfully');
+		const returnData = {
+			user: {
+				role: user.role,
+				_id: user._id,
+				avatar: user.avatar
+			},
+			media,
+			virtualFolders: serializedVirtualFolders
+		};
 
     // Added Debugging: Log the returnData
     logger.debug('Returning data from load function:', returnData);

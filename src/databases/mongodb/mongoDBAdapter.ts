@@ -1025,124 +1025,124 @@ export class MongoDBAdapter implements dbInterface {
         await ThemeModel.updateMany({}, { $set: { isDefault: false } });
       }
 
-      await ThemeModel.insertMany(
-        themes.map((theme) => ({
-          _id: this.convertId(theme._id),
-          name: theme.name,
-          path: theme.path,
-          isDefault: theme.isDefault ?? false,
-          createdAt: theme.createdAt ?? new Date(),
-          updatedAt: theme.updatedAt ?? new Date()
-        })),
-        { ordered: false }
-      ); // Use ordered: false to ignore duplicates
-      logger.info(`Stored ${themes.length} themes in the database.`);
-    } catch (error) {
-      logger.error(`Error storing themes: ${error.message}`);
-      throw Error(`Error storing themes`);
-    }
-  }
+			await ThemeModel.insertMany(
+				themes.map((theme) => ({
+					_id: this.convertId(theme._id),
+					name: theme.name,
+					path: theme.path,
+					isDefault: theme.isDefault ?? false,
+					createdAt: theme.createdAt ?? new Date(),
+					updatedAt: theme.updatedAt ?? new Date()
+				})),
+				{ ordered: false }
+			); // Use ordered: false to ignore duplicates
+			logger.info(`Stored \x1b[34m${themes.length}\x1b[0m themes in the database.`);
+		} catch (error) {
+			logger.error(`Error storing themes: ${error.message}`);
+			throw Error(`Error storing themes`);
+		}
+	}
 
-  // Fetch all themes
-  async getAllThemes(): Promise<Theme[]> {
-    try {
-      const themes = await ThemeModel.find().exec();
-      logger.info(`Fetched ${themes.length} themes.`);
-      return themes;
-    } catch (error) {
-      logger.error(`Error fetching all themes: ${error.message}`);
-      throw Error(`Error fetching all themes`);
-    }
-  }
+	// Fetch all themes
+	async getAllThemes(): Promise<Theme[]> {
+		try {
+			const themes = await ThemeModel.find().exec();
+			logger.info(`Fetched \x1b[34m${themes.length}\x1b[0m themes.`);
+			return themes;
+		} catch (error) {
+			logger.error(`Error fetching all themes: ${error.message}`);
+			throw Error(`Error fetching all themes`);
+		}
+	}
 
   // Methods for System Preferences Management
 
-  // Set user preferences
-  async setUserPreferences(userId: string, preferences: UserPreferences): Promise<void> {
-    logger.debug(`Setting user preferences for userId: ${userId}`);
+	// Set user preferences
+	async setUserPreferences(userId: string, preferences: UserPreferences): Promise<void> {
+		logger.debug(`Setting user preferences for userId: \x1b[34m${user_id}\x1b[0m`);
 
-    try {
-      await SystemPreferencesModel.updateOne({ userId }, { $set: { preferences } }, { upsert: true }).exec();
-      logger.info(`User preferences set successfully for userId: ${userId}`);
-    } catch (error) {
-      logger.error(`Failed to set user preferences for user ${userId}: ${error.message}`);
-      throw Error(`Failed to set user preferences`);
-    }
-  }
+		try {
+			await SystemPreferencesModel.updateOne({ userId }, { $set: { preferences } }, { upsert: true }).exec();
+			logger.info(`User preferences set successfully for userId: \x1b[34m${user_id}\x1b[0m`);
+		} catch (error) {
+			logger.error(`Failed to set user preferences for user \x1b[34m${user_id}\x1b[0m: ${error.message}`);
+			throw Error(`Failed to set user preferences`);
+		}
+	}
 
-  //Retrieve system preferences for a user
-  async getSystemPreferences(user_id: string): Promise<UserPreferences | null> {
-    try {
-      const preferencesDoc = await SystemPreferencesModel.findOne({ userId: user_id }).exec();
-      if (preferencesDoc) {
-        logger.info(`Retrieved system preferences for userId: ${user_id}`);
-        return preferencesDoc.preferences as UserPreferences;
-      }
-      logger.info(`No system preferences found for userId: ${user_id}`);
-      return null;
-    } catch (error) {
-      logger.error(`Failed to retrieve system preferences for user ${user_id}: ${error.message}`);
-      throw Error(`Failed to retrieve system preferences`);
-    }
-  }
+	//Retrieve system preferences for a user
+	async getSystemPreferences(user_id: string): Promise<UserPreferences | null> {
+		try {
+			const preferencesDoc = await SystemPreferencesModel.findOne({ userId: user_id }).exec();
+			if (preferencesDoc) {
+				logger.info(`Retrieved system preferences for userId: \x1b[34m${user_id}\x1b[0m `);
+				return preferencesDoc.preferences as UserPreferences;
+			}
+			logger.info(`No system preferences found for userId: \x1b[34m${user_id}\x1b[0m`);
+			return null;
+		} catch (error) {
+			logger.error(`Failed to retrieve system preferences for user \x1b[34m${user_id}\x1b[0m: ${error.message}`);
+			throw Error(`Failed to retrieve system preferences`);
+		}
+	}
 
-  // Update system preferences for a user
-  async updateSystemPreferences(user_id: string, screenSize: ScreenSize, preferences: WidgetPreference[]): Promise<void> {
-    try {
-      await SystemPreferencesModel.findOneAndUpdate({ userId: user_id }, { $set: { screenSize, preferences } }, { new: true, upsert: true }).exec();
-      logger.info(`System preferences updated for userId: ${user_id}`);
-    } catch (error) {
-      logger.error(`Failed to update system preferences for user ${user_id}: ${error.message}`);
-      throw Error(`Failed to update system preferences`);
-    }
-  }
+	// Update system preferences for a user
+	async updateSystemPreferences(user_id: string, screenSize: ScreenSize, preferences: WidgetPreference[]): Promise<void> {
+		try {
+			await SystemPreferencesModel.findOneAndUpdate({ userId: user_id }, { $set: { screenSize, preferences } }, { new: true, upsert: true }).exec();
+			logger.info(`System preferences updated for userId: \x1b[34m${user_id}\x1b[0m`);
+		} catch (error) {
+			logger.error(`Failed to update system preferences for user \x1b[34m${user_id}\x1b[0m: ${error.message}`);
+			throw Error(`Failed to update system preferences`);
+		}
+	}
 
-  // Clear system preferences for a user
-  async clearSystemPreferences(user_id: string): Promise<void> {
-    try {
-      const result = await SystemPreferencesModel.deleteOne({ userId: user_id }).exec();
-      if (result.deletedCount === 0) {
-        logger.warn(`No system preferences found to delete for userId: ${user_id}`);
-      } else {
-        logger.info(`System preferences cleared for userId: ${user_id}`);
-      }
-    } catch (error) {
-      logger.error(`Failed to clear system preferences for user ${user_id}: ${error.message}`);
-      throw Error(`Failed to clear system preferences`);
-    }
-  }
+	// Clear system preferences for a user
+	async clearSystemPreferences(user_id: string): Promise<void> {
+		try {
+			const result = await SystemPreferencesModel.deleteOne({ userId: user_id }).exec();
+			if (result.deletedCount === 0) {
+				logger.warn(`No system preferences found to delete for userId: \x1b[34m${user_id}\x1b[0m`);
+			} else {
+				logger.info(`System preferences cleared for userId: \x1b[34m${user_id}\x1b[0m`);
+			}
+		} catch (error) {
+			logger.error(`Failed to clear system preferences for user \x1b[34m${user_id}\x1b[0m: ${error.message}`);
+			throw Error(`Failed to clear system preferences`);
+		}
+	}
 
   // Methods for Virtual Folder Management
 
-  // Create a virtual folder in the database
-  async createVirtualFolder(folderData: { name: string; parent?: string; path: string }): Promise<Document> {
-    try {
-      const folder = new SystemVirtualFolderModel({
-        _id: this.generateId(),
-        name: folderData.name,
-        parent: folderData.parent ? this.convertId(folderData.parent) : null,
-        path: folderData.path
-      });
-      await folder.save();
-      logger.info(`Virtual folder '${folderData.name}' created successfully.`);
-      return folder;
-    } catch (error) {
-      logger.error(`Error creating virtual folder: ${error.message}`);
-      throw Error(`Error creating virtual folder`);
-    }
-  }
+	// Create a virtual folder in the database
+	async createVirtualFolder(folderData: { name: string; parent?: string; path: string }): Promise<Document> {
+		try {
+			const folder = new SystemVirtualFolderModel({
+				_id: this.generateId(),
+				name: folderData.name,
+				parent: folderData.parent ? this.convertId(folderData.parent) : null,
+				path: folderData.path
+			});
+			await folder.save();
+			logger.info(`Virtual folder '\x1b[34m${folderData.name}\x1b[0m' created successfully.`);
+			return folder;
+		} catch (error) {
+			logger.error(`Error creating virtual folder: ${error.message}`);
+			throw Error(`Error creating virtual folder`);
+		}
+	}
 
-  // Get all virtual folders
-  async getVirtualFolders(): Promise<Document[]> {
-    try {
-      const folders = await SystemVirtualFolderModel.find({}).lean().exec();
-      logger.info(`Fetched ${folders.length} virtual folders.`);
-      return folders;
-    } catch (error) {
-      logger.error(`Error fetching virtual folders: ${error.message}`);
-      throw Error(`Error fetching virtual folders`);
-    }
-  }
+	// Get all virtual folders
+	async getVirtualFolders(): Promise<Document[]> {
+		try {
+			const folders = await SystemVirtualFolderModel.find({}).exec();
+			logger.info(`Fetched \x1b[34m${folders.length}\x1b[0m virtual folders.`);
+			return folders;
+		} catch (error) {
+			logger.error(`Error fetching virtual folders: ${error.message}`);
+			throw Error(`Error fetching virtual folders`);
+		}
+	}
 
   // Get contents of a virtual folder
   async getVirtualFolderContents(folderId: string): Promise<Document[]> {
@@ -1151,16 +1151,16 @@ export class MongoDBAdapter implements dbInterface {
       const folder = await SystemVirtualFolderModel.findById(objectId);
       if (!folder) throw Error('Folder not found');
 
-      const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
-      const mediaPromises = mediaTypes.map((type) => mongoose.model(type).find({ folderId: objectId }).lean());
-      const results = await Promise.all(mediaPromises);
-      logger.info(`Fetched contents for virtual folder ID: ${folderId}`);
-      return results.flat();
-    } catch (error) {
-      logger.error(`Error fetching contents for virtual folder ${folderId}: ${error.message}`);
-      throw Error(`Failed to fetch virtual folder contents`);
-    }
-  }
+			const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
+			const mediaPromises = mediaTypes.map((type) => mongoose.model(type).find({ folderId: objectId }).lean());
+			const results = await Promise.all(mediaPromises);
+			logger.info(`Fetched contents for virtual folder ID: \x1b[34m${folderId}\x1b[0m`);
+			return results.flat();
+		} catch (error) {
+			logger.error(`Error fetching contents for virtual folder \x1b[34m${folderId}\x1b[0m: ${error.message}`);
+			throw Error(`Failed to fetch virtual folder contents`);
+		}
+	}
 
   // Update a virtual folder
   async updateVirtualFolder(folderId: string, updateData: VirtualFolderUpdateData): Promise<Document | null> {
@@ -1180,110 +1180,110 @@ export class MongoDBAdapter implements dbInterface {
         { new: true }
       ).exec();
 
-      if (!updatedFolder) {
-        throw Error(`Virtual folder with ID ${folderId} not found.`);
-      }
+			if (!updatedFolder) {
+				throw Error(`Virtual folder with ID \x1b[34m${folderId}\x1b[0m not found.`);
+			}
 
-      logger.info(`Virtual folder ${folderId} updated successfully.`);
-      return updatedFolder;
-    } catch (error) {
-      logger.error(`Error updating virtual folder ${folderId}: ${error.message}`);
-      throw Error(`Failed to update virtual folder`);
-    }
-  }
+			logger.info(`Virtual folder \x1b[34m${folderId}\x1b[0m updated successfully.`);
+			return updatedFolder;
+		} catch (error) {
+			logger.error(`Error updating virtual folder \x1b[34m${folderId}\x1b[0m: ${error.message}`);
+			throw Error(`Failed to update virtual folder`);
+		}
+	}
 
-  // Delete a virtual folder
-  async deleteVirtualFolder(folderId: string): Promise<boolean> {
-    try {
-      const result = await SystemVirtualFolderModel.findByIdAndDelete(folderId).exec();
-      if (!result) {
-        logger.warn(`Virtual folder with ID ${folderId} not found.`);
-        return false;
-      }
+	// Delete a virtual folder
+	async deleteVirtualFolder(folderId: string): Promise<boolean> {
+		try {
+			const result = await SystemVirtualFolderModel.findByIdAndDelete(this.convertId(folderId)).exec();
+			if (!result) {
+				logger.warn(`Virtual folder with ID \x1b[34m${folderId}\x1b[0m not found.`);
+				return false;
+			}
 
-      logger.info(`Virtual folder ${folderId} deleted successfully.`);
-      return true;
-    } catch (error) {
-      logger.error(`Error deleting virtual folder ${folderId}: ${error.message}`);
-      throw Error(`Failed to delete virtual folder`);
-    }
-  }
+			logger.info(`Virtual folder \x1b[34m${folderId}\x1b[0m deleted successfully.`);
+			return true;
+		} catch (error) {
+			logger.error(`Error deleting virtual folder \x1b[34m${folderId}\x1b[0m: ${error.message}`);
+			throw Error(`Failed to delete virtual folder`);
+		}
+	}
 
-  // Move media to a virtual folder
-  async moveMediaToFolder(mediaId: string, folderId: string): Promise<boolean> {
-    try {
-      const objectId = this.convertId(folderId);
-      const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
-      for (const type of mediaTypes) {
-        const result = await mongoose.model(type).findByIdAndUpdate(mediaId, { folderId: objectId }).exec();
-        if (result) {
-          logger.info(`Media ${mediaId} moved to folder ${folderId} successfully.`);
-          return true;
-        }
-      }
-      logger.warn(`Media ${mediaId} not found in any media type collections.`);
-      return false;
-    } catch (error) {
-      logger.error(`Error moving media ${mediaId} to folder ${folderId}: ${error.message}`);
-      throw Error(`Failed to move media to folder`);
-    }
-  }
+	// Move media to a virtual folder
+	async moveMediaToFolder(mediaId: string, folderId: string): Promise<boolean> {
+		try {
+			const objectId = this.convertId(folderId);
+			const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
+			for (const type of mediaTypes) {
+				const result = await mongoose.model(type).findByIdAndUpdate(this.convertId(mediaId), { folderId: objectId }).exec();
+				if (result) {
+					logger.info(`Media \x1b[34m${mediaId}\x1b[0m moved to folder \x1b[34m${folderId}\x1b[0m successfully.`);
+					return true;
+				}
+			}
+			logger.warn(`Media \x1b[34m${mediaId}\x1b[0m not found in any media type collections.`);
+			return false;
+		} catch (error) {
+			logger.error(`Error moving media \x1b[34m${mediaId}\x1b[0m to folder \x1b[34m${folderId}\x1b[0m: ${error.message}`);
+			throw Error(`Failed to move media to folder`);
+		}
+	}
 
   // Methods for Media Management
 
-  // Fetch all media
-  async getAllMedia(): Promise<MediaType[]> {
-    try {
-      const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
-      const mediaPromises = mediaTypes.map((type) => this.findMany<Document & MediaBase>(type, {}));
-      const results = await Promise.all(mediaPromises);
-      const allMedia = results.flat().map((item) => ({
-        ...item,
-        _id: item._id?.toString(), // Safe access using optional chaining
-        type: item.type || 'unknown' // Handle the type property
-      }));
-      logger.info(`Fetched all media, total count: ${allMedia.length}`);
-      return allMedia as MediaType[];
-    } catch (error) {
-      logger.error(`Error fetching all media: ${error.message}`);
-      throw Error(`Error fetching all media`);
-    }
-  }
+	// Fetch all media
+	async getAllMedia(): Promise<MediaType[]> {
+		try {
+			const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
+			const mediaPromises = mediaTypes.map((type) => this.findMany<Document & MediaBase>(type, {}));
+			const results = await Promise.all(mediaPromises);
+			const allMedia = results.flat().map((item) => ({
+				...item,
+				_id: item._id?.toString(), // Safe access using optional chaining
+				type: item.type || 'unknown' // Handle the type property
+			}));
+			logger.info(`Fetched all media, total count: \x1b[34m${allMedia.length}\x1b[0m`);
+			return allMedia as MediaType[];
+		} catch (error) {
+			logger.error(`Error fetching all media: ${error.message}`);
+			throw Error(`Error fetching all media`);
+		}
+	}
 
-  // Delete media
-  async deleteMedia(mediaId: string): Promise<boolean> {
-    try {
-      const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
-      for (const type of mediaTypes) {
-        const result = await this.deleteOne(type, { _id: this.convertId(mediaId) });
-        if (result > 0) {
-          logger.info(`Media ${mediaId} deleted successfully from ${type}.`);
-          return true;
-        }
-      }
-      logger.warn(`Media ${mediaId} not found in any media type collections.`);
-      return false;
-    } catch (error) {
-      logger.error(`Error deleting media ${mediaId}: ${error.message}`);
-      throw Error(`Error deleting media`);
-    }
-  }
+	// Delete media
+	async deleteMedia(mediaId: string): Promise<boolean> {
+		try {
+			const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
+			for (const type of mediaTypes) {
+				const result = await this.deleteOne(type, { _id: this.convertId(mediaId) });
+				if (result > 0) {
+					logger.info(`Media \x1b[34m${mediaId}\x1b[0m deleted successfully from ${type}.`);
+					return true;
+				}
+			}
+			logger.warn(`Media \x1b[34m${mediaId}\x1b[0m not found in any media type collections.`);
+			return false;
+		} catch (error) {
+			logger.error(`Error deleting media \x1b[34m${mediaId}\x1b[0m: ${error.message}`);
+			throw Error(`Error deleting media`);
+		}
+	}
 
-  // Fetch media in a specific folder
-  async getMediaInFolder(folder_id: string): Promise<MediaType[]> {
-    try {
-      const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
-      const objectId = this.convertId(folder_id);
-      const mediaPromises = mediaTypes.map((type) => mongoose.model(type).find({ folderId: objectId }).lean());
-      const results = await Promise.all(mediaPromises);
-      const mediaInFolder = results.flat();
-      logger.info(`Fetched ${mediaInFolder.length} media items in folder ID: ${folder_id}`);
-      return mediaInFolder;
-    } catch (error) {
-      logger.error(`Error fetching media in folder ${folder_id}: ${error.message}`);
-      throw Error(`Failed to fetch media in folder`);
-    }
-  }
+	// Fetch media in a specific folder
+	async getMediaInFolder(folder_id: string): Promise<MediaType[]> {
+		try {
+			const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
+			const objectId = this.convertId(folder_id);
+			const mediaPromises = mediaTypes.map((type) => mongoose.model(type).find({ folderId: objectId }).lean());
+			const results = await Promise.all(mediaPromises);
+			const mediaInFolder = results.flat();
+			logger.info(`Fetched \x1b[34m${mediaInFolder.length}\x1b[0m media items in folder ID: \x1b[34m${folder_id}\x1b[0m`);
+			return mediaInFolder;
+		} catch (error) {
+			logger.error(`Error fetching media in folder \x1b[34m${folder_id}\x1b[0m: ${error.message}`);
+			throw Error(`Failed to fetch media in folder`);
+		}
+	}
 
   // Fetch the last five collections
   async getLastFiveCollections(): Promise<Document[]> {
@@ -1306,21 +1306,21 @@ export class MongoDBAdapter implements dbInterface {
     }
   }
 
-  // Fetch logged-in users
-  async getLoggedInUsers(): Promise<Document[]> {
-    try {
-      const sessionModel = mongoose.models['auth_sessions'];
-      if (!sessionModel) {
-        throw Error('auth_sessions collection does not exist.');
-      }
-      const activeSessions = await sessionModel.find({ active: true }).lean().exec();
-      logger.info(`Fetched ${activeSessions.length} active sessions.`);
-      return activeSessions;
-    } catch (error) {
-      logger.error(`Error fetching logged-in users: ${error.message}`);
-      throw Error(`Failed to fetch logged-in users`);
-    }
-  }
+	// Fetch logged-in users
+	async getLoggedInUsers(): Promise<Document[]> {
+		try {
+			const sessionModel = mongoose.models['auth_sessions'];
+			if (!sessionModel) {
+				throw Error('auth_sessions collection does not exist.');
+			}
+			const activeSessions = await sessionModel.find({ active: true }).lean().exec();
+			logger.info(`Fetched \x1b[34m${activeSessions.length}\x1b[0m active sessions.`);
+			return activeSessions;
+		} catch (error) {
+			logger.error(`Error fetching logged-in users: ${error.message}`);
+			throw Error(`Failed to fetch logged-in users`);
+		}
+	}
 
   // Fetch CMS data
   async getCMSData(): Promise<{

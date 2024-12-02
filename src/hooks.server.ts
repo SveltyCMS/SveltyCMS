@@ -47,8 +47,8 @@ const limiter = new RateLimiter({
 
 // Get a stricter rate limiter for API requests
 const apiLimiter = new RateLimiter({
-	IP: [100, 'm'],
-	IPUA: [50, 'm']
+	IP: [500, 'm'], // 500 requests per minute per IP
+	IPUA: [200, 'm'] // 200 requests per minute per IP+User-Agent
 });
 
 // Check if a given pathname is a static asset
