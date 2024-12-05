@@ -29,7 +29,7 @@ import { paraglide } from '@inlang/paraglide-sveltekit/vite';
 // https://kit.svelte.dev/faq#read-package-jsonimport { readFileSync } from 'fs'
 import { fileURLToPath } from 'url';
 import { compile } from './src/routes/api/compile/compile';
-import { generateCollectionTypes, generateCollectionFieldTypes } from './src/utils/collectionTypes';
+import { generateCollectionTypes, generateCollectionFieldTypes } from './src/collections/collectionTypes';
 
 // Get package.json version info
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));

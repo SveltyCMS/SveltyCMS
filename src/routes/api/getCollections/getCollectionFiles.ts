@@ -13,8 +13,8 @@ import { logger } from '@utils/logger.svelte';
 import { isRedisEnabled, getCache, setCache } from '@src/databases/redis';
 import { fileURLToPath } from "url";
 
-// Default collections folder path
-const DEFAULT_COLLECTIONS_FOLDER = '../../../../collections';
+// Default collections folder path - this will be resolved on the server
+const DEFAULT_COLLECTIONS_FOLDER = 'config/collections';
 
 // Cache TTL
 const CACHE_TTL = 300; // 5 minutes
@@ -44,11 +44,11 @@ const loadServerModules = async () => {
 		import('crypto') as Promise<CryptoModule>
 	]);
 
-	// Resolve collections folder path
-	const collectionsFolder = process.env.VITE_COLLECTIONS_FOLDER || path.resolve(
-		path.dirname(fileURLToPath(import.meta.url)),
-		DEFAULT_COLLECTIONS_FOLDER
-	);
+	// Resolve collections folder path on the server side
+	const __filename = fileURLToPath(import.meta.url);
+	const __dirname = path.dirname(__filename);
+	const projectRoot = path.resolve(__dirname, '../../../../');
+	const collectionsFolder = process.env.VITE_COLLECTIONS_FOLDER || path.resolve(projectRoot, DEFAULT_COLLECTIONS_FOLDER);
 
 	return { fs, path, crypto, collectionsFolder };
 };
@@ -83,72 +83,78 @@ async function calculateDirectoryHash(directoryPath: string): Promise<string> {
 	}
 }
 
+// Helper function to recursively get all files in a directory
+async function getAllFiles(dir: string, fs: FSModule, path: PathModule): Promise<string[]> {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    const files = await Promise.all(entries.map(async (entry) => {
+        const res = path.resolve(dir, entry.name);
+        return entry.isDirectory() ? getAllFiles(res, fs, path) : res;
+    }));
+    return files.flat();
+}
+
 // This function returns a list of all the valid collection files in the specified directory.
 export async function getCollectionFiles(): Promise<string[]> {
-	if (browser) {
-		throw new CollectionError('This function is server-only.');
-	}
+    if (browser) {
+        throw new CollectionError('This function is server-only.');
+    }
 
-	const modules = await loadServerModules();
-	if (!modules) {
-		throw new CollectionError('Failed to load server modules');
-	}
+    const modules = await loadServerModules();
+    if (!modules) {
+        throw new CollectionError('Failed to load server modules');
+    }
 
-	const { fs, path, collectionsFolder } = modules;
+    const { fs, path, collectionsFolder } = modules;
 
-	try {
-		// Create main collections directory if it doesn't exist
-		await fs.mkdir(collectionsFolder, { recursive: true });
+    try {
+        // Create main collections directory if it doesn't exist
+        await fs.mkdir(collectionsFolder, { recursive: true });
 
-		// Calculate directory hash
-		const dirHash = await calculateDirectoryHash(collectionsFolder);
+        // Calculate directory hash
+        const dirHash = await calculateDirectoryHash(collectionsFolder);
 
-		// Try to get from Redis cache first
-		if (isRedisEnabled() && dirHash) {
-			const cacheKey = 'collection_files:list';
-			const cachedData = await getCache<{ hash: string; files: string[] }>(cacheKey);
+        // Try to get from Redis cache first
+        if (isRedisEnabled() && dirHash) {
+            const cacheKey = 'collection_files:list';
+            const cachedData = await getCache<{ hash: string; files: string[] }>(cacheKey);
 
-			if (cachedData && cachedData.hash === dirHash) {
-				logger.debug('Returning cached collection files list');
-				return cachedData.files;
-			}
-		}
+            if (cachedData && cachedData.hash === dirHash) {
+                logger.debug('Returning cached collection files list');
+                return cachedData.files;
+            }
+        }
 
-		// Get the list of all files in the collections directory
-		const files = await fs.readdir(collectionsFolder);
-		logger.debug('Files read from directory', { directory: collectionsFolder, files });
+        // Get all files recursively
+        const allFiles = await getAllFiles(collectionsFolder, fs, path);
+        logger.debug('All files found:', { files: allFiles });
 
-		// Filter the list to only include .js files that are not excluded
-		const filteredFiles = files.filter((file) => {
-			const isJSFile = path.extname(file) === '.js';
-			const isNotExcluded = !['types.js', 'categories.js', 'index.js'].includes(file);
-			return isJSFile && isNotExcluded;
-		});
+        // Filter to only include .ts files
+        const filteredFiles = allFiles.filter(file => {
+            const ext = path.extname(file);
+            return ext === '.ts';
+        });
 
-		logger.info('Filtered collection files', { filteredFiles });
+        logger.info('Filtered collection files', { filteredFiles });
 
-		if (filteredFiles.length === 0) {
-			throw new CollectionError('No valid collection files found');
-		}
+        if (filteredFiles.length === 0) {
+            logger.warn('No valid collection files found');
+            return [];
+        }
 
-		// Cache in Redis if available
-		if (isRedisEnabled() && dirHash) {
-			const cacheKey = 'collection_files:list';
-			await setCache(cacheKey, { hash: dirHash, files: filteredFiles }, CACHE_TTL);
-		}
+        // Cache in Redis if available
+        if (isRedisEnabled() && dirHash) {
+            const cacheKey = 'collection_files:list';
+            await setCache(cacheKey, { hash: dirHash, files: filteredFiles }, CACHE_TTL);
+        }
 
-		return filteredFiles;
-	} catch (error) {
-		if (error instanceof CollectionError) {
-			logger.warn(error.message);
-			return [];
-		}
-		logger.error('Error reading collection files', {
-			message: (error as Error).message,
-			stack: (error as Error).stack
-		});
-		throw new CollectionError(`Failed to read collection files: ${(error as Error).message}`);
-	}
+        return filteredFiles;
+    } catch (error) {
+        logger.error('Error reading collection files', {
+            message: (error as Error).message,
+            stack: (error as Error).stack
+        });
+        throw new CollectionError(`Failed to read collection files: ${(error as Error).message}`);
+    }
 }
 
 // Helper function to check if a file is a valid collection file
@@ -161,14 +167,9 @@ export async function isValidCollectionFile(filePath: string): Promise<boolean> 
 	const { fs, path } = modules;
 
 	try {
-		// Check file extension
-		if (path.extname(filePath) !== '.js') {
-			return false;
-		}
-
-		// Check if file is in excluded list
-		const fileName = path.basename(filePath);
-		if (['config.js', 'types.js', 'categories.js', 'index.js'].includes(fileName)) {
+		// Check file extension - we only want TypeScript files
+		const ext = path.extname(filePath);
+		if (ext !== '.ts') {
 			return false;
 		}
 

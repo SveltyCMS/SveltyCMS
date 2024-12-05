@@ -10,7 +10,6 @@
  * - Dynamic schema generation based on widget configurations
  * - Caching and efficient data structures (Memory + optional Redis)
  * - Error handling
- *
  */
 
 import axios from 'axios';
@@ -232,20 +231,42 @@ class CollectionManager {
 		try {
 			await this.measurePerformance(async () => {
 				try {
-					// Initialize widgets with proper error handling
+					// Initialize widgets first and wait for completion
 					initWidgets();
-				} catch (error) {
-					logger.error('Widget initialization failed:', error as Error);
-					throw new Error('Widget initialization failed');
-				}
+					logger.info('Widgets initialized successfully');
 
-				await this.updateCollections(true);
-				this.initialized = true;
+					// Wait a bit to ensure widgets are fully initialized
+					await new Promise(resolve => setTimeout(resolve, 100));
+
+					// Now load collections
+					await this.checkAndUpdateCategories(); // Check and update categories
+					await this.updateCollections(true); // Initial collection update
+
+					this.initialized = true;
+				} catch (error) {
+					logger.error('Initialization failed:', error as Error);
+					throw error;
+				}
 			}, 'Collection Manager Initialization');
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : String(err);
 			logger.error('Failed to load collections', { error: errorMessage });
 			throw new Error(`Failed to load collections: ${errorMessage}`);
+		}
+	}
+
+	// Function to check and update categories on startup
+	private async checkAndUpdateCategories(): Promise<void> {
+		try {
+			const categoriesExist = await this.readFile('src/collections/categories.ts');
+			if (!categoriesExist) {
+				logger.warn('Categories file does not exist, triggering compilation.');
+				await compile();
+			} else {
+				logger.info('Categories file exists, no need for compilation.');
+			}
+		} catch (error) {
+			logger.error('Error checking categories file:', { error: error instanceof Error ? error.message : String(error) });
 		}
 	}
 
@@ -485,8 +506,8 @@ class CollectionManager {
 	// Read file with retry mechanism
 	private async readFile(filePath: string): Promise<string> {
 		if (browser) {
-			// In browser, fetch the file content through an API endpoint
-			const response = await axios.get(`/api/collections/file?path=${encodeURIComponent(filePath)}`);
+			// Use the new API endpoint to fetch the file content
+			const response = await axios.get(`/api/getCollections?fileName=${encodeURIComponent(filePath)}`);
 			return response.data;
 		}
 
@@ -657,3 +678,5 @@ export const collectionManager = CollectionManager.getInstance();
 
 // Export types
 export type { Schema, CollectionTypes, Category, CategoryData };
+
+import { compile } from '@api/compile/compile';

@@ -154,21 +154,50 @@ const handleStaticAssetCaching: Handle = async ({ event, resolve }) => {
 	return resolve(event);
 };
 
+// Get client IP with fallbacks
+function getClientIp(event: RequestEvent): string {
+    // Try the standard getClientAddress first
+    try {
+        const addr = event.getClientAddress();
+        if (addr) return addr;
+    } catch (e) {
+        // Continue to fallbacks if this fails
+    }
+
+    // Check headers that might contain the real IP
+    const headers = event.request.headers;
+    const forwardedFor = headers.get('x-forwarded-for');
+    if (forwardedFor) {
+        // Get the first IP in the list (original client IP)
+        return forwardedFor.split(',')[0].trim();
+    }
+
+    const realIp = headers.get('x-real-ip');
+    if (realIp) {
+        return realIp;
+    }
+
+    // Fallback to a default IP for development
+    return '127.0.0.1';
+}
+
 // Handle rate limiting
 const handleRateLimit: Handle = async ({ event, resolve }) => {
-	if (isStaticAsset(event.url.pathname) || isLocalhost(event.getClientAddress()) || building) {
-		return resolve(event);
-	}
+    const clientIp = getClientIp(event);
+    
+    if (isStaticAsset(event.url.pathname) || isLocalhost(clientIp) || building) {
+        return resolve(event);
+    }
 
-	const isApiRequest = event.url.pathname.startsWith('/api/');
-	const currentLimiter = isApiRequest ? apiLimiter : limiter;
+    const isApiRequest = event.url.pathname.startsWith('/api/');
+    const currentLimiter = isApiRequest ? apiLimiter : limiter;
 
-	if (await currentLimiter.isLimited(event)) {
-		logger.warn(`Rate limit exceeded for IP: ${event.getClientAddress()}, endpoint: ${event.url.pathname}`);
-		throw error(429, isApiRequest ? 'Too Many Requests' : createHtmlResponse('Too Many Requests', 429));
-	}
+    if (await currentLimiter.isLimited(event)) {
+        logger.warn(`Rate limit exceeded for IP: ${clientIp}, endpoint: ${event.url.pathname}`);
+        throw error(429, isApiRequest ? 'Too Many Requests' : createHtmlResponse('Too Many Requests', 429));
+    }
 
-	return resolve(event);
+    return resolve(event);
 };
 
 // Handle authentication, authorization, and API caching
