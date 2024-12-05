@@ -28,7 +28,7 @@ import type { CollectionTypes, Schema, User } from '@src/types';
 import type { Entry } from '@src/types/Entry';
 
 // Store
-import { collection, collectionValue, mode } from '../stores/collectionStore.svelte';
+import { collection, collectionValue, mode } from '@collectionStore.svelte';
 
 // System Logs
 import { logger } from '@utils/logger.svelte';

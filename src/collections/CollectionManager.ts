@@ -29,7 +29,7 @@ import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/r
 import { categories, collections, unAssigned, collection, collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
 
 // Components
-import { initWidgets } from '@components/widgets';
+import { initWidgets } from '@src/widgets/widgetManager';
 
 // Import category config directly
 import { categoryConfig } from './categories';

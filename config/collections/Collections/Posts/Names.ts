@@ -3,7 +3,7 @@
  * @description Collection file for Names
  */
 
-import widgets from '@components/widgets';
+import widgets from '@src/widgets/widgetManager';
 import type { Schema } from '@src/collections/types';
 
 export const schema: Schema = {
@@ -19,14 +19,14 @@ export const schema: Schema = {
 	// Defined Fields that are used in your Collection
 	// Widget fields can be inspected for individual options
 	fields: [
-		widgets.Text({
+		widgets.Input({
 			label: 'First Name',
 			translated: true,
 			icon: 'ri:t-box-line',
 			placeholder: 'Enter First Name',
 			width: 2
 		}),
-		widgets.Text({
+		widgets.Input({
 			label: 'Last Name',
 			translated: true,
 			icon: 'ri:t-box-line',

@@ -19,7 +19,7 @@ Features:
 	import { asAny } from '@utils/utils';
 
 	// Components
-	import widgets from '@components/widgets';
+	import widgets from '@src/widgets/widgetManager';
 	import InputSwitch from '@components/system/builder/InputSwitch.svelte';
 
 	// Skeleton Stores

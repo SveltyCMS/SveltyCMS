@@ -24,7 +24,7 @@ import { categories, collections, unAssigned, collection, collectionValue, mode 
 import type { Unsubscriber } from 'svelte/store';
 
 // Components
-import { initWidgets } from '@components/widgets';
+import { initWidgets } from '@src/widgets/widgetManager';
 
 // Types
 import type { Schema, CollectionTypes, Category } from './types';

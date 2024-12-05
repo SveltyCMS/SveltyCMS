@@ -8,7 +8,7 @@ It handles widget configuration, permissions, and specific options.
 	import { type SvelteComponent } from 'svelte';
 
 	// Components
-	import widgets from '@components/widgets';
+	import widgets from '@src/widgets/widgetManager';
 	import Default from './tabsFields/Default.svelte';
 	import Permission from './tabsFields/Permission.svelte';
 	import Specific from './tabsFields/Specific.svelte';

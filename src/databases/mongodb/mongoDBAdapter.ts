@@ -162,7 +162,7 @@ const SystemVirtualFolderModel =
 
 import type { CollectionConfig } from '@src/collections/types';
 
-import { widgets, initWidgets } from '@src/components/widgets';
+import { widgets, initWidgets } from '@src/widgets/widgetManager';
 
 export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;

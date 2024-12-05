@@ -5,7 +5,7 @@
 
 <script lang="ts">
 	// Components
-	import widgets from '@components/widgets';
+	import widgets from '@src/widgets/widgetManager';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

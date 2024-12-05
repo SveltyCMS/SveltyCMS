@@ -19,7 +19,7 @@ Features:
 	import PageTitle from '@components/PageTitle.svelte';
 
 	// Widget Manager
-	import { type WidgetStatus, loadWidgets, getActiveWidgets, updateWidgetStatus, activeWidgets } from '@components/widgets/widgetManager';
+	import { type WidgetStatus, loadWidgets, getActiveWidgets, updateWidgetStatus, activeWidgets } from '@src/widgets/widgetManager';
 
 	interface Widget {
 		Name: string;

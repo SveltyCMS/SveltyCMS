@@ -26,8 +26,8 @@ import { updateCollections } from '@src/collections';
 import { compile } from '@root/src/routes/api/compile/compile';
 import { redirect, type Actions, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import type { WidgetType } from '@components/widgets';
-import widgets from '@components/widgets'; // Import widgets directly
+import type { WidgetType } from '@src/widgets/widgetManager';
+import widgets from '@src/widgets/widgetManager'; // Import widgets directly
 
 // Load Prettier config
 async function getPrettierConfig() {

@@ -3,7 +3,7 @@
  * @description Collection file for Posts
  */
 
-import widgets from '@components/widgets';
+import widgets from '@src/widgets/widgetManager';
 import type { Schema } from '@src/collections/types';
 
 export const schema: Schema = {
@@ -28,7 +28,7 @@ export const schema: Schema = {
 			}
 		}),
 
-		widgets.Text({
+		widgets.Input({
 			label: 'Test',
 			db_fieldName: 'dbtest',
 			helper: 'This is the helper text',

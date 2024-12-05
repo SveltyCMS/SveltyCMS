@@ -11,7 +11,7 @@
 	import { collectionValue, targetWidget } from '@root/src/stores/collectionStore.svelte';
 
 	// Components
-	import widgets from '@components/widgets';
+	import widgets from '@src/widgets/widgetManager';
 	import VerticalList from '@components/VerticalList.svelte';
 	import ModalWidgetForm from './ModalWidgetForm.svelte';
 	import ModalSelectWidget from './ModalSelectWidget.svelte';

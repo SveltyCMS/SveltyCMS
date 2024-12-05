@@ -3,7 +3,7 @@
  * @description Collection file for Relation
  */
 
-import widgets from '@components/widgets';
+import widgets from '@src/widgets/widgetManager';
 import type { Schema } from '@src/collections/types';
 
 export const schema: Schema = {

@@ -11,7 +11,7 @@
 	import { getGuiFields } from '@utils/utils';
 
 	// Components
-	import widgets from '@components/widgets';
+	import widgets from '@src/widgets/widgetManager';
 	import VerticalList from '@components/VerticalList.svelte';
 
 	// ParaglideJS

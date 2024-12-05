@@ -1,8 +1,8 @@
 /**
- * @file config/collections/Menu.ts
+ * @file config/collections/Menu/Menu.ts
  * @description Collection file for Menu
  */
-import widgets from '@components/widgets';
+import widgets from '@src/widgets/widgetManager';
 import type { Schema } from '@src/collections/types';
 
 export const schema: Schema = {
@@ -24,13 +24,13 @@ export const schema: Schema = {
 			fields: [
 				//level 1
 				[
-					widgets.Text({
+					widgets.Input({
 						label: 'Level 1 Name',
 						placeholder: 'Enter Category Level 1 Name',
 						required: true,
 						translated: true
 					}),
-					widgets.Text({
+					widgets.Input({
 						label: 'Description',
 						placeholder: 'Enter Description Level 1',
 						required: true,
@@ -46,13 +46,13 @@ export const schema: Schema = {
 				],
 				//level 2
 				[
-					widgets.Text({
+					widgets.Input({
 						label: 'Level 2 Name',
 						placeholder: 'Enter Category Level 2 Name',
 						required: true,
 						translated: true
 					}),
-					widgets.Text({
+					widgets.Input({
 						label: 'Description',
 						placeholder: 'Enter Description Level 2',
 						required: true,
@@ -61,13 +61,13 @@ export const schema: Schema = {
 				],
 				//level 3
 				[
-					widgets.Text({
+					widgets.Input({
 						label: 'Level 3 Name',
 						placeholder: 'Enter Category Level 3 Name',
 						required: true,
 						translated: true
 					}),
-					widgets.Text({
+					widgets.Input({
 						label: 'Description',
 						placeholder: 'Enter Description Level 3',
 						required: true,
@@ -76,13 +76,13 @@ export const schema: Schema = {
 				],
 				//level 4
 				[
-					widgets.Text({
+					widgets.Input({
 						label: 'Level 4 Name',
 						placeholder: 'Enter Category Level 4 Name',
 						required: true,
 						translated: true
 					}),
-					widgets.Text({
+					widgets.Input({
 						label: 'Description',
 						placeholder: 'Enter Description Level 4',
 						required: true,
