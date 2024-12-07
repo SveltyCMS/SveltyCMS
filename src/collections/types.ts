@@ -7,7 +7,14 @@ import type widgets from '@components/widgets';
 import type { ModifyRequestParams } from '@components/widgets';
 
 // Auth
-import type { Permission, RolePermissions } from '@src/auth/types';
+import type { RolePermissions } from '@src/auth/types';
+
+// Widget placeholder type
+export interface WidgetPlaceholder {
+	__widgetName: string;
+	__widgetConfig: Record<string, unknown>;
+	__isWidgetPlaceholder: true;
+}
 
 // Collection names are dynamic, based on the files in the collections directory
 
@@ -15,18 +22,27 @@ import type { Permission, RolePermissions } from '@src/auth/types';
 type WidgetKeys = keyof typeof widgets;
 type WidgetTypes = (typeof widgets)[WidgetKeys];
 
+// Field value types
+export type FieldValue = string | number | boolean | null | Record<string, unknown> | Array<unknown>;
+
 // Extended field type with display and callback properties
-export type Field = {
+export type Field = WidgetPlaceholder | {
 	widget: WidgetTypes;
 	type: WidgetKeys;
 	config: WidgetTypes;
 	label: string;
 	required?: boolean;
 	unique?: boolean;
-	default?: any;
-	validate?: (value: any) => boolean | Promise<boolean>;
-	display?: (args: { data: any; collection: string; field: Field; entry: any; contentLanguage: string }) => Promise<string> | string;
-	callback?: (args: { data: any }) => void;
+	default?: FieldValue;
+	validate?: (value: FieldValue) => boolean | Promise<boolean>;
+	display?: (args: {
+		data: Record<string, FieldValue>;
+		collection: string;
+		field: Field;
+		entry: Record<string, FieldValue>;
+		contentLanguage: string
+	}) => Promise<string> | string;
+	callback?: (args: { data: Record<string, FieldValue> }) => void;
 	modifyRequest?: (args: ModifyRequestParams<(typeof widgets)[WidgetKeys]>) => Promise<object>;
 };
 
@@ -93,5 +109,4 @@ export interface ProcessedCategoryData extends CategoryData {
 }
 
 // Collection types
-
 export type CollectionTypes = 'CollectionManager' | 'categories' | 'collectionTypes';

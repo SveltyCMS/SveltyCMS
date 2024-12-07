@@ -31,6 +31,8 @@ import { categories, collections, unAssigned, collection, collectionValue, mode 
 // Import category config directly
 import { categoryConfig } from './categories';
 
+import widgets, { initializeWidgets } from '@components/widgets';
+
 // Server-side imports
 let fs: typeof import('fs/promises') | null = null;
 let path: typeof import('path') | null = null;
@@ -62,6 +64,24 @@ const getPerformanceEmoji = (responseTime: number): string => {
 	return '🐢'; // Very slow
 };
 
+// Widget initialization state
+let widgetsInitialized = false;
+let widgetsInitPromise: Promise<void> | null = null;
+
+async function ensureWidgetsInitialized() {
+	if (widgetsInitialized) return;
+	if (!widgetsInitPromise) {
+		widgetsInitPromise = initializeWidgets().then(() => {
+			widgetsInitialized = true;
+			logger.info('Widgets initialized successfully');
+		}).catch((error) => {
+			logger.error('Failed to initialize widgets:', error);
+			throw error;
+		});
+	}
+	await widgetsInitPromise;
+}
+
 class CollectionManager {
 	private static instance: CollectionManager | null = null;
 	private collectionCache: Map<string, CacheEntry<Schema>> = new Map();
@@ -74,12 +94,20 @@ class CollectionManager {
 	private initializationPromise: Promise<void> | null = null;
 
 	private constructor() {
-		if (typeof window !== 'undefined') {
-			this.initializationPromise = this.initialize().catch((err: unknown) => {
-				const errorMessage = err instanceof Error ? err.message : String(err);
-				logger.error('Failed to initialize CollectionManager', { error: errorMessage });
-				throw err;
-			});
+		if (!browser) {
+			// Server-side initialization
+			this.initializationPromise = (async () => {
+				try {
+					// Initialize widgets first
+					await ensureWidgetsInitialized();
+					// Then initialize collections
+					await this.initialize();
+				} catch (err) {
+					const errorMessage = err instanceof Error ? err.message : String(err);
+					logger.error('Failed to initialize CollectionManager', { error: errorMessage });
+					throw err;
+				}
+			})();
 		}
 	}
 
@@ -104,25 +132,13 @@ class CollectionManager {
 		try {
 			await this.measurePerformance(async () => {
 				try {
-					// Initialize widgets
-					if (!browser) {
-						try {
-							if (!widgets) {
-								throw new Error('Failed to initialize widgets');
-							}
-						} catch (error) {
-							logger.error('Widgets failed to initialize:', error as Error);
-							throw error;
-						}
-					}
-
 					// Now load collections
-					await this.checkAndUpdateCategories(); // Check and update categories
-					await this.updateCollections(true); // Initial collection update
+					await this.checkAndUpdateCategories();
+					await this.updateCollections(true);
 
 					this.initialized = true;
 				} catch (error) {
-					logger.error('Initialization failed:', error as Error);
+					logger.error('Initialization failed:', error);
 					throw error;
 				}
 			}, 'Collection Manager Initialization');
@@ -136,6 +152,9 @@ class CollectionManager {
 	// Process module content
 	private async processModule(content: string): Promise<{ schema?: Partial<Schema> } | null> {
 		try {
+			// Ensure widgets are initialized before processing module
+			await ensureWidgetsInitialized();
+
 			// Create a module from the content using Function constructor instead of eval
 			const moduleFunc = new Function(
 				'widgets',
@@ -146,6 +165,8 @@ class CollectionManager {
                 return module.exports;
             `
 			);
+
+			// Pass the widgets object when executing the function
 			const module = moduleFunc(widgets);
 			return module;
 		} catch (err) {
@@ -461,6 +482,24 @@ class CollectionManager {
 
 			// Create the processed schema with proper type checking
 			const baseSchema = moduleData.schema as Partial<Schema>;
+
+			// Process fields to resolve widget placeholders
+			const processedFields = await Promise.all((baseSchema.fields || []).map(async (field) => {
+				if (field && typeof field === 'object' && '__isWidgetPlaceholder' in field) {
+					// This is a widget placeholder, resolve it
+					try {
+						return await resolveWidgetPlaceholder(field as WidgetPlaceholder);
+					} catch (error) {
+						logger.error(`Failed to resolve widget placeholder in ${filePath}:`, error);
+						return null;
+					}
+				}
+				return field;
+			}));
+
+			// Filter out any null fields from failed widget resolutions
+			const validFields = processedFields.filter((field): field is NonNullable<typeof field> => field !== null);
+
 			const processedSchema: Schema = {
 				id: parseInt(randomId.toString().slice(0, 8), 16),
 				name: name,
@@ -473,7 +512,7 @@ class CollectionManager {
 				path: filePath,
 				permissions: baseSchema.permissions || {},
 				livePreview: baseSchema.livePreview || false,
-				fields: Array.isArray(baseSchema.fields) ? baseSchema.fields : []
+				fields: validFields
 			};
 
 			// Create the MongoDB model for this collection

@@ -219,9 +219,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		const state = url.searchParams.get('state');
 		const token = state ? decodeURIComponent(state) : null;
 
-		logger.debug(`Authorization code from URL: ${code}`);
-		logger.debug(`Registration token from state: ${token}`);
-		logger.debug(`Is First User: ${!firstUserExists}`);
+		logger.debug(`Authorization code from URL: \x1b[34m${code}\x1b[0m`);
+		logger.debug(`Registration token from state: \x1b[34m${token}\x1b[0m`);
+		logger.debug(`Is First User: \x1b[34m${!firstUserExists}\x1b[0m`);
 
 		// If no code is present, handle initial OAuth flow
 		if (!code && !firstUserExists) {

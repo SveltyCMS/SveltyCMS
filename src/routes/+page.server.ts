@@ -14,11 +14,9 @@ import { collectionManager } from '@src/collections/CollectionManager';
 import { logger } from '@utils/logger.svelte';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
-	logger.debug('Starting +page.server.ts load function');
-
 	// Unauthenticated users should be redirected to the login page
 	if (!locals.user) {
-		logger.info('User is not authenticated, redirecting to login');
+		logger.debug('User is not authenticated, redirecting to login');
 		throw redirect(302, '/login');
 	}
 
@@ -45,7 +43,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		// Construct the redirect URL
 		const redirectUrl = `/${defaultLanguage}/${firstCollection.name}`;
 
-		logger.info(`Redirecting to ${redirectUrl}`);
+		logger.info(`Redirecting to \x1b[34m${redirectUrl}\x1b[0m`);
 		throw redirect(302, redirectUrl);
 	} catch (err) {
 		// If the error has a status, rethrow it

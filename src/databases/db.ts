@@ -274,7 +274,7 @@ async function initializeAdapters(): Promise<void> {
 		logger.debug('Authentication adapter initialized.');
 
 		isInitialized = true;
-		logger.info('Adapters initialized successfully');
+		logger.debug('Adapters initialized successfully');
 	} catch (err) {
 		const message = `Error in initializeAdapters: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message);

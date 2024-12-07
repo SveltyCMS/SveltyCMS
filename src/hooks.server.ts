@@ -209,6 +209,9 @@ const handleRateLimit: Handle = async ({ event, resolve }) => {
 export const handleAuth: Handle = async ({ event, resolve }) => {
 	if (building) return resolve(event);
 
+	// Define event.startTime here
+	event.startTime = performance.now();
+
 	try {
 		await initializationPromise;
 
@@ -261,7 +264,7 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 
 		const responseTime = performance.now() - event.startTime;
 		logger.debug(
-			`Route ${event.url.pathname} - ${responseTime.toFixed(2)}ms ${getPerformanceEmoji(responseTime)}: isPublicRoute=${isPublicRoute}, isApiRequest=${isApiRequest}`
+			`Route \x1b[34m${event.url.pathname}\x1b[0m - ${responseTime.toFixed(2)}ms ${getPerformanceEmoji(responseTime)}: isPublicRoute=\x1b[${isPublicRoute ? '32' : '31'}m${isPublicRoute}\x1b[0m, isApiRequest=\x1b[${isApiRequest ? '32' : '31'}m${isApiRequest}\x1b[0m`
 		);
 
 		if (isOAuthRoute(event.url.pathname)) {
@@ -287,12 +290,11 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 			return handleApiRequest(event, resolve, user);
 		}
 
-		logger.debug('Proceeding with normal request handling');
 		return resolve(event);
 	} catch (err) {
 		if (err && typeof err === 'object' && 'status' in err && 'location' in err) {
 			const redirectError = err as RedirectError;
-			logger.debug(`Redirecting to ${redirectError.location}`);
+			logger.debug(`Redirecting to \x1b[34m${redirectError.location}\x1b[0m`);
 			throw err;
 		}
 
