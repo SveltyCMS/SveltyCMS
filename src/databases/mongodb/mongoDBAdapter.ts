@@ -203,13 +203,13 @@ export class MongoDBAdapter implements dbInterface {
       return;
     }
 
-    try {
-      // Initialize widgets globally
-      if (!globalThis.widgets) {
-        logger.debug('Initializing widgets globally...');
-        globalThis.widgets = widgets;
-        initializeWidgets();
-      }
+		try {
+			// Initialize widgets globally
+			if (!globalThis.widgets) {
+				logger.debug('Initializing widgets globally...');
+				globalThis.widgets = widgets;
+				initializeWidgets();
+			}
 
       // Only import fs on server side
       const { promises: fs } = await import('fs');
@@ -230,16 +230,16 @@ export class MongoDBAdapter implements dbInterface {
       // Known collection directories
       const collectionDirs = ['Collections', 'Menu'];
 
-      for (const dir of collectionDirs) {
-        const dirPath = path.join(collectionsPath, dir);
-        try {
-          // Recursively scan for collection files
-          const collectionFiles = await this.scanDirectoryForCollections(dirPath);
-          logger.debug(`Found \x1b[34m${collectionFiles.length}\x1b[0m collection files in \x1b[34m${dir}\x1b[0m directory and subdirectories`);
+			for (const dir of collectionDirs) {
+				const dirPath = path.join(collectionsPath, dir);
+				try {
+					// Recursively scan for collection files
+					const collectionFiles = await this.scanDirectoryForCollections(dirPath);
+					logger.debug(`Found ${collectionFiles.length} collection files in ${dir} directory and subdirectories`);
 
-          for (const filePath of collectionFiles) {
-            try {
-              logger.debug(`Processing collection file: \x1b[34m${filePath}\x1b[0m`);
+					for (const filePath of collectionFiles) {
+						try {
+							logger.debug(`Processing collection file: ${filePath}`);
 
               const collection = await import(/* @vite-ignore */ filePath);
               const collectionConfig = collection.default || collection.schema;
@@ -254,25 +254,25 @@ export class MongoDBAdapter implements dbInterface {
                   collectionConfig.name = collectionName;
                 }
 
-                logger.debug(`Collection config for \x1b[34m${collectionName}:\x1b[0m`, {
-                  name: collectionConfig.name,
-                  fields: collectionConfig.fields?.length || 0,
-                  strict: collectionConfig.strict
-                });
+								logger.debug(`Collection config for ${collectionName}:`, {
+									name: collectionConfig.name,
+									fields: collectionConfig.fields?.length || 0,
+									strict: collectionConfig.strict
+								});
 
-                await this.createCollectionModel(collectionConfig);
-                logger.debug(`Successfully created/synced collection model for \x1b[34m${collectionName}\x1b[0m`);
-              } else {
-                logger.error(`Collection file ${filePath} does not export a valid schema or default export`);
-              }
-            } catch (error) {
-              logger.error(`Error importing collection ${filePath}: ${error.message}`);
-            }
-          }
-        } catch (error) {
-          logger.error(`Error processing directory ${dir}: ${error.message}`);
-        }
-      }
+								await this.createCollectionModel(collectionConfig);
+								logger.debug(`Successfully created/synced collection model for ${collectionName}`);
+							} else {
+								logger.error(`Collection file ${filePath} does not export a valid schema or default export`);
+							}
+						} catch (error) {
+							logger.error(`Error importing collection ${filePath}: ${error.message}`);
+						}
+					}
+				} catch (error) {
+					logger.error(`Error processing directory ${dir}: ${error.message}`);
+				}
+			}
 
       logger.debug('Collection sync completed successfully');
     } catch (error) {
@@ -281,9 +281,10 @@ export class MongoDBAdapter implements dbInterface {
     }
   }
 
-  // Connect to MongoDB
-  async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
-    const isAtlas = privateEnv.DB_HOST.startsWith('mongodb+srv://');
+	// Connect to MongoDB
+	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
+		logger.debug('Attempting to connect to MongoDB...');
+		const isAtlas = privateEnv.DB_HOST.startsWith('mongodb+srv://');
 
     // Construct the connection string
     let connectionString: string;
@@ -317,24 +318,24 @@ export class MongoDBAdapter implements dbInterface {
       logger.error(`MongoDB connection error: ${err.message}`);
     });
 
-    let lastError: unknown;
-    for (let i = 1; i <= attempts; i++) {
-      try {
-        await mongoose.connect(connectionString, options);
-        logger.debug(`Successfully connected to MongoDB database: \x1b[34m${privateEnv.DB_NAME}\x1b[0m`);
-        await this.syncCollections();
-        return;
-      } catch (error: unknown) {
-        lastError = error;
-        if (i === attempts) {
-          logger.error(`Failed to connect to MongoDB after ${attempts} attempts: ${lastError}`);
-          throw new Error('MongoDB connection failed');
-        }
-        logger.warn(`Connection attempt ${i}/${attempts} failed, retrying...`);
-        await new Promise((resolve) => setTimeout(resolve, 1000 * i)); // Exponential backoff
-      }
-    }
-  }
+		let lastError: unknown;
+		for (let i = 1; i <= attempts; i++) {
+			try {
+				await mongoose.connect(connectionString, options);
+				logger.info(`Successfully connected to MongoDB database: ${privateEnv.DB_NAME}`);
+				await this.syncCollections();
+				return;
+			} catch (error: unknown) {
+				lastError = error;
+				if (i === attempts) {
+					logger.error(`Failed to connect to MongoDB after ${attempts} attempts: ${lastError}`);
+					throw new Error('MongoDB connection failed');
+				}
+				logger.warn(`Connection attempt ${i}/${attempts} failed, retrying...`);
+				await new Promise((resolve) => setTimeout(resolve, 1000 * i)); // Exponential backoff
+			}
+		}
+	}
 
   // Update generateId to always return string
   generateId(): string {
@@ -346,8 +347,9 @@ export class MongoDBAdapter implements dbInterface {
     return new mongoose.Types.ObjectId(id);
   }
 
-  // Get collection models
-  async getCollectionModels(): Promise<Record<string, Model<Document>>> {
+	// Get collection models
+	async getCollectionModels(): Promise<Record<string, Model<Document>>> {
+		logger.debug('getCollectionModels called');
 
     if (this.collectionsInitialized) {
       logger.debug('Collections already initialized, returning existing models.');
@@ -424,24 +426,24 @@ export class MongoDBAdapter implements dbInterface {
     }
   }
 
-  // Helper method to set up models if they don't already exist
-  private setupModel(name: string, schema: Schema) {
-    if (!mongoose.models[name]) {
-      mongoose.model(name, schema);
-      logger.debug(`${name} model created.`);
-    } else {
-      logger.debug(`\x1b[34m${name}\x1b[0m model already exists.`);
-    }
-  }
+	// Helper method to set up models if they don't already exist
+	private setupModel(name: string, schema: Schema) {
+		if (!mongoose.models[name]) {
+			mongoose.model(name, schema);
+			logger.debug(`${name} model created.`);
+		} else {
+			logger.debug(`${name} model already exists.`);
+		}
+	}
 
-  // Set up media models
-  setupMediaModels(): void {
-    const mediaSchemas = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote', 'media_collection'];
-    mediaSchemas.forEach((schemaName) => {
-      this.setupModel(schemaName, mediaSchema);
-    });
-    logger.debug('Media models set up successfully.');
-  }
+	// Set up media models
+	setupMediaModels(): void {
+		const mediaSchemas = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote', 'media_collection'];
+		mediaSchemas.forEach((schemaName) => {
+			this.setupModel(schemaName, mediaSchema);
+		});
+		logger.info('Media models set up successfully.');
+	}
 
   // Set up widget models
   setupWidgetModels(): void {
@@ -620,8 +622,8 @@ export class MongoDBAdapter implements dbInterface {
       throw new Error('Collection must have a name');
     }
 
-    const collectionName = String(collection.name);
-    logger.debug(`Creating collection model for \x1b[34m${collectionName}\x1b[0m`);
+		const collectionName = String(collection.name);
+		logger.debug(`Creating collection model for ${collectionName}`);
 
     // Check if model already exists
     if (mongoose.models[collectionName]) {
