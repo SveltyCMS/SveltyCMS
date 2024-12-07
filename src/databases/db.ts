@@ -22,7 +22,6 @@
 import { publicEnv } from '@root/config/public';
 import { privateEnv } from '@root/config/private';
 import fs from 'fs/promises';
-import path from 'path';
 import { browser } from '$app/environment';
 import { error } from '@sveltejs/kit';
 

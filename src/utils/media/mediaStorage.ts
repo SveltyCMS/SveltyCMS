@@ -43,7 +43,7 @@ async function getFs() {
 /**
  * Resizes an image using Sharp
  */
-export async function resizeImage(buffer: Buffer, width: number, height?: number): Promise<Buffer> {
+export async function resizeImage(buffer: Buffer, width: number, height?: number): Promise<Sharp.Sharp> {
   if (!import.meta.env.SSR) {
     throw error(500, 'File operations can only be performed on the server');
   }
@@ -52,7 +52,7 @@ export async function resizeImage(buffer: Buffer, width: number, height?: number
       fit: 'cover',
       position: 'center'
     })
-    .toBuffer();
+
 }
 
 /**
@@ -85,7 +85,7 @@ export async function saveResizedImages(
 
     const resizedBuffer = await resizeImage(buffer, width);
     const resizedUrl = `${path}/${size}/${fileName}-${hash}${ext}`;
-    await saveFileToDisk(resizedBuffer, resizedUrl);
+    await saveFileToDisk(await resizedBuffer.toBuffer(), resizedUrl);
 
     resizedImages[size] = {
       url: resizedUrl,
@@ -263,12 +263,12 @@ export async function saveAvatarImage(file: File): Promise<string> {
     const resizedImage = await resizeImage(buffer, SIZES.thumbnail);
 
     const thumbnailUrl = `avatars/${hash}-${sanitizedBlobName}thumbnail.avif`;
-    await saveFileToDisk(resizedImage, thumbnailUrl);
+    await saveFileToDisk(await resizedImage.toBuffer(), thumbnailUrl);
 
     const thumbnail = {
       url: thumbnailUrl,
-      width: resizedImage.width,
-      height: resizedImage.height
+      width: (await resizedImage.metadata()).width,
+      height: (await resizedImage.metadata()).height
     };
 
     const fileInfo: MediaImage = {
@@ -302,6 +302,8 @@ export async function saveAvatarImage(file: File): Promise<string> {
         permissions: [Permission.Read, Permission.Write]
       }
     };
+
+    logger.info('Image saved to database', { fileInfo });
 
     if (!dbAdapter) throw Error('Database adapter not initialized.');
 
