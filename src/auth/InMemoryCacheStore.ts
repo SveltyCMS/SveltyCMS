@@ -44,7 +44,7 @@ export class InMemorySessionStore implements SessionStore {
 				this.sessions.delete(key);
 			}
 		}
-		logger.debug(`Cleaned up expired sessions. Current count: ${this.sessions.size}`);
+		logger.debug(`Cleaned up expired sessions. Current count: \x1b[34m${this.sessions.size}\x1b[0m`);
 	}
 
 	// Get a session by ID

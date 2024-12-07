@@ -233,11 +233,11 @@ export class MongoDBAdapter implements dbInterface {
 				try {
 					// Recursively scan for collection files
 					const collectionFiles = await this.scanDirectoryForCollections(dirPath);
-					logger.debug(`Found ${collectionFiles.length} collection files in ${dir} directory and subdirectories`);
+					logger.debug(`Found \x1b[34m${collectionFiles.length}\x1b[0m collection files in \x1b[34m${dir}\x1b[0m directory and subdirectories`);
 
 					for (const filePath of collectionFiles) {
 						try {
-							logger.debug(`Processing collection file: ${filePath}`);
+							logger.debug(`Processing collection file: \x1b[34m${filePath}\x1b[0m`);
 
 							const collection = await import(/* @vite-ignore */ filePath);
 							const collectionConfig = collection.default || collection.schema;
@@ -252,14 +252,14 @@ export class MongoDBAdapter implements dbInterface {
 									collectionConfig.name = collectionName;
 								}
 
-								logger.debug(`Collection config for ${collectionName}:`, {
+								logger.debug(`Collection config for \x1b[34m${collectionName}:\x1b[0m`, {
 									name: collectionConfig.name,
 									fields: collectionConfig.fields?.length || 0,
 									strict: collectionConfig.strict
 								});
 
 								await this.createCollectionModel(collectionConfig);
-								logger.debug(`Successfully created/synced collection model for ${collectionName}`);
+								logger.debug(`Successfully created/synced collection model for \x1b[34m${collectionName}\x1b[0m`);
 							} else {
 								logger.error(`Collection file ${filePath} does not export a valid schema or default export`);
 							}
@@ -430,7 +430,7 @@ export class MongoDBAdapter implements dbInterface {
 			mongoose.model(name, schema);
 			logger.debug(`${name} model created.`);
 		} else {
-			logger.debug(`${name} model already exists.`);
+			logger.debug(`\x1b[34m${name}\x1b[0m model already exists.`);
 		}
 	}
 
@@ -619,7 +619,7 @@ export class MongoDBAdapter implements dbInterface {
 		}
 
 		const collectionName = String(collection.name);
-		logger.debug(`Creating collection model for ${collectionName}`);
+		logger.debug(`Creating collection model for \x1b[34m${collectionName}\x1b[0m`);
 
 		// Check if model already exists
 		if (mongoose.models[collectionName]) {

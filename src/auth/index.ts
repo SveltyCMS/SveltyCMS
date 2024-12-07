@@ -478,7 +478,7 @@ export class Auth {
 		try {
 			const tokens = await this.db.getAllTokens(filter);
 			const count = tokens.length;
-			logger.debug(`index.ts:getAllTokens Retrieved \x1b[34m${count}\x1b[0m tokens`);
+			logger.debug(`getAllTokens Retrieved \x1b[34m${count}\x1b[0m tokens`);
 			return { tokens, count };
 		} catch (err) {
 			const errMsg = err instanceof Error ? err.message : String(err);

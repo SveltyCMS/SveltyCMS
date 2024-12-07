@@ -72,7 +72,7 @@ async function fetchAndRedirectToFirstCollection() {
 		if (collections && collections.length > 0) {
 			const firstCollection = collections[0];
 			if (firstCollection && firstCollection.name) {
-				logger.info(`Redirecting to first collection: ${firstCollection.name}`);
+				logger.debug(`Redirecting to first collection: \x1b[34m${firstCollection.name}\x1b[0m`);
 				return `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${firstCollection.name}`;
 			} else {
 				logger.warn('First collection found but name is missing', firstCollection);

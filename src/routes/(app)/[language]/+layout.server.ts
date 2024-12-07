@@ -29,7 +29,7 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 	const { user, theme } = locals;
 	const { language, collection } = params;
 
-	logger.debug(`Layout server load started. Language: ${language}`);
+	logger.debug(`Layout server load started. Language: \x1b[34m${language}\x1b[0m`);
 
 	// ensure language exist :
 	if (!language || !publicEnv.AVAILABLE_SYSTEM_LANGUAGES.includes(language) || !collection) {
