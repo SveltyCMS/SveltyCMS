@@ -128,7 +128,6 @@ export class UserAdapter implements Partial<authDBInterface> {
 			}
 
 			const users = await query.exec();
-			logger.debug('All users retrieved');
 			return users.map((user) => {
 				user._id = user._id.toString();
 				return user as User;

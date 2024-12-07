@@ -313,7 +313,6 @@ export class Auth {
 		if (typeof options?.skip === 'number') filteredRoles = filteredRoles.slice(options.skip);
 		if (typeof options?.limit === 'number') filteredRoles = filteredRoles.slice(0, options.limit);
 
-		logger.debug('All roles retrieved with options applied');
 		return filteredRoles;
 	}
 

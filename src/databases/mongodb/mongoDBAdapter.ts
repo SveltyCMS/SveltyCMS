@@ -200,8 +200,6 @@ export class MongoDBAdapter implements dbInterface {
 		}
 
 		try {
-			logger.debug('Starting collection sync...');
-
 			// Initialize widgets globally
 			if (!globalThis.widgets) {
 				logger.debug('Initializing widgets globally...');
@@ -281,7 +279,6 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Connect to MongoDB
 	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
-		logger.debug('Attempting to connect to MongoDB...');
 		const isAtlas = privateEnv.DB_HOST.startsWith('mongodb+srv://');
 
 		// Construct the connection string
@@ -320,7 +317,7 @@ export class MongoDBAdapter implements dbInterface {
 		for (let i = 1; i <= attempts; i++) {
 			try {
 				await mongoose.connect(connectionString, options);
-				logger.info(`Successfully connected to MongoDB database: ${privateEnv.DB_NAME}`);
+				logger.debug(`Successfully connected to MongoDB database: \x1b[34m${privateEnv.DB_NAME}\x1b[0m`);
 				await this.syncCollections();
 				return;
 			} catch (error: unknown) {
@@ -347,7 +344,6 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Get collection models
 	async getCollectionModels(): Promise<Record<string, Model<Document>>> {
-		logger.debug('getCollectionModels called');
 
 		if (this.collectionsInitialized) {
 			logger.debug('Collections already initialized, returning existing models.');
@@ -440,7 +436,7 @@ export class MongoDBAdapter implements dbInterface {
 		mediaSchemas.forEach((schemaName) => {
 			this.setupModel(schemaName, mediaSchema);
 		});
-		logger.info('Media models set up successfully.');
+		logger.debug('Media models set up successfully.');
 	}
 
 	// Set up widget models

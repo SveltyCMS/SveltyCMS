@@ -290,12 +290,11 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 			return handleApiRequest(event, resolve, user);
 		}
 
-		logger.debug('Proceeding with normal request handling');
 		return resolve(event);
 	} catch (err) {
 		if (err && typeof err === 'object' && 'status' in err && 'location' in err) {
 			const redirectError = err as RedirectError;
-			logger.debug(`Redirecting to \x1b[32m${redirectError.location}\x1b[0m`);
+			logger.debug(`Redirecting to \x1b[34m${redirectError.location}\x1b[0m`);
 			throw err;
 		}
 
