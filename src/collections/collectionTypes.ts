@@ -1,5 +1,5 @@
 /**
- * @file src/utils/collectionTypes.ts
+ * @file src/collections/collectionTypes.ts
  * @description Utility functions for generating TypeScript types for collections in a SvelteKit CMS project.
  *
  * This file contains two main functions:
