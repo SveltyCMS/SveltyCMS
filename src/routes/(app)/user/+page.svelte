@@ -32,8 +32,8 @@
 	import ModalEditForm from './components/ModalEditForm.svelte';
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-	import { collection } from "@root/src/stores/collectionStore.svelte";
-	import type { Schema } from "@root/src/collections/CollectionManager";
+	import { collection } from '@root/src/stores/collectionStore.svelte';
+	import type { Schema } from '@root/src/collections/CollectionManager';
 
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();

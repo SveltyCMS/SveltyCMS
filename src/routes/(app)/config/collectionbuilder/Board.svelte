@@ -1,6 +1,7 @@
 <!-- 
 @files src/routes/(app)/config/collection/Board.svelte
-@description Board component for managing nested collections. 
+@component
+**Board component for managing nested collections**
 -->
 <script lang="ts">
 	// Component

@@ -1,7 +1,7 @@
 <!--
 @file src/routes/(app)/config/collectionbuilder/ModalNameConflict.svelte
-@component ModalNameConflict
-Displays collection name conflicts and provides suggestions for resolution
+@component 
+**ModalNameConflict - This component displays a modal for resolving collection name conflicts.**
 
 Features:
 - Displays collection name conflicts
@@ -67,7 +67,15 @@ Features:
 		</label>
 		<div class="input-group">
 			<input id="use-custom" type="checkbox" bind:checked={useCustomName} class="checkbox" />
-			<input id="custom-name" type="text" bind:value={customName} disabled={!useCustomName} class="input" placeholder="Enter custom name" aria-labelledby="use-custom" />
+			<input
+				id="custom-name"
+				type="text"
+				bind:value={customName}
+				disabled={!useCustomName}
+				class="input"
+				placeholder="Enter custom name"
+				aria-labelledby="use-custom"
+			/>
 		</div>
 		{#if useCustomName && customName && !validateCustomName(customName)}
 			<p class="mt-1 text-sm text-error-500">Name must start with a letter and contain only letters and numbers</p>

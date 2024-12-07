@@ -1,9 +1,7 @@
 /**
 @file src/components/widgets/number/index.ts
-@description - number index file.
+@description - Number index file.
 */
-
-const WIDGET_NAME = 'Number' as const;
 
 import { publicEnv } from '@root/config/public';
 import { getFieldName, getGuiFields } from '@utils/utils';
@@ -11,6 +9,8 @@ import { GuiSchema, GraphqlSchema, type Params } from './types';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
+
+const WIDGET_NAME = 'Number' as const;
 
 /**
  * Defines Number widget Parameters

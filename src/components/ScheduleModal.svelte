@@ -1,6 +1,8 @@
 <!-- 
 @file src/components/ScheduleModal.svelte
-@description ScheduleModal component for scheduling actions on entries
+@component
+**ScheduleModal component for scheduling actions on entries**
+
 Features:
 - Schedule publish, unpublish, delete actions
 - Date and time picker for scheduling
@@ -9,6 +11,7 @@ Features:
 - Accessibility improvements
 - Error handling and validation
 - Improved type safety
+
 Usage:
 Import and use <ScheduleModal /> in your Svelte application.
 Ensure that the necessary stores and utility functions are available.

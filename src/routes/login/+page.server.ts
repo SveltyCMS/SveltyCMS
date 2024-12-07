@@ -343,7 +343,6 @@ export const actions: Actions = {
 
 	// OAuth Sign-Up
 	OAuth: async (event) => {
-
 		const form = await superValidate(event.request, wrappedSignUpOAuthSchema);
 
 		if (!form.valid) {
@@ -365,7 +364,7 @@ export const actions: Actions = {
 				error: rateLimitResult
 			};
 		}
-		const authUrl = await generateGoogleAuthUrl()
+		const authUrl = await generateGoogleAuthUrl();
 		redirect(303, authUrl);
 	},
 

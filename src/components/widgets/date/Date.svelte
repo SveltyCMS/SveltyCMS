@@ -3,9 +3,8 @@
 @component
 **Date widget**
 
-```tsx
 <Date bind:field={field} />
-```
+
 **Props:**
 - `field` - {FieldType} - Field type
 -->

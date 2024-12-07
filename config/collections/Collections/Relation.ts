@@ -7,7 +7,8 @@ import widgets from '@components/widgets';
 import type { Schema } from '@src/collections/types';
 
 export const schema: Schema = {
-	// Collection Name coming from filename
+	// Collection Name comming from filename, so not needed
+
 	// Optional & Icon, status, slug
 	// See for possible Icons https://icon-sets.iconify.design/
 	icon: 'mdi:relation-many-to-many',

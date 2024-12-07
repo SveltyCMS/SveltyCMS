@@ -37,7 +37,6 @@ interface GoogleUserInfo {
 	locale?: string | null;
 }
 
-
 // Send welcome email
 async function sendWelcomeEmail(fetchFn: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>, email: string, username: string) {
 	try {
@@ -266,8 +265,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 
 			const { tokens } = await googleAuthClient.getToken({
 				code,
-				redirect_uri: redirectUri,
-
+				redirect_uri: redirectUri
 			});
 
 			if (!tokens) {

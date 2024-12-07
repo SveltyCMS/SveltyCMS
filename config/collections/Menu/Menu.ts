@@ -6,7 +6,8 @@ import widgets from '@components/widgets';
 import type { Schema } from '@src/collections/types';
 
 export const schema: Schema = {
-	// Collection Name coming from filename
+	// Collection Name comming from filename, so not needed
+
 	// Optional & Icon, status, slug
 	// See for possible Icons https://icon-sets.iconify.design/
 	icon: 'bi:menu-button-wide',
@@ -24,13 +25,13 @@ export const schema: Schema = {
 			fields: [
 				//level 1
 				[
-					widgets.Text({
+					widgets.Input({
 						label: 'Level 1 Name',
 						placeholder: 'Enter Category Level 1 Name',
 						required: true,
 						translated: true
 					}),
-					widgets.Text({
+					widgets.Input({
 						label: 'Description',
 						placeholder: 'Enter Description Level 1',
 						required: true,
@@ -46,13 +47,13 @@ export const schema: Schema = {
 				],
 				//level 2
 				[
-					widgets.Text({
+					widgets.Input({
 						label: 'Level 2 Name',
 						placeholder: 'Enter Category Level 2 Name',
 						required: true,
 						translated: true
 					}),
-					widgets.Text({
+					widgets.Input({
 						label: 'Description',
 						placeholder: 'Enter Description Level 2',
 						required: true,
@@ -61,13 +62,13 @@ export const schema: Schema = {
 				],
 				//level 3
 				[
-					widgets.Text({
+					widgets.Input({
 						label: 'Level 3 Name',
 						placeholder: 'Enter Category Level 3 Name',
 						required: true,
 						translated: true
 					}),
-					widgets.Text({
+					widgets.Input({
 						label: 'Description',
 						placeholder: 'Enter Description Level 3',
 						required: true,
@@ -76,13 +77,13 @@ export const schema: Schema = {
 				],
 				//level 4
 				[
-					widgets.Text({
+					widgets.Input({
 						label: 'Level 4 Name',
 						placeholder: 'Enter Category Level 4 Name',
 						required: true,
 						translated: true
 					}),
-					widgets.Text({
+					widgets.Input({
 						label: 'Description',
 						placeholder: 'Enter Description Level 4',
 						required: true,

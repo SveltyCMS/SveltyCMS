@@ -39,7 +39,7 @@ Features:
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import OauthLogin from "./OauthLogin.svelte";
+	import OauthLogin from './OauthLogin.svelte';
 
 	// Props
 	const {
@@ -363,7 +363,15 @@ Features:
 			{#if firstUserExists}
 				<!-- Sign In -->
 				{#if !PWforgot && !PWreset}
-					<form id="signin-form" method="POST" action="?/signIn" use:enhance bind:this={formElement} class="flex w-full flex-col gap-3" class:hide={active !== 0}>
+					<form
+						id="signin-form"
+						method="POST"
+						action="?/signIn"
+						use:enhance
+						bind:this={formElement}
+						class="flex w-full flex-col gap-3"
+						class:hide={active !== 0}
+					>
 						<!-- Email field -->
 						<FloatingInput
 							id="emailsignIn"
@@ -395,8 +403,6 @@ Features:
 							textColor="black"
 						/>
 						{#if $errors.password}<span class="invalid text-xs text-error-500">{$errors.password}</span>{/if}
-
-						
 					</form>
 
 					<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
@@ -411,8 +417,6 @@ Features:
 							<OauthLogin />
 						</div>
 
-						
-
 						<!-- Row 2 -->
 						<div class="mt-4 flex w-full justify-between sm:mt-0 sm:w-auto">
 							<button
@@ -426,7 +430,6 @@ Features:
 							</button>
 						</div>
 					</div>
-					
 				{/if}
 
 				<!-- Forgotten Password -->

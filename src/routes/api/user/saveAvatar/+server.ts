@@ -36,6 +36,12 @@ import { getCacheStore } from '@src/cacheStore/index.server';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
+		// Validate user session
+		if (!locals.user || !locals.user._id) {
+			logger.error('No user found in session');
+			throw error(401, 'User not authenticated');
+		}
+
 		// Check if the user has permission to update their avatar
 		const { hasPermission } = await checkUserPermission(locals.user, {
 			contextId: 'user/profile',
@@ -45,22 +51,32 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		});
 
 		if (!hasPermission) {
-			logger.error('Unauthorized to update avatar');
+			logger.error('Unauthorized to update avatar', { userId: locals.user._id });
 			throw error(403, 'Unauthorized to update avatar');
 		}
 
 		// Ensure the authentication system is initialized
 		if (!auth) {
 			logger.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error');
+			throw error(500, 'Internal Server Error: Auth system not initialized');
 		}
 
 		const formData = await request.formData();
 		const avatarFile = formData.get('avatar') as File | null;
 
 		if (!avatarFile) {
-			logger.error('No avatar file provided');
+			logger.error('No avatar file provided', { userId: locals.user._id });
 			throw error(400, 'No avatar file provided');
+		}
+
+		// Validate file type
+		const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+		if (!allowedTypes.includes(avatarFile.type)) {
+			logger.error('Invalid file type', {
+				userId: locals.user._id,
+				fileType: avatarFile.type
+			});
+			throw error(400, 'Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.');
 		}
 
 		// Save the avatar image
@@ -80,9 +96,24 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			message: 'Avatar saved successfully',
 			avatarUrl
 		});
-	} catch (error) {
-		const err = error instanceof Error ? error : new Error(String(error));
-		logger.error(`Error in saveAvatar API: ${err.message}`);
-		return json({ success: false, message: err.message }, { status: 500 });
+	} catch (err) {
+		const isHttpError = err instanceof Error && 'status' in err;
+		const status = isHttpError ? (err as any).status : 500;
+		const message = err instanceof Error ? err.message : 'Internal Server Error';
+
+		logger.error('Error in saveAvatar API:', {
+			error: message,
+			stack: err instanceof Error ? err.stack : undefined,
+			userId: locals.user?._id,
+			status
+		});
+
+		return json(
+			{
+				success: false,
+				message: status === 500 ? 'Internal Server Error' : message
+			},
+			{ status }
+		);
 	}
 };

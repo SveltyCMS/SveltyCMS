@@ -31,7 +31,6 @@ import type { Unsubscriber } from 'svelte/store';
 import type { ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
 import type { UserPreferences, WidgetPreference } from '@root/src/stores/userPreferences.svelte';
 import type { VirtualFolderUpdateData } from '@src/types/virtualFolder';
-import { logger } from '@utils/logger.svelte';
 
 // Database
 import mongoose, { Schema } from 'mongoose';
@@ -47,6 +46,9 @@ import type { MediaBase, MediaType } from '@utils/media/mediaModels';
 
 // Theme
 import { DEFAULT_THEME } from '@src/databases/themeManager';
+
+// System Logging
+import { logger } from '@utils/logger.svelte';
 
 // Define the media schema for different media types
 const mediaSchema = new Schema(
@@ -162,7 +164,7 @@ const SystemVirtualFolderModel =
 
 import type { CollectionConfig } from '@src/collections/types';
 
-import { widgets, initWidgets } from '@src/components/widgets';
+import { widgets, initializeWidgets } from '@src/components/widgets';
 
 export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
@@ -173,7 +175,7 @@ export class MongoDBAdapter implements dbInterface {
 		const collectionFiles: string[] = [];
 		try {
 			const entries = await import('fs').then((fs) => fs.promises.readdir(dirPath, { withFileTypes: true }));
-			
+
 			for (const entry of entries) {
 				const fullPath = path.join(dirPath, entry.name);
 				if (entry.isDirectory()) {
@@ -199,22 +201,22 @@ export class MongoDBAdapter implements dbInterface {
 
 		try {
 			logger.debug('Starting collection sync...');
-			
+
 			// Initialize widgets globally
 			if (!globalThis.widgets) {
 				logger.debug('Initializing widgets globally...');
 				globalThis.widgets = widgets;
-				initWidgets();
+				initializeWidgets();
 			}
-			
+
 			// Only import fs on server side
 			const { promises: fs } = await import('fs');
-			
+
 			// Get path to collections directory
 			const collectionsPath = path.resolve(process.cwd(), 'collections');
-			
+
 			logger.debug('Collections path:', collectionsPath);
-			
+
 			// Check if collections directory exists
 			try {
 				await fs.access(collectionsPath);
@@ -222,40 +224,40 @@ export class MongoDBAdapter implements dbInterface {
 				logger.error(`Collections directory not found at ${collectionsPath}:`, { error });
 				return;
 			}
-			
+
 			// Known collection directories
 			const collectionDirs = ['Collections', 'Menu'];
-			
+
 			for (const dir of collectionDirs) {
 				const dirPath = path.join(collectionsPath, dir);
 				try {
 					// Recursively scan for collection files
 					const collectionFiles = await this.scanDirectoryForCollections(dirPath);
 					logger.debug(`Found ${collectionFiles.length} collection files in ${dir} directory and subdirectories`);
-					
+
 					for (const filePath of collectionFiles) {
 						try {
 							logger.debug(`Processing collection file: ${filePath}`);
-							
+
 							const collection = await import(/* @vite-ignore */ filePath);
 							const collectionConfig = collection.default || collection.schema;
-							
+
 							if (collectionConfig) {
 								// Get collection name from the file path
 								const parsedPath = path.parse(filePath);
 								const collectionName = parsedPath.name;
-								
+
 								// Add name to config if not present
 								if (!collectionConfig.name) {
 									collectionConfig.name = collectionName;
 								}
-								
+
 								logger.debug(`Collection config for ${collectionName}:`, {
 									name: collectionConfig.name,
 									fields: collectionConfig.fields?.length || 0,
 									strict: collectionConfig.strict
 								});
-								
+
 								await this.createCollectionModel(collectionConfig);
 								logger.debug(`Successfully created/synced collection model for ${collectionName}`);
 							} else {
@@ -269,7 +271,7 @@ export class MongoDBAdapter implements dbInterface {
 					logger.error(`Error processing directory ${dir}: ${error.message}`);
 				}
 			}
-			
+
 			logger.debug('Collection sync completed successfully');
 		} catch (error) {
 			logger.error('Error syncing collections: ' + error.message);
@@ -328,7 +330,7 @@ export class MongoDBAdapter implements dbInterface {
 					throw new Error('MongoDB connection failed');
 				}
 				logger.warn(`Connection attempt ${i}/${attempts} failed, retrying...`);
-				await new Promise(resolve => setTimeout(resolve, 1000 * i)); // Exponential backoff
+				await new Promise((resolve) => setTimeout(resolve, 1000 * i)); // Exponential backoff
 			}
 		}
 	}
@@ -369,45 +371,45 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Helper method to map field types with improved type safety
 	private mapFieldType(type: string): mongoose.SchemaDefinitionProperty {
-        // First check for widget types
-        const widgetTypeMap: Record<string, mongoose.SchemaDefinitionProperty> = {
-            Text: String,
-            RichText: String,
-            Number: Number,
-            Checkbox: Boolean,
-            Date: Date,
-            DateTime: Date,
-            DateRange: Object,
-            Email: String,
-            PhoneNumber: String,
-            Currency: Number,
-            Rating: Number,
-            Radio: String,
-            MediaUpload: mongoose.Schema.Types.Mixed,
-            MegaMenu: Array,
-            Relation: mongoose.Schema.Types.ObjectId,
-            RemoteVideo: String,
-            ColorPicker: String,
-            Seo: Object,
-            Address: Object
-        };
+		// First check for widget types
+		const widgetTypeMap: Record<string, mongoose.SchemaDefinitionProperty> = {
+			Text: String,
+			RichText: String,
+			Number: Number,
+			Checkbox: Boolean,
+			Date: Date,
+			DateTime: Date,
+			DateRange: Object,
+			Email: String,
+			PhoneNumber: String,
+			Currency: Number,
+			Rating: Number,
+			Radio: String,
+			MediaUpload: mongoose.Schema.Types.Mixed,
+			MegaMenu: Array,
+			Relation: mongoose.Schema.Types.ObjectId,
+			RemoteVideo: String,
+			ColorPicker: String,
+			Seo: Object,
+			Address: Object
+		};
 
-        // Then check for basic types
-        const basicTypeMap: Record<string, mongoose.SchemaDefinitionProperty> = {
-            string: String,
-            number: Number,
-            boolean: Boolean,
-            date: Date,
-            object: mongoose.Schema.Types.Mixed,
-            array: Array,
-            text: String,
-            richtext: String,
-            media: mongoose.Schema.Types.Mixed
-        };
+		// Then check for basic types
+		const basicTypeMap: Record<string, mongoose.SchemaDefinitionProperty> = {
+			string: String,
+			number: Number,
+			boolean: Boolean,
+			date: Date,
+			object: mongoose.Schema.Types.Mixed,
+			array: Array,
+			text: String,
+			richtext: String,
+			media: mongoose.Schema.Types.Mixed
+		};
 
-        // Try widget type first, then basic type, default to Mixed
-        return widgetTypeMap[type] || basicTypeMap[type.toLowerCase()] || mongoose.Schema.Types.Mixed;
-    }
+		// Try widget type first, then basic type, default to Mixed
+		return widgetTypeMap[type] || basicTypeMap[type.toLowerCase()] || mongoose.Schema.Types.Mixed;
+	}
 
 	// Set up authentication models
 	setupAuthModels(): void {
@@ -513,7 +515,11 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Implementing updateOne method
-	async updateOne<T extends Document>(collection: string, query: FilterQuery<T>, update: UpdateQuery<T>): Promise<{
+	async updateOne<T extends Document>(
+		collection: string,
+		query: FilterQuery<T>,
+		update: UpdateQuery<T>
+	): Promise<{
 		acknowledged: boolean;
 		modifiedCount: number;
 		upsertedId: mongoose.Types.ObjectId | null;
@@ -535,7 +541,11 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Implementing updateMany method
-	async updateMany<T extends Document>(collection: string, query: FilterQuery<T>, update: UpdateQuery<T>): Promise<{
+	async updateMany<T extends Document>(
+		collection: string,
+		query: FilterQuery<T>,
+		update: UpdateQuery<T>
+	): Promise<{
 		acknowledged: boolean;
 		modifiedCount: number;
 		upsertedId: mongoose.Types.ObjectId | null;
@@ -604,117 +614,113 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Create a collection model
 	async createCollectionModel(collection: CollectionConfig): Promise<Model<Document>> {
-        if (!collection.name) {
-            throw new Error('Collection must have a name');
-        }
+		if (!collection.name) {
+			throw new Error('Collection must have a name');
+		}
 
-        const collectionName = String(collection.name);
-        logger.debug(`Creating collection model for ${collectionName}`);
+		const collectionName = String(collection.name);
+		logger.debug(`Creating collection model for ${collectionName}`);
 
-        // Check if model already exists
-        if (mongoose.models[collectionName]) {
-            return mongoose.models[collectionName];
-        }
+		// Check if model already exists
+		if (mongoose.models[collectionName]) {
+			return mongoose.models[collectionName];
+		}
 
-        // Define base schema definition
-        const schemaDefinition: Record<string, mongoose.SchemaDefinitionProperty> = {
-            createdBy: {
-                type: String,
-                required: false
-            },
-            revisionsEnabled: {
-                type: Boolean,
-                required: false
-            },
-            translationStatus: {
-                type: mongoose.Schema.Types.Mixed,
-                default: {}
-            }
-        };
+		// Define base schema definition
+		const schemaDefinition: Record<string, mongoose.SchemaDefinitionProperty> = {
+			createdBy: {
+				type: String,
+				required: false
+			},
+			revisionsEnabled: {
+				type: Boolean,
+				required: false
+			},
+			translationStatus: {
+				type: mongoose.Schema.Types.Mixed,
+				default: {}
+			}
+		};
 
-        // Add fields from collection schema
-        if (collection.fields) {
-            for (const field of collection.fields) {
-                try {
-                    // Get field key from label
-                    const fieldKey = field.label?.toLowerCase().replace(/\s+/g, '_');
-                    if (!fieldKey) {
-                        logger.warn(`Field in collection ${collectionName} has no label, skipping`);
-                        continue;
-                    }
+		// Add fields from collection schema
+		if (collection.fields) {
+			for (const field of collection.fields) {
+				try {
+					let fieldConfig;
+					let widgetType;
+					let fieldKey;
 
-                    // Get field configuration
-                    let fieldConfig;
-                    let widgetType;
+					if (typeof field === 'function') {
+						// If field is a widget function, execute it to get config
+						const result = field({});
+						widgetType = result.widget.Name; // Get widget name from the widget object
+						fieldConfig = result; // The result contains all field properties
+						fieldKey = result.db_fieldName;
+					} else {
+						// If field is a direct configuration object
+						widgetType = field.type;
+						fieldConfig = field;
+						fieldKey = field.db_fieldName;
+					}
 
-                    if (typeof field === 'function') {
-                        // If field is a widget function, execute it to get config
-                        const result = field({});
-                        widgetType = result.type;
-                        fieldConfig = result.config;
-                    } else if (field.type) {
-                        // If field has explicit type
-                        widgetType = field.type;
-                        fieldConfig = field;
-                    } else {
-                        // Try to determine widget type from field object
-                        const keys = Object.keys(field);
-                        widgetType = keys.find(key => 
-                            ['Text', 'RichText', 'Number', 'Checkbox', 'Date', 'DateTime', 'DateRange',
-                             'Email', 'PhoneNumber', 'Currency', 'Rating', 'Radio', 'MediaUpload',
-                             'MegaMenu', 'Relation', 'RemoteVideo', 'ColorPicker', 'Seo', 'Address'
-                            ].includes(key)
-                        ) || 'Mixed';
-                        fieldConfig = field;
-                    }
+					// If db_fieldName is not provided, generate one from the label
+					if (!fieldKey && fieldConfig.label) {
+						fieldKey = fieldConfig.label.toLowerCase().replace(/\s+/g, '_');
+						logger.debug(`Generated db_fieldName '${fieldKey}' from label '${fieldConfig.label}'`);
+					}
 
-                    const isRequired = fieldConfig?.required === true;
-                    const isTranslated = fieldConfig?.translated === true;
+					if (!fieldKey) {
+						logger.warn(`Field in collection \x1b[34m${collectionName}\x1b[0m has no db_fieldName or label, skipping`);
+						continue;
+					}
 
-                    // Map the widget type to a MongoDB type
-                    const mongooseType = this.mapFieldType(widgetType);
+					const isRequired = fieldConfig?.required === true;
+					const isTranslated = fieldConfig?.translated === true;
 
-                    // Create the field schema
-                    let fieldSchema: mongoose.SchemaDefinitionProperty;
+					// Map the widget type to a MongoDB type
+					const mongooseType = this.mapFieldType(widgetType);
 
-                    if (isTranslated) {
-                        fieldSchema = {
-                            type: Map,
-                            of: mongooseType,
-                            required: isRequired,
-                            default: {}
-                        };
-                    } else {
-                        fieldSchema = {
-                            type: mongooseType,
-                            required: isRequired
-                        };
-                    }
+					// Create the field schema
+					let fieldSchema: mongoose.SchemaDefinitionProperty;
 
-                    // Add any additional field configuration
-                    if (widgetType === 'Relation' && fieldConfig.collection) {
-                        fieldSchema.ref = fieldConfig.collection;
-                    }
+					if (isTranslated) {
+						fieldSchema = {
+							type: Map,
+							of: mongooseType,
+							required: isRequired,
+							default: {}
+						};
+					} else {
+						fieldSchema = {
+							type: mongooseType,
+							required: isRequired
+						};
+					}
 
-                    // Add the field to the schema
-                    schemaDefinition[fieldKey] = fieldSchema;
-                    logger.debug(`Added field ${fieldKey} with type ${widgetType} to collection ${collectionName}`);
-                } catch (error) {
-                    logger.error(`Error processing field in collection ${collectionName}: ${error.message}`);
-                }
-            }
-        }
+					// Add any additional field configuration
+					if (widgetType === 'Relation' && fieldConfig.collection) {
+						fieldSchema.ref = fieldConfig.collection;
+					}
 
-        const schemaOptions = {
-            strict: collection.strict !== false,
-            timestamps: true,
-            collection: collectionName.toLowerCase()
-        };
+					// Add the field to the schema
+					schemaDefinition[fieldKey] = fieldSchema;
+					logger.debug(`Added field ${fieldKey} with type ${widgetType} to collection ${collectionName}`);
+				} catch (error) {
+					logger.error(`Error processing field in collection ${collectionName}: ${error.message}`);
+				}
+			}
+		}
 
-        // Create and return the model
-        const schema = new mongoose.Schema(schemaDefinition, schemaOptions);
-        return mongoose.model(collectionName, schema);
-    }
+		const schemaOptions = {
+			strict: collection.strict !== false,
+			timestamps: true,
+			collection: collectionName.toLowerCase()
+		};
+
+		// Create and return the model
+		const schema = new mongoose.Schema(schemaDefinition, schemaOptions);
+		return mongoose.model(collectionName, schema);
+	}
 
 	// Methods for Draft and Revision Management
 
@@ -1169,16 +1175,12 @@ export class MongoDBAdapter implements dbInterface {
 				...updateData,
 				updatedAt: new Date()
 			};
-			
+
 			if (updateData.parent) {
 				updatePayload.parent = this.convertId(updateData.parent).toString();
 			}
 
-			const updatedFolder = await SystemVirtualFolderModel.findByIdAndUpdate(
-				folderId,
-				updatePayload,
-				{ new: true }
-			).exec();
+			const updatedFolder = await SystemVirtualFolderModel.findByIdAndUpdate(folderId, updatePayload, { new: true }).exec();
 
 			if (!updatedFolder) {
 				throw Error(`Virtual folder with ID \x1b[34m${folderId}\x1b[0m not found.`);

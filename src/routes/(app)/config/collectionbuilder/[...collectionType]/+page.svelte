@@ -1,6 +1,8 @@
 <!-- 
 @files src/routes/(app)/config/collectionbuilder/[...collectionTypes]/+page.svelte
-@description  This component sets up and displays the collection page. It provides a user-friendly interface for creating, editing, and deleting collections.
+@component  
+**This component sets up and displays the collection page.**
+It provides a user-friendly interface for creating, editing, and deleting collections.
 -->
 <script lang="ts">
 	import axios from 'axios';
@@ -33,7 +35,7 @@
 	const collectionTypes = $page.params.collectionTypes;
 
 	// Default widget data (tab1)
-	let name = $state(mode.value == 'edit' ? (collectionValue.value ? collectionValue.value.name : collectionName) : collectionName);
+	let name = $state(mode.value == 'edit' ? (collectionValue.value ? collectionValue.value.name : collectionTypes) : collectionTypes);
 
 	// Page title
 	let pageTitle = $state('');
@@ -64,12 +66,8 @@
 		name = mode.value == 'edit' ? (collectionValue.value ? collectionValue.value.name : collectionTypes) : $page.params.collectionTypes;
 	});
 
-	interface PageTitleEvent {
-		detail: string;
-	}
-
-	function handlePageTitleUpdate(e: CustomEvent<string>) {
-		highlightedPart = e.detail;
+	function handlePageTitleUpdate(title: string) {
+		highlightedPart = title;
 		if (mode.value === 'edit') {
 			pageTitle = `Edit ${highlightedPart} Collection`;
 		} else {
@@ -80,31 +78,33 @@
 	// Function to save data by sending a POST request
 	async function handleCollectionSave() {
 		// Delete key from fields
-		collectionValue.value.fields.forEach((field: any) => {
-			delete field.key;
-		});
+		if (collectionValue.value && Array.isArray(collectionValue.value.fields)) {
+			collectionValue.value.fields.forEach((field: { key?: string }) => {
+				delete field.key;
+			});
+		}
 
 		// Prepare form data
 		const data =
 			mode.value == 'edit'
 				? obj2formData({
-						originalName: collectionValue.value.name,
+						originalName: collectionValue.value?.name,
 						collectionTypes: name,
-						icon: collectionValue.value.icon,
-						status: collectionValue.value.status,
-						slug: collectionValue.value.slug,
-						description: collectionValue.value.description,
-						permissions: collectionValue.value.permissions,
-						fields: collectionValue.value.fields
+						icon: collectionValue.value?.icon,
+						status: collectionValue.value?.status,
+						slug: collectionValue.value?.slug,
+						description: collectionValue.value?.description,
+						permissions: collectionValue.value?.permissions,
+						fields: collectionValue.value?.fields
 					})
 				: obj2formData({
 						collectionTypes: name,
-						icon: collectionValue.value.icon,
-						status: collectionValue.value.status,
-						slug: collectionValue.value.slug,
-						description: collectionValue.value.description,
-						permissions: collectionValue.value.permissions,
-						fields: collectionValue.value.fields
+						icon: collectionValue.value?.icon,
+						status: collectionValue.value?.status,
+						slug: collectionValue.value?.slug,
+						description: collectionValue.value?.description,
+						permissions: collectionValue.value?.permissions,
+						fields: collectionValue.value?.fields
 					});
 
 		// Send the form data to the server
@@ -129,7 +129,7 @@
 	}
 
 	function handleCollectionDelete() {
-		console.log('Delete collection:', collectionValue.value.name);
+		console.log('Delete collection:', collectionValue.value?.name);
 		// Define the confirmation modal
 		const confirmModal: ModalSettings = {
 			type: 'confirm',
@@ -138,7 +138,7 @@
 			response: (r: boolean) => {
 				if (r) {
 					// Send the form data to the server
-					axios.post(`?/deleteCollections`, obj2formData({ collectionTypes: collectionValue.value.name }), {
+					axios.post(`?/deleteCollections`, obj2formData({ collectionTypes: collectionValue.value?.name }), {
 						headers: {
 							'Content-Type': 'multipart/form-data'
 						}
@@ -225,9 +225,9 @@
 
 		<!-- Tab Panels -->
 		{#if $tabSet === 0}
-			<CollectionForm onupdatePageTitle={handlePageTitleUpdate} />
+			<CollectionForm {handlePageTitleUpdate} />
 		{:else if $tabSet === 1}
-			<CollectionWidget onsave={handleCollectionSave} />
+			<CollectionWidget {handleCollectionSave} />
 		{/if}
 	</TabGroup>
 </div>

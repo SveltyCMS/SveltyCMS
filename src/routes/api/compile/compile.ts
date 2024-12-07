@@ -31,7 +31,7 @@ export async function compile(options: CompileOptions = {}): Promise<void> {
 	// Define collection paths directly
 	const {
 		userCollections = path.join(__dirname, '../../../config/collections'),
-		compiledCollections = path.join(__dirname, '../../../collections'),
+		compiledCollections = path.join(__dirname, '../../../collections')
 	} = options;
 
 	try {
@@ -41,7 +41,7 @@ export async function compile(options: CompileOptions = {}): Promise<void> {
 		// Get TypeScript files from user collections only (system collections are not compiled)
 		try {
 			const userFiles = await getTypescriptFiles(userCollections);
-			
+
 			// Create output directories for user collection files
 			await createOutputDirectories(userFiles, userCollections, compiledCollections);
 
@@ -86,7 +86,9 @@ async function getTypescriptFiles(folder: string, subdir: string = ''): Promise<
 			// Check for name conflicts
 			const collectionName = entry.name.replace(/\.ts$/, '');
 			if (collectionNames.has(collectionName)) {
-				throw new Error(`Collection name conflict: "${collectionName}" is used multiple times. Collection names must be unique regardless of their directory location.`);
+				throw new Error(
+					`Collection name conflict: "${collectionName}" is used multiple times. Collection names must be unique regardless of their directory location.`
+				);
 			}
 			collectionNames.add(collectionName);
 			files.push(relativePath);

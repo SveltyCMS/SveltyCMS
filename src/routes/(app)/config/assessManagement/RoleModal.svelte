@@ -1,13 +1,8 @@
 <script lang="ts">
-	import { preventDefault } from 'svelte/legacy';
-
 	import type { SvelteComponent } from 'svelte';
 
 	// Stores
 	import { getModalStore } from '@skeletonlabs/skeleton';
-
-	// Auth
-	import type { Role, Permission } from '@src/auth/types';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -33,7 +28,8 @@
 
 	const modalStore = getModalStore();
 
-	function onFormSubmit(): void {
+	function onFormSubmit(event: SubmitEvent): void {
+		event.preventDefault();
 		const modal = $modalStore[0];
 		if (modal?.response) {
 			modal.response({
@@ -53,7 +49,7 @@
 		{isEditMode ? 'Edit Role' : 'Create New Role'}
 	</header>
 
-	<form class="modal-form space-y-4 border border-surface-500 p-4 rounded-container-token" onsubmit={preventDefault(onFormSubmit)}>
+	<form class="modal-form space-y-4 border border-surface-500 p-4 rounded-container-token" onsubmit={onFormSubmit}>
 		<label class="label">
 			<span>Role Name:</span>
 			<input type="text" bind:value={formName} placeholder="Role Name" class="input" required />
@@ -68,6 +64,6 @@
 	<!-- Footer -->
 	<footer class="modal-footer flex justify-end gap-4">
 		<button class="variant-ghost-surface btn" onclick={parent.onClose}>{m.button_cancel()}</button>
-		<button class="variant-filled-primary btn" onclick={onFormSubmit}>{isEditMode ? 'Update' : 'Create'}</button>
+		<button type="submit" form="roleForm" class="variant-filled-primary btn">{isEditMode ? 'Update' : 'Create'}</button>
 	</footer>
 </div>

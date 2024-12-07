@@ -26,12 +26,24 @@ import { auth, initializationPromise } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import { checkUserPermission } from '@src/auth/permissionCheck';
 import { getAllPermissions } from '@src/auth/permissionManager';
+import type { User, Permission } from '@src/auth/types';
 
 // Cache
 import { getCacheStore } from '@src/cacheStore/index.server';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
+
+// Types
+interface RedirectError {
+	status: number;
+	location: string;
+}
+
+// Cache TTLs
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+const API_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const SESSION_EXTENSION_THRESHOLD = 12 * 60 * 60 * 1000; // 12 hours
 
 // Initialize rate limiter
 const limiter = new RateLimiter({
@@ -108,40 +120,48 @@ const createHtmlResponse = (message: string, status: number): never => {
 	throw error(status, html);
 };
 
-// Get user from session ID, using cache if available
-const getUserFromSessionId = async (session_id: string | undefined): Promise<any> => {
+// Session and permission caches
+const sessionCache = new Map<string, { user: User; timestamp: number }>();
+const permissionCache = new Map<string, { permissions: Permission[]; timestamp: number }>();
+
+// Get user from session ID with optimized caching
+const getUserFromSessionId = async (session_id: string | undefined): Promise<User | null> => {
 	if (!session_id) return null;
+
 	const cacheStore = getCacheStore();
-	let user = await cacheStore.get(session_id);
-	if (!user) {
-		try {
-			user = await auth?.validateSession({ session_id });
-			if (user) {
-				// Extended session duration to 24 hours
-				await cacheStore.set(session_id, user, new Date(Date.now() + 24 * 3600 * 1000));
-			}
-		} catch (err) {
-			logger.error(`Session validation error: ${err}`);
-			// Clear the invalid session cookie
-			return null;
+	const now = Date.now();
+
+	// Check in-memory cache first
+	const memCached = sessionCache.get(session_id);
+	if (memCached && now - memCached.timestamp < CACHE_TTL) {
+		// Extend session in background if needed
+		if (now - memCached.timestamp > SESSION_EXTENSION_THRESHOLD) {
+			cacheStore.set(session_id, memCached, new Date(now + CACHE_TTL)).catch((err) => logger.error('Failed to extend session:', err));
 		}
-	} else {
-		try {
-			// Double-check the session is still valid in the database
-			const validSession = await auth?.validateSession({ session_id });
-			if (!validSession) {
-				await cacheStore.delete(session_id);
-				return null;
-			}
-			// Extend session on activity
-			await cacheStore.set(session_id, user, new Date(Date.now() + 24 * 3600 * 1000));
-		} catch (err) {
-			logger.error(`Session revalidation error: ${err}`);
-			await cacheStore.delete(session_id);
-			return null;
-		}
+		return memCached.user;
 	}
-	return user;
+
+	// Try Redis cache
+	const redisCached = await cacheStore.get<{ user: User; timestamp: number }>(session_id);
+	if (redisCached) {
+		sessionCache.set(session_id, redisCached);
+		return redisCached.user;
+	}
+
+	// Validate session in database
+	try {
+		const user = await auth?.validateSession({ session_id });
+		if (user) {
+			const sessionData = { user, timestamp: now };
+			sessionCache.set(session_id, sessionData);
+			await cacheStore.set(session_id, sessionData, new Date(now + CACHE_TTL));
+			return user;
+		}
+	} catch (err) {
+		logger.error(`Session validation error: ${err}`);
+	}
+
+	return null;
 };
 
 // Handle static asset caching
@@ -156,79 +176,48 @@ const handleStaticAssetCaching: Handle = async ({ event, resolve }) => {
 
 // Get client IP with fallbacks
 function getClientIp(event: RequestEvent): string {
-    // Try the standard getClientAddress first
-    try {
-        const addr = event.getClientAddress();
-        if (addr) return addr;
-    } catch (e) {
-        // Continue to fallbacks if this fails
-    }
-
-    // Check headers that might contain the real IP
-    const headers = event.request.headers;
-    const forwardedFor = headers.get('x-forwarded-for');
-    if (forwardedFor) {
-        // Get the first IP in the list (original client IP)
-        return forwardedFor.split(',')[0].trim();
-    }
-
-    const realIp = headers.get('x-real-ip');
-    if (realIp) {
-        return realIp;
-    }
-
-    // Fallback to a default IP for development
-    return '127.0.0.1';
+	try {
+		return (
+			event.getClientAddress() ||
+			event.request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+			event.request.headers.get('x-real-ip') ||
+			'127.0.0.1'
+		);
+	} catch {
+		return '127.0.0.1';
+	}
 }
 
 // Handle rate limiting
 const handleRateLimit: Handle = async ({ event, resolve }) => {
-    const clientIp = getClientIp(event);
-    
-    if (isStaticAsset(event.url.pathname) || isLocalhost(clientIp) || building) {
-        return resolve(event);
-    }
+	const clientIp = getClientIp(event);
 
-    const isApiRequest = event.url.pathname.startsWith('/api/');
-    const currentLimiter = isApiRequest ? apiLimiter : limiter;
+	if (isStaticAsset(event.url.pathname) || isLocalhost(clientIp) || building) {
+		return resolve(event);
+	}
 
-    if (await currentLimiter.isLimited(event)) {
-        logger.warn(`Rate limit exceeded for IP: ${clientIp}, endpoint: ${event.url.pathname}`);
-        throw error(429, isApiRequest ? 'Too Many Requests' : createHtmlResponse('Too Many Requests', 429));
-    }
+	const isApiRequest = event.url.pathname.startsWith('/api/');
+	if (await (isApiRequest ? apiLimiter : limiter).isLimited(event)) {
+		logger.warn(`Rate limit exceeded for IP: ${clientIp}, endpoint: ${event.url.pathname}`);
+		throw error(429, isApiRequest ? 'Too Many Requests' : createHtmlResponse('Too Many Requests', 429));
+	}
 
-    return resolve(event);
+	return resolve(event);
 };
 
 // Handle authentication, authorization, and API caching
 export const handleAuth: Handle = async ({ event, resolve }) => {
-	// Skip during build
-	if (building) {
-		return await resolve(event);
-	}
+	if (building) return resolve(event);
 
 	try {
-		// Wait for initialization to complete
-		if (initializationPromise) {
-			await initializationPromise;
-		}
+		await initializationPromise;
 
 		const session_id = event.cookies.get(SESSION_COOKIE_NAME);
-		let user = null;
-		
-		try {
-			user = await getUserFromSessionId(session_id);
-		} catch (err) {
-			logger.error(`Failed to get user from session: ${err}`);
-			event.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
-		}
+		const user = await getUserFromSessionId(session_id);
 
-		// If session is invalid, clear the cookie
 		if (session_id && !user) {
 			event.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
 		}
-
-		logger.debug(`User from session: ${user ? JSON.stringify(user) : 'Not found'}`);
 
 		event.locals.user = user;
 		event.locals.permissions = user?.permissions || [];
@@ -237,71 +226,36 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 		const isPublicRoute = isPublicOrOAuthRoute(event.url.pathname);
 		const isApiRequest = event.url.pathname.startsWith('/api/');
 
-		// Check if this is the first user, regardless of session
-		let userCount = 0;
-		let isFirstUser = false;
-		if(!auth)  {
-			logger.error('Auth service not initialized');
-			throw error(500, 'Auth service not initialized');
-		}
-		
-		try {
-			userCount = await auth.getUserCount();
-			isFirstUser = userCount === 0;
-		} catch (err) {
-			logger.error(`Failed to get user count: ${err}`);
-			// If we can't get user count and this isn't a public route, redirect to login
-			if (!isPublicOrOAuthRoute(event.url.pathname)) {
-				if (isApiRequest) {
-					throw error(401, 'Unauthorized');
-				}
-				throw redirect(302, '/login');
-			}
-		}
+		// First user check
+		if (!auth) throw error(500, 'Auth service not initialized');
 
+		const isFirstUser = await auth
+			.getUserCount()
+			.then((count) => count === 0)
+			.catch(() => false);
 		event.locals.isFirstUser = isFirstUser;
-		logger.debug(`Is first user: ${isFirstUser}, Total users: ${userCount}`);
 
 		if (user) {
-			try {
-				// Fetch user roles
-				event.locals.roles = await auth.getAllRoles();
-				logger.debug(`Roles retrieved for user ${user.email}: ${JSON.stringify(event.locals.roles)}`);
-
-				// Check for admin permissions
-				const manageUsersPermissionConfig = {
+			// Load user data efficiently
+			const [roles, { hasPermission }] = await Promise.all([
+				auth.getAllRoles(),
+				checkUserPermission(user, {
 					contextId: 'config/userManagement',
 					requiredRole: 'admin',
 					action: 'manage',
 					contextType: 'system'
-				};
-				
-				try {
-					const { hasPermission } = await checkUserPermission(user, manageUsersPermissionConfig);
-					event.locals.hasManageUsersPermission = hasPermission;
-					logger.debug(`User ${user.email} has manage users permission: ${hasPermission}`);
+				})
+			]);
 
-					// Fetch admin data if user has permission
-					if (user.isAdmin || hasPermission) {
-						const [users, tokens] = await Promise.allSettled([
-							auth.getAllUsers(),
-							auth.getAllTokens()
-						]);
+			event.locals.roles = roles;
+			event.locals.hasManageUsersPermission = hasPermission;
 
-						event.locals.allUsers = users.status === 'fulfilled' ? users.value : [];
-						event.locals.allTokens = tokens.status === 'fulfilled' ? tokens.value : { tokens: [], count: 0 };
-						
-						logger.debug(`Retrieved ${event.locals.allUsers.length} users and ${event.locals.allTokens.tokens.length} tokens for admin`);
-					}
-				} catch (err) {
-					logger.error(`Error checking user permissions: ${err}`);
-					event.locals.hasManageUsersPermission = false;
-				}
-			} catch (err) {
-				logger.error(`Error fetching user data: ${err}`);
-				// Continue with the request but with limited permissions
-				event.locals.roles = [];
-				event.locals.hasManageUsersPermission = false;
+			// Load admin data if needed
+			if (user.isAdmin || hasPermission) {
+				const [users, tokens] = await Promise.all([auth.getAllUsers(), auth.getAllTokens()]);
+
+				event.locals.allUsers = users;
+				event.locals.allTokens = tokens;
 			}
 		}
 
@@ -336,107 +290,105 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 		logger.debug('Proceeding with normal request handling');
 		return resolve(event);
 	} catch (err) {
-		// Check if this is a redirect response
 		if (err && typeof err === 'object' && 'status' in err && 'location' in err) {
-			logger.debug(`Redirecting to ${(err as any).location}`);
-			throw err; // Re-throw redirect responses
+			const redirectError = err as RedirectError;
+			logger.debug(`Redirecting to ${redirectError.location}`);
+			throw err;
 		}
 
-		// Log other errors
 		logger.error(`Error in handleAuth: ${err instanceof Error ? err.message : JSON.stringify(err)}`);
-		
-		// For API requests, return a JSON error
+
 		if (event.url.pathname.startsWith('/api/')) {
 			return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
 				status: 500,
 				headers: { 'Content-Type': 'application/json' }
 			});
 		}
-		
-		// For other errors, throw a 500
+
 		throw error(500, 'Internal Server Error');
 	}
 };
 
-// Handle API requests, including permission checks and caching
-const handleApiRequest = async (event: any, resolve: any, user: any): Promise<Response> => {
+// Handle API requests with optimized caching
+const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEvent) => Promise<Response>, user: User): Promise<Response> => {
 	const apiEndpoint = event.url.pathname.split('/')[2];
-	const permissionId = `api:${apiEndpoint}`;
+	const cacheStore = getCacheStore();
 
-	const allPermissions = await getAllPermissions();
-	const requiredPermission = allPermissions.find((p) => p._id === permissionId);
+	// Check API permissions using cached permissions
+	const now = Date.now();
+	let permissions = permissionCache.get('all')?.permissions;
 
-	// Check permissions for API access
+	if (!permissions || now - (permissionCache.get('all')?.timestamp || 0) > API_CACHE_TTL) {
+		permissions = await getAllPermissions();
+		permissionCache.set('all', { permissions, timestamp: now });
+	}
+
+	const requiredPermission = permissions.find((p) => p._id === `api:${apiEndpoint}`);
 	if (requiredPermission) {
 		const { hasPermission } = await checkUserPermission(user, {
-			contextId: permissionId,
+			contextId: `api:${apiEndpoint}`,
 			name: `Access ${apiEndpoint} API`,
 			action: requiredPermission.action,
 			contextType: requiredPermission.type
 		});
+
 		if (!hasPermission) {
 			logger.warn(`User ${user._id} attempted to access ${apiEndpoint} API without permission`);
 			throw error(403, 'Forbidden');
 		}
 	}
 
-	// Handle both GET and POST requests
+	// Handle GET requests with caching
 	if (event.request.method === 'GET') {
-		return handleCachedApiRequest(event, resolve, apiEndpoint, user._id);
-	} else {
-		// For POST, PUT, DELETE, etc., just resolve the event
-		return resolve(event);
-	}
-};
+		const cacheKey = `api:${apiEndpoint}:${user._id}`;
+		const cached = await cacheStore.get<{ data: unknown; timestamp: number; headers: Record<string, string> }>(cacheKey);
 
-// Handle cached API requests
-const handleCachedApiRequest = async (event: any, resolve: any, apiEndpoint: string, userId: string): Promise<Response> => {
-	const cacheStore = getCacheStore();
-	const cacheKey = `api:${apiEndpoint}:${userId}`;
-	const cachedResponse = await cacheStore.get(cacheKey);
-
-	if (cachedResponse) {
-		logger.debug(`Cache hit for ${cacheKey}`);
-		return new Response(JSON.stringify(cachedResponse), {
-			status: 200,
-			headers: { 'Content-Type': 'application/json' }
-		});
-	}
-
-	logger.debug(`Cache miss for ${cacheKey}, resolving request`);
-	const response = await resolve(event);
-
-	// Clone the response so we can read it multiple times
-	const clonedResponse = response.clone();
-
-	try {
-		// Special handling for GraphQL responses
-		if (apiEndpoint === 'graphql') {
-			// For GraphQL, we'll pass through the response as-is
-			return response;
+		if (cached) {
+			logger.debug(`Cache hit for ${cacheKey}`);
+			return new Response(JSON.stringify(cached.data), {
+				status: 200,
+				headers: {
+					'Content-Type': 'application/json',
+					...cached.headers
+				}
+			});
 		}
 
-		// For other API endpoints, handle as JSON
-		const responseData = await response.json();
+		logger.debug(`Cache miss for ${cacheKey}, resolving request`);
+		const response = await resolve(event);
+		const clonedResponse = response.clone();
 
-		// Only cache successful responses
-		if (response.ok) {
-			await cacheStore.set(cacheKey, responseData, new Date(Date.now() + 300 * 1000));
-			logger.debug(`Stored ${cacheKey} in cache`);
-		}
+		try {
+			if (apiEndpoint === 'graphql') return response;
 
-		return new Response(JSON.stringify(responseData), {
-			status: response.status,
-			headers: {
-				'Content-Type': 'application/json',
-				...Object.fromEntries(response.headers)
+			const data = await response.json();
+			if (response.ok) {
+				await cacheStore.set(
+					cacheKey,
+					{
+						data,
+						timestamp: now,
+						headers: Object.fromEntries(response.headers)
+					},
+					new Date(now + API_CACHE_TTL)
+				);
+				logger.debug(`Stored ${cacheKey} in cache`);
 			}
-		});
-	} catch (err) {
-		logger.error(`Error processing API response for ${apiEndpoint}: ${err}`);
-		// If JSON parsing fails, return the original response
-		return clonedResponse;
+
+			return new Response(JSON.stringify(data), {
+				status: response.status,
+				headers: {
+					'Content-Type': 'application/json',
+					...Object.fromEntries(response.headers)
+				}
+			});
+		} catch (err) {
+			logger.error(`Error processing API response for ${apiEndpoint}: ${err}`);
+			return clonedResponse;
+		}
 	}
+
+	return resolve(event);
 };
 
 // Add security headers to the response
@@ -452,7 +404,6 @@ const addSecurityHeaders: Handle = async ({ event, resolve }) => {
 
 	Object.entries(headers).forEach(([key, value]) => response.headers.set(key, value));
 
-	// Only set HSTS header on HTTPS connections
 	if (event.url.protocol === 'https:') {
 		response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
 	}

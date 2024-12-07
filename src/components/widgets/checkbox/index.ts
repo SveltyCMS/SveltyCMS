@@ -3,14 +3,14 @@
 @description - checkbox index file.
 */
 
-const WIDGET_NAME = 'Checkbox' as const;
-
 import { publicEnv } from '@root/config/public';
 import { getFieldName, getGuiFields } from '@utils/utils';
 import { GuiSchema, GraphqlSchema, type Params } from './types';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
+
+const WIDGET_NAME = 'Checkbox' as const;
 
 // Define the widget function
 const widget = (params: Params) => {

@@ -28,20 +28,16 @@ import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/r
 // Stores
 import { categories, collections, unAssigned, collection, collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
 
-// Components
-import { initWidgets } from '@components/widgets';
-
 // Import category config directly
 import { categoryConfig } from './categories';
 
 // Server-side imports
-
 let fs: typeof import('fs/promises') | null = null;
 let path: typeof import('path') | null = null;
 
 if (!browser) {
-	const imports = await Promise.all([ import('fs/promises'), import('path')]);
-	[ fs, path] = imports;
+	const imports = await Promise.all([import('fs/promises'), import('path')]);
+	[fs, path] = imports;
 }
 
 interface CacheEntry<T> {
@@ -75,12 +71,14 @@ class CollectionManager {
 	private initialized: boolean = false;
 	private loadedCollections: Schema[] = [];
 	private loadedCategories: Category[] = [];
+	private initializationPromise: Promise<void> | null = null;
 
 	private constructor() {
 		if (typeof window !== 'undefined') {
-			this.initialize().catch((err: unknown) => {
+			this.initializationPromise = this.initialize().catch((err: unknown) => {
 				const errorMessage = err instanceof Error ? err.message : String(err);
 				logger.error('Failed to initialize CollectionManager', { error: errorMessage });
+				throw err;
 			});
 		}
 	}
@@ -90,6 +88,71 @@ class CollectionManager {
 			CollectionManager.instance = new CollectionManager();
 		}
 		return CollectionManager.instance;
+	}
+
+	// Wait for initialization to complete
+	async waitForInitialization(): Promise<void> {
+		if (this.initializationPromise) {
+			await this.initializationPromise;
+		}
+	}
+
+	// Initialize the collection manager
+	private async initialize(): Promise<void> {
+		if (this.initialized) return;
+
+		try {
+			await this.measurePerformance(async () => {
+				try {
+					// Initialize widgets
+					if (!browser) {
+						try {
+							if (!widgets) {
+								throw new Error('Failed to initialize widgets');
+							}
+						} catch (error) {
+							logger.error('Widgets failed to initialize:', error as Error);
+							throw error;
+						}
+					}
+
+					// Now load collections
+					await this.checkAndUpdateCategories(); // Check and update categories
+					await this.updateCollections(true); // Initial collection update
+
+					this.initialized = true;
+				} catch (error) {
+					logger.error('Initialization failed:', error as Error);
+					throw error;
+				}
+			}, 'Collection Manager Initialization');
+		} catch (err) {
+			const errorMessage = err instanceof Error ? err.message : String(err);
+			logger.error('Failed to load collections', { error: errorMessage });
+			throw new Error(`Failed to load collections: ${errorMessage}`);
+		}
+	}
+
+	// Process module content
+	private async processModule(content: string): Promise<{ schema?: Partial<Schema> } | null> {
+		try {
+			// Create a module from the content using Function constructor instead of eval
+			const moduleFunc = new Function(
+				'widgets',
+				`
+                const exports = {};
+                const module = { exports };
+                ${content}
+                return module.exports;
+            `
+			);
+			const module = moduleFunc(widgets);
+			return module;
+		} catch (err) {
+			const errorMessage = err instanceof Error ? err.message : String(err);
+			logger.error('Failed to process module:', { error: errorMessage });
+			return null;
+		}
 	}
 
 	// Cache management methods with Redis support
@@ -201,9 +264,12 @@ class CollectionManager {
 		// Load if not cached
 		const path = `config/collections/${name}.ts`;
 		try {
+			logger.debug(`Attempting to read file for collection: ${name} at path: ${path}`);
 			const content = await this.readFile(path);
+			logger.debug(`File content for collection ${name}: ${content.substring(0, 100)}...`); // Log only the first 100 characters
 			const schema = await this.processCollectionFile(path, content);
 			if (schema) {
+				logger.debug(`Schema processed for collection ${name}:`, schema);
 				await this.setCacheValue(cacheKey, schema, this.collectionCache);
 				this.collectionAccessCount.set(name, (this.collectionAccessCount.get(name) || 0) + 1);
 				return schema;
@@ -222,37 +288,6 @@ class CollectionManager {
 			collections: this.loadedCollections,
 			categories: this.loadedCategories
 		};
-	}
-
-	// Initialize the collection manager
-	async initialize(): Promise<void> {
-		if (this.initialized) return;
-
-		try {
-			await this.measurePerformance(async () => {
-				try {
-					// Initialize widgets first and wait for completion
-					initWidgets();
-					logger.info('Widgets initialized successfully');
-
-					// Wait a bit to ensure widgets are fully initialized
-					await new Promise(resolve => setTimeout(resolve, 100));
-
-					// Now load collections
-					await this.checkAndUpdateCategories(); // Check and update categories
-					await this.updateCollections(true); // Initial collection update
-
-					this.initialized = true;
-				} catch (error) {
-					logger.error('Initialization failed:', error as Error);
-					throw error;
-				}
-			}, 'Collection Manager Initialization');
-		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : String(err);
-			logger.error('Failed to load collections', { error: errorMessage });
-			throw new Error(`Failed to load collections: ${errorMessage}`);
-		}
 	}
 
 	// Function to check and update categories on startup
@@ -308,7 +343,7 @@ class CollectionManager {
 							const schema = moduleSchema?.schema;
 
 							if (!schema || typeof schema !== 'object') {
-								logger.error(`Invalid or missing schema in ${filePath}`, { 
+								logger.error(`Invalid or missing schema in ${filePath}`, {
 									hasModuleData: !!moduleContent,
 									hasSchema: !!(moduleContent && moduleContent.schema)
 								});
@@ -403,7 +438,7 @@ class CollectionManager {
 			const moduleData = await this.processModule(content);
 
 			if (!moduleData || !moduleData.schema) {
-				logger.error(`Invalid collection file format: ${filePath}`, { 
+				logger.error(`Invalid collection file format: ${filePath}`, {
 					hasModuleData: !!moduleData,
 					hasSchema: !!(moduleData && moduleData.schema)
 				});
@@ -423,7 +458,7 @@ class CollectionManager {
 
 			// Generate a random ID for the collection
 			const randomId = await createRandomID();
-			
+
 			// Create the processed schema with proper type checking
 			const baseSchema = moduleData.schema as Partial<Schema>;
 			const processedSchema: Schema = {
@@ -482,10 +517,12 @@ class CollectionManager {
 		// Helper function to recursively get all files
 		const getAllFiles = async (dir: string): Promise<string[]> => {
 			const entries = await fs.readdir(dir, { withFileTypes: true });
-			const files = await Promise.all(entries.map(async (entry) => {
-				const fullPath = path!.join(dir, entry.name);
-				return entry.isDirectory() ? getAllFiles(fullPath) : fullPath;
-			}));
+			const files = await Promise.all(
+				entries.map(async (entry) => {
+					const fullPath = path!.join(dir, entry.name);
+					return entry.isDirectory() ? getAllFiles(fullPath) : fullPath;
+				})
+			);
 			return files.flat();
 		};
 
@@ -500,7 +537,7 @@ class CollectionManager {
 			return isJSFile && isNotExcluded;
 		});
 
-		return filteredFiles.map(file => path!.relative(compiledDirectoryPath, file)) ?? [];
+		return filteredFiles.map((file) => path!.relative(compiledDirectoryPath, file)) ?? [];
 	}
 
 	// Read file with retry mechanism

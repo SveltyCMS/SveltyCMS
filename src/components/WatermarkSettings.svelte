@@ -1,6 +1,7 @@
 <!--
 @file src/components/WatermarkSettings.svelte
-@description Enhanced WatermarkSettings component for CMS integration
+@component
+**Enhanced WatermarkSettings component for CMS integration**
 
 Features:
 - Adjusts watermark size, opacity, position, and rotation

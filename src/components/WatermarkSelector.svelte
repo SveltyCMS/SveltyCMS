@@ -1,6 +1,8 @@
 <!-- 
 @file src/components/WatermarkSelector.svelte
-@description Enhanced WatermarkSelector component for selecting watermark images
+@component
+**Enhanced WatermarkSelector component for selecting watermark images**
+
 Features:
 - Displays a grid of selectable watermark images
 - Handles keyboard navigation and selection

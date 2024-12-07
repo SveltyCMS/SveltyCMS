@@ -1,6 +1,7 @@
 <!-- 
 @files src/routes/(app)/config/collectionbuilder/[...CollectionTypes]/tabs/CollectionWidget.svelte
-@description This component displays the collection widget.
+@component
+**This component displays the collection widget**
 -->
 
 <script lang="ts">
@@ -8,7 +9,7 @@
 	import { page } from '$app/stores';
 	import { tabSet } from '@stores/store';
 	import { collectionValue, targetWidget } from '@root/src/stores/collectionStore.svelte';
-	import { getGuiFields } from '@utils/utils';
+	import { getGuiFields, asAny } from '@utils/utils';
 
 	// Components
 	import widgets from '@components/widgets';
@@ -23,11 +24,7 @@
 	import ModalWidgetForm from './CollectionWidget/ModalWidgetForm.svelte';
 	import ModalSelectWidget from './CollectionWidget/ModalSelectWidget.svelte';
 
-	interface Props {
-		'on:save'?: () => void;
-	}
-
-	let { 'on:save': onSave = () => {} }: Props = $props();
+	let props = $props<{ handleCollectionSave: () => Promise<void> }>();
 
 	const modalStore = getModalStore();
 
@@ -58,11 +55,11 @@
 	}
 
 	// Use state for fields
-	let fields = $state(mapFieldsWithWidgets(collectionValue.value.fields));
+	let fields = $state(mapFieldsWithWidgets(collectionValue.value.fields as any[]));
 
 	// Update fields when collectionValue changes
 	$effect(() => {
-		fields = mapFieldsWithWidgets(collectionValue.value.fields);
+		fields = mapFieldsWithWidgets(collectionValue.value.fields as any[]);
 	});
 
 	// Collection headers
@@ -88,14 +85,14 @@
 			title: 'Select a Widget',
 			body: 'Select your widget and then press submit.',
 			value: selected, // Pass the selected widget as the initial value
-			response: (r: { selectedWidget: string } | undefined) => {
+			response: (r: { selectedWidget: keyof WidgetType } | undefined) => {
 				if (!r) return;
 				const { selectedWidget } = r;
-				if (selectedWidget) {
+				if (selectedWidget && widgets[selectedWidget as keyof typeof widgets]) {
 					// Create a new widget object with the selected widget data
 					const newWidget = {
 						widget: { key: selectedWidget, Name: selectedWidget },
-						GuiFields: getGuiFields({ key: selectedWidget }, widgets[selectedWidget].GuiSchema),
+						GuiFields: getGuiFields({ key: selectedWidget }, asAny(widgets[selectedWidget as keyof typeof widgets].GuiSchema)),
 						permissions: {} // Initialize empty permissions object
 					};
 					// Call modalWidgetForm with the new widget object
@@ -143,7 +140,9 @@
 				}
 				// Update the collectionValue store
 				collectionValue.update((c) => {
-					c.fields = fields;
+					if (c) {
+						c.fields = fields;
+					}
 					return c;
 				});
 			}
@@ -152,26 +151,30 @@
 	}
 
 	// Function to save data by sending a POST request
-	async function handleCollectionSave() {
+	async function handleSave() {
 		try {
 			const updatedFields = fields.map((field) => {
-				const GuiFields = getGuiFields({ key: field.widget.Name }, widgets[field.widget.Name].GuiSchema);
-				for (const [property, value] of Object.entries(field)) {
-					if (typeof value !== 'object' && property !== 'id') {
-						GuiFields[property] = field[property];
+				if (field.widget?.Name && widgets[field.widget.Name as keyof typeof widgets]) {
+					const GuiFields = getGuiFields({ key: field.widget.Name }, asAny(widgets[field.widget.Name as keyof typeof widgets].GuiSchema));
+					for (const [property, value] of Object.entries(field)) {
+						if (typeof value !== 'object' && property !== 'id') {
+							GuiFields[property] = field[property];
+						}
 					}
+					field.widget.GuiFields = GuiFields;
 				}
-				field.widget.GuiFields = GuiFields;
 				return field;
 			});
 
 			// Update the collection fields
 			collectionValue.update((c) => {
-				c.fields = updatedFields;
+				if (c) {
+					c.fields = updatedFields;
+				}
 				return c;
 			});
 
-			onSave();
+			await props.handleCollectionSave();
 		} catch (error) {
 			console.error('Error saving collection:', error);
 		}
@@ -218,7 +221,7 @@
 				{m.button_previous()}
 			</button>
 			<button
-				onclick={handleCollectionSave}
+				onclick={handleSave}
 				type="button"
 				aria-label={m.button_save()}
 				class="variant-filled-tertiary btn mt-2 justify-end dark:variant-filled-primary dark:text-black">{m.button_save()}</button

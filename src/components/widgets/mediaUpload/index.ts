@@ -1,6 +1,6 @@
 /**
 @file src/components/widgets/mediaUpload/index.ts
-@description - mediaUpload index file  
+@description - MediaUpload index file  
 
 Features:
 - Media upload for images, videos, audio, and documents
@@ -9,8 +9,6 @@ Features:
 - File sorting and reordering
 - Array of uploaded files
 */
-
-const WIDGET_NAME = 'MediaUpload' as const;
 
 import { publicEnv } from '@root/config/public';
 
@@ -24,11 +22,13 @@ import { dbAdapter } from '@src/databases/db';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 import { type ModifyRequestParams } from '..';
 
+// ParaglideJS
+import * as m from '@src/paraglide/messages';
+
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-// ParaglideJS
-import * as m from '@src/paraglide/messages';
+const WIDGET_NAME = 'MediaUpload' as const;
 
 // Extend meta_data type
 interface ExtendedMetaData {

@@ -121,11 +121,11 @@ It provides the following functionality:
 		modalStore.trigger(modal);
 	};
 
-	const saveRole = async (role: { 
-		roleName: string; 
-		roleDescription: string; 
-		currentGroupName: string; 
-		selectedPermissions: string[]; 
+	const saveRole = async (role: {
+		roleName: string;
+		roleDescription: string;
+		currentGroupName: string;
+		selectedPermissions: string[];
 		currentRoleId: string | null;
 	}) => {
 		const { roleName, roleDescription, currentGroupName, selectedPermissions, currentRoleId } = role;
@@ -212,13 +212,15 @@ It provides the following functionality:
 
 	// Types for DND events
 	type DndItem = Role & { id: string };
-	
-	function handleSort(e: CustomEvent<{
-		items: DndItem[];
-		info: {
-			id: number;
-		};
-	}>) {
+
+	function handleSort(
+		e: CustomEvent<{
+			items: DndItem[];
+			info: {
+				id: number;
+			};
+		}>
+	) {
 		items = [...e.detail.items];
 		roles.set(items);
 		modifiedRoles.add(e.detail.items[e.detail.info.id]._id);
@@ -233,12 +235,14 @@ It provides the following functionality:
 		}
 	}
 
-	function handleFinalize(e: CustomEvent<{
-		items: DndItem[];
-		info: {
-			id: number;
-		};
-	}>) {
+	function handleFinalize(
+		e: CustomEvent<{
+			items: DndItem[];
+			info: {
+				id: number;
+			};
+		}>
+	) {
 		items = [...e.detail.items];
 		roles.set(items);
 		modifiedRoles.add(e.detail.items[e.detail.info.id]._id);

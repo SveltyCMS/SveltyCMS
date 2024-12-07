@@ -3,14 +3,14 @@
 @description - Address index file.
 */
 
-const WIDGET_NAME = 'Address' as const;
-
 import { publicEnv } from '@root/config/public';
 import { getFieldName, getGuiFields } from '@utils/utils';
 import { GuiSchema, GraphqlSchema, type Params } from './types';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
+
+const WIDGET_NAME = 'Address' as const;
 
 // Import DISPLAY type from app.d.ts
 type DISPLAY = (({ data: any, collection: any, field: any, entry: any, contentLanguage: string }) => Promise<any>) & { default?: boolean };

@@ -3,8 +3,6 @@
  * @description - richText TipTap index file.
  */
 
-const WIDGET_NAME = 'RichText' as const;
-
 import { publicEnv } from '@root/config/public';
 import { getFieldName, getGuiFields } from '@utils/utils';
 import { GuiSchema, toString, GraphqlSchema, type Params } from './types';
@@ -13,11 +11,13 @@ import { dbAdapter } from '@src/databases/db';
 import type { MediaAccess } from '@src/utils/media/mediaModels';
 import { Permission } from '@src/utils/media/mediaModels';
 
+// ParaglideJS
+import * as m from '@src/paraglide/messages';
+
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-// ParaglideJS
-import * as m from '@src/paraglide/messages';
+const WIDGET_NAME = 'RichText' as const;
 
 // Type guard for File objects
 function isValidFile(file: unknown): file is File {

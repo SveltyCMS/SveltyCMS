@@ -103,7 +103,7 @@ The text is draggable, and the component supports multiple text overlays on the 
 		const tr = new Konva.Transformer({
 			nodes: [textNode],
 			enabledAnchors: ['middle-left', 'middle-right'],
-			boundBoxFunc: (oldBox, newBox) => {
+			boundBoxFunc: (newBox) => {
 				newBox.width = Math.max(30, newBox.width);
 				return newBox;
 			}

@@ -22,12 +22,17 @@
 
 import fs from 'fs';
 import prettier from 'prettier';
-import { updateCollections } from '@src/collections';
-import { compile } from '@root/src/routes/api/compile/compile';
 import { redirect, type Actions, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import type { WidgetType } from '@components/widgets';
-import widgets from '@components/widgets'; // Import widgets directly
+
+// Collections
+import { updateCollections } from '@src/collections';
+import { generateCollectionFieldTypes, generateCollectionTypes } from '@src/collections/collectionTypes';
+import { compile } from '@root/src/routes/api/compile/compile';
+
+// Widgets
+import type { WidgetType } from '@components/widgets/widgetManager.svelte';
+import { widgets } from '@components/widgets/widgetManager.svelte';
 
 // Load Prettier config
 async function getPrettierConfig() {
@@ -49,7 +54,6 @@ import { permissions } from '@src/auth/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-import { generateCollectionFieldTypes, generateCollectionTypes } from '@utils/collectionTypes';
 
 type fields = ReturnType<WidgetType[keyof WidgetType]>;
 
@@ -113,12 +117,14 @@ export const actions: Actions = {
 			// Generate fields as formatted string
 			let content = `
 		/**
-		 * @file src/collections/${collectionTypes}.ts
+		 * @file config/collections/${collectionTypes}.ts
 		 * @description Collection file for ${collectionTypes}
 		 */
 
 		${imports}
+		import { widgets } from '@components/widgets/widgetManager.svelte';
 		import type { Schema } from '@src/collections/types';
+		
 		export const schema: Schema = {
 			// Collection Name coming from filename so not needed
 

@@ -28,14 +28,30 @@ Features:
 	// Collection Manager
 	import { collectionManager } from '@src/collections/CollectionManager';
 
-	interface Props {
-		'on:updatePageTitle'?: (title: string) => void;
+	interface CollectionData {
+		name: string;
+		icon: string;
+		description: string;
+		status: string;
+		slug: string;
+		fields: any[];
+		[key: string]: unknown;
 	}
 
-	let { 'on:updatePageTitle': onUpdatePageTitle = () => {} }: Props = $props();
+	let props = $props<{ handlePageTitleUpdate: (title: string) => void }>();
 
 	// Extract the collection name from the URL
 	let collectionTypes = $page.params.collectionTypes;
+
+	// Define the base collection structure
+	const baseCollection: CollectionData = {
+		name: '',
+		icon: '',
+		description: '',
+		status: 'unpublished',
+		slug: '',
+		fields: []
+	};
 
 	// Check if collection Name exists set mode edit or create
 	const collectionExists = Object.values(collections.value).some((x) => x.name === collectionTypes);
@@ -45,14 +61,15 @@ Features:
 		const collection = collectionData.find((x) => x?.name === collectionTypes);
 		if (collection) {
 			mode.set('edit');
-			collectionValue.set(collection); // current collection
+			collectionValue.set({ ...collection } as CollectionData); // current collection
 		}
 	} else {
 		collectionValue.set({
+			...baseCollection,
 			...collectionValue.value,
-			fields: collectionValue.value.fields ? collectionValue.value.fields : [],
-			name: collectionTypes
-		});
+			fields: (collectionValue.value as CollectionData)?.fields || [],
+			name: collectionTypes || ''
+		} as CollectionData);
 	}
 
 	// Popup Tooltips
@@ -85,31 +102,50 @@ Features:
 	// Form fields
 	let searchQuery = $state('');
 	let autoUpdateSlug = $state(true);
-	let selectedIcon = $state(collectionValue.value.icon || '');
+	let selectedIcon = $state((collectionValue.value as CollectionData)?.icon || '');
+
+	// Form field values
+	let name = $state((collectionValue.value as CollectionData)?.name || '');
+	let slug = $state((collectionValue.value as CollectionData)?.slug || '');
+	let description = $state((collectionValue.value as CollectionData)?.description || '');
+	let status = $state((collectionValue.value as CollectionData)?.status || 'unpublished');
 
 	// Derived values
-	let DBName = $derived(collectionValue.value.name ? collectionValue.value.name.toLowerCase().replace(/ /g, '_') : '');
+	let DBName = $derived(name ? name.toLowerCase().replace(/ /g, '_') : '');
 
 	// Update collection value when icon changes
 	$effect(() => {
-		if (selectedIcon !== collectionValue.value.icon) {
+		if (selectedIcon !== (collectionValue.value as CollectionData)?.icon) {
 			collectionValue.set({
-				...collectionValue.value,
+				...(collectionValue.value as CollectionData),
 				icon: selectedIcon
-			});
+			} as CollectionData);
+		}
+	});
+
+	// Update collection value when form fields change
+	$effect(() => {
+		if (collectionValue.value) {
+			collectionValue.set({
+				...(collectionValue.value as CollectionData),
+				name,
+				slug,
+				description,
+				status
+			} as CollectionData);
 		}
 	});
 
 	function handleNameInput() {
-		if (collectionValue.value.name) {
+		if (typeof name === 'string' && name) {
 			// Update the URL
-			window.history.replaceState({}, '', `/config/collectionbuilder/${collectionValue.value.name}`);
+			window.history.replaceState({}, '', `/config/collectionbuilder/${name}`);
 
 			// Update the page title
-			onUpdatePageTitle(collectionValue.value.name);
+			props.handlePageTitleUpdate(name);
 
 			// Update the linked slug input
-			collectionValue.value.slug = collectionValue.value.name.toLowerCase().replace(/\s+/g, '_');
+			slug = name.toLowerCase().replace(/\s+/g, '_');
 
 			// Call the `onSlugInput` function to update the slug variable
 			onSlugInput();
@@ -118,12 +154,9 @@ Features:
 
 	function onSlugInput() {
 		// Update the slug field whenever the name field is changed
-		if (collectionValue.value.name) {
-			collectionValue.set({
-				...collectionValue.value,
-				slug: collectionValue.value.name.toLowerCase().replace(/\s+/g, '_')
-			});
-			return collectionValue.value.slug;
+		if (name) {
+			slug = name.toLowerCase().replace(/\s+/g, '_');
+			return slug;
 		}
 		// Disable automatic slug updates
 		autoUpdateSlug = false;
@@ -134,19 +167,16 @@ Features:
 		if (collectionValue.value) {
 			// Automatically update slug when name changes
 			if (autoUpdateSlug) {
-				collectionValue.update((current) => ({
-					...current,
-					slug: collectionValue.value.name ? collectionValue.value.name.toLowerCase().replace(/ /g, '_') : ''
-				}));
+				slug = name ? name.toLowerCase().replace(/ /g, '_') : '';
 			}
 
 			// Update page title based on mode and collection name
-			if (mode.value == 'edit') {
-				onUpdatePageTitle(`Edit <span class="text-primary-500">${collectionValue.value.name}</span> Collection`);
-			} else if (collectionValue.value.name) {
-				onUpdatePageTitle(`Create <span class="text-primary-500">${collectionValue.value.name}</span> Collection`);
+			if (mode.value === 'edit') {
+				props.handlePageTitleUpdate(`Edit <span class="text-primary-500">${name}</span> Collection`);
+			} else if (name) {
+				props.handlePageTitleUpdate(`Create <span class="text-primary-500">${name}</span> Collection`);
 			} else {
-				onUpdatePageTitle(`Create <span class="text-primary-500">new</span> Collection`);
+				props.handlePageTitleUpdate(`Create <span class="text-primary-500">new</span> Collection`);
 			}
 		}
 	});
@@ -175,14 +205,14 @@ Features:
 				type="text"
 				required
 				id="name"
-				bind:value={collectionValue.value.name}
+				bind:value={name}
 				oninput={handleNameInput}
 				placeholder={m.collection_name_placeholder()}
 				aria-label={m.collection_name()}
 				class="input text-black dark:text-primary-500"
 			/>
 
-			{#if collectionValue.value && collectionValue.value.name}
+			{#if collectionValue.value && (collectionValue.value as CollectionData).name}
 				<p class="mb-3 sm:mb-0">
 					{m.collection_DBname()} <span class="font-bold text-tertiary-500 dark:text-primary-500">{DBName}</span>
 				</p>
@@ -235,13 +265,7 @@ Features:
 			<div class="variant-filled arrow"></div>
 		</div>
 
-		<input
-			type="text"
-			id="slug"
-			bind:value={collectionValue.value.slug}
-			placeholder={m.collection_slug_input()}
-			class="input text-black dark:text-primary-500"
-		/>
+		<input type="text" id="slug" bind:value={slug} placeholder={m.collection_slug_input()} class="input text-black dark:text-primary-500" />
 	</div>
 
 	<!-- Description -->
@@ -262,7 +286,7 @@ Features:
 			id="description"
 			rows="2"
 			cols="50"
-			bind:value={collectionValue.value.description}
+			bind:value={description}
 			placeholder={m.collection_description_placeholder()}
 			class="input text-black dark:text-primary-500"
 		></textarea>
@@ -282,7 +306,7 @@ Features:
 			<div class="variant-filled arrow"></div>
 		</div>
 
-		<select id="status" bind:value={collectionValue.value.status} class="input text-black dark:text-primary-500">
+		<select id="status" bind:value={status} class="input text-black dark:text-primary-500">
 			{#each statuses as statusOption}
 				<option value={statusOption} class="">{statusOption}</option>
 			{/each}

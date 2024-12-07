@@ -1,6 +1,7 @@
 <!--
 @file src/components/SearchComponent.svelte
-@description Search Component for Svelte CMS
+@component
+**Search Component for Svelte CMS**
 
 Features:
 - Fuzzy search with optimized edit distance calculation

@@ -79,10 +79,7 @@ export default defineConfig({
 				// Monitor changes in:
 				// 1. config/collections/**/*.ts - User-defined collection configurations (including nested)
 				// 2. src/collections/categories.ts - Auto-generated category structure
-				if (
-					/config[/\\]collections[/\\].*[/\\].*\.ts$/.test(file) ||
-					/src[/\\]collections[/\\]categories\.ts$/.test(file)
-				) {
+				if (/config[/\\]collections[/\\].*[/\\].*\.ts$/.test(file) || /src[/\\]collections[/\\]categories\.ts$/.test(file)) {
 					console.log('Collection file changed:', file);
 					try {
 						// Compile the changed collection
@@ -153,7 +150,6 @@ export default defineConfig({
 				};
 			},
 			enforce: 'post'
-
 		},
 		purgeCss(), // Purge unused Tailwind CSS classes
 		paraglide({
@@ -164,7 +160,7 @@ export default defineConfig({
 	server: {
 		fs: { allow: ['static', '.'] } // Allow serving files from specific directories
 	},
-	
+
 	resolve: {
 		alias: {
 			'@root': resolve(__dirname, './'),

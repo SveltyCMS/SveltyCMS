@@ -1,6 +1,9 @@
 <!-- 
 @file src/components/widgets/dateRange/DateRange.svelte
-@description - DateRange widget
+@component
+**DateRange widget component**
+
+<DateRange bind:field={field} />
 -->
 
 <script lang="ts">

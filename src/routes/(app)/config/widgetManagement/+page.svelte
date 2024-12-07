@@ -19,7 +19,7 @@ Features:
 	import PageTitle from '@components/PageTitle.svelte';
 
 	// Widget Manager
-	import { type WidgetStatus, loadWidgets, getActiveWidgets, updateWidgetStatus, activeWidgets } from '@components/widgets/widgetManager';
+	import { type WidgetStatus, loadWidgets, getActiveWidgets, updateWidgetStatus } from '@components/widgets/widgetManager.svelte';
 
 	interface Widget {
 		Name: string;
@@ -34,14 +34,14 @@ Features:
 	// Load widgets on mount
 	onMount(async () => {
 		try {
-			const widgets = loadWidgets();
+			const widgets = await loadWidgets();
 			const active = await getActiveWidgets();
 
 			// Transform widgets into the format we need
-			installedWidgets = Object.entries(widgets).map(([name, widget]) => ({
+			installedWidgets = Object.values(widgets).map((widget) => ({
 				Name: widget.Name,
-				Description: widget.Description || 'No description available',
-				Icon: widget.Icon || 'mdi:puzzle',
+				Description: (widget.config?.description as string) || 'No description available',
+				Icon: (widget.config?.icon as string) || 'mdi:puzzle',
 				status: active.includes(widget.Name) ? 'active' : 'inactive'
 			}));
 		} catch (err) {

@@ -6,7 +6,6 @@
 
 import { publicEnv } from '@root/config/public';
 import { redirect, error, type HttpError } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
 
 // Collection Manager
 import { collectionManager } from '@src/collections/CollectionManager';
@@ -15,57 +14,44 @@ import { collectionManager } from '@src/collections/CollectionManager';
 import { logger } from '@utils/logger.svelte';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
-	logger.debug('Load function started in +page.server.ts');
+	logger.debug('Starting +page.server.ts load function');
 
-	const user = locals.user;
-	const permissions = locals.permissions;
-
-	logger.debug(`User loaded: ${user ? 'Yes' : 'No'}`);
-	logger.debug(`Permissions loaded: ${permissions && permissions.length > 0 ? 'Yes' : 'No'}`);
-
-	if (!user) {
-		logger.info('User not authenticated, redirecting to login');
+	// Unauthenticated users should be redirected to the login page
+	if (!locals.user) {
+		logger.info('User is not authenticated, redirecting to login');
 		throw redirect(302, '/login');
-	}
-	const { collections } = collectionManager.getCollectionData();
-
-	// If we're already on a specific route (not the root), don't redirect
-	if (url.pathname !== '/') {
-		logger.debug(`Already on a specific route: \x1b[34m${url.pathname}\x1b[0m, not redirecting`);
-		return { user, permissions };
 	}
 
 	try {
-		// Get collections directly from CollectionManager
-		logger.debug(`Collections retrieved: \x1b[34m${collections ? collections.length : 'None'}\x1b[0m`);
+		// Get the list of collections
+		const collections = collectionManager.getCollectionData()?.collections;
 
-		if (!collections || collections.length === 0) {
-			const message = 'No collections found to redirect';
-			logger.error(message);
-			throw error(404, { message });
+		// If there are no collections, throw a 404 error
+		if (!collections?.length) {
+			logger.error('No collections available for redirection');
+			throw error(404, 'No collections found');
 		}
 
+		// If the current route is not the root route, simply return the user data
+		if (url.pathname !== '/') {
+			logger.debug(`Already on route ${url.pathname}`);
+			return { user: locals.user, permissions: locals.permissions };
+		}
+
+		// Get the first collection and the default language
 		const firstCollection = collections[0];
-		if (!firstCollection || !firstCollection.name) {
-			const message = 'First collection or its name is undefined';
-			logger.error(message);
-			throw error(500, { message });
-		}
-
 		const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+
+		// Construct the redirect URL
 		const redirectUrl = `/${defaultLanguage}/${firstCollection.name}`;
 
-		logger.info(`Redirecting to first collection: \x1b[34m${firstCollection.name}\x1b[0m with URL: \x1b[34m${redirectUrl}\x1b[0m`);
+		logger.info(`Redirecting to ${redirectUrl}`);
 		throw redirect(302, redirectUrl);
 	} catch (err) {
-		// If it's a redirect or an HTTP error, rethrow it
-		if ((err as HttpError)?.status === 302 || (err as HttpError)?.status) {
-			throw err;
-		}
+		// If the error has a status, rethrow it
+		if ((err as HttpError)?.status) throw err;
 
-		// Otherwise, it's an unexpected error
-		const message = `Error getting collections: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
-		throw error(500, { message });
+		logger.error('Unexpected error in load function', err);
+		throw error(500, 'An unexpected error occurred');
 	}
 };

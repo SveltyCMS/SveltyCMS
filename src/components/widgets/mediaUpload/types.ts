@@ -1,6 +1,6 @@
 /**
 @file src/components/widgets/mediaUpload/types.ts
-@description - mediaUpload widget types
+@description - MediaUpload widget types
 */
 
 // Components
@@ -10,7 +10,7 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 import PermissionsSetting from '@components/PermissionsSetting.svelte';
 
 // Auth
-import type { Permission, RateLimit } from '@src/auth/types';
+import type { Permission } from '@src/auth/types';
 
 import { SIZES } from '@utils/utils';
 

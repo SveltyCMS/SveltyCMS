@@ -1,7 +1,9 @@
 <!--
 @file src/components/PasswordStrength.svelte
-@description PasswordStrength component for password and confirm password fields using Tailwind CSS
-@features
+@component
+**PasswordStrength component for password and confirm password fields using Tailwind CSS**
+
+@Features
 - Displays password strength based on length
 - Works with both password and confirm password fields
 - Shows strength indicator only once

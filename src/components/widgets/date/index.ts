@@ -3,14 +3,14 @@
 @description - date index file.
 */
 
-const WIDGET_NAME = 'Date' as const;
-
 import { publicEnv } from '@root/config/public';
 import { getFieldName, getGuiFields } from '@utils/utils';
 import { GuiSchema, GraphqlSchema, type Params } from './types';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
+
+const WIDGET_NAME = 'Date' as const;
 
 /**
  * Defines Date widget Parameters

@@ -1,6 +1,7 @@
 <!-- 
 @file src/components/WatermarkEditor.svelte
-@description Enhanced WatermarkEditor component for CMS integration using Tailwind CSS
+@component
+**Enhanced WatermarkEditor component for CMS integration using Tailwind CSS**
 
 Features:
 - Selects watermark image from media library

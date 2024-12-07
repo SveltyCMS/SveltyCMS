@@ -98,7 +98,7 @@ export class Auth {
 				});
 			}
 
-			logger.debug(`Creating user with email: ${email}`);
+			logger.debug('Creating user', { email: email });
 			// Create the user in the database
 			const user = await this.db.createUser({
 				email,
@@ -113,7 +113,7 @@ export class Auth {
 			if (!user || !user._id) {
 				throw error(500, 'User creation failed: No user ID returned');
 			}
-			logger.info(`User created: ${user._id}`);
+			logger.info('User created (src/auth/index.ts)', { email: user.email });
 			return user;
 		} catch (err) {
 			const errMsg = err instanceof Error ? err.message : String(err);
@@ -531,13 +531,13 @@ export class Auth {
 	async login(email: string, password: string): Promise<User | null> {
 		const user = await this.db.getUserByEmail(email);
 		if (!user || !user.password) {
-			const message = `Login failed: User not found or password not set for email: \x1b[34m${email}\x1b[0m`;
+			const message = `Login failed: User not found or password not set for email: ${user.email}`;
 			logger.warn(message);
 			return null; // Return null if user doesn't exist or password is not set
 		}
 
 		if (user.lockoutUntil && new Date(user.lockoutUntil) > new Date()) {
-			const message = `Login attempt for locked out account: \x1b[34m${email}\x1b[0m`;
+			const message = `Login attempt for locked out account: ${user.email}`;
 			logger.warn(message);
 			throw error(403, { message: 'Account is temporarily locked. Please try again later.' });
 		}
@@ -549,7 +549,7 @@ export class Auth {
 
 			if (await argon2.verify(user.password, password)) {
 				await this.db.updateUserAttributes(user._id!, { failedAttempts: 0, lockoutUntil: null });
-				logger.info(`User logged in: ${user._id}`);
+				logger.info(`User logged in with email: ${user.email}`);
 				return user; // Return user on successful login
 			} else {
 				const failedAttempts = (user.failedAttempts || 0) + 1;
@@ -561,7 +561,7 @@ export class Auth {
 					throw error(403, { message: 'Account is temporarily locked due to too many failed attempts. Please try again later.' });
 				} else {
 					await this.db.updateUserAttributes(user._id!, { failedAttempts });
-					const message = `Invalid login attempt for user: \x1b[34m${user._id}\x1b[0m`;
+					const message = `Invalid login attempt for user with email: ${user.email}`;
 					logger.warn(message);
 					throw error(401, { message: 'Invalid credentials. Please try again.' });
 				}
@@ -589,7 +589,7 @@ export class Auth {
 	// Validate a session
 	async validateSession({ session_id }: { session_id: string }): Promise<User | null> {
 		try {
-			logger.info('Validating session', { session_id });
+			logger.info('Validating session (src/auth/index.ts)', { session_id });
 			if (!session_id) {
 				const message = 'Session ID is undefined';
 				logger.error(message);
@@ -598,9 +598,9 @@ export class Auth {
 			const user = await this.db.validateSession(session_id);
 
 			if (user) {
-				logger.info('Session is valid', { email: user.email });
+				logger.info('Session is valid (src/auth/index.ts) ', { email: user.email });
 			} else {
-				logger.warn('Invalid session', { session_id });
+				logger.warn('Invalid session (src/auth/index.ts)', { session_id });
 			}
 			return user; // Return the user or null if session is invalid
 		} catch (err) {
@@ -621,7 +621,7 @@ export class Auth {
 				expires,
 				type
 			});
-			logger.info(`Token created for user ID: ${user_id}`);
+			logger.info(`Token created for user with email: ${user.email}`);
 			return token; // Return the created token
 		} catch (err) {
 			const errMsg = err instanceof Error ? err.message : String(err);
@@ -673,8 +673,8 @@ export class Auth {
 		try {
 			const user = await this.db.getUserByEmail(email);
 			if (!user) {
-				const message = `Failed to update password: User not found for email: ${email}`;
-				logger.warn(message);
+				const message = `Failed to update password: User not found for email: ${user.email}`;
+				logger.warn(message, { email: user.email });
 				return { status: false, message: 'User not found' }; // Return status if user not found
 			}
 			if (!argon2) {
@@ -682,7 +682,7 @@ export class Auth {
 			}
 			const hashedPassword = await argon2.hash(newPassword, argon2Attributes);
 			await this.db.updateUserAttributes(user._id!, { password: hashedPassword });
-			logger.info(`Password updated for user ID: ${user._id}`);
+			logger.info(`Password updated for user with email: ${user.email}`);
 			return { status: true, message: 'Password updated successfully' }; // Return success status
 		} catch (error) {
 			const errMsg = error instanceof Error ? error.message : String(error);

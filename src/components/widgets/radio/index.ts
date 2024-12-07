@@ -1,9 +1,7 @@
 /**
 @file src/components/widgets/radio/index.ts
-@description - radio index file.
+@description - Radio index file.
 */
-
-const WIDGET_NAME = 'Radio' as const;
 
 import { publicEnv } from '@root/config/public';
 import { getFieldName, getGuiFields } from '@utils/utils';
@@ -11,6 +9,8 @@ import { type Params, GuiSchema, GraphqlSchema } from './types';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
+
+const WIDGET_NAME = 'Radio' as const;
 
 /**
  * Defines Radio widget Parameters
