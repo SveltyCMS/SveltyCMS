@@ -1,9 +1,7 @@
 /**
-@file src/components/widgets/text/index.ts
-@description - text index file.
+@file src/components/widgets/input/index.ts
+@description - Input index file.
 */
-
-const WIDGET_NAME = 'Text' as const;
 
 import { publicEnv } from '@root/config/public';
 import { getFieldName, getGuiFields } from '@utils/utils';
@@ -12,8 +10,10 @@ import { GuiSchema, GraphqlSchema, type Params } from './types';
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
 
+const WIDGET_NAME = 'Input' as const;
+
 /**
- * Defines Text widget Parameters
+ * Defines Input widget Parameters
  */
 const widget = (params: Params) => {
 	// Define the display function
@@ -32,7 +32,7 @@ const widget = (params: Params) => {
 	}
 
 	// Define the widget object
-	const widget = {
+	const widgetObject = {
 		Name: WIDGET_NAME,
 		GuiFields: getGuiFields(params, GuiSchema)
 	};
@@ -64,7 +64,7 @@ const widget = (params: Params) => {
 	};
 
 	// Return the field and widget objects
-	return { ...field, widget };
+	return { ...field, widget: widgetObject };
 };
 
 // Assign Name, GuiSchema and GraphqlSchema to the widget function
@@ -97,6 +97,5 @@ widget.aggregations = {
 } as Aggregations;
 
 // Export FieldType interface and widget function
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface FieldType extends ReturnType<typeof widget> {}
 export default widget;

@@ -138,7 +138,7 @@ async function connectToDatabase(retries = MAX_RETRIES): Promise<void> {
 			return;
 		} catch (err) {
 			const message = `Error connecting to database (attempt ${attempt}/${retries}): ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(`\x1b[31m ${message}\x1b[0m`);
+			logger.error(`\x1b[31m${message}\x1b[0m`);
 			if (attempt < retries) {
 				logger.info(`Retrying in ${RETRY_DELAY / 1000} seconds...`);
 				await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
@@ -171,18 +171,18 @@ async function initializeDefaultTheme(dbAdapter: dbInterface): Promise<void> {
 
 // Initialize the media folder
 async function initializeMediaFolder() {
-    const mediaFolderPath = publicEnv.MEDIA_FOLDER;
+	const mediaFolderPath = publicEnv.MEDIA_FOLDER;
 
-    try {
-        // Check if the media folder exists
-        await fs.access(mediaFolderPath);
-        logger.info(`Media folder already exists: \x1b[34m${mediaFolderPath}\x1b[0m`);
-    } catch {
-        // If the folder does not exist, create it
-        logger.info(`Media folder not found. Creating new folder: \x1b[34m${mediaFolderPath}\x1b[0m`);
-        await fs.mkdir(mediaFolderPath, { recursive: true });
-        logger.info(`Media folder created successfully: \x1b[34m${mediaFolderPath}\x1b[0m`);
-    }
+	try {
+		// Check if the media folder exists
+		await fs.access(mediaFolderPath);
+		logger.info(`Media folder already exists: \x1b[34m${mediaFolderPath}\x1b[0m`);
+	} catch {
+		// If the folder does not exist, create it
+		logger.info(`Media folder not found. Creating new folder: \x1b[34m${mediaFolderPath}\x1b[0m`);
+		await fs.mkdir(mediaFolderPath, { recursive: true });
+		logger.info(`Media folder created successfully: \x1b[34m${mediaFolderPath}\x1b[0m`);
+	}
 }
 
 // Initialize virtual folders
@@ -306,8 +306,15 @@ if (!initializationPromise) {
 		});
 }
 
+interface CollectionModel {
+	// Define the properties of your collection model here
+	name: string;
+	schema: object;
+	// Add other properties as needed
+}
+
 // Export collections
-const collectionsModels: { [key: string]: any } = {};
+const collectionsModels: { [key: string]: CollectionModel } = {};
 
 // Export collections
 export async function getCollectionModels() {

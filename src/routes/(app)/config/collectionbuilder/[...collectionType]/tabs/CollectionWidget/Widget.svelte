@@ -4,6 +4,7 @@
 -->
 <script lang="ts">
 	import { getGuiFields } from '@utils/utils';
+	import type { DndEvent, Item } from 'svelte-dnd-action';
 
 	// Stores
 	import { page } from '$app/stores';
@@ -27,6 +28,21 @@
 		'on:save'?: () => void;
 	}
 
+	// Field interface
+	interface Field extends Item {
+		id: number;
+		label: string;
+		icon?: string;
+		db_fieldName?: string;
+		widget: {
+			Name: string;
+			key?: string;
+			GuiFields?: Record<string, unknown>;
+		};
+		permissions: Record<string, Record<string, boolean>>;
+		[key: string]: unknown;
+	}
+
 	let { 'on:save': onSave = () => {} }: Props = $props() as Props;
 
 	const modalStore = getModalStore();
@@ -34,20 +50,30 @@
 	// Extract the collection name from the URL
 	const collectionTypes = $page.params.collectionTypes;
 
-	// Fields state
-	let fields = $state(
-		collectionValue.value.fields.map((field, index) => ({
-			id: index + 1,
-			...field
-		}))
+	// Fields state with proper typing
+	let fields = $state<Field[]>(
+		((collectionValue.value.fields as any[]) || []).map((field, index) => {
+			const baseField = {
+				id: index + 1,
+				label: field.label || '',
+				widget: field.widget || { Name: '', key: '' },
+				permissions: field.permissions || {}
+			};
+			return { ...field, ...baseField };
+		})
 	);
 
 	// Effect to update fields when collection value changes
 	$effect.root(() => {
-		fields = collectionValue.value.fields.map((field, index) => ({
-			id: index + 1,
-			...field
-		}));
+		fields = ((collectionValue.value.fields as any[]) || []).map((field, index) => {
+			const baseField = {
+				id: index + 1,
+				label: field.label || '',
+				widget: field.widget || { Name: '', key: '' },
+				permissions: field.permissions || {}
+			};
+			return { ...field, ...baseField };
+		});
 	});
 
 	// Collection headers
@@ -56,16 +82,16 @@
 	// svelte-dnd-action
 	const flipDurationMs = 300;
 
-	const handleDndConsider = (e: CustomEvent<{ items: any[] }>) => {
-		fields = e.detail.items;
+	const handleDndConsider = (e: CustomEvent<DndEvent>) => {
+		fields = e.detail.items as Field[];
 	};
 
-	const handleDndFinalize = (e: CustomEvent<{ items: any[] }>) => {
-		fields = e.detail.items;
+	const handleDndFinalize = (e: CustomEvent<DndEvent>) => {
+		fields = e.detail.items as Field[];
 	};
 
 	// Modal 2 to Edit a selected widget
-	function modalWidgetForm(selectedWidget: any): void {
+	function modalWidgetForm(selectedWidget: Field): void {
 		if (selectedWidget.permissions === undefined) {
 			selectedWidget.permissions = {};
 		}
@@ -76,34 +102,28 @@
 			component: c,
 			title: 'Define your Widget',
 			body: 'Setup your widget and then press Save.',
-			value: selectedWidget, // Pass the selected widget as the initial value
-			response: (r: any) => {
+			value: selectedWidget,
+			response: (r: Field | null) => {
 				if (!r) return;
 				// Find the index of the existing widget based on its ID
 				const existingIndex = fields.findIndex((widget) => widget.id === r.id);
 
 				if (existingIndex !== -1) {
 					// If the existing widget is found, update its properties
-					fields = [
-						...fields.slice(0, existingIndex), // Copy widgets before the updated one
-						{ ...r }, // Update the existing widget
-						...fields.slice(existingIndex + 1) // Copy widgets after the updated one
-					];
-					collectionValue.update((c) => {
-						c.fields = fields;
-						return c;
-					});
+					const updatedField = { ...fields[existingIndex], ...r };
+					fields = [...fields.slice(0, existingIndex), updatedField, ...fields.slice(existingIndex + 1)];
+					collectionValue.update((c) => ({
+						...c,
+						fields
+					}));
 				} else {
 					// If the existing widget is not found, add it as a new widget
-					const newField = {
-						id: fields.length + 1,
-						...r
-					};
+					const newField = { ...r, id: fields.length + 1 };
 					fields = [...fields, newField];
-					collectionValue.update((c) => {
-						c.fields = fields;
-						return c;
-					});
+					collectionValue.update((c) => ({
+						...c,
+						fields
+					}));
 				}
 			}
 		};
@@ -111,20 +131,20 @@
 	}
 
 	// Modal 1 to choose a widget
-	function modalSelectWidget(selected?: any): void {
+	function modalSelectWidget(selected?: Field): void {
 		const c: ModalComponent = { ref: ModalSelectWidget };
 		const modal: ModalSettings = {
 			type: 'component',
 			component: c,
 			title: 'Select a Widget',
 			body: 'Select your widget and then press submit.',
-			value: selected, // Pass the selected widget as the initial value
-			response: (r: any) => {
+			value: selected,
+			response: (r: { selectedWidget: string } | null) => {
 				if (!r) return;
 				const { selectedWidget } = r;
-				const widget = { widget: { key: selectedWidget }, permissions: {} };
+				const widget = { widget: { key: selectedWidget, Name: selectedWidget }, permissions: {} };
 				targetWidget.set(widget);
-				modalWidgetForm(widget); // Use selectedWidget directly
+				modalWidgetForm(widget as Field);
 			}
 		};
 		modalStore.trigger(modal);
@@ -133,10 +153,13 @@
 	// Function to save data by sending a POST request
 	async function handleCollectionSave() {
 		fields = fields.map((field) => {
-			const GuiFields = getGuiFields({ key: field.widget.Name }, widgets[field.widget.Name].GuiSchema);
+			const widgetInstance = widgets[field.widget.Name];
+			if (!widgetInstance?.GuiSchema) return field;
+
+			const GuiFields = getGuiFields({ key: field.widget.Name }, widgetInstance.GuiSchema);
 			for (const [property, value] of Object.entries(field)) {
 				if (typeof value !== 'object' && property !== 'id') {
-					GuiFields[property] = field[property];
+					GuiFields[property] = value;
 				}
 			}
 			field.widget.GuiFields = GuiFields;
@@ -144,10 +167,10 @@
 		});
 
 		// Update the collection fields
-		collectionValue.update((c) => {
-			c.fields = fields;
-			return c;
-		});
+		collectionValue.update((c) => ({
+			...c,
+			fields
+		}));
 
 		onSave();
 	}

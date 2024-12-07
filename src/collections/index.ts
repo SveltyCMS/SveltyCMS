@@ -24,7 +24,7 @@ import { categories, collections, unAssigned, collection, collectionValue, mode 
 import type { Unsubscriber } from 'svelte/store';
 
 // Components
-import { initWidgets } from '@components/widgets';
+import { initializeWidgets } from '@components/widgets';
 
 // Types
 import type { Schema, CollectionTypes, Category } from './types';
@@ -174,8 +174,9 @@ function flattenAndSortCategories(): Record<string, CategoryData> {
 // Function to get collections with cache support
 export async function getCollections(): Promise<Partial<Record<CollectionTypes, Schema>>> {
 	logger.debug('Starting getCollections');
+
 	// Initialize widgets
-	initWidgets();
+	initializeWidgets();
 
 	// Return cached collections if available
 	if (collectionModelsCache) {

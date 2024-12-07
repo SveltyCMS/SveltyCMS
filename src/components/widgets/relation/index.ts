@@ -1,45 +1,36 @@
 /**
 @file src/components/widgets/relation/index.ts
-@description - Relation widget index which exports the widget function
-
+@description - Relation widget index file.
 */
 
-const WIDGET_NAME = 'Relation' as const;
-
+import { publicEnv } from '@root/config/public';
 import { getFieldName, getGuiFields } from '@utils/utils';
-import { type Params, GuiSchema, GraphqlSchema } from './types';
-import type { CollectionContent, CollectionTypes, Schema } from '@src/collections/types';
-import { collectionManager } from '@src/collections/CollectionManager';
-import widgets, { type ModifyRequestParams } from '@components/widgets';
-import deepmerge from 'deepmerge';
-import { getCollectionModels } from '@src/databases/db';
-// ParaglideJS
+import { GuiSchema, GraphqlSchema, type Params } from './types';
+
+//ParaglideJS
 import * as m from '@src/paraglide/messages';
+
+const WIDGET_NAME = 'Relation' as const;
 
 /**
  * Defines Relation widget Parameters
  */
-const widget = <K extends CollectionContent[T][number], T extends CollectionTypes & keyof CollectionContent>(params: Params<K, T>) => {
+const widget = (params: Params) => {
 	// Define the display function
-	const display = async ({ data, collection, field, entry, contentLanguage }) => {
-		const { collections } = collectionManager.getCollectionData();
-		const relative_collection = collections[field.relation];
-		const relative_field = relative_collection?.fields.find((f) => getFieldName(f) == field.displayPath);
+	let display: any;
 
-		return data?.[getFieldName(relative_field)]
-			? await relative_field?.display({
-					data: data[getFieldName(relative_field)],
-					collection,
-					field: relative_field,
-					entry,
-					contentLanguage
-				})
-			: '';
-	};
-	display.default = true;
+	if (!params.display) {
+		display = async ({ data, contentLanguage }) => {
+			data = data ? data : {}; // Ensure data is not undefined
+			return params.translated ? data[contentLanguage] || m.widgets_nodata() : data[publicEnv.DEFAULT_CONTENT_LANGUAGE] || m.widgets_nodata();
+		};
+		display.default = true;
+	} else {
+		display = params.display;
+	}
 
 	// Define the widget object
-	const widget = {
+	const widgetObject = {
 		Name: WIDGET_NAME,
 		GuiFields: getGuiFields(params, GuiSchema)
 	};
@@ -50,7 +41,7 @@ const widget = <K extends CollectionContent[T][number], T extends CollectionType
 		display,
 		label: params.label,
 		db_fieldName: params.db_fieldName,
-		// translated: params.translated,
+		translated: params.translated,
 		required: params.required,
 		icon: params.icon,
 		width: params.width,
@@ -59,13 +50,13 @@ const widget = <K extends CollectionContent[T][number], T extends CollectionType
 		// permissions
 		permissions: params.permissions,
 
-		// extra
+		// relation specific fields
 		relation: params.relation,
 		displayPath: params.displayPath
 	};
 
 	// Return the field and widget objects
-	return { ...field, widget };
+	return { ...field, widget: widgetObject };
 };
 
 // Assign Name, GuiSchema and GraphqlSchema to the widget function
@@ -75,87 +66,28 @@ widget.GraphqlSchema = GraphqlSchema;
 widget.toString = () => '';
 
 // Widget icon and helper text
-widget.Icon = 'fluent-mdl2:relationship';
+widget.Icon = 'mdi:relation-many-to-many';
 widget.Description = m.widget_relation_description();
-
-// Widget modifyRequest
-widget.modifyRequest = async ({ field, data, user, type, id }: ModifyRequestParams<typeof widget>) => {
-	const _data = data.get();
-
-	if (type !== 'GET' || !_data) {
-		return;
-	}
-	const relative_collection = (await getCollectionModels())[field.relation];
-	const relative_collection_schema = collectionManager.getCollectionData().collections[field.relation] as Schema;
-	const response = (await relative_collection.findById(_data)) as any;
-	const result = {};
-
-	for (const key in relative_collection_schema.fields) {
-		const _field = relative_collection_schema.fields[key];
-		const widget = widgets[_field.widget.Name];
-		result[getFieldName(_field)] = response[getFieldName(_field)];
-		const fieldData = {
-			get() {
-				return response[getFieldName(_field)];
-			},
-			update(newData) {
-				result[getFieldName(_field)] = newData;
-			}
-		};
-		await widget.modifyRequest({
-			collection: relative_collection,
-			field: _field as ReturnType<typeof widget>,
-			data: fieldData,
-			user,
-			type,
-			id
-		});
-	}
-	data.update(result);
-};
 
 // Widget Aggregations:
 widget.aggregations = {
 	filters: async (info) => {
 		const field = info.field as ReturnType<typeof widget>;
-		const { collections } = collectionManager.getCollectionData();
-		const relative_collection = collections[field.relation];
-		const relative_field = relative_collection?.fields.find((f) => getFieldName(f) == field.displayPath);
-		const widget = widgets[relative_field.widget.Name];
-		const new_field = deepmerge(relative_field, {
-			db_fieldName: 'relation.' + getFieldName(relative_field)
-		});
-		return (
-			widget?.aggregations?.filters({
-				field: new_field,
-				filter: info.filter,
-				contentLanguage: info.contentLanguage
-			}) ?? []
-		);
+		return [
+			{
+				$match: {
+					[`${getFieldName(field)}.${info.contentLanguage}`]: { $regex: info.filter, $options: 'i' }
+				}
+			}
+		];
 	},
-
 	sorts: async (info) => {
 		const field = info.field as ReturnType<typeof widget>;
-		const { collections } = collectionManager.getCollectionData();
-		const relative_collection = collections[field.relation];
-		const relative_field = relative_collection?.fields.find((f) => getFieldName(f) == field.displayPath);
-		const widget = widgets[relative_field.widget.Name];
-		const new_field = deepmerge(relative_field, {
-			db_fieldName: 'relation.' + getFieldName(relative_field)
-		});
-		return (
-			widget?.aggregations?.sorts({
-				field: new_field,
-				sort: info.sort,
-				contentLanguage: info.contentLanguage
-			}) ?? []
-		);
+		const fieldName = getFieldName(field);
+		return [{ $sort: { [`${fieldName}.${info.contentLanguage}`]: info.sort } }];
 	}
 } as Aggregations;
 
-// Export widget function and its type
-export type FieldType = ReturnType<typeof widget> & {
-	relation: CollectionTypes;
-	displayPath: string;
-};
+// Export FieldType interface and widget function
+export interface FieldType extends ReturnType<typeof widget> { }
 export default widget;

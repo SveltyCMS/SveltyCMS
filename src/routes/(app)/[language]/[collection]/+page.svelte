@@ -22,28 +22,45 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	import EntryList from '@components/EntryList.svelte';
 	import MediaGallery from '@src/routes/(app)/mediagallery/+page.svelte';
 
+	import { collectionManager } from '@src/collections/CollectionManager';
+
+	// System Logger
+	import { logger } from '@utils/logger.svelte';
+
 	// State variables using Svelte 5 runes
 	let forwardBackward = $state(false);
 	let initialLoadComplete = $state(false);
 	let navigationError = $state<string | null>(null);
 	let currentCollectionName = $state<string | undefined>(undefined);
 	let currentLanguage = $state<string | undefined>(undefined);
+	let isLoading = $state(true);
 
 	// Initialize collection
-	function initializeCollection() {
+	async function initializeCollection() {
 		if (!collections.value || !$page.params.collection) return;
 
-		const selectedCollection = collections.value[$page.params.collection];
-		if (selectedCollection) {
-			collection.set(selectedCollection as Schema);
-			initialLoadComplete = true;
-			navigationError = null;
-			currentCollectionName = selectedCollection.name?.toString();
-			currentLanguage = contentLanguage.value;
-		} else if (initialLoadComplete) {
-			navigationError = `Collection not found: ${$page.params.collection}`;
-			console.error(navigationError);
-			goto('/404');
+		try {
+			// Wait for collection manager initialization
+			await collectionManager.waitForInitialization();
+
+			const selectedCollection = collections.value[$page.params.collection];
+			if (selectedCollection) {
+				collection.set(selectedCollection as Schema);
+				initialLoadComplete = true;
+				navigationError = null;
+				currentCollectionName = selectedCollection.name?.toString();
+				currentLanguage = contentLanguage.value;
+			} else if (initialLoadComplete) {
+				navigationError = `Collection not found: ${$page.params.collection}`;
+				logger.error(navigationError);
+				goto('/404');
+			}
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			navigationError = `Failed to initialize collection: ${errorMessage}`;
+			logger.error('Collection initialization failed:', { error: errorMessage });
+		} finally {
+			isLoading = false;
 		}
 	}
 
@@ -114,7 +131,11 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 </script>
 
 <div class="content h-full">
-	{#if navigationError}
+	{#if isLoading}
+		<div class="loading flex h-full items-center justify-center">
+			<span class="loading-spinner">Loading...</span>
+		</div>
+	{:else if navigationError}
 		<div class="error text-error-500" role="alert">
 			{navigationError}
 		</div>

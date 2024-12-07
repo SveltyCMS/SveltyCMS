@@ -3,9 +3,8 @@
 @component
 **Email widget**
 
-```tsx
 <Email bind:field={field} />
-```
+
 **Props:**
 - `field` - {FieldType} - Field type
 -->

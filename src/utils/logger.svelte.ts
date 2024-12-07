@@ -91,10 +91,8 @@ const state = $state({
 
 // Helper Functions
 const isLogLevelEnabled = (level: LogLevel): boolean => {
-	// Retrieve the highest allowed log level from LOG_LEVELS
-	const highestAllowedLevel = publicEnv.LOG_LEVELS[0];
-	const currentLogLevel = LOG_LEVEL_MAP[highestAllowedLevel].priority;
-	return LOG_LEVEL_MAP[level].priority <= currentLogLevel;
+	// Check if the level is included in the configured LOG_LEVELS
+	return publicEnv.LOG_LEVELS.includes(level);
 };
 
 // Format timestamp in gray color
@@ -237,15 +235,15 @@ function abortBatch(): void {
 
 // Effect to process batches when queue changes
 $effect.root(() => {
-    $effect(() => {
-        if (state.queue.length >= config.batchSize) {
-            processBatch();
-        }
-    });
+	$effect(() => {
+		if (state.queue.length >= config.batchSize) {
+			processBatch();
+		}
+	});
 
-    return () => {
-        abortBatch();
-    };
+	return () => {
+		abortBatch();
+	};
 });
 
 // Setup cleanup when the module is destroyed
@@ -276,89 +274,89 @@ const scheduleBatchProcessing = (): void => {
 // Server-side file operations
 const serverFileOps = isServer
 	? {
-			async initializeLogFile(): Promise<void> {
+		async initializeLogFile(): Promise<void> {
+			try {
+				const { mkdir, access, constants } = await import('node:fs/promises');
+				const { join } = await import('node:path');
+
 				try {
-					const { mkdir, access, constants } = await import('node:fs/promises');
-					const { join } = await import('node:path');
-
-					try {
-						await access(config.logDirectory, constants.F_OK);
-					} catch {
-						await mkdir(config.logDirectory, { recursive: true });
-					}
-
-					const logFilePath = join(config.logDirectory, config.logFileName);
-					try {
-						await access(logFilePath, constants.F_OK);
-					} catch {
-						const { writeFile } = await import('node:fs/promises');
-						await writeFile(logFilePath, '');
-					}
-				} catch (error) {
-					console.error('Error initializing log file:', error);
+					await access(config.logDirectory, constants.F_OK);
+				} catch {
+					await mkdir(config.logDirectory, { recursive: true });
 				}
-			},
 
-			async rotateLogFile(): Promise<void> {
+				const logFilePath = join(config.logDirectory, config.logFileName);
 				try {
-					const { stat, rename, unlink } = await import('node:fs/promises');
-					const { join } = await import('node:path');
-					const { createGzip } = await import('node:zlib');
-					const { createReadStream, createWriteStream } = await import('node:fs');
-					const { promisify } = await import('node:util');
-					const { pipeline } = await import('node:stream');
-					const pipelineAsync = promisify(pipeline);
-
-					const logFilePath = join(config.logDirectory, config.logFileName);
-					const stats = await stat(logFilePath);
-					
-					if (stats.size >= config.logRotationSize) {
-						const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-						const rotatedFilePath = `${logFilePath}.${timestamp}`;
-
-						await rename(logFilePath, rotatedFilePath);
-						const { writeFile } = await import('node:fs/promises');
-						await writeFile(logFilePath, '');
-
-						if (config.compressionEnabled) {
-							const gzip = createGzip();
-							const source = createReadStream(rotatedFilePath);
-							const destination = createWriteStream(`${rotatedFilePath}.gz`);
-							await pipelineAsync(source, gzip, destination);
-							await unlink(rotatedFilePath);
-						}
-					}
-				} catch (error) {
-					console.error('Error rotating log file:', error);
+					await access(logFilePath, constants.F_OK);
+				} catch {
+					const { writeFile } = await import('node:fs/promises');
+					await writeFile(logFilePath, '');
 				}
-			},
-
-			async writeToFile(entry: LogEntry): Promise<void> {
-				try {
-					const { appendFile } = await import('node:fs/promises');
-					const { join } = await import('node:path');
-
-					const logFilePath = join(config.logDirectory, config.logFileName);
-					const formattedLog = `${entry.timestamp.toISOString()} [${entry.level.toUpperCase()}] ${entry.message} ${JSON.stringify(entry.args)}\n`;
-
-					await appendFile(logFilePath, formattedLog);
-					await this.rotateLogFile();
-				} catch (error) {
-					console.error('Failed to write to log file:', error);
-				}
+			} catch (error) {
+				console.error('Error initializing log file:', error);
 			}
-	  }
+		},
+
+		async rotateLogFile(): Promise<void> {
+			try {
+				const { stat, rename, unlink } = await import('node:fs/promises');
+				const { join } = await import('node:path');
+				const { createGzip } = await import('node:zlib');
+				const { createReadStream, createWriteStream } = await import('node:fs');
+				const { promisify } = await import('node:util');
+				const { pipeline } = await import('node:stream');
+				const pipelineAsync = promisify(pipeline);
+
+				const logFilePath = join(config.logDirectory, config.logFileName);
+				const stats = await stat(logFilePath);
+
+				if (stats.size >= config.logRotationSize) {
+					const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+					const rotatedFilePath = `${logFilePath}.${timestamp}`;
+
+					await rename(logFilePath, rotatedFilePath);
+					const { writeFile } = await import('node:fs/promises');
+					await writeFile(logFilePath, '');
+
+					if (config.compressionEnabled) {
+						const gzip = createGzip();
+						const source = createReadStream(rotatedFilePath);
+						const destination = createWriteStream(`${rotatedFilePath}.gz`);
+						await pipelineAsync(source, gzip, destination);
+						await unlink(rotatedFilePath);
+					}
+				}
+			} catch (error) {
+				console.error('Error rotating log file:', error);
+			}
+		},
+
+		async writeToFile(entry: LogEntry): Promise<void> {
+			try {
+				const { appendFile } = await import('node:fs/promises');
+				const { join } = await import('node:path');
+
+				const logFilePath = join(config.logDirectory, config.logFileName);
+				const formattedLog = `${entry.timestamp.toISOString()} [${entry.level.toUpperCase()}] ${entry.message} ${JSON.stringify(entry.args)}\n`;
+
+				await appendFile(logFilePath, formattedLog);
+				await this.rotateLogFile();
+			} catch (error) {
+				console.error('Failed to write to log file:', error);
+			}
+		}
+	}
 	: {
-			async initializeLogFile(): Promise<void> {},
-			async rotateLogFile(): Promise<void> {},
-			async writeToFile(): Promise<void> {}
-	  };
+		async initializeLogFile(): Promise<void> { },
+		async rotateLogFile(): Promise<void> { },
+		async writeToFile(): Promise<void> { }
+	};
 
 // Initialize log file
 $effect.root(() => {
-    if (isServer) {
-        safeExecute(serverFileOps.initializeLogFile);
-    }
+	if (isServer) {
+		safeExecute(serverFileOps.initializeLogFile);
+	}
 });
 
 // Unified logger function
@@ -380,9 +378,7 @@ const log = (level: LogLevel, message: string, ...args: LoggableValue[]): void =
 	if (isServer) {
 		const color = TERMINAL_COLORS[LOG_LEVEL_MAP[level].color];
 		process.stdout.write(
-			`${timestamp} ${color}[${level.toUpperCase()}]${TERMINAL_COLORS.reset}: ${message} ${maskedArgs
-				.map((arg) => formatValue(arg))
-				.join(' ')}\n`
+			`${timestamp} ${color}[${level.toUpperCase()}]${TERMINAL_COLORS.reset}: ${message} ${maskedArgs.map((arg) => formatValue(arg)).join(' ')}\n`
 		);
 	}
 

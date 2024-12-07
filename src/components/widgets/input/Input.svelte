@@ -1,10 +1,10 @@
 <!-- 
- @file src/components/widgets/text/Text.svelte 
+ @file src/components/widgets/input/Input.svelte 
  @component
- **Text field widget component to display text input field with prefix and suffix and count**
+ **Input field widget component to display input field with prefix and suffix and count**
 
 ```tsx
-<Text bind:field={field} />
+<Input bind:field={field} />
 ```
 **Props:**
 - `field` - {FieldType} - Field type
@@ -40,11 +40,7 @@
 		WidgetData?: any;
 	}
 
-	let {
-		field,
-		value = $bindable(),
-		WidgetData = $bindable()
-	}: Props = $props();
+	let { field, value = $bindable(), WidgetData = $bindable() }: Props = $props();
 
 	// Initialize value separately to avoid $state() in prop destructuring
 
@@ -61,7 +57,6 @@
 
 	WidgetData = async () => _data;
 
-	
 	// Validation and error state
 	let validationError = $state<string | null>(null);
 	let debounceTimeout: number | undefined;

@@ -7,8 +7,7 @@ import widgets from '@components/widgets';
 import type { Schema } from '@src/collections/types';
 
 export const schema: Schema = {
-	// Collection Name comming from filename
-
+	// Collection Name comming from filename, so not needed
 	// Optional & Icon, status, slug
 	// See for possible Icons https://icon-sets.iconify.design/
 	icon: 'bi:card-text',
@@ -28,7 +27,7 @@ export const schema: Schema = {
 			}
 		}),
 
-		widgets.Text({
+		widgets.Input({
 			label: 'Test',
 			db_fieldName: 'dbtest',
 			helper: 'This is the helper text',

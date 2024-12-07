@@ -1,9 +1,7 @@
 /**
 @file src/components/widgets/email/index.ts
-@description - email index file.
+@description - Email index file.
 */
-
-const WIDGET_NAME = 'Email' as const;
 
 import { publicEnv } from '@root/config/public';
 import { getFieldName, getGuiFields } from '@utils/utils';
@@ -11,6 +9,8 @@ import { type Params, GuiSchema, GraphqlSchema } from './types';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
+
+const WIDGET_NAME = 'Email' as const;
 
 /**
  * Defines Email widget Parameters

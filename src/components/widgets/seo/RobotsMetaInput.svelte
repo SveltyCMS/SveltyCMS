@@ -11,9 +11,6 @@
 -->
 
 <script lang="ts">
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
-
 	let { value = $bindable() } = $props();
 </script>
 

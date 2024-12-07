@@ -17,7 +17,7 @@
 
 	// Svelty-email
 	import { Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';
-	
+
 	interface Props {
 		username?: string;
 		hostLink?: string;

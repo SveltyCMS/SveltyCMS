@@ -7,7 +7,8 @@ import widgets from '@components/widgets';
 import type { Schema } from '@src/collections/types';
 
 export const schema: Schema = {
-	// Collection Name coming from filename
+	// Collection Name comming from filename, so not needed
+
 	// Optional & Icon, status, slug
 	// See for possible Icons https://icon-sets.iconify.design/
 	icon: 'carbon:rule-test',
@@ -15,7 +16,7 @@ export const schema: Schema = {
 	// Defined Fields that are used in Collection
 	// Widget fields can be inspected for individual options
 	fields: [
-		widgets.Text({
+		widgets.Input({
 			label: 'First',
 			db_fieldName: 'firstname',
 			icon: 'ri:t-box-line',
@@ -26,7 +27,7 @@ export const schema: Schema = {
 			width: 3
 		}),
 
-		widgets.Text({
+		widgets.Input({
 			label: 'Middle',
 			db_fieldName: 'middlename',
 			icon: 'ri:t-box-line',
@@ -35,7 +36,7 @@ export const schema: Schema = {
 			width: 3
 		}),
 
-		widgets.Text({
+		widgets.Input({
 			label: 'Last',
 			db_fieldName: 'lastname',
 			icon: 'ri:t-box-line',
@@ -44,7 +45,7 @@ export const schema: Schema = {
 			translated: true
 		}),
 
-		widgets.Text({
+		widgets.Input({
 			label: 'Full Text option',
 			db_fieldName: 'Full_Text_option',
 			icon: 'carbon:character-whole-number',

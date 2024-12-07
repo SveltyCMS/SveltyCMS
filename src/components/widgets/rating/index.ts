@@ -1,17 +1,16 @@
 /**
 @file src/components/widgets/rating/index.ts
-@description - rating index file.
+@description - Rating index file.
 */
 
-const WIDGET_NAME = 'Rating' as const;
-
 import { publicEnv } from '@root/config/public';
+import { getFieldName, getGuiFields } from '@utils/utils';
+import { type Params, GuiSchema, GraphqlSchema } from './types';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
 
-import { getFieldName, getGuiFields } from '@utils/utils';
-import { type Params, GuiSchema, GraphqlSchema } from './types';
+const WIDGET_NAME = 'Rating' as const;
 
 /**
  * Defines Rating widget Parameters

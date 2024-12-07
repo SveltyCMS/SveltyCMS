@@ -1,6 +1,6 @@
 /**
-@file src/components/widgets/text/types.ts
-@description - Text widget types
+@file src/components/widgets/input/types.ts
+@description - Input widget types
 */
 
 import { publicEnv } from '@root/config/public';

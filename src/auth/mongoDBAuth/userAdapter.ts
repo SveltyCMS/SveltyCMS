@@ -18,7 +18,7 @@
  * Utilized by the auth system to manage user accounts in a MongoDB database
  */
 import mongoose, { Schema } from 'mongoose';
-import type { Document, Types } from 'mongoose';
+import type { Document } from 'mongoose';
 import { roles as configRoles } from '@root/config/roles';
 import { error } from '@sveltejs/kit';
 
@@ -73,7 +73,7 @@ export class UserAdapter implements Partial<authDBInterface> {
 		try {
 			const user = new this.UserModel(userData);
 			await user.save();
-			logger.info(`User created: ${user.email}`);
+			logger.degub(`User created:`, { email: user.email });
 			const savedUser = user.toObject();
 			savedUser._id = savedUser._id.toString();
 			return savedUser as User;

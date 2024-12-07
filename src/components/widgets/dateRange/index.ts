@@ -3,14 +3,14 @@
 @description - dateRange index file.
 */
 
-const WIDGET_NAME = 'DateRange' as const;
-
 import { publicEnv } from '@root/config/public';
 import { getFieldName, getGuiFields } from '@utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
+
+const WIDGET_NAME = 'DateRange' as const;
 
 /**
  * Defines DateRange widget Parameters

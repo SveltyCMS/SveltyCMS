@@ -1,6 +1,7 @@
 <!-- 
 @files src/routes/(app)/config/collection/ModalCategory.svelte
-@description This component displays a modal for editing a category.
+@component
+**This component displays a modal for editing a category**
 -->
 <script lang="ts">
 	import type { CategoryData } from '@src/collections/types';

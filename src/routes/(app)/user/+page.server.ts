@@ -45,10 +45,10 @@ export const load: PageServerLoad = async (event) => {
 		// Prepare user object for return, ensuring _id is a string
 		const safeUser = user
 			? {
-					...user,
-					_id: user._id.toString(),
-					password: '[REDACTED]' // Ensure password is not sent to client
-				}
+				...user,
+				_id: user._id.toString(),
+				password: '[REDACTED]' // Ensure password is not sent to client
+			}
 			: null;
 
 		let adminData = null;
@@ -84,7 +84,8 @@ export const load: PageServerLoad = async (event) => {
 				tokens: formattedTokens
 			};
 
-			logger.debug(`Admin data prepared: ${JSON.stringify(adminData)}`);
+			//TODO: Mask sensitive data
+			// logger.debug(`Admin data prepared: ${JSON.stringify(adminData)}`);
 		}
 
 		// Provide manageUsersPermissionConfig to the client
@@ -95,9 +96,10 @@ export const load: PageServerLoad = async (event) => {
 			contextType: 'system'
 		};
 
-		logger.debug(
-			`Returning data to client: user=${JSON.stringify(safeUser)}, roles=${JSON.stringify(roles)}, isFirstUser=${isFirstUser}, adminData=${JSON.stringify(adminData)}`
-		);
+		//TODO: Mask sensitive data
+		// logger.debug(
+		// 	`Returning data to client: user=${JSON.stringify(safeUser)}, roles=${JSON.stringify(roles)}, isFirstUser=${isFirstUser}, adminData=${JSON.stringify(adminData)}`
+		// );
 
 		return {
 			user: safeUser,

@@ -1,6 +1,7 @@
 <!--
 @file src/components/Breadcrumb.svelte
-@description An accessible and customizable Breadcrumb component for Svelte applications, styled with Tailwind CSS.
+@component 
+**Breadcrumb component for navigating through folder hierarchies**
 
 Features:
 - Dynamic breadcrumb rendering based on the current path

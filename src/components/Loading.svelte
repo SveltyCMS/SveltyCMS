@@ -2,6 +2,7 @@
 @file src/components/Loading.svelte
 @component
 **Loading component with animated circles and customizable text regions**
+
 ```tsx
 <Loading customTopText="Please wait" customBottomText="Loading..." />
 ```

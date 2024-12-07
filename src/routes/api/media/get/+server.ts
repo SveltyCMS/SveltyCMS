@@ -1,46 +1,44 @@
+/**
+ * @file src/routes/api/media/get/+server.ts
+ * @description
+ * API endpoint for retrieving media files.
+ */
+
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
-import { auth } from '@src/databases/db';
-import { SESSION_COOKIE_NAME } from '@src/auth';
+
+// Media
 import { getFile } from '@utils/media/mediaStorage';
+
+// System Logger
 import { logger } from '@utils/logger.svelte';
 
-export const GET: RequestHandler = async ({ url, cookies }) => {
-    const session_id = cookies.get(SESSION_COOKIE_NAME);
-    if (!session_id) {
-        logger.warn('No session ID found during file retrieval');
-        throw error(401, 'Unauthorized');
-    }
+export const GET: RequestHandler = async ({ url, locals }) => {
+	const user = locals.user;
 
-    if (!auth) {
-        logger.error('Auth service is not initialized');
-        throw error(500, 'Auth service not available');
-    }
+	if (!user) {
+		logger.warn('No authenticated user found during media retrieval');
+		return json({ success: false, error: 'Unauthorized' }, { status: 401 });
+	}
 
-    try {
-        const user = await auth.validateSession({ session_id });
-        if (!user) {
-            logger.warn('Invalid session during file retrieval');
-            throw error(401, 'Unauthorized');
-        }
+	try {
+		const fileUrl = url.searchParams.get('url');
+		if (!fileUrl) {
+			throw error(400, 'URL parameter is required');
+		}
 
-        const fileUrl = url.searchParams.get('url');
-        if (!fileUrl) {
-            throw error(400, 'URL parameter is required');
-        }
+		const buffer = await getFile(fileUrl);
 
-        const buffer = await getFile(fileUrl);
-        
-        return new Response(buffer, {
-            headers: {
-                'Content-Type': 'application/octet-stream',
-                'Content-Disposition': `attachment; filename="${fileUrl.split('/').pop()}"`,
-                'Content-Length': buffer.length.toString()
-            }
-        });
-    } catch (err) {
-        const message = `Error retrieving file: ${err instanceof Error ? err.message : String(err)}`;
-        logger.error(message);
-        throw error(500, message);
-    }
+		return new Response(buffer, {
+			headers: {
+				'Content-Type': 'application/octet-stream',
+				'Content-Disposition': `attachment; filename="${fileUrl.split('/').pop()}"`,
+				'Content-Length': buffer.length.toString()
+			}
+		});
+	} catch (err) {
+		const message = `Error retrieving file: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw error(500, message);
+	}
 };

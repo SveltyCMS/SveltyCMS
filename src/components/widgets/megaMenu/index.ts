@@ -1,15 +1,13 @@
 /**
 @file src/components/widgets/megaMenu/index.ts
-@description - megaMenu index file.
+@description - MegaMenu index file.
 */
-
-const WIDGET_NAME = 'MegaMenu' as const;
-import Text from '../text';
 
 import { getFieldName, getGuiFields } from '@utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 
 import widgets, { type ModifyRequestParams } from '..';
+import Input from '../input';
 
 // Stores
 import { writable, type Writable } from 'svelte/store';
@@ -18,6 +16,8 @@ import { collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
+
+const WIDGET_NAME = 'MegaMenu' as const;
 
 export const currentChild: Writable<any> = writable({});
 
@@ -46,11 +46,11 @@ const widget = (params: Params) => {
 
 	// Add the header
 	for (const level of params.fields) {
-		level.unshift(Text({ label: 'Header', translated: true }));
+		level.unshift(Input({ label: 'Header', translated: true }));
 	}
 
 	// Add the header
-	params.fields.unshift([Text({ label: 'Header', translated: true })]);
+	params.fields.unshift([Input({ label: 'Header', translated: true })]);
 
 	// Define the callback
 	const callback = ({ data }) => {
@@ -89,7 +89,7 @@ widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
 widget.toString = () => '';
 
-// Widget icon and helper text
+// Widget icon and helper Input
 widget.Icon = 'lucide:menu-square';
 widget.Description = m.widget_megaMenu_description();
 

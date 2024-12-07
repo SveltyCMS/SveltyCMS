@@ -343,7 +343,6 @@ export const actions: Actions = {
 
 	// OAuth Sign-Up
 	OAuth: async (event) => {
-
 		const form = await superValidate(event.request, wrappedSignUpOAuthSchema);
 
 		if (!form.valid) {

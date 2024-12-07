@@ -83,7 +83,7 @@ async function processCollectionFile(content: string): Promise<{ fields: string[
 		module: ts.ModuleKind.ESNext
 	});
 
-	const { default: data } = await import('data:text/javascript,' + transpiledContent);
+	const { default: data } = await import(/* @vite-ignore */ 'data:text/javascript,' + transpiledContent);
 
 	return {
 		fields: data.fields.map((field: Field) => field.db_fieldName || field.label)

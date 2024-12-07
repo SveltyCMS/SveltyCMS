@@ -3,14 +3,14 @@
 @description - seo index file.
 */
 
-const WIDGET_NAME = 'Seo' as const;
-
 import { publicEnv } from '@root/config/public';
 import { getFieldName, getGuiFields } from '@utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
+
+const WIDGET_NAME = 'Seo' as const;
 
 /**
  * Defines Seo widget Parameters

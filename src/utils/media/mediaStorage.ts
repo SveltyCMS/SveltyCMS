@@ -21,23 +21,23 @@ import { logger } from '@utils/logger.svelte';
 
 // Image sizes configuration
 type ImageSizesType = typeof publicEnv.IMAGE_SIZES & {
-  original: 0;
-  thumbnail: 200;
+	original: 0;
+	thumbnail: 200;
 };
 
 const SIZES: ImageSizesType = {
-  ...publicEnv.IMAGE_SIZES,
-  original: 0,
-  thumbnail: 200
+	...publicEnv.IMAGE_SIZES,
+	original: 0,
+	thumbnail: 200
 } as const;
 
 // Get fs instance for server-side operations
 async function getFs() {
-  if (!import.meta.env.SSR) {
-    throw error(500, 'File operations can only be performed on the server');
-  }
-  const { default: fs } = await import('fs');
-  return fs;
+	if (!import.meta.env.SSR) {
+		throw error(500, 'File operations can only be performed on the server');
+	}
+	const { default: fs } = await import('fs');
+	return fs;
 }
 
 /**
@@ -130,59 +130,67 @@ export async function fileExists(url: string): Promise<boolean> {
   } catch {
     return false;
   }
+	const fs = await getFs();
+	const filePath = Path.join(publicEnv.MEDIA_FOLDER, url);
+	try {
+		await fs.promises.access(filePath);
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 /**
  * Moves a file to trash
  */
 export async function moveMediaToTrash(url: string): Promise<void> {
-  const fs = await getFs();
-  const sourcePath = Path.join(publicEnv.MEDIA_FOLDER, url);
-  const trashPath = Path.join(publicEnv.MEDIA_FOLDER, '.trash', Path.basename(url));
+	const fs = await getFs();
+	const sourcePath = Path.join(publicEnv.MEDIA_FOLDER, url);
+	const trashPath = Path.join(publicEnv.MEDIA_FOLDER, '.trash', Path.basename(url));
 
-  // Create trash directory if it doesn't exist
-  await fs.promises.mkdir(Path.dirname(trashPath), { recursive: true });
+	// Create trash directory if it doesn't exist
+	await fs.promises.mkdir(Path.dirname(trashPath), { recursive: true });
 
-  // Move file to trash
-  await fs.promises.rename(sourcePath, trashPath);
-  logger.info('File moved to trash', { originalUrl: url, trashUrl: trashPath });
+	// Move file to trash
+	await fs.promises.rename(sourcePath, trashPath);
+	logger.info('File moved to trash', { originalUrl: url, trashUrl: trashPath });
 }
 
 /**
  * Cleans up media directory
  */
 export async function cleanMediaDirectory(): Promise<void> {
-  // Implementation for cleaning up unused files
-  logger.info('Media directory cleanup completed');
+	// Implementation for cleaning up unused files
+	logger.info('Media directory cleanup completed');
 }
 
 /**
  * Saves a remote media file to the database
  */
 export async function saveRemoteMedia(
-  fileUrl: string,
-  collectionTypes: string,
-  user_id: string
+	fileUrl: string,
+	collectionTypes: string,
+	user_id: string
 ): Promise<{ id: string; fileInfo: MediaRemoteVideo }> {
-  try {
-    // Fetch the media file from the provided URL
-    const response = await fetch(fileUrl);
-    if (!response.ok) throw new Error(`Failed to fetch file: ${response.statusText}`);
+	try {
+		// Fetch the media file from the provided URL
+		const response = await fetch(fileUrl);
+		if (!response.ok) throw new Error(`Failed to fetch file: ${response.statusText}`);
 
-    // Get buffer from fetched response
-    const arrayBuffer = await response.arrayBuffer();
-    const hash = await hashFileContent(arrayBuffer); // Use arrayBuffer directly for hashing
+		// Get buffer from fetched response
+		const arrayBuffer = await response.arrayBuffer();
+		const hash = await hashFileContent(arrayBuffer); // Use arrayBuffer directly for hashing
 
-    // Extract and sanitize the file name
-    const fileName = decodeURI(fileUrl.split('/').pop() ?? 'defaultName');
-    const { fileNameWithoutExt, ext } = getSanitizedFileName(fileName);
-    const url = `remote_media/${hash}-${fileNameWithoutExt}.${ext}`;
+		// Extract and sanitize the file name
+		const fileName = decodeURI(fileUrl.split('/').pop() ?? 'defaultName');
+		const { fileNameWithoutExt, ext } = getSanitizedFileName(fileName);
+		const url = `remote_media/${hash}-${fileNameWithoutExt}.${ext}`;
 
-    // Create user access entry with all permissions
-    const userAccess: MediaAccess = {
-      userId: user_id,
-      permissions: [Permission.Read, Permission.Write, Permission.Delete]
-    };
+		// Create user access entry with all permissions
+		const userAccess: MediaAccess = {
+			userId: user_id,
+			permissions: [Permission.Read, Permission.Write, Permission.Delete]
+		};
 
     // Construct file info object for the remote video
     const fileInfo: MediaRemoteVideo = {
@@ -239,28 +247,45 @@ export async function saveRemoteMedia(
  * Saves an avatar image to disk and database
  */
 export async function saveAvatarImage(file: File): Promise<string> {
-  try {
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const hash = crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
+	try {
+		// Validate file
+		if (!file) {
+			throw new Error('No file provided');
+		}
 
-    const existingFile = dbAdapter ? await dbAdapter.findOne('media_images', { hash }) : null;
+		// Ensure database is initialized
+		if (!dbAdapter) {
+			throw new Error('Database adapter not initialized');
+		}
 
-    if (existingFile) {
-      let fileUrl = existingFile.thumbnail?.url;
-      if (publicEnv.MEDIASERVER_URL) {
-        fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`;
-      } else {
-        fileUrl = `${publicEnv.MEDIA_FOLDER}/${fileUrl}`;
-      }
-      return fileUrl;
-    }
+		// Create avatars directory if it doesn't exist
+		const fs = await getFs();
+		const avatarsPath = Path.join(process.cwd(), 'static', 'avatars');
+		if (!fs.existsSync(avatarsPath)) {
+			await fs.promises.mkdir(avatarsPath, { recursive: true });
+		}
+
+		const arrayBuffer = await file.arrayBuffer();
+		const buffer = Buffer.from(arrayBuffer);
+		const hash = crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
+
+		const existingFile = dbAdapter ? await dbAdapter.findOne('media_images', { hash }) : null;
+
+		if (existingFile) {
+			let fileUrl = existingFile.thumbnail?.url;
+			if (publicEnv.MEDIASERVER_URL) {
+				fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`;
+			} else {
+				fileUrl = `${publicEnv.MEDIA_FOLDER}/${fileUrl}`;
+			}
+			return fileUrl;
+		}
 
     const { fileNameWithoutExt } = getSanitizedFileName(file.name);
     const sanitizedBlobName = sanitize(fileNameWithoutExt);
 
-    // For avatars, we only create one AVIF thumbnail
-    const resizedImage = await resizeImage(buffer, SIZES.thumbnail);
+		// For avatars, we only create one AVIF thumbnail
+		const resizedImage = await resizeImage(buffer, SIZES.thumbnail);
 
     const thumbnailUrl = `avatars/${hash}-${sanitizedBlobName}thumbnail.avif`;
     await saveFileToDisk(await resizedImage.toBuffer(), thumbnailUrl);
@@ -317,68 +342,65 @@ export async function saveAvatarImage(file: File): Promise<string> {
       fileUrl = `${publicEnv.MEDIA_FOLDER}/${fileUrl}`;
     }
 
-    return fileUrl;
-  } catch (err) {
-    console.error(err);
-    logger.error('Error saving avatar image:', err as Error);
-    throw err;
-  }
+		return fileUrl;
+	} catch (err) {
+		const error = err instanceof Error ? err : new Error('Unknown error occurred');
+		logger.error('Error saving avatar image:', {
+			error: error.message,
+			stack: error.stack,
+			fileName: file?.name,
+			fileSize: file?.size
+		});
+		throw error;
+	}
 }
 
 /**
  * Uploads a file to storage (disk)
  */
-export async function uploadFile(
-  file: File | Blob,
-  userId: string,
-  access: MediaAccess
-): Promise<{ url: string; fileInfo: MediaImage }> {
-  try {
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const fileName = file instanceof File ? file.name : 'blob';
-    const mimeType = file.type || mime.lookup(fileName) || 'application/octet-stream';
+export async function uploadFile(file: File | Blob, userId: string, access: MediaAccess): Promise<{ url: string; fileInfo: MediaImage }> {
+	try {
+		const buffer = Buffer.from(await file.arrayBuffer());
+		const fileName = file instanceof File ? file.name : 'blob';
+		const mimeType = file.type || mime.lookup(fileName) || 'application/octet-stream';
 
-    const hash = await hashFileContent(buffer);
-    const sanitizedFileName = getSanitizedFileName(fileName);
-    const ext = Path.extname(sanitizedFileName);
+		const hash = await hashFileContent(buffer);
+		const sanitizedFileName = getSanitizedFileName(fileName);
+		const ext = Path.extname(sanitizedFileName);
 
-    // Generate path based on date and hash
-    const date = new Date();
-    const path = Path.join(
-      date.getFullYear().toString(),
-      (date.getMonth() + 1).toString().padStart(2, '0'),
-      hash.substring(0, 2)
-    );
+		// Generate path based on date and hash
+		const date = new Date();
+		const path = Path.join(date.getFullYear().toString(), (date.getMonth() + 1).toString().padStart(2, '0'), hash.substring(0, 2));
 
-    // Process image if it's an image type
-    const isImage = mimeType.startsWith('image/');
-    let resizedImages: Record<string, ResizedImage> = {};
+		// Process image if it's an image type
+		const isImage = mimeType.startsWith('image/');
+		let resizedImages: Record<string, ResizedImage> = {};
 
-    if (isImage) {
-      resizedImages = await saveResizedImages(buffer, hash, sanitizedFileName, 'media', ext, path);
-    }
+		if (isImage) {
+			resizedImages = await saveResizedImages(buffer, hash, sanitizedFileName, 'media', ext, path);
+		}
 
-    const url = constructUrl(path, `${hash}${ext}`);
+		const url = constructUrl(path, `${hash}${ext}`);
 
-    // Save original file
-    await saveFileToDisk(buffer, url);
+		// Save original file
+		await saveFileToDisk(buffer, url);
 
-    const fileInfo: MediaImage = {
-      type: MediaTypeEnum.Image,
-      name: sanitizedFileName,
-      hash,
-      path,
-      url,
-      mimeType,
-      size: buffer.length,
-      resized: resizedImages,
-      access
-    };
+		const fileInfo: MediaImage = {
+			type: MediaTypeEnum.Image,
+			name: sanitizedFileName,
+			hash,
+			path,
+			url,
+			mimeType,
+			size: buffer.length,
+			resized: resizedImages,
+			access
+		};
 
-    return { url, fileInfo };
-  } catch (err) {
-    const message = `Error uploading file: ${err instanceof Error ? err.message : String(err)}`;
-    logger.error(message);
-    throw new Error(message);
-  }
+		return { url, fileInfo };
+	} catch (err) {
+		const message = `Error uploading file: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw new Error(message);
+	}
 }

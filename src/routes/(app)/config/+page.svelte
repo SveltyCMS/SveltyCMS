@@ -28,9 +28,9 @@ Features:
 
 	// Import PermissionConfig type from the correct file
 	import type { PermissionConfig } from '@src/auth/permissionCheck';
-	import { onMount } from "svelte";
-	import { collection } from "@root/src/stores/collectionStore.svelte";
-	import type { Schema } from "@root/src/collections/CollectionManager";
+	import { onMount } from 'svelte';
+	import { collection } from '@root/src/stores/collectionStore.svelte';
+	import type { Schema } from '@root/src/collections/CollectionManager';
 
 	// Define the structure of dynamicPermissions
 	type DynamicPermissions = Record<string, PermissionConfig>;
@@ -41,7 +41,7 @@ Features:
 	onMount(() => {
 		collection.set({} as Schema);
 	});
-	
+
 	// Create a mapping from contextId to dynamic permissions for easier access
 	let permissionConfigs = $derived(
 		Object.fromEntries(
