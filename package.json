@@ -88,7 +88,7 @@
 		"prettier-plugin-tailwindcss": "^0.6.9",
 		"semantic-release": "^24.2.0",
 		"sharp": "^0.33.5",
-		"svelte": "^5.8.1",
+		"svelte": "^5.9.0",
 		"svelte-awesome-color-picker": "^3.1.4",
 		"svelte-check": "^4.1.1",
 		"svelte-confetti": "2.2.0",
@@ -158,9 +158,6 @@
 		"serve-static": "^1.16.2",
 		"svelty-email": "^0.0.11",
 		"tailwind-merge": "^2.5.5"
-	},
-	"patchedDependencies": {
-		"sveltekit-superforms@2.20.1": "patches/sveltekit-superforms@2.20.1.patch"
 	},
 	"overrides": {
 		"punycode": "^2.3.1",
