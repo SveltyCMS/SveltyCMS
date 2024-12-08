@@ -50,10 +50,13 @@ import { DEFAULT_THEME } from '@src/databases/themeManager';
 // System Logging
 import { logger } from '@utils/logger.svelte';
 
+// Widget Manager
+import { getWidgets } from '@src/components/widgets/widgetManager.svelte';
+
 // Define the media schema for different media types
 const mediaSchema = new Schema(
 	{
-		hash: { type: String, required: true }, // The hash of the media
+		hash: { type: String, required: true },
 		thumbnail: {
 			url: { type: String, required: true }, // The URL of the media
 			altText: { type: String }, // The alt text for the media
@@ -164,13 +167,13 @@ const SystemVirtualFolderModel =
 
 import type { CollectionConfig } from '@src/collections/types';
 
-import { widgets, initializeWidgets } from '@src/components/widgets';
+import widgets, { initializeWidgets } from '@src/components/widgets';
 
 export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
 	private collectionsInitialized = false;
 
-	// Helper method to recursively scan directories for collection files
+	// Helper method to recursively scan directories for collections
 	private async scanDirectoryForCollections(dirPath: string): Promise<string[]> {
 		const collectionFiles: string[] = [];
 		try {
@@ -365,61 +368,6 @@ export class MongoDBAdapter implements dbInterface {
 		}
 	}
 
-	// Helper method to map field types with improved type safety
-	private mapFieldType(type: string): mongoose.SchemaDefinitionProperty {
-		// First check for widget types
-		const widgetTypeMap: Record<string, mongoose.SchemaDefinitionProperty> = {
-			Text: String,
-			RichText: String,
-			Number: Number,
-			Checkbox: Boolean,
-			Date: Date,
-			DateTime: Date,
-			DateRange: Object,
-			Email: String,
-			PhoneNumber: String,
-			Currency: Number,
-			Rating: Number,
-			Radio: String,
-			MediaUpload: mongoose.Schema.Types.Mixed,
-			MegaMenu: Array,
-			Relation: mongoose.Schema.Types.ObjectId,
-			RemoteVideo: String,
-			ColorPicker: String,
-			Seo: Object,
-			Address: Object
-		};
-
-		// Then check for basic types
-		const basicTypeMap: Record<string, mongoose.SchemaDefinitionProperty> = {
-			string: String,
-			number: Number,
-			boolean: Boolean,
-			date: Date,
-			object: mongoose.Schema.Types.Mixed,
-			array: Array,
-			text: String,
-			richtext: String,
-			media: mongoose.Schema.Types.Mixed
-		};
-
-		// Try widget type first, then basic type, default to Mixed
-		return widgetTypeMap[type] || basicTypeMap[type.toLowerCase()] || mongoose.Schema.Types.Mixed;
-	}
-
-	// Set up authentication models
-	setupAuthModels(): void {
-		try {
-			this.setupModel('auth_tokens', TokenSchema);
-			this.setupModel('auth_users', UserSchema);
-			this.setupModel('auth_sessions', SessionSchema);
-			logger.info('Authentication models set up successfully.');
-		} catch (error) {
-			logger.error('Failed to set up authentication models: ' + error.message);
-			throw Error('Failed to set up authentication models');
-		}
-	}
-
 	// Helper method to set up models if they don't already exist
 	private setupModel(name: string, schema: Schema) {
 		if (!mongoose.models[name]) {
@@ -609,42 +557,69 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Create a collection model
-	async createCollectionModel(collection: CollectionConfig): Promise<Model<Document>> {
+	async createCollectionModel(collection: CollectionConfig, collectionPath?: string): Promise<Model<Document>> {
 		if (!collection.name) {
 			throw new Error('Collection must have a name');
 		}
 
-		const collectionName = String(collection.name);
-		logger.debug(`Creating collection model for \x1b[34m${collectionName}\x1b[0m`);
+		// Generate a unique collection name that includes the path
+		const uniqueCollectionName = this.generateCollectionId(
+			`collection_${String(collection.name)}`,
+			collectionPath
+		);
 
 		// Check if model already exists
-		if (mongoose.models[collectionName]) {
-			return mongoose.models[collectionName];
+		if (mongoose.models[uniqueCollectionName]) {
+			return mongoose.models[uniqueCollectionName];
 		}
+
+		logger.debug(`Creating collection model for \x1b[34m${uniqueCollectionName}\x1b[0m`);
 
 		// Define base schema definition
 		const schemaDefinition: Record<string, mongoose.SchemaDefinitionProperty> = {
 			createdBy: {
 				type: String,
-				required: false
+				required: false,
+				index: true
+			},
+			createdAt: {
+				type: Date,
+				default: Date.now,
+				index: { expireAfterSeconds: 0 }  // TTL index if needed
+			},
+			updatedAt: {
+				type: Date,
+				default: Date.now,
+				index: true
 			},
 			revisionsEnabled: {
 				type: Boolean,
-				required: false
+				required: false,
+				index: true
 			},
 			translationStatus: {
 				type: mongoose.Schema.Types.Mixed,
-				default: {}
+				default: {},
+				index: { sparse: true }
+			},
+			status: {
+				type: String,
+				enum: ['draft', 'published', 'archived'],
+				default: 'draft',
+				index: true
 			}
 		};
+
+		// Compound index tracking
+		const compoundIndexes: any[] = [];
 
 		// Add fields from collection schema
 		if (collection.fields) {
 			for (const field of collection.fields) {
 				try {
-					let fieldConfig;
-					let widgetType;
-					let fieldKey;
+					let widgetType: string;
+					let fieldConfig: FieldConfig;
+					let fieldKey: string | undefined;
 
 					if (typeof field === 'function') {
 						// If field is a widget function, execute it to get config
@@ -662,60 +637,103 @@ export class MongoDBAdapter implements dbInterface {
 					// If db_fieldName is not provided, generate one from the label
 					if (!fieldKey && fieldConfig.label) {
 						fieldKey = fieldConfig.label.toLowerCase().replace(/\s+/g, '_');
-						logger.debug(`Generated db_fieldName '${fieldKey}' from label '${fieldConfig.label}'`);
 					}
 
 					if (!fieldKey) {
-						logger.warn(`Field in collection \x1b[34m${collectionName}\x1b[0m has no db_fieldName or label, skipping`);
+						logger.warn(`Field in collection \x1b[34m${uniqueCollectionName}\x1b[0m has no db_fieldName or label, skipping`);
 						continue;
 					}
 
 					const isRequired = fieldConfig?.required === true;
 					const isTranslated = fieldConfig?.translated === true;
+					const isSearchable = fieldConfig?.searchable === true;
+					const isUnique = fieldConfig?.unique === true;
 
-					// Map the widget type to a MongoDB type
-					const mongooseType = this.mapFieldType(widgetType);
+					// Get widget configuration
+					const widgets = getWidgets();
+					const widget = widgets[widgetType];
 
-					// Create the field schema
-					let fieldSchema: mongoose.SchemaDefinitionProperty;
+					if (!widget) {
+						logger.warn(`Widget type ${widgetType} not found, using Mixed type`);
+					}
 
-					if (isTranslated) {
+					// Default to Mixed type for maximum flexibility with dynamic widgets
+					let mongooseType: mongoose.SchemaDefinitionProperty = mongoose.Schema.Types.Mixed;
+
+					// Special handling for relations
+					if (fieldConfig.collection) {
+						mongooseType = mongoose.Schema.Types.ObjectId;
+						compoundIndexes.push({ [fieldKey]: 1 });
+					}
+
+					let fieldSchema: mongoose.SchemaDefinitionProperty = {
+						type: isTranslated ? Map : mongooseType,
+						required: isRequired,
+						index: isSearchable ? { sparse: true } : undefined,
+						unique: isUnique
+					};
+
+					if (fieldConfig.collection) {
 						fieldSchema = {
-							type: Map,
-							of: mongooseType,
-							required: isRequired,
-							default: {}
-						};
-					} else {
-						fieldSchema = {
-							type: mongooseType,
-							required: isRequired
+							...fieldSchema,
+							type: mongoose.Schema.Types.ObjectId,
+							ref: fieldConfig.collection,
+							index: true
 						};
 					}
 
-					// Add any additional field configuration
-					if (widgetType === 'Relation' && fieldConfig.collection) {
-						fieldSchema.ref = fieldConfig.collection;
+					// Add any widget-specific validation if needed
+					if (fieldConfig.validate) {
+						fieldSchema.validate = fieldConfig.validate;
 					}
 
 					// Add the field to the schema
 					schemaDefinition[fieldKey] = fieldSchema;
-					logger.debug(`Added field ${fieldKey} with type ${widgetType} to collection ${collectionName}`);
 				} catch (error) {
-					logger.error(`Error processing field in collection ${collectionName}: ${error.message}`);
+					logger.error(`Error processing field in collection ${uniqueCollectionName}: ${error.message}`);
 				}
 			}
 		}
 
-		const schemaOptions = {
+		// Optimized schema options
+		const schemaOptions: mongoose.SchemaOptions = {
 			strict: collection.strict !== false,
-			timestamps: true,
-			collection: collectionName.toLowerCase()
+			timestamps: {
+				createdAt: 'createdAt',
+				updatedAt: 'updatedAt'
+			},
+			collection: uniqueCollectionName.toLowerCase(),
+			autoIndex: true,  // Enable auto-indexing in production
+			minimize: false,  // Store empty objects
+			toJSON: {
+				virtuals: true,
+				getters: true
+			},
+			toObject: {
+				virtuals: true,
+				getters: true
+			},
+			id: false,  // Disable virtual id getter
+			versionKey: false  // Disable version key
 		};
 
-		// Create and return the model
+		// Create schema
 		const schema = new mongoose.Schema(schemaDefinition, schemaOptions);
-		return mongoose.model(collectionName, schema);
+
+		// Add compound indexes
+		schema.index({ createdAt: -1 });  // Sort by most recent first
+		schema.index({ status: 1, createdAt: -1 });  // Common query pattern
+
+		// Add any collection-specific compound indexes
+		compoundIndexes.forEach(index => {
+			schema.index(index);
+		});
+
+		// Performance optimization: create indexes in background
+		schema.set('backgroundIndexing', true);
+
+		// Create and return the model
+		return mongoose.model(uniqueCollectionName, schema);
 	}
 
 	// Methods for Draft and Revision Management
@@ -1366,4 +1384,37 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error disconnecting from MongoDB`);
 		}
 	}
+
+	generateCollectionId(collectionName: string, collectionPath?: string): string {
+		// Handle nested folder structure by incorporating full path
+		const normalizedName = collectionName
+			.toLowerCase()
+			.replace(/[^a-z0-9]/g, '_');  // Replace non-alphanumeric with underscores
+
+		// If a path is provided, incorporate it into the collection name
+		const pathComponent = collectionPath
+			? collectionPath
+				.toLowerCase()
+				.replace(/[/\\]/g, '_')  // Replace path separators with underscores
+				.replace(/[^a-z0-9]/g, '_')  // Replace non-alphanumeric with underscores
+			: '';
+
+		// Generate a unique identifier using MongoDB's ObjectId
+		const uuid = new mongoose.Types.ObjectId().toString().slice(-8);  // Last 8 characters of ObjectId
+
+		// Combine path, name, and UUID to ensure uniqueness
+		return `${pathComponent ? pathComponent + '_' : ''}${normalizedName}_${uuid}`;
+	}
 }
+
+type FieldConfig = {
+    type: string;
+    db_fieldName?: string;
+    label?: string;
+    required?: boolean;
+} | ((context: Record<string, unknown>) => {
+    widget: { Name: string };
+    db_fieldName?: string;
+    label?: string;
+    required?: boolean;
+});

@@ -31,8 +31,7 @@ import { generateCollectionFieldTypes, generateCollectionTypes } from '@src/coll
 import { compile } from '@root/src/routes/api/compile/compile';
 
 // Widgets
-import type { WidgetType } from '@components/widgets/widgetManager.svelte';
-import { widgets } from '@components/widgets/widgetManager.svelte';
+import widgets from '@components/widgets';
 
 // Load Prettier config
 async function getPrettierConfig() {
