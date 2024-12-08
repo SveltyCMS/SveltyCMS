@@ -49,8 +49,8 @@ interface WidgetModule {
 // State management with reactive stores
 const widgetFunctions = store<Record<string, WidgetFunction>>({});
 const activeWidgetList = store<string[]>([]);
-let initialized = false;
-let initializationPromise: Promise<void> | null = null;
+let initialized = $state(false);
+let initializationPromise = $state<Promise<void> | null>(null);
 
 function createWidgetFunction(widgetModule: WidgetModule, name: string): WidgetFunction {
 	const widget = widgetModule.default;
@@ -99,23 +99,27 @@ export async function initializeWidgets(): Promise<void> {
 			}
 
 			const newWidgetFunctions: Record<string, WidgetFunction> = {};
-			const widgetNames: string[] = [];
+			const loadedWidgetNames: string[] = [];
 
 			for (const { name, module } of validModules) {
 				const widgetFn = createWidgetFunction(module, name);
 				const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
 				newWidgetFunctions[capitalizedName] = widgetFn;
-				widgetNames.push(capitalizedName);
-				logger.debug(`Loaded widget: \x1b[34m${name}\x1b[0m`);
+				loadedWidgetNames.push(capitalizedName);
 			}
+
+			// Log loaded widgets individually
+			loadedWidgetNames.forEach(name => {
+				logger.debug(`Loaded widget: \x1b[34m${name}\x1b[0m`);
+			});
 
 			// Update widget functions store
 			widgetFunctions.set(newWidgetFunctions);
 
 			// Set all widgets as active by default
-			activeWidgetList.set(widgetNames);
+			activeWidgetList.set(loadedWidgetNames);
 
-			logger.info('Widgets initialized successfully', widgetNames);
+			logger.info('Widgets initialized successfully', loadedWidgetNames);
 
 			initialized = true;
 		} catch (error) {
@@ -134,6 +138,7 @@ export async function resolveWidgetPlaceholder(placeholder: { __widgetName: stri
 	await initializeWidgets();
 
 	const widgetName = placeholder.__widgetName;
+	// Access widgetFunctions.value directly using your custom store
 	const widgetFn = widgetFunctions.value[widgetName];
 
 	if (!widgetFn) {
@@ -143,21 +148,23 @@ export async function resolveWidgetPlaceholder(placeholder: { __widgetName: stri
 	return widgetFn(placeholder.__widgetConfig);
 }
 
-export function getWidgets(): Record<string, WidgetFunction> {
+// Use the custom store's `value` property for reactivity
+export function getWidgets() {
 	return widgetFunctions.value;
 }
 
-export function getActiveWidgets(): string[] {
+// Use the custom store's `value` property for reactivity
+export function getActiveWidgets() {
 	return activeWidgetList.value;
 }
 
 export async function updateWidgetStatus(widgetName: string, status: WidgetStatus): Promise<void> {
 	try {
-		// Update the active widgets list
+		// Update the active widgets list using the custom store's methods
 		if (status === 'active' && !activeWidgetList.value.includes(widgetName)) {
-			activeWidgetList.set([...activeWidgetList.value, widgetName]);
+			activeWidgetList.update(value => [...value, widgetName]);
 		} else if (status === 'inactive') {
-			activeWidgetList.set(activeWidgetList.value.filter(w => w !== widgetName));
+			activeWidgetList.update(value => value.filter(w => w !== widgetName));
 		}
 
 		logger.info(`Widget ${widgetName} ${status} status updated successfully`);
@@ -167,7 +174,8 @@ export async function updateWidgetStatus(widgetName: string, status: WidgetStatu
 	}
 }
 
-export function getWidgetConfig(widgetName: string): Record<string, unknown> | undefined {
+// Use the custom store's `value` property for reactivity
+export function getWidgetConfig(widgetName: string) {
 	const widget = widgetFunctions.value[widgetName];
 	return widget ? widget({}).config : undefined;
 }
@@ -176,16 +184,17 @@ export async function updateWidgetConfig(widgetName: string, config: Record<stri
 	const widget = widgetFunctions.value[widgetName];
 	if (!widget) return;
 
-	widgetFunctions.set({
-		...widgetFunctions.value,
+	widgetFunctions.update(currentWidgets => ({
+		...currentWidgets,
 		[widgetName]: (cfg: Record<string, unknown>) => ({
 			...widget(cfg),
 			config: { ...widget(cfg).config, ...config }
 		})
-	});
+	}));
 }
 
-export async function loadWidgets(): Promise<Record<string, Widget>> {
+// Use the custom store's `value` property for reactivity
+export async function loadWidgets() {
 	await initializeWidgets();
 	const widgets = Object.entries(widgetFunctions.value).reduce((acc, [name, widgetFn]) => {
 		acc[name] = widgetFn({});

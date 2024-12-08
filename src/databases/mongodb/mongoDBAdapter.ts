@@ -50,27 +50,26 @@ import { DEFAULT_THEME } from '@src/databases/themeManager';
 // System Logging
 import { logger } from '@utils/logger.svelte';
 
+// Widget Manager
+import { getWidgets } from '@src/components/widgets/widgetManager.svelte';
+
 // Define the media schema for different media types
 const mediaSchema = new Schema(
-  {
-    hash: { type: String, required: true }, // The hash of the media
-    name: { type: String, required: true },
-    type: { type: String, required: true },
-    thumbnail: {
-      url: { type: String, required: true }, // The URL of the media
-      altText: { type: String }, // The alt text for the media
-      name: { type: String }, // The name for the media
-      type: { type: String }, // The type for the media
-      size: { type: Number }, // The size for the media
-      width: { type: Number }, // The width for the media
-      height: { type: Number } // The height for the media
-    }, // The thumbnails of media
-    // url: { type: String, required: true }, // The URL of the media
-    // altText: { type: String, required: true }, // The alt text for the media
-    access: { type: Object }
-  },
-
-  { timestamps: false, collection: 'media' } // Explicitly set the collection name
+	{
+		hash: { type: String, required: true }, // The hash of the media
+		thumbnail: {
+			url: { type: String, required: true }, // The URL of the media
+			altText: { type: String }, // The alt text for the media
+			name: { type: String }, // The name for the media
+			type: { type: String }, // The type for the media
+			size: { type: Number }, // The size for the media
+			width: { type: Number }, // The width for the media
+			height: { type: Number } // The height for the media
+		} // The thumbnails of media
+		// url: { type: String, required: true }, // The URL of the media
+		// altText: { type: String, required: true }, // The alt text for the media
+	},
+	{ timestamps: false, collection: 'media' } // Explicitly set the collection name
 );
 
 // Define the Draft model if it doesn't exist already
@@ -168,17 +167,17 @@ const SystemVirtualFolderModel =
 
 import type { CollectionConfig } from '@src/collections/types';
 
-import { widgets, initializeWidgets } from '@src/components/widgets';
+import widgets, { initializeWidgets } from '@src/components/widgets';
 
 export class MongoDBAdapter implements dbInterface {
   private unsubscribe: Unsubscriber | undefined;
   private collectionsInitialized = false;
 
-  // Helper method to recursively scan directories for collection files
-  private async scanDirectoryForCollections(dirPath: string): Promise<string[]> {
-    const collectionFiles: string[] = [];
-    try {
-      const entries = await import('fs').then((fs) => fs.promises.readdir(dirPath, { withFileTypes: true }));
+	// Helper method to recursively scan directories for collection files
+	private async scanDirectoryForCollections(dirPath: string): Promise<string[]> {
+		const collectionFiles: string[] = [];
+		try {
+			const entries = await import('fs').then((fs) => fs.promises.readdir(dirPath, { withFileTypes: true }));
 
       for (const entry of entries) {
         const fullPath = path.join(dirPath, entry.name);
@@ -235,11 +234,11 @@ export class MongoDBAdapter implements dbInterface {
 				try {
 					// Recursively scan for collection files
 					const collectionFiles = await this.scanDirectoryForCollections(dirPath);
-					logger.debug(`Found ${collectionFiles.length} collection files in ${dir} directory and subdirectories`);
+					logger.debug(`Found \x1b[34m${collectionFiles.length}\x1b[0m collection files in \x1b[34m${dir}\x1b[0m directory and subdirectories`);
 
 					for (const filePath of collectionFiles) {
 						try {
-							logger.debug(`Processing collection file: ${filePath}`);
+							logger.debug(`Processing collection file: \x1b[34m${filePath}\x1b[0m`);
 
               const collection = await import(/* @vite-ignore */ filePath);
               const collectionConfig = collection.default || collection.schema;
@@ -254,14 +253,14 @@ export class MongoDBAdapter implements dbInterface {
                   collectionConfig.name = collectionName;
                 }
 
-								logger.debug(`Collection config for ${collectionName}:`, {
+								logger.debug(`Collection config for \x1b[34m${collectionName}:\x1b[0m`, {
 									name: collectionConfig.name,
 									fields: collectionConfig.fields?.length || 0,
 									strict: collectionConfig.strict
 								});
 
 								await this.createCollectionModel(collectionConfig);
-								logger.debug(`Successfully created/synced collection model for ${collectionName}`);
+								logger.debug(`Successfully created/synced collection model for \x1b[34m${collectionName}\x1b[0m`);
 							} else {
 								logger.error(`Collection file ${filePath} does not export a valid schema or default export`);
 							}
@@ -283,7 +282,6 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Connect to MongoDB
 	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
-		logger.debug('Attempting to connect to MongoDB...');
 		const isAtlas = privateEnv.DB_HOST.startsWith('mongodb+srv://');
 
     // Construct the connection string
@@ -322,7 +320,7 @@ export class MongoDBAdapter implements dbInterface {
 		for (let i = 1; i <= attempts; i++) {
 			try {
 				await mongoose.connect(connectionString, options);
-				logger.info(`Successfully connected to MongoDB database: ${privateEnv.DB_NAME}`);
+				logger.debug(`Successfully connected to MongoDB database: \x1b[34m${privateEnv.DB_NAME}\x1b[0m`);
 				await this.syncCollections();
 				return;
 			} catch (error: unknown) {
@@ -349,7 +347,6 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Get collection models
 	async getCollectionModels(): Promise<Record<string, Model<Document>>> {
-		logger.debug('getCollectionModels called');
 
     if (this.collectionsInitialized) {
       logger.debug('Collections already initialized, returning existing models.');
@@ -371,60 +368,60 @@ export class MongoDBAdapter implements dbInterface {
     }
   }
 
-  // Helper method to map field types with improved type safety
-  private mapFieldType(type: string): mongoose.SchemaDefinitionProperty {
-    // First check for widget types
-    const widgetTypeMap: Record<string, mongoose.SchemaDefinitionProperty> = {
-      Text: String,
-      RichText: String,
-      Number: Number,
-      Checkbox: Boolean,
-      Date: Date,
-      DateTime: Date,
-      DateRange: Object,
-      Email: String,
-      PhoneNumber: String,
-      Currency: Number,
-      Rating: Number,
-      Radio: String,
-      MediaUpload: mongoose.Schema.Types.Mixed,
-      MegaMenu: Array,
-      Relation: mongoose.Schema.Types.ObjectId,
-      RemoteVideo: String,
-      ColorPicker: String,
-      Seo: Object,
-      Address: Object
-    };
+	// Helper method to map field types with improved type safety
+	private mapFieldType(type: string): mongoose.SchemaDefinitionProperty {
+		// First check for widget types
+		const widgetTypeMap: Record<string, mongoose.SchemaDefinitionProperty> = {
+			Text: String,
+			RichText: String,
+			Number: Number,
+			Checkbox: Boolean,
+			Date: Date,
+			DateTime: Date,
+			DateRange: Object,
+			Email: String,
+			PhoneNumber: String,
+			Currency: Number,
+			Rating: Number,
+			Radio: String,
+			MediaUpload: mongoose.Schema.Types.Mixed,
+			MegaMenu: Array,
+			Relation: mongoose.Schema.Types.ObjectId,
+			RemoteVideo: String,
+			ColorPicker: String,
+			Seo: Object,
+			Address: Object
+		};
 
-    // Then check for basic types
-    const basicTypeMap: Record<string, mongoose.SchemaDefinitionProperty> = {
-      string: String,
-      number: Number,
-      boolean: Boolean,
-      date: Date,
-      object: mongoose.Schema.Types.Mixed,
-      array: Array,
-      text: String,
-      richtext: String,
-      media: mongoose.Schema.Types.Mixed
-    };
+		// Then check for basic types
+		const basicTypeMap: Record<string, mongoose.SchemaDefinitionProperty> = {
+			string: String,
+			number: Number,
+			boolean: Boolean,
+			date: Date,
+			object: mongoose.Schema.Types.Mixed,
+			array: Array,
+			text: String,
+			richtext: String,
+			media: mongoose.Schema.Types.Mixed
+		};
 
-    // Try widget type first, then basic type, default to Mixed
-    return widgetTypeMap[type] || basicTypeMap[type.toLowerCase()] || mongoose.Schema.Types.Mixed;
-  }
+		// Try widget type first, then basic type, default to Mixed
+		return widgetTypeMap[type] || basicTypeMap[type.toLowerCase()] || mongoose.Schema.Types.Mixed;
+	}
 
-  // Set up authentication models
-  setupAuthModels(): void {
-    try {
-      this.setupModel('auth_tokens', TokenSchema);
-      this.setupModel('auth_users', UserSchema);
-      this.setupModel('auth_sessions', SessionSchema);
-      logger.info('Authentication models set up successfully.');
-    } catch (error) {
-      logger.error('Failed to set up authentication models: ' + error.message);
-      throw Error('Failed to set up authentication models');
-    }
-  }
+	// Set up authentication models
+	setupAuthModels(): void {
+		try {
+			this.setupModel('auth_tokens', TokenSchema);
+			this.setupModel('auth_users', UserSchema);
+			this.setupModel('auth_sessions', SessionSchema);
+			logger.info('Authentication models set up successfully.');
+		} catch (error) {
+			logger.error('Failed to set up authentication models: ' + error.message);
+			throw Error('Failed to set up authentication models');
+		}
+	}
 
 	// Helper method to set up models if they don't already exist
 	private setupModel(name: string, schema: Schema) {
@@ -432,7 +429,7 @@ export class MongoDBAdapter implements dbInterface {
 			mongoose.model(name, schema);
 			logger.debug(`${name} model created.`);
 		} else {
-			logger.debug(`${name} model already exists.`);
+			logger.debug(`\x1b[34m${name}\x1b[0m model already exists.`);
 		}
 	}
 
@@ -442,7 +439,7 @@ export class MongoDBAdapter implements dbInterface {
 		mediaSchemas.forEach((schemaName) => {
 			this.setupModel(schemaName, mediaSchema);
 		});
-		logger.info('Media models set up successfully.');
+		logger.debug('Media models set up successfully.');
 	}
 
   // Set up widget models
@@ -616,43 +613,46 @@ export class MongoDBAdapter implements dbInterface {
     }
   }
 
-  // Create a collection model
-  async createCollectionModel(collection: CollectionConfig): Promise<Model<Document>> {
-    if (!collection.name) {
-      throw new Error('Collection must have a name');
-    }
+	// Create a collection model
+	async createCollectionModel(collection: CollectionConfig): Promise<Model<Document>> {
+		if (!collection.name) {
+			throw new Error('Collection must have a name');
+		}
 
-		const collectionName = String(collection.name);
-		logger.debug(`Creating collection model for ${collectionName}`);
+		// Generate a unique collection name that includes the path
+		const uniqueCollectionName = this.generateCollectionId(
+			`collection_${String(collection.name)}`,
+			collectionPath
+		);
 
-    // Check if model already exists
-    if (mongoose.models[collectionName]) {
-      return mongoose.models[collectionName];
-    }
+		// Check if model already exists
+		if (mongoose.models[collectionName]) {
+			return mongoose.models[collectionName];
+		}
 
-    // Define base schema definition
-    const schemaDefinition: Record<string, mongoose.SchemaDefinitionProperty> = {
-      createdBy: {
-        type: String,
-        required: false
-      },
-      revisionsEnabled: {
-        type: Boolean,
-        required: false
-      },
-      translationStatus: {
-        type: mongoose.Schema.Types.Mixed,
-        default: {}
-      }
-    };
+		// Define base schema definition
+		const schemaDefinition: Record<string, mongoose.SchemaDefinitionProperty> = {
+			createdBy: {
+				type: String,
+				required: false
+			},
+			revisionsEnabled: {
+				type: Boolean,
+				required: false
+			},
+			translationStatus: {
+				type: mongoose.Schema.Types.Mixed,
+				default: {}
+			}
+		};
 
-    // Add fields from collection schema
-    if (collection.fields) {
-      for (const field of collection.fields) {
-        try {
-          let fieldConfig;
-          let widgetType;
-          let fieldKey;
+		// Add fields from collection schema
+		if (collection.fields) {
+			for (const field of collection.fields) {
+				try {
+					let fieldConfig;
+					let widgetType;
+					let fieldKey;
 
           if (typeof field === 'function') {
             // If field is a widget function, execute it to get config
@@ -667,64 +667,64 @@ export class MongoDBAdapter implements dbInterface {
             fieldKey = field.db_fieldName;
           }
 
-          // If db_fieldName is not provided, generate one from the label
-          if (!fieldKey && fieldConfig.label) {
-            fieldKey = fieldConfig.label.toLowerCase().replace(/\s+/g, '_');
-            logger.debug(`Generated db_fieldName '${fieldKey}' from label '${fieldConfig.label}'`);
-          }
+					// If db_fieldName is not provided, generate one from the label
+					if (!fieldKey && fieldConfig.label) {
+						fieldKey = fieldConfig.label.toLowerCase().replace(/\s+/g, '_');
+						logger.debug(`Generated db_fieldName '${fieldKey}' from label '${fieldConfig.label}'`);
+					}
 
-          if (!fieldKey) {
-            logger.warn(`Field in collection \x1b[34m${collectionName}\x1b[0m has no db_fieldName or label, skipping`);
-            continue;
-          }
+					if (!fieldKey) {
+						logger.warn(`Field in collection \x1b[34m${collectionName}\x1b[0m has no db_fieldName or label, skipping`);
+						continue;
+					}
 
-          const isRequired = fieldConfig?.required === true;
-          const isTranslated = fieldConfig?.translated === true;
+					const isRequired = fieldConfig?.required === true;
+					const isTranslated = fieldConfig?.translated === true;
 
-          // Map the widget type to a MongoDB type
-          const mongooseType = this.mapFieldType(widgetType);
+					// Map the widget type to a MongoDB type
+					const mongooseType = this.mapFieldType(widgetType);
 
-          // Create the field schema
-          let fieldSchema: mongoose.SchemaDefinitionProperty;
+					// Create the field schema
+					let fieldSchema: mongoose.SchemaDefinitionProperty;
 
-          if (isTranslated) {
-            fieldSchema = {
-              type: Map,
-              of: mongooseType,
-              required: isRequired,
-              default: {}
-            };
-          } else {
-            fieldSchema = {
-              type: mongooseType,
-              required: isRequired
-            };
-          }
+					if (isTranslated) {
+						fieldSchema = {
+							type: Map,
+							of: mongooseType,
+							required: isRequired,
+							default: {}
+						};
+					} else {
+						fieldSchema = {
+							type: mongooseType,
+							required: isRequired
+						};
+					}
 
-          // Add any additional field configuration
-          if (widgetType === 'Relation' && fieldConfig.collection) {
-            fieldSchema.ref = fieldConfig.collection;
-          }
+					// Add any additional field configuration
+					if (widgetType === 'Relation' && fieldConfig.collection) {
+						fieldSchema.ref = fieldConfig.collection;
+					}
 
-          // Add the field to the schema
-          schemaDefinition[fieldKey] = fieldSchema;
-          logger.debug(`Added field ${fieldKey} with type ${widgetType} to collection ${collectionName}`);
-        } catch (error) {
-          logger.error(`Error processing field in collection ${collectionName}: ${error.message}`);
-        }
-      }
-    }
+					// Add the field to the schema
+					schemaDefinition[fieldKey] = fieldSchema;
+					logger.debug(`Added field ${fieldKey} with type ${widgetType} to collection ${collectionName}`);
+				} catch (error) {
+					logger.error(`Error processing field in collection ${collectionName}: ${error.message}`);
+				}
+			}
+		}
 
-    const schemaOptions = {
-      strict: collection.strict !== false,
-      timestamps: true,
-      collection: collectionName.toLowerCase()
-    };
+		const schemaOptions = {
+			strict: collection.strict !== false,
+			timestamps: true,
+			collection: collectionName.toLowerCase()
+		};
 
-    // Create and return the model
-    const schema = new mongoose.Schema(schemaDefinition, schemaOptions);
-    return mongoose.model(collectionName, schema);
-  }
+		// Create and return the model
+		const schema = new mongoose.Schema(schemaDefinition, schemaOptions);
+		return mongoose.model(collectionName, schema);
+	}
 
   // Methods for Draft and Revision Management
 
@@ -1364,14 +1364,26 @@ export class MongoDBAdapter implements dbInterface {
 
   // Methods for Disconnecting
 
-  // Disconnect from MongoDB
-  async disconnect(): Promise<void> {
-    try {
-      await mongoose.disconnect();
-      logger.info('MongoDB adapter connection closed.');
-    } catch (error) {
-      logger.error(`Error disconnecting from MongoDB: ${error.message}`);
-      throw Error(`Error disconnecting from MongoDB`);
-    }
-  }
+	// Disconnect from MongoDB
+	async disconnect(): Promise<void> {
+		try {
+			await mongoose.disconnect();
+			logger.info('MongoDB adapter connection closed.');
+		} catch (error) {
+			logger.error(`Error disconnecting from MongoDB: ${error.message}`);
+			throw Error(`Error disconnecting from MongoDB`);
+		}
+	}
 }
+
+type FieldConfig = {
+    type: string;
+    db_fieldName?: string;
+    label?: string;
+    required?: boolean;
+} | ((context: Record<string, unknown>) => {
+    widget: { Name: string };
+    db_fieldName?: string;
+    label?: string;
+    required?: boolean;
+});
