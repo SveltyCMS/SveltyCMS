@@ -29,7 +29,7 @@ import { paraglide } from '@inlang/paraglide-sveltekit/vite';
 // https://kit.svelte.dev/faq#read-package-jsonimport { readFileSync } from 'fs'
 import { fileURLToPath } from 'url';
 import { compile } from './src/routes/api/compile/compile';
-import { generateCollectionTypes, generateCollectionFieldTypes } from './src/collections/collectionTypes';
+import { generateCollectionTypes } from './src/collections/vite';
 
 // Get package.json version info
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
@@ -75,6 +75,21 @@ export default defineConfig({
 		sveltekit(),
 		{
 			name: 'collection-handler',
+			configureServer(server) {
+				return () => {
+					server.watcher.on('change', async (file) => {
+						// Monitor all collection-related changes
+						if (file.includes('/collections/') && file.endsWith('.ts')) {
+							try {
+								await generateCollectionTypes(server);
+								console.log('Collection types updated successfully');
+							} catch (error) {
+								console.error('Error updating collection types:', error);
+							}
+						}
+					});
+				};
+			},
 			async handleHotUpdate({ file, server }) {
 				// Monitor changes in:
 				// 1. config/collections/**/*.ts - User-defined collection configurations (including nested)
@@ -87,10 +102,6 @@ export default defineConfig({
 							userCollections,
 							compiledCollections
 						});
-
-						// Generate updated types
-						await generateCollectionTypes();
-						await generateCollectionFieldTypes();
 
 						// Notify client to reload collections
 						server.ws.send({
@@ -143,7 +154,6 @@ export default defineConfig({
 				return {
 					define: {
 						'import.meta.env.root': JSON.stringify(Path.posix.join('/', __dirname.replace(parsed.root, ''))),
-						// 'import.meta.env.systemCollectionsPath': JSON.stringify(Path.join(__dirname, 'src/collections')),
 						'import.meta.env.userCollectionsPath': JSON.stringify(userCollections),
 						'import.meta.env.compiledCollectionsPath': JSON.stringify(compiledCollections)
 					}

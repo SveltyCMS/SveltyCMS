@@ -167,8 +167,6 @@ const SystemVirtualFolderModel =
 		)
 	);
 
-
-
 export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
 	private collectionsInitialized = false;
@@ -573,16 +571,10 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Create a collection model
-	async createCollectionModel(collection: CollectionConfig, collectionPath?: string): Promise<Model<Document>> {
-		if (!collection.name) {
-			throw new Error('Collection must have a name');
-		}
+	async createCollectionModel(collection: CollectionConfig,): Promise<Model<Document>> {
 
-		// Generate a unique collection name that includes the path
-		const uniqueCollectionName = this.generateCollectionId(
-			`collection_${String(collection.name)}`,
-			collectionPath
-		);
+		// Generate a unique collection name using ObjectId
+		const uniqueCollectionName = `collection_${new mongoose.Types.ObjectId().toString()}`;
 
 		// Check if model already exists
 		if (mongoose.models[uniqueCollectionName]) {
@@ -611,9 +603,6 @@ export class MongoDBAdapter implements dbInterface {
 				default: 'draft',
 			}
 		};
-
-		// Compound index tracking
-		const compoundIndexes: any[] = [];
 
 		// Add fields from collection schema
 		if (collection.fields) {
@@ -665,7 +654,6 @@ export class MongoDBAdapter implements dbInterface {
 					// Special handling for relations
 					if (fieldConfig.collection) {
 						mongooseType = mongoose.Schema.Types.ObjectId;
-						compoundIndexes.push({ [fieldKey]: 1 });
 					}
 
 					let fieldSchema: mongoose.SchemaDefinitionProperty = {
@@ -722,14 +710,9 @@ export class MongoDBAdapter implements dbInterface {
 		// Create schema
 		const schema = new mongoose.Schema(schemaDefinition, schemaOptions);
 
-		// Add compound indexes
+		// Add indexes
 		schema.index({ createdAt: -1 });  // Sort by most recent first
 		schema.index({ status: 1, createdAt: -1 });  // Common query pattern
-
-		// Add any collection-specific compound indexes
-		compoundIndexes.forEach(index => {
-			schema.index(index);
-		});
 
 		// Performance optimization: create indexes in background
 		schema.set('backgroundIndexing', true);
@@ -1385,27 +1368,6 @@ export class MongoDBAdapter implements dbInterface {
 			logger.error(`Error disconnecting from MongoDB: ${error.message}`);
 			throw Error(`Error disconnecting from MongoDB`);
 		}
-	}
-
-	generateCollectionId(collectionName: string, collectionPath?: string): string {
-		// Handle nested folder structure by incorporating full path
-		const normalizedName = collectionName
-			.toLowerCase()
-			.replace(/[^a-z0-9]/g, '_');  // Replace non-alphanumeric with underscores
-
-		// If a path is provided, incorporate it into the collection name
-		const pathComponent = collectionPath
-			? collectionPath
-				.toLowerCase()
-				.replace(/[/\\]/g, '_')  // Replace path separators with underscores
-				.replace(/[^a-z0-9]/g, '_')  // Replace non-alphanumeric with underscores
-			: '';
-
-		// Generate a unique identifier using MongoDB's ObjectId
-		const uuid = new mongoose.Types.ObjectId().toString().slice(-8);  // Last 8 characters of ObjectId
-
-		// Combine path, name, and UUID to ensure uniqueness
-		return `${pathComponent ? pathComponent + '_' : ''}${normalizedName}_${uuid}`;
 	}
 }
 
