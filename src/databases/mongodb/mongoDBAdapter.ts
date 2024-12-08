@@ -40,6 +40,7 @@ import type { dbInterface, Draft, Revision, Theme, Widget, SystemPreferences, Sy
 import { UserSchema } from '@src/auth/mongoDBAuth/userAdapter';
 import { TokenSchema } from '@src/auth/mongoDBAuth/tokenAdapter';
 import { SessionSchema } from '@src/auth/mongoDBAuth/sessionAdapter';
+import type { CollectionConfig } from '@src/collections/types';
 
 // Media
 import type { MediaBase, MediaType } from '@utils/media/mediaModels';
@@ -51,12 +52,13 @@ import { DEFAULT_THEME } from '@src/databases/themeManager';
 import { logger } from '@utils/logger.svelte';
 
 // Widget Manager
+import widgets, { initializeWidgets } from '@src/components/widgets';
 import { getWidgets } from '@src/components/widgets/widgetManager.svelte';
 
 // Define the media schema for different media types
 const mediaSchema = new Schema(
 	{
-		hash: { type: String, required: true },
+		hash: { type: String, required: true }, // The hash of the media
 		thumbnail: {
 			url: { type: String, required: true }, // The URL of the media
 			altText: { type: String }, // The alt text for the media
@@ -165,9 +167,7 @@ const SystemVirtualFolderModel =
 		)
 	);
 
-import type { CollectionConfig } from '@src/collections/types';
 
-import widgets, { initializeWidgets } from '@src/components/widgets';
 
 export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
@@ -366,7 +366,22 @@ export class MongoDBAdapter implements dbInterface {
 			logger.error('Failed to get collection models: ' + error.message);
 			return {};
 		}
+
 	}
+
+	// Set up authentication models
+	setupAuthModels(): void {
+		try {
+			this.setupModel('auth_tokens', TokenSchema);
+			this.setupModel('auth_users', UserSchema);
+			this.setupModel('auth_sessions', SessionSchema);
+			logger.info('Authentication models set up successfully.');
+		} catch (error) {
+			logger.error('Failed to set up authentication models: ' + error.message);
+			throw Error('Failed to set up authentication models');
+		}
+	}
+
 
 	// Helper method to set up models if they don't already exist
 	private setupModel(name: string, schema: Schema) {
@@ -398,6 +413,7 @@ export class MongoDBAdapter implements dbInterface {
 		}
 		logger.info('Widget models set up successfully.');
 	}
+
 
 	// Implementing findOne method
 	async findOne<T extends Document>(collection: string, query: FilterQuery<T>): Promise<T | null> {
@@ -580,33 +596,19 @@ export class MongoDBAdapter implements dbInterface {
 			createdBy: {
 				type: String,
 				required: false,
-				index: true
-			},
-			createdAt: {
-				type: Date,
-				default: Date.now,
-				index: { expireAfterSeconds: 0 }  // TTL index if needed
-			},
-			updatedAt: {
-				type: Date,
-				default: Date.now,
-				index: true
 			},
 			revisionsEnabled: {
 				type: Boolean,
 				required: false,
-				index: true
 			},
 			translationStatus: {
 				type: mongoose.Schema.Types.Mixed,
 				default: {},
-				index: { sparse: true }
 			},
 			status: {
 				type: String,
 				enum: ['draft', 'published', 'archived'],
 				default: 'draft',
-				index: true
 			}
 		};
 
@@ -1408,13 +1410,13 @@ export class MongoDBAdapter implements dbInterface {
 }
 
 type FieldConfig = {
-    type: string;
-    db_fieldName?: string;
-    label?: string;
-    required?: boolean;
+	type: string;
+	db_fieldName?: string;
+	label?: string;
+	required?: boolean;
 } | ((context: Record<string, unknown>) => {
-    widget: { Name: string };
-    db_fieldName?: string;
-    label?: string;
-    required?: boolean;
+	widget: { Name: string };
+	db_fieldName?: string;
+	label?: string;
+	required?: boolean;
 });

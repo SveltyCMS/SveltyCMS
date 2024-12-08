@@ -73,7 +73,7 @@ export class UserAdapter implements Partial<authDBInterface> {
 		try {
 			const user = new this.UserModel(userData);
 			await user.save();
-			logger.degub(`User created:`, { email: user.email });
+			logger.debug(`User created:`, { email: user.email });
 			const savedUser = user.toObject();
 			savedUser._id = savedUser._id.toString();
 			return savedUser as User;
