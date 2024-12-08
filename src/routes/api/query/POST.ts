@@ -49,7 +49,7 @@ const getPerformanceEmoji = (responseTime: number): string => {
 export const _POST = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {
 	const start = performance.now();
 	try {
-		logger.debug(`POST request received for schema: ${schema.name}, user_id: ${user._id}`);
+		logger.debug(`POST request received for schema: ${schema.id}, user_id: ${user._id}`);
 
 		// Ensure the database adapter is initialized
 		if (!dbAdapter) {
@@ -57,19 +57,19 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
 			return new Response('Internal server error: Database adapter not initialized', { status: 500 });
 		}
 
-		// Validate schema name
-		if (!schema.name) {
-			logger.error('Invalid or undefined schema name.');
-			return new Response('Invalid or undefined schema name.', { status: 400 });
+		// Validate schema ID
+		if (!schema.id) {
+			logger.error('Invalid or undefined schema ID.');
+			return new Response('Invalid or undefined schema ID.', { status: 400 });
 		}
 
 		const collections = await getCollectionModels(); // Get collection models from the database
 		logger.debug(`Collection models retrieved: ${Object.keys(collections).join(', ')}`);
 
-		const collection = collections[schema.name]; // Get the specific collection based on the schema name
+		const collection = collections[schema.id]; // Get the specific collection based on the schema ID
 		// Check if the collection exists
 		if (!collection) {
-			logger.error(`Collection not found for schema: ${schema.name}`);
+			logger.error(`Collection not found for schema ID: ${schema.id}`);
 			return new Response('Collection not found', { status: 404 });
 		}
 
@@ -123,7 +123,7 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
 					{
 						_id: newLinkId,
 						_link_id: body._id,
-						_linked_collection: schema.name
+						_linked_collection: schema.id
 					}
 				]);
 				body._links[_collection] = newLinkId;
@@ -171,7 +171,7 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
 		const emoji = getPerformanceEmoji(duration);
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 		const errorStack = error instanceof Error ? error.stack : '';
-		logger.error(`POST operation failed after ${duration.toFixed(2)}ms ${emoji} for schema: ${schema.name}: ${errorMessage}`, { stack: errorStack });
+		logger.error(`POST operation failed after ${duration.toFixed(2)}ms ${emoji} for schema ID: ${schema.id}: ${errorMessage}`, { stack: errorStack });
 		return new Response(
 			JSON.stringify({
 				success: false,

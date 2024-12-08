@@ -52,8 +52,7 @@ import { DEFAULT_THEME } from '@src/databases/themeManager';
 import { logger } from '@utils/logger.svelte';
 
 // Widget Manager
-import widgets, { initializeWidgets } from '@src/components/widgets';
-import { getWidgets } from '@src/components/widgets/widgetManager.svelte';
+import { initializeWidgets, getWidgets } from '@components/widgets/widgetManager.svelte';
 
 // Define the media schema for different media types
 const mediaSchema = new Schema(
@@ -204,8 +203,9 @@ export class MongoDBAdapter implements dbInterface {
 			// Initialize widgets globally
 			if (!globalThis.widgets) {
 				logger.debug('Initializing widgets globally...');
-				globalThis.widgets = widgets;
-				initializeWidgets();
+				await initializeWidgets();  // Initialize first
+				globalThis.widgets = getWidgets();  // Then get widgets
+				logger.debug('Available widgets:', Object.keys(globalThis.widgets));
 			}
 
 			// Only import fs on server side
@@ -572,16 +572,18 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Create a collection model
 	async createCollectionModel(collection: CollectionConfig,): Promise<Model<Document>> {
+		// Wait for widgets to initialize first
+		await initializeWidgets();
 
 		// Generate a unique collection name using ObjectId
-		const uniqueCollectionName = `collection_${new mongoose.Types.ObjectId().toString()}`;
+		const uniqueCollectionUUID = `collection_${new mongoose.Types.ObjectId().toString()}`;
 
 		// Check if model already exists
-		if (mongoose.models[uniqueCollectionName]) {
-			return mongoose.models[uniqueCollectionName];
+		if (mongoose.models[uniqueCollectionUUID]) {
+			return mongoose.models[uniqueCollectionUUID];
 		}
 
-		logger.debug(`Creating collection model for \x1b[34m${uniqueCollectionName}\x1b[0m`);
+		logger.debug(`Creating collection model for \x1b[34m${uniqueCollectionUUID}\x1b[0m`);
 
 		// Define base schema definition
 		const schemaDefinition: Record<string, mongoose.SchemaDefinitionProperty> = {
@@ -620,19 +622,9 @@ export class MongoDBAdapter implements dbInterface {
 						fieldKey = result.db_fieldName;
 					} else {
 						// If field is a direct configuration object
-						widgetType = field.type;
+						widgetType = field.widget?.Name || field.type; // Try widget.Name first, fallback to type
 						fieldConfig = field;
 						fieldKey = field.db_fieldName;
-					}
-
-					// If db_fieldName is not provided, generate one from the label
-					if (!fieldKey && fieldConfig.label) {
-						fieldKey = fieldConfig.label.toLowerCase().replace(/\s+/g, '_');
-					}
-
-					if (!fieldKey) {
-						logger.warn(`Field in collection \x1b[34m${uniqueCollectionName}\x1b[0m has no db_fieldName or label, skipping`);
-						continue;
 					}
 
 					const isRequired = fieldConfig?.required === true;
@@ -646,6 +638,8 @@ export class MongoDBAdapter implements dbInterface {
 
 					if (!widget) {
 						logger.warn(`Widget type ${widgetType} not found, using Mixed type`);
+						logger.debug('Available widgets:', Object.keys(widgets));
+						logger.debug('Field config:', fieldConfig);
 					}
 
 					// Default to Mixed type for maximum flexibility with dynamic widgets
@@ -680,7 +674,7 @@ export class MongoDBAdapter implements dbInterface {
 					// Add the field to the schema
 					schemaDefinition[fieldKey] = fieldSchema;
 				} catch (error) {
-					logger.error(`Error processing field in collection ${uniqueCollectionName}: ${error.message}`);
+					logger.error(`Error processing field in collection ${uniqueCollectionUUID}: ${error.message}`);
 				}
 			}
 		}
@@ -692,7 +686,7 @@ export class MongoDBAdapter implements dbInterface {
 				createdAt: 'createdAt',
 				updatedAt: 'updatedAt'
 			},
-			collection: uniqueCollectionName.toLowerCase(),
+			collection: uniqueCollectionUUID.toLowerCase(),
 			autoIndex: true,  // Enable auto-indexing in production
 			minimize: false,  // Store empty objects
 			toJSON: {
@@ -718,7 +712,7 @@ export class MongoDBAdapter implements dbInterface {
 		schema.set('backgroundIndexing', true);
 
 		// Create and return the model
-		return mongoose.model(uniqueCollectionName, schema);
+		return mongoose.model(uniqueCollectionUUID, schema);
 	}
 
 	// Methods for Draft and Revision Management

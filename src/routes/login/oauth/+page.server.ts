@@ -38,7 +38,7 @@ interface GoogleUserInfo {
 }
 
 // Send welcome email
-async function sendWelcomeEmail(fetchFn: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>, email: string, username: string) {
+async function sendWelcomeEmail(fetchFn: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>, email: string, username: string, request: Request) {
 	try {
 		await fetchFn('/api/sendMail', {
 			method: 'POST',
@@ -48,7 +48,11 @@ async function sendWelcomeEmail(fetchFn: (input: RequestInfo | URL, init?: Reque
 				subject: `Welcome to ${publicEnv.SITE_NAME}, ${username}!`,
 				message: `Welcome ${username} to ${publicEnv.SITE_NAME}`,
 				templateName: 'welcomeUser',
-				props: { username, email }
+				props: { 
+					username, 
+					email,
+					hostLink: publicEnv.HOST_LINK || `https://${request.headers.get('host')}`
+				}
 			})
 		});
 		logger.debug(`Welcome email sent to ${email}`);
@@ -111,7 +115,8 @@ async function handleGoogleUser(
 	isFirst: boolean,
 	token: string | null,
 	cookies: Cookies,
-	fetchFn: typeof fetch
+	fetchFn: typeof fetch,
+	request: Request
 ): Promise<void> {
 	const email = googleUser.email;
 	if (!email) {
@@ -160,7 +165,7 @@ async function handleGoogleUser(
 		);
 
 		// Send welcome email for new users
-		await sendWelcomeEmail(fetchFn, email, googleUser.name || '');
+		await sendWelcomeEmail(fetchFn, email, googleUser.name || '', request);
 	} else {
 		// Existing user - no token required for sign-in
 		// Update existing user's avatar if they have a Google avatar
@@ -189,7 +194,7 @@ async function handleGoogleUser(
 	cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 }
 
-export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
+export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => {
 	try {
 		await initializationPromise; // Ensure initialization is complete
 
@@ -285,7 +290,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			}
 
 			// Handle user creation/update and session creation
-			await handleGoogleUser(googleUser as GoogleUserInfo, !firstUserExists, token, cookies, fetch);
+			await handleGoogleUser(googleUser as GoogleUserInfo, !firstUserExists, token, cookies, fetch, request);
 			logger.info('Successfully processed OAuth callback and created session');
 
 			// Redirect to first collection

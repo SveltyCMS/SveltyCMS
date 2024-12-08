@@ -60,6 +60,7 @@ interface EmailProps {
 	expires_in?: string;
 	expiresInLabel?: string;
 	languageTag?: string;
+	hostLink?: string;
 }
 
 const templates: Record<string, ComponentType> = {

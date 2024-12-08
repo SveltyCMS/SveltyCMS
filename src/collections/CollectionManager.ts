@@ -385,11 +385,10 @@ class CollectionManager {
 								continue;
 							}
 
-							const randomId = await createRandomID();
 							const processed: Schema = {
 								...schema,
+								id: schema.id || createRandomID(), // Only create new ID if one doesn't exist
 								name,
-								id: parseInt(randomId.toString().slice(0, 8), 16),
 								icon: schema.icon || 'iconoir:info-empty',
 								path: this.extractPathFromFilePath(filePath),
 								fields: schema.fields || [],
@@ -501,7 +500,7 @@ class CollectionManager {
 			const validFields = processedFields.filter((field): field is NonNullable<typeof field> => field !== null);
 
 			const processedSchema: Schema = {
-				id: parseInt(randomId.toString().slice(0, 8), 16),
+				id: baseSchema.id || createRandomID(), // Only create new ID if one doesn't exist
 				name: name,
 				label: baseSchema.label || name,
 				slug: baseSchema.slug || name.toLowerCase(),

@@ -34,7 +34,7 @@ const getPerformanceEmoji = (responseTime: number): string => {
 export const _SETSTATUS = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {
 	const start = performance.now();
 	try {
-		logger.debug(`SETSTATUS request received for schema: ${schema.name}`, { user: user._id });
+		logger.debug(`SETSTATUS request received for schema: ${schema.id}`, { user: user._id });
 
 		// Ensure the database adapter is initialized
 		if (!dbAdapter) {
@@ -42,23 +42,23 @@ export const _SETSTATUS = async ({ data, schema, user }: { data: FormData; schem
 			return new Response('Internal server error: Database adapter not initialized', { status: 500 });
 		}
 
-		// Validate schema name
-		if (!schema.name) {
-			logger.error('Invalid or undefined schema name.');
-			return new Response('Invalid or undefined schema name.', { status: 400 });
+		// Validate schema ID
+		if (!schema.id) {
+			logger.error('Invalid or undefined schema ID.');
+			return new Response('Invalid or undefined schema ID.', { status: 400 });
 		}
 
 		// Get collection models with performance tracking
 		const modelStart = performance.now();
 		const collections = await getCollectionModels();
-		const collection = collections[schema.name];
+		const collection = collections[schema.id];
 		const modelDuration = performance.now() - modelStart;
 		const modelEmoji = getPerformanceEmoji(modelDuration);
 		logger.debug(`Collection models retrieved in ${modelDuration.toFixed(2)}ms ${modelEmoji}`);
 
 		// Check if the collection exists
 		if (!collection) {
-			logger.error(`Collection not found for schema: ${schema.name}`);
+			logger.error(`Collection not found for schema ID: ${schema.id}`);
 			return new Response('Collection not found', { status: 404 });
 		}
 
@@ -151,7 +151,7 @@ export const _SETSTATUS = async ({ data, schema, user }: { data: FormData; schem
 		const emoji = getPerformanceEmoji(duration);
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 		const errorStack = error instanceof Error ? error.stack : '';
-		logger.error(`SETSTATUS operation failed after ${duration.toFixed(2)}ms ${emoji} for schema: ${schema.name}: ${errorMessage}`, {
+		logger.error(`SETSTATUS operation failed after ${duration.toFixed(2)}ms ${emoji} for schema ID: ${schema.id}: ${errorMessage}`, {
 			user: user._id,
 			stack: errorStack
 		});

@@ -70,7 +70,7 @@ export async function modifyRequest({ data, fields, collection, user, type }: Mo
 	const start = performance.now();
 	try {
 		logger.debug(
-			`Starting modifyRequest for type: \x1b[34m${type}\x1b[0m, user: \x1b[34m${user._id}\x1b[0m, collection: \x1b[34m${collection.modelName}\x1b[0m`
+			`Starting modifyRequest for type: \x1b[34m${type}\x1b[0m, user: \x1b[34m${user._id}\x1b[0m, collection: \x1b[34m${collection.id}\x1b[0m`
 		);
 
 		for (const field of fields) {
