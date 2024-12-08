@@ -160,7 +160,8 @@
 		"tailwind-merge": "^2.5.5"
 	},
 	"patchedDependencies": {
-		"sveltekit-superforms@2.20.1": "patches/sveltekit-superforms@2.20.1.patch"
+		"sveltekit-superforms@2.20.1": "patches/sveltekit-superforms@2.20.1.patch",
+		"sveltekit-superforms@2.21.1": "patches/sveltekit-superforms@2.21.1.patch"
 	},
 	"overrides": {
 		"punycode": "^2.3.1",
