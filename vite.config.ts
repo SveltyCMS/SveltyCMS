@@ -18,15 +18,12 @@
 
 import Path from 'path';
 import { resolve } from 'path';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, rmSync } from 'fs';
 import { execSync } from 'child_process';
-
 import { purgeCss } from 'vite-plugin-tailwind-purgecss';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import { paraglide } from '@inlang/paraglide-sveltekit/vite';
-// Gets package.json version info on app start
-// https://kit.svelte.dev/faq#read-package-jsonimport { readFileSync } from 'fs'
 import { fileURLToPath } from 'url';
 import { compile } from './src/routes/api/compile/compile';
 import { generateCollectionTypes } from './src/collections/vite';
@@ -65,10 +62,38 @@ configPaths.forEach((path) => {
 });
 
 // Initial compilation of collections
-await compile({
-	userCollections,
-	compiledCollections
-});
+await compile({ userCollections, compiledCollections });
+
+// Function to clean up orphaned files (supports nested structures)
+async function cleanupOrphanedFiles(userCollections: string, compiledCollections: string) {
+	const files = await import('fs/promises').then((fs) => fs.readdir(compiledCollections, { withFileTypes: true }));
+
+	for (const file of files) {
+		const filePath = Path.posix.join(compiledCollections, file.name);
+		if (file.isDirectory()) {
+			// Recursively clean up subdirectories
+			await cleanupOrphanedFiles(
+				Path.posix.join(userCollections, file.name),
+				filePath
+			);
+			// Remove the directory if it's now empty
+			const remainingFiles = await import('fs/promises').then((fs) => fs.readdir(filePath));
+			if (remainingFiles.length === 0) {
+				rmSync(filePath, { recursive: true, force: true });
+				console.log(`Removed empty directory: ${filePath}`);
+			}
+		} else if (file.isFile() && file.name.endsWith('.js')) {
+			// Check against corresponding .ts file in userCollections
+			const userFilePath = Path.posix.join(userCollections, file.name.replace(/\.js$/, '.ts'));
+			if (!existsSync(userFilePath)) {
+				rmSync(filePath, { force: true });
+				console.log(`Removed orphaned file: ${filePath}`);
+			}
+		}
+	}
+}
+
+let compileTimeout: NodeJS.Timeout;
 
 export default defineConfig({
 	plugins: [
@@ -79,10 +104,9 @@ export default defineConfig({
 				return () => {
 					server.watcher.on('change', async (file) => {
 						// Monitor all collection-related changes
-						if (file.includes('/collections/') && file.endsWith('.ts')) {
+						if (file.startsWith(userCollections) && file.endsWith('.ts')) {
 							try {
 								await generateCollectionTypes(server);
-								console.log('Collection types updated successfully');
 							} catch (error) {
 								console.error('Error updating collection types:', error);
 							}
@@ -91,47 +115,57 @@ export default defineConfig({
 				};
 			},
 			async handleHotUpdate({ file, server }) {
-				// Monitor changes in:
-				// 1. config/collections/**/*.ts - User-defined collection configurations (including nested)
-				// 2. src/collections/categories.ts - Auto-generated category structure
-				if (/config[/\\]collections[/\\].*[/\\].*\.ts$/.test(file) || /src[/\\]collections[/\\]categories\.ts$/.test(file)) {
-					console.log('Collection file changed:', file);
+
+				// Monitor changes in config/collections/**/*.ts
+				if (file.startsWith(userCollections)) {
+					console.log(`Collection file changed: \x1b[34m${file}\x1b[0m`);
 					try {
-						// Compile the changed collection
-						await compile({
-							userCollections,
-							compiledCollections
-						});
+						// Check if the file still exists
+						const fileExists = existsSync(file);
 
-						// Notify client to reload collections
-						server.ws.send({
-							type: 'custom',
-							event: 'collections-updated',
-							data: { file }
-						});
+						// Debounce compile calls
+						clearTimeout(compileTimeout);
+						compileTimeout = setTimeout(async () => {
+							if (!fileExists) {
+								console.log(`Collection file deleted: \x1b[31m${file}\x1b[0m`);
+								// Handle deletion: Trigger cleanup for deleted files
+								// Pass the directory containing the deleted file to cleanupOrphanedFiles
+								await cleanupOrphanedFiles(userCollections, compiledCollections);
+								console.log(`Cleanup completed for deleted file: \x1b[31m${file}\x1b[0m`);
+							} else {
+								// Handle modification: Recompile
+								await compile({ userCollections, compiledCollections });
+								console.log(`Recompilation triggered for: \x1b[34m${file}\x1b[0m`);
+							}
 
-						// Trigger HMR for affected modules
-						return [];
+							// Notify client to reload collections
+							server.ws.send({
+								type: 'custom',
+								event: 'collections-updated',
+								data: {}
+							});
+						}, 300);
 					} catch (error) {
 						console.error('Error processing collection change:', error);
-						return [];
 					}
+					return []; // Prevent default HMR behavior
 				}
 
 				// Handle category file changes
-				if (/src[/\\]collections[/\\]categories\.ts$/.test(file)) {
-					console.log('Categories file changed:', file);
+				if (file.startsWith(Path.posix.join(__dirname, 'src/collections/categories.ts'))) {
+					console.log(`Categories file changed \x1b[34m${file}\x1b[0m`);
 					server.ws.send({
 						type: 'custom',
 						event: 'categories-updated',
-						data: { file }
+						data: {}
 					});
-					return [];
+					return []; // Prevent default HMR behavior
 				}
 
 				// Handle config file changes
-				if (/config[/\\]roles\.ts$/.test(file)) {
-					console.log('Roles file changed:', file);
+				if (file.startsWith(Path.posix.join(configDir, 'roles.ts'))) {
+					console.log(`Roles file changed: \x1b[34m${file}\x1b[0m`);
+
 					try {
 						// Clear module cache to force re-import
 						const rolesPath = `file://${Path.resolve(__dirname, 'config', 'roles.ts')}`;
@@ -141,8 +175,7 @@ export default defineConfig({
 						const { setLoadedRoles } = await import('./src/auth/types');
 						setLoadedRoles(roles);
 
-						console.log('Roles reloaded');
-						// Trigger HMR for affected modules
+						// Trigger full page reload
 						server.ws.send({ type: 'full-reload' });
 					} catch (error) {
 						console.error('Error reloading roles:', error);
@@ -170,7 +203,6 @@ export default defineConfig({
 	server: {
 		fs: { allow: ['static', '.'] } // Allow serving files from specific directories
 	},
-
 	resolve: {
 		alias: {
 			'@root': resolve(__dirname, './'),

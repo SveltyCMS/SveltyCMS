@@ -7,20 +7,36 @@ import fs from 'fs';
 
 export async function generateCollectionTypes(server) {
     try {
-        const { collections } = await server.ssrLoadModule('@src/stores/store.svelte.ts');
+        const { collections } = await server.ssrLoadModule('@src/stores/collectionStore.svelte.ts');
+
+
         const collectionTypes: Record<string, { fields: string[]; type: string }> = {};
 
-        for (const [collection] of Object.entries(collections())) {
+        // Access the store's value property and ensure it exists
+        const collectionsData = collections?.value || {};
+
+        if (!collectionsData || typeof collectionsData !== 'object') {
+            throw new Error(`Invalid collections data: ${JSON.stringify(collectionsData)}`);
+        }
+
+        for (const [key, collection] of Object.entries(collectionsData)) {
+
+            if (!collection?.fields) {
+                console.warn(`Collection ${key} has no fields:`, collection);
+                continue;
+            }
+
             const fields = collection.fields.map(field => ({
                 name: field.db_fieldName || field.label,
                 type: field.type || 'string'
             }));
 
-            collectionTypes[collection.path] = {
+            collectionTypes[key] = {
                 fields: fields.map(f => f.name),
                 type: `{${fields.map(f => `${f.name}: ${f.type}`).join('; ')}}`
             };
         }
+
 
         let types = await fs.promises.readFile('src/collections/types.ts', 'utf-8');
         types = types.replace(/\n*export\s+type\s+CollectionTypes\s?=\s?.*?};/gms, '');
