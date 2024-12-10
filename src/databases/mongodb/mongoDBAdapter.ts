@@ -319,7 +319,14 @@ export class MongoDBAdapter implements dbInterface {
 			try {
 				await mongoose.connect(connectionString, options);
 				logger.debug(`Successfully connected to MongoDB database: \x1b[34m${privateEnv.DB_NAME}\x1b[0m`);
-				await this.syncCollections();
+
+				// Only sync if collections are not present
+				const collections = await mongoose.connection.db.listCollections().toArray();
+
+				if (collections.length === 0) {
+					await this.syncCollections();
+				}
+
 				return;
 			} catch (error: unknown) {
 				lastError = error;
