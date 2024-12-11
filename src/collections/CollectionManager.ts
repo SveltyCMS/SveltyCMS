@@ -19,7 +19,7 @@ import { browser, dev } from '$app/environment';
 import type { Schema, CollectionTypes, Category, CategoryData } from './types';
 
 // Utils
-import { createRandomID } from '@utils/utils';
+import { v4 as uuidv4 } from 'uuid';
 
 // Redis
 import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/redis';
@@ -380,7 +380,7 @@ class CollectionManager {
 
 							const processed: Schema = {
 								...schema,
-								id: schema.id || createRandomID(), // Only create new ID if one doesn't exist
+								id: schema.id || uuidv4(), // Only create new ID if one doesn't exist
 								name,
 								icon: schema.icon || 'iconoir:info-empty',
 								path: this.extractPathFromFilePath(filePath),
@@ -472,7 +472,7 @@ class CollectionManager {
 			}
 
 			// Generate a random ID for the collection
-			const randomId = await createRandomID();
+			const randomId = uuidv4();
 
 			// Create the processed schema with proper type checking
 			const baseSchema = moduleData.schema as Partial<Schema>;
@@ -495,7 +495,7 @@ class CollectionManager {
 			const validFields = processedFields.filter((field): field is NonNullable<typeof field> => field !== null);
 
 			const processedSchema: Schema = {
-				id: baseSchema.id || createRandomID(), // Only create new ID if one doesn't exist
+				id: baseSchema.id || uuidv4(), // Only create new ID if one doesn't exist
 				name: name,
 				label: baseSchema.label || name,
 				slug: baseSchema.slug || name.toLowerCase(),
@@ -672,7 +672,7 @@ class CollectionManager {
 					currentPath = currentPath ? `${currentPath}/${part}` : part;
 
 					if (!currentLevel[part]) {
-						const randomId = await createRandomID();
+						const randomId = uuidv4();
 						const config = categoryConfig[currentPath] || {
 							icon: index === 0 ? 'bi:collection' : 'bi:folder',
 							order: 999

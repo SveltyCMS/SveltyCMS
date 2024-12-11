@@ -175,14 +175,17 @@ export class MongoDBAdapter implements dbInterface {
 		const collectionFiles: string[] = [];
 		try {
 			const entries = await import('fs').then((fs) => fs.promises.readdir(dirPath, { withFileTypes: true }));
+			logger.debug(`Scanning directory: \x1b[34m${dirPath}\x1b[0m`);
 
 			for (const entry of entries) {
 				const fullPath = path.join(dirPath, entry.name);
 				if (entry.isDirectory()) {
 					// Recursively scan subdirectories
+					logger.debug(`Found subdirectory: \x1b[34m${entry.name}\x1b[0m`);
 					const subDirFiles = await this.scanDirectoryForCollections(fullPath);
 					collectionFiles.push(...subDirFiles);
-				} else if (entry.isFile() && entry.name.endsWith('.js')) {
+				} else if (entry.isFile() && entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts')) {
+					logger.debug(`Found collection file: \x1b[34m${entry.name}\x1b[0m`);
 					collectionFiles.push(fullPath);
 				}
 			}
@@ -203,8 +206,8 @@ export class MongoDBAdapter implements dbInterface {
 			// Initialize widgets globally
 			if (!globalThis.widgets) {
 				logger.debug('Initializing widgets globally...');
-				await initializeWidgets();  // Initialize first
-				globalThis.widgets = getWidgets();  // Then get widgets
+				await initializeWidgets();
+				globalThis.widgets = getWidgets();
 				logger.debug('Available widgets:', Object.keys(globalThis.widgets));
 			}
 
@@ -212,8 +215,7 @@ export class MongoDBAdapter implements dbInterface {
 			const { promises: fs } = await import('fs');
 
 			// Get path to collections directory
-			const collectionsPath = path.resolve(process.cwd(), 'collections');
-
+			const collectionsPath = path.resolve(process.cwd(), 'config/collections');
 			logger.debug('Collections path:', collectionsPath);
 
 			// Check if collections directory exists
@@ -224,24 +226,44 @@ export class MongoDBAdapter implements dbInterface {
 				return;
 			}
 
+			// Track all valid collection UUIDs
+			const validCollectionUUIDs = new Set<string>();
+
 			// Known collection directories
 			const collectionDirs = ['Collections', 'Menu'];
 
 			for (const dir of collectionDirs) {
 				const dirPath = path.join(collectionsPath, dir);
 				try {
+					logger.debug(`Processing directory: \x1b[34m${dir}\x1b[0m`);
+					
 					// Recursively scan for collection files
 					const collectionFiles = await this.scanDirectoryForCollections(dirPath);
-					logger.debug(`Found \x1b[34m${collectionFiles.length}\x1b[0m collection files in \x1b[34m${dir}\x1b[0m directory and subdirectories`);
+					logger.debug(`Found \x1b[34m${collectionFiles.length}\x1b[0m collection files in \x1b[34m${dir}\x1b[0m directory and subdirectories:`, collectionFiles);
 
 					for (const filePath of collectionFiles) {
 						try {
 							logger.debug(`Processing collection file: \x1b[34m${filePath}\x1b[0m`);
 
+							// Read the file content to get UUID
+							const content = await fs.readFile(filePath, 'utf8');
+							const uuidMatch = content.match(/\/\/\s*UUID:\s*([a-f0-9-]{36})/i);
+							const uuid = uuidMatch ? uuidMatch[1] : null;
+
+							if (!uuid) {
+								logger.error(`No UUID found in collection file: ${filePath}`);
+								continue;
+							}
+
+							logger.debug(`Found UUID in file: \x1b[34m${uuid}\x1b[0m`);
+
 							const collection = await import(/* @vite-ignore */ filePath);
 							const collectionConfig = collection.default || collection.schema;
 
 							if (collectionConfig) {
+								// Add UUID to config
+								collectionConfig.id = uuid;
+
 								// Get collection name from the file path
 								const parsedPath = path.parse(filePath);
 								const collectionName = parsedPath.name;
@@ -251,10 +273,12 @@ export class MongoDBAdapter implements dbInterface {
 									collectionConfig.name = collectionName;
 								}
 
-								logger.debug(`Collection config for \x1b[34m${collectionName}:\x1b[0m`, {
+								validCollectionUUIDs.add(uuid);
+
+								logger.debug(`Collection config for \x1b[34m${collectionName}\x1b[0m:`, {
 									name: collectionConfig.name,
-									fields: collectionConfig.fields?.length || 0,
-									strict: collectionConfig.strict
+									uuid: uuid,
+									fields: collectionConfig.fields?.length || 0
 								});
 
 								await this.createCollectionModel(collectionConfig);
@@ -263,17 +287,34 @@ export class MongoDBAdapter implements dbInterface {
 								logger.error(`Collection file ${filePath} does not export a valid schema or default export`);
 							}
 						} catch (error) {
-							logger.error(`Error importing collection ${filePath}: ${error.message}`);
+							logger.error(`Error importing collection ${filePath}: ${error.message}`, error);
+							console.error(error); // Full error stack
 						}
 					}
 				} catch (error) {
-					logger.error(`Error processing directory ${dir}: ${error.message}`);
+					logger.error(`Error processing directory ${dir}: ${error.message}`, error);
+					console.error(error); // Full error stack
 				}
 			}
 
+			// Check for orphaned collections in MongoDB
+			const collections = await mongoose.connection.db.listCollections().toArray();
+			logger.debug('Current MongoDB collections:', collections.map(c => c.name));
+			
+			for (const collection of collections) {
+				if (collection.name.startsWith('collection_')) {
+					const uuid = collection.name.replace('collection_', '');
+					if (!validCollectionUUIDs.has(uuid)) {
+						logger.warn(`⚠️ Found orphaned collection in database: ${collection.name}. This collection exists in MongoDB but has no corresponding collection file. Data will be preserved but you should investigate.`);
+					}
+				}
+			}
+
+			logger.debug('Valid collection UUIDs:', Array.from(validCollectionUUIDs));
 			logger.debug('Collection sync completed successfully');
 		} catch (error) {
 			logger.error('Error syncing collections: ' + error.message);
+			console.error(error); // Full error stack
 			throw new Error('Failed to sync collections');
 		}
 	}
@@ -578,22 +619,37 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Create a collection model
-	async createCollectionModel(collection: CollectionConfig,): Promise<Model<Document>> {
+	async createCollectionModel(collection: CollectionConfig): Promise<Model<Document>> {
 		// Wait for widgets to initialize first
 		await initializeWidgets();
 
-		// Generate a unique collection name using ObjectId
-		const uniqueCollectionUUID = `collection_${new mongoose.Types.ObjectId().toString()}`;
-
-		// Check if model already exists
-		if (mongoose.models[uniqueCollectionUUID]) {
-			return mongoose.models[uniqueCollectionUUID];
+		// Extract UUID from collection configuration
+		const collectionUUID = collection.id;
+		if (!collectionUUID) {
+			throw new Error('Collection UUID not found. Ensure collection file has UUID in header.');
 		}
 
-		logger.debug(`Creating collection model for \x1b[34m${uniqueCollectionUUID}\x1b[0m`);
+		const collectionName = `collection_${collectionUUID}`;
+		logger.debug(`Creating/checking collection model for \x1b[34m${collectionName}\x1b[0m`);
+
+		// Check if collection already exists in MongoDB
+		if (mongoose.connection.collections[collectionName.toLowerCase()]) {
+			logger.debug(`Collection ${collectionName} exists in MongoDB`);
+			// Collection exists, return existing model if available or create new model with same name
+			if (mongoose.models[collectionName]) {
+				logger.debug(`Using existing model for collection \x1b[34m${collectionName}\x1b[0m`);
+				return mongoose.models[collectionName];
+			}
+		} else {
+			logger.debug(`Collection ${collectionName} does not exist in MongoDB yet`);
+		}
 
 		// Define base schema definition
 		const schemaDefinition: Record<string, mongoose.SchemaDefinitionProperty> = {
+			_id: {
+				type: Buffer,
+				default: () => new mongoose.Types.Buffer(Buffer.from(collectionUUID.replace(/-/g, ''), 'hex'))
+			},
 			createdBy: {
 				type: String,
 				required: false,
@@ -681,7 +737,7 @@ export class MongoDBAdapter implements dbInterface {
 					// Add the field to the schema
 					schemaDefinition[fieldKey] = fieldSchema;
 				} catch (error) {
-					logger.error(`Error processing field in collection ${uniqueCollectionUUID}: ${error.message}`);
+					logger.error(`Error processing field in collection ${collectionUUID}: ${error.message}`);
 				}
 			}
 		}
@@ -693,7 +749,7 @@ export class MongoDBAdapter implements dbInterface {
 				createdAt: 'createdAt',
 				updatedAt: 'updatedAt'
 			},
-			collection: uniqueCollectionUUID.toLowerCase(),
+			collection: collectionName.toLowerCase(),
 			autoIndex: true,  // Enable auto-indexing in production
 			minimize: false,  // Store empty objects
 			toJSON: {
@@ -719,7 +775,7 @@ export class MongoDBAdapter implements dbInterface {
 		schema.set('backgroundIndexing', true);
 
 		// Create and return the model
-		return mongoose.model(uniqueCollectionUUID, schema);
+		return mongoose.model(collectionName, schema);
 	}
 
 	// Methods for Draft and Revision Management

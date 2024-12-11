@@ -11,7 +11,6 @@
  * - Database operations (find, findById)
  * - UI-related utilities (getGuiFields, motion)
  * - String manipulation (pascalToCamelCase, getEditDistance)
- * - Cryptographic functions (createRandomID, sha256)
  * - And various other helper functions
  *
  * The module also defines important constants and types used across the application.
@@ -425,14 +424,7 @@ export function toStringHelper({ data }: StringHelperParams): string {
 	return data.map((item) => item.toString()).join(', ');
 }
 
-// Create a random ID
-export async function createRandomID(size = 32): Promise<string> {
-	const bytes = new Uint8Array(size);
-	crypto.getRandomValues(bytes);
-	return Array.from(bytes)
-		.map((byte) => byte.toString(16).padStart(2, '0'))
-		.join('');
-}
+
 
 // Get random hex string
 export function getRandomHex(size: number): string {

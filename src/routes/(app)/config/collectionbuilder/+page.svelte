@@ -19,7 +19,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { categoryConfig } from '@src/collections/categories';
-	import { createRandomID, checkCollectionNameConflict } from '@utils/utils';
+	import { v4 as uuidv4 } from 'uuid';
+	import { checkCollectionNameConflict } from '@utils/utils';
 	import type { CategoryData } from '@src/collections/types';
 
 	// Stores
@@ -133,7 +134,7 @@
 	async function addNewCategory(response: CategoryModalResponse): Promise<void> {
 		const newConfig = { ...currentConfig };
 		const categoryKey = response.newCategoryName.toLowerCase().replace(/\s+/g, '-');
-		const newCategoryId = await createRandomID();
+		const newCategoryId = uuidv4();
 
 		newConfig[categoryKey] = {
 			id: newCategoryId,

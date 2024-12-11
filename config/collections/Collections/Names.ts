@@ -1,3 +1,4 @@
+// UUID: 2cd7c20d-cdc5-472a-8168-8ef243c21778
 /**
  * @file config/collections/Collections/Names.ts
  * @description Collection file for Names

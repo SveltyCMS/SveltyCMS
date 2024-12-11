@@ -5,7 +5,7 @@
 -->
 <script lang="ts">
 	import type { CategoryData } from '@src/collections/types';
-	import { createRandomID } from '@utils/utils';
+	import { v4 as uuidv4 } from 'uuid';
 
 	// Stores
 	import { categories } from '@root/src/stores/collectionStore.svelte';
@@ -75,7 +75,7 @@
 			if ($modalStore[0]?.response) {
 				if (!existingCategory.id) {
 					// Generate new ID for new categories
-					const newId = await createRandomID();
+					const newId = uuidv4();
 					$modalStore[0].response({ ...formData, id: newId });
 				} else {
 					$modalStore[0].response(formData);

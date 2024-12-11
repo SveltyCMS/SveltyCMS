@@ -14,7 +14,7 @@ import axios from 'axios';
 import { error } from '@sveltejs/kit';
 import { browser, building, dev } from '$app/environment';
 import { getCollectionFiles } from '@api/getCollections/getCollectionFiles';
-import { createRandomID } from '@utils/utils';
+import { uuidv4 } from '@utils/utils';
 import { categoryConfig } from './categories';
 import { getCollectionModels } from '@src/databases/db';
 import type { ProcessedModule } from './CollectionManager';
@@ -106,7 +106,7 @@ async function processBatch(collections: Schema[]): Promise<void> {
 			currentPath = currentPath ? `${currentPath}/${segment}` : segment;
 
 			if (!currentMap.has(segment)) {
-				const randomId = await createRandomID();
+				const randomId = uuidv4();
 				const config = categoryConfig[currentPath] || {
 					icon: 'iconoir:category',
 					order: 999
@@ -273,7 +273,7 @@ async function getImports(recompile: boolean = false): Promise<Record<Collection
 		const processModule = async (name: string, module: ProcessedModule, modulePath: string) => {
 			const collection = (module as { schema: Schema })?.schema ?? {};
 			if (collection) {
-				const randomId = await createRandomID();
+				const randomId = uuidv4();
 				collection.name = name as CollectionTypes;
 				collection.icon = collection.icon || 'iconoir:info-empty';
 				collection.id = parseInt(randomId.toString().slice(0, 8), 16);

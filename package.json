@@ -157,7 +157,8 @@
 		"redis": "^4.7.0",
 		"serve-static": "^1.16.2",
 		"svelty-email": "^0.0.11",
-		"tailwind-merge": "^2.5.5"
+		"tailwind-merge": "^2.5.5",
+		"uuid": "^11.0.3"
 	},
 	"overrides": {
 		"punycode": "^2.3.1",

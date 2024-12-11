@@ -1,3 +1,4 @@
+// UUID: e7f1fb32-d7a7-403e-8741-019383436c3e
 /**
  * @file config/collections/Menu.ts
  * @description Collection file for Menu

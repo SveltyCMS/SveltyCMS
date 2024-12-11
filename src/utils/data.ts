@@ -23,9 +23,10 @@
 
 import axios from 'axios';
 import { error } from '@sveltejs/kit';
-import { col2formData, config, createRandomID, toFormData } from './utils';
+import { col2formData, config, toFormData } from './utils';
 import type { CollectionTypes, Schema, User } from '@src/types';
 import type { Entry } from '@src/types/Entry';
+import { v4 as uuidv4 } from 'uuid';
 
 // Store
 import { collection, collectionValue, mode } from '../stores/collectionStore.svelte';
@@ -186,7 +187,7 @@ export async function saveFormData({
 					logger.debug('Creating new revision.');
 					const newRevision = {
 						...collectionValue.value,
-						_id: await createRandomID(),
+						_id: uuidv4(),
 						__v: [
 							...(collectionValue.value?.__v || []),
 							{

@@ -54,7 +54,7 @@ export const CollectionRegistry = {
 
 // Define the base Schema interface
 export interface Schema {
-	id: string;  // Changed from number to string to support UUIDs
+	id: string;  // UUID from collection file header
 	name?: CollectionTypes | string; // Collection name can be from registry or dynamic
 	label?: string; // Optional label that will display instead of name if used
 	slug?: string; // Optional Slug for the collection
@@ -109,4 +109,53 @@ export interface ProcessedCategoryData extends CategoryData {
 }
 
 // Collection types
-export type CollectionTypes = 'CollectionManager' | 'categories' | 'collectionTypes';
+
+export type CollectionTypes = {
+  "Names": {
+    "fields": [
+      "First Name",
+      "Last Name"
+    ],
+    "type": "{First Name: string; Last Name: string}"
+  },
+  "Posts": {
+    "fields": [
+      "Email",
+      "dbtest"
+    ],
+    "type": "{Email: string; dbtest: string}"
+  },
+  "Relation": {
+    "fields": [
+      "relationM2MPosts"
+    ],
+    "type": "{relationM2MPosts: string}"
+  },
+  "WidgetTest": {
+    "fields": [
+      "firstname",
+      "middlename",
+      "lastname",
+      "Full_Text_option",
+      "email",
+      "remotevideo",
+      "date",
+      "datetime",
+      "number",
+      "currency",
+      "phonenumber",
+      "radio",
+      "checkbox",
+      "colorpicker",
+      "rating",
+      "RichText"
+    ],
+    "type": "{firstname: string; middlename: string; lastname: string; Full_Text_option: string; email: string; remotevideo: string; date: string; datetime: string; number: string; currency: string; phonenumber: string; radio: string; checkbox: string; colorpicker: string; rating: string; RichText: string}"
+  },
+  "Menu": {
+    "fields": [
+      "Menu"
+    ],
+    "type": "{Menu: string}"
+  }
+};
