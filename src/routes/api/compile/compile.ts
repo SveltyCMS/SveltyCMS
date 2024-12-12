@@ -39,8 +39,8 @@ export async function compile(options: CompileOptions = {}): Promise<void> {
         // Ensure the output directory exists
         await fs.mkdir(compiledCollections, { recursive: true });
 
-        // Get TypeScript files from user collections only (system collections are not compiled)
-        const userFiles = await getTypescriptFiles(userCollections);
+        // Get TypeScript and JavaScript files from user collections
+        const userFiles = await getTypescriptAndJavascriptFiles(userCollections);
 
         // Create output directories for user collection files
         await createOutputDirectories(userFiles, userCollections, compiledCollections);
@@ -62,7 +62,7 @@ export async function compile(options: CompileOptions = {}): Promise<void> {
     }
 }
 
-async function getTypescriptFiles(folder: string, subdir: string = ''): Promise<string[]> {
+async function getTypescriptAndJavascriptFiles(folder: string, subdir: string = ''): Promise<string[]> {
     const files: string[] = [];
     const collectionNames = new Set<string>();
     const entries = await fs.readdir(path.posix.join(folder, subdir), { withFileTypes: true });
@@ -72,16 +72,16 @@ async function getTypescriptFiles(folder: string, subdir: string = ''): Promise<
 
         if (entry.isDirectory()) {
             // Recursively get files from subdirectories
-            const subFiles = await getTypescriptFiles(folder, relativePath);
+            const subFiles = await getTypescriptAndJavascriptFiles(folder, relativePath);
             files.push(...subFiles);
         } else if (
             entry.isFile() &&
-            entry.name.endsWith('.ts') &&
+            (entry.name.endsWith('.ts') || entry.name.endsWith('.js')) &&
             !entry.name.startsWith('_') &&
             relativePath.includes('/')
         ) {
             // Check for name conflicts
-            const collectionName = entry.name.replace(/\.ts$/, '');
+            const collectionName = entry.name.replace(/\.(ts|js)$/, '');
             if (collectionNames.has(collectionName)) {
                 throw new Error(`Collection name conflict: "${collectionName}" is used multiple times.`);
             }
@@ -95,9 +95,9 @@ async function getTypescriptFiles(folder: string, subdir: string = ''): Promise<
 
 export async function cleanupOrphanedFiles(srcFolder: string, destFolder: string): Promise<void> {
     try {
-        // Get list of valid TypeScript source files
-        const validFiles = await getTypescriptFiles(srcFolder);
-        const validJsFiles = new Set(validFiles.map((file) => file.replace(/\.ts$/, '.js')));
+        // Get list of valid TypeScript and JavaScript source files
+        const validFiles = await getTypescriptAndJavascriptFiles(srcFolder);
+        const validJsFiles = new Set(validFiles.map((file) => file.replace(/\.(ts|js)$/, '.js')));
 
         // Get all JS files in the destination folder using recursive directory iteration
         async function getAllJsFiles(folder: string): Promise<string[]> {
@@ -182,12 +182,13 @@ async function createOutputDirectories(files: string[], srcFolder: string, destF
 }
 
 async function compileFile(file: string, srcFolder: string, destFolder: string): Promise<void> {
+    const isTypeScript = file.endsWith('.ts');
     const tsFilePath = path.posix.join(srcFolder, file);
-    const jsFilePath = path.posix.join(destFolder, file.replace(/\.ts$/, '.js'));
+    const jsFilePath = path.posix.join(destFolder, file.replace(/\.(ts|js)$/, '.js'));
     const shortPath = path.posix.relative(process.cwd(), jsFilePath);
 
     try {
-        // 1. Read the TypeScript file content
+        // 1. Read the file content
         const content = await fs.readFile(tsFilePath, 'utf8');
         const contentHash = await getContentHash(content);
 
@@ -203,18 +204,43 @@ async function compileFile(file: string, srcFolder: string, destFolder: string):
             return;
         }
 
-        // 4. Transpile the code
-        const result = ts.transpileModule(content, {
-            compilerOptions: {
-                target: ts.ScriptTarget.ESNext,
-                module: ts.ModuleKind.ESNext
+        let finalCode: string;
+        
+        if (isTypeScript) {
+            // 4. Transpile TypeScript code
+            const result = ts.transpileModule(content, {
+                compilerOptions: {
+                    target: ts.ScriptTarget.ESNext,
+                    module: ts.ModuleKind.ESNext,
+                    esModuleInterop: true,
+                    allowJs: true
+                }
+            });
+            finalCode = result.outputText;
+        } else {
+            // Handle JavaScript files
+            const isESModule = content.includes('export') || content.includes('import');
+            if (!isESModule) {
+                // Convert CommonJS to ES Module
+                if (content.includes('module.exports')) {
+                    // Handle module.exports = {...}
+                    finalCode = content.replace(
+                        /module\.exports\s*=\s*/,
+                        'export default '
+                    );
+                } else {
+                    // Wrap the entire content in a default export
+                    finalCode = `export default ${content};\n`;
+                }
+            } else {
+                finalCode = content;
             }
-        });
+        }
 
-        // 5. Process Hash and UUID in one go
-        const finalCode = processHashAndUUID(result.outputText, contentHash, uuid);
+        // 5. Process Hash and UUID
+        finalCode = processHashAndUUID(finalCode, contentHash, uuid);
 
-        // 6. Write the compiled file (ensuring directory exists)
+        // 6. Write the compiled file
         await writeCompiledFile(jsFilePath, finalCode);
 
         // 7. Update cache

@@ -14,7 +14,7 @@ import axios from 'axios';
 import { error } from '@sveltejs/kit';
 import { browser, building, dev } from '$app/environment';
 import { getCollectionFiles } from '@api/getCollections/getCollectionFiles';
-import { uuidv4 } from '@utils/utils';
+import { v4 as uuidv4 } from 'uuid';
 import { categoryConfig } from './categories';
 import { getCollectionModels } from '@src/databases/db';
 import type { ProcessedModule } from './CollectionManager';
@@ -31,6 +31,7 @@ import type { Schema, CollectionTypes, Category } from './types';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
+
 
 // Constants for batch processing
 const BATCH_SIZE = 50; // Number of collections to process per batch
@@ -107,6 +108,7 @@ async function processBatch(collections: Schema[]): Promise<void> {
 
 			if (!currentMap.has(segment)) {
 				const randomId = uuidv4();
+
 				const config = categoryConfig[currentPath] || {
 					icon: 'iconoir:category',
 					order: 999

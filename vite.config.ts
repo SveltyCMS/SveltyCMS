@@ -43,8 +43,8 @@ export default defineConfig({
 			configureServer(server) {
 				return () => {
 					server.watcher.on('all', async (event, file) => {
-						// Monitor changes in config/collections/**/*.ts
-						if (file.startsWith(userCollections) && file.endsWith('.ts')) {
+						// Monitor changes in config/collections/**/*.ts and **/*.js
+						if (file.startsWith(userCollections) && (file.endsWith('.ts') || file.endsWith('.js'))) {
 							console.log(`Collection file event: ${event} - \x1b[34m${file}\x1b[0m`);
 
 							// Use let instead of const to allow reassignment
@@ -152,6 +152,30 @@ export default defineConfig({
 			outdir: './src/paraglide' // Output directory for generated files
 		})
 	],
+	build: {
+		rollupOptions: {
+			onwarn(warning, warn) {
+				// Ignore circular dependency warnings from semver
+				if (warning.code === 'CIRCULAR_DEPENDENCY' && warning.ids?.some(id => id.includes('semver'))) {
+					return;
+				}
+				warn(warning);
+			}
+		},
+		chunkSizeWarningLimit: 1000,
+		target: 'esnext'
+	},
+	optimizeDeps: {
+		exclude: ['semver']
+	},
+	esbuild: {
+		format: 'esm',
+		target: 'esnext',
+		supported: {
+			'dynamic-import': true,
+			'import-meta': true
+		}
+	},
 	server: {
 		fs: { allow: ['static', '.'] } // Allow serving files from specific directories
 	},

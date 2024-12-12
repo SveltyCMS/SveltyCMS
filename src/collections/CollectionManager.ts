@@ -150,20 +150,36 @@ class CollectionManager {
 			// Ensure widgets are initialized before processing module
 			await ensureWidgetsInitialized();
 
-			// Create a module from the content using Function constructor instead of eval
+			// Check if the content is already in ES module format
+			const isESModule = content.includes('export') || content.includes('import');
+
+			// Create the module wrapper
+			const moduleWrapper = isESModule
+				? `
+					let exports = {};
+					${content}
+					return { exports, schema: exports.default || exports };
+				`
+				: `
+					let exports = {};
+					const module = { exports };
+					${content}
+					return { exports: module.exports, schema: module.exports };
+				`;
+
+			// Create a module from the content using Function constructor
 			const moduleFunc = new Function(
 				'widgets',
-				`
-                const exports = {};
-                const module = { exports };
-                ${content}
-                return module.exports;
-            `
+				moduleWrapper
 			);
 
 			// Pass the widgets object when executing the function
-			const module = moduleFunc(widgets);
-			return module;
+			const result = moduleFunc(widgets);
+
+			// Handle both ES modules and CommonJS modules
+			return {
+				schema: result.schema || result.exports.default || result.exports
+			};
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : String(err);
 			logger.error('Failed to process module:', { error: errorMessage });
@@ -471,8 +487,6 @@ class CollectionManager {
 				return null;
 			}
 
-			// Generate a random ID for the collection
-			const randomId = uuidv4();
 
 			// Create the processed schema with proper type checking
 			const baseSchema = moduleData.schema as Partial<Schema>;
