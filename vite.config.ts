@@ -1,15 +1,17 @@
 /**
  * @file vite.config.ts
- * @description This configuration file defines the Vite setup for a SvelteKit project,
- * including custom plugins for dynamic role and permission handling, collection handling,
- * Tailwind CSS purging, and Paraglide integration. It also initializes compilation tasks
- * and sets up environment variables and alias paths for the project.
- *
-*/
+ * @description This configuration file defines the Vite setup for a SvelteKit project.
+ * It includes checks for required configuration files (private.ts and public.ts),
+ * a custom plugin for dynamic collection handling (compilation, type generation, hot reloading),
+ * dynamic role and permission handling with hot reloading, Tailwind CSS purging,
+ * and Paraglide integration for internationalization. The configuration also initializes
+ * compilation tasks, sets up environment variables, and defines alias paths for the project.
+ */
 
 import Path from 'path';
 import { resolve } from 'path';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
+import { execSync } from 'child_process';
 import { purgeCss } from 'vite-plugin-tailwind-purgecss';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
@@ -23,6 +25,25 @@ const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 // Config directories
 const userCollections = Path.posix.join(process.cwd(), 'config/collections');
 const compiledCollections = Path.posix.join(process.cwd(), 'collections');
+const configDir = resolve(process.cwd(), 'config');
+const privateConfigPath = resolve(configDir, 'private.ts');
+const publicConfigPath = resolve(configDir, 'public.ts');
+
+// Check config files
+const configPaths = [privateConfigPath, publicConfigPath];
+
+configPaths.forEach((path) => {
+	if (!existsSync(path)) {
+		console.error('Config files missing: Please run the CLI installer via `npm run installer`.');
+		try {
+			execSync('npm run installer', { stdio: 'inherit' });
+			console.log('Installer completed successfully.');
+		} catch (error) {
+			console.error('Error running the installer:', error);
+			process.exit(1);
+		}
+	}
+});
 
 let compileTimeout: NodeJS.Timeout;
 
@@ -41,16 +62,15 @@ export default defineConfig({
 				}
 			},
 			configureServer(server) {
+				let lastUnlinkFile: string | null = null;
+				let lastUnlinkTime = 0;
+				const lastUUIDUpdate: { [key: string]: number } = {};
+
 				return () => {
 					server.watcher.on('all', async (event, file) => {
 						// Monitor changes in config/collections/**/*.ts and **/*.js
 						if (file.startsWith(userCollections) && (file.endsWith('.ts') || file.endsWith('.js'))) {
 							console.log(`Collection file event: ${event} - \x1b[34m${file}\x1b[0m`);
-
-							// Use let instead of const to allow reassignment
-							let lastUnlinkFile: string | null = null;
-							let lastUnlinkTime = 0;
-							const lastUUIDUpdate: { [key: string]: number } = {};
 
 							clearTimeout(compileTimeout);
 							compileTimeout = setTimeout(async () => {
