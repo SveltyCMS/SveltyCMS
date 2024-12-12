@@ -1,4 +1,3 @@
-// UUID: 55b86603-6932-4f91-8913-aff5b705a39e
 /**
  * @file config/collections/Posts.ts
  * @description Collection file for Posts

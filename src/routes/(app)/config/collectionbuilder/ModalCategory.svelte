@@ -4,7 +4,7 @@
 **This component displays a modal for editing a category**
 -->
 <script lang="ts">
-	import type { CategoryData } from '@src/collections/types';
+	import type { CollectionData } from '@src/collections/types';
 	import { v4 as uuidv4 } from 'uuid';
 
 	// Stores
@@ -23,7 +23,7 @@
 			regionFooter?: string;
 			buttonPositive?: string;
 		};
-		existingCategory?: Partial<CategoryData>;
+		existingCategory?: Partial<CollectionData>;
 	}
 
 	interface FormData {
@@ -137,7 +137,7 @@
 						if (existingCategory.id) {
 							categories.update((cats) => ({
 								...cats,
-								[existingCategory.id as string]: existingCategory as CategoryData
+								[existingCategory.id as string]: existingCategory as CollectionData
 							}));
 						}
 					} finally {

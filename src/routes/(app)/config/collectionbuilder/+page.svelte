@@ -21,7 +21,7 @@
 	import { categoryConfig } from '@src/collections/categories';
 	import { v4 as uuidv4 } from 'uuid';
 	import { checkCollectionNameConflict } from '@utils/utils';
-	import type { CategoryData } from '@src/collections/types';
+	import type { CollectionData } from '@src/collections/types';
 
 	// Stores
 	import { collectionValue, mode, categories } from '@root/src/stores/collectionStore.svelte';
@@ -65,7 +65,7 @@
 	}
 
 	// State variables
-	let currentConfig = $state<Record<string, CategoryData>>(categoryConfig);
+	let currentConfig = $state<Record<string, CollectionData>>(categoryConfig);
 	let isLoading = $state(false);
 	let apiError = $state<string | null>(null);
 
@@ -183,7 +183,7 @@
 	}
 
 	// Handle collection save with conflict checking
-	function handleSave(event: CustomEvent<{ name: string; data: Record<string, CategoryData> }>): void {
+	function handleSave(event: CustomEvent<{ name: string; data: Record<string, CollectionData> }>): void {
 		const { name, data } = event.detail;
 
 		checkNameConflicts(name).then(async (nameCheck) => {

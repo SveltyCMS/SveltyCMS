@@ -16,7 +16,7 @@ import axios from 'axios';
 import { browser, dev } from '$app/environment';
 
 // Types
-import type { Schema, CollectionTypes, Category, CategoryData } from './types';
+import type { Schema, CollectionTypes, Category, CollectionData } from './types';
 
 // Utils
 import { v4 as uuidv4 } from 'uuid';
@@ -80,7 +80,7 @@ async function ensureWidgetsInitialized() {
 class CollectionManager {
 	private static instance: CollectionManager | null = null;
 	private collectionCache: Map<string, CacheEntry<Schema>> = new Map();
-	private categoryCache: Map<string, CacheEntry<CategoryData>> = new Map();
+	private categoryCache: Map<string, CacheEntry<CollectionData>> = new Map();
 	private fileHashCache: Map<string, CacheEntry<string>> = new Map();
 	private collectionAccessCount: Map<string, number> = new Map();
 	private initialized: boolean = false;
@@ -608,7 +608,7 @@ class CollectionManager {
 				const categoryArray = await this.createCategories();
 
 				// Convert category array to record structure
-				const categoryRecord: Record<string, CategoryData> = {};
+				const categoryRecord: Record<string, CollectionData> = {};
 				categoryArray.forEach((cat) => {
 					categoryRecord[cat.name] = {
 						id: cat.id.toString(),
@@ -654,7 +654,7 @@ class CollectionManager {
 				}
 			}
 
-			const categoryStructure: Record<string, CategoryData> = {};
+			const categoryStructure: Record<string, CollectionData> = {};
 			const collectionsList = Array.from(this.collectionCache.values()).map((entry) => entry.value);
 
 			// Process collections into category structure
@@ -702,7 +702,7 @@ class CollectionManager {
 			}
 
 			// Convert category structure to array format
-			const processCategory = (name: string, cat: CategoryData, parentPath: string = ''): Category => {
+			const processCategory = (name: string, cat: CollectionData, parentPath: string = ''): Category => {
 				const currentPath = parentPath ? `${parentPath}/${name}` : name;
 				const subcategories: Record<string, Category> = {};
 
@@ -752,6 +752,6 @@ class CollectionManager {
 export const collectionManager = CollectionManager.getInstance();
 
 // Export types
-export type { Schema, CollectionTypes, Category, CategoryData };
+export type { Schema, CollectionTypes, Category, CollectionData };
 
 import { compile } from '@api/compile/compile';

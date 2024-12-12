@@ -7,7 +7,7 @@
 <script lang="ts">
 	import Column from './Column.svelte';
 	import { goto } from '$app/navigation';
-	import type { CategoryData } from '@src/collections/types';
+	import type { CollectionData } from '@src/collections/types';
 
 	// Stores
 	import { mode, categories } from '@root/src/stores/collectionStore.svelte';
@@ -30,7 +30,7 @@
 		level?: number;
 		onUpdate: (items: DndItem[]) => void;
 		isCategory?: boolean;
-		onEditCategory: (category: Pick<CategoryData, 'name' | 'icon'>) => void;
+		onEditCategory: (category: Pick<CollectionData, 'name' | 'icon'>) => void;
 	}
 
 	interface DndItem {
@@ -98,7 +98,7 @@
 	}
 
 	// Modal handling
-	async function editCategory(category: Pick<CategoryData, 'name' | 'icon'>): Promise<void> {
+	async function editCategory(category: Pick<CollectionData, 'name' | 'icon'>): Promise<void> {
 		const modalComponent: ModalComponent = {
 			ref: ModalAddCategory,
 			props: {

@@ -1,4 +1,3 @@
-// UUID: a6c144ee-dc58-4781-b7ed-777ba3577b18
 /**
  * @file config/collections/Relation.ts
  * @description Collection file for Relation

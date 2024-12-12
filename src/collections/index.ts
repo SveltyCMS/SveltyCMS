@@ -52,12 +52,12 @@ interface CategoryNode {
 	subcategories?: Map<string, CategoryNode>;
 }
 
-interface CategoryData {
+interface CollectionData {
 	id: string;
 	name: string;
 	icon: string;
 	collections: Schema[];
-	subcategories: Record<string, CategoryData>;
+	subcategories: Record<string, CollectionData>;
 }
 
 // Function to create categories from folder structure
@@ -144,8 +144,8 @@ async function processBatch(collections: Schema[]): Promise<void> {
 }
 
 // Helper function to flatten and sort the category hierarchy
-function flattenAndSortCategories(): Record<string, CategoryData> {
-	const result: Record<string, CategoryData> = {};
+function flattenAndSortCategories(): Record<string, CollectionData> {
+	const result: Record<string, CollectionData> = {};
 
 	// Convert Map entries to array and sort
 	const sortedCategories = Array.from(categoryLookup.entries()).sort(([, a], [, b]) => a.order - b.order);

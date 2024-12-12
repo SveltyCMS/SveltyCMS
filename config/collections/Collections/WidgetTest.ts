@@ -1,4 +1,3 @@
-// UUID: 2a8cb619-1c6a-4168-b4b7-7ce231fc4436
 /**
  * @file config/collections/WidgetTest.ts
  * @description Collection file for WidgetTest

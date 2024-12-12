@@ -9,7 +9,7 @@ import { collectionManager } from '@src/collections/CollectionManager';
 import fs from 'fs/promises';
 import path from 'path';
 import { logger } from '@utils/logger.svelte';
-import type { CategoryData } from '@src/collections/types';
+import type { CollectionData } from '@src/collections/types';
 import crypto from 'crypto';
 import { backupCategoryFiles } from './backup-utils';
 
@@ -17,7 +17,7 @@ import { backupCategoryFiles } from './backup-utils';
 const COLLECTIONS_PATH = path.join(process.cwd(), 'config', 'collections');
 
 // Generate categories file content with proper headers
-function generateCategoriesFileContent(data: Record<string, CategoryData>): string {
+function generateCategoriesFileContent(data: Record<string, CollectionData>): string {
 	return `/**
  * @file src/collections/categories.ts
  * @description Category configuration generated from folder structure
@@ -32,20 +32,20 @@ function generateCategoriesFileContent(data: Record<string, CategoryData>): stri
  * Translations are stored in the database, not in this file.
  */
 
-import type { CategoryData } from './types';
+import type { CollectionData } from './types';
 
 // Auto-generated category configuration
-export const categoryConfig: Record<string, CategoryData> = ${JSON.stringify(data, null, 2)};
+export const categoryConfig: Record<string, CollectionData> = ${JSON.stringify(data, null, 2)};
 `;
 }
 
 // Process directory structure into categories while preserving existing IDs
-async function processDirectory(dirPath: string, existingCategories: Record<string, CategoryData> = {}): Promise<Record<string, CategoryData>> {
-	const categories: Record<string, CategoryData> = {};
+async function processDirectory(dirPath: string, existingCategories: Record<string, CollectionData> = {}): Promise<Record<string, CollectionData>> {
+	const categories: Record<string, CollectionData> = {};
 	const items = await fs.readdir(dirPath);
 
 	// Helper function to get existing category data
-	function getExistingCategory(name: string, parentCategory?: CategoryData): CategoryData | undefined {
+	function getExistingCategory(name: string, parentCategory?: CollectionData): CollectionData | undefined {
 		if (existingCategories[name]) return existingCategories[name];
 		if (parentCategory?.subcategories?.[name]) return parentCategory.subcategories[name];
 		return undefined;
@@ -93,11 +93,11 @@ async function processDirectory(dirPath: string, existingCategories: Record<stri
 }
 
 // Move collection files to match their new category locations
-async function moveCollectionFiles(oldConfig: Record<string, CategoryData>, newConfig: Record<string, CategoryData>) {
+async function moveCollectionFiles(oldConfig: Record<string, CollectionData>, newConfig: Record<string, CollectionData>) {
 	const collectionsPath = COLLECTIONS_PATH;
 
 	// Find all collections and their paths in a config
-	function findCollections(config: Record<string, CategoryData>, currentPath: string = ''): Map<string, string> {
+	function findCollections(config: Record<string, CollectionData>, currentPath: string = ''): Map<string, string> {
 		const collections = new Map<string, string>();
 
 		for (const [key, item] of Object.entries(config)) {
@@ -263,7 +263,7 @@ export const PUT: RequestHandler = async ({ request }) => {
 		const { categories } = collectionManager.getCollectionData();
 
 		// Find and update the category
-		function updateCategory(cats: Record<string, CategoryData>, id: string): boolean {
+		function updateCategory(cats: Record<string, CollectionData>, id: string): boolean {
 			for (const key in cats) {
 				if (cats[key].id === categoryId) {
 					// Update category properties while preserving the ID

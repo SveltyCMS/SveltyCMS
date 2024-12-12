@@ -80,6 +80,7 @@ export interface Category {
 	id: string;  // Changed from number to string
 	name: string;
 	icon: string;
+	translations?: { languageTag: string; translationName: string; }[];
 	collections: Schema[]; // Collections within this category
 	subcategories?: Record<string, Category>; // Added subcategories support
 }
@@ -91,21 +92,22 @@ export interface FilteredCategory extends Category {
 }
 
 // Category data interface for configuration
-export interface CategoryData {
+export interface CollectionData {
 	id: string;
 	icon: string;
 	name: string;
+	translations?: { languageTag: string; translationName: string; }[];
 	isCollection?: boolean; // Flag to identify if this is a collection (.ts file)
-	subcategories?: Record<string, CategoryData>; // Nested subcategories
+	subcategories?: Record<string, CollectionData>; // Nested subcategories
 	collections?: Schema[]; // Optional array of collections directly within the category
 }
 
 // Processed category data interface for UI usage
-export interface ProcessedCategoryData extends CategoryData {
+export interface ProcessedCollectionData extends CollectionData {
 	open: boolean; // Indicates if the category is open in UI
 	level: number; // Hierarchy level in nested structure
 	collections: Schema[]; // Collections in the category
-	subcategories: Record<string, ProcessedCategoryData>; // Nested subcategories after processing
+	subcategories: Record<string, ProcessedCollectionData>; // Nested subcategories after processing
 }
 
 // Collection types
@@ -157,5 +159,12 @@ export type CollectionTypes = {
       "Menu"
     ],
     "type": "{Menu: string}"
+  },
+  "Names123": {
+    "fields": [
+      "First test",
+      "Last Name"
+    ],
+    "type": "{First test: string; Last Name: string}"
   }
 };

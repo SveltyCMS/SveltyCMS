@@ -11,14 +11,14 @@
 	import { categories } from '@root/src/stores/collectionStore.svelte';
 
 	// Types
-	import type { CategoryData } from '@src/collections/types';
+	import type { CollectionData } from '@src/collections/types';
 
 	// Svelte DND-actions
 	import { flip } from 'svelte/animate';
 	import { dndzone, type DndEvent } from 'svelte-dnd-action';
 
 	interface Props {
-		categoryConfig: Record<string, CategoryData>;
+		categoryConfig: Record<string, CollectionData>;
 		onEditCategory: (category: { name: string; icon: string }) => void;
 	}
 
@@ -50,12 +50,12 @@
 	});
 
 	// Convert categoryConfig to format needed for dnd-actions
-	function createStructuredItems(config: Record<string, CategoryData>): DndItem[] {
+	function createStructuredItems(config: Record<string, CollectionData>): DndItem[] {
 		return Object.entries(config).map(([key, category]) => {
 			const items: DndItem[] = [];
 
 			if (category.subcategories) {
-				Object.entries(category.subcategories).forEach(([subKey, subCategory]: [string, CategoryData]) => {
+				Object.entries(category.subcategories).forEach(([subKey, subCategory]: [string, CollectionData]) => {
 					if (subCategory.isCollection) {
 						// It's a collection
 						items.push({
@@ -73,7 +73,7 @@
 							icon: subCategory.icon,
 							isCategory: true,
 							isCollection: false,
-							items: Object.entries(subCategory.subcategories).map(([collKey, coll]: [string, CategoryData]) => ({
+							items: Object.entries(subCategory.subcategories).map(([collKey, coll]: [string, CollectionData]) => ({
 								id: coll.id || collKey,
 								name: coll.name,
 								icon: coll.icon,
@@ -132,8 +132,8 @@
 		}
 	}
 
-	function convertToConfig(items: DndItem[]): Record<string, CategoryData> {
-		const result: Record<string, CategoryData> = {};
+	function convertToConfig(items: DndItem[]): Record<string, CollectionData> {
+		const result: Record<string, CollectionData> = {};
 
 		items.forEach((item) => {
 			// Create base category/collection

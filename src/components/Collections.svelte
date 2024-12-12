@@ -24,7 +24,7 @@ Features:
 	import { onMount } from 'svelte';
 
 	// Types
-	import type { Schema, CategoryData, Category } from '@src/collections/types';
+	import type { Schema, CollectionData, Category } from '@src/collections/types';
 
 	// Stores
 	import { get } from 'svelte/store';
@@ -66,10 +66,10 @@ Features:
 	let filteredCategories = $state<FilteredCategory[]>([]);
 
 	// Function to flatten and filter categories with improved subcategory search
-	function filterCategories(searchTerm: string, cats: Record<string, CategoryData>): FilteredCategory[] {
+	function filterCategories(searchTerm: string, cats: Record<string, CollectionData>): FilteredCategory[] {
 		if (!cats || Object.keys(cats).length === 0) return [];
 
-		function processCategory(category: CategoryData, level: number = 0): FilteredCategory | null {
+		function processCategory(category: CollectionData, level: number = 0): FilteredCategory | null {
 			const processed: FilteredCategory = {
 				id: category.id,
 				name: category.name,

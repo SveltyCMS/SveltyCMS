@@ -37,7 +37,7 @@
 	import ScheduleModal from './ScheduleModal.svelte';
 
 	// Types
-	import type { Field, Schema, CategoryData } from '@src/collections/types';
+	import type { Field, Schema, CollectionData } from '@src/collections/types';
 
 	type StatusType = NonNullable<Schema['status']>;
 
@@ -108,7 +108,7 @@
 	let categoryName = $derived(
 		(() => {
 			const categoryEntries = Object.values(categories.value || {});
-			const cat = categoryEntries.find((cat: CategoryData) => cat.collections?.some((col: Schema) => col.name === collection.value?.name));
+			const cat = categoryEntries.find((cat: CollectionData) => cat.collections?.some((col: Schema) => col.name === collection.value?.name));
 			return cat?.name || '';
 		})()
 	);

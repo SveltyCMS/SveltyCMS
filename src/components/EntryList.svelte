@@ -29,7 +29,7 @@ Features:
 	import { deleteData, getData, setStatus } from '@utils/data';
 
 	// Types
-	import type { CategoryData } from '@src/collections/types';
+	import type { CollectionData } from '@src/collections/types';
 
 	// Stores
 	import { contentLanguage, systemLanguage } from '@stores/store';
@@ -433,7 +433,7 @@ Features:
 		if (!currentCollection?.name || !categories.value) return '';
 
 		// Helper function to find parent category name
-		const findParentCategory = (categories: Record<string, CategoryData>): string => {
+		const findParentCategory = (categories: Record<string, CollectionData>): string => {
 			// Only process root categories (Collections and Menu)
 			for (const [rootName, rootCategory] of Object.entries(categories)) {
 				if (rootName !== 'Collections' && rootName !== 'Menu') continue;
