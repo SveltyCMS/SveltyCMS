@@ -170,7 +170,7 @@ export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
 	private collectionsInitialized = false;
 
-	// Helper method to recursively scan directories for collections
+	// Helper method to recursively scan directories for compiled collections
 	private async scanDirectoryForCollections(dirPath: string): Promise<string[]> {
 		const collectionFiles: string[] = [];
 		try {
@@ -178,14 +178,14 @@ export class MongoDBAdapter implements dbInterface {
 			logger.debug(`Scanning directory: \x1b[34m${dirPath}\x1b[0m`);
 
 			for (const entry of entries) {
-				const fullPath = path.join(dirPath, entry.name);
+				const fullPath = path.posix.join(dirPath, entry.name);
 				if (entry.isDirectory()) {
 					// Recursively scan subdirectories
 					logger.debug(`Found subdirectory: \x1b[34m${entry.name}\x1b[0m`);
 					const subDirFiles = await this.scanDirectoryForCollections(fullPath);
 					collectionFiles.push(...subDirFiles);
-				} else if (entry.isFile() && entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts')) {
-					logger.debug(`Found collection file: \x1b[34m${entry.name}\x1b[0m`);
+				} else if (entry.isFile() && entry.name.endsWith('.js')) {
+					logger.debug(`Found compiled collection file:  \x1b[34m${entry.name}\x1b[0m`);
 					collectionFiles.push(fullPath);
 				}
 			}
@@ -211,61 +211,63 @@ export class MongoDBAdapter implements dbInterface {
 				logger.debug('Available widgets:', Object.keys(globalThis.widgets));
 			}
 
-			// Only import fs on server side
-			const { promises: fs } = await import('fs');
-
-			// Get path to collections directory
-			const collectionsPath = path.resolve(process.cwd(), 'config/collections');
-			logger.debug('Collections path:', collectionsPath);
+			// Use posix paths for cross-platform compatibility
+			// Get path to compiled collections directory
+			const compiledCollectionsPath = path.posix.resolve(process.cwd(), 'collections');
+			logger.debug('Compiled collections path:', compiledCollectionsPath);
 
 			// Check if collections directory exists
 			try {
-				await fs.access(collectionsPath);
+				await import('fs').then((fs) => fs.promises.access(compiledCollectionsPath));
 			} catch (error: unknown) {
-				logger.error(`Collections directory not found at ${collectionsPath}:`, { error });
+				logger.error(`Compiled collections directory not found at ${compiledCollectionsPath}:`, { error });
 				return;
 			}
 
 			// Track all valid collection UUIDs
 			const validCollectionUUIDs = new Set<string>();
 
-			// Known collection directories
+			// Known collection directories (should now match your compiled structure)
 			const collectionDirs = ['Collections', 'Menu'];
 
 			for (const dir of collectionDirs) {
-				const dirPath = path.join(collectionsPath, dir);
+				const dirPath = path.posix.join(compiledCollectionsPath, dir); // Use compiled path
 				try {
 					logger.debug(`Processing directory: \x1b[34m${dir}\x1b[0m`);
-					
-					// Recursively scan for collection files
-					const collectionFiles = await this.scanDirectoryForCollections(dirPath);
-					logger.debug(`Found \x1b[34m${collectionFiles.length}\x1b[0m collection files in \x1b[34m${dir}\x1b[0m directory and subdirectories:`, collectionFiles);
+
+					// Scan for compiled .js files
+					const collectionFiles = await this.scanDirectoryForCollections(dirPath); // Scan compiled directory
+					logger.debug(
+						`Found \x1b[34m${collectionFiles.length}\x1b[0m compiled collection files in \x1b[34m${dirPath}\x1b[0m directory and subdirectories:`,
+						collectionFiles
+					);
 
 					for (const filePath of collectionFiles) {
 						try {
-							logger.debug(`Processing collection file: \x1b[34m${filePath}\x1b[0m`);
+							logger.debug(`Processing compiled collection file: \x1b[34m${filePath}\x1b[0m`);
 
-							// Read the file content to get UUID
-							const content = await fs.readFile(filePath, 'utf8');
+							// Read the compiled file content to get UUID
+							const content = await import('fs').then((fs) => fs.promises.readFile(filePath, 'utf8'));
 							const uuidMatch = content.match(/\/\/\s*UUID:\s*([a-f0-9-]{36})/i);
 							const uuid = uuidMatch ? uuidMatch[1] : null;
 
 							if (!uuid) {
-								logger.error(`No UUID found in collection file: ${filePath}`);
+								logger.error(`No UUID found in compiled collection file: ${filePath}`);
 								continue;
 							}
 
 							logger.debug(`Found UUID in file: \x1b[34m${uuid}\x1b[0m`);
 
-							const collection = await import(/* @vite-ignore */ filePath);
+							// Import the collection using the file path
+							const collection = await import(/* @vite-ignore */ filePath + `?update=${Date.now()}`);
 							const collectionConfig = collection.default || collection.schema;
 
 							if (collectionConfig) {
 								// Add UUID to config
 								collectionConfig.id = uuid;
 
-								// Get collection name from the file path
-								const parsedPath = path.parse(filePath);
+								// Get collection name from the file path (adjust if needed)
+								const parsedPath = path.posix.parse(filePath);
 								const collectionName = parsedPath.name;
 
 								// Add name to config if not present
@@ -287,25 +289,25 @@ export class MongoDBAdapter implements dbInterface {
 								logger.error(`Collection file ${filePath} does not export a valid schema or default export`);
 							}
 						} catch (error) {
-							logger.error(`Error importing collection ${filePath}: ${error.message}`, error);
-							console.error(error); // Full error stack
+							logger.error(`Error importing collection ${filePath}:`, error);
 						}
 					}
 				} catch (error) {
-					logger.error(`Error processing directory ${dir}: ${error.message}`, error);
-					console.error(error); // Full error stack
+					logger.error(`Error processing directory ${dir}:`, error);
 				}
 			}
 
 			// Check for orphaned collections in MongoDB
 			const collections = await mongoose.connection.db.listCollections().toArray();
 			logger.debug('Current MongoDB collections:', collections.map(c => c.name));
-			
+
 			for (const collection of collections) {
 				if (collection.name.startsWith('collection_')) {
 					const uuid = collection.name.replace('collection_', '');
 					if (!validCollectionUUIDs.has(uuid)) {
-						logger.warn(`⚠️ Found orphaned collection in database: ${collection.name}. This collection exists in MongoDB but has no corresponding collection file. Data will be preserved but you should investigate.`);
+						logger.warn(
+							`⚠️ Found orphaned collection in database: ${collection.name}. This collection exists in MongoDB but has no corresponding collection file. Data will be preserved but you should investigate.`
+						);
 					}
 				}
 			}
@@ -313,8 +315,7 @@ export class MongoDBAdapter implements dbInterface {
 			logger.debug('Valid collection UUIDs:', Array.from(validCollectionUUIDs));
 			logger.debug('Collection sync completed successfully');
 		} catch (error) {
-			logger.error('Error syncing collections: ' + error.message);
-			console.error(error); // Full error stack
+			logger.error('Error syncing collections:', error);
 			throw new Error('Failed to sync collections');
 		}
 	}

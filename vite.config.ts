@@ -31,27 +31,26 @@ export default defineConfig({
 		sveltekit(),
 		{
 			name: 'collection-watcher',
+			async buildStart() {
+				try {
+					await compile({ userCollections, compiledCollections });
+					console.log('Initial compilation successful!');
+				} catch (error) {
+					console.error('Initial compilation failed:', error);
+					throw error;
+				}
+			},
 			configureServer(server) {
-				let lastUnlinkFile: string | null = null;
-				let lastUnlinkTime = 0;
-				const lastUUIDUpdate: { [key: string]: number } = {};
-				const fileOperations: { [key: string]: string } = {};
-
 				return () => {
 					server.watcher.on('all', async (event, file) => {
 						// Monitor changes in config/collections/**/*.ts
 						if (file.startsWith(userCollections) && file.endsWith('.ts')) {
 							console.log(`Collection file event: ${event} - \x1b[34m${file}\x1b[0m`);
 
-							// Track file operation
-							const now = Date.now();
-							fileOperations[file] = event;
-
-							// Prevent rapid updates
-							if (lastUUIDUpdate[file] && (now - lastUUIDUpdate[file] < 1000)) {
-								console.log(`Skipping rapid update for: ${file}`);
-								return;
-							}
+							// Use let instead of const to allow reassignment
+							let lastUnlinkFile: string | null = null;
+							let lastUnlinkTime = 0;
+							const lastUUIDUpdate: { [key: string]: number } = {};
 
 							clearTimeout(compileTimeout);
 							compileTimeout = setTimeout(async () => {
@@ -135,16 +134,6 @@ export default defineConfig({
 						}
 					});
 				};
-			},
-			// Build Mode: Run compilation once at the start
-			async buildStart() {
-				try {
-					await compile({ userCollections, compiledCollections });
-					console.log('Initial compilation successful!');
-				} catch (error) {
-					console.error('Initial compilation failed:', error);
-					throw error; // Halt the build on failure
-				}
 			},
 			config() {
 				return {
