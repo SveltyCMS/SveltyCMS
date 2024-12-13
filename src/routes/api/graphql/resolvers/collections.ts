@@ -41,6 +41,7 @@ interface CollectionField {
 }
 
 interface Collection {
+	id: string;
 	name: string;
 	fields: CollectionField[];
 }
@@ -84,15 +85,16 @@ export async function registerCollections() {
 	const collectionSchemas: string[] = [];
 
 	for (const collection of collections as Collection[]) {
-		if (!collection.name) {
-			logger.error('Collection name is undefined:', collection);
+		if (!collection.id) {
+			logger.error('Collection ID is undefined:', collection);
 			continue;
 		}
 
-		resolvers[collection.name] = {};
+		resolvers[collection.id] = {};
 		let collectionSchema = `
-            type ${collection.name} {
+            type ${collection.id} {
                 _id: String
+                name: String
                 createdAt: String
                 updatedAt: String
         `;
@@ -123,7 +125,7 @@ export async function registerCollections() {
 
 						if (nestedSchema) {
 							collectionSchema += `${getFieldName(_field, true)}: ${nestedSchema.typeName}\n`;
-							deepmerge(resolvers[collection.name], {
+							deepmerge(resolvers[collection.id], {
 								[getFieldName(_field, true)]: (parent: DocumentWithFields) => parent[getFieldName(_field)]
 							});
 						} else {
@@ -132,7 +134,7 @@ export async function registerCollections() {
 					}
 				} else {
 					collectionSchema += `${getFieldName(field, true)}: ${schema.typeName}\n`;
-					deepmerge(resolvers[collection.name], {
+					deepmerge(resolvers[collection.id], {
 						[getFieldName(field, true)]: (parent: DocumentWithFields) => parent[getFieldName(field)]
 					});
 				}
@@ -161,13 +163,13 @@ export async function collectionsResolvers(cacheClient: CacheClient | null, priv
 	const { resolvers, collections } = await registerCollections();
 
 	for (const collection of collections as Collection[]) {
-		if (!collection.name) {
-			logger.error('Collection name is undefined:', collection);
+		if (!collection.id) {
+			logger.error('Collection ID is undefined:', collection);
 			continue;
 		}
 
 		// Add pagination to the resolver
-		resolvers.Query[collection.name] = async (_: unknown, args: { pagination: { page: number; limit: number } }) => {
+		resolvers.Query[collection.id] = async (_: unknown, args: { pagination: { page: number; limit: number } }) => {
 			if (!dbAdapter) {
 				logger.error('Database adapter is not initialized');
 				throw Error('Database adapter is not initialized');
@@ -177,13 +179,13 @@ export async function collectionsResolvers(cacheClient: CacheClient | null, priv
 			const skip = (page - 1) * limit;
 
 			try {
-				const cacheKey = `${collection.name}:${page}:${limit}`;
+				const cacheKey = `${collection.id}:${page}:${limit}`;
 
 				// Try to get from cache first
 				if (privateEnv.USE_REDIS === true && cacheClient) {
 					const cachedResult = await cacheClient.get(cacheKey);
 					if (cachedResult) {
-						logger.debug(`Cache hit for collection: ${collection.name}, page: ${page}, limit: ${limit}`);
+						logger.debug(`Cache hit for collection: ${collection.id}, page: ${page}, limit: ${limit}`);
 						return JSON.parse(cachedResult);
 					}
 				}
@@ -191,7 +193,7 @@ export async function collectionsResolvers(cacheClient: CacheClient | null, priv
 				// Query database
 				const query = { status: { $ne: 'unpublished' } };
 				const options = { sort: { createdAt: -1 }, skip, limit };
-				const dbResult = await dbAdapter.findMany(collection.name, query, options);
+				const dbResult = await dbAdapter.findMany(collection.id, query, options);
 
 				// Process dates
 				dbResult.forEach((doc: DocumentBase) => {
@@ -200,7 +202,7 @@ export async function collectionsResolvers(cacheClient: CacheClient | null, priv
 						doc.updatedAt = doc.updatedAt ? new Date(doc.updatedAt).toISOString() : doc.createdAt;
 					} catch (error) {
 						const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-						logger.warn(`Date conversion failed for document in ${collection.name}: ${errorMessage}`);
+						logger.warn(`Date conversion failed for document in ${collection.id}: ${errorMessage}`);
 						doc.createdAt = new Date().toISOString();
 						doc.updatedAt = doc.createdAt;
 					}
@@ -209,13 +211,13 @@ export async function collectionsResolvers(cacheClient: CacheClient | null, priv
 				// Cache the result
 				if (privateEnv.USE_REDIS === true && cacheClient) {
 					await cacheClient.set(cacheKey, JSON.stringify(dbResult), 'EX', 60 * 60); // 1 hour cache
-					logger.debug(`Cache set for collection: ${collection.name}, page: ${page}, limit: ${limit}`);
+					logger.debug(`Cache set for collection: ${collection.id}, page: ${page}, limit: ${limit}`);
 				}
 
 				return dbResult;
 			} catch (error) {
 				const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-				logger.error(`Error fetching data for collection ${collection.name}: ${errorMessage}`);
+				logger.error(`Error fetching data for collection ${collection.id}: ${errorMessage}`);
 				throw error;
 			}
 		};

@@ -72,7 +72,7 @@ export async function _GET({
 }) {
 	const start = performance.now();
 	try {
-		logger.debug(`GET request received for schema: ${schema.name}, user_id: ${user._id}`);
+		logger.debug(`GET request received for schema: ${schema.id}, user_id: ${user._id}`);
 
 		// Ensure the database adapter is initialized
 		if (!dbAdapter) {
@@ -80,19 +80,26 @@ export async function _GET({
 			return new Response('Internal server error: Database adapter not initialized', { status: 500 });
 		}
 
-		// Validate schema name
-		if (!schema.name) {
-			logger.error(`Invalid or undefined schema name: ${schema.name}`);
-			return new Response('Invalid or undefined schema name.', { status: 400 });
+		// Validate schema ID
+		if (!schema.id) {
+			logger.error(`Invalid or undefined schema ID: ${schema.id}`);
+			return new Response('Invalid or undefined schema ID.', { status: 400 });
 		}
 
-		const collections = await getCollectionModels(); // Get collection models from the database
-		logger.debug(`Collection models retrieved: ${Object.keys(collections).join(', ')}`);
+		// Get collection models and wait for them to be loaded
+		const collections = await getCollectionModels();
+		if (!collections) {
+			logger.error('Failed to get collection models');
+			return new Response('Internal server error: Failed to get collection models', { status: 500 });
+		}
 
-		const collection = collections[schema.name] as CollectionModel; // Get the specific collection based on the schema name
-		// Check if the collection exists
+		logger.debug(`Collection models retrieved: ${Object.keys(collections).join(', ')}`);
+		logger.debug(`Looking for collection with ID: ${schema.id}`);
+
+		// Find the collection by name or ID
+		const collection = collections[schema.name?.toLowerCase() || ''] || collections[schema.id];
 		if (!collection) {
-			logger.error(`Collection not found for schema: ${schema.name}`);
+			logger.error(`Collection not found for schema ID: ${schema.id} or name: ${schema.name}`);
 			return new Response('Collection not found', { status: 404 });
 		}
 

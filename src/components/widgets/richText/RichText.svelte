@@ -15,8 +15,9 @@
 	import { onMount, onDestroy, tick, untrack } from 'svelte';
 	import type { ComponentProps } from 'svelte';
 	import type { FieldType } from '.';
-	import { meta_data, createRandomID, debounce, getFieldName, updateTranslationProgress } from '@utils/utils';
+	import { meta_data, debounce, getFieldName, updateTranslationProgress } from '@utils/utils';
 	import type { MediaImage } from '@utils/media/mediaModels';
+	import { v4 as uuidv4 } from 'uuid';
 
 	// Stores
 	import { contentLanguage, validationStore } from '@stores/store';
@@ -398,7 +399,7 @@
 		let url;
 		if (value instanceof File) {
 			url = URL.createObjectURL(value);
-			let image_id = createRandomID().toString();
+			let image_id = uuidv4();
 			images[image_id] = value;
 			editor.chain().focus().setImage({ src: url, id: image_id }).run();
 		} else {

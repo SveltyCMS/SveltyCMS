@@ -10,7 +10,7 @@
  */
 
 import { store } from '@utils/reactivity.svelte';
-import type { Schema, CategoryData } from '@src/collections/types';
+import type { Schema, CollectionData } from '@src/collections/types';
 
 // Define types
 type ModeType = 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
@@ -43,7 +43,7 @@ export const mode = store<ModeType>('view');
 export const modifyEntry = store<(status?: keyof typeof statusMap) => Promise<void>>(() => Promise.resolve());
 export const selectedEntries = store<string[]>([]);
 export const targetWidget = store<Widget>({ permissions: {} });
-export const categories = store<Record<string, CategoryData>>({});
+export const categories = store<Record<string, CollectionData>>({});
 
 // Reactive calculations using Svelte 5 runes
 export const totalCollections = store(() => Object.keys(collections.value).length);
@@ -65,7 +65,7 @@ export const entryActions = {
 
 // Helper functions for categories
 export const categoryActions = {
-	updateCategory(categoryId: string, data: CategoryData) {
+	updateCategory(categoryId: string, data: CollectionData) {
 		categories.update((cats) => ({
 			...cats,
 			[categoryId]: { ...cats[categoryId], ...data }

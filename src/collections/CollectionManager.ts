@@ -16,11 +16,10 @@ import axios from 'axios';
 import { browser, dev } from '$app/environment';
 
 // Types
-import type { Schema, CollectionTypes, Category, CategoryData } from './types';
+import type { Schema, CollectionTypes, Category, CollectionData } from './types';
 
 // Utils
-import { createRandomID } from '@utils/utils';
-import { logger } from '@utils/logger.svelte';
+import { v4 as uuidv4 } from 'uuid';
 
 // Redis
 import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/redis';
@@ -33,9 +32,14 @@ import { categoryConfig } from './categories';
 
 import widgets, { initializeWidgets } from '@components/widgets';
 
+// System Logger
+import { logger } from '@utils/logger.svelte';
+
 // Server-side imports
 let fs: typeof import('fs/promises') | null = null;
 let path: typeof import('path') | null = null;
+
+import { dbAdapter } from '@src/databases/db';
 
 if (!browser) {
 	const imports = await Promise.all([import('fs/promises'), import('path')]);
@@ -54,15 +58,6 @@ const MAX_CACHE_SIZE = 100;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
 const EXCLUDED_FILES = ['index.ts', 'types.ts', 'categories.ts', 'CollectionManager.ts'];
-
-// Performance monitoring utilities
-const getPerformanceEmoji = (responseTime: number): string => {
-	if (responseTime < 100) return '🚀'; // Super fast
-	if (responseTime < 500) return '⚡'; // Fast
-	if (responseTime < 1000) return '⏱️'; // Moderate
-	if (responseTime < 3000) return '🕰️'; // Slow
-	return '🐢'; // Very slow
-};
 
 // Widget initialization state
 let widgetsInitialized = false;
@@ -85,7 +80,7 @@ async function ensureWidgetsInitialized() {
 class CollectionManager {
 	private static instance: CollectionManager | null = null;
 	private collectionCache: Map<string, CacheEntry<Schema>> = new Map();
-	private categoryCache: Map<string, CacheEntry<CategoryData>> = new Map();
+	private categoryCache: Map<string, CacheEntry<CollectionData>> = new Map();
 	private fileHashCache: Map<string, CacheEntry<string>> = new Map();
 	private collectionAccessCount: Map<string, number> = new Map();
 	private initialized: boolean = false;
@@ -155,20 +150,36 @@ class CollectionManager {
 			// Ensure widgets are initialized before processing module
 			await ensureWidgetsInitialized();
 
-			// Create a module from the content using Function constructor instead of eval
+			// Check if the content is already in ES module format
+			const isESModule = content.includes('export') || content.includes('import');
+
+			// Create the module wrapper
+			const moduleWrapper = isESModule
+				? `
+					let exports = {};
+					${content}
+					return { exports, schema: exports.default || exports };
+				`
+				: `
+					let exports = {};
+					const module = { exports };
+					${content}
+					return { exports: module.exports, schema: module.exports };
+				`;
+
+			// Create a module from the content using Function constructor
 			const moduleFunc = new Function(
 				'widgets',
-				`
-                const exports = {};
-                const module = { exports };
-                ${content}
-                return module.exports;
-            `
+				moduleWrapper
 			);
 
 			// Pass the widgets object when executing the function
-			const module = moduleFunc(widgets);
-			return module;
+			const result = moduleFunc(widgets);
+
+			// Handle both ES modules and CommonJS modules
+			return {
+				schema: result.schema || result.exports.default || result.exports
+			};
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : String(err);
 			logger.error('Failed to process module:', { error: errorMessage });
@@ -243,13 +254,11 @@ class CollectionManager {
 		try {
 			const result = await operation();
 			const duration = performance.now() - start;
-			const emoji = getPerformanceEmoji(duration);
-			logger.info(`${operationName} completed in ${duration.toFixed(2)}ms ${emoji}`);
+			logger.info(`${operationName} completed in ${duration.toFixed(2)}ms`);
 			return result;
 		} catch (error) {
 			const duration = performance.now() - start;
-			const emoji = getPerformanceEmoji(duration);
-			logger.error(`${operationName} failed after ${duration.toFixed(2)}ms ${emoji}`);
+			logger.error(`${operationName} failed after ${duration.toFixed(2)}ms`);
 			throw error;
 		}
 	}
@@ -385,11 +394,10 @@ class CollectionManager {
 								continue;
 							}
 
-							const randomId = await createRandomID();
 							const processed: Schema = {
 								...schema,
+								id: schema.id || uuidv4(), // Only create new ID if one doesn't exist
 								name,
-								id: parseInt(randomId.toString().slice(0, 8), 16),
 								icon: schema.icon || 'iconoir:info-empty',
 								path: this.extractPathFromFilePath(filePath),
 								fields: schema.fields || [],
@@ -425,9 +433,11 @@ class CollectionManager {
 						}
 					} else {
 						// Server-side compilation
-						const files = await this.getCompiledCollectionFiles();
+						const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || './collections';
+						const files = await this.getCompiledCollectionFiles(compiledDirectoryPath);
 						for (const filePath of files) {
-							const content = await this.readFile(filePath);
+							const fullFilePath = path!.join(compiledDirectoryPath, filePath);
+							const content = await this.readFile(fullFilePath);
 							const schema = await this.processCollectionFile(filePath, content);
 							if (schema) {
 								collections.push(schema);
@@ -477,8 +487,6 @@ class CollectionManager {
 				return null;
 			}
 
-			// Generate a random ID for the collection
-			const randomId = await createRandomID();
 
 			// Create the processed schema with proper type checking
 			const baseSchema = moduleData.schema as Partial<Schema>;
@@ -501,7 +509,7 @@ class CollectionManager {
 			const validFields = processedFields.filter((field): field is NonNullable<typeof field> => field !== null);
 
 			const processedSchema: Schema = {
-				id: parseInt(randomId.toString().slice(0, 8), 16),
+				id: baseSchema.id || uuidv4(), // Only create new ID if one doesn't exist
 				name: name,
 				label: baseSchema.label || name,
 				slug: baseSchema.slug || name.toLowerCase(),
@@ -516,11 +524,8 @@ class CollectionManager {
 			};
 
 			// Create the MongoDB model for this collection
-			if (!browser) {
-				const { dbAdapter } = await import('@src/databases/db');
-				if (dbAdapter) {
-					await dbAdapter.createCollectionModel(processedSchema);
-				}
+			if (!browser && dbAdapter) {
+				await dbAdapter.createCollectionModel(processedSchema);
 			}
 
 			return processedSchema;
@@ -548,10 +553,8 @@ class CollectionManager {
 	}
 
 	// Get compiled collection files
-	private async getCompiledCollectionFiles(): Promise<string[]> {
+	private async getCompiledCollectionFiles(compiledDirectoryPath: string): Promise<string[]> {
 		if (!fs) throw new Error('File system operations are only available on the server');
-
-		const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || './collections';
 
 		// Helper function to recursively get all files
 		const getAllFiles = async (dir: string): Promise<string[]> => {
@@ -583,13 +586,23 @@ class CollectionManager {
 	private async readFile(filePath: string): Promise<string> {
 		if (browser) {
 			// Use the new API endpoint to fetch the file content
-			const response = await axios.get(`/api/getCollections?fileName=${encodeURIComponent(filePath)}`);
+			const response = await this.retryOperation(async () => axios.get(`/api/getCollections?fileName=${encodeURIComponent(filePath)}`));
 			return response.data;
 		}
 
 		// Server-side file reading
 		if (!fs) throw new Error('File system operations are only available on the server');
-		return fs.readFile(filePath, 'utf-8');
+		try {
+			const content = await fs.readFile(filePath, 'utf-8');
+			return content;
+		} catch (error) {
+			if (error.code === 'ENOENT') {
+				logger.error(`File not found: ${filePath}`);
+			} else {
+				logger.error(`Error reading file: ${filePath}`, error);
+			}
+			throw error;
+		}
 	}
 
 	// Update collections with performance monitoring
@@ -609,7 +622,7 @@ class CollectionManager {
 				const categoryArray = await this.createCategories();
 
 				// Convert category array to record structure
-				const categoryRecord: Record<string, CategoryData> = {};
+				const categoryRecord: Record<string, CollectionData> = {};
 				categoryArray.forEach((cat) => {
 					categoryRecord[cat.name] = {
 						id: cat.id.toString(),
@@ -655,7 +668,7 @@ class CollectionManager {
 				}
 			}
 
-			const categoryStructure: Record<string, CategoryData> = {};
+			const categoryStructure: Record<string, CollectionData> = {};
 			const collectionsList = Array.from(this.collectionCache.values()).map((entry) => entry.value);
 
 			// Process collections into category structure
@@ -673,7 +686,7 @@ class CollectionManager {
 					currentPath = currentPath ? `${currentPath}/${part}` : part;
 
 					if (!currentLevel[part]) {
-						const randomId = await createRandomID();
+						const randomId = uuidv4();
 						const config = categoryConfig[currentPath] || {
 							icon: index === 0 ? 'bi:collection' : 'bi:folder',
 							order: 999
@@ -703,7 +716,7 @@ class CollectionManager {
 			}
 
 			// Convert category structure to array format
-			const processCategory = (name: string, cat: CategoryData, parentPath: string = ''): Category => {
+			const processCategory = (name: string, cat: CollectionData, parentPath: string = ''): Category => {
 				const currentPath = parentPath ? `${parentPath}/${name}` : name;
 				const subcategories: Record<string, Category> = {};
 
@@ -753,6 +766,6 @@ class CollectionManager {
 export const collectionManager = CollectionManager.getInstance();
 
 // Export types
-export type { Schema, CollectionTypes, Category, CategoryData };
+export type { Schema, CollectionTypes, Category, CollectionData };
 
 import { compile } from '@api/compile/compile';

@@ -45,7 +45,7 @@ const getPerformanceEmoji = (responseTime: number): string => {
 export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {
 	const start = performance.now();
 	try {
-		logger.debug(`DELETE request received for schema: ${schema.name}, user_id: ${user._id}`);
+		logger.debug(`DELETE request received for schema: ${schema.id}, user_id: ${user._id}`);
 
 		// Ensure the database adapter is initialized
 		if (!dbAdapter) {
@@ -53,19 +53,19 @@ export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: 
 			return new Response('Internal server error: Database adapter not initialized', { status: 500 });
 		}
 
-		// Validate schema name
-		if (!schema.name) {
-			logger.error('Invalid or undefined schema name.');
-			return new Response('Invalid or undefined schema name.', { status: 400 });
+		// Validate schema ID
+		if (!schema.id) {
+			logger.error('Invalid or undefined schema ID.');
+			return new Response('Invalid or undefined schema ID.', { status: 400 });
 		}
 
 		// Fetch collection models via the dbAdapter
 		const collectionsModels = await getCollectionModels();
 		logger.debug(`Collection models retrieved: ${Object.keys(collectionsModels).join(', ')}`);
 
-		const collection = collectionsModels[schema.name];
+		const collection = collectionsModels[schema.id];
 		if (!collection) {
-			logger.error(`Collection not found for schema: ${schema.name}`);
+			logger.error(`Collection not found for schema ID: ${schema.id}`);
 			return new Response('Collection not found', { status: 404 });
 		}
 
@@ -103,7 +103,7 @@ export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: 
 					const linkedDeletions = (schema.links || []).map((link) =>
 						dbAdapter!.deleteMany(link.toString(), {
 							_link_id: id,
-							_linked_collection: schema.name
+							_linked_collection: schema.id
 						})
 					);
 					await Promise.all(linkedDeletions);
@@ -129,7 +129,7 @@ export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: 
 		const deleteDuration = performance.now() - deleteStart;
 		const deleteEmoji = getPerformanceEmoji(deleteDuration);
 
-		logger.info(`Deleted ${deletedCount} documents in ${deleteDuration.toFixed(2)}ms ${deleteEmoji} for schema: ${schema.name}`);
+		logger.info(`Deleted ${deletedCount} documents in ${deleteDuration.toFixed(2)}ms ${deleteEmoji} for schema ID: ${schema.id}`);
 
 		const totalDuration = performance.now() - start;
 		const totalEmoji = getPerformanceEmoji(totalDuration);
@@ -158,7 +158,7 @@ export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: 
 		const emoji = getPerformanceEmoji(duration);
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 		const errorStack = error instanceof Error ? error.stack : '';
-		logger.error(`DELETE operation failed after ${duration.toFixed(2)}ms ${emoji} for schema: ${schema.name}: ${errorMessage}`, {
+		logger.error(`DELETE operation failed after ${duration.toFixed(2)}ms ${emoji} for schema ID: ${schema.id}: ${errorMessage}`, {
 			stack: errorStack
 		});
 		return new Response(errorMessage, { status: 500 });

@@ -11,259 +11,320 @@
  * - Error handling and logging
  * - Cleanup of orphaned collection files
  * - Name conflict detection to prevent duplicate collection names
+ * - HASH and UUID Management
  */
-
 import fs from 'fs/promises';
 import crypto from 'crypto';
 import path from 'path';
 import * as ts from 'typescript';
+import { v4 as uuidv4 } from 'uuid';
 
-// Cache for transpiled modules to avoid recompiling unchanged files
-const cache = new Map<string, string>();
+// Cache for transpiled modules - Key: file path, Value: { hash: string; code: string; uuid: string }
+const cache = new Map<string, { hash: string; code: string; uuid: string }>();
 
 interface CompileOptions {
-	systemCollections?: string;
-	userCollections?: string;
-	compiledCollections?: string;
+    systemCollections?: string;
+    userCollections?: string;
+    compiledCollections?: string;
 }
 
 export async function compile(options: CompileOptions = {}): Promise<void> {
-	// Define collection paths directly
-	const {
-		userCollections = path.join(__dirname, '../../../config/collections'),
-		compiledCollections = path.join(__dirname, '../../../collections')
-	} = options;
+    // Define collection paths directly and use process.cwd()
+    const {
+        userCollections = path.posix.join(process.cwd(), 'config/collections'),
+        compiledCollections = path.posix.join(process.cwd(), 'collections')
+    } = options;
 
-	try {
-		// Ensure the output directory exists
-		await fs.mkdir(compiledCollections, { recursive: true });
+    try {
+        // Ensure the output directory exists
+        await fs.mkdir(compiledCollections, { recursive: true });
 
-		// Get TypeScript files from user collections only (system collections are not compiled)
-		try {
-			const userFiles = await getTypescriptFiles(userCollections);
+        // Get TypeScript and JavaScript files from user collections
+        const userFiles = await getTypescriptAndJavascriptFiles(userCollections);
 
-			// Create output directories for user collection files
-			await createOutputDirectories(userFiles, userCollections, compiledCollections);
+        // Create output directories for user collection files
+        await createOutputDirectories(userFiles, userCollections, compiledCollections);
 
-			// Compile user collection files
-			const compilePromises = userFiles.map((file) => compileFile(file, userCollections, compiledCollections));
+        // Compile user collection files concurrently
+        const compilePromises = userFiles.map((file) =>
+            compileFile(file, userCollections, compiledCollections)
+        );
+        await Promise.all(compilePromises);
 
-			await Promise.all(compilePromises);
-
-			// Cleanup orphaned files only in the compiled collections directory
-			await cleanupOrphanedFiles(userCollections, compiledCollections);
-		} catch (error) {
-			if (error instanceof Error && error.message.includes('Collection name conflict')) {
-				console.error('\x1b[31mError:\x1b[0m', error.message);
-				throw error;
-			}
-			throw error;
-		}
-	} catch (error) {
-		console.error('Compilation error:', error);
-		throw error;
-	}
+        // Cleanup orphaned files only in the compiled collections directory
+        await cleanupOrphanedFiles(userCollections, compiledCollections);
+    } catch (error) {
+        if (error instanceof Error && error.message.includes('Collection name conflict')) {
+            console.error('\x1b[31mError:\x1b[0m', error.message);
+            throw error;
+        }
+        throw error;
+    }
 }
 
-async function getTypescriptFiles(folder: string, subdir: string = ''): Promise<string[]> {
-	const files: string[] = [];
-	const collectionNames = new Set<string>();
-	const entries = await fs.readdir(path.join(folder, subdir), { withFileTypes: true });
+async function getTypescriptAndJavascriptFiles(folder: string, subdir: string = ''): Promise<string[]> {
+    const files: string[] = [];
+    const collectionNames = new Set<string>();
+    const entries = await fs.readdir(path.posix.join(folder, subdir), { withFileTypes: true });
 
-	for (const entry of entries) {
-		const relativePath = path.join(subdir, entry.name);
+    for (const entry of entries) {
+        const relativePath = path.posix.join(subdir, entry.name);
 
-		if (entry.isDirectory()) {
-			// Recursively get files from subdirectories
-			const subFiles = await getTypescriptFiles(folder, relativePath);
-			files.push(...subFiles);
-		} else if (
-			entry.isFile() &&
-			entry.name.endsWith('.ts') &&
-			!entry.name.startsWith('_') && // Ignore files starting with underscore
-			!['index.ts', 'types.ts', 'categories.ts', 'CollectionManager.ts'].includes(entry.name)
-		) {
-			// Check for name conflicts
-			const collectionName = entry.name.replace(/\.ts$/, '');
-			if (collectionNames.has(collectionName)) {
-				throw new Error(
-					`Collection name conflict: "${collectionName}" is used multiple times. Collection names must be unique regardless of their directory location.`
-				);
-			}
-			collectionNames.add(collectionName);
-			files.push(relativePath);
-		}
-	}
+        if (entry.isDirectory()) {
+            // Recursively get files from subdirectories
+            const subFiles = await getTypescriptAndJavascriptFiles(folder, relativePath);
+            files.push(...subFiles);
+        } else if (
+            entry.isFile() &&
+            (entry.name.endsWith('.ts') || entry.name.endsWith('.js')) &&
+            !entry.name.startsWith('_') &&
+            relativePath.includes('/')
+        ) {
+            // Check for name conflicts
+            const collectionName = entry.name.replace(/\.(ts|js)$/, '');
+            if (collectionNames.has(collectionName)) {
+                throw new Error(`Collection name conflict: "${collectionName}" is used multiple times.`);
+            }
+            collectionNames.add(collectionName);
+            files.push(relativePath);
+        }
+    }
 
-	return files;
+    return files;
 }
 
-async function cleanupOrphanedFiles(srcFolder: string, destFolder: string): Promise<void> {
-	try {
-		// Get list of valid TypeScript source files
-		const validFiles = await getTypescriptFiles(srcFolder);
-		const validJsFiles = new Set(validFiles.map((file) => file.replace(/\.ts$/, '.js')));
+export async function cleanupOrphanedFiles(srcFolder: string, destFolder: string): Promise<void> {
+    try {
+        // Get list of valid TypeScript and JavaScript source files
+        const validFiles = await getTypescriptAndJavascriptFiles(srcFolder);
+        const validJsFiles = new Set(validFiles.map((file) => file.replace(/\.(ts|js)$/, '.js')));
 
-		// Get all JS files in the destination folder
-		async function getAllJsFiles(folder: string, subdir: string = ''): Promise<string[]> {
-			const files: string[] = [];
-			const entries = await fs.readdir(path.join(folder, subdir), { withFileTypes: true });
+        // Get all JS files in the destination folder using recursive directory iteration
+        async function getAllJsFiles(folder: string): Promise<string[]> {
+            const files: string[] = [];
 
-			for (const entry of entries) {
-				const relativePath = path.join(subdir, entry.name);
+            async function traverseDirectory(currentFolder: string) {
+                const entries = await fs.readdir(currentFolder, { withFileTypes: true });
 
-				if (entry.isDirectory()) {
-					const subFiles = await getAllJsFiles(folder, relativePath);
-					files.push(...subFiles);
-				} else if (entry.isFile() && entry.name.endsWith('.js')) {
-					files.push(relativePath);
-				}
-			}
+                for (const entry of entries) {
+                    const fullPath = path.posix.join(currentFolder, entry.name);
 
-			return files;
-		}
+                    if (entry.isDirectory()) {
+                        await traverseDirectory(fullPath);
+                    } else if (entry.isFile() && entry.name.endsWith('.js')) {
+                        // Calculate relative path relative to destFolder
+                        const relativePath = path.posix.relative(destFolder, fullPath);
+                        files.push(relativePath);
+                    }
+                }
+            }
 
-		const existingJsFiles = await getAllJsFiles(destFolder);
+            await traverseDirectory(folder);
+            return files;
+        }
 
-		// Remove orphaned JS files
-		for (const jsFile of existingJsFiles) {
-			if (!validJsFiles.has(jsFile)) {
-				const fullPath = path.join(destFolder, jsFile);
-				// Use ANSI red color code for orphaned file messages
-				console.log(`\x1b[31mRemoving orphaned collection file:\x1b[0m \x1b[34m${jsFile}\x1b[0m`);
-				await fs.unlink(fullPath);
-			}
-		}
+        const existingJsFiles = await getAllJsFiles(destFolder);
 
-		// Clean up empty directories
-		async function removeEmptyDirs(folder: string): Promise<boolean> {
-			const entries = await fs.readdir(folder, { withFileTypes: true });
+        // Remove orphaned JS files
+        const unlinkPromises = existingJsFiles
+            .filter((jsFile) => !validJsFiles.has(jsFile))
+            .map(async (jsFile) => {
+                const fullPath = path.posix.join(destFolder, jsFile);
+                console.log(
+                    `\x1b[31mRemoving orphaned collection file:\x1b[0m \x1b[34m${jsFile}\x1b[0m`
+                );
+                await fs.unlink(fullPath);
+            });
+        await Promise.all(unlinkPromises);
 
-			for (const entry of entries) {
-				if (entry.isDirectory()) {
-					const fullPath = path.join(folder, entry.name);
-					const isEmpty = await removeEmptyDirs(fullPath);
-					if (isEmpty) {
-						await fs.rmdir(fullPath);
-					}
-				}
-			}
+        // Clean up empty directories using a recursive function with a post-order traversal
+        async function removeEmptyDirs(folder: string): Promise<boolean> {
+            const entries = await fs.readdir(folder, { withFileTypes: true });
+            let isEmpty = true;
 
-			const remainingEntries = await fs.readdir(folder);
-			return remainingEntries.length === 0;
-		}
+            for (const entry of entries) {
+                if (entry.isDirectory()) {
+                    const fullPath = path.posix.join(folder, entry.name);
+                    if (!(await removeEmptyDirs(fullPath))) {
+                        isEmpty = false;
+                    }
+                } else {
+                    isEmpty = false;
+                }
+            }
 
-		await removeEmptyDirs(destFolder);
-	} catch (error) {
-		console.error(`Error cleaning up orphaned files: ${error instanceof Error ? error.message : String(error)}`);
-	}
+            if (isEmpty) {
+                await fs.rmdir(folder);
+            }
+            return isEmpty;
+        }
+
+        await removeEmptyDirs(destFolder);
+    } catch (error) {
+        console.error(
+            `Error cleaning up orphaned files: ${error instanceof Error ? error.message : String(error)}`
+        );
+    }
 }
 
+// Optimized for creating nested output directories
 async function createOutputDirectories(files: string[], srcFolder: string, destFolder: string): Promise<void> {
-	// Get all unique directory paths from the files
-	const directories = new Set(files.map((file) => path.dirname(file)).filter((dir) => dir !== '.'));
+    // Get all unique directory paths from the files
+    const directories = new Set(files.map(file => path.posix.dirname(file)).filter(dir => dir !== '.'));
 
-	// Create each directory in the output folder
-	for (const dir of directories) {
-		const outputDir = path.join(destFolder, dir);
-		await fs.mkdir(outputDir, { recursive: true });
-	}
+    // Create each directory in the output folder concurrently
+    const mkdirPromises = Array.from(directories).map(dir => {
+        const outputDir = path.posix.join(destFolder, dir);
+        return fs.mkdir(outputDir, { recursive: true });
+    });
+
+    await Promise.all(mkdirPromises);
 }
 
 async function compileFile(file: string, srcFolder: string, destFolder: string): Promise<void> {
-	const tsFilePath = path.join(srcFolder, file);
-	const jsFilePath = path.join(destFolder, file.replace(/\.ts$/, '.js'));
-	const shortPath = `/collections/${file.replace(/\.ts$/, '.js')}`;
+    const isTypeScript = file.endsWith('.ts');
+    const tsFilePath = path.posix.join(srcFolder, file);
+    const jsFilePath = path.posix.join(destFolder, file.replace(/\.(ts|js)$/, '.js'));
+    const shortPath = path.posix.relative(process.cwd(), jsFilePath);
 
-	try {
-		// Check if recompilation is necessary
-		if (!(await shouldRecompile(tsFilePath, jsFilePath))) {
-			console.log(`Skipping compilation for \x1b[34m${file}\x1b[0m, no changes detected.`);
-			return;
-		}
+    try {
+        // 1. Read the file content
+        const content = await fs.readFile(tsFilePath, 'utf8');
+        const contentHash = await getContentHash(content);
 
-		// Read, transpile, and write the file
-		const content = await fs.readFile(tsFilePath, 'utf-8');
-		const code = await transpileCode(content, tsFilePath);
-		await writeCompiledFile(jsFilePath, code, content);
+        // 2. Generate or retrieve UUID for the compiled file
+        let uuid = await getExistingUUID(jsFilePath);
+        if (!uuid) {
+            uuid = uuidv4();
+        }
 
-		console.log(`Compiled and wrote \x1b[34m${shortPath}\x1b[0m`);
-	} catch (error) {
-		console.error(`Error compiling ${file}: ${error instanceof Error ? error.message : String(error)}`);
-	}
+        // 3. Check if recompilation is needed (using hash and UUID)
+        if (!(await shouldRecompile(jsFilePath, contentHash, uuid))) {
+            console.log(`Skipping compilation for \x1b[34m${shortPath}\x1b[0m, no changes detected.`);
+            return;
+        }
+
+        let finalCode: string;
+        
+        if (isTypeScript) {
+            // 4. Transpile TypeScript code
+            const result = ts.transpileModule(content, {
+                compilerOptions: {
+                    target: ts.ScriptTarget.ESNext,
+                    module: ts.ModuleKind.ESNext,
+                    esModuleInterop: true,
+                    allowJs: true
+                }
+            });
+            finalCode = result.outputText;
+        } else {
+            // Handle JavaScript files
+            const isESModule = content.includes('export') || content.includes('import');
+            if (!isESModule) {
+                // Convert CommonJS to ES Module
+                if (content.includes('module.exports')) {
+                    // Handle module.exports = {...}
+                    finalCode = content.replace(
+                        /module\.exports\s*=\s*/,
+                        'export default '
+                    );
+                } else {
+                    // Wrap the entire content in a default export
+                    finalCode = `export default ${content};\n`;
+                }
+            } else {
+                finalCode = content;
+            }
+        }
+
+        // 5. Process Hash and UUID
+        finalCode = processHashAndUUID(finalCode, contentHash, uuid);
+
+        // 6. Write the compiled file
+        await writeCompiledFile(jsFilePath, finalCode);
+
+        // 7. Update cache
+        cache.set(tsFilePath, { hash: contentHash, code: finalCode, uuid });
+
+        console.log(`Compiled and wrote \x1b[32m${shortPath}\x1b[0m`);
+    } catch (error) {
+        console.error(`Error compiling file ${file}:`, error);
+        throw error;
+    }
 }
 
-async function shouldRecompile(tsFilePath: string, jsFilePath: string): Promise<boolean> {
-	// Get file stats for both TS and JS files
-	const [tsStats, jsStats] = await Promise.all([fs.stat(tsFilePath).catch(() => null), fs.stat(jsFilePath).catch(() => null)]);
+async function shouldRecompile(
+    jsFilePath: string,
+    currentHash: string,
+    currentUUID: string
+): Promise<boolean> {
+    try {
+        // Check if JS file exists
+        await fs.access(jsFilePath);
 
-	// If JS file doesn't exist, recompilation is necessary
-	if (!jsStats) return true;
+        // Get existing hash and UUID from JS file
+        const jsContent = await fs.readFile(jsFilePath, 'utf8');
+        const existingHash = extractHashFromJs(jsContent);
+        const existingUUID = extractUUIDFromJs(jsContent);
 
-	// If TS file doesn't exist, recompilation is not necessary
-	if (!tsStats) return false;
-
-	// Compare file hashes and modification times
-	const contentHash = await getFileHash(tsFilePath);
-	const existingHash = await getExistingHash(jsFilePath);
-
-	return contentHash !== existingHash || tsStats.mtime > jsStats.mtime;
+        // Recompile if hash or UUID doesn't match
+        return existingHash !== currentHash || existingUUID !== currentUUID;
+    } catch (error) {
+        // If the file doesn't exist, we should recompile
+        if (error.code === 'ENOENT') {
+            return true;
+        }
+        console.error('Error checking recompilation need:', error);
+        return true;
+    }
 }
 
-async function transpileCode(content: string, filePath: string): Promise<string> {
-	// Check cache for previously transpiled code
-	let code = cache.get(filePath);
+function processHashAndUUID(code: string, hash: string, uuid: string): string {
+    // Remove any existing Hash and UUID comments
+    let newCode = code.replace(/^\/\/\s*(HASH|UUID):\s*.*$/gm, '');
 
-	if (!code) {
-		// Transpile TypeScript to JavaScript
-		const transpileResult = ts.transpileModule(content, {
-			compilerOptions: {
-				target: ts.ScriptTarget.ESNext,
-				module: ts.ModuleKind.ESNext
-			}
-		});
+    // Add new Hash and UUID comments at the beginning
+    const hashComment = `// HASH: ${hash}`;
+    const uuidComment = `// UUID: ${uuid}`;
+    newCode = `${hashComment}\n${uuidComment}\n\n${newCode}\n`;
 
-		code = modifyTranspiledCode(transpileResult.outputText);
-		cache.set(filePath, code);
-	}
-
-	return code;
+    return newCode;
 }
 
-function modifyTranspiledCode(code: string): string {
-	// Modify transpiled code to fit project requirements
-	return code
-		.replace(/import widgets from .*\n/g, '') // Remove widget imports
-		.replace(/widgets/g, 'globalThis.widgets') // Replace widget references with globalThis.widgets
-		.replace(/(\bfrom\s+["']\..*)(["'])/g, '$1.js$2'); // Add .js extension to relative import paths
-}
-
-async function writeCompiledFile(filePath: string, code: string, originalContent: string): Promise<void> {
-	// Create the directory if it doesn't exist
-	await fs.mkdir(path.dirname(filePath), { recursive: true });
-
-	// Add content hash to the file for future comparisons
-	const contentHash = await getContentHash(originalContent);
-	const updatedCode = `// ${contentHash}\n${code}`;
-	await fs.writeFile(filePath, updatedCode);
-}
-
-async function getFileHash(filePath: string): Promise<string> {
-	const content = await fs.readFile(filePath);
-	return crypto.createHash('md5').update(content).digest('hex');
-}
-
-async function getExistingHash(filePath: string): Promise<string | null> {
-	// Extract existing hash from the first line of the file
-	try {
-		const content = await fs.readFile(filePath, 'utf-8');
-		return content.split('\n')[0].replace('// ', '');
-	} catch {
-		return null;
-	}
+async function writeCompiledFile(filePath: string, code: string): Promise<void> {
+    await fs.mkdir(path.posix.dirname(filePath), { recursive: true });
+    await fs.writeFile(filePath, code);
 }
 
 async function getContentHash(content: string): Promise<string> {
-	// Generate MD5 hash of content string
-	return crypto.createHash('md5').update(content).digest('hex');
+    return crypto.createHash('md5').update(content).digest('hex');
+}
+
+// Helper function to extract Hash from JS file content
+function extractHashFromJs(content: string): string | null {
+    const match = content.match(/\/\/\s*HASH:\s*([a-f0-9]+)/);
+    return match ? match[1] : null;
+}
+
+// Helper function to extract UUID from JS file content or generate a new one
+async function getExistingUUID(jsFilePath: string): Promise<string | null> {
+    try {
+        const jsContent = await fs.readFile(jsFilePath, 'utf8');
+        return extractUUIDFromJs(jsContent);
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            // File doesn't exist, return null to generate a new UUID
+            return null;
+        } else {
+            // Other error, rethrow
+            console.error('Error reading JS file:', error);
+            throw error;
+        }
+    }
+}
+
+// Helper function to extract UUID from JS file content
+function extractUUIDFromJs(content: string): string | null {
+    const match = content.match(/\/\/\s*UUID:\s*([a-f0-9-]+)/);
+    return match ? match[1] : null;
 }

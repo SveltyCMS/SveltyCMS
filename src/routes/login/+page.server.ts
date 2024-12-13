@@ -194,7 +194,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 								message: `New registration ${googleUser.name}`,
 								templateName: 'welcomeUser',
 								lang: get(systemLanguage),
-								props: { username: googleUser.name || '', email }
+								props: { username: googleUser.name || '', email, hostLink: publicEnv.HOST_LINK || `https://${request.headers.get('host')}` }
 							})
 						});
 
@@ -321,7 +321,8 @@ export const actions: Actions = {
 					templateName: 'welcomeUser',
 					props: {
 						username,
-						email
+						email,
+						hostLink: publicEnv.HOST_LINK || `https://${event.request.headers.get('host')}`
 					}
 				})
 			});

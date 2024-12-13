@@ -31,15 +31,13 @@
 <script lang="ts">
 	import { getFieldName, meta_data } from '@utils/utils';
 	import { saveFormData } from '../utils/data';
+	import type { Field, Schema, FieldValue } from '@src/collections/types';
+	import type { ModifyRequestParams } from '@components/widgets';
+	import type { StatusType } from '@src/collections/types';
 
 	// Components
 	import TranslationStatus from './TranslationStatus.svelte';
 	import ScheduleModal from './ScheduleModal.svelte';
-
-	// Types
-	import type { Field, Schema, CategoryData } from '@src/collections/types';
-
-	type StatusType = NonNullable<Schema['status']>;
 
 	// Skeleton
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
@@ -69,6 +67,23 @@
 	// Extend Field with translated property
 	interface TranslatableField extends Field {
 		translated: true;
+		widget: Widget;
+		type: string;
+		config: Widget;
+		label: string;
+		required?: boolean;
+		unique?: boolean;
+		default?: FieldValue;
+		validate?: (value: FieldValue) => boolean | Promise<boolean>;
+		display?: (args: {
+			data: Record<string, FieldValue>;
+			collection: string;
+			field: Field;
+			entry: Record<string, FieldValue>;
+			contentLanguage: string;
+		}) => Promise<string> | string;
+		callback?: (args: { data: Record<string, FieldValue> }) => void;
+		modifyRequest?: (args: ModifyRequestParams<Widget>) => Promise<object>;
 	}
 
 	interface SaveData {
@@ -90,9 +105,9 @@
 		updatedBy?: string;
 	}
 
-	// State declarations
-	let previousLanguage = $state($contentLanguage);
-	let previousTabSet = $state($tabSet);
+	// State declarations with proper types
+	let previousLanguage = $state<string>($contentLanguage);
+	let previousTabSet = $state<string>($tabSet);
 	let tempData = $state<Partial<Record<string, CollectionData>>>({});
 	let schedule = $state<string>(
 		typeof collectionValue.value?._scheduled === 'number' ? new Date(collectionValue.value._scheduled).toISOString().slice(0, 16) : ''
@@ -101,14 +116,14 @@
 		typeof collectionValue.value?.createdAt === 'number' ? new Date(collectionValue.value.createdAt * 1000).toISOString().slice(0, 16) : ''
 	);
 	let saveLayerStore = $state<() => Promise<void>>(async () => {});
-	let showMore = $state(false);
+	let showMore = $state<boolean>(false);
 	let next = $state<() => Promise<void>>(() => Promise.resolve());
 
 	// Compute category name using derived state
 	let categoryName = $derived(
 		(() => {
 			const categoryEntries = Object.values(categories.value || {});
-			const cat = categoryEntries.find((cat: CategoryData) => cat.collections?.some((col: Schema) => col.name === collection.value?.name));
+			const cat = categoryEntries.find((cat: CollectionData) => cat.collections?.some((col: Schema) => col.name === collection.value?.name));
 			return cat?.name || '';
 		})()
 	);

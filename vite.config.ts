@@ -1,50 +1,31 @@
 /**
  * @file vite.config.ts
- * @description This configuration file defines the Vite setup for a SvelteKit project,
- * including custom plugins for dynamic role and permission handling, collection handling,
- * Tailwind CSS purging, and Paraglide integration. It also initializes compilation tasks
- * and sets up environment variables and alias paths for the project.
- *
- * @dependencies
- * - Path: Node.js module for handling and transforming file paths.
- * - fs: Node.js file system module used to read the package.json file.
- * - resolve: Vite utility to resolve file paths.
- * - sveltekit: Plugin for integrating Vite with SvelteKit.
- * - purgeCss: Plugin to purge unused Tailwind CSS classes from the final build.
- * - paraglide: Plugin for integrating the Inlang localization framework.
- * - compile, generateCollectionTypes, generateCollectionFieldTypes:
- *   Custom utilities to handle dynamic compilation and type generation for collections.
+ * @description This configuration file defines the Vite setup for a SvelteKit project.
+ * It includes checks for required configuration files (private.ts and public.ts),
+ * a custom plugin for dynamic collection handling (compilation, type generation, hot reloading),
+ * dynamic role and permission handling with hot reloading, Tailwind CSS purging,
+ * and Paraglide integration for internationalization. The configuration also initializes
+ * compilation tasks, sets up environment variables, and defines alias paths for the project.
  */
 
 import Path from 'path';
 import { resolve } from 'path';
 import { readFileSync, existsSync } from 'fs';
 import { execSync } from 'child_process';
-
 import { purgeCss } from 'vite-plugin-tailwind-purgecss';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import { paraglide } from '@inlang/paraglide-sveltekit/vite';
-// Gets package.json version info on app start
-// https://kit.svelte.dev/faq#read-package-jsonimport { readFileSync } from 'fs'
-import { fileURLToPath } from 'url';
-import { compile } from './src/routes/api/compile/compile';
-import { generateCollectionTypes, generateCollectionFieldTypes } from './src/collections/collectionTypes';
+import { compile, cleanupOrphanedFiles } from './src/routes/api/compile/compile';
+import { generateCollectionTypes } from './src/collections/vite';
 
 // Get package.json version info
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 
-// Get current file and directory info
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = Path.dirname(__filename);
-const parsed = Path.parse(__dirname);
-
-// Define paths for collections
-const compiledCollections = Path.posix.join('/', __dirname.replace(parsed.root, ''), 'collections/');
-const userCollections = Path.posix.join('/', __dirname.replace(parsed.root, ''), 'config/collections/');
-
-// Define config directory paths
-const configDir = resolve(__dirname, 'config');
+// Config directories
+const userCollections = Path.posix.join(process.cwd(), 'config/collections');
+const compiledCollections = Path.posix.join(process.cwd(), 'collections');
+const configDir = resolve(process.cwd(), 'config');
 const privateConfigPath = resolve(configDir, 'private.ts');
 const publicConfigPath = resolve(configDir, 'public.ts');
 
@@ -64,86 +45,120 @@ configPaths.forEach((path) => {
 	}
 });
 
-// Initial compilation of collections
-await compile({
-	userCollections,
-	compiledCollections
-});
+let compileTimeout: NodeJS.Timeout;
 
 export default defineConfig({
 	plugins: [
 		sveltekit(),
 		{
-			name: 'collection-handler',
-			async handleHotUpdate({ file, server }) {
-				// Monitor changes in:
-				// 1. config/collections/**/*.ts - User-defined collection configurations (including nested)
-				// 2. src/collections/categories.ts - Auto-generated category structure
-				if (/config[/\\]collections[/\\].*[/\\].*\.ts$/.test(file) || /src[/\\]collections[/\\]categories\.ts$/.test(file)) {
-					console.log('Collection file changed:', file);
-					try {
-						// Compile the changed collection
-						await compile({
-							userCollections,
-							compiledCollections
-						});
-
-						// Generate updated types
-						await generateCollectionTypes();
-						await generateCollectionFieldTypes();
-
-						// Notify client to reload collections
-						server.ws.send({
-							type: 'custom',
-							event: 'collections-updated',
-							data: { file }
-						});
-
-						// Trigger HMR for affected modules
-						return [];
-					} catch (error) {
-						console.error('Error processing collection change:', error);
-						return [];
-					}
+			name: 'collection-watcher',
+			async buildStart() {
+				try {
+					await compile({ userCollections, compiledCollections });
+					console.log('Initial compilation successful!');
+				} catch (error) {
+					console.error('Initial compilation failed:', error);
+					throw error;
 				}
+			},
+			configureServer(server) {
+				let lastUnlinkFile: string | null = null;
+				let lastUnlinkTime = 0;
+				const lastUUIDUpdate: { [key: string]: number } = {};
 
-				// Handle category file changes
-				if (/src[/\\]collections[/\\]categories\.ts$/.test(file)) {
-					console.log('Categories file changed:', file);
-					server.ws.send({
-						type: 'custom',
-						event: 'categories-updated',
-						data: { file }
+				return () => {
+					server.watcher.on('all', async (event, file) => {
+						// Monitor changes in config/collections/**/*.ts and **/*.js
+						if (file.startsWith(userCollections) && (file.endsWith('.ts') || file.endsWith('.js'))) {
+							console.log(`Collection file event: ${event} - \x1b[34m${file}\x1b[0m`);
+
+							clearTimeout(compileTimeout);
+							compileTimeout = setTimeout(async () => {
+								try {
+									const currentTime = Date.now();
+
+									if (event === 'unlink' || event === 'unlinkDir') {
+										lastUnlinkFile = file;
+										lastUnlinkTime = currentTime;
+										console.log(`Collection file deleted: \x1b[31m${file}\x1b[0m`);
+
+										// Handle deletion
+										await cleanupOrphanedFiles(userCollections, compiledCollections);
+										console.log(`Cleanup completed for deleted file: \x1b[31m${file}\x1b[0m`);
+									} else if (event === 'add' || event === 'change') {
+										const isRename = lastUnlinkFile && (currentTime - lastUnlinkTime < 100);
+
+										if (isRename) {
+											console.log(`Collection file renamed: \x1b[33m${lastUnlinkFile}\x1b[0m -> \x1b[32m${file}\x1b[0m`);
+											lastUnlinkFile = null;
+										} else {
+											console.log(`Collection file ${event}: \x1b[32m${file}\x1b[0m`);
+										}
+
+										// Track update time
+										lastUUIDUpdate[file] = currentTime;
+
+										// Compile
+										await compile({ userCollections, compiledCollections });
+
+										try {
+											await generateCollectionTypes(server);
+											console.log(`Collection types updated for: \x1b[32m${file}\x1b[0m`);
+										} catch (error) {
+											console.error('Error updating collection types:', error);
+										}
+									}
+
+									// Notify client to reload collections
+									server.ws.send({
+										type: 'custom',
+										event: 'collections-updated',
+										data: {}
+									});
+								} catch (error) {
+									console.error(`Error processing collection file ${event}:`, error);
+								}
+							}, 50);
+						}
+
+						// Handle category file changes
+						if (file.startsWith(Path.posix.join(process.cwd(), 'src/collections/categories.ts'))) {
+							console.log(`Categories file changed \x1b[34m${file}\x1b[0m`);
+							server.ws.send({
+								type: 'custom',
+								event: 'categories-updated',
+								data: {}
+							});
+							return []; // Prevent default HMR behavior
+						}
+
+						// Handle config file changes
+						if (file.startsWith(Path.posix.join(process.cwd(), 'config/roles.ts'))) {
+							console.log(`Roles file changed: \x1b[34m${file}\x1b[0m`);
+
+							try {
+								// Clear module cache to force re-import
+								const rolesPath = `file://${Path.posix.resolve(process.cwd(), 'config', 'roles.ts')}`;
+								// Dynamically reimport updated roles & permissions
+								const { roles } = await import(rolesPath + `?update=${Date.now()}`);
+								// Update roles and permissions in the application
+								const { setLoadedRoles } = await import('./src/auth/types');
+								setLoadedRoles(roles);
+
+								// Trigger full page reload
+								server.ws.send({ type: 'full-reload' });
+							} catch (error) {
+								console.error('Error reloading roles:', error);
+							}
+							return [];
+						}
 					});
-					return [];
-				}
-
-				// Handle config file changes
-				if (/config[/\\]roles\.ts$/.test(file)) {
-					console.log('Roles file changed:', file);
-					try {
-						// Clear module cache to force re-import
-						const rolesPath = `file://${Path.resolve(__dirname, 'config', 'roles.ts')}`;
-						// Dynamically reimport updated roles & permissions
-						const { roles } = await import(rolesPath + `?update=${Date.now()}`);
-						// Update roles and permissions in the application
-						const { setLoadedRoles } = await import('./src/auth/types');
-						setLoadedRoles(roles);
-
-						console.log('Roles reloaded');
-						// Trigger HMR for affected modules
-						server.ws.send({ type: 'full-reload' });
-					} catch (error) {
-						console.error('Error reloading roles:', error);
-					}
-					return [];
-				}
+				};
 			},
 			config() {
 				return {
 					define: {
-						'import.meta.env.root': JSON.stringify(Path.posix.join('/', __dirname.replace(parsed.root, ''))),
-						// 'import.meta.env.systemCollectionsPath': JSON.stringify(Path.join(__dirname, 'src/collections')),
+						'import.meta.env.root': JSON.stringify(Path.posix.join('/', process.cwd().replace(Path.parse(process.cwd()).root, ''))),
 						'import.meta.env.userCollectionsPath': JSON.stringify(userCollections),
 						'import.meta.env.compiledCollectionsPath': JSON.stringify(compiledCollections)
 					}
@@ -157,18 +172,41 @@ export default defineConfig({
 			outdir: './src/paraglide' // Output directory for generated files
 		})
 	],
+	build: {
+		rollupOptions: {
+			onwarn(warning, warn) {
+				// Ignore circular dependency warnings from semver
+				if (warning.code === 'CIRCULAR_DEPENDENCY' && warning.ids?.some(id => id.includes('semver'))) {
+					return;
+				}
+				warn(warning);
+			}
+		},
+		chunkSizeWarningLimit: 1000,
+		target: 'esnext'
+	},
+	optimizeDeps: {
+		exclude: ['semver']
+	},
+	esbuild: {
+		format: 'esm',
+		target: 'esnext',
+		supported: {
+			'dynamic-import': true,
+			'import-meta': true
+		}
+	},
 	server: {
 		fs: { allow: ['static', '.'] } // Allow serving files from specific directories
 	},
-
 	resolve: {
 		alias: {
-			'@root': resolve(__dirname, './'),
-			'@src': resolve(__dirname, './src'),
-			'@components': resolve(__dirname, './src/components'),
-			'@collections': resolve(__dirname, './src/collections'),
-			'@utils': resolve(__dirname, './src/utils'),
-			'@stores': resolve(__dirname, './src/stores')
+			'@root': resolve(process.cwd(), './'),
+			'@src': resolve(process.cwd(), './src'),
+			'@components': resolve(process.cwd(), './src/components'),
+			'@collections': resolve(process.cwd(), './src/collections'),
+			'@utils': resolve(process.cwd(), './src/utils'),
+			'@stores': resolve(process.cwd(), './src/stores')
 		}
 	},
 	define: {

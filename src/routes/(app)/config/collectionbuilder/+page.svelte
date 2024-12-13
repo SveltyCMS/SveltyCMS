@@ -19,8 +19,9 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { categoryConfig } from '@src/collections/categories';
-	import { createRandomID, checkCollectionNameConflict } from '@utils/utils';
-	import type { CategoryData } from '@src/collections/types';
+	import { v4 as uuidv4 } from 'uuid';
+	import { checkCollectionNameConflict } from '@utils/utils';
+	import type { CollectionData } from '@src/collections/types';
 
 	// Stores
 	import { collectionValue, mode, categories } from '@root/src/stores/collectionStore.svelte';
@@ -64,7 +65,7 @@
 	}
 
 	// State variables
-	let currentConfig = $state<Record<string, CategoryData>>(categoryConfig);
+	let currentConfig = $state<Record<string, CollectionData>>(categoryConfig);
 	let isLoading = $state(false);
 	let apiError = $state<string | null>(null);
 
@@ -133,7 +134,7 @@
 	async function addNewCategory(response: CategoryModalResponse): Promise<void> {
 		const newConfig = { ...currentConfig };
 		const categoryKey = response.newCategoryName.toLowerCase().replace(/\s+/g, '-');
-		const newCategoryId = await createRandomID();
+		const newCategoryId = uuidv4();
 
 		newConfig[categoryKey] = {
 			id: newCategoryId,
@@ -182,7 +183,7 @@
 	}
 
 	// Handle collection save with conflict checking
-	function handleSave(event: CustomEvent<{ name: string; data: Record<string, CategoryData> }>): void {
+	function handleSave(event: CustomEvent<{ name: string; data: Record<string, CollectionData> }>): void {
 		const { name, data } = event.detail;
 
 		checkNameConflicts(name).then(async (nameCheck) => {

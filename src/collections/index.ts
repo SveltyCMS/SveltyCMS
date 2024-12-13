@@ -14,7 +14,7 @@ import axios from 'axios';
 import { error } from '@sveltejs/kit';
 import { browser, building, dev } from '$app/environment';
 import { getCollectionFiles } from '@api/getCollections/getCollectionFiles';
-import { createRandomID } from '@utils/utils';
+import { v4 as uuidv4 } from 'uuid';
 import { categoryConfig } from './categories';
 import { getCollectionModels } from '@src/databases/db';
 import type { ProcessedModule } from './CollectionManager';
@@ -31,6 +31,7 @@ import type { Schema, CollectionTypes, Category } from './types';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
+
 
 // Constants for batch processing
 const BATCH_SIZE = 50; // Number of collections to process per batch
@@ -52,12 +53,12 @@ interface CategoryNode {
 	subcategories?: Map<string, CategoryNode>;
 }
 
-interface CategoryData {
+interface CollectionData {
 	id: string;
 	name: string;
 	icon: string;
 	collections: Schema[];
-	subcategories: Record<string, CategoryData>;
+	subcategories: Record<string, CollectionData>;
 }
 
 // Function to create categories from folder structure
@@ -106,7 +107,8 @@ async function processBatch(collections: Schema[]): Promise<void> {
 			currentPath = currentPath ? `${currentPath}/${segment}` : segment;
 
 			if (!currentMap.has(segment)) {
-				const randomId = await createRandomID();
+				const randomId = uuidv4();
+
 				const config = categoryConfig[currentPath] || {
 					icon: 'iconoir:category',
 					order: 999
@@ -144,8 +146,8 @@ async function processBatch(collections: Schema[]): Promise<void> {
 }
 
 // Helper function to flatten and sort the category hierarchy
-function flattenAndSortCategories(): Record<string, CategoryData> {
-	const result: Record<string, CategoryData> = {};
+function flattenAndSortCategories(): Record<string, CollectionData> {
+	const result: Record<string, CollectionData> = {};
 
 	// Convert Map entries to array and sort
 	const sortedCategories = Array.from(categoryLookup.entries()).sort(([, a], [, b]) => a.order - b.order);
@@ -273,7 +275,7 @@ async function getImports(recompile: boolean = false): Promise<Record<Collection
 		const processModule = async (name: string, module: ProcessedModule, modulePath: string) => {
 			const collection = (module as { schema: Schema })?.schema ?? {};
 			if (collection) {
-				const randomId = await createRandomID();
+				const randomId = uuidv4();
 				collection.name = name as CollectionTypes;
 				collection.icon = collection.icon || 'iconoir:info-empty';
 				collection.id = parseInt(randomId.toString().slice(0, 8), 16);

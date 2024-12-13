@@ -18,12 +18,8 @@
 	// Svelty-email
 	import { Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';
 
-	interface Props {
-		username?: string;
-		hostLink?: string;
-	}
-
-	let props: Props;
+	export let username: string | undefined;
+	export let hostLink: string = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD;
 
 	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
 
@@ -65,11 +61,11 @@
 	<Section>
 		<Container>
 			<Section style={btnContainer}>
-				<Link href={props.hostLink || (dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD)}>
+				<Link href={hostLink}>
 					<Img src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png" alt={publicEnv.SITE_NAME} width="150" height="auto" />
 				</Link>
 			</Section>
-			<Text>{m.welcomeuser_username({ username: props.username || '' })}</Text>
+			<Text>{m.welcomeuser_username({ username: username || '' })}</Text>
 			<Text>Welcome to <SiteName /> - a SvelteKit-powered flexible Headless CMS</Text>
 			<Text>{m.welcomeuser_headless()}</Text>
 			<Text>
@@ -79,7 +75,7 @@
 			<Text>{m.welcomeuser_thanks()}</Text>
 
 			<Section style={btnContainer}>
-				<Button pX={12} pY={12} style={button} href={props.hostLink || (dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD)}>Go   to <SiteName /></Button>
+				<Button pX={12} pY={12} style={button} href={hostLink}>Go to <SiteName /></Button>
 			</Section>
 			<Hr style={hr} />
 			<Link style={footer} href="https://www.sveltycms.com">Your <SiteName /> team</Link>

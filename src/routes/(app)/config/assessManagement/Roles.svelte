@@ -38,7 +38,7 @@ It provides the following functionality:
 
 	// Svelte DND-actions
 	import { dndzone } from 'svelte-dnd-action';
-	import { createRandomID } from '@utils/utils';
+	import { v4 as uuidv4 } from 'uuid';
 
 	const flipDurationMs = 100;
 
@@ -131,7 +131,7 @@ It provides the following functionality:
 		const { roleName, roleDescription, currentGroupName, selectedPermissions, currentRoleId } = role;
 		if (!roleName) return;
 
-		const roleId = currentRoleId ?? (await createRandomID());
+		const roleId = currentRoleId ?? uuidv4();
 		const newRole = {
 			_id: roleId,
 			id: roleId, // Add id for dndzone

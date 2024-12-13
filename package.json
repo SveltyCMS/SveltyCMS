@@ -9,7 +9,7 @@
 		"dev": "vite dev",
 		"devv": "LAUNCH_EDITOR='code' vite --open",
 		"-- BUILD ---------------------------------------------": "",
-		"build": "vite build",
+		"build": "NODE_OPTIONS='--max-old-space-size=8192' vite build",
 		"-- CHECK & TEST ---------------------------------------": "",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --threshold error",
 		"check:watch": " svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
@@ -21,7 +21,7 @@
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write .",
 		"-- OTHER ----------------------------------------------": "",
-		"preview": "vite preview",
+		"preview": "NODE_OPTIONS='--max-old-space-size=8192' vite preview",
 		"paraglide": "paraglide-js compile --project ./project.inlang",
 		"translate": "npx @inlang/cli machine translate --project ./project.inlang",
 		"db:push": "drizzle-kit push",
@@ -64,16 +64,16 @@
 	"devDependencies": {
 		"@clack/prompts": "^0.8.2",
 		"@iconify/svelte": "^4.1.0",
-		"@playwright/test": "^1.49.0",
+		"@playwright/test": "^1.49.1",
 		"@semantic-release/git": "^10.0.1",
 		"@skeletonlabs/skeleton": "^2.10.3",
 		"@skeletonlabs/tw-plugin": "^0.4.0",
 		"@sveltejs/adapter-node": "^5.2.9",
-		"@sveltejs/kit": "^2.9.0",
+		"@sveltejs/kit": "^2.10.1",
 		"@sveltejs/vite-plugin-svelte": "^5.0.1",
 		"@types/eslint": "^9.6.1",
 		"@types/mime-types": "^2.1.4",
-		"@types/node": "^22.10.1",
+		"@types/node": "^22.10.2",
 		"@types/node-os-utils": "^1.3.4",
 		"@types/nodemailer": "^6.4.17",
 		"autoprefixer": "^10.4.20",
@@ -88,7 +88,7 @@
 		"prettier-plugin-tailwindcss": "^0.6.9",
 		"semantic-release": "^24.2.0",
 		"sharp": "^0.33.5",
-		"svelte": "^5.8.1",
+		"svelte": "^5.11.0",
 		"svelte-awesome-color-picker": "^3.1.4",
 		"svelte-check": "^4.1.1",
 		"svelte-confetti": "2.2.0",
@@ -98,7 +98,7 @@
 		"tailwindcss": "^3.4.16",
 		"tslib": "^2.8.1",
 		"typescript": "^5.7.2",
-		"typescript-eslint": "^8.17.0",
+		"typescript-eslint": "^8.18.0",
 		"valibot": "^1.0.0-beta.9",
 		"vite": "^6.0.3",
 		"vite-plugin-tailwind-purgecss": "^0.3.5"
@@ -157,11 +157,13 @@
 		"redis": "^4.7.0",
 		"serve-static": "^1.16.2",
 		"svelty-email": "^0.0.11",
-		"tailwind-merge": "^2.5.5"
+		"tailwind-merge": "^2.5.5",
+		"uuid": "^11.0.3"
+
 	},
 	"patchedDependencies": {
-		"sveltekit-superforms@2.20.1": "patches/sveltekit-superforms@2.20.1.patch",
 		"sveltekit-superforms@2.21.1": "patches/sveltekit-superforms@2.21.1.patch"
+
 	},
 	"overrides": {
 		"punycode": "^2.3.1",

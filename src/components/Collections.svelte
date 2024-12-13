@@ -24,7 +24,7 @@ Features:
 	import { onMount } from 'svelte';
 
 	// Types
-	import type { Schema, CategoryData, Category } from '@src/collections/types';
+	import type { Schema, CollectionData, Category } from '@src/collections/types';
 
 	// Stores
 	import { get } from 'svelte/store';
@@ -66,15 +66,12 @@ Features:
 	let filteredCategories = $state<FilteredCategory[]>([]);
 
 	// Function to flatten and filter categories with improved subcategory search
-	function filterCategories(searchTerm: string, cats: Record<string, CategoryData>): FilteredCategory[] {
+	function filterCategories(searchTerm: string, cats: Record<string, CollectionData>): FilteredCategory[] {
 		if (!cats || Object.keys(cats).length === 0) return [];
 
-		function processCategory(category: CategoryData, level: number = 0): FilteredCategory | null {
-			const idStr = category.id.replace(/\D/g, '');
-			const id = idStr ? parseInt(idStr) : Date.now();
-
+		function processCategory(category: CollectionData, level: number = 0): FilteredCategory | null {
 			const processed: FilteredCategory = {
-				id,
+				id: category.id,
 				name: category.name,
 				icon: category.icon,
 				collections: [],
@@ -88,13 +85,13 @@ Features:
 			if (category.subcategories) {
 				Object.entries(category.subcategories).forEach(([key, subCat]) => {
 					if (subCat.isCollection) {
-						const collectionId = parseInt(subCat.id.replace(/\D/g, '') || Date.now().toString());
-						const collectionSchema = collections.value[key];
+						const collectionSchema = collections.value[subCat.id] || collections.value[key];
 
 						if (collectionSchema) {
 							const collection = {
 								...collectionSchema,
-								id: collectionId,
+								id: subCat.id,
+								name: subCat.name || collectionSchema.name, // Use the friendly name from subcategory
 								icon: subCat.icon || collectionSchema.icon,
 								fields: collectionSchema.fields || []
 							};

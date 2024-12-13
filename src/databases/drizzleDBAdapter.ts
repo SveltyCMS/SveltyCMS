@@ -22,7 +22,7 @@
 
 import { privateEnv } from '@root/config/private';
 
-import { createRandomID } from '@utils/utils';
+import { v4 as uuidv4 } from 'uuid';
 import type { dbInterface } from './dbInterface';
 
 //Stores
@@ -208,11 +208,11 @@ export class DrizzleDBAdapter implements dbInterface {
 	}
 
 	async generateId(): Promise<string> {
-		return createRandomID();
+		return uuidv4();
 	}
 
 	async createDraft(content: any, originalDocumentId: string, userId: string): Promise<any> {
-		const draftId = this.generateId();
+		const draftId = uuidv4();
 		await dbClient.execute(
 			sql`INSERT INTO drafts (id, content, original_document_id, user_id) VALUES (${draftId}, ${content}, ${originalDocumentId}, ${userId})`
 		);
@@ -238,7 +238,7 @@ export class DrizzleDBAdapter implements dbInterface {
 	}
 
 	async createRevision(documentId: string, content: any, userId: string): Promise<any> {
-		const revisionId = this.generateId();
+		const revisionId = uuidv4();
 		await dbClient.execute(
 			sql`INSERT INTO revisions (id, document_id, content, user_id) VALUES (${revisionId}, ${documentId}, ${content}, ${userId})`
 		);

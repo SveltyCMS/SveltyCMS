@@ -413,12 +413,13 @@ const addSecurityHeaders: Handle = async ({ event, resolve }) => {
 	return response;
 };
 
+// Performance monitoring utilities
 const getPerformanceEmoji = (responseTime: number): string => {
-	if (responseTime < 100) return '🚀';
-	if (responseTime < 500) return '⚡';
-	if (responseTime < 1000) return '⏱️';
-	if (responseTime < 3000) return '🕰️';
-	return '🐢';
+	if (responseTime < 100) return '🚀'; // Super fast
+	if (responseTime < 500) return '⚡'; // Fast
+	if (responseTime < 1000) return '⏱️'; // Moderate
+	if (responseTime < 3000) return '🕰️'; // Slow
+	return '🐢'; // Very slow
 };
 
 // Combine all hooks

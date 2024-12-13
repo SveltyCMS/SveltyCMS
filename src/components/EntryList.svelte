@@ -29,7 +29,7 @@ Features:
 	import { deleteData, getData, setStatus } from '@utils/data';
 
 	// Types
-	import type { CategoryData } from '@src/collections/types';
+	import type { CollectionData } from '@src/collections/types';
 
 	// Stores
 	import { contentLanguage, systemLanguage } from '@stores/store';
@@ -82,12 +82,13 @@ Features:
 	let columnShow = $state(false);
 
 	// Retrieve entryListPaginationSettings from local storage or set default values for each collection
-	const entryListPaginationSettingsKey = `entryListPaginationSettings_${String(collection.value?.name)}`;
+	const entryListPaginationSettingsKey = `entryListPaginationSettings_${String(collection.value?.id)}`;
 	let entryListPaginationSettings: any =
 		browser && localStorage.getItem(entryListPaginationSettingsKey)
 			? JSON.parse(localStorage.getItem(entryListPaginationSettingsKey) as string)
 			: {
-					collectionTypes: collection.value?.name,
+					collectionId: collection.value?.id,
+					collectionName: collection.value?.name,
 					density: 'normal',
 					sorting: { sortedBy: '', isSorted: 0 },
 					currentPage: 1,
@@ -283,7 +284,8 @@ Features:
 	$effect(() => {
 		entryListPaginationSettings = {
 			...entryListPaginationSettings,
-			collectionTypes: currentCollection?.name,
+			collectionId: currentCollection?.id,
+			collectionName: currentCollection?.name,
 			filters,
 			sorting,
 			density,
@@ -431,7 +433,7 @@ Features:
 		if (!currentCollection?.name || !categories.value) return '';
 
 		// Helper function to find parent category name
-		const findParentCategory = (categories: Record<string, CategoryData>): string => {
+		const findParentCategory = (categories: Record<string, CollectionData>): string => {
 			// Only process root categories (Collections and Menu)
 			for (const [rootName, rootCategory] of Object.entries(categories)) {
 				if (rootName !== 'Collections' && rootName !== 'Menu') continue;
@@ -584,7 +586,8 @@ Features:
 
 								// Reset the entryListPaginationSettings to the default state
 								entryListPaginationSettings = {
-									collectionTypes: currentCollection?.name,
+									collectionId: collection.value?.id,
+									collectionName: collection.value?.name,
 									density: 'normal',
 									sorting: { sortedBy: '', isSorted: 0 },
 									currentPage: 1,

@@ -40,6 +40,7 @@ import type { dbInterface, Draft, Revision, Theme, Widget, SystemPreferences, Sy
 import { UserSchema } from '@src/auth/mongoDBAuth/userAdapter';
 import { TokenSchema } from '@src/auth/mongoDBAuth/tokenAdapter';
 import { SessionSchema } from '@src/auth/mongoDBAuth/sessionAdapter';
+import type { CollectionConfig } from '@src/collections/types';
 
 // Media
 import type { MediaBase, MediaType } from '@utils/media/mediaModels';
@@ -51,25 +52,25 @@ import { DEFAULT_THEME } from '@src/databases/themeManager';
 import { logger } from '@utils/logger.svelte';
 
 // Widget Manager
-import { getWidgets } from '@src/components/widgets/widgetManager.svelte';
+import { initializeWidgets, getWidgets } from '@components/widgets/widgetManager.svelte';
 
 // Define the media schema for different media types
 const mediaSchema = new Schema(
-  {
-    hash: { type: String, required: true },
-    thumbnail: {
-      url: { type: String, required: true }, // The URL of the media
-      altText: { type: String }, // The alt text for the media
-      name: { type: String }, // The name for the media
-      type: { type: String }, // The type for the media
-      size: { type: Number }, // The size for the media
-      width: { type: Number }, // The width for the media
-      height: { type: Number } // The height for the media
-    } // The thumbnails of media
-    // url: { type: String, required: true }, // The URL of the media
-    // altText: { type: String, required: true }, // The alt text for the media
-  },
-  { timestamps: false, collection: 'media' } // Explicitly set the collection name
+	{
+		hash: { type: String, required: true }, // The hash of the media
+		thumbnail: {
+			url: { type: String, required: true }, // The URL of the media
+			altText: { type: String }, // The alt text for the media
+			name: { type: String }, // The name for the media
+			type: { type: String }, // The type for the media
+			size: { type: Number }, // The size for the media
+			width: { type: Number }, // The width for the media
+			height: { type: Number } // The height for the media
+		} // The thumbnails of media
+		// url: { type: String, required: true }, // The URL of the media
+		// altText: { type: String, required: true }, // The alt text for the media
+	},
+	{ timestamps: false, collection: 'media' } // Explicitly set the collection name
 );
 
 // Define the Draft model if it doesn't exist already
@@ -165,35 +166,34 @@ const SystemVirtualFolderModel =
     )
   );
 
-import type { CollectionConfig } from '@src/collections/types';
-
-import widgets, { initializeWidgets } from '@src/components/widgets';
-
 export class MongoDBAdapter implements dbInterface {
   private unsubscribe: Unsubscriber | undefined;
   private collectionsInitialized = false;
 
-  // Helper method to recursively scan directories for collections
-  private async scanDirectoryForCollections(dirPath: string): Promise<string[]> {
-    const collectionFiles: string[] = [];
-    try {
-      const entries = await import('fs').then((fs) => fs.promises.readdir(dirPath, { withFileTypes: true }));
+	// Helper method to recursively scan directories for compiled collections
+	private async scanDirectoryForCollections(dirPath: string): Promise<string[]> {
+		const collectionFiles: string[] = [];
+		try {
+			const entries = await import('fs').then((fs) => fs.promises.readdir(dirPath, { withFileTypes: true }));
+			logger.debug(`Scanning directory: \x1b[34m${dirPath}\x1b[0m`);
 
-      for (const entry of entries) {
-        const fullPath = path.join(dirPath, entry.name);
-        if (entry.isDirectory()) {
-          // Recursively scan subdirectories
-          const subDirFiles = await this.scanDirectoryForCollections(fullPath);
-          collectionFiles.push(...subDirFiles);
-        } else if (entry.isFile() && entry.name.endsWith('.js')) {
-          collectionFiles.push(fullPath);
-        }
-      }
-    } catch (error) {
-      logger.error(`Error scanning directory ${dirPath}: ${error.message}`);
-    }
-    return collectionFiles;
-  }
+			for (const entry of entries) {
+				const fullPath = path.posix.join(dirPath, entry.name);
+				if (entry.isDirectory()) {
+					// Recursively scan subdirectories
+					logger.debug(`Found subdirectory: \x1b[34m${entry.name}\x1b[0m`);
+					const subDirFiles = await this.scanDirectoryForCollections(fullPath);
+					collectionFiles.push(...subDirFiles);
+				} else if (entry.isFile() && entry.name.endsWith('.js')) {
+					logger.debug(`Found compiled collection file:  \x1b[34m${entry.name}\x1b[0m`);
+					collectionFiles.push(fullPath);
+				}
+			}
+		} catch (error) {
+			logger.error(`Error scanning directory ${dirPath}: ${error.message}`);
+		}
+		return collectionFiles;
+	}
 
   // Sync collections with database
   async syncCollections(): Promise<void> {
@@ -202,83 +202,123 @@ export class MongoDBAdapter implements dbInterface {
       return;
     }
 
-    try {
-      // Initialize widgets globally
-      if (!globalThis.widgets) {
-        logger.debug('Initializing widgets globally...');
-        globalThis.widgets = widgets;
-        initializeWidgets();
-      }
+		try {
+			// Initialize widgets globally
+			if (!globalThis.widgets) {
+				logger.debug('Initializing widgets globally...');
+				await initializeWidgets();
+				globalThis.widgets = getWidgets();
+				logger.debug('Available widgets:', Object.keys(globalThis.widgets));
+			}
 
-      // Only import fs on server side
-      const { promises: fs } = await import('fs');
+			// Use posix paths for cross-platform compatibility
+			// Get path to compiled collections directory
+			const compiledCollectionsPath = path.posix.resolve(process.cwd(), 'collections');
+			logger.debug('Compiled collections path:', compiledCollectionsPath);
 
-      // Get path to collections directory
-      const collectionsPath = path.resolve(process.cwd(), 'collections');
+			// Check if collections directory exists
+			try {
+				await import('fs').then((fs) => fs.promises.access(compiledCollectionsPath));
+			} catch (error: unknown) {
+				logger.error(`Compiled collections directory not found at ${compiledCollectionsPath}:`, { error });
+				return;
+			}
 
-      logger.debug('Collections path:', collectionsPath);
+			// Track all valid collection UUIDs
+			const validCollectionUUIDs = new Set<string>();
 
-      // Check if collections directory exists
-      try {
-        await fs.access(collectionsPath);
-      } catch (error: unknown) {
-        logger.error(`Collections directory not found at ${collectionsPath}:`, { error });
-        return;
-      }
+			// Known collection directories (should now match your compiled structure)
+			const collectionDirs = ['Collections', 'Menu'];
 
-      // Known collection directories
-      const collectionDirs = ['Collections', 'Menu'];
+			for (const dir of collectionDirs) {
+				const dirPath = path.posix.join(compiledCollectionsPath, dir); // Use compiled path
+				try {
+					logger.debug(`Processing directory: \x1b[34m${dir}\x1b[0m`);
 
-      for (const dir of collectionDirs) {
-        const dirPath = path.join(collectionsPath, dir);
-        try {
-          // Recursively scan for collection files
-          const collectionFiles = await this.scanDirectoryForCollections(dirPath);
-          logger.debug(`Found \x1b[34m${collectionFiles.length}\x1b[0m collection files in \x1b[34m${dir}\x1b[0m directory and subdirectories`);
+					// Scan for compiled .js files
+					const collectionFiles = await this.scanDirectoryForCollections(dirPath); // Scan compiled directory
+					logger.debug(
+						`Found \x1b[34m${collectionFiles.length}\x1b[0m compiled collection files in \x1b[34m${dirPath}\x1b[0m directory and subdirectories:`,
+						collectionFiles
+					);
 
-          for (const filePath of collectionFiles) {
-            try {
-              logger.debug(`Processing collection file: \x1b[34m${filePath}\x1b[0m`);
+					for (const filePath of collectionFiles) {
+						try {
+							logger.debug(`Processing compiled collection file: \x1b[34m${filePath}\x1b[0m`);
 
-              const collection = await import(/* @vite-ignore */ filePath);
-              const collectionConfig = collection.default || collection.schema;
+							// Read the compiled file content to get UUID
+							const content = await import('fs').then((fs) => fs.promises.readFile(filePath, 'utf8'));
+							const uuidMatch = content.match(/\/\/\s*UUID:\s*([a-f0-9-]{36})/i);
+							const uuid = uuidMatch ? uuidMatch[1] : null;
 
-              if (collectionConfig) {
-                // Get collection name from the file path
-                const parsedPath = path.parse(filePath);
-                const collectionName = parsedPath.name;
+							if (!uuid) {
+								logger.error(`No UUID found in compiled collection file: ${filePath}`);
+								continue;
+							}
+
+							logger.debug(`Found UUID in file: \x1b[34m${uuid}\x1b[0m`);
+
+							// Import the collection using the file path
+							const collection = await import(/* @vite-ignore */ filePath + `?update=${Date.now()}`);
+							const collectionConfig = collection.default || collection.schema;
+
+							if (collectionConfig) {
+								// Add UUID to config
+								collectionConfig.id = uuid;
+
+								// Get collection name from the file path (adjust if needed)
+								const parsedPath = path.posix.parse(filePath);
+								const collectionName = parsedPath.name;
 
                 // Add name to config if not present
                 if (!collectionConfig.name) {
                   collectionConfig.name = collectionName;
                 }
 
-                logger.debug(`Collection config for \x1b[34m${collectionName}:\x1b[0m`, {
-                  name: collectionConfig.name,
-                  fields: collectionConfig.fields?.length || 0,
-                  strict: collectionConfig.strict
-                });
+								validCollectionUUIDs.add(uuid);
 
-                await this.createCollectionModel(collectionConfig);
-                logger.debug(`Successfully created/synced collection model for \x1b[34m${collectionName}\x1b[0m`);
-              } else {
-                logger.error(`Collection file ${filePath} does not export a valid schema or default export`);
-              }
-            } catch (error) {
-              logger.error(`Error importing collection ${filePath}: ${error.message}`);
-            }
-          }
-        } catch (error) {
-          logger.error(`Error processing directory ${dir}: ${error.message}`);
-        }
-      }
+								logger.debug(`Collection config for \x1b[34m${collectionName}\x1b[0m:`, {
+									name: collectionConfig.name,
+									uuid: uuid,
+									fields: collectionConfig.fields?.length || 0
+								});
 
-      logger.debug('Collection sync completed successfully');
-    } catch (error) {
-      logger.error('Error syncing collections: ' + error.message);
-      throw new Error('Failed to sync collections');
-    }
-  }
+								await this.createCollectionModel(collectionConfig);
+								logger.debug(`Successfully created/synced collection model for \x1b[34m${collectionName}\x1b[0m`);
+							} else {
+								logger.error(`Collection file ${filePath} does not export a valid schema or default export`);
+							}
+						} catch (error) {
+							logger.error(`Error importing collection ${filePath}:`, error);
+						}
+					}
+				} catch (error) {
+					logger.error(`Error processing directory ${dir}:`, error);
+				}
+			}
+
+			// Check for orphaned collections in MongoDB
+			const collections = await mongoose.connection.db.listCollections().toArray();
+			logger.debug('Current MongoDB collections:', collections.map(c => c.name));
+
+			for (const collection of collections) {
+				if (collection.name.startsWith('collection_')) {
+					const uuid = collection.name.replace('collection_', '');
+					if (!validCollectionUUIDs.has(uuid)) {
+						logger.warn(
+							`⚠️ Found orphaned collection in database: ${collection.name}. This collection exists in MongoDB but has no corresponding collection file. Data will be preserved but you should investigate.`
+						);
+					}
+				}
+			}
+
+			logger.debug('Valid collection UUIDs:', Array.from(validCollectionUUIDs));
+			logger.debug('Collection sync completed successfully');
+		} catch (error) {
+			logger.error('Error syncing collections:', error);
+			throw new Error('Failed to sync collections');
+		}
+	}
 
   // Connect to MongoDB
   async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
@@ -316,24 +356,31 @@ export class MongoDBAdapter implements dbInterface {
       logger.error(`MongoDB connection error: ${err.message}`);
     });
 
-    let lastError: unknown;
-    for (let i = 1; i <= attempts; i++) {
-      try {
-        await mongoose.connect(connectionString, options);
-        logger.debug(`Successfully connected to MongoDB database: \x1b[34m${privateEnv.DB_NAME}\x1b[0m`);
-        await this.syncCollections();
-        return;
-      } catch (error: unknown) {
-        lastError = error;
-        if (i === attempts) {
-          logger.error(`Failed to connect to MongoDB after ${attempts} attempts: ${lastError}`);
-          throw new Error('MongoDB connection failed');
-        }
-        logger.warn(`Connection attempt ${i}/${attempts} failed, retrying...`);
-        await new Promise((resolve) => setTimeout(resolve, 1000 * i)); // Exponential backoff
-      }
-    }
-  }
+		let lastError: unknown;
+		for (let i = 1; i <= attempts; i++) {
+			try {
+				await mongoose.connect(connectionString, options);
+				logger.debug(`Successfully connected to MongoDB database: \x1b[34m${privateEnv.DB_NAME}\x1b[0m`);
+
+				// Only sync if collections are not present
+				const collections = await mongoose.connection.db.listCollections().toArray();
+
+				if (collections.length === 0) {
+					await this.syncCollections();
+				}
+
+				return;
+			} catch (error: unknown) {
+				lastError = error;
+				if (i === attempts) {
+					logger.error(`Failed to connect to MongoDB after ${attempts} attempts: ${lastError}`);
+					throw new Error('MongoDB connection failed');
+				}
+				logger.warn(`Connection attempt ${i}/${attempts} failed, retrying...`);
+				await new Promise((resolve) => setTimeout(resolve, 1000 * i)); // Exponential backoff
+			}
+		}
+	}
 
   // Update generateId to always return string
   generateId(): string {
@@ -360,13 +407,28 @@ export class MongoDBAdapter implements dbInterface {
       // Mark collections as initialized to prevent circular dependency
       this.collectionsInitialized = true;
 
-      // Return base models - collections will be added later as needed
-      return baseModels;
-    } catch (error) {
-      logger.error('Failed to get collection models: ' + error.message);
-      return {};
-    }
-  }
+			// Return base models - collections will be added later as needed
+			return baseModels;
+		} catch (error) {
+			logger.error('Failed to get collection models: ' + error.message);
+			return {};
+		}
+
+	}
+
+	// Set up authentication models
+	setupAuthModels(): void {
+		try {
+			this.setupModel('auth_tokens', TokenSchema);
+			this.setupModel('auth_users', UserSchema);
+			this.setupModel('auth_sessions', SessionSchema);
+			logger.info('Authentication models set up successfully.');
+		} catch (error) {
+			logger.error('Failed to set up authentication models: ' + error.message);
+			throw Error('Failed to set up authentication models');
+		}
+	}
+
 
   setupAuthModels(): void {
     try {
@@ -411,21 +473,22 @@ export class MongoDBAdapter implements dbInterface {
     logger.info('Widget models set up successfully.');
   }
 
-  // Implementing findOne method
-  async findOne<T extends Document>(collection: string, query: FilterQuery<T>): Promise<T | null> {
-    try {
-      const model = mongoose.models[collection] as Model<T>;
-      if (!model) {
-        logger.error(`Collection ${collection} does not exist.`);
-        throw Error(`Collection ${collection} does not exist.`);
-      }
-      const result = await model.findOne(query).lean().exec();
-      return result as T | null; // Explicitly cast to T
-    } catch (error: unknown) {
-      logger.error(`Error in findOne for collection ${collection}:`, { error });
-      throw new Error(`Error in findOne for collection ${collection}`);
-    }
-  }
+
+	// Implementing findOne method
+	async findOne<T extends Document>(collection: string, query: FilterQuery<T>): Promise<T | null> {
+		try {
+			const model = mongoose.models[collection] as Model<T>;
+			if (!model) {
+				logger.error(`Collection ${collection} does not exist.`);
+				throw Error(`Collection ${collection} does not exist.`);
+			}
+			const result = await model.findOne(query).lean().exec();
+			return result as T | null; // Explicitly cast to T
+		} catch (error: unknown) {
+			logger.error(`Error in findOne for collection ${collection}:`, { error });
+			throw new Error(`Error in findOne for collection ${collection}`);
+		}
+	}
 
   // Implementing findMany method
   async findMany<T extends Document>(collection: string, query: FilterQuery<T>): Promise<T[]> {
@@ -568,115 +631,100 @@ export class MongoDBAdapter implements dbInterface {
     }
   }
 
-  // Create a collection model
-  async createCollectionModel(collection: CollectionConfig, collectionPath?: string): Promise<Model<Document>> {
-    if (!collection.name) {
-      throw new Error('Collection must have a name');
-    }
+	// Create a collection model
+	async createCollectionModel(collection: CollectionConfig): Promise<Model<Document>> {
+		// Wait for widgets to initialize first
+		await initializeWidgets();
 
-    // Generate a unique collection name that includes the path
-    const uniqueCollectionName = this.generateCollectionId(
-      `collection_${String(collection.name)}`,
-      collectionPath
-    );
+		// Extract UUID from collection configuration
+		const collectionUUID = collection.id;
+		if (!collectionUUID) {
+			throw new Error('Collection UUID not found. Ensure collection file has UUID in header.');
+		}
 
-    // Check if model already exists
-    if (mongoose.models[uniqueCollectionName]) {
-      return mongoose.models[uniqueCollectionName];
-    }
+		const collectionName = `collection_${collectionUUID}`;
+		logger.debug(`Creating/checking collection model for \x1b[34m${collectionName}\x1b[0m`);
 
-    logger.debug(`Creating collection model for \x1b[34m${uniqueCollectionName}\x1b[0m`);
+		// Check if collection already exists in MongoDB
+		if (mongoose.connection.collections[collectionName.toLowerCase()]) {
+			logger.debug(`Collection ${collectionName} exists in MongoDB`);
+			// Collection exists, return existing model if available or create new model with same name
+			if (mongoose.models[collectionName]) {
+				logger.debug(`Using existing model for collection \x1b[34m${collectionName}\x1b[0m`);
+				return mongoose.models[collectionName];
+			}
+		} else {
+			logger.debug(`Collection ${collectionName} does not exist in MongoDB yet`);
+		}
 
-    // Define base schema definition
-    const schemaDefinition: Record<string, mongoose.SchemaDefinitionProperty> = {
-      createdBy: {
-        type: String,
-        required: false,
-        index: true
-      },
-      createdAt: {
-        type: Date,
-        default: Date.now,
-        index: { expireAfterSeconds: 0 }  // TTL index if needed
-      },
-      updatedAt: {
-        type: Date,
-        default: Date.now,
-        index: true
-      },
-      revisionsEnabled: {
-        type: Boolean,
-        required: false,
-        index: true
-      },
-      translationStatus: {
-        type: mongoose.Schema.Types.Mixed,
-        default: {},
-        index: { sparse: true }
-      },
-      status: {
-        type: String,
-        enum: ['draft', 'published', 'archived'],
-        default: 'draft',
-        index: true
-      }
-    };
+		// Define base schema definition
+		const schemaDefinition: Record<string, mongoose.SchemaDefinitionProperty> = {
+			_id: {
+				type: Buffer,
+				default: () => new mongoose.Types.Buffer(Buffer.from(collectionUUID.replace(/-/g, ''), 'hex'))
+			},
+			createdBy: {
+				type: String,
+				required: false,
+			},
+			revisionsEnabled: {
+				type: Boolean,
+				required: false,
+			},
+			translationStatus: {
+				type: mongoose.Schema.Types.Mixed,
+				default: {},
+			},
+			status: {
+				type: String,
+				enum: ['draft', 'published', 'archived'],
+				default: 'draft',
+			}
+		};
 
-    // Compound index tracking
-    const compoundIndexes: any[] = [];
+		// Add fields from collection schema
+		if (collection.fields) {
+			for (const field of collection.fields) {
+				try {
+					let widgetType: string;
+					let fieldConfig: FieldConfig;
+					let fieldKey: string | undefined;
 
-    // Add fields from collection schema
-    if (collection.fields) {
-      for (const field of collection.fields) {
-        try {
-          let widgetType: string;
-          let fieldConfig: FieldConfig;
-          let fieldKey: string | undefined;
+					if (typeof field === 'function') {
+						// If field is a widget function, execute it to get config
+						const result = field({});
+						widgetType = result.widget.Name; // Get widget name from the widget object
+						fieldConfig = result; // The result contains all field properties
+						fieldKey = result.db_fieldName;
+					} else {
+						// If field is a direct configuration object
+						widgetType = field.widget?.Name || field.type; // Try widget.Name first, fallback to type
+						fieldConfig = field;
+						fieldKey = field.db_fieldName;
+					}
 
-          if (typeof field === 'function') {
-            // If field is a widget function, execute it to get config
-            const result = field({});
-            widgetType = result.widget.Name; // Get widget name from the widget object
-            fieldConfig = result; // The result contains all field properties
-            fieldKey = result.db_fieldName;
-          } else {
-            // If field is a direct configuration object
-            widgetType = field.type;
-            fieldConfig = field;
-            fieldKey = field.db_fieldName;
-          }
-
-          // If db_fieldName is not provided, generate one from the label
-          if (!fieldKey && fieldConfig.label) {
-            fieldKey = fieldConfig.label.toLowerCase().replace(/\s+/g, '_');
-          }
-
-          if (!fieldKey) {
-            logger.warn(`Field in collection \x1b[34m${uniqueCollectionName}\x1b[0m has no db_fieldName or label, skipping`);
-            continue;
-          }
-
-          const isRequired = fieldConfig?.required === true;
-          const isTranslated = fieldConfig?.translated === true;
-          const isSearchable = fieldConfig?.searchable === true;
-          const isUnique = fieldConfig?.unique === true;
+					const isRequired = fieldConfig?.required === true;
+					const isTranslated = fieldConfig?.translated === true;
+					const isSearchable = fieldConfig?.searchable === true;
+					const isUnique = fieldConfig?.unique === true;
 
           // Get widget configuration
           const widgets = getWidgets();
           const widget = widgets[widgetType];
 
-          if (!widget) {
-            logger.warn(`Widget type ${widgetType} not found, using Mixed type`);
-          }
+					if (!widget) {
+						logger.warn(`Widget type ${widgetType} not found, using Mixed type`);
+						logger.debug('Available widgets:', Object.keys(widgets));
+						logger.debug('Field config:', fieldConfig);
+					}
 
           // Default to Mixed type for maximum flexibility with dynamic widgets
           let mongooseType: mongoose.SchemaDefinitionProperty = mongoose.Schema.Types.Mixed;
 
-          // Special handling for relations
-          if (fieldConfig.collection) {
-            mongooseType = mongoose.Schema.Types.ObjectId;
-            compoundIndexes.push({ [fieldKey]: 1 });
-          }
+					// Special handling for relations
+					if (fieldConfig.collection) {
+						mongooseType = mongoose.Schema.Types.ObjectId;
+					}
 
           let fieldSchema: mongoose.SchemaDefinitionProperty = {
             type: isTranslated ? Map : mongooseType,
@@ -699,54 +747,49 @@ export class MongoDBAdapter implements dbInterface {
             fieldSchema.validate = fieldConfig.validate;
           }
 
-          // Add the field to the schema
-          schemaDefinition[fieldKey] = fieldSchema;
-        } catch (error) {
-          logger.error(`Error processing field in collection ${uniqueCollectionName}: ${error.message}`);
-        }
-      }
-    }
+					// Add the field to the schema
+					schemaDefinition[fieldKey] = fieldSchema;
+				} catch (error) {
+					logger.error(`Error processing field in collection ${collectionUUID}: ${error.message}`);
+				}
+			}
+		}
 
-    // Optimized schema options
-    const schemaOptions: mongoose.SchemaOptions = {
-      strict: collection.strict !== false,
-      timestamps: {
-        createdAt: 'createdAt',
-        updatedAt: 'updatedAt'
-      },
-      collection: uniqueCollectionName.toLowerCase(),
-      autoIndex: true,  // Enable auto-indexing in production
-      minimize: false,  // Store empty objects
-      toJSON: {
-        virtuals: true,
-        getters: true
-      },
-      toObject: {
-        virtuals: true,
-        getters: true
-      },
-      id: false,  // Disable virtual id getter
-      versionKey: false  // Disable version key
-    };
+		// Optimized schema options
+		const schemaOptions: mongoose.SchemaOptions = {
+			strict: collection.strict !== false,
+			timestamps: {
+				createdAt: 'createdAt',
+				updatedAt: 'updatedAt'
+			},
+			collection: collectionName.toLowerCase(),
+			autoIndex: true,  // Enable auto-indexing in production
+			minimize: false,  // Store empty objects
+			toJSON: {
+				virtuals: true,
+				getters: true
+			},
+			toObject: {
+				virtuals: true,
+				getters: true
+			},
+			id: false,  // Disable virtual id getter
+			versionKey: false  // Disable version key
+		};
 
     // Create schema
     const schema = new mongoose.Schema(schemaDefinition, schemaOptions);
 
-    // Add compound indexes
-    schema.index({ createdAt: -1 });  // Sort by most recent first
-    schema.index({ status: 1, createdAt: -1 });  // Common query pattern
+		// Add indexes
+		schema.index({ createdAt: -1 });  // Sort by most recent first
+		schema.index({ status: 1, createdAt: -1 });  // Common query pattern
 
-    // Add any collection-specific compound indexes
-    compoundIndexes.forEach(index => {
-      schema.index(index);
-    });
+		// Performance optimization: create indexes in background
+		schema.set('backgroundIndexing', true);
 
-    // Performance optimization: create indexes in background
-    schema.set('backgroundIndexing', true);
-
-    // Create and return the model
-    return mongoose.model(uniqueCollectionName, schema);
-  }
+		// Create and return the model
+		return mongoose.model(collectionName, schema);
+	}
 
   // Methods for Draft and Revision Management
 
@@ -1386,47 +1429,26 @@ export class MongoDBAdapter implements dbInterface {
 
   // Methods for Disconnecting
 
-  // Disconnect from MongoDB
-  async disconnect(): Promise<void> {
-    try {
-      await mongoose.disconnect();
-      logger.info('MongoDB adapter connection closed.');
-    } catch (error) {
-      logger.error(`Error disconnecting from MongoDB: ${error.message}`);
-      throw Error(`Error disconnecting from MongoDB`);
-    }
-  }
-
-  generateCollectionId(collectionName: string, collectionPath?: string): string {
-    // Handle nested folder structure by incorporating full path
-    const normalizedName = collectionName
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '_');  // Replace non-alphanumeric with underscores
-
-    // If a path is provided, incorporate it into the collection name
-    const pathComponent = collectionPath
-      ? collectionPath
-        .toLowerCase()
-        .replace(/[/\\]/g, '_')  // Replace path separators with underscores
-        .replace(/[^a-z0-9]/g, '_')  // Replace non-alphanumeric with underscores
-      : '';
-
-    // Generate a unique identifier using MongoDB's ObjectId
-    const uuid = new mongoose.Types.ObjectId().toString().slice(-8);  // Last 8 characters of ObjectId
-
-    // Combine path, name, and UUID to ensure uniqueness
-    return `${pathComponent ? pathComponent + '_' : ''}${normalizedName}_${uuid}`;
-  }
+	// Disconnect from MongoDB
+	async disconnect(): Promise<void> {
+		try {
+			await mongoose.disconnect();
+			logger.info('MongoDB adapter connection closed.');
+		} catch (error) {
+			logger.error(`Error disconnecting from MongoDB: ${error.message}`);
+			throw Error(`Error disconnecting from MongoDB`);
+		}
+	}
 }
 
 type FieldConfig = {
-  type: string;
-  db_fieldName?: string;
-  label?: string;
-  required?: boolean;
+	type: string;
+	db_fieldName?: string;
+	label?: string;
+	required?: boolean;
 } | ((context: Record<string, unknown>) => {
-  widget: { Name: string };
-  db_fieldName?: string;
-  label?: string;
-  required?: boolean;
+	widget: { Name: string };
+	db_fieldName?: string;
+	label?: string;
+	required?: boolean;
 });

@@ -3,29 +3,20 @@
  * @description Widget Index - Main entry point for widget system
  */
 
-import { initializeWidgets, type WidgetFunction } from './widgetManager.svelte';
-
-// Initialize widgets immediately and store the promise
-const initPromise = initializeWidgets().catch(error => {
-    console.error('Failed to initialize widgets:', error);
-    throw error;
-});
+import { getWidgets, initializeWidgets, type WidgetFunction } from './widgetManager.svelte';
 
 // Create a proxy that ensures widgets are initialized before use
 const widgetProxy = new Proxy({} as Record<string, WidgetFunction>, {
-    get(target, prop: string) {
+    get(target, prop) {
         // Return a function that matches our widget module structure
-        return async (config: Record<string, unknown>) => {
-            // Ensure widgets are initialized before creating the placeholder
-            await initPromise;
-
-            const widgetName = prop.charAt(0).toUpperCase() + prop.slice(1);
+        return (config: Record<string, unknown>) => {
+            const widgetName = prop.toString().charAt(0).toUpperCase() + prop.toString().slice(1);
             return {
                 __widgetName: widgetName,
                 __widgetConfig: config,
                 __isWidgetPlaceholder: true,
                 // Add required widget interface properties
-                label: config.label as string || prop,
+                label: config.label as string || prop.toString(),
                 db_fieldName: config.db_fieldName,
                 translated: config.translated,
                 required: config.required,
@@ -46,6 +37,11 @@ const widgetProxy = new Proxy({} as Record<string, WidgetFunction>, {
             };
         };
     }
+});
+
+// Initialize widgets immediately
+initializeWidgets().catch(error => {
+    console.error('Failed to initialize widgets:', error);
 });
 
 // Export the proxy as the default export

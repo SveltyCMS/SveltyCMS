@@ -39,19 +39,19 @@ const getPerformanceEmoji = (responseTime: number): string => {
 export async function _PATCH({ data, schema, user }: { data: FormData; schema: Schema; user: User }) {
 	const start = performance.now();
 	try {
-		logger.debug(`PATCH request received for schema: ${schema.name}, user_id: ${user._id}`);
+		logger.debug(`PATCH request received for schema: ${schema.id}, user_id: ${user._id}`);
 
-		// Validate schema name
-		if (!schema.name) {
-			logger.error('Invalid or undefined schema name.');
-			return new Response('Invalid schema name', { status: 400 });
+		// Validate schema ID
+		if (!schema.id) {
+			logger.error('Invalid or undefined schema ID.');
+			return new Response('Invalid schema ID', { status: 400 });
 		}
 
 		// Get collection models
 		const collections = await getCollectionModels();
-		const collection = collections[schema.name];
+		const collection = collections[schema.id];
 		if (!collection) {
-			logger.error(`Collection not found for schema: ${schema.name}`);
+			logger.error(`Collection not found for schema ID: ${schema.id}`);
 			return new Response('Collection not found', { status: 404 });
 		}
 
@@ -86,7 +86,7 @@ export async function _PATCH({ data, schema, user }: { data: FormData; schema: S
 
 		const totalDuration = performance.now() - start;
 		const totalEmoji = getPerformanceEmoji(totalDuration);
-		logger.info(`PATCH operation completed in ${totalDuration.toFixed(2)}ms ${totalEmoji} for schema: ${schema.name}`, { user: user._id });
+		logger.info(`PATCH operation completed in ${totalDuration.toFixed(2)}ms ${totalEmoji} for schema: ${schema.id}`, { user: user._id });
 
 		// Return the result with performance metrics
 		return new Response(
@@ -112,7 +112,7 @@ export async function _PATCH({ data, schema, user }: { data: FormData; schema: S
 		const emoji = getPerformanceEmoji(duration);
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 		const errorStack = error instanceof Error ? error.stack : '';
-		logger.error(`PATCH operation failed after ${duration.toFixed(2)}ms ${emoji} for schema: ${schema.name}: ${errorMessage}`, { stack: errorStack });
+		logger.error(`PATCH operation failed after ${duration.toFixed(2)}ms ${emoji} for schema: ${schema.id}: ${errorMessage}`, { stack: errorStack });
 		return new Response(
 			JSON.stringify({
 				success: false,

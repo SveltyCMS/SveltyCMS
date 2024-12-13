@@ -79,7 +79,7 @@ Key features:
 	$effect(() => {
 		if (collectionValue.value) {
 			const id = collectionValue.value._id;
-			apiUrl = `${dev ? 'http://localhost:5173' : publicEnv.SITE_NAME}/api/${String(collection.value?.name) ?? ''}/${id}`;
+			apiUrl = `${dev ? 'http://localhost:5173' : publicEnv.SITE_NAME}/api/collection/${String(collection.value?.id) ?? ''}/${id}`;
 		}
 	});
 
