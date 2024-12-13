@@ -19,7 +19,7 @@
 
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
-import { collectionsModels, initializationPromise } from '@src/databases/db';
+import { collectionsModels, dbInitPromise } from '@src/databases/db';
 import { validateUserPermission } from '@src/auth/permissionManager';
 
 // System Logger
@@ -55,7 +55,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 	try {
 		// Wait for initialization to complete
-		await initializationPromise;
+		await dbInitPromise;
 
 		// Check if the collection name is provided
 		if (!collectionTypes) {

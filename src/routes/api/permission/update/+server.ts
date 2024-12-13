@@ -27,7 +27,7 @@ import fs from 'fs/promises';
 import path from 'path';
 
 // Authorization
-import { initializationPromise } from '@src/databases/db';
+import { dbInitPromise } from '@src/databases/db';
 import { getAllPermissions } from '@src/auth/permissionManager';
 import { roles as configRoles } from '@root/config/roles';
 
@@ -57,7 +57,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	try {
-		await initializationPromise;
+		await dbInitPromise;
 
 		const { roles } = await request.json();
 

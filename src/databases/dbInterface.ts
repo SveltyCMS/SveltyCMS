@@ -52,11 +52,30 @@ export interface SystemPreferences {
 	updatedAt: Date; // Last update timestamp of the SystemPreferences
 }
 
+// Virtual folders for media
 export interface SystemVirtualFolder {
-	_id: string; // The ID of the virtual folder
-	name: string; // The name of the virtual folder
-	parent: string | null; // Updated to allow null for root folder
-	path: string; // The path of the virtual folder
+	_id: string;
+	name: string;
+	parent: string | null;
+	path: string;
+	icon?: string;
+	order?: number;
+	updatedAt?: Date;
+}
+
+// Content structure for categories and collections
+export interface SystemContentNode {
+	_id?: mongoose.Types.ObjectId;
+	id?: string;
+	name: string;
+	parent?: string;
+	path: string;
+	icon?: string;
+	order?: number;
+	isCollection?: boolean;
+	collectionId?: string;
+	translations?: { languageTag: string; translationName: string; }[];
+	updatedAt?: Date;
 }
 
 // Document types
@@ -168,12 +187,27 @@ export interface dbInterface {
 	clearSystemPreferences(user_id: string): Promise<void>; // Clear system preferences.
 
 	// Virtual Folder Methods for direct database interactions
-	createVirtualFolder(folderData: { name: string; parent?: string; path: string }): Promise<SystemVirtualFolder>; // Create a virtual folder.
-	getVirtualFolders(): Promise<SystemVirtualFolder[]>; // Get virtual folders.
-	getVirtualFolderContents(folderId: string): Promise<SystemVirtualFolder[]>; // Get virtual folders.
-	updateVirtualFolder(folderId: string, updateData: { name?: string; parent?: string }): Promise<SystemVirtualFolder>; // Update virtual folder.
-	deleteVirtualFolder(folderId: string): Promise<boolean>; // Delete virtual folder.
-	moveMediaToFolder(mediaId: string, folderId: string): Promise<boolean>; // Move media to folder.
+	createVirtualFolder(folderData: { name: string; parent?: string; path: string; icon?: string; order?: number }): Promise<Document>;
+	getVirtualFolders(): Promise<Document[]>;
+	getVirtualFolderContents(folderId: string): Promise<Document[]>;
+	updateVirtualFolder(folderId: string, updateData: { name?: string; parent?: string; icon?: string; order?: number }): Promise<Document | null>;
+	deleteVirtualFolder(folderId: string): Promise<boolean>;
+
+	// Content Structure Methods for direct database interactions
+	createContentNode(nodeData: { 
+		name: string;
+		parent?: string;
+		path: string;
+		icon?: string;
+		order?: number;
+		isCollection?: boolean;
+		collectionId?: string;
+		translations?: { languageTag: string; translationName: string; }[];
+	}): Promise<Document>;
+	getContentNodes(): Promise<Document[]>;
+	getContentNodeChildren(nodeId: string): Promise<Document[]>;
+	updateContentNode(nodeId: string, updateData: Partial<SystemContentNode>): Promise<Document | null>;
+	deleteContentNode(nodeId: string): Promise<boolean>;
 
 	// Media Management
 	getAllMedia(): Promise<MediaItem[]>; // Get all media.

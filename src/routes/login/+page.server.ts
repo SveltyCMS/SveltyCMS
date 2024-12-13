@@ -23,7 +23,7 @@ import { message } from 'sveltekit-superforms/server';
 import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, signUpOAuthFormSchema } from '@utils/formSchemas';
 
 // Auth
-import { auth, initializationPromise } from '@src/databases/db';
+import { auth, dbInitPromise } from '@src/databases/db';
 import { generateGoogleAuthUrl, googleAuth } from '@root/src/auth/googleAuth';
 import { google } from 'googleapis';
 import type { User } from '@src/auth/types';
@@ -97,7 +97,7 @@ const wrappedSignUpOAuthSchema = valibot(signUpOAuthFormSchema);
 export const load: PageServerLoad = async ({ url, cookies, fetch, request, locals }) => {
 	try {
 		// Ensure initialization is complete
-		await initializationPromise;
+		await dbInitPromise;
 
 		// Check if the auth object is initialized
 		if (!auth) {

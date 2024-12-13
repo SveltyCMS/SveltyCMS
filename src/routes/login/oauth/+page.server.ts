@@ -12,7 +12,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { google } from 'googleapis';
 
 //Db
-import { auth, initializationPromise } from '@src/databases/db';
+import { auth, dbInitPromise } from '@src/databases/db';
 
 // Collection Manager
 import { collectionManager } from '@src/collections/CollectionManager';
@@ -196,7 +196,7 @@ async function handleGoogleUser(
 
 export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => {
 	try {
-		await initializationPromise; // Ensure initialization is complete
+		await dbInitPromise; // Ensure initialization is complete
 
 		if (!auth) {
 			logger.error('Authentication system is not initialized');

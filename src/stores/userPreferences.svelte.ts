@@ -13,7 +13,7 @@
 import { store } from '@utils/reactivity.svelte';
 import { ScreenSize } from '@stores/screenSizeStore.svelte';
 import { browser } from '$app/environment';
-import { dbAdapter, initializationPromise } from '@src/databases/db';
+import { dbAdapter } from '@src/databases/db';
 
 // Widget preference interface
 export interface WidgetPreference {
@@ -83,7 +83,7 @@ function createPreferencesStores() {
 	// Ensure database is initialized
 	async function ensureDbInitialized(): Promise<void> {
 		if (browser) {
-			await initializationPromise;
+			// Removed dbInitPromise from here
 		}
 	}
 

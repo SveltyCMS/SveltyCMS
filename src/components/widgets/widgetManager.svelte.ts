@@ -50,7 +50,7 @@ interface WidgetModule {
 const widgetFunctions = store<Record<string, WidgetFunction>>({});
 const activeWidgetList = store<string[]>([]);
 let initialized = $state(false);
-let initializationPromise = $state<Promise<void> | null>(null);
+let dbInitPromise = $state<Promise<void> | null>(null);
 
 function createWidgetFunction(widgetModule: WidgetModule, name: string): WidgetFunction {
 	const widget = widgetModule.default;
@@ -61,10 +61,10 @@ function createWidgetFunction(widgetModule: WidgetModule, name: string): WidgetF
 
 export async function initializeWidgets(): Promise<void> {
 	// If already initialized or initializing, return the existing promise
-	if (initialized) return;
-	if (initializationPromise) return initializationPromise;
+	if (initialized) return dbInitPromise;
+	if (dbInitPromise) return dbInitPromise;
 
-	initializationPromise = (async () => {
+	dbInitPromise = (async () => {
 		try {
 			// Dynamically import all widget modules from the widgets directory
 			const widgetModules = await Promise.all(
@@ -125,13 +125,13 @@ export async function initializeWidgets(): Promise<void> {
 		} catch (error) {
 			logger.error('Failed to initialize widgets:', error);
 			// Clear the initialization promise so we can try again
-			initializationPromise = null;
+			dbInitPromise = null;
 			initialized = false;
 			throw error;
 		}
 	})();
 
-	return initializationPromise;
+	return dbInitPromise;
 }
 
 export async function resolveWidgetPlaceholder(placeholder: { __widgetName: string; __widgetConfig: Record<string, unknown> }): Promise<Widget> {

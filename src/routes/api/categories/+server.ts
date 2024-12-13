@@ -6,316 +6,147 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { collectionManager } from '@src/collections/CollectionManager';
-import fs from 'fs/promises';
-import path from 'path';
-import { logger } from '@utils/logger.svelte';
 import type { CollectionData } from '@src/collections/types';
-import crypto from 'crypto';
-import { backupCategoryFiles } from './backup-utils';
+import { v4 as uuidv4 } from 'uuid';
+import { dbAdapter } from '@src/databases/db';
+import type { SystemVirtualFolder } from '@src/databases/dbInterface';
 
-// Collection paths
-const COLLECTIONS_PATH = path.join(process.cwd(), 'config', 'collections');
+// System Logger
+import { logger } from '@utils/logger.svelte';
 
-// Generate categories file content with proper headers
-function generateCategoriesFileContent(data: Record<string, CollectionData>): string {
-	return `/**
- * @file src/collections/categories.ts
- * @description Category configuration generated from folder structure
- * 
- * ⚠️ WARNING: This is an auto-generated file.
- * DO NOT MODIFY DIRECTLY - Changes will be overwritten by the CMS.
- * 
- * This file is generated from:
- * 1. Folder structure in config/collections/
- * 2. GUI & System updates via src/routes/api/categories
- * 
- * Translations are stored in the database, not in this file.
- */
-
-import type { CollectionData } from './types';
-
-// Auto-generated category configuration
-export const categoryConfig: Record<string, CollectionData> = ${JSON.stringify(data, null, 2)};
-`;
-}
-
-// Process directory structure into categories while preserving existing IDs
-async function processDirectory(dirPath: string, existingCategories: Record<string, CollectionData> = {}): Promise<Record<string, CollectionData>> {
-	const categories: Record<string, CollectionData> = {};
-	const items = await fs.readdir(dirPath);
-
-	// Helper function to get existing category data
-	function getExistingCategory(name: string, parentCategory?: CollectionData): CollectionData | undefined {
-		if (existingCategories[name]) return existingCategories[name];
-		if (parentCategory?.subcategories?.[name]) return parentCategory.subcategories[name];
-		return undefined;
-	}
-
-	// First pass: Process directories (categories)
-	for (const item of items) {
-		if (item === '.DS_Store') continue;
-
-		const fullPath = path.join(dirPath, item);
-		const stats = await fs.stat(fullPath);
-
-		// Only process directories as categories
-		if (stats.isDirectory()) {
-			const categoryName = item;
-			const existingCategory = getExistingCategory(categoryName);
-			const subcategories = await processDirectory(fullPath, existingCategory?.subcategories || {});
-
-			categories[categoryName] = {
-				id: existingCategory?.id || `c${crypto.randomBytes(4).toString('hex')}`,
-				name: categoryName.replace(/([A-Z])/g, ' $1').trim(),
-				icon: existingCategory?.icon || 'bi:folder',
-				isCollection: false,
-				...(Object.keys(subcategories).length > 0 && { subcategories })
-			};
-		}
-	}
-
-	// Second pass: Process .ts files (collections)
-	for (const item of items) {
-		if (!item.endsWith('.ts')) continue;
-
-		const collectionTypes = path.parse(item).name;
-		const existingCategory = getExistingCategory(collectionTypes);
-
-		categories[collectionTypes] = {
-			id: existingCategory?.id || `c${crypto.randomBytes(4).toString('hex')}`,
-			name: collectionTypes.replace(/([A-Z])/g, ' $1').trim(),
-			icon: existingCategory?.icon || 'bi:file-text',
-			isCollection: true
-		};
-	}
-
-	return categories;
-}
-
-// Move collection files to match their new category locations
-async function moveCollectionFiles(oldConfig: Record<string, CollectionData>, newConfig: Record<string, CollectionData>) {
-	const collectionsPath = COLLECTIONS_PATH;
-
-	// Find all collections and their paths in a config
-	function findCollections(config: Record<string, CollectionData>, currentPath: string = ''): Map<string, string> {
-		const collections = new Map<string, string>();
-
-		for (const [key, item] of Object.entries(config)) {
-			const itemPath = path.join(currentPath, key);
-
-			if (item.isCollection) {
-				collections.set(item.name, itemPath);
-			} else if (item.subcategories) {
-				const subCollections = findCollections(item.subcategories, itemPath);
-				for (const [name, subPath] of subCollections) {
-					collections.set(name, subPath);
-				}
-			}
-		}
-
-		return collections;
-	}
-
-	const oldLocations = findCollections(oldConfig);
-	const newLocations = findCollections(newConfig);
-
-	// Move collection files that have changed location
-	for (const [name, newLoc] of newLocations) {
-		const oldLoc = oldLocations.get(name);
-		if (oldLoc && oldLoc !== newLoc) {
-			const oldPath = path.join(collectionsPath, oldLoc + '.ts');
-			const newPath = path.join(collectionsPath, newLoc + '.ts');
-
-			try {
-				// Create the target directory if it doesn't exist
-				await fs.mkdir(path.dirname(newPath), { recursive: true });
-
-				// Move the collection file
-				await fs.rename(oldPath, newPath);
-				logger.info(`Moved collection ${name} to ${newPath}`);
-			} catch (error) {
-				logger.error(`Error moving collection ${name}:`, error);
-				throw error;
-			}
-		}
-	}
-}
-
-// Reads the existing configuration file
-async function readExistingConfig(filePath: string): Promise<string> {
-	try {
-		return await fs.readFile(filePath, 'utf8');
-	} catch (error) {
-		if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-			logger.warn('Categories file does not exist, a new one will be created');
-			return '';
-		} else {
-			logger.error('Error reading the categories file:', error);
-			throw error;
-		}
-	}
-}
-
-// Check if categories file exists
-async function categoriesFileExists(filePath: string): Promise<boolean> {
-	try {
-		await fs.access(filePath);
-		return true;
-	} catch {
-		return false;
-	}
-}
-
-// Compares the new configuration content with the existing one
-function shouldUpdateConfig(newContent: string, existingContent: string): boolean {
-	const newContentHash = crypto.createHash('md5').update(newContent).digest('hex');
-	const existingContentHash = existingContent ? crypto.createHash('md5').update(existingContent).digest('hex') : '';
-	return newContentHash !== existingContentHash;
-}
 
 export const GET: RequestHandler = async () => {
-	try {
-		const { categories } = collectionManager.getCollectionData();
-		return json({
-			success: true,
-			categories
-		});
-	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : String(error);
-		logger.error('Error in GET /api/categories:', errorMessage);
-		return json({ error: 'Failed to fetch categories' }, { status: 500 });
-	}
+    try {
+        // Directly from database
+        const virtualFolders = await dbAdapter.getVirtualFolders();
+        const categories = virtualFolders.reduce((acc, folder) => {
+            acc[folder.path] = {
+                id: folder._id.toString(),
+                name: folder.name,
+                icon: folder.icon,
+                subcategories: {},
+                isCollection: false
+            };
+            return acc;
+        }, {} as Record<string, CollectionData>)
+        return json({
+            success: true,
+            categories
+        });
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error('Error in GET /api/categories:', errorMessage);
+        return json({ error: 'Failed to fetch categories' }, { status: 500 });
+    }
 };
-
 export const POST: RequestHandler = async ({ request }) => {
-	try {
-		// Check if this is a save action
-		const data = await request.json();
-		const isSaveAction = data?.save === true;
-
-		if (!isSaveAction) {
-			return json({
-				success: true,
-				message: 'No action taken - save flag not set'
-			});
-		}
-
-		const categoriesPath = path.join(process.cwd(), 'config', 'collections', 'categories.ts');
-		const collectionsPath = COLLECTIONS_PATH;
-
-		// Check if we need to process directory structure
-		const exists = await categoriesFileExists(categoriesPath);
-		let oldConfig = {};
-
-		if (exists) {
-			const existingModule = await import(categoriesPath);
-			oldConfig = existingModule.categoryConfig;
-		}
-
-		// Process directory structure while preserving existing IDs
-		const newConfig = exists && data.categories ? data.categories : await processDirectory(collectionsPath, oldConfig);
-
-		// Move collection files if needed
-		if (exists) {
-			await moveCollectionFiles(oldConfig, newConfig);
-		}
-
-		// Generate the new categories file content
-		const newContent = generateCategoriesFileContent(newConfig);
-		const existingContent = await readExistingConfig(categoriesPath);
-
-		// Only update if content has changed
-		if (shouldUpdateConfig(newContent, existingContent)) {
-			// Backup the current category configuration before saving
-			if (exists) {
-				await backupCategoryFiles();
-				logger.info('Category files backed up successfully');
-			}
-
-			// Write the updated categories file
-			await fs.writeFile(categoriesPath, newContent, 'utf-8');
-
-			// Update collections to reflect the changes
-			await collectionManager.updateCollections(true);
-
-			logger.info('Categories updated successfully');
-			return json({
-				success: true,
-				message: 'Categories updated successfully'
-			});
-		} else {
-			logger.info('Categories file does not need an update');
-			return json({
-				success: true,
-				message: 'Categories are already up to date'
-			});
-		}
-	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : String(error);
-		logger.error('Error in POST /api/categories:', errorMessage);
-		return json({ error: 'Failed to update categories' }, { status: 500 });
-	}
+    try {
+        // Check if this is a save action
+        const data = await request.json();
+        const isSaveAction = data?.save === true;
+        if (!isSaveAction) {
+            return json({
+                success: true,
+                message: 'No action taken - save flag not set'
+            });
+        }
+        const virtualFolders = await dbAdapter.getVirtualFolders();
+        const virtualFolderMap = new Map(virtualFolders.map(folder => [folder.path, folder]));
+        // Process directory structure while preserving existing IDs
+        const newCategories = await processDirectory(data?.path, virtualFolderMap);
+        // update data on database
+        const virtualFolderPromises = Object.values(newCategories).map(async (category) => {
+            const existingFolder = virtualFolderMap.get(category.path)
+            if (existingFolder) {
+                await dbAdapter.updateVirtualFolder(existingFolder._id.toString(), {
+                    name: category.name,
+                    icon: category.icon,
+                    order: category.order
+                })
+            } else {
+                await dbAdapter.createVirtualFolder({ name: category.name, path: category.path, icon: category.icon, order: category.order })
+            }
+        })
+        await Promise.all(virtualFolderPromises);
+        // Update collections to reflect the changes
+        await collectionManager.updateCollections(true);
+        logger.info('Categories updated successfully');
+        return json({
+            success: true,
+            message: 'Categories updated successfully',
+        });
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error('Error in POST /api/categories:', errorMessage);
+        return json({ error: 'Failed to update categories' }, { status: 500 });
+    }
 };
-
 export const PUT: RequestHandler = async ({ request }) => {
-	try {
-		const { categoryId, updates } = await request.json();
-		const { categories } = collectionManager.getCollectionData();
-
-		// Find and update the category
-		function updateCategory(cats: Record<string, CollectionData>, id: string): boolean {
-			for (const key in cats) {
-				if (cats[key].id === categoryId) {
-					// Update category properties while preserving the ID
-					Object.assign(cats[key], { ...updates, id: cats[key].id });
-					return true;
-				}
-				if (cats[key].subcategories) {
-					if (updateCategory(cats[key].subcategories!, id)) {
-						return true;
-					}
-				}
-			}
-			return false;
-		}
-
-		if (updateCategory(categories, categoryId)) {
-			// Generate new content
-			const categoriesPath = path.join(process.cwd(), 'config', 'collections', 'categories.ts');
-			const newContent = generateCategoriesFileContent(categories);
-			const existingContent = await readExistingConfig(categoriesPath);
-
-			// Only update if content has changed
-			if (shouldUpdateConfig(newContent, existingContent)) {
-				// Backup before saving
-				await backupCategoryFiles();
-				logger.info('Category files backed up successfully');
-
-				// Write the file
-				await fs.writeFile(categoriesPath, newContent, 'utf-8');
-
-				// Update collections to reflect the changes
-				await collectionManager.updateCollections(true);
-
-				logger.info(`Category ${categoryId} updated successfully`);
-				return json({
-					success: true,
-					message: 'Category updated successfully',
-					categories
-				});
-			} else {
-				return json({
-					success: true,
-					message: 'Category is already up to date',
-					categories
-				});
-			}
-		}
-
-		return json({ error: 'Category not found' }, { status: 404 });
-	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : String(error);
-		logger.error('Error in PUT /api/categories:', errorMessage);
-		return json({ error: 'Failed to update category' }, { status: 500 });
-	}
+    try {
+        const { categoryId, updates } = await request.json();
+        const virtualFolders = await dbAdapter.getVirtualFolders();
+        const virtualFolderMap = new Map(virtualFolders.map(folder => [folder._id.toString(), folder]));
+        // Find the folder to update
+        const folderToUpdate = virtualFolderMap.get(categoryId);
+        if (!folderToUpdate) {
+            return json({ error: 'Category not found' }, { status: 404 });
+        }
+        await dbAdapter.updateVirtualFolder(folderToUpdate._id.toString(), updates);
+        // Update collections to reflect the changes
+        await collectionManager.updateCollections(true);
+        logger.info(`Category ${categoryId} updated successfully`);
+        return json({
+            success: true,
+            message: 'Category updated successfully',
+        });
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error('Error in PUT /api/categories:', errorMessage);
+        return json({ error: 'Failed to update category' }, { status: 500 });
+    }
 };
+// Process directory structure into categories while preserving existing IDs
+async function processDirectory(dirPath: string | undefined, existingFolders: Map<string, SystemVirtualFolder> = new Map()): Promise<Record<string, CollectionData>> {
+    if (!dirPath) return {};
+    const categories: Record<string, CollectionData> = {};
+    const items = await import('fs').then(fs => fs.promises.readdir(dirPath));
+
+    // First pass: Process directories (categories)
+    for (const item of items) {
+        if (item === '.DS_Store') continue;
+        const fullPath = path.join(dirPath, item);
+        const stats = await import('fs').then(fs => fs.promises.stat(fullPath));
+
+        // Only process directories as categories
+        if (stats.isDirectory()) {
+            const categoryName = item;
+            const existingFolder = existingFolders.get(fullPath);
+            const subcategories = await processDirectory(fullPath, existingFolders);
+            categories[fullPath] = {
+                id: existingFolder?._id.toString() || uuidv4(),
+                path: fullPath,
+                name: categoryName.replace(/([A-Z])/g, ' $1').trim(),
+                icon: existingFolder?.icon || 'bi:folder',
+                order: existingFolder?.order || 999,
+                isCollection: false,
+                ...(Object.keys(subcategories).length > 0 && { subcategories })
+            };
+        }
+    }
+    // Second pass: Process .ts files (collections)
+    for (const item of items) {
+        if (!item.endsWith('.ts')) continue;
+        const collectionTypes = path.parse(item).name;
+        const existingFolder = existingFolders.get(path.join(dirPath, item));
+
+        categories[path.join(dirPath, item)] = {
+            id: existingFolder?._id.toString() || uuidv4(),
+            path: path.join(dirPath, item),
+            name: collectionTypes.replace(/([A-Z])/g, ' $1').trim(),
+            icon: existingFolder?.icon || 'bi:file-text',
+            isCollection: true,
+            order: existingFolder?.order || 999
+        };
+    }
+    return categories;
+}

@@ -22,7 +22,7 @@ import { building } from '$app/environment';
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
 
 // Auth and Database Adapters
-import { auth, initializationPromise } from '@src/databases/db';
+import { auth, dbInitPromise } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import { checkUserPermission } from '@src/auth/permissionCheck';
 import { getAllPermissions } from '@src/auth/permissionManager';
@@ -213,7 +213,7 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 	event.startTime = performance.now();
 
 	try {
-		await initializationPromise;
+		await dbInitPromise;
 
 		const session_id = event.cookies.get(SESSION_COOKIE_NAME);
 		const user = await getUserFromSessionId(session_id);

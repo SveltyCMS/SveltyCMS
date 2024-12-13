@@ -244,7 +244,13 @@ async function initializeAdapters(): Promise<void> {
 			await dbAdapter.setupAuthModels();
 			await dbAdapter.setupMediaModels();
 
-			// Step 5: Initialize CollectionManager
+			// Step 5: Initialize remaining components
+			await initializeDefaultTheme(dbAdapter);
+			await initializeVirtualFolders();
+			await initializeRevisions();
+			await syncPermissions();
+
+			// Step 6: Initialize CollectionManager
 			logger.debug('Initializing CollectionManager...');
 			await collectionManager.initialize();
 
@@ -257,12 +263,6 @@ async function initializeAdapters(): Promise<void> {
 			}
 
 			await dbAdapter.getCollectionModels();
-
-			// Step 6: Initialize remaining components
-			await initializeDefaultTheme(dbAdapter);
-			await initializeVirtualFolders();
-			await initializeRevisions();
-			await syncPermissions();
 		}
 
 		if (!authAdapter) {
@@ -342,4 +342,4 @@ export async function getCollectionModels() {
 }
 
 // Export functions and state
-export { collectionsModels, auth, initializationPromise, dbAdapter, authAdapter, isConnected };
+export { collectionsModels, auth, initializationPromise as dbInitPromise, dbAdapter, authAdapter, isConnected };

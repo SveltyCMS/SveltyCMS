@@ -1,27 +1,31 @@
 /**
  * @file src/databases/mongodb/mongoDBAdapter.ts
- * @description MongoDB adapter for CMS database operations and user preferences.
+ * @description MongoDB adapter for CMS database operations, user preferences, and virtual folder management.
  *
  * This module provides an implementation of the `dbInterface` for MongoDB, handling:
- * - MongoDB connection management with retry mechanism
- * - CRUD operations for collections, drafts, revisions, and widgets
- * - Management of media storage and retrieval
- * - User, role, and permission management
- * - Management of system preferences including user screen sizes and layout preferences
+ * - MongoDB connection management with a robust retry mechanism
+ * - CRUD operations for collections, documents, drafts, revisions, and widgets
+ * - Management of media storage, retrieval, and virtual folders
+ * - User authentication and session management
+ * - Management of system preferences including user screen sizes and widget layouts
+ * - Theme management
+ * - Content Structure Management
  *
  * Key Features:
- * - Automatic reconnection with retry logic for MongoDB
- * - Schema definitions and model creation for various collections (e.g., Drafts, Revisions, Widgets)
- * - Handling of media files with a schema for different media types
+ * - Automatic reconnection with exponential backoff for MongoDB
+ * - Schema definitions and model creation for various collections (e.g., Drafts, Revisions, Widgets, Media)
+ * - Robust handling of media files with specific schemas for different media types
  * - Management of authentication-related models (e.g., User, Token, Session)
- * - Default and custom theme management with database operations
+ * - Default and custom theme management with database storage
  * - User preferences storage and retrieval, including layout and screen size information
+ * - Virtual folder management for organizing media
+ * - Flexible Content Structure management for pages and collections
  *
  * Usage:
  * This adapter is utilized when the CMS is configured to use MongoDB, providing a
  * database-agnostic interface for various database operations within the CMS.
  * The adapter supports complex queries, schema management, and handles error logging
- * and connection retries.
+ * and connection retries. It integrates fully with the CMS for all data management needs.
  */
 
 import { privateEnv } from '@root/config/private';
@@ -41,7 +45,6 @@ import { UserSchema } from '@src/auth/mongoDBAuth/userAdapter';
 import { TokenSchema } from '@src/auth/mongoDBAuth/tokenAdapter';
 import { SessionSchema } from '@src/auth/mongoDBAuth/sessionAdapter';
 import type { CollectionConfig } from '@src/collections/types';
-
 // Media
 import type { MediaBase, MediaType } from '@utils/media/mediaModels';
 
@@ -50,7 +53,6 @@ import { DEFAULT_THEME } from '@src/databases/themeManager';
 
 // System Logging
 import { logger } from '@utils/logger.svelte';
-
 // Widget Manager
 import { initializeWidgets, getWidgets } from '@components/widgets/widgetManager.svelte';
 
@@ -67,10 +69,8 @@ const mediaSchema = new Schema(
 			width: { type: Number }, // The width for the media
 			height: { type: Number } // The height for the media
 		} // The thumbnails of media
-		// url: { type: String, required: true }, // The URL of the media
-		// altText: { type: String, required: true }, // The alt text for the media
 	},
-	{ timestamps: false, collection: 'media' } // Explicitly set the collection name
+	{ timestamps: false, collection: 'media' }
 );
 
 // Define the Draft model if it doesn't exist already
@@ -160,11 +160,77 @@ const SystemVirtualFolderModel =
 			{
 				name: { type: String, required: true },
 				parent: { type: Schema.Types.ObjectId, ref: 'SystemVirtualFolder', default: null }, // Allow null for root folders
-				path: { type: String, required: true }
+				path: { type: String, required: true },
+				icon: { type: String },
+				order: { type: Number }
 			},
 			{ collection: 'system_virtualfolders' } // Explicitly set the collection name to system_virtualfolders
 		)
 	);
+
+
+// Content structure schema for categories and collections
+const contentStructureSchema = new Schema(
+	{
+		name: { type: String, required: true },
+		parent: { type: String, default: null },
+		path: { type: String, required: true, unique: true },
+		icon: { type: String },
+		order: { type: Number, default: 999 },
+		isCollection: { type: Boolean, default: false },
+		collectionId: { type: String },
+		translations: [{
+			languageTag: String,
+			translationName: String
+		}],
+		updatedAt: { type: Date, default: Date.now }
+	},
+	{ timestamps: true, collection: 'system_content_structure' }
+);
+
+// Add indexes for better performance
+contentStructureSchema.index({ path: 1 }, { unique: true });
+contentStructureSchema.index({ parent: 1 });
+contentStructureSchema.index({ isCollection: 1 });
+contentStructureSchema.index({ collectionId: 1 });
+
+
+
+// Virtual folders schema for media management
+const virtualFolderSchema = new Schema(
+	{
+		name: { type: String, required: true },
+		parent: { type: String, default: null },
+		path: { type: String, required: true, unique: true },
+		icon: { type: String },
+		order: { type: Number, default: 999 },
+		updatedAt: { type: Date, default: Date.now }
+	},
+	{ timestamps: true, collection: 'system_virtualfolders' }
+);
+
+// Virtual folders schema for media
+const VirtualFolderModel = mongoose.models?.VirtualFolder ||
+	mongoose.model(
+		'VirtualFolder',
+		virtualFolderSchema
+	);
+
+// Content structure schema for categories and collections
+const ContentStructureModel = mongoose.models?.ContentStructure ||
+	mongoose.model(
+		'ContentStructure',
+		contentStructureSchema
+	);
+
+// Add indexes for better performance
+VirtualFolderModel.schema.index({ path: 1 }, { unique: true });
+VirtualFolderModel.schema.index({ parent: 1 });
+
+ContentStructureModel.schema.index({ path: 1 }, { unique: true });
+ContentStructureModel.schema.index({ parent: 1 });
+ContentStructureModel.schema.index({ isCollection: 1 });
+ContentStructureModel.schema.index({ collectionId: 1 });
 
 export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
@@ -176,7 +242,6 @@ export class MongoDBAdapter implements dbInterface {
 		try {
 			const entries = await import('fs').then((fs) => fs.promises.readdir(dirPath, { withFileTypes: true }));
 			logger.debug(`Scanning directory: \x1b[34m${dirPath}\x1b[0m`);
-
 			for (const entry of entries) {
 				const fullPath = path.posix.join(dirPath, entry.name);
 				if (entry.isDirectory()) {
@@ -319,7 +384,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw new Error('Failed to sync collections');
 		}
 	}
-
 	// Connect to MongoDB
 	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
 		const isAtlas = privateEnv.DB_HOST.startsWith('mongodb+srv://');
@@ -361,14 +425,11 @@ export class MongoDBAdapter implements dbInterface {
 			try {
 				await mongoose.connect(connectionString, options);
 				logger.debug(`Successfully connected to MongoDB database: \x1b[34m${privateEnv.DB_NAME}\x1b[0m`);
-
 				// Only sync if collections are not present
 				const collections = await mongoose.connection.db.listCollections().toArray();
-
 				if (collections.length === 0) {
 					await this.syncCollections();
 				}
-
 				return;
 			} catch (error: unknown) {
 				lastError = error;
@@ -381,7 +442,6 @@ export class MongoDBAdapter implements dbInterface {
 			}
 		}
 	}
-
 	// Update generateId to always return string
 	generateId(): string {
 		return new mongoose.Types.ObjectId().toString(); //required for MongoDB id as ObjectId
@@ -394,19 +454,15 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Get collection models
 	async getCollectionModels(): Promise<Record<string, Model<Document>>> {
-
 		if (this.collectionsInitialized) {
 			logger.debug('Collections already initialized, returning existing models.');
 			return mongoose.models as Record<string, Model<Document>>;
 		}
-
 		try {
 			// Initialize base models without waiting for collections
 			const baseModels: Record<string, Model<Document>> = {};
-
 			// Mark collections as initialized to prevent circular dependency
 			this.collectionsInitialized = true;
-
 			// Return base models - collections will be added later as needed
 			return baseModels;
 		} catch (error) {
@@ -415,7 +471,6 @@ export class MongoDBAdapter implements dbInterface {
 		}
 
 	}
-
 	// Set up authentication models
 	setupAuthModels(): void {
 		try {
@@ -428,8 +483,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error('Failed to set up authentication models');
 		}
 	}
-
-
 	// Helper method to set up models if they don't already exist
 	private setupModel(name: string, schema: Schema) {
 		if (!mongoose.models[name]) {
@@ -439,7 +492,6 @@ export class MongoDBAdapter implements dbInterface {
 			logger.debug(`\x1b[34m${name}\x1b[0m model already exists.`);
 		}
 	}
-
 	// Set up media models
 	setupMediaModels(): void {
 		const mediaSchemas = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote', 'media_collection'];
@@ -460,8 +512,6 @@ export class MongoDBAdapter implements dbInterface {
 		}
 		logger.info('Widget models set up successfully.');
 	}
-
-
 	// Implementing findOne method
 	async findOne<T extends Document>(collection: string, query: FilterQuery<T>): Promise<T | null> {
 		try {
@@ -477,7 +527,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw new Error(`Error in findOne for collection ${collection}`);
 		}
 	}
-
 	// Implementing findMany method
 	async findMany<T extends Document>(collection: string, query: FilterQuery<T>): Promise<T[]> {
 		const model = mongoose.models[collection] as Model<T>;
@@ -488,7 +537,6 @@ export class MongoDBAdapter implements dbInterface {
 		const results = await model.find(query).lean().exec();
 		return results as T[]; // Explicitly cast to T[]
 	}
-
 	// Implementing insertOne method
 	async insertOne<T extends Document>(collection: string, doc: Partial<T>): Promise<T> {
 		const model = mongoose.models[collection] as Model<T>;
@@ -504,7 +552,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error inserting document into ${collection}`);
 		}
 	}
-
 	// Implementing insertMany method
 	async insertMany<T extends Document>(collection: string, docs: Partial<T>[]): Promise<T[]> {
 		const model = mongoose.models[collection] as Model<T>;
@@ -520,7 +567,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error inserting many documents into ${collection}`);
 		}
 	}
-
 	// Implementing updateOne method
 	async updateOne<T extends Document>(
 		collection: string,
@@ -546,7 +592,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error updating document in ${collection}`);
 		}
 	}
-
 	// Implementing updateMany method
 	async updateMany<T extends Document>(
 		collection: string,
@@ -572,7 +617,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error updating many documents in ${collection}`);
 		}
 	}
-
 	// Implementing deleteOne method
 	async deleteOne<T extends Document>(collection: string, query: FilterQuery<T>): Promise<number> {
 		const model = mongoose.models[collection] as Model<T>;
@@ -587,7 +631,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error deleting document from ${collection}`);
 		}
 	}
-
 	// Implementing deleteMany method
 	async deleteMany<T extends Document>(collection: string, query: FilterQuery<T>): Promise<number> {
 		const model = mongoose.models[collection] as Model<T>;
@@ -602,7 +645,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error deleting many documents from ${collection}`);
 		}
 	}
-
 	// Implementing countDocuments method
 	async countDocuments<T extends Document>(collection: string, query?: FilterQuery<T>): Promise<number> {
 		const model = mongoose.models[collection] as Model<T>;
@@ -677,7 +719,6 @@ export class MongoDBAdapter implements dbInterface {
 					let widgetType: string;
 					let fieldConfig: FieldConfig;
 					let fieldKey: string | undefined;
-
 					if (typeof field === 'function') {
 						// If field is a widget function, execute it to get config
 						const result = field({});
@@ -713,14 +754,12 @@ export class MongoDBAdapter implements dbInterface {
 					if (fieldConfig.collection) {
 						mongooseType = mongoose.Schema.Types.ObjectId;
 					}
-
 					let fieldSchema: mongoose.SchemaDefinitionProperty = {
 						type: isTranslated ? Map : mongooseType,
 						required: isRequired,
 						index: isSearchable ? { sparse: true } : undefined,
 						unique: isUnique
 					};
-
 					if (fieldConfig.collection) {
 						fieldSchema = {
 							...fieldSchema,
@@ -751,8 +790,8 @@ export class MongoDBAdapter implements dbInterface {
 				updatedAt: 'updatedAt'
 			},
 			collection: collectionName.toLowerCase(),
-			autoIndex: true,  // Enable auto-indexing in production
-			minimize: false,  // Store empty objects
+			autoIndex: true, // Enable auto-indexing in production
+			minimize: false, // Store empty objects
 			toJSON: {
 				virtuals: true,
 				getters: true
@@ -761,7 +800,7 @@ export class MongoDBAdapter implements dbInterface {
 				virtuals: true,
 				getters: true
 			},
-			id: false,  // Disable virtual id getter
+			id: false, // Disable virtual id getter
 			versionKey: false  // Disable version key
 		};
 
@@ -769,16 +808,14 @@ export class MongoDBAdapter implements dbInterface {
 		const schema = new mongoose.Schema(schemaDefinition, schemaOptions);
 
 		// Add indexes
-		schema.index({ createdAt: -1 });  // Sort by most recent first
-		schema.index({ status: 1, createdAt: -1 });  // Common query pattern
+		schema.index({ createdAt: -1 }); // Sort by most recent first
+		schema.index({ status: 1, createdAt: -1 }); // Common query pattern
 
 		// Performance optimization: create indexes in background
 		schema.set('backgroundIndexing', true);
-
 		// Create and return the model
 		return mongoose.model(collectionName, schema);
 	}
-
 	// Methods for Draft and Revision Management
 
 	// Create a new draft
@@ -847,7 +884,6 @@ export class MongoDBAdapter implements dbInterface {
 	async getDraftsByUser(user_id: string): Promise<Draft[]> {
 		try {
 			const drafts = await DraftModel.find({ createdBy: this.convertId(user_id) })
-
 				.exec();
 			logger.info(`Retrieved ${drafts.length} drafts for user ID: ${user_id}`);
 			return drafts;
@@ -874,7 +910,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error creating revision`);
 		}
 	}
-
 	// Get revisions for a document
 	async getRevisions(collectionId: string, documentId: string): Promise<Revision[]> {
 		try {
@@ -884,7 +919,6 @@ export class MongoDBAdapter implements dbInterface {
 			})
 				.sort({ createdAt: -1 })
 				.exec();
-
 			logger.info(`Revisions retrieved for document ID: ${documentId} in collection ID: ${collectionId}`);
 			return revisions;
 		} catch (error) {
@@ -942,7 +976,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Failed to restore revision`);
 		}
 	}
-
 	// Methods for Widget Management
 
 	// Install a new widget
@@ -973,7 +1006,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error fetching all widgets`);
 		}
 	}
-
 	// Fetch active widgets
 	async getActiveWidgets(): Promise<string[]> {
 		try {
@@ -986,7 +1018,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error fetching active widgets`);
 		}
 	}
-
 	// Activate a widget
 	async activateWidget(widgetName: string): Promise<void> {
 		try {
@@ -1000,7 +1031,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error activating widget`);
 		}
 	}
-
 	// Deactivate a widget
 	async deactivateWidget(widgetName: string): Promise<void> {
 		try {
@@ -1014,7 +1044,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error deactivating widget`);
 		}
 	}
-
 	// Update a widget
 	async updateWidget(widgetName: string, updateData: Partial<Widget>): Promise<void> {
 		try {
@@ -1028,7 +1057,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error updating widget`);
 		}
 	}
-
 	// Methods for Theme Management
 
 	// Set the default theme
@@ -1079,7 +1107,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error fetching default theme`);
 		}
 	}
-
 	// Store themes in the database
 	async storeThemes(themes: Theme[]): Promise<void> {
 		try {
@@ -1105,7 +1132,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error storing themes`);
 		}
 	}
-
 	// Fetch all themes
 	async getAllThemes(): Promise<Theme[]> {
 		try {
@@ -1117,7 +1143,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error fetching all themes`);
 		}
 	}
-
 	// Methods for System Preferences Management
 
 	// Set user preferences
@@ -1148,7 +1173,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Failed to retrieve system preferences`);
 		}
 	}
-
 	// Update system preferences for a user
 	async updateSystemPreferences(user_id: string, screenSize: ScreenSize, preferences: WidgetPreference[]): Promise<void> {
 		try {
@@ -1159,7 +1183,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Failed to update system preferences`);
 		}
 	}
-
 	// Clear system preferences for a user
 	async clearSystemPreferences(user_id: string): Promise<void> {
 		try {
@@ -1174,17 +1197,18 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Failed to clear system preferences`);
 		}
 	}
-
 	// Methods for Virtual Folder Management
 
 	// Create a virtual folder in the database
-	async createVirtualFolder(folderData: { name: string; parent?: string; path: string }): Promise<Document> {
+	async createVirtualFolder(folderData: { name: string; parent?: string; path: string, icon?: string, order?: number }): Promise<Document> {
 		try {
 			const folder = new SystemVirtualFolderModel({
 				_id: this.generateId(),
 				name: folderData.name,
 				parent: folderData.parent ? this.convertId(folderData.parent) : null,
-				path: folderData.path
+				path: folderData.path,
+				icon: folderData.icon,
+				order: folderData.order
 			});
 			await folder.save();
 			logger.info(`Virtual folder '\x1b[34m${folderData.name}\x1b[0m' created successfully.`);
@@ -1198,7 +1222,7 @@ export class MongoDBAdapter implements dbInterface {
 	// Get all virtual folders
 	async getVirtualFolders(): Promise<Document[]> {
 		try {
-			const folders = await SystemVirtualFolderModel.find({}).exec();
+			const folders = await SystemVirtualFolderModel.find({}).lean().exec();
 			logger.info(`Fetched \x1b[34m${folders.length}\x1b[0m virtual folders.`);
 			return folders;
 		} catch (error) {
@@ -1224,7 +1248,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Failed to fetch virtual folder contents`);
 		}
 	}
-
 	// Update a virtual folder
 	async updateVirtualFolder(folderId: string, updateData: VirtualFolderUpdateData): Promise<Document | null> {
 		try {
@@ -1236,13 +1259,10 @@ export class MongoDBAdapter implements dbInterface {
 			if (updateData.parent) {
 				updatePayload.parent = this.convertId(updateData.parent).toString();
 			}
-
 			const updatedFolder = await SystemVirtualFolderModel.findByIdAndUpdate(folderId, updatePayload, { new: true }).exec();
-
 			if (!updatedFolder) {
 				throw Error(`Virtual folder with ID \x1b[34m${folderId}\x1b[0m not found.`);
 			}
-
 			logger.info(`Virtual folder \x1b[34m${folderId}\x1b[0m updated successfully.`);
 			return updatedFolder;
 		} catch (error) {
@@ -1250,7 +1270,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Failed to update virtual folder`);
 		}
 	}
-
 	// Delete a virtual folder
 	async deleteVirtualFolder(folderId: string): Promise<boolean> {
 		try {
@@ -1259,7 +1278,6 @@ export class MongoDBAdapter implements dbInterface {
 				logger.warn(`Virtual folder with ID \x1b[34m${folderId}\x1b[0m not found.`);
 				return false;
 			}
-
 			logger.info(`Virtual folder \x1b[34m${folderId}\x1b[0m deleted successfully.`);
 			return true;
 		} catch (error) {
@@ -1267,18 +1285,20 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Failed to delete virtual folder`);
 		}
 	}
-
 	// Move media to a virtual folder
 	async moveMediaToFolder(mediaId: string, folderId: string): Promise<boolean> {
 		try {
 			const objectId = this.convertId(folderId);
 			const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
-			for (const type of mediaTypes) {
-				const result = await mongoose.model(type).findByIdAndUpdate(this.convertId(mediaId), { folderId: objectId }).exec();
-				if (result) {
-					logger.info(`Media \x1b[34m${mediaId}\x1b[0m moved to folder \x1b[34m${folderId}\x1b[0m successfully.`);
-					return true;
-				}
+			// Create update query for all media types
+			const updateResult = await Promise.all(mediaTypes.map(type =>
+				mongoose.model(type).updateMany({ _id: this.convertId(mediaId) }, { folderId: objectId })
+			));
+			// Check if any media types updated
+			const isUpdated = updateResult.some((result) => result.modifiedCount > 0);
+			if (isUpdated) {
+				logger.info(`Media \x1b[34m${mediaId}\x1b[0m moved to folder \x1b[34m${folderId}\x1b[0m successfully.`);
+				return true;
 			}
 			logger.warn(`Media \x1b[34m${mediaId}\x1b[0m not found in any media type collections.`);
 			return false;
@@ -1288,18 +1308,88 @@ export class MongoDBAdapter implements dbInterface {
 		}
 	}
 
-	// Methods for Media Management
+	// Content Structure Methods
+	async createContentNode(nodeData: {
+		name: string;
+		parent?: string;
+		path: string;
+		icon?: string;
+		order?: number;
+		isCollection?: boolean;
+		collectionId?: string;
+		translations?: { languageTag: string; translationName: string; }[];
+	}): Promise<Document> {
+		try {
+			const node = new ContentStructureModel(nodeData);
+			await node.save();
+			logger.info(`Content node '${nodeData.name}' created successfully.`);
+			return node;
+		} catch (error) {
+			logger.error(`Error creating content node: ${error.message}`);
+			throw Error(`Error creating content node`);
+		}
+	}
 
+	async getContentNodes(): Promise<Document[]> {
+		try {
+			const nodes = await ContentStructureModel.find().sort({ path: 1 }).exec();
+			logger.info(`Fetched ${nodes.length} content nodes.`);
+			return nodes;
+		} catch (error) {
+			logger.error(`Error fetching content nodes: ${error.message}`);
+			throw Error(`Error fetching content nodes`);
+		}
+	}
+
+	async getContentNodeChildren(nodeId: string): Promise<Document[]> {
+		try {
+			const nodes = await ContentStructureModel.find({ parent: nodeId }).sort({ order: 1, name: 1 }).exec();
+			logger.info(`Fetched ${nodes.length} child nodes for node ${nodeId}`);
+			return nodes;
+		} catch (error) {
+			logger.error(`Error fetching content node children: ${error.message}`);
+			throw Error(`Error fetching content node children`);
+		}
+	}
+
+	async updateContentNode(nodeId: string, updateData: Partial<SystemContentNode>): Promise<Document | null> {
+		try {
+			const node = await ContentStructureModel.findByIdAndUpdate(nodeId, updateData, { new: true }).exec();
+			if (!node) {
+				throw Error(`Content node with ID ${nodeId} not found.`);
+			}
+			logger.info(`Content node ${nodeId} updated successfully.`);
+			return node;
+		} catch (error) {
+			logger.error(`Error updating content node ${nodeId}: ${error.message}`);
+			throw Error(`Error updating content node`);
+		}
+	}
+
+	async deleteContentNode(nodeId: string): Promise<boolean> {
+		try {
+			const result = await ContentStructureModel.deleteOne({ _id: nodeId }).exec();
+			if (result.deletedCount === 0) {
+				logger.warn(`Content node with ID ${nodeId} not found.`);
+				return false;
+			}
+			logger.info(`Content node ${nodeId} deleted successfully.`);
+			return true;
+		} catch (error) {
+			logger.error(`Error deleting content node ${nodeId}: ${error.message}`);
+			throw Error(`Error deleting content node`);
+		}
+	}
+	// Methods for Media Management
 	// Fetch all media
 	async getAllMedia(): Promise<MediaType[]> {
 		try {
 			const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
-			const mediaPromises = mediaTypes.map((type) => this.findMany<Document & MediaBase>(type, {}));
-			const results = await Promise.all(mediaPromises);
+			const results = await Promise.all(mediaTypes.map(type => this.findMany<Document & MediaBase>(type, {})))
 			const allMedia = results.flat().map((item) => ({
 				...item,
-				_id: item._id?.toString(), // Safe access using optional chaining
-				type: item.type || 'unknown' // Handle the type property
+				_id: item._id?.toString(),
+				type: item.type || 'unknown'
 			}));
 			logger.info(`Fetched all media, total count: \x1b[34m${allMedia.length}\x1b[0m`);
 			return allMedia as MediaType[];
@@ -1308,17 +1398,16 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error fetching all media`);
 		}
 	}
-
 	// Delete media
 	async deleteMedia(mediaId: string): Promise<boolean> {
 		try {
 			const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
-			for (const type of mediaTypes) {
-				const result = await this.deleteOne(type, { _id: this.convertId(mediaId) });
-				if (result > 0) {
-					logger.info(`Media \x1b[34m${mediaId}\x1b[0m deleted successfully from ${type}.`);
-					return true;
-				}
+			const deleteResults = await Promise.all(mediaTypes.map(type => this.deleteOne(type, { _id: this.convertId(mediaId) })));
+			// Check if any media was deleted
+			const mediaDeleted = deleteResults.some(result => result > 0);
+			if (mediaDeleted) {
+				logger.info(`Media \x1b[34m${mediaId}\x1b[0m deleted successfully.`);
+				return true;
 			}
 			logger.warn(`Media \x1b[34m${mediaId}\x1b[0m not found in any media type collections.`);
 			return false;
@@ -1327,7 +1416,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error deleting media`);
 		}
 	}
-
 	// Fetch media in a specific folder
 	async getMediaInFolder(folder_id: string): Promise<MediaType[]> {
 		try {
@@ -1343,7 +1431,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Failed to fetch media in folder`);
 		}
 	}
-
 	// Fetch the last five collections
 	async getLastFiveCollections(): Promise<Document[]> {
 		try {
@@ -1364,7 +1451,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Failed to fetch last five collections`);
 		}
 	}
-
 	// Fetch logged-in users
 	async getLoggedInUsers(): Promise<Document[]> {
 		try {
@@ -1380,7 +1466,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Failed to fetch logged-in users`);
 		}
 	}
-
 	// Fetch CMS data
 	async getCMSData(): Promise<{
 		collections: number;
@@ -1393,7 +1478,6 @@ export class MongoDBAdapter implements dbInterface {
 		logger.debug('Fetching CMS data...');
 		return {};
 	}
-
 	// Fetch the last five media documents
 	async getLastFiveMedia(): Promise<MediaType[]> {
 		try {
@@ -1414,7 +1498,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Failed to fetch last five media documents`);
 		}
 	}
-
 	// Methods for Disconnecting
 
 	// Disconnect from MongoDB
@@ -1427,8 +1510,8 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error disconnecting from MongoDB`);
 		}
 	}
-}
 
+}
 type FieldConfig = {
 	type: string;
 	db_fieldName?: string;

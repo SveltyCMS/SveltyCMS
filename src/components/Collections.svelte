@@ -41,6 +41,9 @@ Features:
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 
+	// Utils
+	import { v4 as uuidv4 } from 'uuid';
+
 	const popupCollections: PopupSettings = {
 		event: 'hover',
 		target: 'popupHover',
@@ -50,19 +53,15 @@ Features:
 	import VirtualFolders from '@components/VirtualFolders.svelte';
 
 	type ModeType = 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
-
 	// Props
 	let modeSet = $state<ModeType>('view');
-
 	// Search Collections
 	let search = $state('');
 	let searchShow = $state(false);
-
 	interface FilteredCategory extends Category {
 		open: boolean;
 		level: number;
 	}
-
 	let filteredCategories = $state<FilteredCategory[]>([]);
 
 	// Function to flatten and filter categories with improved subcategory search
@@ -70,8 +69,9 @@ Features:
 		if (!cats || Object.keys(cats).length === 0) return [];
 
 		function processCategory(category: CollectionData, level: number = 0): FilteredCategory | null {
+			if (!category) return null;
 			const processed: FilteredCategory = {
-				id: category.id,
+				id: category.id.toString(),
 				name: category.name,
 				icon: category.icon,
 				collections: [],
@@ -79,13 +79,13 @@ Features:
 				open: searchTerm !== '', // Auto-open categories when searching
 				subcategories: {}
 			};
-
 			// Process subcategories
 			let hasMatchingContent = false;
 			if (category.subcategories) {
 				Object.entries(category.subcategories).forEach(([key, subCat]) => {
 					if (subCat.isCollection) {
-						const collectionSchema = collections.value[subCat.id] || collections.value[key];
+						// Using collection.id to find the collection by id since the subCat
+						const collectionSchema = Object.values(collections.value).find((collection) => collection.id === subCat.id);
 
 						if (collectionSchema) {
 							const collection = {
@@ -110,34 +110,29 @@ Features:
 					}
 				});
 			}
-
 			const searchLower = searchTerm.toLowerCase();
 			const nameMatches = category.name.toLowerCase().includes(searchLower);
 
 			return searchTerm === '' || nameMatches || hasMatchingContent ? processed : null;
 		}
-
 		// Process only root categories (Collections and Menu)
 		return Object.entries(cats)
-			.filter(([name]) => name === 'Collections' || name === 'Menu')
+			.filter(([path]) => path.startsWith('Collections') || path.startsWith('Menu'))
 			.map(([, cat]) => processCategory(cat))
 			.filter((cat): cat is FilteredCategory => cat !== null);
 	}
-
 	// Subscribe to categories and collections store changes and handle search
 	$effect(() => {
 		if ($categories && collections.value) {
 			filteredCategories = filterCategories(search, $categories);
 		}
 	});
-
 	// Handle search input
 	function handleSearch(event: Event) {
 		const target = event.target as HTMLInputElement;
 		search = target.value;
 		filteredCategories = filterCategories(search, $categories);
 	}
-
 	// Clear search
 	function clearSearch() {
 		search = '';
@@ -146,21 +141,17 @@ Features:
 		const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
 		if (searchInput) searchInput.focus();
 	}
-
 	// Determine if the current mode is 'media'
 	let isMediaMode = $derived(mode.value === 'media');
-
 	onMount(() => {
 		if ($categories && collections.value) {
 			filteredCategories = filterCategories('', $categories);
 		}
 	});
-
 	// Helper function to get indentation class based on level
 	function getIndentClass(level: number): string {
 		return `pl-${level * 2}`; // Reduced padding for better space utilization
 	}
-
 	// Handle collection selection
 	function handleCollectionSelect(_collection: Schema) {
 		if (mode.value === 'edit') {
@@ -172,22 +163,18 @@ Features:
 		collection.set(_collection);
 		handleSidebarToggle();
 	}
-
 	// Generate unique key for collection items
 	function getCollectionKey(_collection: Schema, categoryId: string): string {
 		// The collection should already have an ID from the category processing
 		return `${categoryId}-${String(_collection.name)}-${_collection.id}`;
 	}
-
 	// Track open states for subcategories
 	let subCategoryOpenStates = $state<Record<string, boolean>>({});
-
 	// Handle subcategory accordion state
 	function handleSubcategoryToggle(categoryId: string, subcategoryKey: string) {
 		const key = `${categoryId}-${subcategoryKey}`;
 		subCategoryOpenStates[key] = !subCategoryOpenStates[key];
 	}
-
 	// Handle keyboard events
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Enter') {
@@ -231,7 +218,6 @@ Features:
 				</button>
 			</div>
 		{/if}
-
 		<!-- Collections Accordion -->
 		<Accordion
 			autocollapse
@@ -243,7 +229,7 @@ Features:
 			caretOpen="rotate-180"
 		>
 			{#if filteredCategories.length > 0}
-				{#each filteredCategories as category (category.name)}
+				{#each filteredCategories as category (category.id)}
 					<AccordionItem
 						bind:open={category.open}
 						regionPanel="divide-y dark:divide-black my-0"
@@ -252,7 +238,6 @@ Features:
 						{#snippet lead()}
 							<iconify-icon icon={category.icon} width="24" class="text-error-500 rtl:ml-2" use:popup={popupCollections}></iconify-icon>
 						{/snippet}
-
 						{#snippet summary()}
 							{#if sidebarState.sidebar.value.left === 'full'}
 								<p class="text-white">{category.name}</p>
@@ -262,11 +247,10 @@ Features:
 								<div class="variant-filled-secondary arrow"></div>
 							</div>
 						{/snippet}
-
 						{#snippet content()}
 							<!-- Collections in this category -->
 							{#if category.collections?.length}
-								{#each category.collections as _collection (getCollectionKey(_collection, category.name.toString()))}
+								{#each category.collections as _collection (getCollectionKey(_collection, category.name))}
 									<div
 										role="button"
 										tabindex={0}
@@ -286,7 +270,6 @@ Features:
 									</div>
 								{/each}
 							{/if}
-
 							<!-- Subcategories with Autocollapse -->
 							{#if category.subcategories && Object.keys(category.subcategories).length > 0}
 								<Accordion
@@ -303,7 +286,7 @@ Features:
 										<div class={getIndentClass(category.level + 1)}>
 											<AccordionItem
 												bind:open={subCategoryOpenStates[`${category.name}-${key}`]}
-												onclick={() => handleSubcategoryToggle(category.name.toString(), key)}
+												onclick={() => handleSubcategoryToggle(category.id.toString(), key)}
 												regionPanel="divide-y dark:divide-black my-0"
 												class="divide-y rounded-md bg-surface-300 dark:bg-surface-400"
 											>
@@ -311,7 +294,6 @@ Features:
 													<iconify-icon icon={subCategory.icon} width="24" class="text-error-500 rtl:ml-2" use:popup={popupCollections}
 													></iconify-icon>
 												{/snippet}
-
 												{#snippet summary()}
 													{#if sidebarState.sidebar.value.left === 'full'}
 														<p class="uppercase text-white">{subCategory.name}</p>
@@ -321,7 +303,6 @@ Features:
 														<div class="variant-filled-secondary arrow"></div>
 													</div>
 												{/snippet}
-
 												{#snippet content()}
 													{#if subCategory.collections?.length}
 														{#each subCategory.collections as _collection (getCollectionKey(_collection, subCategory.name.toString()))}
@@ -357,7 +338,6 @@ Features:
 				<div class="p-4 text-center text-gray-500">No collections found</div>
 			{/if}
 		</Accordion>
-
 		<!-- Media Gallery Button -->
 		<button
 			class="btn mt-1 flex w-full {sidebarState.sidebar.value.left === 'full'
