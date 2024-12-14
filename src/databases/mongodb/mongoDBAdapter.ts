@@ -172,12 +172,12 @@ const SystemVirtualFolderModel =
 // Content structure schema for categories and collections
 const contentStructureSchema = new Schema(
 	{
+		collectionId: { type: String },
 		name: { type: String, required: true },
 		path: { type: String, required: true, unique: true },
 		icon: { type: String },
 		order: { type: Number, default: 999 },
 		isCollection: { type: Boolean, default: false },
-		collectionId: { type: String },
 		translations: [{
 			languageTag: String,
 			translationName: String
