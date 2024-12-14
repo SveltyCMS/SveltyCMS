@@ -17,7 +17,7 @@
 
 	// Stores
 	import { validationStore } from '@stores/store';
-	import { type Field } from '@root/src/collections/types';
+	import { type Field } from '@src/content/types';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

@@ -44,7 +44,7 @@ import type { dbInterface, Draft, Revision, Theme, Widget, SystemPreferences, Sy
 import { UserSchema } from '@src/auth/mongoDBAuth/userAdapter';
 import { TokenSchema } from '@src/auth/mongoDBAuth/tokenAdapter';
 import { SessionSchema } from '@src/auth/mongoDBAuth/sessionAdapter';
-import type { CollectionConfig } from '@src/collections/types';
+import type { CollectionConfig } from '@src/content/types';
 // Media
 import type { MediaBase, MediaType } from '@utils/media/mediaModels';
 
@@ -173,7 +173,6 @@ const SystemVirtualFolderModel =
 const contentStructureSchema = new Schema(
 	{
 		name: { type: String, required: true },
-		parent: { type: String, default: null },
 		path: { type: String, required: true, unique: true },
 		icon: { type: String },
 		order: { type: Number, default: 999 },
@@ -185,7 +184,7 @@ const contentStructureSchema = new Schema(
 		}],
 		updatedAt: { type: Date, default: Date.now }
 	},
-	{ timestamps: true, collection: 'system_content_structure' }
+	{ timestamps: true, collection: 'system_content_structure' } // Explicitly set the content structure for categories & collections 
 );
 
 // Add indexes for better performance
@@ -1352,7 +1351,7 @@ export class MongoDBAdapter implements dbInterface {
 		}
 	}
 
-	async updateContentNode(nodeId: string, updateData: Partial<SystemContentNode>): Promise<Document | null> {
+	async updateContentNode(nodeId: string, updateData: Partial<SystemContent>): Promise<Document | null> {
 		try {
 			const node = await ContentStructureModel.findByIdAndUpdate(nodeId, updateData, { new: true }).exec();
 			if (!node) {

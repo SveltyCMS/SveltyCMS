@@ -1,6 +1,6 @@
 /* 
-@file src/collections/types.ts
-@description - Collection Type Definition for Collection Manager
+@file src/content/types.ts
+@description - Content Type Definition for Collection Manager
 */
 
 import type widgets from '@components/widgets';
@@ -48,7 +48,7 @@ export type Field = WidgetPlaceholder | {
 
 // Collection Registry - defines all available collections
 export const CollectionRegistry = {
-	CollectionManager: 'CollectionManager',
+	ContentManager: 'ContentManager',
 	categories: 'categories'
 } as const;
 
@@ -77,9 +77,9 @@ export type CollectionContent = {
 
 // Category interface
 export interface Category {
-	id: string;  // Changed from number to string
-	name: string;
-	icon: string;
+	id: string;  // UUID for Category
+	name: string; // Category name
+	icon: string; // Category icon
 	translations?: { languageTag: string; translationName: string; }[];
 	collections: Schema[]; // Collections within this category
 	subcategories?: Record<string, Category>; // Added subcategories support
@@ -93,9 +93,9 @@ export interface FilteredCategory extends Category {
 
 // Category data interface for configuration
 export interface CollectionData {
-	id: string;
-	icon: string;
-	name: string;
+	id: string; // UUID for Collection
+	icon: string; // Collection icon
+	name: string; // Collection name
 	translations?: { languageTag: string; translationName: string; }[];
 	isCollection?: boolean; // Flag to identify if this is a collection (.ts file)
 	subcategories?: Record<string, CollectionData>; // Nested subcategories
@@ -113,58 +113,58 @@ export interface ProcessedCollectionData extends CollectionData {
 // Collection types
 
 export type CollectionTypes = {
-  "Names": {
-    "fields": [
-      "First Name",
-      "Last Name"
-    ],
-    "type": "{First Name: string; Last Name: string}"
-  },
-  "Posts": {
-    "fields": [
-      "Email",
-      "dbtest"
-    ],
-    "type": "{Email: string; dbtest: string}"
-  },
-  "Relation": {
-    "fields": [
-      "relationM2MPosts"
-    ],
-    "type": "{relationM2MPosts: string}"
-  },
-  "WidgetTest": {
-    "fields": [
-      "firstname",
-      "middlename",
-      "lastname",
-      "Full_Text_option",
-      "email",
-      "remotevideo",
-      "date",
-      "datetime",
-      "number",
-      "currency",
-      "phonenumber",
-      "radio",
-      "checkbox",
-      "colorpicker",
-      "rating",
-      "RichText"
-    ],
-    "type": "{firstname: string; middlename: string; lastname: string; Full_Text_option: string; email: string; remotevideo: string; date: string; datetime: string; number: string; currency: string; phonenumber: string; radio: string; checkbox: string; colorpicker: string; rating: string; RichText: string}"
-  },
-  "Menu": {
-    "fields": [
-      "Menu"
-    ],
-    "type": "{Menu: string}"
-  },
-  "Names123": {
-    "fields": [
-      "First test",
-      "Last Name"
-    ],
-    "type": "{First test: string; Last Name: string}"
-  }
+	"Names": {
+		"fields": [
+			"First Name",
+			"Last Name"
+		],
+		"type": "{First Name: string; Last Name: string}"
+	},
+	"Posts": {
+		"fields": [
+			"Email",
+			"dbtest"
+		],
+		"type": "{Email: string; dbtest: string}"
+	},
+	"Relation": {
+		"fields": [
+			"relationM2MPosts"
+		],
+		"type": "{relationM2MPosts: string}"
+	},
+	"WidgetTest": {
+		"fields": [
+			"firstname",
+			"middlename",
+			"lastname",
+			"Full_Text_option",
+			"email",
+			"remotevideo",
+			"date",
+			"datetime",
+			"number",
+			"currency",
+			"phonenumber",
+			"radio",
+			"checkbox",
+			"colorpicker",
+			"rating",
+			"RichText"
+		],
+		"type": "{firstname: string; middlename: string; lastname: string; Full_Text_option: string; email: string; remotevideo: string; date: string; datetime: string; number: string; currency: string; phonenumber: string; radio: string; checkbox: string; colorpicker: string; rating: string; RichText: string}"
+	},
+	"Menu": {
+		"fields": [
+			"Menu"
+		],
+		"type": "{Menu: string}"
+	},
+	"Names123": {
+		"fields": [
+			"First test",
+			"Last Name"
+		],
+		"type": "{First test: string; Last Name: string}"
+	}
 };

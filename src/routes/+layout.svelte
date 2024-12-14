@@ -26,13 +26,13 @@
 
 	// category config store
 	import { categories } from '@root/src/stores/collectionStore.svelte';
+	import { dbAdapter } from '@src/databases/db';
 
 	// Importing Tailwind CSS styles
 	import '../app.postcss';
 
 	// Initializing Skeleton stores
 	import { initializeStores } from '@skeletonlabs/skeleton';
-	import { categoryConfig } from '@src/collections/categories';
 
 	initializeStores();
 
@@ -40,7 +40,13 @@
 	const defaultTitle = `${publicEnv.SITE_NAME} - The Ultimate Headless CMS Powered by SvelteKit`;
 	const defaultDescription = `${publicEnv.SITE_NAME} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;
 
-	categories.set(categoryConfig);
+	// Initialize categories from database
+	const initCategories = async () => {
+		const contentNodes = await dbAdapter.getContentNodes();
+		categories.set(contentNodes);
+	};
+
+	initCategories();
 
 	// Props
 	interface Props {

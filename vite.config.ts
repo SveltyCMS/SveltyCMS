@@ -17,7 +17,7 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import { paraglide } from '@inlang/paraglide-sveltekit/vite';
 import { compile, cleanupOrphanedFiles } from './src/routes/api/compile/compile';
-import { generateCollectionTypes } from './src/collections/vite';
+import { generateCollectionTypes } from './src/content/vite';
 
 // Get package.json version info
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
@@ -121,17 +121,6 @@ export default defineConfig({
 							}, 50);
 						}
 
-						// Handle category file changes
-						if (file.startsWith(Path.posix.join(process.cwd(), 'src/collections/categories.ts'))) {
-							console.log(`Categories file changed \x1b[34m${file}\x1b[0m`);
-							server.ws.send({
-								type: 'custom',
-								event: 'categories-updated',
-								data: {}
-							});
-							return []; // Prevent default HMR behavior
-						}
-
 						// Handle config file changes
 						if (file.startsWith(Path.posix.join(process.cwd(), 'config/roles.ts'))) {
 							console.log(`Roles file changed: \x1b[34m${file}\x1b[0m`);
@@ -204,7 +193,7 @@ export default defineConfig({
 			'@root': resolve(process.cwd(), './'),
 			'@src': resolve(process.cwd(), './src'),
 			'@components': resolve(process.cwd(), './src/components'),
-			'@collections': resolve(process.cwd(), './src/collections'),
+			'@content': resolve(process.cwd(), './src/content'),
 			'@utils': resolve(process.cwd(), './src/utils'),
 			'@stores': resolve(process.cwd(), './src/stores')
 		}

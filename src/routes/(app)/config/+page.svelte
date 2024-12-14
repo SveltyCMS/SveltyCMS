@@ -29,8 +29,8 @@ Features:
 	// Import PermissionConfig type from the correct file
 	import type { PermissionConfig } from '@src/auth/permissionCheck';
 	import { onMount } from 'svelte';
-	import { collection } from '@root/src/stores/collectionStore.svelte';
-	import type { Schema } from '@root/src/collections/CollectionManager';
+	import { collection } from '@src/stores/collectionStore.svelte';
+	import type { Schema } from '@src/content/ContentManager';
 
 	// Define the structure of dynamicPermissions
 	type DynamicPermissions = Record<string, PermissionConfig>;

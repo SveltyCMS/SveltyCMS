@@ -24,13 +24,13 @@ Features:
 	import { onMount } from 'svelte';
 
 	// Types
-	import type { Schema, CollectionData, Category } from '@src/collections/types';
+	import type { Schema, CollectionData, Category } from '@src/content/types';
 
 	// Stores
 	import { get } from 'svelte/store';
 	import { shouldShowNextButton } from '@stores/store';
-	import { mode, collection, categories, collections } from '@root/src/stores/collectionStore.svelte';
-	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@root/src/stores/sidebarStore.svelte';
+	import { mode, collection, categories, collections } from '@src/stores/collectionStore.svelte';
+	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@src/stores/sidebarStore.svelte';
 	import { screenSize } from '@root/src/stores/screenSizeStore.svelte';
 
 	// ParaglideJS
@@ -40,9 +40,6 @@ Features:
 	import { Accordion, AccordionItem } from '@skeletonlabs/skeleton';
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
-
-	// Utils
-	import { v4 as uuidv4 } from 'uuid';
 
 	const popupCollections: PopupSettings = {
 		event: 'hover',

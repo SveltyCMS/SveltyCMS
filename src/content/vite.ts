@@ -1,6 +1,6 @@
 /**
- * @file src/collections/vite.ts
- * @description Vite plugin for generating TypeScript types for collections
+ * @file src/content/vite.ts
+ * @description Vite plugin for generating TypeScript types for content
  */
 
 import fs from 'fs';
@@ -38,11 +38,11 @@ export async function generateCollectionTypes(server) {
         }
 
 
-        let types = await fs.promises.readFile('src/collections/types.ts', 'utf-8');
+        let types = await fs.promises.readFile('src/content/types.ts', 'utf-8');
         types = types.replace(/\n*export\s+type\s+CollectionTypes\s?=\s?.*?};/gms, '');
         types += '\nexport type CollectionTypes = ' + JSON.stringify(collectionTypes, null, 2) + ';\n';
 
-        await fs.promises.writeFile('src/collections/types.ts', types);
+        await fs.promises.writeFile('src/content/types.ts', types);
 
         return collectionTypes;
     } catch (error) {

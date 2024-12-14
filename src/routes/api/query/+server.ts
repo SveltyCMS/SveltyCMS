@@ -22,7 +22,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 
 // Types
 import type { User } from '@src/auth/types';
-import type { Schema } from '@src/collections/types';
+import type { Schema } from '@root/src/content/types';
 
 // Interface for cookies
 export interface CookieData {
@@ -35,7 +35,7 @@ import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // Collection Manager
-import { collectionManager } from '@src/collections/CollectionManager';
+import { contentManager } from '@src/content/ContentManager';
 
 // Import handlers
 import { _GET } from './GET';
@@ -86,8 +86,8 @@ async function checkUserPermissions(data: FormData, cookies: CookieData) {
 			throw Error('Collection name is required');
 		}
 
-		// Get the schema for the specified collection from CollectionManager
-		const { collections } = collectionManager.getCollectionData();
+		// Get the schema for the specified collection from ContentManager
+		const { collections } = contentManager.getCollectionData();
 		const collection_schema = collections.find((c) => c.name === collectionTypes) as Schema;
 
 		if (!collection_schema) {

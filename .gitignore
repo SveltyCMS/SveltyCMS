@@ -29,9 +29,6 @@ Docs/*
 .node-version
 
 
-# Collections
-src/collections/categories.ts  # Auto-generated file
-
 # Ensure src/utils/media and its contents are not ignored
 !src/utils/media/
 !src/utils/media/*.ts
@@ -56,4 +53,3 @@ yarn-error.log*
 
 #paraglide.js
 src/paraglide/**/*.js
-src/collections/backup/categories.backup.2024-10-30T20-55-20-227Z.ts

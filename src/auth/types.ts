@@ -26,7 +26,7 @@
  */
 
 import { PermissionAction as ConfigPermissionAction, PermissionType } from '../../src/auth/permissionTypes';
-import type { Field } from '../collections/types';
+import type { Field } from '../content/types';
 
 // Type aliases for identifiers
 export type RoleId = string;

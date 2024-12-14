@@ -35,7 +35,7 @@ Key features:
 	import { screenSize, ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
 
 	// Components
-	import { collectionManager } from '@src/collections/CollectionManager';
+	import { contentManager } from '@src/content/ContentManager';
 	import Loading from '@components/Loading.svelte';
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import LeftSidebar from '@components/LeftSidebar.svelte';
@@ -101,12 +101,12 @@ Key features:
 		document.documentElement.lang = lang;
 	});
 
-	// Function to initialize collections using CollectionManager
+	// Function to initialize collections using ContentManager
 	async function initializeCollections() {
 		try {
-			const { collections: loadedCollections } = collectionManager.getCollectionData();
+			const { collections: loadedCollections } = contentManager.getCollectionData();
 			if (loadedCollections.length === 0) {
-				await collectionManager.updateCollections();
+				await contentManager.updateCollections();
 			}
 			isCollectionsLoaded = true;
 		} catch (error) {

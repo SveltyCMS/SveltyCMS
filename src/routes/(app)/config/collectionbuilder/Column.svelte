@@ -7,7 +7,7 @@
 <script lang="ts">
 	import Column from './Column.svelte';
 	import { goto } from '$app/navigation';
-	import type { CollectionData } from '@src/collections/types';
+	import type { CollectionData } from '@src/content/types';
 
 	// Stores
 	import { mode, categories } from '@root/src/stores/collectionStore.svelte';

@@ -63,21 +63,6 @@ export interface SystemVirtualFolder {
 	updatedAt?: Date;
 }
 
-// Content structure for categories and collections
-export interface SystemContentNode {
-	_id?: mongoose.Types.ObjectId;
-	id?: string;
-	name: string;
-	parent?: string;
-	path: string;
-	icon?: string;
-	order?: number;
-	isCollection?: boolean;
-	collectionId?: string;
-	translations?: { languageTag: string; translationName: string; }[];
-	updatedAt?: Date;
-}
-
 // Document types
 export type DocumentContent = Record<string, unknown>;
 
@@ -194,7 +179,7 @@ export interface dbInterface {
 	deleteVirtualFolder(folderId: string): Promise<boolean>;
 
 	// Content Structure Methods for direct database interactions
-	createContentNode(nodeData: { 
+	createContentNode(nodeData: {
 		name: string;
 		parent?: string;
 		path: string;
@@ -206,7 +191,7 @@ export interface dbInterface {
 	}): Promise<Document>;
 	getContentNodes(): Promise<Document[]>;
 	getContentNodeChildren(nodeId: string): Promise<Document[]>;
-	updateContentNode(nodeId: string, updateData: Partial<SystemContentNode>): Promise<Document | null>;
+	updateContentNode(nodeId: string, updateData: Partial<SystemContent>): Promise<Document | null>;
 	deleteContentNode(nodeId: string): Promise<boolean>;
 
 	// Media Management

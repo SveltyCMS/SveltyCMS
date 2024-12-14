@@ -13,7 +13,7 @@ import { error, json, type RequestHandler } from '@sveltejs/kit';
 import { browser } from '$app/environment';
 
 // Collection Manager
-import { collectionManager } from '@src/collections/CollectionManager';
+import { contentManager } from '@src/content/ContentManager';
 
 // Redis
 import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/redis';
@@ -40,7 +40,7 @@ export const GET: RequestHandler = async ({ url }) => {
 			}
 		}
 
-		const { collections, categories } = collectionManager.getCollectionData();
+		const { collections, categories } = contentManager.getCollectionData();
 		let response;
 		let collection;
 
@@ -116,7 +116,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				}
 
 				// Force recompilation of collections
-				await collectionManager.updateCollections(true);
+				await contentManager.updateCollections(true);
 				logger.info('Collections recompiled successfully');
 				return json({
 					success: true,

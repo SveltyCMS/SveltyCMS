@@ -28,8 +28,8 @@ import { error } from '@sveltejs/kit';
 // Auth
 import { Auth } from '@src/auth';
 
-// Collection Manager
-import { collectionManager } from '@src/collections/CollectionManager';
+// Content Manager
+import { contentManager } from '@src/content/ContentManager';
 
 import { getPermissionByName, getAllPermissions, syncPermissions } from '@src/auth/permissionManager';
 
@@ -250,16 +250,16 @@ async function initializeAdapters(): Promise<void> {
 			await initializeRevisions();
 			await syncPermissions();
 
-			// Step 6: Initialize CollectionManager
-			logger.debug('Initializing CollectionManager...');
-			await collectionManager.initialize();
+			// Step 6: Initialize ContentManager
+			logger.debug('Initializing ContentManager...');
+			await contentManager.initialize();
 
 			// Get collection data after initialization
-			const { collections } = collectionManager.getCollectionData();
+			const { collections } = contentManager.getCollectionData();
 			if (!collections || collections.length === 0) {
-				logger.warn('No collections found after CollectionManager initialization');
+				logger.warn('No collections found after ContentManager initialization');
 			} else {
-				logger.debug('CollectionManager initialized with collections:', { count: collections.length });
+				logger.debug('ContentManager initialized with collections:', { count: collections.length });
 			}
 
 			await dbAdapter.getCollectionModels();

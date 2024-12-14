@@ -1,12 +1,12 @@
 /**
- * @file src/collections/collectionTypes.ts
+ * @file src/content/collectionTypes.ts
  * @description Utility functions for generating TypeScript types for collections in a SvelteKit CMS project.
  *
  * This file contains two main functions:
  * 1. generateCollectionTypes(): Generates a TypeScript union type of collection names.
  * 2. generateCollectionFieldTypes(): Generates TypeScript types for fields in each collection.
  *
- * These functions read from and write to the 'src/collections' directory and update the 'types.ts' file.
+ * These functions read from and write to the 'src/content' directory and update the 'types.ts' file.
  *
  * @requires fs/promises - File system module with promise-based API
  * @requires path - Path manipulation utility
@@ -16,9 +16,9 @@
 import fs from 'fs/promises';
 import path from 'path';
 import ts from 'typescript';
-import type { Field } from '@src/collections/types';
+import type { Field } from '@root/src/content/types';
 
-const COLLECTIONS_DIR = 'src/collections';
+const COLLECTIONS_DIR = 'src/content';
 const TYPES_FILE = path.join(COLLECTIONS_DIR, 'types.ts');
 const EXCLUDED_FILES = new Set(['index.ts', 'types.ts', 'config.ts']);
 
@@ -54,7 +54,7 @@ export async function generateCollectionFieldTypes(): Promise<void> {
         let types = await fs.readFile(TYPES_FILE, 'utf-8');
         const collectionTypesDef = `export type CollectionFieldTypes = ${JSON.stringify(collections, null, 2)};`;
         types = types.replace(/export\s+type\s+CollectionFieldTypes\s?=\s?.*?;/gms, collectionTypesDef);
-        
+
         await fs.writeFile(TYPES_FILE, types);
     } catch (error) {
         console.error('Error generating collection field types:', error);
@@ -73,8 +73,8 @@ async function processCollectionFile(content: string): Promise<{ fields: string[
 
     const processedContent = `
         ${Array.from(widgets)
-                .map((widget) => `const ${widget} = (args: any) => args;`)
-                .join('\n')}
+            .map((widget) => `const ${widget} = (args: any) => args;`)
+            .join('\n')}
         ${content.replace(/widgets\./g, '')}
     `;
 

@@ -641,7 +641,7 @@ async function getAllCollectionFiles(dir: string): Promise<string[]> {
 			entry.isFile() &&
 			entry.name.endsWith('.ts') &&
 			!entry.name.startsWith('_') &&
-			!['index.ts', 'types.ts', 'categories.ts', 'CollectionManager.ts'].includes(entry.name)
+			!['index.ts', 'types.ts', 'ContentManager.ts'].includes(entry.name)
 		) {
 			files.push(fullPath);
 		}

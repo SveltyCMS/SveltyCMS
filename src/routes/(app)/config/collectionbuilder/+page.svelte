@@ -18,13 +18,14 @@
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { categoryConfig } from '@src/collections/categories';
 	import { v4 as uuidv4 } from 'uuid';
 	import { checkCollectionNameConflict } from '@utils/utils';
-	import type { CollectionData } from '@src/collections/types';
+	import type { CollectionData } from '@src/content/types';
 
 	// Stores
-	import { collectionValue, mode, categories } from '@root/src/stores/collectionStore.svelte';
+	import { collectionValue, mode } from '@src/stores/collectionStore.svelte';
+	import { categories } from '@root/src/stores/collectionStore.svelte';
+	import { dbAdapter } from '@src/databases/db';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -65,12 +66,23 @@
 	}
 
 	// State variables
-	let currentConfig = $state<Record<string, CollectionData>>(categoryConfig);
+	let currentConfig = $state<Record<string, CollectionData>>({});
 	let isLoading = $state(false);
 	let apiError = $state<string | null>(null);
 
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
+
+	// Load content structure from database
+	const loadContentStructure = async () => {
+		const contentNodes = await dbAdapter.getContentNodes();
+		currentConfig = contentNodes.reduce((acc, node) => {
+			acc[node.path] = node;
+			return acc;
+		}, {} as Record<string, CollectionData>);
+	};
+
+	loadContentStructure();
 
 	// Initialize the categories store with the current config
 	$effect(() => {
@@ -315,6 +327,6 @@
 		<p class="mb-4 text-center dark:text-primary-500">{m.collection_text_description()}</p>
 
 		<!-- display collections -->
-		<Board {categoryConfig} onEditCategory={modalAddCategory} />
+		<Board {currentConfig} onEditCategory={modalAddCategory} />
 	</div>
 </div>

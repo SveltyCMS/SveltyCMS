@@ -24,7 +24,7 @@
 	import { get } from 'svelte/store';
 	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store';
 	import { mode } from '@stores/collectionStore.svelte';
-	import { toggleSidebar, sidebarState, userPreferredState, handleSidebarToggle } from '@root/src/stores/sidebarStore.svelte';
+	import { toggleSidebar, sidebarState, userPreferredState, handleSidebarToggle } from '@src/stores/sidebarStore.svelte';
 	import { screenSize } from '@stores/screenSizeStore.svelte';
 
 	// Import components and utilities

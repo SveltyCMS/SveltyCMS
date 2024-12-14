@@ -8,72 +8,65 @@
 	import Column from './Column.svelte';
 
 	// Store
-	import { categories } from '@root/src/stores/collectionStore.svelte';
+	import { categories } from '@src/stores/collectionStore.svelte';
 
 	// Types
-	import type { CollectionData } from '@src/collections/types';
+	import type { CollectionData } from '@src/content/types';
 
 	// Svelte DND-actions
 	import { flip } from 'svelte/animate';
 	import { dndzone, type DndEvent } from 'svelte-dnd-action';
 
 	interface Props {
-		categoryConfig: Record<string, CollectionData>;
-		onEditCategory: (category: { name: string; icon: string }) => void;
+		contentNodes: Record<string, CollectionData>;
+		onEditCategory: (category: string) => void;
 	}
 
-	interface DndItem {
-		id: string;
-		name: string;
-		icon: string;
-		isCategory: boolean;
-		isCollection?: boolean;
-		items?: DndItem[];
-	}
-
-	let { categoryConfig = $bindable(), onEditCategory }: Props = $props();
+	let { contentNodes = $bindable(), onEditCategory }: Props = $props();
 
 	// State variables
 	let structuredItems = $state<DndItem[]>([]);
 	let isDragging = $state(false);
 	let dragError = $state<string | null>(null);
 
-	// Convert categoryConfig to DndItems when it changes
+	// Convert contentNodes to DndItems when it changes
 	$effect(() => {
-		try {
-			structuredItems = createStructuredItems(categoryConfig);
-			dragError = null;
-		} catch (error) {
-			console.error('Error creating structured items:', error);
-			dragError = error instanceof Error ? error.message : 'Error creating structured items';
+		if (contentNodes) {
+			try {
+				structuredItems = createStructuredItems(contentNodes);
+				dragError = null;
+			} catch (error) {
+				console.error('Error creating structured items:', error);
+				dragError = error instanceof Error ? error.message : 'Error creating structured items';
+			}
 		}
 	});
 
-	// Convert categoryConfig to format needed for dnd-actions
-	function createStructuredItems(config: Record<string, CollectionData>): DndItem[] {
-		return Object.entries(config).map(([key, category]) => {
+	// Convert contentNodes to format needed for dnd-actions
+	function createStructuredItems(nodes: Record<string, CollectionData>): DndItem[] {
+		return Object.entries(nodes).map(([key, node]) => {
 			const items: DndItem[] = [];
 
-			if (category.subcategories) {
-				Object.entries(category.subcategories).forEach(([subKey, subCategory]: [string, CollectionData]) => {
-					if (subCategory.isCollection) {
+			if (node.subcategories) {
+				Object.entries(node.subcategories).forEach(([subKey, subNode]: [string, CollectionData]) => {
+					if (subNode.isCollection) {
 						// It's a collection
 						items.push({
-							id: subCategory.id || subKey,
-							name: subCategory.name,
-							icon: subCategory.icon,
+							id: subNode.id || subKey,
+							name: subNode.name,
+							icon: subNode.icon,
 							isCategory: false,
 							isCollection: true
 						});
-					} else if (subCategory.subcategories && Object.keys(subCategory.subcategories).length > 0) {
+					} else if (subNode.subcategories && Object.keys(subNode.subcategories).length > 0) {
 						// It's a category with nested items
 						items.push({
-							id: subCategory.id || subKey,
-							name: subCategory.name,
-							icon: subCategory.icon,
+							id: subNode.id || subKey,
+							name: subNode.name,
+							icon: subNode.icon,
 							isCategory: true,
 							isCollection: false,
-							items: Object.entries(subCategory.subcategories).map(([collKey, coll]: [string, CollectionData]) => ({
+							items: Object.entries(subNode.subcategories).map(([collKey, coll]: [string, CollectionData]) => ({
 								id: coll.id || collKey,
 								name: coll.name,
 								icon: coll.icon,
@@ -84,9 +77,9 @@
 					} else {
 						// It's an empty category
 						items.push({
-							id: subCategory.id || subKey,
-							name: subCategory.name,
-							icon: subCategory.icon,
+							id: subNode.id || subKey,
+							name: subNode.name,
+							icon: subNode.icon,
 							isCategory: true,
 							isCollection: false,
 							items: []
@@ -96,9 +89,9 @@
 			}
 
 			return {
-				id: category.id || key,
-				name: category.name,
-				icon: category.icon,
+				id: node.id || key,
+				name: node.name,
+				icon: node.icon,
 				isCategory: true,
 				isCollection: false,
 				items
@@ -122,7 +115,7 @@
 			structuredItems = e.detail.items;
 			const newConfig = convertToConfig(structuredItems);
 			categories.set(newConfig);
-			categoryConfig = newConfig;
+			contentNodes = newConfig;
 			dragError = null;
 		} catch (error) {
 			console.error('Error handling DnD finalize:', error);
@@ -192,7 +185,7 @@
 			structuredItems = newItems;
 			const newConfig = convertToConfig(newItems);
 			categories.set(newConfig);
-			categoryConfig = newConfig;
+			contentNodes = newConfig;
 			dragError = null;
 		} catch (error) {
 			console.error('Error handling update:', error);

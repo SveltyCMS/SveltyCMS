@@ -26,8 +26,8 @@ import { redirect, type Actions, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Collections
-import { updateCollections } from '@src/collections';
-import { generateCollectionFieldTypes, generateCollectionTypes } from '@src/collections/collectionTypes';
+import { updateCollections } from '@root/src/content';
+import { generateCollectionFieldTypes, generateCollectionTypes } from '@root/src/content/collectionTypes';
 import { compile } from '@root/src/routes/api/compile/compile';
 
 // Widgets
@@ -122,7 +122,7 @@ export const actions: Actions = {
 
 		${imports}
 		import { widgets } from '@components/widgets/widgetManager.svelte';
-		import type { Schema } from '@src/collections/types';
+		import type { Schema } from '@src/content/types';
 		
 		export const schema: Schema = {
 			// Collection Name coming from filename so not needed

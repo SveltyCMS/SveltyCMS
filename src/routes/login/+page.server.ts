@@ -11,7 +11,7 @@ import { error, redirect, fail, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Collection Manager
-import { collectionManager } from '@src/collections/CollectionManager';
+import { contentManager } from '@src/content/ContentManager';
 
 // Rate Limiter
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
@@ -66,7 +66,7 @@ function calculatePasswordStrength(password: string): number {
 // Helper function to fetch and redirect to the first collection
 async function fetchAndRedirectToFirstCollection() {
 	try {
-		const { collections } = collectionManager.getCollectionData();
+		const { collections } = contentManager.getCollectionData();
 		// logger.debug('Fetched collections:', collections);
 
 		if (collections && collections.length > 0) {

@@ -1,11 +1,10 @@
 /**
- * @file src/collections/CollectionManager.ts
- * @description Collection Manager for SvelteCMS
+ * @file src/content/ContentManager.ts
+ * @description Content Manager for SvelteCMS
  *
  * Features:
- * - Singleton pattern for centralized collection management
- * - Collection loading, caching, and updates
- * - Category creation from folder structure
+ * - Singleton pattern for centralized content management
+ * - Category & collection loading, caching, and updates from folder structure
  * - Widget initialization
  * - Dynamic schema generation based on widget configurations
  * - Caching and efficient data structures (Memory + optional Redis)
@@ -31,6 +30,8 @@ import { logger } from '@utils/logger.svelte';
 let fs: typeof import('fs/promises') | null = null;
 let path: typeof import('path') | null = null;
 import { dbAdapter, dbInitPromise } from '@src/databases/db';
+import type { SystemContent } from '@src/databases/dbInterface';
+
 if (!browser) {
 	const imports = await Promise.all([import('fs/promises'), import('path')]);
 	[fs, path] = imports;
@@ -45,7 +46,7 @@ const REDIS_TTL = 300; // 5 minutes in seconds for Redis
 const MAX_CACHE_SIZE = 100;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
-const EXCLUDED_FILES = ['index.ts', 'types.ts', 'categories.ts', 'CollectionManager.ts'];
+
 // Widget initialization state
 let widgetsInitialized = false;
 let widgetsInitPromise: Promise<void> | null = null;
@@ -62,33 +63,28 @@ async function ensureWidgetsInitialized() {
 	}
 	await widgetsInitPromise;
 }
-class CollectionManager {
-	private static instance: CollectionManager | null = null;
+class ContentManager {
+	private static instance: ContentManager | null = null;
 	private collectionCache: Map<string, CacheEntry<Schema>> = new Map();
-	private categoryCache: Map<string, CacheEntry<CollectionData>> = new Map();
 	private fileHashCache: Map<string, CacheEntry<string>> = new Map();
 	private collectionAccessCount: Map<string, number> = new Map();
 	private initialized: boolean = false;
 	private loadedCollections: Schema[] = [];
 	private loadedCategories: Category[] = [];
 	private dbInitPromise: Promise<void> | null = null;
+
 	private constructor() {
 		if (!browser) {
 			// Server-side initialization
 			this.dbInitPromise = dbInitPromise;
-			// Initialize widgets
-			this.initializationPromise = (async () => {
-				await dbInitPromise;
-				// Then initialize collections
-				await this.initialize();
-			})();
+
 		}
 	}
-	static getInstance(): CollectionManager {
-		if (!CollectionManager.instance) {
-			CollectionManager.instance = new CollectionManager();
+	static getInstance(): ContentManager {
+		if (!ContentManager.instance) {
+			ContentManager.instance = new ContentManager();
 		}
-		return CollectionManager.instance;
+		return ContentManager.instance;
 	}
 	// Wait for initialization to complete
 	async waitForInitialization(): Promise<void> {
@@ -104,17 +100,18 @@ class CollectionManager {
 			await this.measurePerformance(async () => {
 				try {
 					// Now load collections
+					await this.waitForInitialization();
 					await this.updateCollections(true);
 					this.initialized = true;
 				} catch (error) {
 					logger.error('Initialization failed:', error);
 					throw error;
 				}
-			}, 'Collection Manager Initialization');
+			}, 'Content Manager Initialization');
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : String(err);
-			logger.error('Failed to load collections', { error: errorMessage });
-			throw new Error(`Failed to load collections: ${errorMessage}`);
+			logger.error('Failed to load Content', { error: errorMessage });
+			throw new Error(`Failed to load Content: ${errorMessage}`);
 		}
 	}
 
@@ -272,37 +269,32 @@ class CollectionManager {
 			categories: this.loadedCategories
 		};
 	}
+
 	// Load and process collections with optimized batch processing
 	async loadCollections(): Promise<Schema[]> {
 		return this.measurePerformance(async () => {
 			try {
-				// Try getting from Redis cache first
-				if (!browser && isRedisEnabled()) {
-					const cachedCollections = await getCache<Schema[]>('cms:all_collections');
-					if (cachedCollections) {
-						this.loadedCollections = cachedCollections;
-						return cachedCollections;
-					}
-				}
-
 				const collections: Schema[] = [];
+				const contentNodesMap = await this.getContentNodesMap();
+				const moduleEntries = Array.from(contentNodesMap.entries());
 
 				if (dev) {
 					// Use dynamic imports instead of eager loading
 					const modules = await import.meta.glob('/config/collections/**/*.ts', { eager: true });
 
-					const filteredModules = Object.entries(modules).filter(([path]) => {
-						const fileName = path.split('/').pop() || '';
-						return !EXCLUDED_FILES.includes(fileName);
-					});
+					// Filter and process modules
+					const moduleEntries = Object.entries(modules)
+						.filter(([path]) => {
+							const fileName = path.split('/').pop() || '';
+							return !EXCLUDED_FILES.includes(fileName);
+						})
+						.sort(([pathA], [pathB]) => {
+							const countA = this.collectionAccessCount.get(pathA) || 0;
+							const countB = this.collectionAccessCount.get(pathB) || 0;
+							return countB - countA;
+						});
 
-					// Sort modules by access count for priority processing
-					filteredModules.sort(([pathA], [pathB]) => {
-						const countA = this.collectionAccessCount.get(pathA) || 0;
-						const countB = this.collectionAccessCount.get(pathB) || 0;
-						return countB - countA;
-					});
-					for (const [filePath, moduleContent] of filteredModules) {
+					for (const [filePath, moduleContent] of moduleEntries) {
 						try {
 							// Extract schema from module content
 							const moduleSchema = moduleContent as { schema?: Partial<Schema> };
@@ -329,13 +321,15 @@ class CollectionManager {
 								logger.error(`Could not extract name from ${filePath}`);
 								continue;
 							}
+							const path = this.extractPathFromFilePath(filePath);
+							const existingNode = contentNodesMap.get(path)
 
 							const processed: Schema = {
 								...schema,
 								id: schema.id || uuidv4(), // Only create new ID if one doesn't exist
 								name,
 								icon: schema.icon || 'iconoir:info-empty',
-								path: this.extractPathFromFilePath(filePath),
+								path: path,
 								fields: schema.fields || [],
 								permissions: schema.permissions || {},
 								livePreview: schema.livePreview || false,
@@ -345,6 +339,25 @@ class CollectionManager {
 								label: schema.label || name,
 								slug: schema.slug || name.toLowerCase()
 							};
+
+							if (existingNode) {
+								// Update node if is different
+								if (existingNode.icon !== processed.icon || existingNode.order !== processed.order) {
+									await dbAdapter.updateContentNode(existingNode._id!.toString(), { icon: processed.icon, order: processed.order })
+									logger.info(`Updated metadata for content node:  \x1b[34m${path}\x1b[0m`)
+								}
+							} else {
+								//Create if not existent
+								await dbAdapter.createContentNode({
+									path: processed.path,
+									name: processed.name,
+									icon: processed.icon || (processed.fields.length > 0 ? 'bi:file-text' : 'bi:folder'),
+									order: 999,
+									isCollection: processed.fields.length > 0,
+									collectionId: processed.id
+								})
+								logger.info(`Created content node from file:  \x1b[34m${path}\x1b[0m`)
+							}
 
 							collections.push(processed);
 							await this.setCacheValue(filePath, processed, this.collectionCache);
@@ -381,13 +394,24 @@ class CollectionManager {
 							}
 						}
 					}
+					// Check for orphaned nodes
+					for (const [nodePath, node] of contentNodesMap) {
+						const hasFile = moduleEntries.some(([filePath]) => this.extractPathFromFilePath(filePath) === nodePath);
+						if (!hasFile) {
+							logger.warn(`Orphaned content node found in database:  \x1b[34m${nodePath}\x1b[0m`)
+							await dbAdapter.deleteContentNode(node._id!.toString());
+							logger.info(`Deleted orphaned content node:  \x1b[34m${nodePath}\x1b[0m`);
+						}
+					}
+
+
+					// Cache in Redis if available
+					if (!browser && isRedisEnabled()) {
+						await setCache('cms:all_collections', collections, REDIS_TTL);
+					}
+					this.loadedCollections = collections;
+					return collections;
 				}
-				// Cache in Redis if available
-				if (!browser && isRedisEnabled()) {
-					await setCache('cms:all_collections', collections, REDIS_TTL);
-				}
-				this.loadedCollections = collections;
-				return collections;
 			} catch (err) {
 				const errorMessage = err instanceof Error ? err.message : String(err);
 				logger.error('Failed to load collections', { error: errorMessage });
@@ -395,6 +419,7 @@ class CollectionManager {
 			}
 		}, 'Load Collections');
 	}
+
 	// Process collection file with improved error handling
 	private async processCollectionFile(filePath: string, content: string): Promise<Schema | null> {
 		try {
@@ -589,11 +614,11 @@ class CollectionManager {
 				const collectionsList = Array.from(this.collectionCache.values()).map((entry) => entry.value);
 
 				// Get content structure from database if available
-				let contentNodes: SystemContentNode[] = [];
+				let contentNodes: SystemContent[] = [];
 				if (!browser && dbAdapter) {
 					try {
-						const ContentStructureModel = mongoose.model('ContentStructure', contentStructureSchema);
-						contentNodes = await ContentStructureModel.find({}).lean();
+
+						contentNodes = await dbAdapter.getContentNodes();
 						logger.debug('Content structure from database', { contentNodes });
 					} catch (err) {
 						logger.warn('Could not fetch content structure, proceeding with file-based structure', { error: err });
@@ -728,6 +753,6 @@ class CollectionManager {
 	}
 }
 // Export singleton instance
-export const collectionManager = CollectionManager.getInstance();
+export const contentManager = ContentManager.getInstance();
 // Export types
 export type { Schema, CollectionTypes, Category, CollectionData };

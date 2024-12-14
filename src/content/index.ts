@@ -1,11 +1,10 @@
 /**
- * @file src/collections/index.ts
+ * @file src/content/index.ts
  * @description Index file for collections Management.
  *
  * Features:
  * - Caching and efficient data structures
- * - Collection loading, caching, and updates
- * - Category creation from folder structure
+ * - Content loading, caching, and updates from folder structure
  * - Widget initialization
  * - Error handling
  */
@@ -15,9 +14,9 @@ import { error } from '@sveltejs/kit';
 import { browser, building, dev } from '$app/environment';
 import { getCollectionFiles } from '@api/getCollections/getCollectionFiles';
 import { v4 as uuidv4 } from 'uuid';
-import { categoryConfig } from './categories';
 import { getCollectionModels } from '@src/databases/db';
-import type { ProcessedModule } from './CollectionManager';
+import type { ProcessedModule } from './ContentManager';
+import { dbAdapter } from '@src/databases/db';
 
 // Stores
 import { categories, collections, unAssigned, collection, collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
@@ -31,7 +30,6 @@ import type { Schema, CollectionTypes, Category } from './types';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-
 
 // Constants for batch processing
 const BATCH_SIZE = 50; // Number of collections to process per batch
@@ -109,16 +107,12 @@ async function processBatch(collections: Schema[]): Promise<void> {
 			if (!currentMap.has(segment)) {
 				const randomId = uuidv4();
 
-				const config = categoryConfig[currentPath] || {
-					icon: 'iconoir:category',
-					order: 999
-				};
-
+				const config = await getCurrentPath();
 				const newNode: CategoryNode = {
 					id: parseInt(randomId.toString().slice(0, 8), 16),
 					name: segment,
-					icon: config.icon,
-					order: config.order,
+					icon: config.config.icon,
+					order: config.config.order,
 					collections: [],
 					subcategories: new Map()
 				};
@@ -379,3 +373,16 @@ async function getImports(recompile: boolean = false): Promise<Record<Collection
 }
 
 export { categories };
+
+async function getCurrentPath() {
+	const contentNodes = await dbAdapter.getContentNodes();
+	const currentPath = window.location.pathname;
+	const config = contentNodes.find(node => node.path === currentPath) || {
+		fields: {},
+		isCollection: false,
+		name: '',
+		icon: '',
+		path: currentPath
+	};
+	return { config, currentPath };
+}

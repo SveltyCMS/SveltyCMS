@@ -5,8 +5,8 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import { collectionManager } from '@src/collections/CollectionManager';
-import type { CollectionData } from '@src/collections/types';
+import { contentManager } from '@src/content/ContentManager';
+import type { CollectionData } from '@root/src/content/types';
 import { v4 as uuidv4 } from 'uuid';
 import { dbAdapter } from '@src/databases/db';
 import type { SystemVirtualFolder } from '@src/databases/dbInterface';
@@ -69,7 +69,7 @@ export const POST: RequestHandler = async ({ request }) => {
         })
         await Promise.all(virtualFolderPromises);
         // Update collections to reflect the changes
-        await collectionManager.updateCollections(true);
+        await contentManager.updateCollections(true);
         logger.info('Categories updated successfully');
         return json({
             success: true,
@@ -93,7 +93,7 @@ export const PUT: RequestHandler = async ({ request }) => {
         }
         await dbAdapter.updateVirtualFolder(folderToUpdate._id.toString(), updates);
         // Update collections to reflect the changes
-        await collectionManager.updateCollections(true);
+        await contentManager.updateCollections(true);
         logger.info(`Category ${categoryId} updated successfully`);
         return json({
             success: true,

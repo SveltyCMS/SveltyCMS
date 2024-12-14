@@ -12,7 +12,7 @@
  */
 
 import type { RequestHandler } from '@sveltejs/kit';
-import { updateCollections } from '@src/collections/index';
+import { updateCollections } from '@root/src/content/index';
 import { compile } from './compile';
 import { error, json } from '@sveltejs/kit';
 

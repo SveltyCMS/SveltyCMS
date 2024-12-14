@@ -20,7 +20,7 @@
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 	import { contentLanguage, translationProgress } from '@stores/store';
-	import { mode } from '@root/src/stores/collectionStore.svelte';
+	import { mode } from '@src/stores/collectionStore.svelte';
 	import { ProgressBar } from '@skeletonlabs/skeleton';
 
 	// ParaglideJS

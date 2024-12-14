@@ -4,11 +4,11 @@
 **This component displays a modal for editing a category**
 -->
 <script lang="ts">
-	import type { CollectionData } from '@src/collections/types';
+	import type { CollectionData } from '@src/content/types';
 	import { v4 as uuidv4 } from 'uuid';
 
 	// Stores
-	import { categories } from '@root/src/stores/collectionStore.svelte';
+	import { categories } from '@src/stores/collectionStore.svelte';
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 
 	// Components

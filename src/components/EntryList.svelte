@@ -29,14 +29,14 @@ Features:
 	import { deleteData, getData, setStatus } from '@utils/data';
 
 	// Types
-	import type { Schema, CollectionData } from '@src/collections/types';
+	import type { Schema, CollectionData } from '@src/content/types';
 
 	// Stores
 	import { get } from 'svelte/store';
 	import { contentLanguage, systemLanguage } from '@stores/store';
-	import { mode, collectionValue, modifyEntry, statusMap, collection, categories } from '@root/src/stores/collectionStore.svelte';
-	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@root/src/stores/sidebarStore.svelte';
-	import { screenSize } from '@root/src/stores/screenSizeStore.svelte';
+	import { mode, collectionValue, modifyEntry, statusMap, collection, categories } from '@src/stores/collectionStore.svelte';
+	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@src/stores/sidebarStore.svelte';
+	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

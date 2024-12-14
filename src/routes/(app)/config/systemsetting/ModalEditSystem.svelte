@@ -13,6 +13,9 @@
 	import { getModalStore, popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 
+	// Database
+	import { dbAdapter } from '@src/databases/db';
+
 	const modalStore = getModalStore();
 	const cBase = 'bg-surface-100-800-token w-screen h-screen p-4 flex justify-center items-center';
 
@@ -46,11 +49,21 @@
 	// Load actual configuration values
 	const actualConfig = isPrivate ? privateEnv : publicEnv;
 
-	// Determine the category config based on whether it's private or public
-	const categoryConfig: ConfigCategory = isPrivate ? privateConfigCategories[configCategory] : publicConfigCategories[configCategory];
+	// Get content structure from database
+	const getContentStructure = async () => {
+		const contentNode = await dbAdapter.getContentNodes();
+		const configCategoryNode = contentNode.find(node => node.path === configCategory);
+		return configCategoryNode?.fields || {};
+	};
+
+	let configData = $state({});
+
+	run(async () => {
+		configData = await getContentStructure();
+	});
 
 	// Merge actual configuration values with defaults
-	const configData = Object.entries(categoryConfig.fields).map(([key, field]: [string, ConfigField<any>]) => ({
+	configData = Object.entries(configData).map(([key, field]: [string, ConfigField<any>]) => ({
 		key,
 		...field,
 		value: actualConfig[key] !== undefined ? actualConfig[key] : field.default

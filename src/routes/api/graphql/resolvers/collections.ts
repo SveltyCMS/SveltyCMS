@@ -26,7 +26,7 @@ import { dbAdapter } from '@src/databases/db';
 import type { GraphQLFieldResolver } from 'graphql';
 
 // Collection Manager
-import { collectionManager } from '@src/collections/CollectionManager';
+import { contentManager } from '@src/content/ContentManager';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -77,7 +77,7 @@ interface CacheClient {
 
 // Registers collection schemas dynamically.
 export async function registerCollections() {
-	const { collections } = collectionManager.getCollectionData();
+	const { collections } = contentManager.getCollectionData();
 	logger.debug(`Collections fetched: ${collections.map((c) => c.name).join(', ')}`);
 
 	const typeDefsSet = new Set<string>();

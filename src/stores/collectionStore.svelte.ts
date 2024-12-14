@@ -10,7 +10,7 @@
  */
 
 import { store } from '@utils/reactivity.svelte';
-import type { Schema, CollectionData } from '@src/collections/types';
+import type { Schema, CollectionData } from '@root/src/content/types';
 
 // Define types
 type ModeType = 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';

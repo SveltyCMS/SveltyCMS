@@ -15,7 +15,7 @@ import { google } from 'googleapis';
 import { auth, dbInitPromise } from '@src/databases/db';
 
 // Collection Manager
-import { collectionManager } from '@src/collections/CollectionManager';
+import { contentManager } from '@src/content/ContentManager';
 
 // Utils
 import { saveAvatarImage } from '@utils/media/mediaStorage';
@@ -48,8 +48,8 @@ async function sendWelcomeEmail(fetchFn: (input: RequestInfo | URL, init?: Reque
 				subject: `Welcome to ${publicEnv.SITE_NAME}, ${username}!`,
 				message: `Welcome ${username} to ${publicEnv.SITE_NAME}`,
 				templateName: 'welcomeUser',
-				props: { 
-					username, 
+				props: {
+					username,
 					email,
 					hostLink: publicEnv.HOST_LINK || `https://${request.headers.get('host')}`
 				}
@@ -87,8 +87,8 @@ async function fetchAndSaveGoogleAvatar(avatarUrl: string): Promise<string | nul
 async function fetchAndRedirectToFirstCollection() {
 	try {
 		// Wait for collections to be loaded
-		await collectionManager.initialize();
-		const { collections } = collectionManager.getCollectionData();
+		await contentManager.initialize();
+		const { collections } = contentManager.getCollectionData();
 		logger.debug('Available collections:', collections);
 
 		if (collections && collections.length > 0) {

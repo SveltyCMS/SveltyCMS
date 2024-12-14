@@ -8,7 +8,7 @@
 	// Stores
 	import { page } from '$app/stores';
 	import { tabSet } from '@stores/store';
-	import { collectionValue, targetWidget } from '@root/src/stores/collectionStore.svelte';
+	import { collectionValue, targetWidget } from '@src/stores/collectionStore.svelte';
 	import { getGuiFields, asAny } from '@utils/utils';
 
 	// Components

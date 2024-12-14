@@ -4,7 +4,7 @@
  */
 
 import type { User, WidgetId } from '@src/auth/types';
-import type { Schema } from '@src/collections/types';
+import type { Schema } from '@root/src/content/types';
 import { store } from '@utils/reactivity.svelte';
 
 // System Logger
