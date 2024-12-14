@@ -75,11 +75,24 @@
 
 	// Load content structure from database
 	const loadContentStructure = async () => {
+		if (!dbAdapter) {
+			console.error('dbAdapter is not initialized');
+			return;
+		}
 		const contentNodes = await dbAdapter.getContentNodes();
-		currentConfig = contentNodes.reduce((acc, node) => {
-			acc[node.path] = node;
-			return acc;
-		}, {} as Record<string, CollectionData>);
+		currentConfig = contentNodes.reduce(
+			(acc: Record<string, CollectionData>, node: any) => {
+				acc[node.path] = {
+					...node,
+					id: node.id,
+					icon: node.icon,
+					name: node.name,
+					isCollection: node.isCollection || false
+				};
+				return acc;
+			},
+			{} as Record<string, CollectionData>
+		);
 	};
 
 	loadContentStructure();
@@ -197,6 +210,11 @@
 	// Handle collection save with conflict checking
 	function handleSave(event: CustomEvent<{ name: string; data: Record<string, CollectionData> }>): void {
 		const { name, data } = event.detail;
+		const items = Object.entries(data).map(([key, item]) => ({
+			...item,
+			path: key,
+			isCollection: false // Assuming these are categories, adjust as necessary
+		}));
 
 		checkNameConflicts(name).then(async (nameCheck) => {
 			if (!nameCheck.canProceed) {
@@ -207,14 +225,14 @@
 			const finalName = nameCheck.newName || name;
 			try {
 				isLoading = true;
-				const response = await fetch('/api/categories', {
+				const response = await fetch('/api/content-structure', {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json'
 					},
 					body: JSON.stringify({
-						name: finalName,
-						data
+						action: 'updateMetadata',
+						items
 					})
 				});
 

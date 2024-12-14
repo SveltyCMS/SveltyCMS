@@ -25,6 +25,7 @@
 
 import type { ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
 import type { UserPreferences, WidgetPreference } from '@root/src/stores/userPreferences.svelte';
+import type { CollectionData } from '@src/content/types';
 
 // Define a Theme type for better type safety
 export interface Theme {
@@ -191,7 +192,7 @@ export interface dbInterface {
 	}): Promise<Document>;
 	getContentNodes(): Promise<Document[]>;
 	getContentNodeChildren(nodeId: string): Promise<Document[]>;
-	updateContentNode(nodeId: string, updateData: Partial<SystemContent>): Promise<Document | null>;
+	updateContentNode(nodeId: string, updateData: Partial<CollectionData>): Promise<Document | null>;
 	deleteContentNode(nodeId: string): Promise<boolean>;
 
 	// Media Management

@@ -113,3 +113,13 @@ export interface ProcessedCollectionData extends CollectionData {
 // Collection types
 
 export type CollectionTypes = {};
+
+// System Content
+export interface SystemContent {
+	id: string;
+	name: string;
+	icon: string;
+	path: string;
+	isCollection?: boolean;
+	order?: number;
+}
