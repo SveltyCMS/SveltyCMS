@@ -1,6 +1,6 @@
 /* 
 @file src/content/types.ts
-@description - Content Type Definition for Collection Manager
+@description - Content Type Definition for Content Manager
 */
 
 import type widgets from '@components/widgets';
@@ -70,11 +70,6 @@ export interface Schema {
 	fields: Field[]; // Collection fields
 }
 
-// Collection content type mapping
-export type CollectionContent = {
-	[key: string]: string[]; // Dynamic mapping of collection names to their content types
-};
-
 // Category interface
 export interface Category {
 	id: string;  // UUID for Category
@@ -85,10 +80,16 @@ export interface Category {
 	subcategories?: Record<string, Category>; // Added subcategories support
 }
 
-// Extended category interface for UI
-export interface FilteredCategory extends Category {
-	open?: boolean;
-	level?: number;
+// Content structure node with UI state
+export interface ContentStructureNodeState {
+    id: string;
+    name: string;
+    icon?: string;
+    path: string;
+    isCollection?: boolean;
+    open?: boolean;
+    level?: number;
+    children?: ContentStructureNodeState[];
 }
 
 // Category data interface for configuration
@@ -110,10 +111,6 @@ export interface ProcessedCollectionData extends CollectionData {
 	subcategories: Record<string, ProcessedCollectionData>; // Nested subcategories after processing
 }
 
-// Collection types
-
-export type CollectionTypes = {};
-
 // System Content
 export interface SystemContent {
 	id: string;
@@ -123,3 +120,6 @@ export interface SystemContent {
 	isCollection?: boolean;
 	order?: number;
 }
+
+// Collection types
+export type CollectionTypes = {};

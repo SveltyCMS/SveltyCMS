@@ -5,7 +5,6 @@
 import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { browser } from '$app/environment';
 import { contentManager } from '@src/content/ContentManager';
-import type { CollectionData, Schema } from '@root/src/content/types';
 import { dbAdapter } from '@src/databases/db';
 
 // Redis
@@ -34,10 +33,10 @@ export const GET: RequestHandler = async ({ url }) => {
         let response;
 
         switch (action) {
-            case 'getStructure':
+            case 'getStructure': {
                 // Return full structure with metadata
                 const { collections, categories } = contentManager.getCollectionData();
-                const contentNodes = await dbAdapter.getContentNodes();
+                const contentNodes = await dbAdapter.getContentStructureNodes();
 
                 // Create a map for faster lookup
                 const nodeMap = new Map(contentNodes.map(node => [node.path, node]));
@@ -62,16 +61,18 @@ export const GET: RequestHandler = async ({ url }) => {
                     }
                 };
                 break;
+            }
 
-            case 'getContentNodes':
+            case 'getContentStructureNodes': {
                 // Return content nodes from database
-                const contentNodesDB = await dbAdapter.getContentNodes();
+                const contentNodesDB = await dbAdapter.getContentStructureNodes();
                 logger.info('Returning content nodes from database');
                 response = {
                     success: true,
                     contentNodes: contentNodesDB
                 };
                 break;
+            }
 
             default:
                 throw error(400, 'Invalid action');
@@ -97,7 +98,7 @@ export const POST: RequestHandler = async ({ request }) => {
         logger.debug('POST request received', { data, action });
 
         switch (action) {
-            case 'updateMetadata':
+            case 'updateMetadata': {
                 // Updates metadata for categories and collections
                 const { items } = data;
 
@@ -107,7 +108,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
                 const updatePromises = items.map(async (item: SystemContent) => {
                     if (item.id) {
-                        return await dbAdapter.updateContentNode(item.id, item);
+                        return await dbAdapter.updateContentStructureNode(item.id, item);
                     } else {
                         // If item does not have an ID, it's a new item that does not have metadata.
                         // Add default icon if it's missing
@@ -117,7 +118,7 @@ export const POST: RequestHandler = async ({ request }) => {
                             order: item.order || 999
                         }
 
-                        return await dbAdapter.createContentNode(itemWithDefaults);
+                        return await dbAdapter.createContentStructureNode(itemWithDefaults);
                     }
                 });
                 await Promise.all(updatePromises);
@@ -128,7 +129,8 @@ export const POST: RequestHandler = async ({ request }) => {
                     success: true,
                     message: 'Content structure metadata updated successfully'
                 });
-            case 'recompile':
+            }
+            case 'recompile': {
                 // Clear Redis cache if available
                 if (!browser && isRedisEnabled()) {
                     await clearCache('api:content-structure:*');
@@ -142,6 +144,7 @@ export const POST: RequestHandler = async ({ request }) => {
                     message: 'Collections recompiled successfully'
                 });
 
+            }
             default:
                 throw error(400, 'Invalid action');
         }
@@ -159,7 +162,7 @@ export const PUT: RequestHandler = async ({ request }) => {
             throw error(400, 'NodeId and updates are required');
         }
 
-        const updatedNode = await dbAdapter.updateContentNode(nodeId, updates);
+        const updatedNode = await dbAdapter.updateContentStructureNode(nodeId, updates);
         if (!updatedNode) throw error(404, 'Node not found');
         // Update collections to reflect the changes
         await contentManager.updateCollections(true);

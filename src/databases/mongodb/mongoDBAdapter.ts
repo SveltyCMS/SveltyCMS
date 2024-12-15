@@ -233,8 +233,8 @@ export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
 	private collectionsInitialized = false;
 
-	// Helper method to recursively scan directories for compiled collections
-	private async scanDirectoryForCollections(dirPath: string): Promise<string[]> {
+	// Helper method to recursively scan directories for compiled content structure files
+	private async scanDirectoryForContentStructure(dirPath: string): Promise<string[]> {
 		const collectionFiles: string[] = [];
 		try {
 			const entries = await import('fs').then((fs) => fs.promises.readdir(dirPath, { withFileTypes: true }));
@@ -244,7 +244,7 @@ export class MongoDBAdapter implements dbInterface {
 				if (entry.isDirectory()) {
 					// Recursively scan subdirectories
 					logger.debug(`Found subdirectory: \x1b[34m${entry.name}\x1b[0m`);
-					const subDirFiles = await this.scanDirectoryForCollections(fullPath);
+					const subDirFiles = await this.scanDirectoryForContentStructure(fullPath);
 					collectionFiles.push(...subDirFiles);
 				} else if (entry.isFile() && entry.name.endsWith('.js')) {
 					logger.debug(`Found compiled collection file:  \x1b[34m${entry.name}\x1b[0m`);
@@ -257,10 +257,10 @@ export class MongoDBAdapter implements dbInterface {
 		return collectionFiles;
 	}
 
-	// Sync collections with database
-	async syncCollections(): Promise<void> {
+	// Sync content structure with database
+	async syncContentStructure(): Promise<void> {
 		if (browser) {
-			logger.debug('Skipping collection sync in browser environment');
+			logger.debug('Skipping content structure sync in browser environment');
 			return;
 		}
 
@@ -298,7 +298,7 @@ export class MongoDBAdapter implements dbInterface {
 					logger.debug(`Processing directory: \x1b[34m${dir}\x1b[0m`);
 
 					// Scan for compiled .js files
-					const collectionFiles = await this.scanDirectoryForCollections(dirPath); // Scan compiled directory
+					const collectionFiles = await this.scanDirectoryForContentStructure(dirPath); // Scan compiled directory
 					logger.debug(
 						`Found \x1b[34m${collectionFiles.length}\x1b[0m compiled collection files in \x1b[34m${dirPath}\x1b[0m directory and subdirectories:`,
 						collectionFiles
@@ -314,7 +314,7 @@ export class MongoDBAdapter implements dbInterface {
 							const uuid = uuidMatch ? uuidMatch[1] : null;
 
 							if (!uuid) {
-								logger.error(`No UUID found in compiled collection file: ${filePath}`);
+								logger.error(`Missing UUID in compiled schema for ${filePath}`);
 								continue;
 							}
 
@@ -350,17 +350,26 @@ export class MongoDBAdapter implements dbInterface {
 								const existingNode = await ContentStructureModel.findOne({ path: contentNodePath }).exec();
 
 								if (existingNode) {
-									if (existingNode._id !== uuid) {
+									if (existingNode._id.toString() !== uuid) {
 										// Update the _id if it's different
-										await this.updateContentNode(existingNode._id, { _id: uuid, name: collectionConfig.name, path: contentNodePath, isCollection: true });
+										await this.updateContentStructureNode(existingNode._id, {
+											_id: uuid,
+											name: collectionConfig.name,
+											path: contentNodePath,
+											isCollection: true
+										});
 										logger.info(`Updated content structure node ID for '${collectionName}' from '${existingNode._id}' to '${uuid}'.`);
 									} else {
 										// Update the node if it exists
-										await this.updateContentNode(existingNode._id, { name: collectionConfig.name, path: contentNodePath, isCollection: true });
+										await this.updateContentStructureNode(existingNode._id, {
+											name: collectionConfig.name,
+											path: contentNodePath,
+											isCollection: true
+										});
 										logger.info(`Updated content structure node for '${collectionName}'.`);
 									}
 								} else {
-									await this.createContentNode({
+									await this.createContentStructureNode({
 										_id: uuid,
 										name: collectionConfig.name,
 										path: contentNodePath,
@@ -369,7 +378,8 @@ export class MongoDBAdapter implements dbInterface {
 									logger.info(`Created content structure node for '${collectionName}'.`);
 								}
 
-								await this.createCollectionModel(collectionConfig);
+								// Create or update the schema model for this collection
+								await this.createContentStructure(collectionConfig);
 								logger.debug(`Successfully created/synced collection model for \x1b[34m${collectionName}\x1b[0m`);
 							} else {
 								logger.error(`Collection file ${filePath} does not export a valid schema or default export`);
@@ -399,10 +409,10 @@ export class MongoDBAdapter implements dbInterface {
 			}
 
 			logger.debug('Valid collection UUIDs:', Array.from(validCollectionUUIDs));
-			logger.debug('Collection sync completed successfully');
+			logger.debug('Content structure sync completed successfully');
 		} catch (error) {
-			logger.error('Error syncing collections:', error);
-			throw new Error('Failed to sync collections');
+			logger.error('Error syncing content structure:', error);
+			throw new Error('Failed to sync content structure');
 		}
 	}
 
@@ -412,7 +422,7 @@ export class MongoDBAdapter implements dbInterface {
 
 			if (existingNode) {
 				logger.debug('content structure node already exists ', { nodeData })
-				await this.updateContentNode(nodeData._id, {
+				await this.updateContentStructureNode(nodeData._id, {
 					name: nodeData.name,
 					path: nodeData.path,
 					isCollection: nodeData.isCollection,
@@ -421,7 +431,7 @@ export class MongoDBAdapter implements dbInterface {
 				logger.info(`Content structure node '${nodeData.name}' with ID: ${nodeData._id} updated successfully.`);
 
 			} else {
-				await this.createContentNode(nodeData)
+				await this.createContentStructureNode(nodeData)
 			}
 
 		} catch (error) {
@@ -473,7 +483,7 @@ export class MongoDBAdapter implements dbInterface {
 				// Only sync if collections are not present
 				const collections = await mongoose.connection.db.listCollections().toArray();
 				if (collections.length === 0) {
-					await this.syncCollections();
+					await this.syncContentStructure();
 				}
 				return;
 			} catch (error: unknown) {
@@ -603,6 +613,7 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error inserting document into ${collection}`);
 		}
 	}
+
 	// Implementing insertMany method
 	async insertMany<T extends Document>(collection: string, docs: Partial<T>[]): Promise<T[]> {
 		const model = mongoose.models[collection] as Model<T>;
@@ -718,7 +729,7 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Create a collection model
-	async createCollectionModel(collection: CollectionConfig): Promise<Model<Document>> {
+	async createContentStructure(collection: CollectionConfig): Promise<Model<Document>> {
 		try {
 			// Wait for widgets to initialize first
 			await initializeWidgets();
@@ -752,6 +763,11 @@ export class MongoDBAdapter implements dbInterface {
 				},
 				createdBy: {
 					type: String
+				},
+				status: {
+					type: String,
+					enum: ['draft', 'published', 'unpublished', 'scheduled', 'cloned'],
+					default: 'draft'
 				}
 			};
 
@@ -762,6 +778,7 @@ export class MongoDBAdapter implements dbInterface {
 						let widgetType: string;
 						let fieldConfig: FieldConfig;
 						let fieldKey: string | undefined;
+
 						if (typeof field === 'function') {
 							// If field is a widget function, execute it to get config
 							const result = field({});
@@ -821,10 +838,7 @@ export class MongoDBAdapter implements dbInterface {
 			// Optimized schema options
 			const schemaOptions: mongoose.SchemaOptions = {
 				strict: collection.strict !== false,
-				timestamps: {
-					createdAt: 'createdAt',
-					updatedAt: 'updatedAt'
-				},
+				timestamps: true,
 				collection: collectionName.toLowerCase(),
 				autoIndex: true, // Enable auto-indexing in production
 				minimize: false, // Store empty objects
@@ -1097,8 +1111,8 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error updating widget`);
 		}
 	}
-	// Methods for Theme Management
 
+	// Methods for Theme Management
 	// Set the default theme
 	async setDefaultTheme(themeName: string): Promise<void> {
 		try {
@@ -1147,6 +1161,7 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error fetching default theme`);
 		}
 	}
+
 	// Store themes in the database
 	async storeThemes(themes: Theme[]): Promise<void> {
 		try {
@@ -1183,8 +1198,8 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error fetching all themes`);
 		}
 	}
-	// Methods for System Preferences Management
 
+	// Methods for System Preferences Management
 	// Set user preferences
 	async setUserPreferences(userId: string, preferences: UserPreferences): Promise<void> {
 		logger.debug(`Setting user preferences for userId: \x1b[34m${user_id}\x1b[0m`);
@@ -1237,8 +1252,8 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Failed to clear system preferences`);
 		}
 	}
-	// Methods for Virtual Folder Management
 
+	// Methods for Virtual Folder Management
 	// Create a virtual folder in the database
 	async createVirtualFolder(folderData: { name: string; parent?: string; path: string, icon?: string, order?: number }): Promise<Document> {
 		try {
@@ -1288,6 +1303,7 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Failed to fetch virtual folder contents`);
 		}
 	}
+
 	// Update a virtual folder
 	async updateVirtualFolder(folderId: string, updateData: VirtualFolderUpdateData): Promise<Document | null> {
 		try {
@@ -1310,6 +1326,7 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Failed to update virtual folder`);
 		}
 	}
+
 	// Delete a virtual folder
 	async deleteVirtualFolder(folderId: string): Promise<boolean> {
 		try {
@@ -1325,6 +1342,7 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Failed to delete virtual folder`);
 		}
 	}
+
 	// Move media to a virtual folder
 	async moveMediaToFolder(mediaId: string, folderId: string): Promise<boolean> {
 		try {
@@ -1349,7 +1367,7 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Content Structure Methods
-	async createContentNode(nodeData: {
+	async createContentStructureNode(nodeData: {
 		name: string;
 		parent?: string;
 		path: string;
@@ -1362,64 +1380,80 @@ export class MongoDBAdapter implements dbInterface {
 		try {
 			const node = new ContentStructureModel(nodeData);
 			await node.save();
-			logger.info(`Content node '${nodeData.name}' created successfully.`);
+			logger.info(`Content structure node '${nodeData.name}' created successfully with ID ${node._id}.`);
 			return node;
 		} catch (error) {
-			logger.error(`Error creating content node: ${error.message}`);
-			throw Error(`Error creating content node`);
+			logger.error(`Error creating content structure node: ${error.message}`);
+			throw Error(`Error creating content structure node`);
 		}
 	}
 
-	async getContentNodes(): Promise<Document[]> {
+	async getContentStructureNodes(): Promise<Document[]> {
 		try {
 			const nodes = await ContentStructureModel.find().sort({ path: 1 }).exec();
-			logger.info(`Fetched ${nodes.length} content nodes.`);
+			logger.info(`Fetched ${nodes.length} content structure nodes.`);
 			return nodes;
 		} catch (error) {
-			logger.error(`Error fetching content nodes: ${error.message}`);
-			throw Error(`Error fetching content nodes`);
+			logger.error(`Error fetching content structure nodes: ${error.message}`);
+			throw Error(`Error fetching content structure nodes`);
 		}
 	}
 
-	async getContentNodeChildren(nodeId: string): Promise<Document[]> {
+	async getContentStructureChildren(parentPath: string): Promise<Document[]> {
 		try {
-			const nodes = await ContentStructureModel.find({ parent: nodeId }).sort({ order: 1, name: 1 }).exec();
-			logger.info(`Fetched ${nodes.length} child nodes for node ${nodeId}`);
-			return nodes;
+			const escapedPath = parentPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+			const regex = new RegExp(`^${escapedPath}/[^/]+$`);
+			const children = await ContentStructureModel.find({ path: { $regex: regex } }).sort({ order: 1 }).exec();
+			logger.info(`Fetched ${children.length} children nodes for path '${parentPath}'.`);
+			return children;
 		} catch (error) {
-			logger.error(`Error fetching content node children: ${error.message}`);
-			throw Error(`Error fetching content node children`);
+			logger.error(`Error fetching content structure node children: ${error.message}`);
+			throw Error(`Error fetching content structure node children`);
 		}
 	}
 
-	async updateContentNode(nodeId: string, updateData: Partial<SystemContent>): Promise<Document | null> {
+	async updateContentStructureNode(nodeId: string, updateData: Partial<ContentStructureNode>): Promise<Document | null> {
 		try {
-			const node = await ContentStructureModel.findByIdAndUpdate(nodeId, updateData, { new: true }).exec();
-			if (!node) {
-				throw Error(`Content node with ID ${nodeId} not found.`);
+			// Only allow updates to name and fileName, exclude _id, uuid, and other fields
+			const { name, fileName } = updateData;
+			const allowedUpdates: Partial<ContentStructureNode> = {};
+
+			if (name !== undefined) allowedUpdates.name = name;
+			if (fileName !== undefined) allowedUpdates.fileName = fileName;
+
+			const updatedNode = await ContentStructureModel.findByIdAndUpdate(
+				nodeId,
+				allowedUpdates,
+				{ new: true }
+			).exec();
+
+			if (updatedNode) {
+				logger.info(`Content structure node '${nodeId}' updated successfully.`);
+			} else {
+				logger.warn(`No content structure node found with ID '${nodeId}'.`);
 			}
-			logger.info(`Content node ${nodeId} updated successfully.`);
-			return node;
+			return updatedNode;
 		} catch (error) {
-			logger.error(`Error updating content node ${nodeId}: ${error.message}`);
-			throw Error(`Error updating content node`);
+			logger.error(`Error updating content structure node: ${error.message}`);
+			throw Error(`Error updating content structure node`);
 		}
 	}
 
-	async deleteContentNode(nodeId: string): Promise<boolean> {
+	async deleteContentStructure(nodeId: string): Promise<boolean> {
 		try {
-			const result = await ContentStructureModel.deleteOne({ _id: nodeId }).exec();
-			if (result.deletedCount === 0) {
-				logger.warn(`Content node with ID ${nodeId} not found.`);
-				return false;
+			const result = await ContentStructureModel.findByIdAndDelete(nodeId).exec();
+			if (result) {
+				logger.info(`Content structure node '${nodeId}' deleted successfully.`);
+				return true;
 			}
-			logger.info(`Content node ${nodeId} deleted successfully.`);
-			return true;
+			logger.warn(`No content structure node found with ID '${nodeId}'.`);
+			return false;
 		} catch (error) {
-			logger.error(`Error deleting content node ${nodeId}: ${error.message}`);
-			throw Error(`Error deleting content node`);
+			logger.error(`Error deleting content structure node: ${error.message}`);
+			throw Error(`Error deleting content structure node`);
 		}
 	}
+
 	// Methods for Media Management
 	// Fetch all media
 	async getAllMedia(): Promise<MediaType[]> {
@@ -1438,6 +1472,7 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error fetching all media`);
 		}
 	}
+
 	// Delete media
 	async deleteMedia(mediaId: string): Promise<boolean> {
 		try {
@@ -1456,6 +1491,7 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error deleting media`);
 		}
 	}
+
 	// Fetch media in a specific folder
 	async getMediaInFolder(folder_id: string): Promise<MediaType[]> {
 		try {
@@ -1471,6 +1507,7 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Failed to fetch media in folder`);
 		}
 	}
+
 	// Fetch the last five collections
 	async getLastFiveCollections(): Promise<Document[]> {
 		try {
@@ -1491,6 +1528,7 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Failed to fetch last five collections`);
 		}
 	}
+
 	// Fetch logged-in users
 	async getLoggedInUsers(): Promise<Document[]> {
 		try {
@@ -1506,6 +1544,7 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Failed to fetch logged-in users`);
 		}
 	}
+
 	// Fetch CMS data
 	async getCMSData(): Promise<{
 		collections: number;
@@ -1518,6 +1557,7 @@ export class MongoDBAdapter implements dbInterface {
 		logger.debug('Fetching CMS data...');
 		return {};
 	}
+
 	// Fetch the last five media documents
 	async getLastFiveMedia(): Promise<MediaType[]> {
 		try {

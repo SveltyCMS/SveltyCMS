@@ -1,6 +1,6 @@
 /**
  * @file src/content/vite.ts
- * @description Vite plugin for generating TypeScript types for content
+ * @description Vite plugin for generating TypeScript types for Content
  */
 
 import fs from 'fs';

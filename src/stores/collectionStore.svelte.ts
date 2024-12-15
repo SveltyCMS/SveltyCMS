@@ -73,5 +73,35 @@ export const categoryActions = {
 	}
 };
 
+// Function to refresh and content structure
+export async function refreshCollections() {
+	try {
+		collectionsLoading.set(true);
+		collectionsError.set(null);
+
+		// Fetch updated content structure from the server
+		const response = await fetch('/api/content-structure?action=getStructure');
+		if (!response.ok) {
+			throw new Error('Failed to fetch content structure');
+		}
+
+		const { data } = await response.json();
+		collections.set(data.collections);
+		categories.set(data.categories);
+	} catch (err) {
+		console.error('Error refreshing content structure:', err);
+		collectionsError.set(err instanceof Error ? err.message : 'Unknown error');
+	} finally {
+		collectionsLoading.set(false);
+	}
+}
+
+// Initialize collections on startup
+if (typeof window !== 'undefined') {
+	refreshCollections();
+	// Refresh collections periodically (every 30 seconds)
+	setInterval(refreshCollections, 30000);
+}
+
 // Type exports
 export type { ModeType };

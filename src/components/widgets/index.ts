@@ -3,7 +3,7 @@
  * @description Widget Index - Main entry point for widget system
  */
 
-import { getWidgets, initializeWidgets, type WidgetFunction } from './widgetManager.svelte';
+import { initializeWidgets, type WidgetFunction } from './widgetManager.svelte';
 
 // Create a proxy that ensures widgets are initialized before use
 const widgetProxy = new Proxy({} as Record<string, WidgetFunction>, {

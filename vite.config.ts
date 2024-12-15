@@ -100,6 +100,21 @@ export default defineConfig({
 
 										// Compile
 										await compile({ userCollections, compiledCollections });
+										console.log('Compilation successful!');
+
+										// Trigger content-structure sync via API
+										try {
+											await fetch('/api/content-structure', {
+												method: 'POST',
+												headers: { 'Content-Type': 'application/json' },
+												body: JSON.stringify({ 
+													action: 'recompile'
+												})
+											});
+											console.log('Content structure sync triggered successfully');
+										} catch (error) {
+											console.error('Failed to trigger content structure sync:', error);
+										}
 
 										try {
 											await generateCollectionTypes(server);

@@ -1,6 +1,6 @@
 /**
  * @file src/content/index.ts
- * @description Index file for collections Management.
+ * @description Index file for Content Management.
  *
  * Features:
  * - Caching and efficient data structures

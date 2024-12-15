@@ -24,12 +24,12 @@ Features:
 	import { onMount } from 'svelte';
 
 	// Types
-	import type { Schema, CollectionData, Category } from '@src/content/types';
+	import type { Schema, CollectionData, ContentStructureNodeState } from '@src/content/types';
 
 	// Stores
 	import { get } from 'svelte/store';
 	import { shouldShowNextButton } from '@stores/store';
-	import { mode, collection, categories, collections } from '@src/stores/collectionStore.svelte';
+	import { mode, categories, collections } from '@src/stores/collectionStore.svelte';
 	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@src/stores/sidebarStore.svelte';
 	import { screenSize } from '@root/src/stores/screenSizeStore.svelte';
 
@@ -55,85 +55,83 @@ Features:
 	// Search Collections
 	let search = $state('');
 	let searchShow = $state(false);
-	interface FilteredCategory extends Category {
-		open: boolean;
-		level: number;
-	}
-	let filteredCategories = $state<FilteredCategory[]>([]);
+	let filteredNodes = $state<ContentStructureNodeState[]>([]);
 
-	// Function to flatten and filter categories with improved subcategory search
-	function filterCategories(searchTerm: string, cats: Record<string, CollectionData>): FilteredCategory[] {
-		if (!cats || Object.keys(cats).length === 0) return [];
+	// Function to flatten and filter content structure nodes with improved search
+	function filterContentStructure(searchTerm: string, nodes: Record<string, CollectionData>): ContentStructureNodeState[] {
+		if (!nodes || Object.keys(nodes).length === 0) return [];
 
-		function processCategory(category: CollectionData, level: number = 0): FilteredCategory | null {
-			if (!category) return null;
-			const processed: FilteredCategory = {
-				id: category.id.toString(),
-				name: category.name,
-				icon: category.icon,
-				collections: [],
+		function processNode(node: CollectionData, level: number = 0): ContentStructureNodeState | null {
+			if (!node) return null;
+			const processed: ContentStructureNodeState = {
+				id: node.id.toString(),
+				name: node.name,
+				icon: node.icon,
+				path: `/${node.name.toLowerCase().replace(/\s+/g, '-')}`, // Generate path from name
+				isCollection: node.isCollection,
 				level,
-				open: searchTerm !== '', // Auto-open categories when searching
-				subcategories: {}
+				open: searchTerm !== '', // Auto-open nodes when searching
+				children: [] as ContentStructureNodeState[] // Explicitly type and initialize as empty array
 			};
 			// Process subcategories
 			let hasMatchingContent = false;
-			if (category.subcategories) {
-				Object.entries(category.subcategories).forEach(([key, subCat]) => {
+			if (node.subcategories) {
+				Object.entries(node.subcategories).forEach(([_, subCat]) => {
 					if (subCat.isCollection) {
 						// Using collection.id to find the collection by id since the subCat
 						const collectionSchema = Object.values(collections.value).find((collection) => collection.id === subCat.id);
 
 						if (collectionSchema) {
-							const collection = {
-								...collectionSchema,
-								id: subCat.id,
-								name: subCat.name || collectionSchema.name, // Use the friendly name from subcategory
-								icon: subCat.icon || collectionSchema.icon,
-								fields: collectionSchema.fields || []
+							const collection: ContentStructureNodeState = {
+								id: collectionSchema.id,
+								name: String(collectionSchema.name || ''),
+								icon: collectionSchema.icon,
+								path: collectionSchema.path || ''
 							};
 
 							if (searchTerm === '' || (collection.name as string).toLowerCase().includes(searchTerm.toLowerCase())) {
-								processed.collections.push(collection);
-								hasMatchingContent = true;
+								if (processed && processed.children) {
+									processed.children.push(collection);
+									hasMatchingContent = true;
+								}
 							}
 						}
 					} else {
-						const processedSub = processCategory(subCat, level + 1);
-						if (processedSub) {
-							processed.subcategories![key] = processedSub;
+						const processedSub = processNode(subCat, level + 1);
+						if (processedSub && processed && processed.children) {
+							processed.children.push(processedSub);
 							hasMatchingContent = true;
 						}
 					}
 				});
 			}
 			const searchLower = searchTerm.toLowerCase();
-			const nameMatches = category.name.toLowerCase().includes(searchLower);
+			const nameMatches = node.name.toLowerCase().includes(searchLower);
 
 			return searchTerm === '' || nameMatches || hasMatchingContent ? processed : null;
 		}
 		// Process only root categories (Collections and Menu)
-		return Object.entries(cats)
+		return Object.entries(nodes)
 			.filter(([path]) => path.startsWith('Collections') || path.startsWith('Menu'))
-			.map(([, cat]) => processCategory(cat))
-			.filter((cat): cat is FilteredCategory => cat !== null);
+			.map(([, cat]) => processNode(cat))
+			.filter((cat): cat is ContentStructureNodeState => cat !== null);
 	}
 	// Subscribe to categories and collections store changes and handle search
 	$effect(() => {
 		if ($categories && collections.value) {
-			filteredCategories = filterCategories(search, $categories);
+			filteredNodes = filterContentStructure(search, $categories);
 		}
 	});
 	// Handle search input
 	function handleSearch(event: Event) {
 		const target = event.target as HTMLInputElement;
 		search = target.value;
-		filteredCategories = filterCategories(search, $categories);
+		filteredNodes = filterContentStructure(search, $categories);
 	}
 	// Clear search
 	function clearSearch() {
 		search = '';
-		filteredCategories = filterCategories('', $categories);
+		filteredNodes = filterContentStructure('', $categories);
 		// Focus the search input after clearing
 		const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
 		if (searchInput) searchInput.focus();
@@ -142,23 +140,34 @@ Features:
 	let isMediaMode = $derived(mode.value === 'media');
 	onMount(() => {
 		if ($categories && collections.value) {
-			filteredCategories = filterCategories('', $categories);
+			filteredNodes = filterContentStructure('', $categories);
 		}
 	});
 	// Helper function to get indentation class based on level
-	function getIndentClass(level: number): string {
-		return `pl-${level * 2}`; // Reduced padding for better space utilization
+	function getIndentClass(level: number | undefined): string {
+		return `pl-${(level ?? 0) * 2}`; // Use nullish coalescing to default to 0 if level is undefined
 	}
 	// Handle collection selection
-	function handleCollectionSelect(_collection: Schema) {
+	function handleCollectionSelect(collection: ContentStructureNodeState | Schema) {
 		if (mode.value === 'edit') {
 			mode.set('view');
 		} else {
 			mode.set(modeSet);
-			shouldShowNextButton.set(true);
 		}
-		collection.set(_collection);
+
+		if ('isCollection' in collection) {
+			// For ContentStructureNodeState, we need to find the actual Schema
+			const collectionSchema = collections.value[collection.name];
+			if (collectionSchema) {
+				selectedCollection.set(collectionSchema);
+			}
+		} else {
+			// If it's already a Schema object, we can set it directly
+			selectedCollection.set(collection);
+		}
+
 		handleSidebarToggle();
+		shouldShowNextButton.set(true);
 	}
 	// Generate unique key for collection items
 	function getCollectionKey(_collection: Schema, categoryId: string): string {
@@ -225,29 +234,29 @@ Features:
 			hover="hover:bg-primary-hover-token"
 			caretOpen="rotate-180"
 		>
-			{#if filteredCategories.length > 0}
-				{#each filteredCategories as category (category.id)}
+			{#if filteredNodes.length > 0}
+				{#each filteredNodes as node (node.id)}
 					<AccordionItem
-						bind:open={category.open}
+						bind:open={node.open}
 						regionPanel="divide-y dark:divide-black my-0"
-						class={`divide-y rounded-md bg-surface-300 dark:divide-black ${getIndentClass(category.level)}`}
+						class={`divide-y rounded-md bg-surface-300 dark:divide-black ${getIndentClass(node.level)}`}
 					>
 						{#snippet lead()}
-							<iconify-icon icon={category.icon} width="24" class="text-error-500 rtl:ml-2" use:popup={popupCollections}></iconify-icon>
+							<iconify-icon icon={node.icon} width="24" class="text-error-500 rtl:ml-2" use:popup={popupCollections}></iconify-icon>
 						{/snippet}
 						{#snippet summary()}
 							{#if sidebarState.sidebar.value.left === 'full'}
-								<p class="text-white">{category.name}</p>
+								<p class="text-white">{node.name}</p>
 							{/if}
 							<div class="card variant-filled-secondary p-4" data-popup="popupHover">
-								<p>{category.name}</p>
+								<p>{node.name}</p>
 								<div class="variant-filled-secondary arrow"></div>
 							</div>
 						{/snippet}
 						{#snippet content()}
 							<!-- Collections in this category -->
-							{#if category.collections?.length}
-								{#each category.collections as _collection (getCollectionKey(_collection, category.name))}
+							{#if node.children?.length}
+								{#each node.children as _collection (getCollectionKey(_collection, node.name))}
 									<div
 										role="button"
 										tabindex={0}
@@ -268,7 +277,7 @@ Features:
 								{/each}
 							{/if}
 							<!-- Subcategories with Autocollapse -->
-							{#if category.subcategories && Object.keys(category.subcategories).length > 0}
+							{#if node.children && node.children.length > 0}
 								<Accordion
 									autocollapse
 									spacing="space-y-1"
@@ -279,30 +288,29 @@ Features:
 									caretOpen="rotate-180"
 									class="-mr-4"
 								>
-									{#each Object.entries(category.subcategories) as [key, subCategory] (key)}
-										<div class={getIndentClass(category.level + 1)}>
+									{#each node.children as subNode (subNode.id)}
+										<div class={getIndentClass((node.level ?? 0) + 1)}>
 											<AccordionItem
-												bind:open={subCategoryOpenStates[`${category.name}-${key}`]}
-												onclick={() => handleSubcategoryToggle(category.id.toString(), key)}
+												bind:open={subCategoryOpenStates[`${node.name}-${subNode.name}`]}
+												onclick={() => handleSubcategoryToggle(node.id.toString(), subNode.name)}
 												regionPanel="divide-y dark:divide-black my-0"
 												class="divide-y rounded-md bg-surface-300 dark:bg-surface-400"
 											>
 												{#snippet lead()}
-													<iconify-icon icon={subCategory.icon} width="24" class="text-error-500 rtl:ml-2" use:popup={popupCollections}
-													></iconify-icon>
+													<iconify-icon icon={subNode.icon} width="24" class="text-error-500 rtl:ml-2" use:popup={popupCollections}></iconify-icon>
 												{/snippet}
 												{#snippet summary()}
 													{#if sidebarState.sidebar.value.left === 'full'}
-														<p class="uppercase text-white">{subCategory.name}</p>
+														<p class="uppercase text-white">{subNode.name}</p>
 													{/if}
 													<div class="card variant-filled-secondary p-4" data-popup="popupHover">
-														<p class="uppercase">{subCategory.name}</p>
+														<p class="uppercase">{subNode.name}</p>
 														<div class="variant-filled-secondary arrow"></div>
 													</div>
 												{/snippet}
 												{#snippet content()}
-													{#if subCategory.collections?.length}
-														{#each subCategory.collections as _collection (getCollectionKey(_collection, subCategory.name.toString()))}
+													{#if subNode.children?.length}
+														{#each subNode.children as _collection (getCollectionKey(_collection, subNode.name.toString()))}
 															<div
 																role="button"
 																tabindex={0}

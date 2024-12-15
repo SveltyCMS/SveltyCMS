@@ -180,7 +180,7 @@ export interface dbInterface {
 	deleteVirtualFolder(folderId: string): Promise<boolean>;
 
 	// Content Structure Methods for direct database interactions
-	createContentNode(nodeData: {
+	createContentStructureNode(nodeData: {
 		name: string;
 		parent?: string;
 		path: string;
@@ -190,10 +190,10 @@ export interface dbInterface {
 		collectionId?: string;
 		translations?: { languageTag: string; translationName: string; }[];
 	}): Promise<Document>;
-	getContentNodes(): Promise<Document[]>;
-	getContentNodeChildren(nodeId: string): Promise<Document[]>;
-	updateContentNode(nodeId: string, updateData: Partial<CollectionData>): Promise<Document | null>;
-	deleteContentNode(nodeId: string): Promise<boolean>;
+	getContentStructureNodes(): Promise<Document[]>;
+	getContentStructureNodeChildren(parentPath: string): Promise<Document[]>;
+	updateContentStructureNode(nodeId: string, updateData: Partial<CollectionData>): Promise<Document | null>;
+	deleteContentStructureNode(nodeId: string): Promise<boolean>;
 
 	// Media Management
 	getAllMedia(): Promise<MediaItem[]>; // Get all media.

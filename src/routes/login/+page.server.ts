@@ -10,7 +10,7 @@ import { dev } from '$app/environment';
 import { error, redirect, fail, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-// Collection Manager
+// Content Manager
 import { contentManager } from '@src/content/ContentManager';
 
 // Rate Limiter

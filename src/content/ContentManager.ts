@@ -30,11 +30,10 @@ import widgets, { initializeWidgets, resolveWidgetPlaceholder, WidgetPlaceholder
 import { logger } from '@utils/logger.svelte';
 // Server-side imports
 let fs: typeof import('fs/promises') | null = null;
-let path: typeof import('path') | null = null;
 
 if (!browser) {
-	const imports = await Promise.all([import('fs/promises'), import('path')]);
-	[fs, path] = imports;
+	const imports = await Promise.all([import('fs/promises')]);
+	[fs] = imports;
 }
 
 interface CacheEntry<T> {
@@ -47,7 +46,6 @@ const REDIS_TTL = 300; // 5 minutes in seconds for Redis
 const MAX_CACHE_SIZE = 100;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
-const EXCLUDED_FILES = ['types.ts', 'categories.ts', 'index.ts'];
 
 // Widget initialization state
 let widgetsInitialized = false;
@@ -133,32 +131,47 @@ class ContentManager {
 		try {
 			// Ensure widgets are initialized before processing module
 			await ensureWidgetsInitialized();
-			// Check if the content is already in ES module format
-			const isESModule = content.includes('export') || content.includes('import');
-			// Create the module wrapper
-			const moduleWrapper = isESModule
-				? `
-					let exports = {};
-					${content}
-					return { exports, schema: exports.default || exports };
-				`
-				: `
-					let exports = {};
-					const module = { exports };
-					${content}
-					return { exports: module.exports, schema: module.exports };
-				`;
-			// Create a module from the content using Function constructor
-			const moduleFunc = new Function(
-				'widgets',
-				moduleWrapper
-			);
-			// Pass the widgets object when executing the function
+
+			// Remove any import/export statements and extract the schema object
+			const cleanedContent = content
+				.replace(/import\s+.*?;/g, '')  // Remove import statements
+				.replace(/export\s+default\s+/, '')  // Remove export default
+				.replace(/export\s+const\s+/, 'const ') // Handle export const
+				.trim();
+
+			// Create a safe evaluation context
+			const moduleContent = `
+				const module = {};
+				const exports = {};
+				(function(module, exports, widgets) {
+					${cleanedContent}
+					return module.exports || exports;
+				})(module, exports, widgets);
+			`;
+
+			// Create and execute the function with widgets as context
+			const moduleFunc = new Function('widgets', moduleContent);
 			const result = moduleFunc(widgets);
-			// Handle both ES modules and CommonJS modules
-			return {
-				schema: result.schema || result.exports.default || result.exports
-			};
+
+			// If result is an object with fields, it's likely our schema
+			if (result && typeof result === 'object') {
+				return { schema: result };
+			}
+
+			// If we got here, try to find a schema object in the content
+			const schemaMatch = cleanedContent.match(/(?:const|let|var)\s+(\w+)\s*=\s*({[\s\S]*?});/);
+			if (schemaMatch && schemaMatch[2]) {
+				try {
+					// Evaluate just the schema object
+					const schemaFunc = new Function(`return ${schemaMatch[2]}`);
+					const schema = schemaFunc();
+					return { schema };
+				} catch (error) {
+					logger.warn('Failed to evaluate schema object:', error);
+				}
+			}
+
+			return null;
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : String(err);
 			logger.error('Failed to process module:', { error: errorMessage });
@@ -170,143 +183,113 @@ class ContentManager {
 		return this.measurePerformance(async () => {
 			try {
 				const collections: Schema[] = [];
-				const contentNodesMap = await this.getContentNodesMap();
-				const moduleEntries = Array.from(contentNodesMap.entries());
+				const contentNodesMap = await this.getContentStructureNodesMap();
+				const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || './collections';
+				const files = await this.getCompiledCollectionFiles(compiledDirectoryPath);
 
-				if (dev) {
-					// Use dynamic imports instead of eager loading
-					const modules = await import.meta.glob('/config/collections/**/*.ts', { eager: true });
+				for (const filePath of files) {
+					try {
+						const fullFilePath = `${compiledDirectoryPath}/${filePath}`;
+						const content = await this.readFile(fullFilePath);
+						const moduleData = await this.processModule(content);
 
-					// Filter and process modules
-					const moduleEntries = Object.entries(modules)
-						.filter(([path]) => {
-							const fileName = path.split('/').pop() || '';
-							return !EXCLUDED_FILES.includes(fileName);
-						})
-						.sort(([pathA], [pathB]) => {
-							const countA = this.collectionAccessCount.get(pathA) || 0;
-							const countB = this.collectionAccessCount.get(pathB) || 0;
-							return countB - countA;
-						});
-
-					for (const [filePath, moduleContent] of moduleEntries) {
-						try {
-							// Extract schema from module content
-							const moduleSchema = moduleContent as { schema?: Partial<Schema> };
-							const schema = moduleSchema?.schema;
-
-							if (!schema || typeof schema !== 'object') {
-								logger.error(`Invalid or missing schema in ${filePath}`, {
-									hasModuleData: !!moduleContent,
-									hasSchema: !!(moduleContent && moduleContent.schema)
-								});
-								continue;
-							}
-
-							// Ensure required fields are present
-							if (!schema.fields) {
-								schema.fields = [];
-							}
-
-							const name = filePath
-								.split('/')
-								.pop()
-								?.replace(/\.(ts|js)$/, '');
-							if (!name) {
-								logger.error(`Could not extract name from ${filePath}`);
-								continue;
-							}
-							const path = this.extractPathFromFilePath(filePath);
-							const existingNode = contentNodesMap.get(path)
-
-							const processed: Schema = {
-								...schema,
-								id: schema.id || uuidv4(), // Only create new ID if one doesn't exist
-								name,
-								icon: schema.icon || 'iconoir:info-empty',
-								path: path,
-								fields: schema.fields || [],
-								permissions: schema.permissions || {},
-								livePreview: schema.livePreview || false,
-								strict: schema.strict || false,
-								revision: schema.revision || false,
-								description: schema.description || '',
-								label: schema.label || name,
-								slug: schema.slug || name.toLowerCase()
-							};
-
-							if (existingNode) {
-								// Update node if is different
-								if (existingNode.icon !== processed.icon || existingNode.order !== processed.order) {
-									await dbAdapter.updateContentNode(existingNode._id!.toString(), { icon: processed.icon, order: processed.order })
-									logger.info(`Updated metadata for content node:  \x1b[34m${path}\x1b[0m`)
-								}
-							} else {
-								//Create if not existent
-								await dbAdapter.createContentNode({
-									path: processed.path,
-									name: processed.name,
-									icon: processed.icon || (processed.fields.length > 0 ? 'bi:file-text' : 'bi:folder'),
-									order: 999,
-									isCollection: processed.fields.length > 0,
-									collectionId: processed.id
-								})
-								logger.info(`Created content node from file:  \x1b[34m${path}\x1b[0m`)
-							}
-
-							collections.push(processed);
-							await this.setCacheValue(filePath, processed, this.collectionCache);
-						} catch (err) {
-							const errorMessage = err instanceof Error ? err.message : String(err);
-							logger.error(`Failed to process module ${filePath}:`, { error: errorMessage });
+						if (!moduleData || !moduleData.schema) {
+							logger.error(`Invalid collection file format: ${filePath}`, {
+								hasModuleData: !!moduleData,
+								hasSchema: !!(moduleData && moduleData.schema)
+							});
 							continue;
 						}
-					}
-				} else {
-					// Production mode implementation
-					if (typeof window !== 'undefined') {
-						const response = await this.retryOperation(async () => axios.get('/api/collections?action=structure'));
-						const data = response.data;
-						if (data && Array.isArray(data.collections)) {
-							collections.push(...data.collections);
-							for (const col of data.collections) {
-								await this.setCacheValue(col.path || col.name, col, this.collectionCache);
+
+						const schema = moduleData.schema as Partial<Schema>;
+						if (!schema || typeof schema !== 'object') {
+							logger.error(`Invalid or missing schema in ${filePath}`, {
+								hasModuleData: !!moduleData,
+								hasSchema: !!(moduleData && moduleData.schema)
+							});
+							continue;
+						}
+
+						// Ensure required fields are present
+						if (!schema.fields) {
+							schema.fields = [];
+						}
+
+						const name = filePath
+							.split('/')
+							.pop()
+							?.replace(/\.(ts|js)$/, '');
+						if (!name) {
+							logger.error(`Could not extract name from ${filePath}`);
+							continue;
+						}
+						const path = this.extractPathFromFilePath(filePath);
+						const existingNode = contentNodesMap.get(path)
+
+						const processed: Schema = {
+							...schema,
+							id: schema.id, // Always use the ID from the compiled schema
+							name,
+							icon: schema.icon || 'iconoir:info-empty',
+							path: path,
+							fields: schema.fields || [],
+							permissions: schema.permissions || {},
+							livePreview: schema.livePreview || false,
+							strict: schema.strict || false,
+							revision: schema.revision || false,
+							description: schema.description || '',
+							label: schema.label || name,
+							slug: schema.slug || name.toLowerCase()
+						};
+
+						if (!processed.id) {
+							logger.error(`Missing UUID in compiled schema for ${filePath}`);
+							continue;
+						}
+
+						if (existingNode) {
+							// Update node if is different
+							if (existingNode.icon !== processed.icon || existingNode.order !== processed.order) {
+								await dbAdapter.updateContentStructureNode(existingNode._id!.toString(), { icon: processed.icon, order: processed.order })
+								logger.info(`Updated metadata for content node:  \x1b[34m${path}\x1b[0m`)
 							}
 						} else {
-							throw new Error('Invalid response from collections API');
+							//Create if not existent
+							await dbAdapter.createContentStructure({
+								path: processed.path,
+								name: processed.name,
+								icon: processed.icon || (processed.fields.length > 0 ? 'bi:file-text' : 'bi:folder'),
+								order: 999,
+								isCollection: processed.fields.length > 0,
+								collectionId: processed.id
+							})
+							logger.info(`Created content node from file:  \x1b[34m${path}\x1b[0m`)
 						}
-					} else {
-						// Server-side compilation
-						const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || './collections';
-						const files = await this.getCompiledCollectionFiles(compiledDirectoryPath);
-						for (const filePath of files) {
-							const fullFilePath = path!.join(compiledDirectoryPath, filePath);
-							const content = await this.readFile(fullFilePath);
-							const schema = await this.processCollectionFile(filePath, content);
-							if (schema) {
-								collections.push(schema);
-								await this.setCacheValue(filePath, schema, this.collectionCache);
-							}
-						}
-					}
-					// Check for orphaned nodes
-					for (const [nodePath, node] of contentNodesMap) {
-						const hasFile = moduleEntries.some(([filePath]) => this.extractPathFromFilePath(filePath) === nodePath);
-						if (!hasFile) {
-							logger.warn(`Orphaned content node found in database:  \x1b[34m${nodePath}\x1b[0m`)
-							await dbAdapter.deleteContentNode(node._id!.toString());
-							logger.info(`Deleted orphaned content node:  \x1b[34m${nodePath}\x1b[0m`);
-						}
-					}
 
-
-					// Cache in Redis if available
-					if (!browser && isRedisEnabled()) {
-						await setCache('cms:all_collections', collections, REDIS_TTL);
+						collections.push(processed);
+						await this.setCacheValue(filePath, processed, this.collectionCache);
+					} catch (err) {
+						const errorMessage = err instanceof Error ? err.message : String(err);
+						logger.error(`Failed to process module ${filePath}:`, { error: errorMessage });
+						continue;
 					}
-					this.loadedCollections = collections;
-					return collections;
 				}
+				// Check for orphaned nodes
+				for (const [nodePath, node] of contentNodesMap) {
+					const hasFile = files.some((filePath) => this.extractPathFromFilePath(filePath) === nodePath);
+					if (!hasFile) {
+						logger.warn(`Orphaned content node found in database:  \x1b[34m${nodePath}\x1b[0m`)
+						await dbAdapter.deleteContentStructureNode(node._id!.toString());
+						logger.info(`Deleted orphaned content node:  \x1b[34m${nodePath}\x1b[0m`);
+					}
+				}
+
+				// Cache in Redis if available
+				if (!browser && isRedisEnabled()) {
+					await setCache('cms:all_collections', collections, REDIS_TTL);
+				}
+				this.loadedCollections = collections;
+				return collections;
 			} catch (err) {
 				const errorMessage = err instanceof Error ? err.message : String(err);
 				logger.error('Failed to load collections', { error: errorMessage });
@@ -358,10 +341,22 @@ class ContentManager {
 			// Filter out any null fields from failed widget resolutions
 			const validFields = processedFields.filter((field): field is NonNullable<typeof field> => field !== null);
 
+			// Get the path for checking existing content
+			const path = this.extractPathFromFilePath(filePath);
+
+			// Check for existing collection in database
+			let existingId: string | undefined;
+			if (!browser && dbAdapter) {
+				const contentNodesMap = await this.getContentStructureNodesMap();
+				const existingNode = contentNodesMap.get(path);
+				if (existingNode) {
+					existingId = existingNode.collectionId;
+				}
+			}
 
 			const processedSchema: Schema = {
-				id: baseSchema.id || uuidv4(), // Only create new ID if one doesn't exist
-				name: name,
+				id: existingId || baseSchema.id || uuidv4(), // Use existing ID, schema ID, or generate new one
+				name,
 				label: baseSchema.label || name,
 				slug: baseSchema.slug || name.toLowerCase(),
 				icon: baseSchema.icon || 'iconoir:info-empty',
@@ -376,7 +371,7 @@ class ContentManager {
 
 			// Create the MongoDB model for this collection
 			if (!browser && dbAdapter) {
-				await dbAdapter.createCollectionModel(processedSchema);
+				await dbAdapter.createContentStructure(processedSchema);
 			}
 			return processedSchema;
 		} catch (err) {
@@ -454,7 +449,7 @@ class ContentManager {
 				if (!browser && dbAdapter) {
 					try {
 
-						contentNodes = await dbAdapter.getContentNodes();
+						contentNodes = await dbAdapter.getContentStructureNodes();
 						logger.debug('Content structure from database', { contentNodes });
 					} catch (err) {
 						logger.warn('Could not fetch content structure, proceeding with file-based structure', { error: err });
@@ -504,7 +499,7 @@ class ContentManager {
 								// Store in database
 								if (!browser && dbAdapter) {
 									try {
-										await dbAdapter.createContentNode({
+										await dbAdapter.createContentStructure({
 											path: currentPath,
 											name: part,
 											icon: index === 0 ? 'bi:collection' : 'bi:folder',
@@ -526,7 +521,7 @@ class ContentManager {
 								// Store collection reference in database
 								if (!browser && dbAdapter) {
 									try {
-										await dbAdapter.createContentNode({
+										await dbAdapter.createContentStructure({
 											_id: collection.id,
 											path: currentPath,
 											name: collection.name,
@@ -654,27 +649,39 @@ class ContentManager {
 	// Get compiled collection files
 	private async getCompiledCollectionFiles(compiledDirectoryPath: string): Promise<string[]> {
 		if (!fs) throw new Error('File system operations are only available on the server');
-		// Helper function to recursively get all files
+
 		const getAllFiles = async (dir: string): Promise<string[]> => {
 			const entries = await fs.readdir(dir, { withFileTypes: true });
 			const files = await Promise.all(
 				entries.map(async (entry) => {
-					const fullPath = path!.join(dir, entry.name);
-					return entry.isDirectory() ? getAllFiles(fullPath) : fullPath;
+					const resolvedPath = `${dir}/${entry.name}`;
+					return entry.isDirectory() ? getAllFiles(resolvedPath) : resolvedPath;
 				})
 			);
 			return files.flat();
 		};
-		const allFiles = await getAllFiles(compiledDirectoryPath);
-		logger.debug('All files found recursively', { directory: compiledDirectoryPath, files: allFiles });
-		// Filter the list to only include .js files that are not excluded
-		const filteredFiles = allFiles.filter((file) => {
-			const isJSFile = path?.extname(file) === '.js';
-			const fileName = path?.basename(file);
-			const isNotExcluded = !['types.js', 'categories.js', 'index.js'].includes(fileName!);
-			return isJSFile && isNotExcluded;
-		});
-		return filteredFiles.map((file) => path!.relative(compiledDirectoryPath, file)) ?? [];
+
+		try {
+			const allFiles = await getAllFiles(compiledDirectoryPath);
+			logger.debug('All files found recursively', { directory: compiledDirectoryPath, files: allFiles });
+
+			// Filter the list to only include .js files that are not excluded
+			const filteredFiles = allFiles.filter((file) => {
+				const fileName = file.split('/').pop() || '';
+				const isJsFile = fileName.endsWith('.js');
+				const isExcluded = ['types.js', 'categories.js', 'index.js'].includes(fileName);
+				return isJsFile && !isExcluded;
+			});
+
+			// Convert to relative paths
+			return filteredFiles.map((file) => {
+				const relativePath = file.replace(compiledDirectoryPath, '');
+				return relativePath.startsWith('/') ? relativePath.slice(1) : relativePath;
+			});
+		} catch (error) {
+			logger.error(`Error getting compiled collection files: ${error.message}`);
+			throw error;
+		}
 	}
 	// Read file with retry mechanism
 	private async readFile(filePath: string): Promise<string> {
@@ -698,8 +705,8 @@ class ContentManager {
 		}
 	}
 	//Get a content node map
-	private async getContentNodesMap(): Promise<Map<string, SystemContent>> {
-		const contentNodes = await (dbAdapter?.getContentNodes() || Promise.resolve([]));
+	private async getContentStructureNodesMap(): Promise<Map<string, SystemContent>> {
+		const contentNodes = await (dbAdapter?.getContentStructureNodes() || Promise.resolve([]));
 		const contentNodesMap = new Map<string, SystemContent>();
 		contentNodes.forEach(node => {
 			contentNodesMap.set(node.path, node);
