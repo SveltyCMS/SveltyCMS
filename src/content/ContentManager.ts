@@ -527,11 +527,11 @@ class ContentManager {
 								if (!browser && dbAdapter) {
 									try {
 										await dbAdapter.createContentNode({
+											_id: collection.id,
 											path: currentPath,
 											name: collection.name,
 											icon: collection.icon || 'bi:file',
-											isCollection: true,
-											collectionId: collection.id
+											isCollection: true
 										});
 									} catch (err) {
 										logger.warn('Failed to store collection reference in database', { error: err });

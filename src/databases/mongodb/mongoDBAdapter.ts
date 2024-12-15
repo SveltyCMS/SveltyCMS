@@ -168,32 +168,30 @@ const SystemVirtualFolderModel =
 		)
 	);
 
-
 // Content structure schema for categories and collections
 const contentStructureSchema = new Schema(
 	{
-		collectionId: { type: String },
+		_id: { type: String, required: true },  // UUID of content structure
 		name: { type: String, required: true },
 		path: { type: String, required: true, unique: true },
 		icon: { type: String },
 		order: { type: Number, default: 999 },
-		isCollection: { type: Boolean, default: false },
 		translations: [{
 			languageTag: String,
 			translationName: String
 		}],
+		isCollection: { type: Boolean, default: false },
+
 		updatedAt: { type: Date, default: Date.now }
 	},
 	{ timestamps: true, collection: 'system_content_structure' } // Explicitly set the content structure for categories & collections 
 );
 
 // Add indexes for better performance
+contentStructureSchema.index({ _id: 1 });
 contentStructureSchema.index({ path: 1 }, { unique: true });
 contentStructureSchema.index({ parent: 1 });
 contentStructureSchema.index({ isCollection: 1 });
-contentStructureSchema.index({ collectionId: 1 });
-
-
 
 // Virtual folders schema for media management
 const virtualFolderSchema = new Schema(
@@ -226,10 +224,10 @@ const ContentStructureModel = mongoose.models?.ContentStructure ||
 VirtualFolderModel.schema.index({ path: 1 }, { unique: true });
 VirtualFolderModel.schema.index({ parent: 1 });
 
+ContentStructureModel.schema.index({ _id: 1 });
 ContentStructureModel.schema.index({ path: 1 }, { unique: true });
 ContentStructureModel.schema.index({ parent: 1 });
 ContentStructureModel.schema.index({ isCollection: 1 });
-ContentStructureModel.schema.index({ collectionId: 1 });
 
 export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
@@ -347,6 +345,30 @@ export class MongoDBAdapter implements dbInterface {
 									fields: collectionConfig.fields?.length || 0
 								});
 
+								//create the content structure node
+								const contentNodePath = `${dir}/${collectionName}`;
+								const existingNode = await ContentStructureModel.findOne({ path: contentNodePath }).exec();
+
+								if (existingNode) {
+									if (existingNode._id !== uuid) {
+										// Update the _id if it's different
+										await this.updateContentNode(existingNode._id, { _id: uuid, name: collectionConfig.name, path: contentNodePath, isCollection: true });
+										logger.info(`Updated content structure node ID for '${collectionName}' from '${existingNode._id}' to '${uuid}'.`);
+									} else {
+										// Update the node if it exists
+										await this.updateContentNode(existingNode._id, { name: collectionConfig.name, path: contentNodePath, isCollection: true });
+										logger.info(`Updated content structure node for '${collectionName}'.`);
+									}
+								} else {
+									await this.createContentNode({
+										_id: uuid,
+										name: collectionConfig.name,
+										path: contentNodePath,
+										isCollection: true // or from the collectionConfig
+									})
+									logger.info(`Created content structure node for '${collectionName}'.`);
+								}
+
 								await this.createCollectionModel(collectionConfig);
 								logger.debug(`Successfully created/synced collection model for \x1b[34m${collectionName}\x1b[0m`);
 							} else {
@@ -383,6 +405,30 @@ export class MongoDBAdapter implements dbInterface {
 			throw new Error('Failed to sync collections');
 		}
 	}
+
+	private async createOrUpdateContentStructure(nodeData: { _id: string, name: string, path: string, isCollection?: boolean }): Promise<void> {
+		try {
+			const existingNode = await ContentStructureModel.findOne({ _id: nodeData._id }).exec();
+
+			if (existingNode) {
+				logger.debug('content structure node already exists ', { nodeData })
+				await this.updateContentNode(nodeData._id, {
+					name: nodeData.name,
+					path: nodeData.path,
+					isCollection: nodeData.isCollection,
+				})
+
+				logger.info(`Content structure node '${nodeData.name}' with ID: ${nodeData._id} updated successfully.`);
+
+			} else {
+				await this.createContentNode(nodeData)
+			}
+
+		} catch (error) {
+			logger.error('Error creating or updating content structure node ', error)
+		}
+	}
+
 	// Connect to MongoDB
 	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
 		const isAtlas = privateEnv.DB_HOST.startsWith('mongodb+srv://');
@@ -441,6 +487,7 @@ export class MongoDBAdapter implements dbInterface {
 			}
 		}
 	}
+
 	// Update generateId to always return string
 	generateId(): string {
 		return new mongoose.Types.ObjectId().toString(); //required for MongoDB id as ObjectId
@@ -482,6 +529,7 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error('Failed to set up authentication models');
 		}
 	}
+
 	// Helper method to set up models if they don't already exist
 	private setupModel(name: string, schema: Schema) {
 		if (!mongoose.models[name]) {
@@ -491,6 +539,7 @@ export class MongoDBAdapter implements dbInterface {
 			logger.debug(`\x1b[34m${name}\x1b[0m model already exists.`);
 		}
 	}
+
 	// Set up media models
 	setupMediaModels(): void {
 		const mediaSchemas = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote', 'media_collection'];
@@ -511,6 +560,7 @@ export class MongoDBAdapter implements dbInterface {
 		}
 		logger.info('Widget models set up successfully.');
 	}
+
 	// Implementing findOne method
 	async findOne<T extends Document>(collection: string, query: FilterQuery<T>): Promise<T | null> {
 		try {
@@ -526,6 +576,7 @@ export class MongoDBAdapter implements dbInterface {
 			throw new Error(`Error in findOne for collection ${collection}`);
 		}
 	}
+
 	// Implementing findMany method
 	async findMany<T extends Document>(collection: string, query: FilterQuery<T>): Promise<T[]> {
 		const model = mongoose.models[collection] as Model<T>;
@@ -536,6 +587,7 @@ export class MongoDBAdapter implements dbInterface {
 		const results = await model.find(query).lean().exec();
 		return results as T[]; // Explicitly cast to T[]
 	}
+
 	// Implementing insertOne method
 	async insertOne<T extends Document>(collection: string, doc: Partial<T>): Promise<T> {
 		const model = mongoose.models[collection] as Model<T>;
@@ -566,6 +618,7 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error inserting many documents into ${collection}`);
 		}
 	}
+
 	// Implementing updateOne method
 	async updateOne<T extends Document>(
 		collection: string,
@@ -591,6 +644,7 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error updating document in ${collection}`);
 		}
 	}
+
 	// Implementing updateMany method
 	async updateMany<T extends Document>(
 		collection: string,
@@ -616,6 +670,7 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error updating many documents in ${collection}`);
 		}
 	}
+
 	// Implementing deleteOne method
 	async deleteOne<T extends Document>(collection: string, query: FilterQuery<T>): Promise<number> {
 		const model = mongoose.models[collection] as Model<T>;
@@ -630,6 +685,7 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error deleting document from ${collection}`);
 		}
 	}
+
 	// Implementing deleteMany method
 	async deleteMany<T extends Document>(collection: string, query: FilterQuery<T>): Promise<number> {
 		const model = mongoose.models[collection] as Model<T>;
@@ -644,6 +700,7 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Error deleting many documents from ${collection}`);
 		}
 	}
+
 	// Implementing countDocuments method
 	async countDocuments<T extends Document>(collection: string, query?: FilterQuery<T>): Promise<number> {
 		const model = mongoose.models[collection] as Model<T>;
@@ -662,158 +719,142 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Create a collection model
 	async createCollectionModel(collection: CollectionConfig): Promise<Model<Document>> {
-		// Wait for widgets to initialize first
-		await initializeWidgets();
+		try {
+			// Wait for widgets to initialize first
+			await initializeWidgets();
 
-		// Extract UUID from collection configuration
-		const collectionUUID = collection.id;
-		if (!collectionUUID) {
-			throw new Error('Collection UUID not found. Ensure collection file has UUID in header.');
-		}
-
-		const collectionName = `collection_${collectionUUID}`;
-		logger.debug(`Creating/checking collection model for \x1b[34m${collectionName}\x1b[0m`);
-
-		// Check if collection already exists in MongoDB
-		if (mongoose.connection.collections[collectionName.toLowerCase()]) {
-			logger.debug(`Collection ${collectionName} exists in MongoDB`);
-			// Collection exists, return existing model if available or create new model with same name
-			if (mongoose.models[collectionName]) {
-				logger.debug(`Using existing model for collection \x1b[34m${collectionName}\x1b[0m`);
-				return mongoose.models[collectionName];
+			// Extract UUID from collection configuration
+			const collectionUUID = collection.id;
+			if (!collectionUUID) {
+				throw new Error('Collection UUID not found. Ensure collection file has UUID in header.');
 			}
-		} else {
-			logger.debug(`Collection ${collectionName} does not exist in MongoDB yet`);
-		}
 
-		// Define base schema definition
-		const schemaDefinition: Record<string, mongoose.SchemaDefinitionProperty> = {
-			_id: {
-				type: Buffer,
-				default: () => new mongoose.Types.Buffer(Buffer.from(collectionUUID.replace(/-/g, ''), 'hex'))
-			},
-			createdBy: {
-				type: String,
-				required: false,
-			},
-			revisionsEnabled: {
-				type: Boolean,
-				required: false,
-			},
-			translationStatus: {
-				type: mongoose.Schema.Types.Mixed,
-				default: {},
-			},
-			status: {
-				type: String,
-				enum: ['draft', 'published', 'archived'],
-				default: 'draft',
-			}
-		};
+			const collectionName = `collection_${collectionUUID}`;
+			logger.debug(`Creating/checking collection model for \x1b[34m${collectionName}\x1b[0m`);
 
-		// Add fields from collection schema
-		if (collection.fields) {
-			for (const field of collection.fields) {
-				try {
-					let widgetType: string;
-					let fieldConfig: FieldConfig;
-					let fieldKey: string | undefined;
-					if (typeof field === 'function') {
-						// If field is a widget function, execute it to get config
-						const result = field({});
-						widgetType = result.widget.Name; // Get widget name from the widget object
-						fieldConfig = result; // The result contains all field properties
-						fieldKey = result.db_fieldName;
-					} else {
-						// If field is a direct configuration object
-						widgetType = field.widget?.Name || field.type; // Try widget.Name first, fallback to type
-						fieldConfig = field;
-						fieldKey = field.db_fieldName;
-					}
-
-					const isRequired = fieldConfig?.required === true;
-					const isTranslated = fieldConfig?.translated === true;
-					const isSearchable = fieldConfig?.searchable === true;
-					const isUnique = fieldConfig?.unique === true;
-
-					// Get widget configuration
-					const widgets = getWidgets();
-					const widget = widgets[widgetType];
-
-					if (!widget) {
-						logger.warn(`Widget type ${widgetType} not found, using Mixed type`);
-						logger.debug('Available widgets:', Object.keys(widgets));
-						logger.debug('Field config:', fieldConfig);
-					}
-
-					// Default to Mixed type for maximum flexibility with dynamic widgets
-					let mongooseType: mongoose.SchemaDefinitionProperty = mongoose.Schema.Types.Mixed;
-
-					// Special handling for relations
-					if (fieldConfig.collection) {
-						mongooseType = mongoose.Schema.Types.ObjectId;
-					}
-					let fieldSchema: mongoose.SchemaDefinitionProperty = {
-						type: isTranslated ? Map : mongooseType,
-						required: isRequired,
-						index: isSearchable ? { sparse: true } : undefined,
-						unique: isUnique
-					};
-					if (fieldConfig.collection) {
-						fieldSchema = {
-							...fieldSchema,
-							type: mongoose.Schema.Types.ObjectId,
-							ref: fieldConfig.collection,
-							index: true
-						};
-					}
-
-					// Add any widget-specific validation if needed
-					if (fieldConfig.validate) {
-						fieldSchema.validate = fieldConfig.validate;
-					}
-
-					// Add the field to the schema
-					schemaDefinition[fieldKey] = fieldSchema;
-				} catch (error) {
-					logger.error(`Error processing field in collection ${collectionUUID}: ${error.message}`);
+			// Check if collection already exists in MongoDB
+			if (mongoose.connection.collections[collectionName.toLowerCase()]) {
+				logger.debug(`Collection ${collectionName} exists in MongoDB`);
+				// Collection exists, return existing model if available or create new model with same name
+				if (mongoose.models[collectionName]) {
+					logger.debug(`Using existing model for collection \x1b[34m${collectionName}\x1b[0m`);
+					return mongoose.models[collectionName];
 				}
+			} else {
+				logger.debug(`Collection ${collectionName} does not exist in MongoDB yet`);
 			}
+
+			// Define base schema definition
+			const schemaDefinition: Record<string, mongoose.SchemaDefinitionProperty> = {
+				_id: {
+					type: Buffer,
+					default: () => new mongoose.Types.Buffer(Buffer.from(collectionUUID.replace(/-/g, ''), 'hex'))
+				},
+				createdBy: {
+					type: String
+				}
+			};
+
+			// Add fields from collection schema
+			if (Array.isArray(collection.fields) && collection.fields.length > 0) {
+				for (const field of collection.fields) {
+					try {
+						let widgetType: string;
+						let fieldConfig: FieldConfig;
+						let fieldKey: string | undefined;
+						if (typeof field === 'function') {
+							// If field is a widget function, execute it to get config
+							const result = field({});
+							widgetType = result.widget.Name; // Get widget name from the widget object
+							fieldConfig = result; // The result contains all field properties
+							fieldKey = result.db_fieldName;
+						} else {
+							// If field is a direct configuration object
+							widgetType = field.widget?.Name || field.type; // Try widget.Name first, fallback to type
+							fieldConfig = field;
+							fieldKey = field.db_fieldName;
+						}
+
+						if (!fieldKey) {
+							logger.warn('Field key is undefined, skipping field');
+							continue;
+						}
+
+						const isRequired = fieldConfig?.required === true;
+						const isTranslated = fieldConfig?.translated === true;
+						const isSearchable = fieldConfig?.searchable === true;
+						const isUnique = fieldConfig?.unique === true;
+
+						// Get widget configuration
+						const widgets = getWidgets();
+						const widget = widgets[widgetType];
+
+						if (!widget) {
+							logger.warn(`Widget type ${widgetType} not found, using Mixed type`);
+							logger.debug('Available widgets:', Object.keys(widgets));
+							logger.debug('Field config:', fieldConfig);
+						}
+
+						// Default to Mixed type for maximum flexibility with dynamic widgets
+						let mongooseType: mongoose.SchemaDefinitionProperty = mongoose.Schema.Types.Mixed;
+
+						// Special handling for relations
+						if (fieldConfig.collection) {
+							mongooseType = mongoose.Schema.Types.ObjectId;
+						}
+						const fieldSchema: mongoose.SchemaDefinitionProperty = {
+							type: mongooseType,
+							required: isRequired,
+							translate: isTranslated,
+							searchable: isSearchable,
+							unique: isUnique,
+						};
+						schemaDefinition[fieldKey] = fieldSchema;
+					} catch (error) {
+						logger.error(`Error processing field: ${error}`);
+					}
+				}
+			} else {
+				logger.warn(`No fields defined for collection ${collectionName}, creating with base schema only`);
+			}
+
+			// Optimized schema options
+			const schemaOptions: mongoose.SchemaOptions = {
+				strict: collection.strict !== false,
+				timestamps: {
+					createdAt: 'createdAt',
+					updatedAt: 'updatedAt'
+				},
+				collection: collectionName.toLowerCase(),
+				autoIndex: true, // Enable auto-indexing in production
+				minimize: false, // Store empty objects
+				toJSON: {
+					virtuals: true,
+					getters: true
+				},
+				toObject: {
+					virtuals: true,
+					getters: true
+				},
+				id: false, // Disable virtual id getter
+				versionKey: false  // Disable version key
+			};
+
+			// Create schema
+			const schema = new mongoose.Schema(schemaDefinition, schemaOptions);
+
+			// Add indexes
+			schema.index({ createdAt: -1 }); // Sort by most recent first
+			schema.index({ status: 1, createdAt: -1 }); // Common query pattern
+
+			// Performance optimization: create indexes in background
+			schema.set('backgroundIndexing', true);
+			// Create and return the model
+			return mongoose.model(collectionName, schema);
+		} catch (error) {
+			logger.error('Error creating collection model:', error);
+			throw error;
 		}
-
-		// Optimized schema options
-		const schemaOptions: mongoose.SchemaOptions = {
-			strict: collection.strict !== false,
-			timestamps: {
-				createdAt: 'createdAt',
-				updatedAt: 'updatedAt'
-			},
-			collection: collectionName.toLowerCase(),
-			autoIndex: true, // Enable auto-indexing in production
-			minimize: false, // Store empty objects
-			toJSON: {
-				virtuals: true,
-				getters: true
-			},
-			toObject: {
-				virtuals: true,
-				getters: true
-			},
-			id: false, // Disable virtual id getter
-			versionKey: false  // Disable version key
-		};
-
-		// Create schema
-		const schema = new mongoose.Schema(schemaDefinition, schemaOptions);
-
-		// Add indexes
-		schema.index({ createdAt: -1 }); // Sort by most recent first
-		schema.index({ status: 1, createdAt: -1 }); // Common query pattern
-
-		// Performance optimization: create indexes in background
-		schema.set('backgroundIndexing', true);
-		// Create and return the model
-		return mongoose.model(collectionName, schema);
 	}
 	// Methods for Draft and Revision Management
 
