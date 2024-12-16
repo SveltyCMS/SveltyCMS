@@ -24,7 +24,7 @@ import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/r
 import { categories, collections, unAssigned, collection, collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
 import { dbAdapter, dbInitPromise } from '@src/databases/db';
 
-import widgets, { initializeWidgets, resolveWidgetPlaceholder, WidgetPlaceholder } from '@components/widgets';
+import widgetProxy, { initializeWidgets, resolveWidgetPlaceholder } from '@components/widgets';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -49,20 +49,22 @@ const RETRY_DELAY = 1000;
 
 // Widget initialization state
 let widgetsInitialized = false;
-let widgetsInitPromise: Promise<void> | null = null;
 
 async function ensureWidgetsInitialized() {
-	if (widgetsInitialized) return;
-	if (!widgetsInitPromise) {
-		widgetsInitPromise = initializeWidgets().then(() => {
+	if (!widgetsInitialized) {
+		try {
+			await initializeWidgets();
+			// Make widgets available globally for eval context
+			if (!browser) {
+				globalThis.widgets = widgetProxy;
+			}
 			widgetsInitialized = true;
 			logger.info('Widgets initialized successfully');
-		}).catch((error) => {
+		} catch (error) {
 			logger.error('Failed to initialize widgets:', error);
 			throw error;
-		});
+		}
 	}
-	await widgetsInitPromise;
 }
 
 class ContentManager {
@@ -132,6 +134,10 @@ class ContentManager {
 			// Ensure widgets are initialized before processing module
 			await ensureWidgetsInitialized();
 
+			// Extract UUID from file content
+			const uuidMatch = content.match(/\/\/\s*UUID:\s*([a-f0-9-]{36})/i);
+			const uuid = uuidMatch ? uuidMatch[1] : null;
+
 			// Remove any import/export statements and extract the schema object
 			const cleanedContent = content
 				.replace(/import\s+.*?;/g, '')  // Remove import statements
@@ -139,23 +145,29 @@ class ContentManager {
 				.replace(/export\s+const\s+/, 'const ') // Handle export const
 				.trim();
 
+			// Replace the global widgets before evaluating the schema
+			const modifiedContent = cleanedContent.replace(/globalThis\.widgets\.(\w+)\((.*?)\)/g, (match, widgetName, widgetConfig) => {
+				return `await resolveWidgetPlaceholder({ __widgetName: '${widgetName}', __widgetConfig: ${widgetConfig || '{}'} })`;
+			});
+
 			// Create a safe evaluation context
 			const moduleContent = `
 				const module = {};
 				const exports = {};
-				(function(module, exports, widgets) {
-					${cleanedContent}
+                const resolveWidgetPlaceholder = ${resolveWidgetPlaceholder.toString()};
+				(async function(module, exports) {
+					${modifiedContent}
 					return module.exports || exports;
-				})(module, exports, widgets);
+				})(module, exports);
 			`;
 
 			// Create and execute the function with widgets as context
 			const moduleFunc = new Function('widgets', moduleContent);
-			const result = moduleFunc(widgets);
+			const result = await moduleFunc(widgetProxy);
 
 			// If result is an object with fields, it's likely our schema
 			if (result && typeof result === 'object') {
-				return { schema: result };
+				return { schema: { ...result, id: uuid } };
 			}
 
 			// If we got here, try to find a schema object in the content
@@ -165,7 +177,31 @@ class ContentManager {
 					// Evaluate just the schema object
 					const schemaFunc = new Function(`return ${schemaMatch[2]}`);
 					const schema = schemaFunc();
-					return { schema };
+					return { schema: { ...schema, id: uuid } };
+				} catch (error) {
+					logger.warn('Failed to evaluate schema object:', error);
+				}
+			}
+
+			// Try to match export const/let/var schema
+			const schemaExportMatch = cleanedContent.match(/(?:export\s+(?:const|let|var)\s+)?(\w+)\s*=\s*({[\s\S]*?});/);
+			if (schemaExportMatch && schemaExportMatch[2]) {
+				try {
+					const schemaFunc = new Function(`return ${schemaExportMatch[2]}`);
+					const schema = schemaFunc();
+					return { schema: { ...schema, id: uuid } };
+				} catch (error) {
+					logger.warn('Failed to evaluate schema object:', error);
+				}
+			}
+
+			// Try to match export default schema
+			const schemaDefaultExportMatch = cleanedContent.match(/export\s+default\s+({[\s\S]*?});/);
+			if (schemaDefaultExportMatch && schemaDefaultExportMatch[1]) {
+				try {
+					const schemaFunc = new Function(`return ${schemaDefaultExportMatch[1]}`);
+					const schema = schemaFunc();
+					return { schema: { ...schema, id: uuid } };
 				} catch (error) {
 					logger.warn('Failed to evaluate schema object:', error);
 				}
@@ -182,8 +218,20 @@ class ContentManager {
 	async loadCollections(): Promise<Schema[]> {
 		return this.measurePerformance(async () => {
 			try {
+				// If we're in the browser, fetch collections from the API
+				if (browser) {
+					const response = await fetch('/api/collections');
+					if (!response.ok) {
+						throw new Error(`Failed to fetch collections: ${response.statusText}`);
+					}
+					const collections = await response.json();
+					this.loadedCollections = collections;
+					return collections;
+				}
+
+				// Server-side collection loading
 				const collections: Schema[] = [];
-				const contentNodesMap = await this.getContentStructureNodesMap();
+				const contentNodesMap = await this.getContentStructureMap();
 				const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || './collections';
 				const files = await this.getCompiledCollectionFiles(compiledDirectoryPath);
 
@@ -250,7 +298,7 @@ class ContentManager {
 						if (existingNode) {
 							// Update node if is different
 							if (existingNode.icon !== processed.icon || existingNode.order !== processed.order) {
-								await dbAdapter.updateContentStructureNode(existingNode._id!.toString(), { icon: processed.icon, order: processed.order })
+								await dbAdapter.updateContentStructure(existingNode._id!.toString(), { icon: processed.icon, order: processed.order })
 								logger.info(`Updated metadata for content node:  \x1b[34m${path}\x1b[0m`)
 							}
 						} else {
@@ -279,7 +327,7 @@ class ContentManager {
 					const hasFile = files.some((filePath) => this.extractPathFromFilePath(filePath) === nodePath);
 					if (!hasFile) {
 						logger.warn(`Orphaned content node found in database:  \x1b[34m${nodePath}\x1b[0m`)
-						await dbAdapter.deleteContentStructureNode(node._id!.toString());
+						await dbAdapter.deleteContentStructure(node._id!.toString());
 						logger.info(`Deleted orphaned content node:  \x1b[34m${nodePath}\x1b[0m`);
 					}
 				}
@@ -298,88 +346,7 @@ class ContentManager {
 		}, 'Load Collections');
 	}
 
-	// Process collection file with improved error handling
-	private async processCollectionFile(filePath: string, content: string): Promise<Schema | null> {
-		try {
-			// Process the module content
-			const moduleData = await this.processModule(content);
 
-			if (!moduleData || !moduleData.schema) {
-				logger.error(`Invalid collection file format: ${filePath}`, {
-					hasModuleData: !!moduleData,
-					hasSchema: !!(moduleData && moduleData.schema)
-				});
-				return null;
-			}
-			// Extract the name from the file path
-			const name = filePath
-				.split('/')
-				.pop()
-				?.replace(/\.(ts|js)$/, '');
-
-			if (!name) {
-				logger.error(`Could not extract name from ${filePath}`);
-				return null;
-			}
-
-			// Create the processed schema with proper type checking
-			const baseSchema = moduleData.schema as Partial<Schema>;
-
-			// Process fields to resolve widget placeholders
-			const processedFields = await Promise.all((baseSchema.fields || []).map(async (field) => {
-				if (field && typeof field === 'object' && '__isWidgetPlaceholder' in field) {
-					// This is a widget placeholder, resolve it
-					try {
-						return await resolveWidgetPlaceholder(field as WidgetPlaceholder);
-					} catch (error) {
-						logger.error(`Failed to resolve widget placeholder in ${filePath}:`, error);
-						return null;
-					}
-				}
-				return field;
-			}));
-			// Filter out any null fields from failed widget resolutions
-			const validFields = processedFields.filter((field): field is NonNullable<typeof field> => field !== null);
-
-			// Get the path for checking existing content
-			const path = this.extractPathFromFilePath(filePath);
-
-			// Check for existing collection in database
-			let existingId: string | undefined;
-			if (!browser && dbAdapter) {
-				const contentNodesMap = await this.getContentStructureNodesMap();
-				const existingNode = contentNodesMap.get(path);
-				if (existingNode) {
-					existingId = existingNode.collectionId;
-				}
-			}
-
-			const processedSchema: Schema = {
-				id: existingId || baseSchema.id || uuidv4(), // Use existing ID, schema ID, or generate new one
-				name,
-				label: baseSchema.label || name,
-				slug: baseSchema.slug || name.toLowerCase(),
-				icon: baseSchema.icon || 'iconoir:info-empty',
-				description: baseSchema.description || '',
-				strict: baseSchema.strict || false,
-				revision: baseSchema.revision || false,
-				path: filePath,
-				permissions: baseSchema.permissions || {},
-				livePreview: baseSchema.livePreview || false,
-				fields: validFields
-			};
-
-			// Create the MongoDB model for this collection
-			if (!browser && dbAdapter) {
-				await dbAdapter.createContentStructure(processedSchema);
-			}
-			return processedSchema;
-		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : String(err);
-			logger.error(`Failed to process collection file ${filePath}:`, { error: errorMessage });
-			return null;
-		}
-	}
 
 	// Update collections with performance monitoring
 	async updateCollections(recompile: boolean = false): Promise<void> {
@@ -449,7 +416,7 @@ class ContentManager {
 				if (!browser && dbAdapter) {
 					try {
 
-						contentNodes = await dbAdapter.getContentStructureNodes();
+						contentNodes = await dbAdapter.getContentStructure();
 						logger.debug('Content structure from database', { contentNodes });
 					} catch (err) {
 						logger.warn('Could not fetch content structure, proceeding with file-based structure', { error: err });
@@ -635,16 +602,18 @@ class ContentManager {
 
 	// Extract path from file path
 	private extractPathFromFilePath(filePath: string): string {
+		logger.debug(`Extracting path from file: ${filePath}`);
 		const parts = filePath.split('/');
-		const collectionsIndex = parts.findIndex((part) => part === 'collections' || part === 'config/collections');
-		if (collectionsIndex === -1) return '';
-
-		// Get all parts after 'collections'
-		const pathSegments = parts.slice(collectionsIndex + 1);
-		// Remove file extension from last segment
-		pathSegments[pathSegments.length - 1] = pathSegments[pathSegments.length - 1].replace(/\.(ts|js)$/, '');
-		// Build the path maintaining the full hierarchy
-		return pathSegments.join('/');
+		
+		// Remove file extension from last segment if it exists
+		if (parts.length > 0) {
+			parts[parts.length - 1] = parts[parts.length - 1].replace(/\.(ts|js)$/, '');
+		}
+		
+		// Build the path for compiled collections
+		const resultPath = `collections/${parts.join('/')}`;
+		logger.debug(`Extracted path: ${resultPath}`);
+		return resultPath;
 	}
 	// Get compiled collection files
 	private async getCompiledCollectionFiles(compiledDirectoryPath: string): Promise<string[]> {
@@ -705,8 +674,8 @@ class ContentManager {
 		}
 	}
 	//Get a content node map
-	private async getContentStructureNodesMap(): Promise<Map<string, SystemContent>> {
-		const contentNodes = await (dbAdapter?.getContentStructureNodes() || Promise.resolve([]));
+	private async getContentStructureMap(): Promise<Map<string, SystemContent>> {
+		const contentNodes = await (dbAdapter?.getContentStructure() || Promise.resolve([]));
 		const contentNodesMap = new Map<string, SystemContent>();
 		contentNodes.forEach(node => {
 			contentNodesMap.set(node.path, node);

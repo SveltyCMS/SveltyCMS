@@ -88,7 +88,7 @@
 		"prettier-plugin-tailwindcss": "^0.6.9",
 		"semantic-release": "^24.2.0",
 		"sharp": "^0.33.5",
-		"svelte": "^5.13.0",
+		"svelte": "^5.14.0",
 		"svelte-awesome-color-picker": "^3.1.4",
 		"svelte-check": "^4.1.1",
 		"svelte-confetti": "2.2.0",

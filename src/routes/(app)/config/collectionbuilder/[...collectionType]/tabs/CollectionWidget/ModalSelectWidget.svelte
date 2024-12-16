@@ -1,6 +1,7 @@
 <!-- 
- @files src/routes/(app)/config/collectionbuilder/[...collectionTypes]/tabs/CollectionWidget/ModalSelectWidget.svelte
-@description This component displays a modal for selecting a widget.
+@files src/routes/(app)/config/collectionbuilder/[...collectionTypes]/tabs/CollectionWidget/ModalSelectWidget.svelte
+@component
+**This component displays a modal for selecting a widget**
 -->
 
 <script lang="ts">

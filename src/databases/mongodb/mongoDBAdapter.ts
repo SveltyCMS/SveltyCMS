@@ -171,26 +171,29 @@ const SystemVirtualFolderModel =
 // Content structure schema for categories and collections
 const contentStructureSchema = new Schema(
 	{
-		_id: { type: String, required: true },  // UUID of content structure
+		_id: { type: String, required: true },  // UUID from compiled collection
 		name: { type: String, required: true },
-		path: { type: String, required: true, unique: true },
-		icon: { type: String },
+		path: { type: String, required: true, unique: true },  // Always starts with /collections/
+		icon: { type: String, default: 'bi:file-text' },  // Default icon for collections
 		order: { type: Number, default: 999 },
 		translations: [{
 			languageTag: String,
 			translationName: String
 		}],
-		isCollection: { type: Boolean, default: false },
-
+		isCollection: { type: Boolean, default: true },  // Default to true since we're syncing collections
+		collectionConfig: { type: Schema.Types.Mixed },  // Store the full collection config
 		updatedAt: { type: Date, default: Date.now }
 	},
-	{ timestamps: true, collection: 'system_content_structure' } // Explicitly set the content structure for categories & collections 
+	{
+		timestamps: true,
+		collection: 'system_content_structure',
+		strict: false  // Allow additional fields from collection config
+	}
 );
 
 // Add indexes for better performance
 contentStructureSchema.index({ _id: 1 });
 contentStructureSchema.index({ path: 1 }, { unique: true });
-contentStructureSchema.index({ parent: 1 });
 contentStructureSchema.index({ isCollection: 1 });
 
 // Virtual folders schema for media management
@@ -226,7 +229,6 @@ VirtualFolderModel.schema.index({ parent: 1 });
 
 ContentStructureModel.schema.index({ _id: 1 });
 ContentStructureModel.schema.index({ path: 1 }, { unique: true });
-ContentStructureModel.schema.index({ parent: 1 });
 ContentStructureModel.schema.index({ isCollection: 1 });
 
 export class MongoDBAdapter implements dbInterface {
@@ -274,7 +276,6 @@ export class MongoDBAdapter implements dbInterface {
 			}
 
 			// Use posix paths for cross-platform compatibility
-			// Get path to compiled collections directory
 			const compiledCollectionsPath = path.posix.resolve(process.cwd(), 'collections');
 			logger.debug('Compiled collections path:', compiledCollectionsPath);
 
@@ -288,154 +289,135 @@ export class MongoDBAdapter implements dbInterface {
 
 			// Track all valid collection UUIDs
 			const validCollectionUUIDs = new Set<string>();
+			const validPaths = new Set<string>();
 
-			// Known collection directories (should now match your compiled structure)
-			const collectionDirs = ['Collections', 'Menu'];
+			// Scan all collections recursively
+			const collectionFiles = await this.scanDirectoryForContentStructure(compiledCollectionsPath);
+			logger.debug(
+				`Found \x1b[34m${collectionFiles.length}\x1b[0m compiled collection files in \x1b[34m${compiledCollectionsPath}\x1b[0m and subdirectories:`,
+				collectionFiles
+			);
 
-			for (const dir of collectionDirs) {
-				const dirPath = path.posix.join(compiledCollectionsPath, dir); // Use compiled path
+			// First pass: Create content structure for collections
+			for (const filePath of collectionFiles) {
 				try {
-					logger.debug(`Processing directory: \x1b[34m${dir}\x1b[0m`);
+					logger.debug(`Processing compiled collection file: \x1b[34m${filePath}\x1b[0m`);
 
-					// Scan for compiled .js files
-					const collectionFiles = await this.scanDirectoryForContentStructure(dirPath); // Scan compiled directory
-					logger.debug(
-						`Found \x1b[34m${collectionFiles.length}\x1b[0m compiled collection files in \x1b[34m${dirPath}\x1b[0m directory and subdirectories:`,
-						collectionFiles
-					);
+					// Read the file content to get UUID
+					const content = await import('fs').then((fs) => fs.promises.readFile(filePath, 'utf8'));
+					const uuidMatch = content.match(/\/\/\s*UUID:\s*([a-f0-9-]{36})/i);
+					const uuid = uuidMatch ? uuidMatch[1] : null;
 
-					for (const filePath of collectionFiles) {
-						try {
-							logger.debug(`Processing compiled collection file: \x1b[34m${filePath}\x1b[0m`);
+					if (!uuid) {
+						logger.error(`Missing UUID in compiled schema for ${filePath}`);
+						continue;
+					}
 
-							// Read the compiled file content to get UUID
-							const content = await import('fs').then((fs) => fs.promises.readFile(filePath, 'utf8'));
-							const uuidMatch = content.match(/\/\/\s*UUID:\s*([a-f0-9-]{36})/i);
-							const uuid = uuidMatch ? uuidMatch[1] : null;
+					logger.debug(`Found UUID in file: \x1b[34m${uuid}\x1b[0m`);
+					validCollectionUUIDs.add(uuid);
 
-							if (!uuid) {
-								logger.error(`Missing UUID in compiled schema for ${filePath}`);
-								continue;
-							}
+					// Import the collection using the file path
+					const collection = await import(/* @vite-ignore */ filePath + `?update=${Date.now()}`);
+					const collectionConfig = collection.default || collection.schema;
 
-							logger.debug(`Found UUID in file: \x1b[34m${uuid}\x1b[0m`);
+					if (collectionConfig) {
+						// Get the relative path from the collections directory
+						const relativePath = path.posix.relative(compiledCollectionsPath, filePath);
+						const dirPath = path.posix.dirname(relativePath);
+						// change to ensure you get the correct path from collections
+						const contentNodePath = `/collections/${dirPath}`;
+						validPaths.add(contentNodePath);
 
-							// Import the collection using the file path
-							const collection = await import(/* @vite-ignore */ filePath + `?update=${Date.now()}`);
-							const collectionConfig = collection.default || collection.schema;
+						logger.debug(`Creating content structure node with path: ${contentNodePath}`);
 
-							if (collectionConfig) {
-								// Add UUID to config
-								collectionConfig.id = uuid;
+						// Create or update the content structure for the collection
+						await this.createOrUpdateContentStructure({
+							_id: uuid,
+							name: collectionConfig.name,
+							path: contentNodePath,
+							icon: collectionConfig.icon || 'bi:file-text',
+							isCollection: true,
+							collectionConfig
+						});
 
-								// Get collection name from the file path (adjust if needed)
-								const parsedPath = path.posix.parse(filePath);
-								const collectionName = parsedPath.name;
-
-								// Add name to config if not present
-								if (!collectionConfig.name) {
-									collectionConfig.name = collectionName;
-								}
-
-								validCollectionUUIDs.add(uuid);
-
-								logger.debug(`Collection config for \x1b[34m${collectionName}\x1b[0m:`, {
-									name: collectionConfig.name,
-									uuid: uuid,
-									fields: collectionConfig.fields?.length || 0
-								});
-
-								//create the content structure node
-								const contentNodePath = `${dir}/${collectionName}`;
-								const existingNode = await ContentStructureModel.findOne({ path: contentNodePath }).exec();
-
-								if (existingNode) {
-									if (existingNode._id.toString() !== uuid) {
-										// Update the _id if it's different
-										await this.updateContentStructureNode(existingNode._id, {
-											_id: uuid,
-											name: collectionConfig.name,
-											path: contentNodePath,
-											isCollection: true
-										});
-										logger.info(`Updated content structure node ID for '${collectionName}' from '${existingNode._id}' to '${uuid}'.`);
-									} else {
-										// Update the node if it exists
-										await this.updateContentStructureNode(existingNode._id, {
-											name: collectionConfig.name,
-											path: contentNodePath,
-											isCollection: true
-										});
-										logger.info(`Updated content structure node for '${collectionName}'.`);
-									}
-								} else {
-									await this.createContentStructureNode({
-										_id: uuid,
-										name: collectionConfig.name,
-										path: contentNodePath,
-										isCollection: true // or from the collectionConfig
-									})
-									logger.info(`Created content structure node for '${collectionName}'.`);
-								}
-
-								// Create or update the schema model for this collection
-								await this.createContentStructure(collectionConfig);
-								logger.debug(`Successfully created/synced collection model for \x1b[34m${collectionName}\x1b[0m`);
-							} else {
-								logger.error(`Collection file ${filePath} does not export a valid schema or default export`);
-							}
-						} catch (error) {
-							logger.error(`Error importing collection ${filePath}:`, error);
-						}
+						// Create or update the schema model for this collection
+						await this.createCollectionModel(collectionConfig);
+						logger.debug(`Successfully created/synced collection model for \x1b[34m${collectionConfig.name}\x1b[0m`);
 					}
 				} catch (error) {
-					logger.error(`Error processing directory ${dir}:`, error);
+					logger.error(`Error processing collection ${filePath}:`, error);
 				}
 			}
 
-			// Check for orphaned collections in MongoDB
-			const collections = await mongoose.connection.db.listCollections().toArray();
-			logger.debug('Current MongoDB collections:', collections.map(c => c.name));
+			// Second pass: Create folder structure nodes
+			const processedPaths = new Set<string>();
+			for (const fullPath of validPaths) {
+				const parts = fullPath.split('/').filter(Boolean);
+				let currentPath = '';
 
-			for (const collection of collections) {
-				if (collection.name.startsWith('collection_')) {
-					const uuid = collection.name.replace('collection_', '');
-					if (!validCollectionUUIDs.has(uuid)) {
-						logger.warn(
-							`⚠️ Found orphaned collection in database: ${collection.name}. This collection exists in MongoDB but has no corresponding collection file. Data will be preserved but you should investigate.`
-						);
+				for (let i = 0; i < parts.length; i++) {
+					currentPath = `/${parts.slice(0, i + 1).join('/')}`;
+
+					if (!processedPaths.has(currentPath)) {
+						processedPaths.add(currentPath);
+
+						// Don't create a node for the actual collection path
+						if (!validPaths.has(currentPath)) {
+							const folderName = parts[i];
+							await this.createOrUpdateContentStructure({
+								_id: crypto.randomUUID(),
+								name: folderName,
+								path: currentPath,
+								icon: 'bi:folder',
+								isCollection: false
+							});
+							logger.debug(`Created folder structure node: ${currentPath}`);
+						}
 					}
 				}
 			}
 
-			logger.debug('Valid collection UUIDs:', Array.from(validCollectionUUIDs));
-			logger.debug('Content structure sync completed successfully');
+			// Clean up any content structure nodes that don't match valid UUIDs
+			const invalidNodes = await ContentStructureModel.find({
+				isCollection: true,
+				_id: { $nin: Array.from(validCollectionUUIDs) }
+			}).exec();
+
+			if (invalidNodes.length > 0) {
+				logger.info(`Found ${invalidNodes.length} invalid content structure nodes. Cleaning up...`);
+				await ContentStructureModel.deleteMany({
+					isCollection: true,
+					_id: { $nin: Array.from(validCollectionUUIDs) }
+				});
+			}
+
+			logger.info('Content structure sync completed successfully');
 		} catch (error) {
 			logger.error('Error syncing content structure:', error);
-			throw new Error('Failed to sync content structure');
+			throw error;
 		}
 	}
 
-	private async createOrUpdateContentStructure(nodeData: { _id: string, name: string, path: string, isCollection?: boolean }): Promise<void> {
+	// Create or update content structure node
+	async createOrUpdateContentStructure(contentData: {
+		_id: string,
+		name: string,
+		path: string,
+		icon?: string,
+		isCollection?: boolean,
+		collectionConfig?: any
+	}): Promise<void> {
 		try {
-			const existingNode = await ContentStructureModel.findOne({ _id: nodeData._id }).exec();
-
-			if (existingNode) {
-				logger.debug('content structure node already exists ', { nodeData })
-				await this.updateContentStructureNode(nodeData._id, {
-					name: nodeData.name,
-					path: nodeData.path,
-					isCollection: nodeData.isCollection,
-				})
-
-				logger.info(`Content structure node '${nodeData.name}' with ID: ${nodeData._id} updated successfully.`);
-
-			} else {
-				await this.createContentStructureNode(nodeData)
-			}
-
+			const { _id, ...updateData } = contentData;
+			await ContentStructureModel.updateOne(
+				{ _id },
+				{ $set: updateData },
+				{ upsert: true }
+			);
+			logger.debug(`Content structure node ${_id} created/updated successfully`);
 		} catch (error) {
-			logger.error('Error creating or updating content structure node ', error)
+			logger.error(`Error creating/updating content structure node:`, error);
+			throw error;
 		}
 	}
 
@@ -486,7 +468,7 @@ export class MongoDBAdapter implements dbInterface {
 					await this.syncContentStructure();
 				}
 				return;
-			} catch (error: unknown) {
+			} catch (error) {
 				lastError = error;
 				if (i === attempts) {
 					logger.error(`Failed to connect to MongoDB after ${attempts} attempts: ${lastError}`);
@@ -544,7 +526,7 @@ export class MongoDBAdapter implements dbInterface {
 	private setupModel(name: string, schema: Schema) {
 		if (!mongoose.models[name]) {
 			mongoose.model(name, schema);
-			logger.debug(`${name} model created.`);
+			logger.debug(`\x1b[34m${name}\x1b[0m model created.`);
 		} else {
 			logger.debug(`\x1b[34m${name}\x1b[0m model already exists.`);
 		}
@@ -556,7 +538,7 @@ export class MongoDBAdapter implements dbInterface {
 		mediaSchemas.forEach((schemaName) => {
 			this.setupModel(schemaName, mediaSchema);
 		});
-		logger.debug('Media models set up successfully.');
+		logger.info('Media models set up successfully.');
 	}
 
 	// Set up widget models
@@ -729,7 +711,7 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Create a collection model
-	async createContentStructure(collection: CollectionConfig): Promise<Model<Document>> {
+	async createCollectionModel(collection: CollectionConfig): Promise<Model<Document>> {
 		try {
 			// Wait for widgets to initialize first
 			await initializeWidgets();
@@ -1367,7 +1349,7 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Content Structure Methods
-	async createContentStructureNode(nodeData: {
+	async createContentStructure(contentData: {
 		name: string;
 		parent?: string;
 		path: string;
@@ -1376,11 +1358,16 @@ export class MongoDBAdapter implements dbInterface {
 		isCollection?: boolean;
 		collectionId?: string;
 		translations?: { languageTag: string; translationName: string; }[];
+		_id?: string;  // Make _id optional in the interface
 	}): Promise<Document> {
 		try {
-			const node = new ContentStructureModel(nodeData);
+			// If _id is provided, use it directly when creating the model
+			const node = new ContentStructureModel({
+				...contentData,
+				_id: contentData._id || this.generateId()  // Use provided _id or generate new one
+			});
 			await node.save();
-			logger.info(`Content structure node '${nodeData.name}' created successfully with ID ${node._id}.`);
+			logger.info(`Content structure node '${contentData.name}' created successfully with ID ${node._id}.`);
 			return node;
 		} catch (error) {
 			logger.error(`Error creating content structure node: ${error.message}`);
@@ -1388,14 +1375,14 @@ export class MongoDBAdapter implements dbInterface {
 		}
 	}
 
-	async getContentStructureNodes(): Promise<Document[]> {
+	async getContentStructure(): Promise<Document[]> {
 		try {
 			const nodes = await ContentStructureModel.find().sort({ path: 1 }).exec();
-			logger.info(`Fetched ${nodes.length} content structure nodes.`);
+			logger.info(`Fetched ${nodes.length} content structure.`);
 			return nodes;
 		} catch (error) {
-			logger.error(`Error fetching content structure nodes: ${error.message}`);
-			throw Error(`Error fetching content structure nodes`);
+			logger.error(`Error fetching content structure: ${error.message}`);
+			throw Error(`Error fetching content structure`);
 		}
 	}
 
@@ -1404,15 +1391,25 @@ export class MongoDBAdapter implements dbInterface {
 			const escapedPath = parentPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 			const regex = new RegExp(`^${escapedPath}/[^/]+$`);
 			const children = await ContentStructureModel.find({ path: { $regex: regex } }).sort({ order: 1 }).exec();
-			logger.info(`Fetched ${children.length} children nodes for path '${parentPath}'.`);
+			logger.info(`Fetched ${children.length} children of content structure for path '${parentPath}'.`);
 			return children;
 		} catch (error) {
-			logger.error(`Error fetching content structure node children: ${error.message}`);
-			throw Error(`Error fetching content structure node children`);
+			logger.error(`Error fetching content structure children: ${error.message}`);
+			throw Error(`Error fetching content structure children`);
 		}
 	}
 
-	async updateContentStructureNode(nodeId: string, updateData: Partial<ContentStructureNode>): Promise<Document | null> {
+	async getContentStructureById(id: string): Promise<Document | null> {
+		try {
+			const node = await ContentStructureModel.findById(id).exec();
+			return node ? node.toObject() : null;
+		} catch (error) {
+			logger.error(`Error getting content structure by ID ${id}:`, error);
+			return null;
+		}
+	}
+
+	async updateContentStructure(contentId: string, updateData: Partial<ContentStructureNode>): Promise<Document | null> {
 		try {
 			// Only allow updates to name and fileName, exclude _id, uuid, and other fields
 			const { name, fileName } = updateData;
@@ -1422,15 +1419,15 @@ export class MongoDBAdapter implements dbInterface {
 			if (fileName !== undefined) allowedUpdates.fileName = fileName;
 
 			const updatedNode = await ContentStructureModel.findByIdAndUpdate(
-				nodeId,
+				contentId,
 				allowedUpdates,
 				{ new: true }
 			).exec();
 
 			if (updatedNode) {
-				logger.info(`Content structure node '${nodeId}' updated successfully.`);
+				logger.info(`Content structure node '${contentId}' updated successfully.`);
 			} else {
-				logger.warn(`No content structure node found with ID '${nodeId}'.`);
+				logger.warn(`No content structure node found with ID '${contentId}'.`);
 			}
 			return updatedNode;
 		} catch (error) {
@@ -1439,15 +1436,15 @@ export class MongoDBAdapter implements dbInterface {
 		}
 	}
 
-	async deleteContentStructure(nodeId: string): Promise<boolean> {
+	async deleteContentStructure(contentId: string): Promise<boolean> {
 		try {
-			const result = await ContentStructureModel.findByIdAndDelete(nodeId).exec();
-			if (result) {
-				logger.info(`Content structure node '${nodeId}' deleted successfully.`);
-				return true;
+			const result = await ContentStructureModel.deleteOne({ _id: contentId }).exec();
+			if (result.deletedCount === 0) {
+				logger.warn(`Content structure node with ID ${contentId} not found.`);
+				return false;
 			}
-			logger.warn(`No content structure node found with ID '${nodeId}'.`);
-			return false;
+			logger.info(`Content structure node ${contentId} deleted successfully.`);
+			return true;
 		} catch (error) {
 			logger.error(`Error deleting content structure node: ${error.message}`);
 			throw Error(`Error deleting content structure node`);

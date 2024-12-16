@@ -36,7 +36,7 @@ export const GET: RequestHandler = async ({ url }) => {
             case 'getStructure': {
                 // Return full structure with metadata
                 const { collections, categories } = contentManager.getCollectionData();
-                const contentNodes = await dbAdapter.getContentStructureNodes();
+                const contentNodes = await dbAdapter.getContentStructure();
 
                 // Create a map for faster lookup
                 const nodeMap = new Map(contentNodes.map(node => [node.path, node]));
@@ -63,10 +63,10 @@ export const GET: RequestHandler = async ({ url }) => {
                 break;
             }
 
-            case 'getContentStructureNodes': {
+            case 'getContentStructure': {
                 // Return content nodes from database
-                const contentNodesDB = await dbAdapter.getContentStructureNodes();
-                logger.info('Returning content nodes from database');
+                const contentNodesDB = await dbAdapter.getContentStructure();
+                logger.info('Returning content structure from database');
                 response = {
                     success: true,
                     contentNodes: contentNodesDB
@@ -107,8 +107,20 @@ export const POST: RequestHandler = async ({ request }) => {
                 }
 
                 const updatePromises = items.map(async (item: SystemContent) => {
+                    // Validate path format
+                    if (!item.path.startsWith('/collections/')) {
+                        throw error(400, `Invalid path format: ${item.path}. Path must start with /collections/`);
+                    }
+
                     if (item.id) {
-                        return await dbAdapter.updateContentStructureNode(item.id, item);
+                        // Get existing item to check if path has changed
+                        const existingItem = await dbAdapter.getContentStructureById(item.id);
+                        if (existingItem && existingItem.path !== item.path) {
+                            logger.info(`Path changed for item ${item.id} from ${existingItem.path} to ${item.path}`);
+                            // Handle path change - additional cleanup may be needed
+                            await dbAdapter.cleanupContentStructure(existingItem.path);
+                        }
+                        return await dbAdapter.updateContentStructure(item.id, item);
                     } else {
                         // If item does not have an ID, it's a new item that does not have metadata.
                         // Add default icon if it's missing
@@ -118,7 +130,7 @@ export const POST: RequestHandler = async ({ request }) => {
                             order: item.order || 999
                         }
 
-                        return await dbAdapter.createContentStructureNode(itemWithDefaults);
+                        return await dbAdapter.createContentStructure(itemWithDefaults);
                     }
                 });
                 await Promise.all(updatePromises);
@@ -162,19 +174,19 @@ export const PUT: RequestHandler = async ({ request }) => {
             throw error(400, 'NodeId and updates are required');
         }
 
-        const updatedNode = await dbAdapter.updateContentStructureNode(nodeId, updates);
+        const updatedNode = await dbAdapter.updateContentStructure(nodeId, updates);
         if (!updatedNode) throw error(404, 'Node not found');
         // Update collections to reflect the changes
         await contentManager.updateCollections(true);
         logger.info(`Content node ${nodeId} updated successfully`);
         return json({
             success: true,
-            message: 'Content node updated successfully',
+            message: 'Content Structure updated successfully',
             data: updatedNode
         });
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         logger.error('Error in PUT /api/content-structure:', errorMessage);
-        throw error(500, `Failed to update content node: ${errorMessage}`);
+        throw error(500, `Failed to update content structure: ${errorMessage}`);
     }
 };

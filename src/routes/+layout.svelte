@@ -26,7 +26,7 @@
 
 	// category config store
 	import { categories } from '@root/src/stores/collectionStore.svelte';
-	import { dbAdapter } from '@src/databases/db';
+	import { dbAdapter, dbInitPromise } from '@src/databases/db';
 
 	// Importing Tailwind CSS styles
 	import '../app.postcss';
@@ -42,11 +42,35 @@
 
 	// Initialize categories from database
 	const initCategories = async () => {
-		const contentNodes = await dbAdapter.getContentNodes();
-		categories.set(contentNodes);
+		try {
+			// Wait for database initialization to complete
+			await dbInitPromise;
+			if (!dbAdapter) {
+				throw new Error('Database adapter not initialized');
+			}
+			const contentNodes = await dbAdapter.getContentStructure();
+			// Transform array into Record<string, CollectionData>
+			const categoriesRecord = contentNodes.reduce((acc, node) => {
+				acc[node.path] = {
+					name: node.name,
+					path: node.path,
+					icon: node.icon,
+					isCollection: node.isCollection,
+					collectionConfig: node.collectionConfig
+				};
+				return acc;
+			}, {} as Record<string, CollectionData>);
+			categories.set(categoriesRecord);
+		} catch (err) {
+			console.error('Failed to initialize categories:', err);
+		}
 	};
 
-	initCategories();
+	// Call initCategories in an onMount to ensure client-side initialization
+	import { onMount } from 'svelte';
+	onMount(() => {
+		initCategories();
+	});
 
 	// Props
 	interface Props {

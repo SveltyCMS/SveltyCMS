@@ -1,6 +1,7 @@
 <!-- 
 @files src/routes/(app)/config/collectionbuilder/[...collectionTypes]/tabs/CollectionWidget/Widget.svelte
-@description  The Widget component is used to display the widget form. It is used in the CollectionWidget component.
+@component
+**The Widget component is used to display the widget form used in the CollectionWidget component**
 -->
 <script lang="ts">
 	import { getGuiFields } from '@utils/utils';

@@ -24,7 +24,7 @@ Features:
 	import { onMount } from 'svelte';
 
 	// Types
-	import type { Schema, CollectionData, ContentStructureNodeState } from '@src/content/types';
+	import type { Schema, CollectionData, ContentStructureState } from '@src/shared/types';
 
 	// Stores
 	import { get } from 'svelte/store';
@@ -55,15 +55,15 @@ Features:
 	// Search Collections
 	let search = $state('');
 	let searchShow = $state(false);
-	let filteredNodes = $state<ContentStructureNodeState[]>([]);
+	let filteredNodes = $state<ContentStructureState[]>([]);
 
 	// Function to flatten and filter content structure nodes with improved search
-	function filterContentStructure(searchTerm: string, nodes: Record<string, CollectionData>): ContentStructureNodeState[] {
+	function filterContentStructure(searchTerm: string, nodes: Record<string, CollectionData>): ContentStructureState[] {
 		if (!nodes || Object.keys(nodes).length === 0) return [];
 
-		function processNode(node: CollectionData, level: number = 0): ContentStructureNodeState | null {
+		function processNode(node: CollectionData, level: number = 0): ContentStructureState | null {
 			if (!node) return null;
-			const processed: ContentStructureNodeState = {
+			const processed: ContentStructureState = {
 				id: node.id.toString(),
 				name: node.name,
 				icon: node.icon,
@@ -71,7 +71,7 @@ Features:
 				isCollection: node.isCollection,
 				level,
 				open: searchTerm !== '', // Auto-open nodes when searching
-				children: [] as ContentStructureNodeState[] // Explicitly type and initialize as empty array
+				children: [] as ContentStructureState[] // Explicitly type and initialize as empty array
 			};
 			// Process subcategories
 			let hasMatchingContent = false;
@@ -82,7 +82,7 @@ Features:
 						const collectionSchema = Object.values(collections.value).find((collection) => collection.id === subCat.id);
 
 						if (collectionSchema) {
-							const collection: ContentStructureNodeState = {
+							const collection: ContentStructureState = {
 								id: collectionSchema.id,
 								name: String(collectionSchema.name || ''),
 								icon: collectionSchema.icon,
@@ -114,7 +114,7 @@ Features:
 		return Object.entries(nodes)
 			.filter(([path]) => path.startsWith('Collections') || path.startsWith('Menu'))
 			.map(([, cat]) => processNode(cat))
-			.filter((cat): cat is ContentStructureNodeState => cat !== null);
+			.filter((cat): cat is ContentStructureState => cat !== null);
 	}
 	// Subscribe to categories and collections store changes and handle search
 	$effect(() => {
@@ -148,7 +148,7 @@ Features:
 		return `pl-${(level ?? 0) * 2}`; // Use nullish coalescing to default to 0 if level is undefined
 	}
 	// Handle collection selection
-	function handleCollectionSelect(collection: ContentStructureNodeState | Schema) {
+	function handleCollectionSelect(collection: ContentStructureState | Schema) {
 		if (mode.value === 'edit') {
 			mode.set('view');
 		} else {
@@ -156,7 +156,7 @@ Features:
 		}
 
 		if ('isCollection' in collection) {
-			// For ContentStructureNodeState, we need to find the actual Schema
+			// For ContentStructureState, we need to find the actual Schema
 			const collectionSchema = collections.value[collection.name];
 			if (collectionSchema) {
 				selectedCollection.set(collectionSchema);

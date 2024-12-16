@@ -1,6 +1,7 @@
 <!-- 
 @files src/routes/(app)/config/collectionbuilder/[...collectionTypes]/tabs/CollectionWidget/ModalWidgetForm.svelte
-@description The ModalWidgetForm component is used to display and manage the form for the selected widget in the CollectionWidget component. 
+@component
+**The ModalWidgetForm component is used to display and manage the form for the selected widget in the CollectionWidget component** 
 It handles widget configuration, permissions, and specific options.
 -->
 

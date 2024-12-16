@@ -23,7 +23,7 @@
 import { privateEnv } from '@root/config/private';
 
 import { v4 as uuidv4 } from 'uuid';
-import type { dbInterface } from './dbInterface';
+import type { dbInterface } from '../dbInterface';
 
 //Stores
 import { collections } from '@root/src/stores/collectionStore.svelte';

@@ -2,23 +2,21 @@
  * @file src/routes/api/getCollections/getCollectionFiles.ts
  * @description
  * Asynchronous utility function for retrieving collection files.
+ * This version only checks the compiled collections folder and relies on the server hooks for caching.
  */
 
 import { browser } from '$app/environment';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-// Redis
-import { isRedisEnabled, getCache, setCache } from '@src/databases/redis';
-// Cache TTL
-const CACHE_TTL = 300; // 5 minutes
-const HASH_CACHE_TTL = 60000; // 1 minute
 
 // Custom error type for collection-related errors
 class CollectionError extends Error {
     constructor(message: string) {
         super(message);
         this.name = 'CollectionError';
+        // Set the prototype explicitly to ensure instanceof works correctly
+        Object.setPrototypeOf(this, CollectionError.prototype);
     }
 }
 
@@ -31,13 +29,10 @@ interface ServerModules {
     fs: FSModule;
     path: PathModule;
     crypto: CryptoModule;
-    systemCollectionsFolder: string;
-    userCollectionsFolder: string;
+    compiledCollectionsFolder: string; // Changed to compiledCollectionsFolder
 }
-interface DirectoryHashCache {
-    hash: string;
-    timestamp: number;
-}
+
+
 interface FileInfo {
     name: string;
     mtime: number;
@@ -46,8 +41,7 @@ interface FileInfo {
 
 // Module cache
 let moduleCache: ServerModules | null = null;
-// Directory hash cache with TTL
-const directoryHashCache = new Map<string, DirectoryHashCache>();
+
 
 // Create a module loader that only runs on the server
 const loadServerModules = async (): Promise<ServerModules | null> => {
@@ -65,8 +59,7 @@ const loadServerModules = async (): Promise<ServerModules | null> => {
             fs,
             path,
             crypto,
-            systemCollectionsFolder: path.join(import.meta.env.root, 'src', 'content'),
-            userCollectionsFolder: path.join(import.meta.env.root, 'config', 'collections'),
+            compiledCollectionsFolder: path.join(import.meta.env.root, 'collections'), // Only compiled collections folder
         };
         return moduleCache;
     } catch (error) {
@@ -75,52 +68,19 @@ const loadServerModules = async (): Promise<ServerModules | null> => {
     }
 };
 
-// Calculate directory hash for cache invalidation with caching
-async function calculateDirectoryHash(directoryPath: string): Promise<string> {
-    const modules = await loadServerModules();
-    if (!modules) return '';
-    const { fs, path, crypto } = modules;
-    // Check cache
-    const cached = directoryHashCache.get(directoryPath);
-    if (cached && Date.now() - cached.timestamp < HASH_CACHE_TTL) {
-        return cached.hash;
-    }
-    try {
-        const files = await fs.readdir(directoryPath);
-        const statsPromises = files.map(async (file) => {
-            const filePath = path.join(directoryPath, file);
-            try {
-                const stat = await fs.stat(filePath);
-                return {
-                    name: file,
-                    mtime: stat.mtime.getTime(),
-                    size: stat.size
-                } as FileInfo;
-            } catch {
-                return null;
-            }
-        });
-        const stats = (await Promise.all(statsPromises)).filter((stat): stat is FileInfo => stat !== null);
-        const dirState = JSON.stringify(stats.sort((a, b) => a.name.localeCompare(b.name)).map(stat => ({ path: stat.name, mtime: stat.mtime })));
-        const hash = crypto.createHash('md5').update(dirState).digest('hex');
-        // Update cache
-        directoryHashCache.set(directoryPath, { hash, timestamp: Date.now() });
-        return hash;
-    } catch (error) {
-        logger.error('Error calculating directory hash:', error);
-        return '';
-    }
-}
+
 // Optimized recursive file scanning with batch processing
 async function getAllFiles(dir: string, fs: FSModule, path: PathModule, batchSize = 50): Promise<string[]> {
     const results: string[] = [];
     const queue: string[] = [dir];
+
     while (queue.length > 0) {
         const batch = queue.splice(0, batchSize);
         const batchPromises = batch.map(async (currentDir) => {
             try {
                 const entries = await fs.readdir(currentDir, { withFileTypes: true });
                 const subResults: string[] = [];
+
                 for (const entry of entries) {
                     const fullPath = path.join(currentDir, entry.name);
                     if (entry.isDirectory()) {
@@ -135,72 +95,45 @@ async function getAllFiles(dir: string, fs: FSModule, path: PathModule, batchSiz
                 return [];
             }
         });
+
         const batchResults = await Promise.all(batchPromises);
         results.push(...batchResults.flat());
     }
     return results;
 }
 
-// Get collection files with optimized caching and error handling
+// Get collection files with optimized scanning
 export async function getCollectionFiles(userId?: string): Promise<string[]> {
     if (browser) {
         throw new CollectionError('This function is server-only.');
     }
+
     const modules = await loadServerModules();
     if (!modules) {
         throw new CollectionError('Failed to load server modules');
     }
-    const { fs, path, systemCollectionsFolder, userCollectionsFolder } = modules;
-    try {
-        // Create directories if needed (in parallel)
-        await Promise.all([fs.mkdir(systemCollectionsFolder, { recursive: true }), fs.mkdir(userCollectionsFolder, { recursive: true })]);
-        // Calculate directory hashes (in parallel)
-        const [systemDirHash, userDirHash] = await Promise.all([
-            calculateDirectoryHash(systemCollectionsFolder),
-            calculateDirectoryHash(userCollectionsFolder)
-        ]);
-        // Try Redis cache with hash validation
-        if (isRedisEnabled() && systemDirHash && userDirHash) {
-            const cacheKey = userId ? `collection_files:list:${userId}` : 'collection_files:list';
-            const cachedData = await getCache<{
-                systemHash: string;
-                userHash: string;
-                files: string[];
-            }>(cacheKey);
-            if (cachedData?.systemHash === systemDirHash && cachedData?.userHash === userDirHash) {
-                logger.debug('Returning cached collection files list');
-                return cachedData.files;
-            }
-        }
-        // Get all files in parallel with optimized scanning
-        const [systemFiles, userFiles] = await Promise.all([
-            getAllFiles(systemCollectionsFolder, fs, path),
-            getAllFiles(userCollectionsFolder, fs, path)
-        ]);
 
-        const filteredFiles = [...systemFiles, ...userFiles].filter((file) => {
+    const { fs, path, compiledCollectionsFolder } = modules;
+
+    try {
+         // Create the compiled directory if needed
+         await fs.mkdir(compiledCollectionsFolder, { recursive: true });
+
+        // Get all files in the compiled folder
+        const allFiles = await getAllFiles(compiledCollectionsFolder, fs, path);
+
+        // Filter files, only keep javascript files
+        const filteredFiles = allFiles.filter((file) => {
             const ext = path.extname(file);
-            return ext === '.ts';
+            return ext === '.js';
         });
 
         if (filteredFiles.length === 0) {
-            logger.warn('No valid collection files found');
-            return [];
+             logger.warn('No valid collection files found');
+             return [];
         }
-        // Cache in Redis if available
-        if (isRedisEnabled() && systemDirHash && userDirHash) {
-            const cacheKey = userId ? `collection_files:list:${userId}` : 'collection_files:list';
-            await setCache(
-                cacheKey,
-                {
-                    systemHash: systemDirHash,
-                    userHash: userDirHash,
-                    files: filteredFiles
-                },
-                CACHE_TTL
-            ).catch((err) => logger.error('Failed to cache collection files:', err));
-        }
-        return filteredFiles;
+
+       return filteredFiles;
     } catch (error) {
         logger.error('Error reading collection files', {
             message: error instanceof Error ? error.message : String(error),
@@ -216,9 +149,10 @@ export async function isValidCollectionFile(filePath: string): Promise<boolean> 
     const modules = await loadServerModules();
     if (!modules) return false;
     const { fs, path } = modules;
+
     try {
-        // Check file extension - we only want TypeScript files
-        if (path.extname(filePath) !== '.ts') {
+        // Check file extension - we only want Javascript files
+        if (path.extname(filePath) !== '.js') {
             return false;
         }
         // Check if file exists and is readable

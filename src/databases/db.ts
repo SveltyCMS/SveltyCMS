@@ -154,7 +154,7 @@ async function initializeDefaultTheme(dbAdapter: dbInterface): Promise<void> {
 	try {
 		logger.debug('Initializing default theme...');
 		const themes = await dbAdapter.getAllThemes();
-		logger.debug(`Found ${themes.length} themes`);
+		logger.debug(`Found \x1b[34m${themes.length}\x1b[0m themes`);
 
 		if (themes.length === 0) {
 			await dbAdapter.storeThemes([DEFAULT_THEME]);

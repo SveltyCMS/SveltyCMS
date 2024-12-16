@@ -81,15 +81,15 @@ export interface Category {
 }
 
 // Content structure node with UI state
-export interface ContentStructureNodeState {
-    id: string;
-    name: string;
-    icon?: string;
-    path: string;
-    isCollection?: boolean;
-    open?: boolean;
-    level?: number;
-    children?: ContentStructureNodeState[];
+export interface ContentStructureState {
+	id: string;
+	name: string;
+	icon?: string;
+	path: string;
+	isCollection?: boolean;
+	open?: boolean;
+	level?: number;
+	children?: ContentStructureState[];
 }
 
 // Category data interface for configuration
