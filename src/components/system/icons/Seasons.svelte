@@ -1,3 +1,9 @@
+<!-- 
+@files src/components/system/icons/Seasons.svelte
+@component
+**Seasons Component**
+-->
+
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 	import { Confetti } from 'svelte-confetti';

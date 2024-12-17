@@ -37,15 +37,28 @@ import type { UserPreferences, WidgetPreference } from '@root/src/stores/userPre
 import type { VirtualFolderUpdateData } from '@src/types/virtualFolder';
 
 // Database
-import mongoose, { Schema } from 'mongoose';
-import type { Document, Model, FilterQuery, UpdateQuery } from 'mongoose';
-import type { dbInterface, Draft, Revision, Theme, Widget, SystemPreferences, SystemVirtualFolder } from '../dbInterface';
+import mongoose from 'mongoose';
+import type { Schema, Document, Model, FilterQuery, UpdateQuery } from 'mongoose';
+import type { dbInterface, Draft, Revision, Theme, Widget, DocumentContent } from '../dbInterface';
 
+// Authentication Models
 import { UserSchema } from '@src/auth/mongoDBAuth/userAdapter';
 import { TokenSchema } from '@src/auth/mongoDBAuth/tokenAdapter';
 import { SessionSchema } from '@src/auth/mongoDBAuth/sessionAdapter';
+
+// Database Models
+import { connectToMongoDB } from './dbconnect';
+import { ContentStructureModel } from './models/contentStructure';
+import { DraftModel } from './models/draft';
+import { RevisionModel } from './models/revision';
+import { ThemeModel } from './models/theme';
+import { WidgetModel, widgetSchema } from './models/widget';
+import { MediaModel, mediaSchema } from './models/media';
+import { SystemVirtualFolderModel } from './models/systemVirtualFolder';
+import { SystemPreferencesModel } from './models/systemPreferences';
+
+// Types
 import type { CollectionConfig } from '@src/content/types';
-// Media
 import type { MediaBase, MediaType } from '@utils/media/mediaModels';
 
 // Theme
@@ -53,183 +66,9 @@ import { DEFAULT_THEME } from '@src/databases/themeManager';
 
 // System Logging
 import { logger } from '@utils/logger.svelte';
+
 // Widget Manager
 import { initializeWidgets, getWidgets } from '@components/widgets/widgetManager.svelte';
-
-// Define the media schema for different media types
-const mediaSchema = new Schema(
-	{
-		hash: { type: String, required: true }, // The hash of the media
-		thumbnail: {
-			url: { type: String, required: true }, // The URL of the media
-			altText: { type: String }, // The alt text for the media
-			name: { type: String }, // The name for the media
-			type: { type: String }, // The type for the media
-			size: { type: Number }, // The size for the media
-			width: { type: Number }, // The width for the media
-			height: { type: Number } // The height for the media
-		} // The thumbnails of media
-	},
-	{ timestamps: false, collection: 'media' }
-);
-
-// Define the Draft model if it doesn't exist already
-const DraftModel =
-	mongoose.models?.Draft ||
-	mongoose.model<Draft>(
-		'Draft',
-		new Schema(
-			{
-				originalDocumentId: { type: Schema.Types.Mixed, required: true }, // Or Schema.Types.String
-				collectionId: { type: Schema.Types.Mixed, required: true }, // The ID of the collection
-				content: { type: Schema.Types.Mixed, required: true }, // The content of the draft
-				status: { type: String, enum: ['draft', 'published'], default: 'draft' }, // Status of the draft
-				createdBy: { type: Schema.Types.Mixed, ref: 'auth_users', required: true } // The user who created the draft
-			},
-			{ timestamps: false, collection: 'collection_drafts' }
-		)
-	);
-
-// Define the Revision model if it doesn't exist already
-const RevisionModel =
-	mongoose.models?.Revision ||
-	mongoose.model<Revision>(
-		'Revision',
-		new Schema(
-			{
-				collectionId: { type: Schema.Types.Mixed, required: true, ref: 'collections' }, // ID of the collection
-				documentId: { type: Schema.Types.Mixed, required: true }, // ID of the document
-				createdBy: { type: Schema.Types.Mixed, ref: 'auth_users', required: true }, // ID of the user who created the revision
-				content: { type: Schema.Types.Mixed, required: true }, // Content of the revision
-				version: { type: Number, required: true } // Version number of the revision
-			},
-			{ timestamps: false, collection: 'collection_revisions' }
-		)
-	);
-
-// Create the Theme model if it doesn't exist already
-const ThemeModel =
-	mongoose.models?.Theme ||
-	mongoose.model<Theme>(
-		'Theme',
-		new Schema(
-			{
-				name: { type: String, required: true, unique: true }, // Name of the theme
-				path: { type: String, required: true }, // Path to the theme file
-				isDefault: { type: Boolean, default: false } // Whether the theme is the default theme
-			},
-			{ timestamps: true, collection: 'system_themes' }
-		)
-	);
-
-// Create the Widget model if it doesn't exist already
-const WidgetModel =
-	mongoose.models?.Widget ||
-	mongoose.model<Widget>(
-		'Widget',
-		new Schema(
-			{
-				name: { type: String, required: true, unique: true }, // Name of the widget
-				isActive: { type: Boolean, default: true } // Whether the widget is active
-			},
-			{ timestamps: false, collection: 'system_widgets' }
-		)
-	);
-
-// Define the System Preferences schema for user layout and screen size
-const SystemPreferencesModel =
-	mongoose.models?.SystemPreferences ||
-	mongoose.model<SystemPreferences>(
-		'SystemPreferences',
-		new Schema(
-			{
-				_id: { type: String, required: true }, // The ID of the SystemPreferences
-				name: { type: String, required: true }, // The name of the SystemPreferences
-				isActive: { type: Boolean, default: true } // Whether the SystemPreferences is active
-			},
-			{ timestamps: false, collection: 'system_preferences' } // Explicitly set the collection name
-		)
-	);
-
-// Define the SystemVirtualFolder model only if it doesn't already exist
-const SystemVirtualFolderModel =
-	mongoose.models?.SystemVirtualFolder ||
-	mongoose.model<SystemVirtualFolder>(
-		'SystemVirtualFolder',
-		new Schema(
-			{
-				name: { type: String, required: true },
-				parent: { type: Schema.Types.ObjectId, ref: 'SystemVirtualFolder', default: null }, // Allow null for root folders
-				path: { type: String, required: true },
-				icon: { type: String },
-				order: { type: Number }
-			},
-			{ collection: 'system_virtualfolders' } // Explicitly set the collection name to system_virtualfolders
-		)
-	);
-
-// Content structure schema for categories and collections
-const contentStructureSchema = new Schema(
-	{
-		_id: { type: String, required: true },  // UUID from compiled collection
-		name: { type: String, required: true },
-		path: { type: String, required: true, unique: true },  // Always starts with /collections/
-		icon: { type: String, default: 'bi:file-text' },  // Default icon for collections
-		order: { type: Number, default: 999 },
-		translations: [{
-			languageTag: String,
-			translationName: String
-		}],
-		isCollection: { type: Boolean, default: true },  // Default to true since we're syncing collections
-		collectionConfig: { type: Schema.Types.Mixed },  // Store the full collection config
-		updatedAt: { type: Date, default: Date.now }
-	},
-	{
-		timestamps: true,
-		collection: 'system_content_structure',
-		strict: false  // Allow additional fields from collection config
-	}
-);
-
-// Add indexes for better performance
-contentStructureSchema.index({ _id: 1 });
-contentStructureSchema.index({ path: 1 }, { unique: true });
-contentStructureSchema.index({ isCollection: 1 });
-
-// Virtual folders schema for media management
-const virtualFolderSchema = new Schema(
-	{
-		name: { type: String, required: true },
-		parent: { type: String, default: null },
-		path: { type: String, required: true, unique: true },
-		icon: { type: String },
-		order: { type: Number, default: 999 },
-		updatedAt: { type: Date, default: Date.now }
-	},
-	{ timestamps: true, collection: 'system_virtualfolders' }
-);
-
-// Virtual folders schema for media
-const VirtualFolderModel = mongoose.models?.VirtualFolder ||
-	mongoose.model(
-		'VirtualFolder',
-		virtualFolderSchema
-	);
-
-// Content structure schema for categories and collections
-const ContentStructureModel = mongoose.models?.ContentStructure ||
-	mongoose.model(
-		'ContentStructure',
-		contentStructureSchema
-	);
-
-// Add indexes for better performance
-VirtualFolderModel.schema.index({ path: 1 }, { unique: true });
-VirtualFolderModel.schema.index({ parent: 1 });
-
-ContentStructureModel.schema.index({ _id: 1 });
-ContentStructureModel.schema.index({ path: 1 }, { unique: true });
-ContentStructureModel.schema.index({ isCollection: 1 });
 
 export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
@@ -408,75 +247,31 @@ export class MongoDBAdapter implements dbInterface {
 		collectionConfig?: any
 	}): Promise<void> {
 		try {
-			const { _id, ...updateData } = contentData;
-			await ContentStructureModel.updateOne(
-				{ _id },
-				{ $set: updateData },
-				{ upsert: true }
-			);
-			logger.debug(`Content structure node ${_id} created/updated successfully`);
+			const existingNode = await ContentStructureModel.findById(contentData._id).exec();
+			if (existingNode) {
+				// Update existing node
+				await ContentStructureModel.findByIdAndUpdate(contentData._id, contentData).exec();
+				logger.debug(`Updated content structure node: \x1b[34m${contentData.name}\x1b[0m`);
+			} else {
+				// Create new node
+				const node = new ContentStructureModel(contentData);
+				await node.save();
+				logger.debug(`Created content structure node: \x1b[34m${contentData.name}\x1b[0m`);
+			}
 		} catch (error) {
-			logger.error(`Error creating/updating content structure node:`, error);
+			logger.error(`Error creating/updating content structure node: ${error.message}`);
 			throw error;
 		}
 	}
 
 	// Connect to MongoDB
 	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
-		const isAtlas = privateEnv.DB_HOST.startsWith('mongodb+srv://');
-
-		// Construct the connection string
-		let connectionString: string;
-		if (isAtlas) {
-			connectionString = `${privateEnv.DB_HOST}/${privateEnv.DB_NAME}`;
-		} else {
-			connectionString = `${privateEnv.DB_HOST}${privateEnv.DB_PORT ? `:${privateEnv.DB_PORT}` : ''}/${privateEnv.DB_NAME}`;
-		}
-
-		// Set connection options
-		const options: mongoose.ConnectOptions = {
-			authSource: isAtlas ? undefined : 'admin', // Only use authSource for local connection
-			user: privateEnv.DB_USER,
-			pass: privateEnv.DB_PASSWORD,
-			dbName: privateEnv.DB_NAME,
-			maxPoolSize: privateEnv.DB_POOL_SIZE || 5,
-			retryWrites: true,
-			serverSelectionTimeoutMS: 5000 // 5 seconds timeout for server selection
-		};
-
-		// Use Mongoose's built-in retry logic
-		mongoose.connection.on('connected', () => {
+		try {
+			await connectToMongoDB();
 			logger.info('MongoDB connection established successfully.');
-		});
-
-		mongoose.connection.on('disconnected', () => {
-			logger.warn('MongoDB connection lost. Attempting to reconnect...');
-		});
-
-		mongoose.connection.on('error', (err) => {
-			logger.error(`MongoDB connection error: ${err.message}`);
-		});
-
-		let lastError: unknown;
-		for (let i = 1; i <= attempts; i++) {
-			try {
-				await mongoose.connect(connectionString, options);
-				logger.debug(`Successfully connected to MongoDB database: \x1b[34m${privateEnv.DB_NAME}\x1b[0m`);
-				// Only sync if collections are not present
-				const collections = await mongoose.connection.db.listCollections().toArray();
-				if (collections.length === 0) {
-					await this.syncContentStructure();
-				}
-				return;
-			} catch (error) {
-				lastError = error;
-				if (i === attempts) {
-					logger.error(`Failed to connect to MongoDB after ${attempts} attempts: ${lastError}`);
-					throw new Error('MongoDB connection failed');
-				}
-				logger.warn(`Connection attempt ${i}/${attempts} failed, retrying...`);
-				await new Promise((resolve) => setTimeout(resolve, 1000 * i)); // Exponential backoff
-			}
+		} catch (error) {
+			logger.error('Failed to connect to MongoDB:', error);
+			throw error;
 		}
 	}
 
@@ -545,7 +340,7 @@ export class MongoDBAdapter implements dbInterface {
 	setupWidgetModels(): void {
 		// This will ensure that the Widget model is created or reused
 		if (!mongoose.models.Widget) {
-			mongoose.model('Widget', WidgetModel.schema);
+			mongoose.model('Widget', widgetSchema);
 			logger.info('Widget model created.');
 		} else {
 			logger.info('Widget model already exists.');
@@ -554,255 +349,195 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Implementing findOne method
-	async findOne<T extends Document>(collection: string, query: FilterQuery<T>): Promise<T | null> {
+	async findOne<T extends DocumentContent = DocumentContent>(collection: string, query: FilterQuery<any>): Promise<T | null> {
 		try {
-			const model = mongoose.models[collection] as Model<T>;
+			const model = mongoose.models[collection] as Model<any>;
 			if (!model) {
 				logger.error(`Collection ${collection} does not exist.`);
-				throw Error(`Collection ${collection} does not exist.`);
+				throw new Error(`Collection ${collection} does not exist.`);
 			}
-			const result = await model.findOne(query).lean().exec();
-			return result as T | null; // Explicitly cast to T
-		} catch (error: unknown) {
+			const result = await model.findOne(query).lean().exec() as T | null;
+			return result
+		} catch (error: any) {
 			logger.error(`Error in findOne for collection ${collection}:`, { error });
 			throw new Error(`Error in findOne for collection ${collection}`);
 		}
 	}
 
 	// Implementing findMany method
-	async findMany<T extends Document>(collection: string, query: FilterQuery<T>): Promise<T[]> {
-		const model = mongoose.models[collection] as Model<T>;
-		if (!model) {
-			logger.error(`findMany failed. Collection ${collection} does not exist.`);
-			throw Error(`findMany failed. Collection ${collection} does not exist.`);
+	async findMany<T extends DocumentContent = DocumentContent>(collection: string, query: FilterQuery<any>): Promise<T[]> {
+		try {
+			const model = mongoose.models[collection] as Model<any>;
+			if (!model) {
+				logger.error(`findMany failed. Collection ${collection} does not exist.`);
+				throw new Error(`findMany failed. Collection ${collection} does not exist.`);
+			}
+			const results = await model.find(query).lean().exec() as T[];
+			return results;
+		} catch (error: any) {
+			logger.error(`Error in findMany for collection ${collection}:`, { error });
+			throw new Error(`Error in findMany for collection ${collection}`);
 		}
-		const results = await model.find(query).lean().exec();
-		return results as T[]; // Explicitly cast to T[]
+
 	}
 
 	// Implementing insertOne method
-	async insertOne<T extends Document>(collection: string, doc: Partial<T>): Promise<T> {
-		const model = mongoose.models[collection] as Model<T>;
-		if (!model) {
-			logger.error(`insertOne failed. Collection ${collection} does not exist.`);
-			throw Error(`insertOne failed. Collection ${collection} does not exist.`);
-		}
+	async insertOne<T extends DocumentContent = DocumentContent>(collection: string, doc: Partial<T>): Promise<T> {
 		try {
-			const result = await model.create(doc);
-			return result as T; // Explicitly cast to T
-		} catch (error) {
+			const model = mongoose.models[collection] as Model<any>;
+			if (!model) {
+				logger.error(`insertOne failed. Collection ${collection} does not exist.`);
+				throw new Error(`insertOne failed. Collection ${collection} does not exist.`);
+			}
+			const result = await model.create(doc) as T;
+			return result;
+		} catch (error: any) {
 			logger.error(`Error inserting document into ${collection}: ${error.message}`);
-			throw Error(`Error inserting document into ${collection}`);
+			throw new Error(`Error inserting document into ${collection}`);
 		}
 	}
 
 	// Implementing insertMany method
-	async insertMany<T extends Document>(collection: string, docs: Partial<T>[]): Promise<T[]> {
-		const model = mongoose.models[collection] as Model<T>;
-		if (!model) {
-			logger.error(`insertMany failed. Collection ${collection} does not exist.`);
-			throw Error(`insertMany failed. Collection ${collection} does not exist.`);
-		}
+	async insertMany<T extends DocumentContent = DocumentContent>(collection: string, docs: Partial<T>[]): Promise<T[]> {
 		try {
-			const result = await model.insertMany(docs);
-			return result as T[];
-		} catch (error) {
+			const model = mongoose.models[collection] as Model<any>;
+			if (!model) {
+				logger.error(`insertMany failed. Collection ${collection} does not exist.`);
+				throw new Error(`insertMany failed. Collection ${collection} does not exist.`);
+			}
+			const result = await model.insertMany(docs) as T[];
+			return result;
+		} catch (error: any) {
 			logger.error(`Error inserting many documents into ${collection}: ${error.message}`);
-			throw Error(`Error inserting many documents into ${collection}`);
+			throw new Error(`Error inserting many documents into ${collection}`);
 		}
 	}
 
 	// Implementing updateOne method
-	async updateOne<T extends Document>(
+	async updateOne<T extends DocumentContent = DocumentContent>(
 		collection: string,
-		query: FilterQuery<T>,
-		update: UpdateQuery<T>
-	): Promise<{
-		acknowledged: boolean;
-		modifiedCount: number;
-		upsertedId: mongoose.Types.ObjectId | null;
-		upsertedCount: number;
-		matchedCount: number;
-	}> {
-		const model = mongoose.models[collection] as Model<T>;
+		query: FilterQuery<any>,
+		update: UpdateQuery<any>
+	): Promise<T> {
+		const model = mongoose.models[collection] as Model<any>;
 		if (!model) {
 			logger.error(`updateOne failed. Collection ${collection} does not exist.`);
-			throw Error(`updateOne failed. Collection ${collection} does not exist.`);
+			throw new Error(`updateOne failed. Collection ${collection} does not exist.`);
 		}
 		try {
-			const result = await model.updateOne(query, update, { strict: false }); // strict: false for now to avoid schema errors
-			return result;
-		} catch (error) {
+			const result = await model.findOneAndUpdate(query, update, { new: true, strict: false }).lean().exec();
+			if (!result) {
+				throw new Error(`No document found to update with query: ${JSON.stringify(query)}`);
+			}
+			return result as T;
+		} catch (error: any) {
 			logger.error(`Error updating document in ${collection}: ${error.message}`);
-			throw Error(`Error updating document in ${collection}`);
+			throw new Error(`Error updating document in ${collection}`);
 		}
 	}
 
+
 	// Implementing updateMany method
-	async updateMany<T extends Document>(
+	async updateMany<T extends DocumentContent = DocumentContent>(
 		collection: string,
-		query: FilterQuery<T>,
-		update: UpdateQuery<T>
-	): Promise<{
-		acknowledged: boolean;
-		modifiedCount: number;
-		upsertedId: mongoose.Types.ObjectId | null;
-		upsertedCount: number;
-		matchedCount: number;
-	}> {
-		const model = mongoose.models[collection] as Model<T>;
+		query: FilterQuery<any>,
+		update: UpdateQuery<any>
+	): Promise<T[]> {
+		const model = mongoose.models[collection] as Model<any>;
 		if (!model) {
 			logger.error(`updateMany failed. Collection ${collection} does not exist.`);
-			throw Error(`updateMany failed. Collection ${collection} does not exist.`);
+			throw new Error(`updateMany failed. Collection ${collection} does not exist.`);
 		}
 		try {
-			const result = await model.updateMany(query, update).exec();
+			const result = await model.updateMany(query, update, { new: true, strict: false }).lean().exec() as T[];
 			return result;
-		} catch (error) {
+		} catch (error: any) {
 			logger.error(`Error updating many documents in ${collection}: ${error.message}`);
-			throw Error(`Error updating many documents in ${collection}`);
+			throw new Error(`Error updating many documents in ${collection}`);
 		}
 	}
 
 	// Implementing deleteOne method
-	async deleteOne<T extends Document>(collection: string, query: FilterQuery<T>): Promise<number> {
-		const model = mongoose.models[collection] as Model<T>;
+	async deleteOne<T extends DocumentContent = DocumentContent>(collection: string, query: FilterQuery<any>): Promise<number> {
+		const model = mongoose.models[collection] as Model<any>;
 		if (!model) {
-			throw Error(`Collection ${collection} not found`);
+			throw new Error(`Collection ${collection} not found`);
 		}
 		try {
 			const result = await model.deleteOne(query).exec();
 			return result.deletedCount ?? 0;
-		} catch (error) {
+		} catch (error: any) {
 			logger.error(`Error deleting document from ${collection}: ${error.message}`);
-			throw Error(`Error deleting document from ${collection}`);
+			throw new Error(`Error deleting document from ${collection}`);
 		}
 	}
 
 	// Implementing deleteMany method
-	async deleteMany<T extends Document>(collection: string, query: FilterQuery<T>): Promise<number> {
-		const model = mongoose.models[collection] as Model<T>;
+	async deleteMany<T extends DocumentContent = DocumentContent>(collection: string, query: FilterQuery<any>): Promise<number> {
+		const model = mongoose.models[collection] as Model<any>;
 		if (!model) {
-			throw Error(`Collection ${collection} not found`);
+			throw new Error(`Collection ${collection} not found`);
 		}
 		try {
 			const result = await model.deleteMany(query).exec();
 			return result.deletedCount ?? 0;
-		} catch (error) {
+		} catch (error: any) {
 			logger.error(`Error deleting many documents from ${collection}: ${error.message}`);
-			throw Error(`Error deleting many documents from ${collection}`);
+			throw new Error(`Error deleting many documents from ${collection}`);
 		}
 	}
 
 	// Implementing countDocuments method
-	async countDocuments<T extends Document>(collection: string, query?: FilterQuery<T>): Promise<number> {
-		const model = mongoose.models[collection] as Model<T>;
+	async countDocuments<T extends DocumentContent = DocumentContent>(collection: string, query?: FilterQuery<any>): Promise<number> {
+		const model = mongoose.models[collection] as Model<any>;
 		if (!model) {
 			logger.error(`countDocuments failed. Collection ${collection} does not exist.`);
-			throw Error(`countDocuments failed. Collection ${collection} does not exist.`);
+			throw new Error(`countDocuments failed. Collection ${collection} does not exist.`);
 		}
 		try {
 			const count = await model.countDocuments(query).exec();
 			return count;
-		} catch (error) {
+		} catch (error: any) {
 			logger.error(`Error counting documents in ${collection}: ${error.message}`);
-			throw Error(`Error counting documents in ${collection}`);
+			throw new Error(`Error counting documents in ${collection}`);
 		}
 	}
+
 
 	// Create a collection model
 	async createCollectionModel(collection: CollectionConfig): Promise<Model<Document>> {
 		try {
-			// Wait for widgets to initialize first
-			await initializeWidgets();
+			const collectionName = collection.name;
 
-			// Extract UUID from collection configuration
-			const collectionUUID = collection.id;
-			if (!collectionUUID) {
-				throw new Error('Collection UUID not found. Ensure collection file has UUID in header.');
+			// Check if model already exists
+			if (mongoose.models[collectionName]) {
+				logger.debug(`Model ${collectionName} already exists, returning existing model`);
+				return mongoose.models[collectionName];
 			}
 
-			const collectionName = `collection_${collectionUUID}`;
-			logger.debug(`Creating/checking collection model for \x1b[34m${collectionName}\x1b[0m`);
-
-			// Check if collection already exists in MongoDB
-			if (mongoose.connection.collections[collectionName.toLowerCase()]) {
-				logger.debug(`Collection ${collectionName} exists in MongoDB`);
-				// Collection exists, return existing model if available or create new model with same name
-				if (mongoose.models[collectionName]) {
-					logger.debug(`Using existing model for collection \x1b[34m${collectionName}\x1b[0m`);
-					return mongoose.models[collectionName];
-				}
-			} else {
-				logger.debug(`Collection ${collectionName} does not exist in MongoDB yet`);
-			}
-
-			// Define base schema definition
-			const schemaDefinition: Record<string, mongoose.SchemaDefinitionProperty> = {
-				_id: {
-					type: Buffer,
-					default: () => new mongoose.Types.Buffer(Buffer.from(collectionUUID.replace(/-/g, ''), 'hex'))
-				},
-				createdBy: {
-					type: String
-				},
-				status: {
-					type: String,
-					enum: ['draft', 'published', 'unpublished', 'scheduled', 'cloned'],
-					default: 'draft'
-				}
+			// Base schema definition
+			const schemaDefinition: Record<string, any> = {
+				_id: { type: String, required: true }, // Use UUID as _id
+				status: { type: String, default: 'draft' },
+				createdAt: { type: Date, default: Date.now },
+				updatedAt: { type: Date, default: Date.now },
+				createdBy: { type: Schema.Types.Mixed, ref: 'auth_users' },
+				updatedBy: { type: Schema.Types.Mixed, ref: 'auth_users' }
 			};
 
-			// Add fields from collection schema
-			if (Array.isArray(collection.fields) && collection.fields.length > 0) {
+			// Process fields if they exist
+			if (collection.fields && Array.isArray(collection.fields)) {
 				for (const field of collection.fields) {
 					try {
-						let widgetType: string;
-						let fieldConfig: FieldConfig;
-						let fieldKey: string | undefined;
+						const fieldKey = field.db_fieldName || field.Name;
+						const isRequired = field.required || false;
+						const isTranslated = field.translate || false;
+						const isSearchable = field.searchable || false;
+						const isUnique = field.unique || false;
 
-						if (typeof field === 'function') {
-							// If field is a widget function, execute it to get config
-							const result = field({});
-							widgetType = result.widget.Name; // Get widget name from the widget object
-							fieldConfig = result; // The result contains all field properties
-							fieldKey = result.db_fieldName;
-						} else {
-							// If field is a direct configuration object
-							widgetType = field.widget?.Name || field.type; // Try widget.Name first, fallback to type
-							fieldConfig = field;
-							fieldKey = field.db_fieldName;
-						}
-
-						if (!fieldKey) {
-							logger.warn('Field key is undefined, skipping field');
-							continue;
-						}
-
-						const isRequired = fieldConfig?.required === true;
-						const isTranslated = fieldConfig?.translated === true;
-						const isSearchable = fieldConfig?.searchable === true;
-						const isUnique = fieldConfig?.unique === true;
-
-						// Get widget configuration
-						const widgets = getWidgets();
-						const widget = widgets[widgetType];
-
-						if (!widget) {
-							logger.warn(`Widget type ${widgetType} not found, using Mixed type`);
-							logger.debug('Available widgets:', Object.keys(widgets));
-							logger.debug('Field config:', fieldConfig);
-						}
-
-						// Default to Mixed type for maximum flexibility with dynamic widgets
-						let mongooseType: mongoose.SchemaDefinitionProperty = mongoose.Schema.Types.Mixed;
-
-						// Special handling for relations
-						if (fieldConfig.collection) {
-							mongooseType = mongoose.Schema.Types.ObjectId;
-						}
-						const fieldSchema: mongoose.SchemaDefinitionProperty = {
-							type: mongooseType,
+						// Base field schema
+						const fieldSchema = {
+							type: Schema.Types.Mixed,
 							required: isRequired,
 							translate: isTranslated,
 							searchable: isSearchable,
@@ -822,8 +557,8 @@ export class MongoDBAdapter implements dbInterface {
 				strict: collection.strict !== false,
 				timestamps: true,
 				collection: collectionName.toLowerCase(),
-				autoIndex: true, // Enable auto-indexing in production
-				minimize: false, // Store empty objects
+				autoIndex: true,
+				minimize: false,
 				toJSON: {
 					virtuals: true,
 					getters: true
@@ -832,101 +567,48 @@ export class MongoDBAdapter implements dbInterface {
 					virtuals: true,
 					getters: true
 				},
-				id: false, // Disable virtual id getter
-				versionKey: false  // Disable version key
+				id: false,
+				versionKey: false
 			};
 
 			// Create schema
 			const schema = new mongoose.Schema(schemaDefinition, schemaOptions);
 
 			// Add indexes
-			schema.index({ createdAt: -1 }); // Sort by most recent first
-			schema.index({ status: 1, createdAt: -1 }); // Common query pattern
+			schema.index({ createdAt: -1 });
+			schema.index({ status: 1, createdAt: -1 });
+			schema.index({ _id: 1 }, { unique: true });
 
 			// Performance optimization: create indexes in background
 			schema.set('backgroundIndexing', true);
+
 			// Create and return the model
-			return mongoose.model(collectionName, schema);
+			const model = mongoose.model(collectionName, schema);
+			logger.info(`Created collection model: ${collectionName}`);
+			return model;
 		} catch (error) {
 			logger.error('Error creating collection model:', error);
 			throw error;
 		}
 	}
+
 	// Methods for Draft and Revision Management
 
 	// Create a new draft
 	async createDraft(content: Record<string, unknown>, collectionId: string, original_document_id: string, user_id: string): Promise<Draft> {
-		try {
-			const draft = new DraftModel({
-				originalDocumentId: this.convertId(original_document_id),
-				collectionId: this.convertId(collectionId),
-				content,
-				createdBy: this.convertId(user_id)
-			});
-			await draft.save();
-			logger.info(`Draft created successfully for document ID: ${original_document_id}`);
-			return draft.toObject() as Draft;
-		} catch (error) {
-			logger.error(`Error creating draft: ${error.message}`);
-			throw Error(`Error creating draft`);
-		}
+		return DraftModel.createDraft(content, collectionId, original_document_id, user_id);
 	}
 
-	// Update a draft
 	async updateDraft(draft_id: string, content: Record<string, unknown>): Promise<Draft> {
-		try {
-			const draft = await DraftModel.findById(draft_id);
-			if (!draft) throw Error('Draft not found');
-
-			// Update the draft content and timestamp
-			draft.content = content;
-			draft.updatedAt = new Date();
-			await draft.save();
-
-			logger.info(`Draft ${draft_id} updated successfully.`);
-
-			// Return the updated draft as a plain JavaScript object and cast it to Draft
-			return draft.toObject() as Draft;
-		} catch (error) {
-			logger.error(`Error updating draft: ${error.message}`);
-			throw Error(`Error updating draft`);
-		}
+		return DraftModel.updateDraft(draft_id, content);
 	}
 
-	// Publish a draft
 	async publishDraft(draft_id: string): Promise<Draft> {
-		try {
-			const draft = await DraftModel.findById(draft_id);
-			if (!draft) throw Error('Draft not found');
-			draft.status = 'published';
-			await draft.save();
-
-			const revision = new RevisionModel({
-				collectionId: draft.collectionId,
-				documentId: draft.originalDocumentId,
-				content: draft.content,
-				createdBy: draft.createdBy
-			});
-			await revision.save();
-			logger.info(`Draft ${draft_id} published and revision created successfully.`);
-			return draft.toObject() as Draft;
-		} catch (error) {
-			logger.error(`Error publishing draft: ${error.message}`);
-			throw Error(`Error publishing draft`);
-		}
+		return DraftModel.publishDraft(draft_id);
 	}
 
-	// Get drafts by user
 	async getDraftsByUser(user_id: string): Promise<Draft[]> {
-		try {
-			const drafts = await DraftModel.find({ createdBy: this.convertId(user_id) })
-				.exec();
-			logger.info(`Retrieved ${drafts.length} drafts for user ID: ${user_id}`);
-			return drafts;
-		} catch (error) {
-			logger.error(`Error retrieving drafts for user ${user_id}: ${error.message}`);
-			throw Error(`Error retrieving drafts for user ${user_id}`);
-		}
+		return DraftModel.getDraftsByUser(user_id);
 	}
 
 	// Create a new revision

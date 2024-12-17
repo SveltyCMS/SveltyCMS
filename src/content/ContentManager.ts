@@ -214,6 +214,7 @@ class ContentManager {
 			return null;
 		}
 	}
+
 	// Load and process collections with optimized batch processing
 	async loadCollections(): Promise<Schema[]> {
 		return this.measurePerformance(async () => {
@@ -303,14 +304,15 @@ class ContentManager {
 							}
 						} else {
 							//Create if not existent
-							await dbAdapter.createContentStructure({
-								path: processed.path,
-								name: processed.name,
-								icon: processed.icon || (processed.fields.length > 0 ? 'bi:file-text' : 'bi:folder'),
-								order: 999,
-								isCollection: processed.fields.length > 0,
-								collectionId: processed.id
-							})
+                            await dbAdapter.createContentStructure({
+                                _id: processed.id, // Use UUID as _id
+                                path: processed.path,
+                                name: processed.name,
+                                icon: processed.icon || (processed.fields.length > 0 ? 'bi:file-text' : 'bi:folder'),
+                                order: 999,
+                                isCollection: processed.fields.length > 0,
+                                collectionId: processed.id
+                            });
 							logger.info(`Created content node from file:  \x1b[34m${path}\x1b[0m`)
 						}
 
@@ -600,21 +602,22 @@ class ContentManager {
 		}
 	}
 
-	// Extract path from file path
+	    // Extract path from file path
 	private extractPathFromFilePath(filePath: string): string {
 		logger.debug(`Extracting path from file: ${filePath}`);
 		const parts = filePath.split('/');
-		
+
 		// Remove file extension from last segment if it exists
 		if (parts.length > 0) {
 			parts[parts.length - 1] = parts[parts.length - 1].replace(/\.(ts|js)$/, '');
 		}
-		
+
 		// Build the path for compiled collections
-		const resultPath = `collections/${parts.join('/')}`;
+		const resultPath = `/collections/${parts.slice(0, parts.length - 1).join('/')}`;
 		logger.debug(`Extracted path: ${resultPath}`);
 		return resultPath;
 	}
+	
 	// Get compiled collection files
 	private async getCompiledCollectionFiles(compiledDirectoryPath: string): Promise<string[]> {
 		if (!fs) throw new Error('File system operations are only available on the server');

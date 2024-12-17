@@ -140,7 +140,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		}
 
 		const code = url.searchParams.get('code');
-		logger.debug(`Authorization code: ${code}`);
+		logger.debug(`Authorization code: \x1b[34m${code}\x1b[0m`);
 
 		// Handle Google OAuth flow if code is present
 		if (privateEnv.USE_GOOGLE_OAUTH && code) {

@@ -264,7 +264,7 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 
 		const responseTime = performance.now() - event.startTime;
 		logger.debug(
-			`Route \x1b[34m${event.url.pathname}\x1b[0m - ${responseTime.toFixed(2)}ms ${getPerformanceEmoji(responseTime)}: isPublicRoute=\x1b[${isPublicRoute ? '32' : '31'}m${isPublicRoute}\x1b[0m, isApiRequest=\x1b[${isApiRequest ? '32' : '31'}m${isApiRequest}\x1b[0m`
+			`Route \x1b[34m${event.url.pathname}\x1b[0m - \x1b[33m${responseTime.toFixed(2)}ms\x1b[0m ${getPerformanceEmoji(responseTime)}: isPublicRoute=\x1b[${isPublicRoute ? '32' : '31'}m${isPublicRoute}\x1b[0m, isApiRequest=\x1b[${isApiRequest ? '32' : '31'}m${isApiRequest}\x1b[0m`
 		);
 
 		if (isOAuthRoute(event.url.pathname)) {

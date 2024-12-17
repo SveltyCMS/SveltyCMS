@@ -1,7 +1,9 @@
 <!-- 
 @files src/components/system/icons/SveltyCMS_Logo.svelte
-@description - Dynamic SveltyCMS_Logo component
+@component
+**Dynamic SveltyCMS_Logo component**
 -->
+
 <script lang="ts">
 	// Props
 	interface Props {

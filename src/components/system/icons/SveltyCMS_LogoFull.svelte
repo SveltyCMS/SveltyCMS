@@ -1,6 +1,7 @@
 <!-- 
 @file src/components/system/icons/SveltyCMS_LogoFull.svelte
-@description - Dynamic SveltyCMS_LogoFull component 
+@component 
+**Dynamic SveltyCMS_LogoFull component**
 -->
 
 <script lang="ts">

@@ -30,10 +30,32 @@ Features:
 
 	// Props
 	const { data } = $props<{ data: PageData }>();
+
 	// State Management
 	const firstUserExists = $state(data.firstUserExists);
-	let active = $state<undefined | 0 | 1>(publicEnv.SEASONS || publicEnv.DEMO ? undefined : firstUserExists ? undefined : 1);
-	let background = $state<'white' | '#242728'>(publicEnv.SEASONS || publicEnv.DEMO ? '#242728' : firstUserExists ? 'white' : '#242728');
+
+	// Set Initial active state based on conditions
+	let active = $state<undefined | 0 | 1>(
+		publicEnv.DEMO
+			? undefined // If DEMO is enabled, show logo
+			: publicEnv.SEASONS
+				? 0 // Default to SignIn for SEASONS mode
+				: firstUserExists
+					? 0 // Show SignIn if the first user exists
+					: 1 // Otherwise, show SignUp
+	);
+
+	// Set initial background based on conditions
+	let background = $state<'white' | '#242728'>(
+		publicEnv.DEMO
+			? '#242728' // Dark background for DEMO mode
+			: publicEnv.SEASONS
+				? 'white' // Light background for SEASONS mode
+				: firstUserExists
+					? 'white' // Light background for existing users
+					: '#242728' // Dark background for new users
+	);
+
 	let timeRemaining = $state({ minutes: 0, seconds: 0 });
 	let searchQuery = $state('');
 	let isDropdownOpen = $state(false);
@@ -127,7 +149,7 @@ Features:
 		if (isTransitioning) return;
 		isTransitioning = true;
 		active = undefined;
-		background = publicEnv.SEASONS || publicEnv.DEMO ? '#242728' : firstUserExists ? 'white' : '#242728';
+		background = publicEnv.DEMO ? '#242728' : publicEnv.SEASONS ? '#242728' : firstUserExists ? 'white' : '#242728';
 		setTimeout(() => {
 			isTransitioning = false;
 		}, 300);
@@ -138,6 +160,8 @@ Features:
 		if (event) {
 			event.stopPropagation();
 		}
+		if (isTransitioning) return;
+		isTransitioning = true;
 		// First reset to initial state to show the logo
 		active = 0;
 		background = 'white';
@@ -151,6 +175,7 @@ Features:
 				active = 0; // Show SignIn for existing users
 				background = 'white';
 			}
+			isTransitioning = false;
 		}, 300);
 	}
 
@@ -159,19 +184,24 @@ Features:
 		if (event) {
 			event.stopPropagation();
 		}
+		if (isTransitioning) return;
+		isTransitioning = true;
 		active = 1;
 		background = '#242728';
+		setTimeout(() => {
+			isTransitioning = false;
+		}, 300);
 	}
 
 	// Handle pointer enter events
 	function handleSignInPointerEnter() {
-		if (active === undefined) {
+		if (active === undefined && !publicEnv.DEMO && !publicEnv.SEASONS) {
 			background = 'white';
 		}
 	}
 
 	function handleSignUpPointerEnter() {
-		if (active === undefined) {
+		if (active === undefined && !publicEnv.DEMO && !publicEnv.SEASONS) {
 			background = '#242728';
 		}
 	}
@@ -183,6 +213,17 @@ Features:
 </script>
 
 <div class={`flex min-h-lvh w-full overflow-y-auto bg-${background} transition-colors duration-300`}>
+	<!-- Debug Overlay -->
+	<!-- <div class="fixed right-4 top-4 z-50 flex flex-col items-start space-y-2 rounded-lg bg-gray-800 p-4 text-white shadow-lg">
+		<h2 class="text-lg font-semibold">Debug Panel</h2>
+		<p><strong>DEMO:</strong> {publicEnv.DEMO ? 'Enabled' : 'Disabled'}</p>
+		<p><strong>SEASON:</strong> {publicEnv.SEASONS ? 'Enabled' : 'Disabled'}</p>
+		<p><strong>Region:</strong> {publicEnv.SEASON_REGION || 'N/A'}</p>
+		<p><strong>Active State:</strong> {active === undefined ? 'Initial (undefined)' : active === 0 ? 'SignIn' : 'SignUp'}</p>
+		<p><strong>Background:</strong> {background}</p>
+	</div> -->
+
+	<!-- SignIn and SignUp Forms -->
 	<SignIn
 		bind:active
 		FormSchemaLogin={data.loginForm}
@@ -209,12 +250,17 @@ Features:
 				class:opacity-50={isTransitioning}
 				aria-live="polite"
 				aria-atomic="true"
+				role="status"
+				aria-label="Demo mode active. Timer showing time remaining until next reset."
 			>
 				<p class="text-2xl font-bold">{m.login_demo_title()}</p>
 				<p>{m.login_demo_message()}</p>
 				<p class="text-xl font-bold">
 					{m.login_demo_nextreset()}
-					{timeRemaining.minutes}:{timeRemaining.seconds < 10 ? `0${timeRemaining.seconds}` : timeRemaining.seconds}
+					<!-- Announce remaining time in an accessible format -->
+					<span aria-label="Time remaining: {timeRemaining.minutes} minutes and {timeRemaining.seconds} seconds">
+						{timeRemaining.minutes}:{timeRemaining.seconds < 10 ? `0${timeRemaining.seconds}` : timeRemaining.seconds}
+					</span>
 				</p>
 			</div>
 		{/if}

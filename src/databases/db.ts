@@ -271,10 +271,10 @@ async function initializeAdapters(): Promise<void> {
 
 		// Step 7: Initialize authentication
 		auth = new Auth(authAdapter);
-		logger.debug('Authentication adapter initialized.');
+		logger.info('Authentication adapter initialized.');
 
 		isInitialized = true;
-		logger.debug('Adapters initialized successfully');
+		logger.info('Adapters initialized successfully');
 	} catch (err) {
 		const message = `Error in initializeAdapters: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message);
@@ -297,7 +297,7 @@ async function initializeRevisions() {
 // Ensure initialization runs once
 if (!initializationPromise) {
 	initializationPromise = initializeAdapters()
-		.then(() => logger.debug('Initialization completed successfully.'))
+		.then(() => logger.info('Initialization completed successfully.'))
 		.catch((err) => {
 			const message = `Initialization promise rejected with error: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
