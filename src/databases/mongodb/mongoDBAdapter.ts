@@ -53,7 +53,7 @@ import { DraftModel } from './models/draft';
 import { RevisionModel } from './models/revision';
 import { ThemeModel } from './models/theme';
 import { WidgetModel, widgetSchema } from './models/widget';
-import { MediaModel, mediaSchema } from './models/media';
+import { mediaSchema } from './models/media';
 import { SystemVirtualFolderModel } from './models/systemVirtualFolder';
 import { SystemPreferencesModel } from './models/systemPreferences';
 
@@ -73,6 +73,17 @@ import { initializeWidgets, getWidgets } from '@components/widgets/widgetManager
 export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
 	private collectionsInitialized = false;
+
+	// Connect to MongoDB
+	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
+		try {
+			await connectToMongoDB();
+			logger.info('MongoDB connection established successfully.');
+		} catch (error) {
+			logger.error('Failed to connect to MongoDB:', error);
+			throw error;
+		}
+	}
 
 	// Helper method to recursively scan directories for compiled content structure files
 	private async scanDirectoryForContentStructure(dirPath: string): Promise<string[]> {
@@ -264,16 +275,7 @@ export class MongoDBAdapter implements dbInterface {
 		}
 	}
 
-	// Connect to MongoDB
-	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
-		try {
-			await connectToMongoDB();
-			logger.info('MongoDB connection established successfully.');
-		} catch (error) {
-			logger.error('Failed to connect to MongoDB:', error);
-			throw error;
-		}
-	}
+
 
 	// Update generateId to always return string
 	generateId(): string {
@@ -507,7 +509,10 @@ export class MongoDBAdapter implements dbInterface {
 	// Create a collection model
 	async createCollectionModel(collection: CollectionConfig): Promise<Model<Document>> {
 		try {
-			const collectionName = collection.name;
+			// Ensure collection name is prefixed with collection_
+			const collectionName = collection.name.startsWith('collection_') ? collection.name : `collection_${collection.name}`;
+			logger.debug(`Creating collection model with name: ${collectionName}`);
+			logger.debug(`Collection config:`, JSON.stringify(collection, null, 2));
 
 			// Check if model already exists
 			if (mongoose.models[collectionName]) {
@@ -526,10 +531,15 @@ export class MongoDBAdapter implements dbInterface {
 			};
 
 			// Process fields if they exist
-			if (collection.fields && Array.isArray(collection.fields)) {
-				for (const field of collection.fields) {
+			if (collection.schema?.fields && Array.isArray(collection.schema.fields)) {
+				logger.debug(`Processing ${collection.schema.fields.length} fields for ${collectionName}`);
+				for (const field of collection.schema.fields) {
 					try {
 						const fieldKey = field.db_fieldName || field.Name;
+						if (!fieldKey) {
+							logger.error(`Field missing db_fieldName and Name:`, JSON.stringify(field, null, 2));
+							continue;
+						}
 						const isRequired = field.required || false;
 						const isTranslated = field.translate || false;
 						const isSearchable = field.searchable || false;
@@ -544,17 +554,19 @@ export class MongoDBAdapter implements dbInterface {
 							unique: isUnique,
 						};
 						schemaDefinition[fieldKey] = fieldSchema;
+						logger.debug(`Added field ${fieldKey} to schema for ${collectionName}`);
 					} catch (error) {
-						logger.error(`Error processing field: ${error}`);
+						logger.error(`Error processing field:`, error);
+						logger.error(`Field data:`, JSON.stringify(field, null, 2));
 					}
 				}
 			} else {
-				logger.warn(`No fields defined for collection ${collectionName}, creating with base schema only`);
+				logger.warn(`No fields defined for collection ${collectionName}, schema:`, JSON.stringify(collection.schema, null, 2));
 			}
 
 			// Optimized schema options
 			const schemaOptions: mongoose.SchemaOptions = {
-				strict: collection.strict !== false,
+				strict: collection.schema?.strict !== false,
 				timestamps: true,
 				collection: collectionName.toLowerCase(),
 				autoIndex: true,
@@ -570,6 +582,9 @@ export class MongoDBAdapter implements dbInterface {
 				id: false,
 				versionKey: false
 			};
+
+			logger.debug(`Creating schema with definition:`, JSON.stringify(schemaDefinition, null, 2));
+			logger.debug(`Schema options:`, JSON.stringify(schemaOptions, null, 2));
 
 			// Create schema
 			const schema = new mongoose.Schema(schemaDefinition, schemaOptions);
@@ -587,7 +602,8 @@ export class MongoDBAdapter implements dbInterface {
 			logger.info(`Created collection model: ${collectionName}`);
 			return model;
 		} catch (error) {
-			logger.error('Error creating collection model:', error);
+			logger.error('Error creating collection model:', error instanceof Error ? error.stack : error);
+			logger.error('Collection config that caused error:', JSON.stringify(collection, null, 2));
 			throw error;
 		}
 	}
@@ -919,7 +935,7 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Methods for Virtual Folder Management
 	// Create a virtual folder in the database
-	async createVirtualFolder(folderData: { name: string; parent?: string; path: string, icon?: string, order?: number }): Promise<Document> {
+	async createVirtualFolder(folderData: { name: string; parent?: string; path: string, icon?: string, order?: number, type?: 'folder' | 'collection' }): Promise<Document> {
 		try {
 			const folder = new SystemVirtualFolderModel({
 				_id: this.generateId(),
@@ -927,7 +943,8 @@ export class MongoDBAdapter implements dbInterface {
 				parent: folderData.parent ? this.convertId(folderData.parent) : null,
 				path: folderData.path,
 				icon: folderData.icon,
-				order: folderData.order
+				order: folderData.order,
+				type: folderData.type || 'folder'  // Default to 'folder' if not specified
 			});
 			await folder.save();
 			logger.info(`Virtual folder '\x1b[34m${folderData.name}\x1b[0m' created successfully.`);
@@ -1060,7 +1077,7 @@ export class MongoDBAdapter implements dbInterface {
 	async getContentStructure(): Promise<Document[]> {
 		try {
 			const nodes = await ContentStructureModel.find().sort({ path: 1 }).exec();
-			logger.info(`Fetched ${nodes.length} content structure.`);
+			logger.info(`Fetched ${nodes.length} content structure nodes.`);
 			return nodes;
 		} catch (error) {
 			logger.error(`Error fetching content structure: ${error.message}`);

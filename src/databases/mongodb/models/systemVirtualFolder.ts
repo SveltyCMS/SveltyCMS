@@ -33,7 +33,7 @@ export const systemVirtualFolderSchema = new Schema(
 );
 
 // Add indexes
-systemVirtualFolderSchema.index({ path: 1 }, { unique: true });
+// systemVirtualFolderSchema.index({ path: 1 }, { unique: true });
 systemVirtualFolderSchema.index({ parent: 1 });
 systemVirtualFolderSchema.index({ type: 1 });
 systemVirtualFolderSchema.index({ order: 1 });

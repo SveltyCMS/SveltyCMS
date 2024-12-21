@@ -2,8 +2,8 @@
  * @file src/databases/mongodb/dbconnect.ts
  * @description MongoDB connection logic for the CMS.
  *
- * This module provides functions for connecting to MongoDB, handling connection retries,
- * and logging errors.
+ * This module provides robust MongoDB connection handling with retry logic,
+ * structured logging, and environment-based configuration.
  */
 
 import { privateEnv } from '@root/config/private';
@@ -11,61 +11,53 @@ import { privateEnv } from '@root/config/private';
 import mongoose from 'mongoose';
 import type { ConnectOptions } from 'mongoose';
 
-// System Logging
+// System Logger
 import { logger } from '@utils/logger.svelte';
 
-const MAX_RETRIES = privateEnv.DB_RETRY_ATTEMPTS || 3; // Maximum number of DB connection retries
+// Configuration Constants
+const MAX_RETRIES = privateEnv.DB_RETRY_ATTEMPTS || 5; // Default: 5 attempts
+const RETRY_DELAY = privateEnv.DB_RETRY_DELAY || 5000; // Default: 5 seconds
+const DB_TIMEOUT = 5000; // 5 seconds timeout for server selection
 
+/**
+ * Connect to the MongoDB database with retry logic.
+ */
 export async function connectToMongoDB(): Promise<void> {
     const isAtlas = privateEnv.DB_HOST.startsWith('mongodb+srv://');
+    const connectionString = isAtlas
+        ? `${privateEnv.DB_HOST}/${privateEnv.DB_NAME}`
+        : `${privateEnv.DB_HOST}${privateEnv.DB_PORT ? `:${privateEnv.DB_PORT}` : ''}/${privateEnv.DB_NAME}`;
 
-    // Construct the connection string
-    let connectionString: string;
-    if (isAtlas) {
-        connectionString = `${privateEnv.DB_HOST}/${privateEnv.DB_NAME}`;
-    } else {
-        connectionString = `${privateEnv.DB_HOST}${privateEnv.DB_PORT ? `:${privateEnv.DB_PORT}` : ''}/${privateEnv.DB_NAME}`;
-    }
-
-    // Set connection options
     const options: ConnectOptions = {
-        authSource: isAtlas ? undefined : 'admin', // Only use authSource for local connection
+        authSource: isAtlas ? undefined : 'admin',
         user: privateEnv.DB_USER,
         pass: privateEnv.DB_PASSWORD,
         dbName: privateEnv.DB_NAME,
         maxPoolSize: privateEnv.DB_POOL_SIZE || 5,
         retryWrites: true,
-        serverSelectionTimeoutMS: 5000, // 5 seconds timeout for server selection
+        serverSelectionTimeoutMS: DB_TIMEOUT,
     };
 
-    // Use Mongoose's built-in retry logic
-    mongoose.connection.on('connected', () => {
-        logger.info('MongoDB connection established successfully.');
-    });
+    // Mongoose Connection Event Handlers
+    mongoose.connection.on('connected', () => logger.info('MongoDB connection established successfully.'));
+    mongoose.connection.on('disconnected', () => logger.warn('MongoDB connection lost. Attempting to reconnect...'));
+    mongoose.connection.on('error', (err) => logger.error(`MongoDB connection error: ${err.message}`));
 
-    mongoose.connection.on('disconnected', () => {
-        logger.warn('MongoDB connection lost. Attempting to reconnect...');
-    });
-
-    mongoose.connection.on('error', (err) => {
-        logger.error(`MongoDB connection error: ${err.message}`);
-    });
-
-
-    let lastError: unknown;
-    for (let i = 1; i <= MAX_RETRIES; i++) {
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
+            logger.info(`\x1b[33mAttempting to connect to MongoDB (Attempt ${attempt}/${MAX_RETRIES})...\x1b[0m`);
             await mongoose.connect(connectionString, options);
-            logger.debug(`Successfully connected to MongoDB database: \x1b[34m${privateEnv.DB_NAME}\x1b[0m`);
+            logger.info(`\x1b[32mSuccessfully connected to MongoDB database: \x1b[34m${privateEnv.DB_NAME}\x1b[0m`);
             return;
         } catch (error) {
-            lastError = error;
-            if (i === MAX_RETRIES) {
-                logger.error(`Failed to connect to MongoDB after ${MAX_RETRIES} attempts: ${lastError}`);
-                throw new Error('MongoDB connection failed');
+            logger.error(`MongoDB connection attempt ${attempt} failed: ${error instanceof Error ? error.message : String(error)}`);
+            if (attempt === MAX_RETRIES) {
+                logger.error(`Failed to connect to MongoDB after ${MAX_RETRIES} attempts.`);
+                throw new Error('MongoDB connection failed.');
             }
-            logger.warn(`Connection attempt ${i}/${MAX_RETRIES} failed, retrying...`);
-            await new Promise((resolve) => setTimeout(resolve, 1000 * i)); // Exponential backoff
+            const delay = attempt * RETRY_DELAY;
+            logger.info(`Retrying in ${delay / 1000} seconds...`);
+            await new Promise((resolve) => setTimeout(resolve, delay));
         }
     }
 }

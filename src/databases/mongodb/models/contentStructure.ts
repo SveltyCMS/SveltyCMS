@@ -32,12 +32,12 @@ export const contentStructureSchema = new Schema(
         timestamps: true,
         collection: 'system_content_structure',
         strict: false, // Allow additional fields from collection config
-        autoIndex: true,
+        autoIndex: false,
     }
 );
 
-// Add indexes
-contentStructureSchema.index({ path: 1 }, { unique: true });
+// // Add indexes
+// contentStructureSchema.index({ path: 1 }, { unique: true });
 contentStructureSchema.index({ isCollection: 1 });
 contentStructureSchema.index({ order: 1 });
 
@@ -138,5 +138,5 @@ contentStructureSchema.statics = {
 };
 
 // Create and export the ContentStructure model
-export const ContentStructureModel = mongoose.models?.ContentStructure || 
+export const ContentStructureModel = mongoose.models?.ContentStructure ||
     mongoose.model<ContentStructure>('ContentStructure', contentStructureSchema);

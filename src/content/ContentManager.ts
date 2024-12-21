@@ -304,15 +304,40 @@ class ContentManager {
 							}
 						} else {
 							//Create if not existent
-                            await dbAdapter.createContentStructure({
-                                _id: processed.id, // Use UUID as _id
-                                path: processed.path,
-                                name: processed.name,
-                                icon: processed.icon || (processed.fields.length > 0 ? 'bi:file-text' : 'bi:folder'),
-                                order: 999,
-                                isCollection: processed.fields.length > 0,
-                                collectionId: processed.id
-                            });
+							await dbAdapter.createContentStructure({
+								_id: processed.id, // Use UUID as _id
+								path: processed.path,
+								name: processed.name,
+								icon: processed.icon || (processed.fields.length > 0 ? 'bi:file-text' : 'bi:folder'),
+								order: 999,
+								isCollection: processed.fields.length > 0
+							});
+
+							// If this is a collection, create the collection model using the _id
+							if (processed.fields.length > 0) {
+								try {
+									logger.debug(`Creating collection model for ${processed.name} with ID ${processed.id}`);
+									logger.debug(`Processed collection data:`, JSON.stringify(processed, null, 2));
+									
+									const collectionConfig = {
+										name: processed.id,
+										schema: {
+											fields: processed.fields,
+											strict: processed.strict,
+											revision: processed.revision,
+											livePreview: processed.livePreview
+										}
+									};
+									
+									logger.debug(`Collection config to be sent:`, JSON.stringify(collectionConfig, null, 2));
+									await dbAdapter.createCollectionModel(collectionConfig);
+									logger.info(`Created collection model: collection_${processed.id}`);
+								} catch (err) {
+									logger.error(`Failed to create collection model for ${processed.name}:`, err instanceof Error ? err.stack : err);
+									logger.error(`Collection data that caused error:`, JSON.stringify(processed, null, 2));
+								}
+							}
+
 							logger.info(`Created content node from file:  \x1b[34m${path}\x1b[0m`)
 						}
 
@@ -602,7 +627,7 @@ class ContentManager {
 		}
 	}
 
-	    // Extract path from file path
+	// Extract path from file path
 	private extractPathFromFilePath(filePath: string): string {
 		logger.debug(`Extracting path from file: ${filePath}`);
 		const parts = filePath.split('/');
@@ -617,7 +642,7 @@ class ContentManager {
 		logger.debug(`Extracted path: ${resultPath}`);
 		return resultPath;
 	}
-	
+
 	// Get compiled collection files
 	private async getCompiledCollectionFiles(compiledDirectoryPath: string): Promise<string[]> {
 		if (!fs) throw new Error('File system operations are only available on the server');

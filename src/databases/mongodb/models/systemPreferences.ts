@@ -29,7 +29,6 @@ export const systemPreferencesSchema = new Schema(
 );
 
 // Add indexes
-systemPreferencesSchema.index({ key: 1 }, { unique: true });
 systemPreferencesSchema.index({ category: 1 });
 
 // Static methods

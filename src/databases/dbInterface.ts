@@ -178,7 +178,14 @@ export interface dbInterface {
     clearSystemPreferences(user_id: string): Promise<void>; // Clear system preferences.
 
     // Virtual Folder Methods for direct database interactions
-    createVirtualFolder(folderData: { name: string; parent?: string; path: string; icon?: string; order?: number }): Promise<SystemVirtualFolder>;
+    createVirtualFolder(folderData: { 
+        name: string; 
+        parent?: string; 
+        path: string; 
+        icon?: string; 
+        order?: number;
+        type?: 'folder' | 'collection';
+    }): Promise<SystemVirtualFolder>;
     getVirtualFolders(): Promise<SystemVirtualFolder[]>;
     getVirtualFolderContents(folderId: string): Promise<DocumentContent[]>;
     updateVirtualFolder(folderId: string, updateData: { name?: string; parent?: string; icon?: string; order?: number }): Promise<SystemVirtualFolder | null>;
