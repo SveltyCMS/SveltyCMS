@@ -191,3 +191,4 @@ export type CollectionTypes = {
 };
 
 export type CollectionTypes = 'categories'|'CollectionManager'|'collectionTypes';
+
