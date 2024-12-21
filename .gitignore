@@ -23,7 +23,7 @@ vite.config.ts.timestamp-*
 trash/*
 media/*
 mediaFiles/
-collections/*
+compiledCollections/*
 logs/*
 Docs/*
 .node-version

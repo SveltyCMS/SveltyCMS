@@ -58,7 +58,7 @@ contentStructureSchema.statics = {
         try {
             const node = new this(contentData);
             await node.save();
-            logger.info(`Created content structure node: ${contentData.path}`);
+            logger.info(`Created content structure node: \x1b[34m${contentData.path}\x1b[0m`);
             return node;
         } catch (error) {
             logger.error(`Error creating content structure: ${error.message}`);
@@ -70,7 +70,7 @@ contentStructureSchema.statics = {
     async getContentStructure(): Promise<Document[]> {
         try {
             const nodes = await this.find().sort({ order: 1 }).exec();
-            logger.debug(`Retrieved ${nodes.length} content structure nodes`);
+            logger.debug(`Retrieved \x1b[34m${nodes.length}\x1b[0m content structure nodes`);
             return nodes;
         } catch (error) {
             logger.error(`Error retrieving content structure: ${error.message}`);
@@ -84,7 +84,7 @@ contentStructureSchema.statics = {
             const nodes = await this.find({
                 path: new RegExp(`^${parentPath}/[^/]+$`)
             }).sort({ order: 1 }).exec();
-            logger.debug(`Retrieved ${nodes.length} children for path: ${parentPath}`);
+            logger.debug(`Retrieved \x1b[34m${nodes.length}\x1b[0m children for path: \x1b[34m${parentPath}\x1b[0m`);
             return nodes;
         } catch (error) {
             logger.error(`Error retrieving content structure children: ${error.message}`);
@@ -96,7 +96,7 @@ contentStructureSchema.statics = {
     async getContentStructureById(id: string): Promise<Document | null> {
         try {
             const node = await this.findById(id).exec();
-            logger.debug(`Retrieved content structure node: ${id}`);
+            logger.debug(`Retrieved content structure node: \x1b[34m${id}\x1b[0m`);
             return node;
         } catch (error) {
             logger.error(`Error retrieving content structure by ID: ${error.message}`);
@@ -109,9 +109,9 @@ contentStructureSchema.statics = {
         try {
             const node = await this.findByIdAndUpdate(contentId, updateData, { new: true }).exec();
             if (node) {
-                logger.info(`Updated content structure node: ${contentId}`);
+                logger.info(`Updated content structure node: \x1b[34m${contentId}\x1b[0m`);
             } else {
-                logger.warn(`Content structure node not found: ${contentId}`);
+                logger.warn(`Content structure node not found: \x1b[34m${contentId}\x1b[0m`);
             }
             return node;
         } catch (error) {
@@ -125,10 +125,10 @@ contentStructureSchema.statics = {
         try {
             const result = await this.findByIdAndDelete(contentId).exec();
             if (result) {
-                logger.info(`Deleted content structure node: ${contentId}`);
+                logger.info(`Deleted content structure node: \x1b[34m${contentId}\x1b[0m`);
                 return true;
             }
-            logger.warn(`Content structure node not found for deletion: ${contentId}`);
+            logger.warn(`Content structure node not found for deletion: \x1b[34m${contentId}\x1b[0m`);
             return false;
         } catch (error) {
             logger.error(`Error deleting content structure: ${error.message}`);

@@ -24,7 +24,7 @@ const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 
 // Config directories
 const userCollections = Path.posix.join(process.cwd(), 'config/collections');
-const compiledCollections = Path.posix.join(process.cwd(), 'collections');
+const compiledCollections = Path.posix.join(process.cwd(), 'compiledCollections');
 const configDir = resolve(process.cwd(), 'config');
 const privateConfigPath = resolve(configDir, 'private.ts');
 const publicConfigPath = resolve(configDir, 'public.ts');
@@ -107,7 +107,7 @@ export default defineConfig({
 											await fetch('/api/content-structure', {
 												method: 'POST',
 												headers: { 'Content-Type': 'application/json' },
-												body: JSON.stringify({ 
+												body: JSON.stringify({
 													action: 'recompile'
 												})
 											});

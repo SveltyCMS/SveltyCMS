@@ -335,7 +335,7 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 		});
 
 		if (!hasPermission) {
-			logger.warn(`User ${user._id} attempted to access ${apiEndpoint} API without permission`);
+			logger.warn(`User \x1b[34m${user_id}\x1b[0m attempted to access \x1b[34m${apiEndpoint}\x1b[0m API without permission`);
 			throw error(403, 'Forbidden');
 		}
 	}
@@ -346,7 +346,7 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 		const cached = await cacheStore.get<{ data: unknown; timestamp: number; headers: Record<string, string> }>(cacheKey);
 
 		if (cached) {
-			logger.debug(`Cache hit for ${cacheKey}`);
+			logger.debug(`Cache hit for \x1b[34m${cacheKey}\x1b[0m`);
 			return new Response(JSON.stringify(cached.data), {
 				status: 200,
 				headers: {
@@ -356,7 +356,7 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 			});
 		}
 
-		logger.debug(`Cache miss for ${cacheKey}, resolving request`);
+		logger.debug(`Cache miss for \x1b[34m${cacheKey}\x1b[0m, resolving request`);
 		const response = await resolve(event);
 		const clonedResponse = response.clone();
 
@@ -374,7 +374,7 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 					},
 					new Date(now + API_CACHE_TTL)
 				);
-				logger.debug(`Stored ${cacheKey} in cache`);
+				logger.debug(`Stored \x1b[34m${cacheKey}\x1b[0m in cache`);
 			}
 
 			return new Response(JSON.stringify(data), {
@@ -385,7 +385,7 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 				}
 			});
 		} catch (err) {
-			logger.error(`Error processing API response for ${apiEndpoint}: ${err}`);
+			logger.error(`Error processing API response for \x1b[34m${apiEndpoint}\x1b[31m: ${err}`);
 			return clonedResponse;
 		}
 	}

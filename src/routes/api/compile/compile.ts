@@ -33,7 +33,7 @@ export async function compile(options: CompileOptions = {}): Promise<void> {
     // Define collection paths directly and use process.cwd()
     const {
         userCollections = path.posix.join(process.cwd(), 'config/collections'),
-        compiledCollections = path.posix.join(process.cwd(), 'collections')
+        compiledCollections = path.posix.join(process.cwd(), 'compiledCollections')
     } = options;
 
     try {

@@ -12,7 +12,7 @@
  */
 
 import axios from 'axios';
-import { browser, dev } from '$app/environment';
+import { browser } from '$app/environment';
 // Types
 import type { Schema, CollectionTypes, Category, CollectionData } from './types';
 import type { SystemContent } from '@src/databases/dbInterface';
@@ -318,7 +318,7 @@ class ContentManager {
 								try {
 									logger.debug(`Creating collection model for ${processed.name} with ID ${processed.id}`);
 									logger.debug(`Processed collection data:`, JSON.stringify(processed, null, 2));
-									
+
 									const collectionConfig = {
 										name: processed.id,
 										schema: {
@@ -328,7 +328,7 @@ class ContentManager {
 											livePreview: processed.livePreview
 										}
 									};
-									
+
 									logger.debug(`Collection config to be sent:`, JSON.stringify(collectionConfig, null, 2));
 									await dbAdapter.createCollectionModel(collectionConfig);
 									logger.info(`Created collection model: collection_${processed.id}`);
