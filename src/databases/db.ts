@@ -227,9 +227,15 @@ async function initializeAdapters(): Promise<void> {
 				logger.warn('No collections found after ContentManager initialization');
 			} else {
 				logger.debug('ContentManager initialized with collections:', { count: collections.length });
+				// Initialize each collection model
+				for (const collection of collections) {
+					if (dbAdapter) {
+						logger.debug(`Creating collection model for: ${collection.name}`);
+						await dbAdapter.createCollectionModel(collection);
+						logger.debug(`Finished creating collection model for: ${collection.name}`);
+					}
+				}
 			}
-
-			await dbAdapter.getCollectionModels();
 		}
 
 		if (!authAdapter) {

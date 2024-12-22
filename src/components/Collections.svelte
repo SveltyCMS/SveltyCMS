@@ -21,15 +21,14 @@ Features:
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
 
 	// Types
-	import type { Schema, CollectionData, ContentStructureState } from '@src/shared/types';
+	import type { ContentStructureState } from '@src/shared/types';
 
 	// Stores
 	import { get } from 'svelte/store';
 	import { shouldShowNextButton } from '@stores/store';
-	import { mode, categories, collections } from '@src/stores/collectionStore.svelte';
+	import { mode, collections } from '@src/stores/collectionStore.svelte';
 	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@src/stores/sidebarStore.svelte';
 	import { screenSize } from '@root/src/stores/screenSizeStore.svelte';
 
@@ -56,97 +55,91 @@ Features:
 	let search = $state('');
 	let searchShow = $state(false);
 	let filteredNodes = $state<ContentStructureState[]>([]);
+	let isMediaMode = $state(false);
 
-	// Function to flatten and filter content structure nodes with improved search
-	function filterContentStructure(searchTerm: string, nodes: Record<string, CollectionData>): ContentStructureState[] {
-		if (!nodes || Object.keys(nodes).length === 0) return [];
+	// Function to fetch and process content structure
+	async function fetchContentStructure() {
+		try {
+			const response = await fetch('/api/content-structure');
+			if (!response.ok) throw new Error('Failed to fetch content structure');
+			const data = await response.json();
+			return processContentStructure(data);
+		} catch (error) {
+			console.error('Error fetching content structure:', error);
+			return [];
+		}
+	}
 
-		function processNode(node: CollectionData, level: number = 0): ContentStructureState | null {
-			if (!node) return null;
-			const processed: ContentStructureState = {
-				id: node.id.toString(),
+	// Function to process content structure data
+	function processContentStructure(nodes: any[]): ContentStructureState[] {
+		if (!nodes || nodes.length === 0) return [];
+
+		// Group nodes by path
+		const groupedNodes = nodes.reduce(
+			(acc, node) => {
+				const path = node.path || '/';
+				if (!acc[path]) acc[path] = [];
+				acc[path].push(node);
+				return acc;
+			},
+			{} as Record<string, any[]>
+		);
+
+		// Build tree structure
+		function buildTree(path: string, level: number = 0): ContentStructureState[] {
+			const nodesInPath = groupedNodes[path] || [];
+			return nodesInPath.map((node) => ({
+				id: node._id,
 				name: node.name,
 				icon: node.icon,
-				path: `/${node.name.toLowerCase().replace(/\s+/g, '-')}`, // Generate path from name
+				path: node.path,
 				isCollection: node.isCollection,
 				level,
-				open: searchTerm !== '', // Auto-open nodes when searching
-				children: [] as ContentStructureState[] // Explicitly type and initialize as empty array
-			};
-			// Process subcategories
-			let hasMatchingContent = false;
-			if (node.subcategories) {
-				Object.entries(node.subcategories).forEach(([_, subCat]) => {
-					if (subCat.isCollection) {
-						// Using collection.id to find the collection by id since the subCat
-						const collectionSchema = Object.values(collections.value).find((collection) => collection.id === subCat.id);
+				open: search !== '',
+				children: buildTree(`${path}${node.name}/`, level + 1)
+			}));
+		}
 
-						if (collectionSchema) {
-							const collection: ContentStructureState = {
-								id: collectionSchema.id,
-								name: String(collectionSchema.name || ''),
-								icon: collectionSchema.icon,
-								path: collectionSchema.path || ''
-							};
+		return buildTree('/collections/');
+	}
 
-							if (searchTerm === '' || (collection.name as string).toLowerCase().includes(searchTerm.toLowerCase())) {
-								if (processed && processed.children) {
-									processed.children.push(collection);
-									hasMatchingContent = true;
-								}
-							}
-						}
-					} else {
-						const processedSub = processNode(subCat, level + 1);
-						if (processedSub && processed && processed.children) {
-							processed.children.push(processedSub);
-							hasMatchingContent = true;
-						}
-					}
-				});
+	// Function to filter content structure
+	function filterContentStructure(searchTerm: string, nodes: ContentStructureState[]): ContentStructureState[] {
+		if (!nodes || nodes.length === 0) return [];
+
+		function filterNode(node: ContentStructureState): ContentStructureState | null {
+			const nameMatch = node.name.toLowerCase().includes(searchTerm.toLowerCase());
+			let filteredChildren: ContentStructureState[] = [];
+
+			if (node.children) {
+				filteredChildren = node.children.map((child) => filterNode(child)).filter((child): child is ContentStructureState => child !== null);
 			}
-			const searchLower = searchTerm.toLowerCase();
-			const nameMatches = node.name.toLowerCase().includes(searchLower);
 
-			return searchTerm === '' || nameMatches || hasMatchingContent ? processed : null;
+			if (nameMatch || filteredChildren.length > 0) {
+				return {
+					...node,
+					open: searchTerm !== '',
+					children: filteredChildren
+				};
+			}
+			return null;
 		}
-		// Process only root categories (Collections and Menu)
-		return Object.entries(nodes)
-			.filter(([path]) => path.startsWith('Collections') || path.startsWith('Menu'))
-			.map(([, cat]) => processNode(cat))
-			.filter((cat): cat is ContentStructureState => cat !== null);
+
+		return nodes.map((node) => filterNode(node)).filter((node): node is ContentStructureState => node !== null);
 	}
-	// Subscribe to categories and collections store changes and handle search
+
+	// Update filtered nodes when search changes
 	$effect(() => {
-		if ($categories && collections.value) {
-			filteredNodes = filterContentStructure(search, $categories);
-		}
+		fetchContentStructure().then((nodes) => {
+			filteredNodes = filterContentStructure(search, nodes);
+		});
 	});
-	// Handle search input
-	function handleSearch(event: Event) {
-		const target = event.target as HTMLInputElement;
-		search = target.value;
-		filteredNodes = filterContentStructure(search, $categories);
-	}
-	// Clear search
-	function clearSearch() {
-		search = '';
-		filteredNodes = filterContentStructure('', $categories);
-		// Focus the search input after clearing
-		const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
-		if (searchInput) searchInput.focus();
-	}
-	// Determine if the current mode is 'media'
-	let isMediaMode = $derived(mode.value === 'media');
-	onMount(() => {
-		if ($categories && collections.value) {
-			filteredNodes = filterContentStructure('', $categories);
-		}
+
+	// Update isMediaMode when modeSet changes
+	$effect(() => {
+		isMediaMode = modeSet === 'media';
 	});
-	// Helper function to get indentation class based on level
-	function getIndentClass(level: number | undefined): string {
-		return `pl-${(level ?? 0) * 2}`; // Use nullish coalescing to default to 0 if level is undefined
-	}
+
 	// Handle collection selection
 	function handleCollectionSelect(collection: ContentStructureState | Schema) {
 		if (mode.value === 'edit') {

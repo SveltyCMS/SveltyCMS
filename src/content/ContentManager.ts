@@ -233,7 +233,7 @@ class ContentManager {
 				// Server-side collection loading
 				const collections: Schema[] = [];
 				const contentNodesMap = await this.getContentStructureMap();
-				const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || './collections';
+				const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections/Collections';
 				const files = await this.getCompiledCollectionFiles(compiledDirectoryPath);
 
 				for (const filePath of files) {
@@ -316,8 +316,8 @@ class ContentManager {
 							// If this is a collection, create the collection model using the _id
 							if (processed.fields.length > 0) {
 								try {
-									logger.debug(`Creating collection model for ${processed.name} with ID ${processed.id}`);
-									logger.debug(`Processed collection data:`, JSON.stringify(processed, null, 2));
+									const collectionName = `collection_${processed.id}`;
+									logger.debug(`Processing collection model for \x1b[34m${processed.name}\x1b[0m with ID \x1b[34m${processed.id}\x1b[0m`);
 
 									const collectionConfig = {
 										name: processed.id,
@@ -329,11 +329,10 @@ class ContentManager {
 										}
 									};
 
-									logger.debug(`Collection config to be sent:`, JSON.stringify(collectionConfig, null, 2));
 									await dbAdapter.createCollectionModel(collectionConfig);
-									logger.info(`Created collection model: collection_${processed.id}`);
+									logger.info(`Collection model \x1b[34m${collectionName}\x1b[0m is ready`);
 								} catch (err) {
-									logger.error(`Failed to create collection model for ${processed.name}:`, err instanceof Error ? err.stack : err);
+									logger.error(`Failed to process collection model for ${processed.name}:`, err instanceof Error ? err.stack : err);
 									logger.error(`Collection data that caused error:`, JSON.stringify(processed, null, 2));
 								}
 							}
@@ -414,7 +413,7 @@ class ContentManager {
 				collection.set({} as Schema);
 				collectionValue.set({});
 				mode.set('view');
-				logger.info(`Collections updated successfully. Count: ${cols.length}`);
+				logger.info(`Collections updated successfully. Count: \x1b[34m${cols.length}\x1b[0m`);
 			} catch (err) {
 				const errorMessage = err instanceof Error ? err.message : String(err);
 				logger.error(`Error in updateCollections: ${errorMessage}`);
@@ -444,7 +443,7 @@ class ContentManager {
 					try {
 
 						contentNodes = await dbAdapter.getContentStructure();
-						logger.debug('Content structure from database', { contentNodes });
+
 					} catch (err) {
 						logger.warn('Could not fetch content structure, proceeding with file-based structure', { error: err });
 					}
@@ -460,6 +459,7 @@ class ContentManager {
 								name: node.name,
 								icon: node.icon || 'bi:folder',
 								order: node.order || 999,
+								isCollection: node.isCollection,
 								subcategories: {},
 								collections: []
 							};
@@ -629,7 +629,7 @@ class ContentManager {
 
 	// Extract path from file path
 	private extractPathFromFilePath(filePath: string): string {
-		logger.debug(`Extracting path from file: ${filePath}`);
+		logger.debug(`Extracting path from file: \x1b[34m${filePath}\x1b[0m`);
 		const parts = filePath.split('/');
 
 		// Remove file extension from last segment if it exists
@@ -639,7 +639,7 @@ class ContentManager {
 
 		// Build the path for compiled collections
 		const resultPath = `/collections/${parts.slice(0, parts.length - 1).join('/')}`;
-		logger.debug(`Extracted path: ${resultPath}`);
+		logger.debug(`Extracted path: \x1b[34m${resultPath}\x1b[0m`);
 		return resultPath;
 	}
 

@@ -178,7 +178,7 @@ export const PUT: RequestHandler = async ({ request }) => {
         if (!updatedNode) throw error(404, 'Node not found');
         // Update collections to reflect the changes
         await contentManager.updateCollections(true);
-        logger.info(`Content node ${nodeId} updated successfully`);
+        logger.info(`Content node \x1b[34m${nodeId}\x1b[0m updated successfully`);
         return json({
             success: true,
             message: 'Content Structure updated successfully',
