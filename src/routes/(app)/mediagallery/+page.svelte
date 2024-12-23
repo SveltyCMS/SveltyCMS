@@ -157,7 +157,7 @@ Features:
 	// Create a new folder
 	async function createFolder(folderName: string) {
 		try {
-			const parentId = currentFolder?._id || 'root';
+			const parentId = currentFolder?._id ?? null;
 			const response = await fetch('/api/virtualFolder', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
