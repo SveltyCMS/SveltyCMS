@@ -141,8 +141,6 @@ Features:
 	$effect(() => {
 		fetchContentStructure().then((nodes) => {
 			filteredNodes = filterContentStructure(search, nodes);
-      console.log(filteredNodes)
-
 		});
 	});
 
