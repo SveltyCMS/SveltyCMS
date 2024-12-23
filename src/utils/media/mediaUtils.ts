@@ -8,6 +8,7 @@ import Path from 'path';
 import { publicEnv } from '@root/config/public';
 import { sanitize, formatBytes } from '@utils/utils';
 import type { MediaBase } from '@utils/media/mediaModels';
+import { removeExtension } from '../utils';
 
 
 // Convert IMAGE_SIZES to an array of size configurations
@@ -53,26 +54,27 @@ export function constructUrl(
 
   switch (path) {
     case 'global':
-      urlPath = `original/${hash}-${sanitize(fileName)}${size ? `-${size}` : ''}.${format}`;
+      urlPath = `${hash}_${sanitize(fileName)}${size ? `-${size}` : ''}.${format}`;
       break;
     case 'unique':
-      urlPath = `${sanitize(collectionTypes)}/original/${hash}-${sanitize(fileName)}${size ? `-${size}` : ''}.${format}`;
+      urlPath = `${sanitize(collectionTypes)}/original/${hash}_${sanitize(fileName)}${size ? `-${size}` : ''}.${format}`;
       break;
     default:
-      urlPath = `${sanitize(path)}/original/${hash}-${sanitize(fileName)}${size ? `-${size}` : ''}.${format}`;
+      urlPath = `${sanitize(path)}/${hash}_${sanitize(fileName)}${size ? `-${size}` : ''}.${format}`;
   }
 
   if (publicEnv.MEDIASERVER_URL) {
     return `${publicEnv.MEDIASERVER_URL}/files/${urlPath}`;
   } else {
-    return urlPath;
+    return `${publicEnv.MEDIA_FOLDER}/${urlPath}`;
   }
 }
 
 // Returns the URL for accessing a media item.
 export function getMediaUrl(mediaItem: MediaBase, collectionTypes: string, size?: keyof typeof publicEnv.IMAGE_SIZES): string {
   console.debug('getMediaUrl', mediaItem, collectionTypes, size);
-  return constructUrl(mediaItem.path, mediaItem.hash, mediaItem.name, (mediaItem.name.split(".")).slice(-1)[0], collectionTypes, size);
+  const fileName = removeExtension(mediaItem.name)
+  return constructUrl(mediaItem.path, mediaItem.hash, fileName, (mediaItem.name.split(".")).slice(-1)[0], collectionTypes, size);
 }
 
 // Validates a media file against allowed types and size limits
