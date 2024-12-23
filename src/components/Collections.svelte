@@ -60,7 +60,7 @@ Features:
 	// Function to fetch and process content structure
 	async function fetchContentStructure() {
 		try {
-			const response = await fetch('/api/content-structure');
+			const response = await fetch('/api/content-structure?action=getStructure');
 			if (!response.ok) throw new Error('Failed to fetch content structure');
 			const resJson = await response.json();
 
