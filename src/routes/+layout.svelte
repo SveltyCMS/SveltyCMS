@@ -48,7 +48,9 @@
 			if (!dbAdapter) {
 				throw new Error('Database adapter not initialized');
 			}
-			const contentNodes = await dbAdapter.getContentStructure();
+			const response = await fetch(`/api/content-structure?action=getStructure`);
+      const resJSon = await response.json();
+      const contentNodes =Object.values( resJSon.data.categories);
 			// Transform array into Record<string, CollectionData>
 			const categoriesRecord = contentNodes.reduce((acc, node) => {
 				acc[node.path] = {

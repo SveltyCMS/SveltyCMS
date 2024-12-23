@@ -122,7 +122,7 @@ Features:
 	// Initialize component with runes
 	$effect(() => {
 		mode.set('media');
-		console.log('Received data:', data);
+	
 
 		if (data && data.virtualFolders) {
 			folders = data.virtualFolders.map((folder: VirtualFolder) => ({
