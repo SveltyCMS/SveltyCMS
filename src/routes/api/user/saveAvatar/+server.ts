@@ -61,8 +61,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			throw error(500, 'Internal Server Error: Auth system not initialized');
 		}
 
-		const formData = await request.formData();
-		const avatarFile = formData.get('avatar') as File | null;
+    const formData = await request.formData();
+    const avatarFile = formData.get('avatar') as File | null;
 
 		if (!avatarFile) {
 			logger.error('No avatar file provided', { userId: locals.user._id });
@@ -84,12 +84,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		// Update the user's profile with the new avatar URL
 		await auth.updateUserAttributes(locals.user._id, { avatar: avatarUrl });
 
-		const session_id = locals.session_id;
+    const session_id = locals.session_id;
 
-		const user = await auth.validateSession({ session_id });
-		const cacheStore = getCacheStore();
-		cacheStore.set(session_id, user, new Date(Date.now() + 3600 * 1000));
-		logger.info('Avatar saved successfully', { userId: locals.user.id });
+    const user = await auth.validateSession({ session_id });
+    const cacheStore = getCacheStore();
+    cacheStore.set(session_id, user, new Date(Date.now() + 3600 * 1000));
+    logger.info('Avatar saved successfully', { userId: locals.user.id });
 
 		return json({
 			success: true,

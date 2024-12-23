@@ -122,7 +122,7 @@ Features:
 	// Initialize component with runes
 	$effect(() => {
 		mode.set('media');
-		console.log('Received data:', data);
+	
 
 		if (data && data.virtualFolders) {
 			folders = data.virtualFolders.map((folder: VirtualFolder) => ({
@@ -157,7 +157,7 @@ Features:
 	// Create a new folder
 	async function createFolder(folderName: string) {
 		try {
-			const parentId = currentFolder?._id || 'root';
+			const parentId = currentFolder?._id ?? null;
 			const response = await fetch('/api/virtualFolder', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },

@@ -12,7 +12,9 @@
  */
 
 import type { RequestHandler } from '@sveltejs/kit';
-import { updateCollections } from '@root/src/content/index';
+//import { updateCollections } from '@src/collections/index';
+
+import { collectionManager } from '@src/collections/CollectionManager'
 import { compile } from './compile';
 import { error, json } from '@sveltejs/kit';
 
@@ -24,41 +26,41 @@ let lastCompileTime = 0;
 const COMPILE_COOLDOWN = 60000; // 1 minute cooldown
 
 export const GET: RequestHandler = async ({ url }) => {
-	// Extract 'force' query parameter to determine if update should be forced
-	const forceUpdate = url.searchParams.get('force') === 'true';
-	const currentTime = Date.now();
+  // Extract 'force' query parameter to determine if update should be forced
+  const forceUpdate = url.searchParams.get('force') === 'true';
+  const currentTime = Date.now();
 
-	if (isCompiling) {
-		return json({ success: true, message: 'Compilation already in progress' });
-	}
+  if (isCompiling) {
+    return json({ success: true, message: 'Compilation already in progress' });
+  }
 
-	if (!forceUpdate && currentTime - lastCompileTime < COMPILE_COOLDOWN) {
-		return json({ success: true, message: 'Compilation skipped due to cooldown' });
-	}
+  if (!forceUpdate && currentTime - lastCompileTime < COMPILE_COOLDOWN) {
+    return json({ success: true, message: 'Compilation skipped due to cooldown' });
+  }
 
-	isCompiling = true;
-	lastCompileTime = currentTime;
+  isCompiling = true;
+  lastCompileTime = currentTime;
 
-	try {
-		logger.info('Starting compilation process', { forceUpdate });
+  try {
+    logger.info('Starting compilation process', { forceUpdate });
 
-		// Only compile if forced or if it's been a while since the last compilation
-		if (forceUpdate || currentTime - lastCompileTime > COMPILE_COOLDOWN) {
-			await compile();
-			logger.debug('Compilation completed successfully');
-		}
+    // Only compile if forced or if it's been a while since the last compilation
+    if (forceUpdate || currentTime - lastCompileTime > COMPILE_COOLDOWN) {
+      await compile();
+      logger.debug('Compilation completed successfully');
+    }
 
-		// Always update collections, but only recompile if forced
-		await updateCollections(forceUpdate);
-		logger.info('Collections updated successfully');
+    // Always update collections, but only recompile if forced
+    await collectionManager.updateCollections(forceUpdate);
+    logger.info('Collections updated successfully');
 
-		return json({ success: true, message: 'Compilation and update completed successfully' });
-	} catch (err) {
-		const errorMessage = err instanceof Error ? err.message : String(err);
-		logger.error('Compilation failed', { error: errorMessage });
-		isCompiling = false;
-		throw error(500, errorMessage);
-	} finally {
-		isCompiling = false;
-	}
+    return json({ success: true, message: 'Compilation and update completed successfully' });
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    logger.error('Compilation failed', { error: errorMessage });
+    isCompiling = false;
+    throw error(500, errorMessage);
+  } finally {
+    isCompiling = false;
+  }
 };

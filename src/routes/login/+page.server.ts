@@ -365,7 +365,7 @@ export const actions: Actions = {
 				error: rateLimitResult
 			};
 		}
-		const authUrl = await generateGoogleAuthUrl();
+		const authUrl = await generateGoogleAuthUrl(null, 'none')
 		redirect(303, authUrl);
 	},
 

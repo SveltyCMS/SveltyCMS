@@ -60,10 +60,17 @@ Features:
 	// Function to fetch and process content structure
 	async function fetchContentStructure() {
 		try {
-			const response = await fetch('/api/content-structure');
+			const response = await fetch('/api/content-structure?action=getStructure');
 			if (!response.ok) throw new Error('Failed to fetch content structure');
-			const data = await response.json();
-			return processContentStructure(data);
+			const resJson = await response.json();
+
+      if (resJson.success) {
+       const recievedCollection = resJson.data.collections;
+        
+       const collectionArray = Object.values(recievedCollection) 
+			 return processContentStructure(collectionArray);
+
+      }
 		} catch (error) {
 			console.error('Error fetching content structure:', error);
 			return [];
@@ -75,6 +82,8 @@ Features:
 		if (!nodes || nodes.length === 0) return [];
 
 		// Group nodes by path
+
+    console.debug("nodes", nodes)
 		const groupedNodes = nodes.reduce(
 			(acc, node) => {
 				const path = node.path || '/';
@@ -89,7 +98,7 @@ Features:
 		function buildTree(path: string, level: number = 0): ContentStructureState[] {
 			const nodesInPath = groupedNodes[path] || [];
 			return nodesInPath.map((node) => ({
-				id: node._id,
+				id: node.id,
 				name: node.name,
 				icon: node.icon,
 				path: node.path,
@@ -181,7 +190,16 @@ Features:
 			target.click();
 		}
 	}
-</script>
+
+ 
+  function clearSearch() {
+    search = ""
+  }
+
+  function getIndentClass(level: number) {
+    return `pl-${level * 2}px`;
+  }
+ </script>
 
 <div class="mt-2">
 	{#if !isMediaMode}
@@ -208,7 +226,7 @@ Features:
 					type="text"
 					placeholder={m.collections_search()}
 					bind:value={search}
-					oninput={handleSearch}
+					
 					onfocus={() => (searchShow = false)}
 					class="input h-12 outline-none transition-all duration-500 ease-in-out"
 				/>

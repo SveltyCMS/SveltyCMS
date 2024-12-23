@@ -30,7 +30,7 @@ Key features:
 	// Stores
 	import { page } from '$app/stores';
 	import { contentLanguage, systemLanguage, isLoading } from '@stores/store';
-	import { collection, collections } from '@root/src/stores/collectionStore.svelte';
+	import { collection, collections, mode } from '@root/src/stores/collectionStore.svelte';
 	import { sidebarState } from '@root/src/stores/sidebarStore.svelte';
 	import { screenSize, ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
 
@@ -76,8 +76,7 @@ Key features:
 		if (!newCollection?.name) return;
 
 		const newPath = `/${contentLanguage.value || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${String(newCollection.name)}`;
-		if ($page.url.pathname !== newPath) {
-			console.debug('Redirecting to new path:', newPath, newCollection);
+		if ($page.url.pathname !== newPath && mode.value !=='media') {
 			goto(newPath);
 		}
 	});
