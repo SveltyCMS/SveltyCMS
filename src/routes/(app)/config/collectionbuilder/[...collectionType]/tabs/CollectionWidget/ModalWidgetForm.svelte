@@ -1,6 +1,7 @@
 <!-- 
 @files src/routes/(app)/config/collectionbuilder/[...collectionTypes]/tabs/CollectionWidget/ModalWidgetForm.svelte
-@description The ModalWidgetForm component is used to display and manage the form for the selected widget in the CollectionWidget component. 
+@component
+**The ModalWidgetForm component is used to display and manage the form for the selected widget in the CollectionWidget component** 
 It handles widget configuration, permissions, and specific options.
 -->
 
@@ -17,7 +18,7 @@ It handles widget configuration, permissions, and specific options.
 	import * as m from '@src/paraglide/messages';
 
 	// Stores
-	import { collectionValue, targetWidget } from '@root/src/stores/collectionStore.svelte';
+	import { collectionValue, targetWidget } from '@src/stores/collectionStore.svelte';
 
 	import { getModalStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();

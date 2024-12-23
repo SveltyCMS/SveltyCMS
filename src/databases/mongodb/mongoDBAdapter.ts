@@ -1,30 +1,33 @@
 /**
  * @file src/databases/mongodb/mongoDBAdapter.ts
- * @description MongoDB adapter for CMS database operations and user preferences.
+ * @description MongoDB adapter for CMS database operations, user preferences, and virtual folder management.
  *
  * This module provides an implementation of the `dbInterface` for MongoDB, handling:
- * - MongoDB connection management with retry mechanism
- * - CRUD operations for collections, drafts, revisions, and widgets
- * - Management of media storage and retrieval
- * - User, role, and permission management
- * - Management of system preferences including user screen sizes and layout preferences
+ * - MongoDB connection management with a robust retry mechanism
+ * - CRUD operations for collections, documents, drafts, revisions, and widgets
+ * - Management of media storage, retrieval, and virtual folders
+ * - User authentication and session management
+ * - Management of system preferences including user screen sizes and widget layouts
+ * - Theme management
+ * - Content Structure Management
  *
  * Key Features:
- * - Automatic reconnection with retry logic for MongoDB
- * - Schema definitions and model creation for various collections (e.g., Drafts, Revisions, Widgets)
- * - Handling of media files with a schema for different media types
+ * - Automatic reconnection with exponential backoff for MongoDB
+ * - Schema definitions and model creation for various collections (e.g., Drafts, Revisions, Widgets, Media)
+ * - Robust handling of media files with specific schemas for different media types
  * - Management of authentication-related models (e.g., User, Token, Session)
- * - Default and custom theme management with database operations
+ * - Default and custom theme management with database storage
  * - User preferences storage and retrieval, including layout and screen size information
+ * - Virtual folder management for organizing media
+ * - Flexible Content Structure management for pages and collections
  *
  * Usage:
  * This adapter is utilized when the CMS is configured to use MongoDB, providing a
  * database-agnostic interface for various database operations within the CMS.
  * The adapter supports complex queries, schema management, and handles error logging
- * and connection retries.
+ * and connection retries. It integrates fully with the CMS for all data management needs.
  */
 
-import { privateEnv } from '@root/config/private';
 import { browser } from '$app/environment';
 import path from 'path';
 import type { Unsubscriber } from 'svelte/store';
@@ -35,14 +38,26 @@ import type { VirtualFolderUpdateData } from '@src/types/virtualFolder';
 // Database
 import mongoose, { Schema } from 'mongoose';
 import type { Document, Model, FilterQuery, UpdateQuery } from 'mongoose';
-import type { dbInterface, Draft, Revision, Theme, Widget, SystemPreferences, SystemVirtualFolder } from '../dbInterface';
+import type { dbInterface, Draft, Revision, Theme, Widget, DocumentContent } from '../dbInterface';
 
+// Authentication Models
 import { UserSchema } from '@src/auth/mongoDBAuth/userAdapter';
 import { TokenSchema } from '@src/auth/mongoDBAuth/tokenAdapter';
 import { SessionSchema } from '@src/auth/mongoDBAuth/sessionAdapter';
-import type { Schema as CollectionConfig } from '@src/collections/types';
 
-// Media
+// Database Models
+import { ContentStructureModel } from './models/contentStructure';
+import type { ContentStructureNode } from './models/contentStructure';
+import { DraftModel } from './models/draft';
+import { RevisionModel } from './models/revision';
+import { ThemeModel } from './models/theme';
+import { WidgetModel, widgetSchema } from './models/widget';
+import { mediaSchema } from './models/media';
+import { SystemVirtualFolderModel } from './models/systemVirtualFolder';
+import { SystemPreferencesModel } from './models/systemPreferences';
+
+// Types
+import type { CollectionConfig } from '@src/content/types';
 import type { MediaBase, MediaType } from '@utils/media/mediaModels';
 
 // Theme
@@ -54,153 +69,42 @@ import { logger } from '@utils/logger.svelte';
 // Widget Manager
 import { initializeWidgets, getWidgets } from '@components/widgets/widgetManager.svelte';
 
-// Define the media schema for different media types
-const mediaSchema = new Schema(
-  {
-    hash: { type: String, required: true }, // The hash of the media
-    thumbnail: {
-      url: { type: String, required: true }, // The URL of the media
-      altText: { type: String }, // The alt text for the media
-      name: { type: String }, // The name for the media
-      type: { type: String }, // The type for the media
-      size: { type: Number }, // The size for the media
-      width: { type: Number }, // The width for the media
-      height: { type: Number } // The height for the media
-    } // The thumbnails of media
-    // url: { type: String, required: true }, // The URL of the media
-    // altText: { type: String, required: true }, // The alt text for the media
-  },
-  { timestamps: false, collection: 'media' } // Explicitly set the collection name
-);
-
-// Define the Draft model if it doesn't exist already
-const DraftModel =
-  mongoose.models?.Draft ||
-  mongoose.model<Draft>(
-    'Draft',
-    new Schema(
-      {
-        originalDocumentId: { type: Schema.Types.Mixed, required: true }, // Or Schema.Types.String
-        collectionId: { type: Schema.Types.Mixed, required: true }, // The ID of the collection
-        content: { type: Schema.Types.Mixed, required: true }, // The content of the draft
-        status: { type: String, enum: ['draft', 'published'], default: 'draft' }, // Status of the draft
-        createdBy: { type: Schema.Types.Mixed, ref: 'auth_users', required: true } // The user who created the draft
-      },
-      { timestamps: false, collection: 'collection_drafts' }
-    )
-  );
-
-// Define the Revision model if it doesn't exist already
-const RevisionModel =
-  mongoose.models?.Revision ||
-  mongoose.model<Revision>(
-    'Revision',
-    new Schema(
-      {
-        collectionId: { type: Schema.Types.Mixed, required: true, ref: 'collections' }, // ID of the collection
-        documentId: { type: Schema.Types.Mixed, required: true }, // ID of the document
-        createdBy: { type: Schema.Types.Mixed, ref: 'auth_users', required: true }, // ID of the user who created the revision
-        content: { type: Schema.Types.Mixed, required: true }, // Content of the revision
-        version: { type: Number, required: true } // Version number of the revision
-      },
-      { timestamps: false, collection: 'collection_revisions' }
-    )
-  );
-
-// Create the Theme model if it doesn't exist already
-const ThemeModel =
-  mongoose.models?.Theme ||
-  mongoose.model<Theme>(
-    'Theme',
-    new Schema(
-      {
-        name: { type: String, required: true, unique: true }, // Name of the theme
-        path: { type: String, required: true }, // Path to the theme file
-        isDefault: { type: Boolean, default: false } // Whether the theme is the default theme
-      },
-      { timestamps: true, collection: 'system_themes' }
-    )
-  );
-
-// Create the Widget model if it doesn't exist already
-const WidgetModel =
-  mongoose.models?.Widget ||
-  mongoose.model<Widget>(
-    'Widget',
-    new Schema(
-      {
-        name: { type: String, required: true, unique: true }, // Name of the widget
-        isActive: { type: Boolean, default: true } // Whether the widget is active
-      },
-      { timestamps: false, collection: 'system_widgets' }
-    )
-  );
-
-// Define the System Preferences schema for user layout and screen size
-const SystemPreferencesModel =
-  mongoose.models?.SystemPreferences ||
-  mongoose.model<SystemPreferences>(
-    'SystemPreferences',
-    new Schema(
-      {
-        _id: { type: String, required: true }, // The ID of the SystemPreferences
-        name: { type: String, required: true }, // The name of the SystemPreferences
-        isActive: { type: Boolean, default: true } // Whether the SystemPreferences is active
-      },
-      { timestamps: false, collection: 'system_preferences' } // Explicitly set the collection name
-    )
-  );
-
-// Define the SystemVirtualFolder model only if it doesn't already exist
-const SystemVirtualFolderModel =
-  mongoose.models?.SystemVirtualFolder ||
-  mongoose.model<SystemVirtualFolder>(
-    'SystemVirtualFolder',
-    new Schema(
-      {
-        name: { type: String, required: true },
-        parent: { type: Schema.Types.ObjectId, ref: 'SystemVirtualFolder', default: null }, // Allow null for root folders
-        path: { type: String, required: true }
-      },
-      { collection: 'system_virtualfolders' } // Explicitly set the collection name to system_virtualfolders
-    )
-  );
-
 export class MongoDBAdapter implements dbInterface {
   private unsubscribe: Unsubscriber | undefined;
   private collectionsInitialized = false;
 
-  // Helper method to recursively scan directories for compiled collections
-  private async scanDirectoryForCollections(dirPath: string): Promise<string[]> {
-    const collectionFiles: string[] = [];
-    try {
-      const entries = await import('fs').then((fs) => fs.promises.readdir(dirPath, { withFileTypes: true }));
-      logger.debug(`Scanning directory: \x1b[34m${dirPath}\x1b[0m`);
+	// Connect to MongoDB
 
-      for (const entry of entries) {
-        const fullPath = path.posix.join(dirPath, entry.name);
-        if (entry.isDirectory()) {
-          // Recursively scan subdirectories
-          logger.debug(`Found subdirectory: \x1b[34m${entry.name}\x1b[0m`);
-          const subDirFiles = await this.scanDirectoryForCollections(fullPath);
-          collectionFiles.push(...subDirFiles);
-        } else if (entry.isFile() && entry.name.endsWith('.js')) {
-          logger.debug(`Found compiled collection file:  \x1b[34m${entry.name}\x1b[0m`);
-          collectionFiles.push(fullPath);
-        }
-      }
-    } catch (error) {
-      logger.error(`Error scanning directory ${dirPath}: ${error.message}`);
-    }
-    return collectionFiles;
-  }
+	// Helper method to recursively scan directories for compiled content structure files
+	private async scanDirectoryForContentStructure(dirPath: string): Promise<string[]> {
+		const collectionFiles: string[] = [];
+		try {
+			const entries = await import('fs').then((fs) => fs.promises.readdir(dirPath, { withFileTypes: true }));
+			logger.debug(`Scanning directory: \x1b[34m${dirPath}\x1b[0m`);
+			for (const entry of entries) {
+				const fullPath = path.posix.join(dirPath, entry.name);
+				if (entry.isDirectory()) {
+					// Recursively scan subdirectories
+					logger.debug(`Found subdirectory: \x1b[34m${entry.name}\x1b[0m`);
+					const subDirFiles = await this.scanDirectoryForContentStructure(fullPath);
+					collectionFiles.push(...subDirFiles);
+				} else if (entry.isFile() && entry.name.endsWith('.js')) {
+					logger.debug(`Found compiled collection file:  \x1b[34m${entry.name}\x1b[0m`);
+					collectionFiles.push(fullPath);
+				}
+			}
+		} catch (error) {
+			logger.error(`Error scanning directory ${dirPath}: ${error.message}`);
+		}
+		return collectionFiles;
+	}
 
-  // Sync collections with database
-  async syncCollections(): Promise<void> {
-    if (browser) {
-      logger.debug('Skipping collection sync in browser environment');
-      return;
-    }
+	// Sync content structure with database
+	async syncContentStructure(): Promise<void> {
+		if (browser) {
+			logger.debug('Skipping content structure sync in browser environment');
+			return;
+		}
 
     try {
       // Initialize widgets globally
@@ -211,176 +115,166 @@ export class MongoDBAdapter implements dbInterface {
         logger.debug('Available widgets:', Object.keys(globalThis.widgets));
       }
 
-      // Use posix paths for cross-platform compatibility
-      // Get path to compiled collections directory
-      const compiledCollectionsPath = path.posix.resolve(process.cwd(), 'collections');
-      logger.debug('Compiled collections path:', compiledCollectionsPath);
+			// Use posix paths for cross-platform compatibility and reference 'compiledCollections'
+			const compiledCollectionsPath = path.posix.resolve(process.cwd(), 'compiledCollections');
+			logger.debug('Compiled collections path:', compiledCollectionsPath);
 
-      // Check if collections directory exists
-      try {
-        await import('fs').then((fs) => fs.promises.access(compiledCollectionsPath));
-      } catch (error: unknown) {
-        logger.error(`Compiled collections directory not found at ${compiledCollectionsPath}:`, { error });
-        return;
-      }
+			// Check if compiledCollections directory exists
+			try {
+				await import('fs').then((fs) => fs.promises.access(compiledCollectionsPath));
+			} catch (error: unknown) {
+				logger.error(`Compiled collections directory not found at ${compiledCollectionsPath}:`, { error });
+				return;
+			}
 
-      // Track all valid collection UUIDs
-      const validCollectionUUIDs = new Set<string>();
+			// Track all valid collection UUIDs
+			const validCollectionUUIDs = new Set<string>();
+			const validPaths = new Set<string>();
 
-      // Known collection directories (should now match your compiled structure)
-      const collectionDirs = ['Collections', 'Menu'];
+			// Scan all collections recursively
+			const collectionFiles = await this.scanDirectoryForContentStructure(compiledCollectionsPath);
+			logger.debug(
+				`Found \x1b[34m${collectionFiles.length}\x1b[0m compiled collection files in \x1b[34m${compiledCollectionsPath}\x1b[0m and subdirectories:`,
+				collectionFiles
+			);
 
-      for (const dir of collectionDirs) {
-        const dirPath = path.posix.join(compiledCollectionsPath, dir); // Use compiled path
-        try {
-          logger.debug(`Processing directory: \x1b[34m${dir}\x1b[0m`);
+			// Process collections first
+			for (const filePath of collectionFiles) {
+				try {
+					logger.debug(`Processing compiled collection file: \x1b[34m${filePath}\x1b[0m`);
 
-          // Scan for compiled .js files
-          const collectionFiles = await this.scanDirectoryForCollections(dirPath); // Scan compiled directory
-          logger.debug(
-            `Found \x1b[34m${collectionFiles.length}\x1b[0m compiled collection files in \x1b[34m${dirPath}\x1b[0m directory and subdirectories:`,
-            collectionFiles
-          );
+					// Read the file content to get UUID
+					const content = await import('fs').then((fs) => fs.promises.readFile(filePath, 'utf8'));
+					const uuidMatch = content.match(/\/\/\s*UUID:\s*([a-f0-9-]{36})/i);
+					const uuid = uuidMatch ? uuidMatch[1] : null;
 
-          for (const filePath of collectionFiles) {
-            try {
-              logger.debug(`Processing compiled collection file: \x1b[34m${filePath}\x1b[0m`);
+					if (!uuid) {
+						logger.error(`Missing UUID in compiled schema for ${filePath}`);
+						continue;
+					}
 
-              // Read the compiled file content to get UUID
-              const content = await import('fs').then((fs) => fs.promises.readFile(filePath, 'utf8'));
-              const uuidMatch = content.match(/\/\/\s*UUID:\s*([a-f0-9-]{36})/i);
-              const uuid = uuidMatch ? uuidMatch[1] : null;
+					logger.debug(`Found UUID in file: \x1b[34m${uuid}\x1b[0m`);
+					validCollectionUUIDs.add(uuid);
 
-              if (!uuid) {
-                logger.error(`No UUID found in compiled collection file: ${filePath}`);
-                continue;
-              }
+					// Import the collection using the file path
+					const collection = await import(/* @vite-ignore */ filePath + `?update=${Date.now()}`);
+					const collectionConfig = collection.default || collection.schema;
 
-              logger.debug(`Found UUID in file: \x1b[34m${uuid}\x1b[0m`);
+					logger.debug(`Collection config for ${filePath}:`, JSON.stringify(collectionConfig, null, 2));
 
-              // Import the collection using the file path
-              const collection = await import(/* @vite-ignore */ filePath + `?update=${Date.now()}`);
-              const collectionConfig = collection.default || collection.schema;
+					if (collectionConfig) {
+						// Get the relative path from the collections directory
+						const relativePath = path.posix.relative(compiledCollectionsPath, filePath);
+						const dirPath = path.posix.dirname(relativePath);
+						// change to ensure you get the correct path from collections
+						const contentNodePath = `/collections/${dirPath}`;
+						validPaths.add(contentNodePath);
 
-              if (collectionConfig) {
-                // Add UUID to config
-                collectionConfig.id = uuid;
+						logger.debug(`Creating/Updating content structure node with path: \x1b[34m${contentNodePath}\x1b[0m`);
 
-                // Get collection name from the file path (adjust if needed)
-                const parsedPath = path.posix.parse(filePath);
-                const collectionName = parsedPath.name;
+						// Create or update the content structure for the collection
+						await this.createOrUpdateContentStructure({
+							_id: uuid,
+							name: collectionConfig.name,
+							path: contentNodePath,
+							icon: collectionConfig.icon || 'bi:file-text',
+							isCollection: true,
+							collectionConfig
+						});
 
-                // Add name to config if not present
-                if (!collectionConfig.name) {
-                  collectionConfig.name = collectionName;
-                }
+						// Create or update the schema model for this collection
+						await this.createCollectionModel(collectionConfig);
+						logger.debug(`Successfully created/synced collection model for \x1b[34m${collectionConfig.name}\x1b[0m`);
+					}
+				} catch (error) {
+					logger.error(`Error processing collection ${filePath}:`, error);
+				}
+			}
 
-                validCollectionUUIDs.add(uuid);
+			// Then process folders
+			const processedPaths = new Set<string>();
+			for (const fullPath of validPaths) {
+				const parts = fullPath.split('/').filter(Boolean);
+				let currentPath = '';
 
-                logger.debug(`Collection config for \x1b[34m${collectionName}\x1b[0m:`, {
-                  name: collectionConfig.name,
-                  uuid: uuid,
-                  fields: collectionConfig.fields?.length || 0
-                });
+				for (let i = 0; i < parts.length; i++) {
+					currentPath = `/${parts.slice(0, i + 1).join('/')}`;
 
-                await this.createCollectionModel(collectionConfig);
-                logger.debug(`Successfully created/synced collection model for \x1b[34m${collectionName}\x1b[0m`);
-              } else {
-                logger.error(`Collection file ${filePath} does not export a valid schema or default export`);
-              }
-            } catch (error) {
-              logger.error(`Error importing collection ${filePath}:`, error);
-            }
-          }
-        } catch (error) {
-          logger.error(`Error processing directory ${dir}:`, error);
-        }
-      }
+					if (!processedPaths.has(currentPath)) {
+						processedPaths.add(currentPath);
 
-      // Check for orphaned collections in MongoDB
-      const collections = await mongoose.connection.db.listCollections().toArray();
-      logger.debug('Current MongoDB collections:', collections.map(c => c.name));
+						// Don't create a node for the actual collection path
+						if (!validPaths.has(currentPath)) {
+							const folderName = parts[i];
+							const existingNode = await ContentStructureModel.findOne({ path: currentPath }, '_id').lean().exec();
+							const nodeId = existingNode ? existingNode._id : crypto.randomUUID();
 
-      for (const collection of collections) {
-        if (collection.name.startsWith('collection_')) {
-          const uuid = collection.name.replace('collection_', '');
-          if (!validCollectionUUIDs.has(uuid)) {
-            logger.warn(
-              `⚠️ Found orphaned collection in database: ${collection.name}. This collection exists in MongoDB but has no corresponding collection file. Data will be preserved but you should investigate.`
-            );
-          }
-        }
-      }
+							await this.createOrUpdateContentStructure({
+								_id: nodeId,
+								name: folderName,
+								path: currentPath,
+								icon: 'bi:folder',
+								isCollection: false
+							});
+							logger.debug(`Created folder structure node: ${currentPath}`);
+						}
+					}
+				}
+			}
 
-      logger.debug('Valid collection UUIDs:', Array.from(validCollectionUUIDs));
-      logger.debug('Collection sync completed successfully');
-    } catch (error) {
-      logger.error('Error syncing collections:', error);
-      throw new Error('Failed to sync collections');
-    }
-  }
+			// Clean up invalid collection nodes
+			const invalidNodes = await ContentStructureModel.find({
+				isCollection: true,
+				_id: { $nin: Array.from(validCollectionUUIDs) }
+			}, '_id').lean().exec();
 
-  // Connect to MongoDB
-  async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
-    const isAtlas = privateEnv.DB_HOST.startsWith('mongodb+srv://');
+			if (invalidNodes.length > 0) {
+				logger.info(`Found \x1b[34m${invalidNodes.length}\x1b[0m invalid content structure nodes. Cleaning up...`);
+				await ContentStructureModel.deleteMany({
+					isCollection: true,
+					_id: { $nin: Array.from(validCollectionUUIDs) }
+				});
+			}
 
-    // Construct the connection string
-    let connectionString: string;
-    if (isAtlas) {
-      connectionString = `${privateEnv.DB_HOST}/${privateEnv.DB_NAME}`;
-    } else {
-      connectionString = `${privateEnv.DB_HOST}${privateEnv.DB_PORT ? `:${privateEnv.DB_PORT}` : ''}/${privateEnv.DB_NAME}`;
-    }
+			logger.info('Content structure sync completed successfully');
+		} catch (error) {
+			logger.error('Error syncing content structure:', error);
+		}
+	}
 
-    // Set connection options
-    const options: mongoose.ConnectOptions = {
-      authSource: isAtlas ? undefined : 'admin', // Only use authSource for local connection
-      user: privateEnv.DB_USER,
-      pass: privateEnv.DB_PASSWORD,
-      dbName: privateEnv.DB_NAME,
-      maxPoolSize: privateEnv.DB_POOL_SIZE || 5,
-      retryWrites: true,
-      serverSelectionTimeoutMS: 5000 // 5 seconds timeout for server selection
-    };
+	// Create or update content structure node
+	// Create or update content structure node
+	async createOrUpdateContentStructure(contentData: {
+		_id: string;
+		name: string;
+		path: string;
+		icon?: string;
+		isCollection?: boolean;
+		collectionConfig?: unknown;
+	}): Promise<void> {
+		try {
+			const existingNode = await ContentStructureModel.findOne({ path: contentData.path }).exec();
+			if (existingNode) {
+				// Update existing node
+				existingNode.name = contentData.name;
+				existingNode.path = contentData.path;
+				existingNode.icon = contentData.icon;
+				existingNode.isCollection = contentData.isCollection;
+				existingNode.collectionConfig = contentData.collectionConfig;
 
-    // Use Mongoose's built-in retry logic
-    mongoose.connection.on('connected', () => {
-      logger.info('MongoDB connection established successfully.');
-    });
-
-    mongoose.connection.on('disconnected', () => {
-      logger.warn('MongoDB connection lost. Attempting to reconnect...');
-    });
-
-    mongoose.connection.on('error', (err) => {
-      logger.error(`MongoDB connection error: ${err.message}`);
-    });
-
-    let lastError: unknown;
-    for (let i = 1; i <= attempts; i++) {
-      try {
-        await mongoose.connect(connectionString, options);
-        logger.debug(`Successfully connected to MongoDB database: \x1b[34m${privateEnv.DB_NAME}\x1b[0m`);
-
-        // Only sync if collections are not present
-        const collections = await mongoose.connection.db.listCollections().toArray();
-
-        if (collections.length === 0) {
-          await this.syncCollections();
-        }
-
-        return;
-      } catch (error: unknown) {
-        lastError = error;
-        if (i === attempts) {
-          logger.error(`Failed to connect to MongoDB after ${attempts} attempts: ${lastError}`);
-          throw new Error('MongoDB connection failed');
-        }
-        logger.warn(`Connection attempt ${i}/${attempts} failed, retrying...`);
-        await new Promise((resolve) => setTimeout(resolve, 1000 * i)); // Exponential backoff
-      }
-    }
-  }
+				await existingNode.save();
+				logger.info(`Updated content structure node: \x1b[34m${contentData.path}\x1b[0m`);
+			} else {
+				// Create new node
+				const newNode = new ContentStructureModel(contentData);
+				await newNode.save();
+				logger.info(`Created content structure node: \x1b[34m${contentData.path}\x1b[0m`);
+			}
+		} catch (error) {
+			logger.error(`Error creating/updating content structure node: ${error.message}`);
+			throw new Error(`Error creating/updating content structure node`);
+		}
+	}
 
   // Update generateId to always return string
   generateId(): string {
@@ -392,515 +286,408 @@ export class MongoDBAdapter implements dbInterface {
     return new mongoose.Types.ObjectId(id);
   }
 
-  // Get collection models
-  async getCollectionModels(): Promise<Record<string, Model<Document>>> {
+	// Get collection models
+	async getCollectionModels(): Promise<Record<string, Model<Document>>> {
+		if (this.collectionsInitialized) {
+			logger.debug('Collections already initialized, returning existing models.');
+			return mongoose.models as Record<string, Model<Document>>;
+		}
+		try {
+			// Initialize base models without waiting for collections
+			const baseModels: Record<string, Model<Document>> = {};
+			// Mark collections as initialized to prevent circular dependency
+			this.collectionsInitialized = true;
+			// Return base models - collections will be added later as needed
+			return baseModels;
+		} catch (error) {
+			logger.error('Failed to get collection models: ' + error.message);
+			return {};
+		}
 
-    if (this.collectionsInitialized) {
-      logger.debug('Collections already initialized, returning existing models.');
-      return mongoose.models as Record<string, Model<Document>>;
-    }
+	}
+	// Set up authentication models
+	setupAuthModels(): void {
+		try {
+			this.setupModel('auth_tokens', TokenSchema);
+			this.setupModel('auth_users', UserSchema);
+			this.setupModel('auth_sessions', SessionSchema);
+			logger.info('Authentication models set up successfully.');
+		} catch (error) {
+			logger.error('Failed to set up authentication models: ' + error.message);
+			throw Error('Failed to set up authentication models');
+		}
+	}
 
-    try {
-      // Initialize base models without waiting for collections
-      const baseModels: Record<string, Model<Document>> = {};
+	// Helper method to set up models if they don't already exist
+	private setupModel(name: string, schema: Schema) {
+		if (!mongoose.models[name]) {
+			mongoose.model(name, schema);
+			logger.debug(`\x1b[34m${name}\x1b[0m model created.`);
+		} else {
+			logger.debug(`\x1b[34m${name}\x1b[0m model already exists.`);
+		}
+	}
 
-      // Mark collections as initialized to prevent circular dependency
-      this.collectionsInitialized = true;
+	// Set up media models
+	setupMediaModels(): void {
+		const mediaSchemas = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote', 'media_collection'];
+		mediaSchemas.forEach((schemaName) => {
+			this.setupModel(schemaName, mediaSchema);
+		});
+		logger.info('Media models set up successfully.');
+	}
 
-      // Return base models - collections will be added later as needed
-      return baseModels;
-    } catch (error) {
-      logger.error('Failed to get collection models: ' + error.message);
-      return {};
-    }
+	// Set up widget models
+	setupWidgetModels(): void {
+		// This will ensure that the Widget model is created or reused
+		if (!mongoose.models.Widget) {
+			mongoose.model('Widget', widgetSchema);
+			logger.info('Widget model created.');
+		} else {
+			logger.info('Widget model already exists.');
+		}
+		logger.info('Widget models set up successfully.');
+	}
 
-  }
+	// Implementing findOne method
+	async findOne<T extends DocumentContent = DocumentContent>(collection: string, query: FilterQuery<T>): Promise<T | null> {
+		try {
+			const model = mongoose.models[collection] as Model<T>;
+			if (!model) {
+				logger.error(`Collection ${collection} does not exist.`);
+				throw new Error(`Collection ${collection} does not exist.`);
+			}
+			return await model.findOne(query).lean().exec();
+		} catch (error) {
+			logger.error(`Error in findOne for collection ${collection}:`, { error });
+			throw new Error(`Error in findOne for collection ${collection}`);
+		}
+	}
 
-  // Set up authentication models
-  setupAuthModels(): void {
-    try {
-      this.setupModel('auth_tokens', TokenSchema);
-      this.setupModel('auth_users', UserSchema);
-      this.setupModel('auth_sessions', SessionSchema);
-      logger.info('Authentication models set up successfully.');
-    } catch (error) {
-      logger.error('Failed to set up authentication models: ' + error.message);
-      throw Error('Failed to set up authentication models');
-    }
-  }
+	// Implementing findMany method
+	async findMany<T extends DocumentContent = DocumentContent>(collection: string, query: FilterQuery<T>): Promise<T[]> {
+		try {
+			const model = mongoose.models[collection] as Model<T>;
+			if (!model) {
+				logger.error(`findMany failed. Collection ${collection} does not exist.`);
+				throw new Error(`findMany failed. Collection ${collection} does not exist.`);
+			}
+			return await model.find(query).lean().exec();
+		} catch (error) {
+			logger.error(`Error in findMany for collection ${collection}:`, { error });
+			throw new Error(`Error in findMany for collection ${collection}`);
+		}
+	}
 
+	// Implementing insertOne method
+	async insertOne<T extends DocumentContent = DocumentContent>(collection: string, doc: Partial<T>): Promise<T> {
+		try {
+			const model = mongoose.models[collection] as Model<T>;
+			if (!model) {
+				logger.error(`insertOne failed. Collection ${collection} does not exist.`);
+				throw new Error(`insertOne failed. Collection ${collection} does not exist.`);
+			}
+			return await model.create(doc);
+		} catch (error) {
+			logger.error(`Error inserting document into ${collection}:`, { error });
+			throw new Error(`Error inserting document into ${collection}`);
+		}
+	}
 
+	// Implementing insertMany method
+	async insertMany<T extends DocumentContent = DocumentContent>(collection: string, docs: Partial<T>[]): Promise<T[]> {
+		try {
+			const model = mongoose.models[collection] as Model<T>;
+			if (!model) {
+				logger.error(`insertMany failed. Collection ${collection} does not exist.`);
+				throw new Error(`insertMany failed. Collection ${collection} does not exist.`);
+			}
+			return await model.insertMany(docs);
+		} catch (error) {
+			logger.error(`Error inserting many documents into ${collection}:`, { error });
+			throw new Error(`Error inserting many documents into ${collection}`);
+		}
+	}
 
-  // Helper method to set up models if they don't already exist
-  private setupModel(name: string, schema: Schema) {
-    if (!mongoose.models[name]) {
-      mongoose.model(name, schema);
-      logger.debug(`${name} model created.`);
-    } else {
-      logger.debug(`\x1b[34m${name}\x1b[0m model already exists.`);
-    }
-  }
+	// Implementing updateOne method
+	async updateOne<T extends DocumentContent = DocumentContent>(
+		collection: string,
+		query: FilterQuery<T>,
+		update: UpdateQuery<T>
+	): Promise<T> {
+		try {
+			const model = mongoose.models[collection] as Model<T>;
+			if (!model) {
+				logger.error(`updateOne failed. Collection ${collection} does not exist.`);
+				throw new Error(`updateOne failed. Collection ${collection} does not exist.`);
+			}
 
-  // Set up media models
-  setupMediaModels(): void {
-    const mediaSchemas = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote', 'media_collection'];
-    mediaSchemas.forEach((schemaName) => {
-      this.setupModel(schemaName, mediaSchema);
-    });
-    logger.debug('Media models set up successfully.');
-  }
+			const result = await model.findOneAndUpdate(query, update, { new: true, strict: false }).lean().exec();
 
-  // Set up widget models
-  setupWidgetModels(): void {
-    // This will ensure that the Widget model is created or reused
-    if (!mongoose.models.Widget) {
-      mongoose.model('Widget', WidgetModel.schema);
-      logger.info('Widget model created.');
-    } else {
-      logger.info('Widget model already exists.');
-    }
-    logger.info('Widget models set up successfully.');
-  }
+			if (!result) {
+				throw new Error(`No document found to update with query: ${JSON.stringify(query)}`);
+			}
 
+			return result;
+		} catch (error) {
+			logger.error(`Error updating document in ${collection}:`, { error });
+			throw new Error(`Error updating document in ${collection}`);
+		}
+	}
 
-  // Implementing findOne method
-  async findOne<T extends Document>(collection: string, query: FilterQuery<T>): Promise<T | null> {
-    try {
-      const model = mongoose.models[collection] as Model<T>;
-      if (!model) {
-        logger.error(`Collection ${collection} does not exist.`);
-        throw Error(`Collection ${collection} does not exist.`);
-      }
-      const result = await model.findOne(query).lean().exec();
-      return result as T | null; // Explicitly cast to T
-    } catch (error: unknown) {
-      logger.error(`Error in findOne for collection ${collection}:`, { error });
-      throw new Error(`Error in findOne for collection ${collection}`);
-    }
-  }
+	// Implementing updateMany method
+	async updateMany<T extends DocumentContent = DocumentContent>(
+		collection: string,
+		query: FilterQuery<T>,
+		update: UpdateQuery<T>
+	): Promise<T[]> {
+		try {
+			const model = mongoose.models[collection] as Model<T>;
+			if (!model) {
+				logger.error(`updateMany failed. Collection ${collection} does not exist.`);
+				throw new Error(`updateMany failed. Collection ${collection} does not exist.`);
+			}
 
-  // Implementing findMany method
-  async findMany<T extends Document>(collection: string, query: FilterQuery<T>): Promise<T[]> {
-    const model = mongoose.models[collection] as Model<T>;
-    if (!model) {
-      logger.error(`findMany failed. Collection ${collection} does not exist.`);
-      throw Error(`findMany failed. Collection ${collection} does not exist.`);
-    }
-    const results = await model.find(query).lean().exec();
-    return results as T[]; // Explicitly cast to T[]
-  }
+			const result = await model.updateMany(query, update, { strict: false }).lean().exec();
+			return Object.values(result) as T[]; // Adjust based on actual result structure
+		} catch (error) {
+			logger.error(`Error updating many documents in ${collection}:`, { error });
+			throw new Error(`Error updating many documents in ${collection}`);
+		}
+	}
 
-  // Implementing insertOne method
-  async insertOne<T extends Document>(collection: string, doc: Partial<T>): Promise<T> {
-    const model = mongoose.models[collection] as Model<T>;
-    if (!model) {
-      logger.error(`insertOne failed. Collection ${collection} does not exist.`);
-      throw Error(`insertOne failed. Collection ${collection} does not exist.`);
-    }
-    try {
-      const result = await model.create(doc);
-      return result as T; // Explicitly cast to T
-    } catch (error) {
-      logger.error(`Error inserting document into ${collection}: ${error.message}`);
-      throw Error(`Error inserting document into ${collection}`);
-    }
-  }
+	// Implementing deleteOne method
+	async deleteOne(collection: string, query: FilterQuery<Document>): Promise<number> {
+		try {
+			const model = mongoose.models[collection] as Model<Document>;
+			if (!model) {
+				throw new Error(`Collection ${collection} not found`);
+			}
 
-  // Implementing insertMany method
-  async insertMany<T extends Document>(collection: string, docs: Partial<T>[]): Promise<T[]> {
-    const model = mongoose.models[collection] as Model<T>;
-    if (!model) {
-      logger.error(`insertMany failed. Collection ${collection} does not exist.`);
-      throw Error(`insertMany failed. Collection ${collection} does not exist.`);
-    }
-    try {
-      const result = await model.insertMany(docs);
-      return result as T[];
-    } catch (error) {
-      logger.error(`Error inserting many documents into ${collection}: ${error.message}`);
-      throw Error(`Error inserting many documents into ${collection}`);
-    }
-  }
+			const result = await model.deleteOne(query).exec();
+			return result.deletedCount ?? 0;
+		} catch (error) {
+			logger.error(`Error deleting document from ${collection}:`, { error });
+			throw new Error(`Error deleting document from ${collection}`);
+		}
+	}
 
-  // Implementing updateOne method
-  async updateOne<T extends Document>(
-    collection: string,
-    query: FilterQuery<T>,
-    update: UpdateQuery<T>
-  ): Promise<{
-    acknowledged: boolean;
-    modifiedCount: number;
-    upsertedId: mongoose.Types.ObjectId | null;
-    upsertedCount: number;
-    matchedCount: number;
-  }> {
-    const model = mongoose.models[collection] as Model<T>;
-    if (!model) {
-      logger.error(`updateOne failed. Collection ${collection} does not exist.`);
-      throw Error(`updateOne failed. Collection ${collection} does not exist.`);
-    }
-    try {
-      const result = await model.updateOne(query, update, { strict: false }); // strict: false for now to avoid schema errors
-      return result;
-    } catch (error) {
-      logger.error(`Error updating document in ${collection}: ${error.message}`);
-      throw Error(`Error updating document in ${collection}`);
-    }
-  }
+	// Implementing deleteMany method
+	async deleteMany(collection: string, query: FilterQuery<Document>): Promise<number> {
+		try {
+			const model = mongoose.models[collection] as Model<Document>;
+			if (!model) {
+				throw new Error(`Collection ${collection} not found`);
+			}
 
-  // Implementing updateMany method
-  async updateMany<T extends Document>(
-    collection: string,
-    query: FilterQuery<T>,
-    update: UpdateQuery<T>
-  ): Promise<{
-    acknowledged: boolean;
-    modifiedCount: number;
-    upsertedId: mongoose.Types.ObjectId | null;
-    upsertedCount: number;
-    matchedCount: number;
-  }> {
-    const model = mongoose.models[collection] as Model<T>;
-    if (!model) {
-      logger.error(`updateMany failed. Collection ${collection} does not exist.`);
-      throw Error(`updateMany failed. Collection ${collection} does not exist.`);
-    }
-    try {
-      const result = await model.updateMany(query, update).exec();
-      return result;
-    } catch (error) {
-      logger.error(`Error updating many documents in ${collection}: ${error.message}`);
-      throw Error(`Error updating many documents in ${collection}`);
-    }
-  }
+			const result = await model.deleteMany(query).exec();
+			return result.deletedCount ?? 0;
+		} catch (error) {
+			logger.error(`Error deleting many documents from ${collection}:`, { error });
+			throw new Error(`Error deleting many documents from ${collection}`);
+		}
+	}
 
-  // Implementing deleteOne method
-  async deleteOne<T extends Document>(collection: string, query: FilterQuery<T>): Promise<number> {
-    const model = mongoose.models[collection] as Model<T>;
-    if (!model) {
-      throw Error(`Collection ${collection} not found`);
-    }
-    try {
-      const result = await model.deleteOne(query).exec();
-      return result.deletedCount ?? 0;
-    } catch (error) {
-      logger.error(`Error deleting document from ${collection}: ${error.message}`);
-      throw Error(`Error deleting document from ${collection}`);
-    }
-  }
+	// Implementing countDocuments method
+	async countDocuments(collection: string, query: FilterQuery<Document> = {}): Promise<number> {
+		try {
+			const model = mongoose.models[collection] as Model<Document>;
+			if (!model) {
+				logger.error(`countDocuments failed. Collection ${collection} does not exist.`);
+				throw new Error(`countDocuments failed. Collection ${collection} does not exist.`);
+			}
 
-  // Implementing deleteMany method
-  async deleteMany<T extends Document>(collection: string, query: FilterQuery<T>): Promise<number> {
-    const model = mongoose.models[collection] as Model<T>;
-    if (!model) {
-      throw Error(`Collection ${collection} not found`);
-    }
-    try {
-      const result = await model.deleteMany(query).exec();
-      return result.deletedCount ?? 0;
-    } catch (error) {
-      logger.error(`Error deleting many documents from ${collection}: ${error.message}`);
-      throw Error(`Error deleting many documents from ${collection}`);
-    }
-  }
+			return await model.countDocuments(query).exec();
+		} catch (error) {
+			logger.error(`Error counting documents in ${collection}:`, { error });
+			throw new Error(`Error counting documents in ${collection}`);
+		}
+	}
 
-  // Implementing countDocuments method
-  async countDocuments<T extends Document>(collection: string, query?: FilterQuery<T>): Promise<number> {
-    const model = mongoose.models[collection] as Model<T>;
-    if (!model) {
-      logger.error(`countDocuments failed. Collection ${collection} does not exist.`);
-      throw Error(`countDocuments failed. Collection ${collection} does not exist.`);
-    }
-    try {
-      const count = await model.countDocuments(query).exec();
-      return count;
-    } catch (error) {
-      logger.error(`Error counting documents in ${collection}: ${error.message}`);
-      throw Error(`Error counting documents in ${collection}`);
-    }
-  }
+	// Helper method to check if collection exists in MongoDB
+	private async collectionExists(collectionName: string): Promise<boolean> {
+		try {
+			const collections = await mongoose.connection.db.listCollections({ name: collectionName.toLowerCase() }).toArray();
+			return collections.length > 0;
+		} catch (error) {
+			logger.error(`Error checking if collection exists: ${error}`);
+			return false;
+		}
+	}
 
-  // Create a collection model
-  async createCollectionModel(collection: CollectionConfig): Promise<Model<Document>> {
-    // Wait for widgets to initialize first
-    await initializeWidgets();
+	// Create schema for the collection table and collection_uuid table
+	async createCollectionModel(collection: CollectionConfig): Promise<Model<Document>> {
+		try {
+			// The collection.name is already the UUID in our case
+			const collectionUuid = collection.name;
+			logger.debug(`Using UUID for collection: \x1b[34m${collectionUuid}\x1b[0m`);
 
-    // Extract UUID from collection configuration
-    const collectionUUID = collection.id;
-    if (!collectionUUID) {
-      throw new Error('Collection UUID not found. Ensure collection file has UUID in header.');
-    }
+			// Ensure collection name is prefixed with collection_
+			const collectionName = `collection_${collectionUuid}`;
+			logger.debug(`Creating collection model with name: \x1b[34m${collectionName}\x1b[0m`);
 
-    const collectionName = `collection_${collectionUUID}`;
-    logger.debug(`Creating/checking collection model for \x1b[34m${collectionName}\x1b[0m`);
+			// Return existing model if it exists
+			if (mongoose.models[collectionName]) {
+				logger.debug(`Model \x1b[34m${collectionName}\x1b[0m already exists in Mongoose, returning existing model`);
+				return mongoose.models[collectionName];
+			}
 
-    // Check if collection already exists in MongoDB
-    if (mongoose.connection.collections[collectionName.toLowerCase()]) {
-      logger.debug(`Collection ${collectionName} exists in MongoDB`);
-      // Collection exists, return existing model if available or create new model with same name
-      if (mongoose.models[collectionName]) {
-        logger.debug(`Using existing model for collection \x1b[34m${collectionName}\x1b[0m`);
-        return mongoose.models[collectionName];
-      }
-    } else {
-      logger.debug(`Collection ${collectionName} does not exist in MongoDB yet`);
-    }
+			// Clear existing model from Mongoose's cache if it exists
+			if (mongoose.modelNames().includes(collectionName)) {
+				delete mongoose.models[collectionName];
+				delete (mongoose as any).modelSchemas[collectionName];
+			}
 
-    // Define base schema definition
-    const schemaDefinition: Record<string, mongoose.SchemaDefinitionProperty> = {
-      _id: {
-        type: Buffer,
-        default: () => new mongoose.Types.Buffer(Buffer.from(collectionUUID.replace(/-/g, ''), 'hex'))
-      },
-      createdBy: {
-        type: String,
-        required: false,
-      },
-      revisionsEnabled: {
-        type: Boolean,
-        required: false,
-      },
-      translationStatus: {
-        type: mongoose.Schema.Types.Mixed,
-        default: {},
-      },
-      status: {
-        type: String,
-        enum: ['draft', 'published', 'archived'],
-        default: 'draft',
-      }
-    };
+			logger.debug(`Collection \x1b[34m${collectionName}\x1b[0m does not exist in Mongoose, creating new model`);
 
-    // Add fields from collection schema
-    if (collection.fields) {
-      for (const field of collection.fields) {
-        try {
-          let widgetType: string;
-          let fieldConfig: FieldConfig;
-          let fieldKey: string | undefined;
+			// Base schema definition for the main collection
+			const schemaDefinition: Record<string, unknown> = {
+				_id: { type: String }, // MongoDB will handle the _id index automatically
+				status: { type: String, default: 'draft' },
+				createdAt: { type: Date, default: Date.now },
+				updatedAt: { type: Date, default: Date.now },
+				createdBy: { type: Schema.Types.Mixed, ref: 'auth_users' },
+				updatedBy: { type: Schema.Types.Mixed, ref: 'auth_users' }
+			};
 
-          if (typeof field === 'function') {
-            // If field is a widget function, execute it to get config
-            const result = field({});
-            widgetType = result.widget.Name; // Get widget name from the widget object
-            fieldConfig = result; // The result contains all field properties
-            fieldKey = result.db_fieldName;
-          } else {
-            // If field is a direct configuration object
-            widgetType = field.widget?.Name || field.type; // Try widget.Name first, fallback to type
-            fieldConfig = field;
-            fieldKey = field.db_fieldName;
-          }
+			// Process fields if they exist
+			if (collection.schema?.fields && Array.isArray(collection.schema.fields)) {
+				logger.debug(`Processing ${collection.schema.fields.length} fields for \x1b[34m${collectionName}\x1b[0m`);
+				for (const field of collection.schema.fields) {
+					try {
+						// Generate fieldKey from label if db_fieldName is not present
+						const fieldKey = field.db_fieldName || field.label?.toLowerCase().replace(/\s+/g, '_') || field.Name;
+						if (!fieldKey) {
+							logger.error(`Field missing both db_fieldName and label:`, JSON.stringify(field, null, 2));
+							continue;
+						}
+						const isRequired = field.required || false;
+						const isTranslated = field.translate || false;
+						const isSearchable = field.searchable || false;
+						const isUnique = field.unique || false;
 
-          const isRequired = fieldConfig?.required === true;
-          const isTranslated = fieldConfig?.translated === true;
-          const isSearchable = fieldConfig?.searchable === true;
-          const isUnique = fieldConfig?.unique === true;
+						// Base field schema
+						const fieldSchema = {
+							type: Schema.Types.Mixed,
+							required: isRequired,
+							translate: isTranslated,
+							searchable: isSearchable,
+							unique: isUnique
+						};
+						schemaDefinition[fieldKey] = fieldSchema;
+						logger.debug(`Added field \x1b[34m${fieldKey}\x1b[0m to schema for \x1b[34m${collectionName}\x1b[0m`);
+					} catch (error) {
+						logger.error(`Error processing field:`, error);
+						logger.error(`Field data:`, JSON.stringify(field, null, 2));
+					}
+				}
+			}
 
-          // Get widget configuration
-          const widgets = getWidgets();
-          const widget = widgets[widgetType];
+			// Optimized schema options for the main collection
+			const schemaOptions: mongoose.SchemaOptions = {
+				strict: collection.schema?.strict !== false,
+				timestamps: true,
+				collection: collectionName.toLowerCase(),
+				autoIndex: true,
+				minimize: false,
+				toJSON: { virtuals: true, getters: true },
+				toObject: { virtuals: true, getters: true },
+				id: false,
+				versionKey: false
+			};
 
-          if (!widget) {
-            logger.warn(`Widget type ${widgetType} not found, using Mixed type`);
-            logger.debug('Available widgets:', Object.keys(widgets));
-            logger.debug('Field config:', fieldConfig);
-          }
+			logger.debug(`Creating schema with definition:`, JSON.stringify(schemaDefinition, null, 2));
+			logger.debug(`Schema options:`, JSON.stringify(schemaOptions, null, 2));
 
-          // Default to Mixed type for maximum flexibility with dynamic widgets
-          let mongooseType: mongoose.SchemaDefinitionProperty = mongoose.Schema.Types.Mixed;
+			// Create schema for the main collection
+			const schema = new mongoose.Schema(schemaDefinition, schemaOptions);
 
-          // Special handling for relations
-          if (fieldConfig.collection) {
-            mongooseType = mongoose.Schema.Types.ObjectId;
-          }
+			// Add indexes for the main collection
+			schema.index({ createdAt: -1 });
+			schema.index({ status: 1, createdAt: -1 });
+			// Remove the _id index as MongoDB handles this automatically
 
-          let fieldSchema: mongoose.SchemaDefinitionProperty = {
-            type: isTranslated ? Map : mongooseType,
-            required: isRequired,
-            index: isSearchable ? { sparse: true } : undefined,
-            unique: isUnique
-          };
+			// Performance optimization: create indexes in background
+			schema.set('backgroundIndexing', true);
 
-          if (fieldConfig.collection) {
-            fieldSchema = {
-              ...fieldSchema,
-              type: mongoose.Schema.Types.ObjectId,
-              ref: fieldConfig.collection,
-              index: true
-            };
-          }
+			// Create the model for the main collection
+			const model = mongoose.model(collectionName, schema);
+			logger.debug(`Collection model creation successful for: \x1b[34m${collectionName}\x1b[0m`);
+			logger.info(`Collection model \x1b[34m${collectionName}\x1b[0m is ready`);
 
-          // Add any widget-specific validation if needed
-          if (fieldConfig.validate) {
-            fieldSchema.validate = fieldConfig.validate;
-          }
-
-          // Add the field to the schema
-          schemaDefinition[fieldKey] = fieldSchema;
-        } catch (error) {
-          logger.error(`Error processing field in collection ${collectionUUID}: ${error.message}`);
-        }
-      }
-    }
-
-    // Optimized schema options
-    const schemaOptions: mongoose.SchemaOptions = {
-      strict: collection.strict !== false,
-      timestamps: {
-        createdAt: 'createdAt',
-        updatedAt: 'updatedAt'
-      },
-      collection: collectionName.toLowerCase(),
-      autoIndex: true,  // Enable auto-indexing in production
-      minimize: false,  // Store empty objects
-      toJSON: {
-        virtuals: true,
-        getters: true
-      },
-      toObject: {
-        virtuals: true,
-        getters: true
-      },
-      id: false,  // Disable virtual id getter
-      versionKey: false  // Disable version key
-    };
-
-    // Create schema
-    const schema = new mongoose.Schema(schemaDefinition, schemaOptions);
-
-    // Add indexes
-    schema.index({ createdAt: -1 });  // Sort by most recent first
-    schema.index({ status: 1, createdAt: -1 });  // Common query pattern
-
-    // Performance optimization: create indexes in background
-    schema.set('backgroundIndexing', true);
-
-    // Create and return the model
-    return mongoose.model(collectionName, schema);
-  }
+			return model;
+		} catch (error) {
+			logger.error('Error creating collection model:', error instanceof Error ? error.stack : error);
+			logger.error('Collection config that caused error:', JSON.stringify(collection, null, 2));
+			throw error;
+		}
+	}
 
   // Methods for Draft and Revision Management
 
-  // Create a new draft
-  async createDraft(content: Record<string, unknown>, collectionId: string, original_document_id: string, user_id: string): Promise<Draft> {
-    try {
-      const draft = new DraftModel({
-        originalDocumentId: this.convertId(original_document_id),
-        collectionId: this.convertId(collectionId),
-        content,
-        createdBy: this.convertId(user_id)
-      });
-      await draft.save();
-      logger.info(`Draft created successfully for document ID: ${original_document_id}`);
-      return draft.toObject() as Draft;
-    } catch (error) {
-      logger.error(`Error creating draft: ${error.message}`);
-      throw Error(`Error creating draft`);
-    }
-  }
+	// Create a new draft
+	async createDraft(
+		content: Record<string, unknown>,
+		collectionId: string,
+		original_document_id: string,
+		user_id: string
+	): Promise<Draft> {
+		return DraftModel.createDraft(content, collectionId, original_document_id, user_id);
+	}
 
-  // Update a draft
-  async updateDraft(draft_id: string, content: Record<string, unknown>): Promise<Draft> {
-    try {
-      const draft = await DraftModel.findById(draft_id);
-      if (!draft) throw Error('Draft not found');
+	// Update a draft
+	async updateDraft(draft_id: string, content: Record<string, unknown>): Promise<Draft> {
+		return DraftModel.updateDraft(draft_id, content);
+	}
 
-      // Update the draft content and timestamp
-      draft.content = content;
-      draft.updatedAt = new Date();
-      await draft.save();
+	// Publish a draft
+	async publishDraft(draft_id: string): Promise<Draft> {
+		return DraftModel.publishDraft(draft_id);
+	}
 
-      logger.info(`Draft ${draft_id} updated successfully.`);
+	// Get drafts by user
+	async getDraftsByUser(user_id: string): Promise<Draft[]> {
+		return DraftModel.getDraftsByUser(user_id);
+	}
 
-      // Return the updated draft as a plain JavaScript object and cast it to Draft
-      return draft.toObject() as Draft;
-    } catch (error) {
-      logger.error(`Error updating draft: ${error.message}`);
-      throw Error(`Error updating draft`);
-    }
-  }
+	// Create a new revision
+	async createRevision(collectionId: string, documentId: string, userId: string, data: Record<string, unknown>): Promise<Revision> {
+		try {
+			const revision = new RevisionModel({
+				collectionId: this.convertId(collectionId),
+				documentId: this.convertId(documentId),
+				content: data,
+				createdBy: this.convertId(userId)
+			});
+			return await revision.save();
+		} catch (error) {
+			logger.error(`Error creating revision: ${error.message}`);
+			throw Error(`Error creating revision`);
+		}
+	}
 
-  // Publish a draft
-  async publishDraft(draft_id: string): Promise<Draft> {
-    try {
-      const draft = await DraftModel.findById(draft_id);
-      if (!draft) throw Error('Draft not found');
-      draft.status = 'published';
-      await draft.save();
+	// Get revisions for a document
+	async getRevisions(collectionId: string, documentId: string): Promise<Revision[]> {
+		try {
+			return await RevisionModel.find({
+				collectionId: this.convertId(collectionId),
+				documentId: this.convertId(documentId)
+			}).sort({ createdAt: -1 }).lean().exec();
+		} catch (error) {
+			logger.error(
+				`Error retrieving revisions for document ID ${documentId} in collection ID ${collectionId}: ${error.message}`
+			);
+			throw Error(`Failed to retrieve revisions`);
+		}
+	}
 
-      const revision = new RevisionModel({
-        collectionId: draft.collectionId,
-        documentId: draft.originalDocumentId,
-        content: draft.content,
-        createdBy: draft.createdBy
-      });
-      await revision.save();
-      logger.info(`Draft ${draft_id} published and revision created successfully.`);
-      return draft.toObject() as Draft;
-    } catch (error) {
-      logger.error(`Error publishing draft: ${error.message}`);
-      throw Error(`Error publishing draft`);
-    }
-  }
-
-  // Get drafts by user
-  async getDraftsByUser(user_id: string): Promise<Draft[]> {
-    try {
-      const drafts = await DraftModel.find({ createdBy: this.convertId(user_id) })
-
-        .exec();
-      logger.info(`Retrieved ${drafts.length} drafts for user ID: ${user_id}`);
-      return drafts;
-    } catch (error) {
-      logger.error(`Error retrieving drafts for user ${user_id}: ${error.message}`);
-      throw Error(`Error retrieving drafts for user ${user_id}`);
-    }
-  }
-
-  // Create a new revision
-  async createRevision(collectionId: string, documentId: string, userId: string, data: Record<string, unknown>): Promise<Revision> {
-    try {
-      const revision = new RevisionModel({
-        collectionId: this.convertId(collectionId),
-        documentId: this.convertId(documentId),
-        content: data,
-        createdBy: this.convertId(userId)
-      });
-      await revision.save();
-      logger.info(`Revision created successfully for document ID: ${documentId} in collection ID: ${collectionId}`);
-      return revision;
-    } catch (error) {
-      logger.error(`Error creating revision: ${error.message}`);
-      throw Error(`Error creating revision`);
-    }
-  }
-
-  // Get revisions for a document
-  async getRevisions(collectionId: string, documentId: string): Promise<Revision[]> {
-    try {
-      const revisions = await RevisionModel.find({
-        collectionId: this.convertId(collectionId),
-        documentId: this.convertId(documentId)
-      })
-        .sort({ createdAt: -1 })
-        .exec();
-
-      logger.info(`Revisions retrieved for document ID: ${documentId} in collection ID: ${collectionId}`);
-      return revisions;
-    } catch (error) {
-      logger.error(`Error retrieving revisions for document ID ${documentId} in collection ID ${collectionId}: ${error.message}`);
-      throw Error(`Failed to retrieve revisions`);
-    }
-  }
-
-  // Delete a specific revision
-  async deleteRevision(revisionId: string): Promise<void> {
-    try {
-      const result = await RevisionModel.deleteOne({ _id: revisionId });
-      if (result.deletedCount === 0) {
-        throw Error(`Revision not found with ID: ${revisionId}`);
-      }
+	// Delete a specific revision
+	async deleteRevision(revisionId: string): Promise<void> {
+		try {
+			const result = await RevisionModel.deleteOne({ _id: revisionId }).exec();
+			if (result.deletedCount === 0) {
+				throw Error(`Revision not found with ID: ${revisionId}`);
+			}
 
       logger.info(`Revision ${revisionId} deleted successfully.`);
     } catch (error) {
@@ -932,10 +719,11 @@ export class MongoDBAdapter implements dbInterface {
       // Update the original document with the revision content
       const updateResult = await this.updateOne(collectionId, { _id: documentObjectId }, { $set: content });
 
-      // Check if the document was modified
-      if (updateResult.modifiedCount === 0) {
-        throw Error(`Failed to restore revision: Document not found or no changes applied.`);
-      }
+			// `updateOne` now throws an error if no document is found, so this check might be redundant
+			// Keeping it for clarity.
+			if (!updateResult) {
+				throw Error(`Failed to restore revision: Document not found or no changes applied.`);
+			}
 
       logger.info(`Revision ${revisionId} restored successfully to document ID: ${documentId}`);
     } catch (error) {
@@ -963,30 +751,26 @@ export class MongoDBAdapter implements dbInterface {
     }
   }
 
-  // Fetch all widgets
-  async getAllWidgets(): Promise<Widget[]> {
-    try {
-      const widgets = await WidgetModel.find().exec();
-      logger.info(`Fetched ${widgets.length} widgets.`);
-      return widgets;
-    } catch (error) {
-      logger.error(`Error fetching all widgets: ${error.message}`);
-      throw Error(`Error fetching all widgets`);
-    }
-  }
+	// Fetch all widgets
+	async getAllWidgets(): Promise<Widget[]> {
+		try {
+			return await WidgetModel.find().lean().exec();
+		} catch (error) {
+			logger.error(`Error fetching all widgets: ${error.message}`);
+			throw Error(`Error fetching all widgets`);
+		}
+	}
 
-  // Fetch active widgets
-  async getActiveWidgets(): Promise<string[]> {
-    try {
-      const widgets = await WidgetModel.find({ isActive: true }).lean().exec();
-      const activeWidgetNames = widgets.map((widget) => widget.name);
-      logger.info(`Fetched ${activeWidgetNames.length} active widgets.`);
-      return activeWidgetNames;
-    } catch (error) {
-      logger.error(`Error fetching active widgets: ${error.message}`);
-      throw Error(`Error fetching active widgets`);
-    }
-  }
+	// Fetch active widgets
+	async getActiveWidgets(): Promise<string[]> {
+		try {
+			const widgets = await WidgetModel.find({ isActive: true }, 'name').lean().exec();
+			return widgets.map((widget) => widget.name);
+		} catch (error) {
+			logger.error(`Error fetching active widgets: ${error.message}`);
+			throw Error(`Error fetching active widgets`);
+		}
+	}
 
   // Activate a widget
   async activateWidget(widgetName: string): Promise<void> {
@@ -1030,15 +814,14 @@ export class MongoDBAdapter implements dbInterface {
     }
   }
 
-  // Methods for Theme Management
-
-  // Set the default theme
-  async setDefaultTheme(themeName: string): Promise<void> {
-    try {
-      // First, unset the current default theme
-      await ThemeModel.updateMany({}, { $set: { isDefault: false } });
-      // Then, set the new default theme
-      const result = await ThemeModel.updateOne({ name: themeName }, { $set: { isDefault: true } });
+	// Methods for Theme Management
+	// Set the default theme
+	async setDefaultTheme(themeName: string): Promise<void> {
+		try {
+			// First, unset the current default theme
+			await ThemeModel.updateMany({}, { $set: { isDefault: false } });
+			// Then, set the new default theme
+			const result = await ThemeModel.updateOne({ name: themeName }, { $set: { isDefault: true } });
 
       if (result.modifiedCount === 0) {
         throw Error(`Theme with name ${themeName} not found.`);
@@ -1089,41 +872,39 @@ export class MongoDBAdapter implements dbInterface {
         await ThemeModel.updateMany({}, { $set: { isDefault: false } });
       }
 
-      await ThemeModel.insertMany(
-        themes.map((theme) => ({
-          _id: this.convertId(theme._id),
-          name: theme.name,
-          path: theme.path,
-          isDefault: theme.isDefault ?? false,
-          createdAt: theme.createdAt ?? new Date(),
-          updatedAt: theme.updatedAt ?? new Date()
-        })),
-        { ordered: false }
-      ); // Use ordered: false to ignore duplicates
-      logger.info(`Stored \x1b[34m${themes.length}\x1b[0m themes in the database.`);
-    } catch (error) {
-      logger.error(`Error storing themes: ${error.message}`);
-      throw Error(`Error storing themes`);
-    }
-  }
+			await ThemeModel.insertMany(
+				themes.map((theme) => ({
+					_id: this.convertId(theme._id),
+					name: theme.name,
+					path: theme.path,
+					isDefault: theme.isDefault ?? false,
+					createdAt: theme.createdAt ?? new Date(),
+					updatedAt: theme.updatedAt ?? new Date()
+				})),
+				{ ordered: false }
+			); // Use ordered: false to ignore duplicates
+			logger.info(`Stored \x1b[34m${themes.length}\x1b[0m themes in the database.`);
+		} catch (error) {
+			logger.error(`Error storing themes: ${error.message}`);
+			throw Error(`Error storing themes`);
+		}
+	}
+	// Fetch all themes
+	async getAllThemes(): Promise<Theme[]> {
+		try {
+			const themes = await ThemeModel.find().exec();
+			logger.info(`Fetched \x1b[34m${themes.length}\x1b[0m themes.`);
+			return themes;
+		} catch (error) {
+			logger.error(`Error fetching all themes: ${error.message}`);
+			throw Error(`Error fetching all themes`);
+		}
+	}
 
-  // Fetch all themes
-  async getAllThemes(): Promise<Theme[]> {
-    try {
-      const themes = await ThemeModel.find().exec();
-      logger.info(`Fetched \x1b[34m${themes.length}\x1b[0m themes.`);
-      return themes;
-    } catch (error) {
-      logger.error(`Error fetching all themes: ${error.message}`);
-      throw Error(`Error fetching all themes`);
-    }
-  }
-
-  // Methods for System Preferences Management
-
-  // Set user preferences
-  async setUserPreferences(userId: string, preferences: UserPreferences): Promise<void> {
-    logger.debug(`Setting user preferences for userId: \x1b[34m${user_id}\x1b[0m`);
+	// Methods for System Preferences Management
+	// Set user preferences
+	async setUserPreferences(userId: string, preferences: UserPreferences): Promise<void> {
+		logger.debug(`Setting user preferences for userId: \x1b[34m${user_id}\x1b[0m`);
 
     try {
       await SystemPreferencesModel.updateOne({ userId }, { $set: { preferences } }, { upsert: true }).exec();
@@ -1134,79 +915,79 @@ export class MongoDBAdapter implements dbInterface {
     }
   }
 
-  //Retrieve system preferences for a user
-  async getSystemPreferences(user_id: string): Promise<UserPreferences | null> {
-    try {
-      const preferencesDoc = await SystemPreferencesModel.findOne({ userId: user_id }).exec();
-      if (preferencesDoc) {
-        logger.info(`Retrieved system preferences for userId: \x1b[34m${user_id}\x1b[0m `);
-        return preferencesDoc.preferences as UserPreferences;
-      }
-      logger.info(`No system preferences found for userId: \x1b[34m${user_id}\x1b[0m`);
-      return null;
-    } catch (error) {
-      logger.error(`Failed to retrieve system preferences for user \x1b[34m${user_id}\x1b[0m: ${error.message}`);
-      throw Error(`Failed to retrieve system preferences`);
-    }
-  }
+	//Retrieve system preferences for a user
+	async getSystemPreferences(user_id: string): Promise<UserPreferences | null> {
+		try {
+			const preferencesDoc = await SystemPreferencesModel.findOne({ userId: user_id }).exec();
+			if (preferencesDoc) {
+				logger.info(`Retrieved system preferences for userId: \x1b[34m${user_id}\x1b[0m `);
+				return preferencesDoc.preferences as UserPreferences;
+			}
+			logger.info(`No system preferences found for userId: \x1b[34m${user_id}\x1b[0m`);
+			return null;
+		} catch (error) {
+			logger.error(`Failed to retrieve system preferences for user \x1b[34m${user_id}\x1b[0m: ${error.message}`);
+			throw Error(`Failed to retrieve system preferences`);
+		}
+	}
+	// Update system preferences for a user
+	async updateSystemPreferences(user_id: string, screenSize: ScreenSize, preferences: WidgetPreference[]): Promise<void> {
+		try {
+			await SystemPreferencesModel.findOneAndUpdate({ userId: user_id }, { $set: { screenSize, preferences } }, { new: true, upsert: true }).exec();
+			logger.info(`System preferences updated for userId: \x1b[34m${user_id}\x1b[0m`);
+		} catch (error) {
+			logger.error(`Failed to update system preferences for user \x1b[34m${user_id}\x1b[0m: ${error.message}`);
+			throw Error(`Failed to update system preferences`);
+		}
+	}
+	// Clear system preferences for a user
+	async clearSystemPreferences(user_id: string): Promise<void> {
+		try {
+			const result = await SystemPreferencesModel.deleteOne({ userId: user_id }).exec();
+			if (result.deletedCount === 0) {
+				logger.warn(`No system preferences found to delete for userId: \x1b[34m${user_id}\x1b[0m`);
+			} else {
+				logger.info(`System preferences cleared for userId: \x1b[34m${user_id}\x1b[0m`);
+			}
+		} catch (error) {
+			logger.error(`Failed to clear system preferences for user \x1b[34m${user_id}\x1b[0m: ${error.message}`);
+			throw Error(`Failed to clear system preferences`);
+		}
+	}
 
-  // Update system preferences for a user
-  async updateSystemPreferences(user_id: string, screenSize: ScreenSize, preferences: WidgetPreference[]): Promise<void> {
-    try {
-      await SystemPreferencesModel.findOneAndUpdate({ userId: user_id }, { $set: { screenSize, preferences } }, { new: true, upsert: true }).exec();
-      logger.info(`System preferences updated for userId: \x1b[34m${user_id}\x1b[0m`);
-    } catch (error) {
-      logger.error(`Failed to update system preferences for user \x1b[34m${user_id}\x1b[0m: ${error.message}`);
-      throw Error(`Failed to update system preferences`);
-    }
-  }
+	// Methods for Virtual Folder Management
+	// Create a virtual folder in the database
+	async createVirtualFolder(folderData: { name: string; parent?: string; path: string, icon?: string, order?: number, type?: 'folder' | 'collection' }): Promise<Document> {
+		try {
+			const folder = new SystemVirtualFolderModel({
+				_id: this.generateId(),
+				name: folderData.name,
+				parent: folderData.parent ? this.convertId(folderData.parent) : null,
+				path: folderData.path,
+				icon: folderData.icon,
+				order: folderData.order,
+				type: folderData.type || 'folder'  // Default to 'folder' if not specified
+			});
+			await folder.save();
+			logger.info(`Virtual folder '\x1b[34m${folderData.name}\x1b[0m' created successfully.`);
+			return folder;
+		} catch (error) {
+			logger.error(`Error creating virtual folder: ${error.message}`);
+			throw Error(`Error creating virtual folder`);
+		}
+	}
 
-  // Clear system preferences for a user
-  async clearSystemPreferences(user_id: string): Promise<void> {
-    try {
-      const result = await SystemPreferencesModel.deleteOne({ userId: user_id }).exec();
-      if (result.deletedCount === 0) {
-        logger.warn(`No system preferences found to delete for userId: \x1b[34m${user_id}\x1b[0m`);
-      } else {
-        logger.info(`System preferences cleared for userId: \x1b[34m${user_id}\x1b[0m`);
-      }
-    } catch (error) {
-      logger.error(`Failed to clear system preferences for user \x1b[34m${user_id}\x1b[0m: ${error.message}`);
-      throw Error(`Failed to clear system preferences`);
-    }
-  }
-
-  // Methods for Virtual Folder Management
-
-  // Create a virtual folder in the database
-  async createVirtualFolder(folderData: { name: string; parent?: string; path: string }): Promise<Document> {
-    try {
-      const folder = new SystemVirtualFolderModel({
-        _id: this.generateId(),
-        name: folderData.name,
-        parent: folderData.parent ? this.convertId(folderData.parent) : null,
-        path: folderData.path
-      });
-      await folder.save();
-      logger.info(`Virtual folder '\x1b[34m${folderData.name}\x1b[0m' created successfully.`);
-      return folder;
-    } catch (error) {
-      logger.error(`Error creating virtual folder: ${error.message}`);
-      throw Error(`Error creating virtual folder`);
-    }
-  }
-
-  // Get all virtual folders
-  async getVirtualFolders(): Promise<Document[]> {
-    try {
-      const folders = await SystemVirtualFolderModel.find({}).lean().exec();
-      logger.info(`Fetched \x1b[34m${folders.length}\x1b[0m virtual folders.`);
-      return folders;
-    } catch (error) {
-      logger.error(`Error fetching virtual folders: ${error.message}`);
-      throw Error(`Error fetching virtual folders`);
-    }
-  }
+	// Get all virtual folders
+	async getVirtualFolders(): Promise<Document[]> {
+		try {
+			const folders = await SystemVirtualFolderModel.find({}).lean().exec();
+			logger.info(`Fetched \x1b[34m${folders.length}\x1b[0m virtual folders.`);
+			return folders;
+		} catch (error) {
+			logger.error(`Error fetching virtual folders: ${error.message}`);
+			throw Error(`Error fetching virtual folders`);
+		}
+	}
 
   // Get contents of a virtual folder
   async getVirtualFolderContents(folderId: string): Promise<Document[]> {
@@ -1234,100 +1015,200 @@ export class MongoDBAdapter implements dbInterface {
         updatedAt: new Date()
       };
 
-      if (updateData.parent) {
-        updatePayload.parent = this.convertId(updateData.parent).toString();
-      }
+			if (updateData.parent) {
+				updatePayload.parent = this.convertId(updateData.parent).toString();
+			}
+			const updatedFolder = await SystemVirtualFolderModel.findByIdAndUpdate(folderId, updatePayload, { new: true }).exec();
+			if (!updatedFolder) {
+				throw Error(`Virtual folder with ID \x1b[34m${folderId}\x1b[0m not found.`);
+			}
+			logger.info(`Virtual folder \x1b[34m${folderId}\x1b[0m updated successfully.`);
+			return updatedFolder;
+		} catch (error) {
+			logger.error(`Error updating virtual folder \x1b[34m${folderId}\x1b[0m: ${error.message}`);
+			throw Error(`Failed to update virtual folder`);
+		}
+	}
 
-      const updatedFolder = await SystemVirtualFolderModel.findByIdAndUpdate(folderId, updatePayload, { new: true }).exec();
+	// Delete a virtual folder
+	async deleteVirtualFolder(folderId: string): Promise<boolean> {
+		try {
+			const result = await SystemVirtualFolderModel.findByIdAndDelete(this.convertId(folderId)).exec();
+			if (!result) {
+				logger.warn(`Virtual folder with ID \x1b[34m${folderId}\x1b[0m not found.`);
+				return false;
+			}
+			logger.info(`Virtual folder \x1b[34m${folderId}\x1b[0m deleted successfully.`);
+			return true;
+		} catch (error) {
+			logger.error(`Error deleting virtual folder \x1b[34m${folderId}\x1b[0m: ${error.message}`);
+			throw Error(`Failed to delete virtual folder`);
+		}
+	}
 
-      if (!updatedFolder) {
-        throw Error(`Virtual folder with ID \x1b[34m${folderId}\x1b[0m not found.`);
-      }
+	// Move media to a virtual folder
+	async moveMediaToFolder(mediaId: string, folderId: string): Promise<boolean> {
+		try {
+			const objectId = this.convertId(folderId);
+			const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
+			// Create update query for all media types
+			const updateResult = await Promise.all(mediaTypes.map(type =>
+				mongoose.model(type).updateMany({ _id: this.convertId(mediaId) }, { folderId: objectId })
+			));
+			// Check if any media types updated
+			const isUpdated = updateResult.some((result) => result.modifiedCount > 0);
+			if (isUpdated) {
+				logger.info(`Media \x1b[34m${mediaId}\x1b[0m moved to folder \x1b[34m${folderId}\x1b[0m successfully.`);
+				return true;
+			}
+			logger.warn(`Media \x1b[34m${mediaId}\x1b[0m not found in any media type collections.`);
+			return false;
+		} catch (error) {
+			logger.error(`Error moving media \x1b[34m${mediaId}\x1b[0m to folder \x1b[34m${folderId}\x1b[0m: ${error.message}`);
+			throw Error(`Failed to move media to folder`);
+		}
+	}
 
-      logger.info(`Virtual folder \x1b[34m${folderId}\x1b[0m updated successfully.`);
-      return updatedFolder;
-    } catch (error) {
-      logger.error(`Error updating virtual folder \x1b[34m${folderId}\x1b[0m: ${error.message}`);
-      throw Error(`Failed to update virtual folder`);
-    }
-  }
+	// Content Structure Methods
+	async createContentStructure(contentData: {
+		name: string;
+		parent?: string;
+		path: string;
+		icon?: string;
+		order?: number;
+		isCollection?: boolean;
+		collectionId?: string;
+		translations?: { languageTag: string; translationName: string; }[];
+		_id?: string;  // Make _id optional in the interface
+	}): Promise<Document> {
+		try {
+			// If _id is provided, use it directly when creating the model
+			const node = new ContentStructureModel({
+				...contentData,
+				_id: contentData._id  // Use provided _id  
+			});
+			await node.save();
+			logger.info(`Content structure node \x1b[34m${contentData.name}\x1b[0m created successfully with ID \x1b[34m${node._id}\x1b[0m.`);
+			return node;
+		} catch (error) {
+			logger.error(`Error creating content structure node: ${error.message}`);
+			throw Error(`Error creating content structure node`);
+		}
+	}
 
-  // Delete a virtual folder
-  async deleteVirtualFolder(folderId: string): Promise<boolean> {
-    try {
-      const result = await SystemVirtualFolderModel.findByIdAndDelete(this.convertId(folderId)).exec();
-      if (!result) {
-        logger.warn(`Virtual folder with ID \x1b[34m${folderId}\x1b[0m not found.`);
-        return false;
-      }
+	async getContentStructure(): Promise<Document[]> {
+		try {
+			const nodes = await ContentStructureModel.find().sort({ path: 1 }).exec();
+			logger.info(`Fetched ${nodes.length} content structure nodes.`);
+			return nodes;
+		} catch (error) {
+			logger.error(`Error fetching content structure: ${error.message}`);
+			throw Error(`Error fetching content structure`);
+		}
+	}
 
-      logger.info(`Virtual folder \x1b[34m${folderId}\x1b[0m deleted successfully.`);
-      return true;
-    } catch (error) {
-      logger.error(`Error deleting virtual folder \x1b[34m${folderId}\x1b[0m: ${error.message}`);
-      throw Error(`Failed to delete virtual folder`);
-    }
-  }
+	async getContentStructureChildren(parentPath: string): Promise<Document[]> {
+		try {
+			const escapedPath = parentPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+			const regex = new RegExp(`^${escapedPath}/[^/]+$`);
+			const children = await ContentStructureModel.find({ path: { $regex: regex } }).sort({ order: 1 }).exec();
+			logger.info(`Fetched ${children.length} children of content structure for path '${parentPath}'.`);
+			return children;
+		} catch (error) {
+			logger.error(`Error fetching content structure children: ${error.message}`);
+			throw Error(`Error fetching content structure children`);
+		}
+	}
 
-  // Move media to a virtual folder
-  async moveMediaToFolder(mediaId: string, folderId: string): Promise<boolean> {
-    try {
-      const objectId = this.convertId(folderId);
-      const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
-      for (const type of mediaTypes) {
-        const result = await mongoose.model(type).findByIdAndUpdate(this.convertId(mediaId), { folderId: objectId }).exec();
-        if (result) {
-          logger.info(`Media \x1b[34m${mediaId}\x1b[0m moved to folder \x1b[34m${folderId}\x1b[0m successfully.`);
-          return true;
-        }
-      }
-      logger.warn(`Media \x1b[34m${mediaId}\x1b[0m not found in any media type collections.`);
-      return false;
-    } catch (error) {
-      logger.error(`Error moving media \x1b[34m${mediaId}\x1b[0m to folder \x1b[34m${folderId}\x1b[0m: ${error.message}`);
-      throw Error(`Failed to move media to folder`);
-    }
-  }
+	async getContentStructureById(id: string): Promise<Document | null> {
+		try {
+			const node = await ContentStructureModel.findById(id).exec();
+			return node ? node.toObject() : null;
+		} catch (error) {
+			logger.error(`Error getting content structure by ID ${id}:`, error);
+			return null;
+		}
+	}
 
-  // Methods for Media Management
+	async updateContentStructure(contentId: string, updateData: Partial<ContentStructureNode>): Promise<Document | null> {
+		try {
+			// Only allow updates to name and fileName, exclude _id, uuid, and other fields
+			const { name, fileName } = updateData;
+			const allowedUpdates: Partial<ContentStructureNode> = {};
 
-  // Fetch all media
-  async getAllMedia(): Promise<MediaType[]> {
-    try {
-      const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
-      const mediaPromises = mediaTypes.map((type) => this.findMany<Document & MediaBase>(type, {}));
-      const results = await Promise.all(mediaPromises);
-      const allMedia = results.flat().map((item) => ({
-        ...item,
-        _id: item._id?.toString(), // Safe access using optional chaining
-        type: item.type || 'unknown' // Handle the type property
-      }));
-      logger.info(`Fetched all media, total count: \x1b[34m${allMedia.length}\x1b[0m`);
-      return allMedia as MediaType[];
-    } catch (error) {
-      logger.error(`Error fetching all media: ${error.message}`);
-      throw Error(`Error fetching all media`);
-    }
-  }
+			if (name !== undefined) allowedUpdates.name = name;
+			if (fileName !== undefined) allowedUpdates.fileName = fileName;
 
-  // Delete media
-  async deleteMedia(mediaId: string): Promise<boolean> {
-    try {
-      const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
-      for (const type of mediaTypes) {
-        const result = await this.deleteOne(type, { _id: this.convertId(mediaId) });
-        if (result > 0) {
-          logger.info(`Media \x1b[34m${mediaId}\x1b[0m deleted successfully from ${type}.`);
-          return true;
-        }
-      }
-      logger.warn(`Media \x1b[34m${mediaId}\x1b[0m not found in any media type collections.`);
-      return false;
-    } catch (error) {
-      logger.error(`Error deleting media \x1b[34m${mediaId}\x1b[0m: ${error.message}`);
-      throw Error(`Error deleting media`);
-    }
-  }
+			const updatedNode = await ContentStructureModel.findByIdAndUpdate(
+				contentId,
+				allowedUpdates,
+				{ new: true }
+			).exec();
+
+			if (updatedNode) {
+				logger.info(`Content structure node '${contentId}' updated successfully.`);
+			} else {
+				logger.warn(`No content structure node found with ID '${contentId}'.`);
+			}
+			return updatedNode;
+		} catch (error) {
+			logger.error(`Error updating content structure node: ${error.message}`);
+			throw Error(`Error updating content structure node`);
+		}
+	}
+
+	async deleteContentStructure(contentId: string): Promise<boolean> {
+		try {
+			const result = await ContentStructureModel.deleteOne({ _id: contentId }).exec();
+			if (result.deletedCount === 0) {
+				logger.warn(`Content structure node with ID ${contentId} not found.`);
+				return false;
+			}
+			logger.info(`Content structure node ${contentId} deleted successfully.`);
+			return true;
+		} catch (error) {
+			logger.error(`Error deleting content structure node: ${error.message}`);
+			throw Error(`Error deleting content structure node`);
+		}
+	}
+
+	// Methods for Media Management
+	// Fetch all media
+	async getAllMedia(): Promise<MediaType[]> {
+		try {
+			const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
+			const results = await Promise.all(mediaTypes.map(type => this.findMany<Document & MediaBase>(type, {})))
+			const allMedia = results.flat().map((item) => ({
+				...item,
+				_id: item._id?.toString(),
+				type: item.type || 'unknown'
+			}));
+			logger.info(`Fetched all media, total count: \x1b[34m${allMedia.length}\x1b[0m`);
+			return allMedia as MediaType[];
+		} catch (error) {
+			logger.error(`Error fetching all media: ${error.message}`);
+			throw Error(`Error fetching all media`);
+		}
+	}
+
+	// Delete media
+	async deleteMedia(mediaId: string): Promise<boolean> {
+		try {
+			const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
+			const deleteResults = await Promise.all(mediaTypes.map(type => this.deleteOne(type, { _id: this.convertId(mediaId) })));
+			// Check if any media was deleted
+			const mediaDeleted = deleteResults.some(result => result > 0);
+			if (mediaDeleted) {
+				logger.info(`Media \x1b[34m${mediaId}\x1b[0m deleted successfully.`);
+				return true;
+			}
+			logger.warn(`Media \x1b[34m${mediaId}\x1b[0m not found in any media type collections.`);
+			return false;
+		} catch (error) {
+			logger.error(`Error deleting media \x1b[34m${mediaId}\x1b[0m: ${error.message}`);
+			throw Error(`Error deleting media`);
+		}
+	}
 
   // Fetch media in a specific folder
   async getMediaInFolder(folder_id: string): Promise<MediaType[]> {
@@ -1409,35 +1290,23 @@ export class MongoDBAdapter implements dbInterface {
         }
       }
 
-      return recentMedia.sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0)).slice(0, 5);
-    } catch (error) {
-      logger.error(`Failed to fetch last five media documents: ${error.message}`);
-      throw Error(`Failed to fetch last five media documents`);
-    }
-  }
+			return recentMedia.sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0)).slice(0, 5);
+		} catch (error) {
+			logger.error(`Failed to fetch last five media documents: ${error.message}`);
+			throw Error(`Failed to fetch last five media documents`);
+		}
+	}
+	// Methods for Disconnecting
 
-  // Methods for Disconnecting
+	// Disconnect from MongoDB
+	async disconnect(): Promise<void> {
+		try {
+			await mongoose.disconnect();
+			logger.info('MongoDB adapter connection closed.');
+		} catch (error) {
+			logger.error(`Error disconnecting from MongoDB: ${error.message}`);
+			throw Error(`Error disconnecting from MongoDB`);
+		}
+	}
 
-  // Disconnect from MongoDB
-  async disconnect(): Promise<void> {
-    try {
-      await mongoose.disconnect();
-      logger.info('MongoDB adapter connection closed.');
-    } catch (error) {
-      logger.error(`Error disconnecting from MongoDB: ${error.message}`);
-      throw Error(`Error disconnecting from MongoDB`);
-    }
-  }
 }
-
-type FieldConfig = {
-  type: string;
-  db_fieldName?: string;
-  label?: string;
-  required?: boolean;
-} | ((context: Record<string, unknown>) => {
-  widget: { Name: string };
-  db_fieldName?: string;
-  label?: string;
-  required?: boolean;
-});

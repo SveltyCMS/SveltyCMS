@@ -31,9 +31,9 @@
 <script lang="ts">
 	import { getFieldName, meta_data } from '@utils/utils';
 	import { saveFormData } from '../utils/data';
-	import type { Field, Schema, FieldValue } from '@src/collections/types';
+	import type { Field, Schema, FieldValue } from '@src/content/types';
 	import type { ModifyRequestParams } from '@components/widgets';
-	import type { StatusType } from '@src/collections/types';
+	import type { StatusType } from '@src/content/types';
 
 	// Components
 	import TranslationStatus from './TranslationStatus.svelte';
@@ -45,9 +45,9 @@
 
 	// Stores
 	import { page } from '$app/stores';
-	import { collection, categories, collectionValue, mode, modifyEntry, statusMap } from '@root/src/stores/collectionStore.svelte';
-	import { toggleSidebar, sidebarState } from '@root/src/stores/sidebarStore.svelte';
-	import { screenSize } from '@root/src/stores/screenSizeStore.svelte';
+	import { collection, categories, collectionValue, mode, modifyEntry, statusMap } from '@src/stores/collectionStore.svelte';
+	import { toggleSidebar, sidebarState } from '@src/stores/sidebarStore.svelte';
+	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 	import { contentLanguage, tabSet, validationStore, headerActionButton } from '@stores/store';
 
 	// Auth

@@ -10,7 +10,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
-	import type { Schema } from '@src/collections/types';
+	import type { Schema } from '@src/content/types';
 
 	// Stores
 	import { page } from '$app/stores';
@@ -22,7 +22,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	import EntryList from '@components/EntryList.svelte';
 	import MediaGallery from '@src/routes/(app)/mediagallery/+page.svelte';
 
-	import { collectionManager } from '@src/collections/CollectionManager';
+	import { contentManager } from '@src/content/ContentManager';
 
 	// System Logger
 	import { logger } from '@utils/logger.svelte';
@@ -40,8 +40,8 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		if (!collections.value || !$page.params.collection) return;
 
 		try {
-			// Wait for collection manager initialization
-			await collectionManager.waitForInitialization();
+			// Wait for Content Manager initialization
+			await contentManager.waitForInitialization();
 
 			const selectedCollection = collections.value[$page.params.collection];
 			if (selectedCollection) {

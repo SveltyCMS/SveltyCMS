@@ -8,7 +8,7 @@ import { publicEnv } from '@root/config/public';
 import { redirect, error, type HttpError } from '@sveltejs/kit';
 
 // Collection Manager
-import { collectionManager } from '@src/collections/CollectionManager';
+import { contentManager } from '@src/content/ContentManager';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -22,7 +22,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	try {
 		// Get the list of collections
-		const collections = collectionManager.getCollectionData()?.collections;
+		const collections = contentManager.getCollectionData()?.collections;
 
 		// If there are no collections, throw a 404 error
 		if (!collections?.length) {

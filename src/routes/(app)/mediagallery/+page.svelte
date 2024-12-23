@@ -18,7 +18,7 @@ Features:
 	import axios from 'axios';
 
 	// Stores
-	import { mode } from '@root/src/stores/collectionStore.svelte';
+	import { mode } from '@src/stores/collectionStore.svelte';
 
 	// Utils & Media
 	import { config, toFormData } from '@utils/utils';

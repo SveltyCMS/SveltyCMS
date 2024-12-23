@@ -13,6 +13,7 @@
  * - Name conflict detection to prevent duplicate collection names
  * - HASH and UUID Management
  */
+
 import fs from 'fs/promises';
 import crypto from 'crypto';
 import path from 'path';
@@ -32,7 +33,7 @@ export async function compile(options: CompileOptions = {}): Promise<void> {
     // Define collection paths directly and use process.cwd()
     const {
         userCollections = path.posix.join(process.cwd(), 'config/collections'),
-        compiledCollections = path.posix.join(process.cwd(), 'collections')
+        compiledCollections = path.posix.join(process.cwd(), 'compiledCollections')
     } = options;
 
     try {
@@ -205,7 +206,7 @@ async function compileFile(file: string, srcFolder: string, destFolder: string):
         }
 
         let finalCode: string;
-        
+
         if (isTypeScript) {
             // 4. Transpile TypeScript code
             const result = ts.transpileModule(content, {
@@ -237,13 +238,16 @@ async function compileFile(file: string, srcFolder: string, destFolder: string):
             }
         }
 
-        // 5. Process Hash and UUID
+        // 5. Modify the transpiled code
+        finalCode = modifyTranspiledCode(finalCode);
+
+        // 6. Process Hash and UUID
         finalCode = processHashAndUUID(finalCode, contentHash, uuid);
 
-        // 6. Write the compiled file
+        // 7. Write the compiled file
         await writeCompiledFile(jsFilePath, finalCode);
 
-        // 7. Update cache
+        // 8. Update cache
         cache.set(tsFilePath, { hash: contentHash, code: finalCode, uuid });
 
         console.log(`Compiled and wrote \x1b[32m${shortPath}\x1b[0m`);
@@ -251,6 +255,13 @@ async function compileFile(file: string, srcFolder: string, destFolder: string):
         console.error(`Error compiling file ${file}:`, error);
         throw error;
     }
+}
+function modifyTranspiledCode(code: string): string {
+    // Modify transpiled code to fit project requirements
+    return code
+        .replace(/import widgets from .*\n/g, '') // Remove widget imports
+        .replace(/widgets/g, 'globalThis.widgets') // Replace widget references with globalThis.widgets
+        .replace(/(\bfrom\s+["']\..*)(["'])/g, '$1.js$2'); // Add .js extension to relative import paths
 }
 
 async function shouldRecompile(

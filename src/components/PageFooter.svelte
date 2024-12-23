@@ -11,7 +11,7 @@
 -->
 
 <script lang="ts">
-	import { collection, collectionValue } from '@root/src/stores/collectionStore.svelte';
+	import { collection, collectionValue } from '@src/stores/collectionStore.svelte';
 	import { convertTimestampToDateString } from '@utils/utils';
 
 	// Convert timestamp to Date string

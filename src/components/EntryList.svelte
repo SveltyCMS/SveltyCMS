@@ -29,17 +29,17 @@ Features:
 	import { deleteData, getData, setStatus } from '@utils/data';
 
 	// Types
-	import type { CollectionData } from '@src/collections/types';
+	import type { Schema, CollectionData } from '@src/content/types';
 
 	// Stores
+	import { get } from 'svelte/store';
 	import { contentLanguage, systemLanguage } from '@stores/store';
-	import { mode, collectionValue, modifyEntry, statusMap, collection, categories } from '@root/src/stores/collectionStore.svelte';
-	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@root/src/stores/sidebarStore.svelte';
-	import { screenSize } from '@root/src/stores/screenSizeStore.svelte';
+	import { mode, collectionValue, modifyEntry, statusMap, collection, categories } from '@src/stores/collectionStore.svelte';
+	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@src/stores/sidebarStore.svelte';
+	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-
 	// Components
 	import EntryListMultiButton from './EntryList_MultiButton.svelte';
 	import TranslationStatus from '@components/TranslationStatus.svelte';
@@ -47,7 +47,6 @@ Features:
 	import TableFilter from '@components/system/table/TableFilter.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import TablePagination from '@components/system/table/TablePagination.svelte';
-
 	import Status from '@components/system/table/Status.svelte';
 	import Loading from './Loading.svelte';
 
@@ -60,6 +59,7 @@ Features:
 	// Svelte-dnd-action
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
+	import { v4 as uuidv4 } from 'uuid';
 
 	const flipDurationMs = 300;
 
@@ -67,20 +67,16 @@ Features:
 	function handleDndConsider(event: CustomEvent<{ items: { label: string; name: string; id: string; visible: boolean }[] }>) {
 		displayTableHeaders = event.detail.items;
 	}
-
 	function handleDndFinalize(event: CustomEvent<{ items: { label: string; name: string; id: string; visible: boolean }[] }>) {
 		displayTableHeaders = event.detail.items;
 	}
-
 	let isLoading = $state(false);
 	let loadingTimer: any; // recommended time of around 200-300ms
-
 	// Buttons
 	let globalSearchValue = $state('');
 	let expand = $state(false);
 	let filterShow = $state(false);
 	let columnShow = $state(false);
-
 	// Retrieve entryListPaginationSettings from local storage or set default values for each collection
 	const entryListPaginationSettingsKey = `entryListPaginationSettings_${String(collection.value?.id)}`;
 	let entryListPaginationSettings: any =
@@ -88,7 +84,6 @@ Features:
 			? JSON.parse(localStorage.getItem(entryListPaginationSettingsKey) as string)
 			: {
 					collectionId: collection.value?.id,
-					collectionName: collection.value?.name,
 					density: 'normal',
 					sorting: { sortedBy: '', isSorted: 0 },
 					currentPage: 1,
@@ -104,48 +99,38 @@ Features:
 		id: string;
 		visible: boolean;
 	}
-
 	let displayTableHeaders = $state<TableHeader[]>(
 		entryListPaginationSettings?.displayTableHeaders?.length > 0 ? entryListPaginationSettings.displayTableHeaders : []
 	);
-
 	let density = $state<string>(entryListPaginationSettings?.density || 'normal');
 	let selectAllColumns = $state(true);
-
 	let data = $state<{ entryList: any[]; pagesCount: number } | undefined>(undefined);
 	let tableHeaders = $state<{ label: string; name: string; id: string; visible: boolean }[]>([]);
 	let tableData = $state<any[]>([]);
-
 	// Tick row logic
 	let SelectAll = $state(false);
 	const selectedMap: { [key: string]: boolean } = {};
-
 	// Filter and debounce
 	let filters = $state<{ [key: string]: string }>(entryListPaginationSettings.filters || {});
 	const waitFilter = debounce(300); // Debounce filter function for 300ms
-
 	// Sorting initialization
 	let sorting = $state<{ sortedBy: string; isSorted: 0 | 1 | -1 }>({
 		sortedBy: '',
 		isSorted: 1
 	});
-
 	$effect(() => {
 		if (tableData.length > 0) {
 			sorting.sortedBy = Object.keys(tableData[0])[0];
 		}
 	});
-
 	// Pagination
 	let pagesCount = $state<number>(entryListPaginationSettings.pagesCount || 1); // Initialize pagesCount
 	let currentPage = $state<number>(entryListPaginationSettings.currentPage || 1); // Set initial currentPage value
 	let rowsPerPage = $state<number>(entryListPaginationSettings.rowsPerPage || 10); // Set initial rowsPerPage value
 	let totalItems = $state<number>(0); // Initialize totalItems
-
 	// Declare isFirstPage and isLastPage variables
 	let isFirstPage: boolean;
 	let isLastPage: boolean;
-
 	// Derived stores for reactive values
 	const currentLanguage = $derived(contentLanguage.value);
 	const currentSystemLanguage = $derived(systemLanguage.value);
@@ -159,21 +144,18 @@ Features:
 		if (loadingTimer) {
 			clearTimeout(loadingTimer);
 		}
-
-		// If the collection name is empty, return
-		if (!currentCollection?.name) return;
-
+		// If the collection id is empty, return
+		if (!currentCollection?.id) return;
 		// If fetch is true, set isLoading to true
 		if (fetch) {
 			// Set loading to true
 			loadingTimer = setTimeout(() => {
 				isLoading = true;
 			}, 400);
-
 			// Fetch data using getData function
 			try {
 				data = await getData({
-					collectionTypes: currentCollection?.name as any,
+					collectionTypes: currentCollection?.id as any,
 					page: currentPage,
 					limit: rowsPerPage,
 					contentLanguage: currentLanguage,
@@ -186,106 +168,93 @@ Features:
 							: {}
 					)
 				});
-
 				// Set loading to false
 				isLoading = false;
 				clearTimeout(loadingTimer);
 			} catch (error) {
 				const err = error as Error;
 				console.log(`'Error fetching data: ${err.message}`);
-
 				isLoading = false;
 				clearTimeout(loadingTimer);
 				return;
 			}
 		}
-
 		// Update tableData and options
 		if (data && data.entryList && Array.isArray(data.entryList)) {
 			tableData = await Promise.all(
 				data.entryList.map(async (entry) => {
 					const obj: { [key: string]: any } = {};
-
 					for (const field of currentCollection.fields) {
 						if (field.callback && typeof field.callback === 'function') {
 							field.callback({ data });
 							handleSidebarToggle();
 						}
-
 						// Status
 						obj.status = entry.status ? entry.status.charAt(0).toUpperCase() + entry.status.slice(1) : 'N/A';
-
 						// Collection fields
 						if (field.display) {
 							obj[field.label] = await field.display({
 								data: entry[getFieldName(field)],
-								collection: (currentCollection?.name ?? '').toString(),
+								collection: (currentCollection?.id ?? '').toString(),
 								field,
 								entry,
 								contentLanguage: currentLanguage
 							});
 						}
 					}
-
 					// Add createdAt and updatedAt properties localized to the system language
 					obj.createdAt = entry.createdAt ? new Date(Number(entry.createdAt) * 1000).toLocaleString(currentSystemLanguage) : 'N/A';
 					obj.updatedAt = entry.updatedAt ? new Date(Number(entry.updatedAt) * 1000).toLocaleString(currentSystemLanguage) : 'N/A';
 					obj._id = entry._id;
-
 					return obj;
 				})
 			);
 		}
 
 		// For rendering Table data
-		tableHeaders = currentCollection?.fields.map((field) => ({
-			label: field.label,
-			name: getFieldName(field),
-			id: getFieldName(field),
-			visible: true
-		}));
+		tableHeaders =
+			currentCollection?.fields.map((field) => ({
+				label: field.label,
+				name: getFieldName(field),
+				id: uuidv4(),
+				visible: true
+			})) ?? [];
 		tableHeaders.push(
-			{ label: 'createdAt', name: 'createdAt', id: 'createdAt', visible: true },
-			{ label: 'updatedAt', name: 'updatedAt', id: 'updatedAt', visible: true },
-			{ label: 'status', name: 'status', id: 'status', visible: true }
+			{ label: 'createdAt', name: 'createdAt', id: uuidv4(), visible: true },
+			{ label: 'updatedAt', name: 'updatedAt', id: uuidv4(), visible: true },
+			{ label: 'status', name: 'status', id: uuidv4(), visible: true }
 		);
 
 		// Update displayTableHeaders based on entryListPaginationSettings
 		if (entryListPaginationSettings.displayTableHeaders.length > 0) {
 			displayTableHeaders = entryListPaginationSettings.displayTableHeaders.map((header: TableHeader) => ({
 				...header,
-				id: crypto.randomUUID() // Add unique id for each header (optional)
+				id: uuidv4() // Add unique id for each header (optional)
 			}));
 		} else if (tableHeaders.length > 0) {
 			// If no saved settings, use tableHeaders with initial visibility
 			displayTableHeaders = tableHeaders.map((header) => ({
 				...header,
 				visible: true, // Assuming all columns are initially visible
-				id: crypto.randomUUID() // Add unique id for each header (optional)
+				id: uuidv4() // Add unique id for each header (optional)
 			}));
 		}
-
 		SelectAll = false;
-
 		// Update pagesCount after fetching data
 		pagesCount = data?.pagesCount || 1;
-
 		// Update isFirstPage and isLastPage based on currentPage and pagesCount
 		isFirstPage = currentPage === 1;
 		isLastPage = currentPage === pagesCount;
-
 		// Adjust currentPage to the last page if it exceeds the new total pages count after changing the rows per page.
 		if (currentPage > (data?.pagesCount || 0)) {
 			currentPage = data?.pagesCount || 1;
 		}
 	}
-
 	// React to changes in density setting and update local storage for each collection
 	$effect(() => {
 		entryListPaginationSettings = {
 			...entryListPaginationSettings,
 			collectionId: currentCollection?.id,
-			collectionName: currentCollection?.name,
 			filters,
 			sorting,
 			density,
@@ -295,25 +264,21 @@ Features:
 		};
 		browser && localStorage.setItem(entryListPaginationSettingsKey, JSON.stringify(entryListPaginationSettings));
 	});
-
 	// Trigger refreshTableData based on collection, filters, sorting, and currentPage
 	$effect(() => {
 		if (currentCollection) refreshTableData();
 	});
-
 	// Trigger refreshTableData when contentLanguage changes, but don't fetch data
 	$effect(() => {
 		// refreshTableData(false);
 		filters = {};
 	});
-
 	// Reset currentPage to 1 when the collection changes
 	$effect(() => {
 		if (currentCollection) {
 			currentPage = 1;
 		}
 	});
-
 	// Reset collectionValue when mode changes
 	$effect(() => {
 		if (currentMode === 'view') {
@@ -323,13 +288,12 @@ Features:
 			});
 		}
 	});
-
 	// Tick All Rows
 	function process_selectAll(selectAll: boolean) {
 		if (selectAll) {
 			// Iterate only over visible entries
-			tableData.forEach((entry) => {
-				selectedMap[entry.id] = true;
+			tableData.forEach((entry, index) => {
+				selectedMap[index] = true;
 			});
 		} else {
 			// Clear all selections
@@ -343,16 +307,13 @@ Features:
 	$effect(() => {
 		process_selectAll(SelectAll);
 	});
-
 	// Update Tick Single Row
 	$effect(() => {
 		Object.values(selectedMap).includes(true) ? mode.set('modify') : mode.set('view');
 	});
-
 	// Tick Row - modify STATUS of an Entry
 	modifyEntry.set(async (status?: keyof typeof statusMap): Promise<void> => {
 		if (!status) return Promise.resolve();
-
 		// Initialize an array to store the IDs of the items to be modified
 		const modifyList: Array<string> = [];
 		// Loop over the selectedMap object
@@ -362,30 +323,27 @@ Features:
 		}
 		// If no rows are selected, return
 		if (modifyList.length === 0) return Promise.resolve();
-
 		// Function to handle confirmation modal response
 		const handleConfirmation = async (confirm: boolean) => {
 			if (!confirm) return;
-
 			// Initialize a new FormData object
 			const formData = new FormData();
 			// Append the IDs of the items to be modified to formData
 			formData.append('ids', JSON.stringify(modifyList));
 			// Append the status to formData
 			formData.append('status', statusMap[status]);
-
 			try {
 				// Call the appropriate API endpoint based on the status
 				switch (status) {
 					case 'deleted':
 						// If the status is 'deleted', call the delete endpoint
-						await deleteData({ data: formData, collectionTypes: currentCollection?.name as any });
+						await deleteData({ data: formData, collectionTypes: currentCollection?.id as any });
 						break;
 					case 'published':
 					case 'unpublished':
 					case 'testing':
 						// If the status is 'testing', call the publish endpoint
-						await setStatus({ data: formData, collectionTypes: currentCollection?.name as any });
+						await setStatus({ data: formData, collectionTypes: currentCollection?.id as any });
 						break;
 					case 'cloned':
 					case 'scheduled':
@@ -398,7 +356,6 @@ Features:
 						toastStore.trigger(toast);
 						break;
 				}
-
 				// Refresh the collection
 				refreshTableData();
 				// Set the mode to 'view'
@@ -408,7 +365,6 @@ Features:
 				console.log(`'Error : ${err.message}`);
 			}
 		};
-
 		// If more than one row is selected or the status is 'delete', show confirmation modal
 		if (modifyList.length > 1 || status === 'deleted') {
 			const modalData: ModalSettings = {
@@ -421,7 +377,6 @@ Features:
 				buttonTextConfirm: m.button_confirm(),
 				response: handleConfirmation
 			};
-
 			modalStore.trigger(modalData); // Trigger the confirmation modal
 		} else {
 			// If only one row is selected and status is not 'delete', directly proceed with modification
@@ -430,26 +385,36 @@ Features:
 	});
 
 	let categoryName = $derived.by(() => {
-		if (!currentCollection?.name || !categories.value) return '';
-
+		if (!currentCollection?.id || !categories.value) return '';
 		// Helper function to find parent category name
 		const findParentCategory = (categories: Record<string, CollectionData>): string => {
-			// Only process root categories (Collections and Menu)
-			for (const [rootName, rootCategory] of Object.entries(categories)) {
-				if (rootName !== 'Collections' && rootName !== 'Menu') continue;
+			// Get valid root paths from categories store
+			function getValidRootPaths() {
+				const categoryData = get(categories);
+				return Object.keys(categoryData);
+			}
 
+			// Check if path is a valid root path
+			function isValidRootPath(path: string) {
+				const validPaths = getValidRootPaths();
+				return validPaths.some((validPath) => path.startsWith(validPath));
+			}
+
+			// Only process root categories (Collections and Menu)
+			for (const [path, rootCategory] of Object.entries(categories)) {
+				if (!isValidRootPath(path)) continue;
 				if (rootCategory.subcategories) {
 					// Check each subcategory
-					for (const [subName, subCat] of Object.entries(rootCategory.subcategories)) {
+					for (const [subPath, subCat] of Object.entries(rootCategory.subcategories)) {
 						// Case 1: Direct collection in subcategories (like Media, Names)
-						if (subCat.isCollection && subName === currentCollection.name) {
+						if (subCat.isCollection && subCat.id === currentCollection.id) {
 							return rootCategory.name;
 						}
 
 						// Case 2: Collection in nested subcategories (like Posts/Posts)
 						if (!subCat.isCollection && subCat.subcategories) {
-							for (const [nestedName, nestedCat] of Object.entries(subCat.subcategories)) {
-								if (nestedCat.isCollection && nestedName === currentCollection.name) {
+							for (const [nestedPath, nestedCat] of Object.entries(subCat.subcategories)) {
+								if (nestedCat.isCollection && nestedCat.id === currentCollection.id) {
 									// Return the immediate parent name (e.g. "Posts" for Posts/Posts)
 									return subCat.name;
 								}
@@ -460,7 +425,6 @@ Features:
 			}
 			return '';
 		};
-
 		return findParentCategory(categories.value);
 	});
 
@@ -489,7 +453,6 @@ Features:
 			{/if}
 			<!-- Collection type with icon -->
 			<!-- TODO: Translate Collection Name -->
-
 			<div class="mr-1 flex flex-col {!sidebarState.sidebar.value.left ? 'ml-2' : 'ml-1 sm:ml-2'}">
 				{#if categoryName}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300 rtl:text-left">
 						{categoryName}
@@ -508,7 +471,6 @@ Features:
 				</div>
 			</div>
 		</div>
-
 		<div class="flex items-center justify-between gap-1">
 			<!-- Expand/Collapse -->
 			<button
@@ -520,16 +482,13 @@ Features:
 			>
 				<iconify-icon icon="material-symbols:filter-list-rounded" width="30"> </iconify-icon>
 			</button>
-
 			<!-- Translation Content Language -->
 			<div class="mt-1 sm:hidden">
 				<TranslationStatus />
 			</div>
-
 			<!-- Table Filter with Translation Content Language -->
 			<div class="relative mt-1 hidden items-center justify-center gap-2 sm:flex">
 				<TableFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density />
-
 				<TranslationStatus />
 			</div>
 			<!-- MultiButton -->
@@ -538,7 +497,6 @@ Features:
 			</div>
 		</div>
 	</div>
-
 	<!-- Table -->
 	{#if tableData.length > 0}
 		{#if expand}
@@ -546,7 +504,6 @@ Features:
 				<TableFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density />
 			</div>
 		{/if}
-
 		{#if columnShow}
 			<!-- Column order -->
 			<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700">
@@ -587,7 +544,6 @@ Features:
 								// Reset the entryListPaginationSettings to the default state
 								entryListPaginationSettings = {
 									collectionId: collection.value?.id,
-									collectionName: collection.value?.name,
 									density: 'normal',
 									sorting: { sortedBy: '', isSorted: 0 },
 									currentPage: 1,
@@ -645,7 +601,6 @@ Features:
 				</div>
 			</div>
 		{/if}
-
 		<div class="table-container max-h-[calc(100dvh-120px)] overflow-auto">
 			<table class="table table-interactive table-hover {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
 				<!-- Table Header -->
@@ -667,7 +622,6 @@ Features:
 									</button>
 								{/if}
 							</th>
-
 							<!-- Filter -->
 							{#each tableHeaders as header}
 								<th>
@@ -693,7 +647,6 @@ Features:
 							{/each}
 						</tr>
 					{/if}
-
 					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
 						<TableIcons
 							checked={SelectAll}
@@ -704,8 +657,7 @@ Features:
 								}
 							}}
 						/>
-
-						{#each tableHeaders as header}
+						{#each displayTableHeaders.filter((header) => header.visible) as header}
 							<th
 								onclick={() => {
 									//sorting
@@ -734,20 +686,18 @@ Features:
 									{:else}
 										{header.label}
 									{/if}
-
 									<iconify-icon
 										icon="material-symbols:arrow-upward-rounded"
 										width="22"
 										class="origin-center duration-300 ease-in-out"
 										class:up={sorting.isSorted === 1}
-										class:invisible={sorting.isSorted == 0 || sorting.sortedBy != header.label}
+										class:invisible={sorting.isSorted == 0 || sorting.sortedBy != header.name}
 									></iconify-icon>
 								</div>
 							</th>
 						{/each}
 					</tr>
 				</thead>
-
 				<tbody>
 					{#each tableData as row, index}
 						<tr class="divide-x divide-surface-400">
@@ -757,8 +707,7 @@ Features:
 									selectedMap[index] = checked;
 								}}
 							/>
-
-							{#each tableHeaders as header}
+							{#each displayTableHeaders.filter((header) => header.visible) as header}
 								<td
 									onclick={() => {
 										collectionValue.set(data?.entryList[index]);
@@ -781,7 +730,6 @@ Features:
 				</tbody>
 			</table>
 		</div>
-
 		<!-- Pagination -->
 		<div class="sticky bottom-0 left-0 right-0 mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
 			<TablePagination

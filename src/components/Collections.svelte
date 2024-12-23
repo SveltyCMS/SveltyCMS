@@ -21,16 +21,15 @@ Features:
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
 
 	// Types
-	import type { Schema, CollectionData, Category } from '@src/collections/types';
+	import type { ContentStructureState } from '@src/shared/types';
 
 	// Stores
 	import { get } from 'svelte/store';
 	import { shouldShowNextButton } from '@stores/store';
-	import { mode, collection, categories, collections } from '@root/src/stores/collectionStore.svelte';
-	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@root/src/stores/sidebarStore.svelte';
+	import { mode, collections } from '@src/stores/collectionStore.svelte';
+	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@src/stores/sidebarStore.svelte';
 	import { screenSize } from '@root/src/stores/screenSizeStore.svelte';
 
 	// ParaglideJS
@@ -50,144 +49,131 @@ Features:
 	import VirtualFolders from '@components/VirtualFolders.svelte';
 
 	type ModeType = 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
-
 	// Props
 	let modeSet = $state<ModeType>('view');
-
 	// Search Collections
 	let search = $state('');
 	let searchShow = $state(false);
+	let filteredNodes = $state<ContentStructureState[]>([]);
+	let isMediaMode = $state(false);
 
-	interface FilteredCategory extends Category {
-		open: boolean;
-		level: number;
+	// Function to fetch and process content structure
+	async function fetchContentStructure() {
+		try {
+			const response = await fetch('/api/content-structure');
+			if (!response.ok) throw new Error('Failed to fetch content structure');
+			const data = await response.json();
+			return processContentStructure(data);
+		} catch (error) {
+			console.error('Error fetching content structure:', error);
+			return [];
+		}
 	}
 
-	let filteredCategories = $state<FilteredCategory[]>([]);
+	// Function to process content structure data
+	function processContentStructure(nodes: any[]): ContentStructureState[] {
+		if (!nodes || nodes.length === 0) return [];
 
-	// Function to flatten and filter categories with improved subcategory search
-	function filterCategories(searchTerm: string, cats: Record<string, CollectionData>): FilteredCategory[] {
-		if (!cats || Object.keys(cats).length === 0) return [];
+		// Group nodes by path
+		const groupedNodes = nodes.reduce(
+			(acc, node) => {
+				const path = node.path || '/';
+				if (!acc[path]) acc[path] = [];
+				acc[path].push(node);
+				return acc;
+			},
+			{} as Record<string, any[]>
+		);
 
-		function processCategory(category: CollectionData, level: number = 0): FilteredCategory | null {
-			const processed: FilteredCategory = {
-				id: category.id,
-				name: category.name,
-				icon: category.icon,
-				collections: [],
+		// Build tree structure
+		function buildTree(path: string, level: number = 0): ContentStructureState[] {
+			const nodesInPath = groupedNodes[path] || [];
+			return nodesInPath.map((node) => ({
+				id: node._id,
+				name: node.name,
+				icon: node.icon,
+				path: node.path,
+				isCollection: node.isCollection,
 				level,
-				open: searchTerm !== '', // Auto-open categories when searching
-				subcategories: {}
-			};
+				open: search !== '',
+				children: buildTree(`${path}${node.name}/`, level + 1)
+			}));
+		}
 
-			// Process subcategories
-			let hasMatchingContent = false;
-			if (category.subcategories) {
-				Object.entries(category.subcategories).forEach(([key, subCat]) => {
-					if (subCat.isCollection) {
-						const collectionSchema = collections.value[subCat.id] || collections.value[key];
+		return buildTree('/collections/');
+	}
 
-						if (collectionSchema) {
-							const collection = {
-								...collectionSchema,
-								id: subCat.id,
-								name: subCat.name || collectionSchema.name, // Use the friendly name from subcategory
-								icon: subCat.icon || collectionSchema.icon,
-								fields: collectionSchema.fields || []
-							};
+	// Function to filter content structure
+	function filterContentStructure(searchTerm: string, nodes: ContentStructureState[]): ContentStructureState[] {
+		if (!nodes || nodes.length === 0) return [];
 
-							if (searchTerm === '' || (collection.name as string).toLowerCase().includes(searchTerm.toLowerCase())) {
-								processed.collections.push(collection);
-								hasMatchingContent = true;
-							}
-						}
-					} else {
-						const processedSub = processCategory(subCat, level + 1);
-						if (processedSub) {
-							processed.subcategories![key] = processedSub;
-							hasMatchingContent = true;
-						}
-					}
-				});
+		function filterNode(node: ContentStructureState): ContentStructureState | null {
+			const nameMatch = node.name.toLowerCase().includes(searchTerm.toLowerCase());
+			let filteredChildren: ContentStructureState[] = [];
+
+			if (node.children) {
+				filteredChildren = node.children.map((child) => filterNode(child)).filter((child): child is ContentStructureState => child !== null);
 			}
 
-			const searchLower = searchTerm.toLowerCase();
-			const nameMatches = category.name.toLowerCase().includes(searchLower);
-
-			return searchTerm === '' || nameMatches || hasMatchingContent ? processed : null;
+			if (nameMatch || filteredChildren.length > 0) {
+				return {
+					...node,
+					open: searchTerm !== '',
+					children: filteredChildren
+				};
+			}
+			return null;
 		}
 
-		// Process only root categories (Collections and Menu)
-		return Object.entries(cats)
-			.filter(([name]) => name === 'Collections' || name === 'Menu')
-			.map(([, cat]) => processCategory(cat))
-			.filter((cat): cat is FilteredCategory => cat !== null);
+		return nodes.map((node) => filterNode(node)).filter((node): node is ContentStructureState => node !== null);
 	}
 
-	// Subscribe to categories and collections store changes and handle search
+	// Update filtered nodes when search changes
 	$effect(() => {
-		if ($categories && collections.value) {
-			filteredCategories = filterCategories(search, $categories);
-		}
+		fetchContentStructure().then((nodes) => {
+			filteredNodes = filterContentStructure(search, nodes);
+		});
 	});
 
-	// Handle search input
-	function handleSearch(event: Event) {
-		const target = event.target as HTMLInputElement;
-		search = target.value;
-		filteredCategories = filterCategories(search, $categories);
-	}
-
-	// Clear search
-	function clearSearch() {
-		search = '';
-		filteredCategories = filterCategories('', $categories);
-		// Focus the search input after clearing
-		const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement;
-		if (searchInput) searchInput.focus();
-	}
-
-	// Determine if the current mode is 'media'
-	let isMediaMode = $derived(mode.value === 'media');
-
-	onMount(() => {
-		if ($categories && collections.value) {
-			filteredCategories = filterCategories('', $categories);
-		}
+	// Update isMediaMode when modeSet changes
+	$effect(() => {
+		isMediaMode = modeSet === 'media';
 	});
-
-	// Helper function to get indentation class based on level
-	function getIndentClass(level: number): string {
-		return `pl-${level * 2}`; // Reduced padding for better space utilization
-	}
 
 	// Handle collection selection
-	function handleCollectionSelect(_collection: Schema) {
+	function handleCollectionSelect(collection: ContentStructureState | Schema) {
 		if (mode.value === 'edit') {
 			mode.set('view');
 		} else {
 			mode.set(modeSet);
-			shouldShowNextButton.set(true);
 		}
-		collection.set(_collection);
-		handleSidebarToggle();
-	}
 
+		if ('isCollection' in collection) {
+			// For ContentStructureState, we need to find the actual Schema
+			const collectionSchema = collections.value[collection.name];
+			if (collectionSchema) {
+				selectedCollection.set(collectionSchema);
+			}
+		} else {
+			// If it's already a Schema object, we can set it directly
+			selectedCollection.set(collection);
+		}
+
+		handleSidebarToggle();
+		shouldShowNextButton.set(true);
+	}
 	// Generate unique key for collection items
 	function getCollectionKey(_collection: Schema, categoryId: string): string {
 		// The collection should already have an ID from the category processing
 		return `${categoryId}-${String(_collection.name)}-${_collection.id}`;
 	}
-
 	// Track open states for subcategories
 	let subCategoryOpenStates = $state<Record<string, boolean>>({});
-
 	// Handle subcategory accordion state
 	function handleSubcategoryToggle(categoryId: string, subcategoryKey: string) {
 		const key = `${categoryId}-${subcategoryKey}`;
 		subCategoryOpenStates[key] = !subCategoryOpenStates[key];
 	}
-
 	// Handle keyboard events
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Enter') {
@@ -231,7 +217,6 @@ Features:
 				</button>
 			</div>
 		{/if}
-
 		<!-- Collections Accordion -->
 		<Accordion
 			autocollapse
@@ -242,31 +227,29 @@ Features:
 			hover="hover:bg-primary-hover-token"
 			caretOpen="rotate-180"
 		>
-			{#if filteredCategories.length > 0}
-				{#each filteredCategories as category (category.name)}
+			{#if filteredNodes.length > 0}
+				{#each filteredNodes as node (node.id)}
 					<AccordionItem
-						bind:open={category.open}
+						bind:open={node.open}
 						regionPanel="divide-y dark:divide-black my-0"
-						class={`divide-y rounded-md bg-surface-300 dark:divide-black ${getIndentClass(category.level)}`}
+						class={`divide-y rounded-md bg-surface-300 dark:divide-black ${getIndentClass(node.level)}`}
 					>
 						{#snippet lead()}
-							<iconify-icon icon={category.icon} width="24" class="text-error-500 rtl:ml-2" use:popup={popupCollections}></iconify-icon>
+							<iconify-icon icon={node.icon} width="24" class="text-error-500 rtl:ml-2" use:popup={popupCollections}></iconify-icon>
 						{/snippet}
-
 						{#snippet summary()}
 							{#if sidebarState.sidebar.value.left === 'full'}
-								<p class="text-white">{category.name}</p>
+								<p class="text-white">{node.name}</p>
 							{/if}
 							<div class="card variant-filled-secondary p-4" data-popup="popupHover">
-								<p>{category.name}</p>
+								<p>{node.name}</p>
 								<div class="variant-filled-secondary arrow"></div>
 							</div>
 						{/snippet}
-
 						{#snippet content()}
 							<!-- Collections in this category -->
-							{#if category.collections?.length}
-								{#each category.collections as _collection (getCollectionKey(_collection, category.name.toString()))}
+							{#if node.children?.length}
+								{#each node.children as _collection (getCollectionKey(_collection, node.name))}
 									<div
 										role="button"
 										tabindex={0}
@@ -286,9 +269,8 @@ Features:
 									</div>
 								{/each}
 							{/if}
-
 							<!-- Subcategories with Autocollapse -->
-							{#if category.subcategories && Object.keys(category.subcategories).length > 0}
+							{#if node.children && node.children.length > 0}
 								<Accordion
 									autocollapse
 									spacing="space-y-1"
@@ -299,32 +281,29 @@ Features:
 									caretOpen="rotate-180"
 									class="-mr-4"
 								>
-									{#each Object.entries(category.subcategories) as [key, subCategory] (key)}
-										<div class={getIndentClass(category.level + 1)}>
+									{#each node.children as subNode (subNode.id)}
+										<div class={getIndentClass((node.level ?? 0) + 1)}>
 											<AccordionItem
-												bind:open={subCategoryOpenStates[`${category.name}-${key}`]}
-												onclick={() => handleSubcategoryToggle(category.name.toString(), key)}
+												bind:open={subCategoryOpenStates[`${node.name}-${subNode.name}`]}
+												onclick={() => handleSubcategoryToggle(node.id.toString(), subNode.name)}
 												regionPanel="divide-y dark:divide-black my-0"
 												class="divide-y rounded-md bg-surface-300 dark:bg-surface-400"
 											>
 												{#snippet lead()}
-													<iconify-icon icon={subCategory.icon} width="24" class="text-error-500 rtl:ml-2" use:popup={popupCollections}
-													></iconify-icon>
+													<iconify-icon icon={subNode.icon} width="24" class="text-error-500 rtl:ml-2" use:popup={popupCollections}></iconify-icon>
 												{/snippet}
-
 												{#snippet summary()}
 													{#if sidebarState.sidebar.value.left === 'full'}
-														<p class="uppercase text-white">{subCategory.name}</p>
+														<p class="uppercase text-white">{subNode.name}</p>
 													{/if}
 													<div class="card variant-filled-secondary p-4" data-popup="popupHover">
-														<p class="uppercase">{subCategory.name}</p>
+														<p class="uppercase">{subNode.name}</p>
 														<div class="variant-filled-secondary arrow"></div>
 													</div>
 												{/snippet}
-
 												{#snippet content()}
-													{#if subCategory.collections?.length}
-														{#each subCategory.collections as _collection (getCollectionKey(_collection, subCategory.name.toString()))}
+													{#if subNode.children?.length}
+														{#each subNode.children as _collection (getCollectionKey(_collection, subNode.name.toString()))}
 															<div
 																role="button"
 																tabindex={0}
@@ -357,7 +336,6 @@ Features:
 				<div class="p-4 text-center text-gray-500">No collections found</div>
 			{/if}
 		</Accordion>
-
 		<!-- Media Gallery Button -->
 		<button
 			class="btn mt-1 flex w-full {sidebarState.sidebar.value.left === 'full'

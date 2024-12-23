@@ -31,9 +31,9 @@ Features:
 	import { getToastStore } from '@skeletonlabs/skeleton';
 	import { goto } from '$app/navigation';
 	import { publicEnv } from '@root/config/public';
-	import { sidebarState, toggleSidebar } from '@root/src/stores/sidebarStore.svelte';
-	import { screenSize } from '@root/src/stores/screenSizeStore.svelte';
-	import { mode } from '@root/src/stores/collectionStore.svelte';
+	import { sidebarState, toggleSidebar } from '@src/stores/sidebarStore.svelte';
+	import { screenSize } from '@src/stores/screenSizeStore.svelte';
+	import { mode } from '@src/stores/collectionStore.svelte';
 	import { get } from 'svelte/store';
 
 	// Toast notifications

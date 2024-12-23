@@ -22,7 +22,7 @@ import { building } from '$app/environment';
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
 
 // Auth and Database Adapters
-import { auth, initializationPromise } from '@src/databases/db';
+import { auth, dbInitPromise } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import { checkUserPermission } from '@src/auth/permissionCheck';
 import { getAllPermissions } from '@src/auth/permissionManager';
@@ -213,7 +213,7 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 	event.startTime = performance.now();
 
 	try {
-		await initializationPromise;
+		await dbInitPromise;
 
 		const session_id = event.cookies.get(SESSION_COOKIE_NAME);
 		const user = await getUserFromSessionId(session_id);
@@ -264,7 +264,7 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 
 		const responseTime = performance.now() - event.startTime;
 		logger.debug(
-			`Route \x1b[34m${event.url.pathname}\x1b[0m - ${responseTime.toFixed(2)}ms ${getPerformanceEmoji(responseTime)}: isPublicRoute=\x1b[${isPublicRoute ? '32' : '31'}m${isPublicRoute}\x1b[0m, isApiRequest=\x1b[${isApiRequest ? '32' : '31'}m${isApiRequest}\x1b[0m`
+			`Route \x1b[34m${event.url.pathname}\x1b[0m - \x1b[33m${responseTime.toFixed(2)}ms\x1b[0m ${getPerformanceEmoji(responseTime)}: isPublicRoute=\x1b[${isPublicRoute ? '32' : '31'}m${isPublicRoute}\x1b[0m, isApiRequest=\x1b[${isApiRequest ? '32' : '31'}m${isApiRequest}\x1b[0m`
 		);
 
 		if (isOAuthRoute(event.url.pathname)) {
@@ -335,7 +335,7 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 		});
 
 		if (!hasPermission) {
-			logger.warn(`User ${user._id} attempted to access ${apiEndpoint} API without permission`);
+			logger.warn(`User \x1b[34m${user_id}\x1b[0m attempted to access \x1b[34m${apiEndpoint}\x1b[0m API without permission`);
 			throw error(403, 'Forbidden');
 		}
 	}
@@ -346,7 +346,7 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 		const cached = await cacheStore.get<{ data: unknown; timestamp: number; headers: Record<string, string> }>(cacheKey);
 
 		if (cached) {
-			logger.debug(`Cache hit for ${cacheKey}`);
+			logger.debug(`Cache hit for \x1b[34m${cacheKey}\x1b[0m`);
 			return new Response(JSON.stringify(cached.data), {
 				status: 200,
 				headers: {
@@ -356,7 +356,7 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 			});
 		}
 
-		logger.debug(`Cache miss for ${cacheKey}, resolving request`);
+		logger.debug(`Cache miss for \x1b[34m${cacheKey}\x1b[0m, resolving request`);
 		const response = await resolve(event);
 		const clonedResponse = response.clone();
 
@@ -374,7 +374,7 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 					},
 					new Date(now + API_CACHE_TTL)
 				);
-				logger.debug(`Stored ${cacheKey} in cache`);
+				logger.debug(`Stored \x1b[34m${cacheKey}\x1b[0m in cache`);
 			}
 
 			return new Response(JSON.stringify(data), {
@@ -385,7 +385,7 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 				}
 			});
 		} catch (err) {
-			logger.error(`Error processing API response for ${apiEndpoint}: ${err}`);
+			logger.error(`Error processing API response for \x1b[34m${apiEndpoint}\x1b[31m: ${err}`);
 			return clonedResponse;
 		}
 	}

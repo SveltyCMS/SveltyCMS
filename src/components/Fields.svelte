@@ -31,7 +31,7 @@ Key features:
 
 	// Stores
 	import { contentLanguage, translationProgress } from '@stores/store';
-	import { collection, collectionValue } from '@root/src/stores/collectionStore.svelte';
+	import { collection, collectionValue } from '@src/stores/collectionStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

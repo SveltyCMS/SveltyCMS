@@ -26,7 +26,7 @@
  */
 
 import { PermissionAction as ConfigPermissionAction, PermissionType } from '../../src/auth/permissionTypes';
-//import type { Field } from '../collections/types';
+import type { Field } from '../content/types';
 
 // Type aliases for identifiers
 export type RoleId = string;
@@ -304,14 +304,14 @@ export interface Model<T> {
 // Additional Types
 export type WidgetId = string; // Unique identifier for a widget
 
-//// Schema Interface
-//export interface Schema {
-//	icon?: string; // Optional icon representing the schema
-//	status?: string; // Optional status of the schema
-//	revision?: boolean; // Indicates if the schema supports revisions
-//	permissions?: RolePermissions; // Role-based permissions associated with the schema
-//	fields: Field[]; // Array of fields defined in the schema, using the Field type from collections/types
-//}
+// Schema Interface
+export interface Schema {
+	icon?: string; // Optional icon representing the schema
+	status?: string; // Optional status of the schema
+	revision?: boolean; // Indicates if the schema supports revisions
+	permissions?: RolePermissions; // Role-based permissions associated with the schema
+	fields: Field[]; // Array of fields defined in the schema, using the Field type from collections/types
+}
 
 // Session Store Interface
 export interface SessionStore {

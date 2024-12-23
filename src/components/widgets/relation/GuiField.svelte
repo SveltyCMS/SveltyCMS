@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Schema, CollectionTypes } from '@src/collections/types';
+	import type { Schema, CollectionTypes } from '@src/content/types';
 
 	// Stores
 	import { collections } from '@root/src/stores/collectionStore.svelte';

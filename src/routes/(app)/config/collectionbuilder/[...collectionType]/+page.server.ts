@@ -123,7 +123,7 @@ export const actions: Actions = {
 
 		${imports}
 		import { widgets } from '@components/widgets/widgetManager.svelte';
-		import type { Schema } from '@src/collections/types';
+		import type { Schema } from '@src/content/types';
 		
 		export const schema: Schema = {
 			// Collection Name coming from filename so not needed

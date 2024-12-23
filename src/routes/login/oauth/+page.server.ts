@@ -12,10 +12,10 @@ import type { Actions, PageServerLoad } from './$types';
 import { google } from 'googleapis';
 
 //Db
-import { auth, initializationPromise } from '@src/databases/db';
+import { auth, dbInitPromise } from '@src/databases/db';
 
 // Collection Manager
-import { collectionManager } from '@src/collections/CollectionManager';
+import { contentManager } from '@src/content/ContentManager';
 
 // Utils
 import { saveAvatarImage } from '@utils/media/mediaStorage';
@@ -48,8 +48,8 @@ async function sendWelcomeEmail(fetchFn: (input: RequestInfo | URL, init?: Reque
 				subject: `Welcome to ${publicEnv.SITE_NAME}, ${username}!`,
 				message: `Welcome ${username} to ${publicEnv.SITE_NAME}`,
 				templateName: 'welcomeUser',
-				props: { 
-					username, 
+				props: {
+					username,
 					email,
 					hostLink: publicEnv.HOST_LINK || `https://${request.headers.get('host')}`
 				}
@@ -87,8 +87,8 @@ async function fetchAndSaveGoogleAvatar(avatarUrl: string): Promise<string | nul
 async function fetchAndRedirectToFirstCollection() {
 	try {
 		// Wait for collections to be loaded
-		await collectionManager.initialize();
-		const { collections } = collectionManager.getCollectionData();
+		await contentManager.initialize();
+		const { collections } = contentManager.getCollectionData();
 		logger.debug('Available collections:', collections);
 
 		if (collections && collections.length > 0) {
@@ -196,7 +196,7 @@ async function handleGoogleUser(
 
 export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => {
 	try {
-		await initializationPromise; // Ensure initialization is complete
+		await dbInitPromise; // Ensure initialization is complete
 
 		if (!auth) {
 			logger.error('Authentication system is not initialized');

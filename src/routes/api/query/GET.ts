@@ -19,7 +19,7 @@
  */
 
 // Types
-import type { Schema } from '@src/collections/types';
+import type { Schema } from '@root/src/content/types';
 import type { User } from '@src/auth/types';
 import type { CollectionModel } from '@src/databases/dbInterface';
 

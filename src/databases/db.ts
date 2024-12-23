@@ -12,7 +12,6 @@
  *
  * Key Features:
  * - Dynamic Adapter Loading: Supports MongoDB and SQL-based adapters (MariaDB, PostgreSQL) with dynamic import.
- * - Database Connection: Implements a retry mechanism to handle connection failures and attempts reconnections.
  * - Initialization Management: Manages initialization state to prevent redundant setup processes.
  * - Theme Initialization: Handles default theme setup and ensures it's marked as default if not already.
  * - Authentication and Authorization: Configures and initializes authentication adapters.
@@ -21,15 +20,16 @@
 
 import { publicEnv } from '@root/config/public';
 import { privateEnv } from '@root/config/private';
-import fs from 'fs/promises';
+import fs from 'node:fs/promises';
 import { browser } from '$app/environment';
 import { error } from '@sveltejs/kit';
+import { connectToMongoDB } from './mongodb/dbconnect';
 
 // Auth
 import { Auth } from '@src/auth';
 
-// Collection Manager
-import { collectionManager } from '@src/collections/CollectionManager';
+// Content Manager
+import { contentManager } from '@src/content/ContentManager';
 
 import { getPermissionByName, getAllPermissions, syncPermissions } from '@src/auth/permissionManager';
 
@@ -42,35 +42,33 @@ import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
 import { SessionAdapter } from '@src/auth/mongoDBAuth/sessionAdapter';
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
 
-// System Logger
-import { logger } from '@utils/logger.svelte';
 
 // Theme
 import { DEFAULT_THEME } from '@src/databases/themeManager';
 
+// System Logger
+import { logger } from '@utils/logger.svelte';
+
 // Database and authentication adapters
-let dbAdapter: dbInterface | null = null;
-let authAdapter: authDBInterface | null = null;
-let auth: Auth | null = null;
-
-let isInitialized = false; // Flag to track initialization status
-let isConnected = false; // Flag to track database connection status
-let initializationPromise: Promise<void> | null = null;
-
-const MAX_RETRIES = 5; // Maximum number of DB connection retries
-const RETRY_DELAY = 5000; // 5 seconds
+export let dbAdapter: dbInterface | null = null // Database adapter
+export let authAdapter: authDBInterface | null = null; // Authentication adapter
+export let auth: Auth | null = null; // Authentication instance
+export let isConnected = false // Database connection state
+let isInitialized = false // Initialization state
+let initializationPromise: Promise<void> | null = null // Initialization promise
 
 // Load database and authentication adapters
 async function loadAdapters() {
 	try {
+
 		logger.debug(`Loading ${privateEnv.DB_TYPE} adapters...`);
 
 		if (privateEnv.DB_TYPE === 'mongodb') {
-			const { MongoDBAdapter } = await import('./mongodb/mongoDBAdapter');
+			const { MongoDBAdapter } = await import('./mongodb/mongoDBAdapter.js');
 			dbAdapter = new MongoDBAdapter();
-			const userAdapter = new UserAdapter();
-			const sessionAdapter = new SessionAdapter();
-			const tokenAdapter = new TokenAdapter();
+			const userAdapter = new UserAdapter()
+			const sessionAdapter = new SessionAdapter()
+			const tokenAdapter = new TokenAdapter()
 
 			authAdapter = {
 				// User Management Methods
@@ -103,7 +101,7 @@ async function loadAdapters() {
 				getPermissionByName
 			} as authDBInterface;
 
-			logger.info('MongoDB adapters loaded successfully.');
+			logger.info('MongoDB adapters loaded successfully.')
 		} else if (privateEnv.DB_TYPE === 'mariadb' || privateEnv.DB_TYPE === 'postgresql') {
 			logger.debug('Implement & Loading SQL adapters...');
 			// Implement SQL adapters loading here
@@ -117,44 +115,12 @@ async function loadAdapters() {
 	}
 }
 
-// Connect to the database
-async function connectToDatabase(retries = MAX_RETRIES): Promise<void> {
-	if (!dbAdapter) {
-		throw error(500, 'Database adapter not initialized');
-	}
-
-	if (isConnected) {
-		logger.info('Database already connected');
-		return;
-	}
-
-	logger.info(`\x1b[33m\x1b[5mTrying to connect to your defined ${privateEnv.DB_NAME} database ...\x1b[0m`);
-
-	for (let attempt = 1; attempt <= retries; attempt++) {
-		try {
-			await dbAdapter.connect();
-			isConnected = true;
-			logger.info(`\x1b[32mConnection to ${privateEnv.DB_NAME} database successful!\x1b[0m ===> Enjoying your \x1b[31m${publicEnv.SITE_NAME}\x1b[0m`);
-			return;
-		} catch (err) {
-			const message = `Error connecting to database (attempt ${attempt}/${retries}): ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(`\x1b[31m${message}\x1b[0m`);
-			if (attempt < retries) {
-				logger.info(`Retrying in ${RETRY_DELAY / 1000} seconds...`);
-				await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
-			} else {
-				throw error(500, 'Failed to connect to the database after maximum retries');
-			}
-		}
-	}
-}
-
 // Initialize default theme
 async function initializeDefaultTheme(dbAdapter: dbInterface): Promise<void> {
 	try {
 		logger.debug('Initializing default theme...');
 		const themes = await dbAdapter.getAllThemes();
-		logger.debug(`Found ${themes.length} themes`);
+		logger.debug(`Found \x1b[34m${themes.length}\x1b[0m themes`);
 
 		if (themes.length === 0) {
 			await dbAdapter.storeThemes([DEFAULT_THEME]);
@@ -198,14 +164,15 @@ async function initializeVirtualFolders() {
 			const rootFolder = await dbAdapter.createVirtualFolder({
 				name: publicEnv.MEDIA_FOLDER,
 				parent: undefined,
-				path: publicEnv.MEDIA_FOLDER
+				path: publicEnv.MEDIA_FOLDER,
+				type: 'folder'
 			});
 
 			// Log only the essential information
 			logger.info('Default root virtual folder created:', {
 				name: rootFolder.name,
 				path: rootFolder.path,
-				id: rootFolder._id?.toString() || 'No ID'
+				id: rootFolder._id?.toString() || 'No ID',
 			});
 		} else {
 			logger.info(`Found \x1b[34m${virtualFolders.length}\x1b[0m virtual folders.`);
@@ -230,7 +197,7 @@ async function initializeAdapters(): Promise<void> {
 
 		if (!browser) {
 			// Step 2: Connect to database before any other initialization
-			await connectToDatabase();
+			await connectToMongoDB();
 
 			// Step 3: Initialize media folder (filesystem operation, can be done in parallel)
 			await initializeMediaFolder();
@@ -244,25 +211,31 @@ async function initializeAdapters(): Promise<void> {
 			await dbAdapter.setupAuthModels();
 			await dbAdapter.setupMediaModels();
 
-			// Step 5: Initialize CollectionManager
-			logger.debug('Initializing CollectionManager...');
-			await collectionManager.initialize();
-
-			// Get collection data after initialization
-			const { collections } = collectionManager.getCollectionData();
-			if (!collections || collections.length === 0) {
-				logger.warn('No collections found after CollectionManager initialization');
-			} else {
-				logger.debug('CollectionManager initialized with collections:', { count: collections.length });
-			}
-
-			await dbAdapter.getCollectionModels();
-
-			// Step 6: Initialize remaining components
+			// Step 5: Initialize remaining components
 			await initializeDefaultTheme(dbAdapter);
 			await initializeVirtualFolders();
 			await initializeRevisions();
 			await syncPermissions();
+
+			// Step 6: Initialize ContentManager
+			logger.debug('Initializing ContentManager...');
+			await contentManager.initialize();
+
+			// Get collection data after initialization
+			const { collections } = contentManager.getCollectionData();
+			if (!collections || collections.length === 0) {
+				logger.warn('No collections found after ContentManager initialization');
+			} else {
+				logger.debug('ContentManager initialized with collections:', { count: collections.length });
+				// Initialize each collection model
+				for (const collection of collections) {
+					if (dbAdapter) {
+						logger.debug(`Creating collection model for: ${collection.name}`);
+						await dbAdapter.createCollectionModel(collection);
+						logger.debug(`Finished creating collection model for: ${collection.name}`);
+					}
+				}
+			}
 		}
 
 		if (!authAdapter) {
@@ -271,10 +244,10 @@ async function initializeAdapters(): Promise<void> {
 
 		// Step 7: Initialize authentication
 		auth = new Auth(authAdapter);
-		logger.debug('Authentication adapter initialized.');
+		logger.info('Authentication adapter initialized.');
 
 		isInitialized = true;
-		logger.debug('Adapters initialized successfully');
+		logger.info('Adapters initialized successfully');
 	} catch (err) {
 		const message = `Error in initializeAdapters: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message);
@@ -297,7 +270,7 @@ async function initializeRevisions() {
 // Ensure initialization runs once
 if (!initializationPromise) {
 	initializationPromise = initializeAdapters()
-		.then(() => logger.debug('Initialization completed successfully.'))
+		.then(() => logger.info('Initialization completed successfully.'))
 		.catch((err) => {
 			const message = `Initialization promise rejected with error: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
@@ -342,4 +315,4 @@ export async function getCollectionModels() {
 }
 
 // Export functions and state
-export { collectionsModels, auth, initializationPromise, dbAdapter, authAdapter, isConnected };
+export { collectionsModels, initializationPromise as dbInitPromise };

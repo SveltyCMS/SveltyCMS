@@ -19,7 +19,7 @@ Ensure that the necessary stores and utility functions are available.
 
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { modifyEntry, selectedEntries, collectionValue, collection } from '@root/src/stores/collectionStore.svelte';
+	import { modifyEntry, selectedEntries, collectionValue, collection } from '@src/stores/collectionStore.svelte';
 	import { saveFormData } from '../utils/data';
 
 	// Auth

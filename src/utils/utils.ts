@@ -638,19 +638,19 @@ async function getAllCollectionFiles(dir: string): Promise<string[]> {
   const files: string[] = [];
   const entries = await fs.readdir(dir, { withFileTypes: true });
 
-  for (const entry of entries) {
-    const fullPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...(await getAllCollectionFiles(fullPath)));
-    } else if (
-      entry.isFile() &&
-      entry.name.endsWith('.ts') &&
-      !entry.name.startsWith('_') &&
-      !['index.ts', 'types.ts', 'categories.ts', 'CollectionManager.ts'].includes(entry.name)
-    ) {
-      files.push(fullPath);
-    }
-  }
+	for (const entry of entries) {
+		const fullPath = path.join(dir, entry.name);
+		if (entry.isDirectory()) {
+			files.push(...(await getAllCollectionFiles(fullPath)));
+		} else if (
+			entry.isFile() &&
+			entry.name.endsWith('.ts') &&
+			!entry.name.startsWith('_') &&
+			!['index.ts', 'types.ts', 'ContentManager.ts'].includes(entry.name)
+		) {
+			files.push(fullPath);
+		}
+	}
 
   return files;
 }

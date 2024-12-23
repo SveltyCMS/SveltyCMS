@@ -27,7 +27,7 @@ Features:
 	const modalStore = getModalStore();
 
 	// Stores
-	import { targetWidget } from '@root/src/stores/collectionStore.svelte';
+	import { targetWidget } from '@src/stores/collectionStore.svelte';
 
 	// Get the keys of the widgets object
 	const widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;

@@ -3,7 +3,7 @@
  * @description Collection file for Menu
  */
 import widgets from '@components/widgets';
-import type { Schema } from '@src/collections/types';
+import type { Schema } from '@root/src/content/types';
 
 export const schema: Schema = {
 	// Collection Name comming from filename, so not needed

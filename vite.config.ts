@@ -17,14 +17,14 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import { paraglide } from '@inlang/paraglide-sveltekit/vite';
 import { compile, cleanupOrphanedFiles } from './src/routes/api/compile/compile';
-import { generateCollectionTypes } from './src/collections/vite';
+import { generateCollectionTypes } from './src/content/vite';
 
 // Get package.json version info
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 
 // Config directories
 const userCollections = Path.posix.join(process.cwd(), 'config/collections');
-const compiledCollections = Path.posix.join(process.cwd(), 'collections');
+const compiledCollections = Path.posix.join(process.cwd(), 'compiledCollections');
 const configDir = resolve(process.cwd(), 'config');
 const privateConfigPath = resolve(configDir, 'private.ts');
 const publicConfigPath = resolve(configDir, 'public.ts');
@@ -100,6 +100,21 @@ export default defineConfig({
 
 										// Compile
 										await compile({ userCollections, compiledCollections });
+										console.log('Compilation successful!');
+
+										// Trigger content-structure sync via API
+										try {
+											await fetch('/api/content-structure', {
+												method: 'POST',
+												headers: { 'Content-Type': 'application/json' },
+												body: JSON.stringify({
+													action: 'recompile'
+												})
+											});
+											console.log('Content structure sync triggered successfully');
+										} catch (error) {
+											console.error('Failed to trigger content structure sync:', error);
+										}
 
 										try {
 											await generateCollectionTypes(server);
@@ -119,17 +134,6 @@ export default defineConfig({
 									console.error(`Error processing collection file ${event}:`, error);
 								}
 							}, 50);
-						}
-
-						// Handle category file changes
-						if (file.startsWith(Path.posix.join(process.cwd(), 'src/collections/categories.ts'))) {
-							console.log(`Categories file changed \x1b[34m${file}\x1b[0m`);
-							server.ws.send({
-								type: 'custom',
-								event: 'categories-updated',
-								data: {}
-							});
-							return []; // Prevent default HMR behavior
 						}
 
 						// Handle config file changes
@@ -204,7 +208,7 @@ export default defineConfig({
 			'@root': resolve(process.cwd(), './'),
 			'@src': resolve(process.cwd(), './src'),
 			'@components': resolve(process.cwd(), './src/components'),
-			'@collections': resolve(process.cwd(), './src/collections'),
+			'@content': resolve(process.cwd(), './src/content'),
 			'@utils': resolve(process.cwd(), './src/utils'),
 			'@stores': resolve(process.cwd(), './src/stores')
 		}

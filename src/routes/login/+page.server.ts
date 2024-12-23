@@ -10,8 +10,8 @@ import { dev } from '$app/environment';
 import { error, redirect, fail, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-// Collection Manager
-import { collectionManager } from '@src/collections/CollectionManager';
+// Content Manager
+import { contentManager } from '@src/content/ContentManager';
 
 // Rate Limiter
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
@@ -23,7 +23,7 @@ import { message } from 'sveltekit-superforms/server';
 import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, signUpOAuthFormSchema } from '@utils/formSchemas';
 
 // Auth
-import { auth, initializationPromise } from '@src/databases/db';
+import { auth, dbInitPromise } from '@src/databases/db';
 import { generateGoogleAuthUrl, googleAuth } from '@root/src/auth/googleAuth';
 import { google } from 'googleapis';
 import type { User } from '@src/auth/types';
@@ -66,7 +66,7 @@ function calculatePasswordStrength(password: string): number {
 // Helper function to fetch and redirect to the first collection
 async function fetchAndRedirectToFirstCollection() {
 	try {
-		const { collections } = collectionManager.getCollectionData();
+		const { collections } = contentManager.getCollectionData();
 		// logger.debug('Fetched collections:', collections);
 
 		if (collections && collections.length > 0) {
@@ -97,7 +97,7 @@ const wrappedSignUpOAuthSchema = valibot(signUpOAuthFormSchema);
 export const load: PageServerLoad = async ({ url, cookies, fetch, request, locals }) => {
 	try {
 		// Ensure initialization is complete
-		await initializationPromise;
+		await dbInitPromise;
 
 		// Check if the auth object is initialized
 		if (!auth) {
@@ -140,7 +140,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		}
 
 		const code = url.searchParams.get('code');
-		logger.debug(`Authorization code: ${code}`);
+		logger.debug(`Authorization code: \x1b[34m${code}\x1b[0m`);
 
 		// Handle Google OAuth flow if code is present
 		if (privateEnv.USE_GOOGLE_OAUTH && code) {

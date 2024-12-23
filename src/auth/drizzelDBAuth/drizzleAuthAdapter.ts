@@ -21,7 +21,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { users, roles, permissions, rolePermissions, sessions, tokens } from './Schema';
 import type { authDBInterface } from '../authDBInterface';
 import type { User, Role, Permission, Session, Token } from '../types';
-import { db } from '@src/databases/drizzleDBAdapter';
+import { db } from '@root/src/databases/drizzle/drizzleDBAdapter';
 
 // Import logger
 import { logger } from '@utils/logger.svelte';

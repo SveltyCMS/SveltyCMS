@@ -18,13 +18,14 @@
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { categoryConfig } from '@src/collections/categories';
 	import { v4 as uuidv4 } from 'uuid';
 	import { checkCollectionNameConflict } from '@utils/utils';
-	import type { CollectionData } from '@src/collections/types';
+	import type { CollectionData } from '@src/content/types';
 
 	// Stores
-	import { collectionValue, mode, categories } from '@root/src/stores/collectionStore.svelte';
+	import { collectionValue, mode } from '@src/stores/collectionStore.svelte';
+	import { categories } from '@root/src/stores/collectionStore.svelte';
+	import { dbAdapter } from '@src/databases/db';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -65,12 +66,36 @@
 	}
 
 	// State variables
-	let currentConfig = $state<Record<string, CollectionData>>(categoryConfig);
+	let currentConfig = $state<Record<string, CollectionData>>({});
 	let isLoading = $state(false);
 	let apiError = $state<string | null>(null);
 
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
+
+	// Load content structure from database
+	const loadContentStructure = async () => {
+		if (!dbAdapter) {
+			console.error('dbAdapter is not initialized');
+			return;
+		}
+		const contentNodes = await dbAdapter.getContentNodes();
+		currentConfig = contentNodes.reduce(
+			(acc: Record<string, CollectionData>, node: any) => {
+				acc[node.path] = {
+					...node,
+					id: node.id,
+					icon: node.icon,
+					name: node.name,
+					isCollection: node.isCollection || false
+				};
+				return acc;
+			},
+			{} as Record<string, CollectionData>
+		);
+	};
+
+	loadContentStructure();
 
 	// Initialize the categories store with the current config
 	$effect(() => {
@@ -185,6 +210,11 @@
 	// Handle collection save with conflict checking
 	function handleSave(event: CustomEvent<{ name: string; data: Record<string, CollectionData> }>): void {
 		const { name, data } = event.detail;
+		const items = Object.entries(data).map(([key, item]) => ({
+			...item,
+			path: key,
+			isCollection: false // Assuming these are categories, adjust as necessary
+		}));
 
 		checkNameConflicts(name).then(async (nameCheck) => {
 			if (!nameCheck.canProceed) {
@@ -195,14 +225,14 @@
 			const finalName = nameCheck.newName || name;
 			try {
 				isLoading = true;
-				const response = await fetch('/api/categories', {
+				const response = await fetch('/api/content-structure', {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json'
 					},
 					body: JSON.stringify({
-						name: finalName,
-						data
+						action: 'updateMetadata',
+						items
 					})
 				});
 
@@ -315,6 +345,6 @@
 		<p class="mb-4 text-center dark:text-primary-500">{m.collection_text_description()}</p>
 
 		<!-- display collections -->
-		<Board {categoryConfig} onEditCategory={modalAddCategory} />
+		<Board {currentConfig} onEditCategory={modalAddCategory} />
 	</div>
 </div>

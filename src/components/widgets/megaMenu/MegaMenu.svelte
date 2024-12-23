@@ -24,7 +24,7 @@
 
 	import { currentChild, type FieldType } from '.';
 	import { extractData, getFieldName } from '@utils/utils';
-	import type { Field } from '@src/collections/types';
+	import type { Field } from '@src/content/types';
 	// Validation schema for each menu layer
 	import * as v from 'valibot';
 

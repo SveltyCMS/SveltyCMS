@@ -17,7 +17,7 @@ Features:
 
 	// Skeleton Stores
 	import { getModalStore } from '@skeletonlabs/skeleton';
-	import { targetWidget } from '@root/src/stores/collectionStore.svelte';
+	import { targetWidget } from '@src/stores/collectionStore.svelte';
 
 	const modalStore = getModalStore();
 

@@ -39,7 +39,6 @@ declare global {
 			collections?: any; // Replace 'any' with your actual Collections type if available
 			permissions?: any[]; // Replace 'any' with your actual Permissions type if available
 			theme: Theme | null; // Ensure 'theme' is correctly typed
-			collections?: any; // Replace 'any' with your actual Collections type if available
 		}
 	}
 
@@ -85,4 +84,4 @@ declare global {
 
 // THIS IS IMPORTANT!!!
 // Export an empty object to ensure this file is treated as a module
-export {};
+export { };

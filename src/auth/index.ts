@@ -139,7 +139,7 @@ export class Auth {
 				attributes.email = undefined;
 			}
 			await this.db.updateUserAttributes(user_id, attributes);
-			logger.info(`User attributes updated for user ID: ${user_id}`);
+			logger.info(`User attributes updated for user ID: \x1b[34m${user_id}\x1b[0m`);
 		} catch (err) {
 			const errMsg = err instanceof Error ? err.message : String(err);
 			logger.error(`Failed to update user attributes: ${errMsg}`);
@@ -151,7 +151,7 @@ export class Auth {
 	async deleteUser(user_id: string): Promise<void> {
 		try {
 			await this.db.deleteUser(user_id);
-			logger.info(`User deleted: ${user_id}`);
+			logger.info(`User deleted: \x1b[34m${user_id}\x1b[0m`);
 		} catch (err) {
 			const errMsg = err instanceof Error ? err.message : String(err);
 			logger.error(`Failed to delete user: ${errMsg}`);
@@ -185,7 +185,7 @@ export class Auth {
 		if (isExtended) {
 			expires.setTime(expires.getTime() * 2);
 		}
-		logger.info(`Creating new session for user ID: ${user_id} with expiry: ${expires.toISOString()}`);
+		logger.info(`Creating new session for user ID: \x1b[34m${user_id}\x1b[0m with expiry: \x1b[34m${expires.toISOString()}\x1b[0m`);
 
 		const session = await this.db.createSession({
 			user_id,
@@ -201,7 +201,7 @@ export class Auth {
 			throw error(404, `User not found for ID: ${user_id}`);
 		}
 
-		logger.info(`Session created with ID: ${session._id} for user ID: ${user_id}`);
+		logger.info(`Session created with ID: \x1b[34m${session._id}\x1b[0m for user ID: \x1b[34m${user_id}\x1b[0m`);
 		return session;
 	}
 

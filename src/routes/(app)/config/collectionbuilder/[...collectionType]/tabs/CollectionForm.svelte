@@ -26,7 +26,7 @@ Features:
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 
 	// Collection Manager
-	import { collectionManager } from '@src/collections/CollectionManager';
+	import { contentManager } from '@src/content/ContentManager';
 
 	interface CollectionData {
 		name: string;
@@ -56,8 +56,8 @@ Features:
 	// Check if collection Name exists set mode edit or create
 	const collectionExists = Object.values(collections.value).some((x) => x.name === collectionTypes);
 	if (collectionExists) {
-		// Get collection data from CollectionManager
-		const { collections: collectionData } = collectionManager.getCollectionData();
+		// Get collection data from ContentManager
+		const { collections: collectionData } = contentManager.getCollectionData();
 		const collection = collectionData.find((x) => x?.name === collectionTypes);
 		if (collection) {
 			mode.set('edit');
