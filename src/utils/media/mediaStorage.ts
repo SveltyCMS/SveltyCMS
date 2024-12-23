@@ -84,7 +84,7 @@ export async function saveResizedImages(
     if (width === 0) continue; // Skip original size
 
     const resizedBuffer = await resizeImage(buffer, width);
-    const resizedUrl = `${path}/${size}/${fileName}-${hash}${ext}`;
+    const resizedUrl = `${path}/${size}/${fileName}-${hash}.${ext}`;
     await saveFileToDisk(await resizedBuffer.toBuffer(), resizedUrl);
 
     resizedImages[size] = {
