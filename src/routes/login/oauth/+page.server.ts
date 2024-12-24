@@ -14,8 +14,6 @@ import { google } from 'googleapis';
 //Db
 import { auth, dbInitPromise } from '@src/databases/db';
 
-// Collection Manager
-import { contentManager } from '@src/content/ContentManager';
 
 // Utils
 import { saveAvatarImage } from '@utils/media/mediaStorage';
@@ -86,26 +84,24 @@ async function fetchAndSaveGoogleAvatar(avatarUrl: string): Promise<string | nul
 // Helper function to fetch and redirect to the first collection
 async function fetchAndRedirectToFirstCollection() {
 	try {
-		// Wait for collections to be loaded
-		await contentManager.initialize();
-		const { collections } = contentManager.getCollectionData();
-		logger.debug('Available collections:', collections);
+		// Get content structure from database
+		const contentNodes = await dbAdapter.getContentStructure();
 
-		if (collections && collections.length > 0) {
-			const firstCollection = collections[0];
-			if (firstCollection && firstCollection.name) {
-				logger.info(`Redirecting to first collection: ${firstCollection.name}`);
-				return `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${firstCollection.name}`;
-			} else {
-				logger.warn('First collection found but name is missing', firstCollection);
-			}
-		} else {
-			logger.warn('No collections found');
+		// Find first collection node
+		const firstCollection = contentNodes.find(node =>
+			node.isCollection && node.path.startsWith('/collections/')
+		);
+
+		if (firstCollection) {
+			logger.info(`Redirecting to first collection: ${firstCollection.name}`);
+			return `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${firstCollection.name}`;
 		}
-		return '/'; // Redirect to home if no collections are found
+
+		logger.warn('No collections found in content structure');
+		return '/';
 	} catch (err) {
-		logger.error('Error fetching collections:', err);
-		return '/'; // Redirect to home in case of error
+		logger.error('Error fetching first collection:', err);
+		return '/';
 	}
 }
 

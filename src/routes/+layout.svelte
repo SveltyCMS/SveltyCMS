@@ -24,8 +24,8 @@
 	// Importing the Paraglide SvelteKit component for animations
 	import ParaglideSvelteKit from '@components/ParaglideSvelteKit.svelte';
 
-	// category config store
-	import { categories } from '@root/src/stores/collectionStore.svelte';
+	// Content structure store
+	import { collections, categories } from '@root/src/stores/collectionStore.svelte';
 	import { dbAdapter, dbInitPromise } from '@src/databases/db';
 
 	// Importing Tailwind CSS styles
@@ -40,8 +40,8 @@
 	const defaultTitle = `${publicEnv.SITE_NAME} - The Ultimate Headless CMS Powered by SvelteKit`;
 	const defaultDescription = `${publicEnv.SITE_NAME} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;
 
-	// Initialize categories from database
-	const initCategories = async () => {
+	// Initialize content structure from database
+	const initContentStructure = async () => {
 		try {
 			// Wait for database initialization to complete
 			await dbInitPromise;
@@ -49,30 +49,19 @@
 				throw new Error('Database adapter not initialized');
 			}
 			const response = await fetch(`/api/content-structure?action=getStructure`);
-      const resJSon = await response.json();
-      const contentNodes =Object.values( resJSon.data.categories);
-			// Transform array into Record<string, CollectionData>
-			const categoriesRecord = contentNodes.reduce((acc, node) => {
-				acc[node.path] = {
-					name: node.name,
-					path: node.path,
-					icon: node.icon,
-					isCollection: node.isCollection,
-					collectionConfig: node.collectionConfig
-				};
-				return acc;
-			}, {} as Record<string, CollectionData>);
-			categories.set(categoriesRecord);
-		} catch (err) {
-			console.error('Failed to initialize categories:', err);
+			if (!response.ok) {
+				throw new Error('Failed to fetch content structure');
+			}
+			const { data } = await response.json();
+			collections.set(data.collections);
+			categories.set(data.categories);
+		} catch (error) {
+			console.error('Error initializing content structure:', error);
 		}
 	};
 
-	// Call initCategories in an onMount to ensure client-side initialization
-	import { onMount } from 'svelte';
-	onMount(() => {
-		initCategories();
-	});
+	// Initialize content structure on mount
+	initContentStructure();
 
 	// Props
 	interface Props {

@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @files src/components/system/icons/Seasons.svelte
 @component
 **Seasons Component**
@@ -95,7 +95,7 @@
 	const isMayDay = date.getMonth() === 4 && date.getDate() === 1;
 	const isHalloween = date.getMonth() === 9 && date.getDate() === 31;
 	const isDecember = date.getMonth() === 11;
-	const isChristmas = date.getMonth() === 11 && date.getDate() === 25;
+	const isChristmas = (date.getMonth() === 11 && date.getDate() === 25) || (date.getMonth() === 11 && date.getDate() === 24);
 	const easterSunday = calculateEasterSunday(year);
 	const eastertideEndDate = calculateEastertideEndDate(year);
 	const isEaster = date >= easterSunday && date <= eastertideEndDate;
@@ -158,7 +158,6 @@
 
 		{#if isChristmas}
 			<img src="/seasons/SantaHat.avif" alt="Santa hat" class="absolute -right-5 -top-5 h-20 w-20" />
-			<iconify-icon icon="mdi:pine-tree" width="40" class="absolute -top-[35px] left-3 text-green-600"></iconify-icon>
 		{/if}
 	{/if}
 

@@ -174,7 +174,7 @@ export class Auth {
 			throw error(400, 'user_id is required to create a session');
 		}
 
-		logger.debug(`Creating session for user ID: ${user_id}`);
+		logger.debug(`Creating session for user ID: \x1b[34m${user_id}\x1b[0m`);
 
 		// Ensure expires is a Date object
 		if (!(expires instanceof Date)) {

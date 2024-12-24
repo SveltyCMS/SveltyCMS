@@ -146,7 +146,7 @@ const widget = (params: Params) => {
 		// permissions
 		permissions: params.permissions,
 
-		// extras
+		// widget specific
 		folder: $state(params.folder || 'unique'),
 		multiupload: $state(params.multiupload),
 		sizelimit: $state(params.sizelimit),
@@ -167,6 +167,7 @@ const widget = (params: Params) => {
 		})
 	};
 
+	// Return the field and widget objects
 	return { ...field, widget };
 };
 

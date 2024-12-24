@@ -52,7 +52,7 @@ const widget = (params: Params) => {
 		// permissions
 		permissions: params.permissions,
 
-		//extra
+		// widget specific
 		placeholder: params.placeholder,
 		count: params.count,
 		minlength: params.minlength,
@@ -64,7 +64,7 @@ const widget = (params: Params) => {
 	};
 
 	// Return the field and widget objects
-	return { ...field, widget: widgetObject };
+	return { ...field, widget };
 };
 
 // Assign Name, GuiSchema and GraphqlSchema to the widget function
@@ -97,5 +97,5 @@ widget.aggregations = {
 } as Aggregations;
 
 // Export FieldType interface and widget function
-export interface FieldType extends ReturnType<typeof widget> {}
+export interface FieldType extends ReturnType<typeof widget> { }
 export default widget;

@@ -50,13 +50,13 @@ const widget = (params: Params) => {
 		// permissions
 		permissions: params.permissions,
 
-		// relation specific fields
+		// widget specific
 		relation: params.relation,
 		displayPath: params.displayPath
 	};
 
 	// Return the field and widget objects
-	return { ...field, widget: widgetObject };
+	return { ...field, widget };
 };
 
 // Assign Name, GuiSchema and GraphqlSchema to the widget function

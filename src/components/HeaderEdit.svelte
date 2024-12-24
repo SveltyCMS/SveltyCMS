@@ -45,7 +45,7 @@
 
 	// Stores
 	import { page } from '$app/stores';
-	import { collection, categories, collectionValue, mode, modifyEntry, statusMap } from '@src/stores/collectionStore.svelte';
+	import { collection, collectionValue, mode, modifyEntry, statusMap, collections, categories } from '@src/stores/collectionStore.svelte';
 	import { toggleSidebar, sidebarState } from '@src/stores/sidebarStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 	import { contentLanguage, tabSet, validationStore, headerActionButton } from '@stores/store';
@@ -331,7 +331,7 @@
 				</div>
 			{/if}
 
-			{#if collection.value?.name && categories.value}
+			{#if collection.value?.name}
 				<div class="ml-2 flex flex-col text-left text-gray-400 dark:text-gray-300">
 					<div class="text-sm font-bold uppercase text-tertiary-500 dark:text-primary-500">{mode.value}:</div>
 					<div class="text-xs capitalize">

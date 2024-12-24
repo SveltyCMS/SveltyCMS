@@ -52,7 +52,7 @@ const widget = (params: Params) => {
 		// permissions
 		permissions: params.permissions,
 
-		//extra
+		// widget specific
 		placeholder: params.placeholder,
 		count: params.count,
 		minlength: params.minlength,
@@ -93,5 +93,5 @@ widget.aggregations = {
 } as Aggregations;
 
 // Export FieldType interface and widget function
-export interface FieldType extends ReturnType<typeof widget> {}
+export interface FieldType extends ReturnType<typeof widget> { }
 export default widget;
