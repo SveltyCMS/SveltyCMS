@@ -243,7 +243,6 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Create or update content structure node
-	// Create or update content structure node
 	async createOrUpdateContentStructure(contentData: {
 		_id: string;
 		name: string;
@@ -276,10 +275,10 @@ export class MongoDBAdapter implements dbInterface {
 		}
 	}
 
-  // Update generateId to always return string
-  generateId(): string {
-    return new mongoose.Types.ObjectId().toString(); //required for MongoDB id as ObjectId
-  }
+	// Generate a unique ID
+	generateId(): string {
+		return new mongoose.Types.ObjectId().toString(); //required for MongoDB id as ObjectId
+	}
 
   // Convert a string ID to a MongoDB ObjectId
   convertId(id: string): mongoose.Types.ObjectId {
@@ -556,31 +555,48 @@ export class MongoDBAdapter implements dbInterface {
 				for (const field of collection.schema.fields) {
 					try {
 						// Generate fieldKey from label if db_fieldName is not present
-						const fieldKey = field.db_fieldName || field.label?.toLowerCase().replace(/\s+/g, '_') || field.Name;
+						const fieldKey = field.db_fieldName ||
+							(field.label ? field.label.toLowerCase().replace(/[^a-z0-9_]/g, '_') : null) ||
+							field.Name;
+
 						if (!fieldKey) {
-							logger.error(`Field missing both db_fieldName and label:`, JSON.stringify(field, null, 2));
+							logger.error(`Field missing required identifiers:`, JSON.stringify(field, null, 2));
 							continue;
 						}
+
 						const isRequired = field.required || false;
 						const isTranslated = field.translate || false;
 						const isSearchable = field.searchable || false;
 						const isUnique = field.unique || false;
 
-						// Base field schema
-						const fieldSchema = {
-							type: Schema.Types.Mixed,
+						// Base field schema with improved type handling
+						const fieldSchema: any = {
+							type: Schema.Types.Mixed,  // Default to Mixed type
 							required: isRequired,
 							translate: isTranslated,
 							searchable: isSearchable,
 							unique: isUnique
 						};
+
+						// Add field specific validations or transformations if needed
+						if (field.type === 'string') {
+							fieldSchema.type = String;
+						} else if (field.type === 'number') {
+							fieldSchema.type = Number;
+						} else if (field.type === 'boolean') {
+							fieldSchema.type = Boolean;
+						} else if (field.type === 'date') {
+							fieldSchema.type = Date;
+						}
+
 						schemaDefinition[fieldKey] = fieldSchema;
-						logger.debug(`Added field \x1b[34m${fieldKey}\x1b[0m to schema for \x1b[34m${collectionName}\x1b[0m`);
 					} catch (error) {
 						logger.error(`Error processing field:`, error);
 						logger.error(`Field data:`, JSON.stringify(field, null, 2));
 					}
 				}
+			} else {
+				logger.warn(`No fields defined in schema for collection: ${collectionName}`);
 			}
 
 			// Optimized schema options for the main collection
@@ -596,8 +612,6 @@ export class MongoDBAdapter implements dbInterface {
 				versionKey: false
 			};
 
-			logger.debug(`Creating schema with definition:`, JSON.stringify(schemaDefinition, null, 2));
-			logger.debug(`Schema options:`, JSON.stringify(schemaOptions, null, 2));
 
 			// Create schema for the main collection
 			const schema = new mongoose.Schema(schemaDefinition, schemaOptions);
@@ -1052,12 +1066,10 @@ export class MongoDBAdapter implements dbInterface {
 			const objectId = this.convertId(folderId);
 			const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
 			// Create update query for all media types
-			const updateResult = await Promise.all(mediaTypes.map(type =>
-				mongoose.model(type).updateMany({ _id: this.convertId(mediaId) }, { folderId: objectId })
-			));
+			const updateResult = await Promise.all(mediaTypes.map(type => this.updateOne(type, { _id: this.convertId(mediaId) }, { folderId: objectId })));
 			// Check if any media types updated
-			const isUpdated = updateResult.some((result) => result.modifiedCount > 0);
-			if (isUpdated) {
+			const mediaUpdated = updateResult.some(result => result);
+			if (mediaUpdated) {
 				logger.info(`Media \x1b[34m${mediaId}\x1b[0m moved to folder \x1b[34m${folderId}\x1b[0m successfully.`);
 				return true;
 			}
@@ -1099,7 +1111,7 @@ export class MongoDBAdapter implements dbInterface {
 	async getContentStructure(): Promise<Document[]> {
 		try {
 			const nodes = await ContentStructureModel.find().sort({ path: 1 }).exec();
-			logger.info(`Fetched ${nodes.length} content structure nodes.`);
+			logger.info(`Fetched \x1b[34m${nodes.length}\x1b[0m content structure nodes.`);
 			return nodes;
 		} catch (error) {
 			logger.error(`Error fetching content structure: ${error.message}`);

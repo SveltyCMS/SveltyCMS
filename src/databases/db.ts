@@ -118,13 +118,13 @@ async function loadAdapters() {
 // Initialize default theme
 async function initializeDefaultTheme(dbAdapter: dbInterface): Promise<void> {
 	try {
-		logger.debug('Initializing default theme...');
+		logger.debug('Initializing \x1b[34mdefault theme\x1b[0m...');
 		const themes = await dbAdapter.getAllThemes();
 		logger.debug(`Found \x1b[34m${themes.length}\x1b[0m themes`);
 
 		if (themes.length === 0) {
 			await dbAdapter.storeThemes([DEFAULT_THEME]);
-			logger.info('Default SveltyCMS theme created successfully.');
+			logger.debug('Default \x1b[34mSveltyCMS theme\x1b[0m created successfully.');
 		} else {
 			logger.info('Themes already exist in the database. Skipping default theme initialization.');
 		}
@@ -232,7 +232,7 @@ async function initializeAdapters(): Promise<void> {
 					if (dbAdapter) {
 						logger.debug(`Creating collection model for: ${collection.name}`);
 						await dbAdapter.createCollectionModel(collection);
-						logger.debug(`Finished creating collection model for: ${collection.name}`);
+						logger.debug(`Finished creating collection model for: \x1b[34m${collection.name}\x1b[0m`);
 					}
 				}
 			}
@@ -298,17 +298,26 @@ export async function getCollectionModels() {
 	try {
 		logger.debug('Fetching collection models...');
 
-		// Fetch all collection models
-		const models = await dbAdapter.getCollectionModels();
-		// Assign the models to collectionsModels object
-		Object.assign(collectionsModels, models);
+		// Get collection data from ContentManager - this now uses UUIDs
+		const { collections } = contentManager.getCollectionData();
 
-		// Log the correct count after all collections have been fetched and assigned
-		const modelCount = Object.keys(collectionsModels).length;
-		logger.debug('Collection models fetched successfully', { modelCount });
-		return models;
-	} catch (err) {
-		const message = `Error in getCollectionModels: ${err instanceof Error ? err.message : String(err)}`;
+		// Create models using UUID as the key
+		for (const collection of collections) {
+			if (!collection.id) {
+				logger.warn(`Collection missing UUID: \x1b[34m${collection.id}\x1b[0m`);
+				continue;
+			}
+
+			// Create or update model using UUID
+			collectionsModels[collection.id] = {
+				name: collection.name,
+				schema: collection.schema || {}
+			};
+		}
+
+		return collectionsModels;
+	} catch (error) {
+		const message = `Error fetching collection models: ${error instanceof Error ? error.message : String(error)}`;
 		logger.error(message);
 		throw error(500, message);
 	}

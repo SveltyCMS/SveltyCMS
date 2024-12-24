@@ -19,10 +19,10 @@
 	href="https://github.com/SveltyCMS/SveltyCMS"
 	target="_blank"
 	rel="noopener"
-	class="absolute left-1/2 top-1/3 flex -translate-x-1/2 -translate-y-1/2 transform items-center justify-center border"
+	class="absolute left-1/2 top-1/3 flex -translate-x-1/2 -translate-y-1/2 transform items-center justify-center"
 >
 	<!--White Inner Background -->
-	<div class="absolute top-[-150px] h-[170px] w-[170px] justify-center rounded-full bg-white">
+	<div class="relative flex h-[170px] w-[170px] items-center justify-center rounded-full bg-white">
 		<!-- Seasons -->
 		<Seasons />
 

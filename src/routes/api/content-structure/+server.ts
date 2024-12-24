@@ -38,29 +38,47 @@ export const GET: RequestHandler = async ({ url }) => {
                 const { collections, categories } = contentManager.getCollectionData();
                 const contentNodes = await dbAdapter.getContentStructure();
 
-                // Create a map for faster lookup
-                const nodeMap = new Map(contentNodes.map(node => [node.path, node]));
+                // Create a map for faster lookup using UUID
+                const nodeMap = new Map(contentNodes.map(node => [node._id, node]));
 
-                // Merge metadata with the collections and categories
-                const mergedCategories = Object.fromEntries(Object.entries(categories).map(([key, category]) => {
-                    const node = nodeMap.get(key);
-                    return [key, { ...category, ...node }];
-                }));
-
-                const mergedCollections = Object.fromEntries(Object.entries(collections).map(([key, collection]) => {
-                    const node = nodeMap.get(collection.path);
-                    return [key, { ...collection, ...node }];
-                }));
-
-                logger.info('Returning full content structure with metadata');
-                response = {
-                    success: true,
-                    data: {
-                        collections: mergedCollections,
-                        categories: mergedCategories
+                // Process collections with UUIDs
+                const processedCollections = collections.reduce((acc, collection) => {
+                    const node = nodeMap.get(collection.id);
+                    if (node) {
+                        acc[collection.id] = {
+                            ...collection,
+                            path: node.path,
+                            icon: node.icon || collection.icon || 'bi:file-text'
+                        };
                     }
+                    return acc;
+                }, {});
+
+                // Process categories with UUIDs
+                const processedCategories = categories.reduce((acc, category) => {
+                    const node = nodeMap.get(category.id);
+                    if (node) {
+                        acc[category.id] = {
+                            ...category,
+                            path: node.path,
+                            icon: node.icon || category.icon || 'bi:folder'
+                        };
+                    }
+                    return acc;
+                }, {});
+
+                response = {
+                    collections: processedCollections,
+                    categories: processedCategories
                 };
-                break;
+
+                // Cache the response if Redis is enabled
+                if (!browser && isRedisEnabled()) {
+                    const cacheKey = `api:content-structure:${action}`;
+                    await setCache(cacheKey, response, CACHE_TTL);
+                }
+
+                return json({ data: response });
             }
 
             case 'getContentStructure': {

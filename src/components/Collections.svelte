@@ -23,7 +23,7 @@ Features:
 	import { goto } from '$app/navigation';
 
 	// Types
-	import type { ContentStructureState } from '@src/shared/types';
+	import type { ContentStructureState, Schema, SystemContent } from '@src/content/types';
 
 	// Stores
 	import { get } from 'svelte/store';
@@ -53,7 +53,6 @@ Features:
 	let modeSet = $state<ModeType>('view');
 	// Search Collections
 	let search = $state('');
-	let searchShow = $state(false);
 	let filteredNodes = $state<ContentStructureState[]>([]);
 	let isMediaMode = $state(false);
 
@@ -64,13 +63,12 @@ Features:
 			if (!response.ok) throw new Error('Failed to fetch content structure');
 			const resJson = await response.json();
 
-      if (resJson.success) {
-       const recievedCollection = resJson.data.collections;
-        
-       const collectionArray = Object.values(recievedCollection) 
-			 return processContentStructure(collectionArray);
+			if (resJson.success) {
+				const recievedCollection = resJson.data.collections;
 
-      }
+				const collectionArray = Object.values(recievedCollection);
+				return processContentStructure(collectionArray);
+			}
 		} catch (error) {
 			console.error('Error fetching content structure:', error);
 			return [];
@@ -78,12 +76,12 @@ Features:
 	}
 
 	// Function to process content structure data
-	function processContentStructure(nodes: any[]): ContentStructureState[] {
+	function processContentStructure(nodes: SystemContent[]): ContentStructureState[] {
 		if (!nodes || nodes.length === 0) return [];
 
 		// Group nodes by path
 
-    console.debug("nodes", nodes)
+		console.debug('nodes', nodes);
 		const groupedNodes = nodes.reduce(
 			(acc, node) => {
 				const path = node.path || '/';
@@ -191,15 +189,14 @@ Features:
 		}
 	}
 
- 
-  function clearSearch() {
-    search = ""
-  }
+	function clearSearch() {
+		search = '';
+	}
 
-  function getIndentClass(level: number) {
-    return `pl-${level * 2}px`;
-  }
- </script>
+	function getIndentClass(level: number) {
+		return `pl-${level * 2}px`;
+	}
+</script>
 
 <div class="mt-2">
 	{#if !isMediaMode}
@@ -226,7 +223,6 @@ Features:
 					type="text"
 					placeholder={m.collections_search()}
 					bind:value={search}
-					
 					onfocus={() => (searchShow = false)}
 					class="input h-12 outline-none transition-all duration-500 ease-in-out"
 				/>
@@ -235,6 +231,7 @@ Features:
 				</button>
 			</div>
 		{/if}
+
 		<!-- Collections Accordion -->
 		<Accordion
 			autocollapse

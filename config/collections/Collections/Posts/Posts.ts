@@ -35,6 +35,28 @@ export const schema: Schema = {
 			required: true,
 			icon: 'ri:t-box-line',
 			placeholder: 'Enter Test Placeholder'
+		}),
+
+		widgets.Group({
+			label: 'Post Content group',
+			fields: [
+				widgets.Email({
+					label: 'Email in group',
+					icon: 'material-symbols:mail',
+					display: async ({ data, contentLanguage }) => {
+						return data[contentLanguage];
+					}
+				}),
+				widgets.Input({
+					label: 'Test in group',
+					db_fieldName: 'dbtest',
+					helper: 'This is the helper text',
+					translated: true,
+					required: true,
+					icon: 'ri:t-box-line',
+					placeholder: 'Enter Test Placeholder'
+				})
+			]
 		})
 
 		// widgets.ImageUpload({

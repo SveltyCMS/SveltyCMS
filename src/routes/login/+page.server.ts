@@ -66,24 +66,24 @@ function calculatePasswordStrength(password: string): number {
 // Helper function to fetch and redirect to the first collection
 async function fetchAndRedirectToFirstCollection() {
 	try {
-		const { collections } = contentManager.getCollectionData();
-		// logger.debug('Fetched collections:', collections);
+		// Get content structure from database
+		const contentNodes = await dbAdapter.getContentStructure();
 
-		if (collections && collections.length > 0) {
-			const firstCollection = collections[0];
-			if (firstCollection && firstCollection.name) {
-				logger.debug(`Redirecting to first collection: \x1b[34m${firstCollection.name}\x1b[0m`);
-				return `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${firstCollection.name}`;
-			} else {
-				logger.warn('First collection found but name is missing', firstCollection);
-			}
-		} else {
-			logger.warn('No collections found');
+		// Find first collection node
+		const firstCollection = contentNodes.find(node =>
+			node.isCollection && node.path.startsWith('/collections/')
+		);
+
+		if (firstCollection) {
+			logger.info(`Redirecting to first collection: ${firstCollection.name}`);
+			return `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${firstCollection.name}`;
 		}
-		return '/'; // Redirect to home if no collections are found
+
+		logger.warn('No collections found in content structure');
+		return '/';
 	} catch (err) {
-		logger.error('Error fetching collections:', err);
-		return '/'; // Redirect to home in case of error
+		logger.error('Error fetching first collection:', err);
+		return '/';
 	}
 }
 
@@ -210,7 +210,6 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					// Create session and set cookie
 					const expiresAt = new Date(Date.now() + 3600 * 1000).toISOString();
 					const session = await auth.createSession({ user_id: user._id, expires: expiresAt });
-					logger.debug(`Session created: ${JSON.stringify(session)}`);
 
 					const sessionCookie = auth.createSessionCookie(session);
 					cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);

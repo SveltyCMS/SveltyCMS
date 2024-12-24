@@ -18,16 +18,15 @@
 
 	// Stores
 	import { contentLanguage } from '@stores/store';
-	import { collection, collectionValue } from '@root/src/stores/collectionStore.svelte';
+	import { collection, collectionValue } from '@src/stores/collectionStore.svelte';
 
 	interface Props {
 		dropDownData?: any[];
 		selected?: { display: any; _id: any } | undefined;
 		field: FieldType | undefined;
-		showDropDown?: boolean;
 	}
 
-	let { dropDownData = [], selected = $bindable(undefined), field, showDropDown = $bindable(true) }: Props = $props();
+	let { dropDownData = [], selected = $bindable(undefined), field }: Props = $props();
 
 	let search = $state('');
 	let options: Array<{ display: any; _id: any }> = $state([]);
@@ -73,7 +72,6 @@
 			onkeydown={handleKeydown}
 			onclick={() => {
 				selected = option;
-				showDropDown = false;
 			}}
 			class="item text-token m-1 cursor-pointer border border-surface-400 bg-surface-400 p-1 text-center text-lg"
 			role="option"

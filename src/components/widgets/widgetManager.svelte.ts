@@ -108,18 +108,13 @@ export async function initializeWidgets(): Promise<void> {
 				loadedWidgetNames.push(capitalizedName);
 			}
 
-			// Log loaded widgets individually
-			loadedWidgetNames.forEach(name => {
-				logger.debug(`Loaded widget: \x1b[34m${name}\x1b[0m`);
-			});
-
 			// Update widget functions store
 			widgetFunctions.set(newWidgetFunctions);
 
 			// Set all widgets as active by default
 			activeWidgetList.set(loadedWidgetNames);
 
-			logger.info('Widgets initialized successfully', loadedWidgetNames);
+			logger.info(`\x1b[34m${loadedWidgetNames.length}\x1b[0m Widgets initialized successfully \x1b[34m${loadedWidgetNames.join(', ')}\x1b[0m`);
 
 			initialized = true;
 		} catch (error) {

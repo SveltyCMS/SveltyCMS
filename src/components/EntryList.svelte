@@ -34,7 +34,7 @@ Features:
 	// Stores
 	import { get } from 'svelte/store';
 	import { contentLanguage, systemLanguage } from '@stores/store';
-	import { mode, collectionValue, modifyEntry, statusMap, collection, categories } from '@src/stores/collectionStore.svelte';
+	import { mode, collectionValue, modifyEntry, statusMap, collection, collections, categories } from '@src/stores/collectionStore.svelte';
 	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@src/stores/sidebarStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 
@@ -386,45 +386,17 @@ Features:
 
 	let categoryName = $derived.by(() => {
 		if (!currentCollection?.id || !categories.value) return '';
+
 		// Helper function to find parent category name
-		const findParentCategory = (categories: Record<string, CollectionData>): string => {
-			// Get valid root paths from categories store
-			function getValidRootPaths() {
-				const categoryData = get(categories);
-				return Object.keys(categoryData);
-			}
-
-			// Check if path is a valid root path
-			function isValidRootPath(path: string) {
-				const validPaths = getValidRootPaths();
-				return validPaths.some((validPath) => path.startsWith(validPath));
-			}
-
-			// Only process root categories (Collections and Menu)
-			for (const [path, rootCategory] of Object.entries(categories)) {
-				if (!isValidRootPath(path)) continue;
-				if (rootCategory.subcategories) {
-					// Check each subcategory
-					for (const [subPath, subCat] of Object.entries(rootCategory.subcategories)) {
-						// Case 1: Direct collection in subcategories (like Media, Names)
-						if (subCat.isCollection && subCat.id === currentCollection.id) {
-							return rootCategory.name;
-						}
-
-						// Case 2: Collection in nested subcategories (like Posts/Posts)
-						if (!subCat.isCollection && subCat.subcategories) {
-							for (const [nestedPath, nestedCat] of Object.entries(subCat.subcategories)) {
-								if (nestedCat.isCollection && nestedCat.id === currentCollection.id) {
-									// Return the immediate parent name (e.g. "Posts" for Posts/Posts)
-									return subCat.name;
-								}
-							}
-						}
-					}
+		const findParentCategory = (cats: Record<string, CollectionData>): string => {
+			for (const [categoryId, category] of Object.entries(cats)) {
+				if (category.collections?.some(col => col.id === currentCollection.id)) {
+					return categoryId;
 				}
 			}
 			return '';
 		};
+
 		return findParentCategory(categories.value);
 	});
 
@@ -460,9 +432,8 @@ Features:
 				{/if}
 				<div class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl">
 					{#if currentCollection?.icon}<span>
-							<iconify-icon icon={currentCollection.icon} width="24" class="mr-1 text-error-500 sm:mr-2"></iconify-icon></span
-						>
-					{/if}
+							<iconify-icon icon={currentCollection.icon} width="24" class="mr-1 text-error-500 sm:mr-2"></iconify-icon></span>
+						{/if}
 					{#if currentCollection?.name}
 						<div class="flex max-w-[65px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
 							{currentCollection.name}

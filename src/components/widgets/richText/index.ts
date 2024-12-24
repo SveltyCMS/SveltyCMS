@@ -84,7 +84,7 @@ const widget = (params: Params) => {
 		// permissions
 		permissions: params.permissions
 
-		//extra
+		// widget specific
 		// media_folder: params.media_folder
 	};
 

@@ -2,25 +2,19 @@
 	import type { Schema, CollectionTypes } from '@src/content/types';
 
 	// Stores
-	import { collections } from '@root/src/stores/collectionStore.svelte';
+	import { collections } from '@src/stores/collectionStore.svelte';
 
 	// Components
-	import DropDown from '@components/system/dropDown/DropDown.svelte';
+	import DropDown from '@src/components/system/dropDown/DropDown.svelte';
 
 	interface Props {
-		value?: Schema | string;
+		value?: CollectionTypes;
 	}
 
-	let { value = $bindable('') }: Props = $props();
+	let { value = $bindable<CollectionTypes>('null') }: Props = $props();
 
 	// Initialize _value with proper type checking
-	let _value = $state<CollectionTypes>(
-		typeof value === 'string'
-			? (value as CollectionTypes)
-			: (Object.values(collections.value).find((entry) => {
-					return typeof value !== 'string' && entry[1].name === value.name;
-				})?.[0] as CollectionTypes) || ('null' as CollectionTypes)
-	);
+	let _value = $state<CollectionTypes>(value);
 
 	// Update value when _value changes
 	$effect(() => {
@@ -28,19 +22,14 @@
 	});
 
 	// Prepare items for dropdown with proper typing
-	const items: CollectionTypes[] = Object.values(collections.value).map((collection) => collection.name as CollectionTypes);
-
-	// Update _value when selected changes in DropDown
-	function handleSelect(selected: CollectionTypes) {
-		_value = selected;
-	}
+	const items: CollectionTypes[] = collections.value.map((collection: Schema) => collection.name);
 
 	// Effect to update selected in DropDown when _value changes
 	$effect(() => {
 		if (_value && !items.includes(_value)) {
-			_value = items[0] || ('null' as CollectionTypes);
+			_value = items[0] || 'null';
 		}
 	});
 </script>
 
-<DropDown {items} selected={_value} label="Select Collection" modifier={(item: CollectionTypes) => item} class="w-full" />
+<DropDown {items} selected={_value} label="Select Collection" modifier={(item) => item} class="w-full" />

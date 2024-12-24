@@ -36,13 +36,11 @@ Features:
 
 	// Set Initial active state based on conditions
 	let active = $state<undefined | 0 | 1>(
-		publicEnv.DEMO
-			? undefined // If DEMO is enabled, show logo
-			: publicEnv.SEASONS
-				? 0 // Default to SignIn for SEASONS mode
-				: firstUserExists
-					? 0 // Show SignIn if the first user exists
-					: 1 // Otherwise, show SignUp
+		publicEnv.DEMO || publicEnv.SEASONS
+			? undefined // If DEMO or SEASONS is enabled, show logo
+			: firstUserExists
+				? undefined // Show SignIn if the first user exists
+				: 1 // Otherwise, show SignUp
 	);
 
 	// Set initial background based on conditions
