@@ -149,7 +149,7 @@ export class MongoDBAdapter implements dbInterface {
 					const uuid = uuidMatch ? uuidMatch[1] : null;
 
 					if (!uuid) {
-						logger.error(`Missing UUID in compiled schema for ${filePath}`);
+						logger.error(`Missing or invalid UUID in compiled schema for \x1b[34m${filePath}\x1b[0m`);
 						continue;
 					}
 
@@ -160,7 +160,7 @@ export class MongoDBAdapter implements dbInterface {
 					const collection = await import(/* @vite-ignore */ filePath + `?update=${Date.now()}`);
 					const collectionConfig = collection.default || collection.schema;
 
-					logger.debug(`Collection config for ${filePath}:`, JSON.stringify(collectionConfig, null, 2));
+					logger.debug(`Collection config for \x1b[34m${filePath}\x1b[0m:`, JSON.stringify(collectionConfig, null, 2));
 
 					if (collectionConfig) {
 						// Get the relative path from the collections directory
@@ -191,34 +191,24 @@ export class MongoDBAdapter implements dbInterface {
 				}
 			}
 
+
 			// Then process folders
-			const processedPaths = new Set<string>();
 			for (const fullPath of validPaths) {
 				const parts = fullPath.split('/').filter(Boolean);
 				let currentPath = '';
 
 				for (let i = 0; i < parts.length; i++) {
 					currentPath = `/${parts.slice(0, i + 1).join('/')}`;
+					const nodeId = existingNode ? existingNode._id : crypto.randomUUID();
 
-					if (!processedPaths.has(currentPath)) {
-						processedPaths.add(currentPath);
-
-						// Don't create a node for the actual collection path
-						if (!validPaths.has(currentPath)) {
-							const folderName = parts[i];
-							const existingNode = await ContentStructureModel.findOne({ path: currentPath }, '_id').lean().exec();
-							const nodeId = existingNode ? existingNode._id : crypto.randomUUID();
-
-							await this.createOrUpdateContentStructure({
-								_id: nodeId,
-								name: folderName,
-								path: currentPath,
-								icon: 'bi:folder',
-								isCollection: false
-							});
-							logger.debug(`Created folder structure node: ${currentPath}`);
-						}
-					}
+					await this.createOrUpdateContentStructure({
+						_id: nodeId,
+						name: folderName,
+						path: currentPath,
+						icon: 'bi:folder',
+						isCollection: false
+					});
+					logger.debug(`Created folder structure node: ${currentPath}`);
 				}
 			}
 
@@ -517,8 +507,8 @@ export class MongoDBAdapter implements dbInterface {
 	// Create schema for the collection table and collection_uuid table
 	async createCollectionModel(collection: CollectionConfig): Promise<Model<Document>> {
 		try {
-			// The collection.name is already the UUID in our case
-			const collectionUuid = collection.name;
+			// Use collection_uuid as the identifier
+			const collectionUuid = collection.id;
 			logger.debug(`Using UUID for collection: \x1b[34m${collectionUuid}\x1b[0m`);
 
 			// Ensure collection name is prefixed with collection_
@@ -612,14 +602,12 @@ export class MongoDBAdapter implements dbInterface {
 				versionKey: false
 			};
 
-
 			// Create schema for the main collection
 			const schema = new mongoose.Schema(schemaDefinition, schemaOptions);
 
 			// Add indexes for the main collection
 			schema.index({ createdAt: -1 });
 			schema.index({ status: 1, createdAt: -1 });
-			// Remove the _id index as MongoDB handles this automatically
 
 			// Performance optimization: create indexes in background
 			schema.set('backgroundIndexing', true);
