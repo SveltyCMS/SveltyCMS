@@ -70,8 +70,8 @@ import { logger } from '@utils/logger.svelte';
 import { initializeWidgets, getWidgets } from '@components/widgets/widgetManager.svelte';
 
 export class MongoDBAdapter implements dbInterface {
-	private unsubscribe: Unsubscriber | undefined;
-	private collectionsInitialized = false;
+  private unsubscribe: Unsubscriber | undefined;
+  private collectionsInitialized = false;
 
 	// Connect to MongoDB
 
@@ -106,14 +106,14 @@ export class MongoDBAdapter implements dbInterface {
 			return;
 		}
 
-		try {
-			// Initialize widgets globally
-			if (!globalThis.widgets) {
-				logger.debug('Initializing widgets globally...');
-				await initializeWidgets();
-				globalThis.widgets = getWidgets();
-				logger.debug('Available widgets:', Object.keys(globalThis.widgets));
-			}
+    try {
+      // Initialize widgets globally
+      if (!globalThis.widgets) {
+        logger.debug('Initializing widgets globally...');
+        await initializeWidgets();
+        globalThis.widgets = getWidgets();
+        logger.debug('Available widgets:', Object.keys(globalThis.widgets));
+      }
 
 			// Use posix paths for cross-platform compatibility and reference 'compiledCollections'
 			const compiledCollectionsPath = path.posix.resolve(process.cwd(), 'compiledCollections');
@@ -270,10 +270,10 @@ export class MongoDBAdapter implements dbInterface {
 		return new mongoose.Types.ObjectId().toString(); //required for MongoDB id as ObjectId
 	}
 
-	// Convert a string ID to a MongoDB ObjectId
-	convertId(id: string): mongoose.Types.ObjectId {
-		return new mongoose.Types.ObjectId(id);
-	}
+  // Convert a string ID to a MongoDB ObjectId
+  convertId(id: string): mongoose.Types.ObjectId {
+    return new mongoose.Types.ObjectId(id);
+  }
 
 	// Get collection models
 	async getCollectionModels(): Promise<Record<string, Model<Document>>> {
@@ -625,7 +625,7 @@ export class MongoDBAdapter implements dbInterface {
 		}
 	}
 
-	// Methods for Draft and Revision Management
+  // Methods for Draft and Revision Management
 
 	// Create a new draft
 	async createDraft(
@@ -691,35 +691,35 @@ export class MongoDBAdapter implements dbInterface {
 				throw Error(`Revision not found with ID: ${revisionId}`);
 			}
 
-			logger.info(`Revision ${revisionId} deleted successfully.`);
-		} catch (error) {
-			logger.error(`Error deleting revision ${revisionId}: ${error.message}`);
-			throw Error(`Failed to delete revision`);
-		}
-	}
+      logger.info(`Revision ${revisionId} deleted successfully.`);
+    } catch (error) {
+      logger.error(`Error deleting revision ${revisionId}: ${error.message}`);
+      throw Error(`Failed to delete revision`);
+    }
+  }
 
-	// Restore a specific revision to its original document
-	async restoreRevision(collectionId: string, revisionId: string): Promise<void> {
-		try {
-			// Fetch the revision with the correct typing
-			const revision = await RevisionModel.findOne({ _id: revisionId }).exec();
+  // Restore a specific revision to its original document
+  async restoreRevision(collectionId: string, revisionId: string): Promise<void> {
+    try {
+      // Fetch the revision with the correct typing
+      const revision = await RevisionModel.findOne({ _id: revisionId }).exec();
 
-			if (!revision) {
-				throw Error(`Revision not found with ID: ${revisionId}`);
-			}
+      if (!revision) {
+        throw Error(`Revision not found with ID: ${revisionId}`);
+      }
 
-			// Destructure the necessary properties
-			const { documentId, content } = revision;
+      // Destructure the necessary properties
+      const { documentId, content } = revision;
 
-			if (!documentId || !content) {
-				throw Error(`Revision ${revisionId} is missing required fields.`);
-			}
+      if (!documentId || !content) {
+        throw Error(`Revision ${revisionId} is missing required fields.`);
+      }
 
-			// Convert IDs to ObjectId if necessary
-			const documentObjectId = this.convertId(documentId);
+      // Convert IDs to ObjectId if necessary
+      const documentObjectId = this.convertId(documentId);
 
-			// Update the original document with the revision content
-			const updateResult = await this.updateOne(collectionId, { _id: documentObjectId }, { $set: content });
+      // Update the original document with the revision content
+      const updateResult = await this.updateOne(collectionId, { _id: documentObjectId }, { $set: content });
 
 			// `updateOne` now throws an error if no document is found, so this check might be redundant
 			// Keeping it for clarity.
@@ -727,31 +727,31 @@ export class MongoDBAdapter implements dbInterface {
 				throw Error(`Failed to restore revision: Document not found or no changes applied.`);
 			}
 
-			logger.info(`Revision ${revisionId} restored successfully to document ID: ${documentId}`);
-		} catch (error) {
-			logger.error(`Error restoring revision ${revisionId}: ${error.message}`);
-			throw Error(`Failed to restore revision`);
-		}
-	}
+      logger.info(`Revision ${revisionId} restored successfully to document ID: ${documentId}`);
+    } catch (error) {
+      logger.error(`Error restoring revision ${revisionId}: ${error.message}`);
+      throw Error(`Failed to restore revision`);
+    }
+  }
 
-	// Methods for Widget Management
+  // Methods for Widget Management
 
-	// Install a new widget
-	async installWidget(widgetData: { name: string; isActive?: boolean }): Promise<void> {
-		try {
-			const widget = new WidgetModel({
-				...widgetData,
-				isActive: widgetData.isActive ?? false,
-				createdAt: new Date(),
-				updatedAt: new Date()
-			});
-			await widget.save();
-			logger.info(`Widget ${widgetData.name} installed successfully.`);
-		} catch (error) {
-			logger.error(`Error installing widget: ${error.message}`);
-			throw Error(`Error installing widget`);
-		}
-	}
+  // Install a new widget
+  async installWidget(widgetData: { name: string; isActive?: boolean }): Promise<void> {
+    try {
+      const widget = new WidgetModel({
+        ...widgetData,
+        isActive: widgetData.isActive ?? false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+      await widget.save();
+      logger.info(`Widget ${widgetData.name} installed successfully.`);
+    } catch (error) {
+      logger.error(`Error installing widget: ${error.message}`);
+      throw Error(`Error installing widget`);
+    }
+  }
 
 	// Fetch all widgets
 	async getAllWidgets(): Promise<Widget[]> {
@@ -774,47 +774,47 @@ export class MongoDBAdapter implements dbInterface {
 		}
 	}
 
-	// Activate a widget
-	async activateWidget(widgetName: string): Promise<void> {
-		try {
-			const result = await WidgetModel.updateOne({ name: widgetName }, { $set: { isActive: true, updatedAt: new Date() } }).exec();
-			if (result.modifiedCount === 0) {
-				throw Error(`Widget with name ${widgetName} not found or already active.`);
-			}
-			logger.info(`Widget ${widgetName} activated successfully.`);
-		} catch (error) {
-			logger.error(`Error activating widget: ${error.message}`);
-			throw Error(`Error activating widget`);
-		}
-	}
+  // Activate a widget
+  async activateWidget(widgetName: string): Promise<void> {
+    try {
+      const result = await WidgetModel.updateOne({ name: widgetName }, { $set: { isActive: true, updatedAt: new Date() } }).exec();
+      if (result.modifiedCount === 0) {
+        throw Error(`Widget with name ${widgetName} not found or already active.`);
+      }
+      logger.info(`Widget ${widgetName} activated successfully.`);
+    } catch (error) {
+      logger.error(`Error activating widget: ${error.message}`);
+      throw Error(`Error activating widget`);
+    }
+  }
 
-	// Deactivate a widget
-	async deactivateWidget(widgetName: string): Promise<void> {
-		try {
-			const result = await WidgetModel.updateOne({ name: widgetName }, { $set: { isActive: false, updatedAt: new Date() } }).exec();
-			if (result.modifiedCount === 0) {
-				throw Error(`Widget with name ${widgetName} not found or already inactive.`);
-			}
-			logger.info(`Widget ${widgetName} deactivated successfully.`);
-		} catch (error) {
-			logger.error(`Error deactivating widget: ${error.message}`);
-			throw Error(`Error deactivating widget`);
-		}
-	}
+  // Deactivate a widget
+  async deactivateWidget(widgetName: string): Promise<void> {
+    try {
+      const result = await WidgetModel.updateOne({ name: widgetName }, { $set: { isActive: false, updatedAt: new Date() } }).exec();
+      if (result.modifiedCount === 0) {
+        throw Error(`Widget with name ${widgetName} not found or already inactive.`);
+      }
+      logger.info(`Widget ${widgetName} deactivated successfully.`);
+    } catch (error) {
+      logger.error(`Error deactivating widget: ${error.message}`);
+      throw Error(`Error deactivating widget`);
+    }
+  }
 
-	// Update a widget
-	async updateWidget(widgetName: string, updateData: Partial<Widget>): Promise<void> {
-		try {
-			const result = await WidgetModel.updateOne({ name: widgetName }, { $set: { ...updateData, updatedAt: new Date() } }).exec();
-			if (result.modifiedCount === 0) {
-				throw Error(`Widget with name ${widgetName} not found or no changes applied.`);
-			}
-			logger.info(`Widget ${widgetName} updated successfully.`);
-		} catch (error) {
-			logger.error(`Error updating widget: ${error.message}`);
-			throw Error(`Error updating widget`);
-		}
-	}
+  // Update a widget
+  async updateWidget(widgetName: string, updateData: Partial<Widget>): Promise<void> {
+    try {
+      const result = await WidgetModel.updateOne({ name: widgetName }, { $set: { ...updateData, updatedAt: new Date() } }).exec();
+      if (result.modifiedCount === 0) {
+        throw Error(`Widget with name ${widgetName} not found or no changes applied.`);
+      }
+      logger.info(`Widget ${widgetName} updated successfully.`);
+    } catch (error) {
+      logger.error(`Error updating widget: ${error.message}`);
+      throw Error(`Error updating widget`);
+    }
+  }
 
 	// Methods for Theme Management
 	// Set the default theme
@@ -825,54 +825,54 @@ export class MongoDBAdapter implements dbInterface {
 			// Then, set the new default theme
 			const result = await ThemeModel.updateOne({ name: themeName }, { $set: { isDefault: true } });
 
-			if (result.modifiedCount === 0) {
-				throw Error(`Theme with name ${themeName} not found.`);
-			}
+      if (result.modifiedCount === 0) {
+        throw Error(`Theme with name ${themeName} not found.`);
+      }
 
-			logger.info(`Theme ${themeName} set as default successfully.`);
-		} catch (error) {
-			logger.error(`Error setting default theme: ${error.message}`);
-			throw Error(`Error setting default theme`);
-		}
-	}
+      logger.info(`Theme ${themeName} set as default successfully.`);
+    } catch (error) {
+      logger.error(`Error setting default theme: ${error.message}`);
+      throw Error(`Error setting default theme`);
+    }
+  }
 
-	// Fetch the default theme
-	async getDefaultTheme(): Promise<Theme | null> {
-		try {
-			logger.debug('Attempting to fetch the default theme from the database...');
-			let theme = await ThemeModel.findOne({ isDefault: true }).lean<Theme>().exec();
+  // Fetch the default theme
+  async getDefaultTheme(): Promise<Theme | null> {
+    try {
+      logger.debug('Attempting to fetch the default theme from the database...');
+      let theme = await ThemeModel.findOne({ isDefault: true }).lean<Theme>().exec();
 
-			if (theme) {
-				logger.info(`Default theme found: ${theme.name}`);
-				return theme;
-			}
+      if (theme) {
+        logger.info(`Default theme found: ${theme.name}`);
+        return theme;
+      }
 
-			const count = await ThemeModel.countDocuments();
-			if (count === 0) {
-				logger.warn('Theme collection is empty. Inserting default theme.');
-				await this.storeThemes([DEFAULT_THEME]);
-				theme = await ThemeModel.findOne({ isDefault: true }).lean<Theme>().exec();
-			}
+      const count = await ThemeModel.countDocuments();
+      if (count === 0) {
+        logger.warn('Theme collection is empty. Inserting default theme.');
+        await this.storeThemes([DEFAULT_THEME]);
+        theme = await ThemeModel.findOne({ isDefault: true }).lean<Theme>().exec();
+      }
 
-			if (!theme) {
-				logger.warn('No default theme found in database. Using DEFAULT_THEME constant.');
-				return DEFAULT_THEME as Theme;
-			}
+      if (!theme) {
+        logger.warn('No default theme found in database. Using DEFAULT_THEME constant.');
+        return DEFAULT_THEME as Theme;
+      }
 
-			return theme;
-		} catch (error) {
-			logger.error(`Error fetching default theme: ${error.message}`);
-			throw Error(`Error fetching default theme`);
-		}
-	}
+      return theme;
+    } catch (error) {
+      logger.error(`Error fetching default theme: ${error.message}`);
+      throw Error(`Error fetching default theme`);
+    }
+  }
 
-	// Store themes in the database
-	async storeThemes(themes: Theme[]): Promise<void> {
-		try {
-			// If there's a default theme in the new themes, unset the current default
-			if (themes.some((theme) => theme.isDefault)) {
-				await ThemeModel.updateMany({}, { $set: { isDefault: false } });
-			}
+  // Store themes in the database
+  async storeThemes(themes: Theme[]): Promise<void> {
+    try {
+      // If there's a default theme in the new themes, unset the current default
+      if (themes.some((theme) => theme.isDefault)) {
+        await ThemeModel.updateMany({}, { $set: { isDefault: false } });
+      }
 
 			await ThemeModel.insertMany(
 				themes.map((theme) => ({
@@ -908,14 +908,14 @@ export class MongoDBAdapter implements dbInterface {
 	async setUserPreferences(userId: string, preferences: UserPreferences): Promise<void> {
 		logger.debug(`Setting user preferences for userId: \x1b[34m${user_id}\x1b[0m`);
 
-		try {
-			await SystemPreferencesModel.updateOne({ userId }, { $set: { preferences } }, { upsert: true }).exec();
-			logger.info(`User preferences set successfully for userId: \x1b[34m${user_id}\x1b[0m`);
-		} catch (error) {
-			logger.error(`Failed to set user preferences for user \x1b[34m${user_id}\x1b[0m: ${error.message}`);
-			throw Error(`Failed to set user preferences`);
-		}
-	}
+    try {
+      await SystemPreferencesModel.updateOne({ userId }, { $set: { preferences } }, { upsert: true }).exec();
+      logger.info(`User preferences set successfully for userId: \x1b[34m${user_id}\x1b[0m`);
+    } catch (error) {
+      logger.error(`Failed to set user preferences for user \x1b[34m${user_id}\x1b[0m: ${error.message}`);
+      throw Error(`Failed to set user preferences`);
+    }
+  }
 
 	//Retrieve system preferences for a user
 	async getSystemPreferences(user_id: string): Promise<UserPreferences | null> {
@@ -991,31 +991,31 @@ export class MongoDBAdapter implements dbInterface {
 		}
 	}
 
-	// Get contents of a virtual folder
-	async getVirtualFolderContents(folderId: string): Promise<Document[]> {
-		try {
-			const objectId = this.convertId(folderId);
-			const folder = await SystemVirtualFolderModel.findById(objectId);
-			if (!folder) throw Error('Folder not found');
+  // Get contents of a virtual folder
+  async getVirtualFolderContents(folderId: string): Promise<Document[]> {
+    try {
+      const objectId = this.convertId(folderId);
+      const folder = await SystemVirtualFolderModel.findById(objectId);
+      if (!folder) throw Error('Folder not found');
 
-			const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
-			const mediaPromises = mediaTypes.map((type) => mongoose.model(type).find({ folderId: objectId }).lean());
-			const results = await Promise.all(mediaPromises);
-			logger.info(`Fetched contents for virtual folder ID: \x1b[34m${folderId}\x1b[0m`);
-			return results.flat();
-		} catch (error) {
-			logger.error(`Error fetching contents for virtual folder \x1b[34m${folderId}\x1b[0m: ${error.message}`);
-			throw Error(`Failed to fetch virtual folder contents`);
-		}
-	}
+      const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
+      const mediaPromises = mediaTypes.map((type) => mongoose.model(type).find({ folderId: objectId }).lean());
+      const results = await Promise.all(mediaPromises);
+      logger.info(`Fetched contents for virtual folder ID: \x1b[34m${folderId}\x1b[0m`);
+      return results.flat();
+    } catch (error) {
+      logger.error(`Error fetching contents for virtual folder \x1b[34m${folderId}\x1b[0m: ${error.message}`);
+      throw Error(`Failed to fetch virtual folder contents`);
+    }
+  }
 
-	// Update a virtual folder
-	async updateVirtualFolder(folderId: string, updateData: VirtualFolderUpdateData): Promise<Document | null> {
-		try {
-			const updatePayload: VirtualFolderUpdateData & { updatedAt: Date } = {
-				...updateData,
-				updatedAt: new Date()
-			};
+  // Update a virtual folder
+  async updateVirtualFolder(folderId: string, updateData: VirtualFolderUpdateData): Promise<Document | null> {
+    try {
+      const updatePayload: VirtualFolderUpdateData & { updatedAt: Date } = {
+        ...updateData,
+        updatedAt: new Date()
+      };
 
 			if (updateData.parent) {
 				updatePayload.parent = this.convertId(updateData.parent).toString();
@@ -1210,85 +1210,85 @@ export class MongoDBAdapter implements dbInterface {
 		}
 	}
 
-	// Fetch media in a specific folder
-	async getMediaInFolder(folder_id: string): Promise<MediaType[]> {
-		try {
-			const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
-			const objectId = this.convertId(folder_id);
-			const mediaPromises = mediaTypes.map((type) => mongoose.model(type).find({ folderId: objectId }).lean());
-			const results = await Promise.all(mediaPromises);
-			const mediaInFolder = results.flat();
-			logger.info(`Fetched \x1b[34m${mediaInFolder.length}\x1b[0m media items in folder ID: \x1b[34m${folder_id}\x1b[0m`);
-			return mediaInFolder;
-		} catch (error) {
-			logger.error(`Error fetching media in folder \x1b[34m${folder_id}\x1b[0m: ${error.message}`);
-			throw Error(`Failed to fetch media in folder`);
-		}
-	}
+  // Fetch media in a specific folder
+  async getMediaInFolder(folder_id: string): Promise<MediaType[]> {
+    try {
+      const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
+      const objectId = this.convertId(folder_id);
+      const mediaPromises = mediaTypes.map((type) => mongoose.model(type).find({ folderId: objectId }).lean());
+      const results = await Promise.all(mediaPromises);
+      const mediaInFolder = results.flat();
+      logger.info(`Fetched \x1b[34m${mediaInFolder.length}\x1b[0m media items in folder ID: \x1b[34m${folder_id}\x1b[0m`);
+      return mediaInFolder;
+    } catch (error) {
+      logger.error(`Error fetching media in folder \x1b[34m${folder_id}\x1b[0m: ${error.message}`);
+      throw Error(`Failed to fetch media in folder`);
+    }
+  }
 
-	// Fetch the last five collections
-	async getLastFiveCollections(): Promise<Document[]> {
-		try {
-			const collectionTypes = Object.keys(mongoose.models);
-			const recentCollections: Document[] = [];
+  // Fetch the last five collections
+  async getLastFiveCollections(): Promise<Document[]> {
+    try {
+      const collectionTypes = Object.keys(mongoose.models);
+      const recentCollections: Document[] = [];
 
-			for (const collectionType of collectionTypes) {
-				const model = mongoose.models[collectionType];
-				if (model) {
-					const collections = await model.find().sort({ createdAt: -1 }).limit(5).lean().exec();
-					recentCollections.push(...collections);
-				}
-			}
+      for (const collectionType of collectionTypes) {
+        const model = mongoose.models[collectionType];
+        if (model) {
+          const collections = await model.find().sort({ createdAt: -1 }).limit(5).lean().exec();
+          recentCollections.push(...collections);
+        }
+      }
 
-			return recentCollections.sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0)).slice(0, 5);
-		} catch (error) {
-			logger.error(`Failed to fetch last five collections: ${error.message}`);
-			throw Error(`Failed to fetch last five collections`);
-		}
-	}
+      return recentCollections.sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0)).slice(0, 5);
+    } catch (error) {
+      logger.error(`Failed to fetch last five collections: ${error.message}`);
+      throw Error(`Failed to fetch last five collections`);
+    }
+  }
 
-	// Fetch logged-in users
-	async getLoggedInUsers(): Promise<Document[]> {
-		try {
-			const sessionModel = mongoose.models['auth_sessions'];
-			if (!sessionModel) {
-				throw Error('auth_sessions collection does not exist.');
-			}
-			const activeSessions = await sessionModel.find({ active: true }).lean().exec();
-			logger.info(`Fetched \x1b[34m${activeSessions.length}\x1b[0m active sessions.`);
-			return activeSessions;
-		} catch (error) {
-			logger.error(`Error fetching logged-in users: ${error.message}`);
-			throw Error(`Failed to fetch logged-in users`);
-		}
-	}
+  // Fetch logged-in users
+  async getLoggedInUsers(): Promise<Document[]> {
+    try {
+      const sessionModel = mongoose.models['auth_sessions'];
+      if (!sessionModel) {
+        throw Error('auth_sessions collection does not exist.');
+      }
+      const activeSessions = await sessionModel.find({ active: true }).lean().exec();
+      logger.info(`Fetched \x1b[34m${activeSessions.length}\x1b[0m active sessions.`);
+      return activeSessions;
+    } catch (error) {
+      logger.error(`Error fetching logged-in users: ${error.message}`);
+      throw Error(`Failed to fetch logged-in users`);
+    }
+  }
 
-	// Fetch CMS data
-	async getCMSData(): Promise<{
-		collections: number;
-		media: number;
-		users: number;
-		drafts: number;
-	}> {
-		// Implement your CMS data fetching logic here
-		// This is a placeholder and should be replaced with actual implementation
-		logger.debug('Fetching CMS data...');
-		return {};
-	}
+  // Fetch CMS data
+  async getCMSData(): Promise<{
+    collections: number;
+    media: number;
+    users: number;
+    drafts: number;
+  }> {
+    // Implement your CMS data fetching logic here
+    // This is a placeholder and should be replaced with actual implementation
+    logger.debug('Fetching CMS data...');
+    return {};
+  }
 
-	// Fetch the last five media documents
-	async getLastFiveMedia(): Promise<MediaType[]> {
-		try {
-			const mediaSchemas = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
-			const recentMedia: MediaType[] = [];
+  // Fetch the last five media documents
+  async getLastFiveMedia(): Promise<MediaType[]> {
+    try {
+      const mediaSchemas = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
+      const recentMedia: MediaType[] = [];
 
-			for (const schemaName of mediaSchemas) {
-				const model = mongoose.models[schemaName];
-				if (model) {
-					const media = await model.find().sort({ createdAt: -1 }).limit(5).lean().exec();
-					recentMedia.push(...(media as MediaType[]));
-				}
-			}
+      for (const schemaName of mediaSchemas) {
+        const model = mongoose.models[schemaName];
+        if (model) {
+          const media = await model.find().sort({ createdAt: -1 }).limit(5).lean().exec();
+          recentMedia.push(...(media as MediaType[]));
+        }
+      }
 
 			return recentMedia.sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0)).slice(0, 5);
 		} catch (error) {
