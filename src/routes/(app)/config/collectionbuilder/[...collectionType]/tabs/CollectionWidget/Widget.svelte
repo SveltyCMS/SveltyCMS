@@ -8,7 +8,7 @@
 	import type { DndEvent, Item } from 'svelte-dnd-action';
 
 	// Stores
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { tabSet } from '@stores/store';
 	import { collectionValue, targetWidget } from '@src/stores/collectionStore.svelte';
 
@@ -49,7 +49,7 @@
 	const modalStore = getModalStore();
 
 	// Extract the collection name from the URL
-	const collectionTypes = $page.params.collectionTypes;
+	const collectionTypes = page.params.collectionTypes;
 
 	// Fields state with proper typing
 	let fields = $state<Field[]>(

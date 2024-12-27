@@ -25,9 +25,9 @@ Key features:
 	import { getFieldName, pascalToCamelCase } from '@utils/utils';
 
 	// Auth
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import type { RolePermissions } from '@src/auth/types';
-	const user = $page.data.user;
+	const user = page.data.user;
 
 	// Stores
 	import { contentLanguage, translationProgress } from '@stores/store';

@@ -66,23 +66,31 @@ function calculatePasswordStrength(password: string): number {
 // Helper function to fetch and redirect to the first collection
 async function fetchAndRedirectToFirstCollection() {
 	try {
-		// Get content structure from database
-		const contentNodes = await dbAdapter.getContentStructure();
-
-		// Find first collection node
-		const firstCollection = contentNodes.find(node =>
-			node.isCollection && node.path.startsWith('/collections/')
-		);
-
-		if (firstCollection) {
-			logger.info(`Redirecting to first collection: ${firstCollection.name}`);
-			return `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${firstCollection.name}`;
+		if (!dbAdapter) {
+			logger.error('Database adapter not initialized');
+			return '/';
 		}
 
-		logger.warn('No collections found in content structure');
+		// Get content structure with UUIDs
+		const contentNodes = await dbAdapter.getContentStructure();
+
+		if (!contentNodes?.length) {
+			logger.warn('No collections found in content structure');
+			return '/';
+		}
+
+		// Find first collection using UUID
+		const firstCollection = contentNodes.find((node) => node.isCollection && node._id);
+
+		if (firstCollection) {
+			logger.info(`Redirecting to first collection: ${firstCollection.name} (${firstCollection._id})`);
+			return `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${firstCollection._id}`;
+		}
+
+		logger.warn('No valid collections found');
 		return '/';
 	} catch (err) {
-		logger.error('Error fetching first collection:', err);
+		logger.error('Error in fetchAndRedirectToFirstCollection:', err);
 		return '/';
 	}
 }
@@ -364,7 +372,7 @@ export const actions: Actions = {
 				error: rateLimitResult
 			};
 		}
-		const authUrl = await generateGoogleAuthUrl(null, 'none')
+		const authUrl = await generateGoogleAuthUrl(null, 'none');
 		redirect(303, authUrl);
 	},
 

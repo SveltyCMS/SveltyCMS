@@ -377,7 +377,7 @@ export { categories };
 async function getCurrentPath() {
 	const contentNodes = await dbAdapter.getContentNodes();
 	const currentPath = window.location.pathname;
-	const config = contentNodes.find(node => node.path === currentPath) || {
+	const config = contentNodes.find((node) => node.path === currentPath) || {
 		fields: {},
 		isCollection: false,
 		name: '',

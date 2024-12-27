@@ -6,47 +6,44 @@
 import fs from 'fs';
 
 export async function generateCollectionTypes(server) {
-    try {
-        const { collections } = await server.ssrLoadModule('@src/stores/collectionStore.svelte.ts');
+	try {
+		const { collections } = await server.ssrLoadModule('@src/stores/collectionStore.svelte.ts');
 
+		const collectionTypes: Record<string, { fields: string[]; type: string }> = {};
 
-        const collectionTypes: Record<string, { fields: string[]; type: string }> = {};
+		// Access the store's value property and ensure it exists
+		const collectionsData = collections?.value || {};
 
-        // Access the store's value property and ensure it exists
-        const collectionsData = collections?.value || {};
+		if (!collectionsData || typeof collectionsData !== 'object') {
+			throw new Error(`Invalid collections data: ${JSON.stringify(collectionsData)}`);
+		}
 
-        if (!collectionsData || typeof collectionsData !== 'object') {
-            throw new Error(`Invalid collections data: ${JSON.stringify(collectionsData)}`);
-        }
+		for (const [key, collection] of Object.entries(collectionsData)) {
+			if (!collection?.fields) {
+				console.warn(`Collection ${key} has no fields:`, collection);
+				continue;
+			}
 
-        for (const [key, collection] of Object.entries(collectionsData)) {
+			const fields = collection.fields.map((field) => ({
+				name: field.db_fieldName || field.label,
+				type: field.type || 'string'
+			}));
 
-            if (!collection?.fields) {
-                console.warn(`Collection ${key} has no fields:`, collection);
-                continue;
-            }
+			collectionTypes[key] = {
+				fields: fields.map((f) => f.name),
+				type: `{${fields.map((f) => `${f.name}: ${f.type}`).join('; ')}}`
+			};
+		}
 
-            const fields = collection.fields.map(field => ({
-                name: field.db_fieldName || field.label,
-                type: field.type || 'string'
-            }));
+		let types = await fs.promises.readFile('src/content/types.ts', 'utf-8');
+		types = types.replace(/\n*export\s+type\s+CollectionTypes\s?=\s?.*?};/gms, '');
+		types += '\nexport type CollectionTypes = ' + JSON.stringify(collectionTypes, null, 2) + ';\n';
 
-            collectionTypes[key] = {
-                fields: fields.map(f => f.name),
-                type: `{${fields.map(f => `${f.name}: ${f.type}`).join('; ')}}`
-            };
-        }
+		await fs.promises.writeFile('src/content/types.ts', types);
 
-
-        let types = await fs.promises.readFile('src/content/types.ts', 'utf-8');
-        types = types.replace(/\n*export\s+type\s+CollectionTypes\s?=\s?.*?};/gms, '');
-        types += '\nexport type CollectionTypes = ' + JSON.stringify(collectionTypes, null, 2) + ';\n';
-
-        await fs.promises.writeFile('src/content/types.ts', types);
-
-        return collectionTypes;
-    } catch (error) {
-        console.error('Error generating collection types:', error);
-        throw error;
-    }
+		return collectionTypes;
+	} catch (error) {
+		console.error('Error generating collection types:', error);
+		throw error;
+	}
 }

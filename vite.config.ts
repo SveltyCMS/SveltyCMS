@@ -86,7 +86,7 @@ export default defineConfig({
 										await cleanupOrphanedFiles(userCollections, compiledCollections);
 										console.log(`Cleanup completed for deleted file: \x1b[31m${file}\x1b[0m`);
 									} else if (event === 'add' || event === 'change') {
-										const isRename = lastUnlinkFile && (currentTime - lastUnlinkTime < 100);
+										const isRename = lastUnlinkFile && currentTime - lastUnlinkTime < 100;
 
 										if (isRename) {
 											console.log(`Collection file renamed: \x1b[33m${lastUnlinkFile}\x1b[0m -> \x1b[32m${file}\x1b[0m`);
@@ -180,7 +180,7 @@ export default defineConfig({
 		rollupOptions: {
 			onwarn(warning, warn) {
 				// Ignore circular dependency warnings from semver
-				if (warning.code === 'CIRCULAR_DEPENDENCY' && warning.ids?.some(id => id.includes('semver'))) {
+				if (warning.code === 'CIRCULAR_DEPENDENCY' && warning.ids?.some((id) => id.includes('semver'))) {
 					return;
 				}
 				warn(warning);

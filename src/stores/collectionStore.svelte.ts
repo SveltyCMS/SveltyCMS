@@ -10,11 +10,19 @@
  */
 
 import { store } from '@utils/reactivity.svelte';
-import type { Schema, CollectionData } from '@root/src/content/types';
+import type { Schema, ModeType, Widget, CollectionData } from '@src/content/types';
+
+// Define UUID-based collection interface
+interface UUIDCollection extends Schema {
+	_id: string; // MongoDB UUID
+	name: string;
+	path: string;
+	icon?: string;
+	isCollection: boolean;
+}
 
 // Define types
 type ModeType = 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
-type CollectionType = string; // Base type for collection names
 
 // Widget interface
 interface Widget {
@@ -33,11 +41,15 @@ export const statusMap = {
 } as const;
 
 // Create reactive stores using Svelte 5 runes
-export const collections = store<{ [key: CollectionType]: Schema }>({});
+export const collections = store<{ [uuid: string]: UUIDCollection }>({});
+export const collectionsById = store<Map<string, UUIDCollection>>(new Map());
+export const currentCollectionId = store<string | null>(null);
+
+// Keep existing stores
 export const collectionsLoading = store<boolean>(false);
 export const collectionsError = store<string | null>(null);
 export const unAssigned = store<Schema[]>([]);
-export const collection = store<Schema>({} as Schema);
+export const collection = store<UUIDCollection>({} as UUIDCollection);
 export const collectionValue = store<Record<string, unknown>>({});
 export const mode = store<ModeType>('view');
 export const modifyEntry = store<(status?: keyof typeof statusMap) => Promise<void>>(() => Promise.resolve());
@@ -73,6 +85,19 @@ export const categoryActions = {
 	}
 };
 
+// Helper methods for UUID-based operations
+export function setCurrentCollectionById(uuid: string) {
+	currentCollectionId.set(uuid);
+	if (collectionsById.get(uuid)) {
+		collection.set(collectionsById.get(uuid)!);
+	}
+}
+
+export function addCollection(collectionData: UUIDCollection) {
+	collectionsById.update((map) => map.set(collectionData._id, collectionData));
+	collections.update((cols) => ({ ...cols, [collectionData._id]: collectionData }));
+}
+
 // Function to refresh and content structure
 export async function refreshCollections() {
 	try {
@@ -87,7 +112,9 @@ export async function refreshCollections() {
 
 		const { data } = await response.json();
 		collections.set(data.collections);
+		console.log('Collections:', data.collections);
 		categories.set(data.categories);
+		console.log('Categories:', data.categories);
 	} catch (err) {
 		console.error('Error refreshing content structure:', err);
 		collectionsError.set(err instanceof Error ? err.message : 'Unknown error');

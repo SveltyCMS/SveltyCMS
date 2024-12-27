@@ -31,9 +31,18 @@
 <script lang="ts">
 	import { getFieldName, meta_data } from '@utils/utils';
 	import { saveFormData } from '../utils/data';
-	import type { Field, Schema, FieldValue } from '@src/content/types';
+	import type { Schema, FieldValue } from '@src/content/types';
 	import type { ModifyRequestParams } from '@components/widgets';
-	import type { StatusType } from '@src/content/types';
+
+	interface Field {
+		name: string;
+		type: string;
+		widget: Widget;
+		label?: string;
+		required?: boolean;
+		unique?: boolean;
+		default?: FieldValue;
+	}
 
 	// Components
 	import TranslationStatus from './TranslationStatus.svelte';
@@ -44,7 +53,7 @@
 	const modalStore = getModalStore();
 
 	// Stores
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { collection, collectionValue, mode, modifyEntry, statusMap, collections, categories } from '@src/stores/collectionStore.svelte';
 	import { toggleSidebar, sidebarState } from '@src/stores/sidebarStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
@@ -52,7 +61,7 @@
 
 	// Auth
 	import type { User } from '@src/auth/types';
-	let user = $derived($page.data.user as User);
+	let user = $derived(page.data.user as User);
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

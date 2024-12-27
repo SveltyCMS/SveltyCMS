@@ -18,7 +18,7 @@ Ensure that the necessary stores and utility functions are available.
 -->
 
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { modifyEntry, selectedEntries, collectionValue, collection } from '@src/stores/collectionStore.svelte';
 	import { saveFormData } from '../utils/data';
 
@@ -41,7 +41,7 @@ Ensure that the necessary stores and utility functions are available.
 
 	let { parent }: Props = $props();
 
-	const user: User = $page.data.user;
+	const user: User = page.data.user;
 
 	type ActionType = 'published' | 'unpublished' | 'deleted' | 'scheduled' | 'cloned' | 'testing';
 

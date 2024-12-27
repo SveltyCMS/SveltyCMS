@@ -68,28 +68,27 @@ export async function initializeWidgets(): Promise<void> {
 		try {
 			// Dynamically import all widget modules from the widgets directory
 			const widgetModules = await Promise.all(
-				Object.entries(import.meta.glob<WidgetModule>('./*/index.ts', { eager: true }))
-					.map(async ([path, module]) => {
-						try {
-							// Extract widget name from path (e.g., './input/index.ts' -> 'input')
-							const name = path.match(/\.\/([^/]+)\//)?.[1];
-							if (!name) {
-								logger.warn(`Skipping widget module: ${path} - Unable to extract widget name`);
-								return null;
-							}
-
-							// Ensure the module has a default export that can be used as a widget
-							if (typeof module.default !== 'function') {
-								logger.warn(`Skipping widget module: ${path} - No valid widget function found`);
-								return null;
-							}
-
-							return { name, module };
-						} catch (error) {
-							logger.error(`Failed to process widget module ${path}:`, error);
+				Object.entries(import.meta.glob<WidgetModule>('./*/index.ts', { eager: true })).map(async ([path, module]) => {
+					try {
+						// Extract widget name from path (e.g., './input/index.ts' -> 'input')
+						const name = path.match(/\.\/([^/]+)\//)?.[1];
+						if (!name) {
+							logger.warn(`Skipping widget module: ${path} - Unable to extract widget name`);
 							return null;
 						}
-					})
+
+						// Ensure the module has a default export that can be used as a widget
+						if (typeof module.default !== 'function') {
+							logger.warn(`Skipping widget module: ${path} - No valid widget function found`);
+							return null;
+						}
+
+						return { name, module };
+					} catch (error) {
+						logger.error(`Failed to process widget module ${path}:`, error);
+						return null;
+					}
+				})
 			);
 
 			const validModules = widgetModules.filter((m): m is NonNullable<typeof m> => m !== null);
@@ -157,9 +156,9 @@ export async function updateWidgetStatus(widgetName: string, status: WidgetStatu
 	try {
 		// Update the active widgets list using the custom store's methods
 		if (status === 'active' && !activeWidgetList.value.includes(widgetName)) {
-			activeWidgetList.update(value => [...value, widgetName]);
+			activeWidgetList.update((value) => [...value, widgetName]);
 		} else if (status === 'inactive') {
-			activeWidgetList.update(value => value.filter(w => w !== widgetName));
+			activeWidgetList.update((value) => value.filter((w) => w !== widgetName));
 		}
 
 		logger.info(`Widget ${widgetName} ${status} status updated successfully`);
@@ -179,7 +178,7 @@ export async function updateWidgetConfig(widgetName: string, config: Record<stri
 	const widget = widgetFunctions.value[widgetName];
 	if (!widget) return;
 
-	widgetFunctions.update(currentWidgets => ({
+	widgetFunctions.update((currentWidgets) => ({
 		...currentWidgets,
 		[widgetName]: (cfg: Record<string, unknown>) => ({
 			...widget(cfg),
@@ -191,14 +190,17 @@ export async function updateWidgetConfig(widgetName: string, config: Record<stri
 // Use the custom store's `value` property for reactivity
 export async function loadWidgets() {
 	await initializeWidgets();
-	const widgets = Object.entries(widgetFunctions.value).reduce((acc, [name, widgetFn]) => {
-		acc[name] = widgetFn({});
-		return acc;
-	}, {} as Record<string, Widget>);
+	const widgets = Object.entries(widgetFunctions.value).reduce(
+		(acc, [name, widgetFn]) => {
+			acc[name] = widgetFn({});
+			return acc;
+		},
+		{} as Record<string, Widget>
+	);
 	return widgets;
 }
 
 // Initialize widgets immediately
-initializeWidgets().catch(error => {
+initializeWidgets().catch((error) => {
 	logger.error('Failed to initialize widgets:', error);
 });

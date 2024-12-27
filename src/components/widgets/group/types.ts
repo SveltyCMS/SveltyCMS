@@ -28,7 +28,7 @@ export type Params = {
 /**
  * Defines Group GuiSchema
  */
-export interface GuiSchema {} // Empty interface if no GUI fields
+export type GuiSchema = object; // Type for GUI configuration object
 
 /**
  * Define Group GraphqlSchema function

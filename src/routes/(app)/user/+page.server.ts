@@ -45,10 +45,10 @@ export const load: PageServerLoad = async (event) => {
 		// Prepare user object for return, ensuring _id is a string
 		const safeUser = user
 			? {
-				...user,
-				_id: user._id.toString(),
-				password: '[REDACTED]' // Ensure password is not sent to client
-			}
+					...user,
+					_id: user._id.toString(),
+					password: '[REDACTED]' // Ensure password is not sent to client
+				}
 			: null;
 
 		let adminData = null;

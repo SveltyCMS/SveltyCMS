@@ -21,7 +21,7 @@ It provides the following functionality:
 
 	// Store
 	import { writable } from 'svelte/store';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 
 	// Auth
 	import type { Role, Permission } from '@src/auth/types';
@@ -84,7 +84,7 @@ It provides the following functionality:
 
 	const loadPermissions = async () => {
 		try {
-			availablePermissions.set($page.data.permissions);
+			availablePermissions.set(page.data.permissions);
 		} catch (err) {
 			error.set(`Failed to load permissions: ${err instanceof Error ? err.message : String(err)}`);
 		}

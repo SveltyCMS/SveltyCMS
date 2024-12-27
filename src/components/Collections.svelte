@@ -30,7 +30,7 @@ Features:
 	import { shouldShowNextButton } from '@stores/store';
 	import { mode, collections } from '@src/stores/collectionStore.svelte';
 	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@src/stores/sidebarStore.svelte';
-	import { screenSize } from '@root/src/stores/screenSizeStore.svelte';
+	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

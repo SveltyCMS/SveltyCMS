@@ -1,8 +1,17 @@
-<script lang="ts">
-	import { run, preventDefault } from 'svelte/legacy';
+<!-- 
+@file src/routes/(app)/config/systemsetting/ModalEditSystem.svelte
+@component
+**ModalEditSystem component for editing system settings**
 
+Features: 
+- Displays a modal for editing system settings
+- Validates form data before submission
+- Displays tooltips for each configuration field
+- Saves the form data on successful validation
+- Displays error messages for invalid form data
+-->
+<script lang="ts">
 	import type { SvelteComponent } from 'svelte';
-	import { privateConfigCategories, publicConfigCategories } from '@root/config/guiConfig';
 	import { privateEnv } from '@root/config/private';
 	import { publicEnv } from '@root/config/public';
 
@@ -19,8 +28,8 @@
 	const modalStore = getModalStore();
 	const cBase = 'bg-surface-100-800-token w-screen h-screen p-4 flex justify-center items-center';
 
-	let formData = $state({});
-	let errors = $state({});
+	let formData = $state<{ [key: string]: any }>({});
+	let errors = $state<{ [key: string]: string }>({});
 
 	interface Props {
 		parent: SvelteComponent;
@@ -51,25 +60,34 @@
 
 	// Get content structure from database
 	const getContentStructure = async () => {
+		if (!dbAdapter) {
+			console.error('Database adapter is not available');
+			return {};
+		}
 		const contentNode = await dbAdapter.getContentNodes();
-		const configCategoryNode = contentNode.find(node => node.path === configCategory);
+		const configCategoryNode = contentNode.find((node: { path: string }) => node.path === configCategory);
 		return configCategoryNode?.fields || {};
 	};
 
+	import { onMount } from 'svelte';
+
 	let configData = $state({});
 
-	run(async () => {
+	onMount(async () => {
 		configData = await getContentStructure();
+
+		// Merge actual configuration values with defaults
+		configData = Object.entries(configData).map(([key, field]) => {
+			const typedField = field as ConfigField<any>;
+			return {
+				key,
+				...typedField,
+				value: actualConfig[key as keyof typeof actualConfig] !== undefined ? actualConfig[key as keyof typeof actualConfig] : typedField.default
+			};
+		});
+
+		console.log('Config Data:', configData);
 	});
-
-	// Merge actual configuration values with defaults
-	configData = Object.entries(configData).map(([key, field]: [string, ConfigField<any>]) => ({
-		key,
-		...field,
-		value: actualConfig[key] !== undefined ? actualConfig[key] : field.default
-	}));
-
-	console.log('Config Data:', configData);
 
 	function validate() {
 		errors = {};
@@ -96,14 +114,6 @@
 			console.log('Errors:', errors);
 		}
 	}
-
-	// Initialize form data with actual values or defaults
-	run(() => {
-		formData = configData.reduce((acc, { key, value }) => {
-			acc[key] = value;
-			return acc;
-		}, {});
-	});
 
 	// Popup Tooltips
 	function getPopupSettings(key: string): PopupSettings {

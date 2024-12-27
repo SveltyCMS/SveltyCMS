@@ -6,7 +6,7 @@
 
 <script lang="ts">
 	// Stores
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { tabSet } from '@stores/store';
 	import { collectionValue, targetWidget } from '@src/stores/collectionStore.svelte';
 	import { getGuiFields, asAny } from '@utils/utils';
@@ -29,7 +29,7 @@
 	const modalStore = getModalStore();
 
 	// Extract the collection name from the URL
-	const collectionTypes = $page.params.collectionTypes;
+	const collectionTypes = page.params.collectionTypes;
 
 	// Helper function to map fields
 	function mapFieldsWithWidgets(fields: any[]) {

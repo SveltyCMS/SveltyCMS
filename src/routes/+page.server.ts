@@ -21,7 +21,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 
 	try {
-		// Get the list of collections
+		// Get the list of collections with their UUIDs
 		const collections = contentManager.getCollectionData()?.collections;
 
 		// If there are no collections, throw a 404 error
@@ -36,12 +36,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			return { user: locals.user, permissions: locals.permissions };
 		}
 
-		// Get the first collection and the default language
+		// Get the first collection and use its UUID
 		const firstCollection = collections[0];
 		const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
 
-		// Construct the redirect URL
-		const redirectUrl = `/${defaultLanguage}/${firstCollection.name}`;
+		// Construct redirect URL using UUID instead of name
+		const redirectUrl = `/${defaultLanguage}/${firstCollection.id}`;
 
 		logger.info(`Redirecting to \x1b[34m${redirectUrl}\x1b[0m`);
 		throw redirect(302, redirectUrl);

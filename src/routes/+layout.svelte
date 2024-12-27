@@ -16,7 +16,7 @@
 	import { publicEnv } from '@root/config/public';
 
 	// Stores
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 
 	// Icons from https://icon-sets.iconify.design/
 	import 'iconify-icon';
@@ -71,9 +71,9 @@
 	let { children }: Props = $props();
 
 	// Reactive declarations for dynamic SEO content
-	let SeoTitle = $derived($page.data.SeoTitle || defaultTitle);
-	let SeoDescription = $derived($page.data.SeoDescription || defaultDescription);
-	let ogImage = $derived($page.data.ogImage || '/SveltyCMS.png');
+	let SeoTitle = $derived(page.data.SeoTitle || defaultTitle);
+	let SeoDescription = $derived(page.data.SeoDescription || defaultDescription);
+	let ogImage = $derived(page.data.ogImage || '/SveltyCMS.png');
 </script>
 
 <svelte:head>
@@ -88,15 +88,15 @@
 	<meta property="og:image" content={ogImage} />
 	<meta property="og:image:width" content="1200" />
 	<meta property="og:image:height" content="630" />
-	<meta property="og:site_name" content={$page.url.origin} />
+	<meta property="og:site_name" content={page.url.origin} />
 
 	<!-- Twitter Card Metadata -->
 	<meta name="twitter:card" content="summary_large_image" />
 	<meta name="twitter:title" content={SeoTitle} />
 	<meta name="twitter:description" content={SeoDescription} />
 	<meta name="twitter:image" content={ogImage} />
-	<meta property="twitter:domain" content={$page.url.origin} />
-	<meta property="twitter:url" content={$page.url.href} />
+	<meta property="twitter:domain" content={page.url.origin} />
+	<meta property="twitter:url" content={page.url.href} />
 </svelte:head>
 
 <ParaglideSvelteKit>

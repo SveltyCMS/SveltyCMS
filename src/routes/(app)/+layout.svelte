@@ -28,7 +28,7 @@ Key features:
 	import { isSearchVisible } from '@utils/globalSearchIndex';
 
 	// Stores
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { contentLanguage, systemLanguage, isLoading } from '@stores/store';
 	import { collection, collections, mode } from '@root/src/stores/collectionStore.svelte';
 	import { sidebarState } from '@root/src/stores/sidebarStore.svelte';
@@ -76,7 +76,7 @@ Key features:
 		if (!newCollection?.name) return;
 
 		const newPath = `/${contentLanguage.value || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${String(newCollection.name)}`;
-		if ($page.url.pathname !== newPath && mode.value !=='media') {
+		if (page.url.pathname !== newPath && mode.value !== 'media') {
 			goto(newPath);
 		}
 	});
@@ -183,15 +183,15 @@ Key features:
 	<meta property="og:image" content="/SveltyCMS.png" />
 	<meta property="og:image:width" content="1200" />
 	<meta property="og:image:height" content="630" />
-	<meta property="og:site_name" content={$page.url.origin} />
+	<meta property="og:site_name" content={page.url.origin} />
 
 	<!-- Open Graph : Twitter-->
 	<meta name="twitter:card" content="summary_large_image" />
 	<meta name="twitter:title" content={SeoTitle} />
 	<meta name="twitter:description" content={SeoDescription} />
 	<meta name="twitter:image" content="/SveltyCMS.png" />
-	<meta property="twitter:domain" content={$page.url.origin} />
-	<meta property="twitter:url" content={$page.url.href} />
+	<meta property="twitter:domain" content={page.url.origin} />
+	<meta property="twitter:url" content={page.url.href} />
 </svelte:head>
 
 {#if loadError}
@@ -204,7 +204,7 @@ Key features:
 	</div>
 {:else}
 	<!-- hack as root +layout cannot be overwritten ? -->
-	{#if $page.url.pathname === '/login'}
+	{#if page.url.pathname === '/login'}
 		{@render children?.()}
 	{:else}
 		<!-- Body -->

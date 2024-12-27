@@ -12,7 +12,7 @@
 	import SiteName from '@components/SiteName.svelte';
 
 	// Stores
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { systemLanguage } from '@stores/store';
 
 	// ParaglideJS
@@ -20,7 +20,7 @@
 
 	// Auth
 	import type { User } from '@src/auth/types';
-	const username: User = $page.data.user.username;
+	const username: User = page.data.user.username;
 
 	// svelty-email
 	import { Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';

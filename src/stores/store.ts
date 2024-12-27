@@ -72,10 +72,10 @@ const createBaseStores = () => {
 
 	// Save functionality
 	const saveFunction = store<SaveFunction>({
-		fn: () => { },
-		reset: () => { }
+		fn: () => {},
+		reset: () => {}
 	});
-	const saveLayerStore = store(async () => { });
+	const saveLayerStore = store(async () => {});
 	const shouldShowNextButton = store(false);
 
 	// Validation

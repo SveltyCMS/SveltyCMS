@@ -214,6 +214,7 @@ Features:
 	<!-- Debug Overlay -->
 	<!-- <div class="fixed right-4 top-4 z-50 flex flex-col items-start space-y-2 rounded-lg bg-gray-800 p-4 text-white shadow-lg">
 		<h2 class="text-lg font-semibold">Debug Panel</h2>
+		<p><strong>First User Exists:</strong> {firstUserExists ? 'Yes' : 'No'}</p>
 		<p><strong>DEMO:</strong> {publicEnv.DEMO ? 'Enabled' : 'Disabled'}</p>
 		<p><strong>SEASON:</strong> {publicEnv.SEASONS ? 'Enabled' : 'Disabled'}</p>
 		<p><strong>Region:</strong> {publicEnv.SEASON_REGION || 'N/A'}</p>

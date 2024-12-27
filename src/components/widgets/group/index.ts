@@ -86,11 +86,12 @@ widget.toString = () => '';
 
 // Widget icon and helper text
 widget.Icon = 'material-symbols:category';
-widget.Description = "This widget is used to group other widgets together.";
+widget.Description = 'This widget is used to group other widgets together.';
 
 // Widget Aggregations:
 widget.aggregations = {} as Aggregations;
 
-// Export FieldType interface and widget function
-export interface FieldType extends ReturnType<typeof widget> { }
+// Export FieldType type and widget function
+export type FieldType = ReturnType<typeof widget>;
 export default widget;
+

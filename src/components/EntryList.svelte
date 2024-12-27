@@ -390,7 +390,7 @@ Features:
 		// Helper function to find parent category name
 		const findParentCategory = (cats: Record<string, CollectionData>): string => {
 			for (const [categoryId, category] of Object.entries(cats)) {
-				if (category.collections?.some(col => col.id === currentCollection.id)) {
+				if (category.collections?.some((col) => col.id === currentCollection.id)) {
 					return categoryId;
 				}
 			}
@@ -432,8 +432,9 @@ Features:
 				{/if}
 				<div class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl">
 					{#if currentCollection?.icon}<span>
-							<iconify-icon icon={currentCollection.icon} width="24" class="mr-1 text-error-500 sm:mr-2"></iconify-icon></span>
-						{/if}
+							<iconify-icon icon={currentCollection.icon} width="24" class="mr-1 text-error-500 sm:mr-2"></iconify-icon></span
+						>
+					{/if}
 					{#if currentCollection?.name}
 						<div class="flex max-w-[65px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
 							{currentCollection.name}

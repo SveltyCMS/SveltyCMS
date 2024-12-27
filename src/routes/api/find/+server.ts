@@ -36,12 +36,6 @@ interface DatabaseCollection {
 	countDocuments(query: unknown): Promise<number>;
 }
 
-interface QueryParams {
-	page?: string;
-	limit?: string;
-	[key: string]: unknown;
-}
-
 interface ErrorWithStatus extends Error {
 	status?: number;
 }
