@@ -354,7 +354,7 @@ class ContentManager {
           const hasFile = files.some((filePath) => this.extractPathFromFilePath(filePath) === nodePath);
           if (!hasFile) {
             logger.warn(`Orphaned content node found in database:  \x1b[34m${nodePath}\x1b[0m`)
-            await dbAdapter.deleteContentStructure(node._id!.toString());
+            await dbAdapter!.deleteContentStructure(node._id!.toString());
             logger.info(`Deleted orphaned content node:  \x1b[34m${nodePath}\x1b[0m`);
           }
         }
