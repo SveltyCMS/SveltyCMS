@@ -23,7 +23,8 @@ Features:
 	import { goto } from '$app/navigation';
 
 	// Types
-	import type { ContentStructureState, Schema, SystemContent } from '@src/content/types';
+	import type { Schema, SystemContent } from '@src/content/types';
+	import type { contentStructureSchema } from '@src/databases/dbInterface';
 
 	// Stores
 	import { get } from 'svelte/store';
@@ -53,30 +54,11 @@ Features:
 	let modeSet = $state<ModeType>('view');
 	// Search Collections
 	let search = $state('');
-	let filteredNodes = $state<ContentStructureState[]>([]);
+	let filteredNodes = $state<contentStructureSchema[]>([]);
 	let isMediaMode = $state(false);
 
-	// Function to fetch and process content structure
-	async function fetchContentStructure() {
-		try {
-			const response = await fetch('/api/content-structure?action=getStructure');
-			if (!response.ok) throw new Error('Failed to fetch content structure');
-			const resJson = await response.json();
-
-			if (resJson.success) {
-				const recievedCollection = resJson.data.collections;
-
-				const collectionArray = Object.values(recievedCollection);
-				return processContentStructure(collectionArray);
-			}
-		} catch (error) {
-			console.error('Error fetching content structure:', error);
-			return [];
-		}
-	}
-
 	// Function to process content structure data
-	function processContentStructure(nodes: SystemContent[]): ContentStructureState[] {
+	function processContentStructure(nodes: SystemContent[]): contentStructureSchema[] {
 		if (!nodes || nodes.length === 0) return [];
 
 		// Group nodes by path
@@ -93,7 +75,7 @@ Features:
 		);
 
 		// Build tree structure
-		function buildTree(path: string, level: number = 0): ContentStructureState[] {
+		function buildTree(path: string, level: number = 0): contentStructureSchema[] {
 			const nodesInPath = groupedNodes[path] || [];
 			return nodesInPath.map((node) => ({
 				id: node.id,
@@ -111,15 +93,15 @@ Features:
 	}
 
 	// Function to filter content structure
-	function filterContentStructure(searchTerm: string, nodes: ContentStructureState[]): ContentStructureState[] {
+	function filterContentStructure(searchTerm: string, nodes: contentStructureSchema[]): contentStructureSchema[] {
 		if (!nodes || nodes.length === 0) return [];
 
-		function filterNode(node: ContentStructureState): ContentStructureState | null {
+		function filterNode(node: contentStructureSchema): contentStructureSchema | null {
 			const nameMatch = node.name.toLowerCase().includes(searchTerm.toLowerCase());
-			let filteredChildren: ContentStructureState[] = [];
+			let filteredChildren: contentStructureSchema[] = [];
 
 			if (node.children) {
-				filteredChildren = node.children.map((child) => filterNode(child)).filter((child): child is ContentStructureState => child !== null);
+				filteredChildren = node.children.map((child) => filterNode(child)).filter((child): child is contentStructureSchema => child !== null);
 			}
 
 			if (nameMatch || filteredChildren.length > 0) {
@@ -132,15 +114,8 @@ Features:
 			return null;
 		}
 
-		return nodes.map((node) => filterNode(node)).filter((node): node is ContentStructureState => node !== null);
+		return nodes.map((node) => filterNode(node)).filter((node): node is contentStructureSchema => node !== null);
 	}
-
-	// Update filtered nodes when search changes
-	$effect(() => {
-		fetchContentStructure().then((nodes) => {
-			filteredNodes = filterContentStructure(search, nodes);
-		});
-	});
 
 	// Update isMediaMode when modeSet changes
 	$effect(() => {
@@ -148,7 +123,7 @@ Features:
 	});
 
 	// Handle collection selection
-	function handleCollectionSelect(collection: ContentStructureState | Schema) {
+	function handleCollectionSelect(collection: contentStructureSchema | Schema) {
 		if (mode.value === 'edit') {
 			mode.set('view');
 		} else {
@@ -156,7 +131,7 @@ Features:
 		}
 
 		if ('isCollection' in collection) {
-			// For ContentStructureState, we need to find the actual Schema
+			// For contentStructureSchema, we need to find the actual Schema
 			const collectionSchema = collections.value[collection.name];
 			if (collectionSchema) {
 				selectedCollection.set(collectionSchema);

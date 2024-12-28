@@ -27,6 +27,7 @@ import type { ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
 import type { UserPreferences, WidgetPreference } from '@root/src/stores/userPreferences.svelte';
 import type { CollectionData } from '@src/content/types';
 
+
 // Define a Theme type for better type safety
 export interface Theme {
 	_id: string; // The ID of the theme
@@ -110,6 +111,19 @@ export interface CollectionModel {
 	deleteOne(query: Query): Promise<number>;
 	deleteMany(query: Query): Promise<number>;
 	countDocuments(query?: Query): Promise<number>;
+}
+
+// Content structure schema for categories and collections
+export interface contentStructureSchema {
+	_id: string, // UUID from compiled collection
+	name: string,
+	path: string, // Always starts with /collections/
+	icon: string, // Default icon for collections
+	order: number,
+	translations: Array<{ languageTag: string; translationName: string }>,
+	isCollection: boolean, // Default to true since we're syncing collections
+	collectionConfig: { type: Schema.Types.Mixed }, // Store the full collection config
+	updatedAt: Date
 }
 
 // Media types

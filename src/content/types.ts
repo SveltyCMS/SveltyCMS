@@ -29,24 +29,24 @@ export type FieldValue = string | number | boolean | null | Record<string, unkno
 export type Field =
 	| WidgetPlaceholder
 	| {
-			widget: WidgetTypes;
-			type: WidgetKeys;
-			config: WidgetTypes;
-			label: string;
-			required?: boolean;
-			unique?: boolean;
-			default?: FieldValue;
-			validate?: (value: FieldValue) => boolean | Promise<boolean>;
-			display?: (args: {
-				data: Record<string, FieldValue>;
-				collection: string;
-				field: Field;
-				entry: Record<string, FieldValue>;
-				contentLanguage: string;
-			}) => Promise<string> | string;
-			callback?: (args: { data: Record<string, FieldValue> }) => void;
-			modifyRequest?: (args: ModifyRequestParams<(typeof widgets)[WidgetKeys]>) => Promise<object>;
-	  };
+		widget: WidgetTypes;
+		type: WidgetKeys;
+		config: WidgetTypes;
+		label: string;
+		required?: boolean;
+		unique?: boolean;
+		default?: FieldValue;
+		validate?: (value: FieldValue) => boolean | Promise<boolean>;
+		display?: (args: {
+			data: Record<string, FieldValue>;
+			collection: string;
+			field: Field;
+			entry: Record<string, FieldValue>;
+			contentLanguage: string;
+		}) => Promise<string> | string;
+		callback?: (args: { data: Record<string, FieldValue> }) => void;
+		modifyRequest?: (args: ModifyRequestParams<(typeof widgets)[WidgetKeys]>) => Promise<object>;
+	};
 
 // Collection Registry - defines all available collections
 export const CollectionRegistry = {
@@ -73,6 +73,9 @@ export interface Schema {
 	translations?: { languageTag: string; translationName: string }[]; // Optional translations
 }
 
+
+
+
 // Category interface
 export interface Category {
 	id: string; // UUID for Category
@@ -81,18 +84,6 @@ export interface Category {
 	translations?: { languageTag: string; translationName: string }[];
 	collections: Schema[]; // Collections within this category
 	subcategories?: Record<string, Category>; // Added subcategories support
-}
-
-// Content structure node with UI state
-export interface ContentStructureState {
-	id: string;
-	name: string;
-	icon?: string;
-	path: string;
-	isCollection?: boolean;
-	open?: boolean;
-	level?: number;
-	children?: ContentStructureState[];
 }
 
 // Category data interface for configuration

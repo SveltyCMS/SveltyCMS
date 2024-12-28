@@ -11,35 +11,26 @@
  * - Error handling
  */
 
-import axios from 'axios';
-import { browser } from '$app/environment';
+
 // Types
 import type { Schema, CollectionTypes, Category, CollectionData } from './types';
 import type { SystemContent } from '@src/databases/dbInterface';
-// Utils
-import { v4 as uuidv4 } from 'uuid';
+
 // Redis
 import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/redis';
-// Stores
-import { categories, collections, unAssigned, collection, collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
 import { dbAdapter, dbInitPromise } from '@src/databases/db';
-
 import widgetProxy, { initializeWidgets, resolveWidgetPlaceholder } from '@components/widgets';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 // Server-side imports
-let fs: typeof import('fs/promises') | null = null;
-
-if (!browser) {
-	const imports = await Promise.all([import('fs/promises')]);
-	[fs] = imports;
-}
+import fs from 'fs/promises';
 
 interface CacheEntry<T> {
 	value: T;
 	timestamp: number;
 }
+
 // Constants
 const CACHE_TTL = 1000 * 60 * 5; // 5 minutes
 const REDIS_TTL = 300; // 5 minutes in seconds for Redis
@@ -55,9 +46,9 @@ async function ensureWidgetsInitialized() {
 		try {
 			await initializeWidgets();
 			// Make widgets available globally for eval context
-			if (!browser) {
-				globalThis.widgets = widgetProxy;
-			}
+
+			globalThis.widgets = widgetProxy;
+
 			widgetsInitialized = true;
 			logger.info('Widgets initialized successfully');
 		} catch (error) {
@@ -79,10 +70,10 @@ class ContentManager {
 	private dbInitPromise: Promise<void> | null = null;
 
 	private constructor() {
-		if (!browser) {
-			// Server-side initialization
-			this.dbInitPromise = dbInitPromise;
-		}
+
+		// Server-side initialization
+		this.dbInitPromise = dbInitPromise;
+
 	}
 	static getInstance(): ContentManager {
 		if (!ContentManager.instance) {
@@ -217,16 +208,7 @@ class ContentManager {
 	async loadCollections(): Promise<Schema[]> {
 		return this.measurePerformance(async () => {
 			try {
-				// If we're in the browser, fetch collections from the API
-				if (browser) {
-					const response = await fetch('/api/collections');
-					if (!response.ok) {
-						throw new Error(`Failed to fetch collections: ${response.statusText}`);
-					}
-					const collections = await response.json();
-					this.loadedCollections = collections;
-					return collections;
-				}
+
 
 				// Server-side collection loading
 				const collections: Schema[] = [];
@@ -358,7 +340,7 @@ class ContentManager {
 				}
 
 				// Cache in Redis if available
-				if (!browser && isRedisEnabled()) {
+				if (isRedisEnabled()) {
 					await setCache('cms:all_collections', collections, REDIS_TTL);
 				}
 				this.loadedCollections = collections;
@@ -379,7 +361,7 @@ class ContentManager {
 					// Clear both memory and Redis caches
 					this.collectionCache.clear();
 					this.fileHashCache.clear();
-					if (!browser && isRedisEnabled()) {
+					if (isRedisEnabled()) {
 						await clearCache('cms:all_collections');
 					}
 				}
@@ -403,14 +385,7 @@ class ContentManager {
 					}
 				});
 
-				// Update stores using store.set() method
-				categories.set(categoryRecord);
-				collections.set(collectionRecord);
-				unAssigned.set(cols.filter((x) => !Object.values(collectionRecord).includes(x)));
-				collection.set({} as Schema);
-				collectionValue.set({});
-				mode.set('view');
-				logger.info(`Collections updated successfully. Count: \x1b[34m${cols.length}\x1b[0m`);
+
 			} catch (err) {
 				const errorMessage = err instanceof Error ? err.message : String(err);
 				logger.error(`Error in updateCollections: ${errorMessage}`);
@@ -423,7 +398,7 @@ class ContentManager {
 		return this.measurePerformance(async () => {
 			try {
 				// Try getting from Redis cache first
-				if (!browser && isRedisEnabled()) {
+				if (isRedisEnabled()) {
 					const cachedCategories = await getCache<Category[]>('cms:categories');
 					if (cachedCategories) {
 						this.loadedCategories = cachedCategories;
@@ -436,7 +411,7 @@ class ContentManager {
 
 				// Get content structure from database if available
 				let contentNodes: SystemContent[] = [];
-				if (!browser && dbAdapter) {
+				if (dbAdapter) {
 					try {
 						contentNodes = await dbAdapter.getContentStructure();
 					} catch (err) {
@@ -486,7 +461,7 @@ class ContentManager {
 								};
 
 								// Store in database
-								if (!browser && dbAdapter) {
+								if (dbAdapter) {
 									try {
 										await dbAdapter.createContentStructure({
 											path: currentPath,
@@ -508,7 +483,7 @@ class ContentManager {
 								currentLevel[part].isCollection = true;
 
 								// Store collection reference in database
-								if (!browser && dbAdapter) {
+								if (dbAdapter) {
 									try {
 										await dbAdapter.createContentStructure({
 											_id: collection.id,
@@ -554,7 +529,7 @@ class ContentManager {
 					.map(([name, cat]) => processCategory(name, cat));
 
 				// Cache in Redis if available
-				if (!browser && isRedisEnabled()) {
+				if (isRedisEnabled()) {
 					await setCache('cms:categories', categoryArray, REDIS_TTL);
 				}
 
@@ -571,7 +546,7 @@ class ContentManager {
 	// Cache management methods with Redis support
 	private async getCacheValue<T>(key: string, cache: Map<string, CacheEntry<T>>): Promise<T | null> {
 		// Try Redis first if available
-		if (!browser && isRedisEnabled()) {
+		if (isRedisEnabled()) {
 			const redisValue = await getCache<T>(`cms:${key}`);
 			if (redisValue) {
 				// Update local cache
@@ -593,7 +568,7 @@ class ContentManager {
 	}
 	private async setCacheValue<T>(key: string, value: T, cache: Map<string, CacheEntry<T>>): Promise<void> {
 		// Set in Redis if available
-		if (!browser && isRedisEnabled()) {
+		if (isRedisEnabled()) {
 			await setCache(`cms:${key}`, value, REDIS_TTL);
 		}
 		// Set in memory cache
@@ -605,7 +580,7 @@ class ContentManager {
 	}
 	private async clearCacheValue(key: string): Promise<void> {
 		// Clear from Redis if available
-		if (!browser && isRedisEnabled()) {
+		if (isRedisEnabled()) {
 			await clearCache(`cms:${key}`);
 		}
 		// Clear from all memory caches
@@ -677,11 +652,7 @@ class ContentManager {
 	}
 	// Read file with retry mechanism
 	private async readFile(filePath: string): Promise<string> {
-		if (browser) {
-			// Use the new API endpoint to fetch the file content
-			const response = await this.retryOperation(async () => axios.get(`/api/getCollections?fileName=${encodeURIComponent(filePath)}`));
-			return response.data;
-		}
+
 		// Server-side file reading
 		if (!fs) throw new Error('File system operations are only available on the server');
 		try {

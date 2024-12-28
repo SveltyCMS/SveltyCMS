@@ -55,9 +55,10 @@ Key features:
 
 	interface Props {
 		children?: import('svelte').Snippet;
+		data: { collections: any; language: string };
 	}
 
-	let { children }: Props = $props();
+	let { children, data }: Props = $props();
 
 	// State variables
 	let isCollectionsLoaded = $state(false);
@@ -103,10 +104,7 @@ Key features:
 	// Function to initialize collections using ContentManager
 	async function initializeCollections() {
 		try {
-			const { collections: loadedCollections } = contentManager.getCollectionData();
-			if (loadedCollections.length === 0) {
-				await contentManager.updateCollections();
-			}
+			await collections.set(data.collections);
 			isCollectionsLoaded = true;
 		} catch (error) {
 			console.error('Error loading collections:', error);

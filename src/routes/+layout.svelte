@@ -24,10 +24,6 @@
 	// Importing the Paraglide SvelteKit component for animations
 	import ParaglideSvelteKit from '@components/ParaglideSvelteKit.svelte';
 
-	// Content structure store
-	import { collections, categories } from '@root/src/stores/collectionStore.svelte';
-	import { dbAdapter, dbInitPromise } from '@src/databases/db';
-
 	// Importing Tailwind CSS styles
 	import '../app.postcss';
 
@@ -39,29 +35,6 @@
 	// Default SEO variables for the website's title and description
 	const defaultTitle = `${publicEnv.SITE_NAME} - The Ultimate Headless CMS Powered by SvelteKit`;
 	const defaultDescription = `${publicEnv.SITE_NAME} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;
-
-	// Initialize content structure from database
-	const initContentStructure = async () => {
-		try {
-			// Wait for database initialization to complete
-			await dbInitPromise;
-			if (!dbAdapter) {
-				throw new Error('Database adapter not initialized');
-			}
-			const response = await fetch(`/api/content-structure?action=getStructure`);
-			if (!response.ok) {
-				throw new Error('Failed to fetch content structure');
-			}
-			const { data } = await response.json();
-			collections.set(data.collections);
-			categories.set(data.categories);
-		} catch (error) {
-			console.error('Error initializing content structure:', error);
-		}
-	};
-
-	// Initialize content structure on mount
-	initContentStructure();
 
 	// Props
 	interface Props {
