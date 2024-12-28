@@ -75,30 +75,5 @@ export const entryActions = {
 	}
 };
 
-// Helper functions for categories
-export const categoryActions = {
-	updateCategory(categoryId: string, data: CollectionData) {
-		categories.update((cats) => ({
-			...cats,
-			[categoryId]: { ...cats[categoryId], ...data }
-		}));
-	}
-};
-
-// Helper methods for UUID-based operations
-export function setCurrentCollectionById(uuid: string) {
-	currentCollectionId.set(uuid);
-	if (collectionsById.get(uuid)) {
-		collection.set(collectionsById.get(uuid)!);
-	}
-}
-
-export function addCollection(collectionData: UUIDCollection) {
-	collectionsById.update((map) => map.set(collectionData._id, collectionData));
-	collections.update((cols) => ({ ...cols, [collectionData._id]: collectionData }));
-}
-
-
-
 // Type exports
 export type { ModeType };

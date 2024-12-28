@@ -46,11 +46,9 @@ async function ensureWidgetsInitialized() {
 		try {
 			await initializeWidgets();
 			// Make widgets available globally for eval context
-
 			globalThis.widgets = widgetProxy;
-
 			widgetsInitialized = true;
-			logger.info('Widgets initialized successfully');
+			logger.debug('Widgets initialized successfully');
 		} catch (error) {
 			logger.error('Failed to initialize widgets:', error);
 			throw error;
@@ -244,12 +242,12 @@ class ContentManager {
 							schema.fields = [];
 						}
 
-						const name = filePath
+						const filePathName = filePath
 							.split('/')
 							.pop()
 							?.replace(/\.(ts|js)$/, '');
-						if (!name) {
-							logger.error(`Could not extract name from ${filePath}`);
+						if (!filePathName) {
+							logger.error(`Could not extract name from \x1b[34m${filePath}\x1b[0m`);
 							continue;
 						}
 						const path = this.extractPathFromFilePath(filePath);
@@ -258,7 +256,8 @@ class ContentManager {
 						const processed: Schema = {
 							...schema,
 							id: schema.id!, // Always use the ID from the compiled schema
-							name,
+							name: schema.name || filePathName,
+							filePathName,
 							icon: schema.icon || 'iconoir:info-empty',
 							path: path,
 							fields: schema.fields || [],
@@ -267,8 +266,8 @@ class ContentManager {
 							strict: schema.strict || false,
 							revision: schema.revision || false,
 							description: schema.description || '',
-							label: schema.label || name,
-							slug: schema.slug || name.toLowerCase()
+							label: schema.label || filePathName,
+							slug: schema.slug || filePathName.toLowerCase()
 						};
 
 						if (!processed.id) {
@@ -280,7 +279,7 @@ class ContentManager {
 							// Update node if is different
 							if (existingNode.icon !== processed.icon || existingNode.order !== processed.order) {
 								await dbAdapter!.updateContentStructure(existingNode._id!.toString(), { icon: processed.icon, order: processed.order })
-								logger.info(`Updated metadata for content node:  \x1b[34m${path}\x1b[0m`)
+								logger.info(`Updated metadata for content node: \x1b[34m${path}\x1b[0m`)
 							}
 						} else {
 							//Create if not existent
@@ -313,7 +312,7 @@ class ContentManager {
 									await dbAdapter!.createCollectionModel(collectionConfig);
 									logger.info(`Collection model \x1b[34m${collectionName}\x1b[0m is ready`);
 								} catch (err) {
-									logger.error(`Failed to process collection model for ${processed.name}:`, err instanceof Error ? err.stack : err);
+									logger.error(`Failed to process collection model for \x1b[34m${processed.name}\x1b[0m:`, err instanceof Error ? err.stack : err);
 									logger.error(`Collection data that caused error:`, JSON.stringify(processed, null, 2));
 								}
 							}
@@ -333,9 +332,9 @@ class ContentManager {
 				for (const [nodePath, node] of contentNodesMap) {
 					const hasFile = files.some((filePath) => this.extractPathFromFilePath(filePath) === nodePath);
 					if (!hasFile) {
-						logger.warn(`Orphaned content node found in database:  \x1b[34m${nodePath}\x1b[0m`)
+						logger.warn(`Orphaned content node found in database: \x1b[34m${nodePath}\x1b[0m`)
 						await dbAdapter!.deleteContentStructure(node._id!.toString());
-						logger.info(`Deleted orphaned content node:  \x1b[34m${nodePath}\x1b[0m`);
+						logger.info(`Deleted orphaned content node: \x1b[34m${nodePath}\x1b[0m`);
 					}
 				}
 
@@ -439,7 +438,7 @@ class ContentManager {
 					// Process collections into category structure
 					for (const collection of collectionsList) {
 						if (!collection.path) {
-							logger.warn(`Collection ${String(collection.name)} has no path`);
+							logger.warn(`Collection \x1b[34m${String(collection.name)}\x1b[0m has no path`);
 							continue;
 						}
 
@@ -599,8 +598,12 @@ class ContentManager {
 
 	// Extract path from file path
 	private extractPathFromFilePath(filePath: string): string {
-		logger.debug(`Extracting path from file: \x1b[34m${filePath}\x1b[0m`);
-		const parts = filePath.split('/');
+		const compiledCollectionsPath = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections/';
+		const relativePath = filePath.startsWith(compiledCollectionsPath)
+			? filePath.substring(compiledCollectionsPath.length)
+			: filePath;
+
+		const parts = relativePath.split('/').filter((part) => part !== '');
 
 		// Remove file extension from last segment if it exists
 		if (parts.length > 0) {
@@ -608,12 +611,12 @@ class ContentManager {
 		}
 
 		// Build the path for compiled collections
-		const resultPath = `/collections/${parts.slice(0, parts.length - 1).join('/')}`;
+		const resultPath = `/${parts.join('/')}`;
 		logger.debug(`Extracted path: \x1b[34m${resultPath}\x1b[0m`);
 		return resultPath;
 	}
 
-	// Get compiled collection files
+	// Get compiled Categories and Collection files
 	private async getCompiledCollectionFiles(compiledDirectoryPath: string): Promise<string[]> {
 		if (!fs) throw new Error('File system operations are only available on the server');
 
@@ -630,26 +633,20 @@ class ContentManager {
 
 		try {
 			const allFiles = await getAllFiles(compiledDirectoryPath);
-			logger.debug('All files found recursively', { directory: compiledDirectoryPath, files: allFiles });
+			logger.debug('All files found recursively', { Categories: compiledDirectoryPath, Collections: allFiles });
 
-			// Filter the list to only include .js files that are not excluded
-			const filteredFiles = allFiles.filter((file) => {
-				const fileName = file.split('/').pop() || '';
-				const isJsFile = fileName.endsWith('.js');
-				const isExcluded = ['types.js', 'categories.js', 'index.js'].includes(fileName);
-				return isJsFile && !isExcluded;
-			});
+			// Filter the list to only include .js files
+			const filteredFiles = allFiles.filter((file) => file.endsWith('.js'));
 
 			// Convert to relative paths
-			return filteredFiles.map((file) => {
-				const relativePath = file.replace(compiledDirectoryPath, '');
-				return relativePath.startsWith('/') ? relativePath.slice(1) : relativePath;
-			});
+			return filteredFiles.map((file) => file.replace(compiledDirectoryPath, ''));
 		} catch (error) {
 			logger.error(`Error getting compiled collection files: ${error.message}`);
 			throw error;
 		}
 	}
+
+
 	// Read file with retry mechanism
 	private async readFile(filePath: string): Promise<string> {
 
@@ -683,7 +680,7 @@ class ContentManager {
 		try {
 			const result = await operation();
 			const duration = performance.now() - start;
-			logger.info(`\x1b[34m${operationName}\x1b[0m completed in \x1b[34m${duration.toFixed(2)}ms\x1b[0m`);
+			logger.info(`${operationName} completed in \x1b[32m${duration.toFixed(2)}ms\x1b[0m`);
 			return result;
 		} catch (error) {
 			const duration = performance.now() - start;
@@ -717,9 +714,9 @@ class ContentManager {
 		// Load if not cached
 		const path = `config/collections/${name}.ts`;
 		try {
-			logger.debug(`Attempting to read file for collection: ${name} at path: ${path}`);
+			logger.debug(`Attempting to read file for collection: \x1b[34m${name}\x1b[0m at path: \x1b[33m${path}\x1b[0m`);
 			const content = await this.readFile(path);
-			logger.debug(`File content for collection ${name}: ${content.substring(0, 100)}...`); // Log only the first 100 characters
+			logger.debug(`File content for collection \x1b[34m${name}\x1b[0m: ${content.substring(0, 100)}...`); // Log only the first 100 characters
 			const schema = await this.processCollectionFile(path, content);
 			if (schema) {
 				logger.debug(`Schema processed for collection ${name}:`, schema);

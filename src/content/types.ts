@@ -1,7 +1,15 @@
-/* 
-@file src/content/types.ts
-@description - Content Type Definition for Content Manager
-*/
+/**
+ * @file src/content/types.ts
+ * @description Content Type Definition for Content Manager
+ *
+ * Features:
+ * - Collection Registry - defines all available collections
+ * - Collection Types - defines all available collection types
+ * - Field Types - defines all available field types
+ * - Schema - defines the base schema interface
+ * - Category - defines the category interface
+ * - Collection Data - defines the category data interface for configuration
+ */
 
 import type widgets from '@components/widgets';
 import type { ModifyRequestParams } from '@components/widgets';
@@ -73,9 +81,6 @@ export interface Schema {
 	translations?: { languageTag: string; translationName: string }[]; // Optional translations
 }
 
-
-
-
 // Category interface
 export interface Category {
 	id: string; // UUID for Category
@@ -95,24 +100,6 @@ export interface CollectionData {
 	isCollection?: boolean; // Flag to identify if this is a collection (.ts file)
 	subcategories?: Record<string, CollectionData>; // Nested subcategories
 	collections?: Schema[]; // Optional array of collections directly within the category
-}
-
-// Processed category data interface for UI usage
-export interface ProcessedCollectionData extends CollectionData {
-	open: boolean; // Indicates if the category is open in UI
-	level: number; // Hierarchy level in nested structure
-	collections: Schema[]; // Collections in the category
-	subcategories: Record<string, ProcessedCollectionData>; // Nested subcategories after processing
-}
-
-// System Content
-export interface SystemContent {
-	id: string;
-	name: string;
-	icon: string;
-	path: string;
-	isCollection?: boolean;
-	order?: number;
 }
 
 // Collection types

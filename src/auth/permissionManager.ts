@@ -182,7 +182,7 @@ export async function syncPermissions(): Promise<void> {
 		// Directly set permissions without expansion
 		setPermissions(allPermissions);
 
-		logger.info('Permissions synchronized from configuration');
+		logger.debug('Permissions synchronized from configuration');
 	} catch (err) {
 		const message = `Error in syncPermissions: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message);

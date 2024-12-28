@@ -519,7 +519,7 @@ export class MongoDBAdapter implements dbInterface {
 			// Clear existing model from Mongoose's cache if it exists
 			if (mongoose.modelNames().includes(collectionName)) {
 				delete mongoose.models[collectionName];
-				delete (mongoose as any).modelSchemas[collectionName];
+				delete (mongoose as mongoose.Mongoose & { modelSchemas: { [key: string]: mongoose.Schema } }).modelSchemas[collectionName];
 			}
 
 			logger.debug(`Collection \x1b[34m${collectionName}\x1b[0m does not exist in Mongoose, creating new model`);
@@ -536,7 +536,7 @@ export class MongoDBAdapter implements dbInterface {
 
 			// Process fields if they exist
 			if (collection.schema?.fields && Array.isArray(collection.schema.fields)) {
-				logger.debug(`Processing ${collection.schema.fields.length} fields for \x1b[34m${collectionName}\x1b[0m`);
+				logger.debug(`Processing \x1b[34m${collection.schema.fields.length}\x1b[0m fields for \x1b[34m${collectionName}\x1b[0m`);
 				for (const field of collection.schema.fields) {
 					try {
 						// Generate fieldKey from label if db_fieldName is not present
@@ -553,7 +553,7 @@ export class MongoDBAdapter implements dbInterface {
 						const isUnique = field.unique || false;
 
 						// Base field schema with improved type handling
-						const fieldSchema: any = {
+						const fieldSchema: mongoose.SchemaDefinitionProperty = {
 							type: Schema.Types.Mixed, // Default to Mixed type
 							required: isRequired,
 							translate: isTranslated,
@@ -608,7 +608,6 @@ export class MongoDBAdapter implements dbInterface {
 			// Create the model for the main collection
 			const model = mongoose.model(collectionName, schema);
 			logger.debug(`Collection model creation successful for: \x1b[34m${collectionName}\x1b[0m`);
-			logger.info(`Collection model \x1b[34m${collectionName}\x1b[0m is ready`);
 
 			return model;
 		} catch (error) {
@@ -735,7 +734,7 @@ export class MongoDBAdapter implements dbInterface {
 				updatedAt: new Date()
 			});
 			await widget.save();
-			logger.info(`Widget ${widgetData.name} installed successfully.`);
+			logger.info(`Widget \x1b[34m${widgetData.name}\x1b[0m installed successfully.`);
 		} catch (error) {
 			logger.error(`Error installing widget: ${error.message}`);
 			throw Error(`Error installing widget`);
@@ -770,7 +769,7 @@ export class MongoDBAdapter implements dbInterface {
 			if (result.modifiedCount === 0) {
 				throw Error(`Widget with name ${widgetName} not found or already active.`);
 			}
-			logger.info(`Widget ${widgetName} activated successfully.`);
+			logger.info(`Widget \x1b[34m${widgetName}\x1b[0m activated successfully.`);
 		} catch (error) {
 			logger.error(`Error activating widget: ${error.message}`);
 			throw Error(`Error activating widget`);
@@ -784,7 +783,7 @@ export class MongoDBAdapter implements dbInterface {
 			if (result.modifiedCount === 0) {
 				throw Error(`Widget with name ${widgetName} not found or already inactive.`);
 			}
-			logger.info(`Widget ${widgetName} deactivated successfully.`);
+			logger.info(`Widget \x1b[34m$${widgetName}\x1b[0m deactivated successfully.`);
 		} catch (error) {
 			logger.error(`Error deactivating widget: ${error.message}`);
 			throw Error(`Error deactivating widget`);
@@ -798,7 +797,7 @@ export class MongoDBAdapter implements dbInterface {
 			if (result.modifiedCount === 0) {
 				throw Error(`Widget with name ${widgetName} not found or no changes applied.`);
 			}
-			logger.info(`Widget ${widgetName} updated successfully.`);
+			logger.info(`Widget \x1b[34m${widgetName}\x1b[0m updated successfully.`);
 		} catch (error) {
 			logger.error(`Error updating widget: ${error.message}`);
 			throw Error(`Error updating widget`);
@@ -818,7 +817,7 @@ export class MongoDBAdapter implements dbInterface {
 				throw Error(`Theme with name ${themeName} not found.`);
 			}
 
-			logger.info(`Theme ${themeName} set as default successfully.`);
+			logger.info(`Theme \x1b[34m${themeName}\x1b[0m set as default successfully.`);
 		} catch (error) {
 			logger.error(`Error setting default theme: ${error.message}`);
 			throw Error(`Error setting default theme`);
@@ -832,7 +831,7 @@ export class MongoDBAdapter implements dbInterface {
 			let theme = await ThemeModel.findOne({ isDefault: true }).lean<Theme>().exec();
 
 			if (theme) {
-				logger.info(`Default theme found: ${theme.name}`);
+				logger.info(`Default theme found: \x1b[34m${theme.name}\x1b[0m`);
 				return theme;
 			}
 
@@ -895,8 +894,6 @@ export class MongoDBAdapter implements dbInterface {
 	// Methods for System Preferences Management
 	// Set user preferences
 	async setUserPreferences(userId: string, preferences: UserPreferences): Promise<void> {
-		logger.debug(`Setting user preferences for userId: \x1b[34m${user_id}\x1b[0m`);
-
 		try {
 			await SystemPreferencesModel.updateOne({ userId }, { $set: { preferences } }, { upsert: true }).exec();
 			logger.info(`User preferences set successfully for userId: \x1b[34m${user_id}\x1b[0m`);
@@ -1086,7 +1083,7 @@ export class MongoDBAdapter implements dbInterface {
 				_id: contentData._id // Use provided _id
 			});
 			await node.save();
-			logger.info(`Content structure node \x1b[34m${contentData.name}\x1b[0m created successfully with ID \x1b[34m${node._id}\x1b[0m.`);
+			logger.debug(`Content structure \x1b[34m${contentData.name}\x1b[0m created successfully with ID \x1b[34m${node._id}\x1b[0m.`);
 			return node;
 		} catch (error) {
 			logger.error(`Error creating content structure node: ${error.message}`);

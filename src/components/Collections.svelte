@@ -23,7 +23,7 @@ Features:
 	import { goto } from '$app/navigation';
 
 	// Types
-	import type { Schema, SystemContent } from '@src/content/types';
+	import type { Schema } from '@src/content/types';
 	import type { contentStructureSchema } from '@src/databases/dbInterface';
 
 	// Stores
@@ -56,66 +56,6 @@ Features:
 	let search = $state('');
 	let filteredNodes = $state<contentStructureSchema[]>([]);
 	let isMediaMode = $state(false);
-
-	// Function to process content structure data
-	function processContentStructure(nodes: SystemContent[]): contentStructureSchema[] {
-		if (!nodes || nodes.length === 0) return [];
-
-		// Group nodes by path
-
-		console.debug('nodes', nodes);
-		const groupedNodes = nodes.reduce(
-			(acc, node) => {
-				const path = node.path || '/';
-				if (!acc[path]) acc[path] = [];
-				acc[path].push(node);
-				return acc;
-			},
-			{} as Record<string, any[]>
-		);
-
-		// Build tree structure
-		function buildTree(path: string, level: number = 0): contentStructureSchema[] {
-			const nodesInPath = groupedNodes[path] || [];
-			return nodesInPath.map((node) => ({
-				id: node.id,
-				name: node.name,
-				icon: node.icon,
-				path: node.path,
-				isCollection: node.isCollection,
-				level,
-				open: search !== '',
-				children: buildTree(`${path}${node.name}/`, level + 1)
-			}));
-		}
-
-		return buildTree('/collections/');
-	}
-
-	// Function to filter content structure
-	function filterContentStructure(searchTerm: string, nodes: contentStructureSchema[]): contentStructureSchema[] {
-		if (!nodes || nodes.length === 0) return [];
-
-		function filterNode(node: contentStructureSchema): contentStructureSchema | null {
-			const nameMatch = node.name.toLowerCase().includes(searchTerm.toLowerCase());
-			let filteredChildren: contentStructureSchema[] = [];
-
-			if (node.children) {
-				filteredChildren = node.children.map((child) => filterNode(child)).filter((child): child is contentStructureSchema => child !== null);
-			}
-
-			if (nameMatch || filteredChildren.length > 0) {
-				return {
-					...node,
-					open: searchTerm !== '',
-					children: filteredChildren
-				};
-			}
-			return null;
-		}
-
-		return nodes.map((node) => filterNode(node)).filter((node): node is contentStructureSchema => node !== null);
-	}
 
 	// Update isMediaMode when modeSet changes
 	$effect(() => {
