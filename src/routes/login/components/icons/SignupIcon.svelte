@@ -1,6 +1,7 @@
 <!--
 @file src/routes/login/components/icons/SignupIcon.svelte
-@description SignupIcon component
+@component
+**SignupIcon component**
 -->
 
 <script lang="ts">
@@ -10,7 +11,7 @@
 	let {
 		show = $bindable(true),
 		disabled = false,
-		onClick = (event: MouseEvent | KeyboardEvent) => {}
+		onClick = (_event: MouseEvent | KeyboardEvent) => {}
 	} = $props<{
 		show?: boolean;
 		disabled?: boolean;

@@ -170,7 +170,7 @@ export class MongoDBAdapter implements dbInterface {
 						const contentNodePath = `/collections/${dirPath}`;
 						validPaths.add(contentNodePath);
 
-						logger.debug(`Creating/Updating content structure node with path: \x1b[34m${contentNodePath}\x1b[0m`);
+						logger.debug(`Creating/Updating content structure with path: \x1b[34m${contentNodePath}\x1b[0m`);
 
 						// Create or update the content structure for the collection
 						await this.createOrUpdateContentStructure({
@@ -207,7 +207,7 @@ export class MongoDBAdapter implements dbInterface {
 						icon: 'bi:folder',
 						isCollection: false
 					});
-					logger.debug(`Created folder structure node: ${currentPath}`);
+					logger.debug(`Created folder structure: \x1b[34m${currentPath}\x1b[0m`);
 				}
 			}
 
@@ -223,7 +223,7 @@ export class MongoDBAdapter implements dbInterface {
 				.exec();
 
 			if (invalidNodes.length > 0) {
-				logger.info(`Found \x1b[34m${invalidNodes.length}\x1b[0m invalid content structure nodes. Cleaning up...`);
+				logger.info(`Found \x1b[34m${invalidNodes.length}\x1b[0m invalid content structure. Cleaning up...`);
 				await ContentStructureModel.deleteMany({
 					isCollection: true,
 					_id: { $nin: Array.from(validCollectionUUIDs) }
@@ -236,7 +236,7 @@ export class MongoDBAdapter implements dbInterface {
 		}
 	}
 
-	// Create or update content structure node
+	// Create or update content structure
 	async createOrUpdateContentStructure(contentData: {
 		_id: string;
 		name: string;
@@ -256,16 +256,16 @@ export class MongoDBAdapter implements dbInterface {
 				existingNode.collectionConfig = contentData.collectionConfig;
 
 				await existingNode.save();
-				logger.info(`Updated content structure node: \x1b[34m${contentData.path}\x1b[0m`);
+				logger.info(`Updated content structure: \x1b[34m${contentData.path}\x1b[0m`);
 			} else {
 				// Create new node
 				const newNode = new ContentStructureModel(contentData);
 				await newNode.save();
-				logger.info(`Created content structure node: \x1b[34m${contentData.path}\x1b[0m`);
+				logger.info(`Created content structure: \x1b[34m${contentData.path}\x1b[0m`);
 			}
 		} catch (error) {
-			logger.error(`Error creating/updating content structure node: ${error.message}`);
-			throw new Error(`Error creating/updating content structure node`);
+			logger.error(`Error creating/updating content structure: ${error.message}`);
+			throw new Error(`Error creating/updating content structure`);
 		}
 	}
 
@@ -1086,15 +1086,15 @@ export class MongoDBAdapter implements dbInterface {
 			logger.debug(`Content structure \x1b[34m${contentData.name}\x1b[0m created successfully with ID \x1b[34m${node._id}\x1b[0m.`);
 			return node;
 		} catch (error) {
-			logger.error(`Error creating content structure node: ${error.message}`);
-			throw Error(`Error creating content structure node`);
+			logger.error(`Error creating content structure: ${error.message}`);
+			throw Error(`Error creating content structure`);
 		}
 	}
 
 	async getContentStructure(): Promise<Document[]> {
 		try {
 			const nodes = await ContentStructureModel.find().sort({ path: 1 }).exec();
-			logger.info(`Fetched \x1b[34m${nodes.length}\x1b[0m content structure nodes.`);
+			logger.info(`Fetched \x1b[34m${nodes.length}\x1b[0m content structure.`);
 			return nodes;
 		} catch (error) {
 			logger.error(`Error fetching content structure: ${error.message}`);
@@ -1139,14 +1139,14 @@ export class MongoDBAdapter implements dbInterface {
 			const updatedNode = await ContentStructureModel.findByIdAndUpdate(contentId, allowedUpdates, { new: true }).exec();
 
 			if (updatedNode) {
-				logger.info(`Content structure node \x1b[34m${contentId}\x1b[0m updated successfully.`);
+				logger.info(`Content structure \x1b[34m${contentId}\x1b[0m updated successfully.`);
 			} else {
-				logger.warn(`No content structure node found with ID \x1b[34m${contentId}\x1b[0m.`);
+				logger.warn(`No content structure found with ID \x1b[34m${contentId}\x1b[0m.`);
 			}
 			return updatedNode;
 		} catch (error) {
-			logger.error(`Error updating content structure node: ${error.message}`);
-			throw Error(`Error updating content structure node`);
+			logger.error(`Error updating content structure: ${error.message}`);
+			throw Error(`Error updating content structure`);
 		}
 	}
 
@@ -1154,14 +1154,14 @@ export class MongoDBAdapter implements dbInterface {
 		try {
 			const result = await ContentStructureModel.deleteOne({ _id: contentId }).exec();
 			if (result.deletedCount === 0) {
-				logger.warn(`Content structure node with ID \x1b[34m${contentId}\x1b[0m not found.`);
+				logger.warn(`Content structure with ID \x1b[34m${contentId}\x1b[0m not found.`);
 				return false;
 			}
-			logger.info(`Content structure node \x1b[34m${contentId}\x1b[0m deleted successfully.`);
+			logger.info(`Content structure \x1b[34m${contentId}\x1b[0m deleted successfully.`);
 			return true;
 		} catch (error) {
-			logger.error(`Error deleting content structure node: ${error.message}`);
-			throw Error(`Error deleting content structure node`);
+			logger.error(`Error deleting content structure: ${error.message}`);
+			throw Error(`Error deleting content structure`);
 		}
 	}
 

@@ -8,7 +8,6 @@
 	// Components
 	import SiteName from '@components/SiteName.svelte';
 	import Logo from '@components/system/icons/SveltyCMS_Logo.svelte';
-	import Seasons from './Seasons.svelte';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -23,9 +22,6 @@
 >
 	<!--White Inner Background -->
 	<div class="relative flex h-[170px] w-[170px] items-center justify-center rounded-full bg-white">
-		<!-- Seasons -->
-		<Seasons />
-
 		<!-- Red circle -->
 		<svg width="160" height="160" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
 			<circle

@@ -13,7 +13,6 @@ Features:
 -->
 
 <script lang="ts">
-	import { privateEnv } from '@root/config/private';
 	import { browser } from '$app/environment';
 
 	// Stores
@@ -275,17 +274,6 @@ Features:
 		}
 	});
 
-	// // Event handlers
-	// function handleOAuth() {
-	// 	const form = document.createElement('form');
-	// 	form.method = 'post';
-	// 	form.action = '?/OAuth';
-	// 	document.body.appendChild(form);
-	// 	form.submit();
-	// 	document.body.removeChild(form);
-	// 	setTimeout(() => {}, 300);
-	// }
-
 	// Function to handle back button click
 	function handleBack(event: Event) {
 		event.stopPropagation();
@@ -333,7 +321,7 @@ Features:
 >
 	{#if active === 0}
 		<!-- CSS Logo -->
-		<div class="hidden xl:block"><SveltyCMSLogoFull /></div>
+		<div class="absolute left-1/2 top-1/4 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
 
 		<div class="mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto p-4 lg:w-1/2" class:hide={active !== 0}>
 			<div class="mb-1 flex flex-row gap-2">

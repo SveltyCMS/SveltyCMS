@@ -11,7 +11,6 @@
  * - Error handling
  */
 
-
 // Types
 import type { Schema, CollectionTypes, Category, CollectionData } from './types';
 import type { SystemContent } from '@src/databases/dbInterface';
@@ -68,10 +67,8 @@ class ContentManager {
 	private dbInitPromise: Promise<void> | null = null;
 
 	private constructor() {
-
 		// Server-side initialization
 		this.dbInitPromise = dbInitPromise;
-
 	}
 	static getInstance(): ContentManager {
 		if (!ContentManager.instance) {
@@ -133,9 +130,12 @@ class ContentManager {
 				.trim();
 
 			// Replace the global widgets before evaluating the schema
-			const modifiedContent = cleanedContent.replace(/globalThis\.widgets\.(\w+)\((.*?)\)/g, (match, widgetName, widgetConfig) => {
-				return `await resolveWidgetPlaceholder({ __widgetName: '${widgetName}', __widgetConfig: ${widgetConfig || '{}'} })`;
-			});
+			const modifiedContent = cleanedContent.replace(
+				/globalThis\.widgets\.(\w+)\((.*?)\)/g,
+				(match, widgetName, widgetConfig) => {
+					return `await resolveWidgetPlaceholder({ __widgetName: '${widgetName}', __widgetConfig: ${widgetConfig || '{}'} })`;
+				}
+			);
 
 			// Create a safe evaluation context
 			const moduleContent = `
@@ -206,22 +206,26 @@ class ContentManager {
 	async loadCollections(): Promise<Schema[]> {
 		return this.measurePerformance(async () => {
 			try {
-
-
 				// Server-side collection loading
 				const collections: Schema[] = [];
 				const contentNodesMap = await this.getContentStructureMap();
-				const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections/Collections';
+				const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
 				const files = await this.getCompiledCollectionFiles(compiledDirectoryPath);
+				const extractedPaths = new Set<string>();
 
 				for (const filePath of files) {
 					try {
-						const fullFilePath = `${compiledDirectoryPath}/${filePath}`;
+						// Remove compiledDirectoryPath prefix if it exists
+						const relativeFilePath = filePath.startsWith(compiledDirectoryPath)
+							? filePath.substring(compiledDirectoryPath.length + 1)
+							: filePath;
+
+						const fullFilePath = `${compiledDirectoryPath}/${relativeFilePath}`;
 						const content = await this.readFile(fullFilePath);
 						const moduleData = await this.processModule(content);
 
 						if (!moduleData || !moduleData.schema) {
-							logger.error(`Invalid collection file format: ${filePath}`, {
+							logger.error(`Invalid collection file format: ${relativeFilePath}`, {
 								hasModuleData: !!moduleData,
 								hasSchema: !!(moduleData && moduleData.schema)
 							});
@@ -251,6 +255,13 @@ class ContentManager {
 							continue;
 						}
 						const path = this.extractPathFromFilePath(filePath);
+
+						// Log the extracted path only if it hasn't been logged before
+						if (!extractedPaths.has(path)) {
+							logger.debug(`Extracted path: \x1b[34m${path}\x1b[0m`);
+							extractedPaths.add(path);
+						}
+
 						const existingNode = contentNodesMap.get(path);
 
 						const processed: Schema = {
@@ -278,8 +289,11 @@ class ContentManager {
 						if (existingNode) {
 							// Update node if is different
 							if (existingNode.icon !== processed.icon || existingNode.order !== processed.order) {
-								await dbAdapter!.updateContentStructure(existingNode._id!.toString(), { icon: processed.icon, order: processed.order })
-								logger.info(`Updated metadata for content node: \x1b[34m${path}\x1b[0m`)
+								await dbAdapter!.updateContentStructure(existingNode._id!.toString(), {
+									icon: processed.icon,
+									order: processed.order
+								});
+								logger.info(`Updated metadata for content: \x1b[34m${path}\x1b[0m`);
 							}
 						} else {
 							//Create if not existent
@@ -296,7 +310,9 @@ class ContentManager {
 							if (processed.fields.length > 0) {
 								try {
 									const collectionName = `collection_${processed.id}`;
-									logger.debug(`Processing collection model for \x1b[34m${processed.name}\x1b[0m with ID \x1b[34m${processed.id}\x1b[0m`);
+									logger.debug(
+										`Processing collection model for \x1b[34m${processed.name}\x1b[0m with ID \x1b[34m${processed.id}\x1b[0m`
+									);
 
 									const collectionConfig = {
 										id: processed.id,
@@ -312,12 +328,15 @@ class ContentManager {
 									await dbAdapter!.createCollectionModel(collectionConfig);
 									logger.info(`Collection model \x1b[34m${collectionName}\x1b[0m is ready`);
 								} catch (err) {
-									logger.error(`Failed to process collection model for \x1b[34m${processed.name}\x1b[0m:`, err instanceof Error ? err.stack : err);
+									logger.error(
+										`Failed to process collection model for \x1b[34m${processed.name}\x1b[0m:`,
+										err instanceof Error ? err.stack : err
+									);
 									logger.error(`Collection data that caused error:`, JSON.stringify(processed, null, 2));
 								}
 							}
 
-							logger.info(`Created content node from file:  \x1b[34m${path}\x1b[0m`)
+							logger.info(`Created content node from file:  \x1b[34m${path}\x1b[0m`);
 						}
 
 						collections.push(processed);
@@ -332,7 +351,7 @@ class ContentManager {
 				for (const [nodePath, node] of contentNodesMap) {
 					const hasFile = files.some((filePath) => this.extractPathFromFilePath(filePath) === nodePath);
 					if (!hasFile) {
-						logger.warn(`Orphaned content node found in database: \x1b[34m${nodePath}\x1b[0m`)
+						logger.warn(`Orphaned content node found in database: \x1b[34m${nodePath}\x1b[0m`);
 						await dbAdapter!.deleteContentStructure(node._id!.toString());
 						logger.info(`Deleted orphaned content node: \x1b[34m${nodePath}\x1b[0m`);
 					}
@@ -383,8 +402,6 @@ class ContentManager {
 						collectionRecord[col.name] = col;
 					}
 				});
-
-
 			} catch (err) {
 				const errorMessage = err instanceof Error ? err.message : String(err);
 				logger.error(`Error in updateCollections: ${errorMessage}`);
@@ -611,9 +628,7 @@ class ContentManager {
 		}
 
 		// Build the path for compiled collections
-		const resultPath = `/${parts.join('/')}`;
-		logger.debug(`Extracted path: \x1b[34m${resultPath}\x1b[0m`);
-		return resultPath;
+		return `/${parts.join('/')}`;
 	}
 
 	// Get compiled Categories and Collection files
@@ -633,23 +648,24 @@ class ContentManager {
 
 		try {
 			const allFiles = await getAllFiles(compiledDirectoryPath);
-			logger.debug('All files found recursively', { Categories: compiledDirectoryPath, Collections: allFiles });
+			logger.debug('All files found recursively', {
+				Categories: compiledDirectoryPath,
+				Collections: allFiles.filter((file) => file.endsWith('.js'))
+			});
 
 			// Filter the list to only include .js files
 			const filteredFiles = allFiles.filter((file) => file.endsWith('.js'));
 
-			// Convert to relative paths
-			return filteredFiles.map((file) => file.replace(compiledDirectoryPath, ''));
+			// Return the full paths
+			return filteredFiles;
 		} catch (error) {
 			logger.error(`Error getting compiled collection files: ${error.message}`);
 			throw error;
 		}
 	}
 
-
 	// Read file with retry mechanism
 	private async readFile(filePath: string): Promise<string> {
-
 		// Server-side file reading
 		if (!fs) throw new Error('File system operations are only available on the server');
 		try {

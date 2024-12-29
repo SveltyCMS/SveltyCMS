@@ -20,6 +20,7 @@ Features:
 	import SignIn from './components/SignIn.svelte';
 	import SignUp from './components/SignUp.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
+	import Seasons from '@components/system/icons/Seasons.svelte';
 
 	// Stores
 	import { systemLanguage } from '@stores/store';
@@ -174,7 +175,7 @@ Features:
 				background = 'white';
 			}
 			isTransitioning = false;
-		}, 300);
+		}, 600);
 	}
 
 	// Handle SignUp click
@@ -188,7 +189,7 @@ Features:
 		background = '#242728';
 		setTimeout(() => {
 			isTransitioning = false;
-		}, 300);
+		}, 600);
 	}
 
 	// Handle pointer enter events
@@ -212,13 +213,13 @@ Features:
 
 <div class={`flex min-h-lvh w-full overflow-y-auto bg-${background} transition-colors duration-300`}>
 	<!-- Debug Overlay -->
-	<!-- <div class="fixed right-4 top-4 z-50 flex flex-col items-start space-y-2 rounded-lg bg-gray-800 p-4 text-white shadow-lg">
-		<h2 class="text-lg font-semibold">Debug Panel</h2>
-		<p><strong>First User Exists:</strong> {firstUserExists ? 'Yes' : 'No'}</p>
-		<p><strong>DEMO:</strong> {publicEnv.DEMO ? 'Enabled' : 'Disabled'}</p>
-		<p><strong>SEASON:</strong> {publicEnv.SEASONS ? 'Enabled' : 'Disabled'}</p>
-		<p><strong>Region:</strong> {publicEnv.SEASON_REGION || 'N/A'}</p>
-		<p><strong>Active State:</strong> {active === undefined ? 'Initial (undefined)' : active === 0 ? 'SignIn' : 'SignUp'}</p>
+	<!-- <div class="space-y fixed right-4 top-4 z-50 flex flex-col items-start rounded-lg bg-gray-800 p-4 text-white shadow-lg">
+		<h2 class="pb-1 text-center text-lg font-semibold">Debug Panel</h2>
+		<p><strong>First User Exists:</strong> {firstUserExists}</p>
+		<p><strong>DEMO:</strong> {publicEnv.DEMO}</p>
+		<p><strong>SEASON:</strong> {publicEnv.SEASONS}</p>
+		<p><strong>SEASON_REGION:</strong> {publicEnv.SEASON_REGION}</p>
+		<p><strong>Active State:</strong> {active}</p>
 		<p><strong>Background:</strong> {background}</p>
 	</div> -->
 
@@ -265,7 +266,11 @@ Features:
 		{/if}
 
 		<!-- CMS Logo -->
-		<SveltyCMSLogoFull />
+		<div class="absolute left-1/2 top-1/4 -translate-x-1/2 -translate-y-1/2 transform items-center justify-center">
+			<SveltyCMSLogoFull />
+			<!-- Seasons -->
+			<Seasons />
+		</div>
 
 		<!-- Language Select -->
 		<div

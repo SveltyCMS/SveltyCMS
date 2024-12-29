@@ -37,7 +37,6 @@ Features:
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { valibot } from 'sveltekit-superforms/adapters';
 
 	// Props
 	const {
@@ -170,7 +169,7 @@ Features:
 >
 	{#if active === 1}
 		<!-- CSS Logo -->
-		<div class="hidden xl:block"><SveltyCMSLogoFull /></div>
+		<div class="absolute left-1/2 top-1/4 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
 
 		<div class="mx-auto mb-[5%] mt-[15%] w-full p-4 lg:w-1/2" class:hide={active !== 1}>
 			<div class="mb-4 flex flex-row gap-2">

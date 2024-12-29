@@ -1,6 +1,7 @@
 <!--
 @file src/routes/login/components/icons/SigninIcon.svelte
-@description SigninIcon component
+@component
+**SigninIcon component**
 -->
 
 <script lang="ts">
