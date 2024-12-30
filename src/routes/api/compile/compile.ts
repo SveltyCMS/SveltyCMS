@@ -11,7 +11,7 @@
  * - Error handling and logging
  * - Cleanup of orphaned collection files
  * - Name conflict detection to prevent duplicate collection names
- * - HASH and UUID Management
+ * - HASH and UUID Management for collections and widgets
  */
 
 import fs from 'fs/promises';
@@ -73,19 +73,17 @@ async function getTypescriptAndJavascriptFiles(folder: string, subdir: string = 
 			// Recursively get files from subdirectories
 			const subFiles = await getTypescriptAndJavascriptFiles(folder, relativePath);
 			files.push(...subFiles);
-		} else if (
-			entry.isFile() &&
-			(entry.name.endsWith('.ts') || entry.name.endsWith('.js')) &&
-			!entry.name.startsWith('_') &&
-			relativePath.includes('/')
-		) {
-			// Check for name conflicts
-			const collectionName = entry.name.replace(/\.(ts|js)$/, '');
-			if (collectionNames.has(collectionName)) {
-				throw new Error(`Collection name conflict: "${collectionName}" is used multiple times.`);
+		} else if (entry.isFile()) {
+			// Check if the entry is a file before further processing
+			if (entry.name.endsWith('.ts') || entry.name.endsWith('.js')) {
+				// Check for name conflicts
+				const collectionName = entry.name.replace(/\.(ts|js)$/, '');
+				if (collectionNames.has(collectionName)) {
+					throw new Error(`Collection name conflict: "${collectionName}" is used multiple times.`);
+				}
+				collectionNames.add(collectionName);
+				files.push(relativePath);
 			}
-			collectionNames.add(collectionName);
-			files.push(relativePath);
 		}
 	}
 
@@ -109,6 +107,7 @@ export async function cleanupOrphanedFiles(srcFolder: string, destFolder: string
 					const fullPath = path.posix.join(currentFolder, entry.name);
 
 					if (entry.isDirectory()) {
+						// Only call traverseDirectory recursively if it's a directory
 						await traverseDirectory(fullPath);
 					} else if (entry.isFile() && entry.name.endsWith('.js')) {
 						// Calculate relative path relative to destFolder
@@ -232,13 +231,16 @@ async function compileFile(file: string, srcFolder: string, destFolder: string):
 		// 5. Modify the transpiled code
 		finalCode = modifyTranspiledCode(finalCode);
 
-		// 6. Process Hash and UUID
+		// 6. Add UUIDs to widget fields
+		finalCode = addUUIDsToWidgetFields(finalCode);
+
+		// 7. Process Hash and UUID
 		finalCode = processHashAndUUID(finalCode, contentHash, uuid);
 
-		// 7. Write the compiled file
+		// 8. Write the compiled file
 		await writeCompiledFile(jsFilePath, finalCode);
 
-		// 8. Update cache
+		// 9. Update cache
 		cache.set(tsFilePath, { hash: contentHash, code: finalCode, uuid });
 
 		console.log(`Compiled and wrote \x1b[32m${shortPath}\x1b[0m`);
@@ -247,12 +249,24 @@ async function compileFile(file: string, srcFolder: string, destFolder: string):
 		throw error;
 	}
 }
+
 function modifyTranspiledCode(code: string): string {
 	// Modify transpiled code to fit project requirements
 	return code
 		.replace(/import widgets from .*\n/g, '') // Remove widget imports
 		.replace(/widgets/g, 'globalThis.widgets') // Replace widget references with globalThis.widgets
 		.replace(/(\bfrom\s+["']\..*)(["'])/g, '$1.js$2'); // Add .js extension to relative import paths
+}
+
+function addUUIDsToWidgetFields(code: string): string {
+	// Use a regex to find all widget fields and add UUIDs to them
+	const widgetFieldRegex = /(widgets\.\w+\({[\s\S]*?})/g;
+	const modifiedCode = code.replace(widgetFieldRegex, (match) => {
+		// Add a UUID property to the widget field
+		return match.replace(/{/, `{ uuid: '${uuidv4()}', `);
+	});
+
+	return modifiedCode;
 }
 
 async function shouldRecompile(jsFilePath: string, currentHash: string, currentUUID: string): Promise<boolean> {

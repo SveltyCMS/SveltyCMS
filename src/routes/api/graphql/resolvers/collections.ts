@@ -19,7 +19,7 @@
  * Used by the main GraphQL setup to generate collection-specific schemas and resolvers
  */
 
-import widgets from '@components/widgets';
+import widgets from '@widgets';
 import { getFieldName } from '@utils/utils';
 import deepmerge from 'deepmerge';
 import { dbAdapter } from '@src/databases/db';

@@ -72,7 +72,7 @@ export async function saveResizedImages(
 	buffer: Buffer,
 	hash: string,
 	fileName: string,
-	collectionTypes: string,
+	contentTypes: string,
 	ext: string,
 	path: string
 ): Promise<Record<string, ResizedImage>> {
@@ -159,7 +159,7 @@ export async function cleanMediaDirectory(): Promise<void> {
  */
 export async function saveRemoteMedia(
 	fileUrl: string,
-	collectionTypes: string,
+	contentTypes: string,
 	user_id: string
 ): Promise<{ id: string; fileInfo: MediaRemoteVideo }> {
 	try {
@@ -225,7 +225,7 @@ export async function saveRemoteMedia(
 		const id = await dbAdapter.insertOne('media_remote_videos', fileInfo);
 		await setCache(`media:${id}`, fileInfo, 3600); // Cache for 1 hour
 
-		logger.info('Remote media saved to database', { collectionTypes, fileInfo });
+		logger.info('Remote media saved to database', { contentTypes, fileInfo });
 		return { id, fileInfo };
 	} catch (error) {
 		logger.error('Error saving remote media:', error instanceof Error ? error : new Error(String(error)));

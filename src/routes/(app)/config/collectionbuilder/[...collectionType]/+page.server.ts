@@ -1,5 +1,5 @@
 /**
- * @file src/routes/(app)/config/collection/[...collectionTypes]/+page.server.ts
+ * @file src/routes/(app)/config/collection/[...contentTypes]/+page.server.ts
  * @description Server-side logic for collection management in the CMS.
  *
  * This module handles:
@@ -28,11 +28,11 @@ import type { PageServerLoad } from './$types';
 // Collections
 //import { updateCollections } from '@src/collections';
 import { contentManager } from '@src/content/ContentManager';
-import { generateCollectionFieldTypes, generateCollectionTypes } from '@src/collections/collectionTypes';
+import { generateCollectionFieldTypes, generateContentTypes } from '@src/content/types';
 import { compile } from '@src/routes/api/compile/compile';
 
 // Widgets
-import widgets from '@components/widgets';
+import widgets from '@widgets';
 
 // Load Prettier config
 async function getPrettierConfig() {
@@ -104,7 +104,7 @@ export const actions: Actions = {
 			const formData = await request.formData();
 			const fieldsData = formData.get('fields') as string;
 			const originalName = JSON.parse(formData.get('originalName') as string);
-			const collectionTypes = JSON.parse(formData.get('collectionTypes') as string);
+			const contentTypes = JSON.parse(formData.get('contentTypes') as string);
 			const collectionIcon = JSON.parse(formData.get('icon') as string);
 			const collectionSlug = JSON.parse(formData.get('slug') as string);
 			const collectionDescription = JSON.parse(formData.get('description') as string);
@@ -117,12 +117,12 @@ export const actions: Actions = {
 			// Generate fields as formatted string
 			let content = `
 		/**
-		 * @file config/collections/${collectionTypes}.ts
-		 * @description Collection file for ${collectionTypes}
+		 * @file config/collections/${contentTypes}.ts
+		 * @description Collection file for ${contentTypes}
 		 */
 
 		${imports}
-		import { widgets } from '@components/widgets/widgetManager.svelte';
+		import { widgets } from '@widgets/widgetManager.svelte';
 		import type { Schema } from '@src/content/types';
 		
 		export const schema: Schema = {
@@ -147,12 +147,12 @@ export const actions: Actions = {
 			const prettierConfig = await getPrettierConfig();
 			content = await prettier.format(content, prettierConfig);
 
-			if (originalName && originalName !== collectionTypes) {
-				fs.renameSync(`${import.meta.env.collectionsFolderTS}/${originalName}.ts`, `${import.meta.env.collectionsFolderTS}/${collectionTypes}.ts`);
+			if (originalName && originalName !== contentTypes) {
+				fs.renameSync(`${import.meta.env.collectionsFolderTS}/${originalName}.ts`, `${import.meta.env.collectionsFolderTS}/${contentTypes}.ts`);
 			}
-			fs.writeFileSync(`${import.meta.env.collectionsFolderTS}/${collectionTypes}.ts`, content);
+			fs.writeFileSync(`${import.meta.env.collectionsFolderTS}/${contentTypes}.ts`, content);
 			await compile();
-			await generateCollectionTypes();
+			await generateContentTypes();
 			await generateCollectionFieldTypes();
 			await contentManager.updateCollections(true);
 			await getCollectionModels();
@@ -193,8 +193,8 @@ export const actions: Actions = {
 	deleteCollections: async ({ request }) => {
 		try {
 			const formData = await request.formData();
-			const collectionTypes = JSON.parse(formData.get('collectionTypes') as string);
-			fs.unlinkSync(`${import.meta.env.collectionsFolderTS}/${collectionTypes}.ts`);
+			const contentTypes = JSON.parse(formData.get('contentTypes') as string);
+			fs.unlinkSync(`${import.meta.env.collectionsFolderTS}/${contentTypes}.ts`);
 			await compile();
 			await contentManager.updateCollections(true);
 			await getCollectionModels();

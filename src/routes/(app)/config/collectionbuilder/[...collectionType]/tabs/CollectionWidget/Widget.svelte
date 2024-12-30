@@ -1,5 +1,5 @@
 <!-- 
-@files src/routes/(app)/config/collectionbuilder/[...collectionTypes]/tabs/CollectionWidget/Widget.svelte
+@files src/routes/(app)/config/collectionbuilder/[...contentTypes]/tabs/CollectionWidget/Widget.svelte
 @component
 **The Widget component is used to display the widget form used in the CollectionWidget component**
 -->
@@ -13,7 +13,7 @@
 	import { collectionValue, targetWidget } from '@src/stores/collectionStore.svelte';
 
 	// Components
-	import widgets from '@components/widgets';
+	import widgets from '@widgets';
 	import VerticalList from '@components/VerticalList.svelte';
 	import ModalWidgetForm from './ModalWidgetForm.svelte';
 	import ModalSelectWidget from './ModalSelectWidget.svelte';
@@ -49,7 +49,7 @@
 	const modalStore = getModalStore();
 
 	// Extract the collection name from the URL
-	const collectionTypes = page.params.collectionTypes;
+	const contentTypes = page.params.contentTypes;
 
 	// Fields state with proper typing
 	let fields = $state<Field[]>(
@@ -180,7 +180,7 @@
 <div class="flex flex-col">
 	<div class="variant-outline-tertiary rounded-t-md p-2 text-center dark:variant-outline-primary">
 		<p>
-			{m.collection_widgetfield_addrequired()} <span class="text-tertiary-500 dark:text-primary-500">{collectionTypes}</span> Collection inputs.
+			{m.collection_widgetfield_addrequired()} <span class="text-tertiary-500 dark:text-primary-500">{contentTypes}</span> Collection inputs.
 		</p>
 		<p class="mb-2">{m.collection_widgetfield_drag()}</p>
 	</div>

@@ -9,7 +9,7 @@
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
-	import widgets from '@components/widgets';
+	import widgets from '@widgets';
 	import InputSwitch from './InputSwitch.svelte';
 	import AddWidget from './AddWidget.svelte';
 

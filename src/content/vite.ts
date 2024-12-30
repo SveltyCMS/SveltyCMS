@@ -8,11 +8,11 @@
 
 import fs from 'fs';
 
-export async function generateCollectionTypes(server) {
+export async function generateContentTypes(server) {
 	try {
 		const { collections } = await server.ssrLoadModule('@src/stores/collectionStore.svelte.ts');
 
-		const collectionTypes: Record<string, { fields: string[]; type: string }> = {};
+		const contentTypes: Record<string, { fields: string[]; type: string }> = {};
 
 		// Access the store's value property and ensure it exists
 		const collectionsData = collections?.value || {};
@@ -32,19 +32,19 @@ export async function generateCollectionTypes(server) {
 				type: field.type || 'string'
 			}));
 
-			collectionTypes[key] = {
+			contentTypes[key] = {
 				fields: fields.map((f) => f.name),
 				type: `{${fields.map((f) => `${f.name}: ${f.type}`).join('; ')}}`
 			};
 		}
 
 		let types = await fs.promises.readFile('src/content/types.ts', 'utf-8');
-		types = types.replace(/\n*export\s+type\s+CollectionTypes\s?=\s?.*?};/gms, '');
-		types += '\nexport type CollectionTypes = ' + JSON.stringify(collectionTypes, null, 2) + ';\n';
+		types = types.replace(/\n*export\s+type\s+ContentTypes\s?=\s?.*?};/gms, '');
+		types += '\nexport type ContentTypes = ' + JSON.stringify(contentTypes, null, 2) + ';\n';
 
 		await fs.promises.writeFile('src/content/types.ts', types);
 
-		return collectionTypes;
+		return contentTypes;
 	} catch (error) {
 		console.error('Error generating collection types:', error);
 		throw error;

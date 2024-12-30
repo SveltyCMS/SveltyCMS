@@ -6,7 +6,7 @@ import path from 'path';
 import { logger } from '@utils/logger.svelte';
 
 // Path to widgets directory
-const WIDGETS_DIR = path.resolve('src/components/widgets');
+const WIDGETS_DIR = path.resolve('src/widgets');
 
 // Ensure widget files exist
 async function ensureWidgetFiles(widgetName: string): Promise<void> {

@@ -1,5 +1,5 @@
 <!-- 
-@files src/routes/(app)/config/collectionbuilder/[...collectionTypes]/tabs/CollectionWidget/tabsFields/Permission.svelte
+@files src/routes/(app)/config/collectionbuilder/[...contentTypes]/tabs/CollectionWidget/tabsFields/Permission.svelte
 @component
 **This component handles permission settings for widget fields**
 

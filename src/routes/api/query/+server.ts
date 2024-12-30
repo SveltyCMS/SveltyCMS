@@ -80,15 +80,15 @@ async function checkUserPermissions(data: FormData, cookies: CookieData) {
 		}
 
 		// Retrieve the collection name from the form data
-		const collectionTypes = data.get('collectionTypes') as string;
+		const contentTypes = data.get('contentTypes') as string;
 
-		if (!collectionTypes) {
+		if (!contentTypes) {
 			throw Error('Collection name is required');
 		}
 
 		// Get the schema for the specified collection from ContentManager
 		const { collections } = contentManager.getCollectionData();
-		const collection_schema = collections.find((c) => c.name === collectionTypes) as Schema;
+		const collection_schema = collections.find((c) => c.name === contentTypes) as Schema;
 
 		if (!collection_schema) {
 			throw Error('Collection not found');
@@ -142,7 +142,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 	try {
 		// Check user permissions
 		const { user, collection_schema, has_read_access, has_write_access } = await checkUserPermissions(data, cookies);
-		logger.debug('User permissions checked', { user: user._id, has_read_access, has_write_access, collectionTypes: collection_schema.name });
+		logger.debug('User permissions checked', { user: user._id, has_read_access, has_write_access, contentTypes: collection_schema.name });
 
 		// If user does not have read access, return 403 Forbidden response
 		if (!has_read_access) {
@@ -159,7 +159,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			filter,
 			sort,
 			contentLanguage,
-			collectionTypes: collection_schema.name
+			contentTypes: collection_schema.name
 		});
 
 		let response;

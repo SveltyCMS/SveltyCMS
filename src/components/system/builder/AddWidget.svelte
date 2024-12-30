@@ -7,7 +7,7 @@
 	import { asAny } from '@utils/utils';
 
 	// Components
-	import widgets from '@components/widgets';
+	import widgets from '@widgets';
 	import DropDown from '@components/system/dropDown/DropDown.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
 	import InputSwitch from './InputSwitch.svelte';

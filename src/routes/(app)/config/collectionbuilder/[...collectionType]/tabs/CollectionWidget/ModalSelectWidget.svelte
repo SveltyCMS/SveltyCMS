@@ -1,12 +1,12 @@
 <!-- 
-@files src/routes/(app)/config/collectionbuilder/[...collectionTypes]/tabs/CollectionWidget/ModalSelectWidget.svelte
+@files src/routes/(app)/config/collectionbuilder/[...contentTypes]/tabs/CollectionWidget/ModalSelectWidget.svelte
 @component
 **This component displays a modal for selecting a widget**
 -->
 
 <script lang="ts">
 	// Components
-	import widgets from '@components/widgets';
+	import widgets from '@widgets';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

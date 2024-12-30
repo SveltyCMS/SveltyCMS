@@ -1,5 +1,5 @@
 <!-- 
-@files src/routes/(app)/config/collectionbuilder/[...collectionTypes]/tabs/CollectionForm.svelte
+@files src/routes/(app)/config/collectionbuilder/[...contentTypes]/tabs/CollectionForm.svelte
 @component
 **This component displays the collection form**
 
@@ -41,7 +41,7 @@ Features:
 	let props = $props<{ handlePageTitleUpdate: (title: string) => void }>();
 
 	// Extract the collection name from the URL
-	let collectionTypes = $page.params.collectionTypes;
+	let contentTypes = $page.params.contentTypes;
 
 	// Define the base collection structure
 	const baseCollection: CollectionData = {
@@ -54,11 +54,11 @@ Features:
 	};
 
 	// Check if collection Name exists set mode edit or create
-	const collectionExists = Object.values(collections.value).some((x) => x.name === collectionTypes);
+	const collectionExists = Object.values(collections.value).some((x) => x.name === contentTypes);
 	if (collectionExists) {
 		// Get collection data from ContentManager
 		const { collections: collectionData } = contentManager.getCollectionData();
-		const collection = collectionData.find((x) => x?.name === collectionTypes);
+		const collection = collectionData.find((x) => x?.name === contentTypes);
 		if (collection) {
 			mode.set('edit');
 			collectionValue.set({ ...collection } as CollectionData); // current collection
@@ -68,7 +68,7 @@ Features:
 			...baseCollection,
 			...collectionValue.value,
 			fields: (collectionValue.value as CollectionData)?.fields || [],
-			name: collectionTypes || ''
+			name: contentTypes || ''
 		} as CollectionData);
 	}
 

@@ -1,5 +1,5 @@
 <!-- 
-@files src/routes/(app)/config/collectionbuilder/[...collectionTypes]/+page.svelte
+@files src/routes/(app)/config/collectionbuilder/[...contentTypes]/+page.svelte
 @component  
 **This component sets up and displays the collection page.**
 It provides a user-friendly interface for creating, editing, and deleting collections.
@@ -32,10 +32,10 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	const toastStore = getToastStore();
 
 	// Extract the collection name from the URL
-	const collectionTypes = $page.params.collectionTypes;
+	const contentTypes = $page.params.contentTypes;
 
 	// Default widget data (tab1)
-	let name = $state(mode.value == 'edit' ? (collectionValue.value ? collectionValue.value.name : collectionTypes) : collectionTypes);
+	let name = $state(mode.value == 'edit' ? (collectionValue.value ? collectionValue.value.name : contentTypes) : contentTypes);
 
 	// Page title
 	let pageTitle = $state('');
@@ -45,17 +45,17 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	$effect.root(() => {
 		// Set the base page title according to the mode
 		if (mode.value === 'edit') {
-			pageTitle = `Edit ${collectionTypes} Collection`;
-		} else if (collectionTypes) {
-			pageTitle = `Create ${collectionTypes} Collection`;
+			pageTitle = `Edit ${contentTypes} Collection`;
+		} else if (contentTypes) {
+			pageTitle = `Create ${contentTypes} Collection`;
 		} else {
 			pageTitle = 'Create new Collection';
 		}
 
-		// Ensure the highlighted part (e.g., collectionTypes) is unique in the title
-		highlightedPart = collectionTypes || 'new';
+		// Ensure the highlighted part (e.g., contentTypes) is unique in the title
+		highlightedPart = contentTypes || 'new';
 
-		// Avoid repeating the collectionTypes if it's already included in the string
+		// Avoid repeating the contentTypes if it's already included in the string
 		if (pageTitle.includes(highlightedPart)) {
 			pageTitle = pageTitle.replace(new RegExp(`\\b${highlightedPart}\\b`, 'g'), highlightedPart);
 		}
@@ -63,7 +63,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	// Effect to update name based on mode and collection value
 	$effect.root(() => {
-		name = mode.value == 'edit' ? (collectionValue.value ? collectionValue.value.name : collectionTypes) : $page.params.collectionTypes;
+		name = mode.value == 'edit' ? (collectionValue.value ? collectionValue.value.name : contentTypes) : $page.params.contentTypes;
 	});
 
 	function handlePageTitleUpdate(title: string) {
@@ -89,7 +89,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 			mode.value == 'edit'
 				? obj2formData({
 						originalName: collectionValue.value?.name,
-						collectionTypes: name,
+						contentTypes: name,
 						icon: collectionValue.value?.icon,
 						status: collectionValue.value?.status,
 						slug: collectionValue.value?.slug,
@@ -98,7 +98,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 						fields: collectionValue.value?.fields
 					})
 				: obj2formData({
-						collectionTypes: name,
+						contentTypes: name,
 						icon: collectionValue.value?.icon,
 						status: collectionValue.value?.status,
 						slug: collectionValue.value?.slug,
@@ -138,7 +138,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 			response: (r: boolean) => {
 				if (r) {
 					// Send the form data to the server
-					axios.post(`?/deleteCollections`, obj2formData({ collectionTypes: collectionValue.value?.name }), {
+					axios.post(`?/deleteCollections`, obj2formData({ contentTypes: collectionValue.value?.name }), {
 						headers: {
 							'Content-Type': 'multipart/form-data'
 						}

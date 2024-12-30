@@ -45,7 +45,7 @@ export function constructUrl(
 	hash: string,
 	fileName: string,
 	format: string,
-	collectionTypes: string,
+	contentTypes: string,
 	size?: keyof typeof publicEnv.IMAGE_SIZES
 ): string {
 	let urlPath: string;
@@ -55,7 +55,7 @@ export function constructUrl(
 			urlPath = `${hash}_${sanitize(fileName)}${size ? `-${size}` : ''}.${format}`;
 			break;
 		case 'unique':
-			urlPath = `${sanitize(collectionTypes)}/original/${hash}_${sanitize(fileName)}${size ? `-${size}` : ''}.${format}`;
+			urlPath = `${sanitize(contentTypes)}/original/${hash}_${sanitize(fileName)}${size ? `-${size}` : ''}.${format}`;
 			break;
 		default:
 			urlPath = `${sanitize(path)}/${hash}_${sanitize(fileName)}${size ? `-${size}` : ''}.${format}`;
@@ -69,10 +69,10 @@ export function constructUrl(
 }
 
 // Returns the URL for accessing a media item.
-export function getMediaUrl(mediaItem: MediaBase, collectionTypes: string, size?: keyof typeof publicEnv.IMAGE_SIZES): string {
-	console.debug('getMediaUrl', mediaItem, collectionTypes, size);
+export function getMediaUrl(mediaItem: MediaBase, contentTypes: string, size?: keyof typeof publicEnv.IMAGE_SIZES): string {
+	console.debug('getMediaUrl', mediaItem, contentTypes, size);
 	const fileName = removeExtension(mediaItem.name);
-	return constructUrl(mediaItem.path, mediaItem.hash, fileName, mediaItem.name.split('.').slice(-1)[0], collectionTypes, size);
+	return constructUrl(mediaItem.path, mediaItem.hash, fileName, mediaItem.name.split('.').slice(-1)[0], contentTypes, size);
 }
 
 // Validates a media file against allowed types and size limits

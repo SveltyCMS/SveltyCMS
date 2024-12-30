@@ -64,7 +64,7 @@ Key features:
 	});
 
 	// Dynamic import of widget components
-	const modules: Record<string, { default: any }> = import.meta.glob('@components/widgets/*/*.svelte', { eager: true });
+	const modules: Record<string, { default: any }> = import.meta.glob('@widgets/*/*.svelte', { eager: true });
 
 	// Lifecycle
 	$effect(() => {
@@ -204,7 +204,7 @@ Key features:
 
 									<!-- Widget Input -->
 									{#if field.widget}
-										{@const widgetPath = `/src/components/widgets/${pascalToCamelCase(field.widget.Name)}/${field.widget.Name}.svelte`}
+										{@const widgetPath = `/src/widgets/${pascalToCamelCase(field.widget.Name)}/${field.widget.Name}.svelte`}
 										{@const WidgetComponent = modules[widgetPath]?.default}
 										{#if WidgetComponent}
 											<!-- Using dynamic component directly without svelte:component in runes mode -->

@@ -65,10 +65,23 @@ const dbClient =
 		? drizzle(dbConfig.mariadb.client(dbConfig.mariadb.connection))
 		: drizzle(dbConfig.postgres.client(dbConfig.postgres.connection));
 
+interface CollectionField {
+	name: string;
+	type: string;
+}
+
+interface CollectionConfig {
+	fields: CollectionField[];
+}
+
+export interface CollectionModel {
+	[key: string]: CollectionConfig;
+}
+
 export class DrizzleDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
 	private tables: { [key: string]: boolean } = {};
-	private collectionsModels: { [key: string]: any } = {};
+	private collectionsModels: CollectionModel = {};
 	private isInitialized: boolean = false;
 
 	async connect(): Promise<void> {
@@ -106,10 +119,10 @@ export class DrizzleDBAdapter implements dbInterface {
 
 		// Subscribe to collections store
 		this.unsubscribe = collections.subscribe(async (cols) => {
-			for (const [collectionTypes, collection] of Object.entries(cols)) {
-				if (!this.tables[collectionTypes]) {
-					logger.debug(`Setting up table for collection: ${collectionTypes}`);
-					await this.setupTable(collectionTypes, collection);
+			for (const [contentTypes, collection] of Object.entries(cols)) {
+				if (!this.tables[contentTypes]) {
+					logger.debug(`Setting up table for collection: ${contentTypes}`);
+					await this.setupTable(contentTypes, collection);
 				}
 			}
 		});
@@ -117,19 +130,19 @@ export class DrizzleDBAdapter implements dbInterface {
 		logger.debug('DrizzleDBAdapter initialization complete.');
 	}
 
-	async setupTable(collectionTypes: string, collection: any): Promise<void> {
-		const tableSql = this.generateTableSQL(collectionTypes, collection);
+	async setupTable(contentTypes: string, collection: any): Promise<void> {
+		const tableSql = this.generateTableSQL(contentTypes, collection);
 		try {
 			await dbClient.execute(tableSql);
-			this.tables[collectionTypes] = true;
-			logger.info(`Table created for collection: ${collectionTypes}`);
+			this.tables[contentTypes] = true;
+			logger.info(`Table created for collection: ${contentTypes}`);
 		} catch (error) {
-			logger.error(`Error creating table for collection: ${collectionTypes}. Error: ${(error as Error).message}`);
+			logger.error(`Error creating table for collection: ${contentTypes}. Error: ${(error as Error).message}`);
 			throw error;
 		}
 	}
 
-	generateTableSQL(collectionTypes: string, collection: any): string {
+	generateTableSQL(contentTypes: string, collection: any): string {
 		const columns = collection.fields
 			.map((field: any) => {
 				const type = this.getSQLType(field.type);
@@ -137,7 +150,7 @@ export class DrizzleDBAdapter implements dbInterface {
 			})
 			.join(', ');
 
-		return `CREATE TABLE IF NOT EXISTS ${collectionTypes} (${columns});`;
+		return `CREATE TABLE IF NOT EXISTS ${contentTypes} (${columns});`;
 	}
 
 	getSQLType(fieldType: string): string {
@@ -163,7 +176,7 @@ export class DrizzleDBAdapter implements dbInterface {
 		// Add your logic to setup media models
 	}
 
-	async getCollectionModels(): Promise<{ [key: string]: any }> {
+	async getCollectionModels(): Promise<CollectionModel> {
 		return this.collectionsModels;
 	}
 

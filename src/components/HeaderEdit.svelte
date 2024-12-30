@@ -32,7 +32,7 @@
 	import { getFieldName, meta_data } from '@utils/utils';
 	import { saveFormData } from '../utils/data';
 	import type { Schema, FieldValue } from '@src/content/types';
-	import type { ModifyRequestParams } from '@components/widgets';
+	import type { ModifyRequestParams } from '@widgets';
 
 	interface Field {
 		name: string;

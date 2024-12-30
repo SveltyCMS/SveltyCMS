@@ -1,5 +1,5 @@
 <!-- 
-@files src/routes/(app)/config/collectionbuilder/[...collectionTypes]/tabs/CollectionWidget/tabsFields/Default.svelte
+@files src/routes/(app)/config/collectionbuilder/[...contentTypes]/tabs/CollectionWidget/tabsFields/Default.svelte
 @component
 **This component displays the default tab fields**
 
@@ -19,7 +19,7 @@ Features:
 	import { asAny } from '@utils/utils';
 
 	// Components
-	import widgets from '@components/widgets';
+	import widgets from '@widgets';
 	import InputSwitch from '@components/system/builder/InputSwitch.svelte';
 
 	// Skeleton Stores

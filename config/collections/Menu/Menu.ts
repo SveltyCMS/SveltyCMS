@@ -2,7 +2,7 @@
  * @file config/collections/Menu.ts
  * @description Collection file for Menu
  */
-import widgets from '@components/widgets';
+import widgets from '@widgets';
 import type { Schema } from '@root/src/content/types';
 
 export const schema: Schema = {

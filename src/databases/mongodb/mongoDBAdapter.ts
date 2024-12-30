@@ -67,7 +67,15 @@ import { DEFAULT_THEME } from '@src/databases/themeManager';
 import { logger } from '@utils/logger.svelte';
 
 // Widget Manager
-import { initializeWidgets, getWidgets } from '@components/widgets/widgetManager.svelte';
+import { initializeWidgets, getWidgets } from '@widgets/index';
+
+// Types from virtualFolder.ts
+interface VirtualFolderUpdateData {
+	name?: string;
+	parent?: string | null;
+	path?: string;
+}
+
 
 export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
@@ -1222,10 +1230,10 @@ export class MongoDBAdapter implements dbInterface {
 	// Fetch the last five collections
 	async getLastFiveCollections(): Promise<Document[]> {
 		try {
-			const collectionTypes = Object.keys(mongoose.models);
+			const contentTypes = Object.keys(mongoose.models);
 			const recentCollections: Document[] = [];
 
-			for (const collectionType of collectionTypes) {
+			for (const collectionType of contentTypes) {
 				const model = mongoose.models[collectionType];
 				if (model) {
 					const collections = await model.find().sort({ createdAt: -1 }).limit(5).lean().exec();

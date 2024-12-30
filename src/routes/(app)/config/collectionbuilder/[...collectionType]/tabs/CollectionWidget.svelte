@@ -1,5 +1,5 @@
 <!-- 
-@files src/routes/(app)/config/collectionbuilder/[...CollectionTypes]/tabs/CollectionWidget.svelte
+@files src/routes/(app)/config/collectionbuilder/[...ContentTypes]/tabs/CollectionWidget.svelte
 @component
 **This component displays the collection widget**
 -->
@@ -12,8 +12,8 @@
 	import { getGuiFields, asAny } from '@utils/utils';
 
 	// Components
-	import widgets from '@components/widgets';
 	import VerticalList from '@components/VerticalList.svelte';
+	import * as widgets from '@src/widgets';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -29,7 +29,7 @@
 	const modalStore = getModalStore();
 
 	// Extract the collection name from the URL
-	const collectionTypes = page.params.collectionTypes;
+	const contentTypes = page.params.contentTypes;
 
 	// Helper function to map fields
 	function mapFieldsWithWidgets(fields: any[]) {
@@ -85,14 +85,14 @@
 			title: 'Select a Widget',
 			body: 'Select your widget and then press submit.',
 			value: selected, // Pass the selected widget as the initial value
-			response: (r: { selectedWidget: keyof WidgetType } | undefined) => {
+			response: (r: { selectedWidget: keyof typeof widgets } | undefined) => {
 				if (!r) return;
 				const { selectedWidget } = r;
-				if (selectedWidget && widgets[selectedWidget as keyof typeof widgets]) {
+				if (selectedWidget && widgets[selectedWidget]) {
 					// Create a new widget object with the selected widget data
 					const newWidget = {
 						widget: { key: selectedWidget, Name: selectedWidget },
-						GuiFields: getGuiFields({ key: selectedWidget }, asAny(widgets[selectedWidget as keyof typeof widgets].GuiSchema)),
+						GuiFields: getGuiFields({ key: selectedWidget }, asAny(widgets[selectedWidget].GuiSchema)),
 						permissions: {} // Initialize empty permissions object
 					};
 					// Call modalWidgetForm with the new widget object
@@ -154,8 +154,8 @@
 	async function handleSave() {
 		try {
 			const updatedFields = fields.map((field) => {
-				if (field.widget?.Name && widgets[field.widget.Name as keyof typeof widgets]) {
-					const GuiFields = getGuiFields({ key: field.widget.Name }, asAny(widgets[field.widget.Name as keyof typeof widgets].GuiSchema));
+				if (field.widget?.Name && widgets[field.widget.Name]) {
+					const GuiFields = getGuiFields({ key: field.widget.Name }, asAny(widgets[field.widget.Name].GuiSchema));
 					for (const [property, value] of Object.entries(field)) {
 						if (typeof value !== 'object' && property !== 'id') {
 							GuiFields[property] = field[property];
@@ -184,7 +184,7 @@
 <div class="flex flex-col">
 	<div class="variant-outline-tertiary rounded-t-md p-2 text-center dark:variant-outline-primary">
 		<p>
-			{m.collection_widgetfield_addrequired()} <span class="text-tertiary-500 dark:text-primary-500">{collectionTypes}</span> Collection inputs.
+			{m.collection_widgetfield_addrequired()} <span class="text-tertiary-500 dark:text-primary-500">{contentTypes}</span> Collection inputs.
 		</p>
 		<p class="mb-2">{m.collection_widgetfield_drag()}</p>
 	</div>

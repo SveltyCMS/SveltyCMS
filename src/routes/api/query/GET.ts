@@ -37,7 +37,7 @@ import { dbAdapter, getCollectionModels } from '@src/databases/db';
 
 // Utils
 import { modifyRequest } from '@src/routes/api/query/modifyRequest';
-import widgets from '@components/widgets';
+import widgets from '@widgets';
 import { getFieldName, get_elements_by_id } from '@utils/utils';
 
 // System Logger

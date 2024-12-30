@@ -23,7 +23,7 @@
  */
 
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { tiktok, twitch, vimeo, youtube, type YoutubeData } from '@components/widgets/remoteVideo/video';
+import { tiktok, twitch, vimeo, youtube, type YoutubeData } from '@widgets/custom/remoteVideo/video';
 
 // Define types for each platform's response
 interface BaseVideoData {

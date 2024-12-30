@@ -36,7 +36,8 @@ const config = {
 			'@stores': './src/stores',
 			'@static': './static',
 			$paraglide: './src/paraglide',
-			'@types': './src/types'
+			'@types': './src/types',
+			'@widgets': './src/widgets'
 		}
 	},
 

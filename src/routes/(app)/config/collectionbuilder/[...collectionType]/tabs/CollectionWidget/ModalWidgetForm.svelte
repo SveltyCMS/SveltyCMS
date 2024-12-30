@@ -1,5 +1,5 @@
 <!-- 
-@files src/routes/(app)/config/collectionbuilder/[...collectionTypes]/tabs/CollectionWidget/ModalWidgetForm.svelte
+@files src/routes/(app)/config/collectionbuilder/[...contentTypes]/tabs/CollectionWidget/ModalWidgetForm.svelte
 @component
 **The ModalWidgetForm component is used to display and manage the form for the selected widget in the CollectionWidget component** 
 It handles widget configuration, permissions, and specific options.
@@ -9,7 +9,7 @@ It handles widget configuration, permissions, and specific options.
 	import { type SvelteComponent } from 'svelte';
 
 	// Components
-	import widgets from '@components/widgets';
+	import widgets from '@widgets';
 	import Default from './tabsFields/Default.svelte';
 	import Permission from './tabsFields/Permission.svelte';
 	import Specific from './tabsFields/Specific.svelte';

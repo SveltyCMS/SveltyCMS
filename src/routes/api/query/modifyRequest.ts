@@ -19,7 +19,7 @@
  * before final processing or database operations.
  */
 
-import widgets from '@components/widgets';
+import widgets from '@widgets';
 import { getFieldName } from '@utils/utils';
 
 // Types

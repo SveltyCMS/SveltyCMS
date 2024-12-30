@@ -1,8 +1,7 @@
 <!--
-@component GuiFields.svelte
-@description - GUI fields component for mega menu
-@props
-- `value` - {Array<Array<any>>} - Array of menu levels
+@file src/widgets/megaMenu/GuiFields.svelte
+@component - GUI fields component for mega menu
+
 -->
 <script lang="ts">
 	// Components

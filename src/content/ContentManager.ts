@@ -12,13 +12,13 @@
  */
 
 // Types
-import type { Schema, CollectionTypes, Category, CollectionData } from './types';
+import type { Schema, ContentTypes, Category, CollectionData } from './types';
 import type { SystemContent } from '@src/databases/dbInterface';
 
 // Redis
 import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/redis';
 import { dbAdapter, dbInitPromise } from '@src/databases/db';
-import widgetProxy, { initializeWidgets, resolveWidgetPlaceholder } from '@components/widgets';
+import widgetProxy, { initializeWidgets, resolveWidgetPlaceholder } from '@src/widgets';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -89,7 +89,10 @@ class ContentManager {
 		try {
 			await this.measurePerformance(async () => {
 				try {
-					// Now load collections
+					// First, ensure widgets are initialized
+					await ensureWidgetsInitialized();
+
+					// Then load collections
 					await this.waitForInitialization();
 					await this.updateCollections(true);
 					this.initialized = true;
@@ -104,6 +107,7 @@ class ContentManager {
 			throw new Error(`Failed to load Content: ${errorMessage}`);
 		}
 	}
+
 	// Get collection and category data
 	getCollectionData() {
 		return {
@@ -396,7 +400,7 @@ class ContentManager {
 					};
 				});
 
-				const collectionRecord: Record<CollectionTypes, Schema> = {} as Record<CollectionTypes, Schema>;
+				const collectionRecord: Record<ContentTypes, Schema> = {} as Record<ContentTypes, Schema>;
 				cols.forEach((col) => {
 					if (col.name) {
 						collectionRecord[col.name] = col;
@@ -719,7 +723,7 @@ class ContentManager {
 		throw lastError;
 	}
 	// Lazy loading with Redis support
-	private async lazyLoadCollection(name: CollectionTypes): Promise<Schema | null> {
+	private async lazyLoadCollection(name: ContentTypes): Promise<Schema | null> {
 		const cacheKey = `collection_${name}`;
 		// Try getting from cache (Redis or memory)
 		const cached = await this.getCacheValue(cacheKey, this.collectionCache);
@@ -752,4 +756,4 @@ class ContentManager {
 // Export singleton instance
 export const contentManager = ContentManager.getInstance();
 // Export types
-export type { Schema, CollectionTypes, Category, CollectionData };
+export type { Schema, ContentTypes, Category, CollectionData };

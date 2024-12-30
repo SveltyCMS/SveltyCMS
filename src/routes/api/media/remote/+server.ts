@@ -31,12 +31,12 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			throw error(401, 'Unauthorized');
 		}
 
-		const { fileUrl, collectionTypes } = await request.json();
-		if (!fileUrl || !collectionTypes) {
+		const { fileUrl, contentTypes } = await request.json();
+		if (!fileUrl || !contentTypes) {
 			throw error(400, 'File URL and collection types are required');
 		}
 
-		const result = await saveRemoteMedia(fileUrl, collectionTypes, user._id.toString());
+		const result = await saveRemoteMedia(fileUrl, contentTypes, user._id.toString());
 		return json({ success: true, ...result });
 	} catch (err) {
 		const message = `Error saving remote media: ${err instanceof Error ? err.message : String(err)}`;

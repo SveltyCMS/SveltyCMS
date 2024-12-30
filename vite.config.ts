@@ -17,7 +17,7 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import { paraglide } from '@inlang/paraglide-sveltekit/vite';
 import { compile, cleanupOrphanedFiles } from './src/routes/api/compile/compile';
-import { generateCollectionTypes } from './src/content/vite';
+import { generateContentTypes } from './src/content/vite';
 
 // Get package.json version info
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
@@ -117,7 +117,7 @@ export default defineConfig({
 										}
 
 										try {
-											await generateCollectionTypes(server);
+											await generateContentTypes(server);
 											console.log(`Collection types updated for: \x1b[32m${file}\x1b[0m`);
 										} catch (error) {
 											console.error('Error updating collection types:', error);
@@ -210,7 +210,8 @@ export default defineConfig({
 			'@components': resolve(process.cwd(), './src/components'),
 			'@content': resolve(process.cwd(), './src/content'),
 			'@utils': resolve(process.cwd(), './src/utils'),
-			'@stores': resolve(process.cwd(), './src/stores')
+			'@stores': resolve(process.cwd(), './src/stores'),
+			'@widgets': resolve(process.cwd(), './src/widgets')
 		}
 	},
 	define: {

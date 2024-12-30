@@ -155,7 +155,7 @@ Features:
 			// Fetch data using getData function
 			try {
 				data = await getData({
-					collectionTypes: currentCollection?.id as any,
+					contentTypes: currentCollection?.id as any,
 					page: currentPage,
 					limit: rowsPerPage,
 					contentLanguage: currentLanguage,
@@ -214,9 +214,9 @@ Features:
 		// For rendering Table data
 		tableHeaders =
 			currentCollection?.fields.map((field) => ({
+				id: uuidv4(),
 				label: field.label,
 				name: getFieldName(field),
-				id: uuidv4(),
 				visible: true
 			})) ?? [];
 		tableHeaders.push(
@@ -292,7 +292,7 @@ Features:
 	function process_selectAll(selectAll: boolean) {
 		if (selectAll) {
 			// Iterate only over visible entries
-			tableData.forEach((entry, index) => {
+			tableData.forEach((_entry, index) => {
 				selectedMap[index] = true;
 			});
 		} else {
@@ -337,13 +337,13 @@ Features:
 				switch (status) {
 					case 'deleted':
 						// If the status is 'deleted', call the delete endpoint
-						await deleteData({ data: formData, collectionTypes: currentCollection?.id as any });
+						await deleteData({ data: formData, contentTypes: currentCollection?.id as any });
 						break;
 					case 'published':
 					case 'unpublished':
 					case 'testing':
 						// If the status is 'testing', call the publish endpoint
-						await setStatus({ data: formData, collectionTypes: currentCollection?.id as any });
+						await setStatus({ data: formData, contentTypes: currentCollection?.id as any });
 						break;
 					case 'cloned':
 					case 'scheduled':

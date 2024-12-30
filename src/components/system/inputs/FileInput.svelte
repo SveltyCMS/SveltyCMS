@@ -3,10 +3,6 @@
 @component
 **FileInput component**
 
-```tsx
-<FileInput />
-``` 
-
 Features:
 - File input 
 - Multiple file input
@@ -23,7 +19,7 @@ Features:
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Props
+	// Define the Props interface
 	interface Props {
 		value?: File | MediaImage;
 		multiple?: boolean;
@@ -32,11 +28,14 @@ Features:
 		onChange?: (value: File | MediaImage) => void;
 	}
 
-	let { value = undefined, multiple = false, show = $bindable(true), className = '', onChange }: Props = $props();
+	// Destructure props and mark `value` as bindable
+	let { value = $bindable(), multiple = $bindable(false), show = $bindable(true), className = '', onChange } = $props() as Props;
 
+	// Declare reactive state with $state
 	let input = $state<HTMLInputElement | null>(null);
 	let showMedia = $state(false);
 
+	// Handle media selection
 	function handleMediaSelect(data: MediaImage) {
 		show = false;
 		showMedia = false;
@@ -44,6 +43,7 @@ Features:
 		onChange?.(value);
 	}
 
+	// Handle file change
 	function handleFileChange() {
 		if (!input?.files || input.files.length === 0) return;
 		const file = input.files[0];
@@ -52,6 +52,7 @@ Features:
 		onChange?.(value);
 	}
 
+	// Handle file drop
 	function handleDrop(e: DragEvent) {
 		e.preventDefault();
 		const file = e?.dataTransfer?.files[0];
@@ -61,22 +62,26 @@ Features:
 		}
 	}
 
+	// Handle drag over
 	function handleDragOver(e: DragEvent) {
 		e.preventDefault();
 		const target = e.target as HTMLElement;
 		target.style.borderColor = '#6bdfff';
 	}
 
+	// Handle drag leave
 	function handleDragLeave(e: DragEvent) {
 		e.preventDefault();
 		const target = e.target as HTMLElement;
 		target.style.removeProperty('border-color');
 	}
 
+	// Open file input dialog
 	function openFileInput() {
 		input?.click();
 	}
 
+	// Toggle media selection modal
 	function toggleMedia(show: boolean) {
 		showMedia = show;
 	}

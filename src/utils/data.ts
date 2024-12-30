@@ -12,7 +12,7 @@
  *
  * Features:
  * - Centralized error handling and logging
- * - Type-safe collection names using CollectionTypes
+ * - Type-safe collection names using ContentTypes
  * - Consistent API request formatting
  * - Support for pagination, filtering, and sorting in getData
  *
@@ -24,7 +24,7 @@
 import axios from 'axios';
 import { error } from '@sveltejs/kit';
 import { col2formData, config, toFormData } from './utils';
-import type { CollectionTypes, Schema, User } from '@src/types';
+import type { ContentTypes, Schema, User } from '@src/types';
 import type { Entry } from '@src/types/Entry';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -58,7 +58,7 @@ export async function handleRequest(data: FormData, method: string) {
 
 // Function to get data from a specified collection
 export async function getData(query: {
-	collectionTypes: keyof CollectionTypes;
+	contentTypes: keyof ContentTypes;
 	page?: number;
 	limit?: number;
 	contentLanguage?: string;
@@ -73,31 +73,31 @@ export async function getData(query: {
 }
 
 // Function to add data to a specified collection
-export async function addData({ data, collectionTypes }: { data: FormData; collectionTypes: keyof CollectionTypes }) {
-	data.append('collectionTypes', collectionTypes as string);
+export async function addData({ data, contentTypes }: { data: FormData; contentTypes: keyof ContentTypes }) {
+	data.append('contentTypes', contentTypes as string);
 	data.append('method', 'POST');
 	return await axios.post(`/api/query`, data, config).then((res) => res.data);
 }
 
 // Function to update data in a specified collection
-export async function updateData({ data, collectionTypes }: { data: FormData; collectionTypes: keyof CollectionTypes }) {
-	data.append('collectionTypes', collectionTypes as string);
+export async function updateData({ data, contentTypes }: { data: FormData; contentTypes: keyof ContentTypes }) {
+	data.append('contentTypes', contentTypes as string);
 	data.append('method', 'PATCH');
 	return await axios.post(`/api/query`, data, config).then((res) => res.data);
 }
 
 // Move FormData to trash folder and delete trash files older than 30 days
-export async function deleteData({ data, collectionTypes }: { data: FormData; collectionTypes: CollectionTypes }) {
-	data.append('collectionTypes', collectionTypes);
+export async function deleteData({ data, contentTypes }: { data: FormData; contentTypes: ContentTypes }) {
+	data.append('contentTypes', contentTypes);
 	data.append('method', 'DELETE');
 
 	try {
-		logger.debug(`Deleting data for collection: ${collectionTypes}`);
+		logger.debug(`Deleting data for collection: ${contentTypes}`);
 		const response = await axios.post(`/api/query`, data, config);
-		logger.debug(`Data deleted successfully for collection: ${collectionTypes}`);
+		logger.debug(`Data deleted successfully for collection: ${contentTypes}`);
 		return response.data;
 	} catch (err) {
-		const message = `Error deleting data for collection ${collectionTypes}: ${err instanceof Error ? err.message : String(err)}`;
+		const message = `Error deleting data for collection ${contentTypes}: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message);
 		if (axios.isAxiosError(err)) {
 			logger.error('Axios error details:', {
@@ -111,8 +111,8 @@ export async function deleteData({ data, collectionTypes }: { data: FormData; co
 }
 
 // Function to set the status of data in a specified collection
-export async function setStatus({ data, collectionTypes }: { data: FormData; collectionTypes: keyof CollectionTypes }) {
-	data.append('collectionTypes', collectionTypes as string);
+export async function setStatus({ data, contentTypes }: { data: FormData; contentTypes: keyof ContentTypes }) {
+	data.append('contentTypes', contentTypes as string);
 	data.append('method', 'SETSTATUS');
 	return await axios.post(`/api/query`, data, config).then((res) => res.data);
 }
@@ -175,7 +175,7 @@ export async function saveFormData({
 				formData.append('createdAt', Math.floor(Date.now() / 1000).toString());
 				formData.append('updatedAt', (formData.get('createdAt') as string) || '');
 
-				return await addData({ data: formData, collectionTypes: $collection.name as keyof CollectionTypes });
+				return await addData({ data: formData, contentTypes: $collection.name as keyof ContentTypes });
 
 			case 'edit':
 				logger.debug('Saving data in edit mode.');
@@ -201,12 +201,12 @@ export async function saveFormData({
 
 					const revisionFormData = new FormData();
 					revisionFormData.append('data', JSON.stringify(newRevision));
-					revisionFormData.append('collectionTypes', $collection.name as keyof CollectionTypes);
+					revisionFormData.append('contentTypes', $collection.name as keyof ContentTypes);
 
 					await handleRequest(revisionFormData, 'POST');
 				}
 
-				return await updateData({ data: formData, collectionTypes: $collection.path as keyof CollectionTypes });
+				return await updateData({ data: formData, contentTypes: $collection.path as keyof ContentTypes });
 
 			default: {
 				const message = `Unhandled mode: ${$mode}`;

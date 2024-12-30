@@ -1,5 +1,5 @@
 <!-- 
-@files src/routes/(app)/config/collectionbuilder/[...collectionTypes]/tabs/CollectionWidget/tabsFields/Specific.svelte
+@files src/routes/(app)/config/collectionbuilder/[...contentTypes]/tabs/CollectionWidget/tabsFields/Specific.svelte
 @component
 **This component displays specific tab fields for a widget**
 
@@ -12,7 +12,7 @@ Features:
 	import { asAny } from '@utils/utils';
 
 	// Components
-	import widgets from '@components/widgets';
+	import widgets from '@widgets';
 	import InputSwitch from '@components/system/builder/InputSwitch.svelte';
 
 	// Skeleton Stores
