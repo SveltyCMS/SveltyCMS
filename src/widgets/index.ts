@@ -1,4 +1,4 @@
-/**
+b/**
  * @file src/widgets/index.ts
  * @description Widget Index - Main entry point for widget system
  */
@@ -89,6 +89,10 @@ export async function initializeWidgets(): Promise<void> {
 			for (const { name, module, isCore } of validModules) {
 				try {
 					const widgetFn = createWidgetFunction(module, name);
+					if (!widgetFn) {
+						logger.warn(`Skipping widget ${name} - No widget function found`);
+						continue;
+					}
 					if (!checkDependencies(widgetFn({}))) {
 						logger.warn(`Skipping widget ${name} - Missing dependencies`);
 						continue;
@@ -99,7 +103,8 @@ export async function initializeWidgets(): Promise<void> {
 					newWidgetFunctions.set(capitalizedName, widgetFn);
 					loadedWidgetNames.add(capitalizedName);
 				} catch (error) {
-					logger.error(`Failed to load widget ${name}:`, error);
+					logger.warn(`Skipping widget ${name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+					continue;
 				}
 			}
 
@@ -112,15 +117,13 @@ export async function initializeWidgets(): Promise<void> {
 					activeWidgets = dbWidgets.filter((widget) => widget.is_active).map((widget) => widget.name);
 				} else {
 					// If database or method not available, activate core widgets
-					activeWidgets = Array.from(newWidgetFunctions.keys())
-						.filter(key => newWidgetFunctions.get(key)?.__isCore === true);
-					logger.info('Using default widget activation - core widgets only');
+					activeWidgets = Array.from(newWidgetFunctions.keys());
+					logger.debug('Using default widget activation');
 				}
 			} catch (error: unknown) {
-				// If any error occurs, activate core widgets
-				activeWidgets = Array.from(newWidgetFunctions.keys())
-					.filter(key => newWidgetFunctions.get(key)?.__isCore === true);
-				logger.warn(`Failed to fetch widget status: ${error instanceof Error ? error.message : 'Unknown error'}, using default activation`);
+				// If any error occurs, activate all widgets
+				activeWidgets = Array.from(newWidgetFunctions.keys());
+				logger.warn(`Failed to fetch widget status: ${error instanceof Error ? error.message : 'Unknown error'}, activating all widgets`);
 			}
 
 			// Update widget functions store
@@ -129,7 +132,11 @@ export async function initializeWidgets(): Promise<void> {
 			// Set active widgets based on database status
 			activeWidgetList.set(new Set(activeWidgets));
 
-			logger.info(`\x1b[34m${loadedWidgetNames.size}\x1b[0m Widgets initialized successfully \x1b[34m${Array.from(loadedWidgetNames).join(', ')}\x1b[0m`);
+			const coreWidgets = Array.from(newWidgetFunctions.values()).filter(w => w.__isCore);
+			const customWidgets = Array.from(newWidgetFunctions.values()).filter(w => !w.__isCore);
+
+			logger.info(`\x1b[34m${coreWidgets.length} core widgets\x1b[0m initialized: \x1b[34m${coreWidgets.map(w => w.Name).join(', ')}\x1b[0m`);
+			logger.info(`\x1b[32m${customWidgets.length} custom widgets\x1b[0m initialized: \x1b[33m${customWidgets.map(w => w.Name).join(', ')}\x1b[0m`);
 
 			initialized = true;
 		} catch (error) {
@@ -148,8 +155,6 @@ export async function initializeWidgets(): Promise<void> {
 initializeWidgets().catch((error) => {
 	console.error('Failed to initialize widgets:', error); // Log initialization errors
 });
-
-// Export the proxy as the default export
 
 // Re-export everything from widgetManager for direct access
 export * from './widgetManager.svelte.ts';
