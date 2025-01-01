@@ -161,17 +161,55 @@ export async function loadWidgets(): Promise<Map<string, Widget>> {
 	return widgets; // Return widgets
 }
 
+// Database initialization
+let dbInitialized = false;
+
+async function initializeDatabase(): Promise<void> {
+	if (dbInitialized) return;
+
+	try {
+		// Initialize database connection
+		await import('@src/databases/db').then(({ default: db }) => {
+			if (!db) {
+				throw new Error('Database connection failed');
+			}
+			dbInitialized = true;
+		});
+	} catch (error) {
+		logger.error('Failed to initialize database:', error);
+		throw error;
+	}
+}
+
+async function updateWidgetStatusInDatabase(widgetName: string, isActive: boolean): Promise<void> {
+	try {
+		await initializeDatabase();
+		const { default: db } = await import('@src/databases/db');
+		await db.updateWidgetStatus(widgetName, isActive);
+	} catch (error) {
+		logger.error(`Failed to update widget status in database: ${widgetName}`, error);
+		throw error;
+	}
+}
+
 // Function to initialize widgets
-function initializeWidgets(): void {
+async function initializeWidgets(): Promise<void> {
 	if (widgetFunctions.size > 0) return;
 
 	try {
-		const modules = import.meta.globEager<WidgetModule>('./{core,custom}/*/index.ts');
+		// Initialize database connection first
+		await initializeDatabase();
+
+		// Search both core and custom widget directories
+		const modules = import.meta.glob<WidgetModule>([
+			'./core/*/index.ts',
+			'./custom/*/index.ts'
+		], { eager: true });
 
 		const widgetModules = Object.entries(modules).map(([path, module]) => {
 			try {
-				const parts = path.split('/');
-				const name = parts[parts.length - 2];
+				// Extract widget name from path (e.g., './core/mediaUpload/index.ts' -> 'mediaUpload')
+				const name = path.split('/').at(-2);
 				if (!name) {
 					logger.warn(`Skipping widget module: ${path} - Unable to extract widget name`);
 					return null;

@@ -1296,6 +1296,21 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`Failed to fetch last five media documents`);
 		}
 	}
+	// Fetch widgets from database
+	async fetchWidgetsFromDatabase(): Promise<Widget[]> {
+		try {
+			const widgets = await WidgetModel.find()
+				.sort({ createdAt: -1 })
+				.lean()
+				.exec();
+			logger.info(`Fetched ${widgets.length} widgets from database`);
+			return widgets;
+		} catch (error) {
+			logger.error('Error fetching widgets from database:', error);
+			throw new Error('Failed to fetch widgets from database');
+		}
+	}
+
 	// Methods for Disconnecting
 
 	// Disconnect from MongoDB

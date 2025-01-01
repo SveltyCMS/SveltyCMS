@@ -103,9 +103,25 @@ export async function initializeWidgets(): Promise<void> {
 				}
 			}
 
-			// Fetch activation status from the database
-			const dbWidgets = await fetchWidgetsFromDatabase();
-			const activeWidgets = dbWidgets.filter((widget) => widget.is_active).map((widget) => widget.name);
+			// Fetch activation status from the database with fallback
+			let activeWidgets: string[] = [];
+			try {
+				const { db } = await import('../databases/db');
+				if (db && typeof db.fetchWidgetsFromDatabase === 'function') {
+					const dbWidgets = await db.fetchWidgetsFromDatabase();
+					activeWidgets = dbWidgets.filter((widget) => widget.is_active).map((widget) => widget.name);
+				} else {
+					// If database or method not available, activate core widgets
+					activeWidgets = Array.from(newWidgetFunctions.keys())
+						.filter(key => newWidgetFunctions.get(key)?.__isCore === true);
+					logger.info('Using default widget activation - core widgets only');
+				}
+			} catch (error: unknown) {
+				// If any error occurs, activate core widgets
+				activeWidgets = Array.from(newWidgetFunctions.keys())
+					.filter(key => newWidgetFunctions.get(key)?.__isCore === true);
+				logger.warn(`Failed to fetch widget status: ${error instanceof Error ? error.message : 'Unknown error'}, using default activation`);
+			}
 
 			// Update widget functions store
 			widgetFunctions.set(newWidgetFunctions);
