@@ -8,8 +8,8 @@
 
 import { privateEnv } from '@root/config/private';
 
-import mongoose from 'mongoose';
 import type { ConnectOptions } from 'mongoose';
+import mongoose from 'mongoose';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

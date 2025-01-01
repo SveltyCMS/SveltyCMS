@@ -6,7 +6,7 @@
  * Media files include images, videos, documents, and other file types.
  */
 
-import mongoose, { Schema, Document } from 'mongoose';
+import { Schema } from 'mongoose';
 import type { Media } from '@src/databases/dbInterface';
 
 // System Logger
@@ -74,12 +74,12 @@ mediaSchema.statics = {
 			alt?: string;
 			caption?: string;
 			tags?: string[];
-			customFields?: any;
+			customFields?: Schema.Types.Mixed;
 		};
 		folder?: string;
 		status?: 'public' | 'private' | 'draft';
 		createdBy?: string;
-	}): Promise<Document> {
+	}): Promise<Media> {
 		try {
 			const media = new this(mediaData);
 			await media.save();
@@ -92,7 +92,7 @@ mediaSchema.statics = {
 	},
 
 	// Get all media
-	async getAllMedia(): Promise<Document[]> {
+	async getAllMedia(): Promise<Media[]> {
 		try {
 			const media = await this.find().sort({ createdAt: -1 }).exec();
 			logger.debug(`Retrieved ${media.length} media files`);
@@ -104,7 +104,7 @@ mediaSchema.statics = {
 	},
 
 	// Get media by folder
-	async getMediaByFolder(folder: string): Promise<Document[]> {
+	async getMediaByFolder(folder: string): Promise<Media[]> {
 		try {
 			const media = await this.find({ folder }).sort({ createdAt: -1 }).exec();
 			logger.debug(`Retrieved ${media.length} media files from folder: ${folder}`);
@@ -116,7 +116,7 @@ mediaSchema.statics = {
 	},
 
 	// Get media by type
-	async getMediaByType(type: string): Promise<Document[]> {
+	async getMediaByType(type: string): Promise<Media[]> {
 		try {
 			const media = await this.find({ type }).sort({ createdAt: -1 }).exec();
 			logger.debug(`Retrieved ${media.length} media files of type: ${type}`);
@@ -128,7 +128,7 @@ mediaSchema.statics = {
 	},
 
 	// Get media by filename
-	async getMediaByFilename(filename: string): Promise<Document | null> {
+	async getMediaByFilename(filename: string): Promise<Media | null> {
 		try {
 			const media = await this.findOne({ filename }).exec();
 			logger.debug(`Retrieved media: ${filename}`);
@@ -140,7 +140,7 @@ mediaSchema.statics = {
 	},
 
 	// Update media
-	async updateMedia(filename: string, updateData: Partial<Media>): Promise<Document | null> {
+	async updateMedia(filename: string, updateData: Partial<Media>): Promise<Media | null> {
 		try {
 			const media = await this.findOneAndUpdate({ filename }, { ...updateData, updatedAt: new Date() }, { new: true }).exec();
 			if (media) {
@@ -172,7 +172,7 @@ mediaSchema.statics = {
 	},
 
 	// Move media to folder
-	async moveMediaToFolder(filename: string, newFolder: string): Promise<Document | null> {
+	async moveMediaToFolder(filename: string, newFolder: string): Promise<Media | null> {
 		try {
 			const media = await this.findOneAndUpdate({ filename }, { folder: newFolder, updatedAt: new Date() }, { new: true }).exec();
 			if (media) {
@@ -188,7 +188,7 @@ mediaSchema.statics = {
 	},
 
 	// Search media by tags
-	async searchMediaByTags(tags: string[]): Promise<Document[]> {
+	async searchMediaByTags(tags: string[]): Promise<Media[]> {
 		try {
 			const media = await this.find({
 				'metadata.tags': { $in: tags }

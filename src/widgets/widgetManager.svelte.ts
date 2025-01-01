@@ -60,8 +60,8 @@ export type WidgetFunction = ((config: Record<string, unknown>) => Widget) & {
 	aggregations?: unknown; // Aggregation settings
 };
 
-const widgetFunctions = $state(new Map<string, WidgetFunction>()); // Store for widget functions
-const activeWidgetList = $state(new Set<string>()); // Store for active widgets
+let widgetFunctions = new Map<string, WidgetFunction>(); // Store for widget functions
+let activeWidgetList = new Set<string>(); // Store for active widgets
 
 // Function to resolve a widget placeholder
 export async function resolveWidgetPlaceholder(placeholder: {
@@ -72,7 +72,7 @@ export async function resolveWidgetPlaceholder(placeholder: {
 	await initializeWidgets(); // Ensure widgets are initialized
 
 	// Check if the widget is active
-	const isActive = activeWidgetList.get().has(placeholder.__widgetName);
+	const isActive = activeWidgetList.has(placeholder.__widgetName);
 	if (!isActive) {
 		console.warn(`Widget "${placeholder.__widgetName}" is inactive. Rendering placeholder.`); // Log warning if widget is inactive
 		return {
@@ -84,7 +84,7 @@ export async function resolveWidgetPlaceholder(placeholder: {
 	}
 
 	// Find the widget by UUID
-	const widgetFn = Array.from(widgetFunctions.get().values()).find(
+	const widgetFn = Array.from(widgetFunctions.values()).find(
 		(widget) => widget.__widgetId === placeholder.__widgetId
 	);
 
@@ -97,19 +97,19 @@ export async function resolveWidgetPlaceholder(placeholder: {
 
 // Function to check if a widget is available
 export function isWidgetAvailable(widgetName: string): boolean {
-	const widgetFn = widgetFunctions.get().get(widgetName); // Get widget function
-	const isActive = activeWidgetList.get().has(widgetName); // Check if widget is active
+	const widgetFn = widgetFunctions.get(widgetName); // Get widget function
+	const isActive = activeWidgetList.has(widgetName); // Check if widget is active
 	return !!widgetFn && isActive; // Return true if widget is available and active
 }
 
 // Function to get all widget functions
 export function getWidgets() {
-	return widgetFunctions.get(); // Return widget functions
+	return widgetFunctions; // Return widget functions
 }
 
 // Function to get active widgets
 export function getActiveWidgets() {
-	return activeWidgetList.get(); // Return active widgets
+	return activeWidgetList; // Return active widgets
 }
 
 // Function to update widget status
@@ -120,12 +120,10 @@ export async function updateWidgetStatus(widgetName: string, status: WidgetStatu
 
 		// Update the active widget list
 		if (status === 'active') {
-			activeWidgetList.update((value) => value.add(widgetName)); // Add widget to active list
+			activeWidgetList = new Set(activeWidgetList).add(widgetName); // Add widget to active list
 		} else if (status === 'inactive') {
-			activeWidgetList.update((value) => {
-				value.delete(widgetName); // Remove widget from active list
-				return value;
-			});
+			activeWidgetList = new Set(activeWidgetList);
+			activeWidgetList.delete(widgetName); // Remove widget from active list
 		}
 
 		logger.info(`Widget ${widgetName} ${status} status updated successfully`); // Log success message
@@ -137,7 +135,7 @@ export async function updateWidgetStatus(widgetName: string, status: WidgetStatu
 
 // Function to get widget configuration
 export function getWidgetConfig(widgetName: string) {
-	const widget = widgetFunctions.get().get(widgetName); // Get widget function
+	const widget = widgetFunctions.get(widgetName); // Get widget function
 	return widget ? widget({}).config : undefined; // Return widget configuration
 }
 
@@ -146,22 +144,78 @@ export async function updateWidgetConfig(widgetName: string, config: Record<stri
 	const widget = widgetFunctions.get().get(widgetName); // Get widget function
 	if (!widget) return;
 
-	widgetFunctions.update((currentWidgets) => {
-		const updatedWidget = (cfg: Record<string, unknown>) => ({
-			...widget(cfg),
-			config: { ...widget(cfg).config, ...config } // Update widget configuration
-		});
-		currentWidgets.set(widgetName, updatedWidget); // Update widget in the map
-		return currentWidgets;
+	const updatedWidget = (cfg: Record<string, unknown>) => ({
+		...widget(cfg),
+		config: { ...widget(cfg).config, ...config } // Update widget configuration
 	});
+	widgetFunctions = new Map(widgetFunctions).set(widgetName, updatedWidget); // Update widget in the map
 }
 
 // Function to load all widgets
-export async function loadWidgets() {
-	await initializeWidgets(); // Ensure widgets are initialized
+export async function loadWidgets(): Promise<Map<string, Widget>> {
+	initializeWidgets(); // Ensure widgets are initialized
 	const widgets = new Map<string, Widget>(); // Map to store widgets
-	for (const [name, widgetFn] of widgetFunctions.get().entries()) {
+	for (const [name, widgetFn] of widgetFunctions.entries()) {
 		widgets.set(name, widgetFn({})); // Add widget to map
 	}
 	return widgets; // Return widgets
+}
+
+// Function to initialize widgets
+function initializeWidgets(): void {
+	if (widgetFunctions.size > 0) return;
+
+	try {
+		const modules = import.meta.globEager<WidgetModule>('./{core,custom}/*/index.ts');
+
+		const widgetModules = Object.entries(modules).map(([path, module]) => {
+			try {
+				const parts = path.split('/');
+				const name = parts[parts.length - 2];
+				if (!name) {
+					logger.warn(`Skipping widget module: ${path} - Unable to extract widget name`);
+					return null;
+				}
+
+				if (typeof module.default !== 'function') {
+					logger.warn(`Skipping widget module: ${path} - No valid widget function found`);
+					return null;
+				}
+
+				return { name, module };
+			} catch (error) {
+				logger.error(`Failed to process widget module ${path}:`, error);
+				return null;
+			}
+		});
+
+		const validModules = widgetModules.filter((m): m is NonNullable<typeof m> => m !== null);
+
+		if (validModules.length === 0) {
+			throw new Error('No valid widgets found');
+		}
+
+		const newWidgetFunctions: Map<string, WidgetFunction> = new Map();
+
+		for (const { name, module } of validModules) {
+			const widgetFn = module.default;
+			widgetFn.Name = widgetFn.Name || name;
+			const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
+			newWidgetFunctions.set(capitalizedName, widgetFn);
+		}
+
+		widgetFunctions = newWidgetFunctions;
+		logger.info(`${newWidgetFunctions.size} Widgets initialized successfully`);
+	} catch (error) {
+		logger.error('Failed to initialize widgets:', error);
+		throw error;
+	}
+}
+
+// HMR setup
+if (import.meta.hot) {
+	import.meta.hot.accept('./{core,custom}/*/index.ts', () => {
+		initializeWidgets();
+		logger.info('Widgets reloaded due to file changes.');
+	});
 }

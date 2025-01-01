@@ -1,11 +1,11 @@
 /**
- * @file src/databases/mongodb/models/systemPreferences.ts
- * @description MongoDB schema and model for System Preferences.
- *
- * This module defines a schema and model for system-wide preferences and settings.
- */
+* @file src/databases/mongodb/models/systemPreferences.ts
+* @description MongoDB schema and model for System Preferences.
+*
+* This module defines a schema and model for system-wide preferences and settings.
+*/
 
-import mongoose, { Schema, Document } from 'mongoose';
+import { Schema } from 'mongoose';
 import type { SystemPreferences } from '@src/databases/dbInterface';
 
 // System Logger
@@ -34,7 +34,7 @@ systemPreferencesSchema.index({ category: 1 });
 // Static methods
 systemPreferencesSchema.statics = {
 	// Get all preferences
-	async getAllPreferences(): Promise<Document[]> {
+	async getAllPreferences(): Promise<SystemPreferences[]> {
 		try {
 			const prefs = await this.find().exec();
 			logger.debug(`Retrieved ${prefs.length} system preferences`);
@@ -46,7 +46,7 @@ systemPreferencesSchema.statics = {
 	},
 
 	// Get preference by key
-	async getPreference(key: string): Promise<Document | null> {
+	async getPreference(key: string): Promise<SystemPreferences | null> {
 		try {
 			const pref = await this.findOne({ key }).exec();
 			logger.debug(`Retrieved system preference: ${key}`);
@@ -58,7 +58,7 @@ systemPreferencesSchema.statics = {
 	},
 
 	// Get preferences by category
-	async getPreferencesByCategory(category: string): Promise<Document[]> {
+	async getPreferencesByCategory(category: string): Promise<SystemPreferences[]> {
 		try {
 			const prefs = await this.find({ category }).exec();
 			logger.debug(`Retrieved ${prefs.length} preferences for category: ${category}`);
@@ -70,7 +70,7 @@ systemPreferencesSchema.statics = {
 	},
 
 	// Set preference
-	async setPreference(key: string, value: any, category: string, description?: string): Promise<Document> {
+	async setPreference(key: string, value: Schema.Types.Mixed, category: string, description?: string): Promise<SystemPreferences> {
 		try {
 			const pref = await this.findOneAndUpdate({ key }, { value, category, description, updatedAt: new Date() }, { upsert: true, new: true }).exec();
 			logger.info(`Updated system preference: ${key}`);

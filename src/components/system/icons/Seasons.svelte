@@ -121,43 +121,63 @@
 {#if publicEnv.SEASONS === true}
 	{#if publicEnv.SEASON_REGION === 'Western_Europe'}
 		{#if isNewYear && !isDecember}
-			<div class="absolute left-1/2 top-[-50px] justify-center">
+			<!-- New Year New Confetti -->
+
+			<div class="-translate-y-1/2> absolute -top-28 left-1/2 z-10 -translate-x-1/2">
 				<Confetti noGravity x={[-1, 1]} y={[-1, 1]} delay={[0, 50]} colorRange={[0, 120]} />
 				<Confetti noGravity x={[-1, 1]} y={[-1, 1]} delay={[550, 550]} colorRange={[120, 240]} />
 				<Confetti noGravity x={[-1, 1]} y={[-1, 1]} delay={[1000, 1050]} colorRange={[240, 360]} />
 			</div>
-			<p class="absolute left-[-40px] top-[-50px] justify-center whitespace-nowrap text-2xl font-bold text-error-500">
+
+			<!-- New Year-->
+			<p class="absolute -top-28 left-1/2 z-20 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-4xl font-bold text-error-500">
 				{m.login_new_year()}
+			</p>
+
+			<p class="absolute left-1/2 top-28 z-20 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-5xl font-bold text-error-500">
 				{new Date().getFullYear()}
 			</p>
 		{/if}
-
 		{#if isValentine}
-			<div class="absolute left-1/2 top-[-50px] justify-center">
-				<iconify-icon icon="mdi:heart" width="40" class="absolute -left-[60px] -top-[20px] text-red-600"></iconify-icon>
+			<div class=" absolute -top-28 left-1/2 -translate-x-1/2 -translate-y-1/2">
+				<iconify-icon icon="mdi:heart" width="40" class="absolute -left-[60px] -top-[10px] text-red-600"></iconify-icon>
 				<iconify-icon icon="mdi:cards-heart" width="40" class="absolute -right-[60px] -top-[20px] text-pink-500"></iconify-icon>
 			</div>
+
+			<p class="absolute left-1/2 top-28 z-20 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-4xl font-bold text-pink-500">
+				Happy Valintine's Day
+			</p>
 		{/if}
 
 		{#if isEaster}
-			<iconify-icon icon="mdi:egg-easter" width="40" class="absolute -top-[18px] left-3 -rotate-[25deg] text-tertiary-500"></iconify-icon>
-			<iconify-icon icon="game-icons:easter-egg" width="40" class="absolute -top-[27px] right-[1em] rotate-12 text-yellow-500"></iconify-icon>
-			<iconify-icon icon="game-icons:high-grass" width="40" class="absolute -top-[35px] left-10 -rotate-[14deg] text-green-500"></iconify-icon>
-			<iconify-icon icon="mdi:easter" width="70" class="absolute -top-[61px] right-9 rotate-6 text-red-500"></iconify-icon>
+			<div class="absolute -top-24 left-1/2 -translate-x-1/2 -translate-y-1/2">
+				<iconify-icon icon="mdi:egg-easter" width="40" class="absolute -top-[18px] right-2 -rotate-[25deg] text-tertiary-500"></iconify-icon>
+				<iconify-icon icon="game-icons:easter-egg" width="40" class="absolute -top-[25px] left-0 rotate-12 text-yellow-500"></iconify-icon>
+				<iconify-icon icon="game-icons:high-grass" width="40" class="absolute -top-[5px] right-10 -rotate-[32deg] text-green-500"></iconify-icon>
+				<iconify-icon icon="mdi:easter" width="70" class="absolute -top-[31px] left-8 rotate-[32deg] text-red-500"></iconify-icon>
+			</div>
 		{/if}
 
 		{#if isMayDay}
-			<iconify-icon icon="noto:tulip" width="60" class="absolute -right-[20px] -top-[25px] rotate-12"></iconify-icon>
-			<iconify-icon icon="fluent-emoji:tulip" width="40" class="absolute -left-[10px] top-[5px] -rotate-12"></iconify-icon>
-			<iconify-icon icon="noto:sunflower" width="50" class="absolute -top-[48px] right-12"></iconify-icon>
+			<div class="absolute -top-24 left-1/2 -translate-x-1/2 -translate-y-1/2">
+				<iconify-icon icon="noto:tulip" width="60" class="absolute -left-[16px] -top-[45px] rotate-12"></iconify-icon>
+				<iconify-icon icon="fluent-emoji:tulip" width="40" class="absolute -top-[14px] right-[20px] -rotate-12"></iconify-icon>
+				<iconify-icon icon="noto:sunflower" width="50" class="absolute -top-[16px] left-10 rotate-6"></iconify-icon>
+			</div>
 		{/if}
 
 		{#if isHalloween}
-			<img src="/seasons/Halloween.avif" alt="Spider" class="absolute -bottom-[170px] left-0" />
+			<div class="">Halloween</div>
+			<img src="/seasons/Halloween.avif" alt="Spider" class="absolute -bottom-[200px] left-1/2 -translate-x-1/2 -translate-y-1/2" />
 		{/if}
 
 		{#if isChristmas}
-			<img src="/seasons/SantaHat.avif" alt="Santa hat" class="absolute -right-5 -top-5 h-20 w-20" />
+			<img
+				src="/seasons/SantaHat.avif"
+				alt="Santa hat"
+				class="absolute
+			-right-[105px] -top-14 h-20 w-20 -translate-x-1/2 -translate-y-1/2"
+			/>
 		{/if}
 	{/if}
 

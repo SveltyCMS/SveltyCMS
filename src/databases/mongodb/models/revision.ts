@@ -6,7 +6,7 @@
  * A Revision is a version of a document that is not yet published.
  */
 
-import mongoose, { Schema } from 'mongoose';
+import { Schema } from 'mongoose';
 import type { Revision } from '@src/databases/dbInterface';
 
 // Define the Revision model if it doesn't exist already

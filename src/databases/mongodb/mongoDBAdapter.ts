@@ -37,8 +37,7 @@ import type { VirtualFolderUpdateData } from '@src/types/virtualFolder';
 
 // Database
 import mongoose, { Schema } from 'mongoose';
-import type { Document, Model, FilterQuery, UpdateQuery } from 'mongoose';
-import type { dbInterface, Draft, Revision, Theme, Widget, DocumentContent } from '../dbInterface';
+import type { Draft, Revision, Theme, Widget, DocumentContent } from '../dbInterface';
 
 // Authentication Models
 import { UserSchema } from '@src/auth/mongoDBAuth/userAdapter';

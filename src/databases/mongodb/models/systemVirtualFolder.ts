@@ -6,7 +6,7 @@
  * Virtual folders are used to organize content in a hierarchical structure.
  */
 
-import mongoose, { Schema, Document } from 'mongoose';
+import { Schema } from 'mongoose';
 import type { SystemVirtualFolder } from '@src/databases/dbInterface';
 
 // System Logger
@@ -48,8 +48,8 @@ systemVirtualFolderSchema.statics = {
 		icon?: string;
 		order?: number;
 		type: 'folder' | 'collection';
-		metadata?: any;
-	}): Promise<Document> {
+		metadata?: Schema.Types.Mixed;
+	}): Promise<SystemVirtualFolder> {
 		try {
 			const folder = new this(folderData);
 			await folder.save();
@@ -62,7 +62,7 @@ systemVirtualFolderSchema.statics = {
 	},
 
 	// Get all virtual folders
-	async getAllVirtualFolders(): Promise<Document[]> {
+	async getAllVirtualFolders(): Promise<SystemVirtualFolder[]> {
 		try {
 			const folders = await this.find().sort({ order: 1 }).exec();
 			logger.debug(`Retrieved ${folders.length} virtual folders`);
@@ -74,7 +74,7 @@ systemVirtualFolderSchema.statics = {
 	},
 
 	// Get virtual folder by path
-	async getVirtualFolderByPath(path: string): Promise<Document | null> {
+	async getVirtualFolderByPath(path: string): Promise<SystemVirtualFolder | null> {
 		try {
 			const folder = await this.findOne({ path }).exec();
 			logger.debug(`Retrieved virtual folder: ${path}`);
@@ -86,7 +86,7 @@ systemVirtualFolderSchema.statics = {
 	},
 
 	// Get children of a virtual folder
-	async getVirtualFolderChildren(parentPath: string): Promise<Document[]> {
+	async getVirtualFolderChildren(parentPath: string): Promise<SystemVirtualFolder[]> {
 		try {
 			const folders = await this.find({
 				path: new RegExp(`^${parentPath}/[^/]+$`)
@@ -102,7 +102,7 @@ systemVirtualFolderSchema.statics = {
 	},
 
 	// Update virtual folder
-	async updateVirtualFolder(path: string, updateData: Partial<SystemVirtualFolder>): Promise<Document | null> {
+	async updateVirtualFolder(path: string, updateData: Partial<SystemVirtualFolder>): Promise<SystemVirtualFolder | null> {
 		try {
 			const folder = await this.findOneAndUpdate({ path }, updateData, { new: true }).exec();
 			if (folder) {
@@ -134,7 +134,7 @@ systemVirtualFolderSchema.statics = {
 	},
 
 	// Move virtual folder
-	async moveVirtualFolder(sourcePath: string, targetPath: string): Promise<Document | null> {
+	async moveVirtualFolder(sourcePath: string, targetPath: string): Promise<SystemVirtualFolder | null> {
 		try {
 			const folder = await this.findOneAndUpdate({ path: sourcePath }, { path: targetPath }, { new: true }).exec();
 			if (folder) {

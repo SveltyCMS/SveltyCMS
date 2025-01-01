@@ -6,7 +6,7 @@
  * Content Structure represents the hierarchical organization of content in the CMS.
  */
 
-import mongoose, { Schema, Document } from 'mongoose';
+import { Schema } from 'mongoose';
 import type { ContentStructure } from '@src/databases/dbInterface';
 
 // System Logger
@@ -56,7 +56,7 @@ contentStructureSchema.statics = {
 		collectionId?: string;
 		translations?: { languageTag: string; translationName: string }[];
 		_id?: string;
-	}): Promise<Document> {
+	}): Promise<ContentStructure> {
 		try {
 			const node = new this(contentData);
 			await node.save();
@@ -69,7 +69,7 @@ contentStructureSchema.statics = {
 	},
 
 	// Get all content structure nodes
-	async getContentStructure(): Promise<Document[]> {
+	async getContentStructure(): Promise<ContentStructure[]> {
 		try {
 			const nodes = await this.find().sort({ order: 1 }).exec();
 			logger.debug(`Retrieved \x1b[34m${nodes.length}\x1b[0m content structure nodes`);
@@ -81,7 +81,7 @@ contentStructureSchema.statics = {
 	},
 
 	// Get children of a specific path
-	async getContentStructureChildren(parentPath: string): Promise<Document[]> {
+	async getContentStructureChildren(parentPath: string): Promise<ContentStructure[]> {
 		try {
 			const nodes = await this.find({
 				path: new RegExp(`^${parentPath}/[^/]+$`)
@@ -97,7 +97,7 @@ contentStructureSchema.statics = {
 	},
 
 	// Get content structure by ID
-	async getContentStructureById(id: string): Promise<Document | null> {
+	async getContentStructureById(id: string): Promise<ContentStructure | null> {
 		try {
 			const node = await this.findById(id).exec();
 			logger.debug(`Retrieved content structure node: \x1b[34m${id}\x1b[0m`);
@@ -109,7 +109,7 @@ contentStructureSchema.statics = {
 	},
 
 	// Update content structure
-	async updateContentStructure(contentId: string, updateData: Partial<ContentStructure>): Promise<Document | null> {
+	async updateContentStructure(contentId: string, updateData: Partial<ContentStructure>): Promise<ContentStructure | null> {
 		try {
 			const node = await this.findByIdAndUpdate(contentId, updateData, { new: true }).exec();
 			if (node) {

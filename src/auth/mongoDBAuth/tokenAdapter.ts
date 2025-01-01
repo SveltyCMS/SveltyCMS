@@ -17,8 +17,8 @@
  * Used by the auth system to manage authentication tokens in a MongoDB database
  */
 
-import mongoose, { Schema } from 'mongoose';
-import type { Document, Types } from 'mongoose';
+import { Schema } from 'mongoose';
+import type { Types } from 'mongoose';
 
 import crypto from 'crypto';
 import { error } from '@sveltejs/kit';
@@ -43,11 +43,11 @@ export const TokenSchema = new Schema(
 );
 
 export class TokenAdapter implements Partial<authDBInterface> {
-	private TokenModel: mongoose.Model<Token & Document>;
+	private TokenModel: mongoose.Model<Token>;
 
 	constructor() {
 		// Create the Token model
-		this.TokenModel = mongoose.models?.auth_tokens || mongoose.model<Token & Document>('auth_tokens', TokenSchema);
+		this.TokenModel = mongoose.models?.auth_tokens || mongoose.model<Token>('auth_tokens', TokenSchema);
 	}
 
 	async createToken(data: { user_id: string; email: string; expires: Date; type: string }): Promise<string> {
@@ -67,7 +67,7 @@ export class TokenAdapter implements Partial<authDBInterface> {
 	// Validate a token
 	async validateToken(token: string, user_id?: string, type?: string): Promise<{ success: boolean; message: string; email?: string }> {
 		try {
-			const query: mongoose.FilterQuery<Token & Document> = { token };
+			const query: mongoose.FilterQuery<Token> = { token };
 			if (user_id) query.user_id = user_id;
 			if (type) query.type = type;
 
@@ -94,7 +94,7 @@ export class TokenAdapter implements Partial<authDBInterface> {
 	// Consume a token
 	async consumeToken(token: string, user_id?: string, type?: string): Promise<{ status: boolean; message: string }> {
 		try {
-			const query: mongoose.FilterQuery<Token & Document> = { token };
+			const query: mongoose.FilterQuery<Token> = { token };
 			if (user_id) query.user_id = user_id;
 			if (type) query.type = type;
 
@@ -145,7 +145,7 @@ export class TokenAdapter implements Partial<authDBInterface> {
 	}
 
 	private formatToken(
-		token: Document & {
+		token: {
 			_id: Types.ObjectId;
 			user_id: string;
 			token: string;

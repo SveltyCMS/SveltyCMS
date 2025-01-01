@@ -17,8 +17,8 @@
  * Utilized by the auth system to manage user sessions in a MongoDB database
  */
 
-import mongoose, { Schema } from 'mongoose';
-import type { Document, Types } from 'mongoose';
+import { Schema } from 'mongoose';
+import type { Types } from 'mongoose';
 
 // Types
 import type { Session, User } from '../types';
@@ -38,12 +38,12 @@ export const SessionSchema = new Schema(
 );
 
 export class SessionAdapter implements Partial<authDBInterface> {
-	private SessionModel: mongoose.Model<Session & typeof Document>;
+	private SessionModel: mongoose.Model<Session>;
 	private userAdapter: UserAdapter;
 
 	constructor() {
 		// Create the Session model if it doesn't exist
-		this.SessionModel = mongoose.models?.auth_sessions || mongoose.model<Session & typeof Document>('auth_sessions', SessionSchema);
+		this.SessionModel = mongoose.models?.auth_sessions || mongoose.model<Session>('auth_sessions', SessionSchema);
 		this.userAdapter = new UserAdapter();
 	}
 
@@ -161,7 +161,7 @@ export class SessionAdapter implements Partial<authDBInterface> {
 		}
 	}
 
-	private formatSession(session: typeof Document & { _id: Types.ObjectId; user_id: string; expires: Date }): Session {
+	private formatSession(session: { _id: Types.ObjectId; user_id: string; expires: Date }): Session {
 		return {
 			...session,
 			_id: session._id.toString(),

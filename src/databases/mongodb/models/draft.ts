@@ -7,7 +7,7 @@
  *
  */
 
-import mongoose, { Schema } from 'mongoose';
+import { Schema } from 'mongoose';
 import type { Draft } from '@src/databases/dbInterface';
 
 // System Logger

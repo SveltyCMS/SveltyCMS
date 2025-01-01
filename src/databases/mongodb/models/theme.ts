@@ -6,7 +6,7 @@
  * Themes control the visual appearance and layout of the content.
  */
 
-import mongoose, { Schema, Document } from 'mongoose';
+import { Schema } from 'mongoose';
 import type { Theme } from '@src/databases/dbInterface';
 
 // System Logger
@@ -75,10 +75,10 @@ themeSchema.statics = {
 		description?: string;
 		version: string;
 		author?: string;
-		config?: any;
+		config?: Schema.Types.Mixed;
 		templates?: Array<{ name: string; path: string; type: string }>;
 		assets?: Array<{ type: string; path: string }>;
-	}): Promise<Document> {
+	}): Promise<Theme> {
 		try {
 			const theme = new this(themeData);
 			await theme.save();
@@ -91,7 +91,7 @@ themeSchema.statics = {
 	},
 
 	// Get all themes
-	async getAllThemes(): Promise<Document[]> {
+	async getAllThemes(): Promise<Theme[]> {
 		try {
 			const themes = await this.find().exec();
 			logger.debug(`Retrieved ${themes.length} themes`);
@@ -103,7 +103,7 @@ themeSchema.statics = {
 	},
 
 	// Get active theme
-	async getActiveTheme(): Promise<Document | null> {
+	async getActiveTheme(): Promise<Theme | null> {
 		try {
 			const theme = await this.findOne({ isActive: true }).exec();
 			logger.debug('Retrieved active theme');
@@ -115,7 +115,7 @@ themeSchema.statics = {
 	},
 
 	// Get theme by name
-	async getThemeByName(name: string): Promise<Document | null> {
+	async getThemeByName(name: string): Promise<Theme | null> {
 		try {
 			const theme = await this.findOne({ name }).exec();
 			logger.debug(`Retrieved theme: ${name}`);
@@ -127,7 +127,7 @@ themeSchema.statics = {
 	},
 
 	// Update theme
-	async updateTheme(name: string, updateData: Partial<Theme>): Promise<Document | null> {
+	async updateTheme(name: string, updateData: Partial<Theme>): Promise<Theme | null> {
 		try {
 			const theme = await this.findOneAndUpdate({ name }, updateData, { new: true }).exec();
 			if (theme) {

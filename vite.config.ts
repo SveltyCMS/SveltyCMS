@@ -176,30 +176,7 @@ export default defineConfig({
 			outdir: './src/paraglide' // Output directory for generated files
 		})
 	],
-	build: {
-		rollupOptions: {
-			onwarn(warning, warn) {
-				// Ignore circular dependency warnings from semver
-				if (warning.code === 'CIRCULAR_DEPENDENCY' && warning.ids?.some((id) => id.includes('semver'))) {
-					return;
-				}
-				warn(warning);
-			}
-		},
-		chunkSizeWarningLimit: 1000,
-		target: 'esnext'
-	},
-	optimizeDeps: {
-		exclude: ['semver']
-	},
-	esbuild: {
-		format: 'esm',
-		target: 'esnext',
-		supported: {
-			'dynamic-import': true,
-			'import-meta': true
-		}
-	},
+
 	server: {
 		fs: { allow: ['static', '.'] } // Allow serving files from specific directories
 	},

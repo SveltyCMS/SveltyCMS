@@ -6,7 +6,7 @@
  * Widgets are reusable components that can be placed in different areas of the site.
  */
 
-import mongoose, { Schema, Document } from 'mongoose';
+import { Schema } from 'mongoose';
 import type { Widget } from '@src/databases/dbInterface';
 
 // System Logger
@@ -60,11 +60,11 @@ widgetSchema.statics = {
 		name: string;
 		type: string;
 		description?: string;
-		config?: any;
+		config?: Schema.Types.Mixed;
 		placement: {
 			area: string;
 			order?: number;
-			conditions?: Array<{ type: string; value: any }>;
+			conditions?: Array<{ type: string; value: Schema.Types.Mixed }>;
 		};
 		status?: 'active' | 'inactive' | 'draft';
 		version?: string;
@@ -73,8 +73,8 @@ widgetSchema.statics = {
 			view?: string[];
 			edit?: string[];
 		};
-		metadata?: any;
-	}): Promise<Document> {
+		metadata?: Schema.Types.Mixed;
+	}): Promise<Widget> {
 		try {
 			const widget = new this(widgetData);
 			await widget.save();
@@ -87,7 +87,7 @@ widgetSchema.statics = {
 	},
 
 	// Get all widgets
-	async getAllWidgets(): Promise<Document[]> {
+	async getAllWidgets(): Promise<Widget[]> {
 		try {
 			const widgets = await this.find().sort({ 'placement.order': 1 }).exec();
 			logger.debug(`Retrieved ${widgets.length} widgets`);
@@ -99,7 +99,7 @@ widgetSchema.statics = {
 	},
 
 	// Get widgets by area
-	async getWidgetsByArea(area: string): Promise<Document[]> {
+	async getWidgetsByArea(area: string): Promise<Widget[]> {
 		try {
 			const widgets = await this.find({
 				'placement.area': area,
@@ -116,7 +116,7 @@ widgetSchema.statics = {
 	},
 
 	// Get widget by name
-	async getWidgetByName(name: string): Promise<Document | null> {
+	async getWidgetByName(name: string): Promise<Widget | null> {
 		try {
 			const widget = await this.findOne({ name }).exec();
 			logger.debug(`Retrieved widget: ${name}`);
@@ -128,7 +128,7 @@ widgetSchema.statics = {
 	},
 
 	// Update widget
-	async updateWidget(name: string, updateData: Partial<Widget>): Promise<Document | null> {
+	async updateWidget(name: string, updateData: Partial<Widget>): Promise<Widget | null> {
 		try {
 			const widget = await this.findOneAndUpdate({ name }, updateData, { new: true }).exec();
 			if (widget) {
