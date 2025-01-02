@@ -91,47 +91,31 @@ function getMediaService(): MediaService {
 }
 
 const widget = (params: Params) => {
-	// Define the display function with reactive state
-	let display: (({ data }: { data: MediaType | FileList | File }) => string) | undefined;
+	// Define the display function
+	const display = params.display || (({ data }) => {
+		const url = data instanceof FileList ? URL.createObjectURL(data[0]) :
+			data instanceof File ? URL.createObjectURL(data) :
+				data?.thumbnail?.url || '';
 
-	if (!params.display) {
-		display = async ({ data }) => {
-			// Use $derived for computed URL
-			const url = $derived(() => {
-				if (data instanceof FileList) {
-					return URL.createObjectURL(data[0]);
-				} else if (data instanceof File) {
-					return URL.createObjectURL(data);
-				}
-				return data?.thumbnail?.url || '';
-			});
+		switch (params.type) {
+			case 'video':
+				return `<video class='max-w-[200px] inline-block' src="${url}" controls></video>`;
+			case 'audio':
+				return `<audio class='max-w-[200px] inline-block' src="${url}" controls></audio>`;
+			case 'document':
+				return `<a class='max-w-[200px] inline-block' href="${url}" target="_blank">${data?.name || 'Document'}</a>`;
+			default:
+				return `<img class='max-w-[200px] inline-block' src="${url}" alt="Media preview" />`;
+		}
+	});
 
-			// Use $derived for computed display content
-			const content = $derived(() => {
-				switch (params.type) {
-					case 'video':
-						return `<video class='max-w-[200px] inline-block' src="${url}" controls></video>`;
-					case 'audio':
-						return `<audio class='max-w-[200px] inline-block' src="${url}" controls></audio>`;
-					case 'document':
-						return `<a class='max-w-[200px] inline-block' href="${url}" target="_blank">${data?.name || 'Document'}</a>`;
-					default:
-						return `<img class='max-w-[200px] inline-block' src="${url}" alt="Media preview" />`;
-				}
-			});
-
-			return content;
-		};
-		display.default = true;
-	}
-
-	// Define the widget object with reactive state
+	// Define the widget object
 	const widget = {
 		Name: WIDGET_NAME,
-		GuiFields: $derived(() => getGuiFields(params, GuiSchema))
+		GuiFields: getGuiFields(params, GuiSchema)
 	};
 
-	// Define the field object with reactive properties
+	// Define the field object
 	const field = {
 		// default fields
 		display,
@@ -147,16 +131,16 @@ const widget = (params: Params) => {
 		permissions: params.permissions,
 
 		// widget specific
-		folder: $state(params.folder || 'unique'),
-		multiupload: $state(params.multiupload),
-		sizelimit: $state(params.sizelimit),
-		extensions: $state(params.extensions),
-		metadata: $state(params.metadata),
-		tags: $state(params.tags),
-		categories: $state(params.categories),
-		responsive: $state(params.responsive),
+		folder: params.folder || 'unique',
+		multiupload: params.multiupload,
+		sizelimit: params.sizelimit,
+		extensions: params.extensions,
+		metadata: params.metadata,
+		tags: params.tags,
+		categories: params.categories,
+		responsive: params.responsive,
 		customDisplayComponent: params.customDisplayComponent,
-		watermark: $state({
+		watermark: {
 			url: params.watermark?.url || '',
 			position: params.watermark?.position || 'center',
 			opacity: params.watermark?.opacity || 1,
@@ -164,7 +148,7 @@ const widget = (params: Params) => {
 			offsetX: params.watermark?.offsetX || 0,
 			offsetY: params.watermark?.offsetY || 0,
 			rotation: params.watermark?.rotation || 0
-		})
+		}
 	};
 
 	// Return the field and widget objects
@@ -182,14 +166,7 @@ widget.Icon = 'material-symbols:image-outline';
 widget.Description = m.widget_ImageUpload_description();
 
 widget.modifyRequest = async ({ data, type, id }: ModifyRequestParams<typeof widget>) => {
-	const requestState = $state({
-		loading: false,
-		error: null as string | null,
-		success: false
-	});
-
 	try {
-		requestState.loading = true;
 		const _data = data.get();
 		const extendedMetaData = meta_data as unknown as ExtendedMetaData;
 		const validId = ensureValidId(id);
@@ -202,27 +179,19 @@ widget.modifyRequest = async ({ data, type, id }: ModifyRequestParams<typeof wid
 			case 'POST':
 			case 'PATCH':
 				if (_data instanceof File) {
-					// Initialize MediaService when needed
 					const mediaService = getMediaService();
-
-					// Define proper access permissions
 					const access: MediaAccess = {
 						userId: validId,
 						permissions: [Permission.Read, Permission.Write, Permission.Delete]
 					};
 
-					// Use mediaService to save the file
 					const savedMedia = await mediaService.saveMedia(_data, validId, access);
-
-					// Verify we have a valid media object with ID
 					if (!hasMediaId(savedMedia)) {
 						throw new Error('Failed to get media ID from saved media');
 					}
 
-					// Now TypeScript knows savedMedia._id is a string
 					data.update(savedMedia._id);
 
-					// Handle removed media files
 					const removedFiles = extendedMetaData?.media_files?.removed;
 					if (Array.isArray(removedFiles)) {
 						const index = removedFiles.indexOf(savedMedia._id);
@@ -231,22 +200,18 @@ widget.modifyRequest = async ({ data, type, id }: ModifyRequestParams<typeof wid
 						}
 					}
 
-					// Update used_by reference
 					if (dbAdapter) {
 						await dbAdapter.updateOne('media_files', { _id: savedMedia._id }, { $addToSet: { used_by: validId } });
 						logger.info(`Updated media file usage reference: ${savedMedia._id}`);
 					}
 				} else if (_data && typeof _data === 'object' && '_id' in _data) {
-					const mediaId = String(_data._id); // Convert to string explicitly
+					const mediaId = String(_data._id);
 					data.update(mediaId);
 				}
 				break;
 			case 'DELETE':
 				if (isValidString(_data)) {
-					// Initialize MediaService when needed
 					const mediaService = getMediaService();
-
-					// Use mediaService to delete the file
 					await mediaService.deleteMedia(_data);
 					logger.info(`Deleted media file: ${_data}`);
 				} else if (dbAdapter) {
@@ -255,21 +220,19 @@ widget.modifyRequest = async ({ data, type, id }: ModifyRequestParams<typeof wid
 				}
 				break;
 		}
-		requestState.success = true;
+		return { success: true };
 	} catch (err) {
 		const errorMessage = err instanceof Error ? err.message : String(err);
-		requestState.error = errorMessage;
 		logger.error(`Error in mediaUpload widget: ${errorMessage}`);
-	} finally {
-		requestState.loading = false;
+		return { success: false, error: errorMessage };
 	}
 };
 
-// Widget Aggregations with reactive state
+// Widget Aggregations
 widget.aggregations = {
 	filters: async (info: AggregationInfo) => {
 		const field = info.field as ReturnType<typeof widget>;
-		const fieldName = $derived(() => getFieldName(field));
+		const fieldName = getFieldName(field);
 		const language = getLanguage(info);
 
 		return [
@@ -285,7 +248,7 @@ widget.aggregations = {
 	},
 	sorts: async (info: AggregationInfo) => {
 		const field = info.field as ReturnType<typeof widget>;
-		const fieldName = $derived(() => getFieldName(field));
+		const fieldName = getFieldName(field);
 		const language = getLanguage(info);
 
 		return [{ $sort: { [`${fieldName}.${language}`]: info.sort || 1 } }];

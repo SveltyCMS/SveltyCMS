@@ -1,4 +1,4 @@
-b/**
+/**
  * @file src/widgets/index.ts
  * @description Widget Index - Main entry point for widget system
  */

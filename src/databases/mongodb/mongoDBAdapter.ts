@@ -37,6 +37,21 @@ import type { VirtualFolderUpdateData } from '@src/types/virtualFolder';
 
 // Database
 import mongoose, { Schema } from 'mongoose';
+
+export async function initializeMongoDB() {
+	try {
+		if (!mongoose.connection.readyState) {
+			await mongoose.connect(process.env.MONGODB_URI || '', {
+				serverSelectionTimeoutMS: 5000,
+				socketTimeoutMS: 45000,
+			});
+			logger.info('MongoDB connection established');
+		}
+	} catch (error) {
+		logger.error('Failed to connect to MongoDB:', error);
+		throw new Error('MongoDB connection failed');
+	}
+}
 import type { Draft, Revision, Theme, Widget, DocumentContent } from '../dbInterface';
 
 // Authentication Models
@@ -75,10 +90,16 @@ interface VirtualFolderUpdateData {
 	path?: string;
 }
 
-
 export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
 	private collectionsInitialized = false;
+
+	constructor() {
+		// Setup models as soon as the adapter is initialized
+		this.setupAuthModels();
+		this.setupMediaModels();
+		this.setupWidgetModels();
+	};
 
 	// Connect to MongoDB
 
@@ -96,7 +117,7 @@ export class MongoDBAdapter implements dbInterface {
 					const subDirFiles = await this.scanDirectoryForContentStructure(fullPath);
 					collectionFiles.push(...subDirFiles);
 				} else if (entry.isFile() && entry.name.endsWith('.js')) {
-					logger.debug(`Found compiled collection file:  \x1b[34m${entry.name}\x1b[0m`);
+					logger.debug(`Found compiled collection file: \x1b[34m${entry.name}\x1b[0m`);
 					collectionFiles.push(fullPath);
 				}
 			}
@@ -114,127 +135,14 @@ export class MongoDBAdapter implements dbInterface {
 		}
 
 		try {
-			// Initialize widgets globally
-			if (!globalThis.widgets) {
-				logger.debug('Initializing widgets globally...');
-				await initializeWidgets();
-				globalThis.widgets = getWidgets();
-				logger.debug('Available widgets:', Object.keys(globalThis.widgets));
-			}
 
-			// Use posix paths for cross-platform compatibility and reference 'compiledCollections'
-			const compiledCollectionsPath = path.posix.resolve(process.cwd(), 'compiledCollections');
-			logger.debug('Compiled collections path:', compiledCollectionsPath);
-
-			// Check if compiledCollections directory exists
-			try {
-				await import('fs').then((fs) => fs.promises.access(compiledCollectionsPath));
-			} catch (error: unknown) {
-				logger.error(`Compiled collections directory not found at ${compiledCollectionsPath}:`, { error });
-				return;
-			}
-
-			// Track all valid collection UUIDs
-			const validCollectionUUIDs = new Set<string>();
-			const validPaths = new Set<string>();
-
-			// Scan all collections recursively
-			const collectionFiles = await this.scanDirectoryForContentStructure(compiledCollectionsPath);
-			logger.debug(
-				`Found \x1b[34m${collectionFiles.length}\x1b[0m compiled collection files in \x1b[34m${compiledCollectionsPath}\x1b[0m and subdirectories:`,
-				collectionFiles
-			);
-
-			// Process collections first
-			for (const filePath of collectionFiles) {
-				try {
-					logger.debug(`Processing compiled collection file: \x1b[34m${filePath}\x1b[0m`);
-
-					// Read the file content to get UUID
-					const content = await import('fs').then((fs) => fs.promises.readFile(filePath, 'utf8'));
-					const uuidMatch = content.match(/\/\/\s*UUID:\s*([a-f0-9-]{36})/i);
-					const uuid = uuidMatch ? uuidMatch[1] : null;
-
-					if (!uuid) {
-						logger.error(`Missing or invalid UUID in compiled schema for \x1b[34m${filePath}\x1b[0m`);
-						continue;
-					}
-
-					logger.debug(`Found UUID in file: \x1b[34m${uuid}\x1b[0m`);
-					validCollectionUUIDs.add(uuid);
-
-					// Import the collection using the file path
-					const collection = await import(/* @vite-ignore */ filePath + `?update=${Date.now()}`);
-					const collectionConfig = collection.default || collection.schema;
-
-					logger.debug(`Collection config for \x1b[34m${filePath}\x1b[0m:`, JSON.stringify(collectionConfig, null, 2));
-
-					if (collectionConfig) {
-						// Get the relative path from the collections directory
-						const relativePath = path.posix.relative(compiledCollectionsPath, filePath);
-						const dirPath = path.posix.dirname(relativePath);
-						// change to ensure you get the correct path from collections
-						const contentNodePath = `/collections/${dirPath}`;
-						validPaths.add(contentNodePath);
-
-						logger.debug(`Creating/Updating content structure with path: \x1b[34m${contentNodePath}\x1b[0m`);
-
-						// Create or update the content structure for the collection
-						await this.createOrUpdateContentStructure({
-							_id: uuid,
-							name: collectionConfig.name,
-							path: contentNodePath,
-							icon: collectionConfig.icon || 'bi:file-text',
-							isCollection: true,
-							collectionConfig
-						});
-
-						// Create or update the schema model for this collection
-						await this.createCollectionModel(collectionConfig);
-						logger.debug(`Successfully created/synced collection model for \x1b[34m${collectionConfig.name}\x1b[0m`);
-					}
-				} catch (error) {
-					logger.error(`Error processing collection ${filePath}:`, error);
+			// Initialize each collection model
+			for (const collection of collections) {
+				if (dbAdapter) {
+					logger.debug(`Creating collection model for: \x1b[34m${collection.name}\x1b[0m`);
+					await this.createCollectionModel(collection);
+					logger.debug(`Finished creating collection model for: \x1b[34m${collection.name}\x1b[0m`);
 				}
-			}
-
-			// Then process folders
-			for (const fullPath of validPaths) {
-				const parts = fullPath.split('/').filter(Boolean);
-				let currentPath = '';
-
-				for (let i = 0; i < parts.length; i++) {
-					currentPath = `/${parts.slice(0, i + 1).join('/')}`;
-					const nodeId = existingNode ? existingNode._id : crypto.randomUUID();
-
-					await this.createOrUpdateContentStructure({
-						_id: nodeId,
-						name: folderName,
-						path: currentPath,
-						icon: 'bi:folder',
-						isCollection: false
-					});
-					logger.debug(`Created folder structure: \x1b[34m${currentPath}\x1b[0m`);
-				}
-			}
-
-			// Clean up invalid collection nodes
-			const invalidNodes = await ContentStructureModel.find(
-				{
-					isCollection: true,
-					_id: { $nin: Array.from(validCollectionUUIDs) }
-				},
-				'_id'
-			)
-				.lean()
-				.exec();
-
-			if (invalidNodes.length > 0) {
-				logger.info(`Found \x1b[34m${invalidNodes.length}\x1b[0m invalid content structure. Cleaning up...`);
-				await ContentStructureModel.deleteMany({
-					isCollection: true,
-					_id: { $nin: Array.from(validCollectionUUIDs) }
-				});
 			}
 
 			logger.info('Content structure sync completed successfully');

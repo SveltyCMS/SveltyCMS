@@ -19,17 +19,29 @@ import * as m from '@src/paraglide/messages';
 
 const WIDGET_NAME = 'MegaMenu' as const;
 
-export const currentChild: Writable<any> = writable({});
+interface CurrentChild {
+	_id: string;
+	[key: string]: unknown;
+}
+
+export const currentChild: Writable<CurrentChild> = writable({});
 
 /**
  * Defines MegaMenu widget Parameters
  */
 const widget = (params: Params) => {
+	interface DisplayParams {
+		data: {
+			Header: Record<string, string>;
+		};
+		contentLanguage: string;
+	}
+
 	// Define the display function
-	let display: any;
+	let display: (params: DisplayParams) => Promise<string> | string;
 
 	if (!params.display) {
-		display = async ({ data, contentLanguage }) => {
+		display = async ({ data, contentLanguage }: DisplayParams) => {
 			// Return the data for the default content language
 			return data.Header[contentLanguage];
 		};
@@ -44,13 +56,22 @@ const widget = (params: Params) => {
 		GuiFields: getGuiFields(params, GuiSchema)
 	};
 
-	// Add the header
-	for (const level of params.fields) {
-		level.unshift(Input({ label: 'Header', translated: true }));
+	// Initialize fields if not provided
+	if (!Array.isArray(params.fields)) {
+		params.fields = [];
 	}
 
-	// Add the header
-	params.fields.unshift([Input({ label: 'Header', translated: true })]);
+	// Add header fields if fields array is empty
+	if (params.fields.length === 0) {
+		params.fields.push([Input({ label: 'Header', translated: true })]);
+	}
+
+	// Add header to each level
+	for (const level of params.fields) {
+		if (Array.isArray(level)) {
+			level.unshift(Input({ label: 'Header', translated: true }));
+		}
+	}
 
 	// Define the callback
 	const callback = ({ data }) => {
@@ -96,12 +117,18 @@ widget.Description = m.widget_megaMenu_description();
 // Cleans the children of a megamenu by removing any fields that the user does not have permission to read.
 widget.modifyRequest = async ({ collection, field, data, user, type, id }: ModifyRequestParams<typeof widget>) => {
 	const _data = data.get();
-	let old_data: Array<any>;
-	const process_OldData = (children, level = 1, result = []) => {
+	interface MenuItem {
+		_id: string;
+		children: MenuItem[];
+		[key: string]: unknown;
+	}
+
+	let old_data: Array<MenuItem>;
+	const process_OldData = (children: MenuItem[], level = 1, result: MenuItem[] = []) => {
 		for (const index in children) {
 			for (const _field of field.fields[level]) {
 				if (_field?.permissions?.[user.role].write == false) {
-					(result as Array<any>).push(children[index]);
+					result.push(children[index]);
 				}
 			}
 			if (children[index].children.length > 0 && field.fields[level + 1]?.length > 0) {

@@ -23,26 +23,7 @@ import { privateEnv } from '@root/config/private';
 import fs from 'node:fs/promises';
 import { browser } from '$app/environment';
 import { error } from '@sveltejs/kit';
-import mongoose from 'mongoose';
 import { connectToMongoDB } from './mongodb/dbconnect';
-
-// Initialize mongoose connection
-async function initializeMongoose() {
-	try {
-		if (!mongoose.connection.readyState) {
-			await mongoose.connect(privateEnv.MONGODB_URI, {
-				useNewUrlParser: true,
-				useUnifiedTopology: true,
-				serverSelectionTimeoutMS: 5000
-			});
-			logger.info('Mongoose connection established');
-		}
-	} catch (error) {
-		const message = `Mongoose connection error: ${error instanceof Error ? error.message : String(error)}`;
-		logger.error(message);
-		throw error;
-	}
-}
 
 // Auth
 import { Auth } from '@src/auth';
@@ -81,7 +62,7 @@ async function loadAdapters() {
 		logger.debug(`Loading ${privateEnv.DB_TYPE} adapters...`);
 
 		if (privateEnv.DB_TYPE === 'mongodb') {
-			const { MongoDBAdapter } = await import('./mongodb/mongoDBAdapter.js');
+			const { MongoDBAdapter } = await import('./mongodb/mongoDBAdapter');
 			dbAdapter = new MongoDBAdapter();
 			const userAdapter = new UserAdapter();
 			const sessionAdapter = new SessionAdapter();
@@ -213,12 +194,8 @@ async function initializeAdapters(): Promise<void> {
 		await loadAdapters();
 
 		if (!browser) {
-			// Step 2: Initialize mongoose connection
-			await initializeMongoose();
-
-			// Step 3: Connect to database before any other initialization
+			// Step 2: Connect to database before any other initialization
 			await connectToMongoDB();
-
 			// Step 3: Initialize media folder (filesystem operation, can be done in parallel)
 			await initializeMediaFolder();
 
@@ -241,7 +218,21 @@ async function initializeAdapters(): Promise<void> {
 			logger.debug('Initializing ContentManager...');
 			await contentManager.initialize();
 
-
+			// Get collection data after initialization
+			const { collections } = contentManager.getCollectionData();
+			if (!collections || collections.length === 0) {
+				logger.warn('No collections found after ContentManager initialization');
+			} else {
+				logger.debug('ContentManager initialized with collections:', { count: collections.length });
+				// Initialize each collection model
+				for (const collection of collections) {
+					if (dbAdapter) {
+						logger.debug(`Creating collection model for: \x1b[34m${collection.name}\x1b[0m`);
+						await dbAdapter.createCollectionModel(collection);
+						logger.debug(`Finished creating collection model for: \x1b[34m${collection.name}\x1b[0m`);
+					}
+				}
+			}
 		}
 
 		if (!authAdapter) {
