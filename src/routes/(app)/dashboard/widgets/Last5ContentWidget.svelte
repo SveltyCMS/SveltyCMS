@@ -27,22 +27,18 @@ Features:
 -->
 
 <script lang="ts">
-	export const id: string = crypto.randomUUID();
-	export const x: number = 0;
-	export const y: number = 0;
-	export const w: number = 2;
-	export const h: number = 5;
-	export const min: { w: number; h: number } = { w: 1, h: 1 };
-	export const movable: boolean = true;
-	export const resizable: boolean = true;
-
+	import BaseWidget from '../BaseWidget.svelte';
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
+	import { dbAdapter } from '@src/databases/db';
+
 	interface Props {
-		max: { w: number; h: number } | undefined;
+		label: string;
+		theme: 'light' | 'dark';
 	}
 
-	let { max }: Props = $props();
+	let { label = 'Last 5 Content', theme = 'light' }: Props = $props();
+	const themeType = theme as 'light' | 'dark';
 
 	const contentInfo = writable<any[]>([]);
 	const loading = writable<boolean>(true);
@@ -50,12 +46,10 @@ Features:
 
 	onMount(async () => {
 		try {
-			const res = await fetch('/api/last5Content');
-			if (!res.ok) {
-				throw new Error(`Failed to fetch data: ${res.statusText}`);
+			if (dbAdapter) {
+				const data = await dbAdapter.getLastFiveCollections();
+				contentInfo.set(data);
 			}
-			const data = await res.json();
-			contentInfo.set(data);
 			loading.set(false);
 		} catch (err: unknown) {
 			if (err instanceof Error) {
@@ -68,48 +62,19 @@ Features:
 	});
 </script>
 
-<div class="widget">
-	<h2>Last 5 Content</h2>
-	{#if $loading}
-		<p>Loading...</p>
-	{:else if $error}
-		<p>Error: {$error}</p>
-	{:else}
-		<ul>
-			{#each $contentInfo as content}
-				<li>{content.title}</li>
-			{/each}
-		</ul>
-	{/if}
-</div>
-
-<style>
-	.widget {
-		padding: 1rem;
-		border: 1px solid #ccc;
-		border-radius: 8px;
-		background: white;
-	}
-	.widget h2 {
-		margin-bottom: 1rem;
-		font-size: 1.25rem;
-		color: #333;
-	}
-	.widget ul {
-		list-style-type: none;
-		padding: 0;
-	}
-	.widget li {
-		margin-bottom: 0.5rem;
-		padding: 0.5rem;
-		border: 1px solid #e0e0e0;
-		border-radius: 4px;
-		background: #f9f9f9;
-	}
-	.widget li:last-child {
-		margin-bottom: 0;
-	}
-	.widget p {
-		color: #666;
-	}
-</style>
+<BaseWidget {label} theme={themeType} endpoint="/api/last5Content" pollInterval={5000}>
+	<div class="p-4">
+		<h2 class="mb-4 text-xl font-bold">Last 5 Content</h2>
+		{#if $loading}
+			<p class="text-gray-600">Loading...</p>
+		{:else if $error}
+			<p class="text-red-500">Error: {$error}</p>
+		{:else}
+			<ul class="list-none p-0">
+				{#each $contentInfo as content}
+					<li class="mb-2 rounded-md border border-gray-300 bg-gray-100 p-2">{content.name}</li>
+				{/each}
+			</ul>
+		{/if}
+	</div>
+</BaseWidget>
