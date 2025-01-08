@@ -5,12 +5,12 @@
  */
 
 import type { LayoutServerLoad } from './$types';
-import { contentManager } from '@src/databases/contentManager';
+import { contentManager } from '@src/content/ContentManager';
 import { DEFAULT_THEME } from '@src/databases/themeManager';
 
 
 // System Logger
-import logger from '@utils/logger.svelte';
+import { logger } from '@utils/logger.svelte';
 
 
 // Server-side load function for the layout

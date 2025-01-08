@@ -3,7 +3,7 @@
  * @description Widget Index - Main entry point for widget system
  */
 
-import type { WidgetFunction, Widget, WidgetModule } from './types';
+import type { WidgetFunction, WidgetModule } from './types';
 import type { GuiSchema } from './core/group/types';
 import { v4 as uuidv4 } from 'uuid'; // Import UUID generator for unique widget IDs
 
@@ -112,15 +112,9 @@ export async function initializeWidgets(): Promise<void> {
       // Fetch activation status from the database with fallback
       let activeWidgets: string[] = [];
       try {
-        const { db } = await import('../databases/db');
-        if (db && typeof db.fetchWidgetsFromDatabase === 'function') {
-          const dbWidgets = await db.fetchWidgetsFromDatabase();
-          activeWidgets = dbWidgets.filter((widget) => widget.is_active).map((widget) => widget.name);
-        } else {
-          // If database or method not available, activate core widgets
-          activeWidgets = Array.from(newWidgetFunctions.keys());
-          logger.debug('Using default widget activation');
-        }
+        const { fetchWidgets } = await import('../databases/dbInterface');
+        const dbWidgets = await fetchWidgets();
+        activeWidgets = dbWidgets.filter((widget) => widget.is_active).map((widget) => widget.name);
       } catch (error: unknown) {
         // If any error occurs, activate all widgets
         activeWidgets = Array.from(newWidgetFunctions.keys());

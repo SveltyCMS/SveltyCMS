@@ -290,26 +290,29 @@ class ContentManager {
 							continue;
 						}
 
+
 						if (existingNode) {
-							// Update node if is different
-							if (existingNode.icon !== processed.icon || existingNode.order !== processed.order) {
+							// Update node if UUID matches
+							if (existingNode._id?.toString() === processed.id) {
 								await dbAdapter!.updateContentStructure(existingNode._id!.toString(), {
 									icon: processed.icon,
-									order: processed.order
+									order: processed.order,
+									name: processed.name,
+									path: processed.path,
+									isCollection: processed.fields.length > 0
 								});
 								logger.info(`Updated metadata for content: \x1b[34m${path}\x1b[0m`);
+							} else {
+								// Create if not existent
+								await dbAdapter!.createContentStructure({
+									_id: processed.id, // Use UUID as _id
+									path: processed.path,
+									name: processed.name,
+									icon: processed.icon || (processed.fields.length > 0 ? 'bi:file-text' : 'bi:folder'),
+									order: 999,
+									isCollection: processed.fields.length > 0
+								});
 							}
-						} else {
-							//Create if not existent
-							await dbAdapter!.createContentStructure({
-								_id: processed.id, // Use UUID as _id
-								path: processed.path,
-								name: processed.name,
-								icon: processed.icon || (processed.fields.length > 0 ? 'bi:file-text' : 'bi:folder'),
-								order: 999,
-								isCollection: processed.fields.length > 0
-							});
-
 							// If this is a collection, create the collection model using the _id
 							if (processed.fields.length > 0) {
 								try {
@@ -445,7 +448,7 @@ class ContentManager {
 					contentNodes.forEach((node) => {
 						if (!node.isCollection) {
 							categoryStructure[node.path] = {
-								id: node._id?.toString() || uuidv4(),
+								id: node._id?.toString() || '',
 								name: node.name,
 								icon: node.icon || 'bi:folder',
 								order: node.order || 999,
@@ -470,7 +473,10 @@ class ContentManager {
 						for (const [index, part] of pathParts.entries()) {
 							currentPath = currentPath ? `${currentPath}/${part}` : part;
 							if (!currentLevel[part]) {
-								const id = uuidv4();
+								const id = '';
+								if (!id) {
+									continue;
+								}
 								currentLevel[part] = {
 									id,
 									name: part,
@@ -624,6 +630,7 @@ class ContentManager {
 			? filePath.substring(compiledCollectionsPath.length)
 			: filePath;
 
+		// Split path and remove empty parts
 		const parts = relativePath.split('/').filter((part) => part !== '');
 
 		// Remove file extension from last segment if it exists
@@ -631,7 +638,16 @@ class ContentManager {
 			parts[parts.length - 1] = parts[parts.length - 1].replace(/\.(ts|js)$/, '');
 		}
 
-		// Build the path for compiled collections
+		// Handle nested directory structures 
+		if (parts.length > 1) {
+			// Join all parts except the last one with slashes
+			const directoryPath = parts.slice(0, -1).join('/');
+			// Use the last part as the collection name
+			const collectionName = parts[parts.length - 1];
+			return `/${directoryPath}/${collectionName}`;
+		}
+
+		// Default case for single-level collections
 		return `/${parts.join('/')}`;
 	}
 

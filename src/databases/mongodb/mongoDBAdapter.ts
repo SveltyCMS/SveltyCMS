@@ -29,7 +29,6 @@
  */
 
 import { browser } from '$app/environment';
-import path from 'path';
 import type { Unsubscriber } from 'svelte/store';
 import type { ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
 import type { UserPreferences, WidgetPreference } from '@root/src/stores/userPreferences.svelte';
@@ -81,7 +80,7 @@ import { DEFAULT_THEME } from '@src/databases/themeManager';
 import { logger } from '@utils/logger.svelte';
 
 // Widget Manager
-import { initializeWidgets, getWidgets } from '@widgets/index';
+import '@widgets/index';
 
 // Types from virtualFolder.ts
 interface VirtualFolderUpdateData {
@@ -110,7 +109,7 @@ export class MongoDBAdapter implements dbInterface {
       const entries = await import('fs').then((fs) => fs.promises.readdir(dirPath, { withFileTypes: true }));
       logger.debug(`Scanning directory: \x1b[34m${dirPath}\x1b[0m`);
       for (const entry of entries) {
-        const fullPath = path.posix.join(dirPath, entry.name);
+        const fullPath = new URL(entry.name, dirPath).pathname;
         if (entry.isDirectory()) {
           // Recursively scan subdirectories
           logger.debug(`Found subdirectory: \x1b[34m${entry.name}\x1b[0m`);
@@ -195,21 +194,30 @@ export class MongoDBAdapter implements dbInterface {
   }
 
   // Get collection models
-  async getCollectionModels(): Promise<Record<string, Model<Document>>> {
-    if (this.collectionsInitialized) {
-      logger.debug('Collections already initialized, returning existing models.');
-      return mongoose.models as Record<string, Model<Document>>;
-    }
+  async getCollectionModels<T = unknown>(): Promise<Map<string, Model<T>>> {
     try {
-      // Initialize base models without waiting for collections
-      const baseModels: Record<string, Model<Document>> = {};
-      // Mark collections as initialized to prevent circular dependency
-      this.collectionsInitialized = true;
-      // Return base models - collections will be added later as needed
-      return baseModels;
+      const models = new Map<string, Model<T>>();
+
+      // Get all registered models
+      for (const [name, model] of Object.entries(mongoose.models)) {
+        if (name.startsWith('collection_')) {
+          models.set(name, model as Model<T>);
+        }
+      }
+
+      // Add base models if not already present
+      const baseModels = ['auth_users', 'auth_tokens', 'auth_sessions', 'Widget'];
+      for (const modelName of baseModels) {
+        if (mongoose.models[modelName] && !models.has(modelName)) {
+          models.set(modelName, mongoose.models[modelName] as Model<T>);
+        }
+      }
+
+      logger.debug(`Returning ${models.size} collection models`);
+      return models;
     } catch (error) {
       logger.error('Failed to get collection models: ' + error.message);
-      return {};
+      throw new Error('Failed to get collection models');
     }
   }
   // Set up authentication models
