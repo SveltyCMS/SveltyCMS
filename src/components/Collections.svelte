@@ -1,22 +1,15 @@
-<!-- 
+<!--
 @file src/components/Collections.svelte
 @component
 **Collections component to display & filter collections and categories.**
 
-```tsx
-<Collections />
-```
 
-@props
-- `mode` - The current mode of the component. Can be 'view', 'edit', 'create', 'delete', 'modify', or 'media'.
-
-Features: 
+Features:
 - display collections
 - search collections with clear button
 - support for nested categories with autocollapse
 - responsive sidebar integration
 - media gallery support
-- improved subcategory search and padding	
 -->
 
 <script lang="ts">
@@ -51,10 +44,12 @@ Features:
 
 	type ModeType = 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
 	// Props
+	let { data } = $props<{ data: PageData }>();
+	let collectionStructure = $derived(data.collectionStructure);
 	let modeSet = $state<ModeType>('view');
 	// Search Collections
 	let search = $state('');
-	let filteredNodes = $state<contentStructureSchema[]>([]);
+	let searchShow = $state(false);
 	let isMediaMode = $state(false);
 
 	// Update isMediaMode when modeSet changes
@@ -157,29 +152,29 @@ Features:
 			hover="hover:bg-primary-hover-token"
 			caretOpen="rotate-180"
 		>
-			{#if filteredNodes.length > 0}
-				{#each filteredNodes as node (node.id)}
+			{#if collectionStructure.length > 0}
+				{#each collectionStructure as category (category.id)}
 					<AccordionItem
-						bind:open={node.open}
+						bind:open={category.open}
 						regionPanel="divide-y dark:divide-black my-0"
-						class={`divide-y rounded-md bg-surface-300 dark:divide-black ${getIndentClass(node.level)}`}
+						class={`divide-y rounded-md bg-surface-300 dark:divide-black ${getIndentClass(0)}`}
 					>
 						{#snippet lead()}
-							<iconify-icon icon={node.icon} width="24" class="text-error-500 rtl:ml-2" use:popup={popupCollections}></iconify-icon>
+							<iconify-icon icon={category.icon} width="24" class="text-error-500 rtl:ml-2" use:popup={popupCollections}></iconify-icon>
 						{/snippet}
 						{#snippet summary()}
 							{#if sidebarState.sidebar.value.left === 'full'}
-								<p class="text-white">{node.name}</p>
+								<p class="text-white">{category.name}</p>
 							{/if}
 							<div class="card variant-filled-secondary p-4" data-popup="popupHover">
-								<p>{node.name}</p>
+								<p>{category.name}</p>
 								<div class="variant-filled-secondary arrow"></div>
 							</div>
 						{/snippet}
 						{#snippet content()}
 							<!-- Collections in this category -->
-							{#if node.children?.length}
-								{#each node.children as _collection (getCollectionKey(_collection, node.name))}
+							{#if category.collections.length}
+								{#each category.collections as _collection (getCollectionKey(_collection, category.name))}
 									<div
 										role="button"
 										tabindex={0}
@@ -200,7 +195,7 @@ Features:
 								{/each}
 							{/if}
 							<!-- Subcategories with Autocollapse -->
-							{#if node.children && node.children.length > 0}
+							{#if category.subcategories && category.subcategories.length > 0}
 								<Accordion
 									autocollapse
 									spacing="space-y-1"
@@ -211,29 +206,30 @@ Features:
 									caretOpen="rotate-180"
 									class="-mr-4"
 								>
-									{#each node.children as subNode (subNode.id)}
-										<div class={getIndentClass((node.level ?? 0) + 1)}>
+									{#each category.subcategories as subCategory (subCategory.id)}
+										<div class={getIndentClass(1)}>
 											<AccordionItem
-												bind:open={subCategoryOpenStates[`${node.name}-${subNode.name}`]}
-												onclick={() => handleSubcategoryToggle(node.id.toString(), subNode.name)}
+												bind:open={subCategoryOpenStates[`${category.name}-${subCategory.name}`]}
+												onclick={() => handleSubcategoryToggle(category.id.toString(), subCategory.name)}
 												regionPanel="divide-y dark:divide-black my-0"
 												class="divide-y rounded-md bg-surface-300 dark:bg-surface-400"
 											>
 												{#snippet lead()}
-													<iconify-icon icon={subNode.icon} width="24" class="text-error-500 rtl:ml-2" use:popup={popupCollections}></iconify-icon>
+													<iconify-icon icon={subCategory.icon} width="24" class="text-error-500 rtl:ml-2" use:popup={popupCollections}
+													></iconify-icon>
 												{/snippet}
 												{#snippet summary()}
 													{#if sidebarState.sidebar.value.left === 'full'}
-														<p class="uppercase text-white">{subNode.name}</p>
+														<p class="uppercase text-white">{subCategory.name}</p>
 													{/if}
 													<div class="card variant-filled-secondary p-4" data-popup="popupHover">
-														<p class="uppercase">{subNode.name}</p>
+														<p class="uppercase">{subCategory.name}</p>
 														<div class="variant-filled-secondary arrow"></div>
 													</div>
 												{/snippet}
 												{#snippet content()}
-													{#if subNode.children?.length}
-														{#each subNode.children as _collection (getCollectionKey(_collection, subNode.name.toString()))}
+													{#if subCategory.collections.length}
+														{#each subCategory.collections as _collection (getCollectionKey(_collection, subCategory.name.toString()))}
 															<div
 																role="button"
 																tabindex={0}
