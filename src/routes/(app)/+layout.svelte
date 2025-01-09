@@ -35,7 +35,6 @@ Key features:
 	import { screenSize, ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
 
 	// Components
-	import { contentManager } from '@src/content/ContentManager';
 	import Loading from '@components/Loading.svelte';
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import LeftSidebar from '@components/LeftSidebar.svelte';

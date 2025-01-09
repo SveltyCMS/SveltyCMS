@@ -220,6 +220,7 @@ export class MongoDBAdapter implements dbInterface {
       throw new Error('Failed to get collection models');
     }
   }
+
   // Set up authentication models
   setupAuthModels(): void {
     try {
@@ -677,7 +678,7 @@ export class MongoDBAdapter implements dbInterface {
   // Fetch active widgets
   async getActiveWidgets(): Promise<string[]> {
     try {
-      const widgets = await WidgetModel.find({ isActive: true }, 'name').lean().exec();
+      const widgets = await WidgetModel.find({ status: 'active' }, 'name').lean().exec();
       return widgets.map((widget) => widget.name);
     } catch (error) {
       logger.error(`Error fetching active widgets: ${error.message}`);
@@ -1212,20 +1213,7 @@ export class MongoDBAdapter implements dbInterface {
       throw Error(`Failed to fetch last five media documents`);
     }
   }
-  // Fetch widgets from database
-  async fetchWidgetsFromDatabase(): Promise<Widget[]> {
-    try {
-      const widgets = await WidgetModel.find()
-        .sort({ createdAt: -1 })
-        .lean()
-        .exec();
-      logger.info(`Fetched ${widgets.length} widgets from database`);
-      return widgets;
-    } catch (error) {
-      logger.error('Error fetching widgets from database:', error);
-      throw new Error('Failed to fetch widgets from database');
-    }
-  }
+
 
   // Methods for Disconnecting
 

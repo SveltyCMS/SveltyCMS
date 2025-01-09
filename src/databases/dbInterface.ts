@@ -179,7 +179,6 @@ export interface dbInterface {
   activateWidget(widgetName: string): Promise<void>; // Activate a widget
   deactivateWidget(widgetName: string): Promise<void>; // Deactivate a widget
   updateWidget(widgetName: string, updateData: Record<string, unknown>): Promise<void>; // Update a widget
-  fetchWidgetsFromDatabase(): Promise<Record<string, unknown>>; // Fetch widget configurations from database
 
   // Theme-related methods
   setDefaultTheme(themeName: string): Promise<void>; // Set the default theme.
