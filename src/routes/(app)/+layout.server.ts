@@ -15,27 +15,27 @@ import { logger } from '@utils/logger.svelte';
 
 // Server-side load function for the layout
 export const load: LayoutServerLoad = async ({ locals }) => {
-	const { theme } = locals;
+  const { theme } = locals;
 
-	try {
-		const collections = contentManager.getCollectionData().collections;
+  try {
+    const contentStructure = await contentManager.getContentStructureMap();
 
-		logger.dev('Loaded collections', {
-			collectionCount: collections.length
-		});
+    // logger.debug('Loaded layout data:', {
+    //   collectionCount: collections.length
+    // });
 
-		return {
-			theme: theme || DEFAULT_THEME,
-			collections
-		};
-	} catch (error) {
-		logger.error('Failed to load layout data:', error);
+    return {
+      theme: theme || DEFAULT_THEME,
+      contentStructure: contentStructure
+    };
+  } catch (error) {
+    logger.error('Failed to load layout data:', error);
 
-		// Return fallback data
-		return {
-			theme: theme || DEFAULT_THEME,
-			collections: [],
-			error: 'Failed to load collection data'
-		};
-	}
+    // Return fallback data
+    return {
+      theme: theme || DEFAULT_THEME,
+      contentStructure: [],
+      error: 'Failed to load collection data'
+    };
+  }
 };

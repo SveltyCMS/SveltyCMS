@@ -24,7 +24,7 @@
 
 	// Stores
 	import { collectionValue, mode } from '@src/stores/collectionStore.svelte';
-	import { categories } from '@root/src/stores/collectionStore.svelte';
+	import { contentStructure } from '@root/src/stores/collectionStore.svelte';
 	import { dbAdapter } from '@src/databases/db';
 
 	// Components
@@ -99,7 +99,7 @@
 
 	// Initialize the categories store with the current config
 	$effect(() => {
-		categories.set(currentConfig);
+		contentStructure.set(currentConfig);
 	});
 
 	// Modal Trigger - New Category
@@ -153,7 +153,7 @@
 			}
 		});
 		currentConfig = newConfig;
-		categories.set(newConfig);
+		contentStructure.set(newConfig);
 	}
 
 	async function addNewCategory(response: CategoryModalResponse): Promise<void> {
@@ -169,7 +169,7 @@
 		};
 
 		currentConfig = newConfig;
-		categories.set(newConfig);
+		contentStructure.set(newConfig);
 	}
 
 	// Check for name conflicts before saving
@@ -241,7 +241,7 @@
 				if (response.ok) {
 					showToast('Categories updated successfully', 'success');
 					currentConfig = currentConfig;
-					categories.set(currentConfig);
+					contentStructure.set(currentConfig);
 
 					// Create and dispatch a proper CustomEvent
 					const saveEvent = new CustomEvent('save', {

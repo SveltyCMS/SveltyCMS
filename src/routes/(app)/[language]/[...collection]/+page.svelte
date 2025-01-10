@@ -10,45 +10,53 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
-	import type { Schema } from '@src/content/types';
+	
 
 	// Stores
 	import { page } from '$app/stores';
 	import { contentLanguage } from '@stores/store';
-	import { collections, collection, collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
+	import { collection, collectionValue, mode} from '@root/src/stores/collectionStore.svelte';
 
 	// Components
 	import Fields from '@components/Fields.svelte';
 	import EntryList from '@components/EntryList.svelte';
 	import MediaGallery from '@src/routes/(app)/mediagallery/+page.svelte';
 
-	import { contentManager } from '@src/content/ContentManager';
-
 	// System Logger
 	import { logger } from '@utils/logger.svelte';
+	import type { User } from '@root/src/auth/types.js';
+	import { deserializeCollection } from '@root/src/utils/serialize';
+  
 
-	// State variables using Svelte 5 runes
+  interface Props {
+    data: { collection: string, language: string, user: User }
+  }
+  const {data}: Props = $props();
+
 	let forwardBackward = $state(false);
 	let initialLoadComplete = $state(false);
 	let navigationError = $state<string | null>(null);
 	let currentCollectionName = $state<string | undefined>(undefined);
 	let currentLanguage = $state<string | undefined>(undefined);
 	let isLoading = $state(true);
+  
 
 	// Initialize collection
 	async function initializeCollection() {
-		if (!collections.value || !$page.params.collection) return;
+		if (!$page.params.collection) return;
 
 		try {
 			// Wait for Content Manager initialization
-			await contentManager.waitForInitialization();
+			 
 
-			const selectedCollection = collections.value[$page.params.collection];
+			const selectedCollection = deserializeCollection(data.collection);
+      console.log('selectedCollection', selectedCollection);
+			// console.log('selectedCollection', selectedCollection, $page.params.collection);
 			if (selectedCollection) {
-				collection.set(selectedCollection as Schema);
+				collection.set(selectedCollection);
 				initialLoadComplete = true;
 				navigationError = null;
-				currentCollectionName = selectedCollection.name?.toString();
+				currentCollectionName = selectedCollection.id?.toString();
 				currentLanguage = contentLanguage.value;
 			} else if (initialLoadComplete) {
 				navigationError = `Collection not found: ${$page.params.collection}`;
@@ -69,7 +77,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		if (!browser) return;
 
 		window.addEventListener('popstate', handlePopState);
-		initializeCollection();
+		if(!initialLoadComplete) initializeCollection();
 
 		return () => {
 			window.removeEventListener('popstate', handlePopState);
@@ -80,13 +88,13 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	$effect(() => {
 		if (!initialLoadComplete || !collection?.value?.name) return;
 
-		const newCollectionName = collection.value.name.toString();
+		const newCollectionName = collection.value.id.toString();
 		if (newCollectionName === currentCollectionName) return;
 
 		currentCollectionName = newCollectionName;
 		if (!forwardBackward) {
 			forwardBackward = true;
-			goto(`/${contentLanguage.value}/${newCollectionName}`).then(() => {
+			goto(`/${contentLanguage.value}${collection.value.path.toString()}`).then(() => {
 				forwardBackward = false;
 			});
 		}
@@ -100,7 +108,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		if (newLanguage === currentLanguage) return;
 
 		currentLanguage = newLanguage;
-		goto(`/${newLanguage}/${collection.value.name.toString()}`);
+		goto(`/${newLanguage}${collection.value.path.toString()}`);
 	});
 
 	// Handle browser history navigation

@@ -34,7 +34,7 @@ Features:
 	// Stores
 	import { get } from 'svelte/store';
 	import { contentLanguage, systemLanguage } from '@stores/store';
-	import { mode, collectionValue, modifyEntry, statusMap, collection, collections, categories } from '@src/stores/collectionStore.svelte';
+	import { mode, collectionValue, modifyEntry, statusMap, collection, collections, contentStructure } from '@src/stores/collectionStore.svelte';
 	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@src/stores/sidebarStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 
@@ -155,7 +155,7 @@ Features:
 			// Fetch data using getData function
 			try {
 				data = await getData({
-					contentTypes: currentCollection?.id as any,
+					id: currentCollection?.id as any,
 					page: currentPage,
 					limit: rowsPerPage,
 					contentLanguage: currentLanguage,
@@ -385,7 +385,7 @@ Features:
 	});
 
 	let categoryName = $derived.by(() => {
-		if (!currentCollection?.id || !categories.value) return '';
+		if (!currentCollection?.id || !contentStructure.value) return '';
 
 		// Helper function to find parent category name
 		const findParentCategory = (cats: Record<string, CollectionData>): string => {
@@ -397,7 +397,7 @@ Features:
 			return '';
 		};
 
-		return findParentCategory(categories.value);
+		return findParentCategory(contentStructure.value);
 	});
 
 	let isCollectionEmpty = $derived(tableData.length === 0);

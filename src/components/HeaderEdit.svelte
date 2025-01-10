@@ -54,7 +54,7 @@
 
 	// Stores
 	import { page } from '$app/state';
-	import { collection, collectionValue, mode, modifyEntry, statusMap, collections, categories } from '@src/stores/collectionStore.svelte';
+	import { collection, collectionValue, mode, modifyEntry, statusMap, contentStructure } from '@src/stores/collectionStore.svelte';
 	import { toggleSidebar, sidebarState } from '@src/stores/sidebarStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 	import { contentLanguage, tabSet, validationStore, headerActionButton } from '@stores/store';
@@ -131,7 +131,7 @@
 	// Compute category name using derived state
 	let categoryName = $derived(
 		(() => {
-			const categoryEntries = Object.values(categories.value || {});
+			const categoryEntries = Object.values(contentStructure.value || {});
 			const cat = categoryEntries.find((cat: CollectionData) => cat.collections?.some((col: Schema) => col.name === collection.value?.name));
 			return cat?.name || '';
 		})()

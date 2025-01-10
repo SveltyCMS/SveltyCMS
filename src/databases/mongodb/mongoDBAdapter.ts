@@ -1017,7 +1017,7 @@ export class MongoDBAdapter implements dbInterface {
 
   async getContentStructure(): Promise<Document[]> {
     try {
-      const nodes = await ContentStructureModel.find().sort({ path: 1 }).exec();
+      const nodes = await ContentStructureModel.find().sort({ path: 1 }).lean().exec();
       logger.info(`Fetched \x1b[34m${nodes.length}\x1b[0m content structure.`);
       return nodes;
     } catch (error) {
