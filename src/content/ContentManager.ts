@@ -24,6 +24,7 @@ import widgetProxy, { initializeWidgets, resolveWidgetPlaceholder } from '@src/w
 import { logger } from '@utils/logger.svelte';
 // Server-side imports
 import fs from 'fs/promises';
+import { contentStructure } from '../stores/collectionStore.svelte';
 
 interface CacheEntry<T> {
   value: T;
@@ -79,12 +80,13 @@ class ContentManager {
   }
   // Wait for initialization to complete
   async waitForInitialization(): Promise<void> {
+
     if (this.dbInitPromise) {
       await this.dbInitPromise;
     }
   }
   // Initialize the collection manager
-  private async initialize(): Promise<void> {
+  public async initialize(): Promise<void> {
     if (this.initialized) return;
 
     try {
@@ -113,7 +115,7 @@ class ContentManager {
   getCollectionData() {
     return {
       collections: this.loadedCollections,
-      categories: this.loadedCategories
+      contentStructure: this.loadedCategories
     };
   } // Add this closing bracket
 
@@ -391,25 +393,9 @@ class ContentManager {
             await clearCache('cms:all_collections');
           }
         }
-        const cols = await this.loadCollections();
-        const categoryArray = await this.createCategories();
+        await this.loadCollections();
+        await this.createCategories();
         // Convert category array to record structure
-        const categoryRecord: Record<string, CollectionData> = {};
-        categoryArray.forEach((cat) => {
-          categoryRecord[cat.name] = {
-            id: cat.id.toString(),
-            name: cat.name,
-            icon: cat.icon,
-            subcategories: {}
-          };
-        });
-
-        const collectionRecord: Record<ContentTypes, Schema> = {} as Record<ContentTypes, Schema>;
-        cols.forEach((col) => {
-          if (col.name) {
-            collectionRecord[col.name] = col;
-          }
-        });
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         logger.error(`Error in updateCollections: ${errorMessage}`);
@@ -422,12 +408,16 @@ class ContentManager {
     return this.measurePerformance(async () => {
       try {
 
-        const collection_uuid = this.loadedCategories.get(path)?._id;
+        if (!this.initialized) {
+          logger.error('Content Manager not initialized');
+        }
+
+        const collection_uuid = this.loadedCategories.get(path)?.id;
 
         const collection = this.loadedCollections.find((collection) => collection.id == collection_uuid?.toString());
 
         if (!collection) {
-          throw new Error(`Collection not found: ${path}`);
+          throw new Error(`Collection not found in getCollection: ${path}`);
         }
 
         return collection;
@@ -437,18 +427,18 @@ class ContentManager {
         throw error;
 
       }
-    });
+    }, "Get Collection");
   }
 
   // Create categories with optimized processing and Redis caching
-  private async createCategories(): Promise<Category[]> {
-    return this.measurePerformance(async () => {
+  private async createCategories(): Promise<void> {
+    this.measurePerformance(async () => {
       try {
         // Try getting from Redis cache first
         if (isRedisEnabled()) {
-          const cachedCategories = await getCache<Category[]>('cms:categories');
+          const cachedCategories = await getCache<Map<string, SystemContent>>('cms:categories');
           if (cachedCategories) {
-            this.loadedCategories = cachedCategories;
+            this.loadedCategories = new Map(Object.entries(cachedCategories));
             return cachedCategories;
           }
         }
@@ -461,6 +451,8 @@ class ContentManager {
         if (dbAdapter) {
           try {
             contentNodes = await dbAdapter.getContentStructure();
+
+
           } catch (err) {
             logger.warn('Could not fetch content structure, proceeding with file-based structure', { error: err });
           }
@@ -470,18 +462,20 @@ class ContentManager {
         if (contentNodes.length > 0) {
           // Convert database structure to category structure
           contentNodes.forEach((node) => {
-            if (!node.isCollection) {
-              categoryStructure[node.path] = {
-                id: node._id?.toString() || '',
-                name: node.name,
-                icon: node.icon || 'bi:folder',
-                order: node.order || 999,
-                isCollection: node.isCollection,
-                subcategories: {},
-                collections: []
-              };
-            }
-          });
+            categoryStructure[node.path] = {
+
+              id: node._id?.toString() || '',
+              path: node.path,
+              name: node.name,
+              icon: node.icon || 'bi:folder',
+              order: node.order || 999,
+              isCollection: node.isCollection,
+              subcategories: {},
+              collections: []
+            };
+          }
+          );
+
         } else {
           // Process collections into category structure
           for (const collection of collectionsList) {
@@ -578,12 +572,17 @@ class ContentManager {
           .filter(([, cat]) => !cat.isCollection)
           .map(([name, cat]) => processCategory(name, cat));
 
+
+
+        this.loadedCategories = new Map(Object.entries(categoryStructure));
+
         // Cache in Redis if available
+
         if (isRedisEnabled()) {
-          await setCache('cms:categories', categoryArray, REDIS_TTL);
+          await setCache('cms:categories', contentStructure, REDIS_TTL);
         }
 
-        this.loadedCategories = categoryArray;
+
         return categoryArray;
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
@@ -731,7 +730,7 @@ class ContentManager {
     contentNodes.forEach((node) => {
       contentNodesMap.set(node.path, node);
     });
-    this.loadedCategories = contentNodesMap;
+
     return contentNodesMap;
   }
 
@@ -802,5 +801,6 @@ class ContentManager {
 
 // Export singleton instance
 export const contentManager = ContentManager.getInstance();
+
 // Export types
 export type { Schema, ContentTypes, Category, CollectionData };
