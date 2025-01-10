@@ -19,57 +19,32 @@ Features:
 -->
 
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import { writable, get } from 'svelte/store';
-	import Chart from 'chart.js/auto';
-	import type { ChartConfiguration } from 'chart.js';
+	import { onDestroy } from 'svelte';
+	import Chart, { type ChartConfiguration } from 'chart.js/auto';
 	import 'chartjs-adapter-date-fns';
+	import BaseWidget from '../BaseWidget.svelte';
 
-	interface Props {
-		// Props for widget configuration
-		label?: string;
-	}
+	let { label = 'CPU Usage', theme = 'light' } = $props();
+	const themeType = theme as 'light' | 'dark';
 
-	let { label = 'CPU Usage' }: Props = $props();
-	export const id: string = crypto.randomUUID();
-	export const x: number = 0;
-	export const y: number = 0;
-	export const w: number = 2;
-	export const h: number = 5;
-	export const min: { w: number; h: number } = { w: 1, h: 1 };
-	export const max: { w: number; h: number } | undefined = undefined;
-	export const movable: boolean = true;
-	export const resizable: boolean = true;
-
-	// CPU info store
-	const cpuInfo = writable<{ cpuUsage: number[]; timeStamps: string[] }>({ cpuUsage: [], timeStamps: [] });
-
-	let chart = $state<Chart<'line', number[], string> | undefined>(undefined);
+	// Chart state
+	let chart = $state<Chart | undefined>(undefined);
 	let chartCanvas = $state<HTMLCanvasElement | undefined>(undefined);
-	let interval: ReturnType<typeof setInterval>;
 
-	// Fetch CPU data from the server with cache-busting
-	async function fetchData() {
-		try {
-			const timestamp = new Date().getTime();
-			const res = await fetch(`/api/systemInfo?_=${timestamp}`);
-			if (!res.ok) {
-				throw new Error(`HTTP error! status: ${res.status}`);
-			}
-			const data = await res.json();
-			cpuInfo.set(data.cpuInfo);
-		} catch (error) {
-			console.error('Error fetching CPU data:', error);
-		}
-	}
+	let data:
+		| {
+				cpuInfo: {
+					cpuUsage: number[];
+					timeStamps: string[];
+				};
+		  }
+		| undefined;
 
-	onMount(async () => {
-		// Initial data fetch
-		await fetchData();
+	// Initialize chart when data is available
+	$effect(() => {
+		if (chartCanvas && data?.cpuInfo) {
+			const { cpuUsage, timeStamps } = data.cpuInfo;
 
-		const { cpuUsage, timeStamps } = get(cpuInfo);
-
-		if (chartCanvas) {
 			const config: ChartConfiguration<'line', number[], string> = {
 				type: 'line',
 				data: {
@@ -78,9 +53,11 @@ Features:
 						{
 							label: 'CPU Usage (%)',
 							data: cpuUsage,
-							borderColor: 'rgba(75, 192, 192, 1)',
-							backgroundColor: 'rgba(75, 192, 192, 0.2)',
-							fill: true
+							borderColor: themeType === 'dark' ? 'rgb(var(--color-primary-500))' : 'rgb(var(--color-primary-600))',
+							backgroundColor: themeType === 'dark' ? 'rgba(var(--color-primary-500), 0.2)' : 'rgba(var(--color-primary-600), 0.2)',
+							fill: true,
+							borderWidth: 2,
+							pointRadius: 3
 						}
 					]
 				},
@@ -90,11 +67,17 @@ Features:
 							type: 'time',
 							time: {
 								unit: 'second'
+							},
+							grid: {
+								color: themeType === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
 							}
 						},
 						y: {
 							beginAtZero: true,
-							max: 100
+							max: 100,
+							grid: {
+								color: themeType === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+							}
 						}
 					},
 					responsive: true,
@@ -104,6 +87,9 @@ Features:
 							callbacks: {
 								label: (context) => `Usage: ${context.raw}%`
 							}
+						},
+						legend: {
+							display: false
 						}
 					}
 				}
@@ -111,33 +97,24 @@ Features:
 
 			chart = new Chart(chartCanvas, config);
 		}
-
-		// Poll for new CPU data every 5 seconds
-		interval = setInterval(fetchData, 5000);
 	});
 
-	// Update the chart whenever the data changes
+	// Update chart when data changes
 	$effect(() => {
-		if (chart) {
-			const { cpuUsage, timeStamps } = get(cpuInfo);
+		if (chart && data?.cpuInfo) {
+			const { cpuUsage, timeStamps } = data.cpuInfo;
 			chart.data.labels = timeStamps;
 			chart.data.datasets[0].data = cpuUsage;
 			chart.update();
 		}
 	});
 
-	// Clean up on component destruction
+	// Clean up chart on component destruction
 	onDestroy(() => {
-		if (interval) clearInterval(interval);
 		if (chart) chart.destroy();
 	});
 </script>
 
-<!-- Widget UI -->
-<div
-	class="relative h-full w-full rounded-lg p-4 text-tertiary-500 transition-colors duration-300 ease-in-out dark:bg-surface-500 dark:text-primary-500"
-	aria-label="CPU Usage Widget"
->
-	<h2 class="text-center font-bold" aria-label="CPU Usage">{label}</h2>
+<BaseWidget {label} theme={themeType} endpoint="/api/systemInfo" pollInterval={5000}>
 	<canvas bind:this={chartCanvas} class="h-full w-full p-2" aria-label="CPU Usage Chart"></canvas>
-</div>
+</BaseWidget>

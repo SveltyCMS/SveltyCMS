@@ -4,9 +4,10 @@ import { logger } from './logger.svelte';
 import { publicEnv } from '@root/config/public';
 import { fileURLToPath } from 'node:url';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const getRootPath = () => path.resolve(__dirname, '../../');
+const getRootPath = () => {
+	const __dirname = path.dirname(fileURLToPath(import.meta.url));
+	return path.resolve(__dirname, '../../');
+};
 
 export async function uploadFile(file: File, folder?: string) {
 	// Construct the directory path based on the optional `folder` parameter

@@ -48,7 +48,7 @@ export const currentCollectionId = store<string | null>(null);
 // Keep existing stores
 export const collectionsLoading = store<boolean>(false);
 export const collectionsError = store<string | null>(null);
-export const unAssigned = store<Schema[]>([]);
+export const unAssigned = store<UUIDCollection>({} as UUIDCollection);
 export const collection = store<UUIDCollection>({} as UUIDCollection);
 export const collectionValue = store<Record<string, unknown>>({});
 export const mode = store<ModeType>('view');

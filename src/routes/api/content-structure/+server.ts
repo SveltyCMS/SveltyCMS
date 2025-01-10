@@ -167,6 +167,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				}
 
 				// Force recompilation of collections
+				ContentManager.instance = null;
 				await contentManager.updateCollections(true);
 				logger.info('Collections recompiled successfully');
 				return json({

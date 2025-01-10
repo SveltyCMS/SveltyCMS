@@ -102,19 +102,59 @@ export default defineConfig({
 										await compile({ userCollections, compiledCollections });
 										console.log('Compilation successful!');
 
-										// Trigger content-structure sync via API
-										try {
-											await fetch('/api/content-structure', {
-												method: 'POST',
-												headers: { 'Content-Type': 'application/json' },
-												body: JSON.stringify({
-													action: 'recompile'
-												})
-											});
-											console.log('Content structure sync triggered successfully');
-										} catch (error) {
-											console.error('Failed to trigger content structure sync:', error);
-										}
+										// Trigger content-structure sync via API with retry logic
+										const maxRetries = 3;
+										let retryCount = 0;
+										const syncContentStructure = async () => {
+											try {
+												// Create a proper Node.js request object
+												const req = {
+													method: 'POST',
+													url: '/api/content-structure',
+													originalUrl: '/api/content-structure',
+													headers: {
+														'content-type': 'application/json'
+													},
+													body: JSON.stringify({
+														action: 'recompile'
+													}),
+													on: (event, callback) => {
+														if (event === 'data') {
+															callback(req.body);
+														}
+														if (event === 'end') {
+															callback();
+														}
+													}
+												};
+
+												// Create a proper Node.js response object
+												const res = {
+													setHeader: () => { },
+													getHeader: () => { },
+													write: () => { },
+													end: () => { },
+													statusCode: 200
+												};
+
+												// Use the server's middleware to handle the request
+												await new Promise((resolve) => {
+													server.middlewares(req, res, () => resolve(undefined));
+												});
+
+												console.log('Content structure sync triggered successfully');
+											} catch (error) {
+												if (retryCount < maxRetries) {
+													retryCount++;
+													console.log(`Retrying content structure sync (attempt ${retryCount})...`);
+													await new Promise(resolve => setTimeout(resolve, 500));
+													return syncContentStructure();
+												}
+												console.error('Failed to trigger content structure sync after retries:', error);
+											}
+										};
+
+										await syncContentStructure();
 
 										try {
 											await generateContentTypes(server);

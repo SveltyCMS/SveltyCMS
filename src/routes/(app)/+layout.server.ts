@@ -5,19 +5,37 @@
  */
 
 import type { LayoutServerLoad } from './$types';
-
-// Theme
+import { contentManager } from '@src/content/ContentManager';
 import { DEFAULT_THEME } from '@src/databases/themeManager';
 
-import { contentManager } from '../../content/ContentManager';
+
+// System Logger
+import { logger } from '@utils/logger.svelte';
+
 
 // Server-side load function for the layout
 export const load: LayoutServerLoad = async ({ locals }) => {
 	const { theme } = locals;
-	const { collections } = contentManager.getCollectionData();
 
-	return {
-		theme: theme || DEFAULT_THEME,
-		collections
-	};
+	try {
+		const collections = contentManager.getCollectionData().collections;
+
+		logger.dev('Loaded collections', {
+			collectionCount: collections.length
+		});
+
+		return {
+			theme: theme || DEFAULT_THEME,
+			collections
+		};
+	} catch (error) {
+		logger.error('Failed to load layout data:', error);
+
+		// Return fallback data
+		return {
+			theme: theme || DEFAULT_THEME,
+			collections: [],
+			error: 'Failed to load collection data'
+		};
+	}
 };

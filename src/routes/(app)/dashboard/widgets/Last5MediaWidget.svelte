@@ -21,6 +21,7 @@ Features:
 -->
 
 <script lang="ts">
+	import BaseWidget from '../BaseWidget.svelte';
 	import { onMount } from 'svelte';
 
 	// Define the structure of a media document
@@ -44,21 +45,24 @@ Features:
 		media = data.data;
 	});
 
-	let { label } = $props();
+	let { label, theme = 'light' } = $props();
+	const themeType = theme as 'light' | 'dark';
 </script>
 
-<section>
-	<h2>Last 5 Added Media</h2>
-	<ul>
-		{#each media as { schemaName, recentDocs }}
-			<li>
-				<h3>{schemaName}</h3>
-				<ul>
-					{#each recentDocs as doc}
-						<li>{doc.createdAt}: {doc.createdBy}</li>
-					{/each}
-				</ul>
-			</li>
-		{/each}
-	</ul>
-</section>
+<BaseWidget {label} theme={themeType} endpoint="/api/media" pollInterval={5000}>
+	<section>
+		<h2>Last 5 Added Media</h2>
+		<ul>
+			{#each media as { schemaName, recentDocs }}
+				<li>
+					<h3>{schemaName}</h3>
+					<ul>
+						{#each recentDocs as doc}
+							<li>{doc.createdAt}: {doc.createdBy}</li>
+						{/each}
+					</ul>
+				</li>
+			{/each}
+		</ul>
+	</section>
+</BaseWidget>

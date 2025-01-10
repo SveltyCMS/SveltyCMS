@@ -21,7 +21,6 @@
 // Types
 import type { Schema } from '@root/src/content/types';
 import type { User } from '@src/auth/types';
-import type { CollectionModel } from '@src/databases/dbInterface';
 
 // Interface for database aggregation operations
 export interface AggregationPipeline {
@@ -33,7 +32,7 @@ export interface AggregationPipeline {
 }
 
 // Database
-import { dbAdapter, getCollectionModels } from '@src/databases/db';
+import { dbAdapter } from '@src/databases/db';
 
 // Utils
 import { modifyRequest } from '@src/routes/api/query/modifyRequest';
@@ -86,8 +85,8 @@ export async function _GET({
 			return new Response('Invalid or undefined schema ID.', { status: 400 });
 		}
 
-		// Get collection models and wait for them to be loaded
-		const collections = await getCollectionModels();
+		// Get collection models
+		const collections = await dbAdapter.getCollectionModels();
 		if (!collections) {
 			logger.error('Failed to get collection models');
 			return new Response('Internal server error: Failed to get collection models', { status: 500 });

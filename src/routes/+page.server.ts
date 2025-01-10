@@ -41,7 +41,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
 
 		// Construct redirect URL using UUID instead of name
-		const redirectUrl = `/${defaultLanguage}/${firstCollection.id}`;
+		const redirectUrl = `/${defaultLanguage}${firstCollection.path}`;
 
 		logger.info(`Redirecting to \x1b[34m${redirectUrl}\x1b[0m`);
 		throw redirect(302, redirectUrl);

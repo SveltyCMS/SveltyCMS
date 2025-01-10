@@ -15,7 +15,7 @@ import { logger } from '@utils/logger.svelte';
 // Widget schema
 export const widgetSchema = new Schema(
   {
-    _id: { type: String, required: true },
+    _id: { type: Schema.Types.Mixed, required: true },
     name: { type: String, required: true },
     type: { type: String, required: true },
     description: String,

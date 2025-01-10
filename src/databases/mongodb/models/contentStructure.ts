@@ -17,7 +17,7 @@ export const contentStructureSchema = new Schema(
   {
     _id: { type: String, required: true }, // UUID from compiled collection
     name: { type: String, required: true },
-    path: { type: String, required: true, unique: true }, // Always starts with /collections/
+    path: { type: String, required: true }, // Always starts with /collections/
     icon: { type: String, default: 'bi:file-text' }, // Default icon for collections
     order: { type: Number, default: 999 },
     translations: [

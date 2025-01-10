@@ -26,13 +26,15 @@ Features:
 - Enhanced debugging and logging
 -->
 <script lang="ts">
+	import BaseWidget from '../BaseWidget.svelte';
 	import { onMount, onDestroy, getContext } from 'svelte';
 	import { writable, get } from 'svelte/store';
 	import Chart from 'chart.js/auto';
 	import type { ChartConfiguration, Plugin, ArcElement } from 'chart.js';
 	import 'chartjs-adapter-date-fns';
 
-	let { label } = $props();
+	let { label, theme = 'light' } = $props();
+	const themeType = theme as 'light' | 'dark';
 	export const id: string = crypto.randomUUID();
 	export const x: number = 0;
 	export const y: number = 0;
@@ -149,16 +151,17 @@ Features:
 	});
 </script>
 
-<!-- Widget UI -->
-<div
-	class="relative h-full w-full rounded-lg p-4 text-tertiary-500 transition-colors duration-300 ease-in-out dark:bg-surface-500 dark:text-primary-500"
-	aria-label="Memory Usage Widget"
->
-	<h2 class="text-center font-bold">Memory Usage</h2>
-	<canvas bind:this={chartCanvas} class="h-full w-full p-2"></canvas>
-	<div class="absolute bottom-5 left-0 flex w-full justify-between gap-2 px-2 text-xs">
-		<p>Total: {($memoryInfo.totalMemMb / 1024).toFixed(2)} GB</p>
-		<p>Used: {($memoryInfo.usedMemMb / 1024).toFixed(2)} GB ({$memoryInfo.usedMemPercentage}%)</p>
-		<p>Free: {($memoryInfo.freeMemMb / 1024).toFixed(2)} GB ({$memoryInfo.freeMemPercentage}%)</p>
+<BaseWidget {label} endpoint="/api/systemInfo" pollInterval={5000} theme={themeType}>
+	<div
+		class="relative h-full w-full rounded-lg p-4 text-tertiary-500 transition-colors duration-300 ease-in-out dark:bg-surface-500 dark:text-primary-500"
+		aria-label="Memory Usage Widget"
+	>
+		<h2 class="text-center font-bold">Memory Usage</h2>
+		<canvas bind:this={chartCanvas} class="h-full w-full p-2"></canvas>
+		<div class="absolute bottom-5 left-0 flex w-full justify-between gap-2 px-2 text-xs">
+			<p>Total: {($memoryInfo.totalMemMb / 1024).toFixed(2)} GB</p>
+			<p>Used: {($memoryInfo.usedMemMb / 1024).toFixed(2)} GB ({$memoryInfo.usedMemPercentage}%)</p>
+			<p>Free: {($memoryInfo.freeMemMb / 1024).toFixed(2)} GB ({$memoryInfo.freeMemPercentage}%)</p>
+		</div>
 	</div>
-</div>
+</BaseWidget>
