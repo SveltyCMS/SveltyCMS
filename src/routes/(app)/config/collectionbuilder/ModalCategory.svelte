@@ -8,7 +8,7 @@
 	import { v4 as uuidv4 } from 'uuid';
 
 	// Stores
-	import { categories } from '@src/stores/collectionStore.svelte';
+	import { contentStructure } from '@src/stores/collectionStore.svelte';
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 
 	// Components
@@ -105,7 +105,7 @@
 
 					try {
 						// Update local store
-						categories.update((existingCategories) => {
+						contentStructure.update((existingCategories) => {
 							const newCategories = { ...existingCategories };
 							if (existingCategory.name) {
 								Object.keys(newCategories).forEach((key) => {
@@ -123,7 +123,7 @@
 							headers: {
 								'Content-Type': 'application/json'
 							},
-							body: JSON.stringify(categories.value)
+							body: JSON.stringify(contentStructure.value)
 						});
 
 						if (!response.ok) {
@@ -135,7 +135,7 @@
 
 						// Revert store changes on error
 						if (existingCategory.id) {
-							categories.update((cats) => ({
+							contentStructure.update((cats) => ({
 								...cats,
 								[existingCategory.id as string]: existingCategory as CollectionData
 							}));

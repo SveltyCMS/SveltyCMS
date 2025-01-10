@@ -55,7 +55,8 @@ export const mode = store<ModeType>('view');
 export const modifyEntry = store<(status?: keyof typeof statusMap) => Promise<void>>(() => Promise.resolve());
 export const selectedEntries = store<string[]>([]);
 export const targetWidget = store<Widget>({ permissions: {} });
-export const categories = store<Record<string, CollectionData>>({});
+
+export const contentStructure = store<Map<string, CollectionData>>({});
 
 // Reactive calculations using Svelte 5 runes
 export const totalCollections = store(() => Object.keys(collections.value).length);

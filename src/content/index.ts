@@ -19,7 +19,7 @@ import type { ProcessedModule } from './ContentManager';
 import { dbAdapter } from '@src/databases/db';
 
 // Stores
-import { categories, collections, unAssigned, collection, collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
+import { contentStructure, collections, unAssigned, collection, collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
 import type { Unsubscriber } from 'svelte/store';
 
 // Components
@@ -218,7 +218,7 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 		logger.debug('Setting categories:', _categories);
 
 		// Set the stores
-		categories.set(_categories);
+		contentStructure.set(_categories);
 		collections.set(_collections as Record<ContentTypes, Schema>);
 		unAssigned.set(Object.values(imports).filter((x) => !Object.values(_collections).includes(x)));
 
@@ -372,7 +372,7 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 	}
 }
 
-export { categories };
+export { contentStructure as categories };
 
 async function getCurrentPath() {
 	const contentNodes = await dbAdapter.getContentNodes();

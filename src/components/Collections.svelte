@@ -21,8 +21,8 @@ Features:
 
 	// Stores
 	import { get } from 'svelte/store';
-	import { shouldShowNextButton } from '@stores/store';
-	import { mode, collections } from '@src/stores/collectionStore.svelte';
+	import { contentLanguage, shouldShowNextButton } from '@stores/store';
+	import { mode, collections, contentStructure } from '@src/stores/collectionStore.svelte';
 	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@src/stores/sidebarStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 
@@ -44,13 +44,16 @@ Features:
 
 	type ModeType = 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
 	// Props
-	let { data } = $props<{ data: PageData }>();
-	let collectionStructure = $derived(data.collectionStructure);
+	
+  let structureNodes = $derived.by(()=>{
+    return  Array.from(contentStructure.value.values())
+   })
 	let modeSet = $state<ModeType>('view');
 	// Search Collections
 	let search = $state('');
 	let searchShow = $state(false);
 	let isMediaMode = $state(false);
+
 
 	// Update isMediaMode when modeSet changes
 	$effect(() => {
@@ -58,25 +61,19 @@ Features:
 	});
 
 	// Handle collection selection
-	function handleCollectionSelect(collection: contentStructureSchema | Schema) {
+	function handleCollectionSelect(selectedCollection: contentStructureSchema | Schema) {
 		if (mode.value === 'edit') {
 			mode.set('view');
 		} else {
 			mode.set(modeSet);
 		}
 
-		if ('isCollection' in collection) {
+		if ('isCollection' in selectedCollection) {
 			// For contentStructureSchema, we need to find the actual Schema
-			const collectionSchema = collections.value[collection.name];
-			if (collectionSchema) {
-				selectedCollection.set(collectionSchema);
-			}
-		} else {
-			// If it's already a Schema object, we can set it directly
-			selectedCollection.set(collection);
-		}
+	    goto(`/${contentLanguage.value}${selectedCollection.path.toString()}`);
 
-		handleSidebarToggle();
+    } 
+    handleSidebarToggle();
 		shouldShowNextButton.set(true);
 	}
 	// Generate unique key for collection items
@@ -152,8 +149,8 @@ Features:
 			hover="hover:bg-primary-hover-token"
 			caretOpen="rotate-180"
 		>
-			{#if collectionStructure.length > 0}
-				{#each collectionStructure as category (category.id)}
+			{#if structureNodes.length > 0}
+				{#each structureNodes as category (category._id)}
 					<AccordionItem
 						bind:open={category.open}
 						regionPanel="divide-y dark:divide-black my-0"
