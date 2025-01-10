@@ -1214,6 +1214,7 @@ export class MongoDBAdapter implements dbInterface {
     }
   }
 
+
   // Methods for Disconnecting
 
   // Disconnect from MongoDB
