@@ -30,12 +30,11 @@ Key features:
 	// Stores
 	import { page } from '$app/state';
 	import { contentLanguage, systemLanguage, isLoading } from '@stores/store';
-	import { collection, collections, mode } from '@root/src/stores/collectionStore.svelte';
+	import { contentStructure, collection, collections, mode } from '@root/src/stores/collectionStore.svelte';
 	import { sidebarState } from '@root/src/stores/sidebarStore.svelte';
 	import { screenSize, ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
 
 	// Components
-	import { contentManager } from '@src/content/ContentManager';
 	import Loading from '@components/Loading.svelte';
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import LeftSidebar from '@components/LeftSidebar.svelte';
@@ -55,7 +54,7 @@ Key features:
 
 	interface Props {
 		children?: import('svelte').Snippet;
-		data: { collections: any; language: string };
+		data: { contentStructure: any; language: string };
 	}
 
 	let { children, data }: Props = $props();
@@ -75,8 +74,9 @@ Key features:
 	$effect(() => {
 		const newCollection = collection.value;
 		if (!newCollection?.name) return;
+    console.log('newCollection', newCollection);
 
-		const newPath = `/${contentLanguage.value || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${String(newCollection.name)}`;
+		const newPath = `/${contentLanguage.value || publicEnv.DEFAULT_CONTENT_LANGUAGE}${String(newCollection.path)}`;
 		if (page.url.pathname !== newPath && mode.value !== 'media') {
 			goto(newPath);
 		}
@@ -104,7 +104,8 @@ Key features:
 	// Function to initialize collections using ContentManager
 	async function initializeCollections() {
 		try {
-			await collections.set(data.collections);
+			console.log('Loading collections...', data.contentStructure);
+			contentStructure.set(data.contentStructure);
 			isCollectionsLoaded = true;
 		} catch (error) {
 			console.error('Error loading collections:', error);

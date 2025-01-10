@@ -8,7 +8,7 @@
 	import Column from './Column.svelte';
 
 	// Store
-	import { categories } from '@src/stores/collectionStore.svelte';
+	import { contentStructure } from '@src/stores/collectionStore.svelte';
 
 	// Types
 	import type { CollectionData } from '@src/content/types';
@@ -114,7 +114,7 @@
 		try {
 			structuredItems = e.detail.items;
 			const newConfig = convertToConfig(structuredItems);
-			categories.set(newConfig);
+			contentStructure.set(newConfig);
 			contentNodes = newConfig;
 			dragError = null;
 		} catch (error) {
@@ -184,7 +184,7 @@
 		try {
 			structuredItems = newItems;
 			const newConfig = convertToConfig(newItems);
-			categories.set(newConfig);
+			contentStructure.set(newConfig);
 			contentNodes = newConfig;
 			dragError = null;
 		} catch (error) {

@@ -16,6 +16,8 @@ import GuiField from './GuiField.svelte';
 import { getFieldName } from '@utils/utils';
 import { dbAdapter } from '@src/databases/db'; // Import your database adapter
 
+// Update all dbAdapter calls to use dbAdapter.get()
+
 /**
  * Defines Relation widget Parameters
  */
@@ -24,7 +26,7 @@ export type Params<K, T> = {
 	label: string;
 	display?: DISPLAY;
 	db_fieldName?: string;
-	widget?: any;
+	widget?: typeof Input | typeof Toggles | typeof IconifyPicker | typeof PermissionsSetting | typeof GuiField;
 	required?: boolean;
 	// translated?: boolean;
 	icon?: string;
@@ -73,13 +75,9 @@ export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
 		graphql: '', // relation does not need its own graphql because it copies related collection type
 		resolver: {
 			[collection.name]: {
-				async [getFieldName(field)](parent: any) {
-					if (!dbAdapter) {
-						throw Error('Database adapter is not initialized.');
-					}
-
-					// Fetch related document using dbAdapter
-					const res = await dbAdapter.findOne(field.relation, { _id: parent[getFieldName(field)] });
+				async [getFieldName(field)](parent: Record<string, unknown>) {
+					const adapter = await dbAdapter.get();
+					const res = await adapter.findOne(field.relation, { _id: parent[getFieldName(field)] as string });
 
 					return res;
 				}

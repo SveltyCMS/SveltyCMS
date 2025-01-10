@@ -23,7 +23,7 @@
 	import { page } from '$app/stores';
 	import { get } from 'svelte/store';
 	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store';
-	import { mode } from '@stores/collectionStore.svelte';
+	import { contentStructure, mode } from '@stores/collectionStore.svelte';
 	import { toggleSidebar, sidebarState, userPreferredState, handleSidebarToggle } from '@src/stores/sidebarStore.svelte';
 	import { screenSize } from '@stores/screenSizeStore.svelte';
 
@@ -243,7 +243,7 @@
 	</button>
 
 	<!--SideBar Middle -->
-	<Collections />
+	<Collections  data={contentStructure.value}/>
 
 	<!-- Sidebar Left Footer -->
 	<div class="mb-2 mt-auto bg-white dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900">

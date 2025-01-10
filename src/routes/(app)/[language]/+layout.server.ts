@@ -23,47 +23,54 @@ import { DEFAULT_THEME } from '@src/databases/themeManager';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
+import { contentManager } from '@root/src/content/ContentManager';
+import { serializeCollection } from '@root/src/utils/serialize';
 
 // Server-side load function for the layout
 export const load: LayoutServerLoad = async ({ locals, params }) => {
-	const { user, theme } = locals;
-	const { language, collection } = params;
+  const { user, theme } = locals;
+  const { language, collection } = params;
 
-	logger.debug(`Layout server load started. Language: \x1b[34m${language}\x1b[0m`);
+  logger.debug(`Layout server load started. Language: \x1b[34m${language}\x1b[0m`);
 
-	// ensure language exist :
-	if (!language || !publicEnv.AVAILABLE_SYSTEM_LANGUAGES.includes(language) || !collection) {
-		const message = 'The language parameter is missing.';
-		logger.warn(message);
-		throw error(404, message);
-	}
+  // ensure language exist :
+  if (!language || !publicEnv.AVAILABLE_SYSTEM_LANGUAGES.includes(language) || !collection) {
+    const message = 'The language parameter is missing.';
+    logger.warn(message);
+    throw error(404, message);
+  }
 
-	// Ensure the user is authenticated (this should already be handled by hooks.server.ts)
-	if (!user) {
-		logger.warn('User not authenticated, redirecting to login.');
-		throw redirect(302, '/login');
-	}
+  // Ensure the user is authenticated (this should already be handled by hooks.server.ts)
+  if (!user) {
+    logger.warn('User not authenticated, redirecting to login.');
+    throw redirect(302, '/login');
+  }
 
-	// Redirect to user page if lastAuthMethod is token
-	if (user.lastAuthMethod === 'token') {
-		logger.debug('User authenticated with token, redirecting to user page.');
-		throw redirect(302, '/user');
-	}
+  // Redirect to user page if lastAuthMethod is token
+  if (user.lastAuthMethod === 'token') {
+    logger.debug('User authenticated with token, redirecting to user page.');
+    throw redirect(302, '/user');
+  }
 
-	// Validate the requested language
-	if (!publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(language)) {
-		const message = `The language '${language}' is not available.`;
-		logger.warn(message);
-		throw error(404, message);
-	}
+  // Validate the requested language
+  if (!publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(language)) {
+    const message = `The language '${language}' is not available.`;
+    logger.warn(message);
+    throw error(404, message);
+  }
 
-	return {
-		theme: theme || DEFAULT_THEME,
-		language,
-		user: {
-			username: user.username,
-			role: user.role,
-			avatar: user.avatar
-		}
-	};
-};
+  const currentCollection = await contentManager.getCollection(`/${collection}`);
+
+
+
+  return {
+    theme: theme || DEFAULT_THEME,
+    language,
+    collection: serializeCollection(currentCollection),
+    user: {
+      username: user.username,
+      role: user.role,
+      avatar: user.avatar
+    }
+  };
+};;

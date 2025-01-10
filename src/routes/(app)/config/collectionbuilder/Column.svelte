@@ -10,7 +10,7 @@
 	import type { CollectionData } from '@src/content/types';
 
 	// Stores
-	import { mode, categories } from '@root/src/stores/collectionStore.svelte';
+	import { mode, contentStructure } from '@root/src/stores/collectionStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -119,7 +119,7 @@
 
 				try {
 					// Update local store only, saving will happen when save button is clicked
-					categories.update((cats) => {
+					contentStructure.update((cats) => {
 						const newCategories = { ...cats };
 						Object.entries(newCategories).forEach(([key, value]) => {
 							if (value.name === category.name) {
@@ -137,7 +137,7 @@
 					updateError = error instanceof Error ? error.message : 'Failed to update category';
 
 					// Revert store changes on error
-					categories.update((cats) => {
+					contentStructure.update((cats) => {
 						const newCategories = { ...cats };
 						Object.entries(newCategories).forEach(([key, value]) => {
 							if (value.name === response.newCategoryName) {

@@ -17,8 +17,8 @@ import ts from 'typescript';
 import type widgets from '@widgets';
 import type { ModifyRequestParams } from '@widgets';
 
-const COLLECTIONS_DIR = path.join(__dirname, 'collections');
-const TYPES_FILE = path.join(__dirname, 'types.ts');
+const COLLECTIONS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'collections');
+const TYPES_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'types.ts');
 const EXCLUDED_FILES = new Set(['index.ts', 'vite.ts']);
 
 // Auth

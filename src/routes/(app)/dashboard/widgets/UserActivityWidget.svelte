@@ -21,6 +21,7 @@ Features:
 -->
 
 <script lang="ts">
+	import BaseWidget from '../BaseWidget.svelte';
 	import { onMount } from 'svelte';
 
 	interface Activity {
@@ -41,14 +42,17 @@ Features:
 		activities = users.flatMap((user) => user.activities);
 	});
 
-	let { label } = $props();
+	let { label, theme = 'light' } = $props();
+	const themeType = theme as 'light' | 'dark';
 </script>
 
-<section>
-	<h2>Recent User Activities</h2>
-	<ul>
-		{#each activities as activity}
-			<li>{activity.timestamp}: {activity.description}</li>
-		{/each}
-	</ul>
-</section>
+<BaseWidget {label} theme={themeType} endpoint="/api/users" pollInterval={5000}>
+	<section>
+		<h2>Recent User Activities</h2>
+		<ul>
+			{#each activities as activity}
+				<li>{activity.timestamp}: {activity.description}</li>
+			{/each}
+		</ul>
+	</section>
+</BaseWidget>

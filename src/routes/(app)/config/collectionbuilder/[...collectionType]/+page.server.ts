@@ -148,9 +148,9 @@ export const actions: Actions = {
 			content = await prettier.format(content, prettierConfig);
 
 			if (originalName && originalName !== contentTypes) {
-				fs.renameSync(`${import.meta.env.collectionsFolderTS}/${originalName}.ts`, `${import.meta.env.collectionsFolderTS}/${contentTypes}.ts`);
+				fs.renameSync(`${process.env.COLLECTIONS_FOLDER_TS}/${originalName}.ts`, `${process.env.COLLECTIONS_FOLDER_TS}/${contentTypes}.ts`);
 			}
-			fs.writeFileSync(`${import.meta.env.collectionsFolderTS}/${contentTypes}.ts`, content);
+			fs.writeFileSync(`${process.env.COLLECTIONS_FOLDER_TS}/${contentTypes}.ts`, content);
 			await compile();
 			await generateContentTypes();
 			await generateCollectionFieldTypes();
@@ -177,7 +177,7 @@ export const actions: Actions = {
 			config = config.replace(/["']🗑️|🗑️["']/g, '').replace(/🗑️/g, '');
 			const prettierConfig = await getPrettierConfig();
 			config = await prettier.format(config, prettierConfig);
-			fs.writeFileSync(`${import.meta.env.collectionsFolderTS}/config.ts`, config);
+			fs.writeFileSync(`${process.env.COLLECTIONS_FOLDER_TS}/config.ts`, config);
 			await compile();
 			await contentManager.updateCollections(true);
 			await getCollectionModels();
@@ -194,7 +194,7 @@ export const actions: Actions = {
 		try {
 			const formData = await request.formData();
 			const contentTypes = JSON.parse(formData.get('contentTypes') as string);
-			fs.unlinkSync(`${import.meta.env.collectionsFolderTS}/${contentTypes}.ts`);
+			fs.unlinkSync(`${process.env.COLLECTIONS_FOLDER_TS}/${contentTypes}.ts`);
 			await compile();
 			await contentManager.updateCollections(true);
 			await getCollectionModels();
