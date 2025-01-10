@@ -18,7 +18,9 @@ export const load: LayoutServerLoad = async ({ locals }) => {
   const { theme } = locals;
 
   try {
-    const contentStructure = await contentManager.getContentStructureMap();
+    await contentManager.initialize();
+
+    const { contentStructure } = contentManager.getCollectionData();
 
     // logger.debug('Loaded layout data:', {
     //   collectionCount: collections.length

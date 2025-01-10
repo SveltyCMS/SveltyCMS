@@ -59,6 +59,7 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
     throw error(404, message);
   }
 
+  await contentManager.initialize();
   const currentCollection = await contentManager.getCollection(`/${collection}`);
 
 
