@@ -10,7 +10,7 @@
  * Features:
  * - Document update support
  * - Pre-update request modification
- * - Performance monitoring with visual indicators
+ * - Performance monitoring
  * - Comprehensive error handling and logging
  */
 
@@ -25,15 +25,6 @@ import { modifyRequest } from './modifyRequest';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-
-// Performance monitoring utilities
-const getPerformanceEmoji = (responseTime: number): string => {
-	if (responseTime < 100) return '🚀'; // Super fast
-	if (responseTime < 500) return '⚡'; // Fast
-	if (responseTime < 1000) return '⏱️'; // Moderate
-	if (responseTime < 3000) return '🕰️'; // Slow
-	return '🐢'; // Very slow
-};
 
 // Function to handle PATCH requests for a specified collection
 export async function _PATCH({ data, schema, user }: { data: FormData; schema: Schema; user: User }) {
@@ -74,19 +65,16 @@ export async function _PATCH({ data, schema, user }: { data: FormData; schema: S
 			type: 'PATCH'
 		});
 		const modifyDuration = performance.now() - modifyStart;
-		const modifyEmoji = getPerformanceEmoji(modifyDuration);
-		logger.debug(`Request modifications completed in ${modifyDuration.toFixed(2)}ms ${modifyEmoji}`);
+		logger.debug(`Request modifications completed in ${modifyDuration.toFixed(2)}ms`);
 
 		// Update the document
 		const updateStart = performance.now();
 		const updateResult = await collection.updateOne({ _id: parsedData._id }, result[0]);
 		const updateDuration = performance.now() - updateStart;
-		const updateEmoji = getPerformanceEmoji(updateDuration);
-		logger.debug(`Document update completed in ${updateDuration.toFixed(2)}ms ${updateEmoji}`);
+		logger.debug(`Document update completed in ${updateDuration.toFixed(2)}ms`);
 
 		const totalDuration = performance.now() - start;
-		const totalEmoji = getPerformanceEmoji(totalDuration);
-		logger.info(`PATCH operation completed in ${totalDuration.toFixed(2)}ms ${totalEmoji} for schema: ${schema.id}`, { user: user._id });
+		logger.info(`PATCH operation completed in ${totalDuration.toFixed(2)}ms for schema: ${schema.id}`, { user: user._id });
 
 		// Return the result with performance metrics
 		return new Response(
@@ -109,10 +97,9 @@ export async function _PATCH({ data, schema, user }: { data: FormData; schema: S
 		);
 	} catch (error) {
 		const duration = performance.now() - start;
-		const emoji = getPerformanceEmoji(duration);
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 		const errorStack = error instanceof Error ? error.stack : '';
-		logger.error(`PATCH operation failed after ${duration.toFixed(2)}ms ${emoji} for schema: ${schema.id}: ${errorMessage}`, { stack: errorStack });
+		logger.error(`PATCH operation failed after ${duration.toFixed(2)}ms for schema: ${schema.id}: ${errorMessage}`, { stack: errorStack });
 		return new Response(
 			JSON.stringify({
 				success: false,

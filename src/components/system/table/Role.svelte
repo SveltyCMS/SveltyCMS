@@ -58,10 +58,10 @@
 	};
 </script>
 
-<div class={roleClasses(value)}>
+<span class="badge {roleClasses(value)}">
 	{#if iconForRole(value)}
-		<iconify-icon icon={iconForRole(value)} width="20" class="mr-2"></iconify-icon> {roleName(value)}
+		<iconify-icon icon={iconForRole(value)} width="20"></iconify-icon> {roleName(value)}
 	{:else}
 		<span>{roleName(value)}</span>
 	{/if}
-</div>
+</span>

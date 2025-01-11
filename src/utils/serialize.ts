@@ -5,7 +5,10 @@
 
 import type { User } from '@src/auth/types';
 import type { Schema } from '@root/src/content/types';
+
 import serialize from 'serialize-javascript'
+
+// System Logger
 import { logger } from './logger.svelte';
 
 
