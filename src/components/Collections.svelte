@@ -150,7 +150,7 @@ Features:
 			caretOpen="rotate-180"
 		>
 			{#if structureNodes.length > 0}
-				{#each structureNodes as category (category._id)}
+				{#each structureNodes as category (category.id)}
 					<AccordionItem
 						bind:open={category.open}
 						regionPanel="divide-y dark:divide-black my-0"
