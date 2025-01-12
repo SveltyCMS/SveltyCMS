@@ -37,6 +37,7 @@ import type { VirtualFolderUpdateData } from '@src/types/virtualFolder';
 // Database
 import mongoose, { Schema } from 'mongoose';
 
+// Use connection pooling (configured in connectToMongoDB)
 export async function initializeMongoDB() {
   try {
     if (!mongoose.connection.readyState) {
@@ -51,6 +52,7 @@ export async function initializeMongoDB() {
     throw new Error('MongoDB connection failed');
   }
 }
+
 import type { Draft, Revision, Theme, Widget, DocumentContent, dbInterface } from '../dbInterface';
 
 // Authentication Models
@@ -92,15 +94,6 @@ interface VirtualFolderUpdateData {
 export class MongoDBAdapter implements dbInterface {
   private unsubscribe: Unsubscriber | undefined;
   private collectionsInitialized = false;
-
-  constructor() {
-    // Setup models as soon as the adapter is initialized
-    this.setupAuthModels();
-    this.setupMediaModels();
-    this.setupWidgetModels();
-  };
-
-  // Connect to MongoDB
 
   // Helper method to recursively scan directories for compiled content structure files
   private async scanDirectoryForContentStructure(dirPath: string): Promise<string[]> {
@@ -294,7 +287,6 @@ export class MongoDBAdapter implements dbInterface {
       throw new Error(`Error in findMany for collection ${collection}`);
     }
   }
-
   // Implementing insertOne method
   async insertOne<T extends DocumentContent = DocumentContent>(collection: string, doc: Partial<T>): Promise<T> {
     try {
@@ -347,6 +339,7 @@ export class MongoDBAdapter implements dbInterface {
     }
   }
 
+
   // Implementing updateMany method
   async updateMany<T extends DocumentContent = DocumentContent>(collection: string, query: FilterQuery<T>, update: UpdateQuery<T>): Promise<T[]> {
     try {
@@ -363,6 +356,7 @@ export class MongoDBAdapter implements dbInterface {
       throw new Error(`Error updating many documents in ${collection}`);
     }
   }
+
 
   // Implementing deleteOne method
   async deleteOne(collection: string, query: FilterQuery<Document>): Promise<number> {
@@ -423,7 +417,7 @@ export class MongoDBAdapter implements dbInterface {
     }
   }
 
-  // Create schema for the collection table and collection_uuid table
+  // Create or update a collection model based on the provided configuration
   async createCollectionModel(collection: CollectionConfig): Promise<Model<Document>> {
     try {
       // Use collection_uuid as the identifier
@@ -450,12 +444,12 @@ export class MongoDBAdapter implements dbInterface {
 
       // Base schema definition for the main collection
       const schemaDefinition: Record<string, unknown> = {
-        _id: { type: String }, // MongoDB will handle the _id index automatically
+        _id: { type: String },
         status: { type: String, default: 'draft' },
         createdAt: { type: Date, default: Date.now },
         updatedAt: { type: Date, default: Date.now },
         createdBy: { type: Schema.Types.Mixed, ref: 'auth_users' },
-        updatedBy: { type: Schema.Types.Mixed, ref: 'auth_users' }
+        updatedBy: { type: Schema.Types.Mixed, ref: 'auth_users' },
       };
 
       // Process fields if they exist
@@ -516,7 +510,7 @@ export class MongoDBAdapter implements dbInterface {
         toJSON: { virtuals: true, getters: true },
         toObject: { virtuals: true, getters: true },
         id: false,
-        versionKey: false
+        versionKey: false,
       };
 
       // Create schema for the main collection
@@ -528,11 +522,9 @@ export class MongoDBAdapter implements dbInterface {
 
       // Performance optimization: create indexes in background
       schema.set('backgroundIndexing', true);
-
-      // Create the model for the main collection
+      // Create and return the new model
       const model = mongoose.model(collectionName, schema);
-      logger.debug(`Collection model creation successful for: \x1b[34m${collectionName}\x1b[0m`);
-
+      logger.debug(`Collection model \x1b[34m${collectionName}\x1b[0m created successfully.`);
       return model;
     } catch (error) {
       logger.error('Error creating collection model:', error instanceof Error ? error.stack : error);
@@ -584,7 +576,7 @@ export class MongoDBAdapter implements dbInterface {
     try {
       return await RevisionModel.find({
         collectionId: this.convertId(collectionId),
-        documentId: this.convertId(documentId)
+        documentId: this.convertId(documentId),
       })
         .sort({ createdAt: -1 })
         .lean()
@@ -655,7 +647,7 @@ export class MongoDBAdapter implements dbInterface {
         ...widgetData,
         isActive: widgetData.isActive ?? false,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
       await widget.save();
       logger.info(`Widget \x1b[34m${widgetData.name}\x1b[0m installed successfully.`);
@@ -793,7 +785,7 @@ export class MongoDBAdapter implements dbInterface {
           path: theme.path,
           isDefault: theme.isDefault ?? false,
           createdAt: theme.createdAt ?? new Date(),
-          updatedAt: theme.updatedAt ?? new Date()
+          updatedAt: theme.updatedAt ?? new Date(),
         })),
         { ordered: false }
       ); // Use ordered: false to ignore duplicates
@@ -820,9 +812,9 @@ export class MongoDBAdapter implements dbInterface {
   async setUserPreferences(userId: string, preferences: UserPreferences): Promise<void> {
     try {
       await SystemPreferencesModel.updateOne({ userId }, { $set: { preferences } }, { upsert: true }).exec();
-      logger.info(`User preferences set successfully for userId: \x1b[34m${user_id}\x1b[0m`);
+      logger.info(`User preferences set successfully for userId: \x1b[34m${userId}\x1b[0m`);
     } catch (error) {
-      logger.error(`Failed to set user preferences for user \x1b[34m${user_id}\x1b[0m: ${error.message}`);
+      logger.error(`Failed to set user preferences for user \x1b[34m${userId}\x1b[0m: ${error.message}`);
       throw Error(`Failed to set user preferences`);
     }
   }
@@ -842,6 +834,7 @@ export class MongoDBAdapter implements dbInterface {
       throw Error(`Failed to retrieve system preferences`);
     }
   }
+
   // Update system preferences for a user
   async updateSystemPreferences(user_id: string, screenSize: ScreenSize, preferences: WidgetPreference[]): Promise<void> {
     try {
@@ -998,10 +991,11 @@ export class MongoDBAdapter implements dbInterface {
     isCollection?: boolean;
     collectionId?: string;
     translations?: { languageTag: string; translationName: string }[];
-    _id?: string; // Make _id optional in the interface
+    _id?: string;
   }): Promise<Document> {
     try {
       // If _id is provided, use it directly when creating the model
+      logger.debug(`Attempting to create content structure with data: ${JSON.stringify(contentData, null, 2)}`)
       const node = new ContentStructureModel({
         ...contentData,
         _id: contentData._id // Use provided _id
@@ -1213,7 +1207,6 @@ export class MongoDBAdapter implements dbInterface {
       throw Error(`Failed to fetch last five media documents`);
     }
   }
-
 
   // Methods for Disconnecting
 
