@@ -11,7 +11,7 @@
  * - Multiple document deletion support
  * - Associated link cleanup
  * - Pre-deletion request modification
- * - Performance monitoring with visual indicators
+ * - Performance monitoring
  * - Comprehensive error handling and logging
  */
 
@@ -31,15 +31,6 @@ import { modifyRequest } from './modifyRequest';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-
-// Performance monitoring utilities
-const getPerformanceEmoji = (responseTime: number): string => {
-	if (responseTime < 100) return '🚀'; // Super fast
-	if (responseTime < 500) return '⚡'; // Fast
-	if (responseTime < 1000) return '⏱️'; // Moderate
-	if (responseTime < 3000) return '🕰️'; // Slow
-	return '🐢'; // Very slow
-};
 
 // Function to handle DELETE requests for a specified collection
 export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {
@@ -109,8 +100,7 @@ export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: 
 					await Promise.all(linkedDeletions);
 
 					const itemDuration = performance.now() - itemStart;
-					const itemEmoji = getPerformanceEmoji(itemDuration);
-					logger.debug(`Item ${index + 1}/${idsArray.length} processed in ${itemDuration.toFixed(2)}ms ${itemEmoji}`);
+					logger.debug(`Item ${index + 1}/${idsArray.length} processed in ${itemDuration.toFixed(2)}ms`);
 				} catch (itemError) {
 					const errorMessage = itemError instanceof Error ? itemError.message : 'Unknown error';
 					logger.error(`Error processing item ${index + 1}: ${errorMessage}`);
@@ -120,20 +110,17 @@ export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: 
 		);
 
 		const modifyDuration = performance.now() - modifyStart;
-		const modifyEmoji = getPerformanceEmoji(modifyDuration);
-		logger.debug(`Request modifications completed in ${modifyDuration.toFixed(2)}ms ${modifyEmoji}`);
+		logger.debug(`Request modifications completed in ${modifyDuration.toFixed(2)}ms`);
 
 		// Perform the deletion in the main collection
 		const deleteStart = performance.now();
 		const deletedCount = await collection.deleteMany({ _id: { $in: idsArray } });
 		const deleteDuration = performance.now() - deleteStart;
-		const deleteEmoji = getPerformanceEmoji(deleteDuration);
 
-		logger.info(`Deleted ${deletedCount} documents in ${deleteDuration.toFixed(2)}ms ${deleteEmoji} for schema ID: ${schema.id}`);
+		logger.info(`Deleted ${deletedCount} documents in ${deleteDuration.toFixed(2)}ms for schema ID: ${schema.id}`);
 
 		const totalDuration = performance.now() - start;
-		const totalEmoji = getPerformanceEmoji(totalDuration);
-		logger.info(`DELETE operation completed in ${totalDuration.toFixed(2)}ms ${totalEmoji}`);
+		logger.info(`DELETE operation completed in ${totalDuration.toFixed(2)}ms`);
 
 		// Return the result as a JSON response
 		return new Response(
@@ -155,10 +142,9 @@ export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: 
 		);
 	} catch (error) {
 		const duration = performance.now() - start;
-		const emoji = getPerformanceEmoji(duration);
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 		const errorStack = error instanceof Error ? error.stack : '';
-		logger.error(`DELETE operation failed after ${duration.toFixed(2)}ms ${emoji} for schema ID: ${schema.id}: ${errorMessage}`, {
+		logger.error(`DELETE operation failed after ${duration.toFixed(2)}ms for schema ID: ${schema.id}: ${errorMessage}`, {
 			stack: errorStack
 		});
 		return new Response(errorMessage, { status: 500 });

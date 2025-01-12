@@ -166,8 +166,7 @@ export const POST: RequestHandler = async ({ request }) => {
           await clearCache('api:content-structure:*');
         }
 
-        // Force recompilation of collections
-        ContentManager.instance = null;
+        // Reset the content manager's internal state and force recompilation
         await contentManager.updateCollections(true);
         logger.info('Collections recompiled successfully');
         return json({
@@ -184,6 +183,7 @@ export const POST: RequestHandler = async ({ request }) => {
     throw error(500, `Failed to process content structure request: ${message}`);
   }
 };
+
 export const PUT: RequestHandler = async ({ request }) => {
   try {
     const { nodeId, updates } = await request.json();

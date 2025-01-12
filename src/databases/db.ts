@@ -17,11 +17,11 @@
  * - Authentication and Authorization: Configures and initializes authentication adapters.
  * - Google OAuth2 Integration: Optionally sets up Google OAuth2 client if the client ID and secret are provided.
  */
-
 import { publicEnv } from '@root/config/public';
 import { privateEnv } from '@root/config/private';
+
 import fs from 'node:fs/promises';
-import { browser } from '$app/environment';
+
 import { error } from '@sveltejs/kit';
 import { connectToMongoDB } from './mongodb/dbconnect';
 
@@ -30,7 +30,6 @@ import { Auth } from '@src/auth';
 
 // Content Manager
 import { contentManager } from '@src/content/ContentManager';
-
 import { getPermissionByName, getAllPermissions, syncPermissions } from '@src/auth/permissionManager';
 
 // Adapters Interfaces
@@ -60,14 +59,12 @@ let initializationPromise: Promise<void> | null = null; // Initialization promis
 async function loadAdapters() {
 	try {
 		logger.debug(`Loading ${privateEnv.DB_TYPE} adapters...`);
-
 		if (privateEnv.DB_TYPE === 'mongodb') {
 			const { MongoDBAdapter } = await import('./mongodb/mongoDBAdapter');
 			dbAdapter = new MongoDBAdapter();
 			const userAdapter = new UserAdapter();
 			const sessionAdapter = new SessionAdapter();
 			const tokenAdapter = new TokenAdapter();
-
 			authAdapter = {
 				// User Management Methods
 				createUser: userAdapter.createUser.bind(userAdapter),
@@ -96,13 +93,13 @@ async function loadAdapters() {
 
 				// Permission Management Methods
 				getAllPermissions,
-				getPermissionByName
+				getPermissionByName,
 			} as authDBInterface;
-
-			logger.info('MongoDB adapters loaded successfully.');
+			logger.debug('MongoDB adapters loaded successfully.');
 		} else if (privateEnv.DB_TYPE === 'mariadb' || privateEnv.DB_TYPE === 'postgresql') {
 			logger.debug('Implement & Loading SQL adapters...');
 			// Implement SQL adapters loading here
+			throw new Error(`SQL adapter loading not yet implemented for ${privateEnv.DB_TYPE}`);
 		} else {
 			throw error(500, `Unsupported DB_TYPE: ${privateEnv.DB_TYPE}`);
 		}
@@ -136,7 +133,6 @@ async function initializeDefaultTheme(dbAdapter: dbInterface): Promise<void> {
 // Initialize the media folder
 async function initializeMediaFolder() {
 	const mediaFolderPath = publicEnv.MEDIA_FOLDER;
-
 	try {
 		// Check if the media folder exists
 		await fs.access(mediaFolderPath);
@@ -154,7 +150,6 @@ async function initializeVirtualFolders() {
 	if (!dbAdapter) {
 		throw error(500, 'Database adapter not initialized');
 	}
-
 	try {
 		const virtualFolders = await dbAdapter.getVirtualFolders();
 		if (virtualFolders.length === 0) {
@@ -163,14 +158,14 @@ async function initializeVirtualFolders() {
 				name: publicEnv.MEDIA_FOLDER,
 				parent: undefined,
 				path: publicEnv.MEDIA_FOLDER,
-				type: 'folder'
+				type: 'folder',
 			});
 
 			// Log only the essential information
 			logger.info('Default root virtual folder created:', {
 				name: rootFolder.name,
 				path: rootFolder.path,
-				id: rootFolder._id?.toString() || 'No ID'
+				id: rootFolder._id?.toString() || 'No ID',
 			});
 		} else {
 			logger.info(`Found \x1b[34m${virtualFolders.length}\x1b[0m virtual folders.`);
@@ -185,67 +180,54 @@ async function initializeVirtualFolders() {
 // Initialize adapters
 async function initializeAdapters(): Promise<void> {
 	if (isInitialized) {
-		logger.info('Adapters already initialized, skipping initialization.');
+		logger.debug('Adapters already initialized, skipping initialization.');
 		return;
 	}
-
 	try {
-		// Step 1: Load adapters first
-		await loadAdapters();
+		// Load adapters and connect to MongoDB concurrently
+		await Promise.all([loadAdapters(), connectToMongoDB()]);
+		if (!dbAdapter) {
+			throw error(500, 'Database adapter not initialized');
+		}
+		// Initialize database models
+		await dbAdapter.setupAuthModels();
+		await dbAdapter.setupMediaModels();
+		await dbAdapter.setupWidgetModels();
 
-		if (!browser) {
-			// Step 2: Connect to database before any other initialization
-			await connectToMongoDB();
-			// Step 3: Initialize media folder (filesystem operation, can be done in parallel)
-			await initializeMediaFolder();
+		// Initialize remaining components
+		await initializeMediaFolder();
+		await initializeDefaultTheme(dbAdapter);
+		await initializeVirtualFolders();
+		await initializeRevisions();
+		await syncPermissions();
+		// Initialize ContentManager
+		logger.debug('Initializing ContentManager...');
+		await contentManager.initialize();
 
-			// Step 4: Setup database models
-			if (!dbAdapter) {
-				throw error(500, 'Database adapter not initialized');
-			}
-
-			// Initialize database models first
-			await dbAdapter.setupAuthModels();
-			await dbAdapter.setupMediaModels();
-
-			// Step 5: Initialize remaining components
-			await initializeDefaultTheme(dbAdapter);
-			await initializeVirtualFolders();
-			await initializeRevisions();
-			await syncPermissions();
-
-			// Step 6: Initialize ContentManager
-			logger.debug('Initializing ContentManager...');
-			await contentManager.initialize();
-
-			// Get collection data after initialization
-			const { collections } = contentManager.getCollectionData();
-			if (!collections || collections.length === 0) {
-				logger.warn('No collections found after ContentManager initialization');
-			} else {
-				logger.debug('ContentManager initialized with collections:', { count: collections.length });
-				// Initialize each collection model
-				for (const collection of collections) {
-					if (dbAdapter) {
-						logger.debug(`Creating collection model for: \x1b[34m${collection.name}\x1b[0m`);
-						await dbAdapter.createCollectionModel(collection);
-						logger.debug(`Finished creating collection model for: \x1b[34m${collection.name}\x1b[0m`);
-					}
+		// Get collection data after initialization
+		const { collections } = contentManager.getCollectionData();
+		if (!collections || collections.length === 0) {
+			logger.warn('No collections found after ContentManager initialization');
+		} else {
+			logger.debug('ContentManager initialized with collections:', { count: collections.length });
+			// Initialize each collection model
+			for (const collection of collections) {
+				if (dbAdapter) {
+					logger.debug(`Creating collection model for: \x1b[34m${collection.name}\x1b[0m`);
+					await dbAdapter.createCollectionModel(collection);
+					logger.debug(`Finished creating collection model for: \x1b[34m${collection.name}\x1b[0m`);
 				}
 			}
 		}
-
 		if (!authAdapter) {
 			throw error(500, 'Authentication adapter not initialized');
 		}
-
-		// Step 7: Initialize authentication
+		// Initialize authentication
 		auth = new Auth(authAdapter);
-		logger.info('Authentication adapter initialized.');
-
+		logger.debug('Authentication adapter initialized.');
 		isInitialized = true;
 		isConnected = true;
-		logger.info('Adapters initialized successfully');
+		logger.debug('Adapters initialized successfully');
 	} catch (err) {
 		const message = `Error in initializeAdapters: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message);
@@ -278,10 +260,8 @@ if (!initializationPromise) {
 }
 
 interface CollectionModel {
-	// Define the properties of your collection model here
 	name: string;
 	schema: object;
-	// Add other properties as needed
 }
 
 // Export collections
@@ -292,7 +272,6 @@ export async function getCollectionModels() {
 	if (!dbAdapter) {
 		throw error(500, 'Database adapter not initialized');
 	}
-
 	try {
 		logger.debug('Fetching collection models...');
 
@@ -312,7 +291,6 @@ export async function getCollectionModels() {
 				schema: collection.schema || {}
 			};
 		}
-
 		return collectionsModels;
 	} catch (error) {
 		const message = `Error fetching collection models: ${error instanceof Error ? error.message : String(error)}`;

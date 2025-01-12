@@ -15,7 +15,6 @@
  * - Total count and pages count calculation
  * - Content language handling
  * - Error handling and logging
- * - Performance monitoring with visual indicators
  */
 
 // Types
@@ -41,15 +40,6 @@ import { getFieldName, get_elements_by_id } from '@utils/utils';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-
-// Performance monitoring utilities
-const getPerformanceEmoji = (responseTime: number): string => {
-  if (responseTime < 100) return '🚀'; // Super fast
-  if (responseTime < 500) return '⚡'; // Fast
-  if (responseTime < 1000) return '⏱️'; // Moderate
-  if (responseTime < 3000) return '🕰️'; // Slow
-  return '🐢'; // Very slow
-};
 
 // Function to handle GET requests for a specified collection
 export async function _GET({
@@ -152,8 +142,7 @@ export async function _GET({
       entries = await collection.aggregate([...aggregations, { $skip: skip }, ...(limit ? [{ $limit: limit }] : [])]);
 
       const queryDuration = performance.now() - start;
-      const queryEmoji = getPerformanceEmoji(queryDuration);
-      logger.debug(`Queries executed in ${queryDuration.toFixed(2)}ms ${queryEmoji}. Entries: ${entries.length}, Total: ${total}`);
+      logger.debug(`Queries executed in ${queryDuration.toFixed(2)}ms. Entries: ${entries.length}, Total: ${total}`);
     } catch (error) {
       logger.error(`Error executing queries: ${error}`);
       return new Response('Error executing database query', { status: 500 });
@@ -185,8 +174,7 @@ export async function _GET({
     const pagesCount = limit > 0 ? Math.ceil(total / limit) : 1;
 
     const duration = performance.now() - start;
-    const emoji = getPerformanceEmoji(duration);
-    logger.info(`GET request completed in ${duration.toFixed(2)}ms ${emoji}. Total: ${total}, Pages: ${pagesCount}`);
+    logger.info(`GET request completed in ${duration.toFixed(2)}ms. Total: ${total}, Pages: ${pagesCount}`);
 
     // Return the response with entry list and pages count
     return new Response(
@@ -207,10 +195,9 @@ export async function _GET({
     );
   } catch (error) {
     const duration = performance.now() - start;
-    const emoji = getPerformanceEmoji(duration);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     const errorStack = error instanceof Error ? error.stack : '';
-    logger.error(`Error in GET request after ${duration.toFixed(2)}ms ${emoji}: ${errorMessage}`, { stack: errorStack });
+    logger.error(`Error in GET request after ${duration.toFixed(2)}ms: ${errorMessage}`, { stack: errorStack });
     return new Response(
       JSON.stringify({
         success: false,

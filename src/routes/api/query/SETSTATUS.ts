@@ -8,7 +8,7 @@
  * Features:
  * - Batch status update for multiple documents
  * - Support for all collections defined in the schema
- * - Performance monitoring with visual indicators
+ * - Performance monitoring
  * - Comprehensive error handling and logging
  */
 
@@ -20,15 +20,6 @@ import { dbAdapter, getCollectionModels } from '@src/databases/db';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-
-// Performance monitoring utilities
-const getPerformanceEmoji = (responseTime: number): string => {
-	if (responseTime < 100) return '🚀'; // Super fast
-	if (responseTime < 500) return '⚡'; // Fast
-	if (responseTime < 1000) return '⏱️'; // Moderate
-	if (responseTime < 3000) return '🕰️'; // Slow
-	return '🐢'; // Very slow
-};
 
 // Function to handle SETSTATUS requests for a specified collection
 export const _SETSTATUS = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {
@@ -53,8 +44,7 @@ export const _SETSTATUS = async ({ data, schema, user }: { data: FormData; schem
 		const collections = await getCollectionModels();
 		const collection = collections[schema.id];
 		const modelDuration = performance.now() - modelStart;
-		const modelEmoji = getPerformanceEmoji(modelDuration);
-		logger.debug(`Collection models retrieved in ${modelDuration.toFixed(2)}ms ${modelEmoji}`);
+		logger.debug(`Collection models retrieved in ${modelDuration.toFixed(2)}ms`);
 
 		// Check if the collection exists
 		if (!collection) {
@@ -82,8 +72,7 @@ export const _SETSTATUS = async ({ data, schema, user }: { data: FormData; schem
 		}
 
 		const parseDuration = performance.now() - parseStart;
-		const parseEmoji = getPerformanceEmoji(parseDuration);
-		logger.debug(`Data parsed in ${parseDuration.toFixed(2)}ms ${parseEmoji}. Updating status to '${status}' for ${ids.length} documents`, {
+		logger.debug(`Data parsed in ${parseDuration.toFixed(2)}ms. Updating status to '${status}' for ${ids.length} documents`, {
 			user: user._id
 		});
 
@@ -117,12 +106,10 @@ export const _SETSTATUS = async ({ data, schema, user }: { data: FormData; schem
 			}
 		);
 		const updateDuration = performance.now() - updateStart;
-		const updateEmoji = getPerformanceEmoji(updateDuration);
 
 		const totalDuration = performance.now() - start;
-		const totalEmoji = getPerformanceEmoji(totalDuration);
 		logger.info(
-			`Status updated for ${result.modifiedCount} documents in ${updateDuration.toFixed(2)}ms ${updateEmoji}, total time: ${totalDuration.toFixed(2)}ms ${totalEmoji}`,
+			`Status updated for ${result.modifiedCount} documents in ${updateDuration.toFixed(2)}ms, total time: ${totalDuration.toFixed(2)}ms`,
 			{ user: user._id }
 		);
 
@@ -148,10 +135,9 @@ export const _SETSTATUS = async ({ data, schema, user }: { data: FormData; schem
 		);
 	} catch (error) {
 		const duration = performance.now() - start;
-		const emoji = getPerformanceEmoji(duration);
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 		const errorStack = error instanceof Error ? error.stack : '';
-		logger.error(`SETSTATUS operation failed after ${duration.toFixed(2)}ms ${emoji} for schema ID: ${schema.id}: ${errorMessage}`, {
+		logger.error(`SETSTATUS operation failed after ${duration.toFixed(2)}ms for schema ID: ${schema.id}: ${errorMessage}`, {
 			user: user._id,
 			stack: errorStack
 		});

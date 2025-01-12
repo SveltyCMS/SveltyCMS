@@ -9,7 +9,6 @@ import type { SvelteComponent } from 'svelte';
 
 export type WidgetStatus = 'active' | 'inactive';
 
-
 export interface WidgetPlaceholder {
     __widgetName: string;
     __widgetConfig: Record<string, unknown>;
@@ -41,4 +40,9 @@ export interface Widget {
 
 export interface WidgetFunction {
     (config: Record<string, unknown>): WidgetPlaceholder;
+}
+
+export interface WidgetPermissions {
+    permissions: Record<string, Record<string, boolean>>;
+    [key: string]: Record<string, Record<string, boolean>> | unknown;
 }

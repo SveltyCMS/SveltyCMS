@@ -102,7 +102,7 @@
 	] as const;
 
 	// State Management using Svelte 5's $ prefix
-	let showUserList = $state(false);
+	let showUserList = $state(true);
 	let showUsertoken = $state(false);
 	let isLoading = $state(false);
 	let globalSearchValue = $state('');

@@ -50,18 +50,8 @@ import { logger } from '@utils/logger.svelte';
 // Constants
 const DEFAULT_LANGUAGE = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
 
-// Performance monitoring utilities
-const getPerformanceEmoji = (responseTime: number): string => {
-  if (responseTime < 100) return '🚀'; // Super fast
-  if (responseTime < 500) return '⚡'; // Fast
-  if (responseTime < 1000) return '⏱️'; // Moderate
-  if (responseTime < 3000) return '🕰️'; // Slow
-  return '🐢'; // Very slow
-};
-
 // Helper function to check user permissions
 async function checkUserPermissions(data: FormData, cookies: CookieData) {
-  const start = performance.now();
   try {
     // Retrieve the session ID from cookies
     const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
@@ -98,15 +88,11 @@ async function checkUserPermissions(data: FormData, cookies: CookieData) {
     const has_read_access = collection_schema?.permissions?.[user.role]?.read !== false;
     const has_write_access = collection_schema?.permissions?.[user.role]?.write !== false;
 
-    const duration = performance.now() - start;
-    const emoji = getPerformanceEmoji(duration);
-    logger.debug(`Permission check completed in ${duration.toFixed(2)}ms ${emoji}`);
+    logger.debug(`Permission check completed`);
 
     return { user, collection_schema, has_read_access, has_write_access };
   } catch (error) {
-    const duration = performance.now() - start;
-    const emoji = getPerformanceEmoji(duration);
-    logger.error(`Permission check failed after ${duration.toFixed(2)}ms ${emoji}`);
+    logger.error(`Permission check failed`);
     throw error;
   }
 }
@@ -130,8 +116,6 @@ function parseRequestParameters(data: FormData) {
 
 // Main POST handler
 export const POST: RequestHandler = async ({ request, cookies }) => {
-  const start = performance.now();
-
   // Retrieve data from the request form
   const data = await request.formData();
   // Retrieve the method from the form data
@@ -202,26 +186,18 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
         return new Response('Method not allowed', { status: 405 });
     }
 
-    const duration = performance.now() - start;
-    const emoji = getPerformanceEmoji(duration);
-    logger.info(`Request completed in ${duration.toFixed(2)}ms ${emoji}`);
+    logger.info(`Request completed`);
 
     return response;
   } catch (error) {
-    const duration = performance.now() - start;
-    const emoji = getPerformanceEmoji(duration);
-
     // Handle error by checking its type
     const status = error.message === 'Unauthorized' ? 401 : error.message.includes('Forbidden') ? 403 : 500;
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    logger.error(`Error processing request after ${duration.toFixed(2)}ms ${emoji}`, { error: errorMessage });
+    logger.error(`Error processing request`, { error: errorMessage });
     return new Response(
       JSON.stringify({
         success: false,
-        error: errorMessage,
-        performance: {
-          total: duration
-        }
+        error: errorMessage
       }),
       {
         status,

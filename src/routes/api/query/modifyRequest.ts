@@ -11,7 +11,7 @@
  * - Support for custom widget-based data modifications
  * - Asynchronous processing of each entry in the data array
  * - Data accessor pattern for safe data manipulation
- * - Performance monitoring with visual indicators
+ * - Performance monitoring
  * - Detailed logging for debugging purposes
  *
  * Usage:
@@ -55,15 +55,6 @@ interface ModifyRequestParams {
 	user: User;
 	type: string;
 }
-
-// Performance monitoring utilities
-const getPerformanceEmoji = (responseTime: number): string => {
-	if (responseTime < 100) return '🚀'; // Super fast
-	if (responseTime < 500) return '⚡'; // Fast
-	if (responseTime < 1000) return '⏱️'; // Moderate
-	if (responseTime < 3000) return '🕰️'; // Slow
-	return '🐢'; // Very slow
-};
 
 // Function to modify request data based on field widgets
 export async function modifyRequest({ data, fields, collection, user, type }: ModifyRequestParams) {
@@ -109,8 +100,7 @@ export async function modifyRequest({ data, fields, collection, user, type }: Mo
 								});
 
 								const entryDuration = performance.now() - entryStart;
-								const entryEmoji = getPerformanceEmoji(entryDuration);
-								logger.debug(`Entry ${index + 1} processed in ${entryDuration.toFixed(2)}ms ${entryEmoji}`);
+								logger.debug(`Entry ${index + 1} processed in ${entryDuration.toFixed(2)}ms`);
 							} catch (widgetError) {
 								const errorMessage = widgetError instanceof Error ? widgetError.message : 'Unknown widget error';
 								const errorStack = widgetError instanceof Error ? widgetError.stack : '';
@@ -128,24 +118,21 @@ export async function modifyRequest({ data, fields, collection, user, type }: Mo
 				);
 
 				const fieldDuration = performance.now() - fieldStart;
-				const fieldEmoji = getPerformanceEmoji(fieldDuration);
-				logger.debug(`Field ${fieldName} processed in ${fieldDuration.toFixed(2)}ms ${fieldEmoji}`);
+				logger.debug(`Field ${fieldName} processed in ${fieldDuration.toFixed(2)}ms`);
 			} else {
 				logger.warn(`No modifyRequest handler for widget: \x1b[34m${field.widget.Name}\x1b[0m`);
 			}
 		}
 
 		const duration = performance.now() - start;
-		const emoji = getPerformanceEmoji(duration);
-		logger.info(`ModifyRequest completed in ${duration.toFixed(2)}ms ${emoji} for ${data.length} entries`);
+		logger.info(`ModifyRequest completed in ${duration.toFixed(2)}ms for ${data.length} entries`);
 
 		return data;
 	} catch (error) {
 		const duration = performance.now() - start;
-		const emoji = getPerformanceEmoji(duration);
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 		const errorStack = error instanceof Error ? error.stack : '';
-		logger.error(`ModifyRequest failed after ${duration.toFixed(2)}ms ${emoji}: ${errorMessage}`, { stack: errorStack });
+		logger.error(`ModifyRequest failed after ${duration.toFixed(2)}ms: ${errorMessage}`, { stack: errorStack });
 		throw error;
 	}
 }

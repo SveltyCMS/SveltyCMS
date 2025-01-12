@@ -2,14 +2,15 @@
  * @file src/widgets/index.ts
  * @description Widget Index - Main entry point for widget system
  */
-
 import type { WidgetFunction, WidgetModule } from './types';
 import type { GuiSchema } from './core/group/types';
 import { v4 as uuidv4 } from 'uuid'; // Import UUID generator for unique widget IDs
 
-// System Logger
-import { logger } from '@utils/logger.svelte'; // Import logger for system logging
+// Reactive stores
 import { store } from '@utils/reactivity.svelte'; // Import reactive store utility
+
+// System Logger
+import { logger } from '@utils/logger.svelte';
 
 // Function to check widget dependencies
 function checkDependencies(widget: WidgetFunction): boolean {
@@ -18,11 +19,11 @@ function checkDependencies(widget: WidgetFunction): boolean {
   }
   for (const dep of widget.dependencies) {
     if (!widgetFunctions.get().has(dep)) {
-      console.log(`Checking dependencies for widget: ${widget.Name} - missing dependency: ${dep}`);
+      logger.info(`Checking dependencies for widget: ${widget.Name} - missing dependency: ${dep}`);
       return false; // Dependency is missing
     }
   }
-  console.log('Checking dependencies for widget:', widget.Name);
+  logger.info('Checking dependencies for widget:', widget.Name);
   return true; // All dependencies are met
 }
 
@@ -123,12 +124,12 @@ export async function initializeWidgets(): Promise<void> {
 
       // Update widget functions store
       widgetFunctions.set(newWidgetFunctions);
-
       // Set active widgets based on database status
       activeWidgetList.set(new Set(activeWidgets));
 
-      const coreWidgets = Array.from(newWidgetFunctions.values()).filter(w => w.__isCore);
-      const customWidgets = Array.from(newWidgetFunctions.values()).filter(w => !w.__isCore);
+      // Log Initialization Summary
+      const coreWidgets = Array.from(newWidgetFunctions.values()).filter((w) => w.__isCore);
+      const customWidgets = Array.from(newWidgetFunctions.values()).filter((w) => !w.__isCore);
 
       logger.info(`\x1b[34m${coreWidgets.length} core widgets\x1b[0m initialized: \x1b[34m${coreWidgets.map(w => w.Name).join(', ')}\x1b[0m`);
       logger.info(`\x1b[32m${customWidgets.length} custom widgets\x1b[0m initialized: \x1b[33m${customWidgets.map(w => w.Name).join(', ')}\x1b[0m`);
