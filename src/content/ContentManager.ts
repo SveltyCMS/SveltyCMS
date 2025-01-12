@@ -87,6 +87,8 @@ class ContentManager {
   }
   // Initialize the collection manager
   public async initialize(): Promise<void> {
+
+    logger.debug("Initializing ContentManager...");
     if (this.initialized) return;
 
     try {
@@ -94,10 +96,12 @@ class ContentManager {
         try {
           // First, ensure widgets are initialized
           await ensureWidgetsInitialized();
-
+          logger.debug("Content manager Widgtes initialized");
           // Then load collections
           await this.waitForInitialization();
+          logger.debug("Content Manager Db initialized");
           await this.updateCollections(true);
+          logger.debug("Content Manager Collections updated");
           this.initialized = true;
         } catch (error) {
           logger.error('Initialization failed:', error);
@@ -294,60 +298,60 @@ class ContentManager {
             }
 
 
-            if (existingNode) {
-              // Update node if UUID matches
-              if (existingNode._id?.toString() === processed.id) {
-                await dbAdapter!.updateContentStructure(existingNode._id!.toString(), {
-                  icon: processed.icon,
-                  order: processed.order,
-                  name: processed.name,
-                  path: processed.path,
-                  isCollection: processed.fields.length > 0
-                });
-                logger.info(`Updated metadata for content: \x1b[34m${path}\x1b[0m`);
-              } else {
-                // Create if not existent
-                await dbAdapter!.createContentStructure({
-                  _id: processed.id, // Use UUID as _id
-                  path: processed.path,
-                  name: processed.name,
-                  icon: processed.icon || (processed.fields.length > 0 ? 'bi:file-text' : 'bi:folder'),
-                  order: 999,
-                  isCollection: processed.fields.length > 0
-                });
-              }
-              // If this is a collection, create the collection model using the _id
-              if (processed.fields.length > 0) {
-                try {
-                  const collectionName = `collection_${processed.id}`;
-                  logger.debug(
-                    `Processing collection model for \x1b[34m${processed.name}\x1b[0m with ID \x1b[34m${processed.id}\x1b[0m`
-                  );
 
-                  const collectionConfig = {
-                    id: processed.id,
-                    name: processed.name,
-                    schema: {
-                      fields: processed.fields,
-                      strict: processed.strict,
-                      revision: processed.revision,
-                      livePreview: processed.livePreview
-                    }
-                  };
-
-                  await dbAdapter!.createCollectionModel(collectionConfig);
-                  logger.info(`Collection model \x1b[34m${collectionName}\x1b[0m is ready`);
-                } catch (err) {
-                  logger.error(
-                    `Failed to process collection model for \x1b[34m${processed.name}\x1b[0m:`,
-                    err instanceof Error ? err.stack : err
-                  );
-                  logger.error(`Collection data that caused error:`, JSON.stringify(processed, null, 2));
-                }
-              }
-
-              logger.info(`Created content node from file:  \x1b[34m${path}\x1b[0m`);
+            // Update node if UUID matches
+            if (existingNode && existingNode._id?.toString() === processed.id) {
+              await dbAdapter!.updateContentStructure(existingNode._id!.toString(), {
+                icon: processed.icon,
+                order: processed.order,
+                name: processed.name,
+                path: processed.path,
+                isCollection: processed.fields.length > 0
+              });
+              logger.info(`Updated metadata for content: \x1b[34m${path}\x1b[0m`);
+            } else {
+              // Create if not existent
+              await dbAdapter!.createContentStructure({
+                _id: processed.id, // Use UUID as _id
+                path: processed.path,
+                name: processed.name,
+                icon: processed.icon || (processed.fields.length > 0 ? 'bi:file-text' : 'bi:folder'),
+                order: 999,
+                isCollection: processed.fields.length > 0
+              });
             }
+            // If this is a collection, create the collection model using the _id
+            if (processed.fields.length > 0) {
+              try {
+                const collectionName = `collection_${processed.id}`;
+                logger.debug(
+                  `Processing collection model for \x1b[34m${processed.name}\x1b[0m with ID \x1b[34m${processed.id}\x1b[0m`
+                );
+
+                const collectionConfig = {
+                  id: processed.id,
+                  name: processed.name,
+                  schema: {
+                    fields: processed.fields,
+                    strict: processed.strict,
+                    revision: processed.revision,
+                    livePreview: processed.livePreview
+                  }
+                };
+
+                await dbAdapter!.createCollectionModel(collectionConfig);
+                logger.info(`Collection model \x1b[34m${collectionName}\x1b[0m is ready`);
+              } catch (err) {
+                logger.error(
+                  `Failed to process collection model for \x1b[34m${processed.name}\x1b[0m:`,
+                  err instanceof Error ? err.stack : err
+                );
+                logger.error(`Collection data that caused error:`, JSON.stringify(processed, null, 2));
+              }
+            }
+
+            logger.info(`Created content node from file:  \x1b[34m${path}\x1b[0m`);
+
 
             collections.push(processed);
             await this.setCacheValue(filePath, processed, this.collectionCache);
@@ -395,6 +399,7 @@ class ContentManager {
         }
         await this.loadCollections();
         await this.createCategories();
+        logger.info('Collections updated successfully');
         // Convert category array to record structure
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
@@ -423,6 +428,7 @@ class ContentManager {
         return collection;
 
       } catch (error) {
+
         logger.error('Error getting collection', error);
         throw error;
 
@@ -478,6 +484,12 @@ class ContentManager {
 
         } else {
           // Process collections into category structure
+          logger.debug("Processing collections into category structure");
+          if (!dbAdapter) {
+            logger.error("No dbAdapter");
+            throw new Error("Databse Adapter not initialized");
+          }
+
           for (const collection of collectionsList) {
             if (!collection.path) {
               logger.warn(`Collection \x1b[34m${String(collection.name)}\x1b[0m has no path`);
@@ -488,15 +500,20 @@ class ContentManager {
             let currentLevel = categoryStructure;
             let currentPath = '';
 
+
+
             for (const [index, part] of pathParts.entries()) {
               currentPath = currentPath ? `${currentPath}/${part}` : part;
+
+
+
               if (!currentLevel[part]) {
                 const id = '';
                 if (!id) {
                   continue;
                 }
                 currentLevel[part] = {
-                  id,
+
                   name: part,
                   icon: index === 0 ? 'bi:collection' : 'bi:folder',
                   subcategories: {},
@@ -505,19 +522,18 @@ class ContentManager {
                 };
 
                 // Store in database
-                if (dbAdapter) {
-                  try {
-                    await dbAdapter.createContentStructure({
-                      path: currentPath,
-                      name: part,
-                      icon: index === 0 ? 'bi:collection' : 'bi:folder',
-                      order: 999,
-                      isCollection: false
-                    });
-                  } catch (err) {
-                    logger.warn('Failed to store category in database', { error: err });
-                  }
+                try {
+                  await dbAdapter.createContentStructure({
+                    path: currentPath,
+                    name: part,
+                    icon: index === 0 ? 'bi:collection' : 'bi:folder',
+                    order: 999,
+                    isCollection: false
+                  });
+                } catch (err) {
+                  logger.warn('Failed to store category in database', { error: err });
                 }
+
               }
 
               if (index === pathParts.length - 1) {
@@ -526,21 +542,23 @@ class ContentManager {
                 currentLevel[part].icon = collection.icon || currentLevel[part].icon;
                 currentLevel[part].isCollection = true;
 
+
                 // Store collection reference in database
-                if (dbAdapter) {
-                  try {
-                    await dbAdapter.createContentStructure({
-                      _id: collection.id,
-                      path: currentPath,
-                      name: collection.name,
-                      icon: collection.icon || 'bi:file',
-                      isCollection: true
-                    });
-                  } catch (err) {
-                    logger.warn('Failed to store collection reference in database', { error: err });
-                  }
+                try {
+                  logger.debug("Creating collection strucure reference in database");
+                  await dbAdapter.createContentStructure({
+                    _id: collection.id,
+                    path: currentPath,
+                    name: collection.name,
+                    icon: collection.icon || 'bi:file',
+                    isCollection: true
+                  });
+                } catch (err) {
+                  logger.warn('Failed to store collection reference in database', { error: err });
                 }
+
               }
+              logger.debug(index, part, currentLevel);
               currentLevel = currentLevel[part].subcategories!;
             }
           }
