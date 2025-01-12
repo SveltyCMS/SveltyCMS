@@ -87,19 +87,31 @@ class ContentManager {
   }
   // Initialize the collection manager
   public async initialize(): Promise<void> {
+
+    logger.debug("Initializing ContentManager...");
     if (this.initialized) return;
 
     try {
-      // First, ensure widgets are initialized
-      await ensureWidgetsInitialized();
-
-      // Then load collections
-      await this.waitForInitialization();
-      await this.updateCollections(true);
-      this.initialized = true;
-    } catch (error) {
-      logger.error('Initialization failed:', error);
-      throw error;
+      await this.measurePerformance(async () => {
+        try {
+          // First, ensure widgets are initialized
+          await ensureWidgetsInitialized();
+          logger.debug("Content manager Widgtes initialized");
+          // Then load collections
+          await this.waitForInitialization();
+          logger.debug("Content Manager Db initialized");
+          await this.updateCollections(true);
+          logger.debug("Content Manager Collections updated");
+          this.initialized = true;
+        } catch (error) {
+          logger.error('Initialization failed:', error);
+          throw error;
+        }
+      }, 'Content Manager Initialization');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      logger.error('Failed to load Content', { error: errorMessage });
+      throw new Error(`Failed to load Content: ${errorMessage}`);
     }
   }
 
@@ -203,90 +215,92 @@ class ContentManager {
 
   // Load and process collections with optimized batch processing
   async loadCollections(): Promise<Schema[]> {
-    try {
-      // Server-side collection loading
-      const collections: Schema[] = [];
-      const contentNodesMap = await this.getContentStructureMap();
-      const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
-      const files = await this.getCompiledCollectionFiles(compiledDirectoryPath);
-      const extractedPaths = new Set<string>();
+    return this.measurePerformance(async () => {
+      try {
+        // Server-side collection loading
+        const collections: Schema[] = [];
+        const contentNodesMap = await this.getContentStructureMap();
+        const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
+        const files = await this.getCompiledCollectionFiles(compiledDirectoryPath);
+        const extractedPaths = new Set<string>();
 
-      for (const filePath of files) {
-        try {
-          // Remove compiledDirectoryPath prefix if it exists
-          const relativeFilePath = filePath.startsWith(compiledDirectoryPath)
-            ? filePath.substring(compiledDirectoryPath.length + 1)
-            : filePath;
+        for (const filePath of files) {
+          try {
+            // Remove compiledDirectoryPath prefix if it exists
+            const relativeFilePath = filePath.startsWith(compiledDirectoryPath)
+              ? filePath.substring(compiledDirectoryPath.length + 1)
+              : filePath;
 
-          const fullFilePath = `${compiledDirectoryPath}/${relativeFilePath}`;
-          const content = await this.readFile(fullFilePath);
-          const moduleData = await this.processModule(content);
+            const fullFilePath = `${compiledDirectoryPath}/${relativeFilePath}`;
+            const content = await this.readFile(fullFilePath);
+            const moduleData = await this.processModule(content);
 
-          if (!moduleData || !moduleData.schema) {
-            logger.error(`Invalid collection file format: ${relativeFilePath}`, {
-              hasModuleData: !!moduleData,
-              hasSchema: !!(moduleData && moduleData.schema)
-            });
-            continue;
-          }
+            if (!moduleData || !moduleData.schema) {
+              logger.error(`Invalid collection file format: ${relativeFilePath}`, {
+                hasModuleData: !!moduleData,
+                hasSchema: !!(moduleData && moduleData.schema)
+              });
+              continue;
+            }
 
-          const schema = moduleData.schema as Partial<Schema>;
-          if (!schema || typeof schema !== 'object') {
-            logger.error(`Invalid or missing schema in ${filePath}`, {
-              hasModuleData: !!moduleData,
-              hasSchema: !!(moduleData && moduleData.schema)
-            });
-            continue;
-          }
+            const schema = moduleData.schema as Partial<Schema>;
+            if (!schema || typeof schema !== 'object') {
+              logger.error(`Invalid or missing schema in ${filePath}`, {
+                hasModuleData: !!moduleData,
+                hasSchema: !!(moduleData && moduleData.schema)
+              });
+              continue;
+            }
 
-          // Ensure required fields are present
-          if (!schema.fields) {
-            schema.fields = [];
-          }
+            // Ensure required fields are present
+            if (!schema.fields) {
+              schema.fields = [];
+            }
 
-          const filePathName = filePath
-            .split('/')
-            .pop()
-            ?.replace(/\.(ts|js)$/, '');
-          if (!filePathName) {
-            logger.error(`Could not extract name from \x1b[34m${filePath}\x1b[0m`);
-            continue;
-          }
-          const path = this.extractPathFromFilePath(filePath);
+            const filePathName = filePath
+              .split('/')
+              .pop()
+              ?.replace(/\.(ts|js)$/, '');
+            if (!filePathName) {
+              logger.error(`Could not extract name from \x1b[34m${filePath}\x1b[0m`);
+              continue;
+            }
+            const path = this.extractPathFromFilePath(filePath);
 
-          // Log the extracted path only if it hasn't been logged before
-          if (!extractedPaths.has(path)) {
-            logger.debug(`Extracted path: \x1b[34m${path}\x1b[0m`);
-            extractedPaths.add(path);
-          }
+            // Log the extracted path only if it hasn't been logged before
+            if (!extractedPaths.has(path)) {
+              logger.debug(`Extracted path: \x1b[34m${path}\x1b[0m`);
+              extractedPaths.add(path);
+            }
 
-          const existingNode = contentNodesMap.get(path);
+            const existingNode = contentNodesMap.get(path);
 
-          const processed: Schema = {
-            ...schema,
-            id: schema.id!, // Always use the ID from the compiled schema
-            name: schema.name || filePathName,
-            filePathName,
-            icon: schema.icon || 'iconoir:info-empty',
-            path: path,
-            fields: schema.fields || [],
-            permissions: schema.permissions || {},
-            livePreview: schema.livePreview || false,
-            strict: schema.strict || false,
-            revision: schema.revision || false,
-            description: schema.description || '',
-            label: schema.label || filePathName,
-            slug: schema.slug || filePathName.toLowerCase()
-          };
+            const processed: Schema = {
+              ...schema,
+              id: schema.id!, // Always use the ID from the compiled schema
+              name: schema.name || filePathName,
+              filePathName,
+              icon: schema.icon || 'iconoir:info-empty',
+              path: path,
+              fields: schema.fields || [],
+              permissions: schema.permissions || {},
+              livePreview: schema.livePreview || false,
+              strict: schema.strict || false,
+              revision: schema.revision || false,
+              description: schema.description || '',
+              label: schema.label || filePathName,
+              slug: schema.slug || filePathName.toLowerCase()
+            };
 
-          if (!processed.id) {
-            logger.error(`Missing UUID in compiled schema for ${filePath}`);
-            continue;
-          }
+            if (!processed.id) {
+              logger.error(`Missing UUID in compiled schema for ${filePath}`);
+              continue;
+            }
 
-          if (existingNode) {
+
+
             // Update node if UUID matches
-            if (existingNode._id?.toString() === processed.id) {
+            if (existingNode && existingNode._id?.toString() === processed.id) {
               await dbAdapter!.updateContentStructure(existingNode._id!.toString(), {
                 icon: processed.icon,
                 order: processed.order,
@@ -337,158 +351,177 @@ class ContentManager {
             }
 
             logger.info(`Created content node from file:  \x1b[34m${path}\x1b[0m`);
+
+
+            collections.push(processed);
+            await this.setCacheValue(filePath, processed, this.collectionCache);
+          } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            logger.error(`Failed to process module ${filePath}:`, { error: errorMessage });
+            continue;
           }
-
-          collections.push(processed);
-          await this.setCacheValue(filePath, processed, this.collectionCache);
-        } catch (err) {
-          const errorMessage = err instanceof Error ? err.message : String(err);
-          logger.error(`Failed to process module ${filePath}:`, { error: errorMessage });
-          continue;
         }
-      }
-      // Check for orphaned nodes
-      for (const [nodePath, node] of contentNodesMap) {
-        const hasFile = files.some((filePath) => this.extractPathFromFilePath(filePath) === nodePath);
-        if (!hasFile) {
-          logger.warn(`Orphaned content node found in database: \x1b[34m${nodePath}\x1b[0m`);
-          await dbAdapter!.deleteContentStructure(node._id!.toString());
-          logger.info(`Deleted orphaned content node: \x1b[34m${nodePath}\x1b[0m`);
+        // Check for orphaned nodes
+        for (const [nodePath, node] of contentNodesMap) {
+          const hasFile = files.some((filePath) => this.extractPathFromFilePath(filePath) === nodePath);
+          if (!hasFile) {
+            logger.warn(`Orphaned content node found in database: \x1b[34m${nodePath}\x1b[0m`);
+            await dbAdapter!.deleteContentStructure(node._id!.toString());
+            logger.info(`Deleted orphaned content node: \x1b[34m${nodePath}\x1b[0m`);
+          }
         }
-      }
 
-      // Cache in Redis if available
-      if (isRedisEnabled()) {
-        await setCache('cms:all_collections', collections, REDIS_TTL);
+        // Cache in Redis if available
+        if (isRedisEnabled()) {
+          await setCache('cms:all_collections', collections, REDIS_TTL);
+        }
+        this.loadedCollections = collections;
+        return collections;
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        logger.error('Failed to load collections', { error: errorMessage });
+        throw new Error(`Failed to load collections: ${errorMessage}`);
       }
-      this.loadedCollections = collections;
-      return collections;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      logger.error('Failed to load collections', { error: errorMessage });
-      throw new Error(`Failed to load collections: ${errorMessage}`);
-    }
+    }, 'Load Collections');
   }
 
-  // Update collections 
+  // Update collections with performance monitoring
   async updateCollections(recompile: boolean = false): Promise<void> {
-    try {
-      if (recompile) {
-        // Clear both memory and Redis caches
-        this.collectionCache.clear();
-        this.fileHashCache.clear();
-        if (isRedisEnabled()) {
-          await clearCache('cms:all_collections');
+    return this.measurePerformance(async () => {
+      try {
+        if (recompile) {
+          // Clear both memory and Redis caches
+          this.collectionCache.clear();
+          this.fileHashCache.clear();
+          if (isRedisEnabled()) {
+            await clearCache('cms:all_collections');
+          }
         }
+        await this.loadCollections();
+        await this.createCategories();
+        logger.info('Collections updated successfully');
+        // Convert category array to record structure
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        logger.error(`Error in updateCollections: ${errorMessage}`);
+        throw new Error(`Failed to update collections: ${errorMessage}`);
       }
-      await this.loadCollections();
-      await this.createCategories();
-      // Convert category array to record structure
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      logger.error(`Error in updateCollections: ${errorMessage}`);
-      throw new Error(`Failed to update collections: ${errorMessage}`);
-    }
+    }, 'Update Collections');
   }
 
   public async getCollection(path: string): Promise<Schema> {
-    try {
+    return this.measurePerformance(async () => {
+      try {
 
-      if (!this.initialized) {
-        logger.error('Content Manager not initialized');
+        if (!this.initialized) {
+          logger.error('Content Manager not initialized');
+        }
+
+        const collection_uuid = this.loadedCategories.get(path)?.id;
+
+        const collection = this.loadedCollections.find((collection) => collection.id == collection_uuid?.toString());
+
+        if (!collection) {
+          throw new Error(`Collection not found in getCollection: ${path}`);
+        }
+
+        return collection;
+
+      } catch (error) {
+
+        logger.error('Error getting collection', error);
+        throw error;
+
       }
-
-      const collection_uuid = this.loadedCategories.get(path)?.id;
-
-      const collection = this.loadedCollections.find((collection) => collection.id == collection_uuid?.toString());
-
-      if (!collection) {
-        throw new Error(`Collection not found in getCollection: ${path}`);
-      }
-
-      return collection;
-
-    } catch (error) {
-      logger.error('Error getting collection', error);
-      throw error;
-
-    }
+    }, "Get Collection");
   }
 
   // Create categories with optimized processing and Redis caching
   private async createCategories(): Promise<void> {
-    try {
-      // Try getting from Redis cache first
-      if (isRedisEnabled()) {
-        const cachedCategories = await getCache<Map<string, SystemContent>>('cms:categories');
-        if (cachedCategories) {
-          this.loadedCategories = new Map(Object.entries(cachedCategories));
-          return;
+    this.measurePerformance(async () => {
+      try {
+        // Try getting from Redis cache first
+        if (isRedisEnabled()) {
+          const cachedCategories = await getCache<Map<string, SystemContent>>('cms:categories');
+          if (cachedCategories) {
+            this.loadedCategories = new Map(Object.entries(cachedCategories));
+            return cachedCategories;
+          }
         }
-      }
 
-      const categoryStructure: Record<string, CollectionData> = {};
-      const collectionsList = Array.from(this.collectionCache.values()).map((entry) => entry.value);
+        const categoryStructure: Record<string, CollectionData> = {};
+        const collectionsList = Array.from(this.collectionCache.values()).map((entry) => entry.value);
 
-      // Get content structure from database if available
-      let contentNodes: SystemContent[] = [];
-      if (dbAdapter) {
-        try {
-          contentNodes = await dbAdapter.getContentStructure();
+        // Get content structure from database if available
+        let contentNodes: SystemContent[] = [];
+        if (dbAdapter) {
+          try {
+            contentNodes = await dbAdapter.getContentStructure();
 
-        } catch (err) {
-          logger.warn('Could not fetch content structure, proceeding with file-based structure', { error: err });
+
+          } catch (err) {
+            logger.warn('Could not fetch content structure, proceeding with file-based structure', { error: err });
+          }
         }
-      }
 
-      // If we have content nodes in the database, use them
-      if (contentNodes.length > 0) {
-        // Convert database structure to category structure
-        contentNodes.forEach((node) => {
-          categoryStructure[node.path] = {
+        // If we have content nodes in the database, use them
+        if (contentNodes.length > 0) {
+          // Convert database structure to category structure
+          contentNodes.forEach((node) => {
+            categoryStructure[node.path] = {
 
-            id: node._id?.toString() || '',
-            path: node.path,
-            name: node.name,
-            icon: node.icon || 'bi:folder',
-            order: node.order || 999,
-            isCollection: node.isCollection,
-            subcategories: {},
-            collections: []
-          };
-        }
-        );
+              id: node._id?.toString() || '',
+              path: node.path,
+              name: node.name,
+              icon: node.icon || 'bi:folder',
+              order: node.order || 999,
+              isCollection: node.isCollection,
+              subcategories: {},
+              collections: []
+            };
+          }
+          );
 
-      } else {
-        // Process collections into category structure
-        for (const collection of collectionsList) {
-          if (!collection.path) {
-            logger.warn(`Collection \x1b[34m${String(collection.name)}\x1b[0m has no path`);
-            continue;
+        } else {
+          // Process collections into category structure
+          logger.debug("Processing collections into category structure");
+          if (!dbAdapter) {
+            logger.error("No dbAdapter");
+            throw new Error("Databse Adapter not initialized");
           }
 
-          const pathParts = collection.path.split('/');
-          let currentLevel = categoryStructure;
-          let currentPath = '';
+          for (const collection of collectionsList) {
+            if (!collection.path) {
+              logger.warn(`Collection \x1b[34m${String(collection.name)}\x1b[0m has no path`);
+              continue;
+            }
 
-          for (const [index, part] of pathParts.entries()) {
-            currentPath = currentPath ? `${currentPath}/${part}` : part;
-            if (!currentLevel[part]) {
-              const id = '';
-              if (!id) {
-                continue;
-              }
-              currentLevel[part] = {
-                id,
-                name: part,
-                icon: index === 0 ? 'bi:collection' : 'bi:folder',
-                subcategories: {},
-                order: 999,
-                collections: []
-              };
+            const pathParts = collection.path.split('/');
+            let currentLevel = categoryStructure;
+            let currentPath = '';
 
-              // Store in database
-              if (dbAdapter) {
+
+
+            for (const [index, part] of pathParts.entries()) {
+              currentPath = currentPath ? `${currentPath}/${part}` : part;
+
+
+
+              if (!currentLevel[part]) {
+                const id = '';
+                if (!id) {
+                  continue;
+                }
+                currentLevel[part] = {
+
+                  name: part,
+                  icon: index === 0 ? 'bi:collection' : 'bi:folder',
+                  subcategories: {},
+                  order: 999,
+                  collections: []
+                };
+
+                // Store in database
                 try {
                   await dbAdapter.createContentStructure({
                     path: currentPath,
@@ -500,18 +533,19 @@ class ContentManager {
                 } catch (err) {
                   logger.warn('Failed to store category in database', { error: err });
                 }
+
               }
-            }
 
-            if (index === pathParts.length - 1) {
-              // This is a collection
-              currentLevel[part].collections.push(collection);
-              currentLevel[part].icon = collection.icon || currentLevel[part].icon;
-              currentLevel[part].isCollection = true;
+              if (index === pathParts.length - 1) {
+                // This is a collection
+                currentLevel[part].collections.push(collection);
+                currentLevel[part].icon = collection.icon || currentLevel[part].icon;
+                currentLevel[part].isCollection = true;
 
-              // Store collection reference in database
-              if (dbAdapter) {
+
+                // Store collection reference in database
                 try {
+                  logger.debug("Creating collection strucure reference in database");
                   await dbAdapter.createContentStructure({
                     _id: collection.id,
                     path: currentPath,
@@ -522,55 +556,58 @@ class ContentManager {
                 } catch (err) {
                   logger.warn('Failed to store collection reference in database', { error: err });
                 }
+
               }
+              logger.debug(index, part, currentLevel);
+              currentLevel = currentLevel[part].subcategories!;
             }
-            currentLevel = currentLevel[part].subcategories!;
           }
         }
-      }
 
-      // Convert category structure to array format
-      const processCategory = (name: string, cat: CollectionData, parentPath: string = ''): Category => {
-        const currentPath = parentPath ? `${parentPath}/${name}` : name;
-        const subcategories: Record<string, Category> = {};
+        // Convert category structure to array format
+        const processCategory = (name: string, cat: CollectionData, parentPath: string = ''): Category => {
+          const currentPath = parentPath ? `${parentPath}/${name}` : name;
+          const subcategories: Record<string, Category> = {};
 
-        if (cat.subcategories) {
-          Object.entries(cat.subcategories).forEach(([subName, subCat]) => {
-            if (!subCat.isCollection) {
-              subcategories[subName] = processCategory(subName, subCat, currentPath);
-            }
-          });
+          if (cat.subcategories) {
+            Object.entries(cat.subcategories).forEach(([subName, subCat]) => {
+              if (!subCat.isCollection) {
+                subcategories[subName] = processCategory(subName, subCat, currentPath);
+              }
+            });
+          }
+
+          return {
+            id: parseInt(cat.id),
+            name,
+            icon: cat.icon,
+            collections: cat.collections || [],
+            subcategories: Object.keys(subcategories).length > 0 ? subcategories : undefined
+          };
+        };
+
+        const categoryArray: Category[] = Object.entries(categoryStructure)
+          .filter(([, cat]) => !cat.isCollection)
+          .map(([name, cat]) => processCategory(name, cat));
+
+
+
+        this.loadedCategories = new Map(Object.entries(categoryStructure));
+
+        // Cache in Redis if available
+
+        if (isRedisEnabled()) {
+          await setCache('cms:categories', contentStructure, REDIS_TTL);
         }
 
-        return {
-          id: parseInt(cat.id),
-          name,
-          icon: cat.icon,
-          collections: cat.collections || [],
-          subcategories: Object.keys(subcategories).length > 0 ? subcategories : undefined
-        };
-      };
 
-      const categoryArray: Category[] = Object.entries(categoryStructure)
-        .filter(([, cat]) => !cat.isCollection)
-        .map(([name, cat]) => processCategory(name, cat));
-
-
-
-      this.loadedCategories = new Map(Object.entries(categoryStructure));
-
-      // Cache in Redis if available
-
-      if (isRedisEnabled()) {
-        await setCache('cms:categories', contentStructure, REDIS_TTL);
+        return categoryArray;
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        logger.error('Failed to create categories', { error: errorMessage });
+        throw new Error(`Failed to create categories: ${errorMessage}`);
       }
-
-      return;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      logger.error('Failed to create categories', { error: errorMessage });
-      throw new Error(`Failed to create categories: ${errorMessage}`);
-    }
+    }, 'Create Categories');
   }
 
   // Cache management methods with Redis support
@@ -704,7 +741,6 @@ class ContentManager {
       throw error;
     }
   }
-
   //Get a content node map
   public async getContentStructureMap(): Promise<Map<string, SystemContent>> {
     const contentNodes = await (dbAdapter?.getContentStructure() || Promise.resolve([]));
@@ -716,6 +752,20 @@ class ContentManager {
     return contentNodesMap;
   }
 
+  // Performance monitoring
+  private async measurePerformance<T>(operation: () => Promise<T>, operationName: string): Promise<T> {
+    const start = performance.now();
+    try {
+      const result = await operation();
+      const duration = performance.now() - start;
+      logger.info(`${operationName} completed in \x1b[32m${duration.toFixed(2)}ms\x1b[0m`);
+      return result;
+    } catch (error) {
+      const duration = performance.now() - start;
+      logger.error(`${operationName} failed after \x1b[34m${duration.toFixed(2)}ms\x1b[0m`);
+      throw error;
+    }
+  }
   // Error recovery
   private async retryOperation<T>(operation: () => Promise<T>, maxRetries: number = MAX_RETRIES, delay: number = RETRY_DELAY): Promise<T> {
     let lastError: Error | null = null;
@@ -730,6 +780,11 @@ class ContentManager {
     }
     throw lastError;
   }
+
+
+
+
+
 
   // Lazy loading with Redis support
   private async lazyLoadCollection(name: ContentTypes): Promise<Schema | null> {
@@ -767,3 +822,4 @@ export const contentManager = ContentManager.getInstance();
 
 // Export types
 export type { Schema, ContentTypes, Category, CollectionData };
+
