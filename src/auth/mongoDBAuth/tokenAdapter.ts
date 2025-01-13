@@ -34,7 +34,7 @@ import { logger } from '@utils/logger.svelte';
 export const TokenSchema = new Schema(
   {
     user_id: { type: String, required: true }, // ID of the user who owns the token, required field
-    token: { type: String, required: true }, // Token string, required field
+    token: { type: String, required: true, unique: true }, // Token string, required field
     email: { type: String, required: true }, // Email associated with the token, required field
     expires: { type: Date, required: true }, // Expiry timestamp of the token, required field
     type: { type: String, required: true } // Type of the token, required field
@@ -52,7 +52,7 @@ export class TokenAdapter implements Partial<authDBInterface> {
 
   async createToken(data: { user_id: string; email: string; expires: Date; type: string }): Promise<string> {
     try {
-      const token = crypto.randomBytes(32).toString('hex');
+      const token = crypto.randomBytes(32).toString('base64url'); // Generate a 44-character base64url token
       const newToken = new this.TokenModel({ ...data, token });
       await newToken.save();
       logger.debug('Token created', { user_id: data.user_id, type: data.type });

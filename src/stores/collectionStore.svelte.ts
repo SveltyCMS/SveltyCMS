@@ -10,7 +10,7 @@
  */
 
 import { store } from '@utils/reactivity.svelte';
-import type { Schema, ModeType, Widget, CollectionData } from '@src/content/types';
+import type { Schema, ModeType, Widget, Category } from '@src/content/types';
 
 // Define UUID-based collection interface
 interface UUIDCollection extends Schema {
@@ -56,7 +56,7 @@ export const modifyEntry = store<(status?: keyof typeof statusMap) => Promise<vo
 export const selectedEntries = store<string[]>([]);
 export const targetWidget = store<Widget>({ permissions: {} });
 
-export const contentStructure = store<Map<string, CollectionData>>(new Map());
+export const contentStructure = store<Record<string, Category>>({});
 
 // Reactive calculations using Svelte 5 runes
 export const totalCollections = store(() => Object.keys(collections.value).length);
