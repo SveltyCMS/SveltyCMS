@@ -210,6 +210,7 @@ export interface dbInterface {
 
   // Content Structure Methods for direct database interactions
   createContentStructure(contentData: {
+    _id?: string;
     name: string;
     parent?: string;
     path: string;

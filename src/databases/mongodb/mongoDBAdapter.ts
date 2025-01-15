@@ -995,7 +995,6 @@ export class MongoDBAdapter implements dbInterface {
   }): Promise<Document> {
     try {
       // If _id is provided, use it directly when creating the model
-      logger.debug(`Attempting to create content structure with data: ${JSON.stringify(contentData, null, 2)}`)
       const node = new ContentStructureModel({
         ...contentData,
         _id: contentData._id // Use provided _id

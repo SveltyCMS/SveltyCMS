@@ -83,13 +83,37 @@ export interface Schema {
 
 // Category interface
 export interface Category {
+	_id: string; // MongoDB ObjectID
 	id: string; // UUID for Category
 	name: string; // Category name
 	icon: string; // Category icon
+	path: string; // Path within the structure
+	order: number; // Display order
+	isCollection: boolean; // Whether this is a collection
+	parentId?: string; // Parent category ID
+	children?: Category[]; // Child categories
 	translations?: { languageTag: string; translationName: string }[];
 	collections: Schema[]; // Collections within this category
-	subcategories?: Record<string, Category>; // Added subcategories support
+	subcategories?: Map<string, Category>; // Nested subcategories
+	collectionConfig?: Record<string, unknown>; // Collection configuration
+	updatedAt: Date; // Last updated timestamp
+	createdAt: Date; // Creation timestamp
+	__v?: number; // Version key
 }
+
+export interface NestedCategory extends Omit<Category, 'children'> {
+	children?: NestedCategory[];
+}
+
+export type CategoryTree = {
+	root: NestedCategory;
+	flatMap: Map<string, NestedCategory>;
+};
+
+export type CategoryPath = {
+	path: string;
+	category: NestedCategory;
+};
 
 // Category data interface for configuration
 export interface CollectionData {

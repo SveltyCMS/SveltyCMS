@@ -23,23 +23,25 @@ export const contentStructureSchema = new Schema(
     translations: [
       {
         languageTag: String,
-        translationName: String
-      }
+        translationName: String,
+      },
     ],
     isCollection: { type: Boolean, default: true }, // Default to true since we're syncing collections
     collectionConfig: { type: Schema.Types.Mixed }, // Store the full collection config
-    updatedAt: { type: Date, default: Date.now }
+    subcategories: { type: Map, of: Schema.Types.Mixed }, // Nested subcategories
+    collections: [{ type: Schema.Types.Mixed }], // Collections within this category
+    updatedAt: { type: Date, default: Date.now },
   },
   {
     timestamps: true,
     collection: 'system_content_structure',
     strict: false, // Allow additional fields from collection config
-    autoIndex: false
+    autoIndex: false,
   }
 );
 
-// // Add indexes
-// contentStructureSchema.index({ path: 1 }, { unique: true });
+// Add indexes
+contentStructureSchema.index({ path: 1 }, { unique: true });
 contentStructureSchema.index({ isCollection: 1 });
 contentStructureSchema.index({ order: 1 });
 
@@ -143,4 +145,4 @@ contentStructureSchema.statics = {
 
 // Create and export the ContentStructure model
 export const ContentStructureModel =
-  mongoose.models?.ContentStructure || mongoose.model<ContentStructure>('ContentStructure', contentStructureSchema);
+  mongoose.models?.ContentStructure || mongoose.model('ContentStructure', contentStructureSchema);
