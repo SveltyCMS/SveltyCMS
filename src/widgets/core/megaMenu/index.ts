@@ -11,7 +11,7 @@ import Input from '../input';
 
 // Stores
 import { writable, type Writable } from 'svelte/store';
-import { headerActionButton2 } from '@stores/store';
+import { headerActionButton2 } from '@stores/store.svelte';
 import { collectionValue, mode } from '@stores/collectionStore.svelte';
 
 //ParaglideJS

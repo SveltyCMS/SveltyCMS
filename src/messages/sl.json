@@ -421,5 +421,14 @@
 	"llmConfig_description": "Konfiguracija LLM",
 	"llmConfig_useLLM": "Omogoči integracijo LLM",
 	"llmConfig_llmProvider": "Ponudnik LLM (npr. OpenAI, Claude, Gemimi itd.)",
-	"llmConfig_apiKey": "Ključ API LLM"
+	"llmConfig_apiKey": "Ključ API LLM",
+	"signin_no_user": "Noben uporabnik še ne obstaja",
+	"collection_no_collections_found": "Ni zbirk",
+	"EntryList_no_collection": "Brez zbirke {name} podatkov",
+	"sidebar_createdby": "Ustvaril",
+	"sidebarschedule_publication": "Objava urnika",
+	"sidebar_will_publish_on": "Objavljeno bo dne",
+	"siedabar_publish_options": "Možnosti objave",
+	"Fields_no_widgets_found": "Gradnika ni bilo mogoče najti: {name}",
+	"Fields_preview": "Predogled"
 }

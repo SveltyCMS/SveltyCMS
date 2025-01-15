@@ -27,51 +27,49 @@ import { contentManager } from '@root/src/content/ContentManager';
 import { serializeCollection } from '@root/src/utils/serialize';
 
 // Server-side load function for the layout
-export const load: LayoutServerLoad = async ({ locals, params }) => {
-  const { user, theme } = locals;
-  const { language, collection } = params;
+export const load: LayoutServerLoad = async ({ cookies, locals, params }) => {
+	const { user, theme } = locals;
+	const { language, collection } = params;
 
-  logger.debug(`Layout server load started. Language: \x1b[34m${language}\x1b[0m`);
+	logger.debug(`Layout server load started. Language: \x1b[34m${language}\x1b[0m`);
 
-  // ensure language exist :
-  if (!language || !publicEnv.AVAILABLE_SYSTEM_LANGUAGES.includes(language) || !collection) {
-    const message = 'The language parameter is missing.';
-    logger.warn(message);
-    throw error(404, message);
-  }
+	// Get the content language from cookies
+	const contentLanguageCookie = cookies.get('contentLanguage');
+	const contentLanguage =
+		contentLanguageCookie && publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(contentLanguageCookie)
+			? contentLanguageCookie
+			: publicEnv.DEFAULT_CONTENT_LANGUAGE;
 
-  // Ensure the user is authenticated (this should already be handled by hooks.server.ts)
-  if (!user) {
-    logger.warn('User not authenticated, redirecting to login.');
-    throw redirect(302, '/login');
-  }
+	// ensure language exist :
+	if (!contentLanguage || !publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(contentLanguage) || !collection) {
+		const message = 'The language parameter is missing.';
+		logger.warn(message);
+		throw error(404, message);
+	}
 
-  // Redirect to user page if lastAuthMethod is token
-  if (user.lastAuthMethod === 'token') {
-    logger.debug('User authenticated with token, redirecting to user page.');
-    throw redirect(302, '/user');
-  }
+	// Ensure the user is authenticated (this should already be handled by hooks.server.ts)
+	if (!user) {
+		logger.warn('User not authenticated, redirecting to login.');
+		throw redirect(302, '/login');
+	}
 
-  // Validate the requested language
-  if (!publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(language)) {
-    const message = `The language '${language}' is not available.`;
-    logger.warn(message);
-    throw error(404, message);
-  }
+	// Redirect to user page if lastAuthMethod is token
+	if (user.lastAuthMethod === 'token') {
+		logger.debug('User authenticated with token, redirecting to user page.');
+		throw redirect(302, '/user');
+	}
 
-  await contentManager.initialize();
-  const currentCollection = await contentManager.getCollection(`/${collection}`);
+	await contentManager.initialize();
+	const currentCollection = await contentManager.getCollection(`/${collection}`);
 
-
-
-  return {
-    theme: theme || DEFAULT_THEME,
-    language,
-    collection: serializeCollection(currentCollection),
-    user: {
-      username: user.username,
-      role: user.role,
-      avatar: user.avatar
-    }
-  };
-};;
+	return {
+		theme: theme || DEFAULT_THEME,
+		contentLanguage,
+		collection: serializeCollection(currentCollection),
+		user: {
+			username: user.username,
+			role: user.role,
+			avatar: user.avatar
+		}
+	};
+};

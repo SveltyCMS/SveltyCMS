@@ -29,7 +29,7 @@ import type { BaseIssue, BaseSchema } from 'valibot';
 
 // Stores
 import { get } from 'svelte/store';
-import { translationProgress, contentLanguage } from '@stores/store';
+import { translationProgress, contentLanguage } from '@stores/store.svelte';
 
 // System Logger
 import { logger, type LoggableValue } from '@utils/logger.svelte';

@@ -108,10 +108,9 @@ export const _SETSTATUS = async ({ data, schema, user }: { data: FormData; schem
 		const updateDuration = performance.now() - updateStart;
 
 		const totalDuration = performance.now() - start;
-		logger.info(
-			`Status updated for ${result.modifiedCount} documents in ${updateDuration.toFixed(2)}ms, total time: ${totalDuration.toFixed(2)}ms`,
-			{ user: user._id }
-		);
+		logger.info(`Status updated for ${result.modifiedCount} documents in ${updateDuration.toFixed(2)}ms, total time: ${totalDuration.toFixed(2)}ms`, {
+			user: user._id
+		});
 
 		// Return the result with performance metrics
 		return new Response(

@@ -130,10 +130,10 @@ export default defineConfig({
 
 												// Create a proper Node.js response object
 												const res = {
-													setHeader: () => { },
-													getHeader: () => { },
-													write: () => { },
-													end: () => { },
+													setHeader: () => {},
+													getHeader: () => {},
+													write: () => {},
+													end: () => {},
 													statusCode: 200
 												};
 
@@ -147,7 +147,7 @@ export default defineConfig({
 												if (retryCount < maxRetries) {
 													retryCount++;
 													console.log(`Retrying content structure sync (attempt ${retryCount})...`);
-													await new Promise(resolve => setTimeout(resolve, 500));
+													await new Promise((resolve) => setTimeout(resolve, 500));
 													return syncContentStructure();
 												}
 												console.error('Failed to trigger content structure sync after retries:', error);

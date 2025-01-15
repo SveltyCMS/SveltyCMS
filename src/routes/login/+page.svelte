@@ -23,9 +23,8 @@ Features:
 	import Seasons from '@components/system/icons/Seasons.svelte';
 
 	// Stores
-	import { systemLanguage } from '@stores/store';
+	import { systemLanguage } from '@stores/store.svelte';
 	import { getLanguageName } from '@utils/languageUtils';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -331,6 +330,13 @@ Features:
 				<select
 					bind:value={systemLanguage.value}
 					class="rounded-full border-2 bg-[#242728] px-4 py-2 text-white transition-colors duration-300 focus:ring-2"
+					onchange={async (e: Event) => {
+						const target = e.target as HTMLSelectElement;
+						if (target) {
+							const lang = target.value;
+							await handleLanguageSelection(lang);
+						}
+					}}
 				>
 					{#each availableLanguages as lang}
 						<option value={lang}>{getLanguageName(lang)} ({lang.toUpperCase()})</option>

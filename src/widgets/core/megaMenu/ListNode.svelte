@@ -13,7 +13,7 @@
 	import ListNode from './ListNode.svelte';
 
 	// Stores
-	import { translationProgress, contentLanguage, shouldShowNextButton, headerActionButton2 } from '@stores/store';
+	import { translationProgress, contentLanguage, shouldShowNextButton, headerActionButton2 } from '@stores/store.svelte';
 	import { mode } from '@root/src/stores/collectionStore.svelte';
 
 	// ParaglideJS

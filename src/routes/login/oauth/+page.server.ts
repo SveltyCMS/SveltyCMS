@@ -18,7 +18,7 @@ import { auth, dbInitPromise } from '@src/databases/db';
 import { saveAvatarImage } from '@utils/media/mediaStorage';
 
 // Stores
-import { systemLanguage } from '@stores/store';
+import { systemLanguage } from '@stores/store.svelte';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

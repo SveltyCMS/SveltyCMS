@@ -14,7 +14,7 @@
 	import { v4 as uuidv4 } from 'uuid';
 
 	// Stores
-	import { contentLanguage, validationStore } from '@stores/store';
+	import { contentLanguage, validationStore } from '@stores/store.svelte';
 	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
 
 	// Components

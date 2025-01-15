@@ -24,7 +24,6 @@ const EXCLUDED_FILES = new Set(['index.ts', 'vite.ts']);
 // Auth
 import type { RolePermissions } from '@src/auth/types';
 
-
 // Collection names are dynamic, based on the files in the collections directory
 
 // Widget field type definition
@@ -35,26 +34,25 @@ type WidgetTypes = (typeof widgets)[WidgetKeys];
 export type FieldValue = string | number | boolean | null | Record<string, unknown> | Array<unknown>;
 
 // Extended field type with display and callback properties
-export type Field =
-	{
-		widget: WidgetTypes;
-		type: WidgetKeys;
-		config: WidgetTypes;
-		label: string;
-		required?: boolean;
-		unique?: boolean;
-		default?: FieldValue;
-		validate?: (value: FieldValue) => boolean | Promise<boolean>;
-		display?: (args: {
-			data: Record<string, FieldValue>;
-			collection: string;
-			field: Field;
-			entry: Record<string, FieldValue>;
-			contentLanguage: string;
-		}) => Promise<string> | string;
-		callback?: (args: { data: Record<string, FieldValue> }) => void;
-		modifyRequest?: (args: ModifyRequestParams<(typeof widgets)[WidgetKeys]>) => Promise<object>;
-	};
+export type Field = {
+	widget: WidgetTypes;
+	type: WidgetKeys;
+	config: WidgetTypes;
+	label: string;
+	required?: boolean;
+	unique?: boolean;
+	default?: FieldValue;
+	validate?: (value: FieldValue) => boolean | Promise<boolean>;
+	display?: (args: {
+		data: Record<string, FieldValue>;
+		collection: string;
+		field: Field;
+		entry: Record<string, FieldValue>;
+		contentLanguage: string;
+	}) => Promise<string> | string;
+	callback?: (args: { data: Record<string, FieldValue> }) => void;
+	modifyRequest?: (args: ModifyRequestParams<(typeof widgets)[WidgetKeys]>) => Promise<object>;
+};
 
 // Collection Registry - defines all available collections
 export const CollectionRegistry = {
@@ -83,13 +81,37 @@ export interface Schema {
 
 // Category interface
 export interface Category {
+	_id: string; // MongoDB ObjectID
 	id: string; // UUID for Category
 	name: string; // Category name
 	icon: string; // Category icon
+	path: string; // Path within the structure
+	order: number; // Display order
+	isCollection: boolean; // Whether this is a collection
+	parentId?: string; // Parent category ID
+	children?: Category[]; // Child categories
 	translations?: { languageTag: string; translationName: string }[];
 	collections: Schema[]; // Collections within this category
-	subcategories?: Record<string, Category>; // Added subcategories support
+	subcategories?: Map<string, Category>; // Nested subcategories
+	collectionConfig?: Record<string, unknown>; // Collection configuration
+	updatedAt: Date; // Last updated timestamp
+	createdAt: Date; // Creation timestamp
+	__v?: number; // Version key
 }
+
+export interface NestedCategory extends Omit<Category, 'children'> {
+	children?: NestedCategory[];
+}
+
+export type CategoryTree = {
+	root: NestedCategory;
+	flatMap: Map<string, NestedCategory>;
+};
+
+export type CategoryPath = {
+	path: string;
+	category: NestedCategory;
+};
 
 // Category data interface for configuration
 export interface CollectionData {
@@ -104,7 +126,6 @@ export interface CollectionData {
 
 // Collection types
 export type ContentTypes = Record<string, unknown>;
-
 
 // Generates TypeScript union type of collection names
 export async function generateContentTypes(): Promise<void> {
@@ -157,8 +178,8 @@ async function processCollectionFile(content: string): Promise<{ fields: string[
 
 	const processedContent = `
         ${Array.from(widgets)
-			.map((widget) => `const ${widget} = (args: any) => args;`)
-			.join('\n')}
+					.map((widget) => `const ${widget} = (args: any) => args;`)
+					.join('\n')}
         ${content.replace(/widgets\./g, '')}
     `;
 

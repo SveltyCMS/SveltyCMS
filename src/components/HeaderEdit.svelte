@@ -57,7 +57,7 @@
 	import { collection, collectionValue, mode, modifyEntry, statusMap, contentStructure } from '@src/stores/collectionStore.svelte';
 	import { toggleSidebar, sidebarState } from '@src/stores/sidebarStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
-	import { contentLanguage, tabSet, validationStore, headerActionButton } from '@stores/store';
+	import { contentLanguage, tabSet, validationStore, headerActionButton } from '@stores/store.svelte';
 
 	// Auth
 	import type { User } from '@src/auth/types';

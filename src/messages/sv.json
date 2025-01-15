@@ -421,5 +421,14 @@
 	"llmConfig_description": "LLM-konfiguration",
 	"llmConfig_useLLM": "Aktivera LLM-integration",
 	"llmConfig_llmProvider": "LLM-leverantör (t.ex. OpenAI, Claude, Gemimi, etc)",
-	"llmConfig_apiKey": "LLM API-nyckel"
+	"llmConfig_apiKey": "LLM API-nyckel",
+	"signin_no_user": "Inga användare finns ännu",
+	"collection_no_collections_found": "Inga samlingar hittades",
+	"EntryList_no_collection": "Ingen samling {name} Data",
+	"sidebar_createdby": "Skapad av",
+	"sidebarschedule_publication": "Schemalägg publicering",
+	"sidebar_will_publish_on": "Kommer att publiceras den",
+	"siedabar_publish_options": "Publiceringsalternativ",
+	"Fields_no_widgets_found": "Widget hittades inte: {name}",
+	"Fields_preview": "Förhandsvisning"
 }

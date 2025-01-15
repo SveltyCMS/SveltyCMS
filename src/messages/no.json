@@ -421,5 +421,14 @@
 	"llmConfig_description": "LLM-konfigurasjon",
 	"llmConfig_useLLM": "Aktiver LLM-integrasjon",
 	"llmConfig_llmProvider": "LLM-leverandør (f.eks. OpenAI, Claude, Gemimi, osv.)",
-	"llmConfig_apiKey": "LLM API-nøkkel"
+	"llmConfig_apiKey": "LLM API-nøkkel",
+	"signin_no_user": "Ingen brukere eksisterer ennå",
+	"collection_no_collections_found": "Ingen samlinger funnet",
+	"EntryList_no_collection": "Ingen samling {name} data",
+	"sidebar_createdby": "Laget av",
+	"sidebarschedule_publication": "Planlegg publisering",
+	"sidebar_will_publish_on": "Blir publisert på",
+	"siedabar_publish_options": "Publiseringsalternativer",
+	"Fields_no_widgets_found": "Widget ikke funnet: {name}",
+	"Fields_preview": "Forhåndsvisning"
 }

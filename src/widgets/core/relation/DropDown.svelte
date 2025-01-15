@@ -8,7 +8,7 @@
 	import type { FieldType } from '.';
 
 	// Stores
-	import { contentLanguage } from '@stores/store';
+	import { contentLanguage } from '@stores/store.svelte';
 	import { collection, collectionValue } from '@src/stores/collectionStore.svelte';
 
 	interface Props {

@@ -421,5 +421,14 @@
 	"llmConfig_description": "एलएलएम कॉन्फ़िगरेशन",
 	"llmConfig_useLLM": "LLM एकीकरण सक्षम करें",
 	"llmConfig_llmProvider": "एलएलएम प्रदाता (उदाहरण के लिए, ओपनएआई, क्लाउड, जेमिमी, आदि)",
-	"llmConfig_apiKey": "एलएलएम एपीआई कुंजी"
+	"llmConfig_apiKey": "एलएलएम एपीआई कुंजी",
+	"signin_no_user": "अभी तक कोई उपयोगकर्ता मौजूद नहीं है",
+	"collection_no_collections_found": "कोई संग्रह नहीं मिला",
+	"EntryList_no_collection": "कोई संग्रह {name} डेटा नहीं",
+	"sidebar_createdby": "के द्वारा बनाई गई",
+	"sidebarschedule_publication": "अनुसूची प्रकाशन",
+	"sidebar_will_publish_on": "पर प्रकाशित किया जाएगा",
+	"siedabar_publish_options": "प्रकाशन विकल्प",
+	"Fields_no_widgets_found": "विजेट नहीं मिला: {name}",
+	"Fields_preview": "पूर्व दर्शन"
 }

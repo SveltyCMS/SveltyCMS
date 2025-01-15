@@ -10,7 +10,7 @@ It provides an interface for users to:
 
 <script lang="ts">
 	// Stores
-	import { tabSet } from '@stores/store';
+	import { tabSet } from '@stores/store.svelte';
 	import { page } from '$app/stores';
 	import { writable } from 'svelte/store';
 

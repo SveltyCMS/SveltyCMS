@@ -6,7 +6,7 @@
 
 <script lang="ts">
 	// Stores
-	import { saveFunction, translationProgress, shouldShowNextButton, validationStore } from '@stores/store';
+	import { saveFunction, translationProgress, shouldShowNextButton, validationStore } from '@stores/store.svelte';
 	import { collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
 
 	// Components

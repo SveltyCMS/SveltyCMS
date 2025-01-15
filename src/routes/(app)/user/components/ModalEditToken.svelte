@@ -32,17 +32,19 @@
 		token: string;
 		email: string;
 		role: string;
+		expires: string;
 		user_id: string;
 	}
 
-	let { parent = { regionFooter: 'modal-footer p-4' }, token, email, role, user_id }: Props = $props();
+	let { parent = { regionFooter: 'modal-footer p-4' }, token, email, role, expires, user_id }: Props = $props();
 
 	// Form Data
 	const formData = $state({
 		user_id: user_id,
 		email: email,
 		token: token,
-		role: role
+		role: role,
+		expires: expires
 	});
 
 	const errorStatus = $state({
@@ -62,7 +64,8 @@
 				body: JSON.stringify({
 					tokenId: formData.token,
 					newTokenData: {
-						role: formData.role
+						role: formData.role,
+						expires: formData.expires
 					}
 				})
 			});

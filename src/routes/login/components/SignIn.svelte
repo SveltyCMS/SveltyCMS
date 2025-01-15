@@ -585,7 +585,7 @@ Features:
 				{/if}
 			{:else}
 				<button onclick={onClick} type="button" aria-label="Signup" class="variant-ghost btn mt-2 w-full flex-col justify-center text-surface-500">
-					<p class="font-bold text-error-500">No users exist yet.</p>
+					<p class="font-bold text-error-500">{m.signin_no_user()}</p>
 					<p>Please sign up to create the <span class="font-bold text-tertiary-500">first admin </span> account.</p>
 				</button>
 			{/if}
