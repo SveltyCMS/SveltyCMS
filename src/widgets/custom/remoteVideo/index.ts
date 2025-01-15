@@ -86,4 +86,3 @@ widget.aggregations = {
 // Export FieldType type and widget function
 export type FieldType = ReturnType<typeof widget>;
 export default widget;
-

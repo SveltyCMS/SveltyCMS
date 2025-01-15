@@ -13,7 +13,7 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 
 	// Store
 	import { page } from '$app/stores';
-	import { saveEditedImage } from '@stores/store';
+	import { saveEditedImage } from '@stores/store.svelte';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';

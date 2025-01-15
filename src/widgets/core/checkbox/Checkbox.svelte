@@ -11,7 +11,7 @@
 	import { updateTranslationProgress, getFieldName } from '@utils/utils';
 
 	// Stores
-	import { contentLanguage, validationStore } from '@stores/store';
+	import { contentLanguage, validationStore } from '@stores/store.svelte';
 	import { mode, collectionValue } from '@stores/collectionStore.svelte';
 
 	// Valibot validation

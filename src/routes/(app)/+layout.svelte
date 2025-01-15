@@ -29,7 +29,8 @@ Key features:
 
 	// Stores
 	import { page } from '$app/state';
-	import { contentLanguage, systemLanguage, isLoading } from '@stores/store';
+	import { contentLanguage, systemLanguage, isLoading } from '@stores/store.svelte';
+	import type { AvailableLanguageTag } from '@src/paraglide/runtime';
 	import { contentStructure, collection, collections, mode } from '@root/src/stores/collectionStore.svelte';
 	import { sidebarState } from '@root/src/stores/sidebarStore.svelte';
 	import { screenSize, ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
@@ -54,7 +55,7 @@ Key features:
 
 	interface Props {
 		children?: import('svelte').Snippet;
-		data: { contentStructure: any; language: string };
+		data: { contentStructure: any; contentLanguage: string; systemLanguage: string };
 	}
 
 	let { children, data }: Props = $props();
@@ -65,16 +66,22 @@ Key features:
 	let loadError = $state<Error | null>(null);
 	let mediaQuery: MediaQueryList;
 
-	// Update content language when data changes
-	// $effect(() => {
-	// 	contentLanguage.set(data.language);
-	// });
+	// Update content language when data changes, ensuring it's a valid language tag
+	$effect(() => {
+		if (!(publicEnv.AVAILABLE_CONTENT_LANGUAGES as ReadonlyArray<AvailableLanguageTag>).includes(data.contentLanguage as AvailableLanguageTag)) {
+			// If data.contentLanguage is invalid and contentLanguage is not already set to a valid value, fall back to 'en'
+			if (!contentLanguage.value || !(publicEnv.AVAILABLE_CONTENT_LANGUAGES as ReadonlyArray<AvailableLanguageTag>).includes(contentLanguage.value)) {
+				contentLanguage.set('en');
+			}
+		} else {
+			contentLanguage.set(data.contentLanguage as AvailableLanguageTag);
+		}
+	});
 
 	// Handle collection changes
 	$effect(() => {
 		const newCollection = collection.value;
 		if (!newCollection?.name) return;
-    console.log('newCollection', newCollection);
 
 		const newPath = `/${contentLanguage.value || publicEnv.DEFAULT_CONTENT_LANGUAGE}${String(newCollection.path)}`;
 		if (page.url.pathname !== newPath && mode.value !== 'media') {

@@ -10,7 +10,7 @@
 	import { updateTranslationProgress, getFieldName } from '@utils/utils';
 
 	// Stores
-	import { validationStore } from '@stores/store';
+	import { validationStore } from '@stores/store.svelte';
 	import { type Field } from '@src/content/types';
 
 	// ParaglideJS

@@ -16,7 +16,7 @@
 
 	// Stores
 	import { page } from '$app/stores';
-	import { saveLayerStore, shouldShowNextButton, validationStore } from '@stores/store';
+	import { saveLayerStore, shouldShowNextButton, validationStore } from '@stores/store.svelte';
 	import { collection, mode, modifyEntry, collectionValue } from '@src/stores/collectionStore.svelte';
 	import { handleSidebarToggle } from '@src/stores/sidebarStore.svelte';
 	import { convertTimestampToDateString, getFieldName, meta_data } from '@utils/utils';
@@ -204,7 +204,7 @@
 					aria-label="Save entry"
 				>
 					<iconify-icon icon="material-symbols:save" width="24" class="font-extrabold text-white"></iconify-icon>
-					Save
+					{m.button_save()}
 				</button>
 
 				<!-- Publish/Unpublish -->
@@ -246,12 +246,12 @@
 
 			<!-- Publish Options -->
 			<main class="mt-2 flex w-full flex-col items-center justify-center gap-2 text-left dark:text-white">
-				<p class="w-full border-b text-center font-bold uppercase text-tertiary-500 dark:text-primary-500">Publish Options:</p>
+				<p class="w-full border-b text-center font-bold uppercase text-tertiary-500 dark:text-primary-500">{m.siedabar_publish_options()}</p>
 
 				<!-- Scheduled on -->
 				<div class="mt-2 flex w-full flex-col items-start justify-center">
 					{#if schedule}
-						<p class="mb-1">Will be published on:</p>
+						<p class="mb-1">{m.sidebar_will_publish_on()}</p>
 					{/if}
 					<button
 						onclick={openScheduleModal}
@@ -264,7 +264,7 @@
 
 				<!-- Created At -->
 				<div class="mt-2 flex w-full flex-col items-start justify-center">
-					<p class="mb-1">Created At:</p>
+					<p class="mb-1">{m.adminarea_createat()}</p>
 					<input
 						type="datetime-local"
 						bind:value={createdAtDate}
@@ -275,7 +275,7 @@
 
 				<!-- User Info -->
 				<div class="mt-2 flex w-full flex-col items-start justify-center">
-					<p class="mb-1">Created by:</p>
+					<p class="mb-1">{m.sidebar_createdby()}:</p>
 					<div class="variant-filled-surface w-full p-2 text-center text-tertiary-500 dark:text-primary-500">
 						{collectionValue.value.createdBy || user.username}
 					</div>

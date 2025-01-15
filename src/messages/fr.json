@@ -421,5 +421,14 @@
 	"llmConfig_description": "Configuration LLM",
 	"llmConfig_useLLM": "Activer l'intégration LLM",
 	"llmConfig_llmProvider": "Fournisseur LLM (par exemple, OpenAI, Claude, Gemimi, etc.)",
-	"llmConfig_apiKey": "Clé API LLM"
+	"llmConfig_apiKey": "Clé API LLM",
+	"signin_no_user": "Aucun utilisateur n'existe encore",
+	"collection_no_collections_found": "Aucune collection trouvée",
+	"EntryList_no_collection": "Aucune collection de données {name}",
+	"sidebar_createdby": "Créé par",
+	"sidebarschedule_publication": "Publication du calendrier",
+	"sidebar_will_publish_on": "Sera publié le",
+	"siedabar_publish_options": "Options de publication",
+	"Fields_no_widgets_found": "Widget non trouvé : {name}",
+	"Fields_preview": "Aperçu"
 }

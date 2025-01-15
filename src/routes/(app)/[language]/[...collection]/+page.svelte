@@ -10,12 +10,11 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
-	
 
 	// Stores
 	import { page } from '$app/stores';
-	import { contentLanguage } from '@stores/store';
-	import { collection, collectionValue, mode} from '@root/src/stores/collectionStore.svelte';
+	import { contentLanguage } from '@stores/store.svelte';
+	import { collection, collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
 
 	// Components
 	import Fields from '@components/Fields.svelte';
@@ -26,12 +25,11 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	import { logger } from '@utils/logger.svelte';
 	import type { User } from '@root/src/auth/types.js';
 	import { deserializeCollection } from '@root/src/utils/serialize';
-  
 
-  interface Props {
-    data: { collection: string, language: string, user: User }
-  }
-  const {data}: Props = $props();
+	interface Props {
+		data: { collection: string; language: string; user: User };
+	}
+	const { data }: Props = $props();
 
 	let forwardBackward = $state(false);
 	let initialLoadComplete = $state(false);
@@ -39,7 +37,6 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	let currentCollectionName = $state<string | undefined>(undefined);
 	let currentLanguage = $state<string | undefined>(undefined);
 	let isLoading = $state(true);
-  
 
 	// Initialize collection
 	async function initializeCollection() {
@@ -47,10 +44,9 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 
 		try {
 			// Wait for Content Manager initialization
-			 
 
 			const selectedCollection = deserializeCollection(data.collection);
-      console.log('selectedCollection', selectedCollection);
+			console.log('selectedCollection', selectedCollection);
 			// console.log('selectedCollection', selectedCollection, $page.params.collection);
 			if (selectedCollection) {
 				collection.set(selectedCollection);
@@ -77,7 +73,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		if (!browser) return;
 
 		window.addEventListener('popstate', handlePopState);
-		if(!initialLoadComplete) initializeCollection();
+		if (!initialLoadComplete) initializeCollection();
 
 		return () => {
 			window.removeEventListener('popstate', handlePopState);

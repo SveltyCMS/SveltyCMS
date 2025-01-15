@@ -14,8 +14,8 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Stores
-	import '@stores/store';
-	import { avatarSrc } from '@stores/store';
+	import '@stores/store.svelte';
+	import { avatarSrc } from '@stores/store.svelte';
 	import { triggerActionStore } from '@utils/globalSearchIndex';
 
 	// Components

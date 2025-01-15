@@ -14,7 +14,7 @@
 
 <script lang="ts">
 	// Stores
-	import { storeListboxValue } from '@stores/store';
+	import { storeListboxValue } from '@stores/store.svelte';
 
 	// Props declaration using proper Svelte 5 syntax
 	let {

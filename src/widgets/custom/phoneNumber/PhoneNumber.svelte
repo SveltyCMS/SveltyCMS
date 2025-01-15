@@ -9,7 +9,7 @@
 	import { publicEnv } from '@root/config/public';
 
 	// Stores
-	import { validationStore } from '@stores/store';
+	import { validationStore } from '@stores/store.svelte';
 	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
 
 	import { getFieldName } from '@utils/utils';

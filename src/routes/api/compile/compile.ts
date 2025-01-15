@@ -18,7 +18,7 @@ import fs from 'fs/promises';
 import crypto from 'crypto';
 import path from 'path';
 import * as ts from 'typescript';
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from 'uuid'; // Random UUID generation
 
 // Cache for transpiled modules - Key: file path, Value: { hash: string; code: string; uuid: string }
 const cache = new Map<string, { hash: string; code: string; uuid: string }>();

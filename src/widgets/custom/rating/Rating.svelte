@@ -9,7 +9,7 @@
 	import { getFieldName } from '@utils/utils';
 
 	// Stores
-	import { validationStore } from '@stores/store';
+	import { validationStore } from '@stores/store.svelte';
 	import { mode } from '@root/src/stores/collectionStore.svelte';
 
 	// Skeleton

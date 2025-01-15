@@ -421,5 +421,14 @@
 	"llmConfig_description": "LLM 配置",
 	"llmConfig_useLLM": "启用 LLM 集成",
 	"llmConfig_llmProvider": "LLM 提供商（例如 OpenAI、Claude、Gemimi 等）",
-	"llmConfig_apiKey": "LLM API 密钥"
+	"llmConfig_apiKey": "LLM API 密钥",
+	"signin_no_user": "尚无任何用户",
+	"collection_no_collections_found": "未找到任何收藏",
+	"EntryList_no_collection": "没有收集{name}数据",
+	"sidebar_createdby": "创建者",
+	"sidebarschedule_publication": "安排出版",
+	"sidebar_will_publish_on": "将于",
+	"siedabar_publish_options": "发布选项",
+	"Fields_no_widgets_found": "未找到小部件： {name}",
+	"Fields_preview": "预览"
 }

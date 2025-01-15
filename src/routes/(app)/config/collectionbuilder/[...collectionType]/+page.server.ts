@@ -168,20 +168,26 @@ export const actions: Actions = {
 	saveConfig: async ({ request }) => {
 		try {
 			const formData = await request.formData();
-			const categories = formData.get('categories') as string;
-			let config = `
-            export function createCategories(collections) {
-                return ${categories}
-            }
-            `;
-			config = config.replace(/["']🗑️|🗑️["']/g, '').replace(/🗑️/g, '');
-			const prettierConfig = await getPrettierConfig();
-			config = await prettier.format(config, prettierConfig);
-			fs.writeFileSync(`${process.env.COLLECTIONS_FOLDER_TS}/config.ts`, config);
-			await compile();
+			const categories = JSON.parse(formData.get('categories') as string);
+
+			// Convert categories to path-based structure
+			const pathCategories = categories.map(cat => ({
+				...cat,
+				path: cat.name.toLowerCase().replace(/\s+/g, '-'),
+				collections: cat.collections?.map(col => ({
+					...col,
+					path: `${cat.path}/${col.name.toLowerCase().replace(/\s+/g, '-')}`
+				})) || []
+			}));
+
+			// Update collections with new category paths
 			await contentManager.updateCollections(true);
 			await getCollectionModels();
-			return { status: 200 };
+
+			return {
+				status: 200,
+				categories: pathCategories
+			};
 		} catch (err) {
 			const message = `Error in saveConfig action: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
@@ -208,12 +214,12 @@ export const actions: Actions = {
 };
 
 // Recursively goes through a collection's fields
-async function goThrough(object: any, fields): Promise<string> {
+async function goThrough(object: Record<string, unknown>, fields: string): Promise<string> {
 	try {
 		const imports = new Set<string>();
 
 		// Asynchronously processes a field recursively
-		async function processField(field: any, fields?: any) {
+		async function processField(field: unknown, fields?: string) {
 			if (field instanceof Object) {
 				for (const key in field) {
 					await processField(field[key], fields);
@@ -262,7 +268,7 @@ async function goThrough(object: any, fields): Promise<string> {
 }
 
 // Remove false values from an object
-function removeFalseValues(obj: any): any {
+function removeFalseValues(obj: unknown): unknown {
 	if (typeof obj !== 'object' || obj === null) {
 		return obj;
 	}

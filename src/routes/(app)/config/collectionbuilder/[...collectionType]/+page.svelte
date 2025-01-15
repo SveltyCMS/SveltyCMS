@@ -13,7 +13,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	// Stores
 	import { page } from '$app/stores';
-	import { tabSet } from '@stores/store';
+	import { tabSet } from '@stores/store.svelte';
 	import { mode, collectionValue } from '@src/stores/collectionStore.svelte';
 
 	// ParaglideJS

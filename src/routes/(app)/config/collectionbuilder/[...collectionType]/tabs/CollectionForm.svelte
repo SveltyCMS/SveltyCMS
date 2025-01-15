@@ -12,7 +12,7 @@ Features:
 <script lang="ts">
 	// Stores
 	import { page } from '$app/stores';
-	import { tabSet } from '@stores/store';
+	import { tabSet } from '@stores/store.svelte';
 	import { mode, collectionValue, collections } from '@root/src/stores/collectionStore.svelte';
 
 	// Components

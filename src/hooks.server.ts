@@ -14,9 +14,13 @@
  */
 
 import { privateEnv } from '@root/config/private';
+
 import { redirect, error, type Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { building } from '$app/environment';
+
+// Stores
+import { systemLanguage, contentLanguage } from '@stores/store.svelte';
 
 // Rate Limiter
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
@@ -33,6 +37,7 @@ import { getCacheStore } from '@src/cacheStore/index.server';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
+import type { AvailableLanguageTag } from '@src/paraglide/runtime';
 
 // Types
 interface RedirectError {
@@ -50,7 +55,7 @@ const limiter = new RateLimiter({
 	IP: [300, 'h'], // 300 requests per hour per IP
 	IPUA: [150, 'm'], // 150 requests per minute per IP+User-Agent
 	cookie: {
-		name: 'sveltycms_ratelimit',
+		name: 'ratelimit',
 		secret: privateEnv.JWT_SECRET_KEY as string,
 		rate: [500, 'm'], // 500 requests per minute per cookie
 		preflight: true
@@ -259,6 +264,28 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 
 				event.locals.allUsers = users;
 				event.locals.allTokens = tokens;
+			}
+		}
+
+		// Update stores from existing cookies if present
+		const systemLangCookie = event.cookies.get('systemLanguage');
+		const contentLangCookie = event.cookies.get('contentLanguage');
+
+		if (systemLangCookie) {
+			try {
+				systemLanguage.set(systemLangCookie as AvailableLanguageTag);
+			} catch {
+				logger.warn(`Invalid system language cookie value: ${systemLangCookie}`);
+				event.cookies.delete('systemLanguage', { path: '/' });
+			}
+		}
+
+		if (contentLangCookie) {
+			try {
+				contentLanguage.set(contentLangCookie as AvailableLanguageTag);
+			} catch {
+				logger.warn(`Invalid content language cookie value: ${contentLangCookie}`);
+				event.cookies.delete('contentLanguage', { path: '/' });
 			}
 		}
 
