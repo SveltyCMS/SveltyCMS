@@ -44,16 +44,15 @@ Features:
 
 	type ModeType = 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
 	// Props
-	
-  let structureNodes = $derived.by(()=>{
-    return  Array.from(contentStructure.value.values())
-   })
+
+	let structureNodes = $derived.by(() => {
+		return contentStructure.value ? Array.from(Object.values(contentStructure.value)) : [];
+	});
 	let modeSet = $state<ModeType>('view');
 	// Search Collections
 	let search = $state('');
 	let searchShow = $state(false);
 	let isMediaMode = $state(false);
-
 
 	// Update isMediaMode when modeSet changes
 	$effect(() => {
@@ -70,10 +69,9 @@ Features:
 
 		if ('isCollection' in selectedCollection) {
 			// For contentStructureSchema, we need to find the actual Schema
-	    goto(`/${contentLanguage.value}${selectedCollection.path.toString()}`);
-
-    } 
-    handleSidebarToggle();
+			goto(`/${contentLanguage.value}${selectedCollection.path.toString()}`);
+		}
+		handleSidebarToggle();
 		shouldShowNextButton.set(true);
 	}
 	// Generate unique key for collection items
@@ -192,7 +190,7 @@ Features:
 								{/each}
 							{/if}
 							<!-- Subcategories with Autocollapse -->
-							{#if category.subcategories && category.subcategories.length > 0}
+							{#if category.subcategories && category.subcategories.size > 0}
 								<Accordion
 									autocollapse
 									spacing="space-y-1"
@@ -203,10 +201,11 @@ Features:
 									caretOpen="rotate-180"
 									class="-mr-4"
 								>
-									{#each category.subcategories as subCategory (subCategory.id)}
+									{#each Array.from(category.subcategories.entries()) as [subCategoryKey, subCategory]}
+										{@const subCategoryOpenStateKey = `${category.name}-${subCategory.name}`}
 										<div class={getIndentClass(1)}>
 											<AccordionItem
-												bind:open={subCategoryOpenStates[`${category.name}-${subCategory.name}`]}
+												bind:open={subCategoryOpenStates[subCategoryOpenStateKey]}
 												onclick={() => handleSubcategoryToggle(category.id.toString(), subCategory.name)}
 												regionPanel="divide-y dark:divide-black my-0"
 												class="divide-y rounded-md bg-surface-300 dark:bg-surface-400"
@@ -225,7 +224,7 @@ Features:
 													</div>
 												{/snippet}
 												{#snippet content()}
-													{#if subCategory.collections.length}
+													{#if subCategory.collections && subCategory.collections.length}
 														{#each subCategory.collections as _collection (getCollectionKey(_collection, subCategory.name.toString()))}
 															<div
 																role="button"
