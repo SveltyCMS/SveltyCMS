@@ -10,7 +10,7 @@
 
 	// Stores
 	import { page } from '$app/stores';
-	import { avatarSrc } from '@stores/store';
+	import { avatarSrc } from '@stores/store.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

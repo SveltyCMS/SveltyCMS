@@ -422,5 +422,8 @@
 	"llmConfig_useLLM": "Омогућите ЛЛМ интеграцију",
 	"llmConfig_llmProvider": "ЛЛМ добављач (нпр. ОпенАИ, Цлауде, Гемими, итд.)",
 	"llmConfig_apiKey": "ЛЛМ АПИ кључ",
+	"signin_no_user": "Још увек нема корисника",
+	"collection_no_collections_found": "Није пронађена ниједна збирка",
+	"EntryList_no_collection": "Нема података о прикупљању",
 	"userpage_email": "Емаил:"
 }

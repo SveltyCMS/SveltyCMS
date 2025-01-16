@@ -1,7 +1,7 @@
 /**
  * @file src/content/vite.ts
  * @description Vite plugin for generating TypeScript types for Content
- * 
+ *
  * Features:
  * - Generate TypeScript types for collections
  */

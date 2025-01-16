@@ -421,5 +421,8 @@
 	"llmConfig_description": "एलएलएम कॉन्फ़िगरेशन",
 	"llmConfig_useLLM": "LLM एकीकरण सक्षम करें",
 	"llmConfig_llmProvider": "एलएलएम प्रदाता (उदाहरण के लिए, ओपनएआई, क्लाउड, जेमिमी, आदि)",
-	"llmConfig_apiKey": "एलएलएम एपीआई कुंजी"
+	"llmConfig_apiKey": "एलएलएम एपीआई कुंजी",
+	"signin_no_user": "अभी तक कोई उपयोगकर्ता मौजूद नहीं है",
+	"collection_no_collections_found": "कोई संग्रह नहीं मिला",
+	"EntryList_no_collection": "कोई संग्रह डेटा नहीं"
 }

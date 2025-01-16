@@ -13,7 +13,7 @@
 
 	// Stores
 	import { page } from '$app/state';
-	import { systemLanguage } from '@stores/store';
+	import { systemLanguage } from '@stores/store.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

@@ -421,5 +421,8 @@
 	"llmConfig_description": "LLM კონფიგურაცია",
 	"llmConfig_useLLM": "ჩართეთ LLM ინტეგრაცია",
 	"llmConfig_llmProvider": "LLM პროვაიდერი (მაგ., OpenAI, Claude, Gemimi და ა.შ.)",
-	"llmConfig_apiKey": "LLM API გასაღები"
+	"llmConfig_apiKey": "LLM API გასაღები",
+	"signin_no_user": "მომხმარებელი ჯერ არ არსებობს",
+	"collection_no_collections_found": "კოლექციები ვერ მოიძებნა",
+	"EntryList_no_collection": "კოლექციის მონაცემები არ არის"
 }

@@ -7,7 +7,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { languageTag, onSetLanguageTag, setLanguageTag } from '@src/paraglide/runtime';
-	import { systemLanguage } from '@stores/store';
+	import { systemLanguage } from '@stores/store.svelte';
 	import type { Snippet } from 'svelte';
 
 	// All available language codes from src/messages

@@ -3387,6 +3387,14 @@ export const llmConfig_llmProvider = () => `ЛЛМ добављач (нпр. О�
 export const llmConfig_apiKey = () => `ЛЛМ АПИ кључ`
 
 
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const signin_no_user = () => `Још увек нема корисника`
+
+
 export { signup_password } from "./en.js"
 
 export { modaledit_tokenemailaddress } from "./en.js"
@@ -3430,3 +3438,18 @@ export { modaleditform_username } from "./en.js"
 export { modaleditform_confirmpassword } from "./en.js"
 
 export { modaleditform_userrole } from "./en.js"
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const collection_no_collections_found = () => `Није пронађена ниједна збирка`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const EntryList_no_collection = () => `Нема података о прикупљању`

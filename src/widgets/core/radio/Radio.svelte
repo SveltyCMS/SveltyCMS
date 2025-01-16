@@ -11,7 +11,7 @@
 	import { onMount, onDestroy } from 'svelte';
 
 	// Stores
-	import { contentLanguage, validationStore } from '@stores/store';
+	import { contentLanguage, validationStore } from '@stores/store.svelte';
 	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
 
 	// Valibot validation

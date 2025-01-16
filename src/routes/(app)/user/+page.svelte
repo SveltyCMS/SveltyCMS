@@ -15,7 +15,7 @@
 
 	// Stores
 	import '@stores/store';
-	import { avatarSrc } from '@stores/store';
+	import { avatarSrc } from '@stores/store.svelte';
 	import { triggerActionStore } from '@utils/globalSearchIndex';
 
 	// Components

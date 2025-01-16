@@ -21,7 +21,7 @@ Features:
 
 	// Stores
 	import { get } from 'svelte/store';
-	import { contentLanguage, shouldShowNextButton } from '@stores/store';
+	import { contentLanguage, shouldShowNextButton } from '@stores/store.svelte';
 	import { mode, collections, contentStructure } from '@src/stores/collectionStore.svelte';
 	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@src/stores/sidebarStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
@@ -255,7 +255,7 @@ Features:
 					</AccordionItem>
 				{/each}
 			{:else}
-				<div class="p-4 text-center text-gray-500">No collections found</div>
+				<div class="p-4 text-center text-gray-500">{m.collection_no_collections_found()}</div>
 			{/if}
 		</Accordion>
 		<!-- Media Gallery Button -->

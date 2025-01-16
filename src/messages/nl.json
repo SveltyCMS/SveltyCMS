@@ -421,5 +421,8 @@
 	"llmConfig_description": "LLM-configuratie",
 	"llmConfig_useLLM": "LLM-integratie inschakelen",
 	"llmConfig_llmProvider": "LLM-provider (bijv. OpenAI, Claude, Gemimi, enz.)",
-	"llmConfig_apiKey": "LLM API-sleutel"
+	"llmConfig_apiKey": "LLM API-sleutel",
+	"signin_no_user": "Er zijn nog geen gebruikers",
+	"collection_no_collections_found": "Geen collecties gevonden",
+	"EntryList_no_collection": "Geen verzamelingsgegevens"
 }

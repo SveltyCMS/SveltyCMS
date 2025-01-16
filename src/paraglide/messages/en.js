@@ -3390,6 +3390,14 @@ export const llmConfig_apiKey = () => `LLM API Key`
 
 
 /**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const signin_no_user = () => `No users exist yet`
+
+
+/**
  * Failed to resolve message signup_password for languageTag "en". 
  * @returns {string}
  */
@@ -3539,3 +3547,19 @@ export const modaleditform_confirmpassword = () => "modaleditform_confirmpasswor
  */
 /* @__NO_SIDE_EFFECTS__ */
 export const modaleditform_userrole = () => "modaleditform_userrole"
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const collection_no_collections_found = () => `No collections found`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const EntryList_no_collection = () => `No Collection Data`

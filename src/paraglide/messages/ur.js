@@ -3387,6 +3387,14 @@ export const llmConfig_llmProvider = () => `LLM فراہم کنندہ (مثال 
 export const llmConfig_apiKey = () => `LLM API کلید`
 
 
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const signin_no_user = () => `ابھی تک کوئی صارف موجود نہیں ہے۔`
+
+
 export { signup_password } from "./en.js"
 
 export { modaledit_tokenemailaddress } from "./en.js"
@@ -3513,3 +3521,19 @@ export const modaleditform_confirmpassword = () => `پاس ورڈ کی تصدی�
  */
 /* @__NO_SIDE_EFFECTS__ */
 export const modaleditform_userrole = () => `صارف کا کردار:`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const collection_no_collections_found = () => `کوئی مجموعہ نہیں ملا`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const EntryList_no_collection = () => `کوئی ڈیٹا اکٹھا نہیں ہے۔`

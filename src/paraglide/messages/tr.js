@@ -3387,6 +3387,14 @@ export const llmConfig_llmProvider = () => `LLM Sağlayıcısı (örn. OpenAI, C
 export const llmConfig_apiKey = () => `LLM API Anahtarı`
 
 
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const signin_no_user = () => `Henüz kullanıcı yok`
+
+
 export { signup_password } from "./en.js"
 
 export { modaledit_tokenemailaddress } from "./en.js"
@@ -3424,3 +3432,18 @@ export { modaleditform_username } from "./en.js"
 export { modaleditform_confirmpassword } from "./en.js"
 
 export { modaleditform_userrole } from "./en.js"
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const collection_no_collections_found = () => `Hiçbir koleksiyon bulunamadı`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const EntryList_no_collection = () => `Koleksiyon Verisi Yok`

@@ -7,7 +7,7 @@
 <script lang="ts">
 	// Stores
 	import { page } from '$app/state';
-	import { tabSet } from '@stores/store';
+	import { tabSet } from '@stores/store.svelte';
 	import { collectionValue, targetWidget } from '@src/stores/collectionStore.svelte';
 	import { getGuiFields, asAny } from '@utils/utils';
 

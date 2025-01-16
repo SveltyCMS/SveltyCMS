@@ -422,6 +422,9 @@
 	"llmConfig_useLLM": "LLM एकीकरण सक्षम गर्नुहोस्",
 	"llmConfig_llmProvider": "LLM प्रदायक (जस्तै, OpenAI, Claude, Gemimi, आदि)",
 	"llmConfig_apiKey": "LLM API कुञ्जी",
+	"signin_no_user": "कुनै पनि प्रयोगकर्ताहरू अझै अवस्थित छैनन्",
+	"collection_no_collections_found": "कुनै संग्रह फेला परेन",
+	"EntryList_no_collection": "कुनै सङ्कलन डाटा छैन",
 	"modaledit_tokenemailaddress": "इ - मेल ठेगाना",
 	"modaltokenuser_email_address": "इ - मेल ठेगाना"
 }

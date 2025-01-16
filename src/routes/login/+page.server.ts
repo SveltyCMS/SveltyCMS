@@ -10,9 +10,6 @@ import { dev } from '$app/environment';
 import { error, redirect, fail, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-// Content Manager
-import { contentManager } from '@src/content/ContentManager';
-
 // Rate Limiter
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
 
@@ -27,11 +24,9 @@ import { auth, dbInitPromise } from '@src/databases/db';
 import { generateGoogleAuthUrl, googleAuth } from '@root/src/auth/googleAuth';
 import { google } from 'googleapis';
 import type { User } from '@src/auth/types';
-import type { Cookies } from '@sveltejs/kit';
-
 // Stores
 import { get } from 'svelte/store';
-import { systemLanguage } from '@stores/store';
+import { systemLanguage } from '@stores/store.svelte';
 
 // Import roles
 import { roles } from '@root/config/roles';
@@ -43,7 +38,7 @@ const limiter = new RateLimiter({
 	IP: [200, 'h'], // 200 requests per hour per IP
 	IPUA: [100, 'm'], // 100 requests per minute per IP+User-Agent
 	cookie: {
-		name: 'sveltycms_ratelimit',
+		name: 'ratelimit',
 		secret: privateEnv.JWT_SECRET_KEY,
 		rate: [50, 'm'], // 50 requests per minute per cookie
 		preflight: true
@@ -334,7 +329,7 @@ export const actions: Actions = {
 				})
 			});
 
-			//
+			// Create session and set cookie
 			await createSessionAndSetCookie(resp.user._id, event.cookies);
 
 			// Return message if form is submitted successfully

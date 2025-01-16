@@ -3391,6 +3391,14 @@ export const llmConfig_apiKey = () => `Clave API de LLM`
  * @returns {string}
  */
 /* @__NO_SIDE_EFFECTS__ */
+export const signin_no_user = () => `Aún no existen usuarios`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
 export const signup_password = () => `Contraseña`
 
 
@@ -3429,3 +3437,18 @@ export { modaleditform_username } from "./en.js"
 export { modaleditform_confirmpassword } from "./en.js"
 
 export { modaleditform_userrole } from "./en.js"
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const collection_no_collections_found = () => `No se encontraron colecciones`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const EntryList_no_collection = () => `No hay datos de recopilación`

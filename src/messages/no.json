@@ -421,5 +421,8 @@
 	"llmConfig_description": "LLM-konfigurasjon",
 	"llmConfig_useLLM": "Aktiver LLM-integrasjon",
 	"llmConfig_llmProvider": "LLM-leverandør (f.eks. OpenAI, Claude, Gemimi, osv.)",
-	"llmConfig_apiKey": "LLM API-nøkkel"
+	"llmConfig_apiKey": "LLM API-nøkkel",
+	"signin_no_user": "Ingen brukere eksisterer ennå",
+	"collection_no_collections_found": "Ingen samlinger funnet",
+	"EntryList_no_collection": "Ingen innsamlingsdata"
 }

@@ -32,8 +32,7 @@ Features:
 	import type { Schema, CollectionData } from '@src/content/types';
 
 	// Stores
-	import { get } from 'svelte/store';
-	import { contentLanguage, systemLanguage } from '@stores/store';
+	import { contentLanguage, systemLanguage } from '@stores/store.svelte';
 	import { mode, collectionValue, modifyEntry, statusMap, collection, collections, contentStructure } from '@src/stores/collectionStore.svelte';
 	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@src/stores/sidebarStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
@@ -726,7 +725,7 @@ Features:
 		<div class="text-center text-tertiary-500 dark:text-primary-500">
 			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2"></iconify-icon>
 			<p class="text-lg">
-				No {currentCollection?.name} Data
+				{m.EntryList_no_collection()}
 			</p>
 		</div>
 	{/if}

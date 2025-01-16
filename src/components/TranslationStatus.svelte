@@ -19,7 +19,7 @@
 
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
-	import { contentLanguage, translationProgress } from '@stores/store';
+	import { contentLanguage, translationProgress } from '@stores/store.svelte';
 	import { mode } from '@src/stores/collectionStore.svelte';
 	import { ProgressBar } from '@skeletonlabs/skeleton';
 

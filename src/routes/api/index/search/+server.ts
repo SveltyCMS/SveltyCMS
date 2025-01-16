@@ -44,7 +44,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		// Check API permissions
 		const permissions = await getAllPermissions();
-		const requiredPermission = permissions.find(p => p._id === 'api:search');
+		const requiredPermission = permissions.find((p) => p._id === 'api:search');
 
 		if (requiredPermission) {
 			const { hasPermission } = await checkUserPermission(locals.user, {
@@ -66,7 +66,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		for (const [collectionName, collection] of collections) {
 			// Check collection-specific permissions
-			const collectionPermission = permissions.find(p => p._id === `collection:${collectionName}:read`);
+			const collectionPermission = permissions.find((p) => p._id === `collection:${collectionName}:read`);
 
 			if (collectionPermission) {
 				const { hasPermission } = await checkUserPermission(locals.user, {
@@ -96,15 +96,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			}
 		}
 
-		return new Response(JSON.stringify({
-			results,
-			page,
-			limit,
-			total: results.reduce((acc, curr) => acc + curr.results.length, 0)
-		}), {
-			status: 200,
-			headers: { 'Content-Type': 'application/json' }
-		});
+		return new Response(
+			JSON.stringify({
+				results,
+				page,
+				limit,
+				total: results.reduce((acc, curr) => acc + curr.results.length, 0)
+			}),
+			{
+				status: 200,
+				headers: { 'Content-Type': 'application/json' }
+			}
+		);
 	} catch (err) {
 		const message = err instanceof Error ? err.message : 'Unknown error';
 		logger.error('Search error:', { error: message });

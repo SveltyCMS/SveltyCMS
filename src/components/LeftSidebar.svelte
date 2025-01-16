@@ -22,7 +22,7 @@
 	// Import necessary utilities and types
 	import { page } from '$app/stores';
 	import { get } from 'svelte/store';
-	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store';
+	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store.svelte';
 	import { contentStructure, mode } from '@stores/collectionStore.svelte';
 	import { toggleSidebar, sidebarState, userPreferredState, handleSidebarToggle } from '@src/stores/sidebarStore.svelte';
 	import { screenSize } from '@stores/screenSizeStore.svelte';
@@ -84,9 +84,7 @@
 	// Enhanced language selector
 	let searchQuery = $state('');
 	let isDropdownOpen = $state(false);
-	let searchInput: HTMLInputElement | undefined = $state();
 	let dropdownRef = $state<HTMLElement | null>(null);
-	let debounceTimeout: ReturnType<typeof setTimeout>;
 
 	// Computed values
 	const availableLanguages = $derived(
@@ -116,13 +114,10 @@
 
 	// Event handlers
 	function handleLanguageSelection(lang: AvailableLanguage) {
-		clearTimeout(debounceTimeout);
-		debounceTimeout = setTimeout(() => {
-			systemLanguage.set(lang);
-			_languageTag = lang;
-			isDropdownOpen = false;
-			searchQuery = '';
-		}, 300);
+		systemLanguage.set(lang);
+		_languageTag = lang;
+		isDropdownOpen = false;
+		searchQuery = '';
 	}
 
 	// SignOut function
@@ -243,7 +238,7 @@
 	</button>
 
 	<!--SideBar Middle -->
-	<Collections  data={contentStructure.value}/>
+	<Collections data={contentStructure.value} />
 
 	<!-- Sidebar Left Footer -->
 	<div class="mb-2 mt-auto bg-white dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900">

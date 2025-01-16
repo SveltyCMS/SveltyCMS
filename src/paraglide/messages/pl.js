@@ -3387,6 +3387,14 @@ export const llmConfig_llmProvider = () => `Dostawca LLM (np. OpenAI, Claude, Ge
 export const llmConfig_apiKey = () => `Klucz API LLM`
 
 
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const signin_no_user = () => `Nie ma jeszcze żadnych użytkowników`
+
+
 export { signup_password } from "./en.js"
 
 export { modaledit_tokenemailaddress } from "./en.js"
@@ -3424,3 +3432,18 @@ export { modaleditform_username } from "./en.js"
 export { modaleditform_confirmpassword } from "./en.js"
 
 export { modaleditform_userrole } from "./en.js"
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const collection_no_collections_found = () => `Nie znaleziono żadnych kolekcji`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const EntryList_no_collection = () => `Brak danych o zbiorach`

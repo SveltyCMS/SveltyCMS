@@ -17761,6 +17761,48 @@ export const llmConfig_apiKey = (params = {}, options = {}) => {
  * @returns {string}
  */
 /* @__NO_SIDE_EFFECTS__ */
+export const signin_no_user = (params = {}, options = {}) => {
+	return {
+		da: da.signin_no_user,
+		de: de.signin_no_user,
+		en: en.signin_no_user,
+		es: es.signin_no_user,
+		fi: fi.signin_no_user,
+		fr: fr.signin_no_user,
+		hi: hi.signin_no_user,
+		it: it.signin_no_user,
+		ja: ja.signin_no_user,
+		ka: ka.signin_no_user,
+		ne: ne.signin_no_user,
+		nl: nl.signin_no_user,
+		no: no.signin_no_user,
+		pl: pl.signin_no_user,
+		pt: pt.signin_no_user,
+		sl: sl.signin_no_user,
+		sr: sr.signin_no_user,
+		sv: sv.signin_no_user,
+		tr: tr.signin_no_user,
+		uk: uk.signin_no_user,
+		ur: ur.signin_no_user,
+		zh: zh.signin_no_user
+	}[options.languageTag ?? languageTag()]()
+}
+
+
+
+/**
+ * This message has been compiled by [inlang paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs).
+ *
+ * - Don't edit the message's code. Use [Sherlock (VS Code extension)](https://inlang.com/m/r7kp499g/app-inlang-ideExtension),
+ *   the [web editor](https://inlang.com/m/tdozzpar/app-inlang-finkLocalizationEditor) instead, or edit the translation files manually.
+ * 
+ * - The params are NonNullable<unknown> because the inlang SDK does not provide information on the type of a param (yet).
+ * 
+ * @param {{}} params
+ * @param {{ languageTag?: "en" | "da" | "de" | "es" | "fi" | "fr" | "hi" | "it" | "ja" | "ka" | "ne" | "nl" | "no" | "pl" | "pt" | "sl" | "sr" | "sv" | "tr" | "ur" | "uk" | "zh" }} options
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
 export const signup_password = (params = {}, options = {}) => {
 	return {
 		da: da.signup_password,
@@ -18541,6 +18583,90 @@ export const modaleditform_userrole = (params = {}, options = {}) => {
 		uk: uk.modaleditform_userrole,
 		ur: ur.modaleditform_userrole,
 		zh: zh.modaleditform_userrole
+	}[options.languageTag ?? languageTag()]()
+}
+
+
+
+/**
+ * This message has been compiled by [inlang paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs).
+ *
+ * - Don't edit the message's code. Use [Sherlock (VS Code extension)](https://inlang.com/m/r7kp499g/app-inlang-ideExtension),
+ *   the [web editor](https://inlang.com/m/tdozzpar/app-inlang-finkLocalizationEditor) instead, or edit the translation files manually.
+ * 
+ * - The params are NonNullable<unknown> because the inlang SDK does not provide information on the type of a param (yet).
+ * 
+ * @param {{}} params
+ * @param {{ languageTag?: "en" | "da" | "de" | "es" | "fi" | "fr" | "hi" | "it" | "ja" | "ka" | "ne" | "nl" | "no" | "pl" | "pt" | "sl" | "sr" | "sv" | "tr" | "ur" | "uk" | "zh" }} options
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const collection_no_collections_found = (params = {}, options = {}) => {
+	return {
+		da: da.collection_no_collections_found,
+		de: de.collection_no_collections_found,
+		en: en.collection_no_collections_found,
+		es: es.collection_no_collections_found,
+		fi: fi.collection_no_collections_found,
+		fr: fr.collection_no_collections_found,
+		hi: hi.collection_no_collections_found,
+		it: it.collection_no_collections_found,
+		ja: ja.collection_no_collections_found,
+		ka: ka.collection_no_collections_found,
+		ne: ne.collection_no_collections_found,
+		nl: nl.collection_no_collections_found,
+		no: no.collection_no_collections_found,
+		pl: pl.collection_no_collections_found,
+		pt: pt.collection_no_collections_found,
+		sl: sl.collection_no_collections_found,
+		sr: sr.collection_no_collections_found,
+		sv: sv.collection_no_collections_found,
+		tr: tr.collection_no_collections_found,
+		uk: uk.collection_no_collections_found,
+		ur: ur.collection_no_collections_found,
+		zh: zh.collection_no_collections_found
+	}[options.languageTag ?? languageTag()]()
+}
+
+
+
+/**
+ * This message has been compiled by [inlang paraglide](https://inlang.com/m/gerre34r/library-inlang-paraglideJs).
+ *
+ * - Don't edit the message's code. Use [Sherlock (VS Code extension)](https://inlang.com/m/r7kp499g/app-inlang-ideExtension),
+ *   the [web editor](https://inlang.com/m/tdozzpar/app-inlang-finkLocalizationEditor) instead, or edit the translation files manually.
+ * 
+ * - The params are NonNullable<unknown> because the inlang SDK does not provide information on the type of a param (yet).
+ * 
+ * @param {{}} params
+ * @param {{ languageTag?: "en" | "da" | "de" | "es" | "fi" | "fr" | "hi" | "it" | "ja" | "ka" | "ne" | "nl" | "no" | "pl" | "pt" | "sl" | "sr" | "sv" | "tr" | "ur" | "uk" | "zh" }} options
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const EntryList_no_collection = (params = {}, options = {}) => {
+	return {
+		da: da.EntryList_no_collection,
+		de: de.EntryList_no_collection,
+		en: en.EntryList_no_collection,
+		es: es.EntryList_no_collection,
+		fi: fi.EntryList_no_collection,
+		fr: fr.EntryList_no_collection,
+		hi: hi.EntryList_no_collection,
+		it: it.EntryList_no_collection,
+		ja: ja.EntryList_no_collection,
+		ka: ka.EntryList_no_collection,
+		ne: ne.EntryList_no_collection,
+		nl: nl.EntryList_no_collection,
+		no: no.EntryList_no_collection,
+		pl: pl.EntryList_no_collection,
+		pt: pt.EntryList_no_collection,
+		sl: sl.EntryList_no_collection,
+		sr: sr.EntryList_no_collection,
+		sv: sv.EntryList_no_collection,
+		tr: tr.EntryList_no_collection,
+		uk: uk.EntryList_no_collection,
+		ur: ur.EntryList_no_collection,
+		zh: zh.EntryList_no_collection
 	}[options.languageTag ?? languageTag()]()
 }
 

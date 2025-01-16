@@ -3387,6 +3387,14 @@ export const llmConfig_llmProvider = () => `एलएलएम प्रदा�
 export const llmConfig_apiKey = () => `एलएलएम एपीआई कुंजी`
 
 
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const signin_no_user = () => `अभी तक कोई उपयोगकर्ता मौजूद नहीं है`
+
+
 export { signup_password } from "./en.js"
 
 export { modaledit_tokenemailaddress } from "./en.js"
@@ -3424,3 +3432,18 @@ export { modaleditform_username } from "./en.js"
 export { modaleditform_confirmpassword } from "./en.js"
 
 export { modaleditform_userrole } from "./en.js"
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const collection_no_collections_found = () => `कोई संग्रह नहीं मिला`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const EntryList_no_collection = () => `कोई संग्रह डेटा नहीं`

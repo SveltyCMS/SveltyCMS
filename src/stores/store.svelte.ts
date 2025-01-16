@@ -1,5 +1,5 @@
 /**
- * @file src/stores/store.ts
+ * @file src/stores/store.svelte.ts
  * @description Global state management
  *
  * This module manages:
@@ -38,11 +38,24 @@ export type TranslationProgress = {
 	show: boolean;
 };
 
+// Helper function to get cookie value
+function getCookie(name: string): string | null {
+	if (typeof document === 'undefined') return null;
+	const value = `; ${document.cookie}`;
+	const parts = value.split(`; ${name}=`);
+	if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+	return null;
+}
+
 // Create base stores
 const createBaseStores = () => {
+	// Get initial values from cookies or use defaults
+	const initialSystemLanguage = (getCookie('systemLanguage') as AvailableLanguageTag | null) ?? publicEnv.DEFAULT_SYSTEM_LANGUAGE;
+	const initialContentLanguage = (getCookie('contentLanguage') as AvailableLanguageTag | null) ?? publicEnv.DEFAULT_CONTENT_LANGUAGE;
+
 	// Language and i18n
-	const systemLanguage = store<AvailableLanguageTag>(publicEnv.DEFAULT_SYSTEM_LANGUAGE);
-	const contentLanguage = store<AvailableLanguageTag>(publicEnv.DEFAULT_CONTENT_LANGUAGE);
+	const systemLanguage = store<AvailableLanguageTag>(initialSystemLanguage as AvailableLanguageTag);
+	const contentLanguage = store<AvailableLanguageTag>(initialContentLanguage as AvailableLanguageTag);
 	const messages = store({ ...m });
 
 	// Translation status
@@ -81,10 +94,19 @@ const createBaseStores = () => {
 	// Validation
 	const validationErrors = store<ValidationErrors>({});
 
-	// Initialize language tag
-	systemLanguage.subscribe((value) => {
-		if (value) {
-			setLanguageTag(value);
+	// Use store subscriptions for cookie updates
+	systemLanguage.subscribe((sysLang) => {
+		if (typeof window !== 'undefined' && sysLang) {
+			document.cookie = `systemLanguage=${sysLang}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
+			setLanguageTag(sysLang);
+			messages.set({ ...m });
+		}
+	});
+
+	contentLanguage.subscribe((contentLang) => {
+		if (typeof window !== 'undefined' && contentLang) {
+			document.cookie = `contentLanguage=${contentLang}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
+			setLanguageTag(contentLang);
 			messages.set({ ...m });
 		}
 	});

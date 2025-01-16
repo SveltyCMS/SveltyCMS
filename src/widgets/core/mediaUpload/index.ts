@@ -92,22 +92,23 @@ function getMediaService(): MediaService {
 
 const widget = (params: Params) => {
 	// Define the display function
-	const display = params.display || (({ data }) => {
-		const url = data instanceof FileList ? URL.createObjectURL(data[0]) :
-			data instanceof File ? URL.createObjectURL(data) :
-				data?.thumbnail?.url || '';
+	const display =
+		params.display ||
+		(({ data }) => {
+			const url =
+				data instanceof FileList ? URL.createObjectURL(data[0]) : data instanceof File ? URL.createObjectURL(data) : data?.thumbnail?.url || '';
 
-		switch (params.type) {
-			case 'video':
-				return `<video class='max-w-[200px] inline-block' src="${url}" controls></video>`;
-			case 'audio':
-				return `<audio class='max-w-[200px] inline-block' src="${url}" controls></audio>`;
-			case 'document':
-				return `<a class='max-w-[200px] inline-block' href="${url}" target="_blank">${data?.name || 'Document'}</a>`;
-			default:
-				return `<img class='max-w-[200px] inline-block' src="${url}" alt="Media preview" />`;
-		}
-	});
+			switch (params.type) {
+				case 'video':
+					return `<video class='max-w-[200px] inline-block' src="${url}" controls></video>`;
+				case 'audio':
+					return `<audio class='max-w-[200px] inline-block' src="${url}" controls></audio>`;
+				case 'document':
+					return `<a class='max-w-[200px] inline-block' href="${url}" target="_blank">${data?.name || 'Document'}</a>`;
+				default:
+					return `<img class='max-w-[200px] inline-block' src="${url}" alt="Media preview" />`;
+			}
+		});
 
 	// Define the widget object
 	const widget = {

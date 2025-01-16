@@ -16,7 +16,7 @@
 
 	// Stores
 	import { page } from '$app/stores';
-	import { saveLayerStore, shouldShowNextButton, validationStore } from '@stores/store';
+	import { saveLayerStore, shouldShowNextButton, validationStore } from '@stores/store.svelte';
 	import { collection, mode, modifyEntry, collectionValue } from '@src/stores/collectionStore.svelte';
 	import { handleSidebarToggle } from '@src/stores/sidebarStore.svelte';
 	import { convertTimestampToDateString, getFieldName, meta_data } from '@utils/utils';

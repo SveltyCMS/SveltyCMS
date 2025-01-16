@@ -421,5 +421,8 @@
 	"llmConfig_description": "Конфігурація LLM",
 	"llmConfig_useLLM": "Увімкнути інтеграцію LLM",
 	"llmConfig_llmProvider": "Постачальник LLM (наприклад, OpenAI, Claude, Gemimi тощо)",
-	"llmConfig_apiKey": "Ключ API LLM"
+	"llmConfig_apiKey": "Ключ API LLM",
+	"signin_no_user": "Користувачів ще немає",
+	"collection_no_collections_found": "Колекції не знайдено",
+	"EntryList_no_collection": "Немає даних про збір"
 }

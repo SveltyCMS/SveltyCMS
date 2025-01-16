@@ -421,5 +421,8 @@
 	"llmConfig_description": "LLM 構成",
 	"llmConfig_useLLM": "LLM統合を有効にする",
 	"llmConfig_llmProvider": "LLM プロバイダー (OpenAI、Claude、Gemimi など)",
-	"llmConfig_apiKey": "LLM API キー"
+	"llmConfig_apiKey": "LLM API キー",
+	"signin_no_user": "まだユーザーは存在しません",
+	"collection_no_collections_found": "コレクションが見つかりません",
+	"EntryList_no_collection": "収集データなし"
 }

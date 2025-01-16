@@ -8,7 +8,7 @@
 	import { onDestroy } from 'svelte';
 
 	// Stores
-	import { contentLanguage, saveFunction, validationStore } from '@stores/store';
+	import { contentLanguage, saveFunction, validationStore } from '@stores/store.svelte';
 	import { collectionValue, mode, collection, collections } from '@root/src/stores/collectionStore.svelte';
 
 	// Components

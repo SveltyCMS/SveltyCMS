@@ -157,11 +157,7 @@ export async function cleanMediaDirectory(): Promise<void> {
 /**
  * Saves a remote media file to the database
  */
-export async function saveRemoteMedia(
-	fileUrl: string,
-	contentTypes: string,
-	user_id: string
-): Promise<{ id: string; fileInfo: MediaRemoteVideo }> {
+export async function saveRemoteMedia(fileUrl: string, contentTypes: string, user_id: string): Promise<{ id: string; fileInfo: MediaRemoteVideo }> {
 	try {
 		// Fetch the media file from the provided URL
 		const response = await fetch(fileUrl);

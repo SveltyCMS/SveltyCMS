@@ -10,7 +10,6 @@ import type { Schema } from '@src/shared/types';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-
 export type WidgetStatus = 'active' | 'inactive'; // Define widget status types
 
 export type ModifyRequestParams<T extends (...args: unknown[]) => unknown> = {
@@ -84,9 +83,7 @@ export async function resolveWidgetPlaceholder(placeholder: {
 	}
 
 	// Find the widget by UUID
-	const widgetFn = Array.from(widgetFunctions.values()).find(
-		(widget) => widget.__widgetId === placeholder.__widgetId
-	);
+	const widgetFn = Array.from(widgetFunctions.values()).find((widget) => widget.__widgetId === placeholder.__widgetId);
 
 	if (!widgetFn) {
 		throw new Error(`Widget with ID ${placeholder.__widgetId} not found`); // Throw error if widget not found
@@ -201,10 +198,7 @@ async function initializeWidgets(): Promise<void> {
 		await initializeDatabase();
 
 		// Search both core and custom widget directories
-		const modules = import.meta.glob<WidgetModule>([
-			'./core/*/index.ts',
-			'./custom/*/index.ts'
-		], { eager: true });
+		const modules = import.meta.glob<WidgetModule>(['./core/*/index.ts', './custom/*/index.ts'], { eager: true });
 
 		const widgetModules = Object.entries(modules).map(([path, module]) => {
 			try {

@@ -76,10 +76,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			const limit = parseInt(query.limit, 10) || 10;
 			const skip = (page - 1) * limit;
 
-			const [documents, total] = await Promise.all([
-				collection.find(query).skip(skip).limit(limit),
-				collection.countDocuments(query)
-			]);
+			const [documents, total] = await Promise.all([collection.find(query).skip(skip).limit(limit), collection.countDocuments(query)]);
 
 			result = {
 				documents,

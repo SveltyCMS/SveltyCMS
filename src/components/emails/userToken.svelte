@@ -13,7 +13,7 @@
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { systemLanguage } from '@stores/store';
+	import { systemLanguage } from '@stores/store.svelte';
 
 	// Svelty-email
 	import { Button, Container, Column, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';

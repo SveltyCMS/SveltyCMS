@@ -3387,6 +3387,14 @@ export const llmConfig_llmProvider = () => `LLM प्रदायक (जस्
 export const llmConfig_apiKey = () => `LLM API कुञ्जी`
 
 
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const signin_no_user = () => `कुनै पनि प्रयोगकर्ताहरू अझै अवस्थित छैनन्`
+
+
 export { signup_password } from "./en.js"
 
 /**
@@ -3436,3 +3444,18 @@ export { modaleditform_username } from "./en.js"
 export { modaleditform_confirmpassword } from "./en.js"
 
 export { modaleditform_userrole } from "./en.js"
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const collection_no_collections_found = () => `कुनै संग्रह फेला परेन`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const EntryList_no_collection = () => `कुनै सङ्कलन डाटा छैन`

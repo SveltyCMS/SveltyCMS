@@ -17,7 +17,7 @@
 
 <script lang="ts">
 	// Stores
-	import { translationStatusOpen } from '@stores/store';
+	import { translationStatusOpen } from '@stores/store.svelte';
 
 	let {
 		globalSearchValue = $bindable(''),

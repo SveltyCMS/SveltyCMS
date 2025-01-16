@@ -421,5 +421,8 @@
 	"llmConfig_description": "Konfiguracja LLM",
 	"llmConfig_useLLM": "Włącz integrację LLM",
 	"llmConfig_llmProvider": "Dostawca LLM (np. OpenAI, Claude, Gemimi itp.)",
-	"llmConfig_apiKey": "Klucz API LLM"
+	"llmConfig_apiKey": "Klucz API LLM",
+	"signin_no_user": "Nie ma jeszcze żadnych użytkowników",
+	"collection_no_collections_found": "Nie znaleziono żadnych kolekcji",
+	"EntryList_no_collection": "Brak danych o zbiorach"
 }

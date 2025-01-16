@@ -421,5 +421,8 @@
 	"llmConfig_description": "LLM konfiguration",
 	"llmConfig_useLLM": "Aktiver LLM-integration",
 	"llmConfig_llmProvider": "LLM-udbyder (f.eks. OpenAI, Claude, Gemimi osv.)",
-	"llmConfig_apiKey": "LLM API nøgle"
+	"llmConfig_apiKey": "LLM API nøgle",
+	"signin_no_user": "Ingen brugere eksisterer endnu",
+	"collection_no_collections_found": "Ingen samlinger fundet",
+	"EntryList_no_collection": "Ingen indsamlingsdata"
 }

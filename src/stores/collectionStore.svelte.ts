@@ -14,11 +14,11 @@ import type { Schema, ModeType, Widget, Category } from '@src/content/types';
 
 // Define UUID-based collection interface
 interface UUIDCollection extends Schema {
-  _id: string; // MongoDB UUID
-  name: string;
-  path: string;
-  icon?: string;
-  isCollection: boolean;
+	_id: string; // MongoDB UUID
+	name: string;
+	path: string;
+	icon?: string;
+	isCollection: boolean;
 }
 
 // Define types
@@ -26,18 +26,18 @@ type ModeType = 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
 
 // Widget interface
 interface Widget {
-  permissions: Record<string, Record<string, boolean>>;
-  [key: string]: Record<string, Record<string, boolean>> | unknown;
+	permissions: Record<string, Record<string, boolean>>;
+	[key: string]: Record<string, Record<string, boolean>> | unknown;
 }
 
 // Status map for various collection states
 export const statusMap = {
-  deleted: 'deleted',
-  published: 'published',
-  unpublished: 'unpublished',
-  scheduled: 'scheduled',
-  cloned: 'cloned',
-  testing: 'testing'
+	deleted: 'deleted',
+	published: 'published',
+	unpublished: 'unpublished',
+	scheduled: 'scheduled',
+	cloned: 'cloned',
+	testing: 'testing'
 } as const;
 
 // Create reactive stores using Svelte 5 runes
@@ -65,15 +65,15 @@ export const currentCollectionName = store(() => collection.value?.name);
 
 // Entry management
 export const entryActions = {
-  addEntry(entryId: string) {
-    selectedEntries.update((entries) => [...entries, entryId]);
-  },
-  removeEntry(entryId: string) {
-    selectedEntries.update((entries) => entries.filter((id) => id !== entryId));
-  },
-  clear() {
-    selectedEntries.set([]);
-  }
+	addEntry(entryId: string) {
+		selectedEntries.update((entries) => [...entries, entryId]);
+	},
+	removeEntry(entryId: string) {
+		selectedEntries.update((entries) => entries.filter((id) => id !== entryId));
+	},
+	clear() {
+		selectedEntries.set([]);
+	}
 };
 
 // Type exports

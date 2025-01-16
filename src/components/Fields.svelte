@@ -30,7 +30,7 @@ Key features:
 	const user = page.data.user;
 
 	// Stores
-	import { contentLanguage, translationProgress } from '@stores/store';
+	import { contentLanguage, translationProgress } from '@stores/store.svelte';
 	import { collection, collectionValue } from '@src/stores/collectionStore.svelte';
 
 	// ParaglideJS
