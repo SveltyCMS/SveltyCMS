@@ -424,5 +424,11 @@
 	"llmConfig_apiKey": "LLM API Anahtarı",
 	"signin_no_user": "Henüz kullanıcı yok",
 	"collection_no_collections_found": "Hiçbir koleksiyon bulunamadı",
-	"EntryList_no_collection": "Koleksiyon Verisi Yok"
+	"EntryList_no_collection": "Koleksiyon Yok {name} Verisi",
+	"sidebar_createdby": "Tarafından oluşturuldu",
+	"sidebarschedule_publication": "Yayın takvimi",
+	"sidebar_will_publish_on": "Yayımlanacak",
+	"siedabar_publish_options": "Yayımlama Seçenekleri",
+	"Fields_no_widgets_found": "Widget bulunamadı: {name}",
+	"Fields_preview": "Önizleme"
 }

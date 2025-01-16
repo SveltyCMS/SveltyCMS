@@ -3442,8 +3442,56 @@ export const collection_no_collections_found = () => `Nie znaleziono żadnych ko
 
 
 /**
+ * @param {{ name: NonNullable<unknown> }} params
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const EntryList_no_collection = (params) => `Brak kolekcji ${params.name} danych`
+
+
+/**
  * 
  * @returns {string}
  */
 /* @__NO_SIDE_EFFECTS__ */
-export const EntryList_no_collection = () => `Brak danych o zbiorach`
+export const sidebar_createdby = () => `Stworzone przez`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const sidebarschedule_publication = () => `Zaplanuj publikację`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const sidebar_will_publish_on = () => `Zostanie opublikowane w dniu`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const siedabar_publish_options = () => `Opcje publikacji`
+
+
+/**
+ * @param {{ name: NonNullable<unknown> }} params
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const Fields_no_widgets_found = (params) => `Nie znaleziono widżetu: ${params.name}`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const Fields_preview = () => `Zapowiedź`

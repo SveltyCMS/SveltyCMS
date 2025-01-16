@@ -3441,8 +3441,56 @@ export const collection_no_collections_found = () => `コレクションが見�
 
 
 /**
+ * @param {{ name: NonNullable<unknown> }} params
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const EntryList_no_collection = (params) => `コレクション${params.name}データなし`
+
+
+/**
  * 
  * @returns {string}
  */
 /* @__NO_SIDE_EFFECTS__ */
-export const EntryList_no_collection = () => `収集データなし`
+export const sidebar_createdby = () => `作成者`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const sidebarschedule_publication = () => `スケジュール公開`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const sidebar_will_publish_on = () => `公開予定日`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const siedabar_publish_options = () => `公開オプション`
+
+
+/**
+ * @param {{ name: NonNullable<unknown> }} params
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const Fields_no_widgets_found = (params) => `ウィジェットが見つかりません: ${params.name}`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const Fields_preview = () => `プレビュー`

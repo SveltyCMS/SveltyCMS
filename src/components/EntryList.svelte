@@ -725,7 +725,7 @@ Features:
 		<div class="text-center text-tertiary-500 dark:text-primary-500">
 			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2"></iconify-icon>
 			<p class="text-lg">
-				{m.EntryList_no_collection()}
+				{m.EntryList_no_collection({ name: currentCollection?.name })}
 			</p>
 		</div>
 	{/if}

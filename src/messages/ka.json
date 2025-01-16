@@ -424,5 +424,11 @@
 	"llmConfig_apiKey": "LLM API გასაღები",
 	"signin_no_user": "მომხმარებელი ჯერ არ არსებობს",
 	"collection_no_collections_found": "კოლექციები ვერ მოიძებნა",
-	"EntryList_no_collection": "კოლექციის მონაცემები არ არის"
+	"EntryList_no_collection": "კოლექციის {name} მონაცემები არ არის",
+	"sidebar_createdby": "შექმნილია",
+	"sidebarschedule_publication": "გამოქვეყნების განრიგი",
+	"sidebar_will_publish_on": "გამოქვეყნდება",
+	"siedabar_publish_options": "გამოქვეყნების ოფციები",
+	"Fields_no_widgets_found": "ვიჯეტი ვერ მოიძებნა: {name}",
+	"Fields_preview": "გადახედვა"
 }

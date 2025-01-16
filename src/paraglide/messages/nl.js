@@ -3442,8 +3442,56 @@ export const collection_no_collections_found = () => `Geen collecties gevonden`
 
 
 /**
+ * @param {{ name: NonNullable<unknown> }} params
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const EntryList_no_collection = (params) => `Geen verzameling ${params.name} Gegevens`
+
+
+/**
  * 
  * @returns {string}
  */
 /* @__NO_SIDE_EFFECTS__ */
-export const EntryList_no_collection = () => `Geen verzamelingsgegevens`
+export const sidebar_createdby = () => `Gemaakt door`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const sidebarschedule_publication = () => `Publicatie van het schema`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const sidebar_will_publish_on = () => `Wordt gepubliceerd op`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const siedabar_publish_options = () => `Publicatieopties`
+
+
+/**
+ * @param {{ name: NonNullable<unknown> }} params
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const Fields_no_widgets_found = (params) => `Widget niet gevonden: ${params.name}`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const Fields_preview = () => `Voorvertoning`

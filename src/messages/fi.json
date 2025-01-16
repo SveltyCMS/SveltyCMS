@@ -424,5 +424,11 @@
 	"llmConfig_apiKey": "LLM API-avain",
 	"signin_no_user": "Käyttäjiä ei ole vielä olemassa",
 	"collection_no_collections_found": "Kokoelmia ei löytynyt",
-	"EntryList_no_collection": "Ei keräystietoja"
+	"EntryList_no_collection": "Ei kokoelmaa {name} Data",
+	"sidebar_createdby": "Luonut",
+	"sidebarschedule_publication": "Aikataulu julkaisu",
+	"sidebar_will_publish_on": "Julkaistaan",
+	"siedabar_publish_options": "Julkaisuasetukset",
+	"Fields_no_widgets_found": "Widgetiä ei löydy: {name}",
+	"Fields_preview": "Esikatselu"
 }

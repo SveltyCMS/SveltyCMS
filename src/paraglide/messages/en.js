@@ -3558,8 +3558,56 @@ export const collection_no_collections_found = () => `No collections found`
 
 
 /**
+ * @param {{ name: NonNullable<unknown> }} params
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const EntryList_no_collection = (params) => `No Collection ${params.name} Data`
+
+
+/**
  * 
  * @returns {string}
  */
 /* @__NO_SIDE_EFFECTS__ */
-export const EntryList_no_collection = () => `No Collection Data`
+export const sidebar_createdby = () => `Created by`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const sidebarschedule_publication = () => `Schedule publication`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const sidebar_will_publish_on = () => `Will be published on`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const siedabar_publish_options = () => `Publish Options`
+
+
+/**
+ * @param {{ name: NonNullable<unknown> }} params
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const Fields_no_widgets_found = (params) => `Widget not found: ${params.name}`
+
+
+/**
+ * 
+ * @returns {string}
+ */
+/* @__NO_SIDE_EFFECTS__ */
+export const Fields_preview = () => `Preview`

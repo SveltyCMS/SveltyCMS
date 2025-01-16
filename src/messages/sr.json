@@ -424,6 +424,12 @@
 	"llmConfig_apiKey": "ЛЛМ АПИ кључ",
 	"signin_no_user": "Још увек нема корисника",
 	"collection_no_collections_found": "Није пронађена ниједна збирка",
-	"EntryList_no_collection": "Нема података о прикупљању",
+	"EntryList_no_collection": "Нема збирке података {name}",
+	"sidebar_createdby": "Цреатед би",
+	"sidebarschedule_publication": "Планирајте објављивање",
+	"sidebar_will_publish_on": "Биће објављено на",
+	"siedabar_publish_options": "Опције објављивања",
+	"Fields_no_widgets_found": "Виџет није пронађен: {name}",
+	"Fields_preview": "Преглед",
 	"userpage_email": "Емаил:"
 }

@@ -424,5 +424,11 @@
 	"llmConfig_apiKey": "LLM API Key",
 	"signin_no_user": "No users exist yet",
 	"collection_no_collections_found": "No collections found",
-	"EntryList_no_collection": "No Collection Data"
+	"EntryList_no_collection": "No Collection {name} Data",
+	"sidebar_createdby": "Created by",
+	"sidebarschedule_publication": "Schedule publication",
+	"sidebar_will_publish_on": "Will be published on",
+	"siedabar_publish_options": "Publish Options",
+	"Fields_no_widgets_found": "Widget not found: {name}",
+	"Fields_preview": "Preview"
 }

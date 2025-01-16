@@ -424,5 +424,11 @@
 	"llmConfig_apiKey": "Ключ API LLM",
 	"signin_no_user": "Користувачів ще немає",
 	"collection_no_collections_found": "Колекції не знайдено",
-	"EntryList_no_collection": "Немає даних про збір"
+	"EntryList_no_collection": "Немає даних колекції {name}",
+	"sidebar_createdby": "Створено",
+	"sidebarschedule_publication": "Розклад публікації",
+	"sidebar_will_publish_on": "Буде опубліковано на",
+	"siedabar_publish_options": "Параметри публікації",
+	"Fields_no_widgets_found": "Віджет не знайдено: {name}",
+	"Fields_preview": "Попередній перегляд"
 }

@@ -424,5 +424,11 @@
 	"llmConfig_apiKey": "LLM API キー",
 	"signin_no_user": "まだユーザーは存在しません",
 	"collection_no_collections_found": "コレクションが見つかりません",
-	"EntryList_no_collection": "収集データなし"
+	"EntryList_no_collection": "コレクション{name}データなし",
+	"sidebar_createdby": "作成者",
+	"sidebarschedule_publication": "スケジュール公開",
+	"sidebar_will_publish_on": "公開予定日",
+	"siedabar_publish_options": "公開オプション",
+	"Fields_no_widgets_found": "ウィジェットが見つかりません: {name}",
+	"Fields_preview": "プレビュー"
 }

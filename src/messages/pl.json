@@ -424,5 +424,11 @@
 	"llmConfig_apiKey": "Klucz API LLM",
 	"signin_no_user": "Nie ma jeszcze żadnych użytkowników",
 	"collection_no_collections_found": "Nie znaleziono żadnych kolekcji",
-	"EntryList_no_collection": "Brak danych o zbiorach"
+	"EntryList_no_collection": "Brak kolekcji {name} danych",
+	"sidebar_createdby": "Stworzone przez",
+	"sidebarschedule_publication": "Zaplanuj publikację",
+	"sidebar_will_publish_on": "Zostanie opublikowane w dniu",
+	"siedabar_publish_options": "Opcje publikacji",
+	"Fields_no_widgets_found": "Nie znaleziono widżetu: {name}",
+	"Fields_preview": "Zapowiedź"
 }

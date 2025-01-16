@@ -133,7 +133,7 @@ Key features:
 			<Tab bind:group={tabSet} name="tab2" value={1}>
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="pepicons-pop:countdown" width="24" class="text-tertiary-500 dark:text-primary-500"> </iconify-icon>
-					<p>Ver. <span class="variant-outline-tertiary badge rounded-full dark:variant-outline-primary">1</span></p>
+					<p>{m.applayout_version()} <span class="variant-outline-tertiary badge rounded-full dark:variant-outline-primary">1</span></p>
 				</div>
 			</Tab>
 		{/if}
@@ -143,7 +143,7 @@ Key features:
 			<Tab bind:group={tabSet} name="tab3" value={2}>
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="mdi:eye-outline" width="24" class="text-tertiary-500 dark:text-primary-500"> </iconify-icon>
-					<p>Preview</p>
+					<p>{m.Fields_preview()}</p>
 				</div>
 			</Tab>
 		{/if}
@@ -204,13 +204,23 @@ Key features:
 
 									<!-- Widget Input -->
 									{#if field.widget}
-										{@const widgetPath = `/src/widgets/${pascalToCamelCase(field.widget.Name)}/${field.widget.Name}.svelte`}
-										{@const WidgetComponent = modules[widgetPath]?.default}
-										{#if WidgetComponent}
-											<!-- Using dynamic component directly without svelte:component in runes mode -->
-											<WidgetComponent {field} bind:WidgetData={fieldsData[getFieldName(field)]} bind:value={customData[getFieldName(field)]} />
+										{#if typeof field.widget === 'string'}
+											{@const widgetName = field.widget}
+											{@const widgetPath = `/src/widgets/${pascalToCamelCase(widgetName)}/${widgetName}.svelte`}
+											{@const WidgetComponent = modules[widgetPath]?.default}
+											{#if WidgetComponent}
+												<WidgetComponent {field} bind:WidgetData={fieldsData[getFieldName(field)]} bind:value={customData[getFieldName(field)]} />
+											{:else}
+												<p>{m.Fields_no_widgets_found({ name: widgetName })}</p>
+											{/if}
 										{:else}
-											<p>Widget not found: {field.widget.Name}</p>
+											{@const widgetPath = `/src/widgets/${pascalToCamelCase(field.widget.Name)}/${field.widget.Name}.svelte`}
+											{@const WidgetComponent = modules[widgetPath]?.default}
+											{#if WidgetComponent}
+												<WidgetComponent {field} bind:WidgetData={fieldsData[getFieldName(field)]} bind:value={customData[getFieldName(field)]} />
+											{:else}
+												<p>{m.Fields_no_widgets_found({ name: field.widget.Name })}</p>
+											{/if}
 										{/if}
 									{/if}
 								</div>

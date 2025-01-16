@@ -424,5 +424,11 @@
 	"llmConfig_apiKey": "Chave API LLM",
 	"signin_no_user": "Nenhum usuário existe ainda",
 	"collection_no_collections_found": "Nenhuma coleção encontrada",
-	"EntryList_no_collection": "Nenhum dado de coleta"
+	"EntryList_no_collection": "Nenhuma coleção {name} Dados",
+	"sidebar_createdby": "Criado por",
+	"sidebarschedule_publication": "Agendar publicação",
+	"sidebar_will_publish_on": "Será publicado em",
+	"siedabar_publish_options": "Opções de publicação",
+	"Fields_no_widgets_found": "Widget não encontrado: {name}",
+	"Fields_preview": "Pré-visualização"
 }

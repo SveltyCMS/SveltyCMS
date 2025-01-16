@@ -424,6 +424,12 @@
 	"llmConfig_apiKey": "Clave API de LLM",
 	"signin_no_user": "Aún no existen usuarios",
 	"collection_no_collections_found": "No se encontraron colecciones",
-	"EntryList_no_collection": "No hay datos de recopilación",
+	"EntryList_no_collection": "No hay datos de recopilación {name}",
+	"sidebar_createdby": "Creado por",
+	"sidebarschedule_publication": "Publicación del calendario",
+	"sidebar_will_publish_on": "Se publicará el",
+	"siedabar_publish_options": "Opciones de publicación",
+	"Fields_no_widgets_found": "Widget no encontrado: {name}",
+	"Fields_preview": "Avance",
 	"signup_password": "Contraseña"
 }

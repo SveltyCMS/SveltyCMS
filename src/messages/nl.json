@@ -424,5 +424,11 @@
 	"llmConfig_apiKey": "LLM API-sleutel",
 	"signin_no_user": "Er zijn nog geen gebruikers",
 	"collection_no_collections_found": "Geen collecties gevonden",
-	"EntryList_no_collection": "Geen verzamelingsgegevens"
+	"EntryList_no_collection": "Geen verzameling {name} Gegevens",
+	"sidebar_createdby": "Gemaakt door",
+	"sidebarschedule_publication": "Publicatie van het schema",
+	"sidebar_will_publish_on": "Wordt gepubliceerd op",
+	"siedabar_publish_options": "Publicatieopties",
+	"Fields_no_widgets_found": "Widget niet gevonden: {name}",
+	"Fields_preview": "Voorvertoning"
 }
