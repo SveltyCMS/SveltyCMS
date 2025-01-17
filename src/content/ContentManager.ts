@@ -59,7 +59,7 @@ class ContentManager {
 	private static instance: ContentManager | null = null;
 	private collectionCache: Map<string, CacheEntry<Schema>> = new Map();
 	private fileHashCache: Map<string, CacheEntry<string>> = new Map();
-	private categoryCache: Map<string, CacheEntry<Category>> = new Map();
+	private contentStructureCache: Map<string, CacheEntry<Category>> = new Map();
 	private collectionAccessCount: Map<string, number> = new Map();
 	private initialized: boolean = false;
 	private loadedCollections: Schema[] = [];
@@ -274,8 +274,8 @@ class ContentManager {
 				}
 			}
 			await this.loadCollections();
-			await this.createCategories();
-			logger.info('Collections updated successfully');
+			await this.createContentStructure();
+			logger.info('Content structure updated successfully');
 			// Convert category array to record structure
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : String(err);
@@ -310,10 +310,41 @@ class ContentManager {
 		}
 	}
 
-	// Create categories with Redis caching
-	private async createCategories(): Promise<void> {
+	// Create content structure with Redis caching
+	private async createContentStructure(): Promise<void> {
 		try {
+			// Generate dynamic structure configuration from loaded collections
 			const structure: Record<string, Category> = {};
+			interface StructureConfig {
+				icon: string;
+				order: number;
+				translations: Record<string, string>;
+				subcategories: Record<string, StructureConfig>;
+			}
+			const structureConfig: Record<string, StructureConfig> = {};
+
+			// Create dynamic configuration based on collections
+			for (const collection of this.loadedCollections) {
+				if (!collection.path) continue;
+
+				const pathParts = collection.path.split('/').filter(Boolean);
+				let currentConfig = structureConfig;
+
+				for (const [index, part] of pathParts.entries()) {
+					if (!currentConfig[part]) {
+						currentConfig[part] = {
+							icon: collection.icon || (index === pathParts.length - 1 ? 'bi:file' : 'bi:folder'),
+							order: collection.order || 999,
+							translations: collection.translations || {},
+							subcategories: {}
+						};
+					}
+
+					if (index < pathParts.length - 1) {
+						currentConfig = currentConfig[part].subcategories;
+					}
+				}
+			}
 
 			for (const collection of this.loadedCollections) {
 				if (!collection.path) {
@@ -324,22 +355,34 @@ class ContentManager {
 				const pathParts = collection.path.split('/').filter(Boolean);
 				let currentLevel = structure;
 				let currentPath = '';
+				let configPath = structureConfig;
 
 				for (const [index, part] of pathParts.entries()) {
 					currentPath = currentPath ? `${currentPath}/${part}` : part;
+
+					// Get config for current level if available
+					const currentConfig = configPath[part] || {
+						icon: '',
+						order: 999,
+						translations: {},
+						subcategories: {}
+					};
+					configPath = currentConfig.subcategories;
 
 					if (!currentLevel[part]) {
 						const category: Category = {
 							_id: crypto.randomUUID(),
 							id: crypto.randomUUID(),
 							name: part,
-							icon: index === pathParts.length - 1 ? collection.icon || 'bi:file' : 'bi:folder',
+							icon: currentConfig.icon ||
+								(index === pathParts.length - 1 ? collection.icon || 'bi:file' : 'bi:folder'),
 							path: currentPath,
-							order: 999,
+							order: currentConfig.order || 999,
 							isCollection: index === pathParts.length - 1,
 							collections: [],
-							subcategories: new Map(),
+							subcategories: {},
 							collectionConfig: {},
+							translations: currentConfig.translations || {},
 							updatedAt: new Date(),
 							createdAt: new Date(),
 							__v: 0
@@ -347,12 +390,14 @@ class ContentManager {
 
 						currentLevel[part] = category;
 
-						// Save to database
+						// Save to database with enhanced metadata
 						await dbAdapter?.createContentStructure({
 							_id: category.id,
 							path: currentPath,
 							name: part,
 							icon: category.icon,
+							order: category.order,
+							translations: category.translations,
 							isCollection: category.isCollection,
 							collections: category.collections,
 							subcategories: category.subcategories
@@ -361,7 +406,12 @@ class ContentManager {
 
 					if (index === pathParts.length - 1) {
 						// This is a collection
-						currentLevel[part].collections.push(collection);
+						currentLevel[part].collections.push({
+							...collection,
+							icon: currentConfig.icon || collection.icon,
+							order: currentConfig.order || collection.order || 999,
+							translations: currentConfig.translations || collection.translations || {}
+						});
 					} else {
 						currentLevel = currentLevel[part].subcategories!;
 					}
@@ -372,51 +422,12 @@ class ContentManager {
 
 			// Cache in Redis if available
 			if (isRedisEnabled()) {
-				await setCache('cms:categories', structure, REDIS_TTL);
+				await setCache('cms:content_structure', structure, REDIS_TTL);
 			}
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : String(err);
-			logger.error('Failed to create categories', { error: errorMessage });
-			throw new Error(`Failed to create categories: ${errorMessage}`);
-		}
-	}
-
-	// Generate nested JSON structure
-	public async generateNestedJson(): Promise<Record<string, any>> {
-		try {
-			if (!this.initialized) {
-				await this.initialize();
-			}
-
-			const buildNestedStructure = (category: Category): Record<string, any> => {
-				const nestedStructure: Record<string, any> = {
-					id: category.id,
-					name: category.name,
-					icon: category.icon,
-					path: category.path,
-					isCollection: category.isCollection,
-					collections: category.collections,
-					subcategories: {}
-				};
-
-				if (category.subcategories) {
-					for (const [key, subcategory] of Object.entries(category.subcategories)) {
-						nestedStructure.subcategories[key] = buildNestedStructure(subcategory);
-					}
-				}
-
-				return nestedStructure;
-			};
-
-			const nestedJson: Record<string, any> = {};
-			for (const [key, category] of Object.entries(this.contentStructure)) {
-				nestedJson[key] = buildNestedStructure(category);
-			}
-
-			return nestedJson;
-		} catch (error) {
-			logger.error('Error generating nested JSON:', error);
-			throw error;
+			logger.error('Failed to create content structure', { error: errorMessage });
+			throw new Error(`Failed to create content structure: ${errorMessage}`);
 		}
 	}
 
@@ -464,7 +475,7 @@ class ContentManager {
 		}
 		// Clear from all memory caches
 		this.collectionCache.delete(key);
-		this.categoryCache.delete(key);
+		this.contentStructureCache.delete(key);
 		this.fileHashCache.delete(key);
 	}
 
@@ -532,7 +543,7 @@ class ContentManager {
 		try {
 			const allFiles = await getAllFiles(compiledDirectoryPath);
 			logger.debug('All files found recursively', {
-				Categories: compiledDirectoryPath,
+				ContentStructure: compiledDirectoryPath,
 				Collections: allFiles.filter((file) => file.endsWith('.js'))
 			});
 
@@ -605,7 +616,7 @@ class ContentManager {
 			logger.debug(`Attempting to read file for collection: \x1b[34m${name}\x1b[0m at path: \x1b[33m${path}\x1b[0m`);
 			const content = await this.readFile(path);
 			logger.debug(`File content for collection \x1b[34m${name}\x1b[0m: ${content.substring(0, 100)}...`); // Log only the first 100 characters
-			const schema = await this.processCollectionFile(path, content);
+			await this.processCollectionFile(path, content);
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : String(err);
 			logger.error(`Failed to lazy load collection ${name}:`, { error: errorMessage });
