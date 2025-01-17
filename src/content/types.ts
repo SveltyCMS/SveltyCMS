@@ -61,12 +61,28 @@ export const CollectionRegistry = {
 } as const;
 
 // Define the base Schema interface
+export interface Translation {
+	languageTag: string;
+	translationName: string;
+	icon?: string;
+	order?: number;
+	isDefault?: boolean;
+	description?: string;
+	metadata?: {
+		createdAt?: Date;
+		updatedAt?: Date;
+		createdBy?: string;
+		updatedBy?: string;
+	};
+}
+
 export interface Schema {
-	id: string; // UUID from collection file header
+	_id: string; // UUID from collection file header
 	name?: ContentTypes | string; // Collection name can be from registry or dynamic
 	label?: string; // Optional label that will display instead of name if used
 	slug?: string; // Optional Slug for the collection
 	icon?: string; // Optional icon
+	order?: number; // Optional display order
 	description?: string; // Optional description for the collection
 	strict?: boolean; // Optional strict mode
 	revision?: boolean; // Optional revisions
@@ -76,52 +92,45 @@ export interface Schema {
 	status?: 'draft' | 'published' | 'unpublished' | 'scheduled' | 'cloned'; // Optional default status
 	links?: Array<ContentTypes>; // Optional links to other collections
 	fields: Field[]; // Collection fields
-	translations?: { languageTag: string; translationName: string }[]; // Optional translations
+	translations?: Translation[]; // Optional translations with enhanced metadata
 }
 
-// Category interface
+// Category interface for representing the folder structure
 export interface Category {
-	_id: string; // MongoDB ObjectID
-	id: string; // UUID for Category
-	name: string; // Category name
-	icon: string; // Category icon
-	path: string; // Path within the structure
+	_id: string; // UUID for Category
+	name: string; // Category name, derived from folder name
+	path: string; // Path within the structure, derived from folder path
+	icon: string; // Icon for the category
 	order: number; // Display order
-	isCollection: boolean; // Whether this is a collection
-	parentId?: string; // Parent category ID
-	children?: Category[]; // Child categories
-	translations?: { languageTag: string; translationName: string }[];
-	collections: Schema[]; // Collections within this category
-	subcategories?: Map<string, Category>; // Nested subcategories
-	collectionConfig?: Record<string, unknown>; // Collection configuration
-	updatedAt: Date; // Last updated timestamp
-	createdAt: Date; // Creation timestamp
-	__v?: number; // Version key
+	isCollection: boolean; // Whether this category represents a collection
+	translations: { languageTag: string; translationName: string }[]; // Translations for the category name
+	collections: CollectionData[]; // Collections within this category
+	subcategories: Record<string, Category>; // Subcategories
+	collectionConfig?: Record<string, unknown>; // Optional collection configuration
+
 }
 
-export interface NestedCategory extends Omit<Category, 'children'> {
-	children?: NestedCategory[];
-}
-
-export type CategoryTree = {
-	root: NestedCategory;
-	flatMap: Map<string, NestedCategory>;
-};
-
-export type CategoryPath = {
-	path: string;
-	category: NestedCategory;
-};
 
 // Category data interface for configuration
 export interface CollectionData {
-	id: string; // UUID for Collection
+	_id: string; // UUID for Collection
 	icon: string; // Collection icon
 	name: string; // Collection name
-	translations?: { languageTag: string; translationName: string }[];
-	isCollection?: boolean; // Flag to identify if this is a collection (.ts file)
-	subcategories?: Record<string, CollectionData>; // Nested subcategories
-	collections?: Schema[]; // Optional array of collections directly within the category
+	label?: string; // Optional display label
+	order: number; // Display order
+	path: string; // Collection path
+	translations: { languageTag: string; translationName: string }[]; // Translations
+	collections: CollectionData[]; // Nested collections
+	isCollection: boolean; // Whether this is a collection
+	permissions?: RolePermissions; // Optional permissions
+	livePreview?: boolean; // Optional live preview
+	strict?: boolean; // Optional strict mode
+	revision?: boolean; // Optional revisions
+	fields: Field[]; // Collection fields
+	description?: string; // Optional description
+	slug?: string; // Optional slug
+	status?: 'draft' | 'published' | 'unpublished' | 'scheduled' | 'cloned'; // Optional status
+	links?: Array<ContentTypes>; // Optional links to other collections
 }
 
 // Collection types
@@ -178,8 +187,8 @@ async function processCollectionFile(content: string): Promise<{ fields: string[
 
 	const processedContent = `
         ${Array.from(widgets)
-					.map((widget) => `const ${widget} = (args: any) => args;`)
-					.join('\n')}
+			.map((widget) => `const ${widget} = (args: any) => args;`)
+			.join('\n')}
         ${content.replace(/widgets\./g, '')}
     `;
 

@@ -127,18 +127,32 @@ export class MongoDBAdapter implements dbInterface {
 		}
 
 		try {
+			// Ensure system_content_structure collection exists
+			if (!mongoose.models['system_content_structure']) {
+				await ContentStructureModel.init();
+				logger.info('Created system_content_structure collection');
+			}
+
 			// Initialize each collection model
 			for (const collection of collections) {
 				if (dbAdapter) {
-					logger.debug(`Creating collection model for: \x1b[34m${collection.name}\x1b[0m`);
-					await this.createCollectionModel(collection);
-					logger.debug(`Finished creating collection model for: \x1b[34m${collection.name}\x1b[0m`);
+					const collectionName = `collection_${collection._id}`;
+					logger.debug(`Creating collection model for: \x1b[34m${collectionName}\x1b[0m`);
+
+					// Check if collection already exists
+					if (!mongoose.models[collectionName]) {
+						await this.createCollectionModel(collection);
+						logger.info(`Created collection model: \x1b[34m${collectionName}\x1b[0m`);
+					} else {
+						logger.debug(`Collection model already exists: \x1b[34m${collectionName}\x1b[0m`);
+					}
 				}
 			}
 
 			logger.info('Content structure sync completed successfully');
 		} catch (error) {
 			logger.error('Error syncing content structure:', error);
+			throw error;
 		}
 	}
 
@@ -148,18 +162,30 @@ export class MongoDBAdapter implements dbInterface {
 		name: string;
 		path: string;
 		icon?: string;
+		order?: number;
 		isCollection?: boolean;
 		collectionConfig?: unknown;
+		translations?: { languageTag: string; translationName: string }[];
 	}): Promise<void> {
 		try {
 			const existingNode = await ContentStructureModel.findOne({ path: contentData.path }).exec();
 			if (existingNode) {
 				// Update existing node
+				existingNode._id = contentData._id;
 				existingNode.name = contentData.name;
 				existingNode.path = contentData.path;
-				existingNode.icon = contentData.icon;
+				existingNode.icon = contentData.icon || 'iconoir:info-empty';
+				existingNode.order = contentData.order || 999;
 				existingNode.isCollection = contentData.isCollection;
 				existingNode.collectionConfig = contentData.collectionConfig;
+
+				// Update translations if provided
+				if (contentData.translations) {
+					existingNode.translations = contentData.translations.map(t => ({
+						languageTag: t.languageTag,
+						translationName: t.translationName
+					}));
+				}
 
 				await existingNode.save();
 				logger.info(`Updated content structure: \x1b[34m${contentData.path}\x1b[0m`);
@@ -181,8 +207,8 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Convert a string ID to a MongoDB ObjectId
-	convertId(id: string): mongoose.Types.ObjectId {
-		return new mongoose.Types.ObjectId(id);
+	convertId(_id: string): mongoose.Types.ObjectId {
+		return new mongoose.Types.ObjectId(_id);
 	}
 
 	// Get collection models
@@ -417,8 +443,8 @@ export class MongoDBAdapter implements dbInterface {
 	// Create or update a collection model based on the provided configuration
 	async createCollectionModel(collection: CollectionConfig): Promise<Model<Document>> {
 		try {
-			// Use collection_uuid as the identifier
-			const collectionUuid = collection.id;
+			// Generate UUID if not provided
+			const collectionUuid = collection._id || this.generateId();
 			logger.debug(`Using UUID for collection: \x1b[34m${collectionUuid}\x1b[0m`);
 
 			// Ensure collection name is prefixed with collection_
@@ -991,12 +1017,21 @@ export class MongoDBAdapter implements dbInterface {
 		_id?: string;
 	}): Promise<Document> {
 		try {
-			// If _id is provided, use it directly when creating the model
-			const node = new ContentStructureModel({
+			// Ensure _id is always present
+			const nodeData = {
 				...contentData,
-				_id: contentData._id // Use provided _id
-			});
+				_id: contentData._id || this.generateId() // Generate if not provided
+			};
+
+			// Create the node with the generated _id
+			const node = new ContentStructureModel(nodeData);
+
+			// Validate before saving
+			await node.validate();
+
+			// Save the node
 			await node.save();
+
 			logger.debug(`Content structure \x1b[34m${contentData.name}\x1b[0m created successfully with ID \x1b[34m${node._id}\x1b[0m.`);
 			return node;
 		} catch (error) {

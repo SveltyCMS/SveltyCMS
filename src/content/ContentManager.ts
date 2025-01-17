@@ -12,6 +12,7 @@
  */
 
 import fs from 'fs/promises';
+import { publicEnv } from '@root/config/public';
 
 // Types
 import type { Schema, ContentTypes, Category, CollectionData } from './types';
@@ -162,36 +163,36 @@ class ContentManager {
 					// Evaluate just the schema object
 					const schemaFunc = new Function(`return ${schemaMatch[2]}`);
 					const schema = schemaFunc();
-					return { schema: { ...schema, id: uuid } };
+					return { schema: { ...schema, _id: uuid } };
 				} catch (error) {
 					logger.warn('Failed to evaluate schema object:', error);
 				}
 			}
 
-			// Try to match export const/let/var schema
-			const schemaExportMatch = cleanedContent.match(/(?:export\s+(?:const|let|var)\s+)?(\w+)\s*=\s*({[\s\S]*?});/);
-			if (schemaExportMatch && schemaExportMatch[2]) {
+			// Try to extract default export
+			const defaultExportMatch = content.match(/export\s+default\s+({[\s\S]*?});/);
+			if (defaultExportMatch && defaultExportMatch[1]) {
 				try {
-					const schemaFunc = new Function(`return ${schemaExportMatch[2]}`);
-					const schema = schemaFunc();
-					return { schema: { ...schema, id: uuid } };
+					const schema = new Function(`return ${defaultExportMatch[1]}`)();
+					if (schema && typeof schema === 'object' && Array.isArray(schema.fields)) {
+						return {
+							schema: {
+								...schema,
+								_id: uuid
+							}
+						};
+					}
 				} catch (error) {
-					logger.warn('Failed to evaluate schema object:', error);
+					logger.error('Failed to parse default export:', error);
 				}
 			}
 
-			// Try to match export default schema
-			const schemaDefaultExportMatch = cleanedContent.match(/export\s+default\s+({[\s\S]*?});/);
-			if (schemaDefaultExportMatch && schemaDefaultExportMatch[1]) {
-				try {
-					const schemaFunc = new Function(`return ${schemaDefaultExportMatch[1]}`);
-					const schema = schemaFunc();
-					return { schema: { ...schema, id: uuid } };
-				} catch (error) {
-					logger.warn('Failed to evaluate schema object:', error);
-				}
-			}
 
+
+			// If we get here, log the error with more context
+			logger.error('Failed to parse collection file', {
+				content: content.substring(0, 500) // Log first 500 chars for debugging
+			});
 			return null;
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : String(err);
@@ -226,11 +227,16 @@ class ContentManager {
 
 					const processed: Schema = {
 						...schema,
-						id: schema.id!, // Always use the ID from the compiled schema
+						_id: schema.id!, // Always use the ID from the compiled schema
 						name: schema.name || filePathName,
 						label: schema.label || filePathName,
 						path: path,
 						icon: schema.icon || 'iconoir:info-empty',
+						order: schema.order || 999,
+						translations: schema.translations || [{
+							languageTag: publicEnv.DEFAULT_SYSTEM_LANGUAGE,
+							translationName: filePathName
+						}],
 						fields: schema.fields || [],
 						permissions: schema.permissions || {},
 						livePreview: schema.livePreview || false,
@@ -371,8 +377,7 @@ class ContentManager {
 
 					if (!currentLevel[part]) {
 						const category: Category = {
-							_id: crypto.randomUUID(),
-							id: crypto.randomUUID(),
+							_id: collection._id, // Use the collection's UUID
 							name: part,
 							icon: currentConfig.icon ||
 								(index === pathParts.length - 1 ? collection.icon || 'bi:file' : 'bi:folder'),
@@ -382,35 +387,41 @@ class ContentManager {
 							collections: [],
 							subcategories: {},
 							collectionConfig: {},
-							translations: currentConfig.translations || {},
-							updatedAt: new Date(),
-							createdAt: new Date(),
-							__v: 0
+							translations: collection.translations || [{
+								languageTag: publicEnv.DEFAULT_LANGUAGE,
+								translationName: part,
+							}],
 						};
 
 						currentLevel[part] = category;
 
 						// Save to database with enhanced metadata
-						await dbAdapter?.createContentStructure({
-							_id: category.id,
+						const collectionConfig = {
+							_id: collection._id, // Use the collection's UUID
+							name: part, // Ensure name is passed
 							path: currentPath,
-							name: part,
 							icon: category.icon,
 							order: category.order,
 							translations: category.translations,
 							isCollection: category.isCollection,
 							collections: category.collections,
-							subcategories: category.subcategories
-						});
+							subcategories: category.subcategories,
+							schema: {
+								fields: collection.fields || [],
+								strict: collection.strict || false
+							}
+						};
+						await dbAdapter?.createContentStructure(collectionConfig);
 					}
 
 					if (index === pathParts.length - 1) {
 						// This is a collection
 						currentLevel[part].collections.push({
 							...collection,
+							_id: collection._id, // Reuse collection UUID
 							icon: currentConfig.icon || collection.icon,
 							order: currentConfig.order || collection.order || 999,
-							translations: currentConfig.translations || collection.translations || {}
+							translations: currentConfig.translations || collection.translations || {},
 						});
 					} else {
 						currentLevel = currentLevel[part].subcategories!;

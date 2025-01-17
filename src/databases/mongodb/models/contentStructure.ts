@@ -17,26 +17,40 @@ export const contentStructureSchema = new Schema(
 	{
 		_id: { type: String, required: true }, // UUID from compiled collection
 		name: { type: String, required: true },
+		label: { type: String }, // Optional display label
 		path: { type: String, required: true }, // Always starts with /collections/
-		icon: { type: String, default: 'bi:file-text' }, // Default icon for collections
-		order: { type: Number, default: 999 },
-		translations: [
-			{
-				languageTag: String,
-				translationName: String
-			}
-		],
-		isCollection: { type: Boolean, default: true }, // Default to true since we're syncing collections
+		icon: { type: String, default: 'bi:file-text', required: true }, // Default icon for collections
+		order: { type: Number, default: 999, required: true },
+		translations: {
+			type: [
+				{
+					languageTag: { type: String, required: true },
+					translationName: { type: String, required: true },
+
+					isDefault: { type: Boolean },
+
+				}
+			],
+			required: true
+		},
+		isCollection: { type: Boolean, default: true, required: true }, // Default to true since we're syncing collections
 		collectionConfig: { type: Schema.Types.Mixed }, // Store the full collection config
 		subcategories: { type: Map, of: Schema.Types.Mixed }, // Nested subcategories
 		collections: [{ type: Schema.Types.Mixed }], // Collections within this category
-		updatedAt: { type: Date, default: Date.now }
+		permissions: { type: Schema.Types.Mixed }, // Optional permissions
+		livePreview: { type: Boolean }, // Optional live preview
+		revision: { type: Boolean }, // Optional revisions
+		fields: { type: [Schema.Types.Mixed] }, // Collection fields
+		description: { type: String }, // Optional description
+		slug: { type: String }, // Optional slug
+		status: { type: String, enum: ['draft', 'published', 'unpublished', 'scheduled', 'cloned'] }, // Optional status
+		links: { type: [Schema.Types.Mixed] }, // Optional links to other collections
+
 	},
 	{
 		timestamps: true,
 		collection: 'system_content_structure',
-		strict: false, // Allow additional fields from collection config
-		autoIndex: false
+
 	}
 );
 
@@ -49,15 +63,15 @@ contentStructureSchema.index({ order: 1 });
 contentStructureSchema.statics = {
 	// Create content structure
 	async createContentStructure(contentData: {
+		_id: string;
 		name: string;
 		parent?: string;
 		path: string;
 		icon?: string;
 		order?: number;
 		isCollection?: boolean;
-		collectionId?: string;
 		translations?: { languageTag: string; translationName: string }[];
-		_id?: string;
+
 	}): Promise<ContentStructure> {
 		try {
 			const node = new this(contentData);

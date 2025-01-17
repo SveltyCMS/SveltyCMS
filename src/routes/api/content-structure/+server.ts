@@ -43,9 +43,9 @@ export const GET: RequestHandler = async ({ url }) => {
 
 				// Process collections with UUIDs
 				const processedCollections = collections.reduce((acc, collection) => {
-					const node = nodeMap.get(collection.id);
+					const node = nodeMap.get(collection._id);
 					if (node) {
-						acc[collection.id] = {
+						acc[collection._id] = {
 							...collection,
 							path: node.path,
 							icon: node.icon || collection.icon || 'bi:file-text'
@@ -56,9 +56,9 @@ export const GET: RequestHandler = async ({ url }) => {
 
 				// Process categories with UUIDs
 				const processedCategories = categories.reduce((acc, category) => {
-					const node = nodeMap.get(category.id);
+					const node = nodeMap.get(category._id);
 					if (node) {
-						acc[category.id] = {
+						acc[category._id] = {
 							...category,
 							path: node.path,
 							icon: node.icon || category.icon || 'bi:folder'
@@ -130,15 +130,15 @@ export const POST: RequestHandler = async ({ request }) => {
 						throw error(400, `Invalid path format: ${item.path}. Path must start with /collections/`);
 					}
 
-					if (item.id) {
+					if (item._id) {
 						// Get existing item to check if path has changed
-						const existingItem = await dbAdapter.getContentStructureById(item.id);
+						const existingItem = await dbAdapter.getContentStructureById(item._id);
 						if (existingItem && existingItem.path !== item.path) {
-							logger.info(`Path changed for item ${item.id} from ${existingItem.path} to ${item.path}`);
+							logger.info(`Path changed for item ${item._id} from ${existingItem.path} to ${item.path}`);
 							// Handle path change - additional cleanup may be needed
 							await dbAdapter.cleanupContentStructure(existingItem.path);
 						}
-						return await dbAdapter.updateContentStructure(item.id, item);
+						return await dbAdapter.updateContentStructure(item._id, item);
 					} else {
 						// If item does not have an ID, it's a new item that does not have metadata.
 						// Add default icon if it's missing
@@ -186,17 +186,17 @@ export const POST: RequestHandler = async ({ request }) => {
 
 export const PUT: RequestHandler = async ({ request }) => {
 	try {
-		const { nodeId, updates } = await request.json();
+		const { _id, updates } = await request.json();
 
-		if (!nodeId || !updates) {
-			throw error(400, 'NodeId and updates are required');
+		if (!_id || !updates) {
+			throw error(400, '_id and updates are required');
 		}
 
-		const updatedNode = await dbAdapter.updateContentStructure(nodeId, updates);
+		const updatedNode = await dbAdapter.updateContentStructure(_id, updates);
 		if (!updatedNode) throw error(404, 'Node not found');
 		// Update collections to reflect the changes
 		await contentManager.updateCollections(true);
-		logger.info(`Content node \x1b[34m${nodeId}\x1b[0m updated successfully`);
+		logger.info(`Content node \x1b[34m${_id}\x1b[0m updated successfully`);
 		return json({
 			success: true,
 			message: 'Content Structure updated successfully',
