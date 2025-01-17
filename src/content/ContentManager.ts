@@ -87,32 +87,24 @@ class ContentManager {
 		}
 	}
 
-	// Initialize the collection manager
-	public async initialize(): Promise<void> {
-		logger.debug('Initializing ContentManager...');
-		if (this.initialized) return;
+  // Initialize the collection manager
+  public async initialize(): Promise<void> {
+    logger.debug("Initializing ContentManager...");
+    if (this.initialized) return;
 
     try {
-      await this.measurePerformance(async () => {
-        try {
-          // First, ensure widgets are initialized
-          await ensureWidgetsInitialized();
-          logger.debug("Content manager Widgtes initialized");
-          // Then load collections
-          await this.waitForInitialization();
-          logger.debug("Content Manager Db initialized");
-          await this.updateCollections(true);
-          logger.debug("Content Manager Collections updated");
-          this.initialized = true;
-        } catch (error) {
-          logger.error('Initialization failed:', error);
-          throw error;
-        }
-      }, 'Content Manager Initialization');
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      logger.error('Failed to load Content', { error: errorMessage });
-      throw new Error(`Failed to load Content: ${errorMessage}`);
+      // First, ensure widgets are initialized
+      await ensureWidgetsInitialized();
+      logger.debug("Content manager Widgets initialized");
+      // Then load collections
+      await this.waitForInitialization();
+      logger.debug("Content Manager Db initialized");
+      await this.updateCollections(true);
+      logger.debug("Content Manager Collections updated");
+      this.initialized = true;
+    } catch (error) {
+      logger.error('Initialization failed:', error);
+      throw error;
     }
   }
 
@@ -209,546 +201,445 @@ class ContentManager {
 		}
 	}
 
-  // Load and process collections with optimized batch processing
-  async loadCollections(): Promise<Schema[]> {
-    return this.measurePerformance(async () => {
-      try {
-        // Server-side collection loading
-        const collections: Schema[] = [];
-        const contentNodesMap = await this.getContentStructureMap();
-        const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
-        const files = await this.getCompiledCollectionFiles(compiledDirectoryPath);
-        const extractedPaths = new Set<string>();
+      return null;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      logger.error('Failed to process module:', { error: errorMessage });
+      return null;
+    }
+  }
 
-        for (const filePath of files) {
-          try {
-            // Remove compiledDirectoryPath prefix if it exists
-            const relativeFilePath = filePath.startsWith(compiledDirectoryPath)
-              ? filePath.substring(compiledDirectoryPath.length + 1)
-              : filePath;
+  // Load collections
+  private async loadCollections(): Promise<Schema[]> {
+    try {
+      // Server-side collection loading
+      const collections: Schema[] = [];
+      const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
+      const files = await this.getCompiledCollectionFiles(compiledDirectoryPath);
 
-            const fullFilePath = `${compiledDirectoryPath}/${relativeFilePath}`;
-            const content = await this.readFile(fullFilePath);
-            const moduleData = await this.processModule(content);
+      for (const filePath of files) {
+        try {
+          const content = await this.readFile(filePath);
+          const moduleData = await this.processModule(content);
 
-            if (!moduleData || !moduleData.schema) {
-              logger.error(`Invalid collection file format: ${relativeFilePath}`, {
-                hasModuleData: !!moduleData,
-                hasSchema: !!(moduleData && moduleData.schema)
-              });
-              continue;
-            }
+          if (!moduleData?.schema) continue;
 
-            const schema = moduleData.schema as Partial<Schema>;
-            if (!schema || typeof schema !== 'object') {
-              logger.error(`Invalid or missing schema in ${filePath}`, {
-                hasModuleData: !!moduleData,
-                hasSchema: !!(moduleData && moduleData.schema)
-              });
-              continue;
-            }
+          const schema = moduleData.schema as Schema;
+          const filePathName = filePath.split('/').pop()?.replace(/\.(ts|js)$/, '');
+          if (!filePathName) continue;
 
-            // Ensure required fields are present
-            if (!schema.fields) {
-              schema.fields = [];
-            }
+          const path = this.extractPathFromFilePath(filePath);
 
-            const filePathName = filePath
-              .split('/')
-              .pop()
-              ?.replace(/\.(ts|js)$/, '');
-            if (!filePathName) {
-              logger.error(`Could not extract name from \x1b[34m${filePath}\x1b[0m`);
-              continue;
-            }
-            const path = this.extractPathFromFilePath(filePath);
+          const processed: Schema = {
+            ...schema,
+            id: schema.id!, // Always use the ID from the compiled schema
+            name: schema.name || filePathName,
+            label: schema.label || filePathName,
+            path: path,
+            icon: schema.icon || 'iconoir:info-empty',
+            fields: schema.fields || [],
+            permissions: schema.permissions || {},
+            livePreview: schema.livePreview || false,
+            strict: schema.strict || false,
+            revision: schema.revision || false,
+            description: schema.description || '',
+            slug: schema.slug || filePathName.toLowerCase()
+          };
 
-            // Log the extracted path only if it hasn't been logged before
-            if (!extractedPaths.has(path)) {
-              logger.debug(`Extracted path: \x1b[34m${path}\x1b[0m`);
-              extractedPaths.add(path);
-            }
+          collections.push(processed);
+          await this.setCacheValue(filePath, processed, this.collectionCache);
+        } catch (err) {
+          logger.error(`Failed to process file ${filePath}:`, err);
+          continue;
+        }
+      }
 
-            const existingNode = contentNodesMap.get(path);
+      // Cache in Redis if available
+      if (isRedisEnabled()) {
+        await setCache('cms:all_collections', collections, REDIS_TTL);
+      }
 
-            const processed: Schema = {
-              ...schema,
-              id: schema.id!, // Always use the ID from the compiled schema
-              name: schema.name || filePathName,
-              filePathName,
-              icon: schema.icon || 'iconoir:info-empty',
-              path: path,
-              fields: schema.fields || [],
-              permissions: schema.permissions || {},
-              livePreview: schema.livePreview || false,
-              strict: schema.strict || false,
-              revision: schema.revision || false,
-              description: schema.description || '',
-              label: schema.label || filePathName,
-              slug: schema.slug || filePathName.toLowerCase()
+      this.loadedCollections = collections;
+      return collections;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      logger.error('Failed to load collections', { error: errorMessage });
+      throw new Error(`Failed to load collections: ${errorMessage}`);
+    }
+  }
+
+  // Update collections  
+  async updateCollections(recompile: boolean = false): Promise<void> {
+    try {
+      if (recompile) {
+        // Clear both memory and Redis caches
+        this.collectionCache.clear();
+        this.fileHashCache.clear();
+        if (isRedisEnabled()) {
+          await clearCache('cms:all_collections');
+        }
+      }
+      await this.loadCollections();
+      await this.createCategories();
+      logger.info('Collections updated successfully');
+      // Convert category array to record structure
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      logger.error(`Error in updateCollections: ${errorMessage}`);
+      throw new Error(`Failed to update collections: ${errorMessage}`);
+    }
+  }
+
+  public async getCollection(path: string): Promise<Schema | undefined> {
+    try {
+      if (!this.initialized) {
+        logger.error('Content Manager not initialized');
+      }
+
+      const pathParts = path.split('/').filter(Boolean);
+      let current = this.contentStructure;
+
+      for (const part of pathParts) {
+        if (!current[part]) return undefined;
+
+        if (current[part].collections.length > 0) {
+          return current[part].collections[0];
+        }
+
+        current = current[part].subcategories!;
+      }
+
+      return undefined;
+    } catch (error) {
+      logger.error('Error getting collection', error);
+      throw error;
+    }
+  }
+
+  // Create categories with Redis caching
+  private async createCategories(): Promise<void> {
+    try {
+      const structure: Record<string, Category> = {};
+
+      for (const collection of this.loadedCollections) {
+        if (!collection.path) {
+          logger.warn(`Collection ${collection.name} has no path`);
+          continue;
+        }
+
+        const pathParts = collection.path.split('/').filter(Boolean);
+        let currentLevel = structure;
+        let currentPath = '';
+
+        for (const [index, part] of pathParts.entries()) {
+          currentPath = currentPath ? `${currentPath}/${part}` : part;
+
+          if (!currentLevel[part]) {
+            const category: Category = {
+              _id: crypto.randomUUID(),
+              id: crypto.randomUUID(),
+              name: part,
+              icon: index === pathParts.length - 1 ? collection.icon || 'bi:file' : 'bi:folder',
+              path: currentPath,
+              order: 999,
+              isCollection: index === pathParts.length - 1,
+              collections: [],
+              subcategories: new Map(),
+              collectionConfig: {},
+              updatedAt: new Date(),
+              createdAt: new Date(),
+              __v: 0
             };
 
-            if (!processed.id) {
-              logger.error(`Missing UUID in compiled schema for ${filePath}`);
-              continue;
-            }
+            currentLevel[part] = category;
 
+            // Save to database
+            await dbAdapter?.createContentStructure({
+              _id: category.id,
+              path: currentPath,
+              name: part,
+              icon: category.icon,
+              isCollection: category.isCollection,
+              collections: category.collections,
+              subcategories: category.subcategories,
+            });
+          }
 
-
-            // Update node if UUID matches
-            if (existingNode && existingNode._id?.toString() === processed.id) {
-              await dbAdapter!.updateContentStructure(existingNode._id!.toString(), {
-                icon: processed.icon,
-                order: processed.order,
-                name: processed.name,
-                path: processed.path,
-                isCollection: processed.fields.length > 0
-              });
-              logger.info(`Updated metadata for content: \x1b[34m${path}\x1b[0m`);
-            } else {
-              // Create if not existent
-              await dbAdapter!.createContentStructure({
-                _id: processed.id, // Use UUID as _id
-                path: processed.path,
-                name: processed.name,
-                icon: processed.icon || (processed.fields.length > 0 ? 'bi:file-text' : 'bi:folder'),
-                order: 999,
-                isCollection: processed.fields.length > 0
-              });
-            }
-            // If this is a collection, create the collection model using the _id
-            if (processed.fields.length > 0) {
-              try {
-                const collectionName = `collection_${processed.id}`;
-                logger.debug(
-                  `Processing collection model for \x1b[34m${processed.name}\x1b[0m with ID \x1b[34m${processed.id}\x1b[0m`
-                );
-
-                const collectionConfig = {
-                  id: processed.id,
-                  name: processed.name,
-                  schema: {
-                    fields: processed.fields,
-                    strict: processed.strict,
-                    revision: processed.revision,
-                    livePreview: processed.livePreview
-                  }
-                };
-
-                await dbAdapter!.createCollectionModel(collectionConfig);
-                logger.info(`Collection model \x1b[34m${collectionName}\x1b[0m is ready`);
-              } catch (err) {
-                logger.error(
-                  `Failed to process collection model for \x1b[34m${processed.name}\x1b[0m:`,
-                  err instanceof Error ? err.stack : err
-                );
-                logger.error(`Collection data that caused error:`, JSON.stringify(processed, null, 2));
-              }
-            }
-
-            logger.info(`Created content node from file:  \x1b[34m${path}\x1b[0m`);
-
-
-            collections.push(processed);
-            await this.setCacheValue(filePath, processed, this.collectionCache);
-          } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            logger.error(`Failed to process module ${filePath}:`, { error: errorMessage });
-            continue;
+          if (index === pathParts.length - 1) {
+            // This is a collection
+            currentLevel[part].collections.push(collection);
+          } else {
+            currentLevel = currentLevel[part].subcategories!;
           }
         }
-        // Check for orphaned nodes
-        for (const [nodePath, node] of contentNodesMap) {
-          const hasFile = files.some((filePath) => this.extractPathFromFilePath(filePath) === nodePath);
-          if (!hasFile) {
-            logger.warn(`Orphaned content node found in database: \x1b[34m${nodePath}\x1b[0m`);
-            await dbAdapter!.deleteContentStructure(node._id!.toString());
-            logger.info(`Deleted orphaned content node: \x1b[34m${nodePath}\x1b[0m`);
+      }
+
+      this.contentStructure = structure;
+
+      // Cache in Redis if available
+      if (isRedisEnabled()) {
+        await setCache('cms:categories', structure, REDIS_TTL);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      logger.error('Failed to create categories', { error: errorMessage });
+      throw new Error(`Failed to create categories: ${errorMessage}`);
+    }
+  }
+
+  // Generate nested JSON structure
+  public async generateNestedJson(): Promise<Record<string, any>> {
+    try {
+      if (!this.initialized) {
+        await this.initialize();
+      }
+
+      const buildNestedStructure = (category: Category): Record<string, any> => {
+        const nestedStructure: Record<string, any> = {
+          id: category.id,
+          name: category.name,
+          icon: category.icon,
+          path: category.path,
+          isCollection: category.isCollection,
+          collections: category.collections,
+          subcategories: {},
+        };
+
+        if (category.subcategories) {
+          for (const [key, subcategory] of Object.entries(category.subcategories)) {
+            nestedStructure.subcategories[key] = buildNestedStructure(subcategory);
           }
         }
 
-			// Cache in Redis if available
-			if (isRedisEnabled()) {
-				await setCache('cms:all_collections', collections, REDIS_TTL);
-			}
+        return nestedStructure;
+      };
 
-			this.loadedCollections = collections;
-			return collections;
-		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : String(err);
-			logger.error('Failed to load collections', { error: errorMessage });
-			throw new Error(`Failed to load collections: ${errorMessage}`);
-		}
-	}
+      const nestedJson: Record<string, any> = {};
+      for (const [key, category] of Object.entries(this.contentStructure)) {
+        nestedJson[key] = buildNestedStructure(category);
+      }
 
-	// Update collections
-	async updateCollections(recompile: boolean = false): Promise<void> {
-		try {
-			if (recompile) {
-				// Clear both memory and Redis caches
-				this.collectionCache.clear();
-				this.fileHashCache.clear();
-				if (isRedisEnabled()) {
-					await clearCache('cms:all_collections');
-				}
-			}
-			await this.loadCollections();
-			await this.createContentStructure();
-			logger.info('Content structure updated successfully');
-			// Convert category array to record structure
-		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : String(err);
-			logger.error(`Error in updateCollections: ${errorMessage}`);
-			throw new Error(`Failed to update collections: ${errorMessage}`);
-		}
-	}
+      return nestedJson;
+    } catch (error) {
+      logger.error('Error generating nested JSON:', error);
+      throw error;
+    }
+  }
 
-	public async getCollection(path: string): Promise<Schema | undefined> {
-		try {
-			if (!this.initialized) {
-				logger.error('Content Manager not initialized');
-			}
 
-			const pathParts = path.split('/').filter(Boolean);
-			let current = this.contentStructure;
+  // Cache management methods with Redis support
+  private async getCacheValue<T>(key: string, cache: Map<string, CacheEntry<T>>): Promise<T | null> {
+    // Try Redis first if available
+    if (isRedisEnabled()) {
+      const redisValue = await getCache<T>(`cms:${key}`);
+      if (redisValue) {
+        // Update local cache
+        cache.set(key, {
+          value: redisValue,
+          timestamp: Date.now()
+        });
+        return redisValue;
+      }
+    }
+    // Fallback to memory cache
+    const entry = cache.get(key);
+    if (!entry) return null;
+    if (Date.now() - entry.timestamp > CACHE_TTL) {
+      cache.delete(key);
+      return null;
+    }
+    return entry.value;
+  }
 
-			for (const part of pathParts) {
-				if (!current[part]) return undefined;
+  private async setCacheValue<T>(key: string, value: T, cache: Map<string, CacheEntry<T>>): Promise<void> {
+    // Set in Redis if available
+    if (isRedisEnabled()) {
+      await setCache(`cms:${key}`, value, REDIS_TTL);
+    }
+    // Set in memory cache
+    cache.set(key, {
+      value,
+      timestamp: Date.now()
+    });
+    this.trimCache(cache);
+  }
 
-				if (current[part].collections.length > 0) {
-					return current[part].collections[0];
-				}
+  private async clearCacheValue(key: string): Promise<void> {
+    // Clear from Redis if available
+    if (isRedisEnabled()) {
+      await clearCache(`cms:${key}`);
+    }
+    // Clear from all memory caches
+    this.collectionCache.delete(key);
+    this.categoryCache.delete(key);
+    this.fileHashCache.delete(key);
+  }
 
-				current = current[part].subcategories!;
-			}
+  private trimCache<T>(cache: Map<string, CacheEntry<T>>): void {
+    if (cache.size > MAX_CACHE_SIZE) {
+      // Remove least recently used entries
+      const entriesToRemove = Array.from(cache.entries())
+        .sort((a, b) => a[1].timestamp - b[1].timestamp)
+        .slice(0, cache.size - MAX_CACHE_SIZE);
 
-			return undefined;
-		} catch (error) {
-			logger.error('Error getting collection', error);
-			throw error;
-		}
-	}
+      // Clear associated Redis cache if enabled
+      if (isRedisEnabled()) {
+        const keysToClear = entriesToRemove.map(([key]) => `cms:${key}`);
+        clearCache(keysToClear).catch(err => {
+          logger.warn('Failed to clear Redis cache entries:', err);
+        });
+      }
 
-	// Create content structure with Redis caching
-	private async createContentStructure(): Promise<void> {
-		try {
-			// Generate dynamic structure configuration from loaded collections
-			const structure: Record<string, Category> = {};
-			interface StructureConfig {
-				icon: string;
-				order: number;
-				translations: Record<string, string>;
-				subcategories: Record<string, StructureConfig>;
-			}
-			const structureConfig: Record<string, StructureConfig> = {};
+      // Remove from memory cache
+      entriesToRemove.forEach(([key]) => cache.delete(key));
+    }
+  }
 
-			// Create dynamic configuration based on collections
-			for (const collection of this.loadedCollections) {
-				if (!collection.path) continue;
+  // Extract path from file path
+  private extractPathFromFilePath(filePath: string): string {
+    const compiledCollectionsPath = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections/';
+    const relativePath = filePath.startsWith(compiledCollectionsPath)
+      ? filePath.substring(compiledCollectionsPath.length)
+      : filePath;
 
-				const pathParts = collection.path.split('/').filter(Boolean);
-				let currentConfig = structureConfig;
+    // Split path and remove empty parts
+    const parts = relativePath.split('/').filter((part) => part !== '');
 
-				for (const [index, part] of pathParts.entries()) {
-					if (!currentConfig[part]) {
-						currentConfig[part] = {
-							icon: collection.icon || (index === pathParts.length - 1 ? 'bi:file' : 'bi:folder'),
-							order: collection.order || 999,
-							translations: collection.translations || {},
-							subcategories: {}
-						};
-					}
+    // Remove file extension from last segment if it exists
+    if (parts.length > 0) {
+      parts[parts.length - 1] = parts[parts.length - 1].replace(/\.(ts|js)$/, '');
+    }
 
-					if (index < pathParts.length - 1) {
-						currentConfig = currentConfig[part].subcategories;
-					}
-				}
-			}
+    // Handle nested directory structures 
+    if (parts.length > 1) {
+      // Join all parts except the last one with slashes
+      const directoryPath = parts.slice(0, -1).join('/');
+      // Use the last part as the collection name
+      const collectionName = parts[parts.length - 1];
+      return `/${directoryPath}/${collectionName}`;
+    }
 
-			for (const collection of this.loadedCollections) {
-				if (!collection.path) {
-					logger.warn(`Collection ${collection.name} has no path`);
-					continue;
-				}
+    // Default case for single-level collections
+    return `/${parts.join('/')}`;
+  }
 
-				const pathParts = collection.path.split('/').filter(Boolean);
-				let currentLevel = structure;
-				let currentPath = '';
-				let configPath = structureConfig;
+  // Get compiled Categories and Collection files
+  private async getCompiledCollectionFiles(compiledDirectoryPath: string): Promise<string[]> {
+    if (!fs) throw new Error('File system operations are only available on the server');
 
-				for (const [index, part] of pathParts.entries()) {
-					currentPath = currentPath ? `${currentPath}/${part}` : part;
+    const getAllFiles = async (dir: string): Promise<string[]> => {
+      const entries = await fs.readdir(dir, { withFileTypes: true });
+      const files = await Promise.all(
+        entries.map(async (entry) => {
+          const resolvedPath = `${dir}/${entry.name}`;
+          return entry.isDirectory() ? getAllFiles(resolvedPath) : resolvedPath;
+        })
+      );
+      return files.flat();
+    };
 
-					// Get config for current level if available
-					const currentConfig = configPath[part] || {
-						icon: '',
-						order: 999,
-						translations: {},
-						subcategories: {}
-					};
-					configPath = currentConfig.subcategories;
+    try {
+      const allFiles = await getAllFiles(compiledDirectoryPath);
+      logger.debug('All files found recursively', {
+        Categories: compiledDirectoryPath,
+        Collections: allFiles.filter((file) => file.endsWith('.js'))
+      });
 
-					if (!currentLevel[part]) {
-						const category: Category = {
-							_id: collection._id, // Use the collection's UUID
-							name: part,
-							icon: currentConfig.icon ||
-								(index === pathParts.length - 1 ? collection.icon || 'bi:file' : 'bi:folder'),
-							path: currentPath,
-							order: currentConfig.order || 999,
-							isCollection: index === pathParts.length - 1,
-							collections: [],
-							subcategories: {},
-							collectionConfig: {},
-							translations: collection.translations || [{
-								languageTag: publicEnv.DEFAULT_LANGUAGE,
-								translationName: part,
-							}],
-						};
+      // Filter the list to only include .js files
+      const filteredFiles = allFiles.filter((file) => file.endsWith('.js'));
 
-						currentLevel[part] = category;
+      // Return the full paths
+      return filteredFiles;
+    } catch (error) {
+      logger.error(`Error getting compiled collection files: ${error.message}`);
+      throw error;
+    }
+  }
 
-						// Save to database with enhanced metadata
-						const collectionConfig = {
-							_id: collection._id, // Use the collection's UUID
-							name: part, // Ensure name is passed
-							path: currentPath,
-							icon: category.icon,
-							order: category.order,
-							translations: category.translations,
-							isCollection: category.isCollection,
-							type: category.isCollection ? 'collection' : 'category',
-							collections: category.collections,
-							subcategories: category.subcategories,
-							schema: {
-								fields: collection.fields || [],
-								strict: collection.strict || false
-							}
-						};
-						await dbAdapter?.createContentStructure(collectionConfig);
-					}
+  // Read file with retry mechanism
+  private async readFile(filePath: string): Promise<string> {
+    // Server-side file reading
+    if (!fs) throw new Error('File system operations are only available on the server');
+    try {
+      const content = await fs.readFile(filePath, 'utf-8');
+      return content;
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        logger.error(`File not found: ${filePath}`);
+      } else {
+        logger.error(`Error reading file: ${filePath}`, error);
+      }
+      throw error;
+    }
+  }
+  //Get a content node map
+  public async getContentStructureMap(): Promise<Map<string, SystemContent>> {
+    const contentNodes = await (dbAdapter?.getContentStructure() || Promise.resolve([]));
+    const contentNodesMap = new Map<string, SystemContent>();
+    contentNodes.forEach((node) => {
+      contentNodesMap.set(node.path, node);
+    });
 
-					if (index === pathParts.length - 1) {
-						// This is a collection
-						currentLevel[part].collections.push({
-							...collection,
-							_id: collection._id, // Reuse collection UUID
-							icon: currentConfig.icon || collection.icon,
-							order: currentConfig.order || collection.order || 999,
-							translations: currentConfig.translations || collection.translations || {},
-						});
-					} else {
-						currentLevel = currentLevel[part].subcategories!;
-					}
-				}
-			}
+    return contentNodesMap;
+  }
 
-			this.contentStructure = structure;
+  // Performance monitoring
+  private async measurePerformance<T>(operation: () => Promise<T>, operationName: string): Promise<T> {
+    const start = performance.now();
+    try {
+      const result = await operation();
+      const duration = performance.now() - start;
+      logger.info(`${operationName} completed in \x1b[32m${duration.toFixed(2)}ms\x1b[0m`);
+      return result;
+    } catch (error) {
+      const duration = performance.now() - start;
+      logger.error(`${operationName} failed after \x1b[34m${duration.toFixed(2)}ms\x1b[0m`);
+      throw error;
+    }
+  }
+  // Error recovery
+  private async retryOperation<T>(operation: () => Promise<T>, maxRetries: number = MAX_RETRIES, delay: number = RETRY_DELAY): Promise<T> {
+    let lastError: Error | null = null;
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error as Error;
+        await new Promise((resolve) => setTimeout(resolve, delay * Math.pow(2, i)));
+        logger.warn(`Retry ${i + 1}/${maxRetries} for operation after error: ${lastError.message}`);
+      }
+    }
+    throw lastError;
+  }
 
-			// Cache in Redis if available
-			if (isRedisEnabled()) {
-				await setCache('cms:content_structure', structure, REDIS_TTL);
-			}
-		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : String(err);
-			logger.error('Failed to create content structure', { error: errorMessage });
-			throw new Error(`Failed to create content structure: ${errorMessage}`);
-		}
-	}
 
-	// Cache management methods with Redis support
-	private async getCacheValue<T>(key: string, cache: Map<string, CacheEntry<T>>): Promise<T | null> {
-		// Try Redis first if available
-		if (isRedisEnabled()) {
-			const redisValue = await getCache<T>(`cms:${key}`);
-			if (redisValue) {
-				// Update local cache
-				cache.set(key, {
-					value: redisValue,
-					timestamp: Date.now()
-				});
-				return redisValue;
-			}
-		}
-		// Fallback to memory cache
-		const entry = cache.get(key);
-		if (!entry) return null;
-		if (Date.now() - entry.timestamp > CACHE_TTL) {
-			cache.delete(key);
-			return null;
-		}
-		return entry.value;
-	}
 
-	private async setCacheValue<T>(key: string, value: T, cache: Map<string, CacheEntry<T>>): Promise<void> {
-		// Set in Redis if available
-		if (isRedisEnabled()) {
-			await setCache(`cms:${key}`, value, REDIS_TTL);
-		}
-		// Set in memory cache
-		cache.set(key, {
-			value,
-			timestamp: Date.now()
-		});
-		this.trimCache(cache);
-	}
 
-	private async clearCacheValue(key: string): Promise<void> {
-		// Clear from Redis if available
-		if (isRedisEnabled()) {
-			await clearCache(`cms:${key}`);
-		}
-		// Clear from all memory caches
-		this.collectionCache.delete(key);
-		this.contentStructureCache.delete(key);
-		this.fileHashCache.delete(key);
-	}
 
-	private trimCache<T>(cache: Map<string, CacheEntry<T>>): void {
-		if (cache.size > MAX_CACHE_SIZE) {
-			// Remove least recently used entries
-			const entriesToRemove = Array.from(cache.entries())
-				.sort((a, b) => a[1].timestamp - b[1].timestamp)
-				.slice(0, cache.size - MAX_CACHE_SIZE);
 
-			// Clear associated Redis cache if enabled
-			if (isRedisEnabled()) {
-				const keysToClear = entriesToRemove.map(([key]) => `cms:${key}`);
-				clearCache(keysToClear).catch((err) => {
-					logger.warn('Failed to clear Redis cache entries:', err);
-				});
-			}
-
-			// Remove from memory cache
-			entriesToRemove.forEach(([key]) => cache.delete(key));
-		}
-	}
-
-	// Extract path from file path
-	private extractPathFromFilePath(filePath: string): string {
-		const compiledCollectionsPath = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections/';
-		const relativePath = filePath.startsWith(compiledCollectionsPath) ? filePath.substring(compiledCollectionsPath.length) : filePath;
-
-		// Split path and remove empty parts
-		const parts = relativePath.split('/').filter((part) => part !== '');
-
-		// Remove file extension from last segment if it exists
-		if (parts.length > 0) {
-			parts[parts.length - 1] = parts[parts.length - 1].replace(/\.(ts|js)$/, '');
-		}
-
-		// Handle nested directory structures
-		if (parts.length > 1) {
-			// Join all parts except the last one with slashes
-			const directoryPath = parts.slice(0, -1).join('/');
-			// Use the last part as the collection name
-			const collectionName = parts[parts.length - 1];
-			return `/${directoryPath}/${collectionName}`;
-		}
-
-		// Default case for single-level collections
-		return `/${parts.join('/')}`;
-	}
-
-	// Get compiled Categories and Collection files
-	private async getCompiledCollectionFiles(compiledDirectoryPath: string): Promise<string[]> {
-		if (!fs) throw new Error('File system operations are only available on the server');
-
-		const getAllFiles = async (dir: string): Promise<string[]> => {
-			const entries = await fs.readdir(dir, { withFileTypes: true });
-			const files = await Promise.all(
-				entries.map(async (entry) => {
-					const resolvedPath = `${dir}/${entry.name}`;
-					return entry.isDirectory() ? getAllFiles(resolvedPath) : resolvedPath;
-				})
-			);
-			return files.flat();
-		};
-
-		try {
-			const allFiles = await getAllFiles(compiledDirectoryPath);
-			logger.debug('All files found recursively', {
-				ContentStructure: compiledDirectoryPath,
-				Collections: allFiles.filter((file) => file.endsWith('.js'))
-			});
-
-			// Filter the list to only include .js files
-			const filteredFiles = allFiles.filter((file) => file.endsWith('.js'));
-
-			// Return the full paths
-			return filteredFiles;
-		} catch (error) {
-			logger.error(`Error getting compiled collection files: ${error.message}`);
-			throw error;
-		}
-	}
-
-	// Read file with retry mechanism
-	private async readFile(filePath: string): Promise<string> {
-		// Server-side file reading
-		if (!fs) throw new Error('File system operations are only available on the server');
-		try {
-			const content = await fs.readFile(filePath, 'utf-8');
-			return content;
-		} catch (error) {
-			if (error.code === 'ENOENT') {
-				logger.error(`File not found: ${filePath}`);
-			} else {
-				logger.error(`Error reading file: ${filePath}`, error);
-			}
-			throw error;
-		}
-	}
-
-	//Get a content node map
-	public async getContentStructureMap(): Promise<Map<string, SystemContent>> {
-		const contentNodes = await (dbAdapter?.getContentStructure() || Promise.resolve([]));
-		const contentNodesMap = new Map<string, SystemContent>();
-		contentNodes.forEach((node) => {
-			contentNodesMap.set(node.path, node);
-		});
-
-		return contentNodesMap;
-	}
-
-	// Error recovery
-	private async retryOperation<T>(operation: () => Promise<T>, maxRetries: number = MAX_RETRIES, delay: number = RETRY_DELAY): Promise<T> {
-		let lastError: Error | null = null;
-		for (let i = 0; i < maxRetries; i++) {
-			try {
-				return await operation();
-			} catch (error) {
-				lastError = error as Error;
-				await new Promise((resolve) => setTimeout(resolve, delay * Math.pow(2, i)));
-				logger.warn(`Retry ${i + 1}/${maxRetries} for operation after error: ${lastError.message}`);
-			}
-		}
-		throw lastError;
-	}
-
-	// Lazy loading with Redis support
-	private async lazyLoadCollection(name: ContentTypes): Promise<Schema | null> {
-		const cacheKey = `collection_${name}`;
-		// Try getting from cache (Redis or memory)
-		const cached = await this.getCacheValue(cacheKey, this.collectionCache);
-		if (cached) {
-			this.collectionAccessCount.set(name, (this.collectionAccessCount.get(name) || 0) + 1);
-			return cached;
-		}
-		// Load if not cached
-		const path = `config/collections/${name}.ts`;
-		try {
-			logger.debug(`Attempting to read file for collection: \x1b[34m${name}\x1b[0m at path: \x1b[33m${path}\x1b[0m`);
-			const content = await this.readFile(path);
-			logger.debug(`File content for collection \x1b[34m${name}\x1b[0m: ${content.substring(0, 100)}...`); // Log only the first 100 characters
-			await this.processCollectionFile(path, content);
-		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : String(err);
-			logger.error(`Failed to lazy load collection ${name}:`, { error: errorMessage });
-			throw new Error(`Failed to lazy load collection: ${errorMessage}`);
-		}
-		return null;
-	}
+  // Lazy loading with Redis support
+  private async lazyLoadCollection(name: ContentTypes): Promise<Schema | null> {
+    const cacheKey = `collection_${name}`;
+    // Try getting from cache (Redis or memory)
+    const cached = await this.getCacheValue(cacheKey, this.collectionCache);
+    if (cached) {
+      this.collectionAccessCount.set(name, (this.collectionAccessCount.get(name) || 0) + 1);
+      return cached;
+    }
+    // Load if not cached
+    const path = `config/collections/${name}.ts`;
+    try {
+      logger.debug(`Attempting to read file for collection: \x1b[34m${name}\x1b[0m at path: \x1b[33m${path}\x1b[0m`);
+      const content = await this.readFile(path);
+      logger.debug(`File content for collection \x1b[34m${name}\x1b[0m: ${content.substring(0, 100)}...`); // Log only the first 100 characters
+      const schema = await this.processCollectionFile(path, content);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      logger.error(`Failed to lazy load collection ${name}:`, { error: errorMessage });
+      throw new Error(`Failed to lazy load collection: ${errorMessage}`);
+    }
+    return null;
+  }
 }
 
 // Export singleton instance
