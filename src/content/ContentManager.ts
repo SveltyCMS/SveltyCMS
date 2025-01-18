@@ -108,14 +108,6 @@ class ContentManager {
     }
   }
 
-	// Get collection and category data
-	getCollectionData() {
-		return {
-			collections: this.loadedCollections,
-			contentStructure: this.contentStructure
-		};
-	}
-
 	// Process module content
 	private async processModule(content: string): Promise<{ schema?: Partial<Schema> } | null> {
 		try {
@@ -149,57 +141,51 @@ class ContentManager {
 				})(module, exports);
 			`;
 
-			// Create and execute the function with widgets as context
-			const moduleFunc = new Function('widgets', moduleContent);
-			const result = await moduleFunc(widgetProxy);
+      // Create and execute the function with widgets as context
+      const moduleFunc = new Function('widgets', moduleContent);
+      const result = await moduleFunc(widgetProxy);
 
-			// If result is an object with fields, it's likely our schema
-			if (result && typeof result === 'object') {
-				return { schema: { ...result, id: uuid } };
-			}
+      // If result is an object with fields, it's likely our schema
+      if (result && typeof result === 'object') {
+        return { schema: { ...result, id: uuid } };
+      }
 
-			// If we got here, try to find a schema object in the content
-			const schemaMatch = cleanedContent.match(/(?:const|let|var)\s+(\w+)\s*=\s*({[\s\S]*?});/);
-			if (schemaMatch && schemaMatch[2]) {
-				try {
-					// Evaluate just the schema object
-					const schemaFunc = new Function(`return ${schemaMatch[2]}`);
-					const schema = schemaFunc();
-					return { schema: { ...schema, _id: uuid } };
-				} catch (error) {
-					logger.warn('Failed to evaluate schema object:', error);
-				}
-			}
+      // If we got here, try to find a schema object in the content
+      const schemaMatch = cleanedContent.match(/(?:const|let|var)\s+(\w+)\s*=\s*({[\s\S]*?});/);
+      if (schemaMatch && schemaMatch[2]) {
+        try {
+          // Evaluate just the schema object
+          const schemaFunc = new Function(`return ${schemaMatch[2]}`);
+          const schema = schemaFunc();
+          return { schema: { ...schema, id: uuid } };
+        } catch (error) {
+          logger.warn('Failed to evaluate schema object:', error);
+        }
+      }
 
-			// Try to extract default export
-			const defaultExportMatch = content.match(/export\s+default\s+({[\s\S]*?});/);
-			if (defaultExportMatch && defaultExportMatch[1]) {
-				try {
-					const schema = new Function(`return ${defaultExportMatch[1]}`)();
-					if (schema && typeof schema === 'object' && Array.isArray(schema.fields)) {
-						return {
-							schema: {
-								...schema,
-								_id: uuid
-							}
-						};
-					}
-				} catch (error) {
-					logger.error('Failed to parse default export:', error);
-				}
-			}
+      // Try to match export const/let/var schema
+      const schemaExportMatch = cleanedContent.match(/(?:export\s+(?:const|let|var)\s+)?(\w+)\s*=\s*({[\s\S]*?});/);
+      if (schemaExportMatch && schemaExportMatch[2]) {
+        try {
+          const schemaFunc = new Function(`return ${schemaExportMatch[2]}`);
+          const schema = schemaFunc();
+          return { schema: { ...schema, id: uuid } };
+        } catch (error) {
+          logger.warn('Failed to evaluate schema object:', error);
+        }
+      }
 
-			// If we get here, log the error with more context
-			logger.error('Failed to parse collection file', {
-				content: content.substring(0, 500) // Log first 500 chars for debugging
-			});
-			return null;
-		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : String(err);
-			logger.error('Failed to process module:', { error: errorMessage });
-			return null;
-		}
-	}
+      // Try to match export default schema
+      const schemaDefaultExportMatch = cleanedContent.match(/export\s+default\s+({[\s\S]*?});/);
+      if (schemaDefaultExportMatch && schemaDefaultExportMatch[1]) {
+        try {
+          const schemaFunc = new Function(`return ${schemaDefaultExportMatch[1]}`);
+          const schema = schemaFunc();
+          return { schema: { ...schema, id: uuid } };
+        } catch (error) {
+          logger.warn('Failed to evaluate schema object:', error);
+        }
+      }
 
       return null;
     } catch (err) {
@@ -556,90 +542,55 @@ class ContentManager {
     }
   }
 
-  // Read file with retry mechanism
-  private async readFile(filePath: string): Promise<string> {
-    // Server-side file reading
-    if (!fs) throw new Error('File system operations are only available on the server');
-    try {
-      const content = await fs.readFile(filePath, 'utf-8');
-      return content;
-    } catch (error) {
-      if (error.code === 'ENOENT') {
-        logger.error(`File not found: ${filePath}`);
-      } else {
-        logger.error(`Error reading file: ${filePath}`, error);
-      }
-      throw error;
-    }
-  }
-  //Get a content node map
-  public async getContentStructureMap(): Promise<Map<string, SystemContent>> {
-    const contentNodes = await (dbAdapter?.getContentStructure() || Promise.resolve([]));
-    const contentNodesMap = new Map<string, SystemContent>();
-    contentNodes.forEach((node) => {
-      contentNodesMap.set(node.path, node);
-    });
+	//Get a content node map
+	public async getContentStructureMap(): Promise<Map<string, SystemContent>> {
+		const contentNodes = await (dbAdapter?.getContentStructure() || Promise.resolve([]));
+		const contentNodesMap = new Map<string, SystemContent>();
+		contentNodes.forEach((node) => {
+			contentNodesMap.set(node.path, node);
+		});
 
-    return contentNodesMap;
-  }
+		return contentNodesMap;
+	}
 
-  // Performance monitoring
-  private async measurePerformance<T>(operation: () => Promise<T>, operationName: string): Promise<T> {
-    const start = performance.now();
-    try {
-      const result = await operation();
-      const duration = performance.now() - start;
-      logger.info(`${operationName} completed in \x1b[32m${duration.toFixed(2)}ms\x1b[0m`);
-      return result;
-    } catch (error) {
-      const duration = performance.now() - start;
-      logger.error(`${operationName} failed after \x1b[34m${duration.toFixed(2)}ms\x1b[0m`);
-      throw error;
-    }
-  }
-  // Error recovery
-  private async retryOperation<T>(operation: () => Promise<T>, maxRetries: number = MAX_RETRIES, delay: number = RETRY_DELAY): Promise<T> {
-    let lastError: Error | null = null;
-    for (let i = 0; i < maxRetries; i++) {
-      try {
-        return await operation();
-      } catch (error) {
-        lastError = error as Error;
-        await new Promise((resolve) => setTimeout(resolve, delay * Math.pow(2, i)));
-        logger.warn(`Retry ${i + 1}/${maxRetries} for operation after error: ${lastError.message}`);
-      }
-    }
-    throw lastError;
-  }
+	// Error recovery
+	private async retryOperation<T>(operation: () => Promise<T>, maxRetries: number = MAX_RETRIES, delay: number = RETRY_DELAY): Promise<T> {
+		let lastError: Error | null = null;
+		for (let i = 0; i < maxRetries; i++) {
+			try {
+				return await operation();
+			} catch (error) {
+				lastError = error as Error;
+				await new Promise((resolve) => setTimeout(resolve, delay * Math.pow(2, i)));
+				logger.warn(`Retry ${i + 1}/${maxRetries} for operation after error: ${lastError.message}`);
+			}
+		}
+		throw lastError;
+	}
 
-
-
-
-
-
-  // Lazy loading with Redis support
-  private async lazyLoadCollection(name: ContentTypes): Promise<Schema | null> {
-    const cacheKey = `collection_${name}`;
-    // Try getting from cache (Redis or memory)
-    const cached = await this.getCacheValue(cacheKey, this.collectionCache);
-    if (cached) {
-      this.collectionAccessCount.set(name, (this.collectionAccessCount.get(name) || 0) + 1);
-      return cached;
-    }
-    // Load if not cached
-    const path = `config/collections/${name}.ts`;
-    try {
-      logger.debug(`Attempting to read file for collection: \x1b[34m${name}\x1b[0m at path: \x1b[33m${path}\x1b[0m`);
-      const content = await this.readFile(path);
-      logger.debug(`File content for collection \x1b[34m${name}\x1b[0m: ${content.substring(0, 100)}...`); // Log only the first 100 characters
-      const schema = await this.processCollectionFile(path, content);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      logger.error(`Failed to lazy load collection ${name}:`, { error: errorMessage });
-      throw new Error(`Failed to lazy load collection: ${errorMessage}`);
-    }
-    return null;
-  }
+	// Lazy loading with Redis support
+	private async lazyLoadCollection(name: ContentTypes): Promise<Schema | null> {
+		const cacheKey = `collection_${name}`;
+		// Try getting from cache (Redis or memory)
+		const cached = await this.getCacheValue(cacheKey, this.collectionCache);
+		if (cached) {
+			this.collectionAccessCount.set(name, (this.collectionAccessCount.get(name) || 0) + 1);
+			return cached;
+		}
+		// Load if not cached
+		const path = `config/collections/${name}.ts`;
+		try {
+			logger.debug(`Attempting to read file for collection: \x1b[34m${name}\x1b[0m at path: \x1b[33m${path}\x1b[0m`);
+			const content = await this.readFile(path);
+			logger.debug(`File content for collection \x1b[34m${name}\x1b[0m: ${content.substring(0, 100)}...`); // Log only the first 100 characters
+			const schema = await this.processCollectionFile(path, content);
+		} catch (err) {
+			const errorMessage = err instanceof Error ? err.message : String(err);
+			logger.error(`Failed to lazy load collection ${name}:`, { error: errorMessage });
+			throw new Error(`Failed to lazy load collection: ${errorMessage}`);
+		}
+		return null;
+	}
 }
 
 // Export singleton instance
