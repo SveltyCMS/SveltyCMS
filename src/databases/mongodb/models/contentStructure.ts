@@ -5,157 +5,238 @@
  * This module defines a schema and model for Content Structure in the MongoDB database.
  * Content Structure represents the hierarchical organization of content in the CMS.
  */
-
-import mongoose, { Schema } from 'mongoose';
-import type { ContentStructure } from '@src/databases/dbInterface';
+import mongoose, { Schema, Model, Document } from 'mongoose';
+import type { Translation, Category, CollectionData } from '@src/content/types';
+import { v4 as uuidv4 } from 'uuid';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
+import { publicEnv } from '@root/config/public';
 
-// Content structure schema for categories and collections
-export const contentStructureSchema = new Schema(
-	{
-		_id: { type: String, required: true }, // UUID from compiled collection
-		name: { type: String, required: true },
-		label: { type: String }, // Optional display label
-		path: { type: String, required: true }, // Always starts with /collections/
-		icon: { type: String, default: 'bi:file-text', required: true }, // Default icon for collections
-		order: { type: Number, default: 999, required: true },
-		translations: {
-			type: [
-				{
-					languageTag: { type: String, required: true },
-					translationName: { type: String, required: true },
 
-					isDefault: { type: Boolean },
 
-				}
-			],
-			required: true
-		},
-		isCollection: { type: Boolean, default: true, required: true }, // Default to true since we're syncing collections
-		collectionConfig: { type: Schema.Types.Mixed }, // Store the full collection config
-		subcategories: { type: Map, of: Schema.Types.Mixed }, // Nested subcategories
-		collections: [{ type: Schema.Types.Mixed }], // Collections within this category
-		permissions: { type: Schema.Types.Mixed }, // Optional permissions
-		livePreview: { type: Boolean }, // Optional live preview
-		revision: { type: Boolean }, // Optional revisions
-		fields: { type: [Schema.Types.Mixed] }, // Collection fields
-		description: { type: String }, // Optional description
-		slug: { type: String }, // Optional slug
-		status: { type: String, enum: ['draft', 'published', 'unpublished', 'scheduled', 'cloned'] }, // Optional status
-		links: { type: [Schema.Types.Mixed] }, // Optional links to other collections
+// Document interfaces
+interface CategoryDocument extends Document, Omit<Category, '_id'> {
+	type: 'category';
+	collections?: CollectionData[];
+	subcategories?: Record<string, Category>;
+}
 
+interface CollectionDocument extends Document, Omit<CollectionData, '_id'> {
+	type: 'collection';
+}
+
+type ContentStructureDocument = CategoryDocument | CollectionDocument;
+
+// Model interface
+interface ContentStructureModel extends Model<ContentStructureDocument> {
+	upsertCategory(category: Category): Promise<CategoryDocument>;
+	upsertCollection(collection: CollectionData): Promise<CollectionDocument>;
+	getNodeByPath(path: string): Promise<ContentStructureDocument | null>;
+	getChildren(parentPath: string): Promise<ContentStructureDocument[]>;
+}
+
+// Schema definitions
+const translationSchema = new Schema<Translation>({
+	languageTag: { type: String, required: true },
+	translationName: { type: String, required: true },
+	isDefault: { type: Boolean, default: false }
+}, { _id: false });
+
+// Schema for nested collections
+const collectionItemSchema = new Schema({
+	_id: { type: String, required: true }, // UUID from compiled collection
+	name: { type: String, required: true },
+	label: { type: String }, // Optional display label
+	path: { type: String, required: true }, // Always starts with /collections/
+	icon: { type: String, default: 'bi:file-text' }, // Default icon for collections
+	order: { type: Number, default: 999 },
+	translations: [translationSchema],
+	fields: [{ type: Schema.Types.Mixed }] // Collection fields
+}, { _id: false });
+
+// Schema for nested subcategories
+const subcategorySchema = new Schema({
+	_id: { type: String, required: true },
+	name: { type: String, required: true },
+	path: { type: String, required: true },
+	icon: { type: String, default: 'bi:folder' },
+	order: { type: Number, default: 999 },
+	isCategory: { type: Boolean, default: true },
+	translations: [translationSchema]
+}, { _id: false });
+
+// Base fields shared between categories and collections
+const baseFields = {
+	_id: { type: String, required: true },
+	name: { type: String, required: true },
+	path: { type: String, required: true },
+	icon: { type: String, default: 'bi:folder' },
+	order: { type: Number, default: 999 },
+	translations: [translationSchema],
+	collections: [collectionItemSchema], // Nested collections
+	subcategories: [subcategorySchema] // Nested subcategories
+};
+
+// Category-specific schema
+const categorySchema = new Schema({
+	...baseFields,
+	isCategory: { type: Boolean, default: true }
+});
+
+// Collection-specific schema
+const collectionSchema = new Schema({
+	...baseFields,
+	label: String,
+	permissions: Schema.Types.Mixed,
+	livePreview: Boolean,
+	strict: Boolean,
+	revision: Boolean,
+	fields: [Schema.Types.Mixed],
+	description: String,
+	slug: String,
+	status: {
+		type: String,
+		enum: ['draft', 'published', 'unpublished', 'scheduled', 'cloned']
 	},
-	{
-		timestamps: true,
-		collection: 'system_content_structure',
+	links: [String]
+});
 
-	}
-);
+// Combined schema using discriminator
+const contentStructureSchema = new Schema({
+	_id: { type: String, required: true },
+	...baseFields,
+	type: { type: String, required: true, enum: ['category', 'collection'] },
+	parentPath: { type: String, default: null }
+}, {
+	timestamps: true,
+	collection: 'system_content_structure',
+	discriminatorKey: 'type'
+});
 
-// Add indexes
+
+// Indexes
 contentStructureSchema.index({ path: 1 }, { unique: true });
-contentStructureSchema.index({ isCollection: 1 });
-contentStructureSchema.index({ order: 1 });
+contentStructureSchema.index({ parentPath: 1 });
+contentStructureSchema.index({ type: 1 });
 
 // Static methods for the ContentStructure model
 contentStructureSchema.statics = {
-	// Create content structure
-	async createContentStructure(contentData: {
-		_id: string;
-		name: string;
-		parent?: string;
-		path: string;
-		icon?: string;
-		order?: number;
-		isCollection?: boolean;
-		translations?: { languageTag: string; translationName: string }[];
+	async upsertCategory(category: Category): Promise<CategoryDocument> {
+		const parentPath = category.path.split('/').slice(0, -1).join('/') || null;
 
-	}): Promise<ContentStructure> {
-		try {
-			const node = new this(contentData);
-			await node.save();
-			logger.info(`Created content structure node: \x1b[34m${contentData.path}\x1b[0m`);
-			return node;
-		} catch (error) {
-			logger.error(`Error creating content structure: ${error.message}`);
-			throw error;
-		}
+		return this.findOneAndUpdate(
+			{ path: category.path },
+			{
+				$set: {
+					...category,
+					type: 'category',
+					parentPath
+				},
+				$setOnInsert: {
+					type: 'category'
+				}
+			},
+			{ upsert: true, new: true }
+		);
 	},
 
-	// Get all content structure nodes
-	async getContentStructure(): Promise<ContentStructure[]> {
-		try {
-			const nodes = await this.find().sort({ order: 1 }).exec();
-			logger.debug(`Retrieved \x1b[34m${nodes.length}\x1b[0m content structure nodes`);
-			return nodes;
-		} catch (error) {
-			logger.error(`Error retrieving content structure: ${error.message}`);
-			throw error;
-		}
+	async upsertCollection(collection: CollectionData): Promise<CollectionDocument> {
+		const parentPath = collection.path.split('/').slice(0, -1).join('/') || null;
+
+		return this.findOneAndUpdate(
+			{ path: collection.path },
+			{
+				$set: {
+					...collection,
+					type: 'collection',
+					parentPath
+				}
+			},
+			{ upsert: true, new: true }
+		);
 	},
 
-	// Get children of a specific path
-	async getContentStructureChildren(parentPath: string): Promise<ContentStructure[]> {
-		try {
-			const nodes = await this.find({
-				path: new RegExp(`^${parentPath}/[^/]+$`)
-			})
-				.sort({ order: 1 })
-				.exec();
-			logger.debug(`Retrieved \x1b[34m${nodes.length}\x1b[0m children for path: \x1b[34m${parentPath}\x1b[0m`);
-			return nodes;
-		} catch (error) {
-			logger.error(`Error retrieving content structure children: ${error.message}`);
-			throw error;
-		}
+	async getNodeByPath(path: string): Promise<ContentStructureDocument | null> {
+		return this.findOne({ path });
 	},
 
-	// Get content structure by ID
-	async getContentStructureById(id: string): Promise<ContentStructure | null> {
-		try {
-			const node = await this.findById(id).exec();
-			logger.debug(`Retrieved content structure node: \x1b[34m${id}\x1b[0m`);
-			return node;
-		} catch (error) {
-			logger.error(`Error retrieving content structure by ID: ${error.message}`);
-			throw error;
-		}
-	},
-
-	// Update content structure
-	async updateContentStructure(contentId: string, updateData: Partial<ContentStructure>): Promise<ContentStructure | null> {
-		try {
-			const node = await this.findByIdAndUpdate(contentId, updateData, { new: true }).exec();
-			if (node) {
-				logger.info(`Updated content structure node: \x1b[34m${contentId}\x1b[0m`);
-			} else {
-				logger.warn(`Content structure node not found: \x1b[34m${contentId}\x1b[0m`);
-			}
-			return node;
-		} catch (error) {
-			logger.error(`Error updating content structure: ${error.message}`);
-			throw error;
-		}
-	},
-
-	// Delete content structure
-	async deleteContentStructure(contentId: string): Promise<boolean> {
-		try {
-			const result = await this.findByIdAndDelete(contentId).exec();
-			if (result) {
-				logger.info(`Deleted content structure node: \x1b[34m${contentId}\x1b[0m`);
-				return true;
-			}
-			logger.warn(`Content structure node not found for deletion: \x1b[34m${contentId}\x1b[0m`);
-			return false;
-		} catch (error) {
-			logger.error(`Error deleting content structure: ${error.message}`);
-			throw error;
-		}
+	async getChildren(parentPath: string): Promise<ContentStructureDocument[]> {
+		return this.find({ parentPath }).sort({ order: 1 });
 	}
 };
 
-// Create and export the ContentStructure model
-export const ContentStructureModel = mongoose.models?.ContentStructure || mongoose.model('ContentStructure', contentStructureSchema);
+// Create the base model
+const BaseContentStructure = mongoose.model<ContentStructureDocument, ContentStructureModel>(
+	'system_content_structure',
+	contentStructureSchema
+);
+
+// Create discriminators for categories and collections
+BaseContentStructure.discriminator('category', categorySchema);
+BaseContentStructure.discriminator('collection', collectionSchema);
+
+// Export the model
+export const ContentStructureModel = BaseContentStructure;
+
+// Function to process file structure
+export async function processFileStructure(compiledFiles: string[]) {
+	try {
+		for (const filePath of compiledFiles) {
+			const relativePath = filePath.replace('compiledCollections/', '');
+			const pathParts = relativePath.split('/');
+
+			// Process directories as categories
+			let currentPath = '';
+			for (let i = 0; i < pathParts.length - 1; i++) {
+				currentPath = currentPath ? `${currentPath}/${pathParts[i]}` : pathParts[i];
+
+				const category: Category = {
+					_id: uuidv4(),
+					name: pathParts[i],
+					path: currentPath,
+					icon: 'bi:folder',
+					order: 999,
+					isCategory: true,
+					translations: [{
+						languageTag: publicEnv.DEFAULT_LANGUAGE,
+						translationName: pathParts[i]
+					}]
+				};
+
+				await ContentStructureModel.upsertCategory(category);
+			}
+
+			// Process the file as a collection
+			const fileName = pathParts[pathParts.length - 1].replace('.js', '');
+			const collectionPath = relativePath.replace('.js', '');
+
+			// Import and process the collection file
+			const collectionData: CollectionData = {
+				_id: collection.id,
+				name: fileName,
+				path: collectionPath,
+				icon: collection.icon || 'bi:file-text',
+				order: collection.order || 999,
+				translations: collection.translations || [{
+					languageTag: publicEnv.DEFAULT_LANGUAGE,
+					translationName: fileName
+				}],
+				fields: collection.fields || [],
+				permissions: collection.permissions,
+				livePreview: collection.livePreview,
+				strict: collection.strict,
+				revision: collection.revision,
+				description: collection.description,
+				slug: collection.slug,
+				status: collection.status,
+				links: collection.links
+			};
+
+			await ContentStructureModel.upsertCollection(collectionData);
+		}
+	} catch (error) {
+		logger.error(`Error deleting content structure: ${error.message}`);
+		throw error;
+	}
+}

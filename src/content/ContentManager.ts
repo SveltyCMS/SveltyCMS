@@ -11,8 +11,10 @@
  * - Error handling
  */
 
+import { dbAdapter, dbInitPromise } from '@src/databases/db';
 import fs from 'fs/promises';
 import { publicEnv } from '@root/config/public';
+
 
 // Types
 import type { Schema, ContentTypes, Category, CollectionData } from './types';
@@ -140,7 +142,7 @@ class ContentManager {
 			const moduleContent = `
 				const module = {};
 				const exports = {};
-                const resolveWidgetPlaceholder = ${resolveWidgetPlaceholder.toString()};
+	               const resolveWidgetPlaceholder = ${resolveWidgetPlaceholder.toString()};
 				(async function(module, exports) {
 					${modifiedContent}
 					return module.exports || exports;
@@ -186,8 +188,6 @@ class ContentManager {
 					logger.error('Failed to parse default export:', error);
 				}
 			}
-
-
 
 			// If we get here, log the error with more context
 			logger.error('Failed to parse collection file', {
@@ -404,6 +404,7 @@ class ContentManager {
 							order: category.order,
 							translations: category.translations,
 							isCollection: category.isCollection,
+							type: category.isCollection ? 'collection' : 'category',
 							collections: category.collections,
 							subcategories: category.subcategories,
 							schema: {

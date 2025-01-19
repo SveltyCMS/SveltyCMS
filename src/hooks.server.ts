@@ -55,7 +55,7 @@ const limiter = new RateLimiter({
 	IP: [300, 'h'], // 300 requests per hour per IP
 	IPUA: [150, 'm'], // 150 requests per minute per IP+User-Agent
 	cookie: {
-		name: 'sveltycms_ratelimit',
+		name: 'ratelimit',
 		secret: privateEnv.JWT_SECRET_KEY as string,
 		rate: [500, 'm'], // 500 requests per minute per cookie
 		preflight: true

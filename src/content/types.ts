@@ -8,7 +8,7 @@
  * - Field Types - defines all available field types
  * - Schema - defines the base schema interface
  * - Category - defines the category interface
- * - Collection Data - defines the category data interface for configuration
+ * - Collection Data - defines the collection data interface
  */
 
 import fs from 'fs/promises';
@@ -23,8 +23,6 @@ const EXCLUDED_FILES = new Set(['index.ts', 'vite.ts']);
 
 // Auth
 import type { RolePermissions } from '@src/auth/types';
-
-// Collection names are dynamic, based on the files in the collections directory
 
 // Widget field type definition
 type WidgetKeys = keyof typeof widgets;
@@ -64,16 +62,7 @@ export const CollectionRegistry = {
 export interface Translation {
 	languageTag: string;
 	translationName: string;
-	icon?: string;
-	order?: number;
 	isDefault?: boolean;
-	description?: string;
-	metadata?: {
-		createdAt?: Date;
-		updatedAt?: Date;
-		createdBy?: string;
-		updatedBy?: string;
-	};
 }
 
 export interface Schema {
@@ -100,28 +89,22 @@ export interface Category {
 	_id: string; // UUID for Category
 	name: string; // Category name, derived from folder name
 	path: string; // Path within the structure, derived from folder path
-	icon: string; // Icon for the category
-	order: number; // Display order
-	isCollection: boolean; // Whether this category represents a collection
-	translations: { languageTag: string; translationName: string }[]; // Translations for the category name
-	collections: CollectionData[]; // Collections within this category
-	subcategories: Record<string, Category>; // Subcategories
+	icon?: string; // Optional icon for the category
+	order?: number; // Optional display order
+	isCategory: boolean; // Whether this is a category (folder)
+	translations?: { languageTag: string; translationName: string }[]; // Optional translations for the category name
 	collectionConfig?: Record<string, unknown>; // Optional collection configuration
-
 }
 
-
-// Category data interface for configuration
+// Collection data interface for configuration
 export interface CollectionData {
 	_id: string; // UUID for Collection
-	icon: string; // Collection icon
+	icon?: string; // Optional collection icon
 	name: string; // Collection name
 	label?: string; // Optional display label
-	order: number; // Display order
+	order?: number; // Optional display order
 	path: string; // Collection path
-	translations: { languageTag: string; translationName: string }[]; // Translations
-	collections: CollectionData[]; // Nested collections
-	isCollection: boolean; // Whether this is a collection
+	translations?: { languageTag: string; translationName: string }[]; // Optional translations
 	permissions?: RolePermissions; // Optional permissions
 	livePreview?: boolean; // Optional live preview
 	strict?: boolean; // Optional strict mode

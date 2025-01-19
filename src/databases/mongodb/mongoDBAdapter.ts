@@ -33,6 +33,8 @@ import type { Unsubscriber } from 'svelte/store';
 import type { ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
 import type { UserPreferences, WidgetPreference } from '@root/src/stores/userPreferences.svelte';
 import type { VirtualFolderUpdateData } from '@src/types/virtualFolder';
+import { v4 as uuidv4 } from 'uuid';
+
 
 // Database
 import mongoose, { Schema } from 'mongoose';
@@ -127,11 +129,19 @@ export class MongoDBAdapter implements dbInterface {
 		}
 
 		try {
+			logger.debug('Starting content structure sync...');
+
 			// Ensure system_content_structure collection exists
 			if (!mongoose.models['system_content_structure']) {
+				logger.debug('system_content_structure model does not exist, initializing...');
 				await ContentStructureModel.init();
 				logger.info('Created system_content_structure collection');
+			} else {
+				logger.debug('system_content_structure model already exists');
 			}
+
+			// Access ContentManager instance and get collections
+			const { collections } = contentManager.getCollectionData();
 
 			// Initialize each collection model
 			for (const collection of collections) {
@@ -163,11 +173,12 @@ export class MongoDBAdapter implements dbInterface {
 		path: string;
 		icon?: string;
 		order?: number;
-		isCollection?: boolean;
+		isCategory?: boolean;
 		collectionConfig?: unknown;
 		translations?: { languageTag: string; translationName: string }[];
 	}): Promise<void> {
 		try {
+			const type = contentData.isCollection !== undefined ? (contentData.isCollection ? 'collection' : 'category') : 'category';
 			const existingNode = await ContentStructureModel.findOne({ path: contentData.path }).exec();
 			if (existingNode) {
 				// Update existing node
@@ -176,8 +187,10 @@ export class MongoDBAdapter implements dbInterface {
 				existingNode.path = contentData.path;
 				existingNode.icon = contentData.icon || 'iconoir:info-empty';
 				existingNode.order = contentData.order || 999;
+				existingNode.type = type;
 				existingNode.isCollection = contentData.isCollection;
 				existingNode.collectionConfig = contentData.collectionConfig;
+				existingNode.markModified('type'); // Ensure type field is marked as modified
 
 				// Update translations if provided
 				if (contentData.translations) {
@@ -190,10 +203,15 @@ export class MongoDBAdapter implements dbInterface {
 				await existingNode.save();
 				logger.info(`Updated content structure: \x1b[34m${contentData.path}\x1b[0m`);
 			} else {
-				// Create new node
-				const newNode = new ContentStructureModel(contentData);
+				// Create new node with validated UUID
+				const newNode = new ContentStructureModel({
+					...contentData,
+					_id: contentData._id, // Already validated
+					type,
+					parentPath: contentData.path.split('/').slice(0, -1).join('/') || null
+				});
 				await newNode.save();
-				logger.info(`Created content structure: \x1b[34m${contentData.path}\x1b[0m`);
+				logger.info(`Created content structure: \x1b[34m${contentData.path}\x1b[0m with UUID: \x1b[34m${contentData._id}\x1b[0m`);
 			}
 		} catch (error) {
 			logger.error(`Error creating/updating content structure: ${error.message}`);
@@ -201,14 +219,9 @@ export class MongoDBAdapter implements dbInterface {
 		}
 	}
 
-	// Generate a unique ID
+	// Generate a unique ID using UUID
 	generateId(): string {
-		return new mongoose.Types.ObjectId().toString(); //required for MongoDB id as ObjectId
-	}
-
-	// Convert a string ID to a MongoDB ObjectId
-	convertId(_id: string): mongoose.Types.ObjectId {
-		return new mongoose.Types.ObjectId(_id);
+		return uuidv4();
 	}
 
 	// Get collection models
@@ -556,8 +569,8 @@ export class MongoDBAdapter implements dbInterface {
 		}
 	}
 
-	// Methods for Draft and Revision Management
 
+	// Methods for Draft and Revision Management
 	// Create a new draft
 	async createDraft(content: Record<string, unknown>, collectionId: string, original_document_id: string, user_id: string): Promise<Draft> {
 		return DraftModel.createDraft(content, collectionId, original_document_id, user_id);
@@ -582,10 +595,10 @@ export class MongoDBAdapter implements dbInterface {
 	async createRevision(collectionId: string, documentId: string, userId: string, data: Record<string, unknown>): Promise<Revision> {
 		try {
 			const revision = new RevisionModel({
-				collectionId: this.convertId(collectionId),
-				documentId: this.convertId(documentId),
+				collectionId: collectionId,
+				documentId: documentId,
 				content: data,
-				createdBy: this.convertId(userId)
+				createdBy: userId
 			});
 			return await revision.save();
 		} catch (error) {
@@ -598,8 +611,8 @@ export class MongoDBAdapter implements dbInterface {
 	async getRevisions(collectionId: string, documentId: string): Promise<Revision[]> {
 		try {
 			return await RevisionModel.find({
-				collectionId: this.convertId(collectionId),
-				documentId: this.convertId(documentId)
+				collectionId: collectionId,
+				documentId: documentId
 			})
 				.sort({ createdAt: -1 })
 				.lean()
@@ -642,11 +655,8 @@ export class MongoDBAdapter implements dbInterface {
 				throw Error(`Revision ${revisionId} is missing required fields.`);
 			}
 
-			// Convert IDs to ObjectId if necessary
-			const documentObjectId = this.convertId(documentId);
-
 			// Update the original document with the revision content
-			const updateResult = await this.updateOne(collectionId, { _id: documentObjectId }, { $set: content });
+			const updateResult = await this.updateOne(collectionId, { _id: documentId }, { $set: content });
 
 			// `updateOne` now throws an error if no document is found, so this check might be redundant
 			// Keeping it for clarity.
@@ -803,7 +813,7 @@ export class MongoDBAdapter implements dbInterface {
 
 			await ThemeModel.insertMany(
 				themes.map((theme) => ({
-					_id: this.convertId(theme._id),
+					_id: theme._id,
 					name: theme.name,
 					path: theme.path,
 					isDefault: theme.isDefault ?? false,
@@ -897,7 +907,7 @@ export class MongoDBAdapter implements dbInterface {
 			const folder = new SystemVirtualFolderModel({
 				_id: this.generateId(),
 				name: folderData.name,
-				parent: folderData.parent ? this.convertId(folderData.parent) : null,
+				parent: folderData.parent || null,
 				path: folderData.path,
 				icon: folderData.icon,
 				order: folderData.order,
@@ -927,12 +937,11 @@ export class MongoDBAdapter implements dbInterface {
 	// Get contents of a virtual folder
 	async getVirtualFolderContents(folderId: string): Promise<Document[]> {
 		try {
-			const objectId = this.convertId(folderId);
-			const folder = await SystemVirtualFolderModel.findById(objectId);
+			const folder = await SystemVirtualFolderModel.findById(folderId);
 			if (!folder) throw Error('Folder not found');
 
 			const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
-			const mediaPromises = mediaTypes.map((type) => mongoose.model(type).find({ folderId: objectId }).lean());
+			const mediaPromises = mediaTypes.map((type) => mongoose.model(type).find({ folderId: folderId }).lean());
 			const results = await Promise.all(mediaPromises);
 			logger.info(`Fetched contents for virtual folder ID: \x1b[34m${folderId}\x1b[0m`);
 			return results.flat();
@@ -951,7 +960,7 @@ export class MongoDBAdapter implements dbInterface {
 			};
 
 			if (updateData.parent) {
-				updatePayload.parent = this.convertId(updateData.parent).toString();
+				updatePayload.parent = updateData.parent;
 			}
 			const updatedFolder = await SystemVirtualFolderModel.findByIdAndUpdate(folderId, updatePayload, { new: true }).exec();
 			if (!updatedFolder) {
@@ -968,7 +977,7 @@ export class MongoDBAdapter implements dbInterface {
 	// Delete a virtual folder
 	async deleteVirtualFolder(folderId: string): Promise<boolean> {
 		try {
-			const result = await SystemVirtualFolderModel.findByIdAndDelete(this.convertId(folderId)).exec();
+			const result = await SystemVirtualFolderModel.findByIdAndDelete(folderId).exec();
 			if (!result) {
 				logger.warn(`Virtual folder with ID \x1b[34m${folderId}\x1b[0m not found.`);
 				return false;
@@ -984,11 +993,10 @@ export class MongoDBAdapter implements dbInterface {
 	// Move media to a virtual folder
 	async moveMediaToFolder(mediaId: string, folderId: string): Promise<boolean> {
 		try {
-			const objectId = this.convertId(folderId);
 			const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
 			// Create update query for all media types
 			const updateResult = await Promise.all(
-				mediaTypes.map((type) => this.updateOne(type, { _id: this.convertId(mediaId) }, { folderId: objectId }))
+				mediaTypes.map((type) => this.updateOne(type, { _id: mediaId }, { folderId: folderId }))
 			);
 			// Check if any media types updated
 			const mediaUpdated = updateResult.some((result) => result);
@@ -1006,6 +1014,7 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Content Structure Methods
 	async createContentStructure(contentData: {
+		_id?: string;
 		name: string;
 		parent?: string;
 		path: string;
@@ -1014,55 +1023,99 @@ export class MongoDBAdapter implements dbInterface {
 		isCollection?: boolean;
 		collectionId?: string;
 		translations?: { languageTag: string; translationName: string }[];
-		_id?: string;
+		collections?: Array<{
+			_id?: string;
+			name: string;
+			path: string;
+			icon?: string;
+			order?: number;
+			fields?: unknown[];
+			translations?: { languageTag: string; translationName: string }[];
+		}>;
+		subcategories?: Array<{
+			_id?: string;
+			name: string;
+			path: string;
+			icon?: string;
+			order?: number;
+			isCategory?: boolean;
+			translations?: { languageTag: string; translationName: string }[];
+		}>;
 	}): Promise<Document> {
 		try {
+			// Ensure collections and subcategories are always arrays
+			const collections = Array.isArray(contentData.collections) ? contentData.collections : [];
+			const subcategories = Array.isArray(contentData.subcategories) ? contentData.subcategories : [];
+
 			// Ensure _id is always present
+			// Set the 'type' field based on 'isCollection'
+			const type = contentData.isCollection ? 'collection' : 'category';
+
 			const nodeData = {
 				...contentData,
-				_id: contentData._id || this.generateId() // Generate if not provided
+				_id: contentData._id || this.generateId(), // Generate if not provided
+				type: type, // Set the type field
+				collections: collections.map((collection) => ({
+					_id: collection._id || this.generateId(), // Generate _id if not provided
+					name: collection.name,
+					path: collection.path,
+					icon: collection.icon || 'bi:file-text', // Default icon for collections
+					order: collection.order || 999, // Default order
+					fields: collection.fields || [],
+					translations: collection.translations || [], // Default to empty array
+					type: 'collection'
+				})),
+				subcategories: subcategories.map((subcategory) => ({
+					_id: subcategory._id || this.generateId(), // Generate _id if not provided
+					name: subcategory.name,
+					path: subcategory.path,
+					icon: subcategory.icon || 'bi:folder', // Default icon
+					order: subcategory.order || 999, // Default order
+					isCategory: subcategory.isCategory ?? true, // Default to true for subcategories (folders)
+					translations: subcategory.translations || [], // Default to empty array
+					type: 'category'
+				}))
 			};
 
-			// Create the node with the generated _id
-			const node = new ContentStructureModel(nodeData);
+			// Check if a document with the same path already exists
+			const existingNode = await ContentStructureModel.findOne({ path: nodeData.path }).exec();
 
-			// Validate before saving
-			await node.validate();
-
-			// Save the node
-			await node.save();
-
-			logger.debug(`Content structure \x1b[34m${contentData.name}\x1b[0m created successfully with ID \x1b[34m${node._id}\x1b[0m.`);
-			return node;
+			if (existingNode) {
+				// Update the existing document
+				existingNode.set(nodeData);
+				await existingNode.save();
+				logger.debug(
+					`Updated content structure with path: \x1b[34m${nodeData.path}\x1b[0m`
+				);
+				return existingNode;
+			} else {
+				// Create a new document
+				const node = new ContentStructureModel(nodeData);
+				await node.save();
+				logger.debug(
+					`Created content structure with path: \x1b[34m${nodeData.path}\x1b[0m`
+				);
+				return node;
+			}
 		} catch (error) {
-			logger.error(`Error creating content structure: ${error.message}`);
-			throw Error(`Error creating content structure`);
+			logger.error(`Error creating/updating content structure: ${error.message}`);
+			throw Error(`Error creating/updating content structure`);
 		}
 	}
 
-	async getContentStructure(): Promise<Document[]> {
+	async getContentByPath(path: string): Promise<Document | null> {
 		try {
-			const nodes = await ContentStructureModel.find().sort({ path: 1 }).lean().exec();
-			logger.info(`Fetched \x1b[34m${nodes.length}\x1b[0m content structure.`);
-			return nodes;
+			const contentNode = await ContentStructureModel.findOne({ path: path }).exec();
+			if (contentNode) {
+				logger.info(`Content found for path: \x1b[34m${path}\x1b[0m`);
+				return contentNode.toObject();
+			} else {
+				logger.info(`No content found for path: \x1b[34m${path}\x1b[0m`);
+				return null;
+			}
 		} catch (error) {
-			logger.error(`Error fetching content structure: ${error.message}`);
-			throw Error(`Error fetching content structure`);
-		}
-	}
-
-	async getContentStructureChildren(parentPath: string): Promise<Document[]> {
-		try {
-			const escapedPath = parentPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-			const regex = new RegExp(`^${escapedPath}/[^/]+$`);
-			const children = await ContentStructureModel.find({ path: { $regex: regex } })
-				.sort({ order: 1 })
-				.exec();
-			logger.info(`Fetched \x1b[34m${children.length}\x1b[0m children of content structure for path \x1b[34m${parentPath}\x1b[0m.`);
-			return children;
-		} catch (error) {
-			logger.error(`Error fetching content structure children: ${error.message}`);
-			throw Error(`Error fetching content structure children`);
+			logger.error(`Error getting content by path \x1b[34m${path}\x1b[0m: ${error.message}`);
+			throw Error(`Error getting content by path`);
 		}
 	}
 
@@ -1075,6 +1128,22 @@ export class MongoDBAdapter implements dbInterface {
 			return null;
 		}
 	}
+
+
+	async getContentStructureChildren(parentId: string): Promise<Document[]> {
+		try {
+			const children = await ContentStructureModel.find({ parent: parentId })
+				.sort({ order: 1 })
+				.exec();
+			logger.info(`Fetched \x1b[34m${children.length}\x1b[0m children for parent ID: \x1b[34m${parentId}\x1b[0m.`);
+			return children;
+		} catch (error) {
+			logger.error(`Error fetching content structure children: ${error.message}`);
+			throw Error(`Error fetching content structure children`);
+		}
+	}
+
+
 
 	async updateContentStructure(contentId: string, updateData: Partial<ContentStructureNode>): Promise<Document | null> {
 		try {
@@ -1137,7 +1206,7 @@ export class MongoDBAdapter implements dbInterface {
 	async deleteMedia(mediaId: string): Promise<boolean> {
 		try {
 			const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
-			const deleteResults = await Promise.all(mediaTypes.map((type) => this.deleteOne(type, { _id: this.convertId(mediaId) })));
+			const deleteResults = await Promise.all(mediaTypes.map((type) => this.deleteOne(type, { _id: mediaId })));
 			// Check if any media was deleted
 			const mediaDeleted = deleteResults.some((result) => result > 0);
 			if (mediaDeleted) {
@@ -1156,8 +1225,7 @@ export class MongoDBAdapter implements dbInterface {
 	async getMediaInFolder(folder_id: string): Promise<MediaType[]> {
 		try {
 			const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
-			const objectId = this.convertId(folder_id);
-			const mediaPromises = mediaTypes.map((type) => mongoose.model(type).find({ folderId: objectId }).lean());
+			const mediaPromises = mediaTypes.map((type) => mongoose.model(type).find({ folderId: folder_id }).lean());
 			const results = await Promise.all(mediaPromises);
 			const mediaInFolder = results.flat();
 			logger.info(`Fetched \x1b[34m${mediaInFolder.length}\x1b[0m media items in folder ID: \x1b[34m${folder_id}\x1b[0m`);
