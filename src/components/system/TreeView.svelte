@@ -43,6 +43,7 @@
 		isExpanded?: boolean; // Optional flag indicating if the node is expanded
 		icon?: string; // Optional icon for the node
 		ariaLabel?: string; // Optional ARIA label for the node
+		onClick?: (node: TreeNode) => void;
 	}
 </script>
 
@@ -84,6 +85,7 @@
 	// Function to toggle the expanded state of a node
 	function toggleNode(node: TreeNode) {
 		node.isExpanded = !node.isExpanded;
+		if (node.onClick) node.onClick(node);
 	}
 
 	// Function to handle keyboard events on a node
