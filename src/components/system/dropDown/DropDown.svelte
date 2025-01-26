@@ -1,6 +1,7 @@
 <!--
 @file: /src/components/Dropdown.svelte
-@description: A customizable dropdown component that allows selection from a list of items. It supports custom styling, item modification, and an optional icon.
+@component: 
+**Dropdown component that allows selection from a list of items. It supports custom styling, item modification, and an optional icon.**
 -->
 
 <script lang="ts">
@@ -13,7 +14,10 @@
 		label = '', // Optional label for the dropdown
 		modifier = (input: any) => input, // Function to modify how items are displayed
 		icon = undefined, // Optional icon for the dropdown
+		ariaLabel = 'Select an option',
 		class: className = '' // Custom class for the dropdown container
+		dropdownId = 'dropdown-' + Math.random().toString(36).substr(2, 9) // Unique ID for a11y
+
 	} = $props<{
 		items: any[];
 		selected?: any;
@@ -21,6 +25,8 @@
 		modifier?: (input: any) => any;
 		icon?: string | undefined;
 		class?: string;
+		ariaLabel?: string;
+		dropdownId?: string;
 	}>();
 
 	// State for dropdown expansion and selected item

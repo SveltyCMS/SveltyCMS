@@ -142,7 +142,7 @@ class ContentManager {
 			const moduleContent = `
 				const module = {};
 				const exports = {};
-	               const resolveWidgetPlaceholder = ${resolveWidgetPlaceholder.toString()};
+	            const resolveWidgetPlaceholder = ${resolveWidgetPlaceholder.toString()};
 				(async function(module, exports) {
 					${modifiedContent}
 					return module.exports || exports;

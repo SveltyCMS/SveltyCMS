@@ -58,11 +58,14 @@ export const CollectionRegistry = {
 	categories: 'categories'
 } as const;
 
-// Define the base Schema interface
+// Define the Translation Schema 
 export interface Translation {
-	languageTag: string;
-	translationName: string;
-	isDefault?: boolean;
+  uuid: string; // Translation UUID
+  languageTag: string;
+  translationName: string;
+  targetUUID: string; // UUID of translated collection/category
+  path?: string; // Optional translated path override
+  isDefault?: boolean;
 }
 
 export interface Schema {
@@ -86,7 +89,7 @@ export interface Schema {
 
 // Category interface for representing the folder structure
 export interface Category {
-	_id: string; // UUID for Category
+	_id: string; // UUID for Categories
 	name: string; // Category name, derived from folder name
 	path: string; // Path within the structure, derived from folder path
 	icon?: string; // Optional icon for the category
@@ -98,7 +101,7 @@ export interface Category {
 
 // Collection data interface for configuration
 export interface CollectionData {
-	_id: string; // UUID for Collection
+	_id: string; // UUID for Collections
 	icon?: string; // Optional collection icon
 	name: string; // Collection name
 	label?: string; // Optional display label
