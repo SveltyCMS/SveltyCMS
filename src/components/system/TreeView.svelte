@@ -193,7 +193,7 @@
 				{/if}
 
 				{#if node.icon}
-					<span class="text-gray-400" aria-hidden="true">{node.icon}</span>
+					<iconify-icon icon={node.icon} width="24" height="24" class="text-gray-400" aria-hidden="true"></iconify-icon>
 				{/if}
 
 				<span class="select-none" id={`node-${node.id}-label`}>{node.name}</span>

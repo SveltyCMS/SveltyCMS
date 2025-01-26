@@ -24,19 +24,21 @@ Features:
 	import { mode, collections, contentStructure, collection } from '@src/stores/collectionStore.svelte';
 	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@src/stores/sidebarStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
-	import TreeView from './TreeView.svelte';
+	import TreeView from '@components/system/TreeView.svelte';
 
 	// Skeleton
 
 	let structureNodes = $derived.by(() => {
 		function mapNode(node: any) {
 			const folder = node.children && node.children.length > 0;
+
 			return {
 				id: node._id,
 				value: node.path,
 				name: node.name,
 				icon: node.icon,
-				onClick: (_) => handleCollectionSelect(node),
+				isExpanded: collection.value._id === node._id,
+				onClick: () => handleCollectionSelect(node),
 				children: folder ? node.children.map((child) => mapNode(child)) : undefined
 			};
 		}
