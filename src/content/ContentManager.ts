@@ -15,10 +15,11 @@ import { dbAdapter, dbInitPromise } from '@src/databases/db';
 import fs from 'fs/promises';
 import { publicEnv } from '@root/config/public';
 
+import { v4 as uuidv4 } from 'uuid';
 
 // Types
 import type { Schema, ContentTypes, Category, CollectionData } from './types';
-import type { SystemContent } from '@src/databases/dbInterface';
+import type { CollectionNode, ContentStructureNode, SystemContent } from '@src/databases/dbInterface';
 
 // Redis
 import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/redis';
@@ -27,10 +28,11 @@ import widgetProxy, { initializeWidgets, resolveWidgetPlaceholder } from '@src/w
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
+import { collections } from '../stores/collectionStore.svelte';
 
 interface CacheEntry<T> {
-	value: T;
-	timestamp: number;
+  value: T;
+  timestamp: number;
 }
 
 // Constants
@@ -44,48 +46,48 @@ const RETRY_DELAY = 1000;
 let widgetsInitialized = false;
 
 async function ensureWidgetsInitialized() {
-	if (!widgetsInitialized) {
-		try {
-			await initializeWidgets();
-			// Make widgets available globally for eval context
-			globalThis.widgets = widgetProxy;
-			widgetsInitialized = true;
-			logger.debug('Widgets initialized successfully');
-		} catch (error) {
-			logger.error('Failed to initialize widgets:', error);
-			throw error;
-		}
-	}
+  if (!widgetsInitialized) {
+    try {
+      await initializeWidgets();
+      // Make widgets available globally for eval context
+      globalThis.widgets = widgetProxy;
+      widgetsInitialized = true;
+      logger.debug('Widgets initialized successfully');
+    } catch (error) {
+      logger.error('Failed to initialize widgets:', error);
+      throw error;
+    }
+  }
 }
 
 class ContentManager {
-	private static instance: ContentManager | null = null;
-	private collectionCache: Map<string, CacheEntry<Schema>> = new Map();
-	private fileHashCache: Map<string, CacheEntry<string>> = new Map();
-	private contentStructureCache: Map<string, CacheEntry<Category>> = new Map();
-	private collectionAccessCount: Map<string, number> = new Map();
-	private initialized: boolean = false;
-	private loadedCollections: Schema[] = [];
-	private contentStructure: Record<string, Category> = {};
-	private dbInitPromise: Promise<void> | null = null;
+  private static instance: ContentManager | null = null;
+  private collectionCache: Map<string, CacheEntry<Schema>> = new Map();
+  private fileHashCache: Map<string, CacheEntry<string>> = new Map();
+  private contentStructureCache: Map<string, CacheEntry<Category>> = new Map();
+  private collectionAccessCount: Map<string, number> = new Map();
+  private initialized: boolean = false;
+  private loadedCollections: Schema[] = [];
+  private contentStructure: Record<string, Category> = {};
+  private dbInitPromise: Promise<void> | null = null;
 
-	private constructor() {
-		this.dbInitPromise = dbInitPromise;
-	}
+  private constructor() {
+    this.dbInitPromise = dbInitPromise;
+  }
 
-	static getInstance(): ContentManager {
-		if (!ContentManager.instance) {
-			ContentManager.instance = new ContentManager();
-		}
-		return ContentManager.instance;
-	}
+  static getInstance(): ContentManager {
+    if (!ContentManager.instance) {
+      ContentManager.instance = new ContentManager();
+    }
+    return ContentManager.instance;
+  }
 
-	// Wait for initialization to complete
-	async waitForInitialization(): Promise<void> {
-		if (this.dbInitPromise) {
-			await this.dbInitPromise;
-		}
-	}
+  // Wait for initialization to complete
+  async waitForInitialization(): Promise<void> {
+    if (this.dbInitPromise) {
+      await this.dbInitPromise;
+    }
+  }
 
   // Initialize the collection manager
   public async initialize(): Promise<void> {
@@ -108,30 +110,30 @@ class ContentManager {
     }
   }
 
-	// Process module content
-	private async processModule(content: string): Promise<{ schema?: Partial<Schema> } | null> {
-		try {
-			// Ensure widgets are initialized before processing module
-			await ensureWidgetsInitialized();
+  // Process module content
+  private async processModule(content: string): Promise<{ schema?: Partial<Schema> } | null> {
+    try {
+      // Ensure widgets are initialized before processing module
+      await ensureWidgetsInitialized();
 
-			// Extract UUID from file content
-			const uuidMatch = content.match(/\/\/\s*UUID:\s*([a-f0-9-]{36})/i);
-			const uuid = uuidMatch ? uuidMatch[1] : null;
+      // Extract UUID from file content
+      const uuidMatch = content.match(/\/\/\s*UUID:\s*([a-f0-9-]{36})/i);
+      const uuid = uuidMatch ? uuidMatch[1] : null;
 
-			// Remove any import/export statements and extract the schema object
-			const cleanedContent = content
-				.replace(/import\s+.*?;/g, '') // Remove import statements
-				.replace(/export\s+default\s+/, '') // Remove export default
-				.replace(/export\s+const\s+/, 'const ') // Handle export const
-				.trim();
+      // Remove any import/export statements and extract the schema object
+      const cleanedContent = content
+        .replace(/import\s+.*?;/g, '') // Remove import statements
+        .replace(/export\s+default\s+/, '') // Remove export default
+        .replace(/export\s+const\s+/, 'const ') // Handle export const
+        .trim();
 
-			// Replace the global widgets before evaluating the schema
-			const modifiedContent = cleanedContent.replace(/globalThis\.widgets\.(\w+)\((.*?)\)/g, (match, widgetName, widgetConfig) => {
-				return `await resolveWidgetPlaceholder({ __widgetName: '${widgetName}', __widgetConfig: ${widgetConfig || '{}'} })`;
-			});
+      // Replace the global widgets before evaluating the schema
+      const modifiedContent = cleanedContent.replace(/globalThis\.widgets\.(\w+)\((.*?)\)/g, (match, widgetName, widgetConfig) => {
+        return `await resolveWidgetPlaceholder({ __widgetName: '${widgetName}', __widgetConfig: ${widgetConfig || '{}'} })`;
+      });
 
-			// Create a safe evaluation context
-			const moduleContent = `
+      // Create a safe evaluation context
+      const moduleContent = `
 				const module = {};
 				const exports = {};
 	               const resolveWidgetPlaceholder = ${resolveWidgetPlaceholder.toString()};
@@ -147,7 +149,7 @@ class ContentManager {
 
       // If result is an object with fields, it's likely our schema
       if (result && typeof result === 'object') {
-        return { schema: { ...result, id: uuid } };
+        return { schema: { ...result, _id: uuid } };
       }
 
       // If we got here, try to find a schema object in the content
@@ -157,7 +159,7 @@ class ContentManager {
           // Evaluate just the schema object
           const schemaFunc = new Function(`return ${schemaMatch[2]}`);
           const schema = schemaFunc();
-          return { schema: { ...schema, id: uuid } };
+          return { schema: { ...schema, _id: uuid } };
         } catch (error) {
           logger.warn('Failed to evaluate schema object:', error);
         }
@@ -169,7 +171,7 @@ class ContentManager {
         try {
           const schemaFunc = new Function(`return ${schemaExportMatch[2]}`);
           const schema = schemaFunc();
-          return { schema: { ...schema, id: uuid } };
+          return { schema: { ...schema, _id: uuid } };
         } catch (error) {
           logger.warn('Failed to evaluate schema object:', error);
         }
@@ -181,7 +183,7 @@ class ContentManager {
         try {
           const schemaFunc = new Function(`return ${schemaDefaultExportMatch[1]}`);
           const schema = schemaFunc();
-          return { schema: { ...schema, id: uuid } };
+          return { schema: { ...schema, _id: uuid } };
         } catch (error) {
           logger.warn('Failed to evaluate schema object:', error);
         }
@@ -195,6 +197,15 @@ class ContentManager {
     }
   }
 
+  public async getCollectionData() {
+    if (!this.initialized) {
+      await this.initialize();
+    }
+    return {
+      collections: this.loadedCollections,
+
+    };
+  }
   // Load collections
   private async loadCollections(): Promise<Schema[]> {
     try {
@@ -218,7 +229,7 @@ class ContentManager {
 
           const processed: Schema = {
             ...schema,
-            id: schema.id!, // Always use the ID from the compiled schema
+            _id: schema._id!, // Always use the ID from the compiled schema
             name: schema.name || filePathName,
             label: schema.label || filePathName,
             path: path,
@@ -232,6 +243,7 @@ class ContentManager {
             slug: schema.slug || filePathName.toLowerCase()
           };
 
+          await dbAdapter?.createCollectionModel(processed as CollectionData);
           collections.push(processed);
           await this.setCacheValue(filePath, processed, this.collectionCache);
         } catch (err) {
@@ -305,7 +317,15 @@ class ContentManager {
   // Create categories with Redis caching
   private async createCategories(): Promise<void> {
     try {
-      const structure: Record<string, Category> = {};
+
+      if (!dbAdapter) throw new Error('Database adapter not initialized');
+
+
+      const structure: ContentStructureNode[] = await dbAdapter.getContentStructure();
+      // Convert the array to a Map using the `path` property as the key
+      const structureMap = new Map<string, ContentStructureNode>(
+        structure.map(node => [node.path, node])
+      );
 
       for (const collection of this.loadedCollections) {
         if (!collection.path) {
@@ -313,54 +333,51 @@ class ContentManager {
           continue;
         }
 
-        const pathParts = collection.path.split('/').filter(Boolean);
-        let currentLevel = structure;
-        let currentPath = '';
+        const oldNode = structureMap.get(collection.path);
+        if (oldNode) logger.warn(`Collection ${collection.name} Node already exists. Updating Node`);
 
-        for (const [index, part] of pathParts.entries()) {
-          currentPath = currentPath ? `${currentPath}/${part}` : part;
+        const parentPath = collection.path === "/" ? null : collection.path.split("/").slice(0, -1).join("/") || "/";
 
-          if (!currentLevel[part]) {
-            const category: Category = {
-              _id: crypto.randomUUID(),
-              id: crypto.randomUUID(),
-              name: part,
-              icon: index === pathParts.length - 1 ? collection.icon || 'bi:file' : 'bi:folder',
-              path: currentPath,
+        const currentNode = await dbAdapter?.upsertContentStructureNode({
+          _id: oldNode?._id ?? collection._id,
+          name: oldNode?.name ?? collection.name as string,
+          icon: oldNode?.icon ?? (collection.icon || 'bi:file'),
+          path: oldNode?.path ?? collection.path,
+          order: oldNode?.order ?? 999,
+          type: "collection",
+          parentPath: oldNode?.parentPath ?? parentPath,
+          translations: oldNode?.translations ?? collection.translations ?? [],
+          updatedAt: oldNode?.updatedAt ?? new Date(),
+
+        });
+        this.contentStructure[currentNode.path] = currentNode;
+
+        if (parentPath) {
+          const parentParts = parentPath.split("/").filter(Boolean);
+          const thisParent = parentPath === "/" ? null : parentPath.split("/").slice(0, -1).join() || "/"
+          for (const part of parentParts) {
+            const oldNode = structureMap.get(parentPath);
+            const currentCategoryNode = await dbAdapter?.upsertContentStructureNode({
+              _id: oldNode?._id ?? uuidv4(),
+              name: oldNode?.name ?? part,
+              icon: oldNode?.icon ?? "bi:folder",
+              path: parentPath,
               order: 999,
-              isCollection: index === pathParts.length - 1,
-              collections: [],
-              subcategories: new Map(),
-              collectionConfig: {},
-              updatedAt: new Date(),
-              createdAt: new Date(),
-              __v: 0
-            };
+              type: "category",
+              parentPath: thisParent,
+              translations: oldNode?.translations ?? [],
+              updatedAt: oldNode?.updatedAt ?? new Date()
 
-            currentLevel[part] = category;
-
-            // Save to database
-            await dbAdapter?.createContentStructure({
-              _id: category.id,
-              path: currentPath,
-              name: part,
-              icon: category.icon,
-              isCollection: category.isCollection,
-              collections: category.collections,
-              subcategories: category.subcategories,
-            });
-          }
-
-          if (index === pathParts.length - 1) {
-            // This is a collection
-            currentLevel[part].collections.push(collection);
-          } else {
-            currentLevel = currentLevel[part].subcategories!;
+            })
+            this.contentStructure[currentCategoryNode.path] = currentCategoryNode;
+            structureMap.set(currentCategoryNode.path, currentCategoryNode);
           }
         }
+
+
       }
 
-      this.contentStructure = structure;
+
 
       // Cache in Redis if available
       if (isRedisEnabled()) {
@@ -374,38 +391,16 @@ class ContentManager {
   }
 
   // Generate nested JSON structure
-  public async generateNestedJson(): Promise<Record<string, any>> {
+  public async generateNestedStructure(): Promise<Record<string, any>> {
     try {
       if (!this.initialized) {
         await this.initialize();
       }
 
-      const buildNestedStructure = (category: Category): Record<string, any> => {
-        const nestedStructure: Record<string, any> = {
-          id: category.id,
-          name: category.name,
-          icon: category.icon,
-          path: category.path,
-          isCollection: category.isCollection,
-          collections: category.collections,
-          subcategories: {},
-        };
+      const nestedStructure = await dbAdapter!.getContentStructure();
 
-        if (category.subcategories) {
-          for (const [key, subcategory] of Object.entries(category.subcategories)) {
-            nestedStructure.subcategories[key] = buildNestedStructure(subcategory);
-          }
-        }
 
-        return nestedStructure;
-      };
-
-      const nestedJson: Record<string, any> = {};
-      for (const [key, category] of Object.entries(this.contentStructure)) {
-        nestedJson[key] = buildNestedStructure(category);
-      }
-
-      return nestedJson;
+      return nestedStructure;
     } catch (error) {
       logger.error('Error generating nested JSON:', error);
       throw error;
@@ -541,56 +536,71 @@ class ContentManager {
       throw error;
     }
   }
+  // Read file with retry mechanism
+  private async readFile(filePath: string): Promise<string> {
+    // Server-side file reading
+    if (!fs) throw new Error('File system operations are only available on the server');
+    try {
+      const content = await fs.readFile(filePath, 'utf-8');
+      return content;
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        logger.error(`File not found: ${filePath}`);
+      } else {
+        logger.error(`Error reading file: ${filePath}`, error);
+      }
+      throw error;
+    }
+  }
+  //Get a content node map
+  public async getContentStructureMap(): Promise<Map<string, SystemContent>> {
+    const contentNodes = await (dbAdapter?.getContentStructure() || Promise.resolve([]));
+    const contentNodesMap = new Map<string, SystemContent>();
+    contentNodes.forEach((node) => {
+      contentNodesMap.set(node.path, node);
+    });
 
-	//Get a content node map
-	public async getContentStructureMap(): Promise<Map<string, SystemContent>> {
-		const contentNodes = await (dbAdapter?.getContentStructure() || Promise.resolve([]));
-		const contentNodesMap = new Map<string, SystemContent>();
-		contentNodes.forEach((node) => {
-			contentNodesMap.set(node.path, node);
-		});
+    return contentNodesMap;
+  }
 
-		return contentNodesMap;
-	}
+  // Error recovery
+  private async retryOperation<T>(operation: () => Promise<T>, maxRetries: number = MAX_RETRIES, delay: number = RETRY_DELAY): Promise<T> {
+    let lastError: Error | null = null;
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error as Error;
+        await new Promise((resolve) => setTimeout(resolve, delay * Math.pow(2, i)));
+        logger.warn(`Retry ${i + 1}/${maxRetries} for operation after error: ${lastError.message}`);
+      }
+    }
+    throw lastError;
+  }
 
-	// Error recovery
-	private async retryOperation<T>(operation: () => Promise<T>, maxRetries: number = MAX_RETRIES, delay: number = RETRY_DELAY): Promise<T> {
-		let lastError: Error | null = null;
-		for (let i = 0; i < maxRetries; i++) {
-			try {
-				return await operation();
-			} catch (error) {
-				lastError = error as Error;
-				await new Promise((resolve) => setTimeout(resolve, delay * Math.pow(2, i)));
-				logger.warn(`Retry ${i + 1}/${maxRetries} for operation after error: ${lastError.message}`);
-			}
-		}
-		throw lastError;
-	}
-
-	// Lazy loading with Redis support
-	private async lazyLoadCollection(name: ContentTypes): Promise<Schema | null> {
-		const cacheKey = `collection_${name}`;
-		// Try getting from cache (Redis or memory)
-		const cached = await this.getCacheValue(cacheKey, this.collectionCache);
-		if (cached) {
-			this.collectionAccessCount.set(name, (this.collectionAccessCount.get(name) || 0) + 1);
-			return cached;
-		}
-		// Load if not cached
-		const path = `config/collections/${name}.ts`;
-		try {
-			logger.debug(`Attempting to read file for collection: \x1b[34m${name}\x1b[0m at path: \x1b[33m${path}\x1b[0m`);
-			const content = await this.readFile(path);
-			logger.debug(`File content for collection \x1b[34m${name}\x1b[0m: ${content.substring(0, 100)}...`); // Log only the first 100 characters
-			const schema = await this.processCollectionFile(path, content);
-		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : String(err);
-			logger.error(`Failed to lazy load collection ${name}:`, { error: errorMessage });
-			throw new Error(`Failed to lazy load collection: ${errorMessage}`);
-		}
-		return null;
-	}
+  // Lazy loading with Redis support
+  private async lazyLoadCollection(name: ContentTypes): Promise<Schema | null> {
+    const cacheKey = `collection_${name}`;
+    // Try getting from cache (Redis or memory)
+    const cached = await this.getCacheValue(cacheKey, this.collectionCache);
+    if (cached) {
+      this.collectionAccessCount.set(name, (this.collectionAccessCount.get(name) || 0) + 1);
+      return cached;
+    }
+    // Load if not cached
+    const path = `config/collections/${name}.ts`;
+    try {
+      logger.debug(`Attempting to read file for collection: \x1b[34m${name}\x1b[0m at path: \x1b[33m${path}\x1b[0m`);
+      const content = await this.readFile(path);
+      logger.debug(`File content for collection \x1b[34m${name}\x1b[0m: ${content.substring(0, 100)}...`); // Log only the first 100 characters
+      const schema = await this.processCollectionFile(path, content);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      logger.error(`Failed to lazy load collection ${name}:`, { error: errorMessage });
+      throw new Error(`Failed to lazy load collection: ${errorMessage}`);
+    }
+    return null;
+  }
 }
 
 // Export singleton instance
