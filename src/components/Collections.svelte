@@ -30,22 +30,13 @@ Features:
 
 	let structureNodes = $derived.by(() => {
 		function mapNode(node: any) {
-			if (node.children && node.children.length > 0) {
-				return {
-					id: node._id,
-					value: node.path,
-					name: node.name,
-					children: node.children.map((child) => mapNode(child))
-				};
-			} else
-				return {
-					id: node._id,
-					value: node.path,
-					name: node.name,
-					onClick: (_) => {
-						handleCollectionSelect(node);
-					}
-				};
+			return {
+				id: node._id,
+				value: node.path,
+				name: node.name,
+				icon: node.icon,
+				children: node.children && node.children.length > 0 ? node.children.map((child) => mapNode(child)) : undefined
+			};
 		}
 
 		return contentStructure.value.map((node) => mapNode(node));
