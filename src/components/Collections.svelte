@@ -21,7 +21,7 @@ Features:
 	// Stores
 	import { get } from 'svelte/store';
 	import { contentLanguage, shouldShowNextButton } from '@stores/store.svelte';
-	import { mode, collections, contentStructure } from '@src/stores/collectionStore.svelte';
+	import { mode, collections, contentStructure, collection } from '@src/stores/collectionStore.svelte';
 	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@src/stores/sidebarStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 	import TreeView from './TreeView.svelte';
@@ -84,7 +84,7 @@ Features:
 
 	<!-- Collections TreeView -->
 	{#if structureNodes.length > 0}
-		<TreeView nodes={structureNodes}></TreeView>
+		<TreeView k={0} nodes={structureNodes} selectedId={collection.value._id}></TreeView>
 	{:else}
 		<div class="p-4 text-center text-gray-500">No collections found.</div>
 	{/if}
