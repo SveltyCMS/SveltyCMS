@@ -30,12 +30,14 @@ Features:
 
 	let structureNodes = $derived.by(() => {
 		function mapNode(node: any) {
+			const folder = node.children && node.children.length > 0;
 			return {
 				id: node._id,
 				value: node.path,
 				name: node.name,
 				icon: node.icon,
-				children: node.children && node.children.length > 0 ? node.children.map((child) => mapNode(child)) : undefined
+				onClick: (_) => handleCollectionSelect(node),
+				children: folder ? node.children.map((child) => mapNode(child)) : undefined
 			};
 		}
 
