@@ -121,50 +121,7 @@ export class MongoDBAdapter implements dbInterface {
     return collectionFiles;
   }
 
-  // Sync content structure with database
-  async syncContentStructure(): Promise<void> {
-    if (browser) {
-      logger.debug('Skipping content structure sync in browser environment');
-      return;
-    }
 
-    try {
-      logger.debug('Starting content structure sync...');
-
-      // Ensure system_content_structure collection exists
-      if (!mongoose.models['system_content_structure']) {
-        logger.debug('system_content_structure model does not exist, initializing...');
-        await ContentStructureModel.init();
-        logger.info('Created system_content_structure collection');
-      } else {
-        logger.debug('system_content_structure model already exists');
-      }
-
-      // Access ContentManager instance and get collections
-      const { collections } = contentManager.getCollectionData();
-
-      // Initialize each collection model
-      for (const collection of collections) {
-        if (dbAdapter) {
-          const collectionName = `collection_${collection._id}`;
-          logger.debug(`Creating collection model for: \x1b[34m${collectionName}\x1b[0m`);
-
-          // Check if collection already exists
-          if (!mongoose.models[collectionName]) {
-            await this.createCollectionModel(collection);
-            logger.info(`Created collection model: \x1b[34m${collectionName}\x1b[0m`);
-          } else {
-            logger.debug(`Collection model already exists: \x1b[34m${collectionName}\x1b[0m`);
-          }
-        }
-      }
-
-      logger.info('Content structure sync completed successfully');
-    } catch (error) {
-      logger.error('Error syncing content structure:', error);
-      throw error;
-    }
-  }
 
   // Create or update content structure
   async createOrUpdateContentStructure(contentData: {
@@ -187,7 +144,7 @@ export class MongoDBAdapter implements dbInterface {
         existingNode.path = contentData.path;
         existingNode.icon = contentData.icon || 'iconoir:info-empty';
         existingNode.order = contentData.order || 999;
-        existingNode.type = type;
+        existingNode.nodeType = type;
         existingNode.isCollection = contentData.isCollection;
         existingNode.collectionConfig = contentData.collectionConfig;
         existingNode.markModified('type'); // Ensure type field is marked as modified
@@ -1019,7 +976,7 @@ export class MongoDBAdapter implements dbInterface {
 
       // Ensure _id is always present
       // Set the 'type' field based on 'isCollection'
-      const type = contentData.isCollection ? 'collection' : 'category';
+      const type = contentData.nodeType;
 
       if (type === 'collection') {
         const node = await ContentStructureModel.upsertCollection(contentData)

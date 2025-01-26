@@ -9,6 +9,7 @@ import mongoose, { Schema, Model, Document } from 'mongoose';
 import type { Translation, Category, CollectionData } from '@src/content/types';
 import { v4 as uuidv4 } from 'uuid';
 
+
 // System Logger
 import { logger } from '@utils/logger.svelte';
 import { publicEnv } from '@root/config/public';
@@ -19,7 +20,7 @@ interface ContentStructureNode {
   path: string;
   icon: string;
   order: number;
-  type: 'category' | 'collection';
+  nodeType: 'category' | 'collection';
   parentPath: string | null;
 }
 
@@ -27,12 +28,12 @@ interface ContentStructureNode {
 
 // Document interfaces
 interface CategoryDocument extends ContentStructureNode {
-  type: 'category';
+  nodeType: 'category';
 
 }
 
 interface CollectionDocument extends ContentStructureNode {
-  type: 'collection';
+  nodeType: 'collection';
   label: string;
   permissions: Record<string, any>;
   livePreview: boolean;
@@ -71,7 +72,7 @@ const baseFields = {
   path: { type: String, required: true },
   icon: { type: String, default: 'bi:folder' },
   order: { type: Number, default: 999 },
-  isCollection: { type: String, required: true, enum: ['category', 'collection'] },
+  nodeType: { type: String, required: true, enum: ['category', 'collection'] },
   translations: [translationSchema],
   parentPath: { type: String, default: null },
 };
@@ -101,7 +102,7 @@ const collectionSchema = new Schema<CollectionDocument>({
 // Combined schema using discriminator
 const contentStructureSchema = new Schema<ContentStructureDocument>({
   ...baseFields,
-  type: { type: String, required: true, enum: ['category', 'collection'] },
+  nodeType: { type: String, required: true, enum: ['category', 'collection'] },
   parentPath: { type: String, default: null }
 }, {
   timestamps: true,
@@ -125,15 +126,12 @@ contentStructureSchema.statics = {
       {
         $set: {
           ...category,
-          type: 'category',
+          nodeType: 'category',
           parentPath
         },
-        $setOnInsert: {
-          type: 'category'
-        }
       },
       { upsert: true, new: true }
-    );
+    ).lean();
   },
 
   async upsertCollection(collection: CollectionData): Promise<CollectionDocument> {
@@ -144,12 +142,12 @@ contentStructureSchema.statics = {
       {
         $set: {
           ...collection,
-          type: 'collection',
+          nodeType: 'collection',
           parentPath
         }
       },
       { upsert: true, new: true }
-    );
+    ).lean();
   },
 
   async getNodeByPath(path: string): Promise<ContentStructureDocument | null> {

@@ -122,12 +122,12 @@ export interface ContentStructureNode {
   order: number;
   translations: Array<{ languageTag: string; translationName: string }>;
   parentPath: string | null;
-  type: 'category' | 'collection';
+  nodeType: 'category' | 'collection';
   updatedAt: Date;
 }
 
 export interface CollectionNode extends ContentStructureNode {
-  type: 'collection';
+  nodeType: 'collection';
   label: string;
   permissions: Record<string, any>;
   livePreview: boolean;

@@ -91,7 +91,7 @@ export interface Category {
   path: string; // Path within the structure, derived from folder path
   icon?: string; // Optional icon for the category
   order?: number; // Optional display order
-  type: 'category' | 'collection';
+  nodeType: 'category' | 'collection';
   parentPath?: string | null;
   translations?: { languageTag: string; translationName: string }[]; // Optional translations for the category name
   collectionConfig?: Record<string, unknown>; // Optional collection configuration

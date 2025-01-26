@@ -11,14 +11,15 @@
 
 import { store } from '@utils/reactivity.svelte';
 import type { Schema, ModeType, Widget, Category } from '@src/content/types';
+import type { ContentStructureNode } from '../databases/dbInterface';
 
 // Define UUID-based collection interface
 interface UUIDCollection extends Schema {
-	_id: string; // MongoDB UUID
-	name: string;
-	path: string;
-	icon?: string;
-	isCollection: boolean;
+  _id: string; // MongoDB UUID
+  name: string;
+  path: string;
+  icon?: string;
+  isCollection: boolean;
 }
 
 // Define types
@@ -26,18 +27,18 @@ type ModeType = 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
 
 // Widget interface
 interface Widget {
-	permissions: Record<string, Record<string, boolean>>;
-	[key: string]: Record<string, Record<string, boolean>> | unknown;
+  permissions: Record<string, Record<string, boolean>>;
+  [key: string]: Record<string, Record<string, boolean>> | unknown;
 }
 
 // Status map for various collection states
 export const statusMap = {
-	deleted: 'deleted',
-	published: 'published',
-	unpublished: 'unpublished',
-	scheduled: 'scheduled',
-	cloned: 'cloned',
-	testing: 'testing'
+  deleted: 'deleted',
+  published: 'published',
+  unpublished: 'unpublished',
+  scheduled: 'scheduled',
+  cloned: 'cloned',
+  testing: 'testing'
 } as const;
 
 // Create reactive stores using Svelte 5 runes
@@ -56,7 +57,7 @@ export const modifyEntry = store<(status?: keyof typeof statusMap) => Promise<vo
 export const selectedEntries = store<string[]>([]);
 export const targetWidget = store<Widget>({ permissions: {} });
 
-export const contentStructure = store<Record<string, Category>>({});
+export const contentStructure = store<(Category & { children: Category[] })[]>([]);
 
 // Reactive calculations using Svelte 5 runes
 export const totalCollections = store(() => Object.keys(collections.value).length);
@@ -65,15 +66,15 @@ export const currentCollectionName = store(() => collection.value?.name);
 
 // Entry management
 export const entryActions = {
-	addEntry(entryId: string) {
-		selectedEntries.update((entries) => [...entries, entryId]);
-	},
-	removeEntry(entryId: string) {
-		selectedEntries.update((entries) => entries.filter((id) => id !== entryId));
-	},
-	clear() {
-		selectedEntries.set([]);
-	}
+  addEntry(entryId: string) {
+    selectedEntries.update((entries) => [...entries, entryId]);
+  },
+  removeEntry(entryId: string) {
+    selectedEntries.update((entries) => entries.filter((id) => id !== entryId));
+  },
+  clear() {
+    selectedEntries.set([]);
+  }
 };
 
 // Type exports

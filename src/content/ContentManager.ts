@@ -28,7 +28,8 @@ import widgetProxy, { initializeWidgets, resolveWidgetPlaceholder } from '@src/w
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-import { collections } from '../stores/collectionStore.svelte';
+import { collection } from '../stores/collectionStore.svelte';
+
 
 interface CacheEntry<T> {
   value: T;
@@ -68,7 +69,9 @@ class ContentManager {
   private collectionAccessCount: Map<string, number> = new Map();
   private initialized: boolean = false;
   private loadedCollections: Schema[] = [];
+  private collectionMap: Map<string, Schema> = new Map();
   private contentStructure: Record<string, Category> = {};
+  private nestedContentStructure: ContentStructureNode[] = [];
   private dbInitPromise: Promise<void> | null = null;
 
   private constructor() {
@@ -91,16 +94,17 @@ class ContentManager {
 
   // Initialize the collection manager
   public async initialize(): Promise<void> {
-    logger.debug("Initializing ContentManager...");
+
     if (this.initialized) return;
+    logger.debug("Initializing ContentManager...");
 
     try {
       // First, ensure widgets are initialized
       await ensureWidgetsInitialized();
-      logger.debug("Content manager Widgets initialized");
+
       // Then load collections
       await this.waitForInitialization();
-      logger.debug("Content Manager Db initialized");
+
       await this.updateCollections(true);
       logger.debug("Content Manager Collections updated");
       this.initialized = true;
@@ -202,8 +206,8 @@ class ContentManager {
       await this.initialize();
     }
     return {
-      collections: this.loadedCollections,
-
+      contentStructure: this.contentStructure,
+      nestedContentStructure: this.nestedContentStructure
     };
   }
   // Load collections
@@ -245,6 +249,7 @@ class ContentManager {
 
           await dbAdapter?.createCollectionModel(processed as CollectionData);
           collections.push(processed);
+          this.collectionMap.set(path, processed);
           await this.setCacheValue(filePath, processed, this.collectionCache);
         } catch (err) {
           logger.error(`Failed to process file ${filePath}:`, err);
@@ -258,6 +263,7 @@ class ContentManager {
       }
 
       this.loadedCollections = collections;
+      logger.debug("Content Manager Collections loaded");
       return collections;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -294,20 +300,10 @@ class ContentManager {
         logger.error('Content Manager not initialized');
       }
 
-      const pathParts = path.split('/').filter(Boolean);
-      let current = this.contentStructure;
-
-      for (const part of pathParts) {
-        if (!current[part]) return undefined;
-
-        if (current[part].collections.length > 0) {
-          return current[part].collections[0];
-        }
-
-        current = current[part].subcategories!;
-      }
-
+      const collection = this.collectionMap.get(path);
+      if (collection) return collection;
       return undefined;
+
     } catch (error) {
       logger.error('Error getting collection', error);
       throw error;
@@ -344,7 +340,7 @@ class ContentManager {
           icon: oldNode?.icon ?? (collection.icon || 'bi:file'),
           path: oldNode?.path ?? collection.path,
           order: oldNode?.order ?? 999,
-          type: "collection",
+          nodeType: "collection",
           parentPath: oldNode?.parentPath ?? parentPath,
           translations: oldNode?.translations ?? collection.translations ?? [],
           updatedAt: oldNode?.updatedAt ?? new Date(),
@@ -363,7 +359,7 @@ class ContentManager {
               icon: oldNode?.icon ?? "bi:folder",
               path: parentPath,
               order: 999,
-              type: "category",
+              nodeType: "category",
               parentPath: thisParent,
               translations: oldNode?.translations ?? [],
               updatedAt: oldNode?.updatedAt ?? new Date()
@@ -373,15 +369,13 @@ class ContentManager {
             structureMap.set(currentCategoryNode.path, currentCategoryNode);
           }
         }
-
-
       }
 
-
-
+      this.nestedContentStructure = this.generateNestedStructure();
+      logger.debug("Content Manager SysContentStructure loaded");
       // Cache in Redis if available
       if (isRedisEnabled()) {
-        await setCache('cms:categories', structure, REDIS_TTL);
+        await setCache('cms:categories', structureMap, REDIS_TTL);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -391,14 +385,32 @@ class ContentManager {
   }
 
   // Generate nested JSON structure
-  public async generateNestedStructure(): Promise<Record<string, any>> {
+  public generateNestedStructure(): ContentStructureNode[] {
     try {
-      if (!this.initialized) {
-        await this.initialize();
+
+      // Create a Map for quick lookups
+      const nodeMap = new Map<string, any>();
+
+      // Add all nodes to the Map
+      Object.values(this.contentStructure).forEach(node => {
+        nodeMap.set(node.path, { ...node, children: [] }); // Initialize children as an empty array
+      });
+
+      // Build the nested structure
+      const nestedStructure: ContentStructureNode[] = [];
+
+      for (const node of nodeMap.values()) {
+        if (node.parentPath === null) {
+          // This is a root node, add it to the nested structure
+          nestedStructure.push(node);
+        } else {
+          // Find the parent node and add this node to its children
+          const parentNode = nodeMap.get(node.parentPath);
+          if (parentNode) {
+            parentNode.children!.push(node);
+          }
+        }
       }
-
-      const nestedStructure = await dbAdapter!.getContentStructure();
-
 
       return nestedStructure;
     } catch (error) {
