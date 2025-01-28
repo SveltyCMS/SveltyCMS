@@ -39,9 +39,33 @@ Features:
 
 	// States
 	let searchResults: SearchResult[] = $state([]);
-	let searchQuery = $state('');
+	import { createEventDispatcher } from 'svelte';
+
+	let {
+		value = '',
+		placeholder = 'Search...',
+		classNames = ''
+	} = $props<{
+		value: string;
+		placeholder: string;
+		classNames: string;
+	}>();
+
+	let searchQuery = $state(value);
 	let inputRef: HTMLInputElement | null = $state(null);
 	let selectedIndex = $state(-1); // Track the currently selected result
+
+	const dispatch = createEventDispatcher();
+
+	// Update the parent component's state when the search term changes
+	$effect(() => {
+		dispatch('search', { value: searchQuery });
+	});
+
+	// Update internal state when the external value prop changes
+	$effect(() => {
+		searchQuery = value;
+	});
 
 	// Debounce function for search optimization
 	function debounce<T extends (...args: any[]) => void>(fn: T, delay: number): (...args: Parameters<T>) => void {
@@ -175,15 +199,15 @@ Features:
 	>
 		<!-- Search input -->
 		<input
-			bind:value={searchQuery}
 			bind:this={inputRef}
-			oninput={() => debouncedFuzzySearch(searchQuery)}
-			onkeydown={onKeyDown}
+			{placeholder}
+			on:input={() => debouncedFuzzySearch(searchQuery)}
+			on:keydown={onKeyDown}
 			type="search"
-			placeholder="Global Search ..."
 			aria-label="Search input"
 			aria-controls="search-results"
-			class="input mx-2 w-full max-w-xl rounded-md border-4 !border-primary-500 px-4 py-2"
+			class="input mx-2 w-full max-w-xl rounded-md border-4 !border-primary-500 px-4 py-2 {classNames}"
+			bind:value={searchQuery}
 		/>
 
 		<!-- Search results -->
@@ -201,7 +225,7 @@ Features:
 							class="w-full border-b text-left text-white last:border-0 last:pb-2 hover:bg-surface-400 {index === selectedIndex
 								? 'bg-surface-500'
 								: ''}"
-							onclick={() => handleResultClick(result, Object.keys(result.triggers)[0])}
+							on:click={() => handleResultClick(result, Object.keys(result.triggers)[0])}
 							aria-label={`${result.title}: ${result.description}`}
 						>
 							<div class="grid auto-cols-auto grid-flow-col">
@@ -242,7 +266,7 @@ Features:
 									<button
 										type="button"
 										class="flex cursor-pointer items-center justify-between px-6 py-1 text-left text-white hover:bg-surface-500"
-										onclick={(e) => handleResultClick(result, triggerKey, e)}
+										on:click={(e) => handleResultClick(result, triggerKey, e)}
 										aria-label={`${triggerKey} - ${trigger.path}`}
 									>
 										<HighlightedText text={triggerKey} term={searchQuery} />

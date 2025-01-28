@@ -23,10 +23,9 @@
  * swapping of database backends without changing the application logic.
  */
 
+import type { CollectionData } from '@src/content/types';
 import type { ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
 import type { UserPreferences, WidgetPreference } from '@root/src/stores/userPreferences.svelte';
-import type { Category, CollectionData } from '@src/content/types';
-import type { Schema } from 'mongoose';
 
 // Define a Theme type for better type safety
 export interface Theme {
@@ -124,12 +123,14 @@ export interface ContentStructureNode {
   parentPath: string | null;
   nodeType: 'category' | 'collection';
   updatedAt: Date;
+  children?: ContentStructureNode[];
 }
 
+// Collection Node
 export interface CollectionNode extends ContentStructureNode {
   nodeType: 'collection';
   label: string;
-  permissions: Record<string, any>;
+  permissions: Record<string, unknown>;
   livePreview: boolean;
   strict: boolean;
   revision: boolean;
@@ -137,8 +138,6 @@ export interface CollectionNode extends ContentStructureNode {
   slug: string;
   status: 'draft' | 'published' | 'unpublished' | 'scheduled' | 'cloned';
   links: string[];
-
-
 }
 
 // Media types

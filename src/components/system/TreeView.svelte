@@ -44,6 +44,7 @@
 		icon?: string; // Optional icon for the node
 		ariaLabel?: string; // Optional ARIA label for the node
 		onClick?: (node: TreeNode) => void;
+		isCollection?: boolean; // Optional flag indicating if the node is a collection
 	}
 </script>
 
@@ -54,41 +55,60 @@
 	const TreeView = TreeViewComponent;
 	import { fly } from 'svelte/transition';
 
-	// Destructure props with default values using Svelte 5 runes
+	// Destructure props with default values
 	const {
 		k, // Key (consider removing if not used)
 		nodes: initialNodes, // Initial tree nodes
 		selectedId = null, // Initially selected node ID
 		ariaLabel = 'Navigation tree', // Default ARIA label for the tree
-		dir = 'ltr' // Default text direction
+		dir = 'ltr', // Default text direction
+		search = '', // Search term for filtering nodes
+		compact = false // Flag for compact view
 	} = $props<{
 		k: number;
 		nodes: TreeNode[];
 		selectedId?: string | null;
 		ariaLabel?: string;
 		dir?: 'ltr' | 'rtl';
+		search?: string;
+		compact?: boolean;
 	}>();
 
-	// Reactive state for nodes using Svelte 5 runes
+	// Reactive state for nodes
 	let nodes = $state<TreeNode[]>(initialNodes);
-	// Reactive state for focused node ID
 	let focusedNodeId = $state<string | null>(null);
 
-	// Derived state to create a map of node IDs to nodes for efficient lookup
-	const nodeMap = $derived.by(() => new Map<string, TreeNode>(nodes.flatMap(collectNodes)));
+	// Derived state for filtered nodes
+	const filteredNodes = $derived.by(() => {
+		if (!search) return nodes;
 
-	// Function to recursively collect all nodes and their IDs into an array of [id, node] pairs
-	function collectNodes(node: TreeNode): [string, TreeNode][] {
-		return [[node.id, node], ...(node.children?.flatMap(collectNodes) || [])];
-	}
+		return nodes.filter((node) => {
+			const matchesSearch = node.name.toLowerCase().includes(search.toLowerCase());
+			const childMatches = node.children ? node.children.some((child) => child.name.toLowerCase().includes(search.toLowerCase())) : false;
+			return matchesSearch || childMatches;
+		});
+	});
 
-	// Function to toggle the expanded state of a node
+	// Create a map of node IDs to nodes for efficient lookup
+	const nodeMap = $derived.by(() => {
+		const map = new Map<string, TreeNode>();
+		function collectNodes(node: TreeNode) {
+			map.set(node.id, node);
+			if (node.children) {
+				node.children.forEach(collectNodes);
+			}
+		}
+		nodes.forEach(collectNodes);
+		return map;
+	});
+
+	// Function to toggle node expansion
 	function toggleNode(node: TreeNode) {
 		node.isExpanded = !node.isExpanded;
 		if (node.onClick) node.onClick(node);
 	}
 
-	// Function to handle keyboard events on a node
+	// Function to handle keyboard events
 	function handleKeyDown(event: KeyboardEvent, node: TreeNode) {
 		// Define actions for specific keys
 		const keyActions = {
@@ -109,7 +129,7 @@
 		}
 	}
 
-	// Function to handle right arrow key based on text direction
+	// Function to handle right arrow key
 	function handleArrowRight(node: TreeNode) {
 		if (dir === 'rtl') {
 			// In RTL, expand if not expanded
@@ -120,7 +140,7 @@
 		}
 	}
 
-	// Function to handle left arrow key based on text direction
+	// Function to handle left arrow key
 	function handleArrowLeft(node: TreeNode) {
 		if (dir === 'rtl') {
 			// In RTL, collapse if expanded
@@ -132,27 +152,27 @@
 		}
 	}
 
-	// Function to focus on the next node in the tree
+	// Function to focus on the next node
 	function focusNextNode(currentId: string) {
 		// Get all node IDs as an array
-		const allNodes = Array.from(nodeMap.keys()) as string[]; // Explicitly type as string[]
+		const allNodes = Array.from(nodeMap.keys());
 		// Find the index of the current node
 		const index = allNodes.indexOf(currentId);
 		// Focus on the next node, wrapping around if necessary
 		focusedNodeId = allNodes[(index + 1) % allNodes.length];
 	}
 
-	// Function to focus on the previous node in the tree
+	// Function to focus on the previous node
 	function focusPreviousNode(currentId: string) {
 		// Get all node IDs as an array
-		const allNodes = Array.from(nodeMap.keys()) as string[]; // Explicitly type as string[]
+		const allNodes = Array.from(nodeMap.keys());
 		// Find the index of the current node
 		const index = allNodes.indexOf(currentId);
 		// Focus on the previous node, wrapping around if necessary
 		focusedNodeId = allNodes[(index - 1 + allNodes.length) % allNodes.length];
 	}
 
-	// Effect to focus on the node element when focusedNodeId changes
+	// Effect to focus on the node element
 	$effect(() => {
 		if (focusedNodeId) {
 			// Focus on the corresponding node element
@@ -162,7 +182,7 @@
 </script>
 
 <ul role="tree" aria-label={ariaLabel} {dir} class="rtl:space-x-revert space-y-1">
-	{#each nodes as node (node.id)}
+	{#each filteredNodes as node (node.id)}
 		<li
 			role="treeitem"
 			aria-expanded={node.children ? node.isExpanded : undefined}
@@ -171,20 +191,22 @@
 			class="group relative"
 		>
 			<button
-				id={`node-${node.id}`}
-				onkeydown={(e) => handleKeyDown(e, node)}
-				tabindex={focusedNodeId === node.id ? 0 : -1}
-				class="flex w-full cursor-pointer items-center gap-2 rounded bg-transparent p-2
-				 text-left outline-none ring-blue-500 transition-colors
-				 hover:bg-gray-100 focus-visible:ring-2 dark:hover:bg-gray-700
-				 {selectedId === node.id ? 'bg-blue-50 text-blue-600' : ''}"
+				type="button"
+				class="flex w-full items-center gap-1.5 rounded px-2 py-1 text-left text-white hover:bg-surface-300 focus:bg-surface-300 dark:bg-surface-500 dark:text-surface-200 dark:hover:bg-surface-400 dark:focus:bg-surface-500
+		  		{node.children ? '' : 'bg-surface-700 dark:bg-surface-700'} {compact ? 'py-4' : 'py-3'}"
+				role="treeitem"
+				aria-expanded={node.children ? node.isExpanded : undefined}
+				aria-selected={selectedId === node.id}
+				tabindex="0"
 				onclick={() => toggleNode(node)}
+				onkeydown={(event) => handleKeyDown(event, node)}
 				aria-controls={`node-${node.id}-children`}
 			>
+				<!-- Expand/Collapse  -->
 				{#if node.children}
 					<span
 						aria-label={node.isExpanded ? 'Collapse' : 'Expand'}
-						class={`h-4 w-4 transform transition-transform ${node.isExpanded ? (dir === 'rtl' ? '-rotate-180' : 'rotate-90') : ''}`}
+						class={`h-4 w-4 transform text-white transition-transform ${node.isExpanded ? '' : dir === 'rtl' ? 'rotate-180' : 'rotate-90'}`}
 					>
 						<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class={dir === 'rtl' ? 'scale-x-[-1]' : ''} aria-hidden="true">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -194,23 +216,36 @@
 					<span class="h-4 w-4" aria-hidden="true"></span>
 				{/if}
 
-				{#if node.icon}
-					<iconify-icon icon={node.icon} width="24" height="24" class="text-gray-400" aria-hidden="true"></iconify-icon>
+				<!-- Node label -->
+				{#if compact}
+					<div class="align-center flex-wrap items-center gap-2">
+						<div class="select-none {compact ? 'text-sm' : ''}" id={`node-${node.id}-label`}>{node.name}</div>
+						{#if node.icon}
+							<iconify-icon icon={node.icon} width="24" height="24" class="text-error-500" aria-hidden="true"></iconify-icon>
+						{/if}
+					</div>
 				{/if}
 
-				<span class="select-none" id={`node-${node.id}-label`}>{node.name}</span>
+				{#if !compact}
+					<!-- Icons -->
+					{#if node.icon}
+						<iconify-icon icon={node.icon} width="24" height="24" class="text-error-500" aria-hidden="true"></iconify-icon>
+					{/if}
+					<!-- Node label -->
+					<span class="select-none {compact ? 'text-sm' : ''}" id={`node-${node.id}-label`}>{node.name}</span>
+				{/if}
 			</button>
 
+			<!-- White line -->
 			{#if node.children}
-				<div
-					id={`node-${node.id}-children`}
-					class="ms-4 border-s-2 border-gray-200 dark:border-gray-700"
-					role="group"
-					aria-labelledby={`node-${node.id}-label`}
-				>
+				<div id={`node-${node.id}-children`} class="relative ms-4" role="group" aria-labelledby={`node-${node.id}-label`}>
+					<!-- Enhanced left line with gradient fade -->
+					<div class="absolute -left-0.5 top-0 h-full w-0.5 bg-gradient-to-b from-surface-100 from-20% to-transparent dark:from-surface-400"></div>
+
+					<!-- Children nodes -->
 					{#if node.isExpanded}
-						<div transition:fly={{ y: -10, duration: 200 }}>
-							<TreeView {k} nodes={node.children} {selectedId} ariaLabel={`Children of ${node.name}`} {dir} />
+						<div transition:fly|local={{ y: -10, duration: 200 }}>
+							<TreeView {k} nodes={node.children} {selectedId} ariaLabel={`Children of ${node.name}`} {dir} {search} {compact} />
 						</div>
 					{/if}
 				</div>
