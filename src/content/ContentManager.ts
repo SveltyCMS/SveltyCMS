@@ -13,22 +13,19 @@
 
 import { dbAdapter, dbInitPromise } from '@src/databases/db';
 import fs from 'fs/promises';
-import { publicEnv } from '@root/config/public';
 
 import { v4 as uuidv4 } from 'uuid';
 
 // Types
 import type { Schema, ContentTypes, Category, CollectionData } from './types';
-import type { CollectionNode, ContentStructureNode, SystemContent } from '@src/databases/dbInterface';
+import type { ContentStructureNode, SystemContent } from '@src/databases/dbInterface';
 
 // Redis
 import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/redis';
-import { dbAdapter, dbInitPromise } from '@src/databases/db';
 import widgetProxy, { initializeWidgets, resolveWidgetPlaceholder } from '@src/widgets';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-import { collection } from '../stores/collectionStore.svelte';
 
 
 interface CacheEntry<T> {

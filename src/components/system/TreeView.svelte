@@ -45,6 +45,12 @@
 		ariaLabel?: string; // Optional ARIA label for the node
 		onClick?: (node: TreeNode) => void;
 		isCollection?: boolean; // Optional flag indicating if the node is a collection
+		badge?: {
+			count?: number;
+			status?: 'draft' | 'published' | 'archived';
+			color?: string;
+		};
+		depth?: number; // Depth of the node in the tree
 	}
 </script>
 
@@ -78,7 +84,7 @@
 	let nodes = $state<TreeNode[]>(initialNodes);
 	let focusedNodeId = $state<string | null>(null);
 
-	// Derived state for filtered nodes
+	// Filtered Memoize nodes
 	const filteredNodes = $derived.by(() => {
 		if (!search) return nodes;
 
@@ -92,19 +98,29 @@
 	// Create a map of node IDs to nodes for efficient lookup
 	const nodeMap = $derived.by(() => {
 		const map = new Map<string, TreeNode>();
-		function collectNodes(node: TreeNode) {
-			map.set(node.id, node);
+		function collectNodes(node: TreeNode, depth = 0) {
+			map.set(node.id, { ...node, depth });
 			if (node.children) {
-				node.children.forEach(collectNodes);
+				node.children.forEach((child) => collectNodes(child, depth + 1));
 			}
 		}
-		nodes.forEach(collectNodes);
+		nodes.forEach((node) => collectNodes(node));
 		return map;
 	});
 
 	// Function to toggle node expansion
 	function toggleNode(node: TreeNode) {
-		node.isExpanded = !node.isExpanded;
+		if (node.children) {
+			if (!node.isExpanded) {
+				// Collapse other expanded parents
+				nodes.forEach((n) => {
+					if (n.id !== node.id && n.isExpanded && n.children) {
+						n.isExpanded = false;
+					}
+				});
+			}
+			node.isExpanded = !node.isExpanded;
+		}
 		if (node.onClick) node.onClick(node);
 	}
 
@@ -117,7 +133,9 @@
 			ArrowRight: () => handleArrowRight(node), // Handle right arrow key
 			ArrowLeft: () => handleArrowLeft(node), // Handle left arrow key
 			ArrowDown: () => focusNextNode(node.id), // Focus on the next node
-			ArrowUp: () => focusPreviousNode(node.id) // Focus on the previous node
+			ArrowUp: () => focusPreviousNode(node.id), // Focus on the previous node
+			Home: () => focusFirstNode(), // Focus on the first node
+			End: () => focusLastNode() // Focus on the last node
 		};
 
 		// Get the action corresponding to the pressed key
@@ -129,7 +147,7 @@
 		}
 	}
 
-	// Function to handle right arrow key
+	// Function to handle right arrow key based on text direction
 	function handleArrowRight(node: TreeNode) {
 		if (dir === 'rtl') {
 			// In RTL, expand if not expanded
@@ -140,7 +158,7 @@
 		}
 	}
 
-	// Function to handle left arrow key
+	// Function to handle left arrow key based on text direction
 	function handleArrowLeft(node: TreeNode) {
 		if (dir === 'rtl') {
 			// In RTL, collapse if expanded
@@ -154,34 +172,42 @@
 
 	// Function to focus on the next node
 	function focusNextNode(currentId: string) {
-		// Get all node IDs as an array
 		const allNodes = Array.from(nodeMap.keys());
-		// Find the index of the current node
 		const index = allNodes.indexOf(currentId);
-		// Focus on the next node, wrapping around if necessary
 		focusedNodeId = allNodes[(index + 1) % allNodes.length];
 	}
 
 	// Function to focus on the previous node
 	function focusPreviousNode(currentId: string) {
-		// Get all node IDs as an array
 		const allNodes = Array.from(nodeMap.keys());
-		// Find the index of the current node
 		const index = allNodes.indexOf(currentId);
-		// Focus on the previous node, wrapping around if necessary
 		focusedNodeId = allNodes[(index - 1 + allNodes.length) % allNodes.length];
 	}
 
-	// Effect to focus on the node element
+	// Function to focus on the first node
+	function focusFirstNode() {
+		const allNodes = Array.from(nodeMap.keys());
+		focusedNodeId = allNodes[0];
+	}
+
+	// Function to focus on the last node
+	function focusLastNode() {
+		const allNodes = Array.from(nodeMap.keys());
+		focusedNodeId = allNodes[allNodes.length - 1];
+	}
+
+	// Effect to focus on the node element with enhanced visual feedback
 	$effect(() => {
 		if (focusedNodeId) {
-			// Focus on the corresponding node element
-			document.getElementById(`node-${focusedNodeId}`)?.focus();
+			const element = document.getElementById(`node-${focusedNodeId}`);
+			if (element) {
+				element.focus();
+			}
 		}
 	});
 </script>
 
-<ul role="tree" aria-label={ariaLabel} {dir} class="rtl:space-x-revert space-y-1">
+<ul role="tree" aria-label={ariaLabel} {dir} class="rtl:space-x-revert custom-scrollbar max-h-[80vh] w-full space-y-1 overflow-y-auto">
 	{#each filteredNodes as node (node.id)}
 		<li
 			role="treeitem"
@@ -192,55 +218,70 @@
 		>
 			<button
 				type="button"
-				class="flex w-full items-center gap-1.5 rounded px-2 py-1 text-left text-white hover:bg-surface-300 focus:bg-surface-300 dark:bg-surface-500 dark:text-surface-200 dark:hover:bg-surface-400 dark:focus:bg-surface-500
-		  		{node.children ? '' : 'bg-surface-700 dark:bg-surface-700'} {compact ? 'py-4' : 'py-3'}"
+				id={`node-${node.id}`}
+				class="flex w-full items-center gap-1.5 rounded
+					border border-surface-400 px-2 py-3 transition-all duration-200
+					hover:bg-surface-50 focus:bg-surface-50 focus-visible:outline-none
+					dark:border-0 dark:bg-surface-500
+					dark:text-surface-200 dark:hover:bg-surface-400 dark:focus:bg-surface-500
+					{node.children ? '' : 'bg-surface-300 dark:bg-surface-700'}"
 				role="treeitem"
 				aria-expanded={node.children ? node.isExpanded : undefined}
 				aria-selected={selectedId === node.id}
-				tabindex="0"
+				tabindex={focusedNodeId === node.id ? 0 : -1}
 				onclick={() => toggleNode(node)}
 				onkeydown={(event) => handleKeyDown(event, node)}
-				aria-controls={`node-${node.id}-children`}
+				aria-controls={node.children ? `node-${node.id}-children` : undefined}
 			>
-				<!-- Expand/Collapse  -->
+				<!-- Expand/Collapse icon with RTL support -->
 				{#if node.children}
-					<span
+					<div
 						aria-label={node.isExpanded ? 'Collapse' : 'Expand'}
-						class={`h-4 w-4 transform text-white transition-transform ${node.isExpanded ? '' : dir === 'rtl' ? 'rotate-180' : 'rotate-90'}`}
+						class={`h-4 w-4 transform transition-transform duration-200
+							${node.isExpanded ? '' : dir === 'rtl' ? 'rotate-180' : 'rotate-90'}`}
 					>
 						<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class={dir === 'rtl' ? 'scale-x-[-1]' : ''} aria-hidden="true">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
 						</svg>
-					</span>
+					</div>
+
+					<!-- Badge overlay -->
+					{#if node.badge?.visible && node.badge.count > 0 && !compact}
+						<div
+							class="badge absolute right-1 top-1/2 -translate-y-1/2 rounded-full bg-primary-500/80 px-2 py-1 text-xs text-white dark:bg-primary-500/50"
+						>
+							{node.badge.count}
+						</div>
+					{/if}
 				{:else}
-					<span class="h-4 w-4" aria-hidden="true"></span>
+					<div class="h-4 w-4" aria-hidden="true"></div>
 				{/if}
 
-				<!-- Node label -->
-				{#if compact}
-					<div class="align-center flex-wrap items-center gap-2">
-						<div class="select-none {compact ? 'text-sm' : ''}" id={`node-${node.id}-label`}>{node.name}</div>
-						{#if node.icon}
-							<iconify-icon icon={node.icon} width="24" height="24" class="text-error-500" aria-hidden="true"></iconify-icon>
-						{/if}
+				<!-- Icon -->
+				{#if node.icon}
+					<div class="relative flex items-center">
+						<iconify-icon icon={node.icon} width={compact ? '20' : '24'} height={compact ? '20' : '24'} class="text-error-500" aria-hidden="true"
+						></iconify-icon>
 					</div>
 				{/if}
 
-				{#if !compact}
-					<!-- Icons -->
-					{#if node.icon}
-						<iconify-icon icon={node.icon} width="24" height="24" class="text-error-500" aria-hidden="true"></iconify-icon>
-					{/if}
-					<!-- Node label -->
-					<span class="select-none {compact ? 'text-sm' : ''}" id={`node-${node.id}-label`}>{node.name}</span>
-				{/if}
+				<!-- Node label -->
+				<span
+					class="select-none overflow-hidden text-ellipsis whitespace-nowrap dark:text-white {compact ? 'text-xs' : ''}"
+					style="margin-left: {node.depth ? node.depth * 8 : 0}px"
+				>
+					{node.name}
+				</span>
 			</button>
 
-			<!-- White line -->
+			<!-- Children nodes with RTL support -->
 			{#if node.children}
-				<div id={`node-${node.id}-children`} class="relative ms-4" role="group" aria-labelledby={`node-${node.id}-label`}>
-					<!-- Enhanced left line with gradient fade -->
-					<div class="absolute -left-0.5 top-0 h-full w-0.5 bg-gradient-to-b from-surface-100 from-20% to-transparent dark:from-surface-400"></div>
+				<div id={`node-${node.id}-children`} class="relative {compact ? 'ms-1' : 'ms-4'}" role="group" aria-labelledby={`node-${node.id}-label`}>
+					<!-- Vertical line with RTL support -->
+					<div
+						class="absolute -left-0.5 top-0 h-full w-0.5 bg-gradient-to-b
+						from-surface-100 from-20% to-transparent dark:from-surface-400"
+					></div>
 
 					<!-- Children nodes -->
 					{#if node.isExpanded}
@@ -253,3 +294,27 @@
 		</li>
 	{/each}
 </ul>
+
+<style lang="postcss">
+	:global(.focused-label) {
+		@apply text-primary-400;
+	}
+
+	.custom-scrollbar {
+		scrollbar-width: thin;
+		scrollbar-color: theme(colors.surface.400) transparent;
+	}
+
+	.custom-scrollbar::-webkit-scrollbar {
+		width: 6px;
+	}
+
+	.custom-scrollbar::-webkit-scrollbar-track {
+		background: transparent;
+	}
+
+	.custom-scrollbar::-webkit-scrollbar-thumb {
+		background-color: theme(colors.primary.500);
+		border-radius: 3px;
+	}
+</style>

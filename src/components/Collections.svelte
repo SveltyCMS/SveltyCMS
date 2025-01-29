@@ -37,19 +37,42 @@ Features:
 		isExpanded: boolean;
 		onClick: () => void;
 		children?: CollectionTreeNode[];
+		badge?: {
+			count?: number;
+			status?: 'draft' | 'published' | 'archived';
+			color?: string;
+		};
 	}
 
 	let structureNodes: CollectionTreeNode[] = $derived.by(() => {
 		function mapNode(node: ContentStructureNode): CollectionTreeNode {
 			const isCategory = node.nodeType === 'category';
-			const children = isCategory && node.children ? node.children.map((child: ContentStructureNode) => mapNode(child)) : undefined;
+			// Get translation for current language or fallback to default name
+			const translation = node.translations?.find((trans) => trans.languageTag === contentLanguage.value);
+			const label = translation?.translationName || node.name;
 
+			const children =
+				isCategory && node.children
+					? node.children.map((child: ContentStructureNode) => ({
+							...mapNode(child),
+							// Ensure children use their own translations
+							name: child.translations?.find((t) => t.languageTag === contentLanguage.value)?.translationName || child.name
+						}))
+					: undefined;
 			return {
 				...node,
+				name: label,
 				id: node._id,
-				isExpanded: collection.value._id === node._id,
+				isExpanded: collection.value?._id === node._id,
 				onClick: () => handleCollectionSelect(node),
-				children
+				children,
+				badge: isCategory
+					? {
+							count: node.children?.filter((child) => child.nodeType === 'collection').length || 0,
+							// Only show count for categories (parent nodes)
+							visible: !node.isExpanded // Show when expanded
+						}
+					: undefined
 			};
 		}
 
@@ -85,12 +108,16 @@ Features:
 <div class="mt-2">
 	{#if !isMediaMode}
 		<!-- Search Input -->
-		<div class="input-group input-group-divider mb-2 grid grid-cols-[1fr_auto]">
+		<div
+			class="{sidebarState.sidebar.value.left === 'full'
+				? 'mb-2 w-full'
+				: 'mb-1 max-w-[125px]'} input-group input-group-divider grid grid-cols-[1fr_auto]"
+		>
 			<input
 				type="text"
 				placeholder="Search collections..."
 				bind:value={search}
-				class="input h-12 outline-none transition-all duration-500 ease-in-out"
+				class="input {sidebarState.sidebar.value.left === 'full' ? 'h-12' : 'h-10'} outline-none transition-all duration-500 ease-in-out"
 			/>
 			<button onclick={clearSearch} class="variant-filled-surface w-12" aria-label="Clear search">
 				<iconify-icon icon="ic:outline-search-off" width="24"></iconify-icon>
@@ -99,7 +126,12 @@ Features:
 
 		<!-- Collections TreeView -->
 		{#if structureNodes.length > 0}
-			<TreeView k={0} nodes={structureNodes} selectedId={collection.value._id} compact={sidebarState.sidebar.value.left !== 'full'} {search}
+			<TreeView
+				k={0}
+				nodes={structureNodes}
+				selectedId={collection.value?._id ?? undefined}
+				compact={sidebarState.sidebar.value.left !== 'full'}
+				{search}
 			></TreeView>
 		{:else}
 			<div class="p-4 text-center text-gray-500">{m.collection_no_collections_found()}</div>
@@ -108,9 +140,9 @@ Features:
 		<!-- Media Gallery Button -->
 		<button
 			class="btn mt-1 flex w-full rounded {sidebarState.sidebar.value.left === 'full'
-				? 'flex-row justify-start'
-				: 'flex-col'} items-center bg-surface-400 dark:bg-surface-500 py-{sidebarState.sidebar.value.left === 'full'
-				? '1.5'
+				? 'flex-row '
+				: 'flex-col'} items-center border border-surface-500 py-{sidebarState.sidebar.value.left === 'full'
+				? '3'
 				: '1'} hover:!bg-surface-400 hover:text-white dark:bg-surface-500"
 			onclick={() => {
 				mode.set('media');
@@ -122,11 +154,11 @@ Features:
 			}}
 		>
 			{#if sidebarState.sidebar.value.left === 'full'}
-				<iconify-icon icon="bi:images" width="24" class="px-2 py-1 text-primary-600 rtl:ml-2"></iconify-icon>
-				<p class="mr-auto text-center uppercase text-white">{m.Collections_MediaGallery()}</p>
+				<iconify-icon icon="bi:images" width="24" class="text-primary-600 rtl:ml-2"></iconify-icon>
+				<p class="uppercase dark:text-white">{m.Collections_MediaGallery()}</p>
 			{:else}
-				<p class="text-xs uppercase text-white">{m.Collections_MediaGallery()}</p>
-				<iconify-icon icon="bi:images" width="24" class="text-primary-500"></iconify-icon>
+				<p class="darktext-white text-xs uppercase">{m.Collections_MediaGallery()}</p>
+				<iconify-icon icon="bi:images" width="20" class="text-primary-500"></iconify-icon>
 			{/if}
 		</button>
 	{:else}

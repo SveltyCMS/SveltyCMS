@@ -10,7 +10,7 @@
  */
 
 import { store } from '@utils/reactivity.svelte';
-import type { Schema, ModeType, Widget, Category } from '@src/content/types';
+import type { Schema, ModeType, Widget } from '@src/content/types';
 import type { ContentStructureNode } from '../databases/dbInterface';
 
 // Define UUID-based collection interface
@@ -50,14 +50,14 @@ export const currentCollectionId = store<string | null>(null);
 export const collectionsLoading = store<boolean>(false);
 export const collectionsError = store<string | null>(null);
 export const unAssigned = store<UUIDCollection>({} as UUIDCollection);
-export const collection = store<UUIDCollection>({} as UUIDCollection);
+export const collection = store<UUIDCollection | null>({} as UUIDCollection);
 export const collectionValue = store<Record<string, unknown>>({});
 export const mode = store<ModeType>('view');
 export const modifyEntry = store<(status?: keyof typeof statusMap) => Promise<void>>(() => Promise.resolve());
 export const selectedEntries = store<string[]>([]);
 export const targetWidget = store<Widget>({ permissions: {} });
 
-export const contentStructure = store<(Category & { children: Category[] })[]>([]);
+export const contentStructure = store<ContentStructureNode[]>([]);
 
 // Reactive calculations using Svelte 5 runes
 export const totalCollections = store(() => Object.keys(collections.value).length);
