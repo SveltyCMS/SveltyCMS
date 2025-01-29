@@ -37,7 +37,7 @@ Features:
 				value: node.path,
 				name: node.name,
 				icon: node.icon,
-				isExpanded: collection.value._id === node._id,
+				isExpanded: collection.value?._id === node._id,
 				onClick: () => handleCollectionSelect(node),
 				children: folder ? node.children.map((child) => mapNode(child)) : undefined
 			};
@@ -86,7 +86,7 @@ Features:
 
 	<!-- Collections TreeView -->
 	{#if structureNodes.length > 0}
-		<TreeView k={0} nodes={structureNodes} selectedId={collection.value._id}></TreeView>
+		<TreeView k={0} nodes={structureNodes} selectedId={collection.value?._id ?? undefined}></TreeView>
 	{:else}
 		<div class="p-4 text-center text-gray-500">No collections found.</div>
 	{/if}
