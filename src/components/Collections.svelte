@@ -63,6 +63,9 @@ Features:
 				...node,
 				name: label,
 				id: node._id,
+				value: node.path,
+				name: node.name,
+				icon: node.icon,
 				isExpanded: collection.value?._id === node._id,
 				onClick: () => handleCollectionSelect(node),
 				children,
@@ -161,6 +164,11 @@ Features:
 				<iconify-icon icon="bi:images" width="20" class="text-primary-500"></iconify-icon>
 			{/if}
 		</button>
+	</div>
+
+	<!-- Collections TreeView -->
+	{#if structureNodes.length > 0}
+		<TreeView k={0} nodes={structureNodes} selectedId={collection.value?._id ?? undefined}></TreeView>
 	{:else}
 		<!-- Back to Collections Button -->
 		<button
