@@ -21,8 +21,9 @@ import { permissionConfigs } from '@src/auth/permissionManager';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
+import { contentManager } from '@root/src/content/ContentManager';
 
-export const load: PageServerLoad = async ({ locals, url }) => {
+export const load: PageServerLoad = async ({ locals }) => {
   try {
     const { user } = locals;
 
@@ -43,6 +44,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       throw error(403, 'Insufficient permissions');
     }
 
+
+    const { contentStructure, nestedContentStructure } = await contentManager.getCollectionData()
+
     // Return user data
     const { _id, ...rest } = user;
     return {
@@ -50,15 +54,15 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         id: _id.toString(),
         ...rest
       },
+      nestedContentStructure,
+      contentStructure
     };
   } catch (err) {
     if (err instanceof Error && 'status' in err) {
       // This is likely a redirect or an error we've already handled
       throw err;
     }
-    const message = `Error in load function: ${
-      err instanceof Error ? err.message : String(err)
-    }`;
+    const message = `Error in load function: ${err instanceof Error ? err.message : String(err)}`;
     logger.error(message);
     throw error(500, message);
   }
