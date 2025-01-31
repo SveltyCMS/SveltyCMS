@@ -44,7 +44,7 @@ Features:
 		};
 	}
 
-	let structureNodes: CollectionTreeNode[] = $derived.by(() => {
+	let collectonStructureNodes: CollectionTreeNode[] = $derived.by(() => {
 		function mapNode(node: ContentStructureNode): CollectionTreeNode {
 			const isCategory = node.nodeType === 'category';
 			// Get translation for current language or fallback to default name
@@ -82,13 +82,17 @@ Features:
 		return contentStructure.value.map((node) => mapNode(node));
 	});
 
+	let virtualFolderNodes: CollectionTreeNode[] = $derived.by(() => {
+		return [];
+	});
+
 	let search = $state('');
 	let isMediaMode = $state(false);
 
 	// Update isMediaMode when mode changes
 	$effect(() => {
 		isMediaMode = mode.value === 'media';
-		if (structureNodes.length > 0) {
+		if (collectonStructureNodes.length > 0) {
 			// The search prop in TreeView will handle the filtering
 			search = search.toLowerCase().trim();
 		}
@@ -128,10 +132,10 @@ Features:
 		</div>
 
 		<!-- Collections TreeView -->
-		{#if structureNodes.length > 0}
+		{#if collectonStructureNodes.length > 0}
 			<TreeView
 				k={0}
-				nodes={structureNodes}
+				nodes={collectonStructureNodes}
 				selectedId={collection.value?._id ?? undefined}
 				compact={sidebarState.sidebar.value.left !== 'full'}
 				{search}
@@ -164,12 +168,9 @@ Features:
 				<iconify-icon icon="bi:images" width="20" class="text-primary-500"></iconify-icon>
 			{/if}
 		</button>
-	</div>
 
-	<!-- Collections TreeView -->
-	{#if structureNodes.length > 0}
-		<TreeView k={0} nodes={structureNodes} selectedId={collection.value?._id ?? undefined}></TreeView>
-	{:else}
+		<!-- Collections TreeView -->
+
 		<!-- Back to Collections Button -->
 		<button
 			class="btn mt-1 flex w-full items-center bg-surface-400 py-2 hover:!bg-surface-500 hover:text-white dark:bg-surface-600"
@@ -184,6 +185,7 @@ Features:
 			<p class="mr-auto text-center uppercase">Collections</p>
 		</button>
 		<!-- Display Virtual Folders as TreeView -->
-		<TreeView k={1} nodes={structureNodes} selectedId={collection.value._id} compact={sidebarState.sidebar.value.left !== 'full'} {search}></TreeView>
+		<TreeView k={1} nodes={virtualFolderNodes} selectedId={collection.value?._id} compact={sidebarState.sidebar.value.left !== 'full'} {search}
+		></TreeView>
 	{/if}
 </div>
