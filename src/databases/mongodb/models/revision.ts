@@ -16,11 +16,11 @@ export const RevisionModel =
 		'Revision',
 		new Schema(
 			{
-				collectionId: { type: Schema.Types.Mixed, required: true, ref: 'collections' }, // ID of the collection
-				documentId: { type: Schema.Types.Mixed, required: true }, // ID of the document
-				createdBy: { type: Schema.Types.Mixed, ref: 'auth_users', required: true }, // ID of the user who created the revision
-				content: { type: Schema.Types.Mixed, required: true }, // Content of the revision
-				version: { type: Number, required: true } // Version number of the revision
+				collectionId: { type: Schema.Types.Mixed, required: true, ref: 'collections' }, // ID of the collection - Mongoose Mixed type
+				documentId: { type: Schema.Types.Mixed, required: true }, // ID of the document - Mongoose Mixed type
+				createdBy: { type: Schema.Types.Mixed, ref: 'auth_users', required: true }, // ID of the user who created the revision - Mongoose Mixed type
+				content: { type: Schema.Types.Mixed, required: true }, // Content of the revision - Mongoose Mixed type
+				version: { type: Number, required: true } // Version number of the revision - Mongoose Number type
 			},
 			{ timestamps: false, collection: 'collection_revisions' }
 		)

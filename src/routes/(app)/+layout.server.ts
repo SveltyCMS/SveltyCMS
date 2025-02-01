@@ -20,10 +20,6 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 
     const { contentStructure, nestedContentStructure } = await contentManager.getCollectionData();
 
-    // logger.debug('Loaded layout data:', {
-    //   collectionCount: collections.length
-    // });
-    // ]
 
     return {
       theme: theme || DEFAULT_THEME,

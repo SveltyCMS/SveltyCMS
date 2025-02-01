@@ -16,11 +16,12 @@ import { logger } from '@utils/logger.svelte';
 // Define the Draft schema
 export const draftSchema = new Schema(
 	{
-		originalDocumentId: { type: Schema.Types.Mixed, required: true }, // Or Schema.Types.String
-		collectionId: { type: Schema.Types.Mixed, required: true }, // The ID of the collection
-		content: { type: Schema.Types.Mixed, required: true }, // The content of the draft
-		status: { type: String, enum: ['draft', 'published'], default: 'draft' }, // Status of the draft
-		createdBy: { type: Schema.Types.Mixed, ref: 'auth_users', required: true } // The user who created the draft
+		originalDocumentId: { type: Schema.Types.Mixed, required: true }, // Or Schema.Types.String - Mongoose Mixed type
+		collectionId: { type: Schema.Types.Mixed, required: true }, // The ID of the collection - Mongoose Mixed type
+		content: { type: Schema.Types.Mixed, required: true }, // The content of the draft - Mongoose Mixed type
+		status: { type: String, enum: ['draft', 'published'], default: 'draft' }, // Status of the draft - Mongoose String type
+		createdBy: { type: Schema.Types.Mixed, ref: 'auth_users', required: true }, // The user who created the draft - Mongoose Mixed type
+		updatedAt: { type: Date, default: Date.now } // Mongoose Date type
 	},
 	{ timestamps: false, collection: 'collection_drafts' }
 );

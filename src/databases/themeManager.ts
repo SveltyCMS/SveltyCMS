@@ -25,7 +25,7 @@ export class ThemeManager {
 	private db: dbInterface | null = null;
 	private initialized: boolean = false;
 
-	private constructor() {}
+	private constructor() { }
 
 	// Get the singleton instance of ThemeManager
 	public static getInstance(): ThemeManager {
@@ -62,34 +62,35 @@ export class ThemeManager {
 			}
 
 			logger.debug('Attempting to load default theme from database...');
-			const dbTheme = await this.db.getDefaultTheme();
 
-			if (dbTheme && typeof dbTheme === 'object' && 'name' in dbTheme) {
+			// Use ThemeModel.getDefaultTheme() - static method call
+			const dbThemeResult = await ThemeModel.getDefaultTheme();
+			const dbTheme = dbThemeResult.success ? dbThemeResult.data : null; // Handle DatabaseResult
+
+			if (dbTheme != null && typeof dbTheme === 'object' && 'name' in dbTheme) {
 				this.currentTheme = dbTheme as Theme;
 				logger.info(`Loaded default theme from database: ${this.currentTheme.name}`);
 			} else {
 				logger.warn('No valid default theme found in database. Using fallback.');
 				this.currentTheme = DEFAULT_THEME;
-				await this.db.storeThemes([this.currentTheme]);
+
+				// Use ThemeModel.storeThemes() - static method call
+				const storeResult = await ThemeModel.storeThemes([this.currentTheme]); // Store using static method
+				if (!storeResult.success) {
+					logger.error("Error storing fallback theme:", storeResult.error);
+					throw new Error("Failed to store fallback theme in database.");
+				}
+
 				logger.info('Fallback theme saved to database.');
 			}
 
 			if (!this.currentTheme) {
-				logger.error('Failed to set a current theme. This should never happen.');
-				this.currentTheme = DEFAULT_THEME;
+				throw new Error('Failed to load or set a default theme.');
 			}
 		} catch (err) {
-			const message = `Error in ThemeManager.loadDefaultTheme: ${err instanceof Error ? err.message : String(err)}`;
+			const message = `Error in loadDefaultTheme: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			this.currentTheme = DEFAULT_THEME;
-			logger.info('Using fallback theme due to error.');
-			try {
-				await this.db!.storeThemes([this.currentTheme]);
-				logger.info('Fallback theme saved to database.');
-			} catch (saveErr) {
-				const saveMessage = `Error saving fallback theme: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}`;
-				logger.error(saveMessage);
-			}
+			throw error(500, message);
 		}
 	}
 

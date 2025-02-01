@@ -75,11 +75,11 @@ export interface Schema {
   permissions?: RolePermissions; // Optional permission restrictions
   livePreview?: boolean; // Optional live preview
   status?:
-    | 'draft'
-    | 'published'
-    | 'unpublished'
-    | 'scheduled'
-    | 'cloned'; // Optional default status
+  | 'draft'
+  | 'published'
+  | 'unpublished'
+  | 'scheduled'
+  | 'cloned'; // Optional default status
   links?: Array<ContentTypes>; // Optional links to other collections
   fields: Field[]; // Collection fields
   translations?: Translation[]; // Optional translations with enhanced metadata
@@ -115,11 +115,11 @@ export interface CollectionData {
   description?: string; // Optional description
   slug?: string; // Optional slug
   status?:
-    | 'draft'
-    | 'published'
-    | 'unpublished'
-    | 'scheduled'
-    | 'cloned'; // Optional status
+  | 'draft'
+  | 'published'
+  | 'unpublished'
+  | 'scheduled'
+  | 'cloned'; // Optional status
   links?: Array<ContentTypes>; // Optional links to other collections
 }
 
@@ -215,8 +215,8 @@ async function getCollectionFiles(): Promise<string[]> {
 async function processCollectionFile(
   content: string,
 ): Promise<{ fields: string[]; schema: Record<string, string> }> {
-  
-logger.debug("Processing content:", content.substring(0, 100) + "..."); // Log part of the content for identification
+
+  logger.debug("Processing content:", content.substring(0, 100) + "..."); // Log part of the content for identification
 
   const widgets = new Set<string>();
   content.match(/widgets\.(\w+)\(/g)?.forEach(match =>
@@ -225,8 +225,8 @@ logger.debug("Processing content:", content.substring(0, 100) + "..."); // Log p
 
   const processedContent = `
         ${Array.from(widgets)
-          .map(widget => `const ${widget} = (args: any) => args;`)
-          .join('\n')}
+      .map(widget => `const ${widget} = (args: any) => args;`)
+      .join('\n')}
         ${content.replace(/widgets\./g, '')}
     `;
 

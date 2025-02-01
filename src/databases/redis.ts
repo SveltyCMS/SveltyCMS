@@ -78,6 +78,7 @@ if (!browser) {
 	});
 }
 
+
 // Initializes the Redis client with retry mechanism.
 export async function initializeRedis(): Promise<void> {
 	if (browser || !redisConfig.useRedis) {
@@ -147,7 +148,7 @@ export async function getCache<T>(key: string): Promise<T | null> {
 	}
 }
 
-// Sets a value in Redis with optional compression and TTL.
+// Sets a value in Redis with optional compression and TTL.// Sets a value in Redis with optional compression and TTL.
 export async function setCache<T>(key: string, value: T, ttl: number = redisConfig.defaultTTL): Promise<void> {
 	try {
 		await ensureRedisInitialized();
@@ -162,6 +163,8 @@ export async function setCache<T>(key: string, value: T, ttl: number = redisConf
 		logger.debug('Cache set', { key, ttl });
 	} catch (err) {
 		logger.error(`Error in setCache: ${err instanceof Error ? err.message : String(err)}`);
+		// Throw error to allow calling functions to handle caching failures
+		throw new Error(`Failed to set cache for key '${key}': ${err instanceof Error ? err.message : String(err)}`);
 	}
 }
 
@@ -173,9 +176,10 @@ export async function clearCache(key: string): Promise<void> {
 		logger.debug('Cache cleared', { key });
 	} catch (err) {
 		logger.error(`Error in clearCache: ${err instanceof Error ? err.message : String(err)}`);
+		// Throw error to allow calling functions to handle cache clearing failures
+		throw new Error(`Failed to clear cache for key '${key}': ${err instanceof Error ? err.message : String(err)}`);
 	}
 }
-
 // Retrieves a user session from Redis.
 export async function getCachedSession(session_id: string): Promise<User | null> {
 	return getCache<User>(`session:${session_id}`);

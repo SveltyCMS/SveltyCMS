@@ -17,8 +17,8 @@ import fs from 'fs/promises';
 import { v4 as uuidv4 } from 'uuid';
 
 // Types
-import type { Schema, ContentTypes, Category, CollectionData } from './types';
-import type { ContentStructureNode, SystemContent } from '@src/databases/dbInterface';
+import type { Schema, ContentTypes, Category, CollectionData, ContentStructureNode } from './types';
+import type { SystemContent } from '@src/databases/dbInterface';
 
 // Redis
 import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/redis';
@@ -137,7 +137,7 @@ class ContentManager {
       const moduleContent = `
 				const module = {};
 				const exports = {};
-	               const resolveWidgetPlaceholder = ${resolveWidgetPlaceholder.toString()};
+	      const resolveWidgetPlaceholder = ${resolveWidgetPlaceholder.toString()};
 				(async function(module, exports) {
 					${modifiedContent}
 					return module.exports || exports;
@@ -207,6 +207,7 @@ class ContentManager {
       nestedContentStructure: this.nestedContentStructure
     };
   }
+
   // Load collections
   private async loadCollections(): Promise<Schema[]> {
     try {
@@ -269,7 +270,7 @@ class ContentManager {
     }
   }
 
-  // Update collections  
+  // Update collections
   async updateCollections(recompile: boolean = false): Promise<void> {
     try {
       if (recompile) {
@@ -372,7 +373,7 @@ class ContentManager {
       logger.debug("Content Manager SysContentStructure loaded");
       // Cache in Redis if available
       if (isRedisEnabled()) {
-        await setCache('cms:categories', structureMap, REDIS_TTL);
+        await setCache('cms:categories', this.nestedContentStructure, REDIS_TTL);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -381,12 +382,22 @@ class ContentManager {
     }
   }
 
+  private flattenNestedStructure(nestedStructure: ContentStructureNode[], flatStructure: Record<string, ContentStructureNode> = {}): Record<string, ContentStructureNode> {
+    for (const node of nestedStructure) {
+      flatStructure[node.path] = node;
+      if (node.children && node.children.length > 0) {
+        this.flattenNestedStructure(node.children, flatStructure);
+      }
+    }
+    return flatStructure;
+  }
+
   // Generate nested JSON structure
   public generateNestedStructure(): ContentStructureNode[] {
     try {
 
       // Create a Map for quick lookups
-      const nodeMap = new Map<string, any>();
+      const nodeMap = new Map<string, ContentStructureNode>();
 
       // Add all nodes to the Map
       Object.values(this.contentStructure).forEach(node => {
@@ -616,5 +627,4 @@ class ContentManager {
 export const contentManager = ContentManager.getInstance();
 
 // Export types
-export type { Schema, ContentTypes, Category, CollectionData };
-
+export type { Schema, ContentTypes, Category, CollectionData, ContentStructureNode };

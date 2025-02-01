@@ -15,30 +15,30 @@ import { logger } from '@utils/logger.svelte';
 // Media schema
 export const mediaSchema = new Schema(
 	{
-		_id: { type: String, required: true },
-		filename: { type: String, required: true },
-		originalFilename: String,
-		path: { type: String, required: true },
-		type: { type: String, required: true },
-		mimeType: String,
-		size: { type: Number, required: true },
+		_id: { type: String, required: true }, // Mongoose String type
+		filename: { type: String, required: true }, // Mongoose String type
+		originalFilename: String, // Mongoose String type
+		path: { type: String, required: true }, // Mongoose String type
+		type: { type: String, required: true }, // Mongoose String type
+		mimeType: String, // Mongoose String type
+		size: { type: Number, required: true }, // Mongoose Number type
 		dimensions: {
-			width: Number,
-			height: Number
+			width: Number, // Mongoose Number type
+			height: Number // Mongoose Number type
 		},
 		metadata: {
-			title: String,
-			description: String,
-			alt: String,
-			caption: String,
-			tags: [String],
-			customFields: Schema.Types.Mixed
+			title: String, // Mongoose String type
+			description: String, // Mongoose String type
+			alt: String, // Mongoose String type
+			caption: String, // Mongoose String type
+			tags: [String], // Mongoose String array
+			customFields: Schema.Types.Mixed // Mongoose Mixed type
 		},
-		folder: { type: String, default: '/' },
-		status: { type: String, enum: ['public', 'private', 'draft'], default: 'private' },
-		createdBy: String,
-		updatedBy: String,
-		updatedAt: { type: Date, default: Date.now }
+		folder: { type: String, default: '/' }, // Mongoose String type
+		status: { type: String, enum: ['public', 'private', 'draft'], default: 'private' }, // Mongoose String type
+		createdBy: String, // Mongoose String type
+		updatedBy: String, // Mongoose String type
+		updatedAt: { type: Date, default: Date.now } // Mongoose Date type
 	},
 	{
 		timestamps: true,

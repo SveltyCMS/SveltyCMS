@@ -149,10 +149,5 @@ export async function initializeWidgets(): Promise<void> {
 	return dbInitPromise;
 }
 
-// Initialize widgets immediately
-initializeWidgets().catch((error) => {
-	console.error('Failed to initialize widgets:', error); // Log initialization errors
-});
-
 // Re-export everything from widgetManager for direct access
 export * from './widgetManager.svelte.ts';

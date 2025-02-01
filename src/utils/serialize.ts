@@ -6,8 +6,6 @@
 import type { User } from '@src/auth/types';
 import type { Schema } from '@root/src/content/types';
 
-import serialize from 'serialize-javascript';
-
 // System Logger
 import { logger } from './logger.svelte';
 
@@ -38,12 +36,12 @@ export function serializeUser(user: User): Serializable {
 export function serializeCollection(collection: Schema) {
 	// Serialize fields
 
-	return serialize(collection, { unsafe: true });
+	return JSON.stringify(collection);
 }
 
 export function deserializeCollection(collection: string): Schema {
 	try {
-		return eval(`(${collection})`);
+		return JSON.parse(collection);
 	} catch (error) {
 		logger.error('Error deserializing collection:', error);
 		throw error;
@@ -94,7 +92,7 @@ export function serializeCollections(collections: { [key: string]: Schema }) {
 	for (let i = 0; i < serializedArray.length; i++) {
 		const serializedCollection = serializedArray[i];
 		if (serializedCollection && serializedCollection.name) {
-			response[serializedCollection.name] = serializedCollection;
+			response[serializedCollection.name] = JSON.parse(serializedCollection); // Deserialize here to ensure compatibility
 		}
 	}
 	return response;

@@ -8,8 +8,16 @@ It dynamically fetches and displays data based on the current language and colle
 It also handles navigation, mode switching (view, edit, create, media), and SEO metadata for the page.
 -->
 <script lang="ts">
+	import { publicEnv } from '@root/config/public';
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
+
+	// Types
+	import type { Schema } from '@src/content/types';
+	import type { User } from '@root/src/auth/types.js';
+
+	// ParaglideJS
+	import type { AvailableLanguageTag } from '@root/src/paraglide/runtime';
 
 	// Stores
 	import { page } from '$app/state';
@@ -21,15 +29,8 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	import EntryList from '@components/EntryList.svelte';
 	import MediaGallery from '@src/routes/(app)/mediagallery/+page.svelte';
 
-	// System Logger
-	import { logger } from '@utils/logger.svelte';
-	import type { User } from '@root/src/auth/types.js';
-	import { deserializeCollection } from '@root/src/utils/serialize';
-	import { publicEnv } from '@root/config/public';
-	import type { AvailableLanguageTag } from '@root/src/paraglide/runtime';
-
 	interface Props {
-		data: { collection: string; contentLanguage: string; user: User };
+		data: { collection: Schema; contentLanguage: string; user: User };
 	}
 	const { data }: Props = $props();
 
@@ -38,7 +39,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	$effect(() => {
 		if (!page.params.collection) return;
 
-		const selectedCollection = deserializeCollection(data.collection);
+		const selectedCollection = data.collection as Schema;
 		console.log('selectedCollection', selectedCollection);
 		// console.log('selectedCollection', selectedCollection, page.params.collection);
 		if (selectedCollection._id !== collection.value?._id) {
@@ -63,12 +64,10 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 
 		const newLanguage = contentLanguage.value;
 		const currentPath = page.url.pathname;
-		const newPath = `/${newLanguage}${collection.value.path.toString()}`;
+		const newPath = `/${newLanguage}${collection.value?.path?.toString() ?? ''}`;
 		console.log('language change', 'currentPath', currentPath, 'newPath', newPath);
 		if (currentPath !== newPath) goto(newPath);
 	});
-
-	// Handle browser history navigation
 
 	// Update SEO metadata
 	$effect(() => {

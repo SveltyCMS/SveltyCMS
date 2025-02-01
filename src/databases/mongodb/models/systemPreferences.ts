@@ -14,12 +14,12 @@ import { logger } from '@utils/logger.svelte';
 // System preferences schema
 export const systemPreferencesSchema = new Schema(
 	{
-		_id: { type: String, required: true },
-		key: { type: String, required: true, unique: true },
-		value: Schema.Types.Mixed,
-		category: { type: String, required: true },
-		description: String,
-		updatedAt: { type: Date, default: Date.now }
+		_id: { type: String, required: true }, // Mongoose String type
+		key: { type: String, required: true, unique: true }, // Mongoose String type
+		value: Schema.Types.Mixed, // Mongoose Mixed type
+		category: { type: String, required: true }, // Mongoose String type
+		description: String, // Mongoose String type
+		updatedAt: { type: Date, default: Date.now } // Mongoose Date type
 	},
 	{
 		timestamps: true,

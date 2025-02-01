@@ -12,48 +12,49 @@ import type { Theme } from '@src/databases/dbInterface';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
+
 // Theme schema
 export const themeSchema = new Schema(
 	{
-		_id: { type: String, required: true },
-		name: { type: String, required: true },
-		description: String,
-		version: { type: String, required: true },
-		author: String,
-		isActive: { type: Boolean, default: false },
+		_id: { type: String, required: true }, // Mongoose String type
+		name: { type: String, required: true }, // Mongoose String type
+		description: String, // Mongoose String type
+		version: { type: String, required: true }, // Mongoose String type
+		author: String, // Mongoose String type
+		isActive: { type: Boolean, default: false }, // Mongoose Boolean type
 		config: {
 			colors: {
-				primary: String,
-				secondary: String,
-				accent: String,
-				background: String,
-				text: String
+				primary: String, // Mongoose String type
+				secondary: String, // Mongoose String type
+				accent: String, // Mongoose String type
+				background: String, // Mongoose String type
+				text: String // Mongoose String type
 			},
 			typography: {
-				headingFont: String,
-				bodyFont: String,
-				fontSize: String
+				headingFont: String, // Mongoose String type
+				bodyFont: String, // Mongoose String type
+				fontSize: String // Mongoose String type
 			},
 			layout: {
-				containerWidth: String,
-				spacing: String
+				containerWidth: String, // Mongoose String type
+				spacing: String // Mongoose String type
 			},
-			components: Schema.Types.Mixed
+			components: Schema.Types.Mixed // Mongoose Mixed type
 		},
 		templates: [
 			{
-				name: String,
-				path: String,
-				type: String
+				name: String, // Mongoose String type
+				path: String, // Mongoose String type
+				type: String // Mongoose String type
 			}
 		],
 		assets: [
 			{
-				type: String,
-				path: String
+				type: String, // Mongoose String type
+				path: String // Mongoose String type
 			}
 		],
-		updatedAt: { type: Date, default: Date.now }
+		updatedAt: { type: Date, default: Date.now } // Mongoose Date type
 	},
 	{
 		timestamps: true,

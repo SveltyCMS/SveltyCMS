@@ -15,30 +15,30 @@ import { logger } from '@utils/logger.svelte';
 // Widget schema
 export const widgetSchema = new Schema(
 	{
-		_id: { type: Schema.Types.Mixed, required: true },
-		name: { type: String, required: true },
-		type: { type: String, required: true },
-		description: String,
-		config: Schema.Types.Mixed,
+		_id: { type: Schema.Types.Mixed, required: true }, // Mongoose Mixed type
+		name: { type: String, required: true }, // Mongoose String type
+		type: { type: String, required: true }, // Mongoose String type
+		description: String, // Mongoose String type
+		config: Schema.Types.Mixed, // Mongoose Mixed type
 		placement: {
-			area: { type: String, required: true },
-			order: { type: Number, default: 0 },
+			area: { type: String, required: true }, // Mongoose String type
+			order: { type: Number, default: 0 }, // Mongoose Number type
 			conditions: [
 				{
-					type: { type: String },
-					value: Schema.Types.Mixed
+					type: { type: String }, // Mongoose String type
+					value: Schema.Types.Mixed // Mongoose Mixed type
 				}
 			]
 		},
-		status: { type: String, enum: ['active', 'inactive', 'draft'], default: 'inactive' },
-		version: { type: String },
-		author: String,
+		status: { type: String, enum: ['active', 'inactive', 'draft'], default: 'inactive' }, // Mongoose String type with enum
+		version: { type: String }, // Mongoose String type
+		author: String, // Mongoose String type
 		permissions: {
-			view: [String],
-			edit: [String]
+			view: [String], // Mongoose String array
+			edit: [String]  // Mongoose String array
 		},
-		metadata: Schema.Types.Mixed,
-		updatedAt: { type: Date, default: Date.now }
+		metadata: Schema.Types.Mixed, // Mongoose Mixed type
+		updatedAt: { type: Date, default: Date.now } // Mongoose Date type
 	},
 	{
 		timestamps: true,

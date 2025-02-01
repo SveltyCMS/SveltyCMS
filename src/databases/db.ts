@@ -118,7 +118,7 @@ async function initializeDefaultTheme(dbAdapter: dbInterface): Promise<void> {
     logger.debug(`Found \x1b[34m${themes.length}\x1b[0m themes`);
 
     if (themes.length === 0) {
-      await dbAdapter.storeThemes([DEFAULT_THEME]);
+      await dbAdapter.themes.storeThemes([DEFAULT_THEME]);
       logger.debug('Default \x1b[34mSveltyCMS theme\x1b[0m created successfully.');
     } else {
       logger.info('Themes already exist in the database. Skipping default theme initialization.');
@@ -151,7 +151,7 @@ async function initializeVirtualFolders() {
     throw error(500, 'Database adapter not initialized');
   }
   try {
-    const virtualFolders = await dbAdapter.getVirtualFolders();
+    const virtualFolders = await dbAdapter.getAllVirtualFolders();
     if (virtualFolders.length === 0) {
       // Create a default root folder
       const rootFolder = await dbAdapter.createVirtualFolder({
@@ -196,7 +196,9 @@ async function initializeAdapters(): Promise<void> {
 
     // Initialize remaining components
     await initializeMediaFolder();
-    await initializeDefaultTheme(dbAdapter);
+    setTimeout(async () => {
+      await initializeDefaultTheme(dbAdapter);
+    }, 0);
     await initializeVirtualFolders();
     await initializeRevisions();
     await syncPermissions();

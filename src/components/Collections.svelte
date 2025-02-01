@@ -41,6 +41,7 @@ Features:
 			count?: number;
 			status?: 'draft' | 'published' | 'archived';
 			color?: string;
+			visible?: boolean;
 		};
 	}
 

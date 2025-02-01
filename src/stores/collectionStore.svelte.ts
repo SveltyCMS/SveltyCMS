@@ -13,15 +13,6 @@ import { store } from '@utils/reactivity.svelte';
 import type { Schema, ModeType, Widget } from '@src/content/types';
 import type { ContentStructureNode } from '../databases/dbInterface';
 
-// Define UUID-based collection interface
-interface UUIDCollection extends Schema {
-  _id: string; // MongoDB UUID
-  name: string;
-  path: string;
-  icon?: string;
-  isCollection: boolean;
-}
-
 // Define types
 type ModeType = 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
 
@@ -42,15 +33,15 @@ export const statusMap = {
 } as const;
 
 // Create reactive stores using Svelte 5 runes
-export const collections = store<{ [uuid: string]: UUIDCollection }>({});
-export const collectionsById = store<Map<string, UUIDCollection>>(new Map());
+export const collections = store<{ [uuid: string]: Schema }>({});
+export const collectionsById = store<Map<string, Schema>>(new Map());
 export const currentCollectionId = store<string | null>(null);
 
 // Keep existing stores
 export const collectionsLoading = store<boolean>(false);
 export const collectionsError = store<string | null>(null);
-export const unAssigned = store<UUIDCollection>({} as UUIDCollection);
-export const collection = store<UUIDCollection | null>({} as UUIDCollection);
+export const unAssigned = store<Schema>({} as Schema);
+export const collection = store<Schema | null>({} as Schema);
 export const collectionValue = store<Record<string, unknown>>({});
 export const mode = store<ModeType>('view');
 export const modifyEntry = store<(status?: keyof typeof statusMap) => Promise<void>>(() => Promise.resolve());

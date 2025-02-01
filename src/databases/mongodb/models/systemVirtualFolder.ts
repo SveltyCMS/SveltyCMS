@@ -12,18 +12,18 @@ import type { SystemVirtualFolder } from '@src/databases/dbInterface';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-// System virtual folder schema
+// System virtual folder schema (MongoDB-specific using Mongoose types)
 export const systemVirtualFolderSchema = new Schema(
 	{
-		_id: { type: String, required: true },
-		name: { type: String, required: true },
-		path: { type: String, required: true, unique: true },
-		parent: { type: String, ref: 'SystemVirtualFolder' },
-		icon: { type: String, default: 'bi:folder' },
-		order: { type: Number, default: 0 },
-		type: { type: String, enum: ['folder', 'collection'], required: true },
-		metadata: Schema.Types.Mixed,
-		updatedAt: { type: Date, default: Date.now }
+		_id: { type: String, required: true }, // Mongoose String type
+		name: { type: String, required: true }, // Mongoose String type
+		path: { type: String, required: true, unique: true }, // Mongoose String type
+		parent: { type: String, ref: 'SystemVirtualFolder' }, // Mongoose String type, ref to self
+		icon: { type: String, default: 'bi:folder' }, // Mongoose String type
+		order: { type: Number, default: 0 }, // Mongoose Number type
+		type: { type: String, enum: ['folder', 'collection'], required: true }, // Mongoose String type with enum
+		metadata: Schema.Types.Mixed, // Mongoose Mixed type
+		updatedAt: { type: Date, default: Date.now } // Mongoose Date type
 	},
 	{
 		timestamps: true,
@@ -33,7 +33,7 @@ export const systemVirtualFolderSchema = new Schema(
 );
 
 // Add indexes
-// systemVirtualFolderSchema.index({ path: 1 }, { unique: true });
+// systemVirtualFolderSchema.index({ path: 1 }, { unique: true }); // Commented out as in original code
 systemVirtualFolderSchema.index({ parent: 1 });
 systemVirtualFolderSchema.index({ type: 1 });
 systemVirtualFolderSchema.index({ order: 1 });
