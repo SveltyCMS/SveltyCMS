@@ -8,178 +8,110 @@
 
 import mongoose, { Schema } from 'mongoose';
 import type { Theme } from '@src/databases/dbInterface';
+import type { DatabaseId, ISODateString } from '@src/databases/dbInterface';
+
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-
 // Theme schema
-export const themeSchema = new Schema(
-	{
-		_id: { type: String, required: true }, // Mongoose String type
-		name: { type: String, required: true }, // Mongoose String type
-		description: String, // Mongoose String type
-		version: { type: String, required: true }, // Mongoose String type
-		author: String, // Mongoose String type
-		isActive: { type: Boolean, default: false }, // Mongoose Boolean type
-		config: {
-			colors: {
-				primary: String, // Mongoose String type
-				secondary: String, // Mongoose String type
-				accent: String, // Mongoose String type
-				background: String, // Mongoose String type
-				text: String // Mongoose String type
-			},
-			typography: {
-				headingFont: String, // Mongoose String type
-				bodyFont: String, // Mongoose String type
-				fontSize: String // Mongoose String type
-			},
-			layout: {
-				containerWidth: String, // Mongoose String type
-				spacing: String // Mongoose String type
-			},
-			components: Schema.Types.Mixed // Mongoose Mixed type
-		},
-		templates: [
-			{
-				name: String, // Mongoose String type
-				path: String, // Mongoose String type
-				type: String // Mongoose String type
-			}
-		],
-		assets: [
-			{
-				type: String, // Mongoose String type
-				path: String // Mongoose String type
-			}
-		],
-		updatedAt: { type: Date, default: Date.now } // Mongoose Date type
-	},
-	{
-		timestamps: true,
-		collection: 'system_themes',
-		strict: false
-	}
+export const themeSchema = new Schema<Theme>(
+  {
+    _id: { type: DatabaseId, required: true }, // refine to DatabaseId
+    name: { type: String, required: true },
+    description: String,
+    path: { type: String, required: true },
+    isActive: { type: Boolean, default: false },
+    isDefault: { type: Boolean, default: false },
+    config: { // ThemeConfig
+      primaryColor: String,
+      secondaryColor: String,
+      font: String,
+      tailwindConfigPath: String,
+      assetsPath: String,
+      properties: { // Updated config to use ThemeConfig with properties
+        type: Schema.Types.Map, // Use Map for properties
+        of: String, // Values are strings (CSS variables)
+        default: {}
+      }
+    },
+    previewImage: String,
+  },
+  {
+    timestamps: true,
+    collection: 'system_themes',
+    strict: false
+  }
 );
 
-// Add indexes
-themeSchema.index({ name: 1 }, { unique: true });
+// Index
 themeSchema.index({ isActive: 1 });
-themeSchema.index({ version: 1 });
 
 // Static methods
 themeSchema.statics = {
-	// Create theme
-	async createTheme(themeData: {
-		name: string;
-		description?: string;
-		version: string;
-		author?: string;
-		config?: Schema.Types.Mixed;
-		templates?: Array<{ name: string; path: string; type: string }>;
-		assets?: Array<{ type: string; path: string }>;
-	}): Promise<Theme> {
-		try {
-			const theme = new this(themeData);
-			await theme.save();
-			logger.info(`Created theme: ${themeData.name}`);
-			return theme;
-		} catch (error) {
-			logger.error(`Error creating theme: ${error.message}`);
-			throw error;
-		}
-	},
+  // --- CRUD Actions (Delegated to MongoDBAdapter) ---
+  // In this simplified model, create, update, delete, and setDefault are
+  // primarily handled by the MongoDBAdapter using core CRUD methods.
+  // The model focuses on specific queries if needed.
 
-	// Get all themes
-	async getAllThemes(): Promise<Theme[]> {
-		try {
-			const themes = await this.find().exec();
-			logger.debug(`Retrieved ${themes.length} themes`);
-			return themes;
-		} catch (error) {
-			logger.error(`Error retrieving themes: ${error.message}`);
-			throw error;
-		}
-	},
+  // --- Specialized Queries ---
 
-	// Get active theme
-	async getActiveTheme(): Promise<Theme | null> {
-		try {
-			const theme = await this.findOne({ isActive: true }).exec();
-			logger.debug('Retrieved active theme');
-			return theme;
-		} catch (error) {
-			logger.error(`Error retrieving active theme: ${error.message}`);
-			throw error;
-		}
-	},
+  // Get default theme (active theme) - Keep for direct access if needed
+  // Get active theme
+  async getActiveTheme(): Promise<Theme | null> {
+    try {
+      const theme = await this.findOne({ isActive: true }).lean().exec();
+      logger.debug('Retrieved active theme');
+      return theme;
+    } catch (error) {
+      logger.error(`Error retrieving active theme: ${error.message}`);
+      throw error;
+    }
+  },
 
-	// Get theme by name
-	async getThemeByName(name: string): Promise<Theme | null> {
-		try {
-			const theme = await this.findOne({ name }).exec();
-			logger.debug(`Retrieved theme: ${name}`);
-			return theme;
-		} catch (error) {
-			logger.error(`Error retrieving theme: ${error.message}`);
-			throw error;
-		}
-	},
+  // Get theme by name
+  async getThemeByName(name: string): Promise<Theme | null> {
+    try {
+      if (!this.dbAdapter) {
+        throw new Error('Database adapter is not initialized.');
+      }
+      const result = await this.dbAdapter.queryBuilder<Theme>('Theme')
+        .where({ name })
+        .findOne();
 
-	// Update theme
-	async updateTheme(name: string, updateData: Partial<Theme>): Promise<Theme | null> {
-		try {
-			const theme = await this.findOneAndUpdate({ name }, updateData, { new: true }).exec();
-			if (theme) {
-				logger.info(`Updated theme: ${name}`);
-			} else {
-				logger.warn(`Theme not found: ${name}`);
-			}
-			return theme;
-		} catch (error) {
-			logger.error(`Error updating theme: ${error.message}`);
-			throw error;
-		}
-	},
+      if (!result.success) {
+        logger.error(`Error retrieving theme by name: ${name}: ${result.error?.message}`);
+        return null;
+      }
+      const theme = result.data;
+      logger.debug(`Retrieved theme by name: ${name}`);
+      return theme;
+    } catch (error) {
+      logger.error(`Error retrieving theme by name: ${error.message}`);
+      throw error;
+    }
+  },
 
-	// Delete theme
-	async deleteTheme(name: string): Promise<boolean> {
-		try {
-			const result = await this.findOneAndDelete({ name }).exec();
-			if (result) {
-				logger.info(`Deleted theme: ${name}`);
-				return true;
-			}
-			logger.warn(`Theme not found for deletion: ${name}`);
-			return false;
-		} catch (error) {
-			logger.error(`Error deleting theme: ${error.message}`);
-			throw error;
-		}
-	},
+  // --- Utility/Bulk Operations ---
 
-	// Set active theme
-	async setActiveTheme(name: string): Promise<boolean> {
-		try {
-			// First, deactivate all themes
-			await this.updateMany({}, { isActive: false });
-
-			// Then activate the specified theme
-			const result = await this.findOneAndUpdate({ name }, { isActive: true }, { new: true }).exec();
-
-			if (result) {
-				logger.info(`Set active theme to: ${name}`);
-				return true;
-			}
-			logger.warn(`Theme not found for activation: ${name}`);
-			return false;
-		} catch (error) {
-			logger.error(`Error setting active theme: ${error.message}`);
-			throw error;
-		}
-	}
+  // Store themes (bulk upsert) - Keep for bulk operations if needed
+  async storeThemes(themes: Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<void> {
+    try {
+      const operations = themes.map(themeData => ({
+        updateOne: {
+          filter: { name: themeData.name }, // Assuming name is unique identifier for upsert
+          update: { $set: themeData },
+          upsert: true,
+        },
+      }));
+      await this.bulkWrite(operations);
+      logger.info(`Stored ${themes.length} themes (upserted if existing)`);
+    } catch (error) {
+      logger.error(`Error storing themes: ${error.message}`);
+      throw error;
+    }
+  },
 };
-
 // Create and export the Theme model
-export const ThemeModel = mongoose.models?.Theme || mongoose.model<Theme>('Theme', themeSchema);
+export const ThemeModel =
+  (mongoose.models?.Theme as Model<Theme> | undefined) || mongoose.model<Theme>('Theme', themeSchema);

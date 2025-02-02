@@ -35,7 +35,15 @@ export async function connectToMongoDB(): Promise<void> {
 		dbName: privateEnv.DB_NAME,
 		maxPoolSize: privateEnv.DB_POOL_SIZE || 5,
 		retryWrites: true,
-		serverSelectionTimeoutMS: DB_TIMEOUT
+		serverSelectionTimeoutMS: DB_TIMEOUT,
+		// Additional options for optimization and stability (consider enabling as needed):
+		// autoIndex: false, // Disable auto-indexing in production, manage indexes manually
+		// bufferCommands: false, // Disable command buffering if immediate execution is critical
+		// serverApi: { // Enable stable API if using MongoDB Atlas (adjust version as needed)
+		//     version: '1',
+		//     strict: true,
+		//     deprecationErrors: true
+		// }
 	};
 
 	// Mongoose Connection Event Handlers

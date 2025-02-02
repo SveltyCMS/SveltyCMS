@@ -6,24 +6,26 @@
  * Content Structure represents the hierarchical organization of content in the CMS.
  */
 import mongoose, { Schema } from 'mongoose';
+
 import type { Translation, Category, CollectionData } from '@src/content/types';
+import type { DatabaseId, ISODateString } from '@src/databases/dbInterface';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-// Generic schema definition for Content Structure (database-agnostic)
+// Generic schema definition for Content Structure
 export const contentStructureSchemaDefinition = {
-  _id: { type: 'String', required: true },
-  name: { type: 'String', required: true },
-  path: { type: 'String', required: true },
-  icon: { type: 'String', default: 'bi:folder' },
-  order: { type: 'Number', default: 999 },
-  nodeType: { type: 'String', required: true, enum: ['category', 'collection'] },
+  _id: { type: DatabaseId, required: true }, // Using DatabaseId type
+  name: { type: String, required: true },
+  path: { type: String, required: true },
+  icon: { type: String, default: 'bi:folder' },
+  order: { type: Number, default: 999 },
+  nodeType: { type: String, required: true, enum: ['category', 'collection'] },
   translations: [
     {
-      languageTag: { type: 'String', required: true },
-      translationName: { type: 'String', required: true },
-      isDefault: { type: 'Boolean', default: false }
+      languageTag: { type: String, required: true },
+      translationName: { type: String, required: true },
+      isDefault: { type: Boolean, default: false }
     }
   ],
   parentPath: { type: 'String', default: null },
@@ -39,8 +41,9 @@ export const contentStructureSchemaDefinition = {
     enum: ['draft', 'published', 'unpublished', 'scheduled', 'cloned']
   },
   links: [{ type: 'String' }],
-  createdAt: { type: 'Date', default: 'now' },
-  updatedAt: { type: 'Date', default: 'now' }
+  createdAt: { type: ISODateString, default: Date.now },
+  updatedAt: { type: ISODateString, default: Date.now }
+
 };
 
 
@@ -54,7 +57,7 @@ const translationSchema = new Schema<Translation>({
 
 // Base fields shared between categories and collections
 const baseFields = {
-  _id: { type: String, required: true },
+  _id: { type: DatabaseId, required: true },
   name: { type: String, required: true },
   path: { type: String, required: true },
   icon: { type: String, default: 'bi:folder' },
@@ -62,6 +65,8 @@ const baseFields = {
   nodeType: { type: String, required: true, enum: ['category', 'collection'] },
   translations: [translationSchema],
   parentPath: { type: String, default: null },
+  createdAt: { type: ISODateString, default: Date.now },
+  updatedAt: { type: ISODateString, default: Date.now }
 };
 
 // Category-specific schema

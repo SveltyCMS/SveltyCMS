@@ -6,178 +6,88 @@
  * Widgets are reusable components that can be placed in different areas of the site.
  */
 
+
 import mongoose, { Schema } from 'mongoose';
 import type { Widget } from '@src/databases/dbInterface';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-// Widget schema
-export const widgetSchema = new Schema(
-	{
-		_id: { type: Schema.Types.Mixed, required: true }, // Mongoose Mixed type
-		name: { type: String, required: true }, // Mongoose String type
-		type: { type: String, required: true }, // Mongoose String type
-		description: String, // Mongoose String type
-		config: Schema.Types.Mixed, // Mongoose Mixed type
-		placement: {
-			area: { type: String, required: true }, // Mongoose String type
-			order: { type: Number, default: 0 }, // Mongoose Number type
-			conditions: [
-				{
-					type: { type: String }, // Mongoose String type
-					value: Schema.Types.Mixed // Mongoose Mixed type
-				}
-			]
-		},
-		status: { type: String, enum: ['active', 'inactive', 'draft'], default: 'inactive' }, // Mongoose String type with enum
-		version: { type: String }, // Mongoose String type
-		author: String, // Mongoose String type
-		permissions: {
-			view: [String], // Mongoose String array
-			edit: [String]  // Mongoose String array
-		},
-		metadata: Schema.Types.Mixed, // Mongoose Mixed type
-		updatedAt: { type: Date, default: Date.now } // Mongoose Date type
-	},
-	{
-		timestamps: true,
-		collection: 'system_widgets',
-		strict: false
-	}
+// Widget schema 
+import type { DatabaseId, ISODateString } from '@src/databases/dbInterface';
+
+export const widgetSchema = new Schema<Widget>(
+  {
+    _id: { type: DatabaseId, required: true }, // Using String type for _id as in dbInterface, refine to DatabaseId
+    name: { type: String, required: true, unique: true }, // Unique name/identifier for widget type
+    identifier: { type: String, required: true, unique: true }, // Unique identifier (e.g., 'core/input', 'custom/my-widget')
+    isActive: { type: Boolean, default: false }, // Is the widget globally active?
+    instances: [{ // WidgetConfig[] - Array of widget instance configurations
+      position: { type: String },
+      settings: { // WidgetSettings
+        layout: String,
+        colorScheme: String,
+      },
+    }],
+    dependencies: [String], // Widget identifiers of dependencies
+    isCore: { type: Boolean, default: false }, // Is it a core widget?
+  },
+  {
+    timestamps: true,
+    collection: 'system_widgets',
+    strict: false // Allow for potential extra fields in config and widget
+  }
 );
 
-// Add indexes
-widgetSchema.index({ name: 1 }, { unique: true });
-widgetSchema.index({ type: 1 });
-widgetSchema.index({ status: 1 });
-widgetSchema.index({ 'placement.area': 1, 'placement.order': 1 });
+// Indexes (Simplified - adjust based on common queries)
+widgetSchema.index({ name: 1 }); // Index on name/identifier for lookups
+widgetSchema.index({ identifier: 1, isActive: 1 }); // Index for active widget retrieval
 
-// Static methods
+// Static methods (Simplified - focused on specialized queries if needed)
 widgetSchema.statics = {
-	// Create widget
-	async createWidget(widgetData: {
-		name: string;
-		type: string;
-		description?: string;
-		config?: Schema.Types.Mixed;
-		placement: {
-			area: string;
-			order?: number;
-			conditions?: Array<{ type: string; value: Schema.Types.Mixed }>;
-		};
-		status?: 'active' | 'inactive' | 'draft';
-		version?: string;
-		author?: string;
-		permissions?: {
-			view?: string[];
-			edit?: string[];
-		};
-		metadata?: Schema.Types.Mixed;
-	}): Promise<Widget> {
-		try {
-			const widget = new this(widgetData);
-			await widget.save();
-			logger.info(`Created widget: ${widgetData.name}`);
-			return widget;
-		} catch (error) {
-			logger.error(`Error creating widget: ${error.message}`);
-			throw error;
-		}
-	},
+  // --- CRUD Actions (Delegated to MongoDBAdapter) ---
+  // In this simplified model, create, update, delete, and activate/deactivate
+  // are primarily handled by the MongoDBAdapter using core CRUD methods.
+  // The model focuses on specific queries if needed.
 
-	// Get all widgets
-	async getAllWidgets(): Promise<Widget[]> {
-		try {
-			const widgets = await this.find().sort({ 'placement.order': 1 }).exec();
-			logger.debug(`Retrieved ${widgets.length} widgets`);
-			return widgets;
-		} catch (error) {
-			logger.error(`Error retrieving widgets: ${error.message}`);
-			throw error;
-		}
-	},
+  // --- Specialized Queries ---
 
-	// Get widgets by area
-	async getWidgetsByArea(area: string): Promise<Widget[]> {
-		try {
-			const widgets = await this.find({
-				'placement.area': area,
-				status: 'active'
-			})
-				.sort({ 'placement.order': 1 })
-				.exec();
-			logger.debug(`Retrieved ${widgets.length} widgets for area: ${area}`);
-			return widgets;
-		} catch (error) {
-			logger.error(`Error retrieving widgets by area: ${error.message}`);
-			throw error;
-		}
-	},
+  // Get widget by name (identifier) - Keep for direct access if needed
+  async getWidgetByIdentifier(identifier: string): Promise<Widget | null> {
+    try {
+      if (!this.dbAdapter) {
+        throw new Error('Database adapter is not initialized.');
+      }
+      const result = await this.dbAdapter.queryBuilder<Widget>('Widget')
+        .where({ identifier })
+        .findOne();
 
-	// Get widget by name
-	async getWidgetByName(name: string): Promise<Widget | null> {
-		try {
-			const widget = await this.findOne({ name }).exec();
-			logger.debug(`Retrieved widget: ${name}`);
-			return widget;
-		} catch (error) {
-			logger.error(`Error retrieving widget: ${error.message}`);
-			throw error;
-		}
-	},
+      if (!result.success) {
+        logger.error(`Error retrieving widget by identifier: ${identifier}: ${result.error?.message}`);
+        return null;
+      }
+      const widget = result.data;
+      logger.debug(`Retrieved widget by identifier: ${identifier}`);
+      return widget;
+    } catch (error) {
+      logger.error(`Error retrieving widget by identifier: ${error.message}`);
+      throw error;
+    }
+  },
 
-	// Update widget
-	async updateWidget(name: string, updateData: Partial<Widget>): Promise<Widget | null> {
-		try {
-			const widget = await this.findOneAndUpdate({ name }, updateData, { new: true }).exec();
-			if (widget) {
-				logger.info(`Updated widget: ${name}`);
-			} else {
-				logger.warn(`Widget not found: ${name}`);
-			}
-			return widget;
-		} catch (error) {
-			logger.error(`Error updating widget: ${error.message}`);
-			throw error;
-		}
-	},
-
-	// Delete widget
-	async deleteWidget(name: string): Promise<boolean> {
-		try {
-			const result = await this.findOneAndDelete({ name }).exec();
-			if (result) {
-				logger.info(`Deleted widget: ${name}`);
-				return true;
-			}
-			logger.warn(`Widget not found for deletion: ${name}`);
-			return false;
-		} catch (error) {
-			logger.error(`Error deleting widget: ${error.message}`);
-			throw error;
-		}
-	},
-
-	// Update widget order
-	async updateWidgetOrder(area: string, orderUpdates: Array<{ name: string; order: number }>): Promise<boolean> {
-		try {
-			const bulkOps = orderUpdates.map((update) => ({
-				updateOne: {
-					filter: { name: update.name, 'placement.area': area },
-					update: { $set: { 'placement.order': update.order } }
-				}
-			}));
-
-			const result = await this.bulkWrite(bulkOps);
-			logger.info(`Updated order for ${result.modifiedCount} widgets in area: ${area}`);
-			return result.modifiedCount === orderUpdates.length;
-		} catch (error) {
-			logger.error(`Error updating widget order: ${error.message}`);
-			throw error;
-		}
-	}
+  // --- Utility/Bulk Operations (Example - adjust if needed) ---
+  // Example: Bulk activate widgets - Adjust or remove if not needed
+  async bulkActivateWidgets(widgetIdentifiers: string[]): Promise<DatabaseResult<number>> { // Using DatabaseResult for consistency
+    try {
+      const result = await this.updateMany({ identifier: { $in: widgetIdentifiers } }, { isActive: true }).exec();
+      logger.info(`Bulk activated ${result.modifiedCount} widgets.`);
+      return { success: true, data: result.modifiedCount };
+    } catch (error) {
+      logger.error(`Error bulk activating widgets: ${error.message}`);
+      return { success: false, error: { code: 'DATABASE_ERROR', message: 'Failed to bulk activate widgets', details: error } as DatabaseError }; // Using DatabaseError type
+    }
+  },
 };
 
 // Create and export the Widget model
-export const WidgetModel = mongoose.models?.Widget || mongoose.model<Widget>('Widget', widgetSchema);
+export const WidgetModel = (mongoose.models?.Widget as Model<Widget> | undefined) || mongoose.model<Widget>('Widget', widgetSchema);

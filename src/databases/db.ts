@@ -57,8 +57,8 @@ let initializationPromise: Promise<void> | null = null; // Initialization promis
 
 // Load database and authentication adapters
 async function loadAdapters() {
+  logger.debug(`Loading adapters for DB_TYPE: \x1b[33m${privateEnv.DB_TYPE}\x1b[0m...`); // More informative log
   try {
-    logger.debug(`Loading ${privateEnv.DB_TYPE} adapters...`);
     if (privateEnv.DB_TYPE === 'mongodb') {
       const { MongoDBAdapter } = await import('./mongodb/mongoDBAdapter');
       dbAdapter = new MongoDBAdapter();
@@ -101,6 +101,7 @@ async function loadAdapters() {
       // Implement SQL adapters loading here
       throw new Error(`SQL adapter loading not yet implemented for ${privateEnv.DB_TYPE}`);
     } else {
+      logger.error(`Unsupported DB_TYPE: \x1b[31m${privateEnv.DB_TYPE}\x1b[0m`); // Use logger.error for truly unsupported configurations
       throw error(500, `Unsupported DB_TYPE: ${privateEnv.DB_TYPE}`);
     }
   } catch (err) {
@@ -155,6 +156,7 @@ async function initializeVirtualFolders() {
     if (virtualFolders.length === 0) {
       // Create a default root folder
       const rootFolder = await dbAdapter.createVirtualFolder({
+        _id: dbAdapter.utils.generateId(), // ✅ Correct
         name: publicEnv.MEDIA_FOLDER,
         parent: undefined,
         path: publicEnv.MEDIA_FOLDER,

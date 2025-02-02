@@ -7,91 +7,80 @@
  *
  */
 
-import mongoose, { Schema } from 'mongoose';
-import type { Draft } from '@src/databases/dbInterface';
+import mongoose, { Schema, Model } from 'mongoose';
+import type { ContentDraft, DatabaseId } from '@src/databases/dbInterface';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-// Define the Draft schema
-export const draftSchema = new Schema(
-	{
-		originalDocumentId: { type: Schema.Types.Mixed, required: true }, // Or Schema.Types.String - Mongoose Mixed type
-		collectionId: { type: Schema.Types.Mixed, required: true }, // The ID of the collection - Mongoose Mixed type
-		content: { type: Schema.Types.Mixed, required: true }, // The content of the draft - Mongoose Mixed type
-		status: { type: String, enum: ['draft', 'published'], default: 'draft' }, // Status of the draft - Mongoose String type
-		createdBy: { type: Schema.Types.Mixed, ref: 'auth_users', required: true }, // The user who created the draft - Mongoose Mixed type
-		updatedAt: { type: Date, default: Date.now } // Mongoose Date type
-	},
-	{ timestamps: false, collection: 'collection_drafts' }
+// Define the Draft schema 
+export const draftSchema = new Schema<ContentDraft>(
+  {
+    _id: { type: DatabaseId, required: true }, // Using DatabaseId as UUID type
+    contentId: { type: DatabaseId, required: true }, // Renamed and typed to contentId, DatabaseId
+    data: { type: Schema.Types.Mixed, required: true },
+    version: { type: Number, default: 1 }, // Version number for drafts, starting at 1
+    status: { type: String, enum: ['draft', 'review', 'archived'], default: 'draft' }, // Status options from ContentDraft
+    authorId: { type: DatabaseId, required: true }, // DatabaseId of author
+  },
+  {
+    timestamps: true, // Enable timestamps for createdAt and updatedAt
+    collection: 'content_drafts',
+    strict: false // Allow for potential extra fields
+  }
 );
 
-// Static methods for the Draft model
+// Indexes for Drafts
+draftSchema.index({ contentId: 1 }); // Index for finding drafts by contentId
+draftSchema.index({ authorId: 1, status: 1 }); // Index for drafts by author and status
+draftSchema.index({ status: 1, updatedAt: -1 }); // Index for draft status and recency
+
+// Static methods (Simplified - focused on specialized queries if needed)
 draftSchema.statics = {
-	// Create a new draft
-	async createDraft(content: Record<string, unknown>, collectionId: string, original_document_id: string, user_id: string): Promise<Draft> {
-		try {
-			const draft = new this({
-				originalDocumentId: original_document_id,
-				collectionId: collectionId,
-				content,
-				createdBy: user_id
-			});
-			await draft.save();
-			logger.info(`Draft created successfully for document ID: ${original_document_id}`);
-			return draft.toObject() as Draft;
-		} catch (error) {
-			logger.error(`Error creating draft: ${error.message}`);
-			throw Error(`Error creating draft`);
-		}
-	},
+  // --- CRUD Actions (Delegated to MongoDBAdapter) ---
+  // In this simplified model, create, update, publish, and delete are
+  // primarily handled by the MongoDBAdapter using core CRUD methods and QueryBuilder.
+  // The model focuses on specific queries if needed.
 
-	// Update a draft
-	async updateDraft(draft_id: string, content: Record<string, unknown>): Promise<Draft> {
-		try {
-			const draft = await this.findById(draft_id);
-			if (!draft) throw Error('Draft not found');
+  // --- Specialized Queries ---
 
-			// Update the draft content and timestamp
-			draft.content = content;
-			draft.updatedAt = new Date();
-			await draft.save();
+  // Get drafts for a specific content ID - Keep for direct access if needed
+  async getDraftsForContent(contentId: string): Promise<ContentDraft[]> { // Use ContentDraft interface
+    try {
+      if (!this.dbAdapter) {
+        throw new Error('Database adapter is not initialized.');
+      }
+      const result = await this.dbAdapter.queryBuilder<ContentDraft>('Draft')
+        .where({ contentId })
+        .execute();
 
-			logger.info(`Draft ${draft_id} updated successfully.`);
-			return draft.toObject() as Draft;
-		} catch (error) {
-			logger.error(`Error updating draft: ${error.message}`);
-			throw Error(`Error updating draft`);
-		}
-	},
+      if (!result.success) {
+        logger.error(`Error retrieving drafts for content ID: ${contentId}: ${result.error?.message}`);
+        throw new Error(`Failed to retrieve drafts: ${result.error?.message}`);
+      }
 
-	// Publish a draft
-	async publishDraft(draft_id: string): Promise<Draft> {
-		try {
-			const draft = await this.findById(draft_id);
-			if (!draft) throw Error('Draft not found');
-			draft.status = 'published';
-			await draft.save();
-			logger.info(`Draft ${draft_id} published successfully.`);
-			return draft.toObject() as Draft;
-		} catch (error) {
-			logger.error(`Error publishing draft: ${error.message}`);
-			throw Error(`Error publishing draft`);
-		}
-	},
+      logger.debug(`Retrieved drafts for content ID: ${contentId}`);
+      return result.data as ContentDraft[]; // Type assertion
+    } catch (error) {
+      logger.error(`Error retrieving drafts for content ID: ${error.message}`);
+      throw error;
+    }
+  },
 
-	// Get drafts by user
-	async getDraftsByUser(user_id: string): Promise<Draft[]> {
-		try {
-			const drafts = await this.find({ createdBy: user_id }).exec();
-			logger.info(`Retrieved ${drafts.length} drafts for user ID: ${user_id}`);
-			return drafts;
-		} catch (error) {
-			logger.error(`Error retrieving drafts for user ${user_id}: ${error.message}`);
-			throw Error(`Error retrieving drafts for user ${user_id}`);
-		}
-	}
+  // --- Utility/Bulk Operations (Example - adjust if needed) ---
+  // Example: Bulk delete drafts for a content ID - Adjust or remove if not needed
+  async bulkDeleteDraftsForContent(contentIds: string[]): Promise<DatabaseResult<number>> { // Using DatabaseResult
+    try {
+      const result = await this.deleteMany({ contentId: { $in: contentIds } }).exec();
+      logger.info(`Bulk deleted ${result.deletedCount} drafts for content IDs: ${contentIds.join(', ')}`);
+      return { success: true, data: result.deletedCount }; // Return DatabaseResult
+    } catch (error) {
+      logger.error(`Error bulk deleting drafts for content IDs: ${error.message}`);
+      return { success: false, error: { code: 'DATABASE_ERROR', message: 'Failed to bulk delete drafts', details: error } as DatabaseError }; // Use DatabaseError
+    }
+  }
 };
 
-// Create and export the Draft model
-export const DraftModel = mongoose.models?.Draft || mongoose.model<Draft>('Draft', draftSchema);
+// Create and export the DraftModel
+export const DraftModel =
+  (mongoose.models?.Draft as Model<ContentDraft> | undefined) || mongoose.model<ContentDraft>('Draft', draftSchema); // Use ContentDraft type
