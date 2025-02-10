@@ -64,7 +64,7 @@ Key features:
 	});
 
 	// Dynamic import of widget components
-	const modules: Record<string, { default: any }> = import.meta.glob('@widgets/*/*.svelte', { eager: true });
+	const modules: Record<string, { default: any }> = import.meta.glob('@widgets/**/*.svelte', { eager: true });
 
 	// Lifecycle
 	$effect(() => {
@@ -164,7 +164,7 @@ Key features:
 				<div class="rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900">
 					<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
 						{#each filteredFields as field (field.db_fieldName || field.id || field.label || field.name)}
-							{#if field.widget()}
+							{#if field.widget}
 								<div
 									class="mx-auto text-center {!field?.width ? 'w-full ' : 'max-md:!w-full'}"
 									style={'min-width:min(300px,100%);' + (field.width ? `width:calc(${Math.floor(100 / field?.width)}% - 0.5rem)` : '')}
@@ -204,9 +204,9 @@ Key features:
 
 									<!-- Widget Input -->
 									{#if field.widget}
-										{#if typeof field.widget === 'string'}
-											{@const widgetName = field.widget()}
-											{@const widgetPath = `/src/widgets/${pascalToCamelCase(widgetName)}/${widgetName}.svelte`}
+										{#if typeof field.widget.Name === 'string'}
+											{@const widgetName = field.widget.Name}
+											{@const widgetPath = `/src/widgets/core/${pascalToCamelCase(widgetName)}/${widgetName}.svelte`}
 											{@const WidgetComponent = modules[widgetPath]?.default}
 											{#if WidgetComponent}
 												<WidgetComponent {field} bind:WidgetData={fieldsData[getFieldName(field)]} bind:value={customData[getFieldName(field)]} />

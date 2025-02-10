@@ -10,8 +10,6 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 <script lang="ts">
 	import { goto } from '$app/navigation';
 
-	import lodash from 'lodash';
-
 	// Stores
 	import { page } from '$app/state';
 	import { contentLanguage } from '@stores/store.svelte';
@@ -27,7 +25,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 
 	import { publicEnv } from '@root/config/public';
 	import type { AvailableLanguageTag } from '@root/src/paraglide/runtime';
-	import { processModule } from '@root/src/content/utils';
+
 	import type { Schema } from '@root/src/content/types';
 
 	interface Props {
