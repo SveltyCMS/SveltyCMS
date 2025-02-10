@@ -3,90 +3,109 @@
  * @description MongoDB schema and model for Widgets.
  *
  * This module defines a schema and model for widgets in the CMS.
- * Widgets are reusable components that can be placed in different areas of the site.
+ * Widgets are reusable components that can be placed in different areas of the site
  */
 
-
-import mongoose, { Schema } from 'mongoose';
-import type { Widget } from '@src/databases/dbInterface';
+import mongoose, { Schema, Model } from 'mongoose';
+import type { Widget, DatabaseResult } from '@src/databases/dbInterface';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-// Widget schema 
-import type { DatabaseId, ISODateString } from '@src/databases/dbInterface';
-
+// Widget schema
 export const widgetSchema = new Schema<Widget>(
-  {
-    _id: { type: DatabaseId, required: true }, // Using String type for _id as in dbInterface, refine to DatabaseId
-    name: { type: String, required: true, unique: true }, // Unique name/identifier for widget type
-    identifier: { type: String, required: true, unique: true }, // Unique identifier (e.g., 'core/input', 'custom/my-widget')
-    isActive: { type: Boolean, default: false }, // Is the widget globally active?
-    instances: [{ // WidgetConfig[] - Array of widget instance configurations
-      position: { type: String },
-      settings: { // WidgetSettings
-        layout: String,
-        colorScheme: String,
-      },
-    }],
-    dependencies: [String], // Widget identifiers of dependencies
-    isCore: { type: Boolean, default: false }, // Is it a core widget?
-  },
-  {
-    timestamps: true,
-    collection: 'system_widgets',
-    strict: false // Allow for potential extra fields in config and widget
-  }
+	{
+		_id: { type: String, required: true }, // UUID as per dbInterface.ts
+		name: { type: String, required: true, unique: true }, // Unique name for the widget
+		isActive: { type: Boolean, default: false }, // Whether the widget is globally active
+		instances: {
+			type: Map,
+			of: Object, // Store configurations for widget instances (type-safe if needed)
+			default: {}
+		},
+		dependencies: [String], // Widget identifiers of dependencies
+		createdAt: { type: Date, default: Date.now },
+		updatedAt: { type: Date, default: Date.now }
+	},
+	{
+		timestamps: true,
+		collection: 'system_widgets',
+		strict: true // Enforce strict schema validation
+	}
 );
 
-// Indexes (Simplified - adjust based on common queries)
-widgetSchema.index({ name: 1 }); // Index on name/identifier for lookups
-widgetSchema.index({ identifier: 1, isActive: 1 }); // Index for active widget retrieval
+// Indexes
+widgetSchema.index({ isActive: 1 }); // Index for active widgets
 
-// Static methods (Simplified - focused on specialized queries if needed)
+// Static methods
 widgetSchema.statics = {
-  // --- CRUD Actions (Delegated to MongoDBAdapter) ---
-  // In this simplified model, create, update, delete, and activate/deactivate
-  // are primarily handled by the MongoDBAdapter using core CRUD methods.
-  // The model focuses on specific queries if needed.
+	// Get all widgets.
+	async getAllWidgets(): Promise<DatabaseResult<Widget[]>> {
+		try {
+			const widgets = await this.find().lean().exec();
+			return { success: true, data: widgets };
+		} catch (error) {
+			logger.error(`Error fetching all widgets: ${error.message}`);
+			return { success: false, error: { code: 'WIDGET_FETCH_ERROR', message: 'Failed to fetch widgets' } };
+		}
+	},
 
-  // --- Specialized Queries ---
+	// Get active widgets.
+	async getActiveWidgets(): Promise<DatabaseResult<string[]>> {
+		try {
+			const widgets = await this.find({ isActive: true }, 'name').lean().exec();
+			const activeWidgetNames = widgets.map((widget) => widget.name);
+			return { success: true, data: activeWidgetNames };
+		} catch (error) {
+			logger.error(`Error fetching active widgets: ${error.message}`);
+			return { success: false, error: { code: 'ACTIVE_WIDGETS_FETCH_ERROR', message: 'Failed to fetch active widgets' } };
+		}
+	},
 
-  // Get widget by name (identifier) - Keep for direct access if needed
-  async getWidgetByIdentifier(identifier: string): Promise<Widget | null> {
-    try {
-      if (!this.dbAdapter) {
-        throw new Error('Database adapter is not initialized.');
-      }
-      const result = await this.dbAdapter.queryBuilder<Widget>('Widget')
-        .where({ identifier })
-        .findOne();
+	// Activate a widget by its name
+	async activateWidget(widgetName: string): Promise<DatabaseResult<void>> {
+		try {
+			const result = await this.updateOne({ name: widgetName }, { $set: { isActive: true, updatedAt: new Date() } }).exec();
+			if (result.modifiedCount === 0) {
+				return { success: false, error: { code: 'WIDGET_NOT_FOUND', message: `Widget "${widgetName}" not found or already active.` } };
+			}
+			logger.info(`Widget "${widgetName}" activated successfully.`);
+			return { success: true, data: undefined };
+		} catch (error) {
+			logger.error(`Error activating widget "${widgetName}": ${error.message}`);
+			return { success: false, error: { code: 'WIDGET_ACTIVATION_ERROR', message: `Failed to activate widget "${widgetName}"` } };
+		}
+	},
 
-      if (!result.success) {
-        logger.error(`Error retrieving widget by identifier: ${identifier}: ${result.error?.message}`);
-        return null;
-      }
-      const widget = result.data;
-      logger.debug(`Retrieved widget by identifier: ${identifier}`);
-      return widget;
-    } catch (error) {
-      logger.error(`Error retrieving widget by identifier: ${error.message}`);
-      throw error;
-    }
-  },
+	// Deactivate a widget by its name
+	async deactivateWidget(widgetName: string): Promise<DatabaseResult<void>> {
+		try {
+			const result = await this.updateOne({ name: widgetName }, { $set: { isActive: false, updatedAt: new Date() } }).exec();
+			if (result.modifiedCount === 0) {
+				return { success: false, error: { code: 'WIDGET_NOT_FOUND', message: `Widget "${widgetName}" not found or already inactive.` } };
+			}
+			logger.info(`Widget "${widgetName}" deactivated successfully.`);
+			return { success: true, data: undefined };
+		} catch (error) {
+			logger.error(`Error deactivating widget "${widgetName}": ${error.message}`);
+			return { success: false, error: { code: 'WIDGET_DEACTIVATION_ERROR', message: `Failed to deactivate widget "${widgetName}"` } };
+		}
+	},
 
-  // --- Utility/Bulk Operations (Example - adjust if needed) ---
-  // Example: Bulk activate widgets - Adjust or remove if not needed
-  async bulkActivateWidgets(widgetIdentifiers: string[]): Promise<DatabaseResult<number>> { // Using DatabaseResult for consistency
-    try {
-      const result = await this.updateMany({ identifier: { $in: widgetIdentifiers } }, { isActive: true }).exec();
-      logger.info(`Bulk activated ${result.modifiedCount} widgets.`);
-      return { success: true, data: result.modifiedCount };
-    } catch (error) {
-      logger.error(`Error bulk activating widgets: ${error.message}`);
-      return { success: false, error: { code: 'DATABASE_ERROR', message: 'Failed to bulk activate widgets', details: error } as DatabaseError }; // Using DatabaseError type
-    }
-  },
+	// Update a widget's configuration
+	async updateWidget(widgetName: string, updateData: Partial<Widget>): Promise<DatabaseResult<void>> {
+		try {
+			const result = await this.updateOne({ name: widgetName }, { $set: { ...updateData, updatedAt: new Date() } }).exec();
+			if (result.modifiedCount === 0) {
+				return { success: false, error: { code: 'WIDGET_NOT_FOUND', message: `Widget "${widgetName}" not found or no changes applied.` } };
+			}
+			logger.info(`Widget "${widgetName}" updated successfully.`);
+			return { success: true, data: undefined };
+		} catch (error) {
+			logger.error(`Error updating widget "${widgetName}": ${error.message}`);
+			return { success: false, error: { code: 'WIDGET_UPDATE_ERROR', message: `Failed to update widget "${widgetName}"` } };
+		}
+	}
 };
 
 // Create and export the Widget model

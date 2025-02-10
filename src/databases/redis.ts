@@ -78,7 +78,6 @@ if (!browser) {
 	});
 }
 
-
 // Initializes the Redis client with retry mechanism.
 export async function initializeRedis(): Promise<void> {
 	if (browser || !redisConfig.useRedis) {

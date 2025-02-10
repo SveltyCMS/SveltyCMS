@@ -7,9 +7,9 @@
  */
 
 import { privateEnv } from '@root/config/private';
+import mongoose from 'mongoose';
 
 import type { ConnectOptions } from 'mongoose';
-import mongoose from 'mongoose';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -35,7 +35,7 @@ export async function connectToMongoDB(): Promise<void> {
 		dbName: privateEnv.DB_NAME,
 		maxPoolSize: privateEnv.DB_POOL_SIZE || 5,
 		retryWrites: true,
-		serverSelectionTimeoutMS: DB_TIMEOUT,
+		serverSelectionTimeoutMS: DB_TIMEOUT
 		// Additional options for optimization and stability (consider enabling as needed):
 		// autoIndex: false, // Disable auto-indexing in production, manage indexes manually
 		// bufferCommands: false, // Disable command buffering if immediate execution is critical

@@ -25,7 +25,7 @@ export class ThemeManager {
 	private db: dbInterface | null = null;
 	private initialized: boolean = false;
 
-	private constructor() { }
+	private constructor() {}
 
 	// Get the singleton instance of ThemeManager
 	public static getInstance(): ThemeManager {
@@ -65,7 +65,8 @@ export class ThemeManager {
 
 			const dbTheme = await this.db.getDefaultTheme(); // Get default theme from db
 
-			if (dbTheme != null && typeof dbTheme === 'object' && 'name' in dbTheme) { // Check if valid theme
+			if (dbTheme != null && typeof dbTheme === 'object' && 'name' in dbTheme) {
+				// Check if valid theme
 				this.currentTheme = dbTheme; // Set current theme from db
 				logger.info(`Loaded default theme from database: ${this.currentTheme.name}`);
 			} else {
@@ -88,7 +89,8 @@ export class ThemeManager {
 
 	// Get the current theme
 	public getTheme(): Theme {
-		if (!this.initialized) { // Check if initialized
+		if (!this.initialized) {
+			// Check if initialized
 			logger.warn('ThemeManager is not initialized. Call initialize() first.');
 		}
 		return this.currentTheme || DEFAULT_THEME; // Return current or default
