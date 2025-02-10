@@ -9,7 +9,8 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { browser } from '$app/environment';
+
+	import lodash from 'lodash';
 
 	// Stores
 	import { page } from '$app/state';
@@ -22,27 +23,34 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	import MediaGallery from '@src/routes/(app)/mediagallery/+page.svelte';
 
 	// System Logger
-	import { logger } from '@utils/logger.svelte';
 	import type { User } from '@root/src/auth/types.js';
-	import { deserializeCollection } from '@root/src/utils/serialize';
+
 	import { publicEnv } from '@root/config/public';
 	import type { AvailableLanguageTag } from '@root/src/paraglide/runtime';
+	import { processModule } from '@root/src/content/utils';
+	import type { Schema } from '@root/src/content/types';
 
 	interface Props {
-		data: { collection: string; contentLanguage: string; user: User };
+		data: { collection: Schema & { module: string | undefined }; contentLanguage: string; user: User };
 	}
+
 	const { data }: Props = $props();
 
-	let isLoading = $state(false);
+	let isLoading = $state(true);
+
+	async function loadCollection() {
+		isLoading = true;
+		if (!page.params.collection && !data.collection?.module) return;
+
+		// console.log('selectedCollection', selectedCollection, page.params.collection);
+		collection.set(data.collection);
+		isLoading = false;
+	}
 
 	$effect(() => {
-		if (!page.params.collection) return;
-
-		const selectedCollection = deserializeCollection(data.collection);
-		console.log('selectedCollection', selectedCollection);
-		// console.log('selectedCollection', selectedCollection, page.params.collection);
-		if (selectedCollection._id !== collection.value?._id) {
-			collection.set(selectedCollection);
+		// Correctly using $effect here
+		if (data.collection.name && (!collection.value || data.collection.path !== collection.value.path)) {
+			loadCollection();
 		}
 	});
 
@@ -59,38 +67,23 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 
 	// Handle language changes
 	$effect(() => {
-		if (!collection?.value?.name) return;
+		if (!collection?.value?.name && !collection.value?.path) return;
 
 		const newLanguage = contentLanguage.value;
 		const currentPath = page.url.pathname;
-		const newPath = `/${newLanguage}${collection.value.path.toString()}`;
-		console.log('language change', 'currentPath', currentPath, 'newPath', newPath);
+		const newPath = `/${newLanguage}${collection.value?.path?.toString()}`;
 		if (currentPath !== newPath) goto(newPath);
 	});
 
 	// Handle browser history navigation
 
 	// Update SEO metadata
-	$effect(() => {
-		if (!browser || !collection?.value?.name) return;
-
-		const title = `${collection.value.name.toString()} - Your Site Title`;
-		const description = `View and manage entries for ${collection.value.name.toString()}.`;
-
-		document.title = title;
-
-		const metaDescription = document.querySelector('meta[name="description"]');
-		if (metaDescription) {
-			metaDescription.setAttribute('content', description);
-		} else {
-			const meta = document.createElement('meta');
-			meta.name = 'description';
-			meta.content = description;
-			document.head.appendChild(meta);
-		}
-	});
 </script>
 
+<svelte:head>
+	<title>{collection.value?.name?.toString() ?? 'Collection Not found'} - Your Site Title</title>
+	<meta name="description" content={`View and manage entries for ${collection.value?.name?.toString()}.`} />
+</svelte:head>
 <div class="content h-full">
 	{#if isLoading}
 		<div class="loading flex h-full items-center justify-center">

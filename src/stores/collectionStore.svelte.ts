@@ -10,7 +10,7 @@
  */
 
 import { store } from '@utils/reactivity.svelte';
-import type { Schema, ModeType, Widget } from '@src/content/types';
+import type { Schema } from '@src/content/types';
 import type { ContentStructureNode } from '../databases/dbInterface';
 
 // Define UUID-based collection interface
@@ -19,7 +19,7 @@ interface UUIDCollection extends Schema {
   name: string;
   path: string;
   icon?: string;
-  isCollection: boolean;
+
 }
 
 // Define types
@@ -50,7 +50,7 @@ export const currentCollectionId = store<string | null>(null);
 export const collectionsLoading = store<boolean>(false);
 export const collectionsError = store<string | null>(null);
 export const unAssigned = store<UUIDCollection>({} as UUIDCollection);
-export const collection = store<UUIDCollection | null>({} as UUIDCollection);
+export const collection = store<Schema | null>(null);
 export const collectionValue = store<Record<string, unknown>>({});
 export const mode = store<ModeType>('view');
 export const modifyEntry = store<(status?: keyof typeof statusMap) => Promise<void>>(() => Promise.resolve());

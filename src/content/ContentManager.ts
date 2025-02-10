@@ -22,10 +22,11 @@ import type { ContentStructureNode, SystemContent } from '@src/databases/dbInter
 
 // Redis
 import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/redis';
-import widgetProxy, { initializeWidgets, resolveWidgetPlaceholder } from '@src/widgets';
+import { ensureWidgetsInitialized, } from '@src/widgets';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
+import { processModule } from './utils';
 
 
 interface CacheEntry<T> {
@@ -40,23 +41,7 @@ const MAX_CACHE_SIZE = 100;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000;
 
-// Widget initialization state
-let widgetsInitialized = false;
 
-async function ensureWidgetsInitialized() {
-  if (!widgetsInitialized) {
-    try {
-      await initializeWidgets();
-      // Make widgets available globally for eval context
-      globalThis.widgets = widgetProxy;
-      widgetsInitialized = true;
-      logger.debug('Widgets initialized successfully');
-    } catch (error) {
-      logger.error('Failed to initialize widgets:', error);
-      throw error;
-    }
-  }
-}
 
 class ContentManager {
   private static instance: ContentManager | null = null;
@@ -111,92 +96,6 @@ class ContentManager {
     }
   }
 
-  // Process module content
-  private async processModule(content: string): Promise<{ schema?: Partial<Schema> } | null> {
-    try {
-      // Ensure widgets are initialized before processing module
-      await ensureWidgetsInitialized();
-
-      // Extract UUID from file content
-      const uuidMatch = content.match(/\/\/\s*UUID:\s*([a-f0-9-]{36})/i);
-      const uuid = uuidMatch ? uuidMatch[1] : null;
-
-      // Remove any import/export statements and extract the schema object
-      const cleanedContent = content
-        .replace(/import\s+.*?;/g, '') // Remove import statements
-        .replace(/export\s+default\s+/, '') // Remove export default
-        .replace(/export\s+const\s+/, 'const ') // Handle export const
-        .trim();
-
-      // Replace the global widgets before evaluating the schema
-      const modifiedContent = cleanedContent.replace(/globalThis\.widgets\.(\w+)\((.*?)\)/g, (match, widgetName, widgetConfig) => {
-        return `await resolveWidgetPlaceholder({ __widgetName: '${widgetName}', __widgetConfig: ${widgetConfig || '{}'} })`;
-      });
-
-      // Create a safe evaluation context
-      const moduleContent = `
-				const module = {};
-				const exports = {};
-	               const resolveWidgetPlaceholder = ${resolveWidgetPlaceholder.toString()};
-				(async function(module, exports) {
-					${modifiedContent}
-					return module.exports || exports;
-				})(module, exports);
-			`;
-
-      // Create and execute the function with widgets as context
-      const moduleFunc = new Function('widgets', moduleContent);
-      const result = await moduleFunc(widgetProxy);
-
-      // If result is an object with fields, it's likely our schema
-      if (result && typeof result === 'object') {
-        return { schema: { ...result, _id: uuid } };
-      }
-
-      // If we got here, try to find a schema object in the content
-      const schemaMatch = cleanedContent.match(/(?:const|let|var)\s+(\w+)\s*=\s*({[\s\S]*?});/);
-      if (schemaMatch && schemaMatch[2]) {
-        try {
-          // Evaluate just the schema object
-          const schemaFunc = new Function(`return ${schemaMatch[2]}`);
-          const schema = schemaFunc();
-          return { schema: { ...schema, _id: uuid } };
-        } catch (error) {
-          logger.warn('Failed to evaluate schema object:', error);
-        }
-      }
-
-      // Try to match export const/let/var schema
-      const schemaExportMatch = cleanedContent.match(/(?:export\s+(?:const|let|var)\s+)?(\w+)\s*=\s*({[\s\S]*?});/);
-      if (schemaExportMatch && schemaExportMatch[2]) {
-        try {
-          const schemaFunc = new Function(`return ${schemaExportMatch[2]}`);
-          const schema = schemaFunc();
-          return { schema: { ...schema, _id: uuid } };
-        } catch (error) {
-          logger.warn('Failed to evaluate schema object:', error);
-        }
-      }
-
-      // Try to match export default schema
-      const schemaDefaultExportMatch = cleanedContent.match(/export\s+default\s+({[\s\S]*?});/);
-      if (schemaDefaultExportMatch && schemaDefaultExportMatch[1]) {
-        try {
-          const schemaFunc = new Function(`return ${schemaDefaultExportMatch[1]}`);
-          const schema = schemaFunc();
-          return { schema: { ...schema, _id: uuid } };
-        } catch (error) {
-          logger.warn('Failed to evaluate schema object:', error);
-        }
-      }
-
-      return null;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      logger.error('Failed to process module:', { error: errorMessage });
-      return null;
-    }
-  }
 
   public async getCollectionData() {
     if (!this.initialized) {
@@ -218,7 +117,7 @@ class ContentManager {
       for (const filePath of files) {
         try {
           const content = await this.readFile(filePath);
-          const moduleData = await this.processModule(content);
+          const moduleData = await processModule(content);
 
           if (!moduleData?.schema) continue;
 
@@ -291,15 +190,20 @@ class ContentManager {
     }
   }
 
-  public async getCollection(path: string): Promise<Schema | undefined> {
+  public async getCollection(path: string): Promise<(Schema & { module: string | undefined }) | null> {
     try {
       if (!this.initialized) {
         logger.error('Content Manager not initialized');
       }
 
-      const collection = this.collectionMap.get(path);
-      if (collection) return collection;
-      return undefined;
+      const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
+      const collectionFile = await this.readFile(`${compiledDirectoryPath}/${path}.js`);
+      const schema = this.collectionMap.get(path);
+
+      if (!schema || !collectionFile) return null;
+
+      return { module: collectionFile, ...schema };
+
 
     } catch (error) {
       logger.error('Error getting collection', error);

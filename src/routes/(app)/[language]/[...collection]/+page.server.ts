@@ -24,7 +24,7 @@ import { DEFAULT_THEME } from '@src/databases/themeManager';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 import { contentManager } from '@root/src/content/ContentManager';
-import { serializeCollection } from '@root/src/utils/serialize';
+
 
 // Server-side load function for the layout
 export const load: PageServerLoad = async ({ cookies, locals, params }) => {
@@ -60,13 +60,22 @@ export const load: PageServerLoad = async ({ cookies, locals, params }) => {
   }
 
   await contentManager.initialize();
-  console.log(`/${collection}`);
+
   const currentCollection = await contentManager.getCollection(`/${collection}`);
+
 
   return {
     theme: theme || DEFAULT_THEME,
     contentLanguage,
-    collection: serializeCollection(currentCollection),
+    collection: {
+      module: currentCollection?.module,
+      name: currentCollection?.name,
+      _id: currentCollection?._id,
+      path: currentCollection?.path,
+      icon: currentCollection?.icon,
+      label: currentCollection?.label,
+      description: currentCollection?.description,
+    },
     user: {
       username: user.username,
       role: user.role,
