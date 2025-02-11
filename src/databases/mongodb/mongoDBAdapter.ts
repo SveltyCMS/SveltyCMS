@@ -28,7 +28,7 @@
  * and connection retries. It integrates fully with the CMS for all data management needs.
  */
 
-import { browser } from '$app/environment';
+
 import type { Unsubscriber } from 'svelte/store';
 import type { ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
 import type { UserPreferences, WidgetPreference } from '@root/src/stores/userPreferences.svelte';
@@ -64,7 +64,7 @@ import { SessionSchema } from '@src/auth/mongoDBAuth/sessionAdapter';
 
 // Database Models
 import { ContentStructureModel } from './models/contentStructure';
-import type { ContentStructureNode } from './models/contentStructure';
+import type { ContentStructureNode } from '@src/databases/dbInterface';
 import { DraftModel } from './models/draft';
 import { RevisionModel } from './models/revision';
 import { ThemeModel } from './models/theme';
@@ -85,6 +85,7 @@ import { logger } from '@utils/logger.svelte';
 
 // Widget Manager
 import '@widgets/index';
+import type { FilterQuery } from 'mongoose';
 
 // Types from virtualFolder.ts
 interface VirtualFolderUpdateData {

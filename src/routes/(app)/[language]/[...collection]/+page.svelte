@@ -27,6 +27,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	import type { AvailableLanguageTag } from '@root/src/paraglide/runtime';
 
 	import type { Schema } from '@root/src/content/types';
+	import Loading from '@root/src/components/Loading.svelte';
 
 	interface Props {
 		data: { collection: Schema & { module: string | undefined }; contentLanguage: string; user: User };
@@ -38,9 +39,9 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 
 	async function loadCollection() {
 		isLoading = true;
-		if (!page.params.collection && !data.collection?.module) return;
+		if (!page.params.collection) return;
 
-		// console.log('selectedCollection', selectedCollection, page.params.collection);
+		console.log('selectedCollection', data.collection);
 		collection.set(data.collection);
 		isLoading = false;
 	}
@@ -85,7 +86,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 <div class="content h-full">
 	{#if isLoading}
 		<div class="loading flex h-full items-center justify-center">
-			<span class="loading-spinner">Loading...</span>
+			<Loading />
 		</div>
 	{:else if collection.value}
 		{#if mode.value === 'view' || mode.value === 'modify'}

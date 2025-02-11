@@ -145,7 +145,7 @@ Features:
 			clearTimeout(loadingTimer);
 		}
 		// If the collection id is empty, return
-		if (!currentCollection?.id) return;
+		if (!currentCollection?._id) return;
 		// If fetch is true, set isLoading to true
 		if (fetch) {
 			// Set loading to true
@@ -155,7 +155,7 @@ Features:
 			// Fetch data using getData function
 			try {
 				data = await getData({
-					id: currentCollection?.id as any,
+					collectionId: currentCollection?._id as string,
 					page: currentPage,
 					limit: rowsPerPage,
 					contentLanguage: currentLanguage,
@@ -337,23 +337,22 @@ Features:
 				switch (status) {
 					case 'deleted':
 						// If the status is 'deleted', call the delete endpoint
-						await deleteData({ data: formData, contentTypes: currentCollection?.id as any });
+						await deleteData({ data: formData, collectionId: currentCollection?._id as string });
 						break;
 					case 'published':
 					case 'unpublished':
 					case 'testing':
 						// If the status is 'testing', call the publish endpoint
-						await setStatus({ data: formData, contentTypes: currentCollection?.id as any });
+						await setStatus({ data: formData, collectionId: currentCollection?._id as string });
 						break;
 					case 'cloned':
 					case 'scheduled':
 						// Trigger a toast message indicating that the feature is not yet implemented
-						const toast = {
+						toastStore.trigger({
 							message: 'Feature not yet implemented.',
 							background: 'variant-filled-error',
 							timeout: 3000
-						};
-						toastStore.trigger(toast);
+						});
 						break;
 				}
 				// Refresh the collection
@@ -385,19 +384,11 @@ Features:
 	});
 
 	let categoryName = $derived.by(() => {
-		if (!currentCollection?.id || !contentStructure.value) return '';
+		if (!currentCollection?._id || !contentStructure.value) return '';
 
 		// Helper function to find parent category name
-		const findParentCategory = (cats: Record<string, CollectionData>): string => {
-			for (const [categoryId, category] of Object.entries(cats)) {
-				if (category.collections?.some((col) => col.id === currentCollection.id)) {
-					return categoryId;
-				}
-			}
-			return '';
-		};
 
-		return findParentCategory(contentStructure.value);
+		return currentCollection.path?.split('/').filter(Boolean).join(' >');
 	});
 
 	let isCollectionEmpty = $derived(tableData.length === 0);
@@ -695,7 +686,7 @@ Features:
 										<!-- Use the Status component to display the Status -->
 										<Status value={row['status']} />
 									{:else}
-										{@html row[header.name]}
+										{row[header.name]}
 									{/if}
 								</td>
 							{/each}
@@ -728,7 +719,7 @@ Features:
 		<div class="text-center text-tertiary-500 dark:text-primary-500">
 			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2"></iconify-icon>
 			<p class="text-lg">
-				{m.EntryList_no_collection({ name: currentCollection?.name })}
+				{m.EntryList_no_collection({ name: currentCollection?.name as string })}
 			</p>
 		</div>
 	{/if}

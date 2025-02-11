@@ -18,7 +18,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 // Types
 import type { Schema, ContentTypes, Category, CollectionData } from './types';
-import type { ContentStructureNode, SystemContent } from '@src/databases/dbInterface';
+import type { CollectionModel, ContentStructureNode, SystemContent } from '@src/databases/dbInterface';
 
 // Redis
 import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/redis';
@@ -50,7 +50,9 @@ class ContentManager {
   private contentStructureCache: Map<string, CacheEntry<Category>> = new Map();
   private collectionAccessCount: Map<string, number> = new Map();
   private initialized: boolean = false;
+
   private loadedCollections: Schema[] = [];
+  private collectionModels: Map<string, CollectionModel> = new Map()
   private collectionMap: Map<string, Schema> = new Map();
   private contentStructure: Record<string, Category> = {};
   private nestedContentStructure: ContentStructureNode[] = [];
@@ -102,6 +104,7 @@ class ContentManager {
       await this.initialize();
     }
     return {
+      collectionMap: this.collectionMap,
       contentStructure: this.contentStructure,
       nestedContentStructure: this.nestedContentStructure
     };
@@ -143,9 +146,14 @@ class ContentManager {
             slug: schema.slug || filePathName.toLowerCase()
           };
 
-          await dbAdapter?.createCollectionModel(processed as CollectionData);
-          collections.push(processed);
-          this.collectionMap.set(path, processed);
+          const model = await dbAdapter?.createCollectionModel(processed as CollectionData);
+          if (!model) logger.error(`Database model creation for  ${schema.name} ${schema.path} Failed`)
+          else {
+            collections.push(processed);
+            this.collectionModels.set(schema._id, model)
+            this.collectionMap.set(schema._id, processed);
+          }
+
           await this.setCacheValue(filePath, processed, this.collectionCache);
         } catch (err) {
           logger.error(`Failed to process file ${filePath}:`, err);
@@ -190,6 +198,40 @@ class ContentManager {
     }
   }
 
+  public getCollectionById(id: string): Schema | null {
+    try {
+      if (!this.initialized) {
+        logger.error('Content Manager not initialized');
+        return null;
+      }
+      const collection = this.collectionMap.get(id)
+      if (!collection) {
+        logger.error(`Content with id: ${id} not found`)
+        return null
+      }
+      return collection;
+    }
+    catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(`Error in getCollectionById: ${errorMessage}`);
+      throw error
+    }
+
+  }
+
+  public getCollectionModelById(id: string) {
+    try {
+      const collectionModel = this.collectionModels.get(id)
+      // Create models using UUID as the key
+      return collectionModel;
+    } catch (error) {
+      const message = `Error fetching collection models: ${error instanceof Error ? error.message : String(error)}`;
+      logger.error(message);
+      throw error
+    }
+  }
+
+
   public async getCollection(path: string): Promise<(Schema & { module: string | undefined }) | null> {
     try {
       if (!this.initialized) {
@@ -198,7 +240,8 @@ class ContentManager {
 
       const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
       const collectionFile = await this.readFile(`${compiledDirectoryPath}/${path}.js`);
-      const schema = this.collectionMap.get(path);
+
+      const schema = this.collectionMap.get(this.contentStructure[path]._id);
 
       if (!schema || !collectionFile) return null;
 

@@ -253,36 +253,6 @@ interface CollectionModel {
 const collectionsModels: { [key: string]: CollectionModel } = {};
 
 // Export collections
-export async function getCollectionModels() {
-  if (!dbAdapter) {
-    throw error(500, 'Database adapter not initialized');
-  }
-  try {
-    logger.debug('Fetching collection models...');
-
-    // Get collection data from ContentManager - this now uses UUIDs
-    const { collections } = contentManager.getCollectionData();
-
-    // Create models using UUID as the key
-    for (const collection of collections) {
-      if (!collection.id) {
-        logger.warn(`Collection missing UUID: \x1b[34m${collection.id}\x1b[0m`);
-        continue;
-      }
-
-      // Create or update model using UUID
-      collectionsModels[collection.id] = {
-        name: collection.name,
-        schema: collection.schema || {}
-      };
-    }
-    return collectionsModels;
-  } catch (error) {
-    const message = `Error fetching collection models: ${error instanceof Error ? error.message : String(error)}`;
-    logger.error(message);
-    throw error(500, message);
-  }
-}
 
 // Export functions and state
 export { collectionsModels, initializationPromise as dbInitPromise };
