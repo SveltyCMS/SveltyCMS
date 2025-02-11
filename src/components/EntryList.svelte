@@ -28,12 +28,9 @@ Features:
 	import { debounce, getFieldName, meta_data } from '@utils/utils';
 	import { deleteData, getData, setStatus } from '@utils/data';
 
-	// Types
-	import type { Schema, CollectionData } from '@src/content/types';
-
 	// Stores
 	import { contentLanguage, systemLanguage } from '@stores/store.svelte';
-	import { mode, collectionValue, modifyEntry, statusMap, collection, collections, contentStructure } from '@src/stores/collectionStore.svelte';
+	import { mode, collectionValue, modifyEntry, statusMap, collection, contentStructure } from '@src/stores/collectionStore.svelte';
 	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@src/stores/sidebarStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 
@@ -109,7 +106,7 @@ Features:
 	let tableData = $state<any[]>([]);
 	// Tick row logic
 	let SelectAll = $state(false);
-	const selectedMap: { [key: string]: boolean } = {};
+	const selectedMap: { [key: string]: boolean } = $state({});
 	// Filter and debounce
 	let filters = $state<{ [key: string]: string }>(entryListPaginationSettings.filters || {});
 	const waitFilter = debounce(300); // Debounce filter function for 300ms
@@ -617,9 +614,9 @@ Features:
 							checked={SelectAll}
 							onCheck={(checked) => {
 								SelectAll = checked;
-								for (const key in selectedMap) {
-									selectedMap[key] = checked;
-								}
+								tableData.forEach((_, index) => {
+									selectedMap[index] = checked;
+								});
 							}}
 						/>
 						{#each displayTableHeaders.filter((header) => header.visible) as header}
@@ -667,7 +664,7 @@ Features:
 					{#each tableData as row, index}
 						<tr class="divide-x divide-surface-400">
 							<TableIcons
-								checked={selectedMap[index] || false}
+								checked={selectedMap[index] ?? false}
 								onCheck={(checked) => {
 									selectedMap[index] = checked;
 								}}

@@ -101,6 +101,7 @@ Features:
 	// Handle collection selection
 	function handleCollectionSelect(selectedCollection: ContentStructureNode | Schema) {
 		if ('nodeType' in selectedCollection && selectedCollection.nodeType === 'collection') {
+			mode.set('view');
 			collection.set(null);
 			goto(`/${contentLanguage.value}${selectedCollection.path?.toString()}`);
 		}
