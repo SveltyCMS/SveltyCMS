@@ -87,11 +87,10 @@ Features:
 	});
 
 	let search = $state('');
-	let isMediaMode = $state(false);
+	let isMediaMode = $derived(mode.value === 'media');
 
 	// Update isMediaMode when mode changes
 	$effect(() => {
-		isMediaMode = mode.value === 'media';
 		if (collectonStructureNodes.length > 0) {
 			// The search prop in TreeView will handle the filtering
 			search = search.toLowerCase().trim();
@@ -172,22 +171,23 @@ Features:
 		</button>
 
 		<!-- Collections TreeView -->
-
-		<!-- Back to Collections Button -->
-		<button
-			class="btn mt-1 flex w-full items-center bg-surface-400 py-2 hover:!bg-surface-500 hover:text-white dark:bg-surface-600"
-			onclick={() => {
-				mode.set('view');
-				if (get(screenSize) === 'sm') {
-					toggleSidebar('left', 'hidden');
-				}
-			}}
-		>
-			<iconify-icon icon="bi:collection" width="24" class="px-2 py-1 text-error-500"></iconify-icon>
-			<p class="mr-auto text-center uppercase">Collections</p>
-		</button>
-		<!-- Display Virtual Folders as TreeView -->
-		<TreeView k={1} nodes={virtualFolderNodes} selectedId={collection.value?._id} compact={sidebarState.sidebar.value.left !== 'full'} {search}
-		></TreeView>
 	{/if}
+
+	<!-- Back to Collections Button -->
+	<button
+		class="btn mt-1 flex w-full items-center bg-surface-400 py-2 hover:!bg-surface-500 hover:text-white dark:bg-surface-600"
+		onclick={() => {
+			mode.set('view');
+			if (get(screenSize) === 'sm') {
+				toggleSidebar('left', 'hidden');
+			}
+			goto(`/`);
+		}}
+	>
+		<iconify-icon icon="bi:collection" width="24" class="px-2 py-1 text-error-500"></iconify-icon>
+		<p class="mr-auto text-center uppercase">Collections</p>
+	</button>
+	<!-- Display Virtual Folders as TreeView -->
+	<TreeView k={1} nodes={virtualFolderNodes} selectedId={collection.value?._id} compact={sidebarState.sidebar.value.left !== 'full'} {search}
+	></TreeView>
 </div>

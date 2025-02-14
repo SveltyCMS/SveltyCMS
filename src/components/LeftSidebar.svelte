@@ -238,7 +238,7 @@
 	</button>
 
 	<!--SideBar Middle -->
-	<Collections data={contentStructure.value} />
+	<Collections />
 
 	<!-- Sidebar Left Footer -->
 	<div class="mb-2 mt-auto bg-white dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900">
