@@ -146,7 +146,10 @@ class ContentManager {
             slug: schema.slug || filePathName.toLowerCase()
           };
 
+
           const model = await dbAdapter?.createCollectionModel(processed as CollectionData);
+
+
           if (!model) logger.error(`Database model creation for  ${schema.name} ${schema.path} Failed`)
           else {
             collections.push(processed);
@@ -188,7 +191,7 @@ class ContentManager {
         }
       }
       await this.loadCollections();
-      await this.createCategories();
+      await this.updateContentStructure();
       logger.info('Collections updated successfully');
       // Convert category array to record structure
     } catch (err) {
@@ -255,7 +258,7 @@ class ContentManager {
   }
 
   // Create categories with Redis caching
-  private async createCategories(): Promise<void> {
+  private async updateContentStructure(): Promise<void> {
     try {
 
       if (!dbAdapter) throw new Error('Database adapter not initialized');
@@ -266,6 +269,8 @@ class ContentManager {
       const structureMap = new Map<string, ContentStructureNode>(
         structure.map(node => [node.path, node])
       );
+
+      const categoryNodes: Map<string, ({ path: string, name: string, parentPath: string })> = new Map()
 
       for (const collection of this.loadedCollections) {
         if (!collection.path) {
@@ -280,40 +285,53 @@ class ContentManager {
 
         const currentNode = await dbAdapter?.upsertContentStructureNode({
           _id: oldNode?._id ?? collection._id,
-          name: oldNode?.name ?? collection.name as string,
-          icon: oldNode?.icon ?? (collection.icon || 'bi:file'),
-          path: oldNode?.path ?? collection.path,
+          name: collection.name as string,
+          icon: collection.icon ?? oldNode?.icon ?? 'bi:file',
+          path: collection.path ?? oldNode?.path ?? `/${collection.name}`,
           order: oldNode?.order ?? 999,
           nodeType: "collection",
-          parentPath: oldNode?.parentPath ?? parentPath,
-          translations: oldNode?.translations ?? collection.translations ?? [],
+          parentPath: parentPath ?? oldNode?.parentPath ?? '/',
+          translations: collection.translations ?? oldNode?.translations ?? [],
           updatedAt: oldNode?.updatedAt ?? new Date(),
 
         });
         this.contentStructure[currentNode.path] = currentNode;
 
-        if (parentPath) {
+        if (parentPath && parentPath !== "/") {
           const parentParts = parentPath.split("/").filter(Boolean);
-          const thisParent = parentPath === "/" ? null : parentPath.split("/").slice(0, -1).join() || "/"
-          for (const part of parentParts) {
-            const oldNode = structureMap.get(parentPath);
-            const currentCategoryNode = await dbAdapter?.upsertContentStructureNode({
-              _id: oldNode?._id ?? uuidv4(),
-              name: oldNode?.name ?? part,
-              icon: oldNode?.icon ?? "bi:folder",
-              path: parentPath,
-              order: 999,
-              nodeType: "category",
-              parentPath: thisParent,
-              translations: oldNode?.translations ?? [],
-              updatedAt: oldNode?.updatedAt ?? new Date()
-
-            })
-            this.contentStructure[currentCategoryNode.path] = currentCategoryNode;
-            structureMap.set(currentCategoryNode.path, currentCategoryNode);
+          const thisParent = parentPath.split("/").slice(0, -1).join("/") ?? "/"
+          const categoryNode = {
+            path: parentPath,
+            name: parentParts.pop() as string,
+            parentPath: thisParent ?? "/"
           }
+
+          categoryNodes.set(parentPath, categoryNode)
+
+
         }
       }
+      console.debug(categoryNodes)
+      for (const node of categoryNodes.values()) {
+        const oldNode = structureMap.get(node.path);
+        const currentCategoryNode = await dbAdapter?.upsertContentStructureNode({
+          _id: oldNode?._id ?? uuidv4(),
+          name: node.name ?? oldNode?.name,
+          icon: oldNode?.icon ?? "bi:folder",
+          path: node.path,
+          order: 999,
+          nodeType: "category",
+          parentPath: node.parentPath,
+          translations: oldNode?.translations ?? [],
+          updatedAt: oldNode?.updatedAt ?? new Date()
+
+        })
+        this.contentStructure[currentCategoryNode.path] = currentCategoryNode;
+        structureMap.set(currentCategoryNode.path, currentCategoryNode);
+
+
+      }
+
 
       this.nestedContentStructure = this.generateNestedStructure();
       logger.debug("Content Manager SysContentStructure loaded");
