@@ -45,7 +45,9 @@
 		ariaLabel?: string; // Optional ARIA label for the node
 		onClick?: (node: TreeNode) => void;
 		isCollection?: boolean; // Optional flag indicating if the node is a collection
+
 		badge?: {
+			visible?: boolean;
 			count?: number;
 			status?: 'draft' | 'published' | 'archived';
 			color?: string;
@@ -219,7 +221,7 @@
 			<button
 				type="button"
 				id={`node-${node.id}`}
-				class="flex w-full items-center gap-1.5 rounded
+				class="relative flex w-full items-center gap-1.5 rounded
 					border border-surface-400 px-2 py-3 transition-all duration-200
 					hover:bg-surface-50 focus:bg-surface-50 focus-visible:outline-none
 					dark:border-0 dark:bg-surface-500
@@ -246,11 +248,12 @@
 					</div>
 
 					<!-- Badge overlay -->
-					{#if node.badge?.visible && node.badge.count > 0 && !compact}
+					{#if !node.isExpanded && node.badge?.count! > 0 && !compact}
 						<div
-							class="badge absolute right-1 top-1/2 -translate-y-1/2 rounded-full bg-primary-500/80 px-2 py-1 text-xs text-white dark:bg-primary-500/50"
+							class={`badge right-1 top-0  ${!node.isExpanded ? 'absolute translate-y-1/2' : 'hidden transition-opacity'} 
+              rounded-full bg-primary-500/80 px-2 py-1 text-xs text-white dark:bg-primary-500/50`}
 						>
-							{node.badge.count}
+							{node.badge?.count}
 						</div>
 					{/if}
 				{:else}
