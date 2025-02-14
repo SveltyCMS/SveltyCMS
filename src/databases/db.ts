@@ -54,10 +54,11 @@ export let auth: Auth | null = null; // Authentication instance
 export let isConnected = false; // Database connection state
 let isInitialized = false; // Initialization state
 let initializationPromise: Promise<void> | null = null; // Initialization promise
-
+let adaptersLoaded = false;
 // Load database and authentication adapters
 async function loadAdapters() {
   try {
+    if (adaptersLoaded) return;
     logger.debug(`Loading ${privateEnv.DB_TYPE} adapters...`);
     if (privateEnv.DB_TYPE === 'mongodb') {
       const { MongoDBAdapter } = await import('./mongodb/mongoDBAdapter');
@@ -95,6 +96,7 @@ async function loadAdapters() {
         getAllPermissions,
         getPermissionByName
       } as authDBInterface;
+      adaptersLoaded = true;
       logger.debug('MongoDB adapters loaded successfully.');
     } else if (privateEnv.DB_TYPE === 'mariadb' || privateEnv.DB_TYPE === 'postgresql') {
       logger.debug('Implement & Loading SQL adapters...');

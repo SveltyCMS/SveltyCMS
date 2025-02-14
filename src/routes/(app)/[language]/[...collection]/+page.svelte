@@ -17,7 +17,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 
 	// Components
 	import Fields from '@components/Fields.svelte';
-	import EntryList from '@components/EntryList.svelte';
+	import EntryList from '@src/components/EntryList.svelte';
 	import MediaGallery from '@src/routes/(app)/mediagallery/+page.svelte';
 
 	// System Logger
@@ -75,8 +75,6 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	});
 
 	// Handle browser history navigation
-
-	// Update SEO metadata
 </script>
 
 <svelte:head>
@@ -93,7 +91,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 			<EntryList />
 		{:else if ['edit', 'create'].includes(mode.value)}
 			<div id="fields_container" class="fields max-h-[calc(100vh-60px)] overflow-y-auto max-md:max-h-[calc(100vh-120px)]">
-				<Fields fields={collection.value.fields} fieldsData={collection.value.fields} customData={collectionValue.value} root={false} />
+				<Fields fields={collection.value.fields} fieldsData={collectionValue.value} customData={{}} root={true} />
 			</div>
 		{:else if mode.value === 'media' && page.params.collection}
 			<MediaGallery />

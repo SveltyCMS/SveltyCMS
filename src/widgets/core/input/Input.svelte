@@ -13,12 +13,13 @@
 	import { updateTranslationProgress, getFieldName } from '@src/utils/utils';
 
 	// Stores
-	import { mode, collection } from '@root/src/stores/collectionStore.svelte';
+	import { mode } from '@root/src/stores/collectionStore.svelte';
 
 	// Valibot validation
 	import { string, pipe, parse, type ValiError, minLength, maxLength, nonEmpty, nullable } from 'valibot';
 	import { contentLanguage, validationStore } from '@root/src/stores/store.svelte';
 
+	import lodash from 'lodash';
 	// Props
 	interface Props {
 		field: FieldType;
@@ -26,22 +27,18 @@
 		WidgetData?: any;
 	}
 
-	let { field, value = $bindable(), WidgetData = $bindable() }: Props = $props();
+	let { field, value = $bindable({ [contentLanguage.value.toLowerCase()]: '' }), WidgetData = async () => value }: Props = $props();
 
 	// Initialize value separately to avoid $state() in prop destructuring
 
-	let _data = $state(mode() == 'create' ? { [contentLanguage.value.toLowerCase()]: '' } : value);
-
 	let _language = $derived(field?.translated ? contentLanguage.value.toLowerCase() : publicEnv.DEFAULT_CONTENT_LANGUAGE.toLowerCase());
 
-	let count = $derived(_data[_language]?.length ?? 0);
+	let count = $derived(value[_language]?.length ?? 0);
 
 	track(
-		() => updateTranslationProgress(_data, field),
-		() => _data[_language]
+		() => updateTranslationProgress(value, field),
+		() => value[_language]
 	);
-
-	WidgetData = async () => _data;
 
 	// Validation and error state
 	let validationError = $state<string | null>(null);
@@ -74,30 +71,30 @@
 			if (debounceTimeout) clearTimeout(debounceTimeout);
 			debounceTimeout = window.setTimeout(() => {
 				try {
-					const value = _data[_language];
+					const newValue = value[_language];
 
 					// First validate the value exists if required
-					if (field?.required && !value) {
+					if (field?.required && !newValue) {
 						validationError = 'This field is required';
 						validationStore.setError(getFieldName(field), validationError);
 						return;
 					}
 
 					// Then validate string constraints if value exists
-					if (value) {
-						if (field?.minlength && value.length < field.minlength) {
+					if (newValue) {
+						if (field?.minlength && newValue.length < field.minlength) {
 							validationError = `Minimum length is ${field.minlength}`;
 							validationStore.setError(getFieldName(field), validationError);
 							return;
 						}
-						if (field?.maxlength && value.length > field.maxlength) {
+						if (field?.maxlength && newValue.length > field.maxlength) {
 							validationError = `Maximum length is ${field.maxlength}`;
 							validationStore.setError(getFieldName(field), validationError);
 							return;
 						}
 					}
 
-					parse(validationSchema, value);
+					parse(validationSchema, newValue);
 					validationError = null;
 					validationStore.clearError(getFieldName(field));
 				} catch (error) {
@@ -122,9 +119,8 @@
 			badgeClassCache.clear();
 		};
 	});
-	$effect(() => {
-		console.debug('Data : ', _data[_language]);
-	});
+
+	$effect(() => {});
 </script>
 
 <div class="input-container relative mb-4">
@@ -137,7 +133,14 @@
 
 		<input
 			type="text"
-			bind:value={_data[_language]}
+			bind:value={
+				() => value[_language],
+				(v) => {
+					const temp = value;
+					temp[_language] = v;
+					value = temp;
+				}
+			}
 			onblur={validateInput}
 			name={field?.db_fieldName}
 			id={field?.db_fieldName}

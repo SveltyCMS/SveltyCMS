@@ -191,8 +191,8 @@ Features:
 						// Collection fields
 						if (field.display) {
 							obj[field.label] = await field.display({
-								data: entry[getFieldName(field)],
-								collection: (currentCollection?.id ?? '').toString(),
+								data: entry[getFieldName(field, true)],
+								collection: (currentCollection?._id ?? '').toString(),
 								field,
 								entry,
 								contentLanguage: currentLanguage
@@ -505,7 +505,7 @@ Features:
 
 								// Reset the entryListPaginationSettings to the default state
 								entryListPaginationSettings = {
-									collectionId: collection.value?.id,
+									collectionId: collection.value?._id,
 									density: 'normal',
 									sorting: { sortedBy: '', isSorted: 0 },
 									currentPage: 1,

@@ -35,6 +35,7 @@ import { modifyRequest } from './modifyRequest';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 import { contentManager } from '@root/src/content/ContentManager';
+import { collectionValue } from '@root/src/stores/collectionStore.svelte';
 
 // Function to handle POST requests for a specified collection
 export const _POST = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {
@@ -101,7 +102,7 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
     const linkStart = performance.now();
     if (body._links) {
       for (const _collection in body._links) {
-        const linkedCollection = collections[_collection];
+        const linkedCollection = contentManager.getCollectionById(_collection);
         if (!linkedCollection) continue;
 
         const newLinkId = dbAdapter.generateId();
@@ -151,7 +152,7 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
     const duration = performance.now() - start;
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : '';
-    logger.error(`POST operation failed after ${duration.toFixed(2)}ms for schema ID: ${schema.id}: ${errorMessage}`, { stack: errorStack });
+    logger.error(`POST operation failed after ${duration.toFixed(2)}ms for schema ID: ${schema._id}: ${errorMessage}`, { stack: errorStack });
     return new Response(
       JSON.stringify({
         success: false,

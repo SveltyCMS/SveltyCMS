@@ -154,11 +154,8 @@ export async function saveFormData({
     throw error(400, message);
   }
 
-  // Debugging: Log the generated FormData
-  logger.debug('Generated FormData:');
-  for (const [key, value] of formData.entries()) {
-    logger.debug(`FormData key: ${key}, value: ${value}`);
-  }
+  console.debug('formData', formData.toString(), $collection.revision, data);
+
 
   // TODO: Add meta_data to formData
   // if (!meta_data.is_empty()) formData.append('_meta_data', JSON.stringify(meta_data.get()));
@@ -182,31 +179,32 @@ export async function saveFormData({
         // Safely append _id with fallback
         formData.append('_id', (id || collectionValue.value?._id || '').toString());
         formData.append('updatedAt', Math.floor(Date.now() / 1000).toString());
+        //ignoring revision for now 
 
-        if ($collection.revision) {
-          logger.debug('Creating new revision.');
-          const newRevision = {
-            ...collectionValue.value,
-            _id: uuidv4(),
-            __v: [
-              ...(collectionValue.value?.__v || []),
-              {
-                revisionNumber: collectionValue.value?.__v ? collectionValue.value.__v.length : 0,
-                editedAt: Math.floor(Date.now() / 1000).toString(),
-                editedBy: { username },
-                changes: {}
-              }
-            ]
-          };
+        //if ($collection.revision) {
+        //  logger.debug('Creating new revision.');
+        //  const newRevision = {
+        //    ...collectionValue.value,
+        //    _id: uuidv4(),
+        //    __v: [
+        //      ...(collectionValue.value?.__v || []),
+        //      {
+        //        revisionNumber: collectionValue.value?.__v ? collectionValue.value.__v.length : 0,
+        //        editedAt: Math.floor(Date.now() / 1000).toString(),
+        //        editedBy: { username },
+        //        changes: {}
+        //      }
+        //    ]
+        //  };
+        //
+        //  const revisionFormData = new FormData() as FormData;
+        //  revisionFormData.append('data', JSON.stringify(newRevision));
+        //  revisionFormData.append('collectionId', $collection._id);
+        //
+        //  await handleRequest(revisionFormData, 'POST');
+        //}
 
-          const revisionFormData = new FormData();
-          revisionFormData.append('data', JSON.stringify(newRevision));
-          revisionFormData.append('contentTypes', $collection.name as keyof ContentTypes);
-
-          await handleRequest(revisionFormData, 'POST');
-        }
-
-        return await updateData({ data: formData, collectionId: $collection.path as keyof ContentTypes });
+        return await updateData({ data: formData, collectionId: $collection._id });
 
       default: {
         const message = `Unhandled mode: ${$mode}`;

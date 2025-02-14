@@ -235,17 +235,17 @@ function abortBatch(): void {
 }
 
 // Effect to process batches when queue changes
-//$effect.root(() => {
-//	$effect(() => {
-//		if (state.queue.length >= config.batchSize) {
-//			processBatch();
-//		}
-//	});
-//
-//	return () => {
-//		abortBatch();
-//	};
-//});
+$effect.root(() => {
+  $effect(() => {
+    if (state.queue.length >= config.batchSize) {
+      processBatch();
+    }
+  });
+
+  return () => {
+    abortBatch();
+  };
+});
 
 // Setup cleanup when the module is destroyed
 // $onDestroy(() => {

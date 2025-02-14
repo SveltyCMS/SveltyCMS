@@ -111,8 +111,8 @@
 		meta_data.clear();
 
 		// Validate all fields and collect data
-		for (const field of collection.value.fields) {
-			const fieldName = getFieldName(field);
+		for (const field of collection.value!.fields) {
+			const fieldName = getFieldName(field, true);
 			const fieldValue = collectionValue.value[fieldName] as string | number | boolean | null | undefined;
 
 			// Use the widget property directly since it's now a widget instance
@@ -140,9 +140,7 @@
 		} else {
 			getData['updatedAt'] = () => Math.floor(Date.now() / 1000);
 			getData['updatedBy'] = () => user?.username ?? '';
-			if (dates.created) {
-				getData['createdAt'] = () => Math.floor(new Date(dates.created).getTime() / 1000);
-			}
+			delete getData['createdAt'];
 		}
 
 		// Add ID if in edit mode
@@ -161,7 +159,7 @@
 		// If validation passed, save the data
 		if (validationPassed) {
 			try {
-				console.debug('Saving data...', `${JSON.stringify({ mode: mode.value, data: getData, collection: collection.value?.name })}`);
+				console.debug('Saving data...', { mode: mode.value, value: collectionValue.value, data: getData, collection: collection.value });
 
 				await saveFormData({
 					data: getData,
