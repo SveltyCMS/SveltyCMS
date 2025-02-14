@@ -74,7 +74,6 @@ import { SystemVirtualFolderModel } from './models/systemVirtualFolder';
 import { SystemPreferencesModel } from './models/systemPreferences';
 
 // Types
-import type { CollectionConfig } from '@src/content/types';
 import type { MediaBase, MediaType } from '@utils/media/mediaModels';
 
 // Theme
@@ -86,6 +85,7 @@ import { logger } from '@utils/logger.svelte';
 // Widget Manager
 import '@widgets/index';
 import type { FilterQuery } from 'mongoose';
+import type { CollectionData } from '@root/src/content/types';
 
 // Types from virtualFolder.ts
 interface VirtualFolderUpdateData {
@@ -306,6 +306,9 @@ export class MongoDBAdapter implements dbInterface {
         logger.error(`insertMany failed. Collection ${collection} does not exist.`);
         throw new Error(`insertMany failed. Collection ${collection} does not exist.`);
       }
+      logger.debug(`debug collection model`,);
+      console.debug(model)
+      await model.validate(docs)
       return await model.insertMany(docs);
     } catch (error) {
       logger.error(`Error inserting many documents into ${collection}:`, { error });
@@ -412,7 +415,7 @@ export class MongoDBAdapter implements dbInterface {
   }
 
   // Create or update a collection model based on the provided configuration
-  async createCollectionModel(collection: CollectionConfig): Promise<CollectionModel> {
+  async createCollectionModel(collection: CollectionData): Promise<CollectionModel> {
     try {
       // Generate UUID if not provided
       const collectionUuid = collection._id || this.generateId();
@@ -447,9 +450,9 @@ export class MongoDBAdapter implements dbInterface {
       };
 
       // Process fields if they exist
-      if (collection.schema?.fields && Array.isArray(collection.schema.fields)) {
-        logger.debug(`Processing \x1b[34m${collection.schema.fields.length}\x1b[0m fields for \x1b[34m${collectionName}\x1b[0m`);
-        for (const field of collection.schema.fields) {
+      if (collection.fields && Array.isArray(collection.fields)) {
+        logger.debug(`Processing \x1b[34m${collection.fields.length}\x1b[0m fields for \x1b[34m${collectionName}\x1b[0m`);
+        for (const field of collection.fields) {
           try {
             // Generate fieldKey from label if db_fieldName is not present
             const fieldKey = field.db_fieldName || (field.label ? field.label.toLowerCase().replace(/[^a-z0-9_]/g, '_') : null) || field.Name;
@@ -496,7 +499,7 @@ export class MongoDBAdapter implements dbInterface {
 
       // Optimized schema options for the main collection
       const schemaOptions: mongoose.SchemaOptions = {
-        strict: collection.schema?.strict !== false,
+        strict: collection.strict !== false,
         timestamps: true,
         collection: collectionName.toLowerCase(),
         autoIndex: true,
