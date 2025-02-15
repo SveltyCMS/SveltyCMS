@@ -90,7 +90,7 @@ store for smooth, physics-based motion.
 
 		// Use reactive statements to update path attributes
 		pathElements.forEach((pathElement, index) => {
-			$: {
+			{
 				const { pathLength, opacity } = pathAnimations[index].get();
 				const dashArray = 1000;
 				const dashOffset = dashArray * (animationDirection === 'reverse' ? pathLength : 1 - pathLength);

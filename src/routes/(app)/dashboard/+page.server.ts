@@ -10,23 +10,23 @@ import type { PageServerLoad } from './$types';
 import { logger } from '@utils/logger.svelte';
 
 export const load: PageServerLoad = async ({ locals }) => {
-  // Check if user is authenticated
-  const user = locals.user;
+	// Check if user is authenticated
+	const user = locals.user;
 
-  if (!user) {
-    logger.warn('User not authenticated, redirecting to login.');
-    redirect(301, '/login');
-  }
+	if (!user) {
+		logger.warn('User not authenticated, redirecting to login.');
+		redirect(301, '/login');
+	}
 
-  logger.debug(`User authenticated successfully: ${user._id}`);
+	logger.debug(`User authenticated successfully: ${user._id}`);
 
-  const { _id, ...rest } = user;
+	const { _id, ...rest } = user;
 
-  // Return user data with proper typing
-  return {
-    user: {
-      id: _id.toString(),
-      ...rest
-    }
-  };
+	// Return user data with proper typing
+	return {
+		user: {
+			id: _id.toString(),
+			...rest
+		}
+	};
 };

@@ -171,13 +171,14 @@ export const actions: Actions = {
 			const categories = JSON.parse(formData.get('categories') as string);
 
 			// Convert categories to path-based structure
-			const pathCategories = categories.map(cat => ({
+			const pathCategories = categories.map((cat) => ({
 				...cat,
 				path: cat.name.toLowerCase().replace(/\s+/g, '-'),
-				collections: cat.collections?.map(col => ({
-					...col,
-					path: `${cat.path}/${col.name.toLowerCase().replace(/\s+/g, '-')}`
-				})) || []
+				collections:
+					cat.collections?.map((col) => ({
+						...col,
+						path: `${cat.path}/${col.name.toLowerCase().replace(/\s+/g, '-')}`
+					})) || []
 			}));
 
 			// Update collections with new category paths
