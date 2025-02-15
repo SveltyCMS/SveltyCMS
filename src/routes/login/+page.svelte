@@ -25,6 +25,7 @@ Features:
 	// Stores
 	import { systemLanguage } from '@stores/store.svelte';
 	import { getLanguageName } from '@utils/languageUtils';
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
