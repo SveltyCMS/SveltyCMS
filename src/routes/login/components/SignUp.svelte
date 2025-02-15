@@ -34,6 +34,7 @@ Features:
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import PasswordStrength from '@components/PasswordStrength.svelte';
+	import BackgroundPattern from '@root/src/components/system/BackgroundPattern.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -171,7 +172,9 @@ Features:
 		<!-- CSS Logo -->
 		<div class="absolute left-1/2 top-1/4 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
 
-		<div class="mx-auto mb-[5%] mt-[15%] w-full p-4 lg:w-1/2" class:hide={active !== 1}>
+		<BackgroundPattern startDirection="MiddleRight" endDirection="BottomLeft" background="#242728" />
+
+		<div class="z-0 mx-auto mb-[5%] mt-[15%] w-full rounded-md bg-[#242728] p-4 lg:w-4/5" class:hide={active !== 1}>
 			<div class="mb-4 flex flex-row gap-2">
 				<SveltyCMSLogo className="w-14" fill="red" />
 

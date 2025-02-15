@@ -275,8 +275,6 @@
 		// If validation passed, save the data
 		if (validationPassed) {
 			try {
-				console.debug('Saving data...', `${JSON.stringify({ mode: mode.value, collection: collection.value.name })}`);
-
 				await saveFormData({
 					data: getData,
 					_collection: collection.value,

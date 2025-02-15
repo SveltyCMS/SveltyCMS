@@ -39,6 +39,7 @@ Features:
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import OauthLogin from './OauthLogin.svelte';
+	import BackgroundPattern from '@root/src/components/system/BackgroundPattern.svelte';
 
 	// Props
 	const {
@@ -323,7 +324,9 @@ Features:
 		<!-- CSS Logo -->
 		<div class="absolute left-1/2 top-1/4 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
 
-		<div class="mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto p-4 lg:w-1/2" class:hide={active !== 0}>
+		<BackgroundPattern startDirection="MiddleLeft" endDirection="BottomRight" background="white" />
+
+		<div class="z-0 mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto rounded-md bg-white p-4 lg:w-4/5" class:hide={active !== 0}>
 			<div class="mb-1 flex flex-row gap-2">
 				<SveltyCMSLogo className="w-14" fill="red" />
 

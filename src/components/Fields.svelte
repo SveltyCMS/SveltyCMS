@@ -22,7 +22,7 @@ Key features:
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
-	import { getFieldName, pascalToCamelCase } from '@utils/utils';
+	import { getFieldName } from '@utils/utils';
 
 	// Auth
 	import { page } from '$app/state';
@@ -50,7 +50,7 @@ Key features:
 		ariaDescribedby?: string;
 	}
 
-	let { fields = undefined, root = true, fieldsData = $bindable({}), customData = {} }: Props = $props();
+	let { fields = undefined }: Props = $props();
 
 	// Local state
 	let apiUrl = $state('');
@@ -63,23 +63,33 @@ Key features:
 		return fields || (collection.value?.fields ?? []);
 	});
 
+	let defaultCollectionValue = getDefaultCollectionValue(fields || (collection.value?.fields ?? []));
+	function getDefaultCollectionValue(fields: any[]) {
+		const tempCollectionValue: Record<string, any> = {};
+		for (const field of fields) {
+			tempCollectionValue[getFieldName(field, true)] = collectionValue?.value ? (collectionValue.value[getFieldName(field, true)] ?? {}) : {};
+		}
+
+		return tempCollectionValue;
+	}
+
+	let currentCollectionValue = $state(defaultCollectionValue);
+
 	// Dynamic import of widget components
-	const modules: Record<string, { default: any }> = import.meta.glob('@widgets/*/*.svelte', { eager: true });
+	const modules: Record<string, { default: any }> = import.meta.glob('@widgets/**/*.svelte', { eager: true });
 
 	// Lifecycle
 	$effect(() => {
 		isLoading = false;
 	});
 
-	$effect(() => {
-		if (root) collectionValue.set({ ...collectionValue, ...fieldsData });
-	});
-
 	// Reactive statements
 	$effect(() => {
-		if (collectionValue.value) {
-			const id = collectionValue.value._id;
-			apiUrl = `${dev ? 'http://localhost:5173' : publicEnv.SITE_NAME}/api/collection/${String(collection.value?.id) ?? ''}/${id}`;
+		if (!collectionValue.value) return;
+		const id = collectionValue.value._id;
+		const currentApiUrl = `${dev ? 'http://localhost:5173' : publicEnv.SITE_NAME}/api/collection/${String(collection.value?._id)}/${id}`;
+		if (apiUrl !== currentApiUrl) {
+			apiUrl = currentApiUrl;
 		}
 	});
 
@@ -204,23 +214,25 @@ Key features:
 
 									<!-- Widget Input -->
 									{#if field.widget}
-										{#if typeof field.widget === 'string'}
-											{@const widgetName = field.widget}
-											{@const widgetPath = `/src/widgets/${pascalToCamelCase(widgetName)}/${widgetName}.svelte`}
-											{@const WidgetComponent = modules[widgetPath]?.default}
-											{#if WidgetComponent}
-												<WidgetComponent {field} bind:WidgetData={fieldsData[getFieldName(field)]} bind:value={customData[getFieldName(field)]} />
-											{:else}
-												<p>{m.Fields_no_widgets_found({ name: widgetName })}</p>
-											{/if}
+										{@const widgetName = field.widget.Name}
+										{@const widgetPath = field.widget.componentPath}
+										{@const WidgetComponent = modules[widgetPath]?.default}
+										{#if WidgetComponent}
+											<WidgetComponent
+												{field}
+												WidgetData={{}}
+												bind:value={
+													() => currentCollectionValue[getFieldName(field, true)],
+													(v) => {
+														const temp = currentCollectionValue;
+														temp[getFieldName(field, true)] = v;
+														currentCollectionValue = temp;
+														collectionValue.set({ ...collectionValue.value, ...currentCollectionValue });
+													}
+												}
+											/>
 										{:else}
-											{@const widgetPath = `/src/widgets/${pascalToCamelCase(field.widget.Name)}/${field.widget.Name}.svelte`}
-											{@const WidgetComponent = modules[widgetPath]?.default}
-											{#if WidgetComponent}
-												<WidgetComponent {field} bind:WidgetData={fieldsData[getFieldName(field)]} bind:value={customData[getFieldName(field)]} />
-											{:else}
-												<p>{m.Fields_no_widgets_found({ name: field.widget.Name })}</p>
-											{/if}
+											<p>{m.Fields_no_widgets_found({ name: widgetName })}</p>
 										{/if}
 									{/if}
 								</div>

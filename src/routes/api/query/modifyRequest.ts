@@ -28,111 +28,106 @@ import type { CollectionModel } from '@src/databases/dbInterface';
 
 // System logger
 import { logger } from '@utils/logger.svelte';
+import type { Field } from '@root/src/content/types';
 
-// Define Field type locally if not available in @src/content/types
-interface Field {
-	widget: {
-		Name: string;
-	};
-}
 
 interface DataAccessor<T> {
-	get(): T;
-	update(newData: T): void;
+  get(): T;
+  update(newData: T): void;
 }
 
 interface EntryData {
-	_id?: string;
-	meta_data?: Record<string, unknown>;
-	[key: string]: unknown;
+  _id?: string;
+  meta_data?: Record<string, unknown>;
+  [key: string]: unknown;
 }
 
 // Define the parameters for the function
 interface ModifyRequestParams {
-	data: EntryData[];
-	fields: Field[];
-	collection: CollectionModel;
-	user: User;
-	type: string;
+  data: EntryData[];
+  fields: Field[];
+  collection: CollectionModel;
+  user: User;
+  type: string;
 }
 
 // Function to modify request data based on field widgets
 export async function modifyRequest({ data, fields, collection, user, type }: ModifyRequestParams) {
-	const start = performance.now();
-	try {
-		logger.debug(
-			`Starting modifyRequest for type: \x1b[34m${type}\x1b[0m, user: \x1b[34m${user._id}\x1b[0m, collection: \x1b[34m${collection.id}\x1b[0m`
-		);
+  const start = performance.now();
+  try {
+    logger.debug(
+      `Starting modifyRequest for type: \x1b[34m${type}\x1b[0m, user: \x1b[34m${user._id}\x1b[0m, collection: \x1b[34m${collection.id}\x1b[0m`
+    );
 
-		for (const field of fields) {
-			const fieldStart = performance.now();
-			const widget = widgets[field.widget.Name];
-			const fieldName = getFieldName(field);
+    for (const field of fields) {
+      const fieldStart = performance.now();
+      const widget = widgets[field.widget.Name];
+      const fieldName = getFieldName(field);
 
-			logger.debug(`Processing field: \x1b[34m${fieldName}\x1b[0m, widget: \x1b[34m${field.widget.Name}\x1b[0m`);
+      logger.debug(`Processing field: \x1b[34m${fieldName}\x1b[0m, widget: \x1b[34m${field.widget.Name}\x1b[0m`);
 
-			if (widget && 'modifyRequest' in widget) {
-				data = await Promise.all(
-					data.map(async (entry: EntryData, index: number) => {
-						const entryStart = performance.now();
-						try {
-							const entryCopy = { ...entry };
-							const dataAccessor: DataAccessor<unknown> = {
-								get() {
-									return entryCopy[fieldName];
-								},
-								update(newData: unknown) {
-									entryCopy[fieldName] = newData;
-								}
-							};
+      if (widget && 'modifyRequest' in widget) {
+        data = await Promise.all(
+          data.map(async (entry: EntryData, index: number) => {
+            const entryStart = performance.now();
+            try {
+              const entryCopy = { ...entry };
+              const dataAccessor: DataAccessor<unknown> = {
+                get() {
+                  return entryCopy[fieldName];
+                },
+                update(newData: unknown) {
+                  entryCopy[fieldName] = newData;
+                }
+              };
 
-							logger.debug(`Processing entry ${index + 1}/${data.length} for field: ${fieldName}`);
+              logger.debug(`Processing entry ${index + 1}/${data.length} for field: ${fieldName}`);
 
-							try {
-								await widget.modifyRequest({
-									collection,
-									field,
-									data: dataAccessor,
-									user,
-									type,
-									id: entryCopy._id,
-									meta_data: entryCopy.meta_data
-								});
+              try {
+                await widget.modifyRequest({
+                  collection,
+                  field,
+                  data: dataAccessor,
+                  user,
+                  type,
+                  id: entryCopy._id,
+                  meta_data: entryCopy.meta_data
+                });
 
-								const entryDuration = performance.now() - entryStart;
-								logger.debug(`Entry ${index + 1} processed in ${entryDuration.toFixed(2)}ms`);
-							} catch (widgetError) {
-								const errorMessage = widgetError instanceof Error ? widgetError.message : 'Unknown widget error';
-								const errorStack = widgetError instanceof Error ? widgetError.stack : '';
-								logger.error(`Widget error for field ${fieldName}, entry ${index + 1}: ${errorMessage}`, { stack: errorStack });
-							}
+                const entryDuration = performance.now() - entryStart;
+                logger.debug(`Entry ${index + 1} processed in ${entryDuration.toFixed(2)}ms`);
+              } catch (widgetError) {
+                const errorMessage = widgetError instanceof Error ? widgetError.message : 'Unknown widget error';
+                const errorStack = widgetError instanceof Error ? widgetError.stack : '';
+                logger.error(`Widget error for field ${fieldName}, entry ${index + 1}: ${errorMessage}`, { stack: errorStack });
+              }
 
-							return entryCopy;
-						} catch (error) {
-							const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-							const errorStack = error instanceof Error ? error.stack : '';
-							logger.error(`Error processing entry ${index + 1}: ${errorMessage}`, { stack: errorStack });
-							return entry;
-						}
-					})
-				);
+              return entryCopy;
+            } catch (error) {
+              const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+              const errorStack = error instanceof Error ? error.stack : '';
+              logger.error(`Error processing entry ${index + 1}: ${errorMessage}`, { stack: errorStack });
+              return entry;
+            }
+          })
+        );
 
-				const fieldDuration = performance.now() - fieldStart;
-				logger.debug(`Field ${fieldName} processed in ${fieldDuration.toFixed(2)}ms`);
-			} else {
-				logger.warn(`No modifyRequest handler for widget: \x1b[34m${field.widget.Name}\x1b[0m`);
-			}
-		}
+        const fieldDuration = performance.now() - fieldStart;
+        logger.debug(`Field ${fieldName} processed in ${fieldDuration.toFixed(2)}ms`);
+      } else {
+        logger.warn(`No modifyRequest handler for widget: \x1b[34m${field.widget.Name}\x1b[0m`);
+      }
+    }
 
-		const duration = performance.now() - start;
-		logger.info(`ModifyRequest completed in ${duration.toFixed(2)}ms for ${data.length} entries`);
+    const duration = performance.now() - start;
+    logger.info(`ModifyRequest completed in ${duration.toFixed(2)}ms for ${data.length} entries`);
 
-		return data;
-	} catch (error) {
-		const duration = performance.now() - start;
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-		const errorStack = error instanceof Error ? error.stack : '';
-		logger.error(`ModifyRequest failed after ${duration.toFixed(2)}ms: ${errorMessage}`, { stack: errorStack });
-		throw error;
-	}
+    return data;
+  } catch (error) {
+    const duration = performance.now() - start;
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : '';
+    logger.error(`ModifyRequest failed after ${duration.toFixed(2)}ms: ${errorMessage}`, { stack: errorStack });
+    throw error;
+  }
 }

@@ -64,7 +64,8 @@
 	}
 
 	// Debounced validation function
-	function validateInput() {
+	function handleInput(event: Event) {
+		event.preventDefault();
 		if (debounceTimeout) clearTimeout(debounceTimeout);
 		debounceTimeout = window.setTimeout(() => {
 			validationError = validateSchema({ value: _data[_language] });
@@ -76,8 +77,7 @@
 	<!-- Date Input -->
 	<input
 		type="date"
-		bind:value={_data[_language]}
-		on:input|preventDefault={validateInput}
+		oninput={handleInput}
 		class="input w-full text-black dark:text-primary-500"
 		class:error={!!validationError}
 		aria-invalid={!!validationError}
