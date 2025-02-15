@@ -168,6 +168,7 @@ async function updateWidgetStatusInDatabase(widgetName: string, isActive: boolea
 
 // Function to initialize widgets
 async function initializeWidgets(): Promise<void> {
+  logger.debug('Initializing widgets from manager...');
   if (widgetFunctions.size > 0) return;
 
   try {

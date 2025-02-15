@@ -22,7 +22,7 @@ Key features:
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
-	import { getFieldName, pascalToCamelCase } from '@utils/utils';
+	import { getFieldName } from '@utils/utils';
 
 	// Auth
 	import { page } from '$app/state';
@@ -38,9 +38,6 @@ Key features:
 
 	// Skeleton
 	import { TabGroup, Tab, CodeBlock, clipboard } from '@skeletonlabs/skeleton';
-	import TranslationStatus from './TranslationStatus.svelte';
-
-	import lodash from 'lodash';
 
 	// Props
 	interface Props {
@@ -53,7 +50,7 @@ Key features:
 		ariaDescribedby?: string;
 	}
 
-	let { fields = undefined, root = true, fieldsData = {}, customData = {} }: Props = $props();
+	let { fields = undefined }: Props = $props();
 
 	// Local state
 	let apiUrl = $state('');
@@ -73,7 +70,6 @@ Key features:
 			tempCollectionValue[getFieldName(field, true)] = collectionValue?.value ? (collectionValue.value[getFieldName(field, true)] ?? {}) : {};
 		}
 
-		console.debug('getDefaultCollectionValue', collectionValue.value, collection.value.fields);
 		return tempCollectionValue;
 	}
 
@@ -96,11 +92,6 @@ Key features:
 			apiUrl = currentApiUrl;
 		}
 	});
-
-	//$effect(() => {
-	//	console.log('customData', customData, collectionValue);
-	//	collectionValue.set(customData);
-	//});
 
 	// Functions and helpers
 	function handleRevert() {
@@ -223,47 +214,25 @@ Key features:
 
 									<!-- Widget Input -->
 									{#if field.widget}
-										{#if typeof field.widget.Name === 'string'}
-											{@const widgetName = field.widget.Name}
-											{@const widgetPath = `/src/widgets/core/${pascalToCamelCase(widgetName)}/${widgetName}.svelte`}
-											{@const WidgetComponent = modules[widgetPath]?.default}
-											{#if WidgetComponent}
-												<WidgetComponent
-													{field}
-													WidgetData={{}}
-													bind:value={
-														() => currentCollectionValue[getFieldName(field, true)],
-														(v) => {
-															const temp = currentCollectionValue;
-															temp[getFieldName(field, true)] = v;
-															currentCollectionValue = temp;
-															collectionValue.set({ ...collectionValue.value, ...currentCollectionValue });
-														}
+										{@const widgetName = field.widget.Name}
+										{@const widgetPath = field.widget.componentPath}
+										{@const WidgetComponent = modules[widgetPath]?.default}
+										{#if WidgetComponent}
+											<WidgetComponent
+												{field}
+												WidgetData={{}}
+												bind:value={
+													() => currentCollectionValue[getFieldName(field, true)],
+													(v) => {
+														const temp = currentCollectionValue;
+														temp[getFieldName(field, true)] = v;
+														currentCollectionValue = temp;
+														collectionValue.set({ ...collectionValue.value, ...currentCollectionValue });
 													}
-												/>
-											{:else}
-												<p>{m.Fields_no_widgets_found({ name: widgetName })}</p>
-											{/if}
+												}
+											/>
 										{:else}
-											{@const widgetPath = `/src/widgets/custom/${pascalToCamelCase(field.widget.Name)}/${field.widget.Name}.svelte`}
-											{@const WidgetComponent = modules[widgetPath]?.default}
-											{#if WidgetComponent}
-												<WidgetComponent
-													{field}
-													WidgetData={fieldsData[getFieldName(field, true)]}
-													bind:value={
-														() => currentCollectionValue[getFieldName(field, true)],
-														(v) => {
-															const temp = currentCollectionValue;
-															temp[getFieldName(field, true)] = v;
-															currentCollectionValue = temp;
-															collectionValue.set({ ...collectionValue.value, ...currentCollectionValue });
-														}
-													}
-												/>
-											{:else}
-												<p>{m.Fields_no_widgets_found({ name: field.widget.Name })}</p>
-											{/if}
+											<p>{m.Fields_no_widgets_found({ name: widgetName })}</p>
 										{/if}
 									{/if}
 								</div>

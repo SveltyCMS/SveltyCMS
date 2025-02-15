@@ -54,12 +54,12 @@ function createWidgetFunction(widgetModule: WidgetModule, name: string): WidgetF
 
 // Function to initialize widgets
 export async function initializeWidgets(): Promise<void> {
-	if (initialized) return dbInitPromise;
-	if (dbInitPromise) return dbInitPromise;
+  if (initialized) return dbInitPromise;
+  if (dbInitPromise) return dbInitPromise;
 
   dbInitPromise = (async () => {
     try {
-      logger.debug("Initializing widgets...");
+      logger.debug("Initializing widgets from index...");
       // Load core and custom widgets
       const coreWidgetModules = await import.meta.glob<WidgetModule>('./core/**/index.ts', { eager: true });
       const customWidgetModules = await import.meta.glob<WidgetModule>('./custom/**/index.ts', { eager: true });
@@ -67,18 +67,30 @@ export async function initializeWidgets(): Promise<void> {
 
       const validModules = Object.entries(widgetModules)
         .map(([path, module]) => {
-          const name = path.match(/\.\/(core|custom)\/([^/]+)\//)?.[2];
+          const match = path.match(/\.\/(core|custom)\/([^/]+)\//);
+          if (!match) {
+            logger.warn(`Skipping widget module: ${path} - Unable to extract widget name`);
+            return null;
+          }
+          const [_, folderType, name] = match;
+
+          // Capitalize the first letter of the widget name
+          const capitalized_name = name.charAt(0).toUpperCase() + name.slice(1);
+
+          // Construct the full component path
+          const componentPath = path.replace(/index\.ts$/, `${capitalized_name}.svelte`).replace(/^\.\//, `/src/widgets/`);
+
           if (!name) {
             logger.warn(`Skipping widget module: ${path} - Unable to extract widget name`);
             return null;
           }
-
           if (typeof module.default !== 'function') {
             logger.warn(`Skipping widget module: ${path} - No valid widget function found`);
             return null;
           }
 
-          return { name, module, isCore: path.includes('/core/') };
+          logger.debug(`componentPath: ${componentPath}`);
+          return { name, module, isCore: folderType === 'core', componentPath };
         })
         .filter((m): m is NonNullable<typeof m> => m !== null);
 
@@ -89,9 +101,10 @@ export async function initializeWidgets(): Promise<void> {
       const newWidgetFunctions = new Map<string, WidgetFunction>();
       const loadedWidgetNames = new Set<string>();
 
-      for (const { name, module, isCore } of validModules) {
+      for (const { name, module, isCore, componentPath } of validModules) {
         try {
           const widgetFn = createWidgetFunction(module, name);
+
           if (!widgetFn) {
             logger.warn(`Skipping widget ${name} - No widget function found`);
             continue;
@@ -101,11 +114,13 @@ export async function initializeWidgets(): Promise<void> {
             continue;
           }
           const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
-          // @ts-expect-error __isCore is not a standard property
+
           widgetFn.__isCore = isCore;
+          widgetFn.componentPath = componentPath;
           newWidgetFunctions.set(capitalizedName, widgetFn);
           widgets[capitalizedName] = widgetFn;
           loadedWidgetNames.add(capitalizedName);
+
         } catch (error) {
           logger.warn(`Skipping widget ${name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
           continue;
@@ -172,10 +187,6 @@ export async function ensureWidgetsInitialized() {
   }
 }
 
-//// Initialize widgets immediately
-//initializeWidgets().catch((error) => {
-//	console.error('Failed to initialize widgets:', error); // Log initialization errors
-//});
 
 // Re-export everything from widgetManager for direct access
 export * from './widgetManager.svelte.ts';
