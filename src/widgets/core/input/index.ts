@@ -1,24 +1,21 @@
 /**
 @file src/widgets/core/input/index.ts
 @description - Input index file.
-*/
-
+ */
 import { publicEnv } from '@root/config/public';
 import { getFieldName, getGuiFields } from '@utils/utils';
 import { GuiSchema, GraphqlSchema, type Params } from './types';
-
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
 
 const WIDGET_NAME = 'Input' as const;
 
 /**
- * Defines Input widget Parameters
+ * Defines widget Parameters
  */
 const widget = (params: Params) => {
 	// Define the display function
 	let display: any;
-
 	if (!params.display) {
 		display = async ({ data, contentLanguage }) => {
 			// console.log(data);
@@ -32,7 +29,7 @@ const widget = (params: Params) => {
 	}
 
 	// Define the widget object
-	const widgetObject = {
+	const widget = {
 		Name: WIDGET_NAME,
 		GuiFields: getGuiFields(params, GuiSchema)
 	};
@@ -71,7 +68,7 @@ const widget = (params: Params) => {
 widget.Name = WIDGET_NAME;
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
-//widget.toString = () => '';
+widget.toString = () => '';
 
 // Widget icon and helper text
 widget.Icon = 'icon-park-outline:text';

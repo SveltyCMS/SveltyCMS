@@ -141,7 +141,10 @@ async function initializeWidgets(): Promise<void> {
 
 	try {
 		// Search both core and custom widget directories
-		const modules = import.meta.glob<WidgetModule>(['./core/*/index.ts', './custom/*/index.ts'], { eager: true });
+		const modules = import.meta.glob<WidgetModule>([
+			'./core/*/index.ts',
+			'./custom/*/index.ts'
+		], { eager: true });
 
 		const widgetModules = Object.entries(modules).map(([path, module]) => {
 			try {
@@ -189,8 +192,7 @@ async function initializeWidgets(): Promise<void> {
 
 // HMR setup
 if (import.meta.hot) {
-	import.meta.hot.accept('./{core,custom}/*/index.ts', () => {
-		// import.meta.hot.accept(import.meta.glob(['./core/*/index.ts', './custom/*/index.ts']), () => {
+	import.meta.hot.accept(() => {
 		initializeWidgets();
 		logger.info('Widgets reloaded due to file changes.');
 	});
