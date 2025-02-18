@@ -27,22 +27,22 @@ export const load: PageServerLoad = async ({ locals }) => {
   try {
     const { user } = locals;
 
-    if (!user) {
-      logger.warn('User not authenticated, redirecting to login');
-      throw redirect(302, '/login');
-    }
+		if (!user) {
+			logger.warn('User not authenticated, redirecting to login');
+			throw redirect(302, '/login');
+		}
 
-    logger.debug(`User authenticated successfully for user: ${user._id}`);
+		logger.debug(`User authenticated successfully for user: ${user._id}`);
 
-    // Check user permission for collection builder
-    const collectionBuilderConfig = permissionConfigs.collectionbuilder;
-    const permissionCheck = await checkUserPermission(user, collectionBuilderConfig);
+		// Check user permission for collection builder
+		const collectionBuilderConfig = permissionConfigs.collectionbuilder;
+		const permissionCheck = await checkUserPermission(user, collectionBuilderConfig);
 
-    if (!permissionCheck.hasPermission) {
-      const message = `User ${user._id} does not have permission to access collection builder`;
-      logger.warn(message);
-      throw error(403, 'Insufficient permissions');
-    }
+		if (!permissionCheck.hasPermission) {
+			const message = `User ${user._id} does not have permission to access collection builder`;
+			logger.warn(message);
+			throw error(403, 'Insufficient permissions');
+		}
 
 
     const { contentStructure, nestedContentStructure } = await contentManager.getCollectionData()

@@ -187,6 +187,5 @@ export async function ensureWidgetsInitialized() {
   }
 }
 
-
 // Re-export everything from widgetManager for direct access
 export * from './widgetManager.svelte.ts';

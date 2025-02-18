@@ -1,242 +1,291 @@
 /**
  * @file src/databases/dbInterface.ts
- * @description Database interface definition for the CMS.
+ * @description **Database Agnostic Interface for SveltyCMS - CRUD & QueryBuilder Focused**
  *
- * This module defines the dbInterface, which serves as a contract for database adapters.
- * It specifies methods for:
- * - Database connection and setup
- * - Basic CRUD operations
- * - Draft and revision management
- * - Widget management
- * - Theme management
- * - System preferences management
+ * **Database interaction is primarily driven by explicit CRUD operations and the QueryBuilder.**
+ * **Use QueryBuilder for ALL general data retrieval (lists, filters, sorts, pagination).**
+ * **Direct methods in feature interfaces are limited to essential CRUD actions and specific operations.**
  *
- * The interface ensures consistency across different database implementations
- * (e.g., MongoDB, MariaDB, PostgreSQL) by defining a common set of methods
- * that must be implemented by each adapter.
+ * **Performance Note:** This QueryBuilder is designed for general data retrieval and aims for database agnosticism. For optimal performance in complex scenarios or when leveraging database-specific features (like MongoDB Aggregation or advanced SQL features), direct database-specific queries or extending this interface might be necessary.  Avoid using function-based filters in `where` for database queries as it can lead to significant performance issues.
  *
- * It also defines a generic CollectionModel interface for use by database adapters.
+ * Features:
+ * - Full UUID support (v4) for all entities
+ * - ISO 8601 date string handling
+ * - QueryBuilder for ALL general data retrieval (non-CRUD list/find operations)
+ * - Transaction support
+ * - Strict type definitions
+ * - Error handling standardization
+ * - Database-agnostic design (with performance considerations for complex queries)
+ * - System Virtual folder management
+ * - Content versioning (drafts/revisions)
+ * - Pagination utilities
+ * - Preferences management
  *
- * Usage:
- * This interface should be implemented by all database adapters in the CMS.
- * It provides a unified API for database operations, allowing for easy
- * swapping of database backends without changing the application logic.
+ * Design Principles (Optimized for general use, with caveats for complex scenarios):
+ * 1. Consistent ID handling (UUIDv4 across all DBs)
+ * 2. Date handling as ISO strings in application layer
+ * 3. QueryBuilder is the EXCLUSIVE method for general data retrieval.
+ * 4. Direct methods are reserved for explicit CRUD actions and specific use-cases.
+ * 5. Clear separation of read/write operations
+ * 6. Type safety throughout interface
  */
 
-import type { CollectionData } from '@src/content/types';
-import type { ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
-import type { UserPreferences, WidgetPreference } from '@root/src/stores/userPreferences.svelte';
+/** Core Types **/
+export type DatabaseId = string & { readonly __brand: unique symbol }; // Unique identifier type
+export type ISODateString = string & { readonly __isoDate: unique symbol }; // ISO 8601 date string type
 
-// Define a Theme type for better type safety
-export interface Theme {
-  _id: string; // The ID of the theme
-  name: string; // The name of the theme
-  path: string; // The path to the theme file
-  isDefault: boolean; // Whether the theme is the default theme
-  createdAt: Date; // Creation timestamp of the theme
-  updatedAt: Date; // Last update timestamp of the theme
+/** Base Entity **/
+interface BaseEntity {
+	_id: DatabaseId;
+	createdAt: ISODateString;
+	updatedAt: ISODateString;
 }
 
-export interface Widget {
-  _id: string; // The ID of the widget
-  name: string; // The name of the widget
-  isActive: boolean; // Whether the widget is active
-  createdAt: Date; // Creation timestamp of the widget
-  updatedAt: Date; // Last update timestamp of the widget
+/** Translation **/
+export interface Translation {
+	languageTag: string;
+	translationName: string;
+	isDefault?: boolean;
 }
 
-export interface SystemPreferences {
-  _id: string; // The ID of the SystemPreferences
-  name: string; // The name of the SystemPreferences
-  isActive: boolean; // Whether the SystemPreferences is active
-  createdAt: Date; // Creation timestamp of the SystemPreferences
-  updatedAt: Date; // Last update timestamp of the SystemPreferences
+/** Content Management Types **/
+export interface ContentNode<ContentType = unknown> extends BaseEntity {
+	name: string;
+	path: string;
+	type: string;
+	icon?: string;
+	order: number;
+	translations: Translation[];
+	parentPath?: string;
+	content?: ContentType;
 }
 
-// Virtual folders for media
-export interface SystemVirtualFolder {
-  _id: string;
-  name: string;
-  parent: string | null;
-  path: string;
-  icon?: string;
-  order?: number;
-  updatedAt?: Date;
+/** Content Draft **/
+export interface ContentDraft<T = unknown> extends BaseEntity {
+	contentId: DatabaseId;
+	data: T;
+	version: number;
+	status: 'draft' | 'review' | 'archived';
+	authorId: DatabaseId;
 }
 
-// Document types
-export type DocumentContent = Record<string, unknown>;
-
-// Query types
-export type Query = Record<string, unknown>;
-export type Update = Record<string, unknown>;
-export type Insert = Record<string, unknown>;
-
-// Database types
-export interface DatabaseId {
-  toString(): string;
+/** Content Revision **/
+export interface ContentRevision extends BaseEntity {
+	contentId: DatabaseId;
+	data: unknown;
+	version: number;
+	commitMessage?: string;
+	authorId: DatabaseId;
 }
 
-// Draft Interface
-export interface Draft {
-  _id: string; // Unique identifier for the draft
-  originalDocumentId: string; // ID of the original document
-  collectionId: string; // ID of the collection the draft belongs to
-  createdBy: string; // ID of the user who created the draft
-  content: DocumentContent; // Content of the draft
-  createdAt: Date; // Creation timestamp of the draft
-  updatedAt: Date; // Last update timestamp of the draft
-  status: 'draft' | 'published'; // Status of the draft
+/** Theme Management **/
+export interface ThemeConfig {
+	tailwindConfigPath: string; // Path to tailwind.config.js
+	assetsPath: string; // Path to theme assets (e.g., images, fonts)
+	[key: string]: unknown;
 }
 
-// Revision Interface
-export interface Revision {
-  _id: string; // Unique identifier for the revision
-  collectionId: string; // ID of the collection
-  documentId: string; // ID of the document
-  createdBy: string; // ID of the user who created the revision
-  content: DocumentContent; // Content of the revision
-  createdAt: Date; // Creation timestamp of the revision
-  version: number; // Version number of the revision
+export interface Theme extends BaseEntity {
+	name: string;
+	path: string;
+	isActive: boolean;
+	isDefault: boolean;
+	config: ThemeConfig;
+	previewImage?: string;
 }
 
-// Collection interface
-export interface CollectionModel {
-  modelName: string;
-  find(query: Query): Promise<DocumentContent[]>;
-  updateOne(query: Query, update: Update): Promise<DocumentContent>;
-  updateMany(query: Query, update: Update): Promise<DocumentContent[]>;
-  insertMany(docs: DocumentContent[]): Promise<DocumentContent[]>;
-  deleteOne(query: Query): Promise<number>;
-  deleteMany(query: Query): Promise<number>;
-  countDocuments(query?: Query): Promise<number>;
+/** Widget Management **/
+export interface Widget extends BaseEntity {
+	name: string;
+	isActive: boolean; // Is the widget globally active?
+	instances: string; // Configurations for widget instances - consider making this type-safe if config structure is known
+	dependencies: string[]; // Widget identifiers of dependencies
 }
 
-// Content structure schema for categories and collections
-export interface ContentStructureNode {
-  _id: string; // UUID from compiled collection
-  name: string;
-  path: string; // Always starts with /collections/
-  icon: string; // Default icon for collections
-  order: number;
-  translations: Array<{ languageTag: string; translationName: string }>;
-  parentPath: string | null;
-  nodeType: 'category' | 'collection';
-  updatedAt: Date;
-  children?: ContentStructureNode[];
+/** Media Management **/
+export interface MediaMetadata {
+	width?: number;
+	height?: number;
+	duration?: number;
+	codec?: string;
+	format?: string;
+	[key: string]: unknown;
 }
 
-// Collection Node
-export interface CollectionNode extends ContentStructureNode {
-  nodeType: 'collection';
-  label: string;
-  permissions: Record<string, unknown>;
-  livePreview: boolean;
-  strict: boolean;
-  revision: boolean;
-  description: string;
-  slug: string;
-  status: 'draft' | 'published' | 'unpublished' | 'scheduled' | 'cloned';
-  links: string[];
+export interface MediaItem extends BaseEntity {
+	filename: string;
+	path: string;
+	size: number;
+	mimeType: string;
+	folderId?: DatabaseId;
+	thumbnails: Record<string, string>;
+	metadata: MediaMetadata;
 }
 
-// Media types
-export interface MediaItem {
-  _id: string;
-  filename: string;
-  path: string;
-  size: number;
-  type: string;
-  folder_id?: string;
-  createdAt: Date;
-  updatedAt: Date;
+export interface MediaFolder extends BaseEntity {
+	name: string;
+	path: string;
+	parentId?: DatabaseId;
+	icon?: string;
+	order: number;
 }
 
-// Define the dbInterface with specific return types
-export interface dbInterface {
-  name: string;
+/** System Preferences **/
+export interface SystemPreferences extends BaseEntity {
+	key: string;
+	value: unknown;
+	scope: 'user' | 'system' | 'widget';
+	userId?: DatabaseId;
+}
 
-  // Database Connection and Setup Methods
-  connect(): Promise<void>; // Connect to the database and return a promise that resolves when connected.
-  getCollectionModels(): Promise<Record<string, CollectionModel>>; // Return a promise that resolves with an object containing all the CollectionModels.
-  setupAuthModels(): Promise<void>; // Set up the auth models.
-  setupMediaModels(): Promise<void>; // Set up the media models.
-  setupWidgetModels(): Promise<void>; // set up the widget models.
+/** Query Support Types **/
+export interface PaginationOptions {
+	page?: number;
+	pageSize?: number;
+	sortField?: string;
+	sortDirection?: 'asc' | 'desc';
+}
 
-  // Additional Methods for Data Operations
-  findOne(collection: string, query: Query): Promise<DocumentContent | null>; // Find one document from a collection
-  findMany(collection: string, query: Query): Promise<DocumentContent[]>; // Find multiple documents from a collection
-  insertOne(collection: string, doc: Insert): Promise<DocumentContent>; // Insert one document into a collection
-  insertMany(collection: string, docs: Insert[]): Promise<DocumentContent[]>; // Insert many documents into a collection
-  updateOne(collection: string, query: Query, update: Update): Promise<DocumentContent>; // Update only one document in a collection
-  updateMany(collection: string, query: Query, update: Update): Promise<DocumentContent[]>; // Update many documents in a collection
-  deleteOne(collection: string, query: Query): Promise<number>; // Delete documents in a collection
-  deleteMany(collection: string, query: Query): Promise<number>; // Delete documents in a collection
-  countDocuments(collection: string, query?: Query): Promise<number>; // Count documents in a collection
-  convertId(id: string): DatabaseId; // Convert id to string
-  generateId(): string; // Generate an ID using ObjectId
+interface PaginatedResult<T> {
+	items: T[];
+	total: number;
+	page: number;
+	pageSize: number;
+}
 
-  // Methods for Draft and Revision Management
-  createDraft(content: DocumentContent, collectionId: string, original_document_id: string, user_id: string): Promise<Draft>; // Create a new draft
-  updateDraft(draft_id: string, content: DocumentContent): Promise<Draft>; // Update an existing draft
-  publishDraft(draft_id: string): Promise<Draft>; // Publish a draft
-  getDraftsByUser(user_id: string): Promise<Draft[]>; // Get drafts by user
-  createRevision(collectionId: string, documentId: string, userId: string, data: DocumentContent): Promise<Revision>; // Create a new revision
-  getRevisions(collectionId: string, documentId: string): Promise<Revision[]>; // Get revisions for a document
-  restoreRevision(collectionId: string, revisionId: string): Promise<void>; // Restore a specific revision
-  deleteRevision(revisionId: string): Promise<void>; // Delete a specific revision
+export type DatabaseResult<T> = { success: true; data: T } | { success: false; error: DatabaseError };
 
-  // Methods for Widget Management
-  installWidget(widgetData: { name: string; isActive?: boolean }): Promise<void>; // Install a widget from a URL or a local file.
-  getAllWidgets(): Promise<Widget[]>; // Get all installed widgets.
-  getActiveWidgets(): Promise<string[]>; // Get active widgets.
-  activateWidget(widgetName: string): Promise<void>; // Activate a widget
-  deactivateWidget(widgetName: string): Promise<void>; // Deactivate a widget
-  updateWidget(widgetName: string, updateData: Record<string, unknown>): Promise<void>; // Update a widget
+/** Error Handling **/
+export interface DatabaseError {
+	code: string;
+	message: string;
+	statusCode?: number;
+	details?: unknown;
+	stack?: string;
+}
 
-  // Theme-related methods
-  setDefaultTheme(themeName: string): Promise<void>; // Set the default theme.
-  storeThemes(themes: Theme[]): Promise<void>; // Store a list of themes.
-  getDefaultTheme(): Promise<Theme | null>; // Get the default theme.
-  getAllThemes(): Promise<Theme[]>; // Get all themes.
+/** Query Builder Interface **/
+export interface QueryBuilder<T = unknown> {
+	where(conditions: Partial<T>): this; // Add filtering conditions based on document/record properties
+	limit(value: number): this; // Limit the number of results
+	skip(value: number): this; // Skip a number of results
+	sort<K extends keyof T>(field: K, direction: 'asc' | 'desc'): this; // Sort results by a field - type safe field
+	project<K extends keyof T>(fields: Partial<Record<K, boolean>>): this; // Select specific fields - type safe fields
+	distinct<K extends keyof T>(field?: K): this; // Allow specifying a field for distinct, make it optional for now
+	paginate(options: PaginationOptions): this; // Apply pagination options
+	count(): Promise<DatabaseResult<number>>; // Count matching records
+	execute(): Promise<DatabaseResult<T[]>>; // Execute the query and return results
+	findOne(): Promise<DatabaseResult<T | null>>; // Execute and return a single document, or null if not found
+}
 
-  // System Preferences
-  getSystemPreferences(user_id: string): Promise<UserPreferences | null>; // Get system preferences.
-  updateSystemPreferences(user_id: string, screenSize: ScreenSize, preferences: WidgetPreference[]): Promise<void>; // Update system preferences.
-  clearSystemPreferences(user_id: string): Promise<void>; // Clear system preferences.
+/** Supporting Interfaces **/
+export interface DatabaseTransaction {
+	commit(): Promise<DatabaseResult<void>>; // Commit the transaction
+	rollback(): Promise<DatabaseResult<void>>; // Roll back the transaction
+}
 
-  // Virtual Folder Methods for direct database interactions
-  createVirtualFolder(folderData: {
-    name: string;
-    parent?: string;
-    path: string;
-    icon?: string;
-    order?: number;
-    type?: 'folder' | 'collection';
-  }): Promise<SystemVirtualFolder>;
-  getVirtualFolders(): Promise<SystemVirtualFolder[]>;
-  getVirtualFolderContents(folderId: string): Promise<DocumentContent[]>;
-  updateVirtualFolder(
-    folderId: string,
-    updateData: { name?: string; parent?: string; icon?: string; order?: number }
-  ): Promise<SystemVirtualFolder | null>;
-  deleteVirtualFolder(folderId: string): Promise<boolean>;
+/** Main Database Adapter Interface **/
+export interface DatabaseAdapter {
+	// Core Connection Management
+	connect(): Promise<DatabaseResult<void>>; // Establish a database connection
+	disconnect(): Promise<DatabaseResult<void>>; // Terminate the database connection
+	isConnected(): boolean; // Check if the connection is active
 
-  // Content Structure Methods for direct database interactions
-  upsertContentStructureNode(contentData: ContentStructureNode | CollectionNode): Promise<ContentStructureNode>;
-  getContentStructure(): Promise<ContentStructureNode[]>;
-  getContentStructureChildren(parentPath: string): Promise<Document[]>;
-  updateContentStructure(contentId: string, updateData: Partial<CollectionData>): Promise<Document | null>;
-  deleteContentStructure(contentId: string): Promise<boolean>;
+	// Transaction Support
+	transaction<T>(fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>): Promise<DatabaseResult<T>>; // Execute a function within a transaction
 
-  // Collections
-  createCollectionModel(collection: CollectionData): Promise<CollectionModel>;
-  // Media Management
-  getAllMedia(): Promise<MediaItem[]>; // Get all media.
-  getMediaInFolder(folder_id: string): Promise<MediaItem[]>; // Get media in folder.
-  deleteMedia(media_id: string): Promise<boolean>; // Delete media.
-  getLastFiveMedia(): Promise<MediaItem[]>; // Get last five media.
+	// System Preferences
+	preferences: {
+		get<T>(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<T>>; // Retrieve a preference value
+		set<T>(key: string, value: T, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>>; // Set a preference value
+		delete(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>>; // Delete a preference
+	};
 
-  // Method for Disconnecting
-  disconnect(): Promise<void>; // Disconnect from server.
+	// Theme Management
+	themes: {
+		getActive(): Promise<DatabaseResult<Theme>>; // Retrieve the active theme
+		setDefault(themeId: DatabaseId): Promise<DatabaseResult<void>>; // Set a theme as default
+		install(theme: Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<Theme>>; // Install a new theme
+		uninstall(themeId: DatabaseId): Promise<DatabaseResult<void>>; // Uninstall a theme
+		update(themeId: DatabaseId, theme: Partial<Omit<Theme, '_id' | 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<Theme>>; // Update a theme
+	};
+
+	// Widget System
+	widgets: {
+		register(widget: Omit<Widget, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<Widget>>; // Register a new widget
+		activate(widgetId: DatabaseId): Promise<DatabaseResult<void>>; // Activate a widget
+		deactivate(widgetId: DatabaseId): Promise<DatabaseResult<void>>; // Deactivate a widget
+		update(widgetId: DatabaseId, widget: Partial<Omit<Widget, '_id' | 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<Widget>>; // Update widget configuration & details
+		delete(widgetId: DatabaseId): Promise<DatabaseResult<void>>; // Delete a widget
+	};
+
+	// Media Management
+	media: {
+		files: {
+			upload(file: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaItem>>; // Upload a media file
+			delete(fileId: DatabaseId): Promise<DatabaseResult<void>>; // Delete a media file
+			getByFolder(folderId?: DatabaseId): Promise<DatabaseResult<MediaItem[]>>; // Specialized: Get files in a folder
+			search(query: string): Promise<DatabaseResult<MediaItem[]>>; // Specialized: Search files
+		};
+		folders: {
+			create(folder: Omit<MediaFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaFolder>>; // Create a media folder
+			delete(folderId: DatabaseId): Promise<DatabaseResult<void>>; // Delete a media folder
+			getTree(): Promise<DatabaseResult<MediaFolder[]>>; // Specialized: Get folder tree
+		};
+	};
+
+	// Content Management
+	content: {
+		nodes: {
+			getStructure(mode: 'flat' | 'nested', filter?: Partial<ContentNode>): Promise<DatabaseResult<ContentNode[]>>; // Retrieve content structure
+			create(node: Omit<ContentNode, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNode>>; // Create a content node
+			update(path: string, changes: Partial<ContentNode>): Promise<DatabaseResult<ContentNode>>; // Update a content node
+			bulkUpdate(updates: { path: string; changes: Partial<ContentNode> }[]): Promise<DatabaseResult<ContentNode[]>>; // Bulk update content nodes
+			delete(path: string): Promise<DatabaseResult<void>>; // Delete a content node
+		};
+		drafts: {
+			create(draft: Omit<ContentDraft, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentDraft>>; // Create a content draft
+			update(draftId: DatabaseId, data: unknown): Promise<DatabaseResult<ContentDraft>>; // Update a content draft
+			publish(draftId: DatabaseId): Promise<DatabaseResult<void>>; // Publish a content draft
+			getForContent(contentId: DatabaseId): Promise<DatabaseResult<ContentDraft[]>>; // Specialized: Get drafts for specific content
+			delete(draftId: DatabaseId): Promise<DatabaseResult<void>>; // Delete a content draft
+		};
+		revisions: {
+			create(revision: Omit<ContentRevision, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentRevision>>; // Create a content revision
+			getHistory(contentId: DatabaseId): Promise<DatabaseResult<ContentRevision[]>>; // Specialized: Get revision history for content
+			restore(revisionId: DatabaseId): Promise<DatabaseResult<void>>; // Restore a content revision
+			delete(revisionId: DatabaseId): Promise<DatabaseResult<void>>; // Delete a content revision
+		};
+	};
+
+	// System Virtual Folders
+	SystemVirtualFolder: {
+		create(folder: Omit<MediaFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaFolder>>; // Create a virtual folder
+		addToFolder(contentId: DatabaseId, folderPath: string): Promise<DatabaseResult<void>>; // Add content to a virtual folder
+		getContents(folderPath: string): Promise<DatabaseResult<{ folders: MediaFolder[]; files: MediaItem[] }>>; // Specialized: Get contents of a virtual folder
+		delete(folderId: DatabaseId): Promise<DatabaseResult<void>>; // Delete a virtual folder
+	};
+
+	// Database Agnostic Utilities
+	utils: {
+		generateId(): DatabaseId; // Generate a new UUIDv4
+		normalizePath(path: string): string; // Normalize file paths
+		validateId(id: string): boolean; // Validate a DatabaseId
+		createPagination<T>(items: T[], options: PaginationOptions): PaginatedResult<T>; // Paginate items (in-memory utility)
+	};
+
+	// Core CRUD Operations - Centralized - For direct document manipulation by ID or unique query
+	findOne<T extends BaseEntity>(collection: string, query: Partial<T>): Promise<DatabaseResult<T | null>>; // Find a single document by query
+	findMany<T extends BaseEntity>(collection: string, query: Partial<T>): Promise<DatabaseResult<T[]>>; // Find multiple documents by query
+	create<T extends BaseEntity>(collection: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<T>>; // Create a new document
+	update<T extends BaseEntity>(collection: string, id: DatabaseId, data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<T>>; // Update a document by ID
+	delete(collection: string, id: DatabaseId): Promise<DatabaseResult<void>>; // Delete a document by ID
+
+	// Query Builder Entry Point -
+	queryBuilder<T extends BaseEntity>(collection: string): QueryBuilder<T>; // Instantiate a query builder for a collection
+}
+
+/** Utility Type Guards **/
+export function isDatabaseError(error: unknown): error is DatabaseError {
+	return typeof error === 'object' && error !== null && 'code' in error && 'message' in error;
 }

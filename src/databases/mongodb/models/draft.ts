@@ -4,93 +4,104 @@
  *
  * This module defines a schema and model for Drafts in the MongoDB database.
  * A Draft is a version of a document that is not yet published.
- *
  */
 
-import mongoose, { Schema } from 'mongoose';
-import type { Draft } from '@src/databases/dbInterface';
+import mongoose, { Schema, Model } from 'mongoose';
+import type { ContentDraft, DatabaseResult } from '@src/databases/dbInterface';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
 // Define the Draft schema
-export const draftSchema = new Schema(
+export const draftSchema = new Schema<ContentDraft>(
 	{
-		originalDocumentId: { type: Schema.Types.Mixed, required: true }, // Or Schema.Types.String
-		collectionId: { type: Schema.Types.Mixed, required: true }, // The ID of the collection
-		content: { type: Schema.Types.Mixed, required: true }, // The content of the draft
-		status: { type: String, enum: ['draft', 'published'], default: 'draft' }, // Status of the draft
-		createdBy: { type: Schema.Types.Mixed, ref: 'auth_users', required: true } // The user who created the draft
+		_id: { type: String, required: true }, // UUID as per dbInterface.ts
+		contentId: { type: String, required: true }, //ContentId of the draft
+		data: { type: Schema.Types.Mixed, required: true }, // Content of the draft
+		version: { type: Number, default: 1 }, // Version number for drafts, starting at 1
+		status: { type: String, enum: ['draft', 'review', 'archived'], default: 'draft' }, // Status options from ContentDraft
+		authorId: { type: String, required: true }, // Changed to String type in schema
+		createdAt: { type: Date, default: Date.now }, // Default createdAt timestamp
+		updatedAt: { type: Date, default: Date.now } // Default updatedAt timestamp
 	},
-	{ timestamps: false, collection: 'collection_drafts' }
+	{
+		timestamps: true, // Enable timestamps for createdAt and updatedAt
+		collection: 'content_drafts',
+		strict: true // Enforce strict schema validation
+	}
 );
 
-// Static methods for the Draft model
+// Indexes for Drafts
+draftSchema.index({ contentId: 1 }); // Index for finding drafts by contentId
+draftSchema.index({ authorId: 1, status: 1 }); // Index for drafts by author and status
+draftSchema.index({ status: 1, updatedAt: -1 }); // Index for draft status and recency
+
+// Static methods
 draftSchema.statics = {
-	// Create a new draft
-	async createDraft(content: Record<string, unknown>, collectionId: string, original_document_id: string, user_id: string): Promise<Draft> {
+	//Get drafts for a specific content ID
+	async getDraftsForContent(contentId: string): Promise<DatabaseResult<ContentDraft[]>> {
 		try {
-			const draft = new this({
-				originalDocumentId: original_document_id,
-				collectionId: collectionId,
-				content,
-				createdBy: user_id
-			});
-			await draft.save();
-			logger.info(`Draft created successfully for document ID: ${original_document_id}`);
-			return draft.toObject() as Draft;
+			const drafts = await this.find({ contentId }).lean().exec();
+			return { success: true, data: drafts };
+		} catch (error) {
+			logger.error(`Error retrieving drafts for content ID: ${contentId}: ${error.message}`);
+			return { success: false, error: { code: 'DRAFT_FETCH_ERROR', message: `Failed to retrieve drafts for content ID: ${contentId}` } };
+		}
+	},
+
+	//Bulk delete drafts for a list of content IDs
+	async bulkDeleteDraftsForContent(contentIds: string[]): Promise<DatabaseResult<number>> {
+		try {
+			const result = await this.deleteMany({ contentId: { $in: contentIds } }).exec();
+			logger.info(`Bulk deleted ${result.deletedCount} drafts for content IDs: ${contentIds.join(', ')}`);
+			return { success: true, data: result.deletedCount };
+		} catch (error) {
+			logger.error(`Error bulk deleting drafts for content IDs: ${error.message}`);
+			return { success: false, error: { code: 'DRAFT_BULK_DELETE_ERROR', message: 'Failed to bulk delete drafts', details: error } };
+		}
+	},
+
+	// Create a new draft
+	async createDraft(draftData: Omit<ContentDraft, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentDraft>> {
+		try {
+			const newDraft = await this.create({ ...draftData, _id: this.utils.generateId() });
+			return { success: true, data: newDraft.toObject() };
 		} catch (error) {
 			logger.error(`Error creating draft: ${error.message}`);
-			throw Error(`Error creating draft`);
+			return { success: false, error: { code: 'DRAFT_CREATE_ERROR', message: 'Failed to create draft', details: error } };
 		}
 	},
 
-	// Update a draft
-	async updateDraft(draft_id: string, content: Record<string, unknown>): Promise<Draft> {
+	// Update a draft by its ID
+	async updateDraft(draftId: DatabaseId, updateData: Partial<ContentDraft>): Promise<DatabaseResult<void>> {
 		try {
-			const draft = await this.findById(draft_id);
-			if (!draft) throw Error('Draft not found');
-
-			// Update the draft content and timestamp
-			draft.content = content;
-			draft.updatedAt = new Date();
-			await draft.save();
-
-			logger.info(`Draft ${draft_id} updated successfully.`);
-			return draft.toObject() as Draft;
+			const result = await this.updateOne({ _id: draftId }, { $set: { ...updateData, updatedAt: new Date() } }).exec();
+			if (result.modifiedCount === 0) {
+				return { success: false, error: { code: 'DRAFT_UPDATE_NOT_FOUND', message: `Draft with ID "${draftId}" not found or no changes applied.` } };
+			}
+			logger.info(`Draft "${draftId}" updated successfully.`);
+			return { success: true, data: undefined };
 		} catch (error) {
-			logger.error(`Error updating draft: ${error.message}`);
-			throw Error(`Error updating draft`);
+			logger.error(`Error updating draft "${draftId}": ${error.message}`);
+			return { success: false, error: { code: 'DRAFT_UPDATE_ERROR', message: `Failed to update draft "${draftId}"`, details: error } };
 		}
 	},
 
-	// Publish a draft
-	async publishDraft(draft_id: string): Promise<Draft> {
+	// Delete a draft by its ID
+	async deleteDraft(draftId: DatabaseId): Promise<DatabaseResult<void>> {
 		try {
-			const draft = await this.findById(draft_id);
-			if (!draft) throw Error('Draft not found');
-			draft.status = 'published';
-			await draft.save();
-			logger.info(`Draft ${draft_id} published successfully.`);
-			return draft.toObject() as Draft;
+			const result = await this.deleteOne({ _id: draftId }).exec();
+			if (result.deletedCount === 0) {
+				return { success: false, error: { code: 'DRAFT_DELETE_NOT_FOUND', message: `Draft with ID "${draftId}" not found.` } };
+			}
+			logger.info(`Draft "${draftId}" deleted successfully.`);
+			return { success: true, data: undefined };
 		} catch (error) {
-			logger.error(`Error publishing draft: ${error.message}`);
-			throw Error(`Error publishing draft`);
-		}
-	},
-
-	// Get drafts by user
-	async getDraftsByUser(user_id: string): Promise<Draft[]> {
-		try {
-			const drafts = await this.find({ createdBy: user_id }).exec();
-			logger.info(`Retrieved ${drafts.length} drafts for user ID: ${user_id}`);
-			return drafts;
-		} catch (error) {
-			logger.error(`Error retrieving drafts for user ${user_id}: ${error.message}`);
-			throw Error(`Error retrieving drafts for user ${user_id}`);
+			logger.error(`Error deleting draft "${draftId}": ${error.message}`);
+			return { success: false, error: { code: 'DRAFT_DELETE_ERROR', message: `Failed to delete draft "${draftId}"`, details: error } };
 		}
 	}
 };
 
-// Create and export the Draft model
-export const DraftModel = mongoose.models?.Draft || mongoose.model<Draft>('Draft', draftSchema);
+// Create and export the DraftModel
+export const DraftModel = (mongoose.models?.Draft as Model<ContentDraft> | undefined) || mongoose.model<ContentDraft>('Draft', draftSchema);

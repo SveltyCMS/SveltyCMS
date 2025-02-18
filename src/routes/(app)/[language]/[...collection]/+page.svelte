@@ -8,7 +8,15 @@ It dynamically fetches and displays data based on the current language and colle
 It also handles navigation, mode switching (view, edit, create, media), and SEO metadata for the page.
 -->
 <script lang="ts">
+	import { publicEnv } from '@root/config/public';
 	import { goto } from '$app/navigation';
+
+	// Types
+	import type { Schema } from '@src/content/types';
+	import type { User } from '@root/src/auth/types.js';
+
+	// ParaglideJS
+	import type { AvailableLanguageTag } from '@root/src/paraglide/runtime';
 
 	// Stores
 	import { page } from '$app/state';
