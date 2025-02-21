@@ -16,8 +16,10 @@ import { getCollectionFiles } from '@src/routes/api/getCollections/getCollection
 // Permissions
 import { permissions as configPermissions, setPermissions } from '@src/auth/permissions';
 import { PermissionAction, PermissionType } from '@src/auth/permissionTypes';
+
+// Types
 import type { Permission as AuthPermission } from './types';
-import type { PermissionConfig } from './permissionCheck';
+import type { PermissionConfig } from './permissionTypes';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -211,6 +213,7 @@ export const permissionConfigs: Record<string, PermissionConfig> = {
 	themeManagement: { contextId: 'config/themeManagement', name: 'Theme Management', action: PermissionAction.MANAGE, contextType: 'system' },
 	settings: { contextId: 'config/settings', name: 'Settings Management', action: PermissionAction.MANAGE, contextType: 'system' },
 	accessManagement: { contextId: 'config/accessManagement', name: 'Access Management', action: PermissionAction.MANAGE, contextType: 'system' },
+	adminAccess: { contextId: 'admin/access', name: 'Admin Access', action: 'manage', contextType: 'system' },
 
 	// User Permissions
 	adminAreaPermissionConfig: {

@@ -112,7 +112,7 @@ Key features:
 	// Function to initialize collections using ContentManager
 	async function initializeCollections() {
 		try {
-			console.log('Loading collections...', data);
+			// console.log('Loading collections...', data);
 			contentStructure.set(data.nestedContentStructure);
 			isCollectionsLoaded = true;
 		} catch (error) {

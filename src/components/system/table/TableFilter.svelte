@@ -19,6 +19,7 @@
 	// Stores
 	import { translationStatusOpen } from '@stores/store.svelte';
 
+	// Props with types
 	let {
 		globalSearchValue = $bindable(''),
 		searchShow = $bindable(false),
@@ -32,6 +33,18 @@
 		columnShow?: boolean;
 		density?: string;
 	}>();
+
+	// Store user settings
+	$effect(() => {
+		if (density) {
+			localStorage.setItem(
+				'userPaginationSettings',
+				JSON.stringify({
+					density
+				})
+			);
+		}
+	});
 
 	// Define a function to close any open elements
 	function closeOpenStates() {

@@ -62,11 +62,10 @@
 				avatar: serverUser.avatar ?? '/Default_User.svg',
 				permissions: serverUser.permissions ?? []
 			};
+			// Set avatar source once on initialization
+			avatarSrc.set(serverUser.avatar || '/Default_User.svg');
 		}
 	});
-
-	// Set avatar source once on initialization
-	$effect(() => avatarSrc.set(serverUser?.avatar || '/Default_User.svg'));
 
 	// Define password as state
 	let password = $state('hash-password');

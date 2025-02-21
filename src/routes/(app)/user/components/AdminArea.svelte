@@ -3,6 +3,7 @@
 @component 
 **Admin area for managing users and tokens**
 -->
+
 <script lang="ts">
 	import { debounce } from '@utils/utils';
 	import { PermissionAction, PermissionType } from '@src/auth/permissionTypes';
@@ -101,7 +102,7 @@
 		{ label: m.adminarea_updatedat(), key: 'updatedAt' }
 	] as const;
 
-	// State Management using Svelte 5's $ prefix
+	// Basic state that others depend on
 	let showUserList = $state(true);
 	let showUsertoken = $state(false);
 	let isLoading = $state(false);
@@ -123,7 +124,7 @@
 	let rowsPerPage = $state(10);
 	let filters = $state<{ [key: string]: string }>({});
 
-	// Initialize displayTableHeaders
+	// Initialize displayTableHeaders with a safe default first
 	let displayTableHeaders = $state<TableHeader[]>(
 		localStorage.getItem('userPaginationSettings')
 			? JSON.parse(localStorage.getItem('userPaginationSettings') as string).displayTableHeaders.map((header: Partial<TableHeader>) => ({
@@ -140,15 +141,15 @@
 
 	// Update displayTableHeaders when view changes
 	$effect(() => {
+		// Update displayTableHeaders when view changes
 		displayTableHeaders = (showUserList ? tableHeadersUser : tableHeaderToken).map((header) => ({
 			label: header.label,
 			key: header.key,
 			visible: true,
 			id: crypto.randomUUID()
 		}));
-	});
 
-	$effect(() => {
+		// Update selectedRows based on selectedMap
 		selectedRows = Object.entries(selectedMap)
 			.filter(([_, isSelected]) => isSelected)
 			.map(([index]) => ({
