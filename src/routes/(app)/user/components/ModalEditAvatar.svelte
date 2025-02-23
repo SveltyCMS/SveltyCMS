@@ -2,6 +2,12 @@
 @file src/components/user/ModalEditAvatar.svelte
 @component
 **Modal for editing user avatar thumbnail image**
+
+Efficiently handles avatar uploads with validation, deletion, and real-time preview. Optimized for performance and accessibility.
+
+@props
+- `parent` {ModalComponent['props']} - Parent modal properties including `regionFooter`, `onClose`, and `buttonPositive`
+- `avatarSrc` {string} - Current avatar source from store (default: '/Default_User.svg')
 -->
 
 <script lang="ts">
@@ -229,7 +235,7 @@
 					{m.button_cancel()}
 				</button>
 				<!-- Save -->
-				<button class="variant-filled-tertiary btn btn dark:variant-filled-primary {parent.buttonPositive}" onclick={onFormSubmit}
+				<button class="variant-filled-tertiary btn dark:variant-filled-primary {parent.buttonPositive}" onclick={onFormSubmit}
 					>{m.button_save()}
 				</button>
 			</div>

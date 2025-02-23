@@ -1,6 +1,6 @@
 <!-- 
 @file src/routes/(app)/user/+page.svelte
-@description This file sets up and displays the user page. It provides a user-friendly interface for managing user accounts and settings. 
+@description This file sets up and displays the user page, providing a streamlined interface for managing user accounts and settings.
 -->
 
 <script lang="ts">

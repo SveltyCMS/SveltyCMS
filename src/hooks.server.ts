@@ -48,7 +48,6 @@ interface RedirectError {
 // Cache TTLs
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 const API_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-const SESSION_EXTENSION_THRESHOLD = 12 * 60 * 60 * 1000; // 12 hours
 
 // Initialize rate limiter
 const limiter = new RateLimiter({
@@ -139,10 +138,13 @@ const getUserFromSessionId = async (session_id: string | undefined): Promise<Use
 	// Check in-memory cache first
 	const memCached = sessionCache.get(session_id);
 	if (memCached && now - memCached.timestamp < CACHE_TTL) {
-		// Extend session in background if needed
-		if (now - memCached.timestamp > SESSION_EXTENSION_THRESHOLD) {
-			cacheStore.set(session_id, memCached, new Date(now + CACHE_TTL)).catch((err) => logger.error('Failed to extend session:', err));
-		}
+		// Extend session in cache proactively on every hit
+		const sessionData = { user: memCached.user, timestamp: now };
+		sessionCache.set(session_id, sessionData);
+		cacheStore
+			.set(session_id, sessionData, new Date(now + CACHE_TTL))
+			.catch((err) => logger.error(`Failed to extend session cache for ${session_id}: ${err}`));
+		logger.debug(`Session cache hit and extended for ${session_id}`);
 		return memCached.user;
 	}
 
@@ -150,6 +152,7 @@ const getUserFromSessionId = async (session_id: string | undefined): Promise<Use
 	const redisCached = await cacheStore.get<{ user: User; timestamp: number }>(session_id);
 	if (redisCached) {
 		sessionCache.set(session_id, redisCached);
+		logger.debug(`Redis cache hit for session ${session_id}`);
 		return redisCached.user;
 	}
 
@@ -160,12 +163,13 @@ const getUserFromSessionId = async (session_id: string | undefined): Promise<Use
 			const sessionData = { user, timestamp: now };
 			sessionCache.set(session_id, sessionData);
 			await cacheStore.set(session_id, sessionData, new Date(now + CACHE_TTL));
+			logger.debug(`Session validated and cached for ${session_id}`);
 			return user;
 		}
+		logger.warn(`Session validation returned no user for ${session_id}`);
 	} catch (err) {
-		logger.error(`Session validation error: ${err}`);
+		logger.error(`Session validation error for ${session_id}: ${err}`);
 	}
-
 	return null;
 };
 
@@ -223,8 +227,18 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 		const session_id = event.cookies.get(SESSION_COOKIE_NAME);
 		const user = await getUserFromSessionId(session_id);
 
-		if (session_id && !user) {
+		if (!user && session_id) {
+			logger.debug(`Clearing invalid session cookie: ${session_id}`);
 			event.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+		} else if (user) {
+			// Extend session cookie lifetime on each request
+			event.cookies.set(SESSION_COOKIE_NAME, session_id!, {
+				path: '/',
+				httpOnly: true,
+				secure: event.url.protocol === 'https:',
+				maxAge: CACHE_TTL / 1000 // Extend to 24 hours on every request
+			});
+			logger.debug(`Session cookie extended for ${session_id}`);
 		}
 
 		event.locals.user = user;
@@ -417,7 +431,23 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 		}
 	}
 
-	return resolve(event);
+	// Handle non-GET requests with cache invalidation
+	const response = await resolve(event);
+	if (['POST', 'PUT', 'DELETE'].includes(event.request.method) && response.ok) {
+		const cacheKey = `api:${apiEndpoint}:${user._id}`;
+		try {
+			await cacheStore.delete(cacheKey);
+			if (apiEndpoint === 'user') {
+				await cacheStore.delete('api:user:all'); // Invalidate all users cache
+				logger.debug(`Invalidated all users cache \x1b[34mapi:user:all\x1b[0m for ${event.request.method} /api/user`);
+			}
+			logger.debug(`Invalidated cache for \x1b[34m${cacheKey}\x1b[0m after ${event.request.method} request`);
+		} catch (err) {
+			logger.error(`Failed to invalidate cache for ${cacheKey}: ${err}`);
+		}
+	}
+
+	return response;
 };
 
 // Add security headers to the response

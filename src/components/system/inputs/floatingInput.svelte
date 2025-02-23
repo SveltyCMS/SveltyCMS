@@ -2,42 +2,38 @@
  @file src/components/system/inputs/floatingInput.svelte
  @component 
  **FloatingInput component for handling text and password inputs with floating labels**
- ```tsx
- <FloatingInput bind:value={email} label="Email" type="email" />
- ```
  #### Props
- - `value` {string}: The input value
- - `showPassword` {boolean}: Whether to show the password
- - `disabled` {boolean}: Whether the input is disabled
- - `icon` {string}: The icon to display next to the input
- - `iconColor` {string}: The color of the icon
- - `inputClass` {string}: The class to apply to the input
- - `label` {string}: The label for the input
- - `labelClass` {string}: The class to apply to the label
- - `minlength` {number}: The minimum length of the input
- - `maxlength` {number}: The maximum length of the input
- - `name` {string}: The name of the input
- - `required` {boolean}: Whether the input is required
- - `showPasswordBackgroundColor` {string}: The background color of the password toggle
- - `textColor` {string}: The color of the text
- - `type` {string}: The type of the input
- - `tabindex` {number}: The tabindex of the input
- - `id` {string}: The id of the input
- - `autocomplete` {string}: The autocomplete attribute of the input
- - `onClick` {function}: The function to call when the input is clicked
- - `onInput` {function}: The function to call when the input is changed
-
- -->
+ - `value` {string}: The input value (bindable)
+ - `showPassword` {boolean}: Initial visibility of password (bindable, default: false)
+ - `disabled` {boolean}: Whether the input is disabled (default: false)
+ - `icon` {string}: Icon next to the input (default: '')
+ - `iconColor` {string}: Icon color (default: 'gray-500')
+ - `inputClass` {string}: Additional input classes (default: '')
+ - `label` {string}: Input label (default: '')
+ - `labelClass` {string}: Additional label classes (default: '')
+ - `minlength` {number}: Minimum input length (optional)
+ - `maxlength` {number}: Maximum input length (optional)
+ - `name` {string}: Input name (default: '')
+ - `required` {boolean}: Whether input is required (default: false)
+ - `showPasswordBackgroundColor` {'light' | 'dark'}: Password toggle color (default: 'light')
+ - `textColor` {string}: Text color class (default: '!text-error-500')
+ - `type` {'text' | 'email' | 'password'}: Input type (default: 'text')
+ - `tabindex` {number}: Input tabindex (default: 0)
+ - `id` {string}: Input ID (default: derived from label or 'defaultInputId')
+ - `autocomplete` {string}: Autocomplete attribute (default: null)
+ - `onClick` {function}: Click event handler (optional)
+ - `onInput` {function}: Input event handler (optional)
+ - `onkeydown` {function}: Keydown event handler (optional)
+-->
 
 <script lang="ts">
-	type AutocompleteType = 'on' | 'off' | null;
 	type InputType = 'text' | 'email' | 'password';
 	type BackgroundColorType = 'light' | 'dark';
 
-	// Props
+	// Props with bindable value and showPassword
 	let {
 		value = $bindable(''),
-		showPassword = false,
+		showPassword = $bindable(false),
 		disabled = false,
 		icon = '',
 		iconColor = 'gray-500',
@@ -53,9 +49,10 @@
 		type = 'text',
 		tabindex = 0,
 		id = '',
-		autocomplete = null,
-		onClick = undefined,
-		onInput = undefined
+		autocomplete = null as string | null,
+		onClick,
+		onInput,
+		onkeydown
 	} = $props<{
 		value?: string;
 		showPassword?: boolean;
@@ -74,22 +71,37 @@
 		type?: InputType;
 		tabindex?: number;
 		id?: string;
-		autocomplete?: AutocompleteType;
+		autocomplete?: string | null;
 		onClick?: ((event: MouseEvent) => void) | undefined;
 		onInput?: ((value: string) => void) | undefined;
+		onkeydown?: ((event: KeyboardEvent) => void) | undefined;
 	}>();
 
+	// State
 	let inputElement = $state<HTMLInputElement>();
-	let currentId = $state(id || getIdValue(label));
 	let isPasswordVisible = $state(showPassword);
+	let currentId = $derived(id || (label ? label.toLowerCase().replace(/\s+/g, '-') : 'defaultInputId'));
 
-	// Handle input click
+	// Derived input type for password toggle
+	const effectiveType = $derived(isPasswordVisible && type === 'password' ? 'text' : type);
+
+	// Sync showPassword with isPasswordVisible
+	$effect(() => {
+		isPasswordVisible = showPassword;
+	});
+
+	// Event handlers
 	function handleClick(event: MouseEvent): void {
 		event.stopPropagation();
 		onClick?.(event);
 	}
 
-	// Toggle password visibility
+	function togglePasswordVisibility(event: Event): void {
+		event.preventDefault();
+		isPasswordVisible = !isPasswordVisible;
+		showPassword = isPasswordVisible; // Sync back to bindable prop
+	}
+
 	function handleIconKeyDown(event: KeyboardEvent): void {
 		if (event.key === 'Enter' || event.key === ' ') {
 			event.preventDefault();
@@ -97,21 +109,10 @@
 		}
 	}
 
-	// Generate a unique ID for the input
-	function getIdValue(label: string): string {
-		return label?.trim() ? label.toLowerCase().replace(/\s+/g, '-') : 'defaultInputId';
-	}
-
-	// Toggle password visibility
-	function togglePasswordVisibility(event: Event): void {
-		event.preventDefault();
-		isPasswordVisible = !isPasswordVisible;
-	}
-
-	// Update the input type
+	// Sync input element type (fallback for edge cases)
 	$effect(() => {
-		if (type === 'password' && inputElement) {
-			inputElement.type = isPasswordVisible ? 'text' : 'password';
+		if (inputElement && type === 'password') {
+			inputElement.type = effectiveType;
 		}
 	});
 </script>
@@ -129,24 +130,27 @@
 		{autocomplete}
 		onclick={handleClick}
 		oninput={(e) => onInput?.(e.currentTarget.value)}
-		type={isPasswordVisible ? 'text' : type}
-		class="peer relative block w-full appearance-none border-0 border-b-2 border-surface-300 bg-transparent pl-6 !text-{textColor} focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-400 dark:focus:border-tertiary-500 {inputClass}"
+		{onkeydown}
+		type={effectiveType}
+		class="peer block w-full appearance-none border-0 border-b-2 border-surface-300 bg-transparent pl-6 text-{textColor} focus:border-tertiary-600 focus:outline-none focus:ring-0 disabled:opacity-50 dark:border-surface-400 dark:focus:border-tertiary-500 {inputClass}"
 		placeholder=" "
-		{id}
+		id={currentId}
 	/>
 
 	{#if icon}
-		<iconify-icon aria-hidden="true" {icon} width="1.125em" class="absolute top-3 text-{iconColor}" role="presentation"></iconify-icon>
+		<iconify-icon {icon} width="1.125em" class="absolute left-1 top-3 text-{iconColor}" aria-hidden="true" role="presentation"></iconify-icon>
 	{/if}
 
 	{#if type === 'password'}
 		<iconify-icon
-			{tabindex}
+			tabindex={0}
 			role="button"
 			icon={isPasswordVisible ? 'bi:eye-fill' : 'bi:eye-slash-fill'}
 			aria-label={isPasswordVisible ? 'Hide password' : 'Show password'}
 			aria-pressed={isPasswordVisible}
-			class={`absolute right-0 ${showPasswordBackgroundColor === 'light' ? 'text-surface-700' : 'text-surface-300'}`}
+			class="absolute right-2 top-3 text-{showPasswordBackgroundColor === 'light'
+				? 'surface-700'
+				: 'surface-300'} hover:text-tertiary-500 focus:outline-none"
 			width="24"
 			onkeydown={handleIconKeyDown}
 			onclick={togglePasswordVisibility}
@@ -156,8 +160,9 @@
 	{#if label}
 		<label
 			for={currentId}
-			class="{labelClass} pointer-events-none absolute left-6 transform text-sm text-surface-400 transition-all duration-200 ease-in-out peer-placeholder-shown:-top-1 peer-placeholder-shown:text-base peer-placeholder-shown:text-surface-400 peer-focus:-left-0 peer-focus:-top-1.5 peer-focus:text-xs peer-focus:text-tertiary-500 {value &&
-				'-left-0 -top-1.5 text-xs text-tertiary-500'}"
+			class="pointer-events-none absolute left-6 top-0 transform text-sm text-surface-400 transition-all duration-200 ease-in-out peer-placeholder-shown:top-3 peer-placeholder-shown:text-base peer-placeholder-shown:text-surface-400 peer-focus:-top-1.5 peer-focus:text-xs peer-focus:text-tertiary-500 peer-disabled:text-surface-500 {value
+				? '-top-1.5 text-xs text-tertiary-500'
+				: ''} {labelClass}"
 		>
 			{label}
 			{#if required}
@@ -168,9 +173,7 @@
 </div>
 
 <style lang="postcss">
-	div {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
+	.group {
+		@apply relative flex w-full items-center;
 	}
 </style>

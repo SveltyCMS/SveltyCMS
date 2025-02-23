@@ -1,18 +1,20 @@
 <!-- 
 @file src/components/system/table/TableFilter.svelte
 @component
-**Table Filter component for displaying search, filter, and column controls.**
+**Optimized table filter component for search, filter, and column controls in a CMS.**
 
-```tsx
+This component provides a lightweight, flexible interface for table filtering, using Svelte 5 runes for reactivity and bindable props for two-way data flow. It includes search, filter toggles, column visibility, and density controls, optimized for performance and reusaqbility.
+
+@example
 <TableFilter  bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
-```
 
 #### Props
-- `globalSearchValue` {string}: The current value of the global search input (default: '')
-- `searchShow` {boolean}: Whether the search input is visible (default: false)
-- `filterShow` {boolean}: Whether the filter controls are visible (default: false)
-- `columnShow` {boolean}: Whether the column controls are visible (default: false)
-- `density` {string}: The density of the table (default: 'normal')
+- `globalSearchValue` {string}: Current value of the global search input (default: '')
+- `searchShow` {boolean}: Visibility of the search input (default: false)
+- `filterShow` {boolean}: Visibility of filter controls (default: false)
+- `columnShow` {boolean}: Visibility of column controls (default: false)
+- `density` {string}: Table density ('compact', 'normal', 'comfortable') (default: 'normal')
+- `densityOptions` {string[]}: Custom density options (default: ['compact', 'normal', 'comfortable'])
 -->
 
 <script lang="ts">
@@ -32,6 +34,7 @@
 		filterShow?: boolean;
 		columnShow?: boolean;
 		density?: string;
+		densityOptions?: string[];
 	}>();
 
 	// Store user settings
@@ -64,7 +67,7 @@
 			placeholder="Search..."
 			aria-label="Search for items in the table"
 			bind:value={globalSearchValue}
-			onkeydown={(e) => e.key === 'Enter'}
+			onkeydown={(e) => e.key === 'Enter' && closeOpenStates()}
 			class="input outline-none transition-all duration-500 ease-in-out"
 		/>
 		{#if searchShow}

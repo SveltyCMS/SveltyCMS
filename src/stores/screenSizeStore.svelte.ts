@@ -79,7 +79,7 @@ function createScreenSizeStores() {
 	// Setup listener function
 	function setupListener(): () => void {
 		if (typeof window === 'undefined') {
-			return () => { };
+			return () => {};
 		}
 
 		const debouncedUpdate = debounce(updateScreenSize, 150);

@@ -15,7 +15,6 @@ import type { PermissionConfig } from './permissionTypes';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-
 // Cache to store roles and permissions temporarily
 const rolePermissionCache: Record<string, Permission[]> = {};
 

@@ -1,13 +1,12 @@
 <!-- 
 @file src/components/system/table/TablePagination.svelte
 @component
-**Table pagination component for displaying pagination controls.**
+**Optimized table pagination component for displaying pagination controls in a CMS.**
 
-```tsx
+@Example
 <TablePagination currentPage={1} pagesCount={1} rowsPerPage={10} rowsPerPageOptions={[5, 10, 25, 50, 100, 500]} totalItems={0} />
-```
 
-@props
+#### Props
 - `currentPage` {number}: The current page number (default: 1)
 - `pagesCount` {number}: The total number of pages (default: 1)
 - `rowsPerPage` {number}: The number of rows per page (default: 10)
@@ -15,7 +14,6 @@
 - `totalItems` {number}: The total number of items in the table (default: 0)
 - `onUpdatePage` {(page: number) => void}: Event handler for updating the current page
 - `onUpdateRowsPerPage` {(rows: number) => void}: Event handler for updating the number of rows per page
-	
 -->
 
 <script lang="ts">
@@ -23,55 +21,64 @@
 	import * as m from '@src/paraglide/messages';
 	import { onDestroy } from 'svelte';
 
-	const props = $props<{
-		currentPage?: number; // Default value for currentPage
-		pagesCount?: number; // Default value for pagesCount
-		rowsPerPage?: number; // Default value for rowsPerPage
-		rowsPerPageOptions?: number[]; // Default value for rowsPerPageOptions
-		totalItems?: number; // Default value for totalItems
+	// Props with default values
+	let {
+		currentPage = 1,
+		pagesCount = 1,
+		rowsPerPage = 10,
+		rowsPerPageOptions = [5, 10, 25, 50, 100, 500],
+		totalItems = 0,
+		onUpdatePage,
+		onUpdateRowsPerPage
+	} = $props<{
+		currentPage?: number; // Current page number
+		pagesCount?: number; // Total number of pages
+		rowsPerPage?: number; // Number of rows per page
+		rowsPerPageOptions?: number[]; // Options for rows per page
+		totalItems?: number; // Total number of items in the table
 		onUpdatePage?: (page: number) => void; // Event handler for updating the current page
 		onUpdateRowsPerPage?: (rows: number) => void; // Event handler for updating the number of rows per page
 	}>();
 
-	// State declarations with memoization
-	let currentPage = $state(props.currentPage ?? 1);
-	let pagesCount = $state(props.pagesCount ?? 1);
-	let rowsPerPage = $state(props.rowsPerPage ?? 10);
-	let totalItems = $state(props.totalItems ?? 0);
-	let rowsPerPageOptions = $state(props.rowsPerPageOptions ?? [5, 10, 25, 50, 100, 500]);
+	// Local state mirrors props but avoids direct updates
+	let localCurrentPage = $state(currentPage);
+	let localRowsPerPage = $state(rowsPerPage);
+
+	// Sync local state with props when they change externally
+	$effect(() => {
+		localCurrentPage = currentPage;
+		localRowsPerPage = rowsPerPage;
+	});
 
 	// Derived values
-	const isFirstPage = $derived(currentPage === 1);
-	const isLastPage = $derived(currentPage === pagesCount);
+	const isFirstPage = $derived(localCurrentPage === 1);
+	const isLastPage = $derived(localCurrentPage === pagesCount);
 
 	// Go to page with debounce
 	let pageUpdateTimeout: number | undefined;
 	function goToPage(page: number) {
-		if (page >= 1 && page <= pagesCount) {
+		if (page >= 1 && page <= pagesCount && page !== localCurrentPage) {
 			// Clear any existing timeout
-			if (pageUpdateTimeout) {
-				clearTimeout(pageUpdateTimeout);
-			}
-
+			if (pageUpdateTimeout) clearTimeout(pageUpdateTimeout);
 			// Set a new timeout
 			pageUpdateTimeout = window.setTimeout(() => {
-				currentPage = page;
-				props.onUpdatePage?.(page);
+				localCurrentPage = page;
+				onUpdatePage?.(page);
 			}, 200); // 200ms debounce
 		}
 	}
 
 	// Update rows per page
 	function updateRowsPerPage(rows: number) {
-		rowsPerPage = rows;
-		props.onUpdateRowsPerPage?.(rows);
+		if (rows !== localRowsPerPage) {
+			localRowsPerPage = rows;
+			onUpdateRowsPerPage?.(rows);
+		}
 	}
 
 	// Cleanup on component destroy
 	onDestroy(() => {
-		if (pageUpdateTimeout) {
-			clearTimeout(pageUpdateTimeout);
-		}
+		if (pageUpdateTimeout) clearTimeout(pageUpdateTimeout);
 	});
 </script>
 
@@ -79,11 +86,11 @@
 <div class="mb-1 flex items-center justify-between text-xs md:mb-0 md:text-sm" role="status" aria-live="polite">
 	<div>
 		<span>{m.entrylist_page()}</span>
-		<span class="text-tertiary-500 dark:text-primary-500">{currentPage}</span>
+		<span class="text-tertiary-500 dark:text-primary-500">{localCurrentPage}</span>
 		<span>{m.entrylist_of()}</span>
 		<span class="text-tertiary-500 dark:text-primary-500">{pagesCount}</span>
 		<span class="ml-4" aria-label="Current items shown">
-			Showing <span class="text-tertiary-500 dark:text-primary-500">{rowsPerPage}</span> of
+			Showing <span class="text-tertiary-500 dark:text-primary-500">{localRowsPerPage}</span> of
 			<span class="text-tertiary-500 dark:text-primary-500">{totalItems}</span> items
 		</span>
 	</div>
@@ -106,7 +113,7 @@
 
 	<!-- Previous page button -->
 	<button
-		onclick={() => goToPage(currentPage - 1)}
+		onclick={() => goToPage(localCurrentPage - 1)}
 		disabled={isFirstPage}
 		type="button"
 		aria-label="Go to previous page"
@@ -119,7 +126,7 @@
 
 	<!-- Rows per page select dropdown -->
 	<select
-		value={rowsPerPage}
+		value={localRowsPerPage}
 		onchange={(event) => updateRowsPerPage(parseInt((event.target as HTMLSelectElement).value))}
 		aria-label="Select number of rows per page"
 		class="mt-0.5 bg-transparent text-center text-tertiary-500 dark:text-primary-500"
@@ -135,7 +142,7 @@
 
 	<!-- Next page button -->
 	<button
-		onclick={() => goToPage(currentPage + 1)}
+		onclick={() => goToPage(localCurrentPage + 1)}
 		disabled={isLastPage}
 		type="button"
 		aria-label="Go to next page"

@@ -141,10 +141,7 @@ async function initializeWidgets(): Promise<void> {
 
 	try {
 		// Search both core and custom widget directories
-		const modules = import.meta.glob<WidgetModule>([
-			'./core/*/index.ts',
-			'./custom/*/index.ts'
-		], { eager: true });
+		const modules = import.meta.glob<WidgetModule>(['./core/*/index.ts', './custom/*/index.ts'], { eager: true });
 
 		const widgetModules = Object.entries(modules).map(([path, module]) => {
 			try {
