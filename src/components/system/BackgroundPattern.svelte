@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/system/BackgroundPattern.svelte
 @component
 **Animated SVG Background Pattern Component**
@@ -24,18 +24,15 @@ store for smooth, physics-based motion.
 -->
 
 <script lang="ts">
-	// Import necessary modules
-	import { Spring } from 'svelte/motion';
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 
-	// Define props using Svelte 5 runes with default values
+	// Define props with default values
 	const {
 		background = 'white', // Background color
 		color = '#d3d3d3', // Color of the pattern
 		startDirection = 'TopLeft', // Start direction of paths
 		endDirection = 'BottomRight', // End direction of paths
-		animationDirection = 'normal', // Animation direction
-		springConfig = { stiffness: 150, damping: 25 } // Spring animation configuration
+		animationDirection = 'normal' // Animation direction
 	} = $props<{
 		background?: 'white' | '#242728'; // Background color
 		color?: string; // Color of the pattern
@@ -45,14 +42,13 @@ store for smooth, physics-based motion.
 		springConfig?: { stiffness: number; damping: number }; // Spring animation configuration
 	}>();
 
-	// Determine pattern color based on background
+	// Set pattern color based on background
 	let patternColor = background === 'white' ? 'black' : color;
 
-	// Function to generate path data based on start and end directions
+	// Generate path data based on start and end directions
 	function generatePath(start: string, end: string, index: number): string {
 		const startX = ['TopLeft', 'MiddleLeft', 'BottomLeft'].includes(start) ? -380 : 616;
 		const startY = ['TopLeft', 'TopRight', 'MiddleLeft', 'MiddleRight'].includes(start) ? -189 : 875;
-
 		const endX = ['TopRight', 'MiddleRight', 'BottomRight'].includes(end) ? 684 : 152;
 		const endY = ['BottomLeft', 'BottomRight', 'MiddleLeft', 'MiddleRight'].includes(end) ? 875 : 216;
 
@@ -73,25 +69,19 @@ store for smooth, physics-based motion.
 
 	// Initialize arrays to hold path elements and animations
 	let pathElements: SVGPathElement[] = [];
-	let pathAnimations: Spring<{ pathLength: number; opacity: number }>[] = [];
+	let animationFrameId: number;
+	let svgElement: SVGElement;
 
-	// Set up animations on component mount
-	onMount(() => {
-		// Query all path elements
-		pathElements = Array.from(document.querySelectorAll('svg path'));
+	// Create a reactive state for path animations
+	let pathAnimations = $state<{ pathLength: number; opacity: number }[]>([]);
 
-		// Initialize Spring animations for each path
-		pathAnimations = paths.map((_) => {
-			return new Spring(
-				{ pathLength: 0.3, opacity: 0.6 }, // Initial state
-				{ ...springConfig } // Config
-			);
-		});
+	// Function to update path animations
+	function updatePathAnimations() {
+		if (!pathElements.length || !pathAnimations.length) return;
 
-		// Use reactive statements to update path attributes
 		pathElements.forEach((pathElement, index) => {
-			{
-				const { pathLength, opacity } = pathAnimations[index].get();
+			if (index < pathAnimations.length) {
+				const { pathLength, opacity } = pathAnimations[index];
 				const dashArray = 1000;
 				const dashOffset = dashArray * (animationDirection === 'reverse' ? pathLength : 1 - pathLength);
 
@@ -100,19 +90,85 @@ store for smooth, physics-based motion.
 				pathElement.setAttribute('stroke-dashoffset', dashOffset.toString());
 				pathElement.setAttribute('opacity', opacity.toString());
 			}
-
-			// Start the animation
-			if (animationDirection === 'normal') {
-				pathAnimations[index].set({ pathLength: 1, opacity: 0.3 });
-			} else if (animationDirection === 'reverse') {
-				pathAnimations[index].set({ pathLength: 0, opacity: 0.6 });
-			}
 		});
+
+		// Continue animation loop
+		animationFrameId = requestAnimationFrame(updatePathAnimations);
+	}
+
+	// Animation state
+	let animationPhase = $state(0); // 0: initial, 1: animating forward, 2: animating backward
+	let animationTimer: ReturnType<typeof setTimeout>;
+
+	// Function to animate paths in a continuous loop
+	function animatePaths() {
+		// Clear any existing timer
+		if (animationTimer) clearTimeout(animationTimer);
+
+		// Determine animation direction based on current phase
+		const isForward = animationPhase === 0 || animationPhase === 2;
+
+		// Update all paths with staggered delays
+		paths.forEach((_, i) => {
+			setTimeout(() => {
+				if (i < pathAnimations.length) {
+					if (isForward) {
+						// Animate forward
+						pathAnimations[i] = { pathLength: 1, opacity: 0.3 };
+					} else {
+						// Animate backward
+						pathAnimations[i] = { pathLength: 0.3, opacity: 0.6 };
+					}
+				}
+			}, i * 50); // Stagger the animations
+		});
+
+		// Schedule the next animation phase after all paths have animated
+		animationTimer = setTimeout(
+			() => {
+				// Toggle animation phase (0 -> 1 -> 2 -> 1 -> 2...)
+				animationPhase = animationPhase === 0 ? 1 : animationPhase === 1 ? 2 : 1;
+				animatePaths(); // Continue the animation loop
+			},
+			paths.length * 50 + 3000
+		); // Wait for all paths to animate + extra time to view the result
+	}
+
+	// Set up animations on component mount
+	onMount(() => {
+		// Query all path elements within this component's SVG
+		pathElements = Array.from(svgElement.querySelectorAll('path'));
+
+		// Initialize animation state for each path
+		pathAnimations = paths.map(() => ({ pathLength: 0.3, opacity: 0.6 }));
+
+		// Start the animation loop
+		animationFrameId = requestAnimationFrame(updatePathAnimations);
+
+		// Start the continuous animation
+		animatePaths();
+	});
+
+	// Clean up animations when component is destroyed
+	onDestroy(() => {
+		if (animationFrameId) {
+			cancelAnimationFrame(animationFrameId);
+		}
+		if (animationTimer) {
+			clearTimeout(animationTimer);
+		}
 	});
 </script>
 
 <!-- SVG container with viewBox for proper scaling -->
-<svg class="absolute inset-0 h-full w-full" viewBox="0 0 696 316" fill="none" aria-label="Background Pattern">
+<svg
+	bind:this={svgElement}
+	class="absolute inset-0 h-full w-full"
+	viewBox="0 0 696 316"
+	fill="none"
+	aria-label="Background Pattern"
+	style="z-index: 0;"
+>
 	{#each paths as path}
 		<!-- Render each path with dynamic attributes -->
 		<path d={path.d} stroke={patternColor} stroke-width={path.width} stroke-linecap="round" stroke-opacity={path.opacity} />

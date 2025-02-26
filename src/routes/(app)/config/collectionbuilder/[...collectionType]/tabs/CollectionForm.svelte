@@ -11,7 +11,7 @@ Features:
 
 <script lang="ts">
 	// Stores
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { tabSet } from '@stores/store.svelte';
 	import { mode, collectionValue, collections } from '@root/src/stores/collectionStore.svelte';
 
@@ -40,7 +40,7 @@ Features:
 	let props = $props<{ data: any; handlePageTitleUpdate: (title: string) => void }>();
 
 	// Extract the collection name from the URL
-	let contentTypes = $page.params.contentTypes;
+	let contentTypes = page.params.contentTypes;
 
 	// Define the base collection structure
 	const baseCollection: CollectionData = {

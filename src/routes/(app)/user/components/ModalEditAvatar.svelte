@@ -15,7 +15,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	import { invalidateAll } from '$app/navigation';
 
 	// Stores
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { avatarSrc } from '@stores/store.svelte';
 
 	// ParaglideJS
@@ -112,7 +112,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		try {
 			const formData = new FormData();
 			formData.append('avatar', file);
-			formData.append('user_id', $page.data.user._id);
+			formData.append('user_id', page.data.user._id);
 
 			const response = await axios.post('/api/user/saveAvatar', formData, {
 				headers: { 'Content-Type': 'multipart/form-data' }

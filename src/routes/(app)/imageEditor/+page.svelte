@@ -12,7 +12,7 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 	import { onMount } from 'svelte';
 
 	// Store
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { saveEditedImage } from '@stores/store.svelte';
 
 	// Components
@@ -47,7 +47,7 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 	let canRedo = $state(false);
 
 	onMount(() => {
-		const { params } = $page;
+		const { params } = page;
 		if (params.image) {
 			selectedImage = params.image;
 			loadImageAndSetupKonva(selectedImage);

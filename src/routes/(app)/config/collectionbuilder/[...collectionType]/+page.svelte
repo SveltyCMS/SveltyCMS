@@ -12,7 +12,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	import { obj2formData } from '@utils/utils';
 
 	// Stores
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { tabSet } from '@stores/store.svelte';
 	import { mode, collectionValue } from '@src/stores/collectionStore.svelte';
 
@@ -32,7 +32,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	const toastStore = getToastStore();
 
 	// Extract the collection name from the URL
-	const contentTypes = $page.params.contentTypes;
+	const contentTypes = page.params.contentTypes;
 
 	// Default widget data (tab1)
 	let name = $state(mode.value == 'edit' ? (collectionValue.value ? collectionValue.value.name : contentTypes) : contentTypes);
@@ -63,7 +63,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	// Effect to update name based on mode and collection value
 	$effect.root(() => {
-		name = mode.value == 'edit' ? (collectionValue.value ? collectionValue.value.name : contentTypes) : $page.params.contentTypes;
+		name = mode.value == 'edit' ? (collectionValue.value ? collectionValue.value.name : contentTypes) : page.params.contentTypes;
 	});
 
 	function handlePageTitleUpdate(title: string) {
@@ -203,7 +203,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	<TabGroup bind:group={$tabSet} justify="justify-around">
 		<!-- User Permissions -->
-		{#if $page.data.user && $page.data.user.isAdmin}
+		{#if page.data.user && page.data.user.isAdmin}
 			<!-- Edit -->
 			<Tab bind:group={$tabSet} name="default" value={0}>
 				<div class="flex items-center gap-1">

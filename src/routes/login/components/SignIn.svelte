@@ -16,7 +16,7 @@ Features:
 	import { browser } from '$app/environment';
 
 	// Stores
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import type { PageData } from '../$types';
 
 	// Superforms
@@ -74,7 +74,7 @@ Features:
 	const passwordTabIndex = 2;
 	const confirmPasswordTabIndex = 3;
 	const forgotPasswordTabIndex = 4;
-	const pageData = $page.data as PageData;
+	const pageData = page.data as PageData;
 	const firstUserExists = pageData.firstUserExists;
 
 	// URL handling
@@ -322,8 +322,9 @@ Features:
 >
 	{#if active === 0}
 		<!-- CSS Logo -->
-		<div class="absolute left-1/2 top-1/4 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
+		<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
 
+		<!-- Background pattern  -->
 		<BackgroundPattern startDirection="MiddleLeft" endDirection="BottomRight" background="white" />
 
 		<div class="z-0 mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto rounded-md bg-white p-4 lg:w-4/5" class:hide={active !== 0}>

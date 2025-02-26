@@ -15,13 +15,11 @@ Manages token creation and updates with role selection and expiration settings. 
 -->
 
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';
 
 	// Get data from page store
-	const { roles, user } = $page.data;
-
-	let formElement = $state<HTMLFormElement | null>(null);
+	const { roles, user } = page.data;
 
 	// Skeleton & Stores
 	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';

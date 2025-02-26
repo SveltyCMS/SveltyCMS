@@ -4,7 +4,6 @@
 **SignUp component with optional OAuth support**
 
 Features:
- - Dual SignIn and SignUp functionality with dynamic form switching
  - Dynamic language selection with a debounced input field or dropdown for multiple languages
  - Demo mode support with auto-reset timer displayed when active
  - Initial form display adapts based on environment variables (`SEASON`, `DEMO`, and `firstUserExists`)
@@ -19,7 +18,7 @@ Features:
 	import type { PageData } from '../$types';
 
 	// Stores
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 
 	// Superforms
 	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
@@ -54,7 +53,7 @@ Features:
 		onBack?: () => void;
 	}>();
 
-	const pageData = $page.data as PageData;
+	const pageData = page.data as PageData;
 	const firstUserExists = pageData.firstUserExists;
 
 	// State management
@@ -170,11 +169,12 @@ Features:
 >
 	{#if active === 1}
 		<!-- CSS Logo -->
-		<div class="absolute left-1/2 top-1/4 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
+		<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
 
+		<!-- Background pattern  -->
 		<BackgroundPattern startDirection="MiddleRight" endDirection="BottomLeft" background="#242728" />
 
-		<div class="z-0 mx-auto mb-[5%] mt-[15%] w-full rounded-md bg-[#242728] p-4 lg:w-4/5" class:hide={active !== 1}>
+		<div class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full rounded-md bg-[#242728] p-4 lg:w-4/5" class:hide={active !== 1}>
 			<div class="mb-4 flex flex-row gap-2">
 				<SveltyCMSLogo className="w-14" fill="red" />
 

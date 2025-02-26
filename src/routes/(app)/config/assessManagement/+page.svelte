@@ -11,7 +11,7 @@ It provides an interface for users to:
 <script lang="ts">
 	// Stores
 	import { tabSet } from '@stores/store.svelte';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { writable } from 'svelte/store';
 
 	// Auth
@@ -31,19 +31,19 @@ It provides an interface for users to:
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	let roles = $state($page.data.roles);
+	let roles = $state(page.data.roles);
 	const isLoading = writable(false);
 
 	// Track the number of modified permissions
 	const modifiedCount = writable(0);
 	const modifiedPermissions = writable(false);
 
-	const setRoleData = (data) => {
+	const setRoleData = (data: any) => {
 		roles = data;
 		modifiedPermissions.set(true);
 	};
 
-	const updateModifiedCount = (count) => {
+	const updateModifiedCount = (count: number) => {
 		modifiedCount.set(count);
 		modifiedPermissions.set(count > 0);
 	};
@@ -78,7 +78,7 @@ It provides an interface for users to:
 	};
 
 	// Show corresponding Toast messages
-	function showToast(message, type) {
+	function showToast(message: string, type: 'success' | 'info' | 'error') {
 		const backgrounds = {
 			success: 'variant-filled-primary',
 			info: 'variant-filled-tertiary',

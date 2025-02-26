@@ -24,7 +24,7 @@ Features:
 	import type { User } from '@src/auth/types';
 
 	// Stores
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { mode } from '@src/stores/collectionStore.svelte';
 	import { handleSidebarToggle } from '@src/stores/sidebarStore.svelte';
 	import { isSearchVisible, triggerActionStore } from '@utils/globalSearchIndex';
@@ -71,7 +71,7 @@ Features:
 	let firstCircle = $state<HTMLDivElement | undefined>(undefined);
 	let circles = $state<HTMLDivElement[]>([]);
 	let svg = $state<SVGSVGElement | undefined>(undefined);
-	const user: User = $page.data.user;
+	const user: User = page.data.user;
 
 	// Endpoint definition with URL and icon only
 	let endpoints = $state<Endpoint[]>(
@@ -199,7 +199,7 @@ Features:
 		const storedInfo = localStorage.getItem('navigation');
 		if (storedInfo) {
 			const parsedInfo: Record<string, ButtonInfo> = JSON.parse(storedInfo);
-			const currentPath = getBasePath($page.url.pathname);
+			const currentPath = getBasePath(page.url.pathname);
 			if (parsedInfo[currentPath]) {
 				buttonInfo = parsedInfo[currentPath];
 			}
@@ -236,7 +236,7 @@ Features:
 	});
 
 	function getBasePath(pathname: string): string {
-		const params = Object.values($page.params);
+		const params = Object.values(page.params);
 		const replaced = params.reduce((acc, param) => acc.replace(param, ''), pathname);
 		return params.length > 0 ? replaced : pathname;
 	}
@@ -303,7 +303,7 @@ Features:
 			});
 
 			await tick();
-			navigation_info = { ...navigation_info, [getBasePath($page.url.pathname)]: buttonInfo };
+			navigation_info = { ...navigation_info, [getBasePath(page.url.pathname)]: buttonInfo };
 			localStorage.setItem('navigation', JSON.stringify(navigation_info));
 		};
 	}

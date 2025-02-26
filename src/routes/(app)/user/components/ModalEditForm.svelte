@@ -16,7 +16,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 
 <script lang="ts">
 	import axios from 'axios';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';
 
 	// Skeleton & Stores
@@ -27,7 +27,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 	import * as m from '@src/paraglide/messages';
 
 	// Get data from page store
-	const { roles, user } = $page.data;
+	const { roles, user } = page.data;
 
 	// Function to check if a role is active
 	const isRoleActive = (roleName: string): boolean => {
@@ -49,7 +49,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 		contextType: 'user'
 	};
 
-	const isFirstUser = $page.data.isFirstUser;
+	const isFirstUser = page.data.isFirstUser;
 
 	// Props
 	let { parent, isGivenData = false, username = null, email = null, role = null, user_id = null } = $props();
