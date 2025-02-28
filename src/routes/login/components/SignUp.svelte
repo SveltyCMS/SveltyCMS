@@ -168,12 +168,11 @@ Features:
 	class:hover={isHover}
 >
 	{#if active === 1}
+		<!-- Background pattern  -->
+		<BackgroundPattern background="#242728" startDirection="MiddleRight" endDirection="BottomLeft" animationDirection="normal" />
+
 		<!-- CSS Logo -->
 		<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
-
-		<!-- Background pattern  -->
-		<BackgroundPattern startDirection="MiddleRight" endDirection="BottomLeft" background="#242728" />
-
 		<div class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full rounded-md bg-[#242728] p-4 lg:w-4/5" class:hide={active !== 1}>
 			<div class="mb-4 flex flex-row gap-2">
 				<SveltyCMSLogo className="w-14" fill="red" />

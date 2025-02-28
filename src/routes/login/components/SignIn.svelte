@@ -321,11 +321,11 @@ Features:
 	class:hover={isHover}
 >
 	{#if active === 0}
+		<!-- Background pattern  -->
+		<BackgroundPattern background="white" startDirection="MiddleLeft" endDirection="BottomRight" />
+
 		<!-- CSS Logo -->
 		<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
-
-		<!-- Background pattern  -->
-		<BackgroundPattern startDirection="MiddleLeft" endDirection="BottomRight" background="white" />
 
 		<div class="z-0 mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto rounded-md bg-white p-4 lg:w-4/5" class:hide={active !== 0}>
 			<div class="mb-1 flex flex-row gap-2">
