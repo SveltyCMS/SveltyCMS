@@ -128,8 +128,8 @@
 		"@tiptap/extension-youtube": "^2.11.5",
 		"@tiptap/pm": "^2.11.5",
 		"@tiptap/starter-kit": "^2.11.5",
-		"@types/mapbox-gl": "^3.4.1",
 		"@types/mapbox__mapbox-gl-geocoder": "^5.0.0",
+		"@types/mapbox-gl": "^3.4.1",
 		"@types/serialize-javascript": "^5.0.4",
 		"argon2": "^0.41.1",
 		"axios": "^1.8.1",
@@ -159,6 +159,7 @@
 		"redis": "^4.7.0",
 		"serialize-javascript": "^6.0.2",
 		"serve-static": "^1.16.2",
+		"svelte-motion": "^0.12.2",
 		"svelty-email": "^0.0.11",
 		"tailwind-merge": "^2.6.0",
 		"uuid": "^11.1.0"
