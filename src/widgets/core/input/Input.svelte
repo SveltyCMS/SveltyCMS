@@ -19,7 +19,6 @@
 	import { string, pipe, parse, type ValiError, minLength, maxLength, nonEmpty, nullable } from 'valibot';
 	import { contentLanguage, validationStore } from '@root/src/stores/store.svelte';
 
-	import lodash from 'lodash';
 	// Props
 	interface Props {
 		field: FieldType;

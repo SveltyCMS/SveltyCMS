@@ -66,8 +66,6 @@ Features:
 	let showPassword = $state(false);
 	let formElement = $state<HTMLFormElement | null>(null);
 	let tabIndex = $state(1);
-	let registration_token = $state('');
-	let hide_email = $state('');
 
 	// Pre-calculate tab indices
 	const emailTabIndex = 1;
@@ -79,21 +77,6 @@ Features:
 
 	// URL handling
 	const current_url = $state(browser ? window.location.href : '');
-
-	// Side effect for URL token handling
-	$effect(() => {
-		if (current_url.includes('/login') && current_url.search('token') > -1) {
-			// Set flags and extract token/email for password reset flow
-			PWforgot = true;
-			PWreset = true;
-			const start = current_url.indexOf('=') + 1;
-			const end = current_url.indexOf('&');
-			registration_token = current_url.slice(start, end);
-
-			const emailStart = current_url.indexOf('email=') + 6;
-			hide_email = current_url.slice(emailStart, current_url.length);
-		}
-	});
 
 	// Login form setup
 	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaLogin, {
@@ -275,6 +258,24 @@ Features:
 		}
 	});
 
+	// Side effect for URL token handling
+	$effect(() => {
+		if (browser && current_url.includes('/login') && current_url.includes('token')) {
+			const urlObj = new URL(current_url);
+			const tokenParam = urlObj.searchParams.get('token') || '';
+			const emailParam = urlObj.searchParams.get('email') || '';
+			if (tokenParam && emailParam) {
+				// Directly update the reset form with token and email values
+				$resetForm.token = tokenParam;
+				$resetForm.email = emailParam;
+
+				// Set flags for reset flow
+				PWforgot = true;
+				PWreset = true;
+			}
+		}
+	});
+
 	// Function to handle back button click
 	function handleBack(event: Event) {
 		event.stopPropagation();
@@ -428,7 +429,7 @@ Features:
 				{#if PWforgot && !PWreset}
 					<form
 						method="POST"
-						action="?/forgotPassword"
+						action="?/forgotPW"
 						use:forgotEnhance
 						bind:this={formElement}
 						class="flex w-full flex-col gap-3"
@@ -489,7 +490,7 @@ Features:
 				{#if PWforgot && PWreset}
 					<form
 						method="POST"
-						action="?/resetPassword"
+						action="?/resetPW"
 						use:resetEnhance
 						bind:this={formElement}
 						class="flex w-full flex-col gap-3"
