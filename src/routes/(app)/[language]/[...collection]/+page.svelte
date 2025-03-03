@@ -28,13 +28,6 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	import EntryList from '@src/components/EntryList.svelte';
 	import MediaGallery from '@src/routes/(app)/mediagallery/+page.svelte';
 
-	// System Logger
-	import type { User } from '@root/src/auth/types.js';
-
-	import { publicEnv } from '@root/config/public';
-	import type { AvailableLanguageTag } from '@root/src/paraglide/runtime';
-
-	import type { Schema } from '@root/src/content/types';
 	import Loading from '@root/src/components/Loading.svelte';
 
 	interface Props {

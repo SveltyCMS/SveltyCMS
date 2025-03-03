@@ -154,7 +154,7 @@ export async function saveFormData({
     throw error(400, message);
   }
 
-  console.debug('formData', formData.toString(), $collection.revision, data);
+  console.debug('formData', formData.values().toArray(), $mode, data);
 
 
   // TODO: Add meta_data to formData
@@ -163,14 +163,11 @@ export async function saveFormData({
   // Safely append status with a default value
   formData.append('status', (collectionValue.value?.status || 'unpublished').toString());
 
-  const username = user ? user.username : 'Unknown';
 
   try {
     switch ($mode) {
       case 'create':
         logger.debug('Saving data in create mode.');
-        formData.append('createdAt', Math.floor(Date.now() / 1000).toString());
-        formData.append('updatedAt', (formData.get('createdAt') as string) || '');
 
         return await addData({ data: formData, collectionId: $collection._id as keyof ContentTypes });
 

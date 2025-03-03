@@ -18,7 +18,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 // Types
 import type { Schema, ContentTypes, Category, CollectionData } from './types';
-import type { CollectionModel, ContentStructureNode, SystemContent } from '@src/databases/dbInterface';
+import type { CollectionModel, ContentNode, ContentStructureNode, SystemContent } from '@src/databases/dbInterface';
 
 // Redis
 import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/redis';
@@ -54,7 +54,7 @@ class ContentManager {
   private loadedCollections: Schema[] = [];
   private collectionModels: Map<string, CollectionModel> = new Map()
   private collectionMap: Map<string, Schema> = new Map();
-  private contentStructure: Record<string, Category> = {};
+  private contentStructure: Record<string, ContentNode> = {};
   private nestedContentStructure: ContentStructureNode[] = [];
   private dbInitPromise: Promise<void> | null = null;
 
@@ -147,7 +147,7 @@ class ContentManager {
           };
 
 
-          const model = await dbAdapter?.createCollectionModel(processed as CollectionData);
+          const model = await dbAdapter?.collection.createModel(processed as CollectionData);
 
 
           if (!model) logger.error(`Database model creation for  ${schema.name} ${schema.path} Failed`)
@@ -264,7 +264,9 @@ class ContentManager {
       if (!dbAdapter) throw new Error('Database adapter not initialized');
 
 
-      const structure: ContentStructureNode[] = await dbAdapter.getContentStructure();
+      const result = await dbAdapter.content.nodes.getStructure("flat");
+      if (!result.success) logger.debug(`Failed retrieve contentNodes`)
+      const structure = result.success ? result.data : []
       // Convert the array to a Map using the `path` property as the key
       const structureMap = new Map<string, ContentStructureNode>(
         structure.map(node => [node.path, node])
@@ -283,7 +285,7 @@ class ContentManager {
 
         const parentPath = collection.path === "/" ? null : collection.path.split("/").slice(0, -1).join("/") || "/";
 
-        const currentNode = await dbAdapter?.upsertContentStructureNode({
+        const result = await dbAdapter?.content.nodes.upsertContentStructureNode({
           _id: oldNode?._id ?? collection._id,
           name: collection.name as string,
           icon: collection.icon ?? oldNode?.icon ?? 'bi:file',
@@ -295,6 +297,10 @@ class ContentManager {
           updatedAt: oldNode?.updatedAt ?? new Date(),
 
         });
+        if (!result.success) {
+          throw new Error("Failed to update collection");
+        }
+        const currentNode = result.data;
         this.contentStructure[currentNode.path] = currentNode;
 
         if (parentPath && parentPath !== "/") {
@@ -311,10 +317,9 @@ class ContentManager {
 
         }
       }
-      console.debug(categoryNodes)
       for (const node of categoryNodes.values()) {
         const oldNode = structureMap.get(node.path);
-        const currentCategoryNode = await dbAdapter?.upsertContentStructureNode({
+        const result = await dbAdapter?.content.nodes.upsertContentStructureNode({
           _id: oldNode?._id ?? uuidv4(),
           name: node.name ?? oldNode?.name,
           icon: oldNode?.icon ?? "bi:folder",
@@ -326,6 +331,10 @@ class ContentManager {
           updatedAt: oldNode?.updatedAt ?? new Date()
 
         })
+        if (!result.success) {
+          throw new Error("Failed to update category");
+        }
+        const currentCategoryNode = result.data;
         this.contentStructure[currentCategoryNode.path] = currentCategoryNode;
         structureMap.set(currentCategoryNode.path, currentCategoryNode);
 
