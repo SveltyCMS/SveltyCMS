@@ -168,18 +168,18 @@ Features:
 	class:inactive={isInactive}
 	class:hover={isHover}
 >
-	<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-white dark:bg-neutral-950">
+	<div class="relative flex max-h-screen min-h-screen w-full items-center justify-center overflow-hidden bg-white dark:bg-neutral-950">
 		<div class="absolute inset-0">
-			<FloatingPaths position={1} />
-			<FloatingPaths position={-1} />
+			<FloatingPaths position={1} background="#242728" />
+			<FloatingPaths position={-1} background="#242728" />
 		</div>
 		{#if active === 1}
 			<!-- Background pattern  -->
 			<!-- <BackgroundPattern background="#242728" startDirection="MiddleRight" endDirection="BottomLeft" animationDirection="normal" /> -->
 
 			<!-- CSS Logo -->
-			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
-			<div class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full rounded-md bg-[#242728] p-4 lg:w-4/5" class:hide={active !== 1}>
+			<!-- <div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div> -->
+			<div class="relative z-10 mx-auto my-auto max-h-full w-full overflow-auto rounded-md bg-[#242728] p-4 lg:w-4/5" class:hide={active !== 1}>
 				<div class="mb-4 flex flex-row gap-2">
 					<SveltyCMSLogo className="w-14" fill="red" />
 

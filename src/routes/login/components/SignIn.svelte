@@ -326,10 +326,10 @@ Features:
 		<!-- Background pattern  -->
 		<!-- <BackgroundPattern background="white" startDirection="MiddleLeft" endDirection="BottomRight" /> -->
 
-		<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-white dark:bg-neutral-950">
+		<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-white">
 			<div class="absolute inset-0">
-				<FloatingPaths position={1} />
-				<FloatingPaths position={-1} />
+				<FloatingPaths position={1} background="white" />
+				<FloatingPaths position={-1} background="white" />
 			</div>
 
 			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
