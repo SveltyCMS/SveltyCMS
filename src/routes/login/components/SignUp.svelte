@@ -170,8 +170,8 @@ Features:
 	{#if active === 1}
 		<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
 			<div class="absolute inset-0">
-				<FloatingPaths position={1} background="dark" />
-				<FloatingPaths position={-1} background="dark" />
+				<FloatingPaths position={1} background="dark" mirrorAnimation />
+				<FloatingPaths position={-1} background="dark" mirrorAnimation />
 			</div>
 			<!-- CSS Logo -->
 			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
