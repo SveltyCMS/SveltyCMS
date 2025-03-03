@@ -328,8 +328,9 @@ Features:
 
 		<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-white">
 			<div class="absolute inset-0">
-				<FloatingPaths position={1} background="white" />
-				<FloatingPaths position={-1} background="white" />
+				<!-- <FloatingPaths position={1} background="white" />
+				<FloatingPaths position={-1} background="white" /> -->
+				<BackgroundPattern background="white" startDirection="MiddleLeft" endDirection="BottomRight" animationDirection="reverse" />
 			</div>
 
 			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>

@@ -169,10 +169,8 @@ Features:
 	class:hover={isHover}
 >
 	<div class="relative flex max-h-screen min-h-screen w-full items-center justify-center overflow-hidden bg-white dark:bg-neutral-950">
-		<div class="absolute inset-0">
-			<FloatingPaths position={1} background="#242728" />
-			<FloatingPaths position={-1} background="#242728" />
-		</div>
+		<BackgroundPattern background="#242728" startDirection="MiddleRight" endDirection="BottomLeft" animationDirection="normal" />
+
 		{#if active === 1}
 			<!-- Background pattern  -->
 			<!-- <BackgroundPattern background="#242728" startDirection="MiddleRight" endDirection="BottomLeft" animationDirection="normal" /> -->
