@@ -31,6 +31,7 @@ Features:
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import PasswordStrength from '@components/PasswordStrength.svelte';
+	import FloatingPaths from '@root/src/components/system/FloatingPaths.svelte';
 
 	// Skeleton
 	import { Toast, getToastStore } from '@skeletonlabs/skeleton';
@@ -39,8 +40,6 @@ Features:
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import OauthLogin from './OauthLogin.svelte';
-	import BackgroundPattern from '@root/src/components/system/BackgroundPattern.svelte';
-	import FloatingPaths from '@root/src/components/system/FloatingPaths.svelte';
 
 	// Props
 	const {
@@ -324,13 +323,11 @@ Features:
 >
 	{#if active === 0}
 		<!-- Background pattern  -->
-		<!-- <BackgroundPattern background="white" startDirection="MiddleLeft" endDirection="BottomRight" /> -->
-
-		<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-white">
+		<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
 			<div class="absolute inset-0">
-				<!-- <FloatingPaths position={1} background="white" />
-				<FloatingPaths position={-1} background="white" /> -->
-				<BackgroundPattern background="white" startDirection="MiddleLeft" endDirection="BottomRight" animationDirection="reverse" />
+				<FloatingPaths position={-1} background="white" />
+
+				<FloatingPaths position={1} background="white" />
 			</div>
 
 			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
