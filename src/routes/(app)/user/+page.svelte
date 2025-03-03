@@ -42,31 +42,19 @@
 	let { user: serverUser, isFirstUser } = $derived(data);
 
 	// Make user data reactive
-	let user = $state<User>({
-		_id: '',
-		email: '',
-		username: '',
-		role: '',
-		avatar: '/Default_User.svg',
+	let user = $derived<User>({
+		_id: serverUser?._id ?? '',
+		email: serverUser?.email ?? '',
+		username: serverUser?.username ?? '',
+		role: serverUser?.role ?? '',
+		avatar: serverUser?.avatar ?? '/Default_User.svg',
 		permissions: []
 	});
 
 	// Keep user data in sync with server data
-	$effect(() => {
-		if (serverUser) {
-			user = {
-				_id: serverUser._id ?? '',
-				email: serverUser.email ?? '',
-				username: serverUser.username ?? '',
-				role: serverUser.role ?? '',
-				avatar: serverUser.avatar ?? '/Default_User.svg',
-				permissions: serverUser.permissions ?? []
-			};
-		}
-	});
 
 	// Initialize avatarSrc with user's avatar or default using effect
-	$effect.root(() => {
+	$effect(() => {
 		if (user?.avatar) {
 			avatarSrc.set(user.avatar);
 		} else {

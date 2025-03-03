@@ -49,13 +49,14 @@ Key features:
 	// Required for popups to function
 	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
 	import { storePopup } from '@skeletonlabs/skeleton';
+	import type { User } from '@root/src/auth/types';
 
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 	initializeStores();
 
 	interface Props {
 		children?: import('svelte').Snippet;
-		data: { contentStructure: any; nestedContentStructure: any; contentLanguage: string; systemLanguage: string };
+		data: { user: User; contentStructure: any; nestedContentStructure: any; contentLanguage: string; systemLanguage: string };
 	}
 
 	let { children, data }: Props = $props();
@@ -156,6 +157,10 @@ Key features:
 			setModeCurrent(newMode);
 		}
 
+		if (data.user) {
+			console.log('user', data.user);
+		}
+
 		// Event listeners
 		window.addEventListener('keydown', onKeyDown);
 
@@ -177,6 +182,7 @@ Key features:
 
 <svelte:head>
 	<!-- Dark Mode -->
+	<!-- eslint-disable-next-line svelte/no-at-html-tags-->
 	{@html '<script>(' + setInitialClassState.toString() + ')();</script>'}
 
 	<!--Basic SEO-->
