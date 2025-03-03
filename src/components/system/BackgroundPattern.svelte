@@ -26,7 +26,8 @@ Spring class for smooth, physics-based motion.
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
-	import { Spring } from 'svelte/motion';
+	import { Tween } from 'svelte/motion';
+	import { cubicOut, linear } from 'svelte/easing';
 
 	// Define props with default values
 	const {
@@ -128,7 +129,7 @@ Spring class for smooth, physics-based motion.
 	];
 
 	// Create Spring instances for animation
-	const pathSprings = $state(paths.map(() => new Spring(0.3, { stiffness: springConfig.stiffness, damping: springConfig.damping })));
+	const pathSprings = $state(paths.map(() => new Tween(0, { duration: 20000, easing: cubicOut })));
 
 	// Animation control variables
 	let animationTimer: ReturnType<typeof setTimeout>;
@@ -142,21 +143,21 @@ Spring class for smooth, physics-based motion.
 		isAnimating = true;
 
 		// Animate each path with staggered delays
-		paths.forEach((path, i) => {
-			setTimeout(() => {
-				if (i < pathSprings.length) {
-					pathSprings[i].target = targetValue;
-				}
-			}, path.delay);
-		});
 
 		// Schedule the next animation cycle
 		animationTimer = setTimeout(() => {
 			// Toggle between animation states (0.3 and 0.8)
 			animatePaths(targetValue === 0.3 ? 0.8 : 0.3);
-		}, 3600); // Full animation cycle duration
+		}, 20000); // Full animation cycle duration
 	}
-
+	$effect: pathSprings.forEach((path) => {
+		path.set(1, { duration: 20000 }).then(() => path.set(0, { duration: 20000 }));
+		// setTimeout(() => {
+		// 	if (i < pathSprings.length) {
+		// 		pathSprings[i].target = targetValue;
+		// 	}
+		// }, path.delay);
+	});
 	// Initialize animations
 	onMount(() => {
 		if (browser) {
@@ -197,7 +198,7 @@ Spring class for smooth, physics-based motion.
 			stroke-width={path.width}
 			stroke-linecap="round"
 			stroke-opacity={path.opacity}
-			style={`stroke-dasharray: 1000; stroke-dashoffset: ${1000 * (animationDirection === 'reverse' ? pathSprings[i].current : 1 - pathSprings[i].current)}`}
+			style={`stroke-dasharray: 1000px; stroke-dashoffset: ${1000 * (animationDirection === 'reverse' ? pathSprings[i].current : 1 - pathSprings[i].current)}px`}
 			aria-hidden="true"
 		/>
 	{/each}

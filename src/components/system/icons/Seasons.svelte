@@ -1,7 +1,19 @@
 <!--
-@files src/components/system/icons/Seasons.svelte
-@component
-**Seasons Component**
+@file src/components/system/icons/Seasons.svelte
+@component Seasons Component
+
+@description 
+Dynamically displays seasonal greetings and festival-based UI decorations based on the configured `publicEnv.SEASON_REGION`. Supports regional celebrations for Western Europe, East Asia, and South Asia, with conditional rendering of festive messages and animations.
+
+@features 
+- Regional support: Western Europe, East Asia, South Asia.
+- Detects and highlights key festivals such as:
+  - **Western Europe**: New Year, Valentine's Day, Easter, May Day, Halloween, Christmas.
+  - **East Asia**: Chinese New Year, Cherry Blossom Season, Dragon Boat Festival, Mid-Autumn Festival.
+  - **South Asia**: Diwali, Holi, Navratri.
+- Implements dynamic date calculations for movable festivals (e.g., Easter, Diwali, Chinese New Year).
+- Enhances user experience with festive icons, confetti effects, and gradient overlays during celebrations.
+- Fully configurable via `publicEnv.SEASONS` and `publicEnv.SEASON_REGION` settings.
 -->
 
 <script lang="ts">
