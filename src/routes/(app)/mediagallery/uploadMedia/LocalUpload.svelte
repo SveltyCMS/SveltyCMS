@@ -24,8 +24,8 @@
 	import { goto } from '$app/navigation';
 
 	let files: File[] = [];
-	let input: HTMLInputElement;
-	let dropZone: HTMLDivElement;
+	let input: HTMLInputElement | null = $state(null);
+	let dropZone: HTMLDivElement | null = $state(null);
 
 	const modalStore = getModalStore();
 	const toastStore = getToastStore();
@@ -64,7 +64,7 @@
 			}
 		}
 
-		dropZone.style.removeProperty('border-color');
+		dropZone?.style.removeProperty('border-color');
 		modalAddMedia(); // Trigger the modal after files are dropped
 	}
 
@@ -72,18 +72,20 @@
 		e.preventDefault();
 		e.stopPropagation();
 		console.log('Dragging over dropzone');
-		dropZone.style.borderColor = '#5fd317';
+		if (dropZone) {
+			dropZone.style.borderColor = '#5fd317';
+		}
 	}
 
 	function handleDragLeave(e: DragEvent) {
 		e.preventDefault();
 		e.stopPropagation();
 		console.log('Dragging left dropzone');
-		dropZone.style.removeProperty('border-color');
+		dropZone?.style.removeProperty('border-color');
 	}
 
 	function onChange() {
-		if (input.files) {
+		if (input?.files) {
 			console.log('Files selected from input');
 			for (let i = 0; i < input.files.length; i++) {
 				const file = input.files[i];
@@ -168,7 +170,7 @@
 
 			<p class="text-sm opacity-75">Multiple files allowed</p>
 
-			<button onclick={() => input.click()} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary"> Browse Files </button>
+			<button onclick={() => input?.click()} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary"> Browse Files </button>
 
 			<!-- File Size Limit -->
 			<p class="mt-2 text-sm text-tertiary-500 dark:text-primary-500">Max File Size: XX MB</p>

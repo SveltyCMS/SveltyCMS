@@ -32,10 +32,14 @@
 	role="checkbox"
 	aria-checked={checked}
 	tabindex="0"
-	onclick|stopPropagation={toggleCheckbox}
+	onclick={(e) => {
+		e.stopPropagation();
+		toggleCheckbox();
+	}}
 	onkeydown={handleKeydown}
 >
 	{#if checked}
-		<svelte:component this={svg} />
+		{@const SvgComponent = svg}
+		<SvgComponent />
 	{/if}
 </div>
