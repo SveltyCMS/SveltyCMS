@@ -318,7 +318,7 @@ export async function saveAvatarImage(file: File): Promise<string> {
 
     if (!dbAdapter) throw Error('Database adapter not initialized.');
 
-    await dbAdapter.insertOne('media_images', { _id: dbAdapter.generateId(), ...fileInfo });
+    await dbAdapter.media.files.upload({ _id: dbAdapter.utils.generateId(), ...fileInfo });
 
     // Return the thumbnail URL for avatar usage
     let fileUrl = thumbnailUrl;

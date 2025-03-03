@@ -116,7 +116,14 @@
 	let columnShow = $state(false);
 	let SelectAll = $state(false);
 	let selectedMap = $state<Record<number, boolean>>({});
-	let tableData = $state<(UserData | TokenData)[]>([]);
+	let tableData = $derived.by(() => {
+		if (!adminData) return [] as UserData[];
+		if (showUserList) {
+			return adminData.users as UserData[];
+		} else if (showUsertoken) {
+			return adminData.tokens as TokenData[];
+		}
+	});
 	let filteredTableData = $state<(UserData | TokenData)[]>([]);
 	let selectedRows = $state<SelectedRow[]>([]);
 	let density = $state(
@@ -218,6 +225,7 @@
 	// Refresh table data with current filters and sorting
 	function refreshTableData() {
 		// Apply filters and sorting to tableData
+		if (!tableData) return;
 		let filtered = [...tableData];
 
 		// Apply global search if value exists
@@ -246,22 +254,16 @@
 		pagesCount = Math.ceil(filtered.length / rowsPerPage);
 		currentPage = Math.min(currentPage, pagesCount);
 	}
-
 	//// Initialize table data when adminData changes
 	//$effect(() => {
 	//	if (adminData) {
-	//		if (showUserList) {
-	//			tableData = adminData.users;
-	//		} else if (showUsertoken) {
-	//			tableData = adminData.tokens;
-	//		}
 	//		refreshTableData();
 	//	}
 	//});
 
-	//$effect(() => {
-	//	refreshTableData();
-	//});
+	$effect(() => {
+		refreshTableData();
+	});
 
 	function handleCheckboxChange() {
 		const allColumnsVisible = displayTableHeaders.every((header) => header.visible);
@@ -477,6 +479,7 @@
 										{:else if header.key === 'createdAt' || header.key === 'updatedAt' || header.key === 'lastAccess'}
 											{new Date(row[header.key]).toLocaleString()}
 										{:else}
+											<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 											{@html row[header.key]}
 										{/if}
 									</td>
