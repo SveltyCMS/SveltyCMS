@@ -16,7 +16,7 @@ import { DraftModel } from './models/draft';
 import { RevisionModel } from './models/revision';
 import { ThemeModel } from './models/theme';
 import { WidgetModel, widgetSchema } from './models/widget';
-import { mediaSchema } from './models/media';
+import { MediaModel, mediaSchema } from './models/media';
 import { SystemVirtualFolderModel } from './models/systemVirtualFolder';
 import { SystemPreferencesModel } from './models/systemPreferences';
 
@@ -31,7 +31,7 @@ import { TokenSchema } from '@src/auth/mongoDBAuth/tokenAdapter';
 import { SessionSchema } from '@src/auth/mongoDBAuth/sessionAdapter';
 
 // System Logging
-import { logger } from '@utils/logger.svelte';
+import { logger, type LoggableValue } from '@utils/logger.svelte';
 
 // Widget Manager
 import '@widgets/index';
@@ -49,6 +49,7 @@ import type {
   DatabaseError,
   DatabaseAdapter,
   CollectionModel,
+  MediaItem,
 } from '../dbInterface';
 
 // Utility function to handle DatabaseErrors consistently
@@ -386,7 +387,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
       }
     },
     // Implementing insertOne method
-    insertOne: async <T extends DocumentContent = DocumentContent>(collection: string, doc: Partial<T>): Promise<T> => {
+    insert: async <T extends DocumentContent = DocumentContent>(collection: string, doc: Partial<T>): Promise<T> => {
       try {
         const model = mongoose.models[collection] as Model<T>;
         if (!model) {
@@ -416,7 +417,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
     },
 
     // Implementing updateOne method
-    updateOne: async <T extends DocumentContent = DocumentContent>(collection: string, query: FilterQuery<T>, update: UpdateQuery<T>): Promise<T> => {
+    update: async <T extends DocumentContent = DocumentContent>(collection: string, query: FilterQuery<T>, update: UpdateQuery<T>): Promise<T> => {
       try {
         const model = mongoose.models[collection] as Model<T>;
         if (!model) {
@@ -527,12 +528,27 @@ export class MongoDBAdapter implements DatabaseAdapter {
   //  Media Model Management
   media = {
     // Set up media models
-    setupMediaModels: (): Promise<void> => {
+    setupMediaModels: async (): Promise<void> => {
       const mediaSchemas = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote', 'media_collection'];
       mediaSchemas.forEach((schemaName) => {
         this.modelSetup.setupModel(schemaName, mediaSchema);
       });
       logger.info('Media models set up successfully.');
+    },
+
+    files: {
+      upload: async (file: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaItem>> => {
+        try {
+
+          const result = await this.modelSetup.uploadMedia(file);
+          return result;
+
+        } catch (error) {
+
+          logger.error('Error uploading file:', error as LoggableValue);
+        }
+
+      }
     },
 
     // Fetch all media

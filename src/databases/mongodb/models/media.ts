@@ -98,7 +98,7 @@ mediaSchema.statics = {
         ...newMedia.toObject(),
         createdAt: newMedia.createdAt.toISOString() as ISODateString,
         updatedAt: newMedia.updatedAt.toISOString() as ISODateString,
-      } as MediaItem;
+      } as unknown as MediaItem;
       return { success: true, data: mediaWithISODates };
     } catch (error) {
       logger.error(`Error uploading media: ${error.message}`);

@@ -25,6 +25,11 @@
 	import { Avatar } from '@skeletonlabs/skeleton';
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
+	// Svelte-dnd-action
+	import { flip } from 'svelte/animate';
+	import { dndzone } from 'svelte-dnd-action';
+	import ModalEditToken from './ModalEditToken.svelte';
+	import { track } from '@root/src/utils/reactivity.svelte';
 
 	// Types
 	interface UserData {
@@ -188,11 +193,6 @@
 		modalStore.trigger(d);
 	}
 
-	// Svelte-dnd-action
-	import { flip } from 'svelte/animate';
-	import { dndzone } from 'svelte-dnd-action';
-	import ModalEditToken from './ModalEditToken.svelte';
-
 	const flipDurationMs = 300;
 
 	function handleDndConsider(event: any) {
@@ -247,22 +247,21 @@
 		currentPage = Math.min(currentPage, pagesCount);
 	}
 
-	// Initialize table data when adminData changes
-	$effect(() => {
-		if (adminData) {
-			if (showUserList) {
-				tableData = adminData.users;
-			} else if (showUsertoken) {
-				tableData = adminData.tokens;
-			}
-			refreshTableData();
-		}
-	});
+	//// Initialize table data when adminData changes
+	//$effect(() => {
+	//	if (adminData) {
+	//		if (showUserList) {
+	//			tableData = adminData.users;
+	//		} else if (showUsertoken) {
+	//			tableData = adminData.tokens;
+	//		}
+	//		refreshTableData();
+	//	}
+	//});
 
-	// Refresh table data when filters change
-	$effect(() => {
-		refreshTableData();
-	});
+	//$effect(() => {
+	//	refreshTableData();
+	//});
 
 	function handleCheckboxChange() {
 		const allColumnsVisible = displayTableHeaders.every((header) => header.visible);
@@ -284,8 +283,6 @@
 			filters = newFilters;
 		}
 	}
-
-	refreshTableData();
 </script>
 
 <div class="flex flex-col">

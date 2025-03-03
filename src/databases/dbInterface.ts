@@ -304,7 +304,7 @@ export interface DatabaseAdapter {
     findMany<T extends BaseEntity>(collection: string, query: Partial<T>): Promise<DatabaseResult<T[]>>; // Find multiple documents by query
     insert<T extends BaseEntity>(collection: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<T>>; // Create a new document
     insertMany<T extends BaseEntity>(collection: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<T[]>>; // Create multiple documents
-    updateOne<T extends BaseEntity>(collection: string, id: DatabaseId, data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<T>>; // Update a document by ID
+    update<T extends BaseEntity>(collection: string, id: DatabaseId, data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<T>>; // Update a document by ID
 
     delete(collection: string, id: DatabaseId): Promise<DatabaseResult<void>>; // Delete a document by ID
   }

@@ -95,7 +95,7 @@
 		if ($triggerActionStore.length > 0) {
 			executeActions();
 		}
-		collection.set({} as Schema);
+		collection.set(null);
 	});
 
 	// Modal Trigger - User Form

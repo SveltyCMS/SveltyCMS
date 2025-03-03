@@ -78,14 +78,14 @@ export async function _PATCH({ data, schema, user }: { data: FormData; schema: S
       collection,
       fields: schema.fields,
       user,
-      type: 'PATCH'
+      type: 'PATCH',
     });
     const modifyDuration = performance.now() - modifyStart;
     logger.debug(`Request modifications completed in ${modifyDuration.toFixed(2)}ms`);
 
     // Update the document
     const updateStart = performance.now();
-    const updateResult = await dbAdapter.crud.updateOne(`collection_${schema._id}`, { _id: body._id }, result[0]);
+    const updateResult = await dbAdapter.crud.update(`collection_${schema._id}`, { _id: body._id }, result[0]);
     const updateDuration = performance.now() - updateStart;
     logger.debug(`Document update completed in ${updateDuration.toFixed(2)}ms`);
 
