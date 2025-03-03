@@ -30,7 +30,6 @@ Features:
 	import { isSearchVisible, triggerActionStore } from '@utils/globalSearchIndex';
 
 	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 
 	// Type Definitions
@@ -389,7 +388,7 @@ Features:
 	aria-haspopup="true"
 	aria-controls="navigation-menu"
 	use:drag
-	class="fixed z-[99999999] flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer touch-none items-center justify-center rounded-full bg-tertiary-500 transition-transform duration-200 hover:scale-110 focus:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2"
+	class="fixed z-99999999 flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer touch-none items-center justify-center rounded-full bg-tertiary-500 transition-transform duration-200 hover:scale-110 focus:scale-110 focus:outline-hidden focus:ring-2 focus:ring-white focus:ring-offset-2"
 	style="top:{(Math.min(buttonInfo.y, window.innerHeight - buttonRadius) / window.innerHeight) * 100}%;
            left:{(Math.min(isRightToLeft() ? buttonRadius : buttonInfo.x, window.innerWidth - buttonRadius) / window.innerWidth) * 100}%;"
 	tabindex="0"
@@ -400,7 +399,7 @@ Features:
 
 <!-- Show the routes when the component is visible -->
 {#if showRoutes}
-	<div class="fixed inset-0 z-[9999998]" role="dialog" aria-modal="true" aria-label="Navigation Menu" transition:fade={{ duration: 150 }}>
+	<div class="fixed inset-0 z-9999998" role="dialog" aria-modal="true" aria-label="Navigation Menu" transition:fade={{ duration: 150 }}>
 		<!-- Large centered circle background -->
 		<div
 			class="fixed left-1/2 top-1/2 -z-10 h-[340px] w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-full border bg-tertiary-500/40"
@@ -416,7 +415,7 @@ Features:
 		</svg>
 
 		<!-- Navigation Menu -->
-		<div id="navigation-menu" role="menu" class="fixed inset-0 z-[9999999]">
+		<div id="navigation-menu" role="menu" class="fixed inset-0 z-9999999">
 			<!-- Center circle -->
 			<div
 				class="absolute left-1/2 top-1/2 -z-10 h-[340px] w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-full border bg-tertiary-500/40"
@@ -431,12 +430,12 @@ Features:
 				tabindex="0"
 				onclick={() => handleEndpointClick(endpointsWithPositions[0])}
 				onkeydown={(event) => handleEndpointKeydown(event, endpointsWithPositions[0])}
-				class="endpoint-circle group fixed z-[99999999] flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-2 bg-gray-600 transition-transform duration-200 hover:scale-110 focus:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2"
+				class="endpoint-circle group fixed z-99999999 flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-2 bg-gray-600 transition-transform duration-200 hover:scale-110 focus:scale-110 focus:outline-hidden focus:ring-2 focus:ring-white focus:ring-offset-2"
 				style="top:{center.y}px;left:{center.x}px;"
 			>
 				<iconify-icon width="32" style="color:white" icon="solar:home-bold" aria-hidden="true"></iconify-icon>
 				<div
-					class="tooltip absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[calc(100%+8px)] scale-90 whitespace-nowrap rounded bg-black/80 px-2 py-1 text-xs text-white opacity-0 transition-all group-hover:scale-100 group-hover:opacity-100 group-focus:scale-100 group-focus:opacity-100"
+					class="tooltip absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[calc(100%+8px)] scale-90 whitespace-nowrap rounded-sm bg-black/80 px-2 py-1 text-xs text-white opacity-0 transition-all group-hover:scale-100 group-hover:opacity-100 group-focus:scale-100 group-focus:opacity-100"
 					role="tooltip"
 				>
 					{endpointsWithPositions[0].label}
@@ -453,13 +452,13 @@ Features:
 					tabindex="0"
 					onclick={() => handleEndpointClick(endpoint)}
 					onkeydown={(event) => handleEndpointKeydown(event, endpoint)}
-					class="endpoint-circle group fixed z-[99999999] flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full transition-transform duration-200 {endpoint.color ||
-						'bg-tertiary-500'} hover:scale-110 focus:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2"
+					class="endpoint-circle group fixed z-99999999 flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full transition-transform duration-200 {endpoint.color ||
+						'bg-tertiary-500'} hover:scale-110 focus:scale-110 focus:outline-hidden focus:ring-2 focus:ring-white focus:ring-offset-2"
 					style="top:{endpoint.y}px;left:{endpoint.x}px;"
 				>
 					<iconify-icon width="32" style="color:white" icon={endpoint.icon} aria-hidden="true"></iconify-icon>
 					<div
-						class="tooltip absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[calc(100%+8px)] scale-90 whitespace-nowrap rounded bg-black/80 px-2 py-1 text-xs text-white opacity-0 transition-all group-hover:scale-100 group-hover:opacity-100 group-focus:scale-100 group-focus:opacity-100"
+						class="tooltip absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[calc(100%+8px)] scale-90 whitespace-nowrap rounded-sm bg-black/80 px-2 py-1 text-xs text-white opacity-0 transition-all group-hover:scale-100 group-hover:opacity-100 group-focus:scale-100 group-focus:opacity-100"
 						role="tooltip"
 					>
 						{endpoint.label}

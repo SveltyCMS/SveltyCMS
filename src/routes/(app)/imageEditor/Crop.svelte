@@ -212,9 +212,9 @@
 		</div>
 	</div>
 	<div class="mt-4 flex justify-around gap-4">
-		<button onclick={cancelCrop} aria-label="Cancel Crop" class="variant-filled-error btn">Cancel</button>
-		<button onclick={resetCrop} aria-label="Reset Crop" class="variant-outline btn">Reset</button>
-		<button onclick={applyCrop} aria-label="Apply Crop" class="variant-filled-primary btn">
+		<button onclick={cancelCrop} aria-label="Cancel Crop" class="preset-filled-error-500 btn">Cancel</button>
+		<button onclick={resetCrop} aria-label="Reset Crop" class="preset-outline btn">Reset</button>
+		<button onclick={applyCrop} aria-label="Apply Crop" class="preset-filled-primary-500 btn">
 			<iconify-icon icon="mdi:crop" width="20"></iconify-icon>
 			Apply Crop
 		</button>

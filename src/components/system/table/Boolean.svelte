@@ -20,6 +20,6 @@
 </script>
 
 <!-- Display 'Yes' for true and 'No' for false with badges -->
-<span class={value ? 'gradient-error badge rounded' : 'gradient-primary badge rounded'}>
+<span class={value ? 'gradient-error badge rounded-sm' : 'gradient-primary badge rounded-sm'}>
 	{value ? m.boolean_yes() : m.boolean_no()}
 </span>

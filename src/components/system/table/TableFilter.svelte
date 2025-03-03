@@ -68,7 +68,7 @@ This component provides a lightweight, flexible interface for table filtering, u
 			aria-label="Search for items in the table"
 			bind:value={globalSearchValue}
 			onkeydown={(e) => e.key === 'Enter' && closeOpenStates()}
-			class="input outline-none transition-all duration-500 ease-in-out"
+			class="input outline-hidden transition-all duration-500 ease-in-out"
 		/>
 		{#if searchShow}
 			<button
@@ -83,7 +83,7 @@ This component provides a lightweight, flexible interface for table filtering, u
 					}
 				}}
 				aria-label="Clear"
-				class="variant-filled-surface w-12"
+				class="preset-filled-surface-500 w-12"
 				><iconify-icon icon="ic:outline-search-off" width="24"></iconify-icon>
 			</button>
 		{/if}
@@ -96,7 +96,7 @@ This component provides a lightweight, flexible interface for table filtering, u
 			searchShow = !searchShow;
 		}}
 		aria-label="Search"
-		class="variant-ghost-surface btn-icon"
+		class="preset-tonal-surface border border-surface-500 btn-icon"
 	>
 		<iconify-icon icon="material-symbols:search-rounded" width="24"></iconify-icon>
 	</button>
@@ -115,7 +115,7 @@ This component provides a lightweight, flexible interface for table filtering, u
 			}
 		}}
 		aria-label="Filter"
-		class="variant-ghost-surface btn-icon"
+		class="preset-tonal-surface border border-surface-500 btn-icon"
 	>
 		<iconify-icon icon="carbon:filter-edit" width="24"></iconify-icon>
 	</button>
@@ -132,7 +132,7 @@ This component provides a lightweight, flexible interface for table filtering, u
 			}
 		}}
 		aria-label="Column"
-		class="variant-ghost-surface btn-icon"
+		class="preset-tonal-surface border border-surface-500 btn-icon"
 	>
 		<iconify-icon icon="fluent:column-triple-edit-24-regular" width="24"></iconify-icon>
 	</button>
@@ -152,7 +152,7 @@ This component provides a lightweight, flexible interface for table filtering, u
 			}
 		}}
 		aria-label="Density"
-		class="variant-ghost-surface btn-icon"
+		class="preset-tonal-surface border border-surface-500 btn-icon"
 	>
 		<iconify-icon
 			icon={density === 'compact'

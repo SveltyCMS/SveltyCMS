@@ -19,6 +19,7 @@ Ensure that the necessary stores and utility functions are available.
 
 <script lang="ts">
 	import { page } from '$app/state';
+	import { Modal } from '@skeletonlabs/skeleton-svelte';
 	import { modifyEntry, selectedEntries, collectionValue, collection } from '@src/stores/collectionStore.svelte';
 	import { saveFormData } from '../utils/data';
 
@@ -29,24 +30,12 @@ Ensure that the necessary stores and utility functions are available.
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
-
-	const modalStore = getModalStore();
-
-	// Props
-	interface Props {
-		/** Exposes parent props to this component. */
-		parent: any;
-	}
-
-	let { parent }: Props = $props();
-
 	const user: User = page.data.user;
 
 	type ActionType = 'published' | 'unpublished' | 'deleted' | 'scheduled' | 'cloned' | 'testing';
 
 	let scheduleDate: string = $state('');
-	let action: ActionType = $state(($modalStore[0]?.meta?.initialAction as ActionType) || 'scheduled');
+	let action: ActionType = $state('scheduled');
 	let errorMessage: string = $state('');
 
 	const actionOptions: Array<{ value: ActionType; label: string }> = [
@@ -74,14 +63,6 @@ Ensure that the necessary stores and utility functions are available.
 		if (!validateForm()) return;
 
 		try {
-			// Update the modal response with the schedule data
-			if ($modalStore[0].response) {
-				$modalStore[0].response({
-					date: scheduleDate,
-					action: 'schedule'
-				});
-			}
-
 			// If we have selected entries, update them
 			if ($selectedEntries && $selectedEntries.length > 0) {
 				const scheduledTime = new Date(scheduleDate).getTime();
@@ -114,8 +95,6 @@ Ensure that the necessary stores and utility functions are available.
 
 				$modifyEntry(action);
 			}
-
-			modalStore.close();
 		} catch (error) {
 			console.error('Error scheduling entries:', error);
 			errorMessage = 'An error occurred while scheduling. Please try again.';
@@ -123,36 +102,54 @@ Ensure that the necessary stores and utility functions are available.
 	}
 
 	// Base Classes
-	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
-	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	let openState = $state(false);
+
+	function modalClose() {
+		openState = false;
+	}
 </script>
 
-{#if $modalStore[0]}
-	<div class="modal-schedule {cBase}" role="dialog" aria-labelledby="schedule-modal-title">
-		<header class={`text-center text-primary-500 ${cHeader}`}>
-			<h2 id="schedule-modal-title">{$modalStore[0]?.title ?? 'Schedule Action'}</h2>
+<Modal
+	open={openState}
+	onOpenChange={(e) => (openState = e.open)}
+	triggerBase="btn preset-tonal"
+	contentBase="card bg-surface-100-900 p-4 space-y-4 shadow-xl max-w-screen-sm"
+	backdropClasses="backdrop-blur-sm"
+>
+	{#snippet trigger()}
+		<button type="button" class="btn preset-tonal" onclick={() => (openState = true)}> Schedule Action </button>
+	{/snippet}
+
+	{#snippet content()}
+		<header class="flex justify-between">
+			<h2 class="h2">Schedule Action</h2>
 		</header>
-		<article class="text-center text-sm">
-			{$modalStore[0]?.body ?? 'Select a date, time, and action to schedule for the selected entries.'}
+		<article>
+			<p class="opacity-60">Select a date, time, and action to schedule for the selected entries.</p>
 		</article>
 
-		<form class="modal-form {cForm}" onsubmit={onFormSubmit}>
-			<label class="label">
-				<span>Schedule Date and Time</span>
+		<form
+			onsubmit={(e) => {
+				e.preventDefault();
+				onFormSubmit();
+			}}
+			class="space-y-4"
+		>
+			<label>
+				<span class="mb-2 block">Schedule Date and Time</span>
 				<input
 					type="datetime-local"
 					bind:value={scheduleDate}
-					class="input"
+					class="input w-full"
 					required
 					min={new Date().toISOString().slice(0, 16)}
 					aria-describedby="schedule-date-error"
 				/>
 			</label>
 
-			<label class="label">
-				<span>Action Type</span>
-				<select bind:value={action} class="select" required>
+			<label>
+				<span class="mb-2 block">Action Type</span>
+				<select bind:value={action} class="select w-full" required>
 					{#each actionOptions as option}
 						<option value={option.value}>{option.label}</option>
 					{/each}
@@ -162,15 +159,11 @@ Ensure that the necessary stores and utility functions are available.
 			{#if errorMessage}
 				<p class="text-error-500" id="schedule-date-error" role="alert">{errorMessage}</p>
 			{/if}
-		</form>
 
-		<footer class="modal-footer {parent.regionFooter}">
-			<button type="button" class="btn {parent?.buttonNeutral}" onclick={parent?.onClose} aria-label="Cancel scheduling">
-				{m.button_cancel()}
-			</button>
-			<button type="submit" class="btn {parent?.buttonPositive}" onclick={onFormSubmit} disabled={!isFormValid} aria-label="Save schedule">
-				{m.button_save()}
-			</button>
-		</footer>
-	</div>
-{/if}
+			<div class="flex justify-end gap-4">
+				<button type="button" class="btn preset-tonal" onclick={modalClose}>Cancel</button>
+				<button type="submit" class="btn preset-filled" disabled={!isFormValid}>Save</button>
+			</div>
+		</form>
+	{/snippet}
+</Modal>

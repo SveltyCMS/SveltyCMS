@@ -24,15 +24,11 @@
 	// Importing the Paraglide SvelteKit component for animations
 	import ParaglideSvelteKit from '@components/ParaglideSvelteKit.svelte';
 
+	// Skeleton
+	import { ToastProvider } from '@skeletonlabs/skeleton-svelte';
+
 	// Importing Tailwind CSS styles
-	import '../app.postcss';
-
-	// Initializing Skeleton stores
-	import { initializeStores } from '@skeletonlabs/skeleton';
-
-	initializeStores();
-
-	// Default SEO variables for the website's title and description
+	import '../app.css'; // Default SEO variables for the website's title and description
 	const defaultTitle = `${publicEnv.SITE_NAME} - The Ultimate Headless CMS Powered by SvelteKit`;
 	const defaultDescription = `${publicEnv.SITE_NAME} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;
 
@@ -73,5 +69,9 @@
 </svelte:head>
 
 <ParaglideSvelteKit>
-	{@render children?.()}
+	<ToastProvider>
+		{#if children}
+			{@render children()}
+		{/if}
+	</ToastProvider>
 </ParaglideSvelteKit>

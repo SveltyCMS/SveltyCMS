@@ -8,15 +8,8 @@
  * - Configuration of the Skeleton plugin with a custom theme (SveltyCMSTheme)
  */
 
-import { join } from 'path';
 import type { Config } from 'tailwindcss';
 
-// Import Tailwind plugins
-import forms from '@tailwindcss/forms';
-import typography from '@tailwindcss/typography';
-
-// Import the Skeleton plugin
-import { skeleton } from '@skeletonlabs/tw-plugin';
 // Import Custom Theme
 import { SveltyCMSTheme } from './src/themes/SveltyCMS/SveltyCMSTheme';
 
@@ -53,15 +46,9 @@ const config = {
 	},
 
 	plugins: [
-		forms,
-		typography,
 		// Append the Skeleton plugin (after other plugins)
 
-		skeleton({
-			themes: {
-				custom: [SveltyCMSTheme]
-			}
-		})
+		SveltyCMSTheme
 	]
 } satisfies Config;
 

@@ -25,8 +25,8 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	import PageTitle from '@components/PageTitle.svelte';
 
 	// Skeleton
-	import { Tab, TabGroup, getToastStore } from '@skeletonlabs/skeleton';
-	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
+	import { Tab, Tabs } from '@skeletonlabs/skeleton-svelte';
+	import { type ModalSettings } from '@skeletonlabs/skeleton-svelte';
 
 	const modalStore = getModalStore();
 	const toastStore = getToastStore();
@@ -119,10 +119,10 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 			const t = {
 				message: "Collection Saved. You're all set to build your content.",
 				// Provide any utility or variant background style:
-				background: 'variant-filled-primary',
+				background: 'preset-filled-primary-500',
 				timeout: 3000,
 				// Add your custom classes here:
-				classes: 'border-1 !rounded-md'
+				classes: 'border-1 rounded-md!'
 			};
 			toastStore.trigger(t);
 		}
@@ -148,10 +148,10 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 					const t = {
 						message: 'Collection Deleted.',
 						// Provide any utility or variant background style:
-						background: 'variant-filled-error',
+						background: 'preset-filled-error-500',
 						timeout: 3000,
 						// Add your custom classes here:
-						classes: 'border-1 !rounded-md'
+						classes: 'border-1 rounded-md!'
 					};
 					toastStore.trigger(t);
 					goto(`/collection`);
@@ -177,7 +177,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	<PageTitle name={pageTitle} highlight={highlightedPart} icon="ic:baseline-build" />
 
 	<!-- Back -->
-	<button onclick={() => history.back()} type="button" aria-label="Back" class="variant-outline-primary btn-icon">
+	<button onclick={() => history.back()} type="button" aria-label="Back" class="preset-outline-primary btn-icon">
 		<iconify-icon icon="ri:arrow-left-line" width="20"></iconify-icon>
 	</button>
 </div>
@@ -187,21 +187,21 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		<button
 			type="button"
 			onclick={handleCollectionDelete}
-			class=" variant-filled-error btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-error dark:text-black"
+			class=" preset-filled-error-500 btn dark:preset-filled-error-500 mt-1 mr-1 mb-3 justify-end dark:text-black"
 			>{m.button_delete()}
 		</button>
 		<button
 			type="button"
 			onclick={handleCollectionSave}
-			class="variant-filled-tertiary btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-tertiary dark:text-black">{m.button_save()}</button
+			class="preset-filled-tertiary-500 btn dark:preset-filled-tertiary-500 mt-1 mr-1 mb-3 justify-end dark:text-black">{m.button_save()}</button
 		>
 	</div>
 {/if}
 
 <div class="wrapper">
-	<p class="mb-2 hidden text-center text-tertiary-500 dark:text-primary-500 sm:block">{m.collection_helptext()}</p>
+	<p class="text-tertiary-500 dark:text-primary-500 mb-2 hidden text-center sm:block">{m.collection_helptext()}</p>
 
-	<TabGroup bind:group={$tabSet} justify="justify-around">
+	<Tabs bind:group={$tabSet} justify="justify-around">
 		<!-- User Permissions -->
 		{#if page.data.user && page.data.user.isAdmin}
 			<!-- Edit -->
@@ -229,5 +229,5 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		{:else if $tabSet === 1}
 			<CollectionWidget {handleCollectionSave} />
 		{/if}
-	</TabGroup>
+	</Tabs>
 </div>

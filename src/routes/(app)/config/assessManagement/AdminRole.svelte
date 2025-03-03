@@ -27,8 +27,6 @@ It provides functionality to:
 
 	// Components
 	import Loading from '@components/Loading.svelte';
-	import { getToastStore } from '@skeletonlabs/skeleton';
-
 	const toastStore = getToastStore();
 
 	let { roleData, setRoleData } = $props();
@@ -85,15 +83,15 @@ It provides functionality to:
 	// Show corresponding Toast messages
 	function showToast(message, type) {
 		const backgrounds = {
-			success: 'variant-filled-primary',
-			info: 'variant-filled-tertiary',
-			error: 'variant-filled-error'
+			success: 'preset-filled-primary-500',
+			info: 'preset-filled-tertiary-500',
+			error: 'preset-filled-error-500'
 		};
 		toastStore.trigger({
 			message: message,
 			background: backgrounds[type],
 			timeout: 3000,
-			classes: 'border-1 !rounded-md'
+			classes: 'border-1 rounded-md!'
 		});
 	}
 
@@ -171,10 +169,10 @@ It provides functionality to:
 			</p>
 			<div class="mt-4 flex justify-between">
 				<!-- cancel -->
-				<button onclick={cancelChanges} class="variant-filled-secondary btn"> Cancel </button>
+				<button onclick={cancelChanges} class="preset-filled-secondary-500 btn"> Cancel </button>
 
 				<!-- Save -->
-				<button onclick={saveAdminRole} class="variant-filled-tertiary btn" disabled={$isSaving}>
+				<button onclick={saveAdminRole} class="preset-filled-tertiary-500 btn" disabled={$isSaving}>
 					{#if $isSaving}
 						Saving...
 					{:else}

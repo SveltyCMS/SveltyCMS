@@ -73,7 +73,7 @@
 
 {#if showStrength}
 	<div class="relative -mt-1 flex w-full flex-col items-center justify-center">
-		<div class="relative h-4 w-full rounded-sm transition-all duration-300 ease-in-out {colorClasses}" style="width: {percentage}%;">
+		<div class="relative h-4 w-full rounded-xs transition-all duration-300 ease-in-out {colorClasses}" style="width: {percentage}%;">
 			<span class="absolute inset-0 flex items-center justify-center text-xs font-bold">{feedback}</span>
 		</div>
 	</div>

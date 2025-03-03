@@ -20,7 +20,7 @@ It handles widget configuration, permissions, and specific options.
 	// Stores
 	import { collectionValue, targetWidget } from '@src/stores/collectionStore.svelte';
 
-	import { getModalStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
+	import { Tab, Tabs } from '@skeletonlabs/skeleton-svelte';
 	const modalStore = getModalStore();
 
 	let tabSet: number = $state(0);
@@ -71,7 +71,7 @@ It handles widget configuration, permissions, and specific options.
 	// Base Classes
 	const cBase = 'card p-4 w-screen h-screen shadow-xl space-y-4 bg-white';
 	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container';
 </script>
 
 {#if modalData}
@@ -85,7 +85,7 @@ It handles widget configuration, permissions, and specific options.
 
 		<!-- Tabs Headers -->
 		<form class={cForm}>
-			<TabGroup justify="justify-between lg:justify-start">
+			<Tabs justify="justify-between lg:justify-start">
 				<!-- Default Tab -->
 				<Tab bind:group={tabSet} name="tab1" value={0}>
 					<div class="flex items-center gap-1">
@@ -111,7 +111,7 @@ It handles widget configuration, permissions, and specific options.
 						</div>
 					</Tab>
 				{/if}
-			</TabGroup>
+			</Tabs>
 
 			<!-- Tab Panels -->
 			{#if tabSet === 0}
@@ -125,7 +125,7 @@ It handles widget configuration, permissions, and specific options.
 
 		<footer class="{parent.regionFooter} justify-between">
 			<!-- Delete Button -->
-			<button type="button" onclick={deleteWidget} aria-label="Delete" class="variant-filled-error btn">
+			<button type="button" onclick={deleteWidget} aria-label="Delete" class="preset-filled-error-500 btn">
 				<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
 				<span class="hidden sm:block">{m.button_delete()}</span>
 			</button>

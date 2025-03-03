@@ -43,7 +43,7 @@ Usage:
 	{#each mediaItems as media, index}
 		<button
 			type="button"
-			class="cursor-pointer overflow-hidden rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+			class="cursor-pointer overflow-hidden rounded-md focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
 			onclick={() => handleSelect(media)}
 			onkeydown={(e) => handleKeydown(e, media)}
 			aria-checked={media === selectedMedia}

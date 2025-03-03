@@ -102,7 +102,7 @@
 							{#each thumbnailSizes as size}
 								{#if file.thumbnails && file.thumbnails[size]}
 									<tr>
-										<td class="!pl-[10px]">
+										<td class="pl-[10px]!">
 											{size}
 										</td>
 										<td>

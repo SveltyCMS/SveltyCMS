@@ -14,7 +14,7 @@
 	import RemoteUpload from './RemoteUpload.svelte';
 
 	// Skeleton
-	import { TabGroup, Tab } from '@skeletonlabs/skeleton';
+	import { Tab, Tabs } from '@skeletonlabs/skeleton-svelte';
 
 	let tabSet: number = $state(0);
 </script>
@@ -24,13 +24,13 @@
 	<PageTitle name={m.uploadMedia_title()} icon="bi:images" iconColor="text-tertiary-500 dark:text-primary-500" />
 
 	<!-- Back -->
-	<button onclick={() => history.back()} aria-label="Back" class="variant-outline-primary btn-icon">
+	<button onclick={() => history.back()} aria-label="Back" class="preset-outline-primary btn-icon">
 		<iconify-icon icon="ri:arrow-left-line" width="20"></iconify-icon>
 	</button>
 </div>
 
 <div class="wrapper">
-	<TabGroup>
+	<Tabs>
 		<Tab bind:group={tabSet} name="local" value={0}>
 			{#snippet lead()}
 				<div class="flex items-center justify-between gap-2">
@@ -57,5 +57,5 @@
 				<RemoteUpload />
 			{/if}
 		{/snippet}
-	</TabGroup>
+	</Tabs>
 </div>

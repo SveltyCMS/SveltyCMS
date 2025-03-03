@@ -16,7 +16,7 @@
  - `name` {string}: Input name (default: '')
  - `required` {boolean}: Whether input is required (default: false)
  - `showPasswordBackgroundColor` {'light' | 'dark'}: Password toggle color (default: 'light')
- - `textColor` {string}: Text color class (default: '!text-error-500')
+ - `textColor` {string}: Text color class (default: 'text-error-500!')
  - `type` {'text' | 'email' | 'password'}: Input type (default: 'text')
  - `tabindex` {number}: Input tabindex (default: 0)
  - `id` {string}: Input ID (default: derived from label or 'defaultInputId')
@@ -45,7 +45,7 @@
 		name = '',
 		required = false,
 		showPasswordBackgroundColor = 'light',
-		textColor = '!text-error-500',
+		textColor = 'text-error-500!',
 		type = 'text',
 		tabindex = 0,
 		id = '',
@@ -132,7 +132,7 @@
 		oninput={(e) => onInput?.(e.currentTarget.value)}
 		{onkeydown}
 		type={effectiveType}
-		class="peer block w-full appearance-none border-0 border-b-2 border-surface-300 bg-transparent pl-6 text-{textColor} focus:border-tertiary-600 focus:outline-none focus:ring-0 disabled:opacity-50 dark:border-surface-400 dark:focus:border-tertiary-500 {inputClass}"
+		class="peer block w-full appearance-none border-0 border-b-2 border-surface-300 bg-transparent pl-6 text-{textColor} focus:border-tertiary-600 focus:outline-hidden focus:ring-0 disabled:opacity-50 dark:border-surface-400 dark:focus:border-tertiary-500 {inputClass}"
 		placeholder=" "
 		id={currentId}
 	/>
@@ -150,7 +150,7 @@
 			aria-pressed={isPasswordVisible}
 			class="absolute right-2 top-3 text-{showPasswordBackgroundColor === 'light'
 				? 'surface-700'
-				: 'surface-300'} hover:text-tertiary-500 focus:outline-none"
+				: 'surface-300'} hover:text-tertiary-500 focus:outline-hidden"
 			width="24"
 			onkeydown={handleIconKeyDown}
 			onclick={togglePasswordVisibility}

@@ -83,7 +83,7 @@ Features:
 
 <button
 	onclick={toggleTheme}
-	class="rounded-full p-2 transition-colors duration-200 ease-in-out hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:hover:bg-gray-700"
+	class="rounded-full p-2 transition-colors duration-200 ease-in-out hover:bg-gray-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:hover:bg-gray-700"
 	aria-label={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}
 >
 	{#if isDarkMode}

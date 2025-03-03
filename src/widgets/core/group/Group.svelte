@@ -8,7 +8,7 @@ Displays a group of fields, either in a simple grouped layout or within tabs.
 
 <script lang="ts">
 	import type { FieldType } from './types';
-	import { TabGroup, Tab } from '@skeletonlabs/skeleton';
+	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 
 	// Props
 	interface Props {
@@ -25,7 +25,7 @@ Displays a group of fields, either in a simple grouped layout or within tabs.
 
 <div>
 	{#if field.mode === 'tab'}
-		<TabGroup>
+		<Tabs>
 			{#each field.fields as subField, index}
 				<Tab bind:group={activeTab} name={subField.label} value={index}>
 					<div class="flex items-center gap-1">
@@ -41,7 +41,7 @@ Displays a group of fields, either in a simple grouped layout or within tabs.
 				{#if activeTab === index}
 					{@const widgetPath = `/src/widgets/${subField.widget.Name.toLowerCase()}/${subField.widget.Name}.svelte`}
 					{@const WidgetComponent = modules[widgetPath]?.default}
-					<div class="rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900">
+					<div class="dark:border-surface-500 dark:bg-surface-900 rounded-md border bg-white px-4 py-6 drop-shadow-2xl">
 						{#if WidgetComponent}
 							<WidgetComponent field={subField} bind:WidgetData={WidgetData[subField.db_fieldName]} />
 						{:else}
@@ -50,7 +50,7 @@ Displays a group of fields, either in a simple grouped layout or within tabs.
 					</div>
 				{/if}
 			{/each}
-		</TabGroup>
+		</Tabs>
 	{:else}
 		<div class="mb-4">
 			<h3 class="mb-2 text-lg font-bold">{field.label}</h3>
@@ -59,7 +59,7 @@ Displays a group of fields, either in a simple grouped layout or within tabs.
 					{@const widgetPath = `/src/widgets/${subField.widget.Name.toLowerCase()}/${subField.widget.Name}.svelte`}
 					{@const WidgetComponent = modules[widgetPath]?.default}
 					<div
-						class="mx-auto text-center {!subField?.width ? 'w-full ' : 'max-md:!w-full'}"
+						class="mx-auto text-center {!subField?.width ? 'w-full ' : 'max-md:w-full!'}"
 						style={'min-width:min(300px,100%);' + (subField.width ? `width:calc(${Math.floor(100 / subField?.width)}% - 0.5rem)` : '')}
 					>
 						<div class="flex justify-between px-[5px] text-start">

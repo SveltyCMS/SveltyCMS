@@ -244,7 +244,7 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 <PageTitle name="Image Editor" icon="tdesign:image-edit" showBackButton={true} backUrl="/config" />
 
 <div class="my-4">
-	<div class="wrapper !bg-error-500 text-center">
+	<div class="wrapper bg-error-500! text-center">
 		<p>Current in Development!!! For testing purposes only</p>
 	</div>
 </div>
@@ -252,22 +252,22 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 <div class="mb-2 flex items-center justify-between gap-2">
 	<input class="input my-2 h-10" type="file" accept="image/*" onchange={handleImageUpload} aria-label="Upload image file" />
 	{#if imageFile}
-		<button onclick={handleUndo} disabled={!canUndo} aria-label="Undo" class="variant-outline-tertiary btn-icon dark:variant-outline-secondary">
+		<button onclick={handleUndo} disabled={!canUndo} aria-label="Undo" class="preset-outline-tertiary btn-icon dark:preset-outline-secondary">
 			<iconify-icon icon="mdi:undo" width="24" class="text-tertiary-600"></iconify-icon>
 		</button>
-		<button onclick={handleRedo} disabled={!canRedo} aria-label="Redo" class="variant-outline-tertiary btn-icon dark:variant-outline-secondary">
+		<button onclick={handleRedo} disabled={!canRedo} aria-label="Redo" class="preset-outline-tertiary btn-icon dark:preset-outline-secondary">
 			<iconify-icon icon="mdi:redo" width="24" class="text-tertiary-600"></iconify-icon>
 		</button>
-		<button type="button" onclick={handleSave} aria-label="Save" class="variant-filled-tertiary btn-icon btn-icon dark:variant-filled-primary">
+		<button type="button" onclick={handleSave} aria-label="Save" class="preset-filled-tertiary-500 btn-icon btn-icon dark:preset-filled-primary-500">
 			<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
 		</button>
 	{/if}
 </div>
 
 <!-- Image Editor Container -->
-<div class="flex h-[calc(100vh-315px)] flex-col items-center justify-center overflow-hidden border-2 border-tertiary-500" bind:this={containerRef}>
+<div class="border-tertiary-500 flex h-[calc(100vh-315px)] flex-col items-center justify-center overflow-hidden border-2" bind:this={containerRef}>
 	{#if !imageFile}
-		<p class=" text-center text-tertiary-500 dark:text-primary-500">Please upload an image to start editing.</p>
+		<p class=" text-tertiary-500 dark:text-primary-500 text-center">Please upload an image to start editing.</p>
 	{/if}
 </div>
 
@@ -288,7 +288,7 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 					activeState = '';
 				}}
 			/>
-		{:else if activeState === 'blur'}
+		{:else if activeState === 'blur-sm'}
 			<Blur
 				{stage}
 				{layer}
@@ -329,7 +329,7 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 					<iconify-icon icon="mdi:rotate-right" width="24" class="text-tertiary-600"></iconify-icon>
 					Rotate
 				</button>
-				<button onclick={() => toggleTool('blur')} aria-label="Blur" class="mx-2">
+				<button onclick={() => toggleTool('blur-sm')} aria-label="Blur" class="mx-2">
 					<iconify-icon icon="mdi:blur" width="24" class="text-tertiary-600"></iconify-icon>
 					Blur
 				</button>

@@ -116,17 +116,17 @@
 		} else if (field?.maxlength && length > field?.maxlength) {
 			return 'bg-red-600';
 		} else if (field?.minlength) {
-			return '!variant-filled-surface';
+			return '!preset-filled-surface-500';
 		} else {
-			return '!variant-ghost-surface';
+			return '!preset-tonal-surface border border-surface-500';
 		}
 	};
 </script>
 
 <div class="input-container relative mb-4">
-	<div class="variant-filled-surface btn-group flex w-full rounded">
+	<div class="preset-filled-surface-500  flex w-full rounded-sm">
 		{#if field?.prefix}
-			<button class="!px-2">{field?.prefix}</button>
+			<button class="px-2!">{field?.prefix}</button>
 		{/if}
 
 		<input
@@ -150,7 +150,7 @@
 
 		<!-- suffix -->
 		{#if field?.suffix}
-			<button class="!px-1">
+			<button class="px-1!">
 				{#if field?.minlength || field?.maxlength}
 					<span class="badge mr-1 rounded-full {getBadgeClass(count)}">
 						{#if field?.minlength && field?.maxlength}

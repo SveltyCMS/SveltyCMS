@@ -18,9 +18,12 @@ Features:
 <script lang="ts">
 	import { roles } from '@root/config/roles';
 	import { PermissionAction } from '@src/auth/permissionTypes';
-	import { getToastStore } from '@skeletonlabs/skeleton';
 
-	const toastStore = getToastStore();
+	// Skeleton
+	import { getContext } from 'svelte';
+	import { type ToastContext } from '@skeletonlabs/skeleton-svelte';
+
+	export const toast: ToastContext = getContext('toast');
 
 	interface Props {
 		permissions?: Record<string, Record<PermissionAction, boolean>>;
@@ -78,7 +81,7 @@ Features:
 	// Function to update parent
 	function updateParent() {
 		// Remove roles with all permissions true (default state)
-		const cleanedPermissions = Object.entries(permissionsState).reduce((acc, [roleId, perms]) => {
+		const cleanedPermissions = Object.entries(permissionsState).reduce<Record<string, Record<PermissionAction, boolean>>>((acc, [roleId, perms]) => {
 			const hasRestrictions = Object.values(perms).some((value) => value === false);
 			if (hasRestrictions) {
 				acc[roleId] = perms;
@@ -90,16 +93,16 @@ Features:
 	}
 
 	// Show toast messages
-	function showToast(message: string, type: 'success' | 'warning' | 'error') {
-		const backgrounds = {
-			success: 'variant-filled-success',
-			warning: 'variant-filled-warning',
-			error: 'variant-filled-error'
+	function showToast(description: string, type: 'success' | 'warning' | 'error') {
+		const types: Record<'success' | 'warning' | 'error', 'success' | 'error' | 'info'> = {
+			success: 'success',
+			warning: 'info', // warning maps to info since it's not available
+			error: 'error'
 		};
-		toastStore.trigger({
-			message,
-			background: backgrounds[type],
-			timeout: 3000
+		toast.create({
+			description,
+			type: types[type],
+			duration: 3000
 		});
 	}
 
@@ -120,9 +123,9 @@ Features:
 </script>
 
 {#if error}
-	<div class="p-4 text-center text-error-500" role="alert">
+	<div class="text-error-500 p-4 text-center" role="alert">
 		<p>Error: {error}</p>
-		<button onclick={() => (error = null)} class="variant-filled-primary btn mt-2">Dismiss</button>
+		<button onclick={() => (error = null)} class="btn preset-filled-primary-500 mt-2">Dismiss</button>
 	</div>
 {:else}
 	<div class="flex flex-col gap-4">
@@ -152,7 +155,7 @@ Features:
 								<div class="flex items-center gap-2">
 									<span class="font-semibold">{role.name}</span>
 									{#if role.isAdmin}
-										<span class="variant-filled-primary badge">Admin</span>
+										<span class="preset-filled-primary-500 rounded-sm px-2 py-1 text-xs">Admin</span>
 									{/if}
 								</div>
 								{#if role.description}
@@ -165,7 +168,7 @@ Features:
 										onclick={() => togglePermission(role._id, action)}
 										disabled={role.isAdmin}
 										aria-label={`${permissionsState[role._id]?.[action] ? 'Disable' : 'Enable'} ${action} for ${role.name}`}
-										class={`btn ${permissionsState[role._id]?.[action] ? 'variant-filled-success' : 'variant-filled-error'}`}
+										class={`btn ${permissionsState[role._id]?.[action] ? 'preset-filled-success-500' : 'preset-filled-error-500'}`}
 									>
 										<iconify-icon icon={actionIcons[action]} width="18"></iconify-icon>
 									</button>
@@ -182,9 +185,3 @@ Features:
 		{/if}
 	</div>
 {/if}
-
-<style lang="postcss">
-	.badge {
-		@apply rounded px-2 py-1 text-xs;
-	}
-</style>

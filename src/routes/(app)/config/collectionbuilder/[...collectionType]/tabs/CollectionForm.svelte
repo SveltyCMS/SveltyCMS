@@ -22,8 +22,7 @@ Features:
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { popup } from '@skeletonlabs/skeleton';
-	import type { PopupSettings } from '@skeletonlabs/skeleton';
+	import type { PopupSettings } from '@skeletonlabs/skeleton-svelte';
 
 	// Collection Manager
 
@@ -191,7 +190,7 @@ Features:
 <div class="mb-2 text-center text-xs text-error-500">* {m.collection_required()}</div>
 
 <!-- Collection Name -->
-<div class="flex flex-col gap-3 rounded p-2">
+<div class="flex flex-col gap-3 rounded-sm p-2">
 	<div class="w-full items-center sm:flex">
 		<label for="name" class="flex-grow-1 relative mr-2 flex w-36">
 			{m.collection_name()} <span class="mx-1 text-error-500">*</span>
@@ -219,19 +218,19 @@ Features:
 		</div>
 
 		<!-- Tooltip -->
-		<div class="card variant-filled z-50 max-w-sm" data-popup="Name">
+		<div class="card preset-filled z-50 max-w-sm" data-popup="Name">
 			<!-- Popup Tooltip with the arrow element -->
-			<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Name">
+			<div class="card preset-filled z-50 max-w-sm p-2" data-popup="Name">
 				<p>{m.collection_name_tooltip1()}</p>
 				<p>{m.collection_name_tooltip2()}</p>
-				<div class="variant-filled arrow"></div>
+				<div class="preset-filled arrow"></div>
 			</div>
 		</div>
 	</div>
 </div>
 
 <div class="flex flex-col gap-3 rounded-md border p-2">
-	<p class="text-token mb-2 text-center font-bold">{m.collectionname_optional()}:</p>
+	<p class="base-font-color mb-2 text-center font-bold">{m.collectionname_optional()}:</p>
 
 	<!-- Iconify icon chooser -->
 	<div class="w-full items-center sm:flex">
@@ -242,9 +241,9 @@ Features:
 		</label>
 
 		<!-- Popup Tooltip with the arrow element -->
-		<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Icon">
+		<div class="card preset-filled z-50 max-w-sm p-2" data-popup="Icon">
 			<p>{m.collection_icon_tooltip()}</p>
-			<div class="variant-filled arrow"></div>
+			<div class="preset-filled arrow"></div>
 		</div>
 
 		<IconifyPicker bind:iconselected={selectedIcon} bind:searchQuery />
@@ -259,9 +258,9 @@ Features:
 		</label>
 
 		<!-- Popup Tooltip with the arrow element -->
-		<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Slug">
+		<div class="card preset-filled z-50 max-w-sm p-2" data-popup="Slug">
 			<p>{m.collection_slug_tooltip()}</p>
-			<div class="variant-filled arrow"></div>
+			<div class="preset-filled arrow"></div>
 		</div>
 
 		<input type="text" id="slug" bind:value={slug} placeholder={m.collection_slug_input()} class="input text-black dark:text-primary-500" />
@@ -276,9 +275,9 @@ Features:
 		</label>
 
 		<!-- Popup Tooltip with the arrow element -->
-		<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Description">
+		<div class="card preset-filled z-50 max-w-sm p-2" data-popup="Description">
 			<p>{m.collection_description()}</p>
-			<div class="variant-filled arrow"></div>
+			<div class="preset-filled arrow"></div>
 		</div>
 
 		<textarea
@@ -300,9 +299,9 @@ Features:
 		</label>
 
 		<!-- Popup Tooltip with the arrow element -->
-		<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Status">
+		<div class="card preset-filled z-50 max-w-sm p-2" data-popup="Status">
 			<p>{m.collection_status_tooltip()}</p>
-			<div class="variant-filled arrow"></div>
+			<div class="preset-filled arrow"></div>
 		</div>
 
 		<select id="status" bind:value={status} class="input text-black dark:text-primary-500">
@@ -315,6 +314,6 @@ Features:
 
 <!-- Buttons Cancel & Next-->
 <div class="mt-2 flex justify-between">
-	<a href="/config/collectionbuilder" class="variant-filled-secondary btn mt-2">{m.button_cancel()}</a>
-	<button type="button" onclick={handleNextClick} class="variant-filled-tertiary btn mt-2 dark:variant-filled-primary">{m.button_next()}</button>
+	<a href="/config/collectionbuilder" class="preset-filled-secondary-500 btn mt-2">{m.button_cancel()}</a>
+	<button type="button" onclick={handleNextClick} class="preset-filled-tertiary-500 btn mt-2 dark:preset-filled-primary-500">{m.button_next()}</button>
 </div>

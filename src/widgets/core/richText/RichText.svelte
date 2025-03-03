@@ -25,9 +25,6 @@
 	import FileInput from '@components/system/inputs/FileInput.svelte';
 	import VideoDialog from './components/VideoDialog.svelte';
 
-	// Skeleton
-	import { ListBox } from '@skeletonlabs/skeleton';
-
 	// TipTap
 	import StarterKit from '@tiptap/starter-kit';
 	import { Editor, Extension } from '@tiptap/core';
@@ -409,7 +406,7 @@
 		type="text"
 		bind:value={_data.header[_language]}
 		placeholder="Title"
-		class="input mt-2 !w-full"
+		class="input mt-2 w-full!"
 		class:error={!!validationError}
 		aria-invalid={!!validationError}
 		aria-describedby={validationError ? `${getFieldName(field)}-error` : undefined}
@@ -447,7 +444,7 @@
 
 					<input
 						type="text"
-						class="w-[30px] text-center outline-none"
+						class="w-[30px] text-center outline-hidden"
 						bind:value={fontSize}
 						aria-label="Font size"
 						role="spinbutton"
@@ -551,7 +548,7 @@
 			bind:this={element}
 			role="textbox"
 			tabindex="0"
-			class="RichText min-h-[calc(100vh-80px)] w-full flex-grow cursor-text overflow-auto"
+			class="RichText min-h-[calc(100vh-80px)] w-full grow cursor-text overflow-auto"
 			class:error={!!validationError}
 			aria-label="Rich text editor"
 			aria-multiline="true"
@@ -561,7 +558,7 @@
 
 	<!-- Error Message -->
 	{#if validationError}
-		<p id={`${getFieldName(field)}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+		<p id={`${getFieldName(field)}-error`} class="text-error-500 absolute bottom-[-1rem] left-0 w-full text-center text-xs" role="alert">
 			{validationError}
 		</p>
 	{/if}

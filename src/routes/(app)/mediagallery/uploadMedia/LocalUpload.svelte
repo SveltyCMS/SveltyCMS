@@ -18,8 +18,7 @@
 -->
 
 <script lang="ts">
-	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
+		import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton-svelte';
 	import ModalUploadMedia from './ModalUploadMedia.svelte';
 	import { goto } from '$app/navigation';
 
@@ -104,7 +103,7 @@
 		if (files.length === 0) {
 			toastStore.trigger({
 				message: 'No files selected for upload',
-				background: 'variant-filled-warning'
+				background: 'preset-filled-warning-500'
 			});
 			return;
 		}
@@ -130,7 +129,7 @@
 			if (result.success) {
 				toastStore.trigger({
 					message: 'Files uploaded successfully',
-					background: 'variant-filled-success'
+					background: 'preset-filled-success-500'
 				});
 				files = []; // Clear the files array after successful upload
 
@@ -143,7 +142,7 @@
 			console.error('Error uploading files:', error);
 			toastStore.trigger({
 				message: 'Error uploading files: ' + (error instanceof Error ? error.message : 'Unknown error'),
-				background: 'variant-filled-error'
+				background: 'preset-filled-error-500'
 			});
 		}
 	}
@@ -154,7 +153,7 @@
 	ondrop={handleFileDrop}
 	ondragover={handleDragOver}
 	ondragleave={handleDragLeave}
-	class="mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700"
+	class="mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded-sm border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700"
 	role="cell"
 	tabindex="0"
 	aria-dropeffect="none"
@@ -170,7 +169,7 @@
 
 			<p class="text-sm opacity-75">Multiple files allowed</p>
 
-			<button onclick={() => input?.click()} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary"> Browse Files </button>
+			<button onclick={() => input?.click()} class="preset-filled-tertiary-500 btn mt-3 dark:preset-filled-primary-500"> Browse Files </button>
 
 			<!-- File Size Limit -->
 			<p class="mt-2 text-sm text-tertiary-500 dark:text-primary-500">Max File Size: XX MB</p>

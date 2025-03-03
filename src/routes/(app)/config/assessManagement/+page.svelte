@@ -20,8 +20,7 @@ It provides an interface for users to:
 	import AdminRole from './AdminRole.svelte'; // New admin role management component
 
 	// Skeleton
-	import { TabGroup, Tab } from '@skeletonlabs/skeleton';
-	import { getToastStore } from '@skeletonlabs/skeleton';
+	import { Tab, Tabs } from '@skeletonlabs/skeleton-svelte';
 	const toastStore = getToastStore();
 
 	// Components
@@ -80,15 +79,15 @@ It provides an interface for users to:
 	// Show corresponding Toast messages
 	function showToast(message: string, type: 'success' | 'info' | 'error') {
 		const backgrounds = {
-			success: 'variant-filled-primary',
-			info: 'variant-filled-tertiary',
-			error: 'variant-filled-error'
+			success: 'preset-filled-primary-500',
+			info: 'preset-filled-tertiary-500',
+			error: 'preset-filled-error-500'
 		};
 		toastStore.trigger({
 			message: message,
 			background: backgrounds[type],
 			timeout: 3000,
-			classes: 'border-1 !rounded-md'
+			classes: 'border-1 rounded-md!'
 		});
 	}
 
@@ -106,12 +105,12 @@ It provides an interface for users to:
 	<!-- Row 2 (on mobile): Save and Reset Buttons -->
 	<div class="lgd:mt-0 mt-2 flex items-center justify-center gap-4 lg:justify-end">
 		<!-- Save with changes -->
-		<button onclick={() => saveAllRoles()} aria-label="Save" class="variant-filled-tertiary btn" disabled={!$modifiedPermissions}>
+		<button onclick={() => saveAllRoles()} aria-label="Save" class="preset-filled-tertiary-500 btn" disabled={!$modifiedPermissions}>
 			Save ({$modifiedCount})
 		</button>
 
 		<!-- Reset -->
-		<button onclick={resetChanges} aria-label="Reset" class="variant-filled-secondary btn" disabled={!$modifiedPermissions}> Reset </button>
+		<button onclick={resetChanges} aria-label="Reset" class="preset-filled-secondary-500 btn" disabled={!$modifiedPermissions}> Reset </button>
 	</div>
 </div>
 
@@ -127,7 +126,7 @@ It provides an interface for users to:
 {:else}
 	<!-- Full height tab group with responsive design -->
 	<div class="flex flex-col">
-		<TabGroup justify="justify-around text-tertiary-500 dark:text-primary-500" class="flex-grow">
+		<Tabs justify="justify-around text-tertiary-500 dark:text-primary-500" class="grow">
 			<!-- User Permissions -->
 			<Tab bind:group={$tabSet} name="permissions" value={0}>
 				<div class="flex items-center gap-1">
@@ -162,6 +161,6 @@ It provides an interface for users to:
 					<AdminRole roleData={roles} {setRoleData} />
 				{/if}
 			{/snippet}
-		</TabGroup>
+		</Tabs>
 	</div>
 {/if}

@@ -73,7 +73,7 @@
 		<input
 			type="color"
 			bind:value={_data.color}
-			class="h-11 w-11 rounded border-0"
+			class="h-11 w-11 rounded-sm border-0"
 			class:error={!!validationError}
 			oninput={validateInput}
 			aria-label="Color picker"

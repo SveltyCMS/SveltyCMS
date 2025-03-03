@@ -151,9 +151,9 @@ Users can adjust the fill color, stroke color, stroke width, opacity, and manage
 
 <!-- Shape Overlay Controls UI -->
 <div class="wrapper">
-	<h3 class=" relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Shape Overlay</h3>
+	<h3 class=" text-tertiary-500 dark:text-primary-500 relative text-center text-lg font-bold">Shape Overlay</h3>
 
-	<button onclick={exitShapeOverlay} class="variant-ghost-primary btn-icon absolute -top-2 right-2 font-bold"> Exit </button>
+	<button onclick={exitShapeOverlay} class="preset-tonal-primary border-primary-500 btn-icon absolute -top-2 right-2 border font-bold"> Exit </button>
 
 	<div class="grid grid-cols-2 gap-2">
 		<label class="flex flex-col">
@@ -189,9 +189,9 @@ Users can adjust the fill color, stroke color, stroke width, opacity, and manage
 	</div>
 
 	<div class="mt-4 flex justify-between space-x-2">
-		<button onclick={addShape} class="variant-filled-primary btn w-full">Add Shape</button>
-		<button onclick={deleteSelectedShape} class="variant-filled-error btn w-full" disabled={!selectedShape}>Delete</button>
-		<button onclick={bringToFront} class="variant-outline btn w-full" disabled={!selectedShape}>Bring to Front</button>
-		<button onclick={sendToBack} class="variant-outline btn w-full" disabled={!selectedShape}>Send to Back</button>
+		<button onclick={addShape} class="preset-filled-primary-500 btn w-full">Add Shape</button>
+		<button onclick={deleteSelectedShape} class="preset-filled-error-500 btn w-full" disabled={!selectedShape}>Delete</button>
+		<button onclick={bringToFront} class="preset-outline btn w-full" disabled={!selectedShape}>Bring to Front</button>
+		<button onclick={sendToBack} class="preset-outline btn w-full" disabled={!selectedShape}>Send to Back</button>
 	</div>
 </div>

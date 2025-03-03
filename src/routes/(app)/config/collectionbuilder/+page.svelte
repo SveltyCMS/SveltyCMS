@@ -36,7 +36,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { getToastStore, getModalStore, type ModalSettings, type ModalComponent } from '@skeletonlabs/skeleton';
+	import { type ModalSettings, type ModalComponent } from '@skeletonlabs/skeleton-svelte';
 
 	interface CategoryModalResponse {
 		newCategoryName: string;
@@ -248,15 +248,15 @@
 	// Show corresponding Toast messages
 	function showToast(message: string, type: 'success' | 'info' | 'error' = 'info'): void {
 		const backgrounds = {
-			success: 'variant-filled-primary',
-			info: 'variant-filled-tertiary',
-			error: 'variant-filled-error'
+			success: 'preset-filled-primary-500',
+			info: 'preset-filled-tertiary-500',
+			error: 'preset-filled-error-500'
 		};
 		toastStore.trigger({
 			message: message,
 			background: backgrounds[type],
 			timeout: 3000,
-			classes: 'border-1 !rounded-md'
+			classes: 'border-1 rounded-md!'
 		});
 	}
 </script>
@@ -270,7 +270,7 @@
 		onclick={() => modalAddCategory()}
 		type="button"
 		aria-label="Add New Category"
-		class="variant-filled-tertiary btn flex items-center justify-between gap-1 rounded font-bold dark:variant-filled-primary"
+		class="preset-filled-tertiary-500 btn flex items-center justify-between gap-1 rounded-sm font-bold dark:preset-filled-primary-500"
 		disabled={isLoading}
 	>
 		<iconify-icon icon="bi:collection" width="18" class="text-white"></iconify-icon>
@@ -282,7 +282,7 @@
 		onclick={handleAddCollectionClick}
 		type="button"
 		aria-label="Add New Collection"
-		class="variant-filled-surface btn flex items-center justify-between gap-1 rounded font-bold"
+		class="preset-filled-surface-500 btn flex items-center justify-between gap-1 rounded-sm font-bold"
 		disabled={isLoading}
 	>
 		<iconify-icon icon="material-symbols:category" width="18"></iconify-icon>
@@ -293,7 +293,7 @@
 		type="button"
 		onclick={() => handleSave(new CustomEvent('save', { detail: { name: 'categories', data: currentConfig } }))}
 		aria-label="Save"
-		class="variant-filled-primary btn gap-2 lg:ml-4"
+		class="preset-filled-primary-500 btn gap-2 lg:ml-4"
 		disabled={isLoading}
 	>
 		{#if isLoading}
@@ -306,7 +306,7 @@
 </div>
 
 {#if apiError}
-	<div class="mb-4 rounded bg-error-500/10 p-4 text-error-500" role="alert">
+	<div class="mb-4 rounded-sm bg-error-500/10 p-4 text-error-500" role="alert">
 		{apiError}
 	</div>
 {/if}

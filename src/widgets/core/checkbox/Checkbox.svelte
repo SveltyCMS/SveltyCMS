@@ -100,7 +100,7 @@
 			color={field.color}
 			bind:checked={_data[_language].checked}
 			oninput={validateInput}
-			class="h-[${field.size}] w-[${field.size}] mr-4 rounded"
+			class="h-[${field.size}] w-[${field.size}] mr-4 rounded-sm"
 			class:error={!!validationError}
 			aria-label={field?.label || field?.db_fieldName}
 			aria-invalid={!!validationError}

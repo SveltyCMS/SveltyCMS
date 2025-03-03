@@ -22,8 +22,7 @@ Manages token creation and updates with role selection and expiration settings. 
 	const { roles, user } = page.data;
 
 	// Skeleton & Stores
-	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
-	import type { ModalComponent } from '@skeletonlabs/skeleton';
+	import type { ModalComponent } from '@skeletonlabs/skeleton-svelte';
 	const modalStore = getModalStore();
 	const toastStore = getToastStore();
 
@@ -83,7 +82,7 @@ Manages token creation and updates with role selection and expiration settings. 
 					message: '<iconify-icon icon="mdi:check" color="white" width="24" class="mr-1"></iconify-icon> Token updated successfully',
 					background: 'gradient-tertiary',
 					timeout: 3000,
-					classes: 'border-1 !rounded-md'
+					classes: 'border-1 rounded-md!'
 				};
 				toastStore.trigger(t);
 				modalStore.close();
@@ -96,9 +95,9 @@ Manages token creation and updates with role selection and expiration settings. 
 			const message = err instanceof Error ? err.message : 'Failed to update token';
 			const t = {
 				message: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${message}`,
-				background: 'variant-filled-error',
+				background: 'preset-filled-error-500',
 				timeout: 3000,
-				classes: 'border-1 !rounded-md'
+				classes: 'border-1 rounded-md!'
 			};
 			toastStore.trigger(t);
 		}
@@ -119,7 +118,7 @@ Manages token creation and updates with role selection and expiration settings. 
 					message: '<iconify-icon icon="mdi:check" color="white" width="24" class="mr-1"></iconify-icon> Token deleted successfully',
 					background: 'gradient-tertiary',
 					timeout: 3000,
-					classes: 'border-1 !rounded-md'
+					classes: 'border-1 rounded-md!'
 				};
 				toastStore.trigger(t);
 				modalStore.close();
@@ -132,9 +131,9 @@ Manages token creation and updates with role selection and expiration settings. 
 			const message = err instanceof Error ? err.message : 'Failed to delete token';
 			const t = {
 				message: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${message}`,
-				background: 'variant-filled-error',
+				background: 'preset-filled-error-500',
 				timeout: 3000,
-				classes: 'border-1 !rounded-md'
+				classes: 'border-1 rounded-md!'
 			};
 			toastStore.trigger(t);
 		}
@@ -143,13 +142,13 @@ Manages token creation and updates with role selection and expiration settings. 
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
 	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container';
 </script>
 
 <!-- @component This example creates a simple form modal. -->
 {#if $modalStore[0]}
 	<div class="modal-example-form {cBase}">
-		<header class={`text-center dark:text-primary-500 ${cHeader}`}>
+		<header class={`dark:text-primary-500 text-center ${cHeader}`}>
 			{$modalStore[0]?.title ?? '(title missing)'}
 		</header>
 		<article class="text-center text-sm">
@@ -158,27 +157,27 @@ Manages token creation and updates with role selection and expiration settings. 
 		<form class="modal-form {cForm}" bind:this={formElement} id="change_user_form">
 			<!-- Username field -->
 			<div class="group relative z-0 mb-6 w-full">
-				<iconify-icon icon="mdi:user-circle" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
+				<iconify-icon icon="mdi:user-circle" width="18" class="absolute top-3.5 left-0 text-gray-400"></iconify-icon>
 				<input
 					bind:value={formData.user_id}
 					onkeydown={() => (errorStatus.user_id.status = false)}
 					color={errorStatus.user_id.status ? 'red' : 'base'}
 					type="text"
 					name="username"
-					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+					class="peer border-surface-300! text-surface-900 focus:border-tertiary-600 dark:border-surface-600 dark:focus:border-tertiary-500 block w-full appearance-none rounded-none! border-0! border-b-2! bg-transparent! px-6 py-2.5 text-sm focus:ring-0 focus:outline-hidden dark:text-white"
 					placeholder=" "
 					required
 					disabled
 				/>
 				<label
 					for="username"
-					class="absolute left-5 top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+					class="peer-focus:text-tertiary-600 dark:text-surface-400 dark:peer-focus:text-tertiary-500 absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75"
 				>
-					{m.modaledit_tokenusername()}<span class="ml-2 text-error-500">*</span>
+					{m.modaledit_tokenusername()}<span class="text-error-500 ml-2">*</span>
 				</label>
 
 				{#if !errorStatus.user_id.status}
-					<div class="absolute left-0 top-11 text-xs text-error-500">
+					<div class="text-error-500 absolute top-11 left-0 text-xs">
 						{errorStatus.user_id.msg}
 					</div>
 				{/if}
@@ -186,53 +185,53 @@ Manages token creation and updates with role selection and expiration settings. 
 
 			<!-- Email field -->
 			<div class="group relative z-0 mb-6 w-full">
-				<iconify-icon icon="mdi:email" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
+				<iconify-icon icon="mdi:email" width="18" class="absolute top-3.5 left-0 text-gray-400"></iconify-icon>
 				<input
 					bind:value={formData.email}
 					onkeydown={() => (errorStatus.email.status = false)}
 					color={errorStatus.email.status ? 'red' : 'base'}
 					type="email"
 					name="email"
-					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+					class="peer border-surface-300! text-surface-900 focus:border-tertiary-600 dark:border-surface-600 dark:focus:border-tertiary-500 block w-full appearance-none rounded-none! border-0! border-b-2! bg-transparent! px-6 py-2.5 text-sm focus:ring-0 focus:outline-hidden dark:text-white"
 					placeholder=" "
 					required
 					disabled
 				/>
 				<label
 					for="email"
-					class="absolute left-5 top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+					class="peer-focus:text-tertiary-600 dark:text-surface-400 dark:peer-focus:text-tertiary-500 absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75"
 				>
-					{m.form_emailaddress()}<span class="ml-2 text-error-500">*</span>
+					{m.form_emailaddress()}<span class="text-error-500 ml-2">*</span>
 				</label>
 				{#if errorStatus.email.status}
-					<div class="absolute left-0 top-11 text-xs text-error-500">
+					<div class="text-error-500 absolute top-11 left-0 text-xs">
 						{errorStatus.email.msg}
 					</div>
 				{/if}
 			</div>
 			<!-- Token field -->
 			<div class="group relative z-0 mb-6 w-full">
-				<iconify-icon icon="mdi:token" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
+				<iconify-icon icon="mdi:token" width="18" class="absolute top-3.5 left-0 text-gray-400"></iconify-icon>
 				<input
 					bind:value={formData.token}
 					onkeydown={() => (errorStatus.token.status = false)}
 					color={errorStatus.token.status ? 'red' : 'base'}
 					type="text"
 					name="token"
-					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+					class="peer border-surface-300! text-surface-900 focus:border-tertiary-600 dark:border-surface-600 dark:focus:border-tertiary-500 block w-full appearance-none rounded-none! border-0! border-b-2! bg-transparent! px-6 py-2.5 text-sm focus:ring-0 focus:outline-hidden dark:text-white"
 					placeholder=" "
 					required
 					disabled
 				/>
 				<label
 					for="token"
-					class="absolute left-5 top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+					class="peer-focus:text-tertiary-600 dark:text-surface-400 dark:peer-focus:text-tertiary-500 absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75"
 				>
 					{m.modaledit_tokenregistrationtoken()}
-					<span class="ml-2 text-error-500">*</span>
+					<span class="text-error-500 ml-2">*</span>
 				</label>
 				{#if errorStatus.token.status}
-					<div class="absolute left-0 top-11 text-xs text-error-500">
+					<div class="text-error-500 absolute top-11 left-0 text-xs">
 						{errorStatus.token.msg}
 					</div>
 				{/if}
@@ -248,7 +247,7 @@ Manages token creation and updates with role selection and expiration settings. 
 								{#each roles as r}
 									<button
 										type="button"
-										class="chip {formData.role === r._id ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+										class="chip {formData.role === r._id ? 'preset-filled-tertiary-500' : 'preset-tonal-secondary border-secondary-500 border'}"
 										onclick={() => (formData.role = r._id)}
 									>
 										{#if formData.role === r._id}
@@ -268,15 +267,15 @@ Manages token creation and updates with role selection and expiration settings. 
 
 		<footer class="modal-footer flex items-center justify-between p-4 {parent?.regionFooter ?? ''}">
 			<!-- Delete -->
-			<button type="button" onclick={deleteToken} class="variant-filled-error btn">
+			<button type="button" onclick={deleteToken} class="preset-filled-error-500 btn">
 				<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon><span class="hidden sm:block">{m.button_delete()}</span>
 			</button>
 
 			<div class="flex justify-between gap-2">
 				<!-- Cancel -->
-				<button class="variant-outline-secondary btn" onclick={parent?.onClose}>{m.button_cancel()}</button>
+				<button class="preset-outline-secondary btn" onclick={parent?.onClose}>{m.button_cancel()}</button>
 				<!-- Save -->
-				<button class="variant-filled-tertiary btn dark:variant-filled-primary{parent?.buttonPositive ?? ''}" onclick={onFormSubmit}
+				<button class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500{parent?.buttonPositive ?? ''}" onclick={onFormSubmit}
 					>{m.button_save()}</button
 				>
 			</div>

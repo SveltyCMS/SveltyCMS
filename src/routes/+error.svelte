@@ -47,7 +47,7 @@ Usage: This error component is automatically rendered when an error occurs durin
 </script>
 
 {#if page}
-	<main class="flex h-screen w-full flex-col items-center justify-center bg-gradient-to-t from-surface-900 via-surface-700 to-surface-900 text-white">
+	<main class="flex h-screen w-full flex-col items-center justify-center bg-linear-to-t from-surface-900 via-surface-700 to-surface-900 text-white">
 		<div class="relative">
 			<!-- Rotating SiteName -->
 			<div class="seal absolute" style="--size: {size}px; --speed: {speed * 200}ms; --font: {font}em">
@@ -98,7 +98,7 @@ Usage: This error component is automatically rendered when an error occurs durin
 		<a
 			href="/"
 			data-sveltekit-preload-data="tap"
-			class="relative mt-5 block rounded-full bg-gradient-to-br from-error-700 via-error-600 to-error-700 px-8 py-4 font-bold uppercase text-white shadow-xl"
+			class="relative mt-5 block rounded-full bg-linear-to-br from-error-700 via-error-600 to-error-700 px-8 py-4 font-bold uppercase text-white shadow-xl"
 		>
 			{m.error_gofrontpage()}
 		</a>

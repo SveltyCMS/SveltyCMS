@@ -246,7 +246,7 @@ Features:
 		{#if publicEnv.DEMO}
 			<!-- DEMO MODE -->
 			<div
-				class="absolute bottom-2 left-1/2 flex min-w-[350px] -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center rounded-xl bg-error-500 p-3 text-center text-white transition-opacity duration-300 sm:bottom-12"
+				class="bg-error-500 absolute bottom-2 left-1/2 flex min-w-[350px] -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center rounded-xl p-3 text-center text-white transition-opacity duration-300 sm:bottom-12"
 				class:opacity-50={isTransitioning}
 				aria-live="polite"
 				aria-atomic="true"
@@ -266,7 +266,7 @@ Features:
 		{/if}
 
 		<!-- CMS Logo -->
-		<div class="absolute left-1/2 top-1/4 -translate-x-1/2 -translate-y-1/2 transform items-center justify-center">
+		<div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 transform items-center justify-center">
 			<SveltyCMSLogoFull />
 			<!-- Seasons -->
 			<Seasons />
@@ -297,7 +297,7 @@ Features:
 
 					<!-- Dropdown -->
 					{#if isDropdownOpen}
-						<div class="absolute -left-6 -top-3 z-10 mt-2 w-48 rounded-lg border bg-[#242728] shadow-lg transition-opacity duration-300">
+						<div class="absolute -top-3 -left-6 z-10 mt-2 w-48 rounded-lg border bg-[#242728] shadow-lg transition-opacity duration-300">
 							<!-- Search Input -->
 							<div class="border-b border-gray-700 p-2">
 								<input
@@ -305,7 +305,7 @@ Features:
 									bind:this={searchInput}
 									bind:value={searchQuery}
 									placeholder="Search language..."
-									class="w-full rounded-md bg-[#363a3b] px-3 py-2 text-white transition-colors duration-300 placeholder:text-gray-400 focus:outline-none focus:ring-2"
+									class="w-full rounded-md bg-[#363a3b] px-3 py-2 text-white transition-colors duration-300 placeholder:text-gray-400 focus:ring-2 focus:outline-hidden"
 								/>
 							</div>
 
@@ -352,7 +352,7 @@ Features:
 				href="https://github.com/SveltyCMS/SveltyCMS"
 				target="_blank"
 				rel="noopener"
-				class="absolute bottom-5 left-1/2 right-1/3 z-0 flex min-w-[100px] max-w-[250px] -translate-x-1/2 -translate-y-1/2 transform justify-center gap-6 rounded-full bg-gradient-to-r from-surface-50/20 to-[#242728]/20 transition-opacity duration-300"
+				class="from-surface-50/20 absolute right-1/3 bottom-5 left-1/2 z-0 flex max-w-[250px] min-w-[100px] -translate-x-1/2 -translate-y-1/2 transform justify-center gap-6 rounded-full bg-linear-to-r to-[#242728]/20 transition-opacity duration-300"
 				class:opacity-50={isTransitioning}
 				tabindex={isTransitioning ? -1 : 0}
 			>

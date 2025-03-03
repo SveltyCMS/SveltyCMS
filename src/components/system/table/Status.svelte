@@ -34,7 +34,7 @@ Value can be: published, unpublished, schedule, clone, testing
 					? 'gradient-secondary'
 					: value === 'testing'
 						? 'gradient-error'
-						: 'badge'} rounded text-center"
+						: 'badge'} rounded-sm text-center"
 >
 	{#if value == 'published'}
 		<iconify-icon icon="bi:hand-thumbs-up-fill" width="20" class="mx-auto"></iconify-icon>

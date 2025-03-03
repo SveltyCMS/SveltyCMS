@@ -53,11 +53,11 @@
 </script>
 
 <!-- Dropdown container -->
-<div class={twMerge('overflow-hidden bg-surface-500', className)}>
+<div class={twMerge('bg-surface-500 overflow-hidden', className)}>
 	<!-- Dropdown button -->
 	<button
 		onclick={toggleExpanded}
-		class="variant-filled-tertiary btn dark:variant-ghost-primary"
+		class="preset-filled-tertiary-500 btn dark:preset-tonal-primary border-primary-500 border"
 		aria-label="Toggle Dropdown"
 		class:selected={expanded}
 	>
@@ -68,14 +68,14 @@
 <!-- Dropdown content -->
 {#if expanded}
 	<!-- Dropdown header -->
-	<div class="mb-3 border-b text-center text-tertiary-500 dark:text-primary-500">Choose your Widget</div>
+	<div class="text-tertiary-500 dark:text-primary-500 mb-3 border-b text-center">Choose your Widget</div>
 
 	<!-- Dropdown items -->
 	<div class="flex flex-wrap items-center justify-center gap-2">
 		{#each filteredItems as item}
 			<button
 				onclick={() => selectItem(item)}
-				class="variant-filled-warning btn relative hover:variant-filled-secondary dark:variant-outline-warning"
+				class="preset-filled-warning-500 btn hover:preset-filled-secondary-500 dark:preset-outline-warning relative"
 				aria-label={modifier(item)}
 			>
 				<span class="text-surface-700 dark:text-white">{modifier(item)}</span>

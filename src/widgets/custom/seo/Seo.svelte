@@ -24,7 +24,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { ProgressRadial } from '@skeletonlabs/skeleton';
+	import { ProgressRing } from '@skeletonlabs/skeleton-svelte';
 
 	// Components
 	import Heatmap from './Heatmap.svelte';
@@ -197,9 +197,9 @@
 	<div class="md:hidden">
 		<h3 class="mb-2 text-center">{m.widget_seo_suggestionlist()}</h3>
 		<div class="flex items-center justify-around">
-			<ProgressRadial value={progress} stroke={200} meter="stroke-primary-500" width="w-20 sm:w-28" class="mr-6 mt-1 text-white">
+			<ProgressRing value={progress} stroke={200} meter="stroke-primary-500" width="w-20 sm:w-28" class="mr-6 mt-1 text-white">
 				{progress}%
-			</ProgressRadial>
+			</ProgressRing>
 			<div class="flex flex-col items-center justify-start text-xs sm:text-sm">
 				<div class="gap sm:flex sm:gap-4">
 					<div class="flex justify-center gap-2">
@@ -215,7 +215,7 @@
 						<span class="flex-auto">80 - 100</span>
 					</div>
 				</div>
-				<p class="mt-1 hidden text-justify !text-sm sm:block">
+				<p class="mt-1 hidden text-justify text-sm! sm:block">
 					{m.widget_seo_suggestiontext()}
 				</p>
 			</div>
@@ -225,9 +225,9 @@
 	<!-- Desktop ProgressRadial display -->
 	<div class="hidden md:block">
 		<div class="mt-2 flex items-center justify-center dark:text-white">
-			<ProgressRadial value={progress} stroke={200} meter="stroke-primary-500" class="mr-6 mt-1 w-20 text-2xl text-white">
+			<ProgressRing value={progress} stroke={200} meter="stroke-primary-500" class="mr-6 mt-1 w-20 text-2xl text-white">
 				{progress}%
-			</ProgressRadial>
+			</ProgressRing>
 			<div class="mb-2">
 				<div class="mb-2 flex items-center justify-between lg:justify-start lg:gap-5">
 					<h3 class="">{m.widget_seo_suggestionlist()}</h3>

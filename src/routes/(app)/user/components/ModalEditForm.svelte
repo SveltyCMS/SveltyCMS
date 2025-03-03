@@ -20,7 +20,6 @@ Efficiently manages user data updates with validation, role selection, and delet
 	import { invalidateAll } from '$app/navigation';
 
 	// Skeleton & Stores
-	import { getModalStore } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 
 	// ParaglideJS
@@ -101,7 +100,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
 	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container';
 
 	let formElement: HTMLFormElement | null = $state(null);
 
@@ -122,7 +121,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 
 {#if $modalStore[0]}
 	<div class="modal-example-form {cBase}">
-		<header class="text-center dark:text-primary-500 {cHeader}">
+		<header class="dark:text-primary-500 text-center {cHeader}">
 			{$modalStore[0]?.title ?? '(title missing)'}
 		</header>
 		<article class="text-center text-sm">
@@ -131,7 +130,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 		<form class="modal-form {cForm}" bind:this={formElement} id="change_user_form" onsubmit={onFormSubmit}>
 			<!-- Username field -->
 			<div class="group relative z-0 mb-6 w-full">
-				<iconify-icon icon="mdi:user-circle" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
+				<iconify-icon icon="mdi:user-circle" width="18" class="absolute top-3.5 left-0 text-gray-400"></iconify-icon>
 				<FloatingInput
 					type="text"
 					name="username"
@@ -143,7 +142,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 					autocomplete="username"
 				/>
 				{#if errorStatus.username.status}
-					<div class="absolute left-0 top-11 text-xs text-error-500">
+					<div class="text-error-500 absolute top-11 left-0 text-xs">
 						{errorStatus.username.msg}
 					</div>
 				{/if}
@@ -153,7 +152,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 			{#if (isGivenData ? role : user?.role) === 'admin'}
 				<!-- Email field -->
 				<div class="group relative z-0 mb-6 w-full">
-					<iconify-icon icon="mdi:email" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
+					<iconify-icon icon="mdi:email" width="18" class="absolute top-3.5 left-0 text-gray-400"></iconify-icon>
 					<FloatingInput
 						type="email"
 						name="email"
@@ -165,7 +164,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 						autocomplete="email"
 					/>
 					{#if errorStatus.email.status}
-						<div class="absolute left-0 top-11 text-xs text-error-500">
+						<div class="text-error-500 absolute top-11 left-0 text-xs">
 							{errorStatus.email.msg}
 						</div>
 					{/if}
@@ -173,7 +172,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 			{:else}
 				<!-- Email field (non-editable for normal users) -->
 				<div class="group relative z-0 mb-6 w-full">
-					<iconify-icon icon="mdi:email" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
+					<iconify-icon icon="mdi:email" width="18" class="absolute top-3.5 left-0 text-gray-400"></iconify-icon>
 					<FloatingInput
 						type="email"
 						name="email"
@@ -184,7 +183,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 						autocomplete="email"
 					/>
 					{#if errorStatus.email.status}
-						<div class="absolute left-0 top-11 text-xs text-error-500">
+						<div class="text-error-500 absolute top-11 left-0 text-xs">
 							{errorStatus.email.msg}
 						</div>
 					{/if}
@@ -195,7 +194,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 			{#if isOwnProfile}
 				<!-- Password field -->
 				<div class="group relative z-0 mb-6 w-full">
-					<iconify-icon icon="mdi:password" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
+					<iconify-icon icon="mdi:password" width="18" class="absolute top-3.5 left-0 text-gray-400"></iconify-icon>
 					<FloatingInput
 						type="password"
 						name="password"
@@ -207,7 +206,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 						autocomplete="new-password"
 					/>
 					{#if errorStatus.password.status}
-						<div class="absolute left-0 top-11 text-xs text-error-500">
+						<div class="text-error-500 absolute top-11 left-0 text-xs">
 							{errorStatus.password.msg}
 						</div>
 					{/if}
@@ -215,7 +214,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 
 				<!-- Password Confirm -->
 				<div class="group relative z-0 mb-6 w-full">
-					<iconify-icon icon="mdi:password" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
+					<iconify-icon icon="mdi:password" width="18" class="absolute top-3.5 left-0 text-gray-400"></iconify-icon>
 					<FloatingInput
 						type="password"
 						name="confirm_password"
@@ -227,7 +226,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 						autocomplete="new-password"
 					/>
 					{#if errorStatus.confirm.status}
-						<div class="absolute left-0 top-11 text-xs text-error-500">
+						<div class="text-error-500 absolute top-11 left-0 text-xs">
 							{errorStatus.confirm.msg}
 						</div>
 					{/if}
@@ -244,7 +243,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 								{#each roles as role}
 									<button
 										type="button"
-										class="chip {isRoleActive(role._id) ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+										class="chip {isRoleActive(role._id) ? 'preset-filled-tertiary-500' : 'preset-tonal-secondary border-secondary-500 border'}"
 										onclick={() => {
 											formData.role = role._id;
 											console.log('Selected Role:', formData.role);
@@ -270,7 +269,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 					<button
 						type="button"
 						onclick={deleteUser}
-						class="variant-filled-error btn"
+						class="preset-filled-error-500 btn"
 						disabled={!isFirstUser && (!isGivenData || user._id === user_id)}
 					>
 						<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
@@ -283,9 +282,9 @@ Efficiently manages user data updates with validation, role selection, and delet
 
 				<div class="flex justify-between gap-4">
 					<!-- Cancel -->
-					<button type="button" class="variant-outline-secondary btn" onclick={() => parent.onClose()}>{m.button_cancel()}</button>
+					<button type="button" class="preset-outline-secondary btn" onclick={() => parent.onClose()}>{m.button_cancel()}</button>
 					<!-- Save -->
-					<button type="submit" class="variant-filled-tertiary btn dark:variant-filled-primary {parent.buttonPositive}">
+					<button type="submit" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 {parent.buttonPositive}">
 						{m.button_save()}
 					</button>
 				</div>

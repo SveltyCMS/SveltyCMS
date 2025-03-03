@@ -125,9 +125,9 @@ Features:
 				type="text"
 				placeholder="Search collections..."
 				bind:value={search}
-				class="input {sidebarState.sidebar.value.left === 'full' ? 'h-12' : 'h-10'} outline-none transition-all duration-500 ease-in-out"
+				class="input {sidebarState.sidebar.value.left === 'full' ? 'h-12' : 'h-10'} outline-hidden transition-all duration-500 ease-in-out"
 			/>
-			<button onclick={clearSearch} class="variant-filled-surface w-12" aria-label="Clear search">
+			<button onclick={clearSearch} class="preset-filled-surface-500 w-12" aria-label="Clear search">
 				<iconify-icon icon="ic:outline-search-off" width="24"></iconify-icon>
 			</button>
 		</div>
@@ -147,11 +147,11 @@ Features:
 
 		<!-- Media Gallery Button -->
 		<button
-			class="btn mt-1 flex w-full rounded {sidebarState.sidebar.value.left === 'full'
+			class="btn mt-1 flex w-full rounded-sm {sidebarState.sidebar.value.left === 'full'
 				? 'flex-row '
 				: 'flex-col'} items-center border border-surface-500 py-{sidebarState.sidebar.value.left === 'full'
 				? '3'
-				: '1'} hover:!bg-surface-400 hover:text-white dark:bg-surface-500"
+				: '1'} hover:bg-surface-400! hover:text-white dark:bg-surface-500"
 			onclick={() => {
 				mode.set('media');
 				goto('/mediagallery');
@@ -174,7 +174,7 @@ Features:
 	{#if isMediaMode}
 		<!-- Back to Collections Button -->
 		<button
-			class="btn mt-1 flex w-full items-center bg-surface-400 py-2 hover:!bg-surface-500 hover:text-white dark:bg-surface-600"
+			class="btn mt-1 flex w-full items-center bg-surface-400 py-2 hover:bg-surface-500! hover:text-white dark:bg-surface-600"
 			onclick={() => {
 				mode.set('view');
 				if (get(screenSize) === 'sm') {

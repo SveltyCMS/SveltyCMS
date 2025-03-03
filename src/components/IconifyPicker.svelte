@@ -160,13 +160,13 @@
 	{#if iconselected}
 		<div class="-mt-3 mb-1 flex items-center justify-start gap-2">
 			<div class="flex items-center gap-3 p-2">
-				<iconify-icon icon={iconselected} width="30" class="py-2 text-tertiary-500" aria-hidden="true"></iconify-icon>
+				<iconify-icon icon={iconselected} width="30" class="text-tertiary-500 py-2" aria-hidden="true"></iconify-icon>
 				<p>
 					{m.iconpicker_name()}
 					<span class="text-tertiary-500 dark:text-primary-500">{iconselected}</span>
 				</p>
 			</div>
-			<button onmouseup={removeIcon} type="button" aria-label="Remove Icon" class="variant-ghost btn-icon">
+			<button onmouseup={removeIcon} type="button" aria-label="Remove Icon" class="preset-tonal border-surface-500 btn-icon border">
 				<iconify-icon icon="icomoon-free:bin" width="22" aria-hidden="true"></iconify-icon>
 			</button>
 		</div>
@@ -178,7 +178,7 @@
 		id="icon"
 		bind:value={searchQuery}
 		placeholder={iconselected ? `Replace Icon: ${iconselected}` : m.iconpicker_placeholder()}
-		class="input w-full text-black dark:text-primary-500"
+		class="input dark:text-primary-500 w-full text-black"
 		oninput={() => debouncedSearch(searchQuery, selectedLibrary)}
 		onfocus={showLibrariesAndDropdown}
 		aria-label="Search icons"
@@ -187,7 +187,7 @@
 	/>
 
 	{#if searchError}
-		<div id="search-error" class="mt-2 rounded bg-error-500/10 p-2 text-error-500" role="alert">
+		<div id="search-error" class="bg-error-500/10 text-error-500 mt-2 rounded-sm p-2" role="alert">
 			{searchError}
 		</div>
 	{/if}
@@ -229,7 +229,7 @@
 						<button
 							onclick={() => selectIcon(icon)}
 							type="button"
-							class="flex items-center justify-center p-2 hover:rounded hover:bg-primary-500"
+							class="hover:bg-primary-500 flex items-center justify-center p-2 hover:rounded-sm"
 							aria-label={`Select icon ${icon}`}
 							role="option"
 							aria-selected={iconselected === icon}
@@ -245,7 +245,7 @@
 						<button
 							disabled={page === 0}
 							onclick={prevPage}
-							class={`${page === 0 ? 'hidden' : 'block'} variant-filled-primary btn-sm rounded`}
+							class={`${page === 0 ? 'hidden' : 'block'} preset-filled-primary btn-sm rounded-sm`}
 							aria-label="Previous page"
 						>
 							{m.button_previous()}
@@ -258,7 +258,7 @@
 						<button
 							disabled={icons.length < 50}
 							onclick={nextPage}
-							class={`${icons.length < 50 ? 'hidden' : 'block'} variant-filled-primary btn-sm rounded`}
+							class={`${icons.length < 50 ? 'hidden' : 'block'} preset-filled-primary btn-sm rounded-sm`}
 							aria-label="Next page"
 						>
 							{m.button_next()}

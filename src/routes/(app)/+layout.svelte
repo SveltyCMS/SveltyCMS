@@ -14,14 +14,13 @@ Key features:
 
 <script lang="ts">
 	// Your selected Skeleton theme:
-	import '../../app.postcss';
+	import '../../app.css';
 
 	// Icons from https://icon-sets.iconify.design/
 	import 'iconify-icon';
 
 	import { publicEnv } from '@root/config/public';
 	import { onMount, onDestroy } from 'svelte';
-	import { goto } from '$app/navigation';
 
 	// Utils
 	import { getTextDirection } from '@utils/utils';
@@ -29,9 +28,8 @@ Key features:
 
 	// Stores
 	import { page } from '$app/state';
-	import { contentLanguage, systemLanguage, isLoading } from '@stores/store.svelte';
-	import type { AvailableLanguageTag } from '@src/paraglide/runtime';
-	import { contentStructure, collection, collections, mode } from '@root/src/stores/collectionStore.svelte';
+	import { systemLanguage, isLoading } from '@stores/store.svelte';
+	import { contentStructure, collections } from '@root/src/stores/collectionStore.svelte';
 	import { sidebarState } from '@root/src/stores/sidebarStore.svelte';
 	import { screenSize, ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
 
@@ -45,14 +43,12 @@ Key features:
 	import FloatingNav from '@components/system/FloatingNav.svelte';
 
 	// Skeleton
-	import { initializeStores, Modal, Toast, setModeUserPrefers, setModeCurrent, setInitialClassState } from '@skeletonlabs/skeleton';
-	// Required for popups to function
-	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
-	import { storePopup } from '@skeletonlabs/skeleton';
+	import { ToastProvider } from '@skeletonlabs/skeleton-svelte';
+	import { Modal } from '@skeletonlabs/skeleton-svelte';
 
-	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
-	initializeStores();
+	// import { Modal, setModeUserPrefers, setModeCurrent, setInitialClassState } from '@skeletonlabs/skeleton';
 
+	// Props
 	interface Props {
 		children?: import('svelte').Snippet;
 		data: { contentStructure: any; nestedContentStructure: any; contentLanguage: string; systemLanguage: string };
@@ -66,30 +62,23 @@ Key features:
 	let loadError = $state<Error | null>(null);
 	let mediaQuery: MediaQueryList;
 
-	// Update content language when data changes, ensuring it's a valid language tag
-	//$effect(() => {
-	//	if (!(publicEnv.AVAILABLE_CONTENT_LANGUAGES as ReadonlyArray<AvailableLanguageTag>).includes(data.contentLanguage as AvailableLanguageTag)) {
-	//		// If data.contentLanguage is invalid and contentLanguage is not already set to a valid value, fall back to 'en'
-	//		if (!contentLanguage.value || !(publicEnv.AVAILABLE_CONTENT_LANGUAGES as ReadonlyArray<AvailableLanguageTag>).includes(contentLanguage.value)) {
-	//			contentLanguage.set('en');
-	//		}
-	//	} else {
-	//		contentLanguage.set(data.contentLanguage as AvailableLanguageTag);
-	//	}
-	//});
+	// Update content language when data changes
+	// $effect(() => {
+	// 	contentLanguage.set(data.language);
+	// });
 
 	// Handle collection changes
-	//$effect(() => {
-	//	const newCollection = collection.value;
-	//	if (!newCollection?.name) return;
-	//
-	//	const newPath = `/${contentLanguage.value || publicEnv.DEFAULT_CONTENT_LANGUAGE}${String(newCollection.path)}`;
-	//	if (page.url.pathname !== newPath && mode.value !== 'media') {
-	//		console.log('layout collection chnage redirect', 'newPath', newPath);
-	//		goto(newPath);
-	//	}
-	//});
-	//
+	// $effect(() => {
+	// 	const newCollection = collection.value;
+	// 	if (!newCollection?.name) return;
+
+	// 	const newPath = `/${contentLanguage.value || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${String(newCollection.name)}`;
+	// 	if (page.url.pathname !== newPath) {
+	// 		console.debug('Redirecting to new path:', newPath, newCollection);
+	// 		goto(newPath);
+	// 	}
+	// });
+
 	// Update collection loaded state when store changes
 	$effect(() => {
 		if (collections.value && Object.keys(collections.value).length > 0) {
@@ -218,7 +207,7 @@ Key features:
 		<div class="flex h-lvh flex-col">
 			<!-- Header -->
 			{#if sidebarState.sidebar.value.header !== 'hidden'}
-				<header class="sticky top-0 z-10 bg-tertiary-500">Header</header>
+				<header class="bg-tertiary-500 sticky top-0 z-10">Header</header>
 			{/if}
 
 			<div class="flex flex-1 overflow-hidden">
@@ -227,7 +216,7 @@ Key features:
 					<aside
 						class="max-h-dvh {sidebarState.sidebar.value.left === 'full'
 							? 'w-[220px]'
-							: 'w-fit'} relative border-r bg-white !px-2 text-center dark:border-surface-500 dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900"
+							: 'w-fit'} dark:border-surface-500 dark:from-surface-700 dark:to-surface-950 relative border-r bg-white !px-2 text-center dark:bg-gradient-to-r"
 					>
 						<LeftSidebar />
 					</aside>
@@ -249,7 +238,9 @@ Key features:
 							? 'mb-2'
 							: 'mb-16'}"
 					>
-						<Toast />
+						<ToastProvider>
+							{@render children?.()}
+						</ToastProvider>
 						<Modal />
 
 						<!-- Floating Nav -->
@@ -278,7 +269,7 @@ Key features:
 					<!-- Page Footer -->
 					{#if sidebarState.sidebar.value.pagefooter !== 'hidden'}
 						<footer
-							class="sticky left-0 top-[calc(100%-51px)] z-10 w-full border-t bg-surface-50 bg-gradient-to-b px-1 text-center dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
+							class="bg-surface-50 dark:border-surface-500 dark:from-surface-700 dark:to-surface-950 sticky top-[calc(100%-51px)] left-0 z-10 w-full border-t bg-gradient-to-b px-1 text-center"
 						>
 							<PageFooter />
 						</footer>
@@ -288,7 +279,7 @@ Key features:
 				<!-- Sidebar Right -->
 				{#if sidebarState.sidebar.value.right !== 'hidden'}
 					<aside
-						class="max-h-dvh w-[220px] border-l bg-surface-50 bg-gradient-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
+						class="bg-surface-50 dark:border-surface-500 dark:from-surface-700 dark:to-surface-950 max-h-dvh w-[220px] border-l bg-gradient-to-r"
 					>
 						<RightSidebar />
 					</aside>

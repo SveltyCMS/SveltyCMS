@@ -181,13 +181,13 @@
 	</div>
 
 	<!-- Back Button -->
-	<button onclick={() => history.back()} aria-label="Back" class="variant-outline-primary btn-icon">
+	<button onclick={() => history.back()} aria-label="Back" class="preset-outline-primary btn-icon">
 		<iconify-icon icon="ri:arrow-left-line" width="20"></iconify-icon>
 	</button>
 </div>
 
 <div class="my-2 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
-	<div class="mt-2 flex w-full justify-around gap-2 sm:ml-auto sm:mt-0 sm:w-auto sm:flex-row">
+	<div class="mt-2 flex w-full justify-around gap-2 sm:mt-0 sm:ml-auto sm:w-auto sm:flex-row">
 		{#if canAddMoreWidgets}
 			<div class="relative">
 				<button
@@ -195,14 +195,14 @@
 					type="button"
 					aria-haspopup="true"
 					aria-expanded={dropdownOpen}
-					class="variant-filled-tertiary btn gap-2 !text-white dark:variant-filled-primary"
+					class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 gap-2 text-white!"
 				>
 					<iconify-icon icon="carbon:add-filled" width="24" class="text-white"></iconify-icon>
 					Add
 				</button>
 				{#if dropdownOpen}
 					<div
-						class="absolute right-0 z-10 mt-2 w-48 divide-y divide-gray-200 rounded border border-gray-300 bg-white shadow-lg dark:divide-gray-600 dark:border-gray-700 dark:bg-gray-800"
+						class="absolute right-0 z-10 mt-2 w-48 divide-y divide-gray-200 rounded-sm border border-gray-300 bg-white shadow-lg dark:divide-gray-600 dark:border-gray-700 dark:bg-gray-800"
 						aria-label="Add Widget Menu"
 					>
 						{#each availableWidgets as componentName}
@@ -218,7 +218,7 @@
 				{/if}
 			</div>
 		{/if}
-		<button class="variant-filled-warning btn" onclick={resetGrid}>Reset All</button>
+		<button class="preset-filled-warning-500 btn" onclick={resetGrid}>Reset All</button>
 	</div>
 </div>
 
@@ -249,7 +249,7 @@
 						grid-row: {item.y + 1} / span {item.h};
 					"
 				>
-					<div class="absolute right-1 top-1 z-10 flex gap-1">
+					<div class="absolute top-1 right-1 z-10 flex gap-1">
 						<button
 							onclick={() => toggleSize(item.id)}
 							class="btn-icon"
@@ -260,7 +260,7 @@
 						</button>
 						<button onclick={() => remove(item.id)} class="btn-icon" aria-label="Remove Widget">✕</button>
 					</div>
-					<div class="h-full w-full rounded-md border border-surface-500 bg-surface-100 p-2 shadow-2xl dark:bg-surface-700">
+					<div class="border-surface-500 bg-surface-100 dark:bg-surface-700 h-full w-full rounded-md border p-2 shadow-2xl">
 						{#if widgetComponents[item.component]}
 							{@const SvelteComponent = widgetComponents[item.component].component}
 							<SvelteComponent label={item.label} {currentTheme} />
@@ -272,6 +272,6 @@
 			{/each}
 		</div>
 	{:else}
-		<p class="text-center text-tertiary-500 dark:text-primary-500">No widgets added yet. Use the "Add" button to add widgets.</p>
+		<p class="text-tertiary-500 dark:text-primary-500 text-center">No widgets added yet. Use the "Add" button to add widgets.</p>
 	{/if}
 </div>

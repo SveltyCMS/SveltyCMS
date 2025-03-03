@@ -68,16 +68,16 @@ Features:
 
 <div class="card p-4">
 	{#each installedWidgets as widget}
-		<div class="flex min-h-[70px] items-center justify-between border-b hover:bg-surface-300 dark:hover:bg-surface-500">
+		<div class="hover:bg-surface-300 dark:hover:bg-surface-500 flex min-h-[70px] items-center justify-between border-b">
 			<div class="flex items-center">
-				<iconify-icon icon={widget.Icon} width="38" class="mr-2 text-error-500"></iconify-icon>
+				<iconify-icon icon={widget.Icon} width="38" class="text-error-500 mr-2"></iconify-icon>
 				<div>
 					<h3 class="text-lg font-semibold">{widget.Name}</h3>
-					<p class="text-wrap text-sm text-tertiary-500 dark:text-primary-500">{widget.Description}</p>
+					<p class="text-tertiary-500 dark:text-primary-500 text-sm text-wrap">{widget.Description}</p>
 				</div>
 			</div>
 			<button
-				class="btn mx-2 min-w-[200px] variant-{widget.status === 'active' ? 'ghost-error ' : 'filled-primary'}"
+				class="btn mx-2 min-w-[200px] preset-{widget.status === 'active' ? 'ghost-error ' : 'filled-primary'}"
 				onclick={() => toggleWidget(widget)}
 			>
 				{widget.status === 'active' ? 'Deactivate' : 'Activate'}
@@ -86,7 +86,7 @@ Features:
 	{/each}
 
 	{#if installedWidgets.length === 0}
-		<p class="text-center text-tertiary-500 dark:text-primary-500">
+		<p class="text-tertiary-500 dark:text-primary-500 text-center">
 			There are currently no widgets available. Visit the SveltyCMS marketplace to find new widgets and extend your system.
 		</p>
 
@@ -95,7 +95,7 @@ Features:
 			target="_blank"
 			rel="noopener noreferrer"
 			aria-label={m.config_Martketplace()}
-			class="variant-ghost-primary btn w-full"
+			class="preset-tonal-primary border-primary-500 btn w-full border"
 		>
 			<iconify-icon icon="icon-park-outline:shopping-bag" width="28" class="text-white"></iconify-icon>
 			<p class="uppercase">{m.config_Martketplace()}</p>

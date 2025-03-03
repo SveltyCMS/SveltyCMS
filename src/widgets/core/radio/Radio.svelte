@@ -105,7 +105,7 @@
 			onblur={validateInput}
 			color={field.color}
 			required={field?.required}
-			class="input float-left mr-4 mt-1 h-4 w-4 cursor-pointer appearance-none rounded-full border border-surface-300 bg-white bg-contain bg-center bg-no-repeat align-top text-black transition duration-200 checked:border-tertiary-600 checked:bg-tertiary-600 focus:outline-none dark:text-white"
+			class="input float-left mr-4 mt-1 h-4 w-4 cursor-pointer appearance-none rounded-full border border-surface-300 bg-white bg-contain bg-center bg-no-repeat align-top text-black transition duration-200 checked:border-tertiary-600 checked:bg-tertiary-600 focus:outline-hidden dark:text-white"
 			aria-describedby={validationError ? `${fieldName}-error` : undefined}
 			data-testid="radio-input"
 		/>

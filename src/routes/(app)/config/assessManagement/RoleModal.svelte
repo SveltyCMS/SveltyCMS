@@ -1,69 +1,59 @@
 <script lang="ts">
-	import type { SvelteComponent } from 'svelte';
-
-	// Stores
-	import { getModalStore } from '@skeletonlabs/skeleton';
-
-	//ParaglideJS
-	import * as m from '@src/paraglide/messages';
+	import { Modal } from '@skeletonlabs/skeleton-svelte';
 
 	// Props
-
 	interface Props {
-		/** Exposes parent props to this component. */
-		parent: SvelteComponent;
 		isEditMode: boolean;
-		currentRoleId: string;
 		roleName: string;
-		roleDescription: string;
-		currentGroupName: string;
-		selectedPermissions?: string[];
 	}
 
-	let { parent, isEditMode, currentRoleId, roleName, roleDescription, currentGroupName, selectedPermissions = [] }: Props = $props();
+	let { isEditMode, roleName }: Props = $props();
 
 	// Local form state
 	let formName = $state(roleName);
-	let formDescription = $state(roleDescription);
 
-	const modalStore = getModalStore();
+	let openState = $state(false);
 
 	function onFormSubmit(event: SubmitEvent): void {
 		event.preventDefault();
-		const modal = $modalStore[0];
-		if (modal?.response) {
-			modal.response({
-				roleName: formName,
-				roleDescription: formDescription,
-				currentGroupName,
-				selectedPermissions,
-				currentRoleId
-			});
-		}
-		modalStore.close();
+		openState = false;
 	}
 </script>
 
-<div class="card w-modal space-y-4 p-4 shadow-xl">
-	<header class="text-center text-2xl font-bold">
-		{isEditMode ? 'Edit Role' : 'Create New Role'}
-	</header>
+<Modal
+	open={openState}
+	onOpenChange={(e) => (openState = e.open)}
+	triggerBase="btn preset-tonal"
+	contentBase="card bg-surface-100-900 p-4 space-y-4 shadow-xl max-w-screen-sm"
+	backdropClasses="backdrop-blur-sm"
+>
+	{#snippet trigger()}
+		<button type="button" class="btn preset-tonal" onclick={() => (openState = true)}>
+			{isEditMode ? 'Edit Role' : 'Create New Role'}
+		</button>
+	{/snippet}
 
-	<form class="modal-form space-y-4 border border-surface-500 p-4 rounded-container-token" onsubmit={onFormSubmit}>
-		<label class="label">
-			<span>Role Name:</span>
-			<input type="text" bind:value={formName} placeholder="Role Name" class="input" required />
-		</label>
+	{#snippet content()}
+		<header class="flex justify-between">
+			<h2 class="h2">{isEditMode ? 'Edit Role' : 'Create New Role'}</h2>
+		</header>
 
-		<label class="label">
-			<span>Role Description:</span>
-			<textarea bind:value={formDescription} placeholder="Role Description" class="input" rows="3"></textarea>
-		</label>
-	</form>
+		<form
+			onsubmit={(e) => {
+				e.preventDefault();
+				onFormSubmit(e);
+			}}
+			class="space-y-4"
+		>
+			<label>
+				<span class="mb-2 block">Role Name:</span>
+				<input type="text" bind:value={formName} placeholder="Role Name" class="input w-full" required />
+			</label>
 
-	<!-- Footer -->
-	<footer class="modal-footer flex justify-end gap-4">
-		<button class="variant-ghost-surface btn" onclick={parent.onClose}>{m.button_cancel()}</button>
-		<button type="submit" form="roleForm" class="variant-filled-primary btn">{isEditMode ? 'Update' : 'Create'}</button>
-	</footer>
-</div>
+			<label>
+				<span class="mb-2 block">Role Description:</span>
+				<textarea placeholder="Role Description" class="input w-full" rows="3"></textarea>
+			</label>
+		</form>
+	{/snippet}
+</Modal>

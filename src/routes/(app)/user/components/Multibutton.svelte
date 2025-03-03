@@ -20,11 +20,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { popup } from '@skeletonlabs/skeleton';
-	import type { PopupSettings } from '@skeletonlabs/skeleton';
-	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
-	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
+	import type { PopupSettings } from '@skeletonlabs/skeleton-svelte';
+	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton-svelte';
 	import ModalEditForm from './ModalEditForm.svelte';
 	import ModalEditToken from './ModalEditToken.svelte';
 
@@ -121,7 +118,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			message: `<iconify-icon icon="${isError ? 'mdi:alert' : 'mdi:check-outline'}" color="white" width="26" class="mr-1"></iconify-icon> ${message}`,
 			background: isError ? 'gradient-error' : background,
 			timeout: 3000,
-			classes: 'border-1 !rounded-md'
+			classes: 'border-1 rounded-md!'
 		});
 	}
 
@@ -218,7 +215,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 </script>
 
 <!-- Multibutton group-->
-<div class="btn-group relative rounded-md text-white" role="group" aria-label="{type} management actions">
+<div class=" relative rounded-md text-white" role="group" aria-label="{type} management actions">
 	<!-- Action button  -->
 	<button
 		type="button"
@@ -240,7 +237,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		aria-label="Open actions menu"
 		aria-haspopup="true"
 		aria-expanded="false"
-		class="divide-x-2 rounded-r-sm bg-surface-500 hover:!bg-surface-800"
+		class="divide-x-2 rounded-r-sm bg-surface-500 hover:bg-surface-800!"
 		disabled={isDisabled}
 		aria-disabled={isDisabled}
 	>
@@ -249,15 +246,15 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 </div>
 
 <!-- Dropdown/Listbox -->
-<div class="overflow-hiddens card z-10 w-48 rounded-sm bg-surface-500 text-white" data-popup="Combobox" role="menu" aria-label="Available actions">
-	<ListBox rounded="rounded-sm" active="variant-filled-primary" hover="hover:bg-surface-300" class="divide-y">
+<div class="overflow-hiddens card z-10 w-48 rounded-xs bg-surface-500 text-white" data-popup="Combobox" role="menu" aria-label="Available actions">
+	<ListBox rounded="rounded-xs" active="preset-filled-primary-500" hover="hover:bg-surface-300" class="divide-y">
 		{#each Object.entries(actionConfig) as [action, config]}
 			{#if action !== listboxValue}
 				<ListBoxItem
 					bind:group={listboxValue}
 					name="medium"
 					value={action}
-					active="variant-filled-primary"
+					active="preset-filled-primary-500"
 					hover="gradient-primary-hover"
 					role="menuitem"
 				>

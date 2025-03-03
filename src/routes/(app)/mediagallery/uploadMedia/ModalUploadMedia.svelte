@@ -18,7 +18,6 @@
 	import { run, preventDefault } from 'svelte/legacy';
 
 	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 
 	// ParaglideJS
@@ -135,9 +134,9 @@
 	};
 
 	// Base Classes
-	const cBase = 'bg-surface-100-800-token w-screen h-screen p-4 flex flex-col justify-center items-center';
+	const cBase = 'bg-surface-100-900 w-screen h-screen p-4 flex flex-col justify-center items-center';
 	const cHeader = 'text-2xl font-bold text-center text-tertiary-500 dark:text-primary-500 ';
-	const cForm = 'mt-3 border border-surface-500 p-2 space-y-4 rounded-container-token';
+	const cForm = 'mt-3 border border-surface-500 p-2 space-y-4 rounded-container';
 </script>
 
 {#if $modalStore[0]}
@@ -154,8 +153,8 @@
 				{#each files as file (file.name + file.size)}
 					<div class="card card-hover relative">
 						<!-- Delete buttons -->
-						<div class="absolute right-0 top-2 flex w-full justify-end px-2 opacity-0 hover:opacity-100">
-							<button onclick={() => handleDelete(file)} aria-label="Delete" class="variant-ghost-surface btn-icon">
+						<div class="absolute top-2 right-0 flex w-full justify-end px-2 opacity-0 hover:opacity-100">
+							<button onclick={() => handleDelete(file)} aria-label="Delete" class="preset-tonal-surface border-surface-500 btn-icon border">
 								<iconify-icon icon="material-symbols:delete" width="24" class="text-error-500"></iconify-icon>
 							</button>
 						</div>
@@ -180,39 +179,39 @@
 						</div>
 
 						<!-- Media name -->
-						<div class="label mt-1 flex h-16 items-center justify-center bg-gray-100 p-2 dark:bg-surface-600">
-							<p class="overflow-hidden overflow-ellipsis whitespace-normal text-center text-tertiary-500 dark:text-primary-500">
+						<div class="label dark:bg-surface-600 mt-1 flex h-16 items-center justify-center bg-gray-100 p-2">
+							<p class="text-tertiary-500 dark:text-primary-500 overflow-hidden text-center text-ellipsis whitespace-normal">
 								{file.name}
 							</p>
 						</div>
 
 						<!-- Media Type & Size -->
-						<div class="flex flex-grow items-center justify-between p-1 dark:bg-surface-700">
+						<div class="dark:bg-surface-700 flex grow items-center justify-between p-1">
 							<div class="flex items-center gap-1">
 								<iconify-icon icon={generateThumbnail(file)} width="16" height="16"></iconify-icon>
 								<span>{formatMimeType(file.type)}</span>
 							</div>
-							<span class="variant-ghost-tertiary badge">{(file.size / 1024).toFixed(2)} KB</span>
+							<span class="preset-tonal-tertiary border-tertiary-500 badge border">{(file.size / 1024).toFixed(2)} KB</span>
 						</div>
 					</div>
 				{/each}
 			</div>
 
 			<!-- File input for adding more files -->
-			<div class="mb-4 mt-2 flex items-center justify-between border-t border-surface-400 p-4">
-				<div class="mb-4 mt-2 flex items-center gap-2">
-					<label for="file-input" class="block text-tertiary-500 dark:text-primary-500">Add more files:</label>
+			<div class="border-surface-400 mt-2 mb-4 flex items-center justify-between border-t p-4">
+				<div class="mt-2 mb-4 flex items-center gap-2">
+					<label for="file-input" class="text-tertiary-500 dark:text-primary-500 block">Add more files:</label>
 					<input id="file-input" type="file" multiple onchange={handleFileInputChange} />
 				</div>
 				{#if duplicateWarning}
-					<p class="variant-filled-error rounded px-2 py-4">{duplicateWarning}</p>
+					<p class="preset-filled-error-500 rounded-sm px-2 py-4">{duplicateWarning}</p>
 				{/if}
 			</div>
 		</form>
 
 		<footer class="modal-footer m-4 flex w-full justify-between {parent.regionFooter}">
-			<button class="variant-outline-secondary btn" onclick={handleCancel}>{m.button_cancel()}</button>
-			<button type="submit" form="upload-form" class="variant-filled-primary btn {parent.buttonPositive}">{m.button_save()}</button>
+			<button class="preset-outline-secondary btn" onclick={handleCancel}>{m.button_cancel()}</button>
+			<button type="submit" form="upload-form" class="preset-filled-primary-500 btn {parent.buttonPositive}">{m.button_save()}</button>
 		</footer>
 	</div>
 {/if}

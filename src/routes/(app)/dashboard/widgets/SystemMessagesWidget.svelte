@@ -22,7 +22,7 @@ Features:
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import axios from 'axios';
-	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	import { type PopupSettings } from '@skeletonlabs/skeleton-svelte';
 
 	// Define the structure of a system message
 	interface SystemMessage {
@@ -60,7 +60,7 @@ Features:
 </script>
 
 <div id="systemMessagesWidget" class="relative rounded-lg bg-white p-4 shadow-md dark:bg-gray-800">
-	<h3 class="mb-2 text-lg font-bold">{label} <span class="variant-filled badge">Alert</span></h3>
+	<h3 class="mb-2 text-lg font-bold">{label} <span class="preset-filled badge">Alert</span></h3>
 	{#if messages.length > 0}
 		<ul>
 			{#each messages as message}

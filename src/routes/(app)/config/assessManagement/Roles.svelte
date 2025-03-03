@@ -31,7 +31,7 @@ It provides the following functionality:
 	import RoleModal from './RoleModal.svelte';
 
 	// Skeleton
-	import { getToastStore, getModalStore, type ModalSettings, type PopupSettings, popup } from '@skeletonlabs/skeleton';
+	import { type ModalSettings, type PopupSettings } from '@skeletonlabs/skeleton-svelte';
 
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
@@ -166,15 +166,15 @@ It provides the following functionality:
 	// Show corresponding Toast messages
 	function showToast(message: string, type: 'success' | 'error' | 'info' = 'info') {
 		const backgrounds = {
-			success: 'variant-filled-primary',
-			info: 'variant-filled-tertiary',
-			error: 'variant-filled-error'
+			success: 'preset-filled-primary-500',
+			info: 'preset-filled-tertiary-500',
+			error: 'preset-filled-error-500'
 		};
 		toastStore.trigger({
 			message: message,
 			background: backgrounds[type],
 			timeout: 3000,
-			classes: 'border-1 !rounded-md'
+			classes: 'border-1 rounded-md!'
 		});
 	}
 
@@ -280,9 +280,9 @@ It provides the following functionality:
 	<div class="wrapper my-4">
 		<div class="mb-4 flex items-center justify-between">
 			<!-- Create -->
-			<button onclick={() => openModal(null, '')} class="variant-filled-primary btn">Create Role</button>
+			<button onclick={() => openModal(null, '')} class="preset-filled-primary-500 btn">Create Role</button>
 			<!-- Delete -->
-			<button onclick={deleteSelectedRoles} class="variant-filled-error btn" disabled={$selectedRoles.size === 0}>
+			<button onclick={deleteSelectedRoles} class="preset-filled-error-500 btn" disabled={$selectedRoles.size === 0}>
 				Delete Roles ({$selectedRoles.size})
 			</button>
 		</div>
@@ -299,7 +299,7 @@ It provides the following functionality:
 						onfinalize={handleFinalize}
 					>
 						{#each items as role (role.id)}
-							<div class="animate-flip flex items-center justify-between rounded border p-4 hover:bg-surface-500 md:flex-row">
+							<div class="animate-flip flex items-center justify-between rounded-sm border p-4 hover:bg-surface-500 md:flex-row">
 								<div class="flex items-center gap-2">
 									<!-- Drag Icon -->
 									<iconify-icon icon="mdi:drag" width="18" class="cursor-move text-gray-500 dark:text-gray-300"></iconify-icon>
@@ -319,7 +319,7 @@ It provides the following functionality:
 												class="ml-1 text-tertiary-500 dark:text-primary-500"
 												use:popup={getPopupSettings(role._id)}
 											></iconify-icon>
-											<div class="card variant-filled-surface p-4" data-popup="role-{role._id}">
+											<div class="card preset-filled-surface-500 p-4" data-popup="role-{role._id}">
 												{role.description}
 												<div class="arrow"></div>
 											</div>
@@ -333,7 +333,7 @@ It provides the following functionality:
 								</p>
 
 								<!-- Edit Button: changes layout depending on screen size -->
-								<button onclick={() => openModal(role)} aria-label="Edit role" class="variant-filled-secondary btn">
+								<button onclick={() => openModal(role)} aria-label="Edit role" class="preset-filled-secondary-500 btn">
 									<iconify-icon icon="mdi:pencil" class="text-white" width="18"></iconify-icon>
 									<span class="hidden md:block">Edit</span>
 								</button>

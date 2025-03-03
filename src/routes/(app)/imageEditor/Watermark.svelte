@@ -192,7 +192,7 @@ Users can adjust the watermark's position, opacity, scale, rotation, and offsets
 	<div class="mb-4">
 		{#if watermarkPreview}
 			<div class="relative mb-2 h-32 w-32">
-				<img src={watermarkPreview} alt="Watermark preview" class="border-base-300 h-full w-full rounded border object-contain" />
+				<img src={watermarkPreview} alt="Watermark preview" class="border-base-300 h-full w-full rounded-sm border object-contain" />
 				<button class="bg-error absolute -right-2 -top-2 rounded-full p-1 text-xs text-white" onclick={removeWatermark}> X </button>
 			</div>
 		{:else}

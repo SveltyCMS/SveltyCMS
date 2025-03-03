@@ -42,7 +42,7 @@
 	}
 </script>
 
-<td onclick={handleIconClick} class="!pl-[10px]">
+<td onclick={handleIconClick} class="pl-[10px]!">
 	<button
 		onkeydown={handleKeydown}
 		onclick={handleIconClick}

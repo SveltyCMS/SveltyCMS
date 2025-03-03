@@ -70,7 +70,7 @@ const createBaseStores = () => {
 	const tabSet = store(0);
 	const headerActionButton = store<ConstructorOfATypedSvelteComponent | string | undefined>(undefined);
 	const headerActionButton2 = store<ConstructorOfATypedSvelteComponent | string | undefined>(undefined);
-	const pkgBgColor = store('variant-filled-primary');
+	const pkgBgColor = store('preset-filled-primary-500');
 	const drawerExpanded = store(true);
 	const storeListboxValue = store('create');
 

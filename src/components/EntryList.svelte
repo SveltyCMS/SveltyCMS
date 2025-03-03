@@ -48,9 +48,11 @@ Features:
 	import Loading from './Loading.svelte';
 
 	// Skeleton
-	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings } from '@skeletonlabs/skeleton';
-	const toastStore = getToastStore();
+	import type { ModalSettings } from '@skeletonlabs/skeleton-svelte';
+	import { getContext } from 'svelte';
+	import { type ToastContext } from '@skeletonlabs/skeleton-svelte';
+
+	export const toast: ToastContext = getContext('toast');
 	const modalStore = getModalStore();
 
 	// Svelte-dnd-action
@@ -347,11 +349,13 @@ Features:
 					case 'cloned':
 					case 'scheduled':
 						// Trigger a toast message indicating that the feature is not yet implemented
-						toastStore.trigger({
-							message: 'Feature not yet implemented.',
-							background: 'variant-filled-error',
-							timeout: 3000
+						toast.create({
+							title: 'Error',
+							description: 'Feature not yet implemented.',
+							type: 'error',
+							duration: 4000
 						});
+						// Return to exit the function
 						break;
 				}
 				// Refresh the collection
@@ -408,24 +412,24 @@ Features:
 					onkeydown={() => {}}
 					onclick={() => toggleSidebar('left', currentScreenSize === 'lg' ? 'full' : 'collapsed')}
 					aria-label="Open Sidebar"
-					class="variant-ghost-surface btn-icon mt-1"
+					class="preset-tonal-surface border-surface-500 btn-icon mt-1 border"
 				>
 					<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 				</button>
 			{/if}
 			<!-- Collection type with icon -->
 			<div class="mr-1 flex flex-col {!sidebarState.sidebar.value.left ? 'ml-2' : 'ml-1 sm:ml-2'}">
-				{#if categoryName}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300 rtl:text-left">
+				{#if categoryName}<div class="text-surface-500 dark:text-surface-300 mb-2 text-xs capitalize rtl:text-left">
 						{categoryName}
 					</div>
 				{/if}
-				<div class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl">
+				<div class="-mt-2 flex justify-start text-sm font-bold uppercase md:text-2xl lg:text-xl dark:text-white">
 					{#if currentCollection?.icon}<span>
-							<iconify-icon icon={currentCollection.icon} width="24" class="mr-1 text-error-500 sm:mr-2"></iconify-icon></span
+							<iconify-icon icon={currentCollection.icon} width="24" class="text-error-500 mr-1 sm:mr-2"></iconify-icon></span
 						>
 					{/if}
 					{#if currentCollection?.name}
-						<div class="flex max-w-[85px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
+						<div class="xs:mt-1 flex max-w-[85px] leading-3 whitespace-normal sm:mr-2 sm:max-w-none md:mt-0 md:leading-none">
 							{currentCollection.name}
 						</div>
 					{/if}
@@ -438,7 +442,7 @@ Features:
 				type="button"
 				onkeydown={() => {}}
 				onclick={() => (expand = !expand)}
-				class="variant-ghost-surface btn-icon sm:hidden"
+				class="preset-tonal-surface border-surface-500 btn-icon border sm:hidden"
 				aria-label="Expand/Collapse"
 			>
 				<iconify-icon icon="material-symbols:filter-list-rounded" width="30"> </iconify-icon>
@@ -469,8 +473,8 @@ Features:
 		{/if}
 		{#if columnShow}
 			<!-- Column order -->
-			<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700">
-				<div class="text-white dark:text-primary-500">
+			<div class="rounded-b-0 bg-surface-300 dark:bg-surface-700 flex flex-col justify-center rounded-t-md border-b text-center">
+				<div class="dark:text-primary-500 text-white">
 					{m.entrylist_dnd()}
 				</div>
 				<!-- Select All Columns -->
@@ -541,7 +545,9 @@ Features:
 					>
 						{#each displayTableHeaders as header (header.id)}
 							<button
-								class="chip {header.visible ? 'variant-filled-secondary' : 'variant-ghost-secondary'} w-100 mr-2 flex items-center justify-center"
+								class="chip {header.visible
+									? 'preset-filled-secondary-500'
+									: 'preset-tonal-secondary border-secondary-500 border'} mr-2 flex w-100 items-center justify-center"
 								animate:flip={{ duration: flipDurationMs }}
 								onclick={() => {
 									// Toggle the visibility of the header
@@ -565,11 +571,11 @@ Features:
 			</div>
 		{/if}
 		<div class="table-container max-h-[calc(100dvh-120px)] overflow-auto">
-			<table class="table table-interactive table-hover {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
+			<table class="table-interactive table {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
 				<!-- Table Header -->
 				<thead class="text-tertiary-500 dark:text-primary-500">
 					{#if filterShow}
-						<tr class="divide-x divide-surface-400">
+						<tr class="divide-surface-400 divide-x">
 							<th>
 								<!-- Clear All Filters Button -->
 								{#if Object.keys(filters).length > 0}
@@ -579,7 +585,7 @@ Features:
 											filters = {};
 										}}
 										aria-label="Clear All Filters"
-										class="variant-outline btn-icon"
+										class="preset-outline btn-icon"
 									>
 										<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 									</button>
@@ -610,7 +616,7 @@ Features:
 							{/each}
 						</tr>
 					{/if}
-					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
+					<tr class="divide-surface-400 divide-x border-b border-black dark:border-white">
 						<TableIcons
 							checked={SelectAll}
 							onCheck={(checked) => {
@@ -644,7 +650,7 @@ Features:
 								<div class="relative flex items-center justify-center text-center">
 									<!-- TODO: fix if content is translated -->
 									{#if data?.entryList[0]?.translated}
-										<iconify-icon icon="bi:translate" width="14" class="absolute right-0 top-0 text-sm text-white"></iconify-icon>
+										<iconify-icon icon="bi:translate" width="14" class="absolute top-0 right-0 text-sm text-white"></iconify-icon>
 										{header.label}
 									{:else}
 										{header.label}
@@ -663,7 +669,7 @@ Features:
 				</thead>
 				<tbody>
 					{#each tableData as row, index}
-						<tr class="divide-x divide-surface-400">
+						<tr class="divide-surface-400 divide-x">
 							<TableIcons
 								checked={selectedMap[index] ?? false}
 								onCheck={(checked) => {
@@ -694,7 +700,7 @@ Features:
 			</table>
 		</div>
 		<!-- Pagination -->
-		<div class="sticky bottom-0 left-0 right-0 mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
+		<div class="sticky right-0 bottom-0 left-0 mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
 			<TablePagination
 				{currentPage}
 				{pagesCount}
@@ -714,7 +720,7 @@ Features:
 		</div>
 	{:else}
 		<!-- Display a message when no data is yet available -->
-		<div class="text-center text-tertiary-500 dark:text-primary-500">
+		<div class="text-tertiary-500 dark:text-primary-500 text-center">
 			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2"></iconify-icon>
 			<p class="text-lg">
 				{m.EntryList_no_collection({ name: currentCollection?.name as string })}

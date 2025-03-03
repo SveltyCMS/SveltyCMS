@@ -144,7 +144,7 @@
 <div class="wrapper">
 	<h3 class=" relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Filter</h3>
 
-	<button onclick={exitShapeOverlay} class="variant-ghost-primary btn-icon absolute -top-2 right-2 font-bold"> Exit </button>
+	<button onclick={exitShapeOverlay} class="preset-tonal-primary border border-primary-500 btn-icon absolute -top-2 right-2 font-bold"> Exit </button>
 	<div class="grid grid-cols-2 gap-2">
 		<label class="flex flex-col">
 			<span class="mb-1">Brightness: <span class="text-tertiary-500 dark:text-primary-500">{formatValue(filters.brightness)} </span></span>
@@ -195,14 +195,14 @@
 			/>
 		</label>
 		<label class="flex flex-col">
-			<span class="mb-1">Blur: <span class="text-tertiary-500 dark:text-primary-500">{formatValue(filters.blur, 'px')}</span></span>
+			<span class="mb-1">Blur: <span class="text-tertiary-500 dark:text-primary-500">{formatValue(filters.blur-sm, 'px')}</span></span>
 			<input
 				type="range"
 				min="0"
 				max="40"
 				step="1"
 				bind:value={filters.blur}
-				oninput={() => applyFilter('blur', filters.blur)}
+				oninput={() => applyFilter('blur-sm', filters.blur)}
 				class="range range-primary"
 			/>
 		</label>
@@ -239,7 +239,7 @@
 	</div>
 
 	<div class="mt-4 flex justify-between space-x-2">
-		<button onclick={resetFilters} class="variant-filled-error btn w-full">Reset Filters</button>
-		<button onclick={exitFilters} class="variant-filled-primary btn w-full">Apply</button>
+		<button onclick={resetFilters} class="preset-filled-error-500 btn w-full">Reset Filters</button>
+		<button onclick={exitFilters} class="preset-filled-primary-500 btn w-full">Apply</button>
 	</div>
 </div>

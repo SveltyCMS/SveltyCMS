@@ -189,10 +189,10 @@
 {/if}
 
 <!-- List of widget names -->
-<div class="user-select-none mx-5 max-h-full min-w-[min(500px,90vw)] overflow-auto rounded bg-surface-400 shadow-xl">
+<div class="user-select-none mx-5 max-h-full min-w-[min(500px,90vw)] overflow-auto rounded-sm bg-surface-400 shadow-xl">
 	{#each fields as field (field.id)}
 		<div
-			class="variant-ghost-tertiary relative w-full overflow-hidden hover:bg-error-500"
+			class="preset-tonal-tertiary border border-tertiary-500 relative w-full overflow-hidden hover:bg-error-500"
 			aria-label="Widget"
 			role="button"
 			tabindex="0"
@@ -233,9 +233,9 @@
 
 			<div class="flex gap-2">
 				<!-- Save Button -->
-				<button class="variant-filled-primary btn" aria-label="Save" onclick={handleSave}>Save</button>
+				<button class="preset-filled-primary-500 btn" aria-label="Save" onclick={handleSave}>Save</button>
 				<!-- Cancel Button -->
-				<button class="variant-ghost-secondary btn-icon mr-2" aria-label="Cancel" onclick={handleCancel}>
+				<button class="preset-tonal-secondary border border-secondary-500 btn-icon mr-2" aria-label="Cancel" onclick={handleCancel}>
 					<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 				</button>
 			</div>

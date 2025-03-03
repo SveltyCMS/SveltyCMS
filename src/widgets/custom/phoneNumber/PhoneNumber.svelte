@@ -73,7 +73,7 @@
 		value?: any;
 	}
 
-	let { field, value = collectionValue.valuevaluevaluevaluevalue[fieldName] || {} }: Props = $props();
+	let { field, value = collectionValue.value[fieldName] || {} }: Props = $props();
 
 	onMount(() => {
 		if (field?.required && !_data[_language]) {
@@ -89,7 +89,7 @@
 </script>
 
 <div class="input-container relative mb-4">
-	<div class="variant-filled-surface btn-group flex w-full rounded">
+	<div class="preset-filled-surface-500 flex w-full rounded-sm">
 		<input
 			type="tel"
 			bind:this={inputElement}
@@ -100,7 +100,7 @@
 			placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}
 			required={field?.required}
 			readonly={field?.readonly}
-			class="input w-full text-black dark:text-primary-500"
+			class="input dark:text-primary-500 w-full text-black"
 			class:error={!!validationError}
 			aria-invalid={!!validationError}
 			aria-describedby={validationError ? `${fieldName}-error` : undefined}
@@ -111,7 +111,7 @@
 
 	<!-- Error Message -->
 	{#if validationError}
-		<p id={`${field.db_fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+		<p id={`${field.db_fieldName}-error`} class="text-error-500 absolute bottom-[-1rem] left-0 w-full text-center text-xs" role="alert">
 			{validationError}
 		</p>
 	{/if}

@@ -163,9 +163,9 @@ The text is draggable, and the component supports multiple text overlays on the 
 
 <!-- Text Overlay Controls UI -->
 <div class="wrapper">
-	<h3 class=" relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Text Overlay</h3>
+	<h3 class=" text-tertiary-500 dark:text-primary-500 relative text-center text-lg font-bold">Text Overlay</h3>
 
-	<button onclick={exitTextOverlay} class="variant-ghost-primary btn-icon absolute -top-2 right-2 font-bold"> Exit </button>
+	<button onclick={exitTextOverlay} class="preset-tonal-primary border-primary-500 btn-icon absolute -top-2 right-2 border font-bold"> Exit </button>
 
 	<input type="text" bind:value={text} onkeydown={(e) => e.key === 'Enter' && addText()} placeholder="Enter text" class="input" />
 
@@ -193,8 +193,8 @@ The text is draggable, and the component supports multiple text overlays on the 
 		</select>
 	</div>
 	<div class="flex justify-between space-x-2">
-		<button onclick={deleteSelectedText} class="variant-filled-error btn" disabled={!selectedText}> Delete Selected </button>
-		<button onclick={resetTextOverlay} class="variant-outline btn"> Reset </button>
-		<button onclick={addText} class="variant-filled-primary btn"> Add Text </button>
+		<button onclick={deleteSelectedText} class="preset-filled-error-500 btn" disabled={!selectedText}> Delete Selected </button>
+		<button onclick={resetTextOverlay} class="preset-outline btn"> Reset </button>
+		<button onclick={addText} class="preset-filled-primary-500 btn"> Add Text </button>
 	</div>
 </div>

@@ -141,17 +141,17 @@ Users can rotate the image left, right, or by a custom angle, with options to ap
 	<div class="flex items-center justify-around">
 		<button onclick={rotateLeft} aria-label="Rotate Left" class="btn flex flex-col items-center">
 			<iconify-icon icon="mdi:rotate-left" width="24"></iconify-icon>
-			<span class="text-xs text-tertiary-500 dark:text-primary-500">Left</span>
+			<span class="text-tertiary-500 dark:text-primary-500 text-xs">Left</span>
 		</button>
 
 		<label for="rotation-angle" class="text-center text-sm font-medium">
 			Custom Angle:
-			<span class="ml-2 text-tertiary-500 dark:text-primary-500">{rotationAngle}°</span>
+			<span class="text-tertiary-500 dark:text-primary-500 ml-2">{rotationAngle}°</span>
 		</label>
 
 		<button onclick={rotateRight} aria-label="Rotate Right" class="btn flex flex-col items-center">
 			<iconify-icon icon="mdi:rotate-right" width="24"></iconify-icon>
-			<span class="text-xs text-tertiary-500 dark:text-primary-500">Right</span>
+			<span class="text-tertiary-500 dark:text-primary-500 text-xs">Right</span>
 		</button>
 	</div>
 
@@ -169,8 +169,8 @@ Users can rotate the image left, right, or by a custom angle, with options to ap
 	</div>
 
 	<div class="mt-4 flex justify-around gap-4">
-		<button onclick={cancelRotation} class="variant-filled-error btn">Cancel</button>
-		<button onclick={resetRotation} class="variant-outline btn">Reset</button>
-		<button onclick={applyRotation} class="variant-filled-primary btn">Apply</button>
+		<button onclick={cancelRotation} class="preset-filled-error-500 btn">Cancel</button>
+		<button onclick={resetRotation} class="preset-outline btn">Reset</button>
+		<button onclick={applyRotation} class="preset-filled-primary-500 btn">Apply</button>
 	</div>
 </div>

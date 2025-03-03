@@ -89,7 +89,7 @@ Features:
 	{/each}
 
 	{#if text.length > charLimit}
-		<button onclick={toggleText} class="text-blue-500 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500" aria-expanded={isExpanded}>
+		<button onclick={toggleText} class="text-blue-500 hover:underline focus:outline-hidden focus:ring-2 focus:ring-blue-500" aria-expanded={isExpanded}>
 			{isExpanded ? 'Show Less' : 'Show More'}
 		</button>
 	{/if}

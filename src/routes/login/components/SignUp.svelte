@@ -174,29 +174,29 @@ Features:
 				<FloatingPaths position={-1} background="dark" mirrorAnimation />
 			</div>
 			<!-- CSS Logo -->
-			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
-			<div class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full rounded-md bg-[#242728] p-4 lg:w-4/5" class:hide={active !== 1}>
+			<div class="absolute top-[20%] left-1/2 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
+			<div class="relative z-10 mx-auto mt-[15%] mb-[5%] w-full rounded-md bg-[#242728] p-4 lg:w-4/5" class:hide={active !== 1}>
 				<div class="mb-4 flex flex-row gap-2">
 					<SveltyCMSLogo className="w-14" fill="red" />
 
 					<h1 class="text-3xl font-bold text-white lg:text-4xl">
-						<div class="text-xs text-surface-300"><SiteName /></div>
+						<div class="text-surface-300 text-xs"><SiteName /></div>
 						<div class="break-words lg:-mt-1">
 							{m.form_signup()}
 							{#if !firstUserExists}
-								<span class="text-2xl text-primary-500 sm:text-3xl">: Admin</span>
+								<span class="text-primary-500 text-2xl sm:text-3xl">: Admin</span>
 							{:else}
-								<span class="text-2xl capitalize text-primary-500 sm:text-3xl">: New User</span>
+								<span class="text-primary-500 text-2xl capitalize sm:text-3xl">: New User</span>
 							{/if}
 						</div>
 					</h1>
 				</div>
 
 				<!-- Required with Back button -->
-				<div class="-mt-2 flex items-center justify-end gap-2 text-right text-xs text-error-500">
+				<div class="text-error-500 -mt-2 flex items-center justify-end gap-2 text-right text-xs">
 					{m.form_required()}
 
-					<button onclick={handleBack} aria-label="Back" class="variant-outline-secondary btn-icon">
+					<button onclick={handleBack} aria-label="Back" class="preset-outline-secondary btn-icon">
 						<iconify-icon icon="ri:arrow-left-line" width="20" class="text-white"></iconify-icon>
 					</button>
 				</div>
@@ -220,7 +220,7 @@ Features:
 						autocomplete="on"
 						onInput={(value) => ($form.username = value)}
 					/>
-					{#if $errors.username}<span class="text-xs text-error-500">{$errors.username}</span>{/if}
+					{#if $errors.username}<span class="text-error-500 text-xs">{$errors.username}</span>{/if}
 
 					<!-- Email field -->
 					<FloatingInput
@@ -239,7 +239,7 @@ Features:
 						autocomplete="on"
 						onInput={(value) => ($form.email = value)}
 					/>
-					{#if $errors.email}<span class="text-xs text-error-500">{$errors.email}</span>{/if}
+					{#if $errors.email}<span class="text-error-500 text-xs">{$errors.email}</span>{/if}
 
 					<!-- Password field -->
 					<FloatingInput
@@ -261,7 +261,7 @@ Features:
 						onInput={(value) => ($form.password = value)}
 					/>
 					{#if $errors.password}
-						<span class="text-xs text-error-500">{$errors.password}</span>
+						<span class="text-error-500 text-xs">{$errors.password}</span>
 					{/if}
 
 					<!-- Password Confirm -->
@@ -284,7 +284,7 @@ Features:
 						onInput={(value) => ($form.confirm_password = value)}
 					/>
 					{#if $errors.confirm_password}
-						<span class="text-xs text-error-500">{$errors.confirm_password}</span>
+						<span class="text-error-500 text-xs">{$errors.confirm_password}</span>
 					{/if}
 
 					<!-- Password Strength Indicator -->
@@ -310,25 +310,25 @@ Features:
 							onInput={(value) => ($form.token = value)}
 						/>
 						{#if $errors.token}
-							<span class="text-xs text-error-500">{$errors.token}</span>
+							<span class="text-error-500 text-xs">{$errors.token}</span>
 						{/if}
 					{/if}
 
 					{#if response}
-						<span class="text-xs text-error-500">{response}</span>
+						<span class="text-error-500 text-xs">{response}</span>
 					{/if}
 
 					{#if !privateEnv.USE_GOOGLE_OAUTH}
 						<!-- Email SignIn only -->
-						<button type="submit" class="variant-filled btn mt-4 uppercase" aria-label={m.form_signup()}>
+						<button type="submit" class="preset-filled btn mt-4 uppercase" aria-label={m.form_signup()}>
 							{m.form_signup()}
 							{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 						</button>
 
 						<!-- Email + OAuth signin  -->
 					{:else}
-						<div class="btn-group mt-4 border border-secondary-500 text-white [&>*+*]:border-secondary-500">
-							<button type="submit" class="btn w-3/4 rounded-none bg-surface-200 text-black hover:text-white" aria-label={m.form_signup()}>
+						<div class=" border-secondary-500 [&>*+*]:border-secondary-500 mt-4 border text-white">
+							<button type="submit" class="btn bg-surface-200 w-3/4 rounded-none text-black hover:text-white" aria-label={m.form_signup()}>
 								<span class="w-full text-black hover:text-white">{m.form_signup()}</span>
 								<!-- Loading indicators -->
 								{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
@@ -356,7 +356,7 @@ Features:
 	section {
 		--width: 0%;
 		background: #242728;
-		flex-grow: 1;
+		grow: 1;
 		width: var(--width);
 		transition: 0.4s;
 	}

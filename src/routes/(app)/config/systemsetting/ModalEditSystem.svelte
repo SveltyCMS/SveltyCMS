@@ -19,14 +19,13 @@ Features:
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { getModalStore, popup } from '@skeletonlabs/skeleton';
-	import type { PopupSettings } from '@skeletonlabs/skeleton';
+	import type { PopupSettings } from '@skeletonlabs/skeleton-svelte';
 
 	// Database
 	import { dbAdapter } from '@src/databases/db';
 
 	const modalStore = getModalStore();
-	const cBase = 'bg-surface-100-800-token w-screen h-screen p-4 flex justify-center items-center';
+	const cBase = 'bg-surface-100-900 w-screen h-screen p-4 flex justify-center items-center';
 
 	let formData = $state<{ [key: string]: any }>({});
 	let errors = $state<{ [key: string]: string }>({});
@@ -132,7 +131,7 @@ Features:
 				<h2 class="h2 mb-2 capitalize text-tertiary-500 dark:text-primary-500">{title} Setup:</h2>
 				<p>{description}</p>
 			</div>
-			<form onsubmit={preventDefault(handleSubmit)} class="wrapper w-full flex-grow overflow-y-auto p-4">
+			<form onsubmit={preventDefault(handleSubmit)} class="wrapper w-full grow overflow-y-auto p-4">
 				{#each configData as { key, value, type, helper, icon, allowedValues }}
 					<div class="mb-4">
 						<label class="mb-2 block" for={key}>
@@ -143,9 +142,9 @@ Features:
 							</span>
 
 							<!-- Popup Tooltip with the arrow element -->
-							<div class="card variant-filled z-50 max-w-sm p-2" data-popup={`popup${key}`}>
+							<div class="card preset-filled z-50 max-w-sm p-2" data-popup={`popup${key}`}>
 								{helper}
-								<div class="variant-filled arrow"></div>
+								<div class="preset-filled arrow"></div>
 							</div>
 						</label>
 
@@ -171,9 +170,9 @@ Features:
 					</div>
 				{/each}
 			</form>
-			<div class="bg-surface-100-800-token sticky bottom-0 z-10 m-2 flex w-full justify-between py-2">
-				<button type="button" class="variant-filled btn" onclick={parent.onClose}>{m.button_cancel()}</button>
-				<button type="submit" class="variant-filled btn">{m.button_save()}</button>
+			<div class="bg-surface-100-900 sticky bottom-0 z-10 m-2 flex w-full justify-between py-2">
+				<button type="button" class="preset-filled btn" onclick={parent.onClose}>{m.button_cancel()}</button>
+				<button type="submit" class="preset-filled btn">{m.button_save()}</button>
 			</div>
 		</div>
 	</div>

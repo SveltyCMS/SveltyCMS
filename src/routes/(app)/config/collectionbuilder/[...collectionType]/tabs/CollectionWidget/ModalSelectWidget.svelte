@@ -12,7 +12,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton Stores
-	import { getModalStore, popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	import { type PopupSettings } from '@skeletonlabs/skeleton-svelte';
 	const modalStore = getModalStore();
 
 	// Props
@@ -63,7 +63,7 @@
 	// Base Classes
 	const cBase = 'card p-4 w-screen h-screen shadow-xl space-y-4';
 	const cHeader = 'text-2xl font-bold text-center text-tertiary-500 dark:text-primary-500 ';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container';
 
 	// Call tooltip
 	function getIconTooltip(item: WidgetType): PopupSettings {
@@ -82,7 +82,7 @@
 		<article class="hidden text-center sm:block">{$modalStore[0].body ?? '(body missing)'}</article>
 		<!-- Enable for debugging: -->
 		<form class={cForm}>
-			<div class="mb-3 border-b text-center text-primary-500">Choose your Widget</div>
+			<div class="text-primary-500 mb-3 border-b text-center">Choose your Widget</div>
 			<input type="text" placeholder="Search ..." class="input mb-3 w-full" bind:value={searchTerm} />
 
 			<div class="grid grid-cols-1 items-center justify-center gap-2 sm:grid-cols-2 md:grid-cols-3 md:gap-3">
@@ -96,11 +96,11 @@
 									onFormSubmit();
 								}}
 								aria-label={item}
-								class="variant-outline-warning btn relative flex items-center justify-start gap-1 {selected === item
+								class="preset-outline-warning btn relative flex items-center justify-start gap-1 {selected === item
 									? 'bg-primary-500'
-									: ' variant-outline-warning hover:variant-ghost-warning'}"
+									: ' preset-outline-warning hover:preset-tonal-warning border-warning-500 border'}"
 							>
-								<iconify-icon icon={widgets[item]?.Icon} width="22" class="mr-1 text-tertiary-500"></iconify-icon>
+								<iconify-icon icon={widgets[item]?.Icon} width="22" class="text-tertiary-500 mr-1"></iconify-icon>
 								<span class="text-surface-700 dark:text-white">{item}</span>
 
 								<!-- helpericon -->
@@ -108,13 +108,13 @@
 									icon="material-symbols:info"
 									width="20"
 									use:popup={getIconTooltip(item)}
-									class="absolute -right-1.5 -top-1.5 text-primary-500"
+									class="text-primary-500 absolute -top-1.5 -right-1.5"
 								></iconify-icon>
 							</button>
 							<!-- IconTooltip -->
-							<div class="card variant-filled-secondary z-50 max-w-sm p-4" data-popup={item}>
+							<div class="card preset-filled-secondary-500 z-50 max-w-sm p-4" data-popup={item}>
 								<p>{widgets[item]?.Description}</p>
-								<div class="variant-filled-secondary arrow"></div>
+								<div class="preset-filled-secondary-500 arrow"></div>
 							</div>
 						{/if}
 					{/if}
@@ -124,7 +124,7 @@
 
 		<footer class="flex {existingCategory.name ? 'justify-between' : 'justify-end'} {parent.regionFooter}">
 			<div class="flex gap-2">
-				<button class="variant-outline-secondary btn" onclick={parent.onClose}>{m.button_cancel()}</button>
+				<button class="preset-outline-secondary btn" onclick={parent.onClose}>{m.button_cancel()}</button>
 				<!-- <button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button> -->
 			</div>
 		</footer>

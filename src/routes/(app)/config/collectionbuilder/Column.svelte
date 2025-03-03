@@ -20,7 +20,7 @@
 	import { dndzone, type DndEvent } from 'svelte-dnd-action';
 
 	// Skeleton
-	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
+	import { type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton-svelte';
 	import ModalAddCategory from './ModalCategory.svelte';
 
 	interface Props {
@@ -162,13 +162,13 @@
 
 <div class="my-0.5 w-full" style="padding-left: {paddingLeft}" role="listitem" aria-busy={isDragging || isUpdating}>
 	{#if updateError}
-		<div class="mb-2 rounded bg-error-500/10 p-2 text-error-500" role="alert">
+		<div class="mb-2 rounded-sm bg-error-500/10 p-2 text-error-500" role="alert">
 			{updateError}
 		</div>
 	{/if}
 
 	{#if isCategory}
-		<div class="flex items-center justify-between rounded bg-surface-300/10 p-2">
+		<div class="flex items-center justify-between rounded-sm bg-surface-300/10 p-2">
 			<div class="flex items-center gap-2">
 				<iconify-icon icon="mdi:drag" width="18" class="cursor-move opacity-50" role="button" aria-label="Drag to reorder"></iconify-icon>
 				<iconify-icon {icon} width="18" class="text-error-500" aria-hidden="true"></iconify-icon>
@@ -180,7 +180,7 @@
 			</button>
 		</div>
 	{:else}
-		<div class="flex items-center justify-between rounded bg-surface-300/10 p-2">
+		<div class="flex items-center justify-between rounded-sm bg-surface-300/10 p-2">
 			<div class="flex items-center gap-2">
 				<iconify-icon icon="mdi:drag" width="18" class="cursor-move opacity-50" role="button" aria-label="Drag to reorder"></iconify-icon>
 				<iconify-icon {icon} width="18" class="text-error-500" aria-hidden="true"></iconify-icon>

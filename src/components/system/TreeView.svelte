@@ -201,7 +201,7 @@
 				id={`node-${node.id}`}
 				class="flex w-full items-center gap-1.5 rounded
 				border border-surface-400 px-2 py-3 transition-all duration-200
-				hover:bg-surface-50 focus:bg-surface-50 focus-visible:outline-none
+				hover:bg-surface-50 focus:bg-surface-50 focus-visible:outline-hidden
 				dark:border-0 dark:bg-surface-500
 				dark:text-surface-200 dark:hover:bg-surface-400 dark:focus:bg-surface-500
 				{node.children ? '' : 'bg-surface-300 dark:bg-surface-700'}"
@@ -255,7 +255,7 @@
 				<div id={`node-${node.id}-children`} class="relative {compact ? 'ms-1' : 'ms-4'}" role="group" aria-labelledby={`node-${node.id}-label`}>
 					<!-- Vertical line with RTL support -->
 					<div
-						class="absolute -left-0.5 top-0 h-full w-0.5 bg-gradient-to-b
+						class="absolute -left-0.5 top-0 h-full w-0.5 bg-linear-to-b
 						from-surface-100 from-20% to-transparent dark:from-surface-400"
 					></div>
 

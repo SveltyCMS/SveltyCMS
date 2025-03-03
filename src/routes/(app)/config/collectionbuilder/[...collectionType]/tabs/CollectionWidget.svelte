@@ -19,8 +19,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
+	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton-svelte';
 	import ModalWidgetForm from './CollectionWidget/ModalWidgetForm.svelte';
 	import ModalSelectWidget from './CollectionWidget/ModalSelectWidget.svelte';
 
@@ -182,7 +181,7 @@
 </script>
 
 <div class="flex flex-col">
-	<div class="variant-outline-tertiary rounded-t-md p-2 text-center dark:variant-outline-primary">
+	<div class="preset-outline-tertiary dark:preset-outline-primary rounded-t-md p-2 text-center">
 		<p>
 			{m.collection_widgetfield_addrequired()} <span class="text-tertiary-500 dark:text-primary-500">{contentTypes}</span> Collection inputs.
 		</p>
@@ -192,18 +191,25 @@
 		<VerticalList items={fields} {headers} {flipDurationMs} {handleDndConsider} {handleDndFinalize}>
 			{#each fields as field (field.id)}
 				<div
-					class="border-blue variant-outline-surface my-2 grid w-full grid-cols-6 items-center rounded-md border p-1 text-left hover:variant-filled-surface dark:text-white"
+					class="border-blue preset-outline-surface hover:preset-filled-surface-500 my-2 grid w-full grid-cols-6 items-center rounded-md border p-1 text-left dark:text-white"
 				>
-					<div class="variant-ghost-tertiary badge h-10 w-10 rounded-full dark:variant-ghost-primary">
+					<div
+						class="preset-tonal-tertiary border-tertiary-500 badge dark:preset-tonal-primary border-primary-500 h-10 w-10 rounded-full border border"
+					>
 						{field.id}
 					</div>
 
 					<iconify-icon icon={field.icon} width="24" class="text-tertiary-500"></iconify-icon>
-					<div class="font-bold dark:text-primary-500">{field.label}</div>
+					<div class="dark:text-primary-500 font-bold">{field.label}</div>
 					<div class=" ">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
 					<div class=" ">{field.widget?.key || field.__type || 'Unknown Widget'}</div>
 
-					<button onclick={() => modalWidgetForm(field)} type="button" aria-label={m.button_edit()} class="variant-ghost-primary btn-icon ml-auto">
+					<button
+						onclick={() => modalWidgetForm(field)}
+						type="button"
+						aria-label={m.button_edit()}
+						class="preset-tonal-primary border-primary-500 btn-icon ml-auto border"
+					>
 						<iconify-icon icon="ic:baseline-edit" width="24" class="dark:text-white"></iconify-icon>
 					</button>
 				</div>
@@ -212,19 +218,19 @@
 	</div>
 	<div>
 		<div class="mt-2 flex items-center justify-center gap-3">
-			<button onclick={() => modalSelectWidget(null)} class="variant-filled-tertiary btn" aria-label={m.collection_widgetfield_addFields()}>
+			<button onclick={() => modalSelectWidget(null)} class="preset-filled-tertiary-500 btn" aria-label={m.collection_widgetfield_addFields()}>
 				{m.collection_widgetfield_addFields()}
 			</button>
 		</div>
 		<div class=" flex items-center justify-between">
-			<button onclick={() => ($tabSet = 0)} type="button" aria-label={m.button_previous()} class="variant-filled-secondary btn mt-2 justify-end">
+			<button onclick={() => ($tabSet = 0)} type="button" aria-label={m.button_previous()} class="preset-filled-secondary-500 btn mt-2 justify-end">
 				{m.button_previous()}
 			</button>
 			<button
 				onclick={handleSave}
 				type="button"
 				aria-label={m.button_save()}
-				class="variant-filled-tertiary btn mt-2 justify-end dark:variant-filled-primary dark:text-black">{m.button_save()}</button
+				class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 mt-2 justify-end dark:text-black">{m.button_save()}</button
 			>
 		</div>
 	</div>

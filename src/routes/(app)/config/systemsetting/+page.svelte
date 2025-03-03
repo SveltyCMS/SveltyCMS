@@ -6,8 +6,7 @@
 
 	// Skeleton
 	import ModalEditSystem from './ModalEditSystem.svelte';
-	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalComponent, ModalSettings, ToastSettings } from '@skeletonlabs/skeleton';
+	import type { ModalComponent, ModalSettings, ToastSettings } from '@skeletonlabs/skeleton-svelte';
 
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
@@ -102,7 +101,7 @@
 <PageTitle name="System Settings" icon="uil:setting" showBackButton={true} backUrl="/config" />
 
 <div class="my-4">
-	<div class="wrapper !bg-error-500 text-center">
+	<div class="wrapper bg-error-500! text-center">
 		<p>Current in Development!!! For testing purposes only</p>
 		<p>Environment Data is only shown to role admin</p>
 	</div>
@@ -113,7 +112,7 @@
 		<button
 			onclick={() => openModal(name, category, config.description, isPrivate)}
 			aria-label={config.description}
-			class="variant-outline-primary btn flex items-center justify-center gap-2"
+			class="preset-outline-primary btn flex items-center justify-center gap-2"
 		>
 			<div class="grid grid-cols-1 justify-items-center">
 				<iconify-icon icon={config.icon} width="28" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>

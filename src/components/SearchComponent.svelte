@@ -1,7 +1,6 @@
 <!--
 @file src/components/SearchComponent.svelte
-@component
-**Search Component for Svelte CMS**
+@description Search Component for Svelte CMS
 
 Features:
 - Fuzzy search with optimized edit distance calculation
@@ -39,33 +38,9 @@ Features:
 
 	// States
 	let searchResults: SearchResult[] = $state([]);
-	import { createEventDispatcher } from 'svelte';
-
-	let {
-		value = '',
-		placeholder = 'Search...',
-		classNames = ''
-	} = $props<{
-		value: string;
-		placeholder: string;
-		classNames: string;
-	}>();
-
-	let searchQuery = $state(value);
+	let searchQuery = $state('');
 	let inputRef: HTMLInputElement | null = $state(null);
 	let selectedIndex = $state(-1); // Track the currently selected result
-
-	const dispatch = createEventDispatcher();
-
-	// Update the parent component's state when the search term changes
-	$effect(() => {
-		dispatch('search', { value: searchQuery });
-	});
-
-	// Update internal state when the external value prop changes
-	$effect(() => {
-		searchQuery = value;
-	});
 
 	// Debounce function for search optimization
 	function debounce<T extends (...args: any[]) => void>(fn: T, delay: number): (...args: Parameters<T>) => void {
@@ -193,36 +168,36 @@ Features:
 
 {#if $isSearchVisible}
 	<div
-		class="search-component fixed inset-0 z-50 flex flex-col items-center justify-center bg-gray-900/50 backdrop-blur-sm"
+		class="search-component fixed inset-0 z-50 flex flex-col items-center justify-center bg-gray-950/50 backdrop-blur-sm"
 		role="dialog"
 		aria-label="Global Search"
 	>
 		<!-- Search input -->
 		<input
+			bind:value={searchQuery}
 			bind:this={inputRef}
-			{placeholder}
 			oninput={() => debouncedFuzzySearch(searchQuery)}
 			onkeydown={onKeyDown}
 			type="search"
+			placeholder="Global Search ..."
 			aria-label="Search input"
 			aria-controls="search-results"
-			class="input mx-2 w-full max-w-xl rounded-md border-4 !border-primary-500 px-4 py-2 {classNames}"
-			bind:value={searchQuery}
+			class="input !border-primary-500 mx-2 w-full max-w-xl rounded-md border-4 px-4 py-2"
 		/>
 
 		<!-- Search results -->
 		<ul
 			id="search-results"
-			class="mt-1 grid w-full max-w-xl overflow-auto rounded px-2 py-1 leading-loose bg-surface-active-token"
+			class="bg-surface-active-token mt-1 grid w-full max-w-xl overflow-auto rounded px-2 py-1 leading-loose"
 			role="listbox"
 			aria-label="Search results"
 		>
 			{#each searchResults as result, index (result.title)}
-				<li role="option" aria-selected={index === selectedIndex} class="focus-within:outline-none focus-within:ring-2 focus-within:ring-primary-500">
+				<li role="option" aria-selected={index === selectedIndex} class="focus-within:ring-primary-500 focus-within:ring-2 focus-within:outline-none">
 					{#if Object.entries(result.triggers).length === 1}
 						<button
 							type="button"
-							class="w-full border-b text-left text-white last:border-0 last:pb-2 hover:bg-surface-400 {index === selectedIndex
+							class="hover:bg-surface-400 w-full border-b text-left text-white last:border-0 last:pb-2 {index === selectedIndex
 								? 'bg-surface-500'
 								: ''}"
 							onclick={() => handleResultClick(result, Object.keys(result.triggers)[0])}
@@ -230,7 +205,7 @@ Features:
 						>
 							<div class="grid auto-cols-auto grid-flow-col">
 								<!-- Highlighted title -->
-								<span class="whitespace-nowrap font-bold text-primary-500">
+								<span class="text-primary-500 font-bold whitespace-nowrap">
 									<HighlightedText text={result.title + ' : '} term={searchQuery} />
 								</span>
 
@@ -242,7 +217,7 @@ Features:
 								<!-- Path for single trigger -->
 								{#each Object.entries(result.triggers) as [, trigger]}
 									{#if trigger && 'path' in trigger}
-										<span class="w-[50px] text-xs text-primary-500">
+										<span class="text-primary-500 w-[50px] text-xs">
 											{trigger.path}
 										</span>
 									{/if}
@@ -252,7 +227,7 @@ Features:
 					{:else}
 						<!-- Result header for multiple triggers -->
 						<div class="border-b p-2">
-							<div class="font-bold text-primary-500">
+							<div class="text-primary-500 font-bold">
 								<HighlightedText text={result.title} term={searchQuery} />
 							</div>
 							<div class="text-sm text-white">
@@ -265,12 +240,12 @@ Features:
 								{#if trigger && 'path' in trigger}
 									<button
 										type="button"
-										class="flex cursor-pointer items-center justify-between px-6 py-1 text-left text-white hover:bg-surface-500"
+										class="hover:bg-surface-500 flex cursor-pointer items-center justify-between px-6 py-1 text-left text-white"
 										onclick={(e) => handleResultClick(result, triggerKey, e)}
 										aria-label={`${triggerKey} - ${trigger.path}`}
 									>
 										<HighlightedText text={triggerKey} term={searchQuery} />
-										<span class="text-xs text-primary-500">{trigger.path}</span>
+										<span class="text-primary-500 text-xs">{trigger.path}</span>
 									</button>
 								{/if}
 							{/each}

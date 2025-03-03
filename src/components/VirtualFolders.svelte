@@ -28,7 +28,6 @@ Features:
 
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getToastStore } from '@skeletonlabs/skeleton';
 	import { goto } from '$app/navigation';
 	import { publicEnv } from '@root/config/public';
 	import { sidebarState, toggleSidebar } from '@src/stores/sidebarStore.svelte';
@@ -77,7 +76,7 @@ Features:
 			console.error('Error fetching folders:', error);
 			toastStore.trigger({
 				message: 'Error fetching folders',
-				background: 'variant-filled-error',
+				background: 'preset-filled-error-500',
 				timeout: 3000
 			});
 			folders = [];
@@ -99,7 +98,7 @@ Features:
 			if (result.success) {
 				toastStore.trigger({
 					message: 'Folder created successfully',
-					background: 'variant-filled-success',
+					background: 'preset-filled-success-500',
 					timeout: 3000
 				});
 				newFolderName = '';
@@ -111,7 +110,7 @@ Features:
 			console.error('Error creating folder:', error);
 			toastStore.trigger({
 				message: 'Error creating folder',
-				background: 'variant-filled-error',
+				background: 'preset-filled-error-500',
 				timeout: 3000
 			});
 		}
@@ -130,7 +129,7 @@ Features:
 			if (result.success) {
 				toastStore.trigger({
 					message: 'Folder updated successfully',
-					background: 'variant-filled-success',
+					background: 'preset-filled-success-500',
 					timeout: 3000
 				});
 				await fetchVirtualFolders();
@@ -141,7 +140,7 @@ Features:
 			console.error('Error updating folder:', error);
 			toastStore.trigger({
 				message: 'Error updating folder',
-				background: 'variant-filled-error',
+				background: 'preset-filled-error-500',
 				timeout: 3000
 			});
 		}
@@ -160,7 +159,7 @@ Features:
 			if (result.success) {
 				toastStore.trigger({
 					message: 'Folder deleted successfully',
-					background: 'variant-filled-success',
+					background: 'preset-filled-success-500',
 					timeout: 3000
 				});
 				await fetchVirtualFolders();
@@ -171,7 +170,7 @@ Features:
 			console.error('Error deleting folder:', error);
 			toastStore.trigger({
 				message: 'Error deleting folder',
-				background: 'variant-filled-error',
+				background: 'preset-filled-error-500',
 				timeout: 3000
 			});
 		}
@@ -210,9 +209,9 @@ Features:
 		<button
 			onclick={returnToCollections}
 			aria-label="Return to Collections"
-			class="btn mt-1 flex w-full flex-row items-center justify-start bg-surface-400 py-2 pl-2 text-white dark:bg-surface-500"
+			class="btn bg-surface-400 dark:bg-surface-500 mt-1 flex w-full flex-row items-center justify-start py-2 pl-2 text-white"
 		>
-			<iconify-icon icon="mdi:folder-multiple-outline" width="24" class="px-2 py-1 text-primary-600 rtl:ml-2"></iconify-icon>
+			<iconify-icon icon="mdi:folder-multiple-outline" width="24" class="text-primary-600 px-2 py-1 rtl:ml-2"></iconify-icon>
 			<p class="mr-auto text-center uppercase">Collections</p>
 		</button>
 	{:else}
@@ -220,10 +219,10 @@ Features:
 		<button
 			onclick={returnToCollections}
 			aria-label="Return to Collections"
-			class="btn mt-2 flex-col bg-surface-400 uppercase text-white hover:!bg-surface-300 dark:bg-surface-500"
+			class="btn bg-surface-400 hover:bg-surface-300! dark:bg-surface-500 mt-2 flex-col text-white uppercase"
 		>
 			<iconify-icon icon="bi:collection" width="24" class="text-error-500"></iconify-icon>
-			<p class="text-xs uppercase text-white">Collections</p>
+			<p class="text-xs text-white uppercase">Collections</p>
 		</button>
 	{/if}
 
@@ -233,16 +232,16 @@ Features:
 			{#each folders.filter((f) => !currentFolder || f.parent === currentFolder?._id) as folder (folder._id)}
 				{#if sidebarState.sidebar.value.left === 'full'}
 					<!-- Sidebar Expanded -->
-					<div class="nowrap variant-outline-surface flex w-full">
+					<div class="nowrap preset-outline-surface flex w-full">
 						<button onclick={() => openFolder(folder._id)} aria-label={`Open folder: ${folder.name}`} class="btn flex items-center space-x-2 p-2">
 							<iconify-icon icon="mdi:folder" width="28" class="text-yellow-500"></iconify-icon>
-							<span class="flex-1 overflow-hidden text-ellipsis text-left text-sm">{folder.name}</span>
+							<span class="flex-1 overflow-hidden text-left text-sm text-ellipsis">{folder.name}</span>
 						</button>
 					</div>
 				{:else}
 					<!-- Sidebar Collapsed -->
 					<div
-						class="nowrap mt-2 flex w-full flex-col items-center rounded bg-surface-400 uppercase text-white hover:!bg-surface-300 dark:bg-surface-500"
+						class="nowrap bg-surface-400 hover:bg-surface-300! dark:bg-surface-500 mt-2 flex w-full flex-col items-center rounded-sm text-white uppercase"
 					>
 						<button onclick={() => openFolder(folder._id)} aria-label={`Open folder: ${folder.name}`} class="btn flex flex-col items-center p-2">
 							<iconify-icon icon="mdi:folder" width="28" class="text-yellow-500"></iconify-icon>
@@ -255,7 +254,7 @@ Features:
 	{:else}
 		<!-- No Folders Found Message -->
 		<div class="w-full pt-4 text-center">
-			<p class="variant-outline-secondary btn w-full text-sm text-warning-500">No folders</p>
+			<p class="preset-outline-secondary btn text-warning-500 w-full text-sm">No folders</p>
 		</div>
 	{/if}
 </div>

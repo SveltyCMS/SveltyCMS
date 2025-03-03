@@ -13,7 +13,7 @@
 	import { mode } from '@root/src/stores/collectionStore.svelte';
 
 	// Skeleton
-	import { Ratings } from '@skeletonlabs/skeleton';
+	import { Rating } from '@skeletonlabs/skeleton-svelte';
 
 	// Valibot validation
 	import { number, pipe, parse, minValue, maxValue } from 'valibot';
@@ -104,7 +104,7 @@
 
 <div class="input-container relative mb-4">
 	<!-- Ratings -->
-	<Ratings
+	<Rating
 		bind:value={_data.value}
 		max={maxRating}
 		interactive
@@ -123,7 +123,7 @@
 		{#snippet full()}
 			<iconify-icon icon={iconFull} width={size} {color}></iconify-icon>
 		{/snippet}
-	</Ratings>
+	</Rating>
 
 	<!-- Error Message -->
 	{#if $validationErrorStore}

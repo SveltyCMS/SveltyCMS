@@ -12,12 +12,13 @@ import Path from 'path';
 import { resolve } from 'path';
 import { readFileSync, existsSync } from 'fs';
 import { execSync } from 'child_process';
-import { purgeCss } from 'vite-plugin-tailwind-purgecss';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import { paraglide } from '@inlang/paraglide-sveltekit/vite';
 import { compile, cleanupOrphanedFiles } from './src/routes/api/compile/compile';
 import { generateContentTypes } from './src/content/vite';
+import tailwindcss from "@tailwindcss/vite";
+
 
 // Get package.json version info
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
@@ -49,6 +50,7 @@ let compileTimeout: NodeJS.Timeout;
 
 export default defineConfig({
 	plugins: [
+		tailwindcss(),
 		sveltekit(),
 		{
 			name: 'collection-watcher',
@@ -130,10 +132,10 @@ export default defineConfig({
 
 												// Create a proper Node.js response object
 												const res = {
-													setHeader: () => {},
-													getHeader: () => {},
-													write: () => {},
-													end: () => {},
+													setHeader: () => { },
+													getHeader: () => { },
+													write: () => { },
+													end: () => { },
 													statusCode: 200
 												};
 
@@ -210,7 +212,7 @@ export default defineConfig({
 			},
 			enforce: 'post'
 		},
-		purgeCss(), // Purge unused Tailwind CSS classes
+
 		paraglide({
 			project: './project.inlang', // Path to your inlang project
 			outdir: './src/paraglide' // Output directory for generated files

@@ -31,7 +31,6 @@ Features:
 	import MediaTable from './MediaTable.svelte';
 
 	// Skeleton
-	import { getToastStore } from '@skeletonlabs/skeleton';
 	const toastStore = getToastStore();
 
 	// Types
@@ -169,7 +168,7 @@ Features:
 				folders = await fetchUpdatedFolders();
 				toastStore.trigger({
 					message: 'Folder created successfully',
-					background: 'variant-filled-success',
+					background: 'preset-filled-success-500',
 					timeout: 3000
 				});
 			} else {
@@ -179,7 +178,7 @@ Features:
 			console.error('Error creating folder:', error);
 			toastStore.trigger({
 				message: 'Failed to create folder',
-				background: 'variant-filled-error',
+				background: 'preset-filled-error-500',
 				timeout: 3000
 			});
 		}
@@ -203,7 +202,7 @@ Features:
 			console.error('Error fetching updated folders:', error);
 			toastStore.trigger({
 				message: 'Failed to fetch folders',
-				background: 'variant-filled-error',
+				background: 'preset-filled-error-500',
 				timeout: 3000
 			});
 			return [];
@@ -231,7 +230,7 @@ Features:
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			toastStore.trigger({
 				message: errorMessage,
-				background: 'variant-filled-error',
+				background: 'preset-filled-error-500',
 				timeout: 3000
 			});
 			files = [];
@@ -264,7 +263,7 @@ Features:
 			console.error('Error opening folder:', error);
 			toastStore.trigger({
 				message: 'Failed to open folder',
-				background: 'variant-filled-error',
+				background: 'preset-filled-error-500',
 				timeout: 3000
 			});
 		}
@@ -293,7 +292,7 @@ Features:
 			if (result?.success) {
 				toastStore.trigger({
 					message: 'Image deleted successfully.',
-					background: 'variant-filled-success',
+					background: 'preset-filled-success-500',
 					timeout: 3000
 				});
 				await fetchMediaFiles();
@@ -304,7 +303,7 @@ Features:
 			console.error('Error deleting image: ', error);
 			toastStore.trigger({
 				message: 'Error deleting image',
-				background: 'variant-filled-error',
+				background: 'preset-filled-error-500',
 				timeout: 3000
 			});
 		}
@@ -319,13 +318,13 @@ Features:
 	<!-- Row 2 (on mobile): Save and Reset Buttons -->
 	<div class="lgd:mt-0 flex items-center justify-center gap-4 lg:justify-end">
 		<!-- Add folder -->
-		<button onclick={() => createFolder('New Folder')} aria-label="Add folder" class="variant-filled-tertiary btn gap-2">
+		<button onclick={() => createFolder('New Folder')} aria-label="Add folder" class="preset-filled-tertiary-500 btn gap-2">
 			<iconify-icon icon="mdi:folder-add-outline" width="24"></iconify-icon>
 			Add folder
 		</button>
 
 		<!-- Add Media -->
-		<button onclick={() => goto('/mediagallery/uploadMedia')} aria-label="Add Media" class="variant-filled-primary btn gap-2">
+		<button onclick={() => goto('/mediagallery/uploadMedia')} aria-label="Add Media" class="preset-filled-primary-500 btn gap-2">
 			<iconify-icon icon="carbon:add-filled" width="24"></iconify-icon>
 			Add Media
 		</button>
@@ -341,7 +340,7 @@ Features:
 		<div class="input-group input-group-divider grid max-w-md grid-cols-[auto_1fr_auto]">
 			<input id="globalSearch" type="text" placeholder="Search" class="input" bind:value={globalSearchValue} />
 			{#if globalSearchValue}
-				<button onclick={() => (globalSearchValue = '')} aria-label="Clear search" class="variant-filled-surface w-12">
+				<button onclick={() => (globalSearchValue = '')} aria-label="Clear search" class="preset-filled-surface-500 w-12">
 					<iconify-icon icon="ic:outline-search-off" width="24"></iconify-icon>
 				</button>
 			{/if}
@@ -359,7 +358,7 @@ Features:
 
 			<div class="flex flex-col text-center">
 				<label for="sortButton">Sort</label>
-				<button id="sortButton" aria-label="Sort" class="variant-ghost-surface btn">
+				<button id="sortButton" aria-label="Sort" class="preset-tonal-surface border border-surface-500 btn">
 					<iconify-icon icon="flowbite:sort-outline" width="24"></iconify-icon>
 				</button>
 			</div>
@@ -429,7 +428,7 @@ Features:
 			<div class="input-group input-group-divider grid max-w-md grid-cols-[auto_1fr_auto]">
 				<input bind:value={globalSearchValue} id="globalSearchMd" type="text" placeholder="Search" class="input" />
 				{#if globalSearchValue}
-					<button onclick={clearSearch} class="variant-filled-surface w-12" aria-label="Clear search">
+					<button onclick={clearSearch} class="preset-filled-surface-500 w-12" aria-label="Clear search">
 						<iconify-icon icon="ic:outline-search-off" width="24"></iconify-icon>
 					</button>
 				{/if}
@@ -449,7 +448,7 @@ Features:
 
 		<div class="mb-8 flex flex-col justify-center gap-1 text-center">
 			<label for="sortButton">Sort</label>
-			<button id="sortButton" class="variant-ghost-surface btn" aria-label="Sort">
+			<button id="sortButton" class="preset-tonal-surface border border-surface-500 btn" aria-label="Sort">
 				<iconify-icon icon="flowbite:sort-outline" width="24"></iconify-icon>
 			</button>
 		</div>

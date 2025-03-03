@@ -27,11 +27,10 @@
 	import { permissionConfigs } from '@src/auth/permissionManager';
 
 	// Skeleton
-	import { Avatar } from '@skeletonlabs/skeleton';
+	import { Avatar } from '@skeletonlabs/skeleton-svelte';
 	import ModalEditAvatar from './components/ModalEditAvatar.svelte';
 	import ModalEditForm from './components/ModalEditForm.svelte';
-	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
+	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton-svelte';
 	import { collection } from '@src/stores/collectionStore.svelte';
 
 	const toastStore = getToastStore();
@@ -113,7 +112,7 @@
 						message: '<iconify-icon icon="mdi:check-outline" color="white" width="26" class="mr-1"></iconify-icon> User Data Updated',
 						background: 'gradient-tertiary',
 						timeout: 3000,
-						classes: 'border-1 !rounded-md'
+						classes: 'border-1 rounded-md!'
 					};
 					toastStore.trigger(t);
 
@@ -145,7 +144,7 @@
 						message: '<iconify-icon icon="radix-icons:avatar" color="white" width="26" class="mr-1"></iconify-icon> Avatar Updated',
 						background: 'gradient-primary',
 						timeout: 3000,
-						classes: 'border-1 !rounded-md'
+						classes: 'border-1 rounded-md!'
 					};
 					toastStore.trigger(t);
 					await invalidateAll(); // Reload the page data to get the updated user object

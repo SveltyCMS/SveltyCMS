@@ -122,7 +122,7 @@
 				type="button"
 				onclick={() => toggleSidebar('left', get(screenSize) === 'lg' ? 'full' : 'collapsed')}
 				aria-label="Open Sidebar"
-				class="variant-ghost-surface btn-icon"
+				class="preset-tonal-surface border-surface-500 btn-icon border"
 			>
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
@@ -149,7 +149,7 @@
 
 	<!-- Right Section: Back Button -->
 	{#if showBackButton}
-		<button onclick={handleBackClick} aria-label="Go back" class="variant-outline-tertiary btn-icon dark:variant-outline-primary">
+		<button onclick={handleBackClick} aria-label="Go back" class="preset-outline-tertiary btn-icon dark:preset-outline-primary">
 			<iconify-icon icon="ri:arrow-left-line" width="24"></iconify-icon>
 		</button>
 	{/if}

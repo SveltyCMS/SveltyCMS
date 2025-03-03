@@ -13,7 +13,6 @@ Features:
 	import PermissionsSetting from '@components/PermissionsSetting.svelte';
 
 	// Skeleton Stores
-	import { getModalStore } from '@skeletonlabs/skeleton';
 	import { targetWidget } from '@src/stores/collectionStore.svelte';
 
 	const modalStore = getModalStore();

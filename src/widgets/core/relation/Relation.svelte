@@ -181,8 +181,8 @@
 
 <div class="input-container relative mb-4">
 	{#if !expanded && !showDropDown}
-		<div class="relative mb-1 flex w-screen min-w-[200px] max-w-full items-center justify-start gap-0.5 rounded border py-1 pl-10 pr-2">
-			<button class="flex-grow text-center dark:text-primary-500" onclick={openDropDown} aria-haspopup="listbox" aria-expanded={showDropDown}>
+		<div class="relative mb-1 flex w-screen min-w-[200px] max-w-full items-center justify-start gap-0.5 rounded-sm border py-1 pl-10 pr-2">
+			<button class="grow text-center dark:text-primary-500" onclick={openDropDown} aria-haspopup="listbox" aria-expanded={showDropDown}>
 				{@html selected?.display || display || 'select new'}
 			</button>
 

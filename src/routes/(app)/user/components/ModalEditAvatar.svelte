@@ -22,10 +22,9 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
-	import { Avatar } from '@skeletonlabs/skeleton';
-	import { FileDropzone } from '@skeletonlabs/skeleton';
-	import type { ModalComponent } from '@skeletonlabs/skeleton';
+	import { Avatar, FileUpload } from '@skeletonlabs/skeleton-svelte';
+	import {} from '@skeletonlabs/skeleton-svelte';
+	import type { ModalComponent } from '@skeletonlabs/skeleton-svelte';
 
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
@@ -150,7 +149,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 					message: '<iconify-icon icon="radix-icons:avatar" color="white" width="24" class="mr-1"></iconify-icon> Avatar Deleted',
 					background: 'gradient-error',
 					timeout: 3000,
-					classes: 'border-1 !rounded-md'
+					classes: 'border-1 rounded-md!'
 				});
 
 				modalStore.close();
@@ -162,7 +161,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 				message: '<iconify-icon icon="radix-icons:cross-2" color="white" width="24" class="mr-1"></iconify-icon> Failed to delete avatar',
 				background: 'gradient-error',
 				timeout: 3000,
-				classes: 'border-1 !rounded-md'
+				classes: 'border-1 rounded-md!'
 			});
 		}
 	}
@@ -170,12 +169,12 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
 	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container';
 </script>
 
 {#if $modalStore[0]}
 	<div class="modal-avatar {cBase}">
-		<header class={`text-center text-primary-500 ${cHeader}`}>
+		<header class={`text-primary-500 text-center ${cHeader}`}>
 			{$modalStore[0]?.title ?? '(title missing)'}
 		</header>
 		<article class="text-center text-sm">
@@ -187,7 +186,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 				<!-- Avatar Thumbnail -->
 				<Avatar src={$avatarSrc ? $avatarSrc : '/Default_User.svg'} alt="User avatar" loading="lazy" rounded-full class="mx-auto mb-3 w-32" />
 				<!-- FileDropzone Area-->
-				<FileDropzone
+				<FileUpload
 					on:change={onChange}
 					required
 					name="Avatar Upload"
@@ -211,17 +210,17 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 					{#snippet meta()}
 						{m.modaledit_avatarfilesallowed()}
 					{/snippet}
-				</FileDropzone>
+				</FileUpload>
 			</div>
 			{#if !files}
-				<small class="block text-center text-tertiary-500 opacity-75 dark:text-primary-500">{m.modaledit_avatarfilesize()}</small>
+				<small class="text-tertiary-500 dark:text-primary-500 block text-center opacity-75">{m.modaledit_avatarfilesize()}</small>
 			{/if}
 		</form>
 
 		<footer class="modal-footer {parent.regionFooter} justify-between">
 			<!-- Delete Avatar -->
 			{#if $avatarSrc !== '/Default_User.svg'}
-				<button type="button" onclick={deleteAvatar} class="variant-filled-error btn">
+				<button type="button" onclick={deleteAvatar} class="preset-filled-error-500 btn">
 					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
 					<span class="hidden sm:block">{m.button_delete()}</span>
 				</button>
@@ -231,11 +230,11 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			{/if}
 			<div class="flex justify-between gap-2">
 				<!-- Cancel -->
-				<button class="variant-outline-secondary btn" onclick={parent.onClose}>
+				<button class="preset-outline-secondary btn" onclick={parent.onClose}>
 					{m.button_cancel()}
 				</button>
 				<!-- Save -->
-				<button class="variant-filled-tertiary btn dark:variant-filled-primary {parent.buttonPositive}" onclick={onFormSubmit}
+				<button class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 {parent.buttonPositive}" onclick={onFormSubmit}
 					>{m.button_save()}
 				</button>
 			</div>

@@ -34,8 +34,9 @@ Features:
 	import FloatingPaths from '@root/src/components/system/FloatingPaths.svelte';
 
 	// Skeleton
-	import { Toast, getToastStore } from '@skeletonlabs/skeleton';
-	const toastStore = getToastStore();
+	import { getContext } from 'svelte';
+	import { type ToastContext } from '@skeletonlabs/skeleton-svelte';
+	export const toast: ToastContext = getContext('toast');
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -106,14 +107,12 @@ Features:
 
 		onResult: ({ result, cancel }) => {
 			if (result.type === 'redirect') {
-				// Trigger the toast
-				toastStore.trigger({
-					message: m.signin_signinsuccess(),
-					// Provide any utility or variant background style:
-					background: 'variant-filled-primary',
-					timeout: 4000,
-					// Add your custom classes here:
-					classes: 'border-1 !rounded-md'
+				// Trigger Sign In toast
+				toast.create({
+					title: 'Success',
+					description: m.signin_signinsuccess(),
+					type: 'success',
+					duration: 4000
 				});
 
 				return;
@@ -168,13 +167,11 @@ Features:
 				});
 
 				// Trigger the toast
-				toastStore.trigger({
-					message: errorMessages,
-					// Provide any utility or variant background style:
-					background: 'variant-filled-primary',
-					timeout: 4000,
-					// Add your custom classes here:
-					classes: 'border-1 !rounded-md'
+				toast.create({
+					title: 'Error',
+					description: errorMessages,
+					type: 'error',
+					duration: 4000
 				});
 
 				return;
@@ -190,11 +187,13 @@ Features:
 					return;
 				} else {
 					PWreset = true;
-					toastStore.trigger({
-						message: m.signin_forgottontoast(),
-						background: 'variant-filled-primary',
-						timeout: 4000,
-						classes: 'border-1 !rounded-md'
+
+					// Trigger Reset toast
+					toast.create({
+						title: 'Success',
+						description: m.signin_forgottontoast(),
+						type: 'success',
+						duration: 4000
 					});
 
 					return;
@@ -238,13 +237,11 @@ Features:
 
 			if (result.type === 'success' || result.type === 'redirect') {
 				// Trigger the Reset toast
-				toastStore.trigger({
-					message: m.signin_restpasswordtoast(),
-					// Provide any utility or variant background style:
-					background: 'variant-filled-primary',
-					timeout: result.type === 'redirect' ? 3000 : 4000,
-					// Add your custom classes here:
-					classes: 'border-1 !rounded-md'
+				toast.create({
+					title: 'Success',
+					description: m.signin_restpasswordtoast(),
+					type: 'success',
+					duration: 4000
 				});
 
 				if (result.type === 'redirect') return;
@@ -308,8 +305,6 @@ Features:
 	const baseClasses = 'hover relative flex items-center';
 </script>
 
-<Toast />
-
 <section
 	onclick={handleFormClick}
 	onkeydown={(e) => e.key === 'Enter' && onClick?.()}
@@ -330,14 +325,14 @@ Features:
 				<FloatingPaths position={1} background="white" />
 			</div>
 
-			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
+			<div class="absolute top-[20%] left-1/2 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
 			<!-- CSS Logo -->
-			<div class="z-0 mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto rounded-md bg-white p-4 lg:w-4/5" class:hide={active !== 0}>
+			<div class="z-0 mx-auto mt-[15%] mb-[5%] w-full overflow-y-auto rounded-md bg-white p-4 lg:w-4/5" class:hide={active !== 0}>
 				<div class="mb-1 flex flex-row gap-2">
 					<SveltyCMSLogo className="w-14" fill="red" />
 
 					<h1 class="text-3xl font-bold text-black lg:text-4xl">
-						<div class="text-xs text-surface-300"><SiteName /></div>
+						<div class="text-surface-300 text-xs"><SiteName /></div>
 						{#if !PWforgot && !PWreset}
 							<div class="lg:-mt-1">{m.form_signin()}</div>
 						{:else if PWforgot && !PWreset}
@@ -349,10 +344,10 @@ Features:
 				</div>
 
 				<!-- Required with Back button -->
-				<div class="-mt-2 flex items-center justify-end gap-2 text-right text-xs text-error-500">
+				<div class="text-error-500 -mt-2 flex items-center justify-end gap-2 text-right text-xs">
 					{m.form_required()}
 
-					<button onclick={handleBack} aria-label="Back" class="variant-outline-secondary btn-icon">
+					<button onclick={handleBack} aria-label="Back" class="preset-outline-secondary btn-icon">
 						<iconify-icon icon="ri:arrow-right-line" width="20" class="text-black"></iconify-icon>
 					</button>
 				</div>
@@ -382,7 +377,7 @@ Features:
 								iconColor="black"
 								textColor="black"
 							/>
-							{#if $errors.email}<span class="invalid text-xs text-error-500">{$errors.email}</span>{/if}
+							{#if $errors.email}<span class="invalid text-error-500 text-xs">{$errors.email}</span>{/if}
 
 							<!-- Password field -->
 							<FloatingInput
@@ -399,13 +394,13 @@ Features:
 								iconColor="black"
 								textColor="black"
 							/>
-							{#if $errors.password}<span class="invalid text-xs text-error-500">{$errors.password}</span>{/if}
+							{#if $errors.password}<span class="invalid text-error-500 text-xs">{$errors.password}</span>{/if}
 						</form>
 
 						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
 							<!-- Row 1 -->
 							<div class="flex w-full justify-between gap-2 sm:w-auto">
-								<button type="submit" form="signin-form" class="variant-filled-surface btn w-full sm:w-auto" aria-label={m.form_signin()}>
+								<button type="submit" form="signin-form" class="preset-filled-surface-500 btn w-full sm:w-auto" aria-label={m.form_signin()}>
 									{m.form_signin()}
 									<!-- Loading indicators -->
 									{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
@@ -418,7 +413,7 @@ Features:
 							<div class="mt-4 flex w-full justify-between sm:mt-0 sm:w-auto">
 								<button
 									type="button"
-									class="variant-ringed-surface btn w-full text-black sm:w-auto"
+									class="preset-outlined-surface-500 btn w-full text-black sm:w-auto"
 									aria-label={m.signin_forgottenpassword()}
 									tabindex={forgotPasswordTabIndex}
 									onclick={handleForgotPassword}
@@ -453,19 +448,19 @@ Features:
 								textColor="black"
 							/>
 							{#if $forgotErrors.email}
-								<span class="invalid text-xs text-error-500">
+								<span class="invalid text-error-500 text-xs">
 									{$forgotErrors.email}
 								</span>
 							{/if}
 
 							{#if $forgotAllErrors && !$forgotErrors.email}
-								<span class="invalid text-xs text-error-500">
+								<span class="invalid text-error-500 text-xs">
 									{$forgotAllErrors}
 								</span>
 							{/if}
 
 							<div class="mt-4 flex items-center justify-between">
-								<button type="submit" class="variant-filled-surface btn" aria-label={m.form_resetpassword()}>
+								<button type="submit" class="preset-filled-surface-500 btn" aria-label={m.form_resetpassword()}>
 									{m.form_resetpassword()}
 								</button>
 
@@ -477,7 +472,7 @@ Features:
 								<!-- Back button  -->
 								<button
 									type="button"
-									class="variant-filled-surface btn-icon"
+									class="preset-filled-surface-500 btn-icon"
 									aria-label="Back"
 									onclick={() => {
 										PWforgot = false;
@@ -519,7 +514,7 @@ Features:
 								textColor="black"
 							/>
 							{#if $resetErrors.password}
-								<span class="invalid text-xs text-error-500">
+								<span class="invalid text-error-500 text-xs">
 									{$resetErrors.password}
 								</span>
 							{/if}
@@ -555,13 +550,13 @@ Features:
 							/>
 
 							{#if $resetErrors.token}
-								<span class="invalid text-xs text-error-500">
+								<span class="invalid text-error-500 text-xs">
 									{$resetErrors.token}
 								</span>
 							{/if}
 
 							{#if $resetAllErrors && !$resetErrors}
-								<span class="invalid text-xs text-error-500">
+								<span class="invalid text-error-500 text-xs">
 									{$resetAllErrors}
 								</span>
 							{/if}
@@ -569,7 +564,7 @@ Features:
 							<input type="email" name="email" bind:value={$resetForm.email} hidden />
 
 							<div class="mt-4 flex items-center justify-between">
-								<button type="submit" aria-label={m.signin_savenewpassword()} class="variant-filled-surface btn ml-2 mt-6">
+								<button type="submit" aria-label={m.signin_savenewpassword()} class="preset-filled-surface-500 btn mt-6 ml-2">
 									{m.signin_savenewpassword()}
 									<!-- Loading indicators -->
 									{#if $resetDelayed}
@@ -581,7 +576,7 @@ Features:
 								<button
 									type="button"
 									aria-label={m.button_back()}
-									class="variant-filled-surface btn-icon"
+									class="preset-filled-surface-500 btn-icon"
 									onclick={() => {
 										PWforgot = false;
 										PWreset = false;
@@ -593,9 +588,14 @@ Features:
 						</form>
 					{/if}
 				{:else}
-					<button onclick={onClick} type="button" aria-label="Signup" class="variant-ghost btn mt-2 w-full flex-col justify-center text-surface-500">
-						<p class="font-bold text-error-500">{m.signin_no_user()}</p>
-						<p>Please sign up to create the <span class="font-bold text-tertiary-500">first admin </span> account.</p>
+					<button
+						onclick={onClick}
+						type="button"
+						aria-label="Signup"
+						class="preset-tonal border-surface-500 btn text-surface-500 mt-2 w-full flex-col justify-center border"
+					>
+						<p class="text-error-500 font-bold">{m.signin_no_user()}</p>
+						<p>Please sign up to create the <span class="text-tertiary-500 font-bold">first admin </span> account.</p>
 					</button>
 				{/if}
 			</div>
@@ -613,7 +613,7 @@ Features:
 	section {
 		--width: 0%;
 		background: white;
-		flex-grow: 1;
+		grow: 1;
 		width: var(--width);
 		transition: 0.4s;
 	}

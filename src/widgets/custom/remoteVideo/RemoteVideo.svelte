@@ -125,7 +125,7 @@ Features:
 </div>
 
 {#if myData?.videoUrl}
-	<div class="overflow-hidden rounded shadow-lg md:flex md:flex-row">
+	<div class="overflow-hidden rounded-sm shadow-lg md:flex md:flex-row">
 		<div class="px-6 py-4 md:w-1/2">
 			<div class="mb-2 text-xl font-bold text-primary-500">{myData?.videoTitle}</div>
 			<table class="text-base">
@@ -144,7 +144,7 @@ Features:
 					</tr>
 				</tbody>
 			</table>
-			<a href={myData?.videoUrl} target="_blank" rel="noreferrer" class="variant-filled-tertiary btn btn-sm mt-4">
+			<a href={myData?.videoUrl} target="_blank" rel="noreferrer" class="preset-filled-tertiary-500 btn btn-sm mt-4">
 				<span><iconify-icon icon="material-symbols:play-circle-outline" width="18"></iconify-icon></span>
 				<span>Watch Video</span>
 			</a>

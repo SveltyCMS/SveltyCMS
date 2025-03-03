@@ -8,8 +8,6 @@
 	import type { SvelteComponent } from 'svelte';
 
 	// Stores
-	import { getModalStore } from '@skeletonlabs/skeleton';
-
 	// Props
 
 	interface Props {

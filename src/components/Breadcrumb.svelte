@@ -49,7 +49,7 @@ Usage
 		{#each breadcrumb as crumb, index}
 			<li class="flex items-center">
 				<button
-					class="btn-sm flex items-center text-xs hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+					class="btn-sm flex items-center text-xs hover:underline focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
 					onclick={() => handleBreadcrumbClick(index)}
 					aria-current={index === breadcrumb.length - 1 ? 'page' : undefined}
 				>
@@ -62,7 +62,7 @@ Usage
 					{/if}
 				</button>
 				{#if index < breadcrumb.length - 1}
-					<span class="mx-2 text-gray-500 dark:text-gray-400" aria-hidden="true">&rsaquo;</span>
+					<span class="mx-2 text-gray-500 dark:text-gray-400" aria-hidden="true">›</span>
 				{/if}
 			</li>
 		{/each}

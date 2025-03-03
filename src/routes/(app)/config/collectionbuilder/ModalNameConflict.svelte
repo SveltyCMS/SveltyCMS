@@ -8,8 +8,7 @@ Features:
 - Provides suggestions for resolving conflicts
 -->
 <script lang="ts">
-	import { getModalStore } from '@skeletonlabs/skeleton';
-	const modalStore = getModalStore();
+		const modalStore = getModalStore();
 
 	interface Props {
 		conflictingName: string;
@@ -42,11 +41,11 @@ Features:
 </script>
 
 <div class="modal-body p-4">
-	<div class="alert variant-filled-warning mb-4">
+	<div class="alert preset-filled-warning-500 mb-4">
 		<div class="alert-message">
 			<h3 class="h3">Collection Name Conflict</h3>
 			<p>The collection name "{conflictingName}" already exists at:</p>
-			<code class="mt-2 block rounded bg-surface-900 p-2">{conflictPath}</code>
+			<code class="mt-2 block rounded-sm bg-surface-900 p-2">{conflictPath}</code>
 		</div>
 	</div>
 
@@ -83,10 +82,10 @@ Features:
 	</div>
 
 	<footer class="modal-footer flex justify-end gap-4">
-		<button type="button" class="variant-ghost btn" onclick={handleCancel}> Cancel </button>
+		<button type="button" class="preset-tonal border border-surface-500 btn" onclick={handleCancel}> Cancel </button>
 		<button
 			type="button"
-			class="variant-filled-primary btn"
+			class="preset-filled-primary-500 btn"
 			onclick={handleConfirm}
 			disabled={useCustomName ? !validateCustomName(customName) : !selectedName}
 		>

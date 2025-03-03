@@ -168,7 +168,7 @@
 
 <!-- Multibutton group-->
 <div class="relative z-20 mt-1 font-medium text-white">
-	<div class="variant-filled-token btn-group flex overflow-hidden rounded-l-full rounded-r-md rtl:rounded rtl:rounded-r-full">
+	<div class="preset-filled-token-500 flex overflow-hidden rounded-l-full rounded-r-md rtl:rounded-sm rtl:rounded-r-full">
 		<!-- Left button -->
 		<button type="button" class={`w-[60px] md:w-auto rtl:rotate-180 ${buttonClass} rounded-l-full`} onclick={handleButtonClick}>
 			<span class="grid grid-cols-[24px_auto] items-center gap-2 rtl:rotate-180">
@@ -183,7 +183,7 @@
 		<!-- Dropdown button -->
 		<button
 			type="button"
-			class="flex w-[42px] items-center justify-center rounded-r-md bg-surface-400 dark:bg-surface-600"
+			class="bg-surface-400 dark:bg-surface-600 flex w-[42px] items-center justify-center rounded-r-md"
 			aria-label="Toggle dropdown"
 			onclick={(e) => {
 				e.preventDefault();
@@ -196,7 +196,7 @@
 
 	{#if dropdownOpen}
 		<ul
-			class="drops absolute right-2 top-full z-50 mt-1 max-h-[300px] divide-y divide-white overflow-y-auto rounded bg-surface-400 dark:bg-surface-700 rtl:left-2 rtl:right-auto"
+			class="drops bg-surface-400 dark:bg-surface-700 absolute top-full right-2 z-50 mt-1 max-h-[300px] divide-y divide-white overflow-y-auto rounded-sm rtl:right-auto rtl:left-2"
 		>
 			{#each Object.entries(buttonMap) as [type, [label, gradient, icon]]}
 				{#if storeListboxValue.value !== type}

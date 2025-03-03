@@ -25,11 +25,7 @@
 	import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
 
 	// Skeleton
-	import { popup } from '@skeletonlabs/skeleton';
-	import type { PopupSettings } from '@skeletonlabs/skeleton';
-	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
-	import { Autocomplete } from '@skeletonlabs/skeleton';
-
+	import type { PopupSettings } from '@skeletonlabs/skeleton-svelte';
 	// Valibot validation
 	import * as v from 'valibot';
 
@@ -195,7 +191,7 @@
 	{#if isMapboxEnabled}
 		<address class="w-full" class:error={!!validationError}>
 			<div class="mb-1 flex justify-between gap-2">
-				<button aria-label={m.widget_address_getfromaddress()} class="variant-filled-primary btn btn-base rounded-md text-white">
+				<button aria-label={m.widget_address_getfromaddress()} class="preset-filled-primary-500 btn btn-base rounded-md text-white">
 					<iconify-icon icon="bi:map" width="16" class="mr-2"></iconify-icon>
 					{m.widget_address_getfromaddress()}
 				</button>

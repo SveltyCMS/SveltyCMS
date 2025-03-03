@@ -49,7 +49,7 @@
 	import ScheduleModal from './ScheduleModal.svelte';
 
 	// Skeleton
-	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
+	import { type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton-svelte';
 	const modalStore = getModalStore();
 
 	// Stores
@@ -315,7 +315,7 @@
 <header
 	class="sticky top-0 z-10 flex w-full items-center justify-between {showMore
 		? ''
-		: 'border-b'} border-secondary-600-300-token bg-white p-2 dark:bg-surface-700"
+		: 'border-b'} border-secondary-700-300 bg-white p-2 dark:bg-surface-700"
 >
 	<div class="flex items-center justify-start">
 		<!-- Hamburger -->
@@ -324,7 +324,7 @@
 				type="button"
 				onclick={() => toggleSidebar('left', $screenSize === 'lg' ? 'full' : 'collapsed')}
 				aria-label="Toggle Sidebar"
-				class="variant-ghost-surface btn-icon mt-1"
+				class="preset-tonal-surface border border-surface-500 btn-icon mt-1"
 			>
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
@@ -356,7 +356,7 @@
 		{#if $screenSize !== 'lg'}
 			{#if showMore}
 				<!-- Next Button  -->
-				<button type="button" onclick={next} aria-label="Next" class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:btn">
+				<button type="button" onclick={next} aria-label="Next" class="preset-filled-tertiary-500 btn-icon dark:preset-filled-primary-500 md:btn">
 					<iconify-icon icon="carbon:next-filled" width="24" class="text-white"></iconify-icon>
 					<span class="hidden md:block">{m.button_next()}</span>
 				</button>
@@ -372,7 +372,7 @@
 						type="button"
 						onclick={saveData}
 						disabled={collection.value?.permissions?.[user.role]?.write === false}
-						class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:hidden"
+						class="preset-filled-tertiary-500 btn-icon dark:preset-filled-primary-500 md:hidden"
 						aria-label="Save entry"
 					>
 						<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
@@ -380,7 +380,7 @@
 				{/if}
 
 				<!-- DropDown to show more Buttons -->
-				<button type="button" onclick={() => (showMore = !showMore)} aria-label="Show more" class="variant-ghost-surface btn-icon">
+				<button type="button" onclick={() => (showMore = !showMore)} aria-label="Show more" class="preset-tonal-surface border border-surface-500 btn-icon">
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30"></iconify-icon>
 				</button>
 			{/if}
@@ -393,11 +393,11 @@
 
 		<!-- Cancel/Reload -->
 		{#if !$headerActionButton}
-			<button type="button" onclick={handleCancel} aria-label="Cancel" class="variant-ghost-surface btn-icon">
+			<button type="button" onclick={handleCancel} aria-label="Cancel" class="preset-tonal-surface border border-surface-500 btn-icon">
 				<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 			</button>
 		{:else}
-			<button type="button" onclick={handleReload} aria-label="Reload" class="variant-ghost-surface btn-icon">
+			<button type="button" onclick={handleReload} aria-label="Reload" class="preset-tonal-surface border border-surface-500 btn-icon">
 				<iconify-icon icon="fa:refresh" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 			</button>
 		{/if}
@@ -483,7 +483,7 @@
 				<input
 					type="datetime-local"
 					bind:value={createdAtDate}
-					class="variant-filled-surface w-full p-2 text-left text-sm"
+					class="preset-filled-surface-500 w-full p-2 text-left text-sm"
 					aria-label="Set creation date"
 				/>
 			</div>

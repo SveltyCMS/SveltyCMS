@@ -10,9 +10,7 @@
 - `toastStore` {any} - Toast store
 -->
 <script lang="ts">
-	import { getToastStore } from '@skeletonlabs/skeleton';
-
-	let remoteUrls: string[] = $state([]);
+		let remoteUrls: string[] = $state([]);
 	const toastStore = getToastStore();
 
 	function handleRemoteUrlInput(event: Event) {
@@ -26,7 +24,7 @@
 		if (remoteUrls.length === 0) {
 			toastStore.trigger({
 				message: 'No URLs entered for upload',
-				background: 'variant-filled-warning'
+				background: 'preset-filled-warning-500'
 			});
 			return;
 		}
@@ -49,7 +47,7 @@
 			if (result.success) {
 				toastStore.trigger({
 					message: 'URLs uploaded successfully',
-					background: 'variant-filled-success'
+					background: 'preset-filled-success-500'
 				});
 				remoteUrls = []; // Clear the remote URLs array after successful upload
 			} else {
@@ -59,7 +57,7 @@
 			console.error('Error uploading URLs:', error);
 			toastStore.trigger({
 				message: 'Error uploading URLs: ' + (error instanceof Error ? error.message : 'Unknown error'),
-				background: 'variant-filled-error'
+				background: 'preset-filled-error-500'
 			});
 		}
 	}
@@ -74,5 +72,5 @@
 		oninput={handleRemoteUrlInput}
 	></textarea>
 	<!-- Upload Button -->
-	<button class="variant-filled-primary btn mt-2" onclick={uploadRemoteUrls}> Upload URLs </button>
+	<button class="preset-filled-primary-500 btn mt-2" onclick={uploadRemoteUrls}> Upload URLs </button>
 </div>

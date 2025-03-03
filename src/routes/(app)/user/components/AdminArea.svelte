@@ -23,9 +23,8 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { Avatar } from '@skeletonlabs/skeleton';
-	import { getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings } from '@skeletonlabs/skeleton';
+	import { Avatar } from '@skeletonlabs/skeleton-svelte';
+	import type { ModalSettings } from '@skeletonlabs/skeleton-svelte';
 
 	// Svelte-dnd-action
 	import { flip } from 'svelte/animate';
@@ -285,7 +284,7 @@
 	<div class="flex flex-col flex-wrap items-center justify-evenly gap-2 sm:flex-row xl:justify-between">
 		<button onclick={modalTokenUser} aria-label={m.adminarea_emailtoken()} class="gradient-primary btn w-full text-white sm:max-w-xs">
 			<iconify-icon icon="material-symbols:mail" color="white" width="18" class="mr-1"></iconify-icon>
-			<span class="whitespace-normal break-words">{m.adminarea_emailtoken()}</span>
+			<span class="break-words whitespace-normal">{m.adminarea_emailtoken()}</span>
 		</button>
 
 		<PermissionGuard
@@ -315,7 +314,7 @@
 		<Loading />
 	{:else if showUserList || showUsertoken}
 		<div class="my-4 flex flex-wrap items-center justify-between gap-1">
-			<h2 class="order-1 font-bold text-tertiary-500 dark:text-primary-500">
+			<h2 class="text-tertiary-500 dark:text-primary-500 order-1 font-bold">
 				{#if showUserList}{m.adminarea_userlist()}{:else if showUsertoken}{m.adminarea_listtoken()}{/if}
 			</h2>
 
@@ -330,8 +329,8 @@
 
 		{#if tableData.length > 0}
 			{#if columnShow}
-				<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700">
-					<div class="text-white dark:text-primary-500">{m.entrylist_dnd()}</div>
+				<div class="rounded-b-0 bg-surface-300 dark:bg-surface-700 flex flex-col justify-center rounded-t-md border-b text-center">
+					<div class="dark:text-primary-500 text-white">{m.entrylist_dnd()}</div>
 					<div class="my-2 flex w-full items-center justify-center gap-1">
 						<label class="mr-2">
 							<input type="checkbox" bind:checked={selectAllColumns} onclick={handleCheckboxChange} />
@@ -346,7 +345,9 @@
 						>
 							{#each displayTableHeaders as header (header.id)}
 								<button
-									class="chip {header.visible ? 'variant-filled-secondary' : 'variant-ghost-secondary'} w-100 mr-2 flex items-center justify-center"
+									class="chip {header.visible
+										? 'preset-filled-secondary-500'
+										: 'preset-tonal-secondary border-secondary-500 border'} mr-2 flex w-100 items-center justify-center"
 									animate:flip={{ duration: flipDurationMs }}
 									onclick={() => {
 										displayTableHeaders = displayTableHeaders.map((h) => (h.id === header.id ? { ...h, visible: !h.visible } : h));
@@ -365,15 +366,13 @@
 			{/if}
 
 			<div class="table-container max-h-[calc(100vh-120px)] overflow-auto">
-				<table
-					class="table table-interactive table-hover {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}"
-				>
+				<table class="table-interactive table {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
 					<thead class="text-tertiary-500 dark:text-primary-500">
 						{#if filterShow}
-							<tr class="divide-x divide-surface-400">
+							<tr class="divide-surface-400 divide-x">
 								<th>
 									{#if Object.keys(filters).length > 0}
-										<button onclick={() => (filters = {})} aria-label="Clear All Filters" class="variant-outline btn-icon">
+										<button onclick={() => (filters = {})} aria-label="Clear All Filters" class="preset-outline btn-icon">
 											<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 										</button>
 									{/if}
@@ -395,7 +394,7 @@
 							</tr>
 						{/if}
 
-						<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
+						<tr class="divide-surface-400 divide-x border-b border-black dark:border-white">
 							<TableIcons
 								checked={selectAll}
 								onCheck={(checked) => {
@@ -432,7 +431,7 @@
 
 					<tbody>
 						{#each filteredTableData as row, index}
-							<tr class="divide-x divide-surface-400">
+							<tr class="divide-surface-400 divide-x">
 								<TableIcons
 									checked={selectedMap[index] ?? false}
 									onCheck={(checked) => {
@@ -479,7 +478,7 @@
 				/>
 			</div>
 		{:else}
-			<div class="variant-ghost-error btn text-center font-bold">
+			<div class="preset-tonal-error border-error-500 btn border text-center font-bold">
 				{#if showUserList}{m.adminarea_nouser()}{:else if showUsertoken}{m.adminarea_notoken()}{/if}
 			</div>
 		{/if}

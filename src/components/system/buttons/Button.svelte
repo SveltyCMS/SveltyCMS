@@ -9,7 +9,7 @@ file src/components/system/buttons/Button.svelte
 - `icon` {string} - Icon to be displayed on the button
 - `href` {string} - URL to navigate to when the button is clicked
 - `type` {string} - Type of the button, can be 'button', 'submit', or 'reset'
-- `rounded` {boolean} - Whether the button should have rounded corners
+- `rounded-sm` {boolean} - Whether the button should have rounded corners
 
 #### Slots
 - `default` {string} - Content to be displayed inside the button
@@ -52,7 +52,7 @@ file src/components/system/buttons/Button.svelte
 		[
 			// Base styles
 			'inline-flex items-center justify-center font-medium transition-colors',
-			'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+			'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2',
 			'transform transition-transform hover:scale-105 active:scale-95',
 			rounded ? 'rounded-full' : 'rounded-md', // Rounded corners conditionally
 			// Size classes
@@ -64,9 +64,9 @@ file src/components/system/buttons/Button.svelte
 			}[size as keyof { sm: string; md: string; lg: string; xl: string }],
 			// Variant classes
 			{
-				primary: 'bg-primary-600 text-white shadow-sm hover:bg-primary-700',
-				secondary: 'bg-secondary-600 text-white shadow-sm hover:bg-secondary-700',
-				error: 'bg-red-600 text-white shadow-sm hover:bg-red-700', // Added error variant
+				primary: 'bg-primary-600 text-white shadow-xs hover:bg-primary-700',
+				secondary: 'bg-secondary-600 text-white shadow-xs hover:bg-secondary-700',
+				error: 'bg-red-600 text-white shadow-xs hover:bg-red-700', // Added error variant
 				ghost: 'hover:bg-gray-100 text-gray-900',
 				text: 'text-gray-900 hover:text-gray-700'
 			}[

@@ -107,7 +107,7 @@
 			onfocus={() => previewThemeChange(theme)}
 			onmouseout={resetPreview}
 			onblur={resetPreview}
-			class="variant-outline-tertiary btn mt-2"
+			class="preset-outline-tertiary btn mt-2"
 		>
 			Preview {theme.name}
 		</button>
@@ -115,7 +115,7 @@
 </div>
 
 {#if customThemes.length === 0}
-	<p class="my-2 text-center text-tertiary-500 dark:text-primary-500 sm:text-left">
+	<p class="text-tertiary-500 dark:text-primary-500 my-2 text-center sm:text-left">
 		There are currently no custom themes available. Visit the SveltyCMS marketplace to find new themes.
 	</p>
 
@@ -125,7 +125,7 @@
 		target="_blank"
 		rel="noopener noreferrer"
 		aria-label={m.config_Martketplace()}
-		class="variant-ghost-primary btn w-full gap-2 py-6"
+		class="preset-tonal-primary border-primary-500 btn w-full gap-2 border py-6"
 	>
 		<iconify-icon icon="icon-park-outline:shopping-bag" width="28" class="text-white"></iconify-icon>
 		<p class="uppercase">{m.config_Martketplace()}</p>

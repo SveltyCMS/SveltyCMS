@@ -21,7 +21,7 @@
 	import { publicEnv } from '@root/config/public';
 	import { contentLanguage, translationProgress } from '@stores/store.svelte';
 	import { mode } from '@src/stores/collectionStore.svelte';
-	import { ProgressBar } from '@skeletonlabs/skeleton';
+	import { Progress } from '@skeletonlabs/skeleton-svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -85,13 +85,13 @@
 		<div>
 			<button
 				type="button"
-				class="inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-100"
+				class="inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-xs hover:bg-gray-50 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-100"
 				onclick={toggleDropdown}
 			>
 				{contentLanguage.value.toUpperCase()}
 				<iconify-icon icon="mdi:chevron-down" class="-mr-1 ml-2 h-5 w-5" aria-hidden="true"></iconify-icon>
 			</button>
-			<ProgressBar class="mt-1" value={completionStatus} meter={getColor(completionStatus)} />
+			<Progress class="mt-1" value={completionStatus} meter={getColor(completionStatus)} />
 		</div>
 
 		{#if isOpen}
@@ -109,7 +109,7 @@
 								</span>
 							</div>
 							{#if translationProgress()[lang as AvailableLanguageTag]}
-								<ProgressBar
+								<Progress
 									class="mt-1"
 									value={getLanguageProgress(lang as AvailableLanguageTag)}
 									meter={getColor(getLanguageProgress(lang as AvailableLanguageTag))}
@@ -119,7 +119,7 @@
 					{/each}
 					<div class="border-t px-4 py-2">
 						{m.translationsstatus_completed()}{completionStatus}%
-						<ProgressBar class="mt-1" value={completionStatus} meter={getColor(completionStatus)} />
+						<Progress class="mt-1" value={completionStatus} meter={getColor(completionStatus)} />
 					</div>
 				</div>
 			</div>

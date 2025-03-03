@@ -127,12 +127,12 @@ It provides zoom controls as well as options to resize the image while maintaini
 
 <!-- Zoom Controls -->
 <div
-	class="variant-filled-surface btn-group btn-group absolute bottom-32 left-1/2 z-50 -translate-x-1/2 transform items-center space-x-4 rounded-full border p-2 opacity-90"
+	class="preset-filled-surface-500 absolute bottom-32 left-1/2 z-50 -translate-x-1/2 transform items-center space-x-4 rounded-full border p-2 opacity-90"
 >
 	<button class="btn-icon" onclick={() => zoom(-zoomSpeed)} aria-label="Zoom Out">-</button>
-	<span class="min-w-[20px] text-center text-sm font-semibold text-tertiary-500 dark:text-primary-500">{Math.round(scale * 100)}%</span>
+	<span class="text-tertiary-500 dark:text-primary-500 min-w-[20px] text-center text-sm font-semibold">{Math.round(scale * 100)}%</span>
 	<button class="btn-icon" onclick={() => zoom(zoomSpeed)} aria-label="Zoom In">+</button>
-	<button class="btn rounded-none border-l border-surface-200" onclick={resetZoom} aria-label="Reset Zoom">Reset</button>
+	<button class="btn border-surface-200 rounded-none border-l" onclick={resetZoom} aria-label="Reset Zoom">Reset</button>
 </div>
 
 <!-- Resize and Exit Controls -->
@@ -154,7 +154,7 @@ It provides zoom controls as well as options to resize the image while maintaini
 		</label>
 	</div>
 	<div class="mt-4 flex justify-between space-x-2">
-		<button onclick={resize} class="variant-filled-primary btn w-full">Apply Resize</button>
-		<button onclick={exitZoomResize} class="variant-outline btn w-full">Exit</button>
+		<button onclick={resize} class="preset-filled-primary-500 btn w-full">Apply Resize</button>
+		<button onclick={exitZoomResize} class="preset-outline btn w-full">Exit</button>
 	</div>
 </div>

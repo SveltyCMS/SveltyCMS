@@ -241,12 +241,12 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 		{#if isHoli}
 			<div class="absolute inset-0 flex">
 				<!-- Powder  -->
-				<div class="h-full w-full translate-y-8 bg-gradient-to-b from-red-300/80 via-red-400/80 to-transparent blur-xl"></div>
-				<div class="h-full w-full translate-y-12 bg-gradient-to-b from-yellow-200/80 via-yellow-300/80 to-transparent blur-xl"></div>
-				<div class="h-full w-full translate-y-8 bg-gradient-to-b from-green-300/80 via-green-400/80 to-transparent blur-xl"></div>
-				<div class="h-full w-full translate-y-12 bg-gradient-to-b from-cyan-300/80 via-cyan-400/80 to-transparent blur-xl"></div>
-				<div class="h-full w-full translate-y-8 bg-gradient-to-b from-blue-300/80 via-blue-400/80 to-transparent blur-xl"></div>
-				<div class="h-full w-full translate-y-12 bg-gradient-to-b from-purple-300/80 via-purple-400/80 to-transparent blur-xl"></div>
+				<div class="h-full w-full translate-y-8 bg-linear-to-b from-red-300/80 via-red-400/80 to-transparent blur-xl"></div>
+				<div class="h-full w-full translate-y-12 bg-linear-to-b from-yellow-200/80 via-yellow-300/80 to-transparent blur-xl"></div>
+				<div class="h-full w-full translate-y-8 bg-linear-to-b from-green-300/80 via-green-400/80 to-transparent blur-xl"></div>
+				<div class="h-full w-full translate-y-12 bg-linear-to-b from-cyan-300/80 via-cyan-400/80 to-transparent blur-xl"></div>
+				<div class="h-full w-full translate-y-8 bg-linear-to-b from-blue-300/80 via-blue-400/80 to-transparent blur-xl"></div>
+				<div class="h-full w-full translate-y-12 bg-linear-to-b from-purple-300/80 via-purple-400/80 to-transparent blur-xl"></div>
 			</div>
 
 			<div class="absolute left-1/2 top-[-50px] justify-center">
@@ -257,7 +257,7 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 				<iconify-icon icon="game-icons:powder" width="30" class="absolute -right-[120px] top-[220px] -rotate-12 text-warning-500"></iconify-icon>
 			</div>
 			<p
-				class="absolute -left-[30px] top-[170px] justify-center bg-gradient-to-br from-pink-500 to-violet-500 box-decoration-clone bg-clip-text text-4xl font-bold text-transparent"
+				class="absolute -left-[30px] top-[170px] justify-center bg-linear-to-br from-pink-500 to-violet-500 box-decoration-clone bg-clip-text text-4xl font-bold text-transparent"
 			>
 				{m.login_Happy_Holi()}
 			</p>
@@ -270,7 +270,7 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 			</div>
 
 			<p
-				class="absolute -left-[30px] top-[170px] justify-center text-nowrap bg-gradient-to-br from-pink-500 to-warning-500 box-decoration-clone bg-clip-text text-4xl font-bold text-transparent"
+				class="absolute -left-[30px] top-[170px] justify-center text-nowrap bg-linear-to-br from-pink-500 to-warning-500 box-decoration-clone bg-clip-text text-4xl font-bold text-transparent"
 			>
 				{m.login_happy_navratri()}
 			</p>

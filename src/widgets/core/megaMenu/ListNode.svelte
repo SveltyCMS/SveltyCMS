@@ -20,7 +20,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
+	import { type ModalSettings } from '@skeletonlabs/skeleton-svelte';
 	const modalStore = getModalStore();
 
 	// Props
@@ -301,7 +301,7 @@
 	tabindex="0"
 	aria-expanded={expanded}
 	aria-label={`${self?.Header[$contentLanguage]} - Level ${level}`}
-	class="header header-level-{level} relative mb-2 flex w-full min-w-[200px] max-w-[300px] cursor-default items-center justify-start gap-2 rounded border border-surface-300 px-1"
+	class="header header-level-{level} relative mb-2 flex w-full min-w-[200px] max-w-[300px] cursor-default items-center justify-start gap-2 rounded-sm border border-surface-300 px-1"
 	class:!cursor-pointer={self?.children?.length > 0}
 	style="margin-left:{10 * (level > 0 ? 1 : 0)}px;
 	{window.screen.width <= 700

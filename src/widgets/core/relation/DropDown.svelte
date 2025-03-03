@@ -64,7 +64,7 @@
 			onclick={() => {
 				selected = option;
 			}}
-			class="item text-token m-1 cursor-pointer border border-surface-400 bg-surface-400 p-1 text-center text-lg"
+			class="item base-font-color m-1 cursor-pointer border border-surface-400 bg-surface-400 p-1 text-center text-lg"
 			role="option"
 			aria-selected={selected?._id === option._id}
 		>

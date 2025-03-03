@@ -97,7 +97,7 @@
 </div>
 
 <!-- Pagination controls -->
-<nav class="variant-outline btn-group" aria-label="Table pagination">
+<nav class="preset-outline" aria-label="Table pagination">
 	<!-- First page button -->
 	<button
 		onclick={() => goToPage(1)}
@@ -129,7 +129,7 @@
 		value={localRowsPerPage}
 		onchange={(event) => updateRowsPerPage(parseInt((event.target as HTMLSelectElement).value))}
 		aria-label="Select number of rows per page"
-		class="mt-0.5 bg-transparent text-center text-tertiary-500 dark:text-primary-500"
+		class="text-tertiary-500 dark:text-primary-500 mt-0.5 bg-transparent text-center"
 		title="Rows per page"
 	>
 		{#each rowsPerPageOptions as pageSize}

@@ -94,7 +94,7 @@ Features:
 		role="cell"
 		tabindex="0"
 		class={twMerge(
-			'relative mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700',
+			'relative mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded-sm border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700',
 			className
 		)}
 	>
@@ -119,7 +119,7 @@ Features:
 					<button
 						onclick={openFileInput}
 						aria-label={m.widget_ImageUpload_BrowseNew()}
-						class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary"
+						class="preset-filled-tertiary-500 btn mt-3 dark:preset-filled-primary-500"
 					>
 						{m.widget_ImageUpload_BrowseNew()}
 					</button>
@@ -127,7 +127,7 @@ Features:
 					<button
 						onclick={() => toggleMedia(true)}
 						aria-label={m.widget_ImageUpload_SelectMedia()}
-						class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary"
+						class="preset-filled-tertiary-500 btn mt-3 dark:preset-filled-primary-500"
 					>
 						{m.widget_ImageUpload_SelectMedia()}
 					</button>
@@ -142,11 +142,11 @@ Features:
 	<!-- Show existing Media Images -->
 	{#if showMedia}
 		<div
-			class="bg-surface-100-800-token fixed left-[50%] top-[50%] z-[999999999] flex h-[90%] w-[95%] translate-x-[-50%] translate-y-[-50%] flex-col rounded border-[1px] border-surface-400 p-2"
+			class="bg-surface-100-900 fixed left-[50%] top-[50%] z-999999999 flex h-[90%] w-[95%] translate-x-[-50%] translate-y-[-50%] flex-col rounded-sm border-[1px] border-surface-400 p-2"
 		>
-			<div class="bg-surface-100-800-token flex items-center justify-between border-b p-2">
+			<div class="bg-surface-100-900 flex items-center justify-between border-b p-2">
 				<p class="ml-auto font-bold text-black dark:text-primary-500">{m.widget_ImageUpload_SelectImage()}</p>
-				<button onclick={() => toggleMedia(false)} aria-label="Close" class="variant-ghost-secondary btn-icon ml-auto">
+				<button onclick={() => toggleMedia(false)} aria-label="Close" class="preset-tonal-secondary border border-secondary-500 btn-icon ml-auto">
 					<iconify-icon icon="material-symbols:close" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 				</button>
 			</div>

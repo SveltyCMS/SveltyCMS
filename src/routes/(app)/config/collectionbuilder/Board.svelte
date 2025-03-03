@@ -97,7 +97,7 @@
 
 <div class="h-auto w-auto max-w-full overflow-y-auto p-1" role="region" aria-label="Collection Board" aria-busy={isDragging}>
 	{#if dragError}
-		<div class="mb-4 rounded bg-error-500/10 p-4 text-error-500" role="alert">
+		<div class="mb-4 rounded-sm bg-error-500/10 p-4 text-error-500" role="alert">
 			{dragError}
 		</div>
 	{/if}
