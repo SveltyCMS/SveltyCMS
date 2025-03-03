@@ -61,12 +61,6 @@ export class MediaService {
       throw error(500, message);
     }
 
-    if (!isConnected) {
-      const message = 'Database is not connected';
-      logger.error(message);
-      throw error(500, message);
-    }
-
     this.initialized = true;
   }
 
@@ -106,7 +100,7 @@ export class MediaService {
       const media: MediaBaseWithThumbnails = {
         type: this.getMediaType(mimeType),
         hash,
-        name: file.name,
+        filename: file.name,
         path,
         url: urlPath,
         mimeType,
@@ -132,14 +126,14 @@ export class MediaService {
       const media_collection = {
         _id: uuidv4(),
         hash: media.hash,
-        filename: media.name,
+        filename: media.filename,
         path: path,
         type: media.type,
         size: media.size,
 
         thumbnail: {
           url: media.thumbnails?.thumbnail?.url,
-          name: media.name,
+          name: media.filename,
           type: media.type,
           size: media.size,
           width: media.thumbnails?.thumbnail?.width,
