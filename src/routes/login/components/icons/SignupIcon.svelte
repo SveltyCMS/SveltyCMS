@@ -11,10 +11,12 @@
 	let {
 		show = $bindable(true),
 		disabled = false,
+		active = false,
 		onClick = (_event: MouseEvent | KeyboardEvent) => {}
 	} = $props<{
 		show?: boolean;
 		disabled?: boolean;
+		active?: boolean;
 		onClick?: (event: MouseEvent | KeyboardEvent) => void;
 	}>();
 
@@ -38,9 +40,10 @@
 	class:hide={!show}
 	class:pointer-events-none={!show || disabled}
 	class:opacity-50={disabled}
+	class:icon-active={active}
 >
 	<div onclick={handleClick} onkeydown={handleKeyDown} role="button" tabindex={disabled ? -1 : 0} class="flex cursor-pointer flex-col items-center">
-		<div class="relative w-max rounded-full border-4 border-white p-3">
+		<div class="signup-icon relative w-max rounded-full border-4 border-white p-3">
 			<svg
 				class="over aspect-square h-12"
 				xmlns="http://www.w3.org/2000/svg"
@@ -54,7 +57,7 @@
 				/>
 			</svg>
 		</div>
-		<p class="text-center font-semibold uppercase text-white">{m.form_signup()}</p>
+		<p class="signup-text text-center font-semibold uppercase text-white">{m.form_signup()}</p>
 	</div>
 </div>
 
@@ -69,6 +72,15 @@
 		to {
 			opacity: 0;
 			top: 70%;
+		}
+	}
+	@media (max-width: 991px) {
+		.icon-active .signup-icon {
+			display: none;
+		}
+		.icon-active .signup-text {
+			white-space: nowrap;
+			rotate: 90deg;
 		}
 	}
 </style>

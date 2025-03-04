@@ -602,7 +602,7 @@ Features:
 		</div>
 	{/if}
 
-	<SigninIcon show={active === 1 || active === undefined} onClick={handleFormClick} />
+	<SigninIcon show={active === 1 || active === undefined} active={active === 1} onClick={handleFormClick} />
 </section>
 
 <style lang="postcss">

@@ -33,7 +33,6 @@ Features:
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import PasswordStrength from '@components/PasswordStrength.svelte';
-	import FloatingPaths from '@root/src/components/system/FloatingPaths.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -346,7 +345,7 @@ Features:
 		</div>
 	{/if}
 
-	<SignupIcon show={active === 0 || active === undefined} onClick={handleFormClick} />
+	<SignupIcon show={active === 0 || active === undefined} active={active === 0} onClick={handleFormClick} />
 </section>
 
 <style lang="postcss">
