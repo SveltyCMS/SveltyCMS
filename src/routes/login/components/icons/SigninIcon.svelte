@@ -11,10 +11,12 @@
 	let {
 		show = $bindable(true),
 		disabled = false,
+		active = false,
 		onClick = (_event: Event) => {}
 	} = $props<{
 		show?: boolean;
 		disabled?: boolean;
+		active?: boolean;
 		onClick?: (event: Event) => void;
 	}>();
 
@@ -38,9 +40,10 @@
 	class:hide={!show}
 	class:pointer-events-none={!show || disabled}
 	class:opacity-50={disabled}
+	class:icon-active={active}
 >
 	<div onclick={handleClick} onkeydown={handleKeyDown} role="button" tabindex={disabled ? -1 : 0} class="flex cursor-pointer flex-col items-center">
-		<div class="relative w-max rounded-full border-4 border-[#2b2f31] p-3">
+		<div class="signin-icon relative w-max rounded-full border-4 border-[#2b2f31] p-3">
 			<svg
 				class="aspect-square h-12 fill-[#2b2f31]"
 				xmlns="http://www.w3.org/2000/svg"
@@ -52,7 +55,7 @@
 				/>
 			</svg>
 		</div>
-		<p class="text-center font-semibold uppercase !text-black">{m.form_signin()}</p>
+		<p class="signin-text text-center font-semibold uppercase !text-black">{m.form_signin()}</p>
 	</div>
 </div>
 
@@ -67,6 +70,15 @@
 		to {
 			opacity: 0;
 			top: 70%;
+		}
+	}
+	@media (max-width: 991px) {
+		.icon-active .signin-icon {
+			display: none;
+		}
+		.icon-active .signin-text {
+			white-space: nowrap;
+			rotate: -90deg;
 		}
 	}
 </style>
