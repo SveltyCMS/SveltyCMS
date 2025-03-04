@@ -13,9 +13,13 @@
 -->
 
 <script lang="ts">
-	export let globalSearchValue: string;
-	export let selectedMediaType: string;
-	export let mediaTypes: { value: string; icon: string }[];
+	interface Props {
+		globalSearchValue: string;
+		selectedMediaType: string;
+		mediaTypes: { value: string; icon: string }[];
+	}
+
+	let { globalSearchValue = $bindable(), selectedMediaType = $bindable(), mediaTypes }: Props = $props();
 
 	function clearSearch() {
 		globalSearchValue = '';

@@ -21,17 +21,21 @@ Spring class for smooth, physics-based motion.
 <script lang="ts">
 	import { Motion } from 'svelte-motion';
 
-	export let background = 'white';
-	export let position = 1;
-	export let mirrorAnimation = false; // New mirror option
+	interface Props {
+		background?: string;
+		position?: number;
+		mirrorAnimation?: boolean;
+	}
+
+	let { background = 'white', position = 1, mirrorAnimation = false }: Props = $props();
 
 	const paths = Array.from({ length: 36 }, (_, i) => ({
-		id: i,
+		id: i, // Unique ID for each path
 		d: `M-${380 - i * 5 * position} -${189 + i * 6}C-${380 - i * 5 * position} -${189 + i * 6} -${312 - i * 5 * position} ${216 - i * 6} ${
 			152 - i * 5 * position
 		} ${343 - i * 6}C${616 - i * 5 * position} ${470 - i * 6} ${684 - i * 5 * position} ${875 - i * 6} ${684 - i * 5 * position} ${875 - i * 6}`,
-		color: `rgba(218,218,218,${0.05 + i * 0.015})`, // Updated color
-		width: 0.05 + i * 0.01 // Updated width
+		color: `rgba(218,218,218,${0.05 + i * 0.015})`, //  color
+		width: 0.05 + i * 0.01 // stroke width
 	}));
 </script>
 
@@ -51,23 +55,23 @@ Spring class for smooth, physics-based motion.
 				animate={{
 					pathLength: [0.3, 1, 0.3],
 					opacity: [0.3, 0.6, 0.3],
-					pathOffset: mirrorAnimation ? [1, 0, 1] : [0, 1, 0] // Mirrored animation
+					pathOffset: mirrorAnimation ? [1, 0, 1] : [0, 1, 0] // Adjust path offset for mirror animation
 				}}
 				transition={{
 					duration: 20 + Math.random() * 10,
 					repeat: Infinity,
 					ease: 'linear'
 				}}
-				let:motion
 			>
-				<!-- @ts-ignore -->
-				<path d={path.d} stroke="currentColor" stroke-width={path.width} stroke-opacity={0.1 + path.id * 0.03} use:motion />
+				{#snippet children({ motion }: { motion: any })}
+					<path d={path.d} stroke="currentColor" stroke-width={path.width} stroke-opacity={0.1 + path.id * 0.03} use:motion />
+				{/snippet}
 			</Motion>
 		{/each}
 	</svg>
 </div>
 
-<style>
+<style lang="postcss">
 	.mirror {
 		transform: scaleX(-1);
 	}

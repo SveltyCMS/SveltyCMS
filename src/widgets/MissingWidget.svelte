@@ -3,8 +3,8 @@
 @component
 **Shows MissingWidget**
 -->
-<script>
-	export let config;
+<script lang="ts">
+	let { config } = $props();
 </script>
 
 <div class="rounded-md border border-orange-200 bg-orange-50 p-4 text-orange-700">

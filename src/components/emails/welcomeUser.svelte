@@ -18,8 +18,12 @@
 	// Svelty-email
 	import { Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';
 
-	export let username: string | undefined;
-	export let hostLink: string = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD;
+	interface Props {
+		username: string | undefined;
+		hostLink?: string;
+	}
+
+	let { username, hostLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD }: Props = $props();
 
 	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
 

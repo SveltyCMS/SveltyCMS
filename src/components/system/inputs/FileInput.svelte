@@ -19,17 +19,15 @@ Features:
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Define the Props interface
-	interface Props {
-		value?: File | MediaImage;
-		multiple?: boolean;
-		show?: boolean;
-		className?: string;
-		onChange?: (value: File | MediaImage) => void;
-	}
+	// Props
+	const props = $props();
 
-	// Destructure props and mark `value` as bindable
-	let { value = $bindable(), multiple = $bindable(false), show = $bindable(true), className = '', onChange } = $props() as Props;
+	// Create state variables for bindable props
+	let value = $state<File | MediaImage | undefined>(props.value);
+	let multiple = $state(props.multiple ?? false);
+	let show = $state(props.show ?? true);
+	const className = props.className ?? '';
+	const onChange = props.onChange;
 
 	// Declare reactive state with $state
 	let input = $state<HTMLInputElement | null>(null);
@@ -40,7 +38,7 @@ Features:
 		show = false;
 		showMedia = false;
 		value = data;
-		onChange?.(value);
+		onChange?.(data);
 	}
 
 	// Handle file change
@@ -49,7 +47,7 @@ Features:
 		const file = input.files[0];
 		value = file;
 		show = false;
-		onChange?.(value);
+		onChange?.(file);
 	}
 
 	// Handle file drop
@@ -58,7 +56,7 @@ Features:
 		const file = e?.dataTransfer?.files[0];
 		if (file) {
 			value = file;
-			onChange?.(value);
+			onChange?.(file);
 		}
 	}
 
@@ -82,8 +80,8 @@ Features:
 	}
 
 	// Toggle media selection modal
-	function toggleMedia(show: boolean) {
-		showMedia = show;
+	function toggleMedia(showMediaValue: boolean) {
+		showMedia = showMediaValue;
 	}
 </script>
 
