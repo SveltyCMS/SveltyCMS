@@ -400,7 +400,12 @@ Features:
 						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
 							<!-- Row 1 -->
 							<div class="flex w-full justify-between gap-2 sm:w-auto">
-								<button type="submit" form="signin-form" class="preset-filled-surface-500 btn w-full sm:w-auto" aria-label={m.form_signin()}>
+								<button
+									type="submit"
+									form="signin-form"
+									class="preset-filled-surface-500 btn w-full text-white sm:w-auto"
+									aria-label={m.form_signin()}
+								>
 									{m.form_signin()}
 									<!-- Loading indicators -->
 									{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
@@ -460,7 +465,7 @@ Features:
 							{/if}
 
 							<div class="mt-4 flex items-center justify-between">
-								<button type="submit" class="preset-filled-surface-500 btn" aria-label={m.form_resetpassword()}>
+								<button type="submit" class="preset-filled-surface-500 btn text-white" aria-label={m.form_resetpassword()}>
 									{m.form_resetpassword()}
 								</button>
 

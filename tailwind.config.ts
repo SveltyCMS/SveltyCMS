@@ -24,6 +24,7 @@ const config = {
 	],
 
 	theme: {
+		// Extend the default theme with custom responsive breakpoints
 		extend: {
 			screens: {
 				//----------------- min-width------------------------------------------------

@@ -117,7 +117,7 @@
 	});
 </script>
 
-<div class="group relative w-full" role="group" aria-labelledby={currentId}>
+<div class="group relative my-1 w-full" role="group" aria-labelledby={currentId}>
 	<input
 		bind:this={inputElement}
 		bind:value
@@ -132,15 +132,17 @@
 		oninput={(e) => onInput?.(e.currentTarget.value)}
 		{onkeydown}
 		type={effectiveType}
-		class="peer block w-full appearance-none border-0 border-b-2 border-surface-300 bg-transparent pl-6 text-{textColor} focus:border-tertiary-600 focus:outline-hidden focus:ring-0 disabled:opacity-50 dark:border-surface-400 dark:focus:border-tertiary-500 {inputClass}"
+		class="peer border-surface-300 block w-full appearance-none border-0 border-b-2 bg-transparent pl-7 text-{textColor} focus:border-tertiary-600 dark:border-surface-400 dark:focus:border-tertiary-500 focus:ring-0 focus:outline-hidden disabled:opacity-50 {inputClass}"
 		placeholder=" "
 		id={currentId}
 	/>
 
+	<!-- Prefix Icon -->
 	{#if icon}
-		<iconify-icon {icon} width="1.125em" class="absolute left-1 top-3 text-{iconColor}" aria-hidden="true" role="presentation"></iconify-icon>
+		<iconify-icon {icon} width="1.125em" class="absolute top-1 left-1 text-{iconColor}" aria-hidden="true" role="presentation"></iconify-icon>
 	{/if}
 
+	<!-- Password Toggle -->
 	{#if type === 'password'}
 		<iconify-icon
 			tabindex={0}
@@ -148,20 +150,21 @@
 			icon={isPasswordVisible ? 'bi:eye-fill' : 'bi:eye-slash-fill'}
 			aria-label={isPasswordVisible ? 'Hide password' : 'Show password'}
 			aria-pressed={isPasswordVisible}
-			class="absolute right-2 top-3 text-{showPasswordBackgroundColor === 'light'
+			class="absolute -top-0.5 right-1 text-{showPasswordBackgroundColor === 'light'
 				? 'surface-700'
-				: 'surface-300'} hover:text-tertiary-500 focus:outline-hidden"
+				: 'surface-200'} hover:text-tertiary-500 focus:outline-hidden"
 			width="24"
 			onkeydown={handleIconKeyDown}
 			onclick={togglePasswordVisibility}
 		></iconify-icon>
 	{/if}
 
+	<!-- Floating Label -->
 	{#if label}
 		<label
 			for={currentId}
-			class="pointer-events-none absolute left-6 top-0 transform text-sm text-surface-400 transition-all duration-200 ease-in-out peer-placeholder-shown:top-3 peer-placeholder-shown:text-base peer-placeholder-shown:text-surface-400 peer-focus:-top-1.5 peer-focus:text-xs peer-focus:text-tertiary-500 peer-disabled:text-surface-500 {value
-				? '-top-1.5 text-xs text-tertiary-500'
+			class="peer-focus:text-tertiary-500 peer-disabled:text-surface-500 text-surface-300 peer-placeholder-shown:text-surface-200 pointer-events-none absolute -top-4 left-7 transform text-sm transition-all duration-200 ease-in-out peer-placeholder-shown:-top-0.5 peer-placeholder-shown:text-base peer-focus:-top-4 peer-focus:text-xs {value
+				? 'text-tertiary-500 -top-4 text-xs'
 				: ''} {labelClass}"
 		>
 			{label}

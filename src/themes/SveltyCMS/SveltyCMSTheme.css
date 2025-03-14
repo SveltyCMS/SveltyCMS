@@ -32,8 +32,8 @@
 	--anchor-text-decoration-focus: none;
 	/* container */
 	--spacing: 0.22rem;
-	--radius-base: 9999rem;
-	--radius-container: 0.25rem;
+	--radius-base: 0.2rem;
+	--radius-container: 0.2rem;
 	--default-border-width: 1px;
 	--default-divide-width: 1px;
 	--default-ring-width: 1px;
@@ -197,11 +197,11 @@
 	--color-surface-300: oklch(43.62% 0 219.45deg);
 	--color-surface-400: oklch(35.37% 0 219.5deg);
 	--color-surface-500: oklch(27.01% 0 219.57deg);
-	--color-surface-600: oklch(24.93% 0 219.6deg);
-	--color-surface-700: oklch(22.86% 0 196.8deg);
-	--color-surface-800: oklch(20.39% 0 247.93deg);
-	--color-surface-900: oklch(18.22% 0 none);
-	--color-surface-950: oklch(15.91% 0 none);
+	--color-surface-600: oklch(25.35% 0 219.59deg);
+	--color-surface-700: oklch(23.72% 0 196.81deg);
+	--color-surface-800: oklch(21.71% 0 247.92deg);
+	--color-surface-900: oklch(20.02% 0 none);
+	--color-surface-950: oklch(18.22% 0 none);
 	--color-surface-contrast-dark: var(--color-surface-950);
 	--color-surface-contrast-light: var(--color-surface-50);
 	--color-surface-contrast-50: var(--color-surface-contrast-dark);

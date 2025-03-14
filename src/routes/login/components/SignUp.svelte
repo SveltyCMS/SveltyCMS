@@ -327,14 +327,16 @@ Features:
 
 						<!-- Email + OAuth signin  -->
 					{:else}
-						<div class=" border-secondary-500 [&>*+*]:border-secondary-500 mt-4 border text-white">
-							<button type="submit" class="btn bg-surface-200 w-3/4 rounded-none text-black hover:text-white" aria-label={m.form_signup()}>
-								<span class="w-full text-black hover:text-white">{m.form_signup()}</span>
+						<div class="btn-group preset-ghost-surface-500 mt-4">
+							<!-- Sign Up Button -->
+							<button type="submit" class="btn bg-surface-200 w-3/4 text-white hover:text-white" aria-label={m.form_signup()}>
+								<span class="w-full">{m.form_signup()}</span>
 								<!-- Loading indicators -->
 								{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 							</button>
 
-							<button type="button" onclick={handleOAuth} aria-label="OAuth" class="btn flex w-1/4 items-center justify-center">
+							<!-- OAuth Button -->
+							<button type="button" onclick={handleOAuth} aria-label="OAuth" class="btn flex w-1/4 items-center justify-center border">
 								<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mr-0.5 sm:mr-2"></iconify-icon>
 								<span class="">OAuth</span>
 							</button>
