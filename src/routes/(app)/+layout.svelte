@@ -31,7 +31,7 @@ Key features:
 	import { systemLanguage, isLoading } from '@stores/store.svelte';
 	import { contentStructure, collections } from '@root/src/stores/collectionStore.svelte';
 	import { sidebarState } from '@root/src/stores/sidebarStore.svelte';
-	import { screenSize, ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
+	import { ScreenSize, screenSize } from '@root/src/stores/screenSizeStore.svelte';
 
 	// Components
 	import Loading from '@components/Loading.svelte';
@@ -46,8 +46,6 @@ Key features:
 	import { ToastProvider } from '@skeletonlabs/skeleton-svelte';
 	import { Modal } from '@skeletonlabs/skeleton-svelte';
 
-	// import { Modal, setModeUserPrefers, setModeCurrent, setInitialClassState } from '@skeletonlabs/skeleton';
-
 	// Props
 	interface Props {
 		children?: import('svelte').Snippet;
@@ -61,23 +59,6 @@ Key features:
 	let isNonCriticalDataLoaded = $state(false);
 	let loadError = $state<Error | null>(null);
 	let mediaQuery: MediaQueryList;
-
-	// Update content language when data changes
-	// $effect(() => {
-	// 	contentLanguage.set(data.language);
-	// });
-
-	// Handle collection changes
-	// $effect(() => {
-	// 	const newCollection = collection.value;
-	// 	if (!newCollection?.name) return;
-
-	// 	const newPath = `/${contentLanguage.value || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${String(newCollection.name)}`;
-	// 	if (page.url.pathname !== newPath) {
-	// 		console.debug('Redirecting to new path:', newPath, newCollection);
-	// 		goto(newPath);
-	// 	}
-	// });
 
 	// Update collection loaded state when store changes
 	$effect(() => {
@@ -116,14 +97,6 @@ Key features:
 		isNonCriticalDataLoaded = true;
 	}
 
-	// Theme management
-	function updateThemeBasedOnSystemPreference(event: MediaQueryListEvent) {
-		const prefersDarkMode = event.matches;
-		setModeUserPrefers(prefersDarkMode);
-		setModeCurrent(prefersDarkMode);
-		localStorage.setItem('theme', prefersDarkMode ? 'dark' : 'light');
-	}
-
 	// Keyboard shortcuts
 	function onKeyDown(event: KeyboardEvent) {
 		if (event.altKey && event.key === 's') {
@@ -135,38 +108,38 @@ Key features:
 	onMount(() => {
 		// Theme initialization
 		mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-		mediaQuery.addEventListener('change', updateThemeBasedOnSystemPreference);
-
-		// Check for saved theme preference in localStorage
-		const savedTheme = localStorage.getItem('theme');
-		if (savedTheme) {
-			const newMode = savedTheme === 'light';
-			setModeUserPrefers(newMode);
-			setModeCurrent(newMode);
-		}
-
 		// Event listeners
 		window.addEventListener('keydown', onKeyDown);
-
 		// Initialize data
 		initializeCollections();
 		loadNonCriticalData();
 	});
 
 	onDestroy(() => {
-		// Cleanup: remove event listeners
-		mediaQuery?.removeEventListener('change', updateThemeBasedOnSystemPreference);
 		window.removeEventListener('keydown', onKeyDown);
 	});
 
 	// SEO
 	const SeoTitle = `${publicEnv.SITE_NAME} - powered with sveltekit`;
-	const SeoDescription = `${publicEnv.SITE_NAME} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;
+	const SeoDescription = `${publicEnv.SITE_NAME} - a modern, powerful, and easy-to-use CMS powered by SvelteKit.`;
 </script>
 
 <svelte:head>
 	<!-- Dark Mode -->
-	{@html '<script>(' + setInitialClassState.toString() + ')();</script>'}
+	<!-- {@html '<script>(' + setInitialClassState.toString() + ')();</script>'} -->
+
+	<!-- Set initial theme to prevent FOUC -->
+	<script>
+		(function () {
+			const savedTheme = localStorage.getItem('theme');
+			if (savedTheme) {
+				document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+			} else {
+				const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+				document.documentElement.classList.toggle('dark', prefersDark);
+			}
+		})();
+	</script>
 
 	<!--Basic SEO-->
 	<title>{SeoTitle}</title>

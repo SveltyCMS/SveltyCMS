@@ -1,13 +1,8 @@
 <!-- 
 @file src/components/LeftSidebar.svelte 
+
 @component
 **LeftSidebar component displaying collection fields, publish options and translation status.**
-
-```tsx
-<LeftSidebar collection={collection} />
-```
-#### Props
-- `collection` {object} - Collection object
 -->
 
 <script module lang="ts">
@@ -18,60 +13,28 @@
 	import { publicEnv } from '@root/config/public';
 	import { goto, invalidateAll } from '$app/navigation';
 	import axios from 'axios';
-
-	// Import necessary utilities and types
 	import { page } from '$app/state';
+
+	// Stores
 	import { get } from 'svelte/store';
 	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store.svelte';
-	import { contentStructure, mode } from '@stores/collectionStore.svelte';
+	import { mode } from '@stores/collectionStore.svelte';
 	import { toggleSidebar, sidebarState, userPreferredState, handleSidebarToggle } from '@src/stores/sidebarStore.svelte';
 	import { screenSize } from '@stores/screenSizeStore.svelte';
+	import { themeName, updateTheme } from '@root/src/stores/themeStore.svelte'; // Import reactive store
 
-	// Import components and utilities
+	// Components
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import SiteName from '@components/SiteName.svelte';
 	import Collections from '@components/Collections.svelte';
 	import { getLanguageName } from '@utils/languageUtils';
 
 	// Skeleton components and utilities
-	import { Avatar, Tooltip, type PopupSettings } from '@skeletonlabs/skeleton-svelte';
+	import { Avatar, Tooltip } from '@skeletonlabs/skeleton-svelte';
+	// State
 	let openState = $state(false);
-
-	// Define user data and state variables
 	const user = page.data.user;
 	avatarSrc.set(user?.avatar);
-
-	// Tooltip settings
-	const UserTooltip: PopupSettings = {
-		event: 'hover',
-		target: 'User',
-		placement: 'right'
-	};
-	const GithubTooltip: PopupSettings = {
-		event: 'hover',
-		target: 'Github',
-		placement: 'right'
-	};
-	const SwitchThemeTooltip: PopupSettings = {
-		event: 'hover',
-		target: 'SwitchTheme',
-		placement: 'right'
-	};
-	const SignOutTooltip: PopupSettings = {
-		event: 'hover',
-		target: 'SignOutButton',
-		placement: 'right'
-	};
-	const ConfigTooltip: PopupSettings = {
-		event: 'hover',
-		target: 'Config',
-		placement: 'right'
-	};
-	const SystemLanguageTooltip: PopupSettings = {
-		event: 'hover',
-		target: 'SystemLanguage',
-		placement: 'right'
-	};
 
 	// Language and messaging setup
 	import * as m from '@src/paraglide/messages';
@@ -79,7 +42,6 @@
 
 	// Define language type based on available languages
 	type AvailableLanguage = (typeof publicEnv.AVAILABLE_SYSTEM_LANGUAGES)[number];
-
 	let _languageTag = $state(languageTag()); // Get the current language tag
 
 	// Enhanced language selector
@@ -127,14 +89,7 @@
 			console.log('Starting sign-out process...');
 
 			// Call the logout API endpoint
-			const response = await axios.post(
-				'/api/user/logout',
-				{},
-				{
-					withCredentials: true // This is important to include cookies
-				}
-			);
-
+			const response = await axios.post('/api/user/logout', {}, { withCredentials: true });
 			console.log('Logout response:', response.data);
 
 			// Always invalidate and redirect, even if the server response isn't as expected
@@ -174,24 +129,11 @@
 			$pkgBgColor = 'preset-filled-tertiary-500';
 		});
 
-	const toggleTheme = () => {
-		const currentMode = get(modeCurrent);
-		const newMode = !currentMode;
-		setModeUserPrefers(newMode);
-		setModeCurrent(newMode);
-		localStorage.setItem('theme', newMode ? 'light' : 'dark');
+	const toggleTheme = async () => {
+		const currentTheme = themeName(); // Get current value
+		const newThemeName = currentTheme === 'dark' ? 'light' : 'dark';
+		await updateTheme(newThemeName);
 	};
-
-	let handleUserClick = $derived(() => {
-		if (!page.url.href.includes('user')) {
-			mode.set('view');
-			// Only handle sidebar on mobile
-			if (get(screenSize) === 'sm') {
-				toggleSidebar('left', 'hidden'); // Hide the left sidebar on mobile
-			}
-			goto('/user');
-		}
-	});
 
 	function handleSelectChange(event: Event) {
 		const target = event.target as HTMLSelectElement;
@@ -202,7 +144,7 @@
 </script>
 
 <div class="flex h-full w-full flex-col justify-between">
-	<!-- Corporate Identity Full-->
+	<!-- Corporate Identity Full -->
 	{#if sidebarState.sidebar.value.left === 'full'}
 		<a href="/" aria-label="SveltyCMS Logo" class="flex pt-2 no-underline!">
 			<SveltyCMSLogo fill="red" className="h-9 -ml-2" />
@@ -269,208 +211,188 @@
 							name="User"
 							src={$avatarSrc ? `${$avatarSrc}?t=${Date.now()}` : '/Default_User.svg'}
 							size={sidebarState.sidebar.value.left === 'full' ? 'w-[40px]' : 'w-[35px]'}
-							classes="mx-auto "
+							classes="mx-auto"
 						/>
 						<div class="-mt-1 text-center text-[10px] text-black uppercase dark:text-white">
 							{#if sidebarState.sidebar.value.left === 'full'}
 								{#if user?.username}
-									<div class=" -ml-1.5">
+									<div class="-ml-1.5">
 										{user?.username}
 									</div>
 								{/if}
 							{/if}
 						</div>
 					{/snippet}
+
 					{#snippet content()}
 						{m.applayout_userprofile()}
 					{/snippet}
 				</Tooltip>
-
-				<!-- <button
-					use:popup={UserTooltip}
-					onclick={(e) => {
-						handleUserClick();
-						e.stopPropagation();
-					}}
-					onkeypress={(e) => {
-						e.stopPropagation();
-						if (e.key === 'Enter' || e.key === ' ') {
-							handleUserClick();
-							e.preventDefault();
-						}
-					}}
-					class="btn-icon relative cursor-pointer flex-col items-center justify-center text-center no-underline! md:row-span-2"
-				> -->
-				<!-- <Avatar
-						src={$avatarSrc ? `${$avatarSrc}?t=${Date.now()}` : '/Default_User.svg'}
-						alt="Avatar"
-						initials="AV"
-						class="mx-auto {sidebarState.sidebar.value.left === 'full' ? 'w-[40px]' : 'w-[35px]'}"
-					/> -->
-				<!-- <div class="-mt-1 text-center text-[10px] text-black uppercase dark:text-white">
-						{#if sidebarState.sidebar.value.left === 'full'}
-							{#if user?.username}
-								<div class=" -ml-1.5">
-									{user?.username}
-								</div>
-							{/if}
-						{/if}
-					</div>
-				</button> -->
-
-				<!-- Popup Tooltip with the arrow element -->
-				<!-- <div class="card preset-filled z-50 max-w-sm p-2" data-popup="User">
-					{m.applayout_userprofile()}
-					<div class="preset-filled arrow"></div>
-				</div> -->
 			</div>
 
 			<!-- Enhanced System Language Selector -->
-			<div
-				class={sidebarState.sidebar.value.left === 'full' ? 'order-3 row-span-2 mx-auto pb-4' : 'order-2 mx-auto'}
-				use:popup={SystemLanguageTooltip}
-			>
-				<div class="language-selector relative" bind:this={dropdownRef}>
-					{#if publicEnv.AVAILABLE_SYSTEM_LANGUAGES.length > 5}
-						<button
-							class="preset-filled-surface-500 btn-icon flex items-center justify-between text-white uppercase {sidebarState.sidebar.value.left ===
-							'full'
-								? 'px-2.5 py-2'
-								: 'px-1.5 py-0'}"
-							onclick={(e) => {
-								e.stopPropagation();
-								isDropdownOpen = !isDropdownOpen;
-							}}
-						>
-							<span>{_languageTag}</span>
-							<svg class="h-4 w-4 transition-transform {isDropdownOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-							</svg>
-						</button>
+			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-3 row-span-2 mx-auto pb-4' : 'order-2 mx-auto'}>
+				<Tooltip positioning={{ placement: 'right' }} openDelay={200}>
+					{#snippet trigger()}
+						<div class="language-selector relative" bind:this={dropdownRef}>
+							{#if publicEnv.AVAILABLE_SYSTEM_LANGUAGES.length > 5}
+								<button
+									class="preset-filled-surface-500 btn-icon flex items-center justify-between text-white uppercase {sidebarState.sidebar.value
+										.left === 'full'
+										? 'px-2.5 py-2'
+										: 'px-1.5 py-0'}"
+									onclick={(e) => {
+										e.stopPropagation();
+										isDropdownOpen = !isDropdownOpen;
+									}}
+								>
+									<span>{_languageTag}</span>
+									<svg
+										class="h-4 w-4 transition-transform {isDropdownOpen ? 'rotate-180' : ''}"
+										fill="none"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+									>
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+									</svg>
+								</button>
 
-						{#if isDropdownOpen}
-							<div class="bg-surface-700 absolute -top-40 left-20 z-50 mt-1 w-48 rounded-lg border shadow-lg">
-								<div class="border-surface-600 border-b p-2">
-									<input
-										type="text"
-										bind:value={searchQuery}
-										placeholder="Search language..."
-										class="bg-surface-800 placeholder:text-surface-400 w-full rounded-md px-3 py-2 text-white focus:ring-2 focus:outline-hidden"
-									/>
-								</div>
+								{#if isDropdownOpen}
+									<div class="bg-surface-700 absolute -top-40 left-20 z-50 mt-1 w-48 rounded-lg border shadow-lg">
+										<div class="border-surface-600 border-b p-2">
+											<input
+												type="text"
+												bind:value={searchQuery}
+												placeholder="Search language..."
+												class="bg-surface-800 placeholder:text-surface-400 w-full rounded-md px-3 py-2 text-white focus:ring-2 focus:outline-hidden"
+											/>
+										</div>
 
-								<div class="divide-surface-600 max-h-48 divide-y overflow-y-auto py-1">
-									{#each filteredLanguages as lang}
-										<button
-											class="hover:bg-surface-600 flex w-full items-center justify-between px-4 py-2 text-left text-white {_languageTag === lang
-												? 'bg-surface-600'
-												: ''}"
-											onclick={() => handleLanguageSelection(lang)}
-										>
-											<span>{getLanguageName(lang)} ({lang.toUpperCase()})</span>
-										</button>
+										<div class="divide-surface-600 max-h-48 divide-y overflow-y-auto py-1">
+											{#each filteredLanguages as lang}
+												<button
+													class="hover:bg-surface-600 flex w-full items-center justify-between px-4 py-2 text-left text-white {_languageTag === lang
+														? 'bg-surface-600'
+														: ''}"
+													onclick={() => handleLanguageSelection(lang)}
+												>
+													<span>{getLanguageName(lang)} ({lang.toUpperCase()})</span>
+												</button>
+											{/each}
+										</div>
+									</div>
+								{/if}
+							{:else}
+								<select
+									bind:value={_languageTag}
+									onchange={handleSelectChange}
+									class="preset-filled-surface-500 appearance-none! rounded-full text-white uppercase {sidebarState.sidebar.value.left === 'full'
+										? 'btn-icon px-2.5 py-2'
+										: 'btn-icon-sm px-1.5 py-0'}"
+								>
+									{#each availableLanguages as lang}
+										<option value={lang} selected={lang === _languageTag}>{lang.toUpperCase()}</option>
 									{/each}
-								</div>
-							</div>
-						{/if}
-					{:else}
-						<select
-							bind:value={_languageTag}
-							onchange={handleSelectChange}
-							class="preset-filled-surface-500 appearance-none! rounded-full text-white uppercase {sidebarState.sidebar.value.left === 'full'
-								? 'btn-icon px-2.5 py-2'
-								: 'btn-icon-sm px-1.5 py-0'}"
-						>
-							{#each availableLanguages as lang}
-								<option value={lang} selected={lang === _languageTag}>{lang.toUpperCase()}</option>
-							{/each}
-						</select>
-					{/if}
-				</div>
-
-				<!-- Popup Tooltip with the arrow element -->
-				<div class="card preset-filled z-50 max-w-sm p-2" data-popup="SystemLanguage">
-					{m.applayout_systemlanguage()}
-					<div class="preset-filled arrow"></div>
-				</div>
+								</select>
+							{/if}
+						</div>
+					{/snippet}
+					{#snippet content()}
+						<div class="card preset-filled z-50 max-w-sm p-2">
+							{m.applayout_systemlanguage()}
+							<div class="arrow preset-filled"></div>
+						</div>
+					{/snippet}
+				</Tooltip>
 			</div>
 
 			<!-- Light/Dark mode switch -->
 			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-2' : 'order-3'}>
-				<button use:popup={SwitchThemeTooltip} onclick={toggleTheme} aria-label="Toggle Theme" class="btn-icon hover:bg-surface-500 hover:text-white">
-					{#if !$modeCurrent}
-						<iconify-icon icon="bi:sun" width="22"></iconify-icon>
-					{:else}
-						<iconify-icon icon="bi:moon-fill" width="22"></iconify-icon>
-					{/if}
-				</button>
-
-				<!-- Popup Tooltip with the arrow element -->
-				<div class="card preset-filled z-50 max-w-sm p-2" data-popup="SwitchTheme">
-					{m.applayout_switchmode({ $modeCurrent: !$modeCurrent ? 'Light' : 'Dark' })}
-					<div class="preset-filled arrow"></div>
-				</div>
+				<Tooltip positioning={{ placement: 'right' }} openDelay={200}>
+					{#snippet trigger()}
+						<button onclick={toggleTheme} aria-label="Toggle Theme" class="btn-icon hover:bg-surface-500 hover:text-white">
+							{#if themeName() === 'dark'}
+								<iconify-icon icon="bi:sun" width="22"></iconify-icon>
+							{:else}
+								<iconify-icon icon="bi:moon-fill" width="22"></iconify-icon>
+							{/if}
+						</button>
+					{/snippet}
+					{#snippet content()}
+						<div class="card preset-filled z-50 max-w-sm p-2">
+							{m.applayout_switchmode({ $modeCurrent: themeName() === 'dark' ? 'Light' : 'Dark' })}
+							<div class="arrow preset-filled"></div>
+						</div>
+					{/snippet}
+				</Tooltip>
 			</div>
 
 			<!-- Sign Out -->
 			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-4' : 'order-4'}>
-				<button
-					use:popup={SignOutTooltip}
-					onclick={signOut}
-					type="submit"
-					value="Sign out"
-					aria-label="Sign Out"
-					class="btn-icon hover:bg-surface-500 hover:text-white"
-				>
-					<iconify-icon icon="uil:signout" width="26"></iconify-icon>
-				</button>
-
-				<!-- Popup Tooltip with the arrow element -->
-				<div class="card preset-filled z-50 max-w-sm p-2" data-popup="SignOutButton">
-					{m.applayout_signout()}
-					<div class="preset-filled arrow"></div>
-				</div>
+				<Tooltip positioning={{ placement: 'right' }} openDelay={200}>
+					{#snippet trigger()}
+						<button onclick={signOut} type="submit" value="Sign out" aria-label="Sign Out" class="btn-icon hover:bg-surface-500 hover:text-white">
+							<iconify-icon icon="uil:signout" width="26"></iconify-icon>
+						</button>
+					{/snippet}
+					{#snippet content()}
+						<div class="card preset-filled z-50 max-w-sm p-2">
+							{m.applayout_signout()}
+							<div class="arrow preset-filled"></div>
+						</div>
+					{/snippet}
+				</Tooltip>
 			</div>
 
 			<!-- System Configuration -->
 			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-5' : 'order-6'}>
-				<button
-					use:popup={ConfigTooltip}
-					onclick={() => {
-						mode.set('view');
-						handleSidebarToggle();
-						if (get(screenSize) === 'sm') {
-							toggleSidebar('left', 'hidden');
-						}
-					}}
-					aria-label="System Configuration"
-					class="btn-icon hover:bg-surface-500 pt-1.5 hover:text-white"
-				>
-					<a href="/config" aria-label="System Configuration">
-						<iconify-icon icon="material-symbols:build-circle" width="32"></iconify-icon>
-					</a>
-				</button>
-
-				<!-- Popup Tooltip with the arrow element -->
-				<div class="card preset-filled z-50 max-w-sm p-2" data-popup="Config">
-					{m.applayout_systemconfiguration()}
-					<div class="preset-filled arrow"></div>
-				</div>
+				<Tooltip positioning={{ placement: 'right' }} openDelay={200}>
+					{#snippet trigger()}
+						<button
+							onclick={() => {
+								mode.set('view');
+								handleSidebarToggle();
+								if (get(screenSize) === 'sm') {
+									toggleSidebar('left', 'hidden');
+								}
+							}}
+							aria-label="System Configuration"
+							class="btn-icon hover:bg-surface-500 pt-1.5 hover:text-white"
+						>
+							<a href="/config" aria-label="System Configuration">
+								<iconify-icon icon="material-symbols:build-circle" width="32"></iconify-icon>
+							</a>
+						</button>
+					{/snippet}
+					{#snippet content()}
+						<div class="card preset-filled z-50 max-w-sm p-2">
+							{m.applayout_systemconfiguration()}
+							<div class="arrow preset-filled"></div>
+						</div>
+					{/snippet}
+				</Tooltip>
 			</div>
 
 			<!-- Github discussions -->
-			<div class="{sidebarState.sidebar.value.left === 'full' ? 'order-7' : 'order-7 hidden'} ">
-				<a href="https://github.com/SveltyCMS/SveltyCMS/discussions" target="blank">
-					<button use:popup={GithubTooltip} aria-label="Github Discussions" class="btn-icon hover:bg-surface-500 hover:text-white">
-						<iconify-icon icon="grommet-icons:github" width="30"></iconify-icon>
-					</button>
-
-					<!-- Popup Tooltip with the arrow element -->
-					<div class="card preset-filled z-50 max-w-sm p-2" data-popup="Github">
-						{m.applayout_githubdiscussion()}
-						<div class="preset-filled arrow"></div>
-					</div>
-				</a>
+			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-7' : 'order-7 hidden'}>
+				<Tooltip positioning={{ placement: 'right' }} openDelay={200}>
+					{#snippet trigger()}
+						<a
+							href="https://github.com/SveltyCMS/SveltyCMS/discussions"
+							target="_blank"
+							aria-label="Github Discussions"
+							class="btn-icon hover:bg-surface-500 hover:text-white"
+						>
+							<iconify-icon icon="grommet-icons:github" width="30"></iconify-icon>
+						</a>
+					{/snippet}
+					{#snippet content()}
+						<div class="card preset-filled z-50 max-w-sm p-2">
+							{m.applayout_githubdiscussion()}
+							<div class="arrow preset-filled"></div>
+						</div>
+					{/snippet}
+				</Tooltip>
 			</div>
 
 			<!-- CMS Version -->

@@ -199,11 +199,11 @@
 			<button
 				type="button"
 				id={`node-${node.id}`}
-				class="flex w-full items-center gap-1.5 rounded
-				border border-surface-400 px-2 py-3 transition-all duration-200
-				hover:bg-surface-50 focus:bg-surface-50 focus-visible:outline-hidden
-				dark:border-0 dark:bg-surface-500
-				dark:text-surface-200 dark:hover:bg-surface-400 dark:focus:bg-surface-500
+				class="border-surface-400 hover:bg-surface-50 focus:bg-surface-50 dark:bg-surface-500 dark:text-surface-200
+				dark:hover:bg-surface-400 dark:focus:bg-surface-500 flex w-full items-center gap-1.5
+				rounded border px-2
+				py-3 transition-all
+				duration-200 focus-visible:outline-hidden dark:border-0
 				{node.children ? '' : 'bg-surface-300 dark:bg-surface-700'}"
 				role="treeitem"
 				aria-expanded={node.children ? node.isExpanded : undefined}
@@ -236,7 +236,7 @@
 				{/if}
 				<!-- Node label -->
 				<span
-					class="select-none overflow-hidden text-ellipsis whitespace-nowrap dark:text-white {compact ? 'text-xs' : ''}"
+					class="overflow-hidden text-ellipsis whitespace-nowrap select-none dark:text-white {compact ? 'text-xs' : ''}"
 					style="margin-left: {node.depth ? node.depth * 8 : 0}px"
 				>
 					{node.name}
@@ -244,7 +244,7 @@
 
 				<!-- Badge, shown after the label -->
 				{#if node.badge?.visible && (node.badge.count ?? 0) > 0 && !compact}
-					<span class="badge absolute right-2 top-3 rounded-full bg-primary-500/80 px-2 py-1 text-xs text-white dark:bg-primary-500/50">
+					<span class="badge bg-primary-500/80 dark:bg-primary-500/50 absolute top-3 right-2 rounded-full px-2 py-1 text-xs text-white">
 						{node.badge.count}
 					</span>
 				{/if}
@@ -255,8 +255,8 @@
 				<div id={`node-${node.id}-children`} class="relative {compact ? 'ms-1' : 'ms-4'}" role="group" aria-labelledby={`node-${node.id}-label`}>
 					<!-- Vertical line with RTL support -->
 					<div
-						class="absolute -left-0.5 top-0 h-full w-0.5 bg-linear-to-b
-						from-surface-100 from-20% to-transparent dark:from-surface-400"
+						class="from-surface-100 dark:from-surface-400 absolute top-0 -left-0.5 h-full
+						w-0.5 bg-linear-to-b from-20% to-transparent"
 					></div>
 
 					<!-- Children nodes -->
@@ -272,13 +272,13 @@
 </ul>
 
 <style lang="postcss">
-	:global(.focused-label) {
+	/* :global(.focused-label) {
 		@apply text-primary-400;
-	}
+	} */
 
 	.custom-scrollbar {
 		scrollbar-width: thin;
-		scrollbar-color: theme(colors.surface.400) transparent;
+		scrollbar-color: red transparent;
 	}
 
 	.custom-scrollbar::-webkit-scrollbar {
@@ -290,7 +290,7 @@
 	}
 
 	.custom-scrollbar::-webkit-scrollbar-thumb {
-		background-color: theme(colors.primary.500);
+		background-color: green;
 		border-radius: 3px;
 	}
 </style>

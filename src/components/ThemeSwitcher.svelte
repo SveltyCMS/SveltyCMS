@@ -25,12 +25,6 @@ Features:
 
 	let currentTheme: Theme | null = null;
 	let isDarkMode: boolean = $state(false);
-	let systemPreference: 'light' | 'dark' = 'light';
-
-	// Function to get the system's color scheme preference
-	function getSystemPreference(): 'light' | 'dark' {
-		return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-	}
 
 	// Function to determine if the current theme is dark
 	function isThemeDark(theme: Theme | null): boolean {
@@ -44,25 +38,6 @@ Features:
 		await updateTheme(newThemeName);
 	}
 
-	// Media query for system preference
-	let mediaQuery: MediaQueryList | null = $state(null);
-
-	// Handle system preference changes
-	function handleChange(e: MediaQueryListEvent) {
-		systemPreference = e.matches ? 'dark' : 'light';
-		// You might want to update the theme here if you want to follow system preference
-		// This depends on your app's requirements
-	}
-
-	// Initialize system preference and media query listener
-	$effect(() => {
-		if (typeof window !== 'undefined') {
-			systemPreference = getSystemPreference();
-			mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-			mediaQuery?.addEventListener('change', handleChange);
-		}
-	});
-
 	// Watch theme changes and apply them
 	$effect(() => {
 		currentTheme = $theme;
@@ -70,20 +45,11 @@ Features:
 		document.documentElement.classList.toggle('dark', isDarkMode);
 		document.documentElement.style.colorScheme = isDarkMode ? 'dark' : 'light';
 	});
-
-	// Cleanup media query listener
-	$effect.root(() => {
-		return () => {
-			if (mediaQuery) {
-				mediaQuery.removeEventListener('change', handleChange);
-			}
-		};
-	});
 </script>
 
 <button
 	onclick={toggleTheme}
-	class="rounded-full p-2 transition-colors duration-200 ease-in-out hover:bg-gray-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:hover:bg-gray-700"
+	class="rounded-full p-2 transition-colors duration-200 ease-in-out hover:bg-gray-200 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none dark:hover:bg-gray-700"
 	aria-label={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}
 >
 	{#if isDarkMode}
