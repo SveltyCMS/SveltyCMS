@@ -40,13 +40,13 @@ Features:
 
 	// Props
 	const {
-		active = $bindable(undefined),
+		active = $bindable('initial'),
 		FormSchemaSignUp,
 		onClick = () => {},
 		onPointerEnter = () => {},
 		onBack = () => {}
 	} = $props<{
-		active?: undefined | 0 | 1;
+		active?: 'initial' | 'signin' | 'signup';
 		FormSchemaSignUp: SuperValidated<SignUpFormSchema>;
 		onClick?: () => void;
 		onPointerEnter?: () => void;
@@ -149,9 +149,9 @@ Features:
 	}
 
 	// Class computations
-	const isActive = $derived(active === 1);
-	const isInactive = $derived(active !== undefined && active !== 1);
-	const isHover = $derived(active === undefined || active === 0);
+	const isActive = $derived(active === 'signup');
+	const isInactive = $derived(active !== 'initial' && active !== 'signup');
+	const isHover = $derived(active === 'initial' || active === 'initial');
 
 	const baseClasses = 'hover relative flex items-center overflow-y-auto';
 </script>
@@ -167,7 +167,7 @@ Features:
 	class:inactive={isInactive}
 	class:hover={isHover}
 >
-	{#if active === 1}
+	{#if active === 'signup'}
 		<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
 			<div class="absolute inset-0">
 				<FloatingPaths position={1} background="dark" mirrorAnimation />
@@ -175,7 +175,7 @@ Features:
 			</div>
 			<!-- CSS Logo -->
 			<div class="absolute top-[20%] left-1/2 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
-			<div class="relative z-10 mx-auto mt-[15%] mb-[5%] w-full rounded-md bg-[#242728] p-4 lg:w-4/5" class:hide={active !== 1}>
+			<div class="relative z-10 mx-auto mt-[15%] mb-[5%] w-full rounded-md bg-[#242728] p-4 lg:w-4/5" class:hide={active !== 'signup'}>
 				<div class="mb-4 flex flex-row gap-2">
 					<SveltyCMSLogo className="w-14" fill="red" />
 
@@ -202,7 +202,7 @@ Features:
 				</div>
 
 				<!-- <SuperDebug data={$form} display={dev} /> -->
-				<form method="post" action="?/signUp" use:enhance bind:this={formElement} class="items flex flex-col gap-3" class:hide={active !== 1}>
+				<form method="post" action="?/signUp" use:enhance bind:this={formElement} class="items flex flex-col gap-3" class:hide={active !== 'signup'}>
 					<!-- Username field -->
 					<FloatingInput
 						id="usernamesignUp"
@@ -347,7 +347,7 @@ Features:
 		</div>
 	{/if}
 
-	<SignupIcon show={active === 0 || active === undefined} onClick={handleFormClick} />
+	<SignupIcon show={active === 0 || active === 'initial'} onClick={handleFormClick} />
 </section>
 
 <style lang="postcss">
@@ -358,7 +358,7 @@ Features:
 	section {
 		--width: 0%;
 		background: #242728;
-		grow: 1;
+		flex-grow: 1;
 		width: var(--width);
 		transition: 0.4s;
 	}

@@ -36,12 +36,13 @@ Features:
 	const firstUserExists = $state(data.firstUserExists);
 
 	// Set Initial active state based on conditions
-	let active = $state<undefined | 0 | 1>(
+	type ActiveState = 'initial' | 'signin' | 'signup';
+	let active = $state<ActiveState>(
 		publicEnv.DEMO || publicEnv.SEASONS
-			? undefined // If DEMO or SEASONS is enabled, show logo
+			? 'initial' // If DEMO or SEASONS is enabled, show logo
 			: firstUserExists
-				? undefined // Show SignIn if the first user exists
-				: 1 // Otherwise, show SignUp
+				? 'initial' // Show initial state if the first user exists
+				: 'signup' // Otherwise, show SignUp
 	);
 
 	// Set initial background based on conditions
@@ -147,7 +148,7 @@ Features:
 	function resetToInitialState() {
 		if (isTransitioning) return;
 		isTransitioning = true;
-		active = undefined;
+		active = 'initial';
 		background = publicEnv.DEMO ? '#242728' : publicEnv.SEASONS ? '#242728' : firstUserExists ? 'white' : '#242728';
 		setTimeout(() => {
 			isTransitioning = false;
@@ -162,16 +163,16 @@ Features:
 		if (isTransitioning) return;
 		isTransitioning = true;
 		// First reset to initial state to show the logo
-		active = 0;
+		active = 'signin';
 		background = 'white';
 
 		// Then after a short delay, transition to signin
 		setTimeout(() => {
 			if (!firstUserExists) {
-				active = 1; // Show SignUp for fresh installation
+				active = 'signup'; // Show SignUp for fresh installation
 				background = '#242728';
 			} else {
-				active = 0; // Show SignIn for existing users
+				active = 'signin'; // Show SignIn for existing users
 				background = 'white';
 			}
 			isTransitioning = false;
@@ -185,7 +186,7 @@ Features:
 		}
 		if (isTransitioning) return;
 		isTransitioning = true;
-		active = 1;
+		active = 'signup';
 		background = '#242728';
 		setTimeout(() => {
 			isTransitioning = false;
@@ -194,13 +195,13 @@ Features:
 
 	// Handle pointer enter events
 	function handleSignInPointerEnter() {
-		if (active === undefined && !publicEnv.DEMO && !publicEnv.SEASONS) {
+		if (active === 'initial' && !publicEnv.DEMO && !publicEnv.SEASONS) {
 			background = 'white';
 		}
 	}
 
 	function handleSignUpPointerEnter() {
-		if (active === undefined && !publicEnv.DEMO && !publicEnv.SEASONS) {
+		if (active === 'initial' && !publicEnv.DEMO && !publicEnv.SEASONS) {
 			background = '#242728';
 		}
 	}
@@ -211,7 +212,7 @@ Features:
 	}
 </script>
 
-<div class={`flex min-h-lvh w-full overflow-y-auto bg-${background} transition-colors duration-300`}>
+<div class="flex min-h-lvh w-full overflow-y-auto transition-colors duration-300" style:background>
 	<!-- Debug Overlay -->
 	<!-- <div class="space-y fixed right-4 top-4 z-50 flex flex-col items-start rounded-lg bg-gray-800 p-4 text-white shadow-lg">
 		<h2 class="pb-1 text-center text-lg font-semibold">Debug Panel</h2>
@@ -242,7 +243,7 @@ Features:
 		onBack={resetToInitialState}
 	/>
 
-	{#if active == undefined}
+	{#if active === 'initial'}
 		{#if publicEnv.DEMO}
 			<!-- DEMO MODE -->
 			<div

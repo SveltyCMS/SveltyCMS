@@ -44,7 +44,7 @@ Features:
 
 	// Props
 	const {
-		active = $bindable(undefined),
+		active = $bindable('initial'),
 		FormSchemaLogin,
 		FormSchemaForgot,
 		FormSchemaReset,
@@ -52,7 +52,7 @@ Features:
 		onPointerEnter = () => {},
 		onBack = () => {}
 	} = $props<{
-		active?: undefined | 0 | 1;
+		active?: 'initial' | 'signin' | 'signup';
 		FormSchemaLogin: SuperValidated<LoginFormSchema>;
 		FormSchemaForgot: SuperValidated<ForgotFormSchema>;
 		FormSchemaReset: SuperValidated<ResetFormSchema>;
@@ -298,9 +298,9 @@ Features:
 	}
 
 	// Class computations
-	const isActive = $derived(active === 0);
-	const isInactive = $derived(active !== undefined && active !== 0);
-	const isHover = $derived(active === undefined || active === 1);
+	const isActive = $derived(active === 'signin');
+	const isInactive = $derived(active !== 'initial' && active !== 'signin');
+	const isHover = $derived(active === 'initial' || active === 'signup');
 
 	const baseClasses = 'hover relative flex items-center';
 </script>
@@ -316,7 +316,7 @@ Features:
 	class:inactive={isInactive}
 	class:hover={isHover}
 >
-	{#if active === 0}
+	{#if active === 'signin'}
 		<!-- Background pattern  -->
 		<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
 			<div class="absolute inset-0">
@@ -327,7 +327,7 @@ Features:
 
 			<div class="absolute top-[20%] left-1/2 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
 			<!-- CSS Logo -->
-			<div class="z-0 mx-auto mt-[15%] mb-[5%] w-full overflow-y-auto rounded-md bg-white p-4 lg:w-4/5" class:hide={active !== 0}>
+			<div class="z-0 mx-auto mt-[15%] mb-[5%] w-full overflow-y-auto rounded-md bg-white p-4 lg:w-4/5" class:hide={active !== 'signin'}>
 				<div class="mb-1 flex flex-row gap-2">
 					<SveltyCMSLogo className="w-14" fill="red" />
 
@@ -362,7 +362,7 @@ Features:
 							use:enhance
 							bind:this={formElement}
 							class="flex w-full flex-col gap-3"
-							class:hide={active !== 0}
+							class:hide={active !== 'signin'}
 						>
 							<!-- Email field -->
 							<FloatingInput
@@ -437,7 +437,7 @@ Features:
 							use:forgotEnhance
 							bind:this={formElement}
 							class="flex w-full flex-col gap-3"
-							class:hide={active !== 0}
+							class:hide={active !== 'signin'}
 						>
 							<!-- Email field -->
 							<FloatingInput
@@ -498,7 +498,7 @@ Features:
 							use:resetEnhance
 							bind:this={formElement}
 							class="flex w-full flex-col gap-3"
-							class:hide={active !== 0}
+							class:hide={active !== 'signin'}
 						>
 							<!-- Hidden fields -->
 							<input type="hidden" name="email" bind:value={$resetForm.email} />
@@ -607,7 +607,7 @@ Features:
 		</div>
 	{/if}
 
-	<SigninIcon show={active === 1 || active === undefined} onClick={handleFormClick} />
+	<SigninIcon show={active === 'signup' || active === 'initial'} onClick={handleFormClick} />
 </section>
 
 <style lang="postcss">
@@ -615,10 +615,11 @@ Features:
 		transition: 0s;
 		opacity: 0;
 	}
+
 	section {
 		--width: 0%;
 		background: white;
-		grow: 1;
+		flex-grow: 1;
 		width: var(--width);
 		transition: 0.4s;
 	}

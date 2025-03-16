@@ -66,10 +66,10 @@
 		"@iconify/svelte": "^4.2.0",
 		"@playwright/test": "^1.51.0",
 		"@semantic-release/git": "^10.0.1",
-		"@skeletonlabs/skeleton": "^3.0.0",
+		"@skeletonlabs/skeleton": "^3.1.0",
 		"@skeletonlabs/skeleton-svelte": "^1.0.0",
 		"@sveltejs/adapter-node": "^5.2.12",
-		"@sveltejs/kit": "^2.19.0",
+		"@sveltejs/kit": "^2.19.2",
 		"@sveltejs/vite-plugin-svelte": "^5.0.3",
 		"@types/eslint": "^9.6.1",
 		"@types/mime-types": "^2.1.4",
@@ -100,8 +100,7 @@
 		"typescript": "^5.8.2",
 		"typescript-eslint": "^8.26.1",
 		"valibot": "^1.0.0-rc.4",
-		"vite": "^6.2.1",
-		"vite-plugin-tailwind-purgecss": "^0.3.5"
+		"vite": "^6.2.2"
 	},
 	"type": "module",
 	"dependencies": {
@@ -128,8 +127,8 @@
 		"@tiptap/extension-youtube": "^2.11.5",
 		"@tiptap/pm": "^2.11.5",
 		"@tiptap/starter-kit": "^2.11.5",
-		"@types/mapbox-gl": "^3.4.1",
 		"@types/mapbox__mapbox-gl-geocoder": "^5.0.0",
+		"@types/mapbox-gl": "^3.4.1",
 		"@types/serialize-javascript": "^5.0.4",
 		"argon2": "^0.41.1",
 		"axios": "^1.8.3",
