@@ -30,6 +30,7 @@
  * 6. Type safety throughout interface
  */
 
+import type { Collection } from "mongoose";
 import type { Schema } from "../content/types";
 
 /** Core Types **/
@@ -46,6 +47,9 @@ interface BaseEntity {
 
 /** collection **/
 export interface CollectionModel {
+  findOne: (query: FilterQuery<Document>) => Promise<Document | null>;
+  aggregate: (pipeline: AggregationPipeline[]) => Promise<any[]>;
+
 
 }
 
@@ -251,7 +255,7 @@ export interface DatabaseAdapter {
   };
 
   collection: {
-    getModel(id: string): Promise<unknown>
+    getModel(id: string): Promise<CollectionModel>
     createModel(schema: Schema): Promise<void>;
     updateModel(schema: Schema): Promise<void>;
     deleteModel(id: string): Promise<void>;

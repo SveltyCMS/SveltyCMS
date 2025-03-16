@@ -40,7 +40,7 @@ export async function _PATCH({ data, schema, user }: { data: FormData; schema: S
     }
 
     // Get collection models
-    const collection = contentManager.getCollectionModelById(schema._id);
+    const collection = dbAdapter.collection.getModel(schema._id);
     if (!collection) {
       logger.error(`Collection not found for schema._id: ${schema._id}`);
       return new Response('Collection not found', { status: 404 });

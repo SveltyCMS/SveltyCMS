@@ -47,12 +47,12 @@ class ContentManager {
   private static instance: ContentManager | null = null;
   private collectionCache: Map<string, CacheEntry<Schema>> = new Map();
   private fileHashCache: Map<string, CacheEntry<string>> = new Map();
-  private contentStructureCache: Map<string, CacheEntry<Category>> = new Map();
+
   private collectionAccessCount: Map<string, number> = new Map();
   private initialized: boolean = false;
 
   private loadedCollections: Schema[] = [];
-  private collectionModels: Map<string, CollectionModel> = new Map()
+
   private collectionMap: Map<string, Schema> = new Map();
   private contentStructure: Record<string, ContentNode> = {};
   private nestedContentStructure: ContentStructureNode[] = [];
@@ -153,7 +153,6 @@ class ContentManager {
           if (!model) logger.error(`Database model creation for  ${schema.name} ${schema.path} Failed`)
           else {
             collections.push(processed);
-            this.collectionModels.set(schema._id, model)
             this.collectionMap.set(schema._id, processed);
           }
 
@@ -222,17 +221,6 @@ class ContentManager {
 
   }
 
-  public getCollectionModelById(id: string) {
-    try {
-      const collectionModel = this.collectionModels.get(id)
-      // Create models using UUID as the key
-      return collectionModel;
-    } catch (error) {
-      const message = `Error fetching collection models: ${error instanceof Error ? error.message : String(error)}`;
-      logger.error(message);
-      throw error
-    }
-  }
 
 
   public async getCollection(path: string): Promise<(Schema & { module: string | undefined }) | null> {

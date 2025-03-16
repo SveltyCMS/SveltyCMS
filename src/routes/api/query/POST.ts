@@ -54,7 +54,7 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
       return new Response('Invalid or undefined schema ID.', { status: 400 });
     }
 
-    const collection = contentManager.getCollectionModelById(schema._id); // Get collection models from the database
+    const collection = dbAdapter.collection.getModel(schema._id);
     // Check if the collection exists
     if (!collection) {
       logger.error(`Collection not found for schema ID: ${schema._id}`);

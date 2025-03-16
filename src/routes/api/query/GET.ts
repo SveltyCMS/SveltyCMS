@@ -77,7 +77,7 @@ export async function _GET({
     }
 
     // Get collection models
-    const collection = contentManager.getCollectionModelById(schema._id);
+    const collection = dbAdapter.collection.getModel(schema._id)
 
     // Find the collection by name or ID
     if (!collection) {

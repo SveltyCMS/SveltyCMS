@@ -236,6 +236,9 @@ export class MongoDBAdapter implements DatabaseAdapter {
         return false;
       }
     },
+    getModel: (id: string): CollectionModel => {
+      return this.collection.models.get(id)
+    },
 
     // Create or update a collection model based on the provided configuration
     createModel: async (collection: CollectionConfig): Promise<CollectionModel> => {
@@ -251,6 +254,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
         // Return existing model if it exists
         if (mongoose.models[collectionName]) {
           logger.debug(`Model \x1b[34m${collectionName}\x1b[0m already exists in Mongoose, returning existing model`);
+          this.collection.models.set(collectionUuid, mongoose.models[collectionName])
           return mongoose.models[collectionName] as CollectionModel;
         }
 
@@ -345,7 +349,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
         // Create and return the new model
         const model = mongoose.model(collectionName, schema);
         logger.debug(`Collection model \x1b[34m${collectionName}\x1b[0m created successfully.`);
-        this.collection.models.set(collectionName, model)
+        this.collection.models.set(collectionUuid, model)
         return model;
       } catch (error) {
         logger.error('Error creating collection model:', error instanceof Error ? error.stack : error);
@@ -358,7 +362,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
   //  CRUD Operations
   crud = {
     // Implementing findOne method
-    findOne: async <T extends DocumentContent = DocumentContent>(collection: string, query: FilterQuery<T>): Promise<T | null> => {
+    findOne: async <T extends DocumentContent>(collection: string, query: FilterQuery<T>): Promise<T | null> => {
       try {
         const model = mongoose.models[collection] as Model<T>;
         if (!model) {
@@ -373,7 +377,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
     },
 
     // Implementing findMany method
-    findMany: async <T extends DocumentContent = DocumentContent>(collection: string, query: FilterQuery<T>): Promise<T[]> => {
+    findMany: async <T extends DocumentContent>(collection: string, query: FilterQuery<T>): Promise<T[]> => {
       try {
         const model = mongoose.models[collection] as Model<T>;
         if (!model) {
