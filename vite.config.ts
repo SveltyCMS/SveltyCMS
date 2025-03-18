@@ -50,8 +50,8 @@ let compileTimeout: NodeJS.Timeout;
 
 export default defineConfig({
 	plugins: [
-		tailwindcss(),
 		sveltekit(),
+		tailwindcss(),
 		{
 			name: 'collection-watcher',
 			async buildStart() {

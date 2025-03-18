@@ -397,13 +397,13 @@ Features:
 							{#if $errors.password}<span class="invalid text-error-500 text-xs">{$errors.password}</span>{/if}
 						</form>
 
-						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
+						<div class="mt-6 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
 							<!-- Row 1 -->
 							<div class="flex w-full justify-between gap-2 sm:w-auto">
 								<button
 									type="submit"
 									form="signin-form"
-									class="preset-filled-surface-500 btn w-full text-white sm:w-auto"
+									class="preset-filled-surface-500 btn btn-lg w-full text-white sm:w-auto"
 									aria-label={m.form_signin()}
 								>
 									{m.form_signin()}
@@ -418,7 +418,7 @@ Features:
 							<div class="mt-4 flex w-full justify-between sm:mt-0 sm:w-auto">
 								<button
 									type="button"
-									class="preset-outlined-surface-500 btn w-full text-black sm:w-auto"
+									class="preset-outlined-surface-500 btn btn-lg w-full text-black sm:w-auto"
 									aria-label={m.signin_forgottenpassword()}
 									tabindex={forgotPasswordTabIndex}
 									onclick={handleForgotPassword}

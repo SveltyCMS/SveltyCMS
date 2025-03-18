@@ -8,6 +8,7 @@
  * - Configuration of the Skeleton plugin with a custom theme (SveltyCMSTheme)
  */
 
+import { join } from 'path';
 import type { Config } from 'tailwindcss';
 
 // Import Custom Theme

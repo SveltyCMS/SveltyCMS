@@ -324,21 +324,24 @@ Features:
 							{m.form_signup()}
 							{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 						</button>
-
-						<!-- Email + OAuth signin  -->
 					{:else}
-						<div class="btn-group preset-ghost-surface-500 mt-4">
+						<!-- Email + OAuth signin -->
+						<div class="mt-4 flex flex-col gap-3 sm:flex-row sm:gap-2">
 							<!-- Sign Up Button -->
-							<button type="submit" class="btn bg-surface-200 w-3/4 text-white hover:text-white" aria-label={m.form_signup()}>
-								<span class="w-full">{m.form_signup()}</span>
-								<!-- Loading indicators -->
+							<button type="submit" class="preset-filled btn btn-lg w-full text-white hover:text-white" aria-label={m.form_signup()}>
+								<span>{m.form_signup()}</span>
 								{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 							</button>
 
 							<!-- OAuth Button -->
-							<button type="button" onclick={handleOAuth} aria-label="OAuth" class="btn flex w-1/4 items-center justify-center border">
-								<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mr-0.5 sm:mr-2"></iconify-icon>
-								<span class="">OAuth</span>
+							<button
+								type="button"
+								onclick={handleOAuth}
+								aria-label="OAuth"
+								class="preset-outlined-secondary-500 btn btn-lg flex items-center justify-center text-white hover:text-white sm:w-1/3"
+							>
+								<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mr-2"> </iconify-icon>
+								<span>OAuth</span>
 							</button>
 						</div>
 					{/if}
@@ -347,7 +350,7 @@ Features:
 		</div>
 	{/if}
 
-	<SignupIcon show={active === 0 || active === 'initial'} onClick={handleFormClick} />
+	<SignupIcon show={active === 'signin' || active === 'initial'} onClick={handleFormClick} />
 </section>
 
 <style lang="postcss">

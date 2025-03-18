@@ -388,7 +388,7 @@ Features:
 	aria-haspopup="true"
 	aria-controls="navigation-menu"
 	use:drag
-	class="fixed z-99999999 flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer touch-none items-center justify-center rounded-full bg-tertiary-500 transition-transform duration-200 hover:scale-110 focus:scale-110 focus:outline-hidden focus:ring-2 focus:ring-white focus:ring-offset-2"
+	class="bg-tertiary-500 fixed z-99999999 flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer touch-none items-center justify-center rounded-full transition-transform duration-200 hover:scale-110 focus:scale-110 focus:ring-2 focus:ring-white focus:ring-offset-2 focus:outline-hidden"
 	style="top:{(Math.min(buttonInfo.y, window.innerHeight - buttonRadius) / window.innerHeight) * 100}%;
            left:{(Math.min(isRightToLeft() ? buttonRadius : buttonInfo.x, window.innerWidth - buttonRadius) / window.innerWidth) * 100}%;"
 	tabindex="0"
@@ -402,15 +402,22 @@ Features:
 	<div class="fixed inset-0 z-9999998" role="dialog" aria-modal="true" aria-label="Navigation Menu" transition:fade={{ duration: 150 }}>
 		<!-- Large centered circle background -->
 		<div
-			class="fixed left-1/2 top-1/2 -z-10 h-[340px] w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-full border bg-tertiary-500/40"
+			class="bg-tertiary-500/40 fixed top-1/2 left-1/2 -z-10 h-[340px] w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-full border"
 			transition:scale={{ duration: 200, easing: elasticOut }}
 		></div>
 
 		<!-- SVG Lines -->
-		<svg bind:this={svg} xmlns="http://www.w3.org/2000/svg" use:setDash aria-hidden="true" class="svg-container">
-			<line bind:this={firstLine} x1={buttonInfo.x} y1={buttonInfo.y} x2={center.x} y2={center.y} class="nav-line" />
+		<svg bind:this={svg} xmlns="http://www.w3.org/2000/svg" use:setDash aria-hidden="true" class="absolute inset-0 h-full w-full">
+			<line
+				bind:this={firstLine}
+				x1={buttonInfo.x}
+				y1={buttonInfo.y}
+				x2={center.x}
+				y2={center.y}
+				class="stroke-error-500 pointer-events-none stroke-2"
+			/>
 			{#each endpointsWithPositions.slice(1) as endpoint}
-				<line x1={center.x} y1={center.y} x2={endpoint.x} y2={endpoint.y} class="nav-line" />
+				<line x1={center.x} y1={center.y} x2={endpoint.x} y2={endpoint.y} class="stroke-error-500 pointer-events-none stroke-2" />
 			{/each}
 		</svg>
 
@@ -418,7 +425,7 @@ Features:
 		<div id="navigation-menu" role="menu" class="fixed inset-0 z-9999999">
 			<!-- Center circle -->
 			<div
-				class="absolute left-1/2 top-1/2 -z-10 h-[340px] w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-full border bg-tertiary-500/40"
+				class="bg-tertiary-500/40 absolute top-1/2 left-1/2 -z-10 h-[340px] w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-full border"
 				transition:scale={{ duration: 200, easing: elasticOut }}
 			></div>
 
@@ -430,12 +437,12 @@ Features:
 				tabindex="0"
 				onclick={() => handleEndpointClick(endpointsWithPositions[0])}
 				onkeydown={(event) => handleEndpointKeydown(event, endpointsWithPositions[0])}
-				class="endpoint-circle group fixed z-99999999 flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-2 bg-gray-600 transition-transform duration-200 hover:scale-110 focus:scale-110 focus:outline-hidden focus:ring-2 focus:ring-white focus:ring-offset-2"
+				class="endpoint-circle group fixed z-99999999 flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-2 bg-gray-600 transition-transform duration-200 hover:scale-110 focus:scale-110 focus:ring-2 focus:ring-white focus:ring-offset-2 focus:outline-hidden"
 				style="top:{center.y}px;left:{center.x}px;"
 			>
 				<iconify-icon width="32" style="color:white" icon="solar:home-bold" aria-hidden="true"></iconify-icon>
 				<div
-					class="tooltip absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[calc(100%+8px)] scale-90 whitespace-nowrap rounded-sm bg-black/80 px-2 py-1 text-xs text-white opacity-0 transition-all group-hover:scale-100 group-hover:opacity-100 group-focus:scale-100 group-focus:opacity-100"
+					class="tooltip absolute top-0 left-1/2 -translate-x-1/2 -translate-y-[calc(100%+8px)] scale-90 rounded-sm bg-black/80 px-2 py-1 text-xs whitespace-nowrap text-white opacity-0 transition-all group-hover:scale-100 group-hover:opacity-100 group-focus:scale-100 group-focus:opacity-100"
 					role="tooltip"
 				>
 					{endpointsWithPositions[0].label}
@@ -453,12 +460,12 @@ Features:
 					onclick={() => handleEndpointClick(endpoint)}
 					onkeydown={(event) => handleEndpointKeydown(event, endpoint)}
 					class="endpoint-circle group fixed z-99999999 flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full transition-transform duration-200 {endpoint.color ||
-						'bg-tertiary-500'} hover:scale-110 focus:scale-110 focus:outline-hidden focus:ring-2 focus:ring-white focus:ring-offset-2"
+						'bg-tertiary-500'} hover:scale-110 focus:scale-110 focus:ring-2 focus:ring-white focus:ring-offset-2 focus:outline-hidden"
 					style="top:{endpoint.y}px;left:{endpoint.x}px;"
 				>
 					<iconify-icon width="32" style="color:white" icon={endpoint.icon} aria-hidden="true"></iconify-icon>
 					<div
-						class="tooltip absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[calc(100%+8px)] scale-90 whitespace-nowrap rounded-sm bg-black/80 px-2 py-1 text-xs text-white opacity-0 transition-all group-hover:scale-100 group-hover:opacity-100 group-focus:scale-100 group-focus:opacity-100"
+						class="tooltip absolute top-0 left-1/2 -translate-x-1/2 -translate-y-[calc(100%+8px)] scale-90 rounded-sm bg-black/80 px-2 py-1 text-xs whitespace-nowrap text-white opacity-0 transition-all group-hover:scale-100 group-hover:opacity-100 group-focus:scale-100 group-focus:opacity-100"
 						role="tooltip"
 					>
 						{endpoint.label}
@@ -474,20 +481,9 @@ Features:
 {/if}
 
 <style lang="postcss">
-	/* SVG styles */
-	.svg-container {
-		@apply pointer-events-none fixed inset-0 h-full w-full;
-	}
-
-	.nav-line {
-		stroke: #da1f1f;
-		stroke-width: 3;
-		pointer-events: none;
-	}
-
 	/* Tooltip arrow */
 	.tooltip-arrow {
-		@apply absolute left-1/2 top-full h-0 w-0 -translate-x-1/2;
+		@apply absolute top-full left-1/2 h-0 w-0 -translate-x-1/2;
 		border-left: 4px solid transparent;
 		border-right: 4px solid transparent;
 		border-top: 4px solid rgba(0, 0, 0, 0.8);

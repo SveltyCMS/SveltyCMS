@@ -108,8 +108,8 @@
 				break;
 			case 'schedule':
 				mode.set('view');
+				openScheduleModal();
 				modifyEntry.value('scheduled');
-				onSchedule();
 				break;
 			case 'clone':
 				mode.set('view');
