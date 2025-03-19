@@ -7,10 +7,12 @@
 package-lock.json
 bun.lockb
 node_modules
+
+# Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# secrets
+# Secrets
 /config/private.ts
 /config/public.ts
 /data.json
@@ -51,5 +53,5 @@ yarn-error.log*
 /indexes
 /*.bin
 
-#paraglide.js
-src/paraglide/**/*.js
+# Paraglide
+src/lib/paraglide

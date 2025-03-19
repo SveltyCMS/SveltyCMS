@@ -3,6 +3,7 @@
 @component
 **Shows MissingWidget**
 -->
+
 <script lang="ts">
 	let { config } = $props();
 </script>

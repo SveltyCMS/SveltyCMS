@@ -10,8 +10,6 @@
 import type { PipelineStage } from 'mongoose';
 import type { Theme } from '@src/databases/dbInterface'; // Ensure correct import path
 
-declare const __VERSION__: string; // Declare __VERSION__
-
 declare global {
 	/// <reference path="./types/**/*.d.ts" />
 	declare type Item = import('svelte-dnd-action').Item;
@@ -27,6 +25,12 @@ declare global {
 		// interface Error {}
 		// interface PageData {}
 		// interface Platform {}
+		interface Permission {
+			name: string;
+			action: 'read' | 'write' | 'delete' | 'manage';
+			resource: string;
+		}
+
 		interface Locals {
 			user?: {
 				_id: string; //mongodb
@@ -36,8 +40,8 @@ declare global {
 				permissions: string[];
 				// Add other relevant user properties here
 			} | null;
-			collections?: any; // Replace 'any' with your actual Collections type if available
-			permissions?: any[]; // Replace 'any' with your actual Permissions type if available
+			collections?: Record<string, DisplayCollection>; // Map of collection names to their definitions
+			permissions?: Permission[]; // Array of Permission objects
 			theme: Theme | null; // Ensure 'theme' is correctly typed
 		}
 	}
@@ -45,21 +49,40 @@ declare global {
 	type tokenTypes = 'register' | 'resetPassword' | 'emailVerification';
 
 	// Defines the Result type, which represents an object with errors, success, message, and data properties.
-	type Result = {
+	type Result<T = unknown> = {
 		errors: string[];
 		success: boolean;
 		message: string;
-		data: any;
+		data: T;
 	};
 
 	// Defines the DISPLAY type, which represents a function that takes an object with data, collection, field, entry, and contentLanguage properties and returns a promise of any.
-	type DISPLAY = (({ data: any, collection: any, field: any, entry: any, contentLanguage: string }) => Promise<any>) & { default?: boolean };
+	interface DisplayField {
+		type: string;
+		[key: string]: unknown;
+	}
+
+	interface DisplayCollection {
+		name: string;
+		fields: Record<string, DisplayField>;
+	}
+
+	type DisplayData = Record<string, unknown>;
+	type DisplayEntry = Record<string, unknown>;
+
+	type DISPLAY = (({
+		data: DisplayData,
+		collection: DisplayCollection,
+		field: DisplayField,
+		entry: DisplayEntry,
+		contentLanguage: string
+	}) => Promise<unknown>) & { default?: boolean };
 
 	// Defines a type for the GraphqlSchema function, which takes an object with field, label, and collection properties and returns an object with typeName, graphql, and optional resolver properties.
-	type GraphqlSchema = ({ field, label, collection }: { field: any; label: string; collection: any }) => {
+	type GraphqlSchema = ({ field, label, collection }: { field: Record<string, unknown>; label: string; collection: Record<string, unknown> }) => {
 		typeName: string | null;
 		graphql: string;
-		resolver?: { [key: string]: any };
+		resolver?: { [key: string]: unknown };
 	};
 
 	/**
@@ -68,8 +91,8 @@ declare global {
 	 * The sorts method takes a field, content language, and sort value, and returns a promise of an array of pipeline stages.
 	 */
 	type Aggregations = {
-		filters?: ({ field, contentLanguage, filter }: { field: any; contentLanguage: string; filter: string }) => Promise<PipelineStage[]>;
-		sorts?: ({ field, contentLanguage, sort }: { field: any; contentLanguage: string; sort: number }) => Promise<PipelineStage[]>;
+		filters?: ({ field, contentLanguage, filter }: { field: DisplayField; contentLanguage: string; filter: string }) => Promise<PipelineStage[]>;
+		sorts?: ({ field, contentLanguage, sort }: { field: DisplayField; contentLanguage: string; sort: number }) => Promise<PipelineStage[]>;
 	};
 
 	// Defines the File type, which represents an object with an optional path property.
@@ -84,4 +107,4 @@ declare global {
 
 // THIS IS IMPORTANT!!!
 // Export an empty object to ensure this file is treated as a module
-export {};
+export { };

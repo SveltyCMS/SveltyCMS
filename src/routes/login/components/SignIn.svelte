@@ -347,7 +347,7 @@ Features:
 				<div class="text-error-500 -mt-2 flex items-center justify-end gap-2 text-right text-xs">
 					{m.form_required()}
 
-					<button onclick={handleBack} aria-label="Back" class="preset-outline-secondary btn-icon">
+					<button onclick={handleBack} aria-label="Back" class="preset-outline-secondary btn-icon border-surface-50 rounded-full border-2">
 						<iconify-icon icon="ri:arrow-right-line" width="20" class="text-black"></iconify-icon>
 					</button>
 				</div>

@@ -217,7 +217,7 @@
 	--color-surface-contrast-950: var(--color-surface-contrast-light);
 }
 
-/* body {
+body {
 	@apply h-full overflow-hidden bg-[#eeeeee] dark:bg-black;
 }
 
@@ -227,10 +227,10 @@
 
 .wrapper2 {
 	@apply border-secondary-500 dark:border-surface-400 dark:bg-surface-950 rounded-md border bg-white px-4 py-6 drop-shadow-2xl;
-} */
+}
 
 /* primary */
-/* .gradient-primary {
+.gradient-primary {
 	@apply from-primary-700 via-primary-600 to-primary-500 dark:from-primary-800 dark:via-primary-600 dark:to-primary-400 bg-gradient-to-br dark:bg-gradient-to-br;
 }
 
@@ -240,10 +240,10 @@
 
 .gradient-primary-focus {
 	@apply focus:from-primary-800 focus:via-primary-600 focus:to-primary-500 dark:focus:from-primary-700 dark:focus:via-primary-600 dark:focus:to-primary-400 focus:bg-gradient-to-br dark:focus:bg-gradient-to-br;
-} */
+}
 
 /* secondary */
-/* .gradient-secondary {
+.gradient-secondary {
 	@apply from-surface-500 via-surface-400 to-surface-300 dark:from-surface-600 dark:via-surface-500 dark:to-surface-400 bg-gradient-to-br dark:bg-gradient-to-br;
 }
 
@@ -253,10 +253,10 @@
 
 .gradient-secondary-focus {
 	@apply focus:from-surface-500 focus:via-surface-400 focus:to-surface-300 dark:focus:from-surface-600 dark:focus:via-surface-500 dark:focus:to-surface-400 focus:bg-gradient-to-br dark:focus:bg-gradient-to-br;
-} */
+}
 
 /* error */
-/* .gradient-error {
+.gradient-error {
 	@apply from-error-600 via-error-500 to-error-300 dark:from-error-700 dark:via-error-500 dark:to-error-300 bg-gradient-to-br dark:bg-gradient-to-br;
 }
 
@@ -266,10 +266,10 @@
 
 .gradient-error-focus {
 	@apply focus:from-error-600 focus:via-error-500 focus:to-error-300 dark:focus:from-error-700 dark:focus:via-error-500 dark:focus:to-error-300 focus:bg-gradient-to-br dark:focus:bg-gradient-to-br;
-} */
+}
 
 /* tertiary */
-/* .gradient-tertiary {
+.gradient-tertiary {
 	@apply from-tertiary-600 via-tertiary-500 to-tertiary-300 dark:from-tertiary-800 dark:via-tertiary-600 dark:to-tertiary-400 bg-gradient-to-br dark:bg-gradient-to-br;
 }
 
@@ -279,10 +279,10 @@
 
 .gradient-tertiary-focus {
 	@apply focus:from-tertiary-600 focus:via-tertiary-500 focus:to-tertiary-300 dark:focus:from-tertiary-800 dark:focus:via-tertiary-600 dark:focus:to-tertiary-400 focus:bg-gradient-to-br dark:focus:bg-gradient-to-br;
-} */
+}
 
 /* yellow */
-/* .gradient-yellow {
+.gradient-yellow {
 	@apply bg-gradient-to-br from-yellow-600 via-yellow-500 to-yellow-300 dark:bg-gradient-to-br dark:from-yellow-700 dark:via-yellow-600 dark:to-yellow-300;
 }
 
@@ -292,10 +292,10 @@
 
 .gradient-yellow-focus {
 	@apply focus:bg-gradient-to-br focus:from-yellow-600 focus:via-yellow-500 focus:to-yellow-300 dark:focus:bg-gradient-to-br dark:focus:from-yellow-700 dark:focus:via-yellow-600 dark:focus:to-yellow-300;
-} */
+}
 
 /* pink */
-/* .gradient-pink {
+.gradient-pink {
 	@apply bg-gradient-to-br from-pink-700 via-pink-600 to-pink-400 dark:bg-gradient-to-br dark:from-pink-700 dark:via-pink-600 dark:to-pink-300;
 }
 
@@ -305,4 +305,4 @@
 
 .gradient-pink-focus {
 	@apply focus:bg-gradient-to-br focus:from-pink-700 focus:via-pink-600 focus:to-pink-400 dark:focus:bg-gradient-to-br dark:focus:from-pink-700 dark:focus:via-pink-600 dark:focus:to-pink-300;
-} */
+}

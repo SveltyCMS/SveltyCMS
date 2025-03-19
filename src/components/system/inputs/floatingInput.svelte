@@ -117,7 +117,7 @@
 	});
 </script>
 
-<div class="group relative my-1 w-full" role="group" aria-labelledby={currentId}>
+<div class="group relative w-full" role="group" aria-labelledby={currentId}>
 	<input
 		bind:this={inputElement}
 		bind:value

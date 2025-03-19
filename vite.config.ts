@@ -17,6 +17,7 @@ import { defineConfig } from 'vite';
 import { paraglide } from '@inlang/paraglide-sveltekit/vite';
 import { compile, cleanupOrphanedFiles } from './src/routes/api/compile/compile';
 import { generateContentTypes } from './src/content/vite';
+
 import tailwindcss from "@tailwindcss/vite";
 
 
@@ -50,8 +51,8 @@ let compileTimeout: NodeJS.Timeout;
 
 export default defineConfig({
 	plugins: [
-		sveltekit(),
 		tailwindcss(),
+		sveltekit(),
 		{
 			name: 'collection-watcher',
 			async buildStart() {

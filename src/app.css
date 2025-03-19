@@ -1,23 +1,14 @@
 @import 'tailwindcss';
+
+/* Tailwind Plugins */
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
 
+/* Skeleton Theme */
 @import '@skeletonlabs/skeleton';
 @import '@skeletonlabs/skeleton/optional/presets';
 
+@source '../node_modules/@skeletonlabs/skeleton-svelte/dist';
+
 /* Add your theme import for your theme: "SveltyCMSTheme" here */
 @import './themes/SveltyCMS/SveltyCMSTheme.css';
-
-@source '../node_modules/@skeletonlabs/skeleton-svelte';
-@custom-variant dark (&:where(.dark, .dark *));
-
-body {
-	/* OPTIONAL: Background Mesh Gradient */
-	/* https://next.skeleton.dev/docs/design/themes#backgrounds */
-	/* prettier-ignore */
-	background-attachment: fixed;
-	/* prettier-ignore */
-	background-image:
-      radial-gradient(at 0% 25%, color-mix(in oklab, var(--color-primary-500) 10%, transparent) 0px, transparent 30%),
-      radial-gradient(at 15% 06%, color-mix(in oklab, var(--color-success-500) 5%, transparent) 0px, transparent 30%);
-}

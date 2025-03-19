@@ -81,6 +81,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	<title>{collection.value?.name?.toString() ?? 'Collection Not found'} - Your Site Title</title>
 	<meta name="description" content={`View and manage entries for ${collection.value?.name?.toString()}.`} />
 </svelte:head>
+
 <div class="content h-full">
 	{#if isLoading}
 		<div class="loading flex h-full items-center justify-center">

@@ -4,7 +4,6 @@
 		"moduleResolution": "bundler", // which module resolution strategy to use
 		"target": "ESNext", // which level of JS support to target
 		"module": "ESNext", // Use the latest module system
-
 		/**
 		 * svelte-preprocess cannot figure out whether you have
 		 * a value or a type, so tell TypeScript to enforce using
@@ -13,7 +12,6 @@
 		"isolatedModules": true, // Ensures compatibility with bundlers
 		"resolveJsonModule": true, // Allows importing JSON files
 		"verbatimModuleSyntax": true, // Cleaner ES module syntax
-
 		/**
 		 * To have warnings / errors of the Svelte compiler at the
 		 * correct position, enable source maps by default.
@@ -21,22 +19,19 @@
 		"sourceMap": true, // Enable source maps for better debugging
 		"esModuleInterop": true, // Emit ECMAScript Module
 		"skipLibCheck": true, // Skip type checking of lib files
-
 		/**
 		 * Typecheck JS in `.svelte` and `.js` files by default.
 		 * Disable this if you'd like to use dynamic types.
 		 */
-		"checkJs": true, // Check JavaScript files
 		"allowJs": true, // Allow JavaScript files
+		"checkJs": true, // Check JavaScript files
 		"strict": true, // Enforce strict type checking
 		"forceConsistentCasingInFileNames": true, // Force consistent casing in file names
 		"noErrorTruncation": true, // Do not truncate error messages
-
 		// Extra safety checks
 		"noUnusedLocals": true, // Error on unused local variables
 		"noUnusedParameters": true // Error on unused parameters
 	},
-
 	/**
 	 * Use global.d.ts instead of compilerOptions.types
 	 * to avoid limiting type declarations.
@@ -50,8 +45,10 @@
 		"src/**/*.js",
 		"src/**/*.d.ts"
 	],
-	"exclude": [".svelte-kit", "node_modules"]
-
+	"exclude": [
+		".svelte-kit",
+		"node_modules"
+	]
 	// Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias
 	// except $lib which is handled by https://svelte.dev/docs/kit/configuration#files
 	//

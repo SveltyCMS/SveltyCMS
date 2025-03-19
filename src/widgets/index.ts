@@ -2,6 +2,7 @@
  * @file src/widgets/index.ts
  * @description Widget Index - Main entry point for widget system
  */
+
 import type { WidgetFunction, WidgetModule } from './types';
 import type { GuiSchema } from './core/group/types';
 import { v4 as uuidv4 } from 'uuid'; // Import UUID generator for unique widget IDs
