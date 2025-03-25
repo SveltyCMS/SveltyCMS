@@ -22,6 +22,7 @@ import { error } from '@sveltejs/kit';
 import { dbAdapter, dbInitPromise } from '@src/databases/db';
 import { validateUserPermission } from '@src/auth/permissionManager';
 import { logger } from '@utils/logger.svelte';
+import { contentManager } from '@root/src/content/ContentManager';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
   const id = url.searchParams.get('_id');

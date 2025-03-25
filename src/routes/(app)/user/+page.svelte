@@ -1,6 +1,6 @@
 <!-- 
 @file src/routes/(app)/user/+page.svelte
-@description This file sets up and displays the user page. It provides a user-friendly interface for managing user accounts and settings. 
+@description This file sets up and displays the user page, providing a streamlined interface for managing user accounts and settings.
 -->
 
 <script lang="ts">
@@ -102,7 +102,6 @@
 			component: modalComponent,
 			response: async (r: UserFormResponse) => {
 				if (r) {
-					console.log('Response:', r);
 					const data = { user_id: user._id, newUserData: r };
 					const res = await axios.put('/api/user/updateUserAttributes', data);
 					const t = {
@@ -164,7 +163,6 @@
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify([user])
 				});
-
 				if (res.status === 200) {
 					await invalidateAll();
 				}
@@ -196,6 +194,12 @@
 				<div class="gradient-tertiary badge w-full max-w-xs text-white">
 					{m.form_role()}:<span class="ml-2">{user?.role || 'N/A'}</span>
 				</div>
+				<!-- Permissions List -->
+				{#each user.permissions as permission}
+					<div class="gradient-primary badge mt-1 w-full max-w-xs text-white">
+						{permission}
+					</div>
+				{/each}
 			</div>
 
 			<!-- User fields -->
@@ -224,7 +228,7 @@
 							<iconify-icon icon="bi:pencil-fill" color="white" width="18" class="mr-1"></iconify-icon>{m.userpage_edit_usersetting()}
 						</button>
 
-						<!-- Delete Modal Button (reverse logic for isFirstUser)-->
+						<!-- Delete Modal Button -->
 						{#if isFirstUser}
 							<button onclick={modalConfirm} aria-label={m.button_delete()} class="gradient-error btn w-full max-w-sm text-white">
 								<iconify-icon icon="bi:trash3-fill" color="white" width="18" class="mr-1"></iconify-icon>

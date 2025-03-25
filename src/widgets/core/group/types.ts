@@ -28,9 +28,9 @@ export type Params = {
   helper?: string;
   width?: number;
 
-  // Widget Specific parameters
-  fields: Field[];
-  mode: 'tab' | 'group';
+	// Widget Specific parameters
+	fields: Field[];
+	mode: 'tab' | 'group';
 };
 
 /**

@@ -20,7 +20,7 @@
 	import axios from 'axios';
 
 	// Import necessary utilities and types
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { get } from 'svelte/store';
 	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store.svelte';
 	import { contentStructure, mode } from '@stores/collectionStore.svelte';
@@ -37,7 +37,7 @@
 	import { Avatar, popup, modeCurrent, type PopupSettings, setModeUserPrefers, setModeCurrent } from '@skeletonlabs/skeleton';
 
 	// Define user data and state variables
-	const user = $page.data.user;
+	const user = page.data.user;
 	avatarSrc.set(user?.avatar);
 
 	// Tooltip settings
@@ -182,7 +182,7 @@
 	};
 
 	let handleUserClick = $derived(() => {
-		if (!$page.url.href.includes('user')) {
+		if (!page.url.href.includes('user')) {
 			mode.set('view');
 			// Only handle sidebar on mobile
 			if (get(screenSize) === 'sm') {

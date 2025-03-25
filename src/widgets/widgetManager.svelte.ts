@@ -2,8 +2,7 @@
  * @file src/widgets/widgetManager.svelte.ts
  * @description Widget Manager for handling widget loading, activation, and configuration
  */
-
-
+import { mount } from "svelte";
 import type { User, WidgetId } from '@src/auth/types';
 import type { Schema } from '@src/content/types';
 
@@ -11,6 +10,8 @@ import type { Schema } from '@src/content/types';
 import { logger } from '@utils/logger.svelte';
 import type { Widget, WidgetModule } from './types';
 import MissingWidget from './MissingWidget.svelte';
+
+
 export type WidgetStatus = 'active' | 'inactive'; // Define widget status types
 
 export type ModifyRequestParams<T extends (...args: unknown[]) => unknown> = {
@@ -47,17 +48,17 @@ export async function resolveWidgetPlaceholder(placeholder: {
 }): Promise<Widget> {
   await initializeWidgets(); // Ensure widgets are initialized
 
-  // Check if the widget is active
-  const isActive = activeWidgetList.has(placeholder.__widgetName);
-  if (!isActive) {
-    console.warn(`Widget "${placeholder.__widgetName}" is inactive. Rendering placeholder.`); // Log warning if widget is inactive
-    return {
-      __widgetId: placeholder.__widgetId,
-      Name: placeholder.__widgetName,
-      component: new MissingWidget({ props: { 'config': placeholder } }), // Use the placeholder widget
-      config: placeholder.__widgetConfig
-    };
-  }
+	// Check if the widget is active
+	const isActive = activeWidgetList.has(placeholder.__widgetName);
+	if (!isActive) {
+		console.warn(`Widget "${placeholder.__widgetName}" is inactive. Rendering placeholder.`); // Log warning if widget is inactive
+		return {
+			__widgetId: placeholder.__widgetId,
+			Name: placeholder.__widgetName,
+			component: mount(MissingWidget, { props: { config: placeholder } }), // Use the placeholder widget
+			config: placeholder.__widgetConfig
+		};
+	}
 
   // Find the widget by UUID
   const widgetFn = Array.from(widgetFunctions.values()).find((widget) => widget.__widgetId === placeholder.__widgetId);
@@ -115,14 +116,14 @@ export function getWidgetConfig(widgetName: string) {
 
 // Function to update widget configuration
 export async function updateWidgetConfig(widgetName: string, config: Record<string, unknown>): Promise<void> {
-  const widget = widgetFunctions.get(widgetName); // Get widget function
-  if (!widget) return;
+	const widget = widgetFunctions.get(widgetName); // Get widget function
+	if (!widget) return;
 
-  const updatedWidget: WidgetFunction = (cfg: Record<string, unknown>) => ({
-    ...widget(cfg),
-    config: { ...widget(cfg).config, ...config } // Update widget configuration
-  });
-  widgetFunctions = new Map(widgetFunctions).set(widgetName, updatedWidget); // Update widget in the map
+	const updatedWidget: WidgetFunction = (cfg: Record<string, unknown>) => ({
+		...widget(cfg),
+		config: { ...widget(cfg).config, ...config } // Update widget configuration
+	});
+	widgetFunctions = new Map(widgetFunctions).set(widgetName, updatedWidget); // Update widget in the map
 }
 
 // Function to load all widgets
@@ -135,48 +136,14 @@ export async function loadWidgets(): Promise<Map<string, Widget>> {
   return widgets; // Return widgets
 }
 
-// Database initialization
-let dbInitialized = false;
-
-async function initializeDatabase(): Promise<void> {
-  if (dbInitialized) return;
-
-  try {
-    // Initialize database connection
-    //await import('@src/databases/db').then(({ default: db }) => {
-    //  if (!db) {
-    //    throw new Error('Database connection failed');
-    //  }
-    //  dbInitialized = true;
-    //});
-  } catch (error) {
-    logger.error('Failed to initialize database:', error);
-    throw error;
-  }
-}
-
-async function updateWidgetStatusInDatabase(widgetName: string, isActive: boolean): Promise<void> {
-  try {
-    //await initializeDatabase();
-    //const { default: db } = await import('@src/databases/db');
-    //await db.updateWidgetStatus(widgetName, isActive);
-  } catch (error) {
-    logger.error(`Failed to update widget status in database: ${widgetName}`, error);
-    throw error;
-  }
-}
-
 // Function to initialize widgets
 async function initializeWidgets(): Promise<void> {
-  logger.debug('Initializing widgets from manager...');
-  if (widgetFunctions.size > 0) return;
+	logger.debug('Initializing widgets from manager...');
+	if (widgetFunctions.size > 0) return;
 
-  try {
-    // Initialize database connection first
-    //await initializeDatabase();
-
-    // Search both core and custom widget directories
-    const modules = import.meta.glob<WidgetModule>(['./core/*/index.ts', './custom/*/index.ts'], { eager: true });
+	try {
+		// Search both core and custom widget directories
+		const modules = import.meta.glob<WidgetModule>(['./core/*/index.ts', './custom/*/index.ts'], { eager: true });
 
     const widgetModules = Object.entries(modules).map(([path, module]) => {
       try {
@@ -207,12 +174,12 @@ async function initializeWidgets(): Promise<void> {
 
     const newWidgetFunctions: Map<string, WidgetFunction> = new Map();
 
-    for (const { name, module } of validModules) {
-      const widgetFn = module.default;
-      widgetFn.name = widgetFn.name || name;
-      const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
-      newWidgetFunctions.set(capitalizedName, widgetFn);
-    }
+		for (const { name, module } of validModules) {
+			const widgetFn = module.default;
+			widgetFn.name = widgetFn.name || name;
+			const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
+			newWidgetFunctions.set(capitalizedName, widgetFn);
+		}
 
     widgetFunctions = newWidgetFunctions;
     logger.info(`${newWidgetFunctions.size} Widgets initialized successfully`);
@@ -224,8 +191,8 @@ async function initializeWidgets(): Promise<void> {
 
 // HMR setup
 if (import.meta.hot) {
-  import.meta.hot.accept('./{core,custom}/*/index.ts', () => {
-    initializeWidgets();
-    logger.info('Widgets reloaded due to file changes.');
-  });
+	import.meta.hot.accept(() => {
+		initializeWidgets();
+		logger.info('Widgets reloaded due to file changes.');
+	});
 }

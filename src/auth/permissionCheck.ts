@@ -4,21 +4,17 @@
  */
 
 import { error } from '@sveltejs/kit';
-import type { User, ContextType, Permission } from './types';
+import type { User, Permission } from './types';
 import { PermissionAction, PermissionType } from '@src/auth/permissionTypes';
 import { roles as configRoles } from '@root/config/roles';
 import { getAllPermissions } from './permissionManager';
+import type { PermissionConfig } from './permissionTypes';
+
+// System Logger
 import { logger } from '@utils/logger.svelte';
 
-export interface PermissionConfig {
-	contextId: string;
-	name: string;
-	action: PermissionAction;
-	contextType: ContextType | string;
-}
-
-// Use a Map instead of plain object for better lookup performance
-const rolePermissionCache = new Map<string, Permission[]>();
+// Cache to store roles and permissions temporarily
+const rolePermissionCache: Record<string, Permission[]> = {};
 
 // Clears the cache (can be called when roles update)
 export function clearRolePermissionCache() {

@@ -31,7 +31,6 @@ const widgets: Record<string, WidgetFunction> = {};
 
 export default widgets;
 
-
 // State management with reactive stores
 const widgetFunctions = store<Map<string, WidgetFunction>>(new Map()); // Store for widget functions
 const activeWidgetList = store<Set<string>>(new Set()); // Store for active widgets
@@ -57,28 +56,42 @@ export async function initializeWidgets(): Promise<void> {
   if (initialized) return dbInitPromise;
   if (dbInitPromise) return dbInitPromise;
 
-  dbInitPromise = (async () => {
-    try {
-      logger.debug("Initializing widgets from index...");
-      // Load core and custom widgets
-      const coreWidgetModules = await import.meta.glob<WidgetModule>('./core/**/index.ts', { eager: true });
-      const customWidgetModules = await import.meta.glob<WidgetModule>('./custom/**/index.ts', { eager: true });
-      const widgetModules = { ...coreWidgetModules, ...customWidgetModules };
+	dbInitPromise = (async () => {
+		try {
+			logger.debug('Initializing widgets from index...');
+			// Load core and custom widgets
+			const coreWidgetModules = await import.meta.glob<WidgetModule>('./core/**/index.ts', { eager: true });
+			const customWidgetModules = await import.meta.glob<WidgetModule>('./custom/**/index.ts', { eager: true });
+			const widgetModules = { ...coreWidgetModules, ...customWidgetModules };
 
-      const validModules = Object.entries(widgetModules)
-        .map(([path, module]) => {
-          const match = path.match(/\.\/(core|custom)\/([^/]+)\//);
-          if (!match) {
-            logger.warn(`Skipping widget module: ${path} - Unable to extract widget name`);
-            return null;
-          }
-          const [_, folderType, name] = match;
+			const validModules = Object.entries(widgetModules)
+				.map(([path, module]) => {
+					const match = path.match(/\.\/(core|custom)\/([^/]+)\//);
+					if (!match) {
+						logger.warn(`Skipping widget module: ${path} - Unable to extract widget name`);
+						return null;
+					}
+					// eslint-disable-next-line @typescript-eslint/no-unused-vars
+					const [_fullMatch, folderType, name] = match;
 
-          // Capitalize the first letter of the widget name
-          const capitalized_name = name.charAt(0).toUpperCase() + name.slice(1);
+					// Capitalize the first letter of the widget name
+					const capitalized_name = name.charAt(0).toUpperCase() + name.slice(1);
 
-          // Construct the full component path
-          const componentPath = path.replace(/index\.ts$/, `${capitalized_name}.svelte`).replace(/^\.\//, `/src/widgets/`);
+					// Construct the full component path
+					const componentPath = path.replace(/index\.ts$/, `${capitalized_name}.svelte`).replace(/^\.\//, `/src/widgets/`);
+
+					if (!name) {
+						logger.warn(`Skipping widget module: ${path} - Unable to extract widget name`);
+						return null;
+					}
+					if (typeof module.default !== 'function') {
+						logger.warn(`Skipping widget module: ${path} - No valid widget function found`);
+						return null;
+					}
+
+					return { name, module, isCore: folderType === 'core', componentPath };
+				})
+				.filter((m): m is NonNullable<typeof m> => m !== null);
 
           if (!name) {
             logger.warn(`Skipping widget module: ${path} - Unable to extract widget name`);
@@ -94,12 +107,44 @@ export async function initializeWidgets(): Promise<void> {
         })
         .filter((m): m is NonNullable<typeof m> => m !== null);
 
-      if (validModules.length === 0) {
-        throw new Error('No valid widgets found');
-      }
+			for (const { name, module, isCore, componentPath } of validModules) {
+				try {
+					const widgetFn = createWidgetFunction(module, name);
 
-      const newWidgetFunctions = new Map<string, WidgetFunction>();
-      const loadedWidgetNames = new Set<string>();
+					if (!widgetFn) {
+						logger.warn(`Skipping widget ${name} - No widget function found`);
+						continue;
+					}
+					if (!checkDependencies(widgetFn({}))) {
+						logger.warn(`Skipping widget ${name} - Missing dependencies`);
+						continue;
+					}
+					const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
+
+					widgetFn.__isCore = isCore;
+					widgetFn.componentPath = componentPath;
+					newWidgetFunctions.set(capitalizedName, widgetFn);
+					widgets[capitalizedName] = widgetFn;
+					loadedWidgetNames.add(capitalizedName);
+					const { updateWidget } = await import('../databases/dbInterface');
+					await updateWidget(capitalizedName, { isActive: true });
+				} catch (error) {
+					logger.warn(`Skipping widget ${name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+					continue;
+				}
+			}
+
+			// Fetch activation status from the database with fallback
+			let activeWidgets: string[] = [];
+			try {
+				const { getAllWidgets } = await import('../databases/dbInterface');
+				const dbWidgets = await getAllWidgets();
+				activeWidgets = dbWidgets.filter((widget) => widget.isActive).map((widget) => widget.name);
+			} catch (error: unknown) {
+				// If any error occurs, activate all widgets
+				activeWidgets = Array.from(newWidgetFunctions.keys());
+				logger.warn(`Failed to fetch widget status: ${error instanceof Error ? error.message : 'Unknown error'}, activating all widgets`);
+			}
 
       for (const { name, module, isCore, componentPath } of validModules) {
         try {
@@ -165,26 +210,23 @@ export async function initializeWidgets(): Promise<void> {
   return dbInitPromise;
 }
 
-
-
 // Widget initialization state
 let widgetsInitialized = false;
 
-
 export async function ensureWidgetsInitialized() {
-  if (!widgetsInitialized) {
-    try {
-      logger.debug("Ensuring widgets initialized...");
-      await initializeWidgets();
-      // Make widgets available globally for eval context
-      globalThis.widgets = widgets;
-      widgetsInitialized = true;
-      logger.debug('Widgets initialized successfully');
-    } catch (error) {
-      logger.error('Failed to initialize widgets:', error);
-      throw error;
-    }
-  }
+	if (!widgetsInitialized) {
+		try {
+			logger.debug('Ensuring widgets initialized...');
+			await initializeWidgets();
+			// Make widgets available globally for eval context
+			globalThis.widgets = widgets;
+			widgetsInitialized = true;
+			logger.debug('Widgets initialized successfully');
+		} catch (error) {
+			logger.error('Failed to initialize widgets:', error);
+			throw error;
+		}
+	}
 }
 
 // Re-export everything from widgetManager for direct access

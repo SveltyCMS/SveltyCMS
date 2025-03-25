@@ -14,7 +14,7 @@
 
 	// Stores
 	import { writable } from 'svelte/store';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import type { Permission, Role } from '@src/auth/types';
 	import { PermissionType } from '@src/auth/permissionTypes';
 
@@ -81,7 +81,7 @@
 	// Function to load permissions
 	const loadPermissions = async () => {
 		try {
-			permissionsList.set($page.data.permissions);
+			permissionsList.set(page.data.permissions);
 		} catch (err) {
 			error.set(`Failed to load permissions: ${err instanceof Error ? err.message : String(err)}`);
 		}
@@ -182,7 +182,7 @@
 								<tr>
 									<td
 										colspan={nonAdminRolesCount + 2}
-										class="border-b bg-surface-500 px-1 py-2 font-semibold text-tertiary-500 text-white dark:text-primary-500 lg:text-left lg:text-center"
+										class="border-b bg-surface-500 px-1 py-2 font-semibold text-tertiary-500 dark:text-primary-500 lg:text-left"
 									>
 										{group}:
 									</td>

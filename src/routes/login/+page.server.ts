@@ -414,7 +414,7 @@ export const actions: Actions = {
 
 		// Validate
 		let resp: { status: boolean; message?: string } = { status: false };
-		const email = pwforgottenForm.data.email.toLowerCase();
+		const email = pwforgottenForm.data.email.toLowerCase().trim();
 		const checkMail = await forgotPWCheck(email);
 
 		if (email && checkMail.success) {
@@ -468,18 +468,21 @@ export const actions: Actions = {
 
 	// Function for handling the RESET
 	resetPW: async (event) => {
-		logger.debug('resetPW call');
-
 		if (await limiter.isLimited(event)) {
 			return fail(429, { message: 'Too many requests. Please try again later.' });
 		}
 
 		const pwresetForm = await superValidate(event, wrappedResetSchema);
 
-		// Validate
+		// Validate form
+		if (!pwresetForm.valid) {
+			return fail(400, { form: pwresetForm });
+		}
+
+		// Normalize and decode data - ensure email is lowercase and trimmed
 		const password = pwresetForm.data.password;
 		const token = pwresetForm.data.token;
-		const email = pwresetForm.data.email;
+		const email = pwresetForm.data.email.toLowerCase().trim();
 
 		// Define expiresIn
 		const expiresIn = 1 * 60 * 60; // expiration in 1 hour

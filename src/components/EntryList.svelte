@@ -75,12 +75,12 @@ Features:
 	let filterShow = $state(false);
 	let columnShow = $state(false);
 	// Retrieve entryListPaginationSettings from local storage or set default values for each collection
-	const entryListPaginationSettingsKey = `entryListPaginationSettings_${String(collection.value?.id)}`;
+	const entryListPaginationSettingsKey = `entryListPaginationSettings_${String(collection.value?._id)}`;
 	let entryListPaginationSettings: any =
 		browser && localStorage.getItem(entryListPaginationSettingsKey)
 			? JSON.parse(localStorage.getItem(entryListPaginationSettingsKey) as string)
 			: {
-					collectionId: collection.value?.id,
+					collectionId: collection.value?._id,
 					density: 'normal',
 					sorting: { sortedBy: '', isSorted: 0 },
 					currentPage: 1,
@@ -125,9 +125,11 @@ Features:
 	let currentPage = $state<number>(entryListPaginationSettings.currentPage || 1); // Set initial currentPage value
 	let rowsPerPage = $state<number>(entryListPaginationSettings.rowsPerPage || 10); // Set initial rowsPerPage value
 	let totalItems = $state<number>(0); // Initialize totalItems
+
 	// Declare isFirstPage and isLastPage variables
 	let isFirstPage: boolean;
 	let isLastPage: boolean;
+
 	// Derived stores for reactive values
 	const currentLanguage = $derived(contentLanguage.value);
 	const currentSystemLanguage = $derived(systemLanguage.value);
@@ -183,7 +185,7 @@ Features:
 					const obj: { [key: string]: any } = {};
 					for (const field of currentCollection.fields) {
 						if (field.callback && typeof field.callback === 'function') {
-							field.callback({ data });
+							field.callback({ data: data || {} });
 							handleSidebarToggle();
 						}
 						// Status
@@ -251,7 +253,7 @@ Features:
 	$effect(() => {
 		entryListPaginationSettings = {
 			...entryListPaginationSettings,
-			collectionId: currentCollection?.id,
+			collectionId: currentCollection?._id,
 			filters,
 			sorting,
 			density,
@@ -383,9 +385,9 @@ Features:
 	let categoryName = $derived.by(() => {
 		if (!currentCollection?._id || !contentStructure.value) return '';
 
-		// Helper function to find parent category name
-
-		return currentCollection.path?.split('/').filter(Boolean).join(' >');
+		// Get parent categories excluding current collection name
+		const pathSegments = currentCollection.path?.split('/').filter(Boolean);
+		return pathSegments?.slice(0, -1).join(' >') || '';
 	});
 
 	let isCollectionEmpty = $derived(tableData.length === 0);
@@ -412,7 +414,6 @@ Features:
 				</button>
 			{/if}
 			<!-- Collection type with icon -->
-			<!-- TODO: Translate Collection Name -->
 			<div class="mr-1 flex flex-col {!sidebarState.sidebar.value.left ? 'ml-2' : 'ml-1 sm:ml-2'}">
 				{#if categoryName}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300 rtl:text-left">
 						{categoryName}
@@ -424,7 +425,7 @@ Features:
 						>
 					{/if}
 					{#if currentCollection?.name}
-						<div class="flex max-w-[65px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
+						<div class="flex max-w-[85px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
 							{currentCollection.name}
 						</div>
 					{/if}

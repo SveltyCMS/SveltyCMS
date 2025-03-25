@@ -9,7 +9,6 @@ import type { SvelteComponent } from 'svelte';
 
 export type WidgetStatus = 'active' | 'inactive';
 
-
 export type ModifyRequestParams = {
   collection: Schema;
   id?: WidgetId;
@@ -41,16 +40,17 @@ export interface WidgetModule {
   default: WidgetFunction; // Default export of a widget module
 }
 
+export interface WidgetModule {
+	default: WidgetFunction; // Default export of a widget module
+}
+
 export interface WidgetPermissions {
   permissions: Record<string, Record<string, boolean>>;
   [key: string]: Record<string, Record<string, boolean>> | unknown;
 }
 
-
 export interface WidgetPlaceholder {
-  __widgetId: string;
-  __widgetName: string;
-  __widgetConfig: Record<string, unknown>;
+	__widgetId: string;
+	__widgetName: string;
+	__widgetConfig: Record<string, unknown>;
 }
-
-

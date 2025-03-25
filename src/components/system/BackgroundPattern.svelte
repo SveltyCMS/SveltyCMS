@@ -1,120 +1,205 @@
-<!-- 
+<!--
 @file src/components/system/BackgroundPattern.svelte
 @component
 **Animated SVG Background Pattern Component**
 Creates a dynamic animated background with SVG paths that draw themselves
-with varying widths and opacities. The animation is driven by Svelte's Spring
-store for smooth, physics-based motion.
-
+with varying widths, opacities, and colors. The animation is driven by Svelte's motion
+Spring class for smooth, physics-based motion.
 @example
 <BackgroundPattern 
     background="white" 
-    color="#d3d3d3"
     startDirection="TopLeft"
     endDirection="BottomRight"
     animationDirection="normal"
 />
 @features
-- Customizable background color
+- Automatic contrasting colors based on background
+- Customizable background color (white or dark)
 - Adjustable start and end directions (e.g., TopLeft, BottomRight)
-- Smooth spring animations
+- Smooth spring animations with reduced motion support
 - Responsive design
 - SVG path optimization
 - Support for "normal" and "reverse" animation effects
+- Accessibility improvements
 -->
 
 <script lang="ts">
-	// Import necessary modules
-	import { Spring } from 'svelte/motion';
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
+	import { browser } from '$app/environment';
+	import { Tween } from 'svelte/motion';
+	import { cubicOut, linear } from 'svelte/easing';
 
-	// Define props using Svelte 5 runes with default values
+	// Define props with default values
 	const {
-		background = 'white', // Background color
-		color = '#d3d3d3', // Color of the pattern
+		background = 'white', // Background color (white or dark)
 		startDirection = 'TopLeft', // Start direction of paths
 		endDirection = 'BottomRight', // End direction of paths
 		animationDirection = 'normal', // Animation direction
-		springConfig = { stiffness: 150, damping: 25 } // Spring animation configuration
+		springConfig = { stiffness: 0.15, damping: 0.8 } // Spring animation configuration
 	} = $props<{
 		background?: 'white' | '#242728'; // Background color
-		color?: string; // Color of the pattern
 		startDirection?: 'TopLeft' | 'TopRight' | 'MiddleLeft' | 'MiddleRight' | 'BottomLeft' | 'BottomRight'; // Start direction of paths
 		endDirection?: 'TopLeft' | 'TopRight' | 'MiddleLeft' | 'MiddleRight' | 'BottomLeft' | 'BottomRight'; // End direction of paths
 		animationDirection?: 'normal' | 'reverse'; // Animation direction
 		springConfig?: { stiffness: number; damping: number }; // Spring animation configuration
 	}>();
 
-	// Determine pattern color based on background
-	let patternColor = background === 'white' ? 'black' : color;
+	// Generate path data based on start and end directions
+	function generatePath(start: string, end: string, index: number, position: number): string {
+		// Calculate start coordinates based on direction
+		let startX = 0;
+		let startY = 0;
 
-	// Function to generate path data based on start and end directions
-	function generatePath(start: string, end: string, index: number): string {
-		const startX = ['TopLeft', 'MiddleLeft', 'BottomLeft'].includes(start) ? -380 : 616;
-		const startY = ['TopLeft', 'TopRight', 'MiddleLeft', 'MiddleRight'].includes(start) ? -189 : 875;
+		// Start position calculations
+		if (start === 'TopLeft') {
+			startX = -380 + index * 5 * position;
+			startY = -189 - index * 6;
+		} else if (start === 'TopRight') {
+			startX = 696 - index * 5 * position; // Right edge of SVG
+			startY = -189 - index * 6;
+		} else if (start === 'MiddleLeft') {
+			startX = -380 + index * 5 * position;
+			startY = 316 / 2; // Middle of the SVG height
+		} else if (start === 'MiddleRight') {
+			startX = 696 + index * 5 * position; // Right edge of SVG + offset
+			startY = 316 / 2; // Middle of the SVG height
+		} else if (start === 'BottomLeft') {
+			startX = -380 + index * 5 * position;
+			startY = 416 + index * 6;
+		} else if (start === 'BottomRight') {
+			startX = 696 - index * 5 * position;
+			startY = 416 + index * 6;
+		}
 
-		const endX = ['TopRight', 'MiddleRight', 'BottomRight'].includes(end) ? 684 : 152;
-		const endY = ['BottomLeft', 'BottomRight', 'MiddleLeft', 'MiddleRight'].includes(end) ? 875 : 216;
+		// Calculate end coordinates based on direction
+		let endX = 0;
+		let endY = 0;
 
-		return `M${startX - index * 5} ${startY + index * 6}C${startX - index * 5} ${startY + index * 6} ${
-			(startX + endX) / 2 - index * 5
-		} ${(startY + endY) / 2 - index * 6} ${endX - index * 5} ${endY - index * 6}`;
+		// End position calculations
+		if (end === 'TopLeft') {
+			endX = -100 + index * 5 * position;
+			endY = -100 - index * 6;
+		} else if (end === 'TopRight') {
+			endX = 796 - index * 5 * position;
+			endY = -100 - index * 6;
+		} else if (end === 'MiddleLeft') {
+			endX = -100 + index * 5 * position;
+			endY = 316 / 2; // Middle of the SVG height
+		} else if (end === 'MiddleRight') {
+			endX = 796 - index * 5 * position;
+			endY = 316 / 2; // Middle of the SVG height
+		} else if (end === 'BottomLeft') {
+			endX = -100 + index * 5 * position;
+			endY = 416 + index * 6;
+		} else if (end === 'BottomRight') {
+			endX = 796 - index * 5 * position;
+			endY = 416 + index * 6;
+		}
+
+		// Create the SVG path with a bezier curve
+		return `M${startX} ${startY}C${startX} ${startY} ${(startX + endX) / 2} ${(startY + endY) / 2} ${endX} ${endY}`;
 	}
 
 	// Generate array of path objects with dynamic properties
-	const paths = Array.from({ length: 36 }, (_, i) => ({
-		id: i,
-		d: generatePath(startDirection, endDirection, i),
-		width: 0.5 + i * 0.03,
-		opacity: 0.1 + i * 0.03,
-		duration: 20 + Math.random() * 10,
-		delay: Math.random() * 1
-	}));
+	const paths = [
+		...Array.from({ length: 36 }, (_, i) => ({
+			id: i,
+			d: generatePath(startDirection, endDirection, i, 1), // First set of paths
+			width: 0.5 + i * 0.03,
+			opacity: 0.1 + i * 0.03,
+			// Automatically use contrasting color based on background
+			color:
+				background === 'white'
+					? `rgba(15,23,42,${0.1 + i * 0.03})` // Dark color for light background
+					: `rgba(255,255,255,${0.1 + i * 0.03})`, // Light color for dark background
+			delay: i * 50 // Staggered delay for animation
+		})),
+		...Array.from({ length: 36 }, (_, i) => ({
+			id: i + 36, // Offset IDs to avoid conflicts
+			d: generatePath(startDirection, endDirection, i, -1), // Mirrored paths
+			width: 0.5 + i * 0.03,
+			opacity: 0.1 + i * 0.03,
+			// Automatically use contrasting color based on background
+			color:
+				background === 'white'
+					? `rgba(15,23,42,${0.1 + i * 0.03})` // Dark color for light background
+					: `rgba(255,255,255,${0.1 + i * 0.03})`, // Light color for dark background
+			delay: i * 50 + 1800 // Staggered delay for second set of paths
+		}))
+	];
 
-	// Initialize arrays to hold path elements and animations
-	let pathElements: SVGPathElement[] = [];
-	let pathAnimations: Spring<{ pathLength: number; opacity: number }>[] = [];
+	// Create Spring instances for animation
+	const pathSprings = $state(paths.map(() => new Tween(0, { duration: 20000, easing: cubicOut })));
 
-	// Set up animations on component mount
+	// Animation control variables
+	let animationTimer: ReturnType<typeof setTimeout>;
+	let shouldReduceMotion = false;
+	let isAnimating = $state(false);
+
+	// Function to animate all paths with staggered timing
+	function animatePaths(targetValue: number) {
+		if (!browser || shouldReduceMotion) return;
+
+		isAnimating = true;
+
+		// Animate each path with staggered delays
+
+		// Schedule the next animation cycle
+		animationTimer = setTimeout(() => {
+			// Toggle between animation states (0.3 and 0.8)
+			animatePaths(targetValue === 0.3 ? 0.8 : 0.3);
+		}, 20000); // Full animation cycle duration
+	}
+	$effect: pathSprings.forEach((path) => {
+		path.set(1, { duration: 20000 }).then(() => path.set(0, { duration: 20000 }));
+		// setTimeout(() => {
+		// 	if (i < pathSprings.length) {
+		// 		pathSprings[i].target = targetValue;
+		// 	}
+		// }, path.delay);
+	});
+	// Initialize animations
 	onMount(() => {
-		// Query all path elements
-		pathElements = Array.from(document.querySelectorAll('svg path'));
+		if (browser) {
+			// Check if user prefers reduced motion
+			shouldReduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-		// Initialize Spring animations for each path
-		pathAnimations = paths.map((_) => {
-			return new Spring(
-				{ pathLength: 0.3, opacity: 0.6 }, // Initial state
-				{ ...springConfig } // Config
-			);
-		});
-
-		// Use reactive statements to update path attributes
-		pathElements.forEach((pathElement, index) => {
-			$: {
-				const { pathLength, opacity } = pathAnimations[index].get();
-				const dashArray = 1000;
-				const dashOffset = dashArray * (animationDirection === 'reverse' ? pathLength : 1 - pathLength);
-
-				// Update path attributes
-				pathElement.setAttribute('stroke-dasharray', dashArray.toString());
-				pathElement.setAttribute('stroke-dashoffset', dashOffset.toString());
-				pathElement.setAttribute('opacity', opacity.toString());
+			// Only run animations if reduced motion is not preferred
+			if (!shouldReduceMotion) {
+				// Start the animation cycle
+				animatePaths(0.8);
 			}
+		}
+	});
 
-			// Start the animation
-			if (animationDirection === 'normal') {
-				pathAnimations[index].set({ pathLength: 1, opacity: 0.3 });
-			} else if (animationDirection === 'reverse') {
-				pathAnimations[index].set({ pathLength: 0, opacity: 0.6 });
-			}
-		});
+	// Clean up animations when component is destroyed
+	onDestroy(() => {
+		if (animationTimer) {
+			clearTimeout(animationTimer);
+		}
 	});
 </script>
 
 <!-- SVG container with viewBox for proper scaling -->
-<svg class="absolute inset-0 h-full w-full" viewBox="0 0 696 316" fill="none" aria-label="Background Pattern">
-	{#each paths as path}
+<svg
+	class="absolute inset-0 h-full w-full"
+	viewBox="0 0 696 316"
+	fill="none"
+	aria-label="Background Pattern"
+	role="img"
+	aria-hidden={false}
+	style={`z-index: 0; background-color: ${background};`}
+>
+	{#each paths as path, i}
 		<!-- Render each path with dynamic attributes -->
-		<path d={path.d} stroke={patternColor} stroke-width={path.width} stroke-linecap="round" stroke-opacity={path.opacity} />
+		<path
+			d={path.d}
+			stroke={path.color}
+			stroke-width={path.width}
+			stroke-linecap="round"
+			stroke-opacity={path.opacity}
+			style={`stroke-dasharray: 1000px; stroke-dashoffset: ${1000 * (animationDirection === 'reverse' ? pathSprings[i].current : 1 - pathSprings[i].current)}px`}
+			aria-hidden="true"
+		/>
 	{/each}
-</svg>
+/svg>

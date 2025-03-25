@@ -3,12 +3,14 @@
 @component
 **A unified multibutton component for managing users and tokens**
 
-```tsx
+Manages actions (edit, delete, block, unblock) with debounced submissions.
+
+@Example
 <Multibutton bind:selectedRows={selectedRows} type="user" />
-```
+
 #### Props
-- `selectedRows` {array} - Array of selected rows
-- `type` {"user" | "token"} - Type of data to manage
+- `selectedRows` {array} - Array of selected rows (UserData | TokenData)
+- `type` {"user" | "token"} - Type of data to manage (default: 'user')
 -->
 
 <script lang="ts">
@@ -40,16 +42,12 @@
 		user_id: string;
 	}
 
-	interface SelectedRow {
-		data: UserData | TokenData;
-	}
-
 	type ActionType = 'edit' | 'delete' | 'block' | 'unblock';
 
 	// Popup Combobox
 	let listboxValue = $state<ActionType>('edit');
 	let { selectedRows, type = 'user' } = $props<{
-		selectedRows: SelectedRow[];
+		selectedRows: (UserData | TokenData)[];
 		type: 'user' | 'token';
 	}>();
 
@@ -148,16 +146,16 @@
 						type === 'user'
 							? {
 									isGivenData: true,
-									username: (selectedRows[0].data as UserData).username,
-									email: selectedRows[0].data.email,
-									role: selectedRows[0].data.role,
-									user_id: (selectedRows[0].data as UserData)._id
+									username: (selectedRows[0] as UserData).username,
+									email: selectedRows[0].email,
+									role: selectedRows[0].role,
+									user_id: (selectedRows[0] as UserData)._id
 								}
 							: {
-									token: (selectedRows[0].data as TokenData).token,
-									email: selectedRows[0].data.email,
-									role: selectedRows[0].data.role,
-									user_id: (selectedRows[0].data as TokenData).user_id
+									token: (selectedRows[0] as TokenData).token,
+									email: selectedRows[0].email,
+									role: selectedRows[0].role,
+									user_id: (selectedRows[0] as TokenData).user_id
 								},
 					slot: '<p>Edit Form</p>'
 				} as ModalComponent)
@@ -176,10 +174,19 @@
 						type === 'user'
 							? JSON.stringify(
 									isEdit
-										? { user_id: (selectedRows[0].data as UserData)._id, userData: r }
-										: { user_ids: selectedRows.map((row) => (row.data as UserData)._id) }
+										? { user_id: (selectedRows[0] as UserData)._id, userData: r as ModalResponse }
+										: { user_ids: selectedRows.map((row: UserData) => row._id) }
 								)
-							: JSON.stringify(isEdit ? { ...r } : selectedRows.map((row) => row.data));
+							: JSON.stringify(
+									isEdit
+										? (r as ModalResponse) // Type assertion since r is ModalResponse for edit
+										: selectedRows.map((row: TokenData) => ({
+												token: row.token,
+												email: row.email,
+												role: row.role,
+												user_id: row.user_id
+											}))
+								);
 
 					const res = await fetch(config.endpoint(), {
 						method: config.method(),

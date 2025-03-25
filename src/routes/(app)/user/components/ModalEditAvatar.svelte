@@ -2,6 +2,12 @@
 @file src/components/user/ModalEditAvatar.svelte
 @component
 **Modal for editing user avatar thumbnail image**
+
+Efficiently handles avatar uploads with validation, deletion, and real-time preview. Optimized for performance and accessibility.
+
+@props
+- `parent` {ModalComponent['props']} - Parent modal properties including `regionFooter`, `onClose`, and `buttonPositive`
+- `avatarSrc` {string} - Current avatar source from store (default: '/Default_User.svg')
 -->
 
 <script lang="ts">
@@ -9,7 +15,7 @@
 	import { invalidateAll } from '$app/navigation';
 
 	// Stores
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { avatarSrc } from '@stores/store.svelte';
 
 	// ParaglideJS
@@ -106,7 +112,7 @@
 		try {
 			const formData = new FormData();
 			formData.append('avatar', file);
-			formData.append('user_id', $page.data.user._id);
+			formData.append('user_id', page.data.user._id);
 
 			const response = await axios.post('/api/user/saveAvatar', formData, {
 				headers: { 'Content-Type': 'multipart/form-data' }
@@ -229,7 +235,7 @@
 					{m.button_cancel()}
 				</button>
 				<!-- Save -->
-				<button class="variant-filled-tertiary btn btn dark:variant-filled-primary {parent.buttonPositive}" onclick={onFormSubmit}
+				<button class="variant-filled-tertiary btn dark:variant-filled-primary {parent.buttonPositive}" onclick={onFormSubmit}
 					>{m.button_save()}
 				</button>
 			</div>

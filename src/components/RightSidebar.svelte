@@ -15,7 +15,7 @@
 	import { saveFormData } from '../utils/data';
 
 	// Stores
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { saveLayerStore, shouldShowNextButton, validationStore } from '@stores/store.svelte';
 	import { collection, mode, modifyEntry, collectionValue } from '@src/stores/collectionStore.svelte';
 	import { handleSidebarToggle } from '@src/stores/sidebarStore.svelte';
@@ -27,7 +27,7 @@
 	}
 
 	// Get data from page store
-	const { user } = $page.data;
+	const { user } = page.data;
 
 	// Components
 	import Toggles from './system/inputs/Toggles.svelte';

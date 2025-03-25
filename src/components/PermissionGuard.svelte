@@ -21,23 +21,20 @@ Features:
 -->
 
 <script lang="ts">
-	import { page } from '$app/stores';
-	import type { PermissionConfig } from '@src/auth/permissionCheck';
-	import type { User } from '@src/auth/types'; // Assuming these types exist
-	import { store } from '@src/utils/reactivity.svelte';
+	import { page } from '$app/state';
 
-	interface Permissions {
-		[contextId: string]: {
-			hasPermission: boolean;
-			isRateLimited: boolean;
-		};
-	}
+	import type { PermissionConfig } from '@src/auth/permissionTypes';
+	import type { User } from '@src/auth/types';
+	import { store } from '@src/utils/reactivity.svelte';
 
 	interface Props {
 		// Prop to receive permission configuration
 		config: PermissionConfig | undefined;
-		// Prop to customize messages (optional)
-		messages?: any;
+		messages?: {
+			rateLimited?: string;
+			missingConfig?: string;
+			insufficientPermissions?: string;
+		};
 		children?: import('svelte').Snippet;
 	}
 
@@ -54,8 +51,8 @@ Features:
 	// Create reactive stores
 	const loading = store(false);
 	// Reactive variables from page store with type assertions
-	let user = $derived($page.data.user as User | undefined);
-	let permissions = $derived(($page.data.permissions || {}) as Permissions);
+	let user = $derived(page.data.user as User | undefined);
+	let permissions = $derived((page.data.permissions || {}) as Record<string, { hasPermission: boolean; isRateLimited: boolean }>);
 
 	// Computed values with stores
 	let permissionData = $derived(

@@ -1,17 +1,25 @@
 <!-- 
 @files src/components/user/ModalEditToken.svelte
 @component
-**Modal for editing user registration token for adding new users**
+**Modal for editing or creating user registration tokens**
+
+Manages token creation and updates with role selection and expiration settings. Optimized for performance, consistency, and accessibility.
+
+@props
+- `parent` {object} - Parent modal properties (regionFooter, onClose, buttonPositive)
+- `token` {string} - Existing token (default: '')
+- `email` {string} - Associated email (default: '')
+- `role` {string} - Token role (default: '')
+- `expires` {string} - Expiration date (default: '')
+- `user_id` {string} - User ID (default: '')
 -->
 
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';
 
 	// Get data from page store
-	const { roles, user } = $page.data;
-
-	let formElement: HTMLFormElement | null = $state(null);
+	const { roles, user } = page.data;
 
 	// Skeleton & Stores
 	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
@@ -268,7 +276,7 @@
 				<!-- Cancel -->
 				<button class="variant-outline-secondary btn" onclick={parent?.onClose}>{m.button_cancel()}</button>
 				<!-- Save -->
-				<button class="variant-filled-tertiary btn btn dark:variant-filled-primary{parent?.buttonPositive ?? ''}" onclick={onFormSubmit}
+				<button class="variant-filled-tertiary btn dark:variant-filled-primary{parent?.buttonPositive ?? ''}" onclick={onFormSubmit}
 					>{m.button_save()}</button
 				>
 			</div>

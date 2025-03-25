@@ -2,35 +2,43 @@
 @file src/components/ModalEditForm.svelte
 @component
 **A modal for editing user data like username, email, password, and role**
+
+Efficiently manages user data updates with validation, role selection, and deletion. Optimized for performance and accessibility.
+
+@props
+- `parent` {object} - Parent modal properties (regionFooter, onClose, buttonPositive)
+- `isGivenData` {boolean} - Whether data is pre-provided (default: false)
+- `username` {string|null} - Pre-filled username (default: null)
+- `email` {string|null} - Pre-filled email (default: null)
+- `role` {string|null} - Pre-filled role (default: null)
+- `user_id` {string|null} - User ID to edit (default: null)
 -->
 
 <script lang="ts">
 	import axios from 'axios';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';
 
-	// Props
-
-	// Skelton & Stores
+	// Skeleton & Stores
 	import { getModalStore } from '@skeletonlabs/skeleton';
-
 	const modalStore = getModalStore();
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Get data from page store
-	const { roles, user } = $page.data;
+	const { roles, user } = page.data;
 
 	// Function to check if a role is active
 	const isRoleActive = (roleName: string): boolean => {
 		return user?.role?.toLowerCase() === roleName.toLowerCase();
 	};
+
 	// Components
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
 
-	import type { PermissionConfig } from '@src/auth/permissionCheck';
+	import type { PermissionConfig } from '@src/auth/permissionTypes';
 	import { PermissionAction } from '@src/auth/permissionTypes';
 
 	// Define permissions for different contexts
@@ -41,19 +49,10 @@
 		contextType: 'user'
 	};
 
-	const isFirstUser = $page.data.isFirstUser;
+	const isFirstUser = page.data.isFirstUser;
 
-	interface Props {
-		/** Exposes parent props to this component. */
-		parent: any;
-		isGivenData?: boolean;
-		username?: string | null;
-		email?: string | null;
-		role?: string | null;
-		user_id?: string | null;
-	}
-
-	let { parent, isGivenData = false, username = null, email = null, role = null, user_id = null }: Props = $props();
+	// Props
+	let { parent, isGivenData = false, username = null, email = null, role = null, user_id = null } = $props();
 
 	// Form Data Initialization
 	const formData = $state({
@@ -77,7 +76,7 @@
 	// Check if user is editing their own profile
 	const isOwnProfile = user_id === user?._id || !isGivenData;
 
-	// We've created a custom submit function to pass the response and close the modal.
+	// Form submission handler
 	function onFormSubmit(): void {
 		console.log('modal submitted.');
 
@@ -104,9 +103,11 @@
 	const cHeader = 'text-2xl font-bold';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 
-	let formElement: HTMLFormElement = $state();
+	let formElement: HTMLFormElement | null = $state(null);
 
 	async function deleteUser() {
+		if (!formElement) return;
+
 		const formData = new FormData(formElement);
 		formData.append('id', user._id);
 
@@ -119,16 +120,15 @@
 	}
 </script>
 
-<!-- @component This example creates a simple form modal. -->
 {#if $modalStore[0]}
 	<div class="modal-example-form {cBase}">
-		<header class={`text-center dark:text-primary-500 ${cHeader}`}>
+		<header class="text-center dark:text-primary-500 {cHeader}">
 			{$modalStore[0]?.title ?? '(title missing)'}
 		</header>
 		<article class="text-center text-sm">
 			{$modalStore[0]?.body ?? '(body missing)'}
 		</article>
-		<form class="modal-form {cForm}" bind:this={formElement} id="change_user_form">
+		<form class="modal-form {cForm}" bind:this={formElement} id="change_user_form" onsubmit={onFormSubmit}>
 			<!-- Username field -->
 			<div class="group relative z-0 mb-6 w-full">
 				<iconify-icon icon="mdi:user-circle" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
@@ -137,19 +137,20 @@
 					name="username"
 					label={m.form_username()}
 					bind:value={formData.username}
-					on:keydown={() => (errorStatus.username.status = false)}
+					onkeydown={() => (errorStatus.username.status = false)}
 					required
-					disabled={isGivenData && user_id != user?._id}
+					disabled={isGivenData && user_id !== user?._id}
+					autocomplete="username"
 				/>
-				{#if !errorStatus.username.status}
+				{#if errorStatus.username.status}
 					<div class="absolute left-0 top-11 text-xs text-error-500">
 						{errorStatus.username.msg}
 					</div>
 				{/if}
 			</div>
 
-			<!-- admin area -->
-			{#if isGivenData ? role : user?.role === 'admin'}
+			<!-- Admin area -->
+			{#if (isGivenData ? role : user?.role) === 'admin'}
 				<!-- Email field -->
 				<div class="group relative z-0 mb-6 w-full">
 					<iconify-icon icon="mdi:email" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
@@ -158,9 +159,10 @@
 						name="email"
 						label={m.form_emailaddress()}
 						bind:value={formData.email}
-						on:keydown={() => (errorStatus.email.status = false)}
+						onkeydown={() => (errorStatus.email.status = false)}
 						required
 						disabled
+						autocomplete="email"
 					/>
 					{#if errorStatus.email.status}
 						<div class="absolute left-0 top-11 text-xs text-error-500">
@@ -169,7 +171,7 @@
 					{/if}
 				</div>
 			{:else}
-				<!-- only show email but normal user cant change it -->
+				<!-- Email field (non-editable for normal users) -->
 				<div class="group relative z-0 mb-6 w-full">
 					<iconify-icon icon="mdi:email" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
 					<FloatingInput
@@ -177,10 +179,9 @@
 						name="email"
 						label="Email Cannot be changed"
 						bind:value={formData.email}
-						on:keydown={() => (errorStatus.email.status = false)}
-						icon="mdi:email"
-						iconColor="white"
-						textColor="white"
+						onkeydown={() => (errorStatus.email.status = false)}
+						disabled
+						autocomplete="email"
 					/>
 					{#if errorStatus.email.status}
 						<div class="absolute left-0 top-11 text-xs text-error-500">
@@ -195,36 +196,16 @@
 				<!-- Password field -->
 				<div class="group relative z-0 mb-6 w-full">
 					<iconify-icon icon="mdi:password" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
-					{#if showPassword}
-						<FloatingInput
-							type="text"
-							name="password"
-							id="password"
-							label={m.modaleditform_newpassword()}
-							bind:value={formData.password}
-							on:keydown={() => (errorStatus.password.status = false)}
-							autocomplete="new-password"
-						/>
-					{:else}
-						<FloatingInput
-							type="password"
-							name="password"
-							label={m.modaleditform_newpassword()}
-							autocomplete="new-password"
-							id="password"
-							bind:value={formData.password}
-							on:keydown={() => (errorStatus.password.status = false)}
-						/>
-					{/if}
-
-					<button type="button" class="absolute right-2 top-2" onclick={() => (showPassword = !showPassword)}>
-						{#if showPassword}
-							<iconify-icon icon="bi:eye-fill" color="base" width="24"></iconify-icon>
-						{:else}
-							<iconify-icon icon="bi:eye-slash-fill" class="text-surface-500" width="24"></iconify-icon>
-						{/if}
-					</button>
-
+					<FloatingInput
+						type="password"
+						name="password"
+						id="password"
+						label={m.modaleditform_newpassword()}
+						bind:value={formData.password}
+						bind:showPassword
+						onkeydown={() => (errorStatus.password.status = false)}
+						autocomplete="new-password"
+					/>
 					{#if errorStatus.password.status}
 						<div class="absolute left-0 top-11 text-xs text-error-500">
 							{errorStatus.password.msg}
@@ -235,37 +216,16 @@
 				<!-- Password Confirm -->
 				<div class="group relative z-0 mb-6 w-full">
 					<iconify-icon icon="mdi:password" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
-
-					{#if showPassword}
-						<FloatingInput
-							type="text"
-							name="confirm_password"
-							id="confirm_password"
-							label={m.form_confirmpassword()}
-							bind:value={formData.confirmPassword}
-							on:keydown={() => (errorStatus.confirm.status = false)}
-							autocomplete="new-password"
-						/>
-					{:else}
-						<FloatingInput
-							type="password"
-							name="confirm_password"
-							id="confirm_password"
-							label={m.form_confirmpassword()}
-							bind:value={formData.confirmPassword}
-							on:keydown={() => (errorStatus.confirm.status = false)}
-							autocomplete="new-password"
-						/>
-					{/if}
-
-					<button type="button" class="absolute right-2 top-2" onclick={() => (showPassword = !showPassword)}>
-						{#if showPassword}
-							<iconify-icon icon="bi:eye-fill" color="base" width="24"></iconify-icon>
-						{:else}
-							<iconify-icon icon="bi:eye-slash-fill" class="text-surface-500" width="24"></iconify-icon>
-						{/if}
-					</button>
-
+					<FloatingInput
+						type="password"
+						name="confirm_password"
+						id="confirm_password"
+						label={m.form_confirmpassword()}
+						bind:value={formData.confirmPassword}
+						bind:showPassword
+						onkeydown={() => (errorStatus.confirm.status = false)}
+						autocomplete="new-password"
+					/>
 					{#if errorStatus.confirm.status}
 						<div class="absolute left-0 top-11 text-xs text-error-500">
 							{errorStatus.confirm.msg}
@@ -311,9 +271,10 @@
 						type="button"
 						onclick={deleteUser}
 						class="variant-filled-error btn"
-						disabled={!isFirstUser && (!isGivenData || user._id == user_id)}
+						disabled={!isFirstUser && (!isGivenData || user._id === user_id)}
 					>
-						<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon><span class="hidden sm:block">{m.button_delete()}</span>
+						<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
+						<span class="hidden sm:block">{m.button_delete()}</span>
 					</button>
 				{:else}
 					<div></div>
@@ -324,9 +285,9 @@
 					<!-- Cancel -->
 					<button type="button" class="variant-outline-secondary btn" onclick={() => parent.onClose()}>{m.button_cancel()}</button>
 					<!-- Save -->
-					<button type="submit" class="variant-filled-tertiary btn btn dark:variant-filled-primary {parent.buttonPositive}" onclick={onFormSubmit}
-						>{m.button_save()}</button
-					>
+					<button type="submit" class="variant-filled-tertiary btn dark:variant-filled-primary {parent.buttonPositive}">
+						{m.button_save()}
+					</button>
 				</div>
 			</footer>
 		</form>

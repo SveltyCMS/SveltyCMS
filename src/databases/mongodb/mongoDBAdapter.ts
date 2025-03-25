@@ -35,6 +35,8 @@ import { logger, type LoggableValue } from '@utils/logger.svelte';
 
 // Widget Manager
 import '@widgets/index';
+import type { FilterQuery } from 'mongoose';
+import type { CollectionData } from '@root/src/content/types';
 
 // Database
 import mongoose from 'mongoose';

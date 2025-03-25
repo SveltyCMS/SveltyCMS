@@ -15,7 +15,6 @@
  * This file is used as the server-side counterpart for the user page in a SvelteKit application.
  * It prepares data and handles form validation for the client-side rendering.
  */
-
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 
@@ -33,12 +32,33 @@ import { logger } from '@utils/logger.svelte';
 // Import the PermissionConfig type
 import type { PermissionConfig } from '@src/auth/permissionCheck';
 
+// Utility function to mask email addresses
+// const maskEmail = (email: string): string => {
+//     if (!email) return '[NO_EMAIL]';
+//     const parts = email.split('@');
+//     if (parts.length !== 2) return '[INVALID_EMAIL]';
+//     const [localPart, domain] = parts;
+//     const maskedLocal = localPart.slice(0, 3) + '***';
+//     return `${maskedLocal}@${domain}`;
+// };
+
+// Utility function to validate and convert a timestamp to ISO string
+const safeDateFromTimestamp = (timestamp: unknown): string | null => {
+	if (typeof timestamp === 'number' && !isNaN(timestamp)) {
+		const date = new Date(timestamp);
+		return date.toISOString();
+	}
+	return null;
+};
+
 export const load: PageServerLoad = async (event) => {
 	try {
 		const user: User | null = event.locals.user;
 		const roles: Role[] = event.locals.roles || [];
 		const isFirstUser: boolean = event.locals.isFirstUser;
 		const hasManageUsersPermission: boolean = event.locals.hasManageUsersPermission;
+
+		// Validate forms using SuperForms
 		const addUserForm = await superValidate(event, valibot(addUserTokenSchema));
 		const changePasswordForm = await superValidate(event, valibot(changePasswordSchema));
 
@@ -52,6 +72,7 @@ export const load: PageServerLoad = async (event) => {
 			: null;
 
 		let adminData = null;
+
 		if (user?.isAdmin || hasManageUsersPermission) {
 			const allUsers: User[] = event.locals?.allUsers ?? [];
 			const allTokens: Token[] = event.locals?.allTokens?.tokens ?? [];
@@ -65,18 +86,18 @@ export const load: PageServerLoad = async (event) => {
 				username: user.username || null,
 				role: user.role,
 				activeSessions: user.lastActiveAt ? 1 : 0, // Placeholder for active sessions
-				lastAccess: user.lastActiveAt ? new Date(user.lastActiveAt) : null,
-				createdAt: user.createdAt ? new Date(user.createdAt) : null,
-				updatedAt: user.updatedAt ? new Date(user.updatedAt) : null
+				lastAccess: user.lastActiveAt ? new Date(user.lastActiveAt).toISOString() : null,
+				createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : null,
+				updatedAt: user.updatedAt ? new Date(user.updatedAt).toISOString() : null
 			}));
 
 			const formattedTokens = allTokens.map((token) => ({
 				user_id: token.user_id,
 				blocked: false, // Assuming tokens don't have a 'blocked' status
 				email: token.email || '',
-				expiresIn: token.expires ? new Date(token.expires) : null,
-				createdAt: new Date(token.token_id), // Assuming token_id is a timestamp
-				updatedAt: new Date(token.token_id) // Assuming tokens are not updated
+				expiresIn: token.expires ? new Date(token.expires).toISOString() : null,
+				createdAt: safeDateFromTimestamp(token.token_id), // Convert token_id to ISO string
+				updatedAt: safeDateFromTimestamp(token.token_id) // Convert token_id to ISO string
 			}));
 
 			adminData = {
@@ -84,8 +105,21 @@ export const load: PageServerLoad = async (event) => {
 				tokens: formattedTokens
 			};
 
-			//TODO: Mask sensitive data
-			// logger.debug(`Admin data prepared: ${JSON.stringify(adminData)}`);
+			// Mask sensitive data before logging
+			// const maskedAdminData = {
+			//     users: formattedUsers.map((user) => ({
+			//         ...user,
+			//         email: '[MASKED_EMAIL]', // Log placeholder instead of masked email
+			//         avatar: '[MASKED_AVATAR]', // Mask avatar URL
+			//     })),
+			//     tokens: formattedTokens.map((token) => ({
+			//         ...token,
+			//         email: '[MASKED_EMAIL]', // Log placeholder instead of masked email
+			//     }))
+			// };
+
+			// Log masked admin data
+			logger.debug(`Admin data prepared: ${JSON.stringify(adminData)}`);
 		}
 
 		// Provide manageUsersPermissionConfig to the client
@@ -96,11 +130,7 @@ export const load: PageServerLoad = async (event) => {
 			contextType: 'system'
 		};
 
-		//TODO: Mask sensitive data
-		// logger.debug(
-		// 	`Returning data to client: user=${JSON.stringify(safeUser)}, roles=${JSON.stringify(roles)}, isFirstUser=${isFirstUser}, adminData=${JSON.stringify(adminData)}`
-		// );
-
+		// Return data to the client
 		return {
 			user: safeUser,
 			roles: roles.map((role) => ({
@@ -111,11 +141,14 @@ export const load: PageServerLoad = async (event) => {
 			changePasswordForm,
 			isFirstUser,
 			manageUsersPermissionConfig,
-			adminData
+			adminData,
+			permissions: {
+				'config/adminArea': { hasPermission: user?.isAdmin || hasManageUsersPermission }
+			}
 		};
 	} catch (err) {
-		logger.error('Error during load function:', err);
-		console.log(err);
+		// Log error with an error code
+		logger.error('Error during load function (ErrorCode: USER_LOAD_500):', err);
 		throw error(500, 'Internal Server Error');
 	}
 };

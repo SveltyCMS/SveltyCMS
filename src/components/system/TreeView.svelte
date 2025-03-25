@@ -11,27 +11,6 @@
   - selectedId: (Optional) The ID of the currently selected node.
   - ariaLabel: (Optional) The ARIA label for the tree element (default: "Navigation tree").
   - dir: (Optional) The text direction ('ltr' or 'rtl', default: 'ltr').
-
-  @usage
-  ```svelte
-  <script>
-    import TreeView from './TreeView.svelte';
-
-    const treeData = [
-      {
-        id: '1',
-        name: 'Node 1',
-        children: [
-          { id: '1.1', name: 'Node 1.1' },
-          { id: '1.2', name: 'Node 1.2' },
-        ],
-      },
-      { id: '2', name: 'Node 2' },
-    ];
-  </script>
-
-  <TreeView nodes={treeData} />
-  ```
  -->
 
 <script lang="ts" module>
@@ -45,7 +24,6 @@
 		ariaLabel?: string; // Optional ARIA label for the node
 		onClick?: (node: TreeNode) => void;
 		isCollection?: boolean; // Optional flag indicating if the node is a collection
-
 		badge?: {
 			visible?: boolean;
 			count?: number;
@@ -267,6 +245,13 @@
 						></iconify-icon>
 					</div>
 				{/if}
+				<!-- Node label -->
+				<span
+					class="select-none overflow-hidden text-ellipsis whitespace-nowrap dark:text-white {compact ? 'text-xs' : ''}"
+					style="margin-left: {node.depth ? node.depth * 8 : 0}px"
+				>
+					{node.name}
+				</span>
 
 				<!-- Node label -->
 				<span

@@ -31,6 +31,7 @@ import { modifyRequest } from './modifyRequest';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
+import { contentManager } from '@root/src/content/ContentManager';
 
 // Function to handle DELETE requests for a specified collection
 export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {

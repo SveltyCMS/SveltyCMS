@@ -1,8 +1,9 @@
 <!-- 
 @file src/routes/(app)/user/components/AdminArea.svelte
 @component 
-**Admin area for managing users and tokens**
+**Admin area for managing users and tokens with efficient filtering and pagination.**
 -->
+
 <script lang="ts">
 	import { debounce } from '@utils/utils';
 	import { PermissionAction, PermissionType } from '@src/auth/permissionTypes';
@@ -72,16 +73,15 @@
 
 	interface SortingState {
 		sortedBy: string;
-		isSorted: number;
+		isSorted: number; // 1: asc, -1: desc, 0: none
 	}
 
 	// Props
-	let { adminData } = $props<{
-		adminData: AdminData | null;
-	}>();
+	let { adminData } = $props<{ adminData: AdminData | null }>();
 
 	const modalStore = getModalStore();
 	const waitFilter = debounce(300);
+	const flipDurationMs = 300;
 
 	// Table header definitions
 	const tableHeadersUser = [
@@ -101,12 +101,12 @@
 		{ label: m.adminarea_token(), key: 'token' },
 		{ label: m.adminarea_blocked(), key: 'blocked' },
 		{ label: m.form_email(), key: 'email' },
-		{ label: m.adminarea_expiresin(), key: 'expiresIn' },
+		{ label: m.adminarea_expiresin(), key: 'expires' },
 		{ label: m.adminarea_createat(), key: 'createdAt' },
 		{ label: m.adminarea_updatedat(), key: 'updatedAt' }
 	] as const;
 
-	// State Management using Svelte 5's $ prefix
+	// Core state with proper initialization
 	let showUserList = $state(true);
 	let showUsertoken = $state(false);
 	let isLoading = $state(false);
@@ -114,7 +114,7 @@
 	let searchShow = $state(false);
 	let filterShow = $state(false);
 	let columnShow = $state(false);
-	let SelectAll = $state(false);
+	let selectAll = $state(false);
 	let selectedMap = $state<Record<number, boolean>>({});
 	let tableData = $derived.by(() => {
 		if (!adminData) return [] as UserData[];
@@ -125,42 +125,51 @@
 		}
 	});
 	let filteredTableData = $state<(UserData | TokenData)[]>([]);
-	let selectedRows = $state<SelectedRow[]>([]);
+	let selectedRows = $state<(UserData | TokenData)[]>([]);
 	let density = $state(
-		localStorage.getItem('userPaginationSettings') ? JSON.parse(localStorage.getItem('userPaginationSettings') as string).density : 'normal'
+		(() => {
+			const settings = localStorage.getItem('userPaginationSettings');
+			return settings ? (JSON.parse(settings).density ?? 'normal') : 'normal';
+		})()
 	);
 	let selectAllColumns = $state(true);
 	let pagesCount = $state(1);
 	let currentPage = $state(1);
 	let rowsPerPage = $state(10);
 	let filters = $state<{ [key: string]: string }>({});
+	let sorting = $state<SortingState>({ sortedBy: '', isSorted: 0 });
 
-	// Initialize displayTableHeaders
+	// Initialize displayTableHeaders with a safe default
 	let displayTableHeaders = $state<TableHeader[]>(
-		localStorage.getItem('userPaginationSettings')
-			? JSON.parse(localStorage.getItem('userPaginationSettings') as string).displayTableHeaders.map((header: Partial<TableHeader>) => ({
+		(() => {
+			const settings = localStorage.getItem('userPaginationSettings');
+			const parsed = settings ? JSON.parse(settings) : {};
+			return (
+				parsed.displayTableHeaders?.map((header: Partial<TableHeader>) => ({
 					...header,
 					id: crypto.randomUUID()
-				}))
-			: tableHeadersUser.map((header) => ({
+				})) ??
+				tableHeadersUser.map((header) => ({
 					label: header.label,
 					key: header.key,
 					visible: true,
 					id: crypto.randomUUID()
 				}))
+			);
+		})()
 	);
 
 	// Update displayTableHeaders when view changes
 	$effect(() => {
+		// Update displayTableHeaders when view changes
 		displayTableHeaders = (showUserList ? tableHeadersUser : tableHeaderToken).map((header) => ({
 			label: header.label,
 			key: header.key,
 			visible: true,
 			id: crypto.randomUUID()
 		}));
-	});
 
-	$effect(() => {
+		// Update selectedRows based on selectedMap
 		selectedRows = Object.entries(selectedMap)
 			.filter(([_, isSelected]) => isSelected)
 			.map(([index]) => ({
@@ -168,36 +177,18 @@
 			}));
 	});
 
-	// Derived values
-	interface SelectedRow {
-		data: UserData | TokenData;
-	}
-
-	let sorting = $state<SortingState>({
-		sortedBy: '',
-		isSorted: 1
-	});
-
-	if (localStorage.getItem('sorting')) {
-		const savedSorting = JSON.parse(localStorage.getItem('sorting') as string);
-		sorting = savedSorting;
-	}
-
-	function modalTokenUser(): void {
-		const modalComponent: ModalComponent = {
-			ref: ModalEditToken,
-			slot: '<p>Edit Form</p>'
-		};
-		const d: ModalSettings = {
+	// Modal for token editing
+	function modalTokenUser() {
+		const modalSettings: ModalSettings = {
 			type: 'component',
 			title: m.adminarea_title(),
 			body: m.adminarea_body(),
-			component: modalComponent,
+			component: { ref: ModalEditToken, slot: '<p>Edit Form</p>' },
 			response: () => {
-				return;
+				return; // Handle response if needed
 			}
 		};
-		modalStore.trigger(d);
+		modalStore.trigger(modalSettings);
 	}
 
 	const flipDurationMs = 300;
@@ -206,10 +197,12 @@
 		displayTableHeaders = event.detail.items;
 	}
 
-	function handleDndFinalize(event: any) {
+	function handleDndFinalize(event: CustomEvent<DndEvent<TableHeader>>) {
 		displayTableHeaders = event.detail.items;
+		localStorage.setItem('userPaginationSettings', JSON.stringify({ density, displayTableHeaders }));
 	}
 
+	// Toggle views
 	function toggleUserList() {
 		showUserList = !showUserList;
 		if (showUsertoken) showUsertoken = false;
@@ -249,10 +242,12 @@
 			});
 		}
 
-		// Update filtered data and calculate pages
-		filteredTableData = filtered;
-		pagesCount = Math.ceil(filtered.length / rowsPerPage);
-		currentPage = Math.min(currentPage, pagesCount);
+		// Apply pagination
+		const start = (currentPage - 1) * rowsPerPage;
+		const end = start + rowsPerPage;
+		filteredTableData = filtered.slice(start, end);
+		pagesCount = Math.ceil(filtered.length / rowsPerPage) || 1;
+		if (currentPage > pagesCount) currentPage = pagesCount;
 	}
 	//// Initialize table data when adminData changes
 	//$effect(() => {
@@ -288,9 +283,7 @@
 </script>
 
 <div class="flex flex-col">
-	<p class="h2 mb-2 text-center text-3xl font-bold dark:text-white">
-		{m.adminarea_adminarea()}
-	</p>
+	<p class="h2 mb-2 text-center text-3xl font-bold dark:text-white">{m.adminarea_adminarea()}</p>
 
 	<div class="flex flex-col flex-wrap items-center justify-evenly gap-2 sm:flex-row xl:justify-between">
 		<button onclick={modalTokenUser} aria-label={m.adminarea_emailtoken()} class="gradient-primary btn w-full text-white sm:max-w-xs">
@@ -326,11 +319,7 @@
 	{:else if showUserList || showUsertoken}
 		<div class="my-4 flex flex-wrap items-center justify-between gap-1">
 			<h2 class="order-1 font-bold text-tertiary-500 dark:text-primary-500">
-				{#if showUserList}
-					{m.adminarea_userlist()}
-				{:else if showUsertoken}
-					{m.adminarea_listtoken()}
-				{/if}
+				{#if showUserList}{m.adminarea_userlist()}{:else if showUsertoken}{m.adminarea_listtoken()}{/if}
 			</h2>
 
 			<div class="order-3 sm:order-2">
@@ -353,10 +342,7 @@
 						</label>
 
 						<section
-							use:dndzone={{
-								items: displayTableHeaders,
-								flipDurationMs
-							}}
+							use:dndzone={{ items: displayTableHeaders, flipDurationMs }}
 							onconsider={handleDndConsider}
 							onfinalize={handleDndFinalize}
 							class="flex flex-wrap justify-center gap-1 rounded-md p-2"
@@ -366,12 +352,7 @@
 									class="chip {header.visible ? 'variant-filled-secondary' : 'variant-ghost-secondary'} w-100 mr-2 flex items-center justify-center"
 									animate:flip={{ duration: flipDurationMs }}
 									onclick={() => {
-										displayTableHeaders = displayTableHeaders.map((h) => {
-											if (h.id === header.id) {
-												return { ...h, visible: !h.visible };
-											}
-											return h;
-										});
+										displayTableHeaders = displayTableHeaders.map((h) => (h.id === header.id ? { ...h, visible: !h.visible } : h));
 										selectAllColumns = displayTableHeaders.every((h) => h.visible);
 									}}
 								>
@@ -395,13 +376,7 @@
 							<tr class="divide-x divide-surface-400">
 								<th>
 									{#if Object.keys(filters).length > 0}
-										<button
-											onclick={() => {
-												filters = {};
-											}}
-											aria-label="Clear All Filters"
-											class="variant-outline btn-icon"
-										>
+										<button onclick={() => (filters = {})} aria-label="Clear All Filters" class="variant-outline btn-icon">
 											<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 										</button>
 									{/if}
@@ -425,11 +400,11 @@
 
 						<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
 							<TableIcons
-								checked={SelectAll}
+								checked={selectAll}
 								onCheck={(checked) => {
-									SelectAll = checked;
-									for (const key in selectedMap) {
-										selectedMap[key] = checked;
+									selectAll = checked;
+									for (let i = 0; i < filteredTableData.length; i++) {
+										selectedMap[i] = checked;
 									}
 								}}
 							/>
@@ -439,19 +414,18 @@
 									onclick={() => {
 										sorting = {
 											sortedBy: header.key,
-											isSorted: header.key !== sorting.sortedBy ? 1 : sorting.isSorted === 0 ? 1 : sorting.isSorted === 1 ? -1 : 0
+											isSorted: sorting.sortedBy === header.key ? (sorting.isSorted === 1 ? -1 : sorting.isSorted === -1 ? 0 : 1) : 1
 										};
 									}}
 								>
 									<div class="flex items-center justify-center text-center">
 										{header.label}
-
 										<iconify-icon
 											icon="material-symbols:arrow-upward-rounded"
 											width="22"
 											class="origin-center duration-300 ease-in-out"
-											class:up={sorting.isSorted === 1}
-											class:invisible={sorting.isSorted === 0 || sorting.sortedBy !== header.label}
+											class:up={sorting.isSorted === 1 && sorting.sortedBy === header.key}
+											class:invisible={sorting.isSorted === 0 || sorting.sortedBy !== header.key}
 										></iconify-icon>
 									</div>
 								</th>
@@ -463,7 +437,7 @@
 						{#each filteredTableData as row, index}
 							<tr class="divide-x divide-surface-400">
 								<TableIcons
-									checked={selectedMap[index] || false}
+									checked={selectedMap[index] ?? false}
 									onCheck={(checked) => {
 										selectedMap[index] = checked;
 									}}
@@ -471,12 +445,12 @@
 								{#each displayTableHeaders.filter((header) => header.visible) as header}
 									<td class="text-center">
 										{#if header.key === 'blocked'}
-											<Boolean value={String(row[header.key]) === 'true'} />
+											<Boolean value={!!row[header.key]} />
 										{:else if showUserList && header.key === 'avatar'}
-											<Avatar src={row[header.key]} fallback="/Default_User.svg" width="w-8" />
+											<Avatar src={row[header.key] ?? '/Default_User.svg'} width="w-8" />
 										{:else if header.key === 'role'}
 											<Role value={row[header.key]} />
-										{:else if header.key === 'createdAt' || header.key === 'updatedAt' || header.key === 'lastAccess'}
+										{:else if ['createdAt', 'updatedAt', 'lastAccess'].includes(header.key)}
 											{new Date(row[header.key]).toLocaleString()}
 										{:else}
 											<!-- eslint-disable-next-line svelte/no-at-html-tags -->
@@ -491,7 +465,8 @@
 			</div>
 
 			<!-- Pagination  -->
-			<div class="relative bottom-0 left-0 right-0 mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
+
+			<div class="mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
 				<TablePagination
 					{currentPage}
 					{pagesCount}
@@ -500,22 +475,16 @@
 					totalItems={filteredTableData.length}
 					onUpdatePage={(page) => {
 						currentPage = page;
-						refreshTableData();
 					}}
 					onUpdateRowsPerPage={(rows) => {
 						rowsPerPage = rows;
 						currentPage = 1;
-						refreshTableData();
 					}}
 				/>
 			</div>
 		{:else}
 			<div class="variant-ghost-error btn text-center font-bold">
-				{#if showUserList}
-					{m.adminarea_nouser()}
-				{:else if showUsertoken}
-					{m.adminarea_notoken()}
-				{/if}
+				{#if showUserList}{m.adminarea_nouser()}{:else if showUsertoken}{m.adminarea_notoken()}{/if}
 			</div>
 		{/if}
 	{/if}

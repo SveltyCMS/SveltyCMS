@@ -25,3 +25,12 @@ export enum PermissionAction {
 	ACCESS = 'access', // Grants basic access to a resource or area, typically used for admin purposes.
 	EXECUTE = 'execute' // Grants the ability to execute a command or function, typically used for admin purposes.
 }
+
+export interface PermissionConfig {
+	contextId: string; // Unique identifier for the context in which the permission is used
+	name: string; // Display name of the permission
+	action: PermissionAction; // Action associated with the permission (e.g., create, read, update, delete)
+	contextType: ContextType | string; // Type of context, e.g., "system", "collection"
+	requiredRole?: string; // Role required to use this permission, e.g., "admin", "user"
+	description?: string; // Optional description for the permission
+}

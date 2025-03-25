@@ -47,16 +47,16 @@ function createScreenSizeStores() {
 	const initialHeight = typeof window !== 'undefined' ? window.innerHeight : 768;
 	const initialSize = getScreenSizeName(initialWidth);
 
-	// Base stores
-	const currentSize = store<ScreenSize>(initialSize);
-	const width = store<number>(initialWidth);
-	const height = store<number>(initialHeight);
+	// Base stores using $state
+	let width = $state(initialWidth);
+	let height = $state(initialHeight);
+	let currentSize = $state(initialSize);
 
-	// Derived values
-	const isMobile = $derived(currentSize() === ScreenSize.SM);
-	const isTablet = $derived(currentSize() === ScreenSize.MD);
-	const isDesktop = $derived(currentSize() === ScreenSize.LG || currentSize() === ScreenSize.XL);
-	const isLargeScreen = $derived(currentSize() === ScreenSize.XL);
+	// Derived states using $derived
+	const isMobile = $derived(currentSize === ScreenSize.SM);
+	const isTablet = $derived(currentSize === ScreenSize.MD);
+	const isDesktop = $derived(currentSize === ScreenSize.LG || currentSize === ScreenSize.XL);
+	const isLargeScreen = $derived(currentSize === ScreenSize.XL);
 
 	// Debounce function
 	function debounce(fn: () => void, delay: number): () => void {
@@ -70,9 +70,9 @@ function createScreenSizeStores() {
 	// Update function
 	function updateScreenSize() {
 		if (typeof window !== 'undefined') {
-			width.set(window.innerWidth);
-			height.set(window.innerHeight);
-			currentSize.set(getScreenSizeName(window.innerWidth));
+			width = window.innerWidth;
+			height = window.innerHeight;
+			currentSize = getScreenSizeName(window.innerWidth);
 		}
 	}
 
@@ -96,39 +96,43 @@ function createScreenSizeStores() {
 		};
 	}
 
+	// Create stores from state
+	const widthStore = store<number>(() => width);
+	const heightStore = store<number>(() => height);
+	const currentSizeStore = store<ScreenSize>(() => currentSize);
+	const isMobileStore = store<boolean>(() => isMobile);
+	const isTabletStore = store<boolean>(() => isTablet);
+	const isDesktopStore = store<boolean>(() => isDesktop);
+	const isLargeScreenStore = store<boolean>(() => isLargeScreen);
+
+	// Setup root effect for initialization
+	$effect.root(() => {
+		setupListener();
+	});
+
 	return {
-		// Base stores
-		currentSize,
-		width,
-		height,
-
-		// Derived values
-		isMobile,
-		isTablet,
-		isDesktop,
-		isLargeScreen,
-
-		// Helper functions
-		setupListener,
-		updateScreenSize
+		width: widthStore,
+		height: heightStore,
+		currentSize: currentSizeStore,
+		isMobile: isMobileStore,
+		isTablet: isTabletStore,
+		isDesktop: isDesktopStore,
+		isLargeScreen: isLargeScreenStore,
+		setupListener
 	};
 }
 
 // Create and export stores
 const stores = createScreenSizeStores();
 
-// Export individual stores and values
-export const screenSize = stores.currentSize;
-
+// Export individual stores
 export const screenWidth = stores.width;
-
 export const screenHeight = stores.height;
-
-// Export derived values
-export const isMobile = { subscribe: () => stores.isMobile };
-export const isTablet = { subscribe: () => stores.isTablet };
-export const isDesktop = { subscribe: () => stores.isDesktop };
-export const isLargeScreen = { subscribe: () => stores.isLargeScreen };
+export const screenSize = stores.currentSize;
+export const isMobile = stores.isMobile;
+export const isTablet = stores.isTablet;
+export const isDesktop = stores.isDesktop;
+export const isLargeScreen = stores.isLargeScreen;
 
 // Export setup function
 export const setupScreenSizeListener = stores.setupListener;

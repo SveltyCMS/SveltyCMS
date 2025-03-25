@@ -17,7 +17,6 @@
 import type { Schema } from '@root/src/content/types';
 import type { User } from '@src/auth/types';
 
-
 // Utils
 import { modifyRequest } from './modifyRequest';
 
