@@ -152,7 +152,7 @@ async function initializeVirtualFolders() {
     throw error(500, 'Database adapter not initialized');
   }
   try {
-    const virtualFolders = await dbAdapter.virtualFolders.getVirtualFolders();
+    const virtualFolders = await dbAdapter.virtualFolders.getAll();
     if (virtualFolders.length === 0) {
       // Create a default root folder
       const rootFolder = await dbAdapter.virtualFolders.create({

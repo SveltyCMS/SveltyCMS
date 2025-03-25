@@ -741,26 +741,29 @@ export class MongoDBAdapter implements DatabaseAdapter {
       order?: number;
       type?: 'folder' | 'collection';
     }): Promise<Document> => {
-      return SystemVirtualFolderModel.createVirtualFolder(folderData);
+      return SystemVirtualFolderModel.createVirtualFolder({
+        _id: this.utils.generateId(),
+        ...folderData
+      });
     },
 
     // Get all virtual folders
-    getVirtualFolders: async (): Promise<Document[]> => {
+    getAll: async (): Promise<Document[]> => {
       return SystemVirtualFolderModel.getAllVirtualFolders();
     },
 
     // Get contents of a virtual folder
-    getVirtualFolderContents: async (folderId: string): Promise<Document[]> => {
+    getContents: async (folderId: string): Promise<Document[]> => {
       return SystemVirtualFolderModel.getVirtualFolderContents(folderId);
     },
 
     // Update a virtual folder
-    updateVirtualFolder: async (folderId: string, updateData: VirtualFolderUpdateData): Promise<Document | null> => {
+    update: async (folderId: string, updateData: VirtualFolderUpdateData): Promise<Document | null> => {
       return SystemVirtualFolderModel.updateVirtualFolder(folderId, updateData);
     },
 
     // Delete a virtual folder
-    deleteVirtualFolder: async (folderId: string): Promise<boolean> => {
+    delete: async (folderId: string): Promise<boolean> => {
       return SystemVirtualFolderModel.deleteVirtualFolder(folderId);
     }
   };

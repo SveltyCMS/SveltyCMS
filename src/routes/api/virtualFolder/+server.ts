@@ -31,118 +31,122 @@ import { createDirectory, deleteDirectory } from '@utils/fileUploading';
 
 // GET: Retrieve all virtual folders or contents of a specific folder
 export const GET: RequestHandler = async ({ url }) => {
-	const folderId = url.searchParams.get('folderId');
+  const folderId = url.searchParams.get('folderId');
 
-	try {
-		if (!dbAdapter) {
-			return json({ success: false, error: "DB Adapter isn't initialized" }, { status: 424 });
-		}
+  try {
+    if (!dbAdapter) {
+      return json({ success: false, error: "DB Adapter isn't initialized" }, { status: 424 });
+    }
 
-		if (folderId) {
-			// Fetch contents of a specific folder
-			const contents = await dbAdapter.getVirtualFolderContents(folderId);
-			return json({ success: true, contents });
-		} else {
-			// Fetch all virtual folders
-			const folders = await dbAdapter.getVirtualFolders();
-			return json({ success: true, folders });
-		}
-	} catch (err) {
-		const message = err instanceof Error ? err.message : String(err); // Ensure message is a string
-		logger.error('Error fetching folders:', message); // Log the error
-		return json({ success: false, error: 'Failed to fetch folders or contents' }, { status: 500 });
-	}
+    if (folderId) {
+      // Fetch contents of a specific folder
+      const contents = await dbAdapter.virtualFolders.getContents(folderId);
+      return json({ success: true, contents });
+    } else {
+      // Fetch all virtual folders
+      const folders = await dbAdapter.virtualFolders.getAll();
+      return json({ success: true, folders });
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err); // Ensure message is a string
+    logger.error('Error fetching folders:', message); // Log the error
+    return json({ success: false, error: 'Failed to fetch folders or contents' }, { status: 500 });
+  }
 };
 
 // POST: Create a new virtual folder
 export const POST: RequestHandler = async ({ request }) => {
-	try {
-		const { name, parent } = await request.json();
+  try {
+    const { name, parent } = await request.json();
 
-		if (!dbAdapter) {
-			return json({ success: false, error: "DB Adapter isn't initialized" }, { status: 424 });
-		}
+    if (!dbAdapter) {
+      return json({ success: false, error: "DB Adapter isn't initialized" }, { status: 424 });
+    }
 
-		if (!name) {
-			return json({ success: false, error: 'Folder name is required' }, { status: 400 });
-		}
+    if (!name) {
+      return json({ success: false, error: 'Folder name is required' }, { status: 400 });
+    }
 
-		let parentPath = '';
-		if (parent) {
-			const parentFolder = await dbAdapter.getVirtualFolderContents(parent);
-			if (!parentFolder) {
-				return json({ success: false, error: 'Parent folder not found' }, { status: 404 });
-			}
-			parentPath = parentFolder.path ?? '';
-		} else {
-			parentPath = publicEnv.MEDIA_FOLDER;
-		}
+    let parentPath = '';
+    if (parent) {
+      const parentFolder = await dbAdapter.virtualFolders.getContents(parent);
+      if (!parentFolder) {
+        return json({ success: false, error: 'Parent folder not found' }, { status: 404 });
+      }
+      parentPath = parentFolder.path ?? '';
+    } else {
+      parentPath = publicEnv.MEDIA_FOLDER;
+    }
 
-		const path = `${parentPath}/${name}`;
-		const result = await dbAdapter.createVirtualFolder({ name, parent, path });
-		await createDirectory(result?._id?.toString?.());
-		return json({ success: true, folder: result });
-	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : String(error);
-		logger.error('Error creating folder:', { error: errorMessage });
-		return json({ success: false, error: `Failed to creating folder: ${errorMessage}` }, { status: 500 });
-	}
+    const path = `${parentPath}/${name}`;
+    const result = await dbAdapter.virtualFolders.create({ name, parent, path });
+    if (!result.success) {
+      return json({ success: false, error: result.error.message }, { status: 500 });
+    }
+    const folder = result.data;
+    await createDirectory(folder._id.toString());
+    return json({ success: true, folder: result });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error('Error creating folder:', { error: errorMessage });
+    return json({ success: false, error: `Failed to creating folder: ${errorMessage}` }, { status: 500 });
+  }
 };
 
 // PATCH: Update an existing virtual folder
 export const PATCH: RequestHandler = async ({ request }) => {
-	try {
-		const { folderId, name, parent } = await request.json();
+  try {
+    const { folderId, name, parent } = await request.json();
 
-		if (!dbAdapter) {
-			return json({ success: false, error: "DB Adapter isn't initialized" }, { status: 424 });
-		}
+    if (!dbAdapter) {
+      return json({ success: false, error: "DB Adapter isn't initialized" }, { status: 424 });
+    }
 
-		if (!folderId) {
-			return json({ success: false, error: 'Folder ID is required' }, { status: 400 });
-		}
+    if (!folderId) {
+      return json({ success: false, error: 'Folder ID is required' }, { status: 400 });
+    }
 
-		const updateData: { name?: string | undefined; parent?: string | undefined } = {
-			name: name || undefined,
-			parent: parent || undefined
-		};
+    const updateData: { name?: string | undefined; parent?: string | undefined } = {
+      name: name || undefined,
+      parent: parent || undefined
+    };
 
-		const updatedFolder = await dbAdapter.updateVirtualFolder(folderId, updateData);
-		await deleteDirectory(folderId);
-		await createDirectory(updatedFolder?._id?.toString?.());
-		if (!updatedFolder) {
-			return json({ success: false, error: 'Folder update failed' }, { status: 404 });
-		}
+    const updatedFolder = await dbAdapter.virtualFolders.update(folderId, updateData);
+    await deleteDirectory(folderId);
+    await createDirectory(updatedFolder?._id?.toString?.());
+    if (!updatedFolder) {
+      return json({ success: false, error: 'Folder update failed' }, { status: 404 });
+    }
 
-		return json({ success: true, folder: updatedFolder });
-	} catch (error) {
-		logger.error(`Error updating folder: ${error}`);
-		return json({ success: false, error: 'Failed to update folder' }, { status: 500 });
-	}
+    return json({ success: true, folder: updatedFolder });
+  } catch (error) {
+    logger.error(`Error updating folder: ${error}`);
+    return json({ success: false, error: 'Failed to update folder' }, { status: 500 });
+  }
 };
 
 // DELETE: Delete an existing virtual folder
 export const DELETE: RequestHandler = async ({ request }) => {
-	try {
-		const { folderId } = await request.json();
+  try {
+    const { folderId } = await request.json();
 
-		if (!dbAdapter) {
-			return json({ success: false, error: "DB Adapter isn't initialized" }, { status: 424 });
-		}
+    if (!dbAdapter) {
+      return json({ success: false, error: "DB Adapter isn't initialized" }, { status: 424 });
+    }
 
-		if (!folderId) {
-			return json({ success: false, error: 'Folder ID is required' }, { status: 400 });
-		}
+    if (!folderId) {
+      return json({ success: false, error: 'Folder ID is required' }, { status: 400 });
+    }
 
-		const success = await dbAdapter.deleteVirtualFolder(folderId);
-		await deleteDirectory(folderId);
-		if (!success) {
-			return json({ success: false, error: 'Folder deletion failed' }, { status: 404 });
-		}
+    const success = await dbAdapter.virtualFolders.delete(folderId);
+    await deleteDirectory(folderId);
+    if (!success) {
+      return json({ success: false, error: 'Folder deletion failed' }, { status: 404 });
+    }
 
-		return json({ success: true });
-	} catch (error) {
-		logger.error(`Error deleting folder: ${error}`);
-		return json({ success: false, error: 'Failed to delete folder' }, { status: 500 });
-	}
+    return json({ success: true });
+  } catch (error) {
+    logger.error(`Error deleting folder: ${error}`);
+    return json({ success: false, error: 'Failed to delete folder' }, { status: 500 });
+  }
 };

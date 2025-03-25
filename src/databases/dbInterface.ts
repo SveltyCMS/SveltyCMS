@@ -289,6 +289,8 @@ export interface DatabaseAdapter {
   // System Virtual Folders
   virtualFolders: {
     create(folder: Omit<MediaFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaFolder>>; // Create a virtual folder
+    getAll(): Promise<DatabaseResult<MediaFolder[]>>; // Get all virtual folders
+    update(folderId: DatabaseId, updateData: Partial<MediaFolder>): Promise<DatabaseResult<MediaFolder>>; // Update a virtual folder
     addToFolder(contentId: DatabaseId, folderPath: string): Promise<DatabaseResult<void>>; // Add content to a virtual folder
     getContents(folderPath: string): Promise<DatabaseResult<{ folders: MediaFolder[]; files: MediaItem[] }>>; // Specialized: Get contents of a virtual folder
     delete(folderId: DatabaseId): Promise<DatabaseResult<void>>; // Delete a virtual folder

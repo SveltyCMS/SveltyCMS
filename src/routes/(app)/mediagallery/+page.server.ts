@@ -127,7 +127,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     const media = results.flat();
 
     // Fetch virtual folders
-    const result = await dbAdapter.virtualFolders.getVirtualFolders();
+    const result = await dbAdapter.virtualFolders.getAll();
     if (!result.success) {
       logger.error(`Failed to fetch virtual folders: ${result.error.message}`);
     }
