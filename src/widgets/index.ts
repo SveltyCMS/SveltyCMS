@@ -33,7 +33,7 @@ const widgets: Record<string, WidgetFunction> = {};
 export default widgets;
 
 // State management with reactive stores
-const widgetFunctions = store<Map<string, WidgetFunction>>(new Map()); // Store for widget functions
+export const widgetFunctions = store<Map<string, WidgetFunction>>(new Map()); // Store for widget functions
 const activeWidgetList = store<Set<string>>(new Set()); // Store for active widgets
 
 // init state

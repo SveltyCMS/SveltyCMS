@@ -56,7 +56,7 @@ class ContentManager {
 	private dbInitPromise: Promise<void> | null = null;
 
 	private constructor() {
-		this.dbInitPromise = dbInitPromise;
+		// this.dbInitPromise = dbInitPromise;
 	}
 
 	static getInstance(): ContentManager {
@@ -329,7 +329,7 @@ class ContentManager {
 	public generateNestedStructure(): ContentStructureNode[] {
 		try {
 			// Create a Map for quick lookups
-			const nodeMap = new Map<string, any>();
+			const nodeMap = new Map<string, ContentStructureNode & { children: ContentStructureNode[] }>();
 
 			// Add all nodes to the Map
 			Object.values(this.contentStructure).forEach((node) => {
@@ -542,7 +542,11 @@ class ContentManager {
 			logger.debug(`Attempting to read file for collection: \x1b[34m${name}\x1b[0m at path: \x1b[33m${path}\x1b[0m`);
 			const content = await this.readFile(path);
 			logger.debug(`File content for collection \x1b[34m${name}\x1b[0m: ${content.substring(0, 100)}...`); // Log only the first 100 characters
-			const schema = await this.processCollectionFile(path, content);
+			const schema = await processModule(content);
+			if (schema?.schema) {
+				await this.setCacheValue(name, schema.schema, this.collectionCache);
+				return schema.schema;
+			}
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : String(err);
 			logger.error(`Failed to lazy load collection ${name}:`, { error: errorMessage });

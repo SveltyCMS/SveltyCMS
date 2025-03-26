@@ -41,6 +41,7 @@ Features:
 			count?: number;
 			status?: 'draft' | 'published' | 'archived';
 			color?: string;
+			visible?: boolean;
 		};
 	}
 
@@ -87,11 +88,10 @@ Features:
 	});
 
 	let search = $state('');
-	let isMediaMode = $state(false);
+	let isMediaMode = $derived(mode.value === 'media');
 
 	// Update isMediaMode when mode changes
 	$effect(() => {
-		isMediaMode = mode.value === 'media';
 		if (collectonStructureNodes.length > 0) {
 			// The search prop in TreeView will handle the filtering
 			search = search.toLowerCase().trim();
@@ -149,9 +149,9 @@ Features:
 		<button
 			class="btn mt-1 flex w-full rounded-sm {sidebarState.sidebar.value.left === 'full'
 				? 'flex-row '
-				: 'flex-col'} items-center border border-surface-500 py-{sidebarState.sidebar.value.left === 'full'
+				: 'flex-col'} border-surface-500 items-center border py-{sidebarState.sidebar.value.left === 'full'
 				? '3'
-				: '1'} hover:bg-surface-400! hover:text-white dark:bg-surface-500"
+				: '1'} hover:bg-surface-400! dark:bg-surface-500 hover:text-white"
 			onclick={() => {
 				mode.set('media');
 				goto('/mediagallery');
@@ -174,7 +174,7 @@ Features:
 	{#if isMediaMode}
 		<!-- Back to Collections Button -->
 		<button
-			class="btn mt-1 flex w-full items-center bg-surface-400 py-2 hover:bg-surface-500! hover:text-white dark:bg-surface-600"
+			class="btn bg-surface-400 hover:bg-surface-500! dark:bg-surface-600 mt-1 flex w-full items-center py-2 hover:text-white"
 			onclick={() => {
 				mode.set('view');
 				if (get(screenSize) === 'sm') {
@@ -183,7 +183,7 @@ Features:
 				goto(`/`);
 			}}
 		>
-			<iconify-icon icon="bi:collection" width="24" class="px-2 py-1 text-error-500"></iconify-icon>
+			<iconify-icon icon="bi:collection" width="24" class="text-error-500 px-2 py-1"></iconify-icon>
 			<p class="mr-auto text-center uppercase">Collections</p>
 		</button>
 

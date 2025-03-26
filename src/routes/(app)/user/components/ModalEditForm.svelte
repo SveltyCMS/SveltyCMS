@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/components/ModalEditForm.svelte
 @component
 **A modal for editing user data like username, email, password, and role**
@@ -6,7 +6,6 @@
 Efficiently manages user data updates with validation, role selection, and deletion. Optimized for performance and accessibility.
 
 @props
-- `parent` {object} - Parent modal properties (regionFooter, onClose, buttonPositive)
 - `isGivenData` {boolean} - Whether data is pre-provided (default: false)
 - `username` {string|null} - Pre-filled username (default: null)
 - `email` {string|null} - Pre-filled email (default: null)
@@ -19,19 +18,11 @@ Efficiently manages user data updates with validation, role selection, and delet
 	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';
 
-	// Skeleton & Stores
-	const modalStore = getModalStore();
+	// Skeleton
+	import { Modal } from '@skeletonlabs/skeleton-svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-
-	// Get data from page store
-	const { roles, user } = page.data;
-
-	// Function to check if a role is active
-	const isRoleActive = (roleName: string): boolean => {
-		return user?.role?.toLowerCase() === roleName.toLowerCase();
-	};
 
 	// Components
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
@@ -48,10 +39,32 @@ Efficiently manages user data updates with validation, role selection, and delet
 		contextType: 'user'
 	};
 
-	const isFirstUser = page.data.isFirstUser;
+	// Get data from page store
+	const { roles, user } = page.data;
 
+	// Function to check if a role is active
+	const isRoleActive = (roleName: string): boolean => {
+		return user?.role?.toLowerCase() === roleName.toLowerCase();
+	};
+
+	const isFirstUser = page.data.isFirstUser;
 	// Props
-	let { parent, isGivenData = false, username = null, email = null, role = null, user_id = null } = $props();
+	const {
+		isGivenData = false,
+		username = null,
+		email = null,
+		role = null,
+		user_id = null
+	} = $props<{
+		isGivenData?: boolean;
+		username?: string | null;
+		email?: string | null;
+		role?: string | null;
+		user_id?: string | null;
+	}>();
+
+	// Modal state
+	let openState = $state(false);
 
 	// Form Data Initialization
 	const formData = $state({
@@ -76,9 +89,8 @@ Efficiently manages user data updates with validation, role selection, and delet
 	const isOwnProfile = user_id === user?._id || !isGivenData;
 
 	// Form submission handler
-	function onFormSubmit(): void {
+	async function onFormSubmit(): Promise<void> {
 		console.log('modal submitted.');
-
 		// Validate password fields if they are filled
 		if (formData.password || formData.confirmPassword) {
 			if (formData.password !== formData.confirmPassword) {
@@ -93,41 +105,60 @@ Efficiently manages user data updates with validation, role selection, and delet
 			}
 		}
 
-		if ($modalStore[0].response) $modalStore[0].response(formData);
-		modalStore.close();
+		try {
+			const data = { user_id: formData.user_id, newUserData: formData };
+			const res = await axios.put('/api/user/updateUserAttributes', data);
+			if (res.status === 200) {
+				await invalidateAll();
+				openState = false;
+			}
+		} catch (error) {
+			console.error('Error updating user:', error);
+		}
 	}
 
-	// Base Classes
-	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
-	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container';
+	// Delete user handler
+	async function deleteUser(): Promise<void> {
+		try {
+			const formDataToSend = new FormData();
+			formDataToSend.append('id', user._id);
 
-	let formElement: HTMLFormElement | null = $state(null);
-
-	async function deleteUser() {
-		if (!formElement) return;
-
-		const formData = new FormData(formElement);
-		formData.append('id', user._id);
-
-		const res = await axios.post('?/deleteUser', formData);
-
-		if (res.status === 200) {
-			await invalidateAll();
-			modalStore.close();
+			const res = await axios.post('?/deleteUser', formDataToSend);
+			if (res.status === 200) {
+				await invalidateAll();
+				openState = false;
+			}
+		} catch (error) {
+			console.error('Error deleting user:', error);
 		}
 	}
 </script>
 
-{#if $modalStore[0]}
-	<div class="modal-example-form {cBase}">
-		<header class="dark:text-primary-500 text-center {cHeader}">
-			{$modalStore[0]?.title ?? '(title missing)'}
+<Modal
+	open={openState}
+	onOpenChange={(e) => (openState = e.open)}
+	triggerBase="btn preset-tonal"
+	contentBase="card bg-surface-100-900 p-4 space-y-4 shadow-xl max-w-screen-sm"
+	backdropClasses="backdrop-blur-sm"
+>
+	{#snippet trigger()}
+		<button>{m.userpage_edit_usersetting()}</button>
+	{/snippet}
+
+	{#snippet content()}
+		<header class="text-primary-500 text-center text-2xl font-bold">
+			{m.usermodaluser_edittitle()}
 		</header>
 		<article class="text-center text-sm">
-			{$modalStore[0]?.body ?? '(body missing)'}
+			{m.usermodaluser_editbody()}
 		</article>
-		<form class="modal-form {cForm}" bind:this={formElement} id="change_user_form" onsubmit={onFormSubmit}>
+		<form
+			class="border-surface-500 rounded-container space-y-4 border p-4"
+			onsubmit={(e) => {
+				e.preventDefault();
+				onFormSubmit();
+			}}
+		>
 			<!-- Username field -->
 			<div class="group relative z-0 mb-6 w-full">
 				<iconify-icon icon="mdi:user-circle" width="18" class="absolute top-3.5 left-0 text-gray-400"></iconify-icon>
@@ -244,10 +275,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 									<button
 										type="button"
 										class="chip {isRoleActive(role._id) ? 'preset-filled-tertiary-500' : 'preset-tonal-secondary border-secondary-500 border'}"
-										onclick={() => {
-											formData.role = role._id;
-											console.log('Selected Role:', formData.role);
-										}}
+										onclick={() => (formData.role = role._id)}
 									>
 										{#if isRoleActive(role._id)}
 											<span><iconify-icon icon="fa:check"></iconify-icon></span>
@@ -263,7 +291,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 				</div>
 			</PermissionGuard>
 
-			<footer class="modal-footer {parent.regionFooter} justify-between">
+			<footer class="flex items-center justify-between">
 				<!-- Delete User -->
 				{#if isFirstUser}
 					<button
@@ -282,13 +310,15 @@ Efficiently manages user data updates with validation, role selection, and delet
 
 				<div class="flex justify-between gap-4">
 					<!-- Cancel -->
-					<button type="button" class="preset-outline-secondary btn" onclick={() => parent.onClose()}>{m.button_cancel()}</button>
+					<button type="button" class="preset-outline-secondary btn" onclick={() => (openState = false)}>
+						{m.button_cancel()}
+					</button>
 					<!-- Save -->
-					<button type="submit" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 {parent.buttonPositive}">
+					<button type="submit" class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500">
 						{m.button_save()}
 					</button>
 				</div>
 			</footer>
 		</form>
-	</div>
-{/if}
+	{/snippet}
+</Modal>

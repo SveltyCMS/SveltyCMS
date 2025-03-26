@@ -93,7 +93,7 @@ Features:
 <div class="relative flex items-center md:w-[200px]">
 	<button
 		style="--color:{buttons[defaultButton].color};background-color:{buttons[defaultButton].bg_color}"
-		class="flex grow items-center justify-center rounded-l-lg md:text-lg max-md:p-[10px]!"
+		class="flex grow items-center justify-center rounded-l-lg max-md:p-[10px]! md:text-lg"
 		class:rounded-bl-[10px]={!expanded}
 		aria-label="Create"
 		onclick={buttons[defaultButton].fn}
@@ -111,7 +111,7 @@ Features:
 		style="background-color: rgb(37, 36, 36);"
 	>
 		<div
-			class="absolute left-[43%] top-1/2 h-0 w-0 -translate-x-1/2 -translate-y-1/2 rotate-45 transform border-r-4 border-t-4 border-solid border-white"
+			class="absolute top-1/2 left-[43%] hidden -translate-x-1/2 -translate-y-1/2 rotate-45 transform border-t-4 border-r-4 border-solid border-white"
 			class:!border-red-800={!activeArrow}
 		></div>
 	</button>

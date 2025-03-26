@@ -29,9 +29,6 @@ Features:
 	import { handleSidebarToggle } from '@src/stores/sidebarStore.svelte';
 	import { isSearchVisible, triggerActionStore } from '@utils/globalSearchIndex';
 
-	// Skeleton
-	const modalStore = getModalStore();
-
 	// Type Definitions
 	interface Endpoint {
 		url: {
@@ -331,7 +328,6 @@ Features:
 			location.href = endpoint.url.path || '/';
 		} else {
 			mode.set('view');
-			modalStore.clear();
 			handleSidebarToggle();
 			goto(endpoint.url.path || '/');
 		}
@@ -483,7 +479,7 @@ Features:
 <style lang="postcss">
 	/* Tooltip arrow */
 	.tooltip-arrow {
-		@apply absolute top-full left-1/2 h-0 w-0 -translate-x-1/2;
+		@apply absolute top-full left-1/2 hidden -translate-x-1/2;
 		border-left: 4px solid transparent;
 		border-right: 4px solid transparent;
 		border-top: 4px solid rgba(0, 0, 0, 0.8);

@@ -24,24 +24,19 @@
 	import { mode, modifyEntry } from '@src/stores/collectionStore.svelte';
 	import { handleSidebarToggle } from '@src/stores/sidebarStore.svelte';
 
-	// Components
+	// Modal
 	import ScheduleModal from './ScheduleModal.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Skeleton
-	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
-
 	type ActionType = 'create' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'delete' | 'test';
-	type ModifyType = 'published' | 'unpublished' | 'scheduled' | 'cloned' | 'deleted' | 'testing';
 
 	interface Props {
 		isCollectionEmpty?: boolean;
 		'on:create'?: () => void;
 		'on:publish'?: () => void;
 		'on:unpublish'?: () => void;
-		'on:schedule'?: () => void;
 		'on:clone'?: () => void;
 		'on:delete'?: () => void;
 		'on:test'?: () => void;
@@ -53,37 +48,17 @@
 		'on:create': onCreate = () => {},
 		'on:publish': onPublish = () => {},
 		'on:unpublish': onUnpublish = () => {},
-		'on:schedule': onSchedule = () => {},
 		'on:clone': onClone = () => {},
 		'on:delete': onDelete = () => {},
 		'on:test': onTest = () => {}
 	}: Props = $props();
-
-	const modalStore = getModalStore();
 
 	// States
 	let dropdownOpen = $state(false);
 	let actionName = $state('');
 	let buttonClass = $state('');
 	let iconValue = $state('');
-
-	// Modal Trigger - Schedule
-	function openScheduleModal(): void {
-		const modalComponent: ModalComponent = {
-			ref: ScheduleModal,
-			slot: '<p>Edit Form</p>'
-		};
-		const modalSettings: ModalSettings = {
-			type: 'component',
-			title: 'Scheduler',
-			body: 'Set a date and time to schedule this entry.',
-			component: modalComponent,
-			response: (r: boolean) => {
-				if (r) console.log('Scheduling successful');
-			}
-		};
-		modalStore.trigger(modalSettings);
-	}
+	let scheduleModalOpen = $state(false);
 
 	function handleButtonClick(event: Event) {
 		event.preventDefault();
@@ -108,8 +83,7 @@
 				break;
 			case 'schedule':
 				mode.set('view');
-				openScheduleModal();
-				modifyEntry.value('scheduled');
+				scheduleModalOpen = true;
 				break;
 			case 'clone':
 				mode.set('view');
@@ -216,3 +190,11 @@
 		</ul>
 	{/if}
 </div>
+
+<ScheduleModal
+	bind:open={scheduleModalOpen}
+	on:schedule={() => {
+		modifyEntry.value('scheduled');
+		scheduleModalOpen = false;
+	}}
+/>

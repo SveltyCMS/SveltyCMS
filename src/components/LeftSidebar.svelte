@@ -132,7 +132,15 @@
 	const toggleTheme = async () => {
 		const currentTheme = themeName(); // Get current value
 		const newThemeName = currentTheme === 'dark' ? 'light' : 'dark';
+
+		// Update theme in store
 		await updateTheme(newThemeName);
+
+		// Update document class for Tailwind v4
+		if (typeof window !== 'undefined') {
+			document.documentElement.dataset.theme = newThemeName;
+			localStorage.setItem('theme', newThemeName);
+		}
 	};
 
 	function handleSelectChange(event: Event) {
@@ -213,10 +221,10 @@
 							size={sidebarState.sidebar.value.left === 'full' ? 'w-[40px]' : 'w-[35px]'}
 							classes="mx-auto"
 						/>
-						<div class="-mt-1 text-center text-[10px] text-black uppercase dark:text-white">
+						<div class="text-center text-[10px] text-black uppercase dark:text-white">
 							{#if sidebarState.sidebar.value.left === 'full'}
 								{#if user?.username}
-									<div class="-ml-1.5">
+									<div class="-ml-0.5">
 										{user?.username}
 									</div>
 								{/if}
@@ -225,7 +233,10 @@
 					{/snippet}
 
 					{#snippet content()}
-						{m.applayout_userprofile()}
+						<div class="card preset-filled z-50 max-w-sm p-2">
+							{m.applayout_userprofile()}
+							<div class="arrow preset-filled"></div>
+						</div>
 					{/snippet}
 				</Tooltip>
 			</div>

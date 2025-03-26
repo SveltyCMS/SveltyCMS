@@ -34,6 +34,7 @@ export interface Widget {
 
 export interface WidgetFunction {
 	(config: Record<string, unknown>): WidgetPlaceholder;
+	componentPath: string;
 }
 
 export interface WidgetModule {

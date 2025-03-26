@@ -139,7 +139,7 @@
 
 	<!-- Prefix Icon -->
 	{#if icon}
-		<iconify-icon {icon} width="1.125em" class="absolute top-1 left-1 text-{iconColor}" aria-hidden="true" role="presentation"></iconify-icon>
+		<iconify-icon {icon} width="1.125em" class="absolute top-3 left-1 text-{iconColor}" aria-hidden="true" role="presentation"></iconify-icon>
 	{/if}
 
 	<!-- Password Toggle -->
@@ -150,7 +150,7 @@
 			icon={isPasswordVisible ? 'bi:eye-fill' : 'bi:eye-slash-fill'}
 			aria-label={isPasswordVisible ? 'Hide password' : 'Show password'}
 			aria-pressed={isPasswordVisible}
-			class="absolute -top-0.5 right-1 text-{showPasswordBackgroundColor === 'light'
+			class="absolute top-3 right-1 text-{showPasswordBackgroundColor === 'light'
 				? 'surface-700'
 				: 'surface-200'} hover:text-tertiary-500 focus:outline-hidden"
 			width="24"
@@ -163,8 +163,8 @@
 	{#if label}
 		<label
 			for={currentId}
-			class="peer-focus:text-tertiary-500 peer-disabled:text-surface-500 text-surface-300 peer-placeholder-shown:text-surface-200 pointer-events-none absolute -top-4 left-7 transform text-sm transition-all duration-200 ease-in-out peer-placeholder-shown:-top-0.5 peer-placeholder-shown:text-base peer-focus:-top-4 peer-focus:text-xs {value
-				? 'text-tertiary-500 -top-4 text-xs'
+			class="peer-focus:text-tertiary-500 peer-disabled:text-surface-500 text-surface-300 peer-placeholder-shown:text-surface-200 pointer-events-none absolute -top-3 left-7 transform text-sm transition-all duration-200 ease-in-out peer-placeholder-shown:top-2 peer-placeholder-shown:text-base peer-focus:-top-3 peer-focus:text-xs {value
+				? 'text-tertiary-500 -top-3 text-xs'
 				: ''} {labelClass}"
 		>
 			{label}

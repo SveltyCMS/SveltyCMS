@@ -5,9 +5,7 @@
 
 <script lang="ts">
 	import type { PageData } from './$types';
-	import axios from 'axios';
 	import { onMount } from 'svelte';
-	import { invalidateAll } from '$app/navigation';
 	import type { User } from '@src/auth/types';
 
 	// ParaglideJS
@@ -17,6 +15,7 @@
 	import '@stores/store.svelte';
 	import { avatarSrc } from '@stores/store.svelte';
 	import { triggerActionStore } from '@utils/globalSearchIndex';
+	import { collection } from '@src/stores/collectionStore.svelte';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -28,13 +27,11 @@
 
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton-svelte';
+
+	// Modals
 	import ModalEditAvatar from './components/ModalEditAvatar.svelte';
 	import ModalEditForm from './components/ModalEditForm.svelte';
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton-svelte';
-	import { collection } from '@src/stores/collectionStore.svelte';
-
-	const toastStore = getToastStore();
-	const modalStore = getModalStore();
+	import ModalConfirm from '@components/ModalConfirm.svelte';
 
 	// Props
 	let { data } = $props<{ data: PageData }>();
@@ -87,95 +84,8 @@
 		if ($triggerActionStore.length > 0) {
 			executeActions();
 		}
-		collection.set({} as Schema);
+		collection.set({} as any);
 	});
-
-	// Modal Trigger - User Form
-	function modalUserForm(): void {
-		const modalComponent: ModalComponent = {
-			ref: ModalEditForm,
-			slot: '<p>Edit Form</p>'
-		};
-
-		type UserFormResponse = Partial<Pick<User, 'username' | 'email' | 'role' | 'avatar'>>;
-
-		const d: ModalSettings = {
-			type: 'component',
-			title: m.usermodaluser_edittitle(),
-			body: m.usermodaluser_editbody(),
-			component: modalComponent,
-			response: async (r: UserFormResponse) => {
-				if (r) {
-					const data = { user_id: user._id, newUserData: r };
-					const res = await axios.put('/api/user/updateUserAttributes', data);
-					const t = {
-						message: '<iconify-icon icon="mdi:check-outline" color="white" width="26" class="mr-1"></iconify-icon> User Data Updated',
-						background: 'gradient-tertiary',
-						timeout: 3000,
-						classes: 'border-1 rounded-md!'
-					};
-					toastStore.trigger(t);
-
-					if (res.status === 200) {
-						await invalidateAll();
-					}
-				}
-			}
-		};
-		modalStore.trigger(d);
-	}
-
-	// Modal Trigger - Edit Avatar
-	function modalEditAvatar(): void {
-		const modalComponent: ModalComponent = {
-			ref: ModalEditAvatar,
-			props: { avatarSrc },
-			slot: '<p>Edit Form</p>'
-		};
-		const d: ModalSettings = {
-			type: 'component',
-			title: m.usermodaluser_settingtitle(),
-			body: m.usermodaluser_settingbody(),
-			component: modalComponent,
-			response: async (r: { dataURL: string }) => {
-				if (r) {
-					avatarSrc.set(r.dataURL);
-					const t = {
-						message: '<iconify-icon icon="radix-icons:avatar" color="white" width="26" class="mr-1"></iconify-icon> Avatar Updated',
-						background: 'gradient-primary',
-						timeout: 3000,
-						classes: 'border-1 rounded-md!'
-					};
-					toastStore.trigger(t);
-					await invalidateAll(); // Reload the page data to get the updated user object
-				}
-			}
-		};
-		modalStore.trigger(d);
-	}
-
-	// Modal Confirm
-	function modalConfirm(): void {
-		const d: ModalSettings = {
-			type: 'confirm',
-			title: m.usermodalconfirmtitle(),
-			body: m.usermodalconfirmbody(),
-			response: async (r: boolean) => {
-				if (!r) return;
-				const res = await fetch(`/api/user/deleteUsers`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify([user])
-				});
-				if (res.status === 200) {
-					await invalidateAll();
-				}
-			},
-			buttonTextCancel: m.button_cancel(),
-			buttonTextConfirm: m.usermodalconfirmdeleteuser()
-		};
-		modalStore.trigger(d);
-	}
 </script>
 
 <!-- Page Title with Back Button -->
@@ -186,10 +96,11 @@
 		<div class="grid grid-cols-1 grid-rows-2 gap-1 overflow-hidden md:grid-cols-2 md:grid-rows-1">
 			<!-- Avatar with user info -->
 			<div class="relative flex flex-col items-center justify-center gap-1">
-				<Avatar src={`${$avatarSrc}?t=${Date.now()}`} initials="AV" rounded-none class="w-32" />
+				<Avatar src={`${$avatarSrc}?t=${Date.now()}`} name="Avatar" size="w-32" />
 
 				<!-- Edit button -->
-				<button onclick={modalEditAvatar} class="gradient-primary w-30 badge absolute top-8 text-white sm:top-4">{m.userpage_editavatar()}</button>
+				<ModalEditAvatar />
+
 				<!-- User ID -->
 				<div class="gradient-secondary badge mt-1 w-full max-w-xs text-white">
 					{m.userpage_user_id()}<span class="ml-2">{user?._id || 'N/A'}</span>
@@ -213,10 +124,12 @@
 						{m.form_username()}:
 						<input bind:value={user.username} name="username" type="text" disabled class="input" />
 					</label>
+					<!-- Email -->
 					<label>
 						{m.form_email()}:
 						<input bind:value={user.email} name="email" type="email" disabled class="input" />
 					</label>
+					<!-- Password -->
 					<label>
 						{m.form_password()}:
 						<input bind:value={password} name="password" type="password" disabled class="input" />
@@ -224,20 +137,11 @@
 
 					<div class="mt-4 flex flex-col justify-between gap-2 sm:flex-row sm:gap-1">
 						<!-- Edit Modal Button -->
-						<button
-							onclick={modalUserForm}
-							aria-label={m.userpage_edit_usersetting()}
-							class="gradient-tertiary btn w-full max-w-sm text-white {isFirstUser ? '' : 'mx-auto md:mx-0'}"
-						>
-							<iconify-icon icon="bi:pencil-fill" color="white" width="18" class="mr-1"></iconify-icon>{m.userpage_edit_usersetting()}
-						</button>
+						<ModalEditForm isGivenData={true} username={user.username} email={user.email} role={user.role} user_id={user._id} />
 
 						<!-- Delete Modal Button -->
 						{#if isFirstUser}
-							<button onclick={modalConfirm} aria-label={m.button_delete()} class="gradient-error btn w-full max-w-sm text-white">
-								<iconify-icon icon="bi:trash3-fill" color="white" width="18" class="mr-1"></iconify-icon>
-								{m.button_delete()}
-							</button>
+							<ModalConfirm {user} />
 						{/if}
 					</div>
 				</form>

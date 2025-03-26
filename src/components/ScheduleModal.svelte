@@ -18,10 +18,14 @@ Ensure that the necessary stores and utility functions are available.
 -->
 
 <script lang="ts">
+	let { open = $bindable(false) } = $props<{
+		open?: boolean;
+	}>();
 	import { page } from '$app/state';
 	import { Modal } from '@skeletonlabs/skeleton-svelte';
 	import { modifyEntry, selectedEntries, collectionValue, collection } from '@src/stores/collectionStore.svelte';
 	import { saveFormData } from '../utils/data';
+	import { createEventDispatcher } from 'svelte';
 
 	// Auth
 	import type { User } from '@src/auth/types';

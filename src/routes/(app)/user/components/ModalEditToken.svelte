@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @files src/components/user/ModalEditToken.svelte
 @component
 **Modal for editing or creating user registration tokens**
@@ -6,7 +6,6 @@
 Manages token creation and updates with role selection and expiration settings. Optimized for performance, consistency, and accessibility.
 
 @props
-- `parent` {object} - Parent modal properties (regionFooter, onClose, buttonPositive)
 - `token` {string} - Existing token (default: '')
 - `email` {string} - Associated email (default: '')
 - `role` {string} - Token role (default: '')
@@ -16,36 +15,39 @@ Manages token creation and updates with role selection and expiration settings. 
 
 <script lang="ts">
 	import { page } from '$app/state';
+	import { getContext } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 
-	// Get data from page store
-	const { roles, user } = page.data;
-
-	// Skeleton & Stores
-	import type { ModalComponent } from '@skeletonlabs/skeleton-svelte';
-	const modalStore = getModalStore();
-	const toastStore = getToastStore();
+	// Skeleton
+	import { Modal } from '@skeletonlabs/skeleton-svelte';
+	import { type ToastContext } from '@skeletonlabs/skeleton-svelte';
+	export const toast: ToastContext = getContext('toast');
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	interface Props {
-		// Props
-		parent: ModalComponent['props'] & {
-			regionFooter?: string;
-			onClose?: (event: MouseEvent) => void;
-			buttonPositive?: string;
-		};
-		token: string;
-		email: string;
-		role: string;
-		expires: string;
-		user_id: string;
-	}
+	// Props
+	const {
+		token = '',
+		email = '',
+		role = '',
+		expires = '',
+		user_id = ''
+	} = $props<{
+		token?: string;
+		email?: string;
+		role?: string;
+		expires?: string;
+		user_id?: string;
+	}>();
 
-	let { parent = { regionFooter: 'modal-footer p-4' }, token, email, role, expires, user_id }: Props = $props();
+	// Get data from page store
+	const { roles, user } = page.data;
 
-	// Form Data
+	// Modal state
+	let openState = $state(false);
+
+	// Form data
 	const formData = $state({
 		user_id: user_id,
 		email: email,
@@ -60,32 +62,26 @@ Manages token creation and updates with role selection and expiration settings. 
 		token: { status: false, msg: '' }
 	});
 
-	// Custom submit function to pass the response and close the modal
+	// Submit function
 	async function onFormSubmit(): Promise<void> {
 		try {
 			const response = await fetch('/api/user/editToken', {
 				method: 'PUT',
-				headers: {
-					'Content-Type': 'application/json'
-				},
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					tokenId: formData.token,
-					newTokenData: {
-						role: formData.role,
-						expires: formData.expires
-					}
+					newTokenData: { role: formData.role, expires: formData.expires }
 				})
 			});
 
 			if (response.ok) {
-				const t = {
-					message: '<iconify-icon icon="mdi:check" color="white" width="24" class="mr-1"></iconify-icon> Token updated successfully',
-					background: 'gradient-tertiary',
-					timeout: 3000,
-					classes: 'border-1 rounded-md!'
-				};
-				toastStore.trigger(t);
-				modalStore.close();
+				toast.create({
+					title: 'Success',
+					description: '<iconify-icon icon="mdi:check" color="white" width="24" class="mr-1"></iconify-icon> Token updated successfully',
+					type: 'success',
+					duration: 3000
+				});
+				openState = false;
 				await invalidateAll();
 			} else {
 				const data = await response.json();
@@ -93,35 +89,32 @@ Manages token creation and updates with role selection and expiration settings. 
 			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Failed to update token';
-			const t = {
-				message: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${message}`,
-				background: 'preset-filled-error-500',
-				timeout: 3000,
-				classes: 'border-1 rounded-md!'
-			};
-			toastStore.trigger(t);
+			toast.create({
+				title: 'Error',
+				description: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${message}`,
+				type: 'error',
+				duration: 3000
+			});
 		}
 	}
 
+	// Delete function
 	async function deleteToken(): Promise<void> {
 		try {
 			const response = await fetch('/api/user/deleteToken', {
 				method: 'DELETE',
-				headers: {
-					'Content-Type': 'application/json'
-				},
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify([{ token: formData.token }])
 			});
 
 			if (response.ok) {
-				const t = {
-					message: '<iconify-icon icon="mdi:check" color="white" width="24" class="mr-1"></iconify-icon> Token deleted successfully',
-					background: 'gradient-tertiary',
-					timeout: 3000,
-					classes: 'border-1 rounded-md!'
-				};
-				toastStore.trigger(t);
-				modalStore.close();
+				toast.create({
+					title: 'Success',
+					description: '<iconify-icon icon="mdi:check" color="white" width="24" class="mr-1"></iconify-icon> Token deleted successfully',
+					type: 'success',
+					duration: 3000
+				});
+				openState = false;
 				await invalidateAll();
 			} else {
 				const data = await response.json();
@@ -129,39 +122,39 @@ Manages token creation and updates with role selection and expiration settings. 
 			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Failed to delete token';
-			const t = {
-				message: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${message}`,
-				background: 'preset-filled-error-500',
-				timeout: 3000,
-				classes: 'border-1 rounded-md!'
-			};
-			toastStore.trigger(t);
+			toast.create({
+				title: 'Error',
+				description: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${message}`,
+				type: 'error',
+				duration: 3000
+			});
 		}
 	}
-
-	// Base Classes
-	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
-	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container';
 </script>
 
-<!-- @component This example creates a simple form modal. -->
-{#if $modalStore[0]}
-	<div class="modal-example-form {cBase}">
-		<header class={`dark:text-primary-500 text-center ${cHeader}`}>
-			{$modalStore[0]?.title ?? '(title missing)'}
+<Modal
+	open={openState}
+	onOpenChange={(e) => (openState = e.open)}
+	triggerBase="btn preset-tonal"
+	contentBase="card bg-surface-100-900 p-4 space-y-4 shadow-xl max-w-screen-sm"
+	backdropClasses="backdrop-blur-sm"
+>
+	{#snippet trigger()}
+		<button>Edit Token</button>
+	{/snippet}
+
+	{#snippet content()}
+		<header class="text-primary-500 text-center text-2xl font-bold">
+			Edit Token for {email}
 		</header>
-		<article class="text-center text-sm">
-			{$modalStore[0]?.body ?? '(body missing)'}
-		</article>
-		<form class="modal-form {cForm}" bind:this={formElement} id="change_user_form">
+		<article class="text-center text-sm">Update the role and expiration for this token.</article>
+		<form class="border-surface-500 rounded-container space-y-4 border p-4">
 			<!-- Username field -->
 			<div class="group relative z-0 mb-6 w-full">
 				<iconify-icon icon="mdi:user-circle" width="18" class="absolute top-3.5 left-0 text-gray-400"></iconify-icon>
 				<input
 					bind:value={formData.user_id}
 					onkeydown={() => (errorStatus.user_id.status = false)}
-					color={errorStatus.user_id.status ? 'red' : 'base'}
 					type="text"
 					name="username"
 					class="peer border-surface-300! text-surface-900 focus:border-tertiary-600 dark:border-surface-600 dark:focus:border-tertiary-500 block w-full appearance-none rounded-none! border-0! border-b-2! bg-transparent! px-6 py-2.5 text-sm focus:ring-0 focus:outline-hidden dark:text-white"
@@ -175,8 +168,7 @@ Manages token creation and updates with role selection and expiration settings. 
 				>
 					{m.modaledit_tokenusername()}<span class="text-error-500 ml-2">*</span>
 				</label>
-
-				{#if !errorStatus.user_id.status}
+				{#if errorStatus.user_id.status}
 					<div class="text-error-500 absolute top-11 left-0 text-xs">
 						{errorStatus.user_id.msg}
 					</div>
@@ -189,7 +181,6 @@ Manages token creation and updates with role selection and expiration settings. 
 				<input
 					bind:value={formData.email}
 					onkeydown={() => (errorStatus.email.status = false)}
-					color={errorStatus.email.status ? 'red' : 'base'}
 					type="email"
 					name="email"
 					class="peer border-surface-300! text-surface-900 focus:border-tertiary-600 dark:border-surface-600 dark:focus:border-tertiary-500 block w-full appearance-none rounded-none! border-0! border-b-2! bg-transparent! px-6 py-2.5 text-sm focus:ring-0 focus:outline-hidden dark:text-white"
@@ -209,13 +200,13 @@ Manages token creation and updates with role selection and expiration settings. 
 					</div>
 				{/if}
 			</div>
+
 			<!-- Token field -->
 			<div class="group relative z-0 mb-6 w-full">
 				<iconify-icon icon="mdi:token" width="18" class="absolute top-3.5 left-0 text-gray-400"></iconify-icon>
 				<input
 					bind:value={formData.token}
 					onkeydown={() => (errorStatus.token.status = false)}
-					color={errorStatus.token.status ? 'red' : 'base'}
 					type="text"
 					name="token"
 					class="peer border-surface-300! text-surface-900 focus:border-tertiary-600 dark:border-surface-600 dark:focus:border-tertiary-500 block w-full appearance-none rounded-none! border-0! border-b-2! bg-transparent! px-6 py-2.5 text-sm focus:ring-0 focus:outline-hidden dark:text-white"
@@ -227,8 +218,7 @@ Manages token creation and updates with role selection and expiration settings. 
 					for="token"
 					class="peer-focus:text-tertiary-600 dark:text-surface-400 dark:peer-focus:text-tertiary-500 absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75"
 				>
-					{m.modaledit_tokenregistrationtoken()}
-					<span class="text-error-500 ml-2">*</span>
+					{m.modaledit_tokenregistrationtoken()}<span class="text-error-500 ml-2">*</span>
 				</label>
 				{#if errorStatus.token.status}
 					<div class="text-error-500 absolute top-11 left-0 text-xs">
@@ -238,7 +228,7 @@ Manages token creation and updates with role selection and expiration settings. 
 			</div>
 
 			<!-- Admin area -->
-			{#if user.role == 'admin'}
+			{#if user.role === 'admin'}
 				<div class="flex flex-col gap-2 sm:flex-row">
 					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}:</div>
 					<div class="flex-auto">
@@ -265,20 +255,34 @@ Manages token creation and updates with role selection and expiration settings. 
 			{/if}
 		</form>
 
-		<footer class="modal-footer flex items-center justify-between p-4 {parent?.regionFooter ?? ''}">
+		<footer class="flex items-center justify-between p-4">
 			<!-- Delete -->
-			<button type="button" onclick={deleteToken} class="preset-filled-error-500 btn">
+			<button
+				type="button"
+				onclick={async () => {
+					await deleteToken();
+					openState = false;
+				}}
+				class="preset-filled-error-500 btn"
+			>
 				<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon><span class="hidden sm:block">{m.button_delete()}</span>
 			</button>
-
 			<div class="flex justify-between gap-2">
 				<!-- Cancel -->
-				<button class="preset-outline-secondary btn" onclick={parent?.onClose}>{m.button_cancel()}</button>
+				<button class="preset-outline-secondary btn" onclick={() => (openState = false)}>
+					{m.button_cancel()}
+				</button>
 				<!-- Save -->
-				<button class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500{parent?.buttonPositive ?? ''}" onclick={onFormSubmit}
-					>{m.button_save()}</button
+				<button
+					class="preset-filled-tertiary-500 btn"
+					onclick={async () => {
+						await onFormSubmit();
+						openState = false;
+					}}
 				>
+					{m.button_save()}
+				</button>
 			</div>
 		</footer>
-	</div>
-{/if}
+	{/snippet}
+</Modal>
