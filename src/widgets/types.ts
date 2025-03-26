@@ -34,6 +34,8 @@ export interface Widget {
 
 export interface WidgetFunction {
   (config: Record<string, unknown>): WidgetPlaceholder;
+  componentPath: string;
+
 }
 
 export interface WidgetModule {
@@ -41,7 +43,7 @@ export interface WidgetModule {
 }
 
 export interface WidgetModule {
-	default: WidgetFunction; // Default export of a widget module
+  default: WidgetFunction; // Default export of a widget module
 }
 
 export interface WidgetPermissions {
@@ -50,7 +52,7 @@ export interface WidgetPermissions {
 }
 
 export interface WidgetPlaceholder {
-	__widgetId: string;
-	__widgetName: string;
-	__widgetConfig: Record<string, unknown>;
+  __widgetId: string;
+  __widgetName: string;
+  __widgetConfig: Record<string, unknown>;
 }

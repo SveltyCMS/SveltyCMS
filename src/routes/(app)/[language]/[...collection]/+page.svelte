@@ -42,7 +42,6 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		isLoading = true;
 		if (!page.params.collection) return;
 
-		console.log('selectedCollection', data.collection);
 		collection.set(data.collection);
 		isLoading = false;
 	}

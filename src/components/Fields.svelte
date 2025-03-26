@@ -32,6 +32,7 @@ Key features:
 	// Stores
 	import { contentLanguage, translationProgress } from '@stores/store.svelte';
 	import { collection, collectionValue } from '@src/stores/collectionStore.svelte';
+	import { widgetFunctions } from '@src/widgets';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -81,6 +82,7 @@ Key features:
 	// Lifecycle
 	$effect(() => {
 		isLoading = false;
+		console.log(fields);
 	});
 
 	// Reactive statements
@@ -215,7 +217,7 @@ Key features:
 									<!-- Widget Input -->
 									{#if field.widget}
 										{@const widgetName = field.widget.Name}
-										{@const widgetPath = field.widget.componentPath}
+										{@const widgetPath = widgetFunctions().get(widgetName)?.componentPath}
 										{@const WidgetComponent = modules[widgetPath]?.default}
 										{#if WidgetComponent}
 											<WidgetComponent

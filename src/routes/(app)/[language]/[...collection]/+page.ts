@@ -5,7 +5,6 @@ import lodash from 'lodash';
 export const load: PageLoad = async ({ params, data }) => {
 
   const selectedCollection = await processModule(data.collection.module as string);
-  console.log('selectedCollection', selectedCollection, data);
 
   if (!selectedCollection || !selectedCollection?.schema) return;
   // console.log('selectedCollection', selectedCollection, page.params.collection);
@@ -16,6 +15,8 @@ export const load: PageLoad = async ({ params, data }) => {
     ...selectedCollection?.schema,
     ...collectionData
   };
+
+
 
   return {
     ...data,

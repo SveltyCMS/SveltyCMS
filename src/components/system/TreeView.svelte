@@ -252,14 +252,6 @@
 				>
 					{node.name}
 				</span>
-
-				<!-- Node label -->
-				<span
-					class="select-none overflow-hidden text-ellipsis whitespace-nowrap dark:text-white {compact ? 'text-xs' : ''}"
-					style="margin-left: {node.depth ? node.depth * 8 : 0}px"
-				>
-					{node.name}
-				</span>
 			</button>
 
 			<!-- Children nodes with RTL support -->

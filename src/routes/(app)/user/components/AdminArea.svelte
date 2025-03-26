@@ -191,8 +191,6 @@
 		modalStore.trigger(modalSettings);
 	}
 
-	const flipDurationMs = 300;
-
 	function handleDndConsider(event: any) {
 		displayTableHeaders = event.detail.items;
 	}

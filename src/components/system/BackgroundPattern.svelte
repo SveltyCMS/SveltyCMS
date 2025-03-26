@@ -202,4 +202,4 @@ Spring class for smooth, physics-based motion.
 			aria-hidden="true"
 		/>
 	{/each}
-/svg>
+</svg>

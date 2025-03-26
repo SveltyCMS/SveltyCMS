@@ -17,7 +17,7 @@ Features:
 	// Types
 	// Types
 	import type { Schema } from '@src/content/types';
-	import type { ContentStructureNode } from '@src/databases/dbInterface';
+	import type { ContentNode } from '@src/databases/dbInterface';
 
 	// Stores
 	import { get } from 'svelte/store';
@@ -32,7 +32,7 @@ Features:
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	interface CollectionTreeNode extends ContentStructureNode {
+	interface CollectionTreeNode extends ContentNode {
 		id: string;
 		isExpanded: boolean;
 		onClick: () => void;
@@ -46,7 +46,7 @@ Features:
 	}
 
 	let collectonStructureNodes: CollectionTreeNode[] = $derived.by(() => {
-		function mapNode(node: ContentStructureNode): CollectionTreeNode {
+		function mapNode(node: ContentNode): CollectionTreeNode {
 			const isCategory = node.nodeType === 'category';
 			// Get translation for current language or fallback to default name
 			const translation = node.translations?.find((trans) => trans.languageTag === contentLanguage.value);
@@ -54,7 +54,7 @@ Features:
 
 			const children =
 				isCategory && node.children
-					? node.children.map((child: ContentStructureNode) => ({
+					? node.children.map((child: ContentNode) => ({
 							...mapNode(child),
 							// Ensure children use their own translations
 							name: child.translations?.find((t) => t.languageTag === contentLanguage.value)?.translationName || child.name
@@ -99,7 +99,7 @@ Features:
 	});
 
 	// Handle collection selection
-	function handleCollectionSelect(selectedCollection: ContentStructureNode | Schema) {
+	function handleCollectionSelect(selectedCollection: ContentNode | Schema) {
 		if ('nodeType' in selectedCollection && selectedCollection.nodeType === 'collection') {
 			mode.set('view');
 			collection.set(null);

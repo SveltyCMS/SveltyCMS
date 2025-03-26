@@ -33,7 +33,7 @@ async function processModule(content: string): Promise<{ schema?: Schema } | nul
     const moduleContent = `
 				const module = {};
 				const exports = {};
-	               const resolveWidgetPlaceholder = ${resolveWidgetPlaceholder.toString()};
+	      const resolveWidgetPlaceholder = ${resolveWidgetPlaceholder.toString()};
 				(async function(module, exports) {
 					${modifiedContent}
 					return module.exports || exports;
