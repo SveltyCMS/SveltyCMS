@@ -58,10 +58,9 @@ export default defineConfig({
 			async buildStart() {
 				try {
 					await compile({ userCollections, compiledCollections });
-					console.log('Initial compilation successful!');
+					console.log('\x1b[32mInitial compilation successful!\x1b[0m');
 				} catch (error) {
-					console.error('Initial compilation failed:', error);
-					throw error;
+					console.error('\x1b[31mInitial compilation failed:\x1b[0m', error); throw error;
 				}
 			},
 			configureServer(server) {

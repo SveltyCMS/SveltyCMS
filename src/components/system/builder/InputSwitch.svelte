@@ -5,59 +5,25 @@
 
 Features:
 - Dynamic rendering of input fields based on provided widget
-
 -->
 
 <script lang="ts">
-	import { sanitizePermissions } from '@src/auth/types';
-
 	// Define props using $props()
-	const props = $props<{
-		value: any;
+	let {
+		value = $bindable(), // Make value bindable
+		widget,
+		key,
+		iconselected = $bindable(), // Make iconselected bindable
+		permissions = $bindable() // Make permissions bindable
+	} = $props<{
+		value: any; // bindable
 		widget: any;
 		key: string;
-		iconselected?: string | null;
-		permissions?: any;
+		iconselected?: string | null; // bindable
+		permissions?: any; // bindable
 	}>();
-
-	// Create state variables for mutable props
-	let value = $state(props.value ?? null);
-	let iconselected = $state(props.iconselected ?? null);
-	let permissions = $state(props.permissions ?? null);
-
-	// Use $effect for side effects
-	$effect(() => {
-		if (props.key === 'display' && value?.default === true) {
-			value = '';
-		}
-
-		// Only update the parent component if the value has changed
-		if (value !== props.value) {
-			updateParent();
-		}
-	});
-
-	$effect(() => {
-		if (props.key === 'permissions' && value) {
-			permissions = sanitizePermissions(value);
-
-			// Only update the parent component if the permissions have changed
-			if (permissions !== props.permissions) {
-				updateParent();
-			}
-		}
-	});
-
-	// Function to update the parent component
-	function updateParent() {
-		dispatchEvent(
-			new CustomEvent('update', {
-				detail: { value, iconselected, permissions }
-			})
-		);
-	}
 </script>
 
-{#if props.widget}
-	<props.widget bind:value bind:iconselected bind:permissions on:update={updateParent} on:toggle label={props.key} theme="dark" />
+{#if widget}
+	<widget {value} {iconselected} {permissions} ontoggle={(event: Event) => dispatchEvent(event)} label={key} theme="dark"></widget>
 {/if}

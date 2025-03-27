@@ -22,8 +22,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 
 	try {
-		// Get the list of collections with their UUIDs
+		// Ensure ContentManager is initialized (should be done at startup now)
 		await contentManager.initialize();
+
+		// Get the list of collections with their UUIDs
 		const { contentStructure } = await contentManager.getCollectionData();
 		const collections = Object.values(contentStructure);
 

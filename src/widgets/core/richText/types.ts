@@ -14,8 +14,9 @@ import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 import PermissionsSetting from '@components/PermissionsSetting.svelte';
 
-// Auth
+// Types
 import type { Permission } from '@src/auth/types';
+import type { CollectionData } from '@src/content/types';
 
 /**
  * Defines RichText widget Parameters
@@ -25,7 +26,7 @@ export type Params = {
 	label: string;
 	display?: DISPLAY;
 	db_fieldName?: string;
-	widget?: any;
+	widget?: unknown;
 	required?: boolean;
 	translated?: boolean;
 	icon?: string;
@@ -42,7 +43,6 @@ export type Params = {
 /**
  * Defines RichText GuiSchema
  */
-
 export const GuiSchema = {
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
@@ -62,7 +62,7 @@ export const GuiSchema = {
 /**
  * Define RichText GraphqlSchema function
  */
-export const GraphqlSchema: GraphqlSchema = ({ label, collection }) => {
+export const GraphqlSchema = ({ label, collection }: { label: string; collection: CollectionData }) => {
 	// Create a type name by combining the collection name and label
 	const typeName = `${collection.name}_${label}`;
 
@@ -77,8 +77,8 @@ export const GraphqlSchema: GraphqlSchema = ({ label, collection }) => {
 	};
 };
 
-let parsed_text: any;
-export function toString({ field, data }: { field: any; data: any }) {
+let parsed_text: string;
+export function toString({ field, data }: { field: unknown; data: unknown }) {
 	parsed_text = '';
 	const parser = new Parser({
 		ontext: (text) => {

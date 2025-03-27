@@ -8,15 +8,12 @@ import IconifyPicker from '@components/IconifyPicker.svelte';
 import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 import PermissionsSetting from '@components/PermissionsSetting.svelte';
-
-// Auth
-import type { Permission } from '@src/auth/types';
 import GuiField from './GuiField.svelte';
-
 import { getFieldName } from '@utils/utils';
-//import { dbAdapter } from '@src/databases/db'; // Import your database adapter
 
-// Update all dbAdapter calls to use dbAdapter.get()
+// Types
+import type { Permission } from '@src/auth/types';
+import type { CollectionData, Field } from '@src/content/types';
 
 /**
  * Defines Relation widget Parameters
@@ -68,7 +65,7 @@ export const GuiSchema = {
 /**
  * Define Relation GraphqlSchema function
  */
-export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
+export const GraphqlSchema = ({ field, collection }: { field: Field; collection: CollectionData }) => {
 	// Return an object containing the type name and the GraphQL schema
 	return {
 		typeName: field.relation,

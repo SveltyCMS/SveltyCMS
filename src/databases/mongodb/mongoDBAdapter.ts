@@ -31,7 +31,6 @@
 import type { Unsubscriber } from 'svelte/store';
 import type { ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
 import type { UserPreferences, WidgetPreference } from '@root/src/stores/userPreferences.svelte';
-import type { VirtualFolderUpdateData } from '@src/types/virtualFolder';
 import { v4 as uuidv4 } from 'uuid';
 
 // Database
@@ -132,19 +131,27 @@ export class MongoDBAdapter implements dbInterface {
 		translations?: { languageTag: string; translationName: string }[];
 	}): Promise<void> {
 		try {
-			const type = contentData.isCollection !== undefined ? (contentData.isCollection ? 'collection' : 'category') : 'category';
-			const existingNode = await ContentStructureModel.findOne({ path: contentData.path }).exec();
+			// Determine nodeType based on isCollection/isCategory if provided, default to category
+			// This might need adjustment based on how ContentManager actually calls this
+			const nodeType = contentData.isCollection === true ? 'collection' : 'category';
+
+			// --- MODIFICATION START ---
+			// Find existing node by _id (UUID) instead of path
+			const existingNode = await ContentStructureModel.findById(contentData._id).exec();
+			// --- MODIFICATION END ---
+
 			if (existingNode) {
-				// Update existing node
-				existingNode._id = contentData._id;
+				// Update existing node - DO NOT update _id
 				existingNode.name = contentData.name;
-				existingNode.path = contentData.path;
+				existingNode.path = contentData.path; // Path can change if file is moved/renamed
 				existingNode.icon = contentData.icon || 'iconoir:info-empty';
 				existingNode.order = contentData.order || 999;
-				existingNode.nodeType = type;
-				existingNode.isCollection = contentData.isCollection;
-				existingNode.collectionConfig = contentData.collectionConfig;
-				existingNode.markModified('type'); // Ensure type field is marked as modified
+				existingNode.nodeType = nodeType; // Update nodeType if needed
+				// existingNode.isCollection = contentData.isCollection; // Remove if using nodeType
+				existingNode.collectionConfig = contentData.collectionConfig; // Update config if needed
+
+				// Update parentPath based on the potentially new path
+				existingNode.parentPath = contentData.path.split('/').slice(0, -1).join('/') || null;
 
 				// Update translations if provided
 				if (contentData.translations) {
@@ -152,24 +159,42 @@ export class MongoDBAdapter implements dbInterface {
 						languageTag: t.languageTag,
 						translationName: t.translationName
 					}));
+				} else {
+					// Ensure translations field exists if not provided, to avoid errors if schema expects it
+					existingNode.translations = existingNode.translations || [];
 				}
 
+				// Mark modified paths if necessary (Mongoose usually handles this, but explicit is safer for nested/mixed)
+				existingNode.markModified('collectionConfig');
+				existingNode.markModified('translations');
+				existingNode.markModified('nodeType'); // Mark nodeType as modified
+
 				await existingNode.save();
-				logger.info(`Updated content structure: \x1b[34m${contentData.path}\x1b[0m`);
+				logger.info(`Updated content structure node (ID: ${contentData._id}): \x1b[34m${contentData.path}\x1b[0m`);
 			} else {
-				// Create new node with validated UUID
+				// Create new node using the provided _id (UUID)
 				const newNode = new ContentStructureModel({
-					...contentData,
-					_id: contentData._id, // Already validated
-					type,
-					parentPath: contentData.path.split('/').slice(0, -1).join('/') || null
+					...contentData, // Spread incoming data
+					_id: contentData._id, // Explicitly use the provided UUID
+					nodeType: nodeType, // Set nodeType
+					parentPath: contentData.path.split('/').slice(0, -1).join('/') || null,
+					// Ensure required fields have defaults if not in contentData
+					icon: contentData.icon || 'iconoir:info-empty',
+					order: contentData.order || 999,
+					translations: contentData.translations || []
 				});
+				// Remove potentially conflicting old fields if they exist in contentData
+				// delete newNode.isCollection;
+				// delete newNode.isCategory;
+
 				await newNode.save();
-				logger.info(`Created content structure: \x1b[34m${contentData.path}\x1b[0m with UUID: \x1b[34m${contentData._id}\x1b[0m`);
+				logger.info(`Created content structure node (ID: ${contentData._id}): \x1b[34m${contentData.path}\x1b[0m`);
 			}
 		} catch (error) {
-			logger.error(`Error creating/updating content structure: ${error.message}`);
-			throw new Error(`Error creating/updating content structure`);
+			// Log the specific contentData that caused the error for better debugging
+			logger.error(`Error creating/updating content structure node with ID ${contentData._id} and path ${contentData.path}: ${error.message}`, { contentData });
+			// Rethrow with a more specific message if desired, or keep generic
+			throw new Error(`Error creating/updating content structure node ID ${contentData._id}`);
 		}
 	}
 
@@ -450,22 +475,27 @@ export class MongoDBAdapter implements dbInterface {
 				logger.debug(`Processing \x1b[34m${collection.fields.length}\x1b[0m fields for \x1b[34m${collectionName}\x1b[0m`);
 				for (const field of collection.fields) {
 					try {
-						// Generate fieldKey from label if db_fieldName is not present
-						const fieldKey = field.db_fieldName || (field.label ? field.label.toLowerCase().replace(/[^a-z0-9_]/g, '_') : null) || field.Name;
+						// Generate fieldKey from various possible identifiers
+						const fieldKey = field.db_fieldName ||
+							field.__widgetConfig?.label?.toLowerCase().replace(/[^a-z0-9_]/g, '_') ||
+							field.Name ||
+							field.__widgetName?.toLowerCase();
 
 						if (!fieldKey) {
-							logger.error(`Field missing required identifiers:`, JSON.stringify(field, null, 2));
+							logger.warn('Field missing key identifiers:', JSON.stringify(field, null, 2));
 							continue;
 						}
 
-						const isRequired = field.required || false;
-						const isTranslated = field.translate || false;
-						const isSearchable = field.searchable || false;
-						const isUnique = field.unique || false;
+						// Extract field configuration
+						const fieldConfig = field.__widgetConfig || field;
+						const isRequired = fieldConfig.required || false;
+						const isTranslated = fieldConfig.translated || false;
+						const isSearchable = fieldConfig.searchable || false;
+						const isUnique = fieldConfig.unique || false;
 
 						// Base field schema with improved type handling
 						const fieldSchema: mongoose.SchemaDefinitionProperty = {
-							type: Schema.Types.Mixed, // Default to Mixed type
+							type: Schema.Types.Mixed,
 							required: isRequired,
 							translate: isTranslated,
 							searchable: isSearchable,
@@ -484,6 +514,8 @@ export class MongoDBAdapter implements dbInterface {
 						}
 
 						schemaDefinition[fieldKey] = fieldSchema;
+						logger.debug(`Added field schema for ${fieldKey} with widget type ${field.__widgetName}`);
+
 					} catch (error) {
 						logger.error(`Error processing field:`, error);
 						logger.error(`Field data:`, JSON.stringify(field, null, 2));
@@ -983,8 +1015,10 @@ export class MongoDBAdapter implements dbInterface {
 				return node;
 			}
 		} catch (error) {
-			logger.error(`Error creating/updating content structure: ${error.message}`);
-			throw Error(`Error creating/updating content structure`);
+			// Log the specific error message
+			logger.error(`Error during upsertContentStructureNode: ${error.message}`);
+			// Re-throw the original error object to preserve its type and specific message
+			throw error;
 		}
 	}
 
@@ -1058,7 +1092,7 @@ export class MongoDBAdapter implements dbInterface {
 		}
 	}
 
-	async deleteContentStructure(contentId: string): Promise<boolean> {
+	async deleteContentStructureNode(contentId: string): Promise<boolean> {
 		try {
 			const result = await ContentStructureModel.deleteOne({ _id: contentId }).exec();
 			if (result.deletedCount === 0) {

@@ -62,17 +62,23 @@ export const load: PageServerLoad = async ({ cookies, locals, params }) => {
 
 	const currentCollection = await contentManager.getCollection(`/${collection}`);
 
+	// Handle case where collection is not found
+	if (!currentCollection) {
+		logger.warn(`Collection not found for path: /${collection}`);
+		throw error(404, 'Collection not found');
+	}
+
 	return {
 		theme: theme || DEFAULT_THEME,
 		contentLanguage,
 		collection: {
-			module: currentCollection?.module,
-			name: currentCollection?.name,
-			_id: currentCollection?._id,
-			path: currentCollection?.path,
-			icon: currentCollection?.icon,
-			label: currentCollection?.label,
-			description: currentCollection?.description
+			module: currentCollection.module, // Use data from getCollection
+			name: currentCollection.name,
+			_id: currentCollection._id,
+			path: currentCollection.path,
+			icon: currentCollection.icon,
+			label: currentCollection.label,
+			description: currentCollection.description
 		},
 		user: {
 			username: user.username,

@@ -78,13 +78,6 @@ declare global {
 		contentLanguage: string
 	}) => Promise<unknown>) & { default?: boolean };
 
-	// Defines a type for the GraphqlSchema function, which takes an object with field, label, and collection properties and returns an object with typeName, graphql, and optional resolver properties.
-	type GraphqlSchema = ({ field, label, collection }: { field: Record<string, unknown>; label: string; collection: Record<string, unknown> }) => {
-		typeName: string | null;
-		graphql: string;
-		resolver?: { [key: string]: unknown };
-	};
-
 	/**
 	 * Defines the Aggregations type, which represents an object with optional methods for performing transformations, filters, and sorts on data.
 	 * The filters method takes a field, content language, and filter, and returns a promise of an array of pipeline stages.

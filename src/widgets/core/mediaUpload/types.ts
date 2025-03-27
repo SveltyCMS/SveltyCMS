@@ -8,11 +8,11 @@ import IconifyPicker from '@components/IconifyPicker.svelte';
 import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 import PermissionsSetting from '@components/PermissionsSetting.svelte';
-
-// Auth
-import type { Permission } from '@src/auth/types';
-
 import { SIZES } from '@utils/utils';
+
+// Types
+import type { Permission } from '@src/auth/types';
+import type { CollectionData } from '@src/content/types';
 
 import type { ComponentType } from 'svelte';
 
@@ -128,7 +128,7 @@ const types = Object.keys(SIZES)
 /**
  * Define MediaUpload GraphqlSchema function
  */
-export const GraphqlSchema = ({ label, collection }: { label: string; collection: string }) => {
+export const GraphqlSchema = ({ label, collection }: { label: string; collection: CollectionData }) => {
 	// Create a type name by combining the collection name and label
 	const typeDefs = `
     type ${label} {
@@ -167,15 +167,15 @@ export const GraphqlSchema = ({ label, collection }: { label: string; collection
     input Create${label}Input {
         name: String
         ${Object.keys(GuiSchema)
-					.map((field) => `${field}: ${getType(GuiSchema[field].widget)}`)
-					.join('\n')}
+			.map((field) => `${field}: ${getType(GuiSchema[field].widget)}`)
+			.join('\n')}
     }
 
     input Update${label}Input {
         name: String
         ${Object.keys(GuiSchema)
-					.map((field) => `${field}: ${getType(GuiSchema[field].widget)}`)
-					.join('\n')}
+			.map((field) => `${field}: ${getType(GuiSchema[field].widget)}`)
+			.join('\n')}
     }
     `;
 

@@ -5,13 +5,8 @@
  * This module defines a schema and model for Content Structure in the MongoDB database.
  * Content Structure represents the hierarchical organization of content in the CMS.
  */
-import mongoose, { Schema, Model, Document } from 'mongoose';
+import mongoose, { Schema, Model } from 'mongoose';
 import type { Translation, Category, CollectionData } from '@src/content/types';
-import { v4 as uuidv4 } from 'uuid';
-
-// System Logger
-import { logger } from '@utils/logger.svelte';
-import { publicEnv } from '@root/config/public';
 
 interface ContentStructureNode {
 	_id: string;
@@ -31,7 +26,7 @@ interface CategoryDocument extends ContentStructureNode {
 interface CollectionDocument extends ContentStructureNode {
 	nodeType: 'collection';
 	label: string;
-	permissions: Record<string, any>;
+	permissions: Record<string, unknown>;
 	livePreview: boolean;
 	strict: boolean;
 	revision: boolean;
@@ -117,35 +112,81 @@ contentStructureSchema.index({ type: 1 });
 // Static methods for the ContentStructure model
 contentStructureSchema.statics = {
 	async upsertCategory(category: Category): Promise<CategoryDocument> {
-		const parentPath = category.path.split('/').slice(0, -1).join('/') || null;
+		const { _id, ...updateData } = category; // Separate _id from the rest
+		const parentPath = updateData.path.split('/').slice(0, -1).join('/') || null;
+		const targetPath = updateData.path;
 
+		// --- CONFLICT CHECK START ---
+		const conflictingNode = await this.findOne({ path: targetPath, _id: { $ne: _id } }).lean();
+		if (conflictingNode) {
+			const errorMsg = `Path conflict: Cannot update node \u001b[34m${_id}\u001b[0m to path '\u001b[34m${targetPath}\u001b[0m' because it is already used by node \u001b[34m${conflictingNode._id}\u001b[0m.`;
+			console.error(errorMsg); // Use console.error for visibility during startup
+			throw new Error(errorMsg);
+		}
+		// --- CONFLICT CHECK END ---
+
+
+		// --- MODIFICATION START ---
 		return this.findOneAndUpdate(
-			{ path: category.path },
+			{ _id: _id }, // <-- Query by _id
 			{
 				$set: {
-					...category,
-					nodeType: 'category',
-					parentPath
+					// Explicitly set fields to update, excluding _id
+					name: updateData.name,
+					path: updateData.path,
+					icon: updateData.icon || 'bi:folder', // Ensure defaults
+					order: updateData.order || 999,      // Ensure defaults
+					translations: updateData.translations || [], // Ensure defaults
+					nodeType: 'category', // Set nodeType
+					parentPath // Set calculated parentPath
 				}
 			},
-			{ upsert: true, new: true }
+			{ upsert: true, new: true, setDefaultsOnInsert: true } // Use setDefaultsOnInsert for creation
 		).lean();
+		// --- MODIFICATION END ---
 	},
 
 	async upsertCollection(collection: CollectionData): Promise<CollectionDocument> {
-		const parentPath = collection.path.split('/').slice(0, -1).join('/') || null;
+		const { _id, ...updateData } = collection; // Separate _id from the rest
+		const parentPath = updateData.path.split('/').slice(0, -1).join('/') || null;
+		const targetPath = updateData.path;
 
+		// --- CONFLICT CHECK START ---
+		const conflictingNode = await this.findOne({ path: targetPath, _id: { $ne: _id } }).lean();
+		if (conflictingNode) {
+			const errorMsg = `Path conflict: Cannot update node \u001b[34m${_id}\u001b[0m to path '\u001b[34m${targetPath}\u001b[0m' because it is already used by node \u001b[34m${conflictingNode._id}\u001b[0m.`;
+			console.error(errorMsg); // Use console.error for visibility during startup
+			throw new Error(errorMsg);
+		}
+		// --- CONFLICT CHECK END ---
+
+		// --- MODIFICATION START ---
 		return this.findOneAndUpdate(
-			{ path: collection.path },
+			{ _id: _id }, // <-- Query by _id
 			{
 				$set: {
-					...collection,
-					nodeType: 'collection',
-					parentPath
+					// Explicitly set fields to update, excluding _id
+					name: updateData.name,
+					path: updateData.path,
+					icon: updateData.icon || 'bi:file-earmark-text', // Ensure defaults
+					order: updateData.order || 999,          // Ensure defaults
+					translations: updateData.translations || [],     // Ensure defaults
+					label: updateData.label,
+					permissions: updateData.permissions,
+					livePreview: updateData.livePreview,
+					strict: updateData.strict,
+					revision: updateData.revision,
+					description: updateData.description,
+					slug: updateData.slug,
+					// status: updateData.status, // Status might not be set here? Check if needed.
+					// links: updateData.links,   // Links might not be set here? Check if needed.
+					nodeType: 'collection', // Set nodeType
+					parentPath // Set calculated parentPath
 				}
 			},
-			{ upsert: true, new: true }
+			{ upsert: true, new: true, setDefaultsOnInsert: true } // Use setDefaultsOnInsert for creation
 		).lean();
+		// --- MODIFICATION END ---
 	},
 
 	async getNodeByPath(path: string): Promise<ContentStructureDocument | null> {
@@ -157,14 +198,21 @@ contentStructureSchema.statics = {
 	}
 };
 
-// Create the base model
-const BaseContentStructure = mongoose.model<ContentStructureDocument, ContentStructureModel>('system_content_structure', contentStructureSchema);
+// Create the base model only if it doesn't already exist
+const BaseContentStructure =
+	mongoose.models.system_content_structure ||
+	mongoose.model<ContentStructureDocument, ContentStructureModel>('system_content_structure', contentStructureSchema);
 
-// Create discriminators for categories and collections
-BaseContentStructure.discriminator('category', categorySchema);
-BaseContentStructure.discriminator('collection', collectionSchema);
+// Create discriminators for categories and collections only if they don't exist on the model
+// Check if discriminators already exist before adding them
+if (!BaseContentStructure.discriminators?.category) {
+	BaseContentStructure.discriminator('category', categorySchema);
+}
+if (!BaseContentStructure.discriminators?.collection) {
+	BaseContentStructure.discriminator('collection', collectionSchema);
+}
+
 
 // Export the model
-export const ContentStructureModel = BaseContentStructure;
+export const ContentStructureModel = BaseContentStructure as ContentStructureModel; // Cast needed because of the conditional definition
 
-// Function to process file structure

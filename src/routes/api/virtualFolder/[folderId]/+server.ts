@@ -20,11 +20,40 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import type { SystemVirtualFolder } from '@src/databases/dbInterface';
 import { dbAdapter } from '@src/databases/db';
-
-import { type FolderContents, type VirtualFolderUpdateData, type FolderResponse, VirtualFolderError } from '@src/types/virtualFolder';
+import type { MediaBase } from '@utils/media/mediaModels';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
+
+// Types previously in src/types/virtualFolder.ts
+export interface FolderContents {
+	subfolders: SystemVirtualFolder[];
+	mediaFiles: MediaBase[];
+}
+
+export interface VirtualFolderUpdateData {
+	name?: string;
+	parent?: string | null;
+	path?: string;
+}
+
+export interface FolderResponse {
+	id: string;
+	name: string;
+	path: string;
+	ariaLabel: string;
+}
+
+export class VirtualFolderError extends Error {
+	constructor(
+		message: string,
+		public status: number = 500,
+		public code?: string
+	) {
+		super(message);
+		this.name = 'VirtualFolderError';
+	}
+}
 
 // Utility function to validate database connection
 function validateDb(): void {

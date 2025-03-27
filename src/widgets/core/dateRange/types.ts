@@ -9,8 +9,9 @@ import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 import PermissionsSetting from '@components/PermissionsSetting.svelte';
 
-// Auth
+// Types
 import type { Permission } from '@src/auth/types';
+import type { CollectionData } from '@src/content/types';
 
 /**
  * Defines DataRange widget Parameters
@@ -20,7 +21,7 @@ export type Params = {
 	label: string;
 	display?: DISPLAY;
 	db_fieldName?: string;
-	widget?: any;
+	widget?: unknown;
 	required?: boolean;
 	// translated?: boolean;
 	icon?: string;
@@ -54,7 +55,7 @@ export const GuiSchema = {
 /**
  * Define DataRange GraphqlSchema function
  */
-export const GraphqlSchema: GraphqlSchema = ({ label, collection }) => {
+export const GraphqlSchema = ({ label, collection }: { label: string; collection: CollectionData }) => {
 	// Create a type name by combining the collection name and label
 	const typeName = `${collection.name}_${label}`;
 

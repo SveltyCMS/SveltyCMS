@@ -3,8 +3,8 @@
 @description - Group widget types
 */
 
-// Components
-import type { Field } from '@src/content/types';
+// Types
+import type { Field, CollectionData, ContentEntry } from '@src/content/types';
 import type { WidgetFunction } from '@widgets/types';
 
 type DisplayParams = {
@@ -41,9 +41,9 @@ export type GuiSchema = object; // Type for GUI configuration object
 /**
  * Define Group GraphqlSchema function
  */
-import type { Collection } from '@src/config/types';
+import type { CollectionData } from '@src/content/types';
 
-export const GraphqlSchema = function ({ label, collection }: { label: string; collection: Collection }) {
+export const GraphqlSchema = function ({ label, collection }: { label: string; collection: CollectionData }) {
 	const typeName = `${collection.name}_${label}`;
 	return { typeName, graphql: '' };
 };

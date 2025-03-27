@@ -12,8 +12,9 @@ import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 import PermissionsSetting from '@components/PermissionsSetting.svelte';
 
-// Auth
+// Types
 import type { Permission } from '@src/auth/types';
+import type { CollectionData } from '@src/content/types';
 
 /**
  * Defines Text widget Parameters
@@ -23,7 +24,7 @@ export type Params = {
 	label: string;
 	display?: DISPLAY;
 	db_fieldName?: string;
-	widget?: any;
+	widget?: unknown;
 	required?: boolean;
 	translated?: boolean;
 	icon?: string;
@@ -74,7 +75,7 @@ export const GuiSchema = {
 /**
  * Define Text GraphqlSchema function
  */
-export const GraphqlSchema: GraphqlSchema = ({ label, collection }) => {
+export const GraphqlSchema = ({ label, collection }: { label: string; collection: CollectionData }) => {
 	// Create a type name by combining the collection name and label
 	const typeName = `${collection.name}_${label}`;
 
@@ -94,7 +95,7 @@ export const GraphqlSchema: GraphqlSchema = ({ label, collection }) => {
 };
 
 // HTML Text to string
-export function toString({ field, data }: { field: any; data: any }) {
+export function toString({ field, data }: { field: unknown; data: unknown }) {
 	return toStringHelper({
 		field,
 		data,

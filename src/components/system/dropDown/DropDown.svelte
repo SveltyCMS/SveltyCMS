@@ -10,18 +10,17 @@
 	// Define props using $props
 	let {
 		items, // Array of selectable items
-		selected = items[0], // Currently selected item, default to first item
+		selected = undefined, // Currently selected item, safer default
 		label = '', // Optional label for the dropdown
-		modifier = (input: any) => input, // Function to modify how items are displayed
-		icon = undefined, // Optional icon for the dropdown
-		ariaLabel = 'Select an option',
-		class: className = '', // Custom class for the dropdown container
-		dropdownId = 'dropdown-' + Math.random().toString(36).substr(2, 9) // Unique ID for a11y
+		modifier = (input: string) => input, // Function to modify how items are displayed - Updated type
+		// icon = undefined, // Optional icon for the dropdown
+		class: className = '' // Custom class for the dropdown container
+		// dropdownId = 'dropdown-' + Math.random().toString(36).substr(2, 9) // Unique ID for a11y
 	} = $props<{
-		items: any[];
-		selected?: any;
+		items: string[]; // Updated type to string array
+		selected?: string; // Updated type to string
 		label?: string;
-		modifier?: (input: any) => any;
+		modifier?: (input: string) => string; // Updated modifier type
 		icon?: string | undefined;
 		class?: string;
 		ariaLabel?: string;
@@ -30,10 +29,10 @@
 
 	// State for dropdown expansion and selected item
 	let expanded = $state(false);
-	let currentSelected = $state(selected);
+	let currentSelected = $state<string | undefined>(selected); // Explicitly type state
 
 	// Derived state for filtered items
-	let filteredItems = $derived(items.filter((item) => item !== currentSelected));
+	let filteredItems = $derived(items.filter((item: string) => item !== currentSelected)); // Type explicitly defined
 
 	// Toggle dropdown expansion
 	function toggleExpanded() {
@@ -41,7 +40,8 @@
 	}
 
 	// Handle item selection
-	function selectItem(item: any) {
+	function selectItem(item: string) {
+		// Updated parameter type
 		currentSelected = item;
 		expanded = false;
 	}
@@ -58,7 +58,7 @@
 	<button
 		onclick={toggleExpanded}
 		class="preset-filled-tertiary-500 btn dark:preset-tonal-primary border-primary-500 border"
-		aria-label="Toggle Dropdown"
+		aria-label={label || 'Toggle Dropdown'}
 		class:selected={expanded}
 	>
 		{currentSelected || label}
@@ -76,7 +76,7 @@
 			<button
 				onclick={() => selectItem(item)}
 				class="preset-filled-warning-500 btn hover:preset-filled-secondary-500 dark:preset-outline-warning relative"
-				aria-label={modifier(item)}
+				aria-label={`Select ${modifier(item)}`}
 			>
 				<span class="text-surface-700 dark:text-white">{modifier(item)}</span>
 			</button>

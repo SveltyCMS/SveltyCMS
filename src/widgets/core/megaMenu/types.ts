@@ -8,10 +8,11 @@ import IconifyPicker from '@components/IconifyPicker.svelte';
 import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 import PermissionsSetting from '@components/PermissionsSetting.svelte';
-
-// Auth
-import type { Permission } from '@src/auth/types';
 import GuiFields from './GuiFields.svelte';
+
+// Types
+import type { Permission } from '@src/auth/types';
+import type { CollectionData, Field as ContentField } from '@src/content/types';
 
 import widgets, { type WidgetType } from '../../index';
 type Fields = ReturnType<WidgetType[keyof WidgetType]>[][];
@@ -62,7 +63,7 @@ export const GuiSchema = {
 /**
  * Define MegaMenu GraphqlSchema function
  */
-export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
+export const GraphqlSchema = ({ field, collection }: { field: ContentField; collection: CollectionData }) => {
 	const fields = field.fields;
 	const typeName = `${collection.name}_${getFieldName(field, true)}`;
 	const types = new Set();
