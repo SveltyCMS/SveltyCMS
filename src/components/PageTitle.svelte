@@ -57,8 +57,8 @@
 		backUrl = ''
 	}: Props = $props();
 
-	let calculatedTitle = $state(name);
-	let titleParts = $state<string[]>([name]);
+	let calculatedTitle = $derived.by(calculateMaxChars);
+	let titleParts = $derived.by<string[]>(updateTitleParts);
 
 	// Function to handle back button click
 	function handleBackClick() {
@@ -82,16 +82,15 @@
 		const maxChars = Math.floor(availableWidth / avgCharWidth);
 
 		// Truncate the title if it exceeds the maxChars
-		calculatedTitle = name.length > maxChars ? name.slice(0, maxChars - 3) + '...' : name;
-		updateTitleParts();
+		return name.length > maxChars ? name.slice(0, maxChars - 3) + '...' : name;
 	}
 
 	function updateTitleParts() {
 		if (highlight && calculatedTitle.toLowerCase().includes(highlight.toLowerCase())) {
 			const regex = new RegExp(`(${highlight})`, 'gi');
-			titleParts = calculatedTitle.split(regex);
+			return calculatedTitle.split(regex);
 		} else {
-			titleParts = [calculatedTitle];
+			return [calculatedTitle];
 		}
 	}
 
@@ -107,8 +106,7 @@
 
 	// Reactive effects for name and highlight changes
 	$effect(() => {
-		name; // reactive dependency
-		highlight; // reactive dependency
+		console.debug('name: ', name, 'HIghlis-', highlight);
 		calculateMaxChars(); // Recalculate when the title or screen size changes
 	});
 </script>

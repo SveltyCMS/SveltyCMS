@@ -13,308 +13,308 @@
 import { store } from '@utils/reactivity.svelte';
 import { ScreenSize } from '@stores/screenSizeStore.svelte';
 import { browser } from '$app/environment';
-import { dbAdapter } from '@src/databases/db';
+//import { dbAdapter } from '@src/databases/db';
 
 // Widget preference interface
 export interface WidgetPreference {
-	id: string;
-	component: string;
-	label: string;
-	x: number;
-	y: number;
-	w: number;
-	h: number;
-	min?: { w: number; h: number };
-	max?: { w: number; h: number };
-	movable?: boolean;
-	resizable?: boolean;
+  id: string;
+  component: string;
+  label: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  min?: { w: number; h: number };
+  max?: { w: number; h: number };
+  movable?: boolean;
+  resizable?: boolean;
 }
 
 // User preferences interface
 export interface UserPreferences {
-	[ScreenSize.SM]: WidgetPreference[];
-	[ScreenSize.MD]: WidgetPreference[];
-	[ScreenSize.LG]: WidgetPreference[];
-	[ScreenSize.XL]: WidgetPreference[];
+  [ScreenSize.SM]: WidgetPreference[];
+  [ScreenSize.MD]: WidgetPreference[];
+  [ScreenSize.LG]: WidgetPreference[];
+  [ScreenSize.XL]: WidgetPreference[];
 }
 
 // State interface
 interface PreferencesState {
-	preferences: UserPreferences;
-	isLoading: boolean;
-	error: string | null;
-	lastSyncTime: Date | null;
-	currentUserId: string | null;
+  preferences: UserPreferences;
+  isLoading: boolean;
+  error: string | null;
+  lastSyncTime: Date | null;
+  currentUserId: string | null;
 }
 
 // Create base stores
 function createPreferencesStores() {
-	let syncInterval: NodeJS.Timeout | null = null;
+  let syncInterval: NodeJS.Timeout | null = null;
 
-	// Initial state
-	const initialState: PreferencesState = {
-		preferences: {
-			[ScreenSize.SM]: [],
-			[ScreenSize.MD]: [],
-			[ScreenSize.LG]: [],
-			[ScreenSize.XL]: []
-		},
-		isLoading: false,
-		error: null,
-		lastSyncTime: null,
-		currentUserId: null
-	};
+  // Initial state
+  const initialState: PreferencesState = {
+    preferences: {
+      [ScreenSize.SM]: [],
+      [ScreenSize.MD]: [],
+      [ScreenSize.LG]: [],
+      [ScreenSize.XL]: []
+    },
+    isLoading: false,
+    error: null,
+    lastSyncTime: null,
+    currentUserId: null
+  };
 
-	// Base store
-	const state = store<PreferencesState>(initialState);
+  // Base store
+  const state = store<PreferencesState>(initialState);
 
-	// Derived values
-	const hasPreferences = $derived(Object.values(state().preferences).some((widgets) => widgets.length > 0));
+  // Derived values
+  const hasPreferences = $derived(Object.values(state().preferences).some((widgets) => widgets.length > 0));
 
-	const widgetCount = $derived(Object.values(state().preferences).reduce((sum, widgets) => sum + widgets.length, 0));
+  const widgetCount = $derived(Object.values(state().preferences).reduce((sum, widgets) => sum + widgets.length, 0));
 
-	const canSync = $derived(!state().isLoading && !!state().currentUserId);
+  const canSync = $derived(!state().isLoading && !!state().currentUserId);
 
-	// Helper function to get widgets for a specific screen size
-	function getScreenSizeWidgets(size: ScreenSize): WidgetPreference[] {
-		return state().preferences[size];
-	}
+  // Helper function to get widgets for a specific screen size
+  function getScreenSizeWidgets(size: ScreenSize): WidgetPreference[] {
+    return state().preferences[size];
+  }
 
-	// Ensure database is initialized
-	async function ensureDbInitialized(): Promise<void> {
-		if (browser) {
-			// Removed dbInitPromise from here
-		}
-	}
+  // Ensure database is initialized
+  async function ensureDbInitialized(): Promise<void> {
+    if (browser) {
+      // Removed dbInitPromise from here
+    }
+  }
 
-	// Start auto-sync
-	function startAutoSync() {
-		if (!browser) return;
+  // Start auto-sync
+  function startAutoSync() {
+    if (!browser) return;
 
-		// Check every 5 minutes
-		syncInterval = setInterval(
-			() => {
-				const currentState = state();
-				if (currentState.currentUserId && (!currentState.lastSyncTime || Date.now() - currentState.lastSyncTime.getTime() > 30 * 60 * 1000)) {
-					loadPreferences(currentState.currentUserId).catch(console.error);
-				}
-			},
-			5 * 60 * 1000
-		);
-	}
+    // Check every 5 minutes
+    syncInterval = setInterval(
+      () => {
+        const currentState = state();
+        if (currentState.currentUserId && (!currentState.lastSyncTime || Date.now() - currentState.lastSyncTime.getTime() > 30 * 60 * 1000)) {
+          loadPreferences(currentState.currentUserId).catch(console.error);
+        }
+      },
+      5 * 60 * 1000
+    );
+  }
 
-	// Stop auto-sync
-	function stopAutoSync() {
-		if (syncInterval) {
-			clearInterval(syncInterval);
-			syncInterval = null;
-		}
-	}
+  // Stop auto-sync
+  function stopAutoSync() {
+    if (syncInterval) {
+      clearInterval(syncInterval);
+      syncInterval = null;
+    }
+  }
 
-	// Set preferences for a specific screen size
-	async function setPreference(userId: string, screenSize: ScreenSize, widgets: WidgetPreference[]) {
-		const currentState = state();
+  // Set preferences for a specific screen size
+  async function setPreference(userId: string, screenSize: ScreenSize, widgets: WidgetPreference[]) {
+    const currentState = state();
 
-		if (currentState.isLoading) return;
+    if (currentState.isLoading) return;
 
-		state.update((s) => ({ ...s, isLoading: true, error: null }));
+    state.update((s) => ({ ...s, isLoading: true, error: null }));
 
-		try {
-			await ensureDbInitialized();
+    try {
+      await ensureDbInitialized();
 
-			const newPreferences = {
-				...currentState.preferences,
-				[screenSize]: widgets
-			};
+      const newPreferences = {
+        ...currentState.preferences,
+        [screenSize]: widgets
+      };
 
-			if (dbAdapter) {
-				await dbAdapter.updateSystemPreferences(userId, screenSize, widgets);
-			}
+      if (dbAdapter) {
+        await dbAdapter.updateSystemPreferences(userId, screenSize, widgets);
+      }
 
-			state.update((s) => ({
-				...s,
-				preferences: newPreferences,
-				lastSyncTime: new Date(),
-				currentUserId: userId,
-				isLoading: false
-			}));
-		} catch (error) {
-			state.update((s) => ({
-				...s,
-				error: error instanceof Error ? error.message : 'Failed to set preferences',
-				isLoading: false
-			}));
-			throw error;
-		}
-	}
+      state.update((s) => ({
+        ...s,
+        preferences: newPreferences,
+        lastSyncTime: new Date(),
+        currentUserId: userId,
+        isLoading: false
+      }));
+    } catch (error) {
+      state.update((s) => ({
+        ...s,
+        error: error instanceof Error ? error.message : 'Failed to set preferences',
+        isLoading: false
+      }));
+      throw error;
+    }
+  }
 
-	// Load preferences from database
-	async function loadPreferences(userId: string) {
-		const currentState = state();
+  // Load preferences from database
+  async function loadPreferences(userId: string) {
+    const currentState = state();
 
-		if (currentState.isLoading) return;
+    if (currentState.isLoading) return;
 
-		state.update((s) => ({ ...s, isLoading: true, error: null }));
+    state.update((s) => ({ ...s, isLoading: true, error: null }));
 
-		try {
-			await ensureDbInitialized();
+    try {
+      await ensureDbInitialized();
 
-			if (dbAdapter) {
-				const userPrefs = await dbAdapter.getSystemPreferences(userId);
-				if (userPrefs) {
-					state.update((s) => ({
-						...s,
-						preferences: userPrefs,
-						lastSyncTime: new Date(),
-						currentUserId: userId,
-						isLoading: false
-					}));
-				}
-			}
-		} catch (error) {
-			state.update((s) => ({
-				...s,
-				error: error instanceof Error ? error.message : 'Failed to load preferences',
-				isLoading: false
-			}));
-		}
-	}
+      if (dbAdapter) {
+        const userPrefs = await dbAdapter.getSystemPreferences(userId);
+        if (userPrefs) {
+          state.update((s) => ({
+            ...s,
+            preferences: userPrefs,
+            lastSyncTime: new Date(),
+            currentUserId: userId,
+            isLoading: false
+          }));
+        }
+      }
+    } catch (error) {
+      state.update((s) => ({
+        ...s,
+        error: error instanceof Error ? error.message : 'Failed to load preferences',
+        isLoading: false
+      }));
+    }
+  }
 
-	// Clear all preferences
-	async function clearPreferences(userId: string) {
-		const currentState = state();
+  // Clear all preferences
+  async function clearPreferences(userId: string) {
+    const currentState = state();
 
-		if (currentState.isLoading) return;
+    if (currentState.isLoading) return;
 
-		state.update((s) => ({ ...s, isLoading: true, error: null }));
+    state.update((s) => ({ ...s, isLoading: true, error: null }));
 
-		try {
-			await ensureDbInitialized();
+    try {
+      await ensureDbInitialized();
 
-			const emptyPreferences = {
-				[ScreenSize.SM]: [],
-				[ScreenSize.MD]: [],
-				[ScreenSize.LG]: [],
-				[ScreenSize.XL]: []
-			};
+      const emptyPreferences = {
+        [ScreenSize.SM]: [],
+        [ScreenSize.MD]: [],
+        [ScreenSize.LG]: [],
+        [ScreenSize.XL]: []
+      };
 
-			if (dbAdapter) {
-				await dbAdapter.clearSystemPreferences(userId);
-			}
+      if (dbAdapter) {
+        await dbAdapter.clearSystemPreferences(userId);
+      }
 
-			state.update((s) => ({
-				...s,
-				preferences: emptyPreferences,
-				lastSyncTime: new Date(),
-				isLoading: false
-			}));
-		} catch (error) {
-			state.update((s) => ({
-				...s,
-				error: error instanceof Error ? error.message : 'Failed to clear preferences',
-				isLoading: false
-			}));
-			throw error;
-		}
-	}
+      state.update((s) => ({
+        ...s,
+        preferences: emptyPreferences,
+        lastSyncTime: new Date(),
+        isLoading: false
+      }));
+    } catch (error) {
+      state.update((s) => ({
+        ...s,
+        error: error instanceof Error ? error.message : 'Failed to clear preferences',
+        isLoading: false
+      }));
+      throw error;
+    }
+  }
 
-	// Add a widget to preferences
-	async function addWidget(userId: string, screenSize: ScreenSize, widget: WidgetPreference) {
-		const currentState = state();
+  // Add a widget to preferences
+  async function addWidget(userId: string, screenSize: ScreenSize, widget: WidgetPreference) {
+    const currentState = state();
 
-		if (currentState.isLoading) return;
+    if (currentState.isLoading) return;
 
-		state.update((s) => ({ ...s, isLoading: true, error: null }));
+    state.update((s) => ({ ...s, isLoading: true, error: null }));
 
-		try {
-			await ensureDbInitialized();
+    try {
+      await ensureDbInitialized();
 
-			const updatedWidgets = [...currentState.preferences[screenSize], widget];
-			const newPreferences = {
-				...currentState.preferences,
-				[screenSize]: updatedWidgets
-			};
+      const updatedWidgets = [...currentState.preferences[screenSize], widget];
+      const newPreferences = {
+        ...currentState.preferences,
+        [screenSize]: updatedWidgets
+      };
 
-			if (dbAdapter) {
-				await dbAdapter.updateSystemPreferences(userId, screenSize, updatedWidgets);
-			}
+      if (dbAdapter) {
+        await dbAdapter.updateSystemPreferences(userId, screenSize, updatedWidgets);
+      }
 
-			state.update((s) => ({
-				...s,
-				preferences: newPreferences,
-				lastSyncTime: new Date(),
-				isLoading: false
-			}));
-		} catch (error) {
-			state.update((s) => ({
-				...s,
-				error: error instanceof Error ? error.message : 'Failed to add widget',
-				isLoading: false
-			}));
-			throw error;
-		}
-	}
+      state.update((s) => ({
+        ...s,
+        preferences: newPreferences,
+        lastSyncTime: new Date(),
+        isLoading: false
+      }));
+    } catch (error) {
+      state.update((s) => ({
+        ...s,
+        error: error instanceof Error ? error.message : 'Failed to add widget',
+        isLoading: false
+      }));
+      throw error;
+    }
+  }
 
-	// Remove a widget from preferences
-	async function removeWidget(userId: string, screenSize: ScreenSize, widgetId: string) {
-		const currentState = state();
+  // Remove a widget from preferences
+  async function removeWidget(userId: string, screenSize: ScreenSize, widgetId: string) {
+    const currentState = state();
 
-		if (currentState.isLoading) return;
+    if (currentState.isLoading) return;
 
-		state.update((s) => ({ ...s, isLoading: true, error: null }));
+    state.update((s) => ({ ...s, isLoading: true, error: null }));
 
-		try {
-			await ensureDbInitialized();
+    try {
+      await ensureDbInitialized();
 
-			const updatedWidgets = currentState.preferences[screenSize].filter((w) => w.id !== widgetId);
-			const newPreferences = {
-				...currentState.preferences,
-				[screenSize]: updatedWidgets
-			};
+      const updatedWidgets = currentState.preferences[screenSize].filter((w) => w.id !== widgetId);
+      const newPreferences = {
+        ...currentState.preferences,
+        [screenSize]: updatedWidgets
+      };
 
-			if (dbAdapter) {
-				await dbAdapter.updateSystemPreferences(userId, screenSize, updatedWidgets);
-			}
+      if (dbAdapter) {
+        await dbAdapter.updateSystemPreferences(userId, screenSize, updatedWidgets);
+      }
 
-			state.update((s) => ({
-				...s,
-				preferences: newPreferences,
-				lastSyncTime: new Date(),
-				isLoading: false
-			}));
-		} catch (error) {
-			state.update((s) => ({
-				...s,
-				error: error instanceof Error ? error.message : 'Failed to remove widget',
-				isLoading: false
-			}));
-			throw error;
-		}
-	}
+      state.update((s) => ({
+        ...s,
+        preferences: newPreferences,
+        lastSyncTime: new Date(),
+        isLoading: false
+      }));
+    } catch (error) {
+      state.update((s) => ({
+        ...s,
+        error: error instanceof Error ? error.message : 'Failed to remove widget',
+        isLoading: false
+      }));
+      throw error;
+    }
+  }
 
-	// Initialize auto-sync
-	if (browser) {
-		startAutoSync();
-	}
+  // Initialize auto-sync
+  if (browser) {
+    startAutoSync();
+  }
 
-	return {
-		// Base store
-		state,
+  return {
+    // Base store
+    state,
 
-		// Derived values
-		hasPreferences,
-		widgetCount,
-		canSync,
+    // Derived values
+    hasPreferences,
+    widgetCount,
+    canSync,
 
-		// Methods
-		getScreenSizeWidgets,
-		setPreference,
-		loadPreferences,
-		clearPreferences,
-		addWidget,
-		removeWidget,
-		stopAutoSync
-	};
+    // Methods
+    getScreenSizeWidgets,
+    setPreference,
+    loadPreferences,
+    clearPreferences,
+    addWidget,
+    removeWidget,
+    stopAutoSync
+  };
 }
 
 // Create and export stores
@@ -322,25 +322,25 @@ const stores = createPreferencesStores();
 
 // Export main store with full interface
 export const userPreferences = {
-	subscribe: stores.state.subscribe,
-	setPreference: stores.setPreference,
-	loadPreferences: stores.loadPreferences,
-	clearPreferences: stores.clearPreferences,
-	addWidget: stores.addWidget,
-	removeWidget: stores.removeWidget
+  subscribe: stores.state.subscribe,
+  setPreference: stores.setPreference,
+  loadPreferences: stores.loadPreferences,
+  clearPreferences: stores.clearPreferences,
+  addWidget: stores.addWidget,
+  removeWidget: stores.removeWidget
 };
 
 // Export derived values
 export const hasPreferences = {
-	subscribe: () => stores.hasPreferences
+  subscribe: () => stores.hasPreferences
 };
 
 export const widgetCount = {
-	subscribe: () => stores.widgetCount
+  subscribe: () => stores.widgetCount
 };
 
 export const canSync = {
-	subscribe: () => stores.canSync
+  subscribe: () => stores.canSync
 };
 
 // Export helper function
@@ -348,5 +348,5 @@ export const getScreenSizeWidgets = stores.getScreenSizeWidgets;
 
 // Cleanup on module unload
 if (browser) {
-	window.addEventListener('unload', stores.stopAutoSync);
+  window.addEventListener('unload', stores.stopAutoSync);
 }

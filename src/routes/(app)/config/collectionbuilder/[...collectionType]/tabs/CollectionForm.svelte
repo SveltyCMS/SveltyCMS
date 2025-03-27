@@ -124,7 +124,7 @@ Features:
 
 	// Update collection value when form fields change
 	$effect(() => {
-		if (collectionValue.value) {
+		if (!collectionValue.value) {
 			collectionValue.set({
 				...(collectionValue.value as CollectionData),
 				name,
