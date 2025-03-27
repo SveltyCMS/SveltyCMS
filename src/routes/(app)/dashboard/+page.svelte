@@ -151,7 +151,7 @@
 
 	onMount(async () => {
 		await userPreferences.loadPreferences(data.user.id);
-		const loadedItems = $userPreferences[$screenSize];
+		const loadedItems = userPreferences[screenSize()];
 		items = Array.isArray(loadedItems) ? loadedItems : [];
 	});
 

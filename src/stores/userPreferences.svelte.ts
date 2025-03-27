@@ -13,7 +13,6 @@
 import { store } from '@utils/reactivity.svelte';
 import { ScreenSize } from '@stores/screenSizeStore.svelte';
 import { browser } from '$app/environment';
-//import { dbAdapter } from '@src/databases/db';
 
 // Widget preference interface
 export interface WidgetPreference {
