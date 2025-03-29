@@ -361,13 +361,13 @@ class ContentManager {
 						logger.error(`Database model creation failed for collection: ${processedSchema.name} (ID: ${processedSchema._id})`);
 						continue;
 					}
-					logger.debug(`DB Model created successfully for \x1b[34m${processedSchema.name}\x1b[0m (ID: \x1b[34m${processedSchema._id}\x1b[0m)`);
+					logger.debug(`DB Model created successfully for \x1b[33m${processedSchema.name}\x1b[0m (ID: \x1b[34m${processedSchema._id}\x1b[0m)`);
 
 					// Add to temporary lists for this run
 					loaded.push(processedSchema);
 					tempCollectionMap.set(processedSchema._id, processedSchema);
 					tempCollectionModels.set(processedSchema._id, model);
-					logger.debug(`Added \x1b[32m${processedSchema.name}\x1b[0m (Path: \x1b[34m${finalPath}\x1b[0m) to loaded collections.`);
+					logger.debug(`Added \x1b[33m${processedSchema.name}\x1b[0m (Path: \x1b[34m${finalPath}\x1b[0m) to loaded collections.`);
 
 					// Update memory cache
 					this.collectionCache.set(processedSchema._id, { value: processedSchema, timestamp: Date.now() });

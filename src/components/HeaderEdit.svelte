@@ -7,9 +7,9 @@
  and managing language or tab-specific temporary data. The header also adapts to mobile/desktop views 
  and offers options for actions like publishing, deleting, or scheduling entries, while maintaining accessibility and responsive design.
 
- ```tsx
+ @example
  <HeaderEdit />
- ```
+
 
  #### Props:
  - `collection` {object} - Collection object

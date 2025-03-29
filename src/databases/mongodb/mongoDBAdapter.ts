@@ -472,7 +472,7 @@ export class MongoDBAdapter implements dbInterface {
 
 			// Process fields if they exist
 			if (collection.fields && Array.isArray(collection.fields)) {
-				logger.debug(`Processing \x1b[34m${collection.fields.length}\x1b[0m fields for \x1b[34m${collectionName}\x1b[0m`);
+				logger.debug(`Processing \x1b[33m${collection.fields.length}\x1b[0m fields for \x1b[34m${collectionName}\x1b[0m`);
 				for (const field of collection.fields) {
 					try {
 						// Generate fieldKey from various possible identifiers
@@ -514,7 +514,7 @@ export class MongoDBAdapter implements dbInterface {
 						}
 
 						schemaDefinition[fieldKey] = fieldSchema;
-						logger.debug(`Added field schema for ${fieldKey} with widget type ${field.__widgetName}`);
+						logger.debug(`Added field schema for \x1b[33m${fieldKey}\x1b[0m with widget type \x1b[34m${field.__widgetName}\x1b[0m `);
 
 					} catch (error) {
 						logger.error(`Error processing field:`, error);

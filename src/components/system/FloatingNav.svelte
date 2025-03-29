@@ -3,9 +3,8 @@
 @component#
 **Floating nav component for mobile view**
 
-```tsx
+@example
 <FloatingNav />
-```
 
 Features:
 - Floating nav for mobile view	

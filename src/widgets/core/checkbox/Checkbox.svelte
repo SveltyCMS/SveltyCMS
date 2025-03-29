@@ -98,7 +98,7 @@
 			id={field.db_fieldName}
 			type="checkbox"
 			color={field.color}
-			bind:checked={_data[_language].checked}
+			bind:checked={_data.checked}
 			oninput={validateInput}
 			class="h-[${field.size}] w-[${field.size}] mr-4 rounded-sm"
 			class:error={!!validationError}
@@ -111,9 +111,9 @@
 		<input
 			type="text"
 			placeholder="Define Label"
-			bind:value={_data[_language].label}
+			bind:value={_data.label}
 			oninput={validateInput}
-			class="input text-black dark:text-primary-500"
+			class="input dark:text-primary-500 text-black"
 			class:error={!!validationError}
 			aria-label="Checkbox Label"
 			aria-invalid={!!validationError}
@@ -123,7 +123,7 @@
 
 	<!-- Error Message -->
 	{#if validationError}
-		<p id={`${field.db_fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+		<p id={`${field.db_fieldName}-error`} class="text-error-500 absolute bottom-[-1rem] left-0 w-full text-center text-xs" role="alert">
 			{validationError}
 		</p>
 	{/if}

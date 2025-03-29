@@ -20,11 +20,11 @@ function checkDependencies(widget: WidgetFunction): boolean {
 	}
 	for (const dep of widget.dependencies) {
 		if (!widgetFunctions.get().has(dep)) {
-			logger.info(`Checking dependencies for widget: ${widget.Name} - missing dependency: ${dep}`);
+			logger.debug(`Checking dependencies for widget: ${widget.Name} - missing dependency: ${dep}`);
 			return false; // Dependency is missing
 		}
 	}
-	logger.info('Checking dependencies for widget:', widget.Name);
+	logger.debug('Checking dependencies for widget:', widget.Name);
 	return true; // All dependencies are met
 }
 
@@ -33,8 +33,8 @@ const widgets: Record<string, WidgetFunction> = {};
 export default widgets;
 
 // State management with reactive stores
-export const widgetFunctions = store<Map<string, WidgetFunction>>(new Map()); // Store for widget functions
-const activeWidgetList = store<Set<string>>(new Set()); // Store for active widgets
+export const widgetFunctions = store<Map<string, WidgetFunction>>(new Map());
+export const activeWidgetList = store<Set<string>>(new Set()); // Export the activeWidgetList store
 
 // init state
 let initialized = false; // Initialization status
@@ -69,7 +69,7 @@ export async function initializeWidgets(): Promise<void> {
 				.map(([path, module]) => {
 					const match = path.match(/\.\/(core|custom)\/([^/]+)\//);
 					if (!match) {
-						logger.warn(`Skipping widget module: ${path} - Unable to extract widget name`);
+						logger.debug(`Skipping widget module: \x1b[34m${path}\x1b[0m - Unable to extract widget name`);
 						return null;
 					}
 					// eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -82,11 +82,11 @@ export async function initializeWidgets(): Promise<void> {
 					const componentPath = path.replace(/index\.ts$/, `${capitalized_name}.svelte`).replace(/^\.\//, `/src/widgets/`);
 
 					if (!name) {
-						logger.warn(`Skipping widget module: ${path} - Unable to extract widget name`);
+						logger.debug(`Skipping widget module: \x1b[34m${path}\x1b[0m - Unable to extract widget name`);
 						return null;
 					}
 					if (typeof module.default !== 'function') {
-						logger.warn(`Skipping widget module: ${path} - No valid widget function found`);
+						logger.debug(`Skipping widget module: \x1b[34m${path}\x1b[0m - No valid widget function found`);
 						return null;
 					}
 
@@ -106,11 +106,11 @@ export async function initializeWidgets(): Promise<void> {
 					const widgetFn = createWidgetFunction(module, name);
 
 					if (!widgetFn) {
-						logger.warn(`Skipping widget ${name} - No widget function found`);
+						logger.debug(`Skipping widget \x1b[34m${name}\x1b[0m - No widget function found`);
 						continue;
 					}
 					if (!checkDependencies(widgetFn({}))) {
-						logger.warn(`Skipping widget ${name} - Missing dependencies`);
+						logger.debug(`Skipping widget \x1b[34m${name}\x1b[0m - Missing dependencies`);
 						continue;
 					}
 					const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
@@ -120,10 +120,20 @@ export async function initializeWidgets(): Promise<void> {
 					newWidgetFunctions.set(capitalizedName, widgetFn);
 					widgets[capitalizedName] = widgetFn;
 					loadedWidgetNames.add(capitalizedName);
-					const { updateWidget } = await import('../databases/dbInterface');
-					await updateWidget(capitalizedName, { isActive: true });
+
+					// Optional database update
+					try {
+						const { updateWidget } = await import('../databases/dbInterface');
+						if (typeof updateWidget === 'function') {
+							await updateWidget(capitalizedName, { isActive: true });
+						} else {
+							logger.debug(`updateWidget is not a function for widget: \x1b[34m${capitalizedName}\x1b[0m`);
+						}
+					} catch (error) {
+						logger.debug(`Failed to update widget ${capitalizedName} in database: ${error instanceof Error ? error.message : 'Unknown error'}`);
+					}
 				} catch (error) {
-					logger.warn(`Skipping widget ${name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+					logger.debug(`Skipping widget \x1b[34m${name}\x1b[0m: ${error instanceof Error ? error.message : 'Unknown error'}`);
 					continue;
 				}
 			}
@@ -132,17 +142,21 @@ export async function initializeWidgets(): Promise<void> {
 			let activeWidgets: string[] = [];
 			try {
 				const { getAllWidgets } = await import('../databases/dbInterface');
-				const dbWidgets = await getAllWidgets();
-				activeWidgets = dbWidgets.filter((widget) => widget.isActive).map((widget) => widget.name);
-			} catch (error: unknown) {
+				if (typeof getAllWidgets === 'function') {
+					const dbWidgets = await getAllWidgets();
+					activeWidgets = dbWidgets.filter((widget) => widget.isActive).map((widget) => widget.name);
+				} else {
+					throw new Error('getAllWidgets is not a function');
+				}
+			} catch (error) {
 				// If any error occurs, activate all widgets
 				activeWidgets = Array.from(newWidgetFunctions.keys());
-				logger.warn(`Failed to fetch widget status: ${error instanceof Error ? error.message : 'Unknown error'}, activating all widgets`);
+				logger.debug(`Failed to fetch widget status: ${error instanceof Error ? error.message : 'Unknown error'}, activating all widgets`);
 			}
 
 			// Update widget functions store
 			widgetFunctions.set(newWidgetFunctions);
-			// Set active widgets based on database status
+			// Set active widgets based on database status or fallback
 			activeWidgetList.set(new Set(activeWidgets));
 
 			// Log Initialization Summary
