@@ -3,11 +3,15 @@
 @component
 **PageFooter component displaying collection name, creation and update dates**
 
-```tsx
+@example
 <PageFooter />
-```
+
 #### Props
 - `collection` {object} - Collection object
+
+Features
+- Displays collection name
+- Displays creation and update dates
 -->
 
 <script lang="ts">
@@ -21,7 +25,7 @@
 	});
 </script>
 
-<h2 class="text-center text-sm! font-bold uppercase text-tertiary-500 dark:text-primary-500">
+<h2 class="text-tertiary-500 dark:text-primary-500 text-center text-sm! font-bold uppercase">
 	{collection.value?.name} Info:
 </h2>
 
@@ -31,7 +35,7 @@
 		<div class="capitalize">{key}:</div>
 	{/each}
 
-	<!-- Data -->
+	<!-- Dates -->
 	{#each Object.values(dates) as value}
 		<div class="text-tertiary-500 dark:text-primary-500">{value}</div>
 	{/each}

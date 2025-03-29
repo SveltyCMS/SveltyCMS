@@ -3,9 +3,9 @@
 @component
 **Media component with accessibility updates and button nesting resolved**
 
-```tsx
+@example
 <Media bind:files={files} />
-```
+
 #### Props
 - `files` {array} - Array of media files
 -->
@@ -19,7 +19,7 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Props using Svelte 5's $props
+	// Props
 	let { onselect = () => {} } = $props<{
 		onselect?: (file: MediaImage) => void;
 	}>();
@@ -63,13 +63,13 @@
 
 {#if files.length === 0}
 	<!-- Display a message when no media is found -->
-	<div class="mx-auto text-center text-tertiary-500 dark:text-primary-500">
+	<div class="text-tertiary-500 dark:text-primary-500 mx-auto text-center">
 		<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2"></iconify-icon>
 		<p class="text-lg">{m.mediagallery_nomedia()}</p>
 	</div>
 {:else}
 	<div class="header flex items-center gap-2">
-		<label for="search" class="font-bold text-tertiary-500 dark:text-primary-500">Media</label>
+		<label for="search" class="text-tertiary-500 dark:text-primary-500 font-bold">Media</label>
 		<input type="text" bind:value={search} placeholder="Search" class="input" id="search" />
 	</div>
 	<div class="flex max-h-[calc(100%-55px)] flex-wrap items-center justify-center overflow-auto">
@@ -81,14 +81,14 @@
 				tabindex="0"
 				class="card relative flex w-full cursor-pointer flex-col md:w-[30%]"
 			>
-				<div class="absolute flex w-full items-center bg-surface-700">
+				<div class="bg-surface-700 absolute flex w-full items-center">
 					<span
 						onclick={(event) => toggleInfo(event, index)}
 						onkeydown={(event) => (event.key === 'Enter' || event.key === ' ') && toggleInfo(event, index)}
 						aria-label="Show info"
 						role="button"
 						tabindex="0"
-						class="ml-[2px] mt-[2px] block w-[30px]"
+						class="mt-[2px] ml-[2px] block w-[30px]"
 					>
 						<iconify-icon icon="raphael:info" width="25" class="text-tertiary-500"></iconify-icon>
 					</span>

@@ -3,6 +3,13 @@
 @component
 **Collections component to display & filter collections and categories using TreeView.**
 
+@example
+<Collections />
+
+#### Props
+- `collection` - The collection object to display data from.
+- `mode` - The current mode of the component. Can be 'view', 'edit', 'create', 'delete', 'modify', or 'media'.
+
 Features:
 - Display collections and categories using TreeView from Skeleton.
 - Search functionality with clear button.
@@ -14,7 +21,6 @@ Features:
 <script lang="ts">
 	import { goto } from '$app/navigation';
 
-	// Types
 	// Types
 	import type { Schema } from '@src/content/types';
 	import type { ContentStructureNode } from '@src/databases/dbInterface';

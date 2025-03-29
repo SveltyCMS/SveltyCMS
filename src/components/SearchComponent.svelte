@@ -1,6 +1,10 @@
 <!--
 @file src/components/SearchComponent.svelte
-@description Search Component for Svelte CMS
+@component
+**Search Component for Svelte CMS**
+
+@example:
+<WatermarkSettings bind:size bind:opacity bind:positionX bind:positionY bind:rotation />
 
 Features:
 - Fuzzy search with optimized edit distance calculation

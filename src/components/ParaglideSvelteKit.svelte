@@ -2,6 +2,16 @@
 @file src/components/ParaglideSvelteKit.svelte
 @component
 **ParaglideSvelteKit component for handling translations and localization.**
+
+@example
+<ParaglideSvelteKit />
+
+### Props
+- `children` {Snippet} - The content to be rendered
+
+Features:
+- Handles translations and localization for the SvelteKit app
+- Persists the selected language through local storage
 -->
 
 <script lang="ts">

@@ -3,13 +3,12 @@
 @component
 **Enhanced HighlightedText component that highlights a term in a given text**
 
-```tsx
+@example
 <HighlightedText 
 	text="Your long text here" 
 	term="search term" 
 	charLimit={200} 
 />
-```
 
 #### Props
 - `text` {string} - Full text to display
@@ -89,7 +88,11 @@ Features:
 	{/each}
 
 	{#if text.length > charLimit}
-		<button onclick={toggleText} class="text-blue-500 hover:underline focus:outline-hidden focus:ring-2 focus:ring-blue-500" aria-expanded={isExpanded}>
+		<button
+			onclick={toggleText}
+			class="text-blue-500 hover:underline focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+			aria-expanded={isExpanded}
+		>
 			{isExpanded ? 'Show Less' : 'Show More'}
 		</button>
 	{/if}

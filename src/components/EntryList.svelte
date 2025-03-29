@@ -3,9 +3,8 @@
 @component
 **EntryList component to display collections data.**
 
-```tsx
+@example
 <EntryList />
-```
 
 #### Props
 - `collection` - The collection object to display data from.
@@ -20,6 +19,7 @@ Features:
 - Icons
 - Filter
 -->
+
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
@@ -48,11 +48,12 @@ Features:
 	import Loading from './Loading.svelte';
 
 	// Skeleton
-	import type { ModalSettings } from '@skeletonlabs/skeleton-svelte';
 	import { getContext } from 'svelte';
 	import { type ToastContext } from '@skeletonlabs/skeleton-svelte';
 
 	export const toast: ToastContext = getContext('toast');
+
+	import type { ModalSettings } from '@skeletonlabs/skeleton-svelte';
 	const modalStore = getModalStore();
 
 	// Svelte-dnd-action

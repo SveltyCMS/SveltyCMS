@@ -3,9 +3,8 @@
 @component
 **Autocomplete component for selecting options from a list**
 
-```tsx
+@example
 <Autocomplete options={yourOptions} on:select={handleSelection} />
-```
 
 #### Props
 - `options` {array} - Array of options to be displayed in the dropdown
@@ -84,7 +83,7 @@ Features:
 		id="autocomplete-input"
 		bind:value={keyword}
 		{placeholder}
-		class="input w-full rounded-full border-2 border-white px-5 py-3 uppercase text-white placeholder:text-white"
+		class="input w-full rounded-full border-2 border-white px-5 py-3 text-white uppercase placeholder:text-white"
 		oninput={() => {
 			showDropdown = true;
 			selectedIndex = -1;
@@ -119,7 +118,7 @@ Features:
 
 	<button
 		type="button"
-		class="absolute right-4 top-1/2 -translate-y-1/2 transform text-white"
+		class="absolute top-1/2 right-4 -translate-y-1/2 transform text-white"
 		onclick={toggleDropdown}
 		aria-label={showDropdown ? 'Close options' : 'Show options'}
 	>

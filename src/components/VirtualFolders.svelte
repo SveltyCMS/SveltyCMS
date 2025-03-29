@@ -3,9 +3,9 @@
 @component
 **VirtualFolder component for managing virtual folders in a media gallery**
 
-```tsx
+@example
 <VirtualFolder {currentFolder} />
-```
+
 @props
 - `currentFolder` (object): The currently selected folder.
 
@@ -35,15 +35,19 @@ Features:
 	import { mode } from '@src/stores/collectionStore.svelte';
 	import { get } from 'svelte/store';
 
-	// Toast notifications
-	const toastStore = getToastStore();
+	// Skeleton
+	import { getContext } from 'svelte';
+	import { type ToastContext } from '@skeletonlabs/skeleton-svelte';
 
+	export const toast: ToastContext = getContext('toast');
+
+	// Props
 	interface Props {
-		// Component props and state
 		currentFolder?: { _id: string; name: string; path: string[] } | null;
 	}
 
 	let { currentFolder = null }: Props = $props();
+
 	let folders: Array<{
 		_id: string;
 		name: string;
@@ -74,10 +78,11 @@ Features:
 			}
 		} catch (error) {
 			console.error('Error fetching folders:', error);
-			toastStore.trigger({
-				message: 'Error fetching folders',
-				background: 'preset-filled-error-500',
-				timeout: 3000
+			toast.create({
+				title: 'Error fetching folders',
+				description: 'Error fetching folders',
+				type: 'error',
+				duration: 3000
 			});
 			folders = [];
 		}
@@ -96,11 +101,13 @@ Features:
 			const result = await response.json();
 
 			if (result.success) {
-				toastStore.trigger({
-					message: 'Folder created successfully',
-					background: 'preset-filled-success-500',
-					timeout: 3000
+				toast.create({
+					title: 'Success creating folder',
+					description: 'Folder created successfully',
+					type: 'success',
+					duration: 3000
 				});
+
 				newFolderName = '';
 				await fetchVirtualFolders();
 			} else {
@@ -108,10 +115,11 @@ Features:
 			}
 		} catch (error) {
 			console.error('Error creating folder:', error);
-			toastStore.trigger({
-				message: 'Error creating folder',
-				background: 'preset-filled-error-500',
-				timeout: 3000
+			toast.create({
+				title: 'Error fetching folders',
+				description: 'Error fetching folders',
+				type: 'error',
+				duration: 3000
 			});
 		}
 	}
@@ -127,10 +135,11 @@ Features:
 			const result = await response.json();
 
 			if (result.success) {
-				toastStore.trigger({
-					message: 'Folder updated successfully',
-					background: 'preset-filled-success-500',
-					timeout: 3000
+				toast.create({
+					title: 'Success updating folder',
+					description: 'Folder updated successfully',
+					type: 'success',
+					duration: 3000
 				});
 				await fetchVirtualFolders();
 			} else {
@@ -138,10 +147,11 @@ Features:
 			}
 		} catch (error) {
 			console.error('Error updating folder:', error);
-			toastStore.trigger({
-				message: 'Error updating folder',
-				background: 'preset-filled-error-500',
-				timeout: 3000
+			toast.create({
+				title: 'Error fetching folders',
+				description: 'Error fetching folders',
+				type: 'error',
+				duration: 3000
 			});
 		}
 	}
@@ -157,10 +167,11 @@ Features:
 			const result = await response.json();
 
 			if (result.success) {
-				toastStore.trigger({
-					message: 'Folder deleted successfully',
-					background: 'preset-filled-success-500',
-					timeout: 3000
+				toast.create({
+					title: 'Success deleting folder',
+					description: 'Folder deleted successfully',
+					type: 'success',
+					duration: 3000
 				});
 				await fetchVirtualFolders();
 			} else {
@@ -168,10 +179,11 @@ Features:
 			}
 		} catch (error) {
 			console.error('Error deleting folder:', error);
-			toastStore.trigger({
-				message: 'Error deleting folder',
-				background: 'preset-filled-error-500',
-				timeout: 3000
+			toast.create({
+				title: 'Error fetching folders',
+				description: 'Error fetching folders',
+				type: 'error',
+				duration: 3000
 			});
 		}
 	}

@@ -3,14 +3,14 @@
 @component
 **Enhanced WatermarkEditor component for CMS integration using Tailwind CSS**
 
+@example
+<WatermarkEditor mediaItems={yourMediaItems} />
+
 Features:
 - Selects watermark image from media library
 - Adjusts watermark size, opacity, position, and rotation
 - Provides real-time preview of watermark settings
 - Styled with Tailwind CSS for easy customization
-
-Usage:
-<WatermarkEditor mediaItems={yourMediaItems} />
 -->
 
 <script lang="ts">

@@ -3,11 +3,10 @@
 @component
 **PermissionGuard component for permission-based access control that wraps content with conditional rendering and error handling**
 
-```tsx
+@example
 <PermissionGuard {config}>
 	<ContentToProtect />
 </PermissionGuard>
-```
 
 #### Props:
 - `config`: Permission configuration object

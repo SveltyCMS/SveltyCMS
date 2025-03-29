@@ -3,10 +3,10 @@
 @component
 **Enhanced Permissions Setting Component for managing widget field permissions**
 
-```tsx
+@example
 <PermissionsSetting />
-```
-####	Props:
+
+#### Props
 - `permissions` {object} - The current permissions object
 - `on:update` {function} - A function to update the permissions object
 

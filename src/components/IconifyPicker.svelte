@@ -3,9 +3,8 @@
 @component
 **IconifyPicker component for selecting icons from Iconify libraries**
 
-```tsx
+@example
 <IconifyPicker bind:iconselected />
-```
 
 ### Props
 - `iconselected` {string} - Selected icon name
@@ -15,7 +14,7 @@
 -->
 
 <script lang="ts">
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Import loadIcons function from Iconify Svelte library

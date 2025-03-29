@@ -3,14 +3,18 @@
 @component 
 **Breadcrumb component for navigating through folder hierarchies**
 
+@example
+<Breadcrumb {breadcrumb} {openFolder} {folders} />
+
+#### Props
+- `breadcrumb: string[]` - Array of folder names representing the breadcrumb path
+- `openFolder: (folderId: string | null) => void` - Function to open a folder
+- `folders: Folder[]` - Array of folder objects
+
 Features:
 - Dynamic breadcrumb rendering based on the current path
 - Custom folder opening functionality
 - Home and folder icons for visual clarity
-
-Usage
-<Breadcrumb {breadcrumb} {openFolder} {folders} />
-
 -->
 
 <script lang="ts">
@@ -49,7 +53,7 @@ Usage
 		{#each breadcrumb as crumb, index}
 			<li class="flex items-center">
 				<button
-					class="btn-sm flex items-center text-xs hover:underline focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+					class="btn-sm focus:ring-primary-500 flex items-center text-xs hover:underline focus:ring-2 focus:ring-offset-2 focus:outline-hidden"
 					onclick={() => handleBreadcrumbClick(index)}
 					aria-current={index === breadcrumb.length - 1 ? 'page' : undefined}
 				>

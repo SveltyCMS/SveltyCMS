@@ -3,6 +3,18 @@
 
 @component
 **LeftSidebar component displaying collection fields, publish options and translation status.**
+
+@example
+<LeftSidebar />
+
+#### Props
+- `collection` {object} - Collection object
+- `mode` {object} - The current mode object from the mode store
+
+#### Features
+- Displays collection fields
+- Displays publish options
+- Displays translation status
 -->
 
 <script module lang="ts">

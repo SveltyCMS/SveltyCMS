@@ -3,13 +3,17 @@
 @component
 **Loading component with animated circles and customizable text regions**
 
-```tsx
+@example
 <Loading customTopText="Please wait" customBottomText="Loading..." />
-```
+
 #### Props
 - `customTopText` {string} - Custom text to display above the loading circles
 - `customBottomText` {string} - Custom text to display below the loading circles
 
+Features:
+- Animated loading circles
+- Customizable text regions
+- Uses ParaglideJS for localization
 -->
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
@@ -54,12 +58,12 @@
 	aria-label="Loading content, please wait"
 >
 	{#if isAnimating}
-		<div class="relative h-[150px] w-[150px] rounded-full border-[7px] border-error-500 border-x-transparent" id="loader"></div>
-		<div class="absolute h-[170px] w-[170px] rounded-full border-[6px] border-success-400 border-x-transparent" id="loader2"></div>
-		<div class="absolute h-[190px] w-[190px] rounded-full border-[5px] border-tertiary-400 border-x-transparent" id="loader3"></div>
-		<div class="absolute h-[210px] w-[210px] rounded-full border-[4px] border-surface-400 border-x-transparent" id="loader4"></div>
+		<div class="border-error-500 relative h-[150px] w-[150px] rounded-full border-[7px] border-x-transparent" id="loader"></div>
+		<div class="border-success-400 absolute h-[170px] w-[170px] rounded-full border-[6px] border-x-transparent" id="loader2"></div>
+		<div class="border-tertiary-400 absolute h-[190px] w-[190px] rounded-full border-[5px] border-x-transparent" id="loader3"></div>
+		<div class="border-surface-400 absolute h-[210px] w-[210px] rounded-full border-[4px] border-x-transparent" id="loader4"></div>
 	{/if}
-	<div class="absolute flex flex-col items-center justify-center rounded-full bg-transparent p-6 uppercase text-black dark:text-white">
+	<div class="absolute flex flex-col items-center justify-center rounded-full bg-transparent p-6 text-black uppercase dark:text-white">
 		<div>{customTopText || m.loading_pleasewait()}</div>
 		<div><SveltyCMSLogo className="w-14 p-1" fill="red" /></div>
 		<div>{customBottomText || m.loading_loading()}</div>

@@ -3,15 +3,19 @@
 @component
 **PasswordStrength component for password and confirm password fields using Tailwind CSS**
 
+@example
+<PasswordStrength password={formData.password} confirmPassword={formData.confirmPassword} />
+
+## Props
+- `password` {string} - Password value
+- `confirmPassword` {string} - Confirm password value	
+
 @Features
 - Displays password strength based on length
 - Works with both password and confirm password fields
 - Shows strength indicator only once
 - Customizable minimum password length and strength thresholds
 - Responsive design with color-coded feedback
-
-@usage
-<PasswordStrength password={formData.password} confirmPassword={formData.confirmPassword} />
 -->
 
 <script lang="ts">

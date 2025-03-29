@@ -12,6 +12,7 @@
 	import html from 'shiki/langs/html.mjs';
 	import css from 'shiki/langs/css.mjs';
 	import js from 'shiki/langs/javascript.mjs';
+	import json from 'shiki/langs/json.mjs';
 
 	// https://shiki.style/guide/sync-usage
 	const shiki = createHighlighterCoreSync({
@@ -19,7 +20,7 @@
 		// Implement your import theme.
 		themes: [themeDarkPlus],
 		// Implement your imported and supported languages.
-		langs: [console, html, css, js]
+		langs: [console, html, css, js, json]
 	});
 </script>
 

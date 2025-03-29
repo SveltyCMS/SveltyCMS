@@ -3,9 +3,8 @@
 @component
 **EntryList_MultiButton component for creating, publishing, unpublishing, scheduling, cloning, deleting and testing entries.**
 
-```tsx
+@example
 <EntryList_MultiButton />
-```
 
 #### Props
 - `isCollectionEmpty` {boolean} - Boolean value indicating whether the collection is empty
@@ -16,6 +15,11 @@
 - `on:clone` {function} - Function to call when the clone button is clicked
 - `on:delete` {function} - Function to call when the delete button is clicked
 - `on:test` {function} - Function to call when the test button is clicked
+
+Features:
+- Dynamic button rendering based on the collection state
+- Dropdown menu for creating, publishing, unpublishing, scheduling, cloning, deleting and testing entries
+- Conditional rendering of buttons based on the collection state
 -->
 
 <script lang="ts">

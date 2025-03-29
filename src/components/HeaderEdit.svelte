@@ -10,7 +10,6 @@
  @example
  <HeaderEdit />
 
-
  #### Props:
  - `collection` {object} - Collection object
 
@@ -315,7 +314,7 @@
 <header
 	class="sticky top-0 z-10 flex w-full items-center justify-between {showMore
 		? ''
-		: 'border-b'} border-secondary-700-300 bg-white p-2 dark:bg-surface-700"
+		: 'border-b'} border-secondary-700-300 dark:bg-surface-700 bg-white p-2"
 >
 	<div class="flex items-center justify-start">
 		<!-- Hamburger -->
@@ -324,7 +323,7 @@
 				type="button"
 				onclick={() => toggleSidebar('left', $screenSize === 'lg' ? 'full' : 'collapsed')}
 				aria-label="Toggle Sidebar"
-				class="preset-tonal-surface border border-surface-500 btn-icon mt-1"
+				class="preset-tonal-surface border-surface-500 btn-icon mt-1 border"
 			>
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
@@ -340,10 +339,10 @@
 
 			{#if collection.value?.name}
 				<div class="ml-2 flex flex-col text-left text-gray-400 dark:text-gray-300">
-					<div class="text-sm font-bold uppercase text-tertiary-500 dark:text-primary-500">{mode.value}:</div>
+					<div class="text-tertiary-500 dark:text-primary-500 text-sm font-bold uppercase">{mode.value}:</div>
 					<div class="text-xs capitalize">
 						{categoryName}
-						<span class="uppercase text-tertiary-500 dark:text-primary-500">{collection.value.name}</span>
+						<span class="text-tertiary-500 dark:text-primary-500 uppercase">{collection.value.name}</span>
 					</div>
 				</div>
 			{/if}
@@ -380,7 +379,12 @@
 				{/if}
 
 				<!-- DropDown to show more Buttons -->
-				<button type="button" onclick={() => (showMore = !showMore)} aria-label="Show more" class="preset-tonal-surface border border-surface-500 btn-icon">
+				<button
+					type="button"
+					onclick={() => (showMore = !showMore)}
+					aria-label="Show more"
+					class="preset-tonal-surface border-surface-500 btn-icon border"
+				>
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30"></iconify-icon>
 				</button>
 			{/if}
@@ -393,11 +397,11 @@
 
 		<!-- Cancel/Reload -->
 		{#if !$headerActionButton}
-			<button type="button" onclick={handleCancel} aria-label="Cancel" class="preset-tonal-surface border border-surface-500 btn-icon">
+			<button type="button" onclick={handleCancel} aria-label="Cancel" class="preset-tonal-surface border-surface-500 btn-icon border">
 				<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 			</button>
 		{:else}
-			<button type="button" onclick={handleReload} aria-label="Reload" class="preset-tonal-surface border border-surface-500 btn-icon">
+			<button type="button" onclick={handleReload} aria-label="Reload" class="preset-tonal-surface border-surface-500 btn-icon border">
 				<iconify-icon icon="fa:refresh" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 			</button>
 		{/if}
@@ -490,7 +494,7 @@
 
 			<!-- Schedule Info -->
 			{#if schedule}
-				<div class="mt-2 text-sm text-tertiary-500">
+				<div class="text-tertiary-500 mt-2 text-sm">
 					Will be published on {new Date(schedule).toLocaleString()}
 				</div>
 			{/if}

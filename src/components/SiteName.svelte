@@ -3,11 +3,11 @@
 @component
 **SiteName component for displaying the site name**
 
-```tsx
-<SiteName  char="CMS" />
-```
+@example
+<SiteName char="CMS" />
+
 #### Props
-- `char` {string} - Character to be used to highlight the site name
+- `char` {string | null} [optional] - Character or substring to potentially highlight within the site name. Defaults to null.
 -->
 
 <script lang="ts">
@@ -17,36 +17,33 @@
 		char?: string | null;
 	}
 
+	// Props
 	let { char = null }: Props = $props();
 
-	const siteName = publicEnv.SITE_NAME;
-	const targetSiteName = 'SveltyCMS';
-
-	let mainPart = $state(siteName);
-	let lastPart = $state('');
-
-	if (siteName === targetSiteName) {
-		mainPart = siteName.slice(0, -3); // Get everything except the last character
-		lastPart = siteName.slice(-3); // Get only the last CMS characters
-	}
+	// Constants
+	const siteName = publicEnv.SITE_NAME; // Site name from public environment
+	const targetSiteName = 'SveltyCMS'; // Target site name
+	const isTargetSiteName = siteName === targetSiteName; // Check if siteName is 'SveltyCMS'
+	const mainPart = isTargetSiteName ? siteName.slice(0, -3) : siteName; // Get 'Svelty' or full name
+	const lastPart = isTargetSiteName ? siteName.slice(-3) : ''; // Get 'CMS' or empty string
+	const highlightChar = char !== null && isTargetSiteName && lastPart.includes(char); // Check if char is in 'CMS'
 </script>
 
-{#if char !== null}
-	<span class="font-bold">
-		{#if siteName === targetSiteName && mainPart.includes(char)}
-			{char}
-		{:else if siteName === targetSiteName && lastPart.includes(char)}
+<span class="font-bold">
+	{#if char !== null}
+		<!-- All cases where char is provided -->
+		{#if highlightChar}
+			<!-- Highlight the character if it's in 'CMS' -->
 			<span class="text-primary-500">{char}</span>
 		{:else}
+			<!-- Display the character normally if it's not in 'CMS' -->
 			{char}
 		{/if}
-	</span>
-{:else}
-	<span class="font-bold">
-		{#if siteName === targetSiteName}
-			{mainPart}<span class="text-primary-500">{lastPart}</span>
-		{:else}
-			{siteName}
-		{/if}
-	</span>
-{/if}
+	{:else if isTargetSiteName}
+		<!-- No char provided, but it's the target site name -->
+		{mainPart}<span class="text-primary-500">{lastPart}</span>
+	{:else}
+		<!-- Display the full site name -->
+		{siteName}
+	{/if}
+</span>

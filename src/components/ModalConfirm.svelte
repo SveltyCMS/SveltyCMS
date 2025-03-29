@@ -5,12 +5,16 @@
 
 Prompts the user to confirm deletion with customizable title, body, and button text. Optimized for accessibility and reusability.
 
-@props
+### Props
 - `user` {object} - User object to delete (required)
 - `title` {string} - Modal title (default: 'Confirm Deletion')
 - `body` {string} - Modal body text (default: 'Are you sure you want to delete this user?')
 - `buttonTextCancel` {string} - Cancel button text (default: 'Cancel')
 - `buttonTextConfirm` {string} - Confirm button text (default: 'Delete User')
+
+Features:
+- Accessibility and reusability
+- Customizable title, body, and button text
 -->
 
 <script lang="ts">

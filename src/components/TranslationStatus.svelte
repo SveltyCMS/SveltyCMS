@@ -3,9 +3,8 @@
  @component
  **Translation status component for displaying translation progress per language in a progress bar with percentage.**
 
- ```tsx
- <TranslationStatus />	
- ```	
+@example
+ <TranslationStatus />		
 
  ### Props:
  - `mode` {object} - The current mode object from the mode store
@@ -85,17 +84,17 @@
 		<div>
 			<button
 				type="button"
-				class="inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-xs hover:bg-gray-50 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-100"
+				class="inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-xs hover:bg-gray-50 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-100 focus:outline-hidden"
 				onclick={toggleDropdown}
 			>
 				{contentLanguage.value.toUpperCase()}
 				<iconify-icon icon="mdi:chevron-down" class="-mr-1 ml-2 h-5 w-5" aria-hidden="true"></iconify-icon>
 			</button>
-			<Progress class="mt-1" value={completionStatus} meter={getColor(completionStatus)} />
+			<Progress value={completionStatus} meterBg={getColor(completionStatus)} />
 		</div>
 
 		{#if isOpen}
-			<div class="absolute right-0 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5">
+			<div class="ring-opacity-5 absolute right-0 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black">
 				<div class="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
 					{#each publicEnv.AVAILABLE_CONTENT_LANGUAGES as lang (lang)}
 						<button
@@ -110,16 +109,15 @@
 							</div>
 							{#if translationProgress()[lang as AvailableLanguageTag]}
 								<Progress
-									class="mt-1"
 									value={getLanguageProgress(lang as AvailableLanguageTag)}
-									meter={getColor(getLanguageProgress(lang as AvailableLanguageTag))}
+									meterBg={getColor(getLanguageProgress(lang as AvailableLanguageTag))}
 								/>
 							{/if}
 						</button>
 					{/each}
 					<div class="border-t px-4 py-2">
 						{m.translationsstatus_completed()}{completionStatus}%
-						<Progress class="mt-1" value={completionStatus} meter={getColor(completionStatus)} />
+						<Progress value={completionStatus} meterBg={getColor(completionStatus)} />
 					</div>
 				</div>
 			</div>

@@ -3,14 +3,14 @@
 @component
 **Enhanced WatermarkSelector component for selecting watermark images**
 
+@example:
+<WatermarkSelector {mediaItems} bind:selectedMedia {onSelect} />
+
 Features:
 - Displays a grid of selectable watermark images
 - Handles keyboard navigation and selection
 - Visually indicates the selected image
 - Fully accessible with proper ARIA attributes
-
-Usage:
-<WatermarkSelector {mediaItems} bind:selectedMedia {onSelect} />
 -->
 
 <script lang="ts">
@@ -43,7 +43,7 @@ Usage:
 	{#each mediaItems as media, index}
 		<button
 			type="button"
-			class="cursor-pointer overflow-hidden rounded-md focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+			class="focus:ring-opacity-50 cursor-pointer overflow-hidden rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
 			onclick={() => handleSelect(media)}
 			onkeydown={(e) => handleKeydown(e, media)}
 			aria-checked={media === selectedMedia}

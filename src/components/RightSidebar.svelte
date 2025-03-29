@@ -3,12 +3,17 @@
 @component
 **RightSidebar component displaying collection fields, publish options and translation status.**
 
-```tsx
+@example
 <RightSidebar />	
-```	
+
 #### Props
 - `collection` {object} - Collection object
+- `mode` {object} - The current mode object from the mode store
 
+#### Features
+- Displays collection fields
+- Displays publish options
+- Displays translation status
 -->
 
 <script lang="ts">
@@ -239,7 +244,7 @@
 
 			<!-- Publish Options -->
 			<main class="mt-2 flex w-full flex-col items-center justify-center gap-2 text-left dark:text-white">
-				<p class="w-full border-b text-center font-bold uppercase text-tertiary-500 dark:text-primary-500">{m.siedabar_publish_options()}</p>
+				<p class="text-tertiary-500 dark:text-primary-500 w-full border-b text-center font-bold uppercase">{m.siedabar_publish_options()}</p>
 
 				<!-- Scheduled on -->
 				<div class="mt-2 flex w-full flex-col items-start justify-center">
@@ -249,7 +254,7 @@
 					<button
 						onclick={openScheduleModal}
 						aria-label="Schedule publication"
-						class="preset-filled-surface-500 btn w-full text-tertiary-500 dark:text-primary-500"
+						class="preset-filled-surface-500 btn text-tertiary-500 dark:text-primary-500 w-full"
 					>
 						{schedule ? new Date(schedule).toLocaleString() : 'Schedule publication'}
 					</button>
@@ -269,14 +274,14 @@
 				<!-- User Info -->
 				<div class="mt-2 flex w-full flex-col items-start justify-center">
 					<p class="mb-1">{m.sidebar_createdby()}:</p>
-					<div class="preset-filled-surface-500 w-full p-2 text-center text-tertiary-500 dark:text-primary-500">
+					<div class="preset-filled-surface-500 text-tertiary-500 dark:text-primary-500 w-full p-2 text-center">
 						{collectionValue.value.createdBy || user.username}
 					</div>
 
 					{#if collectionValue.value.updatedBy}
 						<p class="mt-1">Last updated by:</p>
 
-						<div class="preset-filled-surface-500 w-full p-2 text-center text-tertiary-500 dark:text-primary-500">
+						<div class="preset-filled-surface-500 text-tertiary-500 dark:text-primary-500 w-full p-2 text-center">
 							{collectionValue.value.updatedBy || user.username}
 						</div>
 					{/if}
@@ -284,17 +289,17 @@
 			</main>
 
 			{#if mode.value === 'create'}
-				<p class="mb-2 text-center text-tertiary-500 dark:text-primary-500">
+				<p class="text-tertiary-500 dark:text-primary-500 mb-2 text-center">
 					{new Date().toLocaleString(languageTag(), { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
 				</p>
 			{:else if dates}
-				<footer class="mb-1 mt-2">
+				<footer class="mt-2 mb-1">
 					{#each Object.entries(dates) as [key, value]}
 						<div class="flex items-center justify-center gap-2 text-[12px]">
 							<!-- Labels -->
 							<div class="capitalize">{key}:</div>
 							<!-- Data -->
-							<div class="font-bold text-tertiary-500 dark:text-primary-500">{value}</div>
+							<div class="text-tertiary-500 dark:text-primary-500 font-bold">{value}</div>
 						</div>
 					{/each}
 				</footer>

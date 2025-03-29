@@ -3,13 +3,13 @@
 @component
 **Enhanced WatermarkSettings component for CMS integration**
 
+@example:
+<WatermarkSettings bind:size bind:opacity bind:positionX bind:positionY bind:rotation />
+
 Features:
 - Adjusts watermark size, opacity, position, and rotation
 - Improved accessibility with aria-labels
 - Responsive grid layout for controls
-
-Usage:
-<WatermarkSettings bind:size bind:opacity bind:positionX bind:positionY bind:rotation />
 -->
 
 <script lang="ts">

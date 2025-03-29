@@ -1,16 +1,15 @@
 <!--
 @file src/components/Fields.svelte
 @component
-**Fields component that renders collection fields to enter/edit & display data per language**
-revision management, live preview, and API data display. 
+**Fields component that renders collection fields to enter/edit & display data per language revision management, live preview, and API data display.**
 
-```tsx
+@example
 <Fields />
-```
 #### Props
 - `fields` {NonNullable<typeof collection.value>['fields']} - Collection fields
 - `ariaInvalid` {boolean} - Aria-invalid attribute for accessibility
 - `ariaDescribedby` {string} - Aria-describedby attribute for accessibility
+
 Key features:
 - Dynamic field rendering based on collection schema
 - Tab-based interface for different views (Edit, Revision, Live Preview, API)
@@ -39,8 +38,10 @@ Key features:
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	import CodeBlock from './system/codeblock/CodeBlock.svelte';
+	import { Tabs } from '@skeletonlabs/skeleton-svelte';
+
+	let group = $state('tabs');
 
 	// Props
 	interface Props {
@@ -123,16 +124,7 @@ Key features:
 
 {#if isLoading}
 	<div class="loading">Loading fields...</div>
-	<Tabs
-		justify="{collection.value?.revision === true ? 'justify-between md:justify-around' : 'justify-center '} items-center"
-		rounded="rounded-tl-container rounded-tr-container"
-		flex="flex-1 items-center"
-		active="border-b border-tertiary-500 dark:border-primary-500"
-		hover="hover:bg-surface-100 dark:hover:bg-surface-800"
-		regionList={getTabHeaderVisibility() ? 'hidden' : ''}
-		value={tabSet}
-		onValueChange={(e) => (tabSet = e.value)}
-	>
+	<Tabs value={group} onValueChange={(e) => (group = e.value)}>
 		{#snippet list()}
 			<Tabs.Control value={0}>
 				<div class="flex items-center gap-1">
@@ -257,14 +249,7 @@ Key features:
 					<!-- Current version -->
 					<div class="w-full text-center">
 						<p class="mb-4 sm:mb-0">{m.fields_revision_current_version()}</p>
-						<CodeBlock
-							language="JSON"
-							rounded="rounded-container"
-							lineNumbers={true}
-							text="text-xs text-left w-full"
-							buttonLabel=""
-							code={JSON.stringify(collectionValue.value, null, 2)}
-						/>
+						<CodeBlock lang="js" rounded="rounded-container" code={JSON.stringify(collectionValue.value, null, 2)} />
 					</div>
 					<div
 						class="ml-1 min-h-[1em] w-px self-stretch bg-linear-to-tr from-transparent via-neutral-500 to-transparent opacity-20 dark:opacity-100"
@@ -272,14 +257,7 @@ Key features:
 					<!-- Revision version -->
 					<div class="ml-1 w-full text-left">
 						<p class="text-tertiary-500 text-center">February 19th 2024, 4:00 PM</p>
-						<CodeBlock
-							color="text-white dark:text-primary-500"
-							language="JSON"
-							lineNumbers={true}
-							text="text-xs text-left text-white dark:text-tertiary-500"
-							buttonLabel=""
-							code={JSON.stringify(collectionValue.value, null, 2)}
-						/>
+						<CodeBlock lang="json" buttonLabel="" code={JSON.stringify(collectionValue.value, null, 2)} />
 					</div>
 				</div>
 			{:else if tabSet === 2 && collection.value?.livePreview === true}
@@ -298,21 +276,14 @@ Key features:
 					<div class="wrapper relative z-0 mb-4 flex w-full items-center justify-start gap-1">
 						<p class="flex items-center">
 							<span class="mr-1">API URL:</span>
-							<iconify-icon icon="ph:copy" use:clipboard={apiUrl} class="text-tertiary-500 dark:text-primary-500 pb-6"> </iconify-icon>
+							<iconify-icon icon="ph:copy" useclipboard={apiUrl} class="text-tertiary-500 dark:text-primary-500 pb-6"> </iconify-icon>
 						</p>
 						<button class="btn text-left text-wrap" onclick={() => window.open(apiUrl, '_blank')} title={apiUrl}>
 							<span class="text-tertiary-500 dark:text-primary-500 text-wrap">{apiUrl}</span>
 						</button>
 					</div>
 
-					<CodeBlock
-						color="text-white dark:text-primary-500"
-						language="JSON"
-						lineNumbers={true}
-						text="text-xs w-full"
-						buttonLabel="Copy"
-						code={JSON.stringify(collectionValue.value, null, 2)}
-					/>
+					<CodeBlock lang="json" buttonLabel="Copy" code={JSON.stringify(collectionValue.value, null, 2)} />
 				{/if}
 			{/if}
 		{/snippet}

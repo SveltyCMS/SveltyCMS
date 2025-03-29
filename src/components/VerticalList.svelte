@@ -3,9 +3,8 @@
 @component
 **VerticalList component for displaying items in a vertical list with drag-and-drop functionality**
 
-```tsx
+@example
 <VerticalList  items={items}  headers={headers} flipDurationMs={200} handleDndConsider={handleDndConsider} handleDndFinalize={handleDndFinalize}  children={children} />
-```
 
 ### Props
 - `items` {array} - Array of items to be displayed in the list
