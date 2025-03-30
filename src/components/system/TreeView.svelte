@@ -1,17 +1,24 @@
 <!--
-  @file src/routes/TreeView.svelte
-  @component TreeView Component
+@file src/routes/TreeView.svelte
+@component TreeView component to display a tree structure of nodes.
 
-  @description A recursive, accessible tree view component built with Svelte 5 runes.
-  It supports expanding/collapsing nodes, keyboard navigation, and LTR/RTL layouts.
+@example
+<TreeView k={1} nodes={nodes} selectedId={selectedId} ariaLabel="Navigation tree" dir="ltr" />
 
-  @props
-  - k: An arbitrary key (not used in this component, consider removing it).
-  - nodes: An array of TreeNode objects representing the tree structure.
-  - selectedId: (Optional) The ID of the currently selected node.
-  - ariaLabel: (Optional) The ARIA label for the tree element (default: "Navigation tree").
-  - dir: (Optional) The text direction ('ltr' or 'rtl', default: 'ltr').
- -->
+### Props
+- k: An arbitrary key (not used in this component, consider removing it).
+- nodes: An array of TreeNode objects representing the tree structure.
+- selectedId: (Optional) The ID of the currently selected node.
+- ariaLabel: (Optional) The ARIA label for the tree element (default: "Navigation tree").
+- dir: (Optional) The text direction ('ltr' or 'rtl', default: 'ltr').
+
+### Features
+- Recursive rendering of tree nodes.
+- Keyboard navigation for expanding/collapsing nodes.
+- Focus handling for keyboard navigation.
+- Search functionality for filtering nodes.
+- ARIA attributes for accessibility.
+-->
 
 <script lang="ts" module>
 	// Define the structure of a tree node
@@ -187,7 +194,12 @@
 	});
 </script>
 
-<ul role="tree" aria-label={ariaLabel} {dir} class="rtl:space-x-revert custom-scrollbar max-h-[80vh] w-full space-y-1 overflow-y-auto">
+<ul
+	role="tree"
+	aria-label={ariaLabel}
+	{dir}
+	class="rtl:space-x-revert scrollbar-thin scrollbar-track-transparent scrollbar-thumb-green-500 max-h-[80vh] w-full space-y-1 overflow-y-auto"
+>
 	{#each filteredNodes as node (node.id)}
 		<li
 			role="treeitem"
@@ -270,27 +282,3 @@
 		</li>
 	{/each}
 </ul>
-
-<style lang="postcss">
-	/* :global(.focused-label) {
-		@apply text-primary-400;
-	} */
-
-	.custom-scrollbar {
-		scrollbar-width: thin;
-		scrollbar-color: red transparent;
-	}
-
-	.custom-scrollbar::-webkit-scrollbar {
-		width: 6px;
-	}
-
-	.custom-scrollbar::-webkit-scrollbar-track {
-		background: transparent;
-	}
-
-	.custom-scrollbar::-webkit-scrollbar-thumb {
-		background-color: green;
-		border-radius: 3px;
-	}
-</style>

@@ -197,7 +197,7 @@
 	<div class="md:hidden">
 		<h3 class="mb-2 text-center">{m.widget_seo_suggestionlist()}</h3>
 		<div class="flex items-center justify-around">
-			<ProgressRing value={progress} stroke={200} meter="stroke-primary-500" width="w-20 sm:w-28" class="mr-6 mt-1 text-white">
+			<ProgressRing value={progress} stroke={200} meter="stroke-primary-500" width="w-20 sm:w-28" class="mt-1 mr-6 text-white">
 				{progress}%
 			</ProgressRing>
 			<div class="flex flex-col items-center justify-start text-xs sm:text-sm">
@@ -225,7 +225,7 @@
 	<!-- Desktop ProgressRadial display -->
 	<div class="hidden md:block">
 		<div class="mt-2 flex items-center justify-center dark:text-white">
-			<ProgressRing value={progress} stroke={200} meter="stroke-primary-500" class="mr-6 mt-1 w-20 text-2xl text-white">
+			<ProgressRing value={progress} stroke={200} meter="stroke-primary-500" class="mt-1 mr-6 w-20 text-2xl text-white">
 				{progress}%
 			</ProgressRing>
 			<div class="mb-2">
@@ -269,13 +269,13 @@
 
 	<!-- Error Message -->
 	{#if validationError}
-		<p id={`${field.db_fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+		<p id={`${field.db_fieldName}-error`} class="text-error-500 absolute bottom-[-1rem] left-0 w-full text-center text-xs" role="alert">
 			{validationError}
 		</p>
 	{/if}
 </div>
 
-<style lang="postcss">
+<style>
 	.input-container {
 		min-height: 2.5rem;
 	}

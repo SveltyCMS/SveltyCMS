@@ -181,8 +181,8 @@
 
 <div class="input-container relative mb-4">
 	{#if !expanded && !showDropDown}
-		<div class="relative mb-1 flex w-screen min-w-[200px] max-w-full items-center justify-start gap-0.5 rounded-sm border py-1 pl-10 pr-2">
-			<button class="grow text-center dark:text-primary-500" onclick={openDropDown} aria-haspopup="listbox" aria-expanded={showDropDown}>
+		<div class="relative mb-1 flex w-screen max-w-full min-w-[200px] items-center justify-start gap-0.5 rounded-sm border py-1 pr-2 pl-10">
+			<button class="dark:text-primary-500 grow text-center" onclick={openDropDown} aria-haspopup="listbox" aria-expanded={showDropDown}>
 				{@html selected?.display || display || 'select new'}
 			</button>
 
@@ -225,13 +225,13 @@
 
 	<!-- Error Message -->
 	{#if validationError}
-		<p id={`${field.db_fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+		<p id={`${field.db_fieldName}-error`} class="text-error-500 absolute bottom-[-1rem] left-0 w-full text-center text-xs" role="alert">
 			{validationError}
 		</p>
 	{/if}
 </div>
 
-<style lang="postcss">
+<style>
 	.input-container {
 		min-height: 2.5rem;
 	}

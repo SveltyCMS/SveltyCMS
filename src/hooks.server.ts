@@ -222,7 +222,6 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 	event.startTime = performance.now();
 
 	try {
-
 		await dbInitPromise; // Ensure DB is ready first
 
 		const session_id = event.cookies.get(SESSION_COOKIE_NAME);

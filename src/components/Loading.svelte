@@ -70,7 +70,7 @@ Features:
 	</div>
 </div>
 
-<style lang="postcss">
+<style>
 	#loader {
 		animation: rotate 3s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
 	}

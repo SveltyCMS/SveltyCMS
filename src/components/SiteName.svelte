@@ -8,6 +8,10 @@
 
 #### Props
 - `char` {string | null} [optional] - Character or substring to potentially highlight within the site name. Defaults to null.
+
+### Features
+- Conditionally highlights a character within the site name if provided
+- Handles cases where the site name is not 'SveltyCMS'
 -->
 
 <script lang="ts">

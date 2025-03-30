@@ -3,7 +3,17 @@
 @component 
 **Popover component**
 
-@features:
+@example
+<Popover trigger={() => <button>Trigger</button>} content={() => <div>Content</div>} />
+
+### Props:
+- trigger: () => any
+- content: () => any
+- position: 'top' | 'right' | 'bottom' | 'left'
+- closeOnClickOutside: boolean
+- maxWidth: string
+
+### Features:
 - Popover component
 - Trigger
 - Content

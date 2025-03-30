@@ -36,7 +36,7 @@ Features:
 	}
 </script>
 
-<label for="toggleSwitch{random}" class="text-dark flex cursor-pointer select-none items-center text-white">
+<label for="toggleSwitch{random}" class="text-dark flex cursor-pointer items-center text-white select-none">
 	<span class="mr-3 flex items-center gap-2 capitalize {value ? 'text-primary-500' : labelColor}">
 		{label}
 	</span>
@@ -45,7 +45,7 @@ Features:
 		<input name={label} type="checkbox" id="toggleSwitch{random}" checked={value} class="peer sr-only" onclick={handleToggle} />
 
 		<!-- Background -->
-		<div class="block h-8 w-14 rounded-full bg-surface-400 peer-checked:bg-primary-500">
+		<div class="bg-surface-400 peer-checked:bg-primary-500 block h-8 w-14 rounded-full">
 			<span
 				class={`absolute inset-0 flex items-center justify-end rounded-full border-2 pr-[25px] text-right text-white ${value ? 'text-right' : 'text-left'}`}
 			>
@@ -55,7 +55,7 @@ Features:
 
 		<!-- Icon with background color -->
 		<div
-			class="absolute left-1 top-1 flex h-6 w-6 items-center justify-end rounded-full bg-error-500 transition peer-checked:translate-x-6 peer-checked:bg-primary-900"
+			class="bg-error-500 peer-checked:bg-primary-900 absolute top-1 left-1 flex h-6 w-6 items-center justify-end rounded-full transition peer-checked:translate-x-6"
 		>
 			{#if value}
 				<iconify-icon icon={iconOn} width="24"></iconify-icon>

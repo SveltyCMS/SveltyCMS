@@ -6,12 +6,12 @@
 @example
 <Breadcrumb {breadcrumb} {openFolder} {folders} />
 
-#### Props
+### Props
 - `breadcrumb: string[]` - Array of folder names representing the breadcrumb path
 - `openFolder: (folderId: string | null) => void` - Function to open a folder
 - `folders: Folder[]` - Array of folder objects
 
-Features:
+### Features:
 - Dynamic breadcrumb rendering based on the current path
 - Custom folder opening functionality
 - Home and folder icons for visual clarity

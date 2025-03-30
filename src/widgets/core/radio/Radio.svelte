@@ -105,7 +105,7 @@
 			onblur={validateInput}
 			color={field.color}
 			required={field?.required}
-			class="input float-left mr-4 mt-1 h-4 w-4 cursor-pointer appearance-none rounded-full border border-surface-300 bg-white bg-contain bg-center bg-no-repeat align-top text-black transition duration-200 checked:border-tertiary-600 checked:bg-tertiary-600 focus:outline-hidden dark:text-white"
+			class="input border-surface-300 checked:border-tertiary-600 checked:bg-tertiary-600 float-left mt-1 mr-4 h-4 w-4 cursor-pointer appearance-none rounded-full border bg-white bg-contain bg-center bg-no-repeat align-top text-black transition duration-200 focus:outline-hidden dark:text-white"
 			aria-describedby={validationError ? `${fieldName}-error` : undefined}
 			data-testid="radio-input"
 		/>
@@ -118,7 +118,7 @@
 			placeholder="Define Label"
 			bind:value={_data[_language]}
 			required={field?.required}
-			class="input w-full text-black dark:text-primary-500"
+			class="input dark:text-primary-500 w-full text-black"
 			class:error={!!validationError}
 			aria-labelledby={`label-${fieldName}`}
 			aria-required={field?.required}
@@ -127,13 +127,13 @@
 
 	<!-- Error Message -->
 	{#if validationError}
-		<p id={`${field.db_fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+		<p id={`${field.db_fieldName}-error`} class="text-error-500 absolute bottom-[-1rem] left-0 w-full text-center text-xs" role="alert">
 			{validationError}
 		</p>
 	{/if}
 </div>
 
-<style lang="postcss">
+<style>
 	.input-container {
 		min-height: 2.5rem;
 	}

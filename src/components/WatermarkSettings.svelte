@@ -6,7 +6,14 @@
 @example:
 <WatermarkSettings bind:size bind:opacity bind:positionX bind:positionY bind:rotation />
 
-Features:
+### Props:
+- `size` {string}: Watermark size (default: '100%')
+- `opacity` {number}: Watermark opacity (default: 1)
+- `positionX` {number}: X position of watermark (default: 0)
+- `positionY` {number}: Y position of watermark (default: 0)
+- `rotation` {number}: Rotation of watermark (default: 0)
+
+### Features:
 - Adjusts watermark size, opacity, position, and rotation
 - Improved accessibility with aria-labels
 - Responsive grid layout for controls

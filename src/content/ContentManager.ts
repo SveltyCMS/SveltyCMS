@@ -61,7 +61,6 @@ class ContentManager {
 	private contentStructure: Record<string, ContentStructureNode> = {}; // Flat structure lookup by path
 	private nestedContentStructure: ContentStructureNode[] = []; // Hierarchical structure
 
-
 	static getInstance(): ContentManager {
 		if (!ContentManager.instance) {
 			ContentManager.instance = new ContentManager();
@@ -95,7 +94,7 @@ class ContentManager {
 			// This signifies a fundamental loading order issue if db.ts hasn't exported the promise yet.
 			logger.error('CRITICAL: dbInitPromise was not available when ContentManager needed it.');
 			// Adding a small delay and recheck is unlikely to help if the import itself failed or module evaluation order is wrong.
-			await new Promise(resolve => setTimeout(resolve, 300)); // Small delay, then recheck
+			await new Promise((resolve) => setTimeout(resolve, 300)); // Small delay, then recheck
 			if (!dbInitPromise) {
 				throw new Error('Database initialization promise (dbInitPromise) could not be accessed.');
 			} else {
@@ -103,7 +102,6 @@ class ContentManager {
 			}
 		}
 	}
-
 
 	// Initializes the ContentManager. Waits for DB, loads collections, builds structure.
 	public async initialize(): Promise<void> {
@@ -115,7 +113,7 @@ class ContentManager {
 			logger.debug('ContentManager initialization already in progress. Waiting...');
 			// Simple wait loop - consider a more robust promise-based approach if needed
 			while (this.initializing) {
-				await new Promise(resolve => setTimeout(resolve, 100));
+				await new Promise((resolve) => setTimeout(resolve, 100));
 			}
 			logger.debug('ContentManager initialization finished by other process.');
 			return; // Return if already initialized by the other process
@@ -143,7 +141,6 @@ class ContentManager {
 			// 4. Mark as initialized
 			this.initialized = true;
 			logger.info('ContentManager Initialized Successfully.');
-
 		} catch (error) {
 			logger.error('ContentManager Initialization Failed:', error);
 			this.initialized = false; // Ensure state reflects failure
@@ -170,7 +167,7 @@ class ContentManager {
 		}
 		// Check again in case initialization failed
 		if (!this.initialized) {
-			throw new Error("ContentManager failed to initialize. Cannot get collection data.");
+			throw new Error('ContentManager failed to initialize. Cannot get collection data.');
 		}
 		return {
 			collectionMap: this.collectionMap, // Map<id, Schema>
@@ -238,7 +235,6 @@ class ContentManager {
 		}
 	}
 
-
 	// Gets the database model associated with a collection ID.
 	public getCollectionModelById(id: string): CollectionModel | null {
 		if (!this.initialized) {
@@ -258,26 +254,26 @@ class ContentManager {
 		if (!this.initialized) {
 			logger.warn('getContentStructureMap called before initialization. Attempting lazy init...');
 			await this.initialize();
-			if (!this.initialized) throw new Error("ContentManager failed to initialize. Cannot get structure map.");
+			if (!this.initialized) throw new Error('ContentManager failed to initialize. Cannot get structure map.');
 		}
 		// Return a copy to prevent external modification
 		return new Map(Object.entries(this.contentStructure));
 	}
-
 
 	// --- Core Logic Methods (Private/Protected) ---
 
 	// Loads collection schemas from compiled files, creates DB models, and caches.
 	private async loadCollections(): Promise<Schema[]> {
 		// Assumes dbAdapter is ready because initialize() waited. Add check for safety.
-		if (!dbAdapter) throw new Error("dbAdapter not available in loadCollections");
+		if (!dbAdapter) throw new Error('dbAdapter not available in loadCollections');
 
 		logger.debug('Loading collections from compiled files...');
 
 		const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
 		logger.debug(`Compiled directory path: ${compiledDirectoryPath}`);
 
-		try { // START of main try block
+		try {
+			// START of main try block
 			const files = await this.getCompiledCollectionFiles(compiledDirectoryPath);
 			logger.debug(`Found ${files.length} potential compiled files:`, files);
 
@@ -293,7 +289,8 @@ class ContentManager {
 			// START OF LOOP
 			for (const filePath of files) {
 				logger.debug(`Processing file: \x1b[34m${filePath}\x1b[0m`);
-				try { // Inner try for single file
+				try {
+					// Inner try for single file
 					const content = await this.readFile(filePath);
 					const moduleData = await processModule(content);
 
@@ -328,11 +325,10 @@ class ContentManager {
 
 					logger.debug(
 						`Derived path: \x1b[34m${derivedPath}\x1b[0m, ` +
-						`File Name Based: \x1b[33m${fileNameBasedName}\x1b[0m, ` +
-						`Final name for \x1b[36m${filePath}\x1b[0m: \x1b[32m${finalName}\x1b[0m, ` +
-						`Final path: \x1b[35m${finalPath}\x1b[0m`
+							`File Name Based: \x1b[33m${fileNameBasedName}\x1b[0m, ` +
+							`Final name for \x1b[36m${filePath}\x1b[0m: \x1b[32m${finalName}\x1b[0m, ` +
+							`Final path: \x1b[35m${finalPath}\x1b[0m`
 					);
-
 
 					// Basic validation / Defaulting using fallbacks
 					const processedSchema: Schema = {
@@ -350,10 +346,9 @@ class ContentManager {
 						strict: schema.strict ?? true,
 						revision: schema.revision ?? false,
 						description: schema.description || '',
-						translations: schema.translations || [],
+						translations: schema.translations || []
 					};
 					// --- MODIFICATION END ---
-
 
 					// Create DB Model
 					const model = await dbAdapter.createCollectionModel(processedSchema as CollectionData);
@@ -372,8 +367,8 @@ class ContentManager {
 					// Update memory cache
 					this.collectionCache.set(processedSchema._id, { value: processedSchema, timestamp: Date.now() });
 					this.trimCache(this.collectionCache);
-
-				} catch (err) { // Catch for processing a single file
+				} catch (err) {
+					// Catch for processing a single file
 					logger.error(`Failed to process collection file ${filePath}:`, err);
 					continue; // Skip this file on error
 				}
@@ -397,8 +392,8 @@ class ContentManager {
 
 			// Return is inside the try block
 			return this.loadedCollections;
-
-		} catch (err) { // CATCH for main try block
+		} catch (err) {
+			// CATCH for main try block
 			const errorMessage = err instanceof Error ? err.message : String(err);
 			logger.error(`Failed to load collections: ${errorMessage}`);
 
@@ -441,7 +436,6 @@ class ContentManager {
 			await this.updateContentStructure();
 
 			logger.info('Collections and content structure updated successfully.');
-
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : String(err);
 			logger.error(`Error in updateCollections: ${errorMessage}`);
@@ -449,7 +443,6 @@ class ContentManager {
 			throw new Error(`Failed to update collections: ${errorMessage}`);
 		}
 	}
-
 
 	/**
 	 * Builds the flat and nested content structure based on loaded collections.
@@ -459,7 +452,7 @@ class ContentManager {
 	// Create categories with Redis caching
 	private async updateContentStructure(): Promise<void> {
 		// Assumes dbAdapter is ready. Add check for safety.
-		if (!dbAdapter) throw new Error("dbAdapter not available in updateContentStructure");
+		if (!dbAdapter) throw new Error('dbAdapter not available in updateContentStructure');
 
 		logger.debug('Updating content structure...');
 		const newStructure: Record<string, ContentStructureNode> = {};
@@ -468,7 +461,7 @@ class ContentManager {
 		try {
 			// 1. Get existing structure nodes from DB to compare/update
 			const existingNodesList = await dbAdapter.getContentStructure();
-			const existingNodesMap = new Map<string, ContentStructureNode>(existingNodesList.map(node => [node.path, node]));
+			const existingNodesMap = new Map<string, ContentStructureNode>(existingNodesList.map((node) => [node.path, node]));
 			logger.debug(`Fetched \x1b[34m${existingNodesMap.size}\x1b[0m existing structure nodes.`);
 
 			// 2. Process loaded collections to define collection nodes and identify parent categories
@@ -481,7 +474,7 @@ class ContentManager {
 				const collectionPath = collection.path;
 				const existingNode = existingNodesMap.get(collectionPath);
 
-				const parentPath = collectionPath === '/' ? null : (collectionPath.split('/').slice(0, -1).join('/') || '/');
+				const parentPath = collectionPath === '/' ? null : collectionPath.split('/').slice(0, -1).join('/') || '/';
 
 				// Data for the collection node itself
 				const collectionNodeData: Omit<ContentStructureNode, 'createdAt'> = {
@@ -521,7 +514,6 @@ class ContentManager {
 				}
 				// --- MODIFICATION END ---
 
-
 				// Identify required parent category paths
 				if (parentPath) {
 					let currentPath = '';
@@ -543,7 +535,7 @@ class ContentManager {
 				const existingNode = existingNodesMap.get(catPath);
 				const parts = catPath.split('/').filter(Boolean);
 				const name = parts[parts.length - 1] || 'Root'; // Fallback name unlikely needed
-				const parentPath = parts.length <= 1 ? null : ('/' + parts.slice(0, -1).join('/'));
+				const parentPath = parts.length <= 1 ? null : '/' + parts.slice(0, -1).join('/');
 
 				const categoryNodeData: Omit<ContentStructureNode, 'createdAt'> = {
 					_id: existingNode?._id ?? uuidv4(), // Generate new ID if not existing
@@ -610,8 +602,8 @@ class ContentManager {
 				// Cache the nested structure array
 				await setCache('cms:content_structure_nested', this.nestedContentStructure, REDIS_TTL);
 			}
-
-		} catch (err) { // This is the outer catch block - should only catch unexpected errors now
+		} catch (err) {
+			// This is the outer catch block - should only catch unexpected errors now
 			const errorMessage = err instanceof Error ? err.message : String(err);
 			logger.error(`Failed to update content structure: ${errorMessage}`);
 			// Always re-throw errors caught at this level
@@ -628,19 +620,20 @@ class ContentManager {
 		const rootNodes: (ContentStructureNode & { children: ContentStructureNode[] })[] = [];
 
 		// Initialize map with children arrays
-		nodes.forEach(node => {
+		nodes.forEach((node) => {
 			nodeMap.set(node.path, { ...node, children: [] });
 		});
 
 		// Build the nested tree
-		nodeMap.forEach(node => {
+		nodeMap.forEach((node) => {
 			if (node.parentPath && nodeMap.has(node.parentPath)) {
 				const parent = nodeMap.get(node.parentPath);
 				parent?.children.push(node); // Add to parent's children
 			} else if (node.parentPath === null || node.parentPath === '/') {
 				// Consider '/' parent path as root for practical purposes unless a node with path '/' exists
-				if (node.path === '/') { // If this IS the root node
-					if (!rootNodes.some(rn => rn.path === '/')) rootNodes.push(node);
+				if (node.path === '/') {
+					// If this IS the root node
+					if (!rootNodes.some((rn) => rn.path === '/')) rootNodes.push(node);
 				} else if (node.parentPath === '/' && nodeMap.has('/')) {
 					const parent = nodeMap.get('/'); // Attach to explicit root node if exists
 					parent?.children.push(node);
@@ -657,15 +650,13 @@ class ContentManager {
 		// Sort children within each node (optional, based on 'order' property)
 		const sortNodes = (nodeList: (ContentStructureNode & { children: ContentStructureNode[] })[]) => {
 			nodeList.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
-			nodeList.forEach(node => sortNodes(node.children)); // Recursively sort children
+			nodeList.forEach((node) => sortNodes(node.children)); // Recursively sort children
 		};
 		sortNodes(rootNodes);
-
 
 		logger.debug(`Generated nested structure with ${rootNodes.length} root node(s).`);
 		return rootNodes;
 	}
-
 
 	// --- File System & Path Utils ---
 
@@ -679,7 +670,9 @@ class ContentManager {
 		} else {
 			// Handle cases where path might not start exactly as expected (e.g., symlinks, different base)
 			// This might need adjustment based on your exact setup
-			logger.warn(`File path '${filePath}' did not start with expected compiled path '${compiledCollectionsPath}'. Path derivation might be inaccurate.`);
+			logger.warn(
+				`File path '${filePath}' did not start with expected compiled path '${compiledCollectionsPath}'. Path derivation might be inaccurate.`
+			);
 		}
 
 		// Remove .js extension
@@ -738,7 +731,8 @@ class ContentManager {
 		if (isRedisEnabled()) {
 			try {
 				const redisValue = await getCache<T>(redisKey);
-				if (redisValue !== null && redisValue !== undefined) { // Check explicitly for null/undefined
+				if (redisValue !== null && redisValue !== undefined) {
+					// Check explicitly for null/undefined
 					// Update memory cache as well for faster subsequent access
 					cache.set(key, { value: redisValue, timestamp: Date.now() });
 					this.trimCache(cache); // Trim after adding
@@ -751,7 +745,7 @@ class ContentManager {
 		}
 
 		const entry = cache.get(key);
-		if (entry && (Date.now() - entry.timestamp <= CACHE_TTL)) {
+		if (entry && Date.now() - entry.timestamp <= CACHE_TTL) {
 			return entry.value;
 		} else if (entry) {
 			// Expired from memory cache
@@ -801,7 +795,7 @@ class ContentManager {
 	// Keep if there's a use case for dynamically loading *new* definitions not present at startup.
 	private async lazyLoadCollection(collectionName: string): Promise<Schema | null> {
 		if (!this.initialized) {
-			logger.error("Cannot lazy load collection: ContentManager not initialized.");
+			logger.error('Cannot lazy load collection: ContentManager not initialized.');
 			return null; // Or attempt init? Depends on desired behavior.
 		}
 
@@ -832,7 +826,8 @@ class ContentManager {
 				return null;
 			}
 		} catch (err) {
-			if (err.code !== 'ENOENT') { // Don't log error if file simply doesn't exist
+			if (err.code !== 'ENOENT') {
+				// Don't log error if file simply doesn't exist
 				logger.error(`Failed to lazy load collection ${collectionName}:`, err);
 			} else {
 				logger.debug(`Lazy load source file not found: ${sourceFilePath}`);

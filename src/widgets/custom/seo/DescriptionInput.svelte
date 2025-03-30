@@ -75,11 +75,11 @@
 	cols="50"
 	bind:value={description}
 	oninput={handleDescriptionChange}
-	class="input text-black dark:text-primary-500"
+	class="input dark:text-primary-500 text-black"
 	aria-describedby="description-status"
 ></textarea>
 
-<style lang="postcss">
+<style>
 	.input-label {
 		color: gray;
 	}

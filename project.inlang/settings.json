@@ -13,28 +13,5 @@
 		"pathPattern": "./src/messages/{languageTag}.json"
 	},
 	"sourceLanguageTag": "en",
-	"languageTags": [
-		"en",
-		"da",
-		"de",
-		"es",
-		"fi",
-		"fr",
-		"hi",
-		"it",
-		"ja",
-		"ka",
-		"ne",
-		"nl",
-		"no",
-		"pl",
-		"pt",
-		"sl",
-		"sr",
-		"sv",
-		"tr",
-		"ur",
-		"uk",
-		"zh"
-	]
+	"languageTags": ["en", "da", "de", "es", "fi", "fr", "hi", "it", "ja", "ka", "ne", "nl", "no", "pl", "pt", "sl", "sr", "sv", "tr", "ur", "uk", "zh"]
 }

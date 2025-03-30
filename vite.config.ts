@@ -18,8 +18,7 @@ import { paraglide } from '@inlang/paraglide-sveltekit/vite';
 import { compile, cleanupOrphanedFiles } from './src/routes/api/compile/compile';
 import { generateContentTypes } from './src/content/vite';
 
-import tailwindcss from "@tailwindcss/vite";
-
+import tailwindcss from '@tailwindcss/vite';
 
 // Get package.json version info
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
@@ -60,7 +59,8 @@ export default defineConfig({
 					await compile({ userCollections, compiledCollections });
 					console.log('\x1b[32mInitial compilation successful!\x1b[0m');
 				} catch (error) {
-					console.error('\x1b[31mInitial compilation failed:\x1b[0m', error); throw error;
+					console.error('\x1b[31mInitial compilation failed:\x1b[0m', error);
+					throw error;
 				}
 			},
 			configureServer(server) {
@@ -132,10 +132,10 @@ export default defineConfig({
 
 												// Create a proper Node.js response object
 												const res = {
-													setHeader: () => { },
-													getHeader: () => { },
-													write: () => { },
-													end: () => { },
+													setHeader: () => {},
+													getHeader: () => {},
+													write: () => {},
+													end: () => {},
 													statusCode: 200
 												};
 

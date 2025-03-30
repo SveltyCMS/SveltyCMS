@@ -6,7 +6,7 @@ It handles widget configuration, permissions, and specific options.
 -->
 
 <script lang="ts">
-	import { type SvelteComponent } from 'svelte';
+	// import { type SvelteComponent } from 'svelte'; // Removed unused import
 
 	// Components
 	import widgets from '@widgets';
@@ -17,27 +17,46 @@ It handles widget configuration, permissions, and specific options.
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Stores
-	import { collectionValue, targetWidget } from '@src/stores/collectionStore.svelte';
+	// Skeleton
+	import { Modal, Tab, Tabs } from '@skeletonlabs/skeleton-svelte'; // Try -svelte path again
 
-	import { Tab, Tabs } from '@skeletonlabs/skeleton-svelte';
-	const modalStore = getModalStore();
+	// Define the shape of the widget data
+	// TODO: Define a more specific type if possible
+	type WidgetFormData = any;
+
+	// Props
+	interface Props {
+		open?: boolean;
+		widgetData: WidgetFormData; // Receive initial data
+		onSubmit: (data: WidgetFormData) => void; // Callback for submit
+		onDelete: (id: string | number) => void; // Callback for delete
+		onClose: () => void; // Callback for close
+	}
+
+	let { open = $bindable(), widgetData, onSubmit, onDelete, onClose }: Props = $props();
 
 	let tabSet: number = $state(0);
 
-	// Props
+	// Local state for the form, initialized from props
+	let localWidgetData = $state<WidgetFormData>(JSON.parse(JSON.stringify(widgetData || {}))); // Deep clone
 
-	interface Props {
-		/** Exposes parent props to this component. */
-		parent: SvelteComponent;
-	}
+	// Effect to update local state when props change (modal opens for different widget)
+	$effect(() => {
+		if (widgetData) {
+			localWidgetData = JSON.parse(JSON.stringify(widgetData)); // Deep clone
+			// Ensure permissions object exists
+			if (!localWidgetData.permissions) {
+				localWidgetData.permissions = {};
+			}
+		} else {
+			localWidgetData = {}; // Reset if no data
+		}
+		tabSet = 0; // Reset tab on open
+	});
 
-	let { parent }: Props = $props();
-
-	// Local variables
-	let modalData = $derived($modalStore[0]);
-	let widgetKey = $derived(modalData?.value?.widget?.key as keyof typeof widgets);
-	let guiSchema = $derived(widgets[widgetKey]?.GuiSchema || widgets);
+	let widgetKey = $derived(localWidgetData?.widget?.key as keyof typeof widgets);
+	// Use 'as any' workaround for GuiSchema
+	let guiSchema = $derived((widgets[widgetKey] as any)?.GuiSchema || {}); // Default to empty object
 
 	// Derive options from guiSchema
 	let options = $derived(guiSchema ? Object.keys(guiSchema) : []);
@@ -47,44 +66,47 @@ It handles widget configuration, permissions, and specific options.
 		)
 	);
 
-	// We've created a custom submit function to pass the response and close the modal.
+	// Submit function calls the onSubmit prop
 	async function onFormSubmit(): Promise<void> {
-		if (modalData?.response) {
-			await modalData.response($targetWidget);
-		}
-		modalStore.close();
+		onSubmit(localWidgetData);
+		// Parent handles closing
 	}
 
-	// Function to delete the widget
-	function deleteWidget() {
+	// Delete function calls the onDelete prop
+	function handleDelete() {
 		const confirmDelete = confirm('Are you sure you want to delete this widget?');
-		if (confirmDelete) {
-			// Perform deletion logic here
-			collectionValue.update((c) => {
-				c.fields = c.fields.filter((field: any) => field.id !== modalData?.value.id);
-				return c;
-			});
-			modalStore.close();
+		if (confirmDelete && localWidgetData?.id) {
+			onDelete(localWidgetData.id);
+			// Parent handles closing
 		}
 	}
-
-	// Base Classes
-	const cBase = 'card p-4 w-screen h-screen shadow-xl space-y-4 bg-white';
-	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container';
 </script>
 
-{#if modalData}
-	<div class={cBase}>
-		<header class={cHeader}>
-			{modalData?.title ?? '(title missing)'}
+<Modal
+	{open}
+	onOpenChange={(e: { open: boolean }) => {
+		// Add type to event parameter
+		if (!e.open) {
+			onClose(); // Call onClose if closed externally
+		}
+	}}
+	contentBase="card bg-surface-100-900 p-4 md:p-6 space-y-4 shadow-xl max-w-screen-lg rounded-lg"
+	backdropClasses="backdrop-blur-sm"
+>
+	<!-- Modal Content -->
+	{#snippet content()}
+		<header class="border-surface-300-700 flex items-center justify-between border-b pb-4">
+			<h2 class="h2">Define your Widget ({widgetKey || 'New'})</h2>
+			<button type="button" class="btn-icon btn-icon-sm variant-soft hover:variant-ghost" aria-label="Close modal" onclick={onClose}>
+				<iconify-icon icon="mdi:close" width="20"></iconify-icon>
+			</button>
 		</header>
-		<article class="text-center">
-			{modalData?.body ?? '(body missing)'}
-		</article>
+
+		<article class="text-center">Setup your widget and then press Save.</article>
 
 		<!-- Tabs Headers -->
-		<form class={cForm}>
+		<!-- Note: Removed outer form tag, submit handled by button -->
+		<div class="space-y-4">
 			<Tabs justify="justify-between lg:justify-start">
 				<!-- Default Tab -->
 				<Tab bind:group={tabSet} name="tab1" value={0}>
@@ -114,27 +136,28 @@ It handles widget configuration, permissions, and specific options.
 			</Tabs>
 
 			<!-- Tab Panels -->
+			<!-- TODO: Update child components to accept parts of localWidgetData as props and emit changes -->
 			{#if tabSet === 0}
-				<Default {guiSchema} />
+				<Default bind:widgetData={localWidgetData} {guiSchema} />
 			{:else if tabSet === 1}
-				<Permission />
+				<Permission bind:permissions={localWidgetData.permissions} />
 			{:else if tabSet === 2}
-				<Specific />
+				<Specific bind:widgetData={localWidgetData} {specificOptions} {guiSchema} />
 			{/if}
-		</form>
+		</div>
 
-		<footer class="{parent.regionFooter} justify-between">
+		<footer class="flex justify-between pt-4">
 			<!-- Delete Button -->
-			<button type="button" onclick={deleteWidget} aria-label="Delete" class="preset-filled-error-500 btn">
-				<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
-				<span class="hidden sm:block">{m.button_delete()}</span>
+			<button type="button" onclick={handleDelete} aria-label="Delete Widget" class="btn variant-filled-error">
+				<iconify-icon icon="icomoon-free:bin" width="20" class="mr-1"></iconify-icon>
+				<span class="hidden sm:inline">{m.button_delete()}</span>
 			</button>
 
 			<!-- Cancel & Save Buttons -->
-			<div class="flex justify-between gap-4">
-				<button type="button" aria-label={m.button_cancel()} class="btn {parent.buttonNeutral}" onclick={parent.onClose}>{m.button_cancel()}</button>
-				<button type="button" aria-label={m.button_save()} class="btn {parent.buttonPositive}" onclick={onFormSubmit}>{m.button_save()}</button>
+			<div class="flex gap-3">
+				<button type="button" aria-label={m.button_cancel()} class="btn variant-soft" onclick={onClose}>{m.button_cancel()}</button>
+				<button type="button" aria-label={m.button_save()} class="btn variant-filled-primary" onclick={onFormSubmit}>{m.button_save()}</button>
 			</div>
 		</footer>
-	</div>
-{/if}
+	{/snippet}
+</Modal>

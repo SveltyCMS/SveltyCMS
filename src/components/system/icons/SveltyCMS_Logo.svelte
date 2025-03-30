@@ -2,6 +2,16 @@
 @files src/components/system/icons/SveltyCMS_Logo.svelte
 @component
 **Dynamic SveltyCMS_Logo component**
+
+@example
+<SveltyCMS_Logo />
+
+#### Props
+- `fill` {string} - Fill color
+- `className` {string} - CSS class
+
+### Features
+- Dynamic SveltyCMS_Logo component
 -->
 
 <script lang="ts">

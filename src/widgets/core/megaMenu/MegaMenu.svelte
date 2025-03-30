@@ -107,7 +107,7 @@
 
 <div class="menu-container relative mb-4">
 	{#if !_data}
-		<p class="text-center font-bold text-tertiary-500">
+		<p class="text-tertiary-500 text-center font-bold">
 			{m.widget_megamenu_title()}
 		</p>
 	{/if}
@@ -140,13 +140,13 @@
 
 	<!-- Error Message -->
 	{#if validationError}
-		<p id={`${fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+		<p id={`${fieldName}-error`} class="text-error-500 absolute bottom-[-1rem] left-0 w-full text-center text-xs" role="alert">
 			{validationError}
 		</p>
 	{/if}
 </div>
 
-<style lang="postcss">
+<style>
 	.menu-container {
 		min-height: 2.5rem;
 	}

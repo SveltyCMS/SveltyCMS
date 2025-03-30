@@ -3,7 +3,20 @@
 @component 
 **Tooltip component**
 
-@features:
+@example
+<Tooltip text="This is a tooltip">
+	<div>Hover over me</div>
+</Tooltip>	
+
+### Props:
+- text: string
+- position: Position
+- children: () => any
+- delay: number
+- showArrow: boolean
+- theme: Theme
+
+### Features:
 - Tooltip component
 - Text
 - Position

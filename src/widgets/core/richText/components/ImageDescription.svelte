@@ -59,7 +59,7 @@
 	{/if}
 </div>
 
-<style lang="postcss">
+<style>
 	.description {
 		position: fixed;
 		top: 100%;

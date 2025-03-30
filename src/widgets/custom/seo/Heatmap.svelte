@@ -129,7 +129,7 @@
 	{/if}
 </div>
 
-<style lang="postcss">
+<style>
 	.heatmap-content {
 		line-height: 1.5;
 		word-wrap: break-word;

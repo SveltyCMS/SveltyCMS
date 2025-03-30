@@ -344,14 +344,14 @@
 
 		<!-- Error Message -->
 		{#if validationError}
-			<p id={`${fieldName}-error}`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+			<p id={`${fieldName}-error}`} class="text-error-500 absolute bottom-[-1rem] left-0 w-full text-center text-xs" role="alert">
 				{validationError}
 			</p>
 		{/if}
 	{/if}
 </div>
 
-<style lang="postcss">
+<style>
 	.input-container {
 		min-height: 2.5rem;
 	}

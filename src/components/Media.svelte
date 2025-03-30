@@ -8,6 +8,11 @@
 
 #### Props
 - `files` {array} - Array of media files
+
+### Features
+- Displays a grid of media files
+- Handles keyboard navigation and selection
+- Visually indicates the selected file
 -->
 
 <script lang="ts">

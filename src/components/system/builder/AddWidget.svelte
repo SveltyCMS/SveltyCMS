@@ -1,6 +1,21 @@
 <!-- 
 @files src/components/system/builder/AddWidget.svelte
-@description - Add Widget component
+@component
+**Add Widget component is used to add a new widget to the collection**
+
+@example
+<AddWidget bind:fields={fields} bind:addField={addField} bind:editField={editField} bind:selected_widget={selected_widget} bind:field={field} />
+
+### Props
+- `fields` {array} - Array of widgets
+- `addField` {boolean} - Boolean to toggle the add widget form
+- `editField` {boolean} - Boolean to toggle the edit widget form
+- `selected_widget` {string} - The selected widget
+- `field` {object} - The field object
+
+### Features
+- Adds a new widget to the collection
+- Edits a widget in the collection
 -->
 
 <script lang="ts">

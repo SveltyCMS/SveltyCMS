@@ -1,7 +1,10 @@
 <!--
 file src/components/system/buttons/Button.svelte
 @component
-**Button component** is a reusable button component that supports different sizes, variants, icons, and rounded corners.
+**Reusable button component that supports different sizes, variants, icons, and rounded corners**
+
+@example
+<Button size="md" variant="primary">Click Me</Button>
 
 #### Props
 - `size` {string} - Size of the button, can be 'sm', 'md', 'lg', or 'xl'
@@ -14,10 +17,11 @@ file src/components/system/buttons/Button.svelte
 #### Slots
 - `default` {string} - Content to be displayed inside the button
 
-#### Usage
-```tsx
-<Button size="md" variant="primary">Click Me</Button>
-```
+### Features
+- Dynamic button size and variant
+- Optional icon
+- Link buttons
+- Rounded corners
 -->
 
 <script lang="ts">

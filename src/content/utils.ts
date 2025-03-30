@@ -36,9 +36,7 @@ async function processModule(
 		filename?: string;
 	} = {}
 ): Promise<{ schema?: Schema } | null> {
-	const {
-		filename = 'schema.ts'
-	} = options;
+	const { filename = 'schema.ts' } = options;
 
 	logger.debug('Starting AST Prossessing...');
 
@@ -65,12 +63,10 @@ async function processModule(
 
 			// Look for top-level export const schema = { ... }
 			if (ts.isVariableStatement(node)) {
-				const isExported = node.modifiers?.some(
-					mod => mod.kind === ts.SyntaxKind.ExportKeyword
-				);
+				const isExported = node.modifiers?.some((mod) => mod.kind === ts.SyntaxKind.ExportKeyword);
 
 				if (isExported) {
-					node.declarationList.declarations.forEach(declaration => {
+					node.declarationList.declarations.forEach((declaration) => {
 						if (
 							ts.isIdentifier(declaration.name) &&
 							declaration.name.escapedText === 'schema' &&
@@ -79,10 +75,7 @@ async function processModule(
 						) {
 							try {
 								// Pass the sourceFile to helpers
-								extractedSchemaObject = parseObjectLiteral(
-									declaration.initializer as ts.ObjectLiteralExpression,
-									sourceFile
-								);
+								extractedSchemaObject = parseObjectLiteral(declaration.initializer as ts.ObjectLiteralExpression, sourceFile);
 								logger.debug('Successfully AST extracted schema object.');
 							} catch (parseError) {
 								logger.error('AST Schema extraction error:', {
@@ -109,7 +102,6 @@ async function processModule(
 			logger.warn('AST Schema extraction failed.');
 			return null;
 		}
-
 	} catch (err) {
 		const errorMessage = err instanceof Error ? err.message : String(err);
 		logger.error('AST processing error:', {
@@ -127,13 +119,11 @@ function parseObjectLiteral(
 ): ParsedSchemaObject {
 	const result: ParsedSchemaObject = {};
 
-	objNode.properties.forEach(prop => {
+	objNode.properties.forEach((prop) => {
 		try {
 			// Handle standard property assignments
 			if (ts.isPropertyAssignment(prop)) {
-				const propName = ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name)
-					? prop.name.text
-					: undefined;
+				const propName = ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name) ? prop.name.text : undefined;
 
 				if (propName) {
 					// Pass sourceFile down
@@ -149,9 +139,7 @@ function parseObjectLiteral(
 			}
 			// Handle shorthand property assignments
 			else if (ts.isShorthandPropertyAssignment(prop)) {
-				logger.warn(
-					`Cannot safely evaluate shorthand property assignment '${prop.name.text}' as it resolves to a variable. Ignoring.`
-				);
+				logger.warn(`Cannot safely evaluate shorthand property assignment '${prop.name.text}' as it resolves to a variable. Ignoring.`);
 				// Shorthand properties resolve to variables, which we can't safely evaluate. Ignore them.
 			}
 		} catch (error) {
@@ -176,10 +164,12 @@ function parseNodeValue(node: ts.Expression, sourceFile: ts.SourceFile): unknown
 
 	// Array literal parsing
 	if (ts.isArrayLiteralExpression(node)) {
-		return node.elements
-			// Pass sourceFile down recursively
-			.map(element => parseNodeValue(element, sourceFile))
-			.filter(v => v !== undefined); // Filter out ignored values (like functions)
+		return (
+			node.elements
+				// Pass sourceFile down recursively
+				.map((element) => parseNodeValue(element, sourceFile))
+				.filter((v) => v !== undefined)
+		); // Filter out ignored values (like functions)
 	}
 
 	// Nested object literal parsing

@@ -46,7 +46,7 @@ import { DEFAULT_THEME } from '@src/databases/themeManager';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-// State Variables 
+// State Variables
 export let dbAdapter: dbInterface | null = null; // Database adapter
 export let authAdapter: authDBInterface | null = null; // Authentication adapter
 export let auth: Auth | null = null; // Authentication instance
@@ -214,7 +214,7 @@ async function initializeSystem(): Promise<void> {
 		logger.debug('Connecting to database and loading adapters...');
 		await Promise.all([
 			connectToMongoDB(), // Assuming this handles its own retries/errors
-			loadAdapters()      // Handles its own errors and throws if fails
+			loadAdapters() // Handles its own errors and throws if fails
 		]);
 		isConnected = true; // Mark connected after DB connection succeeds
 		logger.debug('Database connected and adapters loaded.');
@@ -256,7 +256,6 @@ async function initializeSystem(): Promise<void> {
 		// 6. Finalization
 		isInitialized = true;
 		logger.info('SvelteCMS System Initialization Completed Successfully.');
-
 	} catch (err) {
 		const message = `System Initialization Failed: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message, { stack: err instanceof Error ? err.stack : undefined });
@@ -302,7 +301,6 @@ async function initializeFullSystem(): Promise<void> {
 		// Now initialize the Content Manager
 		await contentManager.initialize();
 		logger.info('ContentManager initialized as part of full system startup.');
-
 	} catch (err) {
 		// If either initializationPromise or contentManager.initialize fails
 		logger.error(`Full system initialization failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -321,7 +319,6 @@ if (!fullSystemPromise) {
 		fullSystemPromise = null; // Allow potential retry?
 	});
 }
-
 
 // Export the promises so other modules can wait
 // dbInitPromise: Resolves when DB connection and core adapters/models are ready

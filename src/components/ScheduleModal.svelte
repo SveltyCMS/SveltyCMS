@@ -6,7 +6,11 @@
 @example
 <ScheduleModal open={isModalOpen} on:close={() => isModalOpen = false} />
 
-Features:
+### Props:
+- `open` {boolean} - Whether the modal is open
+- `on:close` {function} - Event handler for closing the modal
+
+### Features:
 - Schedule publish, unpublish, delete actions
 - Date and time picker for scheduling
 - Action type selection
@@ -31,8 +35,8 @@ Features:
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Props - Only need the standard 'open' prop now
-	let { open = false } = $props<{
+	// Props - Make 'open' bindable
+	let { open = $bindable() } = $props<{
 		open?: boolean;
 	}>();
 

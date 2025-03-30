@@ -85,6 +85,7 @@ export interface Category {
 // Collection data interface for configuration
 export interface CollectionData {
 	_id: string; // UUID for Collection
+	id?: string; // Optional ID (often same as _id, used in some components)
 	icon?: string; // Optional collection icon
 	name: string; // Collection name
 	label?: string; // Optional display label
@@ -100,6 +101,7 @@ export interface CollectionData {
 	slug?: string; // Optional slug
 	status?: 'draft' | 'published' | 'unpublished' | 'scheduled' | 'cloned'; // Optional status
 	links?: Array<ContentTypes>; // Optional links to other collections
+	subcategories?: unknown; // Optional subcategories (structure TBD)
 }
 
 // Collection types

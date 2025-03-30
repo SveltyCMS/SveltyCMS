@@ -35,7 +35,7 @@
 	}
 </script>
 
-<div class="ml-1 rounded-xs border-2 border-tertiary-500">
+<div class="border-tertiary-500 ml-1 rounded-xs border-2">
 	<h2 class="mb-2 text-center font-bold dark:text-white">{m.Unassigned_Collections()}</h2>
 	<div
 		class="flex w-full flex-wrap overflow-x-auto p-2"
@@ -45,7 +45,7 @@
 	>
 		{#each items as item (item.id)}
 			<div
-				class="mx-2 my-1 flex h-10 w-5/12 items-center justify-between overflow-x-auto rounded-xs border border-surface-700 bg-surface-300 text-center text-xs font-bold hover:bg-surface-400 dark:text-white"
+				class="border-surface-700 bg-surface-300 hover:bg-surface-400 mx-2 my-1 flex h-10 w-5/12 items-center justify-between overflow-x-auto rounded-xs border text-center text-xs font-bold dark:text-white"
 				animate:flip={{ duration: flipDurationMs }}
 			>
 				<iconify-icon icon="mdi:drag" width="18" class="pl-0.5"></iconify-icon>

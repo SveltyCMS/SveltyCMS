@@ -14,7 +14,7 @@
 	let { value = $bindable() } = $props();
 </script>
 
-<label for="robots-meta-select" class="label text-black dark:text-primary-500">
+<label for="robots-meta-select" class="label dark:text-primary-500 text-black">
 	<span class="base-font-color">Robots Meta Data:</span>
 	<select class="select" id="robots-meta-select" bind:value>
 		<option value="index, follow">Index, Follow</option>

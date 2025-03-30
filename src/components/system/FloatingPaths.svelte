@@ -10,7 +10,12 @@ Spring class for smooth, physics-based motion.
 @example
 <FloatingPaths />
 
-@features
+### Props
+- `background` {string} [optional] - The color of the background. Default is 'white'.
+- `position` {number} [optional] - The position of the paths. Default is 1.
+- `mirrorAnimation` {boolean} [optional] - Whether to mirror the animation. Default is false.
+
+### Features
 - Automatic contrasting colors based on background
 - Customizable background color (white or dark)
 - Adjustable start and end directions (e.g., TopLeft, BottomRight)
@@ -18,6 +23,7 @@ Spring class for smooth, physics-based motion.
 - Responsive design
 - SVG path optimization
 -->
+
 <script lang="ts">
 	import { Motion } from 'svelte-motion';
 
@@ -71,7 +77,7 @@ Spring class for smooth, physics-based motion.
 	</svg>
 </div>
 
-<style lang="postcss">
+<style>
 	.mirror {
 		transform: scaleX(-1);
 	}

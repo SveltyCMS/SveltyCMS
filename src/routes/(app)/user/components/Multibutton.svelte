@@ -20,10 +20,21 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import type { PopupSettings } from '@skeletonlabs/skeleton-svelte';
-	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton-svelte';
+	import {
+		ListBox,
+		ListBoxItem,
+		popup,
+		getModalStore,
+		getToastStore,
+		type PopupSettings,
+		type ModalSettings,
+		type ModalComponent
+	} from '@skeletonlabs/skeleton';
+
+	// Modals
 	import ModalEditForm from './ModalEditForm.svelte';
 	import ModalEditToken from './ModalEditToken.svelte';
+	import ModalConfirm from '@components/ModalConfirm.svelte'; // Import generic confirm modal
 
 	interface UserData {
 		_id: string;
@@ -52,8 +63,12 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	let isDisabled = $derived(selectedRows.length === 0);
 	let isMultipleSelected = $derived(selectedRows.length > 1);
 
-	const modalStore = getModalStore();
+	const modalStore = getModalStore(); // Keep for edit modals
 	const toastStore = getToastStore();
+
+	// State for confirmation modal
+	let isConfirmOpen = $state(false);
+	let confirmActionData = $state<{ action: ActionType | null; config: any | null }>({ action: null, config: null });
 
 	const Combobox: PopupSettings = {
 		event: 'click',
@@ -162,11 +177,14 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			type: isEdit ? 'component' : 'confirm',
 			title: config.modalTitle(),
 			body: config.modalBody(),
-			...(isEdit && { component: modalComponent }),
+			...(isEdit && { component: modalComponent }), // Keep component logic for edit for now
+			// Separate logic for confirm actions
 			response: async (r: ModalResponse | boolean) => {
-				if (!r) return;
+				// This response is now only for EDIT actions
+				if (!r || action !== 'edit') return; // Only proceed if confirmed AND it's an edit action
 
 				try {
+					// Body logic remains the same for edit
 					const body =
 						type === 'user'
 							? JSON.stringify(
@@ -199,13 +217,61 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 						showToast(data.message || `Failed to ${action} ${type}`, true);
 					}
 				} catch (error) {
-					console.error(`Error ${action}ing ${type}:`, error);
-					showToast(`Failed to ${action} ${type}`, true);
+					console.error(`Error editing ${type}:`, error);
+					showToast(`Failed to edit ${type}`, true);
 				}
 			}
 		};
 
-		modalStore.trigger(modalSettings);
+		// Trigger based on action type
+		if (isEdit) {
+			// Still use modalStore for custom edit components (assuming they need refactoring later)
+			modalStore.trigger(modalSettings);
+		} else {
+			// For confirm actions (delete, block, unblock), open our generic modal
+			confirmActionData = { action, config };
+			isConfirmOpen = true;
+		}
+	}
+
+	// New function to execute confirmed actions (delete, block, unblock)
+	async function executeConfirmedAction() {
+		const { action, config } = confirmActionData;
+		if (!action || !config || isDisabled) return;
+
+		try {
+			const body =
+				type === 'user'
+					? JSON.stringify({ user_ids: selectedRows.map((row: UserData) => row._id) })
+					: JSON.stringify(
+							selectedRows.map((row: TokenData) => ({
+								token: row.token,
+								email: row.email,
+								role: row.role,
+								user_id: row.user_id
+							}))
+						);
+
+			const res = await fetch(config.endpoint(), {
+				method: config.method(),
+				headers: { 'Content-Type': 'application/json' },
+				body
+			});
+
+			if (res.ok) {
+				showToast(config.toastMessage(), false, config.toastBackground);
+				await invalidateAll();
+			} else {
+				const data = await res.json();
+				showToast(data.message || `Failed to ${action} ${type}`, true);
+			}
+		} catch (error) {
+			console.error(`Error ${action}ing ${type}:`, error);
+			showToast(`Failed to ${action} ${type}`, true);
+		} finally {
+			// isConfirmOpen = false; // Modal closes itself via binding
+			confirmActionData = { action: null, config: null }; // Reset action data
+		}
 	}
 
 	let buttonConfig = $derived({
@@ -237,7 +303,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		aria-label="Open actions menu"
 		aria-haspopup="true"
 		aria-expanded="false"
-		class="divide-x-2 rounded-r-sm bg-surface-500 hover:bg-surface-800!"
+		class="bg-surface-500 hover:bg-surface-800! divide-x-2 rounded-r-sm"
 		disabled={isDisabled}
 		aria-disabled={isDisabled}
 	>
@@ -246,7 +312,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 </div>
 
 <!-- Dropdown/Listbox -->
-<div class="overflow-hiddens card z-10 w-48 rounded-xs bg-surface-500 text-white" data-popup="Combobox" role="menu" aria-label="Available actions">
+<div class="overflow-hiddens card bg-surface-500 z-10 w-48 rounded-xs text-white" data-popup="Combobox" role="menu" aria-label="Available actions">
 	<ListBox rounded="rounded-xs" active="preset-filled-primary-500" hover="hover:bg-surface-300" class="divide-y">
 		{#each Object.entries(actionConfig) as [action, config]}
 			{#if action !== listboxValue}
@@ -267,3 +333,16 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		{/each}
 	</ListBox>
 </div>
+
+<!-- Confirmation Modal Instance -->
+<ModalConfirm
+	bind:open={isConfirmOpen}
+	title={confirmActionData.config?.modalTitle() ?? 'Confirm Action'}
+	body={confirmActionData.config?.modalBody() ?? 'Are you sure?'}
+	buttonTextConfirm={confirmActionData.action ? confirmActionData.action.charAt(0).toUpperCase() + confirmActionData.action.slice(1) : 'Confirm'}
+	onConfirm={executeConfirmedAction}
+	onClose={() => {
+		isConfirmOpen = false;
+		confirmActionData = { action: null, config: null }; // Reset on close
+	}}
+/>

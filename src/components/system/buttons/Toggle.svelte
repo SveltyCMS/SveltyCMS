@@ -1,7 +1,26 @@
 <!-- 
 @files src/components/system/buttons/Toggle.svelte
-@description - Toggle component	
+@component
+**Toggle component for on/off switches**
+
+@example
+<Toggle bind:value />
+
+#### Props
+- `trackClass` {string}: Additional track classes (default: '')
+- `thumbClass` {string}: Additional thumb classes (default: '')
+- `value` {boolean}: Initial value (bindable, default: false)
+- `width` {number}: Track width (default: 80)
+- `height` {number}: Track height (default: 40)
+- `label` {string}: Label text (default: '')
+- `labelClass` {string}: Additional label classes (default: '')
+
+### Features
+- Toggle component for on/off switches
+- Customizable track and thumb styles
+- Accessible checkbox input
 -->
+
 <script lang="ts">
 	import { twMerge } from 'tailwind-merge';
 
@@ -24,37 +43,23 @@
 	}>();
 </script>
 
-<div class="container">
+<div class="flex w-full items-center justify-between">
 	<p class={twMerge('text-white ', labelClass)}>{label}</p>
 	<button
 		onclick={() => (value = !value)}
-		class={twMerge('track bg-white ', trackClass)}
+		class={twMerge('relative cursor-pointer rounded bg-white ', trackClass)}
 		style="width: {width}px; height: {height}px"
 		aria-label="Toggle button"
 	>
-		<div class:checked={value} class={twMerge('thumb bg-gray-400', thumbClass)} style="width: {width / 2}px; height: {height}px"></div>
+		<div
+			class:checked={value}
+			class={twMerge('bg-surface-400 absolute right-1/2 rounded transition duration-200', thumbClass)}
+			style="width: {width / 2}px; height: {height}px"
+		></div>
 	</button>
 </div>
 
-<style lang="postcss">
-	.container {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		width: 100%;
-	}
-	.track {
-		position: relative;
-		cursor: pointer;
-		border-radius: 15px;
-	}
-	.thumb {
-		transition: 0.2s;
-		position: absolute;
-
-		border-radius: 15px;
-		right: 50%;
-	}
+<style>
 	.checked {
 		right: 0;
 		background-color: rgb(4, 203, 4);

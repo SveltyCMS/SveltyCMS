@@ -32,12 +32,12 @@
 	}
 </script>
 
-<div class="relative mt-2 border-t border-surface-500 dark:border-white dark:bg-transparent">
+<div class="border-surface-500 relative mt-2 border-t dark:border-white dark:bg-transparent">
 	<h2 class="mt-1 text-right text-xl text-white sm:text-center sm:text-2xl">
 		{m.widget_seo_suggestionseopreview()}
 	</h2>
 
-	<div class="absolute left-0 top-1 flex justify-between gap-2">
+	<div class="absolute top-1 left-0 flex justify-between gap-2">
 		<button
 			onclick={handleTogglePreview}
 			aria-label="Preview"
@@ -59,27 +59,27 @@
 
 	{#if SeoPreviewToggle}
 		<!-- Mobile Preview -->
-		<div class="min-h-30 card preset-tonal-secondary mx-auto mt-4 max-w-sm p-1 sm:p-2 md:p-4">
-			<p class="flex items-center text-xs! text-surface-400">
+		<div class="card preset-tonal-secondary mx-auto mt-4 min-h-30 max-w-sm p-1 sm:p-2 md:p-4">
+			<p class="text-surface-400 flex items-center text-xs!">
 				<iconify-icon icon="mdi:world" width="18" class="mr-2 text-white"></iconify-icon>{hostUrl}
 			</p>
-			<p class="text-sm font-medium! text-primary-500 sm:px-4">
+			<p class="text-primary-500 text-sm font-medium! sm:px-4">
 				{title}
 			</p>
-			<p class="mb-2 text-sm! text-black dark:text-white sm:px-4">
+			<p class="mb-2 text-sm! text-black sm:px-4 dark:text-white">
 				{description}
 			</p>
 		</div>
 	{:else}
 		<!-- Desktop Preview -->
 		<div class="card preset-tonal-secondary mt-4 p-1 sm:p-2 md:p-4">
-			<p class="flex items-center text-xs! text-surface-400 sm:px-4">
+			<p class="text-surface-400 flex items-center text-xs! sm:px-4">
 				<iconify-icon icon="mdi:world" width="18" class="mr-2 text-white"></iconify-icon>{hostUrl}
 			</p>
-			<p class="font-medium! text-primary-500 sm:px-4">
+			<p class="text-primary-500 font-medium! sm:px-4">
 				{title}
 			</p>
-			<p class="mb-2 pb-4 text-lg text-black dark:text-white sm:px-4">
+			<p class="mb-2 pb-4 text-lg text-black sm:px-4 dark:text-white">
 				{description}
 			</p>
 		</div>

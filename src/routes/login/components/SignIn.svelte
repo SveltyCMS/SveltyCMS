@@ -610,7 +610,7 @@ Features:
 	<SigninIcon show={active === 'signup' || active === 'initial'} onClick={handleFormClick} />
 </section>
 
-<style lang="postcss">
+<style>
 	.hide {
 		transition: 0s;
 		opacity: 0;

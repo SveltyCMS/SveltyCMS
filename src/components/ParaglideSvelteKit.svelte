@@ -9,7 +9,7 @@
 ### Props
 - `children` {Snippet} - The content to be rendered
 
-Features:
+### Features:
 - Handles translations and localization for the SvelteKit app
 - Persists the selected language through local storage
 -->

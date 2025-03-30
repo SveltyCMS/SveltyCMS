@@ -11,18 +11,23 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Skeleton Stores
-	import { type PopupSettings } from '@skeletonlabs/skeleton-svelte';
-	const modalStore = getModalStore();
+	// Skeleton
+	import { Modal, popup, type PopupSettings } from '@skeletonlabs/skeleton-svelte';
+
+	// Define the shape of the data passed on submit
+	type SelectWidgetData = {
+		selectedWidget: WidgetType;
+	};
 
 	// Props
 	interface Props {
-		/** Exposes parent props to this component. */
-		parent: any;
-		existingCategory?: any;
+		open?: boolean; // Add open prop
+		onSubmit: (data: SelectWidgetData) => void; // Callback prop for submit (Removed duplicate)
+		onClose: () => void; // Callback prop for close
+		// Remove parent and existingCategory props
 	}
 
-	let { parent, existingCategory = { name: '', icon: '' } }: Props = $props();
+	let { open = $bindable(), onSubmit, onClose }: Props = $props();
 
 	// Define the search term variable
 	let searchTerm: string = $state('');
@@ -36,97 +41,106 @@
 	// Define the selected widget variable
 	let selected: WidgetType | null = $state(null);
 
-	// Log changes in an effect
+	// Log changes in an effect - Keep if useful for debugging
 	$effect(() => {
-		console.log('Widget keys:', widget_keys);
-		console.log('Search term:', searchTerm);
+		// console.log('Widget keys:', widget_keys);
+		// console.log('Search term:', searchTerm);
 	});
 
-	// We've created a custom submit function to pass the response and close the modal.
+	// Submit function now calls the onSubmit prop
 	function onFormSubmit(): void {
 		if (selected !== null) {
-			console.log('Submitting form...');
-			console.log('Selected widget:', selected);
-			console.log('GuiSchema for selected widget:', widgets[selected]?.GuiSchema);
-
-			if ($modalStore[0].response) {
-				// Set the selected widget in the form data and update the modalStore
-				$modalStore[0].response({ selectedWidget: selected });
-			}
-			// close the modal
-			modalStore.close();
+			// console.log('Submitting form...');
+			// console.log('Selected widget:', selected);
+			// console.log('GuiSchema for selected widget:', widgets[selected]?.GuiSchema);
+			onSubmit({ selectedWidget: selected });
+			// Parent handles closing via bind:open
 		} else {
 			console.error('No widget selected');
 		}
 	}
 
-	// Base Classes
-	const cBase = 'card p-4 w-screen h-screen shadow-xl space-y-4';
-	const cHeader = 'text-2xl font-bold text-center text-tertiary-500 dark:text-primary-500 ';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container';
-
-	// Call tooltip
+	// Call tooltip - Use correct import path for popup
 	function getIconTooltip(item: WidgetType): PopupSettings {
+		// Corrected return statement
 		return {
 			event: 'hover',
-			target: item as string
+			target: item as string,
+			placement: 'top' // Example placement
 		};
 	}
 </script>
 
-{#if $modalStore[0]}
-	<div class=" {cBase}">
-		<header class={`${cHeader}`}>
-			{$modalStore[0]?.title ?? '(title missing)'}
+<Modal
+	{open}
+	onOpenChange={(e: { open: boolean }) => {
+		// Add type to event parameter
+		if (!e.open) {
+			onClose(); // Call onClose if closed externally
+		}
+	}}
+	contentBase="card bg-surface-100-900 p-4 md:p-6 space-y-4 shadow-xl max-w-screen-lg rounded-lg"
+	backdropClasses="backdrop-blur-sm"
+>
+	<!-- Modal Content -->
+	{#snippet content()}
+		<header class="border-surface-300-700 flex items-center justify-between border-b pb-4">
+			<h2 class="h2">Select a Widget</h2>
+			<button type="button" class="btn-icon btn-icon-sm variant-soft hover:variant-ghost" aria-label="Close modal" onclick={onClose}>
+				<iconify-icon icon="mdi:close" width="20"></iconify-icon>
+			</button>
 		</header>
-		<article class="hidden text-center sm:block">{$modalStore[0].body ?? '(body missing)'}</article>
-		<!-- Enable for debugging: -->
-		<form class={cForm}>
-			<div class="text-primary-500 mb-3 border-b text-center">Choose your Widget</div>
-			<input type="text" placeholder="Search ..." class="input mb-3 w-full" bind:value={searchTerm} />
 
-			<div class="grid grid-cols-1 items-center justify-center gap-2 sm:grid-cols-2 md:grid-cols-3 md:gap-3">
-				{#each widget_keys.filter((item) => item !== null) as item}
-					{#if item && widgets[item]?.GuiSchema}
+		<article class="text-center">Select your widget by clicking on it.</article>
+
+		<div class="space-y-4">
+			<input type="text" placeholder="Search widgets..." class="input w-full" bind:value={searchTerm} />
+
+			<div class="grid max-h-96 grid-cols-1 items-center justify-center gap-2 overflow-y-auto sm:grid-cols-2 md:grid-cols-3 md:gap-3">
+				<!-- Use type assertion as workaround for widget type issues -->
+				{#each widget_keys.filter((item) => item !== null && widgets[item]) as item}
+					{@const widget = widgets[item] as any}
+					{#if widget?.GuiSchema}
 						{#if item.toLowerCase().includes(searchTerm.toLowerCase())}
 							<button
+								type="button"
 								onclick={() => {
-									console.log('Widget selected:', item);
+									// console.log('Widget selected:', item);
 									selected = item;
-									onFormSubmit();
+									onFormSubmit(); // Submit immediately on click
 								}}
-								aria-label={item}
-								class="preset-outline-warning btn relative flex items-center justify-start gap-1 {selected === item
-									? 'bg-primary-500'
-									: ' preset-outline-warning hover:preset-tonal-warning border-warning-500 border'}"
+								aria-label={`Select ${item} widget`}
+								class="preset-outline-warning btn hover:preset-tonal-warning border-warning-500 relative flex items-center justify-start gap-1 border"
 							>
-								<iconify-icon icon={widgets[item]?.Icon} width="22" class="text-tertiary-500 mr-1"></iconify-icon>
+								<!-- Use widget variable with optional chaining -->
+								<iconify-icon icon={widget?.Icon ?? 'mdi:help-box'} width="22" class="text-tertiary-500 mr-1"></iconify-icon>
 								<span class="text-surface-700 dark:text-white">{item}</span>
 
 								<!-- helpericon -->
-								<iconify-icon
-									icon="material-symbols:info"
-									width="20"
-									use:popup={getIconTooltip(item)}
-									class="text-primary-500 absolute -top-1.5 -right-1.5"
-								></iconify-icon>
+								{#if widget?.Description}
+									<iconify-icon
+										icon="material-symbols:info-outline"
+										width="18"
+										use:popup={getIconTooltip(item)}
+										class="text-primary-500 absolute -top-1 -right-1"
+									></iconify-icon>
+									<!-- IconTooltip -->
+									<div class="card preset-filled-secondary-500 z-50 max-w-xs p-2 text-sm" data-popup={item}>
+										<!-- Use widget variable -->
+										{widget?.Description}
+										<div class="preset-filled-secondary-500 arrow"></div>
+									</div>
+								{/if}
 							</button>
-							<!-- IconTooltip -->
-							<div class="card preset-filled-secondary-500 z-50 max-w-sm p-4" data-popup={item}>
-								<p>{widgets[item]?.Description}</p>
-								<div class="preset-filled-secondary-500 arrow"></div>
-							</div>
 						{/if}
 					{/if}
 				{/each}
 			</div>
-		</form>
+		</div>
 
-		<footer class="flex {existingCategory.name ? 'justify-between' : 'justify-end'} {parent.regionFooter}">
-			<div class="flex gap-2">
-				<button class="preset-outline-secondary btn" onclick={parent.onClose}>{m.button_cancel()}</button>
-				<!-- <button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button> -->
-			</div>
+		<footer class="flex justify-end pt-4">
+			<button type="button" class="btn variant-soft" onclick={onClose}>{m.button_cancel()}</button>
+			<!-- Submit happens on widget click, no explicit save button needed here -->
 		</footer>
-	</div>
-{/if}
+	{/snippet}
+</Modal>

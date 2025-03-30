@@ -3,13 +3,13 @@
 @component
 **This component manages roles within the application's access management system**
 
-```tsx
+@example
 <Roles />
-```
+
 ### Props
 - `roleData`: An object containing role data, including the current admin role and available roles.
 
-It provides the following functionality:
+### Features
 - Load and display roles and their associated permissions.
 - Allow users to create, edit, and delete roles through a modal interface.
 - Allow bulk deletion of selected roles.
@@ -28,13 +28,14 @@ It provides the following functionality:
 
 	// Components
 	import Loading from '@components/Loading.svelte';
+
+	// Modal
 	import RoleModal from './RoleModal.svelte';
 
 	// Skeleton
-	import { type ModalSettings, type PopupSettings } from '@skeletonlabs/skeleton-svelte';
+	import { popup, type PopupSettings, getToastStore } from '@skeletonlabs/skeleton'; // Use base path for v3
 
 	const toastStore = getToastStore();
-	const modalStore = getModalStore();
 
 	// Svelte DND-actions
 	import { dndzone } from 'svelte-dnd-action';
@@ -46,7 +47,6 @@ It provides the following functionality:
 
 	const roles = writable<Role[]>([]);
 	const availablePermissions = writable<Permission[]>([]);
-	let selectedPermissions: string[] = [];
 	const selectedRoles = writable<Set<string>>(new Set());
 	const isLoading = writable(true);
 	const error = writable<string | null>(null);
@@ -54,10 +54,29 @@ It provides the following functionality:
 
 	// Modal state
 	let isEditMode = false;
-	let currentRoleId: string | null = null;
-	let currentGroupName: string = '';
-
 	let items: any = $state();
+
+	// Modal state
+	let isRoleModalOpen = $state(false);
+	// Define props type matching RoleModal's expected props (non-partial for required ones)
+	let roleModalProps = $state<{
+		isEditMode: boolean; // Required
+		currentRoleId: string | null; // Required (can be null)
+		roleName: string; // Required
+		roleDescription: string; // Required
+		currentGroupName: string; // Required
+		selectedPermissions: string[]; // Required
+		availablePermissions: Permission[]; // Required
+	}>({
+		// Provide default values matching expected types
+		isEditMode: false,
+		currentRoleId: null,
+		roleName: '',
+		roleDescription: '',
+		currentGroupName: '',
+		selectedPermissions: [],
+		availablePermissions: []
+	}); // Props for the modal instance
 
 	// Fetch roles and permissions on mount
 	onMount(async () => {
@@ -90,48 +109,36 @@ It provides the following functionality:
 		}
 	};
 
+	// Updated function to open the modal via state and props
 	const openModal = (role: Role | null = null, groupName = '') => {
-		isEditMode = !!role;
-		currentRoleId = role ? role._id : null;
-		currentGroupName = groupName || '';
-		selectedPermissions = role?.permissions || [];
-
-		const modal: ModalSettings = {
-			type: 'component',
-			component: {
-				ref: RoleModal,
-				props: {
-					isEditMode,
-					currentRoleId,
-					roleName: role?.name || '',
-					roleDescription: role?.description || '',
-					currentGroupName,
-					selectedPermissions
-				}
-			},
-			title: isEditMode ? 'Edit Role' : 'Create Role',
-			buttonTextCancel: 'Cancel',
-			buttonTextConfirm: isEditMode ? 'Update' : 'Create',
-			response: (formData: any) => {
-				if (formData) {
-					saveRole(formData);
-				}
-			}
+		const isEditMode = !!role;
+		roleModalProps = {
+			isEditMode: isEditMode,
+			currentRoleId: role ? role._id : null,
+			roleName: role?.name || '',
+			roleDescription: role?.description || '',
+			currentGroupName: groupName || '',
+			selectedPermissions: role?.permissions || [],
+			availablePermissions: $availablePermissions // Pass available permissions
 		};
-		modalStore.trigger(modal);
+		isRoleModalOpen = true;
 	};
 
-	const saveRole = async (role: {
+	// Updated function to save a role
+	const saveRole = async (formData: {
 		roleName: string;
 		roleDescription: string;
 		currentGroupName: string;
 		selectedPermissions: string[];
 		currentRoleId: string | null;
 	}) => {
-		const { roleName, roleDescription, currentGroupName, selectedPermissions, currentRoleId } = role;
+		// Correct destructuring from formData parameter
+		const { roleName, roleDescription, currentGroupName, selectedPermissions, currentRoleId } = formData;
 		if (!roleName) return;
 
 		const roleId = currentRoleId ?? uuidv4();
+		// Update isEditMode based on whether currentRoleId was passed back
+		isEditMode = !!currentRoleId;
 		const newRole = {
 			_id: roleId,
 			id: roleId, // Add id for dndzone
@@ -266,6 +273,9 @@ It provides the following functionality:
 	}
 </script>
 
+<!-- Add RoleModal instance, controlled by state, using callback props -->
+<RoleModal bind:open={isRoleModalOpen} {...roleModalProps} onSubmit={saveRole} onClose={() => (isRoleModalOpen = false)} />
+
 {#if $isLoading}
 	<Loading customTopText="Loading Roles..." customBottomText="" />
 {:else if $error}
@@ -299,7 +309,7 @@ It provides the following functionality:
 						onfinalize={handleFinalize}
 					>
 						{#each items as role (role.id)}
-							<div class="animate-flip flex items-center justify-between rounded-sm border p-4 hover:bg-surface-500 md:flex-row">
+							<div class="animate-flip hover:bg-surface-500 flex items-center justify-between rounded-sm border p-4 md:flex-row">
 								<div class="flex items-center gap-2">
 									<!-- Drag Icon -->
 									<iconify-icon icon="mdi:drag" width="18" class="cursor-move text-gray-500 dark:text-gray-300"></iconify-icon>
@@ -309,14 +319,14 @@ It provides the following functionality:
 									{/if}
 
 									<!-- Role Name with Tooltip -->
-									<span class="flex items-center text-xl font-semibold text-tertiary-500 dark:text-primary-500">
+									<span class="text-tertiary-500 dark:text-primary-500 flex items-center text-xl font-semibold">
 										{role.name}
 
 										{#if role.description}
 											<iconify-icon
 												icon="material-symbols:info"
 												width="18"
-												class="ml-1 text-tertiary-500 dark:text-primary-500"
+												class="text-tertiary-500 dark:text-primary-500 ml-1"
 												use:popup={getPopupSettings(role._id)}
 											></iconify-icon>
 											<div class="card preset-filled-surface-500 p-4" data-popup="role-{role._id}">
@@ -328,7 +338,7 @@ It provides the following functionality:
 								</div>
 
 								<!-- Description for larger screens -->
-								<p class="mt-2 hidden text-sm text-gray-600 dark:text-gray-400 md:ml-4 md:mt-0 md:block">
+								<p class="mt-2 hidden text-sm text-gray-600 md:mt-0 md:ml-4 md:block dark:text-gray-400">
 									{role.description}
 								</p>
 
@@ -346,7 +356,7 @@ It provides the following functionality:
 	</div>
 {/if}
 
-<style lang="postcss">
+<style>
 	.role {
 		height: calc(100vh - 350px);
 	}

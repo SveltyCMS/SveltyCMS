@@ -148,7 +148,7 @@
 	};
 </script>
 
-<div class="preset-filled-surface-500  flex w-full rounded-sm">
+<div class="preset-filled-surface-500 flex w-full rounded-sm">
 	{#if field?.prefix}
 		<button class="px-2!">{field?.prefix}</button>
 	{/if}
@@ -166,7 +166,7 @@
 		minlength={field?.minlength}
 		maxlength={field?.maxlength}
 		step={field?.step}
-		class="input text-black dark:text-primary-500"
+		class="input dark:text-primary-500 text-black"
 		aria-invalid={!!validationError}
 		aria-describedby={validationError ? `${fieldName}-error` : undefined}
 	/>
@@ -190,7 +190,7 @@
 
 <!-- Error Message -->
 {#if validationError}
-	<p id={`${fieldName}-error`} class="text-center text-sm text-error-500">
+	<p id={`${fieldName}-error`} class="text-error-500 text-center text-sm">
 		{validationError}
 	</p>
 {/if}

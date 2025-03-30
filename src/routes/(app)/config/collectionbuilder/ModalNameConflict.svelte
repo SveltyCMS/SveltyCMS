@@ -8,7 +8,7 @@ Features:
 - Provides suggestions for resolving conflicts
 -->
 <script lang="ts">
-		const modalStore = getModalStore();
+	const modalStore = getModalStore();
 
 	interface Props {
 		conflictingName: string;
@@ -45,7 +45,7 @@ Features:
 		<div class="alert-message">
 			<h3 class="h3">Collection Name Conflict</h3>
 			<p>The collection name "{conflictingName}" already exists at:</p>
-			<code class="mt-2 block rounded-sm bg-surface-900 p-2">{conflictPath}</code>
+			<code class="bg-surface-900 mt-2 block rounded-sm p-2">{conflictPath}</code>
 		</div>
 	</div>
 
@@ -77,12 +77,12 @@ Features:
 			/>
 		</div>
 		{#if useCustomName && customName && !validateCustomName(customName)}
-			<p class="mt-1 text-sm text-error-500">Name must start with a letter and contain only letters and numbers</p>
+			<p class="text-error-500 mt-1 text-sm">Name must start with a letter and contain only letters and numbers</p>
 		{/if}
 	</div>
 
 	<footer class="modal-footer flex justify-end gap-4">
-		<button type="button" class="preset-tonal border border-surface-500 btn" onclick={handleCancel}> Cancel </button>
+		<button type="button" class="preset-tonal border-surface-500 btn border" onclick={handleCancel}> Cancel </button>
 		<button
 			type="button"
 			class="preset-filled-primary-500 btn"

@@ -1,10 +1,21 @@
 <!-- 
 @files src/components/system/builder/InputSwitch.svelte
 @component
-**InputSwitch component**
+**InputSwitch component is used to render input fields based on provided widget**
 
-Features:
+@example
+<InputSwitch bind:value={value} widget={widget} key={key} bind:iconselected={iconselected} bind:permissions={permissions} />
+
+### Props:
+- `value` {any} - Bindable value
+- `widget` {any} - Widget component
+- `key` {string} - Field key
+- `iconselected` {string | null} - Bindable iconselected
+- `permissions` {any} - Bindable permissions
+
+### Features:
 - Dynamic rendering of input fields based on provided widget
+- Accessible checkbox input
 -->
 
 <script lang="ts">

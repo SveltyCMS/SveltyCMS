@@ -119,7 +119,7 @@
 		</div>
 	{:else}
 		<div
-			class="flex w-full max-w-full flex-col border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700"
+			class="border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700 flex w-full max-w-full flex-col border-2 border-dashed"
 			class:error={!!validationError}
 		>
 			<!-- Preview -->
@@ -143,15 +143,15 @@
 					{:else}
 						<div class="col-span-11 ml-2 grid grid-cols-2 gap-1 text-left">
 							<p class="">{m.widget_ImageUpload_Type()}</p>
-							<p class="font-bold text-tertiary-500 dark:text-primary-500">{_data.type}</p>
+							<p class="text-tertiary-500 dark:text-primary-500 font-bold">{_data.type}</p>
 							<p class="">Path:</p>
-							<p class="font-bold text-tertiary-500 dark:text-primary-500">{_data.path}</p>
+							<p class="text-tertiary-500 dark:text-primary-500 font-bold">{_data.path}</p>
 							<p class="">{m.widget_ImageUpload_Uploaded()}</p>
-							<p class="font-bold text-tertiary-500 dark:text-primary-500">
+							<p class="text-tertiary-500 dark:text-primary-500 font-bold">
 								{convertTimestampToDateString(getTimestamp(_data instanceof File ? _data.lastModified : _data.createdAt))}
 							</p>
 							<p class="">{m.widget_ImageUpload_LastModified()}</p>
-							<p class="font-bold text-tertiary-500 dark:text-primary-500">
+							<p class="text-tertiary-500 dark:text-primary-500 font-bold">
 								{convertTimestampToDateString(getTimestamp(_data instanceof File ? _data.lastModified : _data.updatedAt))}
 							</p>
 						</div>
@@ -160,7 +160,7 @@
 					<!-- Buttons -->
 					<div class="col-span-1 flex flex-col items-end justify-between gap-2 p-2">
 						<!-- Flip -->
-						<button onclick={() => (isFlipped = !isFlipped)} aria-label="Flip" class="preset-tonal border border-surface-500 btn-icon">
+						<button onclick={() => (isFlipped = !isFlipped)} aria-label="Flip" class="preset-tonal border-surface-500 btn-icon border">
 							<iconify-icon
 								icon="uiw:reload"
 								width="24"
@@ -169,7 +169,7 @@
 						</button>
 
 						<!-- Delete -->
-						<button onclick={() => (_data = undefined)} aria-label="Delete" class="preset-tonal border border-surface-500 btn-icon">
+						<button onclick={() => (_data = undefined)} aria-label="Delete" class="preset-tonal border-surface-500 btn-icon border">
 							<iconify-icon icon="material-symbols:delete-outline" width="30" class="text-error-500"></iconify-icon>
 						</button>
 					</div>
@@ -180,13 +180,13 @@
 
 	<!-- Error Message -->
 	{#if validationError}
-		<p id={`${getFieldName(field)}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+		<p id={`${getFieldName(field)}-error`} class="text-error-500 absolute bottom-[-1rem] left-0 w-full text-center text-xs" role="alert">
 			{validationError}
 		</p>
 	{/if}
 </div>
 
-<style lang="postcss">
+<style>
 	.error {
 		border-color: rgb(239 68 68);
 	}

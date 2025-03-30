@@ -1,12 +1,18 @@
 <!-- 
 @files src/components/system/buttons/MultiButton.svelte
 @component
-**MultiButton component**
+**MultiButton component for managing entries**
 
-Features:
+@example
+<MultiButton bind:selectedRows={selectedRows} type="user" />
+
+#### Props:
+- `selectedRows` {array} - Array of selected rows (UserData | TokenData)
+- `type` {"user" | "token"} - Type of data to manage (default: 'user')
+
+### Features:
 - Conditional rendering of buttons based on modifyEntry
 - Dynamic button rendering based on provided buttons object
-
 -->
 
 <script lang="ts">

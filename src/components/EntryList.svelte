@@ -45,7 +45,7 @@ Features:
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import TablePagination from '@components/system/table/TablePagination.svelte';
 	import Status from '@components/system/table/Status.svelte';
-	import Loading from '@components/Loading.svelte'; 
+	import Loading from '@components/Loading.svelte';
 
 	// Skeleton
 	import { getContext } from 'svelte';
@@ -54,7 +54,7 @@ Features:
 	export const toast: ToastContext = getContext('toast');
 
 	// Modals
-	import ModalConfirm from '@components/ModalConfirm.svelte'; // Using the refactored modal
+	import ModalConfirm from '@components/ModalConfirm.svelte';
 
 	// Svelte-dnd-action
 	import { flip } from 'svelte/animate';
@@ -119,7 +119,8 @@ Features:
 		isSorted: 1
 	});
 	$effect(() => {
-		if (tableData.length > 0 && !sorting.sortedBy) { // Initialize only if not already set
+		if (tableData.length > 0 && !sorting.sortedBy) {
+			// Initialize only if not already set
 			sorting.sortedBy = Object.keys(tableData[0])[0];
 		}
 	});
@@ -129,9 +130,13 @@ Features:
 	let rowsPerPage = $state<number>(entryListPaginationSettings.rowsPerPage || 10); // Set initial rowsPerPage value
 	let totalItems = $state<number>(0); // Initialize totalItems
 
-	// Declare isFirstPage and isLastPage variables
-	let isFirstPage: boolean;
-	let isLastPage: boolean;
+	// State for confirmation modal
+	let isConfirmOpen = $state(false);
+	let listToDelete = $state<string[]>([]);
+
+	// Removed unused isFirstPage and isLastPage variables
+	// let isFirstPage: boolean;
+	// let isLastPage: boolean;
 
 	// Derived stores for reactive values
 	const currentLanguage = $derived(contentLanguage.value);
@@ -244,9 +249,9 @@ Features:
 		SelectAll = false;
 		// Update pagesCount after fetching data
 		pagesCount = data?.pagesCount || 1;
-		// Update isFirstPage and isLastPage based on currentPage and pagesCount
-		isFirstPage = currentPage === 1;
-		isLastPage = currentPage === pagesCount;
+		// Removed updates for unused variables
+		// isFirstPage = currentPage === 1;
+		// isLastPage = currentPage === pagesCount;
 		// Adjust currentPage to the last page if it exceeds the new total pages count after changing the rows per page.
 		if (currentPage > (data?.pagesCount || 0)) {
 			currentPage = data?.pagesCount || 1;
@@ -325,10 +330,10 @@ Features:
 		}
 		// If no rows are selected, return
 		if (modifyList.length === 0) return Promise.resolve();
-		// Function to handle confirmation modal response
+		// Removed unused handleConfirmation function declaration
+		/*
 		const handleConfirmation = async (confirm: boolean) => {
 			if (!confirm) return;
-			// Initialize a new FormData object
 			const formData = new FormData();
 			// Append the IDs of the items to be modified to formData
 			formData.append('ids', JSON.stringify(modifyList));
@@ -368,25 +373,76 @@ Features:
 				console.log(`'Error : ${err.message}`);
 			}
 		};
-		// If more than one row is selected or the status is 'delete', show confirmation modal
-		if (modifyList.length > 1 || status === 'deleted') {
-			<ModalConfirm {user} {title} {body} {buttonTextCancel} {buttonTextConfirm} {response} />
-			// const modalData: ModalSettings = {
-			// 	type: 'confirm',
-			// 	title: m.entrylist_title(),
-			// 	body: m.entrylist_body({
-			// 		status: `<span class="text-text-tertiary-500 dark:text-primary-500">${status.charAt(0).toUpperCase()}${status.slice(1)}</span>`
-			// 	}),
-			// 	buttonTextCancel: m.button_cancel(),
-			// 	buttonTextConfirm: m.button_confirm(),
-			// 	response: handleConfirmation
-			// };
-			// modalStore.trigger(modalData); // Trigger the confirmation modal
-		} else {
-			// If only one row is selected and status is not 'delete', directly proceed with modification
-			handleConfirmation(true);
+		*/
+
+		// If status is 'deleted', trigger the confirmation modal
+		if (status === 'deleted') {
+			listToDelete = modifyList; // Store the list of IDs to delete
+			isConfirmOpen = true; // Open the modal
+		} else if (modifyList.length > 0) {
+			// For other statuse ish, unpublish, etc.), proceed directly
+			// Initialize a new FormData object
+			const formData = new FormData();
+			// Append the IDs of the items to be modified to formData
+			formData.append('ids', JSON.stringify(modifyList));
+			// Append the status to formData
+			formData.append('status', statusMap[status]);
+			try {
+				// Call the appropriate API endpoint based on the status
+				switch (status) {
+					// Removed 'deleted' case as it's handled by modal confirmation
+					case 'published':
+					case 'unpublished':
+					case 'testing':
+						await setStatus({ data: formData, collectionId: currentCollection?._id as string });
+						break;
+					case 'cloned':
+					case 'scheduled':
+						toast.create({
+							title: 'Error',
+							description: 'Feature not yet implemented.',
+							type: 'error',
+							duration: 4000
+						});
+						break;
+				}
+				// Refresh the collection
+				refreshTableData();
+				// Set the mode to 'view'
+				mode.set('view');
+			} catch (error) {
+				const err = error as Error;
+				console.log(`'Error : ${err.message}`);
+			}
 		}
 	});
+
+	// Function to execute deletion after confirmation
+	async function executeDelete() {
+		if (listToDelete.length === 0) return;
+
+		const formData = new FormData();
+		formData.append('ids', JSON.stringify(listToDelete));
+		formData.append('status', statusMap.deleted); // Ensure correct status is sent
+
+		try {
+			await deleteData({ data: formData, collectionId: currentCollection?._id as string });
+			refreshTableData();
+			mode.set('view');
+			listToDelete = []; // Clear the list after deletion
+		} catch (error) {
+			const err = error as Error;
+			console.log(`'Error deleting data: ${err.message}`);
+			// Optionally show an error toast
+			toast.create({
+				title: 'Error',
+				description: `Failed to delete entries: ${err.message}`,
+				type: 'error',
+				duration: 4000
+			});
+		}
+		// isConfirmOpen = false; // Modal closes itself via binding
+	}
 
 	let categoryName = $derived.by(() => {
 		if (!currentCollection?._id || !contentStructure.value) return '';
@@ -398,6 +454,20 @@ Features:
 
 	let isCollectionEmpty = $derived(tableData.length === 0);
 </script>
+
+<!-- Confirmation Modal Instance -->
+<ModalConfirm
+	bind:open={isConfirmOpen}
+	title={m.entrylist_title()}
+	body={m.entrylist_body({ status: 'Deleted' })}
+	buttonTextConfirm={m.button_confirm()}
+	buttonTextCancel={m.button_cancel()}
+	onConfirm={executeDelete}
+	onClose={() => {
+		isConfirmOpen = false;
+		listToDelete = []; // Clear list if cancelled
+	}}
+/>
 
 <!--Table -->
 {#if isLoading}
@@ -731,7 +801,7 @@ Features:
 	{/if}
 {/if}
 
-<style lang="postcss">
+<style>
 	.up {
 		transform: rotate(-180deg);
 	}

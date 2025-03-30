@@ -1,12 +1,21 @@
 <!-- 
 @file src/components/system/inputs/Input.svelte
-@description Component for file input 
+@component
+**Component for file input**
 
-Features:
+@example
+<FileInput bind:value={value} onChange={handleFileChange} />
+
+### Props:
+- `value` {any} - Bindable value
+- `show` {boolean} - Show the file input
+- `multiple` {boolean} - Allow multiple file selection
+- `onChange` {function} - Function to handle file change
+
+### Features:
 - File input 
 - Multiple file input
 - Drag and drop
-
 -->
 
 <script lang="ts">
@@ -91,7 +100,7 @@ Features:
 		role="cell"
 		tabindex="0"
 		class={twMerge(
-			'relative mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded-sm border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700',
+			'border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700 relative mt-2 flex h-[200px] w-full max-w-full flex-col items-center justify-center gap-4 rounded-sm border-2 border-dashed select-none',
 			_class
 		)}
 	>
@@ -113,11 +122,11 @@ Features:
 				<p class="text-sm opacity-75">{m.widget_ImageUpload_Allowed()}.</p>
 
 				<div class="flex w-full justify-center gap-2">
-					<button onclick={openFileInput} class="preset-filled-tertiary-500 btn mt-3 dark:preset-filled-primary-500">
+					<button onclick={openFileInput} class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 mt-3">
 						{m.widget_ImageUpload_BrowseNew()}
 					</button>
 
-					<button onclick={() => toggleMedia(true)} class="preset-filled-tertiary-500 btn mt-3 dark:preset-filled-primary-500">
+					<button onclick={() => toggleMedia(true)} class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 mt-3">
 						{m.widget_ImageUpload_SelectMedia()}
 					</button>
 				</div>
@@ -131,11 +140,11 @@ Features:
 	<!-- Show existing Media Images -->
 	{#if showMedia}
 		<div
-			class="bg-surface-100-900 fixed left-[50%] top-[50%] z-999999999 flex h-[90%] w-[95%] translate-x-[-50%] translate-y-[-50%] flex-col rounded-sm border-[1px] border-surface-400 p-2"
+			class="bg-surface-100-900 border-surface-400 fixed top-[50%] left-[50%] z-999999999 flex h-[90%] w-[95%] translate-x-[-50%] translate-y-[-50%] flex-col rounded-sm border-[1px] p-2"
 		>
 			<div class="bg-surface-100-900 flex items-center justify-between border-b p-2">
-				<p class="ml-auto font-bold text-black dark:text-primary-500">{m.widget_ImageUpload_SelectImage()}</p>
-				<button onclick={() => toggleMedia(false)} aria-label="Close" class="preset-tonal-secondary border border-secondary-500 btn-icon ml-auto">
+				<p class="dark:text-primary-500 ml-auto font-bold text-black">{m.widget_ImageUpload_SelectImage()}</p>
+				<button onclick={() => toggleMedia(false)} aria-label="Close" class="preset-tonal-secondary border-secondary-500 btn-icon ml-auto border">
 					<iconify-icon icon="material-symbols:close" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 				</button>
 			</div>

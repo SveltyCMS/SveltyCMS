@@ -142,9 +142,9 @@
 
 <!-- Filter Controls UI -->
 <div class="wrapper">
-	<h3 class=" relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Filter</h3>
+	<h3 class=" text-tertiary-500 dark:text-primary-500 relative text-center text-lg font-bold">Filter</h3>
 
-	<button onclick={exitShapeOverlay} class="preset-tonal-primary border border-primary-500 btn-icon absolute -top-2 right-2 font-bold"> Exit </button>
+	<button onclick={exitShapeOverlay} class="preset-tonal-primary border-primary-500 btn-icon absolute -top-2 right-2 border font-bold"> Exit </button>
 	<div class="grid grid-cols-2 gap-2">
 		<label class="flex flex-col">
 			<span class="mb-1">Brightness: <span class="text-tertiary-500 dark:text-primary-500">{formatValue(filters.brightness)} </span></span>
@@ -195,7 +195,7 @@
 			/>
 		</label>
 		<label class="flex flex-col">
-			<span class="mb-1">Blur: <span class="text-tertiary-500 dark:text-primary-500">{formatValue(filters.blur-sm, 'px')}</span></span>
+			<span class="mb-1">Blur: <span class="text-tertiary-500 dark:text-primary-500">{formatValue(filters.blur - sm, 'px')}</span></span>
 			<input
 				type="range"
 				min="0"

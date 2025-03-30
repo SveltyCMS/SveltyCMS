@@ -34,13 +34,13 @@
 </script>
 
 {#if show}
-	<div class="fixed left-1/2 top-0 z-10 -translate-x-1/2 bg-white">
+	<div class="fixed top-0 left-1/2 z-10 -translate-x-1/2 bg-white">
 		<iconify-icon
 			icon="material-symbols:close"
 			width="32"
 			role="button"
 			aria-label="Close"
-			class="absolute right-2 top-4 z-10 cursor-pointer"
+			class="absolute top-4 right-2 z-10 cursor-pointer"
 			onclick={close}
 			onkeydown={(e) => e.key === 'Enter' && close()}
 			tabindex="0"
@@ -48,14 +48,14 @@
 
 		{#if insert_url}
 			<div
-				class="relative mt-2 flex h-[200px] w-[500px] max-w-full select-none flex-col items-center justify-center gap-4 border-2 border-dashed border-[#c1c1c1] px-[50px]"
+				class="relative mt-2 flex h-[200px] w-[500px] max-w-full flex-col items-center justify-center gap-4 border-2 border-dashed border-[#c1c1c1] px-[50px] select-none"
 			>
 				<FloatingInput bind:value={youtube_url} textColor="black" name="Youtube URL" label="Youtube URL" />
 				<button onclick={addVideo} class="btn">Add Video</button>
 			</div>
 		{:else}
 			<div
-				class="relative mt-2 flex h-[200px] w-[500px] max-w-full select-none flex-col items-center justify-center gap-4 border-2 border-dashed border-[#c1c1c1]"
+				class="relative mt-2 flex h-[200px] w-[500px] max-w-full flex-col items-center justify-center gap-4 border-2 border-dashed border-[#c1c1c1] select-none"
 			>
 				<p>Drag & Drop</p>
 				<p>or</p>

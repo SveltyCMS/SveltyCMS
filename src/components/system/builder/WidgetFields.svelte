@@ -1,6 +1,18 @@
 <!-- 
 @file src/components/system/builder/WidgetFields.svelte
-@description Component for displaying and managing widget fields 
+@component 
+**WidgetFields Component for displaying and managing widget fields**
+
+@example
+<WidgetFields bind:fields={fields} onFieldsUpdate={updateFields} />
+
+### Props
+- `fields` {array} - Array of widgets
+- `onFieldsUpdate` {function} - Function to update the fields array
+
+### Features
+- Adds a new widget to the collection
+- Edits a widget in the collection
 -->
 
 <script lang="ts">
@@ -177,7 +189,7 @@
 				<p>widget: {field.widget.Name}</p>
 				<p>label: {field.label}</p>
 			</div>
-			<button onclick={(e) => handleFieldDelete(field, e)} aria-label="Delete widget" class="absolute right-[5px] top-[5px]">
+			<button onclick={(e) => handleFieldDelete(field, e)} aria-label="Delete widget" class="absolute top-[5px] right-[5px]">
 				<iconify-icon icon="tdesign:delete-1" width="24" height="24"></iconify-icon>
 			</button>
 		</div>
@@ -189,10 +201,10 @@
 {/if}
 
 <!-- List of widget names -->
-<div class="user-select-none mx-5 max-h-full min-w-[min(500px,90vw)] overflow-auto rounded-sm bg-surface-400 shadow-xl">
+<div class="user-select-none bg-surface-400 mx-5 max-h-full min-w-[min(500px,90vw)] overflow-auto rounded-sm shadow-xl">
 	{#each fields as field (field.id)}
 		<div
-			class="preset-tonal-tertiary border border-tertiary-500 relative w-full overflow-hidden hover:bg-error-500"
+			class="preset-tonal-tertiary border-tertiary-500 hover:bg-error-500 relative w-full overflow-hidden border"
 			aria-label="Widget"
 			role="button"
 			tabindex="0"
@@ -205,7 +217,7 @@
 				<p>label: {field.label}</p>
 			</div>
 
-			<button onclick={(e) => handleFieldDelete(field, e)} aria-label="Delete widget" class="absolute right-[5px] top-[5px]">
+			<button onclick={(e) => handleFieldDelete(field, e)} aria-label="Delete widget" class="absolute top-[5px] right-[5px]">
 				<iconify-icon icon="tdesign:delete-1" width="24" height="24"></iconify-icon>
 			</button>
 		</div>
@@ -221,7 +233,7 @@
 <!-- Edit individual selected widget  -->
 {#if currentField}
 	<div
-		class="fixed -top-16 left-0 z-20 flex h-full w-full flex-col items-center justify-center overflow-auto bg-white dark:bg-surface-900 {sidebarState
+		class="dark:bg-surface-900 fixed -top-16 left-0 z-20 flex h-full w-full flex-col items-center justify-center overflow-auto bg-white {sidebarState
 			.sidebar.value.left === 'full'
 			? 'left-[220px] '
 			: 'left-0 '}"
@@ -235,7 +247,7 @@
 				<!-- Save Button -->
 				<button class="preset-filled-primary-500 btn" aria-label="Save" onclick={handleSave}>Save</button>
 				<!-- Cancel Button -->
-				<button class="preset-tonal-secondary border border-secondary-500 btn-icon mr-2" aria-label="Cancel" onclick={handleCancel}>
+				<button class="preset-tonal-secondary border-secondary-500 btn-icon mr-2 border" aria-label="Cancel" onclick={handleCancel}>
 					<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 				</button>
 			</div>

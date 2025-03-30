@@ -2,6 +2,16 @@
 @file src/components/system/icons/SveltyCMS_LogoFull.svelte
 @component 
 **Dynamic SveltyCMS_LogoFull component**
+
+@example
+<SveltyCMS_LogoFull />
+
+#### Props
+- `fill` {string} - Fill color
+- `className` {string} - CSS class
+
+### Features
+- Dynamic SveltyCMS_LogoFull component
 -->
 
 <script lang="ts">
@@ -18,12 +28,12 @@
 	href="https://github.com/SveltyCMS/SveltyCMS"
 	target="_blank"
 	rel="noopener"
-	class="absolute left-1/2 top-1/3 flex -translate-x-1/2 -translate-y-1/2 transform items-center justify-center"
+	class="absolute top-1/3 left-1/2 flex -translate-x-1/2 -translate-y-1/2 transform items-center justify-center"
 >
 	<!--White Inner Background -->
 	<div class="relative flex h-[170px] w-[170px] items-center justify-center rounded-full bg-white">
 		<!-- Red circle -->
-		<svg width="160" height="160" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
+		<svg width="160" height="160" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transform">
 			<circle
 				cx="80"
 				cy="80"
@@ -32,7 +42,7 @@
 				stroke-dasharray="191 191"
 				stroke-dashoffset="191"
 				transform="rotate(51.5, 80, 80)"
-				class="fill-none stroke-error-500"
+				class="stroke-error-500 fill-none"
 			/>
 
 			<circle
@@ -43,11 +53,11 @@
 				stroke-dasharray="191 191"
 				stroke-dashoffset="191"
 				transform="rotate(231.5, 80, 80)"
-				class="fill-none stroke-error-500"
+				class="stroke-error-500 fill-none"
 			/>
 		</svg>
 		<!-- Black circle -->
-		<svg width="170" height="170" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
+		<svg width="170" height="170" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transform">
 			<circle
 				cx="85"
 				cy="85"
@@ -70,7 +80,7 @@
 			/>
 		</svg>
 
-		<div class="absolute left-1/2 top-[68px] flex -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center text-center">
+		<div class="absolute top-[68px] left-1/2 flex -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center text-center">
 			<!-- Logo -->
 			<Logo fill="red" className="w-14 h-14" />
 
@@ -79,7 +89,7 @@
 				<SiteName />
 			</div>
 			<!-- Slogan -->
-			<div class="-mt-[1px] text-[12px] font-bold text-secondary-500">
+			<div class="text-secondary-500 -mt-[1px] text-[12px] font-bold">
 				{m.logo_slogan()}
 			</div>
 		</div>

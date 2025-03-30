@@ -12,7 +12,7 @@
 - `config`: Permission configuration object
 - `messages`: Custom messages for different scenarios
 
-Features:
+### Features:
 - Checks user permissions based on provided configuration
 - Handles admin roles, regular permissions, and rate limiting
 - Provides fallback content for missing configurations or insufficient permissions

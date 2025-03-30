@@ -150,11 +150,11 @@ It provides functionality to:
 	<div class="wrapper my-4">
 		<!-- Display current admin role-->
 		<p class="my-4 text-center lg:text-left">
-			Current Admin Role: <span class="ml-2 text-tertiary-500 dark:text-primary-500">{$currentAdminName}</span>
+			Current Admin Role: <span class="text-tertiary-500 dark:text-primary-500 ml-2">{$currentAdminName}</span>
 		</p>
 
 		<!-- Dropdown to select admin role -->
-		<label for="adminRole" class="block text-sm text-surface-300">Select new Administrator Role:</label>
+		<label for="adminRole" class="text-surface-300 block text-sm">Select new Administrator Role:</label>
 		<select id="adminRole" class="input" onchange={handleRoleChange} bind:value={$selectedAdminRole}>
 			{#each $roles as role}
 				<option value={role._id}>{role.name}</option>
@@ -165,7 +165,7 @@ It provides functionality to:
 		{#if $hasChanges}
 			<!-- Display new admin role-->
 			<p class="mt-4 text-center lg:text-left">
-				Selected Admin Role ID: <span class="ml-2 text-tertiary-500 dark:text-primary-500">{$selectedAdminRole}</span>
+				Selected Admin Role ID: <span class="text-tertiary-500 dark:text-primary-500 ml-2">{$selectedAdminRole}</span>
 			</p>
 			<div class="mt-4 flex justify-between">
 				<!-- cancel -->

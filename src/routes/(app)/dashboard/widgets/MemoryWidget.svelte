@@ -153,7 +153,7 @@ Features:
 
 <BaseWidget {label} endpoint="/api/systemInfo" pollInterval={5000} theme={themeType}>
 	<div
-		class="relative h-full w-full rounded-lg p-4 text-tertiary-500 transition-colors duration-300 ease-in-out dark:bg-surface-500 dark:text-primary-500"
+		class="text-tertiary-500 dark:bg-surface-500 dark:text-primary-500 relative h-full w-full rounded-lg p-4 transition-colors duration-300 ease-in-out"
 		aria-label="Memory Usage Widget"
 	>
 		<h2 class="text-center font-bold">Memory Usage</h2>

@@ -9,7 +9,7 @@
 #### Props
 - `collection` {object} - Collection object
 
-Features
+### Features
 - Displays collection name
 - Displays creation and update dates
 -->

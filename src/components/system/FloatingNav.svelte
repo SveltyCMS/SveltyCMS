@@ -6,7 +6,10 @@
 @example
 <FloatingNav />
 
-Features:
+### Props
+- `user` {object} - User object	
+
+### Features:
 - Floating nav for mobile view	
 - Keyboard navigation support
 - Accessibility features
@@ -475,7 +478,7 @@ Features:
 	</div>
 {/if}
 
-<style lang="postcss">
+<style>
 	/* Tooltip arrow */
 	.tooltip-arrow {
 		@apply absolute top-full left-1/2 hidden -translate-x-1/2;

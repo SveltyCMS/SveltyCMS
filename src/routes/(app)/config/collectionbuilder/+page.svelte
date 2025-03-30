@@ -264,13 +264,13 @@
 <!-- Page Title with Back Button -->
 <PageTitle name={m.collection_pagetitle()} icon="fluent-mdl2:build-definition" showBackButton={true} backUrl="/config" />
 
-<div class="my-2 flex w-full justify-around gap-2 lg:ml-auto lg:mt-0 lg:w-auto lg:flex-row">
+<div class="my-2 flex w-full justify-around gap-2 lg:mt-0 lg:ml-auto lg:w-auto lg:flex-row">
 	<!-- add new Category-->
 	<button
 		onclick={() => modalAddCategory()}
 		type="button"
 		aria-label="Add New Category"
-		class="preset-filled-tertiary-500 btn flex items-center justify-between gap-1 rounded-sm font-bold dark:preset-filled-primary-500"
+		class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 flex items-center justify-between gap-1 rounded-sm font-bold"
 		disabled={isLoading}
 	>
 		<iconify-icon icon="bi:collection" width="18" class="text-white"></iconify-icon>
@@ -306,14 +306,14 @@
 </div>
 
 {#if apiError}
-	<div class="mb-4 rounded-sm bg-error-500/10 p-4 text-error-500" role="alert">
+	<div class="bg-error-500/10 text-error-500 mb-4 rounded-sm p-4" role="alert">
 		{apiError}
 	</div>
 {/if}
 
 <div class="max-h-[calc(100vh-65px)] overflow-auto">
 	<div class="wrapper mb-2">
-		<p class="mb-4 text-center dark:text-primary-500">{m.collection_text_description()}</p>
+		<p class="dark:text-primary-500 mb-4 text-center">{m.collection_text_description()}</p>
 
 		<!-- display collections -->
 		<Board contentNodes={contentStructure.value} onEditCategory={modalAddCategory} />

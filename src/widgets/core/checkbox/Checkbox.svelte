@@ -129,7 +129,7 @@
 	{/if}
 </div>
 
-<style lang="postcss">
+<style>
 	.checkbox-container {
 		min-height: 2.5rem;
 	}

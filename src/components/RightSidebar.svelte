@@ -36,43 +36,20 @@
 
 	// Components
 	import Toggles from './system/inputs/Toggles.svelte';
-	import ScheduleModal from './ScheduleModal.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { languageTag } from '@src/paraglide/runtime';
 
-	// Skeleton
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton-svelte';
+	//Modal
+	import ScheduleModal from './ScheduleModal.svelte';
 
-	const modalStore = getModalStore();
+	// State for controlling the modal
+	let isScheduleModalOpen = $state(false);
 
 	// Modal Trigger - Schedule
 	function openScheduleModal(): void {
-		const modalComponent: ModalComponent = {
-			ref: ScheduleModal,
-			slot: '<p>Edit Form</p>'
-		};
-
-		const modalSettings: ModalSettings = {
-			type: 'component',
-			title: 'Scheduler',
-			body: 'Set a date and time to schedule this entry.',
-			component: modalComponent,
-			response: (r: { date: string; action: string } | boolean) => {
-				if (typeof r === 'object') {
-					schedule = r.date;
-					if (r.action === 'schedule') {
-						collectionValue.update((cv) => ({
-							...cv,
-							status: 'scheduled',
-							_scheduled: new Date(r.date).getTime()
-						}));
-					}
-				}
-			}
-		};
-		modalStore.trigger(modalSettings);
+		isScheduleModalOpen = true; // Simply set the state to true
 	}
 
 	let next = $state(() => {});
@@ -181,6 +158,9 @@
 		}
 	}
 </script>
+
+<!-- Add the ScheduleModal component instance -->
+<ScheduleModal bind:open={isScheduleModalOpen} />
 
 <!-- Desktop Right Sidebar -->
 <!-- Check if user has create or write permission -->

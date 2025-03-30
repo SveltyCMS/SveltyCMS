@@ -10,7 +10,7 @@
 - `toastStore` {any} - Toast store
 -->
 <script lang="ts">
-		let remoteUrls: string[] = $state([]);
+	let remoteUrls: string[] = $state([]);
 	const toastStore = getToastStore();
 
 	function handleRemoteUrlInput(event: Event) {

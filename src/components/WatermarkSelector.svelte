@@ -6,7 +6,12 @@
 @example:
 <WatermarkSelector {mediaItems} bind:selectedMedia {onSelect} />
 
-Features:
+### Props
+- `mediaItems` {MediaType[]} - Array of media items
+- `selectedMedia` {MediaType | null} - Selected media item
+- `onSelect` {(media: MediaType) => void} - Callback function to handle selection
+
+### Features:
 - Displays a grid of selectable watermark images
 - Handles keyboard navigation and selection
 - Visually indicates the selected image

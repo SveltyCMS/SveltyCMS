@@ -6,7 +6,15 @@
 @example:
 <WatermarkSettings bind:size bind:opacity bind:positionX bind:positionY bind:rotation />
 
-Features:
+### Props:
+- `globalSearchValue` {string}: Current value of the global search input (default: '')
+- `searchShow` {boolean}: Visibility of the search input (default: false)
+- `filterShow` {boolean}: Visibility of filter controls (default: false)
+- `columnShow` {boolean}: Visibility of column controls (default: false)
+- `density` {string}: Table density ('compact', 'normal', 'comfortable') (default: 'normal')
+- `densityOptions` {string[]}: Custom density options (default: ['compact', 'normal', 'comfortable'])
+
+### Features:
 - Fuzzy search with optimized edit distance calculation
 - Real-time search results with debounced input
 - Keyboard navigation support

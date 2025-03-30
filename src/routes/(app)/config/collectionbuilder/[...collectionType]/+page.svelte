@@ -1,9 +1,18 @@
 <!-- 
 @files src/routes/(app)/config/collectionbuilder/[...contentTypes]/+page.svelte
 @component  
-**This component sets up and displays the collection page.**
-It provides a user-friendly interface for creating, editing, and deleting collections.
+**This component provides a user-friendly interface for creating, editing, and deleting collections.**
+
+@example
+<Collection />
+
+### Props
+- `collection` {object} - Collection object
+
+### Features
+- Displays collection page
 -->
+
 <script lang="ts">
 	import axios from 'axios';
 	import { onMount } from 'svelte';
@@ -24,11 +33,13 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	import CollectionForm from './tabs/CollectionForm.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
 
+	// Modals
+	import ModalConfirm from '@components/ModalConfirm.svelte';
+
 	// Skeleton
 	import { Tab, Tabs } from '@skeletonlabs/skeleton-svelte';
-	import { type ModalSettings } from '@skeletonlabs/skeleton-svelte';
+	import { getToastStore } from '@skeletonlabs/skeleton'; // confirm removed as unused
 
-	const modalStore = getModalStore();
 	const toastStore = getToastStore();
 
 	// Extract the collection name from the URL
@@ -36,6 +47,9 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	// Default widget data (tab1)
 	let name = $state(mode.value == 'edit' ? (collectionValue.value ? collectionValue.value.name : contentTypes) : contentTypes);
+
+	// State for confirmation modal
+	let isConfirmOpen = $state(false);
 
 	// Page title
 	let pageTitle = $state('');
@@ -128,42 +142,44 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		}
 	}
 
-	function handleCollectionDelete() {
-		console.log('Delete collection:', collectionValue.value?.name);
-		// Define the confirmation modal
-		const confirmModal: ModalSettings = {
-			type: 'confirm',
-			title: 'Please Confirm',
-			body: 'Are you sure you wish to delete this collection?',
-			response: (r: boolean) => {
-				if (r) {
-					// Send the form data to the server
-					axios.post(`?/deleteCollections`, obj2formData({ contentTypes: collectionValue.value?.name }), {
-						headers: {
-							'Content-Type': 'multipart/form-data'
-						}
-					});
+	// Function to open the confirmation modal
+	function openDeleteConfirmModal() {
+		if (!collectionValue.value?.name) return;
+		isConfirmOpen = true;
+	}
 
-					// Trigger the toast
-					const t = {
-						message: 'Collection Deleted.',
-						// Provide any utility or variant background style:
-						background: 'preset-filled-error-500',
-						timeout: 3000,
-						// Add your custom classes here:
-						classes: 'border-1 rounded-md!'
-					};
-					toastStore.trigger(t);
-					goto(`/collection`);
-				} else {
-					// User cancelled, do not delete
-					console.log('User cancelled deletion.');
+	// Function to execute the deletion after confirmation
+	async function executeDelete() {
+		const collectionName = collectionValue.value?.name;
+		if (!collectionName) return;
+
+		console.log('Executing confirmed deletion for:', collectionName);
+		try {
+			// Send the form data to the server
+			await axios.post(`?/deleteCollections`, obj2formData({ contentTypes: collectionName }), {
+				headers: {
+					'Content-Type': 'multipart/form-data'
 				}
-			}
-		};
-		// Trigger the confirmation modal
-		modalStore.trigger(confirmModal);
-		// Close the modal
+			});
+
+			// Trigger the toast
+			toastStore.trigger({
+				message: `Collection "${collectionName}" Deleted.`,
+				background: 'preset-filled-error-500',
+				timeout: 3000,
+				classes: 'border-1 rounded-md!'
+			});
+			goto(`/collection`); // Navigate away after deletion
+		} catch (error) {
+			console.error('Error deleting collection:', error);
+			toastStore.trigger({
+				message: `Error deleting collection "${collectionName}".`,
+				background: 'preset-filled-warning-500', // Use warning color for error
+				timeout: 5000,
+				classes: 'border-1 rounded-md!'
+			});
+		}
+		// No need to manually close modal here, parent handles it via binding
 	}
 
 	onMount(() => {
@@ -182,11 +198,21 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	</button>
 </div>
 
+<!-- Add ModalConfirm instance -->
+<ModalConfirm
+	bind:open={isConfirmOpen}
+	title="Confirm Deletion"
+	body={`Are you sure you wish to delete the collection "${collectionValue.value?.name || 'this'}"? This action cannot be undone.`}
+	buttonTextConfirm="Delete Collection"
+	onConfirm={executeDelete}
+	onClose={() => (isConfirmOpen = false)}
+/>
+
 {#if mode.value == 'edit'}
 	<div class="flex justify-center gap-3">
 		<button
 			type="button"
-			onclick={handleCollectionDelete}
+			onclick={openDeleteConfirmModal}
 			class=" preset-filled-error-500 btn dark:preset-filled-error-500 mt-1 mr-1 mb-3 justify-end dark:text-black"
 			>{m.button_delete()}
 		</button>
@@ -201,11 +227,13 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 <div class="wrapper">
 	<p class="text-tertiary-500 dark:text-primary-500 mb-2 hidden text-center sm:block">{m.collection_helptext()}</p>
 
-	<Tabs bind:group={$tabSet} justify="justify-around">
+	<!-- Correct Tabs binding - Cast number to string -->
+	<Tabs bind:value={$tabSet} justify="justify-around">
 		<!-- User Permissions -->
 		{#if page.data.user && page.data.user.isAdmin}
 			<!-- Edit -->
-			<Tab bind:group={$tabSet} name="default" value={0}>
+			<!-- Remove bind:group from Tab -->
+			<Tab name="default" value={0}>
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="ic:baseline-edit" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					<span class:active={$tabSet === 0} class:text-tertiary-500={$tabSet === 0} class:text-primary-500={$tabSet === 0}>{m.button_edit()}</span>
@@ -213,19 +241,22 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 			</Tab>
 
 			<!-- Widget Fields -->
-			<Tab bind:group={$tabSet} name="widget" value={1}>
+			<!-- Remove bind:group from Tab -->
+			<Tab name="widget" value={1}>
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="mdi:widgets-outline" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					<span class:active={$tabSet === 1} class:text-tertiary-500={$tabSet === 2} class:text-primary-500={$tabSet === 2}
-						>{m.collection_widgetfields()}</span
-					>
+					<span class:active={$tabSet === 1} class:text-tertiary-500={$tabSet === 1} class:text-primary-500={$tabSet === 1}>
+						<!-- Removed stray comment -->
+						{m.collection_widgetfields()}
+					</span>
 				</div>
 			</Tab>
 		{/if}
 
 		<!-- Tab Panels -->
 		{#if $tabSet === 0}
-			<CollectionForm {handlePageTitleUpdate} />
+			<!-- Pass page data to CollectionForm -->
+			<CollectionForm {handlePageTitleUpdate} data={page.data} />
 		{:else if $tabSet === 1}
 			<CollectionWidget {handleCollectionSave} />
 		{/if}

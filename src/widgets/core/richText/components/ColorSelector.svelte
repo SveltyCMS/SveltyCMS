@@ -54,7 +54,7 @@
 	{/if}
 </div>
 
-<style lang="postcss">
+<style>
 	.selected {
 		display: flex;
 		justify-content: center;

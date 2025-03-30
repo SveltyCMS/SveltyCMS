@@ -15,7 +15,7 @@
 - `term` {string} - Term to highlight
 - `charLimit` {number} - Limit before 'Show More' appears
 
-Features:
+### Features:
 - Custom highlight colors using Tailwind classes
 - Character limit with "Show More" functionality
 - Debounced highlighting for performance

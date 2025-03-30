@@ -58,7 +58,7 @@ Features:
 	{/if}
 </button>
 
-<style lang="postcss">
+<style>
 	/* Global styles for smooth theme transition */
 	:global(body) {
 		transition:

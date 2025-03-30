@@ -6,7 +6,7 @@
 @example
 <VirtualFolder {currentFolder} />
 
-@props
+### Props
 - `currentFolder` (object): The currently selected folder.
 
 @events
@@ -16,7 +16,7 @@
 - `navigateToFolder` (event): Emits an event when a folder is navigated to.
 - `returnToCollections` (event): Emits an event when the "Return to Collections" button is clicked
 
-Features:
+### Features:
 - Fetches and displays virtual folders
 - Creates new folders
 - Updates existing folders (except root)

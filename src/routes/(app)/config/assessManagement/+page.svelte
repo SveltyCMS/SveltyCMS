@@ -115,7 +115,7 @@ It provides an interface for users to:
 </div>
 
 <div class="mb-6 text-center sm:text-left">
-	<p class="text-center text-tertiary-500 dark:text-primary-500">
+	<p class="text-tertiary-500 dark:text-primary-500 text-center">
 		Here you can create and manage user roles and permissions. Each role defines a set of permissions that determine what actions users with that role
 		can perform in the system.
 	</p>

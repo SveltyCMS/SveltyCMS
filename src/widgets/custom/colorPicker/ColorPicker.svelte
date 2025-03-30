@@ -87,7 +87,7 @@
 			bind:value={_data.color}
 			oninput={validateInput}
 			placeholder={m.colorPicker_hex()}
-			class="input text-black dark:text-primary-500"
+			class="input dark:text-primary-500 text-black"
 			class:error={!!validationError}
 			aria-label="Hex color value"
 			aria-invalid={!!validationError}
@@ -97,13 +97,13 @@
 
 	<!-- Error Message -->
 	{#if validationError}
-		<p id={`${field.db_fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+		<p id={`${field.db_fieldName}-error`} class="text-error-500 absolute bottom-[-1rem] left-0 w-full text-center text-xs" role="alert">
 			{validationError}
 		</p>
 	{/if}
 </div>
 
-<style lang="postcss">
+<style>
 	.input-container {
 		min-height: 2.5rem;
 	}

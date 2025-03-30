@@ -47,7 +47,7 @@ Usage: This error component is automatically rendered when an error occurs durin
 </script>
 
 {#if page}
-	<main class="flex h-screen w-full flex-col items-center justify-center bg-linear-to-t from-surface-900 via-surface-700 to-surface-900 text-white">
+	<main class="from-surface-900 via-surface-700 to-surface-900 flex h-screen w-full flex-col items-center justify-center bg-linear-to-t text-white">
 		<div class="relative">
 			<!-- Rotating SiteName -->
 			<div class="seal absolute" style="--size: {size}px; --speed: {speed * 200}ms; --font: {font}em">
@@ -81,14 +81,14 @@ Usage: This error component is automatically rendered when an error occurs durin
 			</h1>
 			<!-- Error url  -->
 			<div
-				class="absolute left-1/2 top-1/2 mx-auto -translate-x-1/2 -translate-y-1/2 rotate-12 transform rounded-md bg-error-600/80 px-2 text-center text-sm font-bold text-white"
+				class="bg-error-600/80 absolute top-1/2 left-1/2 mx-auto -translate-x-1/2 -translate-y-1/2 rotate-12 transform rounded-md px-2 text-center text-sm font-bold text-white"
 			>
 				<div class="min-w-[200px]">{page.url}</div>
 				<div class="whitespace-nowrap">{m.error_pagenotfound()}</div>
 			</div>
 		</div>
 
-		<h1 class="text-center text-4xl font-extrabold tracking-widest text-surface-400">
+		<h1 class="text-surface-400 text-center text-4xl font-extrabold tracking-widest">
 			{#if page.error}
 				{page.error.message}
 			{/if}
@@ -98,14 +98,14 @@ Usage: This error component is automatically rendered when an error occurs durin
 		<a
 			href="/"
 			data-sveltekit-preload-data="tap"
-			class="relative mt-5 block rounded-full bg-linear-to-br from-error-700 via-error-600 to-error-700 px-8 py-4 font-bold uppercase text-white shadow-xl"
+			class="from-error-700 via-error-600 to-error-700 relative mt-5 block rounded-full bg-linear-to-br px-8 py-4 font-bold text-white uppercase shadow-xl"
 		>
 			{m.error_gofrontpage()}
 		</a>
 	</main>
 {/if}
 
-<style lang="postcss">
+<style>
 	@keyframes rotation {
 		0% {
 			transform: rotate(0turn);

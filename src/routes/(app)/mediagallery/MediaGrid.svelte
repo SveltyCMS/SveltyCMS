@@ -58,7 +58,7 @@ Key features:
 
 <div class="flex flex-wrap items-center gap-4 overflow-auto">
 	{#if filteredFiles.length === 0}
-		<div class="mx-auto text-center text-tertiary-500 dark:text-primary-500">
+		<div class="text-tertiary-500 dark:text-primary-500 mx-auto text-center">
 			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2"></iconify-icon>
 			<p class="text-lg">No media found</p>
 		</div>
@@ -69,7 +69,7 @@ Key features:
 				onmouseleave={() => (showInfo[index] = false)}
 				role="button"
 				tabindex="0"
-				class="card border border-surface-300 dark:border-surface-500"
+				class="card border-surface-300 dark:border-surface-500 border"
 			>
 				<header class="m-2 flex w-auto items-center justify-between">
 					<button use:popup={FileTooltip} aria-label="File Info" class="btn-icon">
@@ -79,7 +79,7 @@ Key features:
 					<div class="card preset-filled z-50 min-w-[250px] p-2" data-popup="FileInfo">
 						<table class=" w-full table-auto">
 							<thead class="text-tertiary-500">
-								<tr class="divide-x divide-surface-400 border-b-2 border-surface-400 text-center">
+								<tr class="divide-surface-400 border-surface-400 divide-x border-b-2 text-center">
 									<th class="text-left">Format</th>
 									<th class="">Pixel</th>
 									<th class="">Size</th>
@@ -88,8 +88,8 @@ Key features:
 							<tbody>
 								{#each Object.keys(file).filter((key) => key !== 'thumbnail' && key !== 'type') as size}
 									{#if file[size]}
-										<tr class="divide-x divide-surface-400 border-b border-surface-400 last:border-b-0">
-											<td class="font-bold text-tertiary-500">{size}</td>
+										<tr class="divide-surface-400 border-surface-400 divide-x border-b last:border-b-0">
+											<td class="text-tertiary-500 font-bold">{size}</td>
 											<td class="pr-1 text-right">
 												{#if file[size].width && file[size].height}
 													{file[size].width}x{file[size].height}

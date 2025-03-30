@@ -100,4 +100,4 @@ declare global {
 
 // THIS IS IMPORTANT!!!
 // Export an empty object to ensure this file is treated as a module
-export { };
+export {};

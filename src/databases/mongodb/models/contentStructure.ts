@@ -125,7 +125,6 @@ contentStructureSchema.statics = {
 		}
 		// --- CONFLICT CHECK END ---
 
-
 		// --- MODIFICATION START ---
 		return this.findOneAndUpdate(
 			{ _id: _id }, // <-- Query by _id
@@ -135,7 +134,7 @@ contentStructureSchema.statics = {
 					name: updateData.name,
 					path: updateData.path,
 					icon: updateData.icon || 'bi:folder', // Ensure defaults
-					order: updateData.order || 999,      // Ensure defaults
+					order: updateData.order || 999, // Ensure defaults
 					translations: updateData.translations || [], // Ensure defaults
 					nodeType: 'category', // Set nodeType
 					parentPath // Set calculated parentPath
@@ -169,8 +168,8 @@ contentStructureSchema.statics = {
 					name: updateData.name,
 					path: updateData.path,
 					icon: updateData.icon || 'bi:file-earmark-text', // Ensure defaults
-					order: updateData.order || 999,          // Ensure defaults
-					translations: updateData.translations || [],     // Ensure defaults
+					order: updateData.order || 999, // Ensure defaults
+					translations: updateData.translations || [], // Ensure defaults
 					label: updateData.label,
 					permissions: updateData.permissions,
 					livePreview: updateData.livePreview,
@@ -212,7 +211,5 @@ if (!BaseContentStructure.discriminators?.collection) {
 	BaseContentStructure.discriminator('collection', collectionSchema);
 }
 
-
 // Export the model
 export const ContentStructureModel = BaseContentStructure as ContentStructureModel; // Cast needed because of the conditional definition
-

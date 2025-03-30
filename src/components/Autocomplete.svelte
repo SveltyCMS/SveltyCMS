@@ -10,7 +10,7 @@
 - `options` {array} - Array of options to be displayed in the dropdown
 - `on:select` {function} - Function to be called when an option is selected
 
-Features:
+### Features:
 - Filters options based on user input
 - Keyboard navigation support
 - Customizable placeholder

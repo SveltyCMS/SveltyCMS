@@ -364,7 +364,7 @@ Features:
 	{/if}
 </div>
 
-<style lang="postcss">
+<style>
 	/* Scrollbar styling */
 	.overflow-y-auto {
 		scrollbar-width: thin;

@@ -3,7 +3,22 @@
 @component 
 **Modal component**
 
-@features:
+@example
+<Modal open={isModalOpen} on:close={() => isModalOpen = false}>
+	<ModalHeader>Modal Header</ModalHeader>
+	<ModalBody>
+		<p>Modal Body Content</p>
+	</ModalBody>
+</Modal>	
+
+### Props:
+- `showModal` {boolean} - Whether the modal is open
+- `header` {function} - Function to render the modal header
+- `children` {function} - Function to render the modal content
+- `maxWidth` {string} - Max width of the modal (default: 'max-w-lg')
+- `closeOnClickOutside` {boolean} - Whether to close the modal when clicking outside (default: true)
+
+### Features:
 - Modal component
 - Header
 - Children
@@ -86,7 +101,7 @@
 	</div>
 </dialog>
 
-<style lang="postcss">
+<style>
 	dialog {
 		border: none;
 		padding: 0;

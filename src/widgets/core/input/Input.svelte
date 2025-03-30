@@ -120,7 +120,7 @@
 </script>
 
 <div class="input-container relative mb-4">
-	<div class="preset-filled-surface-500  flex w-full rounded-sm" role="group">
+	<div class="preset-filled-surface-500 flex w-full rounded-sm" role="group">
 		{#if field?.prefix}
 			<button class="px-2!" aria-label={`${field.prefix} prefix`}>
 				{field?.prefix}
@@ -147,7 +147,7 @@
 			readonly={field?.readonly}
 			minlength={field?.minlength}
 			maxlength={field?.maxlength}
-			class="input w-full flex-1 rounded-none text-black dark:text-primary-500"
+			class="input dark:text-primary-500 w-full flex-1 rounded-none text-black"
 			class:error={!!validationError}
 			aria-invalid={!!validationError}
 			aria-describedby={validationError ? `${getFieldName(field)}-error` : undefined}
@@ -186,13 +186,13 @@
 
 	<!-- Error Message -->
 	{#if validationError}
-		<p id={`${getFieldName(field)}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+		<p id={`${getFieldName(field)}-error`} class="text-error-500 absolute bottom-[-1rem] left-0 w-full text-center text-xs" role="alert">
 			{validationError}
 		</p>
 	{/if}
 </div>
 
-<style lang="postcss">
+<style>
 	.input-container {
 		min-height: 2.5rem;
 	}

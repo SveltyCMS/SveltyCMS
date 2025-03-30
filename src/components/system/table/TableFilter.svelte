@@ -96,7 +96,7 @@ This component provides a lightweight, flexible interface for table filtering, u
 			searchShow = !searchShow;
 		}}
 		aria-label="Search"
-		class="preset-tonal-surface border border-surface-500 btn-icon"
+		class="preset-tonal-surface border-surface-500 btn-icon border"
 	>
 		<iconify-icon icon="material-symbols:search-rounded" width="24"></iconify-icon>
 	</button>
@@ -115,7 +115,7 @@ This component provides a lightweight, flexible interface for table filtering, u
 			}
 		}}
 		aria-label="Filter"
-		class="preset-tonal-surface border border-surface-500 btn-icon"
+		class="preset-tonal-surface border-surface-500 btn-icon border"
 	>
 		<iconify-icon icon="carbon:filter-edit" width="24"></iconify-icon>
 	</button>
@@ -132,7 +132,7 @@ This component provides a lightweight, flexible interface for table filtering, u
 			}
 		}}
 		aria-label="Column"
-		class="preset-tonal-surface border border-surface-500 btn-icon"
+		class="preset-tonal-surface border-surface-500 btn-icon border"
 	>
 		<iconify-icon icon="fluent:column-triple-edit-24-regular" width="24"></iconify-icon>
 	</button>
@@ -152,7 +152,7 @@ This component provides a lightweight, flexible interface for table filtering, u
 			}
 		}}
 		aria-label="Density"
-		class="preset-tonal-surface border border-surface-500 btn-icon"
+		class="preset-tonal-surface border-surface-500 btn-icon border"
 	>
 		<iconify-icon
 			icon={density === 'compact'

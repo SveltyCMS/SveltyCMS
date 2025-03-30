@@ -18,7 +18,7 @@
 -->
 
 <script lang="ts">
-		import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton-svelte';
+	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton-svelte';
 	import ModalUploadMedia from './ModalUploadMedia.svelte';
 	import { goto } from '$app/navigation';
 
@@ -153,7 +153,7 @@
 	ondrop={handleFileDrop}
 	ondragover={handleDragOver}
 	ondragleave={handleDragLeave}
-	class="mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded-sm border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700"
+	class="border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700 mt-2 flex h-[200px] w-full max-w-full flex-col items-center justify-center gap-4 rounded-sm border-2 border-dashed select-none"
 	role="cell"
 	tabindex="0"
 	aria-dropeffect="none"
@@ -169,10 +169,10 @@
 
 			<p class="text-sm opacity-75">Multiple files allowed</p>
 
-			<button onclick={() => input?.click()} class="preset-filled-tertiary-500 btn mt-3 dark:preset-filled-primary-500"> Browse Files </button>
+			<button onclick={() => input?.click()} class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 mt-3"> Browse Files </button>
 
 			<!-- File Size Limit -->
-			<p class="mt-2 text-sm text-tertiary-500 dark:text-primary-500">Max File Size: XX MB</p>
+			<p class="text-tertiary-500 dark:text-primary-500 mt-2 text-sm">Max File Size: XX MB</p>
 		</div>
 	</div>
 

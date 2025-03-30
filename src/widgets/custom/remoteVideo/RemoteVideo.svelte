@@ -113,12 +113,12 @@ Features:
 		class:error={!!validationError}
 		aria-invalid={!!validationError}
 		aria-describedby={validationError ? `${fieldName}-error` : undefined}
-		class="input w-full text-black dark:text-primary-500"
+		class="input dark:text-primary-500 w-full text-black"
 	/>
 
 	<!-- Error Message -->
 	{#if validationError}
-		<p id={`${field.db_fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+		<p id={`${field.db_fieldName}-error`} class="text-error-500 absolute bottom-[-1rem] left-0 w-full text-center text-xs" role="alert">
 			{validationError}
 		</p>
 	{/if}
@@ -127,7 +127,7 @@ Features:
 {#if myData?.videoUrl}
 	<div class="overflow-hidden rounded-sm shadow-lg md:flex md:flex-row">
 		<div class="px-6 py-4 md:w-1/2">
-			<div class="mb-2 text-xl font-bold text-primary-500">{myData?.videoTitle}</div>
+			<div class="text-primary-500 mb-2 text-xl font-bold">{myData?.videoTitle}</div>
 			<table class="text-base">
 				<tbody>
 					<tr>
@@ -161,7 +161,7 @@ Features:
 	</div>
 {/if}
 
-<style lang="postcss">
+<style>
 	.input-container {
 		min-height: 2.5rem;
 	}

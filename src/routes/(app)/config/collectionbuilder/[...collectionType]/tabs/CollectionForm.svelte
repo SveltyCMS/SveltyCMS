@@ -187,14 +187,14 @@ Features:
 </script>
 
 <!-- Required -->
-<div class="mb-2 text-center text-xs text-error-500">* {m.collection_required()}</div>
+<div class="text-error-500 mb-2 text-center text-xs">* {m.collection_required()}</div>
 
 <!-- Collection Name -->
 <div class="flex flex-col gap-3 rounded-sm p-2">
 	<div class="w-full items-center sm:flex">
-		<label for="name" class="flex-grow-1 relative mr-2 flex w-36">
-			{m.collection_name()} <span class="mx-1 text-error-500">*</span>
-			<iconify-icon icon="material-symbols:info" use:popup={NameTooltip} width="18" class="ml-1 text-tertiary-500 dark:text-primary-500"
+		<label for="name" class="relative mr-2 flex w-36 flex-grow-1">
+			{m.collection_name()} <span class="text-error-500 mx-1">*</span>
+			<iconify-icon icon="material-symbols:info" use:popup={NameTooltip} width="18" class="text-tertiary-500 dark:text-primary-500 ml-1"
 			></iconify-icon></label
 		>
 
@@ -207,12 +207,12 @@ Features:
 				oninput={handleNameInput}
 				placeholder={m.collection_name_placeholder()}
 				aria-label={m.collection_name()}
-				class="input text-black dark:text-primary-500"
+				class="input dark:text-primary-500 text-black"
 			/>
 
 			{#if collectionValue.value && (collectionValue.value as CollectionData).name}
 				<p class="mb-3 sm:mb-0">
-					{m.collection_DBname()} <span class="font-bold text-tertiary-500 dark:text-primary-500">{DBName}</span>
+					{m.collection_DBname()} <span class="text-tertiary-500 dark:text-primary-500 font-bold">{DBName}</span>
 				</p>
 			{/if}
 		</div>
@@ -234,9 +234,9 @@ Features:
 
 	<!-- Iconify icon chooser -->
 	<div class="w-full items-center sm:flex">
-		<label for="icon" class="flex-grow-1 relative mr-2 flex w-36">
+		<label for="icon" class="relative mr-2 flex w-36 flex-grow-1">
 			{m.collectionname_labelicon()}
-			<iconify-icon icon="material-symbols:info" use:popup={IconTooltip} width="18" class="ml-1 text-tertiary-500 dark:text-primary-500"
+			<iconify-icon icon="material-symbols:info" use:popup={IconTooltip} width="18" class="text-tertiary-500 dark:text-primary-500 ml-1"
 			></iconify-icon>
 		</label>
 
@@ -251,9 +251,9 @@ Features:
 
 	<!-- Slug -->
 	<div class="items-center sm:flex">
-		<label for="slug" class="flex-grow-1 relative mr-2 flex w-36">
+		<label for="slug" class="relative mr-2 flex w-36 flex-grow-1">
 			{m.collection_slug()}
-			<iconify-icon icon="material-symbols:info" use:popup={SlugTooltip} width="18" class="ml-1 text-tertiary-500 dark:text-primary-500"
+			<iconify-icon icon="material-symbols:info" use:popup={SlugTooltip} width="18" class="text-tertiary-500 dark:text-primary-500 ml-1"
 			></iconify-icon>
 		</label>
 
@@ -263,14 +263,14 @@ Features:
 			<div class="preset-filled arrow"></div>
 		</div>
 
-		<input type="text" id="slug" bind:value={slug} placeholder={m.collection_slug_input()} class="input text-black dark:text-primary-500" />
+		<input type="text" id="slug" bind:value={slug} placeholder={m.collection_slug_input()} class="input dark:text-primary-500 text-black" />
 	</div>
 
 	<!-- Description -->
 	<div class="items-center sm:flex">
-		<label for="description" class="flex-grow-1 relative mr-2 flex w-36">
+		<label for="description" class="relative mr-2 flex w-36 flex-grow-1">
 			{m.collectionname_description()}
-			<iconify-icon icon="material-symbols:info" use:popup={DescriptionTooltip} width="18" class="ml-1 text-tertiary-500 dark:text-primary-500"
+			<iconify-icon icon="material-symbols:info" use:popup={DescriptionTooltip} width="18" class="text-tertiary-500 dark:text-primary-500 ml-1"
 			></iconify-icon>
 		</label>
 
@@ -286,15 +286,15 @@ Features:
 			cols="50"
 			bind:value={description}
 			placeholder={m.collection_description_placeholder()}
-			class="input text-black dark:text-primary-500"
+			class="input dark:text-primary-500 text-black"
 		></textarea>
 	</div>
 
 	<!-- Status -->
 	<div class="items-center sm:flex">
-		<label for="status" class="flex-grow-1 relative mr-2 flex w-36">
+		<label for="status" class="relative mr-2 flex w-36 flex-grow-1">
 			{m.collection_status()}
-			<iconify-icon icon="material-symbols:info" use:popup={StatusTooltip} width="18" class="ml-1 text-tertiary-500 dark:text-primary-500"
+			<iconify-icon icon="material-symbols:info" use:popup={StatusTooltip} width="18" class="text-tertiary-500 dark:text-primary-500 ml-1"
 			></iconify-icon>
 		</label>
 
@@ -304,7 +304,7 @@ Features:
 			<div class="preset-filled arrow"></div>
 		</div>
 
-		<select id="status" bind:value={status} class="input text-black dark:text-primary-500">
+		<select id="status" bind:value={status} class="input dark:text-primary-500 text-black">
 			{#each statuses as statusOption}
 				<option value={statusOption} class="">{statusOption}</option>
 			{/each}
@@ -315,5 +315,6 @@ Features:
 <!-- Buttons Cancel & Next-->
 <div class="mt-2 flex justify-between">
 	<a href="/config/collectionbuilder" class="preset-filled-secondary-500 btn mt-2">{m.button_cancel()}</a>
-	<button type="button" onclick={handleNextClick} class="preset-filled-tertiary-500 btn mt-2 dark:preset-filled-primary-500">{m.button_next()}</button>
+	<button type="button" onclick={handleNextClick} class="preset-filled-tertiary-500 btn dark:preset-filled-primary-500 mt-2">{m.button_next()}</button
+	>
 </div>

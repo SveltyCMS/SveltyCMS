@@ -2,11 +2,12 @@
  @file src/routes/+layout.svelte
  @component 
  **This Svelte component serves as the layout for the entire application**
-
- Key features:
  It sets up the global w, manages SEO metadata, and initializes required stores for the Skeleton UI framework.
- 
- Features:
+
+ ### Props:
+ - `children`: A function that returns the content to be rendered within the layout.
+  
+ ### Features:
  - Dynamic theme management based on user preferences or defaults.
  - SEO optimization with Open Graph and Twitter Card metadata for enhanced social sharing.
  - Initialization of Skeleton stores for UI components.

@@ -1,7 +1,16 @@
 <!--
 @file src/routes/(app)/config/assessManagement/Permissions.svelte
-@description This component manages permissions in the access management system. It provides functionality to:
+@component 
+**This component manages permissions in the access management system. It provides functionality to**
 
+@example
+<Permissions />
+
+### Props
+- `roleData`: An object containing role data, including the current admin role and available roles.
+
+### Features
+- Load and display available permissions
 - Display existing permissions
 - Search and filter permissions
 - Modify permission settings, including role assignments
@@ -152,7 +161,7 @@
 		{:else}
 			<!-- Admin Notice -->
 			{#if adminRole}
-				<p class="mb-2 w-full overflow-auto text-nowrap text-center">
+				<p class="mb-2 w-full overflow-auto text-center text-nowrap">
 					*
 					<span class="text-tertiary-500 dark:text-primary-500">{adminRole.name}</span>
 					Role has all permissions
@@ -161,8 +170,8 @@
 			<div class="permission overflow-auto">
 				<table class="compact w-full table-auto border">
 					<!-- Header -->
-					<thead class="sticky top-0 border bg-surface-800">
-						<tr class="divide-x text-tertiary-500 dark:text-primary-500">
+					<thead class="bg-surface-800 sticky top-0 border">
+						<tr class="text-tertiary-500 dark:text-primary-500 divide-x">
 							<th class="py-2">Type</th>
 							<th>Action</th>
 
@@ -182,14 +191,14 @@
 								<tr>
 									<td
 										colspan={nonAdminRolesCount + 2}
-										class="border-b bg-surface-500 px-1 py-2 font-semibold text-tertiary-500 dark:text-primary-500 lg:text-left"
+										class="bg-surface-500 text-tertiary-500 dark:text-primary-500 border-b px-1 py-2 font-semibold lg:text-left"
 									>
 										{group}:
 									</td>
 								</tr>
 								<!-- Permissions within the Group -->
 								{#each filterGroups(filteredPermissions, group) as permission}
-									<tr class="divide-x border-b text-center hover:bg-surface-50 dark:hover:bg-surface-600">
+									<tr class="hover:bg-surface-50 dark:hover:bg-surface-600 divide-x border-b text-center">
 										<!-- Type -->
 										<td class="px-1 py-1 md:text-left">{permission.name}</td>
 										<!-- Action -->
@@ -218,7 +227,7 @@
 	</div>
 {/if}
 
-<style lang="postcss">
+<style>
 	.permission {
 		height: calc(100vh - 400px);
 	}

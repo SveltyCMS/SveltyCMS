@@ -44,12 +44,16 @@
 	}
 
 	// Components
-	import TranslationStatus from './TranslationStatus.svelte';
-	import ScheduleModal from './ScheduleModal.svelte';
+	import TranslationStatus from '@components/TranslationStatus.svelte';
 
-	// Skeleton
-	import { type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton-svelte';
-	const modalStore = getModalStore();
+	// Modal
+	import ScheduleModal from '@components/ScheduleModal.svelte';
+	let isScheduleModalOpen = $state(false);
+
+	// Modal Trigger - Schedule
+	function openScheduleModal(): void {
+		isScheduleModalOpen = true; // Simply set the state to true
+	}
 
 	// Stores
 	import { page } from '$app/state';
@@ -98,11 +102,6 @@
 		[key: string]: () => string | number | boolean | Record<string, any> | undefined;
 	}
 
-	interface ScheduleResponse {
-		date: string;
-		action: string;
-	}
-
 	interface CollectionData extends Record<string, any> {
 		_id?: string;
 		status?: StatusType;
@@ -144,35 +143,6 @@
 	// Type guard to check if field is translatable
 	function isTranslatable(field: Field): field is TranslatableField {
 		return 'translated' in field && (field as any).translated === true;
-	}
-
-	// Modal Trigger - Schedule
-	function openScheduleModal(): void {
-		const modalComponent: ModalComponent = {
-			ref: ScheduleModal,
-			slot: '<p>Edit Form</p>'
-		};
-
-		const modalSettings: ModalSettings = {
-			type: 'component',
-			title: 'Scheduler',
-			body: 'Set a date and time to schedule this entry.',
-			component: modalComponent,
-			response: (r: ScheduleResponse | boolean) => {
-				if (typeof r === 'object' && 'date' in r) {
-					schedule = r.date;
-					if (r.action === 'schedule') {
-						const newValue = {
-							...collectionValue.value,
-							status: statusMap.scheduled as StatusType,
-							_scheduled: new Date(r.date).getTime()
-						};
-						collectionValue.set(newValue);
-					}
-				}
-			}
-		};
-		modalStore.trigger(modalSettings);
 	}
 
 	$effect(() => {
@@ -310,6 +280,9 @@
 		$modifyEntry?.(status);
 	}
 </script>
+
+<!-- Add the ScheduleModal component instance -->
+<ScheduleModal bind:open={isScheduleModalOpen} />
 
 <header
 	class="sticky top-0 z-10 flex w-full items-center justify-between {showMore

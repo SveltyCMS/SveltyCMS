@@ -124,7 +124,7 @@
 </script>
 
 <div class="input-container relative mb-4">
-	<div class="preset-filled-surface-500  flex w-full rounded-sm">
+	<div class="preset-filled-surface-500 flex w-full rounded-sm">
 		{#if field?.prefix}
 			<button class="px-2!">{field?.prefix}</button>
 		{/if}
@@ -141,7 +141,7 @@
 			minlength={field?.minlength}
 			maxlength={field?.maxlength}
 			step={field?.step}
-			class="input text-black dark:text-primary-500"
+			class="input dark:text-primary-500 text-black"
 			class:error={!!validationError}
 			aria-invalid={!!validationError}
 			aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
@@ -179,13 +179,13 @@
 
 	<!-- Error Message -->
 	{#if validationError}
-		<p id={`${field.db_fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+		<p id={`${field.db_fieldName}-error`} class="text-error-500 absolute bottom-[-1rem] left-0 w-full text-center text-xs" role="alert">
 			{validationError}
 		</p>
 	{/if}
 </div>
 
-<style lang="postcss">
+<style>
 	.input-container {
 		min-height: 2.5rem;
 	}

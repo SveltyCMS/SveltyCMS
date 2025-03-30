@@ -128,14 +128,14 @@ Features:
 	<div class="modal-example-fullscreen {cBase}">
 		<div class="flex h-full w-full max-w-xl flex-col items-center">
 			<div class="top-0 w-full py-2 text-center">
-				<h2 class="h2 mb-2 capitalize text-tertiary-500 dark:text-primary-500">{title} Setup:</h2>
+				<h2 class="h2 text-tertiary-500 dark:text-primary-500 mb-2 capitalize">{title} Setup:</h2>
 				<p>{description}</p>
 			</div>
 			<form onsubmit={preventDefault(handleSubmit)} class="wrapper w-full grow overflow-y-auto p-4">
 				{#each configData as { key, value, type, helper, icon, allowedValues }}
 					<div class="mb-4">
 						<label class="mb-2 block" for={key}>
-							<iconify-icon {icon} width="18" class="mr-2 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							<iconify-icon {icon} width="18" class="text-tertiary-500 dark:text-primary-500 mr-2"></iconify-icon>
 							{key}
 							<span use:popup={getPopupSettings(key)} class=" ml-2 p-0">
 								<iconify-icon icon="mdi:help-circle-outline" width="18" class=" text-gray-600"></iconify-icon>
@@ -165,7 +165,7 @@ Features:
 							<input type="text" id={key} placeholder={helper} class="input text-tertiary-500 dark:text-primary-500" bind:value={formData[key]} />
 						{/if}
 						{#if errors[key]}
-							<p class="text-xs italic text-error-500">{errors[key]}</p>
+							<p class="text-error-500 text-xs italic">{errors[key]}</p>
 						{/if}
 					</div>
 				{/each}

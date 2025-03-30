@@ -1,8 +1,16 @@
 <!-- 
 @file src/components/system/inputs/Slider.svelte
-@description Range slider component with customizable value and max range
+@component
+**Range slider component with customizable value and max range**
 
-Features:
+@example
+<Slider bind:value={value} onChange={handleValueChange} />
+
+### Props:
+- `value` {any} - Bindable value
+- `onChange` {function} - Function to handle value change
+
+### Features:
 - Customizable value range
 - Step-based increments
 - Visual tick marks

@@ -358,7 +358,7 @@ Features:
 
 			<div class="flex flex-col text-center">
 				<label for="sortButton">Sort</label>
-				<button id="sortButton" aria-label="Sort" class="preset-tonal-surface border border-surface-500 btn">
+				<button id="sortButton" aria-label="Sort" class="preset-tonal-surface border-surface-500 btn border">
 					<iconify-icon icon="flowbite:sort-outline" width="24"></iconify-icon>
 				</button>
 			</div>
@@ -448,7 +448,7 @@ Features:
 
 		<div class="mb-8 flex flex-col justify-center gap-1 text-center">
 			<label for="sortButton">Sort</label>
-			<button id="sortButton" class="preset-tonal-surface border border-surface-500 btn" aria-label="Sort">
+			<button id="sortButton" class="preset-tonal-surface border-surface-500 btn border" aria-label="Sort">
 				<iconify-icon icon="flowbite:sort-outline" width="24"></iconify-icon>
 			</button>
 		</div>

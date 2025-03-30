@@ -564,7 +564,7 @@
 	{/if}
 </div>
 
-<style lang="postcss">
+<style>
 	@import 'RichText.css';
 
 	button.active {

@@ -192,7 +192,9 @@ export class MongoDBAdapter implements dbInterface {
 			}
 		} catch (error) {
 			// Log the specific contentData that caused the error for better debugging
-			logger.error(`Error creating/updating content structure node with ID ${contentData._id} and path ${contentData.path}: ${error.message}`, { contentData });
+			logger.error(`Error creating/updating content structure node with ID ${contentData._id} and path ${contentData.path}: ${error.message}`, {
+				contentData
+			});
 			// Rethrow with a more specific message if desired, or keep generic
 			throw new Error(`Error creating/updating content structure node ID ${contentData._id}`);
 		}
@@ -476,7 +478,8 @@ export class MongoDBAdapter implements dbInterface {
 				for (const field of collection.fields) {
 					try {
 						// Generate fieldKey from various possible identifiers
-						const fieldKey = field.db_fieldName ||
+						const fieldKey =
+							field.db_fieldName ||
 							field.__widgetConfig?.label?.toLowerCase().replace(/[^a-z0-9_]/g, '_') ||
 							field.Name ||
 							field.__widgetName?.toLowerCase();
@@ -515,7 +518,6 @@ export class MongoDBAdapter implements dbInterface {
 
 						schemaDefinition[fieldKey] = fieldSchema;
 						logger.debug(`Added field schema for \x1b[33m${fieldKey}\x1b[0m with widget type \x1b[34m${field.__widgetName}\x1b[0m `);
-
 					} catch (error) {
 						logger.error(`Error processing field:`, error);
 						logger.error(`Field data:`, JSON.stringify(field, null, 2));

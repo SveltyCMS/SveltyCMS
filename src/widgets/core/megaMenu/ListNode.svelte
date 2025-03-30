@@ -301,7 +301,7 @@
 	tabindex="0"
 	aria-expanded={expanded}
 	aria-label={`${self?.Header[$contentLanguage]} - Level ${level}`}
-	class="header header-level-{level} relative mb-2 flex w-full min-w-[200px] max-w-[300px] cursor-default items-center justify-start gap-2 rounded-sm border border-surface-300 px-1"
+	class="header header-level-{level} border-surface-300 relative mb-2 flex w-full max-w-[300px] min-w-[200px] cursor-default items-center justify-start gap-2 rounded-sm border px-1"
 	class:!cursor-pointer={self?.children?.length > 0}
 	style="margin-left:{10 * (level > 0 ? 1 : 0)}px;
 	{window.screen.width <= 700
@@ -310,7 +310,7 @@
 >
 	<!-- ladder dashed vertical -->
 	<div
-		class="absolute bottom-6 right-full mr-0.5 border-t border-dashed border-tertiary-500 dark:border-primary-500"
+		class="border-tertiary-500 dark:border-primary-500 absolute right-full bottom-6 mr-0.5 border-t border-dashed"
 		style="width:{10 * (level > 0 ? 1 : 0)}px"
 	></div>
 
@@ -333,7 +333,7 @@
 	{/if}
 
 	<!-- Label -->
-	<span class="max-w-150px text-wrap font-bold sm:max-w-full">
+	<span class="max-w-150px font-bold text-wrap sm:max-w-full">
 		{self?.Header[$contentLanguage]}
 	</span>
 
@@ -407,7 +407,7 @@
 		aria-label={`Children of ${self?.Header[$contentLanguage]}`}
 	>
 		<!-- dashed ladder horizontal -->
-		<div class="absolute -left-0.5 -top-1 max-h-full border border-dashed border-tertiary-500 content-none dark:border-primary-500"></div>
+		<div class="border-tertiary-500 dark:border-primary-500 absolute -top-1 -left-0.5 max-h-full border border-dashed content-none"></div>
 
 		{#each self.children as child, index}
 			<li use:drag data-children={expanded_list[index] ? child.children?.length : 0} data-index={index} class={`level-${level} touch-none`}>

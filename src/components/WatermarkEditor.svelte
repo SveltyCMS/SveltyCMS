@@ -6,7 +6,10 @@
 @example
 <WatermarkEditor mediaItems={yourMediaItems} />
 
-Features:
+#### Props
+- `mediaItems` {MediaType[]} - Array of media items
+
+### Features:
 - Selects watermark image from media library
 - Adjusts watermark size, opacity, position, and rotation
 - Provides real-time preview of watermark settings

@@ -2,6 +2,10 @@
  @file src/components/system/inputs/floatingInput.svelte
  @component 
  **FloatingInput component for handling text and password inputs with floating labels**
+ 
+ @example
+ <FloatingInput bind:value bind:showPassword label="Password" type="password" />
+  
  #### Props
  - `value` {string}: The input value (bindable)
  - `showPassword` {boolean}: Initial visibility of password (bindable, default: false)
@@ -117,7 +121,7 @@
 	});
 </script>
 
-<div class="group relative w-full" role="group" aria-labelledby={currentId}>
+<div class="relative flex w-full items-center" role="group" aria-labelledby={currentId}>
 	<input
 		bind:this={inputElement}
 		bind:value
@@ -174,9 +178,3 @@
 		</label>
 	{/if}
 </div>
-
-<style lang="postcss">
-	.group {
-		@apply relative flex w-full items-center;
-	}
-</style>

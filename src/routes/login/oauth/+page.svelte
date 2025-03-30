@@ -84,7 +84,7 @@
 			{#if data.requiresToken}
 				<!-- Token Input Form -->
 				<label>
-					<h2 class="mb-2 text-center text-xl font-bold text-primary-500">
+					<h2 class="text-primary-500 mb-2 text-center text-xl font-bold">
 						{m.oauth_entertoken()}
 					</h2>
 					<FloatingInput

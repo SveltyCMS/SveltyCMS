@@ -10,6 +10,9 @@
 - `title` {string} - Title text
 - `titleCharacterWidth` {number} - Title text character width
 - `handleTitleChange` {function} - Title text change handler
+
+### Features
+- Title widget for SEO Widget
 -->
 
 <script lang="ts">
@@ -70,7 +73,7 @@
 <input
 	id="title-input"
 	type="text"
-	class="input text-black dark:text-primary-500"
+	class="input dark:text-primary-500 text-black"
 	placeholder={m.widget_seo_suggestionseotitle()}
 	required
 	bind:value={title}
@@ -78,7 +81,7 @@
 	aria-describedby="title-status"
 />
 
-<style lang="postcss">
+<style>
 	.input-label {
 		color: gray;
 	}

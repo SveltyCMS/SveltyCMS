@@ -195,4 +195,5 @@ Features:
 	{/if}
 </div>
 
+<!-- Add the ScheduleModal component instance -->
 <ScheduleModal open={scheduleModalOpen} on:close={() => (scheduleModalOpen = false)} />

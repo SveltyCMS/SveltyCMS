@@ -47,11 +47,11 @@ Features:
 
 {#if $modalStore[0]}
 	<!-- Default section -->
-	<div class="mb-2 border-y text-center text-primary-500">
-		<div class="text-xl text-primary-500">
+	<div class="text-primary-500 mb-2 border-y text-center">
+		<div class="text-primary-500 text-xl">
 			Widget <span class="font-bold text-black dark:text-white">{$modalStore[0].value.widget.Name}</span> Input Options
 		</div>
-		<div class="my-1 text-xs text-error-500">* Required</div>
+		<div class="text-error-500 my-1 text-xs">* Required</div>
 	</div>
 
 	<div class="options-table">

@@ -34,7 +34,7 @@
 </script>
 
 <div
-	class="icon dark:text-dark absolute left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] transition-all duration-300"
+	class="icon dark:text-dark absolute top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] transition-all duration-300"
 	class:hide={!show}
 	class:pointer-events-none={!show || disabled}
 	class:opacity-50={disabled}
@@ -52,11 +52,11 @@
 				/>
 			</svg>
 		</div>
-		<p class="text-center font-semibold uppercase text-black!">{m.form_signin()}</p>
+		<p class="text-center font-semibold text-black! uppercase">{m.form_signin()}</p>
 	</div>
 </div>
 
-<style lang="postcss">
+<style>
 	.hide {
 		animation: _hide 0.3s forwards;
 	}

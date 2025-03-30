@@ -10,7 +10,7 @@
 - `permissions` {object} - The current permissions object
 - `on:update` {function} - A function to update the permissions object
 
-Features:
+### Features:
 - Shows admin role info separately
 - Bulk permission actions
 - Permission presets

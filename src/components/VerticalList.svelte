@@ -13,6 +13,10 @@
 - `handleDndConsider` {function} - Function to handle drag-and-drop consider event
 - `handleDndFinalize` {function} - Function to handle drag-and-drop finalize event
 - `children` {function} - Function to render the content of the list
+
+### Features:
+- Displays a vertical list of items with drag-and-drop functionality
+- Renders the list items with the provided children function
 -->
 
 <script lang="ts">

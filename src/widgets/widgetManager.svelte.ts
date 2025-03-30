@@ -2,7 +2,7 @@
  * @file src/widgets/widgetManager.svelte.ts
  * @description Widget Manager for handling widget loading, activation, and configuration
  */
-import { mount } from "svelte";
+import { mount } from 'svelte';
 import type { User, WidgetId } from '@src/auth/types';
 import type { Schema } from '@src/content/types';
 
@@ -50,9 +50,7 @@ export async function resolveWidgetPlaceholder(placeholder: {
 	}
 
 	// Find the widget by UUID from the reactive store
-	const widgetFn = Array.from(widgetFunctions.get().values()).find(
-		(widget) => widget.__widgetId === placeholder.__widgetId
-	);
+	const widgetFn = Array.from(widgetFunctions.get().values()).find((widget) => widget.__widgetId === placeholder.__widgetId);
 
 	if (!widgetFn) {
 		throw new Error(`Widget with ID ${placeholder.__widgetId} not found`);

@@ -10,7 +10,7 @@
 - `password` {string} - Password value
 - `confirmPassword` {string} - Confirm password value	
 
-@Features
+### Features
 - Displays password strength based on length
 - Works with both password and confirm password fields
 - Shows strength indicator only once
