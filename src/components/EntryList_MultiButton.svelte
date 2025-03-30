@@ -195,10 +195,4 @@ Features:
 	{/if}
 </div>
 
-<ScheduleModal
-	bind:open={scheduleModalOpen}
-	on:schedule={() => {
-		modifyEntry.value('scheduled');
-		scheduleModalOpen = false;
-	}}
-/>
+<ScheduleModal open={scheduleModalOpen} on:close={() => (scheduleModalOpen = false)} />

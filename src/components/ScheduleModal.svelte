@@ -4,7 +4,7 @@
 **ScheduleModal component for scheduling actions on entries**
 
 @example
-<ScheduleModal bind:open={isModalOpen} on:schedule={handleSchedule} />
+<ScheduleModal open={isModalOpen} on:close={() => isModalOpen = false} />
 
 Features:
 - Schedule publish, unpublish, delete actions
@@ -18,9 +18,11 @@ Features:
 -->
 
 <script lang="ts">
+	import { createEventDispatcher } from 'svelte'; // Re-import createEventDispatcher
 	import { page } from '$app/state';
 	import { Modal } from '@skeletonlabs/skeleton-svelte';
-	import { selectedEntries, collectionValue, collection } from '@src/stores/collectionStore.svelte';
+	// Import modifyEntry store function
+	import { selectedEntries, collectionValue, collection, modifyEntry } from '@src/stores/collectionStore.svelte';
 	import { saveFormData } from '../utils/data';
 
 	// Auth
@@ -29,25 +31,18 @@ Features:
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Props
-	type ScheduleEventDetail = { action: ActionType; scheduleDate: string };
-	// Default function for onSchedule doesn't need the parameter name if unused
-	let { open = $bindable(false), 'on:schedule': onSchedule = () => {} } = $props<{
+	// Props - Only need the standard 'open' prop now
+	let { open = false } = $props<{
 		open?: boolean;
-		'on:schedule'?: (detail: ScheduleEventDetail) => void;
 	}>();
 
-	// Skeleton
-	let openState = $state(false);
+	const dispatch = createEventDispatcher(); // Initialize the dispatcher
 
-	function modalClose() {
-		openState = false;
-	}
-
+	// Skeleton User (assuming it's correctly populated)
 	const user: User = page.data.user;
 
 	// Types
-	type ActionType = 'published' | 'unpublished' | 'deleted'; // Removed 'scheduled', 'cloned', 'testing' as they are statuses/operations, not scheduled actions
+	type ActionType = 'published' | 'unpublished' | 'deleted'; // Actions that can be scheduled
 
 	// State
 	let scheduleDate: string = $state('');
@@ -131,11 +126,9 @@ Features:
 					})
 				);
 
-				// Call the event handler passed from the parent
-				if (onSchedule) {
-					onSchedule({ action, scheduleDate });
-				}
-				open = false; // Close modal on success
+				// Call modifyEntry directly to update the store/UI status
+				modifyEntry.value('scheduled'); // Set status to scheduled
+				dispatch('close'); // Dispatch the close event
 			} else {
 				errorMessage = 'No entries selected for scheduling.';
 			}
@@ -151,16 +144,22 @@ Features:
 
 <!-- Skeleton Modal Component -->
 <Modal
-	open={openState}
-	onOpenChange={(e) => (openState = e.open)}
-	triggerBase="btn preset-tonal"
-	contentBase="card bg-surface-100-900 p-4 space-y-4 shadow-xl max-w-screen-sm"
+	{open}
+	onOpenChange={(e) => {
+		// If Skeleton closes the modal (ESC, backdrop click), dispatch the close event
+		if (!e.open) {
+			dispatch('close');
+			// Reset state on close if desired
+			// scheduleDate = '';
+			// action = 'published';
+			// errorMessage = '';
+			// isSubmitting = false;
+		}
+	}}
+	contentBase="card bg-surface-100-900 p-4 md:p-6 space-y-4 shadow-xl max-w-screen-sm rounded-lg"
 	backdropClasses="backdrop-blur-sm"
 >
-	{#snippet trigger()}
-		<button type="button" class="btn preset-tonal" onclick={() => (openState = true)}> Schedule Action </button>
-	{/snippet}
-
+	<!-- Modal Content -->
 	{#snippet content()}
 		<header class="border-surface-300-700 flex items-center justify-between border-b pb-4">
 			<h2 class="h2" id="schedule-modal-title">Schedule Action</h2>
@@ -169,7 +168,7 @@ Features:
 				type="button"
 				class="btn-icon btn-icon-sm variant-soft hover:variant-ghost"
 				aria-label="Close schedule modal"
-				onclick={() => (open = false)}
+				onclick={() => dispatch('close')}
 			>
 				<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 			</button>
@@ -233,7 +232,7 @@ Features:
 
 			<!-- Action Buttons -->
 			<div class="flex justify-end gap-3 pt-4">
-				<button type="button" class="btn variant-soft" onclick={() => (open = false)} disabled={isSubmitting}> Cancel </button>
+				<button type="button" class="btn variant-soft" onclick={() => dispatch('close')} disabled={isSubmitting}> Cancel </button>
 				<button type="submit" class="btn variant-filled-primary" disabled={!isFormValid || isSubmitting}>
 					{#if isSubmitting}
 						<iconify-icon icon="line-md:loading-twotone-loop" width="18" class="mr-2"></iconify-icon>

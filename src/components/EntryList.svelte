@@ -45,7 +45,7 @@ Features:
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import TablePagination from '@components/system/table/TablePagination.svelte';
 	import Status from '@components/system/table/Status.svelte';
-	import Loading from './Loading.svelte';
+	import Loading from '@components/Loading.svelte'; 
 
 	// Skeleton
 	import { getContext } from 'svelte';
@@ -53,8 +53,8 @@ Features:
 
 	export const toast: ToastContext = getContext('toast');
 
-	import type { ModalSettings } from '@skeletonlabs/skeleton-svelte';
-	const modalStore = getModalStore();
+	// Modals
+	import ModalConfirm from '@components/ModalConfirm.svelte'; // Using the refactored modal
 
 	// Svelte-dnd-action
 	import { flip } from 'svelte/animate';
@@ -119,7 +119,7 @@ Features:
 		isSorted: 1
 	});
 	$effect(() => {
-		if (tableData.length > 0) {
+		if (tableData.length > 0 && !sorting.sortedBy) { // Initialize only if not already set
 			sorting.sortedBy = Object.keys(tableData[0])[0];
 		}
 	});
@@ -370,17 +370,18 @@ Features:
 		};
 		// If more than one row is selected or the status is 'delete', show confirmation modal
 		if (modifyList.length > 1 || status === 'deleted') {
-			const modalData: ModalSettings = {
-				type: 'confirm',
-				title: m.entrylist_title(),
-				body: m.entrylist_body({
-					status: `<span class="text-text-tertiary-500 dark:text-primary-500">${status.charAt(0).toUpperCase()}${status.slice(1)}</span>`
-				}),
-				buttonTextCancel: m.button_cancel(),
-				buttonTextConfirm: m.button_confirm(),
-				response: handleConfirmation
-			};
-			modalStore.trigger(modalData); // Trigger the confirmation modal
+			<ModalConfirm {user} {title} {body} {buttonTextCancel} {buttonTextConfirm} {response} />
+			// const modalData: ModalSettings = {
+			// 	type: 'confirm',
+			// 	title: m.entrylist_title(),
+			// 	body: m.entrylist_body({
+			// 		status: `<span class="text-text-tertiary-500 dark:text-primary-500">${status.charAt(0).toUpperCase()}${status.slice(1)}</span>`
+			// 	}),
+			// 	buttonTextCancel: m.button_cancel(),
+			// 	buttonTextConfirm: m.button_confirm(),
+			// 	response: handleConfirmation
+			// };
+			// modalStore.trigger(modalData); // Trigger the confirmation modal
 		} else {
 			// If only one row is selected and status is not 'delete', directly proceed with modification
 			handleConfirmation(true);
