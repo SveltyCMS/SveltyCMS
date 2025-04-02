@@ -24,7 +24,6 @@ Features:
 	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
-
 	// Collection Manager
 
 	interface CollectionData {
@@ -104,10 +103,10 @@ Features:
 	let selectedIcon = $state((collectionValue.value as CollectionData)?.icon || '');
 
 	// Form field values
-	let name = $state((collectionValue.value as CollectionData)?.name || '');
-	let slug = $state((collectionValue.value as CollectionData)?.slug || '');
-	let description = $state((collectionValue.value as CollectionData)?.description || '');
-	let status = $state((collectionValue.value as CollectionData)?.status || 'unpublished');
+	let name = $state(props.data?.name ?? '');
+	let slug = $state(props.data?.slug ?? '');
+	let description = $state(props.data?.description ?? '');
+	let status = $state(props.data?.status ?? 'unpublished');
 
 	// Derived values
 	let DBName = $derived(name ? name.toLowerCase().replace(/ /g, '_') : '');
@@ -124,15 +123,21 @@ Features:
 
 	// Update collection value when form fields change
 	$effect(() => {
-		if (!collectionValue.value) {
-			collectionValue.set({
-				...(collectionValue.value as CollectionData),
-				name,
-				slug,
-				description,
-				status
-			} as CollectionData);
-		}
+		if (
+			collectionValue.value.name === name &&
+			collectionValue.value.slug === slug &&
+			collectionValue.value.description === description &&
+			collectionValue.value.status === status
+		)
+			return;
+
+		collectionValue.set({
+			...(collectionValue.value as CollectionData),
+			name,
+			slug,
+			description,
+			status
+		} as CollectionData);
 	});
 
 	function handleNameInput() {
@@ -171,11 +176,11 @@ Features:
 
 			// Update page title based on mode and collection name
 			if (mode.value === 'edit') {
-				props.handlePageTitleUpdate(`Edit <span class="text-primary-500">${name}</span> Collection`);
+				props.handlePageTitleUpdate(name);
 			} else if (name) {
-				props.handlePageTitleUpdate(`Create <span class="text-primary-500">${name}</span> Collection`);
+				props.handlePageTitleUpdate(name);
 			} else {
-				props.handlePageTitleUpdate(`Create <span class="text-primary-500">new</span> Collection`);
+				props.handlePageTitleUpdate(`new`);
 			}
 		}
 	});
