@@ -60,12 +60,24 @@ export async function modifyRequest({ data, fields, collection, user, type }: Mo
 
 		for (const field of fields) {
 			const fieldStart = performance.now();
+
+			// Ensure field.widget exists before accessing its properties
+			if (!field.widget || !field.widget.Name) {
+				logger.warn(`Field '${field.label || field.db_fieldName || JSON.stringify(field)}' is missing widget information. Skipping modifyRequest.`);
+				continue; // Skip this field if widget info is missing
+			}
 			const widget = widgets[field.widget.Name];
+			if (!widget) {
+				logger.warn(`Widget '${field.widget.Name}' not found in loaded widgets for field '${field.label || field.db_fieldName}'. Skipping modifyRequest.`);
+				continue; // Skip if the widget function itself isn't found
+			}
+
 			const fieldName = getFieldName(field);
 
 			logger.debug(`Processing field: \x1b[34m${fieldName}\x1b[0m, widget: \x1b[34m${field.widget.Name}\x1b[0m`);
 
-			if (widget && 'modifyRequest' in widget) {
+			// Check if widget has modifyRequest handler safely
+			if (widget && typeof widget === 'function' && 'modifyRequest' in widget && typeof widget.modifyRequest === 'function') {
 				data = await Promise.all(
 					data.map(async (entry: EntryData, index: number) => {
 						const entryStart = performance.now();
@@ -113,7 +125,7 @@ export async function modifyRequest({ data, fields, collection, user, type }: Mo
 
 				const fieldDuration = performance.now() - fieldStart;
 				logger.debug(`Field ${fieldName} processed in ${fieldDuration.toFixed(2)}ms`);
-			} else {
+			} else if (field.widget.Name) { // Only log warning if widget name was present but handler wasn't
 				logger.warn(`No modifyRequest handler for widget: \x1b[34m${field.widget.Name}\x1b[0m`);
 			}
 		}

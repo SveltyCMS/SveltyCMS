@@ -3,24 +3,44 @@
  * @description Content Type Definition for Content Manager
  */
 
-import type widgets from '@widgets';
-import type { ModifyRequestParams } from '@widgets';
-
+// Removed: import type widgets from '@widgets';
 // Auth
 import type { RolePermissions } from '@src/auth/types';
+// Removed: import type { User, WidgetId } from '@src/auth/types'; // No longer needed here
+import type { ModifyRequestParams } from '../widgets/types'; // Import from widgets/types
 
-// Widget field type definition
-type WidgetKeys = keyof typeof widgets;
-type WidgetTypes = (typeof widgets)[WidgetKeys];
+// Removed: WidgetKeys, WidgetTypes
 
-// Field value types
+// AST-related types for processing
+export type WidgetPlaceholder = {
+	widgetName: string;
+	widgetConfig: Record<string, unknown>;
+};
+
+export type ParsedSchemaObject = {
+	[key: string]: ParsedSchemaValue;
+};
+
+export type ParsedSchemaValue =
+	| string
+	| number
+	| boolean
+	| null
+	| WidgetPlaceholder
+	| ParsedSchemaObject
+	| ParsedSchemaValue[];
+
 export type FieldValue = string | number | boolean | null | Record<string, unknown> | Array<unknown>;
+
+// Removed: GuiFieldConfig, GuiFields, ModifyRequestParams (moved to widgets/types.ts)
 
 // Extended field type with display and callback properties
 export type Field = {
-	widget: WidgetTypes;
-	type: WidgetKeys;
-	config: WidgetTypes;
+	// --- Refactored widget-related properties ---
+	widget: string; // Store widget name as string
+	// type: string; // Removed 'type', assuming 'widget' name is sufficient identifier
+	config: Record<string, unknown>; // Generic config object
+	// --- End Refactor ---
 	label: string;
 	required?: boolean;
 	unique?: boolean;
@@ -34,7 +54,7 @@ export type Field = {
 		contentLanguage: string;
 	}) => Promise<string> | string;
 	callback?: (args: { data: Record<string, FieldValue> }) => void;
-	modifyRequest?: (args: ModifyRequestParams<(typeof widgets)[WidgetKeys]>) => Promise<object>;
+	modifyRequest?: (args: ModifyRequestParams) => Promise<object>; // Use ModifyRequestParams imported from widgets/types
 };
 
 // Collection Registry - defines all available collections

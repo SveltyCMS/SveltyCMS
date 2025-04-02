@@ -1,13 +1,15 @@
 /**
 @file src/widgets/core/group/index.ts
 @description - Group index file.
-*/
+ */
 
 import type { Params, GuiSchema, GraphqlSchema } from './types';
-import { getGuiFields } from '@widgets/index';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
+
+// Placeholder type definition for Aggregations
+type Aggregations = Record<string, unknown>; // Adjust if a more specific type exists
 
 const WIDGET_NAME = 'Group' as const;
 
@@ -33,16 +35,24 @@ const GraphqlSchema = {
 /**
  * Defines Group widget Parameters
  */
+
+// Define a type for the display function signature
+type DisplayFunctionParams = { data: unknown; contentLanguage: string }; // Using unknown instead of any
+type DisplayFunction = (args: DisplayFunctionParams) => Promise<string | unknown>; // Using unknown instead of any
+
 const widget = (params: Params) => {
-	// Define the display function
-	let display: any;
+	// Define the display function with a specific type
+	let display: DisplayFunction;
 
 	if (!params.display) {
-		display = async ({ data, contentLanguage }) => {
+		display = async ({ data, contentLanguage }: DisplayFunctionParams) => {
 			// console.log(data);
-			data = data ? data : {}; // Ensure data is not undefined
+			const dataObj = data && typeof data === 'object' ? data : {}; // Ensure data is an object-like structure
 			// Return the data for the default content language or a message indicating no data entry
-			return params.translated ? data[contentLanguage] || m.widgets_nodata() : data[publicEnv.DEFAULT_CONTENT_LANGUAGE] || m.widgets_nodata();
+			// Need type assertion or check for dataObj properties
+			return params.translated
+				? (dataObj as Record<string, unknown>)[contentLanguage] || m.widgets_nodata()
+				: (dataObj as Record<string, unknown>)[publicEnv.DEFAULT_CONTENT_LANGUAGE] || m.widgets_nodata();
 		};
 		display.default = true;
 	} else {
@@ -51,8 +61,7 @@ const widget = (params: Params) => {
 
 	// Define the widget object
 	const widget = {
-		Name: WIDGET_NAME,
-		GuiFields: getGuiFields(params, GuiSchema)
+		Name: WIDGET_NAME
 	};
 
 	// Define the field object

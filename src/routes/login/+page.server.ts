@@ -67,7 +67,7 @@ async function fetchAndRedirectToFirstCollection() {
 		}
 
 		// Get content structure with UUIDs
-		const contentNodes = await dbAdapter.getContentStructure();
+		const contentNodes = await auth.dbAdapter.getContentStructure();
 
 		if (!contentNodes?.length) {
 			logger.warn('No collections found in content structure');
@@ -77,15 +77,15 @@ async function fetchAndRedirectToFirstCollection() {
 		// Find first collection using UUID
 		const firstCollection = contentNodes.find((node) => node.isCollection && node._id);
 
-		if (firstCollection) {
-			logger.info(`Redirecting to first collection: ${firstCollection.name} (${firstCollection._id})`);
-			return `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${firstCollection._id}`;
+		if (firstCollection && firstCollection.path) {
+			logger.info(`Redirecting to first collection: ${firstCollection.name} (${firstCollection.path})`);
+			return `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}${firstCollection.path}`;
 		}
 
-		logger.warn('No valid collections found');
+		logger.warn('No valid collection with a path found');
 		return '/';
 	} catch (err) {
-		logger.error('Error in fetchAndRedirectToFirstCollection:', err);
+		logger.error('Error in fetchAndRedirectToFirstCollection:', err.message || err);
 		return '/';
 	}
 }

@@ -90,34 +90,47 @@ export async function _GET({
 
 		// Build aggregation pipelines for sorting and filtering
 		for (const field of schema.fields) {
+			// Ensure field.widget exists before accessing its properties
+			if (!field.widget || !field.widget.Name) {
+				logger.warn(`Field '${field.label || field.db_fieldName || JSON.stringify(field)}' is missing widget information. Skipping aggregation.`);
+				continue; // Skip this field if widget info is missing
+			}
 			const widget = widgets[field.widget.Name];
+			if (!widget) {
+				logger.warn(`Widget '${field.widget.Name}' not found in loaded widgets for field '${field.label || field.db_fieldName}'. Skipping aggregation.`);
+				continue; // Skip if the widget function itself isn't found
+			}
+
 			const fieldName = getFieldName(field);
-			if ('aggregations' in widget) {
+			// Check if widget has aggregations property safely
+			if (widget && typeof widget === 'function' && 'aggregations' in widget && widget.aggregations) {
 				const _filter = filter[fieldName];
 				const _sort = sort[fieldName];
 
-				if (widget.aggregations?.filters && _filter) {
+				// Safely access aggregations.filters
+				if (widget.aggregations.filters && typeof widget.aggregations.filters === 'function' && _filter) {
 					try {
 						const _aggregations = await widget.aggregations.filters({
-							field,
-							contentLanguage,
-							filter: _filter
+							field, // Pass the whole field object
+							contentLanguage, // Add contentLanguage back
+							filter: _filter // Add filter back
 						});
 						aggregations.push(..._aggregations);
 					} catch (error) {
-						logger.error(`Error in widget filter aggregation for field ${fieldName}: ${error}`);
+						logger.error(`Error in widget filter aggregation for field ${fieldName}: ${error instanceof Error ? error.message : error}`);
 					}
 				}
-				if (widget.aggregations?.sorts && _sort) {
+				// Safely access aggregations.sorts
+				if (widget.aggregations.sorts && typeof widget.aggregations.sorts === 'function' && _sort) {
 					try {
 						const _aggregations = await widget.aggregations.sorts({
-							field,
-							contentLanguage,
-							sort: _sort
+							field, // Pass the whole field object
+							contentLanguage, // Add contentLanguage back
+							sort: _sort // Add sort back
 						});
 						aggregations.push(..._aggregations);
 					} catch (error) {
-						logger.error(`Error in widget sort aggregation for field ${fieldName}: ${error}`);
+						logger.error(`Error in widget sort aggregation for field ${fieldName}: ${error instanceof Error ? error.message : error}`);
 					}
 				}
 			}

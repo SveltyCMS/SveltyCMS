@@ -6,29 +6,7 @@
 import * as ts from 'typescript';
 import { logger } from '../utils/logger.svelte';
 import type { Schema } from './types';
-
-// Define a type for the widget placeholder structure
-type WidgetPlaceholder = {
-	__widgetName: string;
-	__widgetConfig: Record<string, unknown>;
-};
-
-// More specific type for the parsed schema object before adding _id
-type ParsedSchemaObject = {
-	[key: string]: ParsedSchemaValue;
-};
-
-// Define the possible value types within the parsed schema
-// --- UPDATED: Removed FunctionPlaceholder ---
-type ParsedSchemaValue =
-	| string
-	| number
-	| boolean
-	| null
-	| WidgetPlaceholder
-	// | FunctionPlaceholder // Removed function placeholder
-	| ParsedSchemaObject
-	| ParsedSchemaValue[];
+import type { WidgetPlaceholder, ParsedSchemaObject, ParsedSchemaValue } from './types';
 
 async function processModule(
 	content: string,
@@ -223,8 +201,8 @@ function parseNodeValue(node: ts.Expression, sourceFile: ts.SourceFile): unknown
 				}
 			}
 			const placeholder: WidgetPlaceholder = {
-				__widgetName: widgetName,
-				__widgetConfig: widgetConfig
+				widgetName: widgetName,
+				widgetConfig: widgetConfig
 			};
 			return placeholder;
 		}

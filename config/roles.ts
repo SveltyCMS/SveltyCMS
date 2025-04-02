@@ -1,6 +1,6 @@
 /**
  * @file config/roles.ts
- * @description Roles with Permission configuration
+ * @description Definition of roles and their associated permissions
  *
  */
 
