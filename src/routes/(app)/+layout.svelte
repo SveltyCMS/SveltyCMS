@@ -21,7 +21,6 @@ Key features:
 
 	import { publicEnv } from '@root/config/public';
 	import { onMount, onDestroy } from 'svelte';
-	import { goto } from '$app/navigation';
 
 	// Utils
 	import { getTextDirection } from '@utils/utils';
@@ -29,9 +28,8 @@ Key features:
 
 	// Stores
 	import { page } from '$app/state';
-	import { contentLanguage, systemLanguage, isLoading } from '@stores/store.svelte';
-	import type { AvailableLanguageTag } from '@src/paraglide/runtime';
-	import { contentStructure, collection, collections, mode } from '@root/src/stores/collectionStore.svelte';
+	import { systemLanguage, isLoading } from '@stores/store.svelte';
+	import { contentStructure, collections } from '@root/src/stores/collectionStore.svelte';
 	import { sidebarState } from '@root/src/stores/sidebarStore.svelte';
 	import { screenSize, ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
 
@@ -240,7 +238,7 @@ Key features:
 				{/if}
 
 				<!-- Content Area -->
-				<main class="relative w-full flex-1 overflow-hidden">
+				<main class="relative w-full flex-1">
 					<!-- Page Header -->
 					{#if sidebarState.sidebar.value.header !== 'hidden'}
 						<header class="sticky top-0 z-10 w-full">
