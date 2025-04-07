@@ -41,29 +41,24 @@
 	let { data } = $props<{ data: PageData }>();
 	let { user: serverUser, isFirstUser } = $derived(data);
 
-	// Initialize user state directly
-	let user = $state<User>({
-		_id: '',
-		email: '',
-		username: '',
-		role: '',
-		avatar: '/Default_User.svg',
+	// Make user data reactive
+	let user = $derived<User>({
+		_id: serverUser?._id ?? '',
+		email: serverUser?.email ?? '',
+		username: serverUser?.username ?? '',
+		role: serverUser?.role ?? '',
+		avatar: serverUser?.avatar ?? '/Default_User.svg',
 		permissions: []
 	});
 
 	// Keep user data in sync with server data
+
+	// Initialize avatarSrc with user's avatar or default using effect
 	$effect(() => {
-		if (serverUser) {
-			user = {
-				_id: serverUser._id ?? '',
-				email: serverUser.email ?? '',
-				username: serverUser.username ?? '',
-				role: serverUser.role ?? '',
-				avatar: serverUser.avatar ?? '/Default_User.svg',
-				permissions: serverUser.permissions ?? []
-			};
-			// Set avatar source once on initialization
-			avatarSrc.set(serverUser.avatar || '/Default_User.svg');
+		if (user?.avatar) {
+			avatarSrc.set(user.avatar);
+		} else {
+			avatarSrc.set('/Default_User.svg');
 		}
 	});
 
@@ -88,7 +83,7 @@
 		if ($triggerActionStore.length > 0) {
 			executeActions();
 		}
-		collection.set({} as Schema);
+		collection.set(null);
 	});
 
 	// Modal Trigger - User Form

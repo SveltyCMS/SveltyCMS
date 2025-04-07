@@ -93,8 +93,8 @@
 
 	// Convert timestamps to date strings
 	let dates = $derived({
-		created: convertTimestampToDateString(typeof collectionValue.value.createdAt === 'number' ? collectionValue.value.createdAt : 0),
-		updated: convertTimestampToDateString(typeof collectionValue.value.updatedAt === 'number' ? collectionValue.value.updatedAt : 0)
+		created: convertTimestampToDateString(typeof collectionValue.value.createdAt === 'number' ? collectionValue.value.createdAt : Date.now()),
+		updated: convertTimestampToDateString(typeof collectionValue.value.updatedAt === 'number' ? collectionValue.value.updatedAt : Date.now())
 	});
 
 	// Type guard to check if the widget has a validateWidget method

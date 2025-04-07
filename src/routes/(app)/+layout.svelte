@@ -21,7 +21,6 @@ Key features:
 
 	import { publicEnv } from '@root/config/public';
 	import { onMount, onDestroy } from 'svelte';
-	import { goto } from '$app/navigation';
 
 	// Utils
 	import { getTextDirection } from '@utils/utils';
@@ -29,9 +28,8 @@ Key features:
 
 	// Stores
 	import { page } from '$app/state';
-	import { contentLanguage, systemLanguage, isLoading } from '@stores/store.svelte';
-	import type { AvailableLanguageTag } from '@src/paraglide/runtime';
-	import { contentStructure, collection, collections, mode } from '@root/src/stores/collectionStore.svelte';
+	import { systemLanguage, isLoading } from '@stores/store.svelte';
+	import { contentStructure, collections } from '@root/src/stores/collectionStore.svelte';
 	import { sidebarState } from '@root/src/stores/sidebarStore.svelte';
 	import { screenSize, ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
 
@@ -49,13 +47,15 @@ Key features:
 	// Required for popups to function
 	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
 	import { storePopup } from '@skeletonlabs/skeleton';
+	import type { User } from '@root/src/auth/types';
+	import type { ContentNode } from '@root/src/databases/dbInterface';
 
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 	initializeStores();
 
 	interface Props {
 		children?: import('svelte').Snippet;
-		data: { contentStructure: any; nestedContentStructure: any; contentLanguage: string; systemLanguage: string };
+		data: { user: User; contentStructure: Record<string, ContentNode>; nestedContentStructure: any; contentLanguage: string; systemLanguage: string };
 	}
 
 	let { children, data }: Props = $props();
@@ -112,8 +112,7 @@ Key features:
 	// Function to initialize collections using ContentManager
 	async function initializeCollections() {
 		try {
-			// console.log('Loading collections...', data);
-			contentStructure.set(data.nestedContentStructure);
+			contentStructure.set(data.contentStructure);
 			isCollectionsLoaded = true;
 		} catch (error) {
 			console.error('Error loading collections:', error);
@@ -156,6 +155,10 @@ Key features:
 			setModeCurrent(newMode);
 		}
 
+		if (data.user) {
+			console.log('user', data.user);
+		}
+
 		// Event listeners
 		window.addEventListener('keydown', onKeyDown);
 
@@ -177,6 +180,7 @@ Key features:
 
 <svelte:head>
 	<!-- Dark Mode -->
+	<!-- eslint-disable-next-line svelte/no-at-html-tags-->
 	{@html '<script>(' + setInitialClassState.toString() + ')();</script>'}
 
 	<!--Basic SEO-->
@@ -234,7 +238,7 @@ Key features:
 				{/if}
 
 				<!-- Content Area -->
-				<main class="relative w-full flex-1 overflow-hidden">
+				<main class="relative w-full flex-1">
 					<!-- Page Header -->
 					{#if sidebarState.sidebar.value.header !== 'hidden'}
 						<header class="sticky top-0 z-10 w-full">

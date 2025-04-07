@@ -27,15 +27,16 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	// Skeleton
 	import { Tab, TabGroup, getToastStore } from '@skeletonlabs/skeleton';
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
+	import { initializeWidgets } from '@root/src/widgets';
 
 	const modalStore = getModalStore();
 	const toastStore = getToastStore();
 
 	// Extract the collection name from the URL
-	const contentTypes = page.params.contentTypes;
+	let collectionName = $state(page.params.collectionType);
 
 	// Default widget data (tab1)
-	let name = $state(mode.value == 'edit' ? (collectionValue.value ? collectionValue.value.name : contentTypes) : contentTypes);
+	let name = $derived(mode.value == 'edit' ? (collectionValue.value ? collectionValue.value.name : collectionName) : collectionName);
 
 	// Page title
 	let pageTitle = $state('');
@@ -45,15 +46,15 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	$effect.root(() => {
 		// Set the base page title according to the mode
 		if (mode.value === 'edit') {
-			pageTitle = `Edit ${contentTypes} Collection`;
-		} else if (contentTypes) {
-			pageTitle = `Create ${contentTypes} Collection`;
+			pageTitle = `Edit ${collectionName} Collection`;
+		} else if (collectionName) {
+			pageTitle = `Create ${collectionName} Collection`;
 		} else {
 			pageTitle = 'Create new Collection';
 		}
 
 		// Ensure the highlighted part (e.g., contentTypes) is unique in the title
-		highlightedPart = contentTypes || 'new';
+		highlightedPart = collectionName || 'new';
 
 		// Avoid repeating the contentTypes if it's already included in the string
 		if (pageTitle.includes(highlightedPart)) {
@@ -61,13 +62,9 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		}
 	});
 
-	// Effect to update name based on mode and collection value
-	$effect.root(() => {
-		name = mode.value == 'edit' ? (collectionValue.value ? collectionValue.value.name : contentTypes) : page.params.contentTypes;
-	});
-
 	function handlePageTitleUpdate(title: string) {
 		highlightedPart = title;
+		collectionName = title;
 		if (mode.value === 'edit') {
 			pageTitle = `Edit ${highlightedPart} Collection`;
 		} else {
@@ -84,12 +81,14 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 			});
 		}
 
+		console.log(collectionValue.value, name, page.params);
+
 		// Prepare form data
 		const data =
 			mode.value == 'edit'
 				? obj2formData({
 						originalName: collectionValue.value?.name,
-						contentTypes: name,
+						name: name,
 						icon: collectionValue.value?.icon,
 						status: collectionValue.value?.status,
 						slug: collectionValue.value?.slug,
@@ -98,7 +97,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 						fields: collectionValue.value?.fields
 					})
 				: obj2formData({
-						contentTypes: name,
+						name: name,
 						icon: collectionValue.value?.icon,
 						status: collectionValue.value?.status,
 						slug: collectionValue.value?.slug,
@@ -168,6 +167,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	onMount(() => {
 		// Set the initial tab
+		initializeWidgets();
 		tabSet.set(0);
 	});
 </script>

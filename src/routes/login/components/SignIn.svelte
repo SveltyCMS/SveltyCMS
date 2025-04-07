@@ -40,6 +40,7 @@ Features:
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import OauthLogin from './OauthLogin.svelte';
+	import BackgroundPattern from '@root/src/components/system/BackgroundPattern.svelte';
 
 	// Props
 	const {
@@ -329,6 +330,7 @@ Features:
 
 				<FloatingPaths position={1} background="white" />
 			</div>
+			>
 
 			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
 			<!-- CSS Logo -->

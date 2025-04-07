@@ -37,6 +37,7 @@
 
 	// Skeleton
 	import { getToastStore, getModalStore, type ModalSettings, type ModalComponent } from '@skeletonlabs/skeleton';
+	import type { ContentNode, NestedContentNode } from '@root/src/databases/dbInterface';
 
 	interface CategoryModalResponse {
 		newCategoryName: string;
@@ -59,15 +60,12 @@
 		suggestions?: string[];
 	}
 
-	interface ExistingCategory {
-		name: string;
-		icon: string;
+	interface CollectionBuilderProps {
+		contentStructure: Record<string, ContentNode>;
 	}
 
-	// State variables
-
-	let data = $props<{ contentStructure: Record<string, CollectionData> }>();
-	let currentConfig = $derived(data.nestedContentStructure);
+	let data: CollectionBuilderProps = $props();
+	let currentConfig = $derived(data.contentStructure);
 	let isLoading = $state(false);
 	let apiError = $state<string | null>(null);
 
@@ -75,7 +73,7 @@
 	const modalStore = getModalStore();
 
 	// Modal Trigger - New Category
-	function modalAddCategory(existingCategory?: ExistingCategory): void {
+	function modalAddCategory(existingCategory?: Partial<CollectionData>): void {
 		const modalComponent: ModalComponent = {
 			ref: ModalCategory,
 			props: {
@@ -107,25 +105,15 @@
 		modalStore.trigger(modalSettings);
 	}
 
-	async function updateExistingCategory(existingCategory: ExistingCategory, response: CategoryModalResponse): Promise<void> {
+	async function updateExistingCategory(existingCategory: Partial<CollectionData>, response: CategoryModalResponse): Promise<void> {
 		const newConfig = { ...currentConfig };
+
 		Object.entries(newConfig).forEach(([_, category]) => {
 			if (category.name === existingCategory.name) {
 				category.name = response.newCategoryName;
 				category.icon = response.newCategoryIcon;
 			}
-			// Also check subcategories
-			if (category.subcategories) {
-				Object.entries(category.subcategories).forEach(([_, subCategory]) => {
-					if (subCategory.name === existingCategory.name) {
-						subCategory.name = response.newCategoryName;
-						subCategory.icon = response.newCategoryIcon;
-					}
-				});
-			}
 		});
-
-		contentStructure.set(newConfig);
 	}
 
 	async function addNewCategory(response: CategoryModalResponse): Promise<void> {
@@ -134,13 +122,11 @@
 		const newCategoryId = uuidv4();
 
 		newConfig[categoryKey] = {
-			id: newCategoryId,
+			_id: newCategoryId,
 			name: response.newCategoryName,
 			icon: response.newCategoryIcon,
-			subcategories: {}
+			type: 'category'
 		};
-
-		contentStructure.set(newConfig);
 	}
 
 	// Check for name conflicts before saving
@@ -211,8 +197,6 @@
 
 				if (response.ok) {
 					showToast('Categories updated successfully', 'success');
-
-					contentStructure.set(currentConfig);
 
 					// Create and dispatch a proper CustomEvent
 					const saveEvent = new CustomEvent('save', {

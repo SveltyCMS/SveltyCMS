@@ -12,10 +12,14 @@
 	import { track } from '@src/utils/reactivity.svelte';
 	import { updateTranslationProgress, getFieldName } from '@src/utils/utils';
 
+	// Stores
+	import { mode } from '@root/src/stores/collectionStore.svelte';
+
 	// Valibot validation
 	import { string, pipe, parse, type ValiError, minLength, maxLength, nonEmpty, nullable } from 'valibot';
 	import { contentLanguage, validationStore } from '@root/src/stores/store.svelte';
 
+	import lodash from 'lodash';
 	// Props
 	interface Props {
 		field: FieldType;

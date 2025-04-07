@@ -3,6 +3,13 @@
 @component
 **Collections component to display & filter collections and categories using TreeView.**
 
+@example
+<Collections />
+
+#### Props
+- `collection` - The collection object to display data from.
+- `mode` - The current mode of the component. Can be 'view', 'edit', 'create', 'delete', 'modify', or 'media'.
+
 Features:
 - Display collections and categories using TreeView from Skeleton.
 - Search functionality with clear button.
@@ -15,9 +22,8 @@ Features:
 	import { goto } from '$app/navigation';
 
 	// Types
-	// Types
 	import type { Schema } from '@src/content/types';
-	import type { ContentStructureNode } from '@src/databases/dbInterface';
+	import type { ContentNode } from '@src/databases/dbInterface';
 
 	// Stores
 	import { get } from 'svelte/store';
@@ -31,8 +37,9 @@ Features:
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import { contructNestedStructure } from '../content/utils';
 
-	interface CollectionTreeNode extends ContentStructureNode {
+	interface CollectionTreeNode extends ContentNode {
 		id: string;
 		isExpanded: boolean;
 		onClick: () => void;
@@ -41,45 +48,47 @@ Features:
 			count?: number;
 			status?: 'draft' | 'published' | 'archived';
 			color?: string;
+			visible?: boolean;
 		};
 	}
 
-	let collectonStructureNodes: CollectionTreeNode[] = $derived.by(() => {
-		function mapNode(node: ContentStructureNode): CollectionTreeNode {
-			const isCategory = node.nodeType === 'category';
+	let collectionStructureNodes: CollectionTreeNode[] = $derived.by(() => {
+		function mapNode(node: ContentNode): CollectionTreeNode {
+			const isCategory = node.nodeType === 'category' || node.translations?.some((t) => t.translationName === 'category');
 			// Get translation for current language or fallback to default name
 			const translation = node.translations?.find((trans) => trans.languageTag === contentLanguage.value);
 			const label = translation?.translationName || node.name;
 
-			const children =
-				isCategory && node.children
-					? node.children.map((child: ContentStructureNode) => ({
-							...mapNode(child),
-							// Ensure children use their own translations
-							name: child.translations?.find((t) => t.languageTag === contentLanguage.value)?.translationName || child.name
-						}))
-					: undefined;
+			let children;
+			if (isCategory && (node as any).children) {
+				children = (node as any).children.map((child: ContentNode) => ({
+					...mapNode(child),
+					// Ensure children use their own translations
+					name: child.translations?.find((t) => t.languageTag === contentLanguage.value)?.translationName || child.name
+				}));
+			}
+
 			return {
 				...node,
 				name: label,
 				id: node._id,
-				value: node.path,
-				name: node.name,
 				icon: node.icon,
 				isExpanded: collection.value?._id === node._id,
 				onClick: () => handleCollectionSelect(node),
 				children,
 				badge: isCategory
 					? {
-							count: node.children?.filter((child) => child.nodeType === 'collection').length || 0,
+							count: (node as any).children?.filter((child: any) => (child as any).nodeType === 'collection').length || 0,
 							// Only show count for categories (parent nodes)
-							visible: !node.isExpanded // Show when expanded
+							visible: !(node as any).isExpanded // Show when expanded
 						}
 					: undefined
 			};
 		}
 
-		return contentStructure.value.map((node) => mapNode(node));
+		const nestedStructure = contructNestedStructure(contentStructure.value);
+
+		return nestedStructure.map((node) => mapNode(node));
 	});
 
 	let virtualFolderNodes: CollectionTreeNode[] = $derived.by(() => {
@@ -87,19 +96,18 @@ Features:
 	});
 
 	let search = $state('');
-	let isMediaMode = $state(false);
+	let isMediaMode = $derived(mode.value === 'media');
 
 	// Update isMediaMode when mode changes
 	$effect(() => {
-		isMediaMode = mode.value === 'media';
-		if (collectonStructureNodes.length > 0) {
+		if (collectionStructureNodes.length > 0) {
 			// The search prop in TreeView will handle the filtering
 			search = search.toLowerCase().trim();
 		}
 	});
 
 	// Handle collection selection
-	function handleCollectionSelect(selectedCollection: ContentStructureNode | Schema) {
+	function handleCollectionSelect(selectedCollection: ContentNode | Schema) {
 		if ('nodeType' in selectedCollection && selectedCollection.nodeType === 'collection') {
 			mode.set('view');
 			collection.set(null);
@@ -125,7 +133,7 @@ Features:
 				type="text"
 				placeholder="Search collections..."
 				bind:value={search}
-				class="input {sidebarState.sidebar.value.left === 'full' ? 'h-12' : 'h-10'} outline-none transition-all duration-500 ease-in-out"
+				class="input {sidebarState.sidebar.value.left === 'full' ? 'h-12' : 'h-10'} outline-hidden transition-all duration-500 ease-in-out"
 			/>
 			<button onclick={clearSearch} class="variant-filled-surface w-12" aria-label="Clear search">
 				<iconify-icon icon="ic:outline-search-off" width="24"></iconify-icon>
@@ -133,10 +141,10 @@ Features:
 		</div>
 
 		<!-- Collections TreeView -->
-		{#if collectonStructureNodes.length > 0}
+		{#if collectionStructureNodes.length > 0}
 			<TreeView
 				k={0}
-				nodes={collectonStructureNodes}
+				nodes={collectionStructureNodes}
 				selectedId={collection.value?._id ?? undefined}
 				compact={sidebarState.sidebar.value.left !== 'full'}
 				{search}
@@ -147,11 +155,11 @@ Features:
 
 		<!-- Media Gallery Button -->
 		<button
-			class="btn mt-1 flex w-full rounded {sidebarState.sidebar.value.left === 'full'
+			class="btn mt-1 flex w-full rounded-sm {sidebarState.sidebar.value.left === 'full'
 				? 'flex-row '
 				: 'flex-col'} items-center border border-surface-500 py-{sidebarState.sidebar.value.left === 'full'
 				? '3'
-				: '1'} hover:!bg-surface-400 hover:text-white dark:bg-surface-500"
+				: '1'} hover:bg-surface-400! hover:text-white dark:bg-surface-500"
 			onclick={() => {
 				mode.set('media');
 				goto('/mediagallery');
@@ -174,7 +182,7 @@ Features:
 	{#if isMediaMode}
 		<!-- Back to Collections Button -->
 		<button
-			class="btn mt-1 flex w-full items-center bg-surface-400 py-2 hover:!bg-surface-500 hover:text-white dark:bg-surface-600"
+			class="hover:bg-surface-500! btn mt-1 flex w-full items-center bg-surface-400 py-2 hover:text-white dark:bg-surface-600"
 			onclick={() => {
 				mode.set('view');
 				if (get(screenSize) === 'sm') {

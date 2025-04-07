@@ -8,7 +8,15 @@ It dynamically fetches and displays data based on the current language and colle
 It also handles navigation, mode switching (view, edit, create, media), and SEO metadata for the page.
 -->
 <script lang="ts">
+	import { publicEnv } from '@root/config/public';
 	import { goto } from '$app/navigation';
+
+	// Types
+	import type { Schema } from '@src/content/types';
+	import type { User } from '@root/src/auth/types.js';
+
+	// ParaglideJS
+	import type { AvailableLanguageTag } from '@root/src/paraglide/runtime';
 
 	// Stores
 	import { page } from '$app/state';
@@ -20,13 +28,6 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	import EntryList from '@src/components/EntryList.svelte';
 	import MediaGallery from '@src/routes/(app)/mediagallery/+page.svelte';
 
-	// System Logger
-	import type { User } from '@root/src/auth/types.js';
-
-	import { publicEnv } from '@root/config/public';
-	import type { AvailableLanguageTag } from '@root/src/paraglide/runtime';
-
-	import type { Schema } from '@root/src/content/types';
 	import Loading from '@root/src/components/Loading.svelte';
 
 	interface Props {
@@ -41,7 +42,6 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		isLoading = true;
 		if (!page.params.collection) return;
 
-		console.log('selectedCollection', data.collection);
 		collection.set(data.collection);
 		isLoading = false;
 	}

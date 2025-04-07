@@ -77,7 +77,8 @@ interface CacheClient {
 
 // Registers collection schemas dynamically.
 export async function registerCollections() {
-	const { collections } = contentManager.getCollectionData();
+	await contentManager.initialize(); // Ensure ContentManager is initialized
+	const collections = contentManager.loadedCollections;
 	logger.debug(`Collections fetched: ${collections.map((c) => c.name).join(', ')}`);
 
 	const typeDefsSet = new Set<string>();

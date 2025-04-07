@@ -40,6 +40,7 @@
 	$effect(() => {
 		console.log('Widget keys:', widget_keys);
 		console.log('Search term:', searchTerm);
+		console.log('widgets', widgets);
 	});
 
 	// We've created a custom submit function to pass the response and close the modal.

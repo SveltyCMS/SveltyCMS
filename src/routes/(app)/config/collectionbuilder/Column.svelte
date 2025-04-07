@@ -22,6 +22,7 @@
 	// Skeleton
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
 	import ModalAddCategory from './ModalCategory.svelte';
+	import type { ContentNode } from '@root/src/databases/dbInterface';
 
 	interface Props {
 		name: string;
@@ -33,10 +34,8 @@
 		onEditCategory: (category: Pick<CollectionData, 'name' | 'icon'>) => void;
 	}
 
-	interface DndItem {
+	interface DndItem extends ContentNode {
 		id: string;
-		name: string;
-		icon: string;
 		isCategory: boolean;
 		children?: DndItem[];
 	}
@@ -83,10 +82,10 @@
 		}
 	}
 
-	async function handleCollectionClick(item: Pick<DndItem, 'name'>) {
+	async function handleCollectionClick(item: Pick<DndItem, 'path'>) {
 		try {
 			mode.set('edit');
-			await goto(`/config/collectionbuilder/${item.name}`);
+			await goto(`/config/collectionbuilder/${item.path}`);
 		} catch (error) {
 			console.error('Error navigating to collection:', error);
 			updateError = error instanceof Error ? error.message : 'Error navigating to collection';
@@ -204,7 +203,7 @@
 				<div animate:flip={{ duration: flipDurationMs }} class="mx-0.5 p-0.5">
 					<Column
 						name={item.name}
-						icon={item.icon}
+						icon={item.icon as string}
 						items={item.children ?? []}
 						level={level + 0.25}
 						isCategory={item.isCategory}
