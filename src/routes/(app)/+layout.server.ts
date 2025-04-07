@@ -18,12 +18,11 @@ export const load: LayoutServerLoad = async ({ locals }) => {
   try {
     await contentManager.initialize();
 
-    const { contentStructure, nestedContentStructure } = await contentManager.getCollectionData();
+    const { contentStructure } = await contentManager.getCollectionData();
 
     return {
       theme: theme || DEFAULT_THEME,
       contentStructure: contentStructure,
-      nestedContentStructure
     };
   } catch (error) {
     console.error('Failed to load layout data:', error);

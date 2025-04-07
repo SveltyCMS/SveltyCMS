@@ -56,7 +56,7 @@ import { logger } from '@utils/logger.svelte';
 type fields = ReturnType<WidgetType[keyof WidgetType]>;
 
 // Define load function as async function that takes an event parameter
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, params }) => {
   try {
     const { user } = locals;
 
@@ -71,6 +71,11 @@ export const load: PageServerLoad = async ({ locals }) => {
     const collectionManagementConfig = permissionConfigs.collectionManagement;
     const permissionCheck = await checkUserPermission(user, collectionManagementConfig);
 
+    await contentManager.initialize();
+    const collection = params.collectionType;
+
+    const currentCollection = await contentManager.getCollection(`/${collection}`);
+
     if (!permissionCheck.hasPermission) {
       const message = `User ${user._id} does not have permission to access collection management`;
       logger.warn(message);
@@ -82,7 +87,8 @@ export const load: PageServerLoad = async ({ locals }) => {
       user: { ...rest, id: _id.toString() },
       roles, // Add roles data
       permissions, // Add permissions data
-      permissionConfigs // Add permission configs
+      permissionConfigs, // Add permission configs
+      collection: currentCollection
     };
   } catch (err) {
     if (err instanceof Error && 'status' in err) {

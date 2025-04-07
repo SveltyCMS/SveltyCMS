@@ -30,7 +30,6 @@
  * 6. Type safety throughout interface
  */
 
-import type { Collection } from "mongoose";
 import type { Schema } from "../content/types";
 
 /** Core Types **/
@@ -61,16 +60,22 @@ export interface Translation {
 }
 
 /** Content Management Types **/
-export interface ContentNode<ContentType = unknown> extends BaseEntity {
+export interface ContentNode<ContentType = 'category' | 'collection'> extends BaseEntity {
   name: string;
   path: string;
-  type: string;
+  nodeType: ContentType;
   icon?: string;
   order: number;
   translations: Translation[];
   parentPath?: string;
-  content?: ContentType;
 }
+
+
+/** Nested Content Structure **/
+export interface NestedContentNode extends ContentNode {
+  children: NestedContentNode[];
+}
+
 
 /** Content Draft **/
 export interface ContentDraft<T = unknown> extends BaseEntity {
@@ -265,8 +270,8 @@ export interface DatabaseAdapter {
   content: {
     nodes: {
       getStructure(mode: 'flat' | 'nested', filter?: Partial<ContentNode>): Promise<DatabaseResult<ContentNode[]>>; // Retrieve content structure
-      upsertContentStructureNode(node: Omit<ContentNode, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNode>>; // Create a content node
-      create(node: Omit<ContentNode, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNode>>; // Create a content node
+      upsertContentStructureNode(node: Omit<ContentNode, 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNode>>; // Create a content node
+      create(node: Omit<ContentNode, 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNode>>; // Create a content node
       update(path: string, changes: Partial<ContentNode>): Promise<DatabaseResult<ContentNode>>; // Update a content node
       bulkUpdate(updates: { path: string; changes: Partial<ContentNode> }[]): Promise<DatabaseResult<ContentNode[]>>; // Bulk update content nodes
       delete(path: string): Promise<DatabaseResult<void>>; // Delete a content node

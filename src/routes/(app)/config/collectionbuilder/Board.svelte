@@ -13,23 +13,27 @@
 	// Svelte DND-actions
 	import { flip } from 'svelte/animate';
 	import { dndzone, type DndEvent } from 'svelte-dnd-action';
-	import type { ContentStructureNode } from '@root/src/databases/dbInterface';
-	type DndItem = ContentStructureNode & { id: string; isCategory: boolean; children: DndItem[] };
+	import type { CollectionData } from '@root/src/content/types';
+	import type { ContentNode, NestedContentNode } from '@root/src/databases/dbInterface';
+	import { contructNestedStructure } from '@root/src/content/utils';
+	type DndItem = ContentNode & { id: string; isCategory: boolean; children: DndItem[] };
 
 	interface Props {
-		contentNodes: ContentStructureNode[];
-		onEditCategory: (category: string) => void;
+		contentNodes: Record<string, ContentNode>;
+		onEditCategory: (category: Partial<CollectionData>) => void;
 	}
 
-	let { contentNodes = $bindable(), onEditCategory }: Props = $props();
+	let { contentNodes, onEditCategory }: Props = $props();
+
+	let nestedNodes = $derived(contructNestedStructure(contentNodes));
 
 	// State variables
-	let structuredItems = $derived.by<DndItem[]>(() => createStructuredItems(contentNodes));
+	let structuredItems = $derived.by<DndItem[]>(() => createStructuredItems(nestedNodes));
 	let isDragging = $state(false);
 	let dragError = $state<string | null>(null);
 
 	// Convert contentNodes to format needed for dnd-actions
-	function createStructuredItems(nodes: ContentStructureNode[]): DndItem[] {
+	function createStructuredItems(nodes: NestedContentNode[]): DndItem[] {
 		return nodes.map((node) => ({
 			...node,
 			children: createStructuredItems(node.children ?? []),
@@ -48,10 +52,10 @@
 		}
 	}
 
-	function convertToConfig(nodes: DndItem[]): ContentStructureNode[] {
+	function convertToConfig(nodes: DndItem[]): ContentNode[] {
 		return nodes.map((node) => ({
-			_id: node.id,
-			nodeType: node.isCategory ? 'category' : 'collection',
+			id: node.id,
+			type: node.isCategory ? 'category' : 'collection',
 			name: node.name,
 			icon: node.icon,
 			children: node.children?.length > 0 ? convertToConfig(node.children ?? []) : undefined,
@@ -114,7 +118,7 @@
 			<div animate:flip={{ duration: flipDurationMs }} class="my-1 w-full" role="listitem" aria-label={item.name}>
 				<Column
 					name={item.name}
-					icon={item.icon}
+					icon={item.icon as string}
 					items={item.children ?? []}
 					onUpdate={(newItems) => {
 						const updatedItems = structuredItems.map((i) => (i.id === item.id ? { ...i, items: newItems } : i));

@@ -55,7 +55,6 @@ class ContentManager {
 
   private collectionMap: Map<string, Schema> = new Map();
   private contentStructure: Record<string, ContentNode> = {};
-  private nestedContentStructure: ContentStructureNode[] = [];
   private dbInitPromise: Promise<void> | null = null;
 
   private constructor() {
@@ -106,7 +105,6 @@ class ContentManager {
     return {
       collectionMap: this.collectionMap,
       contentStructure: this.contentStructure,
-      nestedContentStructure: this.nestedContentStructure
     };
   }
   // Load collections
@@ -234,7 +232,8 @@ class ContentManager {
 
       const schema = this.collectionMap.get(this.contentStructure[path]._id);
 
-      if (!schema || !collectionFile) return null;
+
+      if (!schema || !collectionFile) throw new Error("Collection not found")
 
       return { module: collectionFile, ...schema };
 
@@ -282,7 +281,6 @@ class ContentManager {
           nodeType: "collection",
           parentPath: parentPath ?? oldNode?.parentPath ?? '/',
           translations: collection.translations ?? oldNode?.translations ?? [],
-          updatedAt: oldNode?.updatedAt ?? new Date(),
 
         });
         if (!result.success) {
@@ -316,7 +314,6 @@ class ContentManager {
           nodeType: "category",
           parentPath: node.parentPath,
           translations: oldNode?.translations ?? [],
-          updatedAt: oldNode?.updatedAt ?? new Date()
 
         })
         if (!result.success) {
@@ -330,7 +327,7 @@ class ContentManager {
       }
 
 
-      this.nestedContentStructure = this.generateNestedStructure();
+
       logger.debug("Content Manager SysContentStructure loaded");
       // Cache in Redis if available
       if (isRedisEnabled()) {
@@ -344,41 +341,6 @@ class ContentManager {
   }
 
   // Generate nested JSON structure
-  public generateNestedStructure(): ContentStructureNode[] {
-    try {
-
-      // Create a Map for quick lookups
-      const nodeMap = new Map<string, any>();
-
-      // Add all nodes to the Map
-      Object.values(this.contentStructure).forEach(node => {
-        nodeMap.set(node.path, { ...node, children: [] }); // Initialize children as an empty array
-      });
-
-      // Build the nested structure
-      const nestedStructure: ContentStructureNode[] = [];
-
-      for (const node of nodeMap.values()) {
-        if (node.parentPath === null) {
-          // This is a root node, add it to the nested structure
-          nestedStructure.push(node);
-        } else {
-          // Find the parent node and add this node to its children
-          const parentNode = nodeMap.get(node.parentPath);
-          if (parentNode) {
-            parentNode.children!.push(node);
-          }
-        }
-      }
-
-      return nestedStructure;
-    } catch (error) {
-      logger.error('Error generating nested JSON:', error);
-      throw error;
-    }
-  }
-
-
   // Cache management methods with Redis support
   private async getCacheValue<T>(key: string, cache: Map<string, CacheEntry<T>>): Promise<T | null> {
     // Try Redis first if available

@@ -48,13 +48,14 @@ Key features:
 	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
 	import { storePopup } from '@skeletonlabs/skeleton';
 	import type { User } from '@root/src/auth/types';
+	import type { ContentNode } from '@root/src/databases/dbInterface';
 
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 	initializeStores();
 
 	interface Props {
 		children?: import('svelte').Snippet;
-		data: { user: User; contentStructure: any; nestedContentStructure: any; contentLanguage: string; systemLanguage: string };
+		data: { user: User; contentStructure: Record<string, ContentNode>; nestedContentStructure: any; contentLanguage: string; systemLanguage: string };
 	}
 
 	let { children, data }: Props = $props();
@@ -111,8 +112,7 @@ Key features:
 	// Function to initialize collections using ContentManager
 	async function initializeCollections() {
 		try {
-			console.log('Loading collections...', data);
-			contentStructure.set(data.nestedContentStructure);
+			contentStructure.set(data.contentStructure);
 			isCollectionsLoaded = true;
 		} catch (error) {
 			console.error('Error loading collections:', error);

@@ -22,7 +22,7 @@ import { SystemPreferencesModel } from './models/systemPreferences';
 
 // Types
 import type { CollectionConfig } from '@src/content/types';
-import type { ContentStructureNode } from './models/contentStructure';
+import type { ContentStructureNode as ContentNode } from './models/contentStructure';
 import type { MediaType } from '@utils/media/mediaModels';
 
 // Authentication Models
@@ -149,7 +149,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
             existingNode.path = contentData.path;
             existingNode.icon = contentData.icon || 'iconoir:info-empty';
             existingNode.order = contentData.order || 999;
-            existingNode.nodeType = type;
+            existingNode.type = type;
             existingNode.isCollection = contentData.isCategory;
             existingNode.collectionConfig = contentData.collectionConfig;
             existingNode.markModified('type'); // Ensure type field is marked as modified
@@ -180,8 +180,8 @@ export class MongoDBAdapter implements DatabaseAdapter {
           throw new Error(`Error creating/updating content structure`);
         }
       },
-      upsertContentStructureNode: async (contentData: ContentStructureNode): Promise<ContentStructureNode> => {
-        if (contentData.nodeType === "collection") {
+      upsertContentStructureNode: async (contentData: ContentNode): Promise<ContentNode> => {
+        if (contentData.nodeType === 'collection') {
           return ContentStructureModel.upsertCollection(contentData);
         }
         return ContentStructureModel.upsertCategory(contentData);
@@ -195,7 +195,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
         return ContentStructureModel.getContentStructureById(id);
       },
 
-      getStructure: async (): Promise<ContentStructureNode[]> => {
+      getStructure: async (): Promise<ContentNode[]> => {
         return ContentStructureModel.getContentStructure();
       },
 
@@ -203,7 +203,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
         return ContentStructureModel.getContentStructureChildren(parentId);
       },
 
-      updateContentStructure: async (contentId: string, updateData: Partial<ContentStructureNode>): Promise<Document | null> => {
+      updateContentStructure: async (contentId: string, updateData: Partial<ContentNode>): Promise<Document | null> => {
         return ContentStructureModel.updateContentStructure(contentId, updateData);
       },
 

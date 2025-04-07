@@ -37,6 +37,7 @@ Features:
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import { contructNestedStructure } from '../content/utils';
 
 	interface CollectionTreeNode extends ContentNode {
 		id: string;
@@ -51,7 +52,7 @@ Features:
 		};
 	}
 
-	let collectonStructureNodes: CollectionTreeNode[] = $derived.by(() => {
+	let collectionStructureNodes: CollectionTreeNode[] = $derived.by(() => {
 		function mapNode(node: ContentNode): CollectionTreeNode {
 			const isCategory = node.nodeType === 'category' || node.translations?.some((t) => t.translationName === 'category');
 			// Get translation for current language or fallback to default name
@@ -85,7 +86,9 @@ Features:
 			};
 		}
 
-		return contentStructure.value.map((node) => mapNode(node));
+		const nestedStructure = contructNestedStructure(contentStructure.value);
+
+		return nestedStructure.map((node) => mapNode(node));
 	});
 
 	let virtualFolderNodes: CollectionTreeNode[] = $derived.by(() => {
@@ -97,7 +100,7 @@ Features:
 
 	// Update isMediaMode when mode changes
 	$effect(() => {
-		if (collectonStructureNodes.length > 0) {
+		if (collectionStructureNodes.length > 0) {
 			// The search prop in TreeView will handle the filtering
 			search = search.toLowerCase().trim();
 		}
@@ -138,10 +141,10 @@ Features:
 		</div>
 
 		<!-- Collections TreeView -->
-		{#if collectonStructureNodes.length > 0}
+		{#if collectionStructureNodes.length > 0}
 			<TreeView
 				k={0}
-				nodes={collectonStructureNodes}
+				nodes={collectionStructureNodes}
 				selectedId={collection.value?._id ?? undefined}
 				compact={sidebarState.sidebar.value.left !== 'full'}
 				{search}

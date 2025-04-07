@@ -88,6 +88,9 @@ contentStructureSchema.index({ nodeType: 1 });
 contentStructureSchema.index({ updatedAt: -1 });
 contentStructureSchema.index({ 'translations.languageTag': 1 });
 
+// aggregate
+//
+
 // Static methods for the ContentStructure model
 contentStructureSchema.statics = {
 
@@ -125,7 +128,7 @@ contentStructureSchema.statics = {
           error: createDatabaseError(undefined, 'CONTENT_UPSERT_CATEGORY_ERROR', `Failed to upsert category: ${category.path}`)
         };
       }
-      return { success: true, data: result };
+      return { success: true, data: { ...result, _id: result._id.toString() } };
     } catch (error) {
       return { success: false, error: createDatabaseError(error, 'CONTENT_UPSERT_CATEGORY_ERROR', `Error upserting category: ${category.path}`) };
     }
@@ -152,7 +155,7 @@ contentStructureSchema.statics = {
           error: createDatabaseError(undefined, 'CONTENT_UPSERT_COLLECTION_ERROR', `Failed to upsert collection: ${collection.path}`)
         };
       }
-      return { success: true, data: result };
+      return { success: true, data: { ...result, _id: result._id.toString() } };
     } catch (error) {
       return {
         success: false,
