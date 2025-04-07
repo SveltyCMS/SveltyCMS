@@ -53,7 +53,7 @@ Features:
 
 	let collectonStructureNodes: CollectionTreeNode[] = $derived.by(() => {
 		function mapNode(node: ContentNode): CollectionTreeNode {
-			const isCategory = node.name === 'category' || node.translations?.some((t) => t.translationName === 'category');
+			const isCategory = node.nodeType === 'category' || node.translations?.some((t) => t.translationName === 'category');
 			// Get translation for current language or fallback to default name
 			const translation = node.translations?.find((trans) => trans.languageTag === contentLanguage.value);
 			const label = translation?.translationName || node.name;
