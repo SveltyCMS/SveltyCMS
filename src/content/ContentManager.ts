@@ -275,7 +275,7 @@ class ContentManager {
 		try {
 			// START of main try block
 			const files = await this.getCompiledCollectionFiles(compiledDirectoryPath);
-			logger.debug(`Found ${files.length} potential compiled files:`, files);
+			logger.debug(`Found \x1b[34m${files.length}\x1b[0m potential compiled files:`, files);
 
 			if (files.length === 0) {
 				logger.warn(`No compiled collection files found in ${compiledDirectoryPath}. Collections not loaded.`);
@@ -325,9 +325,9 @@ class ContentManager {
 
 					logger.debug(
 						`Derived path: \x1b[34m${derivedPath}\x1b[0m, ` +
-							`File Name Based: \x1b[33m${fileNameBasedName}\x1b[0m, ` +
-							`Final name for \x1b[36m${filePath}\x1b[0m: \x1b[32m${finalName}\x1b[0m, ` +
-							`Final path: \x1b[35m${finalPath}\x1b[0m`
+						`File Name Based: \x1b[33m${fileNameBasedName}\x1b[0m, ` +
+						`Final name for \x1b[36m${filePath}\x1b[0m: \x1b[32m${finalName}\x1b[0m, ` +
+						`Final path: \x1b[35m${finalPath}\x1b[0m`
 					);
 
 					// Basic validation / Defaulting using fallbacks

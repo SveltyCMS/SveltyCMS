@@ -182,6 +182,7 @@ export async function initializeWidgets(): Promise<void> {
 // Widget initialization state
 let widgetsInitialized = false;
 
+// Ensure widgets are initialized
 export async function ensureWidgetsInitialized() {
 	if (!widgetsInitialized) {
 		try {

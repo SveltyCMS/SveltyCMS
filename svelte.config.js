@@ -20,7 +20,7 @@ const config = {
 			envPrefix: '' // default: '' | If you need to change the name of the environment variables used to configure the deployment
 		}),
 		csrf: {
-			checkOrigin: false // default: true | Protection against cross-site request forgery (CSRF) attacks.
+			checkOrigin: false // default: true / development : false | Protection against cross-site request forgery (CSRF) attacks.
 		},
 		files: {
 			// ... other file options

@@ -34,9 +34,10 @@ Features:
 	import FloatingPaths from '@root/src/components/system/FloatingPaths.svelte';
 
 	// Skeleton
-	import { getContext } from 'svelte';
-	import { type ToastContext } from '@skeletonlabs/skeleton-svelte';
-	export const toast: ToastContext = getContext('toast');
+	import { Toaster, createToaster } from '@skeletonlabs/skeleton-svelte';
+	const toaster = createToaster({
+		placement: 'bottom-end'
+	});
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -108,7 +109,7 @@ Features:
 		onResult: ({ result, cancel }) => {
 			if (result.type === 'redirect') {
 				// Trigger Sign In toast
-				toast.create({
+				toaster.info({
 					title: 'Success',
 					description: m.signin_signinsuccess(),
 					type: 'success',
@@ -167,7 +168,7 @@ Features:
 				});
 
 				// Trigger the toast
-				toast.create({
+				toaster.info({
 					title: 'Error',
 					description: errorMessages,
 					type: 'error',
@@ -189,7 +190,7 @@ Features:
 					PWreset = true;
 
 					// Trigger Reset toast
-					toast.create({
+					toaster.info({
 						title: 'Success',
 						description: m.signin_forgottontoast(),
 						type: 'success',
@@ -237,7 +238,7 @@ Features:
 
 			if (result.type === 'success' || result.type === 'redirect') {
 				// Trigger the Reset toast
-				toast.create({
+				toaster.info({
 					title: 'Success',
 					description: m.signin_restpasswordtoast(),
 					type: 'success',

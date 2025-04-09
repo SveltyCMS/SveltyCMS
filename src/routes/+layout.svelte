@@ -25,9 +25,6 @@
 	// Importing the Paraglide SvelteKit component for animations
 	import ParaglideSvelteKit from '@components/ParaglideSvelteKit.svelte';
 
-	// Skeleton
-	import { ToastProvider } from '@skeletonlabs/skeleton-svelte';
-
 	// Importing Tailwind CSS styles
 	import '../app.css'; // Default SEO variables for the website's title and description
 	const defaultTitle = `${publicEnv.SITE_NAME} - The Ultimate Headless CMS Powered by SvelteKit`;
@@ -70,9 +67,7 @@
 </svelte:head>
 
 <ParaglideSvelteKit>
-	<ToastProvider>
-		{#if children}
-			{@render children()}
-		{/if}
-	</ToastProvider>
+	{#if children}
+		{@render children()}
+	{/if}
 </ParaglideSvelteKit>

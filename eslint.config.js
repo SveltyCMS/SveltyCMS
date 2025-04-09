@@ -11,6 +11,22 @@ export default ts.config(
 	prettier,
 	...svelte.configs['flat/prettier'],
 	{
+		// Specific config for TS files, including .svelte.ts
+		// Ensures the TS parser handles these files directly with project context
+		files: ['**/*.ts', '**/*.svelte.ts'],
+		languageOptions: {
+			parser: ts.parser,
+			parserOptions: {
+				project: './tsconfig.json', // Link to tsconfig for type information
+				tsconfigRootDir: import.meta.dirname, // Root dir for tsconfig resolution
+				extraFileExtensions: ['.svelte.ts'] // Explicitly include the extension
+			}
+		},
+		rules: {
+			// You might add TS-specific rule adjustments here if needed later
+		}
+	},
+	{
 		languageOptions: {
 			globals: {
 				...globals.browser,
@@ -28,8 +44,11 @@ export default ts.config(
 	{
 		files: ['**/*.svelte'],
 		languageOptions: {
+			parser: svelte.parser,
 			parserOptions: {
 				parser: ts.parser,
+				project: './tsconfig.json', // Link to tsconfig for type info within <script>
+				tsconfigRootDir: import.meta.dirname, // Root dir for tsconfig resolution
 				extraFileExtensions: ['.svelte']
 			}
 		}

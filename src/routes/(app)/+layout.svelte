@@ -43,7 +43,6 @@ Key features:
 	import FloatingNav from '@components/system/FloatingNav.svelte';
 
 	// Skeleton
-	import { ToastProvider } from '@skeletonlabs/skeleton-svelte';
 	import { Modal } from '@skeletonlabs/skeleton-svelte';
 
 	// Props
@@ -58,7 +57,6 @@ Key features:
 	let isCollectionsLoaded = $state(false);
 	let isNonCriticalDataLoaded = $state(false);
 	let loadError = $state<Error | null>(null);
-	let mediaQuery: MediaQueryList;
 
 	// Update collection loaded state when store changes
 	$effect(() => {
@@ -106,8 +104,6 @@ Key features:
 	}
 
 	onMount(() => {
-		// Theme initialization
-		mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 		// Event listeners
 		window.addEventListener('keydown', onKeyDown);
 		// Initialize data
@@ -211,9 +207,8 @@ Key features:
 							? 'mb-2'
 							: 'mb-16'}"
 					>
-						<ToastProvider>
-							{@render children?.()}
-						</ToastProvider>
+						{@render children?.()}
+						<!-- Modal -->
 						<Modal />
 
 						<!-- Floating Nav -->

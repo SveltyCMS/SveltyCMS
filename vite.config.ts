@@ -50,6 +50,11 @@ let compileTimeout: NodeJS.Timeout;
 
 export default defineConfig({
 	plugins: [
+		paraglide({
+			project: './project.inlang', // Path to your inlang project
+			outdir: './src/paraglide', // Output directory for generated files
+			enforce: 'pre' // Ensure Paraglide runs before other transformations
+		}),
 		tailwindcss(),
 		sveltekit(),
 		{
@@ -132,10 +137,10 @@ export default defineConfig({
 
 												// Create a proper Node.js response object
 												const res = {
-													setHeader: () => {},
-													getHeader: () => {},
-													write: () => {},
-													end: () => {},
+													setHeader: () => { },
+													getHeader: () => { },
+													write: () => { },
+													end: () => { },
 													statusCode: 200
 												};
 
@@ -159,7 +164,8 @@ export default defineConfig({
 										await syncContentStructure();
 
 										try {
-											await generateContentTypes(server);
+											// Call refactored function without server argument
+											await generateContentTypes();
 											console.log(`Collection types updated for: \x1b[32m${file}\x1b[0m`);
 										} catch (error) {
 											console.error('Error updating collection types:', error);
@@ -211,12 +217,7 @@ export default defineConfig({
 				};
 			},
 			enforce: 'post'
-		},
-
-		paraglide({
-			project: './project.inlang', // Path to your inlang project
-			outdir: './src/paraglide' // Output directory for generated files
-		})
+		}
 	],
 
 	server: {

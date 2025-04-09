@@ -2,6 +2,19 @@
 @file src/routes/login/components/icons/SigninIcon.svelte
 @component
 **SigninIcon component**
+
+@example
+<SigninIcon />
+
+### Props
+- `show` {boolean} - Show the icon
+- `disabled` {boolean} - Disable the icon
+- `onClick` {function} - Function to handle click
+
+### Features
+- Show the icon
+- Disable the icon
+- Handle click
 -->
 
 <script lang="ts">

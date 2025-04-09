@@ -3,44 +3,24 @@
  * @description Content Type Definition for Content Manager
  */
 
-// Removed: import type widgets from '@widgets';
+import type widgets from '@widgets';
+import type { ModifyRequestParams } from '@widgets';
+
 // Auth
 import type { RolePermissions } from '@src/auth/types';
-// Removed: import type { User, WidgetId } from '@src/auth/types'; // No longer needed here
-import type { ModifyRequestParams } from '../widgets/types'; // Import from widgets/types
 
-// Removed: WidgetKeys, WidgetTypes
+// Widget field type definition
+type WidgetKeys = keyof typeof widgets;
+type WidgetTypes = (typeof widgets)[WidgetKeys];
 
-// AST-related types for processing
-export type WidgetPlaceholder = {
-	widgetName: string;
-	widgetConfig: Record<string, unknown>;
-};
-
-export type ParsedSchemaObject = {
-	[key: string]: ParsedSchemaValue;
-};
-
-export type ParsedSchemaValue =
-	| string
-	| number
-	| boolean
-	| null
-	| WidgetPlaceholder
-	| ParsedSchemaObject
-	| ParsedSchemaValue[];
-
+// Field value types
 export type FieldValue = string | number | boolean | null | Record<string, unknown> | Array<unknown>;
-
-// Removed: GuiFieldConfig, GuiFields, ModifyRequestParams (moved to widgets/types.ts)
 
 // Extended field type with display and callback properties
 export type Field = {
-	// --- Refactored widget-related properties ---
-	widget: string; // Store widget name as string
-	// type: string; // Removed 'type', assuming 'widget' name is sufficient identifier
-	config: Record<string, unknown>; // Generic config object
-	// --- End Refactor ---
+	widget: WidgetTypes;
+	type: WidgetKeys;
+	config: WidgetTypes;
 	label: string;
 	required?: boolean;
 	unique?: boolean;
@@ -54,7 +34,7 @@ export type Field = {
 		contentLanguage: string;
 	}) => Promise<string> | string;
 	callback?: (args: { data: Record<string, FieldValue> }) => void;
-	modifyRequest?: (args: ModifyRequestParams) => Promise<object>; // Use ModifyRequestParams imported from widgets/types
+	modifyRequest?: (args: ModifyRequestParams<(typeof widgets)[WidgetKeys]>) => Promise<object>;
 };
 
 // Collection Registry - defines all available collections
