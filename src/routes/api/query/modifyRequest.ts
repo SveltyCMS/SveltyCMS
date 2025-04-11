@@ -68,7 +68,9 @@ export async function modifyRequest({ data, fields, collection, user, type }: Mo
 			}
 			const widget = widgets[field.widget.Name];
 			if (!widget) {
-				logger.warn(`Widget '${field.widget.Name}' not found in loaded widgets for field '${field.label || field.db_fieldName}'. Skipping modifyRequest.`);
+				logger.warn(
+					`Widget '${field.widget.Name}' not found in loaded widgets for field '${field.label || field.db_fieldName}'. Skipping modifyRequest.`
+				);
 				continue; // Skip if the widget function itself isn't found
 			}
 
@@ -125,7 +127,8 @@ export async function modifyRequest({ data, fields, collection, user, type }: Mo
 
 				const fieldDuration = performance.now() - fieldStart;
 				logger.debug(`Field ${fieldName} processed in ${fieldDuration.toFixed(2)}ms`);
-			} else if (field.widget.Name) { // Only log warning if widget name was present but handler wasn't
+			} else if (field.widget.Name) {
+				// Only log warning if widget name was present but handler wasn't
 				logger.warn(`No modifyRequest handler for widget: \x1b[34m${field.widget.Name}\x1b[0m`);
 			}
 		}

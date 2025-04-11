@@ -97,7 +97,9 @@ export async function _GET({
 			}
 			const widget = widgets[field.widget.Name];
 			if (!widget) {
-				logger.warn(`Widget '${field.widget.Name}' not found in loaded widgets for field '${field.label || field.db_fieldName}'. Skipping aggregation.`);
+				logger.warn(
+					`Widget '${field.widget.Name}' not found in loaded widgets for field '${field.label || field.db_fieldName}'. Skipping aggregation.`
+				);
 				continue; // Skip if the widget function itself isn't found
 			}
 

@@ -325,9 +325,9 @@ class ContentManager {
 
 					logger.debug(
 						`Derived path: \x1b[34m${derivedPath}\x1b[0m, ` +
-						`File Name Based: \x1b[33m${fileNameBasedName}\x1b[0m, ` +
-						`Final name for \x1b[36m${filePath}\x1b[0m: \x1b[32m${finalName}\x1b[0m, ` +
-						`Final path: \x1b[35m${finalPath}\x1b[0m`
+							`File Name Based: \x1b[33m${fileNameBasedName}\x1b[0m, ` +
+							`Final name for \x1b[36m${filePath}\x1b[0m: \x1b[32m${finalName}\x1b[0m, ` +
+							`Final path: \x1b[35m${finalPath}\x1b[0m`
 					);
 
 					// Basic validation / Defaulting using fallbacks

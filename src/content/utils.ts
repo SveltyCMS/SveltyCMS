@@ -74,13 +74,13 @@ async function processModule(content: string): Promise<{ schema?: Schema } | nul
 					if (ts.isIdentifier(declaration.name) && declaration.initializer && ts.isObjectLiteralExpression(declaration.initializer)) {
 						// Check if this variable is exported
 						let isExported = false;
-						if (node.modifiers?.some(mod => mod.kind === ts.SyntaxKind.ExportKeyword)) {
+						if (node.modifiers?.some((mod) => mod.kind === ts.SyntaxKind.ExportKeyword)) {
 							isExported = true;
 						} else {
 							// Check for separate `export { schema }`
 							ts.forEachChild(sourceFile, (exportNode) => {
 								if (ts.isExportDeclaration(exportNode) && exportNode.exportClause && ts.isNamedExports(exportNode.exportClause)) {
-									if (exportNode.exportClause.elements.some(el => el.name.text === declaration.name.text)) {
+									if (exportNode.exportClause.elements.some((el) => el.name.text === declaration.name.text)) {
 										isExported = true;
 									}
 								}
@@ -118,7 +118,7 @@ async function processModule(content: string): Promise<{ schema?: Schema } | nul
 		// Ensure _id is present and is the extracted UUID
 		const finalSchema: Schema = {
 			...evaluatedSchema,
-			_id: uuid,
+			_id: uuid
 		};
 
 		// Basic validation (optional but recommended)
@@ -128,10 +128,8 @@ async function processModule(content: string): Promise<{ schema?: Schema } | nul
 			return null;
 		}
 
-
 		logger.debug(`Successfully processed module with UUID: ${uuid}`);
 		return { schema: finalSchema };
-
 	} catch (err) {
 		const errorMessage = err instanceof Error ? err.message : String(err);
 		logger.error('Failed to process module using AST:', { error: errorMessage });

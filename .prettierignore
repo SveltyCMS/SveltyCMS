@@ -4,7 +4,9 @@ node_modules
 /.svelte-kit
 /package
 
-# Ignore files for PNPM, NPM and YARN
-pnpm-lock.yaml
+# Ignore files for Package Managers (PNPM, NPM and YARN)
 package-lock.json
+pnpm-lock.yaml
 yarn.lock
+bun.lock
+bun.lockb

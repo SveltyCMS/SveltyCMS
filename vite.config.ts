@@ -150,10 +150,10 @@ export default defineConfig({
 
 												// Create a proper Node.js response object
 												const res = {
-													setHeader: () => { },
-													getHeader: () => { },
-													write: () => { },
-													end: () => { },
+													setHeader: () => {},
+													getHeader: () => {},
+													write: () => {},
+													end: () => {},
 													statusCode: 200
 												};
 

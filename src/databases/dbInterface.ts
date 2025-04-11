@@ -65,7 +65,17 @@ export interface SystemVirtualFolder {
 }
 
 // Document types
-export type DocumentContent = Record<string, unknown>;
+type TreatAsPrimitives = string | number | boolean | Date | null | undefined;
+type IfAny<T, Y, N> = 0 extends (1 & T) ? Y : N;
+
+export type DocumentContent<T = any> = {
+	[K in keyof T]:
+	T[K] extends Buffer ? Binary :
+	T[K] extends Document ? T[K] :
+	T[K] extends TreatAsPrimitives ? T[K] :
+	T[K] extends Record<any> ? DocumentContent<T[K]> :
+	T[K]
+} & { _id?: string };
 
 // Query types
 export type Query = Record<string, unknown>;

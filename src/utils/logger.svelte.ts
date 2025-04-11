@@ -80,14 +80,15 @@ const config = $state({
 // Default Custom Log Target for Browser
 if (!isServer && !config.customLogTarget) {
 	config.customLogTarget = (level, message, args) => {
-		const consoleMethod = {
-			fatal: 'error',
-			error: 'error',
-			warn: 'warn',
-			info: 'info',
-			debug: 'debug',
-			trace: 'log'
-		}[level] || 'log';
+		const consoleMethod =
+			{
+				fatal: 'error',
+				error: 'error',
+				warn: 'warn',
+				info: 'info',
+				debug: 'debug',
+				trace: 'log'
+			}[level] || 'log';
 		console[consoleMethod](`[${level.toUpperCase()}] ${message}`, ...args);
 	};
 }
@@ -210,7 +211,7 @@ const maskSensitiveData = (data: LoggableValue, depth = 0): LoggableValue => {
 		if (typeof value === 'string') {
 			const lowerKey = key.toLowerCase();
 
-			const customMaskKey = Object.keys(config.masking.customMasks).find(mask => lowerKey.includes(mask));
+			const customMaskKey = Object.keys(config.masking.customMasks).find((mask) => lowerKey.includes(mask));
 			if (customMaskKey) {
 				(maskedData as Record<string, LoggableValue>)[key] = config.masking.customMasks[customMaskKey](value);
 			} else if (config.masking.sensitiveKeys.has(lowerKey)) {
@@ -263,7 +264,7 @@ const processBatch = async (): Promise<void> => {
 	const currentBatch = [...state.queue];
 	state.queue = [];
 
-	const filteredEntries = currentBatch.filter(entry => config.filters.every(filter => filter(entry)));
+	const filteredEntries = currentBatch.filter((entry) => config.filters.every((filter) => filter(entry)));
 	if (filteredEntries.length === 0) return;
 
 	// Use the helper function for formatting
@@ -292,105 +293,105 @@ const scheduleBatchProcessing = (): void => {
 // Server-Side File Operations
 const serverFileOps = isServer
 	? {
-		async initializeLogFile(): Promise<void> {
-			try {
-				// Import only what's needed in the try block
-				const { mkdir, access, constants } = await import('node:fs/promises');
-				const { join } = await import('node:path');
-
-				const logDir = config.logDirectory; // Use const as logDir is not reassigned here
+			async initializeLogFile(): Promise<void> {
 				try {
-					await access(logDir, constants.F_OK);
-				} catch {
-					await mkdir(logDir, { recursive: true });
-				}
+					// Import only what's needed in the try block
+					const { mkdir, access, constants } = await import('node:fs/promises');
+					const { join } = await import('node:path');
 
-				const logFilePath = join(logDir, config.logFileName);
-				try {
-					await access(logFilePath, constants.F_OK);
-				} catch {
-					const { writeFile } = await import('node:fs/promises');
-					await writeFile(logFilePath, '');
-				}
-			} catch (error) {
-				console.error('Error initializing log file, falling back to temp directory:', error);
-				// Import tmpdir here where it's needed
-				const { tmpdir } = await import('node:path');
-				config.logDirectory = tmpdir();
-				// Import only what's needed in the catch block (access, writeFile)
-				const { access } = await import('node:fs/promises');
-				const { join } = await import('node:path'); // Keep join import
-				try {
-					// Check access to the fallback directory
-					await access(config.logDirectory); // constants.F_OK is default for access check
-					const logFilePath = join(config.logDirectory, config.logFileName);
-					const { writeFile } = await import('node:fs/promises');
-					await writeFile(logFilePath, '');
-				} catch (fallbackError) {
-					console.error('Failed to initialize log file in temp directory, disabling file logging:', fallbackError);
-					// Disable file writing if fallback fails
-					serverFileOps.writeToFile = async () => { }; // Explicitly disable
-				}
-			}
-		},
+					const logDir = config.logDirectory; // Use const as logDir is not reassigned here
+					try {
+						await access(logDir, constants.F_OK);
+					} catch {
+						await mkdir(logDir, { recursive: true });
+					}
 
-		async rotateLogFile(): Promise<void> {
-			try {
-				const { stat, rename, unlink } = await import('node:fs/promises');
-				const { join } = await import('node:path');
-				const { createGzip } = await import('node:zlib');
-				const { createReadStream, createWriteStream } = await import('node:fs');
-				const { promisify } = await import('node:util');
-				const { pipeline } = await import('node:stream');
-				const pipelineAsync = promisify(pipeline);
-
-				const logFilePath = join(config.logDirectory, config.logFileName);
-				const stats = await stat(logFilePath);
-
-				if (stats.size >= config.logRotationSize) {
-					const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-					const rotatedFilePath = `${logFilePath}.${timestamp}`;
-
-					await rename(logFilePath, rotatedFilePath);
-					const { writeFile } = await import('node:fs/promises');
-					await writeFile(logFilePath, '');
-
-					if (config.compressionEnabled) {
-						const gzip = createGzip();
-						const source = createReadStream(rotatedFilePath);
-						const destination = createWriteStream(`${rotatedFilePath}.gz`);
-						await pipelineAsync(source, gzip, destination);
-						await unlink(rotatedFilePath);
+					const logFilePath = join(logDir, config.logFileName);
+					try {
+						await access(logFilePath, constants.F_OK);
+					} catch {
+						const { writeFile } = await import('node:fs/promises');
+						await writeFile(logFilePath, '');
+					}
+				} catch (error) {
+					console.error('Error initializing log file, falling back to temp directory:', error);
+					// Import tmpdir here where it's needed
+					const { tmpdir } = await import('node:path');
+					config.logDirectory = tmpdir();
+					// Import only what's needed in the catch block (access, writeFile)
+					const { access } = await import('node:fs/promises');
+					const { join } = await import('node:path'); // Keep join import
+					try {
+						// Check access to the fallback directory
+						await access(config.logDirectory); // constants.F_OK is default for access check
+						const logFilePath = join(config.logDirectory, config.logFileName);
+						const { writeFile } = await import('node:fs/promises');
+						await writeFile(logFilePath, '');
+					} catch (fallbackError) {
+						console.error('Failed to initialize log file in temp directory, disabling file logging:', fallbackError);
+						// Disable file writing if fallback fails
+						serverFileOps.writeToFile = async () => {}; // Explicitly disable
 					}
 				}
-			} catch (error) {
-				console.error('Error rotating log file:', error);
-			}
-		},
+			},
 
-		async writeToFile(entry: LogEntry): Promise<void> {
-			// This function is kept for potential future use or direct calls,
-			// but batch processing uses appendFile directly for performance.
-			try {
-				const { appendFile } = await import('node:fs/promises');
-				const { join } = await import('node:path');
+			async rotateLogFile(): Promise<void> {
+				try {
+					const { stat, rename, unlink } = await import('node:fs/promises');
+					const { join } = await import('node:path');
+					const { createGzip } = await import('node:zlib');
+					const { createReadStream, createWriteStream } = await import('node:fs');
+					const { promisify } = await import('node:util');
+					const { pipeline } = await import('node:stream');
+					const pipelineAsync = promisify(pipeline);
 
-				const logFilePath = join(config.logDirectory, config.logFileName);
-				// Use the helper function for formatting and add newline
-				const formattedLog = formatLogEntryForFile(entry) + '\n';
+					const logFilePath = join(config.logDirectory, config.logFileName);
+					const stats = await stat(logFilePath);
 
-				await appendFile(logFilePath, formattedLog);
-				// Rotation check is removed here; handled after batch writes in processBatch
-			} catch (error) {
-				console.error('Failed to write single entry to log file:', error); // Slightly more specific error message
+					if (stats.size >= config.logRotationSize) {
+						const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+						const rotatedFilePath = `${logFilePath}.${timestamp}`;
+
+						await rename(logFilePath, rotatedFilePath);
+						const { writeFile } = await import('node:fs/promises');
+						await writeFile(logFilePath, '');
+
+						if (config.compressionEnabled) {
+							const gzip = createGzip();
+							const source = createReadStream(rotatedFilePath);
+							const destination = createWriteStream(`${rotatedFilePath}.gz`);
+							await pipelineAsync(source, gzip, destination);
+							await unlink(rotatedFilePath);
+						}
+					}
+				} catch (error) {
+					console.error('Error rotating log file:', error);
+				}
+			},
+
+			async writeToFile(entry: LogEntry): Promise<void> {
+				// This function is kept for potential future use or direct calls,
+				// but batch processing uses appendFile directly for performance.
+				try {
+					const { appendFile } = await import('node:fs/promises');
+					const { join } = await import('node:path');
+
+					const logFilePath = join(config.logDirectory, config.logFileName);
+					// Use the helper function for formatting and add newline
+					const formattedLog = formatLogEntryForFile(entry) + '\n';
+
+					await appendFile(logFilePath, formattedLog);
+					// Rotation check is removed here; handled after batch writes in processBatch
+				} catch (error) {
+					console.error('Failed to write single entry to log file:', error); // Slightly more specific error message
+				}
 			}
 		}
-	}
 	: {
-		async initializeLogFile(): Promise<void> { },
-		async rotateLogFile(): Promise<void> { },
-		async writeToFile(): Promise<void> { }
-	};
+			async initializeLogFile(): Promise<void> {},
+			async rotateLogFile(): Promise<void> {},
+			async writeToFile(): Promise<void> {}
+		};
 
 // Initialize log file on server startup
 $effect.root(() => {
@@ -482,10 +483,10 @@ export const logger = {
 		config.filters = [];
 	},
 	addSensitiveKeys: (keys: string[]) => {
-		keys.forEach(key => config.masking.sensitiveKeys.add(key));
+		keys.forEach((key) => config.masking.sensitiveKeys.add(key));
 	},
 	addEmailKeys: (keys: string[]) => {
-		keys.forEach(key => config.masking.emailKeys.add(key));
+		keys.forEach((key) => config.masking.emailKeys.add(key));
 	},
 	addCustomMask: (key: string, maskFn: (value: string) => string) => {
 		config.masking.customMasks[key] = maskFn;
