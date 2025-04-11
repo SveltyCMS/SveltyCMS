@@ -33,18 +33,31 @@ const publicConfigPath = resolve(configDir, 'public.ts');
 // Check config files
 const configPaths = [privateConfigPath, publicConfigPath];
 
-configPaths.forEach((path) => {
-	if (!existsSync(path)) {
-		console.error('Config files missing: Please run the CLI installer via `npm run installer`.');
-		try {
-			execSync('npm run installer', { stdio: 'inherit' });
-			console.log('Installer completed successfully.');
-		} catch (error) {
-			console.error('Error running the installer:', error);
-			process.exit(1);
+// Check if both config files exist
+const checkConfigFiles = () => existsSync(privateConfigPath) && existsSync(publicConfigPath);
+
+if (!checkConfigFiles()) {
+	console.error('\x1b[33mConfig files missing. Launching CLI installer...\x1b[0m'); // Yellow text
+	try {
+		// Attempt to run the installer
+		execSync('npm run installer', { stdio: 'inherit' }); // Inherit stdio to show installer prompts
+
+		// Check again if files exist AFTER the installer ran
+		if (!checkConfigFiles()) {
+			console.error('\x1b[31mInstaller exited without creating config files. Aborting Vite startup.\x1b[0m'); // Red text
+			process.exit(1); // Exit Vite config if files are still missing
+		} else {
+			console.log('\x1b[32mInstaller completed successfully. Continuing Vite startup...\x1b[0m'); // Green text
 		}
+	} catch (error) {
+		// This catch block handles errors from execSync itself (e.g., installer script not found, or installer exited with non-zero code due to internal error)
+		// We already modified the installer to exit with code 1 on user cancel/exit,
+		// but execSync might not throw an error for that on all systems/shells.
+		// The check after execSync is the more reliable way to ensure config exists.
+		console.error('\x1b[31mError running the installer or installer exited prematurely. Aborting Vite startup.\x1b[0m', error.message);
+		process.exit(1); // Exit Vite config on installer error
 	}
-});
+}
 
 let compileTimeout: NodeJS.Timeout;
 

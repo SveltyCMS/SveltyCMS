@@ -38,7 +38,7 @@
 
 <h3 align="center"><strong>It's lightning fast, flexible and an easy to use modern content management system to provide a headless backend</strong></h3>
 
-This SveltyCMS headless CMS provides a powerful backend based on a modern [SvelteKit 2 / Svelte 5](https://svelte.dev) framework. Being designed to be database agnostic, we currently launch with a fast [MongoDB](https://www.mongodb.com), and will use [drizzel](https://drizzle-orm.netlify.app) for future SQL/Postgres support.
+This SveltyCMS headless CMS provides a powerful backend based on a modern [SvelteKit & Svelte 5](https://svelte.dev) framework. Being designed to be database agnostic, we currently launch with a fast [MongoDB](https://www.mongodb.com), and will use [Drizzel](https://drizzle-orm.netlify.app) for future SQL/Postgres support.
 
 Content Collections can easily be implemented, due to full typescript support by using many available widgets. We offer two ways to use define your collections, via code or via a Gui based collection builder.
 
@@ -46,7 +46,7 @@ All Widget fields offer full translation, and customization, validation using [v
 
 The System language uses [Inlang's Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs) a light weight JavaScript i18n library. :gb: English is our default and we offer multiple languages out of the box. More Languages can easily be extended to support further languages.
 
-We used [tailwindcss](https://tailwindcss.com) and a [skeleton UI toolkit](https://www.skeleton.dev), so the CMS can be quickly optimized to your personal needs.
+We always try to use the latest [tailwindcss](https://tailwindcss.com) and a [skeleton UI toolkit](https://www.skeleton.dev), so the CMS can be quickly optimized to your personal needs.
 
 The Backend Data is provided via Rest Api or [GraphQL Yoga](https://the-guild.dev/graphql/yoga-server), to build extremely fast frontends.
 
@@ -86,10 +86,7 @@ Install stable [Node.js](https://nodejs.org/en) to get started. Then choose your
 # Install all dependencies
 npm install
 
-# Start CLI Installer
-npm run installer
-
-# Development
+# Start the development server (the installer will start automatically if no configuration is found)
 npm run dev
 
 # Build for production
@@ -97,6 +94,9 @@ npm run build
 
 # Preview production build
 npm run preview
+
+# Manually start the CLI Installer (if needed)
+npm run installer
 ```
 
 </details>
@@ -111,10 +111,7 @@ npm install -g pnpm
 # Install all dependencies
 pnpm install
 
-# Start CLI Installer
-pnpm run installer
-
-# Development
+# Start the development server (CLI installer will start automatically if no configuration is found)
 pnpm run dev
 
 # Build for production
@@ -122,6 +119,9 @@ pnpm run build
 
 # Preview production build
 pnpm run preview
+
+# Manually start the CLI Installer
+pnpm run installer
 ```
 
 </details>
@@ -136,17 +136,17 @@ curl -fsSL https://bun.sh/install | bash
 # Install all dependencies
 bun install
 
-# Start CLI Installer
-bun run installer
-
-# Development
-bun run dev
+# Start the development server (CLI installer will start automatically if no configuration is found)
+bun dev
 
 # Build for production
-bun run build
+bun build
 
 # Preview production build
-bun run preview
+bun preview
+
+# Manually start the CLI Installer
+bun run installer
 ```
 
 </details>
@@ -251,7 +251,7 @@ Thank you for your support!
 
 ## :clap: Thanks
 
-To all our contributors without this SveltyCMS would never have been possible.
+Thanks to all our contributors without this SveltyCMS would never have been possible.
 
 # :star: Give us a star
 

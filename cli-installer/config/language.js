@@ -1,13 +1,18 @@
 /** 
 @file cli-installer/config/language.js
 @description Configuration prompts for the Language section
+
+### Features
+- Displays a note about the Language configuration
+- Displays existing configuration
+- Prompts for Language integration
 */
 
-import { confirm, multiselect, select, isCancel, cancel, note } from '@clack/prompts';
+import { confirm, multiselect, select, isCancel, note } from '@clack/prompts';
 import pc from 'picocolors';
-import { Title } from '../cli-installer.js';
-import { configurationPrompt } from '../configuration.js';
+import { Title, cancelOperation } from '../cli-installer.js';
 
+// Languages
 const languageOptions = [
 	{ value: 'da', label: 'Danish' },
 	{ value: 'de', label: 'German' },
@@ -46,13 +51,15 @@ export async function configureLanguage(configData = {}) {
 	);
 
 	// Display existing configuration
-	note(
-		`DEFAULT_CONTENT_LANGUAGE: ${pc.red(configData.DEFAULT_CONTENT_LANGUAGE)}\n` +
-			`AVAILABLE_CONTENT_LANGUAGES: ${pc.red(configData.AVAILABLE_CONTENT_LANGUAGES ? configData.AVAILABLE_CONTENT_LANGUAGES.join(', ') : 'Not set')}\n` +
-			`DEFAULT_SYSTEM_LANGUAGE: ${pc.red(configData.DEFAULT_SYSTEM_LANGUAGE)}\n` +
-			`AVAILABLE_SYSTEM_LANGUAGES: ${pc.red(configData.AVAILABLE_SYSTEM_LANGUAGES ? configData.AVAILABLE_SYSTEM_LANGUAGES.join(', ') : 'Not set')}`,
-		pc.red('Existing Language Configuration:')
-	);
+	if (configData.DEFAULT_CONTENT_LANGUAGE || configData.DEFAULT_SYSTEM_LANGUAGE) {
+		note(
+			`Default Content: ${pc.cyan(configData.DEFAULT_CONTENT_LANGUAGE || 'Not set')}\n` +
+				`Available Content: ${pc.cyan(configData.AVAILABLE_CONTENT_LANGUAGES ? configData.AVAILABLE_CONTENT_LANGUAGES.join(', ') : 'Not set')}\n` +
+				`Default System: ${pc.cyan(configData.DEFAULT_SYSTEM_LANGUAGE || 'Not set')}\n` +
+				`Available System: ${pc.cyan(configData.AVAILABLE_SYSTEM_LANGUAGES ? configData.AVAILABLE_SYSTEM_LANGUAGES.join(', ') : 'Not set')}`,
+			pc.cyan('Existing Language Configuration:')
+		);
+	}
 
 	const options = languageOptions.map((option) => ({
 		value: option.value,
@@ -66,26 +73,39 @@ export async function configureLanguage(configData = {}) {
 		required: true,
 		initialValue: configData?.DEFAULT_CONTENT_LANGUAGE || 'en'
 	});
-
 	if (isCancel(DEFAULT_CONTENT_LANGUAGE)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
+		await cancelOperation();
 		return;
 	}
 
-	const AVAILABLE_CONTENT_LANGUAGES = await multiselect({
+	let AVAILABLE_CONTENT_LANGUAGES = await multiselect({
+		// Changed const to let
 		message: 'Select the available content languages. Default is English/German:',
 		options: options,
 		required: true,
-		initialValues: configData?.AVAILABLE_CONTENT_LANGUAGES || ['en', 'de']
+		initialValues: configData?.AVAILABLE_CONTENT_LANGUAGES || ['en', 'de'],
+		validate(value) {
+			if (value.length === 0) return { message: 'At least one content language must be selected.' };
+			if (!value.includes(DEFAULT_CONTENT_LANGUAGE)) {
+				return { message: `The default content language (${DEFAULT_CONTENT_LANGUAGE}) must be included in the available languages.` };
+			}
+			return undefined;
+		}
 	});
-
 	if (isCancel(AVAILABLE_CONTENT_LANGUAGES)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
+		await cancelOperation();
 		return;
+	}
+
+	// Re-validate after selection (in case initial value was invalid)
+	if (!AVAILABLE_CONTENT_LANGUAGES.includes(DEFAULT_CONTENT_LANGUAGE)) {
+		note(
+			`The selected default content language (${DEFAULT_CONTENT_LANGUAGE}) was not included in the available languages. It has been added automatically.`,
+			pc.yellow('Validation Fix')
+		);
+		AVAILABLE_CONTENT_LANGUAGES.push(DEFAULT_CONTENT_LANGUAGE);
+		// Ensure uniqueness if added automatically
+		AVAILABLE_CONTENT_LANGUAGES = [...new Set(AVAILABLE_CONTENT_LANGUAGES)];
 	}
 
 	const DEFAULT_SYSTEM_LANGUAGE = await select({
@@ -94,26 +114,38 @@ export async function configureLanguage(configData = {}) {
 		required: true,
 		initialValue: configData?.DEFAULT_SYSTEM_LANGUAGE || 'en'
 	});
-
 	if (isCancel(DEFAULT_SYSTEM_LANGUAGE)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
+		await cancelOperation();
 		return;
 	}
 
-	const AVAILABLE_SYSTEM_LANGUAGES = await multiselect({
+	let AVAILABLE_SYSTEM_LANGUAGES = await multiselect({
+		// Changed const to let
 		message: 'Select the available system languages. Default is English/German:',
 		options: options,
 		required: true,
-		initialValues: configData?.AVAILABLE_SYSTEM_LANGUAGES || ['en', 'de']
+		initialValues: configData?.AVAILABLE_SYSTEM_LANGUAGES || ['en', 'de'],
+		validate(value) {
+			if (value.length === 0) return { message: 'At least one system language must be selected.' };
+			if (!value.includes(DEFAULT_SYSTEM_LANGUAGE)) {
+				return { message: `The default system language (${DEFAULT_SYSTEM_LANGUAGE}) must be included in the available languages.` };
+			}
+			return undefined;
+		}
 	});
-
 	if (isCancel(AVAILABLE_SYSTEM_LANGUAGES)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
+		await cancelOperation();
 		return;
+	}
+
+	// Re-validate after selection
+	if (!AVAILABLE_SYSTEM_LANGUAGES.includes(DEFAULT_SYSTEM_LANGUAGE)) {
+		note(
+			`The selected default system language (${DEFAULT_SYSTEM_LANGUAGE}) was not included in the available languages. It has been added automatically.`,
+			pc.yellow('Validation Fix')
+		);
+		AVAILABLE_SYSTEM_LANGUAGES.push(DEFAULT_SYSTEM_LANGUAGE);
+		AVAILABLE_SYSTEM_LANGUAGES = [...new Set(AVAILABLE_SYSTEM_LANGUAGES)];
 	}
 
 	// SveltyCMS Title
@@ -128,43 +160,20 @@ export async function configureLanguage(configData = {}) {
 		pc.green('Review your language configuration:')
 	);
 
-	const action = await confirm({
-		message: 'Is the above configuration correct?',
+	const confirmSave = await confirm({
+		message: 'Save this language configuration?',
 		initialValue: true
 	});
 
-	if (isCancel(action)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
+	if (isCancel(confirmSave)) {
+		await cancelOperation();
 		return;
 	}
 
-	if (!action) {
-		console.log('Language configuration canceled.');
-		const restartOrExit = await select({
-			message: 'Do you want to restart or exit?',
-			options: [
-				{ value: 'restart', label: 'Restart', hint: 'Start again' },
-				{ value: 'cancel', label: 'Cancel', hint: 'Clear and return to selection' },
-				{ value: 'exit', label: 'Exit', hint: 'Quit the installer' }
-			]
-		});
-
-		if (isCancel(restartOrExit)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt(); // Restart the configuration process
-			return;
-		}
-
-		if (restartOrExit === 'restart') {
-			return configureLanguage();
-		} else if (restartOrExit === 'exit') {
-			process.exit(1); // Exit with code 1
-		} else if (restartOrExit === 'cancel') {
-			process.exit(0); // Exit with code 0
-		}
+	if (!confirmSave) {
+		note('Configuration not saved.', pc.yellow('Action Cancelled'));
+		await cancelOperation(); // Return to main config menu
+		return;
 	}
 
 	return {

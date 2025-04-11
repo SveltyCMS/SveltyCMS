@@ -1,12 +1,18 @@
 /** 
 @file  cli-installer/config/email.js
-@description  Configuration prompts for the Email section
+@description Configuration prompts for the Email section
+
+### Features
+- Displays a note about the Email configuration
+- Displays existing configuration (password hidden)
+- Prompts for Email integration
 */
 
-import { Title } from '../cli-installer.js';
-import { isCancel, text, select, confirm, note, cancel } from '@clack/prompts';
+import { Title, cancelOperation } from '../cli-installer.js';
+import { isCancel, text, select, confirm, note, cancel, password, spinner } from '@clack/prompts';
 import pc from 'picocolors';
 import { configurationPrompt } from '../configuration.js';
+import nodemailer from 'nodemailer';
 
 const emailProviders = [
 	{ name: 'Custom Provider', host: '', port: 587 },
@@ -20,6 +26,42 @@ const emailProviders = [
 	{ name: 'Zoho', host: 'smtp.zoho.com', port: 587 }
 ];
 
+// Helper function to validate email format (using new error return)
+const validateEmail = (value) => {
+	if (!value) return { message: 'Email address is required.' };
+	// Basic email format check
+	const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+	if (!emailRegex.test(value)) {
+		return { message: 'Please enter a valid email address.' };
+	}
+	return undefined; // Valid
+};
+
+// Helper function to test SMTP connection
+async function testSmtpConnection({ host, port, user, pass }) {
+	const transporter = nodemailer.createTransport({
+		host: host,
+		port: parseInt(port, 10),
+		secure: parseInt(port, 10) === 465, // true for 465, false for other ports
+		auth: {
+			user: user,
+			pass: pass
+		},
+		tls: {
+			// Do not fail on invalid certs if using non-standard ports or local servers
+			rejectUnauthorized: process.env.NODE_ENV === 'production' && parseInt(port, 10) !== 465 && parseInt(port, 10) !== 587 ? true : false
+		}
+	});
+
+	try {
+		await transporter.verify();
+		return true;
+	} catch (error) {
+		console.error('SMTP connection error details:', error);
+		throw new Error(`SMTP connection failed: ${error.message}`);
+	}
+}
+
 export async function configureEmail(privateConfigData = {}) {
 	// SveltyCMS Title
 	Title();
@@ -30,14 +72,15 @@ export async function configureEmail(privateConfigData = {}) {
 		pc.green('Email Configuration:')
 	);
 
-	// Display existing configuration
-	note(
-		`SMTP_HOST: ${pc.red(privateConfigData.SMTP_HOST)}\n` +
-			`SMTP_PORT: ${pc.red(privateConfigData.SMTP_PORT?.toString())}\n` +
-			`SMTP_EMAIL: ${pc.red(privateConfigData.SMTP_EMAIL)}\n` +
-			`SMTP_PASSWORD: ${pc.red(privateConfigData.SMTP_PASSWORD)}`,
-		pc.red('Existing Email Configuration:')
-	);
+	// Display existing configuration (excluding password)
+	if (privateConfigData.SMTP_HOST) {
+		note(
+			`Current Host: ${pc.cyan(privateConfigData.SMTP_HOST)}\n` +
+				`Current Port: ${pc.cyan(privateConfigData.SMTP_PORT?.toString())}\n` +
+				`Current Email: ${pc.cyan(privateConfigData.SMTP_EMAIL)}`,
+			pc.cyan('Existing Email Configuration (Password hidden):')
+		);
+	}
 
 	const SMTP_PROVIDER = await select({
 		message: 'Select your SMTP provider or choose Custom for custom settings:',
@@ -65,7 +108,8 @@ export async function configureEmail(privateConfigData = {}) {
 			placeholder: 'smtp.provider.com',
 			initialValue: privateConfigData.SMTP_HOST || SMTP_HOST,
 			validate(value) {
-				if (value.length === 0) return `SMTP host is required!`;
+				if (!value || value.length === 0) return { message: `SMTP host is required!` };
+				return undefined;
 			}
 		});
 
@@ -81,7 +125,11 @@ export async function configureEmail(privateConfigData = {}) {
 			placeholder: '587',
 			initialValue: privateConfigData.SMTP_PORT?.toString() || SMTP_PORT,
 			validate(value) {
-				if (isNaN(value) || value < 1 || value > 65535) return `Please enter a valid port number between 1 and 65535.`;
+				const num = Number(value);
+				if (isNaN(num) || !Number.isInteger(num) || num < 1 || num > 65535) {
+					return { message: `Please enter a valid port number between 1 and 65535.` };
+				}
+				return undefined;
 			}
 		});
 
@@ -94,86 +142,93 @@ export async function configureEmail(privateConfigData = {}) {
 	}
 
 	const SMTP_EMAIL = await text({
-		message: 'Enter your email address:',
+		message: 'Enter the email address for sending system emails:',
 		placeholder: `sveltycms@${SMTP_PROVIDER.name.toLowerCase()}.com`,
-		initialValue: privateConfigData.SMTP_EMAIL || `sveltycms@${SMTP_PROVIDER.name.toLowerCase()}.com`,
-		validate(value) {
-			if (value.length === 0) return `Email address is required!`;
-		}
+		initialValue: privateConfigData.SMTP_EMAIL || '',
+		validate: validateEmail // Use the validation function
 	});
-
 	if (isCancel(SMTP_EMAIL)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
+		await cancelOperation();
 		return;
 	}
 
-	const SMTP_PASSWORD = await text({
-		message: 'Enter your email password:',
-		placeholder: 'Enter your email password',
-		initialValue: privateConfigData.SMTP_PASSWORD || '',
+	const SMTP_PASSWORD = await password({
+		message: 'Enter the email account password:',
 		validate(value) {
-			if (value.length === 0) return `Password is required!`;
+			if (!value) return { message: `Password is required.` };
+			return undefined;
 		}
 	});
-
 	if (isCancel(SMTP_PASSWORD)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
+		await cancelOperation();
+		return;
+	}
+
+	// Test SMTP Connection
+	let connectionSuccessful = false;
+	const s = spinner();
+	try {
+		s.start('Testing SMTP connection...', { indicator: 'line' }); // Ensure indicator is set
+		connectionSuccessful = await testSmtpConnection({
+			host: SMTP_HOST,
+			port: SMTP_PORT,
+			user: SMTP_EMAIL,
+			pass: SMTP_PASSWORD
+		});
+		s.stop(pc.green('SMTP connection successful!'));
+	} catch (error) {
+		s.stop(pc.red('SMTP connection failed.'));
+		note(
+			`${error.message}\n\nPlease double-check your host, port, email, and password. Ensure the account allows SMTP access (e.g., Gmail might require "less secure app access" or an App Password).`,
+			pc.red('Connection Error')
+		);
+
+		const retry = await confirm({
+			message: 'Do you want to re-enter the email details?',
+			initialValue: true
+		});
+		if (isCancel(retry) || !retry) {
+			await cancelOperation();
+			return;
+		} else {
+			// Pass existing data back to retry
+			return configureEmail(privateConfigData);
+		}
+	}
+
+	if (!connectionSuccessful) {
+		// This case should technically be handled by the catch block, but as a safeguard:
+		note('Connection test did not succeed. Please try configuring again.', pc.yellow('Connection Test Failed'));
+		await cancelOperation();
 		return;
 	}
 
 	// SveltyCMS Title
 	Title();
 
-	// Summary
+	// Summary (Password is not displayed)
 	note(
-		`SMTP_HOST: ${pc.green(SMTP_HOST)}\n` +
-			`SMTP_PORT: ${pc.green(SMTP_PORT)}\n` +
-			`SMTP_EMAIL: ${pc.green(SMTP_EMAIL)}\n` +
-			`SMTP_PASSWORD: ${pc.green(SMTP_PASSWORD)}`,
-		pc.green('Review your Email configuration:')
+		`SMTP Host: ${pc.green(SMTP_HOST)}\n` +
+			`SMTP Port: ${pc.green(SMTP_PORT)}\n` +
+			`SMTP Email: ${pc.green(SMTP_EMAIL)}\n` +
+			`SMTP Password: ${pc.green('[hidden]')}`,
+		pc.green('Review Your Email Configuration:')
 	);
 
-	const action = await confirm({
-		message: 'Is the above configuration correct?',
+	const confirmSave = await confirm({
+		message: 'Save this email configuration?',
 		initialValue: true
 	});
 
-	if (isCancel(action)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
+	if (isCancel(confirmSave)) {
+		await cancelOperation();
 		return;
 	}
 
-	if (!action) {
-		console.log('Email configuration canceled.');
-		const restartOrExit = await select({
-			message: 'Do you want to restart or exit?',
-			options: [
-				{ value: 'restart', label: 'Restart', hint: 'Start again' },
-				{ value: 'cancel', label: 'Cancel', hint: 'Clear and return to selection' },
-				{ value: 'exit', label: 'Exit', hint: 'Quit the installer' }
-			]
-		});
-
-		if (isCancel(restartOrExit)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt(); // Restart the configuration process
-			return;
-		}
-
-		if (restartOrExit === 'restart') {
-			return configureEmail();
-		} else if (restartOrExit === 'exit') {
-			process.exit(1); // Exit with code 1
-		} else if (restartOrExit === 'cancel') {
-			process.exit(0); // Exit with code 0
-		}
+	if (!confirmSave) {
+		note('Configuration not saved.', pc.yellow('Action Cancelled'));
+		await cancelOperation(); // Return to main config menu
+		return;
 	}
 
 	return {

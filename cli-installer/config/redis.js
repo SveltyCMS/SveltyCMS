@@ -1,12 +1,16 @@
 /** 
 @file cli-installer/config/redis.js
 @description Configuration prompts for the Redis section
+
+### Features
+- Displays a note about the Redis configuration
+- Displays existing configuration (password hidden)
+- Prompts for Redis integration
 */
 
-import { confirm, select, text, note, isCancel, cancel } from '@clack/prompts';
+import { confirm, text, note, isCancel, password } from '@clack/prompts';
 import pc from 'picocolors';
-import { Title } from '../cli-installer.js';
-import { configurationPrompt } from '../configuration.js';
+import { Title, cancelOperation } from '../cli-installer.js';
 
 export async function configureRedis(privateConfigData = {}) {
 	// SveltyCMS Title
@@ -20,26 +24,24 @@ export async function configureRedis(privateConfigData = {}) {
 		pc.green('Redis Configuration:')
 	);
 
-	// Display existing configuration
-	note(
-		`USE_REDIS: ${pc.red(privateConfigData.USE_REDIS ? 'true' : 'false')}\n` +
-			`REDIS_HOST: ${pc.red(privateConfigData.REDIS_HOST)}\n` +
-			`REDIS_PORT: ${pc.red(privateConfigData.REDIS_PORT ? privateConfigData.REDIS_PORT.toString() : 'Not set')}\n` +
-			`REDIS_PASSWORD: ${pc.red(privateConfigData.REDIS_PASSWORD)}`,
-		pc.red('Existing Redis Configuration:')
-	);
+	// Display existing configuration (password hidden)
+	if (privateConfigData.REDIS_HOST !== undefined) {
+		// Check if key exists
+		note(
+			`Redis Enabled: ${pc.cyan(privateConfigData.USE_REDIS ? 'Yes' : 'No')}\n` +
+				`Redis Host: ${pc.cyan(privateConfigData.REDIS_HOST || 'Not set')}\n` +
+				`Redis Port: ${pc.cyan(privateConfigData.REDIS_PORT?.toString() || 'Not set')}`,
+			//`REDIS_PASSWORD: ${pc.red(privateConfigData.REDIS_PASSWORD)}`, // Keep password hidden
+			pc.cyan('Existing Redis Configuration (Password hidden):')
+		);
+	}
 
-	// Enable Redis Caching (optional - Not yet implemented)
 	const USE_REDIS = await confirm({
 		message: 'Enable Redis Caching?',
-		placeholder: 'false / true',
 		initialValue: privateConfigData.USE_REDIS || false
 	});
-
 	if (isCancel(USE_REDIS)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
+		await cancelOperation();
 		return;
 	}
 
@@ -54,14 +56,12 @@ export async function configureRedis(privateConfigData = {}) {
 			placeholder: 'localhost',
 			initialValue: privateConfigData.REDIS_HOST || 'localhost',
 			validate(value) {
-				if (value.length === 0) return `Please enter a host`;
+				if (!value || value.length === 0) return { message: `Please enter a host` };
+				return undefined;
 			}
 		});
-
 		if (isCancel(REDIS_HOST)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt(); // Restart the configuration process
+			await cancelOperation();
 			return;
 		}
 
@@ -70,92 +70,58 @@ export async function configureRedis(privateConfigData = {}) {
 			placeholder: '6379',
 			initialValue: privateConfigData.REDIS_PORT?.toString() || '6379',
 			validate(value) {
-				if (value.length === 0) return `Please enter a valid port`;
+				if (value === null || value === undefined || value === '') return { message: `Port is required.` };
+				const num = Number(value);
+				if (isNaN(num) || !Number.isInteger(num) || num < 1 || num > 65535) {
+					return { message: `Please enter a valid port number (1-65535).` };
+				}
+				return undefined;
 			}
 		});
-
 		if (isCancel(REDIS_PORT)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt(); // Restart the configuration process
+			await cancelOperation();
 			return;
 		}
+		REDIS_PORT = parseInt(REDIS_PORT, 10); // Convert to number
 
-		// Determine if a password should be used
-		const USE_PASSWORD = await confirm({
-			message: 'Do you want to set a password for Redis?',
-			initialValue: privateConfigData.USE_PASSWORD || false
+		// Use password prompt directly
+		REDIS_PASSWORD = await password({
+			message: 'Enter the Redis password (leave blank if none):'
 		});
-
-		if (isCancel(USE_PASSWORD)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt(); // Restart the configuration process
+		if (isCancel(REDIS_PASSWORD)) {
+			await cancelOperation();
 			return;
 		}
-
-		if (USE_PASSWORD) {
-			REDIS_PASSWORD = await text({
-				message: 'Enter the Redis password:',
-				placeholder: 'Secure password',
-				initialValue: privateConfigData.REDIS_PASSWORD || ''
-			});
-
-			if (isCancel(REDIS_PASSWORD)) {
-				cancel('Operation cancelled.');
-				console.clear();
-				await configurationPrompt(); // Restart the configuration process
-				return;
-			}
-		}
+	} else {
+		// Clear Redis details if disabled
+		REDIS_HOST = '';
+		REDIS_PORT = 0; // Or null/undefined, depending on how config expects it
+		REDIS_PASSWORD = '';
 	}
 
-	// Summary
+	// Summary (Password hidden)
 	note(
-		`USE_REDIS: ${pc.green(USE_REDIS ? 'true' : 'false')}\n` +
-			(USE_REDIS ? `REDIS_HOST: ${pc.green(REDIS_HOST)}\n` : '') +
-			(USE_REDIS ? `REDIS_PORT: ${pc.green(REDIS_PORT)}\n` : '') +
-			(USE_REDIS && REDIS_PASSWORD ? `REDIS_PASSWORD: ${pc.green(REDIS_PASSWORD)}\n` : ''),
-		pc.green('Review your Redis configuration:')
+		`Enable Redis: ${pc.green(USE_REDIS ? 'Yes' : 'No')}\n` +
+			(USE_REDIS ? `Redis Host: ${pc.green(REDIS_HOST)}\n` : '') +
+			(USE_REDIS ? `Redis Port: ${pc.green(REDIS_PORT)}\n` : '') +
+			(USE_REDIS && REDIS_PASSWORD ? `Redis Password: ${pc.green('[Set]')}\n` : ''),
+		pc.green('Review Your Redis Configuration:')
 	);
 
-	const action = await confirm({
-		message: 'Is the above configuration correct?',
+	const confirmSave = await confirm({
+		message: 'Save this Redis configuration?',
 		initialValue: true
 	});
 
-	if (isCancel(action)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
+	if (isCancel(confirmSave)) {
+		await cancelOperation();
 		return;
 	}
 
-	if (!action) {
-		console.log('Redis configuration canceled.');
-		const restartOrExit = await select({
-			message: 'Do you want to restart or exit?',
-			options: [
-				{ value: 'restart', label: 'Restart', hint: 'Start again' },
-				{ value: 'cancel', label: 'Cancel', hint: 'Clear and return to selection' },
-				{ value: 'exit', label: 'Exit', hint: 'Quit the installer' }
-			]
-		});
-
-		if (isCancel(restartOrExit)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt(); // Restart the configuration process
-			return;
-		}
-
-		if (restartOrExit === 'restart') {
-			return configureRedis();
-		} else if (restartOrExit === 'exit') {
-			process.exit(1); // Exit with code 1
-		} else if (restartOrExit === 'cancel') {
-			process.exit(0); // Exit with code 0
-		}
+	if (!confirmSave) {
+		note('Configuration not saved.', pc.yellow('Action Cancelled'));
+		await cancelOperation(); // Return to main config menu
+		return;
 	}
 
 	// Compile and return the configuration data

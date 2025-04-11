@@ -44,7 +44,8 @@
 		"types/**/*.ts",
 		"config/**/*.ts",
 		"src/**/*.js",
-		"src/**/*.d.ts"
+		"src/**/*.d.ts",
+		"vite.config.ts"
 	],
 	"exclude": [
 		".svelte-kit",
