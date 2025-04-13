@@ -65,8 +65,12 @@
 
 	// Submit handler
 	async function onFormSubmit(event: Event): Promise<void> {
+		console.log('Validated form');
 		event.preventDefault();
-		if (!validateForm()) return;
+		if (!validateForm()) {
+			console.error('Failed to validate Form ', event);
+			return;
+		}
 
 		isSubmitting = true;
 		formError = null;
@@ -92,7 +96,7 @@
 
 	// Delete handler
 	async function deleteCategory(): Promise<void> {
-		if (!existingCategory.subcategories || Object.keys(existingCategory.subcategories).length === 0) {
+		if (!existingCategory.children || Object.keys(existingCategory.children).length === 0) {
 			const confirmModal: ModalSettings = {
 				type: 'confirm',
 				title: 'Please Confirm',
@@ -200,32 +204,31 @@
 					<span id="icon-error" class="text-sm text-error-500">{validationErrors.icon}</span>
 				{/if}
 			</label>
+			<footer class="modal-footer flex {existingCategory.name ? 'justify-between' : 'justify-end'} {parent.regionFooter}">
+				{#if existingCategory.name}
+					<button type="button" onclick={deleteCategory} class="variant-filled-error btn" aria-label="Delete category" disabled={isSubmitting}>
+						<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
+						<span class="hidden md:inline">{m.button_delete()}</span>
+					</button>
+				{/if}
+
+				<div class="flex gap-2">
+					<button type="button" onclick={parent.onClose} class="variant-outline-secondary btn" aria-label={m.button_cancel()} disabled={isSubmitting}>
+						{m.button_cancel()}
+					</button>
+					<button
+						type="submit"
+						class="variant-filled-tertiary btn dark:variant-filled-primary {parent.buttonPositive}"
+						aria-label={m.button_save()}
+						disabled={isSubmitting}
+					>
+						{#if isSubmitting}
+							<iconify-icon icon="eos-icons:loading" class="animate-spin" width="24"></iconify-icon>
+						{/if}
+						{m.button_save()}
+					</button>
+				</div>
+			</footer>
 		</form>
-
-		<footer class="modal-footer flex {existingCategory.name ? 'justify-between' : 'justify-end'} {parent.regionFooter}">
-			{#if existingCategory.name}
-				<button type="button" onclick={deleteCategory} class="variant-filled-error btn" aria-label="Delete category" disabled={isSubmitting}>
-					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
-					<span class="hidden md:inline">{m.button_delete()}</span>
-				</button>
-			{/if}
-
-			<div class="flex gap-2">
-				<button type="button" onclick={parent.onClose} class="variant-outline-secondary btn" aria-label={m.button_cancel()} disabled={isSubmitting}>
-					{m.button_cancel()}
-				</button>
-				<button
-					type="submit"
-					class="variant-filled-tertiary btn dark:variant-filled-primary {parent.buttonPositive}"
-					aria-label={m.button_save()}
-					disabled={isSubmitting}
-				>
-					{#if isSubmitting}
-						<iconify-icon icon="eos-icons:loading" class="animate-spin" width="24"></iconify-icon>
-					{/if}
-					{m.button_save()}
-				</button>
-			</div>
-		</footer>
 	</div>
 {/if}

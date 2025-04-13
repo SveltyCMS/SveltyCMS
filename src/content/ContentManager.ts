@@ -256,9 +256,14 @@ class ContentManager {
       if (!result.success) logger.debug(`Failed retrieve contentNodes`)
       const structure = result.success ? result.data : []
       // Convert the array to a Map using the `path` property as the key
-      const structureMap = new Map<string, ContentStructureNode>(
-        structure.map(node => [node.path, node])
-      );
+
+      const structureMap = new Map<string, ContentStructureNode>()
+      structure.forEach(node => {
+        this.contentStructure[node.path] = node;
+        structureMap.set(node.path, node);
+
+
+      })
 
       const categoryNodes: Map<string, ({ path: string, name: string, parentPath: string })> = new Map()
 
@@ -324,10 +329,7 @@ class ContentManager {
         this.contentStructure[currentCategoryNode.path] = currentCategoryNode;
         structureMap.set(currentCategoryNode.path, currentCategoryNode);
 
-
       }
-
-
 
       logger.debug("Content Manager SysContentStructure loaded");
       // Cache in Redis if available

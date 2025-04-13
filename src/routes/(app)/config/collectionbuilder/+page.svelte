@@ -100,6 +100,7 @@
 					} else {
 						await addNewCategory(response);
 					}
+					modalStore.close();
 				} catch (error) {
 					console.error('Error handling modal response:', error);
 					showToast('Error updating categories', 'error');
@@ -122,11 +123,10 @@
 	}
 
 	async function addNewCategory(response: CategoryModalResponse): Promise<void> {
-		const newConfig = { ...currentConfig };
 		const categoryKey = response.newCategoryName.toLowerCase().replace(/\s+/g, '-');
 		const newCategoryId = uuidv4();
 
-		newConfig[categoryKey] = {
+		const newCategory: ContentNode = {
 			_id: newCategoryId as DatabaseId,
 			name: response.newCategoryName,
 			icon: response.newCategoryIcon,
@@ -138,6 +138,11 @@
 			parentPath: undefined,
 			nodeType: 'category'
 		};
+
+		contentStructure.update((c) => ({
+			...c,
+			[`/${categoryKey}`]: newCategory
+		}));
 	}
 
 	// Check for name conflicts before saving
@@ -177,7 +182,7 @@
 
 	// Handle collection save with conflict checking
 	function handleSave(): void {
-		const items = Object.entries(data).map(([key, item]) => ({
+		const items = Object.entries(contentStructure.value).map(([key, item]) => ({
 			...item,
 			path: key,
 			isCollection: false // Assuming these are categories, adjust as necessary
@@ -198,7 +203,7 @@
 						'Content-Type': 'application/json'
 					},
 					body: JSON.stringify({
-						action: 'updateMetadata',
+						action: 'updateContentStructure',
 						items
 					})
 				});
