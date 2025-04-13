@@ -31,8 +31,7 @@ Features:
 	import MediaTable from './MediaTable.svelte';
 
 	// Skeleton
-	import { Toaster, createToaster } from '@skeletonlabs/skeleton-svelte';
-	const toaster = createToaster();
+	import { toaster } from '@stores/store.svelte';
 
 	// Types
 	interface VirtualFolder {
@@ -310,8 +309,6 @@ Features:
 		}
 	}
 </script>
-
-<Toaster {toaster}></Toaster>
 
 <!-- Page Title and Actions -->
 <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">

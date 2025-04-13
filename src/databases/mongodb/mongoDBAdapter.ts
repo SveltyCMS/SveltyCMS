@@ -482,9 +482,12 @@ export class MongoDBAdapter implements dbInterface {
 							field.db_fieldName ||
 							field.__widgetConfig?.label?.toLowerCase().replace(/[^a-z0-9_]/g, '_') ||
 							field.Name ||
-							field.__widgetName?.toLowerCase();
+							field.__widgetName?.toLowerCase() ||
+							// Add fallback to top-level label
+							field.label?.toLowerCase().replace(/[^a-z0-9_]/g, '_');
 
 						if (!fieldKey) {
+							// This warning should now be less likely to trigger for fields with a 'label'
 							logger.warn('Field missing key identifiers:', JSON.stringify(field, null, 2));
 							continue;
 						}
@@ -517,7 +520,9 @@ export class MongoDBAdapter implements dbInterface {
 						}
 
 						schemaDefinition[fieldKey] = fieldSchema;
-						logger.debug(`Added field schema for \x1b[33m${fieldKey}\x1b[0m with widget type \x1b[34m${field.__widgetName}\x1b[0m `);
+						// Attempt to find widget name from common locations for logging
+						const widgetNameForLog = field.__widgetName || field.widget?.Name || 'undefined';
+						logger.debug(`Added field schema for \x1b[33m${fieldKey}\x1b[0m with widget type \x1b[34m${widgetNameForLog}\x1b[0m `);
 					} catch (error) {
 						logger.error(`Error processing field:`, error);
 						logger.error(`Field data:`, JSON.stringify(field, null, 2));

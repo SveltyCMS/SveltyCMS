@@ -20,8 +20,7 @@
 	import { PermissionAction } from '@src/auth/permissionTypes';
 
 	// Skeleton
-	import { Toaster, createToaster } from '@skeletonlabs/skeleton-svelte';
-	const toaster = createToaster();
+	import { toaster } from '@stores/store.svelte';
 
 	interface Props {
 		permissions?: Record<string, Record<PermissionAction, boolean>>;
@@ -119,8 +118,6 @@
 		execute: 'bi:play-fill'
 	};
 </script>
-
-<Toaster {toaster}></Toaster>
 
 {#if error}
 	<div class="text-error-500 p-4 text-center" role="alert">

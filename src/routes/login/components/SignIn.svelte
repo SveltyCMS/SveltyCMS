@@ -34,10 +34,7 @@ Features:
 	import FloatingPaths from '@root/src/components/system/FloatingPaths.svelte';
 
 	// Skeleton
-	import { Toaster, createToaster } from '@skeletonlabs/skeleton-svelte';
-	const toaster = createToaster({
-		placement: 'bottom-end'
-	});
+	import { toaster } from '@stores/store.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -109,10 +106,9 @@ Features:
 		onResult: ({ result, cancel }) => {
 			if (result.type === 'redirect') {
 				// Trigger Sign In toast
-				toaster.info({
+				toaster.success({
 					title: 'Success',
 					description: m.signin_signinsuccess(),
-					type: 'success',
 					duration: 4000
 				});
 
@@ -409,7 +405,9 @@ Features:
 								>
 									{m.form_signin()}
 									<!-- Loading indicators -->
-									{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
+									{#if $delayed}
+										<img src="/Spinner.svg" alt="Loading.." class="filter-white ml-4 h-6" />
+									{/if}
 								</button>
 								<!-- OAuth Login -->
 								<OauthLogin />

@@ -48,8 +48,7 @@ Features:
 	import Loading from '@components/Loading.svelte';
 
 	// Skeleton
-	import { Toaster, createToaster } from '@skeletonlabs/skeleton-svelte';
-	const toaster = createToaster();
+	import { toaster } from '@stores/store.svelte';
 
 	// Modals
 	import ModalConfirm from '@components/ModalConfirm.svelte';
@@ -452,9 +451,6 @@ Features:
 
 	let isCollectionEmpty = $derived(tableData.length === 0);
 </script>
-
-<!-- Toaster Component -->
-<Toaster {toaster} />
 
 <!-- Confirmation Modal Instance -->
 <ModalConfirm

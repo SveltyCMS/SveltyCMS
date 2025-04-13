@@ -22,8 +22,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 	// Skeleton
 	import { Avatar, FileUpload, Modal } from '@skeletonlabs/skeleton-svelte';
-	import { Toaster, createToaster } from '@skeletonlabs/skeleton-svelte';
-	const toaster = createToaster();
+	import { toaster } from '@stores/store.svelte';
 
 	import { object, instance, check, pipe, parse } from 'valibot';
 
@@ -146,9 +145,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	}
 </script>
 
-<!-- Toaster Component -->
-<Toaster {toaster} />
-
+<!-- Main Modal -->
 <Modal
 	open={openState}
 	onOpenChange={(e) => (openState = e.open)}

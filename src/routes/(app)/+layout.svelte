@@ -46,6 +46,9 @@ Key features:
 	// Skeleton
 	import { Modal } from '@skeletonlabs/skeleton-svelte';
 
+	import { Toaster } from '@skeletonlabs/skeleton-svelte';
+	import { toaster } from '@stores/store.svelte';
+
 	// Props
 	interface Props {
 		children?: import('svelte').Snippet;
@@ -212,6 +215,9 @@ Key features:
 						: 'mb-16'}"
 				>
 					{@render children?.()}
+
+					<!-- Toaster -->
+					<Toaster {toaster}></Toaster>
 					<!-- Modal -->
 					<Modal />
 

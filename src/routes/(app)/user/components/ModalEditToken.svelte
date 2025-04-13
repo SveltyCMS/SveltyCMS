@@ -19,8 +19,7 @@ Manages token creation and updates with role selection and expiration settings. 
 
 	// Skeleton
 	import { Modal } from '@skeletonlabs/skeleton-svelte';
-	import { Toaster, createToaster } from '@skeletonlabs/skeleton-svelte';
-	const toaster = createToaster();
+	import { toaster } from '@stores/store.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -130,9 +129,6 @@ Manages token creation and updates with role selection and expiration settings. 
 		}
 	}
 </script>
-
-<!-- Toaster Component -->
-<Toaster {toaster} />
 
 <Modal
 	open={openState}

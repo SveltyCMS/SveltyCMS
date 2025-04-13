@@ -48,6 +48,6 @@
 		{mainPart}<span class="text-primary-500">{lastPart}</span>
 	{:else}
 		<!-- Display the full site name -->
-		{siteName}
+		span{siteName}
 	{/if}
 </span>

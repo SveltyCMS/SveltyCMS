@@ -36,8 +36,7 @@
 	import { get } from 'svelte/store';
 
 	// Skeleton
-	import { Toaster, createToaster } from '@skeletonlabs/skeleton-svelte';
-	const toaster = createToaster();
+	import { toaster } from '@stores/store.svelte';
 
 	// Props
 	interface Props {
@@ -211,9 +210,6 @@
 		fetchVirtualFolders();
 	});
 </script>
-
-<!-- Toaster Component -->
-<Toaster {toaster} />
 
 <div class="mt-2 overflow-y-auto">
 	<!-- Return to Collections Button -->
