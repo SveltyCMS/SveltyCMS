@@ -23,7 +23,7 @@
 	import { page } from '$app/state';
 	import { saveLayerStore, shouldShowNextButton, validationStore } from '@stores/store.svelte';
 	import { collection, mode, modifyEntry, collectionValue } from '@src/stores/collectionStore.svelte';
-	import { handleSidebarToggle } from '@src/stores/sidebarStore.svelte';
+	import { handleUILayoutToggle } from '@root/src/stores/UIStore.svelte';
 	import { convertTimestampToDateString, getFieldName, meta_data } from '@utils/utils';
 
 	// Type definitions
@@ -151,7 +151,7 @@
 				});
 
 				mode.set('view');
-				handleSidebarToggle();
+				handleUILayoutToggle();
 			} catch (err) {
 				console.error('Failed to save data:', err);
 			}

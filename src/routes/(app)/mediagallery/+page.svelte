@@ -31,7 +31,8 @@ Features:
 	import MediaTable from './MediaTable.svelte';
 
 	// Skeleton
-	const toastStore = getToastStore();
+	import { Toaster, createToaster } from '@skeletonlabs/skeleton-svelte';
+	const toaster = createToaster();
 
 	// Types
 	interface VirtualFolder {
@@ -166,20 +167,20 @@ Features:
 
 			if (result.success) {
 				folders = await fetchUpdatedFolders();
-				toastStore.trigger({
-					message: 'Folder created successfully',
-					background: 'preset-filled-success-500',
-					timeout: 3000
+				toaster.success({
+					title: 'Success creating folder',
+					description: 'Folder created successfully',
+					duration: 4000
 				});
 			} else {
 				throw new Error(result.error || 'Failed to create folder');
 			}
 		} catch (error) {
 			console.error('Error creating folder:', error);
-			toastStore.trigger({
-				message: 'Failed to create folder',
-				background: 'preset-filled-error-500',
-				timeout: 3000
+			toaster.error({
+				title: 'Error creating folder',
+				description: 'Failed to create folder',
+				duration: 4000
 			});
 		}
 	}
@@ -200,10 +201,10 @@ Features:
 			}
 		} catch (error) {
 			console.error('Error fetching updated folders:', error);
-			toastStore.trigger({
-				message: 'Failed to fetch folders',
-				background: 'preset-filled-error-500',
-				timeout: 3000
+			toaster.error({
+				title: 'Error fetching folders',
+				description: 'Failed to fetch folders',
+				duration: 3000
 			});
 			return [];
 		}
@@ -228,10 +229,10 @@ Features:
 		} catch (error: unknown) {
 			console.error(`Error fetching media files:`, error);
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			toastStore.trigger({
-				message: errorMessage,
-				background: 'preset-filled-error-500',
-				timeout: 3000
+			toaster.error({
+				title: 'Error fetching media files',
+				description: errorMessage,
+				duration: 4000
 			});
 			files = [];
 			folders = [];
@@ -261,10 +262,10 @@ Features:
 			await fetchMediaFiles();
 		} catch (error) {
 			console.error('Error opening folder:', error);
-			toastStore.trigger({
-				message: 'Failed to open folder',
-				background: 'preset-filled-error-500',
-				timeout: 3000
+			toaster.error({
+				title: 'Error opening folder',
+				description: 'Failed to open folder',
+				duration: 4000
 			});
 		}
 	}
@@ -290,10 +291,10 @@ Features:
 			});
 			const result = response.data;
 			if (result?.success) {
-				toastStore.trigger({
-					message: 'Image deleted successfully.',
-					background: 'preset-filled-success-500',
-					timeout: 3000
+				toaster.success({
+					title: 'Success deleting image',
+					description: 'Image deleted successfully.',
+					duration: 4000
 				});
 				await fetchMediaFiles();
 			} else {
@@ -301,14 +302,16 @@ Features:
 			}
 		} catch (error) {
 			console.error('Error deleting image: ', error);
-			toastStore.trigger({
-				message: 'Error deleting image',
-				background: 'preset-filled-error-500',
-				timeout: 3000
+			toaster.error({
+				title: 'Error deleting image',
+				description: 'Error deleting image',
+				duration: 4000
 			});
 		}
 	}
 </script>
+
+<Toaster {toaster}></Toaster>
 
 <!-- Page Title and Actions -->
 <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">

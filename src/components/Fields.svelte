@@ -102,7 +102,7 @@ Key features:
 		console.warn('Revert function not implemented');
 	}
 
-	function getTabHeaderVisibility() {
+	function getTabpageheader() {
 		return user.roles !== 'admin' && !collection.value?.revision;
 	}
 

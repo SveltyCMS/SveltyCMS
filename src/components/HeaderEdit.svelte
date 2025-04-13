@@ -30,18 +30,10 @@
 <script lang="ts">
 	import { getFieldName, meta_data } from '@utils/utils';
 	import { saveFormData } from '../utils/data';
-	import type { Schema, FieldValue } from '@src/content/types';
-	import type { ModifyRequestParams } from '@widgets';
 
-	interface Field {
-		name: string;
-		type: string;
-		widget: Widget;
-		label?: string;
-		required?: boolean;
-		unique?: boolean;
-		default?: FieldValue;
-	}
+	// Types
+	import type { Schema, Field } from '@src/content/types';
+	import type { ContentStructureNode } from '@src/databases/dbInterface';
 
 	// Components
 	import TranslationStatus from '@components/TranslationStatus.svelte';
@@ -58,9 +50,12 @@
 	// Stores
 	import { page } from '$app/state';
 	import { collection, collectionValue, mode, modifyEntry, statusMap, contentStructure } from '@src/stores/collectionStore.svelte';
-	import { toggleSidebar, sidebarState } from '@src/stores/sidebarStore.svelte';
+	import { toggleUIElement, uiStateManager } from '@root/src/stores/UIStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 	import { contentLanguage, tabSet, validationStore, headerActionButton } from '@stores/store.svelte';
+
+	// Define StatusType based on statusMap keys
+	type StatusType = keyof typeof statusMap;
 
 	// Auth
 	import type { User } from '@src/auth/types';
@@ -69,37 +64,8 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	interface Widget {
-		validateWidget?: () => Promise<string | null>;
-		config?: Record<string, unknown>;
-		type?: string;
-		[key: string]: unknown;
-	}
-
-	// Extend Field with translated property
-	interface TranslatableField extends Field {
-		translated: true;
-		widget: Widget;
-		type: string;
-		config: Widget;
-		label: string;
-		required?: boolean;
-		unique?: boolean;
-		default?: FieldValue;
-		validate?: (value: FieldValue) => boolean | Promise<boolean>;
-		display?: (args: {
-			data: Record<string, FieldValue>;
-			collection: string;
-			field: Field;
-			entry: Record<string, FieldValue>;
-			contentLanguage: string;
-		}) => Promise<string> | string;
-		callback?: (args: { data: Record<string, FieldValue> }) => void;
-		modifyRequest?: (args: ModifyRequestParams<Widget>) => Promise<object>;
-	}
-
 	interface SaveData {
-		[key: string]: () => string | number | boolean | Record<string, any> | undefined;
+		[key: string]: () => string | number | boolean | Record<string, any> | null | undefined; // Allow null
 	}
 
 	interface CollectionData extends Record<string, any> {
@@ -114,13 +80,13 @@
 
 	// State declarations with proper types
 	let previousLanguage = $state<string>($contentLanguage);
-	let previousTabSet = $state<string>($tabSet);
+	let previousTabSet = $state<number>($tabSet);
 	let tempData = $state<Partial<Record<string, CollectionData>>>({});
 	let schedule = $state<string>(
-		typeof collectionValue.value?._scheduled === 'number' ? new Date(collectionValue.value._scheduled).toISOString().slice(0, 16) : ''
+		typeof collectionValue.value?._scheduled === 'number' ? new Date(Number(collectionValue.value._scheduled)).toISOString().slice(0, 16) : ''
 	);
 	let createdAtDate = $state<string>(
-		typeof collectionValue.value?.createdAt === 'number' ? new Date(collectionValue.value.createdAt * 1000).toISOString().slice(0, 16) : ''
+		typeof collectionValue.value?.createdAt === 'number' ? new Date(Number(collectionValue.value.createdAt) * 1000).toISOString().slice(0, 16) : ''
 	);
 	let saveLayerStore = $state<() => Promise<void>>(async () => {});
 	let showMore = $state<boolean>(false);
@@ -129,20 +95,26 @@
 	// Compute category name using derived state
 	let categoryName = $derived(
 		(() => {
-			const categoryEntries = Object.values(contentStructure.value || {});
-			const cat = categoryEntries.find((cat: CollectionData) => cat.collections?.some((col: Schema) => col.name === collection.value?.name));
+			const categoryEntries = Object.values(contentStructure.value || {}) as ContentStructureNode[]; // Cast to ContentStructureNode[]
+			// Use ContentStructureNode type in find callback and check children
+			const cat = categoryEntries.find(
+				(catNode: ContentStructureNode) =>
+					catNode.nodeType === 'category' && catNode.children?.some((col: ContentStructureNode) => col.name === collection.value?.name)
+			);
 			return cat?.name || '';
 		})()
 	);
 
 	// Type guard to check if the widget result has a validateWidget method
-	function hasValidateWidget(widgetInstance: Widget): widgetInstance is Required<Pick<Widget, 'validateWidget'>> {
+	// Adjusted to accept 'any' since the local Widget interface was removed
+	function hasValidateWidget(widgetInstance: any): widgetInstance is { validateWidget: () => Promise<string | null> } {
 		return typeof widgetInstance?.validateWidget === 'function';
 	}
 
-	// Type guard to check if field is translatable
-	function isTranslatable(field: Field): field is TranslatableField {
-		return 'translated' in field && (field as any).translated === true;
+	// Type guard to check if field is translatable (adjusted for imported Field type)
+	function isTranslatable(field: Field): boolean {
+		// Check if the 'translated' property exists and is true
+		return !!(field as any).translated;
 	}
 
 	$effect(() => {
@@ -186,27 +158,35 @@
 			const fieldName = getFieldName(field);
 			const rawValue = collectionValue.value?.[fieldName];
 			const fieldValue =
-				typeof rawValue === 'object' && rawValue !== null ? (rawValue as Record<string, any>) : (rawValue as string | number | boolean | undefined);
-			const widgetInstance = field.widget as unknown as { validateWidget?: () => Promise<string | null> };
+				typeof rawValue === 'object' && rawValue !== null
+					? (rawValue as Record<string, any>)
+					: (rawValue as string | number | boolean | null | undefined); // Allow null
+			const widgetInstance = field.widget;
 
 			if (hasValidateWidget(widgetInstance)) {
+				// Call validateWidget if the type guard passes
 				const error = await widgetInstance.validateWidget();
 				if (error) {
 					validationStore.setError(fieldName, error);
 					validationPassed = false;
 				} else {
 					validationStore.clearError(fieldName);
+					// Adjusted logic for translatable fields
 					getData[fieldName] = () => {
 						if (isTranslatable(field)) {
-							return typeof fieldValue === 'object' ? fieldValue : { [$contentLanguage]: fieldValue };
+							// Ensure fieldValue is treated correctly, potentially creating the language key if needed
+							const currentLangValue = typeof fieldValue === 'object' && fieldValue !== null ? fieldValue[$contentLanguage] : fieldValue;
+							return { ...(typeof fieldValue === 'object' && fieldValue !== null ? fieldValue : {}), [$contentLanguage]: currentLangValue };
 						}
 						return fieldValue;
 					};
 				}
 			} else {
+				// Adjusted logic for translatable fields
 				getData[fieldName] = () => {
 					if (isTranslatable(field)) {
-						return typeof fieldValue === 'object' ? fieldValue : { [$contentLanguage]: fieldValue };
+						const currentLangValue = typeof fieldValue === 'object' && fieldValue !== null ? fieldValue[$contentLanguage] : fieldValue;
+						return { ...(typeof fieldValue === 'object' && fieldValue !== null ? fieldValue : {}), [$contentLanguage]: currentLangValue };
 					}
 					return fieldValue;
 				};
@@ -258,7 +238,7 @@
 				});
 
 				mode.set('view');
-				toggleSidebar('left', $screenSize === 'lg' ? 'full' : 'collapsed');
+				toggleUIElement('leftSidebar', $screenSize === 'lg' ? 'full' : 'collapsed');
 			} catch (err) {
 				console.error('Failed to save data:', err);
 			}
@@ -268,7 +248,7 @@
 	// function to undo the changes made by handleButtonClick
 	function handleCancel() {
 		mode.set('view');
-		toggleSidebar('left', $screenSize === 'lg' ? 'full' : 'collapsed');
+		toggleUIElement('leftSidebar', $screenSize === 'lg' ? 'full' : 'collapsed');
 	}
 
 	function handleReload() {
@@ -291,10 +271,10 @@
 >
 	<div class="flex items-center justify-start">
 		<!-- Hamburger -->
-		{#if sidebarState.sidebar.value.left === 'hidden'}
+		{#if uiStateManager.uiState.value.leftSidebar === 'hidden'}
 			<button
 				type="button"
-				onclick={() => toggleSidebar('left', $screenSize === 'lg' ? 'full' : 'collapsed')}
+				onclick={() => toggleUIElement('leftSidebar', $screenSize === 'lg' ? 'full' : 'collapsed')}
 				aria-label="Toggle Sidebar"
 				class="preset-tonal-surface border-surface-500 btn-icon mt-1 border"
 			>
@@ -303,7 +283,7 @@
 		{/if}
 
 		<!-- Collection type with icon -->
-		<div class="flex {!sidebarState.sidebar.value.left ? 'ml-2' : 'ml-1'}">
+		<div class="flex {!uiStateManager.uiState.value.leftSidebar ? 'ml-2' : 'ml-1'}">
 			{#if collection.value && collection.value.icon}
 				<div class="flex items-center justify-center">
 					<iconify-icon icon={collection.value.icon} width="24" class="text-error-500"></iconify-icon>

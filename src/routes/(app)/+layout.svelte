@@ -21,17 +21,18 @@ Key features:
 
 	import { publicEnv } from '@root/config/public';
 	import { onMount, onDestroy } from 'svelte';
+	import { page } from '$app/state';
 
 	// Utils
 	import { getTextDirection } from '@utils/utils';
 	import { isSearchVisible } from '@utils/globalSearchIndex';
 
 	// Stores
-	import { page } from '$app/state';
 	import { systemLanguage, isLoading } from '@stores/store.svelte';
-	import { contentStructure, collections } from '@root/src/stores/collectionStore.svelte';
-	import { sidebarState } from '@root/src/stores/sidebarStore.svelte';
-	import { ScreenSize, screenSize } from '@root/src/stores/screenSizeStore.svelte';
+	import { contentStructure, collections } from '@stores/collectionStore.svelte';
+	import { mode } from '@stores/collectionStore.svelte';
+	import { screenSize, ScreenSize } from '@stores/screenSizeStore.svelte';
+	import { uiStateManager } from '@stores/UIStore.svelte';
 
 	// Components
 	import Loading from '@components/Loading.svelte';
@@ -103,6 +104,13 @@ Key features:
 		}
 	}
 
+	// React to mode and screen size changes
+	$effect(() => {
+		mode.value; // Depend on mode
+		screenSize.value; // Depend on screen size
+		uiStateManager.updateLayout();
+	});
+
 	onMount(() => {
 		// Event listeners
 		window.addEventListener('keydown', onKeyDown);
@@ -116,7 +124,7 @@ Key features:
 	});
 
 	// SEO
-	const SeoTitle = `${publicEnv.SITE_NAME} - powered with sveltekit`;
+	const SeoTitle = `${publicEnv.SITE_NAME} - powered with SvelteKit`;
 	const SeoDescription = `${publicEnv.SITE_NAME} - a modern, powerful, and easy-to-use CMS powered by SvelteKit.`;
 </script>
 
@@ -137,7 +145,7 @@ Key features:
 		})();
 	</script>
 
-	<!--Basic SEO-->
+	<!-- Basic SEO -->
 	<title>{SeoTitle}</title>
 	<meta name="description" content={SeoDescription} />
 
@@ -150,7 +158,7 @@ Key features:
 	<meta property="og:image:height" content="630" />
 	<meta property="og:site_name" content={page.url.origin} />
 
-	<!-- Open Graph : Twitter-->
+	<!-- Open Graph : Twitter -->
 	<meta name="twitter:card" content="summary_large_image" />
 	<meta name="twitter:title" content={SeoTitle} />
 	<meta name="twitter:description" content={SeoDescription} />
@@ -160,104 +168,97 @@ Key features:
 </svelte:head>
 
 {#if loadError}
-	<div class="text-error-500">
-		An error occurred: {loadError.message}
-	</div>
+	<div class="text-error-500">An error occurred: {loadError.message}</div>
 {:else if !isCollectionsLoaded}
 	<div class="flex h-lvh items-center justify-between lg:justify-start">
 		<Loading />
 	</div>
+{:else if page.url.pathname === '/login'}
+	{@render children?.()}
 {:else}
-	<!-- hack as root +layout cannot be overwritten ? -->
-	{#if page.url.pathname === '/login'}
-		{@render children?.()}
-	{:else}
-		<!-- Body -->
-		<div class="flex h-lvh flex-col">
-			<!-- Header -->
-			{#if sidebarState.sidebar.value.header !== 'hidden'}
-				<header class="bg-tertiary-500 sticky top-0 z-10">Header</header>
+	<!-- Body -->
+	<div class="flex h-lvh flex-col">
+		<!-- Header -->
+		{#if uiStateManager.uiState.value.pageheader !== 'hidden'}
+			<header class="bg-tertiary-500 sticky top-0 z-10">Header</header>
+		{/if}
+
+		<div class="flex flex-1 overflow-hidden">
+			<!-- Sidebar Left -->
+			{#if uiStateManager.uiState.value.leftSidebar !== 'hidden'}
+				<aside
+					class="max-h-dvh {uiStateManager.uiState.value.leftSidebar === 'full'
+						? 'w-[220px]'
+						: 'w-fit'} dark:border-surface-500 dark:from-surface-700 dark:to-surface-950 relative border-r bg-white !px-2 text-center dark:bg-gradient-to-r"
+				>
+					<LeftSidebar />
+				</aside>
 			{/if}
 
-			<div class="flex flex-1 overflow-hidden">
-				<!-- Sidebar Left -->
-				{#if sidebarState.sidebar.value.left !== 'hidden'}
-					<aside
-						class="max-h-dvh {sidebarState.sidebar.value.left === 'full'
-							? 'w-[220px]'
-							: 'w-fit'} dark:border-surface-500 dark:from-surface-700 dark:to-surface-950 relative border-r bg-white !px-2 text-center dark:bg-gradient-to-r"
-					>
-						<LeftSidebar />
-					</aside>
+			<!-- Content Area -->
+			<main class="relative w-full flex-1 overflow-hidden">
+				<!-- Page Header -->
+				{#if uiStateManager.uiState.value.pageheader !== 'hidden'}
+					<header class="sticky top-0 z-10 w-full">
+						<HeaderEdit />
+					</header>
 				{/if}
 
-				<!-- Content Area -->
-				<main class="relative w-full flex-1 overflow-hidden">
-					<!-- Page Header -->
-					{#if sidebarState.sidebar.value.header !== 'hidden'}
-						<header class="sticky top-0 z-10 w-full">
-							<HeaderEdit />
-						</header>
+				<!-- Router Slot -->
+				<div
+					role="main"
+					class="relative h-full flex-grow overflow-auto {uiStateManager.uiState.value.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {$screenSize === 'lg'
+						? 'mb-2'
+						: 'mb-16'}"
+				>
+					{@render children?.()}
+					<!-- Modal -->
+					<Modal />
+
+					<!-- Floating Nav -->
+					{#if $screenSize !== ScreenSize.LG && $screenSize !== ScreenSize.XL}
+						<FloatingNav />
 					{/if}
 
-					<!-- Router Slot -->
-					<div
-						role="main"
-						class="relative h-full flex-grow overflow-auto {sidebarState.sidebar.value.left === 'full' ? 'mx-2' : 'mx-1'} {$screenSize === 'lg'
-							? 'mb-2'
-							: 'mb-16'}"
-					>
+					<!-- Show globalSearchIndex  -->
+					{#if $isSearchVisible}
+						<SearchComponent />
+					{/if}
+
+					{#if $isLoading}
+						<div class="flex h-screen items-center justify-center">
+							<Loading />
+						</div>
+					{:else}
 						{@render children?.()}
-						<!-- Modal -->
-						<Modal />
-
-						<!-- Floating Nav -->
-						{#if $screenSize !== ScreenSize.LG && $screenSize !== ScreenSize.XL}
-							<FloatingNav />
-						{/if}
-
-						<!-- Show globalSearchIndex  -->
-						{#if $isSearchVisible}
-							<SearchComponent />
-						{/if}
-
-						{#if $isLoading}
-							<div class="flex h-screen items-center justify-center">
-								<Loading />
-							</div>
-						{:else}
-							{@render children?.()}
-						{/if}
-
-						{#if isNonCriticalDataLoaded}
-							<!-- Non-critical data components -->
-						{/if}
-					</div>
-
-					<!-- Page Footer -->
-					{#if sidebarState.sidebar.value.pagefooter !== 'hidden'}
-						<footer
-							class="bg-surface-50 dark:border-surface-500 dark:from-surface-700 dark:to-surface-950 sticky top-[calc(100%-51px)] left-0 z-10 w-full border-t bg-gradient-to-b px-1 text-center"
-						>
-							<PageFooter />
-						</footer>
 					{/if}
-				</main>
 
-				<!-- Sidebar Right -->
-				{#if sidebarState.sidebar.value.right !== 'hidden'}
-					<aside
-						class="bg-surface-50 dark:border-surface-500 dark:from-surface-700 dark:to-surface-950 max-h-dvh w-[220px] border-l bg-gradient-to-r"
+					{#if isNonCriticalDataLoaded}
+						<!-- Non-critical data components -->
+					{/if}
+				</div>
+
+				<!-- Page Footer -->
+				{#if uiStateManager.uiState.value.pagefooter !== 'hidden'}
+					<footer
+						class="bg-surface-50 dark:border-surface-500 dark:from-surface-700 dark:to-surface-950 sticky top-[calc(100%-51px)] left-0 z-10 w-full border-t bg-gradient-to-b px-1 text-center"
 					>
-						<RightSidebar />
-					</aside>
+						<PageFooter />
+					</footer>
 				{/if}
-			</div>
+			</main>
 
-			<!-- Footer -->
-			{#if sidebarState.sidebar.value.footer !== 'hidden'}
-				<footer class="bg-blue-500">Footer</footer>
+			<!-- Sidebar Right -->
+			{#if uiStateManager.uiState.value.rightSidebar !== 'hidden'}
+				<aside class="bg-surface-50 dark:border-surface-500 dark:from-surface-700 dark:to-surface-950 max-h-dvh w-[220px] border-l bg-gradient-to-r">
+					<RightSidebar />
+				</aside>
 			{/if}
 		</div>
-	{/if}
+
+		<!-- Footer -->
+		{#if uiStateManager.uiState.value.pagefooter !== 'hidden'}
+			<footer class="bg-blue-500">Footer</footer>
+		{/if}
+	</div>
 {/if}

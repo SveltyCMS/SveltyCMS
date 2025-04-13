@@ -28,7 +28,8 @@
 	// Stores
 	import { page } from '$app/state';
 	import { mode } from '@src/stores/collectionStore.svelte';
-	import { handleSidebarToggle } from '@src/stores/sidebarStore.svelte';
+	import { handleUILayoutToggle } from '@stores/UIStore.svelte';
+
 	import { isSearchVisible, triggerActionStore } from '@utils/globalSearchIndex';
 
 	// Type Definitions
@@ -330,7 +331,7 @@
 			location.href = endpoint.url.path || '/';
 		} else {
 			mode.set('view');
-			handleSidebarToggle();
+			handleUILayoutToggle();
 			goto(endpoint.url.path || '/');
 		}
 		showRoutes = false;

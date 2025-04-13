@@ -11,7 +11,6 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 <script lang="ts">
 	import axios from 'axios';
-	import { getContext } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 
@@ -22,11 +21,12 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { type ToastContext } from '@skeletonlabs/skeleton-svelte';
 	import { Avatar, FileUpload, Modal } from '@skeletonlabs/skeleton-svelte';
+	import { Toaster, createToaster } from '@skeletonlabs/skeleton-svelte';
+	const toaster = createToaster();
+
 	import { object, instance, check, pipe, parse } from 'valibot';
 
-	export const toast: ToastContext = getContext('toast');
 	let files: FileList | null = $state(null);
 	let openState = $state(false);
 
@@ -50,7 +50,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	const avatarSchema = object({ file: fileSchema });
 
 	function modalClose() {
-		toast.create({
+		toaster.success({
 			title: 'Success',
 			description: 'Avatar Updated',
 			type: 'success'
@@ -84,7 +84,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			parse(avatarSchema, { file });
 			await uploadAvatar(file);
 		} catch (error) {
-			toast.create({
+			toaster.error({
 				title: 'Error',
 				description: error instanceof Error ? error.message : 'Upload failed',
 				type: 'error'
@@ -105,7 +105,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 			if (response.status === 200) {
 				avatarSrc.set(response.data.avatarUrl);
-				toast.create({
+				toaster.success({
 					title: 'Success',
 					description: 'Avatar updated successfully!',
 					type: 'success'
@@ -114,7 +114,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 				await invalidateAll();
 			}
 		} catch (error) {
-			toast.create({
+			toaster.error({
 				title: 'Error',
 				description: 'Failed to update avatar',
 				type: 'error'
@@ -128,7 +128,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 			if (response.status === 200) {
 				avatarSrc.set('/Default_User.svg');
-				toast.create({
+				toaster.success({
 					title: 'Success',
 					description: 'Avatar deleted successfully',
 					type: 'success'
@@ -137,7 +137,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 				await invalidateAll(); // Reload the page data to get the updated user object
 			}
 		} catch (error) {
-			toast.create({
+			toaster.error({
 				title: 'Error',
 				description: 'Failed to delete avatar',
 				type: 'error'
@@ -145,6 +145,9 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		}
 	}
 </script>
+
+<!-- Toaster Component -->
+<Toaster {toaster} />
 
 <Modal
 	open={openState}

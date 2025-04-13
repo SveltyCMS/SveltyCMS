@@ -30,16 +30,14 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { publicEnv } from '@root/config/public';
-	import { sidebarState, toggleSidebar } from '@src/stores/sidebarStore.svelte';
+	import { uiStateManager, toggleUIElement } from '@root/src/stores/UIStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 	import { mode } from '@src/stores/collectionStore.svelte';
 	import { get } from 'svelte/store';
 
 	// Skeleton
-	import { getContext } from 'svelte';
-	import { type ToastContext } from '@skeletonlabs/skeleton-svelte';
-
-	export const toast: ToastContext = getContext('toast');
+	import { Toaster, createToaster } from '@skeletonlabs/skeleton-svelte';
+	const toaster = createToaster();
 
 	// Props
 	interface Props {
@@ -78,7 +76,7 @@
 			}
 		} catch (error) {
 			console.error('Error fetching folders:', error);
-			toast.create({
+			toaster.error({
 				title: 'Error fetching folders',
 				description: 'Error fetching folders',
 				type: 'error',
@@ -101,7 +99,7 @@
 			const result = await response.json();
 
 			if (result.success) {
-				toast.create({
+				toaster.success({
 					title: 'Success creating folder',
 					description: 'Folder created successfully',
 					type: 'success',
@@ -115,7 +113,7 @@
 			}
 		} catch (error) {
 			console.error('Error creating folder:', error);
-			toast.create({
+			toaster.error({
 				title: 'Error fetching folders',
 				description: 'Error fetching folders',
 				type: 'error',
@@ -135,7 +133,7 @@
 			const result = await response.json();
 
 			if (result.success) {
-				toast.create({
+				toaster.success({
 					title: 'Success updating folder',
 					description: 'Folder updated successfully',
 					type: 'success',
@@ -147,7 +145,7 @@
 			}
 		} catch (error) {
 			console.error('Error updating folder:', error);
-			toast.create({
+			toaster.error({
 				title: 'Error fetching folders',
 				description: 'Error fetching folders',
 				type: 'error',
@@ -167,7 +165,7 @@
 			const result = await response.json();
 
 			if (result.success) {
-				toast.create({
+				toaster.success({
 					title: 'Success deleting folder',
 					description: 'Folder deleted successfully',
 					type: 'success',
@@ -179,7 +177,7 @@
 			}
 		} catch (error) {
 			console.error('Error deleting folder:', error);
-			toast.create({
+			toaster.error({
 				title: 'Error fetching folders',
 				description: 'Error fetching folders',
 				type: 'error',
@@ -204,7 +202,7 @@
 		mode.set('view');
 		goto('/'); // Adjust this route as needed
 		if (get(screenSize) === 'sm') {
-			toggleSidebar('left', 'hidden');
+			toggleUIElement('leftSidebar', 'hidden');
 		}
 	}
 
@@ -214,9 +212,12 @@
 	});
 </script>
 
+<!-- Toaster Component -->
+<Toaster {toaster} />
+
 <div class="mt-2 overflow-y-auto">
 	<!-- Return to Collections Button -->
-	{#if sidebarState.sidebar.value.left === 'full'}
+	{#if uiStateManager.uiState.value.leftSidebar === 'full'}
 		<!-- Sidebar Expanded -->
 		<button
 			onclick={returnToCollections}
@@ -242,7 +243,7 @@
 	{#if folders.length > 0}
 		<div class="relative flex flex-wrap">
 			{#each folders.filter((f) => !currentFolder || f.parent === currentFolder?._id) as folder (folder._id)}
-				{#if sidebarState.sidebar.value.left === 'full'}
+				{#if uiStateManager.uiState.value.leftSidebar === 'full'}
 					<!-- Sidebar Expanded -->
 					<div class="nowrap preset-outline-surface flex w-full">
 						<button onclick={() => openFolder(folder._id)} aria-label={`Open folder: ${folder.name}`} class="btn flex items-center space-x-2 p-2">

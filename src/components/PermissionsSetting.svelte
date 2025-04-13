@@ -20,10 +20,8 @@
 	import { PermissionAction } from '@src/auth/permissionTypes';
 
 	// Skeleton
-	import { getContext } from 'svelte';
-	import { type ToastContext } from '@skeletonlabs/skeleton-svelte';
-
-	export const toast: ToastContext = getContext('toast');
+	import { Toaster, createToaster } from '@skeletonlabs/skeleton-svelte';
+	const toaster = createToaster();
 
 	interface Props {
 		permissions?: Record<string, Record<PermissionAction, boolean>>;
@@ -99,7 +97,7 @@
 			warning: 'info', // warning maps to info since it's not available
 			error: 'error'
 		};
-		toast.create({
+		toaster.success({
 			description,
 			type: types[type],
 			duration: 3000
@@ -121,6 +119,8 @@
 		execute: 'bi:play-fill'
 	};
 </script>
+
+<Toaster {toaster}></Toaster>
 
 {#if error}
 	<div class="text-error-500 p-4 text-center" role="alert">

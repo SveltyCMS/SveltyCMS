@@ -31,7 +31,7 @@
 	import { get } from 'svelte/store';
 	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store.svelte';
 	import { mode } from '@stores/collectionStore.svelte';
-	import { toggleSidebar, sidebarState, userPreferredState, handleSidebarToggle } from '@src/stores/sidebarStore.svelte';
+	import { toggleUIElement, uiStateManager, userPreferredState, handleUILayoutToggle } from '@root/src/stores/UIStore.svelte';
 	import { screenSize } from '@stores/screenSizeStore.svelte';
 	import { themeName, updateTheme } from '@root/src/stores/themeStore.svelte'; // Import reactive store
 
@@ -165,7 +165,7 @@
 
 <div class="flex h-full w-full flex-col justify-between">
 	<!-- Corporate Identity Full -->
-	{#if sidebarState.sidebar.value.left === 'full'}
+	{#if uiStateManager.uiState.value.leftSidebar === 'full'}
 		<a href="/" aria-label="SveltyCMS Logo" class="flex pt-2 no-underline!">
 			<SveltyCMSLogo fill="red" className="h-9 -ml-2" />
 			<span class="base-font-color relative text-2xl font-bold"><SiteName /> </span>
@@ -175,7 +175,7 @@
 		<div class="gap flex justify-start">
 			<button
 				type="button"
-				onclick={() => toggleSidebar('left', 'hidden')}
+				onclick={() => toggleUIElement('leftSidebar', 'hidden')}
 				aria-label="Open Sidebar"
 				class="preset-tonal-surface border-surface-500 btn-icon mt-1 border"
 			>
@@ -192,8 +192,9 @@
 	<button
 		type="button"
 		onclick={() => {
-			toggleSidebar('left', sidebarState.sidebar.value.left === 'full' ? 'collapsed' : 'full');
-			userPreferredState.set(sidebarState.sidebar.value.left === 'full' ? 'collapsed' : 'full');
+			const newState = uiStateManager.uiState.value.leftSidebar === 'full' ? 'collapsed' : 'full';
+			toggleUIElement('leftSidebar', newState);
+			userPreferredState.set(newState);
 		}}
 		aria-label="Expand/Collapse Sidebar"
 		class="absolute top-2 z-20 flex items-center justify-center rounded-full! border-[3px] ltr:-right-3 rtl:-left-3 dark:border-black"
@@ -201,7 +202,7 @@
 		<iconify-icon
 			icon="bi:arrow-left-circle-fill"
 			width="30"
-			class={`bg-surface-500 hover:bg-error-600 dark:text-surface-600 dark:hover:bg-error-600 rounded-full text-white hover:cursor-pointer dark:bg-white ${sidebarState.sidebar.value.left === 'full' ? 'rotate-0 rtl:rotate-180' : 'rotate-180 rtl:rotate-0'}`}
+			class={`bg-surface-500 hover:bg-error-600 dark:text-surface-600 dark:hover:bg-error-600 rounded-full text-white hover:cursor-pointer dark:bg-white ${uiStateManager.uiState.value.leftSidebar === 'full' ? 'rotate-0 rtl:rotate-180' : 'rotate-180 rtl:rotate-0'}`}
 		></iconify-icon>
 	</button>
 
@@ -213,10 +214,12 @@
 		<div class="border-surface-400 mx-1 mb-1 border-0 border-t"></div>
 
 		<div
-			class="{sidebarState.sidebar.value.left === 'full' ? 'grid-cols-3 grid-rows-3' : 'grid-cols-2 grid-rows-2'} grid items-center justify-center"
+			class="{uiStateManager.uiState.value.leftSidebar === 'full'
+				? 'grid-cols-3 grid-rows-3'
+				: 'grid-cols-2 grid-rows-2'} grid items-center justify-center"
 		>
 			<!-- Avatar with user settings -->
-			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-1 row-span-2' : 'order-1'}>
+			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-1 row-span-2' : 'order-1'}>
 				<Tooltip
 					open={openState}
 					onOpenChange={(e) => (openState = e.open)}
@@ -230,11 +233,11 @@
 						<Avatar
 							name="User"
 							src={$avatarSrc ? `${$avatarSrc}?t=${Date.now()}` : '/Default_User.svg'}
-							size={sidebarState.sidebar.value.left === 'full' ? 'w-[40px]' : 'w-[35px]'}
+							size={uiStateManager.uiState.value.leftSidebar === 'full' ? 'w-[40px]' : 'w-[35px]'}
 							classes="mx-auto"
 						/>
 						<div class="text-center text-[10px] text-black uppercase dark:text-white">
-							{#if sidebarState.sidebar.value.left === 'full'}
+							{#if uiStateManager.uiState.value.leftSidebar === 'full'}
 								{#if user?.username}
 									<div class="-ml-0.5">
 										{user?.username}
@@ -254,14 +257,14 @@
 			</div>
 
 			<!-- Enhanced System Language Selector -->
-			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-3 row-span-2 mx-auto pb-4' : 'order-2 mx-auto'}>
+			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-3 row-span-2 mx-auto pb-4' : 'order-2 mx-auto'}>
 				<Tooltip positioning={{ placement: 'right' }} openDelay={200}>
 					{#snippet trigger()}
 						<div class="language-selector relative" bind:this={dropdownRef}>
 							{#if publicEnv.AVAILABLE_SYSTEM_LANGUAGES.length > 5}
 								<button
-									class="preset-filled-surface-500 btn-icon flex items-center justify-between text-white uppercase {sidebarState.sidebar.value
-										.left === 'full'
+									class="preset-filled-surface-500 btn-icon flex items-center justify-between text-white uppercase {uiStateManager.uiState.value
+										.leftSidebar === 'full'
 										? 'px-2.5 py-2'
 										: 'px-1.5 py-0'}"
 									onclick={(e) => {
@@ -309,7 +312,8 @@
 								<select
 									bind:value={_languageTag}
 									onchange={handleSelectChange}
-									class="preset-filled-surface-500 appearance-none! rounded-full text-white uppercase {sidebarState.sidebar.value.left === 'full'
+									class="preset-filled-surface-500 appearance-none! rounded-full text-white uppercase {uiStateManager.uiState.value.leftSidebar ===
+									'full'
 										? 'btn-icon px-2.5 py-2'
 										: 'btn-icon-sm px-1.5 py-0'}"
 								>
@@ -330,7 +334,7 @@
 			</div>
 
 			<!-- Light/Dark mode switch -->
-			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-2' : 'order-3'}>
+			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-2' : 'order-3'}>
 				<Tooltip positioning={{ placement: 'right' }} openDelay={200}>
 					{#snippet trigger()}
 						<button onclick={toggleTheme} aria-label="Toggle Theme" class="btn-icon hover:bg-surface-500 hover:text-white">
@@ -351,7 +355,7 @@
 			</div>
 
 			<!-- Sign Out -->
-			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-4' : 'order-4'}>
+			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-4' : 'order-4'}>
 				<Tooltip positioning={{ placement: 'right' }} openDelay={200}>
 					{#snippet trigger()}
 						<button onclick={signOut} type="submit" value="Sign out" aria-label="Sign Out" class="btn-icon hover:bg-surface-500 hover:text-white">
@@ -368,15 +372,15 @@
 			</div>
 
 			<!-- System Configuration -->
-			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-5' : 'order-6'}>
+			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-5' : 'order-6'}>
 				<Tooltip positioning={{ placement: 'right' }} openDelay={200}>
 					{#snippet trigger()}
 						<button
 							onclick={() => {
 								mode.set('view');
-								handleSidebarToggle();
+								handleUILayoutToggle();
 								if (get(screenSize) === 'sm') {
-									toggleSidebar('left', 'hidden');
+									toggleUIElement('leftSidebar', 'hidden');
 								}
 							}}
 							aria-label="System Configuration"
@@ -397,7 +401,7 @@
 			</div>
 
 			<!-- Github discussions -->
-			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-7' : 'order-7 hidden'}>
+			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-7' : 'order-7 hidden'}>
 				<Tooltip positioning={{ placement: 'right' }} openDelay={200}>
 					{#snippet trigger()}
 						<a
@@ -419,10 +423,11 @@
 			</div>
 
 			<!-- CMS Version -->
-			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-6' : 'order-5'}>
+			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-6' : 'order-5'}>
 				<a href="https://github.com/SveltyCMS/SveltyCMS/" target="blank">
-					<span class="{sidebarState.sidebar.value.left === 'full' ? 'py-1' : 'py-0'} {$pkgBgColor} badge rounded-xl text-black hover:text-white"
-						>{#if sidebarState.sidebar.value.left === 'full'}
+					<span
+						class="{uiStateManager.uiState.value.leftSidebar === 'full' ? 'py-1' : 'py-0'} {$pkgBgColor} badge rounded-xl text-black hover:text-white"
+						>{#if uiStateManager.uiState.value.leftSidebar === 'full'}
 							{m.applayout_version()}
 						{/if}
 						{pkg}

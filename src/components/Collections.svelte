@@ -29,7 +29,7 @@ Features:
 	import { get } from 'svelte/store';
 	import { contentLanguage, shouldShowNextButton } from '@stores/store.svelte';
 	import { mode, contentStructure, collection } from '@src/stores/collectionStore.svelte';
-	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@src/stores/sidebarStore.svelte';
+	import { handleUILayoutToggle, uiStateManager, toggleUIElement } from '@root/src/stores/UIStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 
 	// Components
@@ -123,7 +123,7 @@ Features:
 	{#if !isMediaMode}
 		<!-- Search Input -->
 		<div
-			class="{sidebarState.sidebar.value.left === 'full'
+			class="{uiStateManager.uiState.value.leftSidebar === 'full'
 				? 'mb-2 w-full'
 				: 'mb-1 max-w-[125px]'} input-group input-group-divider grid grid-cols-[1fr_auto]"
 		>
@@ -131,7 +131,7 @@ Features:
 				type="text"
 				placeholder="Search collections..."
 				bind:value={search}
-				class="input {sidebarState.sidebar.value.left === 'full' ? 'h-12' : 'h-10'} outline-hidden transition-all duration-500 ease-in-out"
+				class="input {uiStateManager.uiState.value.leftSidebar === 'full' ? 'h-12' : 'h-10'} outline-hidden transition-all duration-500 ease-in-out"
 			/>
 			<button onclick={clearSearch} class="preset-filled-surface-500 w-12" aria-label="Clear search">
 				<iconify-icon icon="ic:outline-search-off" width="24"></iconify-icon>
@@ -144,7 +144,7 @@ Features:
 				k={0}
 				nodes={collectonStructureNodes}
 				selectedId={collection.value?._id ?? undefined}
-				compact={sidebarState.sidebar.value.left !== 'full'}
+				compact={uiStateManager.uiState.value.leftSidebar !== 'full'}
 				{search}
 			></TreeView>
 		{:else}
@@ -153,21 +153,21 @@ Features:
 
 		<!-- Media Gallery Button -->
 		<button
-			class="btn mt-1 flex w-full rounded-sm {sidebarState.sidebar.value.left === 'full'
+			class="btn mt-1 flex w-full rounded-sm {uiStateManager.uiState.value.leftSidebar === 'full'
 				? 'flex-row '
-				: 'flex-col'} border-surface-500 items-center border py-{sidebarState.sidebar.value.left === 'full'
+				: 'flex-col'} border-surface-500 items-center border py-{uiStateManager.uiState.value.leftSidebar === 'full'
 				? '3'
 				: '1'} hover:bg-surface-400! dark:bg-surface-500 hover:text-white"
 			onclick={() => {
 				mode.set('media');
 				goto('/mediagallery');
 				if (get(screenSize) === 'sm') {
-					toggleSidebar('left', 'hidden');
+					toggleUIElement('leftSidebar', 'hidden');
 				}
-				if (sidebarState.sidebar.value.left !== 'full') handleSidebarToggle();
+				if (uiStateManager.uiState.value.leftSidebar !== 'full') handleUILayoutToggle();
 			}}
 		>
-			{#if sidebarState.sidebar.value.left === 'full'}
+			{#if uiStateManager.uiState.value.leftSidebar === 'full'}
 				<iconify-icon icon="bi:images" width="24" class="text-primary-600 rtl:ml-2"></iconify-icon>
 				<p class="uppercase dark:text-white">{m.Collections_MediaGallery()}</p>
 			{:else}
@@ -184,7 +184,7 @@ Features:
 			onclick={() => {
 				mode.set('view');
 				if (get(screenSize) === 'sm') {
-					toggleSidebar('left', 'hidden');
+					toggleUIElement('leftSidebar', 'hidden');
 				}
 				goto(`/`);
 			}}
@@ -194,7 +194,12 @@ Features:
 		</button>
 
 		<!-- Display Virtual Folders as TreeView -->
-		<TreeView k={1} nodes={virtualFolderNodes} selectedId={collection.value?._id} compact={sidebarState.sidebar.value.left !== 'full'} {search}
+		<TreeView
+			k={1}
+			nodes={virtualFolderNodes}
+			selectedId={collection.value?._id}
+			compact={uiStateManager.uiState.value.leftSidebar !== 'full'}
+			{search}
 		></TreeView>
 	{/if}
 </div>

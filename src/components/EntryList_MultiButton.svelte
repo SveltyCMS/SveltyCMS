@@ -25,8 +25,8 @@ Features:
 <script lang="ts">
 	// Stores
 	import { storeListboxValue } from '@stores/store.svelte';
-	import { mode, modifyEntry } from '@src/stores/collectionStore.svelte';
-	import { handleSidebarToggle } from '@src/stores/sidebarStore.svelte';
+	import { mode, modifyEntry } from '@stores/collectionStore.svelte';
+	import { handleUILayoutToggle } from '@stores/UIStore.svelte';
 
 	// Modal
 	import ScheduleModal from './ScheduleModal.svelte';
@@ -72,7 +72,7 @@ Features:
 		switch (storeListboxValue.value) {
 			case 'create':
 				mode.set('create');
-				handleSidebarToggle();
+				handleUILayoutToggle();
 				onCreate();
 				break;
 			case 'publish':

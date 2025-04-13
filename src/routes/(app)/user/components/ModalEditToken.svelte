@@ -15,13 +15,12 @@ Manages token creation and updates with role selection and expiration settings. 
 
 <script lang="ts">
 	import { page } from '$app/state';
-	import { getContext } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 
 	// Skeleton
 	import { Modal } from '@skeletonlabs/skeleton-svelte';
-	import { type ToastContext } from '@skeletonlabs/skeleton-svelte';
-	export const toast: ToastContext = getContext('toast');
+	import { Toaster, createToaster } from '@skeletonlabs/skeleton-svelte';
+	const toaster = createToaster();
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -75,7 +74,7 @@ Manages token creation and updates with role selection and expiration settings. 
 			});
 
 			if (response.ok) {
-				toast.create({
+				toaster.success({
 					title: 'Success',
 					description: '<iconify-icon icon="mdi:check" color="white" width="24" class="mr-1"></iconify-icon> Token updated successfully',
 					type: 'success',
@@ -89,7 +88,7 @@ Manages token creation and updates with role selection and expiration settings. 
 			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Failed to update token';
-			toast.create({
+			toaster.error({
 				title: 'Error',
 				description: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${message}`,
 				type: 'error',
@@ -108,7 +107,7 @@ Manages token creation and updates with role selection and expiration settings. 
 			});
 
 			if (response.ok) {
-				toast.create({
+				toaster.success({
 					title: 'Success',
 					description: '<iconify-icon icon="mdi:check" color="white" width="24" class="mr-1"></iconify-icon> Token deleted successfully',
 					type: 'success',
@@ -122,7 +121,7 @@ Manages token creation and updates with role selection and expiration settings. 
 			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Failed to delete token';
-			toast.create({
+			toaster.error({
 				title: 'Error',
 				description: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${message}`,
 				type: 'error',
@@ -131,6 +130,9 @@ Manages token creation and updates with role selection and expiration settings. 
 		}
 	}
 </script>
+
+<!-- Toaster Component -->
+<Toaster {toaster} />
 
 <Modal
 	open={openState}

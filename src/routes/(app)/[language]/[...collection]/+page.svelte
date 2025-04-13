@@ -17,7 +17,8 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 
 	// Components
 	import Fields from '@components/Fields.svelte';
-	import EntryList from '@src/components/EntryList.svelte';
+	import EntryList from '@components/EntryList.svelte';
+	import Loading from '@components/Loading.svelte';
 	import MediaGallery from '@src/routes/(app)/mediagallery/+page.svelte';
 
 	// System Logger
@@ -27,7 +28,6 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	import type { AvailableLanguageTag } from '@root/src/paraglide/runtime';
 
 	import type { Schema } from '@root/src/content/types';
-	import Loading from '@root/src/components/Loading.svelte';
 
 	interface Props {
 		data: { collection: Schema & { module: string | undefined }; contentLanguage: string; user: User };
@@ -41,13 +41,12 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		isLoading = true;
 		if (!page.params.collection) return;
 
-		console.log('selectedCollection', data.collection);
+		// console.log('selectedCollection', data.collection);
 		collection.set(data.collection);
 		isLoading = false;
 	}
 
 	$effect(() => {
-		// Correctly using $effect here
 		if (data.collection.name && (!collection.value || data.collection.path !== collection.value.path)) {
 			loadCollection();
 		}
@@ -74,7 +73,16 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		if (currentPath !== newPath) goto(newPath);
 	});
 
-	// Handle browser history navigation
+	// Set mode for edit
+	$effect(() => {
+		if (page.url.pathname.includes('edit')) {
+			mode.set('edit');
+		} else if (page.url.pathname.includes('create')) {
+			mode.set('create');
+		} else {
+			mode.set('view');
+		}
+	});
 </script>
 
 <svelte:head>

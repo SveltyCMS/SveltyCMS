@@ -17,7 +17,7 @@
 
 <script lang="ts">
 	//Stores
-	import { sidebarState } from '@root/src/stores/sidebarStore.svelte';
+	import { uiStateManager } from '@root/src/stores/UIStore.svelte';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -153,7 +153,7 @@
 
 	function handleFieldDelete(field: any, event: Event) {
 		event.stopPropagation();
-		const newFields = fields.filter((f) => f !== field);
+		const newFields = fields.filter((f: any) => f !== field);
 		onFieldsUpdate(newFields);
 	}
 
@@ -224,7 +224,7 @@
 
 		{#if guiSchema}
 			{#each Object.entries(guiSchema) as [property, value]}
-				<InputSwitch bind:value={field.widget.GuiFields[property]} widget={asAny(value).widget} key={property} />
+				<InputSwitch bind:value={field.widget.GuiFields[property]} widget={asAny(value)} key={property} />
 			{/each}
 		{/if}
 	{/each}
@@ -233,13 +233,15 @@
 <!-- Edit individual selected widget  -->
 {#if currentField}
 	<div
-		class="dark:bg-surface-900 fixed -top-16 left-0 z-20 flex h-full w-full flex-col items-center justify-center overflow-auto bg-white {sidebarState
-			.sidebar.value.left === 'full'
+		class="dark:bg-surface-900 fixed -top-16 left-0 z-20 flex h-full w-full flex-col items-center justify-center overflow-auto bg-white {uiStateManager
+			.uiState.value.leftSidebar === 'full'
 			? 'left-[220px] '
 			: 'left-0 '}"
 	>
 		<div
-			class="fixed top-0 flex items-center justify-between {sidebarState.sidebar.value.left === 'full' ? 'left-[220px] w-full' : 'left-0 w-screen'}"
+			class="fixed top-0 flex items-center justify-between {uiStateManager.uiState.value.leftSidebar === 'full'
+				? 'left-[220px] w-full'
+				: 'left-0 w-screen'}"
 		>
 			<PageTitle name="Edit Widget" icon="material-symbols:ink-pen" iconColor="text-primary-500" />
 
@@ -257,10 +259,11 @@
 			{#if guiSchema}
 				{#each Object.entries(guiSchema) as [property, value]}
 					<div class="w-full">
-						<InputSwitch bind:value={currentField.widget.GuiFields[property]} widget={asAny(value).widget} key={property} />
+						<InputSwitch bind:value={currentField.widget.GuiFields[property]} widget={asAny(value)} key={property} />
 					</div>
 				{/each}
 			{/if}
 		</div>
 	</div>
 {/if}
+V

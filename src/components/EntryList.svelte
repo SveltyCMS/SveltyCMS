@@ -30,9 +30,9 @@ Features:
 
 	// Stores
 	import { contentLanguage, systemLanguage } from '@stores/store.svelte';
-	import { mode, collectionValue, modifyEntry, statusMap, collection, contentStructure } from '@src/stores/collectionStore.svelte';
-	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@src/stores/sidebarStore.svelte';
-	import { screenSize } from '@src/stores/screenSizeStore.svelte';
+	import { mode, collectionValue, modifyEntry, statusMap, collection, contentStructure } from '@stores/collectionStore.svelte';
+	import { handleUILayoutToggle, uiStateManager, toggleUIElement } from '@stores/UIStore.svelte';
+	import { screenSize } from '@stores/screenSizeStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -48,10 +48,8 @@ Features:
 	import Loading from '@components/Loading.svelte';
 
 	// Skeleton
-	import { getContext } from 'svelte';
-	import { type ToastContext } from '@skeletonlabs/skeleton-svelte';
-
-	export const toast: ToastContext = getContext('toast');
+	import { Toaster, createToaster } from '@skeletonlabs/skeleton-svelte';
+	const toaster = createToaster();
 
 	// Modals
 	import ModalConfirm from '@components/ModalConfirm.svelte';
@@ -194,7 +192,7 @@ Features:
 					for (const field of currentCollection.fields) {
 						if (field.callback && typeof field.callback === 'function') {
 							field.callback({ data: data || {} });
-							handleSidebarToggle();
+							handleUILayoutToggle();
 						}
 						// Status
 						obj.status = entry.status ? entry.status.charAt(0).toUpperCase() + entry.status.slice(1) : 'N/A';
@@ -355,7 +353,7 @@ Features:
 					case 'cloned':
 					case 'scheduled':
 						// Trigger a toast message indicating that the feature is not yet implemented
-						toast.create({
+						toaster.error({
 							title: 'Error',
 							description: 'Feature not yet implemented.',
 							type: 'error',
@@ -398,7 +396,7 @@ Features:
 						break;
 					case 'cloned':
 					case 'scheduled':
-						toast.create({
+						toaster.error({
 							title: 'Error',
 							description: 'Feature not yet implemented.',
 							type: 'error',
@@ -434,7 +432,7 @@ Features:
 			const err = error as Error;
 			console.log(`'Error deleting data: ${err.message}`);
 			// Optionally show an error toast
-			toast.create({
+			toaster.error({
 				title: 'Error',
 				description: `Failed to delete entries: ${err.message}`,
 				type: 'error',
@@ -454,6 +452,9 @@ Features:
 
 	let isCollectionEmpty = $derived(tableData.length === 0);
 </script>
+
+<!-- Toaster Component -->
+<Toaster {toaster} />
 
 <!-- Confirmation Modal Instance -->
 <ModalConfirm
@@ -478,11 +479,11 @@ Features:
 		<!-- Row 1 for Mobile -->
 		<div class="flex items-center justify-between">
 			<!-- Hamburger -->
-			{#if sidebarState.sidebar.value.left === 'hidden'}
+			{#if uiStateManager.uiState.value.leftSidebar === 'hidden'}
 				<button
 					type="button"
 					onkeydown={() => {}}
-					onclick={() => toggleSidebar('left', currentScreenSize === 'lg' ? 'full' : 'collapsed')}
+					onclick={() => toggleUIElement('leftSidebar', currentScreenSize === 'lg' ? 'full' : 'collapsed')}
 					aria-label="Open Sidebar"
 					class="preset-tonal-surface border-surface-500 btn-icon mt-1 border"
 				>
@@ -490,7 +491,7 @@ Features:
 				</button>
 			{/if}
 			<!-- Collection type with icon -->
-			<div class="mr-1 flex flex-col {!sidebarState.sidebar.value.left ? 'ml-2' : 'ml-1 sm:ml-2'}">
+			<div class="mr-1 flex flex-col {!uiStateManager.uiState.value.leftSidebar ? 'ml-2' : 'ml-1 sm:ml-2'}">
 				{#if categoryName}<div class="text-surface-500 dark:text-surface-300 mb-2 text-xs capitalize rtl:text-left">
 						{categoryName}
 					</div>
@@ -593,6 +594,9 @@ Features:
 
 								// Reset displayTableHeaders to an empty array
 								displayTableHeaders = [];
+
+								// Reset selectAllColumns to true
+								selectAllColumns = true;
 
 								// Reset selectAllColumns to true
 								selectAllColumns = true;
@@ -754,7 +758,7 @@ Features:
 										collectionValue.set(data?.entryList[index]);
 										console.debug('Edit datas: ', `${JSON.stringify(data?.entryList[index])}`);
 										mode.set('edit');
-										handleSidebarToggle();
+										handleUILayoutToggle();
 									}}
 									class="text-center font-bold"
 								>
