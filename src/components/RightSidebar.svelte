@@ -159,8 +159,6 @@
 		// If validation passed, save the data
 		if (validationPassed) {
 			try {
-				console.debug('Saving data...', { mode: mode.value, value: collectionValue.value, data: getData, collection: collection.value });
-
 				await saveFormData({
 					data: getData,
 					_collection: collection.value,

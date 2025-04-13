@@ -13,7 +13,7 @@ Features:
 	// Stores
 	import { page } from '$app/state';
 	import { tabSet } from '@stores/store.svelte';
-	import { mode, collectionValue, collections } from '@root/src/stores/collectionStore.svelte';
+	import { mode, collection } from '@root/src/stores/collectionStore.svelte';
 
 	// Components
 	import IconifyPicker from '@components/IconifyPicker.svelte';
@@ -38,9 +38,6 @@ Features:
 
 	let props = $props<{ data: any; handlePageTitleUpdate: (title: string) => void }>();
 
-	// Extract the collection name from the URL
-	let contentTypes = page.params.contentTypes;
-
 	// Define the base collection structure
 	const baseCollection: CollectionData = {
 		name: '',
@@ -50,25 +47,6 @@ Features:
 		slug: '',
 		fields: []
 	};
-
-	// Check if collection Name exists set mode edit or create
-	const collectionExists = Object.values(collections.value).some((x) => x.name === contentTypes);
-	if (collectionExists) {
-		// Get collection data from ContentManager
-		const { collections: collectionData } = props.data;
-		const collection = collectionData.find((x) => x?.name === contentTypes);
-		if (collection) {
-			mode.set('edit');
-			collectionValue.set({ ...collection } as CollectionData); // current collection
-		}
-	} else {
-		collectionValue.set({
-			...baseCollection,
-			...collectionValue.value,
-			fields: (collectionValue.value as CollectionData)?.fields || [],
-			name: contentTypes || ''
-		} as CollectionData);
-	}
 
 	// Popup Tooltips
 	const NameTooltip: PopupSettings = {
@@ -97,10 +75,13 @@ Features:
 		placement: 'right'
 	};
 
+	//action
+	let action = page.params.action;
+
 	// Form fields
 	let searchQuery = $state('');
 	let autoUpdateSlug = $state(true);
-	let selectedIcon = $state((collectionValue.value as CollectionData)?.icon || '');
+	let selectedIcon = $state(props.data?.icon || '');
 
 	// Form field values
 	let name = $state(props.data?.name ?? '');
@@ -113,37 +94,39 @@ Features:
 
 	// Update collection value when icon changes
 	$effect(() => {
-		if (selectedIcon !== (collectionValue.value as CollectionData)?.icon) {
-			collectionValue.set({
-				...(collectionValue.value as CollectionData),
+		if (!collection.value) return;
+		if (selectedIcon !== collection.value?.icon) {
+			collection.set({
+				...collection.value,
 				icon: selectedIcon
-			} as CollectionData);
+			});
 		}
 	});
 
 	// Update collection value when form fields change
 	$effect(() => {
 		if (
-			collectionValue.value.name === name &&
-			collectionValue.value.slug === slug &&
-			collectionValue.value.description === description &&
-			collectionValue.value.status === status
+			collection.value &&
+			collection.value.name === name &&
+			collection.value.slug === slug &&
+			collection.value.description === description &&
+			collection.value.status === status
 		)
 			return;
 
-		collectionValue.set({
-			...(collectionValue.value as CollectionData),
+		collection.set({
+			...collection.value,
 			name,
 			slug,
 			description,
 			status
-		} as CollectionData);
+		});
 	});
 
 	function handleNameInput() {
 		if (typeof name === 'string' && name) {
 			// Update the URL
-			window.history.replaceState({}, '', `/config/collectionbuilder/${name}`);
+			window.history.replaceState({}, '', `/config/collectionbuilder/${action}/${slug}`);
 
 			// Update the page title
 			props.handlePageTitleUpdate(name);
@@ -168,7 +151,7 @@ Features:
 
 	// Update slug and page title when collection value changes
 	$effect(() => {
-		if (collectionValue.value) {
+		if (collection.value) {
 			// Automatically update slug when name changes
 			if (autoUpdateSlug) {
 				slug = name ? name.toLowerCase().replace(/ /g, '_') : '';
@@ -216,7 +199,7 @@ Features:
 				class="input text-black dark:text-primary-500"
 			/>
 
-			{#if collectionValue.value && (collectionValue.value as CollectionData).name}
+			{#if collection.value && collection.value.name}
 				<p class="mb-3 sm:mb-0">
 					{m.collection_DBname()} <span class="font-bold text-tertiary-500 dark:text-primary-500">{DBName}</span>
 				</p>

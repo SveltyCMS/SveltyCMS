@@ -14,9 +14,9 @@
 	import { flip } from 'svelte/animate';
 	import { dndzone, type DndEvent } from 'svelte-dnd-action';
 	import type { CollectionData } from '@root/src/content/types';
-	import type { ContentNode, NestedContentNode } from '@root/src/databases/dbInterface';
+	import type { ContentNode, DatabaseId, NestedContentNode } from '@root/src/databases/dbInterface';
 	import { contructNestedStructure } from '@root/src/content/utils';
-	type DndItem = ContentNode & { id: string; isCategory: boolean; children: DndItem[] };
+	type DndItem = ContentNode & { id: string; children?: DndItem[] };
 
 	interface Props {
 		contentNodes: Record<string, ContentNode>;
@@ -25,10 +25,10 @@
 
 	let { contentNodes, onEditCategory }: Props = $props();
 
-	let nestedNodes = $derived(contructNestedStructure(contentNodes));
+	let nestedNodes = $derived(contructNestedStructure(contentStructure.value));
 
 	// State variables
-	let structuredItems = $derived.by<DndItem[]>(() => createStructuredItems(nestedNodes));
+	let structuredItems = $derived<DndItem[]>(createStructuredItems(nestedNodes));
 	let isDragging = $state(false);
 	let dragError = $state<string | null>(null);
 
@@ -52,22 +52,38 @@
 		}
 	}
 
-	function convertToConfig(nodes: DndItem[]): ContentNode[] {
-		return nodes.map((node) => ({
-			id: node.id,
-			type: node.isCategory ? 'category' : 'collection',
-			name: node.name,
-			icon: node.icon,
-			children: node.children?.length > 0 ? convertToConfig(node.children ?? []) : undefined,
-			path: node.path,
-			parentPath: node.parentPath,
-			translations: node.translations,
-			order: node.order,
-			updatedAt: node.updatedAt
-		}));
+	function convertToConfig(nodes: DndItem[]): Record<string, ContentNode> {
+		const stack: { node: DndItem; parentPath?: string }[] = nodes.map((n) => ({ node: n, parentPath: n.parentPath }));
+		const flatMap: Record<string, ContentNode> = {};
+
+		while (stack.length) {
+			const { node, parentPath } = stack.pop()!;
+			const expectedPath = parentPath ? `${parentPath}/${node.name}` : `/${node.name}`;
+
+			const needsUpdate = node.path !== expectedPath || node.parentPath !== parentPath;
+
+			if (needsUpdate) {
+				node.path = expectedPath;
+				node.parentPath = parentPath;
+			}
+
+			// Strip out children to match ContentNode type
+			const { children, ...contentNode } = node;
+			flatMap[node.path] = { ...contentNode, _id: node.id as DatabaseId };
+
+			if (children?.length) {
+				for (let i = children.length - 1; i >= 0; i--) {
+					stack.push({ node: children[i], parentPath: node.path });
+				}
+			}
+		}
+
+		console.log(flatMap);
+
+		return flatMap;
 	}
 
-	function handleDndFinalize(e: CustomEvent<DndEvent<DndItem>>) {
+	function handleDndFinalize() {
 		try {
 			const newConfig = convertToConfig(structuredItems);
 			contentStructure.set(newConfig);
@@ -94,8 +110,9 @@
 	}
 
 	$effect(() => {
-		console.log('Structured items', structuredItems);
+		console.debug('ContenStrucutre', contentStructure.value);
 	});
+
 	const flipDurationMs = 300;
 </script>
 
@@ -107,10 +124,10 @@
 	{/if}
 
 	<div
-		use:dndzone={{ items: structuredItems, flipDurationMs, centreDraggedOnCursor: true }}
+		use:dndzone={{ items: structuredItems, dragDisabled: false, flipDurationMs, centreDraggedOnCursor: true }}
 		onconsider={handleDndConsider}
 		onfinalize={handleDndFinalize}
-		class="min-h-[2em]"
+		class="min-h-[2em] pb-14"
 		role="list"
 		aria-label="Collection Categories"
 	>
@@ -118,13 +135,15 @@
 			<div animate:flip={{ duration: flipDurationMs }} class="my-1 w-full" role="listitem" aria-label={item.name}>
 				<Column
 					name={item.name}
+					path={item.path}
 					icon={item.icon as string}
 					items={item.children ?? []}
 					onUpdate={(newItems) => {
-						const updatedItems = structuredItems.map((i) => (i.id === item.id ? { ...i, items: newItems } : i));
+						console.debug('upodate Items', newItems);
+						const updatedItems = structuredItems.map((i) => (i.id === item.id ? { ...i, children: newItems } : i));
 						handleUpdate(updatedItems);
 					}}
-					isCategory={item.isCategory}
+					isCategory={item.nodeType === 'category'}
 					{onEditCategory}
 				/>
 			</div>

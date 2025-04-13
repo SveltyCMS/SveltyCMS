@@ -46,6 +46,8 @@ Manages token creation and updates with role selection and expiration settings. 
 
 	let { parent = { regionFooter: 'modal-footer p-4' }, token, email, role, expires, user_id }: Props = $props();
 
+	let formElement;
+
 	// Form Data
 	const formData = $state({
 		user_id: user_id,

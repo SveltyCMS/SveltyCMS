@@ -1,6 +1,6 @@
-<!-- 
-@files src/routes/(app)/config/collectionbuilder/[...ContentTypes]/tabs/CollectionWidget.svelte
-@component
+<!--
+@fil src/routes/(app)/config/collectionbuilder/[...ContentTypes]/tabs/CollectionWidget.svelte
+component
 **This component displays the collection widget**
 -->
 
@@ -8,12 +8,12 @@
 	// Stores
 	import { page } from '$app/state';
 	import { tabSet } from '@stores/store.svelte';
-	import { collectionValue, targetWidget } from '@src/stores/collectionStore.svelte';
+	import { targetWidget, collection } from '@src/stores/collectionStore.svelte';
 	import { getGuiFields, asAny } from '@utils/utils';
 
 	// Components
 	import VerticalList from '@components/VerticalList.svelte';
-	import * as widgets from '@src/widgets';
+	import widgets from '@src/widgets';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -23,16 +23,19 @@
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	import ModalWidgetForm from './CollectionWidget/ModalWidgetForm.svelte';
 	import ModalSelectWidget from './CollectionWidget/ModalSelectWidget.svelte';
+	import type { Field } from '@root/src/content/types';
 
-	let props = $props<{ handleCollectionSave: () => Promise<void> }>();
+	let props = $props<{ fields?: Field[]; handleCollectionSave: () => Promise<void> }>();
 
 	const modalStore = getModalStore();
 
-	// Extract the collection name from the URL
-	const contentTypes = page.params.contentTypes;
+	// Extract the collection name from the UR
+	const action = page.params.action;
+	const contentPath = page.params.contentPath;
 
 	// Helper function to map fields
 	function mapFieldsWithWidgets(fields: any[]) {
+		if (!fields) return [];
 		return fields.map((field, index) => {
 			const widgetType =
 				field.widget?.key || // For new widgets
@@ -55,12 +58,7 @@
 	}
 
 	// Use state for fields
-	let fields = $state(mapFieldsWithWidgets(collectionValue.value.fields as any[]));
-
-	// Update fields when collectionValue changes
-	$effect(() => {
-		fields = mapFieldsWithWidgets(collectionValue.value.fields as any[]);
-	});
+	let fields = $derived(mapFieldsWithWidgets(props.fields ?? []));
 
 	// Collection headers
 	const headers = ['Id', 'Icon', 'Name', 'DBName', 'Widget'];
@@ -139,10 +137,12 @@
 					fields = [...fields, newField];
 				}
 				// Update the collectionValue store
-				collectionValue.update((c) => {
+				collection.update((c) => {
 					if (c) {
 						c.fields = fields;
 					}
+
+					console.log('updated collection', c);
 					return c;
 				});
 			}
@@ -167,7 +167,7 @@
 			});
 
 			// Update the collection fields
-			collectionValue.update((c) => {
+			collection.update((c) => {
 				if (c) {
 					c.fields = updatedFields;
 				}
@@ -184,7 +184,7 @@
 <div class="flex flex-col">
 	<div class="variant-outline-tertiary rounded-t-md p-2 text-center dark:variant-outline-primary">
 		<p>
-			{m.collection_widgetfield_addrequired()} <span class="text-tertiary-500 dark:text-primary-500">{contentTypes}</span> Collection inputs.
+			{m.collection_widgetfield_addrequired()} <span class="text-tertiary-500 dark:text-primary-500">{contentPath}</span> Collection inputs.
 		</p>
 		<p class="mb-2">{m.collection_widgetfield_drag()}</p>
 	</div>

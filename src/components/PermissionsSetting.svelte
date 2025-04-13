@@ -24,10 +24,11 @@ Features:
 
 	interface Props {
 		permissions?: Record<string, Record<PermissionAction, boolean>>;
-		'on:update'?: (permissions: Record<string, Record<PermissionAction, boolean>>) => void;
+		roles?: Roles[];
+		onUpdate?: (permissions: Record<string, Record<PermissionAction, boolean>>) => void;
 	}
 
-	let { permissions = {}, 'on:update': onUpdate = () => {} }: Props = $props();
+	let { permissions = {}, onUpdate = () => {} }: Props = $props();
 
 	// Local state
 	let error: string | null = $state(null);

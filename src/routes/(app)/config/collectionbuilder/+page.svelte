@@ -37,7 +37,7 @@
 
 	// Skeleton
 	import { getToastStore, getModalStore, type ModalSettings, type ModalComponent } from '@skeletonlabs/skeleton';
-	import type { ContentNode, NestedContentNode } from '@root/src/databases/dbInterface';
+	import type { ContentNode, DatabaseId, ISODateString } from '@root/src/databases/dbInterface';
 
 	interface CategoryModalResponse {
 		newCategoryName: string;
@@ -66,6 +66,11 @@
 
 	let data: CollectionBuilderProps = $props();
 	let currentConfig = $derived(data.contentStructure);
+
+	// nodes that need to be saved
+
+	let requireSave = $state<ContentNode[]>([]);
+
 	let isLoading = $state(false);
 	let apiError = $state<string | null>(null);
 
@@ -122,10 +127,16 @@
 		const newCategoryId = uuidv4();
 
 		newConfig[categoryKey] = {
-			_id: newCategoryId,
+			_id: newCategoryId as DatabaseId,
 			name: response.newCategoryName,
 			icon: response.newCategoryIcon,
-			type: 'category'
+			order: 999,
+			translations: [],
+			updatedAt: new Date().toISOString() as ISODateString,
+			createdAt: new Date().toISOString() as ISODateString,
+			path: `/${response.newCategoryName}`,
+			parentPath: undefined,
+			nodeType: 'category'
 		};
 	}
 
@@ -165,8 +176,7 @@
 	}
 
 	// Handle collection save with conflict checking
-	function handleSave(event: CustomEvent<{ name: string; data: Record<string, CollectionData> }>): void {
-		const { name, data } = event.detail;
+	function handleSave(): void {
 		const items = Object.entries(data).map(([key, item]) => ({
 			...item,
 			path: key,
@@ -273,13 +283,7 @@
 		{m.collection_addcollection()}
 	</button>
 
-	<button
-		type="button"
-		onclick={() => handleSave(new CustomEvent('save', { detail: { name: 'categories', data: currentConfig } }))}
-		aria-label="Save"
-		class="variant-filled-primary btn gap-2 lg:ml-4"
-		disabled={isLoading}
-	>
+	<button type="button" onclick={handleSave} aria-label="Save" class="variant-filled-primary btn gap-2 lg:ml-4" disabled={isLoading}>
 		{#if isLoading}
 			<iconify-icon icon="eos-icons:loading" width="24" class="animate-spin text-white"></iconify-icon>
 		{:else}

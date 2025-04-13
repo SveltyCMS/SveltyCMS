@@ -106,7 +106,6 @@ export const col2formData = async (getData: Record<string, () => Promise<unknown
     for (const [key, getter] of Object.entries(getData)) {
       const value = getter();
       const processedValue = await processValue(value);
-      console.debug('Processing value:', processedValue);
       formData.append(key, processedValue);
     }
   };

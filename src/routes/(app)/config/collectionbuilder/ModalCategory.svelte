@@ -73,10 +73,10 @@
 
 		try {
 			if ($modalStore[0]?.response) {
-				if (!existingCategory.id) {
+				if (!existingCategory._id) {
 					// Generate new ID for new categories
 					const newId = uuidv4();
-					$modalStore[0].response({ ...formData, id: newId });
+					$modalStore[0].response({ ...formData, _id: newId });
 				} else {
 					$modalStore[0].response(formData);
 				}

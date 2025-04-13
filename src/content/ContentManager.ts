@@ -230,6 +230,7 @@ class ContentManager {
       const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
       const collectionFile = await this.readFile(`${compiledDirectoryPath}/${path}.js`);
 
+
       const schema = this.collectionMap.get(this.contentStructure[path]._id);
 
 

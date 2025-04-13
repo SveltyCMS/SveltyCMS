@@ -154,7 +154,6 @@ export async function saveFormData({
     throw error(400, message);
   }
 
-  console.debug('formData', formData.values().toArray(), $mode, data);
 
 
   // TODO: Add meta_data to formData

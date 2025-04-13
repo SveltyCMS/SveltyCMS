@@ -70,25 +70,54 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     // Check user permission for collection management
     const collectionManagementConfig = permissionConfigs.collectionManagement;
     const permissionCheck = await checkUserPermission(user, collectionManagementConfig);
-
-    await contentManager.initialize();
-    const collection = params.collectionType;
-
-    const currentCollection = await contentManager.getCollection(`/${collection}`);
-
     if (!permissionCheck.hasPermission) {
       const message = `User ${user._id} does not have permission to access collection management`;
       logger.warn(message);
       throw error(403, 'Insufficient permissions');
     }
 
+
+
+    const action = params.action;
     const { _id, ...rest } = user;
+
+
+
+    if (action === 'new') {
+      return {
+
+        user: { ...rest, id: _id.toString() },
+        roles, // Add roles data
+        permissions, // Add permissions data
+        permissionConfigs, // Add permission configs
+
+
+      }
+
+    }
+
+    await contentManager.initialize();
+    const collection = params.contentPath;
+
+    const currentCollection = await contentManager.getCollection(`/${collection}`);
+
+
+
     return {
       user: { ...rest, id: _id.toString() },
       roles, // Add roles data
       permissions, // Add permissions data
       permissionConfigs, // Add permission configs
-      collection: currentCollection
+      collection: {
+        module: currentCollection?.module,
+        name: currentCollection?.name,
+        _id: currentCollection?._id,
+        path: currentCollection?.path,
+        icon: currentCollection?.icon,
+        label: currentCollection?.label,
+        description: currentCollection?.description,
+      },
+
     };
   } catch (err) {
     if (err instanceof Error && 'status' in err) {
@@ -209,7 +238,6 @@ export const actions: Actions = {
       fs.unlinkSync(`${process.env.COLLECTIONS_FOLDER_TS}/${contentTypes}.ts`);
       await compile();
       await contentManager.updateCollections(true);
-      await getCollectionModels();
       return { status: 200 };
     } catch (err) {
       const message = `Error in deleteCollections action: ${err instanceof Error ? err.message : String(err)}`;
@@ -221,57 +249,85 @@ export const actions: Actions = {
 
 // Recursively goes through a collection's fields
 async function goThrough(object: Record<string, unknown>, fields: string): Promise<string> {
-  try {
-    const imports = new Set<string>();
+  const imports = new Set<string>();
+  /// processfields
+  async function processField(field: unknown, fields?: string) {
+    if (!(field instanceof Object)) return;
 
-    // Asynchronously processes a field recursively
-    async function processField(field: unknown, fields?: string) {
-      if (field instanceof Object) {
-        for (const key in field) {
-          await processField(field[key], fields);
+    for (const key in field) {
+      await processField(field[key], fields);
 
-          if (field[key]?.widget) {
-            const widget = widgets[field[key].widget.Name];
+      if (!field[key]?.widget) continue;
 
-            if (widget && widget.GuiSchema) {
-              for (const importKey in widget.GuiSchema) {
-                const widgetImport = widget.GuiSchema[importKey].imports;
-                if (widgetImport) {
-                  for (const _import of widgetImport) {
-                    const replacement = (field[key][importKey] || '').replace(/🗑️/g, '').trim();
-                    imports.add(_import.replace(`{${importKey}}`, replacement));
-                  }
-                }
-              }
-            }
+      const widget = widgets[field[key].widget.Name];
+      if (!widget || !widget.GuiSchema) continue;
 
-            field[key] = `🗑️widgets.${field[key].widget.key}(${JSON.stringify(field[key].widget.GuiFields, (k, value) =>
-              typeof value === 'string' ? String(value.replace(/\s*🗑️\s*/g, '🗑️').trim()) : value
-            )})🗑️`;
+      for (const importKey in widget.GuiSchema) {
+        const widgetImport = widget.GuiSchema[importKey].imports;
+        if (!widgetImport) continue;
 
-            // Check if permission is in fields[key]
-            if ('permissions' in JSON.parse(fields)[key]) {
-              const parsedFields = JSON.parse(fields);
-              const subWidget = field[key].split('}');
-              const permissions = removeFalseValues(parsedFields[key].permissions);
-              const permissionStr = `,"permissions":${JSON.stringify(permissions)}}`;
-              const newWidget = subWidget[0] + permissionStr + subWidget[1];
-              field[key] = newWidget;
-            }
-          }
+        for (const _import of widgetImport) {
+          const replacement = (field[key][importKey] || '').replace(/🗑️/g, '').trim();
+          imports.add(_import.replace(`{${importKey}}`, replacement));
         }
       }
+
+      field[key] = `🗑️widgets.${field[key].widget.key}(${JSON.stringify(
+        field[key].widget.GuiFields,
+        (k, value) => (typeof value === 'string' ? String(value.replace(/\s*🗑️\s*/g, '🗑️').trim()) : value)
+      )})🗑️`;
+      const parsedFields = JSON.parse(fields || '{}');
+
+      if (parsedFields[key]?.permissions) {
+        const subWidget = field[key].split('}');
+        const permissions = removeFalseValues(parsedFields[key].permissions);
+        const permissionStr = `,"permissions":${JSON.stringify(permissions)}}`;
+        const newWidget = subWidget[0] + permissionStr + subWidget[1];
+        field[key] = newWidget;
+      }
+
     }
+  }
+
+  try {
 
     await processField(object, fields);
-
     return Array.from(imports).join('\n');
-  } catch (err) {
+
+  }
+  catch (err) {
     const message = `Error in goThrough function: ${err instanceof Error ? err.message : String(err)}`;
     logger.error(message);
     throw error(500, message);
+
   }
+
+  // Asynchronously processes a field recursively
+
+
+
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Check if permissions are present and append them
+
+
+
+
+
 
 // Remove false values from an object
 function removeFalseValues(obj: unknown): unknown {

@@ -674,7 +674,6 @@ Features:
 								<td
 									onclick={() => {
 										collectionValue.set(data?.entryList[index]);
-										console.debug('Edit datas: ', `${JSON.stringify(data?.entryList[index])}`);
 										mode.set('edit');
 										handleSidebarToggle();
 									}}

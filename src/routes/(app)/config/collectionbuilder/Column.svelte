@@ -26,6 +26,7 @@
 
 	interface Props {
 		name: string;
+		path: string;
 		icon: string;
 		items?: DndItem[];
 		level?: number;
@@ -34,18 +35,17 @@
 		onEditCategory: (category: Pick<CollectionData, 'name' | 'icon'>) => void;
 	}
 
-	interface DndItem extends ContentNode {
+	type DndItem = ContentNode & {
 		id: string;
-		isCategory: boolean;
 		children?: DndItem[];
-	}
+	};
 
 	interface CategoryUpdateResponse {
 		newCategoryName: string;
 		newCategoryIcon: string;
 	}
 
-	let { name, icon, items = $bindable([]), level = 0, onUpdate, isCategory = false, onEditCategory }: Props = $props();
+	let { name, path, icon, items = $bindable([]), level = 0, onUpdate, isCategory = false, onEditCategory }: Props = $props();
 
 	// State variables
 	let isDragging = $state(false);
@@ -71,6 +71,7 @@
 
 	function handleDndFinalize(e: CustomEvent<DndEvent<DndItem>>) {
 		try {
+			console.debug('Finalize', e);
 			items = e.detail.items;
 			onUpdate(items);
 			updateError = null;
@@ -85,7 +86,7 @@
 	async function handleCollectionClick(item: Pick<DndItem, 'path'>) {
 		try {
 			mode.set('edit');
-			await goto(`/config/collectionbuilder/${item.path}`);
+			await goto(`/config/collectionbuilder/edit${item.path}`);
 		} catch (error) {
 			console.error('Error navigating to collection:', error);
 			updateError = error instanceof Error ? error.message : 'Error navigating to collection';
@@ -185,7 +186,7 @@
 				<iconify-icon {icon} width="18" class="text-error-500" aria-hidden="true"></iconify-icon>
 				<span class="text-black dark:text-white">{name}</span>
 			</div>
-			<button onclick={() => handleCollectionClick({ name })} aria-label={`Edit collection ${name}`} disabled={isUpdating}>
+			<button onclick={() => handleCollectionClick({ path })} aria-label={`Edit collection ${name}`} disabled={isUpdating}>
 				<iconify-icon icon="mdi:pen" width="18"></iconify-icon>
 			</button>
 		</div>
@@ -203,10 +204,11 @@
 				<div animate:flip={{ duration: flipDurationMs }} class="mx-0.5 p-0.5">
 					<Column
 						name={item.name}
+						path={item.path}
 						icon={item.icon as string}
 						items={item.children ?? []}
 						level={level + 0.25}
-						isCategory={item.isCategory}
+						isCategory={item.nodeType === 'category'}
 						onUpdate={(newItems) => {
 							item.children = newItems;
 							onUpdate(items);

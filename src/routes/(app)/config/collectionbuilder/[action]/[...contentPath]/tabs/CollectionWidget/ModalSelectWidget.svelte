@@ -44,12 +44,8 @@
 	});
 
 	// We've created a custom submit function to pass the response and close the modal.
-	function onFormSubmit(): void {
+	function onFormSubmit(selected: any): void {
 		if (selected !== null) {
-			console.log('Submitting form...');
-			console.log('Selected widget:', selected);
-			console.log('GuiSchema for selected widget:', widgets[selected]?.GuiSchema);
-
 			if ($modalStore[0].response) {
 				// Set the selected widget in the form data and update the modalStore
 				$modalStore[0].response({ selectedWidget: selected });
@@ -92,9 +88,7 @@
 						{#if item.toLowerCase().includes(searchTerm.toLowerCase())}
 							<button
 								onclick={() => {
-									console.log('Widget selected:', item);
-									selected = item;
-									onFormSubmit();
+									onFormSubmit(item);
 								}}
 								aria-label={item}
 								class="variant-outline-warning btn relative flex items-center justify-start gap-1 {selected === item

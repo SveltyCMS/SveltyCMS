@@ -5,7 +5,13 @@ import lodash from 'lodash';
 
 export const load: PageLoad = async ({ params, data }) => {
 
-  const selectedCollection = await processModule(data.collection.module as string);
+
+
+  if (params.action === 'new') {
+    return data
+  }
+
+  const selectedCollection = await processModule(data.collection?.module as string);
 
   if (!selectedCollection || !selectedCollection?.schema) return;
   // console.log('selectedCollection', selectedCollection, page.params.collection);
