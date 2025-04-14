@@ -13,8 +13,6 @@ import { publicEnv } from '@root/config/public';
 import { store } from '@utils/reactivity.svelte';
 import { createToaster } from '@skeletonlabs/skeleton-svelte';
 
-
-
 // Paraglidejs
 import * as m from '@src/paraglide/messages';
 import { setLanguageTag, type AvailableLanguageTag } from '@src/paraglide/runtime';
@@ -52,7 +50,6 @@ function getCookie(name: string): string | null {
 
 // skeleton Toast store
 export const toaster = createToaster();
-
 
 // Create base stores
 const createBaseStores = () => {
@@ -92,10 +89,10 @@ const createBaseStores = () => {
 
 	// Save functionality
 	const saveFunction = store<SaveFunction>({
-		fn: () => { },
-		reset: () => { }
+		fn: () => {},
+		reset: () => {}
 	});
-	const saveLayerStore = store(async () => { });
+	const saveLayerStore = store(async () => {});
 	const shouldShowNextButton = store(false);
 
 	// Validation

@@ -12,3 +12,6 @@
 
 /* Add your theme import for your theme: "SveltyCMSTheme" here */
 @import './themes/SveltyCMS/SveltyCMSTheme.css';
+
+/* For Dark mode */
+@custom-variant dark (&:where(.dark, .dark *));

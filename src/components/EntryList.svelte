@@ -315,6 +315,7 @@ Features:
 	$effect(() => {
 		Object.values(selectedMap).includes(true) ? mode.set('modify') : mode.set('view');
 	});
+
 	// Tick Row - modify STATUS of an Entry
 	modifyEntry.set(async (status?: keyof typeof statusMap): Promise<void> => {
 		if (!status) return Promise.resolve();

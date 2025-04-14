@@ -45,6 +45,16 @@ function createThemeStores() {
 	const isLoading = store(state().isLoading);
 	const error = store(state().error);
 
+	// Update the stores whenever the state changes
+	state.subscribe((s) => {
+		theme.set(state().currentTheme);
+		hasTheme.set(!!state().currentTheme);
+		themeName.set(state().currentTheme?.name ?? 'default');
+		isDefault.set(state().currentTheme?.isDefault ?? false);
+		isLoading.set(state().isLoading);
+		error.set(state().error);
+	});
+
 	// Initialize theme from database with system preference fallback
 	async function initialize() {
 		state.update((s) => ({ ...s, isLoading: true, error: null }));
@@ -67,6 +77,7 @@ function createThemeStores() {
 				isLoading: false,
 				lastUpdateAttempt: new Date()
 			}));
+
 			return themeData;
 		} catch (err) {
 			state.update((s) => ({
@@ -74,13 +85,14 @@ function createThemeStores() {
 				error: err instanceof Error ? err.message : 'Failed to initialize theme',
 				isLoading: false
 			}));
+
 			throw err;
 		}
 	}
 
 	// Update theme and sync with local storage
 	async function updateTheme(newTheme: Theme | string) {
-		state.update((s) => ({ ...s, isLoading: true, error: null }));
+    state.update((s) => ({ ...s, isLoading: true, error: null }));
 
 		try {
 			const themeToUpdate =

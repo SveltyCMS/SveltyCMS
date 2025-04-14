@@ -20,7 +20,7 @@ Key features:
 	import 'iconify-icon';
 
 	import { publicEnv } from '@root/config/public';
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, untrack } from 'svelte';
 	import { page } from '$app/state';
 
 	// Utils
@@ -111,7 +111,10 @@ Key features:
 	$effect(() => {
 		mode.value; // Depend on mode
 		screenSize.value; // Depend on screen size
-		uiStateManager.updateLayout();
+
+		untrack(() => {
+			uiStateManager.updateLayout();
+		});
 	});
 
 	onMount(() => {

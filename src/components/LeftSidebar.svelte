@@ -149,10 +149,7 @@
 		await updateTheme(newThemeName);
 
 		// Update document class for Tailwind v4
-		if (typeof window !== 'undefined') {
-			document.documentElement.dataset.theme = newThemeName;
-			localStorage.setItem('theme', newThemeName);
-		}
+		if (typeof window !== 'undefined') localStorage.setItem('theme', newThemeName);
 	};
 
 	function handleSelectChange(event: Event) {

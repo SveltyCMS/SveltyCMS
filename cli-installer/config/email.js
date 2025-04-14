@@ -175,6 +175,7 @@ export async function configureEmail(privateConfigData = {}) {
 			user: SMTP_EMAIL,
 			pass: SMTP_PASSWORD
 		});
+
 		s.stop(pc.green('SMTP connection successful!'));
 	} catch (error) {
 		s.stop(pc.red('SMTP connection failed.'));
