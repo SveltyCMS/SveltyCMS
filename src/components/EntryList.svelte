@@ -131,10 +131,6 @@ Features:
 	let isConfirmOpen = $state(false);
 	let listToDelete = $state<string[]>([]);
 
-	// Removed unused isFirstPage and isLastPage variables
-	// let isFirstPage: boolean;
-	// let isLastPage: boolean;
-
 	// Derived stores for reactive values
 	const currentLanguage = $derived(contentLanguage.value);
 	const currentSystemLanguage = $derived(systemLanguage.value);
@@ -246,7 +242,6 @@ Features:
 		SelectAll = false;
 		// Update pagesCount after fetching data
 		pagesCount = data?.pagesCount || 1;
-		// Removed updates for unused variables
 		// isFirstPage = currentPage === 1;
 		// isLastPage = currentPage === pagesCount;
 		// Adjust currentPage to the last page if it exceeds the new total pages count after changing the rows per page.
@@ -311,6 +306,7 @@ Features:
 	$effect(() => {
 		process_selectAll(SelectAll);
 	});
+
 	// Update Tick Single Row
 	$effect(() => {
 		Object.values(selectedMap).includes(true) ? mode.set('modify') : mode.set('view');
@@ -328,50 +324,6 @@ Features:
 		}
 		// If no rows are selected, return
 		if (modifyList.length === 0) return Promise.resolve();
-		// Removed unused handleConfirmation function declaration
-		/*
-		const handleConfirmation = async (confirm: boolean) => {
-			if (!confirm) return;
-			const formData = new FormData();
-			// Append the IDs of the items to be modified to formData
-			formData.append('ids', JSON.stringify(modifyList));
-			// Append the status to formData
-			formData.append('status', statusMap[status]);
-			try {
-				// Call the appropriate API endpoint based on the status
-				switch (status) {
-					case 'deleted':
-						// If the status is 'deleted', call the delete endpoint
-						await deleteData({ data: formData, collectionId: currentCollection?._id as string });
-						break;
-					case 'published':
-					case 'unpublished':
-					case 'testing':
-						// If the status is 'testing', call the publish endpoint
-						await setStatus({ data: formData, collectionId: currentCollection?._id as string });
-						break;
-					case 'cloned':
-					case 'scheduled':
-						// Trigger a toast message indicating that the feature is not yet implemented
-						toaster.error({
-							title: 'Error',
-							description: 'Feature not yet implemented.',
-							type: 'error',
-							duration: 4000
-						});
-						// Return to exit the function
-						break;
-				}
-				// Refresh the collection
-				refreshTableData();
-				// Set the mode to 'view'
-				mode.set('view');
-			} catch (error) {
-				const err = error as Error;
-				console.log(`'Error : ${err.message}`);
-			}
-		};
-		*/
 
 		// If status is 'deleted', trigger the confirmation modal
 		if (status === 'deleted') {
@@ -474,12 +426,11 @@ Features:
 	<!-- Header -->
 	<div class="mb-2 flex justify-between dark:text-white">
 		<!-- Row 1 for Mobile -->
-		<div class="flex items-center justify-between">
+		<div class="mt-1 flex items-center justify-between">
 			<!-- Hamburger -->
 			{#if uiStateManager.uiState.value.leftSidebar === 'hidden'}
 				<button
 					type="button"
-					onkeydown={() => {}}
 					onclick={() => toggleUIElement('leftSidebar', currentScreenSize === 'lg' ? 'full' : 'collapsed')}
 					aria-label="Open Sidebar"
 					class="preset-tonal-surface border-surface-500 btn-icon mt-1 border"
@@ -489,7 +440,8 @@ Features:
 			{/if}
 			<!-- Collection type with icon -->
 			<div class="mr-1 flex flex-col {!uiStateManager.uiState.value.leftSidebar ? 'ml-2' : 'ml-1 sm:ml-2'}">
-				{#if categoryName}<div class="text-surface-500 dark:text-surface-300 mb-2 text-xs capitalize rtl:text-left">
+				{#if categoryName}
+					<div class="text-surface-500 dark:text-surface-200 mb-2 text-xs capitalize rtl:text-left">
 						{categoryName}
 					</div>
 				{/if}
@@ -508,28 +460,22 @@ Features:
 		</div>
 		<div class="flex items-center justify-between gap-1">
 			<!-- Expand/Collapse -->
-			<button
-				type="button"
-				onkeydown={() => {}}
-				onclick={() => (expand = !expand)}
-				class="preset-tonal-surface border-surface-500 btn-icon border sm:hidden"
-				aria-label="Expand/Collapse"
-			>
-				<iconify-icon icon="material-symbols:filter-list-rounded" width="30"> </iconify-icon>
+			<button type="button" onclick={() => (expand = !expand)} class="btn-icon preset-outlined sm:hidden" aria-label="Expand/Collapse">
+				<iconify-icon icon="material-symbols:filter-list-rounded" width="32"></iconify-icon>
 			</button>
 			<!-- Translation Content Language -->
-			<div class="mt-1 sm:hidden">
+			<div class="sm:hidden">
 				<TranslationStatus />
 			</div>
 
 			<!-- Table Filter with Translation Content Language -->
-			<div class="relative mt-1 hidden items-center justify-center gap-2 sm:flex">
+			<div class="relative flex items-center justify-center gap-1 sm:flex">
 				<TableFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density />
 				<TranslationStatus />
 			</div>
 
 			<!-- MultiButton -->
-			<div class="mt-2 w-full sm:mt-0 sm:w-auto">
+			<div class="w-full sm:w-auto">
 				<EntryListMultiButton {isCollectionEmpty} />
 			</div>
 		</div>
@@ -646,7 +592,7 @@ Features:
 		<div class="table-container max-h-[calc(100dvh-120px)] overflow-auto">
 			<table class="table-interactive table {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
 				<!-- Table Header -->
-				<thead class="text-tertiary-500 dark:text-primary-500">
+				<thead class="text-tertiary-500 dark:text-primary-500 dark:bg-surface-900 sticky top-0 bg-white">
 					{#if filterShow}
 						<tr class="divide-surface-400 divide-x">
 							<th>
@@ -689,7 +635,7 @@ Features:
 							{/each}
 						</tr>
 					{/if}
-					<tr class="divide-surface-400 divide-x border-b border-black dark:border-white">
+					<tr class="divide-surface-500 divide-x border-b border-black dark:border-white">
 						<TableIcons
 							checked={SelectAll}
 							onCheck={(checked) => {
@@ -720,7 +666,7 @@ Features:
 									};
 								}}
 							>
-								<div class="relative flex items-center justify-center text-center">
+								<div class="relative flex items-center justify-center font-bold dark:text-white">
 									<!-- TODO: fix if content is translated -->
 									{#if data?.entryList[0]?.translated}
 										<iconify-icon icon="bi:translate" width="14" class="absolute top-0 right-0 text-sm text-white"></iconify-icon>
@@ -731,7 +677,7 @@ Features:
 									<iconify-icon
 										icon="material-symbols:arrow-upward-rounded"
 										width="22"
-										class="origin-center duration-300 ease-in-out"
+										class="text-tertiary-500 dark:text-primary-500 origin-center duration-300 ease-in-out"
 										class:up={sorting.isSorted === 1}
 										class:invisible={sorting.isSorted == 0 || sorting.sortedBy != header.name}
 									></iconify-icon>
@@ -753,11 +699,10 @@ Features:
 								<td
 									onclick={() => {
 										collectionValue.set(data?.entryList[index]);
-										console.debug('Edit datas: ', `${JSON.stringify(data?.entryList[index])}`);
 										mode.set('edit');
 										handleUILayoutToggle();
 									}}
-									class="text-center font-bold"
+									class="text-center"
 								>
 									{#if header.name === 'status'}
 										<!-- Use the Status component to display the Status -->
@@ -773,7 +718,7 @@ Features:
 			</table>
 		</div>
 		<!-- Pagination -->
-		<div class="sticky right-0 bottom-0 left-0 mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
+		<div class="sticky right-0 bottom-0 left-0 mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-2">
 			<TablePagination
 				{currentPage}
 				{pagesCount}

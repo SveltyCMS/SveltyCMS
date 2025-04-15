@@ -97,7 +97,7 @@ It handles widget configuration, permissions, and specific options.
 	{#snippet content()}
 		<header class="border-surface-300-700 flex items-center justify-between border-b pb-4">
 			<h2 class="h2">Define your Widget ({widgetKey || 'New'})</h2>
-			<button type="button" class="btn-icon btn-icon-sm variant-soft hover:variant-ghost" aria-label="Close modal" onclick={onClose}>
+			<button type="button" class="btn-icon btn-icon-sm preset-soft hover:preset-ghost" aria-label="Close modal" onclick={onClose}>
 				<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 			</button>
 		</header>
@@ -148,15 +148,15 @@ It handles widget configuration, permissions, and specific options.
 
 		<footer class="flex justify-between pt-4">
 			<!-- Delete Button -->
-			<button type="button" onclick={handleDelete} aria-label="Delete Widget" class="btn variant-filled-error">
+			<button type="button" onclick={handleDelete} aria-label="Delete Widget" class="btn preset-filled-error">
 				<iconify-icon icon="icomoon-free:bin" width="20" class="mr-1"></iconify-icon>
 				<span class="hidden sm:inline">{m.button_delete()}</span>
 			</button>
 
 			<!-- Cancel & Save Buttons -->
 			<div class="flex gap-3">
-				<button type="button" aria-label={m.button_cancel()} class="btn variant-soft" onclick={onClose}>{m.button_cancel()}</button>
-				<button type="button" aria-label={m.button_save()} class="btn variant-filled-primary" onclick={onFormSubmit}>{m.button_save()}</button>
+				<button type="button" aria-label={m.button_cancel()} class="btn preset-soft" onclick={onClose}>{m.button_cancel()}</button>
+				<button type="button" aria-label={m.button_save()} class="btn preset-filled-primary" onclick={onFormSubmit}>{m.button_save()}</button>
 			</div>
 		</footer>
 	{/snippet}

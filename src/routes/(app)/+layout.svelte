@@ -239,7 +239,7 @@ Key features:
 							<Loading />
 						</div>
 					{:else}
-						{@render children?.()}
+						<!-- Removed duplicate render -->
 					{/if}
 
 					{#if isNonCriticalDataLoaded}

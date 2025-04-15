@@ -221,7 +221,7 @@
 			aria-label="Go back"
 			tabindex="0"
 			onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && handleBackClick()}
-			class="preset-outline-tertiary btn-icon dark:preset-outline-primary"
+			class="btn-sm dark:preset-outline border-tertiary-500 dark:border-primary-500 text-tertiary-500 mr-1 rounded-full border dark:text-white"
 			style="min-width: 48px; min-height: 48px;"
 			data-cms-action="back"
 		>

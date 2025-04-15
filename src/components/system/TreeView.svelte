@@ -211,11 +211,11 @@
 			<button
 				type="button"
 				id={`node-${node.id}`}
-				class="border-surface-400 hover:bg-surface-50 focus:bg-surface-50 dark:bg-surface-500 dark:text-surface-200
-				dark:hover:bg-surface-400 dark:focus:bg-surface-500 flex w-full items-center gap-1.5
-				rounded border px-2
-				py-3 transition-all
-				duration-200 focus-visible:outline-hidden dark:border-0
+				class="border-surface-400 hover:bg-surface-100 focus:bg-surface-50 dark:bg-surface-500 dark:text-surface-200 dark:hover:bg-surface-400
+				dark:focus:bg-surface-500 flex w-full items-center gap-1.5 rounded-sm
+				border px-2 py-3
+				transition-all duration-200
+				hover:text-white focus-visible:outline-hidden dark:border-0
 				{node.children ? '' : 'bg-surface-300 dark:bg-surface-700'}"
 				role="treeitem"
 				aria-expanded={node.children ? node.isExpanded : undefined}
@@ -248,7 +248,9 @@
 				{/if}
 				<!-- Node label -->
 				<span
-					class="overflow-hidden text-ellipsis whitespace-nowrap select-none dark:text-white {compact ? 'text-xs' : ''}"
+					class="overflow-hidden text-ellipsis whitespace-nowrap select-none {!node.children ? 'text-white' : ''} dark:text-white {compact
+						? 'text-xs'
+						: ''}"
 					style="margin-left: {node.depth ? node.depth * 8 : 0}px"
 				>
 					{node.name}
@@ -256,7 +258,7 @@
 
 				<!-- Badge, shown after the label -->
 				{#if node.badge?.visible && (node.badge.count ?? 0) > 0 && !compact}
-					<span class="badge bg-primary-500/80 dark:bg-primary-500/50 absolute top-3 right-2 rounded-full px-2 py-1 text-xs text-white">
+					<span class="badge bg-tertiary-500/80 dark:bg-primary-500/50 absolute top-3 right-2 rounded-full px-2 py-1 text-xs text-white">
 						{node.badge.count}
 					</span>
 				{/if}

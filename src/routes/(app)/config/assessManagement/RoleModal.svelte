@@ -113,7 +113,7 @@
 	{#snippet content()}
 		<header class="border-surface-300-700 flex items-center justify-between border-b pb-4">
 			<h2 class="h2">{isEditMode ? 'Edit Role' : 'Create New Role'}</h2>
-			<button type="button" class="btn-icon btn-icon-sm variant-soft hover:variant-ghost" aria-label="Close modal" onclick={handleCancel}>
+			<button type="button" class="btn-icon btn-icon-sm preset-soft hover:preset-ghost" aria-label="Close modal" onclick={handleCancel}>
 				<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 			</button>
 		</header>
@@ -154,8 +154,8 @@
 
 			<!-- Action Buttons -->
 			<div class="flex justify-end gap-3 pt-4">
-				<button type="button" class="btn variant-soft" onclick={handleCancel}> Cancel </button>
-				<button type="submit" class="btn variant-filled-primary"> {isEditMode ? 'Update Role' : 'Create Role'} </button>
+				<button type="button" class="btn preset-soft" onclick={handleCancel}> Cancel </button>
+				<button type="submit" class="btn preset-filled-primary"> {isEditMode ? 'Update Role' : 'Create Role'} </button>
 			</div>
 		</form>
 	{/snippet}

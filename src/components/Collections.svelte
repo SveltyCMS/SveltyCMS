@@ -122,19 +122,17 @@ Features:
 <div class="mt-2">
 	{#if !isMediaMode}
 		<!-- Search Input -->
-		<div
-			class="{uiStateManager.uiState.value.leftSidebar === 'full'
-				? 'mb-2 w-full'
-				: 'mb-1 max-w-[125px]'} input-group input-group-divider grid grid-cols-[1fr_auto]"
-		>
+		<div class="{uiStateManager.uiState.value.leftSidebar === 'full' ? 'mb-2 w-full' : 'mb-1 max-w-[125px]'}  grid grid-cols-[1fr_auto]">
 			<input
 				type="text"
 				placeholder="Search collections..."
 				bind:value={search}
-				class="input {uiStateManager.uiState.value.leftSidebar === 'full' ? 'h-12' : 'h-10'} outline-hidden transition-all duration-500 ease-in-out"
+				class="input {uiStateManager.uiState.value.leftSidebar === 'full'
+					? 'h-12'
+					: 'h-10'} border-surface-500 rounded rounded-r-none border ring-0 transition-all duration-500 ease-in-out outline-none focus:ring-1"
 			/>
-			<button onclick={clearSearch} class="preset-filled-surface-500 w-12" aria-label="Clear search">
-				<iconify-icon icon="ic:outline-search-off" width="24"></iconify-icon>
+			<button onclick={clearSearch} class="btn preset-filled-surface-500 -ml-0 w-12 rounded-l-none border-l-0" aria-label="Clear search">
+				<iconify-icon icon="ic:outline-search-off" class="text-white" width="24"></iconify-icon>
 			</button>
 		</div>
 
@@ -148,16 +146,16 @@ Features:
 				{search}
 			></TreeView>
 		{:else}
-			<div class="p-4 text-center text-gray-500">{m.collection_no_collections_found()}</div>
+			<div class="text-surface-500 p-4 text-center">{m.collection_no_collections_found()}</div>
 		{/if}
 
 		<!-- Media Gallery Button -->
 		<button
-			class="btn mt-1 flex w-full rounded-sm {uiStateManager.uiState.value.leftSidebar === 'full'
+			class="btn mt-1 flex w-full {uiStateManager.uiState.value.leftSidebar === 'full'
 				? 'flex-row '
 				: 'flex-col'} border-surface-500 items-center border py-{uiStateManager.uiState.value.leftSidebar === 'full'
 				? '3'
-				: '1'} hover:bg-surface-400! dark:bg-surface-500 hover:text-white"
+				: '1'} hover:bg-surface-100! dark:bg-surface-500 hover:text-white"
 			onclick={() => {
 				mode.set('media');
 				goto('/mediagallery');
@@ -171,7 +169,7 @@ Features:
 				<iconify-icon icon="bi:images" width="24" class="text-primary-600 rtl:ml-2"></iconify-icon>
 				<p class="uppercase dark:text-white">{m.Collections_MediaGallery()}</p>
 			{:else}
-				<p class="darktext-white text-xs uppercase">{m.Collections_MediaGallery()}</p>
+				<p class="text-xs uppercase dark:text-white">{m.Collections_MediaGallery()}</p>
 				<iconify-icon icon="bi:images" width="20" class="text-primary-500"></iconify-icon>
 			{/if}
 		</button>

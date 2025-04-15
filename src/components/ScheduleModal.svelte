@@ -170,7 +170,7 @@
 			<!-- Close button for accessibility and convenience -->
 			<button
 				type="button"
-				class="btn-icon btn-icon-sm variant-soft hover:variant-ghost"
+				class="btn-icon btn-icon-sm preset-soft hover:preset-ghost"
 				aria-label="Close schedule modal"
 				onclick={() => dispatch('close')}
 			>
@@ -236,8 +236,8 @@
 
 			<!-- Action Buttons -->
 			<div class="flex justify-end gap-3 pt-4">
-				<button type="button" class="btn variant-soft" onclick={() => dispatch('close')} disabled={isSubmitting}> Cancel </button>
-				<button type="submit" class="btn variant-filled-primary" disabled={!isFormValid || isSubmitting}>
+				<button type="button" class="btn preset-soft" onclick={() => dispatch('close')} disabled={isSubmitting}> Cancel </button>
+				<button type="submit" class="btn preset-filled-primary" disabled={!isFormValid || isSubmitting}>
 					{#if isSubmitting}
 						<iconify-icon icon="line-md:loading-twotone-loop" width="18" class="mr-2"></iconify-icon>
 						Scheduling...

@@ -43,6 +43,7 @@
 
 	// Skeleton components and utilities
 	import { Avatar, Tooltip } from '@skeletonlabs/skeleton-svelte';
+
 	// State
 	let openState = $state(false);
 	const user = page.data.user;
@@ -174,7 +175,7 @@
 				type="button"
 				onclick={() => toggleUIElement('leftSidebar', 'hidden')}
 				aria-label="Open Sidebar"
-				class="preset-tonal-surface border-surface-500 btn-icon mt-1 border"
+				class="preset-tonal-surface border-surface-500 btn-icon mt-2 border"
 			>
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
@@ -220,9 +221,8 @@
 				<Tooltip
 					open={openState}
 					onOpenChange={(e) => (openState = e.open)}
-					positioning={{ placement: 'right' }}
-					triggerBase="underline"
-					contentBase="btn-icon relative cursor-pointer flex-col items-center justify-center text-center no-underline! md:row-span-2"
+					positioning={{ placement: 'top' }}
+					contentBase="preset-filled card p-2 shadow-lg"
 					openDelay={200}
 					arrow
 				>
@@ -233,35 +233,30 @@
 							size={uiStateManager.uiState.value.leftSidebar === 'full' ? 'w-[40px]' : 'w-[35px]'}
 							classes="mx-auto"
 						/>
-						<div class="text-center text-[10px] text-black uppercase dark:text-white">
+						<div class="text-center text-[10px] uppercase dark:text-white">
 							{#if uiStateManager.uiState.value.leftSidebar === 'full'}
 								{#if user?.username}
-									<div class="-ml-0.5">
-										{user?.username}
-									</div>
+									{user?.username}
 								{/if}
 							{/if}
 						</div>
 					{/snippet}
 
 					{#snippet content()}
-						<div class="card preset-filled z-50 max-w-sm p-2">
-							{m.applayout_userprofile()}
-							<div class="arrow preset-filled"></div>
-						</div>
+						{m.applayout_userprofile()}
 					{/snippet}
 				</Tooltip>
 			</div>
 
 			<!-- Enhanced System Language Selector -->
 			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-3 row-span-2 mx-auto pb-4' : 'order-2 mx-auto'}>
-				<Tooltip positioning={{ placement: 'right' }} openDelay={200}>
+				<Tooltip positioning={{ placement: 'top' }} contentBase="preset-filled card p-2 shadow-lg overflow-100" arrow openDelay={200}>
 					{#snippet trigger()}
 						<div class="language-selector relative" bind:this={dropdownRef}>
 							{#if publicEnv.AVAILABLE_SYSTEM_LANGUAGES.length > 5}
 								<button
-									class="preset-filled-surface-500 btn-icon flex items-center justify-between text-white uppercase {uiStateManager.uiState.value
-										.leftSidebar === 'full'
+									class="preset-filled-surface-500 flex items-center justify-between rounded text-center text-white uppercase {uiStateManager.uiState
+										.value.leftSidebar === 'full'
 										? 'px-2.5 py-2'
 										: 'px-1.5 py-0'}"
 									onclick={(e) => {
@@ -322,9 +317,9 @@
 						</div>
 					{/snippet}
 					{#snippet content()}
-						<div class="card preset-filled z-50 max-w-sm p-2">
+						<div class="preset-filled card z-50 max-w-sm p-2 shadow-lg">
 							{m.applayout_systemlanguage()}
-							<div class="arrow preset-filled"></div>
+							<div class="arrow"></div>
 						</div>
 					{/snippet}
 				</Tooltip>
@@ -332,7 +327,7 @@
 
 			<!-- Light/Dark mode switch -->
 			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-2' : 'order-3'}>
-				<Tooltip positioning={{ placement: 'right' }} openDelay={200}>
+				<Tooltip positioning={{ placement: 'top' }} contentBase="preset-filled card p-2 shadow-lg overflow-100" arrow openDelay={200}>
 					{#snippet trigger()}
 						<button onclick={toggleTheme} aria-label="Toggle Theme" class="btn-icon hover:bg-surface-500 hover:text-white">
 							{#if themeName() === 'dark'}
@@ -343,34 +338,28 @@
 						</button>
 					{/snippet}
 					{#snippet content()}
-						<div class="card preset-filled z-50 max-w-sm p-2">
-							{m.applayout_switchmode({ $modeCurrent: themeName() === 'dark' ? 'Light' : 'Dark' })}
-							<div class="arrow preset-filled"></div>
-						</div>
+						{m.applayout_switchmode({ $modeCurrent: themeName() === 'dark' ? 'Light' : 'Dark' })}
 					{/snippet}
 				</Tooltip>
 			</div>
 
 			<!-- Sign Out -->
 			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-4' : 'order-4'}>
-				<Tooltip positioning={{ placement: 'right' }} openDelay={200}>
+				<Tooltip positioning={{ placement: 'top' }} contentBase="preset-filled card p-2 shadow-lg overflow-100" arrow openDelay={200}>
 					{#snippet trigger()}
-						<button onclick={signOut} type="submit" value="Sign out" aria-label="Sign Out" class="btn-icon hover:bg-surface-500 hover:text-white">
+						<button onclick={signOut} type="submit" value="Sign out" aria-label="Sign Out" class="btn-icon">
 							<iconify-icon icon="uil:signout" width="26"></iconify-icon>
 						</button>
 					{/snippet}
 					{#snippet content()}
-						<div class="card preset-filled z-50 max-w-sm p-2">
-							{m.applayout_signout()}
-							<div class="arrow preset-filled"></div>
-						</div>
+						{m.applayout_signout()}
 					{/snippet}
 				</Tooltip>
 			</div>
 
 			<!-- System Configuration -->
-			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-5' : 'order-6'}>
-				<Tooltip positioning={{ placement: 'right' }} openDelay={200}>
+			<div class={`${uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-5' : 'order-6'} pt-1`}>
+				<Tooltip positioning={{ placement: 'top' }} contentBase="preset-filled card p-2 shadow-lg overflow-100" arrow openDelay={200}>
 					{#snippet trigger()}
 						<button
 							onclick={() => {
@@ -381,40 +370,29 @@
 								}
 							}}
 							aria-label="System Configuration"
-							class="btn-icon hover:bg-surface-500 pt-1.5 hover:text-white"
+							class="btn-icon"
 						>
 							<a href="/config" aria-label="System Configuration">
-								<iconify-icon icon="material-symbols:build-circle" width="32"></iconify-icon>
+								<iconify-icon icon="material-symbols:build-circle" width="34"></iconify-icon>
 							</a>
 						</button>
 					{/snippet}
 					{#snippet content()}
-						<div class="card preset-filled z-50 max-w-sm p-2">
-							{m.applayout_systemconfiguration()}
-							<div class="arrow preset-filled"></div>
-						</div>
+						{m.applayout_systemconfiguration()}
 					{/snippet}
 				</Tooltip>
 			</div>
 
 			<!-- Github discussions -->
 			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-7' : 'order-7 hidden'}>
-				<Tooltip positioning={{ placement: 'right' }} openDelay={200}>
+				<Tooltip positioning={{ placement: 'top' }} contentBase="preset-filled card p-2 shadow-lg overflow-100" arrow openDelay={200}>
 					{#snippet trigger()}
-						<a
-							href="https://github.com/SveltyCMS/SveltyCMS/discussions"
-							target="_blank"
-							aria-label="Github Discussions"
-							class="btn-icon hover:bg-surface-500 hover:text-white"
-						>
+						<a href="https://github.com/SveltyCMS/SveltyCMS/discussions" target="_blank" aria-label="Github Discussions" class="btn-icon">
 							<iconify-icon icon="grommet-icons:github" width="30"></iconify-icon>
 						</a>
 					{/snippet}
 					{#snippet content()}
-						<div class="card preset-filled z-50 max-w-sm p-2">
-							{m.applayout_githubdiscussion()}
-							<div class="arrow preset-filled"></div>
-						</div>
+						{m.applayout_githubdiscussion()}
 					{/snippet}
 				</Tooltip>
 			</div>

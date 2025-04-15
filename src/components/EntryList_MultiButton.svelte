@@ -34,6 +34,9 @@ Features:
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
+	// Transitions
+	import { slide } from 'svelte/transition';
+
 	type ActionType = 'create' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'delete' | 'test';
 
 	interface Props {
@@ -145,10 +148,10 @@ Features:
 </script>
 
 <!-- Multibutton group-->
-<div class="relative z-20 mt-1 font-medium text-white">
+<div class="relative z-20 font-medium text-white">
 	<div class="preset-filled-token-500 flex overflow-hidden rounded-l-full rounded-r-md rtl:rounded-sm rtl:rounded-r-full">
 		<!-- Left button -->
-		<button type="button" class={`w-[60px] md:w-auto rtl:rotate-180 ${buttonClass} rounded-l-full`} onclick={handleButtonClick}>
+		<button class={`btn w-[60px] md:w-auto rtl:rotate-180 ${buttonClass} rounded-l-full`} onclick={handleButtonClick}>
 			<span class="grid grid-cols-[24px_auto] items-center gap-2 rtl:rotate-180">
 				<iconify-icon icon={iconValue} width="24" class="text-white"></iconify-icon>
 				<span class="hidden text-left md:block">{actionName}</span>
@@ -156,25 +159,26 @@ Features:
 		</button>
 
 		<!-- White line -->
-		<div class="border-l-[3px] border-white"></div>
+		<div class="border-l-[1px] border-white"></div>
 
 		<!-- Dropdown button -->
 		<button
-			type="button"
-			class="bg-surface-400 dark:bg-surface-600 flex w-[42px] items-center justify-center rounded-r-md"
+			class="btn bg-surface-400 dark:bg-surface-600 flex h-[42px] w-[42px] items-center justify-center rounded-l-none rounded-r-md"
 			aria-label="Toggle dropdown"
 			onclick={(e) => {
 				e.preventDefault();
 				dropdownOpen = !dropdownOpen;
 			}}
 		>
-			<iconify-icon icon="mdi:chevron-down" width="24" class="text-white"></iconify-icon>
+			<iconify-icon icon="mdi:chevron-down" width="24" class="text-white transition-transform duration-200" class:rotate-180={dropdownOpen}
+			></iconify-icon>
 		</button>
 	</div>
 
 	{#if dropdownOpen}
 		<ul
-			class="drops bg-surface-400 dark:bg-surface-700 absolute top-full right-2 z-50 mt-1 max-h-[300px] divide-y divide-white overflow-y-auto rounded-sm rtl:right-auto rtl:left-2"
+			class="drops bg-surface-400 dark:bg-surface-700 absolute top-full z-50 mt-1 max-h-[300px] divide-y divide-white overflow-y-auto rounded-sm rtl:right-auto rtl:left-2"
+			transition:slide={{ duration: 200 }}
 		>
 			{#each Object.entries(buttonMap) as [type, [label, gradient, icon]]}
 				{#if storeListboxValue.value !== type}
@@ -183,7 +187,7 @@ Features:
 							type="button"
 							onclick={(e) => handleOptionClick(e, type as ActionType)}
 							aria-label={label}
-							class={`btn flex w-full justify-between gap-2 gradient-${gradient} ${gradient}-hover ${gradient}-focus`}
+							class={`btn flex w-full justify-between gap-2 py-2 gradient-${gradient} ${gradient}-hover ${gradient}-focus`}
 						>
 							<iconify-icon {icon} width="24" class=""></iconify-icon>
 							<p class="w-full">{label}</p>

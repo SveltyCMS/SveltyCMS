@@ -86,7 +86,7 @@
 	{#snippet content()}
 		<header class="border-surface-300-700 flex items-center justify-between border-b pb-4">
 			<h2 class="h2">Select a Widget</h2>
-			<button type="button" class="btn-icon btn-icon-sm variant-soft hover:variant-ghost" aria-label="Close modal" onclick={onClose}>
+			<button type="button" class="btn-icon btn-icon-sm preset-soft hover:preset-ghost" aria-label="Close modal" onclick={onClose}>
 				<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 			</button>
 		</header>
@@ -139,7 +139,7 @@
 		</div>
 
 		<footer class="flex justify-end pt-4">
-			<button type="button" class="btn variant-soft" onclick={onClose}>{m.button_cancel()}</button>
+			<button type="button" class="btn preset-soft" onclick={onClose}>{m.button_cancel()}</button>
 			<!-- Submit happens on widget click, no explicit save button needed here -->
 		</footer>
 	{/snippet}

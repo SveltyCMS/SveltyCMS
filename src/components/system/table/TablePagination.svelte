@@ -97,7 +97,7 @@
 </div>
 
 <!-- Pagination controls -->
-<nav class="preset-outline" aria-label="Table pagination">
+<nav class="btn-group preset-outlined-surface-500 py-0.5" aria-label="Table pagination">
 	<!-- First page button -->
 	<button
 		onclick={() => goToPage(1)}
@@ -105,7 +105,7 @@
 		type="button"
 		aria-label="Go to first page"
 		title="First Page"
-		class="btn"
+		class="btn-icon rounded-none border-r"
 		aria-disabled={isFirstPage}
 	>
 		<iconify-icon icon="material-symbols:first-page" width="24" role="presentation" aria-hidden="true"></iconify-icon>
@@ -118,7 +118,7 @@
 		type="button"
 		aria-label="Go to previous page"
 		title="Previous Page"
-		class="btn"
+		class="btn-icon rounded-none border-r"
 		aria-disabled={isFirstPage}
 	>
 		<iconify-icon icon="material-symbols:chevron-left" width="24" role="presentation" aria-hidden="true"></iconify-icon>
@@ -129,11 +129,11 @@
 		value={localRowsPerPage}
 		onchange={(event) => updateRowsPerPage(parseInt((event.target as HTMLSelectElement).value))}
 		aria-label="Select number of rows per page"
-		class="text-tertiary-500 dark:text-primary-500 mt-0.5 bg-transparent text-center"
+		class="input text-tertiary-500 dark:text-primary-500 text-center text-sm"
 		title="Rows per page"
 	>
 		{#each rowsPerPageOptions as pageSize}
-			<option class="bg-surface-500 text-white" value={pageSize}>
+			<option class="dark:bg-surface-500 rounded-none dark:text-white" value={pageSize}>
 				{pageSize}
 				{m.entrylist_rows()}
 			</option>
@@ -147,7 +147,7 @@
 		type="button"
 		aria-label="Go to next page"
 		title="Next Page"
-		class="btn"
+		class="btn-icon rounded-none border-l"
 		aria-disabled={isLastPage}
 	>
 		<iconify-icon icon="material-symbols:chevron-right" width="24" role="presentation" aria-hidden="true"></iconify-icon>
@@ -160,7 +160,7 @@
 		type="button"
 		aria-label="Go to last page"
 		title="Last Page"
-		class="btn"
+		class="btn-icon rounded-none border-l"
 		aria-disabled={isLastPage}
 	>
 		<iconify-icon icon="material-symbols:last-page" width="24" role="presentation" aria-hidden="true"></iconify-icon>

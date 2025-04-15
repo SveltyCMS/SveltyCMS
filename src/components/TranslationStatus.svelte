@@ -75,18 +75,14 @@
 	}
 
 	$effect(() => {
-		console.log('mnode:', mode.value);
+		console.log('mode:', mode.value);
 	});
 </script>
 
 {#if mode.value === 'edit' || mode.value === 'create'}
-	<div class="relative mt-1 inline-block text-left">
+	<div class="btn preset-outlined border-surface-500 h-[42px] w-[42px] border">
 		<div>
-			<button
-				type="button"
-				class="inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-xs hover:bg-gray-50 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-100 focus:outline-hidden"
-				onclick={toggleDropdown}
-			>
+			<button class="btn" onclick={toggleDropdown}>
 				{contentLanguage.value.toUpperCase()}
 				<iconify-icon icon="mdi:chevron-down" class="-mr-1 ml-2 h-5 w-5" aria-hidden="true"></iconify-icon>
 			</button>
@@ -125,7 +121,7 @@
 	</div>
 {:else}
 	<select
-		class="select w-full max-w-[70px]"
+		class="select h-[42px] w-full max-w-[72px]"
 		value={contentLanguage.value}
 		onchange={(e) => handleLanguageChange(e.currentTarget.value as AvailableLanguageTag)}
 	>

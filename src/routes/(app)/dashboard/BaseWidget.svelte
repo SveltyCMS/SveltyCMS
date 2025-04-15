@@ -104,7 +104,7 @@ Provides:
 	class:text-text-100={theme === 'dark'}
 	aria-label={`${label} widget`}
 >
-	<h2 class="widget-title mb-4 text-xl font-bold">{label}</h2>
+	<h2 class="widget-title mb-4 text-center text-xl font-bold text-white">{label}</h2>
 
 	{#if loading}
 		<div class="loading-state flex flex-1 items-center justify-center text-center">Loading...</div>

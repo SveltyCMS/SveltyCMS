@@ -34,7 +34,7 @@ Features:
 
 	let isAnimating = $state(true);
 	let animationTimeout: ReturnType<typeof setTimeout> | null = null;
-	const animationDuration = 30000; // 30 seconds
+	const animationDuration = 60000; // 60 seconds
 
 	onMount(() => {
 		// Stop animations after the specified duration
@@ -51,12 +51,7 @@ Features:
 	});
 </script>
 
-<div
-	class="absolute inset-0 flex items-center justify-center bg-black shadow-2xl"
-	role="status"
-	aria-live="polite"
-	aria-label="Loading content, please wait"
->
+<div class="absolute inset-0 flex items-center justify-center shadow-2xl" role="status" aria-live="polite" aria-label="Loading content, please wait">
 	{#if isAnimating}
 		<div class="border-error-500 relative h-[150px] w-[150px] rounded-full border-[7px] border-x-transparent" id="loader"></div>
 		<div class="border-success-400 absolute h-[170px] w-[170px] rounded-full border-[6px] border-x-transparent" id="loader2"></div>

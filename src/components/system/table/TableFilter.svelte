@@ -60,45 +60,42 @@ This component provides a lightweight, flexible interface for table filtering, u
 
 <!-- Expanding Search -->
 {#if searchShow}
-	<div class="input-group input-group-divider grid grid-cols-[auto_1fr_auto]">
-		<!-- TODO: fix global search -->
+	<div class="relative w-full">
 		<input
 			type="text"
-			placeholder="Search..."
+			placeholder="Search ..."
 			aria-label="Search for items in the table"
 			bind:value={globalSearchValue}
 			onkeydown={(e) => e.key === 'Enter' && closeOpenStates()}
-			class="input outline-hidden transition-all duration-500 ease-in-out"
+			class="input h-[42px] w-full rounded pr-12 transition-all duration-500 ease-in-out"
 		/>
-		{#if searchShow}
-			<button
-				onclick={() => {
+		<button
+			onclick={() => {
+				globalSearchValue = '';
+				searchShow = false;
+			}}
+			onkeydown={(event) => {
+				if (event.key === 'Enter' || event.key === ' ') {
 					globalSearchValue = '';
 					searchShow = false;
-				}}
-				onkeydown={(event) => {
-					if (event.key === 'Enter' || event.key === ' ') {
-						globalSearchValue = '';
-						searchShow = false;
-					}
-				}}
-				aria-label="Clear"
-				class="preset-filled-surface-500 w-12"
-				><iconify-icon icon="ic:outline-search-off" width="24"></iconify-icon>
-			</button>
-		{/if}
+				}
+			}}
+			aria-label="Clear"
+			class=" btn preset-filled-surface-500 absolute top-0 right-0 h-[42px] w-[42px] rounded-l-none px-3"
+		>
+			<iconify-icon icon="ic:outline-search-off" class="text-white" width="32"></iconify-icon>
+		</button>
 	</div>
 {:else}
 	<button
-		type="button"
 		onclick={() => {
 			closeOpenStates();
 			searchShow = !searchShow;
 		}}
 		aria-label="Search"
-		class="preset-tonal-surface border-surface-500 btn-icon border"
+		class="btn preset-outlined border-surface-500 h-[42px] w-[42px] border"
 	>
-		<iconify-icon icon="material-symbols:search-rounded" width="24"></iconify-icon>
+		<iconify-icon icon="material-symbols:search-rounded" width="32"></iconify-icon>
 	</button>
 {/if}
 
@@ -115,9 +112,9 @@ This component provides a lightweight, flexible interface for table filtering, u
 			}
 		}}
 		aria-label="Filter"
-		class="preset-tonal-surface border-surface-500 btn-icon border"
+		class="btn preset-outlined border-surface-500 h-[42px] w-[42px] border"
 	>
-		<iconify-icon icon="carbon:filter-edit" width="24"></iconify-icon>
+		<iconify-icon icon="carbon:filter-edit" width="32"></iconify-icon>
 	</button>
 
 	<!-- Column Order & Visibility -->
@@ -132,9 +129,9 @@ This component provides a lightweight, flexible interface for table filtering, u
 			}
 		}}
 		aria-label="Column"
-		class="preset-tonal-surface border-surface-500 btn-icon border"
+		class="btn preset-outlined border-surface-500 h-[42px] w-[42px] border"
 	>
-		<iconify-icon icon="fluent:column-triple-edit-24-regular" width="24"></iconify-icon>
+		<iconify-icon icon="fluent:column-triple-edit-24-regular" width="32"></iconify-icon>
 	</button>
 
 	<!-- Spacing/Density  -->
@@ -152,7 +149,7 @@ This component provides a lightweight, flexible interface for table filtering, u
 			}
 		}}
 		aria-label="Density"
-		class="preset-tonal-surface border-surface-500 btn-icon border"
+		class="btn preset-outlined border-surface-500 h-[42px] w-[42px] border"
 	>
 		<iconify-icon
 			icon={density === 'compact'
@@ -160,7 +157,7 @@ This component provides a lightweight, flexible interface for table filtering, u
 				: density === 'normal'
 					? 'material-symbols:align-space-around-rounded'
 					: 'material-symbols:align-space-between-rounded'}
-			width="24"
+			width="32"
 		></iconify-icon>
 	</button>
 {/if}

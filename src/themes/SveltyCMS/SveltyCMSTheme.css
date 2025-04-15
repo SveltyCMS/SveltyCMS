@@ -41,8 +41,8 @@
 	--body-background-color-dark: 0 0 0;
 	/* =~= Theme Colors  =~= */
 	/* primary | #5fd317 */
-	--color-primary-50: oklch(96.25% 0.12 120.09deg);
-	--color-primary-100: oklch(92.01% 0.15 125.75deg);
+	--color-primary-50: oklch(92.93% 0.21 123.01deg);
+	--color-primary-100: oklch(91.21% 0.18 126.57deg);
 	--color-primary-200: oklch(87.85% 0.17 129.95deg);
 	--color-primary-300: oklch(84.14% 0.2 132.96deg);
 	--color-primary-400: oklch(80.36% 0.22 135.49deg);

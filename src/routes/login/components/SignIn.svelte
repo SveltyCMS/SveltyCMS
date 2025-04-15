@@ -406,7 +406,7 @@ Features:
 									{m.form_signin()}
 									<!-- Loading indicators -->
 									{#if $delayed}
-										<img src="/Spinner.svg" alt="Loading.." class="filter-white ml-4 h-6" />
+										<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6 invert filter" />
 									{/if}
 								</button>
 								<!-- OAuth Login -->

@@ -175,7 +175,7 @@
 	{#snippet content()}
 		<header class="border-surface-300-700 flex items-center justify-between border-b pb-4">
 			<h2 class="h2">{existingCategory?.id ? 'Edit Category' : 'Create New Category'}</h2>
-			<button type="button" class="btn-icon btn-icon-sm variant-soft hover:variant-ghost" aria-label="Close modal" onclick={onClose}>
+			<button type="button" class="btn-icon btn-icon-sm preset-soft hover:preset-ghost" aria-label="Close modal" onclick={onClose}>
 				<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 			</button>
 		</header>
@@ -183,7 +183,7 @@
 		<article class="text-center">Enter the details for the category.</article>
 
 		{#if formError}
-			<div class="variant-soft-error rounded-sm p-2 text-center" role="alert">
+			<div class="preset-soft-error rounded-sm p-2 text-center" role="alert">
 				{formError}
 			</div>
 		{/if}
@@ -218,17 +218,17 @@
 			<!-- Footer within the form for submit -->
 			<footer class="flex {existingCategory?.id ? 'justify-between' : 'justify-end'} pt-4">
 				{#if existingCategory?.id}
-					<button type="button" onclick={requestDeleteCategory} class="btn variant-filled-error" aria-label="Delete category" disabled={isSubmitting}>
+					<button type="button" onclick={requestDeleteCategory} class="btn preset-filled-error" aria-label="Delete category" disabled={isSubmitting}>
 						<iconify-icon icon="icomoon-free:bin" width="20" class="mr-1"></iconify-icon>
 						<span class="hidden md:inline">{m.button_delete()}</span>
 					</button>
 				{/if}
 
 				<div class="flex gap-3">
-					<button type="button" onclick={onClose} class="btn variant-soft" aria-label={m.button_cancel()} disabled={isSubmitting}>
+					<button type="button" onclick={onClose} class="btn preset-soft" aria-label={m.button_cancel()} disabled={isSubmitting}>
 						{m.button_cancel()}
 					</button>
-					<button type="submit" class="btn variant-filled-primary" aria-label={m.button_save()} disabled={isSubmitting}>
+					<button type="submit" class="btn preset-filled-primary" aria-label={m.button_save()} disabled={isSubmitting}>
 						{#if isSubmitting}
 							<iconify-icon icon="eos-icons:loading" class="mr-1 animate-spin" width="20"></iconify-icon>
 						{/if}

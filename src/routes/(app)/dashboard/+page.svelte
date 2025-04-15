@@ -252,15 +252,15 @@
 					<div class="absolute top-1 right-1 z-10 flex gap-1">
 						<button
 							onclick={() => toggleSize(item.id)}
-							class="btn-icon"
+							class="btn-icon text-white"
 							aria-label="Toggle Widget Size"
 							title={item.w > 1 || item.h > 1 ? 'Shrink' : 'Expand'}
 						>
 							<iconify-icon icon={item.w > 1 || item.h > 1 ? 'mdi:arrow-collapse' : 'mdi:arrow-expand'} width="16"></iconify-icon>
 						</button>
-						<button onclick={() => remove(item.id)} class="btn-icon" aria-label="Remove Widget">✕</button>
+						<button onclick={() => remove(item.id)} class="btn-icon text-white" aria-label="Remove Widget">✕</button>
 					</div>
-					<div class="border-surface-500 bg-surface-100 dark:bg-surface-700 h-full w-full rounded-md border p-2 shadow-2xl">
+					<div class="border-surface-500 bg-surface-200 dark:bg-surface-700 h-full w-full rounded-md border p-1 shadow-2xl">
 						{#if widgetComponents[item.component]}
 							{@const SvelteComponent = widgetComponents[item.component].component}
 							<SvelteComponent label={item.label} {currentTheme} />
