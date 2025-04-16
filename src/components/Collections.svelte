@@ -159,7 +159,7 @@ Features:
 				? 'flex-row '
 				: 'flex-col'} items-center border border-surface-500 py-{sidebarState.sidebar.value.left === 'full'
 				? '3'
-				: '1'} hover:bg-surface-400! hover:text-white dark:bg-surface-500"
+				: '1'} hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
 			onclick={() => {
 				mode.set('media');
 				goto('/mediagallery');
@@ -171,9 +171,9 @@ Features:
 		>
 			{#if sidebarState.sidebar.value.left === 'full'}
 				<iconify-icon icon="bi:images" width="24" class="text-primary-600 rtl:ml-2"></iconify-icon>
-				<p class="uppercase dark:text-white">{m.Collections_MediaGallery()}</p>
+				<p class="dark:text-white">{m.Collections_MediaGallery()}</p>
 			{:else}
-				<p class="darktext-white text-xs uppercase">{m.Collections_MediaGallery()}</p>
+				<p class="darktext-white text-xs">{m.Collections_MediaGallery()}</p>
 				<iconify-icon icon="bi:images" width="20" class="text-primary-500"></iconify-icon>
 			{/if}
 		</button>
@@ -182,7 +182,11 @@ Features:
 	{#if isMediaMode}
 		<!-- Back to Collections Button -->
 		<button
-			class="hover:bg-surface-500! btn mt-1 flex w-full items-center bg-surface-400 py-2 hover:text-white dark:bg-surface-600"
+			class="btn mt-1 flex w-full rounded-sm {sidebarState.sidebar.value.left === 'full'
+				? 'flex-row '
+				: 'flex-col'} items-center border border-surface-500 py-{sidebarState.sidebar.value.left === 'full'
+				? '3'
+				: '1'} hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
 			onclick={() => {
 				mode.set('view');
 				if (get(screenSize) === 'sm') {
@@ -191,8 +195,13 @@ Features:
 				goto(`/`);
 			}}
 		>
-			<iconify-icon icon="bi:collection" width="24" class="px-2 py-1 text-error-500"></iconify-icon>
-			<p class="mr-auto text-center uppercase">Collections</p>
+			{#if sidebarState.sidebar.value.left === 'full'}
+				<iconify-icon icon="bi:collection" width="24" class="text-error-500 rtl:ml-2"></iconify-icon>
+				<p class="mr-auto text-center">Collections</p>
+			{:else}
+				<p class="darktext-white text-xs">Collections</p>
+				<iconify-icon icon="bi:collection" width="20" class="text-error-500"></iconify-icon>
+			{/if}
 		</button>
 
 		<!-- Display Virtual Folders as TreeView -->

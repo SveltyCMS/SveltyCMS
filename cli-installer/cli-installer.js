@@ -1,9 +1,14 @@
 /** 
 @file cli-installer/cli-installer.js
 @description SveltyCMS CLI Installer
+
+### Features
+- Displays a welcome message
+- Displays navigation instructions
+- Handles user input
 */
 
-import { intro, outro, isCancel, cancel } from '@clack/prompts';
+import { intro, cancel } from '@clack/prompts';
 import pc from 'picocolors';
 
 // Components
@@ -19,44 +24,26 @@ export const Title = () => {
 };
 
 // Define more prompts here for different configuration sections
-export const cancelOperation = async () => {
-	cancel('Operation cancelled.');
-	console.clear();
-	await main(); // Restart the configuration process
+export const cancelOperation = () => {
+	// No need for async now
+	cancel('Operation cancelled. Exiting installer.');
+	process.exit(1); // Exit with code 1 for cancellation
+	// The return is now unreachable, but kept for clarity if needed later
 	return;
 };
 
 export async function main() {
 	// Start installer
-	const projectStart = await startOrInstallPrompt();
-
-	if (isCancel(projectStart)) {
-		await cancelOperation();
-		return;
-	}
+	const projectStart = await startOrInstallPrompt(); // This handles its own exit/cancel
 
 	// Handle user input
 	if (projectStart === 'install') {
 		await backupRestorePrompt();
 
-		const projectConfigure = await configurationPrompt();
-
-		if (isCancel(projectConfigure)) {
-			await cancelOperation();
-			return;
-		}
+		// configurationPrompt now handles its own cancellations via cancelOperation
+		await configurationPrompt();
 	} else if (projectStart === 'start') {
-		const projectstartProcess = await startProcess();
-
-		if (isCancel(projectstartProcess)) {
-			await cancelOperation();
-			return;
-		}
-	} else if (projectStart === 'exit') {
-		outro('Thank you for using SveltyCMS CLI Installer.');
-		process.exit(0);
-	} else {
-		console.log('Invalid choice.');
+		await startProcess();
 	}
 }
 

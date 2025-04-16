@@ -1,12 +1,16 @@
 /** 
 @file cli-installer/config/mapbox.js
 @description Configuration prompts for the Mapbox section
+
+### Features
+- Displays a note about the Mapbox configuration
+- Displays existing configuration (token hidden)
+- Prompts for Mapbox integration
 */
 
-import { confirm, text, note, select, isCancel, cancel } from '@clack/prompts';
+import { confirm, note, isCancel, password } from '@clack/prompts';
 import pc from 'picocolors';
-import { Title } from '../cli-installer.js';
-import { configurationPrompt } from '../configuration.js';
+import { Title, cancelOperation } from '../cli-installer.js';
 
 export async function configureMapbox(privateConfigData = {}) {
 	// SveltyCMS Title
@@ -18,86 +22,63 @@ export async function configureMapbox(privateConfigData = {}) {
 		pc.green('Mapbox Configuration:')
 	);
 
-	// Display existing configuration
-	note(
-		`USE_MAPBOX: ${pc.red(privateConfigData.USE_MAPBOX ? 'true' : 'false')}\n` + `MAPBOX_API_TOKEN: ${pc.red(privateConfigData.MAPBOX_API_TOKEN)}`,
-		pc.red('Existing Mapbox Configuration:')
-	);
+	// Display existing configuration (token hidden)
+	if (privateConfigData.MAPBOX_API_TOKEN !== undefined) {
+		// Check if key exists, even if false
+		note(
+			`Mapbox Enabled: ${pc.cyan(privateConfigData.USE_MAPBOX ? 'Yes' : 'No')}`,
+			//`MAPBOX_API_TOKEN: ${pc.red(privateConfigData.MAPBOX_API_TOKEN)}`, // Keep token hidden
+			pc.cyan('Existing Mapbox Configuration (Token hidden):')
+		);
+	}
 
-	// Mapbox configuration
 	const USE_MAPBOX = await confirm({
 		message: 'Enable Mapbox integration?',
-		placeholder: 'false / true',
 		initialValue: privateConfigData.USE_MAPBOX || false
 	});
-
 	if (isCancel(USE_MAPBOX)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
+		await cancelOperation();
 		return;
 	}
 
-	let MAPBOX_API_TOKEN = '';
+	let MAPBOX_API_TOKEN = privateConfigData.MAPBOX_API_TOKEN || ''; // Keep existing if not re-entered
 
 	if (USE_MAPBOX) {
-		MAPBOX_API_TOKEN = await text({
+		MAPBOX_API_TOKEN = await password({
 			message: 'Enter your Mapbox API Token:',
-			placeholder: 'see https://www.mapbox.com/account/access-tokens/',
-			initialValue: privateConfigData.MAPBOX_API_TOKEN || ''
+			validate(value) {
+				if (!value) return { message: `Mapbox API Token is required when Mapbox is enabled.` };
+				return undefined;
+			}
 		});
-
 		if (isCancel(MAPBOX_API_TOKEN)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt(); // Restart the configuration process
+			await cancelOperation();
 			return;
 		}
+	} else {
+		MAPBOX_API_TOKEN = ''; // Clear token if disabled
 	}
 
-	// Summary
+	// Summary (Token hidden)
 	note(
-		`USE_MAPBOX: ${pc.green(USE_MAPBOX ? 'true' : 'false')}\n` + (USE_MAPBOX ? `MAPBOX_API_TOKEN: ${pc.green(MAPBOX_API_TOKEN)}\n` : ''),
-		pc.green('Review your Mapbox configuration:')
+		`Enable Mapbox: ${pc.green(USE_MAPBOX ? 'Yes' : 'No')}\n` + (USE_MAPBOX ? `Mapbox API Token: ${pc.green('[Set]')}\n` : ''),
+		pc.green('Review Your Mapbox Configuration:')
 	);
 
-	const action = await confirm({
-		message: 'Is the above configuration correct?',
+	const confirmSave = await confirm({
+		message: 'Save this Mapbox configuration?',
 		initialValue: true
 	});
 
-	if (isCancel(action)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
+	if (isCancel(confirmSave)) {
+		await cancelOperation();
 		return;
 	}
 
-	if (!action) {
-		console.log('Mapbox configuration canceled.');
-		const restartOrExit = await select({
-			message: 'Do you want to restart or exit?',
-			options: [
-				{ value: 'restart', label: 'Restart', hint: 'Start again' },
-				{ value: 'cancel', label: 'Cancel', hint: 'Clear and return to selection' },
-				{ value: 'exit', label: 'Exit', hint: 'Quit the installer' }
-			]
-		});
-
-		if (isCancel(restartOrExit)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt(); // Restart the configuration process
-			return;
-		}
-
-		if (restartOrExit === 'restart') {
-			return configureMapbox();
-		} else if (restartOrExit === 'exit') {
-			process.exit(1); // Exit with code 1
-		} else if (restartOrExit === 'cancel') {
-			process.exit(0); // Exit with code 0
-		}
+	if (!confirmSave) {
+		note('Configuration not saved.', pc.yellow('Action Cancelled'));
+		await cancelOperation(); // Return to main config menu
+		return;
 	}
 
 	// Compile and return the configuration data
