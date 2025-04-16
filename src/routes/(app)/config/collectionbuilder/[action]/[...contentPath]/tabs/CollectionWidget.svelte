@@ -29,8 +29,7 @@ component
 
 	const modalStore = getModalStore();
 
-	// Extract the collection name from the UR
-	const action = page.params.action;
+	// Extract the collection path from the URL
 	const contentPath = page.params.contentPath;
 
 	// Helper function to map fields
@@ -181,7 +180,7 @@ component
 	}
 </script>
 
-<div class="flex flex-col">
+<div class="flex w-full flex-col">
 	<div class="variant-outline-tertiary rounded-t-md p-2 text-center dark:variant-outline-primary">
 		<p>
 			{m.collection_widgetfield_addrequired()} <span class="text-tertiary-500 dark:text-primary-500">{contentPath}</span> Collection inputs.

@@ -67,10 +67,7 @@
 	let data: CollectionBuilderProps = $props();
 	let currentConfig = $derived(data.contentStructure);
 
-	// nodes that need to be saved
-
-	let requireSave = $state<ContentNode[]>([]);
-
+	// State
 	let isLoading = $state(false);
 	let apiError = $state<string | null>(null);
 

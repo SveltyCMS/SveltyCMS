@@ -228,8 +228,7 @@
 					<!-- Badge overlay -->
 					{#if !node.isExpanded && node.badge?.count! > 0 && !compact}
 						<div
-							class={`badge right-1 top-0  ${!node.isExpanded ? 'absolute translate-y-1/2' : 'hidden transition-opacity'} 
-              rounded-full bg-primary-500/80 px-2 py-1 text-xs text-white dark:bg-primary-500/50`}
+							class={`badge right-1 top-0  ${!node.isExpanded ? 'absolute translate-y-1/2' : 'hidden transition-opacity'} rounded-full bg-tertiary-500/80 px-2 py-1 text-xs text-white dark:bg-primary-500/50`}
 						>
 							{node.badge?.count}
 						</div>

@@ -62,7 +62,7 @@ Features:
 <PageTitle name={m.config_pagetitle()} showBackButton={true} icon="material-symbols:build-circle" />
 
 <div class="wrapper mb-2 max-h-[calc(100vh-65px)] overflow-auto">
-	<h2 class="mb-4 text-center text-tertiary-600 dark:text-primary-500">{m.config_body()}</h2>
+	<h2 class="mb-4 text-center font-bold text-tertiary-600 dark:text-primary-500">{m.config_body()}</h2>
 	<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
 		<!-- Collection -->
 		<PermissionGuard config={permissionConfigs.collectionbuilder}>
@@ -111,41 +111,41 @@ Features:
 			href="https://www.sveltyCMS.com"
 			target="_blank"
 			rel="noopener noreferrer"
-			class="config-btn variant-ghost-primary"
+			class="config-btn variant-ghost-primary dark:text-white"
 			aria-label={m.config_Martketplace()}
 		>
-			<iconify-icon icon="icon-park-outline:shopping-bag" class="config-icon text-white"></iconify-icon>
+			<iconify-icon icon="icon-park-outline:shopping-bag" class="config-icon"></iconify-icon>
 			<p class="config-text">{m.config_Martketplace()}</p>
 		</a>
 
 		<!-- Widget Management -->
 		<PermissionGuard config={permissionConfigs.widgetManagement}>
-			<a href="/config/widgetManagement" aria-label="Widget Management" class="config-btn variant-ghost-primary">
-				<iconify-icon icon="mdi:widgets" class="config-icon text-white"></iconify-icon>
+			<a href="/config/widgetManagement" aria-label="Widget Management" class="config-btn variant-ghost-primary dark:text-white">
+				<iconify-icon icon="mdi:widgets" class="config-icon"></iconify-icon>
 				<p class="config-text">Widget Management</p>
 			</a>
 		</PermissionGuard>
 
 		<!-- Theme Management -->
 		<PermissionGuard config={permissionConfigs.themeManagement}>
-			<a href="/config/themeManagement" aria-label="Theme Management" class="config-btn variant-ghost-primary">
-				<iconify-icon icon="ph:layout" class="config-icon text-white"></iconify-icon>
+			<a href="/config/themeManagement" aria-label="Theme Management" class="config-btn variant-ghost-primary dark:text-white">
+				<iconify-icon icon="ph:layout" class="config-icon"></iconify-icon>
 				<p class="config-text">Themes</p>
 			</a>
 		</PermissionGuard>
 
 		<!-- Settings -->
 		<PermissionGuard config={permissionConfigs.settings}>
-			<a href="/config/systemsetting" aria-label="System Settings" class="config-btn variant-ghost-error">
-				<iconify-icon icon="uil:setting" class="config-icon text-white"></iconify-icon>
+			<a href="/config/systemsetting" aria-label="System Settings" class="config-btn variant-ghost-error dark:text-white">
+				<iconify-icon icon="uil:setting" class="config-icon"></iconify-icon>
 				<p class="config-text">Settings</p>
 			</a>
 		</PermissionGuard>
 
 		<!-- Access Management -->
 		<PermissionGuard config={permissionConfigs.accessManagement}>
-			<a href="/config/assessManagement" aria-label="Access Management" class="config-btn variant-ghost-error">
-				<iconify-icon icon="mdi:account-group" class="config-icon text-white"></iconify-icon>
+			<a href="/config/assessManagement" aria-label="Access Management" class="config-btn variant-ghost-error dark:text-white">
+				<iconify-icon icon="mdi:account-group" class="config-icon"></iconify-icon>
 				<p class="config-text">Access Management</p>
 			</a>
 		</PermissionGuard>

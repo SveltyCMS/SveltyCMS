@@ -282,7 +282,7 @@ Key features:
 					<!-- Page Footer -->
 					{#if sidebarState.sidebar.value.pagefooter !== 'hidden'}
 						<footer
-							class="sticky left-0 top-[calc(100%-51px)] z-10 w-full border-t bg-surface-50 bg-gradient-to-b px-1 text-center dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
+							class="sticky left-0 top-[calc(100%-51px)] z-10 w-full bg-surface-50 bg-gradient-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900"
 						>
 							<PageFooter />
 						</footer>
