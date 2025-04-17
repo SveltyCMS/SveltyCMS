@@ -10,8 +10,8 @@ import type { ModifyRequestParams } from '@widgets';
 import type { RolePermissions } from '@src/auth/types';
 
 // Widget field type definition
-type WidgetKeys = keyof typeof widgets;
-type WidgetTypes = (typeof widgets)[WidgetKeys];
+export type WidgetKeys = keyof typeof widgets;
+export type WidgetTypes = (typeof widgets)[WidgetKeys];
 
 // Field value types
 export type FieldValue = string | number | boolean | null | Record<string, unknown> | Array<unknown>;
@@ -34,7 +34,7 @@ export type Field = {
 		contentLanguage: string;
 	}) => Promise<string> | string;
 	callback?: (args: { data: Record<string, FieldValue> }) => void;
-	modifyRequest?: (args: ModifyRequestParams<(typeof widgets)[WidgetKeys]>) => Promise<object>;
+	modifyRequest?: (args: ModifyRequestParams) => Promise<object>;
 };
 
 // Collection Registry - defines all available collections
@@ -104,6 +104,3 @@ export interface CollectionData {
 
 // Collection types
 export type ContentTypes = Record<string, unknown>;
-
-
-

@@ -26,7 +26,7 @@ Features:
 	// Stores
 	import { page } from '$app/state';
 	import { mode } from '@src/stores/collectionStore.svelte';
-	import { handleSidebarToggle } from '@src/stores/sidebarStore.svelte';
+	import { handleUILayoutToggle } from '@src/stores/UIStore.svelte';
 	import { isSearchVisible, triggerActionStore } from '@utils/globalSearchIndex';
 
 	// Skeleton
@@ -380,7 +380,7 @@ Features:
 		} else {
 			mode.set('view');
 			modalStore.clear();
-			handleSidebarToggle();
+			handleUILayoutToggle();
 			goto(endpoint.url.path || '/');
 		}
 		showRoutes = false;

@@ -30,8 +30,8 @@ Features:
 
 	// Stores
 	import { contentLanguage, systemLanguage } from '@stores/store.svelte';
-	import { mode, collectionValue, modifyEntry, statusMap, collection, contentStructure } from '@src/stores/collectionStore.svelte';
-	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@src/stores/sidebarStore.svelte';
+	import { mode, collectionValue, modifyEntry, statusMap, collection, contentStructure } from '@stores/collectionStore.svelte';
+	import { uiStateManager, toggleUIElement, handleUILayoutToggle } from '@stores/UIStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 
 	// ParaglideJS
@@ -186,7 +186,7 @@ Features:
 					for (const field of currentCollection.fields) {
 						if (field.callback && typeof field.callback === 'function') {
 							field.callback({ data: data || {} });
-							handleSidebarToggle();
+							handleUILayoutToggle();
 						}
 						// Status
 						obj.status = entry.status ? entry.status.charAt(0).toUpperCase() + entry.status.slice(1) : 'N/A';
@@ -402,11 +402,11 @@ Features:
 		<!-- Row 1 for Mobile -->
 		<div class="flex items-center justify-between">
 			<!-- Hamburger -->
-			{#if sidebarState.sidebar.value.left === 'hidden'}
+			{#if uiStateManager.uiState.value.leftSidebar === 'hidden'}
 				<button
 					type="button"
 					onkeydown={() => {}}
-					onclick={() => toggleSidebar('left', currentScreenSize === 'lg' ? 'full' : 'collapsed')}
+					onclick={() => toggleUIElement('leftSidebar', currentScreenSize === 'lg' ? 'full' : 'collapsed')}
 					aria-label="Open Sidebar"
 					class="variant-ghost-surface btn-icon mt-1"
 				>
@@ -414,7 +414,7 @@ Features:
 				</button>
 			{/if}
 			<!-- Collection type with icon -->
-			<div class="mr-1 flex flex-col {!sidebarState.sidebar.value.left ? 'ml-2' : 'ml-1 sm:ml-2'}">
+			<div class="mr-1 flex flex-col {!uiStateManager.uiState.value.leftSidebar ? 'ml-2' : 'ml-1 sm:ml-2'}">
 				{#if categoryName}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300 rtl:text-left">
 						{categoryName}
 					</div>
@@ -675,7 +675,7 @@ Features:
 									onclick={() => {
 										collectionValue.set(data?.entryList[index]);
 										mode.set('edit');
-										handleSidebarToggle();
+										handleUILayoutToggle();
 									}}
 									class="text-center font-bold"
 								>

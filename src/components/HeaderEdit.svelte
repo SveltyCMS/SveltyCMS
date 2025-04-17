@@ -31,18 +31,13 @@
 <script lang="ts">
 	import { getFieldName, meta_data } from '@utils/utils';
 	import { saveFormData } from '../utils/data';
-	import type { Schema, FieldValue } from '@src/content/types';
-	import type { ModifyRequestParams } from '@widgets';
 
-	interface Field {
-		name: string;
-		type: string;
-		widget: Widget;
-		label?: string;
-		required?: boolean;
-		unique?: boolean;
-		default?: FieldValue;
-	}
+	// Types
+	import type { Schema, FieldValue, Field, WidgetTypes } from '@src/content/types';
+	import type { ModifyRequestParams, Widget } from '../widgets/types';
+	import type { ContentNode } from '@src/databases/dbInterface';
+
+	// Removed local Field interface
 
 	// Components
 	import TranslationStatus from './TranslationStatus.svelte';
@@ -54,8 +49,8 @@
 
 	// Stores
 	import { page } from '$app/state';
-	import { collection, collectionValue, mode, modifyEntry, statusMap, contentStructure } from '@src/stores/collectionStore.svelte';
-	import { toggleSidebar, sidebarState } from '@src/stores/sidebarStore.svelte';
+	import { collection, collectionValue, mode, modifyEntry, statusMap, contentStructure } from '@src/stores/collectionStore.svelte'; // <-- Removed StatusType import
+	import { uiStateManager, toggleUIElement } from '@src/stores/UIStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 	import { contentLanguage, tabSet, validationStore, headerActionButton } from '@stores/store.svelte';
 
@@ -66,19 +61,12 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	interface Widget {
-		validateWidget?: () => Promise<string | null>;
-		config?: Record<string, unknown>;
-		type?: string;
-		[key: string]: unknown;
-	}
-
 	// Extend Field with translated property
 	interface TranslatableField extends Field {
 		translated: true;
-		widget: Widget;
+		widget: WidgetTypes;
 		type: string;
-		config: Widget;
+		config: WidgetTypes;
 		label: string;
 		required?: boolean;
 		unique?: boolean;
@@ -92,7 +80,7 @@
 			contentLanguage: string;
 		}) => Promise<string> | string;
 		callback?: (args: { data: Record<string, FieldValue> }) => void;
-		modifyRequest?: (args: ModifyRequestParams<Widget>) => Promise<object>;
+		modifyRequest?: (args: ModifyRequestParams) => Promise<object>; // <-- Removed generic argument again
 	}
 
 	interface SaveData {
@@ -103,6 +91,9 @@
 		date: string;
 		action: string;
 	}
+
+	// Define StatusType based on statusMap values
+	type StatusType = (typeof statusMap)[keyof typeof statusMap];
 
 	interface CollectionData extends Record<string, any> {
 		_id?: string;
@@ -116,7 +107,7 @@
 
 	// State declarations with proper types
 	let previousLanguage = $state<string>($contentLanguage);
-	let previousTabSet = $state<string>($tabSet);
+	let previousTabSet = $state<number>($tabSet);
 	let tempData = $state<Partial<Record<string, CollectionData>>>({});
 	let schedule = $state<string>(
 		typeof collectionValue.value?._scheduled === 'number' ? new Date(collectionValue.value._scheduled).toISOString().slice(0, 16) : ''
@@ -132,13 +123,15 @@
 	let categoryName = $derived(
 		(() => {
 			const categoryEntries = Object.values(contentStructure.value || {});
-			const cat = categoryEntries.find((cat: CollectionData) => cat.collections?.some((col: Schema) => col.name === collection.value?.name));
+			// Use ContentNode type for cat to match contentStructure.value type
+			const cat = categoryEntries.find((cat: ContentNode) => (cat as any).collections?.some((col: Schema) => col.name === collection.value?.name));
 			return cat?.name || '';
 		})()
 	);
 
 	// Type guard to check if the widget result has a validateWidget method
-	function hasValidateWidget(widgetInstance: Widget): widgetInstance is Required<Pick<Widget, 'validateWidget'>> {
+
+	function hasValidateWidget(widgetInstance: Widget): boolean {
 		return typeof widgetInstance?.validateWidget === 'function';
 	}
 
@@ -218,9 +211,9 @@
 			const rawValue = collectionValue.value?.[fieldName];
 			const fieldValue =
 				typeof rawValue === 'object' && rawValue !== null ? (rawValue as Record<string, any>) : (rawValue as string | number | boolean | undefined);
-			const widgetInstance = field.widget as unknown as { validateWidget?: () => Promise<string | null> };
+			const widgetInstance = field.widget as unknown as Widget;
 
-			if (hasValidateWidget(widgetInstance)) {
+			if (hasValidateWidget(widgetInstance) && widgetInstance.validateWidget) {
 				const error = await widgetInstance.validateWidget();
 				if (error) {
 					validationStore.setError(fieldName, error);
@@ -289,7 +282,7 @@
 				});
 
 				mode.set('view');
-				toggleSidebar('left', $screenSize === 'lg' ? 'full' : 'collapsed');
+				toggleUIElement('leftSidebar', $screenSize === 'lg' ? 'full' : 'collapsed');
 			} catch (err) {
 				console.error('Failed to save data:', err);
 			}
@@ -299,7 +292,7 @@
 	// function to undo the changes made by handleButtonClick
 	function handleCancel() {
 		mode.set('view');
-		toggleSidebar('left', $screenSize === 'lg' ? 'full' : 'collapsed');
+		toggleUIElement('leftSidebar', $screenSize === 'lg' ? 'full' : 'collapsed');
 	}
 
 	function handleReload() {
@@ -319,10 +312,10 @@
 >
 	<div class="flex items-center justify-start">
 		<!-- Hamburger -->
-		{#if sidebarState.sidebar.value.left === 'hidden'}
+		{#if uiStateManager.uiState.value.leftSidebar === 'hidden'}
 			<button
 				type="button"
-				onclick={() => toggleSidebar('left', $screenSize === 'lg' ? 'full' : 'collapsed')}
+				onclick={() => toggleUIElement('leftSidebar', $screenSize === 'lg' ? 'full' : 'collapsed')}
 				aria-label="Toggle Sidebar"
 				class="variant-ghost-surface btn-icon mt-1"
 			>
@@ -331,7 +324,7 @@
 		{/if}
 
 		<!-- Collection type with icon -->
-		<div class="flex {!sidebarState.sidebar.value.left ? 'ml-2' : 'ml-1'}">
+		<div class="flex {!uiStateManager.uiState.value.leftSidebar ? 'ml-2' : 'ml-1'}">
 			{#if collection.value && collection.value.icon}
 				<div class="flex items-center justify-center">
 					<iconify-icon icon={collection.value.icon} width="24" class="text-error-500"></iconify-icon>
