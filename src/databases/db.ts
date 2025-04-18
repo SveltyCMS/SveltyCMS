@@ -22,18 +22,13 @@ import { privateEnv } from '@root/config/private';
 
 import fs from 'node:fs/promises';
 
-import { error } from '@sveltejs/kit';
 import { connectToMongoDB } from './mongodb/dbconnect';
 
 // Auth
 import { Auth } from '@src/auth';
 
-// Content Manager
-import { contentManager } from '@src/content/ContentManager';
-import { getPermissionByName, getAllPermissions, syncPermissions } from '@src/auth/permissionManager';
-
 // Adapters Interfaces
-import type { DatabaseAdapter } from './dbInterface';
+import type { dbInterface } from './dbInterface';
 import type { authDBInterface } from '@src/auth/authDBInterface';
 
 // MongoDB Adapters
@@ -41,78 +36,94 @@ import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
 import { SessionAdapter } from '@src/auth/mongoDBAuth/sessionAdapter';
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
 
+// Content Manager
+import { contentManager } from '@src/content/ContentManager';
+import { getPermissionByName, getAllPermissions, syncPermissions } from '@src/auth/permissionManager';
+
 // Theme
 import { DEFAULT_THEME } from '@src/databases/themeManager';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-// Database and authentication adapters
-export let dbAdapter: DatabaseAdapter | null = null; // Database adapter
+// State Variables
+export let dbAdapter: dbInterface | null = null; // Database adapter
 export let authAdapter: authDBInterface | null = null; // Authentication adapter
 export let auth: Auth | null = null; // Authentication instance
-export let isConnected = false; // Database connection state
+export let isConnected = false; // Database connection state (primarily for external checks if needed)
 let isInitialized = false; // Initialization state
 let initializationPromise: Promise<void> | null = null; // Initialization promise
-let adaptersLoaded = false;
+let adaptersLoaded = false; // Internal flag
+
 // Load database and authentication adapters
 async function loadAdapters() {
-  logger.debug(`Loading adapters for DB_TYPE: \x1b[33m${privateEnv.DB_TYPE}\x1b[0m...`); // More informative log
+  if (adaptersLoaded) return;
+  logger.debug(`Loading \x1b[34m${privateEnv.DB_TYPE}\x1b[0m adapters...`);
+
   try {
-    if (privateEnv.DB_TYPE === 'mongodb') {
-      const { MongoDBAdapter } = await import('./mongodb/mongoDBAdapter');
-      dbAdapter = new MongoDBAdapter();
-      const userAdapter = new UserAdapter();
-      const sessionAdapter = new SessionAdapter();
-      const tokenAdapter = new TokenAdapter();
-      authAdapter = {
-        // User Management Methods
-        createUser: userAdapter.createUser.bind(userAdapter),
-        updateUserAttributes: userAdapter.updateUserAttributes.bind(userAdapter),
-        deleteUser: userAdapter.deleteUser.bind(userAdapter),
-        getUserById: userAdapter.getUserById.bind(userAdapter),
-        getUserByEmail: userAdapter.getUserByEmail.bind(userAdapter),
-        getAllUsers: userAdapter.getAllUsers.bind(userAdapter),
-        getUserCount: userAdapter.getUserCount.bind(userAdapter),
+    switch (privateEnv.DB_TYPE) {
+      case 'mongodb': {
+        const { MongoDBAdapter } = await import('./mongodb/mongoDBAdapter');
+        dbAdapter = new MongoDBAdapter();
 
-        // Session Management Methods
-        createSession: sessionAdapter.createSession.bind(sessionAdapter),
-        updateSessionExpiry: sessionAdapter.updateSessionExpiry.bind(sessionAdapter),
-        deleteSession: sessionAdapter.deleteSession.bind(sessionAdapter),
-        deleteExpiredSessions: sessionAdapter.deleteExpiredSessions.bind(sessionAdapter),
-        validateSession: sessionAdapter.validateSession.bind(sessionAdapter),
-        invalidateAllUserSessions: sessionAdapter.invalidateAllUserSessions.bind(sessionAdapter),
-        getActiveSessions: sessionAdapter.getActiveSessions.bind(sessionAdapter),
+        const userAdapter = new UserAdapter();
+        const sessionAdapter = new SessionAdapter();
+        const tokenAdapter = new TokenAdapter();
 
-        // Token Management Methods
-        createToken: tokenAdapter.createToken.bind(tokenAdapter),
-        validateToken: tokenAdapter.validateToken.bind(tokenAdapter),
-        consumeToken: tokenAdapter.consumeToken.bind(tokenAdapter),
-        getAllTokens: tokenAdapter.getAllTokens.bind(tokenAdapter),
-        deleteExpiredTokens: tokenAdapter.deleteExpiredTokens.bind(tokenAdapter),
+        authAdapter = {
+          // User Management Methods
+          createUser: userAdapter.createUser.bind(userAdapter),
+          updateUserAttributes: userAdapter.updateUserAttributes.bind(userAdapter),
+          deleteUser: userAdapter.deleteUser.bind(userAdapter),
+          getUserById: userAdapter.getUserById.bind(userAdapter),
+          getUserByEmail: userAdapter.getUserByEmail.bind(userAdapter),
+          getAllUsers: userAdapter.getAllUsers.bind(userAdapter),
+          getUserCount: userAdapter.getUserCount.bind(userAdapter),
 
-        // Permission Management Methods
-        getAllPermissions,
-        getPermissionByName
-      } as authDBInterface;
-      logger.debug('MongoDB adapters loaded successfully.');
-    } else if (privateEnv.DB_TYPE === 'mariadb' || privateEnv.DB_TYPE === 'postgresql') {
-      logger.debug('Implement & Loading SQL adapters...');
-      // Implement SQL adapters loading here
-      throw new Error(`SQL adapter loading not yet implemented for ${privateEnv.DB_TYPE}`);
-    } else {
-      logger.error(`Unsupported DB_TYPE: \x1b[31m${privateEnv.DB_TYPE}\x1b[0m`); // Use logger.error for truly unsupported configurations
-      throw error(500, `Unsupported DB_TYPE: ${privateEnv.DB_TYPE}`);
+          // Session Management Methods
+          createSession: sessionAdapter.createSession.bind(sessionAdapter),
+          updateSessionExpiry: sessionAdapter.updateSessionExpiry.bind(sessionAdapter),
+          deleteSession: sessionAdapter.deleteSession.bind(sessionAdapter),
+          deleteExpiredSessions: sessionAdapter.deleteExpiredSessions.bind(sessionAdapter),
+          validateSession: sessionAdapter.validateSession.bind(sessionAdapter),
+          invalidateAllUserSessions: sessionAdapter.invalidateAllUserSessions.bind(sessionAdapter),
+          getActiveSessions: sessionAdapter.getActiveSessions.bind(sessionAdapter),
+
+          // Token Management Methods
+          createToken: tokenAdapter.createToken.bind(tokenAdapter),
+          validateToken: tokenAdapter.validateToken.bind(tokenAdapter),
+          consumeToken: tokenAdapter.consumeToken.bind(tokenAdapter),
+          getAllTokens: tokenAdapter.getAllTokens.bind(tokenAdapter),
+          deleteExpiredTokens: tokenAdapter.deleteExpiredTokens.bind(tokenAdapter),
+
+          // Permission Management Methods (Imported)
+          getAllPermissions,
+          getPermissionByName
+        };
+        logger.debug('MongoDB adapters loaded successfully.');
+        break;
+      }
+      case 'mariadb':
+      case 'postgresql':
+        // Implement SQL adapters loading here
+        logger.error(`SQL adapter loading not yet implemented for ${privateEnv.DB_TYPE}`);
+        throw new Error(`Unsupported DB_TYPE: ${privateEnv.DB_TYPE}`);
+      default:
+        throw new Error(`Unsupported DB_TYPE: ${privateEnv.DB_TYPE}`);
     }
+    adaptersLoaded = true;
   } catch (err) {
-    const message = `Error in loadAdapters: ${err instanceof Error ? err.message : String(err)}`;
+    const message = `Error loading adapters: ${err instanceof Error ? err.message : String(err)}`;
     logger.error(message);
-    throw error(500, message);
+    adaptersLoaded = false; // Ensure flag is reset on error
+    // Re-throwing here will cause the initializationPromise to reject
+    throw new Error(message);
   }
 }
 
 // Initialize default theme
-async function initializeDefaultTheme(dbAdapter: DatabaseAdapter): Promise<void> {
+async function initializeDefaultTheme(): Promise<void> {
+  if (!dbAdapter) throw new Error('Cannot initialize themes: dbAdapter is not available.');
   try {
     logger.debug('Initializing \x1b[34mdefault theme\x1b[0m...');
     const themes = await dbAdapter.themes.getAllThemes();
@@ -125,14 +136,14 @@ async function initializeDefaultTheme(dbAdapter: DatabaseAdapter): Promise<void>
       logger.info('Themes already exist in the database. Skipping default theme initialization.');
     }
   } catch (err) {
-    const message = `Error in initializeDefaultTheme: ${err instanceof Error ? err.message : String(err)}`;
+    const message = `Error initializing default theme: ${err instanceof Error ? err.message : String(err)}`;
     logger.error(message);
-    throw error(500, message);
+    throw new Error(message);
   }
 }
 
 // Initialize the media folder
-async function initializeMediaFolder() {
+async function initializeMediaFolder(): Promise<void> {
   const mediaFolderPath = publicEnv.MEDIA_FOLDER;
   try {
     // Check if the media folder exists
@@ -147,13 +158,12 @@ async function initializeMediaFolder() {
 }
 
 // Initialize virtual folders
-async function initializeVirtualFolders() {
-  if (!dbAdapter) {
-    throw error(500, 'Database adapter not initialized');
-  }
+async function initializeVirtualFolders(): Promise<void> {
+  if (!dbAdapter) throw new Error('Cannot initialize virtual folders: dbAdapter is not available.');
   try {
     const virtualFolders = await dbAdapter.virtualFolders.getAll();
     if (virtualFolders.length === 0) {
+      logger.info('No virtual folders found. Creating default root folder...');
       // Create a default root folder
       const rootFolder = await dbAdapter.virtualFolders.create({
         _id: dbAdapter.utils.generateId(), // ✅ Correct
@@ -162,7 +172,6 @@ async function initializeVirtualFolders() {
         path: publicEnv.MEDIA_FOLDER,
         type: 'folder'
       });
-
       // Log only the essential information
       logger.info('Default root virtual folder created:', {
         name: rootFolder.name,
@@ -173,24 +182,45 @@ async function initializeVirtualFolders() {
       logger.info(`Found \x1b[34m${virtualFolders.length}\x1b[0m virtual folders.`);
     }
   } catch (err) {
-    const message = `Error in initializeVirtualFolders: ${err instanceof Error ? err.message : String(err)}`;
+    const message = `Error initializing virtual folders: ${err instanceof Error ? err.message : String(err)}`;
     logger.error(message);
-    throw error(500, message);
+    throw new Error(message);
   }
 }
 
 // Initialize adapters
-async function initializeAdapters(): Promise<void> {
+async function initializeRevisions(): Promise<void> {
+  if (!dbAdapter) throw new Error('Cannot initialize revisions: dbAdapter is not available.');
+  // Add any revision-specific setup if needed in the future
+  logger.debug('Revisions initialized.');
+}
+
+// Core Initialization Logic
+async function initializeSystem(): Promise<void> {
+  // Prevent re-initialization
   if (isInitialized) {
-    logger.debug('Adapters already initialized, skipping initialization.');
+    logger.debug('System already initialized. Skipping.');
     return;
   }
+  logger.info('Starting SvelteCMS System Initialization...');
+
   try {
-    // Load adapters and connect to MongoDB concurrently
-    await Promise.all([loadAdapters(), connectToMongoDB()]);
-    if (!dbAdapter) {
-      throw error(500, 'Database adapter not initialized');
+    // 1. Connect to Database & Load Adapters (Concurrently)
+    logger.debug('Connecting to database and loading adapters...');
+    await Promise.all([
+      connectToMongoDB(), // Assuming this handles its own retries/errors
+      loadAdapters() // Handles its own errors and throws if fails
+    ]);
+    isConnected = true; // Mark connected after DB connection succeeds
+    logger.debug('Database connected and adapters loaded.');
+
+    // Check if adapters loaded correctly (loadAdapters throws on critical failure)
+    if (!dbAdapter || !authAdapter) {
+      throw new Error('Database or Authentication adapter failed to load.');
     }
+
+    // 2. Setup Core Database Models (Essential for subsequent steps)
+    logger.debug('Setting up core database models...');
     // Initialize database models
     await dbAdapter.auth.setupAuthModels();
     await dbAdapter.media.setupMediaModels();
@@ -224,26 +254,53 @@ async function initializeAdapters(): Promise<void> {
   }
 }
 
-// Initialize revisions
-async function initializeRevisions() {
-  if (!dbAdapter) {
-    throw error(500, 'Database adapter not initialized');
-  }
-
-  // Implement any revision-specific initialization logic here
-  logger.info('Revisions initialized successfully');
-}
-
-// Ensure initialization runs once
+// Singleton Initialization Execution
 if (!initializationPromise) {
-  initializationPromise = initializeAdapters()
-    .then(() => logger.info('Initialization completed successfully.'))
-    .catch((err) => {
-      const message = `Initialization promise rejected with error: ${err instanceof Error ? err.message : String(err)}`;
-      logger.error(message);
-      initializationPromise = null;
-      throw err;
-    });
+  logger.debug('Creating system initialization promise.');
+  initializationPromise = initializeSystem();
+
+  // initializeSystem Catch any errors that might be caught
+  initializationPromise.catch(() => {
+    logger.error(`The main initializationPromise was rejected. See previous errors for details.`);
+    // Ensure promise variable is cleared so retries might be possible if the app handles it
+    initializationPromise = null;
+  });
+} else {
+  logger.debug('Initialization promise already exists.');
 }
 
-export { initializationPromise as dbInitPromise }
+// --- Full System Ready Promise (including ContentManager) ---
+
+// This function ensures ContentManager initializes *after* the core DB/Auth setup
+async function initializeFullSystem(): Promise<void> {
+  try {
+    // Wait for the core DB/Auth adapters and setup to complete
+    await initializationPromise; // Wait for the original promise
+    logger.debug('Core system initialized (dbInitPromise resolved). Now initializing ContentManager...');
+
+    // Now initialize the Content Manager
+    await contentManager.initialize();
+    logger.info('ContentManager initialized as part of full system startup.');
+  } catch (err) {
+    // If either initializationPromise or contentManager.initialize fails
+    logger.error(`Full system initialization failed: ${err instanceof Error ? err.message : String(err)}`);
+    // We might want to re-throw or handle this specifically
+    throw err; // Re-throw to indicate startup failure
+  }
+}
+
+// Create and export a promise that represents the *fully* initialized system
+let fullSystemPromise: Promise<void> | null = null;
+if (!fullSystemPromise) {
+  logger.debug('Creating full system ready promise.');
+  fullSystemPromise = initializeFullSystem();
+  fullSystemPromise.catch(() => {
+    logger.error('The fullSystemReadyPromise was rejected. See previous errors.');
+    fullSystemPromise = null; // Allow potential retry?
+  });
+}
+
+// Export the promises so other modules can wait
+// dbInitPromise: Resolves when DB connection and core adapters/models are ready
+// fullSystemReadyPromise: Resolves when dbInitPromise is done AND ContentManager is initialized
+export { initializationPromise as dbInitPromise, fullSystemPromise as fullSystemReadyPromise };

@@ -11,7 +11,7 @@
  * - Error handling
  */
 
-import { dbAdapter, dbInitPromise } from '@src/databases/db';
+import { dbAdapter } from '@src/databases/db';
 import fs from 'fs/promises';
 
 import { v4 as uuidv4 } from 'uuid';
@@ -57,9 +57,9 @@ class ContentManager {
   private contentStructure: Record<string, ContentNode> = {};
   private dbInitPromise: Promise<void> | null = null;
 
-  private constructor() {
-    this.dbInitPromise = dbInitPromise;
-  }
+  // private constructor() {
+  //   this.dbInitPromise = dbInitPromise;
+  // }
 
   static getInstance(): ContentManager {
     if (!ContentManager.instance) {
@@ -70,9 +70,9 @@ class ContentManager {
 
   // Wait for initialization to complete
   async waitForInitialization(): Promise<void> {
-    if (this.dbInitPromise) {
-      await this.dbInitPromise;
-    }
+    // if (this.dbInitPromise) {
+    //   await this.dbInitPromise;
+    // }
   }
 
   // Initialize the collection manager
