@@ -13,9 +13,9 @@
  * server-side logic for handling file uploads.
  */
 
-import { publicEnv } from '@root/config/public';
+// Removed unused import: import { publicEnv } from '@root/config/public';
 
-import { error, redirect } from '@sveltejs/kit';
+import { error, redirect, invalidateAll } from '@sveltejs/kit'; // Import invalidateAll
 import type { Actions, PageServerLoad } from './$types';
 
 // Utils
@@ -82,7 +82,7 @@ function convertIdToString(obj: Record<string, unknown> | Array<unknown>): Recor
 	return root;
 }
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, url }) => { // Add url parameter
 	if (!dbAdapter) {
 		logger.error('Database adapter is not initialized');
 		throw error(500, 'Internal Server Error');
@@ -95,61 +95,83 @@ export const load: PageServerLoad = async ({ locals }) => {
 			throw redirect(302, '/login');
 		}
 
-		const folderIdentifier = publicEnv.MEDIA_FOLDER;
+		const folderId = url.searchParams.get('folderId'); // Get folderId from URL
+		logger.info(`Loading media gallery for folderId: ${folderId || 'root'}`);
 
-		// Fetch media files
+		// Fetch all virtual folders first to find the current one
+		const folderResult = await dbAdapter.virtualFolders.getAll();
+		if (!folderResult.success) {
+			logger.error(`Failed to fetch virtual folders: ${folderResult.error.message}`);
+			throw error(500, 'Failed to fetch folders');
+		}
+		const allVirtualFolders = folderResult.data || [];
+		const serializedVirtualFolders = allVirtualFolders.map((folder) => convertIdToString(folder));
+
+		// Determine current folder
+		const currentFolder = folderId ? serializedVirtualFolders.find((f) => f._id === folderId) || null : null;
+		logger.debug('Current folder determined:', currentFolder);
+
+		// --- Fetch Media Files based on currentFolder ---
 		const media_types = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
-
 		const media_promises = media_types.map((type) => {
-			const query = type === 'media_remote' ? { folder: folderIdentifier } : {};
-			return dbAdapter && dbAdapter.crud.findMany(type, query);
+			// Base query: filter by parent folder ID (null for root)
+			// Assuming media items have a 'parent' field storing the folder _id
+			const query: Record<string, string | null> = { parent: folderId || null }; // Use more specific type
+
+			// Special handling for media_remote if needed (adjust as per your schema)
+			// if (type === 'media_remote') {
+			// 	query.folder = publicEnv.MEDIA_FOLDER; // Example if remote media uses a different field
+			// }
+
+			logger.debug(`Querying ${type} with:`, query);
+			return dbAdapter.crud.findMany(type, query);
 		});
 
-		let results = await Promise.all(media_promises);
+		const mediaResults = await Promise.all(media_promises); // Use const
 
-		logger.debug('Media result', results);
+		logger.debug('Raw media results from DB:', mediaResults);
 
-		results = results.map(
-			(arr, index) =>
-				arr &&
-				arr.map((item) =>
-					convertIdToString({
+		// Process and flatten media results
+		const processedMedia = mediaResults
+			.map((arr, index) => {
+				if (!arr) return []; // Handle potential null/undefined results from findMany
+				return arr.map((item) => {
+					const mediaType = media_types[index]; // Get the full collection name (e.g., 'media_images')
+					const simpleType = mediaType.split('_')[1]; // Get the simple type (e.g., 'images')
+					const thumbnailFilename = item.thumbnail?.url; // Assuming thumbnail.url stores the filename like 'image.jpg'
+					const extension = thumbnailFilename ? thumbnailFilename.split('.').pop() : '';
+
+					return convertIdToString({
 						...item,
-						path: item.path ?? 'global',
-						name: item.name ?? item.filename ?? 'unnamed-media',
-						type: media_types[index].split('_')[1],
-						url: item.thumbnail?.url
-							? constructUrl('global', item.hash, item.thumbnail.url, item.thumbnail.url.split('.').pop(), media_types[index])
+						path: item.path ?? 'global', // Ensure path exists
+						name: item.name ?? item.filename ?? 'unnamed-media', // Ensure name exists
+						type: simpleType, // Use simple type like 'images', 'documents'
+						// Construct URLs using item.hash and thumbnail filename
+						url: thumbnailFilename
+							? constructUrl('global', item.hash, thumbnailFilename, extension, mediaType) // Pass full mediaType
 							: '',
-						thumbnailUrl: item.thumbnail?.url
-							? constructUrl('global', item.hash, `${item.thumbnail.url}-thumbnail`, item.thumbnail.url.split('.').pop(), media_types[index])
+						thumbnailUrl: thumbnailFilename
+							? constructUrl('global', item.hash, `${thumbnailFilename}-thumbnail`, extension, mediaType) // Pass full mediaType
 							: ''
-					})
-				)
-		);
+					});
+				});
+			})
+			.flat() // Flatten the array of arrays into a single array
+			.filter((item): item is Record<string, unknown> => item !== null); // Type guard to filter out nulls if any
 
-		const media = results.flat();
-
-		// Fetch virtual folders
-		const result = await dbAdapter.virtualFolders.getAll();
-		if (!result.success) {
-			logger.error(`Failed to fetch virtual folders: ${result.error.message}`);
-		}
-		const virtualFolders = result.data;
-
-		const serializedVirtualFolders = virtualFolders.map((folder) => convertIdToString(folder));
-
-		logger.info(`Fetched \x1b[34m${serializedVirtualFolders.length}\x1b[0m virtual folders`);
+		logger.info(`Fetched \x1b[34m${processedMedia.length}\x1b[0m media items for folder ${folderId || 'root'}`);
+		logger.info(`Fetched \x1b[34m${serializedVirtualFolders.length}\x1b[0m total virtual folders`);
 
 		logger.debug('Media gallery data and virtual folders loaded successfully');
 		const returnData = {
-			user: {
+			user: { // Ensure user data is serializable
 				role: user.role,
-				_id: user._id,
+				_id: user._id.toString(), // Convert user ID to string
 				avatar: user.avatar
 			},
-			media,
-			virtualFolders: serializedVirtualFolders
+			media: processedMedia, // Use the processed and filtered media
+			virtualFolders: serializedVirtualFolders, // All folders for the VirtualFolders component
+			currentFolder: currentFolder // The specific folder object for the current view
 		};
 
 		// Added Debugging: Log the returnData
@@ -221,6 +243,7 @@ export const actions: Actions = {
 				}
 			}
 
+			invalidateAll(); // Invalidate all load functions after successful uploads
 			return { success: true };
 		} catch (err) {
 			const message = `Error during file upload: ${err instanceof Error ? err.message : String(err)}`;
@@ -251,8 +274,12 @@ export const actions: Actions = {
 
 			if (success) {
 				logger.info('Image deleted successfully');
-				return { success: false };
+				invalidateAll(); // Invalidate data after successful deletion
+				return { success: true }; // Return true on success
 			} else {
+				// Log the failure but maybe don't throw a 500, return success: false?
+				// Or keep throwing error if deletion failure is critical. Let's keep the error for now.
+				logger.error('Failed to delete image from database.');
 				throw error(500, 'Failed to delete image');
 			}
 		} catch (err) {

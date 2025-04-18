@@ -60,6 +60,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 			user: { _id: string; email: string; role: string } | undefined;
 			media: MediaBase[];
 			virtualFolders: VirtualFolder[];
+			currentFolder: VirtualFolder | null; // Add currentFolder from load data
 		};
 	}>();
 
@@ -90,7 +91,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 		{ value: MediaTypeEnum.RemoteVideo, label: 'REMOTE VIDEO' }
 	];
 
-	// Computed value for filtered files
+	// Computed value for filtered files based on search and type
 	let filteredFiles = $derived(
 		files.filter((file) => {
 			if (file.type === MediaTypeEnum.Image) {
@@ -298,18 +299,18 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 			const result = response.data;
 			if (result?.success) {
 				toastStore.trigger({
-					message: 'Image deleted successfully.',
+					message: 'Media deleted successfully.',
 					background: 'variant-filled-success',
 					timeout: 3000
 				});
 				await fetchMediaFiles();
 			} else {
-				throw new Error(result.error || 'Failed to delete image');
+				throw new Error(result.error || 'Failed to delete media');
 			}
 		} catch (error) {
-			console.error('Error deleting image: ', error);
+			console.error('Error deleting media: ', error);
 			toastStore.trigger({
-				message: 'Error deleting image',
+				message: 'Error deleting media',
 				background: 'variant-filled-error',
 				timeout: 3000
 			});
@@ -317,7 +318,8 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	}
 
 	$effect(() => {
-		console.log('media files', data.media);
+		// Log when the media data from the server changes
+		console.log('Media files updated:', data.media);
 	});
 </script>
 
@@ -326,7 +328,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	<!-- Row 1: Page Title and Back Button (Handled by PageTitle component) -->
 	<PageTitle name="Media Gallery" icon="bi:images" showBackButton={true} />
 
-	<!-- Row 2 (on mobile): Save and Reset Buttons -->
+	<!-- Row 2: Action Buttons -->
 	<div class="lgd:mt-0 flex items-center justify-center gap-4 lg:justify-end">
 		<!-- Add folder -->
 		<button onclick={() => createFolder('New Folder')} aria-label="Add folder" class="variant-filled-tertiary btn gap-2">

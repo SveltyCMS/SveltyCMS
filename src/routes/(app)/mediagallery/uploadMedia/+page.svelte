@@ -39,7 +39,7 @@
 	<PageTitle name={m.uploadMedia_title()} icon="bi:images" iconColor="text-tertiary-500 dark:text-primary-500" />
 
 	<!-- Back -->
-	<button onclick={() => history.back()} aria-label="Back" class="variant-outline-primary btn-icon">
+	<button onclick={() => history.back()} aria-label="Back" class="variant-outline-tertiary dark:variant-outline-primary btn-icon">
 		<iconify-icon icon="ri:arrow-left-line" width="20"></iconify-icon>
 	</button>
 </div>
@@ -59,12 +59,12 @@
 				<p class="text-tertiary-500 dark:text-primary-500">Remote Upload</p>
 			</div>
 		</Tab>
-
-		<!-- Tab Panels --->
-		{#if tabSet === 0}
-			<LocalUpload />
-		{:else if tabSet === 1}
-			<RemoteUpload />
-		{/if}
 	</TabGroup>
+
+	<!-- Tab Panels --->
+	{#if tabSet === 0}
+		<LocalUpload />
+	{:else if tabSet === 1}
+		<RemoteUpload />
+	{/if}
 </div>

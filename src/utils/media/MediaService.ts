@@ -76,9 +76,9 @@ export class MediaService {
 		this.ensureInitialized();
 
 		try {
-			// Validate the file
-			const allowedTypes = ['image/jpeg', 'image/png', 'video/mp4', 'application/pdf'];
-			const validation = validateMediaFile(file, allowedTypes);
+			// Validate the file using a MIME type pattern
+			const mimeTypePattern = /^[a-z]+\/[a-z0-9\-\+\.]+$/i; // Regex to validate MIME type format
+			const validation = validateMediaFile(file, mimeTypePattern);
 
 			if (!validation.isValid) {
 				throw Error(validation.message);
@@ -114,7 +114,6 @@ export class MediaService {
 			};
 
 			const url = `${path}/${urlPath}`;
-			// Save the file
 			await saveFileToDisk(buffer, url);
 
 			// Save resized images if applicable
@@ -141,7 +140,6 @@ export class MediaService {
 				}
 			};
 
-			// Save media to the database
 			const mediaId = await this.db.crud.insert('MediaItem', media_collection);
 
 			// Retrieve the saved media with its ID

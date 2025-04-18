@@ -3,20 +3,23 @@
 @component
 **This page is used to upload media to the media gallery**
 
-```tsx
+@example
 <ModalUploadMedia parent={parent} sectionName={sectionName} files={files} onDelete={onDelete} uploadFiles={uploadFiles} />
-```
+
 #### Props
 - `parent` {any} - Parent component
 - `sectionName` {string} - Name of the section
 - `files` {File[]} - Array of files to be uploaded **Optional**
 - `onDelete` {Function} - Function to delete a file
 - `uploadFiles` {Function} - Function to upload files
+
+#### Features
+- Displays a collection of media files based on the specified media type.
+- Provides a user-friendly interface for searching, filtering, and navigating through media files.
+- Emits the `mediaDeleted` event when a media file is deleted.
 -->
 
 <script lang="ts">
-	import { run, preventDefault } from 'svelte/legacy';
-
 	// Skeleton
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
@@ -41,18 +44,72 @@
 
 	let fileSet = $state(new Set<string>()); // To track unique files by name and size
 	let duplicateWarning = $state('');
+	let objectUrls = $state<Map<string, string>>(new Map()); // Map fileKey to ObjectURL
 
-	// Initialize fileSet to prevent duplicates
-	run(() => {
-		fileSet = new Set(files.map((file) => `${file.name}-${file.size}`));
+	// Effect to manage object URLs based on the files array
+	$effect(() => {
+		const currentFiles = files; // Read dependency
+		const currentFileKeys = new Set(currentFiles.map((f) => `${f.name}-${f.size}`));
+		const newObjectUrls = new Map<string, string>();
+		const previousObjectUrls = objectUrls; // Capture previous state for cleanup comparison
+
+		// Create/update URLs for current files
+		for (const file of currentFiles) {
+			const fileKey = `${file.name}-${file.size}`;
+			if (file.type?.startsWith('image/') || file.type?.startsWith('audio/')) {
+				if (previousObjectUrls.has(fileKey)) {
+					// Reuse existing URL if file is still present
+					newObjectUrls.set(fileKey, previousObjectUrls.get(fileKey)!);
+				} else {
+					// Create new URL for new files
+					try {
+						const url = URL.createObjectURL(file);
+						newObjectUrls.set(fileKey, url);
+					} catch (e) {
+						console.error(`Error creating ObjectURL for ${file.name}:`, e);
+						// Optionally handle the error, e.g., set a placeholder URL or skip
+					}
+				}
+			}
+		}
+
+		// Update the state
+		objectUrls = newObjectUrls;
+
+		// Cleanup function: Revoke URLs for files that are no longer present
+		return () => {
+			const urlsInCurrentState = new Set(newObjectUrls.values());
+			previousObjectUrls.forEach((url, key) => {
+				// Revoke URL if the file key is gone OR if the URL itself is not in the new map (e.g., error during creation)
+				if (!currentFileKeys.has(key) || !urlsInCurrentState.has(url)) {
+					console.log(`Revoking URL for removed/changed file: ${key}`);
+					URL.revokeObjectURL(url);
+				}
+			});
+		};
 	});
 
-	// Generate thumbnail URL or icon based on file type
-	function generateThumbnail(file: File): string {
+	// Effect for final cleanup on component unmount
+	$effect(() => {
+		// This effect runs once on mount and its cleanup runs once on unmount
+		return () => {
+			console.log('Component unmounting, revoking all object URLs');
+			// Make sure to access the latest state of objectUrls inside the cleanup
+			const urlsToRevoke = objectUrls;
+			urlsToRevoke.forEach((url, key) => {
+				console.log(`Revoking URL on unmount: ${key}`);
+				URL.revokeObjectURL(url);
+			});
+		};
+	});
+
+	// Get icon string for file type (used as fallback or for non-previewable types)
+	function getFileIcon(file: File): string {
 		const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
 		switch (true) {
+			// Keep image/audio cases for consistency in the other usage below, but they won't be hit here often
 			case file.type?.startsWith('image/'):
-				return URL.createObjectURL(file); // Show actual image as thumbnail
+				return 'fa-solid:image'; // Generic image icon
 			case file.type?.startsWith('video/'):
 				return 'fa-solid:video';
 			case file.type?.startsWith('audio/'):
@@ -70,10 +127,11 @@
 			case fileExt === '.zip' || fileExt === '.rar':
 				return 'fa-solid:file-zipper';
 			default:
-				return 'vscode-icons:file';
+				return 'vscode-icons:file'; // Default file icon
 		}
 	}
 
+	// Format file MIME type
 	function formatMimeType(mimeType?: string): string {
 		if (!mimeType) {
 			return 'Unknown Type';
@@ -86,19 +144,23 @@
 			'application/vnd.ms-excel': 'Excel',
 			'text/plain': 'Text',
 			'application/zip': 'Archive'
+			// Add more mappings as needed
 		};
+		// Prioritize specific mappings, then try to extract from MIME type, fallback to UNKNOWN
 		return typeMapping[mimeType] || mimeType.split('/').pop()?.toUpperCase() || 'UNKNOWN';
 	}
 
 	// Handle the delete action here
 	function handleDelete(file: File) {
-		files = files.filter((f) => f !== file);
-		fileSet.delete(`${file.name}-${file.size}`);
-		onDelete(file);
+		const fileKey = `${file.name}-${file.size}`;
+		// The $effect watching 'files' will revoke the ObjectURL automatically
+		files = files.filter((f) => f !== file); // Update the files array
+		fileSet.delete(fileKey); // Update the set
+		onDelete(file); // Notify parent
 
-		// Update the files array and fileSet after deletion
+		// If that was the last file, just close the modal
 		if (files.length === 0) {
-			handleCancel(); // Close the modal if no files are left
+			modalStore.close(); // Close the modal directly
 		}
 	}
 
@@ -107,112 +169,163 @@
 		const input = event.target as HTMLInputElement;
 		if (input.files) {
 			const newFilesArray = Array.from(input.files);
-			newFilesArray.forEach((file) => {
+			const addedFiles: File[] = []; // Track files actually added in this batch
+			duplicateWarning = ''; // Reset warning
+
+			for (const file of newFilesArray) {
 				const fileKey = `${file.name}-${file.size}`;
 				if (fileSet.has(fileKey)) {
-					duplicateWarning = `The file "${file.name}" already exists.`;
+					// Show warning only for the first duplicate found in this batch
+					if (!duplicateWarning) {
+						duplicateWarning = `File "${file.name}" already exists and was skipped.`;
+					}
+					console.warn(`Duplicate file skipped: ${file.name}`);
 				} else {
-					duplicateWarning = '';
-					files.push(file);
-					fileSet.add(fileKey);
+					addedFiles.push(file);
+					fileSet.add(fileKey); // Add to set immediately
 				}
-			});
+			}
+
+			// Update the files array reactively by concatenating
+			if (addedFiles.length > 0) {
+				files = [...files, ...addedFiles]; // Trigger $effect update
+			}
+
+			// Clear the input value to allow selecting the same file again if needed after deletion
+			input.value = '';
 		}
 	}
 
+	// Function to handle the Cancel button click
 	function handleCancel() {
+		// Explicitly revoke URLs and clear the map for immediate UI update
+		objectUrls.forEach((url, key) => {
+			console.log(`Revoking URL on cancel: ${key}`);
+			URL.revokeObjectURL(url);
+		});
+		objectUrls = new Map(); // Clear the state map
+
 		// Clear the files array and fileSet
-		files = [];
+		files = []; // This will also trigger the $effect cleanup, but revoking first ensures immediate removal
 		fileSet.clear();
 		modalStore.close(); // Close the modal
 	}
 
-	const onFormSubmit = () => {
-		uploadFiles(files); // Ensure files are passed back to the parent
+	const onFormSubmit = async () => {
+		// Prevent submission if there are no files
+		if (files.length === 0) {
+			// Optionally show a message to the user
+			console.warn('No files selected for upload.');
+			// You might want to set a warning message state here instead of just logging
+			duplicateWarning = 'No files selected for upload.'; // Reuse existing warning state for simplicity
+			return; // Stop the submission
+		}
 
-		// Clear files and close the modal
-		handleCancel();
+		try {
+			// Await the upload process before proceeding
+			await uploadFiles(files);
+
+			// Clear files and close the modal ONLY on successful upload
+			handleCancel();
+		} catch (error) {
+			console.error('Error uploading files:', error);
+			// Keep the modal open and display an error message
+			// You might want a dedicated error state instead of reusing duplicateWarning
+			duplicateWarning = `Upload failed: ${error instanceof Error ? error.message : String(error)}`;
+		}
 	};
 
 	// Base Classes
-	const cBase = 'bg-surface-100-800-token w-screen h-screen p-4 flex flex-col justify-center items-center';
+	const cBase = 'bg-surface-100-800-token w-screen rounded p-4 flex flex-col justify-center items-center';
 	const cHeader = 'text-2xl font-bold text-center text-tertiary-500 dark:text-primary-500 ';
-	const cForm = 'mt-3 border border-surface-500 p-2 space-y-4 rounded-container-token';
+	const cForm = 'w-full mt-3 border border-surface-500 p-2 space-y-4 rounded-container-token flex flex-col'; // Added w-full, flex, flex-col
 </script>
 
 {#if $modalStore[0]}
-	<div class={cBase}>
+	<div class={cBase} style="max-height: 90vh;">
+		<!-- Added max-height to outer div -->
 		<header class={cHeader}>
 			{sectionName}
 		</header>
-		<article class="hidden text-center sm:block">{$modalStore[0]?.body ?? '(body missing)'}</article>
+		<article class="hidden flex-shrink-0 text-center sm:block">{$modalStore[0]?.body ?? '(body missing)'}</article>
 		<!-- Enable for debugging: -->
 
-		<form id="upload-form" class={cForm} action="/mediagallery" method="post" onsubmit={preventDefault(onFormSubmit)}>
-			<!-- Show all media as cards with delete buttons -->
-			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-				{#each files as file (file.name + file.size)}
-					<div class="card card-hover relative">
-						<!-- Delete buttons -->
-						<div class="absolute right-0 top-2 flex w-full justify-end px-2 opacity-0 hover:opacity-100">
-							<button onclick={() => handleDelete(file)} aria-label="Delete" class="variant-ghost-surface btn-icon">
-								<iconify-icon icon="material-symbols:delete" width="24" class="text-error-500"></iconify-icon>
-							</button>
-						</div>
+		<form id="upload-form" class="{cForm} flex-grow overflow-hidden" onsubmit={onFormSubmit}>
+			<!-- Scrollable content area -->
+			<div class="flex-grow overflow-y-auto">
+				<!-- Show all media as cards with delete buttons on hover -->
+				<div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+					{#each files as file (file.name + file.size)}
+						{@const fileKey = `${file.name}-${file.size}`}
+						{@const previewUrl = objectUrls.get(fileKey)}
+						{@const iconName = getFileIcon(file)}
+						<div class="card card-hover relative">
+							<!-- Delete buttons -->
+							<div class="absolute right-0 top-2 flex w-full justify-end px-2 opacity-0 hover:opacity-100">
+								<button type="button" onclick={() => handleDelete(file)} aria-label="Delete" class="variant-ghost-surface btn-icon">
+									<iconify-icon icon="material-symbols:delete" width="24" class="text-error-500"></iconify-icon>
+								</button>
+							</div>
 
-						<!-- Media preview -->
-						<div class="card-header flex h-32 flex-col items-center justify-center">
-							{#if generateThumbnail(file)}
-								{#if file.type?.startsWith('image/')}
-									<img src={generateThumbnail(file)} alt={file.name} class="max-h-full max-w-full" />
-								{:else if file.type?.startsWith('audio/')}
+							<!-- Media preview -->
+							<div class="card-header flex h-32 flex-col items-center justify-center">
+								{#if file.type?.startsWith('image/') && previewUrl}
+									<img src={previewUrl} alt={file.name} class="max-h-full max-w-full object-contain" />
+								{:else if file.type?.startsWith('audio/') && previewUrl}
 									<!-- Audio player -->
 									<audio controls class="max-h-full max-w-full">
-										<source src={URL.createObjectURL(file)} type={file.type} />
+										<source src={previewUrl} type={file.type} />
 										Your browser does not support the audio element.
 									</audio>
 								{:else}
-									<iconify-icon icon={generateThumbnail(file)} width="80" height="80"></iconify-icon>
+									<!-- Fallback Icon -->
+									<iconify-icon icon={iconName} width="80" height="80"></iconify-icon>
 								{/if}
-							{:else}
-								<p>Loading thumbnail...</p>
-							{/if}
-						</div>
-
-						<!-- Media name -->
-						<div class="label mt-1 flex h-16 items-center justify-center bg-gray-100 p-2 dark:bg-surface-600">
-							<p class="overflow-hidden overflow-ellipsis whitespace-normal text-center text-tertiary-500 dark:text-primary-500">
-								{file.name}
-							</p>
-						</div>
-
-						<!-- Media Type & Size -->
-						<div class="flex flex-grow items-center justify-between p-1 dark:bg-surface-700">
-							<div class="flex items-center gap-1">
-								<iconify-icon icon={generateThumbnail(file)} width="16" height="16"></iconify-icon>
-								<span>{formatMimeType(file.type)}</span>
 							</div>
-							<span class="variant-ghost-tertiary badge">{(file.size / 1024).toFixed(2)} KB</span>
-						</div>
-					</div>
-				{/each}
-			</div>
 
-			<!-- File input for adding more files -->
-			<div class="mb-4 mt-2 flex items-center justify-between border-t border-surface-400 p-4">
-				<div class="mb-4 mt-2 flex items-center gap-2">
-					<label for="file-input" class="block text-tertiary-500 dark:text-primary-500">Add more files:</label>
-					<input id="file-input" type="file" multiple onchange={handleFileInputChange} />
+							<!-- Media Filename -->
+							<div
+								class="label text-tertiary-500 dark:bg-surface-600 dark:text-primary-500 mt-1 overflow-hidden overflow-ellipsis whitespace-normal bg-gray-100 p-2 text-center"
+							>
+								{file.name}
+							</div>
+
+							<!-- Media Type & Size -->
+							<div class="dark:bg-surface-700 flex flex-grow items-center justify-between p-1">
+								<div class="variant-ghost-tertiary badge flex items-center gap-1">
+									<!-- Media Icon & type  -->
+									<iconify-icon icon={iconName} width="16" height="16"></iconify-icon>
+									<span class="text-tertiary-500 dark:text-primary-500">{formatMimeType(file.type)}</span>
+								</div>
+								<!-- File Size in KB -->
+								<p class="variant-ghost-tertiary badge flex items-center gap-1">
+									<span class="text-tertiary-500 dark:text-primary-500">{(file.size / 1024).toFixed(2)}</span>
+									KB
+								</p>
+							</div>
+						</div>
+					{/each}
 				</div>
-				{#if duplicateWarning}
-					<p class="variant-filled-error rounded px-2 py-4">{duplicateWarning}</p>
-				{/if}
+
+				<!-- File input for adding more files -->
+				<div class="border-surface-400 mb-4 mt-2 flex items-center justify-between border-t p-4">
+					<div class="mb-4 mt-2 flex items-center gap-2">
+						<label for="file-input" class="text-tertiary-500 dark:text-primary-500 block">Add more files:</label>
+						<input id="file-input" type="file" multiple onchange={handleFileInputChange} />
+					</div>
+					{#if duplicateWarning}
+						<p class="variant-filled-error rounded px-2 py-4">{duplicateWarning}</p>
+					{/if}
+				</div>
 			</div>
+			<!-- Close scrollable content area -->
 		</form>
 
-		<footer class="modal-footer m-4 flex w-full justify-between {parent.regionFooter}">
-			<button class="variant-outline-secondary btn" onclick={handleCancel}>{m.button_cancel()}</button>
-			<button type="submit" form="upload-form" class="variant-filled-primary btn {parent.buttonPositive}">{m.button_save()}</button>
+		<footer class="modal-footer m-4 flex w-full justify-between {parent.regionFooter} flex-shrink-0">
+			<button type="button" class="variant-outline-secondary btn" onclick={handleCancel}>{m.button_cancel()}</button>
+			<button type="submit" form="upload-form" class="variant-filled-tertiary dark:variant-filled-primary btn {parent.buttonPositive}"
+				>{m.button_save()}</button
+			>
 		</footer>
 	</div>
 {/if}
