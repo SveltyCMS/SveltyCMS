@@ -26,6 +26,7 @@ import { dbAdapter } from '@src/databases/db';
 
 // System Logger
 import { logger, type LoggableValue } from '@utils/logger.svelte';
+import { console } from 'inspector';
 
 // Helper function to convert _id and other nested objects to string
 interface StackItem {
@@ -98,12 +99,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     // Fetch media files
     const media_types = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
+
     const media_promises = media_types.map((type) => {
       const query = type === 'media_remote' ? { folder: folderIdentifier } : {};
       return dbAdapter && dbAdapter.crud.findMany(type, query);
     });
 
     let results = await Promise.all(media_promises);
+
+    logger.debug("Media result", results)
+
 
     results = results.map(
       (arr, index) =>
@@ -112,7 +117,7 @@ export const load: PageServerLoad = async ({ locals }) => {
           convertIdToString({
             ...item,
             path: item.path ?? 'global',
-            name: item.name ?? 'unnamed-media',
+            name: item.name ?? item.filename ?? 'unnamed-media',
             type: media_types[index].split('_')[1],
             url: item.thumbnail?.url
               ? constructUrl('global', item.hash, item.thumbnail.url, item.thumbnail.url.split('.').pop(), media_types[index])

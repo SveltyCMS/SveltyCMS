@@ -309,6 +309,10 @@ Features:
 			});
 		}
 	}
+
+	$effect(() => {
+		console.log('media files', data.media);
+	});
 </script>
 
 <!-- Page Title and Actions -->

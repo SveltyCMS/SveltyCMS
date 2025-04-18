@@ -14,6 +14,7 @@ import type {
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
+
 // Media schema
 export const mediaSchema = new Schema<MediaItem>(
   {
@@ -24,7 +25,13 @@ export const mediaSchema = new Schema<MediaItem>(
     size: { type: Number, required: true }, // Size of the media file
     mimeType: { type: String, required: true }, // Mime type of the media file
     folderId: { type: String, default: null }, // Folder paths/ids as strings
-    thumbnails: { type: Map, of: String, default: {} }, // Thumbnails for images
+    thumbnails: {
+      type: {
+        url: { type: String, default: null },
+
+      },
+      default: {}
+    }, // Thumbnails for images
     metadata: {
       width: Number, // Width of the media file
       height: Number, // Height of the media file
@@ -54,6 +61,11 @@ mediaSchema.index({ 'metadata.tags': 1 });
 
 // Static methods
 mediaSchema.statics = {
+
+  async getAllMedia(): Promise<DatabaseResult<MediaItem[]>> {
+    const mediaItems = await this.find().lean().exec() as MediaItem[];
+    return { success: true, data: mediaItems };
+  },
   // Get media by filename
   async getMediaByFilename(filename: string): Promise<DatabaseResult<MediaItem | null>> {
     try {

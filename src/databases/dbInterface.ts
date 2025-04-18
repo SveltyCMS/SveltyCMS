@@ -251,6 +251,7 @@ export interface DatabaseAdapter {
       delete(fileId: DatabaseId): Promise<DatabaseResult<void>>; // Delete a media file
       getByFolder(folderId?: DatabaseId): Promise<DatabaseResult<MediaItem[]>>; // Specialized: Get files in a folder
       search(query: string): Promise<DatabaseResult<MediaItem[]>>; // Specialized: Search files
+      getAllMedia(): Promise<DatabaseResult<MediaItem[]>>
     };
     folders: {
       create(folder: Omit<MediaFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaFolder>>; // Create a media folder

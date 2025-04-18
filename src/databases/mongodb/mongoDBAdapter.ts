@@ -397,8 +397,8 @@ export class MongoDBAdapter implements DatabaseAdapter {
       try {
         const model = mongoose.models[collection] as Model<T>;
         if (!model) {
-          logger.error(`insertOne failed. Collection ${collection} does not exist.`);
-          throw new Error(`insertOne failed. Collection ${collection} does not exist.`);
+          logger.error(`insert failed. Collection ${collection} does not exist.`);
+          throw new Error(`insert failed. Collection ${collection} does not exist.`);
         }
         return await model.create(doc);
       } catch (error) {
@@ -554,13 +554,11 @@ export class MongoDBAdapter implements DatabaseAdapter {
           logger.error('Error uploading file:', error as LoggableValue);
         }
 
-      }
+      },
+
     },
 
     // Fetch all media
-    getAllMedia: async (): Promise<MediaType[]> => {
-      throw new Error('Method not implemented.');
-    },
 
     // Delete media
     deleteMedia: async (mediaId: string): Promise<boolean> => {

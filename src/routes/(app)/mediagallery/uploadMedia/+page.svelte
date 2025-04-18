@@ -32,30 +32,24 @@
 <div class="wrapper">
 	<TabGroup>
 		<Tab bind:group={tabSet} name="local" value={0}>
-			{#snippet lead()}
-				<div class="flex items-center justify-between gap-2">
-					<iconify-icon icon="material-symbols:database" width="28"></iconify-icon>
-					<p class="text-tertiary-500 dark:text-primary-500">Local Upload</p>
-				</div>
-			{/snippet}
+			<div class="flex items-center justify-between gap-2">
+				<iconify-icon icon="material-symbols:database" width="28"></iconify-icon>
+				<p class="text-tertiary-500 dark:text-primary-500">Local Upload</p>
+			</div>
 		</Tab>
 
 		<Tab bind:group={tabSet} name="remote" value={1}>
-			{#snippet lead()}
-				<div class="flex items-center justify-between gap-2">
-					<iconify-icon icon="arcticons:tautulli-remote" width="28"></iconify-icon>
-					<p class="text-tertiary-500 dark:text-primary-500">Remote Upload</p>
-				</div>
-			{/snippet}
+			<div class="flex items-center justify-between gap-2">
+				<iconify-icon icon="arcticons:tautulli-remote" width="28"></iconify-icon>
+				<p class="text-tertiary-500 dark:text-primary-500">Remote Upload</p>
+			</div>
 		</Tab>
 
 		<!-- Tab Panels --->
-		{#snippet panel()}
-			{#if tabSet === 0}
-				<LocalUpload />
-			{:else if tabSet === 1}
-				<RemoteUpload />
-			{/if}
-		{/snippet}
+		{#if tabSet === 0}
+			<LocalUpload />
+		{:else if tabSet === 1}
+			<RemoteUpload />
+		{/if}
 	</TabGroup>
 </div>

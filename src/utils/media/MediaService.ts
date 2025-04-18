@@ -113,7 +113,7 @@ export class MediaService {
         access
       };
 
-      const url = urlPath;
+      const url = `${path}/${urlPath}`;
       // Save the file
       await saveFileToDisk(buffer, url);
 
@@ -123,29 +123,29 @@ export class MediaService {
         media.thumbnails = thumbnails;
       }
 
+      logger.debug("media", media.thumbnails?.thumbnail)
+
       const media_collection = {
         _id: uuidv4(),
         hash: media.hash,
         filename: media.filename,
         path: path,
-        type: media.type,
+        mimeType: media.type,
         size: media.size,
+
+        createdBy: userId,
+        updatedBy: userId,
 
         thumbnail: {
           url: media.thumbnails?.thumbnail?.url,
-          name: media.filename,
-          type: media.type,
-          size: media.size,
-          width: media.thumbnails?.thumbnail?.width,
-          height: media.thumbnails?.thumbnail?.height
         }
       };
 
       // Save media to the database
-      const mediaId = await this.db.insertOne('Media', media_collection);
+      const mediaId = await this.db.crud.insert('MediaItem', media_collection);
 
       // Retrieve the saved media with its ID
-      const savedMedia = await this.db.findOne('Media', { _id: mediaId });
+      const savedMedia = await this.db.crud.findOne('MediaItem', { _id: mediaId });
 
       // Cache the saved media
       if (savedMedia) {
