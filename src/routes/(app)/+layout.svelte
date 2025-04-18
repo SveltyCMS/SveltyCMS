@@ -21,17 +21,17 @@ Key features:
 
 	import { publicEnv } from '@root/config/public';
 	import { onMount, onDestroy } from 'svelte';
+	import { page } from '$app/state';
 
 	// Utils
 	import { getTextDirection } from '@utils/utils';
 	import { isSearchVisible } from '@utils/globalSearchIndex';
 
 	// Stores
-	import { page } from '$app/state';
 	import { systemLanguage, isLoading } from '@stores/store.svelte';
-	import { contentStructure, collections } from '@root/src/stores/collectionStore.svelte';
-	import { sidebarState } from '@root/src/stores/sidebarStore.svelte';
-	import { screenSize, ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
+	import { contentStructure, collections } from '@stores/collectionStore.svelte';
+	import { uiStateManager } from '@stores/UIStore.svelte';
+	import { screenSize, ScreenSize } from '@stores/screenSizeStore.svelte';
 
 	// Components
 	import Loading from '@components/Loading.svelte';
@@ -44,6 +44,7 @@ Key features:
 
 	// Skeleton
 	import { initializeStores, Modal, Toast, setModeUserPrefers, setModeCurrent, setInitialClassState } from '@skeletonlabs/skeleton';
+
 	// Required for popups to function
 	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
 	import { storePopup } from '@skeletonlabs/skeleton';
@@ -66,30 +67,6 @@ Key features:
 	let loadError = $state<Error | null>(null);
 	let mediaQuery: MediaQueryList;
 
-	// Update content language when data changes, ensuring it's a valid language tag
-	//$effect(() => {
-	//	if (!(publicEnv.AVAILABLE_CONTENT_LANGUAGES as ReadonlyArray<AvailableLanguageTag>).includes(data.contentLanguage as AvailableLanguageTag)) {
-	//		// If data.contentLanguage is invalid and contentLanguage is not already set to a valid value, fall back to 'en'
-	//		if (!contentLanguage.value || !(publicEnv.AVAILABLE_CONTENT_LANGUAGES as ReadonlyArray<AvailableLanguageTag>).includes(contentLanguage.value)) {
-	//			contentLanguage.set('en');
-	//		}
-	//	} else {
-	//		contentLanguage.set(data.contentLanguage as AvailableLanguageTag);
-	//	}
-	//});
-
-	// Handle collection changes
-	//$effect(() => {
-	//	const newCollection = collection.value;
-	//	if (!newCollection?.name) return;
-	//
-	//	const newPath = `/${contentLanguage.value || publicEnv.DEFAULT_CONTENT_LANGUAGE}${String(newCollection.path)}`;
-	//	if (page.url.pathname !== newPath && mode.value !== 'media') {
-	//		console.log('layout collection chnage redirect', 'newPath', newPath);
-	//		goto(newPath);
-	//	}
-	//});
-	//
 	// Update collection loaded state when store changes
 	$effect(() => {
 		if (collections.value && Object.keys(collections.value).length > 0) {
@@ -220,16 +197,16 @@ Key features:
 	{:else}
 		<!-- Body -->
 		<div class="flex h-lvh flex-col">
-			<!-- Header -->
-			{#if sidebarState.sidebar.value.header !== 'hidden'}
+			<!-- Header (unsused)  -->
+			{#if uiStateManager.uiState.value.header !== 'hidden'}
 				<header class="sticky top-0 z-10 bg-tertiary-500">Header</header>
 			{/if}
 
 			<div class="flex flex-1 overflow-hidden">
 				<!-- Sidebar Left -->
-				{#if sidebarState.sidebar.value.left !== 'hidden'}
+				{#if uiStateManager.uiState.value.leftSidebar !== 'hidden'}
 					<aside
-						class="max-h-dvh {sidebarState.sidebar.value.left === 'full'
+						class="max-h-dvh {uiStateManager.uiState.value.leftSidebar === 'full'
 							? 'w-[220px]'
 							: 'w-fit'} relative border-r bg-white !px-2 text-center dark:border-surface-500 dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900"
 					>
@@ -240,7 +217,7 @@ Key features:
 				<!-- Content Area -->
 				<main class="relative w-full flex-1">
 					<!-- Page Header -->
-					{#if sidebarState.sidebar.value.header !== 'hidden'}
+					{#if uiStateManager.uiState.value.pageheader !== 'hidden'}
 						<header class="sticky top-0 z-10 w-full">
 							<HeaderEdit />
 						</header>
@@ -249,7 +226,8 @@ Key features:
 					<!-- Router Slot -->
 					<div
 						role="main"
-						class="relative h-full flex-grow overflow-auto {sidebarState.sidebar.value.left === 'full' ? 'mx-2' : 'mx-1'} {$screenSize === 'lg'
+						class="relative h-full flex-grow overflow-auto {uiStateManager.uiState.value.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {$screenSize ===
+						'lg'
 							? 'mb-2'
 							: 'mb-16'}"
 					>
@@ -280,9 +258,9 @@ Key features:
 					</div>
 
 					<!-- Page Footer -->
-					{#if sidebarState.sidebar.value.pagefooter !== 'hidden'}
+					{#if uiStateManager.uiState.value.pagefooter !== 'hidden'}
 						<footer
-							class="sticky left-0 top-[calc(100%-51px)] z-10 w-full border-t bg-surface-50 bg-gradient-to-b px-1 text-center dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
+							class="sticky left-0 top-[calc(100%-51px)] z-10 w-full bg-surface-50 bg-gradient-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900"
 						>
 							<PageFooter />
 						</footer>
@@ -290,7 +268,7 @@ Key features:
 				</main>
 
 				<!-- Sidebar Right -->
-				{#if sidebarState.sidebar.value.right !== 'hidden'}
+				{#if uiStateManager.uiState.value.rightSidebar !== 'hidden'}
 					<aside
 						class="max-h-dvh w-[220px] border-l bg-surface-50 bg-gradient-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
 					>
@@ -299,8 +277,8 @@ Key features:
 				{/if}
 			</div>
 
-			<!-- Footer -->
-			{#if sidebarState.sidebar.value.footer !== 'hidden'}
+			<!-- Footer (unsused) -->
+			{#if uiStateManager.uiState.value.footer !== 'hidden'}
 				<footer class="bg-blue-500">Footer</footer>
 			{/if}
 		</div>

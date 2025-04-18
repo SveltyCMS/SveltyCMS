@@ -69,10 +69,7 @@
 	let currentConfig = $derived(data.contentStructure);
 	let nestedNodes = $derived(constructNestedStructure(contentStructure.value));
 
-	// nodes that need to be saved
-
-	let requireSave = $state<ContentNode[]>([]);
-
+	// State
 	let isLoading = $state(false);
 	let apiError = $state<string | null>(null);
 

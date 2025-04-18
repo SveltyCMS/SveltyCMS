@@ -202,7 +202,7 @@
 				class="relative flex w-full items-center gap-1.5 rounded
 					border border-surface-400 px-2 py-3 transition-all duration-200
 					hover:bg-surface-50 focus:bg-surface-50 focus-visible:outline-none
-					dark:border-0 dark:bg-surface-500
+					dark:border dark:border-transparent dark:bg-surface-500
 					dark:text-surface-200 dark:hover:bg-surface-400 dark:focus:bg-surface-500
 					{node.children ? '' : 'bg-surface-300 dark:bg-surface-700'}"
 				role="treeitem"
@@ -228,8 +228,7 @@
 					<!-- Badge overlay -->
 					{#if !node.isExpanded && node.badge?.count! > 0 && !compact}
 						<div
-							class={`badge right-1 top-0  ${!node.isExpanded ? 'absolute translate-y-1/2' : 'hidden transition-opacity'} 
-              rounded-full bg-primary-500/80 px-2 py-1 text-xs text-white dark:bg-primary-500/50`}
+							class={`badge right-1 top-0  ${!node.isExpanded ? 'absolute translate-y-1/2' : 'hidden transition-opacity'} rounded-full bg-tertiary-500/80 px-2 py-1 text-xs text-white dark:bg-primary-500/50`}
 						>
 							{node.badge?.count}
 						</div>

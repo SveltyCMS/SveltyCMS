@@ -473,7 +473,7 @@ Features:
 
 								<!-- Loading indicators -->
 								{#if $forgotDelayed}
-									<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />
+									<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6 invert filter" />
 								{/if}
 
 								<!-- Back button  -->

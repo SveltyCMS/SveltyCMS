@@ -1,9 +1,30 @@
-import { Title } from '../cli-installer.js';
+/** 
+@file cli-installer/config/database.js
+@description Configuration prompts for the Database section
+
+### Features
+- Displays a note about the Database configuration
+- Displays existing configuration (password hidden)
+- Prompts for Database integration
+*/
+
+import { Title, cancelOperation } from '../cli-installer.js';
 import { configurationPrompt } from '../configuration.js';
 import { configureMongoDB } from './mongodbConfig.js';
 import { configureMariaDB } from './mariadbConfig.js';
 import { text, spinner, select, note, isCancel, cancel, confirm } from '@clack/prompts';
 import pc from 'picocolors';
+
+// Helper function to validate numeric input (using new error return)
+const validateNumber = (value, fieldName) => {
+	if (value === null || value === undefined || value === '') return { message: `${fieldName} is required.` };
+	const num = Number(value);
+	if (isNaN(num) || !Number.isInteger(num) || num < 0) {
+		return { message: `${fieldName} must be a non-negative integer.` };
+	}
+	// Return undefined if valid (as per clack docs for new error type)
+	return undefined;
+};
 
 // Helper function to test database connection
 async function testDatabaseConnection(dbType, { host, port, user, password, database }) {
@@ -113,42 +134,36 @@ export async function configureDatabase(privateConfigData = {}) {
 	});
 
 	if (advanced && projectDatabase === 'mongodb') {
-		// Set default retry attempts to 3 if not provided
 		const retryAttempts = await text({
 			message: 'Enter number of retry attempts for MongoDB:',
-			initialValue: privateConfigData.DB_RETRY_ATTEMPTS || '3'
+			placeholder: '3',
+			initialValue: privateConfigData.DB_RETRY_ATTEMPTS || '3',
+			validate: (value) => validateNumber(value, 'Retry attempts')
 		});
-
 		if (isCancel(retryAttempts)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt(); // Restart the configuration process
+			await cancelOperation();
 			return;
 		}
 
-		// Set default retry delay to 3000ms if not provided
 		const retryDelay = await text({
 			message: 'Enter delay between retries in milliseconds:',
-			initialValue: privateConfigData.DB_RETRY_DELAY || '3000'
+			placeholder: '3000',
+			initialValue: privateConfigData.DB_RETRY_DELAY || '3000',
+			validate: (value) => validateNumber(value, 'Retry delay')
 		});
-
 		if (isCancel(retryDelay)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt(); // Restart the configuration process
+			await cancelOperation();
 			return;
 		}
 
-		// Set default pool size to 5 if not provided
 		const poolSize = await text({
 			message: 'Enter the MongoDB connection pool size:',
-			initialValue: privateConfigData.DB_POOL_SIZE || '5'
+			placeholder: '5',
+			initialValue: privateConfigData.DB_POOL_SIZE || '5',
+			validate: (value) => validateNumber(value, 'Pool size')
 		});
-
 		if (isCancel(poolSize)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt(); // Restart the configuration process
+			await cancelOperation();
 			return;
 		}
 
@@ -171,7 +186,7 @@ export async function configureDatabase(privateConfigData = {}) {
 	let isConnectionSuccessful = false;
 	const s = spinner();
 	try {
-		s.start(`Testing ${projectDatabase} connection...`);
+		s.start(`Testing ${projectDatabase} connection...`, { indicator: 'line' }); // Added indicator
 		// Ensure all required parameters are provided
 		if (!dbConfig.DB_HOST || !dbConfig.DB_NAME) {
 			throw new Error('Missing required database configuration');
@@ -186,28 +201,27 @@ export async function configureDatabase(privateConfigData = {}) {
 		s.stop();
 	} catch (error) {
 		s.stop();
-		console.error('Database connection error:', error);
+		console.error(pc.red('Database connection error:'), error);
 		note(
-			`${pc.red(`${projectDatabase} connection failed:`)} ${error.message}\n` + 'Please check your connection details and try again.',
+			`${pc.red(`${projectDatabase} connection failed:`)}\n${error.message}\n\nPlease check your connection details (host, port, user, password, database name) and ensure the database server is running and accessible.`,
 			pc.red('Connection Error')
 		);
 	}
 
 	if (isConnectionSuccessful) {
-		note(`${pc.green(`${projectDatabase} connection successful!`)}`, pc.green('Connection Test Result:'));
+		note(`${pc.green(`${projectDatabase} connection successful!`)}`, pc.green('Connection Test Result'));
 	} else {
-		console.log(pc.red(`◆  ${projectDatabase} connection test failed.`) + ' Please check your connection details and try again.');
+		// Error message already shown in the catch block
 		const retry = await confirm({
-			message: 'Do you want to try entering the connection details again?',
+			message: 'Connection failed. Do you want to re-enter the connection details?',
 			initialValue: true
 		});
 
 		if (isCancel(retry) || !retry) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt();
+			await cancelOperation(); // Use standardized cancel operation
 			return;
 		} else {
+			// Pass the potentially updated privateConfigData (with advanced settings) back
 			return configureDatabase(privateConfigData);
 		}
 	}
@@ -228,43 +242,21 @@ export async function configureDatabase(privateConfigData = {}) {
 	);
 
 	const confirmSave = await confirm({
-		message: 'Do you want to save the configuration?',
+		message: 'Save this database configuration?',
 		initialValue: true
 	});
 
 	if (isCancel(confirmSave)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
+		await cancelOperation();
 		return;
 	}
 
 	if (!confirmSave) {
-		console.log('Configuration not saved.');
-		const restartOrExit = await select({
-			message: 'Do you want to restart or exit?',
-			options: [
-				{ value: 'restart', label: 'Restart', hint: 'Start again' },
-				{ value: 'cancel', label: 'Cancel', hint: 'Clear and return to selection' },
-				{ value: 'exit', label: 'Exit', hint: 'Quit the installer' }
-			]
-		});
-
-		if (isCancel(restartOrExit)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt(); // Restart the configuration process
-			return;
-		}
-
-		if (restartOrExit === 'restart') {
-			return configureDatabase();
-		} else if (restartOrExit === 'exit') {
-			process.exit(1); // Exit with code 1
-		} else if (restartOrExit === 'cancel') {
-			process.exit(0); // Exit with code 0
-		}
+		note('Configuration not saved.', pc.yellow('Action Cancelled'));
+		await cancelOperation(); // Return to main config menu
+		return;
 	}
+	// If confirmed, proceed to return the config object
 
 	return {
 		DB_TYPE: projectDatabase,

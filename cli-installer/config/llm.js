@@ -1,11 +1,16 @@
 /**
  * @file cli-installer/config/llm.js
  * @description Configuration prompts for LLM API integrations, such as OpenAI, Claude, and Gemini.
+ *
+ * ### Features
+ * - Displays a note about the LLM configuration
+ * - Displays existing configuration (password hidden)
+ * - Prompts for LLM integration
  */
 
-import { confirm, text, note, select, isCancel, cancel } from '@clack/prompts';
+import { confirm, text, note, isCancel, cancel, password } from '@clack/prompts';
 import pc from 'picocolors';
-import { Title } from '../cli-installer.js';
+import { Title, cancelOperation } from '../cli-installer.js';
 import { configurationPrompt } from '../configuration.js';
 
 export async function configureLLM(privateConfigData = {}) {
@@ -19,84 +24,84 @@ export async function configureLLM(privateConfigData = {}) {
 		pc.green('LLM Configuration:')
 	);
 
-	// Display existing configuration
-	note(`Current LLM API configurations:\n` + `${JSON.stringify(privateConfigData.LLM_APIS, null, 2)}`, pc.red('Existing LLM Configuration:'));
+	// Display existing configuration keys (secrets hidden)
+	const existingKeys = privateConfigData.LLM_APIS ? Object.keys(privateConfigData.LLM_APIS) : [];
+	if (existingKeys.length > 0) {
+		note(`Configured Providers: ${pc.cyan(existingKeys.join(', '))}`, pc.cyan('Existing LLM Configuration (Details hidden):'));
+	} else {
+		note('No LLM providers configured yet.', pc.cyan('Existing LLM Configuration:'));
+	}
 
 	// Loop to allow adding multiple LLM configurations
-	const llmConfigs = privateConfigData.LLM_APIS || {};
+	const llmConfigs = { ...(privateConfigData.LLM_APIS || {}) }; // Clone to avoid modifying original if cancelled
 
 	let addMore;
 	do {
 		// Choose an LLM provider
 		const providerKey = await text({
-			message: 'Enter a unique identifier for this LLM provider (e.g., "chatgpt", "claude", "gemini"):',
-			placeholder: 'e.g., "chatgpt"'
+			message: 'Enter a unique identifier for this LLM provider (e.g., "openai", "claude", "gemini"):',
+			placeholder: 'e.g., "openai"',
+			validate(value) {
+				if (!value) return { message: 'Provider identifier cannot be empty.' };
+				// Optional: Check if key already exists and prompt for overwrite confirmation? For simplicity, allow overwrite for now.
+				return undefined;
+			}
 		});
-
 		if (isCancel(providerKey)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt(); // Restart the configuration process
+			await cancelOperation();
 			return;
 		}
 
-		// Enable or disable this LLM provider
 		const enableLLM = await confirm({
-			message: `Enable ${providerKey} integration?`,
-			placeholder: 'false / true',
-			initialValue: !!llmConfigs[providerKey]?.enabled
+			message: `Enable this '${providerKey}' integration?`,
+			initialValue: llmConfigs[providerKey]?.enabled ?? true // Default to true if new or existing enabled
 		});
-
 		if (isCancel(enableLLM)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt(); // Restart the configuration process
+			await cancelOperation();
 			return;
 		}
 
-		let apiKey = '';
-		let model = '';
-		let baseUrl = '';
+		let apiKey = llmConfigs[providerKey]?.apiKey || ''; // Keep existing if not re-entered
+		let model = llmConfigs[providerKey]?.model || '';
+		let baseUrl = llmConfigs[providerKey]?.baseUrl || '';
 
 		if (enableLLM) {
-			apiKey = await text({
-				message: `Enter your API key for ${providerKey}:`,
-				placeholder: `API key for ${providerKey}`,
-				initialValue: llmConfigs[providerKey]?.apiKey || ''
+			apiKey = await password({
+				message: `Enter API key for '${providerKey}':`,
+				validate(value) {
+					if (!value) return { message: `API Key is required for enabled providers.` };
+					return undefined;
+				}
 			});
-
 			if (isCancel(apiKey)) {
-				cancel('Operation cancelled.');
-				console.clear();
-				await configurationPrompt(); // Restart the configuration process
+				await cancelOperation();
 				return;
 			}
 
 			model = await text({
-				message: `Enter the model name/type for ${providerKey} (optional):`,
-				placeholder: 'e.g., "gpt-4"',
-				initialValue: llmConfigs[providerKey]?.model || ''
+				message: `Enter model name for '${providerKey}' (optional):`,
+				placeholder: 'e.g., gpt-4o',
+				initialValue: model
 			});
-
 			if (isCancel(model)) {
-				cancel('Operation cancelled.');
-				console.clear();
-				await configurationPrompt(); // Restart the configuration process
+				await cancelOperation();
 				return;
 			}
 
 			baseUrl = await text({
-				message: `Enter the base URL for ${providerKey} API (optional):`,
-				placeholder: 'e.g., "https://api.openai.com/v1"',
-				initialValue: llmConfigs[providerKey]?.baseUrl || ''
+				message: `Enter API base URL for '${providerKey}' (optional, leave blank for default):`,
+				placeholder: 'e.g., https://api.openai.com/v1',
+				initialValue: baseUrl
 			});
-
 			if (isCancel(baseUrl)) {
-				cancel('Operation cancelled.');
-				console.clear();
-				await configurationPrompt(); // Restart the configuration process
+				await cancelOperation();
 				return;
 			}
+		} else {
+			// Clear sensitive info if disabled
+			apiKey = '';
+			model = '';
+			baseUrl = '';
 		}
 
 		// Update the configuration for the current provider
@@ -107,14 +112,14 @@ export async function configureLLM(privateConfigData = {}) {
 			baseUrl: baseUrl || undefined
 		};
 
-		// Summary for the current provider configuration
+		// Summary for the current provider configuration (API key hidden)
 		note(
-			`Provider: ${providerKey}\n` +
-				`Enabled: ${pc.green(enableLLM ? 'true' : 'false')}\n` +
-				(enableLLM ? `API Key: ${pc.green(apiKey)}\n` : '') +
+			`Provider: ${pc.cyan(providerKey)}\n` +
+				`Enabled: ${pc.green(enableLLM ? 'Yes' : 'No')}\n` +
+				(enableLLM ? `API Key: ${pc.green('[Set]')}\n` : '') +
 				(model ? `Model: ${pc.green(model)}\n` : '') +
 				(baseUrl ? `Base URL: ${pc.green(baseUrl)}\n` : ''),
-			pc.green(`Review your configuration for ${providerKey}:`)
+			pc.green(`Review Configuration for '${providerKey}':`)
 		);
 
 		addMore = await confirm({
@@ -126,48 +131,31 @@ export async function configureLLM(privateConfigData = {}) {
 			cancel('Operation cancelled.');
 			console.clear();
 			await configurationPrompt(); // Restart the configuration process
+			await cancelOperation();
 			return;
 		}
 	} while (addMore);
 
 	// Confirm overall configuration
-	const action = await confirm({
-		message: 'Is the above configuration correct?',
+	note(
+		`Final LLM Configuration:\n${JSON.stringify(llmConfigs, (key, value) => (key === 'apiKey' ? '[Set]' : value), 2)}`,
+		pc.green('Final LLM Configuration Review (API Keys hidden):')
+	);
+
+	const confirmSave = await confirm({
+		message: 'Save this LLM configuration?',
 		initialValue: true
 	});
 
-	if (isCancel(action)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
+	if (isCancel(confirmSave)) {
+		await cancelOperation();
 		return;
 	}
 
-	if (!action) {
-		console.log('LLM configuration canceled.');
-		const restartOrExit = await select({
-			message: 'Do you want to restart or exit?',
-			options: [
-				{ value: 'restart', label: 'Restart', hint: 'Start again' },
-				{ value: 'cancel', label: 'Cancel', hint: 'Clear and return to selection' },
-				{ value: 'exit', label: 'Exit', hint: 'Quit the installer' }
-			]
-		});
-
-		if (isCancel(restartOrExit)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt(); // Restart the configuration process
-			return;
-		}
-
-		if (restartOrExit === 'restart') {
-			return configureLLM();
-		} else if (restartOrExit === 'exit') {
-			process.exit(1); // Exit with code 1
-		} else if (restartOrExit === 'cancel') {
-			process.exit(0); // Exit with code 0
-		}
+	if (!confirmSave) {
+		note('Configuration not saved.', pc.yellow('Action Cancelled'));
+		await cancelOperation(); // Return to main config menu
+		return;
 	}
 
 	// Return the compiled LLM API configurations

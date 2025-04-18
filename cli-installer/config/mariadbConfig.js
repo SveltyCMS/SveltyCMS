@@ -1,70 +1,60 @@
 /** 
-@file cli-installer\config\mariadbConfig.js
+@file cli-installer/config/mariadbConfig.js
 @description Configuration prompts for the mariadbConfig section
+
+### Features
+- Displays a note about the mariadbConfig configuration
+- Displays existing configuration (password hidden)
+- Prompts for mariadbConfig integration
 */
 
-import { text, confirm, note, isCancel, cancel, select } from '@clack/prompts';
+import { text, note, isCancel, select, password } from '@clack/prompts';
 import pc from 'picocolors';
-import { configurationPrompt } from '../configuration.js';
+import { cancelOperation } from '../cli-installer.js';
+
+// Helper function to validate port number
+const validatePort = (value) => {
+	if (value === null || value === undefined || value === '') return `Port is required.`;
+	const num = Number(value);
+	if (isNaN(num) || !Number.isInteger(num) || num < 1 || num > 65535) {
+		return `Please enter a valid port number (1-65535).`;
+	}
+};
+
+// Helper function to validate non-empty string
+const validateRequired = (value, fieldName) => {
+	if (!value || value.trim().length === 0) return `${fieldName} is required.`;
+};
 
 export async function configureMariaDB(privateConfigData = {}) {
 	// Notify user about alpha stage
-	note(`${pc.red('MariaDB configuration is in alpha stage and not ready for production use.')}`, pc.red('Alpha Stage Notice:'));
+	note(`${pc.yellow('MariaDB support is experimental and not recommended for production.')}`, pc.yellow('Alpha Stage Notice:'));
 
-	// Extract the relevant MariaDB configuration
-	const { DB_TYPE, DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD } = privateConfigData;
-
-	// Display existing configuration if present
-	if (DB_TYPE && DB_HOST && DB_PORT && DB_NAME && DB_USER && DB_PASSWORD) {
+	// Display existing configuration if present (password hidden)
+	if (privateConfigData.DB_TYPE === 'mariadb' && privateConfigData.DB_HOST) {
 		note(
-			`DB_TYPE: ${pc.red(DB_TYPE)}\n` +
-				`DB_HOST: ${pc.red(DB_HOST)}\n` +
-				`DB_PORT: ${pc.red(DB_PORT)}\n` +
-				`DB_NAME: ${pc.red(DB_NAME)}\n` +
-				`DB_USER: ${pc.red(DB_USER)}\n` +
-				`DB_PASSWORD: ${pc.red(DB_PASSWORD)}`,
-			pc.red('Existing MariaDB configuration found:')
+			`Current Host: ${pc.cyan(privateConfigData.DB_HOST)}\n` +
+				`Current Port: ${pc.cyan(privateConfigData.DB_PORT?.toString() || 'Not set')}\n` +
+				`Current DB Name: ${pc.cyan(privateConfigData.DB_NAME || 'Not set')}\n` +
+				`Current User: ${pc.cyan(privateConfigData.DB_USER || 'Not set')}`,
+			//`DB_PASSWORD: ${pc.red(DB_PASSWORD)}`, // Keep password hidden
+			pc.cyan('Existing MariaDB Configuration (Password hidden):')
 		);
-
-		const continueWithExisting = await confirm({
-			message: 'Do you want to continue with this configuration?',
-			initialValue: true
-		});
-
-		if (isCancel(continueWithExisting) || !continueWithExisting) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt(); // Restart the configuration process
-			return;
-		}
-
-		return {
-			DB_HOST,
-			DB_PORT,
-			DB_NAME,
-			DB_USER,
-			DB_PASSWORD
-		};
 	}
 
 	// Initial guide note
 	note(`Please choose your MariaDB setup option:`, pc.green('MariaDB Setup:'));
 
-	// Choose MariaDB option
 	const mariadbOption = await select({
-		message: 'Choose your MariaDB option:',
-		initialValue: privateConfigData.DB_PROVIDER || 'local',
+		message: 'Choose your MariaDB setup type:',
+		initialValue: privateConfigData.DB_PROVIDER || 'local', // Assuming DB_PROVIDER might store this
 		options: [
-			{ value: 'local', label: 'Use Local MariaDB', hint: 'For Development' },
-			{ value: 'docker', label: 'Use Docker MariaDB', hint: 'For Development' }
-		],
-		required: true
+			{ value: 'local', label: 'Local Server', hint: 'MariaDB installed directly on your machine' },
+			{ value: 'docker', label: 'Docker Container', hint: 'MariaDB running inside Docker' }
+		]
 	});
-
 	if (isCancel(mariadbOption)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
+		await cancelOperation();
 		return;
 	}
 
@@ -85,84 +75,64 @@ export async function configureMariaDB(privateConfigData = {}) {
 		);
 	}
 
-	// Database Host
 	const dbHost = await text({
 		message: 'Enter your MariaDB host:',
 		placeholder: 'localhost',
 		initialValue: privateConfigData.DB_HOST || 'localhost',
-		required: true
+		validate: (v) => validateRequired(v, 'Host')
 	});
-
 	if (isCancel(dbHost)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
+		await cancelOperation();
 		return;
 	}
 
-	// Database Port
 	const dbPort = await text({
 		message: 'Enter your MariaDB port:',
 		placeholder: '3306',
-		initialValue: privateConfigData.DB_PORT || '3306',
-		required: true
+		initialValue: privateConfigData.DB_PORT?.toString() || '3306',
+		validate: validatePort
 	});
-
 	if (isCancel(dbPort)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
+		await cancelOperation();
 		return;
 	}
 
-	// Database User
 	const dbUser = await text({
 		message: 'Enter your MariaDB user:',
-		placeholder: 'demo',
-		initialValue: privateConfigData.DB_USER || 'demo',
-		required: true
+		placeholder: 'root',
+		initialValue: privateConfigData.DB_USER || 'root',
+		validate: (v) => validateRequired(v, 'User')
 	});
-
 	if (isCancel(dbUser)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
+		await cancelOperation();
 		return;
 	}
 
-	// Database Password
-	const dbPassword = await text({
+	const dbPassword = await password({
 		message: 'Enter your MariaDB password:',
-		placeholder: 'password',
-		initialValue: privateConfigData.DB_PASSWORD,
-		required: true
+		validate: (v) => validateRequired(v, 'Password')
 	});
-
 	if (isCancel(dbPassword)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
+		await cancelOperation();
 		return;
 	}
 
-	// Database Name
 	const dbName = await text({
 		message: 'Enter your MariaDB database name:',
-		placeholder: 'demo',
-		initialValue: privateConfigData.DB_NAME || 'demo',
-		required: true
+		placeholder: 'sveltycms_db',
+		initialValue: privateConfigData.DB_NAME || 'sveltycms_db',
+		validate: (v) => validateRequired(v, 'Database name')
 	});
-
 	if (isCancel(dbName)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
+		await cancelOperation();
 		return;
 	}
 
+	// Return the collected configuration
 	return {
+		DB_TYPE: 'mariadb', // Ensure DB_TYPE is set
 		DB_HOST: dbHost,
-		DB_PORT: dbPort,
+		DB_PORT: parseInt(dbPort, 10), // Ensure port is a number
 		DB_NAME: dbName,
 		DB_USER: dbUser,
 		DB_PASSWORD: dbPassword

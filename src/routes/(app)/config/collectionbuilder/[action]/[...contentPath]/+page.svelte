@@ -54,8 +54,11 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	async function loadCollection() {
 		if (action == 'edit') collection.set(data.collection);
 		else {
+			// Set to null for new collections as _id is required in Schema
+			collection.set(null);
+			/* Potential alternative if you need a placeholder object:
 			collection.set({
-				_id: undefined,
+				_id: '', // Use an empty string or generate a temporary client-side ID if needed later
 				name: '',
 				icon: '',
 				description: '',
@@ -63,6 +66,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 				slug: '',
 				fields: []
 			});
+			*/
 		}
 	}
 
@@ -105,13 +109,6 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	// Function to save data by sending a POST request
 	async function handleCollectionSave() {
-		// Delete key from fields
-		if (collection.value && Array.isArray(collection.value.fields)) {
-			collection.value.fields.forEach((field: { key?: string }) => {
-				delete field.key;
-			});
-		}
-
 		console.log(collection.value, name, page.params);
 
 		// Prepare form data
@@ -213,26 +210,27 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	</button>
 </div>
 
-{#if mode.value == 'edit'}
-	<div class="flex justify-center gap-3">
-		<button
-			type="button"
-			onclick={handleCollectionDelete}
-			class=" variant-filled-error btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-error dark:text-black"
-			>{m.button_delete()}
-		</button>
-		<button
-			type="button"
-			onclick={handleCollectionSave}
-			class="variant-filled-tertiary btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-tertiary dark:text-black">{m.button_save()}</button
-		>
-	</div>
-{/if}
-
 <div class="wrapper">
-	<p class="mb-2 hidden text-center text-tertiary-500 dark:text-primary-500 sm:block">{m.collection_helptext()}</p>
+	{#if mode.value == 'edit'}
+		<div class="flex justify-center gap-3">
+			<button
+				type="button"
+				onclick={handleCollectionDelete}
+				class=" variant-filled-error btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-error dark:text-black"
+				>{m.button_delete()}
+			</button>
+			<button
+				type="button"
+				onclick={handleCollectionSave}
+				class="variant-filled-tertiary btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-tertiary dark:text-black">{m.button_save()}</button
+			>
+		</div>
+	{/if}
 
-	<TabGroup bind:group={$tabSet} justify="justify-around">
+	<p class="mb-2 hidden text-center text-tertiary-500 dark:text-primary-500 sm:block">{m.collection_helptext()}</p>
+	<!-- Required Text  -->
+	<div class="mb-2 text-center text-xs text-error-500">* {m.collection_required()}</div>
+	<TabGroup bind:group={$tabSet}>
 		<!-- User Permissions -->
 		{#if page.data.user && page.data.user.isAdmin}
 			<!-- Edit -->

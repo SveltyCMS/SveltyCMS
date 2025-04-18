@@ -31,9 +31,11 @@ Features:
 	import { getToastStore } from '@skeletonlabs/skeleton';
 	import { goto } from '$app/navigation';
 	import { publicEnv } from '@root/config/public';
-	import { sidebarState, toggleSidebar } from '@src/stores/sidebarStore.svelte';
-	import { screenSize } from '@src/stores/screenSizeStore.svelte';
-	import { mode } from '@src/stores/collectionStore.svelte';
+
+	// Stores
+	import { uiStateManager, toggleUIElement } from '@stores/UIStore.svelte';
+	import { screenSize } from '@stores/screenSizeStore.svelte';
+	import { mode } from '@stores/collectionStore.svelte';
 	import { get } from 'svelte/store';
 
 	// Toast notifications
@@ -193,8 +195,7 @@ Features:
 		mode.set('view');
 		goto('/'); // Adjust this route as needed
 		if (get(screenSize) === 'sm') {
-			toggleSidebar('left', 'hidden');
-		}
+			toggleUIElement('leftSidebar', 'hidden'); 
 	}
 
 	// Fetch folders on component mount
@@ -205,7 +206,7 @@ Features:
 
 <div class="mt-2 overflow-y-auto">
 	<!-- Return to Collections Button -->
-	{#if sidebarState.sidebar.value.left === 'full'}
+	{#if uiStateManager.uiState.value.leftSidebar === 'full'}
 		<!-- Sidebar Expanded -->
 		<button
 			onclick={returnToCollections}
@@ -231,7 +232,7 @@ Features:
 	{#if folders.length > 0}
 		<div class="relative flex flex-wrap">
 			{#each folders.filter((f) => !currentFolder || f.parent === currentFolder?._id) as folder (folder._id)}
-				{#if sidebarState.sidebar.value.left === 'full'}
+				{#if uiStateManager.uiState.value.leftSidebar === 'full'}
 					<!-- Sidebar Expanded -->
 					<div class="nowrap variant-outline-surface flex w-full">
 						<button onclick={() => openFolder(folder._id)} aria-label={`Open folder: ${folder.name}`} class="btn flex items-center space-x-2 p-2">

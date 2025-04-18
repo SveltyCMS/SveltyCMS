@@ -25,6 +25,7 @@ export interface Widget {
   dependencies?: string[];
   component?: typeof SvelteComponent;
   config?: Record<string, unknown>;
+  validateWidget?: () => Promise<string | null>;
   modifyRequest?: (args: ModifyRequestParams) => Promise<Record<string, unknown>>;
   GuiFields?: unknown;
   Icon?: string;
