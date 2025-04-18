@@ -1,6 +1,17 @@
 <!-- 
 @file src/routes/(app)/user/+page.svelte
-@description This file sets up and displays the user page, providing a streamlined interface for managing user accounts and settings.
+@component
+**This file sets up and displays the user page, providing a streamlined interface for managing user accounts and settings**
+
+@example
+<User />
+
+### Props
+- `users` {array} - Array of users
+
+### Features
+- Displays a list of users
+- Provides a user-friendly interface for managing user accounts and settings
 -->
 
 <script lang="ts">

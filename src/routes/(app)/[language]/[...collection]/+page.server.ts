@@ -58,27 +58,26 @@ export const load: PageServerLoad = async ({ cookies, locals, params }) => {
 		throw redirect(302, '/user');
 	}
 
-  await contentManager.initialize();
+	await contentManager.initialize();
 
-  const currentCollection = await contentManager.getCollection(`/${collection}`);
+	const currentCollection = await contentManager.getCollection(`/${collection}`);
 
-
-  return {
-    theme: theme || DEFAULT_THEME,
-    contentLanguage,
-    collection: {
-      module: currentCollection?.module,
-      name: currentCollection?.name,
-      _id: currentCollection?._id,
-      path: currentCollection?.path,
-      icon: currentCollection?.icon,
-      label: currentCollection?.label,
-      description: currentCollection?.description,
-    },
-    user: {
-      username: user.username,
-      role: user.role,
-      avatar: user.avatar
-    }
-  };
+	return {
+		theme: theme || DEFAULT_THEME,
+		contentLanguage,
+		collection: {
+			module: currentCollection?.module,
+			name: currentCollection?.name,
+			_id: currentCollection?._id,
+			path: currentCollection?.path,
+			icon: currentCollection?.icon,
+			label: currentCollection?.label,
+			description: currentCollection?.description
+		},
+		user: {
+			username: user.username,
+			role: user.role,
+			avatar: user.avatar
+		}
+	};
 };

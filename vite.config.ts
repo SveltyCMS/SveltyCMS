@@ -16,8 +16,9 @@ import { purgeCss } from 'vite-plugin-tailwind-purgecss';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import { paraglide } from '@inlang/paraglide-sveltekit/vite';
-import { compile, cleanupOrphanedFiles } from './src/routes/api/compile/compile';
+import { compile } from './src/routes/api/compile/compile';
 import { generateContentTypes } from './src/content/vite';
+import type { IncomingMessage, ServerResponse } from 'http';
 
 // Get package.json version info
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
@@ -55,81 +56,94 @@ export default defineConfig({
 			async buildStart() {
 				try {
 					await compile({ userCollections, compiledCollections });
-					console.log('Initial compilation successful!');
+					console.log('\x1b[32mInitial compilation successful!\x1b[0m\n ');
 				} catch (error) {
-					console.error('Initial compilation failed:', error);
+					console.error('\x1b[31mInitial compilation failed:\x1b[0m', error);
 					throw error;
 				}
 			},
 			configureServer(server) {
 				let lastUnlinkFile: string | null = null;
 				let lastUnlinkTime = 0;
-				const lastUUIDUpdate: { [key: string]: number } = {};
+				// const lastUUIDUpdate: { [key: string]: number } = {}; // Remove unused variable
 
 				return () => {
 					server.watcher.on('all', async (event, file) => {
 						// Monitor changes in config/collections/**/*.ts and **/*.js
 						if (file.startsWith(userCollections) && (file.endsWith('.ts') || file.endsWith('.js'))) {
-							console.log(`Collection file event: ${event} - \x1b[34m${file}\x1b[0m`);
+							console.log(`Collection file event: \x1b[33m${event}\x1b[0m - \x1b[34m${file}\x1b[0m`);
 
 							clearTimeout(compileTimeout);
+							// Debounce all events (add, change, unlink, unlinkDir) to trigger a single compile run
 							compileTimeout = setTimeout(async () => {
 								try {
-									const currentTime = Date.now();
+									const currentTime = Date.now(); // Get current time inside the debounced function
 
+									// Log the specific event that triggered this compile run
+									// Note: Multiple events might occur within the debounce period.
+									// We primarily care that *something* changed.
+									console.log(`Processing collection change event: \x1b[33m${event}\x1b[0m for \x1b[34m${file}\x1b[0m`);
+
+									// Rename detection logic (optional, compile handles moves/renames now)
+									// We can keep this logging for clarity if desired.
 									if (event === 'unlink' || event === 'unlinkDir') {
 										lastUnlinkFile = file;
 										lastUnlinkTime = currentTime;
-										console.log(`Collection file deleted: \x1b[31m${file}\x1b[0m`);
-
-										// Handle deletion
-										await cleanupOrphanedFiles(userCollections, compiledCollections);
-										console.log(`Cleanup completed for deleted file: \x1b[31m${file}\x1b[0m`);
-									} else if (event === 'add' || event === 'change') {
-										const isRename = lastUnlinkFile && currentTime - lastUnlinkTime < 100;
-
+										// console.log(`File marked for potential rename/deletion: \x1b[31m${file}\x1b[0m`); // Removed verbose log
+									} else if (event === 'add') {
+										const isRename = lastUnlinkFile && currentTime - lastUnlinkTime < 100; // Keep rename detection window small
 										if (isRename) {
-											console.log(`Collection file renamed: \x1b[33m${lastUnlinkFile}\x1b[0m -> \x1b[32m${file}\x1b[0m`);
-											lastUnlinkFile = null;
-										} else {
-											console.log(`Collection file ${event}: \x1b[32m${file}\x1b[0m`);
+											console.log(`Detected potential rename: \x1b[33m${lastUnlinkFile}\x1b[0m -> \x1b[32m${file}\x1b[0m`);
+											lastUnlinkFile = null; // Reset rename detection
 										}
+									}
 
-										// Track update time
-										lastUUIDUpdate[file] = currentTime;
+									// --- Always run compile, which now handles cleanup internally ---
+									await compile({ userCollections, compiledCollections });
+									console.log('\x1b[32mCompilation and cleanup successful!\x1b[0m\n');
 
-										// Compile
-										await compile({ userCollections, compiledCollections });
-										console.log('Compilation successful!');
+									// --- Post-compilation steps (only needed if compile succeeded) ---
 
-										// Trigger content-structure sync via API with retry logic
+									// Generate types if add/change event occurred (unlink doesn't need type update)
+									if (event === 'add' || event === 'change') {
+										try {
+											await generateContentTypes(server);
+											console.log(`Collection types updated potentially due to: \x1b[32m${file}\x1b[0m`);
+										} catch (error) {
+											console.error('Error updating collection types:', error);
+										}
+									}
+
+									// Trigger content-structure sync via API (if needed for any change)
+									// Consider if this is needed for 'unlink' as well. Assuming yes for now.
+									{
+										// Scope variables for sync
 										const maxRetries = 3;
 										let retryCount = 0;
 										const syncContentStructure = async () => {
 											try {
-												// Create a proper Node.js request object
+												// Create a proper Node.js request object (keep as is)
 												const req = {
 													method: 'POST',
-													url: '/api/content-structure',
+													url: '/api/content-structure', // Ensure this endpoint exists and handles POST
 													originalUrl: '/api/content-structure',
 													headers: {
 														'content-type': 'application/json'
 													},
 													body: JSON.stringify({
-														action: 'recompile'
+														// Ensure body matches endpoint expectation
+														action: 'recompile' // Or perhaps pass specific file/event info?
 													}),
 													on: (event, callback) => {
-														if (event === 'data') {
-															callback(req.body);
-														}
-														if (event === 'end') {
-															callback();
-														}
+														// Simplified mock event handling
+														if (event === 'data') callback(Buffer.from(req.body || ''));
+														if (event === 'end') callback();
 													}
 												};
 
-												// Create a proper Node.js response object
+												// Create a proper Node.js response object (keep as is)
 												const res = {
+													writeHead: () => {},
 													setHeader: () => {},
 													getHeader: () => {},
 													write: () => {},
@@ -137,36 +151,30 @@ export default defineConfig({
 													statusCode: 200
 												};
 
-												// Use the server's middleware to handle the request
-												await new Promise((resolve) => {
-													server.middlewares(req, res, () => resolve(undefined));
+												// Use the server's middleware to handle the request (keep as is)
+												// Attempt to cast to expected types, though exact match might be difficult
+												await new Promise<void>((resolveMiddleware) => {
+													server.middlewares(req as IncomingMessage, res as ServerResponse, () => resolveMiddleware());
 												});
 
 												console.log('Content structure sync triggered successfully');
-											} catch (error) {
+											} catch (syncError) {
 												if (retryCount < maxRetries) {
 													retryCount++;
 													console.log(`Retrying content structure sync (attempt ${retryCount})...`);
-													await new Promise((resolve) => setTimeout(resolve, 500));
-													return syncContentStructure();
+													await new Promise((resolveDelay) => setTimeout(resolveDelay, 500));
+													await syncContentStructure(); // Await the recursive call
+												} else {
+													console.error('Failed to trigger content structure sync after retries:', syncError);
 												}
-												console.error('Failed to trigger content structure sync after retries:', error);
 											}
 										};
-
 										await syncContentStructure();
+									} // End scope for sync
 
-										try {
-											await generateContentTypes(server);
-											console.log(`Collection types updated for: \x1b[32m${file}\x1b[0m`);
-										} catch (error) {
-											console.error('Error updating collection types:', error);
-										}
-									}
-
-									// Notify client to reload collections
+									// Notify client to reload collections (always do this after compile)
 									server.ws.send({
-										type: 'custom',
+										type: 'custom', // Ensure client listens for this
 										event: 'collections-updated',
 										data: {}
 									});

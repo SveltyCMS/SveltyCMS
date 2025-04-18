@@ -8,8 +8,8 @@ import type { Field } from '@src/content/types';
 import type { WidgetFunction } from '@widgets/types';
 
 type DisplayParams = {
-  data: ContentEntry;
-  contentLanguage: string;
+	data: ContentEntry;
+	contentLanguage: string;
 };
 
 export type DISPLAY = (params: DisplayParams) => Promise<string>;
@@ -18,15 +18,15 @@ export type DISPLAY = (params: DisplayParams) => Promise<string>;
  * Defines Group widget Parameters
  */
 export type Params = {
-  // default required parameters
-  label: string;
-  display?: DISPLAY;
-  db_fieldName?: string;
-  widget?: WidgetFunction;
-  required?: boolean;
-  icon?: string;
-  helper?: string;
-  width?: number;
+	// default required parameters
+	label: string;
+	display?: DISPLAY;
+	db_fieldName?: string;
+	widget?: WidgetFunction;
+	required?: boolean;
+	icon?: string;
+	helper?: string;
+	width?: number;
 
 	// Widget Specific parameters
 	fields: Field[];
@@ -44,8 +44,8 @@ export type GuiSchema = object; // Type for GUI configuration object
 import type { Collection } from '@src/config/types';
 
 export const GraphqlSchema = function ({ label, collection }: { label: string; collection: Collection }) {
-  const typeName = `${collection.name}_${label}`;
-  return { typeName, graphql: '' };
+	const typeName = `${collection.name}_${label}`;
+	return { typeName, graphql: '' };
 };
 
 /**

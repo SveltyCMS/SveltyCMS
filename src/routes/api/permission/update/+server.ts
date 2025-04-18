@@ -42,73 +42,73 @@ const MAX_ROLE_NAME_LENGTH = 50;
 const ROLE_NAME_PATTERN = /^[a-zA-Z0-9-_\s]+$/;
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-  // Authorization check
-  const user = locals.user;
-  if (!user) {
-    logger.warn('Unauthorized attempt to update permissions - no user');
-    return json({ success: false, error: 'Unauthorized' }, { status: 403 });
-  }
+	// Authorization check
+	const user = locals.user;
+	if (!user) {
+		logger.warn('Unauthorized attempt to update permissions - no user');
+		return json({ success: false, error: 'Unauthorized' }, { status: 403 });
+	}
 
-  // Check if user has admin role
-  const userRole = configRoles.find((role) => role._id === user.role);
-  if (!userRole?.isAdmin) {
-    logger.warn('Unauthorized attempt to update permissions', { userId: user._id });
-    return json({ success: false, error: 'Unauthorized' }, { status: 403 });
-  }
+	// Check if user has admin role
+	const userRole = configRoles.find((role) => role._id === user.role);
+	if (!userRole?.isAdmin) {
+		logger.warn('Unauthorized attempt to update permissions', { userId: user._id });
+		return json({ success: false, error: 'Unauthorized' }, { status: 403 });
+	}
 
-  try {
-    await dbInitPromise;
+	try {
+		await dbInitPromise;
 
-    const { roles } = await request.json();
+		const { roles } = await request.json();
 
-    // Basic array validation
-    if (!Array.isArray(roles)) {
-      logger.warn('Invalid roles data: not an array');
-      return json({ success: false, error: 'Roles must be provided as an array' }, { status: 400 });
-    }
+		// Basic array validation
+		if (!Array.isArray(roles)) {
+			logger.warn('Invalid roles data: not an array');
+			return json({ success: false, error: 'Roles must be provided as an array' }, { status: 400 });
+		}
 
-    // Validate role structure and constraints
-    const validationResult = await validateRoles(roles);
-    if (!validationResult.isValid) {
-      logger.warn('Role validation failed', { reason: validationResult.error });
-      return json({ success: false, error: validationResult.error }, { status: 400 });
-    }
+		// Validate role structure and constraints
+		const validationResult = await validateRoles(roles);
+		if (!validationResult.isValid) {
+			logger.warn('Role validation failed', { reason: validationResult.error });
+			return json({ success: false, error: validationResult.error }, { status: 400 });
+		}
 
-    // Log the changes being made
-    logger.info('Updating roles and permissions', {
-      userId: user._id,
-      roleCount: roles.length,
-      timestamp: new Date().toISOString()
-    });
+		// Log the changes being made
+		logger.info('Updating roles and permissions', {
+			userId: user._id,
+			roleCount: roles.length,
+			timestamp: new Date().toISOString()
+		});
 
-    // Update the roles configuration file
-    const rolesFilePath = path.resolve('config/roles.ts');
+		// Update the roles configuration file
+		const rolesFilePath = path.resolve('config/roles.ts');
 
-    // Format roles as TypeScript object literals
-    const formattedRoles = roles
-      .map((role) => {
-        // Format each role as a TypeScript object literal, excluding the 'id' property
-        const props = Object.entries(role)
-          .filter(([key]) => key !== 'id')
-          .map(([key, value]) => {
-            if (key === 'permissions' && role.isAdmin) {
-              return `\t\tpermissions: permissions.map((p) => p._id), // All permissions`;
-            }
-            if (typeof value === 'string') {
-              return `\t\t${key}: '${value}'`;
-            }
-            if (Array.isArray(value)) {
-              return `\t\t${key}: ${JSON.stringify(value)}`;
-            }
-            return `\t\t${key}: ${value}`;
-          })
-          .join(',\n');
+		// Format roles as TypeScript object literals
+		const formattedRoles = roles
+			.map((role) => {
+				// Format each role as a TypeScript object literal, excluding the 'id' property
+				const props = Object.entries(role)
+					.filter(([key]) => key !== 'id')
+					.map(([key, value]) => {
+						if (key === 'permissions' && role.isAdmin) {
+							return `\t\tpermissions: permissions.map((p) => p._id), // All permissions`;
+						}
+						if (typeof value === 'string') {
+							return `\t\t${key}: '${value}'`;
+						}
+						if (Array.isArray(value)) {
+							return `\t\t${key}: ${JSON.stringify(value)}`;
+						}
+						return `\t\t${key}: ${value}`;
+					})
+					.join(',\n');
 
-        return `\t{\n${props}\n\t}`;
-      })
-      .join(',\n');
+				return `\t{\n${props}\n\t}`;
+			})
+			.join(',\n');
 
-    const rolesFileContent = `/**
+		const rolesFileContent = `/**
  * @file config/roles.ts
  * @description  Role configuration file
  */
@@ -132,104 +132,104 @@ export function registerRoles(newRoles: Role[]): void {
 }
 `;
 
-    await fs.writeFile(rolesFilePath, rolesFileContent, 'utf8');
+		await fs.writeFile(rolesFilePath, rolesFileContent, 'utf8');
 
-    // Log successful update
-    logger.info('Roles and permissions updated successfully', {
-      userId: user._id,
-      roleCount: roles.length,
-      timestamp: new Date().toISOString()
-    });
+		// Log successful update
+		logger.info('Roles and permissions updated successfully', {
+			userId: user._id,
+			roleCount: roles.length,
+			timestamp: new Date().toISOString()
+		});
 
-    return json({ success: true }, { status: 200 });
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error('Error updating permissions:', {
-      error: errorMessage,
-      userId: user._id,
-      timestamp: new Date().toISOString()
-    });
-    return json({ success: false, error: `Error updating permissions: ${errorMessage}` }, { status: 500 });
-  }
+		return json({ success: true }, { status: 200 });
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Error updating permissions:', {
+			error: errorMessage,
+			userId: user._id,
+			timestamp: new Date().toISOString()
+		});
+		return json({ success: false, error: `Error updating permissions: ${errorMessage}` }, { status: 500 });
+	}
 };
 
 // Validates the complete roles array and their relationships
 async function validateRoles(roles: Role[]): Promise<{ isValid: boolean; error?: string }> {
-  try {
-    // Check for empty roles array
-    if (roles.length === 0) {
-      return { isValid: false, error: 'At least one role must be provided' };
-    }
+	try {
+		// Check for empty roles array
+		if (roles.length === 0) {
+			return { isValid: false, error: 'At least one role must be provided' };
+		}
 
-    // Get available permissions for validation
-    const availablePermissions = await getAllPermissions();
-    const permissionIds = new Set(availablePermissions.map((p) => p._id));
+		// Get available permissions for validation
+		const availablePermissions = await getAllPermissions();
+		const permissionIds = new Set(availablePermissions.map((p) => p._id));
 
-    // Check for unique role names
-    const roleNames = new Set<string>();
-    let hasAdminRole = false;
+		// Check for unique role names
+		const roleNames = new Set<string>();
+		let hasAdminRole = false;
 
-    for (const role of roles) {
-      // Validate basic structure
-      if (!validateRoleStructure(role)) {
-        return { isValid: false, error: `Invalid role structure for role: ${role.name || 'unnamed'}` };
-      }
+		for (const role of roles) {
+			// Validate basic structure
+			if (!validateRoleStructure(role)) {
+				return { isValid: false, error: `Invalid role structure for role: ${role.name || 'unnamed'}` };
+			}
 
-      // Validate role name
-      if (!validateRoleName(role.name)) {
-        return {
-          isValid: false,
-          error: `Invalid role name: ${role.name}. Names must be 1-${MAX_ROLE_NAME_LENGTH} characters and contain only letters, numbers, spaces, hyphens, and underscores.`
-        };
-      }
+			// Validate role name
+			if (!validateRoleName(role.name)) {
+				return {
+					isValid: false,
+					error: `Invalid role name: ${role.name}. Names must be 1-${MAX_ROLE_NAME_LENGTH} characters and contain only letters, numbers, spaces, hyphens, and underscores.`
+				};
+			}
 
-      // Check for duplicate names
-      if (roleNames.has(role.name.toLowerCase())) {
-        return { isValid: false, error: `Duplicate role name: ${role.name}` };
-      }
-      roleNames.add(role.name.toLowerCase());
+			// Check for duplicate names
+			if (roleNames.has(role.name.toLowerCase())) {
+				return { isValid: false, error: `Duplicate role name: ${role.name}` };
+			}
+			roleNames.add(role.name.toLowerCase());
 
-      // Validate permissions
-      if (!role.isAdmin) {
-        // Skip permission validation for admin role since it's dynamic
-        for (const permission of role.permissions) {
-          if (!permissionIds.has(permission)) {
-            return { isValid: false, error: `Invalid permission: ${permission} in role: ${role.name}` };
-          }
-        }
-      }
+			// Validate permissions
+			if (!role.isAdmin) {
+				// Skip permission validation for admin role since it's dynamic
+				for (const permission of role.permissions) {
+					if (!permissionIds.has(permission)) {
+						return { isValid: false, error: `Invalid permission: ${permission} in role: ${role.name}` };
+					}
+				}
+			}
 
-      // Track admin role
-      if (role.isAdmin) {
-        hasAdminRole = true;
-      }
-    }
+			// Track admin role
+			if (role.isAdmin) {
+				hasAdminRole = true;
+			}
+		}
 
-    // Ensure at least one admin role exists
-    if (!hasAdminRole) {
-      return { isValid: false, error: 'At least one role must be designated as admin' };
-    }
+		// Ensure at least one admin role exists
+		if (!hasAdminRole) {
+			return { isValid: false, error: 'At least one role must be designated as admin' };
+		}
 
-    return { isValid: true };
-  } catch (error) {
-    logger.error('Error in role validation:', { error });
-    return { isValid: false, error: 'Internal validation error' };
-  }
+		return { isValid: true };
+	} catch (error) {
+		logger.error('Error in role validation:', { error });
+		return { isValid: false, error: 'Internal validation error' };
+	}
 }
 
 // Validates the basic structure of a role object
 function validateRoleStructure(role: Role): boolean {
-  return (
-    typeof role._id === 'string' &&
-    typeof role.name === 'string' &&
-    Array.isArray(role.permissions) &&
-    role.permissions.every((perm) => typeof perm === 'string') &&
-    (role.isAdmin === undefined || typeof role.isAdmin === 'boolean') &&
-    (role.description === undefined || typeof role.description === 'string')
-  );
+	return (
+		typeof role._id === 'string' &&
+		typeof role.name === 'string' &&
+		Array.isArray(role.permissions) &&
+		role.permissions.every((perm) => typeof perm === 'string') &&
+		(role.isAdmin === undefined || typeof role.isAdmin === 'boolean') &&
+		(role.description === undefined || typeof role.description === 'string')
+	);
 }
 
 // Validates role name format and length
 function validateRoleName(name: string): boolean {
-  return name.length > 0 && name.length <= MAX_ROLE_NAME_LENGTH && ROLE_NAME_PATTERN.test(name);
+	return name.length > 0 && name.length <= MAX_ROLE_NAME_LENGTH && ROLE_NAME_PATTERN.test(name);
 }

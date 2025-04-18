@@ -107,7 +107,7 @@ themeSchema.statics = {
 	async getAllThemes(): Promise<Theme[]> {
 		try {
 			const themes = await this.find().lean().exec();
-			return themes.map(theme => {
+			return themes.map((theme) => {
 				theme.createdAt = theme.createdAt.toISOString() as ISODateString;
 				theme.updatedAt = theme.updatedAt.toISOString() as ISODateString;
 				return theme;

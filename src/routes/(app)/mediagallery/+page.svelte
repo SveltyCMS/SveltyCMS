@@ -6,11 +6,17 @@
 This page displays a collection of media files, such as images, documents, audio, and video.
 It provides a user-friendly interface for searching, filtering, and navigating through media files.
 
-Features:
-- Search for media files
-- Filter media files by type
-- Navigate through media files
+### Props:
+- `mediaType` {MediaTypeEnum} - The type of media files to display.
+- `media` {MediaBase[]} - An array of media files to be displayed.
 
+### Events:
+- `mediaDeleted` - Emitted when a media file is deleted.	
+
+### Features:
+- Displays a collection of media files based on the specified media type.
+- Provides a user-friendly interface for searching, filtering, and navigating through media files.
+- Emits the `mediaDeleted` event when a media file is deleted.
 -->
 
 <script lang="ts">
@@ -89,12 +95,12 @@ Features:
 		files.filter((file) => {
 			if (file.type === MediaTypeEnum.Image) {
 				return (
-					(file.name || '').toLowerCase().includes(globalSearchValue.toLowerCase()) &&
+					(file.filename || '').toLowerCase().includes(globalSearchValue.toLowerCase()) &&
 					(selectedMediaType === 'All' || file.type === selectedMediaType)
 				);
 			} else {
 				return (
-					(file.name || '').toLowerCase().includes(globalSearchValue.toLowerCase()) &&
+					(file.filename || '').toLowerCase().includes(globalSearchValue.toLowerCase()) &&
 					(selectedMediaType === 'All' || file.type === selectedMediaType)
 				);
 			}

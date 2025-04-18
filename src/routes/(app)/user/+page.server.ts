@@ -15,6 +15,7 @@
  * This file is used as the server-side counterpart for the user page in a SvelteKit application.
  * It prepares data and handles form validation for the client-side rendering.
  */
+
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 
@@ -31,16 +32,6 @@ import { logger } from '@utils/logger.svelte';
 
 // Import the PermissionConfig type
 import type { PermissionConfig } from '@src/auth/permissionCheck';
-
-// Utility function to mask email addresses
-// const maskEmail = (email: string): string => {
-//     if (!email) return '[NO_EMAIL]';
-//     const parts = email.split('@');
-//     if (parts.length !== 2) return '[INVALID_EMAIL]';
-//     const [localPart, domain] = parts;
-//     const maskedLocal = localPart.slice(0, 3) + '***';
-//     return `${maskedLocal}@${domain}`;
-// };
 
 // Utility function to validate and convert a timestamp to ISO string
 const safeDateFromTimestamp = (timestamp: unknown): string | null => {
@@ -104,19 +95,6 @@ export const load: PageServerLoad = async (event) => {
 				users: formattedUsers,
 				tokens: formattedTokens
 			};
-
-			// Mask sensitive data before logging
-			// const maskedAdminData = {
-			//     users: formattedUsers.map((user) => ({
-			//         ...user,
-			//         email: '[MASKED_EMAIL]', // Log placeholder instead of masked email
-			//         avatar: '[MASKED_AVATAR]', // Mask avatar URL
-			//     })),
-			//     tokens: formattedTokens.map((token) => ({
-			//         ...token,
-			//         email: '[MASKED_EMAIL]', // Log placeholder instead of masked email
-			//     }))
-			// };
 
 			// Log masked admin data
 			logger.debug(`Admin data prepared: ${JSON.stringify(adminData)}`);

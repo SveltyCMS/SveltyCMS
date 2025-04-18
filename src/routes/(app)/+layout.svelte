@@ -23,6 +23,7 @@ Key features:
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/state';
 	import { avatarSrc } from '@stores/store.svelte';
+
 	// Utils
 	import { getTextDirection } from '@utils/utils';
 	import { isSearchVisible } from '@utils/globalSearchIndex';

@@ -25,76 +25,74 @@ import { logger } from '@utils/logger.svelte';
 import { contentManager } from '@root/src/content/ContentManager';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-  const id = url.searchParams.get('_id');
-  const queryParam = url.searchParams.get('query');
+	const id = url.searchParams.get('_id');
+	const queryParam = url.searchParams.get('query');
 
+	try {
+		// Wait for initialization to complete
 
-  try {
-    // Wait for initialization to complete
+		// Check if the collection name is provided
+		if (!id) {
+			logger.warn('Collection name not provided');
+			throw error(400, 'Collection name is required');
+		}
 
+		// Get database adapter
+		if (!dbAdapter) {
+			throw error(500, 'Database adapter not initialized');
+		}
+		const collection = dbAdapter.collection.getModel(id);
 
-    // Check if the collection name is provided
-    if (!id) {
-      logger.warn('Collection name not provided');
-      throw error(400, 'Collection name is required');
-    }
+		// Validate that the collection exists
+		if (!collection) {
+			logger.error(`Collection not found: ${id}`);
+			throw error(404, `Collection not found: ${id}`);
+		}
 
-    // Get database adapter
-    if (!dbAdapter) {
-      throw error(500, 'Database adapter not initialized');
-    }
-    const collection = dbAdapter.collection.getModel(id);
+		// Check permissions
+		const requiredPermission = `${id}:read`;
+		if (!validateUserPermission(locals.permissions, requiredPermission)) {
+			logger.warn(`User lacks required permission: ${requiredPermission}`);
+			throw error(403, `Forbidden: Insufficient permissions for ${requiredPermission}`);
+		}
 
-    // Validate that the collection exists
-    if (!collection) {
-      logger.error(`Collection not found: ${id}`);
-      throw error(404, `Collection not found: ${id}`);
-    }
+		let result;
 
-    // Check permissions
-    const requiredPermission = `${id}:read`;
-    if (!validateUserPermission(locals.permissions, requiredPermission)) {
-      logger.warn(`User lacks required permission: ${requiredPermission}`);
-      throw error(403, `Forbidden: Insufficient permissions for ${requiredPermission}`);
-    }
+		// If an ID is provided, find the document by ID
+		if (id) {
+			result = await dbAdapter.crud.findOne(id, { _id: id });
 
-    let result;
+			if (!result) {
+				logger.warn(`Document not found with ID: ${id} in collection: ${contentTypes}`);
+				throw error(404, `Document not found with ID: ${id} in collection: ${contentTypes}`);
+			}
+		} else if (queryParam) {
+			// If a query is provided, find documents that match the query
+			const query = JSON.parse(queryParam);
+			const page = parseInt(query.page, 10) || 1;
+			const limit = parseInt(query.limit, 10) || 10;
+			const skip = (page - 1) * limit;
 
-    // If an ID is provided, find the document by ID
-    if (id) {
-      result = await dbAdapter.crud.findOne(id, { _id: id });
+			const [documents, total] = await Promise.all([collection.find(query).skip(skip).limit(limit), collection.countDocuments(query)]);
 
-      if (!result) {
-        logger.warn(`Document not found with ID: ${id} in collection: ${contentTypes}`);
-        throw error(404, `Document not found with ID: ${id} in collection: ${contentTypes}`);
-      }
-    } else if (queryParam) {
-      // If a query is provided, find documents that match the query
-      const query = JSON.parse(queryParam);
-      const page = parseInt(query.page, 10) || 1;
-      const limit = parseInt(query.limit, 10) || 10;
-      const skip = (page - 1) * limit;
+			result = {
+				documents,
+				total,
+				page,
+				pages: Math.ceil(total / limit)
+			};
+		} else {
+			logger.warn('Neither ID nor query provided');
+			throw error(400, 'Either id or query parameter is required');
+		}
 
-      const [documents, total] = await Promise.all([collection.find(query).skip(skip).limit(limit), collection.countDocuments(query)]);
-
-      result = {
-        documents,
-        total,
-        page,
-        pages: Math.ceil(total / limit)
-      };
-    } else {
-      logger.warn('Neither ID nor query provided');
-      throw error(400, 'Either id or query parameter is required');
-    }
-
-    return new Response(JSON.stringify(result), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    logger.error('Error in API Find operation:', { error: message });
-    throw error(500, `Failed to retrieve documents: ${message}`);
-  }
+		return new Response(JSON.stringify(result), {
+			status: 200,
+			headers: { 'Content-Type': 'application/json' }
+		});
+	} catch (err) {
+		const message = err instanceof Error ? err.message : 'Unknown error';
+		logger.error('Error in API Find operation:', { error: message });
+		throw error(500, `Failed to retrieve documents: ${message}`);
+	}
 };
