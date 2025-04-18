@@ -54,13 +54,13 @@
 	// Keep user data in sync with server data
 
 	// Initialize avatarSrc with user's avatar or default using effect
-	$effect(() => {
-		if (user?.avatar) {
-			avatarSrc.set(user.avatar);
-		} else {
-			avatarSrc.set('/Default_User.svg');
-		}
-	});
+	// $effect(() => {
+	// 	if (user?.avatar) {
+	// 		avatarSrc.set(user.avatar);
+	// 	} else {
+	// 		avatarSrc.set('/Default_User.svg');
+	// 	}
+	// });
 
 	// Define password as state
 	let password = $state('hash-password');
@@ -182,7 +182,7 @@
 		<div class="grid grid-cols-1 grid-rows-2 gap-1 overflow-hidden md:grid-cols-2 md:grid-rows-1">
 			<!-- Avatar with user info -->
 			<div class="relative flex flex-col items-center justify-center gap-1">
-				<Avatar src={`${$avatarSrc}?t=${Date.now()}`} initials="AV" rounded-none class="w-32" />
+				<Avatar src={`${avatarSrc.value}?t=${Date.now()}`} initials="AV" rounded-none class="w-32" />
 
 				<!-- Edit button -->
 				<button onclick={modalEditAvatar} class="gradient-primary w-30 badge absolute top-8 text-white sm:top-4">{m.userpage_editavatar()}</button>

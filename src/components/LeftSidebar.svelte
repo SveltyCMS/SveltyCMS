@@ -38,7 +38,7 @@
 
 	// Define user data and state variables
 	const user = page.data.user;
-	avatarSrc.set(user?.avatar);
+	// avatarSrc.set(user?.avatar);
 
 	// Tooltip settings
 	const UserTooltip: PopupSettings = {

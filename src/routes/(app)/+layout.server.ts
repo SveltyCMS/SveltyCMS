@@ -23,6 +23,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
     return {
       theme: theme || DEFAULT_THEME,
       contentStructure: contentStructure,
+      user
     };
   } catch (error) {
     console.error('Failed to load layout data:', error);

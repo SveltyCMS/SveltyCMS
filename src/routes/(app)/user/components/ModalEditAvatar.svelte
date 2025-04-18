@@ -119,6 +119,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 			});
 
 			if (response.status === 200) {
+				console.debug(response);
 				avatarSrc.set(response.data.avatarUrl);
 				toastStore.trigger({
 					message: 'Avatar updated successfully!',
@@ -185,7 +186,13 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		<form class="modal-form {cForm}">
 			<div class="grid grid-cols-1 grid-rows-{$avatarSrc ? '1' : '2'} items-center justify-center">
 				<!-- Avatar Thumbnail -->
-				<Avatar src={$avatarSrc ? $avatarSrc : '/Default_User.svg'} alt="User avatar" loading="lazy" rounded-full class="mx-auto mb-3 w-32" />
+				<Avatar
+					src={avatarSrc.value ? avatarSrc.value : '/Default_User.svg'}
+					alt="User avatar"
+					loading="lazy"
+					rounded-full
+					class="mx-auto mb-3 w-32"
+				/>
 				<!-- FileDropzone Area-->
 				<FileDropzone
 					on:change={onChange}
