@@ -53,11 +53,11 @@ Key features:
 
 	function handleSelection(file: MediaBase, checked: boolean) {
 		if (checked) {
-			selectedFiles.add(file.name);
+			selectedFiles.add(file.filename);
 		} else {
-			selectedFiles.delete(file.name);
+			selectedFiles.delete(file.filename);
 		}
-		onSelectionChange(filteredFiles.filter((f) => selectedFiles.has(f.name)));
+		onSelectionChange(filteredFiles.filter((f) => selectedFiles.has(f.filename)));
 	}
 
 	// Pagination state
@@ -125,16 +125,16 @@ Key features:
 			{#each paginatedFiles as file}
 				<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
 					<td class="w-10">
-						<TableIcons checked={selectedFiles.has(file.name)} onCheck={(checked) => handleSelection(file, checked)} />
+						<TableIcons checked={selectedFiles.has(file.filename)} onCheck={(checked) => handleSelection(file, checked)} />
 					</td>
 					<td>
 						<img
 							src={getMediaUrl(file, 'thumbnail')}
-							alt={file.name}
+							alt={file.filename}
 							class={`relative -top-4 left-0 ${tableSize === 'small' ? 'h-32 w-auto' : tableSize === 'medium' ? 'h-48 w-44' : 'h-80 w-80'}`}
 						/>
 					</td>
-					<td>{file.name}</td>
+					<td>{file.filename}</td>
 					<td>{formatBytes(file.size)}</td>
 					<td>{file.type || 'Unknown'}</td>
 					<td>{file.path}</td>
@@ -149,7 +149,7 @@ Key features:
 
 <!-- Pagination -->
 <div
-	class="bg-surface-100-800-token sticky bottom-0 left-0 right-0 mt-2 flex flex-col items-center justify-center px-2 py-2 md:flex-row md:justify-between md:p-4"
+	class=" bg-surface-100-800-token sticky bottom-0 left-0 right-0 mt-2 flex flex-col items-center justify-center px-2 py-2 md:flex-row md:justify-between md:p-4"
 >
 	<TablePagination
 		{currentPage}

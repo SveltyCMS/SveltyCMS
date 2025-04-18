@@ -1,6 +1,40 @@
+import type { ContentNode, NestedContentNode } from '../databases/dbInterface';
 import { logger } from '../utils/logger.svelte';
 import type { Schema } from './types';
 import widgetProxy, { ensureWidgetsInitialized, resolveWidgetPlaceholder } from '@src/widgets';
+
+export function constructNestedStructure(contentStructure: Record<string, ContentNode>): NestedContentNode[] {
+	try {
+		// Create a Map for quick lookups
+		const nodeMap = new Map<string, NestedContentNode>();
+
+		// Add all nodes to the Map
+		Object.values(contentStructure).forEach((node) => {
+			nodeMap.set(node.path, { ...node, children: [] }); // Initialize children as an empty array
+		});
+
+		// Build the nested structure
+		const nestedStructure: NestedContentNode[] = [];
+
+		for (const node of nodeMap.values()) {
+			if (!node.parentPath) {
+				// This is a root node, add it to the nested structure
+				nestedStructure.push(node);
+			} else {
+				// Find the parent node and add this node to its children
+				const parentNode = nodeMap.get(node.parentPath as string);
+				if (parentNode) {
+					parentNode.children!.push(node);
+				}
+			}
+		}
+
+		return nestedStructure;
+	} catch (error) {
+		logger.error('Error generating nested JSON:', error);
+		throw error;
+	}
+}
 
 //import { ensureWidgetsInitialized } from "@src/widgets";
 
@@ -29,7 +63,7 @@ async function processModule(content: string): Promise<{ schema?: Schema } | nul
 		const moduleContent = `
 				const module = {};
 				const exports = {};
-	               const resolveWidgetPlaceholder = ${resolveWidgetPlaceholder.toString()};
+	      const resolveWidgetPlaceholder = ${resolveWidgetPlaceholder.toString()};
 				(async function(module, exports) {
 					${modifiedContent}
 					return module.exports || exports;

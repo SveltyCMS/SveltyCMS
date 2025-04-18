@@ -40,11 +40,11 @@ export const GET: RequestHandler = async ({ url }) => {
 
 		if (folderId) {
 			// Fetch contents of a specific folder
-			const contents = await dbAdapter.getVirtualFolderContents(folderId);
+			const contents = await dbAdapter.virtualFolders.getContents(folderId);
 			return json({ success: true, contents });
 		} else {
 			// Fetch all virtual folders
-			const folders = await dbAdapter.getVirtualFolders();
+			const folders = await dbAdapter.virtualFolders.getAll();
 			return json({ success: true, folders });
 		}
 	} catch (err) {
@@ -69,7 +69,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		let parentPath = '';
 		if (parent) {
-			const parentFolder = await dbAdapter.getVirtualFolderContents(parent);
+			const parentFolder = await dbAdapter.virtualFolders.getContents(parent);
 			if (!parentFolder) {
 				return json({ success: false, error: 'Parent folder not found' }, { status: 404 });
 			}
@@ -79,8 +79,12 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		const path = `${parentPath}/${name}`;
-		const result = await dbAdapter.createVirtualFolder({ name, parent, path });
-		await createDirectory(result?._id?.toString?.());
+		const result = await dbAdapter.virtualFolders.create({ name, parent, path });
+		if (!result.success) {
+			return json({ success: false, error: result.error.message }, { status: 500 });
+		}
+		const folder = result.data;
+		await createDirectory(folder._id.toString());
 		return json({ success: true, folder: result });
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
@@ -107,7 +111,7 @@ export const PATCH: RequestHandler = async ({ request }) => {
 			parent: parent || undefined
 		};
 
-		const updatedFolder = await dbAdapter.updateVirtualFolder(folderId, updateData);
+		const updatedFolder = await dbAdapter.virtualFolders.update(folderId, updateData);
 		await deleteDirectory(folderId);
 		await createDirectory(updatedFolder?._id?.toString?.());
 		if (!updatedFolder) {
@@ -134,7 +138,7 @@ export const DELETE: RequestHandler = async ({ request }) => {
 			return json({ success: false, error: 'Folder ID is required' }, { status: 400 });
 		}
 
-		const success = await dbAdapter.deleteVirtualFolder(folderId);
+		const success = await dbAdapter.virtualFolders.delete(folderId);
 		await deleteDirectory(folderId);
 		if (!success) {
 			return json({ success: false, error: 'Folder deletion failed' }, { status: 404 });

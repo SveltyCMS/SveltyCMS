@@ -17,8 +17,9 @@
 	// Stores
 	import { page } from '$app/state';
 	import { saveLayerStore, shouldShowNextButton, validationStore } from '@stores/store.svelte';
-	import { collection, mode, modifyEntry, collectionValue } from '@src/stores/collectionStore.svelte';
-	import { handleSidebarToggle } from '@src/stores/sidebarStore.svelte';
+	import { collection, mode, modifyEntry, collectionValue } from '@stores/collectionStore.svelte';
+	import { handleUILayoutToggle } from '@stores/UIStore.svelte';
+
 	import { convertTimestampToDateString, getFieldName, meta_data } from '@utils/utils';
 
 	// Type definitions
@@ -93,8 +94,8 @@
 
 	// Convert timestamps to date strings
 	let dates = $derived({
-		created: convertTimestampToDateString(typeof collectionValue.value.createdAt === 'number' ? collectionValue.value.createdAt : 0),
-		updated: convertTimestampToDateString(typeof collectionValue.value.updatedAt === 'number' ? collectionValue.value.updatedAt : 0)
+		created: convertTimestampToDateString(typeof collectionValue.value.createdAt === 'number' ? collectionValue.value.createdAt : Date.now()),
+		updated: convertTimestampToDateString(typeof collectionValue.value.updatedAt === 'number' ? collectionValue.value.updatedAt : Date.now())
 	});
 
 	// Type guard to check if the widget has a validateWidget method
@@ -159,8 +160,6 @@
 		// If validation passed, save the data
 		if (validationPassed) {
 			try {
-				console.debug('Saving data...', { mode: mode.value, value: collectionValue.value, data: getData, collection: collection.value });
-
 				await saveFormData({
 					data: getData,
 					_collection: collection.value,
@@ -170,7 +169,7 @@
 				});
 
 				mode.set('view');
-				handleSidebarToggle();
+				handleUILayoutToggle();
 			} catch (err) {
 				console.error('Failed to save data:', err);
 			}

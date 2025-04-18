@@ -11,14 +11,14 @@
  * - Error handling
  */
 
-import { dbAdapter, dbInitPromise } from '@src/databases/db';
+import { dbAdapter } from '@src/databases/db';
 import fs from 'fs/promises';
 
 import { v4 as uuidv4 } from 'uuid';
 
 // Types
 import type { Schema, ContentTypes, Category, CollectionData } from './types';
-import type { CollectionModel, ContentStructureNode, SystemContent } from '@src/databases/dbInterface';
+import type { /* CollectionModel, */ ContentNode, ContentStructureNode, SystemContent } from '@src/databases/dbInterface'; // Commented out unused import
 
 // Redis
 import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/redis';
@@ -44,20 +44,19 @@ class ContentManager {
 	private static instance: ContentManager | null = null;
 	private collectionCache: Map<string, CacheEntry<Schema>> = new Map();
 	private fileHashCache: Map<string, CacheEntry<string>> = new Map();
-	private contentStructureCache: Map<string, CacheEntry<Category>> = new Map();
+
 	private collectionAccessCount: Map<string, number> = new Map();
 	private initialized: boolean = false;
 
 	private loadedCollections: Schema[] = [];
-	private collectionModels: Map<string, CollectionModel> = new Map();
+
 	private collectionMap: Map<string, Schema> = new Map();
-	private contentStructure: Record<string, Category> = {};
-	private nestedContentStructure: ContentStructureNode[] = [];
+	private contentStructure: Record<string, ContentNode> = {};
 	private dbInitPromise: Promise<void> | null = null;
 
-	private constructor() {
-		this.dbInitPromise = dbInitPromise;
-	}
+	// private constructor() {
+	//   this.dbInitPromise = dbInitPromise;
+	// }
 
 	static getInstance(): ContentManager {
 		if (!ContentManager.instance) {
@@ -68,9 +67,9 @@ class ContentManager {
 
 	// Wait for initialization to complete
 	async waitForInitialization(): Promise<void> {
-		if (this.dbInitPromise) {
-			await this.dbInitPromise;
-		}
+		// if (this.dbInitPromise) {
+		//   await this.dbInitPromise;
+		// }
 	}
 
 	// Initialize the collection manager
@@ -100,8 +99,7 @@ class ContentManager {
 		}
 		return {
 			collectionMap: this.collectionMap,
-			contentStructure: this.contentStructure,
-			nestedContentStructure: this.nestedContentStructure
+			contentStructure: this.contentStructure
 		};
 	}
 	// Load collections
@@ -144,14 +142,17 @@ class ContentManager {
 						slug: schema.slug || filePathName.toLowerCase()
 					};
 
-					const model = await dbAdapter?.createCollectionModel(processed as CollectionData);
+					// REMOVED: Model creation should happen once during DB initialization, not on every load.
+					// const model = await dbAdapter?.collection.createModel(processed as CollectionData);
+					// if (!model) logger.error(`Database model creation for  ${schema.name} ${schema.path} Failed`)
+					// else {
+					//   collections.push(processed);
+					//   this.collectionMap.set(schema._id, processed);
+					// }
 
-					if (!model) logger.error(`Database model creation for  ${schema.name} ${schema.path} Failed`);
-					else {
-						collections.push(processed);
-						this.collectionModels.set(schema._id, model);
-						this.collectionMap.set(schema._id, processed);
-					}
+					// Store the processed schema definition in memory
+					collections.push(processed);
+					this.collectionMap.set(schema._id, processed);
 
 					await this.setCacheValue(filePath, processed, this.collectionCache);
 				} catch (err) {
@@ -166,7 +167,7 @@ class ContentManager {
 			}
 
 			this.loadedCollections = collections;
-
+			logger.debug('Content Manager Collections loaded');
 			return collections;
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : String(err);
@@ -216,18 +217,6 @@ class ContentManager {
 		}
 	}
 
-	public getCollectionModelById(id: string) {
-		try {
-			const collectionModel = this.collectionModels.get(id);
-			// Create models using UUID as the key
-			return collectionModel;
-		} catch (error) {
-			const message = `Error fetching collection models: ${error instanceof Error ? error.message : String(error)}`;
-			logger.error(message);
-			throw error;
-		}
-	}
-
 	public async getCollection(path: string): Promise<(Schema & { module: string | undefined }) | null> {
 		try {
 			if (!this.initialized) {
@@ -239,7 +228,7 @@ class ContentManager {
 
 			const schema = this.collectionMap.get(this.contentStructure[path]._id);
 
-			if (!schema || !collectionFile) return null;
+			if (!schema || !collectionFile) throw new Error('Collection not found');
 
 			return { module: collectionFile, ...schema };
 		} catch (error) {
@@ -253,9 +242,18 @@ class ContentManager {
 		try {
 			if (!dbAdapter) throw new Error('Database adapter not initialized');
 
-			const structure: ContentStructureNode[] = await dbAdapter.getContentStructure();
+			const result = await dbAdapter.content.nodes.getStructure('flat');
+			if (!result.success) logger.debug(`Failed retrieve contentNodes`);
+			const structure = result.success ? result.data : [];
+
+			this.contentStructure = {};
 			// Convert the array to a Map using the `path` property as the key
-			const structureMap = new Map<string, ContentStructureNode>(structure.map((node) => [node.path, node]));
+
+			const structureMap = new Map<string, ContentStructureNode>();
+			structure.forEach((node) => {
+				this.contentStructure[node.path] = node;
+				structureMap.set(node.path, node);
+			});
 
 			const categoryNodes: Map<string, { path: string; name: string; parentPath: string }> = new Map();
 
@@ -270,7 +268,7 @@ class ContentManager {
 
 				const parentPath = collection.path === '/' ? null : collection.path.split('/').slice(0, -1).join('/') || '/';
 
-				const currentNode = await dbAdapter?.upsertContentStructureNode({
+				const result = await dbAdapter?.content.nodes.upsertContentStructureNode({
 					_id: oldNode?._id ?? collection._id,
 					name: collection.name as string,
 					icon: collection.icon ?? oldNode?.icon ?? 'bi:file',
@@ -278,9 +276,12 @@ class ContentManager {
 					order: oldNode?.order ?? 999,
 					nodeType: 'collection',
 					parentPath: parentPath ?? oldNode?.parentPath ?? '/',
-					translations: collection.translations ?? oldNode?.translations ?? [],
-					updatedAt: oldNode?.updatedAt ?? new Date()
+					translations: collection.translations ?? oldNode?.translations ?? []
 				});
+				if (!result.success) {
+					throw new Error('Failed to update collection');
+				}
+				const currentNode = result.data;
 				this.contentStructure[currentNode.path] = currentNode;
 
 				if (parentPath && parentPath !== '/') {
@@ -297,7 +298,7 @@ class ContentManager {
 			}
 			for (const node of categoryNodes.values()) {
 				const oldNode = structureMap.get(node.path);
-				const currentCategoryNode = await dbAdapter?.upsertContentStructureNode({
+				const result = await dbAdapter?.content.nodes.upsertContentStructureNode({
 					_id: oldNode?._id ?? uuidv4(),
 					name: node.name ?? oldNode?.name,
 					icon: oldNode?.icon ?? 'bi:folder',
@@ -305,14 +306,16 @@ class ContentManager {
 					order: 999,
 					nodeType: 'category',
 					parentPath: node.parentPath,
-					translations: oldNode?.translations ?? [],
-					updatedAt: oldNode?.updatedAt ?? new Date()
+					translations: oldNode?.translations ?? []
 				});
+				if (!result.success) {
+					throw new Error('Failed to update category');
+				}
+				const currentCategoryNode = result.data;
 				this.contentStructure[currentCategoryNode.path] = currentCategoryNode;
 				structureMap.set(currentCategoryNode.path, currentCategoryNode);
 			}
 
-			this.nestedContentStructure = this.generateNestedStructure();
 			logger.debug('Content Manager SysContentStructure loaded');
 			// Cache in Redis if available
 			if (isRedisEnabled()) {
@@ -326,39 +329,6 @@ class ContentManager {
 	}
 
 	// Generate nested JSON structure
-	public generateNestedStructure(): ContentStructureNode[] {
-		try {
-			// Create a Map for quick lookups
-			const nodeMap = new Map<string, any>();
-
-			// Add all nodes to the Map
-			Object.values(this.contentStructure).forEach((node) => {
-				nodeMap.set(node.path, { ...node, children: [] }); // Initialize children as an empty array
-			});
-
-			// Build the nested structure
-			const nestedStructure: ContentStructureNode[] = [];
-
-			for (const node of nodeMap.values()) {
-				if (node.parentPath === null) {
-					// This is a root node, add it to the nested structure
-					nestedStructure.push(node);
-				} else {
-					// Find the parent node and add this node to its children
-					const parentNode = nodeMap.get(node.parentPath);
-					if (parentNode) {
-						parentNode.children!.push(node);
-					}
-				}
-			}
-
-			return nestedStructure;
-		} catch (error) {
-			logger.error('Error generating nested JSON:', error);
-			throw error;
-		}
-	}
-
 	// Cache management methods with Redis support
 	private async getCacheValue<T>(key: string, cache: Map<string, CacheEntry<T>>): Promise<T | null> {
 		// Try Redis first if available
@@ -542,7 +512,8 @@ class ContentManager {
 			logger.debug(`Attempting to read file for collection: \x1b[34m${name}\x1b[0m at path: \x1b[33m${path}\x1b[0m`);
 			const content = await this.readFile(path);
 			logger.debug(`File content for collection \x1b[34m${name}\x1b[0m: ${content.substring(0, 100)}...`); // Log only the first 100 characters
-			const schema = await this.processCollectionFile(path, content);
+			// const schema = await this.processCollectionFile(path, content); // Variable 'schema' was assigned but never used
+			await this.processCollectionFile(path, content); // Call the function but don't assign to unused variable
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : String(err);
 			logger.error(`Failed to lazy load collection ${name}:`, { error: errorMessage });

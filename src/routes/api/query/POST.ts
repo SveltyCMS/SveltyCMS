@@ -35,13 +35,12 @@ import { modifyRequest } from './modifyRequest';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 import { contentManager } from '@root/src/content/ContentManager';
-import { collectionValue } from '@root/src/stores/collectionStore.svelte';
 
 // Function to handle POST requests for a specified collection
 export const _POST = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {
 	const start = performance.now();
 	try {
-		logger.debug(`POST request received for schema: ${schema.id}, user_id: ${user._id}`);
+		logger.debug(`POST request received for schema: ${schema._id}, user_id: ${user._id}`);
 
 		// Ensure the database adapter is initialized
 		if (!dbAdapter) {
@@ -55,7 +54,7 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
 			return new Response('Invalid or undefined schema ID.', { status: 400 });
 		}
 
-		const collection = contentManager.getCollectionModelById(schema._id); // Get collection models from the database
+		const collection = dbAdapter.collection.getModel(schema._id);
 		// Check if the collection exists
 		if (!collection) {
 			logger.error(`Collection not found for schema ID: ${schema._id}`);
@@ -89,7 +88,7 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
 
 		// Set the status to 'published' and assign a new ObjectId
 		body['status'] = 'published';
-		body._id = dbAdapter.generateId();
+		body._id = dbAdapter.utils.generateId();
 		logger.debug(`Document prepared for insertion with ID: ${body._id}`);
 
 		// Modify request with performance tracking
@@ -105,8 +104,8 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
 				const linkedCollection = contentManager.getCollectionById(_collection);
 				if (!linkedCollection) continue;
 
-				const newLinkId = dbAdapter.generateId();
-				await dbAdapter.insertMany(_collection, [
+				const newLinkId = dbAdapter.utils.generateId();
+				await dbAdapter.crud.insertMany(_collection, [
 					{
 						_id: newLinkId,
 						_link_id: body._id,
@@ -121,7 +120,8 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
 
 		// Insert the new document with performance tracking
 		const insertStart = performance.now();
-		const result = await collection.insertMany([body]);
+
+		const result = await dbAdapter.crud.insertMany(`collection_${schema._id}`, [body]);
 		const insertDuration = performance.now() - insertStart;
 
 		const totalDuration = performance.now() - start;

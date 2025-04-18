@@ -3,9 +3,8 @@
 @component
 **This page is used to local upload media to the media gallery**
 
-```tsx
+@example
 <LocalUpload  files={files} uploadFiles={uploadFiles} onDelete={onDelete} onFormSubmit={onFormSubmit} onCancel={onCancel} onClose={onClose} />
-```
 
 ### Props
 - `files` {File[]} - Array of files to be uploaded
@@ -15,6 +14,10 @@
 - `onCancel` {Function} - Function to cancel the upload
 - `onClose` {Function} - Function to close the modal
 
+### Features
+- Displays a collection of media files based on the specified media type.
+- Provides a user-friendly interface for searching, filtering, and navigating through media files.
+- Emits the `mediaDeleted` event when a media file is deleted.
 -->
 
 <script lang="ts">
@@ -23,7 +26,7 @@
 	import ModalUploadMedia from './ModalUploadMedia.svelte';
 	import { goto } from '$app/navigation';
 
-	let files: File[] = [];
+	let files = $state<File[]>([]);
 	let input: HTMLInputElement | null = $state(null);
 	let dropZone: HTMLDivElement | null = $state(null);
 
@@ -100,6 +103,8 @@
 		files = files.filter((f) => f !== file);
 	}
 
+	// Function passed to the modal (though not used there anymore)
+	// This is the main upload logic triggered after modal confirmation
 	async function uploadFiles() {
 		if (files.length === 0) {
 			toastStore.trigger({
@@ -113,7 +118,12 @@
 		files.forEach((file) => {
 			formData.append('files', file);
 		});
+		// Add the required processType for the backend endpoint
 		formData.append('processType', 'save');
+
+		// Assuming '/api/media/process' handles the actual saving based on FormData
+		// You might need to add folder context here if uploads should go into specific virtual folders
+		// formData.append('folderId', currentFolder?._id || ''); // Example if needed
 
 		try {
 			const response = await fetch('/api/media/process', {
@@ -122,7 +132,8 @@
 			});
 
 			if (!response.ok) {
-				throw Error('Upload failed');
+				const errorText = await response.text();
+				throw new Error(`Upload failed: ${response.status} ${errorText}`);
 			}
 
 			const result = await response.json();
@@ -133,11 +144,10 @@
 					background: 'variant-filled-success'
 				});
 				files = []; // Clear the files array after successful upload
-
 				// Navigate back to media gallery after successful upload
-				goto('/mediagallery');
+				goto('/mediagallery', { invalidateAll: true }); // Invalidate data on navigation
 			} else {
-				throw Error(result.error || 'Upload failed');
+				throw new Error(result.error || 'Upload failed');
 			}
 		} catch (error) {
 			console.error('Error uploading files:', error);
@@ -154,13 +164,12 @@
 	ondrop={handleFileDrop}
 	ondragover={handleDragOver}
 	ondragleave={handleDragLeave}
-	class="mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700"
-	role="cell"
-	tabindex="0"
-	aria-dropeffect="none"
+	class="border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700 mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded border-2 border-dashed"
+	role="region"
+	aria-label="File drop zone"
 >
 	<div class="grid grid-cols-6 items-center p-4">
-		<iconify-icon icon="fa6-solid:file-arrow-up" width="40"></iconify-icon>
+		<iconify-icon icon="fa6-solid:file-arrow-up" width="40" aria-hidden="true"></iconify-icon>
 
 		<div class="col-span-5 space-y-4 text-center">
 			<p class="font-bold">
@@ -170,13 +179,15 @@
 
 			<p class="text-sm opacity-75">Multiple files allowed</p>
 
-			<button onclick={() => input?.click()} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary"> Browse Files </button>
+			<button type="button" onclick={() => input?.click()} class="variant-filled-tertiary btn dark:variant-filled-primary mt-3">
+				Browse Files
+			</button>
 
 			<!-- File Size Limit -->
-			<p class="mt-2 text-sm text-tertiary-500 dark:text-primary-500">Max File Size: XX MB</p>
+			<p class="text-tertiary-500 dark:text-primary-500 mt-2 text-sm">Max File Size: XX MB</p>
 		</div>
 	</div>
 
 	<!-- File Input -->
-	<input bind:this={input} type="file" hidden multiple onchange={onChange} />
+	<input bind:this={input} type="file" class="sr-only" hidden multiple onchange={onChange} aria-hidden="true" tabindex="-1" />
 </div>

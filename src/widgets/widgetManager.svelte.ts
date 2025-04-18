@@ -2,7 +2,7 @@
  * @file src/widgets/widgetManager.svelte.ts
  * @description Widget Manager for handling widget loading, activation, and configuration
  */
-import { mount } from "svelte";
+import { mount } from 'svelte';
 import type { User, WidgetId } from '@src/auth/types';
 import type { Schema } from '@src/content/types';
 
@@ -10,7 +10,6 @@ import type { Schema } from '@src/content/types';
 import { logger } from '@utils/logger.svelte';
 import type { Widget, WidgetModule } from './types';
 import MissingWidget from './MissingWidget.svelte';
-
 
 export type WidgetStatus = 'active' | 'inactive'; // Define widget status types
 

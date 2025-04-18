@@ -23,12 +23,14 @@ import { modifyRequest } from './modifyRequest';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 import { contentManager } from '@root/src/content/ContentManager';
+import { dbAdapter } from '@root/src/databases/db';
 
 // Function to handle PATCH requests for a specified collection
 export async function _PATCH({ data, schema, user }: { data: FormData; schema: Schema; user: User }) {
 	const start = performance.now();
 	try {
 		logger.debug(`PATCH request received for schema: ${schema._id}, user_id: ${user._id}`);
+		if (!dbAdapter) throw new Error('Database adapter not initialized');
 
 		// Validate schema._id
 		if (!schema._id) {
@@ -37,7 +39,7 @@ export async function _PATCH({ data, schema, user }: { data: FormData; schema: S
 		}
 
 		// Get collection models
-		const collection = contentManager.getCollectionModelById(schema._id);
+		const collection = dbAdapter.collection.getModel(schema._id);
 		if (!collection) {
 			logger.error(`Collection not found for schema._id: ${schema._id}`);
 			return new Response('Collection not found', { status: 404 });
@@ -82,7 +84,7 @@ export async function _PATCH({ data, schema, user }: { data: FormData; schema: S
 
 		// Update the document
 		const updateStart = performance.now();
-		const updateResult = await collection.updateOne({ _id: body._id }, result[0]);
+		const updateResult = await dbAdapter.crud.update(`collection_${schema._id}`, { _id: body._id }, result[0]);
 		const updateDuration = performance.now() - updateStart;
 		logger.debug(`Document update completed in ${updateDuration.toFixed(2)}ms`);
 

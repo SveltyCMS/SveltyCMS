@@ -1,47 +1,42 @@
 /** 
 @file cli-installer/config/mongodbConfig.js
 @description Configuration prompts for the MongoDB section
+
+### Features
+- Displays a note about the MongoDB configuration
+- Displays existing configuration (password hidden)
+- Prompts for MongoDB integration
 */
-import { text, note, isCancel, cancel, select, confirm } from '@clack/prompts';
+
+import { text, note, isCancel, select, password } from '@clack/prompts';
 import pc from 'picocolors';
-import { configurationPrompt } from '../configuration.js';
+import { cancelOperation } from '../cli-installer.js';
+
+// Helper function to validate port number
+const validatePort = (value) => {
+	if (value === null || value === undefined || value === '') return `Port is required.`;
+	const num = Number(value);
+	if (isNaN(num) || !Number.isInteger(num) || num < 1 || num > 65535) {
+		return `Please enter a valid port number (1-65535).`;
+	}
+};
+
+// Helper function to validate non-empty string
+const validateRequired = (value, fieldName) => {
+	if (!value || value.trim().length === 0) return `${fieldName} is required.`;
+};
 
 export async function configureMongoDB(privateConfigData = {}) {
-	// Extract the relevant MongoDB configuration
-	const { DB_TYPE, DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD } = privateConfigData;
-
-	// Display existing configuration if present
-	if (DB_TYPE && DB_HOST && DB_PORT && DB_NAME && DB_USER && DB_PASSWORD) {
+	// Display existing configuration if present (password hidden)
+	if (privateConfigData.DB_TYPE === 'mongodb' && privateConfigData.DB_HOST) {
 		note(
-			`DB_TYPE: ${pc.red(DB_TYPE)}\n` +
-				`DB_HOST: ${pc.red(DB_HOST)}\n` +
-				`DB_PORT: ${pc.red(DB_PORT)}\n` +
-				`DB_NAME: ${pc.red(DB_NAME)}\n` +
-				`DB_USER: ${pc.red(DB_USER)}\n` +
-				`DB_PASSWORD: ${pc.red(DB_PASSWORD)}`,
-			pc.red('Existing MongoDB configuration found:')
+			`Current Host: ${pc.cyan(privateConfigData.DB_HOST)}\n` +
+				`Current Port: ${pc.cyan(privateConfigData.DB_PORT?.toString() || 'Not set')}\n` +
+				`Current DB Name: ${pc.cyan(privateConfigData.DB_NAME || 'Not set')}\n` +
+				`Current User: ${pc.cyan(privateConfigData.DB_USER || 'Not set')}`,
+			//`DB_PASSWORD: ${pc.red(DB_PASSWORD)}`, // Keep password hidden
+			pc.cyan('Existing MongoDB Configuration (Password hidden):')
 		);
-
-		const continueWithExisting = await confirm({
-			message: 'Do you want to continue with this configuration?',
-			initialValue: true
-		});
-
-		if (isCancel(continueWithExisting) || !continueWithExisting) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt();
-			return;
-		}
-
-		return {
-			DB_TYPE,
-			DB_HOST,
-			DB_PORT,
-			DB_NAME,
-			DB_USER,
-			DB_PASSWORD
-		};
 	}
 
 	// Initial guide note
@@ -51,21 +46,16 @@ export async function configureMongoDB(privateConfigData = {}) {
 		pc.green('Please choose your MongoDB setup option:')
 	);
 
-	// Choose MongoDB option
 	const mongoOption = await select({
-		message: 'Choose your MongoDB option:',
+		message: 'Choose your MongoDB setup type:',
 		initialValue: privateConfigData.DB_PROVIDER || 'atlas',
 		options: [
-			{ value: 'atlas', label: 'Use MongoDB Atlas', hint: 'Recommended for Production' },
-			{ value: 'docker-local', label: 'Use Docker or Local MongoDB', hint: 'Recommended for Development' }
-		],
-		required: true
+			{ value: 'atlas', label: 'MongoDB Atlas (Cloud)', hint: 'Recommended for Production' },
+			{ value: 'docker-local', label: 'Docker / Local Server', hint: 'Recommended for Development' }
+		]
 	});
-
 	if (isCancel(mongoOption)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt();
+		await cancelOperation();
 		return;
 	}
 
@@ -84,59 +74,87 @@ export async function configureMongoDB(privateConfigData = {}) {
 			pc.green('MongoDB Atlas Setup Instructions:')
 		);
 
-		// Atlas connection string
 		connectionString = await text({
 			message: 'Enter your MongoDB Atlas connection string:',
-			placeholder: 'mongodb+srv://<username>:<password>@<cluster-name>',
-			required: true
+			placeholder: 'mongodb+srv://user:pass@cluster...',
+			validate: (value) => {
+				if (!value) return 'Connection string is required.';
+				if (!value.startsWith('mongodb+srv://')) return 'Atlas connection string should start with mongodb+srv://';
+				try {
+					new URL(value); // Basic validation if it parses as a URL
+				} catch (e) {
+					return 'Invalid connection string format.';
+				}
+			}
 		});
-
 		if (isCancel(connectionString)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt();
+			await cancelOperation();
 			return;
 		}
 
-		// Parse the connection string to extract the username and hostname
-		const url = new URL(connectionString);
-		dbUser = url.username;
-		dbPassword = decodeURIComponent(url.password); // Decode the password
-		dbHost = `mongodb+srv://${url.hostname}`;
-		dbPort = '';
+		// Attempt to parse connection string, handle errors
+		try {
+			const url = new URL(connectionString);
+			dbUser = decodeURIComponent(url.username);
+			dbPassword = decodeURIComponent(url.password);
+			// Correctly extract only the hostname part for DB_HOST
+			dbHost = `mongodb+srv://${url.hostname}`; // Keep srv protocol for host if present
+			dbPort = url.port || '27017'; // Atlas usually doesn't specify port, default needed for connection test
+			dbName = url.pathname.substring(1) || privateConfigData.DB_NAME || 'SveltyCMS'; // Get DB name from path or prompt later
 
-		// Confirm the Atlas password
-		const password = await text({
-			message: `Is this password correct for ${pc.green(dbUser)}:`,
-			initialValue: dbPassword
-		});
-
-		if (isCancel(password)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt();
-			return;
+			if (!dbUser || !dbPassword) {
+				note(
+					'Could not automatically extract username or password from the connection string. Please enter them manually.',
+					pc.yellow('Parsing Warning')
+				);
+				// Prompt manually if parsing failed
+				dbUser = await text({ message: 'Enter MongoDB Atlas User:', validate: (v) => validateRequired(v, 'User') });
+				if (isCancel(dbUser)) {
+					await cancelOperation();
+					return;
+				}
+				dbPassword = await password({ message: 'Enter MongoDB Atlas Password:', validate: (v) => validateRequired(v, 'Password') });
+				if (isCancel(dbPassword)) {
+					await cancelOperation();
+					return;
+				}
+			}
+		} catch (e) {
+			console.error(pc.red('Error parsing connection string:'), e); // Log the actual error
+			note(`Failed to parse connection string: ${e.message}. Please enter details manually.`, pc.red('Parsing Error'));
+			// Fallback to manual input if parsing fails completely
+			dbHost = await text({ message: 'Enter MongoDB Atlas Host (e.g., clustername.mongodb.net):', validate: (v) => validateRequired(v, 'Host') });
+			if (isCancel(dbHost)) {
+				await cancelOperation();
+				return;
+			}
+			dbHost = `mongodb+srv://${dbHost}`; // Add prefix manually if needed
+			dbPort = '27017'; // Default Atlas port
+			dbUser = await text({ message: 'Enter MongoDB Atlas User:', validate: (v) => validateRequired(v, 'User') });
+			if (isCancel(dbUser)) {
+				await cancelOperation();
+				return;
+			}
+			dbPassword = await password({ message: 'Enter MongoDB Atlas Password:', validate: (v) => validateRequired(v, 'Password') });
+			if (isCancel(dbPassword)) {
+				await cancelOperation();
+				return;
+			}
 		}
-		dbPassword = password;
 
-		// Prompt for the database name
-		dbName = await text({
-			message: 'Enter the database name:',
-			placeholder: 'SveltyCMS',
-			initialValue: privateConfigData.DB_NAME || 'SveltyCMS',
-			required: true
-		});
-
-		if (isCancel(dbName)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt();
-			return;
+		// Prompt for DB name if not found in connection string path
+		if (!dbName) {
+			dbName = await text({
+				message: 'Enter the database name:',
+				placeholder: 'SveltyCMS',
+				initialValue: privateConfigData.DB_NAME || 'SveltyCMS',
+				validate: (v) => validateRequired(v, 'Database name')
+			});
+			if (isCancel(dbName)) {
+				await cancelOperation();
+				return;
+			}
 		}
-		// MongoDB Atlas does not expose a port in the connection string, default to 27017
-		dbPort = '27017';
-		dbPassword = password;
-		// Reconstruct the connection string with the password
 	} else if (mongoOption === 'docker-local') {
 		note(
 			`To set up Docker or Local MongoDB, you need to have Docker installed\n` +
@@ -148,86 +166,72 @@ export async function configureMongoDB(privateConfigData = {}) {
 
 		// Database Host
 		dbHost = await text({
-			message: 'Enter the MongoDB host:',
-			placeholder: 'mongodb://localhost', // Updated placeholder to include the scheme
-			initialValue: privateConfigData.DB_HOST || 'mongodb://localhost', // Updated initialValue to match the placeholder
-			required: true
+			message: 'Enter the MongoDB host (e.g., mongodb://localhost or localhost):',
+			placeholder: 'mongodb://localhost',
+			initialValue: privateConfigData.DB_HOST || 'mongodb://localhost',
+			validate: (value) => {
+				if (!value) return 'Host is required.';
+			}
 		});
-
 		if (isCancel(dbHost)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt();
+			await cancelOperation();
 			return;
 		}
 
-		// Database Port
 		dbPort = await text({
 			message: 'Enter the MongoDB port:',
 			placeholder: '27017',
-			initialValue: privateConfigData.DB_PORT || '27017',
-			required: true
+			initialValue: privateConfigData.DB_PORT?.toString() || '27017',
+			validate: validatePort
 		});
-
 		if (isCancel(dbPort)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt();
+			await cancelOperation();
 			return;
 		}
 
-		// Database Name
 		dbName = await text({
 			message: 'Enter the database name:',
 			placeholder: 'SveltyCMS',
 			initialValue: privateConfigData.DB_NAME || 'SveltyCMS',
-			required: true
+			validate: (v) => validateRequired(v, 'Database name')
 		});
-
 		if (isCancel(dbName)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt();
+			await cancelOperation();
 			return;
 		}
 
-		// Database User
 		dbUser = await text({
-			message: 'Enter the MongoDB user:',
-			placeholder: 'Username if set, otherwise leave blank',
-			initialValue: privateConfigData.DB_USER,
-			required: false
+			message: 'Enter the MongoDB user (optional):',
+			placeholder: 'Leave blank if no authentication',
+			initialValue: privateConfigData.DB_USER || ''
 		});
-
 		if (isCancel(dbUser)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt();
+			await cancelOperation();
 			return;
 		}
 
-		// Database Password
-		dbPassword = await text({
-			message: 'Enter the MongoDB password:',
-			placeholder: 'Password if set, otherwise leave blank',
-			initialValue: privateConfigData.DB_PASSWORD,
-			required: false
-		});
-
-		if (isCancel(dbPassword)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt();
-			return;
+		// Only ask for password if user is provided
+		if (dbUser) {
+			dbPassword = await password({
+				message: 'Enter the MongoDB password:',
+				validate: (v) => validateRequired(v, 'Password')
+			});
+			if (isCancel(dbPassword)) {
+				await cancelOperation();
+				return;
+			}
+		} else {
+			dbPassword = '';
 		}
 	}
 
+	// Return the collected configuration
 	return {
 		DB_TYPE: 'mongodb',
 		DB_HOST: dbHost,
-		DB_PORT: dbPort,
+		DB_PORT: parseInt(dbPort, 10), // Ensure port is a number
 		DB_NAME: dbName,
-		DB_USER: dbUser,
-		DB_PASSWORD: dbPassword
+		DB_USER: dbUser || undefined, // Return undefined if blank
+		DB_PASSWORD: dbPassword || undefined // Return undefined if blank
 	};
 }

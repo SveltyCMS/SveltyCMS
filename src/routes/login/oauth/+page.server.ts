@@ -12,7 +12,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { google } from 'googleapis';
 
 //Db
-import { auth, dbInitPromise } from '@src/databases/db';
+import { auth, dbAdapter, dbInitPromise } from '@src/databases/db';
 
 // Utils
 import { saveAvatarImage } from '@utils/media/mediaStorage';
@@ -94,7 +94,12 @@ async function fetchAndRedirectToFirstCollection() {
 		}
 
 		// Get content structure with UUIDs
-		const contentNodes = await dbAdapter.getContentStructure();
+		const result = await dbAdapter.content.nodes.getStructure('flat');
+		if (!result.success) {
+			logger.error('Failed to get content structure');
+			return '/';
+		}
+		const contentNodes = result.data;
 
 		if (!contentNodes?.length) {
 			logger.warn('No collections found in content structure');
@@ -102,11 +107,11 @@ async function fetchAndRedirectToFirstCollection() {
 		}
 
 		// Find first collection using UUID
-		const firstCollection = contentNodes.find((node) => node.isCollection && node._id);
+		const firstCollection = contentNodes.find((node) => node.nodeType === 'collection' && node._id);
 
 		if (firstCollection) {
 			logger.info(`Redirecting to first collection: ${firstCollection.name} (${firstCollection._id})`);
-			return `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${firstCollection._id}`;
+			return `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}${firstCollection.path}`;
 		}
 
 		logger.warn('No valid collections found');
@@ -135,6 +140,10 @@ async function handleGoogleUser(
 		systemLanguage.set(googleUser.locale);
 	}
 
+	if (!auth) {
+		logger.error('Auth adatper not initialized cannot login using oauth');
+	}
+
 	// Check if user exists
 	let user = await auth?.checkUser({ email });
 
@@ -157,7 +166,7 @@ async function handleGoogleUser(
 		}
 
 		// Create the new user
-		user = await auth.createUser(
+		user = await auth?.createUser(
 			{
 				email,
 				username: googleUser.name ?? '',
@@ -188,7 +197,7 @@ async function handleGoogleUser(
 			lastAuthMethod: 'google',
 			firstName: googleUser.given_name ?? '',
 			lastName: googleUser.family_name ?? '',
-			...(avatarUrl && { avatar: avatarUrl })
+			avatar: user.avatar ? user.avatar : avatarUrl ? avatarUrl : undefined
 		});
 	}
 

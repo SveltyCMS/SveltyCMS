@@ -98,7 +98,7 @@
 			id={field.db_fieldName}
 			type="checkbox"
 			color={field.color}
-			bind:checked={_data[_language].checked}
+			bind:checked={_data.checked}
 			oninput={validateInput}
 			class="h-[${field.size}] w-[${field.size}] mr-4 rounded"
 			class:error={!!validationError}
@@ -111,7 +111,7 @@
 		<input
 			type="text"
 			placeholder="Define Label"
-			bind:value={_data[_language].label}
+			bind:value={_data.label}
 			oninput={validateInput}
 			class="input text-black dark:text-primary-500"
 			class:error={!!validationError}

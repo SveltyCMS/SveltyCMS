@@ -14,7 +14,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	// Stores
 	import { page } from '$app/state';
 	import { tabSet } from '@stores/store.svelte';
-	import { mode, collectionValue } from '@src/stores/collectionStore.svelte';
+	import { mode, collection } from '@src/stores/collectionStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -27,15 +27,51 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	// Skeleton
 	import { Tab, TabGroup, getToastStore } from '@skeletonlabs/skeleton';
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
+	import { initializeWidgets } from '@root/src/widgets';
+	import type { User } from '@root/src/auth/types';
+	import type { Schema } from '@root/src/content/types';
 
 	const modalStore = getModalStore();
 	const toastStore = getToastStore();
 
 	// Extract the collection name from the URL
-	const contentTypes = page.params.contentTypes;
+	let collectionPath = $state(page.params.contentPath);
+	let action = $state(page.params.action);
+
+	interface Props {
+		data: { collection: Schema & { module: string | undefined }; contentLanguage: string; user: User };
+	}
+
+	const { data }: Props = $props();
+
+	$effect(() => {
+		// Correctly using $effect here
+		if (data.collection?.name && (!collection.value || data.collection.path !== collection.value.path)) {
+			loadCollection();
+		}
+	});
+
+	async function loadCollection() {
+		if (action == 'edit') collection.set(data.collection);
+		else {
+			// Set to null for new collections as _id is required in Schema
+			collection.set(null);
+			/* Potential alternative if you need a placeholder object:
+			collection.set({
+				_id: '', // Use an empty string or generate a temporary client-side ID if needed later
+				name: '',
+				icon: '',
+				description: '',
+				status: 'unpublished',
+				slug: '',
+				fields: []
+			});
+			*/
+		}
+	}
 
 	// Default widget data (tab1)
-	let name = $state(mode.value == 'edit' ? (collectionValue.value ? collectionValue.value.name : contentTypes) : contentTypes);
+	let name = $derived(mode.value == 'edit' ? (collection.value ? collection.value.name : collectionPath) : collectionPath);
 
 	// Page title
 	let pageTitle = $state('');
@@ -45,15 +81,15 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	$effect.root(() => {
 		// Set the base page title according to the mode
 		if (mode.value === 'edit') {
-			pageTitle = `Edit ${contentTypes} Collection`;
-		} else if (contentTypes) {
-			pageTitle = `Create ${contentTypes} Collection`;
+			pageTitle = `Edit ${collectionPath} Collection`;
+		} else if (collectionPath) {
+			pageTitle = `Create ${collectionPath} Collection`;
 		} else {
 			pageTitle = 'Create new Collection';
 		}
 
 		// Ensure the highlighted part (e.g., contentTypes) is unique in the title
-		highlightedPart = contentTypes || 'new';
+		highlightedPart = collectionPath || 'new';
 
 		// Avoid repeating the contentTypes if it's already included in the string
 		if (pageTitle.includes(highlightedPart)) {
@@ -61,13 +97,9 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		}
 	});
 
-	// Effect to update name based on mode and collection value
-	$effect.root(() => {
-		name = mode.value == 'edit' ? (collectionValue.value ? collectionValue.value.name : contentTypes) : page.params.contentTypes;
-	});
-
 	function handlePageTitleUpdate(title: string) {
 		highlightedPart = title;
+		collectionPath = title;
 		if (mode.value === 'edit') {
 			pageTitle = `Edit ${highlightedPart} Collection`;
 		} else {
@@ -77,34 +109,29 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	// Function to save data by sending a POST request
 	async function handleCollectionSave() {
-		// Delete key from fields
-		if (collectionValue.value && Array.isArray(collectionValue.value.fields)) {
-			collectionValue.value.fields.forEach((field: { key?: string }) => {
-				delete field.key;
-			});
-		}
+		console.log(collection.value, name, page.params);
 
 		// Prepare form data
 		const data =
 			mode.value == 'edit'
 				? obj2formData({
-						originalName: collectionValue.value?.name,
-						contentTypes: name,
-						icon: collectionValue.value?.icon,
-						status: collectionValue.value?.status,
-						slug: collectionValue.value?.slug,
-						description: collectionValue.value?.description,
-						permissions: collectionValue.value?.permissions,
-						fields: collectionValue.value?.fields
+						originalName: collection.value?.name,
+						name: name,
+						icon: collection.value?.icon,
+						status: collection.value?.status,
+						slug: collection.value?.slug,
+						description: collection.value?.description,
+						permissions: collection.value?.permissions,
+						fields: collection.value?.fields
 					})
 				: obj2formData({
-						contentTypes: name,
-						icon: collectionValue.value?.icon,
-						status: collectionValue.value?.status,
-						slug: collectionValue.value?.slug,
-						description: collectionValue.value?.description,
-						permissions: collectionValue.value?.permissions,
-						fields: collectionValue.value?.fields
+						name: name,
+						icon: collection.value?.icon,
+						status: collection.value?.status,
+						slug: collection.value?.slug,
+						description: collection.value?.description,
+						permissions: collection.value?.permissions,
+						fields: collection.value?.fields
 					});
 
 		// Send the form data to the server
@@ -129,7 +156,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	}
 
 	function handleCollectionDelete() {
-		console.log('Delete collection:', collectionValue.value?.name);
+		console.log('Delete collection:', collection.value?.name);
 		// Define the confirmation modal
 		const confirmModal: ModalSettings = {
 			type: 'confirm',
@@ -138,7 +165,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 			response: (r: boolean) => {
 				if (r) {
 					// Send the form data to the server
-					axios.post(`?/deleteCollections`, obj2formData({ contentTypes: collectionValue.value?.name }), {
+					axios.post(`?/deleteCollections`, obj2formData({ contentTypes: collection.value?.name }), {
 						headers: {
 							'Content-Type': 'multipart/form-data'
 						}
@@ -168,6 +195,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	onMount(() => {
 		// Set the initial tab
+		initializeWidgets();
 		tabSet.set(0);
 	});
 </script>
@@ -182,26 +210,27 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	</button>
 </div>
 
-{#if mode.value == 'edit'}
-	<div class="flex justify-center gap-3">
-		<button
-			type="button"
-			onclick={handleCollectionDelete}
-			class=" variant-filled-error btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-error dark:text-black"
-			>{m.button_delete()}
-		</button>
-		<button
-			type="button"
-			onclick={handleCollectionSave}
-			class="variant-filled-tertiary btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-tertiary dark:text-black">{m.button_save()}</button
-		>
-	</div>
-{/if}
-
 <div class="wrapper">
-	<p class="mb-2 hidden text-center text-tertiary-500 dark:text-primary-500 sm:block">{m.collection_helptext()}</p>
+	{#if mode.value == 'edit'}
+		<div class="flex justify-center gap-3">
+			<button
+				type="button"
+				onclick={handleCollectionDelete}
+				class=" variant-filled-error btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-error dark:text-black"
+				>{m.button_delete()}
+			</button>
+			<button
+				type="button"
+				onclick={handleCollectionSave}
+				class="variant-filled-tertiary btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-tertiary dark:text-black">{m.button_save()}</button
+			>
+		</div>
+	{/if}
 
-	<TabGroup bind:group={$tabSet} justify="justify-around">
+	<p class="mb-2 hidden text-center text-tertiary-500 dark:text-primary-500 sm:block">{m.collection_helptext()}</p>
+	<!-- Required Text  -->
+	<div class="mb-2 text-center text-xs text-error-500">* {m.collection_required()}</div>
+	<TabGroup bind:group={$tabSet}>
 		<!-- User Permissions -->
 		{#if page.data.user && page.data.user.isAdmin}
 			<!-- Edit -->
@@ -225,9 +254,9 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 		<!-- Tab Panels -->
 		{#if $tabSet === 0}
-			<CollectionForm {handlePageTitleUpdate} />
+			<CollectionForm data={collection.value} {handlePageTitleUpdate} />
 		{:else if $tabSet === 1}
-			<CollectionWidget {handleCollectionSave} />
+			<CollectionWidget fields={collection.value?.fields} {handleCollectionSave} />
 		{/if}
 	</TabGroup>
 </div>

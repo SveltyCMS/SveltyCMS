@@ -6,11 +6,17 @@
 This page displays a collection of media files, such as images, documents, audio, and video.
 It provides a user-friendly interface for searching, filtering, and navigating through media files.
 
-Features:
-- Search for media files
-- Filter media files by type
-- Navigate through media files
+### Props:
+- `mediaType` {MediaTypeEnum} - The type of media files to display.
+- `media` {MediaBase[]} - An array of media files to be displayed.
 
+### Events:
+- `mediaDeleted` - Emitted when a media file is deleted.	
+
+### Features:
+- Displays a collection of media files based on the specified media type.
+- Provides a user-friendly interface for searching, filtering, and navigating through media files.
+- Emits the `mediaDeleted` event when a media file is deleted.
 -->
 
 <script lang="ts">
@@ -54,6 +60,7 @@ Features:
 			user: { _id: string; email: string; role: string } | undefined;
 			media: MediaBase[];
 			virtualFolders: VirtualFolder[];
+			currentFolder: VirtualFolder | null; // Add currentFolder from load data
 		};
 	}>();
 
@@ -84,17 +91,17 @@ Features:
 		{ value: MediaTypeEnum.RemoteVideo, label: 'REMOTE VIDEO' }
 	];
 
-	// Computed value for filtered files
+	// Computed value for filtered files based on search and type
 	let filteredFiles = $derived(
 		files.filter((file) => {
 			if (file.type === MediaTypeEnum.Image) {
 				return (
-					(file.name || '').toLowerCase().includes(globalSearchValue.toLowerCase()) &&
+					(file.filename || '').toLowerCase().includes(globalSearchValue.toLowerCase()) &&
 					(selectedMediaType === 'All' || file.type === selectedMediaType)
 				);
 			} else {
 				return (
-					(file.name || '').toLowerCase().includes(globalSearchValue.toLowerCase()) &&
+					(file.filename || '').toLowerCase().includes(globalSearchValue.toLowerCase()) &&
 					(selectedMediaType === 'All' || file.type === selectedMediaType)
 				);
 			}
@@ -292,23 +299,28 @@ Features:
 			const result = response.data;
 			if (result?.success) {
 				toastStore.trigger({
-					message: 'Image deleted successfully.',
+					message: 'Media deleted successfully.',
 					background: 'variant-filled-success',
 					timeout: 3000
 				});
 				await fetchMediaFiles();
 			} else {
-				throw new Error(result.error || 'Failed to delete image');
+				throw new Error(result.error || 'Failed to delete media');
 			}
 		} catch (error) {
-			console.error('Error deleting image: ', error);
+			console.error('Error deleting media: ', error);
 			toastStore.trigger({
-				message: 'Error deleting image',
+				message: 'Error deleting media',
 				background: 'variant-filled-error',
 				timeout: 3000
 			});
 		}
 	}
+
+	$effect(() => {
+		// Log when the media data from the server changes
+		console.log('Media files updated:', data.media);
+	});
 </script>
 
 <!-- Page Title and Actions -->
@@ -316,7 +328,7 @@ Features:
 	<!-- Row 1: Page Title and Back Button (Handled by PageTitle component) -->
 	<PageTitle name="Media Gallery" icon="bi:images" showBackButton={true} />
 
-	<!-- Row 2 (on mobile): Save and Reset Buttons -->
+	<!-- Row 2: Action Buttons -->
 	<div class="lgd:mt-0 flex items-center justify-center gap-4 lg:justify-end">
 		<!-- Add folder -->
 		<button onclick={() => createFolder('New Folder')} aria-label="Add folder" class="variant-filled-tertiary btn gap-2">
@@ -339,7 +351,7 @@ Features:
 	<div class="mb-8 flex w-full flex-col justify-center gap-1 md:hidden">
 		<label for="globalSearch">Search</label>
 		<div class="input-group input-group-divider grid max-w-md grid-cols-[auto_1fr_auto]">
-			<input id="globalSearch" type="text" placeholder="Search" class="input" bind:value={globalSearchValue} />
+			<input id="globalSearch" type="text" placeholder="Search Media" class="input" bind:value={globalSearchValue} />
 			{#if globalSearchValue}
 				<button onclick={() => (globalSearchValue = '')} aria-label="Clear search" class="variant-filled-surface w-12">
 					<iconify-icon icon="ic:outline-search-off" width="24"></iconify-icon>

@@ -8,7 +8,6 @@ import { error } from '@sveltejs/kit';
 
 // Database Interface
 import type { dbInterface } from '@src/databases/dbInterface';
-//import { isConnected } from '@src/databases/db';
 
 // Media
 import type { MediaType, MediaBase, MediaAccess } from './mediaModels';
@@ -26,6 +25,7 @@ import { logger } from '@utils/logger.svelte';
 // Media Cache
 import { mediaCache } from '@src/databases/mediaCache';
 import { v4 as uuidv4 } from 'uuid';
+
 // Extended MediaBase interface to include thumbnails
 interface MediaBaseWithThumbnails extends MediaBase {
 	thumbnails?: {
@@ -61,12 +61,6 @@ export class MediaService {
 			throw error(500, message);
 		}
 
-		if (!isConnected) {
-			const message = 'Database is not connected';
-			logger.error(message);
-			throw error(500, message);
-		}
-
 		this.initialized = true;
 	}
 
@@ -82,9 +76,9 @@ export class MediaService {
 		this.ensureInitialized();
 
 		try {
-			// Validate the file
-			const allowedTypes = ['image/jpeg', 'image/png', 'video/mp4', 'application/pdf'];
-			const validation = validateMediaFile(file, allowedTypes);
+			// Validate the file using a MIME type pattern
+			const mimeTypePattern = /^[a-z]+\/[a-z0-9\-\+\.]+$/i; // Regex to validate MIME type format
+			const validation = validateMediaFile(file, mimeTypePattern);
 
 			if (!validation.isValid) {
 				throw Error(validation.message);
@@ -106,7 +100,7 @@ export class MediaService {
 			const media: MediaBaseWithThumbnails = {
 				type: this.getMediaType(mimeType),
 				hash,
-				name: file.name,
+				filename: file.name,
 				path,
 				url: urlPath,
 				mimeType,
@@ -119,8 +113,7 @@ export class MediaService {
 				access
 			};
 
-			const url = urlPath;
-			// Save the file
+			const url = `${path}/${urlPath}`;
 			await saveFileToDisk(buffer, url);
 
 			// Save resized images if applicable
@@ -129,29 +122,28 @@ export class MediaService {
 				media.thumbnails = thumbnails;
 			}
 
+			logger.debug('media', media.thumbnails?.thumbnail);
+
 			const media_collection = {
 				_id: uuidv4(),
 				hash: media.hash,
-				filename: media.name,
+				filename: media.filename,
 				path: path,
-				type: media.type,
+				mimeType: media.type,
 				size: media.size,
 
+				createdBy: userId,
+				updatedBy: userId,
+
 				thumbnail: {
-					url: media.thumbnails?.thumbnail?.url,
-					name: media.name,
-					type: media.type,
-					size: media.size,
-					width: media.thumbnails?.thumbnail?.width,
-					height: media.thumbnails?.thumbnail?.height
+					url: media.thumbnails?.thumbnail?.url
 				}
 			};
 
-			// Save media to the database
-			const mediaId = await this.db.insertOne('Media', media_collection);
+			const mediaId = await this.db.crud.insert('MediaItem', media_collection);
 
 			// Retrieve the saved media with its ID
-			const savedMedia = await this.db.findOne('Media', { _id: mediaId });
+			const savedMedia = await this.db.crud.findOne('MediaItem', { _id: mediaId });
 
 			// Cache the saved media
 			if (savedMedia) {

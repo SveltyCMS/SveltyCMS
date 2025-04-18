@@ -410,7 +410,7 @@ export class Auth {
 			.map((cur) => {
 				const isAdminString = cur.isAdmin ? `isAdmin: true,` : '';
 				const permissionsString = cur.isAdmin
-					? `permissions: permissions.map((p) => p._id) // All permissions`
+					? `permissions: permissions.map((p) => p._id)`
 					: `permissions: ${JSON.stringify(cur.permissions, null, 2)}`;
 
 				return `{

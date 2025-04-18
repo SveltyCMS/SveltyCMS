@@ -10,19 +10,21 @@ Features:
 
 <script lang="ts">
 	import { sanitizePermissions } from '@src/auth/types';
-
+	import { createEventDispatcher } from 'svelte';
 	// Define props using $props()
 	const props = $props<{
 		value: any;
 		widget: any;
 		key: string;
-		iconselected?: string | null;
+		icon?: string | null;
 		permissions?: any;
 	}>();
 
+	const dispatch = createEventDispatcher();
+
 	// Create state variables for mutable props
 	let value = $state(props.value ?? null);
-	let iconselected = $state(props.iconselected ?? null);
+	let icon = $state(props.icon ?? null);
 	let permissions = $state(props.permissions ?? null);
 
 	// Use $effect for side effects
@@ -50,14 +52,10 @@ Features:
 
 	// Function to update the parent component
 	function updateParent() {
-		dispatchEvent(
-			new CustomEvent('update', {
-				detail: { value, iconselected, permissions }
-			})
-		);
+		dispatch('update', { value });
 	}
 </script>
 
 {#if props.widget}
-	<props.widget bind:value bind:iconselected bind:permissions on:update={updateParent} on:toggle label={props.key} theme="dark" />
+	<props.widget bind:value bind:icon bind:permissions on:update={updateParent} label={props.key} theme="dark" />
 {/if}

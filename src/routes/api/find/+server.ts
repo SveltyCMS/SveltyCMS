@@ -41,7 +41,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		if (!dbAdapter) {
 			throw error(500, 'Database adapter not initialized');
 		}
-		const collection = contentManager.getCollectionModelById(id);
+		const collection = dbAdapter.collection.getModel(id);
 
 		// Validate that the collection exists
 		if (!collection) {
@@ -60,7 +60,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 		// If an ID is provided, find the document by ID
 		if (id) {
-			result = await collection.findOne({ _id: id });
+			result = await dbAdapter.crud.findOne(id, { _id: id });
+
 			if (!result) {
 				logger.warn(`Document not found with ID: ${id} in collection: ${contentTypes}`);
 				throw error(404, `Document not found with ID: ${id} in collection: ${contentTypes}`);

@@ -1,11 +1,16 @@
 /** 
 @file cli-installer/config/google.js
-@description  Configuration prompts for the Google section
+@description Configuration prompts for the Google section
+
+### Features
+- Displays a note about the Google configuration
+- Displays existing configuration (password hidden)
+- Prompts for Google integration
 */
 
-import { confirm, select, note, text, isCancel, cancel } from '@clack/prompts';
+import { confirm, note, text, isCancel, cancel, password } from '@clack/prompts';
 import pc from 'picocolors';
-import { Title } from '../cli-installer.js';
+import { Title, cancelOperation } from '../cli-installer.js';
 import { configurationPrompt } from '../configuration.js';
 
 export async function configureGoogle(privateConfigData = {}) {
@@ -18,30 +23,15 @@ export async function configureGoogle(privateConfigData = {}) {
 		pc.green('Google API Information:')
 	);
 
-	// Display existing configuration
-	note(
-		`GOOGLE_API_KEY: ${pc.red(privateConfigData.GOOGLE_API_KEY)}\n` +
-			`USE_GOOGLE_OAUTH: ${pc.red(privateConfigData.USE_GOOGLE_OAUTH ? 'true' : 'false')}\n` +
-			`GOOGLE_CLIENT_ID: ${pc.red(privateConfigData.GOOGLE_CLIENT_ID)}\n` +
-			`GOOGLE_CLIENT_SECRET: ${pc.red(privateConfigData.GOOGLE_CLIENT_SECRET)}`,
-		pc.red('Existing Google Configuration:')
-	);
-
-	// Ask if the user wants to update the existing configuration
-	const updateConfig = await confirm({
-		message: 'Do you want to update the existing Google configuration?',
-		initialValue: true
-	});
-
-	if (isCancel(updateConfig)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
-		return;
-	}
-
-	if (!updateConfig) {
-		return privateConfigData; // Return existing config if no updates
+	// Display existing configuration (excluding secret)
+	if (privateConfigData.GOOGLE_CLIENT_ID || privateConfigData.GOOGLE_API_KEY) {
+		note(
+			`Current API Key: ${pc.cyan(privateConfigData.GOOGLE_API_KEY || 'Not Set')}\n` +
+				`Use Google OAuth: ${pc.cyan(privateConfigData.USE_GOOGLE_OAUTH ? 'Yes' : 'No')}\n` +
+				`Current Client ID: ${pc.cyan(privateConfigData.GOOGLE_CLIENT_ID || 'Not Set')}`,
+			//`GOOGLE_CLIENT_SECRET: ${pc.red(privateConfigData.GOOGLE_CLIENT_SECRET)}`, // Keep secret hidden
+			pc.cyan('Existing Google Configuration (Secret hidden):')
+		);
 	}
 
 	// Collect Google API Key
@@ -58,17 +48,12 @@ export async function configureGoogle(privateConfigData = {}) {
 		return;
 	}
 
-	// Determine if Google OAuth should be used
 	const USE_GOOGLE_OAUTH = await confirm({
-		message: 'Do you want to use Google OAuth?',
-		placeholder: 'false / true',
+		message: 'Enable Google OAuth for login?',
 		initialValue: privateConfigData.USE_GOOGLE_OAUTH || false
 	});
-
 	if (isCancel(USE_GOOGLE_OAUTH)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
+		await cancelOperation();
 		return;
 	}
 
@@ -80,80 +65,51 @@ export async function configureGoogle(privateConfigData = {}) {
 			placeholder: 'Client ID from Google Developer Console',
 			initialValue: privateConfigData.GOOGLE_CLIENT_ID || '',
 			validate(value) {
-				if (value.length === 0) return `GOOGLE_CLIENT_ID is required!`;
+				if (!value || value.length === 0) return { message: `GOOGLE_CLIENT_ID is required!` };
+				return undefined;
 			}
 		});
-
 		if (isCancel(GOOGLE_CLIENT_ID)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt(); // Restart the configuration process
+			await cancelOperation();
 			return;
 		}
 
-		GOOGLE_CLIENT_SECRET = await text({
+		GOOGLE_CLIENT_SECRET = await password({
 			message: 'Enter the Google Client Secret:',
-			placeholder: 'Client Secret from Google Developer Console',
-			initialValue: privateConfigData.GOOGLE_CLIENT_SECRET || '',
 			validate(value) {
-				if (value.length === 0) return `GOOGLE_CLIENT_SECRET is required!`;
+				if (!value) return { message: `Google Client Secret is required when OAuth is enabled.` };
+				return undefined;
 			}
 		});
-
 		if (isCancel(GOOGLE_CLIENT_SECRET)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt(); // Restart the configuration process
+			await cancelOperation();
 			return;
 		}
 	}
 
-	// Summary
+	// Summary (Secret hidden)
 	note(
-		`GOOGLE_API_KEY: ${pc.green(GOOGLE_API_KEY || 'Not Applicable')}\n` +
-			`USE_GOOGLE_OAUTH: ${pc.green(USE_GOOGLE_OAUTH)}\n` +
-			`GOOGLE_CLIENT_ID: ${pc.green(GOOGLE_CLIENT_ID || 'Not Applicable')}\n` +
-			`GOOGLE_CLIENT_SECRET: ${pc.green(GOOGLE_CLIENT_SECRET || 'Not Applicable')}`,
-		pc.green('Review your Google configuration:')
+		`Google API Key: ${pc.green(GOOGLE_API_KEY || 'Not Set')}\n` +
+			`Use Google OAuth: ${pc.green(USE_GOOGLE_OAUTH ? 'Yes' : 'No')}\n` +
+			`Google Client ID: ${pc.green(GOOGLE_CLIENT_ID || 'Not Set')}\n` +
+			`Google Client Secret: ${pc.green(USE_GOOGLE_OAUTH && GOOGLE_CLIENT_SECRET ? '[Set]' : 'Not Set / Not Applicable')}`,
+		pc.green('Review Your Google Configuration:')
 	);
 
-	const action = await confirm({
-		message: 'Is the above configuration correct?',
+	const confirmSave = await confirm({
+		message: 'Save this Google configuration?',
 		initialValue: true
 	});
 
-	if (isCancel(action)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
+	if (isCancel(confirmSave)) {
+		await cancelOperation();
 		return;
 	}
 
-	if (!action) {
-		console.log('Google configuration canceled.');
-		const restartOrExit = await select({
-			message: 'Do you want to restart or exit?',
-			options: [
-				{ value: 'restart', label: 'Restart', hint: 'Start again' },
-				{ value: 'cancel', label: 'Cancel', hint: 'Clear and return to selection' },
-				{ value: 'exit', label: 'Exit', hint: 'Quit the installer' }
-			]
-		});
-
-		if (isCancel(restartOrExit)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt(); // Restart the configuration process
-			return;
-		}
-
-		if (restartOrExit === 'restart') {
-			return configureGoogle();
-		} else if (restartOrExit === 'exit') {
-			process.exit(1); // Exit with code 1
-		} else if (restartOrExit === 'cancel') {
-			process.exit(0); // Exit with code 0
-		}
+	if (!confirmSave) {
+		note('Configuration not saved.', pc.yellow('Action Cancelled'));
+		await cancelOperation(); // Return to main config menu
+		return;
 	}
 
 	// Compile and return the configuration data

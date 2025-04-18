@@ -255,7 +255,7 @@ export async function saveAvatarImage(file: File): Promise<string> {
 		const buffer = Buffer.from(arrayBuffer);
 		const hash = crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
 
-		const existingFile = dbAdapter ? await dbAdapter.findOne('media_images', { hash }) : null;
+		const existingFile = dbAdapter ? await dbAdapter.crud.findOne('media_images', { hash }) : null;
 
 		if (existingFile) {
 			let fileUrl = existingFile.thumbnail?.url;
@@ -318,7 +318,7 @@ export async function saveAvatarImage(file: File): Promise<string> {
 
 		if (!dbAdapter) throw Error('Database adapter not initialized.');
 
-		await dbAdapter.insertOne('media_images', { _id: dbAdapter.generateId(), ...fileInfo });
+		await dbAdapter.media.files.upload({ _id: dbAdapter.utils.generateId(), ...fileInfo });
 
 		// Return the thumbnail URL for avatar usage
 		let fileUrl = thumbnailUrl;

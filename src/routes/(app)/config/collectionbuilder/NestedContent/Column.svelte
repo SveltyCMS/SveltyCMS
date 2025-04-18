@@ -22,23 +22,16 @@
 	// Skeleton
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
 	import ModalAddCategory from './ModalCategory.svelte';
+	import type { ContentNode, DatabaseId } from '@root/src/databases/dbInterface';
+	import type { DndItem } from './types';
 
 	interface Props {
-		name: string;
-		icon: string;
-		items?: DndItem[];
-		level?: number;
-		onUpdate: (items: DndItem[]) => void;
+		item: DndItem;
+		children: DndItem[];
 		isCategory?: boolean;
-		onEditCategory: (category: Pick<CollectionData, 'name' | 'icon'>) => void;
-	}
-
-	interface DndItem {
-		id: string;
-		name: string;
-		icon: string;
-		isCategory: boolean;
-		children?: DndItem[];
+		level: number;
+		onEditCategory: (category: Partial<ContentNode>) => void;
+		onUpdate: (items: DndItem[], parent: DndItem) => void;
 	}
 
 	interface CategoryUpdateResponse {
@@ -46,7 +39,11 @@
 		newCategoryIcon: string;
 	}
 
-	let { name, icon, items = $bindable([]), level = 0, onUpdate, isCategory = false, onEditCategory }: Props = $props();
+	let { item, children = $bindable([]), level, onUpdate, isCategory = false, onEditCategory }: Props = $props();
+
+	let name = $derived(item.name);
+	let path = $derived(item.path);
+	let icon = $derived(item.icon);
 
 	// State variables
 	let isDragging = $state(false);
@@ -62,7 +59,11 @@
 	function handleDndConsider(e: CustomEvent<DndEvent<DndItem>>) {
 		isDragging = true;
 		try {
-			items = e.detail.items;
+			const items = e.detail.items;
+			const uniqueItems = Array.from(new Map(items.map((item) => [item._id, item])).values());
+
+			console.debug('DndConsider', uniqueItems);
+			children = uniqueItems;
 			updateError = null;
 		} catch (error) {
 			console.error('Error handling DnD consider:', error);
@@ -72,8 +73,14 @@
 
 	function handleDndFinalize(e: CustomEvent<DndEvent<DndItem>>) {
 		try {
-			items = e.detail.items;
-			onUpdate(items);
+			console.debug('Finalize', e);
+			const eventType = e.detail.info.trigger;
+			if (eventType === 'droppedIntoAnother') {
+				const itemRemoved = e.detail.info.id;
+				const items = e.detail.items.filter((item) => item._id !== itemRemoved);
+				children = items;
+			}
+
 			updateError = null;
 		} catch (error) {
 			console.error('Error handling DnD finalize:', error);
@@ -83,10 +90,10 @@
 		}
 	}
 
-	async function handleCollectionClick(item: Pick<DndItem, 'name'>) {
+	async function handleCollectionClick(item: Pick<DndItem, 'path'>) {
 		try {
 			mode.set('edit');
-			await goto(`/config/collectionbuilder/${item.name}`);
+			await goto(`/config/collectionbuilder/edit${item.path}`);
 		} catch (error) {
 			console.error('Error navigating to collection:', error);
 			updateError = error instanceof Error ? error.message : 'Error navigating to collection';
@@ -94,7 +101,7 @@
 	}
 
 	function handleCategoryEdit() {
-		onEditCategory({ name, icon });
+		onEditCategory({ name, icon, path, _id: item.id as DatabaseId });
 	}
 
 	// Modal handling
@@ -186,31 +193,30 @@
 				<iconify-icon {icon} width="18" class="text-error-500" aria-hidden="true"></iconify-icon>
 				<span class="text-black dark:text-white">{name}</span>
 			</div>
-			<button onclick={() => handleCollectionClick({ name })} aria-label={`Edit collection ${name}`} disabled={isUpdating}>
+			<button onclick={() => handleCollectionClick({ path })} aria-label={`Edit collection ${name}`} disabled={isUpdating}>
 				<iconify-icon icon="mdi:pen" width="18"></iconify-icon>
 			</button>
 		</div>
 	{/if}
 
-	{#if items?.length > 0}
+	{#if isCategory}
 		<section
-			use:dndzone={{ items, flipDurationMs, centreDraggedOnCursor: true }}
+			use:dndzone={{ items: item.children ?? [], flipDurationMs, centreDraggedOnCursor: true }}
 			onconsider={handleDndConsider}
 			onfinalize={handleDndFinalize}
+			class="min-h-6 py-1"
 			role="list"
 			aria-label={`${isCategory ? 'Category' : 'Collection'} children`}
 		>
-			{#each items as item (item.id)}
+			{#each children as child (child.id)}
 				<div animate:flip={{ duration: flipDurationMs }} class="mx-0.5 p-0.5">
 					<Column
-						name={item.name}
-						icon={item.icon}
-						items={item.children ?? []}
+						item={child}
+						children={child.children ?? []}
 						level={level + 0.25}
-						isCategory={item.isCategory}
+						isCategory={child.nodeType === 'category'}
 						onUpdate={(newItems) => {
-							item.children = newItems;
-							onUpdate(items);
+							onUpdate(newItems, child);
 						}}
 						{onEditCategory}
 					/>

@@ -100,6 +100,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					permissions: [Permission.Read, Permission.Write]
 				};
 
+				logger.debug('user: ', user._id);
+
 				// Process all files
 				const results: FileProcessResult[] = [];
 				for (const file of files) {
