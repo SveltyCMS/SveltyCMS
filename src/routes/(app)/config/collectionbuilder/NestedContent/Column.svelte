@@ -22,30 +22,28 @@
 	// Skeleton
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
 	import ModalAddCategory from './ModalCategory.svelte';
-	import type { ContentNode } from '@root/src/databases/dbInterface';
+	import type { ContentNode, DatabaseId } from '@root/src/databases/dbInterface';
+	import type { DndItem } from './types';
 
 	interface Props {
-		name: string;
-		path: string;
-		icon: string;
-		items?: DndItem[];
-		level?: number;
-		onUpdate: (items: DndItem[]) => void;
+		item: DndItem;
+		children: DndItem[];
 		isCategory?: boolean;
-		onEditCategory: (category: Pick<CollectionData, 'name' | 'icon'>) => void;
+		level: number;
+		onEditCategory: (category: Partial<ContentNode>) => void;
+		onUpdate: (items: DndItem[], parent: DndItem) => void;
 	}
-
-	type DndItem = ContentNode & {
-		id: string;
-		children?: DndItem[];
-	};
 
 	interface CategoryUpdateResponse {
 		newCategoryName: string;
 		newCategoryIcon: string;
 	}
 
-	let { name, path, icon, items = $bindable([]), level = 0, onUpdate, isCategory = false, onEditCategory }: Props = $props();
+	let { item, children = $bindable([]), level, onUpdate, isCategory = false, onEditCategory }: Props = $props();
+
+	let name = $derived(item.name);
+	let path = $derived(item.path);
+	let icon = $derived(item.icon);
 
 	// State variables
 	let isDragging = $state(false);
@@ -61,7 +59,11 @@
 	function handleDndConsider(e: CustomEvent<DndEvent<DndItem>>) {
 		isDragging = true;
 		try {
-			items = e.detail.items;
+			const items = e.detail.items;
+			const uniqueItems = Array.from(new Map(items.map((item) => [item._id, item])).values());
+
+			console.debug('DndConsider', uniqueItems);
+			children = uniqueItems;
 			updateError = null;
 		} catch (error) {
 			console.error('Error handling DnD consider:', error);
@@ -72,8 +74,13 @@
 	function handleDndFinalize(e: CustomEvent<DndEvent<DndItem>>) {
 		try {
 			console.debug('Finalize', e);
-			items = e.detail.items;
-			onUpdate(items);
+			const eventType = e.detail.info.trigger;
+			if (eventType === 'droppedIntoAnother') {
+				const itemRemoved = e.detail.info.id;
+				const items = e.detail.items.filter((item) => item._id !== itemRemoved);
+				children = items;
+			}
+
 			updateError = null;
 		} catch (error) {
 			console.error('Error handling DnD finalize:', error);
@@ -94,7 +101,7 @@
 	}
 
 	function handleCategoryEdit() {
-		onEditCategory({ name, icon });
+		onEditCategory({ name, icon, path, _id: item.id as DatabaseId });
 	}
 
 	// Modal handling
@@ -192,26 +199,24 @@
 		</div>
 	{/if}
 
-	{#if items?.length > 0}
+	{#if isCategory}
 		<section
-			use:dndzone={{ items, flipDurationMs, centreDraggedOnCursor: true }}
+			use:dndzone={{ items: item.children ?? [], flipDurationMs, centreDraggedOnCursor: true }}
 			onconsider={handleDndConsider}
 			onfinalize={handleDndFinalize}
+			class="min-h-6 py-1"
 			role="list"
 			aria-label={`${isCategory ? 'Category' : 'Collection'} children`}
 		>
-			{#each items as item (item.id)}
+			{#each children as child (child.id)}
 				<div animate:flip={{ duration: flipDurationMs }} class="mx-0.5 p-0.5">
 					<Column
-						name={item.name}
-						path={item.path}
-						icon={item.icon as string}
-						items={item.children ?? []}
+						item={child}
+						children={child.children ?? []}
 						level={level + 0.25}
-						isCategory={item.nodeType === 'category'}
+						isCategory={child.nodeType === 'category'}
 						onUpdate={(newItems) => {
-							item.children = newItems;
-							onUpdate(items);
+							onUpdate(newItems, child);
 						}}
 						{onEditCategory}
 					/>

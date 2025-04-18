@@ -200,7 +200,7 @@
 	}
 
 	$effect(() => {
-		console.log('avatarSrc', avatarSrc.value);
+		console.debug('avatarSrc', avatarSrc.value);
 	});
 </script>
 

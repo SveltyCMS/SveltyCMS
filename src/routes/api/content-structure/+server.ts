@@ -13,6 +13,7 @@ import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/r
 // System Logger
 import { logger } from '@utils/logger.svelte';
 import type { ContentNode } from '@root/src/databases/dbInterface';
+import { contentStructure } from '@root/src/stores/collectionStore.svelte';
 
 const CACHE_TTL = 300; // 5 minutes
 
@@ -111,9 +112,11 @@ export const POST: RequestHandler = async ({ request }) => {
 
 
         await contentManager.updateCollections(true);
+        const { contentStructure } = await contentManager.getCollectionData()
         logger.info('Content structure metadata updated successfully');
         return json({
           success: true,
+          contentStructure,
           message: 'Content structure metadata updated successfully'
         });
       }

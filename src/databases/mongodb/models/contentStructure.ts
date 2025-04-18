@@ -112,7 +112,7 @@ contentStructureSchema.statics = {
     try {
       const parentPath = category.path.split('/').slice(0, -1).join('/') || null;
       const result = await this.findOneAndUpdate(
-        { path: category.path },
+        { _id: category._id },
         {
           $set: {
             ...category,
@@ -139,7 +139,7 @@ contentStructureSchema.statics = {
     try {
       const parentPath = collection.path.split('/').slice(0, -1).join('/') || null;
       const result = await this.findOneAndUpdate(
-        { path: collection.path },
+        { _id: collection._id },
         {
           $set: {
             ...collection,

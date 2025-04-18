@@ -255,6 +255,8 @@ class ContentManager {
       const result = await dbAdapter.content.nodes.getStructure("flat");
       if (!result.success) logger.debug(`Failed retrieve contentNodes`)
       const structure = result.success ? result.data : []
+
+      this.contentStructure = {}
       // Convert the array to a Map using the `path` property as the key
 
       const structureMap = new Map<string, ContentStructureNode>()

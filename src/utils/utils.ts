@@ -46,6 +46,15 @@ interface GuiFieldConfig {
   required: boolean;
 }
 
+
+
+export function uniqueItems(items: Record<string, unknown>[], key: string): object[] {
+
+  const uniqueItems = Array.from(new Map(items.map((item) => [item[key], item])).values());
+
+  return uniqueItems;
+}
+
 // This function generates GUI fields based on field parameters and a GUI schema.
 export const getGuiFields = (fieldParams: Record<string, unknown>, GuiSchema: Record<string, GuiFieldConfig>): Record<string, unknown> => {
   const guiFields: Record<string, unknown> = {};

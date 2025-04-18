@@ -170,7 +170,6 @@ Manages token creation and updates with role selection and expiration settings. 
 					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 					placeholder=" "
 					required
-					disabled
 				/>
 				<label
 					for="username"
@@ -198,7 +197,6 @@ Manages token creation and updates with role selection and expiration settings. 
 					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 					placeholder=" "
 					required
-					disabled
 				/>
 				<label
 					for="email"

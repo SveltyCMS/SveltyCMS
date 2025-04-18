@@ -13,22 +13,26 @@
 	// Svelte DND-actions
 	import { flip } from 'svelte/animate';
 	import { dndzone, type DndEvent } from 'svelte-dnd-action';
-	import type { CollectionData } from '@root/src/content/types';
 	import type { ContentNode, DatabaseId, NestedContentNode } from '@root/src/databases/dbInterface';
-	import { contructNestedStructure } from '@root/src/content/utils';
-	type DndItem = ContentNode & { id: string; children?: DndItem[] };
+	import { constructNestedStructure } from '@root/src/content/utils';
+	import type { DndItem } from './types';
+	// import { setDebugMode } from 'svelte-dnd-action';
+	// setDebugMode(true);
 
 	interface Props {
 		contentNodes: Record<string, ContentNode>;
-		onEditCategory: (category: Partial<CollectionData>) => void;
+		onEditCategory: (category: Partial<ContentNode>) => void;
 	}
 
 	let { contentNodes, onEditCategory }: Props = $props();
 
-	let nestedNodes = $derived(contructNestedStructure(contentStructure.value));
+	// let nestedNodes = $derived(constructNestedStructure(contentStructure.value));
+	//
+	// // State variables
+	// let structuredItems = $derived<DndItem[]>(createStructuredItems(nestedNodes));
 
-	// State variables
-	let structuredItems = $derived<DndItem[]>(createStructuredItems(nestedNodes));
+	let structureState = $state(createStructuredItems(constructNestedStructure(contentStructure.value)));
+
 	let isDragging = $state(false);
 	let dragError = $state<string | null>(null);
 
@@ -45,6 +49,12 @@
 	function handleDndConsider(e: CustomEvent<DndEvent<DndItem>>) {
 		isDragging = true;
 		try {
+			const items = e.detail.items;
+			const uniqueItems = Array.from(new Map(items.map((item) => [item._id, item])).values());
+			structureState = uniqueItems;
+
+			// const newConfig = convertToConfig(e.detail.items);
+			// contentStructure.set(newConfig);
 			dragError = null;
 		} catch (error) {
 			console.error('Error handling DnD consider:', error);
@@ -78,15 +88,32 @@
 			}
 		}
 
-		console.log(flatMap);
+		// console.log(flatMap);
 
 		return flatMap;
 	}
 
-	function handleDndFinalize() {
+	function handleDndFinalize(e: CustomEvent<DndEvent<DndItem>>) {
 		try {
-			const newConfig = convertToConfig(structuredItems);
-			contentStructure.set(newConfig);
+			console.log('Main Finalize', e);
+			// const eventType = e.detail.info.trigger;
+			// if (eventType === 'droppedIntoAnother') {
+			// 	const itemRemoved = e.detail.info.id;
+			// 	const items = e.detail.items.filter((item) => item._id !== itemRemoved);
+			//
+			// 	structureState = items;
+			// }
+
+			// const items = e.detail.items;
+			// const uniqueItems = Array.from(new Map(items.map((item) => [item._id, item])).values());
+			// structureState = uniqueItems;
+
+			// console.debug('Finalize Main', e);
+			// structureState = e.detail.items;
+			// const newConfig = convertToConfig(e.detail.items);
+			//
+			// console.log(newConfig);
+			// contentStructure.set(newConfig);
 
 			dragError = null;
 		} catch (error) {
@@ -97,11 +124,17 @@
 		}
 	}
 
-	function handleUpdate(newItems: DndItem[]) {
+	function handleUpdate(newItems: DndItem[], parent: DndItem) {
 		try {
-			const newConfig = convertToConfig(newItems);
-			contentStructure.set(newConfig);
+			console.log('Board updating items', newItems, parent);
 
+			// const updatedItems = structureState.map((i) => (i.id === parent.id ? { ...i, children: newItems } : i));
+			// structureState = updatedItems;
+			// const newConfig = convertToConfig(updatedItems);
+			//
+			// console.log('updating items', newConfig);
+			// contentStructure.set(newConfig);
+			//
 			dragError = null;
 		} catch (error) {
 			console.error('Error handling update:', error);
@@ -110,7 +143,8 @@
 	}
 
 	$effect(() => {
-		console.debug('ContenStrucutre', contentStructure.value);
+		// console.debug('ContenStrucutre', contentStructure.value)
+		console.debug('nestedStructure', structureState);
 	});
 
 	const flipDurationMs = 300;
@@ -124,28 +158,21 @@
 	{/if}
 
 	<div
-		use:dndzone={{ items: structuredItems, dragDisabled: false, flipDurationMs, centreDraggedOnCursor: true }}
+		use:dndzone={{
+			items: structureState,
+			dropTargetStyle: { outline: 'rgba(0, 255, 102, 0.7) solid 2px' },
+			flipDurationMs,
+			centreDraggedOnCursor: true
+		}}
 		onconsider={handleDndConsider}
 		onfinalize={handleDndFinalize}
-		class="min-h-[2em] pb-14"
+		class="min-h-[2em] px-1 py-5"
 		role="list"
 		aria-label="Collection Categories"
 	>
-		{#each structuredItems as item (item.id)}
+		{#each structureState as item (item.id)}
 			<div animate:flip={{ duration: flipDurationMs }} class="my-1 w-full" role="listitem" aria-label={item.name}>
-				<Column
-					name={item.name}
-					path={item.path}
-					icon={item.icon as string}
-					items={item.children ?? []}
-					onUpdate={(newItems) => {
-						console.debug('upodate Items', newItems);
-						const updatedItems = structuredItems.map((i) => (i.id === item.id ? { ...i, children: newItems } : i));
-						handleUpdate(updatedItems);
-					}}
-					isCategory={item.nodeType === 'category'}
-					{onEditCategory}
-				/>
+				<Column level={0} {item} children={item.children ?? []} onUpdate={handleUpdate} isCategory={item.nodeType === 'category'} {onEditCategory} />
 			</div>
 		{/each}
 	</div>

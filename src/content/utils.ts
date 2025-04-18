@@ -6,7 +6,7 @@ import widgetProxy, { ensureWidgetsInitialized, resolveWidgetPlaceholder } from 
 
 
 
-export function contructNestedStructure(contentStructure: Record<string, ContentNode>): NestedContentNode[] {
+export function constructNestedStructure(contentStructure: Record<string, ContentNode>): NestedContentNode[] {
 
   try {
 

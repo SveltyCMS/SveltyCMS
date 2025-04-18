@@ -37,7 +37,7 @@ Features:
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { contructNestedStructure } from '../content/utils';
+	import { constructNestedStructure } from '../content/utils';
 
 	interface CollectionTreeNode extends ContentNode {
 		id: string;
@@ -51,6 +51,8 @@ Features:
 			visible?: boolean;
 		};
 	}
+
+	let nestedStructure = $derived(constructNestedStructure(contentStructure.value));
 
 	let collectionStructureNodes: CollectionTreeNode[] = $derived.by(() => {
 		function mapNode(node: ContentNode): CollectionTreeNode {
@@ -85,8 +87,6 @@ Features:
 					: undefined
 			};
 		}
-
-		const nestedStructure = contructNestedStructure(contentStructure.value);
 
 		return nestedStructure.map((node) => mapNode(node));
 	});
@@ -184,7 +184,9 @@ Features:
 		<button
 			class="hover:bg-surface-500! btn mt-1 flex w-full items-center bg-surface-400 py-2 hover:text-white dark:bg-surface-600"
 			onclick={() => {
+				collection.set(null);
 				mode.set('view');
+
 				if (get(screenSize) === 'sm') {
 					toggleSidebar('left', 'hidden');
 				}

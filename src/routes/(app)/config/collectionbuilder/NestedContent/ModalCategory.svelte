@@ -16,6 +16,7 @@
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import type { ContentNode } from '@root/src/databases/dbInterface';
 
 	interface Props {
 		parent: {
@@ -101,7 +102,7 @@
 				type: 'confirm',
 				title: 'Please Confirm',
 				body: 'Are you sure you wish to delete this category?',
-				response: async (confirmed: boolean) => {
+				response: async ({ confirmed }: { confirmed: boolean }) => {
 					if (!confirmed) return;
 
 					isSubmitting = true;
@@ -122,28 +123,36 @@
 						});
 
 						// Persist to backend
-						const response = await fetch('/api/save-categories', {
+						const response = await fetch('/api/content-structure', {
 							method: 'POST',
 							headers: {
 								'Content-Type': 'application/json'
 							},
-							body: JSON.stringify(contentStructure.value)
+							body: JSON.stringify({
+								action: 'deleteNodes',
+								items: [existingCategory]
+							})
 						});
 
 						if (!response.ok) {
 							throw new Error('Failed to save category changes');
 						}
+						const {
+							success,
+							contentStructure: newStructure,
+							error
+						}: {
+							success: boolean;
+							contentStructure: Record<string, ContentNode>;
+							error: string;
+						} = await response.json();
+						if (!success) {
+							throw new Error(error);
+						}
+						contentStructure.set(newStructure);
 					} catch (error) {
 						console.error('Error deleting category:', error);
 						formError = error instanceof Error ? error.message : 'Failed to delete category';
-
-						// Revert store changes on error
-						if (existingCategory.id) {
-							contentStructure.update((cats) => ({
-								...cats,
-								[existingCategory.id as string]: existingCategory as CollectionData
-							}));
-						}
 					} finally {
 						isSubmitting = false;
 					}

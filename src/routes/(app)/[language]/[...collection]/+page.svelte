@@ -74,6 +74,12 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		if (currentPath !== newPath) goto(newPath);
 	});
 
+	$effect(() => {
+		if (mode.value === 'media') {
+			mode.set('view');
+		}
+	});
+
 	// Handle browser history navigation
 </script>
 
@@ -93,8 +99,6 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 			<div id="fields_container" class="fields max-h-[calc(100vh-60px)] overflow-y-auto max-md:max-h-[calc(100vh-120px)]">
 				<Fields fields={collection.value.fields} fieldsData={collectionValue.value} customData={{}} root={true} />
 			</div>
-		{:else if mode.value === 'media' && page.params.collection}
-			<MediaGallery />
 		{/if}
 	{:else}
 		<div class="error text-error-500" role="alert">Error: Collection data not available.</div>

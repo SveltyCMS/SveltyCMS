@@ -28,9 +28,9 @@
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
-	import Board from './Board.svelte';
-	import ModalCategory from './ModalCategory.svelte';
-	import ModalNameConflict from './ModalNameConflict.svelte';
+	import Board from './NestedContent/Board.svelte';
+	import ModalCategory from './NestedContent/ModalCategory.svelte';
+	import ModalNameConflict from './NestedContent/ModalNameConflict.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -38,6 +38,7 @@
 	// Skeleton
 	import { getToastStore, getModalStore, type ModalSettings, type ModalComponent } from '@skeletonlabs/skeleton';
 	import type { ContentNode, DatabaseId, ISODateString } from '@root/src/databases/dbInterface';
+	import { constructNestedStructure } from '@root/src/content/utils';
 
 	interface CategoryModalResponse {
 		newCategoryName: string;
@@ -66,6 +67,7 @@
 
 	let data: CollectionBuilderProps = $props();
 	let currentConfig = $derived(data.contentStructure);
+	let nestedNodes = $derived(constructNestedStructure(contentStructure.value));
 
 	// nodes that need to be saved
 
@@ -111,18 +113,49 @@
 		modalStore.trigger(modalSettings);
 	}
 
-	async function updateExistingCategory(existingCategory: Partial<CollectionData>, response: CategoryModalResponse): Promise<void> {
-		const newConfig = { ...currentConfig };
+	async function updateExistingCategory(existingCategory: ContentNode, response: CategoryModalResponse): Promise<void> {
+		console.debug('updating category');
 
-		Object.entries(newConfig).forEach(([_, category]) => {
-			if (category.name === existingCategory.name) {
-				category.name = response.newCategoryName;
-				category.icon = response.newCategoryIcon;
+		const currentNode = contentStructure.value[existingCategory.path];
+		const oldPath = currentNode.path;
+		const oldParent = currentNode.parentPath ?? '';
+		const newName = response.newCategoryName;
+		const newIcon = response.newCategoryIcon;
+		const newpath = `${oldParent}/${newName}`;
+
+		const newNode: Partial<ContentNode> = {
+			_id: currentNode._id,
+			name: newName,
+			icon: newIcon,
+			path: newpath
+		};
+		const currentStructure = contentStructure.value;
+
+		for (const [key, value] of Object.entries(currentStructure)) {
+			if (key === oldPath) {
+				currentStructure[newpath] = {
+					...value,
+					...newNode
+				};
+
+				delete currentStructure[key];
+			} else if (key.startsWith(oldPath)) {
+				const oldNode = currentStructure[key];
+				currentStructure[key.replace(oldPath, newpath)] = {
+					...oldNode,
+					path: key.replace(oldPath, newpath),
+					parentPath: oldNode.parentPath?.replace(oldPath, newpath) ?? undefined
+				};
+
+				delete currentStructure[key];
 			}
-		});
+		}
+
+		contentStructure.set(currentStructure);
 	}
 
 	async function addNewCategory(response: CategoryModalResponse): Promise<void> {
+		console.debug('adding category');
 		const categoryKey = response.newCategoryName.toLowerCase().replace(/\s+/g, '-');
 		const newCategoryId = uuidv4();
 
@@ -181,54 +214,53 @@
 	}
 
 	// Handle collection save with conflict checking
-	function handleSave(): void {
+	async function handleSave() {
 		const items = Object.entries(contentStructure.value).map(([key, item]) => ({
 			...item,
 			path: key,
 			isCollection: false // Assuming these are categories, adjust as necessary
 		}));
 
-		checkNameConflicts(name).then(async (nameCheck) => {
-			if (!nameCheck.canProceed) {
-				showToast('Collection save cancelled due to name conflict', 'error');
-				return;
+		// if (!nameCheck.canProceed) {
+		// 	showToast('Collection save cancelled due to name conflict', 'error');
+		// 	return;
+		// }
+		//
+		// const finalName = nameCheck.newName || name;
+		try {
+			isLoading = true;
+			const response = await fetch('/api/content-structure', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					action: 'updateContentStructure',
+					items
+				})
+			});
+
+			const result: ApiResponse = await response.json();
+
+			if (response.ok) {
+				showToast('Categories updated successfully', 'success');
+				contentStructure.set(result.contentStructure);
+
+				// Create and dispatch a proper CustomEvent
+				// const saveEvent = new CustomEvent('save', {
+				// 	detail: { name: finalName, data }
+				// });
+				// dispatchEvent(saveEvent);
+			} else {
+				throw new Error(result.error || 'Failed to update categories');
 			}
-
-			const finalName = nameCheck.newName || name;
-			try {
-				isLoading = true;
-				const response = await fetch('/api/content-structure', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify({
-						action: 'updateContentStructure',
-						items
-					})
-				});
-
-				const result: ApiResponse = await response.json();
-
-				if (response.ok) {
-					showToast('Categories updated successfully', 'success');
-
-					// Create and dispatch a proper CustomEvent
-					const saveEvent = new CustomEvent('save', {
-						detail: { name: finalName, data }
-					});
-					dispatchEvent(saveEvent);
-				} else {
-					throw new Error(result.error || 'Failed to update categories');
-				}
-			} catch (error) {
-				console.error('Error saving categories:', error);
-				showToast(error instanceof Error ? error.message : 'Failed to save categories', 'error');
-				apiError = error instanceof Error ? error.message : 'Unknown error occurred';
-			} finally {
-				isLoading = false;
-			}
-		});
+		} catch (error) {
+			console.error('Error saving categories:', error);
+			showToast(error instanceof Error ? error.message : 'Failed to save categories', 'error');
+			apiError = error instanceof Error ? error.message : 'Unknown error occurred';
+		} finally {
+			isLoading = false;
+		}
 	}
 
 	function handleAddCollectionClick(): void {
