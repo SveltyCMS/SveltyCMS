@@ -2,11 +2,19 @@
 @file src/widgets/custom/number/Number.svelte
 @component
 **Number widget component that allows users to enter a number**
+
+@example
+<Number label="Number" db_fieldName="number" required={true} />
+
+### Props
+- `field`: FieldType
+- `value`: any
+
+### Features
+- Translatable
 -->
 
 <script lang="ts">
-	import { preventDefault } from 'svelte/legacy';
-
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
 
@@ -38,20 +46,20 @@
 		maxValue?: number;
 	}
 
-	const fieldName = getFieldName(field);
 	interface Props {
 		field: NumberFieldType;
 		value?: any;
 	}
 
-	let { field, value = collectionValue.valuevalue[fieldName] || {} }: Props = $props();
+	let { field, value = collectionValue.value[getFieldName(field)] || {} }: Props = $props();
+	const fieldName = getFieldName(field);
 
 	const _data = $state(mode.value === 'create' ? {} : value);
 	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
 	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
 
-	let numberInput: HTMLInputElement = $state();
+	let numberInput: HTMLInputElement | undefined = $state();
 	const language = $contentLanguage;
 
 	export const WidgetData = async () => _data;
@@ -157,7 +165,7 @@
 		type="text"
 		bind:value={_data[_language]}
 		bind:this={numberInput}
-		oninput={preventDefault(handleInput)}
+		oninput={handleInput}
 		name={field?.db_fieldName}
 		id={field?.db_fieldName}
 		placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}

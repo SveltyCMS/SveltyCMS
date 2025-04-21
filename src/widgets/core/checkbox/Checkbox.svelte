@@ -1,7 +1,17 @@
 <!--
 @file src/widgets/core/checkbox/Checkbox.svelte
 @component
-**Checkbox widget**
+**Checkbox widge component to display checkbox field**
+
+@example
+<Checkbox label="Checkbox" db_fieldName="checkbox" />
+
+### Props
+- `field`: FieldType
+- `value`: any
+
+### Features
+- Translatable	
 -->
 
 <script lang="ts">

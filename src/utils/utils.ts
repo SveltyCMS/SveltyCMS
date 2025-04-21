@@ -358,21 +358,38 @@ export function ReadableExpireIn(expiresIn: string) {
 
 export function updateTranslationProgress(data, field) {
 	const languages = publicEnv.AVAILABLE_CONTENT_LANGUAGES;
+	const fieldName = getFieldName(field); // Get the unique field name
+
+	if (!fieldName || !field?.translated) {
+		return; // Exit if field name is invalid or field is not translatable
+	}
+
 	translationProgress.update((current) => {
+		// Ensure 'show' property exists or initialize it
+		if (typeof current.show === 'undefined') {
+			current.show = false; // Or true, depending on desired initial state
+		}
+
 		for (const lang of languages) {
-			if (!current[lang]) {
-				current[lang] = { total: new Set(), translated: new Set() };
+			// Language entry is guaranteed to exist due to store initialization
+			// Determine if the field is considered "translated" for this language
+			const value = data?.[lang];
+			const isTranslated = value !== null && value !== undefined && value !== ''; // Basic check for non-empty
+
+			// Add or remove from the translated set based on the value
+			if (isTranslated) {
+				current[lang].translated.add(fieldName);
+			} else {
+				current[lang].translated.delete(fieldName);
 			}
 
-			if (field?.translated) {
-				current[lang].total.add(field);
-				if (data[lang]) {
-					current[lang].translated.add(field);
-				} else {
-					current[lang].translated.delete(field);
-				}
-			}
+			// Ensure the 'total' set is managed elsewhere (e.g., in Fields.svelte)
+			// We no longer add to 'total' here.
 		}
+		// Make sure the progress is shown if there are translatable fields
+		current.show = Object.values(current).some(
+			(langData) => typeof langData === 'object' && langData.total instanceof Set && langData.total.size > 0
+		);
 		return current;
 	});
 }

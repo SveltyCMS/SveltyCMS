@@ -34,10 +34,7 @@
 
 	// Types
 	import type { Schema, FieldValue, Field, WidgetTypes } from '@src/content/types';
-	import type { ModifyRequestParams, Widget } from '../widgets/types';
-	import type { ContentNode } from '@src/databases/dbInterface';
-
-	// Removed local Field interface
+	import type { ModifyRequestParams } from '../widgets/types'; // Removed unused Widget import
 
 	// Components
 	import TranslationStatus from './TranslationStatus.svelte';
@@ -49,10 +46,10 @@
 
 	// Stores
 	import { page } from '$app/state';
-	import { collection, collectionValue, mode, modifyEntry, statusMap, contentStructure } from '@src/stores/collectionStore.svelte'; // <-- Removed StatusType import
+	import { collection, collectionValue, mode, modifyEntry, statusMap } from '@src/stores/collectionStore.svelte';
 	import { uiStateManager, toggleUIElement } from '@src/stores/UIStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
-	import { contentLanguage, tabSet, validationStore, headerActionButton } from '@stores/store.svelte';
+	import { contentLanguage, tabSet, validationErrors, headerActionButton } from '@stores/store.svelte';
 
 	// Auth
 	import type { User } from '@src/auth/types';
@@ -80,7 +77,7 @@
 			contentLanguage: string;
 		}) => Promise<string> | string;
 		callback?: (args: { data: Record<string, FieldValue> }) => void;
-		modifyRequest?: (args: ModifyRequestParams) => Promise<object>; // <-- Removed generic argument again
+		modifyRequest?: (args: ModifyRequestParams) => Promise<object>;
 	}
 
 	interface SaveData {
@@ -106,8 +103,8 @@
 	}
 
 	// State declarations with proper types
-	let previousLanguage = $state<string>($contentLanguage);
-	let previousTabSet = $state<number>($tabSet);
+	let previousLanguage = $state<string>(contentLanguage.value);
+	let previousTabSet = $state<number>(tabSet.value);
 	let tempData = $state<Partial<Record<string, CollectionData>>>({});
 	let schedule = $state<string>(
 		typeof collectionValue.value?._scheduled === 'number' ? new Date(collectionValue.value._scheduled).toISOString().slice(0, 16) : ''
@@ -118,22 +115,6 @@
 	let saveLayerStore = $state<() => Promise<void>>(async () => {});
 	let showMore = $state<boolean>(false);
 	let next = $state<() => Promise<void>>(() => Promise.resolve());
-
-	// Compute category name using derived state
-	let categoryName = $derived(
-		(() => {
-			const categoryEntries = Object.values(contentStructure.value || {});
-			// Use ContentNode type for cat to match contentStructure.value type
-			const cat = categoryEntries.find((cat: ContentNode) => (cat as any).collections?.some((col: Schema) => col.name === collection.value?.name));
-			return cat?.name || '';
-		})()
-	);
-
-	// Type guard to check if the widget result has a validateWidget method
-
-	function hasValidateWidget(widgetInstance: Widget): boolean {
-		return typeof widgetInstance?.validateWidget === 'function';
-	}
 
 	// Type guard to check if field is translatable
 	function isTranslatable(field: Field): field is TranslatableField {
@@ -170,9 +151,9 @@
 	}
 
 	$effect(() => {
-		if ($tabSet !== previousTabSet) {
+		if (tabSet.value !== previousTabSet) {
 			tempData[previousLanguage] = collectionValue.value;
-			previousTabSet = $tabSet;
+			previousTabSet = tabSet.value;
 		}
 	});
 
@@ -181,7 +162,7 @@
 			tempData = {};
 		}
 		if (mode.value === 'edit' && collectionValue.value?.status === statusMap.published) {
-			$modifyEntry?.(statusMap.unpublished);
+			modifyEntry.value?.(statusMap.unpublished);
 		}
 	});
 
@@ -201,6 +182,7 @@
 
 		let validationPassed = true;
 		const getData: SaveData = {};
+		const currentErrors = { ...validationErrors.value };
 
 		// Clear any existing meta_data
 		meta_data.clear();
@@ -211,30 +193,53 @@
 			const rawValue = collectionValue.value?.[fieldName];
 			const fieldValue =
 				typeof rawValue === 'object' && rawValue !== null ? (rawValue as Record<string, any>) : (rawValue as string | number | boolean | undefined);
-			const widgetInstance = field.widget as unknown as Widget;
 
-			if (hasValidateWidget(widgetInstance) && widgetInstance.validateWidget) {
-				const error = await widgetInstance.validateWidget();
-				if (error) {
-					validationStore.setError(fieldName, error);
-					validationPassed = false;
-				} else {
-					validationStore.clearError(fieldName);
+			// Basic required check (assuming widgets handle their own complex validation and update validationErrors store)
+			let error: string | null = null;
+			if (field.required && (fieldValue === null || fieldValue === undefined || fieldValue === '')) {
+				error = 'This field is required';
+			}
+
+			if (error) {
+				// Only add basic required error if no error exists from real-time validation
+				if (!currentErrors[fieldName]) {
+					currentErrors[fieldName] = error;
+				}
+				validationPassed = false; // Mark as failed if *any* error exists (real-time or basic required)
+			} else {
+				// If basic check passes, ensure no real-time error exists before adding data getter
+				if (!currentErrors[fieldName]) {
 					getData[fieldName] = () => {
 						if (isTranslatable(field)) {
-							return typeof fieldValue === 'object' ? fieldValue : { [$contentLanguage]: fieldValue };
+							const lang = contentLanguage.value;
+							if (typeof fieldValue === 'object' && fieldValue !== null && lang in fieldValue) {
+								return fieldValue;
+							} else if (typeof fieldValue !== 'object') {
+								return { [lang]: fieldValue };
+							}
+							return { [lang]: fieldValue };
 						}
 						return fieldValue;
 					};
+				} else {
+					// If a real-time error exists even if basic check passes, fail validation
+					validationPassed = false;
 				}
-			} else {
-				getData[fieldName] = () => {
-					if (isTranslatable(field)) {
-						return typeof fieldValue === 'object' ? fieldValue : { [$contentLanguage]: fieldValue };
-					}
-					return fieldValue;
-				};
 			}
+		}
+
+		// Update the validationErrors store with any *new* basic required errors found
+		validationErrors.set(currentErrors);
+
+		// Final check on the potentially updated validationErrors store
+		if (Object.keys(validationErrors.value).length > 0) {
+			console.warn('Validation errors exist. Cannot save.', validationErrors.value);
+			// modalStore.trigger({ type: 'alert', title: 'Validation Error', body: 'Please fix the errors before saving.' });
+			validationPassed = false; // Ensure validationPassed reflects the final state
+		}
+
+		if (!validationPassed) {
+			return; // Stop if validation failed at any point
 		}
 
 		// Add system fields
@@ -265,34 +270,32 @@
 			getData['_scheduled'] = () => new Date(schedule).getTime();
 		}
 
-		// If validation passed, save the data
-		if (validationPassed) {
-			try {
-				await saveFormData({
-					data: getData,
-					_collection: collection.value,
-					_mode: mode.value,
-					id:
-						typeof collectionValue.value?._id === 'string'
-							? collectionValue.value._id
-							: collectionValue.value?._id
-								? String(collectionValue.value._id)
-								: undefined,
-					user
-				});
+		// Proceed with saving
+		try {
+			await saveFormData({
+				data: getData,
+				_collection: collection.value,
+				_mode: mode.value,
+				id:
+					typeof collectionValue.value?._id === 'string'
+						? collectionValue.value._id
+						: collectionValue.value?._id
+							? String(collectionValue.value._id)
+							: undefined,
+				user
+			});
 
-				mode.set('view');
-				toggleUIElement('leftSidebar', $screenSize === 'lg' ? 'full' : 'collapsed');
-			} catch (err) {
-				console.error('Failed to save data:', err);
-			}
+			mode.set('view');
+			toggleUIElement('leftSidebar', screenSize.value === 'lg' ? 'full' : 'collapsed');
+		} catch (err) {
+			console.error('Failed to save data:', err);
 		}
 	}
 
 	// function to undo the changes made by handleButtonClick
 	function handleCancel() {
 		mode.set('view');
-		toggleUIElement('leftSidebar', $screenSize === 'lg' ? 'full' : 'collapsed');
+		toggleUIElement('leftSidebar', screenSize.value === 'lg' ? 'full' : 'collapsed');
 	}
 
 	function handleReload() {
@@ -301,21 +304,20 @@
 
 	// Handle entry modifications
 	function handleModifyEntry(status: keyof typeof statusMap) {
-		$modifyEntry?.(status);
+		modifyEntry.value?.(status);
 	}
 </script>
 
 <header
-	class="sticky top-0 z-10 flex w-full items-center justify-between {showMore
-		? ''
-		: 'border-b'} border-secondary-600-300-token bg-white p-2 dark:bg-surface-700"
+	class="border-secondary-600-300-token sticky top-0 z-10 flex w-full items-center justify-between bg-white p-2 dark:bg-surface-700"
+	class:border-b={!showMore}
 >
 	<div class="flex items-center justify-start">
 		<!-- Hamburger -->
 		{#if uiStateManager.uiState.value.leftSidebar === 'hidden'}
 			<button
 				type="button"
-				onclick={() => toggleUIElement('leftSidebar', $screenSize === 'lg' ? 'full' : 'collapsed')}
+				onclick={() => toggleUIElement('leftSidebar', screenSize.value === 'lg' ? 'full' : 'collapsed')}
 				aria-label="Toggle Sidebar"
 				class="variant-ghost-surface btn-icon mt-1"
 			>
@@ -324,38 +326,41 @@
 		{/if}
 
 		<!-- Collection type with icon -->
-		<div class="flex {!uiStateManager.uiState.value.leftSidebar ? 'ml-2' : 'ml-1'}">
-			{#if collection.value && collection.value.icon}
-				<div class="flex items-center justify-center">
-					<iconify-icon icon={collection.value.icon} width="24" class="text-error-500"></iconify-icon>
-				</div>
-			{/if}
-
-			{#if collection.value?.name}
-				<div class="ml-2 flex flex-col text-left text-gray-400 dark:text-gray-300">
-					<div class="text-sm font-bold uppercase text-tertiary-500 dark:text-primary-500">{mode.value}:</div>
-					<div class="text-xs capitalize">
-						{categoryName}
-						<span class="uppercase text-tertiary-500 dark:text-primary-500">{collection.value.name}</span>
+		{#if collection.value}
+			<div class="flex {!uiStateManager.uiState.value.leftSidebar ? 'ml-2' : 'ml-1'}">
+				{#if collection.value.icon}
+					<div class="flex items-center justify-center">
+						<iconify-icon icon={collection.value.icon} width="24" class="text-error-500"></iconify-icon>
 					</div>
-				</div>
-			{/if}
-		</div>
+				{/if}
+				{#if collection.value.name}
+					<div class="ml-2 flex flex-col text-left text-gray-400 dark:text-gray-300">
+						<div class="text-sm font-bold uppercase text-tertiary-500 dark:text-primary-500">{mode.value}:</div>
+						<div class="text-xs capitalize">
+							<span class="uppercase text-tertiary-500 dark:text-primary-500">{collection.value.name}</span>
+						</div>
+					</div>
+				{/if}
+			</div>
+		{/if}
 	</div>
 
 	<div class="flex items-center justify-end gap-1 sm:gap-2 md:gap-4">
-		<!-- Check if user role has access to collection -->
-		<!-- mobile mode -->
-		{#if $screenSize !== 'lg'}
+		<!-- Mobile specific buttons -->
+		{#if screenSize.value !== 'lg'}
 			{#if showMore}
-				<!-- Next Button  -->
+				<!-- Mobile: Show More Active -->
 				<button type="button" onclick={next} aria-label="Next" class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:btn">
 					<iconify-icon icon="carbon:next-filled" width="24" class="text-white"></iconify-icon>
 					<span class="hidden md:block">{m.button_next()}</span>
 				</button>
+				<!-- Show More toggle remains visible -->
+				<button type="button" onclick={() => (showMore = !showMore)} aria-label="Hide extra actions" class="variant-ghost-surface btn-icon">
+					<iconify-icon icon="material-symbols:filter-list-off-outline" width="30"></iconify-icon>
+				</button>
 			{:else}
-				<!-- Mobile Content Language -->
-				<div class=" flex-col items-center justify-center md:flex">
+				<!-- Mobile: Show More Inactive -->
+				<div class="flex-col items-center justify-center md:flex">
 					<TranslationStatus />
 				</div>
 
@@ -371,21 +376,35 @@
 						<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
 					</button>
 				{/if}
-
 				<!-- DropDown to show more Buttons -->
-				<button type="button" onclick={() => (showMore = !showMore)} aria-label="Show more" class="variant-ghost-surface btn-icon">
+				<button type="button" onclick={() => (showMore = !showMore)} aria-label="Show more actions" class="variant-ghost-surface btn-icon">
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30"></iconify-icon>
 				</button>
 			{/if}
-		{:else}
-			<!-- Desktop Content Language -->
+		{/if}
+
+		<!-- Desktop specific buttons -->
+		{#if screenSize.value === 'lg'}
 			<div class="hidden flex-col items-center justify-center md:flex">
 				<TranslationStatus />
 			</div>
+			{#if ['edit', 'create'].includes(mode.value)}
+				<button
+					type="button"
+					onclick={saveData}
+					disabled={collection.value?.permissions?.[user.role]?.write === false}
+					class="variant-filled-tertiary btn dark:variant-filled-primary"
+					aria-label="Save entry"
+				>
+					<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
+					<span class="ml-1">{m.button_save()}</span>
+				</button>
+			{/if}
+			<!-- Desktop doesn't need the showMore toggle -->
 		{/if}
 
-		<!-- Cancel/Reload -->
-		{#if !$headerActionButton}
+		<!-- Common Cancel/Reload Buttons -->
+		{#if !headerActionButton.value}
 			<button type="button" onclick={handleCancel} aria-label="Cancel" class="variant-ghost-surface btn-icon">
 				<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 			</button>

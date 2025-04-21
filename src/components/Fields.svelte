@@ -1,17 +1,17 @@
 <!--
 @file src/components/Fields.svelte
 @component
-**Fields component that renders collection fields to enter/edit & display data per language**
-revision management, live preview, and API data display. 
+**Fields component that renders collection fields to enter/edit & display data per language revision management, live preview, and API data display**
 
-```tsx
+@example
 <Fields />
-```
-#### Props
+
+### Props
 - `fields` {NonNullable<typeof collection.value>['fields']} - Collection fields
 - `ariaInvalid` {boolean} - Aria-invalid attribute for accessibility
 - `ariaDescribedby` {string} - Aria-describedby attribute for accessibility
-Key features:
+
+### Features
 - Dynamic field rendering based on collection schema
 - Tab-based interface for different views (Edit, Revision, Live Preview, API)
 - Real-time translation progress updates
@@ -70,7 +70,6 @@ Key features:
 		for (const field of fields) {
 			tempCollectionValue[getFieldName(field, true)] = collectionValue?.value ? (collectionValue.value[getFieldName(field, true)] ?? {}) : {};
 		}
-
 		return tempCollectionValue;
 	}
 

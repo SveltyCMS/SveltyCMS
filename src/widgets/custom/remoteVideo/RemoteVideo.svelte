@@ -3,11 +3,15 @@
 @component
 **RemoteVideo widget to embed remote videos in your content.**
 
-Features:
-- Fetches video data from a remote URL
-- Displays the video thumbnail
-- Displays the video title
-- Displays the video duration
+@example
+<RemoteVideo label="Video URL" db_fieldName="videoUrl" required={true} />
+
+### Props
+- `field`: FieldType
+- `value`: any
+
+### Features
+- Translatable
 -->
 
 <script lang="ts">

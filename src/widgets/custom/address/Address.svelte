@@ -2,6 +2,16 @@
 @file src/widgets/custom/address/Address.svelte
 @component
 **Address widget**
+
+@example
+<Address label="Address" db_fieldName="address" required={true} />
+
+### Props
+- `field`: FieldType
+- `value`: any
+
+### Features
+- Translatable
 -->
 
 <script lang="ts">

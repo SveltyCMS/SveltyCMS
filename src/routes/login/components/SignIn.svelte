@@ -410,7 +410,9 @@ Features:
 								<button type="submit" form="signin-form" class="variant-filled-surface btn w-full sm:w-auto" aria-label={m.form_signin()}>
 									{m.form_signin()}
 									<!-- Loading indicators -->
-									{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
+									{#if $delayed}
+										<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6 invert filter" />
+									{/if}
 								</button>
 								<!-- OAuth Login -->
 								<OauthLogin />

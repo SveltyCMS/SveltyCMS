@@ -2,6 +2,16 @@
 @file src/widgets/core/mediaUpload/MediaUpload.svelte
 @components
 **MediaUpload widget**
+
+@example
+<MediaUpload label="MediaUpload" db_fieldName="mediaUpload" required={true} />
+
+### Props
+- `field`: FieldType
+- `value`: any
+
+### Features
+- Translatable
 -->
 
 <script lang="ts">
