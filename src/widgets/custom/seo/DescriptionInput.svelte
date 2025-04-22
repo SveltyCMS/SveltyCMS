@@ -1,15 +1,18 @@
 <!-- 
 @file src/widgets/seo/DescriptionInput.svelte
 @component
-**Description widget for SEO Widget**
+**Description widget for SEO Widget to manage meta description**
 
-```tsx
+@example
 <Description bind:description={description} bind:descriptionCharacterWidth={descriptionCharacterWidth} bind:handleDescriptionChange={handleDescriptionChange} />
-```
+
 #### Props
 - `description` {string} - Description text
-- `descriptionCharacterWidth` {number} - Description text character width
-- `handleDescriptionChange` {function} - Description text change handler
+- `descriptionCharacterWidth` {number} - Description character width
+- `handleDescriptionChange` {function} - Function to handle description changes
+
+### Features
+- Translatable
 -->
 
 <script lang="ts">

@@ -2,6 +2,16 @@
 @file src/widgets/core/relation/GuiField.svelte
 @component
 **GuiField widget component to display relation field#**
+
+@example
+<GuiField label="GuiField" db_fieldName="guiField" required={true} />
+
+### Props
+- `field`: FieldType
+- `value`: any
+
+### Features
+- Translatable
 -->
 
 <script lang="ts">
@@ -17,7 +27,7 @@
 		value?: ContentTypes;
 	}
 
-	let { value = $bindable<ContentTypes>('null') }: Props = $props();
+	let { value = $bindable<ContentTypes>(undefined) }: Props = $props();
 
 	// Initialize _value with proper type checking
 	let _value = $state<ContentTypes>(value);

@@ -1,7 +1,17 @@
 <!-- 
 @file src/widgets/custom/colorPicker/ColorPicker.svelte
 @component
-**ColorPicker widget**
+**ColorPicker widget component to display color field**
+
+@example
+<ColorPicker label="Color" db_fieldName="color" required={true} />
+
+### Props
+- `field`: FieldType
+- `value`: any
+
+### Features
+- Translatable
 -->
 
 <script lang="ts">
@@ -10,7 +20,7 @@
 
 	// Stores
 	import { validationStore } from '@stores/store.svelte';
-	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
+	import { mode } from '@stores/collectionStore.svelte';
 
 	// valibot validation
 	import * as v from 'valibot';

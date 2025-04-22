@@ -2,6 +2,16 @@
 @file src/widgets/core/relation/DropDown.svelte
 @component
 **Dropdown widget for relation field#**
+
+@example
+<DropDown label="Dropdown" db_fieldName="dropdown" required={true} />
+
+### Props
+- `field`: FieldType
+- `value`: any
+
+### Features
+- Translatable
 -->
 
 <script lang="ts">

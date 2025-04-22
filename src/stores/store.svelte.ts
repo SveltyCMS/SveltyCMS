@@ -62,9 +62,17 @@ const createBaseStores = () => {
 	const translationStatus = store({});
 	const completionStatus = store(0);
 	const translationStatusOpen = store(false);
-	const translationProgress = store<TranslationProgress>({
-		show: false
-	});
+
+	// Initialize translationProgress with guaranteed structure for all languages
+	const initialTranslationProgress: TranslationProgress = { show: false };
+	for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES as AvailableLanguageTag[]) {
+		initialTranslationProgress[lang] = {
+			total: new Set<string>(),
+			translated: new Set<string>()
+		};
+	}
+	const translationProgress = store<TranslationProgress>(initialTranslationProgress);
+
 
 	// UI state
 	const tabSet = store(0);
@@ -85,10 +93,10 @@ const createBaseStores = () => {
 
 	// Save functionality
 	const saveFunction = store<SaveFunction>({
-		fn: () => {},
-		reset: () => {}
+		fn: () => { },
+		reset: () => { }
 	});
-	const saveLayerStore = store(async () => {});
+	const saveLayerStore = store(async () => { });
 	const shouldShowNextButton = store(false);
 
 	// Validation

@@ -2,6 +2,16 @@
 @file src/widgets/core/richText/RichText.svelte
 @component
 **RichText TipTap widget component**
+
+@example
+<RichText label="RichText" db_fieldName="richText" required={true} />
+
+### Props
+- `field`: FieldType
+- `value`: any
+
+### Features
+- Translatable
 -->
 
 <script lang="ts">
@@ -25,9 +35,6 @@
 	import FileInput from '@components/system/inputs/FileInput.svelte';
 	import VideoDialog from './components/VideoDialog.svelte';
 
-	// Skeleton
-	import { ListBox } from '@skeletonlabs/skeleton';
-
 	// TipTap
 	import StarterKit from '@tiptap/starter-kit';
 	import { Editor, Extension } from '@tiptap/core';
@@ -43,7 +50,7 @@
 	let editor = $state<Editor | null>(null);
 	let showImageDialog = $state(false);
 	let showVideoDialog = $state(false);
-	let images = $state({});
+	let images = $state<Record<string, File>>({});
 	let active_dropDown = $state('');
 	let validationError = $state<string | null>(null);
 

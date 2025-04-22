@@ -3,14 +3,17 @@
 @component
 **SEO Preview widget for SEO Widget**
 
-```tsx
+@example
 <SeoPreview bind:title={title} bind:description={description} bind:hostUrl={hostUrl} bind:SeoPreviewToggle={SeoPreviewToggle} />
-```
+
 #### Props
 - `title` {string} - Title text
 - `description` {string} - Description text
 - `hostUrl` {string} - Host URL
 - `SeoPreviewToggle` {boolean} - Preview toggle
+
+#### Features
+- Translatable
 -->
 
 <script lang="ts">
