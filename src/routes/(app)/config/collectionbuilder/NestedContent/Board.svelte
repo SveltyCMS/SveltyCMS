@@ -8,7 +8,6 @@
 	import Column from './Column.svelte';
 
 	// Store
-	import { contentStructure } from '@src/stores/collectionStore.svelte';
 
 	// Svelte DND-actions
 	import { flip } from 'svelte/animate';
@@ -20,18 +19,18 @@
 	// setDebugMode(true);
 
 	interface Props {
-		contentNodes: Record<string, ContentNode>;
+		contentNodes: ContentNode[];
 		onEditCategory: (category: Partial<ContentNode>) => void;
 	}
 
-	let { contentNodes, onEditCategory }: Props = $props();
+	let { contentNodes = $bindable([]), onEditCategory }: Props = $props();
 
 	// let nestedNodes = $derived(constructNestedStructure(contentStructure.value));
 	//
 	// // State variables
 	// let structuredItems = $derived<DndItem[]>(createStructuredItems(nestedNodes));
 
-	let structureState = $state(createStructuredItems(constructNestedStructure(contentStructure.value)));
+	let structureState = $derived(createStructuredItems(constructNestedStructure(contentNodes)));
 
 	let isDragging = $state(false);
 	let dragError = $state<string | null>(null);
@@ -74,7 +73,6 @@
 
 			if (needsUpdate) {
 				node.path = expectedPath;
-				node.parentPath = parentPath;
 			}
 
 			// Strip out children to match ContentNode type
@@ -96,24 +94,15 @@
 	function handleDndFinalize(e: CustomEvent<DndEvent<DndItem>>) {
 		try {
 			console.log('Main Finalize', e);
-			// const eventType = e.detail.info.trigger;
-			// if (eventType === 'droppedIntoAnother') {
-			// 	const itemRemoved = e.detail.info.id;
-			// 	const items = e.detail.items.filter((item) => item._id !== itemRemoved);
-			//
-			// 	structureState = items;
-			// }
 
-			// const items = e.detail.items;
-			// const uniqueItems = Array.from(new Map(items.map((item) => [item._id, item])).values());
-			// structureState = uniqueItems;
-
-			// console.debug('Finalize Main', e);
-			// structureState = e.detail.items;
-			// const newConfig = convertToConfig(e.detail.items);
-			//
-			// console.log(newConfig);
-			// contentStructure.set(newConfig);
+			const eventType = e.detail.info.trigger;
+			if (eventType === 'droppedIntoAnother') {
+				const itemRemoved = e.detail.info.id;
+				// contentNodes = contentNodes.filter((item) => item._id !== itemRemoved);
+			} else if (eventType === 'droppedIntoZone') {
+				const itemAdded = e.detail.info.id;
+				handleUpdate(itemAdded, undefined);
+			}
 
 			dragError = null;
 		} catch (error) {
@@ -124,28 +113,19 @@
 		}
 	}
 
-	function handleUpdate(newItems: DndItem[], parent: DndItem) {
+	function handleUpdate(itemId: string, parentId: string | undefined) {
 		try {
-			console.log('Board updating items', newItems, parent);
+			const currentNode = contentNodes.find((node) => node._id === itemId);
+			if (!currentNode) return;
+			currentNode.parentId = parentId;
 
-			// const updatedItems = structureState.map((i) => (i.id === parent.id ? { ...i, children: newItems } : i));
-			// structureState = updatedItems;
-			// const newConfig = convertToConfig(updatedItems);
-			//
-			// console.log('updating items', newConfig);
-			// contentStructure.set(newConfig);
-			//
+			console.log('Board updating items', contentNodes);
 			dragError = null;
 		} catch (error) {
 			console.error('Error handling update:', error);
 			dragError = error instanceof Error ? error.message : 'Error updating items';
 		}
 	}
-
-	$effect(() => {
-		// console.debug('ContenStrucutre', contentStructure.value)
-		console.debug('nestedStructure', structureState);
-	});
 
 	const flipDurationMs = 300;
 </script>

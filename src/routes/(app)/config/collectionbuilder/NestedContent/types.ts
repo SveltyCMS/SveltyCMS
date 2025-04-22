@@ -1,3 +1,3 @@
-import type { ContentNode } from '@root/src/databases/dbInterface';
+import type { NestedContentNode } from '@root/src/databases/dbInterface';
 
-export type DndItem = ContentNode & { id: string; children?: DndItem[] };
+export type DndItem = NestedContentNode & { id: string; children?: DndItem[] };

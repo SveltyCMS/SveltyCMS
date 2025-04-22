@@ -21,7 +21,6 @@
 
 	// Skeleton
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
-	import ModalAddCategory from './ModalCategory.svelte';
 	import type { ContentNode, DatabaseId } from '@root/src/databases/dbInterface';
 	import type { DndItem } from './types';
 
@@ -30,8 +29,8 @@
 		children: DndItem[];
 		isCategory?: boolean;
 		level: number;
-		onEditCategory: (category: Partial<ContentNode>) => void;
-		onUpdate: (items: DndItem[], parent: DndItem) => void;
+		onEditCategory: (category: Partial<DndItem>) => void;
+		onUpdate: (itemId: string, parentId: string) => void;
 	}
 
 	interface CategoryUpdateResponse {
@@ -79,6 +78,10 @@
 				const itemRemoved = e.detail.info.id;
 				const items = e.detail.items.filter((item) => item._id !== itemRemoved);
 				children = items;
+				// onUpdate(items, item);
+			} else if (eventType === 'droppedIntoZone') {
+				const itemAdded = e.detail.info.id;
+				onUpdate(itemAdded, item.id);
 			}
 
 			updateError = null;
@@ -105,66 +108,6 @@
 	}
 
 	// Modal handling
-	async function editCategory(category: Pick<CollectionData, 'name' | 'icon'>): Promise<void> {
-		const modalComponent: ModalComponent = {
-			ref: ModalAddCategory,
-			props: {
-				existingCategory: category
-			}
-		};
-
-		const modalSettings: ModalSettings = {
-			type: 'component',
-			title: m.column_edit_category(),
-			body: m.column_modify_category(),
-			component: modalComponent,
-			response: async (response: CategoryUpdateResponse | boolean) => {
-				if (!response || typeof response === 'boolean') return;
-
-				isUpdating = true;
-				updateError = null;
-
-				try {
-					// Update local store only, saving will happen when save button is clicked
-					contentStructure.update((cats) => {
-						const newCategories = { ...cats };
-						Object.entries(newCategories).forEach(([key, value]) => {
-							if (value.name === category.name) {
-								newCategories[key] = {
-									...value,
-									name: response.newCategoryName,
-									icon: response.newCategoryIcon
-								};
-							}
-						});
-						return newCategories;
-					});
-				} catch (error) {
-					console.error('Error updating category:', error);
-					updateError = error instanceof Error ? error.message : 'Failed to update category';
-
-					// Revert store changes on error
-					contentStructure.update((cats) => {
-						const newCategories = { ...cats };
-						Object.entries(newCategories).forEach(([key, value]) => {
-							if (value.name === response.newCategoryName) {
-								newCategories[key] = {
-									...value,
-									name: category.name,
-									icon: category.icon
-								};
-							}
-						});
-						return newCategories;
-					});
-				} finally {
-					isUpdating = false;
-				}
-			}
-		};
-
-		modalStore.trigger(modalSettings);
-	}
 </script>
 
 <div class="my-0.5 w-full" style="padding-left: {paddingLeft}" role="listitem" aria-busy={isDragging || isUpdating}>
@@ -216,7 +159,7 @@
 						level={level + 0.25}
 						isCategory={child.nodeType === 'category'}
 						onUpdate={(newItems) => {
-							onUpdate(newItems, child);
+							onUpdate(newItems, child.id);
 						}}
 						{onEditCategory}
 					/>

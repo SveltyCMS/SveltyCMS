@@ -62,11 +62,11 @@
 	}
 
 	interface CollectionBuilderProps {
-		contentStructure: Record<string, ContentNode>;
+		data: { contentStructure: ContentNode[] };
 	}
 
-	let data: CollectionBuilderProps = $props();
-	let currentConfig = $derived(data.contentStructure);
+	let { data }: CollectionBuilderProps = $props();
+	let currentConfig = $state(data.contentStructure);
 	let nestedNodes = $derived(constructNestedStructure(contentStructure.value));
 
 	// State
@@ -113,47 +113,14 @@
 	async function updateExistingCategory(existingCategory: ContentNode, response: CategoryModalResponse): Promise<void> {
 		console.debug('updating category');
 
-		const currentNode = contentStructure.value[existingCategory.path];
-		const oldPath = currentNode.path;
-		const oldParent = currentNode.parentPath ?? '';
-		const newName = response.newCategoryName;
-		const newIcon = response.newCategoryIcon;
-		const newpath = `${oldParent}/${newName}`;
+		const newConfig = currentConfig.filter((c) => c._id !== existingCategory._id);
+		const newCategory = { ...existingCategory, name: response.newCategoryName, icon: response.newCategoryIcon };
 
-		const newNode: Partial<ContentNode> = {
-			_id: currentNode._id,
-			name: newName,
-			icon: newIcon,
-			path: newpath
-		};
-		const currentStructure = contentStructure.value;
-
-		for (const [key, value] of Object.entries(currentStructure)) {
-			if (key === oldPath) {
-				currentStructure[newpath] = {
-					...value,
-					...newNode
-				};
-
-				delete currentStructure[key];
-			} else if (key.startsWith(oldPath)) {
-				const oldNode = currentStructure[key];
-				currentStructure[key.replace(oldPath, newpath)] = {
-					...oldNode,
-					path: key.replace(oldPath, newpath),
-					parentPath: oldNode.parentPath?.replace(oldPath, newpath) ?? undefined
-				};
-
-				delete currentStructure[key];
-			}
-		}
-
-		contentStructure.set(currentStructure);
+		currentConfig = [...newConfig, newCategory];
 	}
 
 	async function addNewCategory(response: CategoryModalResponse): Promise<void> {
 		console.debug('adding category');
-		const categoryKey = response.newCategoryName.toLowerCase().replace(/\s+/g, '-');
 		const newCategoryId = uuidv4();
 
 		const newCategory: ContentNode = {
@@ -164,15 +131,11 @@
 			translations: [],
 			updatedAt: new Date().toISOString() as ISODateString,
 			createdAt: new Date().toISOString() as ISODateString,
-			path: `/${response.newCategoryName}`,
-			parentPath: undefined,
+			parentId: undefined,
 			nodeType: 'category'
 		};
 
-		contentStructure.update((c) => ({
-			...c,
-			[`/${categoryKey}`]: newCategory
-		}));
+		currentConfig = [...currentConfig, newCategory];
 	}
 
 	// Check for name conflicts before saving
@@ -212,12 +175,7 @@
 
 	// Handle collection save with conflict checking
 	async function handleSave() {
-		const items = Object.entries(contentStructure.value).map(([key, item]) => ({
-			...item,
-			path: key,
-			isCollection: false // Assuming these are categories, adjust as necessary
-		}));
-
+		const items = currentConfig;
 		// if (!nameCheck.canProceed) {
 		// 	showToast('Collection save cancelled due to name conflict', 'error');
 		// 	return;
@@ -241,6 +199,7 @@
 
 			if (response.ok) {
 				showToast('Categories updated successfully', 'success');
+				console.debug('Result', result);
 				contentStructure.set(result.contentStructure);
 
 				// Create and dispatch a proper CustomEvent
@@ -287,6 +246,10 @@
 			classes: 'border-1 !rounded-md'
 		});
 	}
+
+	$effect(() => {
+		console.debug('CurentConfig', currentConfig);
+	});
 </script>
 
 <!-- Page Title with Back Button -->
@@ -338,6 +301,6 @@
 		<p class="mb-4 text-center dark:text-primary-500">{m.collection_text_description()}</p>
 
 		<!-- display collections -->
-		<Board contentNodes={contentStructure.value} onEditCategory={modalAddCategory} />
+		<Board contentNodes={currentConfig ?? []} onEditCategory={modalAddCategory} />
 	</div>
 </div>

@@ -266,6 +266,8 @@ class ContentManager {
       if (!result.success) logger.debug(`Failed retrieve contentNodes`);
       const structure = result.success ? result.data : [];
 
+      this.contentStructure = []
+
 
 
       const contentStructure = constructContentPaths(structure);

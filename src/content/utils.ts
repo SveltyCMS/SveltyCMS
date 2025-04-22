@@ -3,45 +3,52 @@ import { logger } from '../utils/logger.svelte';
 import type { MinimalContentNode, Schema } from './types';
 import widgetProxy, { ensureWidgetsInitialized, resolveWidgetPlaceholder } from '@src/widgets';
 
-export function constructNestedStructure(contentStructure: Record<string, ContentNode>): NestedContentNode[] {
-  try {
-    const nodeMap = new Map<string, NestedContentNode>();
+export function constructNestedStructure(contentStructure: ContentNode[]): NestedContentNode[] {
+  const nodeMap = new Map<string, NestedContentNode>();
+  const byParent: Record<string, NestedContentNode[]> = [];
+  const ROOT_KEY = '__root__';
 
-    // Convert all nodes to NestedContentNode and store by _id
-    Object.entries(contentStructure).forEach(([path, node]) => {
-      const nestedNode: NestedContentNode = {
-        ...node,
-        path: path,
-        children: [],
-      };
-      if (node._id) {
-        nodeMap.set(node._id, nestedNode);
-      }
-    });
+  // Step 1: Convert to NestedContentNode and group by parentId
+  for (const node of contentStructure) {
+    const nested: NestedContentNode = {
+      ...node,
+      path: '', // to be filled in later
+      children: [],
+    };
 
-    const nestedStructure: NestedContentNode[] = [];
+    nodeMap.set(node._id, nested);
 
-    // Link children to their parents
-    for (const node of nodeMap.values()) {
-      if (!node.parentId) {
-        // Root node
-        nestedStructure.push(node);
-      } else {
-        const parentNode = nodeMap.get(node.parentId);
-        if (parentNode) {
-          parentNode.children.push(node);
-        } else {
-          // Orphaned node with missing parent — optionally handle this
-          nestedStructure.push(node); // Or log a warning, or skip
-        }
-      }
-    }
-
-    return nestedStructure;
-  } catch (error) {
-    console.error('Error generating nested JSON:', error);
-    throw error;
+    const parentKey = node.parentId ?? ROOT_KEY;
+    if (!byParent[parentKey]) byParent[parentKey] = [];
+    byParent[parentKey].push(nested);
   }
+
+  const result: NestedContentNode[] = [];
+
+  const rootNodes = byParent[ROOT_KEY] ?? [];
+
+  // Step 2: DFS using stack
+  const stack: { node: NestedContentNode; parentPath: string }[] = [];
+
+  for (const root of rootNodes) {
+    root.path = `/${root.name}`;
+    result.push(root);
+    stack.push({ node: root, parentPath: '' });
+  }
+
+  while (stack.length > 0) {
+    const { node } = stack.pop()!;
+    const children = byParent[node._id] ?? [];
+
+    for (let i = children.length - 1; i >= 0; i--) {
+      const child = children[i];
+      child.path = `${node.path}/${child.name}`;
+      node.children.push(child);
+      stack.push({ node: child, parentPath: node.path });
+    }
+  }
+
+  return result;
 }
 
 

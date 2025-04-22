@@ -57,7 +57,7 @@ Key features:
 
 	interface Props {
 		children?: import('svelte').Snippet;
-		data: { user: User; contentStructure: Record<string, ContentNode>; nestedContentStructure: any; contentLanguage: string; systemLanguage: string };
+		data: { user: User; contentStructure: ContentNode[]; contentLanguage: string; systemLanguage: string };
 	}
 
 	let { children, data }: Props = $props();
@@ -90,6 +90,7 @@ Key features:
 	// Function to initialize collections using ContentManager
 	async function initializeCollections() {
 		try {
+			console.log('contentStructure', data.contentStructure);
 			contentStructure.set(data.contentStructure);
 			isCollectionsLoaded = true;
 		} catch (error) {
