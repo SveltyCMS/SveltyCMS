@@ -15,7 +15,8 @@
 
 // Removed unused import: import { publicEnv } from '@root/config/public';
 
-import { error, redirect, invalidateAll } from '@sveltejs/kit'; // Import invalidateAll
+import { error, redirect } from '@sveltejs/kit';
+// TODO: Add back invalidation when upgrading SvelteKit
 import type { Actions, PageServerLoad } from './$types';
 
 // Utils
@@ -82,7 +83,8 @@ function convertIdToString(obj: Record<string, unknown> | Array<unknown>): Recor
 	return root;
 }
 
-export const load: PageServerLoad = async ({ locals, url }) => { // Add url parameter
+export const load: PageServerLoad = async ({ locals, url }) => {
+	// Add url parameter
 	if (!dbAdapter) {
 		logger.error('Database adapter is not initialized');
 		throw error(500, 'Internal Server Error');
@@ -164,7 +166,8 @@ export const load: PageServerLoad = async ({ locals, url }) => { // Add url para
 
 		logger.debug('Media gallery data and virtual folders loaded successfully');
 		const returnData = {
-			user: { // Ensure user data is serializable
+			user: {
+				// Ensure user data is serializable
 				role: user.role,
 				_id: user._id.toString(), // Convert user ID to string
 				avatar: user.avatar
@@ -243,7 +246,7 @@ export const actions: Actions = {
 				}
 			}
 
-			invalidateAll(); // Invalidate all load functions after successful uploads
+			// TODO: Add back invalidation when upgrading SvelteKit
 			return { success: true };
 		} catch (err) {
 			const message = `Error during file upload: ${err instanceof Error ? err.message : String(err)}`;
@@ -274,7 +277,7 @@ export const actions: Actions = {
 
 			if (success) {
 				logger.info('Image deleted successfully');
-				invalidateAll(); // Invalidate data after successful deletion
+				// TODO: Add back invalidation when upgrading SvelteKit
 				return { success: true }; // Return true on success
 			} else {
 				// Log the failure but maybe don't throw a 500, return success: false?

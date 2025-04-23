@@ -164,7 +164,7 @@
 	ondrop={handleFileDrop}
 	ondragover={handleDragOver}
 	ondragleave={handleDragLeave}
-	class="border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700 mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded border-2 border-dashed"
+	class="mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700"
 	role="region"
 	aria-label="File drop zone"
 >
@@ -179,12 +179,12 @@
 
 			<p class="text-sm opacity-75">Multiple files allowed</p>
 
-			<button type="button" onclick={() => input?.click()} class="variant-filled-tertiary btn dark:variant-filled-primary mt-3">
+			<button type="button" onclick={() => input?.click()} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary">
 				Browse Files
 			</button>
 
 			<!-- File Size Limit -->
-			<p class="text-tertiary-500 dark:text-primary-500 mt-2 text-sm">Max File Size: XX MB</p>
+			<p class="mt-2 text-sm text-tertiary-500 dark:text-primary-500">Max File Size: XX MB</p>
 		</div>
 	</div>
 

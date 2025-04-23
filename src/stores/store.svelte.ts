@@ -73,7 +73,6 @@ const createBaseStores = () => {
 	}
 	const translationProgress = store<TranslationProgress>(initialTranslationProgress);
 
-
 	// UI state
 	const tabSet = store(0);
 	const headerActionButton = store<ConstructorOfATypedSvelteComponent | string | undefined>(undefined);
@@ -93,10 +92,10 @@ const createBaseStores = () => {
 
 	// Save functionality
 	const saveFunction = store<SaveFunction>({
-		fn: () => { },
-		reset: () => { }
+		fn: () => {},
+		reset: () => {}
 	});
-	const saveLayerStore = store(async () => { });
+	const saveLayerStore = store(async () => {});
 	const shouldShowNextButton = store(false);
 
 	// Validation
