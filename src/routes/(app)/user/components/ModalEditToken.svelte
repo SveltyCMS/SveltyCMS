@@ -1,5 +1,5 @@
 <!-- 
-@files src/components/user/ModalEditToken.svelte
+@files src/routes/(app)/user/components/ModalEditToken.svelte
 @component
 **Modal for editing or creating user registration tokens**
 
@@ -27,6 +27,9 @@ Manages token creation and updates with role selection and expiration settings. 
 	const modalStore = getModalStore();
 	const toastStore = getToastStore();
 
+	// Component
+	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -44,17 +47,17 @@ Manages token creation and updates with role selection and expiration settings. 
 		user_id: string;
 	}
 
-	let { parent = { regionFooter: 'modal-footer p-4' }, token, email, role, expires, user_id }: Props = $props();
+	let { parent = { regionFooter: 'modal-footer p-4' }, token = '', email = '', role = '', expires = '', user_id = '' }: Props = $props();
 
-	let formElement;
+	let formElement: HTMLFormElement | null = $state(null);
 
 	// Form Data
 	const formData = $state({
-		user_id: user_id,
-		email: email,
-		token: token,
-		role: role,
-		expires: expires
+		user_id: user_id || '',
+		email: email || '',
+		token: token || '',
+		role: role || '',
+		expires: expires || ''
 	});
 
 	const errorStatus = $state({
@@ -148,7 +151,7 @@ Manages token creation and updates with role selection and expiration settings. 
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 </script>
 
-<!-- @component This example creates a simple form modal. -->
+d<!-- @component This example creates a simple form modal. -->
 {#if $modalStore[0]}
 	<div class="modal-example-form {cBase}">
 		<header class={`text-center dark:text-primary-500 ${cHeader}`}>
@@ -160,25 +163,16 @@ Manages token creation and updates with role selection and expiration settings. 
 		<form class="modal-form {cForm}" bind:this={formElement} id="change_user_form">
 			<!-- Username field -->
 			<div class="group relative z-0 mb-6 w-full">
-				<iconify-icon icon="mdi:user-circle" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
-				<input
-					bind:value={formData.user_id}
-					onkeydown={() => (errorStatus.user_id.status = false)}
-					color={errorStatus.user_id.status ? 'red' : 'base'}
+				<FloatingInput
 					type="text"
 					name="username"
-					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
-					placeholder=" "
+					label={m.modaledit_tokenusername()}
+					bind:value={formData.user_id}
+					onkeydown={() => (errorStatus.user_id.status = false)}
 					required
+					icon="mdi:user-circle"
 				/>
-				<label
-					for="username"
-					class="absolute left-5 top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-				>
-					{m.modaledit_tokenusername()}<span class="ml-2 text-error-500">*</span>
-				</label>
-
-				{#if !errorStatus.user_id.status}
+				{#if errorStatus.user_id.status}
 					<div class="absolute left-0 top-11 text-xs text-error-500">
 						{errorStatus.user_id.msg}
 					</div>
@@ -188,55 +182,24 @@ Manages token creation and updates with role selection and expiration settings. 
 			<!-- Email field -->
 			<div class="group relative z-0 mb-6 w-full">
 				<iconify-icon icon="mdi:email" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
-				<input
-					bind:value={formData.email}
-					onkeydown={() => (errorStatus.email.status = false)}
-					color={errorStatus.email.status ? 'red' : 'base'}
+				<FloatingInput
 					type="email"
 					name="email"
-					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
-					placeholder=" "
+					label={m.form_emailaddress()}
+					bind:value={formData.email}
+					onkeydown={() => (errorStatus.email.status = false)}
 					required
+					autocomplete="email"
+					icon="mdi:email"
 				/>
-				<label
-					for="email"
-					class="absolute left-5 top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-				>
-					{m.form_emailaddress()}<span class="ml-2 text-error-500">*</span>
-				</label>
 				{#if errorStatus.email.status}
 					<div class="absolute left-0 top-11 text-xs text-error-500">
 						{errorStatus.email.msg}
 					</div>
 				{/if}
 			</div>
-			<!-- Token field -->
-			<div class="group relative z-0 mb-6 w-full">
-				<iconify-icon icon="mdi:token" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
-				<input
-					bind:value={formData.token}
-					onkeydown={() => (errorStatus.token.status = false)}
-					color={errorStatus.token.status ? 'red' : 'base'}
-					type="text"
-					name="token"
-					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
-					placeholder=" "
-					required
-					disabled
-				/>
-				<label
-					for="token"
-					class="absolute left-5 top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-				>
-					{m.modaledit_tokenregistrationtoken()}
-					<span class="ml-2 text-error-500">*</span>
-				</label>
-				{#if errorStatus.token.status}
-					<div class="absolute left-0 top-11 text-xs text-error-500">
-						{errorStatus.token.msg}
-					</div>
-				{/if}
-			</div>
+			<!-- Token field (hidden but still submitted with form) -->
+			<input bind:value={formData.token} type="hidden" name="token" required />
 
 			<!-- Admin area -->
 			{#if user.role == 'admin'}

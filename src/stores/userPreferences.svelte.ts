@@ -292,9 +292,9 @@ function createPreferencesStores() {
 		state,
 
 		// Derived values
-		hasPreferences,
-		widgetCount,
-		canSync,
+		hasPreferences: () => hasPreferences2,
+		widgetCount: () => widgetCount2,
+		canSync: () => canSync2,
 
 		// Methods
 		getScreenSizeWidgets,
