@@ -22,9 +22,9 @@ export enum ScreenSize {
 
 // Screen size breakpoints
 const BREAKPOINTS = {
-	SM: 567,
-	MD: 767,
-	LG: 1024
+	SM: 640,  // Mobile
+	MD: 1024, // Tablet
+	LG: 1280  // Desktop
 } as const;
 
 // Helper function to get screen size name
@@ -79,7 +79,7 @@ function createScreenSizeStores() {
 	// Setup listener function
 	function setupListener(): () => void {
 		if (typeof window === 'undefined') {
-			return () => {};
+			return () => { };
 		}
 
 		const debouncedUpdate = debounce(updateScreenSize, 150);

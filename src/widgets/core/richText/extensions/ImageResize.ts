@@ -1,3 +1,8 @@
+/**
+@file src/widgets/core/richText/extensions/ImageResize.ts
+@description - RichText TipTap widget image extension
+*/
+
 import ImageExtension from '@tiptap/extension-image';
 
 declare module '@tiptap/core' {
@@ -27,12 +32,12 @@ const ImageResize = ImageExtension.extend({
 			...this.parent?.(),
 			setImageFloat:
 				(side: 'left' | 'right' | 'unset') =>
-				({ commands }) =>
-					commands.updateAttributes('image', { float: side }),
+					({ commands }) =>
+						commands.updateAttributes('image', { float: side }),
 			setImageDescription:
 				(description: string) =>
-				({ commands }) =>
-					commands.updateAttributes('image', { description })
+					({ commands }) =>
+						commands.updateAttributes('image', { description })
 		};
 	},
 
@@ -107,13 +112,13 @@ const ImageResize = ImageExtension.extend({
 			],
 			HTMLAttributes.description
 				? [
-						'div',
-						{
-							class: 'description',
-							style: DESCRIPTION_STYLE
-						},
-						HTMLAttributes.description
-					]
+					'div',
+					{
+						class: 'description',
+						style: DESCRIPTION_STYLE
+					},
+					HTMLAttributes.description
+				]
 				: ''
 		];
 	},
@@ -228,13 +233,41 @@ const ImageResize = ImageExtension.extend({
 	}
 });
 
+function preserveAspectRatio(resizer: HTMLDivElement, nodeAttrs: any, width: string, preserveRatio = true) {
+	if (!preserveRatio) return;
+
+	const img = resizer.querySelector('img');
+	if (!img) return;
+
+	const naturalWidth = img.naturalWidth;
+	const naturalHeight = img.naturalHeight;
+
+	if (naturalWidth && naturalHeight) {
+		const ratio = naturalHeight / naturalWidth;
+		const numWidth = parseInt(width);
+		const newHeight = Math.round(numWidth * ratio);
+
+		nodeAttrs.h = resizer.style.height = `${newHeight}px`;
+	}
+}
+
 function knobDrag(e: PointerEvent, knob: HTMLDivElement, side: 'left' | 'right' | 'top' | 'bottom', resizer: HTMLDivElement, nodeAttrs: any) {
 	e.preventDefault();
 	e.stopPropagation();
+
+	// Check if shift key is pressed to preserve aspect ratio
+	const preserveAspectRatio = e.shiftKey;
+
 	knob.setPointerCapture(e.pointerId);
 	knob.onpointermove = (e) => {
 		if (side == 'left' || side == 'right') {
-			nodeAttrs.w = resizer.style.width = resizer.offsetWidth + (side == 'left' ? -e.movementX : e.movementX) + 'px';
+			const newWidth = resizer.offsetWidth + (side == 'left' ? -e.movementX : e.movementX) + 'px';
+			nodeAttrs.w = resizer.style.width = newWidth;
+
+			// Preserve aspect ratio if shift key is pressed
+			if (preserveAspectRatio) {
+				preserveAspectRatio(resizer, nodeAttrs, newWidth, true);
+			}
 		} else {
 			nodeAttrs.h = resizer.style.height = resizer.offsetHeight + e.movementY + 'px';
 		}

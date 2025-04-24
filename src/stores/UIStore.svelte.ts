@@ -35,7 +35,7 @@ const createUIStores = () => {
 		switch (size) {
 			case ScreenSize.SM:
 				return {
-					leftSidebar: 'collapsed',
+					leftSidebar: 'hidden',
 					rightSidebar: 'hidden',
 					pageheader: isViewMode ? 'hidden' : 'full',
 					pagefooter: isViewMode ? 'hidden' : 'full',
@@ -107,6 +107,7 @@ const createUIStores = () => {
 				const setup = () => {
 					if (resizeObserver) return;
 
+					// Use both resize observer and window resize listener for better reliability
 					resizeObserver = new ResizeObserver(() => {
 						if (screenSize.value) {
 							requestAnimationFrame(updateLayout);
@@ -114,6 +115,9 @@ const createUIStores = () => {
 					});
 
 					resizeObserver.observe(document.body);
+
+					// Add direct resize listener as fallback
+					window.addEventListener('resize', updateLayout);
 					updateLayout();
 					isInitialized.set(true);
 					resolve();
@@ -136,6 +140,7 @@ const createUIStores = () => {
 			resizeObserver.disconnect();
 			resizeObserver = null;
 		}
+		window.removeEventListener('resize', updateLayout);
 		initPromise = null;
 	}
 
