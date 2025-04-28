@@ -9,8 +9,8 @@ Manages token creation and updates with role selection and expiration settings. 
 - `parent` {object} - Parent modal properties (regionFooter, onClose, buttonPositive)
 - `token` {string} - Existing token (default: '')
 - `email` {string} - Associated email (default: '')
-- `role` {string} - Token role (default: '')
-- `expires` {string} - Expiration date (default: '')
+- `role` {string} - Token role (default: 'user')
+- `expires` {string} - Expiration date (default: '7d')
 - `user_id` {string} - User ID (default: '')
 -->
 
@@ -47,8 +47,7 @@ Manages token creation and updates with role selection and expiration settings. 
 		user_id: string;
 	}
 
-	let { parent = { regionFooter: 'modal-footer p-4' }, token = '', email = '', role = '', expires = '', user_id = '' }: Props = $props();
-
+	let { parent = { regionFooter: 'modal-footer p-4' }, token = '', email = '', role = 'user', expires = '7d', user_id = '' }: Props = $props();
 	let formElement: HTMLFormElement | null = $state(null);
 
 	// Form Data
@@ -56,8 +55,8 @@ Manages token creation and updates with role selection and expiration settings. 
 		user_id: user_id || '',
 		email: email || '',
 		token: token || '',
-		role: role || '',
-		expires: expires || ''
+		role: role || 'user', // Default to user role
+		expires: expires || '7d' // Default to 7 days
 	});
 
 	const errorStatus = $state({
@@ -68,24 +67,49 @@ Manages token creation and updates with role selection and expiration settings. 
 
 	// Custom submit function to pass the response and close the modal
 	async function onFormSubmit(): Promise<void> {
+		// Validate required fields
+		if (!formData.email) {
+			errorStatus.email = { status: true, msg: 'Email is required' };
+			return;
+		}
+		if (!formData.user_id) {
+			errorStatus.user_id = { status: true, msg: 'Username is required' };
+			return;
+		}
+
+		// Email format validation
+		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+		if (!emailRegex.test(formData.email)) {
+			errorStatus.email = { status: true, msg: 'Invalid email format' };
+			return;
+		}
+
 		try {
-			const response = await fetch('/api/user/editToken', {
-				method: 'PUT',
+			const isEditMode = !!formData.token;
+			const endpoint = isEditMode ? '/api/user/editToken' : '/api/user/createToken';
+			const method = isEditMode ? 'PUT' : 'POST';
+
+			const response = await fetch(endpoint, {
+				method,
 				headers: {
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({
-					tokenId: formData.token,
-					newTokenData: {
-						role: formData.role,
-						expires: formData.expires
-					}
+					...(isEditMode ? { tokenId: formData.token } : {}),
+					email: formData.email,
+					user_id: formData.user_id,
+					role: formData.role || 'user',
+					expiresIn: convertExpiresToHours(formData.expires) || 168, // Default to 7 days (168 hours)
+					expiresInLabel: formData.expires || '7d'
 				})
 			});
 
 			if (response.ok) {
+				const data = await response.json();
+				const successMessage = isEditMode ? 'Token updated successfully' : 'Token created successfully';
+
 				const t = {
-					message: '<iconify-icon icon="mdi:check" color="white" width="24" class="mr-1"></iconify-icon> Token updated successfully',
+					message: `<iconify-icon icon="mdi:check" color="white" width="24" class="mr-1"></iconify-icon> ${successMessage}`,
 					background: 'gradient-tertiary',
 					timeout: 3000,
 					classes: 'border-1 !rounded-md'
@@ -93,6 +117,26 @@ Manages token creation and updates with role selection and expiration settings. 
 				toastStore.trigger(t);
 				modalStore.close();
 				await invalidateAll();
+
+				// If new token created, send email
+				if (!isEditMode && data.token) {
+					await fetch('/api/sendMail', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify({
+							email: formData.email,
+							template: 'userToken',
+							data: {
+								username: formData.user_id,
+								token: data.token,
+								expires: formData.expires,
+								role: formData.role
+							}
+						})
+					});
+				}
 			} else {
 				const data = await response.json();
 				throw new Error(data.message || 'Failed to update token');
@@ -106,6 +150,7 @@ Manages token creation and updates with role selection and expiration settings. 
 				classes: 'border-1 !rounded-md'
 			};
 			toastStore.trigger(t);
+			modalStore.close();
 		}
 	}
 
@@ -145,6 +190,23 @@ Manages token creation and updates with role selection and expiration settings. 
 		}
 	}
 
+	// Convert expires string to hours
+	function convertExpiresToHours(expires: string): number {
+		if (!expires) return 168; // Default 7 days
+
+		const unit = expires.slice(-1);
+		const value = parseInt(expires.slice(0, -1));
+
+		switch (unit) {
+			case 'h':
+				return value;
+			case 'd':
+				return value * 24;
+			default:
+				return 168; // Default 7 days
+		}
+	}
+
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
 	const cHeader = 'text-2xl font-bold';
@@ -163,15 +225,37 @@ d<!-- @component This example creates a simple form modal. -->
 		<form class="modal-form {cForm}" bind:this={formElement} id="change_user_form">
 			<!-- Username field -->
 			<div class="group relative z-0 mb-6 w-full">
-				<FloatingInput
-					type="text"
-					name="username"
-					label={m.modaledit_tokenusername()}
-					bind:value={formData.user_id}
-					onkeydown={() => (errorStatus.user_id.status = false)}
-					required
-					icon="mdi:user-circle"
-				/>
+				<div class="flex items-center gap-2">
+					<div class="flex-1">
+						<FloatingInput
+							type="text"
+							name="username"
+							label={m.modaledit_tokenusername()}
+							bind:value={formData.user_id}
+							onkeydown={() => (errorStatus.user_id.status = false)}
+							required
+							icon="mdi:user-circle"
+						/>
+					</div>
+					<button
+						type="button"
+						onclick={() => {
+							if (!formData.email) {
+								errorStatus.email = { status: true, msg: 'Enter email first' };
+								return;
+							}
+							// Generate username from email
+							const base = formData.email.split('@')[0].replace(/[^a-z0-9]/gi, '_');
+							const suffix = Math.floor(1000 + Math.random() * 9000); // 4-digit random
+							formData.user_id = `${base}_${suffix}`.toLowerCase();
+						}}
+						class="variant-ghost-secondary btn"
+						title="Generate username from email"
+					>
+						<iconify-icon icon="mdi:auto-fix" width="20"></iconify-icon>
+						<span class="sr-only">Auto generate username</span>
+					</button>
+				</div>
 				{#if errorStatus.user_id.status}
 					<div class="absolute left-0 top-11 text-xs text-error-500">
 						{errorStatus.user_id.msg}
@@ -181,7 +265,6 @@ d<!-- @component This example creates a simple form modal. -->
 
 			<!-- Email field -->
 			<div class="group relative z-0 mb-6 w-full">
-				<iconify-icon icon="mdi:email" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
 				<FloatingInput
 					type="email"
 					name="email"
@@ -201,10 +284,10 @@ d<!-- @component This example creates a simple form modal. -->
 			<!-- Token field (hidden but still submitted with form) -->
 			<input bind:value={formData.token} type="hidden" name="token" required />
 
-			<!-- Admin area -->
+			<!-- User Role -->
 			{#if user.role == 'admin'}
 				<div class="flex flex-col gap-2 sm:flex-row">
-					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}:</div>
+					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}: <span class="text-error-500">*</span></div>
 					<div class="flex-auto">
 						<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
 							{#if roles && roles.length > 0}
@@ -227,15 +310,32 @@ d<!-- @component This example creates a simple form modal. -->
 					</div>
 				</div>
 			{/if}
+
+			<!-- Expires field -->
+			<div class="group relative z-0 mb-6 w-full">
+				<label for="expires-select" class="mb-2 block text-sm font-medium text-black dark:text-white">{m.modaltokenuser_tokenvalidity()} </label>
+				<select id="expires-select" bind:value={formData.expires} class="input" aria-label="Token Validity">
+					<option value="1h">1 Hour</option>
+					<option value="1d">1 Day</option>
+					<option value="7d" selected>7 Days (default)</option>
+					<option value="30d">30 Days</option>
+					<option value="90d">90 Days</option>
+				</select>
+			</div>
 		</form>
 
 		<footer class="modal-footer flex items-center justify-between p-4 {parent?.regionFooter ?? ''}">
-			<!-- Delete -->
-			<button type="button" onclick={deleteToken} class="variant-filled-error btn">
-				<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon><span class="hidden sm:block">{m.button_delete()}</span>
-			</button>
+			<!-- Delete - Only show for existing tokens -->
+			{#if formData.token}
+				<button type="button" onclick={deleteToken} class="variant-filled-error btn">
+					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon><span class="hidden sm:block">{m.button_delete()}</span>
+				</button>
+			{:else}
+				<div></div>
+				<!-- Empty div to maintain flex spacing -->
+			{/if}
 
-			<div class="flex justify-between gap-2">
+			<div class="{formData.token ? 'justify-center' : 'w-full justify-between '} flex gap-2">
 				<!-- Cancel -->
 				<button class="variant-outline-secondary btn" onclick={parent?.onClose}>{m.button_cancel()}</button>
 				<!-- Save -->

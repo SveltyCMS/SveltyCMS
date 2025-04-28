@@ -18,19 +18,19 @@
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import TablePagination from '@components/system/table/TablePagination.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
+	import ModalEditToken from './ModalEditToken.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton';
-	import { getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
+	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+	import type { ModalSettings } from '@skeletonlabs/skeleton';
+
 	// Svelte-dnd-action
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
-	import ModalEditToken from './ModalEditToken.svelte';
-	import { track } from '@root/src/utils/reactivity.svelte';
 
 	// Types
 	interface UserData {
@@ -80,6 +80,7 @@
 	let { adminData } = $props<{ adminData: AdminData | null }>();
 
 	const modalStore = getModalStore();
+	const toastStore = getToastStore();
 	const waitFilter = debounce(300);
 	const flipDurationMs = 300;
 
@@ -101,6 +102,7 @@
 		{ label: m.adminarea_token(), key: 'token' },
 		{ label: m.adminarea_blocked(), key: 'blocked' },
 		{ label: m.form_email(), key: 'email' },
+		{ label: m.form_role(), key: 'role' },
 		{ label: m.adminarea_expiresin(), key: 'expires' },
 		{ label: m.adminarea_createat(), key: 'createdAt' },
 		{ label: m.adminarea_updatedat(), key: 'updatedAt' }
@@ -172,9 +174,7 @@
 		// Update selectedRows based on selectedMap
 		selectedRows = Object.entries(selectedMap)
 			.filter(([_, isSelected]) => isSelected)
-			.map(([index]) => ({
-				data: filteredTableData[parseInt(index)]
-			}));
+			.map(([index]) => filteredTableData[parseInt(index)]);
 	});
 
 	// Modal for token editing
@@ -183,9 +183,43 @@
 			type: 'component',
 			title: m.adminarea_title(),
 			body: m.adminarea_body(),
-			component: { ref: ModalEditToken, slot: '<p>Edit Form</p>' },
-			response: () => {
-				return; // Handle response if needed
+			component: {
+				ref: ModalEditToken,
+				slot: `
+					<div class="mb-4">
+						<h3 class="text-lg font-bold">Existing Tokens</h3>
+						{#if adminData?.tokens?.length > 0}
+							<ul class="max-h-40 overflow-y-auto">
+								{#each adminData.tokens as token}
+									<li class="flex items-center justify-between border-b py-2">
+										<span class="truncate">{token.email}</span>
+										<span class="text-sm text-gray-500">Expires: {new Date(token.expires).toLocaleDateString()}</span>
+									</li>
+								{/each}
+							</ul>
+						{:else}
+							<p class="text-gray-500">No existing tokens</p>
+						{/if}
+					</div>
+				`,
+				props: {
+					token: '',
+					email: '',
+					role: 'user',
+					expires: '7d',
+					user_id: ''
+				}
+			},
+			response: (result) => {
+				if (result?.success === false) {
+					const t = {
+						message: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${result.error || 'Failed to send email'}`,
+						background: 'variant-filled-error',
+						timeout: 5000,
+						classes: 'border-1 !rounded-md'
+					};
+					toastStore.trigger(t);
+				}
 			}
 		};
 		modalStore.trigger(modalSettings);
@@ -247,12 +281,6 @@
 		pagesCount = Math.ceil(filtered.length / rowsPerPage) || 1;
 		if (currentPage > pagesCount) currentPage = pagesCount;
 	}
-	//// Initialize table data when adminData changes
-	//$effect(() => {
-	//	if (adminData) {
-	//		refreshTableData();
-	//	}
-	//});
 
 	$effect(() => {
 		refreshTableData();
@@ -329,7 +357,7 @@
 			</div>
 		</div>
 
-		{#if tableData.length > 0}
+		{#if tableData && tableData.length > 0}
 			{#if columnShow}
 				<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700">
 					<div class="text-white dark:text-primary-500">{m.entrylist_dnd()}</div>
@@ -450,6 +478,8 @@
 											<Role value={row[header.key]} />
 										{:else if ['createdAt', 'updatedAt', 'lastAccess'].includes(header.key)}
 											{new Date(row[header.key]).toLocaleString()}
+										{:else if header.key === 'expires'}
+											{new Date(row[header.key]).toLocaleDateString()}
 										{:else}
 											<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 											{@html row[header.key]}
