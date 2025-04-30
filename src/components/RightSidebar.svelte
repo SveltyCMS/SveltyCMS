@@ -105,6 +105,8 @@
 
 	// Save form data with validation
 	async function saveData() {
+		if (!collection.value) return;
+
 		let validationPassed = true;
 		const getData: GetDataField = {};
 
@@ -112,28 +114,44 @@
 		meta_data.clear();
 
 		// Validate all fields and collect data
-		for (const field of collection.value!.fields) {
+		for (const field of collection.value.fields) {
 			const fieldName = getFieldName(field, true);
 			const fieldValue = collectionValue.value[fieldName] as string | number | boolean | null | undefined;
 
-			// Use the widget property directly since it's now a widget instance
-			const widgetInstance = field.widget;
+			// Basic required check
+			let error: string | null = null;
+			if (field.required && (fieldValue === null || fieldValue === undefined || fieldValue === '')) {
+				error = 'This field is required';
+			}
 
-			if (hasValidateWidget(widgetInstance)) {
-				const error = await widgetInstance.validateWidget();
-				if (error) {
+			if (error) {
+				if (!validationStore.getError(fieldName)) {
 					validationStore.setError(fieldName, error);
-					validationPassed = false;
-				} else {
-					validationStore.clearError(fieldName);
+				}
+				validationPassed = false;
+			} else {
+				// Widget-specific validation
+				const widgetInstance = field.widget;
+				if (hasValidateWidget(widgetInstance)) {
+					const widgetError = await widgetInstance.validateWidget();
+					if (widgetError) {
+						validationStore.setError(fieldName, widgetError);
+						validationPassed = false;
+					} else if (!validationStore.getError(fieldName)) {
+						getData[fieldName] = () => fieldValue;
+					}
+				} else if (!validationStore.getError(fieldName)) {
 					getData[fieldName] = () => fieldValue;
 				}
-			} else {
-				getData[fieldName] = () => fieldValue;
 			}
 		}
 
-		// Add system fields
+		// Final validation check
+		if (!validationPassed) {
+			return;
+		}
+
+		// Add system fields (aligned with HeaderEdit)
 		if (mode.value === 'create') {
 			getData['createdAt'] = () => (dates.created ? Math.floor(new Date(dates.created).getTime() / 1000) : Math.floor(Date.now() / 1000));
 			getData['updatedAt'] = getData['createdAt'];
@@ -141,7 +159,9 @@
 		} else {
 			getData['updatedAt'] = () => Math.floor(Date.now() / 1000);
 			getData['updatedBy'] = () => user?.username ?? '';
-			delete getData['createdAt'];
+			if (dates.created) {
+				getData['createdAt'] = () => Math.floor(new Date(dates.created).getTime() / 1000);
+			}
 		}
 
 		// Add ID if in edit mode
@@ -150,29 +170,28 @@
 		}
 
 		// Add status
-		getData['status'] = () => (collectionValue.value.status as string) || 'unpublished';
+		getData['status'] = () => (collectionValue.value?.status as string) || 'unpublished';
 
 		// Add schedule if set
-		if (schedule) {
+		if (schedule && schedule.trim() !== '') {
 			getData['_scheduled'] = () => new Date(schedule).getTime();
 		}
 
-		// If validation passed, save the data
-		if (validationPassed) {
-			try {
-				await saveFormData({
-					data: getData,
-					_collection: collection.value,
-					_mode: mode.value,
-					id: collectionValue.value._id as string | undefined,
-					user
-				});
+		// Save data
+		try {
+			await saveFormData({
+				data: getData,
+				_collection: collection.value,
+				_mode: mode.value,
+				id: collectionValue.value._id as string | undefined,
+				user
+			});
 
-				mode.set('view');
-				handleUILayoutToggle();
-			} catch (err) {
-				console.error('Failed to save data:', err);
-			}
+			// Consistent state management with HeaderEdit
+			mode.set('view');
+			handleUILayoutToggle();
+		} catch (err) {
+			console.error('Failed to save data:', err);
 		}
 	}
 </script>
