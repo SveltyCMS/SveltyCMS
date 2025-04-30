@@ -14,6 +14,7 @@ import { Title, cancelOperation } from '../cli-installer.js';
 
 // Languages
 const languageOptions = [
+	{ value: 'bn', label: 'Bengali' },
 	{ value: 'da', label: 'Danish' },
 	{ value: 'de', label: 'German' },
 	{ value: 'en', label: 'English' },

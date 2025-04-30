@@ -8,10 +8,10 @@
 - Prompts for Database integration
 */
 
-import { Title, cancelOperation } from '../cli-installer.js';
-import { configurationPrompt } from '../configuration.js';
-import { configureMongoDB } from './mongodbConfig.js';
-import { configureMariaDB } from './mariadbConfig.js';
+import { Title, cancelOperation } from './cli-installer.js';
+import { configurationPrompt } from './configuration.js';
+import { configureMongoDB } from './config/mongodbConfig.js';
+import { configureMariaDB } from './config/mariadbConfig.js';
 import { text, spinner, select, note, isCancel, cancel, confirm } from '@clack/prompts';
 import pc from 'picocolors';
 
@@ -76,7 +76,7 @@ async function testDatabaseConnection(dbType, { host, port, user, password, data
 	return false;
 }
 
-export async function configureDatabase(privateConfigData = {}) {
+export async function backupRestorePrompt(privateConfigData = {}) {
 	// SveltyCMS Title
 	Title();
 
@@ -222,7 +222,7 @@ export async function configureDatabase(privateConfigData = {}) {
 			return;
 		} else {
 			// Pass the potentially updated privateConfigData (with advanced settings) back
-			return configureDatabase(privateConfigData);
+			return backupRestorePrompt(privateConfigData);
 		}
 	}
 
