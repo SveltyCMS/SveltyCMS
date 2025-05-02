@@ -82,8 +82,8 @@ export async function configureMongoDB(privateConfigData = {}) {
 				if (!value.startsWith('mongodb+srv://')) return 'Atlas connection string should start with mongodb+srv://';
 				try {
 					new URL(value); // Basic validation if it parses as a URL
-				} catch (e) {
-					return 'Invalid connection string format.';
+				} catch (error) {
+					return error.message || 'Invalid connection string format.';
 				}
 			}
 		});
@@ -119,9 +119,9 @@ export async function configureMongoDB(privateConfigData = {}) {
 					return;
 				}
 			}
-		} catch (e) {
-			console.error(pc.red('Error parsing connection string:'), e); // Log the actual error
-			note(`Failed to parse connection string: ${e.message}. Please enter details manually.`, pc.red('Parsing Error'));
+		} catch (error) {
+			console.error(pc.red('Error parsing connection string:'), error); // Log the actual error
+			note(`Failed to parse connection string: ${error.message}. Please enter details manually.`, pc.red('Parsing Error'));
 			// Fallback to manual input if parsing fails completely
 			dbHost = await text({ message: 'Enter MongoDB Atlas Host (e.g., clustername.mongodb.net):', validate: (v) => validateRequired(v, 'Host') });
 			if (isCancel(dbHost)) {
@@ -148,7 +148,11 @@ export async function configureMongoDB(privateConfigData = {}) {
 				message: 'Enter the database name:',
 				placeholder: 'SveltyCMS',
 				initialValue: privateConfigData.DB_NAME || 'SveltyCMS',
-				validate: (v) => validateRequired(v, 'Database name')
+				validate: (value) => {
+					if (!value) return 'Database name is required';
+					// Return undefined for valid input to show tick
+					return undefined;
+				}
 			});
 			if (isCancel(dbName)) {
 				await cancelOperation();
@@ -193,7 +197,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 			message: 'Enter the database name:',
 			placeholder: 'SveltyCMS',
 			initialValue: privateConfigData.DB_NAME || 'SveltyCMS',
-			validate: (v) => validateRequired(v, 'Database name')
+			validate: (value) => validateRequired(value, 'Database name')
 		});
 		if (isCancel(dbName)) {
 			await cancelOperation();
@@ -205,6 +209,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 			placeholder: 'Leave blank if no authentication',
 			initialValue: privateConfigData.DB_USER || ''
 		});
+
 		if (isCancel(dbUser)) {
 			await cancelOperation();
 			return;
@@ -214,7 +219,8 @@ export async function configureMongoDB(privateConfigData = {}) {
 		if (dbUser) {
 			dbPassword = await password({
 				message: 'Enter the MongoDB password:',
-				validate: (v) => validateRequired(v, 'Password')
+				mask: '*'
+				// validate: (value) => validateRequired(value, 'Password')
 			});
 			if (isCancel(dbPassword)) {
 				await cancelOperation();
