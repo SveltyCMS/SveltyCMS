@@ -24,7 +24,6 @@
  */
 
 import { privateEnv } from '@root/config/private';
-import { publicEnv } from '@root/config/public';
 import { json } from '@sveltejs/kit';
 
 // Svelte
@@ -169,7 +168,7 @@ async function sendMail(email: string, subject: string, message: string, templat
 	const mailOptions: Mail.Options = {
 		from: {
 			address: privateEnv.SMTP_EMAIL!,
-			name: publicEnv.SITE_NAME
+			name: props?.sitename || 'SveltyCMS'
 		},
 		to: email,
 		subject,

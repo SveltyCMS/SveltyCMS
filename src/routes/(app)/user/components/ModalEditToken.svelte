@@ -48,6 +48,7 @@ Manages token creation and updates with role selection and expiration settings. 
 	}
 
 	let { parent = { regionFooter: 'modal-footer p-4' }, token = '', email = '', role = 'user', expires = '7d', user_id = '' }: Props = $props();
+
 	let formElement: HTMLFormElement | null = $state(null);
 
 	// Form Data
@@ -105,7 +106,7 @@ Manages token creation and updates with role selection and expiration settings. 
 			});
 
 			if (response.ok) {
-				const data = await response.json();
+				const responseData = await response.json();
 				const successMessage = isEditMode ? 'Token updated successfully' : 'Token created successfully';
 
 				const t = {
@@ -115,11 +116,18 @@ Manages token creation and updates with role selection and expiration settings. 
 					classes: 'border-1 !rounded-md'
 				};
 				toastStore.trigger(t);
+
+				// Update form data with response values
+				if (!isEditMode && responseData.token) {
+					formData.token = responseData.token.value;
+					formData.expires = formatExpires(responseData.token.expires);
+				}
+
 				modalStore.close();
 				await invalidateAll();
 
 				// If new token created, send email
-				if (!isEditMode && data.token) {
+				if (!isEditMode && responseData.token) {
 					await fetch('/api/sendMail', {
 						method: 'POST',
 						headers: {
@@ -130,9 +138,10 @@ Manages token creation and updates with role selection and expiration settings. 
 							template: 'userToken',
 							data: {
 								username: formData.user_id,
-								token: data.token,
+								token: responseData.token.value,
 								expires: formData.expires,
-								role: formData.role
+								role: formData.role,
+								sitename: import.meta.env.PUBLIC_SITE_NAME || 'SveltyCMS'
 							}
 						})
 					});
@@ -166,7 +175,7 @@ Manages token creation and updates with role selection and expiration settings. 
 
 			if (response.ok) {
 				const t = {
-					message: '<iconify-icon icon="mdi:check" color="white" width="24" class="mr-1"></iconify-icon> Token deleted successfully',
+					message: '<iconify-icon icon="mdi:check" color="white" width="24" class="mr-1"></iconify-icon> Registration token deleted successfully',
 					background: 'gradient-tertiary',
 					timeout: 3000,
 					classes: 'border-1 !rounded-md'
@@ -181,13 +190,25 @@ Manages token creation and updates with role selection and expiration settings. 
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Failed to delete token';
 			const t = {
-				message: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${message}`,
+				message: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> Failed to delete registration token: ${message}`,
 				background: 'variant-filled-error',
 				timeout: 3000,
 				classes: 'border-1 !rounded-md'
 			};
 			toastStore.trigger(t);
 		}
+	}
+
+	// Format expiration date for display
+	function formatExpires(isoDate: string): string {
+		const date = new Date(isoDate);
+		const now = new Date();
+		const diffHours = Math.floor((date.getTime() - now.getTime()) / (1000 * 60 * 60));
+
+		if (diffHours < 24) {
+			return `${diffHours}h`;
+		}
+		return `${Math.floor(diffHours / 24)}d`;
 	}
 
 	// Convert expires string to hours
@@ -223,6 +244,25 @@ d<!-- @component This example creates a simple form modal. -->
 			{$modalStore[0]?.body ?? '(body missing)'}
 		</article>
 		<form class="modal-form {cForm}" bind:this={formElement} id="change_user_form">
+			<!-- Email field -->
+			<div class="group relative z-0 mb-6 w-full">
+				<FloatingInput
+					type="email"
+					name="email"
+					label={m.form_emailaddress()}
+					bind:value={formData.email}
+					onkeydown={() => (errorStatus.email.status = false)}
+					required
+					autocomplete="email"
+					icon="mdi:email"
+				/>
+				{#if errorStatus.email.status}
+					<div class="absolute left-0 top-11 text-xs text-error-500">
+						{errorStatus.email.msg}
+					</div>
+				{/if}
+			</div>
+
 			<!-- Username field -->
 			<div class="group relative z-0 mb-6 w-full">
 				<div class="flex items-center gap-2">
@@ -263,24 +303,6 @@ d<!-- @component This example creates a simple form modal. -->
 				{/if}
 			</div>
 
-			<!-- Email field -->
-			<div class="group relative z-0 mb-6 w-full">
-				<FloatingInput
-					type="email"
-					name="email"
-					label={m.form_emailaddress()}
-					bind:value={formData.email}
-					onkeydown={() => (errorStatus.email.status = false)}
-					required
-					autocomplete="email"
-					icon="mdi:email"
-				/>
-				{#if errorStatus.email.status}
-					<div class="absolute left-0 top-11 text-xs text-error-500">
-						{errorStatus.email.msg}
-					</div>
-				{/if}
-			</div>
 			<!-- Token field (hidden but still submitted with form) -->
 			<input bind:value={formData.token} type="hidden" name="token" required />
 

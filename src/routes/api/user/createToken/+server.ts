@@ -136,7 +136,7 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 					email: validatedData.email,
 					role: role.name, // Send role name instead of ID
 					token: token,
-					tokenLink: `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login?regToken=${token}`,
+					tokenLink: `${dev ? 'http://localhost:5173' : window.location.host}/login?regToken=${token}`,
 					expiresIn: expiresInHours,
 					expiresInLabel: `${Math.floor(expiresInHours / 24)} days`,
 					languageTag: languageTag()
@@ -167,7 +167,13 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 		// Return success response
 		return json({
 			success: true,
-			message: 'Token created and email sent successfully'
+			message: 'Token created and email sent successfully',
+			token: {
+				value: token,
+				expires: expires.toISOString(),
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString()
+			}
 		});
 	} catch (err: unknown) {
 		// Type guard for API errors
