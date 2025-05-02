@@ -64,8 +64,8 @@ const LOG_LEVEL_MAP: Record<LogLevel, { priority: number; color: keyof typeof TE
 	trace: { priority: 6, color: 'cyan' } // Least restrictive: all log levels
 };
 
-// Configuration with defaults using $state
-const config = $state({
+// Configuration with defaults
+const config = {
 	logRotationSize: 5 * 1024 * 1024, // 5MB
 	logDirectory: 'logs',
 	logFileName: 'app.log',
@@ -80,14 +80,14 @@ const config = $state({
 		emailKeys: ['email', 'mail'],
 		customMasks: {} as Record<string, (value: string) => string>
 	} as MaskingConfig
-});
+};
 
 // Batch logging state
-const state = $state({
+const state = {
 	queue: [] as LogEntry[],
 	batchTimeout: null as NodeJS.Timeout | null,
 	abortTimeout: null as NodeJS.Timeout | null
-});
+};
 
 // Helper Functions
 const isLogLevelEnabled = (level: LogLevel): boolean => {
@@ -234,23 +234,30 @@ function abortBatch(): void {
 	}
 }
 
-// Effect to process batches when queue changes
-$effect.root(() => {
-	$effect(() => {
-		if (state.queue.length >= config.batchSize) {
+// Process batches when queue changes
+function checkBatch() {
+	if (state.queue.length >= config.batchSize) {
+		processBatch();
+	} else if (state.queue.length > 0) {
+		state.batchTimeout = setTimeout(() => {
 			processBatch();
-		}
+		}, config.batchTimeout);
+	}
+}
+
+// Setup cleanup for browser environment
+if (typeof window !== 'undefined') {
+	window.addEventListener('beforeunload', abortBatch);
+	window.addEventListener('pagehide', abortBatch);
+}
+
+// Initialize log file on server startup
+if (isServer && typeof process !== 'undefined') {
+	// Use setImmediate to avoid blocking startup
+	setImmediate(() => {
+		safeExecute(serverFileOps.initializeLogFile);
 	});
-
-	return () => {
-		abortBatch();
-	};
-});
-
-// Setup cleanup when the module is destroyed
-// $onDestroy(() => {
-//     abortBatch();
-// });
+}
 
 // Format values (colorize types like booleans, numbers)
 const processBatch = async (): Promise<void> => {
@@ -265,100 +272,95 @@ const processBatch = async (): Promise<void> => {
 	}
 };
 
-const scheduleBatchProcessing = (): void => {
-	if (!isServer) return;
-	if (state.batchTimeout) clearTimeout(state.batchTimeout);
-	state.batchTimeout = setTimeout(() => safeExecute(processBatch), config.batchTimeout);
-	abortBatch();
-};
 
 // Server-side file operations
 const serverFileOps = isServer
 	? {
-			async initializeLogFile(): Promise<void> {
+		async initializeLogFile(): Promise<void> {
+			try {
+				const { mkdir, access, constants } = await import('node:fs/promises');
+				const { join } = await import('node:path');
+
 				try {
-					const { mkdir, access, constants } = await import('node:fs/promises');
-					const { join } = await import('node:path');
-
-					try {
-						await access(config.logDirectory, constants.F_OK);
-					} catch {
-						await mkdir(config.logDirectory, { recursive: true });
-					}
-
-					const logFilePath = join(config.logDirectory, config.logFileName);
-					try {
-						await access(logFilePath, constants.F_OK);
-					} catch {
-						const { writeFile } = await import('node:fs/promises');
-						await writeFile(logFilePath, '');
-					}
-				} catch (error) {
-					console.error('Error initializing log file:', error);
+					await access(config.logDirectory, constants.F_OK);
+				} catch {
+					await mkdir(config.logDirectory, { recursive: true });
 				}
-			},
 
-			async rotateLogFile(): Promise<void> {
+				const logFilePath = join(config.logDirectory, config.logFileName);
 				try {
-					const { stat, rename, unlink } = await import('node:fs/promises');
-					const { join } = await import('node:path');
-					const { createGzip } = await import('node:zlib');
-					const { createReadStream, createWriteStream } = await import('node:fs');
-					const { promisify } = await import('node:util');
-					const { pipeline } = await import('node:stream');
-					const pipelineAsync = promisify(pipeline);
+					await access(logFilePath, constants.F_OK);
+				} catch {
+					const { writeFile } = await import('node:fs/promises');
+					await writeFile(logFilePath, '');
+				}
+			} catch (error) {
+				console.error('Error initializing log file:', error);
+			}
+		},
 
-					const logFilePath = join(config.logDirectory, config.logFileName);
-					const stats = await stat(logFilePath);
+		async rotateLogFile(): Promise<void> {
+			try {
+				const { stat, rename, unlink } = await import('node:fs/promises');
+				const { join } = await import('node:path');
+				const { createGzip } = await import('node:zlib');
+				const { createReadStream, createWriteStream } = await import('node:fs');
+				const { promisify } = await import('node:util');
+				const { pipeline } = await import('node:stream');
+				const pipelineAsync = promisify(pipeline);
 
-					if (stats.size >= config.logRotationSize) {
-						const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-						const rotatedFilePath = `${logFilePath}.${timestamp}`;
+				const logFilePath = join(config.logDirectory, config.logFileName);
+				const stats = await stat(logFilePath);
 
-						await rename(logFilePath, rotatedFilePath);
-						const { writeFile } = await import('node:fs/promises');
-						await writeFile(logFilePath, '');
+				if (stats.size >= config.logRotationSize) {
+					const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+					const rotatedFilePath = `${logFilePath}.${timestamp}`;
 
-						if (config.compressionEnabled) {
-							const gzip = createGzip();
-							const source = createReadStream(rotatedFilePath);
-							const destination = createWriteStream(`${rotatedFilePath}.gz`);
-							await pipelineAsync(source, gzip, destination);
-							await unlink(rotatedFilePath);
-						}
+					await rename(logFilePath, rotatedFilePath);
+					const { writeFile } = await import('node:fs/promises');
+					await writeFile(logFilePath, '');
+
+					if (config.compressionEnabled) {
+						const gzip = createGzip();
+						const source = createReadStream(rotatedFilePath);
+						const destination = createWriteStream(`${rotatedFilePath}.gz`);
+						await pipelineAsync(source, gzip, destination);
+						await unlink(rotatedFilePath);
 					}
-				} catch (error) {
-					console.error('Error rotating log file:', error);
 				}
-			},
+			} catch (error) {
+				console.error('Error rotating log file:', error);
+			}
+		},
 
-			async writeToFile(entry: LogEntry): Promise<void> {
-				try {
-					const { appendFile } = await import('node:fs/promises');
-					const { join } = await import('node:path');
+		async writeToFile(entry: LogEntry): Promise<void> {
+			try {
+				const { appendFile } = await import('node:fs/promises');
+				const { join } = await import('node:path');
 
-					const logFilePath = join(config.logDirectory, config.logFileName);
-					const formattedLog = `${entry.timestamp.toISOString()} [${entry.level.toUpperCase()}] ${entry.message} ${JSON.stringify(entry.args)}\n`;
+				const logFilePath = join(config.logDirectory, config.logFileName);
+				const formattedLog = `${entry.timestamp.toISOString()} [${entry.level.toUpperCase()}] ${entry.message} ${JSON.stringify(entry.args)}\n`;
 
-					await appendFile(logFilePath, formattedLog);
-					await this.rotateLogFile();
-				} catch (error) {
-					console.error('Failed to write to log file:', error);
-				}
+				await appendFile(logFilePath, formattedLog);
+				await this.rotateLogFile();
+			} catch (error) {
+				console.error('Failed to write to log file:', error);
 			}
 		}
-	: {
-			async initializeLogFile(): Promise<void> {},
-			async rotateLogFile(): Promise<void> {},
-			async writeToFile(): Promise<void> {}
-		};
-
-// Initialize log file
-$effect.root(() => {
-	if (isServer) {
-		safeExecute(serverFileOps.initializeLogFile);
 	}
-});
+	: {
+		async initializeLogFile(): Promise<void> { },
+		async rotateLogFile(): Promise<void> { },
+		async writeToFile(): Promise<void> { }
+	};
+
+// Initialize log file on server startup
+if (isServer && typeof process !== 'undefined') {
+	// Use setImmediate to avoid blocking startup
+	setImmediate(() => {
+		safeExecute(serverFileOps.initializeLogFile);
+	});
+}
 
 // Unified logger function
 const log = (level: LogLevel, message: string, ...args: LoggableValue[]): void => {
@@ -409,8 +411,8 @@ const log = (level: LogLevel, message: string, ...args: LoggableValue[]): void =
 	}
 
 	// Update queue state
-	state.queue = [...state.queue, entry];
-	scheduleBatchProcessing();
+	state.queue.push(entry);
+	checkBatch();
 
 	if (config.customLogTarget) {
 		config.customLogTarget(level, message, maskedArgs);

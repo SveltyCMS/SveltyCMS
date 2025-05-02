@@ -26,11 +26,9 @@ Features:
 	import type { ContentNode } from '@src/databases/dbInterface';
 
 	// Stores
-	import { get } from 'svelte/store';
 	import { contentLanguage, shouldShowNextButton } from '@stores/store.svelte';
 	import { mode, contentStructure, collection } from '@src/stores/collectionStore.svelte';
-	import { uiStateManager, toggleUIElement, handleUILayoutToggle } from '@src/stores/UIStore.svelte';
-	import { screenSize } from '@src/stores/screenSizeStore.svelte';
+	import { uiStateManager, isMobile, toggleUIElement, handleUILayoutToggle } from '@src/stores/UIStore.svelte';
 
 	// Components
 	import TreeView from '@components/system/TreeView.svelte';
@@ -111,7 +109,7 @@ Features:
 		if ('nodeType' in selectedCollection && selectedCollection.nodeType === 'collection') {
 			mode.set('view');
 			collection.set(null);
-			goto(`/${contentLanguage.value}${selectedCollection.path?.toString()}`);
+			goto(`/${contentLanguage.value}${(selectedCollection as any).path?.toString()}`);
 		}
 		shouldShowNextButton.set(true);
 	}
@@ -163,10 +161,10 @@ Features:
 			onclick={() => {
 				mode.set('media');
 				goto('/mediagallery');
-				if (get(screenSize) === 'sm') {
+				if (isMobile()) {
 					toggleUIElement('leftSidebar', 'hidden');
 				}
-				if (uiStateManager.uiState.value.leftSidebar !== 'full') handleUILayoutToggle();
+				if (uiStateManager.uiState.value.leftSidebar !== 'full') handleUILayoutToggle('leftSidebar');
 			}}
 		>
 			{#if uiStateManager.uiState.value.leftSidebar === 'full'}
@@ -191,7 +189,7 @@ Features:
 				collection.set(null);
 				mode.set('view');
 
-				if (get(screenSize) === 'sm') {
+				if (isMobile()) {
 					toggleUIElement('leftSidebar', 'hidden');
 				}
 				goto(`/`);

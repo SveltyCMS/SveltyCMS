@@ -108,4 +108,5 @@ export interface CollectionData {
 }
 
 // Collection types
-export type ContentTypes = Record<string, unknown>;
+
+export type ContentTypes = {};

@@ -47,8 +47,7 @@
 	// Stores
 	import { page } from '$app/state';
 	import { collection, collectionValue, mode, modifyEntry, statusMap } from '@src/stores/collectionStore.svelte';
-	import { uiStateManager, toggleUIElement } from '@src/stores/UIStore.svelte';
-	import { screenSize } from '@src/stores/screenSizeStore.svelte';
+	import { uiStateManager, isMobile, toggleUIElement } from '@src/stores/UIStore.svelte';
 	import { contentLanguage, tabSet, validationErrors, headerActionButton } from '@stores/store.svelte';
 
 	// Auth
@@ -286,7 +285,7 @@
 			});
 
 			mode.set('view');
-			toggleUIElement('leftSidebar', screenSize.value === 'lg' ? 'full' : 'collapsed');
+			toggleUIElement('leftSidebar', isMobile() ? 'collapsed' : 'full');
 		} catch (err) {
 			console.error('Failed to save data:', err);
 		}
@@ -295,7 +294,7 @@
 	// function to undo the changes made by handleButtonClick
 	function handleCancel() {
 		mode.set('view');
-		toggleUIElement('leftSidebar', screenSize.value === 'lg' ? 'full' : 'collapsed');
+		toggleUIElement('leftSidebar', isMobile() ? 'collapsed' : 'full');
 	}
 
 	function handleReload() {
@@ -317,7 +316,7 @@
 		{#if uiStateManager.uiState.value.leftSidebar === 'hidden'}
 			<button
 				type="button"
-				onclick={() => toggleUIElement('leftSidebar', screenSize.value === 'lg' ? 'full' : 'collapsed')}
+				onclick={() => toggleUIElement('leftSidebar', isMobile() ? 'collapsed' : 'full')}
 				aria-label="Toggle Sidebar"
 				class="variant-ghost-surface btn-icon mt-1"
 			>
@@ -347,7 +346,7 @@
 
 	<div class="flex items-center justify-end gap-1 sm:gap-2 md:gap-4">
 		<!-- Mobile specific buttons -->
-		{#if screenSize.value !== 'lg'}
+		{#if isMobile()}
 			{#if showMore}
 				<!-- Mobile: Show More Active -->
 				<button type="button" onclick={next} aria-label="Next" class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:btn">
@@ -389,7 +388,7 @@
 		{/if}
 
 		<!-- Desktop specific buttons -->
-		{#if screenSize.value === 'lg'}
+		{#if !isMobile()}
 			<div class="hidden flex-col items-center justify-center md:flex">
 				<TranslationStatus />
 			</div>

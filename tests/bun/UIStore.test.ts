@@ -1,50 +1,143 @@
-import { describe, it, expect, mock } from 'bun:test';
+import { test, describe, expect, beforeEach, mock } from 'bun:test';
+import './setup'; // Import setup first to apply mocks
 
-// Mock implementation of UIStore
-const createMockUIStore = () => {
-    const state = {
-        leftSidebar: 'full',
-        rightSidebar: 'hidden',
-        pageheader: 'hidden',
-        pagefooter: 'hidden',
-        header: 'hidden',
-        footer: 'hidden'
-    };
+// Dynamic imports to ensure mocks are applied first
+const { uiStateManager, uiState } = await import('../../src/stores/UIStore.svelte.ts');
+const { screenSize, ScreenSize } = await import('../../src/stores/screenSizeStore.svelte.ts');
+const { mode } = await import('../../src/stores/collectionStore.svelte.ts');
+const { logger } = await import('../../src/utils/logger.svelte.ts');
 
-    return {
-        uiState: {
-            value: state,
-            set: (newState) => Object.assign(state, newState),
-            update: (fn) => {
-                const newState = fn(state);
-                Object.assign(state, newState);
-            }
-        },
-        toggleUIElement: (element, visibility) => {
-            state[element] = visibility;
-        },
-        updateLayout: mock(),
-        initialize: mock(),
-        destroy: mock()
+// Mock dependencies
+mock.module('../../src/stores/screenSizeStore.svelte.ts', () => {
+    const screenSize = {
+        value: ScreenSize.LG,
+        get screenSize() { return this.value; },
+        set screenSize(val) { this.value = val; }
     };
-};
+    return { screenSize };
+});
+
+mock.module('../../src/stores/collectionStore.svelte.ts', () => {
+    const mode = {
+        value: 'edit',
+        get mode() { return this.value; },
+        set mode(val) { this.value = val; }
+    };
+    return { mode };
+});
+
+mock.module('../../src/utils/logger.svelte.ts', () => ({
+    logger: {
+        debug: () => { } // Simple mock without clear functionality
+    }
+}));
 
 describe('UIStore', () => {
-    it('should toggle UI element visibility', () => {
-        const mockStore = createMockUIStore();
-        mockStore.toggleUIElement('leftSidebar', 'hidden');
-        expect(mockStore.uiState.value.leftSidebar).toBe('hidden');
+    beforeEach(() => {
+        // Reset values before each test
+        screenSize.value = ScreenSize.LG;
+        mode.value = 'edit';
     });
 
-    it('should call updateLayout when screen size changes', () => {
-        const mockStore = createMockUIStore();
-        mockStore.updateLayout();
-        expect(mockStore.updateLayout).toHaveBeenCalled();
+    describe('Initialization', () => {
+        test('should initialize with default state', () => {
+            expect(uiState.current).toEqual({
+                leftSidebar: 'collapsed',
+                rightSidebar: 'hidden',
+                pageheader: 'full',
+                pagefooter: 'full',
+                header: 'hidden',
+                footer: 'hidden'
+            });
+        });
+
+        test('should initialize derived stores correctly', () => {
+            expect(uiStateManager.isLeftSidebarVisible.current).toBe(true);
+            expect(uiStateManager.isRightSidebarVisible.current).toBe(false);
+            expect(uiStateManager.isPageHeaderVisible.current).toBe(true);
+            expect(uiStateManager.isPageFooterVisible.current).toBe(true);
+            expect(uiStateManager.isHeaderVisible.current).toBe(false);
+            expect(uiStateManager.isFooterVisible.current).toBe(false);
+        });
     });
 
-    it('should provide initialization methods', () => {
-        const mockStore = createMockUIStore();
-        mockStore.initialize();
-        expect(mockStore.initialize).toHaveBeenCalled();
+    describe('Reactive updates', () => {
+        test('should update layout when screen size changes', () => {
+            // Change screen size to mobile
+            screenSize.value = ScreenSize.XS;
+
+            // Verify mobile layout
+            expect(uiState.current).toEqual({
+                leftSidebar: 'hidden',
+                rightSidebar: 'hidden',
+                pageheader: 'full',
+                pagefooter: 'full',
+                header: 'hidden',
+                footer: 'hidden'
+            });
+
+            // Change to tablet size
+            screenSize.value = ScreenSize.MD;
+            expect(uiState.current.leftSidebar).toBe('hidden');
+        });
+
+        test('should update layout when mode changes', () => {
+            // Change to view mode
+            mode.value = 'view';
+
+            expect(uiState.current).toEqual({
+                leftSidebar: 'full',
+                rightSidebar: 'hidden',
+                pageheader: 'hidden',
+                pagefooter: 'hidden',
+                header: 'hidden',
+                footer: 'hidden'
+            });
+        });
+    });
+
+    describe('Public API', () => {
+        test('toggleUIElement should update specific element', () => {
+            uiStateManager.toggleUIElement('leftSidebar', 'hidden');
+            expect(uiState.value.leftSidebar).toBe('hidden');
+
+            uiStateManager.toggleUIElement('rightSidebar', 'full');
+            expect(uiState.value.rightSidebar).toBe('full');
+        });
+
+        test('handleUILayoutToggle should cycle through states', () => {
+            uiStateManager.handleUILayoutToggle('leftSidebar');
+            expect(uiState.value.leftSidebar).toBe('full');
+
+            uiStateManager.handleUILayoutToggle('leftSidebar');
+            expect(uiState.value.leftSidebar).toBe('collapsed');
+
+            uiStateManager.handleUILayoutToggle('leftSidebar');
+            expect(uiState.value.leftSidebar).toBe('hidden');
+        });
+
+        test('toggleLeftSidebar should toggle between full/collapsed', () => {
+            uiStateManager.toggleLeftSidebar();
+            expect(uiState.value.leftSidebar).toBe('full');
+
+            uiStateManager.toggleLeftSidebar();
+            expect(uiState.value.leftSidebar).toBe('collapsed');
+        });
+    });
+
+    describe('Cleanup', () => {
+        test('should react to screen size changes', () => {
+            const initialValue = uiState.value.leftSidebar;
+
+            // Change screen size
+            screenSize.value = ScreenSize.XS;
+
+            // Verify UI state updated
+            expect(uiState.value.leftSidebar).not.toBe(initialValue);
+
+            // Reset
+            screenSize.value = ScreenSize.LG;
+            expect(uiState.value.leftSidebar).toBe(initialValue);
+        });
     });
 });

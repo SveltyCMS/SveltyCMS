@@ -31,8 +31,7 @@
 	import { get } from 'svelte/store';
 	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store.svelte';
 	import { mode } from '@stores/collectionStore.svelte';
-	import { uiStateManager, userPreferredState, toggleUIElement, handleUILayoutToggle } from '@src/stores/UIStore.svelte';
-	import { screenSize } from '@stores/screenSizeStore.svelte';
+	import { uiStateManager, isMobile, toggleUIElement, handleUILayoutToggle } from '@src/stores/UIStore.svelte';
 
 	// Import components and utilities
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
@@ -192,7 +191,7 @@
 		if (!page.url.href.includes('user')) {
 			mode.set('view');
 			// Only handle sidebar on mobile
-			if (get(screenSize) === 'sm') {
+			if (isMobile()) {
 				toggleUIElement('leftSidebar', 'hidden'); // Hide the left sidebar on mobile
 			}
 			goto('/user');
@@ -242,7 +241,6 @@
 		onclick={() => {
 			const newState = uiStateManager.uiState.value.leftSidebar === 'full' ? 'collapsed' : 'full';
 			toggleUIElement('leftSidebar', newState);
-			userPreferredState.set(newState);
 		}}
 		aria-label="Expand/Collapse Sidebar"
 		class="absolute top-2 z-20 flex items-center justify-center !rounded-full border-[3px] dark:border-black ltr:-right-3 rtl:-left-3"
@@ -424,8 +422,8 @@
 					use:popup={ConfigTooltip}
 					onclick={() => {
 						mode.set('view');
-						handleUILayoutToggle();
-						if (get(screenSize) === 'sm') {
+
+						if (isMobile()) {
 							toggleUIElement('leftSidebar', 'hidden');
 						}
 					}}

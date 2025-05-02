@@ -1,6 +1,6 @@
 /**
  * @file src/stores/screenSizeStore.svelte.ts
- * @description Manages the screen size states using Svelte 5 runes
+ * @description Manages the screen size states using a class-based approach
  *
  * Features:
  * - Enum for different screen sizes matching Tailwind CSS breakpoints
@@ -14,147 +14,169 @@
  * - Reactive screen size tracking
  * - Derived values for different screen states
  * - Debounced screen size updates
+ * - Orientation detection (portrait/landscape)
+ * - Modern resize handling via ResizeObserver + debounced resize event
  */
-
-import { store } from '@utils/reactivity.svelte';
 
 // Enum for screen sizes (matches Tailwind CSS breakpoints)
 export enum ScreenSize {
-	XS = 'xs',
-	SM = 'sm',
-	MD = 'md',
-	LG = 'lg',
-	XL = 'xl',
-	XXL = '2xl'
+    XS = 'xs',
+    SM = 'sm',
+    MD = 'md',
+    LG = 'lg',
+    XL = 'xl',
+    XXL = '2xl'
 }
 
 // Screen size breakpoints (Tailwind defaults)
 const BREAKPOINTS = {
-	XS: 0,     // Extra small devices
-	SM: 640,   // Small devices (mobile landscape/tablet portrait)
-	MD: 768,   // Medium devices (tablet landscape)
-	LG: 1024,  // Large devices (small desktop)
-	XL: 1280,  // Extra large devices (desktop)
-	XXL: 1536  // 2x extra large devices (large desktop)
+    XS: 0,     // Extra small devices
+    SM: 640,   // Small devices (mobile landscape/tablet portrait)
+    MD: 768,   // Medium devices (tablet landscape)
+    LG: 1024,  // Large devices (small desktop)
+    XL: 1280,  // Extra large devices (desktop)
+    XXL: 1536  // 2x extra large devices (large desktop)
 } as const;
 
-// Helper function to get screen size name
-function getScreenSizeName(width: number): ScreenSize {
-	if (width < BREAKPOINTS.SM) {
-		return ScreenSize.XS;
-	} else if (width < BREAKPOINTS.MD) {
-		return ScreenSize.SM;
-	} else if (width < BREAKPOINTS.LG) {
-		return ScreenSize.MD;
-	} else if (width < BREAKPOINTS.XL) {
-		return ScreenSize.LG;
-	} else if (width < BREAKPOINTS.XXL) {
-		return ScreenSize.XL;
-	} else {
-		return ScreenSize.XXL;
-	}
+// Configuration options
+const CONFIG = {
+    debounceDelay: 150,
+    passiveListener: true
+} as const;
+
+class ScreenSizeStore {
+    // Private reactive state
+    #screenWidth = $state(0);
+    #screenHeight = $state(0);
+    #screenSize = $state<ScreenSize>(ScreenSize.LG);
+    #unsubscribe: (() => void) | null = null;
+
+    constructor() {
+        this.#initialize();
+        if (typeof window !== 'undefined') {
+            this.#setupListener();
+        }
+    }
+
+    // Private derived state
+    #isMobile = $derived.by(() => this.#screenSize === ScreenSize.XS || this.#screenSize === ScreenSize.SM);
+    #isTablet = $derived.by(() => this.#screenSize === ScreenSize.MD);
+    #isDesktop = $derived.by(() => this.#screenSize === ScreenSize.LG || this.#screenSize === ScreenSize.XL || this.#screenSize === ScreenSize.XXL);
+    #isLargeScreen = $derived.by(() => this.#screenSize === ScreenSize.XL || this.#screenSize === ScreenSize.XXL);
+    #screenOrientation = $derived.by(() => this.#screenWidth < this.#screenHeight ? 'portrait' : 'landscape');
+
+    // Public getters
+    get screenWidth() { return this.#screenWidth; }
+    get screenHeight() { return this.#screenHeight; }
+    get screenSize() { return this.#screenSize; }
+    get isMobile() { return this.#isMobile; }
+    get isTablet() { return this.#isTablet; }
+    get isDesktop() { return this.#isDesktop; }
+    get isLargeScreen() { return this.#isLargeScreen; }
+    get screenOrientation() { return this.#screenOrientation; }
+
+    // Helper function to get screen size name based on width
+    static getScreenSizeName(width: number): ScreenSize {
+        if (width < BREAKPOINTS.SM) {
+            return ScreenSize.XS;
+        } else if (width < BREAKPOINTS.MD) {
+            return ScreenSize.SM;
+        } else if (width < BREAKPOINTS.LG) {
+            return ScreenSize.MD;
+        } else if (width < BREAKPOINTS.XL) {
+            return ScreenSize.LG;
+        } else if (width < BREAKPOINTS.XXL) {
+            return ScreenSize.XL;
+        } else {
+            return ScreenSize.XXL;
+        }
+    }
+
+    // Initialize with default values
+    #initialize() {
+        if (typeof window !== 'undefined') {
+            this.#screenWidth = window.innerWidth;
+            this.#screenHeight = window.innerHeight;
+            this.#screenSize = ScreenSizeStore.getScreenSizeName(window.innerWidth);
+        } else {
+            this.#screenWidth = 1024;
+            this.#screenHeight = 768;
+            this.#screenSize = ScreenSize.LG;
+        }
+    }
+
+    // Debounce utility for resize events
+    #debounce(fn: () => void): () => void {
+        let timeoutId: ReturnType<typeof setTimeout>;
+        return () => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(fn, CONFIG.debounceDelay);
+        };
+    }
+
+    // Update all states when window resizes
+    #updateScreenSize() {
+        if (typeof window !== 'undefined') {
+            this.#screenWidth = window.innerWidth;
+            this.#screenHeight = window.innerHeight;
+            this.#screenSize = ScreenSizeStore.getScreenSizeName(window.innerWidth);
+        }
+    }
+
+    // Setup listener with modern cleanup and fallbacks
+    #setupListener() {
+        const debouncedUpdate = this.#debounce(() => this.#updateScreenSize());
+        const options = CONFIG.passiveListener ? { passive: true } : false;
+
+        // Use ResizeObserver for more reliable layout changes
+        const resizeObserver = new ResizeObserver(debouncedUpdate);
+        resizeObserver.observe(document.body);
+
+        // Fallback for window resize (older browsers or SSR hydration)
+        window.addEventListener('resize', debouncedUpdate, options);
+
+        // Initial measurement
+        this.#updateScreenSize();
+
+        // Store cleanup function
+        this.#unsubscribe = () => {
+            window.removeEventListener('resize', debouncedUpdate, options);
+            resizeObserver.disconnect();
+        };
+    }
+
+    // Cleanup listeners
+    cleanup() {
+        this.#unsubscribe?.();
+    }
 }
 
-// Create base stores
-function createScreenSizeStores() {
-	// Initialize with default values
-	const initialWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
-	const initialHeight = typeof window !== 'undefined' ? window.innerHeight : 768;
-	const initialSize = getScreenSizeName(initialWidth);
+// Singleton instance
+export const screenSizeStore = new ScreenSizeStore();
 
-	// Base stores using $state
-	let width = $state(initialWidth);
-	let height = $state(initialHeight);
-	let currentSize = $state(initialSize);
+// Export the same interface as before
+export const screenWidth = () => screenSizeStore.screenWidth;
+export const screenHeight = () => screenSizeStore.screenHeight;
+export const screenSize = () => screenSizeStore.screenSize;
+export const isMobile = () => screenSizeStore.isMobile;
+export const isTablet = () => screenSizeStore.isTablet;
+export const isDesktop = () => screenSizeStore.isDesktop;
+export const isLargeScreen = () => screenSizeStore.isLargeScreen;
+export const screenOrientation = () => screenSizeStore.screenOrientation;
+export const getScreenSizeName = ScreenSizeStore.getScreenSizeName;
 
-	// Derived states using $derived
-	const isMobile = $derived(currentSize === ScreenSize.XS || currentSize === ScreenSize.SM);
-	const isTablet = $derived(currentSize === ScreenSize.MD);
-	const isDesktop = $derived(
-		currentSize === ScreenSize.LG ||
-		currentSize === ScreenSize.XL ||
-		currentSize === ScreenSize.XXL
-	);
-	const isLargeScreen = $derived(currentSize === ScreenSize.XL || currentSize === ScreenSize.XXL);
-
-	// Debounce function
-	function debounce(fn: () => void, delay: number): () => void {
-		let timeoutId: ReturnType<typeof setTimeout>;
-		return () => {
-			clearTimeout(timeoutId);
-			timeoutId = setTimeout(fn, delay);
-		};
-	}
-
-	// Update function
-	function updateScreenSize() {
-		if (typeof window !== 'undefined') {
-			width = window.innerWidth;
-			height = window.innerHeight;
-			currentSize = getScreenSizeName(window.innerWidth);
-		}
-	}
-
-	// Setup listener function
-	function setupListener(): () => void {
-		if (typeof window === 'undefined') {
-			return () => { };
-		}
-
-		const debouncedUpdate = debounce(updateScreenSize, 150);
-
-		// Initial update
-		updateScreenSize();
-
-		// Add event listener
-		window.addEventListener('resize', debouncedUpdate);
-
-		// Return cleanup function
-		return () => {
-			window.removeEventListener('resize', debouncedUpdate);
-		};
-	}
-
-	// Create stores from state
-	const widthStore = store<number>(() => width);
-	const heightStore = store<number>(() => height);
-	const currentSizeStore = store<ScreenSize>(() => currentSize);
-	const isMobileStore = store<boolean>(() => isMobile);
-	const isTabletStore = store<boolean>(() => isTablet);
-	const isDesktopStore = store<boolean>(() => isDesktop);
-	const isLargeScreenStore = store<boolean>(() => isLargeScreen);
-
-	// Setup root effect for initialization
-	$effect.root(() => {
-		setupListener();
-	});
-
-	return {
-		width: widthStore,
-		height: heightStore,
-		currentSize: currentSizeStore,
-		isMobile: isMobileStore,
-		isTablet: isTabletStore,
-		isDesktop: isDesktopStore,
-		isLargeScreen: isLargeScreenStore,
-		setupListener
-	};
+/**
+ * Setup function for manual control
+ * @returns Cleanup function to remove listeners
+ */
+export function setupScreenSizeListener() {
+    if (typeof window !== 'undefined' && !screenSizeStore['#unsubscribe']) {
+        screenSizeStore['#setupListener']();
+    }
+    return screenSizeStore.cleanup.bind(screenSizeStore);
 }
 
-// Create and export stores
-const stores = createScreenSizeStores();
-
-// Export individual stores
-export const screenWidth = stores.width;
-export const screenHeight = stores.height;
-export const screenSize = stores.currentSize;
-export const isMobile = stores.isMobile;
-export const isTablet = stores.isTablet;
-export const isDesktop = stores.isDesktop;
-export const isLargeScreen = stores.isLargeScreen;
-
-// Export setup function
-export const setupScreenSizeListener = stores.setupListener;
-
-// Export helper function for direct use
-export { getScreenSizeName };
+// Auto-setup in browser environment
+if (typeof window !== 'undefined') {
+    setupScreenSizeListener();
+}

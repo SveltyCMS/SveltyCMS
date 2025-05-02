@@ -16,9 +16,9 @@
 
 <script lang="ts">
 	import { getTextDirection } from '@utils/utils';
-	import { isMobile } from '@stores/screenSizeStore.svelte';
+	import { isMobile } from '@stores/UIStore.svelte';
 
-	let showMobileMenu = false;
+	// Utils
 	import { publicEnv } from '@root/config/public';
 	import { onMount, onDestroy, tick, untrack } from 'svelte';
 	import type { ComponentProps } from 'svelte';
@@ -55,6 +55,7 @@
 	import TableHeader from '@tiptap/extension-table-header';
 
 	// Props
+	let showMobileMenu = $state(false);
 	let element = $state<HTMLElement | null>(null);
 	let editor = $state<Editor | null>(null);
 	let showImageDialog = $state(false);
@@ -458,13 +459,13 @@
 				role="toolbar"
 				aria-label="Rich text editor toolbar"
 			>
-				{#if $isMobile}
+				{#if $isMobile()}
 					<button onclick={() => (showMobileMenu = !showMobileMenu)} class="btn" aria-label="Toggle toolbar menu" aria-expanded={showMobileMenu}>
 						<iconify-icon icon="mdi:menu" width="22"></iconify-icon>
 					</button>
 				{/if}
 
-				<div class="flex flex-wrap gap-1" class:hidden={$isMobile && !showMobileMenu}>
+				<div class="flex flex-wrap gap-1" class:hidden={$isMobile() && !showMobileMenu}>
 					<!-- TextType -->
 					<DropDown show={show('textType')} items={textTypes} label="Text" bind:active={active_dropDown} />
 					<!-- Font -->

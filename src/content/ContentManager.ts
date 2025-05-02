@@ -119,18 +119,17 @@ class ContentManager {
 					if (!moduleData?.schema) continue;
 
 					const schema = moduleData.schema as Schema;
-					const filePathName = filePath
-						.split('/')
-						.pop()
-						?.replace(/\.(ts|js)$/, '');
+					const filePathName = filePath.split('/').pop()?.replace(/\.(ts|js)$/, '');
 					if (!filePathName) continue;
 
+					const finalName = schema.name || filePathName; // Compute the name that will be used
+
 					// Ensure collection names are unique
-					if (nameSet.has(filePathName)) {
-						logger.error(`Duplicate collection name detected: ${filePathName}. Collection names must be unique across all folders.`);
+					if (nameSet.has(finalName)) {
+						logger.error(`Duplicate collection name detected: ${finalName}. Collection names must be unique across all folders.`);
 						continue;
 					}
-					nameSet.add(filePathName);
+					nameSet.add(finalName);
 
 					const path = this.extractPathFromFilePath(filePath);
 

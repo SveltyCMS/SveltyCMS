@@ -31,8 +31,7 @@ Features:
 	// Stores
 	import { contentLanguage, systemLanguage } from '@stores/store.svelte';
 	import { mode, collectionValue, modifyEntry, statusMap, collection, contentStructure } from '@stores/collectionStore.svelte';
-	import { uiStateManager, toggleUIElement, handleUILayoutToggle } from '@stores/UIStore.svelte';
-	import { screenSize } from '@src/stores/screenSizeStore.svelte';
+	import { uiStateManager, isMobile, toggleUIElement, handleUILayoutToggle } from '@stores/UIStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -127,15 +126,12 @@ Features:
 	let totalItems = $state<number>(0); // Initialize totalItems
 
 	// Declare isFirstPage and isLastPage variables
-	let isFirstPage: boolean;
-	let isLastPage: boolean;
 
 	// Derived stores for reactive values
 	const currentLanguage = $derived(contentLanguage.value);
 	const currentSystemLanguage = $derived(systemLanguage.value);
 	const currentMode = $derived(mode.value);
 	const currentCollection = $derived(collection.value);
-	const currentScreenSize = $derived(screenSize.value);
 
 	// This function refreshes the data displayed in a table by fetching new data from an API endpoint and updating the tableData and options variables.
 	async function refreshTableData(fetch = true) {
@@ -186,7 +182,7 @@ Features:
 					for (const field of currentCollection.fields) {
 						if (field.callback && typeof field.callback === 'function') {
 							field.callback({ data: data || {} });
-							handleUILayoutToggle();
+							handleUILayoutToggle('leftSidebar');
 						}
 						// Status
 						obj.status = entry.status ? entry.status.charAt(0).toUpperCase() + entry.status.slice(1) : 'N/A';
@@ -241,9 +237,6 @@ Features:
 		SelectAll = false;
 		// Update pagesCount after fetching data
 		pagesCount = data?.pagesCount || 1;
-		// Update isFirstPage and isLastPage based on currentPage and pagesCount
-		isFirstPage = currentPage === 1;
-		isLastPage = currentPage === pagesCount;
 		// Adjust currentPage to the last page if it exceeds the new total pages count after changing the rows per page.
 		if (currentPage > (data?.pagesCount || 0)) {
 			currentPage = data?.pagesCount || 1;
@@ -406,7 +399,7 @@ Features:
 				<button
 					type="button"
 					onkeydown={() => {}}
-					onclick={() => toggleUIElement('leftSidebar', currentScreenSize === 'lg' ? 'full' : 'collapsed')}
+					onclick={() => toggleUIElement('leftSidebar', isMobile() ? 'collapsed' : 'full')}
 					aria-label="Open Sidebar"
 					class="variant-ghost-surface btn-icon mt-1"
 				>
@@ -675,7 +668,7 @@ Features:
 									onclick={() => {
 										collectionValue.set(data?.entryList[index]);
 										mode.set('edit');
-										handleUILayoutToggle();
+										handleUILayoutToggle('leftSidebar');
 									}}
 									class="text-center font-bold"
 								>

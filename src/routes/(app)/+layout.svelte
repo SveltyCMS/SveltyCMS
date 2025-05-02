@@ -4,12 +4,12 @@
 **This component renders the entire app with improved loading strategy and dynamic theme management**
 
 Key features:
--     Skeleton UI framework for SvelteKit
--     Dynamic theme management based on user preferences or defaults
--     SEO optimization with Open Graph and Twitter Card metadata for enhanced social sharing
--     Initialization of Skeleton stores for UI components
--     Granular loading strategy
--     Asynchronous loading of non-critical data
+- Skeleton UI framework for SvelteKit
+- Dynamic theme management based on user preferences or defaults
+- SEO optimization with Open Graph and Twitter Card metadata for enhanced social sharing
+- Initialization of Skeleton stores for UI components
+- Granular loading strategy
+- Asynchronous loading of non-critical data
 -->
 
 <script lang="ts">
@@ -200,7 +200,7 @@ Key features:
 	{:else}
 		<!-- Body -->
 		<div class="flex h-lvh flex-col">
-			<!-- Header (unsused)  -->
+			<!-- Header (unused) -->
 			{#if uiStateManager.uiState.value.header !== 'hidden'}
 				<header class="sticky top-0 z-10 bg-tertiary-500">Header</header>
 			{/if}

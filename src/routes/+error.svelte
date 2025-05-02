@@ -86,24 +86,26 @@
 			</h1>
 			<!-- Error url  -->
 			<div
-				class="absolute left-1/2 top-1/2 mx-auto -translate-x-1/2 -translate-y-1/2 rotate-12 transform rounded-md bg-error-600/80 px-2 text-center text-sm font-bold text-white dark:bg-error-500/80 dark:text-surface-900"
+				class="absolute left-1/2 top-1/2 mx-auto -translate-x-1/2 -translate-y-1/2 rotate-12 transform rounded-md bg-error-600/80 p-2 text-center text-sm font-bold text-white dark:bg-error-500/80 dark:text-white"
 			>
 				<div class="min-w-[200px]">{page.url}</div>
 				<div class="whitespace-nowrap">{m.error_pagenotfound()}</div>
 			</div>
 		</div>
 
-		<h1 class="text-center text-4xl font-extrabold tracking-widest text-surface-400 dark:text-surface-600">
-			{#if page.error}
+		{#if page.error}
+			<h1 class="text-center text-4xl font-extrabold tracking-widest text-surface-400 dark:text-surface-600">
 				{page.error.message}
-			{/if}
-		</h1>
+			</h1>
+		{/if}
 
 		<p class="text-lg text-white dark:text-surface-900">{m.error_wrong()}</p>
+
+		<!-- Frontpage Button -->
 		<a
 			href="/"
 			data-sveltekit-preload-data="tap"
-			class="relative mt-5 block rounded-full bg-gradient-to-br from-error-700 via-error-600 to-error-700 px-8 py-4 font-bold uppercase text-white shadow-xl dark:from-error-500 dark:via-error-400 dark:to-error-500 dark:text-surface-900"
+			class="relative mt-5 block rounded-full bg-gradient-to-br from-error-700 via-error-600 to-error-700 px-8 py-4 font-bold uppercase text-white shadow-xl dark:from-error-500 dark:via-error-400 dark:to-error-500"
 		>
 			{m.error_gofrontpage()}
 		</a>
