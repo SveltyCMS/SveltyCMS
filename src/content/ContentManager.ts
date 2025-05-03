@@ -13,11 +13,12 @@
 
 import { dbAdapter } from '@src/databases/db';
 import fs from 'fs/promises';
+import path from 'path';
 
 import { v4 as uuidv4 } from 'uuid';
 
 // Types
-import type { Schema, ContentTypes, Category, CollectionData } from './types';
+import type { Schema, ContentTypes, Category, CollectionData, ContentNodeOperation } from './types';
 import type { ContentNode } from '@src/databases/dbInterface'; // Commented out unused import
 
 // Redis
@@ -27,6 +28,7 @@ import { ensureWidgetsInitialized } from '@src/widgets';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 import { constructContentPaths, generateCategoryNodesFromPaths, processModule } from './utils';
+import { compile } from '../routes/api/compile/compile';
 
 interface CacheEntry<T> {
   value: T;
@@ -50,13 +52,13 @@ class ContentManager {
 
   private loadedCollections: Schema[] = [];
 
-  private collectionMap: Map<string, Schema> = new Map();
-  private contentMap: Map<string, ContentNode> = new Map();
+  private collectionMapId: Map<string, Schema> = new Map(); // keys are colleciton _ids
+  private collectionMapPath: Map<string, ContentNode> = new Map(); // keys are path 
   private contentStructure: ContentNode[] = [];
 
   private firstCollection: Schema | null = null;
 
-  private categoryNodes: Map<string, ContentNode> = new Map();
+  private contentNodeMap: Map<string, ContentNode & { path: string }> = new Map(); // _ids are path
 
   // private constructor() {
   //   this.dbInitPromise = dbInitPromise;
@@ -102,7 +104,7 @@ class ContentManager {
       await this.initialize();
     }
     return {
-      collectionMap: this.collectionMap,
+      collectionMap: this.collectionMapId,
       contentStructure: this.contentStructure
     };
   }
@@ -155,7 +157,7 @@ class ContentManager {
           else {
             if (!this.firstCollection) this.firstCollection = processed;
             collections.push(processed);
-            this.collectionMap.set(schema._id, processed);
+            this.collectionMapId.set(schema._id, processed);
 
           }
 
@@ -210,7 +212,7 @@ class ContentManager {
         logger.error('Content Manager not initialized');
         return null;
       }
-      const collection = this.collectionMap.get(id);
+      const collection = this.collectionMapId.get(id);
       if (!collection) {
         logger.error(`Content with id: ${id} not found`);
         return null;
@@ -242,7 +244,7 @@ class ContentManager {
       const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
       const collectionFile = await this.readFile(`${compiledDirectoryPath}/${path}.js`);
 
-      const schema = this.collectionMap.get(this.contentMap.get(path)!._id);
+      const schema = this.collectionMapId.get(this.collectionMapPath.get(path)!._id);
 
       if (!schema || !collectionFile) throw new Error('Collection not found');
 
@@ -254,7 +256,100 @@ class ContentManager {
   }
 
 
+  public async upsertContentNodes(nodes: ContentNodeOperation[]) {
+    try {
 
+      const newNodes = [];
+      const idSet = new Set<string>(nodes.map(node => node.node._id));
+      const filteredNodes = this.contentStructure.filter(node => !idSet.has(node._id))
+
+      const collectionPath = import.meta.env.userCollectionsPath;
+
+      for (const operation of nodes) {
+        const node = operation.node
+        const oldNode = this.contentNodeMap.get(node._id)
+
+        const result = await dbAdapter?.content.nodes.upsertContentStructureNode(node);
+        if (!result?.success) throw new Error(`Failed to update content structure ${operation.node.name}`);
+        newNodes.push(result.data)
+
+
+        if (operation.type === 'create') {
+          // create file/folder
+          const parent = this.contentNodeMap.get(operation.node.parentId ?? "") ?? null
+          const newPath = path.join(parent?.path ?? "/", node.name)
+          await fs.mkdir(`${collectionPath}/${newPath}`, { recursive: true });
+          this.contentNodeMap.set(result.data._id, { ...result.data, path: newPath })
+
+        }
+
+
+        if (!oldNode) continue
+        if (operation.type === 'rename') {
+          // rename file/folder
+
+          const newPath = path.join(oldNode.path.split('/').slice(0, -1).join('/'), node.name)
+          const fileName = node.nodeType === 'collection' ? `${collectionPath}/${newPath}.ts` : `${collectionPath}/${newPath}`
+          const oldFileName = node.nodeType === 'collection' ? `${collectionPath}/${oldNode.path}.ts` : `${collectionPath}/${oldNode.path}`
+
+          await fs.rename(oldFileName, fileName);
+
+          this.contentNodeMap.set(result.data._id, { ...result.data, path: newPath })
+          this.collectionMapPath.set(`/${newPath}`, { ...result.data })
+
+        }
+
+        else if (operation.type === 'move') {
+          // move file/folder
+          //
+
+
+          if (!operation.node.parentId) {
+            const fileName = node.nodeType === 'collection' ? `${collectionPath}/${node.name}.ts` : `${collectionPath}/${node.name}`
+            const oldFileName = node.nodeType === 'collection' ? `${collectionPath}/${oldNode.path}.ts` : `${collectionPath}/${oldNode.path}`
+
+            await fs.rename(oldFileName, fileName);
+
+            this.contentNodeMap.set(result.data._id, { ...result.data, path: `/${node.name}` })
+            this.collectionMapPath.set(`/${node.name}`, { ...result.data })
+            continue
+
+          }
+
+          const newParent = this.contentNodeMap.get(operation.node.parentId) ?? null
+          if (!newParent) throw new Error('Parent not found')
+
+          const newPath = path.join(newParent.path, node.name)
+          const fileName = node.nodeType === 'collection' ? `${collectionPath}/${newPath}.ts` : `${collectionPath}/${newPath}`
+          const oldFileName = node.nodeType === 'collection' ? `${collectionPath}/${oldNode.path}.ts` : `${collectionPath}/${oldNode.path}`
+
+          await fs.rename(oldFileName, fileName);
+          this.contentNodeMap.set(result.data._id, { ...result.data, path: newPath })
+          this.collectionMapPath.set(`/${node.name}`, { ...result.data })
+        }
+
+        else if (operation.type === 'delete') {
+          // delete file/folder
+          await fs.unlink(`${collectionPath}/${oldNode.path}`)
+          this.contentNodeMap.delete(oldNode._id)
+          this.collectionMapPath.delete(oldNode.path)
+        }
+
+      }
+
+      this.contentStructure = [...filteredNodes, ...newNodes]
+      await compile()
+      // await this.loadCollections()
+      return this.contentStructure
+
+
+    } catch (error) {
+
+      logger.error('Error upserting content node', error);
+      throw error;
+    }
+
+  }
 
 
   // Create categories with Redis caching
@@ -268,11 +363,8 @@ class ContentManager {
 
       this.contentStructure = []
 
-
-
       const contentStructure = constructContentPaths(structure);
       const categoryNodes = generateCategoryNodesFromPaths(this.loadedCollections);
-
 
       // orderedNodes is sorted by level in the tree
       const orderedNodes = Array.from(categoryNodes.values()).sort((a, b) => {
@@ -297,6 +389,7 @@ class ContentManager {
         const currentCategoryNode = result.data;
         contentStructure[node.path] = currentCategoryNode;
         this.contentStructure.push(currentCategoryNode);
+        this.contentNodeMap.set(currentCategoryNode._id, { ...currentCategoryNode, path: node.path })
       }
 
 
@@ -328,7 +421,8 @@ class ContentManager {
         const currentNode = result.data;
         contentStructure[collection.path] = currentNode;
         this.contentStructure.push(currentNode);
-        this.contentMap.set(collection.path, currentNode);
+        this.collectionMapPath.set(collection.path, currentNode);
+        this.contentNodeMap.set(currentNode._id, { ...currentNode, path: collection.path })
 
       }
 
@@ -389,7 +483,7 @@ class ContentManager {
     }
     // Clear from all memory caches
     this.collectionCache.delete(key);
-    this.categoryCache.delete(key);
+    // this.categoryCache.delete(key);
     this.fileHashCache.delete(key);
   }
 
@@ -487,16 +581,6 @@ class ContentManager {
       throw error;
     }
   }
-  //Get a content node map
-  public async getContentStructureMap(): Promise<Map<string, SystemContent>> {
-    const contentNodes = await (dbAdapter?.getContentStructure() || Promise.resolve([]));
-    const contentNodesMap = new Map<string, SystemContent>();
-    contentNodes.forEach((node) => {
-      contentNodesMap.set(node.path, node);
-    });
-
-    return contentNodesMap;
-  }
 
   // Error recovery
   private async retryOperation<T>(operation: () => Promise<T>, maxRetries: number = MAX_RETRIES, delay: number = RETRY_DELAY): Promise<T> {
@@ -519,7 +603,7 @@ class ContentManager {
     // Try getting from cache (Redis or memory)
     const cached = await this.getCacheValue(cacheKey, this.collectionCache);
     if (cached) {
-      this.collectionAccessCount.set(name, (this.collectionAccessCount.get(name) || 0) + 1);
+      this.collectionAccessCount.set(name.toString(), (this.collectionAccessCount.get(name.toString()) || 0) + 1);
       return cached;
     }
     // Load if not cached
@@ -529,7 +613,7 @@ class ContentManager {
       const content = await this.readFile(path);
       logger.debug(`File content for collection \x1b[34m${name}\x1b[0m: ${content.substring(0, 100)}...`); // Log only the first 100 characters
       // const schema = await this.processCollectionFile(path, content); // Variable 'schema' was assigned but never used
-      await this.processCollectionFile(path, content); // Call the function but don't assign to unused variable
+      await processModule(content); // Call the function but don't assign to unused variable
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       logger.error(`Failed to lazy load collection ${name}:`, { error: errorMessage });

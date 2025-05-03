@@ -20,10 +20,11 @@
 
 	interface Props {
 		contentNodes: ContentNode[];
-		onEditCategory: (category: Partial<ContentNode>) => void;
+		addOperation: (newNode: ContentNode) => void;
+		onEditCategory: (category: ContentNode) => void;
 	}
 
-	let { contentNodes = $bindable([]), onEditCategory }: Props = $props();
+	let { contentNodes = $bindable([]), addOperation, onEditCategory }: Props = $props();
 
 	// let nestedNodes = $derived(constructNestedStructure(contentStructure.value));
 	//
@@ -61,36 +62,6 @@
 		}
 	}
 
-	function convertToConfig(nodes: DndItem[]): Record<string, ContentNode> {
-		const stack: { node: DndItem; parentPath?: string }[] = nodes.map((n) => ({ node: n, parentPath: n.parentPath }));
-		const flatMap: Record<string, ContentNode> = {};
-
-		while (stack.length) {
-			const { node, parentPath } = stack.pop()!;
-			const expectedPath = parentPath ? `${parentPath}/${node.name}` : `/${node.name}`;
-
-			const needsUpdate = node.path !== expectedPath || node.parentPath !== parentPath;
-
-			if (needsUpdate) {
-				node.path = expectedPath;
-			}
-
-			// Strip out children to match ContentNode type
-			const { children, ...contentNode } = node;
-			flatMap[node.path] = { ...contentNode, _id: node.id as DatabaseId };
-
-			if (children?.length) {
-				for (let i = children.length - 1; i >= 0; i--) {
-					stack.push({ node: children[i], parentPath: node.path });
-				}
-			}
-		}
-
-		// console.log(flatMap);
-
-		return flatMap;
-	}
-
 	function handleDndFinalize(e: CustomEvent<DndEvent<DndItem>>) {
 		try {
 			console.log('Main Finalize', e);
@@ -118,6 +89,7 @@
 			const currentNode = contentNodes.find((node) => node._id === itemId);
 			if (!currentNode) return;
 			currentNode.parentId = parentId;
+			addOperation(currentNode);
 
 			console.log('Board updating items', contentNodes);
 			dragError = null;

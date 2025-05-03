@@ -20,7 +20,7 @@
 	import { goto } from '$app/navigation';
 	import { v4 as uuidv4 } from 'uuid';
 	import { checkCollectionNameConflict } from '@utils/utils';
-	import type { CollectionData } from '@src/content/types';
+	import type { CollectionData, ContentNodeOperatianType, ContentNodeOperation } from '@src/content/types';
 
 	// Stores
 	import { collectionValue, mode } from '@src/stores/collectionStore.svelte';
@@ -38,7 +38,6 @@
 	// Skeleton
 	import { getToastStore, getModalStore, type ModalSettings, type ModalComponent } from '@skeletonlabs/skeleton';
 	import type { ContentNode, DatabaseId, ISODateString } from '@root/src/databases/dbInterface';
-	import { constructNestedStructure } from '@root/src/content/utils';
 
 	interface CategoryModalResponse {
 		newCategoryName: string;
@@ -67,7 +66,7 @@
 
 	let { data }: CollectionBuilderProps = $props();
 	let currentConfig = $state(data.contentStructure);
-	let nestedNodes = $derived(constructNestedStructure(contentStructure.value));
+	let nodesToSave = $state<Record<string, ContentNodeOperation>>({});
 
 	// State
 	let isLoading = $state(false);
@@ -77,7 +76,7 @@
 	const modalStore = getModalStore();
 
 	// Modal Trigger - New Category
-	function modalAddCategory(existingCategory?: Partial<CollectionData>): void {
+	function modalAddCategory(existingCategory?: ContentNode): void {
 		const modalComponent: ModalComponent = {
 			ref: ModalCategory,
 			props: {
@@ -111,12 +110,23 @@
 	}
 
 	async function updateExistingCategory(existingCategory: ContentNode, response: CategoryModalResponse): Promise<void> {
-		console.debug('updating category');
-
 		const newConfig = currentConfig.filter((c) => c._id !== existingCategory._id);
 		const newCategory = { ...existingCategory, name: response.newCategoryName, icon: response.newCategoryIcon };
 
+		console.debug('updating category', newCategory);
 		currentConfig = [...newConfig, newCategory];
+
+		if (existingCategory.name !== newCategory.name) {
+			nodesToSave[existingCategory._id] = {
+				type: 'rename' as const,
+				node: newCategory
+			};
+		} else {
+			nodesToSave[existingCategory._id] = {
+				type: 'update' as const,
+				node: newCategory
+			};
+		}
 	}
 
 	async function addNewCategory(response: CategoryModalResponse): Promise<void> {
@@ -136,6 +146,18 @@
 		};
 
 		currentConfig = [...currentConfig, newCategory];
+		nodesToSave[newCategory._id] = {
+			type: 'create' as const,
+			node: newCategory
+		};
+	}
+
+	async function nodeMoved(node: ContentNode) {
+		console.debug('node moved', node);
+		nodesToSave[node._id] = {
+			type: 'move' as const,
+			node: node
+		};
 	}
 
 	// Check for name conflicts before saving
@@ -175,7 +197,7 @@
 
 	// Handle collection save with conflict checking
 	async function handleSave() {
-		const items = currentConfig;
+		const items = Object.values(nodesToSave);
 		// if (!nameCheck.canProceed) {
 		// 	showToast('Collection save cancelled due to name conflict', 'error');
 		// 	return;
@@ -194,6 +216,7 @@
 					items
 				})
 			});
+			nodesToSave = {};
 
 			const result: ApiResponse = await response.json();
 
@@ -208,6 +231,8 @@
 				// });
 				// dispatchEvent(saveEvent);
 			} else {
+				currentConfig = contentStructure.value;
+
 				throw new Error(result.error || 'Failed to update categories');
 			}
 		} catch (error) {
@@ -301,6 +326,6 @@
 		<p class="mb-4 text-center dark:text-primary-500">{m.collection_text_description()}</p>
 
 		<!-- display collections -->
-		<Board contentNodes={currentConfig ?? []} onEditCategory={modalAddCategory} />
+		<Board contentNodes={currentConfig ?? []} addOperation={nodeMoved} onEditCategory={modalAddCategory} />
 	</div>
 </div>

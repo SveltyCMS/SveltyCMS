@@ -14,6 +14,7 @@ import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/r
 import { logger } from '@utils/logger.svelte';
 import type { ContentNode } from '@root/src/databases/dbInterface';
 import { contentStructure } from '@root/src/stores/collectionStore.svelte';
+import type { ContentNodeOperation } from '@root/src/content/types';
 
 const CACHE_TTL = 300; // 5 minutes
 
@@ -91,19 +92,16 @@ export const POST: RequestHandler = async ({ request }) => {
     switch (action) {
       case 'updateContentStructure': {
         // Updates metadata for categories and collections
-        const { items }: { items: ContentNode[] } = data;
+        const { items }: { items: ContentNodeOperation[] } = data;
 
         if (!items || !Array.isArray(items)) {
           throw error(400, 'Items array is required');
         }
 
-        for (const node of items) {
-          // console.debug('Updating content structure node', node)
-          await dbAdapter?.content.nodes.upsertContentStructureNode(node);
-        }
+        const contentStructure = await contentManager.upsertContentNodes(items);
 
-        await contentManager.updateCollections(true);
-        const { contentStructure } = await contentManager.getCollectionData();
+
+        // await contentManager.updateCollections(true);
         logger.info('Content structure metadata updated successfully');
         return json({
           success: true,

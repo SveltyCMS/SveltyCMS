@@ -10,7 +10,6 @@ import type { Translation, ContentNode, DatabaseResult, DatabaseError } from '@s
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-import type { CollectionData } from '@root/src/content/types';
 
 // Generic schema definition for Content Structure
 export const contentStructureSchemaDefinition = {
@@ -190,7 +189,7 @@ const createDatabaseError = (error: unknown, code: string, message: string): Dat
 };
 
 // Create the base model
-const BaseContentStructure = mongoose.model<ContentStructureDocument, ContentStructureModel>('system_content_structure', contentStructureSchema);
+const BaseContentStructure = mongoose.models.system_content_structure ?? mongoose.model<ContentStructureDocument, ContentStructureModel>('system_content_structure', contentStructureSchema);
 
 // Create discriminators for categories and collections
 BaseContentStructure.discriminator('category', new Schema<CategoryDocument>({}, { discriminatorKey: 'type' }));

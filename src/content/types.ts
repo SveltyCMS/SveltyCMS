@@ -8,6 +8,7 @@ import type { ModifyRequestParams } from '@widgets';
 
 // Auth
 import type { RolePermissions } from '@src/auth/types';
+import type { ContentNode } from '../databases/dbInterface';
 
 // Widget field type definition
 export type WidgetKeys = keyof typeof widgets;
@@ -74,6 +75,16 @@ export type MinimalContentNode = {
   path: string;
   nodeType: 'category';
 };
+
+
+export type ContentNodeOperatianType = 'create' | 'delete' | 'move' | 'rename' | 'update';
+
+export type ContentNodeOperation = {
+  type: ContentNodeOperatianType;
+  node: ContentNode
+
+}
+
 // Category interface for representing the folder structure
 export interface Category {
   _id: string; // UUID for Category

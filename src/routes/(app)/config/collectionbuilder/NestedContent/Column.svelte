@@ -104,7 +104,7 @@
 	}
 
 	function handleCategoryEdit() {
-		onEditCategory({ name, icon, path, _id: item.id as DatabaseId });
+		onEditCategory(item);
 	}
 
 	// Modal handling
@@ -147,7 +147,7 @@
 			use:dndzone={{ items: item.children ?? [], flipDurationMs, centreDraggedOnCursor: true }}
 			onconsider={handleDndConsider}
 			onfinalize={handleDndFinalize}
-			class="min-h-6 py-1"
+			class="min-h-10 py-1"
 			role="list"
 			aria-label={`${isCategory ? 'Category' : 'Collection'} children`}
 		>
