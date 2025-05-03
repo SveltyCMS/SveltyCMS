@@ -60,13 +60,20 @@ async function testDatabaseConnection(dbType, { host, port, user, password, data
 	} else if (dbType === 'mariadb') {
 		const mariadb = await import('mariadb');
 		try {
-			const connection = await mariadb.createConnection({
+			// Allow empty credentials for localhost connections
+			const connectionOptions = {
 				host,
 				port,
-				user,
-				password,
 				database
-			});
+			};
+
+			// Only add user/password if provided or not localhost
+			if ((user && password) || host !== 'localhost') {
+				connectionOptions.user = user;
+				connectionOptions.password = password;
+			}
+
+			const connection = await mariadb.createConnection(connectionOptions);
 			await connection.end();
 			return true;
 		} catch (error) {

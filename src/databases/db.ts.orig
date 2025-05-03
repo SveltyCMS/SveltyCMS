@@ -57,8 +57,13 @@ let adaptersLoaded = false; // Internal flag
 
 // Load database and authentication adapters
 async function loadAdapters() {
+<<<<<<< HEAD
   if (adaptersLoaded && dbAdapter) return;
   logger.debug(`Loading \x1b[34m${privateEnv.DB_TYPE}\x1b[0m adapters...`);
+=======
+	if (adaptersLoaded) return;
+	logger.debug(`Loading \x1b[34m${privateEnv.DB_TYPE}\x1b[0m adapters...`);
+>>>>>>> fab539dd928c4ffb37fcb445c8e9f9a22aa57dc1
 
 	try {
 		switch (privateEnv.DB_TYPE) {

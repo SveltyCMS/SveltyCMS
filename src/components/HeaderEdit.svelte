@@ -34,7 +34,7 @@
 
 	// Types
 	import type { Schema, FieldValue, Field, WidgetTypes } from '@src/content/types';
-	import type { ModifyRequestParams } from '../widgets/types'; // Removed unused Widget import
+	import type { ModifyRequestParams } from '../widgets/types';
 
 	// Components
 	import TranslationStatus from './TranslationStatus.svelte';
@@ -355,8 +355,13 @@
 					<span class="hidden md:block">{m.button_next()}</span>
 				</button>
 				<!-- Show More toggle remains visible -->
-				<button type="button" onclick={() => (showMore = !showMore)} aria-label="Hide extra actions" class="variant-ghost-surface btn-icon">
-					<iconify-icon icon="material-symbols:filter-list-off-outline" width="30"></iconify-icon>
+				<button
+					type="button"
+					onclick={() => (showMore = !showMore)}
+					aria-label="Hide extra actions"
+					class="variant-filled-tertiary btn-icon text-white"
+				>
+					<iconify-icon icon="material-symbols:filter-list-rounded" width="30"></iconify-icon>
 				</button>
 			{:else}
 				<!-- Mobile: Show More Inactive -->
@@ -417,7 +422,7 @@
 </header>
 
 {#if showMore}
-	<div class="-mx-2 mb-2 flex flex-col items-center justify-center gap-3 pt-2">
+	<div class="-mx-2 mb-2 flex flex-col items-center justify-center gap-3 border-b pt-2">
 		<!-- Action Buttons -->
 		<div class="flex items-center justify-center gap-3">
 			<div class="flex flex-col items-center justify-center">

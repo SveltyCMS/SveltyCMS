@@ -27,6 +27,7 @@ const validateRequired = (value, fieldName) => {
 };
 
 export async function configureMariaDB(privateConfigData = {}) {
+	let dbPassword = ''; // Initialize empty password for optional auth
 	// Notify user about alpha stage
 	note(`${pc.yellow('MariaDB support is experimental and not recommended for production.')}`, pc.yellow('Alpha Stage Notice:'));
 
@@ -79,7 +80,7 @@ export async function configureMariaDB(privateConfigData = {}) {
 		message: 'Enter your MariaDB host:',
 		placeholder: 'localhost',
 		initialValue: privateConfigData.DB_HOST || 'localhost',
-		validate: (v) => validateRequired(v, 'Host')
+		validate: (value) => validateRequired(value, 'Host')
 	});
 	if (isCancel(dbHost)) {
 		await cancelOperation();
@@ -98,30 +99,39 @@ export async function configureMariaDB(privateConfigData = {}) {
 	}
 
 	const dbUser = await text({
-		message: 'Enter your MariaDB user:',
-		placeholder: 'root',
-		initialValue: privateConfigData.DB_USER || 'root',
-		validate: (v) => validateRequired(v, 'User')
+		message: 'Enter your MariaDB user (optional):',
+		placeholder: 'Leave blank if no authentication',
+		initialValue: privateConfigData.DB_USER || ''
 	});
 	if (isCancel(dbUser)) {
 		await cancelOperation();
 		return;
 	}
 
-	const dbPassword = await password({
-		message: 'Enter your MariaDB password:',
-		validate: (v) => validateRequired(v, 'Password')
-	});
-	if (isCancel(dbPassword)) {
-		await cancelOperation();
-		return;
+	// Only ask for password if user is provided
+	if (dbUser) {
+		const dbPassword = await password({
+			message: 'Enter your MariaDB password:',
+			mask: '*'
+			// validate: (v) => validateRequired(v, 'Password')
+		});
+		if (isCancel(dbPassword)) {
+			await cancelOperation();
+			return;
+		}
+	} else {
+		dbPassword = '';
 	}
 
 	const dbName = await text({
 		message: 'Enter your MariaDB database name:',
 		placeholder: 'sveltycms_db',
 		initialValue: privateConfigData.DB_NAME || 'sveltycms_db',
-		validate: (v) => validateRequired(v, 'Database name')
+		validate: (v) => {
+			if (!v) return 'Database name is required';
+			// Return undefined for valid input to show tick
+			return undefined;
+		}
 	});
 	if (isCancel(dbName)) {
 		await cancelOperation();
@@ -134,7 +144,7 @@ export async function configureMariaDB(privateConfigData = {}) {
 		DB_HOST: dbHost,
 		DB_PORT: parseInt(dbPort, 10), // Ensure port is a number
 		DB_NAME: dbName,
-		DB_USER: dbUser,
-		DB_PASSWORD: dbPassword
+		DB_USER: dbUser || undefined, // Return undefined if blank
+		DB_PASSWORD: dbPassword || undefined // Return undefined if blank
 	};
 }

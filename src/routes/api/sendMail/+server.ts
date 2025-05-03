@@ -24,7 +24,6 @@
  */
 
 import { privateEnv } from '@root/config/private';
-import { publicEnv } from '@root/config/public';
 import { json } from '@sveltejs/kit';
 
 // Svelte
@@ -119,20 +118,46 @@ export const POST: RequestHandler = async ({ request }) => {
 
 // Send Email
 async function sendMail(email: string, subject: string, message: string, templateName: keyof typeof templates, props: EmailProps, lang: string) {
+	// Validate SMTP configuration
+	const requiredSmtpVars = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_EMAIL', 'SMTP_PASSWORD'];
+	const missingVars = requiredSmtpVars.filter(varName => !privateEnv[varName]);
+
+	if (missingVars.length > 0) {
+		throw new Error(`Missing required SMTP configuration: ${missingVars.join(', ')}`);
+	}
+
+	// Validate email format
+	if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+		throw new Error('Invalid email address format');
+	}
+
+	// Validate template exists
+	if (!templates[templateName]) {
+		throw new Error(`Invalid email template: ${templateName}`);
+	}
+
 	const transporter = nodemailer.createTransport({
 		host: privateEnv.SMTP_HOST,
 		secure: true,
 		tls: {
-			ciphers: 'SSLv3'
+			ciphers: 'SSLv3',
+			rejectUnauthorized: true
 		},
 		requireTLS: true,
-		port: privateEnv.SMTP_PORT,
+		port: Number(privateEnv.SMTP_PORT),
 		debug: true,
 		auth: {
 			user: privateEnv.SMTP_EMAIL,
 			pass: privateEnv.SMTP_PASSWORD
 		}
 	});
+
+	// Verify SMTP connection
+	try {
+		await transporter.verify();
+	} catch (err) {
+		throw new Error(`SMTP connection failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+	}
 
 	// Render email with both HTML and plain text
 	const renderedEmail = await renderEmail(templates[templateName], {
@@ -143,7 +168,7 @@ async function sendMail(email: string, subject: string, message: string, templat
 	const mailOptions: Mail.Options = {
 		from: {
 			address: privateEnv.SMTP_EMAIL!,
-			name: publicEnv.SITE_NAME
+			name: props?.sitename || 'SveltyCMS'
 		},
 		to: email,
 		subject,

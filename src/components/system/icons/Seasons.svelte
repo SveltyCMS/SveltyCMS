@@ -23,6 +23,11 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
+	// Utility function for date comparison
+	function isDateInRange(date: Date, start: Date, end: Date): boolean {
+		return date >= start && date <= end;
+	}
+
 	// Calculate Easter Sunday (Gregorian calendar)
 	function calculateEasterSunday(year: number): Date {
 		const f = Math.floor;
@@ -36,13 +41,6 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 		const day = L + 28 - 31 * f(month / 4);
 
 		return new Date(year, month - 1, day);
-	}
-
-	// Calculate Eastertide End Date
-	function calculateEastertideEndDate(year: number): Date {
-		const easterSunday = calculateEasterSunday(year);
-		easterSunday.setDate(easterSunday.getDate() + 49); // Add 49 days for Pentecost Sunday
-		return easterSunday;
 	}
 
 	// Calculate Chinese New Year (lunisolar calendar)
@@ -101,40 +99,42 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 	const date = new Date();
 	const year = date.getFullYear();
 
+	// Precompute festival dates
+	const easterSunday = calculateEasterSunday(year);
+	const eastertideEndDate = new Date(easterSunday);
+	eastertideEndDate.setDate(easterSunday.getDate() + 49);
+
+	const chineseNewYear = calculateChineseNewYear(year);
+	const midAutumnFestival = calculateMidAutumnFestival(year);
+	const dragonBoatFestival = calculateDragonBoatFestival(year);
+	const diwali = calculateDiwali(year);
+	const holi = calculateHoli(year);
+	const navratri = calculateNavratri(year);
+
 	// Western European Festivals
 	const isNewYear = date.getMonth() === 0 && date.getDate() === 1;
 	const isValentine = date.getMonth() === 1 && date.getDate() === 14;
 	const isMayDay = date.getMonth() === 4 && date.getDate() === 1;
 	const isHalloween = date.getMonth() === 9 && date.getDate() === 31;
-	const isDecember = date.getMonth() === 11;
-	const isChristmas = (date.getMonth() === 11 && date.getDate() === 25) || (date.getMonth() === 11 && date.getDate() === 24);
-	const easterSunday = calculateEasterSunday(year);
-	const eastertideEndDate = calculateEastertideEndDate(year);
-	const isEaster = date >= easterSunday && date <= eastertideEndDate;
+	const isChristmas = date.getMonth() === 11 && (date.getDate() === 24 || date.getDate() === 25);
+	const isEaster = isDateInRange(date, easterSunday, eastertideEndDate);
 
 	// East Asian Festivals
-	const chineseNewYear = calculateChineseNewYear(year);
-	const isChineseNewYear = Math.abs(date.getTime() - chineseNewYear.getTime()) < 24 * 60 * 60 * 1000 * 3; // 3 days celebration
-	const midAutumnFestival = calculateMidAutumnFestival(year);
-	const isMidAutumnFestival = Math.abs(date.getTime() - midAutumnFestival.getTime()) < 24 * 60 * 60 * 1000; // 1 day
-	const dragonBoatFestival = calculateDragonBoatFestival(year);
-	const isDragonBoatFestival = Math.abs(date.getTime() - dragonBoatFestival.getTime()) < 24 * 60 * 60 * 1000; // 1 day
-	const isCherryBlossom = isCherryBlossomSeason(date);
+	const isChineseNewYear = Math.abs(date.getTime() - chineseNewYear.getTime()) < 3 * 24 * 60 * 60 * 1000; // 3 days
+	const isMidAutumnFestival = date.toDateString() === midAutumnFestival.toDateString();
+	const isDragonBoatFestival = date.toDateString() === dragonBoatFestival.toDateString();
+	const isCherryBlossom = date.getMonth() === 3; // April
 
 	// South Asian Festivals
-	const diwali = calculateDiwali(year);
-	const isDiwali = Math.abs(date.getTime() - diwali.getTime()) < 24 * 60 * 60 * 1000 * 5; // 5 days celebration
-	const holi = calculateHoli(year);
-	const isHoli = Math.abs(date.getTime() - holi.getTime()) < 24 * 60 * 60 * 1000 * 2; // 2 days celebration
-	const navratri = calculateNavratri(year);
-	const isNavratri = Math.abs(date.getTime() - navratri.getTime()) < 24 * 60 * 60 * 1000 * 9; // 9 days celebration
+	const isDiwali = Math.abs(date.getTime() - diwali.getTime()) < 5 * 24 * 60 * 60 * 1000; // 5 days
+	const isHoli = Math.abs(date.getTime() - holi.getTime()) < 2 * 24 * 60 * 60 * 1000; // 2 days
+	const isNavratri = Math.abs(date.getTime() - navratri.getTime()) < 9 * 24 * 60 * 60 * 1000; // 9 days
 </script>
 
 {#if publicEnv.SEASONS === true}
 	{#if publicEnv.SEASON_REGION === 'Western_Europe'}
-		{#if isNewYear && !isDecember}
-			<!-- New Year New Confetti -->
-
+		{#if isNewYear && date.getMonth() !== 11}
+			<!-- New Year -->
 			<div class="-translate-y-1/2> absolute -top-28 left-1/2 z-10 -translate-x-1/2">
 				<Confetti noGravity x={[-1, 1]} y={[-1, 1]} delay={[0, 50]} colorRange={[0, 120]} />
 				<Confetti noGravity x={[-1, 1]} y={[-1, 1]} delay={[550, 550]} colorRange={[120, 240]} />
@@ -151,6 +151,7 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 			</p>
 		{/if}
 		{#if isValentine}
+			<!-- Valentine's Day -->
 			<div class=" absolute -top-28 left-1/2 -translate-x-1/2 -translate-y-1/2">
 				<iconify-icon icon="mdi:heart" width="40" class="absolute -left-[60px] -top-[10px] text-red-600"></iconify-icon>
 				<iconify-icon icon="mdi:cards-heart" width="40" class="absolute -right-[60px] -top-[20px] text-pink-500"></iconify-icon>
@@ -162,6 +163,7 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 		{/if}
 
 		{#if isEaster}
+			<!-- Easter -->
 			<div class="absolute -top-24 left-1/2 -translate-x-1/2 -translate-y-1/2">
 				<iconify-icon icon="mdi:egg-easter" width="40" class="absolute -top-[18px] right-2 -rotate-[25deg] text-tertiary-500"></iconify-icon>
 				<iconify-icon icon="game-icons:easter-egg" width="40" class="absolute -top-[25px] left-0 rotate-12 text-yellow-500"></iconify-icon>
@@ -171,6 +173,7 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 		{/if}
 
 		{#if isMayDay}
+			<!-- May Day -->
 			<div class="absolute -top-24 left-1/2 -translate-x-1/2 -translate-y-1/2">
 				<iconify-icon icon="noto:tulip" width="60" class="absolute -left-[16px] -top-[45px] rotate-12"></iconify-icon>
 				<iconify-icon icon="fluent-emoji:tulip" width="40" class="absolute -top-[14px] right-[20px] -rotate-12"></iconify-icon>
@@ -179,11 +182,13 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 		{/if}
 
 		{#if isHalloween}
+			<!-- Halloween -->
 			<div class="">Halloween</div>
 			<img src="/seasons/Halloween.avif" alt="Spider" class="absolute -bottom-[200px] left-1/2 -translate-x-1/2 -translate-y-1/2" />
 		{/if}
 
 		{#if isChristmas}
+			<!-- Christmas -->
 			<img
 				src="/seasons/SantaHat.avif"
 				alt="Santa hat"
@@ -195,6 +200,7 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 
 	{#if publicEnv.SEASON_REGION === 'East_Asia'}
 		{#if isChineseNewYear}
+			<!-- Chinese New Year -->
 			<div class="absolute left-1/2 top-[-50px] justify-center">
 				<Confetti noGravity x={[-1, 1]} y={[-1, 1]} delay={[0, 50]} colorRange={[0, 60]} />
 				<iconify-icon icon="noto:lantern" width="40" class="absolute -left-[60px] -top-[20px] text-red-600"></iconify-icon>
@@ -204,6 +210,7 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 		{/if}
 
 		{#if isCherryBlossom}
+			<!-- Cherry Blossom Season -->
 			<div class="absolute left-1/2 top-[-50px] justify-center">
 				<iconify-icon icon="noto:cherry-blossom" width="40" class="absolute -left-[60px] -top-[20px] text-pink-400"></iconify-icon>
 				<iconify-icon icon="noto:cherry-blossom" width="60" class="absolute -right-[140px] top-[40px] text-pink-300"></iconify-icon>
@@ -212,12 +219,14 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 		{/if}
 
 		{#if isDragonBoatFestival}
+			<!-- Dragon Boat Festival -->
 			<div class="absolute left-1/2 top-[-50px] justify-center">
 				<iconify-icon icon="noto:dragon" width="100" class="absolute -left-[00px] -top-[35px] rotate-12"></iconify-icon>
 			</div>
 		{/if}
 
 		{#if isMidAutumnFestival}
+			<!-- Mid-Autumn Festival -->
 			<div class="absolute left-1/2 top-[-50px] justify-center">
 				<iconify-icon icon="noto:full-moon" width="80" class="absolute -left-[100px] -top-[10px]"></iconify-icon>
 				<iconify-icon icon="noto:moon-cake" width="60" class="absolute -right-[120px] top-[220px]"></iconify-icon>
@@ -227,6 +236,7 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 
 	{#if publicEnv.SEASON_REGION === 'South_Asia'}
 		{#if isDiwali}
+			<!-- Diwali -->
 			<div class="absolute left-1/2 top-[-50px] justify-center">
 				<Confetti noGravity x={[-1, 1]} y={[-1, 1]} delay={[0, 50]} colorRange={[30, 60]} />
 				<iconify-icon icon="noto:diya-lamp" width="70" class="absolute left-[120px] top-[190px]"></iconify-icon>
@@ -239,6 +249,7 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 		{/if}
 
 		{#if isHoli}
+			<!-- Holi -->
 			<div class="absolute inset-0 flex">
 				<!-- Powder  -->
 				<div class="h-full w-full translate-y-8 bg-gradient-to-b from-red-300/80 via-red-400/80 to-transparent blur-xl"></div>
@@ -263,6 +274,7 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 			</p>
 		{/if}
 		{#if isNavratri}
+			<!-- Navratri -->
 			<div class="absolute left-1/2 top-[-50px] justify-center">
 				<iconify-icon icon="noto:prayer-beads" width="40" class="absolute -left-[100px] top-[30px]"></iconify-icon>
 				<iconify-icon icon="token-branded:starl" width="40" class="absolute -right-[60px] -top-[20px]"></iconify-icon>

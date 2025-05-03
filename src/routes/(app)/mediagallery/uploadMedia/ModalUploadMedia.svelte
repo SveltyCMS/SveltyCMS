@@ -285,13 +285,13 @@
 
 							<!-- Media Filename -->
 							<div
-								class="label text-tertiary-500 dark:bg-surface-600 dark:text-primary-500 mt-1 overflow-hidden overflow-ellipsis whitespace-normal bg-gray-100 p-2 text-center"
+								class="label mt-1 overflow-hidden overflow-ellipsis whitespace-normal bg-gray-100 p-2 text-center text-tertiary-500 dark:bg-surface-600 dark:text-primary-500"
 							>
 								{file.name}
 							</div>
 
 							<!-- Media Type & Size -->
-							<div class="dark:bg-surface-700 flex flex-grow items-center justify-between p-1">
+							<div class="flex flex-grow items-center justify-between p-1 dark:bg-surface-700">
 								<div class="variant-ghost-tertiary badge flex items-center gap-1">
 									<!-- Media Icon & type  -->
 									<iconify-icon icon={iconName} width="16" height="16"></iconify-icon>
@@ -308,9 +308,9 @@
 				</div>
 
 				<!-- File input for adding more files -->
-				<div class="border-surface-400 mb-4 mt-2 flex items-center justify-between border-t p-4">
+				<div class="mb-4 mt-2 flex items-center justify-between border-t border-surface-400 p-4">
 					<div class="mb-4 mt-2 flex items-center gap-2">
-						<label for="file-input" class="text-tertiary-500 dark:text-primary-500 block">Add more files:</label>
+						<label for="file-input" class="block text-tertiary-500 dark:text-primary-500">Add more files:</label>
 						<input id="file-input" type="file" multiple onchange={handleFileInputChange} />
 					</div>
 					{#if duplicateWarning}
@@ -323,7 +323,7 @@
 
 		<footer class="modal-footer m-4 flex w-full justify-between {parent.regionFooter} flex-shrink-0">
 			<button type="button" class="variant-outline-secondary btn" onclick={handleCancel}>{m.button_cancel()}</button>
-			<button type="submit" form="upload-form" class="variant-filled-tertiary dark:variant-filled-primary btn {parent.buttonPositive}"
+			<button type="submit" form="upload-form" class="variant-filled-tertiary btn dark:variant-filled-primary {parent.buttonPositive}"
 				>{m.button_save()}</button
 			>
 		</footer>

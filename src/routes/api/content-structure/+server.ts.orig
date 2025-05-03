@@ -89,15 +89,23 @@ export const POST: RequestHandler = async ({ request }) => {
 		const action = data.action;
 		logger.debug('POST request received', { data, action });
 
+<<<<<<< HEAD
     switch (action) {
       case 'updateContentStructure': {
         // Updates metadata for categories and collections
         const { items }: { items: ContentNodeOperation[] } = data;
+=======
+		switch (action) {
+			case 'updateContentStructure': {
+				// Updates metadata for categories and collections
+				const { items }: { items: ContentNode[] } = data;
+>>>>>>> fab539dd928c4ffb37fcb445c8e9f9a22aa57dc1
 
 				if (!items || !Array.isArray(items)) {
 					throw error(400, 'Items array is required');
 				}
 
+<<<<<<< HEAD
         const contentStructure = await contentManager.upsertContentNodes(items);
 
 
@@ -114,6 +122,27 @@ export const POST: RequestHandler = async ({ request }) => {
         if (!browser && isRedisEnabled()) {
           await clearCache('api:content-structure:*');
         }
+=======
+				for (const node of items) {
+					// console.debug('Updating content structure node', node)
+					await dbAdapter?.content.nodes.upsertContentStructureNode(node);
+				}
+
+				await contentManager.updateCollections(true);
+				const { contentStructure } = await contentManager.getCollectionData();
+				logger.info('Content structure metadata updated successfully');
+				return json({
+					success: true,
+					contentStructure,
+					message: 'Content structure metadata updated successfully'
+				});
+			}
+			case 'recompile': {
+				// Clear Redis cache if available
+				if (!browser && isRedisEnabled()) {
+					await clearCache('api:content-structure:*');
+				}
+>>>>>>> fab539dd928c4ffb37fcb445c8e9f9a22aa57dc1
 
 				// Reset the content manager's internal state and force recompilation
 				await contentManager.updateCollections(true);

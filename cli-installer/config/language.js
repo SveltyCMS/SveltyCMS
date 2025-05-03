@@ -14,6 +14,7 @@ import { Title, cancelOperation } from '../cli-installer.js';
 
 // Languages
 const languageOptions = [
+	{ value: 'bn', label: 'Bengali' },
 	{ value: 'da', label: 'Danish' },
 	{ value: 'de', label: 'German' },
 	{ value: 'en', label: 'English' },
@@ -68,7 +69,7 @@ export async function configureLanguage(configData = {}) {
 	}));
 
 	const DEFAULT_CONTENT_LANGUAGE = await select({
-		message: 'Choose the default content language. Default is English:',
+		message: 'Choose the default content language. (Default is English):',
 		options: options,
 		required: true,
 		initialValue: configData?.DEFAULT_CONTENT_LANGUAGE || 'en'
@@ -80,7 +81,7 @@ export async function configureLanguage(configData = {}) {
 
 	let AVAILABLE_CONTENT_LANGUAGES = await multiselect({
 		// Changed const to let
-		message: 'Select the available content languages. Default is English/German:',
+		message: 'Select the available content languages. (Default is English/German):',
 		options: options,
 		required: true,
 		initialValues: configData?.AVAILABLE_CONTENT_LANGUAGES || ['en', 'de'],
@@ -109,7 +110,7 @@ export async function configureLanguage(configData = {}) {
 	}
 
 	const DEFAULT_SYSTEM_LANGUAGE = await select({
-		message: 'Choose the default system language. Default is English:',
+		message: 'Choose the default system language. (Default is English):',
 		options: options,
 		required: true,
 		initialValue: configData?.DEFAULT_SYSTEM_LANGUAGE || 'en'
@@ -121,7 +122,7 @@ export async function configureLanguage(configData = {}) {
 
 	let AVAILABLE_SYSTEM_LANGUAGES = await multiselect({
 		// Changed const to let
-		message: 'Select the available system languages. Default is English/German:',
+		message: 'Select the available system languages. (Default is English/German):',
 		options: options,
 		required: true,
 		initialValues: configData?.AVAILABLE_SYSTEM_LANGUAGES || ['en', 'de'],

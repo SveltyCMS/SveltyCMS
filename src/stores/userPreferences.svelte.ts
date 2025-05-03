@@ -1,11 +1,11 @@
 /**
  * @file src/stores/userPreferences.svelte.ts
- * @description User preferences management using Svelte 5 runes
+ * @description User preferences management 
  *
  * Features:
  * - Widget preferences for different screen sizes
  * - Database persistence
- * - Screen size-specific layouts
+ * - Screen size - specific layouts
  * - Widget addition and removal
  * - Error handling and recovery
  */
@@ -68,11 +68,17 @@ function createPreferencesStores() {
 	const state = store<PreferencesState>(initialState);
 
 	// Derived values
-	const hasPreferences = $derived(Object.values(state().preferences).some((widgets) => widgets.length > 0));
+	const hasPreferences = $derived.by(() => {
+		return Object.values(state().preferences).some((widgets) => widgets.length > 0);
+	});
 
-	const widgetCount = $derived(Object.values(state().preferences).reduce((sum, widgets) => sum + widgets.length, 0));
+	const widgetCount = $derived.by(() => {
+		return Object.values(state().preferences).reduce((sum, widgets) => sum + widgets.length, 0);
+	});
 
-	const canSync = $derived(!state().isLoading && !!state().currentUserId);
+	const canSync = $derived.by(() => {
+		return !state().isLoading && !!state().currentUserId;
+	});
 
 	// Helper function to get widgets for a specific screen size
 	function getScreenSizeWidgets(size: ScreenSize): WidgetPreference[] {
@@ -81,8 +87,8 @@ function createPreferencesStores() {
 
 	// Ensure database is initialized
 	async function ensureDbInitialized(): Promise<void> {
-		if (browser) {
-			// Removed dbInitPromise from here
+		if (browser && dbAdapter) {
+			await dbAdapter.init?.();
 		}
 	}
 
@@ -92,10 +98,10 @@ function createPreferencesStores() {
 
 		// Check every 5 minutes
 		syncInterval = setInterval(
-			() => {
+			async () => {
 				const currentState = state();
 				if (currentState.currentUserId && (!currentState.lastSyncTime || Date.now() - currentState.lastSyncTime.getTime() > 30 * 60 * 1000)) {
-					loadPreferences(currentState.currentUserId).catch(console.error);
+					await loadPreferences(currentState.currentUserId).catch(console.error);
 				}
 			},
 			5 * 60 * 1000
@@ -113,18 +119,13 @@ function createPreferencesStores() {
 	// Set preferences for a specific screen size
 	async function setPreference(userId: string, screenSize: ScreenSize, widgets: WidgetPreference[]) {
 		const currentState = state();
-
 		if (currentState.isLoading) return;
 
 		state.update((s) => ({ ...s, isLoading: true, error: null }));
 
 		try {
 			await ensureDbInitialized();
-
-			const newPreferences = {
-				...currentState.preferences,
-				[screenSize]: widgets
-			};
+			const newPreferences = { ...currentState.preferences, [screenSize]: widgets };
 
 			if (dbAdapter) {
 				await dbAdapter.updateSystemPreferences(userId, screenSize, widgets);
@@ -150,7 +151,6 @@ function createPreferencesStores() {
 	// Load preferences from database
 	async function loadPreferences(userId: string) {
 		const currentState = state();
-
 		if (currentState.isLoading) return;
 
 		state.update((s) => ({ ...s, isLoading: true, error: null }));
@@ -168,6 +168,8 @@ function createPreferencesStores() {
 						currentUserId: userId,
 						isLoading: false
 					}));
+				} else {
+					throw new Error('No preferences found');
 				}
 			}
 		} catch (error) {
@@ -176,20 +178,19 @@ function createPreferencesStores() {
 				error: error instanceof Error ? error.message : 'Failed to load preferences',
 				isLoading: false
 			}));
+			throw error;
 		}
 	}
 
 	// Clear all preferences
 	async function clearPreferences(userId: string) {
 		const currentState = state();
-
 		if (currentState.isLoading) return;
 
 		state.update((s) => ({ ...s, isLoading: true, error: null }));
 
 		try {
 			await ensureDbInitialized();
-
 			const emptyPreferences = {
 				[ScreenSize.SM]: [],
 				[ScreenSize.MD]: [],
@@ -220,19 +221,14 @@ function createPreferencesStores() {
 	// Add a widget to preferences
 	async function addWidget(userId: string, screenSize: ScreenSize, widget: WidgetPreference) {
 		const currentState = state();
-
 		if (currentState.isLoading) return;
 
 		state.update((s) => ({ ...s, isLoading: true, error: null }));
 
 		try {
 			await ensureDbInitialized();
-
 			const updatedWidgets = [...currentState.preferences[screenSize], widget];
-			const newPreferences = {
-				...currentState.preferences,
-				[screenSize]: updatedWidgets
-			};
+			const newPreferences = { ...currentState.preferences, [screenSize]: updatedWidgets };
 
 			if (dbAdapter) {
 				await dbAdapter.updateSystemPreferences(userId, screenSize, updatedWidgets);
@@ -257,19 +253,14 @@ function createPreferencesStores() {
 	// Remove a widget from preferences
 	async function removeWidget(userId: string, screenSize: ScreenSize, widgetId: string) {
 		const currentState = state();
-
 		if (currentState.isLoading) return;
 
 		state.update((s) => ({ ...s, isLoading: true, error: null }));
 
 		try {
 			await ensureDbInitialized();
-
 			const updatedWidgets = currentState.preferences[screenSize].filter((w) => w.id !== widgetId);
-			const newPreferences = {
-				...currentState.preferences,
-				[screenSize]: updatedWidgets
-			};
+			const newPreferences = { ...currentState.preferences, [screenSize]: updatedWidgets };
 
 			if (dbAdapter) {
 				await dbAdapter.updateSystemPreferences(userId, screenSize, updatedWidgets);
@@ -301,9 +292,9 @@ function createPreferencesStores() {
 		state,
 
 		// Derived values
-		hasPreferences,
-		widgetCount,
-		canSync,
+		hasPreferences: () => hasPreferences2,
+		widgetCount: () => widgetCount2,
+		canSync: () => canSync2,
 
 		// Methods
 		getScreenSizeWidgets,
@@ -329,18 +320,10 @@ export const userPreferences = {
 	removeWidget: stores.removeWidget
 };
 
-// Export derived values
-export const hasPreferences = {
-	subscribe: () => stores.hasPreferences
-};
-
-export const widgetCount = {
-	subscribe: () => stores.widgetCount
-};
-
-export const canSync = {
-	subscribe: () => stores.canSync
-};
+// Export derived values as functions
+export const hasPreferences = stores.hasPreferences;
+export const widgetCount = stores.widgetCount;
+export const canSync = stores.canSync;
 
 // Export helper function
 export const getScreenSizeWidgets = stores.getScreenSizeWidgets;
