@@ -65,11 +65,40 @@ export async function getData(query: {
 	filter?: string;
 	sort?: string;
 }) {
-	const q = toFormData({ method: 'GET', ...query });
-	return (await axios.post('/api/query', q).then((data) => data.data)) as {
-		entryList: Entry[];
-		pagesCount: number;
-	};
+	try {
+		// Ensure collectionId is properly formatted
+		const collectionId = query.collectionId.trim().toLowerCase();
+
+		// Create query with fallback language handling
+		const q = toFormData({
+			method: 'GET',
+			...query,
+			collectionId,
+			contentLanguage: query.contentLanguage || 'en' // Default to English if not specified
+		});
+
+		const response = await axios.post('/api/query', q);
+
+		// Handle empty or invalid responses
+		if (!response.data || !Array.isArray(response.data.entryList)) {
+			throw new Error('Invalid response format');
+		}
+
+		// Process dates from MongoDB
+		const processedEntries = response.data.entryList.map(entry => ({
+			...entry,
+			createdAt: entry.createdAt ? new Date(entry.createdAt) : null,
+			updatedAt: entry.updatedAt ? new Date(entry.updatedAt) : null
+		}));
+
+		return {
+			entryList: processedEntries,
+			pagesCount: response.data.pagesCount || 1
+		};
+	} catch (error) {
+		console.error('Error in getData:', error);
+		throw error;
+	}
 }
 
 // Function to add data to a specified collection

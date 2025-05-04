@@ -70,8 +70,15 @@ import type {
 	DatabaseError,
 	DatabaseAdapter,
 	CollectionModel,
-	MediaItem
+	MediaItem,
+	ISODateString
 } from '../dbInterface';
+import {
+	isISODateString,
+	dateToISODateString,
+	stringToISODateString,
+	normalizeDateInput
+} from '../../utils/dateUtils';
 
 // Utility function to handle DatabaseErrors consistently
 const createDatabaseError = (error: unknown, code: string, message: string): DatabaseError => {
@@ -115,9 +122,19 @@ export class MongoDBAdapter implements DatabaseAdapter {
 			return path;
 		},
 		validateId(id: string): boolean {
-			return true;
+			return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
 		},
-		createPagination<T>(items: T[], options: PaginationOptions): PaginatedResult<T> {}
+		createPagination<T>(items: T[], options: PaginationOptions): PaginatedResult<T> {
+			const { page = 1, pageSize = 10 } = options;
+			const start = (page - 1) * pageSize;
+			const end = start + pageSize;
+			return {
+				items: items.slice(start, end),
+				total: items.length,
+				page,
+				pageSize
+			};
+		}
 	};
 
 	//  Content Structure Management
@@ -381,14 +398,21 @@ export class MongoDBAdapter implements DatabaseAdapter {
 	//  CRUD Operations
 	crud = {
 		// Implementing findOne method
-		findOne: async <T extends DocumentContent>(collection: string, query: FilterQuery<T>): Promise<T | null> => {
+		findOne: async <T extends DocumentContent>(collection: string, query: FilterQuery<T>): Promise<(T & { createdAt?: ISODateString; updatedAt?: ISODateString }) | null> => {
 			try {
 				const model = mongoose.models[collection] as Model<T>;
 				if (!model) {
 					logger.error(`Collection ${collection} does not exist.`);
 					throw new Error(`Collection ${collection} does not exist.`);
 				}
-				return await model.findOne(query).lean().exec();
+				const result = await model.findOne(query).lean().exec();
+				if (result && result.createdAt) {
+					result.createdAt = dateToISODateString(new Date(result.createdAt));
+				}
+				if (result && result.updatedAt) {
+					result.updatedAt = dateToISODateString(new Date(result.updatedAt));
+				}
+				return result;
 			} catch (error) {
 				logger.error(`Error in findOne for collection ${collection}:`, { error });
 				throw new Error(`Error in findOne for collection ${collection}`);
@@ -396,14 +420,23 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		},
 
 		// Implementing findMany method
-		findMany: async <T extends DocumentContent>(collection: string, query: FilterQuery<T>): Promise<T[]> => {
+		findMany: async <T extends DocumentContent>(collection: string, query: FilterQuery<T>): Promise<(T & { createdAt?: ISODateString; updatedAt?: ISODateString })[]> => {
 			try {
 				const model = mongoose.models[collection] as Model<T>;
 				if (!model) {
 					logger.error(`findMany failed. Collection ${collection} does not exist.`);
 					throw new Error(`findMany failed. Collection ${collection} does not exist.`);
 				}
-				return await model.find(query).lean().exec();
+				const results = await model.find(query).lean().exec();
+				return results.map(result => {
+					if (result.createdAt) {
+						result.createdAt = dateToISODateString(new Date(result.createdAt));
+					}
+					if (result.updatedAt) {
+						result.updatedAt = dateToISODateString(new Date(result.updatedAt));
+					}
+					return result;
+				});
 			} catch (error) {
 				logger.error(`Error in findMany for collection ${collection}:`, { error });
 				throw new Error(`Error in findMany for collection ${collection}`);
@@ -417,8 +450,24 @@ export class MongoDBAdapter implements DatabaseAdapter {
 					logger.error(`insert failed. Collection ${collection} does not exist.`);
 					throw new Error(`insert failed. Collection ${collection} does not exist.`);
 				}
-				return await model.create(doc);
+
+				// Validate and normalize date fields
+				const now = new Date();
+				const validatedDoc = {
+					...doc,
+					createdAt: doc.createdAt ? normalizeDateInput(doc.createdAt) : dateToISODateString(now),
+					updatedAt: doc.updatedAt ? normalizeDateInput(doc.updatedAt) : dateToISODateString(now)
+				};
+
+				return await model.create(validatedDoc);
 			} catch (error) {
+				if (error.name === 'ValidationError' && error.message.includes('Cast to date failed')) {
+					const invalidFields = Object.keys(error.errors).filter(key =>
+						error.errors[key].kind === 'Date'
+					);
+					logger.error(`Invalid date values provided for fields: ${invalidFields.join(', ')}`);
+					throw new Error(`Invalid date values provided for fields: ${invalidFields.join(', ')}`);
+				}
 				logger.error(`Error inserting document into ${collection}:`, { error });
 				throw new Error(`Error inserting document into ${collection}`);
 			}
@@ -440,7 +489,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		},
 
 		// Implementing updateOne method
-		update: async <T extends DocumentContent = DocumentContent>(collection: string, query: FilterQuery<T>, update: UpdateQuery<T>): Promise<T> => {
+		update: async <T extends DocumentContent = DocumentContent>(collection: string, query: FilterQuery<T>, update: UpdateQuery<T>): Promise<T & { createdAt?: ISODateString; updatedAt?: ISODateString }> => {
 			try {
 				const model = mongoose.models[collection] as Model<T>;
 				if (!model) {
@@ -448,10 +497,28 @@ export class MongoDBAdapter implements DatabaseAdapter {
 					throw new Error(`updateOne failed. Collection ${collection} does not exist.`);
 				}
 
+				// Validate and normalize date fields in update
+				if (update.$set) {
+					if (update.$set.createdAt && !isISODateString(update.$set.createdAt)) {
+						update.$set.createdAt = stringToISODateString(update.$set.createdAt);
+					}
+					if (update.$set.updatedAt) {
+						update.$set.updatedAt = dateToISODateString(new Date());
+					}
+				}
+
 				const result = await model.findOneAndUpdate(query, update, { new: true, strict: false }).lean().exec();
 
 				if (!result) {
 					throw new Error(`No document found to update with query: ${JSON.stringify(query)}`);
+				}
+
+				// Convert dates to ISO strings
+				if (result.createdAt) {
+					result.createdAt = dateToISODateString(new Date(result.createdAt));
+				}
+				if (result.updatedAt) {
+					result.updatedAt = dateToISODateString(new Date(result.updatedAt));
 				}
 
 				return result;
@@ -577,17 +644,41 @@ export class MongoDBAdapter implements DatabaseAdapter {
 
 		// Delete media
 		deleteMedia: async (mediaId: string): Promise<boolean> => {
-			throw new Error('Method not implemented.');
+			try {
+				const result = await mongoose.models['media_files'].deleteOne({ _id: mediaId });
+				return result.deletedCount === 1;
+			} catch (error) {
+				logger.error(`Error deleting media ${mediaId}:`, error);
+				return false;
+			}
 		},
 
 		// Fetch media in a specific folder
-		getMediaInFolder: async (folder_id: string): Promise<MediaType[]> => {
-			throw new Error('Method not implemented.');
+		getMediaInFolder: async (folderId: string): Promise<MediaType[]> => {
+			try {
+				return await mongoose.models['media_files']
+					.find({ folderId })
+					.sort({ createdAt: -1 })
+					.lean()
+					.exec();
+			} catch (error) {
+				logger.error(`Error getting media for folder ${folderId}:`, error);
+				return [];
+			}
 		},
 
 		// Move media to a virtual folder
 		moveMediaToFolder: async (mediaId: string, folderId: string): Promise<boolean> => {
-			throw new Error('Method not implemented.');
+			try {
+				const result = await mongoose.models['media_files'].updateOne(
+					{ _id: mediaId },
+					{ $set: { folderId } }
+				);
+				return result.modifiedCount === 1;
+			} catch (error) {
+				logger.error(`Error moving media ${mediaId} to folder ${folderId}:`, error);
+				return false;
+			}
 		},
 
 		//Fetch the last five media documents

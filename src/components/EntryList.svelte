@@ -27,6 +27,7 @@ Features:
 	// Utils
 	import { debounce, getFieldName, meta_data } from '@utils/utils';
 	import { deleteData, getData, setStatus } from '@utils/data';
+	import { formatDisplayDate } from '@utils/dateUtils';
 
 	// Stores
 	import { contentLanguage, systemLanguage } from '@stores/store.svelte';
@@ -126,10 +127,6 @@ Features:
 	let rowsPerPage = $state<number>(entryListPaginationSettings.rowsPerPage || 10); // Set initial rowsPerPage value
 	let totalItems = $state<number>(0); // Initialize totalItems
 
-	// Declare isFirstPage and isLastPage variables
-	let isFirstPage: boolean;
-	let isLastPage: boolean;
-
 	// Derived stores for reactive values
 	const currentLanguage = $derived(contentLanguage.value);
 	const currentSystemLanguage = $derived(systemLanguage.value);
@@ -201,9 +198,17 @@ Features:
 							});
 						}
 					}
-					// Add createdAt and updatedAt properties localized to the system language
-					obj.createdAt = entry.createdAt ? new Date(Number(entry.createdAt) * 1000).toLocaleString(currentSystemLanguage) : 'N/A';
-					obj.updatedAt = entry.updatedAt ? new Date(Number(entry.updatedAt) * 1000).toLocaleString(currentSystemLanguage) : 'N/A';
+					// Add properly formatted createdAt and updatedAt dates with error handling
+					try {
+						obj.createdAt = entry.createdAt ? formatDisplayDate(entry.createdAt, currentSystemLanguage) : 'N/A';
+					} catch {
+						obj.createdAt = 'Invalid Date';
+					}
+					try {
+						obj.updatedAt = entry.updatedAt ? formatDisplayDate(entry.updatedAt, currentSystemLanguage) : 'N/A';
+					} catch {
+						obj.updatedAt = 'Invalid Date';
+					}
 					obj._id = entry._id;
 					return obj;
 				})
@@ -241,9 +246,6 @@ Features:
 		SelectAll = false;
 		// Update pagesCount after fetching data
 		pagesCount = data?.pagesCount || 1;
-		// Update isFirstPage and isLastPage based on currentPage and pagesCount
-		isFirstPage = currentPage === 1;
-		isLastPage = currentPage === pagesCount;
 		// Adjust currentPage to the last page if it exceeds the new total pages count after changing the rows per page.
 		if (currentPage > (data?.pagesCount || 0)) {
 			currentPage = data?.pagesCount || 1;
@@ -267,10 +269,11 @@ Features:
 	$effect(() => {
 		if (currentCollection) refreshTableData();
 	});
-	// Trigger refreshTableData when contentLanguage changes, but don't fetch data
+	// Trigger full refresh when contentLanguage changes to load translations
 	$effect(() => {
-		// refreshTableData(false);
-		filters = {};
+		if (currentLanguage) {
+			refreshTableData(true);
+		}
 	});
 	// Reset currentPage to 1 when the collection changes
 	$effect(() => {
