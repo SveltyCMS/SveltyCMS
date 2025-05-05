@@ -2,14 +2,13 @@
 @file src/routes/(app)/imageEditor/Crop.svelte
 @component
 **This component provides cropping functionality for an image within a Konva stage, allowing users to define a crop area and apply the crop**
- 
 
 ### Props 
 - `layer`: Konva.Layer - The Konva layer where the image and effects are added.
 - `imageNode`: Konva.Image - The Konva image node representing the original image.
-- `on:cropApplied` (optional): Function to be called when the crop is applied.
-- `on:cancelCrop` (optional): Function to be called when the crop is canceled.
-- `on:cropReset` (optional): Function to be called when the crop is reset.
+- `onCropApplied` (optional): Function to be called when the crop is applied.
+- `onCancelCrop` (optional): Function to be called when the crop is canceled.
+- `onCropReset` (optional): Function to be called when the crop is reset.
 -->
 
 <script lang="ts">
@@ -18,18 +17,12 @@
 	interface Props {
 		layer: Konva.Layer;
 		imageNode: Konva.Image;
-		'on:cropApplied'?: () => void;
-		'on:cancelCrop'?: () => void;
-		'on:cropReset'?: () => void;
+		onCropApplied?: () => void;
+		onCancelCrop?: () => void;
+		onCropReset?: () => void;
 	}
 
-	let {
-		layer,
-		imageNode,
-		'on:cropApplied': onCropApplied = () => {},
-		'on:cancelCrop': onCancelCrop = () => {},
-		'on:cropReset': onCropReset = () => {}
-	} = $props() as Props;
+	const { layer, imageNode, onCropApplied = () => {}, onCancelCrop = () => {}, onCropReset = () => {} } = $props() as Props;
 
 	let cropShape = $state<'rectangle' | 'square' | 'circular'>('rectangle');
 	let cropTool = $state<Konva.Rect | Konva.Circle | null>(null);
@@ -182,7 +175,7 @@
 		};
 	}
 
-	function cancelCrop() {
+	function exitCrop() {
 		onCancelCrop();
 	}
 
@@ -201,7 +194,16 @@
 
 <!-- Crop Controls UI -->
 <div class="wrapper">
-	<div class="flex items-center justify-around space-x-4">
+	<div class="flex w-full items-center justify-between">
+		<div class="flex items-center gap-2">
+			<!-- Back button at top of component -->
+			<button onclick={exitCrop} aria-label="Exit rotation mode" class="variant-outline-tertiary btn-icon">
+				<iconify-icon icon="material-symbols:close-rounded" width="20"></iconify-icon>
+			</button>
+
+			<h3 class="relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Crop Settings</h3>
+		</div>
+
 		<div class="flex flex-col space-y-2">
 			<label for="cropShape" class="text-sm font-medium">Crop Shape:</label>
 			<select id="cropShape" bind:value={cropShape} class="select-bordered select">
@@ -210,13 +212,14 @@
 				<option value="circular">Circular</option>
 			</select>
 		</div>
-	</div>
-	<div class="mt-4 flex justify-around gap-4">
-		<button onclick={cancelCrop} aria-label="Cancel Crop" class="variant-filled-error btn">Cancel</button>
-		<button onclick={resetCrop} aria-label="Reset Crop" class="variant-outline btn">Reset</button>
-		<button onclick={applyCrop} aria-label="Apply Crop" class="variant-filled-primary btn">
-			<iconify-icon icon="mdi:crop" width="20"></iconify-icon>
-			Apply Crop
-		</button>
+
+		<div class="mt-4 flex justify-around gap-4">
+			<button onclick={resetCrop} aria-label="Reset Crop" class="variant-outline btn text-center">Reset</button>
+
+			<button onclick={applyCrop} aria-label="Apply Crop" class="variant-filled-primary btn">
+				<iconify-icon icon="mdi:crop" width="20"></iconify-icon>
+				Apply Crop
+			</button>
+		</div>
 	</div>
 </div>

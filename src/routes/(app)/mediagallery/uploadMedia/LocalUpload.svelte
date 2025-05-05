@@ -47,7 +47,8 @@
 			response: (r: any) => {
 				if (r) {
 					console.log('response:', r);
-					uploadFiles();
+					// Upload is handled exclusively by ModalUploadMedia component
+					// which receives uploadFiles as a prop
 				}
 			}
 		};

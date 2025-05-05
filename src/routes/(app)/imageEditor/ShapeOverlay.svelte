@@ -151,9 +151,21 @@ Users can adjust the fill color, stroke color, stroke width, opacity, and manage
 
 <!-- Shape Overlay Controls UI -->
 <div class="wrapper">
-	<h3 class=" relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Shape Overlay</h3>
+	<div class="flex w-full items-center justify-between">
+		<div class="flex items-center gap-2">
+			<!-- Back button at top of component -->
+			<button onclick={exitShapeOverlay} aria-label="Exit rotation mode" class="variant-outline-tertiary btn-icon">
+				<iconify-icon icon="material-symbols:close-rounded" width="20"></iconify-icon>
+			</button>
 
-	<button onclick={exitShapeOverlay} class="variant-ghost-primary btn-icon absolute -top-2 right-2 font-bold"> Exit </button>
+			<h3 class="relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Shape Overlay Settings</h3>
+		</div>
+
+		<!-- Action Buttons -->
+		<div class="mt-4 flex justify-around gap-4">
+			<button onclick={resetFocalPoint} class="variant-filled-primary btn" aria-label="Reset focal point to center"> Reset Focal Point </button>
+		</div>
+	</div>
 
 	<div class="grid grid-cols-2 gap-2">
 		<label class="flex flex-col">

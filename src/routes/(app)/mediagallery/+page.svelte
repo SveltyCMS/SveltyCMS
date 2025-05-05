@@ -380,15 +380,15 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 				<div class="flex flex-col items-center justify-center">
 					<div class="flex sm:divide-x sm:divide-gray-500">
 						{#if view === 'grid'}
-							<button onclick={() => handleViewChange('table')} aria-label="table" class="btn flex flex-col items-center justify-center px-1">
+							<button onclick={() => handleViewChange('table')} aria-label="Table" class="btn flex flex-col items-center justify-center px-1">
 								<p class="text-center text-xs">Display</p>
-								<iconify-icon icon="material-symbols:grid-view-rounded" height="42" style={`color: text-black dark:text-white`}></iconify-icon>
+								<iconify-icon icon="material-symbols:list-alt-outline" height="44" style={`color: text-black dark:text-white`}></iconify-icon>
 								<p class="text-xs">Table</p>
 							</button>
 						{:else}
 							<button onclick={() => handleViewChange('grid')} aria-label="Grid" class="btn flex flex-col items-center justify-center px-1">
 								<p class="text-center text-xs">Display</p>
-								<iconify-icon icon="material-symbols:list-alt-outline" height="44" style={`color: text-black dark:text-white`}></iconify-icon>
+								<iconify-icon icon="material-symbols:grid-view-rounded" height="42" style={`color: text-black dark:text-white`}></iconify-icon>
 								<p class="text-center text-xs">Grid</p>
 							</button>
 						{/if}
@@ -399,7 +399,27 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 					<div class="divide-surface-00 flex divide-x">
 						{#if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
 							<button
-								onclick={() => (gridSize = gridSize === 'small' ? 'medium' : gridSize === 'medium' ? 'large' : 'small')}
+								onclick={() => {
+									const newSize =
+										view === 'grid'
+											? gridSize === 'small'
+												? 'medium'
+												: gridSize === 'medium'
+													? 'large'
+													: 'small'
+											: tableSize === 'small'
+												? 'medium'
+												: tableSize === 'medium'
+													? 'large'
+													: 'small';
+
+									if (view === 'grid') {
+										gridSize = newSize;
+									} else {
+										tableSize = newSize;
+									}
+									storeUserPreference(view, gridSize, tableSize);
+								}}
 								type="button"
 								aria-label="Small"
 								class="px-1"
@@ -410,7 +430,27 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 							</button>
 						{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
 							<button
-								onclick={() => (gridSize = gridSize === 'small' ? 'medium' : gridSize === 'medium' ? 'large' : 'small')}
+								onclick={() => {
+									const newSize =
+										view === 'grid'
+											? gridSize === 'small'
+												? 'medium'
+												: gridSize === 'medium'
+													? 'large'
+													: 'small'
+											: tableSize === 'small'
+												? 'medium'
+												: tableSize === 'medium'
+													? 'large'
+													: 'small';
+
+									if (view === 'grid') {
+										gridSize = newSize;
+									} else {
+										tableSize = newSize;
+									}
+									storeUserPreference(view, gridSize, tableSize);
+								}}
 								type="button"
 								aria-label="Medium"
 								class="px-1"
@@ -420,7 +460,27 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 							</button>
 						{:else}
 							<button
-								onclick={() => (gridSize = gridSize === 'small' ? 'medium' : gridSize === 'medium' ? 'large' : 'small')}
+								onclick={() => {
+									const newSize =
+										view === 'grid'
+											? gridSize === 'small'
+												? 'medium'
+												: gridSize === 'medium'
+													? 'large'
+													: 'small'
+											: tableSize === 'small'
+												? 'medium'
+												: tableSize === 'medium'
+													? 'large'
+													: 'small';
+
+									if (view === 'grid') {
+										gridSize = newSize;
+									} else {
+										tableSize = newSize;
+									}
+									storeUserPreference(view, gridSize, tableSize);
+								}}
 								type="button"
 								aria-label="Large"
 								class="px-1"
@@ -488,7 +548,27 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 				<div class="flex divide-x divide-gray-500">
 					{#if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
 						<button
-							onclick={() => (gridSize = gridSize === 'small' ? 'medium' : gridSize === 'medium' ? 'large' : 'small')}
+							onclick={() => {
+								const newSize =
+									view === 'grid'
+										? gridSize === 'small'
+											? 'medium'
+											: gridSize === 'medium'
+												? 'large'
+												: 'small'
+										: tableSize === 'small'
+											? 'medium'
+											: tableSize === 'medium'
+												? 'large'
+												: 'small';
+
+								if (view === 'grid') {
+									gridSize = newSize;
+								} else {
+									tableSize = newSize;
+								}
+								storeUserPreference(view, gridSize, tableSize);
+							}}
 							type="button"
 							class="px-1 md:px-2"
 							aria-label="Small"
@@ -498,7 +578,27 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 						</button>
 					{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
 						<button
-							onclick={() => (gridSize = gridSize === 'small' ? 'medium' : gridSize === 'medium' ? 'large' : 'small')}
+							onclick={() => {
+								const newSize =
+									view === 'grid'
+										? gridSize === 'small'
+											? 'medium'
+											: gridSize === 'medium'
+												? 'large'
+												: 'small'
+										: tableSize === 'small'
+											? 'medium'
+											: tableSize === 'medium'
+												? 'large'
+												: 'small';
+
+								if (view === 'grid') {
+									gridSize = newSize;
+								} else {
+									tableSize = newSize;
+								}
+								storeUserPreference(view, gridSize, tableSize);
+							}}
 							type="button"
 							class="px-1 md:px-2"
 							aria-label="Medium"
@@ -508,7 +608,27 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 						</button>
 					{:else}
 						<button
-							onclick={() => (gridSize = gridSize === 'small' ? 'medium' : gridSize === 'medium' ? 'large' : 'small')}
+							onclick={() => {
+								const newSize =
+									view === 'grid'
+										? gridSize === 'small'
+											? 'medium'
+											: gridSize === 'medium'
+												? 'large'
+												: 'small'
+										: tableSize === 'small'
+											? 'medium'
+											: tableSize === 'medium'
+												? 'large'
+												: 'small';
+
+								if (view === 'grid') {
+									gridSize = newSize;
+								} else {
+									tableSize = newSize;
+								}
+								storeUserPreference(view, gridSize, tableSize);
+							}}
 							type="button"
 							class="px-1 md:px-2"
 							aria-label="Large"
@@ -523,7 +643,17 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	</div>
 
 	{#if view === 'grid'}
-		<MediaGrid {filteredFiles} {gridSize} ondeleteImage={handleDeleteImage} />
+		<MediaGrid
+			{filteredFiles}
+			{gridSize}
+			ondeleteImage={handleDeleteImage}
+			on:sizechange={({ detail }) => {
+				if (detail.type === 'grid') {
+					gridSize = detail.size;
+					storeUserPreference(view, gridSize, tableSize);
+				}
+			}}
+		/>
 	{:else}
 		<MediaTable {filteredFiles} {tableSize} ondeleteImage={handleDeleteImage} />
 	{/if}

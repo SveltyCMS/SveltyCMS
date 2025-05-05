@@ -26,7 +26,7 @@ Key features:
 	// Utils
 	import { formatBytes } from '@utils/utils';
 	import { getMediaUrl } from '@utils/media/mediaUtils';
-	import type { MediaBase } from '@utils/media/mediaModels';
+	import type { MediaBase, MediaTypeEnum } from '@utils/media/mediaModels';
 
 	// Components
 	import TablePagination from '@components/system/table/TablePagination.svelte';
@@ -38,6 +38,12 @@ Key features:
 		tableSize?: 'small' | 'medium' | 'large';
 		ondeleteImage?: (file: MediaBase) => void;
 		onSelectionChange?: (selectedFiles: MediaBase[]) => void;
+	}
+
+	interface SortableMedia extends MediaBase {
+		filename: string;
+		size: number;
+		type: MediaTypeEnum;
 	}
 
 	let { filteredFiles = $bindable([]), tableSize, ondeleteImage = () => {}, onSelectionChange = () => {} }: Props = $props();
@@ -74,7 +80,7 @@ Key features:
 	let sortColumn = $state('name');
 	let sortOrder = $state(1); // 1 for ascending, -1 for descending
 
-	function sort(column: keyof Pick<MediaBase, 'name' | 'size' | 'type'>) {
+	function sort(column: keyof Pick<SortableMedia, 'filename' | 'size' | 'type'>) {
 		if (sortColumn === column) {
 			sortOrder *= -1;
 		} else {
@@ -86,7 +92,7 @@ Key features:
 			if (column === 'size') {
 				return (a[column] - b[column]) * sortOrder;
 			} else {
-				return String(a[column]).localeCompare(String(b[column])) * sortOrder;
+				return String(a[column as keyof SortableMedia]).localeCompare(String(b[column as keyof SortableMedia])) * sortOrder;
 			}
 		});
 	}
@@ -108,8 +114,8 @@ Key features:
 			<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
 				<th class="w-10">Select</th>
 				<th>Thumbnail</th>
-				<th onclick={() => sort('name')}>
-					Name {sortColumn === 'name' ? (sortOrder === 1 ? '▲' : '▼') : ''}
+				<th onclick={() => sort('filename')}>
+					Name {sortColumn === 'filename' ? (sortOrder === 1 ? '▲' : '▼') : ''}
 				</th>
 				<th onclick={() => sort('size')}>
 					Size {sortColumn === 'size' ? (sortOrder === 1 ? '▲' : '▼') : ''}
@@ -128,14 +134,40 @@ Key features:
 						<TableIcons checked={selectedFiles.has(file.filename)} onCheck={(checked) => handleSelection(file, checked)} />
 					</td>
 					<td>
-						<img
-							src={getMediaUrl(file, 'thumbnail')}
-							alt={file.filename}
-							class={`relative -top-4 left-0 ${tableSize === 'small' ? 'h-32 w-auto' : tableSize === 'medium' ? 'h-48 w-44' : 'h-80 w-80'}`}
-						/>
+						{#if file?.filename && file?.path && file?.hash}
+							<img
+								src={getMediaUrl(file, 'thumbnail')}
+								alt={`Thumbnail for ${file.filename}`}
+								class={`relative -top-4 left-0 ${tableSize === 'small' ? 'h-32 w-auto' : tableSize === 'medium' ? 'h-48 w-44' : 'h-80 w-80'}`}
+								onerror={(e: Event) => {
+									const target = e.target as HTMLImageElement;
+									if (target) {
+										console.error('Failed to load media thumbnail for file:', file.filename);
+										target.src = '/static/Default_User.svg';
+										target.alt = 'Fallback thumbnail image';
+									}
+								}}
+								loading="lazy"
+								decoding="async"
+							/>
+						{:else}
+							<div
+								class="flex h-full w-full items-center justify-center bg-surface-200 dark:bg-surface-700"
+								aria-label="Missing thumbnail"
+								role="img"
+							>
+								<iconify-icon icon="bi:exclamation-triangle-fill" height="24" class="text-warning-500" aria-hidden="true"></iconify-icon>
+							</div>
+						{/if}
 					</td>
-					<td>{file.filename}</td>
-					<td>{formatBytes(file.size)}</td>
+					<td title={file.filename}>{file.filename}</td>
+					<td>
+						{#if file.size}
+							{formatBytes(file.size)}
+						{:else}
+							Size unknown
+						{/if}
+					</td>
 					<td>{file.type || 'Unknown'}</td>
 					<td>{file.path}</td>
 					<td>

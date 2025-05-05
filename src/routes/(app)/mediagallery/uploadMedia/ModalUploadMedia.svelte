@@ -236,7 +236,7 @@
 	};
 
 	// Base Classes
-	const cBase = 'bg-surface-100-800-token w-screen rounded p-4 flex flex-col justify-center items-center';
+	const cBase = 'border bg-surface-100-800-token w-full md:w-3/4 rounded p-4 flex flex-col justify-center items-center';
 	const cHeader = 'text-2xl font-bold text-center text-tertiary-500 dark:text-primary-500 ';
 	const cForm = 'w-full mt-3 border border-surface-500 p-2 space-y-4 rounded-container-token flex flex-col'; // Added w-full, flex, flex-col
 </script>
@@ -308,17 +308,16 @@
 				</div>
 
 				<!-- File input for adding more files -->
-				<div class="mb-4 mt-2 flex items-center justify-between border-t border-surface-400 p-4">
-					<div class="mb-4 mt-2 flex items-center gap-2">
-						<label for="file-input" class="block text-tertiary-500 dark:text-primary-500">Add more files:</label>
-						<input id="file-input" type="file" multiple onchange={handleFileInputChange} />
+				<div class="flex w-full items-center justify-between border-t border-surface-400">
+					<div class="mb-4 mt-2 flex w-full items-center gap-2">
+						<label for="file-input" class="text-nowrap text-tertiary-500 dark:text-primary-500">Add more files:</label>
+						<input id="file-input" type="file" class="input" onchange={handleFileInputChange} />
 					</div>
 					{#if duplicateWarning}
 						<p class="variant-filled-error rounded px-2 py-4">{duplicateWarning}</p>
 					{/if}
 				</div>
 			</div>
-			<!-- Close scrollable content area -->
 		</form>
 
 		<footer class="modal-footer m-4 flex w-full justify-between {parent.regionFooter} flex-shrink-0">

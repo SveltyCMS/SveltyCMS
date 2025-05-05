@@ -245,11 +245,11 @@
 			userPreferredState.set(newState);
 		}}
 		aria-label="Expand/Collapse Sidebar"
-		class="absolute top-2 z-20 flex items-center justify-center !rounded-full border-[3px] dark:border-black ltr:-right-3 rtl:-left-3"
+		class="absolute top-2 z-20 flex h-10 w-10 items-center justify-center !rounded-full border-[1px] p-0 dark:border-black ltr:-right-4 rtl:-left-4"
 	>
 		<iconify-icon
 			icon="bi:arrow-left-circle-fill"
-			width="30"
+			width="34"
 			class={`rounded-full bg-surface-500 text-white hover:cursor-pointer hover:bg-error-600 dark:bg-white dark:text-surface-600 dark:hover:bg-error-600 ${uiStateManager.uiState.value.leftSidebar === 'full' ? 'rotate-0 rtl:rotate-180' : 'rotate-180 rtl:rotate-0'}`}
 		></iconify-icon>
 	</button>

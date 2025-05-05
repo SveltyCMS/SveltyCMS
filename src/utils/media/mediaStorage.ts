@@ -1,5 +1,5 @@
 /**
- * @file mediaStorage.ts
+ * @file src/utils/media/mediaStorage.ts
  * @description Core media storage functionality for the CMS.
  * This module handles all file system operations and media processing.
  */
@@ -17,6 +17,8 @@ import { hashFileContent, getSanitizedFileName } from './mediaProcessing';
 import { constructUrl } from './mediaUtils';
 import { sanitize } from '@utils/utils';
 import { dbAdapter } from '@src/databases/db';
+
+// System Logger
 import { logger } from '@utils/logger.svelte';
 
 // Image sizes configuration
@@ -57,12 +59,42 @@ export async function resizeImage(buffer: Buffer, width: number, height?: number
  * Saves a file to disk
  */
 export async function saveFileToDisk(buffer: Buffer, url: string): Promise<void> {
-	const fs = await getFs();
-	const fullPath = Path.join(publicEnv.MEDIA_FOLDER, url);
-	const dir = Path.dirname(fullPath);
-	await fs.promises.mkdir(dir, { recursive: true });
-	await fs.promises.writeFile(fullPath, buffer);
-	logger.info('File saved to disk', { url });
+	try {
+		const fs = await getFs();
+		const fullPath = Path.join(publicEnv.MEDIA_FOLDER, url);
+		const dir = Path.dirname(fullPath);
+
+		logger.debug('Creating directory for file', {
+			directory: dir,
+			url,
+			bufferSize: buffer.length
+		});
+
+		await fs.promises.mkdir(dir, { recursive: true });
+
+		logger.debug('Writing file to disk', {
+			fullPath,
+			fileSize: buffer.length,
+			url
+		});
+
+		await fs.promises.writeFile(fullPath, buffer);
+
+		logger.info('File saved to disk', {
+			url,
+			fullPath,
+			fileSize: buffer.length,
+			directoryCreated: dir
+		});
+	} catch (err) {
+		const message = `Failed to save file to disk: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message, {
+			url,
+			error: err,
+			bufferSize: buffer?.length
+		});
+		throw new Error(message);
+	}
 }
 
 /**
@@ -74,23 +106,91 @@ export async function saveResizedImages(
 	fileName: string,
 	contentTypes: string,
 	ext: string,
-	path: string
+	basePath: string
 ): Promise<Record<string, ResizedImage>> {
 	const resizedImages: Record<string, ResizedImage> = {};
+
+	logger.debug('Starting image resizing', {
+		fileName,
+		hash,
+		basePath,
+		originalSize: buffer.length,
+		sizes: Object.entries(SIZES).map(([name, width]) => `${name}:${width}px`)
+	});
 
 	for (const [size, width] of Object.entries(SIZES)) {
 		if (width === 0) continue; // Skip original size
 
-		const resizedBuffer = await resizeImage(buffer, width);
-		const resizedUrl = `${path}/${size}/${fileName}-${hash}.${ext}`;
-		await saveFileToDisk(await resizedBuffer.toBuffer(), resizedUrl);
+		try {
+			logger.debug('Resizing image', { size, width });
+			let resizedBuffer = await resizeImage(buffer, width);
 
-		resizedImages[size] = {
-			url: resizedUrl,
-			width,
-			height: width // Assuming square images for simplicity
-		};
+			// Apply format conversion if configured
+			if (publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format !== 'original') {
+				resizedBuffer = resizedBuffer.toFormat(
+					publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format as 'avif' | 'webp',
+					{
+						quality: publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.quality,
+						lossless: false
+					}
+				);
+			}
+
+			// Use correct extension based on output format
+			const outputExt = publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format === 'original'
+				? ext
+				: `.${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`;
+
+			const resizedUrl = Path.posix.join(basePath, size, `${fileName}-${hash}${outputExt}`);
+
+			logger.debug('Saving resized image', {
+				size,
+				url: resizedUrl,
+				width,
+				format: publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format,
+				quality: publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.quality
+			});
+
+			try {
+				await saveFileToDisk(await resizedBuffer.toBuffer(), resizedUrl);
+			} catch (err) {
+				logger.error(`Failed to save ${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format} image`, {
+					error: err instanceof Error ? err.message : String(err),
+					size,
+					width,
+					format: publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format
+				});
+				throw err;
+			}
+
+			resizedImages[size] = {
+				url: resizedUrl,
+				width,
+				height: width,
+				size: (await resizedBuffer.metadata()).size || 0
+			};
+
+			logger.debug('Resized image saved', {
+				size,
+				url: resizedUrl,
+				dimensions: `${width}x${width}`
+			});
+		} catch (err) {
+			logger.error(`Failed to process size ${size}`, {
+				error: err instanceof Error ? err.message : String(err),
+				fileName,
+				size,
+				width
+			});
+			// Continue with other sizes even if one fails
+		}
 	}
+
+	logger.info('Image resizing completed', {
+		fileName,
+		successfulSizes: Object.keys(resizedImages),
+		failedSizes: Object.keys(SIZES).filter(s => s !== 'original' && !resizedImages[s])
+	});
 
 	return resizedImages;
 }
@@ -99,10 +199,34 @@ export async function saveResizedImages(
  * Deletes a file from storage
  */
 export async function deleteFile(url: string): Promise<void> {
-	const fs = await getFs();
-	const filePath = Path.join(publicEnv.MEDIA_FOLDER, url);
-	await fs.promises.unlink(filePath);
-	logger.info('File deleted from disk', { url });
+	const startTime = performance.now();
+
+	try {
+		const fs = await getFs();
+		const filePath = Path.join(publicEnv.MEDIA_FOLDER, url);
+
+		logger.debug('Deleting file', {
+			url,
+			filePath
+		});
+
+		await fs.promises.unlink(filePath);
+
+		logger.info('File deleted from disk', {
+			url,
+			filePath,
+			processingTime: performance.now() - startTime
+		});
+	} catch (err) {
+		const message = `Error deleting file: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message, {
+			url,
+			error: err,
+			stack: new Error().stack,
+			processingTime: performance.now() - startTime
+		});
+		throw new Error(message);
+	}
 }
 
 /**
@@ -170,7 +294,7 @@ export async function saveRemoteMedia(fileUrl: string, contentTypes: string, use
 		// Extract and sanitize the file name
 		const fileName = decodeURI(fileUrl.split('/').pop() ?? 'defaultName');
 		const { fileNameWithoutExt, ext } = getSanitizedFileName(fileName);
-		const url = `remote_media/${hash}-${fileNameWithoutExt}.${ext}`;
+		const url = constructUrl('remote_media', `${hash}-${fileNameWithoutExt}.${ext}`);
 
 		// Create user access entry with all permissions
 		const userAccess: MediaAccess = {
@@ -273,7 +397,7 @@ export async function saveAvatarImage(file: File): Promise<string> {
 		// For avatars, we only create one AVIF thumbnail
 		const resizedImage = await resizeImage(buffer, SIZES.thumbnail);
 
-		const thumbnailUrl = `avatars/${hash}-${sanitizedBlobName}thumbnail.avif`;
+		const thumbnailUrl = constructUrl('avatars', `${hash}-${sanitizedBlobName}thumbnail.avif`);
 		await saveFileToDisk(await resizedImage.toBuffer(), thumbnailUrl);
 
 		const thumbnail = {
@@ -338,55 +462,5 @@ export async function saveAvatarImage(file: File): Promise<string> {
 			fileSize: file?.size
 		});
 		throw error;
-	}
-}
-
-/**
- * Uploads a file to storage (disk)
- */
-export async function uploadFile(file: File | Blob, userId: string, access: MediaAccess): Promise<{ url: string; fileInfo: MediaImage }> {
-	try {
-		const buffer = Buffer.from(await file.arrayBuffer());
-		const fileName = file instanceof File ? file.name : 'blob';
-		const mimeType = file.type || mime.lookup(fileName) || 'application/octet-stream';
-
-		const hash = await hashFileContent(buffer);
-		const sanitizedFileName = getSanitizedFileName(fileName);
-		const ext = Path.extname(sanitizedFileName);
-
-		// Generate path based on date and hash
-		const date = new Date();
-		const path = Path.join(date.getFullYear().toString(), (date.getMonth() + 1).toString().padStart(2, '0'), hash.substring(0, 2));
-
-		// Process image if it's an image type
-		const isImage = mimeType.startsWith('image/');
-		let resizedImages: Record<string, ResizedImage> = {};
-
-		if (isImage) {
-			resizedImages = await saveResizedImages(buffer, hash, sanitizedFileName, 'media', ext, path);
-		}
-
-		const url = constructUrl(path, `${hash}${ext}`);
-
-		// Save original file
-		await saveFileToDisk(buffer, url);
-
-		const fileInfo: MediaImage = {
-			type: MediaTypeEnum.Image,
-			name: sanitizedFileName,
-			hash,
-			path,
-			url,
-			mimeType,
-			size: buffer.length,
-			resized: resizedImages,
-			access
-		};
-
-		return { url, fileInfo };
-	} catch (err) {
-		const message = `Error uploading file: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
-		throw new Error(message);
 	}
 }

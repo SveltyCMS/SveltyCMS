@@ -7,28 +7,25 @@
 - `stage`: Konva.Stage - The Konva stage where the image is displayed.
 - `layer`: Konva.Layer - The Konva layer where the image and effects are added.
 - `imageNode`: Konva.Image - The Konva image node representing the original image.
-- `on:focalPointChange` (optional): Function to be called when the focal point is changed.
-- `on:focalPointRemoved` (optional): Function to be called when the focal point is removed.
 -->
 
 <script lang="ts">
 	import Konva from 'konva';
+	import { createEventDispatcher } from 'svelte';
 
 	interface Props {
 		stage: Konva.Stage;
 		layer: Konva.Layer;
 		imageNode: Konva.Image;
-		'on:focalPointChange'?: (point: { x: number; y: number }) => void;
-		'on:focalPointRemoved'?: () => void;
 	}
 
-	let {
-		stage,
-		layer,
-		imageNode,
-		'on:focalPointChange': onFocalPointChange = () => {},
-		'on:focalPointRemoved': onFocalPointRemoved = () => {}
-	}: Props = $props();
+	const dispatch = createEventDispatcher<{
+		focalpoint: { x: number; y: number };
+		focalpointApplied: void;
+		focalpointRemoved: void;
+	}>();
+
+	let { stage, layer, imageNode }: Props = $props();
 
 	let focalPoint: Konva.Group | null = $state(null);
 	let focalPointActive = $state(false);
@@ -142,7 +139,7 @@
 		relativeX = Number(relativeX.toFixed(2));
 		relativeY = Number(relativeY.toFixed(2));
 
-		onFocalPointChange({ x: relativeX, y: relativeY });
+		dispatch('focalpoint', { x: relativeX, y: relativeY });
 		layer.draw();
 	}
 
@@ -150,6 +147,10 @@
 		// Reset focal point to the center of the image
 		createFocalPoint();
 		layer.draw();
+	}
+
+	function exitFocalPoint() {
+		dispatch('focalpointApplied');
 	}
 
 	function removeFocalPoint() {
@@ -160,7 +161,7 @@
 			focalPointActive = false;
 			relativeX = 0;
 			relativeY = 0;
-			onFocalPointRemoved();
+			dispatch('focalpointRemoved');
 		}
 		layer.draw();
 	}
@@ -168,15 +169,28 @@
 
 <!-- Focal Point Controls UI -->
 <div class="wrapper">
+	<div class="flex w-full items-center justify-between">
+		<div class="flex items-center gap-2">
+			<!-- Back button at top of component -->
+			<button onclick={exitFocalPoint} aria-label="Exit rotation mode" class="variant-outline-tertiary btn-icon">
+				<iconify-icon icon="material-symbols:close-rounded" width="20"></iconify-icon>
+			</button>
+
+			<h3 class="relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Rotation Settings</h3>
+		</div>
+
+		<!-- Action Buttons -->
+		<div class="mt-4 flex justify-around gap-4">
+			<button onclick={removeFocalPoint} class="variant-filled-error btn" aria-label="Remove focal point"> Remove Focal Point </button>
+			<button onclick={resetFocalPoint} class="variant-filled-primary btn" aria-label="Reset focal point to center"> Reset Focal Point </button>
+		</div>
+	</div>
+
 	<div class="flex flex-col items-center justify-around space-y-2">
 		<p class="text-sm font-medium">Focal Point Position:</p>
 		<div class="flex space-x-4">
 			<p class="text-sm">X: <span class="text-tertiary-500 dark:text-primary-500">{relativeX.toFixed(2)}</span></p>
 			<p class="text-sm">Y: <span class="text-tertiary-500 dark:text-primary-500">{relativeY.toFixed(2)}</span></p>
 		</div>
-	</div>
-	<div class="mt-4 flex justify-around gap-4">
-		<button onclick={removeFocalPoint} class="variant-filled-error btn"> Remove Focal Point </button>
-		<button onclick={resetFocalPoint} class="variant-filled-primary btn"> Reset Focal Point </button>
 	</div>
 </div>

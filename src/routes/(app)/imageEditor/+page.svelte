@@ -34,10 +34,10 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 
 	let imageFile: File | null = $state(null);
 	let selectedImage: string = '';
-	let stage: Konva.Stage = $state();
-	let layer: Konva.Layer = $state();
-	let imageNode: Konva.Image = $state();
-	let containerRef: HTMLDivElement = $state();
+	let stage: Konva.Stage | undefined = $state();
+	let layer: Konva.Layer | undefined = $state();
+	let imageNode: Konva.Image | undefined = $state();
+	let containerRef: HTMLDivElement | undefined = $state();
 	let activeState = $state('');
 	let blurActive = $state(false);
 	let updatedImageFile: File | null = null;
@@ -45,6 +45,8 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 	let currentStateIndex = -1;
 	let canUndo = $state(false);
 	let canRedo = $state(false);
+	// Store the original image for resetting
+	let originalImage: HTMLImageElement;
 
 	onMount(() => {
 		const { params } = page;
@@ -52,7 +54,38 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 			selectedImage = params.image;
 			loadImageAndSetupKonva(selectedImage);
 		}
+
+		// Add window resize event listener
+		window.addEventListener('resize', handleResize);
+
+		// Cleanup event listener on component destroy
+		return () => {
+			window.removeEventListener('resize', handleResize);
+		};
 	});
+
+	function handleResize() {
+		if (!stage || !imageNode || !originalImage || !containerRef) return;
+
+		// Update stage dimensions
+		stage.width(containerRef.offsetWidth);
+		stage.height(containerRef.offsetHeight);
+
+		// Recalculate image size and position
+		const containerWidth = Math.max(1, containerRef.offsetWidth);
+		const containerHeight = Math.max(1, containerRef.offsetHeight);
+		const scale = Math.min(containerWidth / originalImage.width, containerHeight / originalImage.height);
+
+		// Update image size while maintaining aspect ratio
+		imageNode.width(Math.max(1, originalImage.width * scale));
+		imageNode.height(Math.max(1, originalImage.height * scale));
+
+		// Center the image
+		imageNode.x((containerWidth - imageNode.width()) / 2);
+		imageNode.y((containerHeight - imageNode.height()) / 2);
+
+		layer?.batchDraw();
+	}
 
 	function loadImageAndSetupKonva(imageSrc: string) {
 		if (!containerRef) {
@@ -60,11 +93,12 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 			return;
 		}
 
-		const img = new Image();
+		const img = new window.Image();
 		img.src = imageSrc;
 		img.onload = () => {
 			if (img.width > 0 && img.height > 0) {
 				console.log('Image loaded successfully with dimensions:', img.width, img.height);
+				originalImage = img; // Store original image for resize handling
 				setupKonvaStage(img);
 			} else {
 				console.error('Image has invalid dimensions:', img.width, img.height);
@@ -115,22 +149,15 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 
 	function handleRotate(event: CustomEvent) {
 		const { angle } = event.detail;
-		imageNode.rotation(angle);
-		layer.batchDraw();
-	}
-
-	function handleZoom(event: CustomEvent) {
-		const { scale } = event.detail;
-		imageNode.scale({ x: scale, y: scale });
-		layer.batchDraw();
-		applyEdit();
+		imageNode?.rotation(angle);
+		layer?.batchDraw();
 	}
 
 	function handleCrop(event: CustomEvent) {
 		const { x, y, width, height, shape } = event.detail;
 
 		// Apply the crop to the image
-		imageNode.setAttrs({
+		imageNode?.setAttrs({
 			x,
 			y,
 			width: Math.max(1, width),
@@ -143,28 +170,41 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 					: null
 		});
 
-		layer.batchDraw();
+		layer?.batchDraw();
 		activeState = '';
 		applyEdit();
 	}
 
-	function handleFocalPoint(event: CustomEvent) {
-		const { x, y } = event.detail;
-		const centerX = stage.width() / 2;
-		const centerY = stage.height() / 2;
-		imageNode.position({
-			x: centerX - x,
-			y: centerY - y
-		});
-		layer.batchDraw();
+	// Handle watermark applied event
+	function handleWatermarkApplied() {
+		activeState = '';
 		applyEdit();
 	}
 
+	// Handle text overlay applied event
+	function handleTextOverlayApplied() {
+		activeState = '';
+		applyEdit();
+	}
+
+	// Handle shape overlay applied event
+	function handleShapeOverlayApplied() {
+		activeState = '';
+		applyEdit();
+	}
+
+	// Fix for undo/redo functionality
 	function saveState() {
+		if (!stage) return;
 		const state = stage.toDataURL();
-		stateHistory = stateHistory.slice(0, currentStateIndex + 1);
+
+		// If we're not at the end of history, truncate it
+		if (currentStateIndex < stateHistory.length - 1) {
+			stateHistory = stateHistory.slice(0, currentStateIndex + 1);
+		}
+
 		stateHistory.push(state);
-		currentStateIndex++;
+		currentStateIndex = stateHistory.length - 1;
 		updateUndoRedoState();
 	}
 
@@ -188,10 +228,12 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 	}
 
 	function loadState(state: string) {
-		const img = new Image();
+		const img = new window.Image();
 		img.onload = () => {
-			imageNode.image(img);
-			layer.draw();
+			if (imageNode) {
+				imageNode.image(img);
+				layer?.draw();
+			}
 		};
 		img.src = state;
 	}
@@ -214,29 +256,21 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 
 			// You can now use updatedImageFile for other operations, such as uploading
 			saveEditedImage.set(true);
+
+			// Show saved notification
+			const notification = document.querySelector('.success-message');
+			if (notification) {
+				notification.classList.add('show');
+				setTimeout(() => {
+					notification.classList.remove('show');
+				}, 3000);
+			}
 		}
 	}
 
 	function toggleTool(tool: string) {
 		activeState = activeState === tool ? '' : tool;
-		updateToolUI();
-	}
-
-	function updateToolUI() {
-		// Implement logic to show or hide the tool controls based on `activeState`.
-		const toolbars = document.querySelectorAll(
-			'.tool-controls-container .blur-controls, .tool-controls-container .crop-controls, .tool-controls-container .rotate-controls'
-		);
-		toolbars.forEach((toolbar) => {
-			toolbar.classList.add('hidden');
-		});
-
-		if (activeState) {
-			const activeToolbar = document.querySelector(`.${activeState}-controls`);
-			if (activeToolbar) {
-				activeToolbar.classList.remove('hidden');
-			}
-		}
+		// UI updates handled by component state
 	}
 </script>
 
@@ -296,6 +330,11 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 				on:blurApplied={() => {
 					activeState = '';
 					blurActive = false;
+					applyEdit();
+				}}
+				on:blurReset={() => {
+					activeState = '';
+					blurActive = false;
 				}}
 			/>
 		{:else if activeState === 'crop'}
@@ -309,22 +348,63 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 				}}
 			/>
 		{:else if activeState === 'zoom'}
-			<Zoom {stage} {layer} {imageNode} on:zoom={handleZoom} />
+			<Zoom
+				{stage}
+				{layer}
+				{imageNode}
+				onZoomApplied={() => {
+					activeState = '';
+					applyEdit();
+				}}
+				onZoomCancelled={() => {
+					activeState = '';
+				}}
+			/>
 		{:else if activeState === 'focalpoint'}
-			<FocalPoint {stage} {layer} {imageNode} on:focalpoint={handleFocalPoint} />
+			<FocalPoint
+				{stage}
+				{layer}
+				{imageNode}
+				on:focalpoint={(e) => {
+					const { x, y } = e.detail;
+					const centerX = (stage?.width() ?? 0) / 2;
+					const centerY = (stage?.height() ?? 0) / 2;
+					imageNode?.position({
+						x: centerX - x,
+						y: centerY - y
+					});
+					layer?.batchDraw();
+				}}
+				on:focalpointApplied={() => {
+					activeState = '';
+					applyEdit();
+				}}
+				on:focalpointRemoved={() => {
+					activeState = '';
+					applyEdit();
+				}}
+			/>
 		{:else if activeState === 'watermark'}
-			<Watermark {stage} {layer} {imageNode} />
+			<Watermark {stage} {layer} {imageNode} onExitWatermark={handleWatermarkApplied} />
 		{:else if activeState === 'filter'}
-			<Filter {stage} {layer} {imageNode} />
+			<Filter
+				{stage}
+				{layer}
+				{imageNode}
+				on:filterApplied={() => {
+					activeState = '';
+					applyEdit();
+				}}
+			/>
 		{:else if activeState === 'textoverlay'}
-			<TextOverlay {stage} {layer} {imageNode} />
+			<TextOverlay {stage} {layer} {imageNode} on:textOverlayApplied={handleTextOverlayApplied} />
 		{:else if activeState === 'shapeoverlay'}
-			<ShapeOverlay {stage} {layer} />
+			<ShapeOverlay {stage} {layer} on:shapeOverlayApplied={handleShapeOverlayApplied} />
 		{/if}
 
 		<!-- Tool Controls -->
 		{#if activeState === ''}
-			<div class="relative mt-1 flex flex-wrap items-center justify-center gap-2">
+			<div class="relative mt-3 flex flex-wrap items-center justify-center gap-2">
 				<button onclick={() => toggleTool('rotate')} aria-label="Rotate" class="mx-2">
 					<iconify-icon icon="mdi:rotate-right" width="24" class="text-tertiary-600"></iconify-icon>
 					Rotate
@@ -366,6 +446,20 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 	{/if}
 </div>
 
-{#if $saveEditedImage}
-	<div class="success-message" role="alert">Image saved successfully!</div>
-{/if}
+<div class="success-message" role="alert">Image saved successfully!</div>
+
+<style>
+	.success-message {
+		position: fixed;
+		bottom: 20px;
+		right: 20px;
+		background-color: #4caf50; /* Green background */
+		color: white;
+		padding: 15px;
+		border-radius: 5px;
+		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+		opacity: 0;
+		transition: opacity 0.3s ease;
+		z-index: 1000;
+	}
+</style>

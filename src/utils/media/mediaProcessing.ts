@@ -10,6 +10,8 @@ import { Buffer } from 'buffer';
 import { sha256, sanitize } from '@utils/utils';
 import { MediaTypeEnum } from './mediaModels';
 import type { ImageMetadata, MediaImage, MediaAccess, Thumbnail } from './mediaModels';
+
+// System Logger
 import { logger } from '@utils/logger.svelte';
 
 // Get fs instance for server-side operations
@@ -71,24 +73,72 @@ export async function extractMetadata(file: File): Promise<ImageMetadata> {
 // Hashes the content of a file using SHA-256
 export async function hashFileContent(buffer: ArrayBuffer): Promise<string> {
 	if (!import.meta.env.SSR) {
-		throw error(500, 'File operations can only be performed on the server');
+		const message = 'File operations can only be performed on the server';
+		logger.error(message);
+		throw error(500, message);
+	}
+
+	if (!buffer || buffer.byteLength === 0) {
+		const message = 'Cannot hash empty buffer';
+		logger.error(message);
+		throw error(400, message);
 	}
 
 	try {
-		return (await sha256(Buffer.from(buffer))).slice(0, 20);
+		logger.debug('Starting file content hashing', {
+			bufferSize: buffer.byteLength,
+			firstBytes: new Uint8Array(buffer).slice(0, 4).join(',')
+		});
+
+		const hash = (await sha256(Buffer.from(buffer))).slice(0, 20);
+
+		logger.debug('File content hashed successfully', {
+			hash,
+			hashLength: hash.length,
+			bufferSize: buffer.byteLength
+		});
+
+		return hash;
 	} catch (err) {
 		const message = `Error hashing file content: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
+		logger.error(message, {
+			bufferSize: buffer?.byteLength,
+			error: err
+		});
 		throw error(500, message);
 	}
 }
 
 // Sanitizes the filename by removing unsafe characters
 export function getSanitizedFileName(fileName: string): { fileNameWithoutExt: string; ext: string } {
+	if (!fileName || typeof fileName !== 'string') {
+		const message = 'Invalid filename provided';
+		logger.error(message, { fileName });
+		throw new Error(message);
+	}
+
+	logger.debug('Sanitizing filename', {
+		originalName: fileName,
+		length: fileName.length
+	});
+
 	const lastDotIndex = fileName.lastIndexOf('.');
 	const name = lastDotIndex > -1 ? fileName.slice(0, lastDotIndex) : fileName;
 	const ext = lastDotIndex > -1 ? fileName.slice(lastDotIndex + 1) : '';
-	return { fileNameWithoutExt: sanitize(name), ext };
+
+	const sanitized = {
+		fileNameWithoutExt: sanitize(name),
+		ext: ext.toLowerCase() // Normalize extension to lowercase
+	};
+
+	logger.debug('Filename sanitized', {
+		original: fileName,
+		sanitizedName: sanitized.fileNameWithoutExt,
+		extension: sanitized.ext,
+		wasChanged: name !== sanitized.fileNameWithoutExt
+	});
+
+	return sanitized;
 }
 
 // Example of resizing an image using the Canvas API
@@ -127,37 +177,83 @@ export async function resizeImage(file: File, width: number, height: number): Pr
 
 // Save images dynamically based on publicEnv.IMAGE_SIZES
 export async function saveImage(file: File, destination: string, userId: string, access: MediaAccess): Promise<MediaImage> {
+	const startTime = performance.now();
 	const fs = await getFs();
 
+	logger.debug('Starting image save process', {
+		fileName: file.name,
+		fileSize: file.size,
+		destination,
+		userId,
+		startTime
+	});
+
 	try {
+		logger.debug('Extracting image metadata');
 		const metadata = await extractMetadata(file);
+		logger.debug('Image metadata extracted', {
+			width: metadata.width,
+			height: metadata.height,
+			mimeType: metadata.mimeType,
+			processingTime: performance.now() - startTime
+		});
+
 		const { fileNameWithoutExt, ext } = getSanitizedFileName(file.name);
 		const hash = await hashFileContent(await file.arrayBuffer());
 		const newFileName = `${fileNameWithoutExt}-${hash}${ext}`;
+		logger.debug('Generated new filename', {
+			newFileName,
+			originalName: file.name,
+			hashLength: hash.length
+		});
 
 		// Path for the original image
-		const originalPath = `${destination}/images/Original/${newFileName}`;
-		logger.info(`Saving original image to ${originalPath}`);
+		const originalPath = Path.join(destination, 'images', 'Original', newFileName);
+		logger.info('Saving original image', {
+			path: originalPath,
+			fileSize: file.size
+		});
 
 		// Path for the thumbnail image
-		const thumbnailPath = `${destination}/images/Thumbnails/${newFileName}`;
-		logger.info(`Saving thumbnail image to ${thumbnailPath}`);
+		const thumbnailPath = Path.join(destination, 'images', 'Thumbnails', newFileName);
+		logger.info('Saving thumbnail image', {
+			path: thumbnailPath,
+			thumbnailSize: '150x150'
+		});
 
 		// Create directories if they don't exist
-		await fs.promises.mkdir(`${destination}/images/Original`, { recursive: true });
-		await fs.promises.mkdir(`${destination}/images/Thumbnails`, { recursive: true });
+		logger.debug('Creating directories for image storage');
+		await fs.promises.mkdir(Path.dirname(originalPath), { recursive: true });
+		await fs.promises.mkdir(Path.dirname(thumbnailPath), { recursive: true });
+		logger.debug('Directories created successfully', {
+			directoriesCreated: [Path.dirname(originalPath), Path.dirname(thumbnailPath)]
+		});
 
 		// Save the original image
-		await fs.promises.writeFile(originalPath, Buffer.from(await file.arrayBuffer()));
+		logger.debug('Saving original image file');
+		const originalBuffer = Buffer.from(await file.arrayBuffer());
+		await fs.promises.writeFile(originalPath, originalBuffer);
+		logger.debug('Original image saved successfully', {
+			path: originalPath,
+			bytesWritten: originalBuffer.length
+		});
 
 		// Immediately generate and save the thumbnail
+		logger.debug('Generating thumbnail image');
 		const thumbnailBlob = await resizeImage(file, 150, 150);
-		await fs.promises.writeFile(thumbnailPath, Buffer.from(await thumbnailBlob.arrayBuffer()));
+		const thumbnailBuffer = Buffer.from(await thumbnailBlob.arrayBuffer());
+		logger.debug('Saving thumbnail image file');
+		await fs.promises.writeFile(thumbnailPath, thumbnailBuffer);
+		logger.debug('Thumbnail image saved successfully', {
+			path: thumbnailPath,
+			bytesWritten: thumbnailBuffer.length
+		});
 
 		const thumbnailData: Thumbnail = {
 			url: thumbnailPath,
 			width: 150,
-			height: 150
+			height: 150,
+			size: thumbnailBuffer.length
 		};
 
 		// Now process other sizes in the background
@@ -173,23 +269,37 @@ export async function saveImage(file: File, destination: string, userId: string,
 		for (const { name, width, height } of imageSizes) {
 			try {
 				if (!width || !height) {
-					throw error(500, 'Each size configuration must include name, width, and height.');
+					const errorMessage = `Invalid size configuration for ${name}: width=${width}, height=${height}`;
+					logger.error(errorMessage);
+					throw error(500, errorMessage);
 				}
 
+				logger.debug(`Processing image size: ${name} (${width}x${height})`);
 				const resizedBlob = await resizeImage(file, width, height);
-				const path = `${destination}/images/${name}/${newFileName}`;
-				await fs.promises.mkdir(`${destination}/images/${name}`, { recursive: true });
-				await fs.promises.writeFile(path, Buffer.from(await resizedBlob.arrayBuffer()));
+				const path = Path.join(destination, 'images', name, newFileName);
+				await fs.promises.mkdir(Path.dirname(path), { recursive: true });
+				const resizedBuffer = Buffer.from(await resizedBlob.arrayBuffer());
+				await fs.promises.writeFile(path, resizedBuffer);
 
 				thumbnails[name] = {
 					url: path,
 					width,
-					height
+					height,
+					size: resizedBuffer.length
 				};
 
-				logger.info(`Processed image size: ${name}`);
+				logger.info(`Processed image size: ${name}`, {
+					path,
+					dimensions: `${width}x${height}`,
+					size: resizedBuffer.length
+				});
 			} catch (err) {
-				logger.error(`Error processing size ${name}:`, err);
+				const errorMessage = `Error processing size ${name}: ${err instanceof Error ? err.message : String(err)}`;
+				logger.error(errorMessage, {
+					size: name,
+					error: err,
+					stack: new Error().stack
+				});
 				// Continue with other sizes even if one fails
 			}
 		}
@@ -209,13 +319,28 @@ export async function saveImage(file: File, destination: string, userId: string,
 			createdAt: new Date(),
 			updatedAt: new Date(),
 			userId,
-			access
+			access,
+			hash,
+			processingTime: performance.now() - startTime
 		};
+
+		logger.info('Image saved successfully', {
+			fileName: file.name,
+			url: originalPath,
+			thumbnailUrl: thumbnailPath,
+			totalProcessingTime: performance.now() - startTime,
+			processedSizes: Object.keys(thumbnails)
+		});
 
 		return fileInfo;
 	} catch (err) {
 		const message = `Error saving image: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
+		logger.error(message, {
+			fileName: file.name,
+			error: err,
+			stack: new Error().stack,
+			processingTime: performance.now() - startTime
+		});
 		throw error(500, message);
 	}
 }

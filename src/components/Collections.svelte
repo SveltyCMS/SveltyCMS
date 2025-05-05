@@ -1,4 +1,4 @@
-<!--
+<!-- 
 @file src/components/Collections.svelte
 @component
 **Collections component to display & filter collections and categories using TreeView.**
@@ -23,6 +23,7 @@ Features:
 
 	// Types
 	import type { Schema } from '@src/content/types';
+	// Update ContentNode type to include the path property
 	import type { ContentNode } from '@src/databases/dbInterface';
 
 	// Stores
@@ -32,14 +33,20 @@ Features:
 	import { uiStateManager, toggleUIElement, handleUILayoutToggle } from '@src/stores/UIStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 
+	import { constructNestedStructure } from '../content/utils';
+
 	// Components
 	import TreeView from '@components/system/TreeView.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { constructNestedStructure } from '../content/utils';
 
-	interface CollectionTreeNode extends ContentNode {
+	// Extend ContentNode to ensure path property is available
+	interface ExtendedContentNode extends ContentNode {
+		path?: string;
+	}
+
+	interface CollectionTreeNode extends ExtendedContentNode {
 		id: string;
 		isExpanded: boolean;
 		onClick: () => void;
@@ -55,7 +62,7 @@ Features:
 	let nestedStructure = $derived(constructNestedStructure(contentStructure.value));
 
 	let collectionStructureNodes: CollectionTreeNode[] = $derived.by(() => {
-		function mapNode(node: ContentNode): CollectionTreeNode {
+		function mapNode(node: ExtendedContentNode): CollectionTreeNode {
 			const isCategory = node.nodeType === 'category' || node.translations?.some((t) => t.translationName === 'category');
 			// Get translation for current language or fallback to default name
 			const translation = node.translations?.find((trans) => trans.languageTag === contentLanguage.value);
@@ -63,7 +70,7 @@ Features:
 
 			let children;
 			if (isCategory && (node as any).children) {
-				children = (node as any).children.map((child: ContentNode) => ({
+				children = (node as any).children.map((child: ExtendedContentNode) => ({
 					...mapNode(child),
 					// Ensure children use their own translations
 					name: child.translations?.find((t) => t.languageTag === contentLanguage.value)?.translationName || child.name
@@ -91,6 +98,7 @@ Features:
 		return nestedStructure.map((node) => mapNode(node));
 	});
 
+	// Create virtual folder nodes for the media gallery - these act as filters only
 	let virtualFolderNodes: CollectionTreeNode[] = $derived.by(() => {
 		return [];
 	});
@@ -98,16 +106,27 @@ Features:
 	let search = $state('');
 	let isMediaMode = $derived(mode.value === 'media');
 
-	// Update isMediaMode when mode changes
+	// Update when search changes or mode changes
 	$effect(() => {
-		if (collectionStructureNodes.length > 0) {
+		if (search) {
 			// The search prop in TreeView will handle the filtering
 			search = search.toLowerCase().trim();
 		}
 	});
 
+	// Add an effect to update the UI when mode changes
+	$effect(() => {
+		// Reset selection when switching between modes
+		if (mode.value === 'media') {
+			// When switching to media mode, ensure proper UI state
+			if (uiStateManager.uiState.value.leftSidebar !== 'full') {
+				handleUILayoutToggle();
+			}
+		}
+	});
+
 	// Handle collection selection
-	function handleCollectionSelect(selectedCollection: ContentNode | Schema) {
+	function handleCollectionSelect(selectedCollection: ExtendedContentNode | Schema) {
 		if ('nodeType' in selectedCollection && selectedCollection.nodeType === 'collection') {
 			mode.set('view');
 			collection.set(null);
@@ -182,7 +201,7 @@ Features:
 	{#if isMediaMode}
 		<!-- Back to Collections Button -->
 		<button
-			class="btn mt-1 flex w-full rounded-sm {uiStateManager.uiState.value.leftSidebar === 'full'
+			class="btn my-1 flex w-full rounded-sm {uiStateManager.uiState.value.leftSidebar === 'full'
 				? 'flex-row '
 				: 'flex-col'} items-center border border-surface-500 py-{uiStateManager.uiState.value.leftSidebar === 'full'
 				? '3'
@@ -207,6 +226,7 @@ Features:
 		</button>
 
 		<!-- Display Virtual Folders as TreeView -->
+		<!-- {#if virtualFolderNodes.length > 0} -->
 		<TreeView
 			k={1}
 			nodes={virtualFolderNodes}
@@ -214,5 +234,8 @@ Features:
 			compact={uiStateManager.uiState.value.leftSidebar !== 'full'}
 			{search}
 		></TreeView>
+
+		treeview not working
+		<!-- {/if} -->
 	{/if}
 </div>
