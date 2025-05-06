@@ -31,8 +31,8 @@ import { constructContentPaths, generateCategoryNodesFromPaths, processModule } 
 import { compile } from '../routes/api/compile/compile';
 
 interface CacheEntry<T> {
-	value: T;
-	timestamp: number;
+  value: T;
+  timestamp: number;
 }
 
 // Constants

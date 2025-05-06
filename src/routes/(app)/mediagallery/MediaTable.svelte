@@ -128,7 +128,7 @@ Key features:
 			</tr>
 		</thead>
 		<tbody>
-			{#each paginatedFiles as file}
+			{#each paginatedFiles as file (file._id)}
 				<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
 					<td class="w-10">
 						<TableIcons checked={selectedFiles.has(file.filename)} onCheck={(checked) => handleSelection(file, checked)} />

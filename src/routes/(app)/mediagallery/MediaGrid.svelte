@@ -67,7 +67,7 @@ Key features:
 			<p class="text-lg">No media found</p>
 		</div>
 	{:else}
-		{#each filteredFiles as file, index}
+		{#each filteredFiles as file, index (index)}
 			<div
 				onmouseenter={() => (showInfo[index] = true)}
 				onmouseleave={() => (showInfo[index] = false)}
@@ -90,7 +90,7 @@ Key features:
 								</tr>
 							</thead>
 							<tbody>
-								{#each Object.keys(file.thumbnails || {}) as size}
+								{#each Object.keys(file.thumbnails || {}) as size (size)}
 									{#if file.thumbnails?.[size as keyof typeof file.thumbnails]}
 										<tr
 											class="divide-x divide-surface-400 border-b border-surface-400 last:border-b-0 {size === gridSize
@@ -143,7 +143,7 @@ Key features:
 				<section class="p-2">
 					{#if file?.filename && file?.path && file?.hash}
 						<img
-							src={getMediaUrl(file, 'thumbnail')}
+							src={file.thumbnail?.url ?? '/static/Default_User.svg'}
 							alt={`Thumbnail for ${file.filename}`}
 							class={`relative -top-4 left-0 ${gridSize === 'small' ? 'h-26 w-26' : gridSize === 'medium' ? 'h-48 w-48' : 'h-80 w-80'}`}
 							onerror={(e: Event) => {
