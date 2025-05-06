@@ -13,7 +13,7 @@ import { logger } from '@utils/logger.svelte';
 
 // Generic schema definition for Content Structure
 export const contentStructureSchemaDefinition = {
-	_id: { type: String, required: true, unique: true }, // UUID as per dbInterface.ts
+	_id: { type: String, required: true }, // UUID as per dbInterface.ts
 	name: { type: String, required: true }, // Name of the content
 	icon: { type: String, default: 'bi:folder' }, // Icon for the content
 	order: { type: Number, default: 999 }, // Order of the content
@@ -54,7 +54,7 @@ const translationSchema = new Schema<Translation>(
 
 // Base fields shared between categories and collections
 const baseFields = {
-	_id: { type: String, required: true, unique: true }, // UUID as per dbInterface.ts
+	_id: { type: String, required: true }, // UUID as per dbInterface.ts
 	name: { type: String, required: true },
 	icon: { type: String, default: 'bi:folder' },
 	order: { type: Number, default: 999 },

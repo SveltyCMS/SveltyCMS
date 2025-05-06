@@ -3,13 +3,15 @@
  * @description Widget Manager for handling widget loading, activation, and configuration
  */
 import { mount } from 'svelte';
-import type { User, WidgetId } from '@src/auth/types';
-import type { Schema } from '@src/content/types';
+import { v4 as uuidv4 } from 'uuid';
+import MissingWidget from './MissingWidget.svelte';
+import type { Widget, WidgetModule } from './types';
+import type { User } from '../auth/types';
+import type { WidgetId } from '../auth/types';
+import type { Schema } from '../content/types';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
-import type { Widget, WidgetModule } from './types';
-import MissingWidget from './MissingWidget.svelte';
+import { logger } from '../utils/logger.svelte';
 
 export type WidgetStatus = 'active' | 'inactive'; // Define widget status types
 
@@ -177,6 +179,7 @@ async function initializeWidgets(): Promise<void> {
 			const widgetFn = module.default;
 			widgetFn.name = widgetFn.name || name;
 			const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
+			widgetFn.widgetId = uuidv4(); // Generate UUID v4
 			newWidgetFunctions.set(capitalizedName, widgetFn);
 		}
 

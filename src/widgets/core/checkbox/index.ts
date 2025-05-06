@@ -13,7 +13,7 @@ import * as m from '@src/paraglide/messages';
 const WIDGET_NAME = 'Checkbox' as const;
 
 // Define the widget function
-const widget = (params: Params) => {
+const widget = (params: Params & { widgetId?: string }) => {
 	// Define the display function
 	let display: any;
 
@@ -31,6 +31,7 @@ const widget = (params: Params) => {
 
 	// Define the widget object
 	const widget = {
+		widgetId: params.widgetId,
 		Name: WIDGET_NAME,
 		GuiFields: getGuiFields(params, GuiSchema)
 	};

@@ -15,19 +15,17 @@
 -->
 
 <script lang="ts">
-	import { getTextDirection } from '@utils/utils';
-	import { isMobile } from '@stores/screenSizeStore.svelte';
-
-	let showMobileMenu = false;
 	import { publicEnv } from '@root/config/public';
 	import { onMount, onDestroy, tick, untrack } from 'svelte';
+	import { v4 as uuidv4 } from 'uuid';
+	import { meta_data, debounce, getFieldName, updateTranslationProgress } from '@utils/utils';
+	import { getTextDirection } from '@utils/utils';
+	import type { MediaImage } from '@utils/media/mediaModels';
 	import type { ComponentProps } from 'svelte';
 	import type { FieldType } from '.';
-	import { meta_data, debounce, getFieldName, updateTranslationProgress } from '@utils/utils';
-	import type { MediaImage } from '@utils/media/mediaModels';
-	import { v4 as uuidv4 } from 'uuid';
 
 	// Stores
+	import { isMobile } from '@stores/screenSizeStore.svelte';
 	import { contentLanguage, validationStore } from '@stores/store.svelte';
 	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
 
@@ -55,6 +53,7 @@
 	import TableHeader from '@tiptap/extension-table-header';
 
 	// Props
+	let showMobileMenu = $state(false);
 	let element = $state<HTMLElement | null>(null);
 	let editor = $state<Editor | null>(null);
 	let showImageDialog = $state(false);
@@ -418,21 +417,36 @@
 		editor?.chain().focus().toggleLink({ href: 'https://google.com' }).run();
 	}
 
-	// Focus handling - removed automatic focus as it was interfering with typing
+	let isUploading = $state(false);
+	let uploadTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	function handleFileChange(value: File | MediaImage) {
 		if (!editor) return;
 
 		let url;
+		// Start a timer to show loader only if upload is slow (e.g. > 700ms)
+		if (uploadTimeout) clearTimeout(uploadTimeout);
+		isUploading = false;
+		uploadTimeout = setTimeout(() => {
+			isUploading = true;
+		}, 700);
+
 		if (value instanceof File) {
 			url = URL.createObjectURL(value);
 			let image_id = uuidv4();
 			images[image_id] = value;
 			editor.chain().focus().setImage({ src: url, id: image_id }).run();
+			// Simulate upload delay for UX
+			setTimeout(() => {
+				isUploading = false;
+				if (uploadTimeout) clearTimeout(uploadTimeout);
+			}, 500);
 		} else {
 			// Use the MediaImage url property directly
 			url = value.url;
 			editor.chain().focus().setImage({ src: url, storage_image: value._id }).run();
+			isUploading = false;
+			if (uploadTimeout) clearTimeout(uploadTimeout);
 		}
 	}
 </script>
