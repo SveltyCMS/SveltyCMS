@@ -116,6 +116,11 @@ class ContentManager {
       const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
       const files = await this.getCompiledCollectionFiles(compiledDirectoryPath);
 
+      if (!dbAdapter) {
+        logger.error('Database adapter not initialized during collection loading');
+        throw new Error('Database service unavailable');
+      }
+
       for (const filePath of files) {
         try {
           const content = await this.readFile(filePath);
@@ -150,9 +155,16 @@ class ContentManager {
 
 
 
-          // The function only creates models during first run 
-          const model = await dbAdapter?.collection.createModel(processed as CollectionData);
-          if (!model) logger.error(`Database model creation for  ${schema.name} ${schema.path} Failed`)
+          // The function only creates models during first run
+          if (!dbAdapter.collection) {
+            logger.error('Collection service not initialized');
+            throw new Error('Collection service unavailable');
+          }
+          const model = await dbAdapter.collection.createModel(processed as CollectionData);
+          if (!model) {
+            logger.error(`Database model creation failed for ${schema.name} ${schema.path}`);
+            throw new Error('Model creation failed');
+          }
 
           else {
             if (!this.firstCollection) this.firstCollection = processed;
@@ -355,7 +367,14 @@ class ContentManager {
   // Create categories with Redis caching
   private async updateContentStructure(): Promise<void> {
     try {
-      if (!dbAdapter) throw new Error('Database adapter not initialized');
+      if (!dbAdapter) {
+        logger.error('Database adapter not initialized during content structure update');
+        throw new Error('Database service unavailable');
+      }
+      if (!dbAdapter.content?.nodes) {
+        logger.error('Content nodes service not initialized');
+        throw new Error('Content nodes service unavailable');
+      }
 
       const result = await dbAdapter.content.nodes.getStructure('flat');
       if (!result.success) logger.debug(`Failed retrieve contentNodes`);

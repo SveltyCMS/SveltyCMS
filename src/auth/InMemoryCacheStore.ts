@@ -20,14 +20,18 @@ import { browser } from '$app/environment';
 import { error } from '@sveltejs/kit';
 
 // Types
-import type { SessionStore } from './types';
-import type { User } from './types';
+import type { SessionStore, User } from './types';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
+// Extend SessionStore interface to include deletePattern
+interface ExtendedSessionStore extends SessionStore {
+	deletePattern?: (pattern: string) => Promise<number>;
+}
+
 // In-memory cache store
-export class InMemorySessionStore implements SessionStore {
+export class InMemorySessionStore implements ExtendedSessionStore {
 	private sessions: Map<string, { user: User; expiresAt: Date }> = new Map();
 	private cleanupInterval: NodeJS.Timeout;
 
@@ -105,6 +109,26 @@ export class InMemorySessionStore implements SessionStore {
 		}
 	}
 
+	// Delete sessions matching a pattern
+	async deletePattern(pattern: string): Promise<number> {
+		try {
+			const regex = new RegExp(`^${pattern.replace('*', '.*')}$`);
+			let deletedCount = 0;
+			for (const key of this.sessions.keys()) {
+				if (regex.test(key)) {
+					this.sessions.delete(key);
+					deletedCount++;
+				}
+			}
+			logger.debug(`Deleted ${deletedCount} sessions matching pattern ${pattern} in memory`);
+			return deletedCount;
+		} catch (err) {
+			const message = `Error in InMemorySessionStore.deletePattern: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { pattern });
+			throw error(500, message);
+		}
+	}
+
 	// Validate session with optional database check
 	async validateWithDB(session_id: string, dbValidationFn: (session_id: string) => Promise<User | null>): Promise<User | null> {
 		try {
@@ -137,11 +161,11 @@ export class InMemorySessionStore implements SessionStore {
 }
 
 // Optional Redis session store
-export class OptionalRedisSessionStore implements SessionStore {
-	private redisStore: SessionStore | null = null;
-	private fallbackStore: SessionStore;
+export class OptionalRedisSessionStore implements ExtendedSessionStore {
+	private redisStore: ExtendedSessionStore | null = null;
+	private fallbackStore: ExtendedSessionStore;
 
-	constructor(fallbackStore: SessionStore = new InMemorySessionStore()) {
+	constructor(fallbackStore: ExtendedSessionStore = new InMemorySessionStore()) {
 		this.fallbackStore = fallbackStore;
 		if (!browser && privateEnv.USE_REDIS) {
 			this.initializeRedis().catch((err) => {

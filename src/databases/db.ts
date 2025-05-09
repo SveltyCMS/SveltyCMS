@@ -57,8 +57,8 @@ let adaptersLoaded = false; // Internal flag
 
 // Load database and authentication adapters
 async function loadAdapters() {
-  if (adaptersLoaded && dbAdapter) return;
-  logger.debug(`Loading \x1b[34m${privateEnv.DB_TYPE}\x1b[0m adapters...`);
+	if (adaptersLoaded && dbAdapter) return;
+	logger.debug(`Loading \x1b[34m${privateEnv.DB_TYPE}\x1b[0m adapters...`);
 
 	try {
 		switch (privateEnv.DB_TYPE) {
@@ -88,13 +88,16 @@ async function loadAdapters() {
 					validateSession: sessionAdapter.validateSession.bind(sessionAdapter),
 					invalidateAllUserSessions: sessionAdapter.invalidateAllUserSessions.bind(sessionAdapter),
 					getActiveSessions: sessionAdapter.getActiveSessions.bind(sessionAdapter),
+					getSessionTokenData: sessionAdapter.getSessionTokenData.bind(sessionAdapter),
+					rotateToken: sessionAdapter.rotateToken.bind(sessionAdapter), // Add rotateToken binding
 
 					// Token Management Methods
 					createToken: tokenAdapter.createToken.bind(tokenAdapter),
 					validateToken: tokenAdapter.validateToken.bind(tokenAdapter),
 					consumeToken: tokenAdapter.consumeToken.bind(tokenAdapter),
-					getAllTokens: tokenAdapter.getAllTokens.bind(tokenAdapter),
+					getTokenData: tokenAdapter.getTokenData.bind(tokenAdapter),
 					deleteExpiredTokens: tokenAdapter.deleteExpiredTokens.bind(tokenAdapter),
+					getAllTokens: tokenAdapter.getAllTokens.bind(tokenAdapter),
 
 					// Permission Management Methods (Imported)
 					getAllPermissions,
@@ -261,8 +264,15 @@ async function initializeSystem(): Promise<void> {
 			throw new Error('Authentication adapter not initialized'); // Use Error instead of kit's error
 		}
 		// Initialize authentication
+		if (!authAdapter) {
+			throw new Error('Cannot initialize auth: authAdapter is null');
+		}
 		auth = new Auth(authAdapter);
+		if (!auth) {
+			throw new Error('Auth initialization failed');
+		}
 		logger.debug('Authentication adapter initialized.');
+		logger.debug('Auth initialized, methods:', Object.keys(auth).filter(key => typeof (auth as any)[key] === 'function'));
 		isInitialized = true;
 		isConnected = true;
 		logger.debug('Adapters initialized successfully');
@@ -271,7 +281,11 @@ async function initializeSystem(): Promise<void> {
 		logger.error(message);
 		isInitialized = false; // Reset initialization flag on error
 		isConnected = false; // Reset connection flag on error
-		throw err(500, message);
+		if (typeof err === 'function') {
+			throw err(500, message);
+		} else {
+			throw new Error(message);
+		}
 	}
 }
 
