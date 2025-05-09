@@ -2,18 +2,30 @@
 @file src/widgets/core/richText/RichText.svelte
 @component
 **RichText TipTap widget component**
+
+@example
+<RichText label="RichText" db_fieldName="richText" required={true} />
+
+### Props
+- `field`: FieldType
+- `value`: any
+
+### Features
+- Translatable
 -->
 
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 	import { onMount, onDestroy, tick, untrack } from 'svelte';
+	import { v4 as uuidv4 } from 'uuid';
+	import { meta_data, debounce, getFieldName, updateTranslationProgress } from '@utils/utils';
+	import { getTextDirection } from '@utils/utils';
+	import type { MediaImage } from '@utils/media/mediaModels';
 	import type { ComponentProps } from 'svelte';
 	import type { FieldType } from '.';
-	import { meta_data, debounce, getFieldName, updateTranslationProgress } from '@utils/utils';
-	import type { MediaImage } from '@utils/media/mediaModels';
-	import { v4 as uuidv4 } from 'uuid';
 
 	// Stores
+	import { isMobile } from '@stores/screenSizeStore.svelte';
 	import { contentLanguage, validationStore } from '@stores/store.svelte';
 	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
 
@@ -25,9 +37,6 @@
 	import FileInput from '@components/system/inputs/FileInput.svelte';
 	import VideoDialog from './components/VideoDialog.svelte';
 
-	// Skeleton
-	import { ListBox } from '@skeletonlabs/skeleton';
-
 	// TipTap
 	import StarterKit from '@tiptap/starter-kit';
 	import { Editor, Extension } from '@tiptap/core';
@@ -37,13 +46,19 @@
 	import Color from '@tiptap/extension-color';
 	import Link from '@tiptap/extension-link';
 	import Youtube from '@tiptap/extension-youtube';
+	import CharacterCount from '@tiptap/extension-character-count';
+	import Table from '@tiptap/extension-table';
+	import TableRow from '@tiptap/extension-table-row';
+	import TableCell from '@tiptap/extension-table-cell';
+	import TableHeader from '@tiptap/extension-table-header';
 
 	// Props
+	let showMobileMenu = $state(false);
 	let element = $state<HTMLElement | null>(null);
 	let editor = $state<Editor | null>(null);
 	let showImageDialog = $state(false);
 	let showVideoDialog = $state(false);
-	let images = $state({});
+	let images = $state<Record<string, File>>({});
 	let active_dropDown = $state('');
 	let validationError = $state<string | null>(null);
 
@@ -53,22 +68,22 @@
 		WidgetData?: any;
 	}
 
-	let { field, value = collectionValue.value[getFieldName(field)] || { content: {}, header: {} }, WidgetData = $bindable() }: Props = $props();
-	WidgetData = async () => ({ images, data: _data });
+	let {
+		field,
+		value = collectionValue.value[getFieldName(field)] || { content: {}, header: {} },
+		WidgetData = $bindable(async () => ({ images, data: _data }))
+	}: Props = $props();
 
 	let _data = $state(mode.value === 'create' ? { content: {}, header: {} } : value);
 
-	// Language handling with derived state
+	// Language handling
 	let _language = $derived(field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE);
-	let previous_language = $state('');
 
-	// Track language changes and update content
+	// Update editor content when language changes
 	$effect(() => {
 		if (editor && _language) {
-			if (previous_language !== _language) {
-				editor.commands.setContent(_data.content[_language] || '');
-				previous_language = _language;
-			}
+			const content = _data.content[_language] || value?.content?.[_language] || '';
+			editor.commands.setContent(content);
 		}
 	});
 
@@ -108,6 +123,13 @@
 				Color,
 				Youtube,
 				ImageResize,
+				CharacterCount,
+				Table.configure({
+					resizable: true
+				}),
+				TableRow,
+				TableCell,
+				TableHeader,
 				TextAlign.configure({
 					types: ['heading', 'paragraph', 'image']
 				}),
@@ -124,24 +146,30 @@
 				})
 			],
 
-			content: Object.keys(_data.content).length > 0 ? _data.content[_language] : value.content[_language] || '',
-
-			onTransaction: ({ transaction }) => {
-				// force re-render so `editor.isActive` works as expected
-				active_dropDown = '';
-				if (previous_language === _language) {
-					handleImageDeletes(transaction);
+			content: _data.content[_language] || value?.content?.[_language] || '',
+			editorProps: {
+				attributes: {
+					dir: getTextDirection(_language)
 				}
-				editor = editor;
+			},
+
+			onUpdate: () => {
+				active_dropDown = ''; // force re-render for active states
 				deb(() => {
 					if (!editor) return;
 					let content = editor.getHTML();
 					content == '<p></p>' && (content = '');
 					_data.content[_language] = content;
-					validateContent(); // This will now properly update the state
+					validateContent();
 				});
+			},
+
+			onTransaction: ({ transaction }) => {
+				handleImageDeletes(transaction);
 			}
 		});
+
+		// Focus the editor after initialization
 		tick().then(() => {
 			editor?.commands.focus('start');
 		});
@@ -305,6 +333,12 @@
 					showVideoDialog = true;
 				},
 				active: () => editor?.isActive('video') ?? false
+			},
+			{
+				name: 'table',
+				icon: 'bi:table',
+				onClick: () => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+				active: () => editor?.isActive('table') ?? false
 			}
 		];
 	});
@@ -383,23 +417,36 @@
 		editor?.chain().focus().toggleLink({ href: 'https://google.com' }).run();
 	}
 
-	function handleEditorClick() {
-		editor?.commands.focus('end');
-	}
+	let isUploading = $state(false);
+	let uploadTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	function handleFileChange(value: File | MediaImage) {
 		if (!editor) return;
 
 		let url;
+		// Start a timer to show loader only if upload is slow (e.g. > 700ms)
+		if (uploadTimeout) clearTimeout(uploadTimeout);
+		isUploading = false;
+		uploadTimeout = setTimeout(() => {
+			isUploading = true;
+		}, 700);
+
 		if (value instanceof File) {
 			url = URL.createObjectURL(value);
 			let image_id = uuidv4();
 			images[image_id] = value;
 			editor.chain().focus().setImage({ src: url, id: image_id }).run();
+			// Simulate upload delay for UX
+			setTimeout(() => {
+				isUploading = false;
+				if (uploadTimeout) clearTimeout(uploadTimeout);
+			}, 500);
 		} else {
 			// Use the MediaImage url property directly
 			url = value.url;
 			editor.chain().focus().setImage({ src: url, storage_image: value._id }).run();
+			isUploading = false;
+			if (uploadTimeout) clearTimeout(uploadTimeout);
 		}
 	}
 </script>
@@ -420,143 +467,185 @@
 	<div class="m-auto flex max-h-[500px] w-full flex-col items-center gap-2 overflow-auto">
 		{#if editor}
 			<!-- Toolbar -->
-			<div class="sticky top-0 z-10 flex w-full items-center justify-center gap-1" role="toolbar" aria-label="Rich text editor toolbar">
-				<!-- TextType -->
-				<DropDown show={show('textType')} items={textTypes} label="Text" bind:active={active_dropDown} />
-				<!-- Font -->
-				<DropDown show={show('font')} items={fonts} icon="gravity-ui:text" label="Font" bind:active={active_dropDown} />
-				<!-- Color -->
-				<ColorSelector
-					show={show('color')}
-					color={editor?.getAttributes('textStyle').color || '#000000'}
-					onChange={(color) => editor?.chain().focus().setColor(color).run()}
-					bind:active={active_dropDown}
-				/>
-
-				<div class="flex items-center" class:hidden={!show('fontSize')} role="group" aria-label="Font size controls">
-					<!-- Size -->
-					<button
-						onclick={handleFontSizeDecrease}
-						onkeydown={(e) => e.key === 'Enter' && handleFontSizeDecrease()}
-						aria-label="Decrease Font Size"
-						class="btn"
-						tabindex="0"
-					>
-						<iconify-icon icon="bi:dash-lg" width="22"></iconify-icon>
+			<div
+				class="sticky top-0 z-10 my-1 flex w-full flex-wrap items-center justify-center gap-1 bg-surface-500"
+				role="toolbar"
+				aria-label="Rich text editor toolbar"
+			>
+				{#if $isMobile}
+					<button onclick={() => (showMobileMenu = !showMobileMenu)} class="btn" aria-label="Toggle toolbar menu" aria-expanded={showMobileMenu}>
+						<iconify-icon icon="mdi:menu" width="22"></iconify-icon>
 					</button>
+				{/if}
 
-					<input
-						type="text"
-						class="w-[30px] text-center outline-none"
-						bind:value={fontSize}
-						aria-label="Font size"
-						role="spinbutton"
-						aria-valuenow={fontSize}
-						aria-valuemin="1"
-						aria-valuemax="100"
+				<div class="flex flex-wrap gap-1" class:hidden={$isMobile && !showMobileMenu}>
+					<!-- TextType -->
+					<DropDown show={show('textType')} items={textTypes} label="Text" bind:active={active_dropDown} />
+					<!-- Font -->
+					<DropDown show={show('font')} items={fonts} icon="gravity-ui:text" label="Font" bind:active={active_dropDown} />
+					<!-- Color -->
+					<ColorSelector
+						show={show('color')}
+						color={editor?.getAttributes('textStyle').color || '#000000'}
+						onChange={(color) => editor?.chain().focus().setColor(color).run()}
+						bind:active={active_dropDown}
 					/>
 
-					<button
-						onclick={handleFontSizeIncrease}
-						onkeydown={(e) => e.key === 'Enter' && handleFontSizeIncrease()}
-						aria-label="Increase Font Size"
-						class="btn"
-						tabindex="0"
-					>
-						<iconify-icon icon="bi:plus-lg" width="22"></iconify-icon>
-					</button>
+					<div class="flex items-center" class:hidden={!show('fontSize')} role="group" aria-label="Font size controls">
+						<!-- Size -->
+						<button
+							onclick={handleFontSizeDecrease}
+							onkeydown={(e) => e.key === 'Enter' && handleFontSizeDecrease()}
+							aria-label="Decrease Font Size"
+							class="btn"
+							tabindex="0"
+						>
+							<iconify-icon icon="bi:dash-lg" width="22"></iconify-icon>
+						</button>
+
+						<input
+							type="text"
+							class="w-12 text-center text-sm text-black outline-none"
+							bind:value={fontSize}
+							aria-label="Font size"
+							role="spinbutton"
+							aria-valuenow={fontSize}
+							aria-valuemin="1"
+							aria-valuemax="100"
+						/>
+
+						<button
+							onclick={handleFontSizeIncrease}
+							onkeydown={(e) => e.key === 'Enter' && handleFontSizeIncrease()}
+							aria-label="Increase Font Size"
+							class="btn"
+							tabindex="0"
+						>
+							<iconify-icon icon="bi:plus-lg" width="22"></iconify-icon>
+						</button>
+					</div>
 				</div>
+			</div>
 
-				<div class="divide-x" role="group" aria-label="Text formatting">
-					<!-- Bold -->
-					<button
-						class:hidden={!show('bold')}
-						onclick={handleBoldClick}
-						onkeydown={(e) => e.key === 'Enter' && handleBoldClick()}
-						aria-label="Bold"
-						aria-pressed={editor?.isActive('bold') ?? false}
-						class:active={editor?.isActive('bold') ?? false}
-						tabindex="0"
-					>
-						<iconify-icon icon="bi:type-bold" width="22"></iconify-icon>
-					</button>
+			<div class="divide-x" role="group" aria-label="Text formatting">
+				<!-- Bold -->
+				<button
+					class:hidden={!show('bold')}
+					onclick={handleBoldClick}
+					onkeydown={(e) => e.key === 'Enter' && handleBoldClick()}
+					aria-label="Bold"
+					aria-pressed={editor?.isActive('bold') ?? false}
+					class:active={editor?.isActive('bold') ?? false}
+					tabindex="0"
+				>
+					<iconify-icon icon="bi:type-bold" width="22"></iconify-icon>
+				</button>
 
-					<!-- Italic -->
-					<button
-						class:hidden={!show('italic')}
-						onclick={handleItalicClick}
-						onkeydown={(e) => e.key === 'Enter' && handleItalicClick()}
-						aria-label="Italic"
-						aria-pressed={editor?.isActive('italic') ?? false}
-						class:active={editor?.isActive('italic') ?? false}
-						tabindex="0"
-					>
-						<iconify-icon icon="bi:type-italic" width="22"></iconify-icon>
-					</button>
+				<!-- Italic -->
+				<button
+					class:hidden={!show('italic')}
+					onclick={handleItalicClick}
+					onkeydown={(e) => e.key === 'Enter' && handleItalicClick()}
+					aria-label="Italic"
+					aria-pressed={editor?.isActive('italic') ?? false}
+					class:active={editor?.isActive('italic') ?? false}
+					tabindex="0"
+				>
+					<iconify-icon icon="bi:type-italic" width="22"></iconify-icon>
+				</button>
 
-					<!-- Strikethrough -->
-					<button
-						class:hidden={!show('strike')}
-						onclick={handleStrikeClick}
-						onkeydown={(e) => e.key === 'Enter' && handleStrikeClick()}
-						aria-label="Strikethrough"
-						aria-pressed={editor?.isActive('strike') ?? false}
-						class:active={editor?.isActive('strike') ?? false}
-						tabindex="0"
-					>
-						<iconify-icon icon="bi:type-strikethrough" width="22"></iconify-icon>
-					</button>
+				<!-- Strikethrough -->
+				<button
+					class:hidden={!show('strike')}
+					onclick={handleStrikeClick}
+					onkeydown={(e) => e.key === 'Enter' && handleStrikeClick()}
+					aria-label="Strikethrough"
+					aria-pressed={editor?.isActive('strike') ?? false}
+					class:active={editor?.isActive('strike') ?? false}
+					tabindex="0"
+				>
+					<iconify-icon icon="bi:type-strikethrough" width="22"></iconify-icon>
+				</button>
 
-					<!-- Link -->
-					<button
-						class:hidden={!show('link')}
-						onclick={handleLinkClick}
-						onkeydown={(e) => e.key === 'Enter' && handleLinkClick()}
-						aria-label="Link"
-						aria-pressed={editor?.isActive('link') ?? false}
-						class:active={editor?.isActive('link') ?? false}
-						tabindex="0"
-					>
-						<iconify-icon icon="bi:link-45deg" width="20"></iconify-icon>
-					</button>
-				</div>
+				<!-- Link -->
+				<button
+					class:hidden={!show('link')}
+					onclick={handleLinkClick}
+					onkeydown={(e) => e.key === 'Enter' && handleLinkClick()}
+					aria-label="Link"
+					aria-pressed={editor?.isActive('link') ?? false}
+					class:active={editor?.isActive('link') ?? false}
+					tabindex="0"
+				>
+					<iconify-icon icon="bi:link-45deg" width="20"></iconify-icon>
+				</button>
+			</div>
 
-				<!-- Align -->
-				<DropDown show={show('align')} items={alignText} label="Align" bind:active={active_dropDown} />
-				<!-- Insert -->
-				<DropDown show={show('insert')} items={inserts} icon="typcn:plus" label="Insert" bind:active={active_dropDown} />
-				<!-- Float -->
-				<DropDown show={show('float')} items={floats} icon="grommet-icons:text-wrap" label="Text Wrap" bind:active={active_dropDown} />
+			<!-- Align -->
+			<DropDown show={show('align')} items={alignText} label="Align" bind:active={active_dropDown} />
+			<!-- Insert -->
+			<DropDown show={show('insert')} items={inserts} icon="typcn:plus" label="Insert" bind:active={active_dropDown} />
+			<!-- Float -->
+			<DropDown show={show('float')} items={floats} icon="grommet-icons:text-wrap" label="Text Wrap" bind:active={active_dropDown} />
 
-				<!-- Image Description -->
-				<ImageDescription
-					show={show('description')}
-					value={editor?.getAttributes('image')?.description}
-					onSubmit={(description) => editor?.chain().focus().setImageDescription(description).run()}
-					bind:active={active_dropDown}
-				/>
+			<!-- Image Description -->
+			<ImageDescription
+				show={show('description')}
+				value={editor?.getAttributes('image')?.description}
+				onSubmit={(description) => editor?.chain().focus().setImageDescription(description).run()}
+				bind:active={active_dropDown}
+			/>
 
-				<!-- Image -->
-				<FileInput bind:show={showImageDialog} onChange={handleFileChange} className="fixed left-1/2 top-0 z-10 -translate-x-1/2 bg-white" />
+			<!-- Image -->
+			<FileInput show={showImageDialog} on:change={handleFileChange} className="fixed left-1/2 top-0 z-10 -translate-x-1/2 bg-white" />
 
-				<!-- Video -->
-				<VideoDialog bind:show={showVideoDialog} {editor} />
+			<!-- Video -->
+			<VideoDialog bind:show={showVideoDialog} {editor} />
+
+			<div class="divide-x" role="group" aria-label="History actions">
+				<button
+					onclick={() => editor?.chain().focus().undo().run()}
+					onkeydown={(e) => e.key === 'Enter' && editor?.chain().focus().undo().run()}
+					aria-label="Undo"
+					class="btn"
+					tabindex="0"
+					disabled={!editor?.can().undo()}
+				>
+					<iconify-icon icon="mdi:undo" width="22"></iconify-icon>
+				</button>
+
+				<button
+					onclick={() => editor?.chain().focus().redo().run()}
+					onkeydown={(e) => e.key === 'Enter' && editor?.chain().focus().redo().run()}
+					aria-label="Redo"
+					class="btn"
+					tabindex="0"
+					disabled={!editor?.can().redo()}
+				>
+					<iconify-icon icon="mdi:redo" width="22"></iconify-icon>
+				</button>
+			</div>
+
+			<!-- Character Count -->
+			<div class="ml-auto p-2 text-xs text-gray-500 dark:text-gray-400">
+				{editor.storage.characterCount?.characters() || 0} characters | {editor.storage.characterCount?.words() || 0} words
 			</div>
 		{/if}
 
-		<!-- Text Area  -->
+		<!-- Editor Container -->
 		<div
-			onclick={handleEditorClick}
-			onkeydown={handleEditorClick}
 			bind:this={element}
 			role="textbox"
 			tabindex="0"
-			class="RichText min-h-[calc(100vh-80px)] w-full flex-grow cursor-text overflow-auto"
+			class="min-h-[calc(100vh-80px)] w-full flex-grow cursor-text overflow-auto dark:text-white"
 			class:error={!!validationError}
 			aria-label="Rich text editor"
 			aria-multiline="true"
 			aria-required={!!field?.required}
-		></div>
+			dir={getTextDirection(_language) as 'ltr' | 'rtl'}
+		>
+			<!-- Editor content will be inserted here by TipTap -->
+		</div>
 	</div>
 
 	<!-- Error Message -->
@@ -568,8 +657,6 @@
 </div>
 
 <style lang="postcss">
-	@import 'RichText.css';
-
 	button.active {
 		color: rgb(0, 255, 123);
 	}
@@ -580,6 +667,11 @@
 
 	:global(.ProseMirror-selectednode img) {
 		box-shadow: 0px 0px 4px 0px #34363699 inset;
+	}
+
+	:global(.dark .ProseMirror),
+	:global(.dark .ProseMirror *) {
+		color: white !important;
 	}
 
 	.input-container {

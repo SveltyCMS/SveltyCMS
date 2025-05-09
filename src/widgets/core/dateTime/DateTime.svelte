@@ -1,7 +1,17 @@
 <!-- 
 @file src/widgets/core/dateTime/DateTime.svelte
 @component
-**DateTime widget**
+**DateTime widget component to display datetime field**
+
+@example
+<DateTime label="DateTime" db_fieldName="dateTime" required={true} />
+
+### Props
+- `field`: FieldType
+- `value`: any
+
+### Features
+- Translatable
 -->
 
 <script lang="ts">

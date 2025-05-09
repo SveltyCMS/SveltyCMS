@@ -8,7 +8,15 @@ It dynamically fetches and displays data based on the current language and colle
 It also handles navigation, mode switching (view, edit, create, media), and SEO metadata for the page.
 -->
 <script lang="ts">
+	import { publicEnv } from '@root/config/public';
 	import { goto } from '$app/navigation';
+
+	// Types
+	import type { Schema } from '@src/content/types';
+	import type { User } from '@root/src/auth/types.js';
+
+	// ParaglideJS
+	import type { AvailableLanguageTag } from '@root/src/paraglide/runtime';
 
 	// Stores
 	import { page } from '$app/state';
@@ -20,13 +28,6 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	import EntryList from '@src/components/EntryList.svelte';
 	import MediaGallery from '@src/routes/(app)/mediagallery/+page.svelte';
 
-	// System Logger
-	import type { User } from '@root/src/auth/types.js';
-
-	import { publicEnv } from '@root/config/public';
-	import type { AvailableLanguageTag } from '@root/src/paraglide/runtime';
-
-	import type { Schema } from '@root/src/content/types';
 	import Loading from '@root/src/components/Loading.svelte';
 
 	interface Props {
@@ -41,7 +42,6 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		isLoading = true;
 		if (!page.params.collection) return;
 
-		console.log('selectedCollection', data.collection);
 		collection.set(data.collection);
 		isLoading = false;
 	}
@@ -74,6 +74,12 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		if (currentPath !== newPath) goto(newPath);
 	});
 
+	$effect(() => {
+		if (mode.value === 'media') {
+			mode.set('view');
+		}
+	});
+
 	// Handle browser history navigation
 </script>
 
@@ -93,8 +99,6 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 			<div id="fields_container" class="fields max-h-[calc(100vh-60px)] overflow-y-auto max-md:max-h-[calc(100vh-120px)]">
 				<Fields fields={collection.value.fields} fieldsData={collectionValue.value} customData={{}} root={true} />
 			</div>
-		{:else if mode.value === 'media' && page.params.collection}
-			<MediaGallery />
 		{/if}
 	{:else}
 		<div class="error text-error-500" role="alert">Error: Collection data not available.</div>

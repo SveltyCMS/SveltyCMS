@@ -1,3 +1,8 @@
+/**
+@file src/widgets/core/richText/extensions/TextStyle.ts
+@description - RichText TipTap widget text style extension with fixed font size handling
+*/
+
 import TextStyle from '@tiptap/extension-text-style';
 
 declare module '@tiptap/core' {
@@ -21,13 +26,21 @@ export default TextStyle.extend({
 			...this.parent?.(),
 			fontSize: {
 				default: null,
-				parseHTML: (element) => element.style.fontSize.replace('px', ''),
+				parseHTML: (element) => {
+					const fontSize = element.style.fontSize;
+					if (!fontSize) return null;
+					return fontSize.replace(/px$/, '');
+				},
 				renderHTML: (attributes) => {
-					if (!attributes['fontSize']) {
+					if (!attributes.fontSize) {
 						return {};
 					}
+
+					const size = attributes.fontSize;
+					const fontSize = /^\d+$/.test(String(size)) ? `${size}px` : size;
+
 					return {
-						style: `font-size: ${attributes['fontSize']}px`
+						style: `font-size: ${fontSize}`
 					};
 				}
 			}
@@ -37,17 +50,21 @@ export default TextStyle.extend({
 	addCommands() {
 		return {
 			...this.parent?.(),
-
-			setFontSize:
-				(fontSize) =>
-				({ commands }) => {
-					return commands.setMark(this.name, { fontSize: fontSize });
-				},
-			unsetFontSize:
-				() =>
-				({ chain }) => {
-					return chain().setMark(this.name, { fontSize: null }).removeEmptyTextStyle().run();
-				}
+			setFontSize: (fontSize) => ({ chain }) => {
+				// Convert numbers to string to ensure consistent handling
+				const size = typeof fontSize === 'number' ? fontSize.toString() : fontSize;
+				return chain()
+					.focus()
+					.setMark(this.name, { fontSize: size })
+					.run();
+			},
+			unsetFontSize: () => ({ chain }) => {
+				return chain()
+					.focus()
+					.setMark(this.name, { fontSize: null })
+					.removeEmptyTextStyle()
+					.run();
+			}
 		};
 	}
 });

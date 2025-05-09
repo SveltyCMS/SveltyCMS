@@ -3,13 +3,17 @@
 @component
 **Loading component with animated circles and customizable text regions**
 
-```tsx
+@example
 <Loading customTopText="Please wait" customBottomText="Loading..." />
-```
+
 #### Props
 - `customTopText` {string} - Custom text to display above the loading circles
 - `customBottomText` {string} - Custom text to display below the loading circles
 
+Features:
+- Animated loading circles
+- Customizable text regions
+- Uses ParaglideJS for localization
 -->
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
@@ -30,7 +34,7 @@
 
 	let isAnimating = $state(true);
 	let animationTimeout: ReturnType<typeof setTimeout> | null = null;
-	const animationDuration = 30000; // 30 seconds
+	const animationDuration = 60000; // 60 seconds
 
 	onMount(() => {
 		// Stop animations after the specified duration
@@ -47,12 +51,7 @@
 	});
 </script>
 
-<div
-	class="absolute inset-0 flex items-center justify-center bg-black shadow-2xl"
-	role="status"
-	aria-live="polite"
-	aria-label="Loading content, please wait"
->
+<div class="absolute inset-0 flex items-center justify-center shadow-2xl" role="status" aria-live="polite" aria-label="Loading content, please wait">
 	{#if isAnimating}
 		<div class="relative h-[150px] w-[150px] rounded-full border-[7px] border-error-500 border-x-transparent" id="loader"></div>
 		<div class="absolute h-[170px] w-[170px] rounded-full border-[6px] border-success-400 border-x-transparent" id="loader2"></div>

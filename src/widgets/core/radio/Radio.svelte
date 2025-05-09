@@ -2,6 +2,16 @@
 @file src/widgets/core/radio/Radio.svelte
 @component 
 **Radio widget component that allows users to select a single option from a list of options.**
+
+@example
+<Radio label="Radio" db_fieldName="radio" required={true} />
+
+### Props
+- `field`: FieldType
+- `value`: any
+
+### Features
+- Translatable
 -->
 
 <script lang="ts">

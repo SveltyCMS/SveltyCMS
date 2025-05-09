@@ -36,8 +36,10 @@ const editTokenSchema = object({
 	tokenId: string(),
 	newTokenData: object({
 		email: optional(email()),
-		expires: optional(string()), // We'll parse this to Date later
-		type: optional(string())
+		expires: optional(string()),
+		type: optional(string()),
+		role: optional(string()),
+		user_id: optional(string())
 	})
 });
 
@@ -60,9 +62,25 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 		// Validate input
 		const validatedData = editTokenSchema.parse(body);
 
-		// Convert expires string to Date if it exists
+		// Handle expires conversion if it exists
 		if (validatedData.newTokenData.expires) {
-			validatedData.newTokenData.expires = new Date(validatedData.newTokenData.expires);
+			if (typeof validatedData.newTokenData.expires === 'string') {
+				// Convert string format (e.g. '7d') to Date
+				const unit = validatedData.newTokenData.expires.slice(-1);
+				const value = parseInt(validatedData.newTokenData.expires.slice(0, -1));
+				let hours = 168; // Default 7 days
+
+				switch (unit) {
+					case 'h': hours = value; break;
+					case 'd': hours = value * 24; break;
+				}
+
+				const expires = new Date();
+				expires.setHours(expires.getHours() + hours);
+				validatedData.newTokenData.expires = expires;
+			} else {
+				validatedData.newTokenData.expires = new Date(validatedData.newTokenData.expires);
+			}
 		}
 
 		const tokenAdapter = new TokenAdapter();

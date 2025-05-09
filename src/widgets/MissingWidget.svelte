@@ -1,8 +1,18 @@
 <!--
 @file src/widgets/MissingWidget.svelte 
 @component
-**Shows MissingWidget**
+**Shows MissingWidget component to display missing widget**
+
+@example
+<MissingWidget />
+
+### Props
+- `config`: FieldType
+
+### Features
+- Translatable
 -->
+
 <script lang="ts">
 	let { config } = $props();
 </script>

@@ -12,6 +12,9 @@ import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/r
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
+import type { ContentNode } from '@root/src/databases/dbInterface';
+import { contentStructure } from '@root/src/stores/collectionStore.svelte';
+import type { ContentNodeOperation } from '@root/src/content/types';
 
 const CACHE_TTL = 300; // 5 minutes
 
@@ -54,11 +57,11 @@ export const GET: RequestHandler = async ({ url }) => {
 
 			case 'getContentStructure': {
 				// Return content nodes from database
-				const contentNodesDB = await dbAdapter.getContentStructure();
+				const { contentStructure } = await contentManager.getCollectionData();
 				logger.info('Returning content structure from database');
 				response = {
 					success: true,
-					contentNodes: contentNodesDB
+					contentNodes: contentStructure
 				};
 				break;
 			}
@@ -86,56 +89,31 @@ export const POST: RequestHandler = async ({ request }) => {
 		const action = data.action;
 		logger.debug('POST request received', { data, action });
 
-		switch (action) {
-			case 'updateMetadata': {
-				// Updates metadata for categories and collections
-				const { items } = data;
+    switch (action) {
+      case 'updateContentStructure': {
+        // Updates metadata for categories and collections
+        const { items }: { items: ContentNodeOperation[] } = data;
 
 				if (!items || !Array.isArray(items)) {
 					throw error(400, 'Items array is required');
 				}
 
-				const updatePromises = items.map(async (item: SystemContent) => {
-					// Validate path format
-					if (!item.path.startsWith('/collections/')) {
-						throw error(400, `Invalid path format: ${item.path}. Path must start with /collections/`);
-					}
+        const contentStructure = await contentManager.upsertContentNodes(items);
 
-					if (item._id) {
-						// Get existing item to check if path has changed
-						const existingItem = await dbAdapter.getContentStructureById(item._id);
-						if (existingItem && existingItem.path !== item.path) {
-							logger.info(`Path changed for item ${item._id} from ${existingItem.path} to ${item.path}`);
-							// Handle path change - additional cleanup may be needed
-							await dbAdapter.cleanupContentStructure(existingItem.path);
-						}
-						return await dbAdapter.updateContentStructure(item._id, item);
-					} else {
-						// If item does not have an ID, it's a new item that does not have metadata.
-						// Add default icon if it's missing
-						const itemWithDefaults = {
-							...item,
-							icon: item.icon || (item.isCollection ? 'bi:file-text' : 'bi:folder'),
-							order: item.order || 999
-						};
 
-						return await dbAdapter.createContentStructure(itemWithDefaults);
-					}
-				});
-				await Promise.all(updatePromises);
-
-				await contentManager.updateCollections(true);
-				logger.info('Content structure metadata updated successfully');
-				return json({
-					success: true,
-					message: 'Content structure metadata updated successfully'
-				});
-			}
-			case 'recompile': {
-				// Clear Redis cache if available
-				if (!browser && isRedisEnabled()) {
-					await clearCache('api:content-structure:*');
-				}
+        // await contentManager.updateCollections(true);
+        logger.info('Content structure metadata updated successfully');
+        return json({
+          success: true,
+          contentStructure,
+          message: 'Content structure metadata updated successfully'
+        });
+      }
+      case 'recompile': {
+        // Clear Redis cache if available
+        if (!browser && isRedisEnabled()) {
+          await clearCache('api:content-structure:*');
+        }
 
 				// Reset the content manager's internal state and force recompilation
 				await contentManager.updateCollections(true);

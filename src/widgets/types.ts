@@ -25,6 +25,8 @@ export interface Widget {
 	dependencies?: string[];
 	component?: typeof SvelteComponent;
 	config?: Record<string, unknown>;
+	validateWidget: () => Promise<string | null>; // Required validation method
+	updateTranslationStatus: (value: unknown, field: Field, language: string) => void; // Required translation status
 	modifyRequest?: (args: ModifyRequestParams) => Promise<Record<string, unknown>>;
 	GuiFields?: unknown;
 	Icon?: string;
@@ -34,6 +36,11 @@ export interface Widget {
 
 export interface WidgetFunction {
 	(config: Record<string, unknown>): WidgetPlaceholder;
+	componentPath: string;
+}
+
+export interface WidgetModule {
+	default: WidgetFunction; // Default export of a widget module
 }
 
 export interface WidgetModule {

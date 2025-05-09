@@ -3,26 +3,27 @@
 @component
 **Blur effect component using Konva canvas used for image editing**
 
-### Props 
-- `stage`: Konva.Stage - The Konva stage where the image is displayed.
-- `layer`: Konva.Layer - The Konva layer where the image and effects are added.
-- `imageNode`: Konva.Image - The Konva image node representing the original image.
-- `on:blurReset` (optional): Function to be called when the blur effect is reset.
-- `on:blurApplied` (optional): Function to be called when the blur effect is applied.
+### Events
+- `blurReset`: Dispatched when blur effect is reset
+- `blurApplied`: Dispatched when blur effect is applied
 -->
 
 <script lang="ts">
 	import Konva from 'konva';
+	import { createEventDispatcher } from 'svelte';
+
+	const dispatch = createEventDispatcher<{
+		blurReset: void;
+		blurApplied: void;
+	}>();
 
 	interface Props {
 		stage: Konva.Stage;
 		layer: Konva.Layer;
 		imageNode: Konva.Image;
-		'on:blurReset'?: () => void;
-		'on:blurApplied'?: () => void;
 	}
 
-	let { stage, layer, imageNode, 'on:blurReset': onBlurReset = () => {}, 'on:blurApplied': onBlurApplied = () => {} }: Props = $props();
+	let { stage, layer, imageNode }: Props = $props();
 
 	let mosaicStrength = $state(10);
 	let blurRegion: Konva.Rect;
@@ -141,7 +142,6 @@
 			blurRegion.on('dragmove', applyMosaic);
 
 			layer.batchDraw();
-
 			applyMosaic();
 		}
 	}
@@ -199,6 +199,10 @@
 		applyMosaic();
 	}
 
+	function exitBlur() {
+		dispatch('blurReset');
+	}
+
 	function resetMosaic() {
 		if (blurRegion) {
 			blurRegion.destroy();
@@ -210,32 +214,51 @@
 			mosaicOverlay.destroy();
 		}
 		layer.batchDraw();
-		onBlurReset();
+		dispatch('blurReset');
 	}
 
 	function applyFinalMosaic() {
 		applyMosaic();
-		onBlurApplied();
+		dispatch('blurApplied');
 	}
 </script>
 
 <div class="wrapper">
-	<div class="flex items-center justify-around space-x-4">
-		<div class="flex flex-col space-y-2">
-			<label for="mosaic-strength" class="text-sm font-medium">Mosaic Strength:</label>
-			<input
-				id="mosaic-strength"
-				type="range"
-				min="1"
-				max="50"
-				bind:value={mosaicStrength}
-				oninput={updateMosaicStrength}
-				class="h-2 w-full cursor-pointer rounded-full bg-gray-300"
-			/>
+	<div class="align-center mb-2 flex w-full items-center">
+		<div class="flex w-full items-center justify-between">
+			<div class="flex items-center gap-2">
+				<!-- Back button at top of component -->
+				<button onclick={exitBlur} aria-label="Exit rotation mode" class="variant-outline-tertiary btn-icon">
+					<iconify-icon icon="material-symbols:close-rounded" width="20"></iconify-icon>
+				</button>
+
+				<h3 class="relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Blur Settings</h3>
+			</div>
+
+			<div class="flex flex-col space-y-2">
+				<label for="mosaic-strength" class="text-sm font-medium">Blur Strength:</label>
+				<input
+					id="mosaic-strength"
+					type="range"
+					min="1"
+					max="50"
+					bind:value={mosaicStrength}
+					oninput={updateMosaicStrength}
+					class="h-2 w-full cursor-pointer rounded-full bg-gray-300"
+					aria-valuemin="1"
+					aria-valuemax="50"
+					aria-valuenow={mosaicStrength}
+					aria-valuetext={`${mosaicStrength} pixels`}
+				/>
+				<span class="sr-only">Current mosaic strength: {mosaicStrength} pixels</span>
+			</div>
+
+			<div class="flex items-center gap-4">
+				<button onclick={resetMosaic} class="variant-filled-error btn" aria-label="Reset blur effect"> Reset </button>
+				<button onclick={applyFinalMosaic} class="variant-filled-primary btn" aria-label="Apply blur effect"> Apply </button>
+			</div>
 		</div>
 	</div>
-	<div class="mt-4 flex justify-around gap-4">
-		<button onclick={resetMosaic} class="variant-filled-error btn">Reset</button>
-		<button onclick={applyFinalMosaic} class="variant-filled-primary btn">Apply</button>
-	</div>
+
+	<div class="flex items-center justify-around space-x-4"></div>
 </div>

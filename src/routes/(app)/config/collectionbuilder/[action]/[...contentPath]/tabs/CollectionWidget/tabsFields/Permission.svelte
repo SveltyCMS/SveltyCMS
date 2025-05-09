@@ -32,6 +32,6 @@ Features:
 
 {#if $modalStore[0]}
 	<div class="mb-4">
-		<PermissionsSetting {roles} permissions={$targetWidget.permissions || {}} on:update={handlePermissionUpdate} />
+		<PermissionsSetting {roles} permissions={targetWidget.value.permissions || {}} onUpdate={handlePermissionUpdate} />
 	</div>
 {/if}

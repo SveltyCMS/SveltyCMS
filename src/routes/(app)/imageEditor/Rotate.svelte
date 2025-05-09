@@ -1,17 +1,12 @@
 <!-- 
 @file src/routes/(app)/imageEditor/Rotate.svelte
 @component
-**This component provides rotation controls for an image within a Konva stage**
-Users can rotate the image left, right, or by a custom angle, with options to apply or cancel the rotation.
+**Provides image rotation functionality with Konva integration**
 
-#### Props 
-- `stage`: Konva.Stage - The Konva stage where the image is displayed.
-- `layer`: Konva.Layer - The Konva layer where the image and effects are added.
-- `imageNode`: Konva.Image - The Konva image node representing the original image.
-- `on:rotate` (optional): Function to be called when a rotation is applied.
-- `on:rotateApplied` (optional): Function to be called when the rotation is applied.
-- `on:rotateCancelled` (optional): Function to be called when the rotation is canceled.
-- `on:rotateReset` (optional): Function to be called when the rotation is reset.
+### Props 
+- `stage`: Konva.Stage - The Konva stage where the image is displayed
+- `layer`: Konva.Layer - The Konva layer where the image and effects are added  
+- `imageNode`: Konva.Image - The Konva image node representing the original image
 -->
 
 <script lang="ts">
@@ -21,21 +16,13 @@ Users can rotate the image left, right, or by a custom angle, with options to ap
 		stage: Konva.Stage;
 		layer: Konva.Layer;
 		imageNode: Konva.Image;
-		'on:rotate'?: (data: { angle: number }) => void;
-		'on:rotateApplied'?: (data: { angle: number }) => void;
-		'on:rotateCancelled'?: () => void;
-		'on:rotateReset'?: () => void;
+		onRotate?: (angle: number) => void;
+		onRotateApplied?: () => void;
+		onRotateCancelled?: () => void;
+		onRotateReset?: () => void;
 	}
 
-	let {
-		stage,
-		layer,
-		imageNode,
-		'on:rotate': onRotate = () => {},
-		'on:rotateApplied': onRotateApplied = () => {},
-		'on:rotateCancelled': onRotateCancelled = () => {},
-		'on:rotateReset': onRotateReset = () => {}
-	}: Props = $props();
+	const { stage, layer, imageNode, onRotate, onRotateApplied, onRotateCancelled, onRotateReset } = $props() as Props;
 
 	let rotationAngle = $state(0);
 	let gridLayer = $state<Konva.Layer | null>(null);
@@ -43,9 +30,13 @@ Users can rotate the image left, right, or by a custom angle, with options to ap
 	// Initialize grid layer
 	$effect.root(() => {
 		createGridLayer();
+		return () => {
+			if (gridLayer) {
+				gridLayer.destroy();
+			}
+		};
 	});
 
-	// Function to create the grid layer
 	function createGridLayer() {
 		gridLayer = new Konva.Layer();
 
@@ -84,10 +75,8 @@ Users can rotate the image left, right, or by a custom angle, with options to ap
 	function centerRotationPoint() {
 		const imageWidth = imageNode.width();
 		const imageHeight = imageNode.height();
-
 		imageNode.offsetX(imageWidth / 2);
 		imageNode.offsetY(imageHeight / 2);
-
 		imageNode.x(stage.width() / 2);
 		imageNode.y(stage.height() / 2);
 	}
@@ -110,52 +99,75 @@ Users can rotate the image left, right, or by a custom angle, with options to ap
 		centerRotationPoint();
 		imageNode.rotation(rotationAngle);
 		layer.batchDraw();
-		gridLayer?.show(); // Show the grid when rotating
+		gridLayer?.show();
 		gridLayer?.batchDraw();
-		onRotate({ angle: rotationAngle });
+		onRotate?.(rotationAngle);
 	}
 
 	function applyRotation() {
-		gridLayer?.hide(); // Hide the grid when rotation is applied
+		gridLayer?.hide();
 		layer.batchDraw();
-		onRotateApplied({ angle: rotationAngle });
+		onRotateApplied?.();
 	}
 
-	function cancelRotation() {
-		resetRotation();
-		gridLayer?.hide(); // Hide the grid when rotation is canceled
-		layer.batchDraw();
-		onRotateCancelled();
+	function exitRotation() {
+		onRotateCancelled?.();
 	}
 
 	function resetRotation() {
 		rotationAngle = 0;
 		imageNode.rotation(0);
-		gridLayer?.hide(); // Hide the grid when resetting
+		gridLayer?.hide();
 		layer.batchDraw();
-		onRotateReset();
+		onRotateReset?.();
 	}
 </script>
 
-<div class="wrapper">
-	<div class="flex items-center justify-around">
-		<button onclick={rotateLeft} aria-label="Rotate Left" class="btn flex flex-col items-center">
-			<iconify-icon icon="mdi:rotate-left" width="24"></iconify-icon>
-			<span class="text-xs text-tertiary-500 dark:text-primary-500">Left</span>
-		</button>
+<!-- Rotation Controls UI -->
+<div class="wrapper p-4">
+	<div class="flex w-full items-center justify-between">
+		<div class="flex items-center gap-2">
+			<!-- Back button at top of component -->
+			<button onclick={exitRotation} aria-label="Exit rotation mode" class="variant-outline-tertiary btn-icon">
+				<iconify-icon icon="material-symbols:close-rounded" width="20"></iconify-icon>
+			</button>
 
-		<label for="rotation-angle" class="text-center text-sm font-medium">
-			Custom Angle:
-			<span class="ml-2 text-tertiary-500 dark:text-primary-500">{rotationAngle}°</span>
-		</label>
+			<h3 class="relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Rotation Settings</h3>
+		</div>
 
-		<button onclick={rotateRight} aria-label="Rotate Right" class="btn flex flex-col items-center">
-			<iconify-icon icon="mdi:rotate-right" width="24"></iconify-icon>
-			<span class="text-xs text-tertiary-500 dark:text-primary-500">Right</span>
-		</button>
+		<div class="mt-4 flex justify-around gap-4">
+			<button onclick={resetRotation} aria-label="Reset rotation" class="variant-outline btn"> Reset </button>
+			<button onclick={applyRotation} aria-label="Apply rotation" class="variant-filled-primary btn">
+				<iconify-icon icon="mdi:check" width="20"></iconify-icon>
+				Apply
+			</button>
+		</div>
 	</div>
 
-	<div class="mt-2 flex items-center justify-center space-x-4">
+	<div class="flex items-center justify-around space-x-4">
+		<div class="flex flex-col items-center">
+			<button onclick={rotateLeft} aria-label="Rotate 90 degrees left" class="btn">
+				<iconify-icon icon="mdi:rotate-left" width="24"></iconify-icon>
+				<span class="text-xs">90° Left</span>
+			</button>
+		</div>
+
+		<div class="flex flex-col space-y-2">
+			<label for="rotation-angle" class="text-sm font-medium">Rotation Angle:</label>
+			<span class="text-center text-tertiary-500 dark:text-primary-500">
+				{rotationAngle}°
+			</span>
+		</div>
+
+		<div class="flex flex-col items-center">
+			<button onclick={rotateRight} aria-label="Rotate 90 degrees right" class="btn">
+				<iconify-icon icon="mdi:rotate-right" width="24"></iconify-icon>
+				<span class="text-xs">90° Right</span>
+			</button>
+		</div>
+	</div>
+
+	<div class="mt-4">
 		<input
 			id="rotation-angle"
 			type="range"
@@ -164,13 +176,8 @@ Users can rotate the image left, right, or by a custom angle, with options to ap
 			step="1"
 			bind:value={rotationAngle}
 			oninput={rotateCustom}
-			class="h-2 w-full cursor-pointer rounded-full bg-gray-300"
+			class="range range-primary w-full"
+			aria-label="Rotation angle slider"
 		/>
-	</div>
-
-	<div class="mt-4 flex justify-around gap-4">
-		<button onclick={cancelRotation} class="variant-filled-error btn">Cancel</button>
-		<button onclick={resetRotation} class="variant-outline btn">Reset</button>
-		<button onclick={applyRotation} class="variant-filled-primary btn">Apply</button>
 	</div>
 </div>

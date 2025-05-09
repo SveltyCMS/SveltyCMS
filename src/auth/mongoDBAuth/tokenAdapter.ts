@@ -144,6 +144,32 @@ export class TokenAdapter implements Partial<authDBInterface> {
 		}
 	}
 
+	// Get token data
+	async getTokenData(token: string, user_id?: string, type?: string): Promise<Token | null> {
+		try {
+			const query: mongoose.FilterQuery<Token> = { token };
+			if (user_id) query.user_id = user_id;
+			if (type) query.type = type;
+
+			const tokenDoc = await this.TokenModel.findOne(query).lean();
+			if (!tokenDoc) {
+				logger.debug('Token not found', { token, user_id, type });
+				return null;
+			}
+
+			if (new Date(tokenDoc.expires) <= new Date()) {
+				logger.debug('Token is expired', { token, user_id, type });
+				return null;
+			}
+
+			return this.formatToken(tokenDoc);
+		} catch (err) {
+			const message = `Error in TokenAdapter.getTokenData: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { token, user_id, type });
+			throw error(500, message);
+		}
+	}
+
 	private formatToken(token: { _id: Types.ObjectId; user_id: string; token: string; email: string; expires: Date; type: string }): Token {
 		return {
 			...token,

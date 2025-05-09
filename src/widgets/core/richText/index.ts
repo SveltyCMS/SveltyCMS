@@ -48,7 +48,7 @@ function getMediaService(): MediaService {
 /**
  * Defines RichText widget Parameters
  */
-const widget = (params: Params) => {
+const widget = (params: Params & { widgetId?: string }) => {
 	// Define the display function
 	let display: any;
 
@@ -65,6 +65,7 @@ const widget = (params: Params) => {
 
 	// Define the widget object
 	const widget = {
+		widgetId: params.widgetId,
 		Name: WIDGET_NAME,
 		GuiFields: getGuiFields(params, GuiSchema)
 	};

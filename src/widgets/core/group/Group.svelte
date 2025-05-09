@@ -1,9 +1,17 @@
 <!--
 @file src/widgets/core/group/Group.svelte
 @component
-**Group widget**
+**Group widget component Displays a group of fields, either in a simple grouped layout or within tabs**
 
-Displays a group of fields, either in a simple grouped layout or within tabs.
+@example
+<Group fields={widget.fields} mode="group" />
+
+### Props
+- `field`: FieldType
+- `value`: any
+
+### Features
+- Translatable
 -->
 
 <script lang="ts">

@@ -3,7 +3,18 @@
 @component
 **Search Component for Svelte CMS**
 
-Features:
+@example:
+<WatermarkSettings bind:size bind:opacity bind:positionX bind:positionY bind:rotation />
+
+### Props:
+- `globalSearchValue` {string}: Current value of the global search input (default: '')
+- `searchShow` {boolean}: Visibility of the search input (default: false)
+- `filterShow` {boolean}: Visibility of filter controls (default: false)
+- `columnShow` {boolean}: Visibility of column controls (default: false)
+- `density` {string}: Table density ('compact', 'normal', 'comfortable') (default: 'normal')
+- `densityOptions` {string[]}: Custom density options (default: ['compact', 'normal', 'comfortable'])
+
+### Features:
 - Fuzzy search with optimized edit distance calculation
 - Real-time search results with debounced input
 - Keyboard navigation support
@@ -39,33 +50,9 @@ Features:
 
 	// States
 	let searchResults: SearchResult[] = $state([]);
-	import { createEventDispatcher } from 'svelte';
-
-	let {
-		value = '',
-		placeholder = 'Search...',
-		classNames = ''
-	} = $props<{
-		value: string;
-		placeholder: string;
-		classNames: string;
-	}>();
-
-	let searchQuery = $state(value);
+	let searchQuery = $state('');
 	let inputRef: HTMLInputElement | null = $state(null);
 	let selectedIndex = $state(-1); // Track the currently selected result
-
-	const dispatch = createEventDispatcher();
-
-	// Update the parent component's state when the search term changes
-	$effect(() => {
-		dispatch('search', { value: searchQuery });
-	});
-
-	// Update internal state when the external value prop changes
-	$effect(() => {
-		searchQuery = value;
-	});
 
 	// Debounce function for search optimization
 	function debounce<T extends (...args: any[]) => void>(fn: T, delay: number): (...args: Parameters<T>) => void {
@@ -193,21 +180,21 @@ Features:
 
 {#if $isSearchVisible}
 	<div
-		class="search-component fixed inset-0 z-50 flex flex-col items-center justify-center bg-gray-900/50 backdrop-blur-sm"
+		class="search-component fixed inset-0 z-50 flex flex-col items-center justify-center bg-gray-950/50 backdrop-blur-sm"
 		role="dialog"
 		aria-label="Global Search"
 	>
 		<!-- Search input -->
 		<input
+			bind:value={searchQuery}
 			bind:this={inputRef}
-			{placeholder}
 			oninput={() => debouncedFuzzySearch(searchQuery)}
 			onkeydown={onKeyDown}
 			type="search"
+			placeholder="Global Search ..."
 			aria-label="Search input"
 			aria-controls="search-results"
-			class="input mx-2 w-full max-w-xl rounded-md border-4 !border-primary-500 px-4 py-2 {classNames}"
-			bind:value={searchQuery}
+			class="input mx-2 w-full max-w-xl rounded-md border-4 !border-primary-500 px-4 py-2"
 		/>
 
 		<!-- Search results -->

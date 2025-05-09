@@ -26,7 +26,7 @@ Features:
 	// Stores
 	import { page } from '$app/state';
 	import { mode } from '@src/stores/collectionStore.svelte';
-	import { handleSidebarToggle } from '@src/stores/sidebarStore.svelte';
+	import { handleUILayoutToggle } from '@src/stores/UIStore.svelte';
 	import { isSearchVisible, triggerActionStore } from '@utils/globalSearchIndex';
 
 	// Skeleton
@@ -42,9 +42,9 @@ Features:
 		icon: string;
 		label: string;
 		color?: string;
-		x?: number;
-		y?: number;
-		angle?: number;
+		x?: number; // Calculated position
+		y?: number; // Calculated position
+		offsetAngle?: number; // Base angle offset in radians
 		action?: () => void;
 		ariaLabel?: string;
 	}
@@ -73,80 +73,97 @@ Features:
 	let svg = $state<SVGSVGElement | undefined>(undefined);
 	const user: User = page.data.user;
 
-	// Endpoint definition with URL and icon only
+	// Endpoint definition with URL, icon, and base offset angle
 	let endpoints = $state<Endpoint[]>(
-		[
-			{
-				// Home
-				url: { external: false, path: `/` },
-				icon: 'solar:home-bold',
-				label: 'Navigate to Home',
-				ariaLabel: 'Navigate to home page'
-			},
-			{
-				// User
-				url: { external: false, path: `/user` },
-				icon: 'radix-icons:avatar',
-				label: 'User Profile Settings',
-				color: 'bg-orange-500',
-				ariaLabel: 'Open user profile settings'
-			},
-			{
-				// Collection builder
-				url: { external: false, path: `/config/collectionbuilder` },
-				icon: 'fluent-mdl2:build-definition',
-				label: 'Collection Builder',
-				ariaLabel: 'Open collection builder'
-			},
-			{
-				// Image Editor
-				url: { external: false, path: `/imageEditor` },
-				icon: 'tdesign:image-edit',
-				label: 'Image Editor',
-				color: 'bg-error-500',
-				ariaLabel: 'Open image editor'
-			},
-			{
-				// Graphql Yoga Explorer
-				url: { external: true, path: `/api/graphql` },
-				icon: 'teenyicons:graphql-outline',
-				label: 'GraphQL Explorer',
-				color: 'bg-pink-500',
-				ariaLabel: 'Open GraphQL explorer'
-			},
-			{
-				// Marketplace
-				url: { external: true, path: `https://www.sveltycms.com` },
-				icon: 'icon-park-outline:shopping-bag',
-				label: 'Visit Marketplace',
-				color: 'bg-primary-700',
-				ariaLabel: 'Visit SveltyCMS marketplace'
-			},
-			{
-				// System Configuration
-				url: { external: false, path: `/config` },
-				icon: 'mynaui:config',
-				label: 'System Configuration',
-				color: 'bg-surface-400',
-				ariaLabel: 'Open system configuration'
-			},
-			{
-				// GlobalSearch
-				url: { external: false, path: '' },
-				icon: 'material-symbols:search-rounded',
-				label: 'Global Search',
-				color: 'bg-error-500',
-				ariaLabel: 'Open global search (Alt + S)',
-				action: () => {
-					isSearchVisible.update((v) => !v);
-					triggerActionStore.set([]);
+		(() => {
+			const baseEndpoints = [
+				{
+					// Home (Center) - No offsetAngle needed
+					url: { external: false, path: `/` },
+					icon: 'solar:home-bold',
+					label: 'Navigate to Home',
+					ariaLabel: 'Navigate to home page'
+				},
+				{
+					// User
+					url: { external: false, path: `/user` },
+					icon: 'radix-icons:avatar',
+					label: 'User Profile Settings',
+					color: 'bg-orange-500',
+					ariaLabel: 'Open user profile settings'
+				},
+				{
+					// Collection builder
+					url: { external: false, path: `/config/collectionbuilder` },
+					icon: 'fluent-mdl2:build-definition',
+					label: 'Collection Builder',
+					ariaLabel: 'Open collection builder'
+				},
+				{
+					// Image Editor
+					url: { external: false, path: `/imageEditor` },
+					icon: 'tdesign:image-edit',
+					label: 'Image Editor',
+					color: 'bg-error-500',
+					ariaLabel: 'Open image editor'
+				},
+				{
+					// Graphql Yoga Explorer
+					url: { external: true, path: `/api/graphql` },
+					icon: 'teenyicons:graphql-outline',
+					label: 'GraphQL Explorer',
+					color: 'bg-pink-500',
+					ariaLabel: 'Open GraphQL explorer'
+				},
+				{
+					// Marketplace
+					url: { external: true, path: `https://www.sveltycms.com` },
+					icon: 'icon-park-outline:shopping-bag',
+					label: 'Visit Marketplace',
+					color: 'bg-primary-700',
+					ariaLabel: 'Visit SveltyCMS marketplace'
+				},
+				{
+					// System Configuration
+					url: { external: false, path: `/config` },
+					icon: 'mynaui:config',
+					label: 'System Configuration',
+					color: 'bg-surface-400',
+					ariaLabel: 'Open system configuration'
+				},
+				{
+					// GlobalSearch
+					url: { external: false, path: '' },
+					icon: 'material-symbols:search-rounded',
+					label: 'Global Search',
+					color: 'bg-error-500',
+					ariaLabel: 'Open global search (Alt + S)',
+					action: () => {
+						isSearchVisible.update((v) => !v);
+						triggerActionStore.set([]);
+					}
 				}
-			}
-		].filter((endpoint) => {
-			if (user?.role === 'admin') return true;
-			else if (endpoint.url.path === '/collection') return false;
-			else return true;
-		})
+			].filter((endpoint) => {
+				// Filter based on user role
+				if (user?.role === 'admin') return true;
+				else if (endpoint.url.path === '/collection')
+					return false; // Example: hide collection for non-admins
+				else return true;
+			});
+
+			// Calculate offset angles for satellite endpoints
+			const satelliteEndpoints = baseEndpoints.slice(1);
+			const totalSatellites = satelliteEndpoints.length;
+			const angleStep = (Math.PI * 2) / totalSatellites;
+
+			return [
+				baseEndpoints[0], // Home endpoint remains first
+				...satelliteEndpoints.map((endpoint, index) => ({
+					...endpoint,
+					offsetAngle: angleStep * index
+				}))
+			];
+		})()
 	);
 
 	interface Props {
@@ -161,20 +178,50 @@ Features:
 		})
 	}: Props = $props();
 
-	// Function to calculate endpoint coordinates and angles
-	function calculateEndpoint(index: number, totalEndpoints: number, radius: number): { x: number; y: number; angle: number } {
-		const angle = ((Math.PI * 2) / totalEndpoints) * (index + 1.25); // Adjust angle for centering
-		const x = center.x + radius * Math.cos(angle);
-		const y = center.y + radius * Math.sin(angle);
-		return { x, y, angle };
+	// Function to calculate rotated endpoint coordinates
+	function calculateRotatedEndpoint(
+		buttonX: number,
+		buttonY: number,
+		centerX: number,
+		centerY: number,
+		radius: number,
+		offsetAngle: number
+	): { x: number; y: number } {
+		// Angle of the line from the button to the center
+		const mainAngle = Math.atan2(centerY - buttonY, centerX - buttonX);
+		// Final angle for the endpoint (main angle + offset)
+		const finalAngle = mainAngle + offsetAngle;
+		// Calculate coordinates
+		const x = centerX + radius * Math.cos(finalAngle);
+		const y = centerY + radius * Math.sin(finalAngle);
+		return { x, y };
 	}
 
-	// Calculate endpoint positions and angles based on their index
+	// Calculate endpoint positions reactively
 	let endpointsWithPositions = $derived(
-		endpoints.map((endpoint, index) => ({
-			...endpoint,
-			...calculateEndpoint(index, endpoints.length, 140) // Adjust radius as needed
-		}))
+		endpoints.map((endpoint, index) => {
+			if (index === 0) {
+				// Home button stays at the center
+				return {
+					...endpoint,
+					x: center.x,
+					y: center.y
+				};
+			} else {
+				// Calculate rotated position for satellite buttons
+				return {
+					...endpoint,
+					...calculateRotatedEndpoint(
+						buttonInfo.x,
+						buttonInfo.y,
+						center.x,
+						center.y,
+						140, // Radius from center
+						endpoint.offsetAngle || 0 // Use defined offset angle
+					)
+				};
+			}
+		})
 	);
 
 	// Update line animations when showRoutes changes
@@ -333,7 +380,7 @@ Features:
 		} else {
 			mode.set('view');
 			modalStore.clear();
-			handleSidebarToggle();
+			handleUILayoutToggle();
 			goto(endpoint.url.path || '/');
 		}
 		showRoutes = false;
@@ -400,13 +447,21 @@ Features:
 
 <!-- Show the routes when the component is visible -->
 {#if showRoutes}
-	<div class="fixed inset-0 z-[9999998]" role="dialog" aria-modal="true" aria-label="Navigation Menu" transition:fade={{ duration: 150 }}>
-		<!-- Large centered circle background -->
-		<div
-			class="fixed left-1/2 top-1/2 -z-10 h-[340px] w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-full border bg-tertiary-500/40"
-			transition:scale={{ duration: 200, easing: elasticOut }}
-		></div>
-
+	<div
+		class="fixed inset-0 z-[9999998]"
+		role="dialog"
+		aria-modal="true"
+		aria-label="Navigation Menu"
+		tabindex="-1"
+		transition:fade={{ duration: 150 }}
+		onclick={() => (showRoutes = false)}
+		onkeydown={(event) => {
+			// Close on Escape key press
+			if (event.key === 'Escape') {
+				showRoutes = false;
+			}
+		}}
+	>
 		<!-- SVG Lines -->
 		<svg bind:this={svg} xmlns="http://www.w3.org/2000/svg" use:setDash aria-hidden="true" class="svg-container">
 			<line bind:this={firstLine} x1={buttonInfo.x} y1={buttonInfo.y} x2={center.x} y2={center.y} class="nav-line" />
@@ -429,7 +484,10 @@ Features:
 				role="menuitem"
 				aria-label={endpointsWithPositions[0].ariaLabel || endpointsWithPositions[0].label}
 				tabindex="0"
-				onclick={() => handleEndpointClick(endpointsWithPositions[0])}
+				onclick={(event) => {
+					event.stopPropagation(); // Prevent click from reaching overlay
+					handleEndpointClick(endpointsWithPositions[0]);
+				}}
 				onkeydown={(event) => handleEndpointKeydown(event, endpointsWithPositions[0])}
 				class="endpoint-circle group fixed z-[99999999] flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-2 bg-gray-600 transition-transform duration-200 hover:scale-110 focus:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2"
 				style="top:{center.y}px;left:{center.x}px;"
@@ -451,7 +509,10 @@ Features:
 					role="menuitem"
 					aria-label={endpoint.ariaLabel || endpoint.label}
 					tabindex="0"
-					onclick={() => handleEndpointClick(endpoint)}
+					onclick={(event) => {
+						event.stopPropagation(); // Prevent click from reaching overlay
+						handleEndpointClick(endpoint);
+					}}
 					onkeydown={(event) => handleEndpointKeydown(event, endpoint)}
 					class="endpoint-circle group fixed z-[99999999] flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full transition-transform duration-200 {endpoint.color ||
 						'bg-tertiary-500'} hover:scale-110 focus:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2"
@@ -468,9 +529,6 @@ Features:
 				</div>
 			{/each}
 		</div>
-
-		<!-- Close button overlay -->
-		<button onclick={() => (showRoutes = false)} class="absolute inset-0 z-[-1] h-full w-full" aria-label="Close Navigation Menu"></button>
 	</div>
 {/if}
 

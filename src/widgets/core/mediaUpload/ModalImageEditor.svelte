@@ -2,6 +2,16 @@
 @file src/widgets/core/mediaUpload/ModalImageEditor.svelte
 @components
 **MediaUpload modal Image Editor widget**
+
+@example
+<MediaUpload label="MediaUpload" db_fieldName="mediaUpload" required={true} />
+
+### Props
+- `field`: FieldType
+- `value`: any
+
+### Features
+- Translatable
 -->
 
 <script lang="ts">

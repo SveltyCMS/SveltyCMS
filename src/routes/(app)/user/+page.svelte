@@ -1,6 +1,17 @@
 <!-- 
 @file src/routes/(app)/user/+page.svelte
-@description This file sets up and displays the user page, providing a streamlined interface for managing user accounts and settings.
+@component
+**This file sets up and displays the user page, providing a streamlined interface for managing user accounts and settings**
+
+@example
+<User />
+
+### Props
+- `users` {array} - Array of users
+
+### Features
+- Displays a list of users
+- Provides a user-friendly interface for managing user accounts and settings
 -->
 
 <script lang="ts">
@@ -41,31 +52,26 @@
 	let { data } = $props<{ data: PageData }>();
 	let { user: serverUser, isFirstUser } = $derived(data);
 
-	// Initialize user state directly
-	let user = $state<User>({
-		_id: '',
-		email: '',
-		username: '',
-		role: '',
-		avatar: '/Default_User.svg',
+	// Make user data reactive
+	let user = $derived<User>({
+		_id: serverUser?._id ?? '',
+		email: serverUser?.email ?? '',
+		username: serverUser?.username ?? '',
+		role: serverUser?.role ?? '',
+		avatar: serverUser?.avatar ?? '/Default_User.svg',
 		permissions: []
 	});
 
 	// Keep user data in sync with server data
-	$effect(() => {
-		if (serverUser) {
-			user = {
-				_id: serverUser._id ?? '',
-				email: serverUser.email ?? '',
-				username: serverUser.username ?? '',
-				role: serverUser.role ?? '',
-				avatar: serverUser.avatar ?? '/Default_User.svg',
-				permissions: serverUser.permissions ?? []
-			};
-			// Set avatar source once on initialization
-			avatarSrc.set(serverUser.avatar || '/Default_User.svg');
-		}
-	});
+
+	// Initialize avatarSrc with user's avatar or default using effect
+	// $effect(() => {
+	// 	if (user?.avatar) {
+	// 		avatarSrc.set(user.avatar);
+	// 	} else {
+	// 		avatarSrc.set('/Default_User.svg');
+	// 	}
+	// });
 
 	// Define password as state
 	let password = $state('hash-password');
@@ -88,7 +94,7 @@
 		if ($triggerActionStore.length > 0) {
 			executeActions();
 		}
-		collection.set({} as Schema);
+		collection.set(null);
 	});
 
 	// Modal Trigger - User Form
@@ -187,7 +193,7 @@
 		<div class="grid grid-cols-1 grid-rows-2 gap-1 overflow-hidden md:grid-cols-2 md:grid-rows-1">
 			<!-- Avatar with user info -->
 			<div class="relative flex flex-col items-center justify-center gap-1">
-				<Avatar src={`${$avatarSrc}?t=${Date.now()}`} initials="AV" rounded-none class="w-32" />
+				<Avatar src={`${avatarSrc.value}?t=${Date.now()}`} initials="AV" rounded-none class="w-32" />
 
 				<!-- Edit button -->
 				<button onclick={modalEditAvatar} class="gradient-primary w-30 badge absolute top-8 text-white sm:top-4">{m.userpage_editavatar()}</button>

@@ -1,7 +1,17 @@
 <!-- 
 @file src/widgets/custom/currency/Currency.svelte
 @component
-**Currency widget**
+**Currency widget component to display currency field**
+
+@example
+<Currency label="Currency" db_fieldName="currency" required={true} />
+
+### Props
+- `field`: FieldType
+- `value`: any
+
+### Features
+- Translatable
 -->
 
 <script lang="ts">
@@ -18,20 +28,20 @@
 	// Valibot validation
 	import { object, string, number, boolean, optional, regex, pipe, parse, type InferInput, type ValiError } from 'valibot';
 
-	const fieldName = getFieldName(field);
 	interface Props {
 		field: FieldType;
 		value?: any;
 	}
 
-	let { field, value = collectionValue.value[fieldName] || {} }: Props = $props();
+	let { field, value = collectionValue.value[getFieldName(field)] || {} }: Props = $props();
+	const fieldName = getFieldName(field);
 
 	const _data = $state(mode.value === 'create' ? {} : value);
 	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
 	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
 
-	let numberInput: HTMLInputElement = $state();
+	let numberInput: HTMLInputElement | undefined = $state();
 	const language = contentLanguage.value;
 
 	export const WidgetData = async () => _data;

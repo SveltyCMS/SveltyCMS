@@ -87,7 +87,7 @@ function getMediaService(): MediaService {
 	}
 }
 
-const widget = (params: Params) => {
+const widget = (params: Params & { widgetId?: string }) => {
 	// Define the display function
 	const display =
 		params.display ||
@@ -109,6 +109,7 @@ const widget = (params: Params) => {
 
 	// Define the widget object
 	const widget = {
+		widgetId: params.widgetId,
 		Name: WIDGET_NAME,
 		GuiFields: getGuiFields(params, GuiSchema)
 	};

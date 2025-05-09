@@ -1,7 +1,19 @@
-<!-- 
- @file src/widgets/core/input/Input.svelte 
- @component
- **Input field widget component to display input field with prefix and suffix and count**
+<!--
+@file src/widgets/core/input/Input.svelte
+@component
+**Input Widget Component for entering and editing text data in a CMS collection. Supports multilingual input, validation, and dynamic translation status updates**
+
+@example
+<Input field={{ label: "Title", db_fieldName: "title", translated: true, required: true }} />
+
+### Props
+- `field`: FieldType (configuration for the input, e.g., label, required, translated)
+- `value`: any (object storing input values, e.g., { en: "Hello", fr: "" })
+
+### Features
+- **Multilingual Support**: Handles translatable fields with reactive updates to translation status.
+- **Validation**: Checks for required fields, minimum length, and custom rules, updating validation store.
+- **Error Handling**: Displays validation errors inline with accessible markup.
 -->
 
 <script lang="ts">

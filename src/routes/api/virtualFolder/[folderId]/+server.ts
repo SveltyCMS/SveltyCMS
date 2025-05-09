@@ -18,10 +18,14 @@ import { publicEnv } from '@root/config/public';
 import { json } from '@sveltejs/kit';
 
 import type { RequestHandler } from './$types';
-import type { SystemVirtualFolder } from '@src/databases/dbInterface';
-import { dbAdapter } from '@src/databases/db';
-
-import { type FolderContents, type VirtualFolderUpdateData, type FolderResponse, VirtualFolderError } from '@src/types/virtualFolder';
+import { dbAdapter } from '../../../../databases/db';
+import {
+	type FolderContents,
+	type VirtualFolderUpdateData,
+	type FolderResponse,
+	type SystemVirtualFolder,
+	VirtualFolderError
+} from '../../../../databases/dbInterface';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

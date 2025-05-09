@@ -16,7 +16,7 @@ import type { Schema } from '@root/src/content/types';
 import type { User } from '@src/auth/types';
 
 // Database
-import { dbAdapter, getCollectionModels } from '@src/databases/db';
+import { dbAdapter } from '@src/databases/db';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -41,8 +41,11 @@ export const _SETSTATUS = async ({ data, schema, user }: { data: FormData; schem
 
 		// Get collection models with performance tracking
 		const modelStart = performance.now();
-		const collections = await getCollectionModels();
-		const collection = collections[schema.id];
+		if (!dbAdapter?.collection) {
+			logger.error('Collection adapter is not available');
+			return new Response('Internal server error: Collection adapter not available', { status: 500 });
+		}
+		const collection = await dbAdapter.collection.getModel(schema.id);
 		const modelDuration = performance.now() - modelStart;
 		logger.debug(`Collection models retrieved in ${modelDuration.toFixed(2)}ms`);
 

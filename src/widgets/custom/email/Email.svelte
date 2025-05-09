@@ -2,6 +2,16 @@
 @file src/widgets/custom/email/Email.svelte
 @component
 **Email widget**
+
+@example
+<Email label="Email" db_fieldName="email" required={true} />
+
+### Props
+- `field`: FieldType
+- `value`: any
+
+### Features
+- Translatable
 -->
 
 <script lang="ts">

@@ -2,6 +2,16 @@
 @file src/widgets/core/relation/Relation.svelte
 @component
 **Relation widget component to display relation field**
+
+@example
+<Relation label="Relation" db_fieldName="relation" required={true} />
+
+### Props	
+- `field`: FieldType
+- `value`: any
+
+### Features
+- Translatable
 -->
 
 <script lang="ts">

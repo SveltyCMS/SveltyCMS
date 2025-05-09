@@ -1,6 +1,11 @@
 /** 
 @file cli-installer/startOrInstallPrompt.js
 @description Start or Install Prompt for the installer
+
+### Features
+- Displays a note about what the user can do/select
+- Displays existing configuration (password hidden)
+- Prompts for start or install
 */
 
 import { select, isCancel, note, outro } from '@clack/prompts';
@@ -53,10 +58,12 @@ export const startOrInstallPrompt = async () => {
 
 	const selection = await select({ message, options });
 
+	// Handle exit or cancellation
 	if (isCancel(selection) || selection === 'exit') {
-		outro('Thank you for using SveltyCMS CLI Installer.');
-		process.exit(0); // Exit with code 0
+		outro('Exiting SveltyCMS CLI Installer.');
+		process.exit(1); // Exit with code 1 to indicate cancellation or explicit exit
 	}
 
+	// Return the selected action ('install' or 'start')
 	return selection;
 };

@@ -18,11 +18,7 @@
  * This module is used throughout the authentication system to ensure type consistency and safety.
  * It is primarily imported by services handling user authentication and authorization logic.
  *
- * Example:
- * ```tsx
- * import { hasPermission } from 'src/auth/types';
- * const hasReadPermission = hasPermission(user, 'read', 'system');
- * ```
+
  */
 
 import { PermissionAction as ConfigPermissionAction, PermissionType } from '../../src/auth/permissionTypes';
@@ -318,6 +314,7 @@ export interface SessionStore {
 	get(session_id: string): Promise<User | null>;
 	set(session_id: string, user: User, expiration: Date): Promise<void>;
 	delete(session_id: string): Promise<void>;
+	deletePattern(pattern: string): Promise<number>;
 	validateWithDB(session_id: string, dbValidationFn: (session_id: string) => Promise<User | null>): Promise<User | null>;
 	close(): Promise<void>;
 }

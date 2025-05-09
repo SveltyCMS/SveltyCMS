@@ -22,7 +22,7 @@
 	// Stores
 	import { storeListboxValue } from '@stores/store.svelte';
 	import { mode, modifyEntry } from '@src/stores/collectionStore.svelte';
-	import { handleSidebarToggle } from '@src/stores/sidebarStore.svelte';
+	import { handleUILayoutToggle } from '@src/stores/UIStore.svelte'; // <-- Updated import
 
 	// Components
 	import ScheduleModal from './ScheduleModal.svelte';
@@ -93,7 +93,7 @@
 		switch (storeListboxValue.value) {
 			case 'create':
 				mode.set('create');
-				handleSidebarToggle();
+				handleUILayoutToggle();
 				onCreate();
 				break;
 			case 'publish':

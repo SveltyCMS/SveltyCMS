@@ -2,6 +2,16 @@
 @file src/widgets/core/megaMenu/MegaMenu.svelte
 @component
 **MegaMenu widget component to create a mega menu with nested structure and drag-and-drop functionality**
+
+@example
+<MegaMenu label="MegaMenu" db_fieldName="megaMenu" required={true} />
+
+### Props
+- `field`: FieldType
+- `value`: any
+
+### Features
+- Translatable
 -->
 
 <script lang="ts">

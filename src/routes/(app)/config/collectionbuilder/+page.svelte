@@ -20,7 +20,7 @@
 	import { goto } from '$app/navigation';
 	import { v4 as uuidv4 } from 'uuid';
 	import { checkCollectionNameConflict } from '@utils/utils';
-	import type { CollectionData } from '@src/content/types';
+	import type { CollectionData, ContentNodeOperatianType, ContentNodeOperation } from '@src/content/types';
 
 	// Stores
 	import { collectionValue, mode } from '@src/stores/collectionStore.svelte';
@@ -28,15 +28,16 @@
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
-	import Board from './Board.svelte';
-	import ModalCategory from './ModalCategory.svelte';
-	import ModalNameConflict from './ModalNameConflict.svelte';
+	import Board from './NestedContent/Board.svelte';
+	import ModalCategory from './NestedContent/ModalCategory.svelte';
+	import ModalNameConflict from './NestedContent/ModalNameConflict.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
 	import { getToastStore, getModalStore, type ModalSettings, type ModalComponent } from '@skeletonlabs/skeleton';
+	import type { ContentNode, DatabaseId, ISODateString } from '@root/src/databases/dbInterface';
 
 	interface CategoryModalResponse {
 		newCategoryName: string;
@@ -59,15 +60,15 @@
 		suggestions?: string[];
 	}
 
-	interface ExistingCategory {
-		name: string;
-		icon: string;
+	interface CollectionBuilderProps {
+		data: { contentStructure: ContentNode[] };
 	}
 
-	// State variables
+	let { data }: CollectionBuilderProps = $props();
+	let currentConfig = $state(data.contentStructure);
+	let nodesToSave = $state<Record<string, ContentNodeOperation>>({});
 
-	let data = $props<{ contentStructure: Record<string, CollectionData> }>();
-	let currentConfig = $derived(data.nestedContentStructure);
+	// State
 	let isLoading = $state(false);
 	let apiError = $state<string | null>(null);
 
@@ -75,7 +76,7 @@
 	const modalStore = getModalStore();
 
 	// Modal Trigger - New Category
-	function modalAddCategory(existingCategory?: ExistingCategory): void {
+	function modalAddCategory(existingCategory?: ContentNode): void {
 		const modalComponent: ModalComponent = {
 			ref: ModalCategory,
 			props: {
@@ -97,6 +98,7 @@
 					} else {
 						await addNewCategory(response);
 					}
+					modalStore.close();
 				} catch (error) {
 					console.error('Error handling modal response:', error);
 					showToast('Error updating categories', 'error');
@@ -107,40 +109,55 @@
 		modalStore.trigger(modalSettings);
 	}
 
-	async function updateExistingCategory(existingCategory: ExistingCategory, response: CategoryModalResponse): Promise<void> {
-		const newConfig = { ...currentConfig };
-		Object.entries(newConfig).forEach(([_, category]) => {
-			if (category.name === existingCategory.name) {
-				category.name = response.newCategoryName;
-				category.icon = response.newCategoryIcon;
-			}
-			// Also check subcategories
-			if (category.subcategories) {
-				Object.entries(category.subcategories).forEach(([_, subCategory]) => {
-					if (subCategory.name === existingCategory.name) {
-						subCategory.name = response.newCategoryName;
-						subCategory.icon = response.newCategoryIcon;
-					}
-				});
-			}
-		});
+	async function updateExistingCategory(existingCategory: ContentNode, response: CategoryModalResponse): Promise<void> {
+		const newConfig = currentConfig.filter((c) => c._id !== existingCategory._id);
+		const newCategory = { ...existingCategory, name: response.newCategoryName, icon: response.newCategoryIcon };
 
-		contentStructure.set(newConfig);
+		console.debug('updating category', newCategory);
+		currentConfig = [...newConfig, newCategory];
+
+		if (existingCategory.name !== newCategory.name) {
+			nodesToSave[existingCategory._id] = {
+				type: 'rename' as const,
+				node: newCategory
+			};
+		} else {
+			nodesToSave[existingCategory._id] = {
+				type: 'update' as const,
+				node: newCategory
+			};
+		}
 	}
 
 	async function addNewCategory(response: CategoryModalResponse): Promise<void> {
-		const newConfig = { ...currentConfig };
-		const categoryKey = response.newCategoryName.toLowerCase().replace(/\s+/g, '-');
+		console.debug('adding category');
 		const newCategoryId = uuidv4();
 
-		newConfig[categoryKey] = {
-			id: newCategoryId,
+		const newCategory: ContentNode = {
+			_id: newCategoryId as DatabaseId,
 			name: response.newCategoryName,
 			icon: response.newCategoryIcon,
-			subcategories: {}
+			order: 999,
+			translations: [],
+			updatedAt: new Date().toISOString() as ISODateString,
+			createdAt: new Date().toISOString() as ISODateString,
+			parentId: undefined,
+			nodeType: 'category'
 		};
 
-		contentStructure.set(newConfig);
+		currentConfig = [...currentConfig, newCategory];
+		nodesToSave[newCategory._id] = {
+			type: 'create' as const,
+			node: newCategory
+		};
+	}
+
+	async function nodeMoved(node: ContentNode) {
+		console.debug('node moved', node);
+		nodesToSave[node._id] = {
+			type: 'move' as const,
+			node: node
+		};
 	}
 
 	// Check for name conflicts before saving
@@ -179,57 +196,52 @@
 	}
 
 	// Handle collection save with conflict checking
-	function handleSave(event: CustomEvent<{ name: string; data: Record<string, CollectionData> }>): void {
-		const { name, data } = event.detail;
-		const items = Object.entries(data).map(([key, item]) => ({
-			...item,
-			path: key,
-			isCollection: false // Assuming these are categories, adjust as necessary
-		}));
+	async function handleSave() {
+		const items = Object.values(nodesToSave);
+		// if (!nameCheck.canProceed) {
+		// 	showToast('Collection save cancelled due to name conflict', 'error');
+		// 	return;
+		// }
+		//
+		// const finalName = nameCheck.newName || name;
+		try {
+			isLoading = true;
+			const response = await fetch('/api/content-structure', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					action: 'updateContentStructure',
+					items
+				})
+			});
+			nodesToSave = {};
 
-		checkNameConflicts(name).then(async (nameCheck) => {
-			if (!nameCheck.canProceed) {
-				showToast('Collection save cancelled due to name conflict', 'error');
-				return;
+			const result: ApiResponse = await response.json();
+
+			if (response.ok) {
+				showToast('Categories updated successfully', 'success');
+				console.debug('Result', result);
+				contentStructure.set(result.contentStructure);
+
+				// Create and dispatch a proper CustomEvent
+				// const saveEvent = new CustomEvent('save', {
+				// 	detail: { name: finalName, data }
+				// });
+				// dispatchEvent(saveEvent);
+			} else {
+				currentConfig = contentStructure.value;
+
+				throw new Error(result.error || 'Failed to update categories');
 			}
-
-			const finalName = nameCheck.newName || name;
-			try {
-				isLoading = true;
-				const response = await fetch('/api/content-structure', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify({
-						action: 'updateMetadata',
-						items
-					})
-				});
-
-				const result: ApiResponse = await response.json();
-
-				if (response.ok) {
-					showToast('Categories updated successfully', 'success');
-
-					contentStructure.set(currentConfig);
-
-					// Create and dispatch a proper CustomEvent
-					const saveEvent = new CustomEvent('save', {
-						detail: { name: finalName, data }
-					});
-					dispatchEvent(saveEvent);
-				} else {
-					throw new Error(result.error || 'Failed to update categories');
-				}
-			} catch (error) {
-				console.error('Error saving categories:', error);
-				showToast(error instanceof Error ? error.message : 'Failed to save categories', 'error');
-				apiError = error instanceof Error ? error.message : 'Unknown error occurred';
-			} finally {
-				isLoading = false;
-			}
-		});
+		} catch (error) {
+			console.error('Error saving categories:', error);
+			showToast(error instanceof Error ? error.message : 'Failed to save categories', 'error');
+			apiError = error instanceof Error ? error.message : 'Unknown error occurred';
+		} finally {
+			isLoading = false;
+		}
 	}
 
 	function handleAddCollectionClick(): void {
@@ -259,6 +271,10 @@
 			classes: 'border-1 !rounded-md'
 		});
 	}
+
+	$effect(() => {
+		console.debug('CurentConfig', currentConfig);
+	});
 </script>
 
 <!-- Page Title with Back Button -->
@@ -289,13 +305,7 @@
 		{m.collection_addcollection()}
 	</button>
 
-	<button
-		type="button"
-		onclick={() => handleSave(new CustomEvent('save', { detail: { name: 'categories', data: currentConfig } }))}
-		aria-label="Save"
-		class="variant-filled-primary btn gap-2 lg:ml-4"
-		disabled={isLoading}
-	>
+	<button type="button" onclick={handleSave} aria-label="Save" class="variant-filled-primary btn gap-2 lg:ml-4" disabled={isLoading}>
 		{#if isLoading}
 			<iconify-icon icon="eos-icons:loading" width="24" class="animate-spin text-white"></iconify-icon>
 		{:else}
@@ -316,6 +326,6 @@
 		<p class="mb-4 text-center dark:text-primary-500">{m.collection_text_description()}</p>
 
 		<!-- display collections -->
-		<Board contentNodes={contentStructure.value} onEditCategory={modalAddCategory} />
+		<Board contentNodes={currentConfig ?? []} addOperation={nodeMoved} onEditCategory={modalAddCategory} />
 	</div>
 </div>

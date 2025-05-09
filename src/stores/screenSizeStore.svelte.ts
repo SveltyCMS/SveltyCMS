@@ -3,8 +3,14 @@
  * @description Manages the screen size states using Svelte 5 runes
  *
  * Features:
- * - Enum for different screen sizes
- * - Screen size breakpoints
+ * - Enum for different screen sizes matching Tailwind CSS breakpoints
+ * - Screen size breakpoints (Tailwind defaults):
+ *   - xs: < 640px (mobile)
+ *   - sm: 640px (mobile landscape/tablet portrait)
+ *   - md: 768px (tablet landscape)
+ *   - lg: 1024px (small desktop)
+ *   - xl: 1280px (desktop)
+ *   - 2xl: 1536px (large desktop)
  * - Reactive screen size tracking
  * - Derived values for different screen states
  * - Debounced screen size updates
@@ -12,31 +18,40 @@
 
 import { store } from '@utils/reactivity.svelte';
 
-// Enum for screen sizes
+// Enum for screen sizes (matches Tailwind CSS breakpoints)
 export enum ScreenSize {
+	XS = 'xs',
 	SM = 'sm',
 	MD = 'md',
 	LG = 'lg',
-	XL = 'xl'
+	XL = 'xl',
+	XXL = '2xl'
 }
 
-// Screen size breakpoints
+// Screen size breakpoints (Tailwind defaults)
 const BREAKPOINTS = {
-	SM: 567,
-	MD: 767,
-	LG: 1024
+	XS: 0,     // Extra small devices
+	SM: 640,   // Small devices (mobile landscape/tablet portrait)
+	MD: 768,   // Medium devices (tablet landscape)
+	LG: 1024,  // Large devices (small desktop)
+	XL: 1280,  // Extra large devices (desktop)
+	XXL: 1536  // 2x extra large devices (large desktop)
 } as const;
 
 // Helper function to get screen size name
 function getScreenSizeName(width: number): ScreenSize {
-	if (width <= BREAKPOINTS.SM) {
+	if (width < BREAKPOINTS.SM) {
+		return ScreenSize.XS;
+	} else if (width < BREAKPOINTS.MD) {
 		return ScreenSize.SM;
-	} else if (width <= BREAKPOINTS.MD) {
+	} else if (width < BREAKPOINTS.LG) {
 		return ScreenSize.MD;
-	} else if (width <= BREAKPOINTS.LG) {
+	} else if (width < BREAKPOINTS.XL) {
 		return ScreenSize.LG;
-	} else {
+	} else if (width < BREAKPOINTS.XXL) {
 		return ScreenSize.XL;
+	} else {
+		return ScreenSize.XXL;
 	}
 }
 
@@ -53,10 +68,14 @@ function createScreenSizeStores() {
 	let currentSize = $state(initialSize);
 
 	// Derived states using $derived
-	const isMobile = $derived(currentSize === ScreenSize.SM);
+	const isMobile = $derived(currentSize === ScreenSize.XS || currentSize === ScreenSize.SM);
 	const isTablet = $derived(currentSize === ScreenSize.MD);
-	const isDesktop = $derived(currentSize === ScreenSize.LG || currentSize === ScreenSize.XL);
-	const isLargeScreen = $derived(currentSize === ScreenSize.XL);
+	const isDesktop = $derived(
+		currentSize === ScreenSize.LG ||
+		currentSize === ScreenSize.XL ||
+		currentSize === ScreenSize.XXL
+	);
+	const isLargeScreen = $derived(currentSize === ScreenSize.XL || currentSize === ScreenSize.XXL);
 
 	// Debounce function
 	function debounce(fn: () => void, delay: number): () => void {
@@ -79,7 +98,7 @@ function createScreenSizeStores() {
 	// Setup listener function
 	function setupListener(): () => void {
 		if (typeof window === 'undefined') {
-			return () => {};
+			return () => { };
 		}
 
 		const debouncedUpdate = debounce(updateScreenSize, 150);

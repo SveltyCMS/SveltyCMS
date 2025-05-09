@@ -92,7 +92,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					.filter(([key]) => key !== 'id')
 					.map(([key, value]) => {
 						if (key === 'permissions' && role.isAdmin) {
-							return `\t\tpermissions: permissions.map((p) => p._id) // All permissions`;
+							return `\t\tpermissions: permissions.map((p) => p._id), // All permissions`;
 						}
 						if (typeof value === 'string') {
 							return `\t\t${key}: '${value}'`;

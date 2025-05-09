@@ -1,23 +1,16 @@
 import { processModule } from '@root/src/content/utils';
 import type { PageLoad } from './$types';
+import lodash from 'lodash';
 
-interface LoadData {
-	collection: {
-		module: string;
-		[key: string]: unknown;
-	};
-}
-
-export const load: PageLoad = async ({ data }: { data: LoadData }) => {
-	const selectedCollection = await processModule(data.collection.module);
-	console.log('selectedCollection', selectedCollection, data);
+export const load: PageLoad = async ({ params, data }) => {
+	const selectedCollection = await processModule(data.collection.module as string);
 
 	if (!selectedCollection || !selectedCollection?.schema) return;
+	// console.log('selectedCollection', selectedCollection, page.params.collection);
 
-	const collectionData = Object.assign({}, data.collection);
-	delete collectionData.module;
+	const collectionData = lodash.omit(data.collection, ['module']);
 
-	const collection: Record<string, unknown> = {
+	const collection = {
 		...selectedCollection?.schema,
 		...collectionData
 	};

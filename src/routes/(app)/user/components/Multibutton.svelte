@@ -79,10 +79,10 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		delete: {
 			buttonClass: 'gradient-error',
 			iconValue: 'bi:trash3-fill',
-			modalTitle: () => (type === 'user' ? 'Please Confirm User Deletion' : m.multibuttontoken_deletetitle()),
-			modalBody: () => (type === 'user' ? 'Are you sure you wish to delete this user?' : m.multibuttontoken_deletebody()),
-			endpoint: () => (type === 'user' ? '/api/user/deleteUsers' : '?/deleteToken'),
-			method: () => (type === 'user' ? 'DELETE' : 'POST'),
+			modalTitle: () => (type === 'user' ? m.usermodalconfirmtitle() : m.multibuttontoken_deletetitle()),
+			modalBody: () => (type === 'user' ? m.usermodalconfirmbody() : m.multibuttontoken_deletebody()),
+			endpoint: () => (type === 'user' ? '/api/user/deleteUsers' : '/api/user/deleteTokens'),
+			method: () => 'DELETE',
 			toastMessage: () => `${type === 'user' ? 'User' : 'Token'} Deleted`,
 			toastBackground: 'gradient-error'
 		},

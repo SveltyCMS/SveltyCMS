@@ -9,10 +9,12 @@ Users can adjust the watermark's position, opacity, scale, rotation, and offsets
 - `layer`: Konva.Layer - The Konva layer where the image and effects are added.
 - `imageNode`: Konva.Image - The Konva image node representing the original image.
 - `on:change` (optional): Function to be called when the watermark settings change.
+- `on:exitWatermark` (optional): Function to be called when exiting watermark mode.
 -->
 
 <script lang="ts">
 	import Konva from 'konva';
+	import type { WatermarkProps, WatermarkPosition } from './watermarkTypes';
 
 	const WATERMARK_POSITION = {
 		'top-left': 'top-left',
@@ -26,26 +28,7 @@ Users can adjust the watermark's position, opacity, scale, rotation, and offsets
 		'bottom-right': 'bottom-right'
 	} as const;
 
-	type WatermarkPosition = (typeof WATERMARK_POSITION)[keyof typeof WATERMARK_POSITION];
-
-	interface WatermarkSettings {
-		watermarkFile: File | null;
-		position: WatermarkPosition;
-		opacity: number;
-		scale: number;
-		offsetX: number;
-		offsetY: number;
-		rotation: number;
-	}
-
-	interface Props {
-		stage: Konva.Stage;
-		layer: Konva.Layer;
-		imageNode: Konva.Image;
-		'on:change'?: (settings: WatermarkSettings) => void;
-	}
-
-	let { stage, layer, imageNode, 'on:change': onChange = () => {} }: Props = $props();
+	let { stage, layer, imageNode, onWatermarkChange, onExitWatermark }: WatermarkProps = $props();
 
 	let watermarkFile: File | null = $state(null);
 	let position: WatermarkPosition = $state(WATERMARK_POSITION.center);
@@ -94,8 +77,6 @@ Users can adjust the watermark's position, opacity, scale, rotation, and offsets
 	}
 
 	function calculateWatermarkPosition() {
-		const stageWidth = stage.width();
-		const stageHeight = stage.height();
 		const imageWidth = imageNode.width() * imageNode.scaleX();
 		const imageHeight = imageNode.height() * imageNode.scaleY();
 
@@ -146,7 +127,7 @@ Users can adjust the watermark's position, opacity, scale, rotation, and offsets
 
 	function handleChange() {
 		applyWatermark();
-		onChange({
+		onWatermarkChange?.({
 			watermarkFile,
 			position,
 			opacity,
@@ -184,10 +165,21 @@ Users can adjust the watermark's position, opacity, scale, rotation, and offsets
 	function formatValue(value: number, suffix: string = ''): string {
 		return `${value.toFixed(2)}${suffix}`;
 	}
+
+	function triggerExitWatermark() {
+		onExitWatermark?.();
+	}
 </script>
 
 <div class="wrapper">
-	<h3 class="mb-4 text-lg font-bold">Watermark Settings</h3>
+	<div class="align-center flex w-full items-center gap-4">
+		<!-- Back button at top of component -->
+		<button onclick={triggerExitWatermark} aria-label="Exit rotation mode" class="variant-outline-tertiary btn-icon">
+			<iconify-icon icon="material-symbols:close-rounded" width="20"></iconify-icon>
+		</button>
+
+		<h3 class="relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Watermark Settings</h3>
+	</div>
 
 	<div class="mb-4">
 		{#if watermarkPreview}
@@ -196,7 +188,7 @@ Users can adjust the watermark's position, opacity, scale, rotation, and offsets
 				<button class="bg-error absolute -right-2 -top-2 rounded-full p-1 text-xs text-white" onclick={removeWatermark}> X </button>
 			</div>
 		{:else}
-			<label class="btn-primary btn mb-2">
+			<label class="variant-outline-primary btn mb-2">
 				Upload Watermark
 				<input type="file" accept="image/*" onchange={handleFileChange} class="hidden" />
 			</label>

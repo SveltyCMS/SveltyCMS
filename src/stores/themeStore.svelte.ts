@@ -12,7 +12,7 @@
 
 import { store } from '@utils/reactivity.svelte';
 import type { Theme } from '@src/databases/dbInterface';
-import { dbAdapter } from '@src/databases/db';
+//import { dbAdapter } from '@src/databases/db';
 
 // Types
 interface ThemeState {

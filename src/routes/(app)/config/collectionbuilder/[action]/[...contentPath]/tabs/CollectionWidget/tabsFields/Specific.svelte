@@ -41,7 +41,7 @@ Features:
 {#if $modalStore[0] && currentGuiSchema && specificFields.length > 0}
 	{#each specificFields as property}
 		<InputSwitch
-			value={$targetWidget[property]}
+			value={targetWidget.value[property]}
 			on:toggle={(e) => handleToggle(e, property)}
 			widget={asAny(currentGuiSchema[property]?.widget)}
 			key={property}

@@ -35,7 +35,7 @@ export class ThemeManager {
 		return ThemeManager.instance;
 	}
 
-	// Initialize the ThemeManager with a database adapter
+	// Initialize ThemeManager with database adapter
 	public async initialize(db: dbInterface): Promise<void> {
 		try {
 			if (this.initialized) {
@@ -54,7 +54,7 @@ export class ThemeManager {
 		}
 	}
 
-	// Load default theme from database or use fallback
+	// Load default theme from database or fallback
 	private async loadDefaultTheme(): Promise<void> {
 		try {
 			if (!this.db) {
@@ -62,44 +62,38 @@ export class ThemeManager {
 			}
 
 			logger.debug('Attempting to load default theme from database...');
-			const dbTheme = await this.db.getDefaultTheme();
 
-			if (dbTheme && typeof dbTheme === 'object' && 'name' in dbTheme) {
-				this.currentTheme = dbTheme as Theme;
+			const dbTheme = await this.db.getDefaultTheme(); // Get default theme from db
+
+			if (dbTheme != null && typeof dbTheme === 'object' && 'name' in dbTheme) {
+				// Check if valid theme
+				this.currentTheme = dbTheme; // Set current theme from db
 				logger.info(`Loaded default theme from database: ${this.currentTheme.name}`);
 			} else {
 				logger.warn('No valid default theme found in database. Using fallback.');
-				this.currentTheme = DEFAULT_THEME;
-				await this.db.storeThemes([this.currentTheme]);
+				this.currentTheme = DEFAULT_THEME; // Set to default fallback
+
+				await this.db.storeThemes([this.currentTheme]); // Store fallback theme in db
 				logger.info('Fallback theme saved to database.');
 			}
 
 			if (!this.currentTheme) {
-				logger.error('Failed to set a current theme. This should never happen.');
-				this.currentTheme = DEFAULT_THEME;
+				throw new Error('Failed to load or set a default theme.');
 			}
 		} catch (err) {
-			const message = `Error in ThemeManager.loadDefaultTheme: ${err instanceof Error ? err.message : String(err)}`;
+			const message = `Error in loadDefaultTheme: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			this.currentTheme = DEFAULT_THEME;
-			logger.info('Using fallback theme due to error.');
-			try {
-				await this.db!.storeThemes([this.currentTheme]);
-				logger.info('Fallback theme saved to database.');
-			} catch (saveErr) {
-				const saveMessage = `Error saving fallback theme: ${saveErr instanceof Error ? saveErr.message : String(saveErr)}`;
-				logger.error(saveMessage);
-			}
+			throw error(500, message);
 		}
 	}
 
-	// Get the current theme as a serialized object
+	// Get the current theme
 	public getTheme(): Theme {
 		if (!this.initialized) {
-			const message = 'ThemeManager is not initialized. Call initialize() first.';
-			logger.warn(message);
+			// Check if initialized
+			logger.warn('ThemeManager is not initialized. Call initialize() first.');
 		}
-		return this.currentTheme || DEFAULT_THEME;
+		return this.currentTheme || DEFAULT_THEME; // Return current or default
 	}
 
 	// Update the current theme
@@ -109,8 +103,9 @@ export class ThemeManager {
 				throw new Error('ThemeManager is not initialized. Call initialize() first.');
 			}
 
-			await this.db.storeThemes([theme]);
-			this.currentTheme = theme;
+			await this.db.storeThemes([theme]); // Store theme in db
+			await this.db.setDefaultTheme(theme.name); // Set as default theme in db
+			this.currentTheme = theme; // Update current theme
 			logger.info(`Theme updated to: ${theme.name}`);
 		} catch (err) {
 			const message = `Error in ThemeManager.setTheme: ${err instanceof Error ? err.message : String(err)}`;

@@ -1,6 +1,16 @@
 <!--
 @file src/widgets/core/megaMenu/GuiFields.svelte
 @component - GUI fields component for mega menu
+
+@example
+<GuiFields bind:value={value} />
+
+### Props
+- `field`: FieldType
+- `value`: any
+
+### Features
+- Translatable
 -->
 
 <script lang="ts">

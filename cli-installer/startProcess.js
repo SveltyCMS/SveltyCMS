@@ -1,6 +1,13 @@
 /** 
 @file cli-installer/startProcess.js
 @description Start Process for the CLI Installer
+
+### Features
+- Start SveltyCMS
+- Display a note about navigation instructions
+- Select a package manager using arrow keys
+- Press Enter to select
+- Press Ctrl+C to cancel at any time
 */
 
 import { select, isCancel, spinner, note } from '@clack/prompts';

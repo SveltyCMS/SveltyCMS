@@ -12,7 +12,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { google } from 'googleapis';
 
 //Db
-import { auth, dbInitPromise } from '@src/databases/db';
+import { auth, dbAdapter, dbInitPromise } from '@src/databases/db';
 
 // Utils
 import { saveAvatarImage } from '@utils/media/mediaStorage';
@@ -23,6 +23,7 @@ import { systemLanguage } from '@stores/store.svelte';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 import { googleAuth, setCredentials, generateGoogleAuthUrl } from '@src/auth/googleAuth';
+import { contentManager } from '@root/src/content/ContentManager';
 
 // Types
 interface GoogleUserInfo {
@@ -94,23 +95,14 @@ async function fetchAndRedirectToFirstCollection() {
 		}
 
 		// Get content structure with UUIDs
-		const contentNodes = await dbAdapter.getContentStructure();
+		//
+		const collection = await contentManager.getFirstCollection();
 
-		if (!contentNodes?.length) {
-			logger.warn('No collections found in content structure');
-			return '/';
-		}
+		const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+		if (!collection) return '/';
 
-		// Find first collection using UUID
-		const firstCollection = contentNodes.find((node) => node.isCollection && node._id);
-
-		if (firstCollection) {
-			logger.info(`Redirecting to first collection: ${firstCollection.name} (${firstCollection._id})`);
-			return `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${firstCollection._id}`;
-		}
-
-		logger.warn('No valid collections found');
-		return '/';
+		// Construct redirect URL using UUID instead of name
+		return `/${defaultLanguage}${collection.path}`;
 	} catch (err) {
 		logger.error('Error in fetchAndRedirectToFirstCollection:', err);
 		return '/';
@@ -135,6 +127,10 @@ async function handleGoogleUser(
 		systemLanguage.set(googleUser.locale);
 	}
 
+	if (!auth) {
+		logger.error('Auth adatper not initialized cannot login using oauth');
+	}
+
 	// Check if user exists
 	let user = await auth?.checkUser({ email });
 
@@ -157,7 +153,7 @@ async function handleGoogleUser(
 		}
 
 		// Create the new user
-		user = await auth.createUser(
+		user = await auth?.createUser(
 			{
 				email,
 				username: googleUser.name ?? '',
@@ -188,7 +184,7 @@ async function handleGoogleUser(
 			lastAuthMethod: 'google',
 			firstName: googleUser.given_name ?? '',
 			lastName: googleUser.family_name ?? '',
-			...(avatarUrl && { avatar: avatarUrl })
+			avatar: user.avatar ? user.avatar : avatarUrl ? avatarUrl : undefined
 		});
 	}
 

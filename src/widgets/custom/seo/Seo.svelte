@@ -3,11 +3,15 @@
 @component
 **SEO widget for managing meta title, description, and robots meta tags**
 
-```tsx
+@example
 <Seo bind:value={value} />
-```
+
 #### Props
-- `value` {object} - SEO object
+- `field`: FieldType
+- `value`: any
+
+#### Features
+- Translatable
 -->
 
 <script lang="ts">

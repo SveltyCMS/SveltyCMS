@@ -1,6 +1,118 @@
+import type { ContentNode, NestedContentNode } from '../databases/dbInterface';
 import { logger } from '../utils/logger.svelte';
-import type { Schema } from './types';
+import type { MinimalContentNode, Schema } from './types';
 import widgetProxy, { ensureWidgetsInitialized, resolveWidgetPlaceholder } from '@src/widgets';
+
+export function constructNestedStructure(contentStructure: ContentNode[]): NestedContentNode[] {
+	const nodeMap = new Map<string, NestedContentNode>();
+	const byParent: Record<string, NestedContentNode[]> = [];
+	const ROOT_KEY = '__root__';
+
+	// Step 1: Convert to NestedContentNode and group by parentId
+	for (const node of contentStructure) {
+		const nested: NestedContentNode = {
+			...node,
+			path: '', // to be filled in later
+			children: []
+		};
+
+		nodeMap.set(node._id, nested);
+
+		const parentKey = node.parentId ?? ROOT_KEY;
+		if (!byParent[parentKey]) byParent[parentKey] = [];
+		byParent[parentKey].push(nested);
+	}
+
+	const result: NestedContentNode[] = [];
+
+	const rootNodes = byParent[ROOT_KEY] ?? [];
+
+	// Step 2: DFS using stack
+	const stack: { node: NestedContentNode; parentPath: string }[] = [];
+
+	for (const root of rootNodes) {
+		root.path = `/${root.name}`;
+		result.push(root);
+		stack.push({ node: root, parentPath: '' });
+	}
+
+	while (stack.length > 0) {
+		const { node } = stack.pop()!;
+		const children = byParent[node._id] ?? [];
+
+		for (let i = children.length - 1; i >= 0; i--) {
+			const child = children[i];
+			child.path = `${node.path}/${child.name}`;
+			node.children.push(child);
+			stack.push({ node: child, parentPath: node.path });
+		}
+	}
+
+	return result;
+}
+
+export function generateCategoryNodesFromPaths(files: Schema[]): Map<string, MinimalContentNode> {
+	const folders = new Map<string, MinimalContentNode>();
+
+	for (const file of files) {
+		const parts = file.path!.split('/').filter(Boolean); // break path into parts
+		let path = '';
+		for (let i = 0; i < parts.length - 1; i++) {
+			const name = parts[i];
+			path = `${path}/${name}`;
+
+			if (!folders.has(path)) {
+				folders.set(path, {
+					name,
+					path: path,
+					nodeType: 'category'
+				});
+			}
+		}
+	}
+
+	return folders;
+}
+
+// Depth first traversal to generate paths for each node
+//
+export function constructContentPaths(contentStructure: ContentNode[]): Record<string, ContentNode> {
+	const byParent: Record<string, ContentNode[]> = {};
+	const result: Record<string, ContentNode> = {};
+
+	// Group by parentId
+	for (const node of contentStructure) {
+		const parentKey = node.parentId ?? '__root__';
+		if (!byParent[parentKey]) byParent[parentKey] = [];
+		byParent[parentKey].push(node);
+	}
+
+	const stack: { node: ContentNode; parentPath?: string; path: string }[] = [];
+
+	// Start with root nodes (parentId == undefined)
+	const rootNodes = byParent['__root__'] ?? [];
+	for (const root of rootNodes) {
+		stack.push({ node: root, path: `/${root.name}` });
+	}
+
+	while (stack.length > 0) {
+		const { node, path } = stack.pop()!;
+		const updatedNode = { ...node };
+
+		result[path] = updatedNode;
+
+		const children = byParent[node._id ?? ''] ?? [];
+		for (let i = children.length - 1; i >= 0; i--) {
+			const child = children[i];
+			stack.push({
+				node: child,
+				path: `${path}/${child.name}`
+			});
+		}
+	}
+
+	return result;
+}
 
 //import { ensureWidgetsInitialized } from "@src/widgets";
 
@@ -29,7 +141,7 @@ async function processModule(content: string): Promise<{ schema?: Schema } | nul
 		const moduleContent = `
 				const module = {};
 				const exports = {};
-	               const resolveWidgetPlaceholder = ${resolveWidgetPlaceholder.toString()};
+	      const resolveWidgetPlaceholder = ${resolveWidgetPlaceholder.toString()};
 				(async function(module, exports) {
 					${modifiedContent}
 					return module.exports || exports;

@@ -1,17 +1,19 @@
 <!-- 
 @file src/widgets/seo/Heatmap.svelte
 @component
-**Heatmap widget for SEO Widget**
+**Heatmap widget for SEO Widget to manage meta title, description, and robots meta tags**
 
-```tsx
+@example
 <Heatmap content={title + ' ' + description} language={$contentLanguage} keywords={seoKeywords} on:heatmapGenerated={handleHeatmapGenerated} />
-```
+
 #### Props
 - `content` {string} - Content text
 - `language` {string} - Content language
 - `keywords` {string[]} - Array of keywords
 - `on:heatmapGenerated` {function} - Heatmap data handler
 
+#### Features
+- Translatable
 -->
 
 <script lang="ts">

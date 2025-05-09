@@ -47,6 +47,25 @@ export class SessionAdapter implements Partial<authDBInterface> {
 		this.userAdapter = new UserAdapter();
 	}
 
+	// Validate token signature and claims
+	async validateToken(token: string): Promise<boolean> {
+		try {
+			const session = await this.SessionModel.findById(token).lean();
+			if (!session) return false;
+
+			// Check if token is expired
+			if (new Date(session.expires) <= new Date()) {
+				await this.SessionModel.findByIdAndDelete(token);
+				return false;
+			}
+
+			return true;
+		} catch (err) {
+			logger.error(`Token validation failed: ${err instanceof Error ? err.message : String(err)}`);
+			return false;
+		}
+	}
+
 	// Create a new session
 	async createSession(sessionData: { user_id: string; expires: Date }): Promise<Session> {
 		try {
@@ -60,6 +79,33 @@ export class SessionAdapter implements Partial<authDBInterface> {
 			return this.formatSession(session.toObject());
 		} catch (err) {
 			const message = `Error in SessionAdapter.createSession: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message);
+			throw error(500, message);
+		}
+	}
+
+	// Rotate token - create new session and invalidate old one
+	async rotateToken(oldToken: string, expires: Date): Promise<string> {
+		try {
+			// Get old session data
+			const oldSession = await this.SessionModel.findById(oldToken).lean();
+			if (!oldSession) {
+				throw error(404, `Session not found: ${oldToken}`);
+			}
+
+			// Create new session
+			const newSession = await this.createSession({
+				user_id: oldSession.user_id,
+				expires
+			});
+
+			// Invalidate old session
+			await this.deleteSession(oldToken);
+
+			logger.debug(`Token rotated - old: ${oldToken}, new: ${newSession._id}`);
+			return newSession._id;
+		} catch (err) {
+			const message = `Error in SessionAdapter.rotateToken: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
 			throw error(500, message);
 		}
@@ -158,6 +204,28 @@ export class SessionAdapter implements Partial<authDBInterface> {
 			const message = `Error in SessionAdapter.getActiveSessions: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
 			throw error(500, message);
+		}
+	}
+
+	// Get session token metadata including expiration
+	async getSessionTokenData(token: string): Promise<{ expiresAt: Date; user_id: string } | null> {
+		try {
+			const session = await this.SessionModel.findById(token).lean();
+			if (!session) return null;
+
+			// Check if token is expired
+			if (new Date(session.expires) <= new Date()) {
+				await this.SessionModel.findByIdAndDelete(token);
+				return null;
+			}
+
+			return {
+				expiresAt: new Date(session.expires),
+				user_id: session.user_id // Include user_id as required by authDBInterface
+			};
+		} catch (err) {
+			logger.error(`Failed to get token data: ${err instanceof Error ? err.message : String(err)}`);
+			return null;
 		}
 	}
 
