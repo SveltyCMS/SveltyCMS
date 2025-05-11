@@ -23,7 +23,7 @@
 		"-- OTHER ----------------------------------------------": "",
 		"preview": "NODE_OPTIONS='--max-old-space-size=8192' vite preview",
 		"paraglide": "paraglide-js compile --project ./project.inlang",
-		"translate": "npx @inlang/cli machine translate --project ./project.inlang",
+		"machine-translate": "inlang machine translate --project project.inlang",
 		"db:push": "drizzle-kit push",
 		"db:migrate": "drizzle-kit migrate",
 		"db:studio": "drizzle-kit studio"
@@ -108,8 +108,8 @@
 	"type": "module",
 	"dependencies": {
 		"@floating-ui/dom": "^1.7.0",
-		"@inlang/paraglide-js": "1.11.8",
-		"@inlang/paraglide-sveltekit": "^0.15.5",
+		"@inlang/paraglide-js": "^2.0.12",
+		"@inlang/cli": "^3.0.0",
 		"@mapbox/mapbox-gl-geocoder": "^5.0.3",
 		"@mapbox/mapbox-gl-language": "^1.0.1",
 		"@tailwindcss/forms": "^0.5.10",

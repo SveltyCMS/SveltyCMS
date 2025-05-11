@@ -3,13 +3,14 @@
  @component 
  **This Svelte component serves as the layout for the entire application**
 
- Key features:
- It sets up the global w, manages SEO metadata, and initializes required stores for the Skeleton UI framework.
- 
- Features:
+ ### Props
+ - `children` {function} - Function to render the content
+
+ ### Features
  - Dynamic theme management based on user preferences or defaults.
  - SEO optimization with Open Graph and Twitter Card metadata for enhanced social sharing.
  - Initialization of Skeleton stores for UI components.
+ - Granular loading strategy.
   -->
 
 <script lang="ts">
@@ -20,9 +21,6 @@
 
 	// Icons from https://icon-sets.iconify.design/
 	import 'iconify-icon';
-
-	// Importing the Paraglide SvelteKit component for animations
-	import ParaglideSvelteKit from '@components/ParaglideSvelteKit.svelte';
 
 	// Importing Tailwind CSS styles
 	import '../app.postcss';
@@ -72,6 +70,4 @@
 	<meta property="twitter:url" content={page.url.href} />
 </svelte:head>
 
-<ParaglideSvelteKit>
-	{@render children?.()}
-</ParaglideSvelteKit>
+{@render children?.()}

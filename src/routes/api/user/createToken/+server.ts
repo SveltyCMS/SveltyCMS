@@ -139,7 +139,7 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 					tokenLink: `${dev ? 'http://localhost:5173' : window.location.host}/login?regToken=${token}`,
 					expiresIn: expiresInHours,
 					expiresInLabel: `${Math.floor(expiresInHours / 24)} days`,
-					languageTag: languageTag()
+					languageTag: getLocale()
 				}
 			})
 		});

@@ -3,7 +3,7 @@
  * @description Configuration prompts for the Application section
  */
 
-import type { AvailableLanguageTag } from '@src/paraglide/runtime';
+import type { Locale } from '@src/paraglide/runtime';
 import type { Role, Permission } from '@src/auth/types'; // Import Role and Permission types from the centralized types file
 
 /**
@@ -96,7 +96,7 @@ type MediaOutputFormatQuality = {
 // Define supported season regions
 type SeasonRegion = 'Western_Europe' | 'South_Asia' | 'East_Asia';
 
-export const createPublicConfig = <const C, S extends AvailableLanguageTag, const V extends { [key: string]: number }>(arg: {
+export const createPublicConfig = <const C, S extends Locale, const V extends { [key: string]: number }>(arg: {
 	// Define you hostname where you site is running
 	HOST_DEV: string; // Hostname for development eg. http://localhost:5173
 	HOST_PROD: string; // Hostname for production eg. 'mywebsite.com'

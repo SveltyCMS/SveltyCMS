@@ -15,7 +15,7 @@ import { execSync } from 'child_process';
 import { purgeCss } from 'vite-plugin-tailwind-purgecss';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
-import { paraglide } from '@inlang/paraglide-sveltekit/vite';
+import { paraglideVitePlugin } from '@inlang/paraglide-js'
 import { compile } from './src/routes/api/compile/compile';
 import { generateContentTypes } from './src/content/vite';
 import type { IncomingMessage, ServerResponse } from 'http';
@@ -143,11 +143,11 @@ export default defineConfig({
 
 												// Create a proper Node.js response object (keep as is)
 												const res = {
-													writeHead: () => {},
-													setHeader: () => {},
-													getHeader: () => {},
-													write: () => {},
-													end: () => {},
+													writeHead: () => { },
+													setHeader: () => { },
+													getHeader: () => { },
+													write: () => { },
+													end: () => { },
 													statusCode: 200
 												};
 
@@ -219,10 +219,11 @@ export default defineConfig({
 			enforce: 'post'
 		},
 		purgeCss(), // Purge unused Tailwind CSS classes
-		paraglide({
-			project: './project.inlang', // Path to your inlang project
-			outdir: './src/paraglide' // Output directory for generated files
-		})
+		paraglideVitePlugin({
+			project: './project.inlang', // Path to your inlang project settings
+			outdir: './src/paraglide',    // This is where you specify the output directory
+			strategy: ['url', 'cookie', 'baseLocale'], // Specify which strategy to use
+		}),
 	],
 
 	server: {

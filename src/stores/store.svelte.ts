@@ -12,10 +12,9 @@
 import { publicEnv } from '@root/config/public';
 import { store } from '@utils/reactivity.svelte';
 
-// Paraglidejs
+// ParaglideJs
 import * as m from '@src/paraglide/messages';
-import { setLanguageTag, type AvailableLanguageTag } from '@src/paraglide/runtime';
-
+import { setLocale, getLocale, locales as availableLocales, type Locale } from '@src/paraglide/runtime';
 // Define interfaces
 interface ValidationErrors {
 	[fieldName: string]: string | null;
@@ -33,7 +32,7 @@ export interface TranslationSet {
 }
 
 export type TranslationProgress = {
-	[key in AvailableLanguageTag]?: TranslationSet;
+	[key in Locale]?: TranslationSet;
 } & {
 	show: boolean;
 };
@@ -50,12 +49,12 @@ function getCookie(name: string): string | null {
 // Create base stores
 const createBaseStores = () => {
 	// Get initial values from cookies or use defaults
-	const initialSystemLanguage = (getCookie('systemLanguage') as AvailableLanguageTag | null) ?? publicEnv.DEFAULT_SYSTEM_LANGUAGE;
-	const initialContentLanguage = (getCookie('contentLanguage') as AvailableLanguageTag | null) ?? publicEnv.DEFAULT_CONTENT_LANGUAGE;
+	const initialSystemLanguage = (getCookie('systemLanguage') as Locale | null) ?? (publicEnv.DEFAULT_SYSTEM_LANGUAGE as Locale);
+	const initialContentLanguage = (getCookie('contentLanguage') as Locale | null) ?? (publicEnv.DEFAULT_CONTENT_LANGUAGE as Locale);
 
-	// Language and i18n
-	const systemLanguage = store<AvailableLanguageTag>(initialSystemLanguage as AvailableLanguageTag);
-	const contentLanguage = store<AvailableLanguageTag>(initialContentLanguage as AvailableLanguageTag);
+	// Language stores
+	const systemLanguage = store<Locale>(initialSystemLanguage);
+	const contentLanguage = store<Locale>(initialContentLanguage);
 	const messages = store({ ...m });
 
 	// Translation status
@@ -65,7 +64,7 @@ const createBaseStores = () => {
 
 	// Initialize translationProgress with guaranteed structure for all languages
 	const initialTranslationProgress: TranslationProgress = { show: false };
-	for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES as AvailableLanguageTag[]) {
+	for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES as Locale[]) {
 		initialTranslationProgress[lang] = {
 			total: new Set<string>(),
 			translated: new Set<string>()
@@ -92,29 +91,26 @@ const createBaseStores = () => {
 
 	// Save functionality
 	const saveFunction = store<SaveFunction>({
-		fn: () => {},
-		reset: () => {}
+		fn: () => { },
+		reset: () => { }
 	});
-	const saveLayerStore = store(async () => {});
+	const saveLayerStore = store(async () => { });
 	const shouldShowNextButton = store(false);
 
 	// Validation
 	const validationErrors = store<ValidationErrors>({});
 
-	// Use store subscriptions for cookie updates
+	// Subscriptions for side effects (like cookie setting)
 	systemLanguage.subscribe((sysLang) => {
 		if (typeof window !== 'undefined' && sysLang) {
 			document.cookie = `systemLanguage=${sysLang}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
-			setLanguageTag(sysLang);
-			messages.set({ ...m });
 		}
 	});
 
 	contentLanguage.subscribe((contentLang) => {
 		if (typeof window !== 'undefined' && contentLang) {
 			document.cookie = `contentLanguage=${contentLang}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
-			setLanguageTag(contentLang);
-			messages.set({ ...m });
+
 		}
 	});
 
@@ -209,17 +205,24 @@ export const validationStore = {
 		});
 	},
 	getError: (fieldName: string) => {
+		// This pattern for getError/hasError is not ideal for Svelte 5 runes-like stores
+		// as it creates a new subscription each time.
+		// If `validationErrors` is a Svelte 5 style store with a `.value` property,
+		// you'd access `validationErrors.value[fieldName]` directly.
+		// For Svelte 3/4 stores, `get(validationErrors)` from 'svelte/store' is better for one-off reads.
 		let error: string | null = null;
-		validationErrors.subscribe((errors) => {
+		const unsubscribe = validationErrors.subscribe((errors) => {
 			error = errors[fieldName] || null;
-		})();
+		});
+		unsubscribe();
 		return error;
 	},
 	hasError: (fieldName: string) => {
-		let hasError = false;
-		validationErrors.subscribe((errors) => {
-			hasError = !!errors[fieldName];
-		})();
-		return hasError;
+		let hasErrorValue = false;
+		const unsubscribe = validationErrors.subscribe((errors) => {
+			hasErrorValue = !!errors[fieldName];
+		});
+		unsubscribe();
+		return hasErrorValue;
 	}
 };

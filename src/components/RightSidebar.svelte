@@ -36,7 +36,7 @@
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { languageTag } from '@src/paraglide/runtime';
+	import { getLocale } from '@src/paraglide/runtime';
 
 	// Skeleton
 	import { getModalStore } from '@skeletonlabs/skeleton';
@@ -304,7 +304,7 @@
 
 			{#if mode.value === 'create'}
 				<p class="mb-2 text-center text-tertiary-500 dark:text-primary-500">
-					{new Date().toLocaleString(languageTag(), { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+					{new Date().toLocaleString(getLocale(), { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
 				</p>
 			{:else if dates}
 				<footer class="mb-1 mt-2">

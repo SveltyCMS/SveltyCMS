@@ -104,7 +104,7 @@ function errorResponse(message: string, status: number = 500) {
 
 export const POST: RequestHandler = async ({ request }) => {
 	const { email, subject, message, templateName, props } = await request.json();
-	const userLanguage = languageTag(); // Get the user's language
+	const userLanguage = getLocale(); // Get the user's language
 	logger.debug('Received email request', { email, subject, templateName });
 
 	try {
