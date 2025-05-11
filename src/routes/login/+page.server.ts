@@ -21,9 +21,11 @@ import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, s
 
 // Auth
 import { auth, dbInitPromise } from '@src/databases/db';
+import { contentManager } from '@root/src/content/ContentManager';
 import { generateGoogleAuthUrl, googleAuth } from '@root/src/auth/googleAuth';
 import { google } from 'googleapis';
 import type { User } from '@src/auth/types';
+
 // Stores
 import { get } from 'svelte/store';
 import { systemLanguage } from '@stores/store.svelte';
@@ -61,13 +63,30 @@ function calculatePasswordStrength(password: string): number {
 // Helper function to fetch and redirect to the first collection
 async function fetchAndRedirectToFirstCollection() {
 	try {
-		if (!dbAdapter) {
-			logger.error('Database adapter not initialized');
-			return '/';
-		}
+		// Initialize content manager
+		await contentManager.initialize();
 
 		// Get content structure with UUIDs
-		const contentNodes = await dbAdapter.getContentStructure();
+		let contentNodes = [];
+		try {
+			if (!contentManager) {
+				throw new Error('Content manager not initialized');
+			}
+
+			await contentManager.initialize();
+			contentNodes = contentManager.getContentStructure();
+
+			if (!Array.isArray(contentNodes)) {
+				logger.warn('Content structure is not an array', {
+					type: typeof contentNodes,
+					value: contentNodes
+				});
+				contentNodes = [];
+			}
+		} catch (dbError) {
+			logger.error('Failed to fetch content structure', dbError);
+			return '/';
+		}
 
 		if (!contentNodes?.length) {
 			logger.warn('No collections found in content structure');

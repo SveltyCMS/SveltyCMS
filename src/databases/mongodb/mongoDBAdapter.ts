@@ -55,11 +55,11 @@ import { logger, type LoggableValue } from '@utils/logger.svelte';
 
 // Widget Manager
 import '@widgets/index';
-import type { FilterQuery } from 'mongoose';
 
 // Database
 import mongoose from 'mongoose';
-import { Schema, type Model, type FilterQuery, type UpdateQuery } from 'mongoose'; // Keep type imports for clarity
+import { Schema } from 'mongoose';
+import type { FilterQuery, UpdateQuery, Document, Model } from 'mongoose';
 
 import type {
   DatabaseId,
@@ -701,6 +701,13 @@ export class MongoDBAdapter implements DatabaseAdapter {
       if (!mongoose.models[name]) {
         mongoose.model(name, schema);
         logger.debug(`\x1b[34m${name}\x1b[0m model created.`);
+
+        // Register discriminators when setting up content structure model
+        if (name === 'system_content_structure') {
+          import('./models/contentStructure').then(({ registerContentStructureDiscriminators }) => {
+            registerContentStructureDiscriminators();
+          });
+        }
       } else {
         logger.debug(`\x1b[34m${name}\x1b[0m model already exists.`);
       }

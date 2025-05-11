@@ -5,12 +5,12 @@
  * This module defines a schema and model for virtual folders in the system.
  * Virtual folders are used to organize content in a hierarchical structure.
  */
-import mongoose, { Schema, Model } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
+import type { Model } from 'mongoose';
 import type { SystemVirtualFolder, DatabaseResult } from '@src/databases/dbInterface';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-import _ from 'lodash';
 
 // System virtual folder schema
 export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(

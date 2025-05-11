@@ -5,7 +5,8 @@
  * This module defines a schema and model for system-wide preferences and settings.
  */
 import mongoose from 'mongoose';
-const { Schema, Model, FilterQuery } = mongoose;
+const { Schema } = mongoose;
+import type { Model, FilterQuery } from 'mongoose';
 import type { SystemPreferences, DatabaseResult } from '@src/databases/dbInterface';
 
 // System Logger

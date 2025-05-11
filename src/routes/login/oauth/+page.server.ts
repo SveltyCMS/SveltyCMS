@@ -90,21 +90,28 @@ async function fetchAndSaveGoogleAvatar(avatarUrl: string): Promise<string | nul
 async function fetchAndRedirectToFirstCollection() {
 	try {
 		if (!dbAdapter) {
-			logger.error('Database adapter not initialized');
+			logger.error('Database adapter not initialized', new Error('Database adapter not initialized'));
 			return '/';
 		}
 
-		// Get content structure with UUIDs
-		//
-		const collection = await contentManager.getFirstCollection();
-
+		const collection = contentManager.getFirstCollection();
 		const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
-		if (!collection) return '/';
 
-		// Construct redirect URL using UUID instead of name
+		if (!collection) {
+			logger.warn('No valid first collection found - redirecting to home');
+			return '/';
+		}
+
+		// Validate collection path exists
+		if (!collection.path) {
+			logger.error('First collection has no path defined');
+			return '/';
+		}
+
+		// Construct redirect URL using validated collection
 		return `/${defaultLanguage}${collection.path}`;
 	} catch (err) {
-		logger.error('Error in fetchAndRedirectToFirstCollection:', err);
+		logger.error('Error in fetchAndRedirectToFirstCollection', err as Error);
 		return '/';
 	}
 }

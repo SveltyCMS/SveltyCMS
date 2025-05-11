@@ -6,7 +6,8 @@
  * Widgets are reusable components that can be placed in different areas of the site
  */
 
-import mongoose, { Schema, Model } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
+import type { Model } from 'mongoose';
 import type { Widget, DatabaseResult } from '@src/databases/dbInterface';
 
 // System Logger

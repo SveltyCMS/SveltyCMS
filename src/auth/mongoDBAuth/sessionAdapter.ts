@@ -18,7 +18,8 @@
  */
 
 import mongoose, { Schema } from 'mongoose';
-import type { Types } from 'mongoose';
+import type { Types, Model } from 'mongoose';
+import { error } from '@sveltejs/kit';
 
 // Types
 import type { Session, User } from '../types';
@@ -38,7 +39,7 @@ export const SessionSchema = new Schema(
 );
 
 export class SessionAdapter implements Partial<authDBInterface> {
-	private SessionModel: mongoose.Model<Session>;
+	private SessionModel: Model<Session>;
 	private userAdapter: UserAdapter;
 
 	constructor() {

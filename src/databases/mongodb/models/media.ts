@@ -6,7 +6,8 @@
  * Media files include images, videos, documents, and other file types.
  */
 
-import mongoose, { Schema, Model } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
+import type { Model } from 'mongoose';
 import type { MediaItem, DatabaseResult } from '@src/databases/dbInterface';
 
 // System Logger

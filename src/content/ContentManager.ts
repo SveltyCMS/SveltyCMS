@@ -237,8 +237,42 @@ class ContentManager {
     }
   }
 
+  // Gets the content structure tree
+  public getContentStructure(): ContentNode[] {
+    try {
+      if (!this.initialized) {
+        throw new Error('Content Manager not initialized when accessing content structure');
+      }
+
+      if (!this.contentStructure || this.contentStructure.length === 0) {
+        logger.warn('Content structure is empty');
+        return [];
+      }
+
+      // Return a shallow copy to prevent direct modification
+      return [...this.contentStructure];
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(`Failed to get content structure: ${errorMessage}`);
+      throw error;
+    }
+  }
+
   public getFirstCollection(): Schema | null {
     try {
+      if (!this.firstCollection) {
+        return null;
+      }
+
+      // Validate UUID format
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(this.firstCollection._id)) {
+        logger.error('Invalid UUID format in first collection', {
+          collectionId: this.firstCollection._id,
+          collectionName: this.firstCollection.name
+        });
+        return null;
+      }
+
       return this.firstCollection;
     }
     catch (error) {

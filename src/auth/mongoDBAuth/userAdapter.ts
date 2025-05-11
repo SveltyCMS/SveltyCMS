@@ -17,8 +17,8 @@
  * Usage:
  * Utilized by the auth system to manage user accounts in a MongoDB database
  */
-import { Schema } from 'mongoose';
-import mongoose from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
+import type { Model } from 'mongoose';
 
 import { roles as configRoles } from '@root/config/roles';
 import { error } from '@sveltejs/kit';
@@ -63,7 +63,7 @@ export const UserSchema = new Schema(
 );
 
 export class UserAdapter implements Partial<authDBInterface> {
-	private UserModel: mongoose.Model<User>;
+	private UserModel: Model<User>;
 
 	constructor() {
 		this.UserModel = mongoose.models?.auth_users || mongoose.model<User>('auth_users', UserSchema);
@@ -427,7 +427,7 @@ export class UserAdapter implements Partial<authDBInterface> {
 		}
 	}
 
-	//  update lastActiveAt
+	// Update lastActiveAt
 	async updateLastActiveAt(user_id: string): Promise<void> {
 		try {
 			await this.UserModel.findByIdAndUpdate(user_id, {

@@ -2,19 +2,22 @@
  * @file src/routes/+page.server.ts
  * @description
  * Server-side logic for the root route, handling redirection to the first collection with the correct language.
+ * 
+ * ### Features
+ * - Fetches and returns the content structure for the website
+ * - Redirects to the first collection with the correct language
+ * - Throws an error if there are no collections * 
  */
 
 import { publicEnv } from '@root/config/public';
 import { redirect, error } from '@sveltejs/kit';
-
-// Collection Manager
 import { contentManager } from '@src/content/ContentManager';
-// Import the promise that resolves when the full system is ready
 import { fullSystemReadyPromise } from '@src/databases/db';
+
+import type { PageServerLoad } from './$types';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	// Unauthenticated users should be redirected to the login page

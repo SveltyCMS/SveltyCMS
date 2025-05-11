@@ -102,7 +102,7 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 	// Precompute festival dates
 	const easterSunday = calculateEasterSunday(year);
 	const eastertideEndDate = new Date(easterSunday);
-	eastertideEndDate.setDate(easterSunday.getDate() + 49);
+	eastertideEndDate.setDate(easterSunday.getDate() + 6); // 7-day celebration: Easter Sunday to Saturday
 
 	const chineseNewYear = calculateChineseNewYear(year);
 	const midAutumnFestival = calculateMidAutumnFestival(year);

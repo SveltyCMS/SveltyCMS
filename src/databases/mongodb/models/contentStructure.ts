@@ -6,6 +6,10 @@
  * Content Structure represents the hierarchical organization of content in the CMS.
  */
 import mongoose, { Schema } from 'mongoose';
+
+// Flag to track if discriminators have been registered
+let discriminatorsRegistered = false;
+import type { Model } from 'mongoose';
 import type { Translation, ContentNode, DatabaseResult, DatabaseError } from '@src/databases/dbInterface';
 
 // System Logger
@@ -188,12 +192,75 @@ const createDatabaseError = (error: unknown, code: string, message: string): Dat
 	};
 };
 
-// Create the base model
-const BaseContentStructure = mongoose.models.system_content_structure ?? mongoose.model<ContentStructureDocument, ContentStructureModel>('system_content_structure', contentStructureSchema);
+/**
+ * Register discriminators for the content structure model
+ * Ensures discriminators are only registered once and handles existing models
+ */
+function registerContentStructureDiscriminators() {
+	if (discriminatorsRegistered) {
+		logger.debug('CONTENT_STRUCTURE_DISCRIMINATORS_ALREADY_REGISTERED');
+		return;
+	}
 
-// Create discriminators for categories and collections
-BaseContentStructure.discriminator('category', new Schema<CategoryDocument>({}, { discriminatorKey: 'type' }));
-BaseContentStructure.discriminator('collection', new Schema<CollectionDocument>({}, { discriminatorKey: 'type' }));
+	try {
+		// Check if base model exists
+		if (!mongoose.models.system_content_structure) {
+			throw new Error('Base model not found');
+		}
+
+		// Check if discriminators already exist
+		const hasCategoryDiscriminator = BaseContentStructure.discriminators?.['category'];
+		const hasCollectionDiscriminator = BaseContentStructure.discriminators?.['collection'];
+
+		if (hasCategoryDiscriminator && hasCollectionDiscriminator) {
+			logger.debug('CONTENT_STRUCTURE_DISCRIMINATORS_ALREADY_EXIST');
+			discriminatorsRegistered = true;
+			return;
+		}
+
+		// Define discriminator schemas with proper typing
+		const categorySchema = new Schema<CategoryDocument>(
+			{},
+			{
+				discriminatorKey: 'type',
+				timestamps: true
+			}
+		);
+
+		const collectionSchema = new Schema<CollectionDocument>(
+			{},
+			{
+				discriminatorKey: 'type',
+				timestamps: true
+			}
+		);
+
+		// Register discriminators with error handling
+		if (!hasCategoryDiscriminator) {
+			BaseContentStructure.discriminator('category', categorySchema);
+			logger.debug('CONTENT_STRUCTURE_CATEGORY_DISCRIMINATOR_REGISTERED');
+		}
+
+		if (!hasCollectionDiscriminator) {
+			BaseContentStructure.discriminator('collection', collectionSchema);
+			logger.debug('CONTENT_STRUCTURE_COLLECTION_DISCRIMINATOR_REGISTERED');
+		}
+
+		discriminatorsRegistered = true;
+		logger.info('CONTENT_STRUCTURE_DISCRIMINATORS_REGISTERED_SUCCESS');
+	} catch (error) {
+		logger.error('CONTENT_STRUCTURE_DISCRIMINATOR_REGISTRATION_ERROR', error);
+		throw error;
+	}
+}
+
+// Create the base model
+const BaseContentStructure: Model<ContentStructureDocument> =
+	mongoose.models.system_content_structure ??
+	mongoose.model<ContentStructureDocument>('system_content_structure', contentStructureSchema);
+
+// Register discriminators
+registerContentStructureDiscriminators();
 
 // Export the model
 export const ContentStructureModel = BaseContentStructure;
