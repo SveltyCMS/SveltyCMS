@@ -462,22 +462,35 @@ Features:
 			}
 		}}
 	>
+		<!-- Blue Center Circle -->
+		<div
+			class="absolute left-1/2 top-1/2 z-0 h-[340px] w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-tertiary-500/40"
+			transition:scale={{ duration: 200, easing: elasticOut }}
+		></div>
+
 		<!-- SVG Lines -->
-		<svg bind:this={svg} xmlns="http://www.w3.org/2000/svg" use:setDash aria-hidden="true" class="svg-container">
-			<line bind:this={firstLine} x1={buttonInfo.x} y1={buttonInfo.y} x2={center.x} y2={center.y} class="nav-line" />
+		<svg
+			bind:this={svg}
+			xmlns="http://www.w3.org/2000/svg"
+			use:setDash
+			aria-hidden="true"
+			class="pointer-events-none fixed inset-0 z-10 h-full w-full"
+		>
+			<line
+				bind:this={firstLine}
+				x1={buttonInfo.x}
+				y1={buttonInfo.y}
+				x2={center.x}
+				y2={center.y}
+				class="pointer-events-none stroke-error-500 stroke-2"
+			/>
 			{#each endpointsWithPositions.slice(1) as endpoint}
-				<line x1={center.x} y1={center.y} x2={endpoint.x} y2={endpoint.y} class="nav-line" />
+				<line x1={center.x} y1={center.y} x2={endpoint.x} y2={endpoint.y} class="pointer-events-none stroke-error-500 stroke-2" />
 			{/each}
 		</svg>
 
 		<!-- Navigation Menu -->
 		<div id="navigation-menu" role="menu" class="fixed inset-0 z-[9999999]">
-			<!-- Center circle -->
-			<div
-				class="absolute left-1/2 top-1/2 -z-10 h-[340px] w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-full border bg-tertiary-500/40"
-				transition:scale={{ duration: 200, easing: elasticOut }}
-			></div>
-
 			<!-- Home button -->
 			<div
 				bind:this={circles[0]}
@@ -514,7 +527,7 @@ Features:
 						handleEndpointClick(endpoint);
 					}}
 					onkeydown={(event) => handleEndpointKeydown(event, endpoint)}
-					class="endpoint-circle group fixed z-[99999999] flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full transition-transform duration-200 {endpoint.color ||
+					class="endpoint-circle group fixed flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full transition-transform duration-200 {endpoint.color ||
 						'bg-tertiary-500'} hover:scale-110 focus:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2"
 					style="top:{endpoint.y}px;left:{endpoint.x}px;"
 				>
@@ -533,17 +546,6 @@ Features:
 {/if}
 
 <style lang="postcss">
-	/* SVG styles */
-	.svg-container {
-		@apply pointer-events-none fixed inset-0 h-full w-full;
-	}
-
-	.nav-line {
-		stroke: #da1f1f;
-		stroke-width: 3;
-		pointer-events: none;
-	}
-
 	/* Tooltip arrow */
 	.tooltip-arrow {
 		@apply absolute left-1/2 top-full h-0 w-0 -translate-x-1/2;

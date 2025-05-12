@@ -110,10 +110,25 @@ export function constructUrl(
   contentTypes: string,
   size?: keyof typeof publicEnv.IMAGE_SIZES
 ): string {
-  if (!path || !hash || !fileName || !format || !contentTypes) {
-    const message = 'Missing required parameters for URL construction';
+  // Validate all required parameters with detailed checks
+  const missingParams = [];
+  if (!path || typeof path !== 'string') missingParams.push('path');
+  if (!hash || typeof hash !== 'string' || hash.length !== 32) missingParams.push('hash');
+  if (!fileName || typeof fileName !== 'string') missingParams.push('fileName');
+  if (!format || typeof format !== 'string') missingParams.push('format');
+  if (!contentTypes || typeof contentTypes !== 'string') missingParams.push('contentTypes');
+
+  if (missingParams.length > 0) {
+    const message = `Invalid URL construction parameters: Missing or invalid ${missingParams.join(', ')}`;
     try {
-      logger.error(message, { path, hash, fileName, format, contentTypes });
+      logger.error(message, {
+        path: path ?? null,
+        hash: hash ?? null,
+        fileName: fileName ?? null,
+        format: format ?? null,
+        contentTypes: contentTypes ?? null,
+        stack: new Error().stack
+      });
     } catch (logError) {
       console.error('Failed to log error:', logError);
     }
@@ -124,13 +139,7 @@ export function constructUrl(
 
   switch (path) {
     case 'global':
-      // urlPath = `${sanitize(contentTypes)}/original/${hash}_${sanitize(fileName)}${size ? `-${size}` : ''}.${format}`;
-      // urlPath = `${sanitize(fileName)}-${hash}${size ? `-${size}` : ''}.${format}`;
-      // try {
-      //   logger.debug('Constructed global path URL', { urlPath });
-      // } catch (logError) {
-      //   console.error('Failed to log debug info:', logError);
-      // }
+
       break;
     case 'unique':
       urlPath = `${sanitize(contentTypes)}/original/${sanitize(fileName)}-${hash}.${format}`;

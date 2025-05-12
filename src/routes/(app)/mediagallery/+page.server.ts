@@ -120,7 +120,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     logger.debug('Current folder determined:', currentFolder);
 
     // --- Fetch Media Files based on currentFolder ---
-    const media_types = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
     const query: Record<string, string | null> = { parent: folderId || null }; // Use more specific type
     const mediaResults = await dbAdapter.crud.findMany<MediaItem>('MediaItem', query);
 
@@ -133,28 +132,54 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 
     // Process and flatten media results
-    const processedMedia = mediaResults.data.map((item) => {
-      if (!item) return []; // Handle potential null/undefined results from findMany
-      const extension = mime.extension(item.mimeType) || "" as string
-      const filename = item.filename ? item.filename.replace(`.${extension}`, '') : 'unnamed-media'
+    // Filter and validate media items before processing
+    const processedMedia = mediaResults.data
+      .filter((item) => {
+        if (!item) return false;
+        const isValid =
+          item.hash &&
+          item.filename &&
+          item.mimeType &&
+          typeof item.hash === 'string' &&
+          typeof item.filename === 'string' &&
+          typeof item.mimeType === 'string';
 
-      const thumbnailFilename = `/global/thumbnails/${filename}-${item.hash}.${extension}`
-
-
-      return {
-        ...item,
-        path: item.path ?? 'global', // Ensure path exists
-        name: item.filename ?? item.filename ?? 'unnamed-media', // Ensure name exists
-        // Construct URLs using item.hash and thumbnail filename
-        url: thumbnailFilename ? constructUrl('/global', item.hash, filename, extension, 'images', 'original') : "",
-        thumbnail: {
-          url: thumbnailFilename ? constructUrl('/global', item.hash, filename, extension, 'images', 'thumbnail') : "",
+        if (!isValid) {
+          logger.warn('Skipping invalid media item', {
+            item,
+            reason: 'Missing required fields or invalid types'
+          });
         }
+        return isValid;
+      })
+      .map((item) => {
+        try {
+          const extension = mime.extension(item.mimeType!) || "";
+          const filename = item.filename!.replace(`.${extension}`, '');
 
+          if (!publicEnv.MEDIA_FOLDER) {
+            logger.error('Media folder configuration missing');
+            throw new Error('Media folder configuration missing');
+          }
 
-      }
-
-    })
+          return {
+            ...item,
+            path: item.path ?? 'global',
+            name: item.filename ?? 'unnamed-media',
+            url: constructUrl('/global', item.hash!, filename, extension, 'images', 'original'),
+            thumbnail: {
+              url: constructUrl('/global', item.hash!, filename, extension, 'images', 'thumbnail')
+            }
+          };
+        } catch (err) {
+          logger.error('Error processing media item', {
+            item,
+            error: err instanceof Error ? err.message : String(err)
+          });
+          return null;
+        }
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
 
     logger.info(`Fetched \x1b[34m${processedMedia.length}\x1b[0m media items for folder ${folderId || 'root'}`);
     logger.info(`Fetched \x1b[34m${serializedVirtualFolders.length}\x1b[0m total virtual folders`);

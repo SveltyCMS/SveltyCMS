@@ -98,103 +98,112 @@ Key features:
 	}
 </script>
 
-<!-- Header with Filter -->
-<div class="mb-4 flex items-center justify-between">
-	<h2 class="text-lg font-bold">Media Files</h2>
+<div class="flex flex-wrap items-center gap-4 overflow-auto">
+	{#if filteredFiles.length === 0}
+		<div class="mx-auto text-center text-tertiary-500 dark:text-primary-500">
+			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2"></iconify-icon>
+			<p class="text-lg">No media found</p>
+		</div>
+	{:else}
+		<!-- Header with Filter -->
+		<div class="mb-4 flex items-center justify-between">
+			<h2 class="text-lg font-bold">Media Files</h2>
 
-	<!-- TODO: move to +page.svelte -->
-	<div class="flex items-center gap-2">
-		<TableFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density />
-	</div>
-</div>
+			<!-- TODO: move to +page.svelte -->
+			<div class="flex items-center gap-2">
+				<TableFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density />
+			</div>
+		</div>
 
-<div class="table-container max-h-[calc(100vh-120px)] overflow-auto">
-	<table class="table table-interactive table-hover">
-		<thead class="bg-surface-100-800-token sticky top-0 text-tertiary-500 dark:text-primary-500">
-			<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-				<th class="w-10">Select</th>
-				<th>Thumbnail</th>
-				<th onclick={() => sort('filename')}>
-					Name {sortColumn === 'filename' ? (sortOrder === 1 ? '▲' : '▼') : ''}
-				</th>
-				<th onclick={() => sort('size')}>
-					Size {sortColumn === 'size' ? (sortOrder === 1 ? '▲' : '▼') : ''}
-				</th>
-				<th onclick={() => sort('type')}>
-					Type {sortColumn === 'type' ? (sortOrder === 1 ? '▲' : '▼') : ''}
-				</th>
-				<th>Path</th>
-				<th>Actions</th>
-			</tr>
-		</thead>
-		<tbody>
-			{#each paginatedFiles as file (file._id)}
-				<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-					<td class="w-10">
-						<TableIcons checked={selectedFiles.has(file.filename)} onCheck={(checked) => handleSelection(file, checked)} />
-					</td>
-					<td>
-						{#if file?.filename && file?.path && file?.hash}
-							<img
-								src={getMediaUrl(file, 'thumbnail')}
-								alt={`Thumbnail for ${file.filename}`}
-								class={`relative -top-4 left-0 ${tableSize === 'small' ? 'h-32 w-auto' : tableSize === 'medium' ? 'h-48 w-44' : 'h-80 w-80'}`}
-								onerror={(e: Event) => {
-									const target = e.target as HTMLImageElement;
-									if (target) {
-										console.error('Failed to load media thumbnail for file:', file.filename);
-										target.src = '/static/Default_User.svg';
-										target.alt = 'Fallback thumbnail image';
-									}
-								}}
-								loading="lazy"
-								decoding="async"
-							/>
-						{:else}
-							<div
-								class="flex h-full w-full items-center justify-center bg-surface-200 dark:bg-surface-700"
-								aria-label="Missing thumbnail"
-								role="img"
-							>
-								<iconify-icon icon="bi:exclamation-triangle-fill" height="24" class="text-warning-500" aria-hidden="true"></iconify-icon>
-							</div>
-						{/if}
-					</td>
-					<td title={file.filename}>{file.filename}</td>
-					<td>
-						{#if file.size}
-							{formatBytes(file.size)}
-						{:else}
-							Size unknown
-						{/if}
-					</td>
-					<td>{file.type || 'Unknown'}</td>
-					<td>{file.path}</td>
-					<td>
-						<button onclick={() => handleDelete(file)} class="variant-filled-primary btn btn-sm" aria-label="Delete"> Delete </button>
-					</td>
-				</tr>
-			{/each}
-		</tbody>
-	</table>
-</div>
+		<div class="table-container max-h-[calc(100vh-120px)] overflow-auto">
+			<table class="table table-interactive table-hover">
+				<thead class="bg-surface-100-800-token sticky top-0 text-tertiary-500 dark:text-primary-500">
+					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
+						<th class="w-10">Select</th>
+						<th>Thumbnail</th>
+						<th onclick={() => sort('filename')}>
+							Name {sortColumn === 'filename' ? (sortOrder === 1 ? '▲' : '▼') : ''}
+						</th>
+						<th onclick={() => sort('size')}>
+							Size {sortColumn === 'size' ? (sortOrder === 1 ? '▲' : '▼') : ''}
+						</th>
+						<th onclick={() => sort('type')}>
+							Type {sortColumn === 'type' ? (sortOrder === 1 ? '▲' : '▼') : ''}
+						</th>
+						<th>Path</th>
+						<th>Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each paginatedFiles as file (file._id)}
+						<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
+							<td class="w-10">
+								<TableIcons checked={selectedFiles.has(file.filename)} onCheck={(checked) => handleSelection(file, checked)} />
+							</td>
+							<td>
+								{#if file?.filename && file?.path && file?.hash}
+									<img
+										src={getMediaUrl(file, 'thumbnail')}
+										alt={`Thumbnail for ${file.filename}`}
+										class={`relative -top-4 left-0 ${tableSize === 'small' ? 'h-32 w-auto' : tableSize === 'medium' ? 'h-48 w-44' : 'h-80 w-80'}`}
+										onerror={(e: Event) => {
+											const target = e.target as HTMLImageElement;
+											if (target) {
+												console.error('Failed to load media thumbnail for file:', file.filename);
+												target.src = '/static/Default_User.svg';
+												target.alt = 'Fallback thumbnail image';
+											}
+										}}
+										loading="lazy"
+										decoding="async"
+									/>
+								{:else}
+									<div
+										class="flex h-full w-full items-center justify-center bg-surface-200 dark:bg-surface-700"
+										aria-label="Missing thumbnail"
+										role="img"
+									>
+										<iconify-icon icon="bi:exclamation-triangle-fill" height="24" class="text-warning-500" aria-hidden="true"></iconify-icon>
+									</div>
+								{/if}
+							</td>
+							<td title={file.filename}>{file.filename}</td>
+							<td>
+								{#if file.size}
+									{formatBytes(file.size)}
+								{:else}
+									Size unknown
+								{/if}
+							</td>
+							<td>{file.type || 'Unknown'}</td>
+							<td>{file.path}</td>
+							<td>
+								<button onclick={() => handleDelete(file)} class="variant-filled-primary btn btn-sm" aria-label="Delete"> Delete </button>
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
 
-<!-- Pagination -->
-<div
-	class=" bg-surface-100-800-token sticky bottom-0 left-0 right-0 mt-2 flex flex-col items-center justify-center px-2 py-2 md:flex-row md:justify-between md:p-4"
->
-	<TablePagination
-		{currentPage}
-		{pagesCount}
-		{rowsPerPage}
-		rowsPerPageOptions={[5, 10, 25, 50, 100]}
-		totalItems={filteredFiles.length}
-		onUpdatePage={(page) => {
-			currentPage = page;
-		}}
-		onUpdateRowsPerPage={(rows) => {
-			rowsPerPage = rows;
-			currentPage = 1;
-		}}
-	/>
+			<!-- Pagination -->
+			<div
+				class=" bg-surface-100-800-token sticky bottom-0 left-0 right-0 mt-2 flex flex-col items-center justify-center px-2 py-2 md:flex-row md:justify-between md:p-4"
+			>
+				<TablePagination
+					{currentPage}
+					{pagesCount}
+					{rowsPerPage}
+					rowsPerPageOptions={[5, 10, 25, 50, 100]}
+					totalItems={filteredFiles.length}
+					onUpdatePage={(page) => {
+						currentPage = page;
+					}}
+					onUpdateRowsPerPage={(rows) => {
+						rowsPerPage = rows;
+						currentPage = 1;
+					}}
+				/>
+			</div>
+		</div>
+	{/if}
 </div>

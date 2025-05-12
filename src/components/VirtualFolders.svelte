@@ -54,50 +54,67 @@ Features:
 		parent?: string | null;
 	}> = $state([]);
 	let newFolderName = '';
+	let isLoading = $state(false);
+	let error = $state<string | null>(null);
 
 	// Determine if a folder is the root folder
-	function isRootFolder(folder: { name: string; parent?: string | null }): boolean {
+	export function isRootFolder(folder: { name: string; parent?: string | null }): boolean {
 		return folder.name === publicEnv.MEDIA_FOLDER && folder.parent === null;
 	}
 
 	// Fetch virtual folders from the API
-	async function fetchVirtualFolders(): Promise<void> {
+	export async function fetchVirtualFolders(): Promise<void> {
+		isLoading = true;
+		error = null;
 		try {
 			const response = await fetch('/api/virtualFolder');
-			const result = await response.json();
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
 
+			const result = await response.json();
 			if (result.success && result.folders) {
 				folders = result.folders.map((folder: any) => ({
 					...folder,
 					path: Array.isArray(folder.path) ? folder.path : folder.path.split('/')
 				}));
-				console.log('Fetched virtual folders:', folders);
 			} else {
 				throw new Error(result.error || 'Failed to fetch folders');
 			}
-		} catch (error) {
-			console.error('Error fetching folders:', error);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			error = message;
 			toastStore.trigger({
-				message: 'Error fetching folders',
+				message: 'Error fetching folders: ' + message,
 				background: 'variant-filled-error',
-				timeout: 3000
+				timeout: 5000
 			});
 			folders = [];
+		} finally {
+			isLoading = false;
 		}
 	}
 
 	// Create a new folder
-	async function createFolder(): Promise<void> {
+	export async function createFolder(): Promise<void> {
 		if (!newFolderName.trim()) return;
+		isLoading = true;
 
 		try {
 			const response = await fetch('/api/virtualFolder', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name: newFolderName, parent: currentFolder?._id })
+				body: JSON.stringify({
+					name: newFolderName,
+					parent: currentFolder?._id
+				})
 			});
-			const result = await response.json();
 
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+
+			const result = await response.json();
 			if (result.success) {
 				toastStore.trigger({
 					message: 'Folder created successfully',
@@ -109,18 +126,21 @@ Features:
 			} else {
 				throw new Error(result.error || 'Failed to create folder');
 			}
-		} catch (error) {
-			console.error('Error creating folder:', error);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			error = message;
 			toastStore.trigger({
-				message: 'Error creating folder',
+				message: 'Error creating folder: ' + message,
 				background: 'variant-filled-error',
-				timeout: 3000
+				timeout: 5000
 			});
+		} finally {
+			isLoading = false;
 		}
 	}
 
 	// Update an existing folder
-	async function updateFolder(folderId: string, newName: string): Promise<void> {
+	export async function updateFolder(folderId: string, newName: string): Promise<void> {
 		try {
 			const response = await fetch('/api/virtualFolder', {
 				method: 'PATCH',
@@ -150,7 +170,7 @@ Features:
 	}
 
 	// Delete a folder
-	async function deleteFolder(folderId: string): Promise<void> {
+	export async function deleteFolder(folderId: string): Promise<void> {
 		try {
 			const response = await fetch('/api/virtualFolder', {
 				method: 'DELETE',
@@ -195,7 +215,8 @@ Features:
 		mode.set('view');
 		goto('/'); // Adjust this route as needed
 		if (get(screenSize) === 'sm') {
-			toggleUIElement('leftSidebar', 'hidden'); 
+			toggleUIElement('leftSidebar', 'hidden');
+		}
 	}
 
 	// Fetch folders on component mount
@@ -228,8 +249,17 @@ Features:
 		</button>
 	{/if}
 
-	<!-- Virtual Folders -->
-	{#if folders.length > 0}
+	<!-- Loading State -->
+	{#if isLoading}
+		<div class="flex w-full justify-center py-4">
+			<iconify-icon icon="svg-spinners:bars-scale" width="24" class="text-primary-500"></iconify-icon>
+		</div>
+	{:else if error}
+		<!-- Error State -->
+		<div class="w-full pt-4 text-center">
+			<p class="variant-outline-error btn w-full text-sm">{error}</p>
+		</div>
+	{:else if folders.length > 0}
 		<div class="relative flex flex-wrap">
 			{#each folders.filter((f) => !currentFolder || f.parent === currentFolder?._id) as folder (folder._id)}
 				{#if uiStateManager.uiState.value.leftSidebar === 'full'}

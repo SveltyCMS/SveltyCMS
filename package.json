@@ -167,7 +167,7 @@
 		"serialize-javascript": "^6.0.2",
 		"serve-static": "^2.2.0",
 		"svelty-email": "^0.0.11",
-		"tailwind-merge": "^3.2.0",
+		"tailwind-merge": "^3.3.0",
 		"uuid": "^11.1.0"
 	},
 	"overrides": {

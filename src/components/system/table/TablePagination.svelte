@@ -129,7 +129,7 @@
 		value={localRowsPerPage}
 		onchange={(event) => updateRowsPerPage(parseInt((event.target as HTMLSelectElement).value))}
 		aria-label="Select number of rows per page"
-		class="h-8 appearance-none bg-transparent px-6 text-center text-sm text-tertiary-500 dark:text-primary-500"
+		class="appearance-none bg-transparent p-0 px-6 text-center text-sm text-tertiary-500 dark:text-primary-500"
 		title="Rows per page"
 	>
 		{#each rowsPerPageOptions as pageSize}
