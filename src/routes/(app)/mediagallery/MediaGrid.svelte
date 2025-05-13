@@ -22,7 +22,6 @@ Key features:
 <script lang="ts">
 	// Utils
 	import { formatBytes } from '@utils/utils';
-	import { getMediaUrl } from '@utils/media/mediaUtils';
 	import type { MediaImage } from '@utils/media/mediaModels';
 
 	// Skeleton

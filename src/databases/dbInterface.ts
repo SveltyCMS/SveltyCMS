@@ -296,6 +296,7 @@ export interface DatabaseAdapter {
     addToFolder(contentId: DatabaseId, folderPath: string): Promise<DatabaseResult<void>>; // Add content to a virtual folder
     getContents(folderPath: string): Promise<DatabaseResult<{ folders: MediaFolder[]; files: MediaItem[] }>>; // Specialized: Get contents of a virtual folder
     delete(folderId: DatabaseId): Promise<DatabaseResult<void>>; // Delete a virtual folder
+    exists(path: string): Promise<DatabaseResult<boolean>>; // Check if folder with given path exists
   };
 
   // Database Agnostic Utilities

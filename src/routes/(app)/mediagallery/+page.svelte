@@ -40,6 +40,9 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	import { getToastStore } from '@skeletonlabs/skeleton';
 	const toastStore = getToastStore();
 
+	// Loading state
+	let isLoading = $state(false);
+
 	// Types
 	interface VirtualFolder {
 		_id: string;
@@ -47,12 +50,6 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 		path: string[] | string;
 		parent?: string | null;
 	}
-
-	type Folder = {
-		_id: string;
-		name: string;
-		path: string[];
-	};
 
 	// Props using runes
 	const { data = { user: undefined, media: [], virtualFolders: [] } } = $props<{
@@ -160,15 +157,54 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 		breadcrumb = Array.isArray(currentFolder.path) ? currentFolder.path : currentFolder.path.split('/');
 	}
 
-	// Create a new folder
+	// Create a new folder with memoization
 	async function createFolder(folderName: string) {
+		// Validate folder name
+		if (!folderName.trim()) {
+			toastStore.trigger({
+				message: 'Folder name cannot be empty',
+				background: 'variant-filled-error',
+				timeout: 3000
+			});
+			return;
+		}
+
+		// Check for invalid characters
+		if (/[\\/:"*?<>|]/.test(folderName)) {
+			toastStore.trigger({
+				message: 'Folder name contains invalid characters (\\ / : * ? " < > |)',
+				background: 'variant-filled-error',
+				timeout: 3000
+			});
+			return;
+		}
+
+		// Check length
+		if (folderName.length > 50) {
+			toastStore.trigger({
+				message: 'Folder name must be 50 characters or less',
+				background: 'variant-filled-error',
+				timeout: 3000
+			});
+			return;
+		}
+
+		isLoading = true;
 		try {
 			const parentId = currentFolder?._id ?? null;
 			const response = await fetch('/api/virtualFolder', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name: folderName, parent: parentId })
+				body: JSON.stringify({
+					name: folderName.trim(),
+					parent: parentId
+				})
 			});
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+			}
 
 			const result = await response.json();
 
@@ -184,11 +220,21 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 			}
 		} catch (error) {
 			console.error('Error creating folder:', error);
+			let errorMessage = 'Failed to create folder';
+			if (error instanceof Error) {
+				if (error.message.includes('duplicate')) {
+					errorMessage = error.message;
+				} else if (error.message.includes('invalid')) {
+					errorMessage = 'Invalid folder name';
+				}
+			}
 			toastStore.trigger({
-				message: 'Failed to create folder',
+				message: errorMessage,
 				background: 'variant-filled-error',
-				timeout: 3000
+				timeout: 5000 // Longer timeout for errors
 			});
+		} finally {
+			isLoading = false;
 		}
 	}
 
@@ -217,32 +263,47 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 		}
 	}
 
-	// Fetch media files
+	// Memoized fetch for media files
+	let lastFolderId = $state<string | null>(null);
 	async function fetchMediaFiles() {
-		try {
-			const folderId = currentFolder ? currentFolder._id : 'root';
-			console.log(`Fetching media files for folder: ${folderId}`);
+		const folderId = currentFolder ? currentFolder._id : 'root';
 
-			const { data } = await axios.get(`/api/virtualFolder/${folderId}`);
+		// Skip if already loading or same folder
+		if (isLoading || folderId === lastFolderId) return;
+
+		isLoading = true;
+		lastFolderId = folderId;
+
+		try {
+			const { data } = await axios.get(`/api/virtualFolder/${folderId}`, {
+				timeout: 10000 // 10 second timeout
+			});
+
 			if (data.success) {
-				// Ensure mediaFiles is always an array
 				files = Array.isArray(data.contents?.mediaFiles) ? data.contents.mediaFiles : [];
-				console.log('Fetched media files:', files);
+				folders = Array.isArray(data.contents?.subFolders) ? data.contents.subFolders : [];
 			} else {
-				const errorMessage = data.error || 'Unknown error';
-				console.error('Error in response:', errorMessage);
-				throw new Error(errorMessage);
+				throw new Error(data.error || 'Unknown error');
 			}
 		} catch (error: unknown) {
-			console.error(`Error fetching media files:`, error);
-			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			console.error('Error fetching media files:', error);
+			let errorMessage = 'Failed to load media';
+			if (error instanceof Error) {
+				if (error.message.includes('timeout')) {
+					errorMessage = 'Request timed out - please try again';
+				} else if (error.message.includes('network')) {
+					errorMessage = 'Network error - please check your connection';
+				}
+			}
 			toastStore.trigger({
 				message: errorMessage,
 				background: 'variant-filled-error',
-				timeout: 3000
+				timeout: 5000
 			});
 			files = [];
 			folders = [];
+		} finally {
+			isLoading = false;
 		}
 	}
 
@@ -330,10 +391,24 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 
 	<!-- Row 2: Action Buttons -->
 	<div class="lgd:mt-0 flex items-center justify-center gap-4 lg:justify-end">
-		<!-- Add folder -->
-		<button onclick={() => createFolder('New Folder')} aria-label="Add folder" class="variant-filled-tertiary btn gap-2">
+		<!-- Add folder with loading state -->
+		<button
+			onclick={() => {
+				const folderName = prompt('Enter folder name:');
+				if (folderName) {
+					createFolder(folderName);
+				}
+			}}
+			aria-label="Add folder"
+			class="variant-filled-tertiary btn gap-2"
+			disabled={isLoading}
+			aria-busy={isLoading}
+		>
 			<iconify-icon icon="mdi:folder-add-outline" width="24"></iconify-icon>
-			Add folder
+			{isLoading ? 'Creating...' : 'Add folder'}
+			{#if isLoading}
+				<span class="loading loading-spinner loading-xs"></span>
+			{/if}
 		</button>
 
 		<!-- Add Media -->

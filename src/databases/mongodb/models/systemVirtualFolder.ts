@@ -33,6 +33,19 @@ export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(
 		statics: {
 			async createVirtualFolder(folder: SystemVirtualFolder): Promise<DatabaseResult<SystemVirtualFolder>> {
 				try {
+					// First check if folder with same path already exists
+					const existingFolder = await this.findOne({ path: folder.path ?? `/${folder.name}` });
+					if (existingFolder) {
+						return {
+							success: false,
+							error: {
+								code: 'VIRTUAL_FOLDER_DUPLICATE',
+								message: 'Folder with this path already exists',
+								details: { path: folder.path ?? `/${folder.name}` }
+							}
+						};
+					}
+
 					const newFolder = new this({
 						_id: folder._id,
 						...folder,
@@ -42,8 +55,27 @@ export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(
 					await newFolder.save();
 					return { success: true, data: newFolder };
 				} catch (error) {
+					// Handle duplicate key error specifically
+					if (error.code === 11000) {
+						return {
+							success: false,
+							error: {
+								code: 'VIRTUAL_FOLDER_DUPLICATE',
+								message: 'Folder with this path already exists',
+								details: { path: folder.path ?? `/${folder.name}` }
+							}
+						};
+					}
+
 					logger.error(`Error creating virtual folder: ${error.message}`);
-					return { success: false, error: { code: 'VIRTUAL_FOLDER_CREATE_ERROR', message: 'Failed to create virtual folder', details: error } };
+					return {
+						success: false,
+						error: {
+							code: 'VIRTUAL_FOLDER_CREATE_ERROR',
+							message: 'Failed to create virtual folder',
+							details: error
+						}
+					};
 				}
 			},
 
@@ -104,6 +136,24 @@ export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(
 					return {
 						success: false,
 						error: { code: 'VIRTUAL_FOLDER_ORDER_UPDATE_ERROR', message: 'Failed to bulk update folder order', details: error }
+					};
+				}
+			},
+
+			// Check if folder with given path exists
+			async exists(path: string): Promise<DatabaseResult<boolean>> {
+				try {
+					const count = await this.countDocuments({ path });
+					return { success: true, data: count > 0 };
+				} catch (error) {
+					logger.error(`Error checking folder existence: ${error.message}`);
+					return {
+						success: false,
+						error: {
+							code: 'VIRTUAL_FOLDER_CHECK_ERROR',
+							message: 'Failed to check folder existence',
+							details: error
+						}
 					};
 				}
 			}

@@ -883,6 +883,11 @@ export class MongoDBAdapter implements DatabaseAdapter {
     // Delete a virtual folder
     delete: async (folderId: string): Promise<boolean> => {
       return SystemVirtualFolderModel.deleteVirtualFolder(folderId);
+    },
+
+    // Check if a virtual folder exists
+    exists: async (path: string): Promise<DatabaseResult<boolean>> => {
+      return SystemVirtualFolderModel.exists(path);
     }
   };
 

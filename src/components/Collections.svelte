@@ -103,6 +103,30 @@ Features:
 		return [];
 	});
 
+	// Load virtual folders when entering media mode
+	$effect(() => {
+		if (mode.value === 'media') {
+			fetch('/api/virtualFolder')
+				.then((res) => res.json())
+				.then((data) => {
+					if (data.success) {
+						virtualFolderNodes = data.data.folders.map((folder: any) => ({
+							id: folder._id,
+							name: folder.name,
+							path: folder.path,
+							isExpanded: false,
+							onClick: () => console.log('Folder selected:', folder.name),
+							icon: 'bi:folder',
+							badge: {
+								visible: true
+							}
+						}));
+					}
+				})
+				.catch((err) => console.error('Failed to load virtual folders:', err));
+		}
+	});
+
 	let search = $state('');
 	let isMediaMode = $derived(mode.value === 'media');
 
@@ -226,16 +250,16 @@ Features:
 		</button>
 
 		<!-- Display Virtual Folders as TreeView -->
-		<!-- {#if virtualFolderNodes.length > 0} -->
-		<TreeView
-			k={1}
-			nodes={virtualFolderNodes}
-			selectedId={collection.value?._id}
-			compact={uiStateManager.uiState.value.leftSidebar !== 'full'}
-			{search}
-		></TreeView>
-
-		treeview not working
-		<!-- {/if} -->
+		{#if virtualFolderNodes.length > 0}
+			<TreeView
+				k={1}
+				nodes={virtualFolderNodes}
+				selectedId={collection.value?._id}
+				compact={uiStateManager.uiState.value.leftSidebar !== 'full'}
+				{search}
+			></TreeView>
+		{:else}
+			<div class="p-4 text-center text-gray-500">No virtual folders found</div>
+		{/if}
 	{/if}
 </div>

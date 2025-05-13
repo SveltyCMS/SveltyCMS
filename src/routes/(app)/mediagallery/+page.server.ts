@@ -13,27 +13,23 @@
  * server-side logic for handling file uploads.
  */
 
-// Removed unused import: import { publicEnv } from '@root/config/public';
-
+import { publicEnv } from '@root/config/public';
 import { error, redirect } from '@sveltejs/kit';
-// TODO: Add back invalidation when upgrading SvelteKit
 import type { Actions, PageServerLoad } from './$types';
 
 // Utils
+import mime from 'mime-types';
 import { saveImage, saveDocument, saveAudio, saveVideo } from '@utils/media/mediaProcessing';
 import { constructUrl } from '@utils/media/mediaUtils';
+import type { MediaItem } from '@root/src/databases/dbInterface';
+import type { MediaAccess } from '@root/src/utils/media/mediaModels';
 
 // Auth
 import { dbAdapter } from '@src/databases/db';
 
-// mime types
-import mime from 'mime-types';
-
 // System Logger
 import { logger, type LoggableValue } from '@utils/logger.svelte';
-import type { MediaItem } from '@root/src/databases/dbInterface';
-import { publicEnv } from '@root/config/public';
-import type { MediaAccess } from '@root/src/utils/media/mediaModels';
+
 
 // Helper function to convert _id and other nested objects to string
 interface StackItem {
@@ -49,7 +45,6 @@ function convertIdToString(obj: Record<string, unknown> | Array<unknown>): Recor
 
   while (stack.length) {
     const { parent, key, value } = stack.pop()!;
-    // logger.debug('Stack: ', stack)
 
     // If value is not an object, assign directly
     if (value === null || typeof value !== 'object') {
@@ -131,8 +126,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     }
 
 
-    // Process and flatten media results
-    // Filter and validate media items before processing
+    // Process and flatten media results - Filter and validate media items before processing
     const processedMedia = mediaResults.data
       .filter((item) => {
         if (!item) return false;
@@ -262,7 +256,14 @@ export const actions: Actions = {
           const type = file.type.split('/')[0] as keyof typeof save_media_file;
           if (type in save_media_file) {
             const { fileInfo } = await save_media_file[type](file, collection_names[type], user._id, access);
-            await dbAdapter.crud.insertMany(collection_names[type], [{ ...fileInfo, user: user._id }]);
+            const insertResult = await dbAdapter.crud.insertMany(collection_names[type], [{ ...fileInfo, user: user._id }]);
+
+            if (!insertResult.success) {
+              if (insertResult.error?.message?.includes('duplicate')) {
+                throw new Error(`A file with name "${file.name}" already exists`);
+              }
+              throw new Error(insertResult.error?.message || 'Failed to save file');
+            }
             logger.info(`File uploaded successfully: ${file.name}`);
           } else {
             logger.warn(`Unsupported file type: ${file.type}`);
@@ -273,9 +274,18 @@ export const actions: Actions = {
       // TODO: Add back invalidation when upgrading SvelteKit
       return { success: true };
     } catch (err) {
-      const message = `Error during file upload: ${err instanceof Error ? err.message : String(err)}`;
-      logger.error(message);
-      throw error(500, message);
+      let userMessage = 'Error uploading file';
+      if (err instanceof Error) {
+        if (err.message.includes('duplicate')) {
+          userMessage = err.message;
+        } else if (err.message.includes('invalid file type')) {
+          userMessage = 'Unsupported file type';
+        } else {
+          userMessage = err.message;
+        }
+      }
+      logger.error(`Error during file upload: ${err instanceof Error ? err.message : String(err)}`);
+      throw error(400, userMessage);
     }
   },
 

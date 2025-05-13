@@ -16,16 +16,15 @@
 
 import { publicEnv } from '@root/config/public';
 import { json } from '@sveltejs/kit';
-
 import type { RequestHandler } from './$types';
 import { dbAdapter } from '../../../../databases/db';
 import {
 	type FolderContents,
-	type VirtualFolderUpdateData,
 	type FolderResponse,
+	type VirtualFolderUpdateData,
 	type SystemVirtualFolder,
 	VirtualFolderError
-} from '../../../../databases/dbInterface';
+} from '@databases/dbInterface';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -33,7 +32,7 @@ import { logger } from '@utils/logger.svelte';
 // Utility function to validate database connection
 function validateDb(): void {
 	if (!dbAdapter) {
-		throw new VirtualFolderError('Database adapter is not initialized', 500, 'DB_NOT_INITIALIZED');
+		throw new VirtualFolderError('Database adapter not initialized', 424, 'DB_NOT_INITIALIZED');
 	}
 }
 
@@ -80,44 +79,38 @@ async function updateChildPaths(folderId: string, newParentPath: string): Promis
 	await Promise.all(
 		children.map(async (child) => {
 			const newPath = `${newParentPath}/${child.name}`;
-			await dbAdapter.updateVirtualFolder(child._id, {
-				path: newPath,
-				parent: folderId
-			});
+			await dbAdapter.updateVirtualFolder(child._id, { path: newPath });
 			await updateChildPaths(child._id, newPath);
 		})
 	);
-}
-
-// Type definitions for request handler parameters
-interface RequestParams {
-	folderId: string;
-	[key: string]: string;
-}
-
-interface RequestContext {
-	params: RequestParams;
-	request?: Request;
-}
+};
 
 // Error handler wrapper for request handlers
-const handleRequest = (handler: (params: RequestParams, data?: Record<string, unknown>) => Promise<Response>) => {
-	return async ({ params, request }: RequestContext) => {
+const handleRequest = (handler: (params: { folderId: string }, data?: Record<string, unknown>) => Promise<Response>) => {
+	return async ({ params, request }: { params: { folderId: string }; request?: Request }) => {
 		try {
-			validateDb();
-			return await handler(params, request ? await request.json() : undefined);
+			if (!dbAdapter) {
+				throw new VirtualFolderError('Database adapter not initialized', 424, 'DB_NOT_INITIALIZED');
+			}
+			const data = request ? await request.json() : undefined;
+			return await handler(params, data);
 		} catch (err) {
-			const error = err as Error;
-			const status = err instanceof VirtualFolderError ? err.status : 500;
-			logger.error(`${error.name}: ${error.message}`);
-			return json({ success: false, error: error.message }, { status });
+			const error = err instanceof VirtualFolderError ? err :
+				new VirtualFolderError(err instanceof Error ? err.message : String(err), 500);
+			logger.error(`VirtualFolderError: ${error.message}`);
+			return json({
+				success: false,
+				error: error.message,
+				ariaLabel: `Error: ${error.message}`
+			}, { status: error.status });
 		}
 	};
 };
 
 // GET: Retrieve folder contents
 export const GET: RequestHandler = handleRequest(async ({ folderId }) => {
-	const folder = folderId === 'root' ? await getRootFolder() : await dbAdapter.findOne('SystemVirtualFolder', { _id: folderId });
+	const folder = folderId === 'root' ? await getRootFolder() :
+		await dbAdapter.findOne('SystemVirtualFolder', { _id: folderId });
 
 	if (!folder) {
 		throw new VirtualFolderError('Folder not found', 404, 'FOLDER_NOT_FOUND');
@@ -131,8 +124,11 @@ export const GET: RequestHandler = handleRequest(async ({ folderId }) => {
 
 	return json({
 		success: true,
-		contents,
-		folder: formatFolderResponse(folder)
+		data: {
+			contents,
+			folder: formatFolderResponse(folder)
+		},
+		ariaLabel: `Retrieved contents for folder ${folder.name}`
 	});
 });
 
@@ -143,28 +139,26 @@ export const POST: RequestHandler = handleRequest(async ({ folderId }, data) => 
 		throw new VirtualFolderError('Folder name is required', 400, 'NAME_REQUIRED');
 	}
 
-	const parentFolder = folderId === 'root' ? await getRootFolder() : await dbAdapter.findOne('SystemVirtualFolder', { _id: folderId });
+	const parentFolder = folderId === 'root' ? await getRootFolder() :
+		await dbAdapter.findOne('SystemVirtualFolder', { _id: folderId });
 
 	if (!parentFolder) {
 		throw new VirtualFolderError('Parent folder not found', 404, 'PARENT_NOT_FOUND');
 	}
 
-	const newPath = `${parentFolder.path}/${name}`;
 	const newFolder = await dbAdapter.createVirtualFolder({
 		name,
 		parent: parentFolder._id,
-		path: newPath
+		path: `${parentFolder.path}/${name}`
 	});
 
 	logger.info(`Subfolder created: ${name} under folderId ${parentFolder._id}`);
 
-	return json(
-		{
-			success: true,
-			folder: formatFolderResponse(newFolder, 'New')
-		},
-		{ status: 201 }
-	);
+	return json({
+		success: true,
+		data: { folder: formatFolderResponse(newFolder, 'New') },
+		ariaLabel: `Created new subfolder: ${name}`
+	}, { status: 201 });
 });
 
 // PATCH: Update folder details
@@ -174,19 +168,19 @@ export const PATCH: RequestHandler = handleRequest(async ({ folderId }, data) =>
 		throw new VirtualFolderError('Folder name is required', 400, 'NAME_REQUIRED');
 	}
 
-	const folder = folderId === 'root' ? await getRootFolder() : await dbAdapter.findOne('SystemVirtualFolder', { _id: folderId });
+	const folder = folderId === 'root' ? await getRootFolder() :
+		await dbAdapter.findOne('SystemVirtualFolder', { _id: folderId });
 
 	if (!folder) {
 		throw new VirtualFolderError('Folder not found', 404, 'FOLDER_NOT_FOUND');
 	}
 
-	let newParent: SystemVirtualFolder | null = null;
-	if (parent) {
-		newParent = parent === 'root' ? await getRootFolder() : await dbAdapter.findOne('SystemVirtualFolder', { _id: parent });
+	const newParent = parent ?
+		(parent === 'root' ? await getRootFolder() :
+			await dbAdapter.findOne('SystemVirtualFolder', { _id: parent })) : null;
 
-		if (!newParent) {
-			throw new VirtualFolderError('New parent folder not found', 404, 'PARENT_NOT_FOUND');
-		}
+	if (parent && !newParent) {
+		throw new VirtualFolderError('New parent folder not found', 404, 'PARENT_NOT_FOUND');
 	}
 
 	const updateData: VirtualFolderUpdateData = {
@@ -209,7 +203,8 @@ export const PATCH: RequestHandler = handleRequest(async ({ folderId }, data) =>
 
 	return json({
 		success: true,
-		folder: formatFolderResponse(updatedFolder, 'Updated')
+		data: { folder: formatFolderResponse(updatedFolder, 'Updated') },
+		ariaLabel: `Updated folder: ${updatedFolder.name}`
 	});
 });
 
