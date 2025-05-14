@@ -3,12 +3,7 @@
 @component
 **Base widget component providing common functionality for all dashboard widgets**
 
-Provides:
-- Standardized data fetching with loading and error states
-- Theme-aware styling (light/dark mode support)
-- Common props and layout structure
-- Accessibility features (ARIA labels, keyboard navigation)
-- Error handling and placeholder states
+
 
 ### Props
 - `label`: The widget's display label
@@ -16,6 +11,13 @@ Provides:
 - `endpoint`: API endpoint for data fetching
 - `pollInterval`: Data refresh interval in milliseconds (default: 5000)
 - `data`: Bindable data property for widget content
+
+### Features:
+- Common properties for all widgets
+- State management using Svelte 5 runes
+- Polling effect for real-time data updates
+- Error handling and logging
+
 -->
 
 <script lang="ts">
@@ -106,12 +108,12 @@ Provides:
 >
 	<h2 class="widget-title mb-4 text-xl font-bold">{label}</h2>
 
-	{#if loading}
+	{#if loading && !data}
 		<div class="loading-state flex flex-1 items-center justify-center text-center">Loading...</div>
-	{:else if error}
+	{:else if error && !data}
 		<div class="error-state flex flex-1 items-center justify-center text-center text-error-500">Error: {error}</div>
 	{:else}
 		<!-- Widget-specific content goes here -->
-		{@render children?.()}
+		{@render children?.({ data })}
 	{/if}
 </div>

@@ -147,10 +147,10 @@ export interface MediaFolder extends BaseEntity {
 
 /** System Preferences **/
 export interface SystemPreferences extends BaseEntity {
-  key: string;
-  value: unknown;
-  scope: 'user' | 'system' | 'widget';
-  userId?: DatabaseId;
+  key: string; // The preference key (e.g., "dashboard.layout")
+  value: unknown; // The value of the preference (can be any type)
+  scope: 'user' | 'system' | 'widget'; // The scope of the preference
+  userId?: DatabaseId; // The user ID if the scope is 'user'
 }
 
 /** Query Support Types **/

@@ -3,9 +3,8 @@
 @component
 **Dashboard widget for displaying user activity with improved rendering and error handling**
 
-```tsx
+@example
 <UserActivityWidget label="User Activity" />
-```
 
 ### Props
 - `label`: The label for the widget (default: 'User Activity')

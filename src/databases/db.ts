@@ -17,6 +17,7 @@
  * - Authentication and Authorization: Configures and initializes authentication adapters.
  * - Google OAuth2 Integration: Optionally sets up Google OAuth2 client if the client ID and secret are provided.
  */
+
 import { publicEnv } from '@root/config/public';
 import { privateEnv } from '@root/config/private';
 
@@ -234,7 +235,9 @@ async function initializeSystem(): Promise<void> {
 		await initializeDefaultTheme();
 		await initializeRevisions();
 		await initializeVirtualFolders();
+		await initializeDefaultPreferences();
 		await syncPermissions();
+
 		// Initialize ContentManager (loads collection schemas into memory)
 		logger.debug('Initializing ContentManager...');
 		await contentManager.initialize();
@@ -263,6 +266,20 @@ async function initializeSystem(): Promise<void> {
 		if (!authAdapter) {
 			throw new Error('Authentication adapter not initialized'); // Use Error instead of kit's error
 		}
+
+		// Initialize default preferences if needed
+		async function initializeDefaultPreferences(): Promise<void> {
+			if (!dbAdapter) throw new Error('Cannot initialize preferences: dbAdapter is not available');
+			try {
+				const existingPrefs = await dbAdapter.getSystemPreferences('system');
+				if (!existingPrefs) {
+					await dbAdapter.updateSystemPreferences('system', ScreenSize.LG, []);
+					logger.info('Initialized default system preferences');
+				}
+			} catch (err) {
+				logger.error(`Error initializing default preferences: ${err instanceof Error ? err.message : String(err)}`);
+			}
+		}
 		// Initialize authentication
 		if (!authAdapter) {
 			throw new Error('Cannot initialize auth: authAdapter is null');
@@ -271,10 +288,13 @@ async function initializeSystem(): Promise<void> {
 		if (!auth) {
 			throw new Error('Auth initialization failed');
 		}
+
 		logger.debug('Authentication adapter initialized.');
-		logger.debug('Auth initialized, methods:', Object.keys(auth).filter(key => typeof (auth as any)[key] === 'function'));
+		logger.debug('Auth initialized, methods:', Object.keys(auth).filter(key => typeof (auth)[key] === 'function'));
+
 		isInitialized = true;
 		isConnected = true;
+
 		logger.debug('Adapters initialized successfully');
 	} catch (err) {
 		const message = `Error in initializeAdapters: ${err instanceof Error ? err.message : String(err)}`;

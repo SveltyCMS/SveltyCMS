@@ -3,9 +3,8 @@
 @component 
 **Dashboard widget for displaying system messages with improved rendering and error handling**
 
-```tsx
+@example
 <SystemMessagesWidget label="System Messages" />
-```
 
 ### Props
 - `label`: The label for the widget (default: 'System Messages')

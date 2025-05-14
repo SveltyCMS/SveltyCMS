@@ -3,9 +3,8 @@
 @component
 **A reusable widget component for displaying disk usage information with improved rendering and error handling**
 
-```ts
+@example
 <DiskWidget label="Disk Usage" />
-```
 
 ### Props
 - `label`: The label for the widget (default: 'Disk Usage')	
@@ -16,7 +15,7 @@ This widget fetches and displays real-time disk usage data, including:
 - Free disk space
 - Usage percentages
 
-Features:
+### Features:
 - Responsive doughnut chart visualization
 - Theme-aware rendering (light/dark mode support)
 - Real-time data updates

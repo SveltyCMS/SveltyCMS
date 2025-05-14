@@ -73,10 +73,6 @@
 		if (!langProgress || langProgress.total.size === 0) return 0; // Avoid division by zero
 		return Math.round((langProgress.translated.size / langProgress.total.size) * 100);
 	}
-
-	$effect(() => {
-		console.log('mode:', mode.value);
-	});
 </script>
 
 {#if mode.value === 'view'}

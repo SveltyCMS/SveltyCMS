@@ -29,8 +29,6 @@ import { RateLimiter } from 'sveltekit-rate-limiter/server';
 import { auth, dbInitPromise } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import { checkUserPermission } from '@src/auth/permissionCheck';
-import { getAllPermissions } from '@src/auth/permissionManager';
-import type { User, Permission } from '@src/auth/types';
 
 // Cache
 import { getCacheStore } from '@src/cacheStore/index.server';
@@ -58,12 +56,12 @@ const limiter = new RateLimiter({
 
 // Stricter rate limiter for token refresh operations
 const refreshLimiter = new RateLimiter({
-	IP: [5, 'm'], // 5 requests per minute per IP
-	IPUA: [5, 'm'], // 5 requests per minute per IP+User-Agent
+	IP: [10, 'm'], // 10 requests per minute per IP
+	IPUA: [10, 'm'], // 10 requests per minute per IP+User-Agent
 	cookie: {
 		name: 'refreshlimit',
 		secret: privateEnv.JWT_SECRET_KEY as string,
-		rate: [5, 'm'], // 5 requests per minute per cookie
+		rate: [10, 'm'], // 10 requests per minute per cookie
 		preflight: true
 	}
 });
@@ -133,7 +131,8 @@ const createHtmlResponse = (message: string, status: number): never => {
 
 // Session and permission caches
 const sessionCache = new Map<string, { user: User; timestamp: number }>();
-const permissionCache = new Map<string, { permissions: Permission[]; timestamp: number }>();
+const userPermissionCache = new Map<string, { permissions: Permission[]; timestamp: number }>();
+const lastRefreshAttempt = new Map<string, number>();
 
 // Get user from session ID with optimized caching 
 const getUserFromSessionId = async (session_id: string | undefined): Promise<User | null> => {
@@ -279,7 +278,12 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 				const timeLeft = expiresAtTime - now;
 				const shouldRefresh = timeLeft > 0 && timeLeft < CACHE_TTL * 0.2;
 
-				if (shouldRefresh) {
+				// Debounce refreshs per session (e.g., 30s)
+				const REFRESH_DEBOUNCE_MS = 30 * 1000;
+				const lastAttempt = lastRefreshAttempt.get(session_id) || 0;
+
+				if (shouldRefresh && now - lastAttempt > REFRESH_DEBOUNCE_MS) {
+					lastRefreshAttempt.set(session_id, now);
 					if (await refreshLimiter.isLimited(event)) {
 						logger.warn(`Refresh rate limit exceeded for user ${user._id}, IP: ${getClientIp(event)}`);
 					} else {
@@ -434,41 +438,29 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 	const cacheStore = getCacheStore();
 	const now = Date.now();
 
-	// API Permission Check (Consider caching user's specific permissions if complex/slow)
-	// For now, fetching all permissions and finding the required one.
-	// This could be optimized if getAllPermissions is slow and permissions don't change often.
-	// const userPermissions = user.permissions; // Assuming user object has their permissions
-	// const requiredPermissionDetails = await getPermissionForApiEndpoint(apiEndpoint); // Hypothetical function
-	// if (requiredPermissionDetails && !hasPermission(userPermissions, requiredPermissionDetails)) { ... }
-
-	// Current permission check logic:
-	let allPermissions = permissionCache.get('all')?.permissions;
-	if (!allPermissions || now - (permissionCache.get('all')?.timestamp || 0) > API_CACHE_TTL) {
+	// Cache user permissions for 1 minute
+	const USER_PERM_CACHE_TTL = 60 * 1000;
+	let userPerms = userPermissionCache.get(user._id)?.permissions;
+	if (!userPerms || now - (userPermissionCache.get(user._id)?.timestamp || 0) > USER_PERM_CACHE_TTL) {
 		try {
-			allPermissions = await getAllPermissions();
-			permissionCache.set('all', { permissions: allPermissions, timestamp: now });
+			userPerms = user.permissions; // Assuming user.permissions is up-to-date
+			userPermissionCache.set(user._id, { permissions: userPerms, timestamp: now });
 		} catch (permError) {
-			logger.error(`Failed to get all permissions for API check: ${permError.message}`);
+			logger.error(`Failed to get user permissions for API check: ${permError.message}`);
 			throw error(500, 'Failed to verify API permissions');
 		}
 	}
 
-	const requiredPermission = allPermissions.find((p) => p._id === `api:${apiEndpoint}` || p.name === `api:${apiEndpoint}`); // Check both _id and name
-	if (requiredPermission) {
-		const { hasPermission } = await checkUserPermission(user, {
-			contextId: `api:${apiEndpoint}`,
-			name: requiredPermission.name || `Access ${apiEndpoint} API`, // Fallback name
-			action: requiredPermission.action,
-			contextType: requiredPermission.type
-		});
+	// Check if user has required permission for this endpoint
+	const requiredPermissionName = `api:${apiEndpoint}`;
+	const permissionExists = userPerms.some((p) => p._id === requiredPermissionName || p.name === requiredPermissionName);
 
-		if (!hasPermission) {
+	if (permissionExists) {
+		if (!permissionExists) {
 			logger.warn(`User ${user._id} denied access to API /api/${apiEndpoint}`);
 			throw error(403, 'Forbidden: You do not have permission to access this API endpoint.');
 		}
 	}
-	// else: No specific permission defined for this endpoint, allow access or deny by default?
-	// Current logic: if no permission defined, access is allowed. This might need review based on security policy.
 
 	// Handle GET requests with caching
 	if (event.request.method === 'GET') {

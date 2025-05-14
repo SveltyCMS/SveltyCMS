@@ -646,8 +646,6 @@ export class MongoDBAdapter implements DatabaseAdapter {
       }
     },
 
-    // Fetch all media
-
     // Delete media
     deleteMedia: async (mediaId: string): Promise<boolean> => {
       try {
@@ -829,22 +827,75 @@ export class MongoDBAdapter implements DatabaseAdapter {
   systemPreferences = {
     // Set user preferences
     setUserPreferences: async (userId: string, preferences: UserPreferences): Promise<void> => {
-      return SystemPreferencesModel.setUserPreferences(userId, preferences);
+      try {
+        await SystemPreferencesModel.updateOne(
+          { userId },
+          { $set: { preferences } },
+          { upsert: true }
+        );
+      } catch (error) {
+        throw createDatabaseError(error, 'PREFERENCES_SAVE_ERROR', 'Failed to save user preferences');
+      }
     },
 
-    //Retrieve system preferences for a user
-    getSystemPreferences: async (user_id: string): Promise<UserPreferences | null> => {
-      return SystemPreferencesModel.getSystemPreferences(user_id);
+    // Get system preferences for a user
+    getSystemPreferences: async (userId: string): Promise<UserPreferences | null> => {
+      try {
+        const doc = await SystemPreferencesModel.findOne({ userId }).lean().exec();
+        return doc?.preferences ?? null;
+      } catch (error) {
+        throw createDatabaseError(error, 'PREFERENCES_LOAD_ERROR', 'Failed to load user preferences');
+      }
     },
 
-    // Update system preferences for a user
-    updateSystemPreferences: async (user_id: string, screenSize: ScreenSize, preferences: WidgetPreference[]): Promise<void> => {
-      return SystemPreferencesModel.updateSystemPreferences(user_id, screenSize, preferences);
+    // Get system-wide global preferences
+    getGlobalPreferences: async (): Promise<UserPreferences | null> => {
+      try {
+        const doc = await SystemPreferencesModel.findOne({ isGlobal: true }).lean().exec();
+        return doc?.preferences ?? null;
+      } catch (error) {
+        throw createDatabaseError(error, 'PREFERENCES_LOAD_ERROR', 'Failed to load global preferences');
+      }
     },
 
-    // Clear system preferences for a user
-    clearSystemPreferences: async (user_id: string): Promise<void> => {
-      return SystemPreferencesModel.clearSystemPreferences(user_id);
+    // Set system-wide global preferences
+    setGlobalPreferences: async (preferences: UserPreferences): Promise<void> => {
+      try {
+        await SystemPreferencesModel.updateOne(
+          { isGlobal: true },
+          { $set: { preferences } },
+          { upsert: true }
+        );
+      } catch (error) {
+        throw createDatabaseError(error, 'PREFERENCES_SAVE_ERROR', 'Failed to save global preferences');
+      }
+    },
+
+    // Update preferences for a specific screen size
+    updateSystemPreferences: async (
+      userId: string,
+      screenSize: ScreenSize,
+      widgets: WidgetPreference[]
+    ): Promise<void> => {
+      try {
+        // This upserts (creates if not exists) the user preferences document
+        await SystemPreferencesModel.updateOne(
+          { userId },
+          { $set: { [`preferences.${screenSize}`]: widgets } },
+          { upsert: true }
+        );
+      } catch (error) {
+        throw createDatabaseError(error, 'PREFERENCES_UPDATE_ERROR', 'Failed to update preferences');
+      }
+    },
+
+    // Clear all preferences for a user
+    clearSystemPreferences: async (userId: string): Promise<void> => {
+      try {
+        await SystemPreferencesModel.deleteOne({ userId }).exec();
+      } catch (error) {
+        throw createDatabaseError(error, 'PREFERENCES_CLEAR_ERROR', 'Failed to clear preferences');
+      }
     }
   };
 

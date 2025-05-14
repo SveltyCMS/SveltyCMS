@@ -3,14 +3,13 @@
 @component
 **A reusable widget component for displaying last 5 media information with improved rendering and error handling**
 
-```tsx
+@example
 <Last5MediaWidget label="Last 5 Media" />
-```
 
 ### Props
 - `label`: The label for the widget (default: 'Last 5 Media')
 
-Features:
+### Features:
 - Responsive doughnut chart visualization
 - Theme-aware rendering (light/dark mode support)
 - Real-time data updates

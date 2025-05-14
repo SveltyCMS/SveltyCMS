@@ -3,7 +3,10 @@
 @component
 **This component renders the entire app with improved loading strategy and dynamic theme management**
 
-Key features:
+## Props:
+- `theme` {string} - The theme of the website
+
+## Features:
 -     Skeleton UI framework for SvelteKit
 -     Dynamic theme management based on user preferences or defaults
 -     SEO optimization with Open Graph and Twitter Card metadata for enhanced social sharing
@@ -13,7 +16,7 @@ Key features:
 -->
 
 <script lang="ts">
-	// Your selected Skeleton theme:
+	// Your selected theme:
 	import '../../app.postcss';
 
 	// Icons from https://icon-sets.iconify.design/
@@ -22,14 +25,13 @@ Key features:
 	import { publicEnv } from '@root/config/public';
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/state';
-	import { avatarSrc } from '@stores/store.svelte';
 
 	// Utils
 	import { getTextDirection } from '@utils/utils';
 	import { isSearchVisible } from '@utils/globalSearchIndex';
 
 	// Stores
-	import { systemLanguage, isLoading } from '@stores/store.svelte';
+	import { avatarSrc, systemLanguage, isLoading } from '@stores/store.svelte';
 	import { contentStructure, collections } from '@stores/collectionStore.svelte';
 	import { uiStateManager } from '@stores/UIStore.svelte';
 	import { screenSize, ScreenSize } from '@stores/screenSizeStore.svelte';
@@ -90,7 +92,7 @@ Key features:
 	// Function to initialize collections using ContentManager
 	async function initializeCollections() {
 		try {
-			console.log('contentStructure', data.contentStructure);
+			//console.log('contentStructure', data.contentStructure);
 			contentStructure.set(data.contentStructure);
 			isCollectionsLoaded = true;
 		} catch (error) {
@@ -135,7 +137,7 @@ Key features:
 		}
 
 		if (data.user) {
-			console.log('user', data.user);
+			//console.log('user', data.user);
 			avatarSrc.set(data.user!.avatar!);
 		}
 

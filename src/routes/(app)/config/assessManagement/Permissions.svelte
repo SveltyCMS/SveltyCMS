@@ -1,7 +1,15 @@
 <!--
 @file src/routes/(app)/config/assessManagement/Permissions.svelte
-@description This component manages permissions in the access management system. It provides functionality to:
+@component
+**This component manages permissions in the access management system. It provides functionality to display existing permissions, search and filter permissions, modify permission settings, bulk delete selected permissions, and handle advanced permission conditions.**
 
+@example
+<Permissions />
+
+### Props
+- `roleData`: An object containing role data, including the current admin role and available roles.
+
+It provides the following functionality:
 - Display existing permissions
 - Search and filter permissions
 - Modify permission settings, including role assignments
@@ -38,6 +46,7 @@
 	let searchTerm = $state('');
 	let modifiedPermissions = new Set<string>();
 
+	// Function to get groups of permissions
 	const getGroups = (filteredPermissions: Permission[]) => {
 		const groups: string[] = [];
 		filteredPermissions.forEach((cur) => {
@@ -56,7 +65,8 @@
 		return groups;
 	};
 
-	const filterGroups = (permissions, group) => {
+	// Function to filter permissions by group
+	const filterGroups = (permissions: Permission[], group: string): Permission[] => {
 		if (group === 'User Management') {
 			return permissions.filter((cur) => cur.type === PermissionType.USER);
 		} else if (group === 'Configuration') {

@@ -45,7 +45,6 @@
 
 	// Define user data and state variables
 	const user = page.data.user;
-	// avatarSrc.set(user?.avatar);
 
 	// Tooltip settings
 	const UserTooltip: PopupSettings = {
@@ -205,10 +204,6 @@
 			handleLanguageSelection(target.value as AvailableLanguage);
 		}
 	}
-
-	$effect(() => {
-		console.debug('avatarSrc', avatarSrc.value);
-	});
 </script>
 
 <div class="flex h-full w-full flex-col justify-between">

@@ -180,11 +180,12 @@ export class SessionAdapter implements Partial<authDBInterface> {
 	// Invalidate all sessions for a user
 	async invalidateAllUserSessions(user_id: string): Promise<void> {
 		try {
+			const now = new Date();
 			const result = await this.SessionModel.deleteMany({
 				user_id,
-				expires: { $gt: new Date() } // Only delete active (non-expired) sessions
+				expires: { $gt: now } // Only delete active (non-expired) sessions
 			});
-			logger.debug(`Invalidated ${result.deletedCount} active sessions for user`, { user_id });
+			logger.debug(`invalidateAllUserSessions: Attempted to delete sessions for user_id=${user_id} at ${now.toISOString()}. Deleted count: ${result.deletedCount}`);
 		} catch (err) {
 			const message = `Error in SessionAdapter.invalidateAllUserSessions: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);

@@ -3,9 +3,8 @@
 @component
 **A reusable widget component for displaying memory usage information with improved rendering and error handling**
 
-```tsx
+@example
 <MemoryWidget label="Memory Usage" />
-```
 
 ### Props
 - `label`: The label for the widget (default: 'Memory Usage')

@@ -1,6 +1,6 @@
 /**
  * @file src/stores/userPreferences.svelte.ts
- * @description User preferences management 
+ * @description User preferences management
  *
  * Features:
  * - Widget preferences for different screen sizes
@@ -13,6 +13,8 @@
 import { store } from '@utils/reactivity.svelte';
 import { ScreenSize } from '@stores/screenSizeStore.svelte';
 import { browser } from '$app/environment';
+
+import { dbAdapter } from '@src/databases/db';
 
 // Widget preference interface
 export interface WidgetPreference {
@@ -85,27 +87,56 @@ function createPreferencesStores() {
 		return state().preferences[size];
 	}
 
+	// Add a flag and promise to track initialization
+	let isDbInitialized = false;
+	let dbInitPromise: Promise<void> | null = null;
+
 	// Ensure database is initialized
 	async function ensureDbInitialized(): Promise<void> {
-		if (browser && dbAdapter) {
-			await dbAdapter.init?.();
-		}
+		if (isDbInitialized) return; // Skip if already initialized
+		if (dbInitPromise) return dbInitPromise; // Wait for ongoing initialization
+
+		// Start initialization
+		dbInitPromise = (async () => {
+			try {
+				// Always dynamically import the db module to avoid circular dependency issues
+				const dbModule = await import('@src/databases/db');
+				await dbModule.initializationPromise;
+				// Use dbModule.dbAdapter instead of the top-level import
+				if (dbModule.dbAdapter?.init) await dbModule.dbAdapter.init();
+
+				if (!dbModule.dbAdapter) {
+					throw new Error('Database adapter not available after initialization');
+				}
+
+				isDbInitialized = true; // Mark as initialized
+			} catch (err) {
+				isDbInitialized = false; // Reset flag on failure
+				throw new Error(`Database initialization failed: ${err instanceof Error ? err.message : String(err)}`);
+			} finally {
+				dbInitPromise = null; // Clear promise after completion
+			}
+		})();
+
+		return dbInitPromise;
 	}
 
 	// Start auto-sync
 	function startAutoSync() {
 		if (!browser) return;
+		if (syncInterval) return;
 
-		// Check every 5 minutes
-		syncInterval = setInterval(
-			async () => {
-				const currentState = state();
-				if (currentState.currentUserId && (!currentState.lastSyncTime || Date.now() - currentState.lastSyncTime.getTime() > 30 * 60 * 1000)) {
-					await loadPreferences(currentState.currentUserId).catch(console.error);
+		// Sync every 5 minutes
+		syncInterval = setInterval(async () => {
+			const currentState = state();
+			if (currentState.currentUserId && (!currentState.lastSyncTime || Date.now() - currentState.lastSyncTime.getTime() > 30 * 60 * 1000)) {
+				try {
+					await loadPreferences(currentState.currentUserId);
+				} catch (err) {
+					console.error('Auto-sync failed:', err);
 				}
-			},
-			5 * 60 * 1000
-		);
+			}
+		}, 5 * 60 * 1000);
 	}
 
 	// Stop auto-sync
@@ -125,11 +156,12 @@ function createPreferencesStores() {
 
 		try {
 			await ensureDbInitialized();
-			const newPreferences = { ...currentState.preferences, [screenSize]: widgets };
+			const dbModule = await import('@src/databases/db');
+			const dbAdapterInstance = dbModule.dbAdapter;
+			if (!dbAdapterInstance) throw new Error('Database adapter not available');
 
-			if (dbAdapter) {
-				await dbAdapter.updateSystemPreferences(userId, screenSize, widgets);
-			}
+			const newPreferences = { ...currentState.preferences, [screenSize]: widgets };
+			await dbAdapterInstance.updateSystemPreferences(userId, screenSize, widgets);
 
 			state.update((s) => ({
 				...s,
@@ -155,30 +187,53 @@ function createPreferencesStores() {
 
 		state.update((s) => ({ ...s, isLoading: true, error: null }));
 
+		// Initialize empty fallback preferences
+		const emptyPreferences = {
+			[ScreenSize.SM]: [],
+			[ScreenSize.MD]: [],
+			[ScreenSize.LG]: [],
+			[ScreenSize.XL]: []
+		};
+
 		try {
 			await ensureDbInitialized();
+			const dbModule = await import('@src/databases/db');
+			const dbAdapterInstance = dbModule.dbAdapter;
+			if (!dbAdapterInstance) throw new Error('Database adapter not available');
 
-			if (dbAdapter) {
-				const userPrefs = await dbAdapter.getSystemPreferences(userId);
-				if (userPrefs) {
-					state.update((s) => ({
-						...s,
-						preferences: userPrefs,
-						lastSyncTime: new Date(),
-						currentUserId: userId,
-						isLoading: false
-					}));
-				} else {
-					throw new Error('No preferences found');
-				}
+			// Try to load user-specific preferences
+			const userPrefs = await dbAdapterInstance.getSystemPreferences(userId);
+			if (userPrefs) {
+				state.update((s) => ({
+					...s,
+					preferences: userPrefs,
+					lastSyncTime: new Date(),
+					currentUserId: userId,
+					isLoading: false
+				}));
+				return;
 			}
-		} catch (error) {
+
+			// If not found, create a new entry for the user with empty preferences
+			await dbAdapterInstance.setUserPreferences?.(userId, emptyPreferences);
+
 			state.update((s) => ({
 				...s,
-				error: error instanceof Error ? error.message : 'Failed to load preferences',
+				preferences: emptyPreferences,
+				lastSyncTime: new Date(),
+				currentUserId: userId,
 				isLoading: false
 			}));
-			throw error;
+		} catch (error) {
+			// Fallback to empty preferences on unexpected errors
+			state.update((s) => ({
+				...s,
+				preferences: emptyPreferences,
+				lastSyncTime: new Date(),
+				currentUserId: userId,
+				isLoading: false,
+				error: error instanceof Error ? error.message : 'Failed to load preferences'
+			}));
 		}
 	}
 
@@ -190,17 +245,14 @@ function createPreferencesStores() {
 		state.update((s) => ({ ...s, isLoading: true, error: null }));
 
 		try {
-			await ensureDbInitialized();
 			const emptyPreferences = {
 				[ScreenSize.SM]: [],
 				[ScreenSize.MD]: [],
 				[ScreenSize.LG]: [],
 				[ScreenSize.XL]: []
 			};
-
-			if (dbAdapter) {
-				await dbAdapter.clearSystemPreferences(userId);
-			}
+			if (!dbAdapter) throw new Error('Database adapter not available');
+			await dbAdapter.clearSystemPreferences(userId);
 
 			state.update((s) => ({
 				...s,
@@ -227,12 +279,12 @@ function createPreferencesStores() {
 
 		try {
 			await ensureDbInitialized();
+			if (!dbAdapter) throw new Error('Database adapter not available');
+
 			const updatedWidgets = [...currentState.preferences[screenSize], widget];
 			const newPreferences = { ...currentState.preferences, [screenSize]: updatedWidgets };
 
-			if (dbAdapter) {
-				await dbAdapter.updateSystemPreferences(userId, screenSize, updatedWidgets);
-			}
+			await dbAdapter.updateSystemPreferences(userId, screenSize, updatedWidgets);
 
 			state.update((s) => ({
 				...s,
@@ -259,12 +311,12 @@ function createPreferencesStores() {
 
 		try {
 			await ensureDbInitialized();
+			if (!dbAdapter) throw new Error('Database adapter not available');
+
 			const updatedWidgets = currentState.preferences[screenSize].filter((w) => w.id !== widgetId);
 			const newPreferences = { ...currentState.preferences, [screenSize]: updatedWidgets };
 
-			if (dbAdapter) {
-				await dbAdapter.updateSystemPreferences(userId, screenSize, updatedWidgets);
-			}
+			await dbAdapter.updateSystemPreferences(userId, screenSize, updatedWidgets);
 
 			state.update((s) => ({
 				...s,
@@ -292,9 +344,9 @@ function createPreferencesStores() {
 		state,
 
 		// Derived values
-		hasPreferences: () => hasPreferences2,
-		widgetCount: () => widgetCount2,
-		canSync: () => canSync2,
+		hasPreferences: () => hasPreferences,
+		widgetCount: () => widgetCount,
+		canSync: () => canSync,
 
 		// Methods
 		getScreenSizeWidgets,

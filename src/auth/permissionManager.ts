@@ -126,7 +126,11 @@ async function syncCollectionPermissions(collections: string[]): Promise<AuthPer
 	try {
 		const permissions: AuthPermission[] = [];
 		collections.forEach((collection) => {
-			const baseId = collection.slice(0, collection.length - 3);
+			// Extract only the collection name (basename, without extension)
+			const parts = collection.split(/[\\/]/);
+			const fileWithExt = parts[parts.length - 1];
+			const baseId = fileWithExt.replace(/\.[^/.]+$/, ''); // Remove extension
+
 			permissions.push({
 				_id: `${baseId}:create`,
 				name: `Create ${baseId}`,
