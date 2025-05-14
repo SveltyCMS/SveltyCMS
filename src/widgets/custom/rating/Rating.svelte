@@ -2,6 +2,16 @@
 @file src/widgets/custom/rating/Rating.svelte
 @component
 **Rating widget component to display a rating input.**
+
+@example
+<Rating label="Rating" db_fieldName="rating" required={true} />
+
+### Props
+- `field`: FieldType
+- `value`: any
+
+### Features
+- Translatable
 -->
 
 <script lang="ts">

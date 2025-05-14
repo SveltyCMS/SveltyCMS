@@ -50,7 +50,7 @@ It handles widget configuration, permissions, and specific options.
 	// We've created a custom submit function to pass the response and close the modal.
 	async function onFormSubmit(): Promise<void> {
 		if (modalData?.response) {
-			await modalData.response($targetWidget);
+			modalData.response(targetWidget.value);
 		}
 		modalStore.close();
 	}

@@ -28,7 +28,6 @@ import type { PageServerLoad } from './$types';
 // Collections
 //import { updateCollections } from '@src/collections';
 import { contentManager } from '@src/content/ContentManager';
-import { generateCollectionFieldTypes, generateContentTypes } from '@src/content/types';
 import { compile } from '@src/routes/api/compile/compile';
 
 // Widgets
@@ -46,7 +45,6 @@ async function getPrettierConfig() {
 }
 
 // Auth
-import { getCollectionModels } from '@src/databases/db';
 import { checkUserPermission } from '@src/auth/permissionCheck';
 import { permissionConfigs } from '@src/auth/permissionManager';
 import { roles } from '@root/config/roles';
@@ -58,7 +56,7 @@ import { logger } from '@utils/logger.svelte';
 type fields = ReturnType<WidgetType[keyof WidgetType]>;
 
 // Define load function as async function that takes an event parameter
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, params }) => {
 	try {
 		const { user } = locals;
 
@@ -72,19 +70,43 @@ export const load: PageServerLoad = async ({ locals }) => {
 		// Check user permission for collection management
 		const collectionManagementConfig = permissionConfigs.collectionManagement;
 		const permissionCheck = await checkUserPermission(user, collectionManagementConfig);
-
 		if (!permissionCheck.hasPermission) {
 			const message = `User ${user._id} does not have permission to access collection management`;
 			logger.warn(message);
 			throw error(403, 'Insufficient permissions');
 		}
 
+		const action = params.action;
 		const { _id, ...rest } = user;
+
+		if (action === 'new') {
+			return {
+				user: { ...rest, id: _id.toString() },
+				roles, // Add roles data
+				permissions, // Add permissions data
+				permissionConfigs // Add permission configs
+			};
+		}
+
+		await contentManager.initialize();
+		const collection = params.contentPath;
+
+		const currentCollection = await contentManager.getCollection(`/${collection}`);
+
 		return {
 			user: { ...rest, id: _id.toString() },
 			roles, // Add roles data
 			permissions, // Add permissions data
-			permissionConfigs // Add permission configs
+			permissionConfigs, // Add permission configs
+			collection: {
+				module: currentCollection?.module,
+				name: currentCollection?.name,
+				_id: currentCollection?._id,
+				path: currentCollection?.path,
+				icon: currentCollection?.icon,
+				label: currentCollection?.label,
+				description: currentCollection?.description
+			}
 		};
 	} catch (err) {
 		if (err instanceof Error && 'status' in err) {
@@ -103,12 +125,12 @@ export const actions: Actions = {
 		try {
 			const formData = await request.formData();
 			const fieldsData = formData.get('fields') as string;
-			const originalName = JSON.parse(formData.get('originalName') as string);
-			const contentTypes = JSON.parse(formData.get('contentTypes') as string);
-			const collectionIcon = JSON.parse(formData.get('icon') as string);
-			const collectionSlug = JSON.parse(formData.get('slug') as string);
-			const collectionDescription = JSON.parse(formData.get('description') as string);
-			const collectionStatus = JSON.parse(formData.get('status') as string);
+			const originalName = formData.get('originalName') as string;
+			const contentName = formData.get('name') as string;
+			const collectionIcon = formData.get('icon') as string;
+			const collectionSlug = formData.get('slug') as string;
+			const collectionDescription = formData.get('description');
+			const collectionStatus = formData.get('status') as string;
 
 			// Widgets Fields
 			const fields = JSON.parse(fieldsData) as Array<fields>;
@@ -117,8 +139,8 @@ export const actions: Actions = {
 			// Generate fields as formatted string
 			let content = `
 		/**
-		 * @file config/collections/${contentTypes}.ts
-		 * @description Collection file for ${contentTypes}
+		 * @file config/collections/${contentName}.ts
+		 * @description Collection file for ${contentName}
 		 */
 
 		${imports}
@@ -147,15 +169,16 @@ export const actions: Actions = {
 			const prettierConfig = await getPrettierConfig();
 			content = await prettier.format(content, prettierConfig);
 
-			if (originalName && originalName !== contentTypes) {
-				fs.renameSync(`${process.env.COLLECTIONS_FOLDER_TS}/${originalName}.ts`, `${process.env.COLLECTIONS_FOLDER_TS}/${contentTypes}.ts`);
+			const collectionPath = import.meta.env.userCollectionsPath;
+
+			if (originalName && originalName !== contentName) {
+				fs.renameSync(`${collectionPath}/${originalName}.ts`, `${process.env.COLLECTIONS_FOLDER_TS}/${contentName}.ts`);
 			}
-			fs.writeFileSync(`${process.env.COLLECTIONS_FOLDER_TS}/${contentTypes}.ts`, content);
+			fs.writeFileSync(`${collectionPath}/${contentName}.ts`, content);
 			await compile();
-			await generateContentTypes();
-			await generateCollectionFieldTypes();
+			//await contentManager.generateContentTypes();
+			//await contentManager.generateCollectionFieldTypes();
 			await contentManager.updateCollections(true);
-			await getCollectionModels();
 			return { status: 200 };
 		} catch (err) {
 			const message = `Error in saveCollection action: ${err instanceof Error ? err.message : String(err)}`;
@@ -204,7 +227,6 @@ export const actions: Actions = {
 			fs.unlinkSync(`${process.env.COLLECTIONS_FOLDER_TS}/${contentTypes}.ts`);
 			await compile();
 			await contentManager.updateCollections(true);
-			await getCollectionModels();
 			return { status: 200 };
 		} catch (err) {
 			const message = `Error in deleteCollections action: ${err instanceof Error ? err.message : String(err)}`;
@@ -216,57 +238,57 @@ export const actions: Actions = {
 
 // Recursively goes through a collection's fields
 async function goThrough(object: Record<string, unknown>, fields: string): Promise<string> {
-	try {
-		const imports = new Set<string>();
+	const imports = new Set<string>();
+	/// processfields
+	async function processField(field: unknown, fields?: string) {
+		if (!(field instanceof Object)) return;
 
-		// Asynchronously processes a field recursively
-		async function processField(field: unknown, fields?: string) {
-			if (field instanceof Object) {
-				for (const key in field) {
-					await processField(field[key], fields);
+		for (const key in field) {
+			await processField(field[key], fields);
 
-					if (field[key]?.widget) {
-						const widget = widgets[field[key].widget.Name];
+			if (!field[key]?.widget) continue;
 
-						if (widget && widget.GuiSchema) {
-							for (const importKey in widget.GuiSchema) {
-								const widgetImport = widget.GuiSchema[importKey].imports;
-								if (widgetImport) {
-									for (const _import of widgetImport) {
-										const replacement = (field[key][importKey] || '').replace(/🗑️/g, '').trim();
-										imports.add(_import.replace(`{${importKey}}`, replacement));
-									}
-								}
-							}
-						}
+			const widget = widgets[field[key].widget.Name];
+			if (!widget || !widget.GuiSchema) continue;
 
-						field[key] = `🗑️widgets.${field[key].widget.key}(${JSON.stringify(field[key].widget.GuiFields, (k, value) =>
-							typeof value === 'string' ? String(value.replace(/\s*🗑️\s*/g, '🗑️').trim()) : value
-						)})🗑️`;
+			for (const importKey in widget.GuiSchema) {
+				const widgetImport = widget.GuiSchema[importKey].imports;
+				if (!widgetImport) continue;
 
-						// Check if permission is in fields[key]
-						if ('permissions' in JSON.parse(fields)[key]) {
-							const parsedFields = JSON.parse(fields);
-							const subWidget = field[key].split('}');
-							const permissions = removeFalseValues(parsedFields[key].permissions);
-							const permissionStr = `,"permissions":${JSON.stringify(permissions)}}`;
-							const newWidget = subWidget[0] + permissionStr + subWidget[1];
-							field[key] = newWidget;
-						}
-					}
+				for (const _import of widgetImport) {
+					const replacement = (field[key][importKey] || '').replace(/🗑️/g, '').trim();
+					imports.add(_import.replace(`{${importKey}}`, replacement));
 				}
 			}
+
+			field[key] = `🗑️widgets.${field[key].widget.key}(${JSON.stringify(field[key].widget.GuiFields, (k, value) =>
+				typeof value === 'string' ? String(value.replace(/\s*🗑️\s*/g, '🗑️').trim()) : value
+			)})🗑️`;
+			const parsedFields = JSON.parse(fields || '{}');
+
+			if (parsedFields[key]?.permissions) {
+				const subWidget = field[key].split('}');
+				const permissions = removeFalseValues(parsedFields[key].permissions);
+				const permissionStr = `,"permissions":${JSON.stringify(permissions)}}`;
+				const newWidget = subWidget[0] + permissionStr + subWidget[1];
+				field[key] = newWidget;
+			}
 		}
+	}
 
+	try {
 		await processField(object, fields);
-
 		return Array.from(imports).join('\n');
 	} catch (err) {
 		const message = `Error in goThrough function: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message);
 		throw error(500, message);
 	}
+
+	// Asynchronously processes a field recursively
 }
+
+// Check if permissions are present and append them
 
 // Remove false values from an object
 function removeFalseValues(obj: unknown): unknown {

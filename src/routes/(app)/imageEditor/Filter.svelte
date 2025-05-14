@@ -1,36 +1,33 @@
-<!-- 
+<!--
 @file src/routes/(app)/imageEditor/Filter.svelte
 @component
 **This component allows users to apply various filters to an image, such as brightness, contrast, saturation, hue, blur, and more**
-
-### Props 
-- `layer`: Konva.Layer - The Konva layer where the image and effects are added.
-- `imageNode`: Konva.Image - The Konva image node representing the original image.
-- `on:filter` (optional): Function to be called when a filter is applied.
-- `on:resetFilters` (optional): Function to be called when the filters are reset.
-- `on:exitFilters` (optional): Function to be called when the filters are exited.
 -->
-
 <script lang="ts">
 	import Konva from 'konva';
+	import { createEventDispatcher } from 'svelte';
+
+	const dispatch = createEventDispatcher<{
+		filter: { filterType: string; value: number | boolean };
+		resetFilters: void;
+		exitFilters: void;
+		filterApplied: void;
+	}>();
 
 	interface Props {
 		layer: Konva.Layer;
 		imageNode: Konva.Image;
-		'on:filter'?: (data: { filterType: string; value: number | boolean }) => void;
-		'on:resetFilters'?: () => void;
-		'on:exitFilters'?: () => void;
-		'on:exitShapeOverlay'?: () => void;
 	}
 
-	let {
-		layer,
-		imageNode,
-		'on:filter': onFilter = () => {},
-		'on:resetFilters': onResetFilters = () => {},
-		'on:exitFilters': onExitFilters = () => {},
-		'on:exitShapeOverlay': onExitShapeOverlay = () => {}
-	}: Props = $props() as Props;
+	let { layer, imageNode }: Props = $props() as Props;
+
+	$effect.root(() => {
+		return () => {
+			// Cleanup filters when component unmounts
+			imageNode?.filters([]);
+			layer?.batchDraw();
+		};
+	});
 
 	interface Filters {
 		brightness: number;
@@ -101,7 +98,7 @@
 		imageNode.filters(activeFilters);
 		layer.batchDraw();
 
-		onFilter({ filterType, value });
+		dispatch('filter', { filterType, value });
 	}
 
 	function resetFilters() {
@@ -124,7 +121,7 @@
 		imageNode.blurRadius(0);
 		layer.batchDraw();
 
-		onResetFilters();
+		dispatch('resetFilters');
 	}
 
 	function formatValue(value: number, suffix: string = ''): string {
@@ -132,19 +129,32 @@
 	}
 
 	function exitFilters() {
-		onExitFilters();
-	}
-
-	function exitShapeOverlay() {
-		onExitShapeOverlay();
+		dispatch('exitFilters');
+		dispatch('filterApplied');
 	}
 </script>
 
 <!-- Filter Controls UI -->
-<div class="wrapper">
-	<h3 class=" relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Filter</h3>
 
-	<button onclick={exitShapeOverlay} class="variant-ghost-primary btn-icon absolute -top-2 right-2 font-bold"> Exit </button>
+<div class="wrapper">
+	<div class="align-center mb-2 flex w-full items-center">
+		<div class="flex w-full items-center justify-between">
+			<div class="flex items-center gap-2">
+				<!-- Back button at top of component -->
+				<button onclick={exitFilters} aria-label="Exit rotation mode" class="variant-outline-tertiary btn-icon">
+					<iconify-icon icon="material-symbols:close-rounded" width="20"></iconify-icon>
+				</button>
+
+				<h3 class="relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Text Overlay Settings</h3>
+			</div>
+		</div>
+		<div class="flex justify-between space-x-2">
+			<button onclick={resetFilters} class="variant-filled-error btn w-full" aria-label="Reset all filters"> Reset Filters </button>
+			<button onclick={exitFilters} class="variant-filled-primary btn w-full" aria-label="Apply filters and return to editor"> Apply </button>
+		</div>
+	</div>
+	<h2 class="text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Filter</h2>
+
 	<div class="grid grid-cols-2 gap-2">
 		<label class="flex flex-col">
 			<span class="mb-1">Brightness: <span class="text-tertiary-500 dark:text-primary-500">{formatValue(filters.brightness)} </span></span>
@@ -156,6 +166,7 @@
 				bind:value={filters.brightness}
 				oninput={() => applyFilter('brightness', filters.brightness)}
 				class="range range-primary"
+				aria-label="Adjust brightness"
 			/>
 		</label>
 		<label class="flex flex-col">
@@ -168,6 +179,7 @@
 				bind:value={filters.contrast}
 				oninput={() => applyFilter('contrast', filters.contrast)}
 				class="range range-primary"
+				aria-label="Adjust contrast"
 			/>
 		</label>
 		<label class="flex flex-col">
@@ -180,6 +192,7 @@
 				bind:value={filters.saturation}
 				oninput={() => applyFilter('saturation', filters.saturation)}
 				class="range range-primary"
+				aria-label="Adjust saturation"
 			/>
 		</label>
 		<label class="flex flex-col">
@@ -192,6 +205,7 @@
 				bind:value={filters.hue}
 				oninput={() => applyFilter('hue', filters.hue)}
 				class="range range-primary"
+				aria-label="Adjust hue"
 			/>
 		</label>
 		<label class="flex flex-col">
@@ -204,6 +218,7 @@
 				bind:value={filters.blur}
 				oninput={() => applyFilter('blur', filters.blur)}
 				class="range range-primary"
+				aria-label="Adjust blur"
 			/>
 		</label>
 	</div>
@@ -215,6 +230,7 @@
 				bind:checked={filters.sepia}
 				onchange={() => applyFilter('sepia', filters.sepia)}
 				class="checkbox-primary checkbox mr-2"
+				aria-label="Apply sepia filter"
 			/>
 			Sepia
 		</label>
@@ -224,6 +240,7 @@
 				bind:checked={filters.invert}
 				onchange={() => applyFilter('invert', filters.invert)}
 				class="checkbox-primary checkbox mr-2"
+				aria-label="Apply invert filter"
 			/>
 			Invert
 		</label>
@@ -233,13 +250,9 @@
 				bind:checked={filters.grayscale}
 				onchange={() => applyFilter('grayscale', filters.grayscale)}
 				class="checkbox-primary checkbox mr-2"
+				aria-label="Apply grayscale filter"
 			/>
 			Grayscale
 		</label>
-	</div>
-
-	<div class="mt-4 flex justify-between space-x-2">
-		<button onclick={resetFilters} class="variant-filled-error btn w-full">Reset Filters</button>
-		<button onclick={exitFilters} class="variant-filled-primary btn w-full">Apply</button>
 	</div>
 </div>

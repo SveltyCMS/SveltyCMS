@@ -1,8 +1,15 @@
 <!--
 @file src/routes/(app)/config/AccessManagement/+page.svelte
-@description This page manages the Access Management system, including roles and permissions. 
+@component 
+**This page manages the Access Management system, including roles and permissions**
 
-It provides an interface for users to:
+@example
+<AccessManagement />
+
+### Props
+- `roleData`: An object containing role data, including the current admin role and available roles.
+
+### Features
 - Navigate between permissions, roles, and admin role management tabs
 - View and manage system permissions
 - Assign roles and permissions to users
@@ -153,7 +160,7 @@ It provides an interface for users to:
 			</Tab>
 
 			<!-- Tab Panels -->
-			{#snippet panel()}
+			<svelte:fragment slot="panel">
 				{#if $tabSet === 0}
 					<Permissions roleData={roles} {setRoleData} {updateModifiedCount} />
 				{:else if $tabSet === 1}
@@ -161,7 +168,7 @@ It provides an interface for users to:
 				{:else}
 					<AdminRole roleData={roles} {setRoleData} />
 				{/if}
-			{/snippet}
+			</svelte:fragment>
 		</TabGroup>
 	</div>
 {/if}

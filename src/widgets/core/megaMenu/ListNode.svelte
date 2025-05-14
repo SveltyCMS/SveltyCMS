@@ -2,6 +2,32 @@
 @file src/widgets/core/megaMenu/ListNode.svelte
 @component
 **ListNode component for a mega menu with nested structure and drag-and-drop functionality**
+
+@example
+<ListNode bind:self={self} bind:parent={parent} bind:level={level} bind:depth={depth} bind:maxDepth={maxDepth} bind:expanded={expanded} bind:MENU_CONTAINER={MENU_CONTAINER} bind:refresh={refresh} />
+
+### Props
+- `self`: Object
+- `parent`: Object
+- `level`: Number
+- `depth`: Number
+- `maxDepth`: Number
+- `expanded`: Boolean
+- `MENU_CONTAINER`: HTMLElement
+- `refresh`: Function
+
+### Bindings
+- `self`: Object
+- `parent`: Object
+- `level`: Number
+- `depth`: Number
+- `maxDepth`: Number
+- `expanded`: Boolean
+- `MENU_CONTAINER`: HTMLElement
+- `refresh`: Function
+
+### Features
+- Translatable
 -->
 
 <script lang="ts">
@@ -212,7 +238,7 @@
 								return { el: el as HTMLElement, center: rect.top + rect.height / 2, isParent: true };
 							});
 						targets = [...siblings, ...parents];
-						targets.sort((a, b) => (Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1));
+						targets.sort((a: any, b: any) => (Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1)); // Added :any types
 						const closest = targets[0];
 
 						if (old_closest) {
@@ -243,14 +269,15 @@
 					clone.remove();
 
 					setTimeout(() => {
-						targets.forEach((el) => {
+						targets.forEach((el: any) => {
+							// Added :any type
 							el.el.firstChild && ((el.el.firstChild as HTMLElement).style.borderColor = '#80808045');
 							el.el.style.padding = '0';
 						});
 					}, 50);
 
 					node.style.opacity = '1';
-					targets.sort((a, b) => (Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1));
+					targets.sort((a: any, b: any) => (Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1)); // Added :any types
 					const closest = targets[0];
 
 					if (closest.el == node) return;

@@ -1,84 +1,141 @@
 <!--
 @file: /src/components/Dropdown.svelte
-@description: A customizable dropdown component that allows selection from a list of items. It supports custom styling, item modification, and an optional icon.
+@description: An improved dropdown component that displays the currently selected item and properly handles icons
 -->
 
 <script lang="ts">
 	import { twMerge } from 'tailwind-merge';
+	import { onMount } from 'svelte';
 
 	// Define props using $props
 	let {
-		items, // Array of selectable items
-		selected = items[0], // Currently selected item, default to first item
+		items = [], // Array of selectable items
 		label = '', // Optional label for the dropdown
-		modifier = (input: any) => input, // Function to modify how items are displayed
-		icon = undefined, // Optional icon for the dropdown
+		icon = undefined, // Optional icon for the dropdown button
 		class: className = '', // Custom class for the dropdown container
 		show = true, // Whether to show the dropdown
-		active = $bindable('') // Currently active dropdown
-	} = $props<{
-		items: any[];
-		selected?: any;
-		label?: string;
-		modifier?: (input: any) => any;
-		icon?: string | undefined;
-		class?: string;
-		show?: boolean;
-		active?: string;
-	}>();
+		active = $bindable('') // Currently active dropdown ID
+	} = $props();
 
-	// State for dropdown expansion and selected item
 	let expanded = $state(false);
-	let currentSelected = $state(selected);
+	let dropdownRef = $state<HTMLDivElement>();
+	let dropdownId = $state(`dropdown-${Math.random().toString(36).substring(2, 9)}`);
 
-	// Derived state for filtered items
-	let filteredItems = $derived(items.filter((item) => item !== currentSelected));
+	// Get active item based on items with active: true
+	function getActiveItem() {
+		return items.find((item) => item.active && item.active());
+	}
 
 	// Toggle dropdown expansion
-	function toggleExpanded() {
+	function toggleExpanded(e: MouseEvent) {
+		e.stopPropagation();
+
+		// Close any other open dropdown
+		if (active !== dropdownId && active !== '') {
+			active = '';
+		}
+
 		expanded = !expanded;
+		if (expanded) {
+			active = dropdownId;
+		} else {
+			active = '';
+		}
 	}
 
 	// Handle item selection
-	function selectItem(item: any) {
-		currentSelected = item;
+	function selectItem(item: any, e: MouseEvent) {
+		e.stopPropagation();
+		if (item.onClick) {
+			item.onClick();
+		}
 		expanded = false;
+		active = '';
 	}
 
-	// Effect to update currentSelected when the selected prop changes
+	// Effect to handle closing when active changes
 	$effect(() => {
-		currentSelected = selected;
+		if (active !== dropdownId) {
+			expanded = false;
+		}
 	});
+
+	// Add global click event listener to close dropdown when clicking outside
+	onMount(() => {
+		const handleClickOutside = (event: MouseEvent) => {
+			if (dropdownRef && !dropdownRef.contains(event.target as Node) && expanded) {
+				expanded = false;
+				active = '';
+			}
+		};
+
+		document.addEventListener('click', handleClickOutside);
+
+		return () => {
+			document.removeEventListener('click', handleClickOutside);
+		};
+	});
+
+	// Get display text for button
+	function getButtonText() {
+		const activeItem = getActiveItem();
+		if (activeItem) {
+			return activeItem.name || activeItem.title || '';
+		}
+		return label;
+	}
+
+	// Get button icon
+	function getButtonIcon() {
+		if (icon) return icon;
+
+		const activeItem = getActiveItem();
+		return activeItem?.icon || undefined;
+	}
 </script>
 
 <!-- Dropdown container -->
-<div class={twMerge('overflow-hidden bg-surface-500', className)} class:hidden={!show}>
+<div class={twMerge('relative', className)} class:hidden={!show} bind:this={dropdownRef}>
 	<!-- Dropdown button -->
 	<button
 		onclick={toggleExpanded}
-		class="variant-filled-tertiary btn dark:variant-ghost-primary"
-		aria-label="Toggle Dropdown"
-		class:selected={expanded}
+		class="variant-filled-tertiary btn flex w-fit items-center dark:variant-ghost-primary"
+		aria-expanded={expanded}
+		aria-controls={`dropdown-content-${dropdownId}`}
 	>
-		{currentSelected || label}
+		{#if getButtonIcon()}
+			<iconify-icon icon={getButtonIcon()} width="22" class="mr-1"></iconify-icon>
+		{/if}
+		<span class="hidden sm:inline">{getButtonText()}</span>
 	</button>
+
+	<!-- Dropdown content -->
+	{#if expanded}
+		<div
+			id={`dropdown-content-${dropdownId}`}
+			class="absolute z-20 mt-1 w-fit min-w-full overflow-auto rounded-md bg-white shadow-lg dark:bg-gray-800"
+		>
+			<!-- Dropdown items -->
+			{#each items as item}
+				<button
+					onclick={(e) => selectItem(item, e)}
+					class="flex w-full items-center px-4 py-2 text-left text-surface-700 hover:bg-gray-100 dark:text-white dark:hover:bg-gray-700"
+					class:active={item.active && item.active()}
+				>
+					{#if item.icon}
+						<span class="mr-2">
+							<iconify-icon icon={item.icon} width="18"></iconify-icon>
+						</span>
+					{/if}
+					<span>{item.name || item.title || ''}</span>
+				</button>
+			{/each}
+		</div>
+	{/if}
 </div>
 
-<!-- Dropdown content -->
-{#if expanded}
-	<!-- Dropdown header -->
-	<div class="mb-3 border-b text-center text-tertiary-500 dark:text-primary-500">Choose your Widget</div>
-
-	<!-- Dropdown items -->
-	<div class="flex flex-wrap items-center justify-center gap-2">
-		{#each filteredItems as item}
-			<button
-				onclick={() => selectItem(item)}
-				class="variant-filled-warning btn relative hover:variant-filled-secondary dark:variant-outline-warning"
-				aria-label={modifier(item)}
-			>
-				<span class="text-surface-700 dark:text-white">{modifier(item)}</span>
-			</button>
-		{/each}
-	</div>
-{/if}
+<style>
+	button.active {
+		color: rgb(0, 255, 123);
+	}
+</style>

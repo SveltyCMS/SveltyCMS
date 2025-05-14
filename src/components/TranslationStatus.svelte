@@ -3,9 +3,8 @@
  @component
  **Translation status component for displaying translation progress per language in a progress bar with percentage.**
 
- ```tsx
+@example
  <TranslationStatus />	
- ```	
 
  ### Props:
  - `mode` {object} - The current mode object from the mode store
@@ -71,61 +70,13 @@
 	function getLanguageProgress(lang: AvailableLanguageTag): number {
 		const progress = translationProgress();
 		const langProgress = progress[lang];
-		if (!langProgress) return 0;
+		if (!langProgress || langProgress.total.size === 0) return 0; // Avoid division by zero
 		return Math.round((langProgress.translated.size / langProgress.total.size) * 100);
 	}
-
-	$effect(() => {
-		console.log('mnode:', mode.value);
-	});
 </script>
 
-{#if mode.value === 'edit' || mode.value === 'create'}
-	<div class="relative mt-1 inline-block text-left">
-		<div>
-			<button
-				type="button"
-				class="inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-100"
-				onclick={toggleDropdown}
-			>
-				{contentLanguage.value.toUpperCase()}
-				<iconify-icon icon="mdi:chevron-down" class="-mr-1 ml-2 h-5 w-5" aria-hidden="true"></iconify-icon>
-			</button>
-			<ProgressBar class="mt-1" value={completionStatus} meter={getColor(completionStatus)} />
-		</div>
-
-		{#if isOpen}
-			<div class="absolute right-0 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5">
-				<div class="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-					{#each publicEnv.AVAILABLE_CONTENT_LANGUAGES as lang (lang)}
-						<button
-							class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-							onclick={() => handleLanguageChange(lang as AvailableLanguageTag)}
-						>
-							<div class="flex items-center justify-between">
-								<span class="font-medium">{lang.toUpperCase()}</span>
-								<span class="text-sm text-gray-500">
-									{getLanguageProgress(lang as AvailableLanguageTag)}%
-								</span>
-							</div>
-							{#if translationProgress()[lang as AvailableLanguageTag]}
-								<ProgressBar
-									class="mt-1"
-									value={getLanguageProgress(lang as AvailableLanguageTag)}
-									meter={getColor(getLanguageProgress(lang as AvailableLanguageTag))}
-								/>
-							{/if}
-						</button>
-					{/each}
-					<div class="border-t px-4 py-2">
-						{m.translationsstatus_completed()}{completionStatus}%
-						<ProgressBar class="mt-1" value={completionStatus} meter={getColor(completionStatus)} />
-					</div>
-				</div>
-			</div>
-		{/if}
-	</div>
-{:else}
+{#if mode.value === 'view'}
+	<!-- Language selection -->
 	<select
 		class="select w-full max-w-[70px]"
 		value={contentLanguage.value}
@@ -135,4 +86,87 @@
 			<option value={lang}>{lang.toUpperCase()}</option>
 		{/each}
 	</select>
+{:else}
+	<div class="relative mt-1 inline-block text-left">
+		<!-- Button and Overall Progress -->
+		<div>
+			<button
+				type="button"
+				onclick={toggleDropdown}
+				class="variant-outline-surface btn flex items-center p-1.5"
+				aria-haspopup="true"
+				aria-expanded={isOpen}
+				aria-controls="translation-menu"
+			>
+				<span>{contentLanguage.value.toUpperCase()}</span>
+				<iconify-icon
+					icon="mdi:chevron-down"
+					class="{isOpen ? 'rotate-180' : ''} ml-1 h-5 w-5 transition-transform duration-150 ease-in-out"
+					aria-hidden="true"
+				></iconify-icon>
+			</button>
+			<!-- Translation Progress -->
+			<ProgressBar
+				class="variant-outline-secondary mt-0.5"
+				value={completionStatus}
+				meter={getColor(completionStatus)}
+				aria-label={m.translationsstatus_overall_progress({ percentage: completionStatus })}
+			/>
+		</div>
+
+		<!-- Dropdown Language Status -->
+		{#if isOpen}
+			<div
+				id="translation-menu"
+				class="{translationProgress().show
+					? 'w-64'
+					: ''} absolute right-0 z-10 mt-1 origin-top-right divide-y divide-surface-200 rounded-md border border-surface-300 bg-surface-100 py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:divide-surface-400 dark:bg-surface-800"
+				role="menu"
+				aria-orientation="vertical"
+				aria-labelledby="options-menu"
+			>
+				<!-- Language Items -->
+				<div role="none" class="divide-y divide-surface-200 dark:divide-surface-400">
+					{#each publicEnv.AVAILABLE_CONTENT_LANGUAGES as lang (lang)}
+						<button
+							role="menuitem"
+							class="{translationProgress().show
+								? 'justify-between'
+								: 'justify-center'} flex w-full items-center gap-3 px-4 py-2 text-left text-sm hover:bg-surface-300 dark:hover:bg-surface-600"
+							onclick={() => handleLanguageChange(lang as AvailableLanguageTag)}
+							aria-label={m.translationsstatus_select_language({ language: lang.toUpperCase() })}
+						>
+							<div class="flex items-center justify-between gap-1">
+								<!-- Language -->
+								<span class="font-medium">{lang.toUpperCase()}</span>
+								<!-- Progress -->
+								{#if translationProgress()[lang as AvailableLanguageTag]}
+									<ProgressBar
+										class="mt-1"
+										value={getLanguageProgress(lang as AvailableLanguageTag)}
+										meter={getColor(getLanguageProgress(lang as AvailableLanguageTag))}
+									/>
+								{/if}
+								<!-- Percentage -->
+								<span class="text-sm">
+									{getLanguageProgress(lang as AvailableLanguageTag)}%
+								</span>
+							</div>
+						</button>
+					{/each}
+				</div>
+				<!-- Overall Completion -->
+				<div class="px-4 py-1" role="none">
+					<div class="mb-1 text-center text-xs font-medium">{m.translationsstatus_completed()}</div>
+					<div class="{completionStatus ? 'justify-between' : 'justify-center'} flex items-center gap-1">
+						<!-- Percentage -->
+						{#if completionStatus}
+							<ProgressBar class="flex-grow" value={completionStatus} meter={getColor(completionStatus)} aria-hidden="true" />
+						{/if}
+						<span class="text-xs font-semibold">{completionStatus}%</span>
+					</div>
+				</div>
+			</div>
+		{/if}
+	</div>
 {/if}

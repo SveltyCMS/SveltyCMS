@@ -1,13 +1,20 @@
 <!-- 
 @file src/components/LeftSidebar.svelte 
+
 @component
 **LeftSidebar component displaying collection fields, publish options and translation status.**
 
-```tsx
-<LeftSidebar collection={collection} />
-```
+@example
+<LeftSidebar />
+
 #### Props
 - `collection` {object} - Collection object
+- `mode` {object} - The current mode object from the mode store
+
+#### Features
+- Displays collection fields
+- Displays publish options
+- Displays translation status
 -->
 
 <script module lang="ts">
@@ -23,8 +30,8 @@
 	import { page } from '$app/state';
 	import { get } from 'svelte/store';
 	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store.svelte';
-	import { contentStructure, mode } from '@stores/collectionStore.svelte';
-	import { toggleSidebar, sidebarState, userPreferredState, handleSidebarToggle } from '@src/stores/sidebarStore.svelte';
+	import { mode } from '@stores/collectionStore.svelte';
+	import { uiStateManager, userPreferredState, toggleUIElement, handleUILayoutToggle } from '@src/stores/UIStore.svelte';
 	import { screenSize } from '@stores/screenSizeStore.svelte';
 
 	// Import components and utilities
@@ -38,7 +45,6 @@
 
 	// Define user data and state variables
 	const user = page.data.user;
-	avatarSrc.set(user?.avatar);
 
 	// Tooltip settings
 	const UserTooltip: PopupSettings = {
@@ -186,7 +192,7 @@
 			mode.set('view');
 			// Only handle sidebar on mobile
 			if (get(screenSize) === 'sm') {
-				toggleSidebar('left', 'hidden'); // Hide the left sidebar on mobile
+				toggleUIElement('leftSidebar', 'hidden'); // Hide the left sidebar on mobile
 			}
 			goto('/user');
 		}
@@ -202,7 +208,7 @@
 
 <div class="flex h-full w-full flex-col justify-between">
 	<!-- Corporate Identity Full-->
-	{#if sidebarState.sidebar.value.left === 'full'}
+	{#if uiStateManager.uiState.value.leftSidebar === 'full'}
 		<a href="/" aria-label="SveltyCMS Logo" class="flex pt-2 !no-underline">
 			<SveltyCMSLogo fill="red" className="h-9 -ml-2" />
 			<span class="text-token relative text-2xl font-bold"><SiteName /> </span>
@@ -210,7 +216,12 @@
 	{:else}
 		<!-- Corporate Identity Collapsed-->
 		<div class="gap flex justify-start">
-			<button type="button" onclick={() => toggleSidebar('left', 'hidden')} aria-label="Open Sidebar" class="variant-ghost-surface btn-icon mt-1">
+			<button
+				type="button"
+				onclick={() => toggleUIElement('leftSidebar', 'hidden')}
+				aria-label="Open Sidebar"
+				class="variant-ghost-surface btn-icon mt-1"
+			>
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
 
@@ -224,16 +235,17 @@
 	<button
 		type="button"
 		onclick={() => {
-			toggleSidebar('left', sidebarState.sidebar.value.left === 'full' ? 'collapsed' : 'full');
-			userPreferredState.set(sidebarState.sidebar.value.left === 'full' ? 'collapsed' : 'full');
+			const newState = uiStateManager.uiState.value.leftSidebar === 'full' ? 'collapsed' : 'full';
+			toggleUIElement('leftSidebar', newState);
+			userPreferredState.set(newState);
 		}}
 		aria-label="Expand/Collapse Sidebar"
-		class="absolute top-2 z-20 flex items-center justify-center !rounded-full border-[3px] dark:border-black ltr:-right-3 rtl:-left-3"
+		class="absolute top-2 z-20 flex h-10 w-10 items-center justify-center !rounded-full border-[1px] p-0 dark:border-black ltr:-right-4 rtl:-left-4"
 	>
 		<iconify-icon
 			icon="bi:arrow-left-circle-fill"
-			width="30"
-			class={`rounded-full bg-surface-500 text-white hover:cursor-pointer hover:bg-error-600 dark:bg-white dark:text-surface-600 dark:hover:bg-error-600 ${sidebarState.sidebar.value.left === 'full' ? 'rotate-0 rtl:rotate-180' : 'rotate-180 rtl:rotate-0'}`}
+			width="34"
+			class={`rounded-full bg-surface-500 text-white hover:cursor-pointer hover:bg-error-600 dark:bg-white dark:text-surface-600 dark:hover:bg-error-600 ${uiStateManager.uiState.value.leftSidebar === 'full' ? 'rotate-0 rtl:rotate-180' : 'rotate-180 rtl:rotate-0'}`}
 		></iconify-icon>
 	</button>
 
@@ -245,10 +257,12 @@
 		<div class="mx-1 mb-1 border-0 border-t border-surface-400"></div>
 
 		<div
-			class="{sidebarState.sidebar.value.left === 'full' ? 'grid-cols-3 grid-rows-3' : 'grid-cols-2 grid-rows-2'} grid items-center justify-center"
+			class="{uiStateManager.uiState.value.leftSidebar === 'full'
+				? 'grid-cols-3 grid-rows-3'
+				: 'grid-cols-2 grid-rows-2'} grid items-center justify-center"
 		>
 			<!-- Avatar with user settings -->
-			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-1 row-span-2' : 'order-1'}>
+			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-1 row-span-2' : 'order-1'}>
 				<button
 					use:popup={UserTooltip}
 					onclick={(e) => {
@@ -265,13 +279,17 @@
 					class="btn-icon relative cursor-pointer flex-col items-center justify-center text-center !no-underline md:row-span-2"
 				>
 					<Avatar
-						src={$avatarSrc ? `${$avatarSrc}?t=${Date.now()}` : '/Default_User.svg'}
+						src={avatarSrc.value && avatarSrc.value.startsWith('data:')
+							? avatarSrc()
+							: avatarSrc()
+								? `/${avatarSrc()}?t=${Date.now()}`
+								: '/Default_User.svg'}
 						alt="Avatar"
 						initials="AV"
-						class="mx-auto {sidebarState.sidebar.value.left === 'full' ? 'w-[40px]' : 'w-[35px]'}"
+						class="mx-auto {uiStateManager.uiState.value.leftSidebar === 'full' ? 'w-[40px]' : 'w-[35px]'}"
 					/>
 					<div class="-mt-1 text-center text-[10px] uppercase text-black dark:text-white">
-						{#if sidebarState.sidebar.value.left === 'full'}
+						{#if uiStateManager.uiState.value.leftSidebar === 'full'}
 							{#if user?.username}
 								<div class=" -ml-1.5">
 									{user?.username}
@@ -290,14 +308,14 @@
 
 			<!-- Enhanced System Language Selector -->
 			<div
-				class={sidebarState.sidebar.value.left === 'full' ? 'order-3 row-span-2 mx-auto pb-4' : 'order-2 mx-auto'}
+				class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-3 row-span-2 mx-auto pb-4' : 'order-2 mx-auto'}
 				use:popup={SystemLanguageTooltip}
 			>
 				<div class="language-selector relative" bind:this={dropdownRef}>
 					{#if publicEnv.AVAILABLE_SYSTEM_LANGUAGES.length > 5}
 						<button
-							class="variant-filled-surface btn-icon flex items-center justify-between uppercase text-white {sidebarState.sidebar.value.left ===
-							'full'
+							class="variant-filled-surface btn-icon flex items-center justify-between uppercase text-white {uiStateManager.uiState.value
+								.leftSidebar === 'full'
 								? 'px-2.5 py-2'
 								: 'px-1.5 py-0'}"
 							onclick={(e) => {
@@ -340,7 +358,7 @@
 						<select
 							bind:value={_languageTag}
 							onchange={handleSelectChange}
-							class="variant-filled-surface !appearance-none rounded-full uppercase text-white {sidebarState.sidebar.value.left === 'full'
+							class="variant-filled-surface !appearance-none rounded-full uppercase text-white {uiStateManager.uiState.value.leftSidebar === 'full'
 								? 'btn-icon px-2.5 py-2'
 								: 'btn-icon-sm px-1.5 py-0'}"
 						>
@@ -359,7 +377,7 @@
 			</div>
 
 			<!-- Light/Dark mode switch -->
-			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-2' : 'order-3'}>
+			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-2' : 'order-3'}>
 				<button use:popup={SwitchThemeTooltip} onclick={toggleTheme} aria-label="Toggle Theme" class="btn-icon hover:bg-surface-500 hover:text-white">
 					{#if !$modeCurrent}
 						<iconify-icon icon="bi:sun" width="22"></iconify-icon>
@@ -376,7 +394,7 @@
 			</div>
 
 			<!-- Sign Out -->
-			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-4' : 'order-4'}>
+			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-4' : 'order-4'}>
 				<button
 					use:popup={SignOutTooltip}
 					onclick={signOut}
@@ -396,14 +414,14 @@
 			</div>
 
 			<!-- System Configuration -->
-			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-5' : 'order-6'}>
+			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-5' : 'order-6'}>
 				<button
 					use:popup={ConfigTooltip}
 					onclick={() => {
 						mode.set('view');
-						handleSidebarToggle();
+						handleUILayoutToggle();
 						if (get(screenSize) === 'sm') {
-							toggleSidebar('left', 'hidden');
+							toggleUIElement('leftSidebar', 'hidden');
 						}
 					}}
 					aria-label="System Configuration"
@@ -422,7 +440,7 @@
 			</div>
 
 			<!-- Github discussions -->
-			<div class="{sidebarState.sidebar.value.left === 'full' ? 'order-7' : 'order-7 hidden'} ">
+			<div class="{uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-7' : 'order-7 hidden'} ">
 				<a href="https://github.com/SveltyCMS/SveltyCMS/discussions" target="blank">
 					<button use:popup={GithubTooltip} aria-label="Github Discussions" class="btn-icon hover:bg-surface-500 hover:text-white">
 						<iconify-icon icon="grommet-icons:github" width="30"></iconify-icon>
@@ -437,10 +455,11 @@
 			</div>
 
 			<!-- CMS Version -->
-			<div class={sidebarState.sidebar.value.left === 'full' ? 'order-6' : 'order-5'}>
+			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-6' : 'order-5'}>
 				<a href="https://github.com/SveltyCMS/SveltyCMS/" target="blank">
-					<span class="{sidebarState.sidebar.value.left === 'full' ? 'py-1' : 'py-0'} {$pkgBgColor} badge rounded-xl text-black hover:text-white"
-						>{#if sidebarState.sidebar.value.left === 'full'}
+					<span
+						class="{uiStateManager.uiState.value.leftSidebar === 'full' ? 'py-1' : 'py-0'} {$pkgBgColor} badge rounded-xl text-black hover:text-white"
+						>{#if uiStateManager.uiState.value.leftSidebar === 'full'}
 							{m.applayout_version()}
 						{/if}
 						{pkg}

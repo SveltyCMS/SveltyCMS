@@ -18,7 +18,7 @@ type DISPLAY = (({ data: any, collection: any, field: any, entry: any, contentLa
 /**
  * Defines the Address widget Parameters
  */
-const widget = (params: Params) => {
+const widget = (params: Params & { widgetId?: string }) => {
 	// Define the display function
 	let display: DISPLAY;
 
@@ -35,6 +35,7 @@ const widget = (params: Params) => {
 
 	// Define the widget object
 	const widget = {
+		widgetId: params.widgetId,
 		Name: WIDGET_NAME,
 		GuiFields: getGuiFields(params, GuiSchema)
 	};

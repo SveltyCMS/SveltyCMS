@@ -3,12 +3,19 @@
 @component
 **This page is used to Remote Urls to the media gallery**
 
-```tsx
+@example
 <RemoteUpload remoteUrls={remoteUrls} toastStore={toastStore} />
-```
+
+### Props
 - `remoteUrls` {string[]} - Array of remote URLs
 - `toastStore` {any} - Toast store
+
+### Features
+- Displays a collection of media files based on the specified media type.
+- Provides a user-friendly interface for searching, filtering, and navigating through media files.
+- Emits the `mediaDeleted` event when a media file is deleted.
 -->
+
 <script lang="ts">
 	import { getToastStore } from '@skeletonlabs/skeleton';
 
@@ -74,5 +81,5 @@
 		oninput={handleRemoteUrlInput}
 	></textarea>
 	<!-- Upload Button -->
-	<button class="variant-filled-primary btn mt-2" onclick={uploadRemoteUrls}> Upload URLs </button>
+	<button class="variant-filled-tertiary btn mt-2 dark:variant-filled-primary" onclick={uploadRemoteUrls}> Upload URLs </button>
 </div>

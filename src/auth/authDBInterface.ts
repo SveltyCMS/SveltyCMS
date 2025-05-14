@@ -34,11 +34,13 @@ export interface authDBInterface {
 	validateSession(session_id: string): Promise<User | null>; // Validate a session
 	invalidateAllUserSessions(user_id: string): Promise<void>; // Invalidate all sessions for a user
 	getActiveSessions(user_id: string): Promise<Session[]>; // Get active sessions for a user
+	getSessionTokenData(session_id: string): Promise<{ expiresAt: Date; user_id: string } | null>; // Get session token metadata
 
 	// Token Management Methods
 	createToken(data: { user_id: string; email: string; expires: Date; type: string }): Promise<string>; // Create a new token
 	validateToken(token: string, user_id?: string, type?: string): Promise<{ success: boolean; message: string; email?: string }>; // Validate a token
 	consumeToken(token: string, user_id?: string, type?: string): Promise<{ status: boolean; message: string }>; // Consume a token
+	getTokenData(token: string, user_id?: string, type?: string): Promise<Token | null>; // Get token data
 	getAllTokens(filter?: Record<string, unknown>): Promise<Token[]>; // Get all tokens
 	deleteExpiredTokens(): Promise<number>; // Delete expired tokens
 }

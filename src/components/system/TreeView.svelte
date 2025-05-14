@@ -199,12 +199,12 @@
 			<button
 				type="button"
 				id={`node-${node.id}`}
-				class="flex w-full items-center gap-1.5 rounded
-				border border-surface-400 px-2 py-3 transition-all duration-200
-				hover:bg-surface-50 focus:bg-surface-50 focus-visible:outline-none
-				dark:border-0 dark:bg-surface-500
-				dark:text-surface-200 dark:hover:bg-surface-400 dark:focus:bg-surface-500
-				{node.children ? '' : 'bg-surface-300 dark:bg-surface-700'}"
+				class="relative flex w-full items-center gap-1.5 rounded
+					border border-surface-400 px-2 py-3 transition-all duration-200
+					hover:bg-surface-50 focus:bg-surface-50 focus-visible:outline-none
+					dark:border dark:border-transparent dark:bg-surface-500
+					dark:text-surface-200 dark:hover:bg-surface-400 dark:focus:bg-surface-500
+					{node.children ? '' : 'bg-surface-300 dark:bg-surface-700'}"
 				role="treeitem"
 				aria-expanded={node.children ? node.isExpanded : undefined}
 				aria-selected={selectedId === node.id}
@@ -213,20 +213,30 @@
 				onkeydown={(event) => handleKeyDown(event, node)}
 				aria-controls={node.children ? `node-${node.id}-children` : undefined}
 			>
-				<!-- Expand/Collapse icon container with RTL support -->
+				<!-- Expand/Collapse icon with RTL support -->
 				{#if node.children}
 					<div
 						aria-label={node.isExpanded ? 'Collapse' : 'Expand'}
-						class={`h-4 w-4 transform  transition-transform duration-200
+						class={`h-4 w-4 transform transition-transform duration-200
 							${node.isExpanded ? '' : dir === 'rtl' ? 'rotate-180' : 'rotate-90'}`}
 					>
 						<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class={dir === 'rtl' ? 'scale-x-[-1]' : ''} aria-hidden="true">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
 						</svg>
 					</div>
+
+					<!-- Badge overlay -->
+					{#if !node.isExpanded && node.badge?.count! > 0 && !compact}
+						<div
+							class={`badge right-1 top-0  ${!node.isExpanded ? 'absolute translate-y-1/2' : 'hidden transition-opacity'} rounded-full bg-tertiary-500/80 px-2 py-1 text-xs text-white dark:bg-primary-500/50`}
+						>
+							{node.badge?.count}
+						</div>
+					{/if}
 				{:else}
 					<div class="h-4 w-4" aria-hidden="true"></div>
 				{/if}
+
 				<!-- Icon -->
 				{#if node.icon}
 					<div class="relative flex items-center">
@@ -241,13 +251,6 @@
 				>
 					{node.name}
 				</span>
-
-				<!-- Badge, shown after the label -->
-				{#if node.badge?.visible && (node.badge.count ?? 0) > 0 && !compact}
-					<span class="badge absolute right-2 top-3 rounded-full bg-primary-500/80 px-2 py-1 text-xs text-white dark:bg-primary-500/50">
-						{node.badge.count}
-					</span>
-				{/if}
 			</button>
 
 			<!-- Children nodes with RTL support -->

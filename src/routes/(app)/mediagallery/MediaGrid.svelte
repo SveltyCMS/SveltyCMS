@@ -22,16 +22,19 @@ Key features:
 <script lang="ts">
 	// Utils
 	import { formatBytes } from '@utils/utils';
-	import { getMediaUrl } from '@utils/media/mediaUtils';
-	import type { MediaBase } from '@utils/media/mediaModels';
+	import type { MediaImage } from '@utils/media/mediaModels';
 
 	// Skeleton
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
 
+	// Events
+	import { createEventDispatcher } from 'svelte';
+	const dispatch = createEventDispatcher();
+
 	interface Props {
-		filteredFiles?: MediaBase[];
+		filteredFiles?: MediaImage[];
 		gridSize?: 'small' | 'medium' | 'large';
-		ondeleteImage?: (file: MediaBase) => void;
+		ondeleteImage?: (file: MediaImage) => void;
 	}
 
 	let { filteredFiles = [], gridSize, ondeleteImage = () => {} }: Props = $props();
@@ -46,7 +49,7 @@ Key features:
 		placement: 'right'
 	};
 
-	function handleDelete(file: MediaBase) {
+	function handleDelete(file: MediaImage) {
 		ondeleteImage(file);
 	}
 
@@ -63,7 +66,7 @@ Key features:
 			<p class="text-lg">No media found</p>
 		</div>
 	{:else}
-		{#each filteredFiles as file, index}
+		{#each filteredFiles as file, index (index)}
 			<div
 				onmouseenter={() => (showInfo[index] = true)}
 				onmouseleave={() => (showInfo[index] = false)}
@@ -86,20 +89,38 @@ Key features:
 								</tr>
 							</thead>
 							<tbody>
-								{#each Object.keys(file).filter((key) => key !== 'thumbnail' && key !== 'type') as size}
-									{#if file[size]}
-										<tr class="divide-x divide-surface-400 border-b border-surface-400 last:border-b-0">
-											<td class="font-bold text-tertiary-500">{size}</td>
+								{#each Object.keys(file.thumbnails || {}) as size (size)}
+									{#if file.thumbnails?.[size as keyof typeof file.thumbnails]}
+										<tr
+											class="divide-x divide-surface-400 border-b border-surface-400 last:border-b-0 {size === gridSize
+												? 'bg-primary-50 dark:bg-primary-900/20'
+												: ''}"
+											onclick={(e) => {
+												e.preventDefault();
+												if (size === 'small' || size === 'medium' || size === 'large') {
+													dispatch('sizechange', {
+														size: size === 'small' ? 'medium' : size === 'medium' ? 'large' : 'small',
+														type: 'grid'
+													});
+												}
+											}}
+										>
+											<td class="font-bold text-tertiary-500"
+												>{size}
+												{#if size === gridSize}
+													<span class="ml-1 text-xs text-primary-500">(active)</span>
+												{/if}
+											</td>
 											<td class="pr-1 text-right">
-												{#if file[size].width && file[size].height}
-													{file[size].width}x{file[size].height}
+												{#if file.thumbnails[size as keyof typeof file.thumbnails].width && file.thumbnails[size as keyof typeof file.thumbnails].height}
+													{file.thumbnails[size as keyof typeof file.thumbnails].width}x{file.thumbnails[size as keyof typeof file.thumbnails].height}
 												{:else}
 													N/A
 												{/if}
 											</td>
 											<td class="text-right">
-												{#if file[size].size}
-													{formatBytes(file[size].size)}
+												{#if file.size}
+													{formatBytes(file.size)}
 												{:else}
 													N/A
 												{/if}
@@ -119,16 +140,38 @@ Key features:
 				</header>
 
 				<section class="p-2">
-					<img
-						src={getMediaUrl(file, 'thumbnail')}
-						alt={file.name}
-						class={`relative -top-4 left-0 ${gridSize === 'small' ? 'h-26 w-26' : gridSize === 'medium' ? 'h-48 w-48' : 'h-80 w-80'}`}
-					/>
+					{#if file?.filename && file?.path && file?.hash}
+						<img
+							src={file.thumbnail?.url ?? '/static/Default_User.svg'}
+							alt={`Thumbnail for ${file.filename}`}
+							class={`relative -top-4 left-0 ${gridSize === 'small' ? 'h-26 w-26' : gridSize === 'medium' ? 'h-48 w-48' : 'h-80 w-80'}`}
+							onerror={(e: Event) => {
+								const target = e.target as HTMLImageElement;
+								if (target) {
+									console.error('Failed to load media thumbnail for file:', file.filename);
+									target.src = '/static/Default_User.svg';
+									target.alt = 'Fallback thumbnail image';
+								}
+							}}
+							loading="lazy"
+							decoding="async"
+						/>
+					{:else}
+						<div class="flex h-full w-full items-center justify-center bg-surface-200 dark:bg-surface-700" aria-label="Missing thumbnail" role="img">
+							<iconify-icon icon="bi:exclamation-triangle-fill" height="24" class="text-warning-500" aria-hidden="true"></iconify-icon>
+						</div>
+					{/if}
 				</section>
 
 				<footer class="p-2 text-sm">
-					<p class="truncate">{file.name}</p>
-					<p class="text-xs text-gray-500">{formatBytes(file.size)}</p>
+					<p class="truncate" title={file.filename}>{file.filename}</p>
+					<p class="text-xs text-gray-500">
+						{#if file.size}
+							{formatBytes(file.size)}
+						{:else}
+							Size unknown
+						{/if}
+					</p>
 					<p class="text-xs text-gray-500">{file.type || 'Unknown Type'}</p>
 				</footer>
 			</div>

@@ -3,9 +3,9 @@
 @component
 **This component manages the selection and updating of the administrator role within the application**
 
-```tsx
+@example
 <AdminRole bind:roleData={roleData} />
-```
+
 ### Props
 - `roleData`: An object containing role data, including the current admin role and available roles.
 

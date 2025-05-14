@@ -97,7 +97,7 @@
 </div>
 
 <!-- Pagination controls -->
-<nav class="variant-outline btn-group" aria-label="Table pagination">
+<nav class=" variant-outline btn-group" aria-label="Table pagination">
 	<!-- First page button -->
 	<button
 		onclick={() => goToPage(1)}
@@ -105,7 +105,7 @@
 		type="button"
 		aria-label="Go to first page"
 		title="First Page"
-		class="btn"
+		class="btn h-8 w-8 rounded-none border-r border-surface-400 px-1 disabled:text-surface-400 disabled:!opacity-50"
 		aria-disabled={isFirstPage}
 	>
 		<iconify-icon icon="material-symbols:first-page" width="24" role="presentation" aria-hidden="true"></iconify-icon>
@@ -118,7 +118,7 @@
 		type="button"
 		aria-label="Go to previous page"
 		title="Previous Page"
-		class="btn"
+		class="btn h-8 w-8 rounded-none border-r border-surface-400 px-1 disabled:text-surface-400 disabled:!opacity-50"
 		aria-disabled={isFirstPage}
 	>
 		<iconify-icon icon="material-symbols:chevron-left" width="24" role="presentation" aria-hidden="true"></iconify-icon>
@@ -129,7 +129,7 @@
 		value={localRowsPerPage}
 		onchange={(event) => updateRowsPerPage(parseInt((event.target as HTMLSelectElement).value))}
 		aria-label="Select number of rows per page"
-		class="mt-0.5 bg-transparent text-center text-tertiary-500 dark:text-primary-500"
+		class="appearance-none bg-transparent p-0 px-6 text-center text-sm text-tertiary-500 dark:text-primary-500"
 		title="Rows per page"
 	>
 		{#each rowsPerPageOptions as pageSize}
@@ -147,7 +147,7 @@
 		type="button"
 		aria-label="Go to next page"
 		title="Next Page"
-		class="btn"
+		class="btn h-8 w-8 rounded-none border-l border-surface-400 px-1 disabled:text-surface-400 disabled:!opacity-50"
 		aria-disabled={isLastPage}
 	>
 		<iconify-icon icon="material-symbols:chevron-right" width="24" role="presentation" aria-hidden="true"></iconify-icon>
@@ -160,7 +160,7 @@
 		type="button"
 		aria-label="Go to last page"
 		title="Last Page"
-		class="btn"
+		class="btn h-8 w-8 rounded-none border-l border-surface-400 px-1 disabled:text-surface-400 disabled:!opacity-50"
 		aria-disabled={isLastPage}
 	>
 		<iconify-icon icon="material-symbols:last-page" width="24" role="presentation" aria-hidden="true"></iconify-icon>

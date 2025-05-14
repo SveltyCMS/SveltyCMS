@@ -13,7 +13,7 @@ const WIDGET_NAME = 'Input' as const;
 /**
  * Defines widget Parameters
  */
-const widget = (params: Params) => {
+const widget = (params: Params & { widgetId?: string }) => {
 	// Define the display function
 	let display: any;
 	if (!params.display) {
@@ -30,6 +30,7 @@ const widget = (params: Params) => {
 
 	// Define the widget object
 	const widget = {
+		widgetId: params.widgetId,
 		Name: WIDGET_NAME,
 		GuiFields: getGuiFields(params, GuiSchema)
 	};

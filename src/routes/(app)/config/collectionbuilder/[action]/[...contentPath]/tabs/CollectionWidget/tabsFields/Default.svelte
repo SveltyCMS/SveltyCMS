@@ -28,19 +28,26 @@ Features:
 
 	// Stores
 	import { targetWidget } from '@src/stores/collectionStore.svelte';
+	import type { GuiSchema } from '@root/src/widgets/core/group/types';
 
 	// Get the keys of the widgets object
-	const widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
+
 	interface Props {
-		guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
+		guiSchema: GuiSchema;
 	}
 
 	let { guiSchema }: Props = $props();
 
-	// Function to handle toggle updates
-	function handleToggle(event: CustomEvent, property: string) {
+	function defaultValue(property: string) {
+		if (property === 'required' || property === 'translated') {
+			return false;
+		} else return targetWidget.value.widget.Name;
+	}
+
+	function handleUpdate(event: CustomEvent, property: string) {
 		targetWidget.update((w) => {
-			w[property] = event.detail;
+			w[property] = event.detail.value;
+
 			return w;
 		});
 	}
@@ -57,26 +64,13 @@ Features:
 
 	<div class="options-table">
 		{#each ['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width'] as property}
-			{#if property === 'icon'}
-				<InputSwitch
-					value={$targetWidget[property] || false}
-					iconselected={$targetWidget[property]}
-					widget={asAny(guiSchema[property]?.widget)}
-					key={property}
-					on:change={(e) => {
-						$targetWidget[property] = e.detail;
-					}}
-				/>
-			{:else if property === 'translated' || property === 'required'}
-				<InputSwitch
-					value={$targetWidget[property]}
-					widget={asAny(guiSchema[property]?.widget)}
-					key={property}
-					on:toggle={(e) => handleToggle(e, property)}
-				/>
-			{:else}
-				<InputSwitch value={$targetWidget[property]} widget={asAny(guiSchema[property]?.widget)} key={property} />
-			{/if}
+			<InputSwitch
+				value={targetWidget.value[property] ?? defaultValue(property)}
+				icon={targetWidget.value[property] as string}
+				widget={asAny(guiSchema[property]?.widget)}
+				key={property}
+				on:update={(e) => handleUpdate(e, property)}
+			/>
 		{/each}
 	</div>
 {/if}

@@ -5,15 +5,14 @@
 
 <script lang="ts">
 	//Stores
-	import { sidebarState } from '@root/src/stores/sidebarStore.svelte';
+	import { uiStateManager } from '@root/src/stores/UIStore.svelte';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
 	import widgets from '@widgets';
-	import InputSwitch from './InputSwitch.svelte';
 	import AddWidget from './AddWidget.svelte';
 
-	import { asAny, debounce } from '@utils/utils';
+	import { debounce } from '@utils/utils';
 
 	// Props
 	let { fields = [], onFieldsUpdate = (newFields: any[]) => {} } = $props<{
@@ -26,10 +25,7 @@
 	let currentFieldKey = $state<keyof typeof widgets | null>(null);
 	let currentField = $state<any>(null);
 
-	// Derived values
-	let guiSchema = $derived(() => (currentFieldKey ? widgets[currentFieldKey]?.GuiSchema : null));
-
-	function initDragAndDrop(node: HTMLElement, index: number) {
+	function initDragAndDrop(node: HTMLElement) {
 		function drag(e: PointerEvent) {
 			let timeOut: any;
 			const pointerID = e.pointerId;
@@ -141,7 +137,7 @@
 
 	function handleFieldDelete(field: any, event: Event) {
 		event.stopPropagation();
-		const newFields = fields.filter((f) => f !== field);
+		const newFields = fields.filter((f: any) => f !== field);
 		onFieldsUpdate(newFields);
 	}
 
@@ -171,7 +167,7 @@
 			data-index={index}
 			onclick={() => handleFieldClick(field)}
 			onkeydown={(e) => e.key === 'Enter' && handleFieldClick(field)}
-			use:initDragAndDrop={index}
+			use:initDragAndDrop
 		>
 			<div class="h-full w-full p-[10px]">
 				<p>widget: {field.widget.Name}</p>
@@ -188,46 +184,18 @@
 	<AddWidget {fields} field={currentField} addField={currentField} selected_widget={currentFieldKey} editField={true} />
 {/if}
 
-<!-- List of widget names -->
-<div class="user-select-none mx-5 max-h-full min-w-[min(500px,90vw)] overflow-auto rounded bg-surface-400 shadow-xl">
-	{#each fields as field (field.id)}
-		<div
-			class="variant-ghost-tertiary relative w-full overflow-hidden hover:bg-error-500"
-			aria-label="Widget"
-			role="button"
-			tabindex="0"
-			onclick={() => handleFieldClick(field)}
-			onkeydown={(e) => e.key === 'Enter' && handleFieldClick(field)}
-			use:initDragAndDrop={fields.indexOf(field)}
-		>
-			<div class="h-full w-full p-[10px]">
-				<p>widget: {field.widget.Name}</p>
-				<p>label: {field.label}</p>
-			</div>
-
-			<button onclick={(e) => handleFieldDelete(field, e)} aria-label="Delete widget" class="absolute right-[5px] top-[5px]">
-				<iconify-icon icon="tdesign:delete-1" width="24" height="24"></iconify-icon>
-			</button>
-		</div>
-
-		{#if guiSchema}
-			{#each Object.entries(guiSchema) as [property, value]}
-				<InputSwitch bind:value={field.widget.GuiFields[property]} widget={asAny(value).widget} key={property} />
-			{/each}
-		{/if}
-	{/each}
-</div>
-
 <!-- Edit individual selected widget  -->
 {#if currentField}
 	<div
-		class="fixed -top-16 left-0 z-20 flex h-full w-full flex-col items-center justify-center overflow-auto bg-white dark:bg-surface-900 {sidebarState
-			.sidebar.value.left === 'full'
+		class="fixed -top-16 left-0 z-20 flex h-full w-full flex-col items-center justify-center overflow-auto bg-white dark:bg-surface-900 {uiStateManager
+			.uiState.value.leftSidebar === 'full'
 			? 'left-[220px] '
 			: 'left-0 '}"
 	>
 		<div
-			class="fixed top-0 flex items-center justify-between {sidebarState.sidebar.value.left === 'full' ? 'left-[220px] w-full' : 'left-0 w-screen'}"
+			class="fixed top-0 flex items-center justify-between {uiStateManager.uiState.value.leftSidebar === 'full'
+				? 'left-[220px] w-full'
+				: 'left-0 w-screen'}"
 		>
 			<PageTitle name="Edit Widget" icon="material-symbols:ink-pen" iconColor="text-primary-500" />
 
@@ -242,13 +210,7 @@
 		</div>
 
 		<div class="z-100 flex flex-col items-center justify-center gap-1">
-			{#if guiSchema}
-				{#each Object.entries(guiSchema) as [property, value]}
-					<div class="w-full">
-						<InputSwitch bind:value={currentField.widget.GuiFields[property]} widget={asAny(value).widget} key={property} />
-					</div>
-				{/each}
-			{/if}
+			<!-- Removed loop based on guiSchema, assuming AddWidget handles field editing internally -->
 		</div>
 	</div>
 {/if}

@@ -12,7 +12,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { google } from 'googleapis';
 
 //Db
-import { auth, dbInitPromise } from '@src/databases/db';
+import { auth, dbAdapter, dbInitPromise } from '@src/databases/db';
 
 // Utils
 import { saveAvatarImage } from '@utils/media/mediaStorage';
@@ -23,6 +23,7 @@ import { systemLanguage } from '@stores/store.svelte';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 import { googleAuth, setCredentials, generateGoogleAuthUrl } from '@src/auth/googleAuth';
+import { contentManager } from '@root/src/content/ContentManager';
 
 // Types
 interface GoogleUserInfo {
@@ -89,30 +90,28 @@ async function fetchAndSaveGoogleAvatar(avatarUrl: string): Promise<string | nul
 async function fetchAndRedirectToFirstCollection() {
 	try {
 		if (!dbAdapter) {
-			logger.error('Database adapter not initialized');
+			logger.error('Database adapter not initialized', new Error('Database adapter not initialized'));
 			return '/';
 		}
 
-		// Get content structure with UUIDs
-		const contentNodes = await dbAdapter.getContentStructure();
+		const collection = contentManager.getFirstCollection();
+		const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
 
-		if (!contentNodes?.length) {
-			logger.warn('No collections found in content structure');
+		if (!collection) {
+			logger.warn('No valid first collection found - redirecting to home');
 			return '/';
 		}
 
-		// Find first collection using UUID
-		const firstCollection = contentNodes.find((node) => node.isCollection && node._id);
-
-		if (firstCollection) {
-			logger.info(`Redirecting to first collection: ${firstCollection.name} (${firstCollection._id})`);
-			return `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${firstCollection._id}`;
+		// Validate collection path exists
+		if (!collection.path) {
+			logger.error('First collection has no path defined');
+			return '/';
 		}
 
-		logger.warn('No valid collections found');
-		return '/';
+		// Construct redirect URL using validated collection
+		return `/${defaultLanguage}${collection.path}`;
 	} catch (err) {
-		logger.error('Error in fetchAndRedirectToFirstCollection:', err);
+		logger.error('Error in fetchAndRedirectToFirstCollection', err as Error);
 		return '/';
 	}
 }
@@ -133,6 +132,10 @@ async function handleGoogleUser(
 
 	if (googleUser.locale) {
 		systemLanguage.set(googleUser.locale);
+	}
+
+	if (!auth) {
+		logger.error('Auth adatper not initialized cannot login using oauth');
 	}
 
 	// Check if user exists
@@ -157,7 +160,7 @@ async function handleGoogleUser(
 		}
 
 		// Create the new user
-		user = await auth.createUser(
+		user = await auth?.createUser(
 			{
 				email,
 				username: googleUser.name ?? '',
@@ -188,7 +191,7 @@ async function handleGoogleUser(
 			lastAuthMethod: 'google',
 			firstName: googleUser.given_name ?? '',
 			lastName: googleUser.family_name ?? '',
-			...(avatarUrl && { avatar: avatarUrl })
+			avatar: user.avatar ? user.avatar : avatarUrl ? avatarUrl : undefined
 		});
 	}
 

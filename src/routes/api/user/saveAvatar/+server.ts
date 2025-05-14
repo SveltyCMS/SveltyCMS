@@ -87,6 +87,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const session_id = locals.session_id;
 
 		const user = await auth.validateSession({ session_id });
+		locals.user = user;
 		const cacheStore = getCacheStore();
 		cacheStore.set(session_id, user, new Date(Date.now() + 3600 * 1000));
 		logger.info('Avatar saved successfully', { userId: locals.user.id });
@@ -97,8 +98,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			avatarUrl
 		});
 	} catch (err) {
-		const isHttpError = err instanceof Error && 'status' in err;
-		const status = isHttpError ? (err as any).status : 500;
+		const isHttpError = err instanceof Error && typeof (err as { status?: unknown }).status === 'number';
+		const status = isHttpError ? (err as { status: number }).status : 500;
 		const message = err instanceof Error ? err.message : 'Internal Server Error';
 
 		logger.error('Error in saveAvatar API:', {

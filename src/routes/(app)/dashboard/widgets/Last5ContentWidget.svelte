@@ -3,9 +3,8 @@
 @component
 **A reusable widget component for displaying last 5 content information with improved rendering and error handling**
 
-```tsx
+@example
 <Last5ContentWidget label="Last 5 Content" />
-```
 
 ### Props
 - `label`: The label for the widget (default: 'Last 5 Content')
@@ -16,7 +15,7 @@ This widget fetches and displays real-time disk usage data, including:
 - Free disk space
 - Usage percentages
 
-Features:
+### Features:
 - Responsive doughnut chart visualization
 - Theme-aware rendering (light/dark mode support)
 - Real-time data updates
@@ -30,7 +29,7 @@ Features:
 	import BaseWidget from '../BaseWidget.svelte';
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
-	import { dbAdapter } from '@src/databases/db';
+	//import { dbAdapter } from '@src/databases/db';
 
 	interface Props {
 		label: string;
@@ -46,8 +45,8 @@ Features:
 
 	onMount(async () => {
 		try {
-			if (dbAdapter) {
-				const data = await dbAdapter.getLastFiveCollections();
+			if (data) {
+				//const data = await dbAdapter.getLastFiveCollections();
 				contentInfo.set(data);
 			}
 			loading.set(false);

@@ -65,11 +65,40 @@ export async function getData(query: {
 	filter?: string;
 	sort?: string;
 }) {
-	const q = toFormData({ method: 'GET', ...query });
-	return (await axios.post('/api/query', q).then((data) => data.data)) as {
-		entryList: Entry[];
-		pagesCount: number;
-	};
+	try {
+		// Ensure collectionId is properly formatted
+		const collectionId = query.collectionId.trim().toLowerCase();
+
+		// Create query with fallback language handling
+		const q = toFormData({
+			method: 'GET',
+			...query,
+			collectionId,
+			contentLanguage: query.contentLanguage || 'en' // Default to English if not specified
+		});
+
+		const response = await axios.post('/api/query', q);
+
+		// Handle empty or invalid responses
+		if (!response.data || !Array.isArray(response.data.entryList)) {
+			throw new Error('Invalid response format');
+		}
+
+		// Process dates from MongoDB
+		const processedEntries = response.data.entryList.map(entry => ({
+			...entry,
+			createdAt: entry.createdAt ? new Date(entry.createdAt) : null,
+			updatedAt: entry.updatedAt ? new Date(entry.updatedAt) : null
+		}));
+
+		return {
+			entryList: processedEntries,
+			pagesCount: response.data.pagesCount || 1
+		};
+	} catch (error) {
+		console.error('Error in getData:', error);
+		throw error;
+	}
 }
 
 // Function to add data to a specified collection
@@ -154,22 +183,16 @@ export async function saveFormData({
 		throw error(400, message);
 	}
 
-	console.debug('formData', formData.toString(), $collection.revision, data);
-
 	// TODO: Add meta_data to formData
 	// if (!meta_data.is_empty()) formData.append('_meta_data', JSON.stringify(meta_data.get()));
 
 	// Safely append status with a default value
 	formData.append('status', (collectionValue.value?.status || 'unpublished').toString());
 
-	const username = user ? user.username : 'Unknown';
-
 	try {
 		switch ($mode) {
 			case 'create':
 				logger.debug('Saving data in create mode.');
-				formData.append('createdAt', Math.floor(Date.now() / 1000).toString());
-				formData.append('updatedAt', (formData.get('createdAt') as string) || '');
 
 				return await addData({ data: formData, collectionId: $collection._id as keyof ContentTypes });
 

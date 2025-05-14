@@ -32,7 +32,7 @@ const widgets: Record<string, WidgetFunction> = {};
 export default widgets;
 
 // State management with reactive stores
-const widgetFunctions = store<Map<string, WidgetFunction>>(new Map()); // Store for widget functions
+export const widgetFunctions = store<Map<string, WidgetFunction>>(new Map()); // Store for widget functions
 const activeWidgetList = store<Set<string>>(new Set()); // Store for active widgets
 
 // init state
@@ -53,8 +53,8 @@ function createWidgetFunction(widgetModule: WidgetModule, name: string): WidgetF
 
 // Function to initialize widgets
 export async function initializeWidgets(): Promise<void> {
-	if (initialized) return dbInitPromise;
-	if (dbInitPromise) return dbInitPromise;
+	if (initialized) return;
+	if (dbInitPromise) return;
 
 	dbInitPromise = (async () => {
 		try {
@@ -75,10 +75,10 @@ export async function initializeWidgets(): Promise<void> {
 					const [_fullMatch, folderType, name] = match;
 
 					// Capitalize the first letter of the widget name
-					const capitalized_name = name.charAt(0).toUpperCase() + name.slice(1);
+					const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
 
 					// Construct the full component path
-					const componentPath = path.replace(/index\.ts$/, `${capitalized_name}.svelte`).replace(/^\.\//, `/src/widgets/`);
+					const componentPath = path.replace(/index\.ts$/, `${capitalizedName}.svelte`).replace(/^\.\//, `/src/widgets/`);
 
 					if (!name) {
 						logger.warn(`Skipping widget module: ${path} - Unable to extract widget name`);
@@ -93,13 +93,10 @@ export async function initializeWidgets(): Promise<void> {
 				})
 				.filter((m): m is NonNullable<typeof m> => m !== null);
 
-			if (validModules.length === 0) {
-				throw new Error('No valid widgets found');
-			}
-
 			const newWidgetFunctions = new Map<string, WidgetFunction>();
 			const loadedWidgetNames = new Set<string>();
 
+			// Fetch activation status from the database with fallback
 			for (const { name, module, isCore, componentPath } of validModules) {
 				try {
 					const widgetFn = createWidgetFunction(module, name);
@@ -119,8 +116,6 @@ export async function initializeWidgets(): Promise<void> {
 					newWidgetFunctions.set(capitalizedName, widgetFn);
 					widgets[capitalizedName] = widgetFn;
 					loadedWidgetNames.add(capitalizedName);
-					const { updateWidget } = await import('../databases/dbInterface');
-					await updateWidget(capitalizedName, { isActive: true });
 				} catch (error) {
 					logger.warn(`Skipping widget ${name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
 					continue;
@@ -130,9 +125,9 @@ export async function initializeWidgets(): Promise<void> {
 			// Fetch activation status from the database with fallback
 			let activeWidgets: string[] = [];
 			try {
-				const { getAllWidgets } = await import('../databases/dbInterface');
-				const dbWidgets = await getAllWidgets();
-				activeWidgets = dbWidgets.filter((widget) => widget.isActive).map((widget) => widget.name);
+				//const { fetchWidgets } = await import('../databases/dbInterface');
+				//const dbWidgets = await fetchWidgets();
+				//activeWidgets = dbWidgets.filter((widget) => widget.is_active).map((widget) => widget.name);
 			} catch (error: unknown) {
 				// If any error occurs, activate all widgets
 				activeWidgets = Array.from(newWidgetFunctions.keys());

@@ -1,9 +1,20 @@
 /**
  * @file src/routes/(app)/dashboard/+page.server.ts
  * @description Server-side logic for the dashboard page.
+ * 
+ * ### Props
+ * - `user`: The authenticated user data.
+ * 
+ * ### Usage
+ * - Access user data from the server-side and pass it to the client-side component	
+ * 
+ * ### Features
+ * - User authentication and authorization
+ * - Proper typing for user data
+
  */
 
-import { error, redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // System Logger

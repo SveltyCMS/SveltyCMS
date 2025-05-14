@@ -2,6 +2,16 @@
 @file src/widgets/custom/phoneNumber/PhoneNumber.svelte
 @component
 **PhoneNumber widget component that allows users to enter a phone number**
+
+@example
+<PhoneNumber label="Phone Number" db_fieldName="phoneNumber" required={true} />
+
+### Props
+- `field`: FieldType
+- `value`: any
+
+### Features
+- Translatable
 -->
 
 <script lang="ts">
@@ -73,7 +83,7 @@
 		value?: any;
 	}
 
-	let { field, value = collectionValue.valuevaluevaluevaluevalue[fieldName] || {} }: Props = $props();
+	let { field, value = collectionValue.value[fieldName] || {} }: Props = $props();
 
 	onMount(() => {
 		if (field?.required && !_data[_language]) {

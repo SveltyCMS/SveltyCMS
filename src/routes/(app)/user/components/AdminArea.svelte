@@ -18,21 +18,19 @@
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import TablePagination from '@components/system/table/TablePagination.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
+	import ModalEditToken from './ModalEditToken.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton';
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings } from '@skeletonlabs/skeleton';
 
 	// Svelte-dnd-action
 	import { flip } from 'svelte/animate';
-	import { dndzone, type DndEvent } from 'svelte-dnd-action';
-
-	// Modal
-	import ModalEditToken from './ModalEditToken.svelte';
+	import { dndzone } from 'svelte-dnd-action';
 
 	// Types
 	interface UserData {
@@ -82,6 +80,7 @@
 	let { adminData } = $props<{ adminData: AdminData | null }>();
 
 	const modalStore = getModalStore();
+	const toastStore = getToastStore();
 	const waitFilter = debounce(300);
 	const flipDurationMs = 300;
 
@@ -103,6 +102,7 @@
 		{ label: m.adminarea_token(), key: 'token' },
 		{ label: m.adminarea_blocked(), key: 'blocked' },
 		{ label: m.form_email(), key: 'email' },
+		{ label: m.form_role(), key: 'role' },
 		{ label: m.adminarea_expiresin(), key: 'expires' },
 		{ label: m.adminarea_createat(), key: 'createdAt' },
 		{ label: m.adminarea_updatedat(), key: 'updatedAt' }
@@ -118,7 +118,14 @@
 	let columnShow = $state(false);
 	let selectAll = $state(false);
 	let selectedMap = $state<Record<number, boolean>>({});
-	let tableData = $state<(UserData | TokenData)[]>([]);
+	let tableData = $derived.by(() => {
+		if (!adminData) return [] as UserData[];
+		if (showUserList) {
+			return adminData.users as UserData[];
+		} else if (showUsertoken) {
+			return adminData.tokens as TokenData[];
+		}
+	});
 	let filteredTableData = $state<(UserData | TokenData)[]>([]);
 	let selectedRows = $state<(UserData | TokenData)[]>([]);
 	let density = $state(
@@ -167,9 +174,7 @@
 		// Update selectedRows based on selectedMap
 		selectedRows = Object.entries(selectedMap)
 			.filter(([_, isSelected]) => isSelected)
-			.map(([index]) => ({
-				data: filteredTableData[parseInt(index)]
-			}));
+			.map(([index]) => filteredTableData[parseInt(index)]);
 	});
 
 	// Modal for token editing
@@ -178,16 +183,49 @@
 			type: 'component',
 			title: m.adminarea_title(),
 			body: m.adminarea_body(),
-			component: { ref: ModalEditToken, slot: '<p>Edit Form</p>' },
-			response: () => {
-				return; // Handle response if needed
+			component: {
+				ref: ModalEditToken,
+				slot: `
+					<div class="mb-4">
+						<h3 class="text-lg font-bold">Existing Tokens</h3>
+						{#if adminData?.tokens?.length > 0}
+							<ul class="max-h-40 overflow-y-auto">
+								{#each adminData.tokens as token}
+									<li class="flex items-center justify-between border-b py-2">
+										<span class="truncate">{token.email}</span>
+										<span class="text-sm text-gray-500">Expires: {new Date(token.expires).toLocaleDateString()}</span>
+									</li>
+								{/each}
+							</ul>
+						{:else}
+							<p class="text-gray-500">No existing tokens</p>
+						{/if}
+					</div>
+				`,
+				props: {
+					token: '',
+					email: '',
+					role: 'user',
+					expires: '7d',
+					user_id: ''
+				}
+			},
+			response: (result) => {
+				if (result?.success === false) {
+					const t = {
+						message: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${result.error || 'Failed to send email'}`,
+						background: 'variant-filled-error',
+						timeout: 5000,
+						classes: 'border-1 !rounded-md'
+					};
+					toastStore.trigger(t);
+				}
 			}
 		};
 		modalStore.trigger(modalSettings);
 	}
 
-	// DND handlers
-	function handleDndConsider(event: CustomEvent<DndEvent<TableHeader>>) {
+	function handleDndConsider(event: any) {
 		displayTableHeaders = event.detail.items;
 	}
 
@@ -212,6 +250,7 @@
 	// Refresh table data with current filters and sorting
 	function refreshTableData() {
 		// Apply filters and sorting to tableData
+		if (!tableData) return;
 		let filtered = [...tableData];
 
 		// Apply global search if value exists
@@ -243,17 +282,7 @@
 		if (currentPage > pagesCount) currentPage = pagesCount;
 	}
 
-	// Initialize table data when adminData or view changes
 	$effect(() => {
-		if (adminData) {
-			if (showUserList) {
-				tableData = adminData.users;
-			} else if (showUsertoken) {
-				tableData = adminData.tokens;
-			}
-			refreshTableData();
-		}
-		// Refresh table data when filters, sorting, or pagination changes
 		refreshTableData();
 	});
 
@@ -328,7 +357,7 @@
 			</div>
 		</div>
 
-		{#if tableData.length > 0}
+		{#if tableData && tableData.length > 0}
 			{#if columnShow}
 				<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700">
 					<div class="text-white dark:text-primary-500">{m.entrylist_dnd()}</div>
@@ -449,7 +478,10 @@
 											<Role value={row[header.key]} />
 										{:else if ['createdAt', 'updatedAt', 'lastAccess'].includes(header.key)}
 											{new Date(row[header.key]).toLocaleString()}
+										{:else if header.key === 'expires'}
+											{new Date(row[header.key]).toLocaleDateString()}
 										{:else}
+											<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 											{@html row[header.key]}
 										{/if}
 									</td>

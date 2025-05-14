@@ -7,202 +7,149 @@
  */
 
 import mongoose, { Schema } from 'mongoose';
-import type { Media } from '@src/databases/dbInterface';
+import type { Model } from 'mongoose';
+import type { MediaItem, DatabaseResult } from '@src/databases/dbInterface';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
 // Media schema
-export const mediaSchema = new Schema(
-	{
-		_id: { type: String, required: true },
-		filename: { type: String, required: true },
-		originalFilename: String,
-		path: { type: String, required: true },
-		type: { type: String, required: true },
-		mimeType: String,
-		size: { type: Number, required: true },
-		dimensions: {
-			width: Number,
-			height: Number
-		},
-		metadata: {
-			title: String,
-			description: String,
-			alt: String,
-			caption: String,
-			tags: [String],
-			customFields: Schema.Types.Mixed
-		},
-		folder: { type: String, default: '/' },
-		status: { type: String, enum: ['public', 'private', 'draft'], default: 'private' },
-		createdBy: String,
-		updatedBy: String,
-		updatedAt: { type: Date, default: Date.now }
-	},
-	{
-		timestamps: true,
-		collection: 'system_media',
-		strict: false
-	}
+export const mediaSchema = new Schema<MediaItem>(
+  {
+    _id: {
+      type: String, required: true, default: () => {
+        return new mongoose.Types.ObjectId().toString()
+      }
+    }, // UUID as per dbInterface.ts
+    hash: { type: String, required: true }, // Hash for media
+    filename: { type: String, required: true }, // Filename for media
+    originalFilename: String, // Original filename for media
+    path: { type: String, required: true }, // Path to the media file
+    size: { type: Number, required: true }, // Size of the media file
+    mimeType: { type: String, required: true }, // Mime type of the media file
+    folderId: { type: String, default: null }, // Folder paths/ids as strings
+    // thumbnails: {
+    //   type: {
+    //     size: { type: String, default: 'thumbnail' },
+    //     url: { type: String, default: null }
+    //   },
+    //   default: {},
+    //   _id: false
+    // }, // Thumbnails for images
+    metadata: {
+      width: Number, // Width of the media file
+      height: Number, // Height of the media file
+      duration: Number, // Duration for videos/audio
+      codec: String, // Codec used for media file
+      format: String, // Format of the media file
+      type: mongoose.Schema.Types.Mixed // Allow additional metadata fields
+    },
+    status: { type: String, enum: ['public', 'private', 'draft'], default: 'private' }, // Status options from MediaItem
+    createdBy: { type: String, required: true }, // Created by user ID
+    updatedBy: { type: String, required: true }, // Updated by user ID
+    createdAt: { type: Date, default: Date.now }, // CreatedAt Date type
+    updatedAt: { type: Date, default: Date.now } // UpdatedAt Date type
+  },
+  {
+    timestamps: true,
+    collection: 'system_media',
+    strict: true // Enforce strict schema validation
+  }
 );
 
-// Add indexes
+// Indexes
 mediaSchema.index({ filename: 1 });
-mediaSchema.index({ type: 1 });
-mediaSchema.index({ folder: 1 });
+mediaSchema.index({ folderId: 1 });
 mediaSchema.index({ status: 1 });
 mediaSchema.index({ 'metadata.tags': 1 });
 
+// Fetch all media files using DatabaseAdapter's crud.findMany
+export async function fetchAllMedia(databaseAdapter: DatabaseAdapter): Promise<DatabaseResult<MediaItem[]>> {
+  try {
+    const result = await databaseAdapter.crud.findMany<MediaItem>('media', {});
+    if (result.success) {
+      return { success: true, data: result.data };
+    } else {
+      return { success: false, error: result.error };
+    }
+  } catch (error) {
+    logger.error(`Error fetching all media files: ${error.message}`);
+    return { success: false, error: { code: 'MEDIA_FETCH_ALL_ERROR', message: 'Failed to fetch all media files', details: error } };
+  }
+}
+
 // Static methods
 mediaSchema.statics = {
-	// Create media
-	async createMedia(mediaData: {
-		filename: string;
-		originalFilename?: string;
-		path: string;
-		type: string;
-		mimeType?: string;
-		size: number;
-		dimensions?: {
-			width?: number;
-			height?: number;
-		};
-		metadata?: {
-			title?: string;
-			description?: string;
-			alt?: string;
-			caption?: string;
-			tags?: string[];
-			customFields?: Schema.Types.Mixed;
-		};
-		folder?: string;
-		status?: 'public' | 'private' | 'draft';
-		createdBy?: string;
-	}): Promise<Media> {
-		try {
-			const media = new this(mediaData);
-			await media.save();
-			logger.info(`Created media: ${mediaData.filename}`);
-			return media;
-		} catch (error) {
-			logger.error(`Error creating media: ${error.message}`);
-			throw error;
-		}
-	},
+  // Get media by filename
+  async getMediaByFilename(filename: string): Promise<DatabaseResult<MediaItem | null>> {
+    try {
+      const mediaItem = (await this.findOne({ filename }).lean().exec()) as MediaItem | null;
+      return { success: true, data: mediaItem };
+    } catch (error) {
+      logger.error(`Error retrieving media item by filename: ${error.message}`);
+      return { success: false, error: { code: 'MEDIA_GET_BY_FILENAME_ERROR', message: `Failed to retrieve media item by filename: ${filename}` } };
+    }
+  },
 
-	// Get all media
-	async getAllMedia(): Promise<Media[]> {
-		try {
-			const media = await this.find().sort({ createdAt: -1 }).exec();
-			logger.debug(`Retrieved ${media.length} media files`);
-			return media;
-		} catch (error) {
-			logger.error(`Error retrieving media: ${error.message}`);
-			throw error;
-		}
-	},
+  // Get media items by folder ID
+  async getMediaByFolderId(folderId?: string): Promise<DatabaseResult<MediaItem[]>> {
+    try {
+      const query: Record<string, unknown> = folderId ? { folderId } : {};
+      const mediaItems = (await this.find(query).lean().exec()) as MediaItem[];
+      return { success: true, data: mediaItems };
+    } catch (error) {
+      logger.error(`Error retrieving media items by folder ID: ${error.message}`);
+      return {
+        success: false,
+        error: { code: 'MEDIA_GET_BY_FOLDER_ERROR', message: `Failed to retrieve media items for folder ID: ${folderId || 'root'}` }
+      };
+    }
+  },
 
-	// Get media by folder
-	async getMediaByFolder(folder: string): Promise<Media[]> {
-		try {
-			const media = await this.find({ folder }).sort({ createdAt: -1 }).exec();
-			logger.debug(`Retrieved ${media.length} media files from folder: ${folder}`);
-			return media;
-		} catch (error) {
-			logger.error(`Error retrieving media by folder: ${error.message}`);
-			throw error;
-		}
-	},
+  // Bulk delete media items by folder ID
+  async bulkDeleteMediaByFolderId(folderIds: string[]): Promise<DatabaseResult<number>> {
+    try {
+      const result = await this.deleteMany({ folderId: { $in: folderIds } }).exec();
+      logger.info(`Bulk deleted ${result.deletedCount} media items for folder IDs: ${folderIds.join(', ')}`);
+      return { success: true, data: result.deletedCount };
+    } catch (error) {
+      logger.error(`Error bulk deleting media items by folder IDs: ${error.message}`);
+      return { success: false, error: { code: 'MEDIA_BULK_DELETE_ERROR', message: 'Failed to bulk delete media items', details: error } };
+    }
+  },
 
-	// Get media by type
-	async getMediaByType(type: string): Promise<Media[]> {
-		try {
-			const media = await this.find({ type }).sort({ createdAt: -1 }).exec();
-			logger.debug(`Retrieved ${media.length} media files of type: ${type}`);
-			return media;
-		} catch (error) {
-			logger.error(`Error retrieving media by type: ${error.message}`);
-			throw error;
-		}
-	},
+  // Upload a new media file
+  async uploadMedia(mediaData: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaItem>> {
+    try {
+      const newMedia = await this.create({ ...mediaData, _id: this.utils.generateId() });
+      // ISODateString conversion for media.upload
+      const mediaWithISODates = {
+        ...newMedia.toObject(),
+        createdAt: newMedia.createdAt.toISOString() as ISODateString,
+        updatedAt: newMedia.updatedAt.toISOString() as ISODateString
+      } as unknown as MediaItem;
+      return { success: true, data: mediaWithISODates };
+    } catch (error) {
+      logger.error(`Error uploading media: ${error.message}`);
+      return { success: false, error: { code: 'MEDIA_UPLOAD_ERROR', message: 'Failed to upload media', details: error } };
+    }
+  },
 
-	// Get media by filename
-	async getMediaByFilename(filename: string): Promise<Media | null> {
-		try {
-			const media = await this.findOne({ filename }).exec();
-			logger.debug(`Retrieved media: ${filename}`);
-			return media;
-		} catch (error) {
-			logger.error(`Error retrieving media by filename: ${error.message}`);
-			throw error;
-		}
-	},
-
-	// Update media
-	async updateMedia(filename: string, updateData: Partial<Media>): Promise<Media | null> {
-		try {
-			const media = await this.findOneAndUpdate({ filename }, { ...updateData, updatedAt: new Date() }, { new: true }).exec();
-			if (media) {
-				logger.info(`Updated media: ${filename}`);
-			} else {
-				logger.warn(`Media not found: ${filename}`);
-			}
-			return media;
-		} catch (error) {
-			logger.error(`Error updating media: ${error.message}`);
-			throw error;
-		}
-	},
-
-	// Delete media
-	async deleteMedia(filename: string): Promise<boolean> {
-		try {
-			const result = await this.findOneAndDelete({ filename }).exec();
-			if (result) {
-				logger.info(`Deleted media: ${filename}`);
-				return true;
-			}
-			logger.warn(`Media not found for deletion: ${filename}`);
-			return false;
-		} catch (error) {
-			logger.error(`Error deleting media: ${error.message}`);
-			throw error;
-		}
-	},
-
-	// Move media to folder
-	async moveMediaToFolder(filename: string, newFolder: string): Promise<Media | null> {
-		try {
-			const media = await this.findOneAndUpdate({ filename }, { folder: newFolder, updatedAt: new Date() }, { new: true }).exec();
-			if (media) {
-				logger.info(`Moved media ${filename} to folder: ${newFolder}`);
-			} else {
-				logger.warn(`Media not found for moving: ${filename}`);
-			}
-			return media;
-		} catch (error) {
-			logger.error(`Error moving media: ${error.message}`);
-			throw error;
-		}
-	},
-
-	// Search media by tags
-	async searchMediaByTags(tags: string[]): Promise<Media[]> {
-		try {
-			const media = await this.find({
-				'metadata.tags': { $in: tags }
-			})
-				.sort({ createdAt: -1 })
-				.exec();
-			logger.debug(`Found ${media.length} media files with tags: ${tags.join(', ')}`);
-			return media;
-		} catch (error) {
-			logger.error(`Error searching media by tags: ${error.message}`);
-			throw error;
-		}
-	}
+  // Delete a media item by its ID
+  async deleteMedia(mediaId: DatabaseId): Promise<DatabaseResult<void>> {
+    try {
+      const result = await this.deleteOne({ _id: mediaId }).exec();
+      if (result.deletedCount === 0) {
+        return { success: false, error: { code: 'MEDIA_DELETE_NOT_FOUND', message: `Media item with ID "${mediaId}" not found.` } };
+      }
+      logger.info(`Media item "${mediaId}" deleted successfully.`);
+      return { success: true, data: undefined };
+    } catch (error) {
+      logger.error(`Error deleting media item "${mediaId}": ${error.message}`);
+      return { success: false, error: { code: 'MEDIA_DELETE_ERROR', message: `Failed to delete media item "${mediaId}"`, details: error } };
+    }
+  }
 };
 
-// Create and export the Media model
-export const MediaModel = mongoose.models?.Media || mongoose.model<Media>('Media', mediaSchema);
+// Create and export the MediaModel
+export const MediaModel = (mongoose.models?.MediaItem as Model<MediaItem> | undefined) || mongoose.model<MediaItem>('MediaItem', mediaSchema);

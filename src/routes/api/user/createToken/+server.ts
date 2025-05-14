@@ -20,6 +20,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
+import { dev } from '$app/environment';
 
 // Auth
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
@@ -73,7 +74,19 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 		}
 
 		// Get expiration hours from the validated data
-		const expiresInHours = Number(validatedData.expiresIn);
+		let expiresInHours = validatedData.expiresIn;
+		if (typeof expiresInHours === 'string') {
+			// Convert string format (e.g. '7d') to hours
+			const unit = expiresInHours.slice(-1);
+			const value = parseInt(expiresInHours.slice(0, -1));
+
+			switch (unit) {
+				case 'h': expiresInHours = value; break;
+				case 'd': expiresInHours = value * 24; break;
+				default: expiresInHours = 168; // Default 7 days
+			}
+		}
+
 		if (isNaN(expiresInHours)) {
 			throw error(400, { message: 'Invalid expiration time' });
 		}
@@ -119,11 +132,13 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 				message: 'You have been invited to register',
 				templateName: 'userToken',
 				props: {
+					username: validatedData.user_id,
 					email: validatedData.email,
 					role: role.name, // Send role name instead of ID
 					token: token,
+					tokenLink: `${dev ? 'http://localhost:5173' : window.location.host}/login?regToken=${token}`,
 					expiresIn: expiresInHours,
-					expiresInLabel: validatedData.expiresInLabel,
+					expiresInLabel: `${Math.floor(expiresInHours / 24)} days`,
 					languageTag: languageTag()
 				}
 			})
@@ -152,26 +167,32 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 		// Return success response
 		return json({
 			success: true,
-			message: 'Token created and email sent successfully'
+			message: 'Token created and email sent successfully',
+			token: {
+				value: token,
+				expires: expires.toISOString(),
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString()
+			}
 		});
 	} catch (err: unknown) {
 		// Type guard for API errors
-		const error = err as ApiError;
+		const apiError = err as ApiError;
 
 		// If it's already a SvelteKit error response, pass it through
-		if (error.status && error.body) {
-			throw error;
+		if (apiError.status && apiError.body) {
+			throw apiError;
 		}
 
 		logger.error('Error in createToken API:', {
-			message: error.message,
-			stack: error.stack,
-			details: error
+			message: apiError.message,
+			stack: apiError.stack,
+			details: apiError
 		});
 
 		// Return a formatted error response
 		throw error(500, {
-			message: error.message || 'An internal server error occurred'
+			message: apiError.message || 'An internal server error occurred'
 		});
 	}
 };

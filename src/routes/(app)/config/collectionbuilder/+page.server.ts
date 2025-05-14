@@ -44,7 +44,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			throw error(403, 'Insufficient permissions');
 		}
 
-		const { contentStructure, nestedContentStructure } = await contentManager.getCollectionData();
+		const { contentStructure } = await contentManager.getCollectionData();
 
 		// Return user data
 		const { _id, ...rest } = user;
@@ -53,7 +53,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 				id: _id.toString(),
 				...rest
 			},
-			nestedContentStructure,
 			contentStructure
 		};
 	} catch (err) {

@@ -194,7 +194,7 @@ export class Auth {
 
 		const user = await this.db.getUserById(user_id);
 		if (user) {
-			// Store the session with the expiration Date in the session store7
+			// Store the session with the expiration Date in the session store
 			await this.sessionStore.set(session._id, user, expires);
 		} else {
 			logger.error(`User not found for ID: ${user_id}`);
@@ -402,6 +402,7 @@ export class Auth {
 			throw error(500, `Failed to set roles and sync config: ${errMsg}`);
 		}
 	}
+
 	// Sync the config file with the default roles and permissions
 	private async syncConfigFile(): Promise<void> {
 		const configPath = path.resolve('./config/roles.ts');
@@ -410,7 +411,7 @@ export class Auth {
 			.map((cur) => {
 				const isAdminString = cur.isAdmin ? `isAdmin: true,` : '';
 				const permissionsString = cur.isAdmin
-					? `permissions: permissions.map((p) => p._id) // All permissions`
+					? `permissions: permissions.map((p) => p._id)`
 					: `permissions: ${JSON.stringify(cur.permissions, null, 2)}`;
 
 				return `{
@@ -530,7 +531,7 @@ export class Auth {
 	async login(email: string, password: string): Promise<User | null> {
 		const user = await this.db.getUserByEmail(email);
 		if (!user || !user.password) {
-			const message = `Login failed: User not found or password not set for email: ${user.email}`;
+			const message = `Login failed: User not found or password not set for email: ${user?.email || email}`;
 			logger.warn(message);
 			return null; // Return null if user doesn't exist or password is not set
 		}
@@ -636,8 +637,8 @@ export class Auth {
 			return await this.db.validateToken(token, user_id, type); // Return validation result
 		} catch (err) {
 			const errMsg = err instanceof Error ? err.message : String(err);
-			logger.error(`Failed to create token: ${errMsg}`);
-			throw error(500, `Failed to create token: ${errMsg}`);
+			logger.error(`Failed to validate token: ${errMsg}`);
+			throw error(500, `Failed to validate token: ${errMsg}`);
 		}
 	}
 
@@ -672,8 +673,8 @@ export class Auth {
 		try {
 			const user = await this.db.getUserByEmail(email);
 			if (!user) {
-				const message = `Failed to update password: User not found for email: ${user.email}`;
-				logger.warn(message, { email: user.email });
+				const message = `Failed to update password: User not found for email: ${email}`;
+				logger.warn(message, { email });
 				return { status: false, message: 'User not found' }; // Return status if user not found
 			}
 			if (!argon2) {
@@ -688,6 +689,36 @@ export class Auth {
 			const message = `Failed to update user password: ${errMsg}`;
 			logger.error(message);
 			return { status: false, message: `Failed to update password: ${message}` }; // Return failure status
+		}
+	}
+
+	// Get session token data
+	async getSessionTokenData(session_id: string): Promise<{ expiresAt: Date; user_id: string } | null> {
+		try {
+			logger.debug(`Fetching session token data for session ID: ${session_id}`);
+			return await this.db.getSessionTokenData(session_id);
+		} catch (err) {
+			const errMsg = err instanceof Error ? err.message : String(err);
+			logger.error(`Failed to get session token data: ${errMsg}`);
+			throw error(500, `Failed to get session token data: ${errMsg}`);
+		}
+	}
+
+	// Rotate a token
+	async rotateToken(oldToken: string, expires: Date): Promise<string> {
+		if (!this.db.rotateToken) {
+			logger.error('rotateToken not implemented in database adapter');
+			throw error(500, 'Token rotation not supported');
+		}
+		try {
+			logger.debug(`Rotating token: ${oldToken}`);
+			const newToken = await this.db.rotateToken(oldToken, expires);
+			logger.info(`Token rotated successfully for old token: ${oldToken}`);
+			return newToken;
+		} catch (err) {
+			const errMsg = err instanceof Error ? err.message : String(err);
+			logger.error(`Failed to rotate token: ${errMsg}`);
+			throw error(500, `Failed to rotate token: ${errMsg}`);
 		}
 	}
 }

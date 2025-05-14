@@ -6,6 +6,7 @@
  * - Store and retrieve session and access data in Redis
  * - Handle data encryption and decryption
  * - Manage data expiration
+ * - Pattern-based key deletion for cache invalidation
  *
  * Features:
  * - Redis integration for session and access data storage
@@ -101,6 +102,24 @@ export class RedisCacheStore implements SessionStore {
 		} catch (err) {
 			const message = `Error in RedisCacheStore.delete: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, { key });
+			throw error(500, message);
+		}
+	}
+
+	// Delete keys matching a pattern
+	async deletePattern(pattern: string): Promise<number> {
+		try {
+			const keys = await this.redisClient.keys(pattern);
+			if (keys.length === 0) {
+				logger.debug(`No keys found matching pattern ${pattern} in Redis`);
+				return 0;
+			}
+			const deletedCount = await this.redisClient.del(keys);
+			logger.debug(`Deleted ${deletedCount} keys matching pattern ${pattern} in Redis`);
+			return deletedCount;
+		} catch (err) {
+			const message = `Error in RedisCacheStore.deletePattern: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { pattern });
 			throw error(500, message);
 		}
 	}

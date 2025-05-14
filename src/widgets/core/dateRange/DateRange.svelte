@@ -1,7 +1,17 @@
 <!-- 
 @file src/widgets/core/dateRange/DateRange.svelte
 @component
-**DateRange widget component**
+**DateRange widget component to display date range field**
+
+@example
+<DateRange label="DateRange" db_fieldName="dateRange" required={true} />
+
+### Props
+- `field`: FieldType
+- `value`: any
+
+### Features
+- Translatable
 -->
 
 <script lang="ts">

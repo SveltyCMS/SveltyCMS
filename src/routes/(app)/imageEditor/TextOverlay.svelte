@@ -162,10 +162,25 @@ The text is draggable, and the component supports multiple text overlays on the 
 </script>
 
 <!-- Text Overlay Controls UI -->
-<div class="wrapper">
-	<h3 class=" relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Text Overlay</h3>
 
-	<button onclick={exitTextOverlay} class="variant-ghost-primary btn-icon absolute -top-2 right-2 font-bold"> Exit </button>
+<div class="wrapper">
+	<div class="align-center mb-2 flex w-full items-center">
+		<div class="flex w-full items-center justify-between">
+			<div class="flex items-center gap-2">
+				<!-- Back button at top of component -->
+				<button onclick={exitTextOverlay} aria-label="Exit rotation mode" class="variant-outline-tertiary btn-icon">
+					<iconify-icon icon="material-symbols:close-rounded" width="20"></iconify-icon>
+				</button>
+
+				<h3 class="relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Text Overlay Settings</h3>
+			</div>
+		</div>
+		<div class="flex justify-between space-x-2">
+			<button onclick={deleteSelectedText} class="variant-filled-error btn" disabled={!selectedText}> Delete Selected </button>
+			<button onclick={resetTextOverlay} class="variant-outline btn"> Reset </button>
+			<button onclick={addText} class="variant-filled-primary btn"> Add Text </button>
+		</div>
+	</div>
 
 	<input type="text" bind:value={text} onkeydown={(e) => e.key === 'Enter' && addText()} placeholder="Enter text" class="input" />
 
@@ -191,10 +206,5 @@ The text is draggable, and the component supports multiple text overlays on the 
 			<option value="italic">Italic</option>
 			<option value="bold italic">Bold Italic</option>
 		</select>
-	</div>
-	<div class="flex justify-between space-x-2">
-		<button onclick={deleteSelectedText} class="variant-filled-error btn" disabled={!selectedText}> Delete Selected </button>
-		<button onclick={resetTextOverlay} class="variant-outline btn"> Reset </button>
-		<button onclick={addText} class="variant-filled-primary btn"> Add Text </button>
 	</div>
 </div>

@@ -77,7 +77,7 @@ export interface MediaBase {
 	_id?: string; // Unique identifier
 	type: MediaTypeEnum; // Discriminator
 	hash: string;
-	name: string;
+	filename: string;
 	path: string;
 	url: string;
 	mimeType: string;

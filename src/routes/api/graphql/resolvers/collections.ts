@@ -77,9 +77,12 @@ interface CacheClient {
 
 // Registers collection schemas dynamically.
 export async function registerCollections() {
-	const { collections } = contentManager.getCollectionData();
+	await contentManager.initialize(); // Ensure ContentManager is initialized
+	const collections = contentManager.loadedCollections;
 	logger.debug(`Collections fetched: ${collections.map((c) => c.name).join(', ')}`);
 
+	// Track all type names to detect duplicates
+	const typeNames = new Set<string>();
 	const typeDefsSet = new Set<string>();
 	const resolvers: ResolverContext = { Query: {} };
 	const collectionSchemas: string[] = [];
@@ -111,9 +114,27 @@ export async function registerCollections() {
 			if (schema?.resolver) {
 				deepmerge(resolvers, schema.resolver);
 			}
-
 			if (schema) {
-				schema.graphql.split(/(?=type.*?{)/).forEach((type) => typeDefsSet.add(type));
+				// Check for duplicate type names first
+				if (typeNames.has(schema.typeName)) {
+					logger.warn(`Duplicate type name detected: ${schema.typeName}`);
+					continue;
+				}
+				typeNames.add(schema.typeName);
+
+				// Add the type definition
+				schema.graphql.split(/(?=type.*?{)/).forEach((type) => {
+					// Extract the type name from the definition
+					const typeMatch = type.match(/type\s+(\w+)/);
+					if (typeMatch && typeMatch[1]) {
+						if (typeNames.has(typeMatch[1])) {
+							logger.warn(`Duplicate type definition detected: ${typeMatch[1]}`);
+							return;
+						}
+						typeNames.add(typeMatch[1]);
+					}
+					typeDefsSet.add(type);
+				});
 
 				if (field.extract && field.fields && field.fields.length > 0) {
 					for (const _field of field.fields) {
@@ -124,6 +145,11 @@ export async function registerCollections() {
 						});
 
 						if (nestedSchema) {
+							// Verify the referenced type exists
+							if (!typeNames.has(nestedSchema.typeName)) {
+								logger.warn(`Referenced type not found: ${nestedSchema.typeName}`);
+								continue;
+							}
 							collectionSchema += `${getFieldName(_field, true)}: ${nestedSchema.typeName}\n`;
 							deepmerge(resolvers[collection.id], {
 								[getFieldName(_field, true)]: (parent: DocumentWithFields) => parent[getFieldName(_field)]

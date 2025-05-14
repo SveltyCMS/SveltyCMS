@@ -1,7 +1,14 @@
-<!--
+<!-- 
 @file src/components/Collections.svelte
 @component
 **Collections component to display & filter collections and categories using TreeView.**
+
+@example
+<Collections />
+
+#### Props
+- `collection` - The collection object to display data from.
+- `mode` - The current mode of the component. Can be 'view', 'edit', 'create', 'delete', 'modify', or 'media'.
 
 Features:
 - Display collections and categories using TreeView from Skeleton.
@@ -15,16 +22,18 @@ Features:
 	import { goto } from '$app/navigation';
 
 	// Types
-	// Types
 	import type { Schema } from '@src/content/types';
-	import type { ContentStructureNode } from '@src/databases/dbInterface';
+	// Update ContentNode type to include the path property
+	import type { ContentNode } from '@src/databases/dbInterface';
 
 	// Stores
 	import { get } from 'svelte/store';
 	import { contentLanguage, shouldShowNextButton } from '@stores/store.svelte';
 	import { mode, contentStructure, collection } from '@src/stores/collectionStore.svelte';
-	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@src/stores/sidebarStore.svelte';
+	import { uiStateManager, toggleUIElement, handleUILayoutToggle } from '@src/stores/UIStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
+
+	import { constructNestedStructure } from '../content/utils';
 
 	// Components
 	import TreeView from '@components/system/TreeView.svelte';
@@ -32,7 +41,12 @@ Features:
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	interface CollectionTreeNode extends ContentStructureNode {
+	// Extend ContentNode to ensure path property is available
+	interface ExtendedContentNode extends ContentNode {
+		path?: string;
+	}
+
+	interface CollectionTreeNode extends ExtendedContentNode {
 		id: string;
 		isExpanded: boolean;
 		onClick: () => void;
@@ -41,65 +55,102 @@ Features:
 			count?: number;
 			status?: 'draft' | 'published' | 'archived';
 			color?: string;
+			visible?: boolean;
 		};
 	}
 
-	let collectonStructureNodes: CollectionTreeNode[] = $derived.by(() => {
-		function mapNode(node: ContentStructureNode): CollectionTreeNode {
-			const isCategory = node.nodeType === 'category';
+	let nestedStructure = $derived(constructNestedStructure(contentStructure.value));
+
+	let collectionStructureNodes: CollectionTreeNode[] = $derived.by(() => {
+		function mapNode(node: ExtendedContentNode): CollectionTreeNode {
+			const isCategory = node.nodeType === 'category' || node.translations?.some((t) => t.translationName === 'category');
 			// Get translation for current language or fallback to default name
 			const translation = node.translations?.find((trans) => trans.languageTag === contentLanguage.value);
 			const label = translation?.translationName || node.name;
 
-			const children =
-				isCategory && node.children
-					? node.children.map((child: ContentStructureNode) => ({
-							...mapNode(child),
-							// Ensure children use their own translations
-							name: child.translations?.find((t) => t.languageTag === contentLanguage.value)?.translationName || child.name
-						}))
-					: undefined;
+			let children;
+			if (isCategory && (node as any).children) {
+				children = (node as any).children.map((child: ExtendedContentNode) => ({
+					...mapNode(child),
+					// Ensure children use their own translations
+					name: child.translations?.find((t) => t.languageTag === contentLanguage.value)?.translationName || child.name
+				}));
+			}
+
 			return {
 				...node,
 				name: label,
 				id: node._id,
-				value: node.path,
-				name: node.name,
 				icon: node.icon,
 				isExpanded: collection.value?._id === node._id,
 				onClick: () => handleCollectionSelect(node),
 				children,
 				badge: isCategory
 					? {
-							count: node.children?.filter((child) => child.nodeType === 'collection').length || 0,
+							count: (node as any).children?.filter((child: any) => (child as any).nodeType === 'collection').length || 0,
 							// Only show count for categories (parent nodes)
-							visible: !node.isExpanded // Show when expanded
+							visible: !(node as any).isExpanded // Show when expanded
 						}
 					: undefined
 			};
 		}
 
-		return contentStructure.value.map((node) => mapNode(node));
+		return nestedStructure.map((node) => mapNode(node));
 	});
 
+	// Create virtual folder nodes for the media gallery - these act as filters only
 	let virtualFolderNodes: CollectionTreeNode[] = $derived.by(() => {
 		return [];
 	});
 
-	let search = $state('');
-	let isMediaMode = $state(false);
-
-	// Update isMediaMode when mode changes
+	// Load virtual folders when entering media mode
 	$effect(() => {
-		isMediaMode = mode.value === 'media';
-		if (collectonStructureNodes.length > 0) {
+		if (mode.value === 'media') {
+			fetch('/api/virtualFolder')
+				.then((res) => res.json())
+				.then((data) => {
+					if (data.success) {
+						virtualFolderNodes = data.data.folders.map((folder: any) => ({
+							id: folder._id,
+							name: folder.name,
+							path: folder.path,
+							isExpanded: false,
+							onClick: () => console.log('Folder selected:', folder.name),
+							icon: 'bi:folder',
+							badge: {
+								visible: true
+							}
+						}));
+					}
+				})
+				.catch((err) => console.error('Failed to load virtual folders:', err));
+		}
+	});
+
+	let search = $state('');
+	let isMediaMode = $derived(mode.value === 'media');
+
+	// Update when search changes or mode changes
+	$effect(() => {
+		if (search) {
 			// The search prop in TreeView will handle the filtering
 			search = search.toLowerCase().trim();
 		}
 	});
 
+	// Add an effect to update the UI when mode changes
+	$effect(() => {
+		// Reset selection when switching between modes
+		if (mode.value === 'media') {
+			// When switching to media mode, ensure proper UI state
+			if (uiStateManager.uiState.value.leftSidebar !== 'full') {
+				handleUILayoutToggle();
+			}
+		}
+	});
+
 	// Handle collection selection
-	function handleCollectionSelect(selectedCollection: ContentStructureNode | Schema) {
+	function handleCollectionSelect(selectedCollection: ExtendedContentNode | Schema) {
 		if ('nodeType' in selectedCollection && selectedCollection.nodeType === 'collection') {
 			mode.set('view');
 			collection.set(null);
@@ -117,7 +168,7 @@ Features:
 	{#if !isMediaMode}
 		<!-- Search Input -->
 		<div
-			class="{sidebarState.sidebar.value.left === 'full'
+			class="{uiStateManager.uiState.value.leftSidebar === 'full'
 				? 'mb-2 w-full'
 				: 'mb-1 max-w-[125px]'} input-group input-group-divider grid grid-cols-[1fr_auto]"
 		>
@@ -125,7 +176,7 @@ Features:
 				type="text"
 				placeholder="Search collections..."
 				bind:value={search}
-				class="input {sidebarState.sidebar.value.left === 'full' ? 'h-12' : 'h-10'} outline-none transition-all duration-500 ease-in-out"
+				class="input {uiStateManager.uiState.value.leftSidebar === 'full' ? 'h-12' : 'h-10'} outline-hidden transition-all duration-500 ease-in-out"
 			/>
 			<button onclick={clearSearch} class="variant-filled-surface w-12" aria-label="Clear search">
 				<iconify-icon icon="ic:outline-search-off" width="24"></iconify-icon>
@@ -133,12 +184,12 @@ Features:
 		</div>
 
 		<!-- Collections TreeView -->
-		{#if collectonStructureNodes.length > 0}
+		{#if collectionStructureNodes.length > 0}
 			<TreeView
 				k={0}
-				nodes={collectonStructureNodes}
+				nodes={collectionStructureNodes}
 				selectedId={collection.value?._id ?? undefined}
-				compact={sidebarState.sidebar.value.left !== 'full'}
+				compact={uiStateManager.uiState.value.leftSidebar !== 'full'}
 				{search}
 			></TreeView>
 		{:else}
@@ -147,25 +198,25 @@ Features:
 
 		<!-- Media Gallery Button -->
 		<button
-			class="btn mt-1 flex w-full rounded {sidebarState.sidebar.value.left === 'full'
+			class="btn mt-1 flex w-full rounded-sm {uiStateManager.uiState.value.leftSidebar === 'full'
 				? 'flex-row '
-				: 'flex-col'} items-center border border-surface-500 py-{sidebarState.sidebar.value.left === 'full'
+				: 'flex-col'} items-center border border-surface-500 py-{uiStateManager.uiState.value.leftSidebar === 'full'
 				? '3'
-				: '1'} hover:!bg-surface-400 hover:text-white dark:bg-surface-500"
+				: '1'} hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
 			onclick={() => {
 				mode.set('media');
 				goto('/mediagallery');
 				if (get(screenSize) === 'sm') {
-					toggleSidebar('left', 'hidden');
+					toggleUIElement('leftSidebar', 'hidden');
 				}
-				if (sidebarState.sidebar.value.left !== 'full') handleSidebarToggle();
+				if (uiStateManager.uiState.value.leftSidebar !== 'full') handleUILayoutToggle();
 			}}
 		>
-			{#if sidebarState.sidebar.value.left === 'full'}
+			{#if uiStateManager.uiState.value.leftSidebar === 'full'}
 				<iconify-icon icon="bi:images" width="24" class="text-primary-600 rtl:ml-2"></iconify-icon>
-				<p class="uppercase dark:text-white">{m.Collections_MediaGallery()}</p>
+				<p class="dark:text-white">{m.Collections_MediaGallery()}</p>
 			{:else}
-				<p class="darktext-white text-xs uppercase">{m.Collections_MediaGallery()}</p>
+				<p class="darktext-white text-xs">{m.Collections_MediaGallery()}</p>
 				<iconify-icon icon="bi:images" width="20" class="text-primary-500"></iconify-icon>
 			{/if}
 		</button>
@@ -174,21 +225,41 @@ Features:
 	{#if isMediaMode}
 		<!-- Back to Collections Button -->
 		<button
-			class="btn mt-1 flex w-full items-center bg-surface-400 py-2 hover:!bg-surface-500 hover:text-white dark:bg-surface-600"
+			class="btn my-1 flex w-full rounded-sm {uiStateManager.uiState.value.leftSidebar === 'full'
+				? 'flex-row '
+				: 'flex-col'} items-center border border-surface-500 py-{uiStateManager.uiState.value.leftSidebar === 'full'
+				? '3'
+				: '1'} hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
 			onclick={() => {
+				collection.set(null);
 				mode.set('view');
+
 				if (get(screenSize) === 'sm') {
-					toggleSidebar('left', 'hidden');
+					toggleUIElement('leftSidebar', 'hidden');
 				}
 				goto(`/`);
 			}}
 		>
-			<iconify-icon icon="bi:collection" width="24" class="px-2 py-1 text-error-500"></iconify-icon>
-			<p class="mr-auto text-center uppercase">Collections</p>
+			{#if uiStateManager.uiState.value.leftSidebar === 'full'}
+				<iconify-icon icon="bi:collection" width="24" class="text-error-500 rtl:ml-2"></iconify-icon>
+				<p class="mr-auto text-center">Collections</p>
+			{:else}
+				<p class="darktext-white text-xs">Collections</p>
+				<iconify-icon icon="bi:collection" width="20" class="text-error-500"></iconify-icon>
+			{/if}
 		</button>
 
 		<!-- Display Virtual Folders as TreeView -->
-		<TreeView k={1} nodes={virtualFolderNodes} selectedId={collection.value?._id} compact={sidebarState.sidebar.value.left !== 'full'} {search}
-		></TreeView>
+		{#if virtualFolderNodes.length > 0}
+			<TreeView
+				k={1}
+				nodes={virtualFolderNodes}
+				selectedId={collection.value?._id}
+				compact={uiStateManager.uiState.value.leftSidebar !== 'full'}
+				{search}
+			></TreeView>
+		{:else}
+			<div class="p-4 text-center text-gray-500">No virtual folders found</div>
+		{/if}
 	{/if}
 </div>

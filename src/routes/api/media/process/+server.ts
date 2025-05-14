@@ -63,15 +63,23 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const file = formData.get('files');
 		const processType = formData.get('processType');
 
+		// Validate file and file.name
 		if (!file || !(file instanceof File)) {
 			logger.warn('No valid file received for processing');
 			return json({ success: false, error: 'No valid file received' }, { status: 400 });
+		}
+		if (!file.name || typeof file.name !== 'string') {
+			logger.warn('File name is missing or invalid', { file });
+			return json({ success: false, error: 'Invalid file name' }, { status: 400 });
 		}
 
 		if (!processType || typeof processType !== 'string') {
 			logger.warn('No process type specified');
 			return json({ success: false, error: 'Process type not specified' }, { status: 400 });
 		}
+
+		// Log file details for debugging
+		logger.debug('Processing file:', { name: file.name, size: file.size, type: file.type });
 
 		// Initialize MediaService
 		const mediaService = getMediaService();
@@ -90,7 +98,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			}
 			case 'save': {
 				const files = formData.getAll('files');
-				if (files.length === 0 || !files.every((file) => file instanceof File)) {
+				if (files.length === 0 || !files.every((f) => f instanceof File)) {
 					logger.warn('No valid files received for saving');
 					return json({ success: false, error: 'No valid files received' }, { status: 400 });
 				}
@@ -100,10 +108,22 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 					permissions: [Permission.Read, Permission.Write]
 				};
 
+				logger.debug('user: ', user._id);
+
 				// Process all files
 				const results: FileProcessResult[] = [];
 				for (const file of files) {
 					if (file instanceof File) {
+						// Additional validation for each file
+						if (!file.name || typeof file.name !== 'string') {
+							logger.warn('File name is missing or invalid in batch', { file });
+							results.push({
+								fileName: 'unknown',
+								success: false,
+								error: 'Invalid file name'
+							});
+							continue;
+						}
 						try {
 							const saveResult = await mediaService.saveMedia(file, user._id.toString(), access);
 							results.push({
@@ -116,12 +136,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 								fileSize: file.size
 							});
 						} catch (err) {
-							const error = err instanceof Error ? err.message : String(err);
-							logger.error(`Error saving file ${file.name}:`, error);
+							const errorMsg = err instanceof Error ? err.message : String(err);
+							logger.error(`Error saving file ${file.name}:`, errorMsg);
 							results.push({
 								fileName: file.name,
 								success: false,
-								error
+								error: errorMsg
 							});
 						}
 					}

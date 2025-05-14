@@ -48,7 +48,7 @@ export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: 
 		}
 
 		// Fetch collection models via the dbAdapter
-		const collection = contentManager.getCollectionModelById(schema._id);
+		const collection = dbAdapter?.collection.getModel(schema._id);
 		if (!collection) {
 			logger.error(`Collection not found for schema ID: ${schema._id}`);
 			return new Response('Collection not found', { status: 404 });

@@ -2,23 +2,18 @@
  * @file src/auth/mongoDBAuth/tokenAdapter.ts
  * @description MongoDB adapter for token-related operations.
  *
- * This module provides functionality to:
+ * ### Features:
  * - Create, validate, and consume tokens
  * - Manage token schemas and models
  * - Handle token expiration
- *
- * Features:
  * - Token generation and validation
  * - Token schema definition
  * - Token expiration handling
  * - Integration with MongoDB through Mongoose
- *
- * Usage:
- * Used by the auth system to manage authentication tokens in a MongoDB database
  */
 
 import mongoose, { Schema } from 'mongoose';
-import type { Types } from 'mongoose';
+import type { Types, Model } from 'mongoose';
 
 import crypto from 'crypto';
 import { error } from '@sveltejs/kit';
@@ -43,7 +38,7 @@ export const TokenSchema = new Schema(
 );
 
 export class TokenAdapter implements Partial<authDBInterface> {
-	private TokenModel: mongoose.Model<Token>;
+	private TokenModel: Model<Token>;
 
 	constructor() {
 		// Create the Token model
@@ -140,6 +135,32 @@ export class TokenAdapter implements Partial<authDBInterface> {
 		} catch (err) {
 			const message = `Error in TokenAdapter.deleteExpiredTokens: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
+			throw error(500, message);
+		}
+	}
+
+	// Get token data
+	async getTokenData(token: string, user_id?: string, type?: string): Promise<Token | null> {
+		try {
+			const query: mongoose.FilterQuery<Token> = { token };
+			if (user_id) query.user_id = user_id;
+			if (type) query.type = type;
+
+			const tokenDoc = await this.TokenModel.findOne(query).lean();
+			if (!tokenDoc) {
+				logger.debug('Token not found', { token, user_id, type });
+				return null;
+			}
+
+			if (new Date(tokenDoc.expires) <= new Date()) {
+				logger.debug('Token is expired', { token, user_id, type });
+				return null;
+			}
+
+			return this.formatToken(tokenDoc);
+		} catch (err) {
+			const message = `Error in TokenAdapter.getTokenData: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { token, user_id, type });
 			throw error(500, message);
 		}
 	}

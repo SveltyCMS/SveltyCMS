@@ -1,15 +1,18 @@
 <!-- 
 @file src/widgets/seo/TitleInput.svelte
 @component
-**Title widget for SEO Widget**
+**Title widget for SEO Widget to manage meta title**
 
-```tsx	
+@example
 <Title bind:title={title} bind:titleCharacterWidth={titleCharacterWidth} bind:handleTitleChange={handleTitleChange} />
-```
+
 #### Props
 - `title` {string} - Title text
 - `titleCharacterWidth` {number} - Title text character width
 - `handleTitleChange` {function} - Title text change handler
+
+#### Features
+- Translatable
 -->
 
 <script lang="ts">

@@ -10,136 +10,24 @@ Features:
 -->
 
 <script lang="ts">
-	import type { MediaImage } from '@utils/media/mediaModels';
-	import { twMerge } from 'tailwind-merge';
-
-	// Component
-	import Media from '@components/Media.svelte';
-
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
-
-	let {
-		value = undefined,
-		show = true,
-		multiple = false,
-		onchange,
-		class: _class
-	} = $props<{
-		value?: File | MediaImage | undefined | null;
-		show?: boolean;
-		multiple?: boolean;
-		onchange?: (value: File | MediaImage) => void;
-		class?: string;
-	}>();
-
-	let input = $state<HTMLInputElement | null>(null);
-	let showMedia = $state(false);
-
-	let mediaOnSelect = (data: MediaImage) => {
-		show = false;
-		showMedia = false;
-		value = data;
-		onchange?.(value);
-	};
-
-	function handleFileChange() {
-		if (!input?.files || input.files.length === 0) return;
-		const file = input.files[0];
-		value = file;
-		show = false;
-		onchange?.(value);
+	interface InputProps {
+		type: 'text' | 'password' | 'email';
+		label?: string;
+		labelClass?: string;
+		inputClass?: string;
+		placeholder?: string;
+		value?: string;
 	}
 
-	function handleDrop(e: DragEvent) {
-		e.preventDefault();
-		const file = e?.dataTransfer?.files[0];
-		if (file) {
-			value = file;
-			show = false;
-			onchange?.(value);
-		}
-	}
-
-	function handleDragOver(e: DragEvent) {
-		e.preventDefault();
-		const target = e.target as HTMLElement;
-		target.style.borderColor = '#6bdfff';
-	}
-
-	function handleDragLeave(e: DragEvent) {
-		e.preventDefault();
-		const target = e.target as HTMLElement;
-		target.style.removeProperty('border-color');
-	}
-
-	function openFileInput() {
-		input?.click();
-	}
-
-	function toggleMedia(show: boolean) {
-		showMedia = show;
+	let { type = 'text', label, labelClass, inputClass, placeholder, value = $bindable('') }: InputProps = $props();
+	function typeAction(node: HTMLInputElement) {
+		node.type = type;
 	}
 </script>
 
-{#if show}
-	<!-- Upload Dropzone -->
-	<div
-		ondrop={handleDrop}
-		ondragover={handleDragOver}
-		ondragleave={handleDragLeave}
-		role="cell"
-		tabindex="0"
-		class={twMerge(
-			'relative mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700',
-			_class
-		)}
-	>
-		<div class="grid grid-cols-6 items-center p-4">
-			<iconify-icon icon="fa6-solid:file-arrow-up" width="40"></iconify-icon>
-
-			<div class="col-span-5">
-				{#if !show}
-					<p class="font-bold">
-						<span class="text-tertiary-500 dark:text-primary-500">{m.widget_ImageUpload_Upload()}</span>
-						{m.widget_ImageUpload_Drag()}
-					</p>
-				{:else}
-					<p class="font-bold">
-						<span class="text-tertiary-500 dark:text-primary-500">{m.widget_ImageUpload_Replace()}</span>
-						{m.widget_ImageUpload_Drag()}
-					</p>
-				{/if}
-				<p class="text-sm opacity-75">{m.widget_ImageUpload_Allowed()}.</p>
-
-				<div class="flex w-full justify-center gap-2">
-					<button onclick={openFileInput} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary">
-						{m.widget_ImageUpload_BrowseNew()}
-					</button>
-
-					<button onclick={() => toggleMedia(true)} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary">
-						{m.widget_ImageUpload_SelectMedia()}
-					</button>
-				</div>
-			</div>
-		</div>
-
-		<!-- File Input -->
-		<input bind:this={input} type="file" accept="image/*,image/webp,image/avif,image/svg+xml" hidden {multiple} onchange={handleFileChange} />
-	</div>
-
-	<!-- Show existing Media Images -->
-	{#if showMedia}
-		<div
-			class="bg-surface-100-800-token fixed left-[50%] top-[50%] z-[999999999] flex h-[90%] w-[95%] translate-x-[-50%] translate-y-[-50%] flex-col rounded border-[1px] border-surface-400 p-2"
-		>
-			<div class="bg-surface-100-800-token flex items-center justify-between border-b p-2">
-				<p class="ml-auto font-bold text-black dark:text-primary-500">{m.widget_ImageUpload_SelectImage()}</p>
-				<button onclick={() => toggleMedia(false)} aria-label="Close" class="variant-ghost-secondary btn-icon ml-auto">
-					<iconify-icon icon="material-symbols:close" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				</button>
-			</div>
-			<Media onselect={mediaOnSelect} />
-		</div>
+<div class="m-1 flex max-w-full items-center justify-between gap-2">
+	{#if label}
+		<label for="input" class="w-32 flex-none {labelClass}">{label}</label>
 	{/if}
-{/if}
+	<input use:typeAction id="input" class="input grow text-black dark:text-primary-500 {inputClass}" bind:value {placeholder} />
+</div>

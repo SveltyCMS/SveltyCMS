@@ -27,11 +27,12 @@ Features:
 	// Utils
 	import { debounce, getFieldName, meta_data } from '@utils/utils';
 	import { deleteData, getData, setStatus } from '@utils/data';
+	import { formatDisplayDate } from '@utils/dateUtils';
 
 	// Stores
 	import { contentLanguage, systemLanguage } from '@stores/store.svelte';
-	import { mode, collectionValue, modifyEntry, statusMap, collection, contentStructure } from '@src/stores/collectionStore.svelte';
-	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@src/stores/sidebarStore.svelte';
+	import { mode, collectionValue, modifyEntry, statusMap, collection, contentStructure } from '@stores/collectionStore.svelte';
+	import { uiStateManager, toggleUIElement, handleUILayoutToggle } from '@stores/UIStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 
 	// ParaglideJS
@@ -126,10 +127,6 @@ Features:
 	let rowsPerPage = $state<number>(entryListPaginationSettings.rowsPerPage || 10); // Set initial rowsPerPage value
 	let totalItems = $state<number>(0); // Initialize totalItems
 
-	// Declare isFirstPage and isLastPage variables
-	let isFirstPage: boolean;
-	let isLastPage: boolean;
-
 	// Derived stores for reactive values
 	const currentLanguage = $derived(contentLanguage.value);
 	const currentSystemLanguage = $derived(systemLanguage.value);
@@ -186,7 +183,7 @@ Features:
 					for (const field of currentCollection.fields) {
 						if (field.callback && typeof field.callback === 'function') {
 							field.callback({ data: data || {} });
-							handleSidebarToggle();
+							handleUILayoutToggle();
 						}
 						// Status
 						obj.status = entry.status ? entry.status.charAt(0).toUpperCase() + entry.status.slice(1) : 'N/A';
@@ -201,9 +198,17 @@ Features:
 							});
 						}
 					}
-					// Add createdAt and updatedAt properties localized to the system language
-					obj.createdAt = entry.createdAt ? new Date(Number(entry.createdAt) * 1000).toLocaleString(currentSystemLanguage) : 'N/A';
-					obj.updatedAt = entry.updatedAt ? new Date(Number(entry.updatedAt) * 1000).toLocaleString(currentSystemLanguage) : 'N/A';
+					// Add properly formatted createdAt and updatedAt dates with error handling
+					try {
+						obj.createdAt = entry.createdAt ? formatDisplayDate(entry.createdAt, currentSystemLanguage) : 'N/A';
+					} catch {
+						obj.createdAt = 'Invalid Date';
+					}
+					try {
+						obj.updatedAt = entry.updatedAt ? formatDisplayDate(entry.updatedAt, currentSystemLanguage) : 'N/A';
+					} catch {
+						obj.updatedAt = 'Invalid Date';
+					}
 					obj._id = entry._id;
 					return obj;
 				})
@@ -241,9 +246,6 @@ Features:
 		SelectAll = false;
 		// Update pagesCount after fetching data
 		pagesCount = data?.pagesCount || 1;
-		// Update isFirstPage and isLastPage based on currentPage and pagesCount
-		isFirstPage = currentPage === 1;
-		isLastPage = currentPage === pagesCount;
 		// Adjust currentPage to the last page if it exceeds the new total pages count after changing the rows per page.
 		if (currentPage > (data?.pagesCount || 0)) {
 			currentPage = data?.pagesCount || 1;
@@ -267,10 +269,11 @@ Features:
 	$effect(() => {
 		if (currentCollection) refreshTableData();
 	});
-	// Trigger refreshTableData when contentLanguage changes, but don't fetch data
+	// Trigger full refresh when contentLanguage changes to load translations
 	$effect(() => {
-		// refreshTableData(false);
-		filters = {};
+		if (currentLanguage) {
+			refreshTableData(true);
+		}
 	});
 	// Reset currentPage to 1 when the collection changes
 	$effect(() => {
@@ -402,11 +405,11 @@ Features:
 		<!-- Row 1 for Mobile -->
 		<div class="flex items-center justify-between">
 			<!-- Hamburger -->
-			{#if sidebarState.sidebar.value.left === 'hidden'}
+			{#if uiStateManager.uiState.value.leftSidebar === 'hidden'}
 				<button
 					type="button"
 					onkeydown={() => {}}
-					onclick={() => toggleSidebar('left', currentScreenSize === 'lg' ? 'full' : 'collapsed')}
+					onclick={() => toggleUIElement('leftSidebar', currentScreenSize === 'lg' ? 'full' : 'collapsed')}
 					aria-label="Open Sidebar"
 					class="variant-ghost-surface btn-icon mt-1"
 				>
@@ -414,7 +417,7 @@ Features:
 				</button>
 			{/if}
 			<!-- Collection type with icon -->
-			<div class="mr-1 flex flex-col {!sidebarState.sidebar.value.left ? 'ml-2' : 'ml-1 sm:ml-2'}">
+			<div class="mr-1 flex flex-col {!uiStateManager.uiState.value.leftSidebar ? 'ml-2' : 'ml-1 sm:ml-2'}">
 				{#if categoryName}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300 rtl:text-left">
 						{categoryName}
 					</div>
@@ -674,9 +677,8 @@ Features:
 								<td
 									onclick={() => {
 										collectionValue.set(data?.entryList[index]);
-										console.debug('Edit datas: ', `${JSON.stringify(data?.entryList[index])}`);
 										mode.set('edit');
-										handleSidebarToggle();
+										handleUILayoutToggle();
 									}}
 									class="text-center font-bold"
 								>

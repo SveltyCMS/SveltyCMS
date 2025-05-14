@@ -8,10 +8,11 @@ import type { ModifyRequestParams } from '@widgets';
 
 // Auth
 import type { RolePermissions } from '@src/auth/types';
+import type { ContentNode } from '../databases/dbInterface';
 
 // Widget field type definition
-type WidgetKeys = keyof typeof widgets;
-type WidgetTypes = (typeof widgets)[WidgetKeys];
+export type WidgetKeys = keyof typeof widgets;
+export type WidgetTypes = (typeof widgets)[WidgetKeys];
 
 // Field value types
 export type FieldValue = string | number | boolean | null | Record<string, unknown> | Array<unknown>;
@@ -34,7 +35,7 @@ export type Field = {
 		contentLanguage: string;
 	}) => Promise<string> | string;
 	callback?: (args: { data: Record<string, FieldValue> }) => void;
-	modifyRequest?: (args: ModifyRequestParams<(typeof widgets)[WidgetKeys]>) => Promise<object>;
+	modifyRequest?: (args: ModifyRequestParams) => Promise<object>;
 };
 
 // Collection Registry - defines all available collections
@@ -67,6 +68,21 @@ export interface Schema {
 	links?: Array<ContentTypes>; // Optional links to other collections
 	fields: Field[]; // Collection fields
 	translations?: Translation[]; // Optional translations with enhanced metadata
+}
+
+export type MinimalContentNode = {
+	name: string;
+	path: string;
+	nodeType: 'category';
+};
+
+
+export type ContentNodeOperatianType = 'create' | 'delete' | 'move' | 'rename' | 'update';
+
+export type ContentNodeOperation = {
+  type: ContentNodeOperatianType;
+  node: ContentNode
+
 }
 
 // Category interface for representing the folder structure
