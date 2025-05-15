@@ -42,7 +42,7 @@ if (typeof window === 'undefined') {
 }
 
 // Default expiration time (1 hour in seconds)
-const DEFAULT_SESSION_EXPIRATION_SECONDS = 3600; // 1 hour
+const DEFAULT_SESSION_EXPIRATION_SECONDS = 24 * 60 * 60; // 24 hours
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

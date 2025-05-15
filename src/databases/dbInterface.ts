@@ -168,7 +168,7 @@ interface PaginatedResult<T> {
   pageSize: number;
 }
 
-export type DatabaseResult<T> = { success: true; data: T } | { success: false; error: DatabaseError };
+export type DatabaseResult<T> = { success: true; data: T } | { success: false, error: DatabaseError };
 
 /** Error Handling **/
 export interface DatabaseError {
@@ -208,13 +208,15 @@ export interface DatabaseAdapter {
 
   // Transaction Support
   transaction<T>(fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>): Promise<DatabaseResult<T>>; // Execute a function within a transaction
+
   //Auth
   auth: {
     // Set up authentication models
     setupAuthModels(): Promise<void>;
   };
+
   // System Preferences
-  preferences: {
+  systemPreferences: {
     get<T>(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<T>>; // Retrieve a preference value
     set<T>(key: string, value: T, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>>; // Set a preference value
     delete(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>>; // Delete a preference

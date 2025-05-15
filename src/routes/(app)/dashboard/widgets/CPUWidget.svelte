@@ -18,28 +18,39 @@
 -->
 
 <script lang="ts">
+	export const widgetMeta = {
+		name: 'CPU Usage',
+		icon: 'mdi:cpu-64-bit',
+		defaultW: 2,
+		defaultH: 2,
+		validSizes: [
+			{ w: 1, h: 1 },
+			{ w: 2, h: 2 }
+		]
+	};
+
 	import { onMount, onDestroy } from 'svelte';
 	import Chart from 'chart.js/auto';
 	import 'chartjs-adapter-date-fns';
 	import { format } from 'date-fns';
 	import BaseWidget from '../BaseWidget.svelte';
 
-	let { label = 'CPU Usage', theme = 'light' } = $props();
+	let { label = 'CPU Usage', theme = 'light', icon = 'mdi:cpu-64-bit' } = $props();
 	const themeType = theme as 'light' | 'dark';
 
 	// Chart state
+	let data = $state<any>(undefined);
 	let chart = $state<Chart | undefined>(undefined);
 	let chartCanvas = $state<HTMLCanvasElement | undefined>(undefined);
-	let widgetData = $state<any>(undefined);
 
 	// Initialize chart when data and canvas are available
 	function initChart() {
-		if (!chartCanvas || !widgetData?.cpuInfo) return;
+		if (!chartCanvas || !data?.cpuInfo) return;
 
 		// Destroy existing chart if it exists
 		if (chart) chart.destroy();
 
-		const { cpuUsage = [], timeStamps = [] } = widgetData.cpuInfo;
+		const { cpuUsage = [], timeStamps = [] } = data.cpuInfo;
 
 		// Format timestamps for better display
 		const formattedLabels = timeStamps.map((timestamp: string) => {
@@ -118,8 +129,8 @@
 
 	// Update chart when data changes
 	$effect(() => {
-		if (chart && widgetData?.cpuInfo) {
-			const { cpuUsage = [], timeStamps = [] } = widgetData.cpuInfo;
+		if (chart && data?.cpuInfo) {
+			const { cpuUsage = [], timeStamps = [] } = data.cpuInfo;
 
 			// Format timestamps
 			const formattedLabels = timeStamps.map((timestamp: string) => {
@@ -135,7 +146,7 @@
 
 	// Effect to monitor data and initialize/update chart
 	$effect(() => {
-		if (chartCanvas && widgetData?.cpuInfo) {
+		if (chartCanvas && data?.cpuInfo) {
 			if (!chart) {
 				initChart();
 			}
@@ -144,7 +155,7 @@
 
 	// Initialize the chart when component mounts and data exists
 	onMount(() => {
-		if (chartCanvas && widgetData?.cpuInfo) {
+		if (chartCanvas && data?.cpuInfo) {
 			initChart();
 		}
 	});
@@ -155,25 +166,31 @@
 	});
 </script>
 
-<BaseWidget {label} theme={themeType} endpoint="/api/systemInfo" pollInterval={5000} bind:data={widgetData}>
-	{#if widgetData?.cpuInfo}
+<BaseWidget {label} theme={themeType} endpoint="/api/systemInfo?type=cpu" pollInterval={5000} bind:data {icon}>
+	{#if data?.cpuInfo}
 		<div class="flex h-full flex-col">
-			<div class="mb-2 flex justify-between text-sm">
-				<div>Current: <span class="font-bold">{widgetData.cpuInfo.cpuUsage[widgetData.cpuInfo.cpuUsage.length - 1]?.toFixed(1) || 0}%</span></div>
+			<div class="mb-2 flex items-center justify-between text-sm">
+				<iconify-icon {icon} width="20" class="mr-2 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+				<div>Current: <span class="font-bold">{data.cpuInfo.cpuUsage[data.cpuInfo.cpuUsage.length - 1]?.toFixed(1) || 0}%</span></div>
 				<div>
 					Average: <span class="font-bold">
-						{widgetData.cpuInfo.cpuUsage.length > 0
-							? (widgetData.cpuInfo.cpuUsage.reduce((a: number, b: number) => a + b, 0) / widgetData.cpuInfo.cpuUsage.length).toFixed(1)
+						{data.cpuInfo.cpuUsage.length > 0
+							? (data.cpuInfo.cpuUsage.reduce((a: number, b: number) => a + b, 0) / data.cpuInfo.cpuUsage.length).toFixed(1)
 							: 0}%
 					</span>
 				</div>
 			</div>
 			<div class="relative min-h-[150px] flex-grow">
+				<h2 class="mb-2 flex items-center justify-center gap-2 text-center font-bold">
+					<iconify-icon {icon} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+					CPU Usage (%)
+				</h2>
 				<canvas bind:this={chartCanvas} aria-label="CPU Usage Chart"></canvas>
 			</div>
 		</div>
 	{:else}
-		<div class="flex h-full items-center justify-center">
+		<div class="flex h-full flex-col items-center justify-center">
+			<iconify-icon {icon} width="30" class="mr-2 text-tertiary-500 dark:text-primary-500"></iconify-icon>
 			<p>Waiting for CPU data...</p>
 		</div>
 	{/if}

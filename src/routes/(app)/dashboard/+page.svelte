@@ -6,16 +6,11 @@
 @example
 <Dashboard />
 
-## Features
-- Collection builder
-- GraphQL API
-- Image editor
-- Dashboard
-- Market Place
-- Widget Management
-- Theme Management
-- Settings
-- Access Management
+### Props
+- `data` {object} - Object containing user data
+
+### Features
+- Displays widgets for CPU usage, disk usage, memory usage, last 5 media, user activity, and system messages
 -->
 
 <script lang="ts">
@@ -24,9 +19,11 @@
 
 	// Import the dndzone directive
 	import { dndzone } from 'svelte-dnd-action';
-	import { userPreferences, type WidgetPreference } from '@root/src/stores/userPreferences.svelte';
-	import { screenSize } from '@root/src/stores/screenSizeStore.svelte';
-	import { theme } from '@root/src/stores/themeStore.svelte';
+
+	// Stores
+	import { systemPreferences, type WidgetPreference } from '@stores/systemPreferences.svelte';
+	import { screenSize } from '@stores/screenSizeStore.svelte';
+	import { theme } from '@stores/themeStore.svelte';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -62,14 +59,15 @@
 	// Derived state for number of grid columns based on screen size store
 	let cols = $derived($screenSize === 'sm' ? 2 : $screenSize === 'md' ? 3 : 4);
 
-	// Mapping from string identifier to component info, including sizing
+	// Mapping from string identifier to component info, including sizing and icon
 	const widgetComponents: Record<
 		string,
-		{ component: any; name: string; defaultW: number; defaultH: number; validSizes: { w: number; h: number }[] }
+		{ component: any; name: string; icon: string; defaultW: number; defaultH: number; validSizes: { w: number; h: number }[] }
 	> = {
 		CPUWidget: {
 			component: CPUWidget,
 			name: 'CPU Usage',
+			icon: 'mdi:cpu-64-bit',
 			defaultW: 2,
 			defaultH: 2,
 			validSizes: [
@@ -80,6 +78,7 @@
 		DiskWidget: {
 			component: DiskWidget,
 			name: 'Disk Usage',
+			icon: 'mdi:harddisk',
 			defaultW: 1,
 			defaultH: 1,
 			validSizes: [
@@ -90,6 +89,7 @@
 		MemoryWidget: {
 			component: MemoryWidget,
 			name: 'Memory Usage',
+			icon: 'mdi:memory',
 			defaultW: 1,
 			defaultH: 1,
 			validSizes: [
@@ -100,6 +100,7 @@
 		Last5MediaWidget: {
 			component: Last5MediaWidget,
 			name: 'Last 5 Media',
+			icon: 'mdi:image-multiple',
 			defaultW: 2,
 			defaultH: 2,
 			validSizes: [
@@ -112,6 +113,7 @@
 		UserActivityWidget: {
 			component: UserActivityWidget,
 			name: 'User Activity',
+			icon: 'mdi:account-group',
 			defaultW: 2,
 			defaultH: 1,
 			validSizes: [
@@ -124,6 +126,7 @@
 		SystemMessagesWidget: {
 			component: SystemMessagesWidget,
 			name: 'System Messages',
+			icon: 'mdi:message-alert',
 			defaultW: 2,
 			defaultH: 2,
 			validSizes: [
@@ -138,7 +141,7 @@
 	// Function to reset the grid layout
 	function resetGrid() {
 		items = []; // Clear local state
-		userPreferences.clearPreferences(data.user.id); // Clear saved preferences
+		systemPreferences.clearPreferences(data.user.id); // Clear saved preferences
 	}
 
 	// Function to remove a widget by id
@@ -148,11 +151,11 @@
 	}
 
 	// Function to save the current items layout to user preferences
-	function saveWidgets() {
+	async function saveWidgets() {
 		// Recalculate positions to ensure no overlaps
 		const itemsToSave = organizeWidgetGrid();
 		// Save the updated items array for the current screen size and user
-		userPreferences.setPreference(data.user.id, $screenSize, itemsToSave);
+		await systemPreferences.setPreference(data.user.id, $screenSize, itemsToSave);
 	}
 
 	// Function to organize widgets in a grid layout with no overlaps
@@ -273,8 +276,8 @@
 
 		async function loadWithRetry() {
 			try {
-				await userPreferences.loadPreferences(data.user.id);
-				const preferencesState = $userPreferences as any;
+				await systemPreferences.loadPreferences(data.user.id);
+				const preferencesState = $systemPreferences as any;
 				const loadedItems = preferencesState?.[$screenSize];
 
 				// Ensure loaded items are an array and map them to our type, adding defaults if necessary
@@ -314,11 +317,10 @@
 
 		try {
 			await loadWithRetry();
-			// After loading (or failing), reorganize the grid and save
-			saveWidgets();
 		} catch (error) {
 			console.error('Final load attempt failed:', error);
 		}
+		preferencesLoaded = true;
 	});
 
 	// Derived state for the current theme
@@ -330,29 +332,62 @@
 	// Derived state indicating if there are widgets available to add
 	let canAddMoreWidgets = $derived(availableWidgets.length > 0);
 
-	// svelte-dnd-action options and customizations
+	// Enhanced drag & drop options with better visual feedback and accessibility
+	let isDragging = $state(false);
+	let draggedItemId = $state<string | null>(null);
+
 	const dndOptions = {
-		dragDisabled: false, // Keep dragging enabled
+		dragDisabled: false,
 		dropTargetStyle: {
-			outline: 'rgba(255, 255, 255, 0.3) solid 2px' // Visual style for potential drop areas
+			outline: '2px dashed rgba(var(--color-primary-500), 0.5)',
+			backgroundColor: 'rgba(var(--color-primary-500), 0.1)'
 		},
-		// Custom transformation during drag (keeps the slight rotation)
 		transformDraggedElement: (element: HTMLElement | undefined) => {
 			if (element) {
-				element.style.transform = 'rotate(5deg)';
-				element.style.cursor = 'grabbing'; // Change cursor while grabbing
+				element.style.transform = 'rotate(3deg) scale(1.02)';
+				element.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+				element.style.cursor = 'grabbing';
+				element.style.zIndex = '100';
+				element.setAttribute('aria-grabbed', 'true');
 			}
 		},
-		// Create a placeholder element visually representing where the item will drop
 		createPlaceholder: (node: HTMLElement) => {
 			const placeholder = document.createElement('div');
-			placeholder.className = 'bg-primary-300 dark:bg-primary-700 border border-dashed border-primary-500 rounded-md opacity-50';
-			// Match the size of the dragging item
+			placeholder.className = 'bg-primary-300/50 dark:bg-primary-700/50 border-2 border-dashed border-primary-500 rounded-lg';
 			placeholder.style.width = node.offsetWidth + 'px';
 			placeholder.style.height = node.offsetHeight + 'px';
+			placeholder.setAttribute('aria-hidden', 'true');
 			return placeholder;
+		},
+		onDragStart: (event: { detail: { item: DashboardWidgetConfig } }) => {
+			isDragging = true;
+			draggedItemId = event.detail.item.id;
+		},
+		onDragEnd: () => {
+			isDragging = false;
+			draggedItemId = null;
 		}
 	};
+
+	// Accessibility enhancements for keyboard navigation
+	function handleKeyDown(e: KeyboardEvent, item: DashboardWidgetConfig) {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			// Simulate drag start for keyboard users
+			isDragging = true;
+			draggedItemId = item.id;
+		}
+	}
+
+	function handleKeyUp(e: KeyboardEvent) {
+		if ((e.key === 'Enter' || e.key === ' ') && isDragging) {
+			e.preventDefault();
+			// Simulate drop for keyboard users
+			isDragging = false;
+			draggedItemId = null;
+			saveWidgets(); // Persist the new order
+		}
+	}
 </script>
 
 <div class="dashboard-container flex h-screen flex-col">
@@ -388,8 +423,9 @@
 								<button
 									onclick={() => addNewItem(componentName)}
 									type="button"
-									class="block w-full px-4 py-2 text-left hover:bg-gray-200 dark:hover:bg-gray-700"
+									class="flex w-full items-center gap-2 px-4 py-2 text-left hover:bg-gray-200 dark:hover:bg-gray-700"
 								>
+									<iconify-icon icon={widgetComponents[componentName].icon} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 									{widgetComponents[componentName].name}
 								</button>
 							{/each}
@@ -406,11 +442,15 @@
 			<p class="text-center text-tertiary-500 dark:text-primary-500">Loading dashboard preferences...</p>
 		{:else if items && items.length > 0}
 			<div
-				class="grid gap-4"
+				class="grid gap-2"
 				style="grid-template-columns: repeat({cols}, minmax(0, 1fr));"
 				use:dndzone={{ items, ...dndOptions }}
 				onconsider={handleDndConsider}
 				onfinalize={handleDndFinalize}
+				role="grid"
+				aria-label="Dashboard widgets grid"
+				aria-live="polite"
+				aria-relevant="additions removals"
 			>
 				{#each items as item (item.id)}
 					<div
@@ -421,15 +461,21 @@
 							grid-row: {item.y + 1} / span {item.h};
 							min-width: calc((100% / {cols}) * {item.min?.w ?? 1} - 16px);
 							min-height: calc(100px * {item.min?.h ?? 1} - 16px);
+							opacity: {draggedItemId === item.id ? 0.5 : 1};
 						"
+						role="gridcell"
+						aria-label={widgetComponents[item.component]?.name || 'Widget'}
+						aria-describedby={`widget-${item.id}-desc`}
+						tabindex="0"
+						onkeydown={(e) => handleKeyDown(e, item)}
+						onkeyup={handleKeyUp}
+						data-dragging={draggedItemId === item.id}
 					>
-						<div class="absolute right-1 top-1 z-10 flex gap-1">
-							<button onclick={() => remove(item.id)} class="btn-icon" aria-label="Remove Widget">✕</button>
-						</div>
-						<div class="h-full w-full rounded-md border border-surface-500 bg-surface-100 p-2 shadow-2xl dark:bg-surface-700" style="overflow: auto;">
+						<span id={`widget-${item.id}-desc`} class="sr-only"> Press space or enter to move this widget </span>
+						<div>
 							{#if widgetComponents[item.component]}
 								{@const SvelteComponent = widgetComponents[item.component].component}
-								<SvelteComponent label={item.label} {currentTheme} {data} />
+								<SvelteComponent label={item.label} {currentTheme} {data} on:close={() => remove(item.id)} />
 							{:else}
 								<div>Widget not found: {item.component}</div>
 							{/if}

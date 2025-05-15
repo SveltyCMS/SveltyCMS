@@ -306,7 +306,7 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 					path: '/',
 					httpOnly: true,
 					secure: event.url.protocol === 'https:',
-					maxAge: CACHE_TTL / 1000,
+					maxAge: CACHE_TTL / 1000, // 24 hours in seconds
 					sameSite: 'lax'
 				});
 			} else if (tokenData && tokenData.user_id !== user._id) {

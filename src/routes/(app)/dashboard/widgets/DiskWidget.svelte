@@ -26,27 +26,44 @@ This widget fetches and displays real-time disk usage data, including:
 -->
 
 <script lang="ts">
+	export const widgetMeta = {
+		name: 'Disk Usage',
+		icon: 'mdi:harddisk',
+		defaultW: 1,
+		defaultH: 1,
+		validSizes: [
+			{ w: 1, h: 1 },
+			{ w: 2, h: 2 }
+		]
+	};
+
 	import { onDestroy } from 'svelte';
-	import Chart, { type ChartConfiguration, type Plugin, type ArcElement } from 'chart.js/auto';
-	import 'chartjs-adapter-date-fns';
+
+	// Components
 	import BaseWidget from '../BaseWidget.svelte';
 
-	let { label = 'Disk Usage', theme = 'light' } = $props();
+	// Chart
+	import Chart, { type ChartConfiguration, type Plugin, type ArcElement } from 'chart.js/auto';
+	import 'chartjs-adapter-date-fns';
+
+	// Props
+	let { label = 'Disk Usage', theme = 'light', icon = 'mdi:harddisk' } = $props();
 	const themeType = theme as 'light' | 'dark';
 
-	// Declare data from BaseWidget slot props
-	// @ts-ignore - TypeScript incorrectly flags data as unused
-	let data:
+	let data = $state<
 		| {
 				diskInfo: {
-					totalGb: number;
-					usedGb: number;
-					freeGb: number;
-					usedPercentage: number;
-					freePercentage: number;
+					root?: any;
+					mounts?: any[];
+					totalGb?: number;
+					usedGb?: number;
+					freeGb?: number;
+					usedPercentage?: number;
+					freePercentage?: number;
 				};
 		  }
-		| undefined;
+		| undefined
+	>(undefined);
 
 	// Chart state
 	let chart = $state<Chart<'doughnut', number[], string> | undefined>(undefined);
@@ -102,7 +119,7 @@ This widget fetches and displays real-time disk usage data, including:
 					labels: ['Used', 'Free'],
 					datasets: [
 						{
-							data: [usedGb, freeGb],
+							data: [typeof usedGb === 'number' ? usedGb : 0, typeof freeGb === 'number' ? freeGb : 0],
 							backgroundColor: [
 								themeType === 'dark' ? 'rgba(255, 99, 132, 0.2)' : 'rgba(255, 99, 132, 0.4)',
 								themeType === 'dark' ? 'rgba(54, 162, 235, 0.2)' : 'rgba(54, 162, 235, 0.4)'
@@ -122,8 +139,6 @@ This widget fetches and displays real-time disk usage data, including:
 						tooltip: {
 							callbacks: {
 								label: function (context) {
-									// @ts-ignore - context.label is available but not in types
-									const labelText = context.label || '';
 									const value = typeof context.raw === 'number' ? context.raw : 0;
 									const dataSet = context.chart.data.datasets[0].data as number[];
 									const totalGb = dataSet.reduce((a, b) => (a ?? 0) + (b ?? 0), 0);
@@ -137,6 +152,7 @@ This widget fetches and displays real-time disk usage data, including:
 				plugins: [textCenterPlugin]
 			};
 
+			if (chart) chart.destroy();
 			chart = new Chart(chartCanvas, config);
 		}
 	});
@@ -145,7 +161,7 @@ This widget fetches and displays real-time disk usage data, including:
 	$effect(() => {
 		if (chart && data?.diskInfo) {
 			const { usedGb, freeGb } = data.diskInfo;
-			chart.data.datasets[0].data = [usedGb, freeGb];
+			chart.data.datasets[0].data = [typeof usedGb === 'number' ? usedGb : 0, typeof freeGb === 'number' ? freeGb : 0];
 			chart.update();
 		}
 	});
@@ -156,27 +172,42 @@ This widget fetches and displays real-time disk usage data, including:
 	});
 </script>
 
-<BaseWidget {label} theme={themeType} endpoint="/api/systemInfo" pollInterval={5000}>
+<BaseWidget {label} theme={themeType} endpoint="/api/systemInfo?type=disk" pollInterval={5000} bind:data {icon}>
 	<div
 		class="relative h-full w-full rounded-lg p-4 text-tertiary-500 transition-colors duration-300 ease-in-out dark:bg-surface-500 dark:text-primary-500"
 		aria-label="Disk Usage Widget"
 	>
-		<h2 class="text-center font-bold">Disk Usage</h2>
+		<h2 class="flex items-center justify-center gap-2 text-center font-bold">
+			<iconify-icon {icon} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+			Disk Usage
+		</h2>
+
 		<canvas bind:this={chartCanvas} class="h-full w-full p-2"></canvas>
-		<div class="absolute bottom-5 left-0 flex w-full justify-between gap-2 px-2 text-xs">
-			<p>Total: {typeof data?.diskInfo.totalGb === 'number' ? data.diskInfo.totalGb.toFixed(2) : 'N/A'} GB</p>
-			<p>
-				Used: {typeof data?.diskInfo.usedGb === 'number' ? data.diskInfo.usedGb.toFixed(2) : 'N/A'} GB ({typeof data?.diskInfo.usedPercentage ===
-				'number'
-					? data.diskInfo.usedPercentage.toFixed(2)
-					: 'N/A'}%)
-			</p>
-			<p>
-				Free: {typeof data?.diskInfo.freeGb === 'number' ? data.diskInfo.freeGb.toFixed(2) : 'N/A'} GB ({typeof data?.diskInfo.freePercentage ===
-				'number'
-					? data.diskInfo.freePercentage.toFixed(2)
-					: 'N/A'}%)
-			</p>
-		</div>
+
+		{#if !data}
+			<p class="text-center text-surface-500">Waiting for disk data...</p>
+		{:else if !data.diskInfo}
+			<p class="text-center text-error-500">No diskInfo in API response: {JSON.stringify(data)}</p>
+		{:else if (data.diskInfo = typeof data.diskInfo.root === 'object' && data.diskInfo.root !== null ? data.diskInfo.root : typeof data.diskInfo.usedGb === 'number' && typeof data.diskInfo.freeGb === 'number' ? data.diskInfo : null)}
+			{#if data}
+				<div class="absolute bottom-5 left-0 flex w-full justify-between gap-2 px-2 text-xs">
+					<p>Total: {typeof data?.diskInfo.totalGb === 'number' ? data.diskInfo.totalGb.toFixed(2) : 'N/A'} GB</p>
+					<p>
+						Used: {typeof data?.diskInfo.usedGb === 'number' ? data.diskInfo.usedGb.toFixed(2) : 'N/A'} GB ({typeof data?.diskInfo.usedPercentage ===
+						'number'
+							? data.diskInfo.usedPercentage.toFixed(2)
+							: 'N/A'}%)
+					</p>
+					<p>
+						Free: {typeof data?.diskInfo.freeGb === 'number' ? data.diskInfo.freeGb.toFixed(2) : 'N/A'} GB ({typeof data?.diskInfo.freePercentage ===
+						'number'
+							? data.diskInfo.freePercentage.toFixed(2)
+							: 'N/A'}%)
+					</p>
+				</div>
+			{:else}
+				<p class="text-center text-error-500">No usable disk data: {JSON.stringify(data)}</p>
+			{/if}
+		{/if}
 	</div>
 </BaseWidget>

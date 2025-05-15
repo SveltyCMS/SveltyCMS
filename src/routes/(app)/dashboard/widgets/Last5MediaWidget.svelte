@@ -20,6 +20,19 @@
 -->
 
 <script lang="ts">
+	export const widgetMeta = {
+		name: 'Last 5 Media',
+		icon: 'mdi:image-multiple',
+		defaultW: 2,
+		defaultH: 2,
+		validSizes: [
+			{ w: 1, h: 1 },
+			{ w: 2, h: 2 },
+			{ w: 2, h: 1 },
+			{ w: 1, h: 2 }
+		]
+	};
+
 	import BaseWidget from '../BaseWidget.svelte';
 	import { onMount } from 'svelte';
 
@@ -44,7 +57,7 @@
 		media = data.data;
 	});
 
-	let { label, theme = 'light' } = $props();
+	let { label, theme = 'light', icon = 'mdi:image-multiple' } = $props();
 	const themeType = theme as 'light' | 'dark';
 </script>
 

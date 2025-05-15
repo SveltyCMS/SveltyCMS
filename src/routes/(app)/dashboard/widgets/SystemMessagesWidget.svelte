@@ -19,6 +19,19 @@ Features:
 - Enhanced debugging and logging
 -->
 <script lang="ts">
+	export const widgetMeta = {
+		name: 'System Messages',
+		icon: 'mdi:message-alert',
+		defaultW: 2,
+		defaultH: 2,
+		validSizes: [
+			{ w: 1, h: 1 },
+			{ w: 2, h: 1 },
+			{ w: 1, h: 2 },
+			{ w: 2, h: 2 }
+		]
+	};
+
 	import { onMount } from 'svelte';
 	import axios from 'axios';
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';

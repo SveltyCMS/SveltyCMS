@@ -25,52 +25,43 @@ Features:
 - Enhanced debugging and logging
 -->
 <script lang="ts">
+	export const widgetMeta = {
+		name: 'Memory Usage',
+		icon: 'mdi:memory',
+		defaultW: 1,
+		defaultH: 1,
+		validSizes: [
+			{ w: 1, h: 1 },
+			{ w: 2, h: 2 }
+		]
+	};
+
 	import BaseWidget from '../BaseWidget.svelte';
-	import { onMount, onDestroy, getContext } from 'svelte';
-	import { writable, get } from 'svelte/store';
+	import { onDestroy } from 'svelte';
 	import Chart from 'chart.js/auto';
 	import type { ChartConfiguration, Plugin, ArcElement } from 'chart.js';
 	import 'chartjs-adapter-date-fns';
 
-	let { label, theme = 'light' } = $props();
+	let { label = 'Memory Usage', theme = 'light', icon = 'mdi:memory' } = $props();
 	const themeType = theme as 'light' | 'dark';
-	export const id: string = crypto.randomUUID();
-	export const x: number = 0;
-	export const y: number = 0;
-	export const w: number = 2;
-	export const h: number = 5;
-	export const min: { w: number; h: number } = { w: 1, h: 1 };
-	export const max: { w: number; h: number } | undefined = { w: 2, h: 5 };
-	export const movable: boolean = true;
-	export const resizable: boolean = true;
 
-	const memoryInfo = writable<{ totalMemMb: number; usedMemMb: number; freeMemMb: number; usedMemPercentage: number; freeMemPercentage: number }>({
-		totalMemMb: 0,
-		usedMemMb: 0,
-		freeMemMb: 0,
-		usedMemPercentage: 0,
-		freeMemPercentage: 0
-	});
-
+	// Chart state
+	let data: any = $state(undefined);
 	let chart = $state<Chart<'doughnut', number[], string> | undefined>(undefined);
 	let chartCanvas = $state<HTMLCanvasElement | undefined>(undefined);
 
-	async function fetchData() {
-		try {
-			const res = await fetch('/api/systemInfo');
-			const data = await res.json();
-			memoryInfo.set(data.memoryInfo);
-		} catch (error) {
-			console.error('Error fetching memory data:', error);
-		}
-	}
-
 	const textCenterPlugin: Plugin<'doughnut'> = {
 		id: 'textCenterPlugin',
-		beforeDraw(chart, args, options) {
+		beforeDraw(chart) {
 			const ctx = chart.ctx;
 			const { width, height } = chart;
-			const memoryInfoValue = get(memoryInfo);
+			const memoryInfoValue = data?.memoryInfo ?? {
+				totalMemMb: 0,
+				usedMemMb: 0,
+				freeMemMb: 0,
+				usedMemPercentage: 0,
+				freeMemPercentage: 0
+			};
 			ctx.save();
 			ctx.textAlign = 'center';
 			ctx.textBaseline = 'middle';
@@ -89,16 +80,13 @@ Features:
 				const posY = height / 2 + Math.sin(angle) * (height / 4);
 				ctx.fillText(`${percentage.toFixed(2)}%`, posX, posY);
 			});
-
 			ctx.restore();
 		}
 	};
 
-	onMount(async () => {
-		await fetchData();
-		const { usedMemMb, freeMemMb } = get(memoryInfo);
-
-		if (chartCanvas) {
+	$effect(() => {
+		if (chartCanvas && data?.memoryInfo) {
+			const { usedMemMb, freeMemMb } = data.memoryInfo;
 			const config: ChartConfiguration<'doughnut', number[], string> = {
 				type: 'doughnut',
 				data: {
@@ -132,35 +120,42 @@ Features:
 				},
 				plugins: [textCenterPlugin]
 			};
-
 			chart = new Chart(chartCanvas, config);
 		}
-
-		const interval = setInterval(fetchData, 5000);
-		onDestroy(() => clearInterval(interval));
 	});
 
 	// Update chart when memory data changes
 	$effect(() => {
-		if (chart) {
-			const { usedMemMb, freeMemMb } = get(memoryInfo);
+		if (chart && data?.memoryInfo) {
+			const { usedMemMb, freeMemMb } = data.memoryInfo;
 			chart.data.datasets[0].data = [usedMemMb, freeMemMb];
 			chart.update();
 		}
 	});
+
+	onDestroy(() => {
+		if (chart) chart.destroy();
+	});
 </script>
 
-<BaseWidget {label} endpoint="/api/systemInfo" pollInterval={5000} theme={themeType}>
+<BaseWidget {label} theme={themeType} endpoint="/api/systemInfo?type=memory" pollInterval={5000} bind:data {icon}>
 	<div
-		class="relative h-full w-full rounded-lg p-4 text-tertiary-500 transition-colors duration-300 ease-in-out dark:bg-surface-500 dark:text-primary-500"
+		class="relative h-full w-full rounded-lg bg-surface-50 p-2 text-tertiary-500 transition-colors duration-300 ease-in-out dark:bg-surface-400 dark:text-primary-500"
 		aria-label="Memory Usage Widget"
 	>
-		<h2 class="text-center font-bold">Memory Usage</h2>
+		<h2 class="flex items-center justify-center gap-2 text-center font-bold">
+			<iconify-icon icon="mdi:memory" width="20" class="text-primary-500"></iconify-icon>
+			Memory Usage
+		</h2>
 		<canvas bind:this={chartCanvas} class="h-full w-full p-2"></canvas>
-		<div class="absolute bottom-5 left-0 flex w-full justify-between gap-2 px-2 text-xs">
-			<p>Total: {($memoryInfo.totalMemMb / 1024).toFixed(2)} GB</p>
-			<p>Used: {($memoryInfo.usedMemMb / 1024).toFixed(2)} GB ({$memoryInfo.usedMemPercentage}%)</p>
-			<p>Free: {($memoryInfo.freeMemMb / 1024).toFixed(2)} GB ({$memoryInfo.freeMemPercentage}%)</p>
-		</div>
+		{#if data?.memoryInfo}
+			<div class="absolute bottom-5 left-0 flex w-full justify-between gap-2 px-2 text-xs">
+				<p>Total: {(data.memoryInfo.totalMemMb / 1024).toFixed(2)} GB</p>
+				<p>Used: {(data.memoryInfo.usedMemMb / 1024).toFixed(2)} GB ({data.memoryInfo.usedMemPercentage}%)</p>
+				<p>Free: {(data.memoryInfo.freeMemMb / 1024).toFixed(2)} GB ({data.memoryInfo.freeMemPercentage}%)</p>
+			</div>
+		{:else}
+			<p class="text-center text-gray-500">No memory data available</p>
+		{/if}
 	</div>
 </BaseWidget>

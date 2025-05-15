@@ -20,6 +20,19 @@ Features:
 -->
 
 <script lang="ts">
+	export const widgetMeta = {
+		name: 'User Activity',
+		icon: 'mdi:account-group',
+		defaultW: 2,
+		defaultH: 1,
+		validSizes: [
+			{ w: 1, h: 1 },
+			{ w: 2, h: 1 },
+			{ w: 1, h: 2 },
+			{ w: 2, h: 2 }
+		]
+	};
+
 	import BaseWidget from '../BaseWidget.svelte';
 	import { onMount } from 'svelte';
 

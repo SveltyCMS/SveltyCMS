@@ -32,8 +32,8 @@ import { v4 as uuidv4 } from 'uuid';
 
 // Stores
 import type { Unsubscriber } from 'svelte/store';
-import type { ScreenSize } from '@root/src/stores/screenSizeStore.svelte';
-import type { UserPreferences, WidgetPreference } from '@root/src/stores/userPreferences.svelte';
+import type { ScreenSize } from '@stores/screenSizeStore.svelte';
+import type { SystemPreferences, WidgetPreference } from '@stores/systemPreferences.svelte';
 
 // Database Models
 import { ContentStructureModel } from './models/contentStructure';
@@ -826,7 +826,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
   //  System Preferences Management
   systemPreferences = {
     // Set user preferences
-    setUserPreferences: async (userId: string, preferences: UserPreferences): Promise<void> => {
+    setUserPreferences: async (userId: string, preferences: SystemPreferences): Promise<void> => {
       try {
         await SystemPreferencesModel.updateOne(
           { userId },
@@ -839,7 +839,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
     },
 
     // Get system preferences for a user
-    getSystemPreferences: async (userId: string): Promise<UserPreferences | null> => {
+    getSystemPreferences: async (userId: string): Promise<SystemPreferences | null> => {
       try {
         const doc = await SystemPreferencesModel.findOne({ userId }).lean().exec();
         return doc?.preferences ?? null;
@@ -849,7 +849,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
     },
 
     // Get system-wide global preferences
-    getGlobalPreferences: async (): Promise<UserPreferences | null> => {
+    getGlobalPreferences: async (): Promise<SystemPreferences | null> => {
       try {
         const doc = await SystemPreferencesModel.findOne({ isGlobal: true }).lean().exec();
         return doc?.preferences ?? null;
@@ -859,7 +859,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
     },
 
     // Set system-wide global preferences
-    setGlobalPreferences: async (preferences: UserPreferences): Promise<void> => {
+    setGlobalPreferences: async (preferences: SystemPreferences): Promise<void> => {
       try {
         await SystemPreferencesModel.updateOne(
           { isGlobal: true },

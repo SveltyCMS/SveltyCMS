@@ -26,6 +26,19 @@ This widget fetches and displays real-time disk usage data, including:
 -->
 
 <script lang="ts">
+	export const widgetMeta = {
+		name: 'Last 5 Content',
+		icon: 'mdi:file-document-multiple',
+		defaultW: 2,
+		defaultH: 2,
+		validSizes: [
+			{ w: 1, h: 1 },
+			{ w: 2, h: 2 },
+			{ w: 2, h: 1 },
+			{ w: 1, h: 2 }
+		]
+	};
+
 	import BaseWidget from '../BaseWidget.svelte';
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
