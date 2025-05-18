@@ -19,6 +19,7 @@ import { redirect, error, type Handle, type RequestEvent } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { building } from '$app/environment';
 
+
 // Stores
 import { systemLanguage, contentLanguage } from '@stores/store.svelte';
 
@@ -38,7 +39,6 @@ import { getCacheStore } from '@src/cacheStore/index.server';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 import type { AvailableLanguageTag } from '@src/paraglide/runtime';
-
 
 // Cache TTLs
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours

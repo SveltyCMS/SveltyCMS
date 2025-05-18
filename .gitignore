@@ -1,4 +1,6 @@
+# OS
 .DS_Store
+Thumbs.db
 
 # sveltekit
 /build
@@ -7,6 +9,8 @@
 package-lock.json
 bun.lockb
 node_modules
+
+# Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
@@ -28,11 +32,9 @@ logs/*
 Docs/*
 .node-version
 
-
 # Ensure src/utils/media and its contents are not ignored
 !src/utils/media/
 !src/utils/media/*.ts
-
 
 # debug
 npm-debug.log*
@@ -52,4 +54,4 @@ yarn-error.log*
 /*.bin
 
 #paraglide.js
-src/paraglide/**/*.js
+src/paraglide

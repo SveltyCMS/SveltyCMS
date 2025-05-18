@@ -15,7 +15,7 @@ import { execSync } from 'child_process';
 import { purgeCss } from 'vite-plugin-tailwind-purgecss';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
-import { paraglideVitePlugin } from '@inlang/paraglide-js'
+import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { compile } from './src/routes/api/compile/compile';
 import { generateContentTypes } from './src/content/vite';
 import type { IncomingMessage, ServerResponse } from 'http';
@@ -229,6 +229,7 @@ export default defineConfig({
 	server: {
 		fs: { allow: ['static', '.'] } // Allow serving files from specific directories
 	},
+
 	resolve: {
 		alias: {
 			'@root': resolve(process.cwd(), './'),
@@ -240,6 +241,7 @@ export default defineConfig({
 			'@widgets': resolve(process.cwd(), './src/widgets')
 		}
 	},
+
 	define: {
 		__VERSION__: JSON.stringify(pkg.version), // Define global version variable from package.json
 		SUPERFORMS_LEGACY: true // Legacy flag for SuperForms (if needed)

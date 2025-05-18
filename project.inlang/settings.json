@@ -1,36 +1,36 @@
 {
-  "$schema": "https://inlang.com/schema/project-settings",
-  "baseLocale": "en",
-  "locales": [
-    "en",
-    "da",
-    "de",
-    "bn",
-    "es",
-    "fi",
-    "fr",
-    "hi",
-    "it",
-    "ja",
-    "ka",
-    "ne",
-    "nl",
-    "no",
-    "pl",
-    "pt",
-    "sl",
-    "sr",
-    "sv",
-    "tr",
-    "ur",
-    "uk",
-    "zh"
-  ],
-  "modules": [
-    "https://cdn.jsdelivr.net/npm/@inlang/plugin-message-format@5/dist/index.js",
-    "https://cdn.jsdelivr.net/npm/@inlang/plugin-m-function-matcher@3/dist/index.js"
-  ],
-  "plugin.inlang.messageFormat": {
-    "pathPattern": "./src/messages/{locale}.json"
-  }
+	"$schema": "https://inlang.com/schema/project-settings",
+	"baseLocale": "en",
+	"locales": [
+		"en",
+		"da",
+		"de",
+		"bn",
+		"es",
+		"fi",
+		"fr",
+		"hi",
+		"it",
+		"ja",
+		"ka",
+		"ne",
+		"nl",
+		"no",
+		"pl",
+		"pt",
+		"sl",
+		"sr",
+		"sv",
+		"tr",
+		"ur",
+		"uk",
+		"zh"
+	],
+	"modules": [
+		"https://cdn.jsdelivr.net/npm/@inlang/plugin-message-format@4/dist/index.js",
+		"https://cdn.jsdelivr.net/npm/@inlang/plugin-m-function-matcher@3/dist/index.js"
+	],
+	"plugin.inlang.messageFormat": {
+		"pathPattern": "./src/messages/{locale}.json"
+	}
 }
