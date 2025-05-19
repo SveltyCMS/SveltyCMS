@@ -19,6 +19,8 @@ import { redirect, error, type Handle, type RequestEvent } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { building } from '$app/environment';
 
+// ParaglideJS
+import { paraglideMiddleware } from '@src/paraglide/server';
 
 // Stores
 import { systemLanguage, contentLanguage } from '@stores/store.svelte';
@@ -586,17 +588,18 @@ const getPerformanceEmoji = (responseTime: number): string => {
 	return '🐢'; // Very slow
 };
 
-// Debug hook to log request details - keep this for debugging if needed
-// const logRequestHook: Handle = async ({ event, resolve }) => {
-// 	console.log(`HOOKS: Processing ${event.request.method} ${event.url.pathname} - Cookies: ${event.request.headers.get('cookie') || 'none'}`);
-// 	const response = await resolve(event);
-// 	console.log(`HOOKS: Responding to ${event.request.method} ${event.url.pathname} with status ${response.status}`);
-// 	return response;
-// };
+// Middleware for Paraglide to handle language changes
+const handleParaglide: Handle = ({ event, resolve }) =>
+	paraglideMiddleware(event.request, ({ request, locale }) => {
+		event.request = request;
+		return resolve(event, {
+			transformPageChunk: ({ html }) => html.replace('%paraglide.lang%', locale)
+		});
+	});
 
-// Combine all hooks
+// Combine all hooks, including Paraglide
 export const handle: Handle = sequence(
-	// logRequestHook, // Uncomment for debugging
+	handleParaglide,
 	handleStaticAssetCaching,
 	handleRateLimit,
 	handleAuth,

@@ -23,7 +23,7 @@
 		"-- OTHER ----------------------------------------------": "",
 		"preview": "NODE_OPTIONS='--max-old-space-size=8192' vite preview",
 		"paraglide": "paraglide-js compile --project ./project.inlang",
-		"machine-translate": "inlang machine translate --project project.inlang",
+		"machine-translate": "npx @inlang/cli machine translate --project ./project.inlang",
 		"db:push": "drizzle-kit push",
 		"db:migrate": "drizzle-kit migrate",
 		"db:studio": "drizzle-kit studio"

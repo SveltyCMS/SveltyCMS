@@ -91,6 +91,7 @@ Features:
 			systemLanguage.set(lang as typeof $systemLanguage);
 			isDropdownOpen = false;
 			searchQuery = '';
+			location.reload(); // Force reload to apply new language
 		}, 300);
 	}
 
