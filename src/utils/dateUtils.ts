@@ -42,20 +42,27 @@ export function stringToISODateString(dateString: string): ISODateString {
 }
 
 /**
- * Validate and normalize date input
- * Accepts Date, ISODateString, or number (timestamp)
+ * Validate and robustly normalize date input
+ * Accepts Date, ISODateString, number (timestamp in seconds or ms), or string
  */
-export function normalizeDateInput(dateInput: Date | ISODateString | number): ISODateString {
+export function normalizeDateInput(dateInput: Date | ISODateString | number | string): ISODateString {
+    if (!dateInput) return dateToISODateString(new Date());
     if (dateInput instanceof Date) {
         return dateToISODateString(dateInput);
     }
     if (typeof dateInput === 'number') {
+        // If it's a 10-digit number, treat as seconds, else milliseconds
+        return dateToISODateString(new Date(dateInput < 1e12 ? dateInput * 1000 : dateInput));
+    }
+    if (typeof dateInput === 'string') {
+        // Try to parse as ISO string or number
+        const num = Number(dateInput);
+        if (!isNaN(num)) {
+            return dateToISODateString(new Date(num < 1e12 ? num * 1000 : num));
+        }
         return dateToISODateString(new Date(dateInput));
     }
-    if (isISODateString(dateInput)) {
-        return dateInput;
-    }
-    return stringToISODateString(dateInput);
+    return dateToISODateString(new Date());
 }
 
 /**

@@ -153,11 +153,8 @@
 
 		// Add system fields (aligned with HeaderEdit)
 		if (mode.value === 'create') {
-			getData['createdAt'] = () => (dates.created ? Math.floor(new Date(dates.created).getTime() / 1000) : Math.floor(Date.now() / 1000));
-			getData['updatedAt'] = getData['createdAt'];
 			getData['createdBy'] = () => user?.username ?? '';
 		} else {
-			getData['updatedAt'] = () => Math.floor(Date.now() / 1000);
 			getData['updatedBy'] = () => user?.username ?? '';
 			if (dates.created) {
 				getData['createdAt'] = () => Math.floor(new Date(dates.created).getTime() / 1000);

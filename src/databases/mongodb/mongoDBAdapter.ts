@@ -487,9 +487,30 @@ export class MongoDBAdapter implements DatabaseAdapter {
           logger.error(`insertMany failed. Collection ${collection} does not exist.`);
           throw new Error(`insertMany failed. Collection ${collection} does not exist.`);
         }
-        return await model.insertMany(docs);
+
+        // Validate and normalize date fields for all docs
+        const now = new Date();
+        const validatedDocs = docs.map(doc => ({
+          ...doc,
+          createdAt: doc.createdAt ? normalizeDateInput(doc.createdAt) : now,
+          updatedAt: doc.updatedAt ? normalizeDateInput(doc.updatedAt) : now
+        }));
+        return await model.insertMany(validatedDocs);
       } catch (error) {
-        logger.error(`Error inserting many documents into ${collection}:`, { error });
+        if (error && error.name === 'ValidationError') {
+          const invalidFields = error.errors ? Object.keys(error.errors) : [];
+          logger.error(`insertMany ValidationError in ${collection}:`, {
+            message: error.message,
+            fields: invalidFields,
+            errors: error.errors
+          });
+        } else {
+          logger.error(`Error inserting many documents into ${collection}:`, {
+            message: error?.message,
+            stack: error?.stack,
+            error
+          });
+        }
         throw new Error(`Error inserting many documents into ${collection}`);
       }
     },
