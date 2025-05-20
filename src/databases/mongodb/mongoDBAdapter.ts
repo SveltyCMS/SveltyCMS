@@ -878,10 +878,10 @@ export class MongoDBAdapter implements DatabaseAdapter {
       widgets: WidgetPreference[]
     ): Promise<void> => {
       try {
-        // This upserts (creates if not exists) the user preferences document
+        // Always use key: screenSize, scope: 'system', and userId: 'system' for system-wide preferences
         await SystemPreferencesModel.updateOne(
-          { userId },
-          { $set: { [`preferences.${screenSize}`]: widgets } },
+          { key: screenSize, scope: 'system', userId: 'system' },
+          { $set: { [`preferences.${screenSize}`]: widgets, key: screenSize, scope: 'system', userId: 'system' } },
           { upsert: true }
         );
       } catch (error) {

@@ -281,23 +281,50 @@ class ContentManager {
     }
   }
 
-  public async getCollection(path: string): Promise<(Schema & { module: string | undefined }) | null> {
+  public async getCollection(identifier: string): Promise<(Schema & { module: string | undefined }) | null> {
     try {
       if (!this.initialized) {
         logger.error('Content Manager not initialized');
+        return null;
       }
 
+      // Try to resolve as UUID first
+      let schema = this.collectionMapId.get(identifier);
+      let collectionFile: string | undefined = undefined;
       const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
-      const collectionFile = await this.readFile(`${compiledDirectoryPath}/${path}.js`);
-
-      const schema = this.collectionMapId.get(this.collectionMapPath.get(path)!._id);
-
-      if (!schema || !collectionFile) throw new Error('Collection not found');
-
+      if (schema) {
+        // If found by UUID, use its path to load the file
+        const filePath = normalizePath(schema.path);
+        const fullFilePath = `${compiledDirectoryPath}${filePath}.js`;
+        logger.debug('Trying to load collection file by UUID:', fullFilePath);
+        collectionFile = await this.readFile(fullFilePath);
+      } else {
+        // Fallback: treat as path
+        const filePath = normalizePath(identifier);
+        const fullFilePath = `${compiledDirectoryPath}${filePath}.js`;
+        logger.debug('Trying to load collection file by path:', fullFilePath);
+        collectionFile = await this.readFile(fullFilePath);
+        const contentNode = this.collectionMapPath.get(filePath);
+        logger.debug('contentNode for path', filePath, ':', contentNode);
+        if (contentNode) {
+          schema = this.collectionMapId.get(contentNode._id);
+          logger.debug('schema for contentNode._id', contentNode._id, ':', schema);
+        } else {
+          logger.debug('No contentNode found for path', filePath);
+        }
+      }
+      if (!schema || !collectionFile) {
+        logger.error(`getCollection: Collection not found for identifier: ${identifier}`);
+        logger.debug('Available collectionMapPath keys:', Array.from(this.collectionMapPath.keys()));
+        logger.debug('Available collectionMapId keys:', Array.from(this.collectionMapId.keys()));
+        logger.debug('Lookup key used:', normalizePath(identifier));
+        logger.debug('schema:', schema, 'collectionFile:', collectionFile);
+        return null;
+      }
       return { module: collectionFile, ...schema };
     } catch (error) {
-      logger.error('Error getting collection', error);
-      throw error;
+      logger.error('Error getting collection for identifier:', identifier, error);
+      return null;
     }
   }
 
@@ -454,13 +481,14 @@ class ContentManager {
           continue;
         }
 
-        const oldNode = contentStructure[collection.path];
+        const normalizedPath = normalizePath(collection.path);
+        const oldNode = contentStructure[normalizedPath];
         if (oldNode) logger.warn(`Collection ${collection.name} Node already exists. Updating Node`);
 
-        const parentPath = collection.path === '/' ? null : collection.path.split('/').slice(0, -1).join('/') || '/';
+        const parentPath = normalizedPath === '/' ? null : normalizedPath.split('/').slice(0, -1).join('/') || '/';
 
         const result = await dbAdapter?.content.nodes.upsertContentStructureNode({
-          _id: oldNode?._id ?? collection._id,
+          _id: collection._id, // always use the schema's _id for collection nodes
           name: collection.name as string,
           icon: collection.icon ?? oldNode?.icon ?? 'bi:file',
           order: oldNode?.order ?? 999,
@@ -472,10 +500,10 @@ class ContentManager {
           throw new Error('Failed to update collection');
         }
         const currentNode = result.data;
-        contentStructure[collection.path] = currentNode;
+        contentStructure[normalizedPath] = currentNode;
         this.contentStructure.push(currentNode);
-        this.collectionMapPath.set(collection.path, currentNode);
-        this.contentNodeMap.set(currentNode._id, { ...currentNode, path: collection.path })
+        this.collectionMapPath.set(normalizedPath, currentNode);
+        this.contentNodeMap.set(collection._id, { ...currentNode, path: normalizedPath })
 
       }
 
@@ -674,6 +702,18 @@ class ContentManager {
     }
     return null;
   }
+}
+
+// Utility to normalize collection paths
+function normalizePath(p: string): string {
+  if (!p) return '/';
+  let np = p.trim();
+  if (!np.startsWith('/')) np = '/' + np;
+  np = np.replace(/\\+/g, '/'); // Replace backslashes with slashes
+  np = np.replace(/\/+/g, '/'); // Remove duplicate slashes
+  np = np.replace(/\/\/+/, '/'); // Remove double slashes
+  np = np.replace(/\/$/, ''); // Remove trailing slash
+  return np;
 }
 
 // Export singleton instance

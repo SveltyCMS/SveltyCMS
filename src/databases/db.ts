@@ -47,6 +47,9 @@ import { DEFAULT_THEME } from '@src/databases/themeManager';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
+// Screen Size
+import { ScreenSize } from '@src/stores/screenSizeStore.svelte.ts';
+
 // State Variables
 export let dbAdapter: DatabaseAdapter | null = null; // Database adapter
 export let authAdapter: authDBInterface | null = null; // Authentication adapter
@@ -271,15 +274,17 @@ async function initializeSystem(): Promise<void> {
 		async function initializeDefaultPreferences(): Promise<void> {
 			if (!dbAdapter) throw new Error('Cannot initialize preferences: dbAdapter is not available');
 			try {
-				const existingPrefs = await dbAdapter.getSystemPreferences('system');
-				if (!existingPrefs) {
-					await dbAdapter.updateSystemPreferences('system', ScreenSize.LG, []);
-					logger.info('Initialized default system preferences');
+				const existingPrefs = await dbAdapter.systemPreferences.getSystemPreferences('system');
+				// If preferences for LG screen size are missing, initialize them
+				if (!existingPrefs || !existingPrefs[ScreenSize.LG]) {
+					await dbAdapter.systemPreferences.updateSystemPreferences('system', ScreenSize.LG, []);
+					logger.info('Initialized default system preferences for LG screen size');
 				}
 			} catch (err) {
 				logger.error(`Error initializing default preferences: ${err instanceof Error ? err.message : String(err)}`);
 			}
 		}
+
 		// Initialize authentication
 		if (!authAdapter) {
 			throw new Error('Cannot initialize auth: authAdapter is null');
