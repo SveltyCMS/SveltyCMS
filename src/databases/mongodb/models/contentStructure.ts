@@ -143,16 +143,20 @@ contentStructureSchema.statics = {
 				{ upsert: true, new: true }
 			).lean();
 			if (!result) {
+				const errorMsg = `Failed to upsert collection: ${collection.path || collection._id}. Collection data: ${JSON.stringify(collection)}`;
+				logger.error('CONTENT_UPSERT_COLLECTION_ERROR', errorMsg);
 				return {
 					success: false,
-					error: createDatabaseError(undefined, 'CONTENT_UPSERT_COLLECTION_ERROR', `Failed to upsert collection: ${collection.path}`)
+					error: createDatabaseError(undefined, 'CONTENT_UPSERT_COLLECTION_ERROR', errorMsg)
 				};
 			}
 			return { success: true, data: { ...result, _id: result._id.toString() } };
 		} catch (error) {
+			const errorMsg = `Error upserting collection: ${collection.path || collection._id}. Collection data: ${JSON.stringify(collection)}`;
+			logger.error('CONTENT_UPSERT_COLLECTION_ERROR', errorMsg, error);
 			return {
 				success: false,
-				error: createDatabaseError(error, 'CONTENT_UPSERT_COLLECTION_ERROR', `Error upserting collection: ${collection.path}`)
+				error: createDatabaseError(error, 'CONTENT_UPSERT_COLLECTION_ERROR', errorMsg)
 			};
 		}
 	},

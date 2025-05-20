@@ -47,7 +47,7 @@ export function getGuiFields(params: Record<string, unknown>, schema: GuiSchema)
 function createWidgetFunction(widgetModule: WidgetModule, name: string): WidgetFunction {
 	const widget = widgetModule.default; // Get the default widget function
 	widget.Name = widget.Name || name; // Set the widget name
-	widget.__widgetId = uuidv4(); // Add a UUID to the widget function
+	widget.__widgetId = uuidv4().replace(/-/g, ''); // Add a UUID to the widget function
 	return widget; // Return the widget function
 }
 

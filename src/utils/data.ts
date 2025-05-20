@@ -207,7 +207,7 @@ export async function saveFormData({
 				//  logger.debug('Creating new revision.');
 				//  const newRevision = {
 				//    ...collectionValue.value,
-				//    _id: uuidv4(),
+				//    _id: uuidv4().replace(/-/g, ''),
 				//    __v: [
 				//      ...(collectionValue.value?.__v || []),
 				//      {

@@ -75,16 +75,16 @@ export const GuiSchema = {
  * Define Text GraphqlSchema function
  */
 export const GraphqlSchema: GraphqlSchema = ({ label, collection }) => {
-	// Create a type name by combining the collection name and label
-	const typeName = `${collection.name}_${label}`;
+	// Create a type name by combining the collection ID and label
+	const typeID = `${collection._id}_${label}`;
 
 	const graphqlFields = publicEnv.AVAILABLE_CONTENT_LANGUAGES.map((contentLanguage) => `${contentLanguage}: String`).join('\n');
 
 	// Return an object containing the type name and the GraphQL schema
 	const schema = {
-		typeName,
+		typeID,
 		graphql: /* GraphQL */ `
-		type ${typeName} {
+		type ${typeID} {
 		  ${graphqlFields}
 		}
 	  `

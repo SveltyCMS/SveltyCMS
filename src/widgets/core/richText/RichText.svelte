@@ -433,7 +433,7 @@
 
 		if (value instanceof File) {
 			url = URL.createObjectURL(value);
-			let image_id = uuidv4();
+			let image_id = uuidv4().replace(/-/g, '');
 			images[image_id] = value;
 			editor.chain().focus().setImage({ src: url, id: image_id }).run();
 			// Simulate upload delay for UX

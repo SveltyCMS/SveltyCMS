@@ -104,7 +104,7 @@ async function processBatch(collections: Schema[]): Promise<void> {
 			currentPath = currentPath ? `${currentPath}/${segment}` : segment;
 
 			if (!currentMap.has(segment)) {
-				const randomId = uuidv4();
+				const randomId = uuidv4().replace(/-/g, '');
 
 				const config = await getCurrentPath();
 				const newNode: CategoryNode = {

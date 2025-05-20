@@ -117,7 +117,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
   public utils = {
     // Generate a unique ID using UUID
     generateId(): DatabaseId {
-      return uuidv4() as DatabaseId;
+      return uuidv4().replace(/-/g, '') as DatabaseId;
     },
     normalizePath(path: string): string {
       return path;

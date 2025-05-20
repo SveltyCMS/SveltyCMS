@@ -50,9 +50,9 @@ let redisClient: ReturnType<typeof createClient> | null = null;
 const cacheClient =
 	privateEnv.USE_REDIS === true
 		? {
-				get: async (key: string) => redisClient?.get(key) || null,
-				set: async (key: string, value: string, ex: string, duration: number) => redisClient?.set(key, value, { EX: duration })
-			}
+			get: async (key: string) => redisClient?.get(key) || null,
+			set: async (key: string, value: string, ex: string, duration: number) => redisClient?.set(key, value, { EX: duration })
+		}
 		: null;
 
 if (privateEnv.USE_REDIS === true) {
@@ -104,8 +104,8 @@ async function setupGraphQL() {
             
             type Query {
                 ${Object.values(collections)
-									.map((collection) => `${collection.name}: [${collection.name}]`)
-									.join('\n')}
+				.map((collection) => `${collection._id}: [${collection._id}]`)
+				.join('\n')}
                 users: [User]
                 mediaImages: [MediaImage]
                 mediaDocuments: [MediaDocument]
@@ -115,6 +115,8 @@ async function setupGraphQL() {
                 accessManagementPermission: AccessManagementPermission
             }
         `;
+
+		console.log(typeDefs);
 
 		const resolvers = {
 			Query: {
@@ -156,17 +158,18 @@ async function setupGraphQL() {
 	}
 }
 
-const yogaAppPromise = setupGraphQL();
+// const yogaAppPromise = setupGraphQL();
 
 const handler = async (event: RequestEvent) => {
 	try {
-		const yogaApp = await yogaAppPromise;
-		const response = await yogaApp.handleRequest(event.request, event);
-		logger.info('GraphQL request handled successfully', { status: response.status });
-		return new Response(response.body, {
-			status: response.status,
-			headers: response.headers
-		});
+		// const yogaApp = await yogaAppPromise;
+		// const response = await yogaApp.handleRequest(event.request, event);
+		// logger.info('GraphQL request handled successfully', { status: response.status });
+		// return new Response(response.body, {
+		// 	status: response.status,
+		// 	headers: response.headers
+		// });
+		return json({ success: true, output: "see src/ routes / api / graphql / +server.ts})" });
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		logger.error('Error handling GraphQL request:', { error: errorMessage });

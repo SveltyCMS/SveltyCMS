@@ -131,7 +131,7 @@ It provides the following functionality:
 		const { roleName, roleDescription, currentGroupName, selectedPermissions, currentRoleId } = role;
 		if (!roleName) return;
 
-		const roleId = currentRoleId ?? uuidv4();
+		const roleId = currentRoleId ?? uuidv4().replace(/-/g, '');
 		const newRole = {
 			_id: roleId,
 			id: roleId, // Add id for dndzone

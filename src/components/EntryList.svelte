@@ -218,29 +218,30 @@ Features:
 		// For rendering Table data
 		tableHeaders =
 			currentCollection?.fields.map((field) => ({
-				id: uuidv4(),
+				id: uuidv4().replace(/-/g, ''),
 				label: field.label,
 				name: getFieldName(field),
 				visible: true
 			})) ?? [];
+
 		tableHeaders.push(
-			{ label: 'createdAt', name: 'createdAt', id: uuidv4(), visible: true },
-			{ label: 'updatedAt', name: 'updatedAt', id: uuidv4(), visible: true },
-			{ label: 'status', name: 'status', id: uuidv4(), visible: true }
+			{ label: 'createdAt', name: 'createdAt', id: uuidv4().replace(/-/g, ''), visible: true },
+			{ label: 'updatedAt', name: 'updatedAt', id: uuidv4().replace(/-/g, ''), visible: true },
+			{ label: 'status', name: 'status', id: uuidv4().replace(/-/g, ''), visible: true }
 		);
 
 		// Update displayTableHeaders based on entryListPaginationSettings
 		if (entryListPaginationSettings.displayTableHeaders.length > 0) {
 			displayTableHeaders = entryListPaginationSettings.displayTableHeaders.map((header: TableHeader) => ({
 				...header,
-				id: uuidv4() // Add unique id for each header (optional)
+				id: uuidv4().replace(/-/g, '') // Add unique id for each header (optional)
 			}));
 		} else if (tableHeaders.length > 0) {
 			// If no saved settings, use tableHeaders with initial visibility
 			displayTableHeaders = tableHeaders.map((header) => ({
 				...header,
 				visible: true, // Assuming all columns are initially visible
-				id: uuidv4() // Add unique id for each header (optional)
+				id: uuidv4().replace(/-/g, '') // Add unique id for each header (optional)
 			}));
 		}
 		SelectAll = false;

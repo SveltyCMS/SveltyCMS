@@ -179,7 +179,7 @@ async function initializeWidgets(): Promise<void> {
 			const widgetFn = module.default;
 			widgetFn.name = widgetFn.name || name;
 			const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
-			widgetFn.widgetId = uuidv4(); // Generate UUID v4
+			widgetFn.widgetId = uuidv4().replace(/-/g, ''); // Generate UUID v4
 			newWidgetFunctions.set(capitalizedName, widgetFn);
 		}
 

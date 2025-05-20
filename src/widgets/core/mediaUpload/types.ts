@@ -111,7 +111,7 @@ export const GuiSchema = {
 	}
 };
 
-// Create a type name by combining the collection name and label
+// Create a type name by combining the collection ID and label
 const types = Object.keys(SIZES)
 	.map(
 		(size) =>
@@ -129,7 +129,7 @@ const types = Object.keys(SIZES)
  * Define MediaUpload GraphqlSchema function
  */
 export const GraphqlSchema = ({ label, collection }: { label: string; collection: string }) => {
-	// Create a type name by combining the collection name and label
+	// Create a type name by combining the collection ID and label
 	const typeDefs = `
     type ${label} {
         id: ID!
@@ -167,15 +167,15 @@ export const GraphqlSchema = ({ label, collection }: { label: string; collection
     input Create${label}Input {
         name: String
         ${Object.keys(GuiSchema)
-					.map((field) => `${field}: ${getType(GuiSchema[field].widget)}`)
-					.join('\n')}
+			.map((field) => `${field}: ${getType(GuiSchema[field].widget)}`)
+			.join('\n')}
     }
 
     input Update${label}Input {
         name: String
         ${Object.keys(GuiSchema)
-					.map((field) => `${field}: ${getType(GuiSchema[field].widget)}`)
-					.join('\n')}
+			.map((field) => `${field}: ${getType(GuiSchema[field].widget)}`)
+			.join('\n')}
     }
     `;
 

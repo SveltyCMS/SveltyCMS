@@ -131,7 +131,7 @@
 
 	async function addNewCategory(response: CategoryModalResponse): Promise<void> {
 		console.debug('adding category');
-		const newCategoryId = uuidv4();
+		const newCategoryId = uuidv4().replace(/-/g, '');
 
 		const newCategory: ContentNode = {
 			_id: newCategoryId as DatabaseId,

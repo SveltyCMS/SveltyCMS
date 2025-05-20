@@ -56,14 +56,14 @@ export const GuiSchema = {
  * Define DateTime GraphqlSchema function
  */
 export const GraphqlSchema: GraphqlSchema = ({ label, collection }) => {
-	// Create a type name by combining the collection name and label
-	const typeName = `${collection.name}_${label}`;
+	// Create a type name by combining the collection ID and label
+	const typeID = `${collection._id}_${label}`;
 
 	// Return an object containing the type name and the GraphQL schema
 	return {
-		typeName,
+		typeID: typeID,
 		graphql: /* GraphQL */ `
-		type ${typeName} {
+		type ${typeID} {
 			en: String
 		}
         `

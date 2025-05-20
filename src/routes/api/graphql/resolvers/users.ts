@@ -47,13 +47,13 @@ function mapTypeToGraphQLType(value: GraphQLValue): string {
 }
 
 // Helper function to generate GraphQL type definitions from a TypeScript type
-function generateGraphQLTypeDefsFromType<T extends Record<string, GraphQLValue>>(type: T, typeName: string): string {
+function generateGraphQLTypeDefsFromType<T extends Record<string, GraphQLValue>>(type: T, typeID: string): string {
 	const fields = Object.entries(type)
 		.map(([key, value]) => `${key}: ${mapTypeToGraphQLType(value)}`)
 		.join('\n');
 
 	return `
-        type ${typeName} {
+        type ${typeID} {
             ${fields}
         }
     `;

@@ -24,7 +24,7 @@ import {
 	type VirtualFolderUpdateData,
 	type SystemVirtualFolder,
 	VirtualFolderError
-} from '@databases/dbInterface';
+} from '@root/src/databases/dbInterface';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

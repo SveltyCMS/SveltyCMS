@@ -64,7 +64,7 @@ export const GuiSchema = {
  */
 export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
 	const fields = field.fields;
-	const typeName = `${collection.name}_${getFieldName(field, true)}`;
+	const typeID = `${collection.name}_${getFieldName(field, true)}`;
 	const types = new Set();
 	let levelCount = 0;
 
@@ -77,7 +77,7 @@ export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
 				if (fieldSchema) {
 					types.add(fieldSchema.graphql);
 					if (levelCount > 0) {
-						children.push(`${getFieldName(_field, true)}:${fieldSchema.typeName}`);
+						children.push(`${getFieldName(_field, true)}:${fieldSchema.typeID}`);
 					}
 				} else {
 					console.warn(`No GraphQL schema found for field: ${getFieldName(_field, true)}`);
@@ -105,15 +105,15 @@ export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
 	try {
 		const graphql = /* GraphQL */ `
 		${Array.from(types).join('\n')}
-		type ${typeName} {
+		type ${typeID} {
 		  Header: ${collection.name}_Header_Level0
 		  children: [${collection.name}_${getFieldName(field, true)}_Level1]
 		}
 	  `;
-		return { typeName, graphql };
+		return { typeID: typeID, graphql };
 	} catch (error) {
 		console.error('Error generating GraphQL schema:', error);
-		return { typeName, graphql: '' };
+		return { typeID: typeID, graphql: '' };
 	}
 };
 

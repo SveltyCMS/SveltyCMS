@@ -345,7 +345,7 @@ async function compileFile(
 			// Ensure we don't overwrite a reused UUID if it wasn't a clone
 			if (!isClone || !uuid) {
 				// Generate only if truly needed or if clone forced it
-				uuid = uuidv4();
+				uuid = uuidv4().replace(/-/g, '');
 				if (!isClone) {
 					// Avoid double logging for clones
 					console.log(`Generating new UUID for \x1b[32m${shortPath}\x1b[0m.`);

@@ -50,7 +50,7 @@ class ContentManager {
   private collectionAccessCount: Map<string, number> = new Map();
   private initialized: boolean = false;
 
-  private loadedCollections: Schema[] = [];
+  public loadedCollections: Schema[] = [];
 
   private collectionMapId: Map<string, Schema> = new Map(); // keys are colleciton _ids
   private collectionMapPath: Map<string, ContentNode> = new Map(); // keys are path 
@@ -265,7 +265,8 @@ class ContentManager {
       }
 
       // Validate UUID format
-      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(this.firstCollection._id)) {
+
+      if (!/^([a-f0-9-]{32})$/i.test(this.firstCollection._id)) {
         logger.error('Invalid UUID format in first collection', {
           collectionId: this.firstCollection._id,
           collectionName: this.firstCollection.name
@@ -455,7 +456,7 @@ class ContentManager {
         const oldNode = contentStructure[node.path];
         const parentPath = node.path.split('/').slice(0, -1).join('/') || null;
         const result = await dbAdapter?.content.nodes.upsertContentStructureNode({
-          _id: oldNode?._id ?? uuidv4(),
+          _id: oldNode?._id ?? uuidv4().replace(/-/g, ''),
           name: node.name ?? oldNode?.name,
           icon: oldNode?.icon ?? 'bi:folder',
           order: oldNode?.order ?? 999,

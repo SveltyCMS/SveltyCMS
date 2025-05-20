@@ -122,7 +122,7 @@ async function processModule(content: string): Promise<{ schema?: Schema } | nul
 		await ensureWidgetsInitialized();
 
 		// Extract UUID from file content
-		const uuidMatch = content.match(/\/\/\s*UUID:\s*([a-f0-9-]{36})/i);
+		const uuidMatch = content.match(/\/\/\s*UUID:\s*([a-f0-9-]{32})/i);
 		const uuid = uuidMatch ? uuidMatch[1] : null;
 
 		// Remove any import/export statements and extract the schema object

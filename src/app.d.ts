@@ -55,9 +55,9 @@ declare global {
 	// Defines the DISPLAY type, which represents a function that takes an object with data, collection, field, entry, and contentLanguage properties and returns a promise of any.
 	type DISPLAY = (({ data: any, collection: any, field: any, entry: any, contentLanguage: string }) => Promise<any>) & { default?: boolean };
 
-	// Defines a type for the GraphqlSchema function, which takes an object with field, label, and collection properties and returns an object with typeName, graphql, and optional resolver properties.
+	// Defines a type for the GraphqlSchema function, which takes an object with field, label, and collection properties and returns an object with typeID, graphql, and optional resolver properties.
 	type GraphqlSchema = ({ field, label, collection }: { field: any; label: string; collection: any }) => {
-		typeName: string | null;
+		typeID: string | null;
 		graphql: string;
 		resolver?: { [key: string]: any };
 	};
@@ -84,4 +84,4 @@ declare global {
 
 // THIS IS IMPORTANT!!!
 // Export an empty object to ensure this file is treated as a module
-export {};
+export { };
