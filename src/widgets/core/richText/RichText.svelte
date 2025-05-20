@@ -472,13 +472,13 @@
 				role="toolbar"
 				aria-label="Rich text editor toolbar"
 			>
-				{#if $isMobile}
+				{#if isMobile.value}
 					<button onclick={() => (showMobileMenu = !showMobileMenu)} class="btn" aria-label="Toggle toolbar menu" aria-expanded={showMobileMenu}>
 						<iconify-icon icon="mdi:menu" width="22"></iconify-icon>
 					</button>
 				{/if}
 
-				<div class="flex flex-wrap gap-1" class:hidden={$isMobile && !showMobileMenu}>
+				<div class="flex flex-wrap gap-1" class:hidden={isMobile.value && !showMobileMenu}>
 					<!-- TextType -->
 					<DropDown show={show('textType')} items={textTypes} label="Text" bind:active={active_dropDown} />
 					<!-- Font -->
