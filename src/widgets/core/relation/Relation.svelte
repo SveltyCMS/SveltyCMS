@@ -134,7 +134,10 @@
 	function validateInput() {
 		if (debounceTimeout) clearTimeout(debounceTimeout);
 		debounceTimeout = window.setTimeout(() => {
-			validationError = validateSchema(widgetSchema, { _id: selected?._id, display: selected?.display });
+			validationError = validateSchema(widgetSchema, {
+				_id: selected?._id,
+				display: selected?.display
+			});
 		}, 300);
 	}
 
@@ -161,7 +164,11 @@
 
 		try {
 			if (entryMode === 'create') {
-				const result = await saveFormData({ data: fieldsData, _collection: relationCollection, _mode: 'create' });
+				const result = await saveFormData({
+					data: fieldsData,
+					_collection: relationCollection,
+					_mode: 'create'
+				});
 				relation_id = result[0]?._id || '';
 			} else if (entryMode === 'choose') {
 				relation_id = selected?._id || '';

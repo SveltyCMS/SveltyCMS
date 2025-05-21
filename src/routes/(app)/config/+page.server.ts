@@ -23,10 +23,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 			throw redirect(302, '/login');
 		}
 
-		logger.debug(`User session validated successfully for user: ${user._id}`);
+		logger.debug(`User session validated successfully for user: \x1b[34m${user._id}\x1b[0m`);
 
 		if (!user.role) {
-			const message = `User role is missing for user ${user.email}`;
+			const message = `User role is missing for user \x1b[34m${user.email}\x1b[0m`;
 			logger.warn(message);
 			throw error(403, message);
 		}

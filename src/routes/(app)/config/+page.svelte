@@ -62,7 +62,9 @@ Features:
 <PageTitle name={m.config_pagetitle()} showBackButton={true} icon="material-symbols:build-circle" />
 
 <div class="wrapper mb-2 max-h-[calc(100vh-65px)] overflow-auto">
-	<h2 class="mb-4 text-center font-bold text-tertiary-600 dark:text-primary-500">{m.config_body()}</h2>
+	<h2 class="mb-4 text-center font-bold text-tertiary-600 dark:text-primary-500">
+		{m.config_body()}
+	</h2>
 	<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
 		<!-- Collection -->
 		<PermissionGuard config={permissionConfigs.collectionbuilder}>

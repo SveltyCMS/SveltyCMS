@@ -77,7 +77,9 @@ export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
 			[collection.name]: {
 				async [getFieldName(field)](parent: Record<string, unknown>) {
 					const adapter = await dbAdapter.get();
-					const res = await adapter.findOne(field.relation, { _id: parent[getFieldName(field)] as string });
+					const res = await adapter.findOne(field.relation, {
+						_id: parent[getFieldName(field)] as string
+					});
 
 					return res;
 				}

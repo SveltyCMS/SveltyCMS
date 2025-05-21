@@ -151,8 +151,12 @@ Features:
 		{#if data?.memoryInfo}
 			<div class="absolute bottom-5 left-0 flex w-full justify-between gap-2 px-2 text-xs">
 				<p>Total: {(data.memoryInfo.totalMemMb / 1024).toFixed(2)} GB</p>
-				<p>Used: {(data.memoryInfo.usedMemMb / 1024).toFixed(2)} GB ({data.memoryInfo.usedMemPercentage}%)</p>
-				<p>Free: {(data.memoryInfo.freeMemMb / 1024).toFixed(2)} GB ({data.memoryInfo.freeMemPercentage}%)</p>
+				<p>
+					Used: {(data.memoryInfo.usedMemMb / 1024).toFixed(2)} GB ({data.memoryInfo.usedMemPercentage}%)
+				</p>
+				<p>
+					Free: {(data.memoryInfo.freeMemMb / 1024).toFixed(2)} GB ({data.memoryInfo.freeMemPercentage}%)
+				</p>
 			</div>
 		{:else}
 			<p class="text-center text-gray-500">No memory data available</p>

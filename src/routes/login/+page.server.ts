@@ -216,7 +216,11 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 								message: `New registration ${googleUser.name}`,
 								templateName: 'welcomeUser',
 								lang: get(systemLanguage),
-								props: { username: googleUser.name || '', email, hostLink: publicEnv.HOST_LINK || `https://${request.headers.get('host')}` }
+								props: {
+									username: googleUser.name || '',
+									email,
+									hostLink: publicEnv.HOST_LINK || `https://${request.headers.get('host')}`
+								}
 							})
 						});
 
@@ -481,7 +485,11 @@ export const actions: Actions = {
 			return { form: pwforgottenForm, token, email };
 		} else {
 			logger.warn(`Forgotten password failed: ${resp.message}`);
-			return { form: pwforgottenForm, status: checkMail.success, message: resp.message || 'Unknown error' };
+			return {
+				form: pwforgottenForm,
+				status: checkMail.success,
+				message: resp.message || 'Unknown error'
+			};
 		}
 	},
 
@@ -702,7 +710,12 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 		const expiresAt = new Date(Date.now() + expiresIn * 1000);
 		const token = await auth.createToken(user._id.toString(), expiresAt);
 
-		return { success: true, message: 'Password reset token sent by Email', token, expiresIn: expiresAt };
+		return {
+			success: true,
+			message: 'Password reset token sent by Email',
+			token,
+			expiresIn: expiresAt
+		};
 	} catch (error) {
 		const err = error as Error;
 		logger.error(`Check Forgotten Password failed: ${err.message}`);
@@ -740,7 +753,10 @@ async function resetPWCheck(password: string, token: string, email: string, expi
 			// Check password strength
 			const passwordStrength = calculatePasswordStrength(password);
 			if (passwordStrength < 1) {
-				return { status: false, message: 'Password is too weak. Please choose a stronger password.' };
+				return {
+					status: false,
+					message: 'Password is too weak. Please choose a stronger password.'
+				};
 			}
 
 			// Token is valid and not expired, proceed with password update

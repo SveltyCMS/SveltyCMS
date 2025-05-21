@@ -295,7 +295,10 @@ async function initializeSystem(): Promise<void> {
 		}
 
 		logger.debug('Authentication adapter initialized.');
-		logger.debug('Auth initialized, methods:', Object.keys(auth).filter(key => typeof (auth)[key] === 'function'));
+		logger.debug(
+			'Auth initialized, methods:',
+			Object.keys(auth).filter((key) => typeof auth[key] === 'function')
+		);
 
 		isInitialized = true;
 		isConnected = true;

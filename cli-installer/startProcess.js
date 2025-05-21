@@ -111,7 +111,11 @@ export async function startProcess() {
 			message: 'What would you like to do next?',
 			options: [
 				{ value: 'dev', label: 'Develop project', hint: 'Start SveltyCMS in development' },
-				{ value: 'devv', label: 'Develop project (VSCode)', hint: 'Start SveltyCMS in development for VSCode' },
+				{
+					value: 'devv',
+					label: 'Develop project (VSCode)',
+					hint: 'Start SveltyCMS in development for VSCode'
+				},
 				{ value: 'build', label: 'Build project', hint: 'Build your SveltyCMS project' },
 				{ value: 'check', label: 'Check project', hint: 'Check our SveltyCMS project' },
 				{ value: 'exit', label: 'Exit Installer', hint: 'Exit the CLI Installer' }

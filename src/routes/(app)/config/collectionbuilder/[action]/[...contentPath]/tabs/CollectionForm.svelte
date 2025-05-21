@@ -188,7 +188,8 @@ Features:
 			{#if name}
 				<!-- Show DBName if name is entered -->
 				<p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-					{m.collection_DBname()} <span class="font-bold text-tertiary-500 dark:text-primary-500">{DBName}</span>
+					{m.collection_DBname()}
+					<span class="font-bold text-tertiary-500 dark:text-primary-500">{DBName}</span>
 				</p>
 			{/if}
 			<!-- Name Tooltip -->

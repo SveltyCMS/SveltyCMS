@@ -76,14 +76,12 @@ export type MinimalContentNode = {
 	nodeType: 'category';
 };
 
-
 export type ContentNodeOperatianType = 'create' | 'delete' | 'move' | 'rename' | 'update';
 
 export type ContentNodeOperation = {
-  type: ContentNodeOperatianType;
-  node: ContentNode
-
-}
+	type: ContentNodeOperatianType;
+	node: ContentNode;
+};
 
 // Category interface for representing the folder structure
 export interface Category {

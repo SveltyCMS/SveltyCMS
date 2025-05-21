@@ -82,7 +82,9 @@ export async function configureMedia(privateConfigData = {}) {
 			const parsed = parseImageSizes(value);
 			if (parsed === null) {
 				// Check for parsing error indication
-				return { message: 'Invalid format. Use "key: value, key: value" (e.g., sm: 600, md: 900). Ensure keys are strings and values are numbers.' };
+				return {
+					message: 'Invalid format. Use "key: value, key: value" (e.g., sm: 600, md: 900). Ensure keys are strings and values are numbers.'
+				};
 			}
 			return undefined; // Valid
 		}
@@ -107,7 +109,11 @@ export async function configureMedia(privateConfigData = {}) {
 		format: await select({
 			message: 'Choose the media output format for Images optimization:',
 			options: [
-				{ value: 'original', label: 'Original quality', hint: 'No Optimization, Media will only be resized' },
+				{
+					value: 'original',
+					label: 'Original quality',
+					hint: 'No Optimization, Media will only be resized'
+				},
 				{ value: 'avif', label: 'AVIF', hint: 'Best Compression, recommended' },
 				{ value: 'webp', label: 'WebP', hint: 'Great Compression, recommended as widely supported' }
 			],

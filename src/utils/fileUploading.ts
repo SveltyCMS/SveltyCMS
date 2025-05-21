@@ -28,9 +28,7 @@ export async function uploadFile(file: File, folder?: string, onProgress?: (prog
 
 	// Construct safe directory path
 	const safeFolder = folder ? path.normalize(folder).replace(/^(\.\.(\/|\\|$))+/, '') : undefined;
-	const directoryPath = safeFolder
-		? path.join(getRootPath(), publicEnv.MEDIA_FOLDER, safeFolder)
-		: path.join(getRootPath(), publicEnv.MEDIA_FOLDER);
+	const directoryPath = safeFolder ? path.join(getRootPath(), publicEnv.MEDIA_FOLDER, safeFolder) : path.join(getRootPath(), publicEnv.MEDIA_FOLDER);
 
 	try {
 		// Ensure directory exists

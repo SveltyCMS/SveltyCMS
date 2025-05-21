@@ -45,7 +45,9 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
 		// Ensure the database adapter is initialized
 		if (!dbAdapter) {
 			logger.error('Database adapter is not initialized.');
-			return new Response('Internal server error: Database adapter not initialized', { status: 500 });
+			return new Response('Internal server error: Database adapter not initialized', {
+				status: 500
+			});
 		}
 
 		// Validate schema ID

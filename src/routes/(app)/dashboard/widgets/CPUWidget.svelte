@@ -171,7 +171,9 @@
 		<div class="flex h-full flex-col">
 			<div class="mb-2 flex items-center justify-between text-sm">
 				<iconify-icon {icon} width="20" class="mr-2 text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				<div>Current: <span class="font-bold">{data.cpuInfo.cpuUsage[data.cpuInfo.cpuUsage.length - 1]?.toFixed(1) || 0}%</span></div>
+				<div>
+					Current: <span class="font-bold">{data.cpuInfo.cpuUsage[data.cpuInfo.cpuUsage.length - 1]?.toFixed(1) || 0}%</span>
+				</div>
 				<div>
 					Average: <span class="font-bold">
 						{data.cpuInfo.cpuUsage.length > 0

@@ -73,7 +73,10 @@ export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
 
 		for (const _field of level) {
 			try {
-				const fieldSchema = widgets[_field.widget.Name].GraphqlSchema?.({ label: `${getFieldName(_field, true)}_Level${levelCount}`, collection });
+				const fieldSchema = widgets[_field.widget.Name].GraphqlSchema?.({
+					label: `${getFieldName(_field, true)}_Level${levelCount}`,
+					collection
+				});
 				if (fieldSchema) {
 					types.add(fieldSchema.graphql);
 					if (levelCount > 0) {

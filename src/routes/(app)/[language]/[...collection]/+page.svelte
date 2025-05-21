@@ -31,7 +31,11 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	import Loading from '@root/src/components/Loading.svelte';
 
 	interface Props {
-		data: { collection: Schema & { module: string | undefined }; contentLanguage: string; user: User };
+		data: {
+			collection: Schema & { module: string | undefined };
+			contentLanguage: string;
+			user: User;
+		};
 	}
 
 	const { data }: Props = $props();

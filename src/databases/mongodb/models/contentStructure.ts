@@ -99,7 +99,10 @@ contentStructureSchema.statics = {
 			return { success: true, data: contentStructure };
 		} catch (error) {
 			logger.error('CONTENT_GET_CONTENT_STRUCTURE_ERROR', error);
-			return { success: false, error: createDatabaseError(error, 'CONTENT_GET_CONTENT_STRUCTURE_ERROR', 'Error fetching content structure') };
+			return {
+				success: false,
+				error: createDatabaseError(error, 'CONTENT_GET_CONTENT_STRUCTURE_ERROR', 'Error fetching content structure')
+			};
 		}
 	},
 	// Upsert a category
@@ -124,7 +127,10 @@ contentStructureSchema.statics = {
 			}
 			return { success: true, data: { ...result, _id: result._id.toString() } };
 		} catch (error) {
-			return { success: false, error: createDatabaseError(error, 'CONTENT_UPSERT_CATEGORY_ERROR', `Error upserting category: ${category.path}`) };
+			return {
+				success: false,
+				error: createDatabaseError(error, 'CONTENT_UPSERT_CATEGORY_ERROR', `Error upserting category: ${category.path}`)
+			};
 		}
 	},
 
@@ -167,7 +173,10 @@ contentStructureSchema.statics = {
 			const node = await this.findOne({ _id: id }).lean();
 			return { success: true, data: node };
 		} catch (error) {
-			return { success: false, error: createDatabaseError(error, 'CONTENT_GET_NODE_BY_PATH_ERROR', `Error fetching node by path: ${id}`) };
+			return {
+				success: false,
+				error: createDatabaseError(error, 'CONTENT_GET_NODE_BY_PATH_ERROR', `Error fetching node by path: ${id}`)
+			};
 		}
 	},
 
@@ -260,8 +269,7 @@ function registerContentStructureDiscriminators() {
 
 // Create the base model
 const BaseContentStructure: Model<ContentStructureDocument> =
-	mongoose.models.system_content_structure ??
-	mongoose.model<ContentStructureDocument>('system_content_structure', contentStructureSchema);
+	mongoose.models.system_content_structure ?? mongoose.model<ContentStructureDocument>('system_content_structure', contentStructureSchema);
 
 // Register discriminators
 registerContentStructureDiscriminators();

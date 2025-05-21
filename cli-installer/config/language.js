@@ -88,7 +88,9 @@ export async function configureLanguage(configData = {}) {
 		validate(value) {
 			if (value.length === 0) return { message: 'At least one content language must be selected.' };
 			if (!value.includes(DEFAULT_CONTENT_LANGUAGE)) {
-				return { message: `The default content language (${DEFAULT_CONTENT_LANGUAGE}) must be included in the available languages.` };
+				return {
+					message: `The default content language (${DEFAULT_CONTENT_LANGUAGE}) must be included in the available languages.`
+				};
 			}
 			return undefined;
 		}
@@ -129,7 +131,9 @@ export async function configureLanguage(configData = {}) {
 		validate(value) {
 			if (value.length === 0) return { message: 'At least one system language must be selected.' };
 			if (!value.includes(DEFAULT_SYSTEM_LANGUAGE)) {
-				return { message: `The default system language (${DEFAULT_SYSTEM_LANGUAGE}) must be included in the available languages.` };
+				return {
+					message: `The default system language (${DEFAULT_SYSTEM_LANGUAGE}) must be included in the available languages.`
+				};
 			}
 			return undefined;
 		}

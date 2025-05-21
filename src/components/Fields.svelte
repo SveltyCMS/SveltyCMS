@@ -76,7 +76,9 @@
 	let currentCollectionValue = $state(defaultCollectionValue);
 
 	// Dynamic import of widget components
-	const modules: Record<string, { default: any }> = import.meta.glob('@widgets/**/*.svelte', { eager: true });
+	const modules: Record<string, { default: any }> = import.meta.glob('@widgets/**/*.svelte', {
+		eager: true
+	});
 
 	// Lifecycle
 	$effect(() => {
@@ -144,7 +146,10 @@
 			<Tab bind:group={tabSet} name="tab2" value={1}>
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="pepicons-pop:countdown" width="24" class="text-tertiary-500 dark:text-primary-500"> </iconify-icon>
-					<p>{m.applayout_version()} <span class="variant-outline-tertiary badge rounded-full dark:variant-outline-primary">1</span></p>
+					<p>
+						{m.applayout_version()}
+						<span class="variant-outline-tertiary badge rounded-full dark:variant-outline-primary">1</span>
+					</p>
 				</div>
 			</Tab>
 		{/if}
@@ -228,7 +233,10 @@
 														const temp = currentCollectionValue;
 														temp[getFieldName(field, true)] = v;
 														currentCollectionValue = temp;
-														collectionValue.set({ ...collectionValue.value, ...currentCollectionValue });
+														collectionValue.set({
+															...collectionValue.value,
+															...currentCollectionValue
+														});
 													}
 												}
 											/>
@@ -244,7 +252,9 @@
 			{:else if tabSet === 1}
 				<!-- Revision tab content -->
 				<div class="mb-2 flex items-center justify-between gap-2">
-					<p class="text-center text-tertiary-500 dark:text-primary-500">{m.fields_revision_compare()}</p>
+					<p class="text-center text-tertiary-500 dark:text-primary-500">
+						{m.fields_revision_compare()}
+					</p>
 					<button class="variant-outline-tertiary btn dark:variant-ghost-primary" onclick={handleRevert}>{m.fields_revision_revert()}</button>
 				</div>
 				<select class="select mb-2">
@@ -293,7 +303,9 @@
 			{:else if tabSet === 3}
 				<!-- API Json tab content -->
 				{#if collectionValue.value == null}
-					<div class="variant-ghost-error mb-4 py-2 text-center font-bold">{m.fields_api_nodata()}</div>
+					<div class="variant-ghost-error mb-4 py-2 text-center font-bold">
+						{m.fields_api_nodata()}
+					</div>
 				{:else}
 					<div class="wrapper relative z-0 mb-4 flex w-full items-center justify-start gap-1">
 						<p class="flex items-center">

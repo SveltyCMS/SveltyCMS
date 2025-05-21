@@ -313,7 +313,11 @@ export async function configureSystem(privateConfigData = {}) {
 		SEASONS_REGION = await select({
 			message: 'Select a region for seasonal content:',
 			options: [
-				{ value: 'Western_Europe', label: 'Western Europe', hint: 'New Year, Easter, Halloween, Christmas' },
+				{
+					value: 'Western_Europe',
+					label: 'Western Europe',
+					hint: 'New Year, Easter, Halloween, Christmas'
+				},
 				{ value: 'South_Asia', label: 'South Asia', hint: 'Diwali' },
 				{ value: 'East_Asia', label: 'East Asia', hint: 'Chinese New Year' }
 			],

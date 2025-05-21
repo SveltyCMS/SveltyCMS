@@ -30,7 +30,9 @@ export const _SETSTATUS = async ({ data, schema, user }: { data: FormData; schem
 		// Ensure the database adapter is initialized
 		if (!dbAdapter) {
 			logger.error('Database adapter is not initialized.');
-			return new Response('Internal server error: Database adapter not initialized', { status: 500 });
+			return new Response('Internal server error: Database adapter not initialized', {
+				status: 500
+			});
 		}
 
 		// Validate schema ID
@@ -43,7 +45,9 @@ export const _SETSTATUS = async ({ data, schema, user }: { data: FormData; schem
 		const modelStart = performance.now();
 		if (!dbAdapter?.collection) {
 			logger.error('Collection adapter is not available');
-			return new Response('Internal server error: Collection adapter not available', { status: 500 });
+			return new Response('Internal server error: Collection adapter not available', {
+				status: 500
+			});
 		}
 		const collection = await dbAdapter.collection.getModel(schema.id);
 		const modelDuration = performance.now() - modelStart;

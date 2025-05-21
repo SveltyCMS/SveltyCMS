@@ -174,7 +174,9 @@ Features:
 				<FloatingPaths position={-1} background="dark" mirrorAnimation />
 			</div>
 			<!-- CSS Logo -->
-			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
+			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block">
+				<SveltyCMSLogoFull />
+			</div>
 			<div class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full rounded-md bg-[#242728] p-4 lg:w-4/5" class:hide={active !== 1}>
 				<div class="mb-4 flex flex-row gap-2">
 					<SveltyCMSLogo className="w-14" fill="red" />

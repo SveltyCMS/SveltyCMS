@@ -105,28 +105,32 @@ export async function modifyRequest({ data, fields, collection, user, type }: Mo
 						} catch (error) {
 							const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 							const errorStack = error instanceof Error ? error.stack : '';
-							logger.error(`Error processing entry ${index + 1}: ${errorMessage}`, { stack: errorStack });
+							logger.error(`Error processing entry ${index + 1}: ${errorMessage}`, {
+								stack: errorStack
+							});
 							return entry;
 						}
 					})
 				);
 
 				const fieldDuration = performance.now() - fieldStart;
-				logger.debug(`Field ${fieldName} processed in ${fieldDuration.toFixed(2)}ms`);
+				logger.debug(`Field ${fieldName} processed in \x1b[33m${fieldDuration.toFixed(2)}ms\x1b[0m`);
 			} else {
 				logger.warn(`No modifyRequest handler for widget: \x1b[34m${field.widget.Name}\x1b[0m`);
 			}
 		}
 
 		const duration = performance.now() - start;
-		logger.info(`ModifyRequest completed in ${duration.toFixed(2)}ms for ${data.length} entries`);
+		logger.info(`ModifyRequest completed in \x1b[33m${duration.toFixed(2)}ms\x1b[0m for \x1b[34m${data.length}\x1b[0m entries`);
 
 		return data;
 	} catch (error) {
 		const duration = performance.now() - start;
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 		const errorStack = error instanceof Error ? error.stack : '';
-		logger.error(`ModifyRequest failed after ${duration.toFixed(2)}ms: ${errorMessage}`, { stack: errorStack });
+		logger.error(`ModifyRequest failed after  \x1b[33m${duration.toFixed(2)}ms\x1b[0m: ${errorMessage}`, {
+			stack: errorStack
+		});
 		throw error;
 	}
 }

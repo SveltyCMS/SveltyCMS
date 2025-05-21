@@ -247,7 +247,9 @@
 		<header class={cHeader}>
 			{sectionName}
 		</header>
-		<article class="hidden flex-shrink-0 text-center sm:block">{$modalStore[0]?.body ?? '(body missing)'}</article>
+		<article class="hidden flex-shrink-0 text-center sm:block">
+			{$modalStore[0]?.body ?? '(body missing)'}
+		</article>
 		<!-- Enable for debugging: -->
 
 		<form id="upload-form" class="{cForm} flex-grow overflow-hidden" onsubmit={onFormSubmit}>

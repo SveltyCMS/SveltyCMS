@@ -84,7 +84,12 @@ export const POST: RequestHandler = async ({ request }) => {
 			return json({ message: 'User already exists' }, { status: 400 });
 		}
 
-		const newUser = await auth.createUser({ email, role, lastAuthMethod: 'password', isRegistered: false });
+		const newUser = await auth.createUser({
+			email,
+			role,
+			lastAuthMethod: 'password',
+			isRegistered: false
+		});
 		const expiresAt = new Date(Date.now() + expirationTime * 1000);
 		const token = await auth.createToken(newUser._id, expiresAt);
 

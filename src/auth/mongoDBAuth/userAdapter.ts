@@ -310,7 +310,7 @@ export class UserAdapter implements Partial<authDBInterface> {
 			const user = await this.UserModel.findById(user_id).lean();
 			if (user) {
 				user._id = user._id.toString();
-				logger.debug(`User retrieved by ID:\x1b[34m${user_id}\x1b[0m`);
+				logger.debug(`User retrieved by ID: \x1b[34m${user_id}\x1b[0m`);
 				return user as User;
 			} else {
 				return null;
@@ -328,7 +328,7 @@ export class UserAdapter implements Partial<authDBInterface> {
 			const user = await this.UserModel.findOne({ email }).lean();
 			if (user) {
 				user._id = user._id.toString();
-				logger.debug(`User retrieved by email: ${email}`);
+				logger.debug(`User retrieved by email:`, { email });
 				return user as User;
 			} else {
 				return null;

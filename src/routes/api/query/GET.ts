@@ -40,7 +40,6 @@ import { getFieldName, get_elements_by_id } from '@utils/utils';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-import { contentManager } from '@root/src/content/ContentManager';
 
 // Function to handle GET requests for a specified collection
 export async function _GET({
@@ -61,18 +60,21 @@ export async function _GET({
 	page?: number;
 }) {
 	const start = performance.now();
+
 	try {
-		logger.debug(`GET request received for schema: ${schema._id}, user_id: ${user._id}`);
+		logger.debug(`GET request received for schema: \x1b[34m${schema._id}\x1b[0m, user_id: \x1b[34m${user._id}\x1b[0m`);
 
 		// Ensure the database adapter is initialized
 		if (!dbAdapter) {
 			logger.error('Database adapter is not initialized.');
-			return new Response('Internal server error: Database adapter not initialized', { status: 500 });
+			return new Response('Internal server error: Database adapter not initialized', {
+				status: 500
+			});
 		}
 
 		// Validate schema ID
 		if (!schema._id) {
-			logger.error(`Invalid or undefined schema ID: ${schema._id}`);
+			logger.error(`Invalid or undefined schema ID: \x1b[34m${schema._id}\x1b[0m`);
 			return new Response('Invalid or undefined schema ID.', { status: 400 });
 		}
 
@@ -81,11 +83,23 @@ export async function _GET({
 
 		// Find the collection by name or ID
 		if (!collection) {
-			logger.error(`Collection not found for schema ID: ${schema._id} or name: ${schema.name}`);
+			logger.error(`Collection not found for schema ID: \x1b[34m${schema._id}\x1b[0m or name: \x1b[34m${schema.name}\x1b[0m`);
 			return new Response('Collection not found', { status: 404 });
 		}
 
 		const aggregations: AggregationPipeline[] = [];
+
+		// Add status filter based on user permissions
+		const isAdmin = user?.permissions?.includes('admin');
+		if (!isAdmin) {
+			aggregations.push({
+				$match: {
+					status: 'published'
+				}
+			});
+		} else {
+			logger.info(`Admin user \x1b[34m${user._id}\x1b[0m accessing collection \x1b[34m${schema._id}\x1b[0m with full status visibility`);
+		}
 		const skip = (page - 1) * limit; // Calculate the number of documents to skip for pagination
 
 		// Build aggregation pipelines for sorting and filtering
@@ -105,7 +119,7 @@ export async function _GET({
 						});
 						aggregations.push(..._aggregations);
 					} catch (error) {
-						logger.error(`Error in widget filter aggregation for field ${fieldName}: ${error}`);
+						logger.error(`Error in widget filter aggregation for field ${fieldName} after ${duration.toFixed(2)}ms: ${error}`);
 					}
 				}
 				if (widget.aggregations?.sorts && _sort) {
@@ -134,8 +148,9 @@ export async function _GET({
 			// Then get paginated entries
 			entries = await collection.aggregate([...aggregations, { $skip: skip }, ...(limit ? [{ $limit: limit }] : [])]);
 
-			const queryDuration = performance.now() - start;
-			logger.debug(`Queries executed in ${queryDuration.toFixed(2)}ms. Entries: ${entries.length}, Total: ${total}`);
+			const duration = performance.now() - start;
+
+			logger.debug(`Queries executed in \x1b[33m${duration.toFixed(2)}ms\x1b[0m. Entries: \x1b[34m${entries.length}\x1b[0m, Total: \x1b[34m${total}\x1b[0m`);
 		} catch (error) {
 			logger.error(`Error executing queries: ${error}`);
 			return new Response('Error executing database query', { status: 500 });
@@ -150,7 +165,7 @@ export async function _GET({
 				user,
 				type: 'GET'
 			});
-			logger.debug(`Request modified for ${entries.length} entries`);
+			logger.debug(`Request modified for \x1b[34m${entries.length}\x1b[0m entries`);
 		} catch (error) {
 			logger.error(`Error in modifyRequest: ${error}`);
 		}
@@ -158,7 +173,6 @@ export async function _GET({
 		// Get all collected IDs and modify request
 		try {
 			await get_elements_by_id.getAll(dbAdapter);
-			logger.debug('get_elements_by_id.getAll executed successfully');
 		} catch (error) {
 			logger.error(`Error in get_elements_by_id.getAll: ${error}`);
 		}
@@ -167,7 +181,7 @@ export async function _GET({
 		const pagesCount = limit > 0 ? Math.ceil(total / limit) : 1;
 
 		const duration = performance.now() - start;
-		logger.info(`GET request completed in ${duration.toFixed(2)}ms. Total: ${total}, Pages: ${pagesCount}`);
+		logger.info(`GET request completed in \x1b[33m${duration.toFixed(2)}ms\x1b[0m. Total: \x1b[34m${total}\x1b[0m, Pages: \x1b[34m${pagesCount}\x1b[0m`);
 
 		// Return the response with entry list and pages count
 		return new Response(
@@ -175,6 +189,7 @@ export async function _GET({
 				success: true,
 				entryList: entries,
 				pagesCount,
+				totalItems: total,
 				performance: {
 					total: duration
 				}
@@ -190,15 +205,32 @@ export async function _GET({
 		const duration = performance.now() - start;
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
 		const errorStack = error instanceof Error ? error.stack : '';
-		logger.error(`Error in GET request after ${duration.toFixed(2)}ms: ${errorMessage}`, { stack: errorStack });
+
+		// Enhanced error logging
+		logger.error(`Error in GET request after \x1b[33m${duration.toFixed(2)}ms\x1b[0m`, {
+			error: errorMessage,
+			stack: errorStack,
+			schema: schema?._id,
+			user: user?._id,
+			contentLanguage,
+			duration
+		});
+
+		// Standardized error response
+		const errorResponse = {
+			success: false,
+			error: {
+				message: errorMessage,
+				code: 'SERVER_ERROR',
+				details: process.env.NODE_ENV === 'development' ? errorStack : undefined
+			},
+			performance: {
+				total: duration
+			}
+		};
+
 		return new Response(
-			JSON.stringify({
-				success: false,
-				error: errorMessage,
-				performance: {
-					total: duration
-				}
-			}),
+			JSON.stringify(errorResponse),
 			{
 				status: 500,
 				headers: {
@@ -209,3 +241,4 @@ export async function _GET({
 		);
 	}
 }
+

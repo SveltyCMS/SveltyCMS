@@ -112,7 +112,10 @@ export async function updatePermission(permissionName: string, permissionData: A
 		if (permissionIndex === -1) {
 			throw error(404, `Permission ${permissionName} not found`);
 		}
-		configPermissions[permissionIndex] = { ...configPermissions[permissionIndex], ...permissionData };
+		configPermissions[permissionIndex] = {
+			...configPermissions[permissionIndex],
+			...permissionData
+		};
 		logger.info(`Permission ${permissionName} updated successfully.`);
 	} catch (err) {
 		const message = `Error in updatePermission: ${err instanceof Error ? err.message : String(err)}`;
@@ -210,14 +213,54 @@ export const permissionConfigs: Record<string, PermissionConfig> = {
 		action: PermissionAction.MANAGE,
 		contextType: 'system'
 	},
-	graphql: { contextId: 'config/graphql', name: 'GraphQL Management', action: PermissionAction.MANAGE, contextType: 'system' },
-	imageeditor: { contextId: 'config/imageeditor', name: 'ImageEditor Management', action: PermissionAction.MANAGE, contextType: 'system' },
-	dashboard: { contextId: 'config/dashboard', name: 'Dashboard Management', action: PermissionAction.MANAGE, contextType: 'system' },
-	widgetManagement: { contextId: 'config/widgetManagement', name: 'Widget Management', action: PermissionAction.MANAGE, contextType: 'system' },
-	themeManagement: { contextId: 'config/themeManagement', name: 'Theme Management', action: PermissionAction.MANAGE, contextType: 'system' },
-	settings: { contextId: 'config/settings', name: 'Settings Management', action: PermissionAction.MANAGE, contextType: 'system' },
-	accessManagement: { contextId: 'config/accessManagement', name: 'Access Management', action: PermissionAction.MANAGE, contextType: 'system' },
-	adminAccess: { contextId: 'admin/access', name: 'Admin Access', action: 'manage', contextType: 'system' },
+	graphql: {
+		contextId: 'config/graphql',
+		name: 'GraphQL Management',
+		action: PermissionAction.MANAGE,
+		contextType: 'system'
+	},
+	imageeditor: {
+		contextId: 'config/imageeditor',
+		name: 'ImageEditor Management',
+		action: PermissionAction.MANAGE,
+		contextType: 'system'
+	},
+	dashboard: {
+		contextId: 'config/dashboard',
+		name: 'Dashboard Management',
+		action: PermissionAction.MANAGE,
+		contextType: 'system'
+	},
+	widgetManagement: {
+		contextId: 'config/widgetManagement',
+		name: 'Widget Management',
+		action: PermissionAction.MANAGE,
+		contextType: 'system'
+	},
+	themeManagement: {
+		contextId: 'config/themeManagement',
+		name: 'Theme Management',
+		action: PermissionAction.MANAGE,
+		contextType: 'system'
+	},
+	settings: {
+		contextId: 'config/settings',
+		name: 'Settings Management',
+		action: PermissionAction.MANAGE,
+		contextType: 'system'
+	},
+	accessManagement: {
+		contextId: 'config/accessManagement',
+		name: 'Access Management',
+		action: PermissionAction.MANAGE,
+		contextType: 'system'
+	},
+	adminAccess: {
+		contextId: 'admin/access',
+		name: 'Admin Access',
+		action: 'manage',
+		contextType: 'system'
+	},
 
 	// User Permissions
 	adminAreaPermissionConfig: {
@@ -236,5 +279,11 @@ export const permissionConfigs: Record<string, PermissionConfig> = {
 } as const;
 
 export const userManagementPermissions = [
-	{ _id: 'user:manage', name: 'Manage Users', action: PermissionAction.MANAGE, type: PermissionType.USER, description: 'Allows management of users.' }
+	{
+		_id: 'user:manage',
+		name: 'Manage Users',
+		action: PermissionAction.MANAGE,
+		type: PermissionType.USER,
+		description: 'Allows management of users.'
+	}
 ];

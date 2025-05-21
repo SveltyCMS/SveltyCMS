@@ -39,7 +39,11 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	let action = $state(page.params.action);
 
 	interface Props {
-		data: { collection: Schema & { module: string | undefined }; contentLanguage: string; user: User };
+		data: {
+			collection: Schema & { module: string | undefined };
+			contentLanguage: string;
+			user: User;
+		};
 	}
 
 	const { data }: Props = $props();
@@ -227,7 +231,9 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		</div>
 	{/if}
 
-	<p class="mb-2 hidden text-center text-tertiary-500 dark:text-primary-500 sm:block">{m.collection_helptext()}</p>
+	<p class="mb-2 hidden text-center text-tertiary-500 dark:text-primary-500 sm:block">
+		{m.collection_helptext()}
+	</p>
 	<!-- Required Text  -->
 	<div class="mb-2 text-center text-xs text-error-500">* {m.collection_required()}</div>
 	<TabGroup bind:group={$tabSet}>

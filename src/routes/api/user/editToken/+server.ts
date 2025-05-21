@@ -71,8 +71,12 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 				let hours = 168; // Default 7 days
 
 				switch (unit) {
-					case 'h': hours = value; break;
-					case 'd': hours = value * 24; break;
+					case 'h':
+						hours = value;
+						break;
+					case 'd':
+						hours = value * 24;
+						break;
 				}
 
 				const expires = new Date();

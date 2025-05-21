@@ -206,7 +206,9 @@ Dynamically displays seasonal greetings and festival-based UI decorations based 
 				<iconify-icon icon="noto:lantern" width="40" class="absolute -left-[60px] -top-[20px] text-red-600"></iconify-icon>
 				<iconify-icon icon="noto:dragon-face" width="40" class="absolute -right-[60px] -top-[20px]"></iconify-icon>
 			</div>
-			<p class="absolute left-[-40px] top-[-50px] justify-center whitespace-nowrap text-2xl font-bold text-red-600">{m.login_new_year()}</p>
+			<p class="absolute left-[-40px] top-[-50px] justify-center whitespace-nowrap text-2xl font-bold text-red-600">
+				{m.login_new_year()}
+			</p>
 		{/if}
 
 		{#if isCherryBlossom}

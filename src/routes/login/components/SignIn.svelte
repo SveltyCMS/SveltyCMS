@@ -332,7 +332,9 @@ Features:
 			</div>
 			>
 
-			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"><SveltyCMSLogoFull /></div>
+			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block">
+				<SveltyCMSLogoFull />
+			</div>
 			<!-- CSS Logo -->
 			<div class="z-0 mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto rounded-md bg-white p-4 lg:w-4/5" class:hide={active !== 0}>
 				<div class="mb-1 flex flex-row gap-2">
@@ -599,7 +601,9 @@ Features:
 				{:else}
 					<button onclick={onClick} type="button" aria-label="Signup" class="variant-ghost btn mt-2 w-full flex-col justify-center text-surface-500">
 						<p class="font-bold text-error-500">{m.signin_no_user()}</p>
-						<p>Please sign up to create the <span class="font-bold text-tertiary-500">first admin </span> account.</p>
+						<p>
+							Please sign up to create the <span class="font-bold text-tertiary-500">first admin </span> account.
+						</p>
 					</button>
 				{/if}
 			</div>

@@ -3,12 +3,13 @@
 @component
 **Role component for displaying different badges based on user roles.**
 
-```tsx
+@example
 <Role value={roles[0]?._id} />
-```
+
 @props
 - `value` {string}: The role ID to display
 -->
+
 <script lang="ts">
 	// Auth
 	import { getLoadedRoles } from '@src/auth/types';

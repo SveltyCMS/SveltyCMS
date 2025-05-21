@@ -136,10 +136,14 @@
 			<div class="mx-2 flex flex-col gap-2">
 				<!-- Image Header -->
 				<div class="flex items-center justify-between gap-2">
-					<p class="text-left">{m.widget_ImageUpload_Name()} <span class="text-tertiary-500 dark:text-primary-500">{_data.name}</span></p>
+					<p class="text-left">
+						{m.widget_ImageUpload_Name()}
+						<span class="text-tertiary-500 dark:text-primary-500">{_data.name}</span>
+					</p>
 
 					<p class="text-left">
-						{m.widget_ImageUpload_Size()} <span class="text-tertiary-500 dark:text-primary-500">{(_data.size / 1024).toFixed(2)} KB</span>
+						{m.widget_ImageUpload_Size()}
+						<span class="text-tertiary-500 dark:text-primary-500">{(_data.size / 1024).toFixed(2)} KB</span>
 					</p>
 				</div>
 				<!-- Image -->

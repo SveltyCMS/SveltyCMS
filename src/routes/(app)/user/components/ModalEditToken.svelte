@@ -309,7 +309,9 @@ d<!-- @component This example creates a simple form modal. -->
 			<!-- User Role -->
 			{#if user.role == 'admin'}
 				<div class="flex flex-col gap-2 sm:flex-row">
-					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}: <span class="text-error-500">*</span></div>
+					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">
+						{m.form_userrole()}: <span class="text-error-500">*</span>
+					</div>
 					<div class="flex-auto">
 						<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
 							{#if roles && roles.length > 0}

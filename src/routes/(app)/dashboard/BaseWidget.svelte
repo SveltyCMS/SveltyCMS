@@ -252,7 +252,9 @@
 	{#if loading && !data}
 		<div class="loading-state flex flex-1 items-center justify-center text-center">Loading...</div>
 	{:else if error && !data}
-		<div class="error-state flex flex-1 items-center justify-center text-center text-error-500">Error: {error}</div>
+		<div class="error-state flex flex-1 items-center justify-center text-center text-error-500">
+			Error: {error}
+		</div>
 	{:else}
 		<!-- Widget-specific content goes here -->
 		{@render children?.({ data, updateWidgetState, getWidgetState })}

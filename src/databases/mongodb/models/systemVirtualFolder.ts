@@ -85,7 +85,14 @@ export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(
 					return { success: true, data: folders };
 				} catch (error) {
 					logger.error(`Error retrieving virtual folders: ${error.message}`);
-					return { success: false, error: { code: 'VIRTUAL_FOLDER_GET_ERROR', message: 'Failed to retrieve virtual folders', details: error } };
+					return {
+						success: false,
+						error: {
+							code: 'VIRTUAL_FOLDER_GET_ERROR',
+							message: 'Failed to retrieve virtual folders',
+							details: error
+						}
+					};
 				}
 			},
 
@@ -100,7 +107,13 @@ export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(
 					return { success: true, data: folder };
 				} catch (error) {
 					logger.error(`Error retrieving virtual folder by path: ${error.message}`);
-					return { success: false, error: { code: 'VIRTUAL_FOLDER_GET_ERROR', message: `Failed to retrieve virtual folder for path: ${path}` } };
+					return {
+						success: false,
+						error: {
+							code: 'VIRTUAL_FOLDER_GET_ERROR',
+							message: `Failed to retrieve virtual folder for path: ${path}`
+						}
+					};
 				}
 			},
 
@@ -115,7 +128,13 @@ export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(
 					return { success: true, data: folders };
 				} catch (error) {
 					logger.error(`Error retrieving virtual folder children: ${error.message}`);
-					return { success: false, error: { code: 'VIRTUAL_FOLDER_CHILDREN_ERROR', message: `Failed to retrieve children for path: ${parentPath}` } };
+					return {
+						success: false,
+						error: {
+							code: 'VIRTUAL_FOLDER_CHILDREN_ERROR',
+							message: `Failed to retrieve children for path: ${parentPath}`
+						}
+					};
 				}
 			},
 
@@ -135,7 +154,11 @@ export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(
 					logger.error(`Error bulk updating virtual folder order: ${error.message}`);
 					return {
 						success: false,
-						error: { code: 'VIRTUAL_FOLDER_ORDER_UPDATE_ERROR', message: 'Failed to bulk update folder order', details: error }
+						error: {
+							code: 'VIRTUAL_FOLDER_ORDER_UPDATE_ERROR',
+							message: 'Failed to bulk update folder order',
+							details: error
+						}
 					};
 				}
 			},

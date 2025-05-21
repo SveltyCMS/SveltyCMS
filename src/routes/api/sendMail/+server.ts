@@ -120,7 +120,7 @@ export const POST: RequestHandler = async ({ request }) => {
 async function sendMail(email: string, subject: string, message: string, templateName: keyof typeof templates, props: EmailProps, lang: string) {
 	// Validate SMTP configuration
 	const requiredSmtpVars = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_EMAIL', 'SMTP_PASSWORD'];
-	const missingVars = requiredSmtpVars.filter(varName => !privateEnv[varName]);
+	const missingVars = requiredSmtpVars.filter((varName) => !privateEnv[varName]);
 
 	if (missingVars.length > 0) {
 		throw new Error(`Missing required SMTP configuration: ${missingVars.join(', ')}`);

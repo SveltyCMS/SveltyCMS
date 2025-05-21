@@ -81,9 +81,14 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 			const value = parseInt(expiresInHours.slice(0, -1));
 
 			switch (unit) {
-				case 'h': expiresInHours = value; break;
-				case 'd': expiresInHours = value * 24; break;
-				default: expiresInHours = 168; // Default 7 days
+				case 'h':
+					expiresInHours = value;
+					break;
+				case 'd':
+					expiresInHours = value * 24;
+					break;
+				default:
+					expiresInHours = 168; // Default 7 days
 			}
 		}
 

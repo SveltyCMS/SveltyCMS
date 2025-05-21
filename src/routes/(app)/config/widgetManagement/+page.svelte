@@ -73,7 +73,9 @@ Features:
 				<iconify-icon icon={widget.Icon} width="38" class="mr-2 text-error-500"></iconify-icon>
 				<div>
 					<h3 class="text-lg font-semibold">{widget.Name}</h3>
-					<p class="text-wrap text-sm text-tertiary-500 dark:text-primary-500">{widget.Description}</p>
+					<p class="text-wrap text-sm text-tertiary-500 dark:text-primary-500">
+						{widget.Description}
+					</p>
 				</div>
 			</div>
 			<button

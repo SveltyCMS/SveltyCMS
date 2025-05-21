@@ -88,7 +88,10 @@
 	function validateInput() {
 		if (debounceTimeout) clearTimeout(debounceTimeout);
 		debounceTimeout = window.setTimeout(() => {
-			validationError = validateSchema(widgetSchema, { startDate: _data[_language], endDate: endDateValue });
+			validationError = validateSchema(widgetSchema, {
+				startDate: _data[_language],
+				endDate: endDateValue
+			});
 		}, 300);
 	}
 </script>

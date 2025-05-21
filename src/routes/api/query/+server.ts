@@ -87,7 +87,7 @@ async function checkUserPermissions(data: FormData, cookies: CookieData) {
 		const has_read_access = collectionSchema?.permissions?.[user.role]?.read !== false;
 		const has_write_access = collectionSchema?.permissions?.[user.role]?.write !== false;
 
-		logger.debug(`Permission check completed`);
+		logger.debug(`Permission check completed (src/routes/api/query/+server.ts)`);
 
 		return { user, collection_schema: collectionSchema, has_read_access, has_write_access };
 	} catch (error) {
@@ -125,7 +125,12 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 	try {
 		// Check user permissions
 		const { user, collection_schema, has_read_access, has_write_access } = await checkUserPermissions(data, cookies);
-		logger.debug('User permissions checked', { user: user._id, has_read_access, has_write_access, contentTypes: collection_schema.name });
+		logger.debug('User permissions checked', {
+			user: user._id,
+			has_read_access,
+			has_write_access,
+			contentTypes: collection_schema.name
+		});
 
 		// If user does not have read access, return 403 Forbidden response
 		if (!has_read_access) {
@@ -150,7 +155,15 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		// Handle different methods (GET, POST, PATCH, DELETE, SETSTATUS)
 		switch (method) {
 			case 'GET':
-				response = await _GET({ contentLanguage, filter, schema: collection_schema, sort, user, limit, page });
+				response = await _GET({
+					contentLanguage,
+					filter,
+					schema: collection_schema,
+					sort,
+					user,
+					limit,
+					page
+				});
 				break;
 			case 'POST':
 			case 'PATCH':

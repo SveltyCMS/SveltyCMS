@@ -35,7 +35,7 @@ export const schema: Schema = {
 			required: true,
 			icon: 'ri:t-box-line',
 			placeholder: 'Enter Test Placeholder'
-		}),
+		})
 
 		// widgets.Group({
 		// 	label: 'Post Content group',

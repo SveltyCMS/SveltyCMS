@@ -82,7 +82,13 @@ widget.Description = m.widget_currency_description();
 widget.aggregations = {
 	filters: async (info) => {
 		const field = info.field as ReturnType<typeof widget>;
-		return [{ $match: { [`${getFieldName(field)}.${info.contentLanguage}`]: { $regex: info.filter, $options: 'i' } } }];
+		return [
+			{
+				$match: {
+					[`${getFieldName(field)}.${info.contentLanguage}`]: { $regex: info.filter, $options: 'i' }
+				}
+			}
+		];
 	},
 	sorts: async (info) => {
 		const field = info.field as ReturnType<typeof widget>;

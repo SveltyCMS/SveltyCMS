@@ -3,9 +3,9 @@
 @component
 **Icon component for table**
 
-```tsx
+@example
 <TableIcons checked={true} />
-```
+
 @props
 - `checked` {boolean}: The checked state of the icon
 - `iconStatus` {string}: The status of the icon

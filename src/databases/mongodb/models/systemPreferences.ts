@@ -52,7 +52,13 @@ systemPreferencesSchema.statics = {
 			return { success: true, data: preferenceResult };
 		} catch (error) {
 			logger.error(`Error retrieving system preference: ${error.message}`);
-			return { success: false, error: { code: 'PREFERENCE_GET_ERROR', message: `Failed to retrieve preference for key: ${key}` } };
+			return {
+				success: false,
+				error: {
+					code: 'PREFERENCE_GET_ERROR',
+					message: `Failed to retrieve preference for key: ${key}`
+				}
+			};
 		}
 	},
 
@@ -64,7 +70,14 @@ systemPreferencesSchema.statics = {
 			return { success: true, data: result.deletedCount };
 		} catch (error) {
 			logger.error(`Error bulk deleting system preferences by scope: ${error.message}`);
-			return { success: false, error: { code: 'PREFERENCE_BULK_DELETE_ERROR', message: 'Failed to bulk delete system preferences', details: error } };
+			return {
+				success: false,
+				error: {
+					code: 'PREFERENCE_BULK_DELETE_ERROR',
+					message: 'Failed to bulk delete system preferences',
+					details: error
+				}
+			};
 		}
 	},
 
@@ -80,7 +93,10 @@ systemPreferencesSchema.statics = {
 			return { success: true, data: undefined };
 		} catch (error) {
 			logger.error(`Error setting system preference: ${error.message}`);
-			return { success: false, error: { code: 'PREFERENCE_SET_ERROR', message: `Failed to set preference for key: ${key}` } };
+			return {
+				success: false,
+				error: { code: 'PREFERENCE_SET_ERROR', message: `Failed to set preference for key: ${key}` }
+			};
 		}
 	},
 
@@ -99,7 +115,13 @@ systemPreferencesSchema.statics = {
 			return { success: true, data: undefined };
 		} catch (error) {
 			logger.error(`Error deleting system preference: ${error.message}`);
-			return { success: false, error: { code: 'PREFERENCE_DELETE_ERROR', message: `Failed to delete preference for key: ${key}` } };
+			return {
+				success: false,
+				error: {
+					code: 'PREFERENCE_DELETE_ERROR',
+					message: `Failed to delete preference for key: ${key}`
+				}
+			};
 		}
 	}
 };

@@ -23,16 +23,25 @@
 			});
 			const result = await response.json();
 			if (result.success) {
-				toastStore.trigger({ message: 'Configuration saved successfully!', background: 'bg-success' } as ToastSettings);
+				toastStore.trigger({
+					message: 'Configuration saved successfully!',
+					background: 'bg-success'
+				} as ToastSettings);
 
 				// Trigger a restart API route
 				await triggerRestart();
 			} else {
-				toastStore.trigger({ message: 'Failed to save configuration.', background: 'bg-error' } as ToastSettings);
+				toastStore.trigger({
+					message: 'Failed to save configuration.',
+					background: 'bg-error'
+				} as ToastSettings);
 			}
 		} catch (error) {
 			console.error('Error saving configuration:', error);
-			toastStore.trigger({ message: 'Error saving configuration.', background: 'bg-error' } as ToastSettings);
+			toastStore.trigger({
+				message: 'Error saving configuration.',
+				background: 'bg-error'
+			} as ToastSettings);
 		}
 	}
 
@@ -46,13 +55,22 @@
 			});
 			const result = await response.json();
 			if (result.success) {
-				toastStore.trigger({ message: 'Server restart triggered successfully!', background: 'bg-success' } as ToastSettings);
+				toastStore.trigger({
+					message: 'Server restart triggered successfully!',
+					background: 'bg-success'
+				} as ToastSettings);
 			} else {
-				toastStore.trigger({ message: 'Failed to trigger server restart.', background: 'bg-error' } as ToastSettings);
+				toastStore.trigger({
+					message: 'Failed to trigger server restart.',
+					background: 'bg-error'
+				} as ToastSettings);
 			}
 		} catch (error) {
 			console.error('Error triggering server restart:', error);
-			toastStore.trigger({ message: 'Error triggering server restart.', background: 'bg-error' } as ToastSettings);
+			toastStore.trigger({
+				message: 'Error triggering server restart.',
+				background: 'bg-error'
+			} as ToastSettings);
 		}
 	}
 

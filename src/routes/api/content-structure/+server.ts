@@ -89,31 +89,30 @@ export const POST: RequestHandler = async ({ request }) => {
 		const action = data.action;
 		logger.debug('POST request received', { data, action });
 
-    switch (action) {
-      case 'updateContentStructure': {
-        // Updates metadata for categories and collections
-        const { items }: { items: ContentNodeOperation[] } = data;
+		switch (action) {
+			case 'updateContentStructure': {
+				// Updates metadata for categories and collections
+				const { items }: { items: ContentNodeOperation[] } = data;
 
 				if (!items || !Array.isArray(items)) {
 					throw error(400, 'Items array is required');
 				}
 
-        const contentStructure = await contentManager.upsertContentNodes(items);
+				const contentStructure = await contentManager.upsertContentNodes(items);
 
-
-        // await contentManager.updateCollections(true);
-        logger.info('Content structure metadata updated successfully');
-        return json({
-          success: true,
-          contentStructure,
-          message: 'Content structure metadata updated successfully'
-        });
-      }
-      case 'recompile': {
-        // Clear Redis cache if available
-        if (!browser && isRedisEnabled()) {
-          await clearCache('api:content-structure:*');
-        }
+				// await contentManager.updateCollections(true);
+				logger.info('Content structure metadata updated successfully');
+				return json({
+					success: true,
+					contentStructure,
+					message: 'Content structure metadata updated successfully'
+				});
+			}
+			case 'recompile': {
+				// Clear Redis cache if available
+				if (!browser && isRedisEnabled()) {
+					await clearCache('api:content-structure:*');
+				}
 
 				// Reset the content manager's internal state and force recompilation
 				await contentManager.updateCollections(true);

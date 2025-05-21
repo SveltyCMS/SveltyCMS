@@ -110,7 +110,11 @@ export async function registerCollections() {
 				continue;
 			}
 
-			const schema = widget.GraphqlSchema({ field, label: getFieldName(field, true), collection }) as WidgetSchema | undefined;
+			const schema = widget.GraphqlSchema({
+				field,
+				label: getFieldName(field, true),
+				collection
+			}) as WidgetSchema | undefined;
 
 			if (schema?.resolver) {
 				// deepmerge correctly merges resolvers without duplication of functions, but objects within objects
@@ -118,7 +122,6 @@ export async function registerCollections() {
 			}
 
 			if (schema) {
-
 				// Add the main type ID from the schema if not already present
 				if (!typeIDs.has(schema.typeID)) {
 					typeIDs.add(schema.typeID);
@@ -130,7 +133,8 @@ export async function registerCollections() {
 				schema.graphql.split(/(?=type\s+\w+\s*{)/).forEach((typeDefinition) => {
 					// Trim to remove any leading/trailing whitespace
 					const trimmedTypeDefinition = typeDefinition.trim();
-					if (trimmedTypeDefinition) { // Ensure it's not an empty string
+					if (trimmedTypeDefinition) {
+						// Ensure it's not an empty string
 						// Extract the type ID from the definition
 						const typeMatch = trimmedTypeDefinition.match(/type\s+(\w+)/);
 						if (typeMatch && typeMatch[1]) {

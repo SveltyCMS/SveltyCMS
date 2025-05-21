@@ -172,7 +172,10 @@ async function validateRoles(roles: Role[]): Promise<{ isValid: boolean; error?:
 		for (const role of roles) {
 			// Validate basic structure
 			if (!validateRoleStructure(role)) {
-				return { isValid: false, error: `Invalid role structure for role: ${role.name || 'unnamed'}` };
+				return {
+					isValid: false,
+					error: `Invalid role structure for role: ${role.name || 'unnamed'}`
+				};
 			}
 
 			// Validate role name
@@ -194,7 +197,10 @@ async function validateRoles(roles: Role[]): Promise<{ isValid: boolean; error?:
 				// Skip permission validation for admin role since it's dynamic
 				for (const permission of role.permissions) {
 					if (!permissionIds.has(permission)) {
-						return { isValid: false, error: `Invalid permission: ${permission} in role: ${role.name}` };
+						return {
+							isValid: false,
+							error: `Invalid permission: ${permission} in role: ${role.name}`
+						};
 					}
 				}
 			}

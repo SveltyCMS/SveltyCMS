@@ -59,7 +59,12 @@
 
 	interface Props {
 		children?: import('svelte').Snippet;
-		data: { user: User; contentStructure: ContentNode[]; contentLanguage: string; systemLanguage: string };
+		data: {
+			user: User;
+			contentStructure: ContentNode[];
+			contentLanguage: string;
+			systemLanguage: string;
+		};
 	}
 
 	let { children, data }: Props = $props();

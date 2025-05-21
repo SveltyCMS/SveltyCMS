@@ -25,8 +25,7 @@ import axios from 'axios';
 import { error } from '@sveltejs/kit';
 import { col2formData, config, toFormData } from './utils';
 import type { ContentTypes, Schema, User } from '@src/types';
-import type { Entry } from '@src/types/Entry';
-import { v4 as uuidv4 } from 'uuid';
+// import { v4 as uuidv4 } from 'uuid';
 
 // Store
 import { collection, collectionValue, mode } from '../stores/collectionStore.svelte';
@@ -35,12 +34,12 @@ import { collection, collectionValue, mode } from '../stores/collectionStore.sve
 import { logger } from '@utils/logger.svelte';
 
 // Helper function to handle API requests
-export async function handleRequest(data: FormData, method: string) {
+export async function handleRequest(data: FormData, method: string, retries = 3): Promise<any> {
 	data.append('method', method);
 
 	// Log the FormData entries before sending
 	for (const [key, value] of data.entries()) {
-		logger.debug(`FormData key: ${key}, value: ${value}`);
+		logger.debug(`FormData key: \x1b[34m${key}\x1b[0m, value: \x1b[34m${value}\x1b[0m`);
 	}
 
 	try {
@@ -48,11 +47,17 @@ export async function handleRequest(data: FormData, method: string) {
 			...config,
 			withCredentials: true // Ensure cookies are sent with the request
 		});
-		logger.info(`Successfully completed ${method} request`, { data: response.data });
+		logger.info(`Successfully completed \x1b[34m${method}\x1b[0m request`, { data: response.data });
 		return response.data;
 	} catch (error) {
-		logger.error(`Error in ${method} request:`, error as Error);
-		throw error;
+		if (axios.isAxiosError(error) && error.response?.status === 500 && retries > 0) {
+			logger.warn(`Retrying \x1b[34m${method}\x1b[0m request (\x1b[34m${retries}\x1b[0m attempts remaining)`);
+			await new Promise((resolve) => setTimeout(resolve, 1000 * (4 - retries))); // Exponential backoff
+			return handleRequest(data, method, retries - 1);
+		}
+
+		logger.error(`Error in \x1b[34m${method}\x1b[0m request:`, error);
+		throw new Error(`Failed to complete \x1b[34m${method}\x1b[0m request: ${error instanceof Error ? error.message : String(error)}`);
 	}
 }
 
@@ -64,19 +69,19 @@ export async function getData(query: {
 	contentLanguage?: string;
 	filter?: string;
 	sort?: string;
-}) {
+}, retries = 3): Promise<{ entryList: Record<string, unknown>[]; pagesCount: number }> {
+	// Ensure collectionId is properly formatted
+	const collectionId = query.collectionId.trim().toLowerCase();
+
+	// Create query with fallback language handling
+	const q = toFormData({
+		method: 'GET',
+		...query,
+		collectionId,
+		contentLanguage: query.contentLanguage || 'en' // Default to English if not specified
+	});
+
 	try {
-		// Ensure collectionId is properly formatted
-		const collectionId = query.collectionId.trim().toLowerCase();
-
-		// Create query with fallback language handling
-		const q = toFormData({
-			method: 'GET',
-			...query,
-			collectionId,
-			contentLanguage: query.contentLanguage || 'en' // Default to English if not specified
-		});
-
 		const response = await axios.post('/api/query', q);
 
 		// Handle empty or invalid responses
@@ -85,7 +90,7 @@ export async function getData(query: {
 		}
 
 		// Process dates from MongoDB
-		const processedEntries = response.data.entryList.map(entry => ({
+		const processedEntries = response.data.entryList.map((entry) => ({
 			...entry,
 			createdAt: entry.createdAt ? new Date(entry.createdAt) : null,
 			updatedAt: entry.updatedAt ? new Date(entry.updatedAt) : null
@@ -96,8 +101,14 @@ export async function getData(query: {
 			pagesCount: response.data.pagesCount || 1
 		};
 	} catch (error) {
-		console.error('Error in getData:', error);
-		throw error;
+		if (axios.isAxiosError(error) && error.response?.status === 500 && retries > 0) {
+			logger.warn(`Retrying getData (${retries} attempts remaining)`);
+			await new Promise((resolve) => setTimeout(resolve, 1000 * (4 - retries))); // Exponential backoff
+			return getData(query, retries - 1);
+		}
+
+		logger.error('Error in getData:', error);
+		throw new Error(`Failed to fetch data: ${error instanceof Error ? error.message : String(error)}`);
 	}
 }
 
@@ -151,16 +162,22 @@ export async function saveFormData({
 	data,
 	_collection,
 	_mode,
-	id,
-	user
+	id
 }: {
 	data: FormData | { [Key: string]: () => unknown };
 	_collection?: Schema;
 	_mode?: 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
 	id?: string;
-	user?: User;
 }) {
-	logger.debug('saveFormData was called');
+	// Add the user who last saved (if available)
+	const currentUser = User;
+	if (currentUser && currentUser.username) {
+		if (data instanceof FormData) {
+			data.append('lastSavedBy', currentUser.username);
+		} else {
+			data.lastSavedBy = () => currentUser.username;
+		}
+	}
 
 	const $mode = _mode || mode();
 	const $collection = _collection || collection();
@@ -194,7 +211,10 @@ export async function saveFormData({
 			case 'create':
 				logger.debug('Saving data in create mode.');
 
-				return await addData({ data: formData, collectionId: $collection._id as keyof ContentTypes });
+				return await addData({
+					data: formData,
+					collectionId: $collection._id as keyof ContentTypes
+				});
 
 			case 'edit':
 				logger.debug('Saving data in edit mode.');

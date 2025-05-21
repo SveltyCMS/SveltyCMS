@@ -17,7 +17,10 @@
 		addField = $bindable(false),
 		editField = $bindable(false),
 		selected_widget = $bindable<keyof typeof widgets | null>(null),
-		field = $bindable({ label: '', widget: { key: null as keyof typeof widgets | null, GuiFields: {} } })
+		field = $bindable({
+			label: '',
+			widget: { key: null as keyof typeof widgets | null, GuiFields: {} }
+		})
 	} = $props();
 
 	const widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
@@ -62,7 +65,9 @@
 		</div>
 	{:else}
 		<div class="flex-col items-center justify-center overflow-auto">
-			<p class="text-wxl mb-3 text-center">Define your <span class="text-tertiary-500 dark:text-primary-500">{selected_widget}</span></p>
+			<p class="text-wxl mb-3 text-center">
+				Define your <span class="text-tertiary-500 dark:text-primary-500">{selected_widget}</span>
+			</p>
 			<div class="w-100 mx-2 mb-2 flex justify-between gap-2">
 				<button class="variant-filled-tertiary btn dark:variant-filled-primary" onclick={handleSave}>
 					Save {selected_widget} Widget

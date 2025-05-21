@@ -26,24 +26,33 @@ export function clearRolePermissionCache() {
  */
 export async function checkUserPermission(user: User, config: PermissionConfig): Promise<{ hasPermission: boolean; isRateLimited: boolean }> {
 	try {
-		logger.debug(`Checking permissions for user: ${user.email} on ${config.contextId}`);
+		logger.debug(
+			`Checking permissions for user on \x1b[34m${config.contextId}\x1b[0m`,
+			{ email: user.email }
+		);
 
 		const userRole = configRoles.find((role) => role._id === user.role);
 		if (!userRole) {
-			logger.warn(`Role not found for user: ${user.email}`);
+			logger.warn(
+				`Role not found for user`,
+				{ email: user.email }
+			);
 			return { hasPermission: false, isRateLimited: false };
 		}
 
 		// Admins automatically have all permissions
 		if (userRole.isAdmin) {
-			logger.info(`User ${user.email} is an admin. Granting full access.`);
+			logger.info(
+				`User is an admin. Granting full access.`,
+				{ email: user.email }
+			);
 			return { hasPermission: true, isRateLimited: false };
 		}
 
 		// Retrieve cached role permissions or fetch them
 		let userPermissions = rolePermissionCache.get(user.role);
 		if (!userPermissions) {
-			logger.debug(`Fetching permissions for role: ${user.role}`);
+			logger.debug(`Fetching permissions for role: \x1b[34m${user.role}\x1b[0m`);
 			const allPermissions = await getAllPermissions();
 			userPermissions = allPermissions.filter((permission) => userRole.permissions.includes(permission._id));
 
@@ -58,7 +67,10 @@ export async function checkUserPermission(user: User, config: PermissionConfig):
 				(permission.type === config.contextType || permission.type === PermissionType.SYSTEM)
 		);
 
-		logger.info(`Permission ${hasPermission ? 'GRANTED' : 'DENIED'} for user: ${user.email} on ${config.contextId}`);
+		logger.info(
+			`Permission ${hasPermission ? 'GRANTED' : 'DENIED'} for user on ${config.contextId}`,
+			{ email: user.email }
+		);
 
 		return { hasPermission, isRateLimited: false };
 	} catch (err) {

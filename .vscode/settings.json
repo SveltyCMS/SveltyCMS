@@ -5,7 +5,6 @@
 	"[svelte]": {
 		"editor.defaultFormatter": "svelte.svelte-vscode"
 	},
-	"cSpell.enableFiletypes": ["svelte"],
 	"[json]": {
 		"editor.defaultFormatter": "vscode.json-language-features"
 	},

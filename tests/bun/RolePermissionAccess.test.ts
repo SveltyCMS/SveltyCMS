@@ -24,8 +24,18 @@ import { getPermissionByName, getAllPermissions, syncPermissions } from '@src/au
 
 // Mock database adapter
 const mockDbAdapter = {
-	createUser: async () => ({ _id: 'user1', email: 'user@example.com', role: 'user', permissions: [] }),
-	getUserByEmail: async () => ({ _id: 'user1', email: 'user@example.com', role: 'user', permissions: [] }),
+	createUser: async () => ({
+		_id: 'user1',
+		email: 'user@example.com',
+		role: 'user',
+		permissions: []
+	}),
+	getUserByEmail: async () => ({
+		_id: 'user1',
+		email: 'user@example.com',
+		role: 'user',
+		permissions: []
+	}),
 	updateUserAttributes: async () => {}
 	// Add other required methods with mock implementations
 };

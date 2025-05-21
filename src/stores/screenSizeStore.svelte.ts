@@ -1,6 +1,6 @@
 /**
  * @file src/stores/screenSizeStore.svelte.ts
- * @description Manages the screen size states using Svelte 5 runes
+ * @description Manages the screen size states
  *
  * Features:
  * - Enum for different screen sizes matching Tailwind CSS breakpoints
@@ -30,12 +30,12 @@ export enum ScreenSize {
 
 // Screen size breakpoints (Tailwind defaults)
 const BREAKPOINTS = {
-	XS: 0,     // Extra small devices
-	SM: 640,   // Small devices (mobile landscape/tablet portrait)
-	MD: 768,   // Medium devices (tablet landscape)
-	LG: 1024,  // Large devices (small desktop)
-	XL: 1280,  // Extra large devices (desktop)
-	XXL: 1536  // 2x extra large devices (large desktop)
+	XS: 0, // Extra small devices
+	SM: 640, // Small devices (mobile landscape/tablet portrait)
+	MD: 768, // Medium devices (tablet landscape)
+	LG: 1024, // Large devices (small desktop)
+	XL: 1280, // Extra large devices (desktop)
+	XXL: 1536 // 2x extra large devices (large desktop)
 } as const;
 
 // Helper function to get screen size name
@@ -61,21 +61,26 @@ function createScreenSizeStores() {
 	const initialWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
 	const initialHeight = typeof window !== 'undefined' ? window.innerHeight : 768;
 	const initialSize = getScreenSizeName(initialWidth);
+	// Create stores from state
+	const widthStore = store<number>(initialWidth);
+	const heightStore = store<number>(initialHeight);
+	const currentSizeStore = store<ScreenSize>(initialSize);
 
-	// Base stores using $state
-	let width = $state(initialWidth);
-	let height = $state(initialHeight);
-	let currentSize = $state(initialSize);
-
-	// Derived states using $derived
-	const isMobile = $derived(currentSize === ScreenSize.XS || currentSize === ScreenSize.SM);
-	const isTablet = $derived(currentSize === ScreenSize.MD);
-	const isDesktop = $derived(
-		currentSize === ScreenSize.LG ||
-		currentSize === ScreenSize.XL ||
-		currentSize === ScreenSize.XXL
-	);
-	const isLargeScreen = $derived(currentSize === ScreenSize.XL || currentSize === ScreenSize.XXL);
+	// Derived states
+	// Remove previous $derived usage for isMobile, isTablet, isDesktop, isLargeScreen
+	const isMobileStore = store(() => {
+		const size = currentSizeStore.value;
+		return size === ScreenSize.XS || size === ScreenSize.SM;
+	});
+	const isTabletStore = store(() => currentSizeStore.value === ScreenSize.MD);
+	const isDesktopStore = store(() => {
+		const size = currentSizeStore.value;
+		return size === ScreenSize.LG || size === ScreenSize.XL || size === ScreenSize.XXL;
+	});
+	const isLargeScreenStore = store(() => {
+		const size = currentSizeStore.value;
+		return size === ScreenSize.XL || size === ScreenSize.XXL;
+	});
 
 	// Debounce function
 	function debounce(fn: () => void, delay: number): () => void {
@@ -86,19 +91,25 @@ function createScreenSizeStores() {
 		};
 	}
 
-	// Update function
+	// Update function (only update currentSizeStore if category changes)
 	function updateScreenSize() {
 		if (typeof window !== 'undefined') {
-			width = window.innerWidth;
-			height = window.innerHeight;
-			currentSize = getScreenSizeName(window.innerWidth);
+			const width = window.innerWidth;
+			const height = window.innerHeight;
+			const prevSize = currentSizeStore.value;
+			const newSize = getScreenSizeName(width);
+			widthStore.set(width);
+			heightStore.set(height);
+			if (prevSize !== newSize) {
+				currentSizeStore.set(newSize);
+			}
 		}
 	}
 
 	// Setup listener function
 	function setupListener(): () => void {
 		if (typeof window === 'undefined') {
-			return () => { };
+			return () => {};
 		}
 
 		const debouncedUpdate = debounce(updateScreenSize, 150);
@@ -114,15 +125,6 @@ function createScreenSizeStores() {
 			window.removeEventListener('resize', debouncedUpdate);
 		};
 	}
-
-	// Create stores from state
-	const widthStore = store<number>(() => width);
-	const heightStore = store<number>(() => height);
-	const currentSizeStore = store<ScreenSize>(() => currentSize);
-	const isMobileStore = store<boolean>(() => isMobile);
-	const isTabletStore = store<boolean>(() => isTablet);
-	const isDesktopStore = store<boolean>(() => isDesktop);
-	const isLargeScreenStore = store<boolean>(() => isLargeScreen);
 
 	// Setup root effect for initialization
 	$effect.root(() => {

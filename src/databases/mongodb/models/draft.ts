@@ -46,7 +46,13 @@ draftSchema.statics = {
 			return { success: true, data: drafts };
 		} catch (error) {
 			logger.error(`Error retrieving drafts for content ID: ${contentId}: ${error.message}`);
-			return { success: false, error: { code: 'DRAFT_FETCH_ERROR', message: `Failed to retrieve drafts for content ID: ${contentId}` } };
+			return {
+				success: false,
+				error: {
+					code: 'DRAFT_FETCH_ERROR',
+					message: `Failed to retrieve drafts for content ID: ${contentId}`
+				}
+			};
 		}
 	},
 
@@ -58,7 +64,14 @@ draftSchema.statics = {
 			return { success: true, data: result.deletedCount };
 		} catch (error) {
 			logger.error(`Error bulk deleting drafts for content IDs: ${error.message}`);
-			return { success: false, error: { code: 'DRAFT_BULK_DELETE_ERROR', message: 'Failed to bulk delete drafts', details: error } };
+			return {
+				success: false,
+				error: {
+					code: 'DRAFT_BULK_DELETE_ERROR',
+					message: 'Failed to bulk delete drafts',
+					details: error
+				}
+			};
 		}
 	},
 
@@ -69,7 +82,10 @@ draftSchema.statics = {
 			return { success: true, data: newDraft.toObject() };
 		} catch (error) {
 			logger.error(`Error creating draft: ${error.message}`);
-			return { success: false, error: { code: 'DRAFT_CREATE_ERROR', message: 'Failed to create draft', details: error } };
+			return {
+				success: false,
+				error: { code: 'DRAFT_CREATE_ERROR', message: 'Failed to create draft', details: error }
+			};
 		}
 	},
 
@@ -78,13 +94,26 @@ draftSchema.statics = {
 		try {
 			const result = await this.updateOne({ _id: draftId }, { $set: { ...updateData, updatedAt: new Date() } }).exec();
 			if (result.modifiedCount === 0) {
-				return { success: false, error: { code: 'DRAFT_UPDATE_NOT_FOUND', message: `Draft with ID "${draftId}" not found or no changes applied.` } };
+				return {
+					success: false,
+					error: {
+						code: 'DRAFT_UPDATE_NOT_FOUND',
+						message: `Draft with ID "${draftId}" not found or no changes applied.`
+					}
+				};
 			}
 			logger.info(`Draft "${draftId}" updated successfully.`);
 			return { success: true, data: undefined };
 		} catch (error) {
 			logger.error(`Error updating draft "${draftId}": ${error.message}`);
-			return { success: false, error: { code: 'DRAFT_UPDATE_ERROR', message: `Failed to update draft "${draftId}"`, details: error } };
+			return {
+				success: false,
+				error: {
+					code: 'DRAFT_UPDATE_ERROR',
+					message: `Failed to update draft "${draftId}"`,
+					details: error
+				}
+			};
 		}
 	},
 
@@ -93,13 +122,26 @@ draftSchema.statics = {
 		try {
 			const result = await this.deleteOne({ _id: draftId }).exec();
 			if (result.deletedCount === 0) {
-				return { success: false, error: { code: 'DRAFT_DELETE_NOT_FOUND', message: `Draft with ID "${draftId}" not found.` } };
+				return {
+					success: false,
+					error: {
+						code: 'DRAFT_DELETE_NOT_FOUND',
+						message: `Draft with ID "${draftId}" not found.`
+					}
+				};
 			}
 			logger.info(`Draft "${draftId}" deleted successfully.`);
 			return { success: true, data: undefined };
 		} catch (error) {
 			logger.error(`Error deleting draft "${draftId}": ${error.message}`);
-			return { success: false, error: { code: 'DRAFT_DELETE_ERROR', message: `Failed to delete draft "${draftId}"`, details: error } };
+			return {
+				success: false,
+				error: {
+					code: 'DRAFT_DELETE_ERROR',
+					message: `Failed to delete draft "${draftId}"`,
+					details: error
+				}
+			};
 		}
 	}
 };

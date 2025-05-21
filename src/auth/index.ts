@@ -558,7 +558,9 @@ export class Auth {
 					await this.db.updateUserAttributes(user._id!, { failedAttempts, lockoutUntil });
 					const message = `User locked out due to too many failed attempts: \x1b[34m${user._id}\x1b[0m`;
 					logger.warn(message);
-					throw error(403, { message: 'Account is temporarily locked due to too many failed attempts. Please try again later.' });
+					throw error(403, {
+						message: 'Account is temporarily locked due to too many failed attempts. Please try again later.'
+					});
 				} else {
 					await this.db.updateUserAttributes(user._id!, { failedAttempts });
 					const message = `Invalid login attempt for user with email: ${user.email}`;
@@ -598,13 +600,15 @@ export class Auth {
 			const user = await this.db.validateSession(session_id);
 
 			if (user) {
-				logger.info('Session is valid (src/auth/index.ts) ', { email: user.email });
+				logger.info('Session is valid (src/auth/index.ts)', { email: user.email });
 			} else {
 				logger.warn('Invalid session (src/auth/index.ts)', { session_id });
 			}
 			return user; // Return the user or null if session is invalid
 		} catch (err) {
-			logger.error('Failed to validate session', { error: err instanceof Error ? err.message : String(err) });
+			logger.error('Failed to validate session', {
+				error: err instanceof Error ? err.message : String(err)
+			});
 			throw error(500, `Failed to validate session: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	}
@@ -695,7 +699,7 @@ export class Auth {
 	// Get session token data
 	async getSessionTokenData(session_id: string): Promise<{ expiresAt: Date; user_id: string } | null> {
 		try {
-			logger.debug(`Fetching session token data for session ID: ${session_id}`);
+			logger.debug(`Fetching session token data for session ID: \x1b[34m${session_id}\x1b[0m`);
 			return await this.db.getSessionTokenData(session_id);
 		} catch (err) {
 			const errMsg = err instanceof Error ? err.message : String(err);

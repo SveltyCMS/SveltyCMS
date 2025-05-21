@@ -32,12 +32,12 @@ const ImageResize = ImageExtension.extend({
 			...this.parent?.(),
 			setImageFloat:
 				(side: 'left' | 'right' | 'unset') =>
-					({ commands }) =>
-						commands.updateAttributes('image', { float: side }),
+				({ commands }) =>
+					commands.updateAttributes('image', { float: side }),
 			setImageDescription:
 				(description: string) =>
-					({ commands }) =>
-						commands.updateAttributes('image', { description })
+				({ commands }) =>
+					commands.updateAttributes('image', { description })
 		};
 	},
 
@@ -112,13 +112,13 @@ const ImageResize = ImageExtension.extend({
 			],
 			HTMLAttributes.description
 				? [
-					'div',
-					{
-						class: 'description',
-						style: DESCRIPTION_STYLE
-					},
-					HTMLAttributes.description
-				]
+						'div',
+						{
+							class: 'description',
+							style: DESCRIPTION_STYLE
+						},
+						HTMLAttributes.description
+					]
 				: ''
 		];
 	},

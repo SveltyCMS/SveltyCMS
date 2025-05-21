@@ -191,7 +191,9 @@ This widget fetches and displays real-time disk usage data, including:
 		{:else if (data.diskInfo = typeof data.diskInfo.root === 'object' && data.diskInfo.root !== null ? data.diskInfo.root : typeof data.diskInfo.usedGb === 'number' && typeof data.diskInfo.freeGb === 'number' ? data.diskInfo : null)}
 			{#if data}
 				<div class="absolute bottom-5 left-0 flex w-full justify-between gap-2 px-2 text-xs">
-					<p>Total: {typeof data?.diskInfo.totalGb === 'number' ? data.diskInfo.totalGb.toFixed(2) : 'N/A'} GB</p>
+					<p>
+						Total: {typeof data?.diskInfo.totalGb === 'number' ? data.diskInfo.totalGb.toFixed(2) : 'N/A'} GB
+					</p>
 					<p>
 						Used: {typeof data?.diskInfo.usedGb === 'number' ? data.diskInfo.usedGb.toFixed(2) : 'N/A'} GB ({typeof data?.diskInfo.usedPercentage ===
 						'number'

@@ -255,7 +255,9 @@
 
 			<!-- Publish Options -->
 			<main class="mt-2 flex w-full flex-col items-center justify-center gap-2 text-left dark:text-white">
-				<p class="w-full border-b text-center font-bold uppercase text-tertiary-500 dark:text-primary-500">{m.siedabar_publish_options()}</p>
+				<p class="w-full border-b text-center font-bold uppercase text-tertiary-500 dark:text-primary-500">
+					{m.siedabar_publish_options()}
+				</p>
 
 				<!-- Scheduled on -->
 				<div class="mt-2 flex w-full flex-col items-start justify-center">
@@ -301,7 +303,13 @@
 
 			{#if mode.value === 'create'}
 				<p class="mb-2 text-center text-tertiary-500 dark:text-primary-500">
-					{new Date().toLocaleString(languageTag(), { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+					{new Date().toLocaleString(languageTag(), {
+						year: 'numeric',
+						month: 'short',
+						day: 'numeric',
+						hour: '2-digit',
+						minute: '2-digit'
+					})}
 				</p>
 			{:else if dates}
 				<footer class="mb-1 mt-2">

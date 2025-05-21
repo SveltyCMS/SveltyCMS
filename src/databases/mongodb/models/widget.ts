@@ -47,7 +47,10 @@ widgetSchema.statics = {
 			return { success: true, data: widgets };
 		} catch (error) {
 			logger.error(`Error fetching all widgets: ${error.message}`);
-			return { success: false, error: { code: 'WIDGET_FETCH_ERROR', message: 'Failed to fetch widgets' } };
+			return {
+				success: false,
+				error: { code: 'WIDGET_FETCH_ERROR', message: 'Failed to fetch widgets' }
+			};
 		}
 	},
 
@@ -59,7 +62,10 @@ widgetSchema.statics = {
 			return { success: true, data: activeWidgetNames };
 		} catch (error) {
 			logger.error(`Error fetching active widgets: ${error.message}`);
-			return { success: false, error: { code: 'ACTIVE_WIDGETS_FETCH_ERROR', message: 'Failed to fetch active widgets' } };
+			return {
+				success: false,
+				error: { code: 'ACTIVE_WIDGETS_FETCH_ERROR', message: 'Failed to fetch active widgets' }
+			};
 		}
 	},
 
@@ -68,13 +74,25 @@ widgetSchema.statics = {
 		try {
 			const result = await this.updateOne({ name: widgetName }, { $set: { isActive: true, updatedAt: new Date() } }).exec();
 			if (result.modifiedCount === 0) {
-				return { success: false, error: { code: 'WIDGET_NOT_FOUND', message: `Widget "${widgetName}" not found or already active.` } };
+				return {
+					success: false,
+					error: {
+						code: 'WIDGET_NOT_FOUND',
+						message: `Widget "${widgetName}" not found or already active.`
+					}
+				};
 			}
 			logger.info(`Widget "${widgetName}" activated successfully.`);
 			return { success: true, data: undefined };
 		} catch (error) {
 			logger.error(`Error activating widget "${widgetName}": ${error.message}`);
-			return { success: false, error: { code: 'WIDGET_ACTIVATION_ERROR', message: `Failed to activate widget "${widgetName}"` } };
+			return {
+				success: false,
+				error: {
+					code: 'WIDGET_ACTIVATION_ERROR',
+					message: `Failed to activate widget "${widgetName}"`
+				}
+			};
 		}
 	},
 
@@ -83,13 +101,25 @@ widgetSchema.statics = {
 		try {
 			const result = await this.updateOne({ name: widgetName }, { $set: { isActive: false, updatedAt: new Date() } }).exec();
 			if (result.modifiedCount === 0) {
-				return { success: false, error: { code: 'WIDGET_NOT_FOUND', message: `Widget "${widgetName}" not found or already inactive.` } };
+				return {
+					success: false,
+					error: {
+						code: 'WIDGET_NOT_FOUND',
+						message: `Widget "${widgetName}" not found or already inactive.`
+					}
+				};
 			}
 			logger.info(`Widget "${widgetName}" deactivated successfully.`);
 			return { success: true, data: undefined };
 		} catch (error) {
 			logger.error(`Error deactivating widget "${widgetName}": ${error.message}`);
-			return { success: false, error: { code: 'WIDGET_DEACTIVATION_ERROR', message: `Failed to deactivate widget "${widgetName}"` } };
+			return {
+				success: false,
+				error: {
+					code: 'WIDGET_DEACTIVATION_ERROR',
+					message: `Failed to deactivate widget "${widgetName}"`
+				}
+			};
 		}
 	},
 
@@ -98,13 +128,22 @@ widgetSchema.statics = {
 		try {
 			const result = await this.updateOne({ name: widgetName }, { $set: { ...updateData, updatedAt: new Date() } }).exec();
 			if (result.modifiedCount === 0) {
-				return { success: false, error: { code: 'WIDGET_NOT_FOUND', message: `Widget "${widgetName}" not found or no changes applied.` } };
+				return {
+					success: false,
+					error: {
+						code: 'WIDGET_NOT_FOUND',
+						message: `Widget "${widgetName}" not found or no changes applied.`
+					}
+				};
 			}
 			logger.info(`Widget "${widgetName}" updated successfully.`);
 			return { success: true, data: undefined };
 		} catch (error) {
 			logger.error(`Error updating widget "${widgetName}": ${error.message}`);
-			return { success: false, error: { code: 'WIDGET_UPDATE_ERROR', message: `Failed to update widget "${widgetName}"` } };
+			return {
+				success: false,
+				error: { code: 'WIDGET_UPDATE_ERROR', message: `Failed to update widget "${widgetName}"` }
+			};
 		}
 	}
 };

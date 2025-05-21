@@ -41,15 +41,17 @@ const handleRequest = (handler: (params: { request?: Request; url?: URL }) => Pr
 			}
 			return await handler({ request, url });
 		} catch (err) {
-			const error = err instanceof VirtualFolderError ? err :
-				new VirtualFolderError(err instanceof Error ? err.message : String(err), 500);
+			const error = err instanceof VirtualFolderError ? err : new VirtualFolderError(err instanceof Error ? err.message : String(err), 500);
 			logger.error(`VirtualFolderError: ${error.message}`);
-			return json({
-				success: false,
-				error: error.message,
-				code: error.code || 'UNKNOWN_ERROR',
-				ariaLabel: `Error: ${error.message}`
-			}, { status: error.status });
+			return json(
+				{
+					success: false,
+					error: error.message,
+					code: error.code || 'UNKNOWN_ERROR',
+					ariaLabel: `Error: ${error.message}`
+				},
+				{ status: error.status }
+			);
 		}
 	};
 };
@@ -91,9 +93,7 @@ export const POST: RequestHandler = handleRequest(async ({ request }) => {
 		throw new VirtualFolderError('Folder name contains invalid characters', 400, 'INVALID_NAME');
 	}
 
-	const parentPath = parent ?
-		(await dbAdapter.virtualFolders.getContents(parent))?.data?.path ?? '' :
-		publicEnv.MEDIA_FOLDER;
+	const parentPath = parent ? ((await dbAdapter.virtualFolders.getContents(parent))?.data?.path ?? '') : publicEnv.MEDIA_FOLDER;
 
 	const path = `${parentPath}/${name}`.replace(/\/+/g, '/');
 
@@ -108,11 +108,14 @@ export const POST: RequestHandler = handleRequest(async ({ request }) => {
 	}
 
 	await createDirectory(result.data._id.toString());
-	return json({
-		success: true,
-		data: { folder: result.data },
-		ariaLabel: `Created new folder: ${name}`
-	}, { status: 201 });
+	return json(
+		{
+			success: true,
+			data: { folder: result.data },
+			ariaLabel: `Created new folder: ${name}`
+		},
+		{ status: 201 }
+	);
 });
 
 export const PATCH: RequestHandler = handleRequest(async ({ request }) => {

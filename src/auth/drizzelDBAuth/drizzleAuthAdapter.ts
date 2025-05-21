@@ -531,7 +531,9 @@ export class DrizzleAuthAdapter implements authDBInterface {
 		try {
 			await db
 				.update(users)
-				.set({ permissions: db.raw('JSON_REMOVE(permissions, JSON_UNQUOTE(JSON_SEARCH(permissions, "one", ?)))', [permission_id]) })
+				.set({
+					permissions: db.raw('JSON_REMOVE(permissions, JSON_UNQUOTE(JSON_SEARCH(permissions, "one", ?)))', [permission_id])
+				})
 				.where(eq(users.id, user_id));
 		} catch (error) {
 			logger.error(`Failed to remove permission from user: ${(error as Error).message}`);
@@ -579,7 +581,9 @@ export class DrizzleAuthAdapter implements authDBInterface {
 		try {
 			await db
 				.update(users)
-				.set({ roles: db.raw('JSON_REMOVE(roles, JSON_UNQUOTE(JSON_SEARCH(roles, "one", ?)))', [role_id]) })
+				.set({
+					roles: db.raw('JSON_REMOVE(roles, JSON_UNQUOTE(JSON_SEARCH(roles, "one", ?)))', [role_id])
+				})
 				.where(eq(users.id, user_id));
 		} catch (error) {
 			logger.error(`Failed to remove role from user: ${(error as Error).message}`);

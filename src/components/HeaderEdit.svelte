@@ -335,7 +335,9 @@
 				{/if}
 				{#if collection.value.name}
 					<div class="ml-2 flex flex-col text-left text-gray-400 dark:text-gray-300">
-						<div class="text-sm font-bold uppercase text-tertiary-500 dark:text-primary-500">{mode.value}:</div>
+						<div class="text-sm font-bold uppercase text-tertiary-500 dark:text-primary-500">
+							{mode.value}:
+						</div>
 						<div class="text-xs capitalize">
 							<span class="uppercase text-tertiary-500 dark:text-primary-500">{collection.value.name}</span>
 						</div>

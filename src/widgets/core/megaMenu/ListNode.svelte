@@ -228,14 +228,22 @@
 						const siblings = [...document.getElementsByClassName(`level-${level}`)]
 							.map((el) => {
 								const rect = el.getElementsByClassName('header')[0].getBoundingClientRect();
-								return { el: el as HTMLElement, center: rect.top + rect.height / 2, isParent: false };
+								return {
+									el: el as HTMLElement,
+									center: rect.top + rect.height / 2,
+									isParent: false
+								};
 							})
 							.filter((el) => el.el != clone);
 						const parents = [...document.getElementsByClassName(`level-${level - 1}`)]
 							.filter((el) => parseInt(el.getAttribute('data-children') as string) == 0)
 							.map((el) => {
 								const rect = el.getElementsByClassName('header')[0].getBoundingClientRect();
-								return { el: el as HTMLElement, center: rect.top + rect.height / 2, isParent: true };
+								return {
+									el: el as HTMLElement,
+									center: rect.top + rect.height / 2,
+									isParent: true
+								};
 							});
 						targets = [...siblings, ...parents];
 						targets.sort((a: any, b: any) => (Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1)); // Added :any types

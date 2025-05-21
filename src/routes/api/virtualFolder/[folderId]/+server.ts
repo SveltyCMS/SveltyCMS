@@ -83,7 +83,7 @@ async function updateChildPaths(folderId: string, newParentPath: string): Promis
 			await updateChildPaths(child._id, newPath);
 		})
 	);
-};
+}
 
 // Error handler wrapper for request handlers
 const handleRequest = (handler: (params: { folderId: string }, data?: Record<string, unknown>) => Promise<Response>) => {
@@ -95,28 +95,32 @@ const handleRequest = (handler: (params: { folderId: string }, data?: Record<str
 			const data = request ? await request.json() : undefined;
 			return await handler(params, data);
 		} catch (err) {
-			const error = err instanceof VirtualFolderError ? err :
-				new VirtualFolderError(err instanceof Error ? err.message : String(err), 500);
+			const error = err instanceof VirtualFolderError ? err : new VirtualFolderError(err instanceof Error ? err.message : String(err), 500);
 			logger.error(`VirtualFolderError: ${error.message}`);
-			return json({
-				success: false,
-				error: error.message,
-				ariaLabel: `Error: ${error.message}`
-			}, { status: error.status });
+			return json(
+				{
+					success: false,
+					error: error.message,
+					ariaLabel: `Error: ${error.message}`
+				},
+				{ status: error.status }
+			);
 		}
 	};
 };
 
 // GET: Retrieve folder contents
 export const GET: RequestHandler = handleRequest(async ({ folderId }) => {
-	const folder = folderId === 'root' ? await getRootFolder() :
-		await dbAdapter.findOne('SystemVirtualFolder', { _id: folderId });
+	const folder = folderId === 'root' ? await getRootFolder() : await dbAdapter.findOne('SystemVirtualFolder', { _id: folderId });
 
 	if (!folder) {
 		throw new VirtualFolderError('Folder not found', 404, 'FOLDER_NOT_FOUND');
 	}
 
-	const folderContents = (await dbAdapter.getVirtualFolderContents(folder._id.toString())) || { subfolders: [], mediaFiles: [] };
+	const folderContents = (await dbAdapter.getVirtualFolderContents(folder._id.toString())) || {
+		subfolders: [],
+		mediaFiles: []
+	};
 	const contents: FolderContents = {
 		subfolders: Array.isArray(folderContents.subfolders) ? folderContents.subfolders : [],
 		mediaFiles: Array.isArray(folderContents.mediaFiles) ? folderContents.mediaFiles : []
@@ -139,8 +143,7 @@ export const POST: RequestHandler = handleRequest(async ({ folderId }, data) => 
 		throw new VirtualFolderError('Folder name is required', 400, 'NAME_REQUIRED');
 	}
 
-	const parentFolder = folderId === 'root' ? await getRootFolder() :
-		await dbAdapter.findOne('SystemVirtualFolder', { _id: folderId });
+	const parentFolder = folderId === 'root' ? await getRootFolder() : await dbAdapter.findOne('SystemVirtualFolder', { _id: folderId });
 
 	if (!parentFolder) {
 		throw new VirtualFolderError('Parent folder not found', 404, 'PARENT_NOT_FOUND');
@@ -154,11 +157,14 @@ export const POST: RequestHandler = handleRequest(async ({ folderId }, data) => 
 
 	logger.info(`Subfolder created: ${name} under folderId ${parentFolder._id}`);
 
-	return json({
-		success: true,
-		data: { folder: formatFolderResponse(newFolder, 'New') },
-		ariaLabel: `Created new subfolder: ${name}`
-	}, { status: 201 });
+	return json(
+		{
+			success: true,
+			data: { folder: formatFolderResponse(newFolder, 'New') },
+			ariaLabel: `Created new subfolder: ${name}`
+		},
+		{ status: 201 }
+	);
 });
 
 // PATCH: Update folder details
@@ -168,16 +174,13 @@ export const PATCH: RequestHandler = handleRequest(async ({ folderId }, data) =>
 		throw new VirtualFolderError('Folder name is required', 400, 'NAME_REQUIRED');
 	}
 
-	const folder = folderId === 'root' ? await getRootFolder() :
-		await dbAdapter.findOne('SystemVirtualFolder', { _id: folderId });
+	const folder = folderId === 'root' ? await getRootFolder() : await dbAdapter.findOne('SystemVirtualFolder', { _id: folderId });
 
 	if (!folder) {
 		throw new VirtualFolderError('Folder not found', 404, 'FOLDER_NOT_FOUND');
 	}
 
-	const newParent = parent ?
-		(parent === 'root' ? await getRootFolder() :
-			await dbAdapter.findOne('SystemVirtualFolder', { _id: parent })) : null;
+	const newParent = parent ? (parent === 'root' ? await getRootFolder() : await dbAdapter.findOne('SystemVirtualFolder', { _id: parent })) : null;
 
 	if (parent && !newParent) {
 		throw new VirtualFolderError('New parent folder not found', 404, 'PARENT_NOT_FOUND');

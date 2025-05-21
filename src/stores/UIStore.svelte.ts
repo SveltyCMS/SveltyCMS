@@ -1,6 +1,6 @@
 /**
  * @file src/stores/UIStore.svelte.ts
- * @description Manages the UI element visibility states using Svelte stores
+ * @description Manages the UI element visibility states
  *
  * Features:
  * - UI element visibility management with Svelte stores
@@ -38,7 +38,7 @@ const createUIStores = () => {
 	const getDefaultState = (size: ScreenSize, isViewMode: boolean): UIState => {
 		// Debug log current state
 		logger.debug('UIStore: Calculating default state', {
-			screenSize: ScreenSize[size],
+			screenSize: size,
 			isViewMode
 		});
 
@@ -97,23 +97,36 @@ const createUIStores = () => {
 		uiState.update((current) => ({ ...current, ...newState }));
 	};
 
-	// Optimized layout handler with immediate response
+	// Optimized layout handler with immediate response and smart diffing
 	function updateLayout() {
 		const currentSize = screenSize.value;
 		const isViewMode = mode.value === 'view' || mode.value === 'media';
 		const newState = getDefaultState(currentSize, isViewMode);
 
-		// Use requestAnimationFrame for smooth transitions
-		requestAnimationFrame(() => {
-			uiState.set(newState);
-		});
+		// Only update if state actually changes
+		const prevState = uiState.value;
+		const isDifferent = Object.keys(newState).some((key) => newState[key as keyof UIState] !== prevState[key as keyof UIState]);
+		if (isDifferent) {
+			requestAnimationFrame(() => {
+				uiState.set(newState);
+			});
+			logger.debug('UIStore: Layout update', {
+				screenSize: currentSize,
+				mode: mode.value,
+				newState,
+				windowWidth: window.innerWidth
+			});
+		}
+	}
 
-		logger.debug('UIStore: Layout update', {
-			screenSize: ScreenSize[currentSize],
-			mode: mode.value,
-			newState,
-			windowWidth: window.innerWidth
-		});
+	// Debounced resize handler
+	let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
+	function debouncedUpdateLayout() {
+		if (resizeTimeout) clearTimeout(resizeTimeout);
+		resizeTimeout = setTimeout(() => {
+			updateLayout();
+			resizeTimeout = null;
+		}, 100);
 	}
 
 	// Toggle individual UI element visibility
@@ -136,14 +149,14 @@ const createUIStores = () => {
 					// Use both resize observer and window resize listener for better reliability
 					resizeObserver = new ResizeObserver(() => {
 						if (screenSize.value) {
-							requestAnimationFrame(updateLayout);
+							debouncedUpdateLayout();
 						}
 					});
 
 					resizeObserver.observe(document.body);
 
 					// Add direct resize listener as fallback
-					window.addEventListener('resize', updateLayout);
+					window.addEventListener('resize', debouncedUpdateLayout);
 					modeUnsubscribe = mode.subscribe(updateLayout);
 					screenSizeUnsubscribe = screenSize.subscribe(updateLayout);
 					updateLayout();
@@ -177,7 +190,11 @@ const createUIStores = () => {
 			screenSizeUnsubscribe();
 			screenSizeUnsubscribe = null;
 		}
-		window.removeEventListener('resize', updateLayout);
+		window.removeEventListener('resize', debouncedUpdateLayout);
+		if (resizeTimeout) {
+			clearTimeout(resizeTimeout);
+			resizeTimeout = null;
+		}
 		initPromise = null;
 		logger.debug('UIStore: Destroyed');
 	}

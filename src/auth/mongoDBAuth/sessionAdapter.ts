@@ -185,7 +185,9 @@ export class SessionAdapter implements Partial<authDBInterface> {
 				user_id,
 				expires: { $gt: now } // Only delete active (non-expired) sessions
 			});
-			logger.debug(`invalidateAllUserSessions: Attempted to delete sessions for user_id=${user_id} at ${now.toISOString()}. Deleted count: ${result.deletedCount}`);
+			logger.debug(
+				`invalidateAllUserSessions: Attempted to delete sessions for user_id=${user_id} at ${now.toISOString()}. Deleted count: ${result.deletedCount}`
+			);
 		} catch (err) {
 			const message = `Error in SessionAdapter.invalidateAllUserSessions: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);

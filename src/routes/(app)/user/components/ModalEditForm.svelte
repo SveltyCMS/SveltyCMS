@@ -237,7 +237,9 @@ Efficiently manages user data updates with validation, role selection, and delet
 			<!-- Role Select -->
 			<PermissionGuard config={modaleEditFormConfig}>
 				<div class="flex flex-col gap-2 sm:flex-row">
-					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}</div>
+					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">
+						{m.form_userrole()}
+					</div>
 					<div class="flex-auto">
 						<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
 							{#if roles && roles.length > 0}

@@ -60,8 +60,12 @@ export async function initializeWidgets(): Promise<void> {
 		try {
 			logger.debug('Initializing widgets from index...');
 			// Load core and custom widgets
-			const coreWidgetModules = await import.meta.glob<WidgetModule>('./core/**/index.ts', { eager: true });
-			const customWidgetModules = await import.meta.glob<WidgetModule>('./custom/**/index.ts', { eager: true });
+			const coreWidgetModules = await import.meta.glob<WidgetModule>('./core/**/index.ts', {
+				eager: true
+			});
+			const customWidgetModules = await import.meta.glob<WidgetModule>('./custom/**/index.ts', {
+				eager: true
+			});
 			const widgetModules = { ...coreWidgetModules, ...customWidgetModules };
 
 			const validModules = Object.entries(widgetModules)

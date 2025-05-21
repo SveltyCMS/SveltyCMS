@@ -37,7 +37,6 @@ import { getCacheStore } from '@src/cacheStore/index.server';
 import { logger } from '@utils/logger.svelte';
 import type { AvailableLanguageTag } from '@src/paraglide/runtime';
 
-
 // Cache TTLs
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 const API_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -88,7 +87,7 @@ const isPublicOrOAuthRoute = (pathname: string): boolean => {
 	return publicRoutes.some((route) => pathname.startsWith(route)) || isOAuthRoute(pathname);
 };
 
-// Create an HTML response for rate limiting 
+// Create an HTML response for rate limiting
 const createHtmlResponse = (message: string, status: number): never => {
 	const html = `<!DOCTYPE html>
         <html lang="en">
@@ -134,7 +133,7 @@ const sessionCache = new Map<string, { user: User; timestamp: number }>();
 const userPermissionCache = new Map<string, { permissions: Permission[]; timestamp: number }>();
 const lastRefreshAttempt = new Map<string, number>();
 
-// Get user from session ID with optimized caching 
+// Get user from session ID with optimized caching
 const getUserFromSessionId = async (session_id: string | undefined): Promise<User | null> => {
 	if (!session_id) return null;
 
@@ -149,24 +148,24 @@ const getUserFromSessionId = async (session_id: string | undefined): Promise<Use
 		sessionCache.set(session_id, sessionData); // Update in-memory timestamp
 		cacheStore
 			.set(session_id, sessionData, new Date(now + CACHE_TTL))
-			.catch((err) => logger.error(`Failed to extend session cache for ${session_id}: ${err.message}`));
-		logger.debug(`Session cache hit and extended for ${session_id}`); // Can be noisy
+			.catch((err) => logger.error(`Failed to extend session cache for \x1b[34m${session_id}\x1b[0m: ${err.message}`));
+		logger.debug(`Session cache hit and extended for \x1b[34m${session_id}\x1b[0m`); // Can be noisy
 		return memCached.user;
 	}
 
-	// Try Redis cache 
+	// Try Redis cache
 	try {
 		const redisCached = await cacheStore.get<{ user: User; timestamp: number }>(session_id);
-		if (redisCached && now - redisCached.timestamp < CACHE_TTL) { // Ensure redis cache isn't stale if TTLs differ
+		if (redisCached && now - redisCached.timestamp < CACHE_TTL) {
+			// Ensure redis cache isn't stale if TTLs differ
 			sessionCache.set(session_id, redisCached); // Populate in-memory cache
-			logger.debug(`Redis cache hit for session ${session_id}`);
+			logger.debug(`Redis cache hit for session \x1b[34m${session_id}\x1b[0m`);
 			return redisCached.user;
 		}
 	} catch (cacheError) {
 		logger.error(`Error reading from session cache store for ${session_id}: ${cacheError.message}`);
 		// Potentially proceed to DB if cache is just unavailable, or handle as error if cache is critical
 	}
-
 
 	// Validate session in database
 	try {
@@ -179,13 +178,13 @@ const getUserFromSessionId = async (session_id: string | undefined): Promise<Use
 			const sessionData = { user, timestamp: now };
 			sessionCache.set(session_id, sessionData);
 			await cacheStore.set(session_id, sessionData, new Date(now + CACHE_TTL));
-			logger.debug(`Session validated and cached for ${session_id}`);
+			logger.debug(`Session validated and cached for \x1b[34m${session_id}\x1b[0m`);
 			return user;
 		}
-		logger.warn(`Session validation returned no user for ${session_id}`);
+		logger.warn(`Session validation returned no user for \x1b[34m${session_id}\x1b[0m`);
 	} catch (dbError) {
 		// Handle specific db errors vs generic ones if needed
-		logger.error(`Session validation DB error for ${session_id}: ${dbError.message}`);
+		logger.error(`Session validation DB error for \x1b[34m${session_id}\x1b[0m: ${dbError.message}`);
 		// Depending on policy, might throw an error or return null
 		// For robustness, if DB is temporarily down, returning null might be better than 500 error for all users
 	}
@@ -226,7 +225,7 @@ const handleRateLimit: Handle = async ({ event, resolve }) => {
 
 	const currentLimiter = event.url.pathname.startsWith('/api/') ? apiLimiter : limiter;
 	if (await currentLimiter.isLimited(event)) {
-		logger.warn(`Rate limit exceeded for IP: ${clientIp}, endpoint: ${event.url.pathname}`);
+		logger.warn(`Rate limit exceeded for IP: \x1b[34m${clientIp}\x1b[0m, endpoint: \x1b[34m${event.url.pathname}\x1b[0m`);
 		// For API requests, return JSON error. For others, HTML.
 		if (event.url.pathname.startsWith('/api/')) {
 			throw error(429, 'Too Many Requests');
@@ -267,7 +266,9 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 			try {
 				tokenData = await auth.getSessionTokenData(session_id);
 			} catch (tokenError) {
-				logger.error(`Failed to get session token data for session ${session_id}: ${tokenError instanceof Error ? tokenError.message : String(tokenError)}`);
+				logger.error(
+					`Failed to get session token data for session ${session_id}: ${tokenError instanceof Error ? tokenError.message : String(tokenError)}`
+				);
 				event.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
 				throw redirect(302, '/login');
 			}
@@ -285,19 +286,21 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 				if (shouldRefresh && now - lastAttempt > REFRESH_DEBOUNCE_MS) {
 					lastRefreshAttempt.set(session_id, now);
 					if (await refreshLimiter.isLimited(event)) {
-						logger.warn(`Refresh rate limit exceeded for user ${user._id}, IP: ${getClientIp(event)}`);
+						logger.warn(`Refresh rate limit exceeded for user \x1b[34m${user._id}\x1b[0m, IP: \x1b[34m${getClientIp(event)}\x1b[0m`);
 					} else {
 						try {
 							const newExpiryDate = new Date(now + CACHE_TTL);
 							const newTokenId = await auth.rotateToken(session_id, newExpiryDate);
 							if (newTokenId) {
 								session_id = newTokenId;
-								logger.debug(`Token rotated for user ${user._id}. New session ID: ${newTokenId}`);
+								logger.debug(`Token rotated for user \x1b[34m${user._id}\x1b[0m. New session ID: \x1b[34m${newTokenId}\x1b[0m`);
 							} else {
-								logger.warn(`Token rotation failed for user ${user._id}`);
+								logger.warn(`Token rotation failed for user \x1b[34m${user._id}\x1b[0m`);
 							}
 						} catch (rotationError) {
-							logger.error(`Token rotation failed for user ${user._id}, session ${session_id}: ${rotationError instanceof Error ? rotationError.message : String(rotationError)}`);
+							logger.error(
+								`Token rotation failed for user \x1b[34m${user._id}\x1b[0m, session \x1b[34m${session_id}\x1b[0m: ${rotationError instanceof Error ? rotationError.message : String(rotationError)}`
+							);
 						}
 					}
 				}
@@ -310,11 +313,13 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 					sameSite: 'lax'
 				});
 			} else if (tokenData && tokenData.user_id !== user._id) {
-				logger.error(`CRITICAL: Session ID ${session_id} for user ${user._id} resolved to token data for different user ${tokenData.user_id}. Invalidating session.`);
+				logger.error(
+					`CRITICAL: Session ID \x1b[34m${session_id}\x1b[0m for user \x1b[34m${user._id}\x1b[0m resolved to token data for different user \x1b[34m${tokenData.user_id}\x1b[0m. Invalidating session.`
+				);
 				event.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
 				throw redirect(302, '/login');
 			} else if (!tokenData && session_id) {
-				logger.warn(`Session ${session_id} for user ${user._id} yielded no valid tokenData. Clearing cookie.`);
+				logger.warn(`Session \x1b[34m${session_id}\x1b[0m for user \x1b[34m${user._id}\x1b[0m yielded no valid tokenData. Clearing cookie.`);
 				event.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
 				event.locals.user = null;
 			}
@@ -383,9 +388,7 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 		}
 
 		const responseTime = performance.now() - requestStartTime;
-		logger.debug(
-			`Route \x1b[34m${event.url.pathname}\x1b[0m - \x1b[32m${responseTime.toFixed(2)}ms\x1b[0m ${getPerformanceEmoji(responseTime)}`
-		);
+		logger.debug(`Route \x1b[34m${event.url.pathname}\x1b[0m - \x1b[32m${responseTime.toFixed(2)}ms\x1b[0m ${getPerformanceEmoji(responseTime)}`);
 
 		if (isOAuthRoute(event.url.pathname)) {
 			logger.debug('OAuth route detected, passing through');
@@ -393,13 +396,13 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 		}
 
 		if (!event.locals.user && !isPublic && !isFirstUser) {
-			logger.debug(`Unauthenticated access to ${event.url.pathname}. Redirecting to login.`);
+			logger.debug(`Unauthenticated access to \x1b[34m${event.url.pathname}\x1b[0m. Redirecting to login.`);
 			if (isApi) throw error(401, 'Unauthorized');
 			throw redirect(302, '/login');
 		}
 
 		if (event.locals.user && isPublic && !isOAuthRoute(event.url.pathname)) {
-			logger.debug(`Authenticated user on public route ${event.url.pathname}. Redirecting to home.`);
+			logger.debug(`Authenticated user on public route \x1b[34m${event.url.pathname}\x1b[0m. Redirecting to home.`);
 			throw redirect(302, '/');
 		}
 
@@ -415,7 +418,9 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 		}
 
 		const clientIp = getClientIp(event);
-		logger.error(`Error in handleAuth for ${event.url.pathname} (IP: ${clientIp}): ${err instanceof Error ? err.message : JSON.stringify(err)}`, { stack: err instanceof Error ? err.stack : undefined });
+		logger.error(`Error in handleAuth for \x1b[34m${event.url.pathname}\x1b[0m (IP: ${clientIp}): ${err instanceof Error ? err.message : JSON.stringify(err)}`, {
+			stack: err instanceof Error ? err.stack : undefined
+		});
 
 		if (event.url.pathname.startsWith('/api/')) {
 			return new Response(JSON.stringify({ error: 'Internal Server Error', message: 'An unexpected error occurred' }), {
@@ -457,7 +462,7 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 
 	if (permissionExists) {
 		if (!permissionExists) {
-			logger.warn(`User ${user._id} denied access to API /api/${apiEndpoint}`);
+			logger.warn(`User \x1b[34m${user._id}\x1b[0m denied access to API /api/${apiEndpoint}`);
 			throw error(403, 'Forbidden: You do not have permission to access this API endpoint.');
 		}
 	}
@@ -466,8 +471,13 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 	if (event.request.method === 'GET') {
 		const cacheKey = `api:${apiEndpoint}:${user._id}:${event.url.search}`; // Include query params in cache key
 		try {
-			const cached = await cacheStore.get<{ data: unknown; timestamp: number; headers: Record<string, string> }>(cacheKey);
-			if (cached && now - cached.timestamp < API_CACHE_TTL) { // Check cache TTL
+			const cached = await cacheStore.get<{
+				data: unknown;
+				timestamp: number;
+				headers: Record<string, string>;
+			}>(cacheKey);
+			if (cached && now - cached.timestamp < API_CACHE_TTL) {
+				// Check cache TTL
 				logger.debug(`Cache hit for API GET \x1b[34m${cacheKey}\x1b[0m`);
 				return new Response(JSON.stringify(cached.data), {
 					status: 200,
@@ -479,11 +489,11 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 			// Proceed to resolve request if cache read fails
 		}
 
-
 		const response = await resolve(event);
 
 		try {
-			if (apiEndpoint === 'graphql') { // GraphQL might have its own complex caching, pass through
+			if (apiEndpoint === 'graphql') {
+				// GraphQL might have its own complex caching, pass through
 				// add 'X-Cache': 'miss' header
 				response.headers.append('X-Cache', 'miss');
 				return response;
@@ -505,10 +515,14 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 				} catch (cacheSetError) {
 					logger.warn(`Error setting API cache for ${cacheKey}: ${cacheSetError.message}`);
 				}
-				// Return a new Response 
+				// Return a new Response
 				return new Response(JSON.stringify(responseBody), {
 					status: response.status,
-					headers: { ...Object.fromEntries(response.headers), 'Content-Type': 'application/json', 'X-Cache': 'miss' }
+					headers: {
+						...Object.fromEntries(response.headers),
+						'Content-Type': 'application/json',
+						'X-Cache': 'miss'
+					}
 				});
 			} else {
 				// Handle non-ok responses from resolve(event)
@@ -533,11 +547,10 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 	const response = await resolve(event); // Get response from actual endpoint
 
 	if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(event.request.method) && response.ok) {
-
 		const baseCacheKey = `api:${apiEndpoint}:${user._id}`;
 		try {
-			// Invalidate specific list/item caches. 
-			await cacheStore.deletePattern(`${baseCacheKey}:*`); // Delete all keys starting with base 
+			// Invalidate specific list/item caches.
+			await cacheStore.deletePattern(`${baseCacheKey}:*`); // Delete all keys starting with base
 			logger.debug(`Invalidated API cache for keys starting with \x1b[34m${baseCacheKey}\x1b[0m after ${event.request.method} request`);
 		} catch (err) {
 			logger.error(`Failed to invalidate API cache for ${baseCacheKey}: ${err.message}`);
@@ -546,7 +559,7 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 	return response;
 };
 
-// Add security headers to the response 
+// Add security headers to the response
 const addSecurityHeaders: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event);
 	const headers = {
@@ -554,7 +567,7 @@ const addSecurityHeaders: Handle = async ({ event, resolve }) => {
 		'X-XSS-Protection': '1; mode=block',
 		'X-Content-Type-Options': 'nosniff',
 		'Referrer-Policy': 'strict-origin-when-cross-origin',
-		'Permissions-Policy': "geolocation=(), microphone=(), camera=(), display-capture=()" // Added camera, display-capture as common secure defaults
+		'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), display-capture=()' // Added camera, display-capture as common secure defaults
 	};
 
 	Object.entries(headers).forEach(([key, value]) => response.headers.set(key, value));
@@ -564,7 +577,6 @@ const addSecurityHeaders: Handle = async ({ event, resolve }) => {
 	}
 	// Add CSP if not already handled by SvelteKit's CSP directives or another mechanism
 	// response.headers.set('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self';");
-
 
 	return response;
 };
@@ -595,7 +607,7 @@ export const handle: Handle = sequence(
 	addSecurityHeaders
 );
 
-// Helper function to invalidate API cache 
+// Helper function to invalidate API cache
 export const invalidateApiCache = async (apiEndpoint: string, userId: string): Promise<void> => {
 	const cacheStore = getCacheStore();
 	const cacheKey = `api:${apiEndpoint}:${userId}`; // This is too generic, need to match cache keys used in handleApiRequest

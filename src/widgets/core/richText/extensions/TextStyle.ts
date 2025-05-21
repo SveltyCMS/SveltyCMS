@@ -50,21 +50,18 @@ export default TextStyle.extend({
 	addCommands() {
 		return {
 			...this.parent?.(),
-			setFontSize: (fontSize) => ({ chain }) => {
-				// Convert numbers to string to ensure consistent handling
-				const size = typeof fontSize === 'number' ? fontSize.toString() : fontSize;
-				return chain()
-					.focus()
-					.setMark(this.name, { fontSize: size })
-					.run();
-			},
-			unsetFontSize: () => ({ chain }) => {
-				return chain()
-					.focus()
-					.setMark(this.name, { fontSize: null })
-					.removeEmptyTextStyle()
-					.run();
-			}
+			setFontSize:
+				(fontSize) =>
+				({ chain }) => {
+					// Convert numbers to string to ensure consistent handling
+					const size = typeof fontSize === 'number' ? fontSize.toString() : fontSize;
+					return chain().focus().setMark(this.name, { fontSize: size }).run();
+				},
+			unsetFontSize:
+				() =>
+				({ chain }) => {
+					return chain().focus().setMark(this.name, { fontSize: null }).removeEmptyTextStyle().run();
+				}
 		};
 	}
 });

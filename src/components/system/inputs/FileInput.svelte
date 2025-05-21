@@ -146,7 +146,9 @@ Features:
 			class="bg-surface-100-800-token fixed left-[50%] top-[50%] z-[999999999] flex h-[90%] w-[95%] translate-x-[-50%] translate-y-[-50%] flex-col rounded border-[1px] border-surface-400 p-2"
 		>
 			<div class="bg-surface-100-800-token flex items-center justify-between border-b p-2">
-				<p class="ml-auto font-bold text-black dark:text-primary-500">{m.widget_ImageUpload_SelectImage()}</p>
+				<p class="ml-auto font-bold text-black dark:text-primary-500">
+					{m.widget_ImageUpload_SelectImage()}
+				</p>
 				<button onclick={() => toggleMedia(false)} aria-label="Close" class="variant-ghost-secondary btn-icon ml-auto">
 					<iconify-icon icon="material-symbols:close" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 				</button>

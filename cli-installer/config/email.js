@@ -16,12 +16,12 @@
 */
 
 import { Title, cancelOperation } from '../cli-installer.js';
-import { isCancel, text, select, confirm, note, cancel, password, spinner } from '@clack/prompts';
+import { isCancel, text, select, confirm, note, password, spinner } from '@clack/prompts';
 import pc from 'picocolors';
-import { configurationPrompt } from '../configuration.js'; // Assuming this navigates back to the main menu
+import { configurationPrompt } from '../configuration.js';
 import nodemailer from 'nodemailer';
 
-// Keep the list of common providers and the Custom option
+// Common providers and the Custom option
 const emailProviders = [
 	{ name: 'Custom Provider', host: '', port: 587 },
 	{ name: 'Gmail', host: 'smtp.gmail.com', port: 587 },
@@ -40,7 +40,7 @@ const validateEmail = (value) => {
 	// Basic email format check
 	const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 	if (!emailRegex.test(value)) {
-		return `Please enter a valid email address.` ;
+		return `Please enter a valid email address.`;
 	}
 	return undefined; // Valid
 };
@@ -73,35 +73,30 @@ export async function configureEmail(privateConfigData = {}) {
 	// SveltyCMS Title
 	Title();
 
-	// --- IMPROVED EXPLANATION ---
 	note(
 		pc.yellow(`Email configuration is crucial for core CMS features like:\n`) +
-		`  • User registration and account activation\n` +
-		`  • Password reset functionality\n` +
-		`  • Sending important notifications (e.g., content updates, user messages)\n\n` +
-		`Without email configured, features requiring email will not function correctly.`),
-		pc.green('Why Email is Needed:')
+			`  • User registration and account activation\n` +
+			`  • Password reset functionality\n` +
+			`  • Sending important notifications (e.g., content updates, user messages)\n\n` +
+			`Without email configured, features requiring email will not function correctly.\n\n` +
+			pc.green('Why Email is Needed:')
 	);
-    // --- ADD NOTE ABOUT CHANGING LATER ---
-    note(
-        pc.blue('You can change this email configuration later in the CMS settings.'),
-        pc.blue('Note:')
-    );
-    // --- END NOTE ABOUT CHANGING LATER ---
-	// --- END IMPROVED EXPLANATION ---
 
+	note(pc.blue('You can change this email configuration later in the CMS settings.'), pc.blue('Note:'));
 
 	// Display existing configuration (excluding password)
 	if (privateConfigData.SMTP_HOST || privateConfigData.SMTP_DEV_MODE || privateConfigData.SMTP_SKIPPED) {
 		note(
 			`Current Email Status: ${
-				privateConfigData.SMTP_DEV_MODE ? pc.yellow('Development/Testing Mode') :
-				privateConfigData.SMTP_SKIPPED ? pc.yellow('Skipped') :
-				pc.green('Configured')
+				privateConfigData.SMTP_DEV_MODE
+					? pc.yellow('Development/Testing Mode')
+					: privateConfigData.SMTP_SKIPPED
+						? pc.yellow('Skipped')
+						: pc.green('Configured')
 			}\n` +
-			(privateConfigData.SMTP_HOST ? `Current Host: ${pc.cyan(privateConfigData.SMTP_HOST)}\n` : '') +
-			(privateConfigData.SMTP_PORT ? `Current Port: ${pc.cyan(privateConfigData.SMTP_PORT?.toString())}\n` : '') +
-			(privateConfigData.SMTP_EMAIL ? `Current Email: ${pc.cyan(privateConfigData.SMTP_EMAIL)}` : ''),
+				(privateConfigData.SMTP_HOST ? `Current Host: ${pc.cyan(privateConfigData.SMTP_HOST)}\n` : '') +
+				(privateConfigData.SMTP_PORT ? `Current Port: ${pc.cyan(privateConfigData.SMTP_PORT?.toString())}\n` : '') +
+				(privateConfigData.SMTP_EMAIL ? `Current Email: ${pc.cyan(privateConfigData.SMTP_EMAIL)}` : ''),
 			pc.cyan('Existing Email Configuration:')
 		);
 	}
@@ -110,11 +105,20 @@ export async function configureEmail(privateConfigData = {}) {
 	const configMode = await select({
 		message: 'How do you want to configure email?',
 		options: [
-			{ value: 'real', label: 'Configure with real SMTP credentials (recommended for production/reliable delivery)' },
-			{ value: 'dev', label: 'Configure for Development/Testing (uses a dummy service, no real emails sent)' },
-			{ value: 'skip', label: 'Skip email configuration for now (features requiring email will be disabled)' },
+			{
+				value: 'real',
+				label: 'Configure with real SMTP credentials (recommended for production/reliable delivery)'
+			},
+			{
+				value: 'dev',
+				label: 'Configure for Development/Testing (uses a dummy service, no real emails sent)'
+			},
+			{
+				value: 'skip',
+				label: 'Skip email configuration for now (features requiring email will be disabled)'
+			}
 		],
-		initialValue: privateConfigData.SMTP_HOST ? 'real' : (privateConfigData.SMTP_DEV_MODE ? 'dev' : (privateConfigData.SMTP_SKIPPED ? 'skip' : 'real')) // Intelligent default
+		initialValue: privateConfigData.SMTP_HOST ? 'real' : privateConfigData.SMTP_DEV_MODE ? 'dev' : privateConfigData.SMTP_SKIPPED ? 'skip' : 'real' // Intelligent default
 	});
 
 	if (isCancel(configMode)) {
@@ -138,29 +142,28 @@ export async function configureEmail(privateConfigData = {}) {
 		}
 
 		configResult = { SMTP_SKIPPED: true };
-
 	} else if (configMode === 'dev') {
 		note(
 			pc.yellow('Configuring for Development/Testing.\n') +
-			`This mode uses a dummy email service. Emails will NOT be sent externally.\n` +
-			`They might be logged to the console or directed to a local testing tool.\n` +
-			`No real SMTP credentials or connection test is required.`,
+				`This mode uses a dummy email service. Emails will NOT be sent externally.\n` +
+				`They might be logged to the console or directed to a local testing tool.\n` +
+				`No real SMTP credentials or connection test is required.`,
 			pc.yellow('Development Mode Selected')
 		);
 
-        // --- ADD WARNING NOTE FOR DEV MODE ---
-        note(
-            pc.red(`This mode is suitable primarily for development or testing with a\n` + // Added suitability note
-            `single admin user setup.\n\n` + // Added single admin part
-            `Features relying on external email delivery (like user registration\n` +
-            `verification or password reset links sent to real users) will NOT\n` +
-            `function as expected. Your CMS application code must be configured to\n` +
-            `handle this development environment (e.g., auto-verifying new users,\n` +
-            `displaying password reset tokens instead of emailing them).`),
-            pc.red('Important Note for Dev Mode:')
-        );
-        // --- END WARNING NOTE FOR DEV MODE ---
-
+		// --- ADD WARNING NOTE FOR DEV MODE ---
+		note(
+			pc.red(
+				`This mode is suitable primarily for development or testing with a\n` +
+					`single admin user setup.\n\n` +
+					`Features relying on external email delivery (like user registration\n` +
+					`verification or password reset links sent to real users) will NOT\n` +
+					`function as expected. Your CMS application code must be configured to\n` +
+					`handle this development environment (e.g., auto-verifying new users,\n` +
+					`displaying password reset tokens instead of emailing them).`
+			),
+			pc.red('Important Note for Dev Mode:')
+		);
 
 		const SMTP_EMAIL = await text({
 			message: 'Enter a sender email address for the dummy service:',
@@ -170,7 +173,7 @@ export async function configureEmail(privateConfigData = {}) {
 		});
 		if (isCancel(SMTP_EMAIL)) {
 			await cancelOperation();
-			return;
+			return configurationPrompt();
 		}
 
 		configResult = {
@@ -181,27 +184,26 @@ export async function configureEmail(privateConfigData = {}) {
 			SMTP_PASSWORD: 'dummy_password'
 		};
 		note(pc.green('Development email configuration saved.'), pc.green('Success'));
-
 	} else if (configMode === 'real') {
 		note(pc.blue('Proceeding with real SMTP configuration.'), pc.blue('Real SMTP Mode Selected'));
 
-		// --- NOTE ABOUT DEDICATED SERVICES ---
+		// --- NOTE DEDICATED SERVICES ---
 		note(
-			pc.cyan(`For reliable email delivery in production, including user management\n` +
-			`and potential mass mail, a dedicated transactional email service is highly recommended.\n` +
-			`Examples: SendGrid, Mailgun, Postmark, Amazon SES, Brevo, etc.\n` +
-			`Select "Custom Provider" to enter credentials from your chosen service\n` +
-			`or any other custom SMTP server.`),
+			pc.cyan(
+				`For reliable email delivery in production, including user management\n` +
+					`and potential mass mail, a dedicated transactional email service is highly recommended.\n` +
+					`Examples: SendGrid, Mailgun, Postmark, Amazon SES, Brevo, etc.\n` +
+					`Select "Custom Provider" to enter credentials from your chosen service\n` +
+					`or any other custom SMTP server.`
+			),
 			pc.blue('Tip for Production/Reliable Delivery:')
 		);
-		// --- END NOTE ABOUT DEDICATED SERVICES ---
-
 
 		// --- REAL SMTP CONFIGURATION PROMPTS ---
 		const SMTP_PROVIDER = await select({
 			message: 'Select your SMTP provider or choose Custom for custom settings:',
 			placeholder: 'Gmail',
-             initialValue: privateConfigData.SMTP_PROVIDER || 'Gmail',
+			initialValue: privateConfigData.SMTP_PROVIDER || 'Gmail',
 			options: emailProviders.map((provider) => ({
 				value: provider,
 				label: provider.name
@@ -210,14 +212,14 @@ export async function configureEmail(privateConfigData = {}) {
 
 		if (isCancel(SMTP_PROVIDER)) {
 			await cancelOperation();
-			return;
+			return configurationPrompt();
 		}
 
 		let SMTP_HOST = SMTP_PROVIDER.host;
 		let SMTP_PORT = SMTP_PROVIDER.port?.toString() || '';
 
 		if (SMTP_PROVIDER.name === 'Custom Provider') {
-            note(pc.yellow('Enter details for your Custom or Transactional Email Provider.'), pc.yellow('Custom Provider Selected'));
+			note(pc.yellow('Enter details for your Custom or Transactional Email Provider.'), pc.yellow('Custom Provider Selected'));
 
 			SMTP_HOST = await text({
 				message: 'Enter the SMTP host:',
@@ -231,7 +233,7 @@ export async function configureEmail(privateConfigData = {}) {
 
 			if (isCancel(SMTP_HOST)) {
 				await cancelOperation();
-				return;
+				return configurationPrompt();
 			}
 
 			SMTP_PORT = await text({
@@ -249,38 +251,43 @@ export async function configureEmail(privateConfigData = {}) {
 
 			if (isCancel(SMTP_PORT)) {
 				await cancelOperation();
-				return;
+				return configurationPrompt();
 			}
 		} else {
-             SMTP_HOST = privateConfigData.SMTP_HOST || SMTP_PROVIDER.host;
-             SMTP_PORT = privateConfigData.SMTP_PORT?.toString() || SMTP_PROVIDER.port?.toString();
+			SMTP_HOST = privateConfigData.SMTP_HOST || SMTP_PROVIDER.host;
+			SMTP_PORT = privateConfigData.SMTP_PORT?.toString() || SMTP_PROVIDER.port?.toString();
 
-             SMTP_HOST = await text({
-                message: `Confirm or change the SMTP host for ${SMTP_PROVIDER.name}:`,
-                placeholder: SMTP_PROVIDER.host,
-                initialValue: SMTP_HOST,
-                validate(value) {
-                    if (!value || value.length === 0) return `SMTP host is required!`;
-                    return undefined;
-                }
-            });
-             if (isCancel(SMTP_HOST)) { await cancelOperation(); return; }
+			SMTP_HOST = await text({
+				message: `Confirm or change the SMTP host for ${SMTP_PROVIDER.name}:`,
+				placeholder: SMTP_PROVIDER.host,
+				initialValue: SMTP_HOST,
+				validate(value) {
+					if (!value || value.length === 0) return `SMTP host is required!`;
+					return undefined;
+				}
+			});
+			if (isCancel(SMTP_HOST)) {
+				await cancelOperation();
+				return configurationPrompt();
+			}
 
-             SMTP_PORT = await text({
-                message: `Confirm or change the SMTP port for ${SMTP_PROVIDER.name}:`,
-                placeholder: SMTP_PROVIDER.port?.toString(),
-                initialValue: SMTP_PORT,
-                 validate(value) {
-                    const num = Number(value);
-                    if (isNaN(num) || !Number.isInteger(num) || num < 1 || num > 65535) {
-                        return `Please enter a valid port number between 1 and 65535.`;
-                    }
-                    return undefined;
-                }
-             });
-              if (isCancel(SMTP_PORT)) { await cancelOperation(); return; }
-        }
-
+			SMTP_PORT = await text({
+				message: `Confirm or change the SMTP port for ${SMTP_PROVIDER.name}:`,
+				placeholder: SMTP_PROVIDER.port?.toString(),
+				initialValue: SMTP_PORT,
+				validate(value) {
+					const num = Number(value);
+					if (isNaN(num) || !Number.isInteger(num) || num < 1 || num > 65535) {
+						return `Please enter a valid port number between 1 and 65535.`;
+					}
+					return undefined;
+				}
+			});
+			if (isCancel(SMTP_PORT)) {
+				await cancelOperation();
+				return configurationPrompt();
+			}
+		}
 
 		const SMTP_EMAIL = await text({
 			message: 'Enter the email address for sending system emails:',
@@ -347,10 +354,7 @@ export async function configureEmail(privateConfigData = {}) {
 			}
 		} catch (error) {
 			s.stop(pc.red('An unexpected error occurred during the SMTP test.'));
-			note(
-				`${error.message}\n\nPlease try again or check server logs.`,
-				pc.red('Unexpected Error')
-			);
+			note(`${error.message}\n\nPlease try again or check server logs.`, pc.red('Unexpected Error'));
 			await cancelOperation();
 			return;
 		}
@@ -389,10 +393,10 @@ export async function configureEmail(privateConfigData = {}) {
 				SMTP_PROVIDER: SMTP_PROVIDER.name
 			};
 		} else {
-             note('Email configuration not saved due to connection failure or cancellation.', pc.yellow('Configuration Failed'));
-             await cancelOperation();
-             return;
-        }
+			note('Email configuration not saved due to connection failure or cancellation.', pc.yellow('Configuration Failed'));
+			await cancelOperation();
+			return;
+		}
 	}
 
 	return configResult;

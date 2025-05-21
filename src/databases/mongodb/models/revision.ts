@@ -50,7 +50,10 @@ revisionSchema.statics = {
 			logger.error(`Error retrieving revision history for content ID: ${contentId}: ${error.message}`);
 			return {
 				success: false,
-				error: { code: 'REVISION_HISTORY_ERROR', message: `Failed to retrieve revision history for content ID: ${contentId}` }
+				error: {
+					code: 'REVISION_HISTORY_ERROR',
+					message: `Failed to retrieve revision history for content ID: ${contentId}`
+				}
 			};
 		}
 	},
@@ -63,7 +66,14 @@ revisionSchema.statics = {
 			return { success: true, data: result.deletedCount };
 		} catch (error) {
 			logger.error(`Error bulk deleting revisions for content IDs: ${error.message}`);
-			return { success: false, error: { code: 'REVISION_BULK_DELETE_ERROR', message: 'Failed to bulk delete revisions', details: error } };
+			return {
+				success: false,
+				error: {
+					code: 'REVISION_BULK_DELETE_ERROR',
+					message: 'Failed to bulk delete revisions',
+					details: error
+				}
+			};
 		}
 	},
 
@@ -80,7 +90,14 @@ revisionSchema.statics = {
 			return { success: true, data: revisionWithISODates };
 		} catch (error) {
 			logger.error(`Error creating revision: ${error.message}`);
-			return { success: false, error: { code: 'REVISION_CREATE_ERROR', message: 'Failed to create revision', details: error } };
+			return {
+				success: false,
+				error: {
+					code: 'REVISION_CREATE_ERROR',
+					message: 'Failed to create revision',
+					details: error
+				}
+			};
 		}
 	},
 
@@ -91,14 +108,24 @@ revisionSchema.statics = {
 			if (result.modifiedCount === 0) {
 				return {
 					success: false,
-					error: { code: 'REVISION_UPDATE_NOT_FOUND', message: `Revision with ID "${revisionId}" not found or no changes applied.` }
+					error: {
+						code: 'REVISION_UPDATE_NOT_FOUND',
+						message: `Revision with ID "${revisionId}" not found or no changes applied.`
+					}
 				};
 			}
 			logger.info(`Revision "${revisionId}" updated successfully.`);
 			return { success: true, data: undefined };
 		} catch (error) {
 			logger.error(`Error updating revision "${revisionId}": ${error.message}`);
-			return { success: false, error: { code: 'REVISION_UPDATE_ERROR', message: `Failed to update revision "${revisionId}"`, details: error } };
+			return {
+				success: false,
+				error: {
+					code: 'REVISION_UPDATE_ERROR',
+					message: `Failed to update revision "${revisionId}"`,
+					details: error
+				}
+			};
 		}
 	},
 
@@ -107,13 +134,26 @@ revisionSchema.statics = {
 		try {
 			const result = await this.deleteOne({ _id: revisionId }).exec();
 			if (result.deletedCount === 0) {
-				return { success: false, error: { code: 'REVISION_DELETE_NOT_FOUND', message: `Revision with ID "${revisionId}" not found.` } };
+				return {
+					success: false,
+					error: {
+						code: 'REVISION_DELETE_NOT_FOUND',
+						message: `Revision with ID "${revisionId}" not found.`
+					}
+				};
 			}
 			logger.info(`Revision "${revisionId}" deleted successfully.`);
 			return { success: true, data: undefined };
 		} catch (error) {
 			logger.error(`Error deleting revision "${revisionId}": ${error.message}`);
-			return { success: false, error: { code: 'REVISION_DELETE_ERROR', message: `Failed to delete revision "${revisionId}"`, details: error } };
+			return {
+				success: false,
+				error: {
+					code: 'REVISION_DELETE_ERROR',
+					message: `Failed to delete revision "${revisionId}"`,
+					details: error
+				}
+			};
 		}
 	}
 };

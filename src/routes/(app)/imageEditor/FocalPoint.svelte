@@ -189,8 +189,12 @@
 	<div class="flex flex-col items-center justify-around space-y-2">
 		<p class="text-sm font-medium">Focal Point Position:</p>
 		<div class="flex space-x-4">
-			<p class="text-sm">X: <span class="text-tertiary-500 dark:text-primary-500">{relativeX.toFixed(2)}</span></p>
-			<p class="text-sm">Y: <span class="text-tertiary-500 dark:text-primary-500">{relativeY.toFixed(2)}</span></p>
+			<p class="text-sm">
+				X: <span class="text-tertiary-500 dark:text-primary-500">{relativeX.toFixed(2)}</span>
+			</p>
+			<p class="text-sm">
+				Y: <span class="text-tertiary-500 dark:text-primary-500">{relativeY.toFixed(2)}</span>
+			</p>
 		</div>
 	</div>
 </div>

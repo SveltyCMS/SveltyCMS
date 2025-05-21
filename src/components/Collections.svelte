@@ -154,6 +154,7 @@ Features:
 		if ('nodeType' in selectedCollection && selectedCollection.nodeType === 'collection') {
 			mode.set('view');
 			collection.set(null);
+			// Always include the language parameter in the URL
 			goto(`/${contentLanguage.value}${selectedCollection.path?.toString()}`);
 		}
 		shouldShowNextButton.set(true);

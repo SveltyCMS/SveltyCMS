@@ -263,7 +263,11 @@ Features:
 	}
 
 	const handleResize = debounce(() => {
-		buttonInfo = { ...buttonInfo, x: window.innerWidth - buttonRadius * 3, y: window.innerHeight - buttonRadius * 3 };
+		buttonInfo = {
+			...buttonInfo,
+			x: window.innerWidth - buttonRadius * 3,
+			y: window.innerHeight - buttonRadius * 3
+		};
 		if (firstLine && firstCircle) {
 			firstLine.setAttribute('x1', firstCircle.offsetLeft.toString());
 			firstLine.setAttribute('y1', firstCircle.offsetTop.toString());

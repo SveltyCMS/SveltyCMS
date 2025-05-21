@@ -318,7 +318,12 @@
 		</button>
 
 		<PermissionGuard
-			config={{ contextId: 'user:manage', name: 'Manage User Tokens', action: PermissionAction.MANAGE, contextType: PermissionType.USER }}
+			config={{
+				contextId: 'user:manage',
+				name: 'Manage User Tokens',
+				action: PermissionAction.MANAGE,
+				contextType: PermissionType.USER
+			}}
 		>
 			<button
 				onclick={toggleUserToken}

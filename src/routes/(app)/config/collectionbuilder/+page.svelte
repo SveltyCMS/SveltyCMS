@@ -111,7 +111,11 @@
 
 	async function updateExistingCategory(existingCategory: ContentNode, response: CategoryModalResponse): Promise<void> {
 		const newConfig = currentConfig.filter((c) => c._id !== existingCategory._id);
-		const newCategory = { ...existingCategory, name: response.newCategoryName, icon: response.newCategoryIcon };
+		const newCategory = {
+			...existingCategory,
+			name: response.newCategoryName,
+			icon: response.newCategoryIcon
+		};
 
 		console.debug('updating category', newCategory);
 		currentConfig = [...newConfig, newCategory];

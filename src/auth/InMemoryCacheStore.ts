@@ -120,7 +120,7 @@ export class InMemorySessionStore implements ExtendedSessionStore {
 					deletedCount++;
 				}
 			}
-			logger.debug(`Deleted ${deletedCount} sessions matching pattern ${pattern} in memory`);
+			logger.debug(`Deleted \x1b[34m${deletedCount}\x1b[0m sessions matching pattern \x1b[34m${pattern}\x1b[0m in memory`);
 			return deletedCount;
 		} catch (err) {
 			const message = `Error in InMemorySessionStore.deletePattern: ${err instanceof Error ? err.message : String(err)}`;

@@ -189,12 +189,12 @@ export async function find(query: object, contentTypes: string) {
 	}
 	const _query = JSON.stringify(query);
 	try {
-		logger.debug(`Calling /api/find for collection: ${contentTypes} with query: ${_query}`);
+		logger.debug(`Calling /api/find for collection: /x1b[34m${contentTypes}\x1b[0m with query: /x1b[34m${_query}\x1b[0m`);
 		const response = await axios.get(`/api/find?collection=${contentTypes}&query=${_query}`);
-		logger.debug(`Received response from /api/find for collection: ${contentTypes}`);
+		logger.debug(`Received response from /api/find for collection: /x1b[34m${contentTypes}\x1b[0m`);
 		return response.data;
 	} catch (err) {
-		logger.error(`Error in find function for collection ${contentTypes}:`, err as LoggableValue);
+		logger.error(`Error in find function for collection /x1b[34m${contentTypes}/x1b[0m:`, err as LoggableValue);
 		if (axios.isAxiosError(err)) {
 			logger.error('Axios error details:', {
 				response: err.response?.data,
@@ -209,16 +209,16 @@ export async function find(query: object, contentTypes: string) {
 // Finds document in collection with specified ID
 export async function findById(id: string, contentTypes: string) {
 	if (!id || !contentTypes) {
-		logger.warn(`findById called with invalid parameters. ID: ${id}, Collection: ${contentTypes}`);
+		logger.warn(`findById called with invalid parameters. ID: /x1b[34m${id}\x1b[0m, Collection: /x1b[34m${contentTypes}\x1b[0m`);
 		return;
 	}
 	try {
-		logger.debug(`Calling /api/find for collection: ${contentTypes} with ID: ${id}`);
+		logger.debug(`Calling /api/find for collection: /x1b[34m${contentTypes}\x1b[0m with ID: /x1b[34m${id}\x1b[0m`);
 		const response = await axios.get(`/api/find?collection=${contentTypes}&id=${id}`);
-		logger.debug(`Received response from /api/find for collection: ${contentTypes} with ID: ${id}`);
+		logger.debug(`Received response from /api/find for collection: ${contentTypes}\x1b[0m with ID: ${id}\x1b[0m`);
 		return response.data;
 	} catch (err) {
-		logger.error(`Error in findById function for collection ${contentTypes} and ID ${id}:`, err as LoggableValue);
+		logger.error(`Error in findById function for collection /x1b[34m${contentTypes}\x1b[0m and ID /x1b[34m${id}\x1b[0m:`, err as LoggableValue);
 		if (axios.isAxiosError(err)) {
 			logger.error('Axios error details:', {
 				response: err.response?.data,
@@ -231,10 +231,33 @@ export async function findById(id: string, contentTypes: string) {
 }
 
 // Returns field's database field name or label
-export function getFieldName(field: Field, sanitize = false): string {
+export function getFieldName(field: Field, rawName = false): string {
 	if (!field) return '';
+
+	// Special field name mappings
+	const specialMappings: Record<string, string> = {
+		'First Name': 'first_name',
+		'Last Name': 'last_name'
+	};
+
 	const name = field.label || field.type;
-	return sanitize ? name.toLowerCase().replace(/\s+/g, '_') : name;
+
+	// Return raw UI name if requested
+	if (rawName) return name;
+
+	// Check special mappings first
+	if (specialMappings[name]) {
+		return specialMappings[name];
+	}
+
+	// Default sanitization:
+	// 1. Convert to lowercase
+	// 2. Replace spaces with underscores
+	// 3. Remove special characters
+	return name
+		.toLowerCase()
+		.replace(/\s+/g, '_')
+		.replace(/[^a-z0-9_]/g, '');
 }
 
 // Extract data from fields

@@ -62,7 +62,14 @@
 	// Mapping from string identifier to component info, including sizing and icon
 	const widgetComponents: Record<
 		string,
-		{ component: any; name: string; icon: string; defaultW: number; defaultH: number; validSizes: { w: number; h: number }[] }
+		{
+			component: any;
+			name: string;
+			icon: string;
+			defaultW: number;
+			defaultH: number;
+			validSizes: { w: number; h: number }[];
+		}
 	> = {
 		CPUWidget: {
 			component: CPUWidget,

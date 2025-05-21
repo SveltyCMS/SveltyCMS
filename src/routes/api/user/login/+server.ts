@@ -49,7 +49,10 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 			throw error(401, 'Invalid credentials');
 		}
 
-		const session = await auth.createSession({ user_id: user._id, expires: new Date(Date.now() + 3600 * 1000) });
+		const session = await auth.createSession({
+			user_id: user._id,
+			expires: new Date(Date.now() + 3600 * 1000)
+		});
 		const sessionCookie = auth.createSessionCookie(session);
 		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 

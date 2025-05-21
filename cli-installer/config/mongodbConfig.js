@@ -108,12 +108,18 @@ export async function configureMongoDB(privateConfigData = {}) {
 					pc.yellow('Parsing Warning')
 				);
 				// Prompt manually if parsing failed
-				dbUser = await text({ message: 'Enter MongoDB Atlas User:', validate: (v) => validateRequired(v, 'User') });
+				dbUser = await text({
+					message: 'Enter MongoDB Atlas User:',
+					validate: (v) => validateRequired(v, 'User')
+				});
 				if (isCancel(dbUser)) {
 					await cancelOperation();
 					return;
 				}
-				dbPassword = await password({ message: 'Enter MongoDB Atlas Password:', validate: (v) => validateRequired(v, 'Password') });
+				dbPassword = await password({
+					message: 'Enter MongoDB Atlas Password:',
+					validate: (v) => validateRequired(v, 'Password')
+				});
 				if (isCancel(dbPassword)) {
 					await cancelOperation();
 					return;
@@ -123,19 +129,28 @@ export async function configureMongoDB(privateConfigData = {}) {
 			console.error(pc.red('Error parsing connection string:'), error); // Log the actual error
 			note(`Failed to parse connection string: ${error.message}. Please enter details manually.`, pc.red('Parsing Error'));
 			// Fallback to manual input if parsing fails completely
-			dbHost = await text({ message: 'Enter MongoDB Atlas Host (e.g., clustername.mongodb.net):', validate: (v) => validateRequired(v, 'Host') });
+			dbHost = await text({
+				message: 'Enter MongoDB Atlas Host (e.g., clustername.mongodb.net):',
+				validate: (v) => validateRequired(v, 'Host')
+			});
 			if (isCancel(dbHost)) {
 				await cancelOperation();
 				return;
 			}
 			dbHost = `mongodb+srv://${dbHost}`; // Add prefix manually if needed
 			dbPort = '27017'; // Default Atlas port
-			dbUser = await text({ message: 'Enter MongoDB Atlas User:', validate: (v) => validateRequired(v, 'User') });
+			dbUser = await text({
+				message: 'Enter MongoDB Atlas User:',
+				validate: (v) => validateRequired(v, 'User')
+			});
 			if (isCancel(dbUser)) {
 				await cancelOperation();
 				return;
 			}
-			dbPassword = await password({ message: 'Enter MongoDB Atlas Password:', validate: (v) => validateRequired(v, 'Password') });
+			dbPassword = await password({
+				message: 'Enter MongoDB Atlas Password:',
+				validate: (v) => validateRequired(v, 'Password')
+			});
 			if (isCancel(dbPassword)) {
 				await cancelOperation();
 				return;

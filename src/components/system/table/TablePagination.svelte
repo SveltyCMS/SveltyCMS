@@ -17,15 +17,38 @@
 -->
 
 <script lang="ts">
+	export interface TableHeader {
+		label: string;
+		name: string;
+		id: string;
+		visible: boolean;
+		width?: number;
+		sortable?: boolean;
+	}
+
+	export interface PaginationSettings {
+		collectionId: string | null;
+		density: 'compact' | 'normal' | 'comfortable';
+		sorting: {
+			sortedBy: string;
+			isSorted: 0 | 1 | -1;
+		};
+		currentPage: number;
+		rowsPerPage: number;
+		filters: Record<string, string>;
+		displayTableHeaders: TableHeader[];
+		pagesCount?: number;
+		totalItems?: number;
+	}
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { onDestroy } from 'svelte';
 
 	// Props with default values
 	let {
-		currentPage = 1,
+		currentPage = $bindable(1),
 		pagesCount = 1,
-		rowsPerPage = 10,
+		rowsPerPage = $bindable(10),
 		rowsPerPageOptions = [5, 10, 25, 50, 100, 500],
 		totalItems = 0,
 		onUpdatePage,
@@ -40,29 +63,25 @@
 		onUpdateRowsPerPage?: (rows: number) => void; // Event handler for updating the number of rows per page
 	}>();
 
-	// Local state mirrors props but avoids direct updates
-	let localCurrentPage = $state(currentPage);
-	let localRowsPerPage = $state(rowsPerPage);
+	// Derived pagesCount if not provided
+	const computedPagesCount = $derived(pagesCount && pagesCount > 0 ? pagesCount : rowsPerPage > 0 ? Math.ceil(totalItems / rowsPerPage) : 1);
 
-	// Sync local state with props when they change externally
-	$effect(() => {
-		localCurrentPage = currentPage;
-		localRowsPerPage = rowsPerPage;
-	});
+	const isFirstPage = $derived(currentPage === 1);
+	const isLastPage = $derived(currentPage === computedPagesCount);
 
-	// Derived values
-	const isFirstPage = $derived(localCurrentPage === 1);
-	const isLastPage = $derived(localCurrentPage === pagesCount);
+	// Calculate start and end item numbers for the current page
+	const startItem = $derived(totalItems === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1);
+	const endItem = $derived(totalItems === 0 ? 0 : Math.min(currentPage * rowsPerPage, totalItems));
 
-	// Go to page with debounce
+	// Go to page - IMMEDIATE
 	let pageUpdateTimeout: number | undefined;
 	function goToPage(page: number) {
-		if (page >= 1 && page <= pagesCount && page !== localCurrentPage) {
+		if (page >= 1 && page <= computedPagesCount && page !== currentPage) {
 			// Clear any existing timeout
 			if (pageUpdateTimeout) clearTimeout(pageUpdateTimeout);
 			// Set a new timeout
 			pageUpdateTimeout = window.setTimeout(() => {
-				localCurrentPage = page;
+				currentPage = page;
 				onUpdatePage?.(page);
 			}, 200); // 200ms debounce
 		}
@@ -70,34 +89,34 @@
 
 	// Update rows per page
 	function updateRowsPerPage(rows: number) {
-		if (rows !== localRowsPerPage) {
-			localRowsPerPage = rows;
-			onUpdateRowsPerPage?.(rows);
-		}
+		//console.log('updateRowsPerPage called with:', rows);
+		onUpdateRowsPerPage?.(rows);
 	}
-
-	// Cleanup on component destroy
-	onDestroy(() => {
-		if (pageUpdateTimeout) clearTimeout(pageUpdateTimeout);
-	});
 </script>
 
 <!-- Pagination info -->
 <div class="mb-1 flex items-center justify-between text-xs md:mb-0 md:text-sm" role="status" aria-live="polite">
 	<div>
 		<span>{m.entrylist_page()}</span>
-		<span class="text-tertiary-500 dark:text-primary-500">{localCurrentPage}</span>
+		<span class="text-tertiary-500 dark:text-primary-500">{currentPage}</span>
 		<span>{m.entrylist_of()}</span>
-		<span class="text-tertiary-500 dark:text-primary-500">{pagesCount}</span>
+		<span class="text-tertiary-500 dark:text-primary-500">{computedPagesCount}</span>
 		<span class="ml-4" aria-label="Current items shown">
-			Showing <span class="text-tertiary-500 dark:text-primary-500">{localRowsPerPage}</span> of
-			<span class="text-tertiary-500 dark:text-primary-500">{totalItems}</span> items
+			{#if totalItems > 0}
+				Showing <span class="text-tertiary-500 dark:text-primary-500">{startItem}</span>–<span class="text-tertiary-500 dark:text-primary-500"
+					>{endItem}</span
+				>
+				of
+				<span class="text-tertiary-500 dark:text-primary-500">{totalItems}</span> items
+			{:else}
+				Showing 0 of 0 items
+			{/if}
 		</span>
 	</div>
 </div>
 
 <!-- Pagination controls -->
-<nav class=" variant-outline btn-group" aria-label="Table pagination">
+<nav class="variant-outline btn-group" aria-label="Table pagination">
 	<!-- First page button -->
 	<button
 		onclick={() => goToPage(1)}
@@ -113,7 +132,7 @@
 
 	<!-- Previous page button -->
 	<button
-		onclick={() => goToPage(localCurrentPage - 1)}
+		onclick={() => goToPage(currentPage - 1)}
 		disabled={isFirstPage}
 		type="button"
 		aria-label="Go to previous page"
@@ -126,14 +145,14 @@
 
 	<!-- Rows per page select dropdown -->
 	<select
-		value={localRowsPerPage}
+		bind:value={rowsPerPage}
 		onchange={(event) => updateRowsPerPage(parseInt((event.target as HTMLSelectElement).value))}
 		aria-label="Select number of rows per page"
-		class="appearance-none bg-transparent p-0 px-6 text-center text-sm text-tertiary-500 dark:text-primary-500"
+		class="appearance-none border-r border-surface-400 bg-transparent p-0 px-2 text-center text-sm text-tertiary-500 dark:border-surface-600 dark:text-primary-500 sm:px-4"
 		title="Rows per page"
 	>
 		{#each rowsPerPageOptions as pageSize}
-			<option class="bg-surface-500 text-white" value={pageSize}>
+			<option class="bg-surface-100 text-black dark:bg-surface-700 dark:text-white" value={pageSize}>
 				{pageSize}
 				{m.entrylist_rows()}
 			</option>
@@ -142,7 +161,7 @@
 
 	<!-- Next page button -->
 	<button
-		onclick={() => goToPage(localCurrentPage + 1)}
+		onclick={() => goToPage(currentPage + 1)}
 		disabled={isLastPage}
 		type="button"
 		aria-label="Go to next page"
@@ -155,7 +174,7 @@
 
 	<!-- Last page button -->
 	<button
-		onclick={() => goToPage(pagesCount)}
+		onclick={() => goToPage(computedPagesCount)}
 		disabled={isLastPage}
 		type="button"
 		aria-label="Go to last page"
