@@ -31,13 +31,13 @@ import { modifyRequest } from './modifyRequest';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-import { contentManager } from '@root/src/content/ContentManager';
+
 
 // Function to handle DELETE requests for a specified collection
 export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {
 	const start = performance.now();
 	try {
-		logger.debug(`DELETE request received for schema: ${schema.id}, user_id: ${user._id}`);
+		logger.debug(`DELETE request received for schema: \x1b[34m${schema.id}\x1b[0m, user_id: \x1b[34m${user._id}\x1b[0m`);
 
 		// Ensure the database adapter is initialized
 
@@ -94,7 +94,7 @@ export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: 
 					await Promise.all(linkedDeletions);
 
 					const itemDuration = performance.now() - itemStart;
-					logger.debug(`Item ${index + 1}/${idsArray.length} processed in ${itemDuration.toFixed(2)}ms`);
+					logger.debug(`Item ${index + 1}/${idsArray.length} processed in \x1b[33m${itemDuration.toFixed(2)}ms\x1b[0m`);
 				} catch (itemError) {
 					const errorMessage = itemError instanceof Error ? itemError.message : 'Unknown error';
 					logger.error(`Error processing item ${index + 1}: ${errorMessage}`);
@@ -104,17 +104,17 @@ export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: 
 		);
 
 		const modifyDuration = performance.now() - modifyStart;
-		logger.debug(`Request modifications completed in ${modifyDuration.toFixed(2)}ms`);
+		logger.debug(`Request modifications completed in \x1b[33m${modifyDuration.toFixed(2)}ms\x1b[0m`);
 
 		// Perform the deletion in the main collection
 		const deleteStart = performance.now();
 		const deletedCount = await collection.deleteMany({ _id: { $in: idsArray } });
 		const deleteDuration = performance.now() - deleteStart;
 
-		logger.info(`Deleted ${deletedCount} documents in ${deleteDuration.toFixed(2)}ms for schema ID: ${schema._id}`);
+		logger.info(`Deleted \x1b[34m${deletedCount}\x1b[0m documents in \x1b[33m${deleteDuration.toFixed(2)}ms\x1b[0m for schema ID: \x1b[34m${schema.id}\x1b[0m`);
 
 		const totalDuration = performance.now() - start;
-		logger.info(`DELETE operation completed in ${totalDuration.toFixed(2)}ms`);
+		logger.info(`DELETE operation completed in \x1b[33m${totalDuration.toFixed(2)}ms\x1b[0m`);
 
 		// Return the result as a JSON response
 		return new Response(
@@ -138,7 +138,7 @@ export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: 
 		const duration = performance.now() - start;
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 		const errorStack = error instanceof Error ? error.stack : '';
-		logger.error(`DELETE operation failed after ${duration.toFixed(2)}ms for schema ID: ${schema.id}: ${errorMessage}`, {
+		logger.error(`DELETE operation failed after ${duration.toFixed(2)}ms for schema ID: \x1b[34m${schema.id}\x1b[0m: ${errorMessage}`, {
 			stack: errorStack
 		});
 		return new Response(errorMessage, { status: 500 });

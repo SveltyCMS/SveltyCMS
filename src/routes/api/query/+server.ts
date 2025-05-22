@@ -22,7 +22,6 @@ import type { RequestHandler } from '@sveltejs/kit';
 
 // Types
 import type { User } from '@src/auth/types';
-import type { Schema } from '@root/src/content/types';
 
 // Interface for cookies
 export interface CookieData {

@@ -334,8 +334,8 @@
 					</div>
 				{/if}
 				{#if collection.value.name}
-					<div class="ml-2 flex flex-col text-left text-gray-400 dark:text-gray-300">
-						<div class="text-sm font-bold uppercase text-tertiary-500 dark:text-primary-500">
+					<div class="ml-2 flex flex-col text-left font-bold">
+						<div class="text-sm uppercase">
 							{mode.value}:
 						</div>
 						<div class="text-xs capitalize">
@@ -349,13 +349,14 @@
 
 	<div class="flex items-center justify-end gap-1 sm:gap-2 md:gap-4">
 		<!-- Mobile specific buttons -->
-		{#if screenSize.value !== 'lg'}
+		{#if screenSize.value === 'md' || screenSize.value === 'sm' || screenSize.value === 'xs'}
 			{#if showMore}
 				<!-- Mobile: Show More Active -->
-				<button type="button" onclick={next} aria-label="Next" class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:btn">
+				<button type="button" onclick={next} aria-label="Next" class="variant-filled-tertiary btn-icon dark:variant-filled-primary">
 					<iconify-icon icon="carbon:next-filled" width="24" class="text-white"></iconify-icon>
-					<span class="hidden md:block">{m.button_next()}</span>
+					<span class="hidden lg:block">{m.button_next()}</span>
 				</button>
+
 				<!-- Show More toggle remains visible -->
 				<button
 					type="button"
@@ -377,7 +378,7 @@
 						type="button"
 						onclick={saveData}
 						disabled={collection.value?.permissions?.[user.role]?.write === false}
-						class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:hidden"
+						class="variant-filled-tertiary btn-icon dark:variant-filled-primary lg:hidden"
 						aria-label="Save entry"
 					>
 						<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>

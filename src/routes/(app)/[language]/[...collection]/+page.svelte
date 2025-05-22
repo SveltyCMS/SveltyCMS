@@ -26,8 +26,6 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	// Components
 	import Fields from '@components/Fields.svelte';
 	import EntryList from '@src/components/EntryList.svelte';
-	import MediaGallery from '@src/routes/(app)/mediagallery/+page.svelte';
-
 	import Loading from '@root/src/components/Loading.svelte';
 
 	interface Props {

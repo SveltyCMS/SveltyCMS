@@ -32,13 +32,16 @@
 	// Stores
 	import { contentLanguage, translationProgress } from '@stores/store.svelte';
 	import { collection, collectionValue } from '@src/stores/collectionStore.svelte';
-	import { widgetFunctions } from '@src/widgets';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
 	import { TabGroup, Tab, CodeBlock, clipboard } from '@skeletonlabs/skeleton';
+
+	// Components
+	import { widgetFunctions } from '@src/widgets';
+	import Loading from '@components/Loading.svelte';
 
 	// Props
 	interface Props {
@@ -123,7 +126,9 @@
 </script>
 
 {#if isLoading}
-	<div class="loading">Loading fields...</div>
+	<div class="flex h-lvh items-center justify-between lg:justify-start">
+		<Loading />
+	</div>
 {:else}
 	<TabGroup
 		justify="{collection.value?.revision === true ? 'justify-between md:justify-around' : 'justify-center '} items-center"
@@ -159,7 +164,7 @@
 			<Tab bind:group={tabSet} name="tab3" value={2}>
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="mdi:eye-outline" width="24" class="text-tertiary-500 dark:text-primary-500"> </iconify-icon>
-					<p>{m.Fields_preview()}</p>
+					<p>{m.Fields_preview()} Experimetal</p>
 				</div>
 			</Tab>
 		{/if}
@@ -295,7 +300,7 @@
 			{:else if tabSet === 2 && collection.value?.livePreview === true}
 				<!-- Live Preview tab content -->
 				<div class="wrapper">
-					<h2 class="mb-4 text-center text-xl font-bold text-tertiary-500 dark:text-primary-500">Live Preview</h2>
+					<h2 class="mb-4 text-center text-xl font-bold text-tertiary-500 dark:text-primary-500">Live Preview Experimetal</h2>
 					<div class="card variant-glass-secondary mb-4 p-1 sm:p-4">
 						{@html getLivePreviewContent()}
 					</div>

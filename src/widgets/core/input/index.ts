@@ -15,7 +15,7 @@ const WIDGET_NAME = 'Input' as const;
  */
 const widget = (params: Params & { widgetId?: string }) => {
 	// Define the display function
-	let display: any;
+	let display: unknown;
 	if (!params.display) {
 		display = async ({ data, contentLanguage }) => {
 			// console.log(data);

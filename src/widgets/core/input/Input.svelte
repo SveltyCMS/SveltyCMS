@@ -25,17 +25,16 @@
 	import { updateTranslationProgress, getFieldName } from '@src/utils/utils';
 
 	// Valibot validation
-	import { string, pipe, parse, type ValiError, minLength, maxLength, nonEmpty, nullable } from 'valibot';
+	import { string, pipe, parse, type ValiError, nonEmpty, nullable } from 'valibot';
 	import { contentLanguage, validationStore } from '@root/src/stores/store.svelte';
 
 	// Props
 	interface Props {
 		field: FieldType;
 		value?: any;
-		WidgetData?: any;
 	}
 
-	let { field, value = $bindable({ [contentLanguage.value.toLowerCase()]: '' }), WidgetData = async () => value }: Props = $props();
+	let { field, value = $bindable({ [contentLanguage.value.toLowerCase()]: '' }) }: Props = $props();
 
 	// Initialize value separately to avoid $state() in prop destructuring
 

@@ -147,7 +147,7 @@
 		"deepmerge": "^4.3.1",
 		"drizzle-orm": "^0.43.1",
 		"google-auth-library": "^9.15.1",
-		"googleapis": "^148.0.0",
+		"googleapis": "^149.0.0",
 		"graphql": "^16.11.0",
 		"graphql-yoga": "^5.13.4",
 		"htmlparser2": "^10.0.0",

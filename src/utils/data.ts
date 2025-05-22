@@ -24,8 +24,7 @@
 import axios from 'axios';
 import { error } from '@sveltejs/kit';
 import { col2formData, config, toFormData } from './utils';
-import type { ContentTypes, Schema, User } from '@src/types';
-// import { v4 as uuidv4 } from 'uuid';
+import type { ContentTypes, Schema } from '@src/types';
 
 // Store
 import { collection, collectionValue, mode } from '../stores/collectionStore.svelte';
@@ -34,7 +33,7 @@ import { collection, collectionValue, mode } from '../stores/collectionStore.sve
 import { logger } from '@utils/logger.svelte';
 
 // Helper function to handle API requests
-export async function handleRequest(data: FormData, method: string, retries = 3): Promise<any> {
+export async function handleRequest(data: FormData, method: string, retries = 3): Promise<unknown> {
 	data.append('method', method);
 
 	// Log the FormData entries before sending
@@ -162,20 +161,21 @@ export async function saveFormData({
 	data,
 	_collection,
 	_mode,
-	id
+	id,
+	user
 }: {
 	data: FormData | { [Key: string]: () => unknown };
 	_collection?: Schema;
 	_mode?: 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
 	id?: string;
+	user?: { username?: string };
 }) {
 	// Add the user who last saved (if available)
-	const currentUser = User;
-	if (currentUser && currentUser.username) {
+	if (user && user.username) {
 		if (data instanceof FormData) {
-			data.append('lastSavedBy', currentUser.username);
+			data.append('lastSavedBy', user.username);
 		} else {
-			data.lastSavedBy = () => currentUser.username;
+			data.lastSavedBy = () => user.username;
 		}
 	}
 

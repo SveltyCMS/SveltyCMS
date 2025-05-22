@@ -11,7 +11,7 @@
 
 import { store } from '@utils/reactivity.svelte';
 import type { Schema } from '@src/content/types';
-import type { ContentNode, ContentStructureNode } from '../databases/dbInterface';
+import type { ContentNode } from '../databases/dbInterface';
 
 // Define types
 type ModeType = 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';

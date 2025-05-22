@@ -40,7 +40,6 @@ Features:
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import OauthLogin from './OauthLogin.svelte';
-	import BackgroundPattern from '@root/src/components/system/BackgroundPattern.svelte';
 
 	// Props
 	const {
@@ -120,6 +119,16 @@ Features:
 				return;
 			}
 			cancel();
+
+			// Trigger the toast
+			toastStore.trigger({
+				message: 'Wrong User or Password',
+				// Provide any utility or variant background style:
+				background: 'variant-filled-error',
+				timeout: 4000,
+				// Add your custom classes here:
+				classes: 'border-1 !rounded-md'
+			});
 
 			// add wiggle animation to form element
 			formElement?.classList.add('wiggle');
@@ -203,6 +212,8 @@ Features:
 			}
 
 			cancel();
+
+			// add wiggle animation to form element
 			formElement?.classList.add('wiggle');
 			setTimeout(() => {
 				formElement?.classList.remove('wiggle');
