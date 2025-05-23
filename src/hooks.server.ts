@@ -277,10 +277,11 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 				const now = Date.now();
 				const expiresAtTime = new Date(tokenData.expiresAt).getTime();
 				const timeLeft = expiresAtTime - now;
-				const shouldRefresh = timeLeft > 0 && timeLeft < CACHE_TTL * 0.2;
+				// Only refresh if less than 1 hour left
+				const shouldRefresh = timeLeft > 0 && timeLeft < 60 * 60 * 1000;
 
-				// Debounce refreshs per session (e.g., 30s)
-				const REFRESH_DEBOUNCE_MS = 30 * 1000;
+				// Debounce refreshes per session (5 minutes)
+				const REFRESH_DEBOUNCE_MS = 5 * 60 * 1000;
 				const lastAttempt = lastRefreshAttempt.get(session_id) || 0;
 
 				if (shouldRefresh && now - lastAttempt > REFRESH_DEBOUNCE_MS) {

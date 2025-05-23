@@ -68,10 +68,12 @@ export class SessionAdapter implements Partial<authDBInterface> {
 	}
 
 	// Create a new session
-	async createSession(sessionData: { user_id: string; expires: Date }): Promise<Session> {
+	async createSession(sessionData: { user_id: string; expires: Date }, options: { invalidateOthers?: boolean } = {}): Promise<Session> {
 		try {
-			// First, invalidate any existing active sessions for this user
-			await this.invalidateAllUserSessions(sessionData.user_id);
+			// Only invalidate all sessions if not explicitly skipped
+			if (options.invalidateOthers !== false) {
+				await this.invalidateAllUserSessions(sessionData.user_id);
+			}
 
 			// Then create the new session
 			const session = new this.SessionModel(sessionData);
@@ -94,11 +96,11 @@ export class SessionAdapter implements Partial<authDBInterface> {
 				throw error(404, `Session not found: ${oldToken}`);
 			}
 
-			// Create new session
+			// Create new session, do NOT invalidate all others
 			const newSession = await this.createSession({
 				user_id: oldSession.user_id,
 				expires
-			});
+			}, { invalidateOthers: false });
 
 			// Invalidate old session
 			await this.deleteSession(oldToken);
