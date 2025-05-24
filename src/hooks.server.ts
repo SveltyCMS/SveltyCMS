@@ -304,12 +304,28 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 						logger.warn(`Refresh rate limit exceeded for user \x1b[34m${user._id}\x1b[0m, IP: \x1b[34m${getClientIp(event)}\x1b[0m`);
 					} else {
 						try {
+							const oldSessionId = session_id;
 							const newExpiryDate = new Date(now + CACHE_TTL);
 							const newTokenId = await auth.rotateToken(session_id, newExpiryDate);
 							if (newTokenId) {
 								session_id = newTokenId;
 								logger.debug(`Token rotated for user \x1b[34m${user._id}\x1b[0m. New session ID: \x1b[34m${newTokenId}\x1b[0m`);
 								sessionMetrics.activeExtensions.set(session_id, now);
+
+								// Update cache with new session ID and invalidate old session cache
+								const cacheStore = getCacheStore();
+								const sessionData = { user, timestamp: now };
+
+								// Set cache for new session
+								sessionCache.set(newTokenId, sessionData);
+								await cacheStore.set(newTokenId, sessionData, new Date(now + CACHE_TTL));
+
+								// Clean up old session from cache (but don't delete from DB - that's handled by grace period)
+								sessionCache.delete(oldSessionId);
+								// Note: We don't delete from Redis cache immediately to allow for race conditions
+								// The old session will be cleaned up when it expires naturally
+
+								logger.debug(`Cache updated for token rotation - old: ${oldSessionId}, new: ${newTokenId}`);
 							} else {
 								logger.warn(`Token rotation failed for user ${user._id}`);
 							}

@@ -33,7 +33,9 @@ import { UserAdapter } from './userAdapter';
 export const SessionSchema = new Schema(
 	{
 		user_id: { type: String, required: true, index: true }, // User identifier
-		expires: { type: Date, required: true, index: true } // Expiry timestamp
+		expires: { type: Date, required: true, index: true }, // Expiry timestamp
+		rotated: { type: Boolean, default: false, index: true }, // Flag to mark rotated sessions
+		rotatedTo: { type: String, index: true } // ID of the new session this was rotated to
 	},
 	{ timestamps: true } // Automatically adds `createdAt` and `updatedAt` fields
 );
@@ -87,7 +89,7 @@ export class SessionAdapter implements Partial<authDBInterface> {
 		}
 	}
 
-	// Rotate token - create new session and invalidate old one
+	// Rotate token - create new session and gracefully transition from old one
 	async rotateToken(oldToken: string, expires: Date): Promise<string> {
 		try {
 			// Get old session data
@@ -96,16 +98,29 @@ export class SessionAdapter implements Partial<authDBInterface> {
 				throw error(404, `Session not found: ${oldToken}`);
 			}
 
+			// Check if token is already expired
+			if (new Date(oldSession.expires) <= new Date()) {
+				logger.warn(`Attempting to rotate expired session: ${oldToken}`);
+				throw error(400, `Cannot rotate expired session: ${oldToken}`);
+			}
+
 			// Create new session, do NOT invalidate all others
 			const newSession = await this.createSession({
 				user_id: oldSession.user_id,
 				expires
 			}, { invalidateOthers: false });
 
-			// Invalidate old session
-			await this.deleteSession(oldToken);
+			// Instead of immediately deleting old session, extend it for 5 minutes grace period
+			// This prevents race conditions where cached references to old session cause failures
+			const graceExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes grace period
+			await this.SessionModel.findByIdAndUpdate(oldToken, {
+				expires: graceExpiry,
+				// Add a flag to mark this as a rotated session for cleanup
+				rotated: true,
+				rotatedTo: newSession._id
+			});
 
-			logger.debug(`Token rotated - old: ${oldToken}, new: ${newSession._id}`);
+			logger.info(`Token rotated successfully - old: ${oldToken} (grace period until ${graceExpiry.toISOString()}), new: ${newSession._id}`);
 			return newSession._id;
 		} catch (err) {
 			const message = `Error in SessionAdapter.rotateToken: ${err instanceof Error ? err.message : String(err)}`;
@@ -142,10 +157,14 @@ export class SessionAdapter implements Partial<authDBInterface> {
 		}
 	}
 
-	// Delete expired sessions
+	// Delete expired sessions (enhanced to clean up rotated sessions)
 	async deleteExpiredSessions(): Promise<number> {
 		try {
-			const result = await this.SessionModel.deleteMany({ expires: { $lte: new Date() } });
+			const now = new Date();
+
+			// Delete all expired sessions (including rotated ones past grace period)
+			const result = await this.SessionModel.deleteMany({ expires: { $lte: now } });
+
 			logger.info('Expired sessions deleted', { deletedCount: result.deletedCount });
 			return result.deletedCount;
 		} catch (err) {
@@ -155,7 +174,7 @@ export class SessionAdapter implements Partial<authDBInterface> {
 		}
 	}
 
-	// Validate a session
+	// Validate a session (enhanced to handle rotated sessions)
 	async validateSession(session_id: string): Promise<User | null> {
 		try {
 			const session = await this.SessionModel.findById(session_id).lean();
@@ -170,6 +189,12 @@ export class SessionAdapter implements Partial<authDBInterface> {
 				return null;
 			}
 
+			// If this is a rotated session, check if we should redirect to the new session
+			if (session.rotated && session.rotatedTo) {
+				logger.debug(`Session ${session_id} was rotated to ${session.rotatedTo}, but still valid during grace period`);
+				// Still return the user for the grace period, but log the rotation
+			}
+
 			logger.debug('Session validated', { session_id });
 			return await this.userAdapter.getUserById(session.user_id);
 		} catch (err) {
@@ -179,13 +204,17 @@ export class SessionAdapter implements Partial<authDBInterface> {
 		}
 	}
 
-	// Invalidate all sessions for a user
+	// Invalidate all sessions for a user (enhanced to handle rotated sessions)
 	async invalidateAllUserSessions(user_id: string): Promise<void> {
 		try {
 			const now = new Date();
 			const result = await this.SessionModel.deleteMany({
 				user_id,
-				expires: { $gt: now } // Only delete active (non-expired) sessions
+				expires: { $gt: now }, // Only delete active (non-expired) sessions
+				$or: [
+					{ rotated: { $ne: true } }, // Delete non-rotated sessions
+					{ rotated: true, expires: { $lte: new Date(now.getTime() + 60000) } } // Delete rotated sessions close to expiry
+				]
 			});
 			logger.debug(
 				`invalidateAllUserSessions: Attempted to delete sessions for user_id=${user_id} at ${now.toISOString()}. Deleted count: ${result.deletedCount}`
@@ -197,14 +226,14 @@ export class SessionAdapter implements Partial<authDBInterface> {
 		}
 	}
 
-	// Get active sessions for a user
+	// Get active sessions for a user (enhanced to show rotation status)
 	async getActiveSessions(user_id: string): Promise<Session[]> {
 		try {
 			const sessions = await this.SessionModel.find({
 				user_id,
 				expires: { $gt: new Date() }
 			}).lean();
-			logger.debug('Active sessions retrieved for user', { user_id });
+			logger.debug('Active sessions retrieved for user', { user_id, count: sessions.length });
 			return sessions.map(this.formatSession);
 		} catch (err) {
 			const message = `Error in SessionAdapter.getActiveSessions: ${err instanceof Error ? err.message : String(err)}`;
@@ -213,7 +242,7 @@ export class SessionAdapter implements Partial<authDBInterface> {
 		}
 	}
 
-	// Get session token metadata including expiration
+	// Get session token metadata including expiration (enhanced to handle rotated sessions)
 	async getSessionTokenData(token: string): Promise<{ expiresAt: Date; user_id: string } | null> {
 		try {
 			const session = await this.SessionModel.findById(token).lean();
@@ -232,6 +261,27 @@ export class SessionAdapter implements Partial<authDBInterface> {
 		} catch (err) {
 			logger.error(`Failed to get token data: ${err instanceof Error ? err.message : String(err)}`);
 			return null;
+		}
+	}
+
+	// Clean up rotated sessions that have passed their grace period
+	async cleanupRotatedSessions(): Promise<number> {
+		try {
+			const now = new Date();
+			const result = await this.SessionModel.deleteMany({
+				rotated: true,
+				expires: { $lte: now }
+			});
+
+			if (result.deletedCount > 0) {
+				logger.info(`Cleaned up ${result.deletedCount} rotated sessions past grace period`);
+			}
+
+			return result.deletedCount;
+		} catch (err) {
+			const message = `Error in SessionAdapter.cleanupRotatedSessions: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message);
+			throw error(500, message);
 		}
 	}
 
