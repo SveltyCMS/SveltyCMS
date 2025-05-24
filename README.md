@@ -42,7 +42,7 @@ This SveltyCMS headless CMS provides a powerful backend based on a modern [Svelt
 
 Content Collections can easily be implemented, due to full typescript support by using many available widgets. We offer two ways to use define your collections, via code or via a Gui based collection builder.
 
-All Widget fields offer full translation, and customization, validation using [valibot](https://valibot.dev] and access handling..
+All Widget fields offer full translation, and customization, validation using [valibot](https://valibot.dev) and access handling..
 
 The System language uses [Inlang's Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs) a light weight JavaScript i18n library. :gb: English is our default and we offer multiple languages out of the box. More Languages can easily be extended to support further languages.
 
