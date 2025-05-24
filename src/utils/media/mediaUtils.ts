@@ -149,7 +149,9 @@ export function constructUrl(
 			}
 			break;
 		default:
-			urlPath = `${sanitize(path)}/${size}/${sanitize(fileName)}-${hash}.${format}`;
+			urlPath = size
+				? `${sanitize(path)}/${size}/${sanitize(fileName)}-${hash}.${format}`
+				: `${sanitize(path)}/${sanitize(fileName)}-${hash}.${format}`;
 			try {
 				logger.debug('Constructed custom path URL', { urlPath });
 			} catch (logError) {
@@ -166,7 +168,8 @@ export function constructUrl(
 		}
 		return url;
 	} else {
-		const url = `/${publicEnv.MEDIA_FOLDER}/${urlPath}`;
+		// Only return the relative path for storage, not the full public URL
+		const url = `${urlPath}`;
 		try {
 			logger.debug('Using local media folder URL', { url });
 		} catch (logError) {

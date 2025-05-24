@@ -30,17 +30,18 @@ export const mediaSchema = new Schema<MediaItem>(
 		size: { type: Number, required: true }, // Size of the media file
 		mimeType: { type: String, required: true }, // Mime type of the media file
 		folderId: { type: String, default: null }, // Folder paths/ids as strings
-		// thumbnails: {
-		//   type: {
-		//     size: { type: String, default: 'thumbnail' },
-		//     url: { type: String, default: null }
-		//   },
-		//   default: {},
-		//   _id: false
-		// }, // Thumbnails for images
+		thumbnail: {
+			url: String,
+			width: Number,
+			height: Number
+		},
+		thumbnails: { type: Schema.Types.Mixed, default: {} }, // Thumbnails for images
+		width: Number, // Width of the media file
+		height: Number, // Height of the media file
+		user: { type: String, required: true }, // Created by user ID
+		access: { type: Schema.Types.Mixed, default: {} },
+		category: { type: String, default: null },
 		metadata: {
-			width: Number, // Width of the media file
-			height: Number, // Height of the media file
 			duration: Number, // Duration for videos/audio
 			codec: String, // Codec used for media file
 			format: String, // Format of the media file
@@ -50,7 +51,8 @@ export const mediaSchema = new Schema<MediaItem>(
 		createdBy: { type: String, required: true }, // Created by user ID
 		updatedBy: { type: String, required: true }, // Updated by user ID
 		createdAt: { type: Date, default: Date.now }, // CreatedAt Date type
-		updatedAt: { type: Date, default: Date.now } // UpdatedAt Date type
+		updatedAt: { type: Date, default: Date.now }, // UpdatedAt Date type
+		versions: { type: [Schema.Types.Mixed], default: [] } // Versions for media file
 	},
 	{
 		timestamps: true,

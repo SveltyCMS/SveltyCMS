@@ -279,10 +279,10 @@
 					class="btn-icon relative cursor-pointer flex-col items-center justify-center text-center !no-underline md:row-span-2"
 				>
 					<Avatar
-						src={avatarSrc.value && avatarSrc.value.startsWith('data:')
-							? avatarSrc()
-							: avatarSrc()
-								? `/${avatarSrc()}?t=${Date.now()}`
+						src={$avatarSrc && $avatarSrc.startsWith('data:')
+							? $avatarSrc
+							: $avatarSrc
+								? `${$avatarSrc}${$avatarSrc.startsWith('/') ? '' : ''}?t=${Date.now()}`
 								: '/Default_User.svg'}
 						alt="Avatar"
 						initials="AV"

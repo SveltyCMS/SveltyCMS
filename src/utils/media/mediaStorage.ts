@@ -254,8 +254,10 @@ export async function fileExists(url: string): Promise<boolean> {
  */
 export async function moveMediaToTrash(url: string): Promise<void> {
 	const fs = await getFs();
-	const sourcePath = Path.join(publicEnv.MEDIA_FOLDER, url);
-	const trashPath = Path.join(publicEnv.MEDIA_FOLDER, '.trash', Path.basename(url));
+	// Remove leading MEDIA_FOLDER if present
+	const relativeUrl = url.replace(new RegExp(`^${publicEnv.MEDIA_FOLDER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/?`), '');
+	const sourcePath = Path.join(publicEnv.MEDIA_FOLDER, relativeUrl);
+	const trashPath = Path.join(publicEnv.MEDIA_FOLDER, '.trash', Path.basename(relativeUrl));
 
 	// Create trash directory if it doesn't exist
 	await fs.promises.mkdir(Path.dirname(trashPath), { recursive: true });
@@ -356,17 +358,9 @@ export async function saveRemoteMedia(fileUrl: string, contentTypes: string, use
  */
 export async function saveAvatarImage(file: File): Promise<string> {
 	try {
-		// Validate file
-		if (!file) {
-			throw new Error('No file provided');
-		}
+		if (!file) throw new Error('No file provided');
+		if (!dbAdapter) throw new Error('Database adapter not initialized');
 
-		// Ensure database is initialized
-		if (!dbAdapter) {
-			throw new Error('Database adapter not initialized');
-		}
-
-		// Create avatars directory if it doesn't exist
 		const fs = await getFs();
 		const avatarsPath = Path.join(process.cwd(), 'static', 'avatars');
 		if (!fs.existsSync(avatarsPath)) {
@@ -375,12 +369,15 @@ export async function saveAvatarImage(file: File): Promise<string> {
 
 		const arrayBuffer = await file.arrayBuffer();
 		const buffer = Buffer.from(arrayBuffer);
-		const hash = crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
+		const hash = crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 32);
 
-		const existingFile = dbAdapter ? await dbAdapter.crud.findOne('media_images', { hash }) : null;
+		const { fileNameWithoutExt, ext } = getSanitizedFileName(file.name);
+		const sanitizedBlobName = sanitize(fileNameWithoutExt);
 
+		// Check for existing avatar by hash
+		const existingFile = dbAdapter ? await dbAdapter.crud.findOne('media_images', { hash, category: 'avatar' }) : null;
 		if (existingFile) {
-			let fileUrl = existingFile.thumbnail?.url;
+			let fileUrl = existingFile.url;
 			if (publicEnv.MEDIASERVER_URL) {
 				fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`;
 			} else {
@@ -389,67 +386,61 @@ export async function saveAvatarImage(file: File): Promise<string> {
 			return fileUrl;
 		}
 
-		const { fileNameWithoutExt } = getSanitizedFileName(file.name);
-		const sanitizedBlobName = sanitize(fileNameWithoutExt);
+		let avatarUrl: string;
+		let width = 0;
+		let height = 0;
+		let mimeType = file.type;
+		if (ext === 'svg') {
+			// Save SVG as-is
+			avatarUrl = constructUrl('avatars', hash, sanitizedBlobName, ext, 'avatars');
+			await saveFileToDisk(buffer, avatarUrl);
+			// SVGs don't have width/height here
+		} else {
+			// Convert to AVIF thumbnail
+			const resizedImage = await resizeImage(buffer, SIZES.thumbnail);
+			avatarUrl = constructUrl('avatars', hash, `${sanitizedBlobName}-thumbnail`, 'avif', 'avatars');
+			await saveFileToDisk(await resizedImage.toBuffer(), avatarUrl);
+			const meta = await resizedImage.metadata();
+			width = meta.width || 0;
+			height = meta.height || 0;
+			mimeType = 'image/avif';
+		}
 
-		// For avatars, we only create one AVIF thumbnail
-		const resizedImage = await resizeImage(buffer, SIZES.thumbnail);
-
-		const thumbnailUrl = constructUrl('avatars', `${hash}-${sanitizedBlobName}thumbnail.avif`);
-		await saveFileToDisk(await resizedImage.toBuffer(), thumbnailUrl);
-
-		const thumbnail = {
-			url: thumbnailUrl,
-			width: (await resizedImage.metadata()).width,
-			height: (await resizedImage.metadata()).height
-		};
-
+		const now = new Date();
 		const fileInfo: MediaImage = {
 			hash,
 			filename: file.name,
-			path: 'avatars/original',
-			url: thumbnailUrl,
+			path: 'avatars',
+			url: avatarUrl,
 			type: MediaTypeEnum.Image,
 			size: buffer.length,
-			mimeType: 'image/avif',
-			createdAt: new Date(Date.now()),
-			updatedAt: new Date(Date.now()),
+			mimeType,
+			createdAt: now,
+			updatedAt: now,
 			versions: [
 				{
 					version: 1,
-					url: thumbnailUrl,
-					createdAt: new Date(Date.now()),
+					url: avatarUrl,
+					createdAt: now,
 					createdBy: 'system'
 				}
 			],
-			thumbnail,
-			thumbnails: {
-				sm: thumbnail,
-				md: thumbnail,
-				lg: thumbnail
-			},
-			width: resizedImage.width,
-			height: resizedImage.height,
+			thumbnail: { url: avatarUrl, width, height },
+			// For avatars, we only need a minimal thumbnails record
+			thumbnails: Object.assign({}, { [Object.keys(publicEnv.IMAGE_SIZES)[0] || 'avatar']: { url: avatarUrl, width, height } }),
+			width,
+			height,
 			user: 'system',
-			access: {
-				permissions: [Permission.Read, Permission.Write]
-			}
+			access: { permissions: [Permission.Read, Permission.Write] },
+			category: 'avatar' // for easy filtering
 		};
 
-		logger.info('Image saved to database', { fileInfo });
-
-		if (!dbAdapter) throw Error('Database adapter not initialized.');
-
+		logger.info('Avatar image saved to database', { fileInfo });
 		await dbAdapter.media.files.upload({ _id: dbAdapter.utils.generateId(), ...fileInfo });
 
-		// Return the thumbnail URL for avatar usage
-		let fileUrl = thumbnailUrl;
-		if (publicEnv.MEDIASERVER_URL) {
-			fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`;
-		} else {
-			fileUrl = `${publicEnv.MEDIA_FOLDER}/${fileUrl}`;
-		}
-
+		let fileUrl = avatarUrl;
+		// For serving to the client, prepend /mediaFiles/
+		fileUrl = `/mediaFiles/${avatarUrl}`;
 		return fileUrl;
 	} catch (err) {
 		const error = err instanceof Error ? err : new Error('Unknown error occurred');

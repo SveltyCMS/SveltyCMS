@@ -79,6 +79,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			throw error(400, 'Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.');
 		}
 
+		// Before saving new avatar, move old avatar to trash if it exists
+		const currentUser = await auth.getUserById(locals.user._id);
+		if (currentUser && currentUser.avatar) {
+			try {
+				const { moveMediaToTrash } = await import('@utils/media/mediaStorage');
+				await moveMediaToTrash(currentUser.avatar);
+				logger.info('Old avatar moved to trash', { userId: locals.user._id, oldAvatar: currentUser.avatar });
+			} catch (err) {
+				logger.warn('Failed to move old avatar to trash', { userId: locals.user._id, error: err });
+			}
+		}
+
 		// Save the avatar image
 		const avatarUrl = await saveAvatarImage(avatarFile, 'avatars');
 		// Update the user's profile with the new avatar URL
