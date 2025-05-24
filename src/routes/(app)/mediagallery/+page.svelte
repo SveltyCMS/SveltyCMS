@@ -29,6 +29,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	// Utils & Media
 	import { config, toFormData } from '@utils/utils';
 	import { MediaTypeEnum, type MediaImage, type MediaBase } from '@utils/media/mediaModels';
+	import { publicEnv } from '@root/config/public';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -37,8 +38,9 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	import MediaTable from './MediaTable.svelte';
 
 	// Skeleton
-	import { getToastStore } from '@skeletonlabs/skeleton';
+	import { getToastStore, getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 	const toastStore = getToastStore();
+	const modalStore = getModalStore();
 
 	// Loading state
 	let isLoading = $state(false);
@@ -349,6 +351,29 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 		globalSearchValue = '';
 	}
 
+	// Open add virtual folder modal
+	function openAddFolderModal() {
+		// Default to MEDIA_FOLDER, which should represent the root directory
+		let currentFolderPath = publicEnv.MEDIA_FOLDER;
+
+		// Check if the currentFolder is set (i.e., the user is in a subfolder)
+		if (currentFolder) {
+			currentFolderPath = Array.isArray(currentFolder.path) ? currentFolder.path.join('/') : currentFolder.path;
+		}
+
+		const modal: ModalSettings = {
+			type: 'prompt',
+			title: 'Add Folder',
+			// Apply inline style or use a CSS class to make the current folder path display in a different color
+			body: `Creating subfolder in: <span class="text-tertiary-500 dark:text-primary-500">${currentFolderPath}</span>`, // Display the current folder path in a different color
+			response: (r: string) => {
+				if (r) createFolder(r); // Pass the new folder name to createFolder function
+			}
+		};
+
+		modalStore.trigger(modal); // Trigger the modal to open
+	}
+
 	// Handle delete image
 	async function handleDeleteImage(file: MediaBase) {
 		try {
@@ -387,23 +412,27 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 <!-- Page Title and Actions -->
 <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
 	<!-- Row 1: Page Title and Back Button (Handled by PageTitle component) -->
-	<PageTitle name="Media Gallery" icon="bi:images" showBackButton={true} />
+	<PageTitle
+		name="Media Gallery"
+		icon="bi:images"
+		showBackButton={true}
+		backUrl="/"
+		onBackClick={(defaultBehavior) => {
+			// Custom back navigation with loading state management
+			try {
+				defaultBehavior();
+			} catch (error) {
+				console.error('Navigation error:', error);
+				// Fallback to home page if history.back() fails
+				goto('/');
+			}
+		}}
+	/>
 
 	<!-- Row 2: Action Buttons -->
 	<div class="lgd:mt-0 flex items-center justify-center gap-4 lg:justify-end">
 		<!-- Add folder with loading state -->
-		<button
-			onclick={() => {
-				const folderName = prompt('Enter folder name:');
-				if (folderName) {
-					createFolder(folderName);
-				}
-			}}
-			aria-label="Add folder"
-			class="variant-filled-tertiary btn gap-2"
-			disabled={isLoading}
-			aria-busy={isLoading}
-		>
+		<button onclick={openAddFolderModal} aria-label="Add folder" class="variant-filled-tertiary btn gap-2" disabled={isLoading} aria-busy={isLoading}>
 			<iconify-icon icon="mdi:folder-add-outline" width="24"></iconify-icon>
 			{isLoading ? 'Creating...' : 'Add folder'}
 			{#if isLoading}

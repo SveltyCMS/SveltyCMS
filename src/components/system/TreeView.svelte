@@ -49,7 +49,8 @@
 		ariaLabel = 'Navigation tree', // Default ARIA label for the tree
 		dir = 'ltr', // Default text direction
 		search = '', // Search term for filtering nodes
-		compact = false // Flag for compact view
+		compact = false, // Flag for compact view
+		iconColorClass = 'text-error-500' // Default icon color class
 	} = $props<{
 		k: number;
 		nodes: TreeNode[];
@@ -58,6 +59,7 @@
 		dir?: 'ltr' | 'rtl';
 		search?: string;
 		compact?: boolean;
+		iconColorClass?: string;
 	}>();
 
 	// Reactive state for nodes
@@ -240,7 +242,7 @@
 				<!-- Icon -->
 				{#if node.icon}
 					<div class="relative flex items-center">
-						<iconify-icon icon={node.icon} width={compact ? '20' : '24'} height={compact ? '20' : '24'} class="text-error-500" aria-hidden="true"
+						<iconify-icon icon={node.icon} width={compact ? '20' : '24'} height={compact ? '20' : '24'} class={iconColorClass} aria-hidden="true"
 						></iconify-icon>
 					</div>
 				{/if}
@@ -265,7 +267,7 @@
 					<!-- Children nodes -->
 					{#if node.isExpanded}
 						<div transition:fly|local={{ y: -10, duration: 200 }}>
-							<TreeView {k} nodes={node.children} {selectedId} ariaLabel={`Children of ${node.name}`} {dir} {search} {compact} />
+							<TreeView {k} nodes={node.children} {selectedId} ariaLabel={`Children of ${node.name}`} {dir} {search} {compact} {iconColorClass} />
 						</div>
 					{/if}
 				</div>

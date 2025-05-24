@@ -46,11 +46,14 @@ Features:
 		path?: string;
 	}
 
-	interface CollectionTreeNode extends ExtendedContentNode {
+	interface CollectionTreeNode extends Partial<ExtendedContentNode> {
 		id: string;
+		name: string;
 		isExpanded: boolean;
 		onClick: () => void;
 		children?: CollectionTreeNode[];
+		icon?: string;
+		path?: string;
 		badge?: {
 			count?: number;
 			status?: 'draft' | 'published' | 'archived';
@@ -99,33 +102,78 @@ Features:
 	});
 
 	// Create virtual folder nodes for the media gallery - these act as filters only
-	let virtualFolderNodes: CollectionTreeNode[] = $derived.by(() => {
-		return [];
-	});
+	let virtualFolderNodes: CollectionTreeNode[] = $state([]);
 
 	// Load virtual folders when entering media mode
 	$effect(() => {
 		if (mode.value === 'media') {
-			fetch('/api/virtualFolder')
-				.then((res) => res.json())
-				.then((data) => {
-					if (data.success) {
-						virtualFolderNodes = data.data.folders.map((folder: any) => ({
-							id: folder._id,
-							name: folder.name,
-							path: folder.path,
-							isExpanded: false,
-							onClick: () => console.log('Folder selected:', folder.name),
-							icon: 'bi:folder',
-							badge: {
-								visible: true
-							}
-						}));
-					}
-				})
-				.catch((err) => console.error('Failed to load virtual folders:', err));
+			loadVirtualFolders();
 		}
 	});
+
+	async function loadVirtualFolders() {
+		try {
+			const response = await fetch('/api/virtualFolder');
+			const data = await response.json();
+
+			// Always create a root folder node
+			const rootNode: CollectionTreeNode = {
+				id: 'root',
+				name: 'Media Root',
+				path: 'mediaFiles', // Use the MEDIA_FOLDER value
+				isExpanded: true,
+				onClick: () => handleVirtualFolderSelect('root'),
+				icon: 'bi:house-door',
+				badge: {
+					visible: false
+				}
+			};
+
+			if (data.success && data.data.folders && data.data.folders.length > 0) {
+				// Map existing virtual folders as children of root
+				const folderNodes = data.data.folders.map((folder: any) => ({
+					id: folder._id,
+					name: folder.name,
+					path: folder.path,
+					isExpanded: false,
+					onClick: () => handleVirtualFolderSelect(folder._id),
+					icon: 'bi:folder',
+					badge: {
+						visible: false
+					}
+				}));
+
+				// Add folders as children of root
+				rootNode.children = folderNodes;
+				virtualFolderNodes = [rootNode];
+			} else {
+				// No virtual folders exist, just show root
+				virtualFolderNodes = [rootNode];
+			}
+		} catch (err) {
+			console.error('Failed to load virtual folders:', err);
+			// Even on error, show the root folder
+			virtualFolderNodes = [
+				{
+					id: 'root',
+					name: 'Media Root',
+					path: 'mediaFiles',
+					isExpanded: true,
+					onClick: () => handleVirtualFolderSelect('root'),
+					icon: 'bi:house-door',
+					badge: {
+						visible: false
+					}
+				}
+			];
+		}
+	}
+
+	function handleVirtualFolderSelect(folderId: string) {
+		console.log('Virtual folder selected:', folderId);
+		// TODO: Implement folder selection logic
+		// This should filter media files based on the selected virtual folder
+	}
 
 	let search = $state('');
 	let isMediaMode = $derived(mode.value === 'media');
@@ -192,6 +240,7 @@ Features:
 				selectedId={collection.value?._id ?? undefined}
 				compact={uiStateManager.uiState.value.leftSidebar !== 'full'}
 				{search}
+				iconColorClass="text-error-500"
 			></TreeView>
 		{:else}
 			<div class="p-4 text-center text-gray-500">{m.collection_no_collections_found()}</div>
@@ -258,6 +307,7 @@ Features:
 				selectedId={collection.value?._id}
 				compact={uiStateManager.uiState.value.leftSidebar !== 'full'}
 				{search}
+				iconColorClass="text-primary-500"
 			></TreeView>
 		{:else}
 			<div class="p-4 text-center text-gray-500">No virtual folders found</div>
