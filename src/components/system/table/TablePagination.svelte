@@ -87,9 +87,11 @@
 		}
 	}
 
-	// Update rows per page
+	// Update rows per page with immediate reset to page 1
 	function updateRowsPerPage(rows: number) {
-		//console.log('updateRowsPerPage called with:', rows);
+		// Immediately update the bound value to ensure UI consistency
+		rowsPerPage = rows;
+		// Call the callback to handle the change
 		onUpdateRowsPerPage?.(rows);
 	}
 </script>

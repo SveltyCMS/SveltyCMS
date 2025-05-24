@@ -74,6 +74,8 @@ Features:
 	}
 	function handleDndFinalize(event: CustomEvent<{ items: TableHeader[] }>) {
 		displayTableHeaders = event.detail.items;
+		// Immediately save settings after DnD operation
+		savePaginationSettings();
 	}
 
 	// Pagination
@@ -135,9 +137,19 @@ Features:
 		}
 	});
 
-	let isLoading = $state(false);
-	let isDataFetching = $state(false);
-	let loadingTimer: ReturnType<typeof setTimeout>;
+	// Enhanced loading state management for flicker-free transitions
+	let loadingState = $state<'idle' | 'switching' | 'fetching' | 'error'>('idle');
+	let previousTableData = $state<any[]>([]);
+	let loadingTimer: ReturnType<typeof setTimeout> | undefined;
+
+	// Collection transition management to prevent flicker
+	let collectionTransitionId = $state<string | null>(null);
+	let stableHeaders = $state<TableHeader[]>([]);
+	let stableVisibleHeaders = $state<TableHeader[]>([]);
+
+	// Computed loading states for backward compatibility and improved UX
+	let isLoading = $derived(loadingState === 'switching');
+	let isDataFetching = $derived(loadingState === 'fetching');
 
 	let globalSearchValue = $state('');
 	let expand = $state(false);
@@ -267,8 +279,7 @@ Features:
 			tableData = [];
 			pagesCount = 1;
 			totalItems = 0;
-			isLoading = false;
-			isDataFetching = false;
+			loadingState = 'idle';
 			Object.keys(selectedMap).forEach((key) => delete selectedMap[key]);
 			SelectAll = false;
 			return;
@@ -276,10 +287,16 @@ Features:
 
 		// Fetch data
 		if (fetchNewData) {
-			isDataFetching = true;
+			// Store previous data for flicker-free transitions
+			if (tableData.length > 0) {
+				previousTableData = [...tableData];
+			}
+
+			loadingState = 'fetching';
 			loadingTimer = setTimeout(() => {
-				isLoading = true;
-			}, 300); // Slightly shorter delay
+				loadingState = 'switching';
+			}, 150); // Reduced delay for better UX
+
 			try {
 				const page = entryListPaginationSettings.currentPage;
 				const limit = entryListPaginationSettings.rowsPerPage;
@@ -303,9 +320,8 @@ Features:
 			} catch (error) {
 				console.error(`Error fetching data: ${(error as Error).message}`);
 				toastStore.trigger({ message: `Error fetching data: ${(error as Error).message}`, background: 'variant-filled-error' });
-				isLoading = false;
-				isDataFetching = false;
-				clearTimeout(loadingTimer);
+				loadingState = 'error';
+				if (loadingTimer) clearTimeout(loadingTimer);
 				return;
 			}
 		}
@@ -374,9 +390,8 @@ Features:
 			entryListPaginationSettings.currentPage = 1;
 		}
 
-		isLoading = false;
-		isDataFetching = false;
-		clearTimeout(loadingTimer);
+		loadingState = 'idle';
+		if (loadingTimer) clearTimeout(loadingTimer);
 	}
 
 	function savePaginationSettings() {
@@ -529,7 +544,46 @@ Features:
 		const pathSegments = currentCollection.path?.split('/').filter(Boolean);
 		return pathSegments?.slice(0, -1).join(' >') || '';
 	});
-	let isCollectionEmpty = $derived(tableData.length === 0 && !isDataFetching);
+	// Collection change detection and transition management
+	$effect(() => {
+		const currentCollId = currentCollection?._id;
+
+		// Detect collection change
+		if (collectionTransitionId !== (currentCollId ?? null)) {
+			// Start transition
+			collectionTransitionId = currentCollId ?? null;
+
+			// If we have a valid collection, prepare stable headers
+			if (currentCollId && displayTableHeaders.length > 0) {
+				// Keep current stable headers during transition
+				if (stableHeaders.length === 0) {
+					stableHeaders = [...displayTableHeaders];
+					stableVisibleHeaders = [...visibleTableHeaders];
+				}
+			} else {
+				// No collection or no headers, clear stable headers
+				stableHeaders = [];
+				stableVisibleHeaders = [];
+			}
+		}
+	});
+
+	// Commit new headers only after data is ready or confirmed empty
+	$effect(() => {
+		if (collectionTransitionId && loadingState === 'idle') {
+			// Transition complete, commit new headers
+			stableHeaders = [...displayTableHeaders];
+			stableVisibleHeaders = [...visibleTableHeaders];
+			collectionTransitionId = null;
+		}
+	});
+
+	// Enhanced collection state management for better UX - prevent flicker when switching collections
+	let isCollectionEmpty = $derived(tableData.length === 0 && loadingState === 'idle' && collectionTransitionId === null);
+	let shouldShowTable = $derived(currentCollection?._id && collectionTransitionId === null && (tableData.length > 0 || loadingState === 'fetching'));
+
+	// Use stable headers during transitions to prevent flicker
+	let renderHeaders = $derived(collectionTransitionId !== null ? stableVisibleHeaders : visibleTableHeaders);
 
 	function handleColumnVisibilityToggle(headerToToggle: TableHeader) {
 		displayTableHeaders = displayTableHeaders.map((h) => (h.id === headerToToggle.id ? { ...h, visible: !h.visible } : h));
@@ -561,17 +615,6 @@ Features:
 			)
 		};
 	}
-
-	// Calculate pagination range
-	$effect(() => {
-		let paginationRange = $state<{ start: number; end: number; total: number }>({ start: 0, end: 0, total: 0 });
-		const page = entryListPaginationSettings.currentPage;
-		const rowsPerPage = entryListPaginationSettings.rowsPerPage;
-		const total = totalItems;
-		const start = total === 0 ? 0 : (page - 1) * rowsPerPage + 1;
-		const end = total === 0 ? 0 : Math.min(page * rowsPerPage, total);
-		paginationRange = { start, end, total };
-	});
 </script>
 
 <!--Table -->
@@ -690,11 +733,11 @@ Features:
 		</div>
 	{/if}
 
-	{#if isDataFetching && !isLoading}
+	{#if isDataFetching && !isLoading && collectionTransitionId === null}
 		<div class="py-4 text-center text-sm text-gray-500">Fetching updated data...</div>
 	{/if}
 
-	{#if !isCollectionEmpty || isDataFetching}
+	{#if shouldShowTable}
 		<div class="table-container max-h-[calc(100dvh-180px)] overflow-auto">
 			<table
 				class="table table-interactive table-hover {entryListPaginationSettings.density === 'compact'
@@ -705,7 +748,7 @@ Features:
 			>
 				<!-- Table Header -->
 				<thead class="text-tertiary-500 dark:text-primary-500">
-					{#if filterShow && visibleTableHeaders.length > 0}
+					{#if filterShow && renderHeaders.length > 0}
 						<tr class="divide-x divide-surface-400 dark:divide-surface-600">
 							<th>
 								<!-- Clear All Filters Button -->
@@ -724,7 +767,7 @@ Features:
 								{/if}
 							</th>
 							<!-- Filter -->
-							{#each visibleTableHeaders as header (header.id)}
+							{#each renderHeaders as header (header.id)}
 								<th class=""
 									><div class="flex items-center justify-between">
 										<FloatingInput
@@ -766,7 +809,7 @@ Features:
 							/>
 						</td>
 
-						{#each visibleTableHeaders as header (header.id)}
+						{#each renderHeaders as header (header.id)}
 							<th
 								class="cursor-pointer px-2 py-2 text-center text-xs sm:text-sm {header.name === entryListPaginationSettings.sorting.sortedBy
 									? 'font-semibold text-primary-500 dark:text-secondary-400'
@@ -811,7 +854,7 @@ Features:
 										}}
 									/>
 								</td>
-								{#each visibleTableHeaders as header (header.id)}
+								{#each renderHeaders as header (header.id)}
 									<td
 										class="px-2 py-2 text-center text-xs font-bold sm:text-sm {header.name !== 'status'
 											? 'cursor-pointer hover:bg-primary-500/10 dark:hover:bg-secondary-500/20'
@@ -839,7 +882,7 @@ Features:
 							</tr>
 						{/each}
 					{:else if !isDataFetching}
-						<tr><td colspan={visibleTableHeaders.length + 1} class="py-10 text-center text-gray-500">No entries found.</td></tr>
+						<tr><td colspan={renderHeaders.length + 1} class="py-10 text-center text-gray-500">No entries found.</td></tr>
 					{/if}
 				</tbody>
 			</table>

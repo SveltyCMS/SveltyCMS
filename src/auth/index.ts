@@ -49,11 +49,11 @@ import { logger } from '@utils/logger.svelte';
 
 export const SESSION_COOKIE_NAME = 'auth_sessions';
 
-// Define Argon2 attributes configuration
+// Define Argon2 attributes - Optimized for better performance while maintaining strong security
 const argon2Attributes = {
-	timeCost: 3, // Number of iterations
-	memoryCost: 2 ** 12, // Using memory cost of 2^12 = 4MB
-	parallelism: 2, // Number of execution threads
+	timeCost: 2, // Number of iterations
+	memoryCost: 2 ** 11, // Using memory cost of 2^11 = 2MB 
+	parallelism: 1, // Single thread
 	saltLength: 16 // Salt length in bytes
 } as const;
 
@@ -529,7 +529,15 @@ export class Auth {
 
 	// Log in a user with email and password
 	async login(email: string, password: string): Promise<User | null> {
+		const loginStartTime = performance.now();
+		logger.debug(`Login attempt started for email: ${email}`);
+
+		// Step 1: User lookup
+		const userLookupStart = performance.now();
 		const user = await this.db.getUserByEmail(email);
+		const userLookupTime = performance.now() - userLookupStart;
+		logger.debug(`User lookup completed in ${userLookupTime.toFixed(2)}ms`);
+
 		if (!user || !user.password) {
 			const message = `Login failed: User not found or password not set for email: ${user?.email || email}`;
 			logger.warn(message);
@@ -547,9 +555,23 @@ export class Auth {
 				throw new Error('Argon2 is not available in this environment');
 			}
 
-			if (await argon2.verify(user.password, password)) {
+			// Step 2: Password verification with Argon2
+			const argon2Start = performance.now();
+			const isPasswordValid = await argon2.verify(user.password, password);
+			const argon2Time = performance.now() - argon2Start;
+			logger.debug(`Argon2 password verification completed in ${argon2Time.toFixed(2)}ms`);
+
+			if (isPasswordValid) {
+				// Step 3: Update user attributes
+				const updateStart = performance.now();
 				await this.db.updateUserAttributes(user._id!, { failedAttempts: 0, lockoutUntil: null });
-				logger.info(`User logged in with email: ${user.email}`);
+				const updateTime = performance.now() - updateStart;
+				logger.debug(`User attributes update completed in ${updateTime.toFixed(2)}ms`);
+
+				const totalLoginTime = performance.now() - loginStartTime;
+				const performanceEmoji = totalLoginTime < 500 ? '🚀' : totalLoginTime < 1000 ? '⚡' : totalLoginTime < 2000 ? '⏱️' : '🐢';
+
+				logger.info(`User logged in successfully: ${user.email} | Total time: ${totalLoginTime.toFixed(2)}ms ${performanceEmoji} | Breakdown: Lookup(${userLookupTime.toFixed(2)}ms) + Argon2(${argon2Time.toFixed(2)}ms) + Update(${updateTime.toFixed(2)}ms)`);
 				return user; // Return user on successful login
 			} else {
 				const failedAttempts = (user.failedAttempts || 0) + 1;
@@ -569,8 +591,9 @@ export class Auth {
 				}
 			}
 		} catch (err) {
+			const totalLoginTime = performance.now() - loginStartTime;
 			const errMsg = err instanceof Error ? err.message : String(err);
-			logger.error(`Login error: \x1b[31m${errMsg}\x1b[0m`);
+			logger.error(`Login error after ${totalLoginTime.toFixed(2)}ms: \x1b[31m${errMsg}\x1b[0m`);
 			throw error(500, `Login error: ${errMsg}`);
 		}
 	}
