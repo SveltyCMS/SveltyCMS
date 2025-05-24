@@ -21,7 +21,7 @@ import type { Actions, PageServerLoad } from './$types';
 import mime from 'mime-types';
 import { saveImage, saveDocument, saveAudio, saveVideo } from '@utils/media/mediaProcessing';
 import { constructUrl } from '@utils/media/mediaUtils';
-import type { MediaItem } from '@root/src/databases/dbInterface';
+import type { MediaItem, SystemVirtualFolder } from '@root/src/databases/dbInterface';
 import type { MediaAccess } from '@root/src/utils/media/mediaModels';
 
 // Auth
@@ -101,12 +101,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		logger.info(`Loading media gallery for folderId: ${folderId || 'root'}`);
 
 		// Fetch all virtual folders first to find the current one
-		const folderResult = await dbAdapter.virtualFolders.getAll();
-		if (!folderResult.success) {
-			logger.error(`Failed to fetch virtual folders: ${folderResult.error.message}`);
-			throw error(500, 'Failed to fetch folders');
-		}
-		const allVirtualFolders = folderResult.data || [];
+		const allVirtualFolders = await dbAdapter.systemVirtualFolder.getAll();
 		const serializedVirtualFolders = allVirtualFolders.map((folder) => convertIdToString(folder));
 
 		// Determine current folder
@@ -183,8 +178,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				avatar: user.avatar
 			},
 			media: processedMedia, // Use the processed and filtered media
-			virtualFolders: serializedVirtualFolders, // All folders for the VirtualFolders component
-			currentFolder: currentFolder // The specific folder object for the current view
+			virtualFolders: serializedVirtualFolders as SystemVirtualFolder[], // All folders for the VirtualFolders component
+			currentFolder: currentFolder as SystemVirtualFolder | null // The specific folder object for the current view
 		};
 
 		// Added Debugging: Log the returnData

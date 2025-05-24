@@ -60,24 +60,18 @@ export const GET: RequestHandler = handleRequest(async ({ url }) => {
 	const folderId = url.searchParams.get('folderId');
 
 	if (folderId) {
-		const contents = await dbAdapter.virtualFolders.getContents(folderId);
-		if (!contents.success) {
-			throw new VirtualFolderError(contents.error.message, 404, 'FOLDER_NOT_FOUND');
-		}
+		const contents = await dbAdapter.systemVirtualFolder.getContents(folderId);
 		return json({
 			success: true,
-			data: { contents: contents.data },
+			data: { contents: contents },
 			ariaLabel: `Retrieved contents for folder ${folderId}`
 		});
 	}
 
-	const folders = await dbAdapter.virtualFolders.getAll();
-	if (!folders.success) {
-		throw new VirtualFolderError(folders.error.message, 500, 'FETCH_FAILED');
-	}
+	const folders = await dbAdapter.systemVirtualFolder.getAll();
 	return json({
 		success: true,
-		data: { folders: folders.data },
+		data: { folders: folders },
 		ariaLabel: 'Retrieved all virtual folders'
 	});
 });
@@ -93,25 +87,35 @@ export const POST: RequestHandler = handleRequest(async ({ request }) => {
 		throw new VirtualFolderError('Folder name contains invalid characters', 400, 'INVALID_NAME');
 	}
 
-	const parentPath = parent ? ((await dbAdapter.virtualFolders.getContents(parent))?.data?.path ?? '') : publicEnv.MEDIA_FOLDER;
+	let parentPath = publicEnv.MEDIA_FOLDER;
+	if (parent) {
+		const parentFolder = await dbAdapter.crud.findOne('SystemVirtualFolder', { _id: parent });
+		if (!parentFolder.success || !parentFolder.data) {
+			throw new VirtualFolderError('Parent folder not found', 404, 'PARENT_NOT_FOUND');
+		}
+		parentPath = parentFolder.data.path;
+	}
 
 	const path = `${parentPath}/${name}`.replace(/\/+/g, '/');
 
-	const exists = await dbAdapter.virtualFolders.exists(path);
+	const exists = await dbAdapter.systemVirtualFolder.exists(path);
 	if (exists.success && exists.data) {
 		throw new VirtualFolderError('Folder already exists at this path', 409, 'FOLDER_EXISTS');
 	}
 
-	const result = await dbAdapter.virtualFolders.create({ name, parent, path });
-	if (!result.success) {
-		throw new VirtualFolderError(result.error.message, 500, 'CREATE_FAILED');
-	}
+	const result = await dbAdapter.systemVirtualFolder.create({
+		name,
+		parent,
+		path,
+		type: 'folder',
+		order: 0
+	});
 
-	await createDirectory(result.data._id.toString());
+	await createDirectory(result._id.toString());
 	return json(
 		{
 			success: true,
-			data: { folder: result.data },
+			data: { folder: result },
 			ariaLabel: `Created new folder: ${name}`
 		},
 		{ status: 201 }
@@ -130,17 +134,17 @@ export const PATCH: RequestHandler = handleRequest(async ({ request }) => {
 	}
 
 	const updateData = { name, parent };
-	const result = await dbAdapter.virtualFolders.update(folderId, updateData);
-	if (!result.success) {
-		throw new VirtualFolderError(result.error.message, 404, 'UPDATE_FAILED');
+	const result = await dbAdapter.systemVirtualFolder.update(folderId, updateData);
+	if (!result) {
+		throw new VirtualFolderError('Failed to update folder', 404, 'UPDATE_FAILED');
 	}
 
 	await deleteDirectory(folderId);
-	await createDirectory(result.data._id.toString());
+	await createDirectory(result._id.toString());
 	return json({
 		success: true,
-		data: { folder: result.data },
-		ariaLabel: `Updated folder: ${result.data.name}`
+		data: { folder: result },
+		ariaLabel: `Updated folder: ${result.name}`
 	});
 });
 
@@ -151,9 +155,9 @@ export const DELETE: RequestHandler = handleRequest(async ({ request }) => {
 		throw new VirtualFolderError('Folder ID is required', 400, 'ID_REQUIRED');
 	}
 
-	const result = await dbAdapter.virtualFolders.delete(folderId);
-	if (!result.success) {
-		throw new VirtualFolderError(result.error.message, 404, 'DELETE_FAILED');
+	const result = await dbAdapter.systemVirtualFolder.delete(folderId);
+	if (!result) {
+		throw new VirtualFolderError('Failed to delete folder', 404, 'DELETE_FAILED');
 	}
 
 	await deleteDirectory(folderId);

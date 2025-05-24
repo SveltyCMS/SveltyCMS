@@ -41,18 +41,16 @@ Features:
 	// Toast notifications
 	const toastStore = getToastStore();
 
+	// Import types
+	import type { SystemVirtualFolder } from '@src/databases/dbInterface';
+
 	interface Props {
 		// Component props and state
-		currentFolder?: { _id: string; name: string; path: string[] } | null;
+		currentFolder?: SystemVirtualFolder | null;
 	}
 
 	let { currentFolder = null }: Props = $props();
-	let folders: Array<{
-		_id: string;
-		name: string;
-		path: string[];
-		parent?: string | null;
-	}> = $state([]);
+	let folders: SystemVirtualFolder[] = $state([]);
 	let newFolderName = '';
 	let isLoading = $state(false);
 	let error = $state<string | null>(null);

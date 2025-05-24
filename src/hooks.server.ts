@@ -26,7 +26,7 @@ import { systemLanguage, contentLanguage } from '@stores/store.svelte';
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
 
 // Auth and Database Adapters
-import { auth, dbInitPromise } from '@src/databases/db';
+import { auth, dbInitPromise, authAdapter } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import { checkUserPermission } from '@src/auth/permissionCheck';
 
@@ -44,6 +44,11 @@ const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 const API_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const SESSION_TTL = CACHE_TTL; // Align session TTL with cache TTL
 const USER_PERM_CACHE_TTL = 60 * 1000; // 1 minute for permissions cache
+const USER_COUNT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes for user count cache
+
+// Performance Caches
+let userCountCache: { count: number; timestamp: number } | null = null;
+const adminDataCache = new Map<string, { data: any; timestamp: number }>();
 
 // Session Metrics
 const sessionMetrics = {
@@ -84,7 +89,7 @@ const apiLimiter = new RateLimiter({
 
 // Check if a given pathname is a static asset
 const isStaticAsset = (pathname: string): boolean =>
-	pathname.startsWith('/static/') || pathname.startsWith('/_app/') || pathname.endsWith('.js') || pathname.endsWith('.css');
+	pathname.startsWith('/static/') || pathname.startsWith('/_app/') || pathname.endsWith('.js') || pathname.endsWith('.css') || pathname === '/favicon.ico';
 
 // Check if the given IP is localhost
 const isLocalhost = (ip: string): boolean => ip === '::1' || ip === '127.0.0.1';
@@ -166,46 +171,85 @@ const sessionCache = new Map<string, { user: User; timestamp: number }>();
 const userPermissionCache = new Map<string, { permissions: Permission[]; timestamp: number }>();
 const lastRefreshAttempt = new Map<string, number>();
 
-// Get user from session ID with optimized caching
-const getUserFromSessionId = async (session_id: string | undefined): Promise<User | null> => {
+// Optimized user count getter with caching
+const getCachedUserCount = async (authServiceReady: boolean): Promise<number> => {
+	const now = Date.now();
+
+	// Return cached value if still valid
+	if (userCountCache && now - userCountCache.timestamp < USER_COUNT_CACHE_TTL) {
+		return userCountCache.count;
+	}
+
+	let userCount = -1;
+
+	if (authServiceReady && auth) {
+		try {
+			userCount = await auth.getUserCount();
+		} catch (err) {
+			logger.warn(`Failed to get user count from auth service: ${err.message}`);
+		}
+	} else if (authAdapter && typeof authAdapter.getUserCount === 'function') {
+		try {
+			userCount = await authAdapter.getUserCount();
+		} catch (err) {
+			logger.warn(`Failed to get user count from adapter: ${err.message}`);
+		}
+	}
+
+	// Cache the result
+	if (userCount >= 0) {
+		userCountCache = { count: userCount, timestamp: now };
+	}
+
+	return userCount;
+};
+
+// Get user from session ID with optimized caching (initialization-aware)
+const getUserFromSessionId = async (session_id: string | undefined, authServiceReady: boolean = false): Promise<User | null> => {
 	if (!session_id) return null;
 
 	const cacheStore = getCacheStore();
 	const now = Date.now();
 
+	// Only use cached sessions if auth service is ready OR if this is a static asset request
+	const canUseCache = authServiceReady || auth !== null;
+
 	const memCached = sessionCache.get(session_id);
-	if (memCached && now - memCached.timestamp < CACHE_TTL) {
+	if (memCached && now - memCached.timestamp < CACHE_TTL && canUseCache) {
 		// Extend session in cache proactively on every hit
 		const sessionData = { user: memCached.user, timestamp: now };
 		sessionCache.set(session_id, sessionData); // Update in-memory timestamp
 		cacheStore
 			.set(session_id, sessionData, new Date(now + CACHE_TTL))
 			.catch((err) => logger.error(`Failed to extend session cache for \x1b[34m${session_id}\x1b[0m: ${err.message}`));
-		logger.debug(`Session cache hit and extended for \x1b[34m${session_id}\x1b[0m`); // Can be noisy
+		logger.debug(`Session cache hit and extended for \x1b[34m${session_id}\x1b[0m (auth ready: ${authServiceReady})`);
 		sessionMetrics.lastActivity.set(session_id, now); // Update session metrics
 		return memCached.user;
 	}
 
-	// Try Redis cache
-	try {
-		const redisCached = await cacheStore.get<{ user: User; timestamp: number }>(session_id);
-		if (redisCached && now - redisCached.timestamp < CACHE_TTL) {
-			// Ensure redis cache isn't stale if TTLs differ
-			sessionCache.set(session_id, redisCached); // Populate in-memory cache
-			logger.debug(`Redis cache hit for session \x1b[34m${session_id}\x1b[0m`);
-			sessionMetrics.lastActivity.set(session_id, now);
-			return redisCached.user;
+	// Try Redis cache only if auth service is ready
+	if (canUseCache) {
+		try {
+			const redisCached = await cacheStore.get<{ user: User; timestamp: number }>(session_id);
+			if (redisCached && now - redisCached.timestamp < CACHE_TTL) {
+				// Ensure redis cache isn't stale if TTLs differ
+				sessionCache.set(session_id, redisCached); // Populate in-memory cache
+				logger.debug(`Redis cache hit for session \x1b[34m${session_id}\x1b[0m`);
+				sessionMetrics.lastActivity.set(session_id, now);
+				return redisCached.user;
+			}
+		} catch (cacheError) {
+			logger.error(`Error reading from session cache store for ${session_id}: ${cacheError.message}`);
 		}
-	} catch (cacheError) {
-		logger.error(`Error reading from session cache store for ${session_id}: ${cacheError.message}`);
 	}
 
-	// Validate session in database
+	// Validate session in database only if auth service is ready
+	if (!authServiceReady || !auth) {
+		logger.debug(`Auth service not ready, skipping session validation for ${session_id}`);
+		return null;
+	}
+
 	try {
-		if (!auth) {
-			logger.error('Auth service not initialized during session validation');
-			throw error(500, 'Authentication service unavailable');
-		}
 		const user = await auth.validateSession({ session_id });
 		if (user) {
 			const sessionData = { user, timestamp: now };
@@ -220,6 +264,37 @@ const getUserFromSessionId = async (session_id: string | undefined): Promise<Use
 		logger.error(`Session validation DB error for \x1b[31m${session_id}\x1b[0m: ${dbError.message}`);
 	}
 	return null;
+};
+
+// Optimized admin data loading with caching
+const getAdminDataCached = async (user: User, cacheKey: string): Promise<any> => {
+	const now = Date.now();
+	const cached = adminDataCache.get(cacheKey);
+
+	if (cached && now - cached.timestamp < USER_PERM_CACHE_TTL) {
+		return cached.data;
+	}
+
+	let data = null;
+	if (auth) {
+		try {
+			if (cacheKey === 'roles') {
+				data = await auth.getAllRoles();
+			} else if (cacheKey === 'users') {
+				data = await auth.getAllUsers();
+			} else if (cacheKey === 'tokens') {
+				data = await auth.getAllTokens();
+			}
+
+			if (data) {
+				adminDataCache.set(cacheKey, { data, timestamp: now });
+			}
+		} catch (err) {
+			logger.warn(`Failed to load admin data (${cacheKey}): ${err.message}`);
+		}
+	}
+
+	return data || [];
 };
 
 // Handle static asset caching
@@ -256,20 +331,25 @@ const handleRateLimit: Handle = async ({ event, resolve }) => {
 const handleAuth: Handle = async ({ event, resolve }) => {
 	if (building) return resolve(event);
 
-	const requestStartTime = performance.now(); // Define event.startTime here
+	const requestStartTime = performance.now();
+
+	// Skip auth entirely for static assets during initialization
+	if (isStaticAsset(event.url.pathname)) {
+		logger.debug(`Skipping auth for static asset: ${event.url.pathname}`);
+		return resolve(event);
+	}
 
 	try {
+		// Wait for database initialization
 		await dbInitPromise;
 
+		// Check if auth service is ready
+		const authServiceReady = auth !== null && typeof auth.validateSession === 'function';
+
 		let session_id = event.cookies.get(SESSION_COOKIE_NAME);
-		const user = await getUserFromSessionId(session_id);
+		const user = await getUserFromSessionId(session_id, authServiceReady);
 
-		if (user && session_id) {
-			if (!auth) {
-				logger.error('Auth service not initialized when trying to get token data');
-				throw error(500, 'Authentication service unavailable');
-			}
-
+		if (user && session_id && authServiceReady) {
 			// Check if getSessionTokenData exists
 			if (typeof auth.getSessionTokenData !== 'function') {
 				logger.error('auth.getSessionTokenData is not a function');
@@ -365,33 +445,47 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		const isPublic = isPublicOrOAuthRoute(event.url.pathname);
 		const isApi = event.url.pathname.startsWith('/api/');
 
-		// First user check
-		if (!auth) throw error(500, 'Auth service not initialized post user check');
-		const userCount = await auth.getUserCount().catch(() => -1);
+		// Optimized first user check with caching
+		const userCount = await getCachedUserCount(authServiceReady);
 		const isFirstUser = userCount === 0;
 		event.locals.isFirstUser = isFirstUser;
 
-		if (event.locals.user) {
-			// Load user data efficiently
-			const [roles, { hasPermission }] = await Promise.all([
-				auth.getAllRoles(),
-				checkUserPermission(user, {
-					contextId: 'config/userManagement',
-					requiredRole: 'admin',
-					action: 'manage',
-					contextType: 'system'
-				})
-			]);
+		// Only load admin data when needed and cache it
+		if (authServiceReady && event.locals.user) {
+			// Load basic permission check efficiently
+			const { hasPermission } = await checkUserPermission(user, {
+				contextId: 'config/userManagement',
+				requiredRole: 'admin',
+				action: 'manage',
+				contextType: 'system'
+			});
 
-			event.locals.roles = roles;
 			event.locals.hasManageUsersPermission = hasPermission;
 
-			// Load admin data if needed
-			if (user.isAdmin || hasPermission) {
-				const [users, tokens] = await Promise.all([auth.getAllUsers(), auth.getAllTokens()]);
+			// Only load heavy admin data if user is admin or has permission AND it's needed
+			if ((user.isAdmin || hasPermission) && (isApi || event.url.pathname.includes('/admin'))) {
+				// Load admin data with caching
+				const [roles, users, tokens] = await Promise.all([
+					getAdminDataCached(user, 'roles'),
+					getAdminDataCached(user, 'users'),
+					getAdminDataCached(user, 'tokens')
+				]);
+
+				event.locals.roles = roles;
 				event.locals.allUsers = users;
 				event.locals.allTokens = tokens;
+			} else {
+				// Set empty defaults to avoid undefined errors
+				event.locals.roles = [];
+				event.locals.allUsers = [];
+				event.locals.allTokens = [];
 			}
+		} else {
+			// Set safe defaults when auth service not ready
+			event.locals.roles = [];
+			event.locals.hasManageUsersPermission = false;
+			event.locals.allUsers = [];
+			event.locals.allTokens = [];
 		}
 
 		// Update stores from existing cookies if present
@@ -417,27 +511,33 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		}
 
 		const responseTime = performance.now() - requestStartTime;
-		logger.debug(`Route \x1b[34m${event.url.pathname}\x1b[0m - \x1b[32m${responseTime.toFixed(2)}ms\x1b[0m ${getPerformanceEmoji(responseTime)}`);
+		logger.debug(`Route \x1b[34m${event.url.pathname}\x1b[0m - \x1b[32m${responseTime.toFixed(2)}ms\x1b[0m ${getPerformanceEmoji(responseTime)} (auth ready: ${authServiceReady})`);
 
 		if (isOAuthRoute(event.url.pathname)) {
 			logger.debug('OAuth route detected, passing through');
 			return resolve(event);
 		}
 
-		if (!event.locals.user && !isPublic && !isFirstUser) {
-			logger.debug(`Unauthenticated access to \x1b[34m${event.url.pathname}\x1b[0m. Redirecting to login.`);
-			if (isApi) throw error(401, 'Unauthorized');
-			throw redirect(302, '/login');
-		}
+		// Only enforce auth requirements if auth service is ready
+		if (authServiceReady) {
+			if (!event.locals.user && !isPublic && !isFirstUser) {
+				logger.debug(`Unauthenticated access to \x1b[34m${event.url.pathname}\x1b[0m. Redirecting to login.`);
+				if (isApi) throw error(401, 'Unauthorized');
+				throw redirect(302, '/login');
+			}
 
-		if (event.locals.user && isPublic && !isOAuthRoute(event.url.pathname)) {
-			logger.debug(`Authenticated user on public route \x1b[34m${event.url.pathname}\x1b[0m. Redirecting to home.`);
-			throw redirect(302, '/');
-		}
+			if (event.locals.user && isPublic && !isOAuthRoute(event.url.pathname)) {
+				logger.debug(`Authenticated user on public route \x1b[34m${event.url.pathname}\x1b[0m. Redirecting to home.`);
+				throw redirect(302, '/');
+			}
 
-		if (isApi && event.locals.user) {
-			logger.debug('Handling API request for authenticated user');
-			return handleApiRequest(event, resolve, event.locals.user);
+			if (isApi && event.locals.user) {
+				logger.debug('Handling API request for authenticated user');
+				return handleApiRequest(event, resolve, event.locals.user);
+			}
+		} else {
+			// Auth service not ready - allow through but log
+			logger.debug(`Auth service not ready, allowing request to \x1b[34m${event.url.pathname}\x1b[0m`);
 		}
 
 		return resolve(event);

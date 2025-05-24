@@ -60,6 +60,18 @@ function calculatePasswordStrength(password: string): number {
 	return 0;
 }
 
+// Helper function to wait for auth service to be ready
+async function waitForAuthService(maxWaitMs: number = 10000): Promise<boolean> {
+	const startTime = Date.now();
+	while (Date.now() - startTime < maxWaitMs) {
+		if (auth && typeof auth.validateSession === 'function') {
+			return true;
+		}
+		await new Promise(resolve => setTimeout(resolve, 100)); // Wait 100ms before checking again
+	}
+	return false;
+}
+
 // Helper function to fetch and redirect to the first collection
 async function fetchAndRedirectToFirstCollection() {
 	try {
@@ -121,10 +133,19 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		// Ensure initialization is complete
 		await dbInitPromise;
 
-		// Check if the auth object is initialized
-		if (!auth) {
-			logger.error('Authentication system is not initialized');
-			throw Error('Authentication system is not initialized');
+		// Wait for auth service to be ready instead of throwing error immediately
+		const authReady = await waitForAuthService();
+		if (!authReady || !auth) {
+			logger.warn('Authentication system is not ready yet, returning fallback data');
+			// Return fallback data instead of throwing error
+			return {
+				firstUserExists: true,
+				loginForm: await superValidate(wrappedLoginSchema),
+				forgotForm: await superValidate(wrappedForgotSchema),
+				resetForm: await superValidate(wrappedResetSchema),
+				signUpForm: await superValidate(wrappedSignUpSchema),
+				authNotReady: true
+			};
 		}
 
 		// Check if locals is defined
@@ -145,21 +166,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			await limiter.cookieLimiter.preflight({ request, cookies });
 		}
 
-		// Check if the getUserCount method is available and callable
-		if (typeof auth.getUserCount !== 'function') {
-			logger.warn('getUserCount method is not available on auth object');
-			throw error(500, 'Authentication system is not available');
-		}
-
-		// Check if the first user exists in the database
-		let firstUserExists = false;
-		try {
-			const userCount = await auth.getUserCount();
-			firstUserExists = userCount > 0;
-		} catch (err) {
-			logger.error('Error fetching user count:', err);
-			throw Error(`Error during login process: ${err.message}`);
-		}
+		// Use the firstUserExists value from locals (set by hooks)
+		// This avoids race conditions during initialization
+		const firstUserExists = !locals.isFirstUser;
+		logger.debug(`Using firstUserExists from locals: ${firstUserExists} (isFirstUser: ${locals.isFirstUser})`);
 
 		const code = url.searchParams.get('code');
 		logger.debug(`Authorization code: \x1b[34m${code}\x1b[0m`);
@@ -190,7 +200,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					if (existingUser) return [existingUser, false];
 
 					const username = googleUser.name ?? '';
-					const isFirst = (await auth.getUserCount()) === 0;
+					const isFirst = locals.isFirstUser || false;
 
 					if (isFirst) {
 						const adminRole = roles.find((role) => role._id === 'admin');
@@ -273,8 +283,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		logger.error(`Error in load function: ${err.message}`);
 
 		// Return a minimal set of data to allow the page to render
+		// Default to showing login form (firstUserExists = true) to be safe
 		return {
-			firstUserExists: false,
+			firstUserExists: true,
 			loginForm: await superValidate(wrappedLoginSchema),
 			forgotForm: await superValidate(wrappedForgotSchema),
 			resetForm: await superValidate(wrappedResetSchema),
@@ -291,18 +302,26 @@ export const actions: Actions = {
 			return fail(429, { message: 'Too many requests. Please try again later.' });
 		}
 
-		if (!auth) {
-			logger.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error');
+		// Ensure database initialization is complete
+		await dbInitPromise;
+
+		// Wait for auth service to be ready
+		const authReady = await waitForAuthService();
+		if (!authReady || !auth) {
+			logger.error('Authentication system is not ready for signUp action');
+			return fail(503, { message: 'Authentication system is not ready. Please try again in a moment.' });
 		}
 
 		logger.debug('action signUp');
-		let isFirst = false;
-		try {
-			isFirst = (await auth.getUserCount()) === 0;
-		} catch (err) {
-			logger.error('Error fetching user count:', err);
-			return fail(500, { message: 'An error occurred while processing your request.' });
+		// Use locals.isFirstUser if available, otherwise fallback to getUserCount
+		let isFirst = event.locals.isFirstUser || false;
+		if (!event.locals.isFirstUser && typeof auth.getUserCount === 'function') {
+			try {
+				isFirst = (await auth.getUserCount()) === 0;
+			} catch (err) {
+				logger.error('Error fetching user count:', err);
+				return fail(500, { message: 'An error occurred while processing your request.' });
+			}
 		}
 
 		const signUpForm = await superValidate(event, wrappedSignUpSchema);
@@ -400,6 +419,16 @@ export const actions: Actions = {
 			return fail(429, { message: 'Too many requests. Please try again later.' });
 		}
 
+		// Ensure database initialization is complete
+		await dbInitPromise;
+
+		// Wait for auth service to be ready
+		const authReady = await waitForAuthService();
+		if (!authReady || !auth) {
+			logger.error('Authentication system is not ready for signIn action');
+			return fail(503, { message: 'Authentication system is not ready. Please try again in a moment.' });
+		}
+
 		const signInForm = await superValidate(event, wrappedLoginSchema);
 
 		// Validate
@@ -430,6 +459,16 @@ export const actions: Actions = {
 	forgotPW: async (event) => {
 		if (await limiter.isLimited(event)) {
 			return fail(429, { message: 'Too many requests. Please try again later.' });
+		}
+
+		// Ensure database initialization is complete
+		await dbInitPromise;
+
+		// Wait for auth service to be ready
+		const authReady = await waitForAuthService();
+		if (!authReady || !auth) {
+			logger.error('Authentication system is not ready for forgotPW action');
+			return fail(503, { message: 'Authentication system is not ready. Please try again in a moment.' });
 		}
 
 		const pwforgottenForm = await superValidate(event, wrappedForgotSchema);
@@ -499,6 +538,16 @@ export const actions: Actions = {
 			return fail(429, { message: 'Too many requests. Please try again later.' });
 		}
 
+		// Ensure database initialization is complete
+		await dbInitPromise;
+
+		// Wait for auth service to be ready
+		const authReady = await waitForAuthService();
+		if (!authReady || !auth) {
+			logger.error('Authentication system is not ready for resetPW action');
+			return fail(503, { message: 'Authentication system is not ready. Please try again in a moment.' });
+		}
+
 		const pwresetForm = await superValidate(event, wrappedResetSchema);
 
 		// Validate form
@@ -530,7 +579,7 @@ export const actions: Actions = {
 
 // Helper function to Create session and set cookie
 async function createSessionAndSetCookie(user_id: string, cookies: Cookies): Promise<void> {
-	const expiresAt = new Date(Date.now() + 3600 * 1000); // 1 hour from now
+	const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
 
 	if (!auth) throw Error('Auth is not initialized');
 
@@ -607,11 +656,13 @@ async function FirstUsersignUp(username: string, email: string, password: string
 	}
 
 	try {
-		// Check if a user already exists
-		const userCount = await auth.getUserCount();
-		if (userCount > 0) {
-			logger.warn('Attempted to create first user when users already exist');
-			return { status: false, message: 'An admin user already exists' };
+		// Check if a user already exists (fallback check)
+		if (typeof auth.getUserCount === 'function') {
+			const userCount = await auth.getUserCount();
+			if (userCount > 0) {
+				logger.warn('Attempted to create first user when users already exist');
+				return { status: false, message: 'An admin user already exists' };
+			}
 		}
 
 		const adminRole = roles.find((role) => role.isAdmin === true);

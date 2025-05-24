@@ -915,8 +915,8 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		}
 	};
 
-	//  Virtual Folder Management
-	virtualFolders = {
+	//  System Virtual Folder Management
+	systemVirtualFolder = {
 		// Create a virtual folder in the database
 		create: async (folderData: {
 			name: string;
@@ -926,15 +926,27 @@ export class MongoDBAdapter implements DatabaseAdapter {
 			order?: number;
 			type?: 'folder' | 'collection';
 		}): Promise<Document> => {
-			return SystemVirtualFolderModel.createVirtualFolder({
+			const result = await SystemVirtualFolderModel.createVirtualFolder({
 				_id: this.utils.generateId(),
 				...folderData
 			});
+			if (result.success) {
+				return result.data;
+			} else {
+				logger.error('Failed to create virtual folder:', result.error);
+				throw new Error(result.error.message || 'Failed to create virtual folder');
+			}
 		},
 
 		// Get all virtual folders
 		getAll: async (): Promise<Document[]> => {
-			return SystemVirtualFolderModel.getAllVirtualFolders();
+			const result = await SystemVirtualFolderModel.getAllVirtualFolders();
+			if (result.success) {
+				return result.data;
+			} else {
+				logger.error('Failed to get virtual folders:', result.error);
+				return [];
+			}
 		},
 
 		// Get contents of a virtual folder

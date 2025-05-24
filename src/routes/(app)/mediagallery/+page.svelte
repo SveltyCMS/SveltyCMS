@@ -45,28 +45,23 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	// Loading state
 	let isLoading = $state(false);
 
-	// Types
-	interface VirtualFolder {
-		_id: string;
-		name: string;
-		path: string[] | string;
-		parent?: string | null;
-	}
+	// Import types
+	import type { SystemVirtualFolder } from '@src/databases/dbInterface';
 
 	// Props using runes
 	const { data = { user: undefined, media: [], virtualFolders: [] } } = $props<{
 		data?: {
 			user: { _id: string; email: string; role: string } | undefined;
 			media: MediaBase[];
-			virtualFolders: VirtualFolder[];
-			currentFolder: VirtualFolder | null; // Add currentFolder from load data
+			virtualFolders: SystemVirtualFolder[];
+			currentFolder: SystemVirtualFolder | null; // Add currentFolder from load data
 		};
 	}>();
 
 	// State using runes
 	let files = $state<MediaImage[]>([]);
-	let folders = $state<VirtualFolder[]>([]);
-	let currentFolder = $state<VirtualFolder | null>(null);
+	let folders = $state<SystemVirtualFolder[]>([]);
+	let currentFolder = $state<SystemVirtualFolder | null>(null);
 	let breadcrumb = $state<string[]>([]);
 
 	let globalSearchValue = $state('');
@@ -130,7 +125,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 		mode.set('media');
 
 		if (data && data.virtualFolders) {
-			folders = data.virtualFolders.map((folder: VirtualFolder) => ({
+			folders = data.virtualFolders.map((folder: SystemVirtualFolder) => ({
 				...folder,
 				path: Array.isArray(folder.path) ? folder.path : folder.path?.split('/')
 			}));
@@ -247,7 +242,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 			const result = await response.json();
 
 			if (result.success) {
-				return result.folders.map((folder: VirtualFolder) => ({
+				return result.data.folders.map((folder: SystemVirtualFolder) => ({
 					...folder,
 					path: Array.isArray(folder.path) ? folder.path : folder.path?.split('/')
 				}));

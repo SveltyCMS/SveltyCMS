@@ -324,6 +324,16 @@ export interface DatabaseAdapter {
 }
 
 /** Virtual Folder Types **/
+export interface SystemVirtualFolder extends BaseEntity {
+	name: string;
+	path: string;
+	parent?: DatabaseId | null;
+	icon?: string;
+	order: number;
+	type: 'folder' | 'collection';
+	metadata?: unknown;
+}
+
 export interface FolderContents {
 	subfolders: SystemVirtualFolder[];
 	mediaFiles: Array<{

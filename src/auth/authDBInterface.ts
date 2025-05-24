@@ -41,6 +41,7 @@ export interface authDBInterface {
 	getActiveSessions(user_id: string): Promise<Session[]>; // Get active sessions for a user
 	getSessionTokenData(session_id: string): Promise<{ expiresAt: Date; user_id: string } | null>; // Get session token metadata
 	rotateToken(oldToken: string, expires: Date): Promise<string>; // Rotate a session token
+	cleanupRotatedSessions?(): Promise<number>; // Clean up rotated sessions past grace period
 
 	// Token Management Methods
 	createToken(data: { user_id: string; email: string; expires: Date; type: string }): Promise<string>; // Create a new token
