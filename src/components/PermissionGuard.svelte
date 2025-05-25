@@ -50,6 +50,7 @@ Features:
 
 	// Create reactive stores
 	const loading = store(false);
+
 	// Reactive variables from page store with type assertions
 	let user = $derived(page.data.user as User | undefined);
 	let permissions = $derived((page.data.permissions || {}) as Record<string, { hasPermission: boolean; isRateLimited: boolean }>);

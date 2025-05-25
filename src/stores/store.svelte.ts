@@ -92,10 +92,10 @@ const createBaseStores = () => {
 
 	// Save functionality
 	const saveFunction = store<SaveFunction>({
-		fn: () => {},
-		reset: () => {}
+		fn: () => { },
+		reset: () => { }
 	});
-	const saveLayerStore = store(async () => {});
+	const saveLayerStore = store(async () => { });
 	const shouldShowNextButton = store(false);
 
 	// Validation
@@ -192,34 +192,44 @@ export const tableHeaders = ['id', 'email', 'username', 'role', 'createdAt'] as 
 // Export indexer
 export const indexer = undefined;
 
-// Export validation store interface
-export const validationStore = {
-	subscribe: validationErrors.subscribe,
-	setError: (fieldName: string, errorMessage: string | null) => {
-		validationErrors.update((errors) => ({
-			...errors,
-			[fieldName]: errorMessage
-		}));
-	},
-	clearError: (fieldName: string) => {
-		validationErrors.update((errors) => {
-			const newErrors = { ...errors };
-			delete newErrors[fieldName];
-			return newErrors;
-		});
-	},
-	getError: (fieldName: string) => {
-		let error: string | null = null;
-		validationErrors.subscribe((errors) => {
-			error = errors[fieldName] || null;
-		})();
-		return error;
-	},
-	hasError: (fieldName: string) => {
-		let hasError = false;
-		validationErrors.subscribe((errors) => {
-			hasError = !!errors[fieldName];
-		})();
-		return hasError;
-	}
-};
+/**
+ * Creates a reactive validation store using Svelte 5 runes.
+ * This store manages validation errors and provides derived state for validity.
+ */
+function createValidationStore() {
+	let errors = $state<ValidationErrors>({});
+
+	// Derived state that automatically recalculates when `errors` changes.
+	const isValid = $derived(Object.values(errors).every(error => !error));
+
+	return {
+		// Expose reactive state directly
+		get errors() { return errors; },
+		get isValid() { return isValid; },
+
+		// Methods to manipulate the state
+		setError: (fieldName: string, errorMessage: string | null) => {
+			errors[fieldName] = errorMessage;
+		},
+
+		clearError: (fieldName: string) => {
+			if (fieldName in errors) {
+				delete errors[fieldName];
+			}
+		},
+
+		clearAllErrors: () => {
+			errors = {};
+		},
+
+		getError: (fieldName: string): string | null => {
+			return errors[fieldName] || null;
+		},
+
+		hasError: (fieldName: string): boolean => {
+			return !!errors[fieldName];
+		}
+	};
+}
+
+export const validationStore = createValidationStore();

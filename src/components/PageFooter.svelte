@@ -3,9 +3,9 @@
 @component
 **PageFooter component displaying collection name, creation and update dates**
 
-```tsx
+@example
 <PageFooter />
-```
+
 #### Props
 - `collection` {object} - Collection object
 -->

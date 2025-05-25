@@ -23,7 +23,7 @@
 
 import axios from 'axios';
 import { error } from '@sveltejs/kit';
-import { col2formData, config, toFormData } from './utils';
+import { obj2formData, col2formData, config, toFormData } from './utils';
 import type { ContentTypes, Schema } from '@src/types';
 
 // Store
@@ -164,38 +164,37 @@ export async function saveFormData({
 	id,
 	user
 }: {
-	data: FormData | { [Key: string]: () => unknown };
+	data: FormData | { [Key: string]: unknown } | { [Key: string]: () => unknown }; // Expanded type for data
 	_collection?: Schema;
 	_mode?: 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
 	id?: string;
 	user?: { username?: string };
 }) {
-	// Add the user who last saved (if available)
-	if (user && user.username) {
-		if (data instanceof FormData) {
-			data.append('lastSavedBy', user.username);
-		} else {
-			data.lastSavedBy = () => user.username;
-		}
-	}
-
 	const $mode = _mode || mode();
 	const $collection = _collection || collection();
 
-	// Debugging: Log the incoming data
-	logger.debug('Incoming data:', data);
+	let formData: FormData;
 
-	// Convert the collection data to FormData if not already an instance of FormData
-	const formData = data instanceof FormData ? data : await col2formData(data);
-
-	if (_mode === 'edit' && !id) {
-		const message = 'ID is required for edit mode.';
-		logger.error(message);
-		throw error(400, message);
+	// Convert data to FormData based on its type
+	if (data instanceof FormData) {
+		formData = data;
+	} else if (Object.values(data).some(v => typeof v === 'function')) {
+		// This handles the { [Key: string]: () => unknown } case
+		logger.debug('Converting collection functions to FormData...');
+		formData = await col2formData(data as { [Key: string]: () => unknown });
+	} else {
+		// This handles the plain object case from RightSidebar
+		logger.debug('Converting plain object to FormData...');
+		formData = obj2formData(data as { [Key: string]: unknown });
 	}
 
-	if (!formData) {
-		const message = 'FormData is empty, unable to save.';
+	// Add the user who last saved (if available)
+	if (user && user.username) {
+		formData.append('lastSavedBy', user.username);
+	}
+
+	if ($mode === 'edit' && !id) {
+		const message = 'ID is required for edit mode.';
 		logger.error(message);
 		throw error(400, message);
 	}
@@ -204,13 +203,14 @@ export async function saveFormData({
 	// if (!meta_data.is_empty()) formData.append('_meta_data', JSON.stringify(meta_data.get()));
 
 	// Safely append status with a default value
-	formData.append('status', (collectionValue.value?.status || 'unpublished').toString());
+	if (!formData.has('status')) {
+		formData.append('status', (collectionValue.value?.status || 'unpublished').toString());
+	}
 
 	try {
 		switch ($mode) {
 			case 'create':
 				logger.debug('Saving data in create mode.');
-
 				return await addData({
 					data: formData,
 					collectionId: $collection._id as keyof ContentTypes

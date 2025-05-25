@@ -3,13 +3,12 @@
 @component
 **Enhanced HighlightedText component that highlights a term in a given text**
 
-```tsx
+@example
 <HighlightedText 
 	text="Your long text here" 
 	term="search term" 
 	charLimit={200} 
 />
-```
 
 #### Props
 - `text` {string} - Full text to display

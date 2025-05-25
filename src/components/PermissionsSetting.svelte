@@ -3,9 +3,9 @@
 @component
 **Enhanced Permissions Setting Component for managing widget field permissions**
 
-```tsx
+@example
 <PermissionsSetting />
-```
+
 ####	Props:
 - `permissions` {object} - The current permissions object
 - `on:update` {function} - A function to update the permissions object
@@ -15,8 +15,10 @@ Features:
 - Bulk permission actions
 - Permission presets
 -->
+
 <script lang="ts">
 	import { roles } from '@root/config/roles';
+	// import type { Roles } from '@root/config/roles';
 	import { PermissionAction } from '@src/auth/permissionTypes';
 	import { getToastStore } from '@skeletonlabs/skeleton';
 

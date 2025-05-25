@@ -3,9 +3,8 @@
 @component
 **IconifyPicker component for selecting icons from Iconify libraries**
 
-```tsx
+@example
 <IconifyPicker bind:iconselected />
-```
 
 ### Props
 - `iconselected` {string} - Selected icon name

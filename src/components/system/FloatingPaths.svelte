@@ -18,6 +18,7 @@ Spring class for smooth, physics-based motion.
 - Responsive design
 - SVG path optimization
 -->
+
 <script lang="ts">
 	import { Motion } from 'svelte-motion';
 

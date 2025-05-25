@@ -12,12 +12,16 @@
 
 ### Features
 - Translatable
+- Optimized performance with proper reactivity
+- Better error handling and validation
+- Improved accessibility
 -->
 
 <script lang="ts">
 	// Stores
 	import { saveFunction, translationProgress, shouldShowNextButton, validationStore } from '@stores/store.svelte';
-	import { collectionValue, mode } from '@root/src/stores/collectionStore.svelte';
+	import { collectionValue, mode } from '@stores/collectionStore.svelte';
+	import { headerController } from '@stores/UIStore.svelte';
 
 	// Components
 	import Fields from '@components/Fields.svelte';
@@ -29,6 +33,7 @@
 	import { currentChild, type FieldType } from '.';
 	import { extractData, getFieldName } from '@utils/utils';
 	import type { Field } from '@src/content/types';
+
 	// Validation schema for each menu layer
 	import * as v from 'valibot';
 
@@ -38,26 +43,51 @@
 	}
 
 	let { field, value = collectionValue()[getFieldName(field)] }: Props = $props();
+
+	// --- HEADER CONTROL EFFECT ---
+	$effect(() => {
+		headerController.setShowMore(true);
+		return () => headerController.setShowMore(false);
+	});
+
 	const fieldName = getFieldName(field);
 
+	// Hide translation progress initially
 	translationProgress.update((current) => ({ ...current, show: false }));
 
+	// Export widget data function
 	export const WidgetData = async () => _data;
 
-	let MENU_CONTAINER: HTMLUListElement = $state();
+	// State variables with better organization
+	let MENU_CONTAINER: HTMLUListElement | undefined = $state();
 	let showFields = $state(false);
 	let depth = $state(0);
 	let _data: { [key: string]: any; children: any[] } = $state(mode.value === 'create' ? null : value);
 	let fieldsData = $state({});
-	const saveMode = mode.value;
 	let validationError: string | null = $state(null);
+	let isLoading = $state(false);
 
+	const saveMode = mode.value;
+
+	// Validation schema
 	const widgetSchema = v.object({
 		name: v.pipe(v.string(), v.minLength(1, 'Menu name is required')),
 		children: v.optional(v.array(v.any()))
 	});
 
-	// Generic validation function that uses the provided schema to validate the input
+	// Memoized current fields to prevent unnecessary recalculations
+	let currentFields = $derived.by(() => {
+		const fieldsAtDepth = field.fields[depth];
+		if (!fieldsAtDepth) return [];
+
+		return fieldsAtDepth.map((f) => ({
+			...f,
+			type: f.widget.Name,
+			config: f.widget
+		})) as Field[];
+	});
+
+	// Validation function
 	function validateSchema(schema: typeof widgetSchema, data: any): string | null {
 		try {
 			v.parse(schema, data);
@@ -73,58 +103,84 @@
 		}
 	}
 
-	// Validate the current layer
+	// Validate input with debouncing for better performance
+	let validationTimeout: ReturnType<typeof setTimeout>;
 	function validateInput(data: any) {
-		validationError = validateSchema(widgetSchema, data);
+		clearTimeout(validationTimeout);
+		validationTimeout = setTimeout(() => {
+			validationError = validateSchema(widgetSchema, data);
+		}, 300);
 	}
 
-	// MegaMenu Save Layer Next
+	// Save layer
 	async function saveLayer() {
-		const _fieldsData = await extractData(fieldsData);
+		if (isLoading) return; // Prevent multiple simultaneous saves
 
-		validateInput(_fieldsData);
+		try {
+			isLoading = true;
+			const _fieldsData = await extractData(fieldsData);
 
-		if (!validationError) {
-			if (!_data) {
-				_data = { ..._fieldsData, children: [] };
-			} else if (mode.value === 'edit') {
-				for (const key in _fieldsData) {
-					$currentChild[key] = _fieldsData[key];
+			// Clear previous validation error before new validation
+			validationError = null;
+			validateInput(_fieldsData);
+
+			// Wait for validation to complete
+			await new Promise((resolve) => setTimeout(resolve, 350));
+
+			if (!validationError) {
+				if (!_data) {
+					_data = { ..._fieldsData, children: [] };
+				} else if (mode.value === 'edit') {
+					// More efficient object update
+					Object.assign($currentChild, _fieldsData);
+				} else if (mode.value === 'create' && $currentChild.children) {
+					$currentChild.children.push({ ..._fieldsData, children: [] });
 				}
-			} else if (mode.value === 'create' && $currentChild.children) {
-				$currentChild.children.push({ ..._fieldsData, children: [] });
+
+				// Reset UI state
+				showFields = false;
+				mode.set(saveMode);
+				depth = 0;
+				shouldShowNextButton.set(false);
+				$saveFunction.reset();
+
+				// Clear fields data for next use
+				fieldsData = {};
 			}
-			_data = _data;
-			showFields = false;
-			mode.set(saveMode);
-			depth = 0;
-			shouldShowNextButton.set(false);
-			$saveFunction.reset();
+		} catch (error) {
+			console.error('Error saving layer:', error);
+			validationError = 'An error occurred while saving. Please try again.';
+		} finally {
+			isLoading = false;
 		}
 	}
 
-	// Transform fields to match Field type
-	function transformFields(fields: any[]): Field[] {
-		return fields.map((f) => ({
-			...f,
-			type: f.widget.Name,
-			config: f.widget
-		}));
-	}
+	// Effect to update save function reference
+	$effect(() => {
+		$saveFunction.fn = saveLayer;
+	});
 
-	let currentFields = $derived(field.fields[depth] ? transformFields(field.fields[depth]) : []);
+	// Cleanup effect for validation timeout
+	$effect(() => {
+		return () => {
+			if (validationTimeout) {
+				clearTimeout(validationTimeout);
+			}
+		};
+	});
 </script>
 
-<div class="menu-container relative mb-4">
+<div class="menu-container relative mb-4" role="region" aria-label="Mega Menu Configuration">
+	<!-- Initial state message -->
 	{#if !_data}
-		<p class="text-center font-bold text-tertiary-500">
+		<div class="text-center font-bold text-tertiary-500" role="status">
 			{m.widget_megamenu_title()}
-		</p>
+		</div>
 	{/if}
 
 	<!-- First Menu Entry -->
 	{#if !_data || showFields}
-		<div class:error={!!validationError}>
+		<div class="transition-all duration-200" class:error={!!validationError} class:loading={isLoading}>
 			{#key depth}
 				{(fieldsData = {}) && ''}
 				<Fields
@@ -136,32 +192,105 @@
 					ariaDescribedby={validationError ? `${fieldName}-error` : undefined}
 				/>
 			{/key}
-			{(($saveFunction.fn = saveLayer), '')}
 		</div>
 	{/if}
 
 	<!-- Show children -->
 	{#if _data}
-		<ul bind:this={MENU_CONTAINER} class:hidden={depth != 0} class="children MENU_CONTAINER" class:error={!!validationError}>
-			<div class="w-screen"></div>
-			<ListNode {MENU_CONTAINER} self={_data} bind:depth bind:showFields maxDepth={field.fields.length} />
+		<ul
+			bind:this={MENU_CONTAINER}
+			class="children MENU_CONTAINER transition-opacity duration-200"
+			class:hidden={depth !== 0}
+			class:error={!!validationError}
+			class:opacity-50={isLoading}
+			role="tree"
+			aria-label="Menu Structure"
+		>
+			<div class="w-screen" aria-hidden="true"></div>
+			<ListNode {MENU_CONTAINER} self={_data} bind:depth bind:showFields maxDepth={field.fields.length} expanded={true} />
 		</ul>
 	{/if}
 
-	<!-- Error Message -->
+	<!-- Loading indicator -->
+	{#if isLoading}
+		<div class="absolute inset-0 flex items-center justify-center bg-surface-50/50 backdrop-blur-sm">
+			<div class="loading-spinner" aria-label="Saving..."></div>
+		</div>
+	{/if}
+
+	<!-- Error message -->
 	{#if validationError}
-		<p id={`${fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+		<div id="{fieldName}-error" class="error-message" role="alert" aria-live="polite">
+			<iconify-icon icon="mdi:alert-circle" width="16" class="text-error-500"></iconify-icon>
 			{validationError}
-		</p>
+		</div>
 	{/if}
 </div>
 
 <style lang="postcss">
 	.menu-container {
 		min-height: 2.5rem;
+		position: relative;
 	}
 
 	.error {
-		border-color: rgb(239 68 68);
+		@apply border-error-500 ring-2 ring-error-500/20;
+		animation: shake 0.3s ease-in-out;
+	}
+
+	.loading {
+		@apply pointer-events-none opacity-75;
+	}
+
+	.error-message {
+		@apply absolute -bottom-8 left-0 flex w-full items-center justify-center gap-2 rounded border border-error-200 bg-error-50 px-2 py-1 text-xs text-error-500 transition-all duration-200;
+	}
+
+	.loading-spinner {
+		@apply h-6 w-6 rounded-full border-2 border-tertiary-200 border-t-tertiary-600;
+		animation: spin 1s linear infinite;
+	}
+
+	@keyframes shake {
+		0%,
+		100% {
+			transform: translateX(0);
+		}
+		25% {
+			transform: translateX(-2px);
+		}
+		75% {
+			transform: translateX(2px);
+		}
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	.children {
+		@apply transition-all duration-300 ease-in-out;
+	}
+
+	.MENU_CONTAINER {
+		@apply relative overflow-visible;
+	}
+
+	/* Improve focus styles for better accessibility */
+	.menu-container:focus-within {
+		@apply ring-2 ring-primary-500/30;
+	}
+
+	/* Better responsive behavior */
+	@media (max-width: 768px) {
+		.menu-container {
+			@apply text-sm;
+		}
+
+		.error-message {
+			@apply px-1 py-0.5 text-xs;
+		}
 	}
 </style>

@@ -16,6 +16,7 @@ import { purgeCss } from 'vite-plugin-tailwind-purgecss';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import { paraglide } from '@inlang/paraglide-sveltekit/vite';
+import svelteEmailTailwind from 'svelte-email-tailwind/vite';
 import { compile } from './src/routes/api/compile/compile';
 import { generateContentTypes } from './src/content/vite';
 import type { IncomingMessage, ServerResponse } from 'http';
@@ -143,11 +144,11 @@ export default defineConfig({
 
 												// Create a proper Node.js response object (keep as is)
 												const res = {
-													writeHead: () => {},
-													setHeader: () => {},
-													getHeader: () => {},
-													write: () => {},
-													end: () => {},
+													writeHead: () => { },
+													setHeader: () => { },
+													getHeader: () => { },
+													write: () => { },
+													end: () => { },
 													statusCode: 200
 												};
 
@@ -222,6 +223,9 @@ export default defineConfig({
 		paraglide({
 			project: './project.inlang', // Path to your inlang project
 			outdir: './src/paraglide' // Output directory for generated files
+		}),
+		svelteEmailTailwind({
+			pathToEmailFolder: '/src/components/emails' // defaults to '/src/lib/emails'
 		})
 	],
 

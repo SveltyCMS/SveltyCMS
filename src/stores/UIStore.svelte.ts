@@ -9,9 +9,12 @@
  * - Debug logging for state changes
  */
 
-import { screenSize, ScreenSize } from './screenSizeStore.svelte';
+// Stores
 import { mode } from './collectionStore.svelte';
+import { screenSize, ScreenSize } from './screenSizeStore.svelte';
 import { store } from '@utils/reactivity.svelte';
+
+// System Logger
 import { logger } from '@utils/logger.svelte';
 
 // Types for UI visibility states
@@ -234,3 +237,19 @@ export const handleUILayoutToggle = uiStateManager.updateLayout;
 if (typeof window !== 'undefined') {
 	uiStateManager.initialize();
 }
+
+// This state will be controlled by widgets to show/hide special header buttons.
+const headerOptions = $state({
+	showMore: false
+});
+
+// Centralized headerController for Widgets to use this to request special UI element
+export const headerController = {
+	get options() {
+		return headerOptions;
+	},
+	// Sets the visibility of the 'Show More' (...) button in the headerEdit/RightSidebar.
+	setShowMore(visible: boolean) {
+		headerOptions.showMore = visible;
+	}
+};

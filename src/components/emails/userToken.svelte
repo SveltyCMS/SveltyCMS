@@ -1,5 +1,5 @@
 <!-- 
-@files src/components/emails/userToken.svelte
+@file src/components/emails/userToken.svelte
 @component
 **userToken Email component to send user token invite to email**
 -->
@@ -15,155 +15,114 @@
 	import * as m from '@src/paraglide/messages';
 	import { systemLanguage } from '@stores/store.svelte';
 
-	// Svelty-email
-	import { Button, Container, Column, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';
+	// svelte-email-tailwind
+	import { Html, Head, Preview, Body, Container, Section, Text, Link, Img, Button, Hr } from 'svelte-email-tailwind';
 
 	interface Props {
 		username?: string;
 		email?: string;
-		// sitename?: string;
 		role?: string;
 		token?: string;
 		tokenLink?: string;
+		languageTag?: string;
 	}
 
-	let props: Props;
+	let { username = '', email = '', role = '', token = '', tokenLink, languageTag = systemLanguage.value }: Props = $props();
 
-	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
-
-	const main = {
-		backgroundColor: '#ffffff' as const
-	};
-
-	const container = {
-		margin: '0 auto' as const,
-		padding: '16px 0 48px' as const,
-		width: '480px' as const
-	};
-
-	const label = {
-		display: 'inline-block' as const,
-		verticalAlign: 'top' as const,
-		width: '25%' as const
-	};
-
-	const variable = {
-		display: 'inline-block' as const,
-		verticalAlign: 'top' as const,
-		width: '75%' as const
-	};
-
-	const paragraph = {
-		fontFamily,
-		fontSize: '16px' as const,
-		lineHeight: '26px' as const
-	};
-
-	const paragraphbold = {
-		fontFamily,
-		fontSize: '16px' as const,
-		lineHeight: '26px' as const,
-		fontWeight: '600' as const
-	};
-
-	const review = {
-		padding: '6px' as const,
-		backgroundColor: '#f2f3f3' as const
-	};
-
-	const btnContainer = {
-		textAlign: 'center' as const
-	};
-
-	const button = {
-		fontFamily,
-		backgroundColor: '#8ddd15' as const,
-		borderRadius: '3px' as const,
-		color: '#000000' as const,
-		fontSize: '16px' as const,
-		textDecoration: 'none' as const,
-		textAlign: 'center' as const,
-		display: 'block' as const
-	};
-
-	const hr = {
-		borderColor: '#cccccc' as const,
-		margin: '15px 0' as const
-	};
-
-	const footer = {
-		fontFamily,
-		color: '#8898aa' as const,
-		fontSize: '12px' as const,
-		textAlign: 'center' as const
-	};
-
-	const styleToString = (style: Record<string, string | number | null>) => {
-		return Object.keys(style).reduce(
-			(acc, key) =>
-				acc +
-				key
-					.split(/(?=[A-Z])/)
-					.join('-')
-					.toLowerCase() +
-				':' +
-				style[key] +
-				';',
-			''
-		);
-	};
+	// Generate tokenLink if not provided
+	const finalTokenLink = tokenLink || `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login?regToken=${token}`;
 </script>
 
-<Html lang={systemLanguage.value}>
+<Html lang={languageTag}>
 	<Head>
 		<title>User Registration token for {publicEnv.SITE_NAME}</title>
-		<meta name="description" content="User Registration token for {publicEnv.SITE_NAME}" />
 	</Head>
+
 	<Preview preview="User Registration token for {publicEnv.SITE_NAME}" />
-	<Section style={main}>
-		<Container style={container}>
-			<Section style={btnContainer}>
-				<Link href={props.tokenLink || `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login?regToken=${props.token}`}>
+
+	<Body class="bg-gray-50 font-sans">
+		<Container class="mx-auto max-w-2xl bg-white">
+			<!-- Header Section -->
+			<Section class="py-8 text-center">
+				<Link href={finalTokenLink} class="inline-block">
 					<Img
 						src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png"
 						alt="{publicEnv.SITE_NAME} logo"
+						class="mx-auto"
 						width="150"
 						height="auto"
 					/>
 				</Link>
 			</Section>
 
-			<Text style={paragraph}>Hello {props.username}</Text>
-			<Text style={paragraph}>You have been invited to join {publicEnv.SITE_NAME} as {props.role}</Text>
-			<Section style={review}>
-				<Column style={label}>
-					<Text style={paragraph}>{m.usertoken_email()}</Text>
-					<Text style={paragraph}>{m.usertoken_token()}</Text>
-					<Text style={paragraph}>{m.usertoken_role()}</Text>
-					<Text style={paragraph}>{m.usertoken_valid()}</Text>
-				</Column>
-				<Column style={variable}>
-					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{props.email}</span></Text>
-					<Text style={paragraph}>Your invitation token is:</Text>
-					<Text style={paragraphbold}>{props.token}</Text>
-					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{props.role}</span></Text>
-					<Text style={paragraph}>{m.usertoken_valid()}</Text>
-				</Column>
-			</Section>
+			<!-- Main Content -->
+			<Section class="px-8 pb-8">
+				<Text class="mb-4 text-base leading-6 text-gray-700">
+					Hello {username}
+				</Text>
 
-			<Text style={paragraph}>{m.usertoken_button()}</Text>
-			<Section style={btnContainer}>
-				<Button
-					pX={12}
-					pY={12}
-					style={button}
-					href={props.tokenLink || `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login?regToken=${props.token}`}
-				>
-					{m.usertoken_createuser()}
-				</Button>
+				<Text class="mb-6 text-base leading-6 text-gray-700">
+					You have been invited to join {publicEnv.SITE_NAME} as {role}.
+				</Text>
+
+				<!-- User Information Box -->
+				<Section class="mb-6 rounded-lg bg-gray-100 p-6">
+					<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+						<div>
+							<Text class="mb-1 text-sm font-medium text-gray-600">
+								{m.usertoken_email()}
+							</Text>
+							<Text class="mb-4 text-base font-semibold text-gray-900">
+								{email}
+							</Text>
+
+							<Text class="mb-1 text-sm font-medium text-gray-600">
+								{m.usertoken_role()}
+							</Text>
+							<Text class="mb-4 text-base font-semibold text-gray-900">
+								{role}
+							</Text>
+						</div>
+
+						<div>
+							<Text class="mb-1 text-sm font-medium text-gray-600">
+								{m.usertoken_token()}
+							</Text>
+							<Text class="mb-4 break-all rounded border bg-white p-2 font-mono text-sm text-gray-900">
+								{token}
+							</Text>
+
+							<Text class="mb-1 text-sm font-medium text-gray-600">
+								{m.usertoken_valid()}
+							</Text>
+							<Text class="text-sm font-semibold text-red-600">Valid for limited time</Text>
+						</div>
+					</div>
+				</Section>
+
+				<Text class="mb-8 text-center text-base leading-6 text-gray-700">
+					{m.usertoken_button()}
+				</Text>
+
+				<!-- CTA Button -->
+				<Section class="mb-8 text-center">
+					<Button
+						href={finalTokenLink}
+						class="text-decoration-none inline-block rounded-lg bg-green-500 px-6 py-3 font-semibold text-white transition-colors duration-200 hover:bg-green-600"
+					>
+						{m.usertoken_createuser()}
+					</Button>
+				</Section>
+
+				<Hr class="my-8 border-gray-200" />
+
+				<!-- Footer -->
+				<Section class="text-center">
+					<Link href="https://www.sveltycms.com" class="text-sm text-gray-500 hover:text-gray-700">
+						Your <SiteName /> team
+					</Link>
+				</Section>
 			</Section>
-			<Hr style={hr} />
-			<Link style={footer} href="https://www.sveltycms.com">Your <SiteName /> team</Link>
 		</Container>
-	</Section>
+	</Body>
 </Html>

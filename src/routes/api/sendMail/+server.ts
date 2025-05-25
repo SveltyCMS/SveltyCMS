@@ -1,15 +1,15 @@
 /**
  * @file src/routes/api/sendMail/+server.ts
- * @description API endpoint for sending emails with customizable templates.
+ * @description API endpoint for sending emails with customizable templates using svelte-email-tailwind.
  *
  * This module provides functionality to:
  * - Send emails using nodemailer
- * - Render email content using Svelte components
+ * - Render email content using Svelte components styled with Tailwind CSS
  * - Support multiple email templates
  * - Handle internationalization for email content
  *
  * Features:
- * - Template-based email rendering
+ * - Template-based email rendering with Tailwind CSS
  * - SMTP configuration using environment variables
  * - Support for plain text and HTML email content
  * - Language-specific email content
@@ -26,8 +26,8 @@
 import { privateEnv } from '@root/config/private';
 import { json } from '@sveltejs/kit';
 
-// Svelte
-import { render } from 'svelte/server';
+// svelte-email-tailwind
+import { render } from 'svelte-email-tailwind';
 import { convert } from 'html-to-text';
 
 import nodemailer from 'nodemailer';
@@ -57,9 +57,12 @@ interface EmailProps {
 	role?: string;
 	token?: string;
 	expires_in?: string;
+	expiresIn?: string;
 	expiresInLabel?: string;
 	languageTag?: string;
 	hostLink?: string;
+	resetLink?: string;
+	tokenLink?: string;
 }
 
 const templates: Record<string, ComponentType> = {
@@ -73,27 +76,34 @@ const templates: Record<string, ComponentType> = {
 type EmailComponent = ComponentType<EmailProps>;
 type RenderResult = { html: string; text: string };
 
-// Render email with HTML and plain text versions
-const renderEmail = async (component: EmailComponent, props?: EmailProps): Promise<RenderResult> => {
-	const rendered = render(component, {
-		props
-	});
+// Render email with HTML and plain text versions using svelte-email-tailwind
+const renderEmailContent = async (component: EmailComponent, props?: EmailProps): Promise<RenderResult> => {
+	try {
+		// Use svelte-email-tailwind's render function
+		const rendered = await render({
+			template: component,
+			props: props || {}
+		});
 
-	const doctype = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">';
+		// svelte-email-tailwind should return HTML with proper DOCTYPE and styling
+		const html = rendered;
 
-	const html = `${doctype}${rendered.body}`;
+		// Generate plain text version from HTML
+		const text = convert(html, {
+			wordwrap: 80,
+			selectors: [
+				{ selector: 'img', format: 'skip' },
+				{ selector: '#__svelte-email-preview', format: 'skip' },
+				{ selector: 'style', format: 'skip' },
+				{ selector: 'head', format: 'skip' }
+			]
+		});
 
-	const text = convert(rendered.body, {
-		selectors: [
-			{ selector: 'img', format: 'skip' },
-			{ selector: '#__svelte-email-preview', format: 'skip' }
-		]
-	});
-
-	return {
-		html,
-		text
-	};
+		return { html, text };
+	} catch (error) {
+		logger.error('Failed to render email template', { error: error instanceof Error ? error.message : 'Unknown error' });
+		throw new Error(`Email template rendering failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+	}
 };
 
 // Generate a standardized error response
@@ -103,11 +113,11 @@ function errorResponse(message: string, status: number = 500) {
 }
 
 export const POST: RequestHandler = async ({ request }) => {
-	const { email, subject, message, templateName, props } = await request.json();
-	const userLanguage = languageTag(); // Get the user's language
-	logger.debug('Received email request', { email, subject, templateName });
-
 	try {
+		const { email, subject, message, templateName, props } = await request.json();
+		const userLanguage = languageTag(); // Get the user's language
+		logger.debug('Received email request', { email, subject, templateName });
+
 		await sendMail(email, subject, message, templateName, props, userLanguage);
 		return json({ success: true, message: 'Email sent successfully' });
 	} catch (err) {
@@ -117,7 +127,14 @@ export const POST: RequestHandler = async ({ request }) => {
 };
 
 // Send Email
-async function sendMail(email: string, subject: string, message: string, templateName: keyof typeof templates, props: EmailProps, lang: string) {
+async function sendMail(
+	email: string,
+	subject: string,
+	message: string,
+	templateName: keyof typeof templates,
+	props: EmailProps,
+	lang: string
+) {
 	// Validate SMTP configuration
 	const requiredSmtpVars = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_EMAIL', 'SMTP_PASSWORD'];
 	const missingVars = requiredSmtpVars.filter((varName) => !privateEnv[varName]);
@@ -133,34 +150,50 @@ async function sendMail(email: string, subject: string, message: string, templat
 
 	// Validate template exists
 	if (!templates[templateName]) {
-		throw new Error(`Invalid email template: ${templateName}`);
+		throw new Error(`Invalid email template: ${templateName}. Available templates: ${Object.keys(templates).join(', ')}`);
 	}
 
-	const transporter = nodemailer.createTransport({
+	const smtpPort = Number(privateEnv.SMTP_PORT);
+
+	// Configure SMTP settings based on port
+	let secureOption = false;
+	let requireTlsOption = true;
+
+	if (smtpPort === 465) {
+		secureOption = true;
+		requireTlsOption = false;
+	} else if (smtpPort === 587 || smtpPort === 25) {
+		secureOption = false;
+		requireTlsOption = true;
+	}
+
+	const transporter = nodemailer.createTransporter({
 		host: privateEnv.SMTP_HOST,
-		secure: true,
+		port: smtpPort,
+		secure: secureOption,
+		requireTLS: requireTlsOption,
 		tls: {
-			ciphers: 'SSLv3',
 			rejectUnauthorized: true
 		},
-		requireTLS: true,
-		port: Number(privateEnv.SMTP_PORT),
-		debug: true,
 		auth: {
 			user: privateEnv.SMTP_EMAIL,
 			pass: privateEnv.SMTP_PASSWORD
-		}
+		},
+		debug: process.env.NODE_ENV === 'development'
 	});
 
 	// Verify SMTP connection
 	try {
 		await transporter.verify();
+		logger.info('SMTP connection verified successfully');
 	} catch (err) {
-		throw new Error(`SMTP connection failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+		const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+		logger.error('SMTP connection failed', { error: errorMessage });
+		throw new Error(`SMTP connection failed: ${errorMessage}`);
 	}
 
 	// Render email with both HTML and plain text
-	const renderedEmail = await renderEmail(templates[templateName], {
+	const renderedEmail = await renderEmailContent(templates[templateName], {
 		...props,
 		languageTag: lang
 	});
@@ -178,10 +211,20 @@ async function sendMail(email: string, subject: string, message: string, templat
 
 	try {
 		const info = await transporter.sendMail(mailOptions);
-		logger.info('Email sent successfully', { email, subject, messageId: info.messageId });
+		logger.info('Email sent successfully', {
+			email,
+			subject,
+			messageId: info.messageId,
+			templateName
+		});
+		return info;
 	} catch (err) {
 		const error = err as Error;
-		logger.error('Error sending email:', { error: error.message as LoggableValue });
+		logger.error('Error sending email', {
+			error: error.message as LoggableValue,
+			email,
+			templateName
+		});
 		throw error;
 	}
 }

@@ -49,7 +49,7 @@
 	import { collection, collectionValue, mode, modifyEntry, statusMap } from '@src/stores/collectionStore.svelte';
 	import { uiStateManager, toggleUIElement } from '@src/stores/UIStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
-	import { contentLanguage, tabSet, validationErrors, headerActionButton } from '@stores/store.svelte';
+	import { contentLanguage, tabSet, headerActionButton, validationStore } from '@stores/store.svelte';
 
 	// Auth
 	import type { User } from '@src/auth/types';
@@ -182,7 +182,6 @@
 
 		let validationPassed = true;
 		const getData: SaveData = {};
-		const currentErrors = { ...validationErrors.value };
 
 		// Clear any existing meta_data
 		meta_data.clear();
@@ -194,21 +193,20 @@
 			const fieldValue =
 				typeof rawValue === 'object' && rawValue !== null ? (rawValue as Record<string, any>) : (rawValue as string | number | boolean | undefined);
 
-			// Basic required check (assuming widgets handle their own complex validation and update validationErrors store)
+			// Basic required check (assuming widgets handle their own complex validation and update validationStore)
 			let error: string | null = null;
 			if (field.required && (fieldValue === null || fieldValue === undefined || fieldValue === '')) {
 				error = 'This field is required';
 			}
 
 			if (error) {
-				// Only add basic required error if no error exists from real-time validation
-				if (!currentErrors[fieldName]) {
-					currentErrors[fieldName] = error;
+				if (!validationStore.getError(fieldName)) {
+					validationStore.setError(fieldName, error);
 				}
-				validationPassed = false; // Mark as failed if *any* error exists (real-time or basic required)
+				validationPassed = false;
 			} else {
-				// If basic check passes, ensure no real-time error exists before adding data getter
-				if (!currentErrors[fieldName]) {
+				// If no error, only add data if no error in validationStore
+				if (!validationStore.getError(fieldName)) {
 					getData[fieldName] = () => {
 						if (isTranslatable(field)) {
 							const lang = contentLanguage.value;
@@ -222,20 +220,19 @@
 						return fieldValue;
 					};
 				} else {
-					// If a real-time error exists even if basic check passes, fail validation
 					validationPassed = false;
 				}
 			}
 		}
 
-		// Update the validationErrors store with any *new* basic required errors found
-		validationErrors.set(currentErrors);
-
-		// Final check on the potentially updated validationErrors store
-		if (Object.keys(validationErrors.value).length > 0) {
-			console.warn('Validation errors exist. Cannot save.', validationErrors.value);
-			// modalStore.trigger({ type: 'alert', title: 'Validation Error', body: 'Please fix the errors before saving.' });
-			validationPassed = false; // Ensure validationPassed reflects the final state
+		// Final check on the validationStore
+		let errorsExist = false;
+		validationStore.subscribe((errors) => {
+			errorsExist = Object.keys(errors).length > 0;
+		})();
+		if (errorsExist) {
+			console.warn('Validation errors exist. Cannot save.', validationStore);
+			validationPassed = false;
 		}
 
 		if (!validationPassed) {
@@ -276,12 +273,7 @@
 				data: getData,
 				_collection: collection.value,
 				_mode: mode.value,
-				id:
-					typeof collectionValue.value?._id === 'string'
-						? collectionValue.value._id
-						: collectionValue.value?._id
-							? String(collectionValue.value._id)
-							: undefined,
+				id: collectionValue.value?._id !== undefined ? String(collectionValue.value._id) : undefined,
 				user
 			});
 

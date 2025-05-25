@@ -28,17 +28,19 @@
 
 	// Import necessary utilities and types
 	import { page } from '$app/state';
+	import { getLanguageName } from '@utils/languageUtils';
+
+	// Stores
 	import { get } from 'svelte/store';
 	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store.svelte';
 	import { mode } from '@stores/collectionStore.svelte';
-	import { uiStateManager, userPreferredState, toggleUIElement, handleUILayoutToggle } from '@src/stores/UIStore.svelte';
+	import { uiStateManager, userPreferredState, toggleUIElement, handleUILayoutToggle } from '@stores/UIStore.svelte';
 	import { screenSize } from '@stores/screenSizeStore.svelte';
 
 	// Import components and utilities
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import SiteName from '@components/SiteName.svelte';
 	import Collections from '@components/Collections.svelte';
-	import { getLanguageName } from '@utils/languageUtils';
 
 	// Skeleton components and utilities
 	import { Avatar, popup, modeCurrent, type PopupSettings, setModeUserPrefers, setModeCurrent } from '@skeletonlabs/skeleton';

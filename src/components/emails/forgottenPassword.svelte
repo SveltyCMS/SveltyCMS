@@ -1,5 +1,5 @@
 <!-- 
-@files src/components/emails/forgottenPassword.svelte
+@file src/components/emails/forgottenPassword.svelte
 @component
 **forgottenPassword Email component to reset password**
 -->
@@ -15,143 +15,99 @@
 	import * as m from '@src/paraglide/messages';
 	import { systemLanguage } from '@stores/store.svelte';
 
-	// Svelty-email
-	import { Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';
-
-	interface EmailProps {
-		email?: string;
-		resetLink: string;
-		token: string;
-		expiresIn: string;
-	}
+	// svelte-email-tailwind
+	import { Html, Head, Preview, Body, Container, Section, Text, Link, Img, Button, Hr } from 'svelte-email-tailwind';
 
 	// Readable ExpireIn time sec to year
 	import { ReadableExpireIn } from '@utils/utils';
+
 	interface Props {
-		tokenLink?: string;
-		email: EmailProps['email'];
-		//TODO: send rest to domain? Token and delete used token
-		token: EmailProps['token'];
-		resetLink: EmailProps['resetLink'];
-		expiresIn: EmailProps['expiresIn'];
+		email?: string;
+		token: string;
+		resetLink: string;
+		expiresIn: string;
+		languageTag?: string;
 	}
 
-	let props: Props = $props();
-
-	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
-
-	const main = {
-		backgroundColor: '#ffffff' as const
-	};
-
-	const container = {
-		margin: '0 auto' as const,
-		padding: '16px 0 48px' as const,
-		width: '480px' as const
-	};
-
-	const paragraph = {
-		fontFamily,
-		fontSize: '16px' as const,
-		lineHeight: '26px' as const,
-		textAlign: 'left' as const
-	};
-
-	const paragraph_center = {
-		...paragraph,
-		textAlign: 'center' as const
-	};
-
-	const paragraphbold = {
-		...paragraph,
-		fontWeight: 'bold' as const
-	};
-
-	const review = {
-		padding: '6px' as const,
-		backgroundColor: '#f2f3f3' as const
-	};
-
-	const btnContainer = {
-		textAlign: 'center' as const
-	};
-
-	const button = {
-		fontFamily,
-		backgroundColor: '#8ddd15' as const,
-		borderRadius: '3px' as const,
-		color: '#000000' as const,
-		fontSize: '16px' as const,
-		textDecoration: 'none' as const,
-		textAlign: 'center' as const,
-		display: 'block' as const
-	};
-
-	const hr = {
-		borderColor: '#cccccc' as const,
-		margin: '15px 0' as const
-	};
-
-	const footer = {
-		fontFamily,
-		color: '#8898aa' as const,
-		fontSize: '12px' as const,
-		textAlign: 'center' as const
-	};
-
-	const styleToString = (style: Record<string, string | number | null>) => {
-		return Object.keys(style).reduce(
-			(acc, key) =>
-				acc +
-				key
-					.split(/(?=[A-Z])/)
-					.join('-')
-					.toLowerCase() +
-				':' +
-				style[key] +
-				';',
-			''
-		);
-	};
+	let { email = '', token, resetLink, expiresIn, languageTag = systemLanguage.value }: Props = $props();
 </script>
 
-<Html lang={systemLanguage.value}>
+<Html lang={languageTag}>
 	<Head>
 		<title>Reset your password for {publicEnv.SITE_NAME}</title>
-		<meta name="description" content="Reset your password for {publicEnv.SITE_NAME}" />
 	</Head>
+
 	<Preview preview="Reset your password for {publicEnv.SITE_NAME}" />
-	<Section style={main}>
-		<Container style={container}>
-			<Section style={btnContainer}>
-				<Link href={dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}>
+
+	<Body class="bg-gray-50 font-sans">
+		<Container class="mx-auto max-w-2xl bg-white">
+			<!-- Header Section -->
+			<Section class="py-8 text-center">
+				<Link href={dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD} class="inline-block">
 					<Img
 						src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png"
 						alt="{publicEnv.SITE_NAME} logo"
+						class="mx-auto"
 						width="150"
 						height="auto"
-						style={{ display: 'block', margin: '0 auto', textAlign: 'center' }}
 					/>
 				</Link>
 			</Section>
-			<Text style={paragraph}>Hello {props.email}</Text>
-			<Text style={paragraph}>You have requested to reset your Password to get access to {publicEnv.SITE_NAME}</Text>
-			<Section style={review}>
-				<Text style={paragraph_center}>{m.forgottenpassword_token()}</Text>
-				<Text style={paragraph_center}><span style={styleToString(paragraphbold)}>{props.token}</span></Text>
-				<br />
-				<Text style={paragraph_center}>{m.forgottenpassword_valid()}</Text>
-				<Text style={paragraph_center}><span style={styleToString(paragraphbold)}>{ReadableExpireIn(props.expiresIn)}</span></Text>
-			</Section>
 
-			<Text style={paragraph_center}>{m.forgottenpassword_ignore()}</Text>
-			<Text style={paragraph_center}>{m.forgottenpassword_button()}</Text>
+			<!-- Main Content -->
+			<Section class="px-8 pb-8">
+				<Text class="mb-4 text-base leading-6 text-gray-700">
+					Hello {email}
+				</Text>
 
-			<Section style={btnContainer}>
-				<Button pX={12} pY={12} style={button} href={props.resetLink}>{m.forgottenpassword_resetbutton()}</Button>
+				<Text class="mb-6 text-base leading-6 text-gray-700">
+					You have requested to reset your password to get access to {publicEnv.SITE_NAME}.
+				</Text>
+
+				<!-- Token Information Box -->
+				<Section class="mb-6 rounded-lg bg-gray-100 p-6">
+					<Text class="mb-2 text-center text-base text-gray-700">
+						{m.forgottenpassword_token()}
+					</Text>
+					<Text class="mb-4 rounded border bg-white p-3 text-center font-mono text-xl font-bold text-gray-900">
+						{token}
+					</Text>
+
+					<Text class="mb-2 text-center text-base text-gray-700">
+						{m.forgottenpassword_valid()}
+					</Text>
+					<Text class="text-center text-lg font-semibold text-red-600">
+						{ReadableExpireIn(expiresIn)}
+					</Text>
+				</Section>
+
+				<Text class="mb-4 text-center text-sm text-gray-600">
+					{m.forgottenpassword_ignore()}
+				</Text>
+
+				<Text class="mb-6 text-center text-base text-gray-700">
+					{m.forgottenpassword_button()}
+				</Text>
+
+				<!-- CTA Button -->
+				<Section class="mb-8 text-center">
+					<Button
+						href={resetLink}
+						class="text-decoration-none inline-block rounded-lg bg-green-500 px-6 py-3 font-semibold text-white transition-colors duration-200 hover:bg-green-600"
+					>
+						{m.forgottenpassword_resetbutton()}
+					</Button>
+				</Section>
+
+				<Hr class="my-8 border-gray-200" />
+
+				<!-- Footer -->
+				<Section class="text-center">
+					<Link href="https://www.sveltycms.com" class="text-sm text-gray-500 hover:text-gray-700">
+						Your <SiteName /> team
+					</Link>
+				</Section>
 			</Section>
-			<Hr style={hr} />
-			<Link style={footer} href="https://www.sveltycms.com">Your <SiteName /> team</Link>
 		</Container>
-	</Section>
+	</Body>
 </Html>

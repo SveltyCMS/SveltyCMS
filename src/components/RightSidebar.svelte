@@ -3,12 +3,24 @@
 @component
 **RightSidebar component displaying collection fields, publish options and translation status.**
 
-```tsx
-<RightSidebar />	
-```	
-#### Props
-- `collection` {object} - Collection object
+This component provides a streamlined interface for managing collection entries with:
+- Simplified validation logic that relies on centralized validation store
+- Clean save functionality without complex field-by-field validation
+- Improved user experience with disabled save button when validation fails
+- Efficient data handling using store snapshots rather than rebuilding data objects
 
+@example
+<RightSidebar />	
+
+#### Props
+- `collection` {object} - Collection object containing schema and permissions
+- Relies on global stores for validation state and form data
+
+#### Key Features
+- **Validation Integration**: Uses `$validationStore.isValid` to control save button state
+- **Simplified Save Logic**: Trusts validation store and uses store snapshots for efficiency
+- **User Experience**: Provides clear feedback when form has validation errors
+- **Permission Handling**: Respects user role permissions for various operations
 -->
 
 <script lang="ts">
@@ -20,17 +32,8 @@
 	import { collection, mode, modifyEntry, collectionValue } from '@stores/collectionStore.svelte';
 	import { handleUILayoutToggle } from '@stores/UIStore.svelte';
 
-	import { convertTimestampToDateString, getFieldName, meta_data } from '@utils/utils';
-
-	// Type definitions
-	interface GetDataField {
-		[key: string]: () => string | number | boolean | null | undefined;
-	}
-
-	// Get data from page store
-	const { user } = page.data;
-
-	// Components
+	// Utils & Components
+	import { convertTimestampToDateString } from '@utils/utils';
 	import Toggles from './system/inputs/Toggles.svelte';
 	import ScheduleModal from './ScheduleModal.svelte';
 
@@ -39,10 +42,42 @@
 	import { languageTag } from '@src/paraglide/runtime';
 
 	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	// Skeleton
+	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-
+	const toastStore = getToastStore();
 	const modalStore = getModalStore();
+
+	const { user } = page.data; // Use reactive $page store
+
+	// --- State Management with Svelte 5 Runes ---
+
+	// Reactive state for UI elements, derived from the collectionValue store.
+	let isPublished = $state(false);
+	let schedule = $state('');
+
+	// Effect to synchronize local state when the authoritative store changes.
+	$effect(() => {
+		const cv = collectionValue.value;
+		isPublished = cv?.status === 'published';
+		schedule = cv?._scheduled ? new Date(Number(cv._scheduled)).toISOString().slice(0, 16) : '';
+	});
+
+	// Derived state for formatting timestamps. This is robust against null/undefined values.
+	let dates = $derived({
+		created: convertTimestampToDateString(typeof collectionValue.value?.createdAt === 'number' ? collectionValue.value.createdAt : 0),
+		updated: convertTimestampToDateString(typeof collectionValue.value?.updatedAt === 'number' ? collectionValue.value.updatedAt : 0)
+	});
+
+	// Setup next button functionality
+	let next = $state(() => {});
+	$effect(() => {
+		const unsub = saveLayerStore.subscribe((value) => {
+			next = value;
+			shouldShowNextButton.set(false);
+		});
+		return unsub;
+	});
 
 	// Modal Trigger - Schedule
 	function openScheduleModal(): void {
@@ -57,7 +92,7 @@
 			body: 'Set a date and time to schedule this entry.',
 			component: modalComponent,
 			response: (r: { date: string; action: string } | boolean) => {
-				if (typeof r === 'object') {
+				if (typeof r === 'object' && r.date) {
 					schedule = r.date;
 					if (r.action === 'schedule') {
 						collectionValue.update((cv) => ({
@@ -72,16 +107,6 @@
 		modalStore.trigger(modalSettings);
 	}
 
-	let next = $state(() => {});
-	saveLayerStore.subscribe((value) => {
-		next = value;
-		shouldShowNextButton.set(false);
-	});
-
-	// Map the status to boolean
-	let isPublished = $state(collectionValue.value?.status === 'published');
-	let schedule = $state(collectionValue.value?._scheduled ? new Date(Number(collectionValue.value._scheduled)).toISOString().slice(0, 16) : '');
-
 	// Function to toggle the status
 	function toggleStatus() {
 		isPublished = !isPublished;
@@ -92,134 +117,88 @@
 		}));
 	}
 
-	// Convert timestamps to date strings
-	let dates = $derived({
-		created: convertTimestampToDateString(typeof collectionValue.value.createdAt === 'number' ? collectionValue.value.createdAt : Date.now()),
-		updated: convertTimestampToDateString(typeof collectionValue.value.updatedAt === 'number' ? collectionValue.value.updatedAt : Date.now())
-	});
-
-	// Type guard to check if the widget has a validateWidget method
-	function hasValidateWidget(widgetInstance: any): widgetInstance is { validateWidget: () => Promise<string | null> } {
-		return typeof widgetInstance?.validateWidget === 'function';
-	}
-
-	// Save form data with validation
 	async function saveData() {
-		if (!collection.value) return;
-
-		let validationPassed = true;
-		const getData: GetDataField = {};
-
-		// Clear any existing meta_data
-		meta_data.clear();
-
-		// Validate all fields and collect data
-		for (const field of collection.value.fields) {
-			const fieldName = getFieldName(field, true);
-			const fieldValue = collectionValue.value[fieldName] as string | number | boolean | null | undefined;
-
-			// Basic required check
-			let error: string | null = null;
-			if (field.required && (fieldValue === null || fieldValue === undefined || fieldValue === '')) {
-				error = 'This field is required';
-			}
-
-			if (error) {
-				if (!validationStore.getError(fieldName)) {
-					validationStore.setError(fieldName, error);
-				}
-				validationPassed = false;
-			} else {
-				// Widget-specific validation
-				const widgetInstance = field.widget;
-				if (hasValidateWidget(widgetInstance)) {
-					const widgetError = await widgetInstance.validateWidget();
-					if (widgetError) {
-						validationStore.setError(fieldName, widgetError);
-						validationPassed = false;
-					} else if (!validationStore.getError(fieldName)) {
-						getData[fieldName] = () => fieldValue;
-					}
-				} else if (!validationStore.getError(fieldName)) {
-					getData[fieldName] = () => fieldValue;
-				}
-			}
-		}
-
-		// Final validation check
-		if (!validationPassed) {
+		// Use the reactive validation store; no need to re-validate here.
+		if (!validationStore.isValid) {
+			console.warn('Save blocked due to validation errors.');
 			return;
 		}
 
-		// Add system fields (aligned with HeaderEdit)
+		// Use a snapshot of the current reactive store values for saving.
+		const currentCollection = collection.value;
+		const dataToSave = { ...collectionValue.value };
+
+		if (!currentCollection) return;
+
+		// Add or update system fields
 		if (mode.value === 'create') {
-			getData['createdBy'] = () => user?.username ?? '';
-		} else {
-			getData['updatedBy'] = () => user?.username ?? '';
-			if (dates.created) {
-				getData['createdAt'] = () => Math.floor(new Date(dates.created).getTime() / 1000);
-			}
+			dataToSave.createdBy = user?.username ?? 'system';
 		}
+		dataToSave.updatedBy = user?.username ?? 'system';
 
-		// Add ID if in edit mode
-		if (mode.value === 'edit' && collectionValue.value._id) {
-			getData['_id'] = () => collectionValue.value._id as string;
-		}
-
-		// Add status
-		getData['status'] = () => (collectionValue.value?.status as string) || 'unpublished';
-
-		// Add schedule if set
+		// Handle schedule information
 		if (schedule && schedule.trim() !== '') {
-			getData['_scheduled'] = () => new Date(schedule).getTime();
+			dataToSave._scheduled = new Date(schedule).getTime();
+		} else {
+			delete dataToSave._scheduled;
 		}
 
 		// Save data
 		try {
 			await saveFormData({
-				data: getData,
-				_collection: collection.value,
+				data: dataToSave, // Pass the plain object directly
+				_collection: currentCollection,
 				_mode: mode.value,
-				id: collectionValue.value._id as string | undefined,
+				id: dataToSave._id as string | undefined,
 				user
 			});
-
 			// Consistent state management with HeaderEdit
 			mode.set('view');
 			handleUILayoutToggle();
 		} catch (err) {
 			console.error('Failed to save data:', err);
+			// Erorr Toast
+			toastStore.trigger({
+				message: 'Failed to save data',
+				background: 'variant-filled-error',
+				timeout: 3000
+			});
 		}
 	}
+
+	// --- Derived values for template ---
+	const canWrite = $derived(collection.value?.permissions?.[user.role]?.write !== false);
+	const canCreate = $derived(collection.value?.permissions?.[user.role]?.create !== false);
+	const canDelete = $derived(collection.value?.permissions?.[user.role]?.delete !== false);
+	const showSidebar = $derived(['edit', 'create'].includes(mode.value) || canWrite);
 </script>
 
-<!-- Desktop Right Sidebar -->
-<!-- Check if user has create or write permission -->
-{#if ['edit', 'create'].includes(mode.value) || collection.value?.permissions?.[user.role]?.write !== false}
-	<div class="flex h-full w-full flex-col justify-between px-1 py-2">
+{#if showSidebar}
+	<div class="flex h-full w-full flex-col justify-between px-3 py-4">
 		{#if $shouldShowNextButton && mode.value === 'create'}
-			<button type="button" onclick={next} aria-label="Next" class="variant-filled-primary btn w-full gap-2">
-				<iconify-icon icon="carbon:next-filled" width="24" class="font-extrabold text-white"></iconify-icon>
+			<button type="button" onclick={next} aria-label="Next" class="variant-filled-primary btn w-full gap-2 shadow-lg">
+				<iconify-icon icon="carbon:next-filled" width="20" class="font-extrabold text-white"></iconify-icon>
 				{m.button_next()}
 			</button>
 		{:else}
-			<header class="flex flex-col items-center justify-center gap-2">
-				<!-- Save button -->
+			<header class="flex flex-col items-center justify-center gap-3">
 				<button
 					type="button"
 					onclick={saveData}
-					disabled={collection.value?.permissions?.[user.role]?.write === false}
-					class="variant-filled-primary btn w-full gap-2"
+					disabled={!validationStore.isValid || !canWrite}
+					class="variant-filled-primary btn w-full gap-2 shadow-lg transition-all duration-200"
+					class:opacity-50={!validationStore.isValid || !canWrite}
+					class:cursor-not-allowed={!validationStore.isValid || !canWrite}
 					aria-label="Save entry"
+					title={validationStore.isValid ? 'Save changes' : 'Please fix validation errors before saving'}
 				>
-					<iconify-icon icon="material-symbols:save" width="24" class="font-extrabold text-white"></iconify-icon>
+					<iconify-icon icon="material-symbols:save" width="20" class="font-extrabold text-white"></iconify-icon>
 					{m.button_save()}
 				</button>
 
-				<!-- Publish/Unpublish -->
-				<div class="gradient-secondary btn w-full gap-2">
+				<div class="gradient-secondary btn w-full gap-2 shadow-md">
 					<Toggles
-						label={isPublished ? 'published' : 'unpublished'}
+						label={isPublished ? m.status_published() : m.status_unpublished()}
 						labelColor={isPublished ? 'text-primary-500' : 'text-error-500'}
 						iconOn="ic:baseline-check-circle"
 						iconOff="material-symbols:close"
@@ -229,100 +208,124 @@
 				</div>
 
 				{#if mode.value === 'edit'}
-					<!-- Clone button -->
-					<button
-						type="button"
-						onclick={() => $modifyEntry('cloned')}
-						disabled={collection.value?.permissions?.[user.role]?.create === false && collection.value.permissions?.[user.role]?.write === false}
-						class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn w-full gap-2 text-white"
-						aria-label="Clone entry"
-					>
-						<iconify-icon icon="bi:clipboard-data-fill" width="24"></iconify-icon>Clone<span class="text-primary-500">{collection.value?.name}</span>
-					</button>
+					<div class="flex w-full flex-col gap-2">
+						<button
+							type="button"
+							onclick={modifyEntry}
+							disabled={!canCreate}
+							class="gradient-secondary gradient-secondary-hover btn w-full gap-2 text-white shadow-md transition-all duration-200"
+							aria-label="Clone entry"
+						>
+							<iconify-icon icon="bi:clipboard-data-fill" width="18"></iconify-icon>
+							Clone <span class="font-semibold text-primary-500">{collection.value?.name}</span>
+						</button>
 
-					<!-- Delete button -->
-					<button
-						type="button"
-						onclick={() => $modifyEntry('deleted')}
-						disabled={collection.value?.permissions?.[user.role]?.delete === false}
-						class="variant-filled-error btn w-full"
-						aria-label="Delete entry"
-					>
-						<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>Delete
-					</button>
+						<button
+							type="button"
+							onclick={modifyEntry}
+							disabled={!canDelete}
+							class="variant-filled-error btn w-full gap-2 shadow-md transition-all duration-200 hover:shadow-lg"
+							aria-label="Delete entry"
+						>
+							<iconify-icon icon="icomoon-free:bin" width="18"></iconify-icon>
+							{m.button_delete()}
+						</button>
+					</div>
 				{/if}
 			</header>
 
-			<!-- Publish Options -->
-			<main class="mt-2 flex w-full flex-col items-center justify-center gap-2 text-left dark:text-white">
-				<p class="w-full border-b text-center font-bold uppercase text-tertiary-500 dark:text-primary-500">
-					{m.siedabar_publish_options()}
-				</p>
+			<main class="mt-6 flex w-full flex-col gap-4 text-left">
+				<div class="border-b border-surface-300 pb-2 dark:border-surface-600">
+					<h3 class="text-center text-sm font-bold uppercase tracking-wide text-tertiary-500 dark:text-primary-500">
+						{m.siedabar_publish_options()}
+					</h3>
+				</div>
 
-				<!-- Scheduled on -->
-				<div class="mt-2 flex w-full flex-col items-start justify-center">
+				<div class="space-y-2">
 					{#if schedule}
-						<p class="mb-1">{m.sidebar_will_publish_on()}</p>
+						<p class="text-sm font-medium text-surface-600 dark:text-surface-300">
+							{m.sidebar_will_publish_on()}
+						</p>
 					{/if}
 					<button
 						onclick={openScheduleModal}
 						aria-label="Schedule publication"
-						class="variant-filled-surface btn w-full text-tertiary-500 dark:text-primary-500"
+						class="hover:variant-filled-primary-hover variant-filled-surface btn w-full justify-start gap-2 text-left transition-colors duration-200"
 					>
-						{schedule ? new Date(schedule).toLocaleString() : 'Schedule publication'}
+						<iconify-icon icon="bi:clock" width="16"></iconify-icon>
+						<span class="text-sm text-tertiary-500 dark:text-primary-500">
+							{schedule ? new Date(schedule).toLocaleString(languageTag()) : 'Schedule publication...'}
+						</span>
 					</button>
 				</div>
 
-				<!-- Created At -->
-				<div class="mt-2 flex w-full flex-col items-start justify-center">
-					<p class="mb-1">{m.adminarea_createat()}</p>
+				<div class="space-y-2">
+					<label for="creation-date-input" class="text-sm font-medium">
+						{m.adminarea_createat()}
+					</label>
 					<input
-						type="datetime-local"
-						bind:value={dates.created}
-						class="input variant-filled-surface text-tertiary-500 dark:text-primary-500"
-						aria-label="Set creation date"
+						id="creation-date-input"
+						type="text"
+						value={dates.created}
+						class="input variant-filled-surface w-full text-sm"
+						aria-label="Creation date"
+						readonly
+						tabindex="-1"
 					/>
 				</div>
 
 				<!-- User Info -->
-				<div class="mt-2 flex w-full flex-col items-start justify-center">
-					<p class="mb-1">{m.sidebar_createdby()}:</p>
-					<div class="variant-filled-surface w-full p-2 text-center text-tertiary-500 dark:text-primary-500">
-						{collectionValue.value.createdBy || user.username}
+				<div class="space-y-3">
+					<div class="space-y-1">
+						<p class="text-sm font-medium">
+							{m.sidebar_createdby()}
+						</p>
+						<div class="variant-filled-surface rounded-lg p-3 text-center">
+							<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
+								{collectionValue.value?.createdBy || user.username}
+							</span>
+						</div>
 					</div>
 
-					{#if collectionValue.value.updatedBy}
-						<p class="mt-1">Last updated by:</p>
-
-						<div class="variant-filled-surface w-full p-2 text-center text-tertiary-500 dark:text-primary-500">
-							{collectionValue.value.updatedBy || user.username}
+					{#if collectionValue.value?.updatedBy}
+						<div class="space-y-1">
+							<p class="text-sm font-medium text-surface-600 dark:text-surface-300">Last updated by</p>
+							<div class="variant-filled-surface rounded-lg p-3 text-center">
+								<span class="text-sm font-semibold text-tertiary-500 dark:text-primary-500">
+									{collectionValue.value.updatedBy}
+								</span>
+							</div>
 						</div>
 					{/if}
 				</div>
 			</main>
 
-			{#if mode.value === 'create'}
-				<p class="mb-2 text-center text-tertiary-500 dark:text-primary-500">
-					{new Date().toLocaleString(languageTag(), {
-						year: 'numeric',
-						month: 'short',
-						day: 'numeric',
-						hour: '2-digit',
-						minute: '2-digit'
-					})}
-				</p>
-			{:else if dates}
-				<footer class="mb-1 mt-2">
-					{#each Object.entries(dates) as [key, value]}
-						<div class="flex items-center justify-center gap-2 text-[12px]">
-							<!-- Labels -->
-							<div class="capitalize">{key}:</div>
-							<!-- Data -->
-							<div class="font-bold text-tertiary-500 dark:text-primary-500">{value}</div>
-						</div>
-					{/each}
-				</footer>
-			{/if}
+			<footer class="mt-6 border-t border-surface-300 pt-4 dark:border-surface-600">
+				<div class="space-y-2">
+					<div class="flex items-center justify-between text-xs">
+						<span class="font-medium capitalize">Created:</span>
+						<span class="font-bold text-tertiary-500 dark:text-primary-500">{dates.created}</span>
+					</div>
+					<div class="flex items-center justify-between text-xs">
+						<span class="font-medium capitalize">Updated:</span>
+						<span class="font-bold text-tertiary-500 dark:text-primary-500">{dates.updated}</span>
+					</div>
+				</div>
+
+				{#if mode.value === 'create'}
+					<div class="mt-3 text-center">
+						<p class="text-xs text-surface-500">
+							{new Date().toLocaleString(languageTag(), {
+								year: 'numeric',
+								month: 'short',
+								day: 'numeric',
+								hour: '2-digit',
+								minute: '2-digit'
+							})}
+						</p>
+					</div>
+				{/if}
+			</footer>
 		{/if}
 	</div>
 {/if}
