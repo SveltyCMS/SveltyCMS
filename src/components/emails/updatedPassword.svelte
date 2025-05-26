@@ -16,7 +16,7 @@
 	import { systemLanguage } from '@stores/store.svelte';
 
 	// svelte-email-tailwind
-	import { Html, Head, Preview, Body, Container, Section, Text, Link, Img, Hr } from 'svelte-email-tailwind';
+	import { Html, Head, Preview, Body, Container, Section, Text, Link, Img, Hr, Custom, Heading } from 'svelte-email-tailwind';
 
 	interface Props {
 		username?: string;
@@ -34,62 +34,58 @@
 
 	<Preview preview="Your password for {publicEnv.SITE_NAME} was changed" />
 
-	<Body class="bg-gray-50 font-sans">
-		<Container class="mx-auto max-w-2xl bg-white">
+	<Body>
+		<Container style={{ fontSize: '16px' }}>
 			<!-- Header Section -->
-			<Section class="py-8 text-center">
-				<Link href={tokenLink} class="inline-block">
+			<Section>
+				<Link href={dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}>
 					<Img
 						src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png"
-						alt="{publicEnv.SITE_NAME} logo"
-						class="mx-auto"
+						alt={`${publicEnv.SITE_NAME} logo`}
 						width="150"
 						height="auto"
+						style={{ marginLeft: 'auto', marginRight: 'auto', display: 'block' }}
 					/>
 				</Link>
 			</Section>
 
 			<!-- Main Content -->
-			<Section class="px-8 pb-8">
+			<Section>
 				<!-- Success Message -->
-				<Section class="mb-6 rounded-lg border border-green-200 bg-green-50 p-6">
-					<div class="mb-4 flex items-center justify-center">
-						<div class="flex h-12 w-12 items-center justify-center rounded-full bg-green-500">
-							<svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-							</svg>
-						</div>
-					</div>
-					<Text class="mb-2 text-center text-lg font-semibold text-green-800">Password Successfully Changed</Text>
-					<Text class="text-center text-base text-green-700">Your account security has been updated</Text>
+				<Section>
+					<Heading><center>Password Successfully Changed</center></Heading>
+					<Text><center>Your account security has been updated.</center></Text>
 				</Section>
 
-				<Text class="mb-4 text-base leading-6 text-gray-700">
+				<Text style={{ fontSize: '16px' }}>
 					{m.updatedpassword_hello({ username })}
 				</Text>
 
-				<Text class="mb-6 text-base leading-6 text-gray-700">
-					You have successfully changed your password for {publicEnv.SITE_NAME}.
+				<Text style={{ fontSize: '16px' }}>
+					You have successfully changed your password for <strong>{publicEnv.SITE_NAME}</strong>.
 				</Text>
 
 				<!-- Security Notice -->
-				<Section class="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
-					<Text class="text-sm leading-5 text-blue-800">
-						<strong>Security Notice:</strong> If you did not make this change, please contact our support team immediately and secure your account.
+				<Section>
+					<Text style={{ fontSize: '16px' }}>
+						<strong>Security Notice:</strong><br />If you did not make this change, please contact our support team immediately and secure your
+						account.
 					</Text>
 				</Section>
 
-				<Text class="mb-8 text-base leading-6 text-gray-700">
+				<Text style={{ fontSize: '16px' }}>
 					{m.updatedpassword_contact()}
 				</Text>
 
-				<Hr class="my-8 border-gray-200" />
+				<Hr></Hr>
 
 				<!-- Footer -->
-				<Section class="text-center">
-					<Link href="https://www.sveltycms.com" class="text-sm text-gray-500 hover:text-gray-700">
-						Your <SiteName /> team
-					</Link>
+				<Section>
+					<Text style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '16px' }}>
+						<Link href="https://SveltyCMS.com">
+							Your <SiteName /> team
+						</Link>
+					</Text>
 				</Section>
 			</Section>
 		</Container>

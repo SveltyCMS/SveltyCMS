@@ -16,7 +16,7 @@
 	import { systemLanguage } from '@stores/store.svelte';
 
 	// svelte-email-tailwind
-	import { Html, Head, Preview, Body, Container, Section, Text, Link, Img, Button, Hr } from 'svelte-email-tailwind';
+	import { Html, Head, Preview, Body, Container, Section, Text, Link, Img, Button, Hr, Custom } from 'svelte-email-tailwind';
 
 	// Readable ExpireIn time sec to year
 	import { ReadableExpireIn } from '@utils/utils';
@@ -39,73 +39,90 @@
 
 	<Preview preview="Reset your password for {publicEnv.SITE_NAME}" />
 
-	<Body class="bg-gray-50 font-sans">
-		<Container class="mx-auto max-w-2xl bg-white">
+	<Body>
+		<Container style={{ fontSize: '16px' }}>
 			<!-- Header Section -->
-			<Section class="py-8 text-center">
-				<Link href={dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD} class="inline-block">
+			<Section>
+				<Link href={dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}>
 					<Img
 						src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png"
-						alt="{publicEnv.SITE_NAME} logo"
-						class="mx-auto"
+						alt={`${publicEnv.SITE_NAME} logo`}
 						width="150"
 						height="auto"
+						style={{ marginLeft: 'auto', marginRight: 'auto', display: 'block' }}
 					/>
 				</Link>
 			</Section>
 
 			<!-- Main Content -->
-			<Section class="px-8 pb-8">
-				<Text class="mb-4 text-base leading-6 text-gray-700">
-					Hello {email}
+			<Section>
+				<Text style={{ fontSize: '16px' }}>
+					Hello <strong>{email}</strong>,
 				</Text>
 
-				<Text class="mb-6 text-base leading-6 text-gray-700">
-					You have requested to reset your password to get access to {publicEnv.SITE_NAME}.
+				<Text style={{ fontSize: '16px' }}>
+					You have requested to <strong>reset your password</strong> to get access to
+					<strong>{publicEnv.SITE_NAME}.</strong>
 				</Text>
 
 				<!-- Token Information Box -->
-				<Section class="mb-6 rounded-lg bg-gray-100 p-6">
-					<Text class="mb-2 text-center text-base text-gray-700">
-						{m.forgottenpassword_token()}
-					</Text>
-					<Text class="mb-4 rounded border bg-white p-3 text-center font-mono text-xl font-bold text-gray-900">
+				<Section>
+					<Text><strong><center>{m.forgottenpassword_token()}</center></strong></Text>
+					<Text
+						style={{
+							textAlign: 'center',
+							fontWeight: 'bold',
+							backgroundColor: '#eee',
+							border: '1px solid #e5e7eb',
+							borderRadius: '6px',
+							padding: '12px',
+							color: '#111827',
+							marginBottom: '12px'
+						}}
+					>
 						{token}
 					</Text>
-
-					<Text class="mb-2 text-center text-base text-gray-700">
-						{m.forgottenpassword_valid()}
-					</Text>
-					<Text class="text-center text-lg font-semibold text-red-600">
+					<Text><strong><center>{m.forgottenpassword_valid()}</center></strong></Text>
+					<Text
+						style={{
+							textAlign: 'center',
+							fontWeight: 'bold',
+							backgroundColor: '#eee',
+							border: '1px solid #e5e7eb',
+							borderRadius: '6px',
+							padding: '12px',
+							color: '#111827',
+							marginBottom: '12px'
+						}}
+					>
 						{ReadableExpireIn(expiresIn)}
 					</Text>
 				</Section>
 
-				<Text class="mb-4 text-center text-sm text-gray-600">
-					{m.forgottenpassword_ignore()}
+				<Text>
+					<center>{m.forgottenpassword_ignore()}</center>
 				</Text>
 
-				<Text class="mb-6 text-center text-base text-gray-700">
-					{m.forgottenpassword_button()}
+				<Text>
+					<center>{m.forgottenpassword_button()}</center>
 				</Text>
 
 				<!-- CTA Button -->
-				<Section class="mb-8 text-center">
-					<Button
-						href={resetLink}
-						class="text-decoration-none inline-block rounded-lg bg-green-500 px-6 py-3 font-semibold text-white transition-colors duration-200 hover:bg-green-600"
-					>
+				<Section>
+					<Button href={resetLink} pX={24} pY={12} style={{ backgroundColor: '#22c55e', color: '#fff', borderRadius: '8px' }}>
 						{m.forgottenpassword_resetbutton()}
 					</Button>
 				</Section>
 
-				<Hr class="my-8 border-gray-200" />
+				<Hr></Hr>
 
 				<!-- Footer -->
-				<Section class="text-center">
-					<Link href="https://www.sveltycms.com" class="text-sm text-gray-500 hover:text-gray-700">
-						Your <SiteName /> team
-					</Link>
+				<Section>
+					<Text style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '16px' }}>
+						<Link href="https://SveltyCMS.com">
+							Your <SiteName /> team
+						</Link>
+					</Text>
 				</Section>
 			</Section>
 		</Container>

@@ -163,7 +163,7 @@ async function initializeDefaultTheme(): Promise<void> {
 	try {
 		logger.debug('Initializing \x1b[34mdefault theme\x1b[0m...');
 		const themes = await dbAdapter.themes.getAllThemes();
-		logger.debug(`Found \x1b[34m${themes.length}\x1b[0m themes`);
+		logger.debug(`Found \x1b[34m${themes.length}\x1b[0m themes in the database`);
 
 		if (themes.length === 0) {
 			await dbAdapter.themes.storeThemes([DEFAULT_THEME]);

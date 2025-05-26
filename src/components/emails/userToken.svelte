@@ -40,87 +40,65 @@
 
 	<Preview preview="User Registration token for {publicEnv.SITE_NAME}" />
 
-	<Body class="bg-gray-50 font-sans">
-		<Container class="mx-auto max-w-2xl bg-white">
+	<Body>
+		<Container>
 			<!-- Header Section -->
-			<Section class="py-8 text-center">
-				<Link href={finalTokenLink} class="inline-block">
+			<Section>
+				<Link href={dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}>
 					<Img
 						src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png"
-						alt="{publicEnv.SITE_NAME} logo"
-						class="mx-auto"
+						alt={`${publicEnv.SITE_NAME} logo`}
 						width="150"
 						height="auto"
+						style={{ marginLeft: 'auto', marginRight: 'auto', display: 'block' }}
 					/>
 				</Link>
 			</Section>
 
 			<!-- Main Content -->
-			<Section class="px-8 pb-8">
-				<Text class="mb-4 text-base leading-6 text-gray-700">
+			<Section>
+				<Text>
 					Hello {username}
 				</Text>
 
-				<Text class="mb-6 text-base leading-6 text-gray-700">
-					You have been invited to join {publicEnv.SITE_NAME} as {role}.
+				<Text>
+					You have been invited to join <strong>{publicEnv.SITE_NAME}</strong>.
 				</Text>
 
 				<!-- User Information Box -->
-				<Section class="mb-6 rounded-lg bg-gray-100 p-6">
-					<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-						<div>
-							<Text class="mb-1 text-sm font-medium text-gray-600">
-								{m.usertoken_email()}
-							</Text>
-							<Text class="mb-4 text-base font-semibold text-gray-900">
-								{email}
-							</Text>
-
-							<Text class="mb-1 text-sm font-medium text-gray-600">
-								{m.usertoken_role()}
-							</Text>
-							<Text class="mb-4 text-base font-semibold text-gray-900">
-								{role}
-							</Text>
-						</div>
-
-						<div>
-							<Text class="mb-1 text-sm font-medium text-gray-600">
-								{m.usertoken_token()}
-							</Text>
-							<Text class="mb-4 break-all rounded border bg-white p-2 font-mono text-sm text-gray-900">
-								{token}
-							</Text>
-
-							<Text class="mb-1 text-sm font-medium text-gray-600">
-								{m.usertoken_valid()}
-							</Text>
-							<Text class="text-sm font-semibold text-red-600">Valid for limited time</Text>
-						</div>
-					</div>
+				<Section>
+					<Text>
+						<strong>{m.usertoken_email()}</strong>
+						{email}<br />
+						<strong>{m.usertoken_role()}</strong>
+						{role}<br />
+						<strong>{m.usertoken_token()}</strong>
+						{token}<br />
+						<strong>{m.usertoken_valid()}</strong>
+						{token}
+					</Text>
 				</Section>
 
-				<Text class="mb-8 text-center text-base leading-6 text-gray-700">
-					{m.usertoken_button()}
+				<Text>
+					<strong><center>{m.usertoken_button()}</center></strong>
 				</Text>
 
 				<!-- CTA Button -->
-				<Section class="mb-8 text-center">
-					<Button
-						href={finalTokenLink}
-						class="text-decoration-none inline-block rounded-lg bg-green-500 px-6 py-3 font-semibold text-white transition-colors duration-200 hover:bg-green-600"
-					>
+				<Section>
+					<Button href={finalTokenLink} pX={24} pY={12} style={{ backgroundColor: '#22c55e', color: '#fff', borderRadius: '8px' }}>
 						{m.usertoken_createuser()}
 					</Button>
 				</Section>
 
-				<Hr class="my-8 border-gray-200" />
+				<Hr></Hr>
 
 				<!-- Footer -->
-				<Section class="text-center">
-					<Link href="https://www.sveltycms.com" class="text-sm text-gray-500 hover:text-gray-700">
-						Your <SiteName /> team
-					</Link>
+				<Section>
+					<Text style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '16px' }}>
+						<Link href="https://SveltyCMS.com">
+							Your <SiteName /> team
+						</Link>
+					</Text>
 				</Section>
 			</Section>
 		</Container>

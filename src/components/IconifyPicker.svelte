@@ -10,7 +10,7 @@
 - `iconselected` {string} - Selected icon name
 - `searchQuery` {string} - Search query for icons
 
-@features Search icons, pagination, library selection, icon preview
+@features Search icons, pagination, library selection, icon preview, smooth animations
 -->
 
 <script lang="ts">
@@ -20,6 +20,8 @@
 	// Import loadIcons function from Iconify Svelte library
 	import { loadIcons } from '@iconify/svelte';
 	import { onDestroy } from 'svelte';
+	import { tweened } from 'svelte/motion';
+	import { cubicOut, quintOut } from 'svelte/easing';
 
 	interface Props {
 		iconselected: string;
@@ -55,9 +57,65 @@
 	let searchError = $state<string | null>(null);
 	let searchTimeout: number | undefined;
 
+	// Animation stores
+	const dropdownOpacity = tweened(0, {
+		duration: 200,
+		easing: cubicOut
+	});
+
+	const dropdownScale = tweened(0.95, {
+		duration: 200,
+		easing: cubicOut
+	});
+
+	const selectedIconScale = tweened(1, {
+		duration: 150,
+		easing: quintOut
+	});
+
+	const gridOpacity = tweened(0, {
+		duration: 300,
+		easing: cubicOut
+	});
+
+	// Animate dropdown visibility
+	$effect(() => {
+		if (showDropdown) {
+			dropdownOpacity.set(1);
+			dropdownScale.set(1);
+		} else {
+			dropdownOpacity.set(0);
+			dropdownScale.set(0.95);
+		}
+	});
+
+	// Animate grid when icons change
+	$effect(() => {
+		if (icons.length > 0) {
+			gridOpacity.set(1);
+		} else {
+			gridOpacity.set(0);
+		}
+	});
+
+	// Animate selected icon
+	$effect(() => {
+		if (iconselected) {
+			selectedIconScale.set(1.1);
+			setTimeout(() => selectedIconScale.set(1), 150);
+		}
+	});
+
 	// Debounced search function
 	function debouncedSearch(query: string, library: string) {
 		if (searchTimeout) clearTimeout(searchTimeout);
+		
+		// Show loading immediately for better UX
+		if (query.trim()) {
+			isLoading = true;
+			gridOpacity.set(0.5);
+		}
+
 		searchTimeout = window.setTimeout(() => {
 			searchIcons(query, library);
 		}, 300);
@@ -65,10 +123,19 @@
 
 	// Fetch icons from Iconify API
 	async function searchIcons(query: string, libraryCategory: string) {
+		if (!query.trim()) {
+			icons = [];
+			isLoading = false;
+			return;
+		}
+
 		isLoading = true;
 		searchError = null;
 		start = page * 50;
 		showDropdown = true;
+
+		// Smooth transition out
+		await gridOpacity.set(0.3);
 
 		try {
 			const response = await fetch(
@@ -93,29 +160,39 @@
 			icons = [];
 		} finally {
 			isLoading = false;
+			// Smooth transition in
+			await gridOpacity.set(1);
 		}
 	}
 
 	// Pagination handlers
-	function nextPage() {
+	async function nextPage() {
 		page += 1;
-		searchIcons(searchQuery, selectedLibrary);
+		await gridOpacity.set(0.3);
+		await searchIcons(searchQuery, selectedLibrary);
 	}
 
-	function prevPage() {
+	async function prevPage() {
 		page = Math.max(0, page - 1);
-		searchIcons(searchQuery, selectedLibrary);
+		await gridOpacity.set(0.3);
+		await searchIcons(searchQuery, selectedLibrary);
 	}
 
 	// Icon selection handler
 	function selectIcon(icon: string) {
 		iconselected = icon;
 		showDropdown = false;
+		
+		// Animate selection
+		selectedIconScale.set(1.2);
+		setTimeout(() => selectedIconScale.set(1), 200);
 	}
 
 	// Remove selected icon
 	function removeIcon() {
 		iconselected = '';
+		selectedIconScale.set(0.8);
+		setTimeout(() => selectedIconScale.set(1), 150);
 	}
 
 	// Fetch available icon libraries
@@ -157,15 +234,28 @@
 <div class="flex w-full flex-col">
 	<!-- Display selected icon -->
 	{#if iconselected}
-		<div class="-mt-3 mb-1 flex items-center justify-start gap-2">
+		<div 
+			class="-mt-3 mb-1 flex items-center justify-start gap-2 transition-all duration-200"
+			style="transform: scale({$selectedIconScale}); transform-origin: left center;"
+		>
 			<div class="flex items-center gap-3 p-2">
-				<iconify-icon icon={iconselected} width="30" class="py-2 text-tertiary-500" aria-hidden="true"></iconify-icon>
-				<p>
+				<iconify-icon 
+					icon={iconselected} 
+					width="30" 
+					class="py-2 text-tertiary-500 transition-transform duration-200 hover:scale-110" 
+					aria-hidden="true"
+				></iconify-icon>
+				<p class="transition-colors duration-200">
 					{m.iconpicker_name()}
-					<span class="text-tertiary-500 dark:text-primary-500">{iconselected}</span>
+					<span class="text-tertiary-500 dark:text-primary-500 font-medium">{iconselected}</span>
 				</p>
 			</div>
-			<button onmouseup={removeIcon} type="button" aria-label="Remove Icon" class="variant-ghost btn-icon">
+			<button 
+				onmouseup={removeIcon} 
+				type="button" 
+				aria-label="Remove Icon" 
+				class="variant-ghost btn-icon transition-all duration-200 hover:scale-110 hover:bg-error-500/10 hover:text-error-500"
+			>
 				<iconify-icon icon="icomoon-free:bin" width="22" aria-hidden="true"></iconify-icon>
 			</button>
 		</div>
@@ -177,7 +267,7 @@
 		id="icon"
 		bind:value={searchQuery}
 		placeholder={iconselected ? `Replace Icon: ${iconselected}` : m.iconpicker_placeholder()}
-		class="input w-full text-black dark:text-primary-500"
+		class="input w-full text-black dark:text-primary-500 transition-all duration-200 focus:scale-[1.02] focus:shadow-lg"
 		oninput={() => debouncedSearch(searchQuery, selectedLibrary)}
 		onfocus={showLibrariesAndDropdown}
 		aria-label="Search icons"
@@ -186,24 +276,35 @@
 	/>
 
 	{#if searchError}
-		<div id="search-error" class="mt-2 rounded bg-error-500/10 p-2 text-error-500" role="alert">
+		<div 
+			id="search-error" 
+			class="mt-2 rounded bg-error-500/10 p-2 text-error-500 transition-all duration-300 animate-pulse border-l-4 border-error-500" 
+			role="alert"
+		>
 			{searchError}
 		</div>
 	{/if}
 
 	<!-- Dropdown section -->
 	{#if showDropdown}
-		<div id="icon-dropdown" class="dropdown" role="listbox">
+		<div 
+			id="icon-dropdown" 
+			class="dropdown mt-2 bg-surface-50 dark:bg-surface-800 rounded-lg shadow-xl border border-surface-200 dark:border-surface-700 overflow-hidden"
+			role="listbox"
+			style="opacity: {$dropdownOpacity}; transform: scale({$dropdownScale}); transform-origin: top;"
+		>
 			<!-- Library filter dropdown -->
-			<div class="mb-2">
+			<div class="p-4 border-b border-surface-200 dark:border-surface-700">
 				<select
 					bind:value={selectedLibrary}
 					onclick={getIconLibraries}
-					onchange={() => {
+					onchange={async () => {
 						start = 0;
-						searchIcons(searchQuery, selectedLibrary);
+						page = 0;
+						await gridOpacity.set(0.3);
+						await searchIcons(searchQuery, selectedLibrary);
 					}}
-					class="input mt-2 w-full"
+					class="input w-full transition-all duration-200 hover:scale-[1.01]"
 					aria-label="Select icon library"
 					disabled={isLoading}
 				>
@@ -217,54 +318,70 @@
 				</select>
 			</div>
 
-			{#if isLoading}
-				<div class="flex justify-center p-4">
-					<iconify-icon icon="eos-icons:loading" class="animate-spin" width="24"></iconify-icon>
-				</div>
-			{:else}
-				<!-- Icon selection buttons -->
-				<div class="grid grid-cols-6 gap-2 sm:grid-cols-8 md:grid-cols-10" role="group">
-					{#each icons as icon}
-						<button
-							onclick={() => selectIcon(icon)}
-							type="button"
-							class="flex items-center justify-center p-2 hover:rounded hover:bg-primary-500"
-							aria-label={`Select icon ${icon}`}
-							role="option"
-							aria-selected={iconselected === icon}
-						>
-							<iconify-icon {icon} width="24" aria-hidden="true"></iconify-icon>
-						</button>
-					{/each}
-				</div>
-
-				<!-- Pagination buttons -->
-				{#if icons.length > 0}
-					<div class="mt-2 flex justify-between">
-						<button
-							disabled={page === 0}
-							onclick={prevPage}
-							class={`${page === 0 ? 'hidden' : 'block'} variant-filled-primary btn-sm rounded`}
-							aria-label="Previous page"
-						>
-							{m.button_previous()}
-						</button>
-
-						<div class="dark:text-white" role="status">
-							Showing Icons: <span class="text-primary-500">{icons.length}</span>
-						</div>
-
-						<button
-							disabled={icons.length < 50}
-							onclick={nextPage}
-							class={`${icons.length < 50 ? 'hidden' : 'block'} variant-filled-primary btn-sm rounded`}
-							aria-label="Next page"
-						>
-							{m.button_next()}
-						</button>
+			<div class="p-4">
+				{#if isLoading}
+					<div class="flex justify-center p-8">
+						<iconify-icon 
+							icon="eos-icons:loading" 
+							class="animate-spin text-primary-500" 
+							width="32"
+						></iconify-icon>
 					</div>
+				{:else}
+					<!-- Icon selection buttons -->
+					<div 
+						class="grid grid-cols-6 gap-2 sm:grid-cols-8 md:grid-cols-10 transition-opacity duration-300" 
+						role="group"
+						style="opacity: {$gridOpacity};"
+					>
+						{#each icons as icon, index}
+							<button
+								onclick={() => selectIcon(icon)}
+								type="button"
+								class="flex items-center justify-center p-3 rounded-lg transition-all duration-200 hover:bg-primary-500/10 hover:scale-110 active:scale-95 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+								aria-label={`Select icon ${icon}`}
+								role="option"
+								aria-selected={iconselected === icon}
+								style="animation-delay: {index * 20}ms;"
+							>
+								<iconify-icon 
+									{icon} 
+									width="24" 
+									aria-hidden="true"
+									class="transition-all duration-200 hover:text-primary-500"
+								></iconify-icon>
+							</button>
+						{/each}
+					</div>
+
+					<!-- Pagination buttons -->
+					{#if icons.length > 0}
+						<div class="mt-6 flex justify-between items-center pt-4 border-t border-surface-200 dark:border-surface-700">
+							<button
+								disabled={page === 0}
+								onclick={prevPage}
+								class={`${page === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'} variant-filled-primary btn-sm rounded transition-all duration-200 hover:scale-105 active:scale-95`}
+								aria-label="Previous page"
+							>
+								{m.button_previous()}
+							</button>
+
+							<div class="dark:text-white font-medium" role="status">
+								Showing Icons: <span class="text-primary-500 font-bold">{icons.length}</span>
+							</div>
+
+							<button
+								disabled={icons.length < 50}
+								onclick={nextPage}
+								class={`${icons.length < 50 ? 'opacity-0 pointer-events-none' : 'opacity-100'} variant-filled-primary btn-sm rounded transition-all duration-200 hover:scale-105 active:scale-95`}
+								aria-label="Next page"
+							>
+								{m.button_next()}
+							</button>
+						</div>
+					{/if}
 				{/if}
-			{/if}
+			</div>
 		</div>
 	{/if}
 </div>

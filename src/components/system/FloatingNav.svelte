@@ -1,579 +1,114 @@
-<!-- 
-@file: src/components/system/FloatingNav.svelte 
-@component#
-**Floating nav component for mobile view**
+<!--
+@file src/components/system/FloatingPaths.svelte
+@component
+**Optimized Animated SVG Background Pattern Component**
 
-```tsx
-<FloatingNav />
-```
+Creates a dynamic animated background with SVG paths that draw themselves
+with varying widths, opacities, and colors. Optimized for performance with
+reduced DOM complexity and efficient animations.
 
-Features:
-- Floating nav for mobile view	
-- Keyboard navigation support
-- Accessibility features
+@example
+<FloatingPaths />
+
+@features
+- Automatic contrasting colors based on background
+- Customizable background color (white or dark)
+- Adjustable start and end directions (e.g., TopLeft, BottomRight)
+- CSS-based animations for better performance
+- Responsive design
+- Reduced DOM complexity
 -->
 
 <script lang="ts">
-	import { tick, onMount, onDestroy } from 'svelte';
-	import { goto } from '$app/navigation';
-	import { motion } from '@utils/utils';
-	import { fade, scale } from 'svelte/transition';
-	import { elasticOut } from 'svelte/easing';
+  interface Props {
+  background?: string;
+  position?: number;
+  mirrorAnimation?: boolean;
+  }
 
-	// Auth
-	import type { User } from '@src/auth/types';
+  let { background = 'white', position = 1, mirrorAnimation = false }: Props = $props();
 
-	// Stores
-	import { page } from '$app/state';
-	import { mode } from '@src/stores/collectionStore.svelte';
-	import { handleUILayoutToggle } from '@src/stores/UIStore.svelte';
-	import { isSearchVisible, triggerActionStore } from '@utils/globalSearchIndex';
-
-	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
-	const modalStore = getModalStore();
-
-	// Type Definitions
-	interface Endpoint {
-		url: {
-			external: boolean;
-			path: string;
-		};
-		icon: string;
-		label: string;
-		color?: string;
-		x?: number; // Calculated position
-		y?: number; // Calculated position
-		offsetAngle?: number; // Base angle offset in radians
-		action?: () => void;
-		ariaLabel?: string;
-	}
-
-	interface ButtonInfo {
-		x: number;
-		y: number;
-		radius: number;
-	}
-
-	// Initialize navigation_info safely
-	let navigation_info = $state<Record<string, ButtonInfo>>(
-		(() => {
-			const storedNavigation = localStorage.getItem('navigation');
-			return storedNavigation ? JSON.parse(storedNavigation) : {};
-		})()
-	);
-
-	const buttonRadius = 25; // home button size
-	let showRoutes = $state(false);
-
-	const center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-	let firstLine = $state<SVGLineElement | undefined>(undefined);
-	let firstCircle = $state<HTMLDivElement | undefined>(undefined);
-	let circles = $state<HTMLDivElement[]>([]);
-	let svg = $state<SVGSVGElement | undefined>(undefined);
-	const user: User = page.data.user;
-
-	// Endpoint definition with URL, icon, and base offset angle
-	let endpoints = $state<Endpoint[]>(
-		(() => {
-			const baseEndpoints = [
-				{
-					// Home (Center) - No offsetAngle needed
-					url: { external: false, path: `/` },
-					icon: 'solar:home-bold',
-					label: 'Navigate to Home',
-					ariaLabel: 'Navigate to home page'
-				},
-				{
-					// User
-					url: { external: false, path: `/user` },
-					icon: 'radix-icons:avatar',
-					label: 'User Profile Settings',
-					color: 'bg-orange-500',
-					ariaLabel: 'Open user profile settings'
-				},
-				{
-					// Collection builder
-					url: { external: false, path: `/config/collectionbuilder` },
-					icon: 'fluent-mdl2:build-definition',
-					label: 'Collection Builder',
-					ariaLabel: 'Open collection builder'
-				},
-				{
-					// Image Editor
-					url: { external: false, path: `/imageEditor` },
-					icon: 'tdesign:image-edit',
-					label: 'Image Editor',
-					color: 'bg-error-500',
-					ariaLabel: 'Open image editor'
-				},
-				{
-					// Graphql Yoga Explorer
-					url: { external: true, path: `/api/graphql` },
-					icon: 'teenyicons:graphql-outline',
-					label: 'GraphQL Explorer',
-					color: 'bg-pink-500',
-					ariaLabel: 'Open GraphQL explorer'
-				},
-				{
-					// Marketplace
-					url: { external: true, path: `https://www.sveltycms.com` },
-					icon: 'icon-park-outline:shopping-bag',
-					label: 'Visit Marketplace',
-					color: 'bg-primary-700',
-					ariaLabel: 'Visit SveltyCMS marketplace'
-				},
-				{
-					// System Configuration
-					url: { external: false, path: `/config` },
-					icon: 'mynaui:config',
-					label: 'System Configuration',
-					color: 'bg-surface-400',
-					ariaLabel: 'Open system configuration'
-				},
-				{
-					// GlobalSearch
-					url: { external: false, path: '' },
-					icon: 'material-symbols:search-rounded',
-					label: 'Global Search',
-					color: 'bg-error-500',
-					ariaLabel: 'Open global search (Alt + S)',
-					action: () => {
-						isSearchVisible.update((v) => !v);
-						triggerActionStore.set([]);
-					}
-				}
-			].filter((endpoint) => {
-				// Filter based on user role
-				if (user?.role === 'admin') return true;
-				else if (endpoint.url.path === '/collection')
-					return false; // Example: hide collection for non-admins
-				else return true;
-			});
-
-			// Calculate offset angles for satellite endpoints
-			const satelliteEndpoints = baseEndpoints.slice(1);
-			const totalSatellites = satelliteEndpoints.length;
-			const angleStep = (Math.PI * 2) / totalSatellites;
-
-			return [
-				baseEndpoints[0], // Home endpoint remains first
-				...satelliteEndpoints.map((endpoint, index) => ({
-					...endpoint,
-					offsetAngle: angleStep * index
-				}))
-			];
-		})()
-	);
-
-	interface Props {
-		buttonInfo?: ButtonInfo;
-	}
-
-	let {
-		buttonInfo = $bindable({
-			x: window.innerWidth - buttonRadius * 3,
-			y: window.innerHeight - buttonRadius * 3,
-			radius: buttonRadius
-		})
-	}: Props = $props();
-
-	// Function to calculate rotated endpoint coordinates
-	function calculateRotatedEndpoint(
-		buttonX: number,
-		buttonY: number,
-		centerX: number,
-		centerY: number,
-		radius: number,
-		offsetAngle: number
-	): { x: number; y: number } {
-		// Angle of the line from the button to the center
-		const mainAngle = Math.atan2(centerY - buttonY, centerX - buttonX);
-		// Final angle for the endpoint (main angle + offset)
-		const finalAngle = mainAngle + offsetAngle;
-		// Calculate coordinates
-		const x = centerX + radius * Math.cos(finalAngle);
-		const y = centerY + radius * Math.sin(finalAngle);
-		return { x, y };
-	}
-
-	// Calculate endpoint positions reactively
-	let endpointsWithPositions = $derived(
-		endpoints.map((endpoint, index) => {
-			if (index === 0) {
-				// Home button stays at the center
-				return {
-					...endpoint,
-					x: center.x,
-					y: center.y
-				};
-			} else {
-				// Calculate rotated position for satellite buttons
-				return {
-					...endpoint,
-					...calculateRotatedEndpoint(
-						buttonInfo.x,
-						buttonInfo.y,
-						center.x,
-						center.y,
-						140, // Radius from center
-						endpoint.offsetAngle || 0 // Use defined offset angle
-					)
-				};
-			}
-		})
-	);
-
-	// Update line animations when showRoutes changes
-	$effect(() => {
-		if (!showRoutes && svg) {
-			let first = true;
-			for (const lineElement of svg.children) {
-				const el = lineElement as SVGLineElement;
-				el.style.transition = first ? 'stroke-dashoffset 0.2s 0.2s' : 'stroke-dashoffset 0.2s';
-				el.style.strokeDashoffset = el.style.strokeDasharray = el.getTotalLength().toString();
-				first = false;
-			}
-			for (const circle of circles) {
-				circle.style.display = 'none';
-			}
-		}
-	});
-
-	// Update buttonInfo from localStorage on mount
-	onMount(() => {
-		window.addEventListener('keydown', handleKeyPress);
-		const storedInfo = localStorage.getItem('navigation');
-		if (storedInfo) {
-			const parsedInfo: Record<string, ButtonInfo> = JSON.parse(storedInfo);
-			const currentPath = getBasePath(page.url.pathname);
-			if (parsedInfo[currentPath]) {
-				buttonInfo = parsedInfo[currentPath];
-			}
-		}
-	});
-
-	// Debounced resize handler
-	function debounce(fn: () => void, delay: number) {
-		let timer: ReturnType<typeof setTimeout>;
-		return () => {
-			clearTimeout(timer);
-			timer = setTimeout(fn, delay);
-		};
-	}
-
-	const handleResize = debounce(() => {
-		buttonInfo = {
-			...buttonInfo,
-			x: window.innerWidth - buttonRadius * 3,
-			y: window.innerHeight - buttonRadius * 3
-		};
-		if (firstLine && firstCircle) {
-			firstLine.setAttribute('x1', firstCircle.offsetLeft.toString());
-			firstLine.setAttribute('y1', firstCircle.offsetTop.toString());
-		}
-		tick().then(() => {
-			if (firstLine) {
-				firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
-			}
-		});
-	}, 200);
-
-	window.addEventListener('resize', handleResize);
-
-	onDestroy(() => {
-		window.removeEventListener('keydown', handleKeyPress);
-		window.removeEventListener('resize', handleResize);
-	});
-
-	function getBasePath(pathname: string): string {
-		const params = Object.values(page.params);
-		const replaced = params.reduce((acc, param) => acc.replace(param, ''), pathname);
-		return params.length > 0 ? replaced : pathname;
-	}
-
-	// Show the routes when the component is visible
-	function drag(node: HTMLDivElement) {
-		let moved = false;
-		let timeout: ReturnType<typeof setTimeout>;
-		node.onpointerdown = (e: PointerEvent) => {
-			timeout = setTimeout(() => {
-				const x = e.offsetX - node.offsetWidth / 2;
-				const y = e.offsetY - node.offsetHeight / 2;
-				node.setPointerCapture(e.pointerId);
-				node.onpointermove = (e: PointerEvent) => {
-					moved = true;
-					buttonInfo = { ...buttonInfo, x: e.clientX - x, y: e.clientY - y };
-					if (firstLine) {
-						firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
-					}
-				};
-			}, 60);
-		};
-		node.onpointerup = async (e: PointerEvent) => {
-			if (!moved) {
-				showRoutes = !showRoutes;
-			}
-
-			if (timeout) clearTimeout(timeout);
-			moved = false;
-			node.onpointermove = null;
-			node.releasePointerCapture(e.pointerId);
-
-			const distance = [
-				buttonInfo.x, // left
-				window.innerWidth - buttonInfo.x, // right
-				buttonInfo.y, // top
-				window.innerHeight - buttonInfo.y // bottom
-			];
-
-			const minDistanceIndex = distance.indexOf(Math.min(...distance));
-			let targetX = buttonInfo.x;
-			let targetY = buttonInfo.y;
-
-			switch (minDistanceIndex) {
-				case 0:
-					targetX = buttonRadius;
-					break;
-				case 1:
-					targetX = window.innerWidth - buttonRadius;
-					break;
-				case 2:
-					targetY = buttonRadius;
-					break;
-				case 3:
-					targetY = window.innerHeight - buttonRadius;
-					break;
-			}
-
-			await motion([buttonInfo.x, buttonInfo.y], [targetX, targetY], 200, (t: number[]) => {
-				buttonInfo = { ...buttonInfo, x: t[0], y: t[1] };
-				if (firstLine) {
-					firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
-				}
-			});
-
-			await tick();
-			navigation_info = { ...navigation_info, [getBasePath(page.url.pathname)]: buttonInfo };
-			localStorage.setItem('navigation', JSON.stringify(navigation_info));
-		};
-	}
-
-	// Event handler for keydown on the main navigation button
-	function handleMainKeyDown(e: KeyboardEvent): void {
-		if (e.key === 'Enter' || e.key === ' ') {
-			showRoutes = !showRoutes;
-			e.preventDefault();
-		}
-	}
-
-	// Event handler for keydown on endpoint buttons
-	function handleEndpointKeydown(event: KeyboardEvent, endpoint: Endpoint): void {
-		if (event.key === 'Enter' || event.key === ' ') {
-			event.preventDefault();
-			handleEndpointClick(endpoint);
-		}
-	}
-
-	// Function to handle endpoint click
-	function handleEndpointClick(endpoint: Endpoint): void {
-		if (endpoint.action) {
-			endpoint.action();
-		} else if (endpoint.url.external) {
-			location.href = endpoint.url.path || '/';
-		} else {
-			mode.set('view');
-			modalStore.clear();
-			handleUILayoutToggle();
-			goto(endpoint.url.path || '/');
-		}
-		showRoutes = false;
-	}
-
-	// Set the dash of the line
-	function setDash(node: SVGSVGElement) {
-		let first = true;
-		for (const lineElement of node.children) {
-			const el = lineElement as SVGLineElement;
-			el.style.strokeDashoffset = el.style.strokeDasharray = el.getTotalLength().toString();
-			setTimeout(() => {
-				el.style.transition = first ? 'stroke-dashoffset 0.2s ' : 'stroke-dashoffset 0.2s 0.2s';
-				el.style.strokeDashoffset = '0';
-				first = false;
-			}, 0);
-		}
-	}
-
-	function isRightToLeft(): boolean {
-		return document.documentElement.dir === 'rtl';
-	}
-
-	// Function to handle key presses
-	function handleKeyPress(event: KeyboardEvent) {
-		if (event.altKey && event.key === 's') {
-			event.preventDefault();
-			isSearchVisible.update((v) => !v);
-			triggerActionStore.set([]);
-		}
-	}
-
-	function handleEscapeKey(event: KeyboardEvent) {
-		if (event.key === 'Escape' && showRoutes) {
-			showRoutes = false;
-		}
-	}
-
-	onMount(() => {
-		window.addEventListener('keydown', handleEscapeKey);
-		return () => {
-			window.removeEventListener('keydown', handleEscapeKey);
-		};
-	});
+  // Use a simple `const` because the path data is static and calculated only once
+  const paths = Array.from({ length: 24 }, (_, i) => {
+  const baseOffset = i * 5 * position;
+  const verticalOffset = i * 6;
+  return {
+  id: i,
+  d: `M-${380 - baseOffset} -${189 + verticalOffset}C-${380 - baseOffset} -${189 + verticalOffset} -${312 - baseOffset} ${216 - verticalOffset} ${152 - baseOffset} ${343 - verticalOffset}C${616 - baseOffset} ${470 - verticalOffset} ${684 - baseOffset} ${875 - verticalOffset} ${684 - baseOffset} ${875 - verticalOffset}`,
+  delay: i * 0.8, // Staggered animation delay for a more organic effect.
+  duration: 25 + (i % 6) * 5 // Varied duration for a less uniform feel.
+  };
+  });
 </script>
 
-<!-- Main Navigation Button -->
-<div
-	bind:this={firstCircle}
-	aria-label="Toggle Navigation Menu"
-	role="button"
-	aria-expanded={showRoutes}
-	aria-haspopup="true"
-	aria-controls="navigation-menu"
-	use:drag
-	class="fixed z-[99999999] flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer touch-none items-center justify-center rounded-full bg-tertiary-500 transition-transform duration-200 hover:scale-110 focus:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2"
-	style="top:{(Math.min(buttonInfo.y, window.innerHeight - buttonRadius) / window.innerHeight) * 100}%;
-           left:{(Math.min(isRightToLeft() ? buttonRadius : buttonInfo.x, window.innerWidth - buttonRadius) / window.innerWidth) * 100}%;"
-	tabindex="0"
-	onkeydown={handleMainKeyDown}
->
-	<iconify-icon icon="tdesign:map-route-planning" width="36" style="color:white" aria-hidden="true"></iconify-icon>
+<div class="pointer-events-none absolute inset-0">
+  <svg
+    class="h-full w-full {background === 'white' ? 'text-slate-950': 'text-white'} {mirrorAnimation ? 'mirror': ''}"
+    stroke="currentColor"
+    viewBox="0 0 696 316"
+    stroke-linecap="round"
+    fill="transparent"
+    >
+    {#each paths as path}
+    <path
+      d={path.d}
+      stroke="currentColor"
+      class="animated-path"
+      style="
+      --animation-delay: {path.delay}s;
+      --animation-duration: {path.duration}s;
+      --mirror-direction: {mirrorAnimation ? -1: 1};
+      "
+      />
+    {/each}
+  </svg>
 </div>
 
-<!-- Show the routes when the component is visible -->
-{#if showRoutes}
-	<div
-		class="fixed inset-0 z-[9999998]"
-		role="dialog"
-		aria-modal="true"
-		aria-label="Navigation Menu"
-		tabindex="-1"
-		transition:fade={{ duration: 150 }}
-		onclick={() => (showRoutes = false)}
-		onkeydown={(event) => {
-			// Close on Escape key press
-			if (event.key === 'Escape') {
-				showRoutes = false;
-			}
-		}}
-	>
-		<!-- Blue Center Circle -->
-		<div
-			class="absolute left-1/2 top-1/2 z-0 h-[340px] w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-tertiary-500/40"
-			transition:scale={{ duration: 200, easing: elasticOut }}
-		></div>
-
-		<!-- SVG Lines -->
-		<svg
-			bind:this={svg}
-			xmlns="http://www.w3.org/2000/svg"
-			use:setDash
-			aria-hidden="true"
-			class="pointer-events-none fixed inset-0 z-10 h-full w-full"
-		>
-			<line
-				bind:this={firstLine}
-				x1={buttonInfo.x}
-				y1={buttonInfo.y}
-				x2={center.x}
-				y2={center.y}
-				class="pointer-events-none stroke-error-500 stroke-2"
-			/>
-			{#each endpointsWithPositions.slice(1) as endpoint}
-				<line x1={center.x} y1={center.y} x2={endpoint.x} y2={endpoint.y} class="pointer-events-none stroke-error-500 stroke-2" />
-			{/each}
-		</svg>
-
-		<!-- Navigation Menu -->
-		<div id="navigation-menu" role="menu" class="fixed inset-0 z-[9999999]">
-			<!-- Home button -->
-			<div
-				bind:this={circles[0]}
-				role="menuitem"
-				aria-label={endpointsWithPositions[0].ariaLabel || endpointsWithPositions[0].label}
-				tabindex="0"
-				onclick={(event) => {
-					event.stopPropagation(); // Prevent click from reaching overlay
-					handleEndpointClick(endpointsWithPositions[0]);
-				}}
-				onkeydown={(event) => handleEndpointKeydown(event, endpointsWithPositions[0])}
-				class="endpoint-circle group fixed z-[99999999] flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-2 bg-gray-600 transition-transform duration-200 hover:scale-110 focus:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2"
-				style="top:{center.y}px;left:{center.x}px;"
-			>
-				<iconify-icon width="32" style="color:white" icon="solar:home-bold" aria-hidden="true"></iconify-icon>
-				<div
-					class="tooltip absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[calc(100%+8px)] scale-90 whitespace-nowrap rounded bg-black/80 px-2 py-1 text-xs text-white opacity-0 transition-all group-hover:scale-100 group-hover:opacity-100 group-focus:scale-100 group-focus:opacity-100"
-					role="tooltip"
-				>
-					{endpointsWithPositions[0].label}
-					<div class="tooltip-arrow"></div>
-				</div>
-			</div>
-
-			<!-- Other endpoint buttons -->
-			{#each endpointsWithPositions.slice(1) as endpoint, index}
-				<div
-					bind:this={circles[index + 1]}
-					role="menuitem"
-					aria-label={endpoint.ariaLabel || endpoint.label}
-					tabindex="0"
-					onclick={(event) => {
-						event.stopPropagation(); // Prevent click from reaching overlay
-						handleEndpointClick(endpoint);
-					}}
-					onkeydown={(event) => handleEndpointKeydown(event, endpoint)}
-					class="endpoint-circle group fixed flex h-[50px] w-[50px] -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full transition-transform duration-200 {endpoint.color ||
-						'bg-tertiary-500'} hover:scale-110 focus:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2"
-					style="top:{endpoint.y}px;left:{endpoint.x}px;"
-				>
-					<iconify-icon width="32" style="color:white" icon={endpoint.icon} aria-hidden="true"></iconify-icon>
-					<div
-						class="tooltip absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[calc(100%+8px)] scale-90 whitespace-nowrap rounded bg-black/80 px-2 py-1 text-xs text-white opacity-0 transition-all group-hover:scale-100 group-hover:opacity-100 group-focus:scale-100 group-focus:opacity-100"
-						role="tooltip"
-					>
-						{endpoint.label}
-						<div class="tooltip-arrow"></div>
-					</div>
-				</div>
-			{/each}
-		</div>
-	</div>
-{/if}
-
 <style lang="postcss">
-	/* Tooltip arrow */
-	.tooltip-arrow {
-		@apply absolute left-1/2 top-full h-0 w-0 -translate-x-1/2;
-		border-left: 4px solid transparent;
-		border-right: 4px solid transparent;
-		border-top: 4px solid rgba(0, 0, 0, 0.8);
-	}
+  .mirror {
+  transform: scaleX(-1);
+  }
 
-	/* Endpoint animations */
-	.endpoint-circle {
-		opacity: 0;
-		animation: showEndPoints 0.2s ease-out forwards;
-	}
+  .animated-path {
+  stroke-dasharray: 1000;
+  /* A value safely larger than any path length. */
+  stroke-width: 0.2;
+  /* A static width can be slightly more performant. */
+  will-change: stroke-dashoffset, opacity;
+  /* Hint to the browser for optimization. */
+  /* Use a single, combined animation for efficiency. */
+  animation: drawAndFade var(--animation-duration) linear infinite;
+  animation-delay: var(--animation-delay);
+  }
 
-	@keyframes showEndPoints {
-		0% {
-			opacity: 0;
-			visibility: hidden;
-			transform: translate(-50%, -50%) scale(0.5);
-		}
-		100% {
-			opacity: 1;
-			visibility: visible;
-			transform: translate(-50%, -50%) scale(1);
-		}
-	}
+  /* Combined keyframe rule for both drawing and fading the path. */
+  @keyframes drawAndFade {
+  0% {
+  stroke-dashoffset: calc(1000 * var(--mirror-direction));
+  opacity: 0;
+  }
+  50% {
+  stroke-dashoffset: 0;
+  opacity: 0.5;
+  }
+  100% {
+  stroke-dashoffset: calc(-1000 * var(--mirror-direction));
+  opacity: 0;
+  }
+  }
+
+  /* Accessibility: Respect user's motion preferences by disabling animations. */
+  @media (prefers-reduced-motion: reduce) {
+  .animated-path {
+  animation: none;
+  stroke-dasharray: none;
+  opacity: 0.2;
+  /* Show paths statically if motion is disabled. */
+  }
+  }
+
+  /* Performance: Promote the SVG to its own compositing layer for GPU acceleration. */
+  svg {
+  transform: translateZ(0);
+  }
 </style>

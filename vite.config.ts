@@ -225,7 +225,7 @@ export default defineConfig({
 			outdir: './src/paraglide' // Output directory for generated files
 		}),
 		svelteEmailTailwind({
-			pathToEmailFolder: '/src/components/emails' // defaults to '/src/lib/emails'
+			pathToEmailFolder: './src/components/emails' // defaults to '/src/lib/emails'
 		})
 	],
 

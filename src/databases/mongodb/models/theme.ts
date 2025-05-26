@@ -97,9 +97,9 @@ themeSchema.statics = {
 					await this.create({ ...themeData, _id: generateId() });
 				}
 			}
-			logger.info(`Stored ${themes.length} themes`);
+			logger.info(`Stored /x1b[34m${themes.length}/x1b[0m themes`);
 		} catch (error) {
-			logger.error(`Error storing themes: ${error.message}`);
+			logger.error(`Error storing themes: /x1b[31m${error.message}/x1b[0m`);
 			throw error;
 		}
 	},
