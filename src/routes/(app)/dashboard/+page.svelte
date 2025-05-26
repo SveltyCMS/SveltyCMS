@@ -15,10 +15,6 @@
 
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { fade } from 'svelte/transition';
-
-	// Import the dndzone directive
-	import { dndzone } from 'svelte-dnd-action';
 
 	// Stores
 	import { systemPreferences, type WidgetPreference } from '@stores/systemPreferences.svelte';
@@ -26,6 +22,8 @@
 	import { theme } from '@stores/themeStore.svelte';
 
 	// Components
+	import Grid from '@components/grid/Grid.svelte';
+	import type { GridColumn } from '@components/grid/types';
 	import PageTitle from '@components/PageTitle.svelte';
 	import CPUWidget from './widgets/CPUWidget.svelte';
 	import DiskWidget from './widgets/DiskWidget.svelte';
@@ -98,7 +96,7 @@
 			name: 'Memory Usage',
 			icon: 'mdi:memory',
 			defaultW: 1,
-			defaultH: 1,
+			defaultH: 4,
 			validSizes: [
 				{ w: 1, h: 1 },
 				{ w: 2, h: 2 }
@@ -256,16 +254,21 @@
 	}
 
 	// svelte-dnd-action handler: Called when the order of items is being considered (e.g., during drag)
-	function handleDndConsider(e: CustomEvent<{ items: DashboardWidgetConfig[] }>) {
-		// Update the local state with the potential new order
-		items = e.detail.items;
+	function handleDndConsider(columns: GridColumn[]) {
+		// Transform GridItems back to DashboardWidgetConfig
+		items = columns[0].items.map((gridItem) => {
+			const originalItem = items.find((item) => item.id === gridItem.id);
+			if (!originalItem) throw new Error(`Item with id ${gridItem.id} not found`);
+			return {
+				...originalItem,
+				w: gridItem.span || originalItem.w,
+				h: gridItem.heightSpan || originalItem.h
+			};
+		});
 	}
 
 	// svelte-dnd-action handler: Called when the drag and drop action is finalized (item is dropped)
-	function handleDndFinalize(e: CustomEvent<{ items: DashboardWidgetConfig[] }>) {
-		// Update the local state with the final order
-		items = e.detail.items;
-		// Save the final layout with reorganized positions
+	function handleDndFinalize(columns: GridColumn[]) {
 		saveWidgets();
 	}
 
@@ -339,62 +342,24 @@
 	// Derived state indicating if there are widgets available to add
 	let canAddMoreWidgets = $derived(availableWidgets.length > 0);
 
-	// Enhanced drag & drop options with better visual feedback and accessibility
-	let isDragging = $state(false);
-	let draggedItemId = $state<string | null>(null);
-
-	const dndOptions = {
-		dragDisabled: false,
-		dropTargetStyle: {
-			outline: '2px dashed rgba(var(--color-primary-500), 0.5)',
-			backgroundColor: 'rgba(var(--color-primary-500), 0.1)'
-		},
-		transformDraggedElement: (element: HTMLElement | undefined) => {
-			if (element) {
-				element.style.transform = 'rotate(3deg) scale(1.02)';
-				element.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-				element.style.cursor = 'grabbing';
-				element.style.zIndex = '100';
-				element.setAttribute('aria-grabbed', 'true');
-			}
-		},
-		createPlaceholder: (node: HTMLElement) => {
-			const placeholder = document.createElement('div');
-			placeholder.className = 'bg-primary-300/50 dark:bg-primary-700/50 border-2 border-dashed border-primary-500 rounded-lg';
-			placeholder.style.width = node.offsetWidth + 'px';
-			placeholder.style.height = node.offsetHeight + 'px';
-			placeholder.setAttribute('aria-hidden', 'true');
-			return placeholder;
-		},
-		onDragStart: (event: { detail: { item: DashboardWidgetConfig } }) => {
-			isDragging = true;
-			draggedItemId = event.detail.item.id;
-		},
-		onDragEnd: () => {
-			isDragging = false;
-			draggedItemId = null;
+	let gridColumns = $state<GridColumn[]>([
+		{
+			id: 'dashboard',
+			name: 'Dashboard',
+			items: []
 		}
-	};
+	]);
 
-	// Accessibility enhancements for keyboard navigation
-	function handleKeyDown(e: KeyboardEvent, item: DashboardWidgetConfig) {
-		if (e.key === 'Enter' || e.key === ' ') {
-			e.preventDefault();
-			// Simulate drag start for keyboard users
-			isDragging = true;
-			draggedItemId = item.id;
-		}
-	}
-
-	function handleKeyUp(e: KeyboardEvent) {
-		if ((e.key === 'Enter' || e.key === ' ') && isDragging) {
-			e.preventDefault();
-			// Simulate drop for keyboard users
-			isDragging = false;
-			draggedItemId = null;
-			saveWidgets(); // Persist the new order
-		}
-	}
+	$effect(() => {
+		gridColumns[0].items = items.map((item) => ({
+			id: item.id,
+			name: item.label,
+			span: item.w,
+			heightSpan: item.h,
+			component: widgetComponents[item.component]?.component,
+			props: { currentTheme, label: item.label, data, onclose: () => remove(item.id) }
+		}));
+	});
 </script>
 
 <div class="dashboard-container flex h-screen flex-col">
@@ -448,48 +413,7 @@
 		{#if !preferencesLoaded}
 			<p class="text-center text-tertiary-500 dark:text-primary-500">Loading dashboard preferences...</p>
 		{:else if items && items.length > 0}
-			<div
-				class="grid gap-2"
-				style="grid-template-columns: repeat({cols}, minmax(0, 1fr));"
-				use:dndzone={{ items, ...dndOptions }}
-				onconsider={handleDndConsider}
-				onfinalize={handleDndFinalize}
-				role="grid"
-				aria-label="Dashboard widgets grid"
-				aria-live="polite"
-				aria-relevant="additions removals"
-			>
-				{#each items as item (item.id)}
-					<div
-						transition:fade={{ duration: 300 }}
-						class="relative cursor-grab active:cursor-grabbing"
-						style="
-							grid-column: {item.x + 1} / span {item.w};
-							grid-row: {item.y + 1} / span {item.h};
-							min-width: calc((100% / {cols}) * {item.min?.w ?? 1} - 16px);
-							min-height: calc(100px * {item.min?.h ?? 1} - 16px);
-							opacity: {draggedItemId === item.id ? 0.5 : 1};
-						"
-						role="gridcell"
-						aria-label={widgetComponents[item.component]?.name || 'Widget'}
-						aria-describedby={`widget-${item.id}-desc`}
-						tabindex="0"
-						onkeydown={(e) => handleKeyDown(e, item)}
-						onkeyup={handleKeyUp}
-						data-dragging={draggedItemId === item.id}
-					>
-						<span id={`widget-${item.id}-desc`} class="sr-only"> Press space or enter to move this widget </span>
-						<div>
-							{#if widgetComponents[item.component]}
-								{@const SvelteComponent = widgetComponents[item.component].component}
-								<SvelteComponent label={item.label} {currentTheme} {data} on:close={() => remove(item.id)} />
-							{:else}
-								<div>Widget not found: {item.component}</div>
-							{/if}
-						</div>
-					</div>
-				{/each}
-			</div>
+			<Grid gridSettings={{ columns: 4, rows: 4 }} bind:columnItems={gridColumns} onfinalize={handleDndFinalize} />
 		{:else}
 			<p class="text-center text-tertiary-500 dark:text-primary-500">No widgets added yet. Use the "Add" button to add widgets.</p>
 		{/if}
