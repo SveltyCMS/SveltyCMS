@@ -261,6 +261,12 @@ export const permissionConfigs: Record<string, PermissionConfig> = {
 		action: 'manage',
 		contextType: 'system'
 	},
+	emailPreviews: {
+		contextId: 'config/emailPreviews',
+		name: 'Email Previews',
+		action: PermissionAction.MANAGE,
+		contextType: 'system'
+	},
 
 	// User Permissions
 	adminAreaPermissionConfig: {

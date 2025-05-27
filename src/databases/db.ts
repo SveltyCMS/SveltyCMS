@@ -246,11 +246,11 @@ async function initializeSystem(): Promise<void> {
 		// 1. Connect to Database & Load Adapters (Concurrently)
 		logger.debug('Connecting to database and loading adapters...');
 		await Promise.all([
-			connectToMongoDB().catch(err => {
+			connectToMongoDB().catch((err) => {
 				logger.error(`MongoDB connection failed: ${err.message}`);
 				throw err;
 			}),
-			loadAdapters().catch(err => {
+			loadAdapters().catch((err) => {
 				logger.error(`Adapter loading failed: ${err.message}`);
 				throw err;
 			})
@@ -337,7 +337,10 @@ async function initializeSystem(): Promise<void> {
 
 			// Verify auth methods are available
 			const authMethods = Object.keys(auth).filter((key) => typeof auth[key] === 'function');
-			logger.debug(`Auth instance created with ${authMethods.length} methods:`, authMethods.slice(0, 5).join(', ') + (authMethods.length > 5 ? '...' : ''));
+			logger.debug(
+				`Auth instance created with ${authMethods.length} methods:`,
+				authMethods.slice(0, 5).join(', ') + (authMethods.length > 5 ? '...' : '')
+			);
 
 			// Test auth functionality
 			if (typeof auth.validateSession !== 'function') {

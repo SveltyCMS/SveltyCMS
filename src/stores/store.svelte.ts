@@ -92,10 +92,10 @@ const createBaseStores = () => {
 
 	// Save functionality
 	const saveFunction = store<SaveFunction>({
-		fn: () => { },
-		reset: () => { }
+		fn: () => {},
+		reset: () => {}
 	});
-	const saveLayerStore = store(async () => { });
+	const saveLayerStore = store(async () => {});
 	const shouldShowNextButton = store(false);
 
 	// Validation
@@ -200,12 +200,16 @@ function createValidationStore() {
 	let errors = $state<ValidationErrors>({});
 
 	// Derived state that automatically recalculates when `errors` changes.
-	const isValid = $derived(Object.values(errors).every(error => !error));
+	const isValid = $derived(Object.values(errors).every((error) => !error));
 
 	return {
 		// Expose reactive state directly
-		get errors() { return errors; },
-		get isValid() { return isValid; },
+		get errors() {
+			return errors;
+		},
+		get isValid() {
+			return isValid;
+		},
 
 		// Methods to manipulate the state
 		setError: (fieldName: string, errorMessage: string | null) => {

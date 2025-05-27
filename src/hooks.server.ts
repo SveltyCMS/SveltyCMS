@@ -89,7 +89,11 @@ const apiLimiter = new RateLimiter({
 
 // Check if a given pathname is a static asset
 const isStaticAsset = (pathname: string): boolean =>
-	pathname.startsWith('/static/') || pathname.startsWith('/_app/') || pathname.endsWith('.js') || pathname.endsWith('.css') || pathname === '/favicon.ico';
+	pathname.startsWith('/static/') ||
+	pathname.startsWith('/_app/') ||
+	pathname.endsWith('.js') ||
+	pathname.endsWith('.css') ||
+	pathname === '/favicon.ico';
 
 // Check if the given IP is localhost
 const isLocalhost = (ip: string): boolean => ip === '::1' || ip === '127.0.0.1';
@@ -511,7 +515,9 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		}
 
 		const responseTime = performance.now() - requestStartTime;
-		logger.debug(`Route \x1b[34m${event.url.pathname}\x1b[0m - \x1b[32m${responseTime.toFixed(2)}ms\x1b[0m ${getPerformanceEmoji(responseTime)} (auth ready: ${authServiceReady})`);
+		logger.debug(
+			`Route \x1b[34m${event.url.pathname}\x1b[0m - \x1b[32m${responseTime.toFixed(2)}ms\x1b[0m ${getPerformanceEmoji(responseTime)} (auth ready: ${authServiceReady})`
+		);
 
 		if (isOAuthRoute(event.url.pathname)) {
 			logger.debug('OAuth route detected, passing through');
@@ -547,9 +553,12 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		}
 
 		const clientIp = getClientIp(event);
-		logger.error(`Error in handleAuth for \x1b[34m${event.url.pathname}\x1b[0m (IP: ${clientIp}): ${err instanceof Error ? err.message : JSON.stringify(err)}`, {
-			stack: err instanceof Error ? err.stack : undefined
-		});
+		logger.error(
+			`Error in handleAuth for \x1b[34m${event.url.pathname}\x1b[0m (IP: ${clientIp}): ${err instanceof Error ? err.message : JSON.stringify(err)}`,
+			{
+				stack: err instanceof Error ? err.stack : undefined
+			}
+		);
 
 		if (event.url.pathname.startsWith('/api/')) {
 			return new Response(JSON.stringify({ error: 'Internal Server Error', message: 'An unexpected error occurred' }), {
@@ -565,6 +574,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 // Handle API requests with optimized caching
 const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEvent) => Promise<Response>, user: User): Promise<Response> => {
 	const apiEndpoint = event.url.pathname.split('/api/')[1]?.split('/')[0];
+
 	if (!apiEndpoint) {
 		logger.warn(`Could not determine API endpoint from path: ${event.url.pathname}`);
 		throw error(400, 'Invalid API path');
@@ -587,11 +597,10 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 	const requiredPermissionName = `api:${apiEndpoint}`;
 	const permissionExists = userPerms.some((p) => p._id === requiredPermissionName || p.name === requiredPermissionName);
 
-	if (permissionExists) {
-		if (!permissionExists) {
-			logger.warn(`User \x1b[34m${user._id}\x1b[0m denied access to API /api/${apiEndpoint}`);
-			throw error(403, 'Forbidden: You do not have permission to access this API endpoint.');
-		}
+	if (!permissionExists) {
+		// If the user *lacks* the specific API permission
+		logger.warn(`User \x1b[34m${user._id}\x1b[0m denied access to API /api/${apiEndpoint} due to missing permission: ${requiredPermissionName}`);
+		throw error(403, `Forbidden: You do not have the required permission ('${requiredPermissionName}') to access this API endpoint.`);
 	}
 
 	// Handle GET requests with caching

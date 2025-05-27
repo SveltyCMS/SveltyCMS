@@ -61,14 +61,17 @@ export async function handleRequest(data: FormData, method: string, retries = 3)
 }
 
 // Function to get data from a specified collection
-export async function getData(query: {
-	collectionId: string;
-	page?: number;
-	limit?: number;
-	contentLanguage?: string;
-	filter?: string;
-	sort?: string;
-}, retries = 3): Promise<{ entryList: Record<string, unknown>[]; pagesCount: number }> {
+export async function getData(
+	query: {
+		collectionId: string;
+		page?: number;
+		limit?: number;
+		contentLanguage?: string;
+		filter?: string;
+		sort?: string;
+	},
+	retries = 3
+): Promise<{ entryList: Record<string, unknown>[]; pagesCount: number }> {
 	// Ensure collectionId is properly formatted
 	const collectionId = query.collectionId.trim().toLowerCase();
 
@@ -178,7 +181,7 @@ export async function saveFormData({
 	// Convert data to FormData based on its type
 	if (data instanceof FormData) {
 		formData = data;
-	} else if (Object.values(data).some(v => typeof v === 'function')) {
+	} else if (Object.values(data).some((v) => typeof v === 'function')) {
 		// This handles the { [Key: string]: () => unknown } case
 		logger.debug('Converting collection functions to FormData...');
 		formData = await col2formData(data as { [Key: string]: () => unknown });

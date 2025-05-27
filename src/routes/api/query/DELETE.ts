@@ -32,7 +32,6 @@ import { modifyRequest } from './modifyRequest';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-
 // Function to handle DELETE requests for a specified collection
 export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {
 	const start = performance.now();
@@ -111,7 +110,9 @@ export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: 
 		const deletedCount = await collection.deleteMany({ _id: { $in: idsArray } });
 		const deleteDuration = performance.now() - deleteStart;
 
-		logger.info(`Deleted \x1b[34m${deletedCount}\x1b[0m documents in \x1b[33m${deleteDuration.toFixed(2)}ms\x1b[0m for schema ID: \x1b[34m${schema.id}\x1b[0m`);
+		logger.info(
+			`Deleted \x1b[34m${deletedCount}\x1b[0m documents in \x1b[33m${deleteDuration.toFixed(2)}ms\x1b[0m for schema ID: \x1b[34m${schema.id}\x1b[0m`
+		);
 
 		const totalDuration = performance.now() - start;
 		logger.info(`DELETE operation completed in \x1b[33m${totalDuration.toFixed(2)}ms\x1b[0m`);

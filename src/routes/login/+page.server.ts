@@ -67,7 +67,7 @@ async function waitForAuthService(maxWaitMs: number = 10000): Promise<boolean> {
 		if (auth && typeof auth.validateSession === 'function') {
 			return true;
 		}
-		await new Promise(resolve => setTimeout(resolve, 100)); // Wait 100ms before checking again
+		await new Promise((resolve) => setTimeout(resolve, 100)); // Wait 100ms before checking again
 	}
 	return false;
 }

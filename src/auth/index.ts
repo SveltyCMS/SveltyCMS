@@ -52,7 +52,7 @@ export const SESSION_COOKIE_NAME = 'auth_sessions';
 // Define Argon2 attributes - Optimized for better performance while maintaining strong security
 const argon2Attributes = {
 	timeCost: 2, // Number of iterations
-	memoryCost: 2 ** 11, // Using memory cost of 2^11 = 2MB 
+	memoryCost: 2 ** 11, // Using memory cost of 2^11 = 2MB
 	parallelism: 1, // Single thread
 	saltLength: 16 // Salt length in bytes
 } as const;
@@ -571,7 +571,9 @@ export class Auth {
 				const totalLoginTime = performance.now() - loginStartTime;
 				const performanceEmoji = totalLoginTime < 500 ? '🚀' : totalLoginTime < 1000 ? '⚡' : totalLoginTime < 2000 ? '⏱️' : '🐢';
 
-				logger.info(`User logged in successfully: ${user.email} | Total time: ${totalLoginTime.toFixed(2)}ms ${performanceEmoji} | Breakdown: Lookup(${userLookupTime.toFixed(2)}ms) + Argon2(${argon2Time.toFixed(2)}ms) + Update(${updateTime.toFixed(2)}ms)`);
+				logger.info(
+					`User logged in successfully: ${user.email} | Total time: ${totalLoginTime.toFixed(2)}ms ${performanceEmoji} | Breakdown: Lookup(${userLookupTime.toFixed(2)}ms) + Argon2(${argon2Time.toFixed(2)}ms) + Update(${updateTime.toFixed(2)}ms)`
+				);
 				return user; // Return user on successful login
 			} else {
 				const failedAttempts = (user.failedAttempts || 0) + 1;

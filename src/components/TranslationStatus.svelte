@@ -95,7 +95,7 @@
 				total += langProgress.total.size;
 			}
 			completionTotals = { total, translated };
-			
+
 			// Update overall progress animation
 			const newPercentage = total > 0 ? Math.round((translated / total) * 100) : 0;
 			progressValue.set(newPercentage);
@@ -104,9 +104,8 @@
 			initializeLanguageProgress();
 			for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES) {
 				const langProgress = progress[lang as AvailableLanguageTag];
-				const percentage = langProgress && langProgress.total.size > 0 
-					? Math.round((langProgress.translated.size / langProgress.total.size) * 100) 
-					: 0;
+				const percentage =
+					langProgress && langProgress.total.size > 0 ? Math.round((langProgress.translated.size / langProgress.total.size) * 100) : 0;
 				languageProgressValues[lang]?.set(percentage);
 			}
 		} else {
@@ -122,7 +121,7 @@
 	function handleLanguageChange(selectedLanguage: AvailableLanguageTag) {
 		contentLanguage.set(selectedLanguage);
 		isOpen = false;
-		
+
 		// Add subtle feedback animation
 		chevronRotation.set(-10);
 		setTimeout(() => chevronRotation.set(0), 100);
@@ -182,7 +181,7 @@
 					aria-hidden="true"
 				></iconify-icon>
 			</button>
-			
+
 			<!-- Translation Progress with smooth animation -->
 			<div class="mt-0.5 transition-all duration-300">
 				<ProgressBar
@@ -198,7 +197,9 @@
 		{#if isOpen}
 			<div
 				id="translation-menu"
-				class="{translationProgress().show ? 'w-64' : ''} absolute right-0 z-10 mt-1 origin-top-right divide-y divide-surface-200 rounded-md border border-surface-300 bg-surface-100 py-1 shadow-xl ring-1 ring-black ring-opacity-5 focus:outline-none dark:divide-surface-400 dark:bg-surface-800 backdrop-blur-sm"
+				class="{translationProgress().show
+					? 'w-64'
+					: ''} absolute right-0 z-10 mt-1 origin-top-right divide-y divide-surface-200 rounded-md border border-surface-300 bg-surface-100 py-1 shadow-xl ring-1 ring-black ring-opacity-5 backdrop-blur-sm focus:outline-none dark:divide-surface-400 dark:bg-surface-800"
 				role="menu"
 				aria-orientation="vertical"
 				aria-labelledby="options-menu"
@@ -209,20 +210,22 @@
 					{#each publicEnv.AVAILABLE_CONTENT_LANGUAGES as lang, index (lang)}
 						<button
 							role="menuitem"
-							class="{translationProgress().show ? 'justify-between' : 'justify-center'} flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-all duration-200 hover:bg-surface-300 dark:hover:bg-surface-600 hover:scale-[1.02] active:scale-98"
+							class="{translationProgress().show
+								? 'justify-between'
+								: 'justify-center'} active:scale-98 flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-all duration-200 hover:scale-[1.02] hover:bg-surface-300 dark:hover:bg-surface-600"
 							onclick={() => handleLanguageChange(lang as AvailableLanguageTag)}
 							aria-label={m.translationsstatus_select_language({ language: lang.toUpperCase() })}
 							style="animation-delay: {index * 50}ms;"
 						>
-							<div class="flex items-center justify-between gap-1 w-full">
+							<div class="flex w-full items-center justify-between gap-1">
 								<!-- Language -->
 								<span class="font-medium transition-colors duration-200 hover:text-primary-500">
 									{lang.toUpperCase()}
 								</span>
-								
+
 								<!-- Progress Bar and Percentage -->
 								{#if translationProgress()[lang as AvailableLanguageTag]}
-									<div class="flex items-center gap-2 flex-1 ml-2">
+									<div class="ml-2 flex flex-1 items-center gap-2">
 										<div class="flex-1">
 											<ProgressBar
 												class="transition-all duration-300"
@@ -230,7 +233,7 @@
 												meter={getColor(getAnimatedLanguageProgress(lang))}
 											/>
 										</div>
-										<span class="text-sm font-semibold min-w-[2.5rem] text-right transition-all duration-300">
+										<span class="min-w-[2.5rem] text-right text-sm font-semibold transition-all duration-300">
 											{Math.round(getAnimatedLanguageProgress(lang))}%
 										</span>
 									</div>
@@ -239,24 +242,19 @@
 						</button>
 					{/each}
 				</div>
-				
+
 				<!-- Overall Completion -->
-				<div class="px-4 py-3 bg-surface-50 dark:bg-surface-750" role="none">
+				<div class="dark:bg-surface-750 bg-surface-50 px-4 py-3" role="none">
 					<div class="mb-2 text-center text-xs font-medium text-surface-600 dark:text-surface-400">
 						{m.translationsstatus_completed()}
 					</div>
 					<div class="{completionStatus ? 'justify-between' : 'justify-center'} flex items-center gap-3">
 						{#if completionStatus}
 							<div class="flex-1">
-								<ProgressBar 
-									class="transition-all duration-300" 
-									value={$progressValue} 
-									meter={getColor($progressValue)} 
-									aria-hidden="true" 
-								/>
+								<ProgressBar class="transition-all duration-300" value={$progressValue} meter={getColor($progressValue)} aria-hidden="true" />
 							</div>
 						{/if}
-						<span class="text-sm font-bold min-w-[2.5rem] text-right transition-all duration-300 {getColor($progressValue).replace('bg-', 'text-')}">
+						<span class="min-w-[2.5rem] text-right text-sm font-bold transition-all duration-300 {getColor($progressValue).replace('bg-', 'text-')}">
 							{Math.round($progressValue)}%
 						</span>
 					</div>

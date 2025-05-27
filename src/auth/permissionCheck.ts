@@ -26,26 +26,17 @@ export function clearRolePermissionCache() {
  */
 export async function checkUserPermission(user: User, config: PermissionConfig): Promise<{ hasPermission: boolean; isRateLimited: boolean }> {
 	try {
-		logger.debug(
-			`Checking permissions for user on \x1b[34m${config.contextId}\x1b[0m`,
-			{ email: user.email }
-		);
+		logger.debug(`Checking permissions for user on \x1b[34m${config.contextId}\x1b[0m`, { email: user.email });
 
 		const userRole = configRoles.find((role) => role._id === user.role);
 		if (!userRole) {
-			logger.warn(
-				`Role not found for user`,
-				{ email: user.email }
-			);
+			logger.warn(`Role not found for user`, { email: user.email });
 			return { hasPermission: false, isRateLimited: false };
 		}
 
 		// Admins automatically have all permissions
 		if (userRole.isAdmin) {
-			logger.info(
-				`User is an admin. Granting full access.`,
-				{ email: user.email }
-			);
+			logger.info(`User is an admin. Granting full access.`, { email: user.email });
 			return { hasPermission: true, isRateLimited: false };
 		}
 
@@ -67,10 +58,7 @@ export async function checkUserPermission(user: User, config: PermissionConfig):
 				(permission.type === config.contextType || permission.type === PermissionType.SYSTEM)
 		);
 
-		logger.info(
-			`Permission ${hasPermission ? 'GRANTED' : 'DENIED'} for user on ${config.contextId}`,
-			{ email: user.email }
-		);
+		logger.info(`Permission ${hasPermission ? 'GRANTED' : 'DENIED'} for user on ${config.contextId}`, { email: user.email });
 
 		return { hasPermission, isRateLimited: false };
 	} catch (err) {

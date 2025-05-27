@@ -100,6 +100,14 @@ Features:
 			</a>
 		</PermissionGuard>
 
+		<!-- Email Previews -->
+		<PermissionGuard config={permissionConfigs.emailPreviews}>
+			<a href="/email-previews" aria-label="Email Previews" class="config-btn variant-outline-tertiary dark:variant-outline-secondary">
+				<iconify-icon icon="mdi:email-outline" class="config-icon text-primary-600"></iconify-icon>
+				<p class="config-text">Email Previews</p>
+			</a>
+		</PermissionGuard>
+
 		<!-- Dashboard -->
 		<PermissionGuard config={permissionConfigs.dashboard}>
 			<a href="/dashboard" class="config-btn variant-outline-tertiary dark:variant-outline-secondary" aria-label={m.config_Dashboard()}>

@@ -105,10 +105,13 @@ export class SessionAdapter implements Partial<authDBInterface> {
 			}
 
 			// Create new session, do NOT invalidate all others
-			const newSession = await this.createSession({
-				user_id: oldSession.user_id,
-				expires
-			}, { invalidateOthers: false });
+			const newSession = await this.createSession(
+				{
+					user_id: oldSession.user_id,
+					expires
+				},
+				{ invalidateOthers: false }
+			);
 
 			// Instead of immediately deleting old session, extend it for 5 minutes grace period
 			// This prevents race conditions where cached references to old session cause failures

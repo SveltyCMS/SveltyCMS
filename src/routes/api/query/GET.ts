@@ -150,7 +150,9 @@ export async function _GET({
 
 			const duration = performance.now() - start;
 
-			logger.debug(`Queries executed in \x1b[33m${duration.toFixed(2)}ms\x1b[0m. Entries: \x1b[34m${entries.length}\x1b[0m, Total: \x1b[34m${total}\x1b[0m`);
+			logger.debug(
+				`Queries executed in \x1b[33m${duration.toFixed(2)}ms\x1b[0m. Entries: \x1b[34m${entries.length}\x1b[0m, Total: \x1b[34m${total}\x1b[0m`
+			);
 		} catch (error) {
 			logger.error(`Error executing queries: ${error}`);
 			return new Response('Error executing database query', { status: 500 });
@@ -181,7 +183,9 @@ export async function _GET({
 		const pagesCount = limit > 0 ? Math.ceil(total / limit) : 1;
 
 		const duration = performance.now() - start;
-		logger.info(`GET request completed in \x1b[33m${duration.toFixed(2)}ms\x1b[0m. Total: \x1b[34m${total}\x1b[0m, Pages: \x1b[34m${pagesCount}\x1b[0m`);
+		logger.info(
+			`GET request completed in \x1b[33m${duration.toFixed(2)}ms\x1b[0m. Total: \x1b[34m${total}\x1b[0m, Pages: \x1b[34m${pagesCount}\x1b[0m`
+		);
 
 		// Return the response with entry list and pages count
 		return new Response(
@@ -229,16 +233,12 @@ export async function _GET({
 			}
 		};
 
-		return new Response(
-			JSON.stringify(errorResponse),
-			{
-				status: 500,
-				headers: {
-					'Content-Type': 'application/json',
-					'X-Content-Type-Options': 'nosniff'
-				}
+		return new Response(JSON.stringify(errorResponse), {
+			status: 500,
+			headers: {
+				'Content-Type': 'application/json',
+				'X-Content-Type-Options': 'nosniff'
 			}
-		);
+		});
 	}
 }
-
