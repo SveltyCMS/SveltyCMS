@@ -15,16 +15,17 @@
 
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { dndzone } from 'svelte-dnd-action'; // For drag and drop
 
 	// Stores
 	import { systemPreferences, type WidgetPreference } from '@stores/systemPreferences.svelte';
-	import { screenSize } from '@stores/screenSizeStore.svelte';
+	import { screenSize, type ScreenSize } from '@stores/screenSizeStore.svelte'; // Assuming ScreenSize is exported
 	import { theme } from '@stores/themeStore.svelte';
 
 	// Components
-	import Grid from '@components/system/grid/Grid.svelte';
-	import type { GridColumn } from '@components/system/grid/types';
 	import PageTitle from '@components/PageTitle.svelte';
+	// BaseWidget is used by CPUWidget, DiskWidget etc. It doesn't need to be directly called in this script.
+	// import BaseWidget from './BaseWidget.svelte';
 	import CPUWidget from './widgets/CPUWidget.svelte';
 	import DiskWidget from './widgets/DiskWidget.svelte';
 	import MemoryWidget from './widgets/MemoryWidget.svelte';
@@ -32,41 +33,49 @@
 	import UserActivityWidget from './widgets/UserActivityWidget.svelte';
 	import SystemMessagesWidget from './widgets/SystemMessagesWidget.svelte';
 
+	const ROW_HEIGHT = 100;
+	const GAP_SIZE = 16;
+	const DND_OPTIONS = { flipDurationMs: 200 };
+
 	interface Props {
 		data: { user: { id: string } };
 	}
+	let { data: pageData }: Props = $props();
 
-	let { data }: Props = $props();
-
-	// Define the structure for our widget items in the state
+	// Ensure WidgetPreference in @stores/systemPreferences.svelte includes 'icon: string;'
+	// and all other fields expected by DashboardWidgetConfig.
 	type DashboardWidgetConfig = WidgetPreference & {
-		component: string; // String identifier for the widget component
-		label: string; // Display label for the widget
-		defaultW: number; // Default width when added
-		defaultH: number; // Default height when added
-		validSizes: { w: number; h: number }[]; // Array of valid sizes for cycling/selection
+		// Explicitly list all expected fields if WidgetPreference is too generic or for clarity
+		// For example, if WidgetPreference might not have 'icon', but DashboardWidgetConfig always does:
+		icon: string;
+		// Add other fields if they are guaranteed here but optional in WidgetPreference
 	};
 
-	// State variable to hold the list of dashboard items
+	// Define what the structure of preferences from the store looks like.
+	// It's an object where keys are screen sizes (e.g., 'sm', 'md') and values are widget arrays.
+	type PreferencesState = Partial<Record<ScreenSize, WidgetPreference[]>>;
+
 	let items: DashboardWidgetConfig[] = $state([]);
-	// State for controlling the add widget dropdown visibility
 	let dropdownOpen = $state(false);
-	// Bind to the grid container element
 	let gridElement: HTMLElement | undefined = $state();
+	let draggedItemId: string | null = $state(null);
+	let preferencesLoaded = $state(false);
 
-	// Derived state for number of grid columns based on screen size store
-	let cols = $derived($screenSize === 'sm' ? 2 : $screenSize === 'md' ? 3 : 4);
+	let currentScreenSize = $derived($screenSize);
+	let cols = $derived(currentScreenSize === 'sm' ? 2 : currentScreenSize === 'md' ? 3 : 4);
+	let gridCellWidth = $state(0);
 
-	// Mapping from string identifier to component info, including sizing and icon
-	const widgetComponents: Record<
+	const widgetComponentRegistry: Record<
 		string,
 		{
 			component: any;
 			name: string;
-			icon: string;
+			icon: string; // Icon is used for the "Add Widget" dropdown
 			defaultW: number;
 			defaultH: number;
-			validSizes: { w: number; h: number }[];
+			minW?: number;
+			minH?: number;
+			validSizes?: { w: number; h: number }[];
 		}
 	> = {
 		CPUWidget: {
@@ -75,58 +84,26 @@
 			icon: 'mdi:cpu-64-bit',
 			defaultW: 2,
 			defaultH: 2,
-			validSizes: [
-				{ w: 1, h: 1 },
-				{ w: 2, h: 2 }
-			]
-		},
-		DiskWidget: {
-			component: DiskWidget,
-			name: 'Disk Usage',
-			icon: 'mdi:harddisk',
-			defaultW: 1,
-			defaultH: 1,
-			validSizes: [
-				{ w: 1, h: 1 },
-				{ w: 2, h: 2 }
-			]
-		},
-		MemoryWidget: {
-			component: MemoryWidget,
-			name: 'Memory Usage',
-			icon: 'mdi:memory',
-			defaultW: 1,
-			defaultH: 4,
-			validSizes: [
-				{ w: 1, h: 1 },
-				{ w: 2, h: 2 }
-			]
-		},
-		Last5MediaWidget: {
-			component: Last5MediaWidget,
-			name: 'Last 5 Media',
-			icon: 'mdi:image-multiple',
-			defaultW: 2,
-			defaultH: 2,
-			validSizes: [
-				{ w: 1, h: 1 },
-				{ w: 2, h: 2 },
-				{ w: 2, h: 1 },
-				{ w: 1, h: 2 }
-			]
-		},
-		UserActivityWidget: {
-			component: UserActivityWidget,
-			name: 'User Activity',
-			icon: 'mdi:account-group',
-			defaultW: 2,
-			defaultH: 1,
+			minW: 1,
+			minH: 1,
 			validSizes: [
 				{ w: 1, h: 1 },
 				{ w: 2, h: 1 },
 				{ w: 1, h: 2 },
 				{ w: 2, h: 2 }
 			]
+		},
+		DiskWidget: { component: DiskWidget, name: 'Disk Usage', icon: 'mdi:harddisk', defaultW: 1, defaultH: 1, minW: 1, minH: 1 },
+		MemoryWidget: { component: MemoryWidget, name: 'Memory Usage', icon: 'mdi:memory', defaultW: 1, defaultH: 2, minW: 1, minH: 1 },
+		Last5MediaWidget: { component: Last5MediaWidget, name: 'Last 5 Media', icon: 'mdi:image-multiple', defaultW: 2, defaultH: 2, minW: 1, minH: 2 },
+		UserActivityWidget: {
+			component: UserActivityWidget,
+			name: 'User Activity',
+			icon: 'mdi:account-group',
+			defaultW: 2,
+			defaultH: 1,
+			minW: 2,
+			minH: 1
 		},
 		SystemMessagesWidget: {
 			component: SystemMessagesWidget,
@@ -134,246 +111,223 @@
 			icon: 'mdi:message-alert',
 			defaultW: 2,
 			defaultH: 2,
-			validSizes: [
-				{ w: 1, h: 1 },
-				{ w: 2, h: 1 },
-				{ w: 1, h: 2 },
-				{ w: 2, h: 2 }
-			]
+			minW: 1,
+			minH: 1
 		}
 	};
 
-	// Function to reset the grid layout
-	function resetGrid() {
-		items = []; // Clear local state
-		systemPreferences.clearPreferences(data.user.id); // Clear saved preferences
-	}
-
-	// Function to remove a widget by id
-	function remove(id: string) {
-		items = items.filter((item) => item.id !== id);
-		saveWidgets(); // Save preferences after removing a widget
-	}
-
-	// Function to save the current items layout to user preferences
-	async function saveWidgets() {
-		// Recalculate positions to ensure no overlaps
-		const itemsToSave = organizeWidgetGrid();
-		// Save the updated items array for the current screen size and user
-		await systemPreferences.setPreference(data.user.id, $screenSize, itemsToSave);
-	}
-
-	// Function to organize widgets in a grid layout with no overlaps
-	function organizeWidgetGrid() {
-		// Create a grid representation to track occupied cells
-		const grid: boolean[][] = [];
-		const maxCols = cols;
-
-		// Initialize grid with empty cells
-		for (let i = 0; i < 100; i++) {
-			// Arbitrarily large number of rows
-			grid[i] = [];
-			for (let j = 0; j < maxCols; j++) {
-				grid[i][j] = false; // false means the cell is free
-			}
+	$effect(() => {
+		if (gridElement && cols > 0) {
+			const containerWidth = gridElement.clientWidth;
+			gridCellWidth = (containerWidth - (cols - 1) * GAP_SIZE) / cols;
 		}
+	});
 
-		// Organize items without overlaps
-		const organizedItems = [...items].map((item) => ({ ...item }));
+	let resizeObserver: ResizeObserver | null = null;
+	$effect(() => {
+		if (gridElement) {
+			resizeObserver = new ResizeObserver((entries) => {
+				if (entries[0] && cols > 0) {
+					const containerWidth = entries[0].contentRect.width;
+					gridCellWidth = (containerWidth - (cols - 1) * GAP_SIZE) / cols;
+				}
+			});
+			resizeObserver.observe(gridElement);
+		}
+		return () => {
+			if (resizeObserver && gridElement) resizeObserver.unobserve(gridElement);
+			resizeObserver = null;
+		};
+	});
 
-		organizedItems.forEach((item) => {
-			// Cap width to prevent overflow
-			item.w = Math.min(item.w, maxCols);
+	onMount(async () => {
+		try {
+			await systemPreferences.loadPreferences(pageData.user.id);
+			// Cast $systemPreferences to the expected PreferencesState type
+			const prefsState = $systemPreferences as PreferencesState;
 
-			// Find next available position
+			// Use the derived currentScreenSize for indexing
+			const loadedRawItems: WidgetPreference[] = prefsState?.[currentScreenSize] || [];
+
+			items = loadedRawItems.map((itemLoading): DashboardWidgetConfig => {
+				const componentInfo = widgetComponentRegistry[itemLoading.component];
+				// Ensure that itemLoading conforms to WidgetPreference and add defaults
+				// The 'icon' property must exist on WidgetPreference or be handled here.
+				// Assuming WidgetPreference from the store might miss some fields, we provide defaults.
+				return {
+					id: itemLoading.id || crypto.randomUUID(),
+					component: itemLoading.component,
+					label: itemLoading.label || componentInfo?.name || 'Unknown Widget',
+					// IMPORTANT: Ensure WidgetPreference type in your store includes 'icon'.
+					// If not, this line will cause a type error or runtime issues.
+					icon: itemLoading.icon || componentInfo?.icon || 'mdi:help-circle',
+					x: itemLoading.x ?? 0,
+					y: itemLoading.y ?? 0,
+					w: itemLoading.w || componentInfo?.defaultW || 1,
+					h: itemLoading.h || componentInfo?.defaultH || 1,
+					min: itemLoading.min || { w: componentInfo?.minW || 1, h: componentInfo?.minH || 1 },
+					max: itemLoading.max || { w: cols, h: Infinity },
+					movable: itemLoading.movable ?? true,
+					resizable: itemLoading.resizable ?? true,
+					defaultW: itemLoading.defaultW || componentInfo?.defaultW || 1,
+					defaultH: itemLoading.defaultH || componentInfo?.defaultH || 1,
+					validSizes: itemLoading.validSizes || componentInfo?.validSizes || []
+				} as DashboardWidgetConfig; // Cast to ensure all fields are present
+			});
+
+			if (items.length > 0) {
+				items = organizeWidgetGrid(items, cols);
+			}
+		} catch (error) {
+			console.error('Failed to load preferences:', error);
+			items = [];
+		}
+		preferencesLoaded = true;
+	});
+
+	function organizeWidgetGrid(currentWidgets: DashboardWidgetConfig[], numCols: number): DashboardWidgetConfig[] {
+		const gridOccupancy: boolean[][] = [];
+		const maxRowsToSearch = 200;
+		const organized: DashboardWidgetConfig[] = [];
+
+		for (const widget of currentWidgets) {
+			const W = Math.min(numCols, Math.max(widget.min?.w || 1, widget.w));
+			const H = Math.max(widget.min?.h || 1, widget.h);
 			let placed = false;
-			let row = 0;
-
-			while (!placed) {
-				for (let col = 0; col <= maxCols - item.w; col++) {
-					// Check if we can place the widget here
+			for (let r = 0; r < maxRowsToSearch; r++) {
+				if (placed) break;
+				for (let c = 0; c <= numCols - W; c++) {
 					let canPlace = true;
-					for (let r = 0; r < item.h; r++) {
-						for (let c = 0; c < item.w; c++) {
-							if (grid[row + r][col + c]) {
+					for (let dr = 0; dr < H; dr++) {
+						for (let dc = 0; dc < W; dc++) {
+							if (gridOccupancy[r + dr]?.[c + dc]) {
 								canPlace = false;
 								break;
 							}
 						}
 						if (!canPlace) break;
 					}
-
-					// If we can place it, mark these cells as occupied
 					if (canPlace) {
-						for (let r = 0; r < item.h; r++) {
-							for (let c = 0; c < item.w; c++) {
-								grid[row + r][col + c] = true;
+						for (let dr = 0; dr < H; dr++) {
+							if (!gridOccupancy[r + dr]) gridOccupancy[r + dr] = [];
+							for (let dc = 0; dc < W; dc++) {
+								gridOccupancy[r + dr][c + dc] = true;
 							}
 						}
-
-						// Update item position
-						item.x = col;
-						item.y = row;
+						organized.push({ ...widget, x: c, y: r, w: W, h: H });
 						placed = true;
 						break;
 					}
 				}
-
-				if (!placed) row++; // Try next row if can't place in current row
 			}
-		});
-
-		return organizedItems;
-	}
-
-	// Function to add a new widget to the dashboard
-	function addNewItem(componentName: string) {
-		const componentInfo = widgetComponents[componentName];
-		if (componentInfo) {
-			const newItem: DashboardWidgetConfig = {
-				id: crypto.randomUUID(), // Generate a unique ID
-				component: componentName,
-				label: componentInfo.name,
-				// Initial x, y are placeholders; they will be set correctly by saveWidgets
-				x: 0,
-				y: 0,
-				w: componentInfo.defaultW, // Use default width from config
-				h: componentInfo.defaultH, // Use default height from config
-				min: { w: 1, h: 1 }, // Define minimum size
-				max: { w: cols, h: Infinity }, // Define maximum size (max width is limited by columns)
-				movable: true, // Keep this flag, conceptual for dndzone
-				resizable: true, // Keep this flag, conceptual for manual resizing
-				defaultW: componentInfo.defaultW,
-				defaultH: componentInfo.defaultH,
-				validSizes: componentInfo.validSizes
-			};
-			items = [...items, newItem]; // Add the new item to the state array
-			saveWidgets(); // Save preferences after adding a widget
+			if (!placed) {
+				console.warn('Could not place widget:', widget.label);
+				organized.push({ ...widget, x: 0, y: maxRowsToSearch, w: W, h: H });
+			}
 		}
-		dropdownOpen = false; // Close the dropdown after adding
+		return organized;
 	}
 
-	// svelte-dnd-action handler: Called when the order of items is being considered (e.g., during drag)
-	function handleDndConsider(columns: GridColumn[]) {
-		// Transform GridItems back to DashboardWidgetConfig
-		items = columns[0].items.map((gridItem) => {
-			const originalItem = items.find((item) => item.id === gridItem.id);
-			if (!originalItem) throw new Error(`Item with id ${gridItem.id} not found`);
-			return {
-				...originalItem,
-				w: gridItem.span || originalItem.w,
-				h: gridItem.heightSpan || originalItem.h
-			};
-		});
+	async function saveLayout() {
+		const itemsToSave = organizeWidgetGrid(items, cols);
+		items = itemsToSave;
+		// Ensure itemsToSave conforms to WidgetPreference[] if that's what setPreference expects
+		await systemPreferences.setPreference(pageData.user.id, currentScreenSize, itemsToSave as WidgetPreference[]);
 	}
 
-	// svelte-dnd-action handler: Called when the drag and drop action is finalized (item is dropped)
-	function handleDndFinalize(columns: GridColumn[]) {
-		saveWidgets();
+	function handleDndConsider(e: CustomEvent<{ items: DashboardWidgetConfig[]; info: { id: string } }>) {
+		draggedItemId = e.detail.info.id;
 	}
 
-	// Function to toggle the visibility of the add widget dropdown
+	function handleDndFinalize(e: CustomEvent<{ items: DashboardWidgetConfig[]; info: { id: string } }>) {
+		draggedItemId = null;
+		items = e.detail.items;
+		saveLayout();
+	}
+
+	function handleWidgetResized(itemId: string, newSpans: { w: number; h: number }) {
+		const itemIndex = items.findIndex((i) => i.id === itemId);
+		if (itemIndex === -1) return;
+
+		const item = items[itemIndex];
+		const componentInfo = widgetComponentRegistry[item.component];
+		let newW = newSpans.w;
+		let newH = newSpans.h;
+
+		newW = Math.min(item.max?.w || cols, Math.max(item.min?.w || componentInfo?.minW || 1, newW));
+		newH = Math.min(item.max?.h || Infinity, Math.max(item.min?.h || componentInfo?.minH || 1, newH));
+
+		if (componentInfo?.validSizes && componentInfo.validSizes.length > 0) {
+			let closestSize = componentInfo.validSizes[0];
+			let minDiff = Infinity;
+			for (const size of componentInfo.validSizes) {
+				const diff = Math.abs(size.w - newW) + Math.abs(size.h - newH);
+				if (diff < minDiff) {
+					minDiff = diff;
+					closestSize = size;
+				}
+			}
+			newW = closestSize.w;
+			newH = closestSize.h;
+		}
+		newW = Math.min(cols, newW);
+
+		items[itemIndex] = { ...item, w: newW, h: newH };
+		items = [...items];
+		saveLayout();
+	}
+
+	function addNewWidget(componentName: string) {
+		const componentInfo = widgetComponentRegistry[componentName];
+		if (!componentInfo) return;
+
+		const newItem: DashboardWidgetConfig = {
+			id: crypto.randomUUID(),
+			component: componentName,
+			label: componentInfo.name,
+			icon: componentInfo.icon, // From registry
+			x: 0,
+			y: 0,
+			w: componentInfo.defaultW,
+			h: componentInfo.defaultH,
+			min: { w: componentInfo.minW || 1, h: componentInfo.minH || 1 },
+			max: { w: cols, h: Infinity },
+			movable: true,
+			resizable: true,
+			defaultW: componentInfo.defaultW,
+			defaultH: componentInfo.defaultH,
+			validSizes: componentInfo.validSizes || []
+		};
+		items = [...items, newItem];
+		saveLayout();
+		dropdownOpen = false;
+	}
+
+	function removeWidget(id: string) {
+		items = items.filter((item) => item.id !== id);
+		saveLayout();
+	}
+
+	function resetGrid() {
+		items = [];
+		// Pass currentScreenSize if clearPreferences is per screen
+		systemPreferences.clearPreferences(pageData.user.id /*, currentScreenSize */);
+		saveLayout();
+	}
+
 	function toggleDropdown() {
 		dropdownOpen = !dropdownOpen;
 	}
 
-	let preferencesLoaded = $state(false);
-
-	// On component mount, load user preferences for the current screen size
-	onMount(async () => {
-		const MAX_RETRIES = 10;
-		let retryCount = 0;
-
-		async function loadWithRetry() {
-			try {
-				await systemPreferences.loadPreferences(data.user.id);
-				const preferencesState = $systemPreferences as any;
-				const loadedItems = preferencesState?.[$screenSize];
-
-				// Ensure loaded items are an array and map them to our type, adding defaults if necessary
-				items = Array.isArray(loadedItems)
-					? loadedItems.map((item) => ({
-							...item,
-							// Ensure essential properties exist, using defaults from widgetComponents if available
-							component: item.component, // Ensure component string is present
-							label: item.label || widgetComponents[item.component]?.name || 'Unknown Widget', // Ensure label
-							x: item.x ?? 0, // Default x if missing
-							y: item.y ?? 0, // Default y if missing
-							w: item.w || widgetComponents[item.component]?.defaultW || 1, // Use saved w, or default, or 1
-							h: item.h || widgetComponents[item.component]?.defaultH || 1, // Use saved h, or default, or 1
-							min: item.min || { w: 1, h: 1 }, // Default min
-							// Max width should be capped by current cols, max height can be high
-							max: item.max ? { w: Math.min(item.max.w, cols), h: item.max.h } : { w: cols, h: Infinity }, // Default max capped by cols
-							movable: item.movable ?? true, // Default movable
-							resizable: item.resizable ?? true, // Default resizable
-							// Ensure defaultW/H and validSizes exist on the item for widget info
-							defaultW: widgetComponents[item.component]?.defaultW || item.w || 1,
-							defaultH: widgetComponents[item.component]?.defaultH || item.h || 1,
-							validSizes: widgetComponents[item.component]?.validSizes || [{ w: item.w || 1, h: item.h || 1 }]
-						}))
-					: [];
-			} catch (error) {
-				if (retryCount < MAX_RETRIES && error instanceof Error && error.message.includes('Database adapter not initialized')) {
-					retryCount++;
-					await new Promise((resolve) => setTimeout(resolve, 500 * retryCount)); // Exponential backoff
-					return loadWithRetry();
-				}
-				console.error('Failed to load preferences:', error);
-				// Fallback to empty items if preferences can't be loaded
-				items = [];
-				throw error;
-			}
-		}
-
-		try {
-			await loadWithRetry();
-		} catch (error) {
-			console.error('Final load attempt failed:', error);
-		}
-		preferencesLoaded = true;
-	});
-
-	// Derived state for the current theme
 	let currentTheme = $derived($theme);
-
-	// Derived state for widgets that haven't been added yet
-	let availableWidgets = $derived(Object.keys(widgetComponents).filter((componentName) => !items.some((item) => item.component === componentName)));
-
-	// Derived state indicating if there are widgets available to add
+	let availableWidgets = $derived(Object.keys(widgetComponentRegistry).filter((name) => !items.some((item) => item.component === name)));
 	let canAddMoreWidgets = $derived(availableWidgets.length > 0);
-
-	let gridColumns = $state<GridColumn[]>([
-		{
-			id: 'dashboard',
-			name: 'Dashboard',
-			items: []
-		}
-	]);
-
-	$effect(() => {
-		gridColumns[0].items = items.map((item) => ({
-			id: item.id,
-			name: item.label,
-			span: item.w,
-			heightSpan: item.h,
-			component: widgetComponents[item.component]?.component,
-			props: { currentTheme, label: item.label, data, onclose: () => remove(item.id) }
-		}));
-	});
 </script>
 
-<div class="dashboard-container flex h-screen flex-col">
-	<div class="my-2 flex items-center justify-between gap-2">
-		<div class="flex items-center">
-			<PageTitle name="Dashboard" icon="bi:bar-chart-line" />
-		</div>
-		<button onclick={() => history.back()} aria-label="Back" class="variant-outline-primary btn-icon">
-			<iconify-icon icon="ri:arrow-left-line" width="20"></iconify-icon>
-		</button>
-	</div>
-
-	<div class="my-2 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
-		<div class="mt-2 flex w-full justify-around gap-2 sm:ml-auto sm:mt-0 sm:w-auto sm:flex-row">
+<div class="dashboard-container text-text-900 dark:text-text-100 flex h-screen flex-col bg-surface-50 dark:bg-surface-900">
+	<div class="my-2 flex items-center justify-between gap-2 border-b border-surface-200 px-4 py-2 dark:border-surface-700">
+		<PageTitle name="Dashboard" icon="bi:bar-chart-line" />
+		<div class="flex items-center gap-2">
 			{#if canAddMoreWidgets}
 				<div class="relative">
 					<button
@@ -383,39 +337,106 @@
 						aria-expanded={dropdownOpen}
 						class="variant-filled-tertiary btn gap-2 !text-white dark:variant-filled-primary"
 					>
-						<iconify-icon icon="carbon:add-filled" width="24" class="text-white"></iconify-icon>
-						Add
+						<iconify-icon icon="carbon:add-filled" width="20"></iconify-icon>
+						Add Widget
 					</button>
 					{#if dropdownOpen}
 						<div
-							class="absolute right-0 z-10 mt-2 w-48 divide-y divide-gray-200 rounded border border-gray-300 bg-white shadow-lg dark:divide-gray-600 dark:border-gray-700 dark:bg-gray-800"
-							aria-label="Add Widget Menu"
+							class="absolute right-0 z-20 mt-2 w-56 origin-top-right rounded-md border border-gray-300 bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:border-gray-700 dark:bg-gray-800"
+							role="menu"
 						>
-							{#each availableWidgets as componentName}
-								<button
-									onclick={() => addNewItem(componentName)}
-									type="button"
-									class="flex w-full items-center gap-2 px-4 py-2 text-left hover:bg-gray-200 dark:hover:bg-gray-700"
-								>
-									<iconify-icon icon={widgetComponents[componentName].icon} width="20" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-									{widgetComponents[componentName].name}
-								</button>
-							{/each}
+							<div class="py-1" role="none">
+								{#each availableWidgets as componentName}
+									{@const widgetInfo = widgetComponentRegistry[componentName]}
+									<button
+										onclick={() => addNewWidget(componentName)}
+										type="button"
+										class="flex w-full items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:text-white"
+										role="menuitem"
+									>
+										<iconify-icon icon={widgetInfo.icon} width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+										{widgetInfo.name}
+									</button>
+								{/each}
+							</div>
 						</div>
 					{/if}
 				</div>
 			{/if}
-			<button class="variant-filled-warning btn" onclick={resetGrid}>Reset All</button>
+			<button class="variant-outline-warning btn" onclick={resetGrid}>Reset Layout</button>
+			<button onclick={() => history.back()} aria-label="Back" class="variant-ghost-surface btn-icon">
+				<iconify-icon icon="ri:arrow-left-line" width="20"></iconify-icon>
+			</button>
 		</div>
 	</div>
 
 	<div class="relative flex-1 overflow-auto p-4" bind:this={gridElement}>
 		{#if !preferencesLoaded}
-			<p class="text-center text-tertiary-500 dark:text-primary-500">Loading dashboard preferences...</p>
-		{:else if items && items.length > 0}
-			<Grid gridSettings={{ columns: 4, rows: 4 }} bind:columnItems={gridColumns} onfinalize={handleDndFinalize} />
-		{:else}
-			<p class="text-center text-tertiary-500 dark:text-primary-500">No widgets added yet. Use the "Add" button to add widgets.</p>
+			<div class="flex h-full items-center justify-center text-lg text-gray-500">Loading preferences...</div>
+		{:else if items.length > 0 && gridCellWidth > 0}
+			<div
+				class="grid"
+				style:grid-template-columns="repeat({cols}, minmax(0, 1fr))"
+				style:grid-auto-rows="{ROW_HEIGHT}px"
+				style:gap="{GAP_SIZE}px"
+				use:dndzone={{ items: items, ...DND_OPTIONS }}
+				onconsider={handleDndConsider}
+				onfinalize={handleDndFinalize}
+				role="grid"
+				aria-label="Dashboard widgets grid"
+			>
+				{#each items as item (item.id)}
+					{@const SvelteComponent = widgetComponentRegistry[item.component]?.component}
+					{#if SvelteComponent}
+						<div
+							class:opacity-50={draggedItemId === item.id}
+							class:shadow-2xl={draggedItemId === item.id}
+							class="relative touch-none transition-opacity duration-150 ease-in-out {item.movable ? 'cursor-grab' : ''}"
+							style:grid-column="{(item.x || 0) + 1} / span {item.w || 1}"
+							style:grid-row="{(item.y || 0) + 1} / span {item.h || 1}"
+							role="gridcell"
+							aria-label={item.label}
+							tabindex="0"
+							onkeydown={(e) => {
+								/* TODO: Keyboard navigation for dnd. Implement logic to move items with arrow keys, perhaps after 'Enter' or 'Space' to select. */
+							}}
+						>
+							<SvelteComponent
+								label={item.label}
+								icon={item.icon}
+								theme={currentTheme}
+								widgetId={item.id}
+								{gridCellWidth}
+								{ROW_HEIGHT}
+								{GAP_SIZE}
+								resizable={item.resizable}
+								onResizeCommitted={(newSpans: { w: number; h: number }) => handleWidgetResized(item.id, newSpans)}
+								onCloseRequest={() => removeWidget(item.id)}
+							/>
+						</div>
+					{:else}
+						<div
+							class="flex items-center justify-center rounded-md border border-dashed border-error-500 bg-error-100 p-4 text-error-700"
+							style:grid-column="{(item.x || 0) + 1} / span {item.w || 1}"
+							style:grid-row="{(item.y || 0) + 1} / span {item.h || 1}"
+						>
+							Widget "{item.component}" not found.
+						</div>
+					{/if}
+				{/each}
+			</div>
+		{:else if preferencesLoaded && items.length === 0}
+			<div class="flex h-full flex-col items-center justify-center text-center">
+				<iconify-icon icon="mdi:view-dashboard-outline" width="64" class="mb-4 text-gray-400 dark:text-gray-500"></iconify-icon>
+				<p class="text-xl text-gray-500 dark:text-gray-400">Dashboard is Empty</p>
+				<p class="text-sm text-gray-400 dark:text-gray-500">Click "Add Widget" to personalize your dashboard.</p>
+			</div>
 		{/if}
 	</div>
 </div>
+
+<style>
+	.touch-none {
+		touch-action: none;
+	}
+</style>

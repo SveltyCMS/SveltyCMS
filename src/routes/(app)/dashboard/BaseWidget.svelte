@@ -22,127 +22,208 @@
 -->
 
 <script lang="ts">
-	// Common props for all widgets
+	import type { Snippet } from 'svelte';
+
+	// Define the shape of the object expected by the children snippet
+	type ChildSnippetProps = {
+		data: any;
+		updateWidgetState: (key: string, value: any) => void;
+		getWidgetState: (key: string) => any;
+	};
+
 	const {
-		label,
+		label = 'Widget',
 		theme = 'light',
-		endpoint,
-		pollInterval = 5000,
-		data: initialData = $bindable(),
-		widgetId,
 		icon = undefined,
-		children,
-		onResize = undefined // optional callback: (size: {w: number, h: number}) => void
+		endpoint = undefined,
+		pollInterval = 0,
+		widgetId = undefined,
+		children = undefined as Snippet<[ChildSnippetProps]> | undefined,
+
+		gridCellWidth = $bindable(0),
+		ROW_HEIGHT = $bindable(0),
+		GAP_SIZE = $bindable(0),
+		resizable = true,
+		onResizeCommitted = (_spans: { w: number; h: number }) => {},
+		onCloseRequest = () => {},
+		initialData: passedInitialData = undefined,
+		// Initialize `data` with $bindable() directly.
+		// Its initial value will be set from passedInitialData in an effect.
+		data = $bindable()
 	} = $props<{
 		label: string;
-		theme: 'light' | 'dark';
-		endpoint: string;
-		pollInterval: number;
-		data?: any;
-		widgetId?: string;
+		theme?: 'light' | 'dark';
 		icon?: string;
-		children?: () => any;
-		onResize?: (size: { w: number; h: number }) => void;
+		endpoint?: string;
+		pollInterval?: number;
+		widgetId?: string;
+		children?: Snippet<[ChildSnippetProps]>;
+
+		gridCellWidth: number;
+		ROW_HEIGHT: number;
+		GAP_SIZE: number;
+		resizable?: boolean;
+		onResizeCommitted?: (spans: { w: number; h: number }) => void;
+		onCloseRequest?: () => void;
+		initialData?: any;
+		data?: any; // This is the prop name for binding, its type should match expected data
 	}>();
 
-	let data = $state(initialData);
-	let widgetState = $state<Record<string, any>>({});
+	// Effect to set the initial value of 'data' from 'passedInitialData'
+	// This runs once when passedInitialData is first available or if it changes.
+	// We only set it if 'data' hasn't been populated by a fetch yet or by a parent binding.
+	let initialDataSet = false;
+	$effect(() => {
+		if (!initialDataSet && passedInitialData !== undefined) {
+			// Check if 'data' is still in its default bindable state (likely undefined)
+			// or if it matches passedInitialData (in case parent bound and set it)
+			// This avoids overwriting data that might have been fetched if initialData arrives late.
+			// A robust way is to only set from initialData if 'data' is currently undefined.
+			if (data === undefined) {
+				data.set(passedInitialData);
+			}
+			initialDataSet = true; // Mark that we've attempted to set from initialData
+		}
+	});
 
-	// Reactive state using Svelte 5 runes
-	let loading = $state(true);
+	let widgetState = $state<Record<string, any>>({});
+	let loading = $state(endpoint && !passedInitialData ? true : false);
+	// If an endpoint exists, loading should be true until the first fetch,
+	// even if initialData is present (as we might fetch fresh data).
+	// Let's adjust loading state to be true if an endpoint is present and we intend to fetch.
+	$effect(() => {
+		if (endpoint) {
+			loading = true; // Will be set to false after the first fetch attempt
+		} else {
+			loading = false;
+		}
+	});
+
 	let error = $state<string | null>(null);
 
-	// Load widget state on mount if widgetId is provided
 	$effect(() => {
-		if (!widgetId) return;
-
-		const loadState = async () => {
-			try {
-				const res = await fetch(`/api/systemPreferences?widgetId=${widgetId}`);
-				if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-				const { state } = await res.json();
-				if (state) widgetState = state;
-			} catch (err) {
-				console.error('Error loading widget state:', err);
-			}
-		};
-
-		loadState();
-	});
-
-	// Save widget state when it changes
-	$effect(() => {
-		if (!widgetId || Object.keys(widgetState).length === 0) return;
-
-		const saveState = async () => {
-			try {
-				await fetch('/api/systemPreferences', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ widgetId, state: widgetState })
-				});
-			} catch (err) {
-				console.error('Error saving widget state:', err);
-			}
-		};
-
-		saveState();
-	});
-
-	// Function to create a polling effect
-	function createPollingEffect(options: { interval: number; callback: () => Promise<void>; immediate: boolean }) {
-		let intervalId: NodeJS.Timeout;
-
-		const startPolling = () => {
-			intervalId = setInterval(options.callback, options.interval);
-		};
-
-		const stopPolling = () => {
-			clearInterval(intervalId);
-		};
-
-		if (options.immediate) {
-			options.callback().then(() => startPolling());
-		} else {
-			startPolling();
+		if (!endpoint) {
+			// loading = false; // Already handled by the effect above
+			return;
 		}
 
-		return {
-			cleanup: stopPolling
-		};
-	}
+		let isActive = true;
+		let timerId: NodeJS.Timeout | undefined = undefined;
 
-	// Create polling effect using the custom function
-	$effect(() => {
-		const { cleanup } = createPollingEffect({
-			interval: pollInterval,
-			callback: async () => {
-				try {
-					loading = true;
-					error = null;
-
-					const timestamp = new Date().getTime();
-					const res = await fetch(`${endpoint}?_=${timestamp}`);
-
-					if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-					const newData = await res.json();
-					data = newData;
-				} catch (err) {
-					error = err instanceof Error ? err.message : 'Failed to fetch data';
-					console.error('Error fetching data:', error);
-				} finally {
-					loading = false;
+		const fetchData = async () => {
+			if (!isActive) return;
+			// Ensure loading is true before fetch, will be set to false in finally
+			if (!loading) loading = true;
+			error = null;
+			try {
+				const res = await fetch(`${endpoint}?_=${new Date().getTime()}`);
+				if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+				const newData = await res.json();
+				if (isActive) {
+					data.set(newData); // Use the setter for bindable data
 				}
-			},
-			immediate: true
-		});
+			} catch (err) {
+				if (isActive) {
+					error = err instanceof Error ? err.message : 'Failed to fetch data';
+					console.error(`Error fetching data for ${label}:`, error);
+				}
+			} finally {
+				if (isActive) loading = false;
+			}
+		};
 
-		return cleanup;
+		fetchData();
+
+		if (pollInterval > 0) {
+			timerId = setInterval(fetchData, pollInterval);
+		}
+
+		return () => {
+			isActive = false;
+			if (timerId) clearInterval(timerId);
+		};
 	});
 
-	// Expose state management functions to child widgets
+	let widgetEl: HTMLDivElement | undefined = $state();
+	let resizing = $state(false);
+	let resizeDir: string | null = $state(null);
+	let startPointer = { x: 0, y: 0 };
+	let startDimensions = { w: 0, h: 0 };
+	let currentPixelDimensions = $state({ w: 0, h: 0 });
+
+	function handleResizePointerDown(e: PointerEvent, dir: string) {
+		if (!resizable || !widgetEl) return;
+		e.preventDefault();
+		e.stopPropagation();
+
+		resizing = true;
+		resizeDir = dir;
+		startPointer = { x: e.clientX, y: e.clientY };
+		startDimensions = { w: widgetEl.offsetWidth, h: widgetEl.offsetHeight };
+		currentPixelDimensions = { ...startDimensions };
+
+		(e.target as HTMLElement).setPointerCapture(e.pointerId);
+		window.addEventListener('pointermove', handleResizePointerMove);
+		window.addEventListener('pointerup', handleResizePointerUp);
+	}
+
+	function handleResizePointerMove(e: PointerEvent) {
+		if (!resizing || !widgetEl || !resizeDir) return;
+		e.preventDefault();
+
+		const deltaX = e.clientX - startPointer.x;
+		const deltaY = e.clientY - startPointer.y;
+		let newW = startDimensions.w;
+		let newH = startDimensions.h;
+
+		if (resizeDir.includes('e')) newW += deltaX;
+		if (resizeDir.includes('w')) newW -= deltaX;
+		if (resizeDir.includes('s')) newH += deltaY;
+		if (resizeDir.includes('n')) newH -= deltaY;
+
+		const minVisualPx = 50;
+		currentPixelDimensions = {
+			w: Math.max(minVisualPx, newW),
+			h: Math.max(minVisualPx, newH)
+		};
+		widgetEl.style.width = `${currentPixelDimensions.w}px`;
+		widgetEl.style.height = `${currentPixelDimensions.h}px`;
+	}
+
+	function handleResizePointerUp(e: PointerEvent) {
+		if (!resizing || !widgetEl) {
+			if (resizing) resizing = false;
+			return;
+		}
+		(e.target as HTMLElement).releasePointerCapture(e.pointerId);
+		window.removeEventListener('pointermove', handleResizePointerMove);
+		window.removeEventListener('pointerup', handleResizePointerUp);
+
+		if (onResizeCommitted && gridCellWidth > 0 && ROW_HEIGHT > 0) {
+			const finalPixelWidth = currentPixelDimensions.w;
+			const finalPixelHeight = currentPixelDimensions.h;
+			let newSpanW = Math.max(1, Math.round((finalPixelWidth + GAP_SIZE) / (gridCellWidth + GAP_SIZE)));
+			let newSpanH = Math.max(1, Math.round((finalPixelHeight + GAP_SIZE) / (ROW_HEIGHT + GAP_SIZE)));
+			onResizeCommitted({ w: newSpanW, h: newSpanH });
+		}
+
+		widgetEl.style.width = '';
+		widgetEl.style.height = '';
+		resizing = false;
+		resizeDir = null;
+	}
+
+	$effect(() => {
+		return () => {
+			window.removeEventListener('pointermove', handleResizePointerMove);
+			window.removeEventListener('pointerup', handleResizePointerUp);
+		};
+	});
+
+	const resizeHandleClasses = 'absolute z-10 bg-primary-500/60 hover:bg-primary-600 active:bg-primary-700 rounded-full';
+	const handleSize = 'w-3.5 h-3.5';
+	const handleOffset = '-translate-x-1/2 -translate-y-1/2';
+
 	function updateWidgetState(key: string, value: any) {
 		widgetState = { ...widgetState, [key]: value };
 	}
@@ -150,157 +231,79 @@
 	function getWidgetState(key: string) {
 		return widgetState[key];
 	}
-
-	import { createEventDispatcher } from 'svelte';
-	const dispatch = createEventDispatcher();
-
-	let widgetEl: HTMLDivElement | null = null;
-	let resizing = $state(false);
-	let resizeDir: string | null = null;
-	let startX = 0;
-	let startY = 0;
-	let startWidth = 0;
-	let startHeight = 0;
-	let overResizeHandle = $state(false);
-
-	function handleResizeMouseDown(e: MouseEvent, dir: string) {
-		e.preventDefault();
-		e.stopPropagation();
-		resizing = true;
-		resizeDir = dir;
-		startX = e.clientX;
-		startY = e.clientY;
-		if (widgetEl) {
-			startWidth = widgetEl.offsetWidth;
-			startHeight = widgetEl.offsetHeight;
-		}
-		window.addEventListener('mousemove', handleResizeMouseMove);
-		window.addEventListener('mouseup', handleResizeMouseUp);
-	}
-
-	function handleResizeMouseMove(e: MouseEvent) {
-		if (!resizing || !widgetEl) return;
-		let newWidth = startWidth;
-		let newHeight = startHeight;
-		const minSize = 100; // px
-
-		if (resizeDir === 'se') {
-			newWidth = Math.max(minSize, startWidth + (e.clientX - startX));
-			newHeight = Math.max(minSize, startHeight + (e.clientY - startY));
-		} else if (resizeDir === 'ne') {
-			newWidth = Math.max(minSize, startWidth + (e.clientX - startX));
-			newHeight = Math.max(minSize, startHeight - (e.clientY - startY));
-		} else if (resizeDir === 'sw') {
-			newWidth = Math.max(minSize, startWidth - (e.clientX - startX));
-			newHeight = Math.max(minSize, startHeight + (e.clientY - startY));
-		} else if (resizeDir === 'nw') {
-			newWidth = Math.max(minSize, startWidth - (e.clientX - startX));
-			newHeight = Math.max(minSize, startHeight - (e.clientY - startY));
-		}
-
-		widgetEl.style.width = newWidth + 'px';
-		widgetEl.style.height = newHeight + 'px';
-
-		if (onResize) {
-			onResize({ w: newWidth, h: newHeight });
-		}
-	}
-
-	function handleResizeMouseUp() {
-		resizing = false;
-		resizeDir = null;
-		window.removeEventListener('mousemove', handleResizeMouseMove);
-		window.removeEventListener('mouseup', handleResizeMouseUp);
-	}
-
-	function handleResizeEnter() {
-		overResizeHandle = true;
-	}
-	function handleResizeLeave() {
-		overResizeHandle = false;
-	}
-
-	function handleClose() {
-		dispatch('close');
-	}
 </script>
 
-<!-- Common widget structure -->
 <div
-	class="widget-container flex h-full flex-col rounded-md p-4"
-	class:bg-surface-100={theme === 'light'}
-	class:text-text-900={theme === 'light'}
-	class:bg-surface-700={theme === 'dark'}
-	class:text-text-100={theme === 'dark'}
-	aria-label={`${label} widget`}
-	style="user-select: {resizing ? 'none' : 'auto'};"
-	draggable={!overResizeHandle && !resizing}
+	bind:this={widgetEl}
+	class="widget-container group flex h-full flex-col overflow-hidden rounded-lg border shadow-md
+        {theme === 'light' ? 'border-gray-200 bg-white text-gray-800' : 'border-gray-700 bg-gray-800 text-gray-100'}"
+	style:user-select={resizing ? 'none' : 'auto'}
+	aria-labelledby="widget-title-{widgetId || label}"
 >
-	<!-- Title -->
-	<h2 class="mb-4 flex items-center gap-2 text-xl font-bold">
-		{#if icon}
-			<iconify-icon {icon} width="30" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-		{/if}
-		{label}
-	</h2>
-
-	<!-- Close button triggers Svelte event -->
-	<button onclick={handleClose} class="btn-icon absolute right-1 top-1 z-10 flex gap-1 text-error-50" aria-label="Remove Widget">
-		<iconify-icon icon="mdi:close" width="20"></iconify-icon>
-	</button>
-
-	{#if loading && !data}
-		<div class="loading-state flex flex-1 items-center justify-center text-center">Loading...</div>
-	{:else if error && !data}
-		<div class="error-state flex flex-1 items-center justify-center text-center text-error-500">
-			Error: {error}
-		</div>
-	{:else}
-		<!-- Widget-specific content goes here -->
-		{@render children?.({ data, updateWidgetState, getWidgetState })}
-	{/if}
-
-	<!-- Resizable corners (functional, disables drag when hovered/active) -->
-	<div class="pointer-events-none absolute inset-0 select-none">
-		<!-- NW -->
-		<div
-			class="pointer-events-auto absolute left-0 top-0 z-20 h-3 w-3 cursor-nwse-resize"
-			aria-label="Resize widget from top left corner"
-			role="button"
-			tabindex="0"
-			onmousedown={(e) => handleResizeMouseDown(e, 'nw')}
-			onmouseenter={handleResizeEnter}
-			onmouseleave={handleResizeLeave}
-		></div>
-		<!-- NE -->
-		<div
-			class="pointer-events-auto absolute right-0 top-0 z-20 h-3 w-3 cursor-nesw-resize"
-			aria-label="Resize widget from top right corner"
-			role="button"
-			tabindex="0"
-			onmousedown={(e) => handleResizeMouseDown(e, 'ne')}
-			onmouseenter={handleResizeEnter}
-			onmouseleave={handleResizeLeave}
-		></div>
-		<!-- SW -->
-		<div
-			class="pointer-events-auto absolute bottom-0 left-0 z-20 h-3 w-3 cursor-nesw-resize"
-			aria-label="Resize widget from bottom left corner"
-			role="button"
-			tabindex="0"
-			onmousedown={(e) => handleResizeMouseDown(e, 'sw')}
-			onmouseenter={handleResizeEnter}
-			onmouseleave={handleResizeLeave}
-		></div>
-		<!-- SE -->
-		<div
-			class="pointer-events-auto absolute bottom-0 right-0 z-20 h-3 w-3 cursor-nwse-resize"
-			aria-label="Resize widget from bottom right corner"
-			role="button"
-			tabindex="0"
-			onmousedown={(e) => handleResizeMouseDown(e, 'se')}
-			onmouseenter={handleResizeEnter}
-			onmouseleave={handleResizeLeave}
-		></div>
+	<div
+		class="widget-header flex items-center justify-between border-b p-2.5
+            {theme === 'light' ? 'border-gray-200 bg-gray-50' : 'bg-gray-750 border-gray-700'}"
+	>
+		<h3 id="widget-title-{widgetId || label}" class="flex items-center gap-1.5 truncate text-sm font-medium">
+			{#if icon}
+				<iconify-icon {icon} width="16" class={theme === 'light' ? 'text-tertiary-600' : 'text-primary-400'}></iconify-icon>
+			{/if}
+			<span class="truncate">{label}</span>
+		</h3>
+		<button
+			onclick={onCloseRequest}
+			class="btn-icon rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-gray-600 dark:hover:text-gray-300"
+			aria-label="Remove {label} widget"
+		>
+			<iconify-icon icon="mdi:close" width="16"></iconify-icon>
+		</button>
 	</div>
+
+	<div class="widget-body relative min-h-[50px] flex-1 overflow-auto p-3">
+		{#if endpoint && loading && !data}
+			<div class="loading-state absolute inset-0 flex items-center justify-center text-xs text-gray-500">Loading...</div>
+		{:else if endpoint && error && !data}
+			<div class="error-state absolute inset-0 flex flex-col items-center justify-center p-2 text-center text-xs text-error-500">
+				<iconify-icon icon="mdi:alert-circle-outline" width="20" class="mb-1"></iconify-icon>
+				<span>{error}</span>
+			</div>
+		{:else if children}
+			{@render children([{ data: data, updateWidgetState, getWidgetState }])}
+		{:else if data}
+			<pre class="whitespace-pre-wrap break-all text-xs">{JSON.stringify(data, null, 2)}</pre>
+		{:else}
+			<div class="absolute inset-0 flex items-center justify-center text-xs text-gray-400">No content.</div>
+		{/if}
+	</div>
+
+	{#if resizable}
+		<div
+			class="{resizeHandleClasses} {handleSize} bottom-0 right-0 cursor-se-resize {handleOffset} translate-x-px translate-y-px"
+			onpointerdown={(e) => handleResizePointerDown(e, 'se')}
+		></div>
+		<div
+			class="{resizeHandleClasses} {handleSize} bottom-0 left-0 cursor-sw-resize {handleOffset} -translate-x-px translate-y-px"
+			onpointerdown={(e) => handleResizePointerDown(e, 'sw')}
+		></div>
+		<div
+			class="{resizeHandleClasses} {handleSize} right-0 top-0 cursor-ne-resize {handleOffset} -translate-y-px translate-x-px"
+			onpointerdown={(e) => handleResizePointerDown(e, 'ne')}
+		></div>
+		<div
+			class="{resizeHandleClasses} {handleSize} left-0 top-0 cursor-nw-resize {handleOffset} -translate-x-px -translate-y-px"
+			onpointerdown={(e) => handleResizePointerDown(e, 'nw')}
+		></div>
+	{/if}
 </div>
+
+<style>
+	.widget-container {
+		transition:
+			box-shadow 0.2s ease-in-out,
+			border-color 0.2s ease-in-out;
+	}
+	.widget-body {
+		scrollbar-width: thin;
+		scrollbar-color: theme('colors.gray.300') transparent;
+	}
+</style>

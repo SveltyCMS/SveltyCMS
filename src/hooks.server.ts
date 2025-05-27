@@ -672,14 +672,13 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 	}
 
 	// Handle non-GET requests (POST, PUT, DELETE etc.) with cache invalidation
-	const response = await resolve(event); // Get response from actual endpoint
+	const response = await resolve(event);
 
 	if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(event.request.method) && response.ok) {
 		const baseCacheKey = `api:${apiEndpoint}:${user._id}`;
 		try {
-			// Invalidate specific list/item caches.
-			await cacheStore.deletePattern(`${baseCacheKey}:*`); // Delete all keys starting with base
-			logger.debug(`Invalidated API cache for keys starting with \x1b[34m${baseCacheKey}\x1b[0m after ${event.request.method} request`);
+			await cacheStore.deletePattern(`${baseCacheKey}:*`);
+			logger.debug(`Invalidated API cache for keys starting with ${baseCacheKey} after ${event.request.method} request`);
 		} catch (err) {
 			logger.error(`Failed to invalidate API cache for ${baseCacheKey}: ${err.message}`);
 		}
