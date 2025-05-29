@@ -24,10 +24,10 @@ import { roles as configRoles } from '@root/config/roles';
 import { error } from '@sveltejs/kit';
 
 // Adapter
-import { getPermissionByName, getAllPermissions } from '../permissionManager';
+import { getAllPermissions } from '../permissions';
 
 // Types
-import type { Permission, Role, User } from '../types';
+import type { Permission, Role, User } from '../auth';
 import type { authDBInterface } from '../authDBInterface';
 import type { PaginationOption } from '../authDBInterface';
 
@@ -171,7 +171,8 @@ export class UserAdapter implements Partial<authDBInterface> {
 
 	// Assign a permission to a user
 	async assignPermissionToUser(user_id: string, permissionName: string): Promise<void> {
-		const permission = getPermissionByName(permissionName);
+		const allPermissions = await getAllPermissions();
+		const permission = allPermissions.find((p) => p._id === permissionName);
 		if (!permission) {
 			logger.warn(`Permission not found: \x1b[34m${permissionName}\x1b[0m`);
 			throw error(404, `Permission not found: ${permissionName}`);

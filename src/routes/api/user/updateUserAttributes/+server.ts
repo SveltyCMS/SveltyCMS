@@ -23,14 +23,14 @@ import type { RequestHandler } from './$types';
 
 // Auth
 import { auth } from '@src/databases/db';
-import { checkUserPermission } from '@src/auth/permissionCheck';
+import { checkUserPermission } from '@src/auth/permissions';
+import { PermissionAction } from '@src/auth/auth';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
 // Input validation
 import { object, string, email, optional, minLength, maxLength, pipe, parse, type ValiError } from 'valibot';
-import { PermissionAction } from '@src/auth/permissionTypes';
 
 const userDataSchema = object(
 	{

@@ -14,16 +14,16 @@
  * - Comprehensive error handling and logging
  */
 
-import type { Schema } from '@root/src/content/types';
+import type { Schema } from '@src/content/types';
 import type { User } from '@src/auth/types';
+
+import { dbAdapter } from '@src/databases/db';
 
 // Utils
 import { modifyRequest } from './modifyRequest';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-import { contentManager } from '@root/src/content/ContentManager';
-import { dbAdapter } from '@root/src/databases/db';
 
 // Function to handle PATCH requests for a specified collection
 export async function _PATCH({ data, schema, user }: { data: FormData; schema: Schema; user: User }) {

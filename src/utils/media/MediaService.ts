@@ -18,7 +18,7 @@ import { hashFileContent, getSanitizedFileName } from './mediaProcessing';
 import { validateMediaFile } from './mediaUtils';
 
 // Permission Management
-import { validateUserPermission as checkMediaAccess } from '@src/auth/permissionManager';
+import { validateUserPermission as checkMediaAccess } from '@src/auth/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

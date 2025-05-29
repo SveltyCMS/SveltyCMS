@@ -28,7 +28,7 @@ import type { RequestHandler } from './$types';
 
 // Auth
 import { auth } from '@src/databases/db';
-import { checkUserPermission } from '@src/auth/permissionCheck';
+import { checkUserPermission } from '@src/auth/permissions';
 
 // System logger
 import { logger } from '@utils/logger.svelte';

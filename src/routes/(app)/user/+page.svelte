@@ -19,6 +19,8 @@
 	import axios from 'axios';
 	import { onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
+
+	// Auth
 	import type { User } from '@src/auth/types';
 
 	// ParaglideJS
@@ -33,9 +35,6 @@
 	import PageTitle from '@components/PageTitle.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
 	import AdminArea from './components/AdminArea.svelte';
-
-	// Auth
-	import { permissionConfigs } from '@src/auth/permissionConfigs';
 
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton';
@@ -253,7 +252,7 @@
 	</div>
 
 	<!-- Admin area -->
-	<PermissionGuard config={permissionConfigs.adminAreaPermissionConfig}>
+	<PermissionGuard config={{ name: 'Admin Area Access', contextId: 'system:admin', requiredRole: 'admin', action: 'manage', contextType: 'system' }}>
 		<div class="wrapper2">
 			<AdminArea adminData={data.adminData} />
 		</div>

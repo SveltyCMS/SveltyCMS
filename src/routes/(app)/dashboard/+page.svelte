@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/routes/(app)/dashboard/+page.svelte
 @component
 **This file sets up and displays the dashboard page. It provides a user-friendly interface for managing system resources and system messages**
@@ -11,6 +11,7 @@
 
 ### Features
 - Displays widgets for CPU usage, disk usage, memory usage, last 5 media, user activity, and system messages
+- Now includes a Logs Widget for displaying system logs
 -->
 
 <script lang="ts">
@@ -32,6 +33,7 @@
 	import Last5MediaWidget from './widgets/Last5MediaWidget.svelte';
 	import UserActivityWidget from './widgets/UserActivityWidget.svelte';
 	import SystemMessagesWidget from './widgets/SystemMessagesWidget.svelte';
+	import LogsWidget from './widgets/LogsWidget.svelte'; // Import the new Logs Widget
 
 	const ROW_HEIGHT = 100;
 	const GAP_SIZE = 16;
@@ -113,6 +115,16 @@
 			defaultH: 2,
 			minW: 1,
 			minH: 1
+		},
+		LogsWidget: {
+			// New Logs Widget
+			component: LogsWidget,
+			name: 'System Logs',
+			icon: 'mdi:file-document-outline',
+			defaultW: 4, // Make it wider by default for better log display
+			defaultH: 3, // Make it taller by default
+			minW: 2,
+			minH: 2
 		}
 	};
 
@@ -171,7 +183,7 @@
 					resizable: itemLoading.resizable ?? true,
 					defaultW: itemLoading.defaultW || componentInfo?.defaultW || 1,
 					defaultH: itemLoading.defaultH || componentInfo?.defaultH || 1,
-					validSizes: itemLoading.validSizes || componentInfo?.validSizes || []
+					validSizes: itemLoading.validSizes || []
 				} as DashboardWidgetConfig; // Cast to ensure all fields are present
 			});
 

@@ -227,7 +227,7 @@
 									{#if field.widget}
 										{@const widgetName = field.widget.Name}
 										{@const widgetPath = widgetFunctions().get(widgetName)?.componentPath}
-										{@const WidgetComponent = modules[widgetPath]?.default}
+										{@const WidgetComponent = widgetPath && widgetPath in modules ? modules[widgetPath]?.default : null}
 										{#if WidgetComponent}
 											<WidgetComponent
 												{field}

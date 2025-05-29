@@ -7,7 +7,7 @@ import type { User } from '@src/auth/types';
 import type { Schema } from '@root/src/content/types';
 
 // System Logger
-import { logger } from './logger.svelte';
+import { logger } from '@utils/logger.svelte';
 
 // Define the Serializable type
 export type Serializable = {

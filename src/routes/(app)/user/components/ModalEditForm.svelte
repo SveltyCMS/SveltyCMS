@@ -38,14 +38,12 @@ Efficiently manages user data updates with validation, role selection, and delet
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
 
-	import type { PermissionConfig } from '@src/auth/permissionTypes';
-	import { PermissionAction } from '@src/auth/permissionTypes';
-
 	// Define permissions for different contexts
-	const modaleEditFormConfig: PermissionConfig = {
-		contextId: '/user/modaleEditForm',
-		name: 'admin',
-		action: PermissionAction.READ,
+	const modaleEditFormConfig = {
+		name: 'Admin User Edit Form',
+		contextId: 'user:manage',
+		requiredRole: 'admin',
+		action: 'manage',
 		contextType: 'user'
 	};
 

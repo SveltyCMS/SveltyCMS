@@ -13,7 +13,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 
 	// Types
 	import type { Schema } from '@src/content/types';
-	import type { User } from '@root/src/auth/types.js';
+	import type { User } from '@src/auth/types';
 
 	// ParaglideJS
 	import type { AvailableLanguageTag } from '@root/src/paraglide/runtime';

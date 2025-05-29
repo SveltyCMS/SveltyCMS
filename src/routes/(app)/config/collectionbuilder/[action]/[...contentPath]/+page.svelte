@@ -27,9 +27,11 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	// Skeleton
 	import { Tab, TabGroup, getToastStore } from '@skeletonlabs/skeleton';
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
-	import { initializeWidgets } from '@root/src/widgets';
-	import type { User } from '@root/src/auth/types';
-	import type { Schema } from '@root/src/content/types';
+
+	import { initializeWidgets } from '@src/widgets';
+
+	import type { User } from '@src/auth/types';
+	import type { Schema } from '@src/content/types';
 
 	const modalStore = getModalStore();
 	const toastStore = getToastStore();
@@ -111,9 +113,22 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		}
 	}
 
+	// Import validation store
+	import { validationStore } from '@src/stores/store.svelte';
+
 	// Function to save data by sending a POST request
 	async function handleCollectionSave() {
 		console.log(collection.value, name, page.params);
+
+		// Check validation errors before submission
+		if (validationStore.errors && Object.keys(validationStore.errors).length > 0) {
+			toastStore.trigger({
+				message: 'Please fix validation errors before saving',
+				background: 'variant-filled-error',
+				timeout: 3000
+			});
+			return;
+		}
 
 		// Prepare form data
 		const data =

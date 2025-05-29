@@ -17,9 +17,13 @@
 import { dbAdapter, dbInitPromise } from '@src/databases/db';
 import type { RequestHandler } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
-import { checkUserPermission } from '@src/auth/permissionCheck';
+
+// Auth
+import { checkUserPermission } from '@src/auth/permissions';
+import { getAllPermissions } from '@src/auth/permissions';
+
+// System Logger
 import { logger } from '@utils/logger.svelte';
-import { getAllPermissions } from '@src/auth/permissionManager';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {

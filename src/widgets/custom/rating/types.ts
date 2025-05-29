@@ -12,7 +12,7 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 import PermissionsSetting from '@components/PermissionsSetting.svelte';
 
 // Auth
-import type { Permission } from '@src/auth/types';
+import type { Permission } from '@src/auth/auth';
 
 /**
  * Defines Rating widget Parameters
@@ -22,7 +22,7 @@ export type Params = {
 	label: string;
 	display?: DISPLAY;
 	db_fieldName?: string;
-	widget?: any;
+	widget?: unknown;
 	required?: boolean;
 	// translated?: boolean;
 	icon?: string;

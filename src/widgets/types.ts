@@ -3,7 +3,7 @@
  * @description Widget types for the widget system
  */
 
-import type { User, WidgetId } from '@src/auth/types';
+import type { User, WidgetId } from '@src/auth/auth';
 import type { Schema, Field } from '../content/types';
 import type { SvelteComponent } from 'svelte';
 

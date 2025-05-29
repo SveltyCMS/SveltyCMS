@@ -10,7 +10,7 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 import PermissionsSetting from '@components/PermissionsSetting.svelte';
 
 // Auth
-import type { Permission } from '@src/auth/types';
+import type { Permission } from '@src/auth/auth';
 import GuiFields from './GuiFields.svelte';
 
 import widgets, { type WidgetType } from '../../index';

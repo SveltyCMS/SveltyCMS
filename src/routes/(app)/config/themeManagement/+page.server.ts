@@ -16,8 +16,7 @@ import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Auth
-import { checkUserPermission } from '@src/auth/permissionCheck';
-import { permissionConfigs } from '@src/auth/permissionConfigs';
+import { hasPermission } from '@src/auth/permissions';
 
 // System Logs
 import { logger } from '@utils/logger.svelte';
@@ -36,10 +35,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		logger.debug(`User authenticated successfully for user: ${user._id}`);
 
 		// Check user permission for theme management
-		const themeManagementConfig = permissionConfigs.themeManagement;
-		const permissionCheck = await checkUserPermission(user, themeManagementConfig);
+		const hasThemeManagementPermission = hasPermission(user, 'config:themeManagement');
 
-		if (!permissionCheck.hasPermission) {
+		if (!hasThemeManagementPermission) {
 			const message = `User ${user._id} does not have permission to access theme management`;
 			logger.warn(message);
 			throw error(403, 'Insufficient permissions');

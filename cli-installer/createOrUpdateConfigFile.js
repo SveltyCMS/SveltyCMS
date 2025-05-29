@@ -1,11 +1,11 @@
-/** 
-@file cli-installer/createOrUpdateConfigFile.js
-@description Create or Update Config File
+/**
+ @file cli-installer/createOrUpdateConfigFile.js
+ @description Create or Update Config File
 
-### Features
-- Creates a new config file if it doesn't exist
-- Updates an existing config file
-*/
+ ### Features
+ - Creates a new config file if it doesn't exist
+ - Updates an existing config file
+ */
 
 import fs from 'fs/promises';
 import path from 'path';
@@ -82,10 +82,10 @@ export async function createOrUpdateConfigFile(configData) {
             REDIS_PASSWORD: '${formatString(configData?.REDIS_PASSWORD)}',
 
             // Session Management configuration
-	        SESSION_CLEANUP_INTERVAL: ${formatNumber(configData?.SESSION_CLEANUP_INTERVAL, 60000)},
-	        MAX_IN_MEMORY_SESSIONS: ${formatNumber(configData?.MAX_IN_MEMORY_SESSIONS, 10000)},
-	        DB_VALIDATION_PROBABILITY: ${formatNumber(configData?.DB_VALIDATION_PROBABILITY, 0.1)},
-	        SESSION_EXPIRATION_SECONDS: ${formatNumber(configData?.SESSION_EXPIRATION_SECONDS, 3600)},
+            SESSION_CLEANUP_INTERVAL: ${formatNumber(configData?.SESSION_CLEANUP_INTERVAL, 60000)},
+            MAX_IN_MEMORY_SESSIONS: ${formatNumber(configData?.MAX_IN_MEMORY_SESSIONS, 10000)},
+            DB_VALIDATION_PROBABILITY: ${formatNumber(configData?.DB_VALIDATION_PROBABILITY, 0.1)},
+            SESSION_EXPIRATION_SECONDS: ${formatNumber(configData?.SESSION_EXPIRATION_SECONDS, 3600)},
 
             // Enable Google OAuth (optional).
             USE_GOOGLE_OAUTH: ${formatBoolean(configData?.USE_GOOGLE_OAUTH)}, // Use boolean formatting
@@ -110,7 +110,7 @@ export async function createOrUpdateConfigFile(configData) {
             JWT_SECRET_KEY: '${jwtSecret}', // Use the ensured secret
 
             // Roles & permissions arrays
-            ROLES: [], 
+            ROLES: [],
             PERMISSIONS: [],
         });
     `;
@@ -173,8 +173,14 @@ export async function createOrUpdateConfigFile(configData) {
             // Overwrite the default Password strength (Default 3)
             PASSWORD_STRENGTH: ${formatNumber(configData?.PASSWORD_STRENGTH, 3)}, // Aligned with system.js prompt default
 
-	        // Log Levels (Default: ['info', 'warn', 'error']) (Options: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'none')
+            // Log Levels (Default: ['info', 'warn', 'error']) (Options: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'none')
             LOG_LEVELS: ${JSON.stringify(configData?.LOG_LEVELS || ['info', 'warn', 'error'])}, // Aligned with system.js prompt default
+
+            // Log Retention Days (Default: 2 days)
+            LOG_RETENTION_DAYS: ${formatNumber(configData?.LOG_RETENTION_DAYS, 2)}, // New: Default to 2 days
+
+            // Log Rotation Size in bytes (Default: 5MB)
+            LOG_ROTATION_SIZE: ${formatNumber(configData?.LOG_ROTATION_SIZE, 5 * 1024 * 1024)}, // New: Default to 5MB
 
             // Seasons/Events for login page (Default: false)
             SEASONS: ${formatBoolean(configData?.SEASONS)}, // Use boolean formatting

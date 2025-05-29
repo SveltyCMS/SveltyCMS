@@ -6,23 +6,28 @@
 @example
 <Role value={roles[0]?._id} />
 
-@props
+### Props
 - `value` {string}: The role ID to display
+
+### features
+- Dynamic role rendering based on user roles
+
 -->
 
 <script lang="ts">
 	// Auth
-	import { getLoadedRoles } from '@src/auth/types';
+	import { getAllRoles } from '@src/auth/permissions';
 	import { roles as configRoles } from '@root/config/roles';
+	import type { Role } from '@src/auth/auth';
 
-	let roles = $state(getLoadedRoles() || configRoles);
+	let roles = $state<Role[]>(getAllRoles() || configRoles);
 
 	// Ensure roles is an array
 	let { value } = $props<{ value: string }>();
 
 	// Initialize roles from config if not loaded
 	$effect(() => {
-		const loadedRoles = getLoadedRoles();
+		const loadedRoles = getAllRoles();
 		if (!loadedRoles || loadedRoles.length === 0) {
 			roles = configRoles;
 		} else {

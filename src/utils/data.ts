@@ -96,7 +96,6 @@ export async function getData(
 			};
 		}
 
-
 		// Handle empty or invalid responses, now *after* checking for special status codes
 		if (!response.data || !Array.isArray(response.data.entryList)) {
 			// If response is empty or invalid, return an empty list

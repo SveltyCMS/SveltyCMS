@@ -18,15 +18,17 @@ Features:
 
 <script lang="ts">
 	import { roles } from '@root/config/roles';
-	// import type { Roles } from '@root/config/roles';
-	import { PermissionAction } from '@src/auth/permissionTypes';
+	import type { Role } from '@src/auth/auth';
+	import { PermissionAction } from '@src/auth/auth';
+
+	// Skeleton
 	import { getToastStore } from '@skeletonlabs/skeleton';
 
 	const toastStore = getToastStore();
 
 	interface Props {
 		permissions?: Record<string, Record<PermissionAction, boolean>>;
-		roles?: Roles[];
+		roles?: Role[];
 		onUpdate?: (permissions: Record<string, Record<PermissionAction, boolean>>) => void;
 	}
 
@@ -49,7 +51,6 @@ Features:
 					update: true,
 					delete: true,
 					manage: true,
-					share: true,
 					access: true,
 					execute: true
 				};
@@ -81,13 +82,16 @@ Features:
 	// Function to update parent
 	function updateParent() {
 		// Remove roles with all permissions true (default state)
-		const cleanedPermissions = Object.entries(permissionsState).reduce((acc, [roleId, perms]) => {
-			const hasRestrictions = Object.values(perms).some((value) => value === false);
-			if (hasRestrictions) {
-				acc[roleId] = perms;
-			}
-			return acc;
-		}, {});
+		const cleanedPermissions = Object.entries(permissionsState).reduce(
+			(acc, [roleId, perms]) => {
+				const hasRestrictions = Object.values(perms).some((value) => value === false);
+				if (hasRestrictions) {
+					acc[roleId] = perms;
+				}
+				return acc;
+			},
+			{} as Record<string, Record<PermissionAction, boolean>>
+		);
 
 		onUpdate(cleanedPermissions);
 	}
@@ -110,15 +114,14 @@ Features:
 	let filteredRoles = $derived(roles.filter((role) => role.name.toLowerCase().includes(searchQuery.toLowerCase())));
 
 	// Icons for different permission actions
-	const actionIcons = {
-		create: 'bi:plus-circle-fill',
-		read: 'bi:eye-fill',
-		update: 'bi:pencil-fill',
-		delete: 'bi:trash-fill',
-		manage: 'bi:gear-fill',
-		share: 'bi:share-fill',
-		access: 'bi:key-fill',
-		execute: 'bi:play-fill'
+	const actionIcons: Record<PermissionAction, string> = {
+		[PermissionAction.CREATE]: 'bi:plus-circle-fill',
+		[PermissionAction.READ]: 'bi:eye-fill',
+		[PermissionAction.UPDATE]: 'bi:pencil-fill',
+		[PermissionAction.DELETE]: 'bi:trash-fill',
+		[PermissionAction.MANAGE]: 'bi:gear-fill',
+		[PermissionAction.ACCESS]: 'bi:key-fill',
+		[PermissionAction.EXECUTE]: 'bi:play-fill'
 	};
 </script>
 

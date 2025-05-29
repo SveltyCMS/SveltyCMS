@@ -1,6 +1,16 @@
 /**
  * @file src/routes/login/+page.server.ts
  * @description Server-side logic for the login page.
+ *
+ * @example
+ * <PermissionSettings />
+ *
+ * ### Props
+ * - `user`: The authenticated user data.
+ *
+ * ### Features
+ * - User authentication and authorization
+ * - Proper typing for user data
  */
 
 import { privateEnv } from '@root/config/private';
@@ -21,8 +31,8 @@ import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, s
 
 // Auth
 import { auth, dbInitPromise } from '@src/databases/db';
-import { contentManager } from '@root/src/content/ContentManager';
-import { generateGoogleAuthUrl, googleAuth } from '@root/src/auth/googleAuth';
+import { contentManager } from '@src/content/ContentManager';
+import { generateGoogleAuthUrl, googleAuth } from '@src/auth/googleAuth';
 import { google } from 'googleapis';
 import type { User } from '@src/auth/types';
 
@@ -33,7 +43,7 @@ import { systemLanguage } from '@stores/store.svelte';
 // Import roles
 import { roles } from '@root/config/roles';
 
-// System Logs
+// System Logger
 import { logger } from '@utils/logger.svelte';
 
 const limiter = new RateLimiter({
@@ -583,13 +593,13 @@ async function createSessionAndSetCookie(user_id: string, cookies: Cookies): Pro
 
 	if (!auth) throw Error('Auth is not initialized');
 
-	const session = await auth.createSession({
+	const sessionId = await auth.createSession({
 		user_id,
 		expires: expiresAt
 	});
 
-	logger.debug(`Session created: ${JSON.stringify(session)}`);
-	const sessionCookie = auth.createSessionCookie(session);
+	logger.debug(`Session created: ${sessionId}`);
+	const sessionCookie = auth.createSessionCookie(sessionId);
 	cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 }
 
@@ -610,7 +620,9 @@ async function signIn(
 	try {
 		let user: User | null;
 		if (!isToken) {
-			user = await auth.login(email, password);
+			// Use the new authenticate method
+			const authResult = await auth.authenticate(email, password);
+			user = authResult?.user || null;
 		} else {
 			const token = password;
 			user = await auth.checkUser({ email });
@@ -631,8 +643,9 @@ async function signIn(
 		}
 
 		// Create User Session
-		const session = await auth.createSession({ user_id: user._id });
-		const sessionCookie = auth.createSessionCookie(session);
+		const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+		const sessionId = await auth.createSession({ user_id: user._id, expires: expiresAt });
+		const sessionCookie = auth.createSessionCookie(sessionId);
 		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 
 		await auth.updateUserAttributes(user._id, { lastAuthMethod: isToken ? 'token' : 'password' });

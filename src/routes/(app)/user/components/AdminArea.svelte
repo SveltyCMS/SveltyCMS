@@ -6,7 +6,9 @@
 
 <script lang="ts">
 	import { debounce } from '@utils/utils';
-	import { PermissionAction, PermissionType } from '@src/auth/permissionTypes';
+
+	// Auth
+	import { PermissionAction, PermissionType } from '@src/auth/auth';
 
 	// Components
 	import Multibutton from './Multibutton.svelte';

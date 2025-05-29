@@ -22,11 +22,11 @@
 
 import fs from 'fs';
 import prettier from 'prettier';
+import * as ts from 'typescript';
 import { redirect, type Actions, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Collections
-//import { updateCollections } from '@src/collections';
 import { contentManager } from '@src/content/ContentManager';
 import { compile } from '@src/routes/api/compile/compile';
 
@@ -34,8 +34,8 @@ import { compile } from '@src/routes/api/compile/compile';
 import widgets from '@widgets';
 
 // Auth
-import { checkUserPermission } from '@src/auth/permissionCheck';
-import { permissionConfigs } from '@src/auth/permissionConfigs';
+import { checkUserPermission } from '@src/auth/permissions';
+import { permissionConfigs } from '@src/auth/permissions';
 import { roles } from '@root/config/roles';
 import { permissions } from '@src/auth/permissions';
 
@@ -136,38 +136,16 @@ export const actions: Actions = {
 			const fields = JSON.parse(fieldsData) as Array<fields>;
 			const imports = await goThrough(fields, fieldsData);
 
-			// Generate fields as formatted string
-			let content = `
-		/**
-		 * @file config/collections/${contentName}.ts
-		 * @description Collection file for ${contentName}
-		 */
-
-		${imports}
-		import { widgets } from '@widgets/widgetManager.svelte';
-		import type { Schema } from '@src/content/types';
-		
-		export const schema: Schema = {
-			// Collection Name coming from filename so not needed
-
-			// Optional & Icon, status, slug
-			// See for possible Icons https://icon-sets.iconify.design/
-			icon: '${collectionIcon}',
-			status: '${collectionStatus}',
-			description: '${collectionDescription}',
-			slug: '${collectionSlug}',
-
-			// Defined Fields that are used in your Collection
-			// Widget fields can be inspected for individual options
-			fields: ${JSON.stringify(fields)}
-		};`;
-
-			// Clean up the content string
-
-			content = content.replace(/\\n|\\t/g, '').replace(/\\/g, '');
-			content = content.replace(/["']🗑️|🗑️["']/g, '').replace(/🗑️/g, '');
-			const prettierConfig = await getPrettierConfig();
-			content = await prettier.format(content, prettierConfig);
+			// Generate collection file using AST transformation
+			const content = await generateCollectionFileWithAST({
+				contentName,
+				collectionIcon,
+				collectionStatus,
+				collectionDescription,
+				collectionSlug,
+				fields,
+				imports
+			});
 
 			const collectionPath = import.meta.env.userCollectionsPath;
 
@@ -305,4 +283,137 @@ function removeFalseValues(obj: unknown): unknown {
 			.map(([key, value]) => [key, removeFalseValues(value)])
 			.filter(([, value]) => value !== false)
 	);
+}
+
+// AST-based collection file generation
+interface CollectionData {
+	contentName: string;
+	collectionIcon: string;
+	collectionStatus: string;
+	collectionDescription: string | FormDataEntryValue | null;
+	collectionSlug: string;
+	fields: Array<fields>;
+	imports: string;
+}
+
+async function generateCollectionFileWithAST(data: CollectionData): Promise<string> {
+	try {
+		// Create the base template with imports
+		const sourceCode = `/**
+ * @file config/collections/${data.contentName}.ts
+ * @description Collection file for ${data.contentName}
+ */
+
+${data.imports}
+import { widgets } from '@widgets/widgetManager.svelte';
+import type { Schema } from '@src/content/types';
+
+export const schema: Schema = {
+	// Collection Name coming from filename so not needed
+	
+	// Optional & Icon, status, slug
+	// See for possible Icons https://icon-sets.iconify.design/
+	icon: '',
+	status: '',
+	description: '',
+	slug: '',
+	
+	// Defined Fields that are used in your Collection
+	// Widget fields can be inspected for individual options
+	fields: []
+};`;
+
+		// Parse the source code into an AST
+		const sourceFile = ts.createSourceFile(
+			`${data.contentName}.ts`,
+			sourceCode,
+			ts.ScriptTarget.ESNext,
+			true // setParentNodes
+		);
+
+		// Transform the AST to inject the collection data
+		const transformationResult = ts.transform(sourceFile, [createCollectionTransformer(data)]);
+		const transformedSourceFile = transformationResult.transformed[0];
+
+		// Print the transformed AST back to code
+		const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
+		let result = printer.printFile(transformedSourceFile);
+
+		// Clean up the 🗑️ markers and format with prettier
+		result = result.replace(/["']🗑️|🗑️["']/g, '').replace(/🗑️/g, '');
+
+		const prettierConfig = await getPrettierConfig();
+		result = await prettier.format(result, prettierConfig);
+
+		return result;
+	} catch (error) {
+		logger.error('Error generating collection file with AST:', error);
+		throw new Error(`Failed to generate collection file: ${error instanceof Error ? error.message : String(error)}`);
+	}
+}
+
+// Transformer factory to inject collection data into the AST
+function createCollectionTransformer(data: CollectionData): ts.TransformerFactory<ts.SourceFile> {
+	return (context) => {
+		return (sourceFile) => {
+			const visitor = (node: ts.Node): ts.VisitResult<ts.Node> => {
+				// Find the schema object literal and replace its properties
+				if (
+					ts.isVariableStatement(node) &&
+					node.declarationList.declarations.some((decl) => ts.isIdentifier(decl.name) && decl.name.text === 'schema')
+				) {
+					// Create the schema object with actual data
+					const schemaObject = createSchemaObjectLiteral(data);
+
+					// Create new variable declaration
+					const newDeclaration = ts.factory.createVariableDeclaration(
+						ts.factory.createIdentifier('schema'),
+						ts.factory.createTypeReferenceNode('Schema'),
+						schemaObject
+					);
+
+					// Create new variable statement with export modifier
+					return ts.factory.createVariableStatement(
+						[ts.factory.createModifier(ts.SyntaxKind.ExportKeyword)],
+						ts.factory.createVariableDeclarationList([newDeclaration], ts.NodeFlags.Const)
+					);
+				}
+
+				return ts.visitEachChild(node, visitor, context);
+			};
+
+			return ts.visitNode(sourceFile, visitor) as ts.SourceFile;
+		};
+	};
+}
+
+// Create TypeScript AST nodes for the schema object
+function createSchemaObjectLiteral(data: CollectionData): ts.ObjectLiteralExpression {
+	const properties: ts.ObjectLiteralElementLike[] = [];
+
+	// Add icon property
+	properties.push(ts.factory.createPropertyAssignment(ts.factory.createIdentifier('icon'), ts.factory.createStringLiteral(data.collectionIcon)));
+
+	// Add status property
+	properties.push(ts.factory.createPropertyAssignment(ts.factory.createIdentifier('status'), ts.factory.createStringLiteral(data.collectionStatus)));
+
+	// Add description property
+	properties.push(
+		ts.factory.createPropertyAssignment(
+			ts.factory.createIdentifier('description'),
+			ts.factory.createStringLiteral(String(data.collectionDescription || ''))
+		)
+	);
+
+	// Add slug property
+	properties.push(ts.factory.createPropertyAssignment(ts.factory.createIdentifier('slug'), ts.factory.createStringLiteral(data.collectionSlug)));
+
+	// Add fields property - this is more complex as it contains processed widget calls
+	const fieldsString = JSON.stringify(data.fields);
+	// Parse the fields as a JavaScript expression (this handles the widget calls)
+	const fieldsExpression = ts.factory.createIdentifier(`🗑️${fieldsString}🗑️`);
+
+	properties.push(ts.factory.createPropertyAssignment(ts.factory.createIdentifier('fields'), fieldsExpression));
+
+	return ts.factory.createObjectLiteralExpression(properties, true);
 }

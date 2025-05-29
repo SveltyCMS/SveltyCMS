@@ -1,19 +1,17 @@
-/** 
-@file cli-installer/config/system.js
-@description Configuration prompts for the System section
+/**
+ @file cli-installer/config/system.js
+ @description Configuration prompts for the System section
 
-### Features
-- Displays a note about the System configuration
-- Displays existing configuration (password hidden)
-- Prompts for System integration
-*/
+ ### Features
+ - Displays a note about the System configuration
+ - Displays existing configuration (password hidden)
+ - Prompts for System integration
+ */
 
 import { confirm, text, note, select, isCancel, multiselect, password } from '@clack/prompts';
 import pc from 'picocolors';
 import { Title, cancelOperation } from '../cli-installer.js';
 import crypto from 'crypto';
-
-// --- Helper Functions ---
 
 // Generate JWT Secret
 function generateRandomJWTSecret(length = 64) {
@@ -113,6 +111,8 @@ export async function configureSystem(privateConfigData = {}) {
 				`Max File Size: ${pc.cyan(formatBytesToSize(privateConfigData.MAX_FILE_SIZE) || 'Not set')}\n` +
 				`Enable Data Extraction?: ${pc.cyan(privateConfigData.EXTRACT_DATA_PATH ? 'Yes' : 'No')}\n` + // Adjusted display
 				`Log Levels: ${pc.cyan(privateConfigData.LOG_LEVELS ? privateConfigData.LOG_LEVELS.join(', ') : 'Not set')}\n` +
+				`Log Retention Days: ${pc.cyan(privateConfigData.LOG_RETENTION_DAYS?.toString() || 'Not set')}\n` + // New display
+				`Log Rotation Size: ${pc.cyan(formatBytesToSize(privateConfigData.LOG_ROTATION_SIZE) || 'Not set')}\n` + // New display
 				`Session Cleanup Interval (ms): ${pc.cyan(privateConfigData.SESSION_CLEANUP_INTERVAL)}\n` +
 				`Max In-Memory Sessions: ${pc.cyan(privateConfigData.MAX_IN_MEMORY_SESSIONS)}\n` +
 				`DB Validation Probability: ${pc.cyan(privateConfigData.DB_VALIDATION_PROBABILITY)}\n` +
@@ -225,10 +225,12 @@ export async function configureSystem(privateConfigData = {}) {
 	const LOG_LEVELS = await multiselect({
 		message: 'Select log levels to be outputted:',
 		options: [
-			{ value: 'debug', label: 'Debug' },
-			{ value: 'info', label: 'Info' },
-			{ value: 'warn', label: 'Warn' },
+			{ value: 'fatal', label: 'Fatal' }, // Added fatal
 			{ value: 'error', label: 'Error' },
+			{ value: 'warn', label: 'Warn' },
+			{ value: 'info', label: 'Info' },
+			{ value: 'debug', label: 'Debug' },
+			{ value: 'trace', label: 'Trace' }, // Added trace
 			{ value: 'none', label: 'None' }
 		],
 		initialValues: privateConfigData.LOG_LEVELS || ['info', 'warn', 'error'], // Sensible defaults
@@ -242,6 +244,37 @@ export async function configureSystem(privateConfigData = {}) {
 		await cancelOperation();
 		return;
 	}
+
+	// New: Prompt for log retention days
+	const LOG_RETENTION_DAYS = await text({
+		message: 'Enter log retention period (days, default: 2):',
+		placeholder: '2',
+		initialValue: privateConfigData.LOG_RETENTION_DAYS?.toString() || '2',
+		validate: (value) => {
+			const error = validatePositiveInteger(value, 'Log retention days');
+			return error ? error : undefined;
+		}
+	});
+	if (isCancel(LOG_RETENTION_DAYS)) {
+		await cancelOperation();
+		return;
+	}
+
+	// New: Prompt for log rotation size
+	const LOG_ROTATION_SIZE_STRING = await text({
+		message: 'Enter log file rotation size (e.g., 5mb, 1gb, default: 5mb):',
+		placeholder: '5mb',
+		initialValue: formatBytesToSize(privateConfigData.LOG_ROTATION_SIZE) || '5mb',
+		validate: (value) => {
+			const error = validateSizeFormat(value, 'Log rotation size');
+			return error ? error : undefined;
+		}
+	});
+	if (isCancel(LOG_ROTATION_SIZE_STRING)) {
+		await cancelOperation();
+		return;
+	}
+	const LOG_ROTATION_SIZE = parseSizeToBytes(LOG_ROTATION_SIZE_STRING);
 
 	const SESSION_CLEANUP_INTERVAL = await text({
 		message: 'Enter session cleanup interval (ms, default: 60000):',
@@ -357,6 +390,8 @@ export async function configureSystem(privateConfigData = {}) {
 			`Max File Size: ${pc.green(formatBytesToSize(MAX_FILE_SIZE) || 'Not set')}\n` +
 			`Enable Data Extraction?: ${pc.green(EXTRACT_DATA_PATH ? 'Yes' : 'No')}\n` +
 			`Log Levels: ${pc.green(LOG_LEVELS.join(', '))}\n` +
+			`Log Retention Days: ${pc.green(LOG_RETENTION_DAYS)}\n` + // New summary line
+			`Log Rotation Size: ${pc.green(formatBytesToSize(LOG_ROTATION_SIZE))}\n` + // New summary line
 			`Session Cleanup Interval (ms): ${pc.green(SESSION_CLEANUP_INTERVAL)}\n` +
 			`Max In-Memory Sessions: ${pc.green(MAX_IN_MEMORY_SESSIONS)}\n` +
 			`DB Validation Probability: ${pc.green(DB_VALIDATION_PROBABILITY)}\n` +
@@ -393,6 +428,8 @@ export async function configureSystem(privateConfigData = {}) {
 		MAX_FILE_SIZE, // Already in bytes
 		EXTRACT_DATA_PATH,
 		LOG_LEVELS,
+		LOG_RETENTION_DAYS: Number(LOG_RETENTION_DAYS), // New: Pass as number
+		LOG_ROTATION_SIZE, // New: Pass as bytes
 		SESSION_CLEANUP_INTERVAL: Number(SESSION_CLEANUP_INTERVAL),
 		MAX_IN_MEMORY_SESSIONS: Number(MAX_IN_MEMORY_SESSIONS),
 		DB_VALIDATION_PROBABILITY: Number(DB_VALIDATION_PROBABILITY),

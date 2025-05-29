@@ -24,9 +24,8 @@ import { dbAdapter } from '@src/databases/db';
 import { createClient } from 'redis';
 
 // Permission Management
-import { checkUserPermission } from '@src/auth/permissionCheck';
-import { registerPermission } from '@src/auth/permissionManager';
-import { PermissionAction, PermissionType } from '@src/auth/permissionTypes';
+import { hasPermission, registerPermission } from '@src/auth/permissions';
+import { PermissionAction, PermissionType } from '@src/auth/types';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -129,8 +128,8 @@ async function setupGraphQL() {
 					if (!user) {
 						throw new Error('Unauthorized: No user in context');
 					}
-					const { hasPermission } = await checkUserPermission(user, accessManagementPermission);
-					if (!hasPermission) {
+					const userHasPermission = hasPermission(user, 'config:accessManagement');
+					if (!userHasPermission) {
 						throw new Error('Forbidden: Insufficient permissions');
 					}
 					return accessManagementPermission;

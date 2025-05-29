@@ -1,23 +1,20 @@
 /**
  * @file src/routes/(app)/config/assessManagement/+page.server.ts
- * @description Server-side logic for Assess Management page authentication and authorization.
+ * @description Server-side logic for Access Management page using simplified auth system.
  */
 
 import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-// Auth
-import { roles as configRoles } from '@root/config/roles';
-import { permissionConfigs } from '@src/auth/permissionConfigs';
-import { getAllPermissions } from '@src/auth/permissionManager';
-import { checkUserPermission } from '@src/auth/permissionCheck';
+// Simplified Auth
+import { hasPermission, getAllPermissions, getAllRoles } from '@src/auth/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {
-		logger.debug('Starting load function for assess management page');
+		logger.debug('Starting load function for access management page');
 
 		const { user } = locals;
 
@@ -34,25 +31,22 @@ export const load: PageServerLoad = async ({ locals }) => {
 			throw error(403, message);
 		}
 
-		// Check user permission for assess management
-		const assessManagementConfig = permissionConfigs.accessManagement;
-		const permissionCheck = await checkUserPermission(user, assessManagementConfig);
+		// Check user permission for access management using simplified system
+		const hasAccessPermission = hasPermission(user, 'config:accessManagement');
 
-		if (!permissionCheck.hasPermission) {
-			const message = `User ${user._id} does not have permission to access assess management`;
+		if (!hasAccessPermission) {
+			const message = `User ${user._id} does not have permission to access management`;
 			logger.warn(message);
 			throw error(403, message);
 		}
 
-		// Fetch roles and permissions in parallel
+		// Fetch roles and permissions using simplified system
 		logger.debug('Fetching roles and permissions...');
-		const [roles, permissions] = await Promise.all([Promise.resolve(configRoles), getAllPermissions()]);
+		const roles = getAllRoles();
+		const permissions = getAllPermissions();
 
 		logger.debug(`Roles fetched: ${roles.length}`);
-		roles.forEach((role) => logger.debug(`Role: ${JSON.stringify(role)}`));
-
 		logger.debug(`Permissions fetched: ${permissions.length}`);
-		permissions.forEach((permission) => logger.debug(`Permission: ${JSON.stringify(permission)}`));
 
 		// Prepare data to return to the client
 		return {
@@ -61,8 +55,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 				email: user.email,
 				role: user.role
 			},
-			roles, // Send the original roles for basic role info and display
-			permissions: uiPermissions // Send the enriched permissions for the table display
+			roles,
+			permissions
 		};
 	} catch (err) {
 		if (err instanceof Error && 'status' in err) {

@@ -26,7 +26,8 @@ import fs from 'node:fs/promises';
 import { connectToMongoDB } from './mongodb/dbconnect';
 
 // Auth
-import { Auth } from '@src/auth';
+import { Auth } from '@src/auth/auth';
+import { getDefaultSessionStore } from '@src/auth/sessionStore';
 
 // Adapters Interfaces
 import type { DatabaseAdapter } from './dbInterface';
@@ -39,7 +40,7 @@ import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
 
 // Content Manager
 import { contentManager } from '@src/content/ContentManager';
-import { getPermissionByName, getAllPermissions, syncPermissions } from '@src/auth/permissionManager';
+import { getAllPermissions } from '@src/auth/permissions';
 import type { CollectionData } from '@src/content/types';
 
 // Theme
@@ -131,8 +132,7 @@ async function loadAdapters() {
 					getAllTokens: tokenAdapter.getAllTokens.bind(tokenAdapter),
 
 					// Permission Management Methods (Imported)
-					getAllPermissions,
-					getPermissionByName
+					getAllPermissions
 				};
 				logger.debug('Auth adapters created and bound');
 				break;
@@ -287,7 +287,6 @@ async function initializeSystem(): Promise<void> {
 			await initializeRevisions();
 			await initializeVirtualFolders();
 			await initializeDefaultPreferences();
-			await syncPermissions();
 			logger.debug('Step 3 completed: System components initialized');
 		} catch (componentErr) {
 			logger.error(`Component initialization failed: ${componentErr.message}`);
@@ -330,7 +329,7 @@ async function initializeSystem(): Promise<void> {
 		try {
 			// Initialize authentication
 			logger.debug('Creating Auth instance...');
-			auth = new Auth(authAdapter);
+			auth = new Auth(authAdapter, getDefaultSessionStore());
 			if (!auth) {
 				throw new Error('Auth initialization failed - constructor returned null/undefined');
 			}

@@ -176,9 +176,7 @@ export async function cleanupOrphanedFiles(
 	existingFilesByPath: Map<string, ExistingFileData>,
 	processedJsPaths: Set<string>
 ): Promise<void> {
-	// console.log('[Cleanup] Starting cleanup...'); // Removed verbose log
-	// console.log('[Cleanup] Existing compiled files (paths):', Array.from(existingFilesByPath.keys())); // Removed verbose log
-	// console.log('[Cleanup] Processed JS paths in this run:', Array.from(processedJsPaths)); // Removed verbose log
+	// console.log('[Cleanup] Scanning for orphaned files...');
 
 	const unlinkPromises: Promise<void>[] = [];
 

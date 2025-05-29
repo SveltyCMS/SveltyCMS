@@ -24,7 +24,7 @@ import { error } from '@sveltejs/kit';
 
 // Auth
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
-import { checkUserPermission } from '@src/auth/permissionCheck';
+import { checkUserPermission } from '@src/auth/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

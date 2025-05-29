@@ -23,7 +23,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 
 // Auth
 import { auth } from '@src/databases/db';
-import { checkUserPermission } from '@src/auth/permissionCheck';
+import { checkUserPermission } from '@src/auth/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

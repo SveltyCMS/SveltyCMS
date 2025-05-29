@@ -25,7 +25,7 @@ import { publicEnv } from '@root/config/public';
 import { _GET } from '@api/query/GET';
 
 // Stores
-import { collections } from '@src/stores/collectionStore.svelte';
+import { collections } from '@stores/collectionStore.svelte';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

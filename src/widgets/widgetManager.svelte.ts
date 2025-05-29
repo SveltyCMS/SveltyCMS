@@ -5,13 +5,12 @@
 import { mount } from 'svelte';
 import { v4 as uuidv4 } from 'uuid';
 import MissingWidget from './MissingWidget.svelte';
-import type { Widget, WidgetModule } from './types';
-import type { User } from '../auth/types';
-import type { WidgetId } from '../auth/types';
+import type { Widget, WidgetModule, WidgetId } from './types';
+import type { User } from '@src/auth/types';
 import type { Schema } from '../content/types';
 
 // System Logger
-import { logger } from '../utils/logger.svelte';
+import { logger } from '@utils/logger.svelte';
 
 export type WidgetStatus = 'active' | 'inactive'; // Define widget status types
 

@@ -23,8 +23,11 @@ Features:
 <script lang="ts">
 	import { page } from '$app/state';
 
-	import type { PermissionConfig } from '@src/auth/permissionTypes';
+	// Auth
+	import type { PermissionConfig } from '@src/auth/permissions';
 	import type { User } from '@src/auth/types';
+
+	// Stores
 	import { store } from '@src/utils/reactivity.svelte';
 
 	interface Props {

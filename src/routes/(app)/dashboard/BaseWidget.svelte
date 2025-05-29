@@ -11,7 +11,8 @@
 - `data`: Bindable data property for widget content
 - `widgetId`: Unique identifier for widget state persistence
 - `icon`: Optional icon for the widget
-- `children`: Slot for widget-specific contenta
+- `children`: Slot for widget-specific content
+- `onDataLoaded`: Callback function when data is successfully loaded from the endpoint.
 
 ### Features:
 - Common properties for all widgets
@@ -47,9 +48,10 @@
 		onResizeCommitted = (_spans: { w: number; h: number }) => {},
 		onCloseRequest = () => {},
 		initialData: passedInitialData = undefined,
+		onDataLoaded = (_fetchedData: any) => {}, // New prop: Callback for when data is loaded
 		// Initialize `data` with $bindable() directly.
 		// Its initial value will be set from passedInitialData in an effect.
-		data = $bindable()
+		data = $bindable() // This is the bindable prop
 	} = $props<{
 		label: string;
 		theme?: 'light' | 'dark';
@@ -67,19 +69,16 @@
 		onCloseRequest?: () => void;
 		initialData?: any;
 		data?: any; // This is the prop name for binding, its type should match expected data
+		onDataLoaded?: (fetchedData: any) => void; // New prop definition
 	}>();
 
 	// Effect to set the initial value of 'data' from 'passedInitialData'
 	// This runs once when passedInitialData is first available or if it changes.
-	// We only set it if 'data' hasn't been populated by a fetch yet or by a parent binding.
 	let initialDataSet = false;
 	$effect(() => {
 		if (!initialDataSet && passedInitialData !== undefined) {
-			// Check if 'data' is still in its default bindable state (likely undefined)
-			// or if it matches passedInitialData (in case parent bound and set it)
-			// This avoids overwriting data that might have been fetched if initialData arrives late.
-			// A robust way is to only set from initialData if 'data' is currently undefined.
 			if (data === undefined) {
+				// Only set if 'data' hasn't been populated yet
 				data.set(passedInitialData);
 			}
 			initialDataSet = true; // Mark that we've attempted to set from initialData
@@ -88,22 +87,12 @@
 
 	let widgetState = $state<Record<string, any>>({});
 	let loading = $state(endpoint && !passedInitialData ? true : false);
-	// If an endpoint exists, loading should be true until the first fetch,
-	// even if initialData is present (as we might fetch fresh data).
-	// Let's adjust loading state to be true if an endpoint is present and we intend to fetch.
-	$effect(() => {
-		if (endpoint) {
-			loading = true; // Will be set to false after the first fetch attempt
-		} else {
-			loading = false;
-		}
-	});
-
 	let error = $state<string | null>(null);
 
+	// Effect to handle data fetching and polling
 	$effect(() => {
 		if (!endpoint) {
-			// loading = false; // Already handled by the effect above
+			loading = false;
 			return;
 		}
 
@@ -112,15 +101,16 @@
 
 		const fetchData = async () => {
 			if (!isActive) return;
-			// Ensure loading is true before fetch, will be set to false in finally
-			if (!loading) loading = true;
+			if (!loading) loading = true; // Set loading to true before fetch
 			error = null;
 			try {
-				const res = await fetch(`${endpoint}?_=${new Date().getTime()}`);
+				// Append a cache-busting parameter to ensure fresh data
+				const res = await fetch(`${endpoint}&_=${new Date().getTime()}`);
 				if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
 				const newData = await res.json();
 				if (isActive) {
 					data.set(newData); // Use the setter for bindable data
+					onDataLoaded(newData); // Call the new callback prop
 				}
 			} catch (err) {
 				if (isActive) {
@@ -132,7 +122,7 @@
 			}
 		};
 
-		fetchData();
+		fetchData(); // Initial fetch
 
 		if (pollInterval > 0) {
 			timerId = setInterval(fetchData, pollInterval);

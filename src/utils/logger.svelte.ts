@@ -11,6 +11,7 @@
  * - Error tracking service integration
  * - Multiple log targets support
  * - Log filtering and aggregation
+ * - Log retention policy to automatically delete old log files
  */
 
 import { browser } from '$app/environment';
@@ -65,8 +66,10 @@ const LOG_LEVEL_MAP: Record<LogLevel, { priority: number; color: keyof typeof TE
 };
 
 // Configuration with defaults using $state
+// Defaults are aligned with publicEnv for consistency, but can be overridden
 const config = $state({
-	logRotationSize: 5 * 1024 * 1024, // 5MB
+	logRotationSize: publicEnv.LOG_ROTATION_SIZE || 5 * 1024 * 1024, // 5MB
+	logRetentionDays: publicEnv.LOG_RETENTION_DAYS || 2, // Default to 2 days
 	logDirectory: 'logs',
 	logFileName: 'app.log',
 	errorTrackingEnabled: false,
@@ -91,7 +94,14 @@ const state = $state({
 });
 
 // Helper Functions
-const isLogLevelEnabled = (level: LogLevel): boolean => publicEnv.LOG_LEVELS.includes(level);
+const isLogLevelEnabled = (level: LogLevel): boolean => {
+	// Ensure publicEnv.LOG_LEVELS is properly initialized and includes the level
+	if (!publicEnv.LOG_LEVELS || !Array.isArray(publicEnv.LOG_LEVELS)) {
+		return false; // Or handle as an error/default to a safe level
+	}
+	return publicEnv.LOG_LEVELS.includes(level);
+};
+
 // Format timestamp in gray color
 const getTimestamp = (): string => {
 	const now = new Date();
@@ -105,6 +115,10 @@ const safeExecute = async (fn: () => Promise<void>): Promise<void> => {
 		await fn();
 	} catch (error) {
 		if (isServer) console.error('Error in logger function:', error);
+		// Optionally, if error tracking is enabled, report this internal logger error
+		// if (config.errorTrackingEnabled && error instanceof Error) {
+		//     // Example: reportErrorToService(error);
+		// }
 	}
 };
 
@@ -249,6 +263,7 @@ const serverModules = isServer
 
 const serverFileOps = isServer
 	? {
+		_logStream: null as import('node:fs').WriteStream | null, // Store the write stream instance
 		async _getModules() {
 			if (!serverModules) throw new Error('Server modules are not available.');
 			return {
@@ -259,10 +274,32 @@ const serverFileOps = isServer
 				stream: await serverModules.stream
 			};
 		},
+		async getLogStream(): Promise<import('node:fs').WriteStream> {
+			const { path, fs } = await this._getModules();
+			if (!this._logStream || this._logStream.writableEnded || this._logStream.destroyed) {
+				const logFilePath = path.join(config.logDirectory, config.logFileName);
+				this._logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
+				this._logStream.on('error', (err) => {
+					console.error('Log stream error:', err);
+					// Invalidate the stream on error to force re-initialization
+					this._logStream = null;
+				});
+				this._logStream.on('finish', () => {
+					this._logStream = null; // Clear stream reference after it finishes
+				});
+			}
+			return this._logStream;
+		},
 		async initializeLogFile(): Promise<void> {
 			const { fsPromises, path } = await this._getModules();
 			const maxRetries = 3;
 			let retryCount = 0;
+
+			// Close existing stream if any before re-initializing
+			if (this._logStream) {
+				this._logStream.end();
+				this._logStream = null;
+			}
 
 			while (retryCount < maxRetries) {
 				try {
@@ -283,7 +320,7 @@ const serverFileOps = isServer
 						throw new Error('Log path is not a directory');
 					}
 
-					// Initialize log file
+					// Initialize log file (ensure it exists)
 					const logFilePath = path.join(config.logDirectory, config.logFileName);
 					try {
 						await fsPromises.access(logFilePath);
@@ -298,7 +335,7 @@ const serverFileOps = isServer
 						throw error;
 					}
 					// Wait before retrying
-					await new Promise(resolve => setTimeout(resolve, 500 * retryCount));
+					await new Promise((resolve) => setTimeout(resolve, 500 * retryCount));
 				}
 			}
 		},
@@ -309,10 +346,16 @@ const serverFileOps = isServer
 				const stats = await fsPromises.stat(logFilePath);
 				if (stats.size < config.logRotationSize) return;
 
+				// Close the current log stream before rotation
+				if (this._logStream) {
+					this._logStream.end();
+					this._logStream = null;
+				}
+
 				const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
 				const rotatedFilePath = `${logFilePath}.${timestamp}`;
 				await fsPromises.rename(logFilePath, rotatedFilePath);
-				await fsPromises.writeFile(logFilePath, '');
+				await fsPromises.writeFile(logFilePath, ''); // Create a new empty log file
 
 				if (config.compressionEnabled) {
 					const source = fs.createReadStream(rotatedFilePath);
@@ -327,6 +370,33 @@ const serverFileOps = isServer
 				}
 			}
 		},
+		async cleanOldLogFiles(): Promise<void> {
+			const { fsPromises, path } = await this._getModules();
+			const files = await fsPromises.readdir(config.logDirectory);
+			const now = Date.now();
+			const cutoff = now - config.logRetentionDays * 24 * 60 * 60 * 1000; // Convert days to milliseconds
+
+			for (const file of files) {
+				const filePath = path.join(config.logDirectory, file);
+				try {
+					const stats = await fsPromises.stat(filePath);
+					// Check if it's a file, older than cutoff, and not the current active log file
+					// Also ensure it's a rotated log file (ends with .gz or has a timestamp part)
+					if (stats.isFile() && stats.mtimeMs < cutoff && file !== config.logFileName) {
+						// Basic check to ensure it's a rotated log (e.g., app.log.2023-10-26T...)
+						// This regex checks for files named like 'app.log.YYYY-MM-DDTHH-MM-SS.sss' or 'app.log.YYYY-MM-DDTHH-MM-SS.sss.gz'
+						const rotatedLogPattern = new RegExp(`^${config.logFileName}\\.\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}\\.\\d{3}(\\.gz)?$`);
+						if (rotatedLogPattern.test(file)) {
+							console.log(`Deleting old log file: ${filePath}`);
+							await fsPromises.unlink(filePath);
+						}
+					}
+				} catch (error) {
+					// Log the error but don't stop the process
+					console.error(`Error cleaning old log file ${filePath}:`, error);
+				}
+			}
+		},
 		async writeBatchToFile(batch: LogEntry[]): Promise<void> {
 			const { fsPromises, path } = await this._getModules();
 			const logFilePath = path.join(config.logDirectory, config.logFileName);
@@ -337,23 +407,39 @@ const serverFileOps = isServer
 			if (!logString) return;
 
 			try {
-				// First try normal file write
+				// Ensure rotation happens before writing
 				await this.checkAndRotateLogFile();
-				await fsPromises.appendFile(logFilePath, logString);
+				const logStream = await this.getLogStream();
+				// Use a promise-based approach for stream writes for better error handling
+				await new Promise<void>((resolve, reject) => {
+					logStream.write(logString, (err) => {
+						if (err) return reject(err);
+						resolve();
+					});
+				});
 			} catch (fileError) {
 				console.error('Failed to write to log file, attempting recovery:', fileError);
+				this._logStream = null; // Invalidate stream on error to force re-initialization
 
 				try {
-					// Try recreating directory and file
+					// Try recreating directory and file, then re-get stream and write
 					await this.initializeLogFile();
-					await fsPromises.appendFile(logFilePath, logString);
+					const logStream = await this.getLogStream();
+					await new Promise<void>((resolve, reject) => {
+						logStream.write(logString, (err) => {
+							if (err) return reject(err);
+							resolve();
+						});
+					});
 				} catch (recoveryError) {
 					// Fallback to console logging if all else fails
 					console.error('Log file recovery failed, falling back to console:', recoveryError);
 					for (const entry of batch) {
 						const color = TERMINAL_COLORS[LOG_LEVEL_MAP[entry.level].color];
 						const formattedArgs = entry.args.map(formatValue).join(' ');
-						console.log(`${entry.timestamp.toISOString()} ${color}[${entry.level.toUpperCase()}]${TERMINAL_COLORS.reset}: ${entry.message} ${formattedArgs}`);
+						console.log(
+							`${entry.timestamp.toISOString()} ${color}[${entry.level.toUpperCase()}]${TERMINAL_COLORS.reset}: ${entry.message} ${formattedArgs}`
+						);
 					}
 				}
 			}
@@ -361,22 +447,41 @@ const serverFileOps = isServer
 	}
 	: {
 		// Client-side stubs
+		_logStream: null,
+		async _getModules(): Promise<any> { return {}; },
+		async getLogStream(): Promise<any> { return {}; },
 		async initializeLogFile(): Promise<void> { },
 		async checkAndRotateLogFile(): Promise<void> { },
+		async cleanOldLogFiles(): Promise<void> { },
 		async writeBatchToFile(): Promise<void> { }
 	};
 
 // Effects and Lifecycle
 $effect.root(() => {
+	let dailyCleanupInterval: NodeJS.Timeout | null = null;
 	if (isServer) {
 		safeExecute(serverFileOps.initializeLogFile);
+		// Schedule daily log cleanup
+		dailyCleanupInterval = setInterval(() => {
+			safeExecute(serverFileOps.cleanOldLogFiles);
+		}, 24 * 60 * 60 * 1000); // Every 24 hours
 	}
 	$effect(() => {
 		if (state.queue.length >= config.batchSize) {
 			safeExecute(processBatch);
 		}
 	});
-	return () => abortBatch();
+	return () => {
+		abortBatch();
+		if (dailyCleanupInterval) {
+			clearInterval(dailyCleanupInterval); // Clean up the interval on component destroy
+		}
+		// Ensure the log stream is ended when the logger is no longer used
+		if (isServer && serverFileOps._logStream) {
+			serverFileOps._logStream.end();
+			serverFileOps._logStream = null;
+		}
+	};
 });
 
 // Core Logger Function
@@ -392,7 +497,7 @@ const log = (level: LogLevel, message: string, ...args: LoggableValue[]): void =
 	if (isServer && config.sourceFileTracking.includes(level)) {
 		try {
 			const stack = new Error().stack || '';
-			const callerLine = stack.split('\n')[3] || '';
+			const callerLine = stack.split('\n')[3] || ''; // Adjust index based on environment/stack format
 			const match = callerLine.match(/\(([^)]+)\)/) || callerLine.match(/at ([^\s]+)/);
 			if (match && match[1]) {
 				sourceFile = match[1].split('/').pop()?.replace(/[()]/g, '') || '';
@@ -403,7 +508,6 @@ const log = (level: LogLevel, message: string, ...args: LoggableValue[]): void =
 	}
 
 	// Server-side console output with colors and source file
-
 	if (isServer) {
 		const color = TERMINAL_COLORS[LOG_LEVEL_MAP[level].color];
 		const sourceInfo = sourceFile ? `${sourceFile} ` : '';
@@ -467,5 +571,13 @@ export const logger = {
 	},
 	setSourceFileTracking: (levels: LogLevel[]) => {
 		config.sourceFileTracking = levels;
+	},
+	// New: Set log rotation size
+	setLogRotationSize: (size: number) => {
+		config.logRotationSize = size;
+	},
+	// New: Set log retention days
+	setLogRetentionDays: (days: number) => {
+		config.logRetentionDays = days;
 	}
 };

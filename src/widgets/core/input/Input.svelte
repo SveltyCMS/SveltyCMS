@@ -49,8 +49,9 @@
 
 	// Validation and error state
 	let validationError = $state<string | null>(null);
+	let touched = $state(false);
 	let debounceTimeout: number | undefined;
-	let inputElement: HTMLInputElement | null = null;
+	let inputElement: HTMLInputElement | null = null; // Used for focus management
 
 	// Memoized badge class calculation
 	const badgeClassCache = new Map<string, string>();
@@ -73,45 +74,48 @@
 	let validationSchema = field?.required ? pipe(string(), nonEmpty()) : nullable(string());
 
 	// Validation function using Valibot schema
-	function validateInput() {
+	function validateInput(forceShowError = false) {
 		try {
 			if (debounceTimeout) clearTimeout(debounceTimeout);
-			debounceTimeout = window.setTimeout(() => {
-				try {
-					const newValue = value[_language];
+			debounceTimeout = window.setTimeout(
+				() => {
+					try {
+						const newValue = value?.[_language];
 
-					// First validate the value exists if required
-					if (field?.required && !newValue) {
-						validationError = 'This field is required';
-						validationStore.setError(getFieldName(field), validationError);
-						return;
-					}
-
-					// Then validate string constraints if value exists
-					if (newValue) {
-						if (field?.minlength && newValue.length < field.minlength) {
-							validationError = `Minimum length is ${field.minlength}`;
+						// First validate the value exists if required
+						if (field?.required && (newValue === null || newValue === undefined || newValue === '')) {
+							validationError = 'This field is required';
 							validationStore.setError(getFieldName(field), validationError);
 							return;
 						}
-						if (field?.maxlength && newValue.length > field.maxlength) {
-							validationError = `Maximum length is ${field.maxlength}`;
+
+						// Then validate string constraints if value exists
+						if (newValue !== null && newValue !== undefined) {
+							if (field?.minlength && newValue.length < field.minlength) {
+								validationError = `Minimum length is ${field.minlength}`;
+								validationStore.setError(getFieldName(field), validationError);
+								return;
+							}
+							if (field?.maxlength && newValue.length > field.maxlength) {
+								validationError = `Maximum length is ${field.maxlength}`;
+								validationStore.setError(getFieldName(field), validationError);
+								return;
+							}
+						}
+
+						parse(validationSchema, newValue);
+						validationError = null;
+						validationStore.clearError(getFieldName(field));
+					} catch (error) {
+						if ((error as ValiError<typeof validationSchema>).issues) {
+							const valiError = error as ValiError<typeof validationSchema>;
+							validationError = valiError.issues[0]?.message || 'Invalid input';
 							validationStore.setError(getFieldName(field), validationError);
-							return;
 						}
 					}
-
-					parse(validationSchema, newValue);
-					validationError = null;
-					validationStore.clearError(getFieldName(field));
-				} catch (error) {
-					if ((error as ValiError<typeof validationSchema>).issues) {
-						const valiError = error as ValiError<typeof validationSchema>;
-						validationError = valiError.issues[0]?.message || 'Invalid input';
-						validationStore.setError(getFieldName(field), validationError);
-					}
-				}
-			}, 300);
+				},
+				forceShowError ? 0 : 300
+			);
 		} catch (error) {
 			console.error('Validation error:', error);
 			validationError = 'An unexpected error occurred during validation';
@@ -127,7 +131,10 @@
 		};
 	});
 
-	$effect(() => {});
+	// Run initial validation when component mounts
+	$effect(() => {
+		validateInput();
+	});
 </script>
 
 <div class="input-container relative mb-4">
@@ -148,7 +155,10 @@
 					value = temp;
 				}
 			}
-			onblur={validateInput}
+			onblur={() => {
+				touched = true;
+				validateInput(true);
+			}}
 			name={field?.db_fieldName}
 			id={field?.db_fieldName}
 			bind:this={inputElement}
@@ -196,7 +206,7 @@
 	</div>
 
 	<!-- Error Message -->
-	{#if validationError}
+	{#if validationError && touched}
 		<p id={`${getFieldName(field)}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
 			{validationError}
 		</p>

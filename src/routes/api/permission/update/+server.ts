@@ -25,11 +25,12 @@ import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
 import fs from 'fs/promises';
 import path from 'path';
+import * as ts from 'typescript';
 
 // Authorization
 import { dbInitPromise } from '@src/databases/db';
-import { getAllPermissions } from '@src/auth/permissionManager';
-import { roles as configRoles } from '@root/config/roles';
+import { getAllPermissions } from '@src/auth/permissions';
+import { roles } from '@root/config/roles';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -50,7 +51,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	// Check if user has admin role
-	const userRole = configRoles.find((role) => role._id === user.role);
+	const userRole = roles.find((role) => role._id === user.role);
 	if (!userRole?.isAdmin) {
 		logger.warn('Unauthorized attempt to update permissions', { userId: user._id });
 		return json({ success: false, error: 'Unauthorized' }, { status: 403 });
@@ -81,58 +82,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			timestamp: new Date().toISOString()
 		});
 
-		// Update the roles configuration file
+		// Update the roles configuration file using AST transformation
 		const rolesFilePath = path.resolve('config/roles.ts');
-
-		// Format roles as TypeScript object literals
-		const formattedRoles = roles
-			.map((role) => {
-				// Format each role as a TypeScript object literal, excluding the 'id' property
-				const props = Object.entries(role)
-					.filter(([key]) => key !== 'id')
-					.map(([key, value]) => {
-						if (key === 'permissions' && role.isAdmin) {
-							return `\t\tpermissions: permissions.map((p) => p._id), // All permissions`;
-						}
-						if (typeof value === 'string') {
-							return `\t\t${key}: '${value}'`;
-						}
-						if (Array.isArray(value)) {
-							return `\t\t${key}: ${JSON.stringify(value)}`;
-						}
-						return `\t\t${key}: ${value}`;
-					})
-					.join(',\n');
-
-				return `\t{\n${props}\n\t}`;
-			})
-			.join(',\n');
-
-		const rolesFileContent = `/**
- * @file config/roles.ts
- * @description  Role configuration file
- */
-
-import type { Role } from '../src/auth/types';
-import { permissions } from '../src/auth/permissions';
-
-export const roles: Role[] = [\n${formattedRoles}\n];
-
-// Function to register a new role
-export function registerRole(newRole: Role): void {
-	const exists = roles.some((role) => role._id === newRole._id); // Use _id for consistency
-	if (!exists) {
-		roles.push(newRole);
-	}
-}
-
-// Function to register multiple roles
-export function registerRoles(newRoles: Role[]): void {
-	newRoles.forEach(registerRole);
-}
-`;
-
-		await fs.writeFile(rolesFilePath, rolesFileContent, 'utf8');
+		const updatedContent = await generateRolesFileWithAST(roles);
+		await fs.writeFile(rolesFilePath, updatedContent, 'utf8');
 
 		// Log successful update
 		logger.info('Roles and permissions updated successfully', {
@@ -238,4 +191,137 @@ function validateRoleStructure(role: Role): boolean {
 // Validates role name format and length
 function validateRoleName(name: string): boolean {
 	return name.length > 0 && name.length <= MAX_ROLE_NAME_LENGTH && ROLE_NAME_PATTERN.test(name);
+}
+
+// AST-based role file generation (similar to compile.ts approach)
+async function generateRolesFileWithAST(rolesData: Role[]): Promise<string> {
+	try {
+		// Create the base template
+		const sourceCode = `/**
+ * @file config/roles.ts
+ * @description Role configuration file
+ */
+
+import type { Role } from '../src/auth/types';
+import { getAllPermissions } from '../src/auth/permissions';
+
+const permissions = getAllPermissions();
+
+export const roles: Role[] = [];
+
+// Function to register a new role
+export function registerRole(newRole: Role): void {
+	const exists = roles.some((role) => role._id === newRole._id);
+	if (!exists) {
+		roles.push(newRole);
+	}
+}
+
+// Function to register multiple roles
+export function registerRoles(newRoles: Role[]): void {
+	newRoles.forEach(registerRole);
+}`;
+
+		// Parse the source code into an AST
+		const sourceFile = ts.createSourceFile(
+			'roles.ts',
+			sourceCode,
+			ts.ScriptTarget.ESNext,
+			true // setParentNodes
+		);
+
+		// Transform the AST to inject the roles data
+		const transformationResult = ts.transform(sourceFile, [createRolesTransformer(rolesData)]);
+		const transformedSourceFile = transformationResult.transformed[0];
+
+		// Print the transformed AST back to code
+		const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
+		return printer.printFile(transformedSourceFile);
+	} catch (error) {
+		logger.error('Error generating roles file with AST:', error);
+		throw new Error(`Failed to generate roles file: ${error instanceof Error ? error.message : String(error)}`);
+	}
+}
+
+// Transformer factory to inject roles data into the AST
+function createRolesTransformer(rolesData: Role[]): ts.TransformerFactory<ts.SourceFile> {
+	return (context) => {
+		return (sourceFile) => {
+			const visitor = (node: ts.Node): ts.VisitResult<ts.Node> => {
+				// Find the roles array declaration and replace it with actual data
+				if (
+					ts.isVariableStatement(node) &&
+					node.declarationList.declarations.some((decl) => ts.isIdentifier(decl.name) && decl.name.text === 'roles')
+				) {
+					// Create the roles array with actual data
+					const rolesArray = createRolesArrayLiteral(rolesData);
+
+					// Create new variable declaration
+					const newDeclaration = ts.factory.createVariableDeclaration(
+						ts.factory.createIdentifier('roles'),
+						ts.factory.createTypeReferenceNode('Role', []),
+						rolesArray
+					);
+
+					// Create new variable statement with export modifier
+					return ts.factory.createVariableStatement(
+						[ts.factory.createModifier(ts.SyntaxKind.ExportKeyword)],
+						ts.factory.createVariableDeclarationList([newDeclaration], ts.NodeFlags.Const)
+					);
+				}
+
+				return ts.visitEachChild(node, visitor, context);
+			};
+
+			return ts.visitNode(sourceFile, visitor) as ts.SourceFile;
+		};
+	};
+}
+
+// Create TypeScript AST nodes for the roles array
+function createRolesArrayLiteral(rolesData: Role[]): ts.ArrayLiteralExpression {
+	const roleObjects = rolesData.map((role) => {
+		const properties: ts.ObjectLiteralElementLike[] = [];
+
+		// Add each property of the role
+		Object.entries(role).forEach(([key, value]) => {
+			if (key === 'id') return; // Skip 'id' property
+
+			let propertyValue: ts.Expression;
+
+			if (key === 'permissions' && role.isAdmin) {
+				// For admin roles, use permissions.map((p) => p._id)
+				propertyValue = ts.factory.createCallExpression(
+					ts.factory.createPropertyAccessExpression(ts.factory.createIdentifier('permissions'), ts.factory.createIdentifier('map')),
+					undefined,
+					[
+						ts.factory.createArrowFunction(
+							undefined,
+							undefined,
+							[ts.factory.createParameterDeclaration(undefined, undefined, 'p')],
+							undefined,
+							ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+							ts.factory.createPropertyAccessExpression(ts.factory.createIdentifier('p'), ts.factory.createIdentifier('_id'))
+						)
+					]
+				);
+			} else if (typeof value === 'string') {
+				propertyValue = ts.factory.createStringLiteral(value);
+			} else if (typeof value === 'boolean') {
+				propertyValue = value ? ts.factory.createTrue() : ts.factory.createFalse();
+			} else if (Array.isArray(value)) {
+				// Create array literal for permissions
+				propertyValue = ts.factory.createArrayLiteralExpression(value.map((item) => ts.factory.createStringLiteral(String(item))));
+			} else {
+				// Fallback for other types
+				propertyValue = ts.factory.createStringLiteral(String(value));
+			}
+
+			properties.push(ts.factory.createPropertyAssignment(ts.factory.createIdentifier(key), propertyValue));
+		});
+
+		return ts.factory.createObjectLiteralExpression(properties, true);
+	});
+
+	return ts.factory.createArrayLiteralExpression(roleObjects, true);
 }

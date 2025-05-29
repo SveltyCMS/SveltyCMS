@@ -23,8 +23,10 @@ It provides the following functionality:
 	// Stores
 	import { writable } from 'svelte/store';
 	import { page } from '$app/state';
+
+	// Auth
 	import type { Permission, Role } from '@src/auth/types';
-	import { PermissionType } from '@src/auth/permissionTypes';
+	import { PermissionType } from '@src/auth/types';
 
 	// Components
 	import Loading from '@components/Loading.svelte';
@@ -57,8 +59,24 @@ It provides the following functionality:
 				group = 'User Management';
 			} else if (cur.type === PermissionType.CONFIGURATION) {
 				group = 'Configuration';
+			} else if (cur.type === PermissionType.SYSTEM) {
+				// Group system permissions by their prefix
+				const prefix = cur._id.split(':')[0];
+				if (prefix === 'system') {
+					group = 'System';
+				} else if (prefix === 'api') {
+					group = 'API Access';
+				} else if (prefix === 'content') {
+					group = 'Content Management';
+				} else if (prefix === 'config') {
+					group = 'Configuration';
+				} else if (prefix === 'admin') {
+					group = 'Admin';
+				} else {
+					group = 'System';
+				}
 			}
-			if (!groups.includes(group)) {
+			if (group && !groups.includes(group)) {
 				groups.push(group);
 			}
 		});
@@ -70,9 +88,19 @@ It provides the following functionality:
 		if (group === 'User Management') {
 			return permissions.filter((cur) => cur.type === PermissionType.USER);
 		} else if (group === 'Configuration') {
-			return permissions.filter((cur) => cur.type === PermissionType.CONFIGURATION);
+			return permissions.filter(
+				(cur) => cur.type === PermissionType.CONFIGURATION || (cur.type === PermissionType.SYSTEM && cur._id.startsWith('config:'))
+			);
+		} else if (group === 'System') {
+			return permissions.filter((cur) => cur.type === PermissionType.SYSTEM && cur._id.startsWith('system:'));
+		} else if (group === 'API Access') {
+			return permissions.filter((cur) => cur.type === PermissionType.SYSTEM && cur._id.startsWith('api:'));
+		} else if (group === 'Content Management') {
+			return permissions.filter((cur) => cur.type === PermissionType.SYSTEM && cur._id.startsWith('content:'));
+		} else if (group === 'Admin') {
+			return permissions.filter((cur) => cur.type === PermissionType.SYSTEM && cur._id.startsWith('admin:'));
 		} else {
-			return permissions.filter((cur) => cur._id.split(':')[0] === group);
+			return permissions.filter((cur) => cur._id.split(':')[0] === group.toLowerCase());
 		}
 	};
 

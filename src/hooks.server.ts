@@ -27,17 +27,17 @@ import { RateLimiter } from 'sveltekit-rate-limiter/server';
 
 // Auth and Database Adapters
 import { auth, dbInitPromise, authAdapter } from '@src/databases/db';
-import { SESSION_COOKIE_NAME } from '@src/auth';
-import { checkUserPermission } from '@src/auth/permissionCheck';
+import { SESSION_COOKIE_NAME } from '@src/auth/auth';
+import { hasPermission } from '@src/auth/permissions';
+import { roles } from '@root/config/roles';
 
+import type { AvailableLanguageTag } from '@src/paraglide/runtime';
+import type { User, Permission } from '@src/auth/auth';
 // Cache
 import { getCacheStore } from '@src/cacheStore/index.server';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-
-import type { AvailableLanguageTag } from '@src/paraglide/runtime';
-import { User, Permission } from '@src/auth/types';
 
 // Cache TTLs
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
@@ -254,7 +254,7 @@ const getUserFromSessionId = async (session_id: string | undefined, authServiceR
 	}
 
 	try {
-		const user = await auth.validateSession({ session_id });
+		const user = await auth.validateSession(session_id);
 		if (user) {
 			const sessionData = { user, timestamp: now };
 			sessionCache.set(session_id, sessionData);
@@ -457,17 +457,12 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		// Only load admin data when needed and cache it
 		if (authServiceReady && event.locals.user) {
 			// Load basic permission check efficiently
-			const { hasPermission } = await checkUserPermission(user, {
-				contextId: 'config/userManagement',
-				requiredRole: 'admin',
-				action: 'manage',
-				contextType: 'system'
-			});
+			const userHasManagePermission = hasPermission(user, 'user:manage');
 
-			event.locals.hasManageUsersPermission = hasPermission;
+			event.locals.hasManageUsersPermission = userHasManagePermission;
 
 			// Only load heavy admin data if user is admin or has permission AND it's needed
-			if ((user.isAdmin || hasPermission) && (isApi || event.url.pathname.includes('/admin') || event.url.pathname.includes('/user'))) {
+			if ((user.isAdmin || userHasManagePermission) && (isApi || event.url.pathname.includes('/admin') || event.url.pathname.includes('/user'))) {
 				// Load admin data with caching
 				const [roles, users, tokens] = await Promise.all([
 					getAdminDataCached(user, 'roles'),
@@ -595,12 +590,18 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 
 	// Check if user has required permission for this endpoint
 	const requiredPermissionName = `api:${apiEndpoint}`;
-	const permissionExists = userPerms.some((p) => p._id === requiredPermissionName || p.name === requiredPermissionName);
 
-	if (!permissionExists) {
-		// If the user *lacks* the specific API permission
-		logger.warn(`User \x1b[34m${user._id}\x1b[0m denied access to API /api/${apiEndpoint} due to missing permission: ${requiredPermissionName}`);
-		throw error(403, `Forbidden: You do not have the required permission ('${requiredPermissionName}') to access this API endpoint.`);
+	// ADMIN OVERRIDE: Admins automatically have ALL permissions
+	const userRole = roles.find((role) => role._id === user.role);
+	if (userRole?.isAdmin) {
+		logger.debug(`Admin user ${user._id} granted API access to /api/${apiEndpoint}`);
+	} else {
+		const permissionExists = userPerms.some((p) => p._id === requiredPermissionName || p.name === requiredPermissionName);
+		if (!permissionExists) {
+			// If the user *lacks* the specific API permission
+			logger.warn(`User \x1b[34m${user._id}\x1b[0m denied access to API /api/${apiEndpoint} due to missing permission: ${requiredPermissionName}`);
+			throw error(403, `Forbidden: You do not have the required permission ('${requiredPermissionName}') to access this API endpoint.`);
+		}
 	}
 
 	// Handle GET requests with caching

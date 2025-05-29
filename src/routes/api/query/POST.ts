@@ -18,7 +18,7 @@
  */
 
 // Types
-import type { Schema } from '@root/src/content/types';
+import type { Schema } from '@src/content/types';
 import type { User } from '@src/auth/types';
 
 // Interface for request body data
@@ -34,6 +34,7 @@ import { modifyRequest } from './modifyRequest';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
+
 import { contentManager } from '@root/src/content/ContentManager';
 
 // Function to handle POST requests for a specified collection

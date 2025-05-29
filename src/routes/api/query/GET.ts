@@ -18,7 +18,7 @@
  */
 
 // Types
-import type { Schema } from '@root/src/content/types';
+import type { Schema } from '@src/content/types';
 import type { User } from '@src/auth/types';
 
 // Interface for database aggregation operations

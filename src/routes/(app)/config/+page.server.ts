@@ -7,8 +7,8 @@ import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Auth
-import { checkUserPermission } from '@src/auth/permissionCheck';
-import { permissionConfigs } from '@src/auth/permissionConfigs';
+import { checkUserPermission } from '@src/auth/permissions';
+import { permissionConfigs } from '@src/auth/permissions';
 import { permissions as allPermissions } from '@src/auth/permissions';
 
 // System Logger

@@ -19,9 +19,6 @@ Features:
 -->
 
 <script lang="ts">
-	// Stores
-	import { page } from '$app/state';
-
 	// Component
 	import PageTitle from '@components/PageTitle.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
@@ -29,37 +26,50 @@ Features:
 	// ParaglideJS imports
 	import * as m from '@src/paraglide/messages';
 
-	// Import PermissionConfig type from the correct file
-	import type { PermissionConfig } from '@src/auth/permissionTypes';
-
 	// Reactive stores
 	import { onMount } from 'svelte';
 	import { collection } from '@src/stores/collectionStore.svelte';
-
-	// Define the structure of dynamicPermissions
-	type DynamicPermissions = Record<string, PermissionConfig>;
-
-	// Get server-side data
-	let dynamicPermissions = $derived(page.data.permissionConfigs as DynamicPermissions); // Dynamically loaded permissions
 
 	onMount(() => {
 		collection.set(null);
 	});
 
-	// Create a mapping from contextId to dynamic permissions for easier access
-	let permissionConfigs = $derived(
-		Object.fromEntries(
-			Object.values(dynamicPermissions).map((permission) => [
-				permission.contextId.split('/')[1], // Extract the contextId from permission id (e.g., 'collectionbuilder' from 'config:collectionbuilder')
-				{
-					contextId: permission.contextId,
-					name: permission.name, // Ensure the `name` property is included
-					action: permission.action,
-					contextType: permission.contextType // Ensure this matches the expected type
-				}
-			])
-		) as Record<string, PermissionConfig>
-	);
+	// Create simplified permission configs for each section
+	const permissionConfigs = {
+		collectionbuilder: {
+			name: 'Collection Builder',
+			contextId: 'config:collectionManagement',
+			requiredRole: 'admin',
+			action: 'manage',
+			contextType: 'configuration'
+		},
+		graphql: { name: 'GraphQL API', contextId: 'api:graphql', requiredRole: 'developer', action: 'access', contextType: 'system' },
+		imageeditor: { name: 'Image Editor', contextId: 'content:images', requiredRole: 'editor', action: 'manage', contextType: 'system' },
+		emailPreviews: { name: 'Email Previews', contextId: 'system:admin', requiredRole: 'admin', action: 'access', contextType: 'system' },
+		dashboard: { name: 'Dashboard', contextId: 'system:dashboard', requiredRole: 'user', action: 'access', contextType: 'system' },
+		widgetManagement: {
+			name: 'Widget Management',
+			contextId: 'config:widgetManagement',
+			requiredRole: 'admin',
+			action: 'manage',
+			contextType: 'configuration'
+		},
+		themeManagement: {
+			name: 'Theme Management',
+			contextId: 'config:themeManagement',
+			requiredRole: 'admin',
+			action: 'manage',
+			contextType: 'configuration'
+		},
+		settings: { name: 'System Settings', contextId: 'system:settings', requiredRole: 'admin', action: 'manage', contextType: 'system' },
+		accessManagement: {
+			name: 'Access Management',
+			contextId: 'config:accessManagement',
+			requiredRole: 'admin',
+			action: 'manage',
+			contextType: 'configuration'
+		}
+	};
 </script>
 
 <!-- Page Title with Back Button -->

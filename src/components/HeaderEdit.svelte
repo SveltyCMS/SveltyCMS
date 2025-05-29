@@ -7,9 +7,8 @@
  and managing language or tab-specific temporary data. The header also adapts to mobile/desktop views 
  and offers options for actions like publishing, deleting, or scheduling entries, while maintaining accessibility and responsive design.
 
- ```tsx
+@example
  <HeaderEdit />
- ```
 
  #### Props:
  - `collection` {object} - Collection object
@@ -29,11 +28,9 @@
 -->
 
 <script lang="ts">
-	import { getFieldName, meta_data } from '@utils/utils';
 	import { saveFormData } from '../utils/data';
 
 	// Types
-	import type { Schema, FieldValue, Field, WidgetTypes } from '@src/content/types';
 	import type { ModifyRequestParams } from '../widgets/types';
 
 	// Components
@@ -41,8 +38,9 @@
 	import ScheduleModal from './ScheduleModal.svelte';
 
 	// Skeleton
-	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
+	import { getModalStore, getToastStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
+	const toastStore = getToastStore();
 
 	// Stores
 	import { page } from '$app/state';
@@ -57,32 +55,6 @@
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-
-	// Extend Field with translated property
-	interface TranslatableField extends Field {
-		translated: true;
-		widget: WidgetTypes;
-		type: string;
-		config: WidgetTypes;
-		label: string;
-		required?: boolean;
-		unique?: boolean;
-		default?: FieldValue;
-		validate?: (value: FieldValue) => boolean | Promise<boolean>;
-		display?: (args: {
-			data: Record<string, FieldValue>;
-			collection: string;
-			field: Field;
-			entry: Record<string, FieldValue>;
-			contentLanguage: string;
-		}) => Promise<string> | string;
-		callback?: (args: { data: Record<string, FieldValue> }) => void;
-		modifyRequest?: (args: ModifyRequestParams) => Promise<object>;
-	}
-
-	interface SaveData {
-		[key: string]: () => string | number | boolean | Record<string, any> | undefined;
-	}
 
 	interface ScheduleResponse {
 		date: string;
@@ -115,11 +87,6 @@
 	let saveLayerStore = $state<() => Promise<void>>(async () => {});
 	let showMore = $state<boolean>(false);
 	let next = $state<() => Promise<void>>(() => Promise.resolve());
-
-	// Type guard to check if field is translatable
-	function isTranslatable(field: Field): field is TranslatableField {
-		return 'translated' in field && (field as any).translated === true;
-	}
 
 	// Modal Trigger - Schedule
 	function openScheduleModal(): void {
@@ -180,107 +147,54 @@
 	async function saveData() {
 		if (!collection.value) return;
 
-		let validationPassed = true;
-		const getData: SaveData = {};
-
-		// Clear any existing meta_data
-		meta_data.clear();
-
-		// Validate all fields and collect data
-		for (const field of (collection.value as Schema).fields) {
-			const fieldName = getFieldName(field);
-			const rawValue = collectionValue.value?.[fieldName];
-			const fieldValue =
-				typeof rawValue === 'object' && rawValue !== null ? (rawValue as Record<string, any>) : (rawValue as string | number | boolean | undefined);
-
-			// Basic required check (assuming widgets handle their own complex validation and update validationStore)
-			let error: string | null = null;
-			if (field.required && (fieldValue === null || fieldValue === undefined || fieldValue === '')) {
-				error = 'This field is required';
-			}
-
-			if (error) {
-				if (!validationStore.getError(fieldName)) {
-					validationStore.setError(fieldName, error);
-				}
-				validationPassed = false;
-			} else {
-				// If no error, only add data if no error in validationStore
-				if (!validationStore.getError(fieldName)) {
-					getData[fieldName] = () => {
-						if (isTranslatable(field)) {
-							const lang = contentLanguage.value;
-							if (typeof fieldValue === 'object' && fieldValue !== null && lang in fieldValue) {
-								return fieldValue;
-							} else if (typeof fieldValue !== 'object') {
-								return { [lang]: fieldValue };
-							}
-							return { [lang]: fieldValue };
-						}
-						return fieldValue;
-					};
-				} else {
-					validationPassed = false;
-				}
-			}
+		// Use the reactive validation store; no need to re-validate here
+		if (!validationStore.isValid) {
+			console.warn('Save blocked due to validation errors.');
+			toastStore.trigger({
+				message: 'Please fix validation errors before saving',
+				background: 'variant-filled-error',
+				timeout: 3000
+			});
+			return;
 		}
 
-		// Final check on the validationStore
-		let errorsExist = false;
-		validationStore.subscribe((errors) => {
-			errorsExist = Object.keys(errors).length > 0;
-		})();
-		if (errorsExist) {
-			console.warn('Validation errors exist. Cannot save.', validationStore);
-			validationPassed = false;
-		}
+		// Use a snapshot of the current reactive store values for saving
+		const currentCollection = collection.value;
+		const dataToSave = { ...collectionValue.value };
 
-		if (!validationPassed) {
-			return; // Stop if validation failed at any point
-		}
-
-		// Add system fields
+		// Add or update system fields
 		if (mode.value === 'create') {
-			getData['createdAt'] = () => (createdAtDate ? Math.floor(new Date(createdAtDate).getTime() / 1000) : Math.floor(Date.now() / 1000));
-			getData['updatedAt'] = getData['createdAt'];
-			getData['createdBy'] = () => user.username;
+			dataToSave.createdBy = user?.username ?? 'system';
+		}
+		dataToSave.updatedBy = user?.username ?? 'system';
+
+		// Handle schedule information
+		if (schedule && schedule.trim() !== '') {
+			dataToSave._scheduled = new Date(schedule).getTime();
 		} else {
-			getData['updatedAt'] = () => Math.floor(Date.now() / 1000);
-			getData['updatedBy'] = () => user.username;
-			if (createdAtDate) {
-				getData['createdAt'] = () => Math.floor(new Date(createdAtDate).getTime() / 1000);
-			}
+			delete dataToSave._scheduled;
 		}
 
-		// Add ID if in edit mode
-		if (mode.value === 'edit' && collectionValue.value?._id) {
-			const id = collectionValue.value._id;
-			getData['_id'] = () => (typeof id === 'string' ? id : String(id));
-		}
-
-		// Add status
-		const status = collectionValue.value?.status;
-		getData['status'] = () => (typeof status === 'string' ? status : statusMap.unpublished);
-
-		// Add schedule if set
-		if (schedule && typeof schedule === 'string' && schedule.trim() !== '') {
-			getData['_scheduled'] = () => new Date(schedule).getTime();
-		}
-
-		// Proceed with saving
+		// Save data
 		try {
 			await saveFormData({
-				data: getData,
-				_collection: collection.value,
+				data: dataToSave, // Pass the plain object directly
+				_collection: currentCollection,
 				_mode: mode.value,
-				id: collectionValue.value?._id !== undefined ? String(collectionValue.value._id) : undefined,
+				id: dataToSave._id as string | undefined,
 				user
 			});
 
+			// Consistent state management with RightSidebar
 			mode.set('view');
 			toggleUIElement('leftSidebar', screenSize.value === 'lg' ? 'full' : 'collapsed');
 		} catch (err) {
 			console.error('Failed to save data:', err);
+			toastStore.trigger({
+				message: 'Failed to save data',
+				background: 'variant-filled-error',
+				timeout: 3000
+			});
 		}
 	}
 

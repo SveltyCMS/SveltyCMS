@@ -35,7 +35,7 @@ export const createPrivateConfig = (arg: {
 	SERVER_PORT?: number; // Server Port
 
 	// Google OAuth - See https://developers.google.com/identity/protocols/oauth2/web-server
-	USE_GOOGLE_OAUTH: boolean; //  Enable Google OAuth. Set to `true` to enable
+	USE_GOOGLE_OAUTH: boolean; // Enable Google OAuth. Set to `true` to enable
 	GOOGLE_CLIENT_ID?: string; // Google Client ID
 	GOOGLE_CLIENT_SECRET?: string; // Google Client Secret
 
@@ -151,6 +151,12 @@ export const createPublicConfig = <const C, S extends AvailableLanguageTag, cons
 
 	// Log Level (default: 'error') (Options: Options: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'none')
 	LOG_LEVELS: ('fatal' | 'error' | 'warn' | 'debug' | 'info' | 'trace' | 'none')[];
+
+	// New: Number of days to retain log files (default: 2 days)
+	LOG_RETENTION_DAYS?: number;
+
+	// New: Max log file size before rotation in bytes (default: 5MB)
+	LOG_ROTATION_SIZE?: number;
 
 	// DEMO Mode
 	DEMO?: boolean;

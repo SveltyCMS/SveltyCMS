@@ -20,7 +20,8 @@ import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 
 // Auth
-import type { User, Role, Token } from '@src/auth/types';
+import type { User, Role, Token } from '@src/auth/auth';
+import type { PermissionConfig } from '@src/auth/permissions';
 
 // Superforms
 import { superValidate } from 'sveltekit-superforms/server';
@@ -29,9 +30,6 @@ import { valibot } from 'sveltekit-superforms/adapters';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-
-// Import the PermissionConfig type
-import type { PermissionConfig } from '@src/auth/permissionCheck';
 
 // Utility function to validate and convert a timestamp to ISO string
 const safeDateFromTimestamp = (timestamp: unknown): string | null => {

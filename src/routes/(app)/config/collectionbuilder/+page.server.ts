@@ -16,8 +16,7 @@ import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Auth
-import { checkUserPermission } from '@src/auth/permissionCheck';
-import { permissionConfigs } from '@src/auth/permissionConfigs';
+import { hasPermission } from '@src/auth/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -35,10 +34,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		logger.debug(`User authenticated successfully for user: ${user._id}`);
 
 		// Check user permission for collection builder
-		const collectionBuilderConfig = permissionConfigs.collectionbuilder;
-		const permissionCheck = await checkUserPermission(user, collectionBuilderConfig);
+		const hasCollectionBuilderPermission = hasPermission(user, 'config:collectionbuilder');
 
-		if (!permissionCheck.hasPermission) {
+		if (!hasCollectionBuilderPermission) {
 			const message = `User ${user._id} does not have permission to access collection builder`;
 			logger.warn(message);
 			throw error(403, 'Insufficient permissions');

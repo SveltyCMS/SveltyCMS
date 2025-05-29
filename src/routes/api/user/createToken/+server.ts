@@ -24,7 +24,7 @@ import { dev } from '$app/environment';
 
 // Auth
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
-import { checkUserPermission } from '@src/auth/permissionCheck';
+import { checkUserPermission } from '@src/auth/permissions';
 import { auth } from '@src/databases/db';
 
 // System Logger

@@ -26,6 +26,9 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/state';
 
+	// Auth
+	import type { User } from '@src/auth/types';
+
 	// Utils
 	import { getTextDirection } from '@utils/utils';
 	import { isSearchVisible } from '@utils/globalSearchIndex';
@@ -51,7 +54,6 @@
 	// Required for popups to function
 	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
 	import { storePopup } from '@skeletonlabs/skeleton';
-	import type { User } from '@root/src/auth/types';
 	import type { ContentNode } from '@root/src/databases/dbInterface';
 
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
