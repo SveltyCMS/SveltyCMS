@@ -3,9 +3,9 @@
 @component
 **This component manages roles within the application's access management system**
 
-```tsx
+@xample
 <Roles />
-```
+
 ### Props
 - `roleData`: An object containing role data, including the current admin role and available roles.
 

@@ -1,3 +1,25 @@
+<!--
+@file src/routes/(app)/config/assessManagement/RoleModal.svelte
+@component 
+**This component provides a modal for creating and editing roles in the access management system. It allows users to enter role name, description, and select associated permissions.**
+
+@example
+<RoleModal />
+
+### Props
+- `isEditMode`: A boolean indicating whether the modal is in edit mode
+- `currentRoleId`: The ID of the role being edited
+- `roleName`: The name of the role being edited
+- `roleDescription`: The description of the role being edited
+- `currentGroupName`: The group name of the role being edited
+- `selectedPermissions`: An array of permission IDs associated with the role
+
+### Features
+- Displays a modal for creating or editing a role
+- Allows users to enter role name, description, and select associated permissions
+- Handles form submission and updates the role data accordingly
+-->
+
 <script lang="ts">
 	import type { SvelteComponent } from 'svelte';
 
@@ -8,7 +30,6 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Props
-
 	interface Props {
 		/** Exposes parent props to this component. */
 		parent: SvelteComponent;

@@ -178,10 +178,21 @@ async function initializeWidgets(): Promise<void> {
 		const newWidgetFunctions: Map<string, WidgetFunction> = new Map();
 
 		for (const { name, module } of validModules) {
-			const widgetFn = module.default;
-			widgetFn.name = widgetFn.name || name;
+			const originalFn = module.default;
+			const widgetName = originalFn.name || name;
 			const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
-			widgetFn.widgetId = uuidv4().replace(/-/g, ''); // Generate UUID v4
+			const widgetId = uuidv4().replace(/-/g, ''); // Generate UUID v4
+
+			// Create a wrapper function that preserves the original while adding metadata
+			const widgetFn = Object.assign((config: Record<string, unknown>) => originalFn(config), {
+				__widgetId: widgetId,
+				Name: widgetName,
+				GuiSchema: originalFn.GuiSchema,
+				GraphqlSchema: originalFn.GraphqlSchema,
+				Icon: originalFn.Icon,
+				Description: originalFn.Description,
+				aggregations: originalFn.aggregations
+			});
 			newWidgetFunctions.set(capitalizedName, widgetFn);
 		}
 

@@ -1,13 +1,13 @@
 /**
  * @file src/utils/logger.svelte.ts
- * @description Logger for SvelteKit applications.
+ * @description System Logger for SveltyCMS
  *
  * Features:
- * - Performance optimization with batch logging
+ * - Performance optimization with batch logging and optimized file I/O
  * - Support for structured logging
  * - Log rotation and compression
  * - Custom log formatters
- * - Log level override for specific modules
+ * - Conditional source file tracking
  * - Error tracking service integration
  * - Multiple log targets support
  * - Log filtering and aggregation
@@ -75,6 +75,7 @@ const config = $state({
 	compressionEnabled: true,
 	customLogTarget: null as ((level: LogLevel, message: string, args: LoggableValue[]) => void) | null,
 	filters: [] as ((entry: LogEntry) => boolean)[],
+	sourceFileTracking: ['fatal', 'error'] as LogLevel[],
 	masking: {
 		sensitiveKeys: ['password', 'secret', 'token', 'key'],
 		emailKeys: ['email', 'mail'],
@@ -90,15 +91,11 @@ const state = $state({
 });
 
 // Helper Functions
-const isLogLevelEnabled = (level: LogLevel): boolean => {
-	// Check if the level is included in the configured LOG_LEVELS
-	return publicEnv.LOG_LEVELS.includes(level);
-};
-
+const isLogLevelEnabled = (level: LogLevel): boolean => publicEnv.LOG_LEVELS.includes(level);
 // Format timestamp in gray color
 const getTimestamp = (): string => {
 	const now = new Date();
-	const timestamp = now.toISOString().slice(0, -1).replace('T', ' '); // Replace 'T' with space
+	const timestamp = now.toISOString().slice(0, -1).replace('T', ' ');
 	return isServer ? `${TERMINAL_COLORS.gray}${timestamp}${TERMINAL_COLORS.reset}` : timestamp;
 };
 
@@ -113,7 +110,7 @@ const safeExecute = async (fn: () => Promise<void>): Promise<void> => {
 
 // Value formatting utilities
 const formatters = {
-	parseJSON(value: string): object | string | null {
+	parseJSON: (value: string): object | string | null => {
 		try {
 			const parsed = JSON.parse(value);
 			return typeof parsed === 'object' && parsed !== null ? parsed : null;
@@ -121,8 +118,7 @@ const formatters = {
 			return value;
 		}
 	},
-
-	colorizeString(value: string): string {
+	colorizeString: (value: string): string => {
 		if (!isServer) return value;
 		return value.replace(/\b(\d+(\.\d+)?|true|false)\b/g, (match) => {
 			if (match === 'true') return `${TERMINAL_COLORS.green}${match}${TERMINAL_COLORS.reset}`;
@@ -130,8 +126,7 @@ const formatters = {
 			return `${TERMINAL_COLORS.blue}${match}${TERMINAL_COLORS.reset}`;
 		});
 	},
-
-	formatObject(obj: object): string {
+	formatObject: (obj: object): string => {
 		if (!isServer) return JSON.stringify(obj);
 		const entries = Object.entries(obj);
 		if (entries.length === 0) return `${TERMINAL_COLORS.yellow}{}${TERMINAL_COLORS.reset}`;
@@ -140,20 +135,14 @@ const formatters = {
 			.join(`${TERMINAL_COLORS.yellow},${TERMINAL_COLORS.reset} `);
 		return `${TERMINAL_COLORS.yellow}{${TERMINAL_COLORS.reset}${formatted}${TERMINAL_COLORS.yellow}}${TERMINAL_COLORS.reset}`;
 	},
-
-	formatArray(arr: LoggableValue[]): string {
+	formatArray: (arr: LoggableValue[]): string => {
 		if (!isServer) return JSON.stringify(arr);
-		return (
-			`${TERMINAL_COLORS.yellow}[${TERMINAL_COLORS.reset}` +
-			arr.map((value: LoggableValue) => formatValue(value)).join(`${TERMINAL_COLORS.yellow},${TERMINAL_COLORS.reset} `) +
-			`${TERMINAL_COLORS.yellow}]${TERMINAL_COLORS.reset}`
-		);
+		return `${TERMINAL_COLORS.yellow}[${TERMINAL_COLORS.reset}${arr.map(formatValue).join(`${TERMINAL_COLORS.yellow},${TERMINAL_COLORS.reset} `)}${TERMINAL_COLORS.yellow}]${TERMINAL_COLORS.reset}`;
 	}
 };
 
 const formatValue = (value: LoggableValue): string => {
 	if (!isServer) return String(value);
-
 	switch (typeof value) {
 		case 'boolean':
 			return value ? `${TERMINAL_COLORS.green}true${TERMINAL_COLORS.reset}` : `${TERMINAL_COLORS.red}false${TERMINAL_COLORS.reset}`;
@@ -179,44 +168,35 @@ const formatValue = (value: LoggableValue): string => {
 // Masking utilities
 const maskEmail = (email: string): string => {
 	const [localPart, domain] = email.split('@');
-	const maskedLocalPart = localPart.slice(0, 2) + '*'.repeat(localPart.length - 2);
+	if (!domain) return '*'.repeat(email.length);
+	const maskedLocalPart = localPart.length > 2 ? localPart.slice(0, 2) + '*'.repeat(localPart.length - 2) : '**';
 	const [domainName, tld] = domain.split('.');
 	const maskedDomain = '*'.repeat(domainName.length);
-	return `${maskedLocalPart}@${maskedDomain}.${tld}`;
+	return `${maskedLocalPart}@${maskedDomain}.${tld || ''}`;
 };
 
 const maskSensitiveData = (data: LoggableValue): LoggableValue => {
 	if (typeof data !== 'object' || data === null) return data;
-
 	const maskedData: LoggableData = Array.isArray(data) ? [] : {};
 
 	for (const [key, value] of Object.entries(data)) {
+		let isMasked = false;
 		if (typeof value === 'string') {
 			const lowerKey = key.toLowerCase();
-
-			// Check custom masks first
-			if (Object.keys(config.masking.customMasks).some((mask) => lowerKey.includes(mask))) {
-				const maskFn = Object.entries(config.masking.customMasks).find(([mask]) => lowerKey.includes(mask))?.[1];
-				if (maskFn) {
-					(maskedData as Record<string, LoggableValue>)[key] = maskFn(value);
-					continue;
-				}
-			}
-
-			// Check sensitive keys
-			if (config.masking.sensitiveKeys.some((sensitive) => lowerKey.includes(sensitive))) {
+			const customMaskKey = Object.keys(config.masking.customMasks).find((mask) => lowerKey.includes(mask));
+			if (customMaskKey) {
+				(maskedData as Record<string, LoggableValue>)[key] = config.masking.customMasks[customMaskKey](value);
+				isMasked = true;
+			} else if (config.masking.sensitiveKeys.some((sensitive) => lowerKey.includes(sensitive))) {
 				(maskedData as Record<string, LoggableValue>)[key] = '[REDACTED]';
-			}
-			// Check email keys
-			else if (config.masking.emailKeys.some((emailKey) => lowerKey.includes(emailKey))) {
+				isMasked = true;
+			} else if (config.masking.emailKeys.some((emailKey) => lowerKey.includes(emailKey))) {
 				(maskedData as Record<string, LoggableValue>)[key] = maskEmail(value);
-			} else {
-				(maskedData as Record<string, LoggableValue>)[key] = value;
+				isMasked = true;
 			}
-		} else if (typeof value === 'object' && value !== null) {
-			(maskedData as Record<string, LoggableValue>)[key] = maskSensitiveData(value);
-		} else {
-			(maskedData as Record<string, LoggableValue>)[key] = value;
+		}
+		if (!isMasked) {
+			(maskedData as Record<string, LoggableValue>)[key] = typeof value === 'object' && value !== null ? maskSensitiveData(value) : value;
 		}
 	}
 	return maskedData;
@@ -224,43 +204,28 @@ const maskSensitiveData = (data: LoggableValue): LoggableValue => {
 
 // Batch processing utilities
 function abortBatch(): void {
-	if (state.batchTimeout) {
-		clearTimeout(state.batchTimeout);
-		state.batchTimeout = null;
-	}
-	if (state.abortTimeout) {
-		clearTimeout(state.abortTimeout);
-		state.abortTimeout = null;
-	}
+	if (state.batchTimeout) clearTimeout(state.batchTimeout);
+	state.batchTimeout = null;
+	if (state.abortTimeout) clearTimeout(state.abortTimeout);
+	state.abortTimeout = null;
 }
-
-// Effect to process batches when queue changes
-$effect.root(() => {
-	$effect(() => {
-		if (state.queue.length >= config.batchSize) {
-			processBatch();
-		}
-	});
-
-	return () => {
-		abortBatch();
-	};
-});
-
-// Setup cleanup when the module is destroyed
-// $onDestroy(() => {
-//     abortBatch();
-// });
 
 // Format values (colorize types like booleans, numbers)
 const processBatch = async (): Promise<void> => {
-	if (!isServer || state.queue.length === 0) return;
-
+	if (state.queue.length === 0) return;
 	const currentBatch = [...state.queue];
 	state.queue = [];
-	for (const entry of currentBatch) {
-		if (config.filters.every((filter) => filter(entry))) {
-			await serverFileOps.writeToFile(entry);
+
+	const filteredBatch = config.filters.length > 0 ? currentBatch.filter((entry) => config.filters.every((filter) => filter(entry))) : currentBatch;
+
+	if (filteredBatch.length === 0) return;
+
+	if (isServer) {
+		await serverFileOps.writeBatchToFile(filteredBatch);
+	}
+	if (config.customLogTarget) {
+		for (const { level, message, args } of filteredBatch) {
+			config.customLogTarget(level, message, args);
 		}
 	}
 };
@@ -269,155 +234,188 @@ const scheduleBatchProcessing = (): void => {
 	if (!isServer) return;
 	if (state.batchTimeout) clearTimeout(state.batchTimeout);
 	state.batchTimeout = setTimeout(() => safeExecute(processBatch), config.batchTimeout);
-	abortBatch();
 };
 
-// Server-side file operations
+// Server-Side Operations
+const serverModules = isServer
+	? {
+		fsPromises: import('node:fs/promises'),
+		path: import('node:path'),
+		zlib: import('node:zlib'),
+		fs: import('node:fs'),
+		stream: import('node:stream/promises')
+	}
+	: null;
+
 const serverFileOps = isServer
 	? {
-			async initializeLogFile(): Promise<void> {
+		async _getModules() {
+			if (!serverModules) throw new Error('Server modules are not available.');
+			return {
+				fsPromises: await serverModules.fsPromises,
+				path: await serverModules.path,
+				zlib: await serverModules.zlib,
+				fs: await serverModules.fs,
+				stream: await serverModules.stream
+			};
+		},
+		async initializeLogFile(): Promise<void> {
+			const { fsPromises, path } = await this._getModules();
+			const maxRetries = 3;
+			let retryCount = 0;
+
+			while (retryCount < maxRetries) {
 				try {
-					const { mkdir, access, constants } = await import('node:fs/promises');
-					const { join } = await import('node:path');
-
+					// Check if directory exists and is accessible
 					try {
-						await access(config.logDirectory, constants.F_OK);
+						await fsPromises.access(config.logDirectory);
 					} catch {
-						await mkdir(config.logDirectory, { recursive: true });
+						// Directory doesn't exist or isn't accessible - try to create it
+						await fsPromises.mkdir(config.logDirectory, {
+							recursive: true,
+							mode: 0o755 // rwxr-xr-x
+						});
 					}
 
-					const logFilePath = join(config.logDirectory, config.logFileName);
-					try {
-						await access(logFilePath, constants.F_OK);
-					} catch {
-						const { writeFile } = await import('node:fs/promises');
-						await writeFile(logFilePath, '');
+					// Verify directory permissions
+					const stats = await fsPromises.stat(config.logDirectory);
+					if (!stats.isDirectory()) {
+						throw new Error('Log path is not a directory');
 					}
+
+					// Initialize log file
+					const logFilePath = path.join(config.logDirectory, config.logFileName);
+					try {
+						await fsPromises.access(logFilePath);
+					} catch {
+						await fsPromises.writeFile(logFilePath, '', { mode: 0o644 });
+					}
+					return; // Success
 				} catch (error) {
-					console.error('Error initializing log file:', error);
+					retryCount++;
+					if (retryCount >= maxRetries) {
+						console.error(`Failed to initialize log directory after ${maxRetries} attempts:`, error);
+						throw error;
+					}
+					// Wait before retrying
+					await new Promise(resolve => setTimeout(resolve, 500 * retryCount));
 				}
-			},
+			}
+		},
+		async checkAndRotateLogFile(): Promise<void> {
+			const { fsPromises, path, zlib, fs, stream } = await this._getModules();
+			const logFilePath = path.join(config.logDirectory, config.logFileName);
+			try {
+				const stats = await fsPromises.stat(logFilePath);
+				if (stats.size < config.logRotationSize) return;
 
-			async rotateLogFile(): Promise<void> {
-				try {
-					const { stat, rename, unlink } = await import('node:fs/promises');
-					const { join } = await import('node:path');
-					const { createGzip } = await import('node:zlib');
-					const { createReadStream, createWriteStream } = await import('node:fs');
-					const { promisify } = await import('node:util');
-					const { pipeline } = await import('node:stream');
-					const pipelineAsync = promisify(pipeline);
+				const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+				const rotatedFilePath = `${logFilePath}.${timestamp}`;
+				await fsPromises.rename(logFilePath, rotatedFilePath);
+				await fsPromises.writeFile(logFilePath, '');
 
-					const logFilePath = join(config.logDirectory, config.logFileName);
-					const stats = await stat(logFilePath);
-
-					if (stats.size >= config.logRotationSize) {
-						const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-						const rotatedFilePath = `${logFilePath}.${timestamp}`;
-
-						await rename(logFilePath, rotatedFilePath);
-						const { writeFile } = await import('node:fs/promises');
-						await writeFile(logFilePath, '');
-
-						if (config.compressionEnabled) {
-							const gzip = createGzip();
-							const source = createReadStream(rotatedFilePath);
-							const destination = createWriteStream(`${rotatedFilePath}.gz`);
-							await pipelineAsync(source, gzip, destination);
-							await unlink(rotatedFilePath);
-						}
-					}
-				} catch (error) {
+				if (config.compressionEnabled) {
+					const source = fs.createReadStream(rotatedFilePath);
+					const destination = fs.createWriteStream(`${rotatedFilePath}.gz`);
+					await stream.pipeline(source, zlib.createGzip(), destination);
+					await fsPromises.unlink(rotatedFilePath);
+				}
+			} catch (error) {
+				// Ignore if file doesn't exist, as it will be created on next write.
+				if (error instanceof Error && 'code' in error && error.code !== 'ENOENT') {
 					console.error('Error rotating log file:', error);
 				}
-			},
+			}
+		},
+		async writeBatchToFile(batch: LogEntry[]): Promise<void> {
+			const { fsPromises, path } = await this._getModules();
+			const logFilePath = path.join(config.logDirectory, config.logFileName);
+			const logString = batch
+				.map((entry) => `${entry.timestamp.toISOString()} [${entry.level.toUpperCase()}] ${entry.message} ${JSON.stringify(entry.args)}\n`)
+				.join('');
 
-			async writeToFile(entry: LogEntry): Promise<void> {
+			if (!logString) return;
+
+			try {
+				// First try normal file write
+				await this.checkAndRotateLogFile();
+				await fsPromises.appendFile(logFilePath, logString);
+			} catch (fileError) {
+				console.error('Failed to write to log file, attempting recovery:', fileError);
+
 				try {
-					const { appendFile } = await import('node:fs/promises');
-					const { join } = await import('node:path');
-
-					const logFilePath = join(config.logDirectory, config.logFileName);
-					const formattedLog = `${entry.timestamp.toISOString()} [${entry.level.toUpperCase()}] ${entry.message} ${JSON.stringify(entry.args)}\n`;
-
-					await appendFile(logFilePath, formattedLog);
-					await this.rotateLogFile();
-				} catch (error) {
-					console.error('Failed to write to log file:', error);
+					// Try recreating directory and file
+					await this.initializeLogFile();
+					await fsPromises.appendFile(logFilePath, logString);
+				} catch (recoveryError) {
+					// Fallback to console logging if all else fails
+					console.error('Log file recovery failed, falling back to console:', recoveryError);
+					for (const entry of batch) {
+						const color = TERMINAL_COLORS[LOG_LEVEL_MAP[entry.level].color];
+						const formattedArgs = entry.args.map(formatValue).join(' ');
+						console.log(`${entry.timestamp.toISOString()} ${color}[${entry.level.toUpperCase()}]${TERMINAL_COLORS.reset}: ${entry.message} ${formattedArgs}`);
+					}
 				}
 			}
 		}
+	}
 	: {
-			async initializeLogFile(): Promise<void> {},
-			async rotateLogFile(): Promise<void> {},
-			async writeToFile(): Promise<void> {}
-		};
+		// Client-side stubs
+		async initializeLogFile(): Promise<void> { },
+		async checkAndRotateLogFile(): Promise<void> { },
+		async writeBatchToFile(): Promise<void> { }
+	};
 
-// Initialize log file
+// Effects and Lifecycle
 $effect.root(() => {
 	if (isServer) {
 		safeExecute(serverFileOps.initializeLogFile);
 	}
+	$effect(() => {
+		if (state.queue.length >= config.batchSize) {
+			safeExecute(processBatch);
+		}
+	});
+	return () => abortBatch();
 });
 
-// Unified logger function
+// Core Logger Function
 const log = (level: LogLevel, message: string, ...args: LoggableValue[]): void => {
 	// Only proceed if the log level is enabled
 	if (!isLogLevelEnabled(level)) return;
 
 	const timestamp = getTimestamp();
-	const maskedArgs = args.map((arg) => maskSensitiveData(arg));
-
-	// Extract the source file using stack trace
+	const maskedArgs = args.map(maskSensitiveData);
 	let sourceFile = '';
-	if (isServer) {
+
+	// OPTIMIZATION: Only get the stack trace if the level requires it.
+	if (isServer && config.sourceFileTracking.includes(level)) {
 		try {
-			const error = new Error();
-			const stack = error.stack || '';
-			const stackLines = stack.split('\n');
-			// Extract the caller information (usually the third line in the stack trace)
-			const callerLine = stackLines[3] || '';
-			// Match the file name and line number
+			const stack = new Error().stack || '';
+			const callerLine = stack.split('\n')[3] || '';
 			const match = callerLine.match(/\(([^)]+)\)/) || callerLine.match(/at ([^\s]+)/);
 			if (match && match[1]) {
-				sourceFile =
-					match[1]
-						.split('/')
-						.pop() // Get only the file name
-						?.replace(/[()]/g, '') || ''; // Clean parentheses if present
+				sourceFile = match[1].split('/').pop()?.replace(/[()]/g, '') || '';
 			}
 		} catch {
 			sourceFile = 'unknown';
 		}
 	}
 
-	const entry: LogEntry = {
-		level,
-		message,
-		args: maskedArgs,
-		timestamp: new Date()
-	};
-
 	// Server-side console output with colors and source file
+
 	if (isServer) {
 		const color = TERMINAL_COLORS[LOG_LEVEL_MAP[level].color];
-		process.stdout.write(
-			`${timestamp} ${sourceFile} ${color}[${level.toUpperCase()}]${TERMINAL_COLORS.reset}: ${message} ${maskedArgs
-				.map((arg) => formatValue(arg))
-				.join(' ')}\n`
-		);
+		const sourceInfo = sourceFile ? `${sourceFile} ` : '';
+		const formattedArgs = maskedArgs.map(formatValue).join(' ');
+		process.stdout.write(`${timestamp} ${sourceInfo}${color}[${level.toUpperCase()}]${TERMINAL_COLORS.reset}: ${message} ${formattedArgs}\n`);
 	}
 
-	// Update queue state
-	state.queue = [...state.queue, entry];
+	state.queue = [...state.queue, { level, message, args: maskedArgs, timestamp: new Date() }];
 	scheduleBatchProcessing();
-
-	if (config.customLogTarget) {
-		config.customLogTarget(level, message, maskedArgs);
-	}
 };
 
-// Logger interface
+// Public Logger Interface
 export const logger = {
 	fatal: (message: string, ...args: LoggableValue[]) => log('fatal', message, ...args),
 	error: (message: string, ...args: LoggableValue[]) => log('error', message, ...args),
@@ -426,7 +424,7 @@ export const logger = {
 	debug: (message: string, ...args: LoggableValue[]) => log('debug', message, ...args),
 	trace: (message: string, ...args: LoggableValue[]) => log('trace', message, ...args),
 
-	// Configuration methods
+	// Configuration Methods
 	setCustomLogTarget: (target: (level: LogLevel, message: string, args: LoggableValue[]) => void) => {
 		config.customLogTarget = target;
 	},
@@ -435,9 +433,7 @@ export const logger = {
 	},
 	setLogDirectory: (directory: string) => {
 		config.logDirectory = directory;
-		if (isServer) {
-			safeExecute(serverFileOps.initializeLogFile);
-		}
+		if (isServer) safeExecute(serverFileOps.initializeLogFile);
 	},
 	setLogFileName: (fileName: string) => {
 		config.logFileName = fileName;
@@ -468,5 +464,8 @@ export const logger = {
 	},
 	clearCustomMasks: () => {
 		config.masking.customMasks = {};
+	},
+	setSourceFileTracking: (levels: LogLevel[]) => {
+		config.sourceFileTracking = levels;
 	}
 };

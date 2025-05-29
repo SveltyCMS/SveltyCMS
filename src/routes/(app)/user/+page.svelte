@@ -34,8 +34,8 @@
 	import PermissionGuard from '@components/PermissionGuard.svelte';
 	import AdminArea from './components/AdminArea.svelte';
 
-	// Import the permissionConfigs
-	import { permissionConfigs } from '@src/auth/permissionManager';
+	// Auth
+	import { permissionConfigs } from '@src/auth/permissionConfigs';
 
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton';

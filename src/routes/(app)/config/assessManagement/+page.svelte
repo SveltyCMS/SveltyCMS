@@ -24,7 +24,7 @@
 	// Auth
 	import Roles from './Roles.svelte';
 	import Permissions from './Permissions.svelte';
-	import AdminRole from './AdminRole.svelte'; // New admin role management component
+	import AdminRole from './AdminRole.svelte';
 
 	// Skeleton
 	import { TabGroup, Tab } from '@skeletonlabs/skeleton';

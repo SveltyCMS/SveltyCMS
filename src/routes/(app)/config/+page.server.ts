@@ -8,7 +8,7 @@ import type { PageServerLoad } from './$types';
 
 // Auth
 import { checkUserPermission } from '@src/auth/permissionCheck';
-import { permissionConfigs } from '@src/auth/permissionManager';
+import { permissionConfigs } from '@src/auth/permissionConfigs';
 import { permissions as allPermissions } from '@src/auth/permissions';
 
 // System Logger

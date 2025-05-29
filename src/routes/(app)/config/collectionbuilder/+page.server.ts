@@ -17,7 +17,7 @@ import type { PageServerLoad } from './$types';
 
 // Auth
 import { checkUserPermission } from '@src/auth/permissionCheck';
-import { permissionConfigs } from '@src/auth/permissionManager';
+import { permissionConfigs } from '@src/auth/permissionConfigs';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

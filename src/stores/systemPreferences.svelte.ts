@@ -39,7 +39,7 @@ export interface UserPreferences {
 	[ScreenSize.XL]: WidgetPreference[];
 }
 
-// State interface 
+// State interface
 export interface PreferencesStoreState {
 	preferences: UserPreferences;
 	isLoading: boolean;
@@ -192,7 +192,7 @@ function createPreferencesStores() {
 // Create and export stores
 const stores = createPreferencesStores();
 
-// Export main store with full interface 
+// Export main store with full interface
 export const systemPreferences = {
 	subscribe: stores.state.subscribe,
 	setPreference: stores.setPreference,
@@ -204,6 +204,6 @@ export const systemPreferences = {
 
 // Export derived values as functions that return the derived rune value
 export const hasPreferences = stores.hasPreferences(); // Call to get the rune value
-export const widgetCount = stores.widgetCount();   // Call to get the rune value
+export const widgetCount = stores.widgetCount(); // Call to get the rune value
 // Export helper function
 export const getScreenSizeWidgets = stores.getScreenSizeWidgets;

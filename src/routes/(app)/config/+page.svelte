@@ -3,6 +3,9 @@
 @component
 **This file sets up and displays the config page. It provides a user-friendly interface for managing configuration settings**
 
+@example
+<Config />
+
 Features:
 - Collection builder
 - GraphQL API
@@ -27,10 +30,11 @@ Features:
 	import * as m from '@src/paraglide/messages';
 
 	// Import PermissionConfig type from the correct file
-	import type { PermissionConfig } from '@src/auth/permissionCheck';
+	import type { PermissionConfig } from '@src/auth/permissionTypes';
+
+	// Reactive stores
 	import { onMount } from 'svelte';
 	import { collection } from '@src/stores/collectionStore.svelte';
-	//import type { Schema } from '@src/content/ContentManager';
 
 	// Define the structure of dynamicPermissions
 	type DynamicPermissions = Record<string, PermissionConfig>;

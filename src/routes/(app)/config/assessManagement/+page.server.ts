@@ -8,9 +8,9 @@ import type { PageServerLoad } from './$types';
 
 // Auth
 import { roles as configRoles } from '@root/config/roles';
+import { permissionConfigs } from '@src/auth/permissionConfigs';
 import { getAllPermissions } from '@src/auth/permissionManager';
 import { checkUserPermission } from '@src/auth/permissionCheck';
-import { permissionConfigs } from '@src/auth/permissionManager';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
