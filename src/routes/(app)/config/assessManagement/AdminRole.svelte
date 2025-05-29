@@ -60,7 +60,6 @@ It provides functionality to:
 		try {
 			const rolesData = roleData;
 			const currentAdmin = rolesData.find((role) => role.isAdmin === true);
-
 			if (currentAdmin) {
 				currentAdminRole.set(currentAdmin._id); // Set the current admin role
 				currentAdminName.set(currentAdmin.name);

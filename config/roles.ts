@@ -1,7 +1,8 @@
 /**
  * @file config/roles.ts
  * @description Roles with Permission configuration
- *
+ * 
+ * This file contains the default roles and their associated permissions.
  */
 
 import type { Role } from '../src/auth/types';
@@ -20,16 +21,32 @@ export const roles: Role[] = [
 	{
 		_id: 'developer',
 		name: 'Developer',
-		description: 'Developer Role - No Permissions',
-		permissions: [], // No permissions
-		icon: 'material-symbols:code', // Icon for developer role
-		color: 'gradient-pink' // Color for the developer role
+		description: 'Developer Role - Can access some system features',
+		permissions: [
+			// Developers have access to specific API endpoints
+			'system:dashboard',
+			'api:graphql',
+			'api:collections',
+			'api:export',
+			'collections:read',
+			'collections:update',
+			'content:builder'
+		],
+		icon: 'material-symbols:code',
+		color: 'gradient-pink'
 	},
 	{
 		_id: 'editor',
 		name: 'Editor',
-		description: 'Editor Role - No Permissions',
-		permissions: [], // No permissions
+		description: 'Editor Role - Collection Permissions',
+		permissions: [
+			// Editor has access to specific API endpoints
+			'collections:read',
+			'collections:update',
+			'collections:create',
+			'content:editor',
+			'content:images'
+		],
 		icon: 'material-symbols:edit', // Icon for editor role
 		color: 'gradient-tertiary' // Color for the editor role
 	},

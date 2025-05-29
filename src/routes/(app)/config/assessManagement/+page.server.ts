@@ -61,15 +61,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 				email: user.email,
 				role: user.role
 			},
-			roles,
-			permissions
+			roles, // Send the original roles for basic role info and display
+			permissions: uiPermissions // Send the enriched permissions for the table display
 		};
 	} catch (err) {
 		if (err instanceof Error && 'status' in err) {
 			// This is likely a redirect or an error we've already handled
 			throw err;
 		}
-		const message = `Error in load function: ${err instanceof Error ? err.message : String(err)}`;
+		const message = `Error in load function for Access Management: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message);
 		throw error(500, message);
 	}

@@ -299,7 +299,7 @@ It provides the following functionality:
 						onfinalize={handleFinalize}
 					>
 						{#each items as role (role.id)}
-							<div class="animate-flip flex items-center justify-between rounded border p-4 hover:bg-surface-500 md:flex-row">
+							<div class="animate-flip flex items-center justify-between rounded border p-2 hover:bg-surface-500 md:flex-row">
 								<div class="flex items-center gap-2">
 									<!-- Drag Icon -->
 									<iconify-icon icon="mdi:drag" width="18" class="cursor-move text-gray-500 dark:text-gray-300"></iconify-icon>

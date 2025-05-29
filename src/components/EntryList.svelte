@@ -1,8 +1,3 @@
-<script module lang="ts">
-	// Strict type for sort order
-	export type SortOrder = 0 | 1 | -1;
-</script>
-
 <!--
 @file:  src/components/EntryList.svelte
 @component
@@ -24,6 +19,11 @@ Features:
 - Icons
 - Filter
 -->
+
+<script module lang="ts">
+	// Strict type for sort order
+	export type SortOrder = 0 | 1 | -1;
+</script>
 
 <script lang="ts">
 	import { browser } from '$app/environment';
@@ -274,12 +274,12 @@ Features:
 		// Get current collection
 		const currentCollId = currentCollection?._id;
 
-		// If no collection, clear data
+		// If no collection, clear data and reset state
 		if (!currentCollId) {
 			tableData = [];
 			pagesCount = 1;
 			totalItems = 0;
-			loadingState = 'idle';
+			loadingState = 'idle'; // No error, just no collection selected
 			Object.keys(selectedMap).forEach((key) => delete selectedMap[key]);
 			SelectAll = false;
 			return;
@@ -316,26 +316,32 @@ Features:
 					filter: JSON.stringify(activeFilters),
 					sort: JSON.stringify(sortParam)
 				});
-				// console.log('API response:', JSON.parse(JSON.stringify(data)));
+
+				// If getData returns successfully, but data is undefined, set loadingState to 'error'
 			} catch (error) {
 				console.error(`Error fetching data: ${(error as Error).message}`);
+				// This toast is for actual fetch errors (e.g., network, 403, 500)
 				toastStore.trigger({ message: `Error fetching data: ${(error as Error).message}`, background: 'variant-filled-error' });
-				loadingState = 'error';
+				loadingState = 'error'; // Indicate an error state
 				if (loadingTimer) clearTimeout(loadingTimer);
+				tableData = []; // Clear data on actual error
+				totalItems = 0;
+				pagesCount = 1;
 				return;
 			}
 		}
 
+		// Process data only if 'data' is available and 'entryList' is an array.
+		// Otherwise, ensure tableData is empty.
 		if (data?.entryList && Array.isArray(data.entryList)) {
 			tableData = await Promise.all(
 				data.entryList.map(async (entry) => {
 					const obj: { [key: string]: any } = { _id: entry._id }; // Ensure _id is always present
 					if (currentCollection?.fields) {
-						// Guard against currentCollection being null
 						for (const field of currentCollection.fields) {
-							const fieldLabelKey = field.label; // Key for display data (matches header.label)
-							const rawDataKey = getFieldName(field, true); // Key for raw data from entry
-							const rawFieldName = getFieldName(field); // Key for raw field name (matches header.name)
+							const fieldLabelKey = field.label;
+							const rawDataKey = getFieldName(field, true);
+							const rawFieldName = getFieldName(field);
 							if (field.display) {
 								obj[fieldLabelKey] = await field.display({
 									data: entry[rawDataKey],
@@ -346,7 +352,7 @@ Features:
 								});
 							} else {
 								obj[fieldLabelKey] = entry[rawFieldName];
-							} // Fallback to direct data
+							}
 							if (field.callback) field.callback({ data: entry });
 						}
 					}
@@ -356,8 +362,10 @@ Features:
 					return obj;
 				})
 			);
-		} else if (fetchNewData) {
-			// If fetch was true but data is not as expected
+		} else {
+			// If data.entryList is not an array or is null/undefined after a successful fetch (e.g. no data),
+			// ensure tableData is empty. This handles the case where `getData` returns an empty
+			// object or an object without entryList when no data is present.
 			tableData = [];
 		}
 
@@ -368,25 +376,24 @@ Features:
 		});
 		SelectAll = false;
 
-		// Update pagination counts
-		// If totalItems is missing from API, fallback to pagesCount * entryList.length
+		// Update pagination counts based on `data`
 		if (data?.totalItems !== undefined) {
 			totalItems = data.totalItems;
 		} else if (data?.pagesCount !== undefined && data?.entryList?.length !== undefined) {
 			totalItems = data.pagesCount * data.entryList.length;
 		} else {
-			totalItems = 0;
+			totalItems = 0; // Ensure totalItems is 0 if no data
 		}
-		const currentRowsPerPage = entryListPaginationSettings.rowsPerPage > 0 ? entryListPaginationSettings.rowsPerPage : 1; // Avoid division by zero
+
+		const currentRowsPerPage = entryListPaginationSettings.rowsPerPage > 0 ? entryListPaginationSettings.rowsPerPage : 1;
 		pagesCount = data?.pagesCount ?? (totalItems > 0 ? Math.ceil(totalItems / currentRowsPerPage) : 1);
 
 		// Adjust currentPage if it's out of bounds after data refresh
 		if (entryListPaginationSettings.currentPage > pagesCount && pagesCount > 0) {
-			entryListPaginationSettings.currentPage = pagesCount; // This will trigger another refresh due to $effect on settings
+			entryListPaginationSettings.currentPage = pagesCount;
 		} else if (entryListPaginationSettings.currentPage <= 0 && pagesCount >= 1) {
 			entryListPaginationSettings.currentPage = 1;
 		} else if (pagesCount === 0 && entryListPaginationSettings.currentPage !== 1) {
-			// No pages, should be page 1
 			entryListPaginationSettings.currentPage = 1;
 		}
 
@@ -580,7 +587,22 @@ Features:
 
 	// Enhanced collection state management for better UX - prevent flicker when switching collections
 	let isCollectionEmpty = $derived(tableData.length === 0 && loadingState === 'idle' && collectionTransitionId === null);
-	let shouldShowTable = $derived(currentCollection?._id && collectionTransitionId === null && (tableData.length > 0 || loadingState === 'fetching'));
+	// shouldShowTable: Show table if current collection is selected, no transition, and either there's data, OR
+	// we're fetching new data but still have previous data to display (to prevent flicker).
+	let shouldShowTable = $derived(
+		currentCollection?._id && collectionTransitionId === null && (tableData.length > 0 || (isDataFetching && previousTableData.length > 0))
+	);
+
+	// shouldShowNoDataMessage: Show message if current collection is selected, no transition,
+	// loading is idle (finished fetching), tableData is empty, and we are not currently fetching or generally loading.
+	let shouldShowNoDataMessage = $derived(
+		currentCollection?._id &&
+			collectionTransitionId === null &&
+			loadingState === 'idle' &&
+			tableData.length === 0 &&
+			!isDataFetching && // Explicitly not fetching
+			!isLoading // Explicitly not in a "switching" loading state
+	);
 
 	// Use stable headers during transitions to prevent flicker
 	let renderHeaders = $derived(collectionTransitionId !== null ? stableVisibleHeaders : visibleTableHeaders);
@@ -908,8 +930,7 @@ Features:
 				}}
 			/>
 		</div>
-	{:else if !isLoading && !isDataFetching}
-		<!-- Display a message when no data is yet available -->
+	{:else if shouldShowNoDataMessage}
 		<div class="py-10 text-center text-tertiary-500 dark:text-primary-500">
 			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2"></iconify-icon>
 			<p class="text-lg">

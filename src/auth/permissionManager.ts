@@ -200,6 +200,7 @@ export async function syncPermissions(): Promise<void> {
 	}
 }
 
+// User management permissions
 export const userManagementPermissions = [
 	{
 		_id: 'user:manage',
@@ -207,5 +208,12 @@ export const userManagementPermissions = [
 		action: PermissionAction.MANAGE,
 		type: PermissionType.USER,
 		description: 'Allows management of users.'
+	},
+	{
+		_id: 'api:user',
+		name: 'Access User API Endpoints',
+		action: PermissionAction.ACCESS, // Or MANAGE, as appropriate
+		type: PermissionType.SYSTEM, // API access is a system-level concern
+		description: 'Grants access to any /api/user/* endpoint controlled by the hooks.'
 	}
 ];

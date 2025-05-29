@@ -15,6 +15,7 @@
  * - Type-safe collection names using ContentTypes
  * - Consistent API request formatting
  * - Support for pagination, filtering, and sorting in getData
+ * - Enhanced 403/404 error handling in getData to prevent toasts for "no data" scenarios.
  *
  * Usage:
  * Import and use these functions to perform CRUD operations on collections
@@ -86,16 +87,31 @@ export async function getData(
 	try {
 		const response = await axios.post('/api/query', q);
 
-		// Handle empty or invalid responses
+		// Handle specific status codes that should NOT trigger a toast in the UI
+		if (axios.isAxiosError(response) && (response.response?.status === 403 || response.response?.status === 404)) {
+			logger.info(`getData returned status ${response.response.status} for collection ${collectionId}. Treating as no data.`);
+			return {
+				entryList: [],
+				pagesCount: 1 // Assuming 1 page if there's no data, or 0 if your pagination handles that
+			};
+		}
+
+
+		// Handle empty or invalid responses, now *after* checking for special status codes
 		if (!response.data || !Array.isArray(response.data.entryList)) {
-			throw new Error('Invalid response format');
+			// If response is empty or invalid, return an empty list
+			logger.warn(`getData received invalid data format for collection ${collectionId}. Returning empty list.`);
+			return {
+				entryList: [],
+				pagesCount: 1 // Default to 1 page for an empty result
+			};
 		}
 
 		// Process dates from MongoDB
-		const processedEntries = response.data.entryList.map((entry) => ({
+		const processedEntries = response.data.entryList.map((entry: Record<string, unknown>) => ({
 			...entry,
-			createdAt: entry.createdAt ? new Date(entry.createdAt) : null,
-			updatedAt: entry.updatedAt ? new Date(entry.updatedAt) : null
+			createdAt: entry.createdAt ? new Date(entry.createdAt as string) : null,
+			updatedAt: entry.updatedAt ? new Date(entry.updatedAt as string) : null
 		}));
 
 		return {
@@ -103,13 +119,26 @@ export async function getData(
 			pagesCount: response.data.pagesCount || 1
 		};
 	} catch (error) {
-		if (axios.isAxiosError(error) && error.response?.status === 500 && retries > 0) {
-			logger.warn(`Retrying getData (${retries} attempts remaining)`);
-			await new Promise((resolve) => setTimeout(resolve, 1000 * (4 - retries))); // Exponential backoff
-			return getData(query, retries - 1);
+		if (axios.isAxiosError(error)) {
+			// Specifically handle 403/404 that should NOT trigger a toast
+			if (error.response?.status === 403 || error.response?.status === 404) {
+				logger.info(`getData caught AxiosError status ${error.response.status} for collection ${collectionId}. Treating as no data.`);
+				return {
+					entryList: [],
+					pagesCount: 1
+				};
+			}
+
+			// Retry for 500 errors
+			if (error.response?.status === 500 && retries > 0) {
+				logger.warn(`Retrying getData (${retries} attempts remaining) for 500 error`);
+				await new Promise((resolve) => setTimeout(resolve, 1000 * (4 - retries))); // Exponential backoff
+				return getData(query, retries - 1);
+			}
 		}
 
 		logger.error('Error in getData:', error);
+		// For any other error (network errors, other HTTP status codes), re-throw to trigger toast in EntryList
 		throw new Error(`Failed to fetch data: ${error instanceof Error ? error.message : String(error)}`);
 	}
 }

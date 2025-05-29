@@ -21,7 +21,7 @@
 
  */
 
-import { PermissionAction as ConfigPermissionAction, PermissionType } from '../../src/auth/permissionTypes';
+import { PermissionAction as ConfigPermissionAction, PermissionType } from '@src/auth/permissionTypes';
 import type { Field } from '../content/types';
 
 // Type aliases for identifiers

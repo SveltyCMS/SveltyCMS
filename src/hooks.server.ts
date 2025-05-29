@@ -48,7 +48,7 @@ const USER_COUNT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes for user count cache
 
 // Performance Caches
 let userCountCache: { count: number; timestamp: number } | null = null;
-const adminDataCache = new Map<string, { data: any; timestamp: number }>();
+const adminDataCache = new Map<string, { data: unknown; timestamp: number }>();
 
 // Session Metrics
 const sessionMetrics = {
@@ -271,7 +271,7 @@ const getUserFromSessionId = async (session_id: string | undefined, authServiceR
 };
 
 // Optimized admin data loading with caching
-const getAdminDataCached = async (user: User, cacheKey: string): Promise<any> => {
+const getAdminDataCached = async (user: User, cacheKey: string): Promise<unknown> => {
 	const now = Date.now();
 	const cached = adminDataCache.get(cacheKey);
 
@@ -467,7 +467,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 			event.locals.hasManageUsersPermission = hasPermission;
 
 			// Only load heavy admin data if user is admin or has permission AND it's needed
-			if ((user.isAdmin || hasPermission) && (isApi || event.url.pathname.includes('/admin'))) {
+			if ((user.isAdmin || hasPermission) && (isApi || event.url.pathname.includes('/admin') || event.url.pathname.includes('/user'))) {
 				// Load admin data with caching
 				const [roles, users, tokens] = await Promise.all([
 					getAdminDataCached(user, 'roles'),
