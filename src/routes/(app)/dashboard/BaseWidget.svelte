@@ -4,15 +4,22 @@
 **Base widget component providing common functionality for all dashboard widgets**
 
 ### Props
-- `label`: The widget's display label
-- `theme`: Current theme ('light' or 'dark')
+- `label`: The widget's display label (required)
+- `theme`: Current theme ('light' or 'dark', default: 'light')
 - `endpoint`: API endpoint for data fetching
-- `pollInterval`: Data refresh interval in milliseconds (default: 5000)
+- `pollInterval`: Data refresh interval in milliseconds (default: 0)
 - `data`: Bindable data property for widget content
 - `widgetId`: Unique identifier for widget state persistence
 - `icon`: Optional icon for the widget
 - `children`: Slot for widget-specific content
-- `onDataLoaded`: Callback function when data is successfully loaded from the endpoint.
+- `onDataLoaded`: Callback when data is successfully loaded
+- `gridCellWidth`: Grid cell width (bindable)
+- `ROW_HEIGHT`: Grid row height (bindable)
+- `GAP_SIZE`: Grid gap size (bindable)
+- `resizable`: Whether widget is resizable (default: true)
+- `onResizeCommitted`: Callback when resize completes
+- `onCloseRequest`: Callback when close is requested
+- `initialData`: Initial data before fetch completes
 
 ### Features:
 - Common properties for all widgets
@@ -20,12 +27,12 @@
 - Polling effect for real-time data updates
 - Widget state persistence
 - Error handling and logging
+- Improved resize handles with visual indicators
 -->
 
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 
-	// Define the shape of the object expected by the children snippet
 	type ChildSnippetProps = {
 		data: any;
 		updateWidgetState: (key: string, value: any) => void;
@@ -45,13 +52,13 @@
 		ROW_HEIGHT = $bindable(0),
 		GAP_SIZE = $bindable(0),
 		resizable = true,
-		onResizeCommitted = (_spans: { w: number; h: number }) => {},
+		onResizeCommitted = () => {},
 		onCloseRequest = () => {},
 		initialData: passedInitialData = undefined,
 		onDataLoaded = (_fetchedData: any) => {}, // New prop: Callback for when data is loaded
 		// Initialize `data` with $bindable() directly.
 		// Its initial value will be set from passedInitialData in an effect.
-		data = $bindable() // This is the bindable prop
+		data = $bindable(undefined) // This is the bindable prop
 	} = $props<{
 		label: string;
 		theme?: 'light' | 'dark';
@@ -68,28 +75,29 @@
 		onResizeCommitted?: (spans: { w: number; h: number }) => void;
 		onCloseRequest?: () => void;
 		initialData?: any;
-		data?: any; // This is the prop name for binding, its type should match expected data
-		onDataLoaded?: (fetchedData: any) => void; // New prop definition
+		data?: any;
+		onDataLoaded?: (fetchedData: any) => void;
 	}>();
 
-	// Effect to set the initial value of 'data' from 'passedInitialData'
-	// This runs once when passedInitialData is first available or if it changes.
+	// State management
 	let initialDataSet = false;
+	let widgetState = $state<Record<string, any>>({});
+	let loading = $state(endpoint && !passedInitialData);
+	let error = $state<string | null>(null);
+	let internalData = $state(passedInitialData);
+
+	// Data handling effect
 	$effect(() => {
-		if (!initialDataSet && passedInitialData !== undefined) {
-			if (data === undefined) {
-				// Only set if 'data' hasn't been populated yet
-				data.set(passedInitialData);
-			}
-			initialDataSet = true; // Mark that we've attempted to set from initialData
+		if (data !== undefined) {
+			// If data prop is provided (bindable), use it
+			internalData = data;
+		} else if (passedInitialData !== undefined) {
+			// Fallback to internal data if no bindable prop provided
+			internalData = passedInitialData;
 		}
 	});
 
-	let widgetState = $state<Record<string, any>>({});
-	let loading = $state(endpoint && !passedInitialData ? true : false);
-	let error = $state<string | null>(null);
-
-	// Effect to handle data fetching and polling
+	// Data fetching effect
 	$effect(() => {
 		if (!endpoint) {
 			loading = false;
@@ -97,20 +105,26 @@
 		}
 
 		let isActive = true;
-		let timerId: NodeJS.Timeout | undefined = undefined;
+		let timerId: NodeJS.Timeout;
 
 		const fetchData = async () => {
 			if (!isActive) return;
-			if (!loading) loading = true; // Set loading to true before fetch
+
+			loading = true;
 			error = null;
+
 			try {
-				// Append a cache-busting parameter to ensure fresh data
-				const res = await fetch(`${endpoint}&_=${new Date().getTime()}`);
+				const res = await fetch(`${endpoint}?_=${Date.now()}`);
 				if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+
 				const newData = await res.json();
 				if (isActive) {
-					data.set(newData); // Use the setter for bindable data
-					onDataLoaded(newData); // Call the new callback prop
+					if (data !== undefined) {
+						data.set(newData); // Only call set if data is bindable
+					} else {
+						internalData = newData; // Fallback to internal state
+					}
+					onDataLoaded(newData);
 				}
 			} catch (err) {
 				if (isActive) {
@@ -122,7 +136,7 @@
 			}
 		};
 
-		fetchData(); // Initial fetch
+		fetchData();
 
 		if (pollInterval > 0) {
 			timerId = setInterval(fetchData, pollInterval);
@@ -130,10 +144,11 @@
 
 		return () => {
 			isActive = false;
-			if (timerId) clearInterval(timerId);
+			clearInterval(timerId);
 		};
 	});
 
+	// Resize handling
 	let widgetEl: HTMLDivElement | undefined = $state();
 	let resizing = $state(false);
 	let resizeDir: string | null = $state(null);
@@ -182,18 +197,19 @@
 
 	function handleResizePointerUp(e: PointerEvent) {
 		if (!resizing || !widgetEl) {
-			if (resizing) resizing = false;
+			resizing = false;
 			return;
 		}
+
 		(e.target as HTMLElement).releasePointerCapture(e.pointerId);
 		window.removeEventListener('pointermove', handleResizePointerMove);
 		window.removeEventListener('pointerup', handleResizePointerUp);
 
 		if (onResizeCommitted && gridCellWidth > 0 && ROW_HEIGHT > 0) {
-			const finalPixelWidth = currentPixelDimensions.w;
-			const finalPixelHeight = currentPixelDimensions.h;
-			let newSpanW = Math.max(1, Math.round((finalPixelWidth + GAP_SIZE) / (gridCellWidth + GAP_SIZE)));
-			let newSpanH = Math.max(1, Math.round((finalPixelHeight + GAP_SIZE) / (ROW_HEIGHT + GAP_SIZE)));
+			const finalWidth = currentPixelDimensions.w;
+			const finalHeight = currentPixelDimensions.h;
+			const newSpanW = Math.max(1, Math.round((finalWidth + GAP_SIZE) / (gridCellWidth + GAP_SIZE)));
+			const newSpanH = Math.max(1, Math.round((finalHeight + GAP_SIZE) / (ROW_HEIGHT + GAP_SIZE)));
 			onResizeCommitted({ w: newSpanW, h: newSpanH });
 		}
 
@@ -203,17 +219,13 @@
 		resizeDir = null;
 	}
 
-	$effect(() => {
-		return () => {
-			window.removeEventListener('pointermove', handleResizePointerMove);
-			window.removeEventListener('pointerup', handleResizePointerUp);
-		};
+	// Cleanup effect
+	$effect(() => () => {
+		window.removeEventListener('pointermove', handleResizePointerMove);
+		window.removeEventListener('pointerup', handleResizePointerUp);
 	});
 
-	const resizeHandleClasses = 'absolute z-10 bg-primary-500/60 hover:bg-primary-600 active:bg-primary-700 rounded-full';
-	const handleSize = 'w-3.5 h-3.5';
-	const handleOffset = '-translate-x-1/2 -translate-y-1/2';
-
+	// Widget state management
 	function updateWidgetState(key: string, value: any) {
 		widgetState = { ...widgetState, [key]: value };
 	}
@@ -221,6 +233,8 @@
 	function getWidgetState(key: string) {
 		return widgetState[key];
 	}
+
+	const handleOffset = '-translate-x-1/2 -translate-y-1/2';
 </script>
 
 <div
@@ -267,33 +281,81 @@
 	</div>
 
 	{#if resizable}
+		<!-- SE Resize Handle -->
 		<div
-			class="{resizeHandleClasses} {handleSize} bottom-0 right-0 cursor-se-resize {handleOffset} translate-x-px translate-y-px"
+			class="absolute bottom-0 right-0 z-10 cursor-se-resize {handleOffset} translate-x-px translate-y-px"
 			onpointerdown={(e) => handleResizePointerDown(e, 'se')}
-		></div>
+		>
+			<iconify-icon
+				icon="mdi:chevron-double-down-right"
+				width="16"
+				class="text-primary-500/60 hover:text-primary-600 active:text-primary-700"
+				flip={theme === 'dark' ? 'vertical' : ''}
+			></iconify-icon>
+		</div>
+
+		<!-- SW Resize Handle -->
 		<div
-			class="{resizeHandleClasses} {handleSize} bottom-0 left-0 cursor-sw-resize {handleOffset} -translate-x-px translate-y-px"
+			class="absolute bottom-0 left-0 z-10 cursor-sw-resize {handleOffset} -translate-x-px translate-y-px"
 			onpointerdown={(e) => handleResizePointerDown(e, 'sw')}
-		></div>
+		>
+			<iconify-icon
+				icon="mdi:chevron-double-down-left"
+				width="16"
+				class="text-primary-500/60 hover:text-primary-600 active:text-primary-700"
+				flip={theme === 'dark' ? 'vertical' : ''}
+			></iconify-icon>
+		</div>
+
+		<!-- NE Resize Handle -->
 		<div
-			class="{resizeHandleClasses} {handleSize} right-0 top-0 cursor-ne-resize {handleOffset} -translate-y-px translate-x-px"
+			class="absolute right-0 top-0 z-10 cursor-ne-resize {handleOffset} -translate-y-px translate-x-px"
 			onpointerdown={(e) => handleResizePointerDown(e, 'ne')}
-		></div>
+		>
+			<iconify-icon
+				icon="mdi:chevron-double-up-right"
+				width="16"
+				class="text-primary-500/60 hover:text-primary-600 active:text-primary-700"
+				flip={theme === 'dark' ? 'vertical' : ''}
+			></iconify-icon>
+		</div>
+
+		<!-- NW Resize Handle -->
 		<div
-			class="{resizeHandleClasses} {handleSize} left-0 top-0 cursor-nw-resize {handleOffset} -translate-x-px -translate-y-px"
+			class="absolute left-0 top-0 z-10 cursor-nw-resize {handleOffset} -translate-x-px -translate-y-px"
 			onpointerdown={(e) => handleResizePointerDown(e, 'nw')}
-		></div>
+		>
+			<iconify-icon
+				icon="mdi:chevron-double-up-left"
+				width="16"
+				class="text-primary-500/60 hover:text-primary-600 active:text-primary-700"
+				flip={theme === 'dark' ? 'vertical' : ''}
+			></iconify-icon>
+		</div>
 	{/if}
 </div>
 
-<style>
+<style lang="postcss">
 	.widget-container {
 		transition:
 			box-shadow 0.2s ease-in-out,
 			border-color 0.2s ease-in-out;
 	}
+
 	.widget-body {
 		scrollbar-width: thin;
 		scrollbar-color: theme('colors.gray.300') transparent;
+	}
+
+	[class*='cursor-'] iconify-icon {
+		transition: transform 0.1s ease;
+	}
+
+	[class*='cursor-']:hover iconify-icon {
+		transform: scale(1.2);
+	}
+
+	[class*='cursor-']:active iconify-icon {
+		transform: scale(1);
 	}
 </style>

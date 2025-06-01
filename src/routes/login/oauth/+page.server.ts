@@ -201,7 +201,7 @@ async function handleGoogleUser(
 
 	// Create User Session and set cookie
 	const session = await auth?.createSession({ user_id: user._id });
-	const sessionCookie = auth?.createSessionCookie(session);
+	const sessionCookie = auth?.createSessionCookie(session._id);
 	cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 }
 

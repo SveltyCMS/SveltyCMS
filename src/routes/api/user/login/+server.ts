@@ -53,7 +53,7 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 			user_id: user._id,
 			expires: new Date(Date.now() + 3600 * 1000)
 		});
-		const sessionCookie = auth.createSessionCookie(session);
+		const sessionCookie = auth.createSessionCookie(session._id);
 		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 
 		logger.info(`User logged in successfully: ${user._id}`);

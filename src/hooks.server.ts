@@ -350,7 +350,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		// Check if auth service is ready
 		const authServiceReady = auth !== null && typeof auth.validateSession === 'function';
 
-		let session_id = event.cookies.get(SESSION_COOKIE_NAME);
+		const session_id = event.cookies.get(SESSION_COOKIE_NAME);
 		const user = await getUserFromSessionId(session_id, authServiceReady);
 
 		if (user && session_id && authServiceReady) {
@@ -594,7 +594,7 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 	// ADMIN OVERRIDE: Admins automatically have ALL permissions
 	const userRole = roles.find((role) => role._id === user.role);
 	if (userRole?.isAdmin) {
-		logger.debug(`Admin user ${user._id} granted API access to /api/${apiEndpoint}`);
+		logger.debug(`Admin user \x1b[34m${user._id}\x1b[0m granted API access to \x1b[34m/api/${apiEndpoint}\x1b[0m`);
 	} else {
 		const permissionExists = userPerms.some((p) => p._id === requiredPermissionName || p.name === requiredPermissionName);
 		if (!permissionExists) {
@@ -655,7 +655,7 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 					}
 				});
 			} catch (processingError) {
-				logger.error(`Error processing API GET response for /api/${apiEndpoint} (user: ${user._id}): ${processingError.message}`);
+				logger.error(`Error processing API GET response for \x1b[31m/api/${apiEndpoint}\x1b[0m (user: \x1b[31m${user._id}\x1b[0m): ${processingError.message}`);
 				return new Response(
 					JSON.stringify({
 						error: 'Failed to process API response',
@@ -679,7 +679,7 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 		const baseCacheKey = `api:${apiEndpoint}:${user._id}`;
 		try {
 			await cacheStore.deletePattern(`${baseCacheKey}:*`);
-			logger.debug(`Invalidated API cache for keys starting with ${baseCacheKey} after ${event.request.method} request`);
+			logger.debug(`Invalidated API cache for keys starting with \x1b[31m${baseCacheKey}\x1b[0m after \x1b[31m${event.request.method}\x1b[0m request`);
 		} catch (err) {
 			logger.error(`Failed to invalidate API cache for ${baseCacheKey}: ${err.message}`);
 		}

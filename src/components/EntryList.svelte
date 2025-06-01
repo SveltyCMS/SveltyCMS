@@ -428,14 +428,28 @@ Features:
 
 	$effect(() => {
 		// Debounced data refresh when critical settings change
-		if (!currentCollection?._id) {
-			tableData = [];
-			pagesCount = 1;
-			totalItems = 0;
-			Object.keys(selectedMap).forEach((key) => delete selectedMap[key]);
-			SelectAll = false;
+		// Track only the variables that should trigger a refresh
+		const collectionId = currentCollection?._id;
+		// Track pagination settings that should trigger refresh
+		const currentPage = entryListPaginationSettings.currentPage;
+		const rowsPerPage = entryListPaginationSettings.rowsPerPage;
+		const filters = entryListPaginationSettings.filters;
+		const sorting = entryListPaginationSettings.sorting;
+
+		// Read the tracked variables to ensure they're tracked
+		void collectionId, currentPage, rowsPerPage, filters, sorting;
+
+		if (!collectionId) {
+			untrack(() => {
+				tableData = [];
+				pagesCount = 1;
+				totalItems = 0;
+				Object.keys(selectedMap).forEach((key) => delete selectedMap[key]);
+				SelectAll = false;
+			});
 			return;
 		}
+
 		refreshDebounce(() => {
 			untrack(() => refreshTableData(true));
 		});

@@ -1,4 +1,4 @@
-<!--
+<!-- 
 @file src/routes/(app)/dashboard/+page.svelte
 @component
 **This file sets up and displays the dashboard page. It provides a user-friendly interface for managing system resources and system messages**
@@ -11,11 +11,11 @@
 
 ### Features
 - Displays widgets for CPU usage, disk usage, memory usage, last 5 media, user activity, and system messages
-- Now includes a Logs Widget for displaying system logs
 -->
 
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action'; // For drag and drop
 
 	// Stores
@@ -183,7 +183,7 @@
 					resizable: itemLoading.resizable ?? true,
 					defaultW: itemLoading.defaultW || componentInfo?.defaultW || 1,
 					defaultH: itemLoading.defaultH || componentInfo?.defaultH || 1,
-					validSizes: itemLoading.validSizes || []
+					validSizes: itemLoading.validSizes || componentInfo?.validSizes || []
 				} as DashboardWidgetConfig; // Cast to ensure all fields are present
 			});
 
@@ -249,6 +249,7 @@
 
 	function handleDndConsider(e: CustomEvent<{ items: DashboardWidgetConfig[]; info: { id: string } }>) {
 		draggedItemId = e.detail.info.id;
+		items = e.detail.items;
 	}
 
 	function handleDndFinalize(e: CustomEvent<{ items: DashboardWidgetConfig[]; info: { id: string } }>) {
@@ -387,8 +388,9 @@
 			<div class="flex h-full items-center justify-center text-lg text-gray-500">Loading preferences...</div>
 		{:else if items.length > 0 && gridCellWidth > 0}
 			<div
-				class="grid"
-				style:grid-template-columns="repeat({cols}, minmax(0, 1fr))"
+				class="grid h-full flex-1 gap-2 overflow-y-auto py-2"
+				style:grid-template-columns="repeat({cols}, 1fr)"
+				style:grid-auto-flow="row dense"
 				style:grid-auto-rows="{ROW_HEIGHT}px"
 				style:gap="{GAP_SIZE}px"
 				use:dndzone={{ items: items, ...DND_OPTIONS }}
@@ -399,20 +401,21 @@
 			>
 				{#each items as item (item.id)}
 					{@const SvelteComponent = widgetComponentRegistry[item.component]?.component}
-					{#if SvelteComponent}
-						<div
-							class:opacity-50={draggedItemId === item.id}
-							class:shadow-2xl={draggedItemId === item.id}
-							class="relative touch-none transition-opacity duration-150 ease-in-out {item.movable ? 'cursor-grab' : ''}"
-							style:grid-column="{(item.x || 0) + 1} / span {item.w || 1}"
-							style:grid-row="{(item.y || 0) + 1} / span {item.h || 1}"
-							role="gridcell"
-							aria-label={item.label}
-							tabindex="0"
-							onkeydown={(e) => {
-								/* TODO: Keyboard navigation for dnd. Implement logic to move items with arrow keys, perhaps after 'Enter' or 'Space' to select. */
-							}}
-						>
+					<div
+						class:opacity-50={draggedItemId === item.id}
+						class:shadow-2xl={draggedItemId === item.id}
+						class="relative {item.movable ? 'cursor-grab' : ''}"
+						style:grid-column="span {item.w || 1}"
+						style:grid-row="span {item.h || 1}"
+						role="gridcell"
+						animate:flip={{ duration: DND_OPTIONS.flipDurationMs }}
+						aria-label={item.label}
+						tabindex="0"
+						onkeydown={(e) => {
+							/* TODO: Keyboard navigation for dnd. Implement logic to move items with arrow keys, perhaps after 'Enter' or 'Space' to select. */
+						}}
+					>
+						{#if SvelteComponent}
 							<SvelteComponent
 								label={item.label}
 								icon={item.icon}
@@ -425,16 +428,14 @@
 								onResizeCommitted={(newSpans: { w: number; h: number }) => handleWidgetResized(item.id, newSpans)}
 								onCloseRequest={() => removeWidget(item.id)}
 							/>
-						</div>
-					{:else}
-						<div
-							class="flex items-center justify-center rounded-md border border-dashed border-error-500 bg-error-100 p-4 text-error-700"
-							style:grid-column="{(item.x || 0) + 1} / span {item.w || 1}"
-							style:grid-row="{(item.y || 0) + 1} / span {item.h || 1}"
-						>
-							Widget "{item.component}" not found.
-						</div>
-					{/if}
+						{:else}
+							<div
+								class="flex h-full w-full items-center justify-center rounded-md border border-dashed border-error-500 bg-error-100 p-4 text-error-700"
+							>
+								Widget "{item.component}" not found.
+							</div>
+						{/if}
+					</div>
 				{/each}
 			</div>
 		{:else if preferencesLoaded && items.length === 0}
@@ -446,9 +447,3 @@
 		{/if}
 	</div>
 </div>
-
-<style>
-	.touch-none {
-		touch-action: none;
-	}
-</style>

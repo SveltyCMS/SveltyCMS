@@ -98,7 +98,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		const session_id = locals.session_id;
 
-		const user = await auth.validateSession({ session_id });
+		const user = await auth.validateSession(session_id);
 		locals.user = user;
 		const cacheStore = getCacheStore();
 		cacheStore.set(session_id, user, new Date(Date.now() + 3600 * 1000));

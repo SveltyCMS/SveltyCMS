@@ -31,7 +31,7 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 	}
 
 	try {
-		const user = await auth.validateSession({ session_id });
+		const user = await auth.validateSession(session_id);
 		if (!user) {
 			logger.warn('Invalid session during file check');
 			throw error(401, 'Unauthorized');

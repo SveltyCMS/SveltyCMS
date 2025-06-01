@@ -22,7 +22,7 @@ import { contentStructure, collections, unAssigned, collection, collectionValue,
 import type { Unsubscriber } from 'svelte/store';
 
 // Components
-import { initializeWidgets } from '@widgets';
+import { ensureWidgetsInitialized } from '@widgets';
 
 // Types
 import type { Schema, ContentTypes, Category } from './types';
@@ -171,7 +171,7 @@ export async function getCollections(): Promise<Partial<Record<ContentTypes, Sch
 	logger.debug('Starting getCollections');
 
 	// Initialize widgets
-	initializeWidgets();
+	await ensureWidgetsInitialized();
 
 	// Return cached collections if available
 	if (collectionModelsCache) {
@@ -257,6 +257,10 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 // Function to get imports based on environment
 async function getImports(recompile: boolean = false): Promise<Record<ContentTypes, Schema>> {
 	logger.debug('Starting getImports function');
+
+	// Ensure widgets are initialized before importing collections
+	await ensureWidgetsInitialized();
+	logger.debug('Widgets initialized, proceeding with collection imports');
 
 	// Return from cache if available
 	if (!recompile && Object.keys(importsCache).length > 0) {

@@ -18,7 +18,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { auth } from '@src/databases/db';
-import { SESSION_COOKIE_NAME } from '@src/auth';
+import { SESSION_COOKIE_NAME } from '@src/auth/auth';
 import { logger } from '@utils/logger.svelte';
 
 export const POST: RequestHandler = async ({ cookies, locals }) => {
@@ -27,7 +27,8 @@ export const POST: RequestHandler = async ({ cookies, locals }) => {
 		return json({ success: false, message: 'Internal Server Error' }, { status: 500 });
 	}
 
-	const session_id = cookies.get(SESSION_COOKIE_NAME);
+	const rawSessionId = cookies.get(SESSION_COOKIE_NAME);
+	const session_id = rawSessionId;
 
 	try {
 		if (session_id) {
@@ -39,7 +40,23 @@ export const POST: RequestHandler = async ({ cookies, locals }) => {
 		}
 
 		// Always clear the session cookie, even if there wasn't an active session
-		cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+		try {
+			cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+			logger.debug(`Session cookie deleted: ${SESSION_COOKIE_NAME}`);
+		} catch (cookieError) {
+			logger.error(`Failed to delete session cookie: ${cookieError instanceof Error ? cookieError.message : String(cookieError)}`);
+			// Try alternative deletion method
+			try {
+				cookies.set(SESSION_COOKIE_NAME, '', {
+					path: '/',
+					expires: new Date(0),
+					maxAge: 0
+				});
+				logger.debug('Session cookie cleared using alternative method');
+			} catch (altError) {
+				logger.error(`Failed to clear session cookie with alternative method: ${altError instanceof Error ? altError.message : String(altError)}`);
+			}
+		}
 
 		// Clear the user from locals
 		locals.user = null;

@@ -257,7 +257,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					const expiresAt = new Date(Date.now() + 3600 * 1000).toISOString();
 					const session = await auth.createSession({ user_id: user._id, expires: expiresAt });
 
-					const sessionCookie = auth.createSessionCookie(session);
+					const sessionCookie = auth.createSessionCookie(session._id);
 					cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 
 					await auth.updateUserAttributes(user._id, { lastAuthMethod: 'google' });
@@ -593,13 +593,13 @@ async function createSessionAndSetCookie(user_id: string, cookies: Cookies): Pro
 
 	if (!auth) throw Error('Auth is not initialized');
 
-	const sessionId = await auth.createSession({
+	const session = await auth.createSession({
 		user_id,
 		expires: expiresAt
 	});
 
-	logger.debug(`Session created: ${sessionId}`);
-	const sessionCookie = auth.createSessionCookie(sessionId);
+	logger.debug(`Session created: ${session._id}`);
+	const sessionCookie = auth.createSessionCookie(session._id);
 	cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 }
 
@@ -644,8 +644,8 @@ async function signIn(
 
 		// Create User Session
 		const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-		const sessionId = await auth.createSession({ user_id: user._id, expires: expiresAt });
-		const sessionCookie = auth.createSessionCookie(sessionId);
+		const session = await auth.createSession({ user_id: user._id, expires: expiresAt });
+		const sessionCookie = auth.createSessionCookie(session._id);
 		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 
 		await auth.updateUserAttributes(user._id, { lastAuthMethod: isToken ? 'token' : 'password' });

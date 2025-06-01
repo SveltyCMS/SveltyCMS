@@ -29,7 +29,7 @@
 		gridCellWidth,
 		ROW_HEIGHT,
 		GAP_SIZE,
-		resizable,
+		resizable = true,
 		onResizeCommitted,
 		onCloseRequest
 	} = $props<{

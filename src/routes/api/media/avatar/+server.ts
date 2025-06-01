@@ -31,7 +31,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 	}
 
 	try {
-		const user = await auth.validateSession({ session_id });
+		const user = await auth.validateSession(session_id);
 		if (!user) {
 			logger.warn('Invalid session during avatar upload');
 			throw error(401, 'Unauthorized');
