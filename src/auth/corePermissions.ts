@@ -34,6 +34,20 @@ export const corePermissions: Permission[] = [
 		type: PermissionType.SYSTEM,
 		description: 'Grants access to the query API endpoint.'
 	},
+	{
+		_id: 'api:systemPreferences',
+		name: 'System Preferences API Access',
+		action: PermissionAction.ACCESS,
+		type: PermissionType.SYSTEM,
+		description: 'Grants access to the system preferences API endpoints.'
+	},
+	{
+		_id: 'api:systemInfo',
+		name: 'System Info API Access',
+		action: PermissionAction.ACCESS,
+		type: PermissionType.SYSTEM,
+		description: 'Grants access to the system information API endpoints.'
+	},
 
 	// Collection permissions
 	{ _id: 'collections:create', name: 'Create Collections', action: PermissionAction.CREATE, type: PermissionType.COLLECTION },
