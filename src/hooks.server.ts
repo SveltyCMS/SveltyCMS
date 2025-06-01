@@ -593,15 +593,11 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 
 	// ADMIN OVERRIDE: Admins automatically have ALL permissions
 	const userRole = roles.find((role) => role._id === user.role);
-	if (userRole?.isAdmin) {
-		logger.debug(`Admin user \x1b[34m${user._id}\x1b[0m granted API access to \x1b[34m/api/${apiEndpoint}\x1b[0m`);
-	} else {
-		const permissionExists = userPerms.some((p) => p._id === requiredPermissionName || p.name === requiredPermissionName);
-		if (!permissionExists) {
-			// If the user *lacks* the specific API permission
-			logger.warn(`User \x1b[34m${user._id}\x1b[0m denied access to API /api/${apiEndpoint} due to missing permission: ${requiredPermissionName}`);
-			throw error(403, `Forbidden: You do not have the required permission ('${requiredPermissionName}') to access this API endpoint.`);
-		}
+	const permissionExists = userPerms.some((p) => p === requiredPermissionName);
+	if (!permissionExists) {
+		// If the user *lacks* the specific API permission
+		logger.warn(`User \x1b[34m${user._id}\x1b[0m denied access to API /api/${apiEndpoint} due to missing permission: ${requiredPermissionName}`);
+		throw error(403, `Forbidden: You do not have the required permission ('${requiredPermissionName}') to access this API endpoint.`);
 	}
 
 	// Handle GET requests with caching
