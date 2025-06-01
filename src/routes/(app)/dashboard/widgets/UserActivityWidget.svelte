@@ -55,10 +55,9 @@ Features:
 	});
 
 	let { label, theme = 'light' } = $props();
-	const themeType = theme as 'light' | 'dark';
 </script>
 
-<BaseWidget {label} theme={themeType} endpoint="/api/users" pollInterval={5000}>
+<BaseWidget {label} theme={theme} endpoint="/api/users" pollInterval={5000}>
 	<section>
 		<h2>Recent User Activities</h2>
 		<ul>

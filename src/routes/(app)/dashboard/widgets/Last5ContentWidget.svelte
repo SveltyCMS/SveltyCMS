@@ -50,7 +50,6 @@ This widget fetches and displays real-time disk usage data, including:
 	}
 
 	let { label = 'Last 5 Content', theme = 'light' }: Props = $props();
-	const themeType = theme as 'light' | 'dark';
 
 	const contentInfo = writable<any[]>([]);
 	const loading = writable<boolean>(true);
@@ -74,7 +73,7 @@ This widget fetches and displays real-time disk usage data, including:
 	});
 </script>
 
-<BaseWidget {label} theme={themeType} endpoint="/api/last5Content" pollInterval={5000}>
+<BaseWidget {label} theme={theme} endpoint="/api/last5Content" pollInterval={5000}>
 	<div class="p-4">
 		<h2 class="mb-4 text-xl font-bold">Last 5 Content</h2>
 		{#if $loading}
