@@ -38,7 +38,9 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 
 	const { data }: Props = $props();
 
-	let isLoading = $state(true);
+	const shouldFetchData = data.collection.name && (!collection.value || data.collection.path !== collection.value.path)
+
+	let isLoading = $state(shouldFetchData);
 
 	async function loadCollection() {
 		isLoading = true;
