@@ -48,7 +48,6 @@ This widget fetches and displays real-time disk usage data, including:
 
 	// Props
 	let { label = 'Disk Usage', theme = 'light', icon = 'mdi:harddisk' } = $props();
-	const themeType = theme as 'light' | 'dark';
 
 	let data = $state<
 		| {
@@ -121,12 +120,12 @@ This widget fetches and displays real-time disk usage data, including:
 						{
 							data: [typeof usedGb === 'number' ? usedGb : 0, typeof freeGb === 'number' ? freeGb : 0],
 							backgroundColor: [
-								themeType === 'dark' ? 'rgba(255, 99, 132, 0.2)' : 'rgba(255, 99, 132, 0.4)',
-								themeType === 'dark' ? 'rgba(54, 162, 235, 0.2)' : 'rgba(54, 162, 235, 0.4)'
+								theme === 'dark' ? 'rgba(255, 99, 132, 0.2)' : 'rgba(255, 99, 132, 0.4)',
+								theme === 'dark' ? 'rgba(54, 162, 235, 0.2)' : 'rgba(54, 162, 235, 0.4)'
 							],
 							borderColor: [
-								themeType === 'dark' ? 'rgba(255, 99, 132, 1)' : 'rgba(255, 99, 132, 0.8)',
-								themeType === 'dark' ? 'rgba(54, 162, 235, 1)' : 'rgba(54, 162, 235, 0.8)'
+								theme === 'dark' ? 'rgba(255, 99, 132, 1)' : 'rgba(255, 99, 132, 0.8)',
+								theme === 'dark' ? 'rgba(54, 162, 235, 1)' : 'rgba(54, 162, 235, 0.8)'
 							],
 							borderWidth: 1
 						}
@@ -172,7 +171,7 @@ This widget fetches and displays real-time disk usage data, including:
 	});
 </script>
 
-<BaseWidget {label} theme={themeType} endpoint="/api/systemInfo?type=disk" pollInterval={5000} bind:data {icon}>
+<BaseWidget {label} theme={theme} endpoint="/api/systemInfo?type=disk" pollInterval={5000} bind:data {icon}>
 	<div
 		class="relative h-full w-full rounded-lg p-4 text-tertiary-500 transition-colors duration-300 ease-in-out dark:bg-surface-500 dark:text-primary-500"
 		aria-label="Disk Usage Widget"

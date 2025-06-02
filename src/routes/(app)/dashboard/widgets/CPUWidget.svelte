@@ -50,9 +50,6 @@
 		onResizeCommitted?: (spans: { w: number; h: number }) => void;
 		onCloseRequest?: () => void;
 	}>();
-
-	const themeType = theme as 'light' | 'dark';
-
 	// State for data fetched by BaseWidget
 	let fetchedData = $state<any>(undefined); // This will hold { cpuInfo: { ... } }
 
@@ -97,12 +94,12 @@
 			chartInstance.data.labels = formattedLabels;
 			chartInstance.data.datasets[0].data = cpuUsageHistory;
 			// Update colors if theme changed
-			chartInstance.data.datasets[0].borderColor = themeType === 'dark' ? 'rgba(75, 192, 192, 1)' : 'rgba(54, 162, 235, 1)';
-			chartInstance.data.datasets[0].backgroundColor = themeType === 'dark' ? 'rgba(75, 192, 192, 0.2)' : 'rgba(54, 162, 235, 0.2)';
-			chartInstance.options.scales.x.ticks.color = themeType === 'dark' ? '#e5e7eb' : '#4b5563';
-			chartInstance.options.scales.y.ticks.color = themeType === 'dark' ? '#e5e7eb' : '#4b5563';
-			chartInstance.options.scales.x.grid.color = themeType === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-			chartInstance.options.scales.y.grid.color = themeType === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+			chartInstance.data.datasets[0].borderColor = theme === 'dark' ? 'rgba(75, 192, 192, 1)' : 'rgba(54, 162, 235, 1)';
+			chartInstance.data.datasets[0].backgroundColor = theme === 'dark' ? 'rgba(75, 192, 192, 0.2)' : 'rgba(54, 162, 235, 0.2)';
+			chartInstance.options.scales.x.ticks.color = theme === 'dark' ? '#e5e7eb' : '#4b5563';
+			chartInstance.options.scales.y.ticks.color = theme === 'dark' ? '#e5e7eb' : '#4b5563';
+			chartInstance.options.scales.x.grid.color = theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+			chartInstance.options.scales.y.grid.color = theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
 			chartInstance.update('none'); // Use 'none' for no animation on data update
 		} else {
 			// Create new chart instance
@@ -114,8 +111,8 @@
 						{
 							label: 'CPU Usage (%)',
 							data: cpuUsageHistory,
-							borderColor: themeType === 'dark' ? 'rgba(75, 192, 192, 1)' : 'rgba(54, 162, 235, 1)',
-							backgroundColor: themeType === 'dark' ? 'rgba(75, 192, 192, 0.2)' : 'rgba(54, 162, 235, 0.2)',
+							borderColor: theme === 'dark' ? 'rgba(75, 192, 192, 1)' : 'rgba(54, 162, 235, 1)',
+							backgroundColor: theme === 'dark' ? 'rgba(75, 192, 192, 0.2)' : 'rgba(54, 162, 235, 0.2)',
 							fill: true,
 							tension: 0.3, // Smooth curves
 							borderWidth: 1.5,
@@ -130,23 +127,23 @@
 					scales: {
 						x: {
 							ticks: {
-								color: themeType === 'dark' ? '#e5e7eb' : '#4b5563', // Tailwind gray-200 / gray-600
+								color: theme === 'dark' ? '#e5e7eb' : '#4b5563', // Tailwind gray-200 / gray-600
 								maxTicksLimit: 7, // Limit number of x-axis ticks
 								autoSkip: true
 							},
 							grid: {
-								color: themeType === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+								color: theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
 							}
 						},
 						y: {
 							beginAtZero: true,
 							max: 100, // CPU percentage
 							ticks: {
-								color: themeType === 'dark' ? '#e5e7eb' : '#4b5563',
+								color: theme === 'dark' ? '#e5e7eb' : '#4b5563',
 								stepSize: 25
 							},
 							grid: {
-								color: themeType === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+								color: theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
 							}
 						}
 					},
@@ -197,7 +194,7 @@
 
 <BaseWidget
 	{label}
-	theme={themeType}
+	theme={theme}
 	endpoint="/api/systemInfo?type=cpu"
 	pollInterval={2000}
 	bind:data={fetchedData}

@@ -17,11 +17,11 @@
 	import { onMount } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action'; // For drag and drop
+	import { modeCurrent } from '@skeletonlabs/skeleton';
 
 	// Stores
 	import { systemPreferences, type WidgetPreference } from '@stores/systemPreferences.svelte';
 	import { screenSize, type ScreenSize } from '@stores/screenSizeStore.svelte'; // Assuming ScreenSize is exported
-	import { theme } from '@stores/themeStore.svelte';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -332,7 +332,7 @@
 		dropdownOpen = !dropdownOpen;
 	}
 
-	let currentTheme = $derived($theme);
+	let currentTheme = $derived($modeCurrent ? 'light' : 'dark');
 	let availableWidgets = $derived(Object.keys(widgetComponentRegistry).filter((name) => !items.some((item) => item.component === name)));
 	let canAddMoreWidgets = $derived(availableWidgets.length > 0);
 </script>
