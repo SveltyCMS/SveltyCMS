@@ -403,7 +403,7 @@
 	"systemConfig_BODY_SIZE_LIMIT_helper": "Definieert de limiet voor de lichaamsgrootte (standaard: 100 MB).",
 	"systemConfig_HOST_DEV_helper": "Hostnaam voor de site in ontwikkeling (standaard: 'http://localhost:5173').",
 	"systemConfig_HOST_PROD_helper": "Hostnaam voor de site in productie (standaard: 'https://uwdomein.de').",
-	"systemConfig_PASSWORD_STRENGHT_helper": "Standaard wachtwoordsterkte (standaard: 8).",
+	"systemConfig_PASSWORD_LENGHT_helper": "Standaard wachtwoordsterkte (standaard: 8).",
 	"systemConfig_USE_SEASON_helper": "Schakel seizoensdecoraties in of uit (standaard: false).",
 	"systemConfig_SEASON_REGION_helper": "Regio voor seizoensdecoraties (standaard: 'Europa').",
 	"languageConfig_Description": "Taalinstellingen voor de gebruikersinterface en inhoudsgegevens.",

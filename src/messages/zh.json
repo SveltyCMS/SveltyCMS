@@ -403,7 +403,7 @@
 	"systemConfig_BODY_SIZE_LIMIT_helper": "定义主体大小限制（默认值：100mb）。",
 	"systemConfig_HOST_DEV_helper": "开发中的站点的主机名（默认值：“http://localhost:5173”）。",
 	"systemConfig_HOST_PROD_helper": "生产站点的主机名（默认值：“https://yourdomain.de”）。",
-	"systemConfig_PASSWORD_STRENGHT_helper": "默认密码强度（默认值：8）。",
+	"systemConfig_PASSWORD_LENGHT_helper": "默认密码强度（默认值：8）。",
 	"systemConfig_USE_SEASON_helper": "启用或禁用季节性装饰（默认值：false）。",
 	"systemConfig_SEASON_REGION_helper": "季节性装饰的地区（默认值：“欧洲”）。",
 	"languageConfig_Description": "用户界面和内容数据的语言设置。",

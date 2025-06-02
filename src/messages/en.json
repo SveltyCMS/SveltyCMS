@@ -403,7 +403,7 @@
 	"systemConfig_BODY_SIZE_LIMIT_helper": "Defines body size limit (default: 100mb).",
 	"systemConfig_HOST_DEV_helper": "Hostname for the site in development (default: 'http://localhost:5173').",
 	"systemConfig_HOST_PROD_helper": "Hostname for the site in production (default: 'https://yourdomain.de').",
-	"systemConfig_PASSWORD_STRENGHT_helper": "Default password strength (default: 8).",
+	"systemConfig_PASSWORD_LENGHT_helper": "Default password length (default: 8).",
 	"systemConfig_USE_SEASON_helper": "Enable or disable seasonal decorations (default: false).",
 	"systemConfig_SEASON_REGION_helper": "Region for seasonal decorations (default: 'Europe').",
 	"languageConfig_Description": "Language settings for the user interface & content data.",

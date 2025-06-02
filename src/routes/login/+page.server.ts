@@ -58,15 +58,15 @@ const limiter = new RateLimiter({
 });
 
 // Password strength configuration
-const MIN_PASSWORD_LENGTH = publicEnv.PASSWORD_STRENGTH || 8;
-const YELLOW_LENGTH = MIN_PASSWORD_LENGTH + 3;
+const MIN_PPASSWORD_LENGTH = publicEnv.PASSWORD_LENGTH || 8;
+const YELLOW_LENGTH = MIN_PPASSWORD_LENGTH + 3;
 const GREEN_LENGTH = YELLOW_LENGTH + 4;
 
 // Function to calculate password strength (matches the logic in PasswordStrength.svelte)
 function calculatePasswordStrength(password: string): number {
 	if (password.length >= GREEN_LENGTH) return 3;
 	if (password.length >= YELLOW_LENGTH) return 2;
-	if (password.length >= MIN_PASSWORD_LENGTH) return 1;
+	if (password.length >= MIN_PPASSWORD_LENGTH) return 1;
 	return 0;
 }
 

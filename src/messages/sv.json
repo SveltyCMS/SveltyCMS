@@ -403,7 +403,7 @@
 	"systemConfig_BODY_SIZE_LIMIT_helper": "Definierar kroppsstorleksgräns (standard: 100mb).",
 	"systemConfig_HOST_DEV_helper": "Värdnamn för webbplatsen under utveckling (standard: 'http://localhost:5173').",
 	"systemConfig_HOST_PROD_helper": "Värdnamn för webbplatsen i produktion (standard: 'https://dindomän.de').",
-	"systemConfig_PASSWORD_STRENGHT_helper": "Standard lösenordsstyrka (standard: 8).",
+	"systemConfig_PASSWORD_LENGHT_helper": "Standard lösenordsstyrka (standard: 8).",
 	"systemConfig_USE_SEASON_helper": "Aktivera eller inaktivera säsongsbetonade dekorationer (standard: falskt).",
 	"systemConfig_SEASON_REGION_helper": "Region för säsongsbetonade dekorationer (standard: \"Europa\").",
 	"languageConfig_Description": "Språkinställningar för användargränssnittet och innehållsdata.",

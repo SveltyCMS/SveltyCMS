@@ -170,8 +170,8 @@ export async function createOrUpdateConfigFile(configData) {
             HOST_DEV: '${formatString(configData?.HOST_DEV, 'http://localhost:5173')}',
             HOST_PROD: '${formatString(configData?.HOST_PROD, 'https://yourdomain.de')}', // Consider prompting for this default?
 
-            // Overwrite the default Password strength (Default 3)
-            PASSWORD_STRENGTH: ${formatNumber(configData?.PASSWORD_STRENGTH, 3)}, // Aligned with system.js prompt default
+            // Overwrite the default Password Length (Default 8)
+            PASSWORD_LENGTH: ${formatNumber(configData?.PASSWORD_LENGTH, 8)}, // Aligned with system.js prompt default
 
             // Log Levels (Default: ['info', 'warn', 'error']) (Options: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'none')
             LOG_LEVELS: ${JSON.stringify(configData?.LOG_LEVELS || ['info', 'warn', 'error'])}, // Aligned with system.js prompt default

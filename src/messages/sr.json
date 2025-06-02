@@ -403,7 +403,7 @@
 	"systemConfig_BODY_SIZE_LIMIT_helper": "Дефинише ограничење величине тела (подразумевано: 100мб).",
 	"systemConfig_HOST_DEV_helper": "Име хоста за локацију у развоју (подразумевано: 'хттп://лоцалхост:5173').",
 	"systemConfig_HOST_PROD_helper": "Име хоста за сајт у производњи (подразумевано: 'хттпс://иоурдомаин.де').",
-	"systemConfig_PASSWORD_STRENGHT_helper": "Подразумевана јачина лозинке (подразумевано: 8).",
+	"systemConfig_PASSWORD_LENGHT_helper": "Подразумевана јачина лозинке (подразумевано: 8).",
 	"systemConfig_USE_SEASON_helper": "Омогућите или онемогућите сезонске декорације (подразумевано: нетачно).",
 	"systemConfig_SEASON_REGION_helper": "Регион за сезонске декорације (подразумевано: „Европа“).",
 	"languageConfig_Description": "Подешавања језика за кориснички интерфејс и податке о садржају.",

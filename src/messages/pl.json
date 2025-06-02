@@ -403,7 +403,7 @@
 	"systemConfig_BODY_SIZE_LIMIT_helper": "Określa limit rozmiaru treści (domyślnie: 100mb).",
 	"systemConfig_HOST_DEV_helper": "Nazwa hosta witryny w fazie rozwoju (domyślnie: „http://localhost:5173”).",
 	"systemConfig_HOST_PROD_helper": "Nazwa hosta witryny w fazie produkcyjnej (domyślnie: „https://twojadomena.de”).",
-	"systemConfig_PASSWORD_STRENGHT_helper": "Domyślna siła hasła (domyślnie: 8).",
+	"systemConfig_PASSWORD_LENGHT_helper": "Domyślna siła hasła (domyślnie: 8).",
 	"systemConfig_USE_SEASON_helper": "Włącz lub wyłącz dekoracje sezonowe (domyślnie: wyłączone).",
 	"systemConfig_SEASON_REGION_helper": "Region dekoracji sezonowych (domyślnie: „Europa”).",
 	"languageConfig_Description": "Ustawienia językowe interfejsu użytkownika i danych treści.",

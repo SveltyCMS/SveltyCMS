@@ -315,10 +315,10 @@ const systemConfig: ConfigCategory = {
 			helper: m.systemConfig_HOST_PROD_helper(),
 			icon: 'mdi:lan-disconnect'
 		},
-		PASSWORD_STRENGTH: {
+		PASSWORD_LENGTH: {
 			type: 'number',
 			default: 8,
-			helper: m.systemConfig_PASSWORD_STRENGHT_helper(),
+			helper: m.systemConfig_PASSWORD_LENGHT_helper(),
 			icon: 'mdi:lock'
 		},
 		SEASONS: {

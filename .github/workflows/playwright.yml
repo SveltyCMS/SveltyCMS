@@ -129,7 +129,7 @@ jobs:
 
           publicEnv.SITE_NAME: SveltyCMS
 
-          publicEnv.PASSWORD_STRENGTH: '8'
+          publicEnv.PASSWORD_LENGTH: '8'
 
           publicEnv.DEFAULT_CONTENT_LANGUAGE: 'en'
           publicEnv.AVAILABLE_CONTENT_LANGUAGES: '["en", "de", "es"]'

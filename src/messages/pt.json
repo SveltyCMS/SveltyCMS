@@ -403,7 +403,7 @@
 	"systemConfig_BODY_SIZE_LIMIT_helper": "Define o limite de tamanho do corpo (padrão: 100mb).",
 	"systemConfig_HOST_DEV_helper": "Nome do host do site em desenvolvimento (padrão: 'http://localhost:5173').",
 	"systemConfig_HOST_PROD_helper": "Nome do host do site em produção (padrão: 'https://seudominio.de').",
-	"systemConfig_PASSWORD_STRENGHT_helper": "Força da senha padrão (padrão: 8).",
+	"systemConfig_PASSWORD_LENGHT_helper": "Força da senha padrão (padrão: 8).",
 	"systemConfig_USE_SEASON_helper": "Ative ou desative as decorações sazonais (padrão: falso).",
 	"systemConfig_SEASON_REGION_helper": "Região para decorações sazonais (padrão: 'Europa').",
 	"languageConfig_Description": "Configurações de idioma para a interface do usuário e dados de conteúdo.",

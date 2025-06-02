@@ -403,7 +403,7 @@
 	"systemConfig_BODY_SIZE_LIMIT_helper": "Gövde boyutu sınırını tanımlar (varsayılan: 100mb).",
 	"systemConfig_HOST_DEV_helper": "Geliştirilmekte olan sitenin ana bilgisayar adı (varsayılan: 'http://localhost:5173').",
 	"systemConfig_HOST_PROD_helper": "Üretimdeki sitenin ana bilgisayar adı (varsayılan: 'https://alaniniz.de').",
-	"systemConfig_PASSWORD_STRENGHT_helper": "Varsayılan şifre gücü (varsayılan: 8).",
+	"systemConfig_PASSWORD_LENGHT_helper": "Varsayılan şifre gücü (varsayılan: 8).",
 	"systemConfig_USE_SEASON_helper": "Sezonluk dekorasyonları etkinleştirin veya devre dışı bırakın (varsayılan: false).",
 	"systemConfig_SEASON_REGION_helper": "Sezonluk dekorasyonlara yönelik bölge (varsayılan: 'Avrupa').",
 	"languageConfig_Description": "Kullanıcı arayüzü ve içerik verileri için dil ayarları.",

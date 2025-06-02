@@ -403,7 +403,7 @@
 	"systemConfig_BODY_SIZE_LIMIT_helper": "Definiert die Textgrößenbeschränkung (Standard: 100 MB).",
 	"systemConfig_HOST_DEV_helper": "Hostname für die Site in Entwicklung (Standard: „http://localhost:5173“).",
 	"systemConfig_HOST_PROD_helper": "Hostname für die Site in der Produktion (Standard: „https://IhreDomain.de“).",
-	"systemConfig_PASSWORD_STRENGHT_helper": "Standardmäßige Kennwortstärke (Standard: 8).",
+	"systemConfig_PASSWORD_LENGHT_helper": "Standardmäßige Kennwortlänge (Standard: 8).",
 	"systemConfig_USE_SEASON_helper": "Aktivieren oder deaktivieren Sie saisonale Dekorationen (Standard: „false“).",
 	"systemConfig_SEASON_REGION_helper": "Region für saisonale Dekorationen (Standard: „Europa“).",
 	"languageConfig_Description": "Spracheinstellungen für die Benutzeroberfläche und Inhaltsdaten.",

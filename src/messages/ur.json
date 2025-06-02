@@ -403,7 +403,7 @@
 	"systemConfig_BODY_SIZE_LIMIT_helper": "جسم کے سائز کی حد کی وضاحت کرتا ہے (پہلے سے طے شدہ: 100 ایم بی)۔",
 	"systemConfig_HOST_DEV_helper": "ترقی میں سائٹ کا میزبان نام (پہلے سے طے شدہ: 'http://localhost:5173')۔",
 	"systemConfig_HOST_PROD_helper": "پروڈکشن میں سائٹ کے لیے میزبان نام (پہلے سے طے شدہ: 'https://yourdomain.de')۔",
-	"systemConfig_PASSWORD_STRENGHT_helper": "پہلے سے طے شدہ پاس ورڈ کی طاقت (ڈیفالٹ: 8)۔",
+	"systemConfig_PASSWORD_LENGHT_helper": "پہلے سے طے شدہ پاس ورڈ کی طاقت (ڈیفالٹ: 8)۔",
 	"systemConfig_USE_SEASON_helper": "موسمی سجاوٹ کو فعال یا غیر فعال کریں (پہلے سے طے شدہ: غلط)۔",
 	"systemConfig_SEASON_REGION_helper": "موسمی سجاوٹ کے لیے علاقہ (پہلے سے طے شدہ: 'یورپ')۔",
 	"languageConfig_Description": "صارف انٹرفیس اور مواد کے ڈیٹا کے لیے زبان کی ترتیبات۔",

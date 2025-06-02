@@ -403,7 +403,7 @@
 	"systemConfig_BODY_SIZE_LIMIT_helper": "Визначає обмеження розміру тіла (за замовчуванням: 100 Мб).",
 	"systemConfig_HOST_DEV_helper": "Ім’я хосту для сайту, що розробляється (за замовчуванням: 'http://localhost:5173').",
 	"systemConfig_HOST_PROD_helper": "Ім’я хосту для робочого сайту (за замовчуванням: https://yourdomain.de).",
-	"systemConfig_PASSWORD_STRENGHT_helper": "Надійність пароля за замовчуванням (за замовчуванням: 8).",
+	"systemConfig_PASSWORD_LENGHT_helper": "Надійність пароля за замовчуванням (за замовчуванням: 8).",
 	"systemConfig_USE_SEASON_helper": "Увімкнути або вимкнути сезонні прикраси (за замовчуванням: false).",
 	"systemConfig_SEASON_REGION_helper": "Регіон для сезонних прикрас (за замовчуванням: «Європа»).",
 	"languageConfig_Description": "Налаштування мови для інтерфейсу користувача та даних вмісту.",

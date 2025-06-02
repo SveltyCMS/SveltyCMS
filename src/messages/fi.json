@@ -403,7 +403,7 @@
 	"systemConfig_BODY_SIZE_LIMIT_helper": "Määrittää kehon kokorajoituksen (oletus: 100 Mt).",
 	"systemConfig_HOST_DEV_helper": "Kehityksessä olevan sivuston isäntänimi (oletus: 'http://localhost:5173').",
 	"systemConfig_HOST_PROD_helper": "Tuotannossa olevan sivuston isäntänimi (oletus: https://yourdomain.de).",
-	"systemConfig_PASSWORD_STRENGHT_helper": "Oletussalasanan vahvuus (oletus: 8).",
+	"systemConfig_PASSWORD_LENGHT_helper": "Oletussalasanan vahvuus (oletus: 8).",
 	"systemConfig_USE_SEASON_helper": "Ota kausiluonteiset koristeet käyttöön tai poista ne käytöstä (oletus: false).",
 	"systemConfig_SEASON_REGION_helper": "Kausiluonteisten koristeiden alue (oletus: \"Eurooppa\").",
 	"languageConfig_Description": "Käyttöliittymän ja sisältötietojen kieliasetukset.",

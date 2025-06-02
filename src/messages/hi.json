@@ -403,7 +403,7 @@
 	"systemConfig_BODY_SIZE_LIMIT_helper": "बॉडी आकार सीमा निर्धारित करता है (डिफ़ॉल्ट: 100mb).",
 	"systemConfig_HOST_DEV_helper": "विकासाधीन साइट के लिए होस्टनाम (डिफ़ॉल्ट: 'http://localhost:5173').",
 	"systemConfig_HOST_PROD_helper": "उत्पादन में साइट के लिए होस्टनाम (डिफ़ॉल्ट: 'https://yourdomain.de').",
-	"systemConfig_PASSWORD_STRENGHT_helper": "डिफ़ॉल्ट पासवर्ड शक्ति (डिफ़ॉल्ट: 8).",
+	"systemConfig_PASSWORD_LENGHT_helper": "डिफ़ॉल्ट पासवर्ड शक्ति (डिफ़ॉल्ट: 8).",
 	"systemConfig_USE_SEASON_helper": "मौसमी सजावट को सक्षम या अक्षम करें (डिफ़ॉल्ट: गलत)।",
 	"systemConfig_SEASON_REGION_helper": "मौसमी सजावट के लिए क्षेत्र (डिफ़ॉल्ट: 'यूरोप').",
 	"languageConfig_Description": "उपयोगकर्ता इंटरफ़ेस और सामग्री डेटा के लिए भाषा सेटिंग्स.",

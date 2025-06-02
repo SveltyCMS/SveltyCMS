@@ -403,7 +403,7 @@
 	"systemConfig_BODY_SIZE_LIMIT_helper": "Definisce il limite delle dimensioni del corpo (impostazione predefinita: 100 MB).",
 	"systemConfig_HOST_DEV_helper": "Nome host per il sito in sviluppo (predefinito: 'http://localhost:5173').",
 	"systemConfig_HOST_PROD_helper": "Nome host per il sito in produzione (predefinito: 'https://tuodominio.de').",
-	"systemConfig_PASSWORD_STRENGHT_helper": "Complessità password predefinita (impostazione predefinita: 8).",
+	"systemConfig_PASSWORD_LENGHT_helper": "Complessità password predefinita (impostazione predefinita: 8).",
 	"systemConfig_USE_SEASON_helper": "Abilita o disabilita le decorazioni stagionali (impostazione predefinita: false).",
 	"systemConfig_SEASON_REGION_helper": "Regione per le decorazioni stagionali (predefinita: 'Europa').",
 	"languageConfig_Description": "Impostazioni della lingua per l'interfaccia utente e i dati sui contenuti.",

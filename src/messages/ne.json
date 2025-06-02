@@ -403,7 +403,7 @@
 	"systemConfig_BODY_SIZE_LIMIT_helper": "शरीरको आकार सीमा परिभाषित गर्दछ (पूर्वनिर्धारित: 100mb)।",
 	"systemConfig_HOST_DEV_helper": "विकासमा रहेको साइटको लागि होस्टनाम (पूर्वनिर्धारित: 'http://localhost:5173')।",
 	"systemConfig_HOST_PROD_helper": "उत्पादनमा रहेको साइटको लागि होस्टनाम (पूर्वनिर्धारित: 'https://yourdomain.de')।",
-	"systemConfig_PASSWORD_STRENGHT_helper": "पूर्वनिर्धारित पासवर्ड बल (पूर्वनिर्धारित: 8)।",
+	"systemConfig_PASSWORD_LENGHT_helper": "पूर्वनिर्धारित पासवर्ड बल (पूर्वनिर्धारित: 8)।",
 	"systemConfig_USE_SEASON_helper": "मौसमी सजावट सक्षम वा असक्षम पार्नुहोस् (पूर्वनिर्धारित: गलत)।",
 	"systemConfig_SEASON_REGION_helper": "मौसमी सजावटका लागि क्षेत्र (पूर्वनिर्धारित: 'युरोप')।",
 	"languageConfig_Description": "प्रयोगकर्ता इन्टरफेस र सामग्री डेटाको लागि भाषा सेटिङहरू।",

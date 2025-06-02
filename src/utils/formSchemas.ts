@@ -32,7 +32,7 @@ import {
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
 
-const MIN_PASSWORD_LENGTH = publicEnv.PASSWORD_STRENGTH || 8;
+const MIN_PPASSWORD_LENGTH = publicEnv.PASSWORD_LENGTH || 8;
 
 // --- Reusable Username Schemas ---
 const usernameSchema = pipe(
@@ -57,10 +57,10 @@ const passwordSchema = pipe(
 	string(),
 	trim(),
 	transform((value) => value ?? ''),
-	minLength(MIN_PASSWORD_LENGTH, m.formSchemas_PasswordMessage({ passwordStrength: MIN_PASSWORD_LENGTH })),
+	minLength(MIN_PPASSWORD_LENGTH, m.formSchemas_PasswordMessage({ passwordStrength: MIN_PPASSWORD_LENGTH })),
 	regex(
-		new RegExp(`^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{${MIN_PASSWORD_LENGTH},}$`),
-		m.formSchemas_PasswordMessage({ passwordStrength: MIN_PASSWORD_LENGTH })
+		new RegExp(`^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{${MIN_PPASSWORD_LENGTH},}$`),
+		m.formSchemas_PasswordMessage({ passwordStrength: MIN_PPASSWORD_LENGTH })
 	)
 );
 

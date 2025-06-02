@@ -403,7 +403,7 @@
 	"systemConfig_BODY_SIZE_LIMIT_helper": "Določa omejitev velikosti telesa (privzeto: 100 mb).",
 	"systemConfig_HOST_DEV_helper": "Ime gostitelja za mesto v razvoju (privzeto: 'http://localhost:5173').",
 	"systemConfig_HOST_PROD_helper": "Ime gostitelja za spletno mesto v izdelavi (privzeto: 'https://yourdomain.de').",
-	"systemConfig_PASSWORD_STRENGHT_helper": "Privzeta moč gesla (privzeto: 8).",
+	"systemConfig_PASSWORD_LENGHT_helper": "Privzeta moč gesla (privzeto: 8).",
 	"systemConfig_USE_SEASON_helper": "Omogoči ali onemogoči sezonske dekoracije (privzeto: false).",
 	"systemConfig_SEASON_REGION_helper": "Regija za sezonske okraske (privzeto: 'Evropa').",
 	"languageConfig_Description": "Jezikovne nastavitve za uporabniški vmesnik in podatke o vsebini.",

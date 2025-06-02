@@ -403,7 +403,7 @@
 	"systemConfig_BODY_SIZE_LIMIT_helper": "本文のサイズ制限を定義します (デフォルト: 100 MB)。",
 	"systemConfig_HOST_DEV_helper": "開発中のサイトのホスト名 (デフォルト: 'http://localhost:5173')。",
 	"systemConfig_HOST_PROD_helper": "運用中のサイトのホスト名 (デフォルト: 'https://yourdomain.de')。",
-	"systemConfig_PASSWORD_STRENGHT_helper": "デフォルトのパスワード強度（デフォルト: 8）。",
+	"systemConfig_PASSWORD_LENGHT_helper": "デフォルトのパスワード強度（デフォルト: 8）。",
 	"systemConfig_USE_SEASON_helper": "季節の装飾を有効または無効にします (デフォルト: false)。",
 	"systemConfig_SEASON_REGION_helper": "季節の装飾の地域 (デフォルト:「ヨーロッパ」)。",
 	"languageConfig_Description": "ユーザー インターフェイスとコンテンツ データの言語設定。",

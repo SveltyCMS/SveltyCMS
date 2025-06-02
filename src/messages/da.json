@@ -403,7 +403,7 @@
 	"systemConfig_BODY_SIZE_LIMIT_helper": "Definerer kropsstørrelsesgrænse (standard: 100mb).",
 	"systemConfig_HOST_DEV_helper": "Værtsnavn for webstedet under udvikling (standard: 'http://localhost:5173').",
 	"systemConfig_HOST_PROD_helper": "Værtsnavn for webstedet i produktion (standard: 'https://ditdomæne.de').",
-	"systemConfig_PASSWORD_STRENGHT_helper": "Standard adgangskodestyrke (standard: 8).",
+	"systemConfig_PASSWORD_LENGHT_helper": "Standard adgangskodestyrke (standard: 8).",
 	"systemConfig_USE_SEASON_helper": "Aktiver eller deaktiver sæsonbestemte dekorationer (standard: falsk).",
 	"systemConfig_SEASON_REGION_helper": "Region for sæsonbestemte dekorationer (standard: 'Europa').",
 	"languageConfig_Description": "Sprogindstillinger for brugergrænsefladen og indholdsdata.",

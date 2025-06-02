@@ -403,7 +403,7 @@
 	"systemConfig_BODY_SIZE_LIMIT_helper": "განსაზღვრავს სხეულის ზომის ლიმიტს (ნაგულისხმევი: 100 მბ).",
 	"systemConfig_HOST_DEV_helper": "განვითარების პროცესში მყოფი საიტის ჰოსტის სახელი (ნაგულისხმევი: 'http://localhost:5173').",
 	"systemConfig_HOST_PROD_helper": "საიტის ჰოსტის სახელი წარმოებაში (ნაგულისხმევი: 'https://yourdomain.de').",
-	"systemConfig_PASSWORD_STRENGHT_helper": "პაროლის ნაგულისხმევი ძალა (ნაგულისხმევი: 8).",
+	"systemConfig_PASSWORD_LENGHT_helper": "პაროლის ნაგულისხმევი ძალა (ნაგულისხმევი: 8).",
 	"systemConfig_USE_SEASON_helper": "სეზონური დეკორაციების ჩართვა ან გამორთვა (ნაგულისხმევი: ყალბი).",
 	"systemConfig_SEASON_REGION_helper": "რეგიონი სეზონური დეკორაციისთვის (ნაგულისხმევი: 'ევროპა').",
 	"languageConfig_Description": "ენის პარამეტრები მომხმარებლის ინტერფეისისა და კონტენტის მონაცემებისთვის.",

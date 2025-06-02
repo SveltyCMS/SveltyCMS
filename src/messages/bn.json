@@ -403,7 +403,7 @@
 	"systemConfig_BODY_SIZE_LIMIT_helper": "বডি সাইজ লিমিট নির্ধারণ করে (ডিফল্ট: ১০০ এমবি)।",
 	"systemConfig_HOST_DEV_helper": "ডেভেলপমেন্টাধীন সাইটের হোস্টনেম (ডিফল্ট: 'http://localhost:5173')।",
 	"systemConfig_HOST_PROD_helper": "উৎপাদনে থাকা সাইটের হোস্টনেম (ডিফল্ট: 'https://yourdomain.de')।",
-	"systemConfig_PASSWORD_STRENGHT_helper": "ডিফল্ট পাসওয়ার্ডের শক্তি (ডিফল্ট: ৮)।",
+	"systemConfig_PASSWORD_LENGHT_helper": "ডিফল্ট পাসওয়ার্ডের শক্তি (ডিফল্ট: ৮)।",
 	"systemConfig_USE_SEASON_helper": "মৌসুমী সাজসজ্জা সক্ষম বা অক্ষম করুন (ডিফল্ট: মিথ্যা)।",
 	"systemConfig_SEASON_REGION_helper": "মৌসুমি সাজসজ্জার জন্য অঞ্চল (ডিফল্ট: 'ইউরোপ')।",
 	"languageConfig_Description": "ব্যবহারকারী ইন্টারফেস এবং কন্টেন্ট ডেটার জন্য ভাষা সেটিংস।",

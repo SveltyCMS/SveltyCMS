@@ -14,6 +14,14 @@ import type { User, Permission } from './types';
 import { corePermissions } from './corePermissions';
 import { roles } from '@root/config/roles';
 
+export interface PermissionConfig {
+	contextId: string;
+	name: string;
+	action: string;
+	contextType: string;
+	description: string;
+}
+
 // Permission registry for dynamic permissions
 const permissionRegistry = new Map<string, Permission>();
 
@@ -97,7 +105,7 @@ export function getAllRoles() {
 }
 
 // Legacy permission config compatibility - maps old config keys to new permission IDs
-export function getPermissionConfig(configKey: string) {
+export function getPermissionConfig(configKey: string): PermissionConfig | null {
 	const configMap: Record<string, string> = {
 		collectionManagement: 'config:collectionManagement',
 		collectionbuilder: 'config:collectionbuilder',

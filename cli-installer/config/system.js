@@ -106,7 +106,7 @@ export async function configureSystem(privateConfigData = {}) {
 			`Site Name: ${pc.cyan(privateConfigData.SITE_NAME)}\n` +
 				`Dev Host: ${pc.cyan(privateConfigData.HOST_DEV)}\n` +
 				`Prod Host: ${pc.cyan(privateConfigData.HOST_PROD)}\n` +
-				`Password Strength: ${pc.cyan(privateConfigData.PASSWORD_STRENGTH?.toString())}\n` +
+				`Password Length: ${pc.cyan(privateConfigData.PASSWORD_LENGTH?.toString())}\n` +
 				`Body Size Limit: ${pc.cyan(formatBytesToSize(privateConfigData.BODY_SIZE_LIMIT) || 'Not set')}\n` +
 				`Max File Size: ${pc.cyan(formatBytesToSize(privateConfigData.MAX_FILE_SIZE) || 'Not set')}\n` +
 				`Enable Data Extraction?: ${pc.cyan(privateConfigData.EXTRACT_DATA_PATH ? 'Yes' : 'No')}\n` + // Adjusted display
@@ -168,16 +168,16 @@ export async function configureSystem(privateConfigData = {}) {
 		return;
 	}
 
-	const PASSWORD_STRENGTH = await text({
-		message: 'Enter the minimum password strength score (e.g., 0-4, default: 3):',
+	const PASSWORD_LENGTH = await text({
+		message: 'Enter the minimum password length (default: 8):',
 		placeholder: '3',
-		initialValue: privateConfigData.PASSWORD_STRENGTH?.toString() || '3',
+		initialValue: privateConfigData.PASSWORD_LENGTH?.toString() || '8',
 		validate: (value) => {
 			const error = validatePositiveInteger(value, 'Password strength');
 			return error ? error : undefined; // Return error object or undefined
 		}
 	});
-	if (isCancel(PASSWORD_STRENGTH)) {
+	if (isCancel(PASSWORD_LENGTH)) {
 		await cancelOperation();
 		return;
 	}
@@ -385,7 +385,7 @@ export async function configureSystem(privateConfigData = {}) {
 		`Site Name: ${pc.green(SITE_NAME)}\n` +
 			`Dev Host: ${pc.green(HOST_DEV)}\n` +
 			`Prod Host: ${pc.green(HOST_PROD)}\n` +
-			`Password Strength: ${pc.green(PASSWORD_STRENGTH)}\n` +
+			`Password Length: ${pc.green(PASSWORD_LENGTH)}\n` +
 			`Body Size Limit: ${pc.green(formatBytesToSize(BODY_SIZE_LIMIT) || 'Not set')}\n` +
 			`Max File Size: ${pc.green(formatBytesToSize(MAX_FILE_SIZE) || 'Not set')}\n` +
 			`Enable Data Extraction?: ${pc.green(EXTRACT_DATA_PATH ? 'Yes' : 'No')}\n` +
@@ -423,7 +423,7 @@ export async function configureSystem(privateConfigData = {}) {
 		SITE_NAME,
 		HOST_DEV,
 		HOST_PROD,
-		PASSWORD_STRENGTH: Number(PASSWORD_STRENGTH),
+		PASSWORD_LENGTH: Number(PASSWORD_LENGTH),
 		BODY_SIZE_LIMIT, // Already in bytes
 		MAX_FILE_SIZE, // Already in bytes
 		EXTRACT_DATA_PATH,
