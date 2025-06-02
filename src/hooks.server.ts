@@ -350,7 +350,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		// Check if auth service is ready
 		const authServiceReady = auth !== null && typeof auth.validateSession === 'function';
 
-		const session_id = event.cookies.get(SESSION_COOKIE_NAME);
+		let session_id = event.cookies.get(SESSION_COOKIE_NAME);
 		const user = await getUserFromSessionId(session_id, authServiceReady);
 
 		if (user && session_id && authServiceReady) {
@@ -593,11 +593,17 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 
 	// ADMIN OVERRIDE: Admins automatically have ALL permissions
 	const userRole = roles.find((role) => role._id === user.role);
-	const permissionExists = userPerms.some((p) => p === requiredPermissionName);
-	if (!permissionExists) {
-		// If the user *lacks* the specific API permission
-		logger.warn(`User \x1b[34m${user._id}\x1b[0m denied access to API /api/${apiEndpoint} due to missing permission: ${requiredPermissionName}`);
-		throw error(403, `Forbidden: You do not have the required permission ('${requiredPermissionName}') to access this API endpoint.`);
+	const isAdmin = userRole?.isAdmin === true;
+
+	if (!isAdmin) {
+		const permissionExists = userPerms.some((p) => p === requiredPermissionName);
+		if (!permissionExists) {
+			// If the user *lacks* the specific API permission
+			logger.warn(`User \x1b[34m${user._id}\x1b[0m denied access to API /api/${apiEndpoint} due to missing permission: ${requiredPermissionName}`);
+			throw error(403, `Forbidden: You do not have the required permission ('${requiredPermissionName}') to access this API endpoint.`);
+		}
+	} else {
+		logger.debug(`Admin user ${user.email || user._id} granted access to API /api/${apiEndpoint}`);
 	}
 
 	// Handle GET requests with caching
@@ -651,7 +657,7 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 					}
 				});
 			} catch (processingError) {
-				logger.error(`Error processing API GET response for \x1b[31m/api/${apiEndpoint}\x1b[0m (user: \x1b[31m${user._id}\x1b[0m): ${processingError.message}`);
+				logger.error(`Error processing API GET response for \x1b[34m/api/${apiEndpoint}\x1b[0m (user: \x1b[31m${user._id}\x1b[0m): ${processingError.message}`);
 				return new Response(
 					JSON.stringify({
 						error: 'Failed to process API response',
@@ -675,7 +681,7 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 		const baseCacheKey = `api:${apiEndpoint}:${user._id}`;
 		try {
 			await cacheStore.deletePattern(`${baseCacheKey}:*`);
-			logger.debug(`Invalidated API cache for keys starting with \x1b[31m${baseCacheKey}\x1b[0m after \x1b[31m${event.request.method}\x1b[0m request`);
+			logger.debug(`Invalidated API cache for keys starting with \x1b[34m${baseCacheKey}\x1b[0m after \x1b[31m${event.request.method}\x1b[0m request`);
 		} catch (err) {
 			logger.error(`Failed to invalidate API cache for ${baseCacheKey}: ${err.message}`);
 		}

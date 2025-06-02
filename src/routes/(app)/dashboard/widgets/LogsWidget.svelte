@@ -173,10 +173,10 @@
 	onDataLoaded={handleDataUpdate}
 >
 	<div class="flex h-full flex-col">
-		<div class="mb-3 flex flex-wrap items-center gap-2">
+		<div class="flex flex-wrap items-center gap-2">
 			<select
 				bind:value={filterLevel}
-				class="rounded border border-gray-300 bg-white p-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+				class="min-w-24 rounded border border-gray-300 bg-white p-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 				aria-label="Filter by log level"
 			>
 				{#each logLevelOptions as option}
@@ -205,15 +205,15 @@
 				aria-label="Filter by end date"
 			/>
 		</div>
-
-		<div class="flex-1 overflow-y-auto pr-1 text-xs">
+		<!-- Body -->
+		<div class="mt-1 flex-1 overflow-y-auto text-xs">
 			{#if logs.length === 0}
-				<div class="text-center text-gray-500 dark:text-gray-400">No log entries found.</div>
+				<div class="text-center text-surface-500 dark:text-gray-400">No log entries found.</div>
 			{:else}
-				<ul class="space-y-1">
+				<ul class="space-y-0.5">
 					{#each logs as logEntry (logEntry.timestamp + logEntry.message)}
-						<li class="rounded p-1 {theme === 'light' ? 'bg-gray-50' : 'bg-gray-700'}">
-							<span class="font-mono text-gray-500 dark:text-gray-400">[{logEntry.timestamp.slice(11, 19)}]</span>
+						<li class="rounded p-1 {theme === 'light' ? 'bg-gray-100' : 'bg-gray-700'}">
+							<span class="font-mono text-surface-500 dark:text-gray-400">[{logEntry.timestamp.slice(11, 19)}]</span>
 							<span class="ml-1 font-bold {getLogLevelColor(logEntry.level)}">[{logEntry.level.toUpperCase()}]</span>
 							<span class="text-text-800 dark:text-text-200 ml-1">{logEntry.message}</span>
 							{#if logEntry.args && logEntry.args.length > 0}
@@ -225,32 +225,32 @@
 			{/if}
 		</div>
 
-		<div class="mt-3 flex items-center justify-between border-t pt-2 {theme === 'light' ? 'border-gray-200' : 'border-gray-600'}">
+		<!-- Pagination controls -->
+		<div class="-mb-1 mt-1 flex items-center justify-between border-t {theme === 'light' ? 'border-gray-200' : 'border-gray-600'}">
 			<button
 				onclick={() => goToPage(1)}
 				disabled={currentPage === 1}
-				class="btn-icon rounded p-1 {currentPage === 1 ? 'text-gray-400' : 'text-primary-500 hover:bg-primary-100 dark:hover:bg-primary-900'}"
+				class="btn-icon {currentPage === 1 ? 'text-gray-400' : 'text-primary-500'}"
 				aria-label="First page"
 			>
 				<iconify-icon icon="mdi:page-first" width="18"></iconify-icon>
 			</button>
+
 			<button
 				onclick={prevPage}
 				disabled={currentPage === 1}
-				class="btn-icon rounded p-1 {currentPage === 1 ? 'text-gray-400' : 'text-primary-500 hover:bg-primary-100 dark:hover:bg-primary-900'}"
+				class="btn-icon {currentPage === 1 ? 'text-gray-400' : 'text-primary-500'}"
 				aria-label="Previous page"
 			>
 				<iconify-icon icon="mdi:chevron-left" width="18"></iconify-icon>
 			</button>
 
-			<span class="text-sm text-gray-700 dark:text-gray-300">Page {currentPage} of {totalPages}</span>
+			<span class="text-xs text-gray-700 dark:text-gray-300">Page {currentPage} of {totalPages}</span>
 
 			<button
 				onclick={nextPage}
 				disabled={currentPage === totalPages || totalPages === 0}
-				class="btn-icon rounded p-1 {currentPage === totalPages || totalPages === 0
-					? 'text-gray-400'
-					: 'text-primary-500 hover:bg-primary-100 dark:hover:bg-primary-900'}"
+				class="btn-icon {currentPage === totalPages || totalPages === 0 ? 'text-gray-400' : 'text-primary-500'}"
 				aria-label="Next page"
 			>
 				<iconify-icon icon="mdi:chevron-right" width="18"></iconify-icon>
@@ -258,9 +258,7 @@
 			<button
 				onclick={() => goToPage(totalPages)}
 				disabled={currentPage === totalPages || totalPages === 0}
-				class="btn-icon rounded p-1 {currentPage === totalPages || totalPages === 0
-					? 'text-gray-400'
-					: 'text-primary-500 hover:bg-primary-100 dark:hover:bg-primary-900'}"
+				class="btn-icon {currentPage === totalPages || totalPages === 0 ? 'text-gray-400' : 'text-primary-500 '}"
 				aria-label="Last page"
 			>
 				<iconify-icon icon="mdi:page-last" width="18"></iconify-icon>

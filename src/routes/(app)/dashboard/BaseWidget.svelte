@@ -239,13 +239,14 @@
 
 <div
 	bind:this={widgetEl}
-	class="widget-container group flex h-full flex-col overflow-hidden rounded-lg border shadow-md
+	class="widget-container group flex h-full flex-col overflow-hidden rounded border shadow-md
         {theme === 'light' ? 'border-gray-200 bg-white text-gray-800' : 'border-gray-700 bg-gray-800 text-gray-100'}"
 	style:user-select={resizing ? 'none' : 'auto'}
 	aria-labelledby="widget-title-{widgetId || label}"
 >
+	<!-- Header -->
 	<div
-		class="widget-header flex items-center justify-between border-b p-2.5
+		class="widget-header flex items-center justify-between border-b pl-2
             {theme === 'light' ? 'border-gray-200 bg-gray-50' : 'bg-gray-750 border-gray-700'}"
 	>
 		<h3 id="widget-title-{widgetId || label}" class="flex items-center gap-1.5 truncate text-sm font-medium">
@@ -254,16 +255,14 @@
 			{/if}
 			<span class="truncate">{label}</span>
 		</h3>
-		<button
-			onclick={onCloseRequest}
-			class="btn-icon rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-gray-600 dark:hover:text-gray-300"
-			aria-label="Remove {label} widget"
-		>
-			<iconify-icon icon="mdi:close" width="16"></iconify-icon>
+
+		<button onclick={onCloseRequest} class="btn-icon text-gray-400" aria-label="Remove {label} widget">
+			<iconify-icon icon="mdi:close" width="18"></iconify-icon>
 		</button>
 	</div>
 
-	<div class="widget-body relative min-h-[50px] flex-1 overflow-auto p-3">
+	<!-- Body -->
+	<div class="widget-body relative min-h-[50px] flex-1 overflow-auto px-2 py-1">
 		{#if endpoint && loading && !data}
 			<div class="loading-state absolute inset-0 flex items-center justify-center text-xs text-gray-500">Loading...</div>
 		{:else if endpoint && error && !data}
