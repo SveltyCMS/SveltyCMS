@@ -23,7 +23,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 
 // Auth
 import { auth } from '@src/databases/db';
-import { checkUserPermission } from '@src/auth/permissions';
+import { hasPermissionByAction } from '@src/auth/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -43,12 +43,12 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// Check if the user has permission to delete users
-		const { hasPermission } = await checkUserPermission(locals.user, {
-			contextId: 'config/userManagement',
-			name: 'Delete Users',
-			action: 'manage',
-			contextType: 'system'
-		});
+		const hasPermission = hasPermissionByAction(
+			locals.user,
+			'manage',
+			'system',
+			'config/userManagement'
+		);
 
 		if (!hasPermission) {
 			throw error(403, 'Unauthorized to delete users');

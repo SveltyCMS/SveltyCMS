@@ -31,15 +31,6 @@ import { valibot } from 'sveltekit-superforms/adapters';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-// Utility function to validate and convert a timestamp to ISO string
-const safeDateFromTimestamp = (timestamp: unknown): string | null => {
-	if (typeof timestamp === 'number' && !isNaN(timestamp)) {
-		const date = new Date(timestamp);
-		return date.toISOString();
-	}
-	return null;
-};
-
 export const load: PageServerLoad = async (event) => {
 	try {
 		const user: User | null = event.locals.user;
@@ -54,17 +45,17 @@ export const load: PageServerLoad = async (event) => {
 		// Prepare user object for return, ensuring _id is a string
 		const safeUser = user
 			? {
-					...user,
-					_id: user._id.toString(),
-					password: '[REDACTED]' // Ensure password is not sent to client
-				}
+				...user,
+				_id: user._id.toString(),
+				password: '[REDACTED]' // Ensure password is not sent to client
+			}
 			: null;
 
 		let adminData = null;
 
 		if (user?.isAdmin || hasManageUsersPermission) {
 			const allUsers: User[] = event.locals?.allUsers ?? [];
-			const allTokens: Token[] = event.locals?.allTokens?.tokens ?? [];
+			const allTokens: Token[] = event.locals?.allTokens?.tokens ?? event.locals?.allTokens ?? [];
 
 			// Format users and tokens for the admin area
 			const formattedUsers = allUsers.map((user) => ({
@@ -81,12 +72,15 @@ export const load: PageServerLoad = async (event) => {
 			}));
 
 			const formattedTokens = allTokens.map((token) => ({
+				_id: token._id || token.user_id, // Use _id if available, fallback to user_id
 				user_id: token.user_id,
+				token: token.token || '', // Include the actual token value
 				blocked: false, // Assuming tokens don't have a 'blocked' status
 				email: token.email || '',
-				expiresIn: token.expires ? new Date(token.expires).toISOString() : null,
-				createdAt: safeDateFromTimestamp(token.token_id), // Convert token_id to ISO string
-				updatedAt: safeDateFromTimestamp(token.token_id) // Convert token_id to ISO string
+				role: token.type || 'user', // Use token type as role, default to 'user'
+				expires: token.expires ? new Date(token.expires).toISOString() : null,
+				createdAt: token.createdAt ? new Date(token.createdAt).toISOString() : null,
+				updatedAt: token.updatedAt ? new Date(token.updatedAt).toISOString() : null
 			}));
 
 			adminData = {
@@ -94,8 +88,6 @@ export const load: PageServerLoad = async (event) => {
 				tokens: formattedTokens
 			};
 
-			// Log masked admin data
-			logger.debug(`Admin data prepared: ${JSON.stringify(adminData)}`);
 		}
 
 		// Provide manageUsersPermissionConfig to the client

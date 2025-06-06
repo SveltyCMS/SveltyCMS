@@ -227,7 +227,7 @@ export class UserAdapter implements Partial<authDBInterface> {
 	}
 
 	// Check if a user has a specific permission
-	async checkUserPermission(user_id: string, permissionName: string): Promise<boolean> {
+	async hasPermissionByAction(user_id: string, permissionName: string): Promise<boolean> {
 		try {
 			const user = await this.UserModel.findById(user_id).lean();
 			if (!user) {
@@ -245,7 +245,7 @@ export class UserAdapter implements Partial<authDBInterface> {
 			logger.debug(`User ${user_id} does not have permission: \x1b[34m${permissionName}\x1b[0m`);
 			return false;
 		} catch (err) {
-			const message = `Error in UserAdapter.checkUserPermission: ${err instanceof Error ? err.message : String(err)}`;
+			const message = `Error in UserAdapter.hasPermissionByAction: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, { user_id, permissionName });
 			throw error(500, message);
 		}

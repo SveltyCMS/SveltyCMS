@@ -1,6 +1,16 @@
 /**
- * @file src/routes/api/user/saveAvatar/+server.ts
- * @description API endpoint for saving a user's avatar image.
+ * @file src/routes/api/user/saveAvatar/		// Check if the user has permission to update their avatar
+		const hasPermission = hasPermissionByAction(
+			locals.user, 
+			'update', 
+			'user', 
+			'user/profile'
+		);
+
+		if (!hasPermission) {
+			logger.error('Unauthorized to update avatar', { userId: locals.user._id });
+			throw error(403, 'Unauthorized to update avatar');
+		}* @description API endpoint for saving a user's avatar image.
  *
  * This module provides functionality to:
  * - Save a new avatar image for a user
@@ -25,7 +35,7 @@ import type { RequestHandler } from './$types';
 
 // Auth
 import { auth } from '@src/databases/db';
-import { checkUserPermission } from '@src/auth/permissions';
+import { hasPermissionByAction } from '@src/auth/permissions';
 
 // System logger
 import { logger } from '@utils/logger.svelte';
@@ -43,7 +53,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// Check if the user has permission to update their avatar
-		const { hasPermission } = await checkUserPermission(locals.user, {
+		const { hasPermission } = await hasPermissionByAction(locals.user, {
 			contextId: 'user/profile',
 			name: 'Update Avatar',
 			action: 'update',

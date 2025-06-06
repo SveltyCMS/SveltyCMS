@@ -34,7 +34,7 @@ import { compile } from '@src/routes/api/compile/compile';
 import widgets from '@widgets';
 
 // Auth
-import { checkUserPermission } from '@src/auth/permissions';
+import { hasPermissionByAction } from '@src/auth/permissions';
 import { permissionConfigs } from '@src/auth/permissions';
 import { roles } from '@root/config/roles';
 import { permissions } from '@src/auth/permissions';
@@ -69,7 +69,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 		// Check user permission for collection management
 		const collectionManagementConfig = permissionConfigs.collectionManagement;
-		const permissionCheck = await checkUserPermission(user, collectionManagementConfig);
+		const permissionCheck = await hasPermissionByAction(user, collectionManagementConfig);
 		if (!permissionCheck.hasPermission) {
 			const message = `User ${user._id} does not have permission to access collection management`;
 			logger.warn(message);

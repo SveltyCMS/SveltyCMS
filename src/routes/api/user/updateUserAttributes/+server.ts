@@ -23,7 +23,7 @@ import type { RequestHandler } from './$types';
 
 // Auth
 import { auth } from '@src/databases/db';
-import { checkUserPermission } from '@src/auth/permissions';
+import { hasPermissionByAction } from '@src/auth/permissions';
 import { PermissionAction } from '@src/auth/auth';
 
 // System Logger
@@ -56,12 +56,12 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 
 		// Special handling for password changes - user can only change their own password
 		if (newUserData.password && locals.user && user_id !== locals.user?._id) {
-			const { hasPermission } = await checkUserPermission(locals.user, {
-				contextId: 'config/userManagement',
-				name: 'Update User Attributes',
-				action: PermissionAction.MANAGE,
-				contextType: 'system'
-			});
+			const hasPermission = hasPermissionByAction(
+				locals.user,
+				PermissionAction.MANAGE,
+				'system',
+				'config/userManagement'
+			);
 
 			if (!hasPermission) {
 				throw error(403, "Unauthorized to change other user's password");
@@ -70,12 +70,12 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 
 		// For other attribute changes, check general permission
 		if (locals.user && Object.keys(newUserData).some((key) => key !== 'password')) {
-			const { hasPermission } = await checkUserPermission(locals.user, {
-				contextId: 'config/userManagement',
-				name: 'Update User Attributes',
-				action: PermissionAction.MANAGE,
-				contextType: 'system'
-			});
+			const hasPermission = hasPermissionByAction(
+				locals.user,
+				PermissionAction.MANAGE,
+				'system',
+				'config/userManagement'
+			);
 
 			if (!hasPermission) {
 				throw error(403, 'Unauthorized to update user attributes');

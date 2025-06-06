@@ -28,7 +28,7 @@ import type { RequestHandler } from './$types';
 
 // Auth
 import { auth } from '@src/databases/db';
-import { checkUserPermission } from '@src/auth/permissions';
+import { hasPermissionByAction } from '@src/auth/permissions';
 
 // System logger
 import { logger } from '@utils/logger.svelte';
@@ -39,7 +39,7 @@ import { moveMediaToTrash } from '@utils/media/mediaStorage';
 export const DELETE: RequestHandler = async ({ locals }) => {
 	try {
 		// Check if the user has permission to delete their avatar
-		const { hasPermission } = await checkUserPermission(locals.user, {
+		const { hasPermission } = await hasPermissionByAction(locals.user, {
 			contextId: 'user/profile',
 			name: 'Delete Avatar',
 			action: 'update',

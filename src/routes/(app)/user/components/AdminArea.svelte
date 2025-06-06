@@ -7,9 +7,6 @@
 <script lang="ts">
 	import { debounce } from '@utils/utils';
 
-	// Auth
-	import { PermissionAction, PermissionType } from '@src/auth/auth';
-
 	// Components
 	import Multibutton from './Multibutton.svelte';
 	import TableIcons from '@components/system/table/TableIcons.svelte';
@@ -33,6 +30,7 @@
 	// Svelte-dnd-action
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
+	import { PermissionAction, PermissionType } from '@root/src/auth/types';
 
 	// Types
 	interface UserData {
@@ -195,7 +193,7 @@
 								{#each adminData.tokens as token}
 									<li class="flex items-center justify-between border-b py-2">
 										<span class="truncate">{token.email}</span>
-										<span class="text-sm text-gray-500">Expires: {new Date(token.expires).toLocaleDateString()}</span>
+										<span class="text-sm text-gray-500">Expires: {token.expires && token.expires !== null ? new Date(token.expires).toLocaleDateString() : 'Never'}</span>
 									</li>
 								{/each}
 							</ul>
@@ -323,6 +321,7 @@
 			config={{
 				contextId: 'user:manage',
 				name: 'Manage User Tokens',
+				description: 'Allows management of user tokens in the admin area.',
 				action: PermissionAction.MANAGE,
 				contextType: PermissionType.USER
 			}}
@@ -484,12 +483,12 @@
 										{:else if header.key === 'role'}
 											<Role value={row[header.key]} />
 										{:else if ['createdAt', 'updatedAt', 'lastAccess'].includes(header.key)}
-											{new Date(row[header.key]).toLocaleString()}
+											{row[header.key] && row[header.key] !== null ? new Date(row[header.key]).toLocaleString() : '-'}
 										{:else if header.key === 'expires'}
-											{new Date(row[header.key]).toLocaleDateString()}
+											{row[header.key] && row[header.key] !== null ? new Date(row[header.key]).toLocaleDateString() : '-'}
 										{:else}
 											<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-											{@html row[header.key]}
+											{@html row[header.key] || '-'}
 										{/if}
 									</td>
 								{/each}

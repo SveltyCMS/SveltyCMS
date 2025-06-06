@@ -527,7 +527,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 				throw redirect(302, '/login');
 			}
 
-			if (event.locals.user && isPublic && !isOAuthRoute(event.url.pathname)) {
+			if (event.locals.user && isPublic && !isOAuthRoute(event.url.pathname) && !isApi) {
 				logger.debug(`Authenticated user on public route \x1b[34m${event.url.pathname}\x1b[0m. Redirecting to home.`);
 				throw redirect(302, '/');
 			}

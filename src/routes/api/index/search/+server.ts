@@ -19,7 +19,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
 
 // Auth
-import { checkUserPermission } from '@src/auth/permissions';
+import { hasPermissionByAction } from '@src/auth/permissions';
 import { getAllPermissions } from '@src/auth/permissions';
 
 // System Logger
@@ -51,7 +51,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const requiredPermission = permissions.find((p) => p._id === 'api:search');
 
 		if (requiredPermission) {
-			const { hasPermission } = await checkUserPermission(locals.user, {
+			const { hasPermission } = await hasPermissionByAction(locals.user, {
 				contextId: 'api:search',
 				name: 'Access Search API',
 				action: requiredPermission.action,
@@ -73,7 +73,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			const collectionPermission = permissions.find((p) => p._id === `collection:${collectionName}:read`);
 
 			if (collectionPermission) {
-				const { hasPermission } = await checkUserPermission(locals.user, {
+				const { hasPermission } = await hasPermissionByAction(locals.user, {
 					contextId: `collection:${collectionName}`,
 					name: `Read ${collectionName} Collection`,
 					action: collectionPermission.action,

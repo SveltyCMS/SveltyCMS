@@ -24,7 +24,7 @@ import { dev } from '$app/environment';
 
 // Auth
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
-import { checkUserPermission } from '@src/auth/permissions';
+import { hasPermission } from '@src/auth/permissions';
 import { auth } from '@src/databases/db';
 
 // System Logger
@@ -51,13 +51,19 @@ interface ApiError extends Error {
 export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 	try {
 		// Check if the user has permission to create tokens
-		const hasPermission = checkUserPermission('user.create', locals.user);
+		const hasUserPermission = hasPermission(locals.user, 'user.create');
 
-		if (!hasPermission) {
+		if (!hasUserPermission) {
 			throw error(403, 'Unauthorized to create registration tokens');
 		}
 
-		const body = await request.json();
+		let body;
+		try {
+			body = await request.json();
+		} catch (jsonError) {
+			logger.error('Invalid JSON in request body:', { error: jsonError });
+			throw error(400, 'Invalid JSON in request body');
+		}
 		logger.debug('Received token creation request:', body);
 
 		// Validate input using the existing schema
@@ -70,7 +76,13 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 		const existingTokens = await tokenAdapter.getAllTokens({ email: validatedData.email });
 		if (existingTokens && existingTokens.length > 0) {
 			logger.warn('Token already exists for email:', validatedData.email);
-			throw error(400, { message: 'A registration token already exists for this email' });
+			return json(
+				{ 
+					success: false, 
+					message: 'A registration token already exists for this email. Please delete the existing token first or use a different email address.' 
+				},
+				{ status: 400 }
+			);
 		}
 
 		// Get expiration hours from the validated data
@@ -93,7 +105,13 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 		}
 
 		if (isNaN(expiresInHours)) {
-			throw error(400, { message: 'Invalid expiration time' });
+			return json(
+				{ 
+					success: false, 
+					message: 'Invalid expiration time. Please provide a valid time format.' 
+				},
+				{ status: 400 }
+			);
 		}
 		logger.debug('Expiration hours:', expiresInHours);
 
@@ -105,14 +123,26 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 		const role = roles.find((r) => r._id === validatedData.role);
 		if (!role) {
 			logger.error('Invalid role:', validatedData.role);
-			throw error(400, { message: 'Invalid role' });
+			return json(
+				{ 
+					success: false, 
+					message: 'Invalid role selected. Please choose a valid role.' 
+				},
+				{ status: 400 }
+			);
 		}
 
 		// Check if user already exists
 		const existingUser = await auth.checkUser({ email: validatedData.email });
 		if (existingUser) {
 			logger.error('User already exists:', validatedData.email);
-			throw error(400, { message: 'User with this email already exists' });
+			return json(
+				{ 
+					success: false, 
+					message: 'A user with this email address already exists. Please use a different email address.' 
+				},
+				{ status: 400 }
+			);
 		}
 
 		// Create a registration token

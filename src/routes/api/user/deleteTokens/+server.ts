@@ -24,7 +24,7 @@ import { error } from '@sveltejs/kit';
 
 // Auth
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
-import { checkUserPermission } from '@src/auth/permissions';
+import { hasPermissionByAction } from '@src/auth/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -44,12 +44,12 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// Check if the user has permission to delete tokens
-		const { hasPermission } = await checkUserPermission(locals.user, {
-			contextId: 'config/userManagement',
-			name: 'Delete User Tokens',
-			action: 'manage',
-			contextType: 'system'
-		});
+		const hasPermission = hasPermissionByAction(
+			locals.user,
+			'manage',
+			'system',
+			'config/userManagement'
+		);
 
 		if (!hasPermission) {
 			throw error(403, 'Unauthorized to delete user tokens');

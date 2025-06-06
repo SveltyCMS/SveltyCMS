@@ -24,7 +24,7 @@ import { error } from '@sveltejs/kit';
 
 // Auth
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
-import { checkUserPermission } from '@src/auth/permissions';
+import { hasPermissionByAction } from '@src/auth/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -46,7 +46,7 @@ const editTokenSchema = object({
 export const PUT: RequestHandler = async ({ request, locals }) => {
 	try {
 		// Check if the user has permission to edit tokens
-		const { hasPermission } = await checkUserPermission(locals.user, {
+		const { hasPermission } = await hasPermissionByAction(locals.user, {
 			contextId: 'config/userManagement',
 			name: 'Edit Token',
 			action: 'manage',

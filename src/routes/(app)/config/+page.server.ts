@@ -7,7 +7,7 @@ import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Auth
-import { checkUserPermission } from '@src/auth/permissions';
+import { hasPermissionByAction } from '@src/auth/permissions';
 import { permissionConfigs } from '@src/auth/permissions';
 import { permissions as allPermissions } from '@src/auth/permissions';
 
@@ -49,7 +49,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				hasPermission = true; // Admins should always have permission
 			} else {
 				// Check user permission for non-admin roles
-				const permissionCheck = await checkUserPermission(serializableUser, config);
+				const permissionCheck = await hasPermissionByAction(serializableUser, config);
 				hasPermission = permissionCheck.hasPermission;
 			}
 

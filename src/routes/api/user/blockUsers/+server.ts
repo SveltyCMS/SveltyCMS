@@ -27,7 +27,7 @@ import type { RequestHandler } from './$types';
 
 // Auth
 import { auth } from '@src/databases/db';
-import { checkUserPermission } from '@src/auth/permissions';
+import { hasPermissionByAction } from '@src/auth/permissions';
 
 // System logger
 import { logger } from '@utils/logger.svelte';
@@ -45,12 +45,12 @@ const blockUsersSchema = array(
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		// Check if the user has permission to block users
-		const { hasPermission } = await checkUserPermission(locals.user, {
-			contextId: 'config/userManagement',
-			name: 'Block Users',
-			action: 'manage',
-			contextType: 'system'
-		});
+		const hasPermission = hasPermissionByAction(
+			locals.user,
+			'manage',
+			'system',
+			'config/userManagement'
+		);
 
 		if (!hasPermission) {
 			throw error(403, 'Unauthorized to block users');

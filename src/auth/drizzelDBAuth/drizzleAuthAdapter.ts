@@ -614,7 +614,7 @@ export class DrizzleAuthAdapter implements authDBInterface {
 		}
 	}
 
-	async checkUserPermission(user_id: string, permission_name: string): Promise<boolean> {
+	async hasPermissionByAction(user_id: string, permission_name: string): Promise<boolean> {
 		try {
 			const userPermissions = await this.getPermissionsForUser(user_id);
 			return userPermissions.some((permission) => permission.name === permission_name);

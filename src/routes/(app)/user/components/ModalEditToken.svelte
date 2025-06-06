@@ -107,6 +107,12 @@ Manages token creation and updates with role selection and expiration settings. 
 
 			if (response.ok) {
 				const responseData = await response.json();
+
+				// Check if the response indicates success
+				if (responseData.success === false) {
+					throw new Error(responseData.message || 'Operation failed');
+				}
+
 				const successMessage = isEditMode ? 'Token updated successfully' : 'Token created successfully';
 
 				const t = {
@@ -147,19 +153,26 @@ Manages token creation and updates with role selection and expiration settings. 
 					});
 				}
 			} else {
-				const data = await response.json();
-				throw new Error(data.message || 'Failed to update token');
+				let errorMessage = 'Failed to update token';
+				try {
+					const data = await response.json();
+					errorMessage = data.message || errorMessage;
+				} catch (jsonError) {
+					// If response isn't JSON, use status text
+					errorMessage = response.statusText || errorMessage;
+				}
+				throw new Error(errorMessage);
 			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Failed to update token';
 			const t = {
 				message: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${message}`,
 				background: 'variant-filled-error',
-				timeout: 3000,
+				timeout: 5000,
 				classes: 'border-1 !rounded-md'
 			};
 			toastStore.trigger(t);
-			modalStore.close();
+			// Don't close modal on error - let user try again
 		}
 	}
 
