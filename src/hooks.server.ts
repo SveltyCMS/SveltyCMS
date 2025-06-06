@@ -103,7 +103,7 @@ const isOAuthRoute = (pathname: string): boolean => pathname.startsWith('/login'
 
 // Check if the route is public or an OAuth route
 const isPublicOrOAuthRoute = (pathname: string): boolean => {
-	const publicRoutes = ['/login', '/register', '/forgot-password'];
+	const publicRoutes = ['/login', '/register', '/forgot-password', '/api/sendMail'];
 	return publicRoutes.some((route) => pathname.startsWith(route)) || isOAuthRoute(pathname);
 };
 
@@ -532,7 +532,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 				throw redirect(302, '/');
 			}
 
-			if (isApi && event.locals.user) {
+			if (isApi && event.locals.user && !isPublic) {
 				logger.debug('Handling API request for authenticated user');
 				return handleApiRequest(event, resolve, event.locals.user);
 			}

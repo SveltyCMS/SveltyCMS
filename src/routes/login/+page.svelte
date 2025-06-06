@@ -35,7 +35,10 @@ Features:
 	// State Management
 	const firstUserExists = $state(data.firstUserExists);
 
-	// Set Initial active state based on conditions
+	// Check for reset password URL parameters (initially false, updated by effect)
+	let hasResetParams = $state(false);
+	
+	// Set Initial active state based on conditions (will be updated by effect)
 	let active = $state<undefined | 0 | 1>(
 		publicEnv.DEMO || publicEnv.SEASONS
 			? undefined // If DEMO or SEASONS is enabled, show logo
@@ -44,7 +47,24 @@ Features:
 				: 1 // Otherwise, show SignUp
 	);
 
-	// Set initial background based on conditions
+	// Update active state when URL parameters are detected
+	$effect(() => {
+		if (typeof window !== 'undefined') {
+			const urlParams = new URLSearchParams(window.location.search);
+			const token = urlParams.get('token');
+			const email = urlParams.get('email');
+			const hasParams = !!(token && email);
+			
+			if (hasParams !== hasResetParams) {
+				hasResetParams = hasParams;
+				if (hasResetParams) {
+					active = 0; // Show SignIn component for reset password
+				}
+			}
+		}
+	});
+
+	// Set initial background based on conditions (will be updated reactively)
 	let background = $state<'white' | '#242728'>(
 		publicEnv.DEMO
 			? '#242728' // Dark background for DEMO mode
@@ -54,6 +74,13 @@ Features:
 					? 'white' // Light background for existing users
 					: '#242728' // Dark background for new users
 	);
+
+	// Update background when hasResetParams changes
+	$effect(() => {
+		if (hasResetParams) {
+			background = 'white'; // White background for reset password form
+		}
+	});
 
 	let timeRemaining = $state({ minutes: 0, seconds: 0 });
 	let searchQuery = $state('');
