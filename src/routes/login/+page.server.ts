@@ -212,7 +212,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 						logger.info(`OAuth: First user created: ${user?.username}`);
 
 						// Send Welcome email using fetch to /api/sendMail
-						const userLang = get(systemLanguage) as AvailableLanguageTag || 'en';
+						const userLang = (get(systemLanguage) as AvailableLanguageTag) || 'en';
 						const emailProps = {
 							username: googleUser.name || user?.username || '',
 							email: email,
@@ -220,7 +220,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 							sitename: publicEnv.SITE_NAME || 'SveltyCMS'
 						};
 						try {
-							const mailResponse = await fetch('/api/sendMail', { // Use SvelteKit's fetch
+							const mailResponse = await fetch('/api/sendMail', {
+								// Use SvelteKit's fetch
 								method: 'POST',
 								headers: { 'Content-Type': 'application/json' },
 								body: JSON.stringify({
@@ -245,7 +246,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 							logger.warn(`OAuth: Registration for new user ${email} denied (ALLOW_REGISTRATION is false).`);
 							throw new Error('New user registration via OAuth is currently disabled.');
 						}
-						const defaultRole = roles.find(role => role.isDefault === true) || roles.find(role => role._id === 'user');
+						const defaultRole = roles.find((role) => role.isDefault === true) || roles.find((role) => role._id === 'user');
 						if (!defaultRole) throw new Error('Default user role not found.');
 
 						const newUser = await auth.createUser({
@@ -257,7 +258,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 							lastAuthMethod: 'google'
 						});
 						logger.info(`OAuth: New non-first user created: ${newUser?.username}`);
-						const userLang = get(systemLanguage) as AvailableLanguageTag || 'en';
+						const userLang = (get(systemLanguage) as AvailableLanguageTag) || 'en';
 						const emailProps = {
 							username: googleUser.name || newUser?.username || '',
 							email: email,
@@ -277,7 +278,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 								})
 							});
 							if (!mailResponse.ok) {
-								logger.error(`OAuth: Failed to send welcome email to new user ${email} via API. Status: ${mailResponse.status}`, await mailResponse.text());
+								logger.error(
+									`OAuth: Failed to send welcome email to new user ${email} via API. Status: ${mailResponse.status}`,
+									await mailResponse.text()
+								);
 							} else {
 								logger.info(`OAuth: Welcome email request sent to new user ${email} via API.`);
 							}
@@ -355,7 +359,10 @@ export const actions: Actions = {
 		const authReady = await waitForAuthService();
 		if (!authReady || !auth) {
 			logger.error('Authentication system is not ready for signUp action');
-			return fail(503, { form: await superValidate(event, wrappedSignUpSchema), message: 'Authentication system is not ready. Please try again in a moment.' });
+			return fail(503, {
+				form: await superValidate(event, wrappedSignUpSchema),
+				message: 'Authentication system is not ready. Please try again in a moment.'
+			});
 		}
 
 		logger.debug('Action: signUp');
@@ -401,8 +408,8 @@ export const actions: Actions = {
 					return message(signUpForm, 'New user registration is currently disabled.', { status: 403 });
 				}
 				logger.info(`Attempting to register new non-first user: ${username}`);
-				const defaultRole = roles.find(r => r.isDefault) || roles.find(r => r._id === 'user');
-				if (!defaultRole) throw new Error("Default role not found for new user registration.");
+				const defaultRole = roles.find((r) => r.isDefault) || roles.find((r) => r._id === 'user');
+				if (!defaultRole) throw new Error('Default role not found for new user registration.');
 
 				// Here, 'token' might be an invite token or unused if open registration.
 				// Add validation for 'token' if it's a required invite token.
@@ -410,7 +417,9 @@ export const actions: Actions = {
 				// If your system requires a general invite token, validate it here.
 
 				const newUser = await auth.createUser({
-					username, email, password,
+					username,
+					email,
+					password,
 					role: defaultRole._id,
 					permissions: defaultRole.permissions,
 					isRegistered: true,
@@ -424,7 +433,7 @@ export const actions: Actions = {
 
 			if (resp.status && resp.user) {
 				logger.debug(`Sign Up successful for ${resp.user.username}.`);
-				const userLanguage = get(systemLanguage) as AvailableLanguageTag || 'en';
+				const userLanguage = (get(systemLanguage) as AvailableLanguageTag) || 'en';
 				const emailProps = {
 					username: resp.user.username,
 					email: resp.user.email,
@@ -445,7 +454,10 @@ export const actions: Actions = {
 						})
 					});
 					if (!mailResponse.ok) {
-						logger.error(`Failed to send welcome email via API to ${resp.user.email} after signup. Status: ${mailResponse.status}`, await mailResponse.text());
+						logger.error(
+							`Failed to send welcome email via API to ${resp.user.email} after signup. Status: ${mailResponse.status}`,
+							await mailResponse.text()
+						);
 					} else {
 						logger.info(`Welcome email request sent via API to ${resp.user.email} after signup.`);
 					}
@@ -543,7 +555,7 @@ export const actions: Actions = {
 				const resetLink = `${baseUrl}/login?token=${checkMail.token}&email=${encodeURIComponent(email)}`;
 				logger.debug(`Reset link generated: ${resetLink}`);
 
-				const userLanguage = get(systemLanguage) as AvailableLanguageTag || 'en';
+				const userLanguage = (get(systemLanguage) as AvailableLanguageTag) || 'en';
 				const emailProps = {
 					email: email,
 					token: checkMail.token,
@@ -607,7 +619,7 @@ export const actions: Actions = {
 			logger.debug(`Password reset check response for ${email}: ${JSON.stringify(resp)}`);
 
 			if (resp.status) {
-				const userLanguage = get(systemLanguage) as AvailableLanguageTag || 'en';
+				const userLanguage = (get(systemLanguage) as AvailableLanguageTag) || 'en';
 				const emailProps = {
 					username: resp.username || email,
 					email: email,
@@ -715,7 +727,12 @@ async function signInUser(
 	}
 }
 
-async function FirstUsersignUp(username: string, email: string, password: string, cookies: Cookies): Promise<{ status: boolean; message?: string; user?: User }> {
+async function FirstUsersignUp(
+	username: string,
+	email: string,
+	password: string,
+	cookies: Cookies
+): Promise<{ status: boolean; message?: string; user?: User }> {
 	logger.debug(`FirstUsersignUp called for email: ${email}`);
 	if (!auth) {
 		logger.error('Auth system not initialized for FirstUsersignUp');
@@ -738,7 +755,9 @@ async function FirstUsersignUp(username: string, email: string, password: string
 			return { status: false, message: 'Password is too weak.' };
 		}
 		const user = await auth.createUser({
-			email, username, password,
+			email,
+			username,
+			password,
 			role: adminRole._id,
 			permissions: adminRole.permissions,
 			lastAuthMethod: 'password',
@@ -759,7 +778,13 @@ async function FirstUsersignUp(username: string, email: string, password: string
 	}
 }
 
-async function finishRegistration(username: string, email: string, password: string, token: string, cookies: Cookies): Promise<{ status: boolean; message?: string; user?: User }> {
+async function finishRegistration(
+	username: string,
+	email: string,
+	password: string,
+	token: string,
+	cookies: Cookies
+): Promise<{ status: boolean; message?: string; user?: User }> {
 	logger.debug(`finishRegistration called for email: ${email}`);
 	if (!auth) {
 		logger.error('Auth system not initialized for finishRegistration');
@@ -790,7 +815,7 @@ async function finishRegistration(username: string, email: string, password: str
 			isRegistered: true
 		});
 		const updatedUser = await auth.checkUser({ email });
-		if (!updatedUser) throw new Error("Failed to retrieve user after update in finishRegistration.");
+		if (!updatedUser) throw new Error('Failed to retrieve user after update in finishRegistration.');
 		await createSessionAndSetCookie(user._id, cookies);
 		logger.info(`User ${username} finished registration and session started.`);
 		return { status: true, message: 'Registration completed successfully.', user: updatedUser };
@@ -873,4 +898,3 @@ async function resetPWCheck(password: string, token: string, email: string): Pro
 		return { status: false, message: 'An internal error occurred during password reset.' };
 	}
 }
-

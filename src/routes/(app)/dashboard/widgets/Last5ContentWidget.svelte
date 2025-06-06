@@ -73,7 +73,7 @@ This widget fetches and displays real-time disk usage data, including:
 	});
 </script>
 
-<BaseWidget {label} theme={theme} endpoint="/api/last5Content" pollInterval={5000}>
+<BaseWidget {label} {theme} endpoint="/api/last5Content" pollInterval={5000}>
 	<div class="p-4">
 		<h2 class="mb-4 text-xl font-bold">Last 5 Content</h2>
 		{#if $loading}

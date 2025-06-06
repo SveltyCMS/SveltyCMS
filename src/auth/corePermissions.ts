@@ -26,7 +26,13 @@ export const corePermissions: Permission[] = [
 		type: PermissionType.SYSTEM,
 		description: 'Grants access to all API endpoints under /api/user/.'
 	},
-	{ _id: 'api:sendMail', name: 'Send Mail API Access', action: PermissionAction.EXECUTE, type: PermissionType.SYSTEM, description: 'Grants access to send emails via the API.' },
+	{
+		_id: 'api:sendMail',
+		name: 'Send Mail API Access',
+		action: PermissionAction.EXECUTE,
+		type: PermissionType.SYSTEM,
+		description: 'Grants access to send emails via the API.'
+	},
 	{ _id: 'api:exportData', name: 'Export Api Data', action: PermissionAction.EXECUTE, type: PermissionType.SYSTEM, contextId: 'api/exportData' },
 	{
 		_id: 'api:query',

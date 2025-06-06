@@ -137,7 +137,7 @@ Features:
 	});
 </script>
 
-<BaseWidget {label} theme={theme} endpoint="/api/systemInfo?type=memory" pollInterval={5000} bind:data {icon}>
+<BaseWidget {label} {theme} endpoint="/api/systemInfo?type=memory" pollInterval={5000} bind:data {icon}>
 	<div
 		class="relative h-full w-full rounded-lg bg-surface-50 p-2 text-tertiary-500 transition-colors duration-300 ease-in-out dark:bg-surface-400 dark:text-primary-500"
 		aria-label="Memory Usage Widget"

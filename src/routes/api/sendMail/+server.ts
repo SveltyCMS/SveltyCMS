@@ -87,7 +87,6 @@ async function getEmailTemplate(templateName: string): Promise<ComponentType<Ema
 	return null;
 }
 
-
 type RenderedEmailContent = { html: string; text: string };
 
 // Renders a Svelte email component to HTML and plain text
@@ -103,7 +102,10 @@ const renderEmailToStrings = async (
 		// Extract HTML and create a simple text version
 		const html = result.body;
 		// Create a simple text version by stripping HTML tags
-		const text = html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+		const text = html
+			.replace(/<[^>]*>/g, '')
+			.replace(/\s+/g, ' ')
+			.trim();
 
 		return { html, text };
 	} catch (err) {
@@ -157,7 +159,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// 1. Get the email template component dynamically
 	const SelectedTemplateComponent = await getEmailTemplate(templateName);
 	if (!SelectedTemplateComponent) {
-		const availableTemplateNames = Object.keys(svelteEmailModules).map(path => path.split('/').pop()?.replace('.svelte', ''));
+		const availableTemplateNames = Object.keys(svelteEmailModules).map((path) => path.split('/').pop()?.replace('.svelte', ''));
 		return createErrorResponse(`Invalid email template name: '${templateName}'. Available templates: ${availableTemplateNames.join(', ')}`, 400);
 	}
 
@@ -186,7 +188,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		// renderEmailToStrings already logs, createErrorResponse will also log.
 		return createErrorResponse((renderErr as Error).message, 500);
 	}
-
 
 	// 3. Configure Nodemailer Transporter
 	const smtpPort = Number(privateEnv.SMTP_PORT);
@@ -234,15 +235,22 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		const info = await transporter.sendMail(mailOptions);
 		logger.info('Email sent successfully via Nodemailer from /api/sendMail:', {
-			recipientEmail, subject, templateName, messageId: info.messageId, response: info.response
+			recipientEmail,
+			subject,
+			templateName,
+			messageId: info.messageId,
+			response: info.response
 		});
 		return json({ success: true, message: 'Email sent successfully.' });
 	} catch (err) {
 		const sendError = err as Error;
 		logger.error('Nodemailer failed to send email from /api/sendMail:', {
-			recipientEmail, subject, templateName, error: sendError.message, stack: sendError.stack
+			recipientEmail,
+			subject,
+			templateName,
+			error: sendError.message,
+			stack: sendError.stack
 		});
 		return createErrorResponse(`Email sending failed: ${sendError.message}`, 500);
 	}
 };
-

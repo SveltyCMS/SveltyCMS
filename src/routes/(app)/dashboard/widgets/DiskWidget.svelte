@@ -171,7 +171,7 @@ This widget fetches and displays real-time disk usage data, including:
 	});
 </script>
 
-<BaseWidget {label} theme={theme} endpoint="/api/systemInfo?type=disk" pollInterval={5000} bind:data {icon}>
+<BaseWidget {label} {theme} endpoint="/api/systemInfo?type=disk" pollInterval={5000} bind:data {icon}>
 	<div
 		class="relative h-full w-full rounded-lg p-4 text-tertiary-500 transition-colors duration-300 ease-in-out dark:bg-surface-500 dark:text-primary-500"
 		aria-label="Disk Usage Widget"

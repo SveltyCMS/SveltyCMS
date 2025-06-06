@@ -60,7 +60,7 @@
 	let { label, theme = 'light', icon = 'mdi:image-multiple' } = $props();
 </script>
 
-<BaseWidget {label} theme={theme} endpoint="/api/media" pollInterval={5000}>
+<BaseWidget {label} {theme} endpoint="/api/media" pollInterval={5000}>
 	<section>
 		<h2>Last 5 Added Media</h2>
 		<ul>

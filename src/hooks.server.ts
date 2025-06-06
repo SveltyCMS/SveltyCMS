@@ -657,7 +657,9 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 					}
 				});
 			} catch (processingError) {
-				logger.error(`Error processing API GET response for \x1b[34m/api/${apiEndpoint}\x1b[0m (user: \x1b[31m${user._id}\x1b[0m): ${processingError.message}`);
+				logger.error(
+					`Error processing API GET response for \x1b[34m/api/${apiEndpoint}\x1b[0m (user: \x1b[31m${user._id}\x1b[0m): ${processingError.message}`
+				);
 				return new Response(
 					JSON.stringify({
 						error: 'Failed to process API response',
@@ -681,7 +683,9 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 		const baseCacheKey = `api:${apiEndpoint}:${user._id}`;
 		try {
 			await cacheStore.deletePattern(`${baseCacheKey}:*`);
-			logger.debug(`Invalidated API cache for keys starting with \x1b[34m${baseCacheKey}\x1b[0m after \x1b[31m${event.request.method}\x1b[0m request`);
+			logger.debug(
+				`Invalidated API cache for keys starting with \x1b[34m${baseCacheKey}\x1b[0m after \x1b[31m${event.request.method}\x1b[0m request`
+			);
 		} catch (err) {
 			logger.error(`Failed to invalidate API cache for ${baseCacheKey}: ${err.message}`);
 		}

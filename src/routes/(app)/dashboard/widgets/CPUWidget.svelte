@@ -194,7 +194,7 @@
 
 <BaseWidget
 	{label}
-	theme={theme}
+	{theme}
 	endpoint="/api/systemInfo?type=cpu"
 	pollInterval={2000}
 	bind:data={fetchedData}
