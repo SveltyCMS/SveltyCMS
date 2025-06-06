@@ -135,6 +135,7 @@
 	"signin_signinsuccess": "Başarıyla Oturum Açıldı",
 	"signin_forgottontoast": "Parola sıfırlama belirteci aynı zamanda E-postayla da gönderildi",
 	"signin_restpasswordtoast": "Parola sıfırlama belirteci aynı zamanda E-postayla da gönderildi",
+	"signin_emailnotfound": "Bu e-posta adresiyle ilgili bir hesap bulunamadı.",
 	"signin_forgottenpassword": "Unutulan Şifre",
 	"signin_resetpassword": "Şifreyi yenile",
 	"signin_forgottenpasswordtext": "Üzülmeyin. Şifrenizi Kurtarmanıza yardımcı olacağız.",

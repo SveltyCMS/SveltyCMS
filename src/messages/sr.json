@@ -135,6 +135,7 @@
 	"signin_signinsuccess": "Успешно се пријавио",
 	"signin_forgottontoast": "Токен за ресетовање лозинке је такође послат е-поштом",
 	"signin_restpasswordtoast": "Токен за ресетовање лозинке је такође послат е-поштом",
+	"signin_emailnotfound": "Није пронађен налог са овом имејл адресом.",
 	"signin_forgottenpassword": "Заборављена лозинка",
 	"signin_resetpassword": "Ресетуј шифру",
 	"signin_forgottenpasswordtext": "Не брини. Ми ћемо вам помоћи да повратите своју лозинку.",
@@ -434,6 +435,5 @@
 	"sidebar_will_publish_on": "Биће објављено на",
 	"siedabar_publish_options": "Опције објављивања",
 	"Fields_no_widgets_found": "Виџет није пронађен: {name}",
-	"Fields_preview": "Преглед",
-	"userpage_email": "Емаил:"
+	"Fields_preview": "Преглед"
 }

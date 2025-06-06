@@ -41,6 +41,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 	// Define permissions for different contexts
 	const modaleEditFormConfig = {
 		name: 'Admin User Edit Form',
+		description: 'Allows admins to manage user accounts, including editing and assigning roles.',
 		contextId: 'user:manage',
 		requiredRole: 'admin',
 		action: 'manage',

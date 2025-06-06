@@ -135,6 +135,7 @@
 	"signin_signinsuccess": "Sisäänkirjautuminen onnistui",
 	"signin_forgottontoast": "Salasanan palautustunnus lähetettiin myös sähköpostitse",
 	"signin_restpasswordtoast": "Salasanan palautustunnus lähetettiin myös sähköpostitse",
+	"signin_emailnotfound": "Tällä sähköpostiosoitteella ei löytynyt tiliä.",
 	"signin_forgottenpassword": "Unohtunut salasana",
 	"signin_resetpassword": "Nollaa salasana",
 	"signin_forgottenpasswordtext": "Älä huoli. Autamme sinua palauttamaan salasanasi.",

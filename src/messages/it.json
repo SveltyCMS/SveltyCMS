@@ -135,6 +135,7 @@
 	"signin_signinsuccess": "Accesso effettuato con successo",
 	"signin_forgottontoast": "Anche il token di reimpostazione della password è stato inviato tramite e-mail",
 	"signin_restpasswordtoast": "Anche il token di reimpostazione della password è stato inviato tramite e-mail",
+	"signin_emailnotfound": "Nessun account trovato con questo indirizzo email.",
 	"signin_forgottenpassword": "password dimenticata",
 	"signin_resetpassword": "Resetta la password",
 	"signin_forgottenpasswordtext": "Non preoccuparti. Ti aiuteremo a recuperare la tua password.",

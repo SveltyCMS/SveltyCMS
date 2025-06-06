@@ -135,6 +135,7 @@
 	"signin_signinsuccess": "Успішно ввійшли",
 	"signin_forgottontoast": "Маркер скидання пароля також надіслано електронною поштою",
 	"signin_restpasswordtoast": "Маркер скидання пароля також надіслано електронною поштою",
+	"signin_emailnotfound": "Обліковий запис із цією адресою електронної пошти не знайдено.",
 	"signin_forgottenpassword": "Забутий пароль",
 	"signin_resetpassword": "Скинути пароль",
 	"signin_forgottenpasswordtext": "Не турбуйтесь. Ми допоможемо вам відновити пароль.",

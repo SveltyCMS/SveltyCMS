@@ -135,6 +135,7 @@
 	"signin_signinsuccess": "सफलतापूर्वक साइन इन गरियो",
 	"signin_forgottontoast": "पासवर्ड रिसेट टोकन पनि इमेल मार्फत पठाइएको थियो",
 	"signin_restpasswordtoast": "पासवर्ड रिसेट टोकन पनि इमेल मार्फत पठाइएको थियो",
+	"signin_emailnotfound": "यो इमेल ठेगाना भएको कुनै खाता भेटिएन।",
 	"signin_forgottenpassword": "भुलेको पासवोर्ड",
 	"signin_resetpassword": "पासवर्ड रिसेट",
 	"signin_forgottenpasswordtext": "चिन्ता नगर। हामी तपाईंलाई आफ्नो पासवर्ड रिकभर गर्न मद्दत गर्नेछौं।",
@@ -434,7 +435,5 @@
 	"sidebar_will_publish_on": "मा प्रकाशित हुनेछ",
 	"siedabar_publish_options": "विकल्पहरू प्रकाशित गर्नुहोस्",
 	"Fields_no_widgets_found": "विजेट फेला परेन: {name}",
-	"Fields_preview": "पूर्वावलोकन",
-	"modaledit_tokenemailaddress": "इ - मेल ठेगाना",
-	"modaltokenuser_email_address": "इ - मेल ठेगाना"
+	"Fields_preview": "पूर्वावलोकन"
 }

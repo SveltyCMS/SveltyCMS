@@ -135,6 +135,7 @@
 	"signin_signinsuccess": "Vellykket pålogget",
 	"signin_forgottontoast": "Token for tilbakestilling av passord ble også sendt via e-post",
 	"signin_restpasswordtoast": "Token for tilbakestilling av passord ble også sendt via e-post",
+	"signin_emailnotfound": "Ingen konto funnet med denne e-postadressen.",
 	"signin_forgottenpassword": "glemt passord",
 	"signin_resetpassword": "Tilbakestille passord",
 	"signin_forgottenpasswordtext": "Ikke bekymre deg. Vi hjelper deg med å gjenopprette passordet ditt.",

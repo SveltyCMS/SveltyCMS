@@ -233,17 +233,17 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 								})
 							});
 							if (!mailResponse.ok) {
-								logger.error(`OAuth: Failed to send welcome email via API to ${email}. Status: ${mailResponse.status}`, await mailResponse.text());
+								logger.error(`OAuth: Failed to send welcome email via API. Status: ${mailResponse.status}`, { email, responseText: await mailResponse.text() });
 							} else {
-								logger.info(`OAuth: Welcome email request sent via API to ${email}`);
+								logger.info(`OAuth: Welcome email request sent via API`, { email });
 							}
 						} catch (emailError) {
-							logger.error(`OAuth: Error fetching /api/sendMail for ${email}:`, emailError);
+							logger.error(`OAuth: Error fetching /api/sendMail`, { email, error: emailError });
 						}
 						return [user, false];
 					} else {
 						if (!privateEnv.ALLOW_REGISTRATION) {
-							logger.warn(`OAuth: Registration for new user ${email} denied (ALLOW_REGISTRATION is false).`);
+							logger.warn(`OAuth: Registration for new user denied (ALLOW_REGISTRATION is false)`, { email });
 							throw new Error('New user registration via OAuth is currently disabled.');
 						}
 						const defaultRole = roles.find((role) => role.isDefault === true) || roles.find((role) => role._id === 'user');
@@ -279,14 +279,14 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 							});
 							if (!mailResponse.ok) {
 								logger.error(
-									`OAuth: Failed to send welcome email to new user ${email} via API. Status: ${mailResponse.status}`,
-									await mailResponse.text()
+									`OAuth: Failed to send welcome email to new user via API. Status: ${mailResponse.status}`,
+									{ email, responseText: await mailResponse.text() }
 								);
 							} else {
-								logger.info(`OAuth: Welcome email request sent to new user ${email} via API.`);
+								logger.info(`OAuth: Welcome email request sent to new user via API`, { email });
 							}
 						} catch (emailError) {
-							logger.error(`OAuth: Error fetching /api/sendMail for new user ${email}:`, emailError);
+							logger.error(`OAuth: Error fetching /api/sendMail for new user`, { email, error: emailError });
 						}
 						return [newUser, false];
 					}
@@ -404,7 +404,7 @@ export const actions: Actions = {
 				resp = await finishRegistration(username, email, password, token, event.cookies);
 			} else if (!existingUser && !isFirst) {
 				if (!privateEnv.ALLOW_REGISTRATION) {
-					logger.warn(`Registration attempt by ${email} denied (ALLOW_REGISTRATION is false).`);
+					logger.warn(`Registration attempt denied (ALLOW_REGISTRATION is false)`, { email });
 					return message(signUpForm, 'New user registration is currently disabled.', { status: 403 });
 				}
 				logger.info(`Attempting to register new non-first user: ${username}`);
@@ -520,12 +520,12 @@ export const actions: Actions = {
 				throw redirect(303, redirectPath);
 			} else {
 				const errorMessage = resp?.message || 'Invalid credentials or an error occurred.';
-				logger.warn(`Sign-in failed for ${email}: ${errorMessage}`);
+				logger.warn(`Sign-in failed`, { email, errorMessage });
 				return message(signInForm, errorMessage, { status: 401 });
 			}
 		} catch (e) {
 			const err = e as Error;
-			logger.error(`Unexpected error in signIn action for ${email}:`, { message: err.message, stack: err.stack });
+			logger.error(`Unexpected error in signIn action`, { email, message: err.message, stack: err.stack });
 			return message(signInForm, 'An unexpected server error occurred.', { status: 500 });
 		}
 	},
@@ -579,19 +579,21 @@ export const actions: Actions = {
 				});
 
 				if (!mailResponse.ok) {
-					logger.error(`Failed to send forgotten password email via API to ${email}. Status: ${mailResponse.status}`, await mailResponse.text());
-					// Still return a generic success to user to avoid enumeration
+					logger.error(`Failed to send forgotten password email via API. Status: ${mailResponse.status}`, { email, responseText: await mailResponse.text() });
+					// Still return success but with emailSent: false to handle on frontend
+					return message(pwforgottenForm, 'Password reset email sent successfully.', { status: 200, userExists: true, emailSent: false });
 				} else {
-					logger.info(`Forgotten password email request sent via API to ${email}.`);
+					logger.info(`Forgotten password email request sent via API`, { email });
+					return message(pwforgottenForm, 'Password reset email sent successfully.', { status: 200, userExists: true, emailSent: true });
 				}
-				return message(pwforgottenForm, 'If your email is registered, a password reset link has been sent.');
 			} else {
-				logger.warn(`Forgotten password check failed for ${email}: ${checkMail.message}`);
-				return message(pwforgottenForm, 'If your email is registered, a password reset link has been sent.');
+				logger.warn(`Forgotten password check failed`, { email, message: checkMail.message });
+				// Return different response for user not found to allow frontend distinction
+				return message(pwforgottenForm, 'User does not exist.', { status: 400, userExists: false });
 			}
 		} catch (e) {
 			const err = e as Error;
-			logger.error(`Error in forgotPW action for ${email}:`, { message: err.message, stack: err.stack });
+			logger.error(`Error in forgotPW action`, { email, message: err.message, stack: err.stack });
 			return message(pwforgottenForm, 'An error occurred. Please try again.', { status: 500 });
 		}
 	},
@@ -616,7 +618,7 @@ export const actions: Actions = {
 
 		try {
 			const resp = await resetPWCheck(password, token, email);
-			logger.debug(`Password reset check response for ${email}: ${JSON.stringify(resp)}`);
+			logger.debug(`Password reset check response`, { email, response: JSON.stringify(resp) });
 
 			if (resp.status) {
 				const userLanguage = (get(systemLanguage) as AvailableLanguageTag) || 'en';
@@ -640,23 +642,23 @@ export const actions: Actions = {
 						})
 					});
 					if (!mailResponse.ok) {
-						logger.error(`Failed to send password updated email via API to ${email}. Status: ${mailResponse.status}`, await mailResponse.text());
+						logger.error(`Failed to send password updated email via API. Status: ${mailResponse.status}`, { email, responseText: await mailResponse.text() });
 					} else {
-						logger.info(`Password updated confirmation email request sent via API to ${email}.`);
+						logger.info(`Password updated confirmation email request sent via API`, { email });
 					}
 				} catch (emailError) {
-					logger.error(`Error fetching /api/sendMail for password updated confirmation to ${email}:`, emailError);
+					logger.error(`Error fetching /api/sendMail for password updated confirmation`, { email, error: emailError });
 				}
 
 				message(pwresetForm, 'Password reset successfully. You can now log in.');
 				throw redirect(303, '/login?reset=success');
 			} else {
-				logger.warn(`Password reset failed for ${email}: ${resp.message}`);
+				logger.warn(`Password reset failed`, { email, message: resp.message });
 				return message(pwresetForm, resp.message || 'Password reset failed. The link may be invalid or expired.', { status: 400 });
 			}
 		} catch (e) {
 			const err = e as Error;
-			logger.error(`Error in resetPW action for ${email}:`, { message: err.message, stack: err.stack });
+			logger.error(`Error in resetPW action`, { email, message: err.message, stack: err.stack });
 			return message(pwresetForm, 'An unexpected error occurred during password reset.', { status: 500 });
 		}
 	}
@@ -681,7 +683,7 @@ async function signInUser(
 	isToken: boolean,
 	cookies: Cookies
 ): Promise<{ status: boolean; message?: string; user?: User }> {
-	logger.debug(`signInUser called with email: ${email}, isToken: ${isToken}`);
+	logger.debug(`signInUser called`, { email, isToken });
 	if (!auth) {
 		logger.error('Auth system not initialized for signInUser');
 		return { status: false, message: 'Authentication system unavailable.' };
@@ -695,13 +697,13 @@ async function signInUser(
 				user = authResult.user;
 				authSuccess = true;
 			} else {
-				logger.warn(`Password authentication failed for ${email}.`);
+				logger.warn(`Password authentication failed`, { email });
 			}
 		} else {
 			const tokenValue = password;
 			const tempUser = await auth.checkUser({ email });
 			if (!tempUser) {
-				logger.warn(`Token login attempt for non-existent user: ${email}`);
+				logger.warn(`Token login attempt for non-existent user`, { email });
 				return { status: false, message: 'User does not exist.' };
 			}
 			const result = await auth.consumeToken(tokenValue, tempUser._id);
@@ -709,7 +711,7 @@ async function signInUser(
 				user = tempUser;
 				authSuccess = true;
 			} else {
-				logger.warn(`Token consumption failed for ${email}: ${result.message}`);
+				logger.warn(`Token consumption failed`, { email, message: result.message });
 				return { status: false, message: result.message || 'Invalid or expired token.' };
 			}
 		}
@@ -722,7 +724,7 @@ async function signInUser(
 		return { status: true, message: 'Login successful', user };
 	} catch (error) {
 		const err = error as Error;
-		logger.error(`Error in signInUser for ${email}: ${err.message}`, { stack: err.stack });
+		logger.error(`Error in signInUser`, { email, message: err.message, stack: err.stack });
 		return { status: false, message: 'An internal error occurred during sign-in.' };
 	}
 }
@@ -733,7 +735,7 @@ async function FirstUsersignUp(
 	password: string,
 	cookies: Cookies
 ): Promise<{ status: boolean; message?: string; user?: User }> {
-	logger.debug(`FirstUsersignUp called for email: ${email}`);
+	logger.debug(`FirstUsersignUp called`, { email });
 	if (!auth) {
 		logger.error('Auth system not initialized for FirstUsersignUp');
 		return { status: false, message: 'Authentication system unavailable.' };
@@ -773,7 +775,7 @@ async function FirstUsersignUp(
 		return { status: true, message: 'Admin user created successfully.', user };
 	} catch (error) {
 		const err = error as Error;
-		logger.error(`Error in FirstUsersignUp for ${email}: ${err.message}`, { stack: err.stack });
+		logger.error(`Error in FirstUsersignUp`, { email, message: err.message, stack: err.stack });
 		return { status: false, message: 'An internal error occurred creating the admin user.' };
 	}
 }
@@ -785,7 +787,7 @@ async function finishRegistration(
 	token: string,
 	cookies: Cookies
 ): Promise<{ status: boolean; message?: string; user?: User }> {
-	logger.debug(`finishRegistration called for email: ${email}`);
+	logger.debug(`finishRegistration called`, { email });
 	if (!auth) {
 		logger.error('Auth system not initialized for finishRegistration');
 		return { status: false, message: 'Authentication system unavailable.' };
@@ -793,16 +795,16 @@ async function finishRegistration(
 	try {
 		const user = await auth.checkUser({ email });
 		if (!user || !user._id) {
-			logger.warn(`finishRegistration: User ${email} not found for token consumption.`);
+			logger.warn(`finishRegistration: User not found for token consumption`, { email });
 			return { status: false, message: 'User not found or invalid registration attempt.' };
 		}
 		if (user.isRegistered) {
-			logger.warn(`finishRegistration: User ${email} is already registered.`);
+			logger.warn(`finishRegistration: User is already registered`, { email });
 			return { status: false, message: 'This account is already fully registered.' };
 		}
 		const result = await auth.consumeToken(token, user._id);
 		if (!result.status) {
-			logger.warn(`finishRegistration: Token consumption failed for ${email}: ${result.message}`);
+			logger.warn(`finishRegistration: Token consumption failed`, { email, message: result.message });
 			return { status: false, message: result.message || 'Invalid or expired registration token.' };
 		}
 		if (calculatePasswordStrength(password) < 1) {
@@ -821,7 +823,7 @@ async function finishRegistration(
 		return { status: true, message: 'Registration completed successfully.', user: updatedUser };
 	} catch (error) {
 		const err = error as Error;
-		logger.error(`Error in finishRegistration for ${email}: ${err.message}`, { stack: err.stack });
+		logger.error(`Error in finishRegistration`, { email, message: err.message, stack: err.stack });
 		return { status: false, message: 'An internal error occurred during registration finalization.' };
 	}
 }
@@ -835,7 +837,7 @@ interface ForgotPWCheckResult {
 }
 
 async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
-	logger.debug(`forgotPWCheck called for email: ${email}`);
+	logger.debug(`forgotPWCheck called`, { email });
 	if (!auth) {
 		logger.error('Auth system not initialized for forgotPWCheck');
 		return { success: false, message: 'Authentication system unavailable.' };
@@ -843,17 +845,17 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 	try {
 		const user = await auth.checkUser({ email });
 		if (!user || !user._id) {
-			logger.warn(`forgotPWCheck: User ${email} not found.`);
+			logger.warn(`forgotPWCheck: User not found`, { email });
 			return { success: false, message: 'User does not exist.' };
 		}
 		const expiresInMs = 1 * 60 * 60 * 1000;
 		const expiresAt = new Date(Date.now() + expiresInMs);
 		const token = await auth.createToken(user._id, expiresAt, 'password_reset');
-		logger.info(`Password reset token created for ${email}.`);
+		logger.info(`Password reset token created`, { email });
 		return { success: true, message: 'Password reset token generated.', token, expiresIn: expiresAt, username: user.username };
 	} catch (error) {
 		const err = error as Error;
-		logger.error(`Error in forgotPWCheck for ${email}: ${err.message}`, { stack: err.stack });
+		logger.error(`Error in forgotPWCheck`, { email, message: err.message, stack: err.stack });
 		return { success: false, message: 'An internal error occurred generating password reset token.' };
 	}
 }
@@ -865,7 +867,7 @@ interface ResetPWResult {
 }
 
 async function resetPWCheck(password: string, token: string, email: string): Promise<ResetPWResult> {
-	logger.debug(`resetPWCheck called for email: ${email}`);
+	logger.debug(`resetPWCheck called`, { email });
 	if (!auth) {
 		logger.error('Auth system not initialized for resetPWCheck');
 		return { status: false, message: 'Authentication system unavailable.' };
@@ -873,12 +875,12 @@ async function resetPWCheck(password: string, token: string, email: string): Pro
 	try {
 		const user = await auth.checkUser({ email });
 		if (!user || !user._id) {
-			logger.warn(`resetPWCheck: User ${email} not found for token validation.`);
+			logger.warn(`resetPWCheck: User not found for token validation`, { email });
 			return { status: false, message: 'Invalid or expired reset link (user not found).' };
 		}
 		const validate = await auth.consumeToken(token, user._id, 'password_reset');
 		if (!validate.status) {
-			logger.warn(`resetPWCheck: Token consumption failed for ${email}: ${validate.message}`);
+			logger.warn(`resetPWCheck: Token consumption failed`, { email, message: validate.message });
 			return { status: false, message: validate.message || 'Invalid or expired reset link.' };
 		}
 		if (calculatePasswordStrength(password) < 1) {
@@ -887,14 +889,14 @@ async function resetPWCheck(password: string, token: string, email: string): Pro
 		await auth.invalidateAllUserSessions(user._id);
 		const updateResult = await auth.updateUserPassword(email, password);
 		if (!updateResult.status) {
-			logger.warn(`resetPWCheck: Password update failed for ${email}: ${updateResult.message}`);
+			logger.warn(`resetPWCheck: Password update failed`, { email, message: updateResult.message });
 			return { status: false, message: updateResult.message || 'Failed to update password.' };
 		}
-		logger.info(`Password reset successfully for ${email}.`);
+		logger.info(`Password reset successfully`, { email });
 		return { status: true, username: user.username };
 	} catch (error) {
 		const err = error as Error;
-		logger.error(`Error in resetPWCheck for ${email}: ${err.message}`, { stack: err.stack });
+		logger.error(`Error in resetPWCheck`, { email, message: err.message, stack: err.stack });
 		return { status: false, message: 'An internal error occurred during password reset.' };
 	}
 }

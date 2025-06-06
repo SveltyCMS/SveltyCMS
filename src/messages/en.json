@@ -135,6 +135,7 @@
 	"signin_signinsuccess": "Signed In Successfully",
 	"signin_forgottontoast": "Password reset token was also send by Email",
 	"signin_restpasswordtoast": "Password reset token was also send by Email",
+	"signin_emailnotfound": "No account found with this email address.",
 	"signin_forgottenpassword": "Forgotten Password",
 	"signin_resetpassword": "Reset Password",
 	"signin_forgottenpasswordtext": "Do not worry. We will help you Recover your Password.",

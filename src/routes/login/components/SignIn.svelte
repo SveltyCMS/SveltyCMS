@@ -191,14 +191,25 @@ Features:
 			}
 
 			if (result.type === 'success') {
-				if (result.data !== undefined && result.data.status === false) {
+				// Check if user exists
+				if (result.data && result.data.userExists === false) {
+					// User doesn't exist - show error toast and don't navigate to reset form
 					PWreset = false;
+					toastStore.trigger({
+						message: 'No account found with this email address.',
+						background: 'variant-filled-error',
+						timeout: 4000,
+						classes: 'border-1 !rounded-md'
+					});
+
+					// Add wiggle animation to form element
 					formElement?.classList.add('wiggle');
 					setTimeout(() => {
 						formElement?.classList.remove('wiggle');
 					}, 300);
 					return;
-				} else {
+				} else if (result.data && result.data.userExists === true) {
+					// User exists and email should have been sent
 					PWreset = true;
 					toastStore.trigger({
 						message: m.signin_forgottontoast(),
@@ -206,8 +217,26 @@ Features:
 						timeout: 4000,
 						classes: 'border-1 !rounded-md'
 					});
-
 					return;
+				} else {
+					// Legacy fallback or other success scenarios
+					if (result.data !== undefined && result.data.status === false) {
+						PWreset = false;
+						formElement?.classList.add('wiggle');
+						setTimeout(() => {
+							formElement?.classList.remove('wiggle');
+						}, 300);
+						return;
+					} else {
+						PWreset = true;
+						toastStore.trigger({
+							message: m.signin_forgottontoast(),
+							background: 'variant-filled-primary',
+							timeout: 4000,
+							classes: 'border-1 !rounded-md'
+						});
+						return;
+					}
 				}
 			}
 

@@ -135,6 +135,7 @@
 	"signin_signinsuccess": "Conectado com sucesso",
 	"signin_forgottontoast": "O token de redefinição de senha também foi enviado por e-mail",
 	"signin_restpasswordtoast": "O token de redefinição de senha também foi enviado por e-mail",
+	"signin_emailnotfound": "Nenhuma conta encontrada com este endereço de e-mail.",
 	"signin_forgottenpassword": "Palavra-chave esquecida",
 	"signin_resetpassword": "Redefinir senha",
 	"signin_forgottenpasswordtext": "Não se preocupe. Nós vamos ajudá-lo a recuperar sua senha.",

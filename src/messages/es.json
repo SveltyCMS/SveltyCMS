@@ -135,6 +135,7 @@
 	"signin_signinsuccess": "Iniciado sesión correctamente",
 	"signin_forgottontoast": "El token de restablecimiento de contraseña también se envió por correo electrónico",
 	"signin_restpasswordtoast": "El token de restablecimiento de contraseña también se envió por correo electrónico",
+	"signin_emailnotfound": "No se encontró ninguna cuenta con esta dirección de correo electrónico.",
 	"signin_forgottenpassword": "Contraseña olvidada",
 	"signin_resetpassword": "Restablecer la contraseña",
 	"signin_forgottenpasswordtext": "No te preocupes. Le ayudaremos a recuperar su contraseña.",
@@ -434,6 +435,5 @@
 	"sidebar_will_publish_on": "Se publicará el",
 	"siedabar_publish_options": "Opciones de publicación",
 	"Fields_no_widgets_found": "Widget no encontrado: {name}",
-	"Fields_preview": "Avance",
-	"signup_password": "Contraseña"
+	"Fields_preview": "Avance"
 }

@@ -135,6 +135,7 @@
 	"signin_signinsuccess": "সফলভাবে সাইন ইন করা হয়েছে",
 	"signin_forgottontoast": "পাসওয়ার্ড রিসেট টোকেন ইমেলের মাধ্যমেও পাঠানো হয়েছিল",
 	"signin_restpasswordtoast": "পাসওয়ার্ড রিসেট টোকেন ইমেলের মাধ্যমেও পাঠানো হয়েছিল",
+	"signin_emailnotfound": "এই ইমেল ঠিকানা দিয়ে কোনও অ্যাকাউন্ট পাওয়া যায়নি।",
 	"signin_forgottenpassword": "ভুলে যাওয়া পাসওয়ার্ড",
 	"signin_resetpassword": "পাসওয়ার্ড রিসেট করুন",
 	"signin_forgottenpasswordtext": "চিন্তা করো না। আমরা তোমার পাসওয়ার্ড পুনরুদ্ধার করতে সাহায্য করব।",

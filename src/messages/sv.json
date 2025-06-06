@@ -135,6 +135,7 @@
 	"signin_signinsuccess": "Inloggad framgångsrikt",
 	"signin_forgottontoast": "Lösenordsåterställningstoken skickades också via e-post",
 	"signin_restpasswordtoast": "Lösenordsåterställningstoken skickades också via e-post",
+	"signin_emailnotfound": "Inget konto hittades med den här e-postadressen.",
 	"signin_forgottenpassword": "glömt lösenord",
 	"signin_resetpassword": "Återställ lösenord",
 	"signin_forgottenpasswordtext": "Oroa dig inte. Vi hjälper dig att återställa ditt lösenord.",

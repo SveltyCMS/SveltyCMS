@@ -135,6 +135,7 @@
 	"signin_signinsuccess": "შესულია წარმატებით",
 	"signin_forgottontoast": "პაროლის აღდგენის ჟეტონი ასევე გაიგზავნა ელექტრონული ფოსტით",
 	"signin_restpasswordtoast": "პაროლის აღდგენის ჟეტონი ასევე გაიგზავნა ელექტრონული ფოსტით",
+	"signin_emailnotfound": "ამ ელფოსტის მისამართით ანგარიში ვერ მოიძებნა.",
 	"signin_forgottenpassword": "დავიწყებული პაროლი",
 	"signin_resetpassword": "პაროლის აღდგენა",
 	"signin_forgottenpasswordtext": "Არ იდარდო. ჩვენ დაგეხმარებით თქვენი პაროლის აღდგენაში.",

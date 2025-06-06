@@ -135,6 +135,7 @@
 	"signin_signinsuccess": "サインインに成功しました",
 	"signin_forgottontoast": "パスワードリセットトークンもメールで送信されました",
 	"signin_restpasswordtoast": "パスワードリセットトークンもメールで送信されました",
+	"signin_emailnotfound": "このメールアドレスに該当するアカウントは見つかりません。",
 	"signin_forgottenpassword": "パスワードを忘れました",
 	"signin_resetpassword": "パスワードを再設定する",
 	"signin_forgottenpasswordtext": "心配しないでください。パスワードの回復をお手伝いします。",

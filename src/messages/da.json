@@ -135,6 +135,7 @@
 	"signin_signinsuccess": "Log ind med succes",
 	"signin_forgottontoast": "Token til nulstilling af adgangskode blev også sendt via e-mail",
 	"signin_restpasswordtoast": "Token til nulstilling af adgangskode blev også sendt via e-mail",
+	"signin_emailnotfound": "Ingen konto fundet med denne e-mailadresse.",
 	"signin_forgottenpassword": "Glemt adgangskode",
 	"signin_resetpassword": "Nulstille kodeord",
 	"signin_forgottenpasswordtext": "Vær ikke urolig. Vi hjælper dig med at gendanne din adgangskode.",

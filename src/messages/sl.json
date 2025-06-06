@@ -135,6 +135,7 @@
 	"signin_signinsuccess": "Uspešno vpisan",
 	"signin_forgottontoast": "Žeton za ponastavitev gesla je bil poslan tudi po e-pošti",
 	"signin_restpasswordtoast": "Žeton za ponastavitev gesla je bil poslan tudi po e-pošti",
+	"signin_emailnotfound": "S tem e-poštnim naslovom ni bilo mogoče najti računa.",
 	"signin_forgottenpassword": "Pozabljeno geslo",
 	"signin_resetpassword": "Ponastavitev gesla",
 	"signin_forgottenpasswordtext": "Ne skrbi. Pomagali vam bomo obnoviti geslo.",

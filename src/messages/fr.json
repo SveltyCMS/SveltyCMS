@@ -135,6 +135,7 @@
 	"signin_signinsuccess": "Connexion réussie",
 	"signin_forgottontoast": "Le jeton de réinitialisation du mot de passe a également été envoyé par e-mail",
 	"signin_restpasswordtoast": "Le jeton de réinitialisation du mot de passe a également été envoyé par e-mail",
+	"signin_emailnotfound": "Aucun compte trouvé avec cette adresse email.",
 	"signin_forgottenpassword": "mot de passe oublié",
 	"signin_resetpassword": "réinitialiser le mot de passe",
 	"signin_forgottenpasswordtext": "Ne t'inquiète pas. Nous vous aiderons à récupérer votre mot de passe.",

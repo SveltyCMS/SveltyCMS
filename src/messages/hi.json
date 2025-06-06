@@ -135,6 +135,7 @@
 	"signin_signinsuccess": "सफलतापूर्वक साइन इन किया गया",
 	"signin_forgottontoast": "पासवर्ड रीसेट टोकन भी ईमेल द्वारा भेजा गया था",
 	"signin_restpasswordtoast": "पासवर्ड रीसेट टोकन भी ईमेल द्वारा भेजा गया था",
+	"signin_emailnotfound": "इस ईमेल पते के साथ कोई खाता नहीं मिला.",
 	"signin_forgottenpassword": "पासवर्ड भूल गए",
 	"signin_resetpassword": "पासवर्ड रीसेट",
 	"signin_forgottenpasswordtext": "चिंता न करें। हम आपका पासवर्ड पुनर्प्राप्त करने में आपकी सहायता करेंगे।",

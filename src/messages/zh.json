@@ -135,6 +135,7 @@
 	"signin_signinsuccess": "登录成功",
 	"signin_forgottontoast": "密码重置令牌也通过电子邮件发送",
 	"signin_restpasswordtoast": "密码重置令牌也通过电子邮件发送",
+	"signin_emailnotfound": "未找到此电子邮件地址的帐户。",
 	"signin_forgottenpassword": "忘记密码",
 	"signin_resetpassword": "重设密码",
 	"signin_forgottenpasswordtext": "别担心。我们将帮助您恢复密码。",
