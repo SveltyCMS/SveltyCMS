@@ -44,8 +44,6 @@
 		"config/**/*.ts",
 		"src/**/*.js",
 		"src/**/*.d.ts",
-		"config/private.ts",
-		"logs/public.ts"
 	],
 	"exclude": [
 		".svelte-kit",
