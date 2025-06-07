@@ -10,7 +10,7 @@
 
 import { confirm, note, isCancel, password } from '@clack/prompts';
 import pc from 'picocolors';
-import { Title, cancelOperation } from '../cli-installer.js';
+import { Title, cancelToMainMenu } from '../cli-installer.js';
 
 export async function configureMapbox(privateConfigData = {}) {
 	// SveltyCMS Title
@@ -37,7 +37,7 @@ export async function configureMapbox(privateConfigData = {}) {
 		initialValue: privateConfigData.USE_MAPBOX || false
 	});
 	if (isCancel(USE_MAPBOX)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -52,7 +52,7 @@ export async function configureMapbox(privateConfigData = {}) {
 			}
 		});
 		if (isCancel(MAPBOX_API_TOKEN)) {
-			await cancelOperation();
+			cancelToMainMenu();
 			return;
 		}
 	} else {
@@ -71,13 +71,13 @@ export async function configureMapbox(privateConfigData = {}) {
 	});
 
 	if (isCancel(confirmSave)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
 	if (!confirmSave) {
 		note('Configuration not saved.', pc.yellow('Action Cancelled'));
-		await cancelOperation(); // Return to main config menu
+		cancelToMainMenu(); // Return to main config menu
 		return;
 	}
 

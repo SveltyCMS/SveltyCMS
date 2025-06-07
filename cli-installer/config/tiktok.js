@@ -10,7 +10,7 @@
 
 import { confirm, note, isCancel, password } from '@clack/prompts';
 import pc from 'picocolors';
-import { Title, cancelOperation } from '../cli-installer.js';
+import { Title, cancelToMainMenu } from '../cli-installer.js';
 
 export async function configureTiktok(privateConfigData = {}) {
 	// SveltyCMS Title
@@ -39,7 +39,7 @@ export async function configureTiktok(privateConfigData = {}) {
 		initialValue: privateConfigData.USE_TIKTOK || false
 	});
 	if (isCancel(USE_TIKTOK)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -54,7 +54,7 @@ export async function configureTiktok(privateConfigData = {}) {
 			}
 		});
 		if (isCancel(TIKTOK_TOKEN)) {
-			await cancelOperation();
+			cancelToMainMenu();
 			return;
 		}
 	} else {
@@ -73,13 +73,13 @@ export async function configureTiktok(privateConfigData = {}) {
 	});
 
 	if (isCancel(confirmSave)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
 	if (!confirmSave) {
 		note('Configuration not saved.', pc.yellow('Action Cancelled'));
-		await cancelOperation(); // Return to main config menu
+		cancelToMainMenu(); // Return to main config menu
 		return;
 	}
 	// If confirmed, proceed to return the config object

@@ -10,7 +10,7 @@
 
 import { confirm, text, note, select, isCancel } from '@clack/prompts';
 import pc from 'picocolors';
-import { Title, cancelOperation } from '../cli-installer.js';
+import { Title, cancelToMainMenu } from '../cli-installer.js';
 
 // Helper function to parse IMAGE_SIZES string
 function parseImageSizes(sizesString) {
@@ -90,7 +90,7 @@ export async function configureMedia(privateConfigData = {}) {
 		}
 	});
 	if (isCancel(imageSizesString)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 	const IMAGE_SIZES = parseImageSizes(imageSizesString); // Parse the validated string
@@ -101,7 +101,7 @@ export async function configureMedia(privateConfigData = {}) {
 		initialValue: privateConfigData.MEDIA_FOLDER || 'mediaFiles'
 	});
 	if (isCancel(MEDIA_FOLDER)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -135,11 +135,11 @@ export async function configureMedia(privateConfigData = {}) {
 		})
 	};
 	if (isCancel(MEDIA_OUTPUT_FORMAT_QUALITY.format)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 	if (isCancel(MEDIA_OUTPUT_FORMAT_QUALITY.quality)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 	// Convert quality to number after validation
@@ -156,7 +156,7 @@ export async function configureMedia(privateConfigData = {}) {
 		}
 	});
 	if (isCancel(MEDIASERVER_URL)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -176,13 +176,13 @@ export async function configureMedia(privateConfigData = {}) {
 	});
 
 	if (isCancel(confirmSave)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
 	if (!confirmSave) {
 		note('Configuration not saved.', pc.yellow('Action Cancelled'));
-		await cancelOperation(); // Return to main config menu
+		cancelToMainMenu(); // Return to main config menu
 		return;
 	}
 

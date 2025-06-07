@@ -10,7 +10,7 @@
 
 import { text, note, isCancel, select, password } from '@clack/prompts';
 import pc from 'picocolors';
-import { cancelOperation } from '../cli-installer.js';
+import { cancelToMainMenu } from '../cli-installer.js';
 
 // Helper function to validate port number
 const validatePort = (value) => {
@@ -55,7 +55,7 @@ export async function configureMariaDB(privateConfigData = {}) {
 		]
 	});
 	if (isCancel(mariadbOption)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -83,7 +83,7 @@ export async function configureMariaDB(privateConfigData = {}) {
 		validate: (value) => validateRequired(value, 'Host')
 	});
 	if (isCancel(dbHost)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -94,7 +94,7 @@ export async function configureMariaDB(privateConfigData = {}) {
 		validate: validatePort
 	});
 	if (isCancel(dbPort)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -104,7 +104,7 @@ export async function configureMariaDB(privateConfigData = {}) {
 		initialValue: privateConfigData.DB_USER || ''
 	});
 	if (isCancel(dbUser)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -116,7 +116,7 @@ export async function configureMariaDB(privateConfigData = {}) {
 			// validate: (v) => validateRequired(v, 'Password')
 		});
 		if (isCancel(dbPassword)) {
-			await cancelOperation();
+			cancelToMainMenu();
 			return;
 		}
 	} else {
@@ -134,7 +134,7 @@ export async function configureMariaDB(privateConfigData = {}) {
 		}
 	});
 	if (isCancel(dbName)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 

@@ -8,10 +8,9 @@
  * - Prompts for LLM integration
  */
 
-import { confirm, text, note, isCancel, cancel, password } from '@clack/prompts';
+import { confirm, text, note, isCancel, password } from '@clack/prompts';
 import pc from 'picocolors';
-import { Title, cancelOperation } from '../cli-installer.js';
-import { configurationPrompt } from '../configuration.js';
+import { Title, cancelToMainMenu } from '../cli-installer.js';
 
 export async function configureLLM(privateConfigData = {}) {
 	// SveltyCMS Title
@@ -48,7 +47,7 @@ export async function configureLLM(privateConfigData = {}) {
 			}
 		});
 		if (isCancel(providerKey)) {
-			await cancelOperation();
+			cancelToMainMenu();
 			return;
 		}
 
@@ -57,7 +56,7 @@ export async function configureLLM(privateConfigData = {}) {
 			initialValue: llmConfigs[providerKey]?.enabled ?? true // Default to true if new or existing enabled
 		});
 		if (isCancel(enableLLM)) {
-			await cancelOperation();
+			cancelToMainMenu();
 			return;
 		}
 
@@ -74,7 +73,7 @@ export async function configureLLM(privateConfigData = {}) {
 				}
 			});
 			if (isCancel(apiKey)) {
-				await cancelOperation();
+				cancelToMainMenu();
 				return;
 			}
 
@@ -84,7 +83,7 @@ export async function configureLLM(privateConfigData = {}) {
 				initialValue: model
 			});
 			if (isCancel(model)) {
-				await cancelOperation();
+				cancelToMainMenu();
 				return;
 			}
 
@@ -94,7 +93,7 @@ export async function configureLLM(privateConfigData = {}) {
 				initialValue: baseUrl
 			});
 			if (isCancel(baseUrl)) {
-				await cancelOperation();
+				cancelToMainMenu();
 				return;
 			}
 		} else {
@@ -128,10 +127,7 @@ export async function configureLLM(privateConfigData = {}) {
 		});
 
 		if (isCancel(addMore)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt(); // Restart the configuration process
-			await cancelOperation();
+			cancelToMainMenu();
 			return;
 		}
 	} while (addMore);
@@ -148,13 +144,13 @@ export async function configureLLM(privateConfigData = {}) {
 	});
 
 	if (isCancel(confirmSave)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
 	if (!confirmSave) {
 		note('Configuration not saved.', pc.yellow('Action Cancelled'));
-		await cancelOperation(); // Return to main config menu
+		cancelToMainMenu(); // Return to main config menu
 		return;
 	}
 

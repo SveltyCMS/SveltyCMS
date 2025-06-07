@@ -15,7 +15,7 @@
 - Adds specific warnings about feature limitations in Dev/Testing mode, **including suitability for single-admin setups.**
 */
 
-import { Title, cancelOperation } from '../cli-installer.js';
+import { Title, cancelToMainMenu } from '../cli-installer.js';
 import { isCancel, text, select, confirm, note, password, spinner } from '@clack/prompts';
 import pc from 'picocolors';
 import { configurationPrompt } from '../configuration.js';
@@ -122,7 +122,7 @@ export async function configureEmail(privateConfigData = {}) {
 	});
 
 	if (isCancel(configMode)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -172,7 +172,7 @@ export async function configureEmail(privateConfigData = {}) {
 			validate: validateEmail
 		});
 		if (isCancel(SMTP_EMAIL)) {
-			await cancelOperation();
+			cancelToMainMenu();
 			return configurationPrompt();
 		}
 
@@ -211,7 +211,7 @@ export async function configureEmail(privateConfigData = {}) {
 		});
 
 		if (isCancel(SMTP_PROVIDER)) {
-			await cancelOperation();
+			cancelToMainMenu();
 			return configurationPrompt();
 		}
 
@@ -232,7 +232,7 @@ export async function configureEmail(privateConfigData = {}) {
 			});
 
 			if (isCancel(SMTP_HOST)) {
-				await cancelOperation();
+				cancelToMainMenu();
 				return configurationPrompt();
 			}
 
@@ -250,7 +250,7 @@ export async function configureEmail(privateConfigData = {}) {
 			});
 
 			if (isCancel(SMTP_PORT)) {
-				await cancelOperation();
+				cancelToMainMenu();
 				return configurationPrompt();
 			}
 		} else {
@@ -267,7 +267,7 @@ export async function configureEmail(privateConfigData = {}) {
 				}
 			});
 			if (isCancel(SMTP_HOST)) {
-				await cancelOperation();
+				cancelToMainMenu();
 				return configurationPrompt();
 			}
 
@@ -284,7 +284,7 @@ export async function configureEmail(privateConfigData = {}) {
 				}
 			});
 			if (isCancel(SMTP_PORT)) {
-				await cancelOperation();
+				cancelToMainMenu();
 				return configurationPrompt();
 			}
 		}
@@ -296,7 +296,7 @@ export async function configureEmail(privateConfigData = {}) {
 			validate: validateEmail
 		});
 		if (isCancel(SMTP_EMAIL)) {
-			await cancelOperation();
+			cancelToMainMenu();
 			return;
 		}
 
@@ -308,7 +308,7 @@ export async function configureEmail(privateConfigData = {}) {
 			}
 		});
 		if (isCancel(SMTP_PASSWORD)) {
-			await cancelOperation();
+			cancelToMainMenu();
 			return;
 		}
 
@@ -337,7 +337,7 @@ export async function configureEmail(privateConfigData = {}) {
 					initialValue: true
 				});
 				if (isCancel(retry) || !retry) {
-					await cancelOperation();
+					cancelToMainMenu();
 					return;
 				} else {
 					const currentEnteredData = {
@@ -355,7 +355,7 @@ export async function configureEmail(privateConfigData = {}) {
 		} catch (error) {
 			s.stop(pc.red('An unexpected error occurred during the SMTP test.'));
 			note(`${error.message}\n\nPlease try again or check server logs.`, pc.red('Unexpected Error'));
-			await cancelOperation();
+			cancelToMainMenu();
 			return;
 		}
 
@@ -375,13 +375,13 @@ export async function configureEmail(privateConfigData = {}) {
 			});
 
 			if (isCancel(confirmSave)) {
-				await cancelOperation();
+				cancelToMainMenu();
 				return;
 			}
 
 			if (!confirmSave) {
 				note('Configuration not saved.', pc.yellow('Action Cancelled'));
-				await cancelOperation();
+				cancelToMainMenu();
 				return;
 			}
 
@@ -394,7 +394,7 @@ export async function configureEmail(privateConfigData = {}) {
 			};
 		} else {
 			note('Email configuration not saved due to connection failure or cancellation.', pc.yellow('Configuration Failed'));
-			await cancelOperation();
+			cancelToMainMenu();
 			return;
 		}
 	}

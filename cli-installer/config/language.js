@@ -10,7 +10,7 @@
 
 import { confirm, multiselect, select, isCancel, note } from '@clack/prompts';
 import pc from 'picocolors';
-import { Title, cancelOperation } from '../cli-installer.js';
+import { Title, cancelToMainMenu } from '../cli-installer.js';
 
 // Languages
 const languageOptions = [
@@ -75,7 +75,7 @@ export async function configureLanguage(configData = {}) {
 		initialValue: configData?.DEFAULT_CONTENT_LANGUAGE || 'en'
 	});
 	if (isCancel(DEFAULT_CONTENT_LANGUAGE)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -96,7 +96,7 @@ export async function configureLanguage(configData = {}) {
 		}
 	});
 	if (isCancel(AVAILABLE_CONTENT_LANGUAGES)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -118,7 +118,7 @@ export async function configureLanguage(configData = {}) {
 		initialValue: configData?.DEFAULT_SYSTEM_LANGUAGE || 'en'
 	});
 	if (isCancel(DEFAULT_SYSTEM_LANGUAGE)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -139,7 +139,7 @@ export async function configureLanguage(configData = {}) {
 		}
 	});
 	if (isCancel(AVAILABLE_SYSTEM_LANGUAGES)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -171,13 +171,13 @@ export async function configureLanguage(configData = {}) {
 	});
 
 	if (isCancel(confirmSave)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
 	if (!confirmSave) {
 		note('Configuration not saved.', pc.yellow('Action Cancelled'));
-		await cancelOperation(); // Return to main config menu
+		cancelToMainMenu(); // Return to main config menu
 		return;
 	}
 

@@ -8,7 +8,7 @@
 - Handles user input
 */
 
-import { intro, cancel } from '@clack/prompts';
+import { intro, outro } from '@clack/prompts';
 import pc from 'picocolors';
 
 // Components
@@ -25,27 +25,67 @@ export const Title = () => {
 
 // Define more prompts here for different configuration sections
 export const cancelOperation = () => {
-	// No need for async now
-	cancel('Operation cancelled. Exiting installer.');
-	process.exit(1); // Exit with code 1 for cancellation
-	// The return is now unreachable, but kept for clarity if needed later
-	return;
+	// Complete exit - used for main menu cancellation
+	outro('👋 Operation cancelled. Goodbye!');
+	process.exit(0); // Exit with code 0 for graceful cancellation
+};
+
+// For sub-menu cancellations - returns to main config menu
+export const cancelToMainMenu = () => {
+	// Just show a message but don't exit - let the calling function handle return
+	console.log('\n↩️  Returning to main configuration menu...');
 };
 
 export async function main() {
-	// Start installer
-	const projectStart = await startOrInstallPrompt(); // This handles its own exit/cancel
+	try {
+		// Start installer
+		const projectStart = await startOrInstallPrompt(); // This handles its own exit/cancel
 
-	// Handle user input
-	if (projectStart === 'install') {
-		await backupRestorePrompt();
+		// Handle user input
+		if (projectStart === 'install') {
+			await backupRestorePrompt();
 
-		// configurationPrompt now handles its own cancellations via cancelOperation
-		await configurationPrompt();
-	} else if (projectStart === 'start') {
-		await startProcess();
+			// configurationPrompt now handles its own cancellations via cancelOperation
+			await configurationPrompt();
+		} else if (projectStart === 'start') {
+			await startProcess();
+		}
+	} catch (error) {
+		// Handle different types of errors
+		if (error && error.message && error.message.includes('canceled')) {
+			// This is likely a cancellation from @clack/prompts
+			outro('👋 Operation cancelled. Goodbye!');
+			process.exit(0); // Exit gracefully for cancellation
+		} else if (error && typeof error === 'symbol') {
+			// This could be a cancellation symbol from @clack/prompts
+			outro('👋 Operation cancelled. Goodbye!');
+			process.exit(0); // Exit gracefully for cancellation
+		} else {
+			// This is an actual error
+			console.error(pc.red('❌ An error occurred:'), error);
+			outro('❌ Installer failed. Please try again.');
+			process.exit(1);
+		}
 	}
 }
+
+// Global error handlers for graceful shutdown
+process.on('SIGINT', () => {
+	outro('👋 Installation cancelled. Goodbye!');
+	process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+	outro('👋 Installation terminated. Goodbye!');
+	process.exit(0);
+});
+
+// Handle uncaught exceptions gracefully
+process.on('uncaughtException', (error) => {
+	console.error(pc.red('❌ Unexpected error:'), error);
+	outro('❌ An unexpected error occurred. Please try again.');
+	process.exit(1);
+});
 
 // Render the main function
 main();

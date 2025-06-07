@@ -10,7 +10,7 @@
 
 import { confirm, text, note, select, isCancel, multiselect, password } from '@clack/prompts';
 import pc from 'picocolors';
-import { Title, cancelOperation } from '../cli-installer.js';
+import { Title, cancelToMainMenu } from '../cli-installer.js';
 import crypto from 'crypto';
 
 // Generate JWT Secret
@@ -134,7 +134,7 @@ export async function configureSystem(privateConfigData = {}) {
 		}
 	});
 	if (isCancel(SITE_NAME)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -149,7 +149,7 @@ export async function configureSystem(privateConfigData = {}) {
 		}
 	});
 	if (isCancel(HOST_DEV)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -164,7 +164,7 @@ export async function configureSystem(privateConfigData = {}) {
 		}
 	});
 	if (isCancel(HOST_PROD)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -178,7 +178,7 @@ export async function configureSystem(privateConfigData = {}) {
 		}
 	});
 	if (isCancel(PASSWORD_LENGTH)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -192,7 +192,7 @@ export async function configureSystem(privateConfigData = {}) {
 		}
 	});
 	if (isCancel(MAX_FILE_SIZE_STRING)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 	const MAX_FILE_SIZE = parseSizeToBytes(MAX_FILE_SIZE_STRING);
@@ -207,7 +207,7 @@ export async function configureSystem(privateConfigData = {}) {
 		}
 	});
 	if (isCancel(BODY_SIZE_LIMIT_STRING)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 	const BODY_SIZE_LIMIT = parseSizeToBytes(BODY_SIZE_LIMIT_STRING);
@@ -217,7 +217,7 @@ export async function configureSystem(privateConfigData = {}) {
 		initialValue: privateConfigData.EXTRACT_DATA_PATH || false // Assuming boolean
 	});
 	if (isCancel(EXTRACT_DATA_PATH)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -241,7 +241,7 @@ export async function configureSystem(privateConfigData = {}) {
 		}
 	});
 	if (isCancel(LOG_LEVELS)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -256,7 +256,7 @@ export async function configureSystem(privateConfigData = {}) {
 		}
 	});
 	if (isCancel(LOG_RETENTION_DAYS)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -271,7 +271,7 @@ export async function configureSystem(privateConfigData = {}) {
 		}
 	});
 	if (isCancel(LOG_ROTATION_SIZE_STRING)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 	const LOG_ROTATION_SIZE = parseSizeToBytes(LOG_ROTATION_SIZE_STRING);
@@ -286,7 +286,7 @@ export async function configureSystem(privateConfigData = {}) {
 		}
 	});
 	if (isCancel(SESSION_CLEANUP_INTERVAL)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -300,7 +300,7 @@ export async function configureSystem(privateConfigData = {}) {
 		}
 	});
 	if (isCancel(MAX_IN_MEMORY_SESSIONS)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -314,7 +314,7 @@ export async function configureSystem(privateConfigData = {}) {
 		}
 	});
 	if (isCancel(DB_VALIDATION_PROBABILITY)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -328,7 +328,7 @@ export async function configureSystem(privateConfigData = {}) {
 		}
 	});
 	if (isCancel(SESSION_EXPIRATION_SECONDS)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -337,7 +337,7 @@ export async function configureSystem(privateConfigData = {}) {
 		initialValue: privateConfigData.SEASONS || false
 	});
 	if (isCancel(SEASONS)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -357,7 +357,7 @@ export async function configureSystem(privateConfigData = {}) {
 			initialValue: privateConfigData.SEASONS_REGION || 'Western_Europe'
 		});
 		if (isCancel(SEASONS_REGION)) {
-			await cancelOperation();
+			cancelToMainMenu();
 			return;
 		}
 	}
@@ -376,7 +376,7 @@ export async function configureSystem(privateConfigData = {}) {
 		}
 	});
 	if (isCancel(JWT_SECRET_KEY)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -408,13 +408,13 @@ export async function configureSystem(privateConfigData = {}) {
 	});
 
 	if (isCancel(confirmSave)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
 	if (!confirmSave) {
 		note('Configuration not saved.', pc.yellow('Action Cancelled'));
-		await cancelOperation(); // Return to main config menu
+		cancelToMainMenu(); // Return to main config menu
 		return;
 	}
 	// If confirmed, proceed to return the config object

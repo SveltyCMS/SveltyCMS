@@ -12,7 +12,7 @@ import { Title, cancelOperation } from './cli-installer.js';
 import { configurationPrompt } from './configuration.js';
 import { configureMongoDB } from './config/mongodbConfig.js';
 import { configureMariaDB } from './config/mariadbConfig.js';
-import { text, spinner, select, note, isCancel, cancel, confirm } from '@clack/prompts';
+import { text, spinner, select, note, isCancel, confirm } from '@clack/prompts';
 import pc from 'picocolors';
 
 // Helper function to validate numeric input (using new error return)
@@ -107,9 +107,7 @@ export async function backupRestorePrompt(privateConfigData = {}) {
 	});
 
 	if (isCancel(projectDatabase)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
+		await cancelOperation();
 		return;
 	}
 

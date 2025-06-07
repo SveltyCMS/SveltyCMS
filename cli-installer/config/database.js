@@ -8,11 +8,11 @@
 - Prompts for Database integration
 */
 
-import { Title, cancelOperation } from '../cli-installer.js';
+import { Title, cancelToMainMenu } from '../cli-installer.js';
 import { configurationPrompt } from '../configuration.js';
 import { configureMongoDB } from './mongodbConfig.js';
 import { configureMariaDB } from './mariadbConfig.js';
-import { text, spinner, select, note, isCancel, cancel, confirm } from '@clack/prompts';
+import { text, spinner, select, note, isCancel, confirm } from '@clack/prompts';
 import pc from 'picocolors';
 
 // Helper function to validate numeric input (using new error return)
@@ -114,10 +114,8 @@ export async function configureDatabase(privateConfigData = {}) {
 	});
 
 	if (isCancel(projectDatabase)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
-		return;
+		cancelToMainMenu();
+		return; // Return undefined to go back to main menu
 	}
 
 	let dbConfig = {};
@@ -152,7 +150,7 @@ export async function configureDatabase(privateConfigData = {}) {
 			validate: (value) => validateNumber(value, 'Retry attempts')
 		});
 		if (isCancel(retryAttempts)) {
-			await cancelOperation();
+			cancelToMainMenu();
 			return;
 		}
 
@@ -163,7 +161,7 @@ export async function configureDatabase(privateConfigData = {}) {
 			validate: (value) => validateNumber(value, 'Retry delay')
 		});
 		if (isCancel(retryDelay)) {
-			await cancelOperation();
+			cancelToMainMenu();
 			return;
 		}
 
@@ -174,7 +172,7 @@ export async function configureDatabase(privateConfigData = {}) {
 			validate: (value) => validateNumber(value, 'Pool size')
 		});
 		if (isCancel(poolSize)) {
-			await cancelOperation();
+			cancelToMainMenu();
 			return;
 		}
 
@@ -229,7 +227,7 @@ export async function configureDatabase(privateConfigData = {}) {
 		});
 
 		if (isCancel(retry) || !retry) {
-			await cancelOperation(); // Use standardized cancel operation
+			cancelToMainMenu();
 			return;
 		} else {
 			// Pass the potentially updated privateConfigData (with advanced settings) back
@@ -258,13 +256,13 @@ export async function configureDatabase(privateConfigData = {}) {
 	});
 
 	if (isCancel(confirmSave)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
 	if (!confirmSave) {
 		note('Configuration not saved.', pc.yellow('Action Cancelled'));
-		await cancelOperation(); // Return to main config menu
+		cancelToMainMenu();
 		return;
 	}
 	// If confirmed, proceed to return the config object

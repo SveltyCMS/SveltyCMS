@@ -8,10 +8,9 @@
 - Prompts for Google integration
 */
 
-import { confirm, note, text, isCancel, cancel, password } from '@clack/prompts';
+import { confirm, note, text, isCancel, password } from '@clack/prompts';
 import pc from 'picocolors';
-import { Title, cancelOperation } from '../cli-installer.js';
-import { configurationPrompt } from '../configuration.js';
+import { Title, cancelToMainMenu } from '../cli-installer.js';
 
 export async function configureGoogle(privateConfigData = {}) {
 	// SveltyCMS Title
@@ -42,9 +41,7 @@ export async function configureGoogle(privateConfigData = {}) {
 	});
 
 	if (isCancel(GOOGLE_API_KEY)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
+		cancelToMainMenu();
 		return;
 	}
 
@@ -53,7 +50,7 @@ export async function configureGoogle(privateConfigData = {}) {
 		initialValue: privateConfigData.USE_GOOGLE_OAUTH || false
 	});
 	if (isCancel(USE_GOOGLE_OAUTH)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -70,7 +67,7 @@ export async function configureGoogle(privateConfigData = {}) {
 			}
 		});
 		if (isCancel(GOOGLE_CLIENT_ID)) {
-			await cancelOperation();
+			cancelToMainMenu();
 			return;
 		}
 
@@ -82,7 +79,7 @@ export async function configureGoogle(privateConfigData = {}) {
 			}
 		});
 		if (isCancel(GOOGLE_CLIENT_SECRET)) {
-			await cancelOperation();
+			cancelToMainMenu();
 			return;
 		}
 	}
@@ -102,13 +99,13 @@ export async function configureGoogle(privateConfigData = {}) {
 	});
 
 	if (isCancel(confirmSave)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
 	if (!confirmSave) {
 		note('Configuration not saved.', pc.yellow('Action Cancelled'));
-		await cancelOperation(); // Return to main config menu
+		cancelToMainMenu(); // Return to main config menu
 		return;
 	}
 

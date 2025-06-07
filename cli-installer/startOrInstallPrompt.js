@@ -60,8 +60,8 @@ export const startOrInstallPrompt = async () => {
 
 	// Handle exit or cancellation
 	if (isCancel(selection) || selection === 'exit') {
-		outro('Exiting SveltyCMS CLI Installer.');
-		process.exit(1); // Exit with code 1 to indicate cancellation or explicit exit
+		outro('👋 Exiting SveltyCMS CLI Installer. Goodbye!');
+		process.exit(0); // Exit gracefully with code 0
 	}
 
 	// Return the selected action ('install' or 'start')

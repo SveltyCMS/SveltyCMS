@@ -44,17 +44,41 @@ export default defineConfig(async () => {
     console.error('\n💡 Running installer to generate missing configuration files...');
     try {
       execSync('npm run installer', { stdio: 'inherit' });
+
+      // Immediately check if config files were actually created
+      const stillMissingAfterInstall = configPaths.filter((config) => !existsSync(config.path));
+      if (stillMissingAfterInstall.length > 0) {
+        console.error('\n❌ Configuration files were not created by the installer:');
+        stillMissingAfterInstall.forEach((config) => {
+          console.error(`  - ${config.name}`);
+        });
+        console.error('\n💡 This usually happens when the installer is cancelled or fails.');
+        console.error('Please run `npm run installer` manually to complete the setup.');
+        console.error('👋 Exiting Vite configuration gracefully...');
+        process.exit(0); // Exit gracefully instead of crashing
+      }
+
       console.log('✅ Installer completed successfully.');
     } catch (e) {
       console.error('❌ Error running the installer:', e);
       console.error('Please run `npm run installer` manually to generate config files.');
-      process.exit(1);
+      console.error('👋 Exiting Vite configuration gracefully...');
+      process.exit(0); // Exit gracefully instead of crashing
     }
   }
 
   // Import configs only after ensuring they exist
   let actualPublicConfig, actualPrivateConfig;
   try {
+    // Double-check that files still exist before importing
+    if (!existsSync(privateConfigPath) || !existsSync(publicConfigPath)) {
+      console.error('\n❌ Config files are missing after installer check.');
+      console.error('This usually means the installer was cancelled or failed.');
+      console.error('Please run `npm run installer` manually to complete the setup.');
+      console.error('👋 Exiting Vite configuration gracefully...');
+      process.exit(0); // Exit gracefully
+    }
+
     // Use dynamic import to avoid cache issues
     const publicModule = await import('./config/public');
     const privateModule = await import('./config/private');
@@ -62,8 +86,11 @@ export default defineConfig(async () => {
     actualPrivateConfig = privateModule.privateEnv;
   } catch (importError) {
     console.error('\n❌ Failed to import config files after installer.');
-    console.error(importError);
-    process.exit(1);
+    console.error('This usually means the installer was cancelled or the files are malformed.');
+    console.error('Please run `npm run installer` manually to recreate the config files.');
+    console.error('👋 Exiting Vite configuration gracefully...');
+    console.error('\nError details:', importError);
+    process.exit(0); // Exit gracefully instead of crashing
   }
 
   // Validate configs

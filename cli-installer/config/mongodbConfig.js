@@ -10,7 +10,7 @@
 
 import { text, note, isCancel, select, password } from '@clack/prompts';
 import pc from 'picocolors';
-import { cancelOperation } from '../cli-installer.js';
+import { cancelToMainMenu } from '../cli-installer.js';
 
 // Helper function to validate port number
 const validatePort = (value) => {
@@ -55,7 +55,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 		]
 	});
 	if (isCancel(mongoOption)) {
-		await cancelOperation();
+		cancelToMainMenu();
 		return;
 	}
 
@@ -88,7 +88,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 			}
 		});
 		if (isCancel(connectionString)) {
-			await cancelOperation();
+			cancelToMainMenu();
 			return;
 		}
 
@@ -113,7 +113,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 					validate: (v) => validateRequired(v, 'User')
 				});
 				if (isCancel(dbUser)) {
-					await cancelOperation();
+					cancelToMainMenu();
 					return;
 				}
 				dbPassword = await password({
@@ -121,7 +121,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 					validate: (v) => validateRequired(v, 'Password')
 				});
 				if (isCancel(dbPassword)) {
-					await cancelOperation();
+					cancelToMainMenu();
 					return;
 				}
 			}
@@ -134,7 +134,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 				validate: (v) => validateRequired(v, 'Host')
 			});
 			if (isCancel(dbHost)) {
-				await cancelOperation();
+				cancelToMainMenu();
 				return;
 			}
 			dbHost = `mongodb+srv://${dbHost}`; // Add prefix manually if needed
@@ -144,7 +144,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 				validate: (v) => validateRequired(v, 'User')
 			});
 			if (isCancel(dbUser)) {
-				await cancelOperation();
+				cancelToMainMenu();
 				return;
 			}
 			dbPassword = await password({
@@ -152,7 +152,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 				validate: (v) => validateRequired(v, 'Password')
 			});
 			if (isCancel(dbPassword)) {
-				await cancelOperation();
+				cancelToMainMenu();
 				return;
 			}
 		}
@@ -170,7 +170,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 				}
 			});
 			if (isCancel(dbName)) {
-				await cancelOperation();
+				cancelToMainMenu();
 				return;
 			}
 		}
@@ -193,7 +193,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 			}
 		});
 		if (isCancel(dbHost)) {
-			await cancelOperation();
+			cancelToMainMenu();
 			return;
 		}
 
@@ -204,7 +204,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 			validate: validatePort
 		});
 		if (isCancel(dbPort)) {
-			await cancelOperation();
+			cancelToMainMenu();
 			return;
 		}
 
@@ -215,7 +215,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 			validate: (value) => validateRequired(value, 'Database name')
 		});
 		if (isCancel(dbName)) {
-			await cancelOperation();
+			cancelToMainMenu();
 			return;
 		}
 
@@ -226,7 +226,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 		});
 
 		if (isCancel(dbUser)) {
-			await cancelOperation();
+			cancelToMainMenu();
 			return;
 		}
 
@@ -238,7 +238,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 				// validate: (value) => validateRequired(value, 'Password')
 			});
 			if (isCancel(dbPassword)) {
-				await cancelOperation();
+				cancelToMainMenu();
 				return;
 			}
 		} else {
