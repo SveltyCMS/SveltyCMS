@@ -1,19 +1,42 @@
 {
 	"$schema": "https://inlang.com/schema/project-settings",
 	"sourceLanguageTag": "en",
+<<<<<<< HEAD
 	"languageTags": ["en", "de", "es", "fr", "it", "nl", "pl", "pt", "hi", "ka", "sr", "tr", "ur", "ne"],
+=======
+	"languageTags": [
+		"en",
+		"da",
+		"de",
+		"bn",
+		"es",
+		"fi",
+		"fr",
+		"hi",
+		"it",
+		"ja",
+		"ka",
+		"ne",
+		"nl",
+		"no",
+		"pl",
+		"pt",
+		"sl",
+		"sr",
+		"sv",
+		"tr",
+		"ur",
+		"uk",
+		"zh"
+	],
+>>>>>>> 69c53df49f438e29d4d10f3501b2b2667cbfa787
 	"modules": [
 		"https://cdn.jsdelivr.net/npm/@inlang/message-lint-rule-empty-pattern@latest/dist/index.js",
-		"https://cdn.jsdelivr.net/npm/@inlang/message-lint-rule-identical-pattern@latest/dist/index.js",
 		"https://cdn.jsdelivr.net/npm/@inlang/message-lint-rule-missing-translation@latest/dist/index.js",
 		"https://cdn.jsdelivr.net/npm/@inlang/message-lint-rule-without-source@latest/dist/index.js",
-		"https://cdn.jsdelivr.net/npm/@inlang/message-lint-rule-valid-js-identifier@latest/dist/index.js",
-		"https://cdn.jsdelivr.net/npm/@inlang/plugin-message-format@latest/dist/index.js",
-		"https://cdn.jsdelivr.net/npm/@inlang/plugin-m-function-matcher@latest/dist/index.js"
+		"https://cdn.jsdelivr.net/npm/@inlang/plugin-message-format@2/dist/index.js",
+		"https://cdn.jsdelivr.net/npm/@inlang/plugin-m-function-matcher@0/dist/index.js"
 	],
-	"messageLintRuleLevels": {
-		"messageLintRule.inlang.missingTranslation": "error"
-	},
 	"plugin.inlang.messageFormat": {
 		"pathPattern": "./src/messages/{languageTag}.json"
 	}

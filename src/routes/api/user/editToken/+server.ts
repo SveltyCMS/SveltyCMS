@@ -1,21 +1,113 @@
-import mongoose from 'mongoose';
+/**
+ * @file src/routes/api/user/editToken/+server.ts
+ * @description API endpoint for editing a user token.
+ *
+ * This module provides functionality to:
+ * - Update the data associated with a specific token
+ *
+ * Features:
+ * - Token data modification
+ * - Permission checking
+ * - Input validation
+ * - Error handling and logging
+ *
+ * Usage:
+ * PUT /api/user/editToken
+ * Body: JSON object with 'tokenId' and 'newTokenData' properties
+ *
+ * Note: This endpoint is secured with appropriate authentication and authorization.
+ */
+
+import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { auth } from '@api/db';
+import { error } from '@sveltejs/kit';
 
-export const POST: RequestHandler = async ({ request }) => {
-	const data = await request.json();
-	const AUTH_USER = mongoose.models['auth_user'];
-	let adminLength = (await AUTH_USER.find({ role: 'admin' })).length;
+// Auth
+import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
+import { hasPermissionByAction } from '@src/auth/permissions';
 
-	const user = await auth.getUser(data.userId);
-	if (!user) return new Response(JSON.stringify('User not found'), { status: 404 });
-	if (adminLength == 1 && data.role != 'admin' && (user as any).role == 'admin')
-		return new Response(JSON.stringify('Cannot delete all admins'), { status: 400 });
-	adminLength -= (user as any).role == 'admin' && data.role != 'admin' ? 1 : 0;
+// System Logger
+import { logger } from '@utils/logger.svelte';
 
-	auth.updateUserAttributes(data.userId, {
-		role: data.role
-	});
+// Input validation
+import { object, string, optional, email, type ValiError } from 'valibot';
 
-	return new Response(JSON.stringify('Success'), { status: 200 });
+const editTokenSchema = object({
+	tokenId: string(),
+	newTokenData: object({
+		email: optional(email()),
+		expires: optional(string()),
+		type: optional(string()),
+		role: optional(string()),
+		user_id: optional(string())
+	})
+});
+
+export const PUT: RequestHandler = async ({ request, locals }) => {
+	try {
+		// Check if the user has permission to edit tokens
+		const { hasPermission } = await hasPermissionByAction(locals.user, {
+			contextId: 'config/userManagement',
+			name: 'Edit Token',
+			action: 'manage',
+			contextType: 'system'
+		});
+
+		if (!hasPermission) {
+			throw error(403, 'Unauthorized to edit registration tokens');
+		}
+
+		const body = await request.json();
+
+		// Validate input
+		const validatedData = editTokenSchema.parse(body);
+
+		// Handle expires conversion if it exists
+		if (validatedData.newTokenData.expires) {
+			if (typeof validatedData.newTokenData.expires === 'string') {
+				// Convert string format (e.g. '7d') to Date
+				const unit = validatedData.newTokenData.expires.slice(-1);
+				const value = parseInt(validatedData.newTokenData.expires.slice(0, -1));
+				let hours = 168; // Default 7 days
+
+				switch (unit) {
+					case 'h':
+						hours = value;
+						break;
+					case 'd':
+						hours = value * 24;
+						break;
+				}
+
+				const expires = new Date();
+				expires.setHours(expires.getHours() + hours);
+				validatedData.newTokenData.expires = expires;
+			} else {
+				validatedData.newTokenData.expires = new Date(validatedData.newTokenData.expires);
+			}
+		}
+
+		const tokenAdapter = new TokenAdapter();
+
+		// Update the token
+		await tokenAdapter.updateToken(validatedData.tokenId, validatedData.newTokenData);
+
+		logger.info('Token updated successfully', {
+			tokenId: validatedData.tokenId,
+			newData: validatedData.newTokenData
+		});
+
+		return json({
+			success: true,
+			message: 'Token updated successfully'
+		});
+	} catch (err) {
+		if ((err as ValiError).issues) {
+			const valiError = err as ValiError;
+			logger.warn('Invalid input for editToken API:', valiError.issues);
+			throw error(400, 'Invalid input: ' + valiError.issues.map((issue) => issue.message).join(', '));
+		}
+		logger.error('Error in editToken API:', err);
+		throw error(500, 'Failed to update token');
+	}
 };

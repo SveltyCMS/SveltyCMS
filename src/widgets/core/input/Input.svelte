@@ -1,0 +1,224 @@
+<!--
+@file src/widgets/core/input/Input.svelte
+@component
+**Input Widget Component for entering and editing text data in a CMS collection. Supports multilingual input, validation, and dynamic translation status updates**
+
+@example
+<Input field={{ label: "Title", db_fieldName: "title", translated: true, required: true }} />
+
+### Props
+- `field`: FieldType (configuration for the input, e.g., label, required, translated)
+- `value`: any (object storing input values, e.g., { en: "Hello", fr: "" })
+
+### Features
+- **Multilingual Support**: Handles translatable fields with reactive updates to translation status.
+- **Validation**: Checks for required fields, minimum length, and custom rules, updating validation store.
+- **Error Handling**: Displays validation errors inline with accessible markup.
+-->
+
+<script lang="ts">
+	import { publicEnv } from '@root/config/public';
+	import type { FieldType } from '.';
+
+	// Utils
+	import { track } from '@src/utils/reactivity.svelte';
+	import { updateTranslationProgress, getFieldName } from '@src/utils/utils';
+
+	// Valibot validation
+	import { string, pipe, parse, type ValiError, nonEmpty, nullable } from 'valibot';
+	import { contentLanguage, validationStore } from '@root/src/stores/store.svelte';
+
+	// Props
+	interface Props {
+		field: FieldType;
+		value?: any;
+	}
+
+	let { field, value = $bindable({ [contentLanguage.value.toLowerCase()]: '' }) }: Props = $props();
+
+	// Initialize value separately to avoid $state() in prop destructuring
+
+	let _language = $derived(field?.translated ? contentLanguage.value.toLowerCase() : publicEnv.DEFAULT_CONTENT_LANGUAGE.toLowerCase());
+
+	let count = $derived(value[_language]?.length ?? 0);
+
+	track(
+		() => updateTranslationProgress(value, field),
+		() => value[_language]
+	);
+
+	// Validation and error state
+	let validationError = $state<string | null>(null);
+	let touched = $state(false);
+	let debounceTimeout: number | undefined;
+	let inputElement: HTMLInputElement | null = null; // Used for focus management
+
+	// Memoized badge class calculation
+	const badgeClassCache = new Map<string, string>();
+	const getBadgeClass = (length: number) => {
+		const key = `${length}-${field?.minlength}-${field?.maxlength}-${field?.count}`;
+		if (badgeClassCache.has(key)) return badgeClassCache.get(key)!;
+
+		let result: string;
+		if (field?.minlength && length < field?.minlength) result = 'bg-red-600';
+		else if (field?.maxlength && length > field?.maxlength) result = 'bg-red-600';
+		else if (field?.count && length === field?.count) result = 'bg-green-600';
+		else if (field?.count && length > field?.count) result = 'bg-orange-600';
+		else if (field?.minlength) result = '!variant-filled-surface';
+		else result = '!variant-ghost-surface';
+
+		badgeClassCache.set(key, result);
+		return result;
+	};
+
+	let validationSchema = field?.required ? pipe(string(), nonEmpty()) : nullable(string());
+
+	// Validation function using Valibot schema
+	function validateInput(forceShowError = false) {
+		try {
+			if (debounceTimeout) clearTimeout(debounceTimeout);
+			debounceTimeout = window.setTimeout(
+				() => {
+					try {
+						const newValue = value?.[_language];
+
+						// First validate the value exists if required
+						if (field?.required && (newValue === null || newValue === undefined || newValue === '')) {
+							validationError = 'This field is required';
+							validationStore.setError(getFieldName(field), validationError);
+							return;
+						}
+
+						// Then validate string constraints if value exists
+						if (newValue !== null && newValue !== undefined) {
+							if (field?.minlength && newValue.length < field.minlength) {
+								validationError = `Minimum length is ${field.minlength}`;
+								validationStore.setError(getFieldName(field), validationError);
+								return;
+							}
+							if (field?.maxlength && newValue.length > field.maxlength) {
+								validationError = `Maximum length is ${field.maxlength}`;
+								validationStore.setError(getFieldName(field), validationError);
+								return;
+							}
+						}
+
+						parse(validationSchema, newValue);
+						validationError = null;
+						validationStore.clearError(getFieldName(field));
+					} catch (error) {
+						if ((error as ValiError<typeof validationSchema>).issues) {
+							const valiError = error as ValiError<typeof validationSchema>;
+							validationError = valiError.issues[0]?.message || 'Invalid input';
+							validationStore.setError(getFieldName(field), validationError);
+						}
+					}
+				},
+				forceShowError ? 0 : 300
+			);
+		} catch (error) {
+			console.error('Validation error:', error);
+			validationError = 'An unexpected error occurred during validation';
+			validationStore.setError(getFieldName(field), 'Validation error');
+		}
+	}
+
+	// Cleanup function
+	$effect(() => {
+		return () => {
+			if (debounceTimeout) clearTimeout(debounceTimeout);
+			badgeClassCache.clear();
+		};
+	});
+
+	// Run initial validation when component mounts
+	$effect(() => {
+		validateInput();
+	});
+</script>
+
+<div class="input-container relative mb-4">
+	<div class="variant-filled-surface btn-group flex w-full rounded" role="group">
+		{#if field?.prefix}
+			<button class="!px-2" aria-label={`${field.prefix} prefix`}>
+				{field?.prefix}
+			</button>
+		{/if}
+
+		<input
+			type="text"
+			bind:value={
+				() => value[_language],
+				(v) => {
+					const temp = value;
+					temp[_language] = v;
+					value = temp;
+				}
+			}
+			onblur={() => {
+				touched = true;
+				validateInput(true);
+			}}
+			name={field?.db_fieldName}
+			id={field?.db_fieldName}
+			bind:this={inputElement}
+			placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}
+			required={field?.required}
+			disabled={field?.disabled}
+			readonly={field?.readonly}
+			minlength={field?.minlength}
+			maxlength={field?.maxlength}
+			class="input w-full flex-1 rounded-none text-black dark:text-primary-500"
+			class:error={!!validationError}
+			aria-invalid={!!validationError}
+			aria-describedby={validationError ? `${getFieldName(field)}-error` : undefined}
+			aria-required={field?.required}
+			data-testid="text-input"
+		/>
+
+		<!-- suffix and count -->
+		{#if field?.suffix || field?.count || field?.minlength || field?.maxlength}
+			<div class="flex items-center" role="status" aria-live="polite">
+				{#if field?.count || field?.minlength || field?.maxlength}
+					<span class="badge mr-1 rounded-full {getBadgeClass(count)}" aria-label="Character count">
+						{#if field?.count && field?.minlength && field?.maxlength}
+							{count}/{field?.maxlength}
+						{:else if field?.count && field?.maxlength}
+							{count}/{field?.maxlength}
+						{:else if field?.count && field?.minlength}
+							{count} => {field?.minlength}
+						{:else if field?.minlength && field?.maxlength}
+							{count} => {field?.minlength}/{field?.maxlength}
+						{:else if field?.count}
+							{count}/{field?.count}
+						{:else if field?.maxlength}
+							{count}/{field?.maxlength}
+						{:else if field?.minlength}
+							min {field?.minlength}
+						{/if}
+					</span>
+				{/if}
+				{#if field?.suffix}
+					<span class="!px-1" aria-label={`${field.suffix} suffix`}>{field?.suffix}</span>
+				{/if}
+			</div>
+		{/if}
+	</div>
+
+	<!-- Error Message -->
+	{#if validationError && touched}
+		<p id={`${getFieldName(field)}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+			{validationError}
+		</p>
+	{/if}
+</div>
+
+<style lang="postcss">
+	.input-container {
+		min-height: 2.5rem;
+	}
+
+	.error {
+		border-color: rgb(239 68 68);
+	}
+</style>

@@ -1,28 +1,102 @@
-import mongoose from 'mongoose';
+/**
+ * @file src/routes/api/user/blockUsers/+server.ts
+ * @description API endpoint for blocking multiple users.
+ *
+ * This module provides functionality to:
+ * - Block multiple users simultaneously
+ * - Invalidate all sessions for blocked users
+ * - Prevent blocking all admin users
+ *
+ * Features:
+ * - Bulk user blocking
+ * - Session invalidation for blocked users
+ * - Admin count check to ensure at least one admin remains
+ * - Permission checking
+ * - Input validation using Valibot
+ * - Error handling and logging
+ *
+ * Usage:
+ * POST /api/user/blockUsers
+ * Body: JSON array of user objects with 'id' and 'role' properties
+ *
+ * Note: This endpoint is secured with appropriate authentication and authorization.
+ */
+
+import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { auth } from '@api/db';
 
-export const POST: RequestHandler = async ({ request }) => {
-	const data = await request.json();
+// Auth
+import { auth } from '@src/databases/db';
+import { hasPermissionByAction } from '@src/auth/permissions';
 
-	// admins count
-	const AUTH_USER = mongoose.models['auth_user'];
-	let adminLength = (await AUTH_USER.find({ role: 'admin' })).length;
-	let flag = false;
+// System logger
+import { logger } from '@utils/logger.svelte';
 
-	data.forEach(async (user: any) => {
-		if (user.role == 'admin' && adminLength == 1) {
-			flag = true;
-			return;
+// Input validation
+import { array, object, string, type ValiError } from 'valibot';
+
+const blockUsersSchema = array(
+	object({
+		id: string(),
+		role: string()
+	})
+);
+
+export const POST: RequestHandler = async ({ request, locals }) => {
+	try {
+		// Check if the user has permission to block users
+		const hasPermission = hasPermissionByAction(
+			locals.user,
+			'manage',
+			'system',
+			'config/userManagement'
+		);
+
+		if (!hasPermission) {
+			throw error(403, 'Unauthorized to block users');
 		}
-		adminLength -= user.role == 'admin' ? 1 : 0;
 
-		// block user
-		await auth.invalidateAllUserSessions(user.id);
-		await auth.updateUserAttributes(user.id, { blocked: true });
-	});
+		// Ensure the authentication system is initialized
+		if (!auth) {
+			logger.error('Authentication system is not initialized');
+			throw error(500, 'Internal Server Error');
+		}
 
-	if (flag) return new Response(JSON.stringify({ success: false, message: 'Cannot block all admins' }), { status: 400 });
+		const body = await request.json();
 
-	return new Response(JSON.stringify({ success: true }), { status: 200 });
+		// Validate input
+		const users = blockUsersSchema.parse(body);
+
+		const allUsers = await auth.getAllUsers();
+		const adminCount = allUsers.filter((user) => user.isAdmin).length;
+		let remainingAdminCount = adminCount;
+
+		for (const user of users) {
+			if (user.role === 'admin') {
+				remainingAdminCount--;
+				if (remainingAdminCount === 0) {
+					logger.warn('Attempt to block the last remaining admin.');
+					throw error(400, 'Cannot block all admins');
+				}
+			}
+
+			await auth.invalidateAllUserSessions(user.id);
+			await auth.updateUserAttributes(user.id, { blocked: true });
+			logger.info('User blocked successfully', { userId: user.id });
+		}
+
+		logger.info('Users blocked successfully.', { blockedCount: users.length });
+		return json({
+			success: true,
+			message: `${users.length} users blocked successfully`
+		});
+	} catch (err) {
+		if ((err as ValiError).issues) {
+			const valiError = err as ValiError;
+			logger.warn('Invalid input for blockUsers API:', valiError.issues);
+			throw error(400, 'Invalid input: ' + valiError.issues.map((issue) => issue.message).join(', '));
+		}
+		logger.error('Error in blockUsers API:', err);
+		throw error(500, 'Failed to block users');
+	}
 };

@@ -1,255 +1,316 @@
+<!-- 
+@file src/components/Collections.svelte
+@component
+**Collections component to display & filter collections and categories using TreeView.**
+
+@example
+<Collections />
+
+#### Props
+- `collection` - The collection object to display data from.
+- `mode` - The current mode of the component. Can be 'view', 'edit', 'create', 'delete', 'modify', or 'media'.
+
+Features:
+- Display collections and categories using TreeView from Skeleton.
+- Search functionality with clear button.
+- Support for nested categories with expand/collapse.
+- Responsive sidebar integration.
+- Media gallery support.
+-->
+
 <script lang="ts">
-	import { publicEnv } from '@root/config/public';
+	import { goto } from '$app/navigation';
+
+	// Types
+	import type { Schema } from '@src/content/types';
+	// Update ContentNode type to include the path property
+	import type { ContentNode } from '@src/databases/dbInterface';
 
 	// Stores
-	import { mode, collection, categories, headerActionButton, shouldShowNextButton } from '@stores/store';
-	import { handleSidebarToggle, screenWidth, sidebarState, toggleSidebar } from '@stores/sidebarStore';
 	import { get } from 'svelte/store';
+	import { contentLanguage, shouldShowNextButton } from '@stores/store.svelte';
+	import { mode, contentStructure, collection } from '@src/stores/collectionStore.svelte';
+	import { uiStateManager, toggleUIElement, handleUILayoutToggle } from '@src/stores/UIStore.svelte';
+	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 
-	// let user: User = $page.data.user;
-	// let user = $page.data.user;
-	const user = 'admin';
+	import { constructNestedStructure } from '../content/utils';
 
-	export let modeSet: typeof $mode = 'view';
+	// Components
+	import TreeView from '@components/system/TreeView.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Skeleton
-	import { Accordion, AccordionItem } from '@skeletonlabs/skeleton';
-	import { popup } from '@skeletonlabs/skeleton';
-	import type { PopupSettings } from '@skeletonlabs/skeleton';
-
-	const popupCollections: PopupSettings = {
-		event: 'hover',
-		target: 'popupHover',
-		placement: 'right'
-	};
-
-	// Search Collections
-	let search = '';
-	let searchShow = false;
-
-	interface Category {
-		id: number;
-		name: string;
-		icon: string;
-		collections: Collection[];
-		open?: boolean;
+	// Extend ContentNode to ensure path property is available
+	interface ExtendedContentNode extends ContentNode {
+		path?: string;
 	}
 
-	interface Collection {
-		id: number;
+	interface CollectionTreeNode extends Partial<ExtendedContentNode> {
+		id: string;
 		name: string;
-		permissions?: any;
+		isExpanded: boolean;
+		onClick: () => void;
+		children?: CollectionTreeNode[];
 		icon?: string;
-		slug?: string;
-		fields: any[];
-		strict?: boolean;
-		status?: 'published' | 'unpublished' | 'draft' | 'schedule' | 'cloned';
+		path?: string;
+		badge?: {
+			count?: number;
+			status?: 'draft' | 'published' | 'archived';
+			color?: string;
+			visible?: boolean;
+		};
 	}
 
-	// Define filteredCategories variable as an array of Category objects
-	let filteredCategories: Category[] = ($categories as Category[]) || [];
+	let nestedStructure = $derived(constructNestedStructure(contentStructure.value));
 
-	// Define filterCategories function
-	function filterCategories(search: any, categories: any) {
-		// Reduce $categories array to create new array of filtered categories
-		filteredCategories = categories.reduce((acc: any, category: any) => {
-			// Filter collections in current category by name
-			const filteredCollections = category.collections.filter((collection: any) => {
-				return collection.name.toLowerCase().includes(search.toLowerCase());
-			});
+	let collectionStructureNodes: CollectionTreeNode[] = $derived.by(() => {
+		function mapNode(node: ExtendedContentNode): CollectionTreeNode {
+			const isCategory = node.nodeType === 'category' || node.translations?.some((t) => t.translationName === 'category');
+			// Get translation for current language or fallback to default name
+			const translation = node.translations?.find((trans) => trans.languageTag === contentLanguage.value);
+			const label = translation?.translationName || node.name;
 
-			// Add new category object to accumulator with filtered collections and open property set to true if search is not empty
-			if (filteredCollections.length > 0 || (search === '' && category.name.toLowerCase().includes(search.toLowerCase()))) {
-				// Add new category object to accumulator with filtered collections and open property set to true if search is not empty
-				acc.push({
-					...category,
-					collections: filteredCollections,
-					open: filteredCollections.length > 0 && search !== ''
-				});
+			let children;
+			if (isCategory && (node as any).children) {
+				children = (node as any).children.map((child: ExtendedContentNode) => ({
+					...mapNode(child),
+					// Ensure children use their own translations
+					name: child.translations?.find((t) => t.languageTag === contentLanguage.value)?.translationName || child.name
+				}));
 			}
 
-			// Return accumulator
-			return acc;
-		}, []);
+			return {
+				...node,
+				name: label,
+				id: node._id,
+				icon: node.icon,
+				isExpanded: collection.value?._id === node._id,
+				onClick: () => handleCollectionSelect(node),
+				children,
+				badge: isCategory
+					? {
+							count: (node as any).children?.filter((child: any) => (child as any).nodeType === 'collection').length || 0,
+							// Only show count for categories (parent nodes)
+							visible: !(node as any).isExpanded // Show when expanded
+						}
+					: undefined
+			};
+		}
 
-		// Filter out categories with no visible collections
-		filteredCategories = filteredCategories.filter((category) => category.collections.length > 0);
+		return nestedStructure.map((node) => mapNode(node));
+	});
 
-		// Return filtered categories
-		return filteredCategories;
+	// Create virtual folder nodes for the media gallery - these act as filters only
+	let virtualFolderNodes: CollectionTreeNode[] = $state([]);
+
+	// Load virtual folders when entering media mode
+	$effect(() => {
+		if (mode.value === 'media') {
+			loadVirtualFolders();
+		}
+	});
+
+	async function loadVirtualFolders() {
+		try {
+			const response = await fetch('/api/virtualFolder');
+			const data = await response.json();
+
+			// Always create a root folder node
+			const rootNode: CollectionTreeNode = {
+				id: 'root',
+				name: 'Media Root',
+				path: 'mediaFiles', // Use the MEDIA_FOLDER value
+				isExpanded: true,
+				onClick: () => handleVirtualFolderSelect('root'),
+				icon: 'bi:house-door',
+				badge: {
+					visible: false
+				}
+			};
+
+			if (data.success && data.data.folders && data.data.folders.length > 0) {
+				// Map existing virtual folders as children of root
+				const folderNodes = data.data.folders.map((folder: any) => ({
+					id: folder._id,
+					name: folder.name,
+					path: folder.path,
+					isExpanded: false,
+					onClick: () => handleVirtualFolderSelect(folder._id),
+					icon: 'bi:folder',
+					badge: {
+						visible: false
+					}
+				}));
+
+				// Add folders as children of root
+				rootNode.children = folderNodes;
+				virtualFolderNodes = [rootNode];
+			} else {
+				// No virtual folders exist, just show root
+				virtualFolderNodes = [rootNode];
+			}
+		} catch (err) {
+			console.error('Failed to load virtual folders:', err);
+			// Even on error, show the root folder
+			virtualFolderNodes = [
+				{
+					id: 'root',
+					name: 'Media Root',
+					path: 'mediaFiles',
+					isExpanded: true,
+					onClick: () => handleVirtualFolderSelect('root'),
+					icon: 'bi:house-door',
+					badge: {
+						visible: false
+					}
+				}
+			];
+		}
+	}
+
+	function handleVirtualFolderSelect(folderId: string) {
+		console.log('Virtual folder selected:', folderId);
+		// TODO: Implement folder selection logic
+		// This should filter media files based on the selected virtual folder
+	}
+
+	let search = $state('');
+	let isMediaMode = $derived(mode.value === 'media');
+
+	// Update when search changes or mode changes
+	$effect(() => {
+		if (search) {
+			// The search prop in TreeView will handle the filtering
+			search = search.toLowerCase().trim();
+		}
+	});
+
+	// Add an effect to update the UI when mode changes
+	$effect(() => {
+		// Reset selection when switching between modes
+		if (mode.value === 'media') {
+			// When switching to media mode, ensure proper UI state
+			if (uiStateManager.uiState.value.leftSidebar !== 'full') {
+				handleUILayoutToggle();
+			}
+		}
+	});
+
+	// Handle collection selection
+	function handleCollectionSelect(selectedCollection: ExtendedContentNode | Schema) {
+		if ('nodeType' in selectedCollection && selectedCollection.nodeType === 'collection') {
+			mode.set('view');
+			collection.set(null);
+			// Always include the language parameter in the URL
+			goto(`/${contentLanguage.value}${selectedCollection.path?.toString()}`);
+		}
+		shouldShowNextButton.set(true);
+	}
+
+	function clearSearch() {
+		search = '';
 	}
 </script>
 
-<!-- displays all collection parents and their Children as accordion -->
-<div class="mt-2 overflow-y-auto">
-	<!-- Search -->
-	{#if $sidebarState.left === 'collapsed'}
-		<button
-			type="button"
-			on:click={() => {
-				if (get(screenWidth) === 'mobile') {
-					toggleSidebar('left', 'hidden');
-				} else {
-					sidebarState.update((state) => ({ ...state, left: 'full' }));
-				}
-				searchShow = true;
-			}}
-			class="input btn mb-2 w-full"
+<div class="mt-2">
+	{#if !isMediaMode}
+		<!-- Search Input -->
+		<div
+			class="{uiStateManager.uiState.value.leftSidebar === 'full'
+				? 'mb-2 w-full'
+				: 'mb-1 max-w-[125px]'} input-group input-group-divider grid grid-cols-[1fr_auto]"
 		>
-			<iconify-icon icon="ic:outline-search" width="24" />
-		</button>
-	{:else}
-		<div class="input-group input-group-divider mb-2 grid grid-cols-[auto_1fr_auto]">
 			<input
 				type="text"
-				placeholder={m.collections_search()}
+				placeholder="Search collections..."
 				bind:value={search}
-				on:input={(e) => {
-					filterCategories(e.currentTarget.value, $categories);
-				}}
-				on:keydown={(e) => e.key === 'Enter'}
-				on:focus={() => (searchShow = false)}
-				class="input h-12 w-64 outline-none transition-all duration-500 ease-in-out"
+				class="input {uiStateManager.uiState.value.leftSidebar === 'full' ? 'h-12' : 'h-10'} outline-hidden transition-all duration-500 ease-in-out"
 			/>
-			{#if search}
-				<button
-					on:click={() => {
-						search = '';
-						filterCategories('', $categories);
-					}}
-					on:keydown={(event) => {
-						if (event.key === 'Enter' || event.key === ' ') {
-							search = '';
-							filterCategories('', $categories);
-						}
-					}}
-					class="variant-filled-surface w-12"
-				>
-					<iconify-icon icon="ic:outline-search-off" width="24" />
-				</button>
-			{/if}
+			<button onclick={clearSearch} class="variant-filled-surface w-12" aria-label="Clear search">
+				<iconify-icon icon="ic:outline-search-off" width="24"></iconify-icon>
+			</button>
 		</div>
+
+		<!-- Collections TreeView -->
+		{#if collectionStructureNodes.length > 0}
+			<TreeView
+				k={0}
+				nodes={collectionStructureNodes}
+				selectedId={collection.value?._id ?? undefined}
+				compact={uiStateManager.uiState.value.leftSidebar !== 'full'}
+				{search}
+				iconColorClass="text-error-500"
+			></TreeView>
+		{:else}
+			<div class="p-4 text-center text-gray-500">{m.collection_no_collections_found()}</div>
+		{/if}
+
+		<!-- Media Gallery Button -->
+		<button
+			class="btn mt-1 flex w-full rounded-sm {uiStateManager.uiState.value.leftSidebar === 'full'
+				? 'flex-row '
+				: 'flex-col'} items-center border border-surface-500 py-{uiStateManager.uiState.value.leftSidebar === 'full'
+				? '3'
+				: '1'} hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
+			onclick={() => {
+				mode.set('media');
+				goto('/mediagallery');
+				if (get(screenSize) === 'sm') {
+					toggleUIElement('leftSidebar', 'hidden');
+				}
+				if (uiStateManager.uiState.value.leftSidebar !== 'full') handleUILayoutToggle();
+			}}
+		>
+			{#if uiStateManager.uiState.value.leftSidebar === 'full'}
+				<iconify-icon icon="bi:images" width="24" class="text-primary-600 rtl:ml-2"></iconify-icon>
+				<p class="dark:text-white">{m.Collections_MediaGallery()}</p>
+			{:else}
+				<p class="darktext-white text-xs">{m.Collections_MediaGallery()}</p>
+				<iconify-icon icon="bi:images" width="20" class="text-primary-500"></iconify-icon>
+			{/if}
+		</button>
 	{/if}
 
-	<!-- TODO: Apply Tooltip for collapsed  -->
-	<Accordion autocollapse regionControl="btn bg-surface-400 dark:bg-surface-500 uppercase text-white hover:!bg-surface-300">
-		<!-- Collection Parents -->
-		{#each filteredCategories as category}
-			<AccordionItem
-				bind:open={category.open}
-				regionPanel={`divide-y dark:divide-black my-0  overflow-y-auto`}
-				class="divide-y rounded-md bg-surface-300 dark:divide-black "
-			>
-				<svelte:fragment slot="lead">
-					<!-- TODO: Tooltip not fully working -->
-					<iconify-icon icon={category.icon} width="24" class="text-error-500 rtl:ml-2" use:popup={popupCollections} />
-				</svelte:fragment>
-
-				<svelte:fragment slot="summary">
-					{#if $sidebarState.left === 'full'}
-						<!-- TODO: Translation not updating -->
-						<p class="text-white">{category.name}</p>
-					{/if}
-					<div class="card variant-filled-secondary p-4" data-popup="popupHover">
-						<p>{category.name}</p>
-						<div class="variant-filled-secondary arrow" />
-					</div>
-				</svelte:fragment>
-
-				<!-- Collection Children -->
-				<svelte:fragment slot="content">
-					<!-- filtered by User Role Permission -->
-
-					{#each category.collections.filter((c) => modeSet == 'edit' || c?.permissions?.[user]?.read != false) as _collection, index}
-						{#if $sidebarState.left === 'full'}
-							<!-- switchSideBar expanded -->
-							<div
-								role="button"
-								tabindex={index}
-								class="-mx-4 flex flex-row items-center bg-surface-300 py-1 pl-3 hover:bg-surface-400 hover:text-white dark:text-black hover:dark:text-white"
-								on:keydown
-								on:click={() => {
-									if ($mode === 'edit') {
-										mode.set('view');
-										handleSidebarToggle();
-									} else {
-										mode.set(modeSet);
-										shouldShowNextButton.set(true);
-									}
-
-									collection.set({
-										..._collection,
-										icon: _collection.icon || 'default-icon' // Provide a default icon value if icon is undefined
-									});
-								}}
-							>
-								<iconify-icon icon={_collection.icon} width="24" class="px-2 py-1 text-error-600" />
-								<p class="mr-auto text-center capitalize">{_collection.name}</p>
-							</div>
-						{:else}
-							<!-- switchSideBar collapsed -->
-							<div
-								role="button"
-								tabindex={index}
-								class="-mx-4 flex flex-col items-center py-1 hover:bg-surface-400 hover:text-white dark:text-black hover:dark:text-white"
-								on:keydown
-								on:click={() => {
-									if ($mode === 'edit') {
-										mode.set('view');
-										handleSidebarToggle();
-									} else {
-										mode.set(modeSet);
-									}
-
-									collection.set({
-										..._collection,
-										icon: _collection.icon || 'default-icon' // Provide a default icon value if icon is undefined
-									});
-								}}
-							>
-								<p class="text-xs capitalize">{_collection.name}</p>
-								<iconify-icon icon={_collection.icon} width="24" class="text-error-600" />
-							</div>
-						{/if}
-					{/each}
-				</svelte:fragment>
-			</AccordionItem>
-		{/each}
-	</Accordion>
-
-	<!-- Gallery -->
-	{#if $sidebarState.left === 'full'}
-		<!-- switchSideBar expanded -->
-		<a
-			href="/mediagallery"
-			class="btn mt-1 flex flex-row items-center justify-start bg-surface-400 py-2 pl-2 text-white dark:bg-surface-500"
-			on:click={() => {
+	{#if isMediaMode}
+		<!-- Back to Collections Button -->
+		<button
+			class="btn my-1 flex w-full rounded-sm {uiStateManager.uiState.value.leftSidebar === 'full'
+				? 'flex-row '
+				: 'flex-col'} items-center border border-surface-500 py-{uiStateManager.uiState.value.leftSidebar === 'full'
+				? '3'
+				: '1'} hover:bg-surface-200 dark:bg-surface-500 hover:dark:bg-surface-400"
+			onclick={() => {
+				collection.set(null);
 				mode.set('view');
-				if (get(screenWidth) === 'mobile') {
-					toggleSidebar('left', 'hidden');
+
+				if (get(screenSize) === 'sm') {
+					toggleUIElement('leftSidebar', 'hidden');
 				}
+				goto(`/`);
 			}}
 		>
-			<iconify-icon icon="bi:images" width="24" class="px-2 py-1 text-primary-600 rtl:ml-2" />
-			<p class="mr-auto text-center uppercase">{publicEnv.MEDIA_FOLDER}</p>
-		</a>
-	{:else}
-		<!-- switchSideBar collapsed -->
-		<a
-			href="/mediagallery"
-			class="btn mt-2 flex flex-col items-center bg-surface-400 py-1 pl-2 hover:!bg-surface-400 hover:text-white dark:bg-surface-500 dark:text-white"
-			on:click={() => {
-				mode.set('view');
-				if (get(screenWidth) === 'mobile') {
-					toggleSidebar('left', 'hidden');
-				}
-			}}
-		>
-			<p class="text-xs uppercase text-white">{publicEnv.MEDIA_FOLDER}</p>
-			<iconify-icon icon="bi:images" width="24" class="text-primary-500" />
-		</a>
+			{#if uiStateManager.uiState.value.leftSidebar === 'full'}
+				<iconify-icon icon="bi:collection" width="24" class="text-error-500 rtl:ml-2"></iconify-icon>
+				<p class="mr-auto text-center">Collections</p>
+			{:else}
+				<p class="darktext-white text-xs">Collections</p>
+				<iconify-icon icon="bi:collection" width="20" class="text-error-500"></iconify-icon>
+			{/if}
+		</button>
+
+		<!-- Display Virtual Folders as TreeView -->
+		{#if virtualFolderNodes.length > 0}
+			<TreeView
+				k={1}
+				nodes={virtualFolderNodes}
+				selectedId={collection.value?._id}
+				compact={uiStateManager.uiState.value.leftSidebar !== 'full'}
+				{search}
+				iconColorClass="text-primary-500"
+			></TreeView>
+		{:else}
+			<div class="p-4 text-center text-gray-500">No virtual folders found</div>
+		{/if}
 	{/if}
 </div>

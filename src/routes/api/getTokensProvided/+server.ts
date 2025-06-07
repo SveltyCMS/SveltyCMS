@@ -1,25 +1,49 @@
+/**
+ * @file src/routes/api/getTokensProvided/+server.ts
+ * @description API endpoint for checking the availability of external service tokens.
+ *
+ * This module provides functionality to:
+ * - Check if API keys/tokens are provided for Google, Twitch, and TikTok
+ * - Return a JSON object indicating which tokens are available
+ *
+ * Features:
+ * - Environment-based token availability check
+ * - Logging of token availability status
+ *
+ * Usage:
+ * GET /api/getTokensProvided
+ * Returns: JSON object with boolean values for each service token
+ *
+ * Note: This endpoint does not require authentication as it only checks
+ * for the presence of tokens, not their values.
+ */
+
 import { privateEnv } from '@root/config/private';
 import { json, type RequestHandler } from '@sveltejs/kit';
 
+// System Logger
+import { logger } from '@utils/logger.svelte';
+
+interface TokenStatus {
+	google: boolean;
+	twitch: boolean;
+	tiktok: boolean;
+}
+
 export const GET: RequestHandler = async () => {
-	// Initialize tokensProvided object
-	const tokensProvided = {
-		google: false,
-		twitch: false,
-		tiktok: false
+	logger.debug('Checking provided tokens...');
+
+	const tokensProvided: TokenStatus = {
+		google: Boolean(privateEnv.GOOGLE_API_KEY),
+		twitch: Boolean(privateEnv.TWITCH_TOKEN),
+		tiktok: Boolean(privateEnv.TIKTOK_TOKEN)
 	};
 
-	// Check if API keys/tokens are provided and update tokensProvided object accordingly
-	if (privateEnv.GOOGLE_API_KEY) {
-		tokensProvided.google = true;
-	}
-	if (privateEnv.TWITCH_TOKEN) {
-		tokensProvided.twitch = true;
-	}
-	if (privateEnv.TIKTOK_TOKEN) {
-		tokensProvided.tiktok = true;
-	}
+	Object.entries(tokensProvided).forEach(([service, isProvided]) => {
+		logger.debug(`${service} token is ${isProvided ? 'provided' : 'not provided'}.`);
+	});
 
-	// Return tokensProvided object as JSON response
-	return json({});
+	logger.info('Tokens provided status', tokensProvided);
+
+	return json(tokensProvided);
 };

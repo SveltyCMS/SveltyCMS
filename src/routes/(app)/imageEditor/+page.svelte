@@ -1,91 +1,465 @@
-<script lang="ts">
-	// Stores
-	import { mode, saveEditedImage } from '@stores/store';
-	import { page } from '$app/stores';
+<!-- 
+@file: /src/routes/(app)/imageEditor/+page.svelte
+@component
+**An image editor component that handles uploading images**
+Users can upload an image, applying various editing tools (crop, blur, rotate, zoom, focal point, watermark, filters, text overlay, and shape overlay), and saving the edited image.
 
+#### Props
+- `imageFile` (optional): File object of the uploaded image.
+
+-->
+<script lang="ts">
 	import { onMount } from 'svelte';
 
+	// Store
+	import { page } from '$app/state';
+	import { saveEditedImage } from '@stores/store.svelte';
+
+	// Components
 	import PageTitle from '@components/PageTitle.svelte';
-	import Cropper from '@src/routes/(app)/imageEditor/Cropper.svelte';
-	import ImageEditor from '@src/routes/(app)/imageEditor/ImageEditor.svelte';
 
-	import { goto } from '$app/navigation';
+	// Import individual tool components
+	import Crop from './Crop.svelte';
+	import Blur from './Blur.svelte';
+	import Rotate from './Rotate.svelte';
+	import Zoom from './Zoom.svelte';
+	import FocalPoint from './FocalPoint.svelte';
+	import Watermark from './Watermark.svelte';
+	import Filter from './Filter.svelte';
+	import TextOverlay from './TextOverlay.svelte';
+	import ShapeOverlay from './ShapeOverlay.svelte';
 
-	let image: File | null | undefined; // Add undefined as a possible type
-	let selectedImage: string;
+	// Konva
+	import Konva from 'konva';
 
-	onMount(async () => {
-		const { params } = $page;
-		selectedImage = params.image;
+	let imageFile: File | null = $state(null);
+	let selectedImage: string = '';
+	let stage: Konva.Stage | undefined = $state();
+	let layer: Konva.Layer | undefined = $state();
+	let imageNode: Konva.Image | undefined = $state();
+	let containerRef: HTMLDivElement | undefined = $state();
+	let activeState = $state('');
+	let blurActive = $state(false);
+	let updatedImageFile: File | null = null;
+	let stateHistory: string[] = [];
+	let currentStateIndex = -1;
+	let canUndo = $state(false);
+	let canRedo = $state(false);
+	// Store the original image for resetting
+	let originalImage: HTMLImageElement;
+
+	onMount(() => {
+		const { params } = page;
+		if (params.image) {
+			selectedImage = params.image;
+			loadImageAndSetupKonva(selectedImage);
+		}
+
+		// Add window resize event listener
+		window.addEventListener('resize', handleResize);
+
+		// Cleanup event listener on component destroy
+		return () => {
+			window.removeEventListener('resize', handleResize);
+		};
 	});
 
-	const handleImageUpload = (event: Event) => {
+	function handleResize() {
+		if (!stage || !imageNode || !originalImage || !containerRef) return;
+
+		// Update stage dimensions
+		stage.width(containerRef.offsetWidth);
+		stage.height(containerRef.offsetHeight);
+
+		// Recalculate image size and position
+		const containerWidth = Math.max(1, containerRef.offsetWidth);
+		const containerHeight = Math.max(1, containerRef.offsetHeight);
+		const scale = Math.min(containerWidth / originalImage.width, containerHeight / originalImage.height);
+
+		// Update image size while maintaining aspect ratio
+		imageNode.width(Math.max(1, originalImage.width * scale));
+		imageNode.height(Math.max(1, originalImage.height * scale));
+
+		// Center the image
+		imageNode.x((containerWidth - imageNode.width()) / 2);
+		imageNode.y((containerHeight - imageNode.height()) / 2);
+
+		layer?.batchDraw();
+	}
+
+	function loadImageAndSetupKonva(imageSrc: string) {
+		if (!containerRef) {
+			console.error('Container reference is not set');
+			return;
+		}
+
+		const img = new window.Image();
+		img.src = imageSrc;
+		img.onload = () => {
+			if (img.width > 0 && img.height > 0) {
+				console.log('Image loaded successfully with dimensions:', img.width, img.height);
+				originalImage = img; // Store original image for resize handling
+				setupKonvaStage(img);
+			} else {
+				console.error('Image has invalid dimensions:', img.width, img.height);
+			}
+		};
+		img.onerror = () => {
+			console.error('Failed to load image:', imageSrc);
+		};
+	}
+
+	function setupKonvaStage(img: HTMLImageElement) {
+		if (!containerRef) return;
+
+		const containerWidth = Math.max(1, containerRef.offsetWidth);
+		const containerHeight = Math.max(1, containerRef.offsetHeight);
+		const scale = Math.min(containerWidth / img.width, containerHeight / img.height);
+
+		// Ensure non-zero dimensions
+		const stageWidth = Math.max(1, containerWidth);
+		const stageHeight = Math.max(1, containerHeight);
+
+		stage = new Konva.Stage({
+			container: containerRef,
+			width: stageWidth,
+			height: stageHeight
+		});
+
+		layer = new Konva.Layer();
+		stage.add(layer);
+
+		imageNode = new Konva.Image({
+			image: img,
+			x: (stageWidth - img.width * scale) / 2,
+			y: (stageHeight - img.height * scale) / 2,
+			width: Math.max(1, img.width * scale),
+			height: Math.max(1, img.height * scale)
+		});
+
+		layer.add(imageNode);
+		layer.draw();
+
+		saveState();
+	}
+
+	function applyEdit() {
+		saveState();
+	}
+
+	function handleRotate(event: CustomEvent) {
+		const { angle } = event.detail;
+		imageNode?.rotation(angle);
+		layer?.batchDraw();
+	}
+
+	function handleCrop(event: CustomEvent) {
+		const { x, y, width, height, shape } = event.detail;
+
+		// Apply the crop to the image
+		imageNode?.setAttrs({
+			x,
+			y,
+			width: Math.max(1, width),
+			height: Math.max(1, height),
+			clip:
+				shape === 'circular'
+					? (ctx: CanvasRenderingContext2D) => {
+							ctx.arc(width / 2, height / 2, Math.min(width, height) / 2, 0, Math.PI * 2);
+						}
+					: null
+		});
+
+		layer?.batchDraw();
+		activeState = '';
+		applyEdit();
+	}
+
+	// Handle watermark applied event
+	function handleWatermarkApplied() {
+		activeState = '';
+		applyEdit();
+	}
+
+	// Handle text overlay applied event
+	function handleTextOverlayApplied() {
+		activeState = '';
+		applyEdit();
+	}
+
+	// Handle shape overlay applied event
+	function handleShapeOverlayApplied() {
+		activeState = '';
+		applyEdit();
+	}
+
+	// Fix for undo/redo functionality
+	function saveState() {
+		if (!stage) return;
+		const state = stage.toDataURL();
+
+		// If we're not at the end of history, truncate it
+		if (currentStateIndex < stateHistory.length - 1) {
+			stateHistory = stateHistory.slice(0, currentStateIndex + 1);
+		}
+
+		stateHistory.push(state);
+		currentStateIndex = stateHistory.length - 1;
+		updateUndoRedoState();
+	}
+
+	function updateUndoRedoState() {
+		canUndo = currentStateIndex > 0;
+		canRedo = currentStateIndex < stateHistory.length - 1;
+	}
+
+	function handleUndo() {
+		if (!canUndo) return;
+		currentStateIndex--;
+		loadState(stateHistory[currentStateIndex]);
+		updateUndoRedoState();
+	}
+
+	function handleRedo() {
+		if (!canRedo) return;
+		currentStateIndex++;
+		loadState(stateHistory[currentStateIndex]);
+		updateUndoRedoState();
+	}
+
+	function loadState(state: string) {
+		const img = new window.Image();
+		img.onload = () => {
+			if (imageNode) {
+				imageNode.image(img);
+				layer?.draw();
+			}
+		};
+		img.src = state;
+	}
+
+	function handleImageUpload(event: Event) {
 		const target = event.target as HTMLInputElement;
-		if (target === null || target.files === null) return;
+		if (target.files && target.files.length > 0) {
+			imageFile = target.files[0];
+			selectedImage = URL.createObjectURL(imageFile);
+			loadImageAndSetupKonva(selectedImage);
+		}
+	}
 
-		image = target.files[0] as File; // Explicitly cast to File
-		if (!image) return;
-	};
+	async function handleSave() {
+		if (stage && imageFile) {
+			const dataURL = stage.toDataURL();
+			const response = await fetch(dataURL);
+			const blob = await response.blob();
+			updatedImageFile = new File([blob], imageFile.name, { type: 'image/png' });
 
-	const handleSave = () => {
-		// Convert the canvas to a blob
-		// const canvas = document.querySelector('canvas') as HTMLCanvasElement;
-		// canvas.toBlob((blob) => {
-		// 	// Create a new file object
-		// 	const file = new File([blob ?? new Blob()], image!.name, { type: image!.type });
-		// 	// Update the file store with the new file
-		// 	file.update(file);
-		// 	// Update the saveEditedImage store to true
-		// 	saveEditedImage.update((old) => true);
-		// });
-	};
+			// You can now use updatedImageFile for other operations, such as uploading
+			saveEditedImage.set(true);
 
-	// function to undo the changes made by handleButtonClick
-	function handleCancel() {
-		mode.set('view');
-		goto('/');
+			// Show saved notification
+			const notification = document.querySelector('.success-message');
+			if (notification) {
+				notification.classList.add('show');
+				setTimeout(() => {
+					notification.classList.remove('show');
+				}, 3000);
+			}
+		}
+	}
+
+	function toggleTool(tool: string) {
+		activeState = activeState === tool ? '' : tool;
+		// UI updates handled by component state
 	}
 </script>
 
-<div class="mb-2 flex items-center justify-between">
-	<PageTitle name="Image Editor" icon="bi:images" />
+<!-- Page Title with Back Button -->
+<PageTitle name="Image Editor" icon="tdesign:image-edit" showBackButton={true} backUrl="/config" />
 
-	<!-- buttons -->
-	<div class="mb-2 flex items-center gap-2">
-		<!-- Save Content -->
-		{#if image}
-			<button type="button" on:click={handleSave} class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:hidden">
-				<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
-			</button>
-			<!-- button hack  -->
-			<button type="button" on:click={handleSave} class="variant-filled-tertiary btn hidden dark:variant-filled-primary md:inline-flex">
-				<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
-				<p class="hidden md:block">Save</p>
-			</button>
-		{/if}
-
-		<!-- Cancel -->
-		<button type="button" on:click={handleCancel} class="variant-ghost-surface btn-icon">
-			<iconify-icon icon="material-symbols:close" width="24" />
-		</button>
+<div class="my-4">
+	<div class="wrapper !bg-error-500 text-center">
+		<p>Current in Development!!! For testing purposes only</p>
 	</div>
 </div>
 
-<input class="input my-2" type="file" accept="image/*" on:change={handleImageUpload} />
+<div class="mb-2 flex items-center justify-between gap-2">
+	<input class="input my-2 h-10" type="file" accept="image/*" onchange={handleImageUpload} aria-label="Upload image file" />
+	{#if imageFile}
+		<button onclick={handleUndo} disabled={!canUndo} aria-label="Undo" class="variant-outline-tertiary btn-icon dark:variant-outline-secondary">
+			<iconify-icon icon="mdi:undo" width="24" class="text-tertiary-600"></iconify-icon>
+		</button>
+		<button onclick={handleRedo} disabled={!canRedo} aria-label="Redo" class="variant-outline-tertiary btn-icon dark:variant-outline-secondary">
+			<iconify-icon icon="mdi:redo" width="24" class="text-tertiary-600"></iconify-icon>
+		</button>
+		<button type="button" onclick={handleSave} aria-label="Save" class="variant-filled-tertiary btn-icon btn-icon dark:variant-filled-primary">
+			<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
+		</button>
+	{/if}
+</div>
 
-{#if image}
-	<div class="wrapper">
-		<!-- <div class="wrapper max-h-[calc(100vh-200px)] bg-emerald-400"> -->
-		<!-- old Image Editor -->
-		<!-- <Cropper bind:image /> -->
+<!-- Image Editor Container -->
+<div class="flex h-[calc(100vh-315px)] flex-col items-center justify-center overflow-hidden border-2 border-tertiary-500" bind:this={containerRef}>
+	{#if !imageFile}
+		<p class=" text-center text-tertiary-500 dark:text-primary-500">Please upload an image to start editing.</p>
+	{/if}
+</div>
 
-		<!-- New Image Editor -->
-		<ImageEditor bind:image />
-	</div>
-{:else if selectedImage}
-	<img src={selectedImage} alt="" />
-{/if}
+<div class="relative">
+	{#if stage && layer && imageNode && imageFile}
+		<!-- Conditionally display the tool components based on the active state -->
+		{#if activeState === 'rotate'}
+			<Rotate
+				{stage}
+				{layer}
+				{imageNode}
+				on:rotate={handleRotate}
+				on:rotateApplied={() => {
+					activeState = '';
+					applyEdit();
+				}}
+				on:rotateCancelled={() => {
+					activeState = '';
+				}}
+			/>
+		{:else if activeState === 'blur'}
+			<Blur
+				{stage}
+				{layer}
+				{imageNode}
+				on:blurApplied={() => {
+					activeState = '';
+					blurActive = false;
+					applyEdit();
+				}}
+				on:blurReset={() => {
+					activeState = '';
+					blurActive = false;
+				}}
+			/>
+		{:else if activeState === 'crop'}
+			<Crop
+				{stage}
+				{layer}
+				{imageNode}
+				on:crop={handleCrop}
+				on:cancelCrop={() => {
+					activeState = '';
+				}}
+			/>
+		{:else if activeState === 'zoom'}
+			<Zoom
+				{stage}
+				{layer}
+				{imageNode}
+				onZoomApplied={() => {
+					activeState = '';
+					applyEdit();
+				}}
+				onZoomCancelled={() => {
+					activeState = '';
+				}}
+			/>
+		{:else if activeState === 'focalpoint'}
+			<FocalPoint
+				{stage}
+				{layer}
+				{imageNode}
+				on:focalpoint={(e) => {
+					const { x, y } = e.detail;
+					const centerX = (stage?.width() ?? 0) / 2;
+					const centerY = (stage?.height() ?? 0) / 2;
+					imageNode?.position({
+						x: centerX - x,
+						y: centerY - y
+					});
+					layer?.batchDraw();
+				}}
+				on:focalpointApplied={() => {
+					activeState = '';
+					applyEdit();
+				}}
+				on:focalpointRemoved={() => {
+					activeState = '';
+					applyEdit();
+				}}
+			/>
+		{:else if activeState === 'watermark'}
+			<Watermark {stage} {layer} {imageNode} onExitWatermark={handleWatermarkApplied} />
+		{:else if activeState === 'filter'}
+			<Filter
+				{stage}
+				{layer}
+				{imageNode}
+				on:filterApplied={() => {
+					activeState = '';
+					applyEdit();
+				}}
+			/>
+		{:else if activeState === 'textoverlay'}
+			<TextOverlay {stage} {layer} {imageNode} on:textOverlayApplied={handleTextOverlayApplied} />
+		{:else if activeState === 'shapeoverlay'}
+			<ShapeOverlay {stage} {layer} on:shapeOverlayApplied={handleShapeOverlayApplied} />
+		{/if}
 
-{#if $saveEditedImage}
-	<div class="success-message">Image saved successfully!</div>
-{/if}
+		<!-- Tool Controls -->
+		{#if activeState === ''}
+			<div class="relative mt-3 flex flex-wrap items-center justify-center gap-2">
+				<button onclick={() => toggleTool('rotate')} aria-label="Rotate" class="mx-2">
+					<iconify-icon icon="mdi:rotate-right" width="24" class="text-tertiary-600"></iconify-icon>
+					Rotate
+				</button>
+				<button onclick={() => toggleTool('blur')} aria-label="Blur" class="mx-2">
+					<iconify-icon icon="mdi:blur" width="24" class="text-tertiary-600"></iconify-icon>
+					Blur
+				</button>
+				<button onclick={() => toggleTool('crop')} aria-label="Crop" class="mx-2">
+					<iconify-icon icon="mdi:crop" width="24" class="text-tertiary-600"></iconify-icon>
+					Crop
+				</button>
+				<button onclick={() => toggleTool('zoom')} aria-label="Zoom" class="mx-2">
+					<iconify-icon icon="mdi:magnify" width="24" class="text-tertiary-600"></iconify-icon>
+					Zoom
+				</button>
+				<button onclick={() => toggleTool('focalpoint')} aria-label="Focal Point" class="mx-2">
+					<iconify-icon icon="mdi:focus-field" width="24" class="text-tertiary-600"></iconify-icon>
+					Focal Point
+				</button>
+				<button onclick={() => toggleTool('watermark')} aria-label="Watermark" class="mx-2">
+					<iconify-icon icon="mdi:watermark" width="24" class="text-tertiary-600"></iconify-icon>
+					Watermark
+				</button>
+				<button onclick={() => toggleTool('filter')} aria-label="Filter" class="mx-2">
+					<iconify-icon icon="mdi:filter-variant" width="24" class="text-tertiary-600"></iconify-icon>
+					Filter
+				</button>
+				<button onclick={() => toggleTool('textoverlay')} aria-label="Add Text" class="mx-2">
+					<iconify-icon icon="mdi:format-text" width="24" class="text-tertiary-600"></iconify-icon>
+					Add Text
+				</button>
+				<button onclick={() => toggleTool('shapeoverlay')} aria-label="Add Shape" class="mx-2">
+					<iconify-icon icon="mdi:shape" width="24" class="text-tertiary-600"></iconify-icon>
+					Add Shape
+				</button>
+			</div>
+		{/if}
+	{/if}
+</div>
+
+<div class="success-message" role="alert">Image saved successfully!</div>
+
+<style>
+	.success-message {
+		position: fixed;
+		bottom: 20px;
+		right: 20px;
+		background-color: #4caf50; /* Green background */
+		color: white;
+		padding: 15px;
+		border-radius: 5px;
+		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+		opacity: 0;
+		transition: opacity 0.3s ease;
+		z-index: 1000;
+	}
+</style>

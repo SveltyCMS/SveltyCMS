@@ -1,4 +1,18 @@
+<!-- 
+@file src/routes/login/components/SignUp.svelte
+@component
+**SignUp component with optional OAuth support**
+
+Features:
+ - Dynamic language selection with a debounced input field or dropdown for multiple languages
+ - Demo mode support with auto-reset timer displayed when active
+ - Initial form display adapts based on environment variables (`SEASON`, `DEMO`, and `firstUserExists`)
+ - Reset state functionality for easy return to initial screen
+ - Accessibility features for language selection and form navigation
+-->
+
 <script lang="ts">
+<<<<<<< HEAD
 	import { publicEnv } from '@root/config/public';
 	import { privateEnv } from '@root/config/private';
 	import type { PageData } from '../$types';
@@ -11,52 +25,103 @@
 	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 	import { zod } from 'sveltekit-superforms/adapters';
 	import { signUpFormSchema } from '@utils/formSchemas';
+=======
+	import { privateEnv } from '@root/config/private';
+	import { browser } from '$app/environment';
+>>>>>>> 69c53df49f438e29d4d10f3501b2b2667cbfa787
 
+	import type { PageData } from '../$types';
+
+	// Stores
+	import { page } from '$app/state';
+
+	// Superforms
+	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
+	import { superForm } from 'sveltekit-superforms/client';
+	import type { SignUpFormSchema } from '@utils/formSchemas';
+	import type { SuperValidated } from 'sveltekit-superforms';
+
+	// Components
 	import SignupIcon from './icons/SignupIcon.svelte';
+	import SiteName from '@components/SiteName.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
-	let tabIndex = 1;
-
-	let activeOauth = false;
-
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
+	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
+	import PasswordStrength from '@components/PasswordStrength.svelte';
+	import FloatingPaths from '@root/src/components/system/FloatingPaths.svelte';
 
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
+<<<<<<< HEAD
 	export let active: undefined | 0 | 1 = undefined;
 	export let FormSchemaSignUp: PageData['signUpForm'];
+=======
+	// Props
+	const {
+		active = $bindable(undefined),
+		FormSchemaSignUp,
+		onClick = () => {},
+		onPointerEnter = () => {},
+		onBack = () => {}
+	} = $props<{
+		active?: undefined | 0 | 1;
+		FormSchemaSignUp: SuperValidated<SignUpFormSchema>;
+		onClick?: () => void;
+		onPointerEnter?: () => void;
+		onBack?: () => void;
+	}>();
 
-	let response: any;
-	let firstUserExists = FormSchemaSignUp.data.token != null;
+	const pageData = page.data as PageData;
+	const firstUserExists = pageData.firstUserExists;
+>>>>>>> 69c53df49f438e29d4d10f3501b2b2667cbfa787
 
+	// State management
+	let tabIndex = $state(1);
+	let response = $state<any>(undefined);
+	let formElement = $state<HTMLFormElement | null>(null);
+	let showPassword = $state(false);
+
+	// Pre-calculate tab indices
+	const usernameTabIndex = 1;
+	const emailTabIndex = 2;
+	const passwordTabIndex = 3;
+	const confirmPasswordTabIndex = 4;
+	const tokenTabIndex = 5;
+
+	// Form setup with Svelte 5 optimizations
 	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaSignUp, {
 		id: 'signup',
+<<<<<<< HEAD
 		validators: firstUserExists ? zod(signUpFormSchema) : zod(signUpFormSchema.innerType().omit({ token: true })),
+=======
+>>>>>>> 69c53df49f438e29d4d10f3501b2b2667cbfa787
 		// Clear form on success.
 		resetForm: true,
 		// Prevent page invalidation, which would clear the other form when the load function executes again.
 		invalidateAll: false,
 		// other options
 		applyAction: true,
-		taintedMessage: '',
+		taintedMessage: '', // prevent multiple submits
+		multipleSubmits: 'prevent', // prevent multiple submits
 
 		onSubmit: ({ cancel }) => {
-			// handle login form submission
-			// console.log('Submitting form with data:', $form);
-			// console.log('Form errors:', $allErrors);
-			if ($allErrors.length > 0) cancel();
+			if ($allErrors.length > 0) {
+				cancel();
+			}
 		},
 
 		onResult: ({ result, cancel }) => {
-			// console.log('Form result:', result);
-			// console.log('Error', $errors)
-
-			if (result.type == 'redirect') return;
+			if (result.type == 'redirect') {
+				return;
+			}
 			cancel();
 
 			// add wiggle animation to form element
-			formElement.classList.add('wiggle');
-			setTimeout(() => formElement.classList.remove('wiggle'), 300);
+			formElement?.classList.add('wiggle');
+			setTimeout(() => {
+				formElement?.classList.remove('wiggle');
+			}, 300);
 
 			if (result.type == 'success') {
 				response = result.data?.message;
@@ -64,201 +129,249 @@
 		}
 	});
 
-	// $: console.log('Form data:', $form);
-	// $: console.log('Form errors:', $errors);
+	// Derived form values
+	const formValues = $derived({
+		username: $form.username || '',
+		email: $form.email || '',
+		password: $form.password || '',
+		confirm_password: $form.confirm_password || '',
+		token: $form.token || ''
+	});
 
-	let params = new URL(window.location.href).searchParams;
+	// URL parameter handling
+	const params = browser ? new URL(window.location.href).searchParams : new URLSearchParams('');
 
-	if (params.has('regToken')) {
-		active = 1;
-		firstUserExists = false;
-		// update token value
-		$form.token = params.get('regToken')!;
+	$effect(() => {
+		if (browser && params.has('regToken')) {
+			$form.token = params.get('regToken')!;
+		}
+	});
+
+	// Event handlers
+	function handleOAuth() {
+		const form = document.createElement('form');
+		form.method = 'post';
+		form.action = '?/OAuth';
+		document.body.appendChild(form);
+		form.submit();
+		document.body.removeChild(form);
+		setTimeout(() => {}, 300);
 	}
 
-	let formElement: HTMLFormElement;
+	function handleBack(event: Event) {
+		event.stopPropagation();
+		onBack();
+	}
 
-	// TODO: Replace Role with the one assigned by token
-	let UserRole = roles.user;
+	function handlePointerEnter() {
+		onPointerEnter();
+	}
 
-	let showPassword = false;
+	function handleFormClick(event: Event) {
+		event.stopPropagation();
+		onClick();
+	}
+
+	// Class computations
+	const isActive = $derived(active === 1);
+	const isInactive = $derived(active !== undefined && active !== 1);
+	const isHover = $derived(active === undefined || active === 0);
+
+	const baseClasses = 'hover relative flex items-center overflow-y-auto';
 </script>
 
-<!-- svelte-ignore a11y-no-static-element-interactions -->
 <section
-	on:click
-	on:pointerenter
-	on:keydown
-	class="hover relative flex items-center overflow-y-auto"
-	class:active={active == 1}
-	class:inactive={active !== undefined && active !== 1}
-	class:hover={active == undefined || active == 0}
+	onclick={handleFormClick}
+	onkeydown={(e) => e.key === 'Enter' && onClick?.()}
+	onpointerenter={handlePointerEnter}
+	role="button"
+	tabindex={tabIndex}
+	class={baseClasses}
+	class:active={isActive}
+	class:inactive={isInactive}
+	class:hover={isHover}
 >
-	{#if active == 1}
-		<div class="mx-auto mb-[5%] mt-[15%] w-full p-4 lg:w-1/2" class:hide={active != 1}>
-			<div class="mb-4 flex flex-row gap-2">
-				<SveltyCMSLogo className="w-12" fill="red" />
-
-				<h1 class="text-3xl font-bold text-white lg:text-4xl">
-					<div class="text-xs text-surface-300">{publicEnv.SITE_NAME}</div>
-					<div class="break-words lg:-mt-1">
-						{m.signup_signup()}
-						{#if !firstUserExists}
-							<span class="text-2xl text-primary-500 sm:text-3xl">: Admin</span>
-						{:else}
-							<!-- TODO: Grab User Role from Token  -->
-							<span class="text-2xl capitalize text-primary-500 sm:text-3xl"
-								>{#if UserRole}: {UserRole}{:else}: New User{/if}</span
-							>
-						{/if}
-					</div>
-				</h1>
+	{#if active === 1}
+		<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
+			<div class="absolute inset-0">
+				<FloatingPaths position={1} background="dark" mirrorAnimation />
+				<FloatingPaths position={-1} background="dark" mirrorAnimation />
 			</div>
+			<!-- CSS Logo -->
+			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block">
+				<SveltyCMSLogoFull />
+			</div>
+			<div class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full rounded-md bg-[#242728] p-4 lg:w-4/5" class:hide={active !== 1}>
+				<div class="mb-4 flex flex-row gap-2">
+					<SveltyCMSLogo className="w-14" fill="red" />
 
-			<div class="-mt-2 text-right text-xs text-error-500">{m.signup_required()}</div>
+					<h1 class="text-3xl font-bold text-white lg:text-4xl">
+						<div class="text-xs text-surface-300"><SiteName /></div>
+						<div class="break-words lg:-mt-1">
+							{m.form_signup()}
+							{#if !firstUserExists}
+								<span class="text-2xl text-primary-500 sm:text-3xl">: Admin</span>
+							{:else}
+								<span class="text-2xl capitalize text-primary-500 sm:text-3xl">: New User</span>
+							{/if}
+						</div>
+					</h1>
+				</div>
 
-			<!-- <SuperDebug data={$form} display={dev} /> -->
-			<form method="post" action="?/signUp" use:enhance bind:this={formElement} class="items flex flex-col gap-3" class:hide={active != 1}>
-				<!-- Username field -->
-				<FloatingInput
-					id="usernamesignUp"
-					name="username"
-					type="text"
-					tabindex={tabIndex++}
-					required
-					bind:value={$form.username}
-					label={m.signup_username()}
-					{...$constraints.username}
-					icon="mdi:user-circle"
-					iconColor="white"
-					textColor="white"
-					inputClass="text-white"
-					autocomplete="on"
-				/>
-				{#if $errors.username}<span class="text-xs text-error-500">{$errors.username}</span>{/if}
+				<!-- Required with Back button -->
+				<div class="-mt-2 flex items-center justify-end gap-2 text-right text-xs text-error-500">
+					{m.form_required()}
 
-				<!-- {#if privateEnv.USE_GOOGLE_OAUTH} -->
-				<!-- Email field -->
-				<FloatingInput
-					id="emailsignUp"
-					name="email"
-					type="email"
-					tabindex={tabIndex++}
-					required
-					bind:value={$form.email}
-					label={m.signup_emailaddess()}
-					{...$constraints.email}
-					icon="mdi:email"
-					iconColor="white"
-					textColor="white"
-					inputClass="text-white"
-					autocomplete="on"
-				/>
-				{#if $errors.email}<span class="text-xs text-error-500">{$errors.email}</span>{/if}
+					<button onclick={handleBack} aria-label="Back" class="variant-outline-secondary btn-icon">
+						<iconify-icon icon="ri:arrow-left-line" width="20" class="text-white"></iconify-icon>
+					</button>
+				</div>
 
-				<!-- TODO Check PW & Check to show hide PW together and have matching PW -->
-				<!-- Password field -->
-				<FloatingInput
-					id="passwordsignUp"
-					name="password"
-					type="password"
-					tabindex={tabIndex++}
-					required
-					bind:value={$form.password}
-					bind:showPassword
-					label={m.signup_password()}
-					{...$constraints.password}
-					icon="mdi:password"
-					iconColor="white"
-					textColor="white"
-					showPasswordBackgroundColor="dark"
-					inputClass="text-white"
-					autocomplete="on"
-				/>
-				{#if $errors.password}<span class="text-xs text-error-500">{$errors.password}</span>{/if}
-
-				<!-- Password Confirm -->
-				<FloatingInput
-					id="confirm_passwordsignUp"
-					name="confirm_password"
-					type="password"
-					tabindex={tabIndex++}
-					required
-					bind:value={$form.confirm_password}
-					bind:showPassword
-					label={m.signup_confirmpassword()}
-					{...$constraints.confirm_password}
-					icon="mdi:password"
-					iconColor="white"
-					textColor="white"
-					showPasswordBackgroundColor="dark"
-					inputClass="text-white"
-					autocomplete="on"
-				/>
-				{#if $errors.confirm_password}<span class="text-xs text-error-500">{$errors.confirm_password}</span>{/if}
-				<!-- {/if} -->
-
-				{#if $form.token != null}
-					<!-- Registration Token -->
+				<!-- <SuperDebug data={$form} display={dev} /> -->
+				<form method="post" action="?/signUp" use:enhance bind:this={formElement} class="items flex flex-col gap-3" class:hide={active !== 1}>
+					<!-- Username field -->
 					<FloatingInput
-						id="tokensignUp"
-						name="token"
-						type="password"
-						tabindex={tabIndex++}
+						id="usernamesignUp"
+						name="username"
+						type="text"
+						tabindex={usernameTabIndex}
 						required
-						bind:value={$form.token}
-						label={m.signup_registrationtoken()}
-						{...$constraints.token}
-						icon="mdi:key-chain"
+						value={formValues.username}
+						label={m.form_username()}
+						{...$constraints.username}
+						icon="mdi:user-circle"
+						iconColor="white"
+						textColor="white"
+						inputClass="text-white"
+						autocomplete="on"
+						onInput={(value) => ($form.username = value)}
+					/>
+					{#if $errors.username}<span class="text-xs text-error-500">{$errors.username}</span>{/if}
+
+					<!-- Email field -->
+					<FloatingInput
+						id="emailsignUp"
+						name="email"
+						type="email"
+						tabindex={emailTabIndex}
+						required
+						value={formValues.email}
+						label={m.form_emailaddress()}
+						{...$constraints.email}
+						icon="mdi:email"
+						iconColor="white"
+						textColor="white"
+						inputClass="text-white"
+						autocomplete="on"
+						onInput={(value) => ($form.email = value)}
+					/>
+					{#if $errors.email}<span class="text-xs text-error-500">{$errors.email}</span>{/if}
+
+					<!-- Password field -->
+					<FloatingInput
+						id="passwordsignUp"
+						name="password"
+						type="password"
+						tabindex={passwordTabIndex}
+						required
+						value={formValues.password}
+						{showPassword}
+						label={m.form_password()}
+						{...$constraints.password}
+						icon="mdi:password"
 						iconColor="white"
 						textColor="white"
 						showPasswordBackgroundColor="dark"
 						inputClass="text-white"
-						autocomplete="off"
+						autocomplete="on"
+						onInput={(value) => ($form.password = value)}
 					/>
-					{#if $errors.token}<span class="text-xs text-error-500">{$errors.token}</span>{/if}
-				{/if}
+					{#if $errors.password}
+						<span class="text-xs text-error-500">{$errors.password}</span>
+					{/if}
 
-				{#if response}<span class="text-xs text-error-500">{response}</span>{/if}
-				<!-- <input type="hidden" name="lang" value={$systemLanguage} /> -->
+					<!-- Password Confirm -->
+					<FloatingInput
+						id="confirm_passwordsignUp"
+						name="confirm_password"
+						type="password"
+						tabindex={confirmPasswordTabIndex}
+						required
+						value={formValues.confirm_password}
+						{showPassword}
+						label={m.form_confirmpassword()}
+						{...$constraints.confirm_password}
+						icon="mdi:password"
+						iconColor="white"
+						textColor="white"
+						showPasswordBackgroundColor="dark"
+						inputClass="text-white"
+						autocomplete="on"
+						onInput={(value) => ($form.confirm_password = value)}
+					/>
+					{#if $errors.confirm_password}
+						<span class="text-xs text-error-500">{$errors.confirm_password}</span>
+					{/if}
 
-				{#if privateEnv.USE_GOOGLE_OAUTH === false}
-					<!-- email signin only -->
-					<button type="submit" class="variant-filled btn mt-4 uppercase"
-						>{m.signup_signup()}
-						<!-- Loading indicators -->
-						{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
-					</button>
+					<!-- Password Strength Indicator -->
+					<PasswordStrength password={formValues.password} confirmPassword={formValues.confirm_password} />
 
-					<!-- email + oauth signin  -->
-				{:else if privateEnv.USE_GOOGLE_OAUTH === true && !activeOauth}
-					<div class="btn-group mt-4 border border-secondary-500 text-white [&>*+*]:border-secondary-500">
-						<button type="submit" class="btn w-3/4 bg-surface-200 text-black hover:text-white">
-							<span class="w-full text-black hover:text-white">{m.signup_signup()}</span>
-							<!-- Loading indicators -->
+					{#if firstUserExists == true}
+						<!-- Registration Token -->
+						<FloatingInput
+							id="tokensignUp"
+							name="token"
+							type="password"
+							tabindex={tokenTabIndex}
+							required
+							value={formValues.token}
+							label={m.signup_registrationtoken()}
+							{...$constraints.token}
+							icon="mdi:key-chain"
+							iconColor="white"
+							textColor="white"
+							showPasswordBackgroundColor="dark"
+							inputClass="text-white"
+							autocomplete="off"
+							onInput={(value) => ($form.token = value)}
+						/>
+						{#if $errors.token}
+							<span class="text-xs text-error-500">{$errors.token}</span>
+						{/if}
+					{/if}
+
+					{#if response}
+						<span class="text-xs text-error-500">{response}</span>
+					{/if}
+
+					{#if !privateEnv.USE_GOOGLE_OAUTH}
+						<!-- Email SignIn only -->
+						<button type="submit" class="variant-filled btn mt-4 uppercase" aria-label={m.form_signup()}>
+							{m.form_signup()}
 							{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 						</button>
-						<form method="post" action="?/OAuth" class="w-fit">
-							<button type="submit" class="btn w-full">
-								<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mr-2" />
+
+						<!-- Email + OAuth signin  -->
+					{:else}
+						<div class="btn-group mt-4 border border-secondary-500 text-white [&>*+*]:border-secondary-500">
+							<button type="submit" class="btn w-3/4 rounded-none bg-surface-200 text-black hover:text-white" aria-label={m.form_signup()}>
+								<span class="w-full text-black hover:text-white">{m.form_signup()}</span>
+								<!-- Loading indicators -->
+								{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
+							</button>
+
+							<button type="button" onclick={handleOAuth} aria-label="OAuth" class="btn flex w-1/4 items-center justify-center">
+								<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mr-0.5 sm:mr-2"></iconify-icon>
 								<span class="">OAuth</span>
 							</button>
-						</form>
-					</div>
-				{:else}
-					<!-- TODO: not really used -->
-					<form method="post" action="?/OAuth" class="flex w-full">
-						<button type="submit" class="items center variant-filled my-2 flex flex-1 justify-center gap-2 p-3">
-							<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mt-1" />
-							<p>{m.signup_signupwithgoogle()}</p>
-						</button>
-					</form>
-				{/if}
-			</form>
+						</div>
+					{/if}
+				</form>
+			</div>
 		</div>
 	{/if}
 
-	<SignupIcon show={active == 0 || active == undefined} />
+	<SignupIcon show={active === 0 || active === undefined} onClick={handleFormClick} />
 </section>
 
 <style lang="postcss">
@@ -289,7 +402,7 @@
 		animation: wiggle 0.3s forwards;
 	}
 	@keyframes wiggle {
-		0% {
+		from {
 			transform: translateX(0);
 		}
 		25% {

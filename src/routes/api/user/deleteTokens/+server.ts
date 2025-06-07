@@ -1,30 +1,85 @@
-import mongoose from 'mongoose';
+/**
+ * @file src/routes/api/user/deleteTokens/+server.ts
+ * @description API endpoint for deleting all tokens (sessions) for a user.
+ *
+ * This module provides functionality to:
+ * - Invalidate all active sessions for a specific user
+ *
+ * Features:
+ * - User-specific session invalidation
+ * - Permission checking
+ * - Input validation
+ * - Error handling and logging
+ *
+ * Usage:
+ * DELETE /api/user/deleteTokens
+ * Body: JSON object with 'user_id' property
+ *
+ * Note: This endpoint is secured with appropriate authentication and authorization.
+ */
+
+import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { auth } from '@api/db';
+import { error } from '@sveltejs/kit';
 
-export const POST: RequestHandler = async ({ request }) => {
-	const data = await request.json();
+// Auth
+import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
+import { hasPermissionByAction } from '@src/auth/permissions';
 
-	// admins count
-	const AUTH_USER = mongoose.models['auth_user'];
-	const AUTH_TOKENS = mongoose.models['auth_tokens'];
-	let adminLength = (await AUTH_USER.find({ role: 'admin' })).length;
-	let flag = false;
+// System Logger
+import { logger } from '@utils/logger.svelte';
 
-	data.forEach(async (user: any) => {
-		if (user.role == 'admin' && adminLength == 1) {
-			flag = true;
-			return;
+// Input validation
+import { object, string, type ValiError } from 'valibot';
+
+const deleteTokensSchema = object({
+	user_id: string()
+});
+
+export const DELETE: RequestHandler = async ({ request, locals }) => {
+	try {
+		// Check if user is authenticated
+		if (!locals.user) {
+			throw error(401, 'Authentication required');
 		}
-		adminLength -= user.role == 'admin' ? 1 : 0;
 
-		// delete user
-		await auth.deleteUser(user.userID);
-		// delete tokens
-		await AUTH_TOKENS.deleteMany({ userID: user.userID });
-	});
+		// Check if the user has permission to delete tokens
+		const hasPermission = hasPermissionByAction(
+			locals.user,
+			'manage',
+			'system',
+			'config/userManagement'
+		);
 
-	if (flag) return new Response(JSON.stringify({ success: false, message: 'Cannot delete all admins' }), { status: 400 });
+		if (!hasPermission) {
+			throw error(403, 'Unauthorized to delete user tokens');
+		}
 
-	return new Response(JSON.stringify({ success: true }), { status: 200 });
+		const body = await request.json();
+
+		// Validate input
+		const validatedData = deleteTokensSchema.parse(body);
+
+		const tokenAdapter = new TokenAdapter();
+
+		// Delete all tokens for the user
+		await tokenAdapter.deleteAllUserTokens(validatedData.user_id);
+
+		logger.info('All tokens deleted successfully', {
+			user_id: validatedData.user_id
+		});
+
+		return json({
+			success: true,
+			message: 'All tokens deleted successfully'
+		});
+	} catch (err) {
+		if ((err as ValiError).issues) {
+			const valiError = err as ValiError;
+			logger.warn('Invalid input for deleteTokens API:', valiError.issues);
+			throw error(400, 'Invalid input: ' + valiError.issues.map((issue) => issue.message).join(', '));
+		}
+		logger.error('Error in deleteTokens API:', err);
+		throw error(500, 'Failed to delete tokens');
+	}
 };

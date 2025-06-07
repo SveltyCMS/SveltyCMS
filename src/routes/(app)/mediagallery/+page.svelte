@@ -1,558 +1,764 @@
+<!-- 
+@file src/routes/(app)/mediagallery/+page.svelte 
+@component 
+**This page is used to display the media gallery page**
+
+This page displays a collection of media files, such as images, documents, audio, and video.
+It provides a user-friendly interface for searching, filtering, and navigating through media files.
+
+### Props:
+- `mediaType` {MediaTypeEnum} - The type of media files to display.
+- `media` {MediaBase[]} - An array of media files to be displayed.
+
+### Events:
+- `mediaDeleted` - Emitted when a media file is deleted.	
+
+### Features:
+- Displays a collection of media files based on the specified media type.
+- Provides a user-friendly interface for searching, filtering, and navigating through media files.
+- Emits the `mediaDeleted` event when a media file is deleted.
+-->
+
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import axios from 'axios';
+
+	// Stores
+	import { mode } from '@src/stores/collectionStore.svelte';
+
+	// Utils & Media
+	import { config, toFormData } from '@utils/utils';
+	import { MediaTypeEnum, type MediaImage, type MediaBase } from '@utils/media/mediaModels';
+	import { publicEnv } from '@root/config/public';
+
+	// Components
 	import PageTitle from '@components/PageTitle.svelte';
-	import { formatSize } from '@utils/utils';
+	import Breadcrumb from '@components/Breadcrumb.svelte';
+	import MediaGrid from './MediaGrid.svelte';
+	import MediaTable from './MediaTable.svelte';
 
-	//ParaglideJS
-	import * as m from '@src/paraglide/messages';
+	// Skeleton
+	import { getToastStore, getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
+	const toastStore = getToastStore();
+	const modalStore = getModalStore();
 
-	// Buttons
-	let globalSearchValue = '';
-	let searchShow = false;
-	let filterShow = false;
-	let columnShow = false;
-	let density = 'normal';
+	// Loading state
+	let isLoading = $state(false);
 
-	//Get message from +page.server.ts
-	export let errorMessage = '';
+	// Import types
+	import type { SystemVirtualFolder } from '@src/databases/dbInterface';
 
-	//skeleton
-	import { Avatar, filter } from '@skeletonlabs/skeleton';
+	// Props using runes
+	const { data = { user: undefined, media: [], virtualFolders: [] } } = $props<{
+		data?: {
+			user: { _id: string; email: string; role: string } | undefined;
+			media: MediaBase[];
+			virtualFolders: SystemVirtualFolder[];
+			currentFolder: SystemVirtualFolder | null; // Add currentFolder from load data
+		};
+	}>();
 
-	// Define the view, gridSize, and tableSize variables with the appropriate types
-	let view: 'grid' | 'table' = 'grid';
-	let gridSize: 'small' | 'medium' | 'large' = 'small';
-	let tableSize: 'small' | 'medium' | 'large' = 'small';
+	// State using runes
+	let files = $state<MediaImage[]>([]);
+	let folders = $state<SystemVirtualFolder[]>([]);
+	let currentFolder = $state<SystemVirtualFolder | null>(null);
+	let breadcrumb = $state<string[]>([]);
 
-	// Get the user's preferred view, grid size, and table size from local storage or a cookie
-	let userPreference = getUserPreferenceFromLocalStorageOrCookie();
-	if (userPreference) {
-		let [preferredView, preferredGridSize, preferredTableSize] = userPreference.split('/');
-		view = preferredView as 'grid' | 'table';
-		gridSize = preferredGridSize as 'small' | 'medium' | 'large';
-		tableSize = preferredTableSize as 'small' | 'medium' | 'large';
-	}
+	let globalSearchValue = $state('');
+	let selectedMediaType = $state<'All' | MediaTypeEnum>('All');
+	let view = $state<'grid' | 'table'>('grid');
+	let gridSize = $state<'small' | 'medium' | 'large'>('small');
+	let tableSize = $state<'small' | 'medium' | 'large'>('small');
 
-	// Define a function to store the user's preferred view, grid size, and table size
+	type MediaTypeOption = {
+		value: 'All' | MediaTypeEnum;
+		label: string;
+	};
+
+	// Media types with proper typing
+	const mediaTypes: MediaTypeOption[] = [
+		{ value: 'All', label: 'ALL' },
+		{ value: MediaTypeEnum.Image, label: 'IMAGE' },
+		{ value: MediaTypeEnum.Document, label: 'DOCUMENT' },
+		{ value: MediaTypeEnum.Audio, label: 'AUDIO' },
+		{ value: MediaTypeEnum.Video, label: 'VIDEO' },
+		{ value: MediaTypeEnum.RemoteVideo, label: 'REMOTE VIDEO' }
+	];
+
+	// Computed value for filtered files based on search and type
+	let filteredFiles = $derived(
+		files.filter((file) => {
+			if (file.type === MediaTypeEnum.Image) {
+				return (
+					(file.filename || '').toLowerCase().includes(globalSearchValue.toLowerCase()) &&
+					(selectedMediaType === 'All' || file.type === selectedMediaType)
+				);
+			} else {
+				return (
+					(file.filename || '').toLowerCase().includes(globalSearchValue.toLowerCase()) &&
+					(selectedMediaType === 'All' || file.type === selectedMediaType)
+				);
+			}
+		})
+	);
+
+	// Computed folders for breadcrumb
+	let breadcrumbFolders = $derived(
+		folders.map((folder) => ({
+			_id: folder._id,
+			name: folder.name,
+			path: Array.isArray(folder.path) ? folder.path : folder.path.split('/')
+		}))
+	);
+
+	// Handle user preferences
 	function storeUserPreference(view: 'grid' | 'table', gridSize: 'small' | 'medium' | 'large', tableSize: 'small' | 'medium' | 'large') {
-		// Store the view, grid size, and table size for the current user in local storage or a cookie
-		let userPreference = `${view}/${gridSize}/${tableSize}`;
-		localStorage.setItem('GalleryUserPreference', userPreference);
+		localStorage.setItem('GalleryUserPreference', `${view}/${gridSize}/${tableSize}`);
 	}
 
 	function getUserPreferenceFromLocalStorageOrCookie(): string | null {
 		return localStorage.getItem('GalleryUserPreference');
 	}
 
-	function handleClick() {
-		// Update the size of the currently displayed view
-		if (view === 'grid') {
-			//Reset DND
-			view;
-			// Update the size of the grid view
-			if (gridSize === 'small') {
-				gridSize = 'medium';
-			} else if (gridSize === 'medium') {
-				gridSize = 'large';
-			} else {
-				gridSize = 'small';
-			}
-		} else {
-			// Update the size of the table view
-			if (tableSize === 'small') {
-				tableSize = 'medium';
-			} else if (tableSize === 'medium') {
-				tableSize = 'large';
-			} else {
-				tableSize = 'small';
-			}
+	// Initialize component with runes
+	$effect(() => {
+		mode.set('media');
+
+		if (data && data.virtualFolders) {
+			folders = data.virtualFolders.map((folder: SystemVirtualFolder) => ({
+				...folder,
+				path: Array.isArray(folder.path) ? folder.path : folder.path?.split('/')
+			}));
 		}
 
-		// Store the new sizes for the current user
-		let userPreference = `${view}/${gridSize}/${tableSize}`;
-		localStorage.setItem('GalleryUserPreference', userPreference);
+		if (data && data.media) {
+			files = data.media;
+		}
+
+		// Load user preferences
+		const userPreference = getUserPreferenceFromLocalStorageOrCookie();
+		if (userPreference) {
+			const [preferredView, preferredGridSize, preferredTableSize] = userPreference.split('/');
+			view = preferredView as 'grid' | 'table';
+			gridSize = preferredGridSize as 'small' | 'medium' | 'large';
+			tableSize = preferredTableSize as 'small' | 'medium' | 'large';
+		}
+	});
+
+	// Function to update breadcrumb based on current folder
+	function updateBreadcrumb() {
+		if (!currentFolder) {
+			breadcrumb = [];
+			return;
+		}
+		breadcrumb = Array.isArray(currentFolder.path) ? currentFolder.path : currentFolder.path.split('/');
 	}
 
-	function filterData(searchValue: any, data: any) {
-		if (!searchValue) return data;
+	// Create a new folder with memoization
+	async function createFolder(folderName: string) {
+		// Validate folder name
+		if (!folderName.trim()) {
+			toastStore.trigger({
+				message: 'Folder name cannot be empty',
+				background: 'variant-filled-error',
+				timeout: 3000
+			});
+			return;
+		}
 
-		return data.filter((item) => {
-			// Define your filter logic here. For example, you might want to check if the item's name contains the searchValue.
-			return item.name.toLowerCase().includes(searchValue.toLowerCase());
-		});
-	}
+		// Check for invalid characters
+		if (/[\\/:"*?<>|]/.test(folderName)) {
+			toastStore.trigger({
+				message: 'Folder name contains invalid characters (\\ / : * ? " < > |)',
+				background: 'variant-filled-error',
+				timeout: 3000
+			});
+			return;
+		}
 
-	export let data: {
-		props: {
-			data: {
-				path: string;
-				directory: string;
-				name: string;
-				size: number;
-				thumbnail: string;
-				hash: any;
-			}[];
-		};
-	} = { props: { data: [] } };
+		// Check length
+		if (folderName.length > 50) {
+			toastStore.trigger({
+				message: 'Folder name must be 50 characters or less',
+				background: 'variant-filled-error',
+				timeout: 3000
+			});
+			return;
+		}
 
-	//console.log('Data received in component:', data);
-
-	// Table
-	let tableData: any[] = [];
-	let filteredTableData: any[] = [];
-	let filters: { [key: string]: string } = {};
-
-	// Pagination
-	let rowsPerPage = 10; // Set initial rowsPerPage value
-	let currentPage = 1; // Set initial currentPage value
-
-	let isLoading = false;
-	let loadingTimer: any; // recommended time of around 200-300ms
-
-	// Display User Token Columns
-	const tableHeaders = [
-		{ label: m.mediagallery_image(), key: 'thumbnail' },
-		{ label: m.mediagallery_name(), key: 'name' },
-		{ label: m.mediagallery_size(), key: 'size' },
-		{ label: m.mediagallery_hash(), key: 'hash' },
-		{ label: m.mediagallery_path(), key: 'path' }
-	];
-
-	//Load Table data
-	async function refreshTableData() {
-		// Clear loading timer
-		loadingTimer && clearTimeout(loadingTimer);
-
+		isLoading = true;
 		try {
-			let responseData: any;
+			const parentId = currentFolder?._id ?? null;
+			const response = await fetch('/api/virtualFolder', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					name: folderName.trim(),
+					parent: parentId
+				})
+			});
 
-			// Set loading to true
-			loadingTimer = setTimeout(() => {
-				isLoading = true;
-			}, 400);
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+			}
 
+<<<<<<< HEAD
 			// Load All available Users
 			responseData = data.props.data;
+=======
+			const result = await response.json();
+>>>>>>> 69c53df49f438e29d4d10f3501b2b2667cbfa787
 
-			// Format the data for the table
-			tableData = responseData.map((item) => {
-				const formattedItem: any = {};
-				for (const header of tableHeaders) {
-					const { key } = header;
-					formattedItem[key] = item[key] || 'NO DATA';
-					if (key === 'createdAt' || key === 'updatedAt') {
-						formattedItem[key] = new Date(item[key]).toLocaleString();
-					}
-					if (key === 'expiresIn') {
-						formattedItem[key] = new Date(item[key]).toLocaleString();
-					}
-				}
-
-				return formattedItem;
-			});
-
-			// Reset filters
-			filters = {};
-
-			// Set loading to false
-			isLoading = false;
-			clearTimeout(loadingTimer);
-		} catch (error) {
-			console.error('Error fetching data:', error);
-		}
-	}
-	//Call refreshTableData initially to populate the table
-	refreshTableData();
-
-	// Columns Sorting
-	let sorting: { sortedBy: string; isSorted: 0 | 1 | -1 } = {
-		sortedBy: tableData.length > 0 ? Object.keys(tableData[0])[0] : '', // Set default sortedBy based on first key in tableData (if available)
-		isSorted: 1 // 1 for ascending order, -1 for descending order and 0 for not sorted
-	};
-
-	//Todo: Check if media is used in a collection before delete is possible
-	async function handleDeleteImage(image) {
-		try {
-			const response = await fetch(`/api/deleteImage/${encodeURIComponent(image.thumbnail)}`, {
-				method: 'DELETE'
-			});
-
-			if (response.ok) {
-				// Image was successfully deleted
+			if (result.success) {
+				folders = await fetchUpdatedFolders();
+				toastStore.trigger({
+					message: 'Folder created successfully',
+					background: 'variant-filled-success',
+					timeout: 3000
+				});
 			} else {
-				// Handle error
-				console.error('Error deleting image:', response.statusText);
+				throw new Error(result.error || 'Failed to create folder');
 			}
 		} catch (error) {
-			console.error('Error deleting image:', error);
+			console.error('Error creating folder:', error);
+			let errorMessage = 'Failed to create folder';
+			if (error instanceof Error) {
+				if (error.message.includes('duplicate')) {
+					errorMessage = error.message;
+				} else if (error.message.includes('invalid')) {
+					errorMessage = 'Invalid folder name';
+				}
+			}
+			toastStore.trigger({
+				message: errorMessage,
+				background: 'variant-filled-error',
+				timeout: 5000 // Longer timeout for errors
+			});
+		} finally {
+			isLoading = false;
 		}
 	}
+
+	// Fetch updated folders
+	async function fetchUpdatedFolders() {
+		try {
+			const response = await fetch('/api/virtualFolder');
+			const result = await response.json();
+
+			if (result.success) {
+				return result.data.folders.map((folder: SystemVirtualFolder) => ({
+					...folder,
+					path: Array.isArray(folder.path) ? folder.path : folder.path?.split('/')
+				}));
+			} else {
+				throw new Error(result.error || 'Failed to fetch folders');
+			}
+		} catch (error) {
+			console.error('Error fetching updated folders:', error);
+			toastStore.trigger({
+				message: 'Failed to fetch folders',
+				background: 'variant-filled-error',
+				timeout: 3000
+			});
+			return [];
+		}
+	}
+
+	// Memoized fetch for media files
+	let lastFolderId = $state<string | null>(null);
+	async function fetchMediaFiles() {
+		const folderId = currentFolder ? currentFolder._id : 'root';
+
+		// Skip if already loading or same folder
+		if (isLoading || folderId === lastFolderId) return;
+
+		isLoading = true;
+		lastFolderId = folderId;
+
+		try {
+			const { data } = await axios.get(`/api/virtualFolder/${folderId}`, {
+				timeout: 10000 // 10 second timeout
+			});
+
+			if (data.success) {
+				files = Array.isArray(data.contents?.mediaFiles) ? data.contents.mediaFiles : [];
+				folders = Array.isArray(data.contents?.subFolders) ? data.contents.subFolders : [];
+			} else {
+				throw new Error(data.error || 'Unknown error');
+			}
+		} catch (error: unknown) {
+			console.error('Error fetching media files:', error);
+			let errorMessage = 'Failed to load media';
+			if (error instanceof Error) {
+				if (error.message.includes('timeout')) {
+					errorMessage = 'Request timed out - please try again';
+				} else if (error.message.includes('network')) {
+					errorMessage = 'Network error - please check your connection';
+				}
+			}
+			toastStore.trigger({
+				message: errorMessage,
+				background: 'variant-filled-error',
+				timeout: 5000
+			});
+			files = [];
+			folders = [];
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	// Open virtual folder
+	async function openFolder(folderId: string | null) {
+		try {
+			if (folderId === null) {
+				// Navigate to root
+				currentFolder = null;
+			} else {
+				// Set current folder to the selected one
+				currentFolder = folders.find((f) => f._id === folderId) || null;
+			}
+
+			// Update breadcrumb based on the current folder
+			updateBreadcrumb();
+
+			// Fetch and display subfolders immediately after setting currentFolder
+			if (currentFolder) {
+				folders = await fetchUpdatedFolders();
+			}
+
+			// Fetch media files for the current folder
+			await fetchMediaFiles();
+		} catch (error) {
+			console.error('Error opening folder:', error);
+			toastStore.trigger({
+				message: 'Failed to open folder',
+				background: 'variant-filled-error',
+				timeout: 3000
+			});
+		}
+	}
+
+	// Handle view change
+	function handleViewChange(newView: 'grid' | 'table') {
+		view = newView;
+		storeUserPreference(view, gridSize, tableSize);
+	}
+
+	// Clear search
+	function clearSearch() {
+		globalSearchValue = '';
+	}
+
+	// Open add virtual folder modal
+	function openAddFolderModal() {
+		// Default to MEDIA_FOLDER, which should represent the root directory
+		let currentFolderPath = publicEnv.MEDIA_FOLDER;
+
+		// Check if the currentFolder is set (i.e., the user is in a subfolder)
+		if (currentFolder) {
+			currentFolderPath = Array.isArray(currentFolder.path) ? currentFolder.path.join('/') : currentFolder.path;
+		}
+
+		const modal: ModalSettings = {
+			type: 'prompt',
+			title: 'Add Folder',
+			// Apply inline style or use a CSS class to make the current folder path display in a different color
+			body: `Creating subfolder in: <span class="text-tertiary-500 dark:text-primary-500">${currentFolderPath}</span>`, // Display the current folder path in a different color
+			response: (r: string) => {
+				if (r) createFolder(r); // Pass the new folder name to createFolder function
+			}
+		};
+
+		modalStore.trigger(modal); // Trigger the modal to open
+	}
+
+	// Handle delete image
+	async function handleDeleteImage(file: MediaBase) {
+		try {
+			const q = toFormData({ method: 'POST', image: file._id ?? '' });
+			const response = await axios.post('?/api/mediaHandler/', q, {
+				...config,
+				withCredentials: true // This ensures cookies are sent with the request
+			});
+			const result = response.data;
+			if (result?.success) {
+				toastStore.trigger({
+					message: 'Media deleted successfully.',
+					background: 'variant-filled-success',
+					timeout: 3000
+				});
+				await fetchMediaFiles();
+			} else {
+				throw new Error(result.error || 'Failed to delete media');
+			}
+		} catch (error) {
+			console.error('Error deleting media: ', error);
+			toastStore.trigger({
+				message: 'Error deleting media',
+				background: 'variant-filled-error',
+				timeout: 3000
+			});
+		}
+	}
+
+	$effect(() => {
+		// Log when the media data from the server changes
+		console.log('Media files updated:', data.media);
+	});
 </script>
 
-<div class="mb-2 flex items-center">
-	<PageTitle name={m.mediagallery_pagetitle()} icon="bi:images" iconColor="text-tertiary-500 dark:text-primary-500" />
-</div>
-<div class="wrapper">
-	<div class="mb-2 flex items-center justify-between gap-4">
-		<!-- Search -->
+<!-- Page Title and Actions -->
+<div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+	<!-- Row 1: Page Title and Back Button (Handled by PageTitle component) -->
+	<PageTitle
+		name="Media Gallery"
+		icon="bi:images"
+		showBackButton={true}
+		backUrl="/"
+		onBackClick={(defaultBehavior) => {
+			// Custom back navigation with loading state management
+			try {
+				defaultBehavior();
+			} catch (error) {
+				console.error('Navigation error:', error);
+				// Fallback to home page if history.back() fails
+				goto('/');
+			}
+		}}
+	/>
 
-		<div class="input-group input-group-divider grid grid-cols-[auto_1fr_auto]">
-			<!-- TODO: fix search -->
-			<input
-				type="text"
-				placeholder="Search..."
-				class="input h-12 w-64 outline-none transition-all duration-500 ease-in-out"
-				bind:value={globalSearchValue}
-				on:blur={() => (searchShow = false)}
-				on:keydown={(e) => e.key === 'Enter' && (searchShow = false)}
-			/>
+	<!-- Row 2: Action Buttons -->
+	<div class="lgd:mt-0 flex items-center justify-center gap-4 lg:justify-end">
+		<!-- Add folder with loading state -->
+		<button onclick={openAddFolderModal} aria-label="Add folder" class="variant-filled-tertiary btn gap-2" disabled={isLoading} aria-busy={isLoading}>
+			<iconify-icon icon="mdi:folder-add-outline" width="24"></iconify-icon>
+			{isLoading ? 'Creating...' : 'Add folder'}
+			{#if isLoading}
+				<span class="loading loading-spinner loading-xs"></span>
+			{/if}
+		</button>
+
+		<!-- Add Media -->
+		<button onclick={() => goto('/mediagallery/uploadMedia')} aria-label="Add Media" class="variant-filled-primary btn gap-2">
+			<iconify-icon icon="carbon:add-filled" width="24"></iconify-icon>
+			Add Media
+		</button>
+	</div>
+</div>
+
+<!-- Breadcrumb Navigation -->
+<Breadcrumb {breadcrumb} folders={breadcrumbFolders} {openFolder} />
+
+<div class="wrapper overflow-auto">
+	<div class="mb-8 flex w-full flex-col justify-center gap-1 md:hidden">
+		<label for="globalSearch">Search</label>
+		<div class="input-group input-group-divider grid max-w-md grid-cols-[auto_1fr_auto]">
+			<input id="globalSearch" type="text" placeholder="Search Media" class="input" bind:value={globalSearchValue} />
 			{#if globalSearchValue}
-				<button
-					on:click={() => {
-						globalSearchValue = '';
-					}}
-					on:keydown={(event) => {
-						if (event.key === 'Enter' || event.key === ' ') {
-							globalSearchValue = '';
-						}
-					}}
-					class="variant-filled-surface w-12"
-					><iconify-icon icon="ic:outline-search-off" width="24" />
+				<button onclick={() => (globalSearchValue = '')} aria-label="Clear search" class="variant-filled-surface w-12">
+					<iconify-icon icon="ic:outline-search-off" width="24"></iconify-icon>
 				</button>
 			{/if}
 		</div>
 
-		<div class="flex items-center justify-center gap-4">
-			<!-- Header block -->
-			<!-- Mobile -->
-			<div class="flex items-center justify-center text-center text-xs sm:hidden">
-				<!-- Display Grid / Table -->
+		<div class="mt-4 flex justify-between">
+			<div class="flex flex-col">
+				<label for="mediaType">Type</label>
+				<select id="mediaType" bind:value={selectedMediaType} class="input">
+					{#each mediaTypes as type}
+						<option value={type.value}>{type.label}</option>
+					{/each}
+				</select>
+			</div>
+
+			<div class="flex flex-col text-center">
+				<label for="sortButton">Sort</label>
+				<button id="sortButton" aria-label="Sort" class="variant-ghost-surface btn">
+					<iconify-icon icon="flowbite:sort-outline" width="24"></iconify-icon>
+				</button>
+			</div>
+
+			<div class="flex items-center justify-center text-center text-xs md:hidden">
 				<div class="flex flex-col items-center justify-center">
 					<div class="flex sm:divide-x sm:divide-gray-500">
 						{#if view === 'grid'}
-							<button
-								class="btn flex flex-col items-center justify-center px-1"
-								on:keydown
-								on:click={() => {
-									view = 'table';
-									storeUserPreference(view, gridSize, tableSize);
-								}}
-								on:keydown={(e) => {
-									if (e.key === 'Enter' || e.key === ' ') {
-										view = 'table';
-										storeUserPreference(view, gridSize, tableSize);
-									}
-								}}
-							>
-								<p class="text-center text-xs">{m.mediagallery_display()}</p>
-								<iconify-icon icon="material-symbols:grid-view-rounded" height="42" style={`color: text-black dark:text-white`} />
+							<button onclick={() => handleViewChange('table')} aria-label="Table" class="btn flex flex-col items-center justify-center px-1">
+								<p class="text-center text-xs">Display</p>
+								<iconify-icon icon="material-symbols:list-alt-outline" height="44" style={`color: text-black dark:text-white`}></iconify-icon>
 								<p class="text-xs">Table</p>
 							</button>
 						{:else}
-							<button
-								class="btn flex flex-col items-center justify-center px-1"
-								on:keydown
-								on:click={() => {
-									view = 'grid';
-									storeUserPreference(view, gridSize, tableSize);
-								}}
-								on:keydown={(e) => {
-									if (e.key === 'Enter' || e.key === ' ') {
-										view = 'grid';
-										storeUserPreference(view, gridSize, tableSize);
-									}
-								}}
-							>
-								<p class="text-center text-xs">{m.mediagallery_display()}</p>
-								<iconify-icon icon="material-symbols:list-alt-outline" height="44" style={`color: text-black dark:text-white`} />
-
-								<!-- TODO: Center mobile labels -->
-								{#if view === 'table'}
-									<p class="text-center text-xs">{m.mediagallery_grid()}</p>
-								{:else}
-									<p class="text-center text-xs">{m.mediagallery_table()}</p>
-								{/if}
+							<button onclick={() => handleViewChange('grid')} aria-label="Grid" class="btn flex flex-col items-center justify-center px-1">
+								<p class="text-center text-xs">Display</p>
+								<iconify-icon icon="material-symbols:grid-view-rounded" height="42" style={`color: text-black dark:text-white`}></iconify-icon>
+								<p class="text-center text-xs">Grid</p>
 							</button>
 						{/if}
 					</div>
 				</div>
-
-				<!-- switch between small, medium, and large images -->
 				<div class="flex flex-col items-center">
-					<p class="text-xs">{m.mediagallery_size()}</p>
+					<p class="text-xs">Size</p>
 					<div class="divide-surface-00 flex divide-x">
 						{#if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
-							<button type="button" class="px-1" on:click={handleClick}>
-								<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40" style={`color:text-black dark:text-white`} />
-								<p class="text-xs">{m.mediagallery_small()}</p>
+							<button
+								onclick={() => {
+									const newSize =
+										view === 'grid'
+											? gridSize === 'small'
+												? 'medium'
+												: gridSize === 'medium'
+													? 'large'
+													: 'small'
+											: tableSize === 'small'
+												? 'medium'
+												: tableSize === 'medium'
+													? 'large'
+													: 'small';
+
+									if (view === 'grid') {
+										gridSize = newSize;
+									} else {
+										tableSize = newSize;
+									}
+									storeUserPreference(view, gridSize, tableSize);
+								}}
+								type="button"
+								aria-label="Small"
+								class="px-1"
+							>
+								<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40" style={`color:text-black dark:text-white`}
+								></iconify-icon>
+								<p class="text-xs">Small</p>
 							</button>
 						{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
-							<button type="button" class="px-1" on:click={handleClick}>
-								<iconify-icon icon="material-symbols:grid-on-sharp" height="40" style={`color: text-black dark:text-white`} />
-								<p class="text-xs">{m.mediagallery_medium()}</p>
+							<button
+								onclick={() => {
+									const newSize =
+										view === 'grid'
+											? gridSize === 'small'
+												? 'medium'
+												: gridSize === 'medium'
+													? 'large'
+													: 'small'
+											: tableSize === 'small'
+												? 'medium'
+												: tableSize === 'medium'
+													? 'large'
+													: 'small';
+
+									if (view === 'grid') {
+										gridSize = newSize;
+									} else {
+										tableSize = newSize;
+									}
+									storeUserPreference(view, gridSize, tableSize);
+								}}
+								type="button"
+								aria-label="Medium"
+								class="px-1"
+							>
+								<iconify-icon icon="material-symbols:grid-on-sharp" height="40" style={`color: text-black dark:text-white`}></iconify-icon>
+								<p class="text-xs">Medium</p>
 							</button>
 						{:else}
-							<button type="button" class="px-1" on:click={handleClick}>
-								<iconify-icon icon="material-symbols:grid-view" height="40" style={`color: text-black dark:text-white`} />
-								<p class="text-xs">{m.mediagallery_large()}</p>
+							<button
+								onclick={() => {
+									const newSize =
+										view === 'grid'
+											? gridSize === 'small'
+												? 'medium'
+												: gridSize === 'medium'
+													? 'large'
+													: 'small'
+											: tableSize === 'small'
+												? 'medium'
+												: tableSize === 'medium'
+													? 'large'
+													: 'small';
+
+									if (view === 'grid') {
+										gridSize = newSize;
+									} else {
+										tableSize = newSize;
+									}
+									storeUserPreference(view, gridSize, tableSize);
+								}}
+								type="button"
+								aria-label="Large"
+								class="px-1"
+							>
+								<iconify-icon icon="material-symbols:grid-view" height="40" style={`color: text-black dark:text-white`}></iconify-icon>
+								<p class="text-xs">Large</p>
 							</button>
 						{/if}
 					</div>
 				</div>
 			</div>
-			<!-- Desktop -->
-			<!-- Display Grid / Table -->
+		</div>
+	</div>
+
+	<div class="mb-2 hidden items-center justify-between gap-1 md:flex md:gap-3">
+		<div class="mb-8 flex w-full flex-col justify-center gap-1">
+			<label for="globalSearchMd">Search</label>
+			<div class="input-group input-group-divider grid max-w-md grid-cols-[auto_1fr_auto]">
+				<input bind:value={globalSearchValue} id="globalSearchMd" type="text" placeholder="Search" class="input" />
+				{#if globalSearchValue}
+					<button onclick={clearSearch} class="variant-filled-surface w-12" aria-label="Clear search">
+						<iconify-icon icon="ic:outline-search-off" width="24"></iconify-icon>
+					</button>
+				{/if}
+			</div>
+		</div>
+
+		<div class="mb-8 flex flex-col justify-center gap-1">
+			<label for="mediaTypeMd">Type</label>
+			<div class="input-group">
+				<select id="mediaTypeMd" bind:value={selectedMediaType}>
+					{#each mediaTypes as type}
+						<option value={type.value}>{type.label}</option>
+					{/each}
+				</select>
+			</div>
+		</div>
+
+		<div class="mb-8 flex flex-col justify-center gap-1 text-center">
+			<label for="sortButton">Sort</label>
+			<button id="sortButton" class="variant-ghost-surface btn" aria-label="Sort">
+				<iconify-icon icon="flowbite:sort-outline" width="24"></iconify-icon>
+			</button>
+		</div>
+
+		<div class="flex items-center justify-center gap-4">
 			<div class="hidden flex-col items-center sm:flex">
 				Display
 				<div class="flex divide-x divide-gray-500">
-					<button
-						class="px-2"
-						on:keydown
-						on:click={() => {
-							view = 'grid';
-							storeUserPreference(view, gridSize, tableSize);
-						}}
-						on:keydown={(e) => {
-							if (e.key === 'Enter' || e.key === ' ') {
-								view = 'grid';
-								storeUserPreference(view, gridSize, tableSize);
-							}
-						}}
-					>
-						<iconify-icon icon="material-symbols:grid-view-rounded" height="40" style={`color: ${view === 'grid' ? 'black dark:white' : 'grey'}`} />
-						<br />Grid
+					<button onclick={() => handleViewChange('grid')} class="px-2" aria-label="Grid">
+						<iconify-icon icon="material-symbols:grid-view-rounded" height="40" style={`color: ${view === 'grid' ? 'black dark:white' : 'grey'}`}
+						></iconify-icon>
+						<br /> <span class="text-tertiary-500 dark:text-primary-500">Grid</span>
 					</button>
-					<button
-						class="px-2"
-						on:keydown
-						on:click={() => {
-							view = 'table';
-							storeUserPreference(view, gridSize, tableSize);
-						}}
-						on:keydown={(e) => {
-							if (e.key === 'Enter' || e.key === ' ') {
-								view = 'table';
-								storeUserPreference(view, gridSize, tableSize);
-							}
-						}}
-					>
-						<iconify-icon icon="material-symbols:list-alt-outline" height="40" style={`color: ${view === 'table' ? 'black dark:white' : 'grey'}`} />
-						<br />Table
+					<button onclick={() => handleViewChange('table')} class="px-2" aria-label="Table">
+						<iconify-icon icon="material-symbols:list-alt-outline" height="40" style={`color: ${view === 'table' ? 'black dark:white' : 'grey'}`}
+						></iconify-icon>
+						<br /><span class="text-tertiary-500 dark:text-primary-500">Table</span>
 					</button>
 				</div>
 			</div>
 
-			<!-- switch between small, medium, and large images -->
 			<div class="hidden flex-col items-center sm:flex">
 				Size
 				<div class="flex divide-x divide-gray-500">
 					{#if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
-						<button type="button" class="px-1 md:px-2" on:click={handleClick}>
-							<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40" />
-							<br />Small
+						<button
+							onclick={() => {
+								const newSize =
+									view === 'grid'
+										? gridSize === 'small'
+											? 'medium'
+											: gridSize === 'medium'
+												? 'large'
+												: 'small'
+										: tableSize === 'small'
+											? 'medium'
+											: tableSize === 'medium'
+												? 'large'
+												: 'small';
+
+								if (view === 'grid') {
+									gridSize = newSize;
+								} else {
+									tableSize = newSize;
+								}
+								storeUserPreference(view, gridSize, tableSize);
+							}}
+							type="button"
+							class="px-1 md:px-2"
+							aria-label="Small"
+						>
+							<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40"></iconify-icon>
+							<br /><span class="text-tertiary-500 dark:text-primary-500">Small</span>
 						</button>
 					{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
-						<button type="button" class="px-1 md:px-2" on:click={handleClick}>
-							<iconify-icon icon="material-symbols:grid-on-sharp" height="40" />
-							<br />Medium
+						<button
+							onclick={() => {
+								const newSize =
+									view === 'grid'
+										? gridSize === 'small'
+											? 'medium'
+											: gridSize === 'medium'
+												? 'large'
+												: 'small'
+										: tableSize === 'small'
+											? 'medium'
+											: tableSize === 'medium'
+												? 'large'
+												: 'small';
+
+								if (view === 'grid') {
+									gridSize = newSize;
+								} else {
+									tableSize = newSize;
+								}
+								storeUserPreference(view, gridSize, tableSize);
+							}}
+							type="button"
+							class="px-1 md:px-2"
+							aria-label="Medium"
+						>
+							<iconify-icon icon="material-symbols:grid-on-sharp" height="40"></iconify-icon>
+							<br /><span class="text-tertiary-500 dark:text-primary-500">Medium</span>
 						</button>
 					{:else}
-						<button type="button" class="px-1 md:px-2" on:click={handleClick}>
-							<iconify-icon icon="material-symbols:grid-view" height="40" /><br />Large
+						<button
+							onclick={() => {
+								const newSize =
+									view === 'grid'
+										? gridSize === 'small'
+											? 'medium'
+											: gridSize === 'medium'
+												? 'large'
+												: 'small'
+										: tableSize === 'small'
+											? 'medium'
+											: tableSize === 'medium'
+												? 'large'
+												: 'small';
+
+								if (view === 'grid') {
+									gridSize = newSize;
+								} else {
+									tableSize = newSize;
+								}
+								storeUserPreference(view, gridSize, tableSize);
+							}}
+							type="button"
+							class="px-1 md:px-2"
+							aria-label="Large"
+						>
+							<iconify-icon icon="material-symbols:grid-view" height="40"></iconify-icon>
+							<br /><span class="text-tertiary-500 dark:text-primary-500">Large</span>
 						</button>
 					{/if}
 				</div>
 			</div>
 		</div>
 	</div>
-	<!-- Render the error message if it exists -->
-	{#if errorMessage}
-		<p class="h2 text-center text-error-500">{errorMessage}</p>
-	{:else if data.props.data.length === 0}
-		<!-- Display a message when no media data is available -->
-		<div class="text-center">
-			<iconify-icon icon="bi:exclamation-circle-fill" height="64" class="mb-2 text-primary-500" />
-			<p class="text-lg text-primary-500">{m.mediagallery_nomedia()}</p>
-		</div>
+
+	{#if view === 'grid'}
+		<MediaGrid
+			{filteredFiles}
+			{gridSize}
+			ondeleteImage={handleDeleteImage}
+			on:sizechange={({ detail }) => {
+				if (detail.type === 'grid') {
+					gridSize = detail.size;
+					storeUserPreference(view, gridSize, tableSize);
+				}
+			}}
+		/>
 	{:else}
-		<!-- Grid display -->
-		{#if view === 'grid'}
-			<div class="mx-auto flex flex-wrap gap-2">
-				{#each filterData(globalSearchValue, data.props.data) as image}
-					<!-- Card -->
-					<div
-						class={`group card relative bg-transparent ${gridSize === 'small' ? 'card-small' : gridSize === 'medium' ? 'card-medium' : 'card-large'}`}
-					>
-						<!-- Edit/Delete Image -->
-						<div class="absolute left-0 top-0 z-20 flex w-full justify-between p-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-							<!-- Edit button -->
-							<a href={`/imageEditor/${encodeURIComponent(image.path)}`}>
-								<button class="variant-filled-tertiary btn-icon">
-									<iconify-icon icon="mdi:pen" width="20" class="" />
-								</button>
-							</a>
-							<!-- Delete button -->
-							<button class="variant-filled-error btn-icon" on:click={() => handleDeleteImage(image)}>
-								<!-- Delete Icon -->
-								<iconify-icon icon="icomoon-free:bin" width="20" />
-							</button>
-						</div>
-
-						<section class="relative border bg-white p-4 text-center dark:border-surface-500 dark:bg-surface-900">
-							{#if image.thumbnail.endsWith('.jpg') || image.thumbnail.endsWith('.jpeg') || image.thumbnail.endsWith('.png') || image.thumbnail.endsWith('.svg') || image.thumbnail.endsWith('.webp') || image.thumbnail.endsWith('.avif')}
-								<!-- SVG Image -->
-								<img
-									class={`inline-block object-cover object-center ${
-										gridSize === 'small' ? 'h-16 w-16' : gridSize === 'medium' ? 'h-36 w-36' : 'h-80 w-80'
-									}`}
-									src={image.thumbnail}
-									alt={image.name}
-								/>
-							{:else}
-								<!-- Document icon -->
-								<iconify-icon icon={image.thumbnail} width={gridSize === 'small' ? '58' : gridSize === 'medium' ? '138' : '315'} />
-							{/if}
-						</section>
-						<footer
-							class={`card-footer flex w-full flex-col items-center justify-center break-all  p-1 text-center text-xs dark:text-white`}
-							style={`max-width: ${gridSize === 'small' ? '6rem' : gridSize === 'medium' ? '12rem' : '24rem'}`}
-						>
-							<div class="line-clamp-2 font-semibold dark:text-primary-500">{image.name}</div>
-							<!-- <div class="line-clamp-1">{image.path}</div> -->
-							<div class="line-clamp-1 text-tertiary-500">{formatSize(image.size)}</div>
-							<div class="line-clamp-1">{image.hash}</div>
-							<!-- <div class="">{image.thumbnail}</div> -->
-						</footer>
-					</div>
-				{/each}
-			</div>
-		{:else}
-			<!-- Table for table view -->
-			<div class="table-container max-h-[calc(100vh-55px)] overflow-auto">
-				<table
-					class="table table-interactive table-hover ta{density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}"
-				>
-					<!-- Table Header -->
-					<thead class="top-0 text-tertiary-500 dark:text-primary-500">
-						<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-							{#each tableHeaders as header}
-								<th
-									on:click={() => {
-										//sorting
-										sorting = {
-											sortedBy: header.key,
-											isSorted: (() => {
-												if (header.key !== sorting.sortedBy) {
-													return 1;
-												}
-												if (sorting.isSorted === 0) {
-													return 1;
-												} else if (sorting.isSorted === 1) {
-													return -1;
-												} else {
-													return 0;
-												}
-											})()
-										};
-									}}
-								>
-									<div class="flex items-center justify-center text-center">
-										{header.label}
-
-										<iconify-icon
-											icon="material-symbols:arrow-upward-rounded"
-											width="22"
-											class="origin-center duration-300 ease-in-out"
-											class:up={sorting.isSorted === 1}
-											class:invisible={sorting.isSorted == 0 || sorting.sortedBy != header.label}
-										/>
-									</div></th
-								>
-							{/each}
-						</tr>
-					</thead>
-					<tbody>
-						{#each filterData(globalSearchValue, data.props.data) as image}
-							<tr class="divide-x divide-surface-400">
-								<td
-									><img
-										class={`inline-block object-cover object-center ${
-											gridSize === 'small' ? 'h-16 w-16' : gridSize === 'medium' ? 'h-36 w-36' : 'h-80 w-80'
-										}`}
-										src={image.thumbnail}
-										alt={image.name}
-									/></td
-								>
-								<td>{image.name}</td>
-								<td>{formatSize(image.size)}</td>
-								<td>{image.hash}</td>
-								<td>{image.path}</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-				<!-- Pagination  -->
-				<div class="text-token my-3 flex flex-col items-center justify-center md:flex-row md:justify-around">
-					<div class="mb-2 md:mb-0">
-						<span class="text-sm">{m.entrylist_page()}</span> <span class="text-tertiary-500 dark:text-primary-500">{currentPage}</span>
-						<span class="text-sm"> {m.entrylist_of()} </span>
-						<span class="text-tertiary-500 dark:text-primary-500">{Math.ceil(tableData.length / rowsPerPage)}</span>
-					</div>
-
-					<div class="variant-outline btn-group">
-						<!-- First page -->
-						<button
-							type="button"
-							class="btn"
-							on:click={() => {
-								currentPage = 1;
-								refreshTableData();
-							}}
-						>
-							<iconify-icon icon="material-symbols:first-page" width="24" class:disabled={currentPage === 1} />
-						</button>
-
-						<!-- Previous page -->
-						<button
-							type="button"
-							class="btn"
-							on:click={() => {
-								currentPage = Math.max(1, currentPage - 1);
-								refreshTableData();
-							}}
-						>
-							<iconify-icon icon="material-symbols:chevron-left" width="24" class:disabled={currentPage === 1} />
-						</button>
-
-						<!-- Next page -->
-						<button
-							type="button"
-							class="btn"
-							on:click={() => {
-								currentPage = Math.min(currentPage + 1, Math.ceil(tableData.length / rowsPerPage));
-								refreshTableData();
-							}}
-						>
-							<iconify-icon
-								icon="material-symbols:chevron-right"
-								width="24"
-								class:active={currentPage === Math.ceil(tableData.length / rowsPerPage)}
-							/>
-						</button>
-
-						<!-- Last page -->
-						<button
-							type="button"
-							class="btn"
-							on:click={() => {
-								currentPage = Math.ceil(tableData.length / rowsPerPage);
-								refreshTableData();
-							}}
-						>
-							<iconify-icon icon="material-symbols:last-page" width="24" class:disabled={currentPage === Math.ceil(tableData.length / rowsPerPage)} />
-						</button>
-					</div>
-				</div>
-			</div>
-		{/if}
+		<MediaTable {filteredFiles} {tableSize} ondeleteImage={handleDeleteImage} />
 	{/if}
 </div>

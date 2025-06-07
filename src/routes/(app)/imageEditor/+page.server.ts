@@ -1,45 +1,39 @@
-import fs from 'fs/promises';
-import path from 'path';
-import { publicEnv } from '@root/config/public';
-import { validate } from '@utils/utils';
-import { auth } from '@api/db';
-import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
-import { redirect } from '@sveltejs/kit';
+/**
+ * @file  src/routes/(app)/imageEditor/+page.server.ts
+ * @description Server-side logic for Image Editor page authentication and authorization.
+ *
+ * Handles user authentication and role-based access control for the Image Editor page.
+ * Restricts access based on user permissions.
+ *
+ * Responsibilities:
+ * - Checks for authenticated user in locals.
+ * - Returns user data if authentication is successful.
+ * - Handles cases of unauthenticated users.
+ */
 
-export async function load(event: any) {
-	// Secure this page with session cookie
-	const session = event.cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
-	// Validate the user's session
-	const user = await validate(auth, session);
+import type { PageServerLoad } from './$types';
+
+// System Logs
+import { logger } from '@utils/logger.svelte';
+
+export const load: PageServerLoad = async ({ locals }) => {
+	// Check if user is authenticated
+	const user = locals.user;
+
 	// If validation fails, redirect the user to the login page
-	if (user.status !== 200) {
-		redirect(302, `/login`);
+	if (!user) {
+		logger.debug('No authenticated user found, throwing error');
+		throw redirect(302, `/login`);
 	}
 
-	try {
-		const imageName = decodeURIComponent(event.params.file.join('/')); // Decode the URI component
-		const filePath = path.join(publicEnv.MEDIA_FOLDER, imageName);
-		const fileStats = await fs.stat(filePath);
+	// Log successful authentication
+	logger.debug(`User authenticated successfully: ${user._id}`);
 
-		if (fileStats.isFile()) {
-			// await resizeImage(filePath);
-
-			const imageData = {
-				name: imageName,
-				path: filePath
-			};
-
-			return {
-				props: {
-					imageData
-				}
-			};
-		} else {
-			throw new Error('File not found');
+	// Return user data
+	return {
+		user: {
+			_id: user._id.toString(),
+			...user
 		}
-	} catch (error) {
-		return {
-			status: 404
-		};
-	}
-}
+	};
+};

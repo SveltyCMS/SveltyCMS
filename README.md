@@ -1,18 +1,13 @@
 <p style="border: none; margin-bottom:0; padding-bottom: 0;" align="center">
-      <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://github.com/Rar9/SveltyCMS/blob/main/static/SveltyCMS.png">
-      <img width="200" alt="SveltyCMS logo" src="https://github.com/Rar9/SveltyCMS/blob/main/static/SveltyCMS.png">
-    </picture>
- </p>
+  <img width="200" alt="SveltyCMS logo" src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS-light.png">
+</p>
 
-<h1 align="center"><strong>SveltyCMS</strong></h1>
-<p align="center"><strong>(Still in Development - Support always Appreciated!!)</strong></>
+<h1 align="center"><strong>SveltyCMS - Headless CMS with Sveltekit Power</strong></h1>
+<p align="center"><strong>(Still in Development - Your Support is always Appreciated!!)</strong></>
 
 <p align="center">
-
- <img alt="Latest SemVer)" src="https://img.shields.io/github/v/tag/Rar9/SveltyCMS">
-
-  <img alt="GitHub issues" src="https://img.shields.io/github/issues/Rar9/SveltyCMS">
+ <img alt="Latest SemVer" src="https://img.shields.io/github/v/tag/Rar9/SveltyCMS">
+ <img alt="GitHub issues" src="https://img.shields.io/github/issues/Rar9/SveltyCMS">
 </p>
 
 <p align="center">
@@ -34,29 +29,29 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Rar9/SveltyCMS/actions/workflows/github-code-scanning/codeql"><img alt="CodeQL" src="https://github.com/Rar9/SveltyCMS/actions/workflows/github-code-scanning/codeql/badge.svg"></a>
-  <a href="https://github.com/Rar9/SveltyCMS/actions/workflows/playwright.yml"><img alt="Playwright Tests" src="https://github.com/Rar9/SveltyCMS/actions/workflows/playwright.yml/badge.svg"></a>
-  <a href="https://github.com/Rar9/SveltyCMS/actions/workflows/auto-release.yaml"><img alt="Auto Release" src="https://github.com/Rar9/SveltyCMS/actions/workflows/auto-release.yaml/badge.svg"></a>
+  <a href="https://github.com/SveltyCMS/SveltyCMS/actions/workflows/github-code-scanning/codeql"><img alt="CodeQL" src="https://github.com/SveltyCMS/SveltyCMS/actions/workflows/github-code-scanning/codeql/badge.svg"></a>
+  <a href="https://github.com/SveltyCMS/SveltyCMS/actions/workflows/playwright.yml"><img alt="Playwright Tests" src="https://github.com/SveltyCMS/SveltyCMS/actions/workflows/playwright.yml/badge.svg"></a>
+  <a href="https://github.com/SveltyCMS/SveltyCMS/actions/workflows/auto-release.yaml"><img alt="Auto Release" src="https://github.com/SveltyCMS/SveltyCMS/actions/workflows/auto-release.yaml/badge.svg"></a>
 </p>
 
 <h2 align="center">A powerful Headless CMS with Sveltekit Power</h2>
 
-<h3 align="center"><strong>It's lightning fast, flexible and an easy to use modern content management system to provide a headless backend </strong></h3>
+<h3 align="center"><strong>It's lightning fast, flexible and an easy to use modern content management system to provide a headless backend</strong></h3>
 
-This Sveltekit CMS provides a backend based on a modern [SvelteKit 2](https://svelte.dev/) framework with a fast MongoDB for document database scalability and flexibility.
+This SveltyCMS headless CMS provides a powerful backend based on a modern [SvelteKit 2 / Svelte 5](https://svelte.dev) framework. Being designed to be database agnostic, we currently launch with a fast [MongoDB](https://www.mongodb.com), and will use [drizzel](https://drizzle-orm.netlify.app) for future SQL/Postgres support.
 
-New Collections can easily be implemented, due to full typescript support with already many available widgets. we offer two ways to use it, via code or via GUI.
+Content Collections can easily be implemented, due to full typescript support by using many available widgets. We offer two ways to use define your collections, via code or via a Gui based collection builder.
 
-All fields offer full translation, and customization as well as access restriction.
+All Widget fields offer full translation, and customization, validation using [valibot](https://valibot.dev) and access handling..
 
-The System language uses [Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs) a light weight JavaScript i18n library. :gb: English is our default and we offer multiple languages out of the box. More Languages can easily be extended to support further languages.
+The System language uses [Inlang's Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs) a light weight JavaScript i18n library. :gb: English is our default and we offer multiple languages out of the box. More Languages can easily be extended to support further languages.
 
-We used [tailwindcss](https://tailwindcss.com/) and a [skeleton UI toolkit](https://www.skeleton.dev/), so the CMS can be quickly optimized to your personal needs.
+We used [tailwindcss](https://tailwindcss.com) and a [skeleton UI toolkit](https://www.skeleton.dev), so the CMS can be quickly optimized to your personal needs.
 
-The Backend Data is provided via [GraphQL Yoga](https://the-guild.dev/graphql/yoga-server), to build extremely fast frontends.
+The Backend Data is provided via Rest Api or [GraphQL Yoga](https://the-guild.dev/graphql/yoga-server), to build extremely fast frontends.
 
 <p align="center">
- <img width="100%" alt="SveltyCMS Gui" src="https://github.com/Rar9/SveltyCMS/blob/main/static/docs/SveltyCMS-Demo1.png">
+ <img width="100%" alt="SveltyCMS Gui" src="https://github.com/SveltyCMS/SveltyCMS/blob/main/static/docs/SveltyCMS-Demo1.png">
 </p>
 
 ## :toolbox: SveltyCMS & DXP: Your Gateway to Streamlined Digital Experiences
@@ -73,60 +68,121 @@ Footnote: As a headless CMS fortified with GraphQL API, SveltyCMS fully harnesse
 
 ### Clone the repository
 
-To clone our [repository](https://github.com/Rar9/SveltyCMS.git) you need to be able to use [Git](https://git-scm.com/downloads).
+To clone our [repository](https://github.com/SveltyCMS/SveltyCMS.git) you need to be able to use [Git](https://git-scm.com/downloads).
 
 ```bash
-git clone https://github.com/Rar9/SveltyCMS.git
-
+git clone https://github.com/SveltyCMS/SveltyCMS.git
 cd SveltyCMS
 ```
 
 ### Install all dependencies
 
-Install [Node.js](https://nodejs.org/en) to get started which ships with npm.
+Install stable [Node.js](https://nodejs.org/en) to get started. Then choose your preferred package manager:
 
-We recommend the faster [pnpm](https://pnpm.io) package manager. [Yarn](https://yarnpkg.com) and the [bun.sh](https://bun.sh) can also be used as well. Adapt the command accordingly.
+<details open>
+<summary><b>npm</b></summary>
 
 ```bash
+<<<<<<< HEAD
 npm install   # installs all required package dependencies
+=======
+# Install all dependencies
+npm install
+
+# Start CLI Installer
+npm run installer
+
+# Development
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+>>>>>>> 69c53df49f438e29d4d10f3501b2b2667cbfa787
 ```
 
-### Setup Environment Variables
+</details>
 
-This project uses a public/private configuration to store sensitive information, such as API keys and database passwords.
-
-To set up the project, you will need to create two files in the project root directory:
-
-The `config` folder contains two example configuration files that you can rename to get started. Typescript helps you with code completion.
-
-### Create `config/private.ts` and `config/public.ts`
+<details>
+<summary><b>pnpm</b></summary>
 
 ```bash
-mv config/example.private.ts config/private.ts
-mv config/example.public.ts config/public.ts
+# Install pnpm if you haven't already
+npm install -g pnpm
+
+# Install all dependencies
+pnpm install
+
+# Start CLI Installer
+pnpm run installer
+
+# Development
+pnpm run dev
+
+# Build for production
+pnpm run build
+
+# Preview production build
+pnpm run preview
 ```
 
-The `config/private.ts` contain sensitive information that you do not want to expose to the public. This includes things like: Database & Email configs, API keys, Secret tokens.
+</details>
 
+<<<<<<< HEAD
 The `config/public.ts` contains configuration settings that are safe to share with the public, This includes things like: Site name, Language handling, Media configurations.
 
 ### Start the application for development or production
 
 See our `package.json` for more information like development, build, preview, format, lint & testing. Here the most used commands:
+=======
+<details>
+<summary><b>bun</b></summary>
+>>>>>>> 69c53df49f438e29d4d10f3501b2b2667cbfa787
 
 ```bash
-npm run dev       # run development on localhost:5173
-npm run build     # build for production
-npm run preview   # to run preview on localhost:4173
+# Install bun if you haven't already
+curl -fsSL https://bun.sh/install | bash
+
+# Install all dependencies
+bun install
+
+# Start CLI Installer
+bun run installer
+
+# Development
+bun run dev
+
+# Build for production
+bun run build
+
+# Preview production build
+bun run preview
 ```
+
+</details>
+
+### Setup via CLI Installer
+
+This project uses a flexible public/private configuration to store sensitive information, such as API keys and database passwords.
+
+To set up the SveltyCMS project, you just need to start the CLI Installer. Minimum requirements are a Database and Email to get started.
+
+### Development and Production
+
+See our `package.json` for more information about development, build, preview, format, lint & testing commands.
+
+Development server runs on `localhost:5173`
+Preview server runs on `localhost:4173`
 
 ## :lock: Authentication & Security
 
 We want to keep your data Private and Secure.
 
-Our Authentication allows us to stay flexible for the future and adapt to changing security needs.
+Our extensive Authentication allows us to stay flexible for the future and adapt to changing security needs.
 
-You can sign by email and password or use google oauth.
+You can login into SveltyCMS by email and password or use google oauth.
 
 Field-based content access enables the allocation of varying levels of access to users according to their roles and permissions. This way, you can control who can view, edit, or delete your data.
 
@@ -167,7 +223,7 @@ Build and send emails using [Svelty Email](https://svelte-email.vercel.app/) and
 ## :question: Need help
 
 Contact us if you're struggling installation or other issues via:
-[GitHub Discussions](https://github.com/Rar9/SvelteCMS/discussions)
+[GitHub Discussions](https://github.com/SveltyCMS/SvelteCMS/discussions)
 
 ## :rocket: Semantic Versioning
 
@@ -179,7 +235,7 @@ We use [semantic versioning](https://semver.org/) to manage our releases. This m
 
 When submitting pull requests, please make sure your commit messages follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification. This will help us automatically generate changelogs and release notes.
 
-Please also read our [Code of Conduct](https://github.com/Rar9/SvelteCMS/blob/main/CODE-OF-CONDUCT.md) before submitting Pull Requests.
+Please also read our [Code of Conduct](https://github.com/SveltyCMS/SvelteCMS/blob/main/CODE-OF-CONDUCT.md) before submitting Pull Requests.
 
 If your PR makes a change that should be noted in one or more packages' changelogs, generate a changeset by running pnpm changeset and following the prompts.
 Changesets that add features should be minor and those that fix bugs should be patch.
@@ -192,7 +248,7 @@ Thank you for helping us maintain a consistent and predictable release process! 
 
 # Contributing
 
-We welcome all kinds of contributions! Please see our [`CONTRIBUTING.md`](https://github.com/Rar9/SveltyCMS/CONTRIBUTING.md) for details on how to get started with this.
+We welcome all kinds of contributions! Please see our [`CONTRIBUTING.md`](https://github.com/SveltyCMS/SvelteCMS/CONTRIBUTING.md) for details on how to get started with this.
 
 ## :moneybag: Sponsoring
 
@@ -207,13 +263,13 @@ Thank you for your support!
 
 ## :clap: Thanks
 
-To all our contributors without this would never have been possible
+To all our contributors without this SveltyCMS would never have been possible.
 
 # :star: Give us a star
 
 If you like what we're doing, give us a `star` and share our `SveltyCMS` project with others
 
 <p align="center">
-<img width="100%" alt="SveltyCMS Builder" src="https://github.com/Rar9/SveltyCMS/blob/main/static/docs/SveltyCMS-Demo2.png">
-<img width="100%" alt="SveltyCMS User" src="https://github.com/Rar9/SveltyCMS/blob/main/static/docs/SveltyCMS-Demo3.png">
+<img width="100%" alt="SveltyCMS Builder" src="https://github.com/SveltyCMS/SveltyCMS/blob/main/static/docs/SveltyCMS-Demo2.png">
+<img width="100%" alt="SveltyCMS User" src="https://github.com/SveltyCMS/SveltyCMS/blob/main/static/docs/SveltyCMS-Demo3.png">
 </p>

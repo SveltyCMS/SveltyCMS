@@ -1,33 +1,54 @@
-import mongoose from 'mongoose';
+/**
+ * @file src/routes/(app)/user/+page.server.ts
+ * @description Server-side logic for the user page in the application.
+ *
+ * This module handles the server-side operations for the user page, including:
+ * - Form validation for adding users and changing passwords
+ * - Preparing data for client-side rendering
+ *
+ * Features:
+ * - User and role information retrieval from event.locals
+ * - Form handling with Superforms
+ * - Error logging and handling
+ *
+ * Usage:
+ * This file is used as the server-side counterpart for the user page in a SvelteKit application.
+ * It prepares data and handles form validation for the client-side rendering.
+ */
 
-//lucia
-import { auth } from '@api/db';
-import { validate } from '@utils/utils';
-import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
+import type { PageServerLoad } from './$types';
+import { error } from '@sveltejs/kit';
 
+<<<<<<< HEAD
 //superforms
 import { superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
+=======
+// Auth
+import type { User, Role, Token } from '@src/auth/auth';
+import type { PermissionConfig } from '@src/auth/permissions';
+
+// Superforms
+import { superValidate } from 'sveltekit-superforms/server';
+>>>>>>> 69c53df49f438e29d4d10f3501b2b2667cbfa787
 import { addUserTokenSchema, changePasswordSchema } from '@utils/formSchemas';
-import { redirect, type Actions } from '@sveltejs/kit';
-import { createToken } from '@utils/tokens';
-// import { passwordToken } from '@utils/passwordToken';
+import { valibot } from 'sveltekit-superforms/adapters';
 
-// Load function to check if user is authenticated
-export async function load(event) {
-	// tanstack
-	const allUsers = await getAllUsers();
-	const tokens = await getTokens();
+// System Logger
+import { logger } from '@utils/logger.svelte';
 
-	// Get session data from cookies
-	const session = event.cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
+export const load: PageServerLoad = async (event) => {
+	try {
+		const user: User | null = event.locals.user;
+		const roles: Role[] = event.locals.roles || [];
+		const isFirstUser: boolean = event.locals.isFirstUser;
+		const hasManageUsersPermission: boolean = event.locals.hasManageUsersPermission;
 
-	// Validate the user's session.
-	const user = await validate(auth, session);
-	// If the user is not logged in, redirect them to the login page.
-	if (user.status != 200) redirect(302, `/login`);
-	const isFirstUser = allUsers[0].id == user.user.id;
+		// Validate forms using SuperForms
+		const addUserForm = await superValidate(event, valibot(addUserTokenSchema));
+		const changePasswordForm = await superValidate(event, valibot(changePasswordSchema));
 
+<<<<<<< HEAD
 	const AUTH_KEY = mongoose.models['auth_key'];
 	// find user using id
 	const userKey = await AUTH_KEY.findOne({ user_id: user.user.id });
@@ -85,22 +106,65 @@ export const actions: Actions = {
 				username: null,
 				role: role,
 				blocked: false
+=======
+		// Prepare user object for return, ensuring _id is a string
+		const safeUser = user
+			? {
+				...user,
+				_id: user._id.toString(),
+				password: '[REDACTED]' // Ensure password is not sent to client
+>>>>>>> 69c53df49f438e29d4d10f3501b2b2667cbfa787
 			}
-		});
+			: null;
 
-		if (!user) {
-			return { form: addUserForm, message: 'unknown error' };
+		let adminData = null;
+
+		if (user?.isAdmin || hasManageUsersPermission) {
+			const allUsers: User[] = event.locals?.allUsers ?? [];
+			const allTokens: Token[] = event.locals?.allTokens?.tokens ?? event.locals?.allTokens ?? [];
+
+			// Format users and tokens for the admin area
+			const formattedUsers = allUsers.map((user) => ({
+				_id: user._id.toString(),
+				blocked: user.blocked || false,
+				avatar: user.avatar || null,
+				email: user.email,
+				username: user.username || null,
+				role: user.role,
+				activeSessions: user.lastActiveAt ? 1 : 0, // Placeholder for active sessions
+				lastAccess: user.lastActiveAt ? new Date(user.lastActiveAt).toISOString() : null,
+				createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : null,
+				updatedAt: user.updatedAt ? new Date(user.updatedAt).toISOString() : null
+			}));
+
+			const formattedTokens = allTokens.map((token) => ({
+				_id: token._id || token.user_id, // Use _id if available, fallback to user_id
+				user_id: token.user_id,
+				token: token.token || '', // Include the actual token value
+				blocked: false, // Assuming tokens don't have a 'blocked' status
+				email: token.email || '',
+				role: token.type || 'user', // Use token type as role, default to 'user'
+				expires: token.expires ? new Date(token.expires).toISOString() : null,
+				createdAt: token.createdAt ? new Date(token.createdAt).toISOString() : null,
+				updatedAt: token.updatedAt ? new Date(token.updatedAt).toISOString() : null
+			}));
+
+			adminData = {
+				users: formattedUsers,
+				tokens: formattedTokens
+			};
+
 		}
 
-		// Create a new session for the user
-		const session = await auth.createSession({
-			userId: user.userId,
-			attributes: {
-				created_at: new Date(),
-				idle_expires: 2000
-			} // expects `Lucia.DatabaseSessionAttributes`
-		});
+		// Provide manageUsersPermissionConfig to the client
+		const manageUsersPermissionConfig: PermissionConfig = {
+			contextId: 'config/userManagement',
+			requiredRole: 'admin',
+			action: 'manage',
+			contextType: 'system'
+		};
 
+<<<<<<< HEAD
 		if (!session) {
 			return { form: addUserForm, message: 'Failed to create session' };
 		}
@@ -243,3 +307,27 @@ async function getTokens() {
 
 	return userToken;
 }
+=======
+		// Return data to the client
+		return {
+			user: safeUser,
+			roles: roles.map((role) => ({
+				...role,
+				_id: role._id.toString()
+			})),
+			addUserForm,
+			changePasswordForm,
+			isFirstUser,
+			manageUsersPermissionConfig,
+			adminData,
+			permissions: {
+				'config/adminArea': { hasPermission: user?.isAdmin || hasManageUsersPermission }
+			}
+		};
+	} catch (err) {
+		// Log error with an error code
+		logger.error('Error during load function (ErrorCode: USER_LOAD_500):', err);
+		throw error(500, 'Internal Server Error');
+	}
+};
+>>>>>>> 69c53df49f438e29d4d10f3501b2b2667cbfa787

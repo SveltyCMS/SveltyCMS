@@ -1,162 +1,318 @@
+/**
+ * @file src/routes/(app)/mediagallery/+page.server.ts
+ * @description Server-side logic for the media gallery page.
+ *
+ * This module handles:
+ * - Fetching media files from various collections (images, documents, audio, video)
+ * - Fetching virtual folders
+ * - File upload processing for different media types
+ * - Error handling and logging
+ *
+ * The load function prepares data for the media gallery, including user information,
+ * a list of all media files, and virtual folders. The actions object defines the
+ * server-side logic for handling file uploads.
+ */
+
 import { publicEnv } from '@root/config/public';
-import fs from 'fs';
-import fsPromises from 'fs/promises';
-import path from 'path';
-import { redirect } from '@sveltejs/kit';
-import { auth } from '@api/db';
-import { validate } from '@utils/utils';
-import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
-import { roles } from '@collections/types';
+import { error, redirect } from '@sveltejs/kit';
+import type { Actions, PageServerLoad } from './$types';
 
-// Only display if user is allowed to access
-function hasFilePermission(user: any, file: string): boolean {
-	const { role, username } = user;
-	if (role === roles.admin) {
-		return true;
-	} else if (role === 'member' && file.startsWith(username)) {
-		return true;
-	}
-	return false;
+// Utils
+import mime from 'mime-types';
+import { saveImage, saveDocument, saveAudio, saveVideo } from '@utils/media/mediaProcessing';
+import { constructUrl } from '@utils/media/mediaUtils';
+import type { MediaItem, SystemVirtualFolder } from '@root/src/databases/dbInterface';
+import type { MediaAccess } from '@root/src/utils/media/mediaModels';
+
+// Auth
+import { dbAdapter } from '@src/databases/db';
+
+// System Logger
+import { logger, type LoggableValue } from '@utils/logger.svelte';
+
+// Helper function to convert _id and other nested objects to string
+interface StackItem {
+	parent: Record<string, unknown> | Array<unknown> | null;
+	key: string;
+	value: unknown;
 }
 
-export async function load(event: any) {
-	// Secure this page with session cookie
-	const session = event.cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
-	// Validate the user's session
-	const user = await validate(auth, session);
-	// If validation fails, redirect the user to the login page
-	if (user.status !== 200) {
-		redirect(302, `/login`);
-	}
+function convertIdToString(obj: Record<string, unknown> | Array<unknown>): Record<string, unknown> | Array<unknown> {
+	const stack: StackItem[] = [{ parent: null, key: '', value: obj }];
+	const seen = new WeakSet();
+	const root: Record<string, unknown> | Array<unknown> = Array.isArray(obj) ? [] : {};
 
-	const mediaDir = path.resolve(publicEnv.MEDIA_FOLDER);
-	//Create the media folder if it doesn't exist
-	if (!fs.existsSync(mediaDir)) {
-		fs.mkdirSync(mediaDir);
-		// console.log(`Created media folder at ${mediaDir}`);
-	}
+	while (stack.length) {
+		const { parent, key, value } = stack.pop()!;
 
-	const files = await getFilesRecursively(mediaDir);
+		// If value is not an object, assign directly
+		if (value === null || typeof value !== 'object') {
+			if (parent) parent[key] = value;
+			continue;
+		}
 
-	//Handle the case where the folder is empty
-	if (files.length === 0) {
-		return {
-			props: {
-				data: []
-			}
-		};
-	}
+		// Handle circular references
+		if (seen.has(value)) {
+			if (parent) parent[key] = value;
+			continue;
+		}
+		seen.add(value);
 
-	const imageExtensions = ['.jpeg', '.jpg', '.png', '.webp', '.avif', '.tiff', '.svg'];
-	const uniqueImageFiles = Array.from(new Set(files.filter((file) => imageExtensions.includes(path.extname(file).toLowerCase()))));
+		// Initialize object or array
+		const result: Record<string, unknown> | Array<unknown> = Array.isArray(value) ? [] : {};
+		if (parent) parent[key] = result;
 
-	// If there are no image files, return an empty array
-	if (uniqueImageFiles.length === 0) {
-		return {
-			props: {
-				data: []
-			}
-		};
-	}
-
-	const thumbnailImages = new Map(); // Store thumbnails by hash
-
-	const mediaData = await Promise.all(
-		uniqueImageFiles.map(async (file) => {
-			const mediaPath = `${publicEnv.MEDIA_FOLDER}/${file}`; // Get the full path to the image
-			const mediaExt = path.extname(file).substring(1); // Get the extension
-			const mediaName = `${path.basename(file).slice(0, -65)}.${mediaExt}`; // Remove last 64 characters (hash) from the file name // Get the name without hash
-			const hash = path.basename(file).slice(-64).split('.')[0]; // Get the hash
-			const onlyPath = mediaPath.substring(mediaPath.lastIndexOf('/') + 1, mediaPath.lastIndexOf('.') - 64);
-
-			const thumbnail = `${publicEnv.MEDIA_FOLDER}/${file}`;
-			const size = await getFileSize(mediaPath);
-			const hasPermission = hasFilePermission(user, file); // Check permission
-			// Check if this image has the same hash as a previously seen image
-			if (thumbnailImages.has(hash)) {
-				return null; // Skip if a thumbnail for this hash already found
+		// Process each key/value pair or array element
+		for (const k in value) {
+			if (value[k] === null) {
+				root[k] = null;
+			} else if (k === '_id' || k === 'parent') {
+				root[k] = value[k]?.toString() || null;
+				// Convert _id or parent to string
+			} else if (Buffer.isBuffer(value[k])) {
+				root[k] = value[k].toString('hex'); // Convert Buffer to hex string
+			} else if (typeof value[k] === 'object') {
+				// Add object to the stack for further processing
+				stack.push({ parent: result, key: k, value: value[k] });
 			} else {
-				thumbnailImages.set(hash, true); // Store this hash to prevent duplicates
+				root[k] = value[k]; // Assign primitive values
 			}
-
-			return {
-				name: mediaName,
-				path: onlyPath,
-				thumbnail,
-				size,
-				hash,
-				hasPermission
-			};
-		})
-	);
-
-	const officeExtensions = ['.docx', '.xlsx', '.pptx', '.pdf', '.svg'];
-	const officeDocuments = files.filter((file) => officeExtensions.includes(path.extname(file).toLowerCase()));
-
-	const officeDocumentData = await Promise.all(
-		officeDocuments.map(async (file) => {
-			const filePath = path.join(publicEnv.MEDIA_FOLDER, file);
-			const fileName = path.basename(file);
-			const fileExt = path.extname(file).toLowerCase();
-
-			let thumbnail = '';
-			if (fileExt === '.docx') {
-				thumbnail = 'vscode-icons:file-type-word';
-			} else if (fileExt === '.xlsx') {
-				thumbnail = 'vscode-icons:file-type-excel';
-			} else if (fileExt === '.pptx') {
-				thumbnail = 'vscode-icons:file-type-powerpoint';
-			} else if (fileExt === '.pdf') {
-				// TODO: replace with first page pdfthumbail
-				// You could use a PDF library to generate a thumbnail for PDF files
-				thumbnail = 'vscode-icons:file-type-pdf2';
-			} else if (fileExt === '.svg') {
-				const svgContent = await fsPromises.readFile(filePath, 'utf-8');
-				thumbnail = svgContent;
-			}
-
-			const parts = fileName.split('.'); // Corrected this line
-			const hash = parts[0];
-			const hasPermission = hasFilePermission(user, file); // Check permission
-
-			return {
-				name: fileName,
-				path: filePath,
-				thumbnail,
-				size: await getFileSize(filePath),
-				hash,
-				hasPermission
-			};
-		})
-	);
-
-	const filteredMediaData = mediaData.filter(Boolean);
-
-	// console.log('filteredMediaData:', filteredMediaData);
-	// console.log('officeDocumentData:', officeDocumentData);
-
-	return {
-		props: {
-			data: [...filteredMediaData, ...officeDocumentData]
-		}
-	};
-}
-
-async function getFilesRecursively(dir: string): Promise<string[]> {
-	let files: string[] = [];
-	const dirents = await fsPromises.readdir(dir, { withFileTypes: true });
-	for (const dirent of dirents) {
-		const res = path.resolve(dir, dirent.name);
-		if (dirent.isDirectory()) {
-			files = [...files, ...(await getFilesRecursively(res))];
-		} else {
-			files.push(path.relative(publicEnv.MEDIA_FOLDER, res));
 		}
 	}
-	return files;
+
+	return root;
 }
 
-async function getFileSize(filePath: string): Promise<number> {
-	const fileStats = await fsPromises.stat(filePath);
-	return fileStats.size;
-}
+export const load: PageServerLoad = async ({ locals, url }) => {
+	// Add url parameter
+	if (!dbAdapter) {
+		logger.error('Database adapter is not initialized');
+		throw error(500, 'Internal Server Error');
+	}
+
+	try {
+		// User is already validated in hooks.server.ts
+		const { user } = locals;
+		if (!user) {
+			throw redirect(302, '/login');
+		}
+
+		const folderId = url.searchParams.get('folderId'); // Get folderId from URL
+		logger.info(`Loading media gallery for folderId: ${folderId || 'root'}`);
+
+		// Fetch all virtual folders first to find the current one
+		const allVirtualFolders = await dbAdapter.systemVirtualFolder.getAll();
+		const serializedVirtualFolders = allVirtualFolders.map((folder) => convertIdToString(folder));
+
+		// Determine current folder
+		const currentFolder = folderId ? serializedVirtualFolders.find((f) => f._id === folderId) || null : null;
+		logger.debug('Current folder determined:', currentFolder);
+
+		// --- Fetch Media Files based on currentFolder ---
+		const query: Record<string, string | null> = { parent: folderId || null }; // Use more specific type
+		const mediaResults = await dbAdapter.crud.findMany<MediaItem>('MediaItem', query);
+
+		if (!mediaResults.success) {
+			logger.error(`Failed to fetch media items: ${mediaResults.error}`);
+			throw error(500, 'Failed to fetch media items');
+		}
+
+		// Process and flatten media results - Filter and validate media items before processing
+		const processedMedia = mediaResults.data
+			.filter((item) => {
+				if (!item) return false;
+				const isValid =
+					item.hash &&
+					item.filename &&
+					item.mimeType &&
+					typeof item.hash === 'string' &&
+					typeof item.filename === 'string' &&
+					typeof item.mimeType === 'string';
+
+				if (!isValid) {
+					logger.warn('Skipping invalid media item', {
+						item,
+						reason: 'Missing required fields or invalid types'
+					});
+				}
+				return isValid;
+			})
+			.map((item) => {
+				try {
+					const extension = mime.extension(item.mimeType!) || '';
+					const filename = item.filename!.replace(`.${extension}`, '');
+
+					if (!publicEnv.MEDIA_FOLDER) {
+						logger.error('Media folder configuration missing');
+						throw new Error('Media folder configuration missing');
+					}
+
+					return {
+						...item,
+						path: item.path ?? 'global',
+						name: item.filename ?? 'unnamed-media',
+						url: constructUrl('/global', item.hash!, filename, extension, 'images', 'original'),
+						thumbnail: {
+							url: constructUrl('/global', item.hash!, filename, extension, 'images', 'thumbnail')
+						}
+					};
+				} catch (err) {
+					logger.error('Error processing media item', {
+						item,
+						error: err instanceof Error ? err.message : String(err)
+					});
+					return null;
+				}
+			})
+			.filter((item): item is NonNullable<typeof item> => item !== null);
+
+		logger.info(`Fetched \x1b[34m${processedMedia.length}\x1b[0m media items for folder ${folderId || 'root'}`);
+		logger.info(`Fetched \x1b[34m${serializedVirtualFolders.length}\x1b[0m total virtual folders`);
+
+		logger.debug('Media gallery data and virtual folders loaded successfully');
+		const returnData = {
+			user: {
+				// Ensure user data is serializable
+				role: user.role,
+				_id: user._id.toString(), // Convert user ID to string
+				avatar: user.avatar
+			},
+			media: processedMedia, // Use the processed and filtered media
+			virtualFolders: serializedVirtualFolders as SystemVirtualFolder[], // All folders for the VirtualFolders component
+			currentFolder: currentFolder as SystemVirtualFolder | null // The specific folder object for the current view
+		};
+
+		// Added Debugging: Log the returnData
+		logger.debug('Returning data from load function:', returnData);
+
+		return returnData;
+	} catch (err) {
+		const message = `Error in media gallery load function: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw error(500, message);
+	}
+};
+
+export const actions: Actions = {
+	// Default action for file upload
+	default: async ({ request, locals }) => {
+		if (!dbAdapter) {
+			logger.error('Database adapter is not initialized');
+			throw error(500, 'Internal Server Error');
+		}
+
+		try {
+			const user = locals.user;
+			if (!user) {
+				logger.warn('No user found in locals during file upload');
+				throw redirect(302, '/login');
+			}
+
+			const formData = await request.formData();
+			const files = formData.getAll('files');
+
+			// Map of file types to their respective save functions
+			const save_media_file = {
+				application: saveDocument,
+				audio: saveAudio,
+				font: saveDocument,
+				example: saveDocument,
+				image: saveImage,
+				message: saveDocument,
+				model: saveDocument,
+				multipart: saveDocument,
+				text: saveDocument,
+				video: saveVideo
+			};
+
+			const collection_names: Record<string, string> = {
+				application: 'media_documents',
+				audio: 'media_audio',
+				font: 'media_documents',
+				example: 'media_documents',
+				image: 'media_images',
+				message: 'media_documents',
+				model: 'media_documents',
+				multipart: 'media_documents',
+				text: 'media_documents',
+				video: 'media_videos'
+			};
+			const access = {
+				userId: user._id,
+				roleId: user.role,
+				permissions: locals.user?.permissions
+			} as MediaAccess;
+			for (const file of files) {
+				if (file instanceof File) {
+					const type = file.type.split('/')[0] as keyof typeof save_media_file;
+					if (type in save_media_file) {
+						const { fileInfo } = await save_media_file[type](file, collection_names[type], user._id, access);
+						const insertResult = await dbAdapter.crud.insertMany(collection_names[type], [{ ...fileInfo, user: user._id }]);
+
+						if (!insertResult.success) {
+							if (insertResult.error?.message?.includes('duplicate')) {
+								throw new Error(`A file with name "${file.name}" already exists`);
+							}
+							throw new Error(insertResult.error?.message || 'Failed to save file');
+						}
+						logger.info(`File uploaded successfully: ${file.name}`);
+					} else {
+						logger.warn(`Unsupported file type: ${file.type}`);
+					}
+				}
+			}
+
+			// TODO: Add back invalidation when upgrading SvelteKit
+			return { success: true };
+		} catch (err) {
+			let userMessage = 'Error uploading file';
+			if (err instanceof Error) {
+				if (err.message.includes('duplicate')) {
+					userMessage = err.message;
+				} else if (err.message.includes('invalid file type')) {
+					userMessage = 'Unsupported file type';
+				} else {
+					userMessage = err.message;
+				}
+			}
+			logger.error(`Error during file upload: ${err instanceof Error ? err.message : String(err)}`);
+			throw error(400, userMessage);
+		}
+	},
+
+	// Action to delete a media file
+	deleteMedia: async ({ request }) => {
+		logger.warn('Request Body', await request.json());
+		const image = (await request.json())?.image;
+		logger.debug('Received delete request for image:', image);
+
+		if (!image || !image._id) {
+			logger.error('Invalid image data received');
+			throw error(400, 'Invalid image data received');
+		}
+
+		if (!dbAdapter) {
+			logger.error('Database adapter is not initialized.');
+			throw error(500, 'Internal Server Error');
+		}
+
+		try {
+			logger.info(`Deleting image: ${image._id}`);
+			const success = await dbAdapter.deleteMedia(image._id.toString());
+
+			if (success) {
+				logger.info('Image deleted successfully');
+				// TODO: Add back invalidation when upgrading SvelteKit
+				return { success: true }; // Return true on success
+			} else {
+				// Log the failure but maybe don't throw a 500, return success: false?
+				// Or keep throwing error if deletion failure is critical. Let's keep the error for now.
+				logger.error('Failed to delete image from database.');
+				throw error(500, 'Failed to delete image');
+			}
+		} catch (err) {
+			logger.error('Error deleting image:', err as LoggableValue);
+			throw error(500, 'Internal Server Error');
+		}
+	}
+};

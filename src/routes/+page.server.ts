@@ -1,56 +1,72 @@
+/**
+ * @file src/routes/+page.server.ts
+ * @description
+ * Server-side logic for the root route, handling redirection to the first collection with the correct language.
+ *
+ * ### Features
+ * - Fetches and returns the content structure for the website
+ * - Redirects to the first collection with the correct language
+ * - Throws an error if there are no collections *
+ */
+
 import { publicEnv } from '@root/config/public';
-import { getCollections } from '@collections';
-import { redirect, type Actions } from '@sveltejs/kit';
+import { redirect, error } from '@sveltejs/kit';
+import { contentManager } from '@src/content/ContentManager';
+import { fullSystemReadyPromise } from '@src/databases/db';
 
-// lucia
-import { validate } from '@utils/utils';
-import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
-import { auth } from './api/db';
+import type { PageServerLoad } from './$types';
 
-// paraglidejs
-import { setLanguageTag, sourceLanguageTag, availableLanguageTags } from '@src/paraglide/runtime';
+// System Logger
+import { logger } from '@utils/logger.svelte';
 
-export async function load({ cookies }) {
-	// Get the session cookie
-	const session = cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
+export const load: PageServerLoad = async ({ locals, url }) => {
+	// Unauthenticated users should be redirected to the login page
+	if (!locals.user) {
+		logger.debug('User is not authenticated, redirecting to login');
+		throw redirect(302, '/login');
+	}
 
-	// Validate the user's session
-	const user = await validate(auth, session);
+	try {
+		// Wait for the database connection, model creation, and initial ContentManager load
+		await fullSystemReadyPromise;
+		logger.debug('Full system is ready, proceeding with page load.');
 
-	// Get the collections and filter based on reading permissions
-	const _filtered = (await getCollections()).filter((c: any) => c?.permissions?.[user.role]?.read != false);
+		// Now ContentManager is guaranteed to be initialized and have loaded initial data
+		const collection = await contentManager.getFirstCollection();
 
-	// Redirect to the first collection in the collections array
-	redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${_filtered[0].name}`);
-}
-
-export const actions = {
-	default: async ({ cookies, request }) => {
-		const data = await request.formData();
-		const theme = data.get('theme') === 'light' ? 'light' : 'dark';
-		// console.log(theme);
-
-		let systemlanguage = data.get('systemlanguage') as string; // get the system language from the form data
-		// console.log(systemlanguage);
-
-		// Check if the provided system language is available, if not, default to source language
-		if (!availableLanguageTags.includes(sourceLanguageTag)) {
-			systemlanguage = sourceLanguageTag;
+		// If there are no collections, throw a 404 error
+		if (!collection) {
+			logger.error('No collections available for redirection');
+			throw error(404, 'No collections found');
 		}
 
-		// Set the cookies
-		cookies.set('theme', theme, { path: '/' });
-		cookies.set('systemlanguage', systemlanguage, { path: '/' });
+		// If the current route is not the root route, simply return the user data
+		if (url.pathname !== '/') {
+			logger.debug(`Already on route ${url.pathname}`);
+			return { user: locals.user, permissions: locals.permissions };
+		}
 
-		// Update the language tag in paraglide
-		setLanguageTag(systemlanguage as any);
+		// Get the first collection and use its UUID
+		if (url.pathname === '/') {
+			const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+			if (!collection) throw new Error('No First collections found');
 
-		// Store the system language and theme color in local storage
-		localStorage.setItem('systemlanguage', systemlanguage);
-		localStorage.setItem('theme', theme);
+			// Construct redirect URL using UUID instead of name
+			const redirectUrl = `/${defaultLanguage}${collection.path}`;
 
-		// Here you would also update these preferences on the server for the current user
-
-		redirect(303, '/');
+			logger.info(`Redirecting to \x1b[34m${redirectUrl}\x1b[0m`);
+			throw redirect(302, redirectUrl);
+		}
+	} catch (err) {
+		// If the error has a status code (like a thrown redirect or error from sveltekit), rethrow it
+		if (typeof err === 'object' && err !== null && 'status' in err) {
+			throw err;
+		}
+		// Log other unexpected errors
+		console.error('err', err); // Keep console.error for visibility during dev
+		logger.error('Unexpected error in root page load function', err);
+		// Use the specific error message if available
+		const message = err instanceof Error ? err.message : 'An unexpected error occurred';
+		throw error(500, message);
 	}
-} satisfies Actions;
+};

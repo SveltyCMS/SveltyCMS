@@ -1,64 +1,113 @@
+<!-- 
+@file src/routes/+error.svelte
+@component
+**Displays an Error page for the SveltyCMS**
+
+### Props
+- `error`: The error object containing status and message.
+
+### Features: 
+- Dynamic display of error status and message based on the error encountered. 
+- Rotating animation effect for the site name to enhance visual appeal. 
+- Clear call-to-action link to return to the homepage.
+-->
+
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 
 	// Stores
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
+	import type { Load } from '@sveltejs/kit';
 
 	// Components
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
+	import SiteName from '@components/SiteName.svelte';
 
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import { contentLanguage } from '@root/src/stores/store.svelte';
 
-	let speed = 50;
-	let size = 130;
-	let font = 0.8;
-	let text = publicEnv.SITE_NAME;
-	let repeat = 3;
-	let separator = ' • ';
+	const speed = 100;
+	const size = 140;
+	const font = 0.9;
+	const repeat = 3;
+	const separator = ' • ';
 
-	let array: any = [];
-	$: array = [...Array(repeat)].map(() => [...text].concat([...separator])).flat();
+	const siteName = publicEnv.SITE_NAME;
+
+	const combinedString = Array.from({ length: repeat }, () => siteName + separator).join('');
+
+	const array: string[] = combinedString.split('').filter((char) => char !== ' ');
+
+	// Set the error data and SEO information that will be used by the layout
+	export const load: Load = () => {
+		return {
+			SeoTitle: `Error ${page.status} - ${publicEnv.SITE_NAME}`,
+			SeoDescription: `An error occurred while trying to access this page. Status: ${page.status}. ${page.error?.message || m.error_pagenotfound()}`
+		};
+	};
 </script>
 
-{#if $page}
-	<main class="flex h-screen w-full flex-col items-center justify-center bg-gradient-to-t from-surface-900 via-surface-700 to-surface-900 text-white">
+{#if page}
+	<main
+		lang={$contentLanguage}
+		class="bg-linear-to-t flex h-screen w-full flex-col items-center justify-center from-surface-900 via-surface-700 to-surface-900 text-white"
+	>
 		<div class="relative">
-			<div class="seal absolute" style="--size: {size}px; --speed: {speed * 1000}ms; --font: {font}em">
+			<!-- Rotating SiteName -->
+			<div class="seal absolute" style="--size: {size}px; --speed: {speed * 200}ms; --font: {font}em">
 				{#each array as char, index}
-					<div class="char" style="--angle: {`${(1 / array.length) * index}turn`}">{char}</div>
+					<div class="char" style="--angle: {`${(1 / array.length) * index}turn`}">
+						{#if char === 'S' && (index + 1) % 10 === 0}
+							<!-- This is the last 'S' in each "SveltyCMS•" -->
+							<span class="text-primary-500"><SiteName {char} /></span>
+						{:else if index % 10 < 6}
+							<!-- This is the main part of each "SveltyCMS•" -->
+							<SiteName {char} />
+						{:else if index % 10 >= 6 && index % 10 < 9}
+							<!-- This is the last part of each "SveltyCMS•" -->
+							<span class="text-primary-500"><SiteName {char} /></span>
+						{:else}
+							<!-- This is the separator '•' -->
+							<SiteName {char} />
+						{/if}
+					</div>
 				{/each}
 			</div>
-			<SveltyCMSLogo fill="red" className="absolute top-[50%] -translate-y-[50%] translate-x-[50%] left-0 h-16 mb-2" />
+
+			<!-- Site Logo -->
+			<SveltyCMSLogo fill="red" className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 h-16 mb-2" />
 		</div>
 
 		<div class="relative">
-			<!-- error class -->
-			<h1 class="relative !text-9xl font-extrabold tracking-widest text-white">
-				{$page.status}
+			<!-- Error class -->
+			<h1 class="relative text-9xl font-extrabold tracking-widest text-white">
+				{page.status}
 			</h1>
-			<!-- error url  -->
+			<!-- Error url  -->
 			<div
 				class="absolute left-1/2 top-1/2 mx-auto -translate-x-1/2 -translate-y-1/2 rotate-12 transform rounded-md bg-error-600/80 px-2 text-center text-sm font-bold text-white"
 			>
-				<div class="w-min-[200px]">{$page.url}</div>
-				<div class="flex-nowrap whitespace-nowrap">{m.error_pagenotfound()}</div>
+				<div class=" min-w-[200px]">{page.url}</div>
+				<div class="whitespace-nowrap">{m.error_pagenotfound()}</div>
 			</div>
 		</div>
 
-		<h1 class="text-5xl font-extrabold tracking-widest text-surface-400">
-			{#if $page.error}
-				{$page.error.message}
+		<h1 class="max-w-2xl text-center text-3xl font-extrabold tracking-widest text-surface-400">
+			{#if page.error}
+				{page.error.message}
 			{/if}
 		</h1>
 
-		<p class="text-lg text-white">{m.error_wrong()}</p>
+		<p class="mt-2 text-lg text-white">{m.error_wrong()}</p>
+		<!-- Button -->
 		<a
 			href="/"
 			data-sveltekit-preload-data="tap"
 			class="relative mt-5 block rounded-full bg-gradient-to-br from-error-700 via-error-600 to-error-700 px-8 py-4 font-bold uppercase !text-white shadow-xl"
-			>{m.error_gofrontpage()}</a
 		>
+			{m.error_gofrontpage()}
+		</a>
 	</main>
 {/if}
 

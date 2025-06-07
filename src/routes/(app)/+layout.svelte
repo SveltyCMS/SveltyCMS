@@ -1,125 +1,165 @@
+<!--
+@file src/routes/(app)/+layout.svelte
+@component
+**This component renders the entire app with improved loading strategy and dynamic theme management**
+
+## Props:
+- `theme` {string} - The theme of the website
+
+## Features:
+-     Skeleton UI framework for SvelteKit
+-     Dynamic theme management based on user preferences or defaults
+-     SEO optimization with Open Graph and Twitter Card metadata for enhanced social sharing
+-     Initialization of Skeleton stores for UI components
+-     Granular loading strategy
+-     Asynchronous loading of non-critical data
+-->
+
 <script lang="ts">
-	// Your selected Skeleton theme:
+	// Your selected theme:
 	import '../../app.postcss';
 
 	// Icons from https://icon-sets.iconify.design/
 	import 'iconify-icon';
 
 	import { publicEnv } from '@root/config/public';
+	import { onMount, onDestroy } from 'svelte';
+	import { page } from '$app/state';
 
-	//skeleton
-	import { initializeStores, Modal, Toast, setModeUserPrefers, setModeCurrent, setInitialClassState } from '@skeletonlabs/skeleton';
+	// Auth
+	import type { User } from '@src/auth/types';
 
-	//required for popups to function
-	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
-	import { storePopup } from '@skeletonlabs/skeleton';
-
-	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
-	initializeStores();
+	// Utils
+	import { getTextDirection } from '@utils/utils';
+	import { isSearchVisible } from '@utils/globalSearchIndex';
 
 	// Stores
-	import { isSearchVisible } from '@utils/globalSearchIndex';
-	import { collections, collection, collectionValue, contentLanguage, systemLanguage, isLoading } from '@stores/store';
-	import { page } from '$app/stores';
-	import { getCollections } from '@collections';
-	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
-	import type { Schema } from '@collections/types';
-	import { getTextDirection } from '@src/utils/utils';
-	import { screenWidth, sidebarState } from '@stores/sidebarStore';
+	import { avatarSrc, systemLanguage, isLoading } from '@stores/store.svelte';
+	import { contentStructure, collections } from '@stores/collectionStore.svelte';
+	import { uiStateManager } from '@stores/UIStore.svelte';
+	import { screenSize, ScreenSize } from '@stores/screenSizeStore.svelte';
 
 	// Components
 	import Loading from '@components/Loading.svelte';
 	import SearchComponent from '@components/SearchComponent.svelte';
-	import LeftSidebar from '@src/components/LeftSidebar.svelte';
-	import RightSidebar from '@src/components/RightSidebar.svelte';
+	import LeftSidebar from '@components/LeftSidebar.svelte';
+	import RightSidebar from '@components/RightSidebar.svelte';
 	import HeaderEdit from '@components/HeaderEdit.svelte';
-	import PageFooter from '@src/components/PageFooter.svelte';
+	import PageFooter from '@components/PageFooter.svelte';
 	import FloatingNav from '@components/system/FloatingNav.svelte';
 
-	// Declare a ForwardBackward variable to track whether the user is navigating using the browser's forward or backward buttons
-	let ForwardBackward: boolean = false;
+	// Skeleton
+	import { initializeStores, Modal, Toast, setModeUserPrefers, setModeCurrent, setInitialClassState } from '@skeletonlabs/skeleton';
 
-	window.onpopstate = async () => {
-		// Set up an event listener for the popstate event
-		ForwardBackward = true; // Set ForwardBackward to true to indicate that the user is navigating using the browser's forward or backward buttons
+	// Required for popups to function
+	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
+	import { storePopup } from '@skeletonlabs/skeleton';
+	import type { ContentNode } from '@root/src/databases/dbInterface';
 
-		// Update the value of the collection store based on the current page's collection parameter
-		collection.set($collections.find((x) => x.name === $page.params.collection) as Schema);
-	};
+	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
+	initializeStores();
 
-	// Subscribe to changes in the collection store and do redirects
-	let initial = true;
-	collection.subscribe(() => {
-		if (!$collection) return;
+	interface Props {
+		children?: import('svelte').Snippet;
+		data: {
+			user: User;
+			contentStructure: ContentNode[];
+			contentLanguage: string;
+			systemLanguage: string;
+		};
+	}
 
-		// Reset the value of the collectionValue store
-		$collectionValue = {};
+	let { children, data }: Props = $props();
 
-		if (!ForwardBackward && initial != true) {
-			// If ForwardBackward is false and the current route is a collection route
-			goto(`/${$contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${$collection.name}`);
+	// State variables
+	let isCollectionsLoaded = $state(false);
+	let isNonCriticalDataLoaded = $state(false);
+	let loadError = $state<Error | null>(null);
+	let mediaQuery: MediaQueryList;
+
+	// Update collection loaded state when store changes
+	$effect(() => {
+		if (collections.value && Object.keys(collections.value).length > 0) {
+			isCollectionsLoaded = true;
 		}
-		initial = false;
-		// Reset ForwardBackward to false
-		ForwardBackward = false;
 	});
 
-	// Setup system language
-	systemLanguage.subscribe((lang) => {
+	// Handle system language changes
+	$effect(() => {
+		const lang = systemLanguage.value;
 		if (!lang) return;
 
 		const dir = getTextDirection(lang);
 		if (!dir) return;
 
-		// This need be replace with svelte equivalent code
-		const rootNode = document.body?.parentElement;
-		if (!rootNode) return;
 		document.documentElement.dir = dir;
 		document.documentElement.lang = lang;
 	});
 
-	// On page load get the saved theme
-	const updateThemeBasedOnSystemPreference = (event) => {
+	// Function to initialize collections using ContentManager
+	async function initializeCollections() {
+		try {
+			//console.log('contentStructure', data.contentStructure);
+			contentStructure.set(data.contentStructure);
+			isCollectionsLoaded = true;
+		} catch (error) {
+			console.error('Error loading collections:', error);
+			loadError = error instanceof Error ? error : new Error('Unknown error occurred while loading collections');
+		}
+	}
+
+	// Function to load non-critical data
+	async function loadNonCriticalData() {
+		await new Promise((resolve) => setTimeout(resolve, 2000));
+		isNonCriticalDataLoaded = true;
+	}
+
+	// Theme management
+	function updateThemeBasedOnSystemPreference(event: MediaQueryListEvent) {
 		const prefersDarkMode = event.matches;
 		setModeUserPrefers(prefersDarkMode);
 		setModeCurrent(prefersDarkMode);
 		localStorage.setItem('theme', prefersDarkMode ? 'dark' : 'light');
-	};
+	}
 
-	// Define the onKeyDown function at the top level of the script block
-	const onKeyDown = (event: KeyboardEvent) => {
+	// Keyboard shortcuts
+	function onKeyDown(event: KeyboardEvent) {
 		if (event.altKey && event.key === 's') {
-			toggleSearchVisibility();
 			event.preventDefault();
+			isSearchVisible.update((v) => !v);
 		}
-	};
-
-	const toggleSearchVisibility = () => {
-		isSearchVisible.update((prev) => !prev);
-	};
+	}
 
 	onMount(() => {
-		// Match media query for dark mode preference
-		const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+		// Theme initialization
+		mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 		mediaQuery.addEventListener('change', updateThemeBasedOnSystemPreference);
 
 		// Check for saved theme preference in localStorage
 		const savedTheme = localStorage.getItem('theme');
 		if (savedTheme) {
-			let newMode = savedTheme === 'light';
+			const newMode = savedTheme === 'light';
 			setModeUserPrefers(newMode);
 			setModeCurrent(newMode);
 		}
 
-		// Keyboard event listener for toggling search visibility
-		document.addEventListener('keydown', onKeyDown);
+		if (data.user) {
+			//console.log('user', data.user);
+			avatarSrc.set(data.user!.avatar!);
+		}
 
-		return () => {
-			// Cleanup: remove event listener and subscription
-			mediaQuery.removeEventListener('change', updateThemeBasedOnSystemPreference);
-			document.removeEventListener('keydown', onKeyDown);
-		};
+		// Event listeners
+		window.addEventListener('keydown', onKeyDown);
+
+		// Initialize data
+		initializeCollections();
+		loadNonCriticalData();
+	});
+
+	onDestroy(() => {
+		// Cleanup: remove event listeners
+		mediaQuery?.removeEventListener('change', updateThemeBasedOnSystemPreference);
+		window.removeEventListener('keydown', onKeyDown);
 	});
 
 	// SEO
@@ -128,7 +168,8 @@
 </script>
 
 <svelte:head>
-	<!-- darkmode -->
+	<!-- Dark Mode -->
+	<!-- eslint-disable-next-line svelte/no-at-html-tags-->
 	{@html '<script>(' + setInitialClassState.toString() + ')();</script>'}
 
 	<!--Basic SEO-->
@@ -142,41 +183,43 @@
 	<meta property="og:image" content="/SveltyCMS.png" />
 	<meta property="og:image:width" content="1200" />
 	<meta property="og:image:height" content="630" />
-	<meta property="og:site_name" content={$page.url.origin} />
+	<meta property="og:site_name" content={page.url.origin} />
 
 	<!-- Open Graph : Twitter-->
 	<meta name="twitter:card" content="summary_large_image" />
 	<meta name="twitter:title" content={SeoTitle} />
 	<meta name="twitter:description" content={SeoDescription} />
 	<meta name="twitter:image" content="/SveltyCMS.png" />
-	<meta property="twitter:domain" content={$page.url.origin} />
-	<meta property="twitter:url" content={$page.url.href} />
+	<meta property="twitter:domain" content={page.url.origin} />
+	<meta property="twitter:url" content={page.url.href} />
 </svelte:head>
 
-<!-- Wait for dynamic Collection import -->
-<!-- TODO: Optimize this as this is not needed for ever page -->
-{#await getCollections()}
-	<div class="flex h-lvh items-center justify-center">
+{#if loadError}
+	<div class="text-error-500">
+		An error occurred: {loadError.message}
+	</div>
+{:else if !isCollectionsLoaded}
+	<div class="flex h-lvh items-center justify-between lg:justify-start">
 		<Loading />
 	</div>
-{:then}
+{:else}
 	<!-- hack as root +layout cannot be overwritten ? -->
-	{#if $page.url.pathname === '/login'}
-		<slot />
+	{#if page.url.pathname === '/login'}
+		{@render children?.()}
 	{:else}
 		<!-- Body -->
 		<div class="flex h-lvh flex-col">
-			<!-- Header -->
-			{#if $sidebarState.header !== 'hidden'}
+			<!-- Header (unsused)  -->
+			{#if uiStateManager.uiState.value.header !== 'hidden'}
 				<header class="sticky top-0 z-10 bg-tertiary-500">Header</header>
 			{/if}
 
 			<div class="flex flex-1 overflow-hidden">
 				<!-- Sidebar Left -->
-				{#if $sidebarState.left !== 'hidden'}
+				{#if uiStateManager.uiState.value.leftSidebar !== 'hidden'}
 					<aside
-						class="max-h-dvh {$sidebarState.left === 'full'
-							? 'w-[220px] '
+						class="max-h-dvh {uiStateManager.uiState.value.leftSidebar === 'full'
+							? 'w-[220px]'
 							: 'w-fit'} relative border-r bg-white !px-2 text-center dark:border-surface-500 dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900"
 					>
 						<LeftSidebar />
@@ -184,60 +227,56 @@
 				{/if}
 
 				<!-- Content Area -->
+<<<<<<< HEAD
 				<main class="realative w-full flex-1 overflow-hidden">
+=======
+				<main class="relative w-full flex-1">
+>>>>>>> 69c53df49f438e29d4d10f3501b2b2667cbfa787
 					<!-- Page Header -->
-					{#if $sidebarState.pageheader !== 'hidden'}
+					{#if uiStateManager.uiState.value.pageheader !== 'hidden'}
 						<header class="sticky top-0 z-10 w-full">
 							<HeaderEdit />
 						</header>
 					{/if}
 
 					<!-- Router Slot -->
-
-					<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
 					<div
-						on:keydown={onKeyDown}
 						role="main"
-						class="relative flex-grow overflow-auto {$sidebarState.left === 'full' ? 'mx-2' : 'mx-1'}  {$screenWidth === 'desktop'
+						class="relative h-full flex-grow overflow-auto {uiStateManager.uiState.value.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {$screenSize ===
+						'lg'
 							? 'mb-2'
 							: 'mb-16'}"
 					>
-						{#key $page.url}
-							<Toast />
-							<Modal />
+						<Toast />
+						<Modal />
 
-							{#if $screenWidth !== 'desktop'}
-								<FloatingNav buttonInfo />
-							{/if}
+						<!-- Floating Nav -->
+						{#if $screenSize !== ScreenSize.LG && $screenSize !== ScreenSize.XL && $screenSize !== ScreenSize.XXL}
+							<FloatingNav />
+						{/if}
 
-							<!-- Show globalSearchIndex  -->
-							{#if $isSearchVisible == true}
-								<SearchComponent />
-							{/if}
+						<!-- Show globalSearchIndex  -->
+						{#if $isSearchVisible}
+							<SearchComponent />
+						{/if}
 
-							{#if $isLoading == true}
-								<div class="flex h-screen items-center justify-center">
-									<Loading />
-								</div>
-							{/if}
+						{#if $isLoading}
+							<div class="flex h-screen items-center justify-center">
+								<Loading />
+							</div>
+						{:else}
+							{@render children?.()}
+						{/if}
 
-							<slot />
-
-							<!--<div>mode : {$mode}</div>							
-							<div>screenWidth : {$screenWidth}</div>
-							<div>sidebarState.left : {$sidebarState.left}</div>
-							<div>sidebarState.right : {$sidebarState.right}</div>
-							<div>sidebarState.pageheader : {$sidebarState.pageheader}</div>
-							<div>sidebarState.pagefooter : {$sidebarState.pagefooter}</div>
-							<div>sidebarState.header : {$sidebarState.header}</div>
-							<div>sidebarState.footer : {$sidebarState.footer}</div> -->
-						{/key}
+						{#if isNonCriticalDataLoaded}
+							<!-- Non-critical data components -->
+						{/if}
 					</div>
 
 					<!-- Page Footer -->
-					{#if $sidebarState.pagefooter !== 'hidden'}
+					{#if uiStateManager.uiState.value.pagefooter !== 'hidden'}
 						<footer
-							class="sticky left-0 top-[calc(100%-51px)] z-10 w-full border-t bg-surface-50 bg-gradient-to-b px-1 text-center dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
+							class="sticky left-0 top-[calc(100%-51px)] z-10 w-full bg-surface-50 bg-gradient-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900"
 						>
 							<PageFooter />
 						</footer>
@@ -245,7 +284,7 @@
 				</main>
 
 				<!-- Sidebar Right -->
-				{#if $sidebarState.right !== 'hidden'}
+				{#if uiStateManager.uiState.value.rightSidebar !== 'hidden'}
 					<aside
 						class="max-h-dvh w-[220px] border-l bg-surface-50 bg-gradient-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
 					>
@@ -254,14 +293,10 @@
 				{/if}
 			</div>
 
-			<!-- Footer -->
-			{#if $sidebarState.footer !== 'hidden'}
+			<!-- Footer (unsused) -->
+			{#if uiStateManager.uiState.value.footer !== 'hidden'}
 				<footer class="bg-blue-500">Footer</footer>
 			{/if}
 		</div>
 	{/if}
-{:catch error}
-	<div class="text-error-500">
-		An error occurred: {error.message}
-	</div>
-{/await}
+{/if}

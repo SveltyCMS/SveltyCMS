@@ -1,194 +1,269 @@
+<!--
+@file src/components/SearchComponent.svelte
+@component
+**Search Component for Svelte CMS**
+
+@example:
+<WatermarkSettings bind:size bind:opacity bind:positionX bind:positionY bind:rotation />
+
+### Props:
+- `globalSearchValue` {string}: Current value of the global search input (default: '')
+- `searchShow` {boolean}: Visibility of the search input (default: false)
+- `filterShow` {boolean}: Visibility of filter controls (default: false)
+- `columnShow` {boolean}: Visibility of column controls (default: false)
+- `density` {string}: Table density ('compact', 'normal', 'comfortable') (default: 'normal')
+- `densityOptions` {string[]}: Custom density options (default: ['compact', 'normal', 'comfortable'])
+
+### Features:
+- Fuzzy search with optimized edit distance calculation
+- Real-time search results with debounced input
+- Keyboard navigation support
+- Responsive design
+- Enhanced accessibility
+- Performance optimized state management
+-->
+
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { getEditDistance } from '@utils/utils';
 	import { onMount } from 'svelte';
 
-	// Compontent
+	// Component
 	import HighlightedText from './HighlightedText.svelte';
 
-	//Stores
+	// Stores
 	import { isSearchVisible, globalSearchIndex, triggerActionStore } from '@utils/globalSearchIndex';
 
-	// Define the searchResults array and searchQuery variable
-	let searchResults: any[] = [];
-	let searchQuery = '';
-	let inputRef: HTMLInputElement;
+	// Types
+	interface Trigger {
+		path: string;
+		action?: (() => void | Promise<void>)[];
+	}
 
-	// Function to perform fuzzy search
-	async function fuzzySearch(query: string) {
-		// console.log('fuzzySearch', query);
+	interface SearchResult {
+		title: string;
+		description: string;
+		keywords: string[];
+		triggers: Record<string, Trigger>;
+		distance?: number;
+	}
 
+	// States
+	let searchResults: SearchResult[] = $state([]);
+	let searchQuery = $state('');
+	let inputRef: HTMLInputElement | null = $state(null);
+	let selectedIndex = $state(-1); // Track the currently selected result
+
+	// Debounce function for search optimization
+	function debounce<T extends (...args: any[]) => void>(fn: T, delay: number): (...args: Parameters<T>) => void {
+		let timeoutId: ReturnType<typeof setTimeout>;
+		return (...args: Parameters<T>) => {
+			clearTimeout(timeoutId);
+			timeoutId = setTimeout(() => fn(...args), delay);
+		};
+	}
+
+	// Optimized fuzzy search with debouncing
+	const debouncedFuzzySearch = debounce(async (query: string) => {
 		// If the query is empty, clear the search results and return
-		if (query === '') {
+		if (!query) {
 			searchResults = [];
 			return;
 		}
 
 		const index = $globalSearchIndex;
+		const upperQuery = query.toUpperCase();
 
-		// Use fuzzySearch function to calculate edit distances
-		const results = index.map((result) => {
-			const titleDistance = getEditDistance(query.toUpperCase(), result.title.toUpperCase()) || 0;
-			const keywordDistances = result.keywords.map((keyword) => getEditDistance(query.toUpperCase(), keyword.toUpperCase()) || 0);
-			const minKeywordDistance = Math.min(...keywordDistances);
+		// Optimize performance by pre-calculating query-related values
+		const threshold = Math.floor(query.length * 0.9);
 
-			return {
-				...result,
-				distance: Math.min(titleDistance, minKeywordDistance)
-			};
-		});
+		// Calculate distances and filter results
+		const results = index
+			.map((result) => {
+				// Cache uppercase title and keywords for performance
+				const upperTitle = result.title.toUpperCase();
+				const upperKeywords = result.keywords.map((k) => k.toUpperCase());
 
-		// Sort results based on distance (optional)
-		const sortedResults = results.sort((a, b) => {
-			if (a.distance === undefined) return 1; // Put a before b if a.distance is undefined
-			if (b.distance === undefined) return -1; // Put b before a if b.distance is undefined
-			return a.distance - b.distance;
-		});
+				// Quick exact match check before expensive edit distance calculation
+				if (upperTitle === upperQuery || upperKeywords.includes(upperQuery)) {
+					return { ...result, distance: 0 };
+				}
 
-		// Filter sortedResults to only include matches that contain the input value
-		const filteredResults = sortedResults.filter(
-			(result) =>
-				result.title.toUpperCase().includes(query.toUpperCase()) ||
-				result.keywords.some((keyword) => keyword.toUpperCase().includes(query.toUpperCase()))
-		);
+				// Calculate edit distances only if necessary
+				const titleDistance = getEditDistance(upperQuery, upperTitle) ?? Infinity;
+				const keywordDistances = upperKeywords.map((keyword) => getEditDistance(upperQuery, keyword) ?? Infinity);
 
-		// Filter results based on a distance threshold
-		const threshold = Math.floor(Math.max(query.length * 0.9)); // Adjusted threshold calculation
-		// console.log('threshold', threshold);
-		const fuzzyResults = sortedResults.filter((result) => result.distance !== undefined && result.distance <= threshold);
+				return {
+					...result,
+					distance: Math.min(titleDistance, ...keywordDistances)
+				};
+			})
+			.filter((result) => {
+				const upperTitle = result.title.toUpperCase();
+				return (
+					result.distance <= threshold ||
+					upperTitle.includes(upperQuery) ||
+					result.keywords.some((keyword) => keyword.toUpperCase().includes(upperQuery))
+				);
+			})
+			.sort((a, b) => a.distance - b.distance);
 
-		// Check for exact matches in title or keywords
-		const exactMatches = results.filter(
-			(result) =>
-				result.title.toUpperCase() === query.toUpperCase() || result.keywords.map((keyword) => keyword.toUpperCase()).includes(query.toUpperCase())
-		);
+		// Update state with top 5 results
+		searchResults = results.slice(0, 5);
+		selectedIndex = -1; // Reset selection when results change
+	}, 150); // 150ms debounce delay for optimal performance
 
-		// If there are exact matches, prioritize them and display top 5
-		if (exactMatches.length > 0) {
-			searchResults = exactMatches.slice(0, 5);
-		} else if (filteredResults.length > 0) {
-			// If no exact matches but there are filtered results, display top 5 filtered results
-			searchResults = filteredResults.slice(0, 5);
-		} else {
-			// If no exact matches or filtered results, display top 5 fuzzy results
-			searchResults = fuzzyResults.slice(0, 5);
+	function handleResultClick(result: SearchResult, triggerKey: string, event?: MouseEvent) {
+		if (event) {
+			event.stopPropagation();
 		}
-	}
 
-	function handleResultClick(result: any, triggerKey: string) {
-		const trigger = result.triggers[triggerKey];
+		const trigger = result.triggers[triggerKey] as Trigger;
 
-		if (typeof trigger === 'object' && trigger !== null && 'path' in trigger && 'action' in trigger && trigger.action?.length > 0) {
+		if (trigger) {
 			const { path, action } = trigger;
-			const actions = action || [];
 
-			// Navigate to the appropriate page if it's not the current page
+			// Navigate if path is different
 			if (window.location.pathname !== path) {
 				goto(path);
 			}
 
-			// Store the trigger actions array in the triggerActionStore
-			triggerActionStore.set(actions);
+			// Handle actions if present
+			if (action) {
+				triggerActionStore.set(action);
+			}
+		}
 
-			// Close the search component
-			isSearchVisible.set(false);
-		} else {
-			console.error('Error: trigger, trigger.path, or trigger.action is undefined');
+		isSearchVisible.set(false);
+	}
+
+	// Keyboard navigation handler
+	function onKeyDown(event: KeyboardEvent) {
+		switch (event.key) {
+			case 'Escape':
+				if ($isSearchVisible) {
+					event.preventDefault();
+					isSearchVisible.set(false);
+				}
+				break;
+			case 'ArrowDown':
+			case 'ArrowUp':
+				event.preventDefault();
+				if (searchResults.length > 0) {
+					const direction = event.key === 'ArrowDown' ? 1 : -1;
+					selectedIndex = (selectedIndex + direction + searchResults.length) % searchResults.length;
+				}
+				break;
+			case 'Enter':
+				if (selectedIndex >= 0 && searchResults[selectedIndex]) {
+					event.preventDefault();
+					const result = searchResults[selectedIndex];
+					handleResultClick(result, Object.keys(result.triggers)[0]);
+				}
+				break;
 		}
 	}
 
-	// Function to handle the keydown event
-	const onKeyDown = (event: KeyboardEvent) => {
-		// Escape key closes the search component
-		if (event.key === 'Escape' && $isSearchVisible) {
+	// Close search on outside click
+	function handleClickOutside(event: MouseEvent) {
+		if ($isSearchVisible && event.target && !(event.target as Element).closest('.search-component')) {
 			isSearchVisible.set(false);
 		}
+	}
 
-		// Enter selects the first result
-		if (event.key === 'Enter' && searchResults.length > 0) {
-			isSearchVisible.set(false);
-			handleResultClick(searchResults[0], Object.keys(searchResults[0].triggers)[0]); // Pass both the result and triggerKey
-		}
-	};
-
-	// Function to handle click events outside the search component
-	const handleClickOutside = (event: MouseEvent) => {
-		if ($isSearchVisible && event.target && !(event.target as Element).closest('.max-w-lg')) {
-			isSearchVisible.set(false);
-		}
-	};
-	// Add event listeners when the component is mounted
 	onMount(() => {
-		// Focus the input field
-		if (inputRef) {
-			inputRef.focus();
-		}
-		// Add event listener for click events outside the search component
+		if (inputRef) inputRef.focus();
 		document.addEventListener('click', handleClickOutside);
-		// Remove event listeners when the component is unmounted
-		return () => {
-			document.removeEventListener('click', handleClickOutside);
-		};
+		return () => document.removeEventListener('click', handleClickOutside);
 	});
 </script>
 
 {#if $isSearchVisible}
-	<div class="fixed bottom-0 left-0 right-0 top-0 z-50 flex flex-col items-center justify-center bg-gray-900/50 backdrop-blur-sm">
+	<div
+		class="search-component fixed inset-0 z-50 flex flex-col items-center justify-center bg-gray-950/50 backdrop-blur-sm"
+		role="dialog"
+		aria-label="Global Search"
+	>
 		<!-- Search input -->
 		<input
-			on:input={() => fuzzySearch(searchQuery)}
 			bind:value={searchQuery}
-			on:keydown={onKeyDown}
 			bind:this={inputRef}
-			type="text"
+			oninput={() => debouncedFuzzySearch(searchQuery)}
+			onkeydown={onKeyDown}
+			type="search"
 			placeholder="Global Search ..."
+			aria-label="Search input"
+			aria-controls="search-results"
 			class="input mx-2 w-full max-w-xl rounded-md border-4 !border-primary-500 px-4 py-2"
 		/>
 
 		<!-- Search results -->
-		<ul class="mt-1 grid w-full max-w-xl overflow-auto rounded px-2 py-1 bg-surface-active-token">
-			{#each searchResults as result (result.title)}
-				<button
-					class="border-b text-white last:border-0 last:pb-2 hover:bg-surface-400"
-					on:click={() => handleResultClick(result, Object.keys(result.triggers)[0])}
-				>
-					<div class="grid auto-cols-auto grid-flow-col text-left">
-						<!-- Highlighted title -->
-						<span class="whitespace-nowrap font-bold text-primary-500">
-							<HighlightedText text={result.title + ' : '} term={searchQuery} />
-						</span>
-
-						<!-- Highlighted description with full width -->
-						<span class="col-span-2 text-sm">
-							<HighlightedText text={result.description} term={searchQuery} />
-						</span>
-
-						<!-- Path for items with one trigger -->
-						{#if Object.entries(result.triggers).length === 1}
-							{#each Object.entries(result.triggers) as trigger}
-								<span class="w-[50px] text-xs text-primary-500">
-									{trigger.path}
+		<ul
+			id="search-results"
+			class="mt-1 grid w-full max-w-xl overflow-auto rounded px-2 py-1 leading-loose bg-surface-active-token"
+			role="listbox"
+			aria-label="Search results"
+		>
+			{#each searchResults as result, index (result.title)}
+				<li role="option" aria-selected={index === selectedIndex} class="focus-within:outline-none focus-within:ring-2 focus-within:ring-primary-500">
+					{#if Object.entries(result.triggers).length === 1}
+						<button
+							type="button"
+							class="w-full border-b text-left text-white last:border-0 last:pb-2 hover:bg-surface-400 {index === selectedIndex
+								? 'bg-surface-500'
+								: ''}"
+							onclick={() => handleResultClick(result, Object.keys(result.triggers)[0])}
+							aria-label={`${result.title}: ${result.description}`}
+						>
+							<div class="grid auto-cols-auto grid-flow-col">
+								<!-- Highlighted title -->
+								<span class="whitespace-nowrap font-bold text-primary-500">
+									<HighlightedText text={result.title + ' : '} term={searchQuery} />
 								</span>
-							{/each}
-						{/if}
-					</div>
 
-					<!-- Multiple triggers -->
-					{#if Object.entries(result.triggers).length > 1}
-						<div class="grid text-sm sm:col-span-2">
+								<!-- Highlighted description -->
+								<span class="col-span-2 text-sm">
+									<HighlightedText text={result.description} term={searchQuery} />
+								</span>
+
+								<!-- Path for single trigger -->
+								{#each Object.entries(result.triggers) as [, trigger]}
+									{#if trigger && 'path' in trigger}
+										<span class="w-[50px] text-xs text-primary-500">
+											{trigger.path}
+										</span>
+									{/if}
+								{/each}
+							</div>
+						</button>
+					{:else}
+						<!-- Result header for multiple triggers -->
+						<div class="border-b p-2">
+							<div class="font-bold text-primary-500">
+								<HighlightedText text={result.title} term={searchQuery} />
+							</div>
+							<div class="text-sm text-white">
+								<HighlightedText text={result.description} term={searchQuery} />
+							</div>
+						</div>
+						<!-- Multiple triggers list -->
+						<div class="grid text-sm">
 							{#each Object.entries(result.triggers) as [triggerKey, trigger]}
-								<button
-									class="flex items-center justify-between px-6 py-1 hover:bg-surface-500"
-									on:click={() => handleResultClick(result, triggerKey)}
-								>
-									<!-- Highlighted trigger -->
-									<HighlightedText text={triggerKey} term={searchQuery} />
-									<p class="text-xs text-primary-500">{trigger.path}</p>
-								</button>
+								{#if trigger && 'path' in trigger}
+									<button
+										type="button"
+										class="flex cursor-pointer items-center justify-between px-6 py-1 text-left text-white hover:bg-surface-500"
+										onclick={(e) => handleResultClick(result, triggerKey, e)}
+										aria-label={`${triggerKey} - ${trigger.path}`}
+									>
+										<HighlightedText text={triggerKey} term={searchQuery} />
+										<span class="text-xs text-primary-500">{trigger.path}</span>
+									</button>
+								{/if}
 							{/each}
 						</div>
 					{/if}
-				</button>
+				</li>
 			{/each}
 		</ul>
 	</div>

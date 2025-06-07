@@ -1,114 +1,189 @@
+<!-- 
+@file src/components/system/table/TablePagination.svelte
+@component
+**Optimized table pagination component for displaying pagination controls in a CMS.**
+
+@Example
+<TablePagination currentPage={1} pagesCount={1} rowsPerPage={10} rowsPerPageOptions={[5, 10, 25, 50, 100, 500]} totalItems={0} />
+
+#### Props
+- `currentPage` {number}: The current page number (default: 1)
+- `pagesCount` {number}: The total number of pages (default: 1)
+- `rowsPerPage` {number}: The number of rows per page (default: 10)
+- `rowsPerPageOptions` {number[]}: An array of options for rows per page (default: [5, 10, 25, 50, 100, 500])
+- `totalItems` {number}: The total number of items in the table (default: 0)
+- `onUpdatePage` {(page: number) => void}: Event handler for updating the current page
+- `onUpdateRowsPerPage` {(rows: number) => void}: Event handler for updating the number of rows per page
+-->
+
 <script lang="ts">
+	export interface TableHeader {
+		label: string;
+		name: string;
+		id: string;
+		visible: boolean;
+		width?: number;
+		sortable?: boolean;
+	}
+
+	export interface PaginationSettings {
+		collectionId: string | null;
+		density: 'compact' | 'normal' | 'comfortable';
+		sorting: {
+			sortedBy: string;
+			isSorted: 0 | 1 | -1;
+		};
+		currentPage: number;
+		rowsPerPage: number;
+		filters: Record<string, string>;
+		displayTableHeaders: TableHeader[];
+		pagesCount?: number;
+		totalItems?: number;
+	}
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	export let currentPage: number; // Prop for current page number
-	export let pagesCount: number; // Prop for total number of pages
-	export let rowsPerPage: number; // Prop to control rows per page (optional)
-	export let rowsPerPageOptions = [10, 25, 50, 100, 500]; // Options for rows per page (optional)
-	export let refreshTableData: any; // Function to refresh data on page change
+	// Props with default values
+	let {
+		currentPage = $bindable(1),
+		pagesCount = 1,
+		rowsPerPage = $bindable(10),
+		rowsPerPageOptions = [5, 10, 25, 50, 100, 500],
+		totalItems = 0,
+		onUpdatePage,
+		onUpdateRowsPerPage
+	} = $props<{
+		currentPage?: number; // Current page number
+		pagesCount?: number; // Total number of pages
+		rowsPerPage?: number; // Number of rows per page
+		rowsPerPageOptions?: number[]; // Options for rows per page
+		totalItems?: number; // Total number of items in the table
+		onUpdatePage?: (page: number) => void; // Event handler for updating the current page
+		onUpdateRowsPerPage?: (rows: number) => void; // Event handler for updating the number of rows per page
+	}>();
 
-	// Compute properties
-	const isFirstPage = currentPage === 1;
-	const isLastPage = currentPage === pagesCount;
+	// Derived pagesCount if not provided
+	const computedPagesCount = $derived(pagesCount && pagesCount > 0 ? pagesCount : rowsPerPage > 0 ? Math.ceil(totalItems / rowsPerPage) : 1);
 
-	// Define the rowsPerPageHandler function
-	function rowsPerPageHandler(event: Event) {
-		// Get the selected value from the event
-		const selectedValue = (event.target as HTMLSelectElement).value;
-		// Update the rows per page value
-		rowsPerPage = parseInt(selectedValue); // Assuming rowsPerPage is a number
-		// Optionally, you can call the refreshTableData function here if needed
-		refreshTableData();
+	const isFirstPage = $derived(currentPage === 1);
+	const isLastPage = $derived(currentPage === computedPagesCount);
+
+	// Calculate start and end item numbers for the current page
+	const startItem = $derived(totalItems === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1);
+	const endItem = $derived(totalItems === 0 ? 0 : Math.min(currentPage * rowsPerPage, totalItems));
+
+	// Go to page - IMMEDIATE
+	let pageUpdateTimeout: number | undefined;
+	function goToPage(page: number) {
+		if (page >= 1 && page <= computedPagesCount && page !== currentPage) {
+			// Clear any existing timeout
+			if (pageUpdateTimeout) clearTimeout(pageUpdateTimeout);
+			// Set a new timeout
+			pageUpdateTimeout = window.setTimeout(() => {
+				currentPage = page;
+				onUpdatePage?.(page);
+			}, 200); // 200ms debounce
+		}
 	}
 
-	// Function to handle keyboard navigation
-	function handleKeyDown(event: any) {
-		if (event.key === 'ArrowLeft' && !isFirstPage) {
-			currentPage = Math.max(1, currentPage - 1);
-			refreshTableData();
-		} else if (event.key === 'ArrowRight' && !isLastPage) {
-			currentPage = Math.min(currentPage + 1, pagesCount || 0);
-			refreshTableData();
-		}
+	// Update rows per page with immediate reset to page 1
+	function updateRowsPerPage(rows: number) {
+		// Immediately update the bound value to ensure UI consistency
+		rowsPerPage = rows;
+		// Call the callback to handle the change
+		onUpdateRowsPerPage?.(rows);
 	}
 </script>
 
-<button
-	on:keydown={handleKeyDown}
-	class="sticky bottom-0 left-0 right-0 z-10 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4"
->
-	<!-- Pagination info -->
-	<div class="mb-1 text-xs md:mb-0 md:text-sm">
-		<span>{m.entrylist_page()}</span> <span class="text-tertiary-500 dark:text-primary-500">{currentPage}</span>
-		<span>{m.entrylist_of()}</span> <span class="text-tertiary-500 dark:text-primary-500">{pagesCount || 0}</span>
+<!-- Pagination info -->
+<div class="mb-1 flex items-center justify-between text-xs md:mb-0 md:text-sm" role="status" aria-live="polite">
+	<div>
+		<span>{m.entrylist_page()}</span>
+		<span class="text-tertiary-500 dark:text-primary-500">{currentPage}</span>
+		<span>{m.entrylist_of()}</span>
+		<span class="text-tertiary-500 dark:text-primary-500">{computedPagesCount}</span>
+		<span class="ml-4" aria-label="Current items shown">
+			{#if totalItems > 0}
+				Showing <span class="text-tertiary-500 dark:text-primary-500">{startItem}</span>–<span class="text-tertiary-500 dark:text-primary-500"
+					>{endItem}</span
+				>
+				of
+				<span class="text-tertiary-500 dark:text-primary-500">{totalItems}</span> items
+			{:else}
+				Showing 0 of 0 items
+			{/if}
+		</span>
 	</div>
+</div>
 
-	<!-- Pagination controls -->
-	<div class="variant-outline btn-group">
-		<!-- First page button -->
-		<button
-			type="button"
-			class="btn"
-			disabled={isFirstPage}
-			aria-label="Go to first page"
-			on:click={() => {
-				currentPage = 1;
-				refreshTableData();
-			}}
-		>
-			<iconify-icon icon="material-symbols:first-page" width="24" />
-		</button>
+<!-- Pagination controls -->
+<nav class="variant-outline btn-group" aria-label="Table pagination">
+	<!-- First page button -->
+	<button
+		onclick={() => goToPage(1)}
+		disabled={isFirstPage}
+		type="button"
+		aria-label="Go to first page"
+		title="First Page"
+		class="btn h-8 w-8 rounded-none border-r border-surface-400 px-1 disabled:text-surface-400 disabled:!opacity-50"
+		aria-disabled={isFirstPage}
+	>
+		<iconify-icon icon="material-symbols:first-page" width="24" role="presentation" aria-hidden="true"></iconify-icon>
+	</button>
 
-		<!-- Previous page button -->
-		<button
-			type="button"
-			class="btn"
-			disabled={isFirstPage}
-			aria-label="Go to Previous page"
-			on:click={() => {
-				currentPage = Math.max(1, currentPage - 1);
-				refreshTableData();
-			}}
-		>
-			<iconify-icon icon="material-symbols:chevron-left" width="24" />
-		</button>
+	<!-- Previous page button -->
+	<button
+		onclick={() => goToPage(currentPage - 1)}
+		disabled={isFirstPage}
+		type="button"
+		aria-label="Go to previous page"
+		title="Previous Page"
+		class="btn h-8 w-8 rounded-none border-r border-surface-400 px-1 disabled:text-surface-400 disabled:!opacity-50"
+		aria-disabled={isFirstPage}
+	>
+		<iconify-icon icon="material-symbols:chevron-left" width="24" role="presentation" aria-hidden="true"></iconify-icon>
+	</button>
 
-		<!-- Rows per page select dropdown -->
-		{#if rowsPerPage !== undefined}
-			<select value={rowsPerPage} on:change={rowsPerPageHandler} class="mt-0.5 bg-transparent text-center text-tertiary-500 dark:text-primary-500">
-				{#each rowsPerPageOptions as pageSize}
-					<option class="bg-surface-500 text-white" value={pageSize}> {pageSize} {m.entrylist_rows()} </option>
-				{/each}
-			</select>
-		{/if}
+	<!-- Rows per page select dropdown -->
+	<select
+		bind:value={rowsPerPage}
+		onchange={(event) => updateRowsPerPage(parseInt((event.target as HTMLSelectElement).value))}
+		aria-label="Select number of rows per page"
+		class="appearance-none border-r border-surface-400 bg-transparent p-0 px-2 text-center text-sm text-tertiary-500 dark:border-surface-600 dark:text-primary-500 sm:px-4"
+		title="Rows per page"
+	>
+		{#each rowsPerPageOptions as pageSize}
+			<option class="bg-surface-100 text-black dark:bg-surface-700 dark:text-white" value={pageSize}>
+				{pageSize}
+				{m.entrylist_rows()}
+			</option>
+		{/each}
+	</select>
 
-		<!-- Next page button -->
-		<button
-			type="button"
-			class="btn"
-			disabled={isLastPage}
-			aria-label="Go to Next page"
-			on:click={() => {
-				currentPage = Math.min(currentPage + 1, pagesCount || 0);
-				refreshTableData();
-			}}
-		>
-			<iconify-icon icon="material-symbols:chevron-right" width="24" />
-		</button>
+	<!-- Next page button -->
+	<button
+		onclick={() => goToPage(currentPage + 1)}
+		disabled={isLastPage}
+		type="button"
+		aria-label="Go to next page"
+		title="Next Page"
+		class="btn h-8 w-8 rounded-none border-l border-surface-400 px-1 disabled:text-surface-400 disabled:!opacity-50"
+		aria-disabled={isLastPage}
+	>
+		<iconify-icon icon="material-symbols:chevron-right" width="24" role="presentation" aria-hidden="true"></iconify-icon>
+	</button>
 
-		<!-- Last page button -->
-		<button
-			type="button"
-			class="btn"
-			disabled={isLastPage}
-			aria-label="Go to Last page"
-			on:click={() => {
-				currentPage = pagesCount || 0;
-				refreshTableData();
-			}}
-		>
-			<iconify-icon icon="material-symbols:last-page" width="24" />
-		</button>
-	</div>
-</button>
+	<!-- Last page button -->
+	<button
+		onclick={() => goToPage(computedPagesCount)}
+		disabled={isLastPage}
+		type="button"
+		aria-label="Go to last page"
+		title="Last Page"
+		class="btn h-8 w-8 rounded-none border-l border-surface-400 px-1 disabled:text-surface-400 disabled:!opacity-50"
+		aria-disabled={isLastPage}
+	>
+		<iconify-icon icon="material-symbols:last-page" width="24" role="presentation" aria-hidden="true"></iconify-icon>
+	</button>
+</nav>

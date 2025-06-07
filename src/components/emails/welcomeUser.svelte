@@ -1,79 +1,98 @@
+<!-- 
+@file src/components/emails/welcomeUser.svelte
+@component
+**welcomeUser Email component to send welcome email to new user signup**
+-->
+
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
 
-	//ParaglideJS
+	// Components
+	import SiteName from '@components/SiteName.svelte';
+
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { languageTag } from '@src/paraglide/runtime';
+	import { systemLanguage } from '@stores/store.svelte';
 
-	export let username: string = '';
+	// svelte-email-tailwind components
+	import { Html, Head, Preview, Body, Container, Section, Heading, Text, Link, Img, Button, Hr } from 'svelte-email-tailwind';
 
-	//console.log('systemLanguage: ', systemLanguage);
+	interface Props {
+		username?: string;
+		hostLink?: string;
+		languageTag?: string;
+	}
 
-	export let hostLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD;
-
-	// svelty-email
-	import { Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';
-
-	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
-
-	const btnContainer = {
-		textAlign: 'center'
-	};
-
-	const button = {
-		fontFamily,
-		backgroundColor: '#8ddd15',
-		borderRadius: '3px',
-		color: '#000000',
-		fontSize: '16px',
-		textDecoration: 'none',
-		textAlign: 'center',
-		display: 'block'
-	};
-
-	const hr = {
-		borderColor: '#cccccc',
-		margin: '15px 0'
-	};
-
-	const footer = {
-		fontFamily,
-		color: '#8898aa',
-		fontSize: '12px',
-		textAlign: 'center'
-	};
+	let { username = '', hostLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD, languageTag = systemLanguage.value }: Props = $props();
 </script>
 
-<Html lang={languageTag()}>
+<Html lang={languageTag}>
 	<Head>
-		<title>Welcome to {publicEnv.SITE_NAME} </title>
-		<meta name="description" content="Welcome to {publicEnv.SITE_NAME}" />
+		<title>Welcome to <SiteName /></title>
 	</Head>
 
-	<Preview preview="Welcome to {publicEnv.SITE_NAME}" />
-	<Section>
+	<Preview preview="Welcome to <SiteName /> - Your journey begins here!" />
+
+	<Body>
 		<Container>
-			<Section style={btnContainer}>
-				<Link href={hostLink}>
-					<Img src="https://github.com/Rar9/SveltyCMS/raw/main/static/SveltyCMS.png" alt={publicEnv.SITE_NAME} width="150" height="auto" />
+			<!-- Header Section -->
+			<Section>
+				<Link href={dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}>
+					<Img
+						src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png"
+						alt={`${publicEnv.SITE_NAME} logo`}
+						width="150"
+						height="auto"
+						style={{ marginLeft: 'auto', marginRight: 'auto', display: 'block' }}
+					/>
 				</Link>
 			</Section>
-			<Text>{m.welcomeuser_username({ username })}</Text>
-			<Text>"Welcome to {publicEnv.SITE_NAME} - a Sveltekit powered flexible Headless CMS"</Text>
-			<Text>{m.welcomeuser_headless()}</Text>
-			<Text>
-				{m.welcomeuser_discussion1()}
 
-				<Link href="https://github.com/Rar9/SveltyCMS/discussions">{m.welcomeuser_discussion2()}</Link>
-			</Text>
-			<Text>{m.welcomeuser_thanks()}</Text>
+			<!-- Main Content -->
+			<Section>
+				<Heading><center>Welcome to <strong><SiteName /></strong></center></Heading>
+				<Text>
+					<strong><center>A SvelteKit-powered flexible Headless CMS</center></strong>
+				</Text>
 
-			<Section style={btnContainer}>
-				<Button pX={12} pY={12} style={button} href={hostLink}>"Go to {publicEnv.SITE_NAME}"</Button>
+				<Text>
+					{m.welcomeuser_username({ username: username || 'Anonymous' })}
+				</Text>
+
+				<Text>
+					{m.welcomeuser_headless()}
+				</Text>
+
+				<Text>
+					{m.welcomeuser_discussion1()}
+				</Text>
+				<Link href="https://github.com/SveltyCMS/SveltyCMS/discussions">
+					<center>{m.welcomeuser_discussion2()}</center>
+				</Link>
+
+				<Text>
+					{m.welcomeuser_thanks()}
+				</Text>
+
+				<!-- CTA Button -->
+				<Section>
+					<Button href={hostLink} pX={24} pY={12} style={{ backgroundColor: '#22c55e', color: '#fff', borderRadius: '8px' }}>
+						Go to <SiteName />
+					</Button>
+				</Section>
+
+				<Hr></Hr>
+
+				<!-- Footer -->
+				<Section>
+					<Text style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '16px' }}>
+						<Link href="https://SveltyCMS.com">
+							Your <SiteName /> team
+						</Link>
+					</Text>
+				</Section>
 			</Section>
-			<Hr style={hr} />
-			<Text style={footer}>"Your {publicEnv.SITE_NAME} team"</Text>
 		</Container>
-	</Section>
+	</Body>
 </Html>

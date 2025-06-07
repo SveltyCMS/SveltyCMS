@@ -1,22 +1,38 @@
-import fs from 'fs';
-import axios from 'axios';
-import mongoose from 'mongoose';
+/**
+ * @file src/utils/utils.ts
+ * @description A comprehensive utility module for the SvelteKit CMS project.
+ *
+ * This file contains a wide range of utility functions and helpers used throughout the application, including:
+ * - Form data handling and conversion (obj2formData, col2formData)
+ * - File and media operations (sanitize, formatBytes, deleteOldTrashFiles)
+ * - Date and time formatting (convertTimestampToDateString, formatUptime, ReadableExpireIn)
+ * - Data manipulation and validation (extractData, deepCopy, validateValibot)
+ * - Internationalization helpers (getTextDirection, updateTranslationProgress)
+ * - Database operations (find, findById)
+ * - UI-related utilities (getGuiFields, motion)
+ * - String manipulation (pascalToCamelCase, getEditDistance)
+ * - And various other helper functions
+ *
+ * The module also defines important constants and types used across the application.
+ *
+ * @requires various - Including fs, axios, valibot, and custom types/interfaces
+ * @requires @stores/store - For accessing Svelte stores
+ * @requires @root/config/public - For accessing public environment variables
+ *
+ * @exports numerous utility functions and constants
+ */
 
 import { publicEnv } from '@root/config/public';
-
-import { Blob } from 'buffer';
-import type { Schema } from '@collections/types';
-import { browser } from '$app/environment';
-import crypto from 'crypto';
-import type { z } from 'zod';
+import axios from 'axios';
+import * as v from 'valibot';
+import type { BaseIssue, BaseSchema } from 'valibot';
 
 // Stores
 import { get } from 'svelte/store';
-import { translationProgress, contentLanguage, entryData, mode, collections, collection } from '@stores/store';
+import { translationProgress, contentLanguage } from '@stores/store.svelte';
 
-// lucia Auth
-import type { User, Auth } from 'lucia';
-import { UserSchema } from '@src/collections/Auth';
+// System Logger
+import { logger, type LoggableValue } from '@utils/logger.svelte';
 
 export const config = {
 	headers: {
@@ -24,9 +40,21 @@ export const config = {
 	}
 };
 
+// Interface for GUI field configuration
+interface GuiFieldConfig {
+	widget: unknown;
+	required: boolean;
+}
+
+export function uniqueItems(items: Record<string, unknown>[], key: string): object[] {
+	const uniqueItems = Array.from(new Map(items.map((item) => [item[key], item])).values());
+
+	return uniqueItems;
+}
+
 // This function generates GUI fields based on field parameters and a GUI schema.
-export const getGuiFields = (fieldParams: { [key: string]: any }, GuiSchema: { [key: string]: any }) => {
-	const guiFields = {};
+export const getGuiFields = (fieldParams: Record<string, unknown>, GuiSchema: Record<string, GuiFieldConfig>): Record<string, unknown> => {
+	const guiFields: Record<string, unknown> = {};
 	for (const key in GuiSchema) {
 		if (Array.isArray(fieldParams[key])) {
 			guiFields[key] = deepCopy(fieldParams[key]);
@@ -38,56 +66,57 @@ export const getGuiFields = (fieldParams: { [key: string]: any }, GuiSchema: { [
 };
 
 // Function to convert an object to form data
-export const obj2formData = (obj: any) => {
-	// console.log(obj);
-	// Create a new FormData object
+export const obj2formData = (obj: Record<string, unknown>) => {
 	const formData = new FormData();
-	// Iterate over the keys of the input object
+
+	const transformValue = (key: string, value: unknown): string | Blob => {
+		if (value instanceof Blob) {
+			return value;
+		} else if (typeof value === 'object' && value !== null) {
+			return JSON.stringify(value);
+		} else if (typeof value === 'boolean' || typeof value === 'number') {
+			return value.toString();
+		} else if (value === null || value === undefined) {
+			return '';
+		}
+		return String(value);
+	};
+
 	for (const key in obj) {
-		// Append each key-value pair to the FormData object as a string
-		const data = JSON.stringify(obj[key], (key, val) => {
-			if (!val && val !== false) return undefined;
-			else if (key == 'schema') return undefined;
-			else if (key == 'display' && val.default == true) return undefined;
-			else if (key == 'display') return ('🗑️' + val + '🗑️').replaceAll('display', 'function display');
-			else if (key == 'widget') return { key: val.key, GuiFields: val.GuiFields };
-			else if (typeof val === 'function') {
-				return '🗑️' + val + '🗑️';
-			}
-			return val;
-		});
-		if (!data) continue;
-		formData.append(key, data);
+		const value = obj[key];
+		if (value !== undefined) {
+			formData.append(key, transformValue(key, value));
+		}
 	}
-	// Return the FormData object
+
 	return formData;
 };
 
-// Converts data to FormData object
-export const col2formData = async (getData: { [Key: string]: () => any }) => {
+// Converts data to FormData object with optimized file handling and type safety
+export const col2formData = async (getData: Record<string, () => Promise<unknown> | unknown>): Promise<FormData> => {
 	const formData = new FormData();
-	const data = {};
-	for (const key in getData) {
-		const value = await getData[key]();
-		if (!value) continue;
-		data[key] = value;
-	}
-	for (const key in data) {
-		if (data[key] instanceof FileList) {
-			for (const _key in data[key]) {
-				// for multiple files
-				//console.log(data[key]);
-				formData.append(key, data[key][_key]);
-			}
-		} else if (typeof data[key] === 'object') {
-			formData.append(key, JSON.stringify(data[key]));
-		} else {
-			formData.append(key, data[key]);
+
+	const processValue = async (value: unknown): Promise<string | Blob> => {
+		if (value instanceof Blob) return value;
+		if (value instanceof Promise) {
+			const resolvedValue = await value;
+			return processValue(resolvedValue);
 		}
-	}
-	if (!formData.entries().next().value) {
-		return null;
-	}
+		if (value instanceof Object) {
+			return JSON.stringify(value);
+		}
+		return String(value);
+	};
+
+	const appendToForm = async () => {
+		for (const [key, getter] of Object.entries(getData)) {
+			const value = getter();
+			const processedValue = await processValue(value);
+			formData.append(key, processedValue);
+		}
+	};
+
+	await appendToForm();
 	return formData;
 };
 
@@ -100,408 +129,171 @@ export function sanitize(str: string) {
 const env_sizes = publicEnv.IMAGE_SIZES;
 export const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
 
-// Saves POSTS files to disk and returns file information
-// TODO: add optimization progress status
-export async function saveImages(data: FormData, collectionName: string) {
-	if (browser) return;
-
-	const sharp = (await import('sharp')).default;
-	const files: any = {};
-	const _files: Array<any> = [];
-
-	// Get the environment variables for image sizes
-	const env_sizes = publicEnv.IMAGE_SIZES;
-
-	// Define the available image sizes, including 'original' and 'thumbnail'
-	const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
-
-	// Find the collection object by name
-	const collection = get(collections).find((collection) => collection.name === collectionName);
-
-	// Iterate over the form data and extract the files
-	for (const [fieldname, fieldData] of data.entries()) {
-		if (fieldData instanceof Blob) {
-			_files.push({ blob: fieldData, fieldname });
-		}
+// Takes an object and recursively parses any values that can be converted to JSON
+export function parse<T>(obj: unknown): T {
+	if (typeof obj !== 'object' || obj === null) {
+		return obj as T;
 	}
 
-	// Check if there are any files to process
-	if (_files.length === 0) return null;
-
-	// Get the path to the collection's media folder
-	const path = _findFieldByTitle(collection, _files[0].fieldname).path;
-
-	// Create the necessary directories if they don't exist
-	if (!fs.existsSync(`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}`)) {
-		for (const size in SIZES) {
-			fs.mkdirSync(`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/${size}`, {
-				recursive: true
-			});
-		}
+	if (Array.isArray(obj)) {
+		return obj.map((item) => parse(item)) as unknown as T;
 	}
 
-	// Process each file asynchronously
-	await Promise.allSettled(
-		_files.map(async (file) => {
+	const result = {} as { [key: string]: unknown };
+	for (const [key, value] of Object.entries(obj as object)) {
+		if (typeof value === 'string') {
 			try {
-				// Extract the file's name, sanitized name, and blob
-				const { blob, fieldname } = file;
-				const name = removeExtension(blob.name);
-				const sanitizedFileName = sanitize(name);
-
-				// Create a buffer from the file's array buffer
-				const buffer = Buffer.from(await blob.arrayBuffer());
-
-				// Generate a SHA-256 hash of the file
-				const hash = crypto.createHash('sha256').update(buffer).digest('hex');
-
-				// Construct the URL for the original file
-				const url = `/${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}${hash}`;
-
-				// Determine the output format based on the environment variable or default to 'original'
-				const outputFormat = publicEnv.MEDIA_OUTPUT_FORMAT || 'original';
-
-				// Set the MIME type based on the output format
-				const mimeType = outputFormat === 'webp' ? 'image/webp' : outputFormat === 'avif' ? 'image/avif' : blob.type;
-
-				// Add the original file data to the files object
-				files[fieldname as keyof typeof files] = {
-					original: {
-						name: `${sanitizedFileName}`,
-						url,
-						size: blob.size,
-						hash: hash,
-						type: mimeType,
-						lastModified: blob.lastModified
-					}
-				};
-
-				// Process the file for different sizes
-				await Promise.all(
-					Object.keys(SIZES).map(async (size) => {
-						// Skip the 'original' size
-						if (size == 'original') return;
-
-						// Construct the full file name
-						const fullName =
-							outputFormat === 'original' ? `${sanitizedFileName}${hash}.${blob.type.split('/')[1]}` : `${sanitizedFileName}${hash}.${outputFormat}`;
-
-						// Create a buffer from the file's array buffer
-						const arrayBuffer = await blob.arrayBuffer();
-
-						// Resize and convert the image using sharp
-						const thumbnailBuffer = await sharp(Buffer.from(arrayBuffer))
-							.rotate()
-							.resize({ width: SIZES[size] })
-							.toFormat(outputFormat === 'webp' ? 'webp' : 'avif', {
-								quality: size === 'original' ? 100 : outputFormat === 'webp' ? 80 : 50,
-								progressive: true
-							})
-							.toBuffer();
-
-						// Write the thumbnail to the file system
-						fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fullName}`, thumbnailBuffer);
-
-						// Construct the URL for the thumbnail
-						const url = `/${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fullName}`;
-
-						// Add the thumbnail data to the files object
-						files[fieldname as keyof typeof files][size] = {
-							name: fullName,
-							url,
-							size: blob.size,
-							type: mimeType,
-							lastModified: blob.lastModified
-						};
-					})
-				);
-
-				// Optimize the original image if the output format is not 'original'
-				let optimizedOriginalBuffer: Buffer;
-				if (outputFormat !== 'original') {
-					optimizedOriginalBuffer = await sharp(buffer)
-						.rotate()
-						.toFormat(outputFormat === 'webp' ? 'webp' : 'avif', {
-							quality: outputFormat === 'webp' ? 80 : 50
-						})
-						.toBuffer();
-
-					// Write the optimized original image to the file system
-					fs.writeFileSync(
-						`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}${hash}.${outputFormat}`,
-						optimizedOriginalBuffer
-					);
-				} else {
-					optimizedOriginalBuffer = buffer;
-					// Write the original image to the file system
-					fs.writeFileSync(
-						`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}${hash}.${blob.type.split('/')[1]}`,
-						optimizedOriginalBuffer
-					);
-				}
-
-				// Add the optimized original file data to the files object
-				files[fieldname as keyof typeof files]['optimizedOriginal'] = {
-					name: `${sanitizedFileName}.${hash}.${outputFormat}`,
-					url: `/${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}${hash}.${outputFormat}`,
-					size: optimizedOriginalBuffer.byteLength,
-					type: mimeType,
-					lastModified: blob.lastModified
-				};
-			} catch (error) {
-				console.error(`Error processing file: ${error}`);
-				// Handle the error appropriately, you can choose to log it, throw it, or take other actions
+				result[key] = JSON.parse(value);
+			} catch {
+				result[key] = value;
 			}
-		})
-	);
-
-	return files;
-}
-
-// finds field title that matches the fieldname and returns that field
-function _findFieldByTitle(schema: any, fieldname: string, found = { val: false }): any {
-	for (const field of schema.fields) {
-		// console.log('field is ', field.db_fieldName, field.label);
-		if (field.db_fieldName == fieldname || field.label == fieldname) {
-			found.val = true;
-
-			return field;
-		} else if (field.fields && field.fields.length > 0) {
-			return _findFieldByTitle(field, fieldname, found);
+		} else {
+			result[key] = parse(value);
 		}
 	}
-	if (!found) {
-		throw new Error('FIELD NOT FOUND');
-	}
+	return result as T;
 }
 
-// takes an object and recursively parses any values that can be converted to JSON
-export function parse(obj: any) {
-	for (const key in obj) {
-		try {
-			if (Array.isArray(obj[key])) {
-				for (const index of obj[key]) {
-					obj[key][index] = JSON.parse(obj[key][index]);
-				}
-			} else {
-				obj[key] = JSON.parse(obj[key]);
-			}
-		} catch (e) {
-			console.error(e);
-		}
-
-		if (typeof obj[key] != 'string') {
-			parse(obj[key]);
-		}
+// Convert an object to form data
+export const toFormData = (obj: Record<string, string | number | boolean>): FormData => {
+	const formData = new FormData();
+	for (const [key, value] of Object.entries(obj)) {
+		formData.append(key, String(value));
 	}
-	return obj;
-}
+	return formData;
+};
 
 // Converts fields to schema object
-export const fieldsToSchema = (fields: Array<any>) => {
-	// removes widget, so it does not set up in db
-	let schema: any = {};
+interface SchemaField {
+	type: string;
+	widget?: unknown;
+	[key: string]: unknown;
+}
+
+export const fieldsToSchema = (fields: SchemaField[]): Record<string, unknown> => {
+	const schema: Record<string, unknown> = {};
+
 	for (const field of fields) {
-		schema = { ...schema, ...field.schema };
+		const { type, ...rest } = field;
+		schema[type] = rest;
 	}
-	delete schema.widget;
+
 	return schema;
 };
 
 // Finds documents in collection that match query
-export async function find(query: object, collectionName: string) {
-	if (!collectionName) return;
+export async function find(query: object, contentTypes: string) {
+	if (!contentTypes) {
+		logger.warn('find called without a collection name');
+		return;
+	}
 	const _query = JSON.stringify(query);
-	return (await axios.get(`/api/find?collection=${collectionName}&query=${_query}`)).data;
+	try {
+		logger.debug(`Calling /api/find for collection: /x1b[34m${contentTypes}\x1b[0m with query: /x1b[34m${_query}\x1b[0m`);
+		const response = await axios.get(`/api/find?collection=${contentTypes}&query=${_query}`);
+		logger.debug(`Received response from /api/find for collection: /x1b[34m${contentTypes}\x1b[0m`);
+		return response.data;
+	} catch (err) {
+		logger.error(`Error in find function for collection /x1b[34m${contentTypes}/x1b[0m:`, err as LoggableValue);
+		if (axios.isAxiosError(err)) {
+			logger.error('Axios error details:', {
+				response: err.response?.data,
+				status: err.response?.status,
+				headers: err.response?.headers
+			});
+		}
+		throw err; // Re-throw the error after logging
+	}
 }
 
 // Finds document in collection with specified ID
-export async function findById(id: string, collectionName: string) {
-	if (!id || !collectionName) return;
-	return (await axios.get(`/api/find?collection=${collectionName}&id=${id}`)).data;
+export async function findById(id: string, contentTypes: string) {
+	if (!id || !contentTypes) {
+		logger.warn(`findById called with invalid parameters. ID: /x1b[34m${id}\x1b[0m, Collection: /x1b[34m${contentTypes}\x1b[0m`);
+		return;
+	}
+	try {
+		logger.debug(`Calling /api/find for collection: /x1b[34m${contentTypes}\x1b[0m with ID: /x1b[34m${id}\x1b[0m`);
+		const response = await axios.get(`/api/find?collection=${contentTypes}&id=${id}`);
+		logger.debug(`Received response from /api/find for collection: ${contentTypes}\x1b[0m with ID: ${id}\x1b[0m`);
+		return response.data;
+	} catch (err) {
+		logger.error(`Error in findById function for collection /x1b[34m${contentTypes}\x1b[0m and ID /x1b[34m${id}\x1b[0m:`, err as LoggableValue);
+		if (axios.isAxiosError(err)) {
+			logger.error('Axios error details:', {
+				response: err.response?.data,
+				status: err.response?.status,
+				headers: err.response?.headers
+			});
+		}
+		throw err; // Re-throw the error after logging
+	}
 }
 
 // Returns field's database field name or label
-export function getFieldName(field: any, sanitize = false) {
-	if (sanitize) {
-		return (field?.db_fieldName || field?.label)?.replaceAll(' ', '_');
+export function getFieldName(field: Field, rawName = false): string {
+	if (!field) return '';
+
+	// Special field name mappings
+	const specialMappings: Record<string, string> = {
+		'First Name': 'first_name',
+		'Last Name': 'last_name'
+	};
+
+	const name = field.label || field.type;
+
+	// Return raw UI name if requested
+	if (rawName) return name;
+
+	// Check special mappings first
+	if (specialMappings[name]) {
+		return specialMappings[name];
 	}
-	return (field?.db_fieldName || field?.label) as string;
+
+	// Default sanitization:
+	// 1. Convert to lowercase
+	// 2. Replace spaces with underscores
+	// 3. Remove special characters
+	return name
+		.toLowerCase()
+		.replace(/\s+/g, '_')
+		.replace(/[^a-z0-9_]/g, '');
 }
 
-//Save Collections data to database
-export async function saveFormData({ data, _collection, _mode, id }: { data: any; _collection?: Schema; _mode?: 'edit' | 'create'; id?: string }) {
-	//console.log('saveFormData was called');
-	const $mode = _mode || get(mode);
-	const $collection = _collection || get(collection);
-	const $entryData = get(entryData);
-	const formData = data instanceof FormData ? data : await col2formData(data);
-	if (_mode === 'edit' && !id) {
-		throw new Error('ID is required for edit mode.');
-	}
-	if (!formData) return;
-
-	// Define status for each collection
-	formData.append('status', $collection.status || 'unpublished');
-
-	switch ($mode) {
-		// Create a new document
-		case 'create':
-			return await axios.post(`/api/${$collection.name}`, formData, config).then((res) => res.data);
-		// Edit an existing document
-		case 'edit':
-			formData.append('_id', id || $entryData._id);
-			formData.append('updatedAt', new Date().getTime().toString());
-
-			if ($collection.revision) {
-				// Create a new revision of the document
-				const newRevision = {
-					...$entryData,
-					_id: new mongoose.Types.ObjectId(), // Generate a new ObjectId for the new revision
-					__v: [
-						{
-							revisionNumber: $entryData.__v.length, // Start the revision number at the current length of the __v array
-							editedAt: new Date().getTime().toString(),
-							editedBy: { Username: UserSchema.username },
-							changes: {}
-						}
-					]
-				};
-
-				// Append the new revision to the existing revisions
-				const revisions = $entryData.__v || [];
-				revisions.push(newRevision);
-
-				// Update the __v array with the new revisions
-				$entryData.__v = revisions;
-
-				// Save the new revision to the database
-				await axios.post(`/api/${$collection.name}`, newRevision, config).then((res) => res.data);
-			}
-
-			return await axios.patch(`/api/${$collection.name}`, formData, config).then((res) => res.data);
-	}
-}
-
-// Function to delete image files associated with a content item
-export async function deleteImageFiles(collectionName: string, fileName: string) {
-	const env_sizes = publicEnv.IMAGE_SIZES;
-	const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
-
-	const collection = get(collections).find((collection) => collection.name === collectionName);
-
-	const path = _findFieldByTitle(collection, 'yourFieldName').path; // Replace 'yourFieldName' with the actual field name storing the image file
-
-	try {
-		// Delete the original image file
-		fs.unlinkSync(`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/original/${fileName}`);
-
-		// Delete resized image files
-		for (const size in SIZES) {
-			fs.unlinkSync(`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fileName}`);
-		}
-
-		// console.log(`Deleted image files associated with ${fileName}`);
-	} catch (error) {
-		console.error(`Error deleting image files: ${error}`);
-		// Handle the error as needed
-	}
-}
-
-// Move FormData to trash folder and delete trash files older than 30 days
-export async function deleteData(id: any, collectionName: any) {
-	// Fetch the entry data before deleting
-	const entryData = await findById(id, collectionName);
-
-	// Check if the collection has an 'images' field
-	if (entryData && entryData.images) {
-		// Move image files associated with the entry to trash folder
-		for (const fieldName in entryData.images) {
-			const fileName = entryData.images[fieldName]?.original?.name;
-			if (fileName) {
-				await moveImageFilesToTrash(collectionName, fileName);
-			}
+// Extract data from fields
+export async function extractData(fieldsData: Record<string, Field>): Promise<Record<string, unknown>> {
+	const result: Record<string, unknown> = {};
+	for (const [key, field] of Object.entries(fieldsData)) {
+		if (field.callback) {
+			result[key] = await field.callback({ data: field });
+		} else {
+			result[key] = field;
 		}
 	}
-
-	// Move the content item to trash folder
-	await fetch(`/api/trash/${collectionName}/${id}`, { method: 'PUT' });
-
-	// Delete trash files older than 30 days
-	await deleteOldTrashFiles();
+	return result;
 }
 
-// Move image files to trash folder
-async function moveImageFilesToTrash(collectionName: string, fileName: string) {
-	const env_sizes = publicEnv.IMAGE_SIZES;
-	const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
+function deepCopy<T>(obj: T): T {
+	if (obj === null || typeof obj !== 'object') {
+		return obj;
+	}
 
-	const collection = get(collections).find((collection) => collection.name === collectionName);
+	if (Array.isArray(obj)) {
+		return obj.map((item) => deepCopy(item)) as unknown as T;
+	}
 
-	const path = _findFieldByTitle(collection, 'yourFieldName').path; // Replace 'yourFieldName' with the actual field name storing the image file
-
-	try {
-		// Move the original image file to trash folder
-		fs.renameSync(
-			`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/original/${fileName}`,
-			`${publicEnv.MEDIA_FOLDER}/trash/${path}/${collectionName}/original/${fileName}`
-		);
-
-		// Move resized image files to trash folder
-		for (const size in SIZES) {
-			fs.renameSync(
-				`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fileName}`,
-				`${publicEnv.MEDIA_FOLDER}/trash/${path}/${collectionName}/${size}/${fileName}`
-			);
+	const copy = {} as T;
+	for (const key in obj) {
+		if (Object.prototype.hasOwnProperty.call(obj, key)) {
+			copy[key] = deepCopy(obj[key]);
 		}
-
-		console.log(`Moved image files associated with ${fileName} to trash folder`);
-	} catch (error) {
-		console.error(`Error moving image files to trash folder: ${error}`);
-		// Handle the error as needed
 	}
+	return copy;
 }
 
-// Delete trash files older than 30 days
-async function deleteOldTrashFiles() {
-	// Get the current date
-	const current_date = new Date();
-
-	// Calculate the timestamp for 30 days ago
-	const thirty_days_ago = new Date(current_date.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-	// Find all trash files that were created before the 30-day mark
-	const old_trash_files = fs.readdirSync('/path/to/trash').filter((file) => {
-		const stats = fs.statSync(`/path/to/trash/${file}`);
-		return stats.ctime < thirty_days_ago;
-	});
-
-	// Delete the old trash files
-	old_trash_files.forEach((file) => {
-		fs.unlinkSync(`/path/to/trash/${file}`);
-	});
-}
-
-export async function extractData(fieldsData: any) {
-	// extracts data from fieldsData because FieldsData is async
-	const temp = {};
-	for (const key in fieldsData) {
-		temp[key] = await fieldsData[key]();
-	}
-	return temp;
-}
-
-// Validates a user session.
-export async function validate(auth: Auth, sessionID: string | null) {
-	// If the session ID is null, return a 404 status with an empty user object.
-	if (!sessionID) {
-		return { user: {} as User, status: 404 };
-	}
-	const resp = await auth.validateSession(sessionID).catch(() => null);
-
-	if (!resp) return { user: {} as User, status: 404 };
-
-	return { user: resp.user as unknown as User, status: 200 };
+// Remove file extension
+export function removeExtension(fileName: string): string {
+	return fileName.replace(/\.[^/.]+$/, '');
 }
 
 /**
@@ -509,16 +301,24 @@ export async function validate(auth: Auth, sessionID: string | null) {
  * @param sizeInBytes - The size of the file in bytes.
  * @returns The formatted file size as a string.
  */
-export function formatSize(sizeInBytes: any) {
-	if (sizeInBytes < 1024) {
-		return `${sizeInBytes} bytes`;
-	} else if (sizeInBytes < 1024 * 1024) {
-		return `${(sizeInBytes / 1024).toFixed(2)} KB`;
-	} else if (sizeInBytes < 1024 * 1024 * 1024) {
-		return `${(sizeInBytes / (1024 * 1024)).toFixed(2)} MB`;
-	} else {
-		return `${(sizeInBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+export function formatBytes(bytes: number): string {
+	if (bytes === 0 || isNaN(bytes)) {
+		return '0 bytes';
 	}
+
+	if (bytes < 0) {
+		throw Error('Input size cannot be negative');
+	}
+
+	const units = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB'];
+	let power = 0;
+
+	while (bytes >= 1024 && power < units.length - 1) {
+		bytes /= 1024;
+		power++;
+	}
+
+	return `${bytes.toFixed(2)} ${units[power]}`;
 }
 
 // Function to convert Unix timestamp to readable date string
@@ -536,8 +336,7 @@ export function convertTimestampToDateString(timestamp: number) {
 		hour12: false
 	};
 	const locale = get(contentLanguage);
-
-	const date = new Date(timestamp);
+	const date = new Date(timestamp * 1000);
 	return date.toLocaleDateString(locale, options);
 }
 
@@ -564,50 +363,166 @@ export function formatUptime(uptime: number) {
 	return result.join(' ');
 }
 
-function removeExtension(fileName: any) {
-	const lastDotIndex = fileName.lastIndexOf('.');
-	if (lastDotIndex === -1) {
-		// If the file has no extension, return the original fileName
-		return fileName;
-	}
-	return fileName.slice(0, lastDotIndex);
+// Export function for ReadableExpireIn
+export function ReadableExpireIn(expiresIn: string) {
+	const expiresInNumber = parseInt(expiresIn, 10);
+	const expirationTime = expiresInNumber ? new Date(Date.now() + expiresInNumber * 1000) : new Date();
+
+	const daysDiff = Math.floor((expirationTime.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+	const hoursDiff = Math.floor((expirationTime.getTime() - Date.now()) / (1000 * 60 * 60)) % 24;
+	const minutesDiff = Math.floor((expirationTime.getTime() - Date.now()) / (1000 * 60)) % 60;
+
+	const daysText = daysDiff > 0 ? `${daysDiff} day${daysDiff > 1 ? 's' : ''}` : '';
+	const hoursText = hoursDiff > 0 ? `${hoursDiff} hour${hoursDiff > 1 ? 's' : ''}` : '';
+	const minutesText = minutesDiff > 0 ? `${minutesDiff} minute${minutesDiff > 1 ? 's' : ''}` : '';
+
+	return `${daysText} ${hoursText} ${minutesText}`.trim();
 }
 
-export const asAny = (value: any) => value;
+export function updateTranslationProgress(data, field) {
+	const languages = publicEnv.AVAILABLE_CONTENT_LANGUAGES;
+	const fieldName = getFieldName(field); // Get the unique field name
 
-// This function takes an object as a parameter and returns a deep copy of it
-function deepCopy(obj: any) {
-	// If the object is not an object or is null, return it as it is
-	if (typeof obj !== 'object' || obj === null) {
-		return obj;
+	if (!fieldName || !field?.translated) {
+		return; // Exit if field name is invalid or field is not translatable
 	}
 
-	// If the object is a Date instance, return a new Date with the same time value
-	if (obj instanceof Date) {
-		return new Date(obj.getTime());
-	}
+	translationProgress.update((current) => {
+		// Ensure 'show' property exists or initialize it
+		if (typeof current.show === 'undefined') {
+			current.show = false; // Or true, depending on desired initial state
+		}
 
-	// If the object is an Array instance, return a new array with deep copies of each element
-	if (obj instanceof Array) {
-		return obj.reduce((arr, item, i) => {
-			// Recursively call deepCopy on each element and assign it to the new array
-			arr[i] = deepCopy(item);
-			return arr;
-		}, []);
-	}
+		for (const lang of languages) {
+			// Language entry is guaranteed to exist due to store initialization
+			// Determine if the field is considered "translated" for this language
+			const value = data?.[lang];
+			const isTranslated = value !== null && value !== undefined && value !== ''; // Basic check for non-empty
 
-	// If the object is a plain object, return a new object with deep copies of each property
-	if (obj instanceof Object) {
-		return Object.keys(obj).reduce((newObj, key) => {
-			// Recursively call deepCopy on each property value and assign it to the new object
-			newObj[key] = deepCopy(obj[key]);
-			return newObj;
-		}, {});
+			// Add or remove from the translated set based on the value
+			if (isTranslated) {
+				current[lang].translated.add(fieldName);
+			} else {
+				current[lang].translated.delete(fieldName);
+			}
+
+			// Ensure the 'total' set is managed elsewhere (e.g., in Fields.svelte)
+			// We no longer add to 'total' here.
+		}
+		// Make sure the progress is shown if there are translatable fields
+		current.show = Object.values(current).some(
+			(langData) => typeof langData === 'object' && langData.total instanceof Set && langData.total.size > 0
+		);
+		return current;
+	});
+}
+
+// Get elements by ID
+interface ElementStore {
+	[key: string]: {
+		id: string;
+		callback: (data: unknown) => void;
+	}[];
+}
+
+export const get_elements_by_id = {
+	store: {} as ElementStore,
+	add(collection: string, id: string, callback: (data: unknown) => void) {
+		if (!this.store[collection]) {
+			this.store[collection] = [];
+		}
+		this.store[collection].push({ id, callback });
+	},
+	async getAll(dbAdapter: { get: (id: string) => Promise<unknown> }) {
+		for (const collection in this.store) {
+			for (const item of this.store[collection]) {
+				const data = await dbAdapter.get(item.id);
+				item.callback(data);
+			}
+		}
 	}
+};
+
+// Meta data types
+interface MetaData {
+	media_images_remove?: string[];
+	[key: string]: unknown;
+}
+
+export const meta_data = {
+	meta_data: {} as MetaData,
+	add(key: keyof MetaData, data: unknown) {
+		this.meta_data[key] = data;
+	},
+	get(): MetaData {
+		return this.meta_data;
+	},
+	clear() {
+		this.meta_data = {};
+	},
+	is_empty(): boolean {
+		return Object.keys(this.meta_data).length === 0;
+	}
+};
+
+// Convert data to string
+interface StringHelperParams {
+	field?: Field;
+	data: unknown[];
+	path?: (lang: string) => string;
+}
+
+export function toStringHelper({ data }: StringHelperParams): string {
+	if (!Array.isArray(data)) return '';
+	return data.map((item) => item.toString()).join(', ');
+}
+
+// Get random hex string
+export function getRandomHex(size: number): string {
+	const bytes = new Uint8Array(size);
+	for (let i = 0; i < size; i++) {
+		bytes[i] = Math.floor(Math.random() * 256);
+	}
+	return Array.from(bytes)
+		.map((byte) => byte.toString(16).padStart(2, '0'))
+		.join('');
+}
+
+// Escape regex metacharacters
+export function escapeRegex(string: string): string {
+	return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Get current date in YYYY-MM-DD format
+export function getCurrentDate(): string {
+	const d = new Date();
+	return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// Convert hex to array buffer
+export function hex2arrayBuffer(hex: string): ArrayBuffer {
+	const bytes = new Uint8Array(hex.length / 2);
+	for (let i = 0; i < hex.length; i += 2) {
+		bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
+	}
+	return bytes.buffer;
+}
+
+// Convert array buffer to hex
+export function arrayBuffer2hex(buffer: ArrayBuffer): string {
+	return Array.from(new Uint8Array(buffer))
+		.map((byte) => byte.toString(16).padStart(2, '0'))
+		.join('');
+}
+
+// SHA-256 hash function
+export async function sha256(buffer: ArrayBuffer): Promise<string> {
+	const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+	return arrayBuffer2hex(hashBuffer);
 }
 
 export function debounce(delay?: number) {
-	let timer: any;
+	let timer: NodeJS.Timeout | undefined;
 	let first = true;
 	return (fn: () => void) => {
 		if (first) {
@@ -622,87 +537,81 @@ export function debounce(delay?: number) {
 	};
 }
 
-export function validateZod<T>(schema: z.Schema<T>, value?: T): null | { [P in keyof T]?: string[] | undefined } {
-	const res = schema.safeParse(value);
-	if (res.success || !value) {
+// Validates data against a Valibot schema, returning errors or null if valid
+export function validateValibot<T>(schema: BaseSchema<T, T, BaseIssue<unknown>>, value?: T): null | { [P in keyof T]?: string[] } {
+	try {
+		// Use v.safeParse to handle parsing
+		const result = v.safeParse(schema, value);
+
+		if (result.success) {
+			return null; // No errors
+		}
+
+		const fieldErrors = {} as { [P in keyof T]?: string[] };
+
+		// Iterate over issues and populate field errors
+		for (const issue of result.issues) {
+			const path = issue.path?.[0]?.key as keyof T;
+			if (path) {
+				fieldErrors[path] = fieldErrors[path] || [];
+				fieldErrors[path]!.push(issue.message);
+			}
+		}
+
+		return fieldErrors;
+	} catch (error) {
+		logger.error('Validation error:', error as LoggableValue);
 		return null;
-	} else {
-		return res.error.flatten().fieldErrors as any;
 	}
-}
-
-// This function generates a unique ID.
-export function generateUniqueId() {
-	// Get the current timestamp and convert it to a base-36 string.
-	const timestamp = new Date().getTime().toString(36);
-
-	// Generate a random number, convert it to a base-36 string, and take the first 9 characters.
-	const random = Math.random().toString(36).substr(2, 9);
-
-	// Concatenate the timestamp and random strings to form the unique ID.
-	return timestamp + random;
 }
 
 export function getTextDirection(lang: string): string {
-	const rtlLanguages = ['ar', 'he', 'fa', 'ur', 'dv', 'ha', 'khw', 'ks', 'ku', 'ps', 'syr', 'ug', 'yi']; // Add more RTL languages if needed
+	const rtlLanguages = ['ar', 'he', 'fa', 'ur', 'dv', 'ha', 'khw', 'ks', 'ku', 'ps', 'syr', 'ug', 'yi'];
 	return rtlLanguages.includes(lang) ? 'rtl' : 'ltr';
 }
 
-// Motion function
-export function motion(start: number, end: number, duration: number, cb: (current: number) => void, useAnimation = true) {
-	const frequency = 16;
-	const d = (start - end) / (duration / frequency);
-
-	if (d === 0) {
-		cb(end);
-		return;
-	}
-
-	let current = start;
-
+export async function motion(start: number[], end: number[], duration: number, cb: (current: number[]) => void) {
+	const current = [...start];
+	let elapsed = 0;
+	let time = Date.now();
+	let has_passed = false;
+	setTimeout(() => {
+		has_passed = true;
+	}, duration);
 	return new Promise<void>((resolve) => {
-		function animation(current: number) {
-			current -= d;
+		function animation(current: number[]) {
+			elapsed = Date.now() - time;
+			const ds = start.map((s, i) => (s - end[i]) / (duration / elapsed));
 
-			if ((d < 0 && current >= end) || (d > 0 && current <= end)) {
+			time = Date.now();
+			for (const index in ds) {
+				current[index] -= ds[index];
+			}
+
+			if (has_passed) {
 				cb(end);
 				resolve();
+				return;
 			} else {
 				cb(current);
 				requestAnimationFrame(() => animation(current));
 			}
 		}
 
-		if (useAnimation) {
-			requestAnimationFrame(() => animation(current));
-		} else {
-			const interval = setInterval(async () => {
-				current -= d;
-
-				if ((d < 0 && current >= end) || (d > 0 && current <= end)) {
-					cb(end);
-					clearInterval(interval);
-					resolve();
-				} else {
-					cb(current);
-				}
-			}, frequency);
-		}
+		requestAnimationFrame(() => animation(current));
 	});
 }
 
-// Function to calculate Levenshtein distance with fine-tuned parameters
 export function getEditDistance(a: string, b: string): number | undefined {
 	if (a.length === 0) return b.length;
 	if (b.length === 0) return a.length;
 
-	const insertionCost = 1; // Adjust the cost of insertion
-	const deletionCost = 1; // Adjust the cost of deletion
-	const substitutionCost = 1; // Adjust the cost of substitution
+	const insertionCost = 1;
+	const deletionCost = 1;
+	const substitutionCost = 1;
 
 	const matrix: number[][] = [];
 
-	// Initialize first row and column
 	for (let i = 0; i <= b.length; i++) {
 		matrix[i] = [i];
 	}
@@ -710,38 +619,115 @@ export function getEditDistance(a: string, b: string): number | undefined {
 		matrix[0][j] = j;
 	}
 
-	// Fill in the rest of the matrix
 	for (let i = 1; i <= b.length; i++) {
 		for (let j = 1; j <= a.length; j++) {
 			if (b.charAt(i - 1) === a.charAt(j - 1)) {
 				matrix[i][j] = matrix[i - 1][j - 1];
 			} else {
-				matrix[i][j] = Math.min(
-					matrix[i - 1][j - 1] + substitutionCost, // substitution
-					Math.min(
-						matrix[i][j - 1] + insertionCost, // insertion
-						matrix[i - 1][j] + deletionCost
-					) // deletion
-				);
+				matrix[i][j] = Math.min(matrix[i - 1][j - 1] + substitutionCost, Math.min(matrix[i][j - 1] + insertionCost, matrix[i - 1][j] + deletionCost));
 			}
 		}
 	}
 
-	// Normalize the distance to make it more intuitive (optional)
 	const maxDistance = Math.max(a.length, b.length);
 	const normalizedDistance = matrix[b.length][a.length] / maxDistance;
 
 	return normalizedDistance;
 }
 
-export function updateTranslationProgress(data, field) {
-	const languages = publicEnv.AVAILABLE_CONTENT_LANGUAGES;
-	const $translationProgress = get(translationProgress);
-	for (const lang of languages) {
-		!$translationProgress[lang] && ($translationProgress[lang] = { total: new Set(), translated: new Set() });
-		if (field?.translated) $translationProgress[lang].total.add(field);
-		if (data[lang]) $translationProgress[lang].translated.add(field);
-		else $translationProgress[lang].translated.delete(field);
+// PascalCase to camelCase conversion
+export const pascalToCamelCase = (str: string): string => {
+	if (!str) return str;
+	return str.charAt(0).toLowerCase() + str.slice(1);
+};
+
+// Collection name conflict checking types
+interface CollectionNameCheck {
+	exists: boolean;
+	suggestions?: string[];
+	conflictPath?: string;
+}
+
+export async function checkCollectionNameConflict(name: string, collectionsPath: string): Promise<CollectionNameCheck> {
+	try {
+		// Handle relative paths by joining with process.cwd()
+		const absolutePath = path.isAbsolute(collectionsPath) ? collectionsPath : path.join(process.cwd(), collectionsPath);
+
+		const files = await getAllCollectionFiles(absolutePath);
+		const existingNames = new Set<string>();
+		let conflictPath: string | undefined;
+
+		// Build set of existing names and check for conflict
+		for (const file of files) {
+			const fileName = path.basename(file, '.ts');
+			if (fileName === name) {
+				// Convert absolute path to relative for display
+				conflictPath = path.relative(process.cwd(), file);
+			}
+			existingNames.add(fileName);
+		}
+
+		if (conflictPath) {
+			// Generate suggestions if there's a conflict
+			const suggestions = generateNameSuggestions(name, existingNames);
+			return { exists: true, suggestions, conflictPath };
+		}
+
+		return { exists: false };
+	} catch (error) {
+		console.error('Error checking collection name:', error);
+		return { exists: false };
 	}
-	translationProgress.set($translationProgress);
+}
+
+async function getAllCollectionFiles(dir: string): Promise<string[]> {
+	const files: string[] = [];
+	const entries = await fs.readdir(dir, { withFileTypes: true });
+
+	for (const entry of entries) {
+		const fullPath = path.join(dir, entry.name);
+		if (entry.isDirectory()) {
+			files.push(...(await getAllCollectionFiles(fullPath)));
+		} else if (
+			entry.isFile() &&
+			entry.name.endsWith('.ts') &&
+			!entry.name.startsWith('_') &&
+			!['index.ts', 'types.ts', 'ContentManager.ts'].includes(entry.name)
+		) {
+			files.push(fullPath);
+		}
+	}
+
+	return files;
+}
+
+function generateNameSuggestions(name: string, existingNames: Set<string>): string[] {
+	const suggestions: string[] = [];
+
+	// Try adding numbers
+	let counter = 1;
+	while (suggestions.length < 3 && counter <= 99) {
+		const suggestion = `${name}${counter}`;
+		if (!existingNames.has(suggestion)) {
+			suggestions.push(suggestion);
+		}
+		counter++;
+	}
+
+	// Try adding prefixes/suffixes if we need more suggestions
+	const commonPrefixes = ['New', 'Alt', 'Copy'];
+	for (const prefix of commonPrefixes) {
+		if (suggestions.length >= 5) break;
+		const suggestion = `${prefix}${name}`;
+		if (!existingNames.has(suggestion)) {
+			suggestions.push(suggestion);
+		}
+	}
+
+	return suggestions;
+}
+
+// Type assertion helper - used for widget type assertions
+export function asAny<T>(value: unknown): T {
+	return value as T;
 }

@@ -1,4 +1,4 @@
-name: Playwright Tests
+name: Playwright and Bun Tests
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    name: SveltyCMS Test
+    name: SveltyCMS Playwright Tests
     timeout-minutes: 60
     runs-on: ubuntu-latest
 
@@ -18,7 +18,7 @@ jobs:
         node-version: [latest]
         pnpm-version: [latest]
         mongodb-version: [latest]
-        test-file: ['/tests/signupfirstuser.spec.ts', '/tests/user.spec.ts']
+        test-file: ['/tests/playwright/signupfirstuser.spec.ts', '/tests/playwright/user.spec.ts']
 
     steps:
       - name: Git checkout
@@ -35,7 +35,6 @@ jobs:
           key: ${{ runner.OS }}-pnpm-playwright-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.OS }}-pnpm-playwright-
-        # Continue workflow even if cache is not found
         continue-on-error: true
 
       - name: Install Node.js ${{ matrix.node-version }} and pnpm ${{ matrix.pnpm-version }}
@@ -71,45 +70,116 @@ jobs:
 
       - name: Run Playwright tests
         run: |
+          mkdir -p test-results/playwright
           for file in ${{ matrix.test-file }}; do
-            npx playwright test $file --workers 10 &
+            npx playwright test $file --workers 10 --output=test-results/playwright &
           done
           wait
-        # run: bunx playwright test
         env:
-          privateEnv.DB_HOST: mongodb://localhost:27017/?authSource=admin
+          privateEnv.DB_TYPE: 'mongodb'
+          privateEnv.DB_HOST: mongodb://localhost
+          privateEnv.DB_PORT: 27017
           privateEnv.DB_NAME: SveltyCMS
           privateEnv.DB_USER: admin
           privateEnv.DB_PASSWORD: admin
-          publicEnv.SITE_NAME: SveltyCMS
-          publicEnv.HOST_DEV: http://localhost:5173
-          publicEnv.HOST_PROD: http://localhost:4173
-          publicEnv.AVAILABLE_SYSTEM_LANGUAGES: ''
-          publicEnv.DEFAULT_CONTENT_LANGUAGES: '{ "en": "English", "de": "German" }'
-          publicEnv.SEASONS: true
-          publicEnv.PKG: '{ VERSION: pkg.version }'
-          publicEnv.MEDIA_FOLDER: media
-          publicEnv._MEDIASERVER_URL: ''
-          publicEnv.MEDIA_OUTPUT_FORMAT: 'avif'
-          publicEnv.IMAGE_SIZES: '{ "sm": 600, "md": 900, "lg": 1200 }'
-          privateEnv.USE_GOOGLE_OAUTH: 'false'
-          privateEnv.GOOGLE_API_KEY: ''
-          privateEnv.GOOGLE_CLIENT_ID: ''
-          privateEnv.GOOGLE_CLIENT_SECERT: ''
-          privateEnv.TWITCH_TOKEN: ''
-          privateEnv.TIKTOK_TOKEN: ''
+          privateEnv.DB_RETRY_DELAY: 'false'
+          privateEnv.DB_RETRY_ATTEMPTS: 3
+          privateEnv.DB_POOL_SIZE: 5
+
           privateEnv.SMTP_HOST: ''
           privateEnv.SMTP_PORT: ''
-          privateEnv.SMTP_PASSWORD: ''
           privateEnv.SMTP_EMAIL: 'test@example.com'
-          privateEnv.PUBLIC_MAPBOX_API_TOKEN: ''
+          privateEnv.SMTP_PASSWORD: ''
+
+          privateEnv.USE_GOOGLE_OAUTH: 'false'
+          privateEnv.GOOGLE_CLIENT_ID: ''
+          privateEnv.GOOGLE_CLIENT_SECERT: ''
+
+          privateEnv.USE_REDIS: 'false'
+          privateEnv.REDIS_HOST: ''
+          privateEnv.REDIS_PORT: ''
+          privateEnv.REDIS_PASSWORD: ''
+
+          privateEnv.SESSION_CLEANUP_INTERVAL: 60000
+          privateEnv.MAX_IN_MEMORY_SESSIONS: 100
+          privateEnv.DB_VALIDATION_PROBABILITY: 0.1
+          privateEnv.SESSION_EXPIRATION_SECONDS: 3600
+
+          privateEnv.USE_MAPBOX: 'false'
+          privateEnv.MAPBOX_API_TOKEN: ''
           privateEnv.SECRET_MAPBOX_API_TOKEN: ''
+
+          privateEnv.GOOGLE_API_KEY: ''
+
+          privateEnv.TWITCH_TOKEN: ''
+
+          privateEnv.USE_TIKTOK: 'false'
+          privateEnv.TIKTOK_TOKEN: ''
+
+          privateEnv.USE_OPEN_AI: 'false'
           privateEnv.VITE_OPEN_AI_KEY: ''
-          # Add more environment variables as needed...
+
+          privateEnv.ROLES: ''
+          privateEnv.PERMISSIONS: ''
+
+          privateEnv.JWT_SECRET_KEY: 'testsecret'
+
+          publicEnv.HOST_DEV: http://localhost:5173
+          publicEnv.HOST_PROD: http://localhost:4173
+
+          publicEnv.SITE_NAME: SveltyCMS
+
+          publicEnv.PASSWORD_LENGTH: '8'
+
+          publicEnv.DEFAULT_CONTENT_LANGUAGE: 'en'
+          publicEnv.AVAILABLE_CONTENT_LANGUAGES: '["en", "de", "es"]'
+          publicEnv.AVAILABLE_SYSTEM_LANGUAGES: '["en", "de"]'
+
+          publicEnv.IMAGE_SIZES: '{ "sm": 600, "md": 900, "lg": 1200 }'
+          publicEnv.MEDIASERVER_URL: ''
+          publicEnv.MEDIA_FOLDER: mediaFiles
+
+          publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY: '{ "format": "avif", "quality": 80 }'
+          publicEnv.MAX_FILE_SIZE: '10485760'
+          publicEnv.BODY_SIZE_LIMIT: '104857600'
+
+          publicEnv.SEASONS: false
+          publicEnv.SEASON_REGION: 'Europe'
+          publicEnv.PKG: '{ VERSION: pkg.version }'
+
+          publicEnv.LOG_LEVELS: '["info", "error", "warn"]'
 
       - uses: actions/upload-artifact@v3
         if: always()
         with:
-          name: playwright-report
-          path: playwright-report/
+          name: playwright-test-results
+          path: test-results/playwright/
+          retention-days: 30
+
+  bun-tests:
+    name: SveltyCMS Bun Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v4
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run Bun tests
+        run: |
+          mkdir -p test-results/bun
+          bun test tests/bun --output-file test-results/bun/test-results.txt
+
+      - uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: bun-test-results
+          path: test-results/bun/
           retention-days: 30

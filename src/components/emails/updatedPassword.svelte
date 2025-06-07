@@ -1,65 +1,93 @@
+<!-- 
+@file src/components/emails/updatedPassword.svelte
+@component
+**updatedPassword Email component to confirm password change**
+-->
+
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
 
-	import { page } from '$app/stores';
-	import type { User } from 'lucia';
+	// Components
+	import SiteName from '@components/SiteName.svelte';
 
-	const username: User = $page.data.user.username;
-
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { languageTag } from '@src/paraglide/runtime';
+	import { systemLanguage } from '@stores/store.svelte';
 
-	export let tokenLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD;
+	// svelte-email-tailwind
+	import { Html, Head, Preview, Body, Container, Section, Text, Link, Img, Hr, Custom, Heading } from 'svelte-email-tailwind';
 
-	// svelty-email
-	import { Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';
+	interface Props {
+		username?: string;
+		tokenLink?: string;
+		languageTag?: string;
+	}
 
-	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
-
-	const main = {
-		backgroundColor: '#ffffff'
-	};
-
-	const container = {
-		margin: '0 auto',
-		padding: '20px 0 48px'
-	};
-
-	const paragraph = {
-		fontFamily,
-		fontSize: '16px',
-		lineHeight: '26px'
-	};
-
-	const hr = {
-		borderColor: '#cccccc',
-		margin: '20px 0'
-	};
-
-	const footer = {
-		fontFamily,
-		color: '#8898aa',
-		fontSize: '12px'
-	};
+	let { username = '', tokenLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD, languageTag = systemLanguage.value }: Props = $props();
 </script>
 
-<Html lang={languageTag()}>
+<Html lang={languageTag}>
 	<Head>
 		<title>Your password for {publicEnv.SITE_NAME} was changed</title>
-		<meta name="description" content="Your password for {publicEnv.SITE_NAME} was changed" />
 	</Head>
+
 	<Preview preview="Your password for {publicEnv.SITE_NAME} was changed" />
-	<Section style={main}>
-		<Container style={container}>
-			<Link href={tokenLink}>
-				<Img src="https://github.com/Rar9/SveltyCMS/raw/main/static/SveltyCMS.png" alt="{publicEnv.SITE_NAME} logo" width="150" height="auto" />
-			</Link>
-			<Text style={paragraph}>{m.updatedpassword_hello({ username })}</Text>
-			<Text style={paragraph}>You have successfully changed your Password for {publicEnv.SITE_NAME}</Text>
-			<Text style={paragraph}>{m.updatedpassword_contact()}</Text>
-			<Hr style={hr} />
-			<Text style={footer}>Your {publicEnv.SITE_NAME} Team</Text>
+
+	<Body>
+		<Container style={{ fontSize: '16px' }}>
+			<!-- Header Section -->
+			<Section>
+				<Link href={dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}>
+					<Img
+						src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png"
+						alt={`${publicEnv.SITE_NAME} logo`}
+						width="150"
+						height="auto"
+						style={{ marginLeft: 'auto', marginRight: 'auto', display: 'block' }}
+					/>
+				</Link>
+			</Section>
+
+			<!-- Main Content -->
+			<Section>
+				<!-- Success Message -->
+				<Section>
+					<Heading><center>Password Successfully Changed</center></Heading>
+					<Text><center>Your account security has been updated.</center></Text>
+				</Section>
+
+				<Text style={{ fontSize: '16px' }}>
+					{m.updatedpassword_hello({ username })}
+				</Text>
+
+				<Text style={{ fontSize: '16px' }}>
+					You have successfully changed your password for <strong>{publicEnv.SITE_NAME}</strong>.
+				</Text>
+
+				<!-- Security Notice -->
+				<Section>
+					<Text style={{ fontSize: '16px' }}>
+						<strong>Security Notice:</strong><br />If you did not make this change, please contact our support team immediately and secure your
+						account.
+					</Text>
+				</Section>
+
+				<Text style={{ fontSize: '16px' }}>
+					{m.updatedpassword_contact()}
+				</Text>
+
+				<Hr></Hr>
+
+				<!-- Footer -->
+				<Section>
+					<Text style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '16px' }}>
+						<Link href="https://SveltyCMS.com">
+							Your <SiteName /> team
+						</Link>
+					</Text>
+				</Section>
+			</Section>
 		</Container>
-	</Section>
+	</Body>
 </Html>

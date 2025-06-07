@@ -1,16 +1,45 @@
+<!--
+@file src/routes/login/components/icons/SigninIcon.svelte
+@component
+**SigninIcon component**
+-->
+
 <script lang="ts">
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	export let show = true;
+	let {
+		show = $bindable(true),
+		disabled = false,
+		onClick = (_event: Event) => {}
+	} = $props<{
+		show?: boolean;
+		disabled?: boolean;
+		onClick?: (event: Event) => void;
+	}>();
+
+	function handleClick(event: MouseEvent) {
+		if (disabled) return;
+		event.stopPropagation();
+		onClick(event); // Ensure onClick uses the event meaningfully
+	}
+
+	function handleKeyDown(event: KeyboardEvent) {
+		if (disabled) return;
+		if (event.key === 'Enter') {
+			event.stopPropagation();
+			onClick(event); // Ensure onClick uses the event meaningfully
+		}
+	}
 </script>
 
 <div
+	class="icon dark:text-dark absolute left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] transition-all duration-300"
 	class:hide={!show}
-	class:pointer-events-none={!show}
-	class="icon dark:text-dark absolute left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] cursor-pointer"
+	class:pointer-events-none={!show || disabled}
+	class:opacity-50={disabled}
 >
-	<div class="flex flex-col items-center">
+	<div onclick={handleClick} onkeydown={handleKeyDown} role="button" tabindex={disabled ? -1 : 0} class="flex cursor-pointer flex-col items-center">
 		<div class="relative w-max rounded-full border-4 border-[#2b2f31] p-3">
 			<svg
 				class="aspect-square h-12 fill-[#2b2f31]"
@@ -23,13 +52,13 @@
 				/>
 			</svg>
 		</div>
-		<p class="text-center font-semibold uppercase !text-black">{m.signin_iconsignin()}</p>
+		<p class="text-center font-semibold uppercase !text-black">{m.form_signin()}</p>
 	</div>
 </div>
 
 <style lang="postcss">
 	.hide {
-		animation: _hide 0.5s forwards;
+		animation: _hide 0.3s forwards;
 	}
 	@keyframes _hide {
 		from {

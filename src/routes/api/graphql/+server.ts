@@ -1,158 +1,187 @@
-import { privateEnv } from '@root/config/private';
+/**
+ * @file src/routes/api/graphql/+server.ts
+ * @description GraphQL API setup and request handler for the CMS.
+ *
+ * This module sets up the GraphQL schema and resolvers, including:
+ * - Collection-specific schemas and resolvers
+ * - User-related schemas and resolvers
+ * - Media-related schemas and resolvers
+ * - Access management permission definition and checking
+ */
 
-// Graphql Yoga
+import { privateEnv } from '@root/config/private';
+import type { RequestHandler } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
+
+// GraphQL Yoga
 import { createSchema, createYoga } from 'graphql-yoga';
-import type { RequestEvent } from '@sveltejs/kit';
-import mongoose from 'mongoose';
-import { getCollections } from '@collections';
-import widgets from '@components/widgets';
-import { getFieldName } from '@utils/utils';
-import deepmerge from 'deepmerge';
+import { registerCollections, collectionsResolvers } from './resolvers/collections';
+import { userTypeDefs, userResolvers } from './resolvers/users';
+import { mediaTypeDefs, mediaResolvers } from './resolvers/media';
+import { dbAdapter } from '@src/databases/db';
 
 // Redis
 import { createClient } from 'redis';
 
-let redisClient: any = null;
+// Permission Management
+import { hasPermission, registerPermission } from '@src/auth/permissions';
+import { PermissionAction, PermissionType } from '@src/auth/types';
+
+// System Logger
+import { logger } from '@utils/logger.svelte';
+
+// Define the access management permission configuration
+const accessManagementPermission = {
+	contextId: 'config/accessManagement',
+	name: 'Access Management',
+	action: PermissionAction.MANAGE,
+	contextType: PermissionType.CONFIGURATION,
+	description: 'Allows management of user access and permissions'
+};
+
+// Register the permission
+registerPermission(accessManagementPermission);
+
+// Initialize Redis client if needed
+let redisClient: ReturnType<typeof createClient> | null = null;
+
+// Create a cache client adapter that matches our CacheClient interface
+const cacheClient =
+	privateEnv.USE_REDIS === true
+		? {
+				get: async (key: string) => redisClient?.get(key) || null,
+				set: async (key: string, value: string, ex: string, duration: number) => redisClient?.set(key, value, { EX: duration })
+			}
+		: null;
 
 if (privateEnv.USE_REDIS === true) {
+	logger.info('Initializing Redis client');
 	// Create Redis client
 	redisClient = createClient({
 		url: `redis://${privateEnv.REDIS_HOST}:${privateEnv.REDIS_PORT}`,
 		password: privateEnv.REDIS_PASSWORD
 	});
 
+	// Connect to Redis
 	redisClient.on('error', (err: Error) => {
-		console.log('Redis error: ', err);
+		logger.error('Redis error: ', err);
 	});
+
+	redisClient.connect().catch((err) => logger.error('Redis connection error: ', err));
 }
 
-let typeDefs = /* GraphQL */ ``;
-const types = new Set();
-
-// Initialize an empty resolvers object
-let resolvers: { [key: string]: any } = {
-	Query: {}
-};
-
-const collectionSchemas: string[] = [];
-const collections = await getCollections();
-
-// Loop over each collection to define typeDefs and resolvers
-for (const collection of collections) {
-	resolvers[collection.name as string] = {};
-	// Default same for all Content
-	let collectionSchema = `
-	type ${collection.name} {
-		_id: String
-		createdAt: Float
-		updatedAt: Float
-	`;
-
-	for (const field of collection.fields) {
-		const schema = widgets[field.widget.key].GraphqlSchema?.({ field, label: getFieldName(field, true), collection });
-		if (schema.resolver) {
-			resolvers = deepmerge(resolvers, schema.resolver);
-		}
-		if (schema) {
-			const _types = schema.graphql.split(/(?=type.*?{)/);
-			for (const type of _types) {
-				types.add(type);
-			}
-			if ('extract' in field && field.extract && 'fields' in field && field.fields.length > 0) {
-				// for helper widgets which extract its fields and does not exist in db itself like imagearray
-				const _fields = field.fields;
-				for (const _field of _fields) {
-					collectionSchema += `${getFieldName(_field, true)}: ${
-						widgets[_field.widget.key].GraphqlSchema?.({
-							field: _field,
-							label: getFieldName(_field, true),
-							collection
-						}).typeName
-					}\n`;
-					console.log('---------------------------');
-					console.log(collectionSchema);
-					resolvers[collection.name as string] = deepmerge(
-						{
-							[getFieldName(_field, true)]: (parent) => {
-								return parent[getFieldName(_field)];
-							}
-						},
-						resolvers[collection.name as string]
-					);
-				}
-			} else {
-				collectionSchema += `${getFieldName(field, true)}: ${schema.typeName}\n`;
-
-				resolvers[collection.name as string] = deepmerge(
-					{
-						[getFieldName(field, true)]: (parent) => {
-							return parent[getFieldName(field)];
-						}
-					},
-					resolvers[collection.name as string]
-				);
-			}
+// Ensure Redis client is properly disconnected on shutdown
+async function cleanupRedis() {
+	if (redisClient) {
+		try {
+			await redisClient.quit();
+			logger.info('Redis client disconnected gracefully');
+		} catch (err) {
+			logger.error('Error disconnecting Redis client: ', err);
 		}
 	}
-	collectionSchemas.push(collectionSchema + '}\n');
 }
 
-typeDefs += Array.from(types).join('\n');
-typeDefs += collectionSchemas.join('\n');
-typeDefs += `
-type Query {
-	${collections.map((collection: any) => `${collection.name}: [${collection.name}]`).join('\n')}
-}
-`;
+// Setup GraphQL schema and resolvers
+async function setupGraphQL() {
+	try {
+		logger.info('Setting up GraphQL schema and resolvers');
+		const { typeDefs: collectionsTypeDefs, collections } = await registerCollections();
 
-console.log(typeDefs);
+		const typeDefs = `
+            ${collectionsTypeDefs}
+            ${userTypeDefs()}
+            ${mediaTypeDefs()}
+            
+            type AccessManagementPermission {
+                contextId: String!
+                name: String!
+                action: String!
+                contextType: String!
+                description: String
+            }
+            
+            type Query {
+                ${Object.values(collections)
+									.map((collection) => `${collection._id}: [${collection._id}]`)
+									.join('\n')}
+                users: [User]
+                mediaImages: [MediaImage]
+                mediaDocuments: [MediaDocument]
+                mediaAudio: [MediaAudio]
+                mediaVideos: [MediaVideo]
+                mediaRemote: [MediaRemote]
+                accessManagementPermission: AccessManagementPermission
+            }
+        `;
 
-// Loop over each collection to define resolvers for querying data
-for (const collection of collections) {
-	// console.log('collection.name:', collection.name);
+		logger.debug('Generated GraphQL Schema:', typeDefs);
 
-	// Add a resolver function for collections
-	resolvers.Query[collection.name as string] = async () => {
-		if (privateEnv.USE_REDIS === true) {
-			// Try to fetch the result from Redis first
-			const cachedResult = await new Promise((resolve, reject) => {
-				redisClient.get(collection.name, (err, result) => {
-					if (err) reject(err);
-					resolve(result ? JSON.parse(result) : null);
-				});
-			});
-
-			if (cachedResult !== null) {
-				// If the result was found in Redis, return it
-				return cachedResult;
+		const resolvers = {
+			Query: {
+				...(await collectionsResolvers(cacheClient, privateEnv)),
+				...userResolvers(dbAdapter),
+				...mediaResolvers(dbAdapter),
+				accessManagementPermission: async (_, __, context) => {
+					const { user } = context;
+					logger.debug('AccessManagementPermission resolver context:', { user });
+					if (!user) {
+						throw new Error('Unauthorized: No user in context');
+					}
+					const userHasPermission = hasPermission(user, 'config:accessManagement');
+					if (!userHasPermission) {
+						throw new Error('Forbidden: Insufficient permissions');
+					}
+					return accessManagementPermission;
+				}
 			}
-		}
+		};
 
-		// If the result was not found in Redis, fetch it from the database
-		const dbResult = await mongoose.models[collection.name as string].find({ status: { $ne: 'unpublished' } }).lean();
+		const yogaApp = createYoga<RequestHandler>({
+			schema: createSchema({
+				typeDefs,
+				resolvers
+			}),
+			graphqlEndpoint: '/api/graphql',
+			fetchAPI: globalThis,
+			context: async (event: RequestEvent) => {
+				logger.debug('GraphQL context:', { user: event.locals.user });
+				return { user: event.locals.user };
+			}
+		});
 
-		if (privateEnv.USE_REDIS === true) {
-			// Store the DB result in Redis for future requests
-			redisClient.set(collection.name, JSON.stringify(dbResult), 'EX', 60 * 60); // Cache for 1 hour
-		}
-
-		// Convert the array of objects to a JSON object
-		return JSON.stringify(dbResult);
-	};
+		logger.info('GraphQL setup completed successfully');
+		return yogaApp;
+	} catch (error) {
+		logger.error('Error setting up GraphQL:', error);
+		throw error;
+	}
 }
 
-// console.log('resolvers.Query:', resolvers.Query);
+const yogaAppPromise = setupGraphQL();
 
-const yogaApp = createYoga<RequestEvent>({
-	// Import schema and resolvers
-	schema: createSchema({
-		typeDefs,
-		resolvers
-	}),
-	// Define explicitly the GraphQL endpoint
-	graphqlEndpoint: '/api/graphql',
-	// Use SvelteKit's Response object
-	fetchAPI: globalThis
-});
+const handler = async (event: RequestEvent) => {
+	try {
+		const yogaApp = await yogaAppPromise;
+		const response = await yogaApp.handleRequest(event.request, event);
+		logger.info('GraphQL request handled successfully', { status: response.status });
+		return new Response(response.body, {
+			status: response.status,
+			headers: response.headers
+		});
+		// return json({ success: true, output: "see src/ routes / api / graphql / +server.ts})" });
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Error handling GraphQL request:', { error: errorMessage });
+		return json({ success: false, error: `Error handling GraphQL request: ${errorMessage}` }, { status: 500 });
+	}
+};
 
-export { yogaApp as GET, yogaApp as POST };
+// Ensure Redis is disconnected when the server shuts down
+if (typeof process !== 'undefined') {
+	process.on('SIGINT', cleanupRedis);
+	process.on('SIGTERM', cleanupRedis);
+}
+
+// Export the handlers for GET and POST requests
+export { handler as GET, handler as POST };

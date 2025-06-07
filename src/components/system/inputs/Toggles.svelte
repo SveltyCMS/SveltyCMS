@@ -1,50 +1,66 @@
+<!-- 
+@file src/components/system/inputs/Toggles.svelte
+@description Toggle switch component with customizable icons and labels
+
+Features:
+- Customizable label and colors
+- Optional icons for on/off states
+- Accessible checkbox input
+- Animated state transitions
+-->
+
 <script lang="ts">
-	import { generateUniqueId } from '@utils/utils';
-	import { createEventDispatcher } from 'svelte';
+	let {
+		value = $bindable(false),
+		label = '',
+		labelColor = 'text-primary-500',
+		iconOn = '',
+		iconOff = '',
+		onChange
+	} = $props<{
+		value?: boolean;
+		label?: string;
+		labelColor?: string; // Default label color
+		iconOn?: string; // Default icon when toggle is on
+		iconOff?: string; // Default icon when toggle is off
+		onChange?: (checked: boolean) => void;
+	}>();
 
-	const dispatch = createEventDispatcher();
+	const random = crypto.randomUUID();
 
-	export let value: boolean;
-	export let label: string = '';
-	export let icon: any = null;
-	export let labelColor: string = 'text-primary-500'; // Default label color
-
-	let random = generateUniqueId();
-	$: labelColor = value ? 'text-primary-500' : 'text-error-500'; // Make labelColor reactive
-
-	function updateToggle(event) {
-		dispatch('toggle', event.target.checked);
+	// Function to handle toggle update
+	function handleToggle(event: Event) {
+		const checked = (event.target as HTMLInputElement).checked;
+		value = checked;
+		onChange?.(checked);
 	}
 </script>
 
-<label for="toggleSwitch{random}" class={`text-dark flex cursor-pointer select-none items-center text-white`}>
-	<label for="toggleSwitch{random}" class={`mr-3 flex items-center gap-2 ${labelColor}`}>
-		<!-- {#if value}
-			<iconify-icon icon="wpf:invisible" width="24" class="text-white" />
-		{:else}
-			<iconify-icon icon="gridicons:not-visible" width="24" class="text-white" />
-		{/if} -->
+<label for="toggleSwitch{random}" class="text-dark flex cursor-pointer select-none items-center text-white">
+	<span class="mr-3 flex items-center gap-2 capitalize {value ? 'text-primary-500' : labelColor}">
 		{label}
-	</label>
+	</span>
 
 	<div class="relative">
-		<input name={label} type="checkbox" id="toggleSwitch{random}" checked={value} class="peer sr-only" on:click={updateToggle} />
+		<input name={label} type="checkbox" id="toggleSwitch{random}" checked={value} class="peer sr-only" onclick={handleToggle} />
 
 		<!-- Background -->
 		<div class="block h-8 w-14 rounded-full bg-surface-400 peer-checked:bg-primary-500">
-			<!-- <span class="absolute inset-0 flex items-center justify-end rounded-full border-2 pr-[25px] text-right text-white">
-				{value ? (icon ? '' : 'ON') : icon ? '' : 'OFF'}
-			</span> -->
+			<span
+				class={`absolute inset-0 flex items-center justify-end rounded-full border-2 pr-[25px] text-right text-white ${value ? 'text-right' : 'text-left'}`}
+			>
+				<!-- {value ? (icon ? '' : 'ON') : icon ? '' : 'OFF'} -->
+			</span>
 		</div>
 
-		<!-- icon with background color -->
+		<!-- Icon with background color -->
 		<div
 			class="absolute left-1 top-1 flex h-6 w-6 items-center justify-end rounded-full bg-error-500 transition peer-checked:translate-x-6 peer-checked:bg-primary-900"
 		>
 			{#if value}
-				<iconify-icon {icon} width="24" />
+				<iconify-icon icon={iconOn} width="24"></iconify-icon>
 			{:else}
-				<iconify-icon {icon} width="24" />
+				<iconify-icon icon={iconOff} width="24"></iconify-icon>
 			{/if}
 		</div>
 	</div>

@@ -1,16 +1,45 @@
+<!--
+@file src/routes/login/components/icons/SignupIcon.svelte
+@component
+**SignupIcon component**
+-->
+
 <script lang="ts">
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	export let show = true;
+	let {
+		show = $bindable(true),
+		disabled = false,
+		onClick = (_event: MouseEvent | KeyboardEvent) => {}
+	} = $props<{
+		show?: boolean;
+		disabled?: boolean;
+		onClick?: (event: MouseEvent | KeyboardEvent) => void;
+	}>();
+
+	function handleClick(event: MouseEvent) {
+		if (disabled) return;
+		event.stopPropagation(); // Prevent event bubbling
+		onClick(event);
+	}
+
+	function handleKeyDown(event: KeyboardEvent) {
+		if (disabled) return;
+		if (event.key === 'Enter') {
+			event.stopPropagation(); // Prevent event bubbling
+			onClick(event);
+		}
+	}
 </script>
 
 <div
+	class="overflow icon dark:text-dark absolute left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] transition-all duration-300"
 	class:hide={!show}
-	class:pointer-events-none={!show}
-	class="overflow icon dark:text-dark absolute left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] cursor-pointer"
+	class:pointer-events-none={!show || disabled}
+	class:opacity-50={disabled}
 >
-	<div class="flex flex-col items-center">
+	<div onclick={handleClick} onkeydown={handleKeyDown} role="button" tabindex={disabled ? -1 : 0} class="flex cursor-pointer flex-col items-center">
 		<div class="relative w-max rounded-full border-4 border-white p-3">
 			<svg
 				class="over aspect-square h-12"
@@ -25,13 +54,13 @@
 				/>
 			</svg>
 		</div>
-		<p class="text-center font-semibold uppercase text-white">{m.signup_iconsignup()}</p>
+		<p class="text-center font-semibold uppercase text-white">{m.form_signup()}</p>
 	</div>
 </div>
 
 <style lang="postcss">
 	.hide {
-		animation: _hide 0.5s forwards;
+		animation: _hide 0.3s forwards;
 	}
 	@keyframes _hide {
 		from {

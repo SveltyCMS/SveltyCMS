@@ -1,212 +1,264 @@
+<!-- 
+@file src/routes/(app)/imageEditor/Blur.svelte
+@component
+**Blur effect component using Konva canvas used for image editing**
+
+### Events
+- `blurReset`: Dispatched when blur effect is reset
+- `blurApplied`: Dispatched when blur effect is applied
+-->
+
 <script lang="ts">
-	import MouseHandler from './MouseHandler.svelte';
+	import Konva from 'konva';
+	import { createEventDispatcher } from 'svelte';
 
-	import { onMount } from 'svelte';
+	const dispatch = createEventDispatcher<{
+		blurReset: void;
+		blurApplied: void;
+	}>();
 
-	// Define your props for the Blur.svelte component that considers the image dimensions
-	// export let blurAmount: number = 5; // The blur amount in pixels
-	export let blurTop: number;
-	export let blurLeft: number;
-	export let blurRight: number;
-	export let blurBottom: number;
-	export let blurCenter: number;
-	export let blurRotate: number = 0;
+	interface Props {
+		stage: Konva.Stage;
+		layer: Konva.Layer;
+		imageNode: Konva.Image;
+	}
 
-	// Define ImageSize for Overlay
-	export let CONT_WIDTH: number;
-	export let CONT_HEIGHT: number;
+	let { stage, layer, imageNode }: Props = $props();
 
-	onMount(async () => {
-		// Initialize your blur area here
-		// You might use the `sharp` library to apply the blur effect from +page.server.ts
-		// // Create a sharp instance with the image to be blurred
-		// const image = sharp('path/to/image.jpg');
-		// // Define the blur radius
-		// const blurRadius = 5;
-		// // Apply the blur effect
-		// image.blur(blurRadius);
-		// // Output the blurred image to a file
-		// image.toFile('path/to/blurred_image.jpg');
+	let mosaicStrength = $state(10);
+	let blurRegion: Konva.Rect;
+	let transformer: Konva.Transformer;
+	let isSelecting = $state(false);
+	let startPoint = $state<{ x: number; y: number } | null>(null);
+	let mosaicOverlay: Konva.Image;
+
+	// Initialize stage event listeners
+	$effect.root(() => {
+		stage.on('mousedown touchstart', handleMouseDown);
+		stage.on('mousemove touchmove', handleMouseMove);
+		stage.on('mouseup touchend', handleMouseUp);
+		stage.container().style.cursor = 'crosshair';
+
+		// Cleanup function
+		return () => {
+			stage.off('mousedown touchstart');
+			stage.off('mousemove touchmove');
+			stage.off('mouseup touchend');
+		};
 	});
 
-	function handleMove(event: { detail: { x: number; y: number } }) {
-		// console.log('Move event handled');
+	function handleMouseDown() {
+		if (blurRegion) return;
 
-		// Calculate offset from the image center
-		const offsetTop = event.detail.y - CONT_HEIGHT / 2;
-		const offsetX = event.detail.x - CONT_WIDTH / 2;
-
-		// Update blur top and left based on the offset
-		blurTop = blurCenter + offsetTop;
-		blurLeft = blurCenter + offsetX;
+		isSelecting = true;
+		const pos = stage.getPointerPosition();
+		startPoint = pos ? { x: pos.x, y: pos.y } : null;
 	}
 
-	function handleResize(event: { detail: { x: number; y: number; corner: string } }) {
-		// console.log('Resize event handled');
+	function handleMouseMove() {
+		if (!isSelecting || !startPoint) return;
 
-		switch (event.detail.corner) {
-			case 'TopLeft':
-				blurTop = blurTop + event.detail.y;
-				blurLeft = blurLeft + event.detail.x;
-				break;
-			case 'TopRight':
-				blurTop = blurTop + event.detail.y;
-				blurRight = blurRight - event.detail.x;
-				break;
-			case 'BottomLeft':
-				blurBottom = blurBottom - event.detail.y;
-				blurLeft = blurLeft + event.detail.x;
-				break;
-			case 'BottomRight':
-				blurBottom = blurBottom - event.detail.y;
-				blurRight = blurRight - event.detail.x;
-				break;
-			case 'Center':
-				blurCenter = blurCenter + event.detail.x;
-				blurCenter = blurCenter + event.detail.y;
-				break;
-			default:
-				break;
+		const pos = stage.getPointerPosition();
+		if (!pos) return;
+
+		if (!blurRegion) {
+			blurRegion = new Konva.Rect({
+				x: startPoint.x,
+				y: startPoint.y,
+				width: pos.x - startPoint.x,
+				height: pos.y - startPoint.y,
+				stroke: 'white',
+				strokeWidth: 1,
+				dash: [5, 5],
+				draggable: true
+			});
+			layer.add(blurRegion);
+		} else {
+			blurRegion.width(pos.x - startPoint.x);
+			blurRegion.height(pos.y - startPoint.y);
 		}
+		layer.batchDraw();
+	}
 
-		// Update the position of the corners based on the new values of blurTop, blurLeft, blurRight, and blurBottom
-		const corners = document.querySelectorAll('.corner');
-		corners.forEach((corner) => {
-			const cornerData = (corner as HTMLElement).dataset.corner;
-			if (cornerData === 'TopLeft') {
-				(corner as HTMLElement).style.top = `${blurTop}px`;
-				(corner as HTMLElement).style.left = `${blurLeft}px`;
-			} else if (cornerData === 'TopRight') {
-				(corner as HTMLElement).style.top = `${blurTop}px`;
-				(corner as HTMLElement).style.right = `${CONT_WIDTH - blurRight}px`;
-			} else if (cornerData === 'BottomLeft') {
-				(corner as HTMLElement).style.bottom = `${CONT_HEIGHT - blurBottom}px`;
-				(corner as HTMLElement).style.left = `${blurLeft}px`;
-			} else if (cornerData === 'BottomRight') {
-				(corner as HTMLElement).style.bottom = `${CONT_HEIGHT - blurBottom}px`;
-				(corner as HTMLElement).style.right = `${CONT_WIDTH - blurRight}px`;
+	function handleMouseUp() {
+		if (!isSelecting) return;
+
+		isSelecting = false;
+
+		if (blurRegion) {
+			const width = Math.abs(blurRegion.width());
+			const height = Math.abs(blurRegion.height());
+			blurRegion.width(width);
+			blurRegion.height(height);
+			if (blurRegion.x() > blurRegion.x() + width) {
+				blurRegion.x(blurRegion.x() - width);
 			}
-		});
+			if (blurRegion.y() > blurRegion.y() + height) {
+				blurRegion.y(blurRegion.y() - height);
+			}
+
+			transformer = new Konva.Transformer({
+				nodes: [blurRegion],
+				borderDash: [5, 5],
+				borderStrokeWidth: 1,
+				borderStroke: 'white',
+				anchorStroke: '#0000FF',
+				anchorFill: '#0000FF',
+				anchorSize: 12, // Increased size
+				anchorCornerRadius: 6,
+				enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
+				rotateAnchorOffset: 30,
+				rotateEnabled: false // Disable rotate functionality
+			});
+
+			// Add custom rotate anchor at the bottom
+			const rotateAnchor = new Konva.Circle({
+				x: blurRegion.width() / 2,
+				y: blurRegion.height() + 30,
+				radius: 8,
+				fill: '#0000FF',
+				stroke: '#0000FF',
+				strokeWidth: 2,
+				draggable: true,
+				dragBoundFunc: function (pos) {
+					const center = {
+						x: blurRegion.x() + blurRegion.width() / 2,
+						y: blurRegion.y() + blurRegion.height() / 2
+					};
+					const angle = Math.atan2(pos.y - center.y, pos.x - center.x);
+					blurRegion.rotation((angle * 180) / Math.PI);
+					applyMosaic();
+					return {
+						x: center.x + Math.cos(angle) * (blurRegion.height() / 2 + 30),
+						y: center.y + Math.sin(angle) * (blurRegion.height() / 2 + 30)
+					};
+				}
+			});
+
+			transformer.add(rotateAnchor);
+			layer.add(transformer);
+
+			blurRegion.on('transform', applyMosaic);
+			blurRegion.on('dragmove', applyMosaic);
+
+			layer.batchDraw();
+			applyMosaic();
+		}
 	}
 
-	function handleRotate(event: { detail: { x: number; y: number } }) {
-		// console.log('Rotate event handled');
+	function applyMosaic() {
+		if (!blurRegion) return;
 
-		blurRotate += event.detail.x;
+		const canvas = document.createElement('canvas');
+		canvas.width = stage.width();
+		canvas.height = stage.height();
+		const context = canvas.getContext('2d');
+		const image = imageNode.image();
+
+		if (context && image) {
+			context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+			const rect = blurRegion.getClientRect({ relativeTo: stage });
+
+			context.save();
+			context.beginPath();
+			context.rect(rect.x, rect.y, rect.width, rect.height);
+			context.clip();
+
+			const tileSize = Math.max(1, Math.floor(mosaicStrength));
+			for (let y = rect.y; y < rect.y + rect.height; y += tileSize) {
+				for (let x = rect.x; x < rect.x + rect.width; x += tileSize) {
+					const pixelData = context.getImageData(x, y, 1, 1).data;
+					context.fillStyle = `rgb(${pixelData[0]}, ${pixelData[1]}, ${pixelData[2]})`;
+					context.fillRect(x, y, tileSize, tileSize);
+				}
+			}
+
+			context.restore();
+
+			if (mosaicOverlay) {
+				mosaicOverlay.destroy();
+			}
+
+			mosaicOverlay = new Konva.Image({
+				image: canvas,
+				x: 0,
+				y: 0,
+				width: stage.width(),
+				height: stage.height()
+			});
+
+			layer.add(mosaicOverlay);
+			mosaicOverlay.moveToBottom();
+			mosaicOverlay.moveUp();
+			layer.batchDraw();
+		}
 	}
 
-	function handleDelete() {
-		// console.log('Delete event handled');
-
-		// You can add logic here to reset or remove the blur area
-		blurTop = 0;
-		blurLeft = 0;
-		blurRight = 0;
-		blurBottom = 0;
-		blurCenter = 0;
-		blurRotate = 0;
-
-		// Set the visible prop to false if you have a visibility control
-		//visible = false;
+	function updateMosaicStrength() {
+		applyMosaic();
 	}
 
-	function handleAdd() {
-		// console.log('Add  event handled');
-		// Update the separate variables with the event data
+	function exitBlur() {
+		dispatch('blurReset');
+	}
+
+	function resetMosaic() {
+		if (blurRegion) {
+			blurRegion.destroy();
+		}
+		if (transformer) {
+			transformer.destroy();
+		}
+		if (mosaicOverlay) {
+			mosaicOverlay.destroy();
+		}
+		layer.batchDraw();
+		dispatch('blurReset');
+	}
+
+	function applyFinalMosaic() {
+		applyMosaic();
+		dispatch('blurApplied');
 	}
 </script>
 
-<div class="relative" style={`width: ${CONT_WIDTH}px; height: ${CONT_HEIGHT}px;`}>
-	<!-- Wrap the blur area element inside the MouseHandler component tag -->
-	<MouseHandler on:move={handleMove} on:resize={handleResize} on:rotate={handleRotate}>
-		<!-- Use an if block to conditionally render the blur area based on the image prop -->
-
-		<div
-			class="absolute grid grid-cols-2 grid-rows-2"
-			style={`top: ${blurTop}px; left: ${blurLeft}px; width: ${blurRight - blurLeft}px; height: ${
-				blurBottom - blurTop
-			}px; transform: translate(-50%, -50%) rotate(${blurRotate}deg); border-radius: 5px;`}
-		>
-			<!-- Use a button elements -->
-			<div
-				class="variant-filled-surface btn-group absolute -top-14 left-0 -translate-x-1/2 -translate-y-1/2 divide-x divide-surface-400 rounded-full"
-			>
-				<!-- Add Blur -->
-				<button type="button" on:click={handleAdd} class="">
-					<iconify-icon icon="clarity:clone-solid" width="14" />
+<div class="wrapper">
+	<div class="align-center mb-2 flex w-full items-center">
+		<div class="flex w-full items-center justify-between">
+			<div class="flex items-center gap-2">
+				<!-- Back button at top of component -->
+				<button onclick={exitBlur} aria-label="Exit rotation mode" class="variant-outline-tertiary btn-icon">
+					<iconify-icon icon="material-symbols:close-rounded" width="20"></iconify-icon>
 				</button>
 
-				<!-- Delete Blur -->
-				<button type="button" on:click={handleDelete} class="">
-					<iconify-icon icon="icomoon-free:bin" width="12" />
-				</button>
+				<h3 class="relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Blur Settings</h3>
 			</div>
-			<!-- Add additional corners and lines to create a 3x3 grid -->
-			<div class="corner" data-corner="TopLeft"></div>
-			<div class="corner" data-corner="TopRight"></div>
-			<div class="corner" data-corner="BottomLeft"></div>
-			<div class="corner" data-corner="BottomRight"></div>
-			<!-- Add a div element for the Center -->
-			<div class="corner" data-corner="Center"></div>
-			<!-- Add a div element for the Rotate -->
-			<div class="corner" data-corner="Rotate"></div>
-			<!-- Add a flexible border lines -->
-			<div class="middle-horizontal line"></div>
-			<div class="middle-vertical line"></div>
+
+			<div class="flex flex-col space-y-2">
+				<label for="mosaic-strength" class="text-sm font-medium">Blur Strength:</label>
+				<input
+					id="mosaic-strength"
+					type="range"
+					min="1"
+					max="50"
+					bind:value={mosaicStrength}
+					oninput={updateMosaicStrength}
+					class="h-2 w-full cursor-pointer rounded-full bg-gray-300"
+					aria-valuemin="1"
+					aria-valuemax="50"
+					aria-valuenow={mosaicStrength}
+					aria-valuetext={`${mosaicStrength} pixels`}
+				/>
+				<span class="sr-only">Current mosaic strength: {mosaicStrength} pixels</span>
+			</div>
+
+			<div class="flex items-center gap-4">
+				<button onclick={resetMosaic} class="variant-filled-error btn" aria-label="Reset blur effect"> Reset </button>
+				<button onclick={applyFinalMosaic} class="variant-filled-primary btn" aria-label="Apply blur effect"> Apply </button>
+			</div>
 		</div>
+	</div>
 
-		<!-- Pass the new props to the slot tag -->
-		<slot />
-	</MouseHandler>
+	<div class="flex items-center justify-around space-x-4"></div>
 </div>
-
-<style lang="postcss">
-	.corner {
-		position: absolute;
-		width: 10px;
-		height: 10px;
-		background-color: greenyellow;
-		border: 1px solid darkgray;
-		border-radius: 50%;
-		cursor: pointer;
-	}
-	.corner[data-corner='TopLeft'] {
-		top: 10px;
-		left: 10px;
-		cursor: nwse-resize;
-	}
-	.corner[data-corner='TopRight'] {
-		top: 10px;
-		right: 10px;
-		cursor: nesw-resize;
-	}
-	.corner[data-corner='BottomLeft'] {
-		bottom: 10px;
-		left: 10px;
-		cursor: nesw-resize;
-	}
-	.corner[data-corner='BottomRight'] {
-		bottom: 10px;
-		right: 10px;
-		cursor: nwse-resize;
-	}
-	.corner[data-corner='Center'] {
-		background-color: blue;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		width: 20px;
-		height: 20px;
-		border: 1px solid blue;
-		cursor: move;
-	}
-	.corner[data-corner='Rotate'] {
-		background-color: white;
-		border: 2px solid red;
-		width: 12px;
-		height: 12px;
-		top: 26px;
-		left: 50%;
-		transform: translateX(-50%);
-	}
-</style>

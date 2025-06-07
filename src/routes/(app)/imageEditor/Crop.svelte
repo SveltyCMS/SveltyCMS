@@ -1,168 +1,225 @@
+<!-- 
+@file src/routes/(app)/imageEditor/Crop.svelte
+@component
+**This component provides cropping functionality for an image within a Konva stage, allowing users to define a crop area and apply the crop**
+
+### Props 
+- `layer`: Konva.Layer - The Konva layer where the image and effects are added.
+- `imageNode`: Konva.Image - The Konva image node representing the original image.
+- `onCropApplied` (optional): Function to be called when the crop is applied.
+- `onCancelCrop` (optional): Function to be called when the crop is canceled.
+- `onCropReset` (optional): Function to be called when the crop is reset.
+-->
+
 <script lang="ts">
-	// Define your props for the Crop.svelte component
-	export let cropTop: number = 10;
-	export let cropLeft: number = 10;
-	export let cropRight: number = 30;
-	export let cropBottom: number = 30;
-	export let cropCenter: number = 0;
-	export let cropRotate: number = 0;
-	export let cropShape: 'rect' | 'round' = 'rect';
+	import Konva from 'konva';
 
-	// Define ImageSize for Overlay
-	export let CONT_WIDTH: number;
-	export let CONT_HEIGHT: number;
-
-	// Declare variables for tracking mouse state
-	let isDragging = false;
-	let selectedCorner: string | null = null;
-	let initialMousePosition: { x: number; y: number } | null = null;
-
-	// Function to handle mouse down event
-	function handleMouseDown(e: MouseEvent, corner: string) {
-		e.preventDefault();
-		isDragging = true;
-		selectedCorner = corner;
-		initialMousePosition = { x: e.clientX, y: e.clientY };
+	interface Props {
+		layer: Konva.Layer;
+		imageNode: Konva.Image;
+		onCropApplied?: () => void;
+		onCancelCrop?: () => void;
+		onCropReset?: () => void;
 	}
 
-	// Function to handle mouse move event
-	function handleMouseMove(e: MouseEvent) {
-		if (!isDragging || !initialMousePosition) return;
+	const { layer, imageNode, onCropApplied = () => {}, onCancelCrop = () => {}, onCropReset = () => {} } = $props() as Props;
 
-		const deltaX = e.clientX - initialMousePosition.x;
-		const deltaY = e.clientY - initialMousePosition.y;
+	let cropShape = $state<'rectangle' | 'square' | 'circular'>('rectangle');
+	let cropTool = $state<Konva.Rect | Konva.Circle | null>(null);
+	let transformer = $state<Konva.Transformer | null>(null);
+	let cropOverlay = $state<Konva.Rect | null>(null);
 
-		if (selectedCorner === 'TopLeft') {
-			cropTop += deltaY;
-			cropLeft += deltaX;
-		} else if (selectedCorner === 'TopRight') {
-			cropTop += deltaY;
-			cropRight -= deltaX; // Ensure width increases
-		} else if (selectedCorner === 'BottomLeft') {
-			cropBottom -= deltaY; // Ensure height increases
-			cropLeft += deltaX;
-		} else if (selectedCorner === 'BottomRight') {
-			cropBottom -= deltaY; // Ensure height increases
-			cropRight -= deltaX; // Ensure width increases
-		} else if (selectedCorner === 'Center') {
-			cropTop += deltaY;
-			cropLeft += deltaX;
-			cropRight += deltaX;
-			cropBottom += deltaY;
+	// Initialize crop tool
+	$effect.root(() => {
+		initCropTool();
+	});
+
+	function initCropTool() {
+		// Clear previous crop tool and transformer
+		if (cropTool) cropTool.destroy();
+		if (transformer) transformer.destroy();
+		if (cropOverlay) cropOverlay.destroy();
+
+		const imageWidth = imageNode.width();
+		const imageHeight = imageNode.height();
+		const size = Math.min(imageWidth, imageHeight) / 4; // Reduced initial size
+
+		// Create an overlay to dim the area outside the crop region
+		cropOverlay = new Konva.Rect({
+			x: 0,
+			y: 0,
+			width: imageWidth,
+			height: imageHeight,
+			fill: 'rgba(0, 0, 0, 0.5)',
+			globalCompositeOperation: 'destination-over',
+			listening: false
+		});
+
+		layer.add(cropOverlay);
+
+		// Initialize the crop tool
+		if (cropShape === 'circular') {
+			cropTool = new Konva.Circle({
+				x: imageWidth / 2,
+				y: imageHeight / 2,
+				radius: size / 2,
+				stroke: 'white',
+				strokeWidth: 3, // Consistent stroke width
+				draggable: true,
+				name: 'cropTool'
+			});
+		} else {
+			cropTool = new Konva.Rect({
+				x: (imageWidth - size) / 2,
+				y: (imageHeight - size) / 2,
+				width: size,
+				height: cropShape === 'square' ? size : size * 0.75,
+				stroke: 'white',
+				strokeWidth: 3, // Consistent stroke width
+				draggable: true,
+				name: 'cropTool'
+			});
 		}
 
-		initialMousePosition = { x: e.clientX, y: e.clientY };
+		layer.add(cropTool);
+
+		// Configure the transformer tool
+		transformer = new Konva.Transformer({
+			nodes: [cropTool],
+			keepRatio: cropShape !== 'rectangle',
+			enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
+			anchorStrokeWidth: 2,
+			anchorSize: 10,
+			borderStrokeWidth: 2,
+			boundBoxFunc: (oldBox, newBox) => {
+				// Limit resize
+				if (newBox.width < 30 || newBox.height < 30) {
+					return oldBox;
+				}
+				return newBox;
+			}
+		});
+
+		layer.add(transformer);
+
+		cropTool.on('transform', () => {
+			if (cropTool instanceof Konva.Circle) {
+				const scaleX = cropTool.scaleX();
+				cropTool.radius(cropTool.radius() * scaleX);
+				cropTool.scaleX(1);
+				cropTool.scaleY(1);
+			}
+		});
+
+		layer.draw();
 	}
 
-	// Function to handle mouse up event
-	function handleMouseUp(e: MouseEvent) {
-		isDragging = false;
-		selectedCorner = null;
-		initialMousePosition = null;
-	}
+	function applyCrop() {
+		if (!cropTool || !cropOverlay || !transformer) return;
 
-	// Function to handle keyboard events
-	function handleKeyDown(e: KeyboardEvent) {
-		const step = e.shiftKey ? 10 : 1;
+		const cropCanvas = document.createElement('canvas');
+		const cropContext = cropCanvas.getContext('2d');
 
-		if (e.key === 'ArrowUp') {
-			cropTop -= step;
-		} else if (e.key === 'ArrowDown') {
-			cropBottom += step;
-		} else if (e.key === 'ArrowLeft') {
-			cropLeft -= step;
-		} else if (e.key === 'ArrowRight') {
-			cropRight += step;
+		if (!cropContext) return;
+
+		// Get the crop area's dimensions
+		let cropX, cropY, cropWidth, cropHeight;
+
+		if (cropTool instanceof Konva.Circle) {
+			cropX = cropTool.x() - cropTool.radius();
+			cropY = cropTool.y() - cropTool.radius();
+			cropWidth = cropTool.radius() * 2;
+			cropHeight = cropTool.radius() * 2;
+
+			cropCanvas.width = cropWidth;
+			cropCanvas.height = cropHeight;
+
+			cropContext.arc(cropTool.radius(), cropTool.radius(), cropTool.radius(), 0, Math.PI * 2, false);
+			cropContext.clip();
+		} else {
+			cropX = cropTool.x();
+			cropY = cropTool.y();
+			cropWidth = cropTool.width() * cropTool.scaleX();
+			cropHeight = cropTool.height() * cropTool.scaleY();
+
+			cropCanvas.width = cropWidth;
+			cropCanvas.height = cropHeight;
 		}
-	}
 
-	// Function to reset the crop area
-	function handleReset() {
-		cropTop = (CONT_HEIGHT - 100) / 2; // Adjust the initial vertical offset as needed (half the image height - half the desired crop height)
-		cropLeft = (CONT_WIDTH - 100) / 2; // Adjust the initial horizontal offset as needed (half the image width - half the desired crop width)
-		cropRight = cropLeft + 100; // Adjust the initial crop width as needed
-		cropBottom = cropTop + 100; // Adjust the initial crop height as needed
-		cropCenter = 0;
-		cropRotate = 0;
-	}
+		// Draw the cropped area of the image onto the canvas
+		const image = imageNode.image();
+		if (image) {
+			cropContext.drawImage(image, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+		} else {
+			console.error('Image is not loaded yet');
+		}
 
-	// Debounce function to limit the rate at which a function can fire
-	const debounce = (func, delay) => {
-		let debounceTimer;
-		return function () {
-			const context = this;
-			const args = arguments;
-			clearTimeout(debounceTimer);
-			debounceTimer = setTimeout(() => func.apply(context, args), delay);
+		// Update the Konva imageNode with the cropped image
+		const croppedImage = new Image();
+		croppedImage.src = cropCanvas.toDataURL();
+
+		croppedImage.onload = () => {
+			imageNode.image(croppedImage);
+			imageNode.width(cropWidth);
+			imageNode.height(cropHeight);
+			imageNode.x(0);
+			imageNode.y(0);
+
+			// Remove crop tool and overlay
+			cropTool?.destroy();
+			cropOverlay?.destroy();
+			transformer?.destroy();
+			layer.batchDraw();
+
+			onCropApplied();
 		};
-	};
+	}
 
-	// Debounced handleMouseMove function
-	const debouncedHandleMouseMove = debounce(handleMouseMove, 5);
+	function exitCrop() {
+		onCancelCrop();
+	}
+
+	function resetCrop() {
+		initCropTool();
+		onCropReset();
+	}
+
+	// Effect to reinitialize crop tool when shape changes
+	$effect.root(() => {
+		if (cropShape) {
+			initCropTool();
+		}
+	});
 </script>
 
-<svelte:window on:mousemove={debouncedHandleMouseMove} on:mouseup={handleMouseUp} on:keydown={handleKeyDown} />
-
-<div class="relative overflow-hidden" style={`width: ${CONT_WIDTH}px; height: ${CONT_HEIGHT}px;`}>
-	<!-- Blurred Background -->
-	<div class="backdrop-blur-sm" style={`width: ${CONT_WIDTH}px; height: ${CONT_HEIGHT}px;`}></div>
-
-	<!-- Crop Area -->
-	<div
-		class="absolute overflow-hidden"
-		style={`top: ${cropTop}px; left: ${cropLeft}px; width: ${cropRight - cropLeft}px; height: ${cropBottom - cropTop}px;`}
-	>
-		<!-- reset button -->
-		<div class="variant-filled-surface btn-group absolute -top-5 left-1/2 -translate-x-1/2 -translate-y-1/2 divide-x divide-surface-400 rounded-full">
-			<button type="button" on:click={handleReset} class="">
-				<iconify-icon icon="ic:round-restart-alt" width="14" />
+<!-- Crop Controls UI -->
+<div class="wrapper">
+	<div class="flex w-full items-center justify-between">
+		<div class="flex items-center gap-2">
+			<!-- Back button at top of component -->
+			<button onclick={exitCrop} aria-label="Exit rotation mode" class="variant-outline-tertiary btn-icon">
+				<iconify-icon icon="material-symbols:close-rounded" width="20"></iconify-icon>
 			</button>
+
+			<h3 class="relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Crop Settings</h3>
 		</div>
 
-		<!-- Crop-border -->
-		<div class="absolute left-0 top-0 box-border h-full w-full border-4 border-error-500" />
+		<div class="flex flex-col space-y-2">
+			<label for="cropShape" class="text-sm font-medium">Crop Shape:</label>
+			<select id="cropShape" bind:value={cropShape} class="select-bordered select">
+				<option value="rectangle">Rectangle</option>
+				<option value="square">Square</option>
+				<option value="circular">Circular</option>
+			</select>
+		</div>
 
-		<!-- Top left -->
-		<div
-			class="corner -left-1 -top-1 !cursor-nwse-resize"
-			on:mousedown={(e) => handleMouseDown(e, 'TopLeft')}
-			on:touchstart={(e) => handleMouseDown(e, 'TopLeft')}
-		/>
-		<!-- Top right -->
-		<div
-			class="corner -right-1 -top-1 !cursor-nesw-resize"
-			on:mousedown={(e) => handleMouseDown(e, 'TopRight')}
-			on:touchstart={(e) => handleMouseDown(e, 'TopRight')}
-		/>
-		<!-- Bottom left -->
-		<div
-			class="corner -bottom-1 -left-1 !cursor-nesw-resize"
-			on:mousedown={(e) => handleMouseDown(e, 'BottomLeft')}
-			on:touchstart={(e) => handleMouseDown(e, 'BottomLeft')}
-		/>
-		<!-- Bottom right -->
-		<div
-			class="corner -bottom-1 -right-1 !cursor-nwse-resize"
-			on:mousedown={(e) => handleMouseDown(e, 'BottomRight')}
-			on:touchstart={(e) => handleMouseDown(e, 'BottomRight')}
-		/>
-		<!-- Center Move  area-->
-		<div
-			class="backdrop-blur-node absolute left-0 top-0 h-full w-full cursor-move"
-			on:mousedown={(e) => handleMouseDown(e, 'Center')}
-			on:touchstart={(e) => handleMouseDown(e, 'Center')}
-		/>
+		<div class="mt-4 flex justify-around gap-4">
+			<button onclick={resetCrop} aria-label="Reset Crop" class="variant-outline btn text-center">Reset</button>
+
+			<button onclick={applyCrop} aria-label="Apply Crop" class="variant-filled-primary btn">
+				<iconify-icon icon="mdi:crop" width="20"></iconify-icon>
+				Apply Crop
+			</button>
+		</div>
 	</div>
 </div>
-
-<style lang="postcss">
-	.corner {
-		position: absolute;
-		width: 10px;
-		height: 10px;
-		background-color: greenyellow;
-		border: 1px solid darkgray;
-		border-radius: 50%;
-		cursor: pointer;
-	}
-</style>

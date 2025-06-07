@@ -1,177 +1,130 @@
+<!-- 
+@file src/components/emails/forgottenPassword.svelte
+@component
+**forgottenPassword Email component to reset password**
+-->
+
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
 
-	export let tokenLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD;
+	// Components
+	import SiteName from '@components/SiteName.svelte';
 
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { languageTag } from '@src/paraglide/runtime';
+	import { systemLanguage } from '@stores/store.svelte';
 
-	// svelty-email
-	import { Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';
+	// svelte-email-tailwind
+	import { Html, Head, Preview, Body, Container, Section, Text, Link, Img, Button, Hr, Custom } from 'svelte-email-tailwind';
 
-	interface EmailProps {
+	// Readable ExpireIn time sec to year
+	import { ReadableExpireIn } from '@utils/utils';
+
+	interface Props {
 		email?: string;
-		resetLink: string;
 		token: string;
+		resetLink: string;
 		expiresIn: string;
+		languageTag?: string;
 	}
-	export let email: EmailProps['email'];
 
-	//TODO: send rest to domain? Token and delete used token
-	export let token: EmailProps['token'];
-	export let resetLink: EmailProps['resetLink'];
-	export let expiresIn: EmailProps['expiresIn'];
-
-	//Readable ExpireIn time sec to year
-	let currentTime = new Date();
-	let expiresInNumber = parseInt(expiresIn, 10); // Assuming expiresIn is a string representation of a number
-	let expirationTime = expiresInNumber ? new Date(currentTime.getTime() + expiresInNumber * 1000) : new Date(); // Convert expiresIn to milliseconds
-
-	let timeDiff = expirationTime.getTime() - currentTime.getTime();
-	let secondsDiff = Math.floor(timeDiff / 1000);
-	let minutesDiff = Math.floor(secondsDiff / 60);
-	let hoursDiff = Math.floor(minutesDiff / 60);
-	let daysDiff = Math.floor(hoursDiff / 24);
-	let weeksDiff = Math.floor(daysDiff / 7);
-	let monthsDiff = Math.floor(weeksDiff / 4); // Assuming a month is 4 weeks
-	let yearsDiff = Math.floor(monthsDiff / 12); // Assuming a year is 12 months
-
-	let remainingSeconds = secondsDiff % 60;
-	let remainingMinutes = minutesDiff % 60;
-	let remainingHours = hoursDiff % 24;
-	let remainingDays = daysDiff % 7;
-	let remainingWeeks = weeksDiff % 4; // Assuming a month is 4 weeks
-
-	let yearsText = yearsDiff > 0 ? `${yearsDiff} year${yearsDiff > 1 ? 's' : ''}` : '';
-	let monthsText = monthsDiff > 0 ? `${monthsDiff} month${monthsDiff > 1 ? 's' : ''}` : '';
-	let weeksText = remainingWeeks > 0 ? `${remainingWeeks} week${remainingWeeks > 1 ? 's' : ''}` : '';
-	let daysText = remainingDays > 0 ? `${remainingDays} day${remainingDays > 1 ? 's' : ''}` : '';
-	let hoursText = remainingHours > 0 ? `${remainingHours} hour${remainingHours > 1 ? 's' : ''}` : '';
-	let minutesText = remainingMinutes > 0 ? `${remainingMinutes} minute${remainingMinutes > 1 ? 's' : ''}` : '';
-	let secondsText = remainingSeconds > 0 ? `${remainingSeconds} second${remainingSeconds > 1 ? 's' : ''}` : '';
-
-	let readable_expiresIn = `${yearsText} ${monthsText} ${weeksText} ${daysText} ${hoursText} ${minutesText} ${secondsText}`.trim();
-
-	// console.log('readable_expires_at', readable_expiresIn);
-
-	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
-
-	const main = {
-		backgroundColor: '#ffffff'
-	};
-
-	const container = {
-		margin: '0 auto',
-		padding: '16px 0 48px',
-		width: '480px'
-	};
-
-	const paragraph = {
-		fontFamily,
-		fontSize: '16px',
-		lineHeight: '26px'
-	};
-
-	const paragraph_center = {
-		fontFamily,
-		fontSize: '16px',
-		lineHeight: '26px',
-		textAlign: 'center'
-	};
-
-	const paragraphbold = {
-		fontFamily,
-		fontSize: '16px',
-		lineHeight: '26px',
-		fontWeight: '600'
-	};
-
-	const review = {
-		padding: '6px',
-		backgroundColor: '#f2f3f3'
-	};
-
-	const btnContainer = {
-		textAlign: 'center'
-	};
-
-	const button = {
-		fontFamily,
-		backgroundColor: '#8ddd15',
-		borderRadius: '3px',
-		color: '#000000',
-		fontSize: '16px',
-		textDecoration: 'none',
-		textAlign: 'center',
-		display: 'block'
-	};
-
-	const hr = {
-		borderColor: '#cccccc',
-		margin: '15px 0'
-	};
-
-	const footer = {
-		fontFamily,
-		color: '#8898aa',
-		fontSize: '12px',
-		textAlign: 'center'
-	};
-
-	const styleToString = (style: Record<string, string | number | null>) => {
-		return Object.keys(style).reduce(
-			(acc, key) =>
-				acc +
-				key
-					.split(/(?=[A-Z])/)
-					.join('-')
-					.toLowerCase() +
-				':' +
-				style[key] +
-				';',
-			''
-		);
-	};
+	let { email = '', token, resetLink, expiresIn, languageTag = systemLanguage.value }: Props = $props();
 </script>
 
-<Html lang={languageTag()}>
+<Html lang={languageTag}>
 	<Head>
 		<title>Reset your password for {publicEnv.SITE_NAME}</title>
-		<meta name="description" content="Reset your password for {publicEnv.SITE_NAME}" />
 	</Head>
+
 	<Preview preview="Reset your password for {publicEnv.SITE_NAME}" />
-	<Section style={main}>
-		<Container style={container}>
-			<Section style={btnContainer}>
-				<Link href={tokenLink}>
+
+	<Body>
+		<Container style={{ fontSize: '16px' }}>
+			<!-- Header Section -->
+			<Section>
+				<Link href={dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}>
 					<Img
-						src="https://github.com/Rar9/SveltyCMS/raw/main/static/SveltyCMS.png"
-						alt="{publicEnv.SITE_NAME} logo"
+						src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png"
+						alt={`${publicEnv.SITE_NAME} logo`}
 						width="150"
 						height="auto"
-						style={{ display: 'block', margin: '0 auto' }}
+						style={{ marginLeft: 'auto', marginRight: 'auto', display: 'block' }}
 					/>
 				</Link>
 			</Section>
-			<Text style={paragraph}>Hello {email}</Text>
-			<Text style={paragraph}>You have requested to reset your Password to get access to {publicEnv.SITE_NAME}</Text>
-			<Section style={review}>
-				<Text style={paragraph_center}>{m.forgottenpassword_token()}</Text>
-				<Text style={paragraph_center}><span style={styleToString(paragraphbold)}>{token}</span></Text>
-				<br />
-				<Text style={paragraph_center}>{m.forgottenpassword_valid()}</Text>
-				<Text style={paragraph_center}><span style={styleToString(paragraphbold)}>{readable_expiresIn}</span></Text>
-			</Section>
 
-			<Text style={paragraph_center}>{m.forgottenpassword_ignore()}</Text>
-			<Text style={paragraph_center}>{m.forgottenpassword_button()}</Text>
+			<!-- Main Content -->
+			<Section>
+				<Text style={{ fontSize: '16px' }}>
+					Hello <strong>{email}</strong>,
+				</Text>
 
-			<Section style={btnContainer}>
-				<Button pX={12} pY={12} style={button} href={resetLink}>{m.forgottenpassword_resetbutton()}</Button>
+				<Text style={{ fontSize: '16px' }}>
+					You have requested to <strong>reset your password</strong> to get access to
+					<strong>{publicEnv.SITE_NAME}.</strong>
+				</Text>
+
+				<!-- Token Information Box -->
+				<Section>
+					<Text><strong><center>{m.forgottenpassword_token()}</center></strong></Text>
+					<Text
+						style={{
+							textAlign: 'center',
+							fontWeight: 'bold',
+							backgroundColor: '#eee',
+							border: '1px solid #e5e7eb',
+							borderRadius: '6px',
+							padding: '12px',
+							color: '#111827',
+							marginBottom: '12px'
+						}}
+					>
+						{token}
+					</Text>
+					<Text><strong><center>{m.forgottenpassword_valid()}</center></strong></Text>
+					<Text
+						style={{
+							textAlign: 'center',
+							fontWeight: 'bold',
+							backgroundColor: '#eee',
+							border: '1px solid #e5e7eb',
+							borderRadius: '6px',
+							padding: '12px',
+							color: '#111827',
+							marginBottom: '12px'
+						}}
+					>
+						{ReadableExpireIn(expiresIn)}
+					</Text>
+				</Section>
+
+				<Text>
+					<center>{m.forgottenpassword_ignore()}</center>
+				</Text>
+
+				<Text>
+					<center>{m.forgottenpassword_button()}</center>
+				</Text>
+
+				<!-- CTA Button -->
+				<Section>
+					<Button href={resetLink} pX={24} pY={12} style={{ backgroundColor: '#22c55e', color: '#fff', borderRadius: '8px' }}>
+						{m.forgottenpassword_resetbutton()}
+					</Button>
+				</Section>
+
+				<Hr></Hr>
+
+				<!-- Footer -->
+				<Section>
+					<Text style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '16px' }}>
+						<Link href="https://SveltyCMS.com">
+							Your <SiteName /> team
+						</Link>
+					</Text>
+				</Section>
 			</Section>
-			<Hr style={hr} />
-			<Text style={footer}>Your {publicEnv.SITE_NAME} Team</Text>
 		</Container>
-	</Section>
+	</Body>
 </Html>

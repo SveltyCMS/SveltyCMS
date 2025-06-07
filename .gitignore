@@ -5,23 +5,34 @@
 /.svelte-kit
 /package
 package-lock.json
+bun.lockb
 node_modules
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 # secrets
-.env
-.env.*
-!.env.example
 /config/private.ts
 /config/public.ts
+/data.json
+
+# Backup folder under config
+/config/backup/
 
 # SveltyCMS
 /tmp
-trash/
-media/
+trash/*
+media/*
 mediaFiles/
-collections/
+compiledCollections/*
+logs/*
+Docs/*
+.node-version
+
+
+# Ensure src/utils/media and its contents are not ignored
+!src/utils/media/
+!src/utils/media/*.ts
+
 
 # debug
 npm-debug.log*
@@ -34,3 +45,11 @@ yarn-error.log*
 /playwright-report/
 /playwright/.cache/
 /error-screenshot.png
+
+# Rust
+/data.json
+/indexes
+/*.bin
+
+#paraglide.js
+src/paraglide/**/*.js

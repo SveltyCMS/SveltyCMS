@@ -1,15 +1,26 @@
+/**
+ * @file tailwind.config.ts
+ * @description Tailwind CSS configuration for a SvelteKit project.
+ * This file includes:
+ * - Dark mode support via class method
+ * - Custom responsive breakpoints
+ * - Integration of Tailwind plugins for forms and typography
+ * - Configuration of the Skeleton plugin with a custom theme (SveltyCMSTheme)
+ */
+
 import { join } from 'path';
 import type { Config } from 'tailwindcss';
+
+// Import Tailwind plugins
 import forms from '@tailwindcss/forms';
 import typography from '@tailwindcss/typography';
 
 // Import the Skeleton plugin
 import { skeleton } from '@skeletonlabs/tw-plugin';
 // Import Custom Theme
-import { SveltyCMSTheme } from './SveltyCMSTheme';
+import { SveltyCMSTheme } from './src/themes/SveltyCMS/SveltyCMSTheme';
 
-/** @type {import('tailwindcss').Config} */
-module.exports = {
+const config = {
 	// Opt for dark mode to be handled via the class method
 	darkMode: 'class',
 
@@ -45,7 +56,7 @@ module.exports = {
 		forms,
 		typography,
 		// Append the Skeleton plugin (after other plugins)
-		//skeleton({ themes: { preset: [{ name: "skeleton", enhancements: true }]}}),
+
 		skeleton({
 			themes: {
 				custom: [SveltyCMSTheme]
@@ -53,3 +64,5 @@ module.exports = {
 		})
 	]
 } satisfies Config;
+
+export default config;

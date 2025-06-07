@@ -1,205 +1,385 @@
+<!-- 
+@files src/routes/(app)/user/components/ModalEditToken.svelte
+@component
+**Modal for editing or creating user registration tokens**
+
+Manages token creation and updates with role selection and expiration settings. Optimized for performance, consistency, and accessibility.
+
+@props
+- `parent` {object} - Parent modal properties (regionFooter, onClose, buttonPositive)
+- `token` {string} - Existing token (default: '')
+- `email` {string} - Associated email (default: '')
+- `role` {string} - Token role (default: 'user')
+- `expires` {string} - Expiration date (default: '7d')
+- `user_id` {string} - User ID (default: '')
+-->
+
 <script lang="ts">
-	import { page } from '$app/stores';
-	import { roles } from '@collections/types';
+	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';
 
-	// Props
-	/** Exposes parent props to this component. */
-	export let parent: any;
+	// Get data from page store
+	const { roles, user } = page.data;
 
 	// Skeleton & Stores
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+	import type { ModalComponent } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
+	const toastStore = getToastStore();
 
-	//ParaglideJS
+	// Component
+	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
+
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Lucia
-	const user = $page.data.user;
-	export let token: string;
-	export let email: string;
-	export let role: string;
-	export let userId: string;
-
-	// Form Data
-	const formData = {
-		userId: userId,
-		email: email,
-		token: token,
-		role: role
-	};
-
-	let errorStatus = {
-		userId: { status: false, msg: '' },
-		email: { status: false, msg: '' },
-		token: { status: false, msg: '' }
-	};
-
-	// We've created a custom submit function to pass the response and close the modal.
-	function onFormSubmit(): void {
-		// console.log('modal submitted.');
-		if ($modalStore[0].response) $modalStore[0].response(formData);
-
-		modalStore.close();
+	interface Props {
+		// Props
+		parent: ModalComponent['props'] & {
+			regionFooter?: string;
+			onClose?: (event: MouseEvent) => void;
+			buttonPositive?: string;
+		};
+		token: string;
+		email: string;
+		role: string;
+		expires: string;
+		user_id: string;
 	}
 
-	const deleteToken = async () => {
-		const res = await fetch(`/api/user/deleteTokens`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify([
-				{
-					userID: userId,
-					role: role
-				}
-			])
-		});
+	let { parent = { regionFooter: 'modal-footer p-4' }, token = '', email = '', role = 'user', expires = '7d', user_id = '' }: Props = $props();
 
-		if (res.status === 200) {
-			modalStore.close();
-			await invalidateAll();
+	let formElement: HTMLFormElement | null = $state(null);
+
+	// Form Data
+	const formData = $state({
+		user_id: user_id || '',
+		email: email || '',
+		token: token || '',
+		role: role || 'user', // Default to user role
+		expires: expires || '7d' // Default to 7 days
+	});
+
+	const errorStatus = $state({
+		user_id: { status: false, msg: '' },
+		email: { status: false, msg: '' },
+		token: { status: false, msg: '' }
+	});
+
+	// Custom submit function to pass the response and close the modal
+	async function onFormSubmit(): Promise<void> {
+		// Validate required fields
+		if (!formData.email) {
+			errorStatus.email = { status: true, msg: 'Email is required' };
+			return;
 		}
-	};
+		if (!formData.user_id) {
+			errorStatus.user_id = { status: true, msg: 'Username is required' };
+			return;
+		}
+
+		// Email format validation
+		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+		if (!emailRegex.test(formData.email)) {
+			errorStatus.email = { status: true, msg: 'Invalid email format' };
+			return;
+		}
+
+		try {
+			const isEditMode = !!formData.token;
+			const endpoint = isEditMode ? '/api/user/editToken' : '/api/user/createToken';
+			const method = isEditMode ? 'PUT' : 'POST';
+
+			const response = await fetch(endpoint, {
+				method,
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					...(isEditMode ? { tokenId: formData.token } : {}),
+					email: formData.email,
+					user_id: formData.user_id,
+					role: formData.role || 'user',
+					expiresIn: convertExpiresToHours(formData.expires) || 168, // Default to 7 days (168 hours)
+					expiresInLabel: formData.expires || '7d'
+				})
+			});
+
+			if (response.ok) {
+				const responseData = await response.json();
+
+				// Check if the response indicates success
+				if (responseData.success === false) {
+					throw new Error(responseData.message || 'Operation failed');
+				}
+
+				const successMessage = isEditMode ? 'Token updated successfully' : 'Token created successfully';
+
+				const t = {
+					message: `<iconify-icon icon="mdi:check" color="white" width="24" class="mr-1"></iconify-icon> ${successMessage}`,
+					background: 'gradient-tertiary',
+					timeout: 3000,
+					classes: 'border-1 !rounded-md'
+				};
+				toastStore.trigger(t);
+
+				// Update form data with response values
+				if (!isEditMode && responseData.token) {
+					formData.token = responseData.token.value;
+					formData.expires = formatExpires(responseData.token.expires);
+				}
+
+				modalStore.close();
+				await invalidateAll();
+
+				// If new token created, send email
+				if (!isEditMode && responseData.token) {
+					await fetch('/api/sendMail', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify({
+							email: formData.email,
+							template: 'userToken',
+							data: {
+								username: formData.user_id,
+								token: responseData.token.value,
+								expires: formData.expires,
+								role: formData.role,
+								sitename: import.meta.env.PUBLIC_SITE_NAME || 'SveltyCMS'
+							}
+						})
+					});
+				}
+			} else {
+				let errorMessage = 'Failed to update token';
+				try {
+					const data = await response.json();
+					errorMessage = data.message || errorMessage;
+				} catch (jsonError) {
+					// If response isn't JSON, use status text
+					errorMessage = response.statusText || errorMessage;
+				}
+				throw new Error(errorMessage);
+			}
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Failed to update token';
+			const t = {
+				message: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${message}`,
+				background: 'variant-filled-error',
+				timeout: 5000,
+				classes: 'border-1 !rounded-md'
+			};
+			toastStore.trigger(t);
+			// Don't close modal on error - let user try again
+		}
+	}
+
+	async function deleteToken(): Promise<void> {
+		try {
+			const response = await fetch('/api/user/deleteToken', {
+				method: 'DELETE',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify([{ token: formData.token }])
+			});
+
+			if (response.ok) {
+				const t = {
+					message: '<iconify-icon icon="mdi:check" color="white" width="24" class="mr-1"></iconify-icon> Registration token deleted successfully',
+					background: 'gradient-tertiary',
+					timeout: 3000,
+					classes: 'border-1 !rounded-md'
+				};
+				toastStore.trigger(t);
+				modalStore.close();
+				await invalidateAll();
+			} else {
+				const data = await response.json();
+				throw new Error(data.message || 'Failed to delete token');
+			}
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Failed to delete token';
+			const t = {
+				message: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> Failed to delete registration token: ${message}`,
+				background: 'variant-filled-error',
+				timeout: 3000,
+				classes: 'border-1 !rounded-md'
+			};
+			toastStore.trigger(t);
+		}
+	}
+
+	// Format expiration date for display
+	function formatExpires(isoDate: string): string {
+		const date = new Date(isoDate);
+		const now = new Date();
+		const diffHours = Math.floor((date.getTime() - now.getTime()) / (1000 * 60 * 60));
+
+		if (diffHours < 24) {
+			return `${diffHours}h`;
+		}
+		return `${Math.floor(diffHours / 24)}d`;
+	}
+
+	// Convert expires string to hours
+	function convertExpiresToHours(expires: string): number {
+		if (!expires) return 168; // Default 7 days
+
+		const unit = expires.slice(-1);
+		const value = parseInt(expires.slice(0, -1));
+
+		switch (unit) {
+			case 'h':
+				return value;
+			case 'd':
+				return value * 24;
+			default:
+				return 168; // Default 7 days
+		}
+	}
 
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
 	const cHeader = 'text-2xl font-bold';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
-
-	let formElement: HTMLFormElement;
 </script>
 
-<!-- @component This example creates a simple form modal. -->
+d<!-- @component This example creates a simple form modal. -->
+{#if $modalStore[0]}
+	<div class="modal-example-form {cBase}">
+		<header class={`text-center dark:text-primary-500 ${cHeader}`}>
+			{$modalStore[0]?.title ?? '(title missing)'}
+		</header>
+		<article class="text-center text-sm">
+			{$modalStore[0]?.body ?? '(body missing)'}
+		</article>
+		<form class="modal-form {cForm}" bind:this={formElement} id="change_user_form">
+			<!-- Email field -->
+			<div class="group relative z-0 mb-6 w-full">
+				<FloatingInput
+					type="email"
+					name="email"
+					label={m.form_emailaddress()}
+					bind:value={formData.email}
+					onkeydown={() => (errorStatus.email.status = false)}
+					required
+					autocomplete="email"
+					icon="mdi:email"
+				/>
+				{#if errorStatus.email.status}
+					<div class="absolute left-0 top-11 text-xs text-error-500">
+						{errorStatus.email.msg}
+					</div>
+				{/if}
+			</div>
 
-<div class="modal-example-form {cBase}">
-	<header class={`text-center dark:text-primary-500 ${cHeader}`}>
-		{$modalStore[0]?.title ?? '(title missing)'}
-	</header>
-	<article class="text-center text-sm">
-		{$modalStore[0]?.body ?? '(body missing)'}
-	</article>
-	<!-- Enable for debugging: -->
-	<!-- <pre>{JSON.stringify(formData, null, 2)}</pre> -->
-	<form class="modal-form {cForm}" bind:this={formElement} id="change_user_form">
-		<!-- Username field -->
-		<div class="group relative z-0 mb-6 w-full">
-			<iconify-icon icon="mdi:user-circle" width="18" class="absolute left-0 top-3.5 text-gray-400" />
-			<input
-				bind:value={formData.userId}
-				on:keydown={() => (errorStatus.userId.status = false)}
-				color={errorStatus.userId.status ? 'red' : 'base'}
-				type="text"
-				name="username"
-				class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
-				placeholder=" "
-				required
-				disabled
-			/>
-			<label
-				for="username"
-				class="absolute left-5 top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-			>
-				{m.modaledit_tokenusername()}<span class="ml-2 text-error-500">*</span>
-			</label>
-
-			{#if !errorStatus.userId.status}
-				<div class="absolute left-0 top-11 text-xs text-error-500">
-					{errorStatus.userId.msg}
+			<!-- Username field -->
+			<div class="group relative z-0 mb-6 w-full">
+				<div class="flex items-center gap-2">
+					<div class="flex-1">
+						<FloatingInput
+							type="text"
+							name="username"
+							label={m.modaledit_tokenusername()}
+							bind:value={formData.user_id}
+							onkeydown={() => (errorStatus.user_id.status = false)}
+							required
+							icon="mdi:user-circle"
+						/>
+					</div>
+					<button
+						type="button"
+						onclick={() => {
+							if (!formData.email) {
+								errorStatus.email = { status: true, msg: 'Enter email first' };
+								return;
+							}
+							// Generate username from email
+							const base = formData.email.split('@')[0].replace(/[^a-z0-9]/gi, '_');
+							const suffix = Math.floor(1000 + Math.random() * 9000); // 4-digit random
+							formData.user_id = `${base}_${suffix}`.toLowerCase();
+						}}
+						class="variant-ghost-secondary btn"
+						title="Generate username from email"
+					>
+						<iconify-icon icon="mdi:auto-fix" width="20"></iconify-icon>
+						<span class="sr-only">Auto generate username</span>
+					</button>
 				</div>
-			{/if}
-		</div>
+				{#if errorStatus.user_id.status}
+					<div class="absolute left-0 top-11 text-xs text-error-500">
+						{errorStatus.user_id.msg}
+					</div>
+				{/if}
+			</div>
 
-		<!-- Email field -->
-		<div class="group relative z-0 mb-6 w-full">
-			<iconify-icon icon="mdi:email" width="18" class="absolute left-0 top-3.5 text-gray-400" />
-			<input
-				bind:value={formData.email}
-				on:keydown={() => (errorStatus.email.status = false)}
-				color={errorStatus.email.status ? 'red' : 'base'}
-				type="email"
-				name="email"
-				class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
-				placeholder=" "
-				required
-				disabled
-			/>
-			<label
-				for="email"
-				class="absolute left-5 top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-			>
-				{m.modaledit_tokenemailaddress()}<span class="ml-2 text-error-500">*</span>
-			</label>
-			{#if errorStatus.email.status}
-				<div class="absolute left-0 top-11 text-xs text-error-500">
-					{errorStatus.email.msg}
-				</div>
-			{/if}
-		</div>
-		<!-- Token field -->
-		<div class="group relative z-0 mb-6 w-full">
-			<iconify-icon icon="mdi:token" width="18" class="absolute left-0 top-3.5 text-gray-400" />
-			<input
-				bind:value={formData.token}
-				on:keydown={() => (errorStatus.token.status = false)}
-				color={errorStatus.token.status ? 'red' : 'base'}
-				type="token"
-				name="token"
-				class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
-				placeholder=" "
-				required
-				disabled
-			/>
-			<label
-				for="token"
-				class="absolute left-5 top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-			>
-				{m.modaledit_tokenregistrationtoken()}
-				<span class="ml-2 text-error-500">*</span>
-			</label>
-			{#if errorStatus.token.status}
-				<div class="absolute left-0 top-11 text-xs text-error-500">
-					{errorStatus.token.msg}
-				</div>
-			{/if}
-		</div>
+			<!-- Token field (hidden but still submitted with form) -->
+			<input bind:value={formData.token} type="hidden" name="token" required />
 
-		<!-- admin area -->
-		{#if user?.role == roles.admin}
-			<div class="flex flex-col gap-2 sm:flex-row">
-				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.modaledit_tokenuserrole()}</div>
-				<div class="flex-auto">
-					<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
-						{#each Object.values(roles) as r}
-							<span
-								class="chip {formData.role === r ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
-								on:click={() => {
-									// filterRole(r);
-									formData.role = r;
-								}}
-								on:keypress
-								role="button"
-								tabindex="0"
-							>
-								{#if formData.role === r}
-									<span><iconify-icon icon="fa:check" /></span>
-								{/if}
-								<span class="capitalize">{r}</span>
-							</span>
-						{/each}
+			<!-- User Role -->
+			{#if user.role == 'admin'}
+				<div class="flex flex-col gap-2 sm:flex-row">
+					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">
+						{m.form_userrole()}: <span class="text-error-500">*</span>
+					</div>
+					<div class="flex-auto">
+						<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
+							{#if roles && roles.length > 0}
+								{#each roles as r}
+									<button
+										type="button"
+										class="chip {formData.role === r._id ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+										onclick={() => (formData.role = r._id)}
+									>
+										{#if formData.role === r._id}
+											<span><iconify-icon icon="fa:check"></iconify-icon></span>
+										{/if}
+										<span class="capitalize">{r.name}</span>
+									</button>
+								{/each}
+							{:else}
+								<p class="text-tertiary-500 dark:text-primary-500">Loading roles...</p>
+							{/if}
+						</div>
 					</div>
 				</div>
+			{/if}
+
+			<!-- Expires field -->
+			<div class="group relative z-0 mb-6 w-full">
+				<label for="expires-select" class="mb-2 block text-sm font-medium text-black dark:text-white">{m.modaltokenuser_tokenvalidity()} </label>
+				<select id="expires-select" bind:value={formData.expires} class="input" aria-label="Token Validity">
+					<option value="1h">1 Hour</option>
+					<option value="1d">1 Day</option>
+					<option value="7d" selected>7 Days (default)</option>
+					<option value="30d">30 Days</option>
+					<option value="90d">90 Days</option>
+				</select>
 			</div>
-		{/if}
-	</form>
+		</form>
 
-	<footer class="{parent.regionFooter} flex items-center justify-between">
-		<button type="button" on:click={deleteToken} class="variant-filled-error btn">
-			<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.button_delete()}</span>
-		</button>
+		<footer class="modal-footer flex items-center justify-between p-4 {parent?.regionFooter ?? ''}">
+			<!-- Delete - Only show for existing tokens -->
+			{#if formData.token}
+				<button type="button" onclick={deleteToken} class="variant-filled-error btn">
+					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon><span class="hidden sm:block">{m.button_delete()}</span>
+				</button>
+			{:else}
+				<div></div>
+				<!-- Empty div to maintain flex spacing -->
+			{/if}
 
-		<div class="flex justify-between gap-2">
-			<button class="variant-outline-secondary btn" on:click={parent.onClose}>{m.button_cancel()}</button>
-			<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button>
-		</div>
-	</footer>
-</div>
+			<div class="{formData.token ? 'justify-center' : 'w-full justify-between '} flex gap-2">
+				<!-- Cancel -->
+				<button class="variant-outline-secondary btn" onclick={parent?.onClose}>{m.button_cancel()}</button>
+				<!-- Save -->
+				<button class="variant-filled-tertiary btn dark:variant-filled-primary{parent?.buttonPositive ?? ''}" onclick={onFormSubmit}
+					>{m.button_save()}</button
+				>
+			</div>
+		</footer>
+	</div>
+{/if}

@@ -1,20 +1,43 @@
-import { redirect } from '@sveltejs/kit';
-import { auth } from '@api/db';
-import { validate } from '@utils/utils';
-import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
+/**
+ * @file src/routes/(app)/dashboard/+page.server.ts
+ * @description Server-side logic for the dashboard page.
+ * 
+ * ### Props
+ * - `user`: The authenticated user data.
+ * 
+ * ### Usage
+ * - Access user data from the server-side and pass it to the client-side component	
+ * 
+ * ### Features
+ * - User authentication and authorization
+ * - Proper typing for user data
 
-export async function load(event: any) {
-	// Secure this page with session cookie
-	const session = event.cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
-	// Validate the user's session
-	const user = await validate(auth, session);
-	// If validation fails, redirect the user to the login page
-	if (user.status !== 200) {
-		redirect(302, `/login`);
+ */
+
+import { redirect } from '@sveltejs/kit';
+import type { PageServerLoad } from './$types';
+
+// System Logger
+import { logger } from '@utils/logger.svelte';
+
+export const load: PageServerLoad = async ({ locals }) => {
+	// Check if user is authenticated
+	const user = locals.user;
+
+	if (!user) {
+		logger.warn('User not authenticated, redirecting to login.');
+		redirect(301, '/login');
 	}
 
-	// Return an empty object if validation is successful
+	logger.debug(`User authenticated successfully: ${user._id}`);
+
+	const { _id, ...rest } = user;
+
+	// Return user data with proper typing
 	return {
-		user: user.user
+		user: {
+			id: _id.toString(),
+			...rest
+		}
 	};
-}
+};

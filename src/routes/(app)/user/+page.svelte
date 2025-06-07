@@ -1,114 +1,123 @@
+<!-- 
+@file src/routes/(app)/user/+page.svelte
+@component
+**This file sets up and displays the user page, providing a streamlined interface for managing user accounts and settings**
+
+@example
+<User />
+
+### Props
+- `users` {array} - Array of users
+
+### Features
+- Displays a list of users
+- Provides a user-friendly interface for managing user accounts and settings
+-->
+
 <script lang="ts">
 	import type { PageData } from './$types';
-	import { roles } from '@collections/types';
+	import axios from 'axios';
+	import { onMount } from 'svelte';
+	import { invalidateAll } from '$app/navigation';
 
-	// Stores
-	import '@stores/store';
-	import { page } from '$app/stores';
-	import { avatarSrc } from '@stores/store';
-	import { triggerActionStore } from '@utils/globalSearchIndex';
+	// Auth
+	import type { User } from '@src/auth/types';
 
-	function executeActions() {
-		console.log('executeActions called');
-		// Get the current value of the triggerActionStore
-		const actions = $triggerActionStore;
-
-		// Execute the actions
-		if (actions.length === 1) {
-			// Only one action present, directly execute it
-			console.log('single action', actions[0]);
-			actions[0];
-		} else {
-			// Multiple actions present, iterate and execute each one sequentially
-			console.log('multiple actions');
-			for (const action of actions) {
-				console.log(action);
-				action;
-			}
-		}
-
-		// Clear the triggerActionStore
-		triggerActionStore.set([]);
-	}
-
-	// Execute actions on mount if triggerActionStore has data
-	document.addEventListener('DOMContentLoaded', () => {
-		// Execute actions on mount if triggerActionStore has data
-		if ($triggerActionStore.length > 0) {
-			console.log('$triggerActionStore called:', $triggerActionStore);
-			executeActions();
-		}
-	});
-
-	import PageTitle from '@components/PageTitle.svelte';
-
-	export let data: PageData;
-
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Lucia
-	import { invalidateAll } from '$app/navigation';
-	const user = $page.data.user;
-	const { isFirstUser } = $page.data;
+	// Stores
+	import '@stores/store.svelte';
+	import { avatarSrc } from '@stores/store.svelte';
+	import { triggerActionStore } from '@utils/globalSearchIndex';
+
+	// Components
+	import PageTitle from '@components/PageTitle.svelte';
+	import PermissionGuard from '@components/PermissionGuard.svelte';
+	import AdminArea from './components/AdminArea.svelte';
 
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton';
 	import ModalEditAvatar from './components/ModalEditAvatar.svelte';
 	import ModalEditForm from './components/ModalEditForm.svelte';
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
+	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
+	import { collection } from '@src/stores/collectionStore.svelte';
 
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-	import AdminArea from './components/AdminArea.svelte';
+	// Props
+	let { data } = $props<{ data: PageData }>();
+	let { user: serverUser, isFirstUser } = $derived(data);
 
-	// let avatarSrc = writable(user?.avatar);
-	avatarSrc.set(user?.avatar);
+	// Make user data reactive
+	let user = $derived<User>({
+		_id: serverUser?._id ?? '',
+		email: serverUser?.email ?? '',
+		username: serverUser?.username ?? '',
+		role: serverUser?.role ?? '',
+		avatar: serverUser?.avatar ?? '/Default_User.svg',
+		permissions: []
+	});
 
-	let id = user?.id;
-	let username = user?.username;
-	let role = user?.role;
-	let email = user?.email;
+	// Keep user data in sync with server data
 
-	// TODO  Get hashed password
-	let password = 'hash-password';
+	// Initialize avatarSrc with user's avatar or default using effect
+	// $effect(() => {
+	// 	if (user?.avatar) {
+	// 		avatarSrc.set(user.avatar);
+	// 	} else {
+	// 		avatarSrc.set('/Default_User.svg');
+	// 	}
+	// });
+
+	// Define password as state
+	let password = $state('hash-password');
+
+	// Function to execute actions
+	function executeActions() {
+		const actions = $triggerActionStore;
+		if (actions.length === 1) {
+			actions[0]();
+		} else {
+			for (const action of actions) {
+				action();
+			}
+		}
+		triggerActionStore.set([]);
+	}
+
+	// Execute actions on mount if triggerActionStore has data
+	onMount(() => {
+		if ($triggerActionStore.length > 0) {
+			executeActions();
+		}
+		collection.set(null);
+	});
 
 	// Modal Trigger - User Form
 	function modalUserForm(): void {
-		console.log('Triggered - modalUserForm');
 		const modalComponent: ModalComponent = {
-			// Pass a reference to your custom component
 			ref: ModalEditForm,
-
-			// Provide default slot content as a template literal
 			slot: '<p>Edit Form</p>'
 		};
 
+		type UserFormResponse = Partial<Pick<User, 'username' | 'email' | 'role' | 'avatar'>>;
+
 		const d: ModalSettings = {
 			type: 'component',
-			// NOTE: title, body, response, etc are supported!
 			title: m.usermodaluser_edittitle(),
 			body: m.usermodaluser_editbody(),
 			component: modalComponent,
-
-			// Pass arbitrary data to the component
-			response: async (r: any) => {
+			response: async (r: UserFormResponse) => {
 				if (r) {
-					const res = await fetch('/api/user/editUser', {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ ...r, id })
-					});
-
-					// Trigger the toast
+					const data = { user_id: user._id, newUserData: r };
+					const res = await axios.put('/api/user/updateUserAttributes', data);
 					const t = {
 						message: '<iconify-icon icon="mdi:check-outline" color="white" width="26" class="mr-1"></iconify-icon> User Data Updated',
-						// Provide any utility or variant background style:
 						background: 'gradient-tertiary',
 						timeout: 3000,
-						// Add your custom classes here:
 						classes: 'border-1 !rounded-md'
 					};
 					toastStore.trigger(t);
@@ -124,39 +133,27 @@
 
 	// Modal Trigger - Edit Avatar
 	function modalEditAvatar(): void {
-		console.log('Triggered - modalEditAvatar');
 		const modalComponent: ModalComponent = {
-			// Pass a reference to your custom component
 			ref: ModalEditAvatar,
 			props: { avatarSrc },
-
-			// Add your props as key/value pairs
-			// props: { background: 'bg-pink-500' },
-			// Provide default slot content as a template literal
 			slot: '<p>Edit Form</p>'
 		};
 		const d: ModalSettings = {
 			type: 'component',
-			// NOTE: title, body, response, etc are supported!
 			title: m.usermodaluser_settingtitle(),
 			body: m.usermodaluser_settingbody(),
 			component: modalComponent,
-			// Pass arbitrary data to the component
-			response: (r: { dataURL: string }) => {
+			response: async (r: { dataURL: string }) => {
 				if (r) {
-					avatarSrc.set(r.dataURL); // Update the avatarSrc store with the new URL
-
-					// Trigger the toast
+					avatarSrc.set(r.dataURL);
 					const t = {
 						message: '<iconify-icon icon="radix-icons:avatar" color="white" width="26" class="mr-1"></iconify-icon> Avatar Updated',
-
-						// Provide any utility or variant background style:
 						background: 'gradient-primary',
 						timeout: 3000,
-						// Add your custom classes here:
 						classes: 'border-1 !rounded-md'
 					};
 					toastStore.trigger(t);
+					await invalidateAll(); // Reload the page data to get the updated user object
 				}
 			}
 		};
@@ -169,8 +166,6 @@
 			type: 'confirm',
 			title: m.usermodalconfirmtitle(),
 			body: m.usermodalconfirmbody(),
-
-			// TRUE if confirm pressed, FALSE if cancel pressed
 			response: async (r: boolean) => {
 				if (!r) return;
 				const res = await fetch(`/api/user/deleteUsers`, {
@@ -178,14 +173,10 @@
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify([user])
 				});
-
 				if (res.status === 200) {
 					await invalidateAll();
 				}
 			},
-			// Optionally override the button text
-			// TODO: fix light background and change Delete button to red
-			//backdropClasses: 'bg-white',
 			buttonTextCancel: m.button_cancel(),
 			buttonTextConfirm: m.usermodalconfirmdeleteuser()
 		};
@@ -193,66 +184,77 @@
 	}
 </script>
 
-<div class="mb-2 flex flex-col gap-1">
-	<!-- TODO: fix TypeScript, as Icon is already optional? -->
-	<PageTitle name={m.userpage_title()} icon="" />
-</div>
-<div class="max-h-[calc(100vh-55px)] overflow-auto">
+<!-- Page Title with Back Button -->
+<PageTitle name={m.userpage_title()} icon="mdi:account-circle" showBackButton={true} backUrl="/config" />
+
+<div class="max-h-[calc(100vh-65px)] overflow-auto">
 	<div class="wrapper mb-2">
 		<div class="grid grid-cols-1 grid-rows-2 gap-1 overflow-hidden md:grid-cols-2 md:grid-rows-1">
 			<!-- Avatar with user info -->
 			<div class="relative flex flex-col items-center justify-center gap-1">
-				<Avatar src={$avatarSrc ? $avatarSrc : '/Default_User.svg'} initials="AV" rounded-none class="w-32" />
+				<Avatar src={`${avatarSrc.value}?t=${Date.now()}`} initials="AV" rounded-none class="w-32" />
 
-				<!-- edit button -->
-				<button on:click={modalEditAvatar} class="gradient-primary w-30 badge absolute top-8 text-white sm:top-4">{m.userpage_editavatar()}</button>
-				<!--User ID -->
+				<!-- Edit button -->
+				<button onclick={modalEditAvatar} class="gradient-primary w-30 badge absolute top-8 text-white sm:top-4">{m.userpage_editavatar()}</button>
+				<!-- User ID -->
 				<div class="gradient-secondary badge mt-1 w-full max-w-xs text-white">
-					{m.userpage_userid()}<span class="ml-2">{id}</span>
+					{m.userpage_user_id()}<span class="ml-2">{user?._id || 'N/A'}</span>
 				</div>
 				<!-- Role -->
 				<div class="gradient-tertiary badge w-full max-w-xs text-white">
-					{m.userpage_role()}<span class="ml-2">{role}</span>
+					{m.form_role()}:<span class="ml-2">{user?.role || 'N/A'}</span>
 				</div>
+				<!-- Permissions List -->
+				{#each user.permissions as permission}
+					<div class="gradient-primary badge mt-1 w-full max-w-xs text-white">
+						{permission}
+					</div>
+				{/each}
 			</div>
 
-			<!-- user fields -->
-			<form>
-				<label
-					>{m.userpage_username()}
-					<input bind:value={username} name="username" type="text" disabled class="input" />
-				</label>
-				<label
-					>{m.userpage_email()}
-					<input bind:value={email} name="email" type="email" disabled class="input" />
-				</label>
-				<label
-					>{m.userpage_password()}
-					<input bind:value={password} name="password" type="password" disabled class="input" />
-				</label>
+			<!-- User fields -->
+			{#if user}
+				<form>
+					<label>
+						{m.form_username()}:
+						<input bind:value={user.username} name="username" type="text" disabled class="input" />
+					</label>
+					<label>
+						{m.form_email()}:
+						<input bind:value={user.email} name="email" type="email" disabled class="input" />
+					</label>
+					<label>
+						{m.form_password()}:
+						<input bind:value={password} name="password" type="password" disabled class="input" />
+					</label>
 
-				<div class="mt-4 flex flex-col justify-between gap-2 sm:flex-row sm:gap-1">
-					<!-- Edit Modal Button -->
-					<button class="gradient-tertiary btn w-full max-w-sm text-white {!isFirstUser ? '' : 'mx-auto md:mx-0'}" on:click={modalUserForm}>
-						<iconify-icon icon="bi:pencil-fill" color="white" width="18" class="mr-1" />{m.userpage_edit_usersetting()}
-					</button>
-
-					<!-- Delete Modal Button -->
-					{#if !isFirstUser}
-						<button on:click={modalConfirm} class="gradient-error btn w-full max-w-sm text-white">
-							<iconify-icon icon="bi:trash3-fill" color="white" width="18" class="mr-1" />
-							{m.button_delete()}
+					<div class="mt-4 flex flex-col justify-between gap-2 sm:flex-row sm:gap-1">
+						<!-- Edit Modal Button -->
+						<button
+							onclick={modalUserForm}
+							aria-label={m.userpage_edit_usersetting()}
+							class="gradient-tertiary btn w-full max-w-sm text-white {isFirstUser ? '' : 'mx-auto md:mx-0'}"
+						>
+							<iconify-icon icon="bi:pencil-fill" color="white" width="18" class="mr-1"></iconify-icon>{m.userpage_edit_usersetting()}
 						</button>
-					{/if}
-				</div>
-			</form>
+
+						<!-- Delete Modal Button -->
+						{#if isFirstUser}
+							<button onclick={modalConfirm} aria-label={m.button_delete()} class="gradient-error btn w-full max-w-sm text-white">
+								<iconify-icon icon="bi:trash3-fill" color="white" width="18" class="mr-1"></iconify-icon>
+								{m.button_delete()}
+							</button>
+						{/if}
+					</div>
+				</form>
+			{/if}
 		</div>
 	</div>
 
-	<!-- admin area -->
-	{#if user?.role == roles.admin}
+	<!-- Admin area -->
+	<PermissionGuard config={{ name: 'Admin Area Access', contextId: 'system:admin', requiredRole: 'admin', action: 'manage', contextType: 'system' }}>
 		<div class="wrapper2">
-			<AdminArea {data} />
+			<AdminArea adminData={data.adminData} />
 		</div>
-	{/if}
+	</PermissionGuard>
 </div>

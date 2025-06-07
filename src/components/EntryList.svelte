@@ -1,11 +1,47 @@
+<!--
+@file:  src/components/EntryList.svelte
+@component
+**EntryList component to display collections data.**
+
+@example
+<EntryList />
+
+#### Props
+- `collection` - The collection object to display data from.
+- `mode` - The current mode of the component. Can be 'view', 'edit', 'create', 'delete', 'modify', or 'media'.
+
+Features:
+- Search
+- Pagination
+- Multi-select
+- Sorting
+- Status
+- Icons
+- Filter
+-->
+
+<script module lang="ts">
+	// Strict type for sort order
+	export type SortOrder = 0 | 1 | -1;
+</script>
+
 <script lang="ts">
-	import axios from 'axios';
-	import { asAny, debounce, getFieldName, generateUniqueId } from '@src/utils/utils';
+	import { browser } from '$app/environment';
+	import { untrack } from 'svelte';
+
+	// Utils
+	import { debounce as debounceUtil, getFieldName, meta_data } from '@utils/utils';
+	import { deleteData, getData, setStatus } from '@utils/data';
+	import { formatDisplayDate } from '@utils/dateUtils';
+
+	// Types
+	import type { TableHeader, PaginationSettings } from './system/table/TablePagination.svelte';
 
 	// Stores
-	import { get } from 'svelte/store';
-	import { mode, entryData, modifyEntry, statusMap, contentLanguage, collection, categories, systemLanguage } from '@src/stores/store';
-	import { handleSidebarToggle, screenWidth, sidebarState, toggleSidebar } from '@src/stores/sidebarStore';
+	import { contentLanguage, systemLanguage } from '@stores/store.svelte';
+	import { mode, collectionValue, modifyEntry, statusMap, collection, contentStructure } from '@stores/collectionStore.svelte';
+	import { uiStateManager, toggleUIElement, handleUILayoutToggle } from '@stores/UIStore.svelte';
+	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -13,11 +49,10 @@
 	// Components
 	import EntryListMultiButton from './EntryList_MultiButton.svelte';
 	import TranslationStatus from '@components/TranslationStatus.svelte';
-	import TableIcons from '@src/components/system/table/TableIcons.svelte';
+	import TableIcons from '@components/system/table/TableIcons.svelte';
 	import TableFilter from '@components/system/table/TableFilter.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import TablePagination from '@components/system/table/TablePagination.svelte';
-
 	import Status from '@components/system/table/Status.svelte';
 	import Loading from './Loading.svelte';
 
@@ -30,312 +65,482 @@
 	// Svelte-dnd-action
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
+	import { v4 as uuidv4 } from 'uuid';
 
 	const flipDurationMs = 300;
 
-	function handleDndConsider(event: CustomEvent<{ items: any[] }>) {
+	function handleDndConsider(event: CustomEvent<{ items: TableHeader[] }>) {
 		displayTableHeaders = event.detail.items;
 	}
-
-	function handleDndFinalize(event: CustomEvent<{ items: any[] }>) {
+	function handleDndFinalize(event: CustomEvent<{ items: TableHeader[] }>) {
 		displayTableHeaders = event.detail.items;
+		// Immediately save settings after DnD operation
+		savePaginationSettings();
 	}
-
-	let isLoading = false;
-	let loadingTimer: any; // recommended time of around 200-300ms
-
-	// Buttons
-	let globalSearchValue = '';
-	let expand = false;
-	let filterShow = false;
-	let columnShow = false;
-
-	// Retrieve entryListPaginationSettings from local storage or set default values for each collection
-	const entryListPaginationSettingsKey = `entryListPaginationSettings_${$collection.name}`;
-	let entryListPaginationSettings: any = localStorage.getItem(entryListPaginationSettingsKey)
-		? JSON.parse(localStorage.getItem(entryListPaginationSettingsKey) as string)
-		: {
-				collectionName: $collection.name,
-				density: 'normal',
-				sorting: { sortedBy: '', isSorted: 0 },
-				currentPage: 1,
-				rowsPerPage: 10,
-				filters: {},
-				displayTableHeaders: []
-			};
-
-	let density: string = entryListPaginationSettings.density || 'normal'; // Retrieve density from local storage or set to 'normal' if it doesn't exist
-	let selectAllColumns = true; // Initialize to true to show all columns by default
-
-	let data: { entryList: [any]; pagesCount: number } | undefined;
-	let tableHeaders: Array<{ label: string; name: string }> = [];
-	let tableData: any[] = [];
-
-	// Initialize displayTableHeaders with the values from entryListPaginationSettings or default to tableHeaders
-	let displayTableHeaders: { label: string; name: string; id: string; visible: boolean }[] =
-		entryListPaginationSettings.displayTableHeaders.length > 0
-			? entryListPaginationSettings.displayTableHeaders
-			: tableHeaders.map((header) => ({ ...header, visible: true }));
-
-	// Tick row logic
-	let SelectAll = false;
-	let selectedMap: { [key: string]: boolean } = {};
-
-	// Filter
-	let filters: { [key: string]: string } = entryListPaginationSettings.filters || {};
-	let waitFilter = debounce(300); // Debounce filter function for 300ms
 
 	// Pagination
-	let pagesCount: number = entryListPaginationSettings.pagesCount || 1; // Initialize pagesCount
-	let currentPage: number = entryListPaginationSettings.currentPage || 1; // Set initial currentPage value
-	let rowsPerPage: number = entryListPaginationSettings.rowsPerPage || 10; // Set initial rowsPerPage value
-	let rowsPerPageOptions = [10, 25, 50, 100, 500]; // Set initial rowsPerPage value options
+	const defaultPaginationSettings = (collectionId: string | null): PaginationSettings => ({
+		collectionId: collectionId,
+		density: 'normal',
+		sorting: { sortedBy: '', isSorted: 0 as SortOrder },
+		currentPage: 1,
+		rowsPerPage: 10,
+		filters: {}, // Will be populated by an effect based on tableHeaders
+		displayTableHeaders: []
+	});
 
-	// Declare isFirstPage and isLastPage variables
-	let isFirstPage: boolean;
-	let isLastPage: boolean;
+	let entryListPaginationSettings = $state<PaginationSettings>(defaultPaginationSettings(collection.value?._id ?? null));
 
-	// Define the rowsPerPageHandler function
-	function rowsPerPageHandler(event: Event) {
-		// Get the selected value from the event
-		const selectedValue = (event.target as HTMLSelectElement).value;
-		// Update the rows per page value
-		rowsPerPage = parseInt(selectedValue); // Assuming rowsPerPage is a number
-		// Optionally, you can call the refreshTableData function here if needed
-		refreshTableData();
-	}
+	$effect(() => {
+		// Load settings from localStorage when collectionId changes
+		const currentCollId = collection.value?._id;
+		if (browser && currentCollId) {
+			const savedSettings = localStorage.getItem(`entryListPaginationSettings_${currentCollId}`);
+			let newSettings: PaginationSettings = defaultPaginationSettings(currentCollId);
 
-	// This function refreshes the data displayed in a table by fetching new data from an API endpoint and updating the tableData and options variables.
-	async function refreshTableData(fetch = true) {
-		// Clear loading timer
-		loadingTimer && clearTimeout(loadingTimer);
+			if (savedSettings) {
+				try {
+					const parsed = JSON.parse(savedSettings) as Partial<PaginationSettings>;
+					newSettings.collectionId = parsed.collectionId === currentCollId ? parsed.collectionId : currentCollId; // Ensure it's for the current collection
+					newSettings.density = ['compact', 'normal', 'comfortable'].includes(parsed.density ?? '')
+						? (parsed.density! as 'compact' | 'normal' | 'comfortable')
+						: 'normal';
+					newSettings.sorting = {
+						sortedBy: typeof parsed.sorting?.sortedBy === 'string' ? parsed.sorting.sortedBy : '',
+						isSorted: [0, 1, -1].includes(parsed.sorting?.isSorted ?? 0) ? (parsed.sorting!.isSorted as SortOrder) : (0 as SortOrder)
+					};
+					newSettings.currentPage = Number.isInteger(parsed.currentPage) && parsed.currentPage! > 0 ? parsed.currentPage! : 1;
+					newSettings.rowsPerPage = Number.isInteger(parsed.rowsPerPage) && parsed.rowsPerPage! > 0 ? parsed.rowsPerPage! : 10;
+					newSettings.filters = typeof parsed.filters === 'object' && parsed.filters !== null ? parsed.filters : {};
 
-		// If the collection name is empty, return
-		if ($collection.name == '') return;
-
-		// If fetch is true, set isLoading to true
-		if (fetch) {
-			// Set loading to true
-			loadingTimer = setTimeout(() => {
-				isLoading = true;
-			}, 400);
-
-			// Fetch data from API endpoint
-			data = (await axios
-				.get(
-					`/api/${$collection.name}?page=${currentPage}&length=${rowsPerPage}&filter=${JSON.stringify(filters)}&sort=${JSON.stringify(
-						sorting.isSorted
-							? {
-									[sorting.sortedBy]: sorting.isSorted
-								}
-							: {}
-					)}`
-				)
-				.then((data) => data.data)) as { entryList: [any]; pagesCount: number };
-
-			// Set loading to false
-			isLoading = false;
-			clearTimeout(loadingTimer);
-		}
-
-		// Update tableData and options
-		data &&
-			(tableData = await Promise.all(
-				data.entryList.map(async (entry) => {
-					let obj: { [key: string]: any } = {};
-
-					for (let field of $collection.fields) {
-						if ('callback' in field) {
-							field.callback({ data });
-							handleSidebarToggle();
-						}
-
-						// Status
-						// TODO: Add Localized status states, Pay attention to Status.svelte modifier
-						//obj.status = entry.status ? m.status_(obj.status) : 'N/A';
-						obj.status = entry.status ? entry.status.charAt(0).toUpperCase() + entry.status.slice(1) : 'N/A';
-						//Collection fields
-						obj[field.label] = await field.display?.({
-							data: entry[getFieldName(field)],
-							collection: $collection.name,
-							field,
-							entry,
-							contentLanguage: $contentLanguage
-						});
+					if (Array.isArray(parsed.displayTableHeaders)) {
+						newSettings.displayTableHeaders = parsed.displayTableHeaders.map(
+							(header: Partial<TableHeader>): TableHeader => ({
+								id: typeof header.id === 'string' && header.id ? header.id : uuidv4().replace(/-/g, ''),
+								label: typeof header.label === 'string' ? header.label : 'Unknown Label',
+								name: typeof header.name === 'string' ? header.name : 'unknown_name',
+								visible: typeof header.visible === 'boolean' ? header.visible : true
+							})
+						);
+					} else {
+						newSettings.displayTableHeaders = [];
 					}
-
-					// Add createdAt and updatedAt properties localized to the system language
-					obj.createdAt = entry.createdAt ? new Date(entry.createdAt).toLocaleString($systemLanguage) : 'N/A';
-					obj.updatedAt = entry.updatedAt ? new Date(entry.updatedAt).toLocaleString($systemLanguage) : 'N/A';
-					obj._id = entry._id; // Add _id property
-
-					return obj;
-				})
-			));
-
-		// For rending Table data
-		tableHeaders = $collection.fields.map((field) => ({ label: field.label, name: getFieldName(field) }));
-		tableHeaders.push({ label: 'createdAt', name: 'createdAt' }, { label: 'updatedAt', name: 'updatedAt' }, { label: 'status', name: 'status' });
-
-		// Update displayTableHeaders based on entryListPaginationSettings
-		if (entryListPaginationSettings.displayTableHeaders.length > 0) {
-			displayTableHeaders = entryListPaginationSettings.displayTableHeaders.map((header) => ({
-				...header,
-				id: generateUniqueId() // Add unique id for each header (optional)
-			}));
-		} else if (tableHeaders.length > 0) {
-			// If no saved settings, use tableHeaders with initial visibility
-			displayTableHeaders = tableHeaders.map((header) => ({
-				...header,
-				visible: true, // Assuming all columns are initially visible
-				id: generateUniqueId() // Add unique id for each header (optional)
-			}));
+				} catch (e) {
+					console.warn('Failed to parse settings from localStorage, using defaults.', e);
+					// newSettings remains defaultPaginationSettings(currentCollId)
+				}
+			}
+			entryListPaginationSettings = { ...newSettings }; // Create new object for reactivity
+		} else if (!currentCollId) {
+			// No collection selected, reset to defaults for a null collectionId
+			entryListPaginationSettings = defaultPaginationSettings(null);
 		}
+	});
 
-		SelectAll = false;
+	// Enhanced loading state management for flicker-free transitions
+	let loadingState = $state<'idle' | 'switching' | 'fetching' | 'error'>('idle');
+	let previousTableData = $state<any[]>([]);
+	let loadingTimer: ReturnType<typeof setTimeout> | undefined;
 
-		// Update pagesCount after fetching data
-		pagesCount = data?.pagesCount || 1;
+	// Collection transition management to prevent flicker
+	let collectionTransitionId = $state<string | null>(null);
+	let stableHeaders = $state<TableHeader[]>([]);
+	let stableVisibleHeaders = $state<TableHeader[]>([]);
 
-		// Update isFirstPage and isLastPage based on currentPage and pagesCount
-		isFirstPage = currentPage === 1;
-		isLastPage = currentPage === pagesCount;
+	// Computed loading states for backward compatibility and improved UX
+	let isLoading = $derived(loadingState === 'switching');
+	let isDataFetching = $derived(loadingState === 'fetching');
 
-		// Adjust currentPage to the last page if it exceeds the new total pages count after changing the rows per page.
-		if (currentPage > (data?.pagesCount || 0)) {
-			currentPage = data?.pagesCount || 1;
-		}
-	}
+	let globalSearchValue = $state('');
+	let expand = $state(false);
+	let filterShow = $state(false);
+	let columnShow = $state(false);
 
-	// React to changes in density setting and update local storage for each collection
-	$: {
-		entryListPaginationSettings = {
-			...entryListPaginationSettings,
-			collectionName: $collection.name,
-			filters,
-			sorting,
-			density,
-			currentPage,
-			rowsPerPage,
-			displayTableHeaders
-		};
-		localStorage.setItem(entryListPaginationSettingsKey, JSON.stringify(entryListPaginationSettings)); // Update local storage using the entryListPaginationSettingsKey
-		//console.log('Updated entryListPaginationSettingsKey:', entryListPaginationSettings);
-	}
+	const currentLanguage = $derived(contentLanguage.value);
+	const currentSystemLanguage = $derived(systemLanguage.value);
+	const currentMode = $derived(mode.value);
+	const currentCollection = $derived(collection.value);
+	const currentScreenSize = $derived(screenSize.value);
 
-	$: {
-		tableHeaders = displayTableHeaders.filter((header) => header.visible);
-	}
+	// Defines the structure of table headers based on the current collection's schema
+	const tableHeaders = $derived.by((): TableHeader[] => {
+		if (!currentCollection?.fields) return [];
+		const schemaHeaders: TableHeader[] = currentCollection.fields.map(
+			(field): TableHeader => ({
+				id: uuidv4().replace(/-/g, ''),
+				label: field.label,
+				name: getFieldName(field),
+				visible: true // Default visibility
+			})
+		);
+		return [
+			...schemaHeaders,
+			{ id: uuidv4().replace(/-/g, ''), label: 'createdAt', name: 'createdAt', visible: true },
+			{ id: uuidv4().replace(/-/g, ''), label: 'updatedAt', name: 'updatedAt', visible: true },
+			{ id: uuidv4().replace(/-/g, ''), label: 'status', name: 'status', visible: true }
+		];
+	});
 
-	// Trigger refreshTableData based on collection, filters, sorting, and currentPage
-	$: {
-		refreshTableData();
-		$collection;
-		filters;
-		sorting;
-		currentPage;
-	}
-	// Trigger refreshTableData when contentLanguage changes, but don't fetch data
-	$: {
-		refreshTableData(false);
-		$contentLanguage;
-		filters = {};
-	}
-	// Reset currentPage to 1 when the collection changes
-	$: {
-		currentPage = 1;
-		$collection;
-	}
-
-	// Tick  All Rows
-	function process_selectAll(selectAll: boolean) {
-		if (selectAll) {
-			// Iterate only over visible entries
-			for (let item in tableData) {
-				selectedMap[item] = true;
+	// Effect to initialize/update the filters object in paginationSettings when tableHeaders change
+	$effect(() => {
+		if (tableHeaders.length > 0) {
+			const newFilters: Record<string, string> = { ...entryListPaginationSettings.filters };
+			let filtersChanged = false;
+			for (const th of tableHeaders) {
+				if (!(th.name in newFilters)) {
+					newFilters[th.name] = ''; // Initialize with empty string if not present
+					filtersChanged = true;
+				}
+			}
+			if (filtersChanged) {
+				entryListPaginationSettings.filters = newFilters;
 			}
 		} else {
-			// Clear all selections
-			for (let item in selectedMap) {
-				selectedMap[item] = false;
+			// No table headers, clear filters
+			if (Object.keys(entryListPaginationSettings.filters).length > 0) {
+				entryListPaginationSettings.filters = {};
 			}
 		}
+	});
+
+	// displayTableHeaders are the actual headers shown, considering user's order/visibility preferences from localStorage
+	let displayTableHeaders = $state<TableHeader[]>([]);
+
+	$effect(() => {
+		// Sync displayTableHeaders with settings or defaults from tableHeaders
+		const currentCollId = currentCollection?._id;
+		untrack(() => {
+			// Avoid self-triggering loop if displayTableHeaders itself is changed by DND
+			const settings = entryListPaginationSettings;
+			if (tableHeaders.length > 0) {
+				// If settings for current collection exist and have displayTableHeaders, use them
+				if (settings.collectionId === currentCollId && Array.isArray(settings.displayTableHeaders) && settings.displayTableHeaders.length > 0) {
+					// Reconcile saved headers with current schema headers
+					// This ensures that if schema changes (e.g. field removed/added), it's handled gracefully
+					const schemaHeaderMap = new Map(tableHeaders.map((th) => [th.name, th]));
+					const reconciledHeaders: TableHeader[] = [];
+					const addedNames = new Set<string>();
+
+					// First, add headers from saved settings that still exist in the schema, maintaining saved order and visibility
+					for (const savedHeader of settings.displayTableHeaders) {
+						const schemaHeader = schemaHeaderMap.get(savedHeader.name);
+						if (schemaHeader) {
+							reconciledHeaders.push({
+								...schemaHeader, // Base properties from schema (like id, label)
+								id: savedHeader.id || schemaHeader.id, // Prefer saved ID if available
+								visible: typeof savedHeader.visible === 'boolean' ? savedHeader.visible : schemaHeader.visible // Prefer saved visibility
+							});
+							addedNames.add(savedHeader.name);
+						}
+					}
+					// Then, add any new headers from the schema that weren't in saved settings
+					for (const schemaHeader of tableHeaders) {
+						if (!addedNames.has(schemaHeader.name)) {
+							reconciledHeaders.push({ ...schemaHeader, visible: true }); // New headers are visible by default
+						}
+					}
+					displayTableHeaders = reconciledHeaders;
+				} else {
+					// No specific settings for these headers, or collection changed: use default from tableHeaders
+					displayTableHeaders = tableHeaders.map((h) => ({ ...h, visible: true }));
+				}
+			} else {
+				// No schema headers
+				displayTableHeaders = [];
+			}
+		});
+	});
+
+	let visibleTableHeaders = $derived(displayTableHeaders.filter((header) => header.visible));
+
+	let selectAllColumns = $state(true); // For the "select all columns to show" checkbox
+	$effect(() => {
+		// Sync checkbox with actual column visibility
+		selectAllColumns = displayTableHeaders.length > 0 ? displayTableHeaders.every((h) => h.visible) : false;
+	});
+
+	let data = $state<{ entryList: any[]; pagesCount?: number; totalItems?: number } | undefined>();
+	let tableData = $state<any[]>([]); // Processed data for rendering
+	let pagesCount = $state(1);
+	let totalItems = $state(0);
+
+	let SelectAll = $state(false); // For the "select all rows" checkbox in table header
+	const selectedMap: Record<string, boolean> = $state({}); // Using string keys for index
+
+	async function refreshTableData(fetchNewData = true): Promise<void> {
+		// Clear loading timer
+		if (loadingTimer) clearTimeout(loadingTimer);
+
+		// Get current collection
+		const currentCollId = currentCollection?._id;
+
+		// If no collection, clear data and reset state
+		if (!currentCollId) {
+			tableData = [];
+			pagesCount = 1;
+			totalItems = 0;
+			loadingState = 'idle'; // No error, just no collection selected
+			Object.keys(selectedMap).forEach((key) => delete selectedMap[key]);
+			SelectAll = false;
+			return;
+		}
+
+		// Fetch data
+		if (fetchNewData) {
+			// Store previous data for flicker-free transitions
+			if (tableData.length > 0) {
+				previousTableData = [...tableData];
+			}
+
+			loadingState = 'fetching';
+			loadingTimer = setTimeout(() => {
+				loadingState = 'switching';
+			}, 150); // Reduced delay for better UX
+
+			try {
+				const page = entryListPaginationSettings.currentPage;
+				const limit = entryListPaginationSettings.rowsPerPage;
+				const activeFilters: Record<string, string> = {};
+				for (const key in entryListPaginationSettings.filters) {
+					if (entryListPaginationSettings.filters[key]) activeFilters[key] = entryListPaginationSettings.filters[key];
+				}
+				const sortParam =
+					entryListPaginationSettings.sorting.isSorted && entryListPaginationSettings.sorting.sortedBy
+						? { [entryListPaginationSettings.sorting.sortedBy]: entryListPaginationSettings.sorting.isSorted }
+						: {};
+				data = await getData({
+					collectionId: currentCollId,
+					page,
+					limit,
+					contentLanguage: currentLanguage,
+					filter: JSON.stringify(activeFilters),
+					sort: JSON.stringify(sortParam)
+				});
+
+				// If getData returns successfully, but data is undefined, set loadingState to 'error'
+			} catch (error) {
+				console.error(`Error fetching data: ${(error as Error).message}`);
+				// This toast is for actual fetch errors (e.g., network, 403, 500)
+				toastStore.trigger({ message: `Error fetching data: ${(error as Error).message}`, background: 'variant-filled-error' });
+				loadingState = 'error'; // Indicate an error state
+				if (loadingTimer) clearTimeout(loadingTimer);
+				tableData = []; // Clear data on actual error
+				totalItems = 0;
+				pagesCount = 1;
+				return;
+			}
+		}
+
+		// Process data only if 'data' is available and 'entryList' is an array.
+		// Otherwise, ensure tableData is empty.
+		if (data?.entryList && Array.isArray(data.entryList)) {
+			tableData = await Promise.all(
+				data.entryList.map(async (entry) => {
+					const obj: { [key: string]: any } = { _id: entry._id }; // Ensure _id is always present
+					if (currentCollection?.fields) {
+						for (const field of currentCollection.fields) {
+							const fieldLabelKey = field.label;
+							const rawDataKey = getFieldName(field, true);
+							const rawFieldName = getFieldName(field);
+							if (field.display) {
+								obj[fieldLabelKey] = await field.display({
+									data: entry[rawDataKey],
+									collection: currentCollId,
+									field,
+									entry,
+									contentLanguage: currentLanguage
+								});
+							} else {
+								obj[fieldLabelKey] = entry[rawFieldName];
+							}
+							if (field.callback) field.callback({ data: entry });
+						}
+					}
+					obj['status'] = entry.status ? entry.status.charAt(0).toUpperCase() + entry.status.slice(1) : 'N/A';
+					obj['createdAt'] = entry.createdAt ? formatDisplayDate(entry.createdAt, currentSystemLanguage) : 'N/A';
+					obj['updatedAt'] = entry.updatedAt ? formatDisplayDate(entry.updatedAt, currentSystemLanguage) : 'N/A';
+					return obj;
+				})
+			);
+		} else {
+			// If data.entryList is not an array or is null/undefined after a successful fetch (e.g. no data),
+			// ensure tableData is empty. This handles the case where `getData` returns an empty
+			// object or an object without entryList when no data is present.
+			tableData = [];
+		}
+
+		// Reset selections when data changes
+		Object.keys(selectedMap).forEach((key) => delete selectedMap[key]);
+		tableData.forEach((_, index) => {
+			selectedMap[index.toString()] = false;
+		});
+		SelectAll = false;
+
+		// Update pagination counts based on `data`
+		if (data?.totalItems !== undefined) {
+			totalItems = data.totalItems;
+		} else if (data?.pagesCount !== undefined && data?.entryList?.length !== undefined) {
+			totalItems = data.pagesCount * data.entryList.length;
+		} else {
+			totalItems = 0; // Ensure totalItems is 0 if no data
+		}
+
+		const currentRowsPerPage = entryListPaginationSettings.rowsPerPage > 0 ? entryListPaginationSettings.rowsPerPage : 1;
+		pagesCount = data?.pagesCount ?? (totalItems > 0 ? Math.ceil(totalItems / currentRowsPerPage) : 1);
+
+		// Adjust currentPage if it's out of bounds after data refresh
+		if (entryListPaginationSettings.currentPage > pagesCount && pagesCount > 0) {
+			entryListPaginationSettings.currentPage = pagesCount;
+		} else if (entryListPaginationSettings.currentPage <= 0 && pagesCount >= 1) {
+			entryListPaginationSettings.currentPage = 1;
+		} else if (pagesCount === 0 && entryListPaginationSettings.currentPage !== 1) {
+			entryListPaginationSettings.currentPage = 1;
+		}
+
+		loadingState = 'idle';
+		if (loadingTimer) clearTimeout(loadingTimer);
 	}
 
-	// Update Tick All Rows
-	$: process_selectAll(SelectAll);
+	function savePaginationSettings() {
+		const currentCollId = currentCollection?._id;
+		if (!browser || !currentCollId) return;
 
-	// Update Tick Single Row
-	$: Object.values(selectedMap).includes(true) ? mode.set('modify') : mode.set('view');
+		const settingsToSave: PaginationSettings = {
+			collectionId: currentCollId,
+			density: entryListPaginationSettings.density,
+			currentPage: entryListPaginationSettings.currentPage,
+			rowsPerPage: entryListPaginationSettings.rowsPerPage,
+			filters: entryListPaginationSettings.filters,
+			sorting: entryListPaginationSettings.sorting,
+			displayTableHeaders: displayTableHeaders.map((h) => ({ id: h.id, label: h.label, name: h.name, visible: h.visible }))
+		};
+		localStorage.setItem(`entryListPaginationSettings_${currentCollId}`, JSON.stringify(settingsToSave));
+	}
 
-	// Columns Sorting
-	let sorting: { sortedBy: string; isSorted: 0 | 1 | -1 } = localStorage.getItem('sorting')
-		? JSON.parse(localStorage.getItem('sorting') as string)
-		: {
-				sortedBy: tableData.length > 0 ? Object.keys(tableData[0])[0] : '', // Set default sortedBy based on first key in tableData (if available)
-				isSorted: 1 // 1 for ascending order, -1 for descending order and 0 for not sorted
-			};
+	$effect(() => {
+		// Save settings to localStorage whenever they change significantly
+		savePaginationSettings();
+	});
+
+	// Debounce utility for filter and refresh
+	const filterDebounce = debounceUtil(300);
+	const refreshDebounce = debounceUtil(200);
+
+	$effect(() => {
+		// Debounced data refresh when critical settings change
+		// Track only the variables that should trigger a refresh
+		const collectionId = currentCollection?._id;
+		// Track pagination settings that should trigger refresh
+		const currentPage = entryListPaginationSettings.currentPage;
+		const rowsPerPage = entryListPaginationSettings.rowsPerPage;
+		const filters = entryListPaginationSettings.filters;
+		const sorting = entryListPaginationSettings.sorting;
+
+		// Read the tracked variables to ensure they're tracked
+		void collectionId, currentPage, rowsPerPage, filters, sorting;
+
+		if (!collectionId) {
+			untrack(() => {
+				tableData = [];
+				pagesCount = 1;
+				totalItems = 0;
+				Object.keys(selectedMap).forEach((key) => delete selectedMap[key]);
+				SelectAll = false;
+			});
+			return;
+		}
+
+		refreshDebounce(() => {
+			untrack(() => refreshTableData(true));
+		});
+	});
+
+	$effect(() => {
+		// Reset collectionValue store when mode changes to 'view'
+		if (currentMode === 'view') {
+			untrack(() => {
+				meta_data.clear();
+				collectionValue.set({});
+			});
+		}
+	});
+
+	function process_selectAllRows(selectAllState: boolean) {
+		tableData.forEach((_entry, index) => {
+			selectedMap[index.toString()] = selectAllState;
+		});
+	}
+	$effect(() => {
+		process_selectAllRows(SelectAll);
+	});
+
+	$effect(() => {
+		// Update general UI mode based on row selection
+		mode.set(Object.values(selectedMap).some((isSelected) => isSelected) ? 'modify' : 'view');
+	});
 
 	// Tick Row - modify STATUS of an Entry
-	$modifyEntry = async (status: keyof typeof statusMap) => {
+	modifyEntry.set(async (status?: keyof typeof statusMap): Promise<void> => {
+		if (!status) return Promise.resolve();
 		// Initialize an array to store the IDs of the items to be modified
-		let modifyList: Array<string> = [];
+		const modifyList: Array<string> = [];
 		// Loop over the selectedMap object
-		for (let item in selectedMap) {
+		for (const [index, isSelected] of Object.entries(selectedMap)) {
 			// If the item is ticked, add its ID to the modifyList
-			selectedMap[item] && modifyList.push(tableData[item]._id);
+			isSelected && modifyList.push(tableData[Number(index)]._id);
 		}
 		// If no rows are selected, return
-		if (modifyList.length === 0) return;
-
+		if (modifyList.length === 0) return Promise.resolve();
 		// Function to handle confirmation modal response
 		const handleConfirmation = async (confirm: boolean) => {
 			if (!confirm) return;
-
 			// Initialize a new FormData object
-			let formData = new FormData();
+			const formData = new FormData();
 			// Append the IDs of the items to be modified to formData
 			formData.append('ids', JSON.stringify(modifyList));
 			// Append the status to formData
 			formData.append('status', statusMap[status]);
-
+			if (!currentCollection?._id) {
+				toastStore.trigger({
+					message: 'Error: No collection selected or collection ID is missing.',
+					background: 'variant-filled-error',
+					timeout: 4000
+				});
+				return;
+			}
 			try {
 				// Call the appropriate API endpoint based on the status
 				switch (status) {
-					case 'delete':
-						// If the status is 'Delete', call the delete endpoint
-						await axios.delete(`/api/${$collection.name}`, { data: formData });
+					case 'deleted':
+						// If the status is 'deleted', call the delete endpoint
+						await deleteData({ data: formData, collectionId: currentCollection._id });
 						break;
-					case 'publish':
-					case 'unpublish':
-					case 'test':
-						// If the status is 'Publish', 'Unpublish', 'Schedule', or 'Clone', call the patch endpoint
-						await axios.patch(`/api/${$collection.name}/setStatus`, formData);
+					case 'published':
+					case 'unpublished':
+					case 'testing':
+						// If the status is 'testing', call the publish endpoint
+						await setStatus({ data: formData, collectionId: currentCollection._id });
 						break;
-					case 'clone':
-					case 'schedule':
+					case 'cloned':
+					case 'scheduled':
 						// Trigger a toast message indicating that the feature is not yet implemented
-						const toast = {
+						toastStore.trigger({
 							message: 'Feature not yet implemented.',
 							background: 'variant-filled-error',
 							timeout: 3000
-						};
-						toastStore.trigger(toast);
+						});
 						break;
 				}
 
-				// Refresh the collection
-				refreshTableData();
-				// Set the mode to 'view'
-				mode.set('view');
+				refreshTableData(true); // Refresh the collection
+				mode.set('view'); // Set the mode to 'view'
 			} catch (error) {
-				console.error('Error:', error);
-				// Optionally handle error scenarios
+				console.error(`Error modifying entries: ${(error as Error).message}`);
+				toastStore.trigger({ message: `Error: ${(error as Error).message}`, background: 'variant-filled-error' });
 			}
 		};
-
 		// If more than one row is selected or the status is 'delete', show confirmation modal
-		if (modifyList.length > 1 || status === 'delete') {
+		if (modifyList.length > 1 || status === 'deleted') {
 			const modalData: ModalSettings = {
 				type: 'confirm',
 				title: m.entrylist_title(),
@@ -346,17 +551,110 @@
 				buttonTextConfirm: m.button_confirm(),
 				response: handleConfirmation
 			};
-
 			modalStore.trigger(modalData); // Trigger the confirmation modal
 		} else {
 			// If only one row is selected and status is not 'delete', directly proceed with modification
 			handleConfirmation(true);
 		}
-	};
+	});
+
+	let categoryName = $derived.by(() => {
+		if (!currentCollection?._id || !contentStructure.value) return '';
+
+		// Get parent categories excluding current collection name
+		const pathSegments = currentCollection.path?.split('/').filter(Boolean);
+		return pathSegments?.slice(0, -1).join(' >') || '';
+	});
+	// Collection change detection and transition management
+	$effect(() => {
+		const currentCollId = currentCollection?._id;
+
+		// Detect collection change
+		if (collectionTransitionId !== (currentCollId ?? null)) {
+			// Start transition
+			collectionTransitionId = currentCollId ?? null;
+
+			// If we have a valid collection, prepare stable headers
+			if (currentCollId && displayTableHeaders.length > 0) {
+				// Keep current stable headers during transition
+				if (stableHeaders.length === 0) {
+					stableHeaders = [...displayTableHeaders];
+					stableVisibleHeaders = [...visibleTableHeaders];
+				}
+			} else {
+				// No collection or no headers, clear stable headers
+				stableHeaders = [];
+				stableVisibleHeaders = [];
+			}
+		}
+	});
+
+	// Commit new headers only after data is ready or confirmed empty
+	$effect(() => {
+		if (collectionTransitionId && loadingState === 'idle') {
+			// Transition complete, commit new headers
+			stableHeaders = [...displayTableHeaders];
+			stableVisibleHeaders = [...visibleTableHeaders];
+			collectionTransitionId = null;
+		}
+	});
+
+	// Enhanced collection state management for better UX - prevent flicker when switching collections
+	let isCollectionEmpty = $derived(tableData.length === 0 && loadingState === 'idle' && collectionTransitionId === null);
+	// shouldShowTable: Show table if current collection is selected, no transition, and either there's data, OR
+	// we're fetching new data but still have previous data to display (to prevent flicker).
+	let shouldShowTable = $derived(
+		currentCollection?._id && collectionTransitionId === null && (tableData.length > 0 || (isDataFetching && previousTableData.length > 0))
+	);
+
+	// shouldShowNoDataMessage: Show message if current collection is selected, no transition,
+	// loading is idle (finished fetching), tableData is empty, and we are not currently fetching or generally loading.
+	let shouldShowNoDataMessage = $derived(
+		currentCollection?._id &&
+			collectionTransitionId === null &&
+			loadingState === 'idle' &&
+			tableData.length === 0 &&
+			!isDataFetching && // Explicitly not fetching
+			!isLoading // Explicitly not in a "switching" loading state
+	);
+
+	// Use stable headers during transitions to prevent flicker
+	let renderHeaders = $derived(collectionTransitionId !== null ? stableVisibleHeaders : visibleTableHeaders);
+
+	function handleColumnVisibilityToggle(headerToToggle: TableHeader) {
+		displayTableHeaders = displayTableHeaders.map((h) => (h.id === headerToToggle.id ? { ...h, visible: !h.visible } : h));
+	}
+
+	function handleSelectAllColumnsToggle() {
+		// selectAllColumns is bound to checkbox, its value reflects the new desired state
+		const newVisibility = selectAllColumns;
+		displayTableHeaders = displayTableHeaders.map((h) => ({ ...h, visible: newVisibility }));
+	}
+
+	function resetColumnSettings() {
+		const currentCollId = currentCollection?._id;
+		if (browser && currentCollId) {
+			localStorage.removeItem(`entryListPaginationSettings_${currentCollId}`);
+		}
+		// Reset relevant parts of the settings state by re-assigning the whole object or critical sub-objects
+		entryListPaginationSettings = {
+			...defaultPaginationSettings(currentCollId ?? null), // Start with fresh defaults
+			// Potentially keep some user preferences like density if desired
+			density: entryListPaginationSettings.density,
+			// Re-initialize filters based on current tableHeaders
+			filters: tableHeaders.reduce(
+				(acc, th) => {
+					acc[th.name] = '';
+					return acc;
+				},
+				{} as Record<string, string>
+			)
+		};
+	}
 </script>
 
 <!--Table -->
-{#if isLoading}
+{#if isLoading && !isDataFetching}
 	<Loading />
 {:else}
 	<!-- Header -->
@@ -364,197 +662,169 @@
 		<!-- Row 1 for Mobile -->
 		<div class="flex items-center justify-between">
 			<!-- Hamburger -->
-			{#if $sidebarState.left === 'hidden'}
+			{#if uiStateManager.uiState.value.leftSidebar === 'hidden'}
 				<button
 					type="button"
-					on:keydown
-					on:click={() => toggleSidebar('left', get(screenWidth) === 'desktop' ? 'full' : 'collapsed')}
+					onkeydown={() => {}}
+					onclick={() => toggleUIElement('leftSidebar', currentScreenSize === 'lg' ? 'full' : 'collapsed')}
+					aria-label="Open Sidebar"
 					class="variant-ghost-surface btn-icon mt-1"
 				>
-					<iconify-icon icon="mingcute:menu-fill" width="24" />
+					<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 				</button>
 			{/if}
+
 			<!-- Collection type with icon -->
-			<!-- TODO: Translate Collection Name -->
-			<div class="mr-1 flex flex-col {!$sidebarState.left ? 'ml-2' : 'ml-1 sm:ml-2'}">
-				{#if $categories.length}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300 rtl:text-left">
-						{$categories[0].name}
-					</div>{/if}
+			<div class="mr-1 flex flex-col {!uiStateManager.uiState.value.leftSidebar ? 'ml-2' : 'ml-1 sm:ml-2'}">
+				{#if categoryName}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300 rtl:text-left">
+						{categoryName}
+					</div>
+				{/if}
 				<div class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl">
-					{#if $collection.icon}<span> <iconify-icon icon={$collection.icon} width="24" class="mr-1 text-error-500 sm:mr-2" /></span>{/if}
-					{#if $collection.name}
-						<div class="flex max-w-[65px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
-							{$collection.name}
+					{#if currentCollection?.icon}<span>
+							<iconify-icon icon={currentCollection.icon} width="24" class="mr-1 text-error-500 sm:mr-2"></iconify-icon></span
+						>
+					{/if}
+					{#if currentCollection?.name}
+						<div class="flex max-w-[85px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
+							{currentCollection.name}
 						</div>
 					{/if}
 				</div>
 			</div>
 		</div>
+		<div class="flex items-center justify-between gap-1">
+			<!-- Expand/Collapse -->
+			<button
+				type="button"
+				onkeydown={() => {}}
+				onclick={() => (expand = !expand)}
+				class="variant-ghost-surface btn-icon sm:hidden"
+				aria-label="Expand/Collapse Filters"
+			>
+				<iconify-icon icon="material-symbols:filter-list-rounded" width="30"> </iconify-icon>
+			</button>
 
-		<!-- Expand/Collapse -->
-		<button type="button" on:keydown on:click={() => (expand = !expand)} class="variant-ghost-surface btn-icon mt-1 sm:hidden">
-			<iconify-icon icon="material-symbols:filter-list-rounded" width="30" />
-		</button>
+			<!-- Translation Content Language -->
+			<div class="mt-1 sm:hidden">
+				<TranslationStatus />
+			</div>
 
-		<!-- Content Language -->
-		<div class="mt-1 sm:hidden">
-			<TranslationStatus />
+			<!-- Table Filter with Translation Content Language -->
+			<div class="relative mt-1 hidden items-center justify-center gap-2 sm:flex">
+				<TableFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density={entryListPaginationSettings.density} />
+				<TranslationStatus />
+			</div>
+
+			<!-- MultiButton -->
+			<div class="mt-2 w-full sm:mt-0 sm:w-auto">
+				<EntryListMultiButton {isCollectionEmpty} />
+			</div>
 		</div>
-
-		<!-- Table Filter -->
-		<div class="relative mt-1 hidden items-center justify-center gap-2 sm:flex">
-			<TableFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density />
-			<TranslationStatus />
-		</div>
-		<!-- MultiButton -->
-		<EntryListMultiButton />
 	</div>
 
-	<!-- Table -->
-	{#if tableData.length > 0}
-		{#if expand}
-			<div class="mb-2 flex items-center justify-center">
-				<TableFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density />
+	<!-- Table  Start-->
+	{#if expand}
+		<div class="mb-2 flex items-center justify-center sm:hidden">
+			<TableFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density={entryListPaginationSettings.density} />
+		</div>
+	{/if}
+
+	{#if columnShow}
+		<!-- Column order -->
+		<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 p-2 text-center dark:bg-surface-700">
+			<div class="text-sm text-white dark:text-primary-500">
+				{m.entrylist_dnd()}
 			</div>
-		{/if}
-
-		{#if columnShow}
-			<!-- Column order -->
-			<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700">
-				<div class="text-white dark:text-primary-500">{m.entrylist_dnd()}</div>
-				<!-- Select All Columns -->
-				<div class="my-2 flex w-full items-center justify-center gap-1">
-					<div class="flex- items-center justify-between">
-						<label class="mr-2">
-							<input
-								type="checkbox"
-								bind:checked={selectAllColumns}
-								on:change={() => {
-									// Check if all columns are currently visible
-									const allColumnsVisible = displayTableHeaders.every((header) => header.visible);
-
-									// Toggle visibility of all columns based on the current state of selectAllColumns
-									displayTableHeaders = displayTableHeaders.map((header) => ({
-										...header,
-										visible: !allColumnsVisible
-									}));
-
-									// Update selectAllColumns based on the new visibility state of all columns
-									selectAllColumns = !allColumnsVisible;
-								}}
-							/>
-							{m.entrylist_all()}
-						</label>
-
-						<!-- Clear local storage and reload tableHeader -->
-						<button
-							class="btn"
-							on:click={() => {
-								// Remove the entryListPaginationSettings from local storage
-								localStorage.removeItem(entryListPaginationSettingsKey);
-
-								// Reset the entryListPaginationSettings to the default state
-								entryListPaginationSettings = {
-									collectionName: $collection.name,
-									density: 'normal',
-									sorting: { sortedBy: '', isSorted: 0 },
-									currentPage: 1,
-									rowsPerPage: 10,
-									filters: {},
-									displayTableHeaders: []
-								};
-
-								// Reset displayTableHeaders to an empty array
-								displayTableHeaders = [];
-
-								// Reset selectAllColumns to true
-								selectAllColumns = true;
-
-								// Refresh the table data
-								refreshTableData();
-							}}
-						>
-							<iconify-icon icon="material-symbols-light:device-reset" width="30" class="text-tertiary-500" />
-							Reset
-						</button>
-					</div>
-
-					<section
-						use:dndzone={{
-							items: displayTableHeaders,
-							flipDurationMs
-						}}
-						on:consider={handleDndConsider}
-						on:finalize={handleDndFinalize}
-						class="flex flex-wrap justify-center gap-1 rounded-md p-2"
-					>
-						{#each displayTableHeaders as header (header.id)}
-							<button
-								class="chip {header.visible ? 'variant-filled-secondary' : 'variant-ghost-secondary'} w-100 mr-2 flex items-center justify-center"
-								animate:flip={{ duration: flipDurationMs }}
-								on:click={() => {
-									// Toggle the visibility of the header
-									header.visible = !header.visible;
-
-									// Check if all columns are currently visible
-									const allColumnsVisible = displayTableHeaders.every((header) => header.visible);
-
-									// Update selectAllColumns based on the visibility of all columns
-									selectAllColumns = allColumnsVisible;
-								}}
-							>
-								{#if header.visible}
-									<span><iconify-icon icon="fa:check" /></span>
-								{/if}
-								<span class="ml-2 capitalize">{header.name}</span>
-							</button>
-						{/each}
-					</section>
+			<!-- Select All Columns -->
+			<div class="my-2 flex w-full flex-col items-center justify-center gap-2 sm:flex-row sm:gap-4">
+				<div class="flex items-center gap-2">
+					<label class="flex items-center">
+						<input type="checkbox" bind:checked={selectAllColumns} onchange={handleSelectAllColumnsToggle} class="mr-1" />
+						{m.entrylist_all()}
+					</label>
+					<button class="variant-ghost-surface btn btn-sm" onclick={resetColumnSettings}>
+						<iconify-icon icon="material-symbols-light:device-reset" width="20" class="mr-1 text-tertiary-500"></iconify-icon>
+						Reset Columns
+					</button>
 				</div>
+				<section
+					use:dndzone={{ items: displayTableHeaders, flipDurationMs }}
+					onconsider={handleDndConsider}
+					onfinalize={handleDndFinalize}
+					class="flex flex-wrap justify-center gap-1 rounded-md p-1"
+				>
+					{#each displayTableHeaders as header (header.id)}
+						<button
+							class="chip {header.visible ? 'variant-filled-secondary' : 'variant-ghost-secondary'} mr-1 flex items-center justify-center text-xs"
+							animate:flip={{ duration: flipDurationMs }}
+							onclick={() => handleColumnVisibilityToggle(header)}
+						>
+							{#if header.visible}<iconify-icon icon="fa:check" class="mr-1"></iconify-icon>{/if}
+							<span class="capitalize">{header.label}</span>
+						</button>
+					{/each}
+				</section>
 			</div>
-		{/if}
+		</div>
+	{/if}
 
-		<div class="table-container max-h-[calc(100dvh-120px)] overflow-auto">
-			<table class="table table-interactive table-hover {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
+	{#if isDataFetching && !isLoading && collectionTransitionId === null}
+		<div class="py-4 text-center text-sm text-gray-500">Fetching updated data...</div>
+	{/if}
+
+	{#if shouldShowTable}
+		<div class="table-container max-h-[calc(100dvh-180px)] overflow-auto">
+			<table
+				class="table table-interactive table-hover {entryListPaginationSettings.density === 'compact'
+					? 'table-compact'
+					: entryListPaginationSettings.density === 'comfortable'
+						? 'table-comfortable'
+						: ''}"
+			>
 				<!-- Table Header -->
 				<thead class="text-tertiary-500 dark:text-primary-500">
-					{#if filterShow}
-						<tr class="divide-x divide-surface-400">
+					{#if filterShow && renderHeaders.length > 0}
+						<tr class="divide-x divide-surface-400 dark:divide-surface-600">
 							<th>
 								<!-- Clear All Filters Button -->
-								{#if Object.keys(filters).length > 0}
+								{#if Object.values(entryListPaginationSettings.filters).some((f) => f !== '')}
 									<button
-										class="variant-outline btn-icon"
-										on:click={() => {
-											// Clear all filters
-											filters = {};
+										onclick={() => {
+											const clearedFilters: Record<string, string> = {};
+											Object.keys(entryListPaginationSettings.filters).forEach((key) => (clearedFilters[key] = ''));
+											entryListPaginationSettings.filters = clearedFilters;
 										}}
+										aria-label="Clear All Filters"
+										class="variant-ghost-surface btn-icon btn-sm"
 									>
-										<iconify-icon icon="material-symbols:close" width="24" />
+										<iconify-icon icon="material-symbols:close" width="18"></iconify-icon>
 									</button>
 								{/if}
 							</th>
-
 							<!-- Filter -->
-							{#each tableHeaders as header}
-								<th>
-									<div class="flex items-center justify-between">
+							{#each renderHeaders as header (header.id)}
+								<th class=""
+									><div class="flex items-center justify-between">
 										<FloatingInput
 											type="text"
 											icon="material-symbols:search-rounded"
-											label={m.entrylist_filter()}
+											label={`Filter ${header.label}`}
 											name={header.name}
-											on:input={(e) => {
-												let value = asAny(e.target).value;
-												if (value) {
-													waitFilter(() => {
-														filters[header.name] = value;
-													});
-												} else {
-													delete filters[header.name];
-													filters = filters;
-												}
+											value={entryListPaginationSettings.filters[header.name] || ''}
+											onInput={(value: string) => {
+												const filterName = header.name;
+												filterDebounce(() => {
+													const newFilters = { ...entryListPaginationSettings.filters };
+													if (value) {
+														newFilters[filterName] = value;
+													} else {
+														delete newFilters[filterName];
+													}
+													entryListPaginationSettings.filters = newFilters;
+												});
 											}}
+											inputClass="text-xs"
 										/>
 									</div>
 								</th>
@@ -563,174 +833,128 @@
 					{/if}
 
 					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-						<TableIcons bind:checked={SelectAll} iconStatus="all" />
+						<td class="w-10 pl-3">
+							<TableIcons
+								checked={SelectAll}
+								onCheck={(checked) => {
+									SelectAll = checked;
+									tableData.forEach((_, index) => {
+										selectedMap[index] = checked;
+									});
+								}}
+							/>
+						</td>
 
-						{#each tableHeaders as header}
+						{#each renderHeaders as header (header.id)}
 							<th
-								on:click={() => {
-									//sorting
-									sorting = {
-										sortedBy: header.name,
-										isSorted: (() => {
-											if (header.name !== sorting.sortedBy) {
-												return 1;
-											}
-											if (sorting.isSorted === 0) {
-												return 1;
-											} else if (sorting.isSorted === 1) {
-												return -1;
-											} else {
-												return 0;
-											}
-										})()
-									};
+								class="cursor-pointer px-2 py-2 text-center text-xs sm:text-sm {header.name === entryListPaginationSettings.sorting.sortedBy
+									? 'font-semibold text-primary-500 dark:text-secondary-400'
+									: 'text-tertiary-500 dark:text-primary-500'}"
+								onclick={() => {
+									let newSorted = { ...entryListPaginationSettings.sorting };
+									if (newSorted.sortedBy === header.name) {
+										newSorted.isSorted = newSorted.isSorted === 1 ? -1 : ((newSorted.isSorted === -1 ? 0 : 1) as 0 | 1 | -1);
+										if (newSorted.isSorted === 0) newSorted.sortedBy = '';
+									} else {
+										newSorted.sortedBy = header.name;
+										newSorted.isSorted = 1;
+									}
+									entryListPaginationSettings.sorting = newSorted;
 								}}
 							>
-								<div class="relative flex items-center justify-center text-center">
-									<!-- TODO: fix if content is translated -->
-									{#if data?.entryList[0]?.translated}
-										<iconify-icon icon="bi:translate" width="14" class="absolute right-0 top-0 text-sm text-white" />
-										{header.label}
-									{:else}
-										{header.label}
+								<div class="flex items-center justify-center">
+									{header.label}
+									{#if header.name === entryListPaginationSettings.sorting.sortedBy && entryListPaginationSettings.sorting.isSorted !== 0}
+										<iconify-icon
+											icon={entryListPaginationSettings.sorting.isSorted === 1
+												? 'material-symbols:arrow-upward-rounded'
+												: 'material-symbols:arrow-downward-rounded'}
+											width="16"
+											class="ml-1 origin-center"
+										></iconify-icon>
 									{/if}
-
-									<iconify-icon
-										icon="material-symbols:arrow-upward-rounded"
-										width="22"
-										class="origin-center duration-300 ease-in-out"
-										class:up={sorting.isSorted === 1}
-										class:invisible={sorting.isSorted == 0 || sorting.sortedBy != header.label}
-									/>
 								</div>
 							</th>
 						{/each}
 					</tr>
 				</thead>
-
 				<tbody>
-					{#each tableData as row, index}
-						<tr class="divide-x divide-surface-400">
-							<TableIcons iconStatus={data?.entryList[index]?.status} bind:checked={selectedMap[index]} />
-
-							{#each tableHeaders as header}
-								<td
-									on:click={() => {
-										entryData.set(data?.entryList[index]);
-										// console.log(data);
-										mode.set('edit');
-										handleSidebarToggle();
-									}}
-									class="text-center font-bold"
-								>
-									{#if header.name === 'status'}
-										<!-- Use the Status component to display the Status -->
-										<Status value={row[header.name]} />
-									{:else}
-										{@html row[header.name]}
-									{/if}
+					{#if tableData.length > 0}
+						{#each tableData as entry, index (entry._id)}
+							<tr class="divide-x divide-surface-400 dark:divide-surface-700">
+								<td class="w-10 px-1 py-1 text-center">
+									<TableIcons
+										checked={selectedMap[index]}
+										onCheck={(isChecked) => {
+											selectedMap[index] = isChecked;
+										}}
+									/>
 								</td>
-							{/each}
-						</tr>
-					{/each}
+								{#each renderHeaders as header (header.id)}
+									<td
+										class="px-2 py-2 text-center text-xs font-bold sm:text-sm {header.name !== 'status'
+											? 'cursor-pointer hover:bg-primary-500/10 dark:hover:bg-secondary-500/20'
+											: ''}"
+										onclick={() => {
+											if (header.name !== 'status') {
+												const originalEntry = data?.entryList.find((e) => e._id === entry._id);
+												if (originalEntry) {
+													collectionValue.set(originalEntry);
+													mode.set('edit');
+													handleUILayoutToggle();
+												}
+											}
+										}}
+									>
+										{#if header.name === 'status'}
+											<Status value={entry[header.label]} />
+										{:else if typeof entry[header.label] === 'object' && entry[header.label] !== null}
+											{@html entry[header.label][currentLanguage] || '-'}
+										{:else}
+											{@html entry[header.label] || '-'}
+										{/if}
+									</td>
+								{/each}
+							</tr>
+						{/each}
+					{:else if !isDataFetching}
+						<tr><td colspan={renderHeaders.length + 1} class="py-10 text-center text-gray-500">No entries found.</td></tr>
+					{/if}
 				</tbody>
 			</table>
 		</div>
-
-		<!-- Pagination  -->
-		<div class="sticky bottom-0 left-0 right-0 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
-			<!-- <TablePagination {currentPage} {pagesCount} {rowsPerPage} {refreshTableData} /> -->
-
-			<div class="mb-1 text-xs md:mb-0 md:text-sm">
-				<span>{m.entrylist_page()}</span> <span class="text-tertiary-500 dark:text-primary-500">{currentPage}</span>
-				<span>{m.entrylist_of()}</span> <span class="text-tertiary-500 dark:text-primary-500">{data?.pagesCount || 0}</span>
-			</div>
-
-			<!-- Pagination controls -->
-			<div class="variant-outline btn-group">
-				<!-- First page -->
-				<button
-					type="button"
-					class="btn"
-					disabled={isFirstPage}
-					aria-label="Go to first page"
-					on:click={() => {
-						currentPage = 1;
-						refreshTableData();
-					}}
-				>
-					<iconify-icon icon="material-symbols:first-page" width="24" class:disabled={currentPage === 1} />
-				</button>
-
-				<!-- Previous page -->
-				<button
-					type="button"
-					class="btn"
-					disabled={isFirstPage}
-					aria-label="Go to Previous page"
-					on:click={() => {
-						currentPage = Math.max(1, currentPage - 1);
-						refreshTableData();
-					}}
-				>
-					<iconify-icon icon="material-symbols:chevron-left" width="24" class:disabled={currentPage === 1} />
-				</button>
-
-				<!-- Rows per page select dropdown -->
-				{#if rowsPerPage !== undefined}
-					<select
-						value={rowsPerPage}
-						on:change={rowsPerPageHandler}
-						class="mt-0.5 bg-transparent text-center text-tertiary-500 dark:text-primary-500"
-					>
-						{#each rowsPerPageOptions as pageSize}
-							<option class="bg-surface-500 text-white" value={pageSize}> {pageSize} {m.entrylist_rows()} </option>
-						{/each}
-					</select>
-				{/if}
-
-				<!-- Next page -->
-				<button
-					type="button"
-					class="btn"
-					disabled={isLastPage}
-					aria-label="Go to Next page"
-					on:click={() => {
-						currentPage = Math.min(currentPage + 1, data?.pagesCount || 0);
-						refreshTableData();
-					}}
-				>
-					<iconify-icon icon="material-symbols:chevron-right" width="24" class:active={currentPage === data?.pagesCount} />
-				</button>
-
-				<!-- Last page -->
-				<button
-					type="button"
-					class="btn"
-					disabled={isLastPage}
-					aria-label="Go to Last page"
-					on:click={() => {
-						currentPage = data?.pagesCount || 0;
-						refreshTableData();
-					}}
-				>
-					<iconify-icon icon="material-symbols:last-page" width="24" class:disabled={currentPage === data?.pagesCount} />
-				</button>
-			</div>
+		<!-- Pagination -->
+		<div
+			class="sticky bottom-0 left-0 right-0 mt-2 flex flex-col items-center justify-center border-t border-surface-300 bg-surface-100 px-2 py-2 dark:border-surface-700 dark:bg-surface-800 md:flex-row md:justify-between md:p-4"
+		>
+			<TablePagination
+				bind:currentPage={entryListPaginationSettings.currentPage}
+				bind:rowsPerPage={entryListPaginationSettings.rowsPerPage}
+				{pagesCount}
+				{totalItems}
+				onUpdatePage={(page) => {
+					entryListPaginationSettings.currentPage = page;
+					refreshTableData(true);
+				}}
+				onUpdateRowsPerPage={(rows) => {
+					//console.log('Rows per page updated to:', rows);
+					entryListPaginationSettings.rowsPerPage = rows;
+					entryListPaginationSettings.currentPage = 1;
+					refreshTableData(true);
+				}}
+			/>
 		</div>
-	{:else}
-		<!-- Display a message when no data is yet available -->
-		<div class="text-center">
-			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2 text-primary-500" />
-			<p class="text-lg text-primary-500">No {$collection.name} Data</p>
+	{:else if shouldShowNoDataMessage}
+		<div class="py-10 text-center text-tertiary-500 dark:text-primary-500">
+			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2"></iconify-icon>
+			<p class="text-lg">
+				{currentCollection?.name ? m.EntryList_no_collection({ name: currentCollection.name }) : 'No collection selected or collection is empty.'}
+			</p>
 		</div>
 	{/if}
 {/if}
 
 <style lang="postcss">
-	.up {
-		transform: rotate(-180deg);
-	}
 	div::-webkit-scrollbar-thumb {
 		border-radius: 50px;
 		background-color: #0ec423;
