@@ -61,17 +61,6 @@
 		permissions: []
 	});
 
-	// Keep user data in sync with server data
-
-	// Initialize avatarSrc with user's avatar or default using effect
-	// $effect(() => {
-	// 	if (user?.avatar) {
-	// 		avatarSrc.set(user.avatar);
-	// 	} else {
-	// 		avatarSrc.set('/Default_User.svg');
-	// 	}
-	// });
-
 	// Define password as state
 	let password = $state('hash-password');
 
@@ -94,6 +83,17 @@
 			executeActions();
 		}
 		collection.set(null);
+
+		// Initialize avatarSrc with user's actual avatar from database
+		// Use serverUser directly to avoid fallback values
+		if (serverUser?.avatar && serverUser.avatar !== '/Default_User.svg') {
+			avatarSrc.set(serverUser.avatar);
+			console.log('Avatar initialized from database:', serverUser.avatar);
+		} else {
+			// Set to default if no avatar in database
+			avatarSrc.set('/Default_User.svg');
+			console.log('Avatar set to default');
+		}
 	});
 
 	// Modal Trigger - User Form
@@ -252,9 +252,17 @@
 	</div>
 
 	<!-- Admin area -->
-	<PermissionGuard config={{ name: 'Admin Area Access', contextId: 'system:admin', requiredRole: 'admin', action: 'manage', contextType: 'system' }}>
+	<PermissionGuard
+		config={{
+			name: 'Admin Area Access',
+			contextId: 'system:admin',
+			action: 'manage',
+			contextType: 'system',
+			description: 'Allows access to admin area for user management'
+		}}
+	>
 		<div class="wrapper2">
-			<AdminArea adminData={data.adminData} />
+			<AdminArea adminData={data.adminData} currentUser={user} />
 		</div>
 	</PermissionGuard>
 </div>

@@ -11,28 +11,21 @@
 
 ### features
 - Dynamic role rendering based on user roles
-
 -->
 
 <script lang="ts">
 	// Auth
-	import { getAllRoles } from '@src/auth/permissions';
 	import { roles as configRoles } from '@root/config/roles';
 	import type { Role } from '@src/auth/auth';
 
-	let roles = $state<Role[]>(getAllRoles() || configRoles);
+	let roles = $state<Role[]>(configRoles);
 
 	// Ensure roles is an array
 	let { value } = $props<{ value: string }>();
 
-	// Initialize roles from config if not loaded
+	// Initialize roles from config
 	$effect(() => {
-		const loadedRoles = getAllRoles();
-		if (!loadedRoles || loadedRoles.length === 0) {
-			roles = configRoles;
-		} else {
-			roles = loadedRoles;
-		}
+		roles = configRoles;
 	});
 
 	// Determine if the roles array is defined and has the required elements

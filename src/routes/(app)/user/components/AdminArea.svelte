@@ -7,6 +7,9 @@
 <script lang="ts">
 	import { debounce } from '@utils/utils';
 
+	// Stores
+	import { avatarSrc } from '@stores/store.svelte';
+
 	// Components
 	import Multibutton from './Multibutton.svelte';
 	import TableIcons from '@components/system/table/TableIcons.svelte';
@@ -77,7 +80,7 @@
 	}
 
 	// Props
-	let { adminData } = $props<{ adminData: AdminData | null }>();
+	let { adminData, currentUser = null } = $props<{ adminData: AdminData | null; currentUser?: { _id: string; [key: string]: any } | null }>();
 
 	const modalStore = getModalStore();
 	const toastStore = getToastStore();
@@ -479,7 +482,11 @@
 										{#if header.key === 'blocked'}
 											<Boolean value={!!row[header.key]} />
 										{:else if showUserList && header.key === 'avatar'}
-											<Avatar src={row[header.key] ?? '/Default_User.svg'} width="w-8" />
+											<!-- Use reactive avatarSrc for current user, otherwise use row data -->
+											<Avatar
+												src={currentUser && row._id === currentUser._id ? avatarSrc.value : (row[header.key] ?? '/Default_User.svg')}
+												width="w-8"
+											/>
 										{:else if header.key === 'role'}
 											<Role value={row[header.key]} />
 										{:else if ['createdAt', 'updatedAt', 'lastAccess'].includes(header.key)}

@@ -28,7 +28,7 @@ import { RateLimiter } from 'sveltekit-rate-limiter/server';
 // Auth and Database Adapters
 import { auth, dbInitPromise, authAdapter } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth/auth';
-import { hasPermission } from '@src/auth/permissions';
+import { hasPermissionByAction } from '@src/auth/permissions';
 import { roles } from '@root/config/roles';
 
 import type { AvailableLanguageTag } from '@src/paraglide/runtime';
@@ -457,7 +457,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		// Only load admin data when needed and cache it
 		if (authServiceReady && event.locals.user) {
 			// Load basic permission check efficiently
-			const userHasManagePermission = hasPermission(user, 'user:manage');
+			const userHasManagePermission = hasPermissionByAction(user, 'manage', 'user', undefined, roles);
 
 			event.locals.hasManageUsersPermission = userHasManagePermission;
 
@@ -603,7 +603,7 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 			throw error(403, `Forbidden: You do not have the required permission ('${requiredPermissionName}') to access this API endpoint.`);
 		}
 	} else {
-		logger.debug(`Admin user ${user.email || user._id} granted access to API /api/${apiEndpoint}`);
+		logger.debug(`Admin user \x1b[34m${user.email || user._id}\x1b[0m granted access to API \x1b[34m/api/${apiEndpoint}\x1b[0m`);
 	}
 
 	// Handle GET requests with caching

@@ -19,8 +19,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { v4 as uuidv4 } from 'uuid';
-	import { checkCollectionNameConflict } from '@utils/utils';
-	import type { CollectionData, ContentNodeOperatianType, ContentNodeOperation } from '@src/content/types';
+	// import { checkCollectionNameConflict } from '@utils/utils';
+	import type { ContentNodeOperation } from '@src/content/types';
 
 	// Stores
 	import { collectionValue, mode } from '@src/stores/collectionStore.svelte';
@@ -30,7 +30,7 @@
 	import PageTitle from '@components/PageTitle.svelte';
 	import Board from './NestedContent/Board.svelte';
 	import ModalCategory from './NestedContent/ModalCategory.svelte';
-	import ModalNameConflict from './NestedContent/ModalNameConflict.svelte';
+	// import ModalNameConflict from './NestedContent/ModalNameConflict.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -49,16 +49,16 @@
 		[key: string]: any;
 	}
 
-	interface NameConflictResponse {
-		canProceed: boolean;
-		newName?: string;
-	}
+	// interface NameConflictResponse {
+	// 	canProceed: boolean;
+	// 	newName?: string;
+	// }
 
-	interface ConflictResult {
-		exists: boolean;
-		conflictPath?: string;
-		suggestions?: string[];
-	}
+	// interface ConflictResult {
+	// 	exists: boolean;
+	// 	conflictPath?: string;
+	// 	suggestions?: string[];
+	// }
 
 	interface CollectionBuilderProps {
 		data: { contentStructure: ContentNode[] };
@@ -165,49 +165,43 @@
 	}
 
 	// Check for name conflicts before saving
-	async function checkNameConflicts(name: string): Promise<NameConflictResponse> {
-		const collectionsPath = 'config/collections';
-		const conflict: ConflictResult = await checkCollectionNameConflict(name, collectionsPath);
+	// async function checkNameConflicts(name: string): Promise<NameConflictResponse> {
+	// 	const collectionsPath = 'config/collections';
+	// 	const conflict: ConflictResult = await checkCollectionNameConflict(name, collectionsPath);
 
-		if (conflict.exists) {
-			return new Promise((resolve) => {
-				const modalComponent = {
-					ref: ModalNameConflict,
-					props: {
-						conflictingName: name,
-						conflictPath: conflict.conflictPath,
-						suggestions: conflict.suggestions,
-						onConfirm: (newName: string) => {
-							modalStore.close();
-							resolve({ canProceed: true, newName });
-						}
-					}
-				};
+	// 	if (conflict.exists) {
+	// 		return new Promise((resolve) => {
+	// 			const modalComponent = {
+	// 				ref: ModalNameConflict,
+	// 				props: {
+	// 					conflictingName: name,
+	// 					conflictPath: conflict.conflictPath,
+	// 					suggestions: conflict.suggestions,
+	// 					onConfirm: (newName: string) => {
+	// 						modalStore.close();
+	// 						resolve({ canProceed: true, newName });
+	// 					}
+	// 				}
+	// 			};
 
-				const modalSettings: ModalSettings = {
-					type: 'component',
-					component: modalComponent,
-					title: 'Collection Name Conflict',
-					buttonTextCancel: 'Cancel',
-					buttonTextConfirm: 'Use Suggestion'
-				};
+	// 			const modalSettings: ModalSettings = {
+	// 				type: 'component',
+	// 				component: modalComponent,
+	// 				title: 'Collection Name Conflict',
+	// 				buttonTextCancel: 'Cancel',
+	// 				buttonTextConfirm: 'Use Suggestion'
+	// 			};
 
-				modalStore.trigger(modalSettings);
-			});
-		}
+	// 			modalStore.trigger(modalSettings);
+	// 		});
+	// 	}
 
-		return { canProceed: true };
-	}
+	// 	return { canProceed: true };
+	// }
 
 	// Handle collection save with conflict checking
 	async function handleSave() {
 		const items = Object.values(nodesToSave);
-		// if (!nameCheck.canProceed) {
-		// 	showToast('Collection save cancelled due to name conflict', 'error');
-		// 	return;
-		// }
-		//
-		// const finalName = nameCheck.newName || name;
 		try {
 			isLoading = true;
 			const response = await fetch('/api/content-structure', {
@@ -228,12 +222,6 @@
 				showToast('Categories updated successfully', 'success');
 				console.debug('Result', result);
 				contentStructure.set(result.contentStructure);
-
-				// Create and dispatch a proper CustomEvent
-				// const saveEvent = new CustomEvent('save', {
-				// 	detail: { name: finalName, data }
-				// });
-				// dispatchEvent(saveEvent);
 			} else {
 				currentConfig = contentStructure.value;
 

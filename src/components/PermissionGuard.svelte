@@ -64,21 +64,21 @@ Features:
 	// Final determination if content should be shown
 	let shouldShowContent = $derived(!!config && hasPermission && !isRateLimited && !loading);
 
-	$effect(() => {
-		if (import.meta.env.DEV) {
-			console.debug('PermissionGuard Debug Info:', {
-				user,
-				config,
-				permissions,
-				permissionData,
-				isAdmin,
-				hasPermission,
-				isRateLimited,
-				shouldShowContent,
-				loading
-			});
-		}
-	});
+	// $effect(() => {
+	// 	if (import.meta.env.DEV) {
+	// 		console.debug('PermissionGuard Debug Info:', {
+	// 			user,
+	// 			config,
+	// 			permissions,
+	// 			permissionData,
+	// 			isAdmin,
+	// 			hasPermission,
+	// 			isRateLimited,
+	// 			shouldShowContent,
+	// 			loading
+	// 		});
+	// 	}
+	// });
 </script>
 
 {#if shouldShowContent}

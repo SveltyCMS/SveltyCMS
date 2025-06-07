@@ -34,7 +34,7 @@
 	import { isSearchVisible } from '@utils/globalSearchIndex';
 
 	// Stores
-	import { avatarSrc, systemLanguage, isLoading } from '@stores/store.svelte';
+	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
 	import { contentStructure, collections } from '@stores/collectionStore.svelte';
 	import { uiStateManager } from '@stores/UIStore.svelte';
 	import { screenSize, ScreenSize } from '@stores/screenSizeStore.svelte';
@@ -72,15 +72,21 @@
 	let { children, data }: Props = $props();
 
 	// State variables
+	let isLoading = $state(true);
 	let isCollectionsLoaded = $state(false);
 	let isNonCriticalDataLoaded = $state(false);
 	let loadError = $state<Error | null>(null);
 	let mediaQuery: MediaQueryList;
 
-	// Update collection loaded state when store changes
+	// Update collection loaded state when contentStructure or collections change
 	$effect(() => {
-		if (collections.value && Object.keys(collections.value).length > 0) {
+		// Check if we have contentStructure data OR collections data
+		const hasContentStructure = contentStructure.value && contentStructure.value.length > 0;
+		const hasCollections = collections.value && Object.keys(collections.value).length > 0;
+
+		if (hasContentStructure || hasCollections) {
 			isCollectionsLoaded = true;
+			isLoading = false;
 		}
 	});
 
@@ -102,9 +108,11 @@
 			//console.log('contentStructure', data.contentStructure);
 			contentStructure.set(data.contentStructure);
 			isCollectionsLoaded = true;
+			isLoading = false;
 		} catch (error) {
 			console.error('Error loading collections:', error);
 			loadError = error instanceof Error ? error : new Error('Unknown error occurred while loading collections');
+			isLoading = false; // Stop loading even if there's an error
 		}
 	}
 
@@ -144,8 +152,12 @@
 		}
 
 		if (data.user) {
-			//console.log('user', data.user);
-			avatarSrc.set(data.user!.avatar!);
+			// Initialize avatar with user's avatar URL from database, fallback to default
+			if (data.user.avatar && data.user.avatar !== '/Default_User.svg') {
+				avatarSrc.set(data.user.avatar);
+			} else {
+				avatarSrc.set('/Default_User.svg');
+			}
 		}
 
 		// Event listeners
@@ -256,7 +268,7 @@
 							<SearchComponent />
 						{/if}
 
-						{#if $isLoading}
+						{#if isLoading}
 							<div class="flex h-screen items-center justify-center">
 								<Loading />
 							</div>

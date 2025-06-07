@@ -81,21 +81,17 @@ const createBaseStores = () => {
 	const drawerExpanded = store(true);
 	const storeListboxValue = store('create');
 
-	// Loading state
-	const loadingProgress = store(0);
-	const isLoading = store(false);
-
-	// Image handling
-	const avatarSrc = store('/Default_User.svg');
+	// Image handling 
+	let avatarSrc = $state('/Default_User.svg');
 	const file = store<File | null>(null);
 	const saveEditedImage = store(false);
 
 	// Save functionality
 	const saveFunction = store<SaveFunction>({
-		fn: () => {},
-		reset: () => {}
+		fn: () => { },
+		reset: () => { }
 	});
-	const saveLayerStore = store(async () => {});
+	const saveLayerStore = store(async () => { });
 	const shouldShowNextButton = store(false);
 
 	// Validation
@@ -142,12 +138,9 @@ const createBaseStores = () => {
 		drawerExpanded,
 		storeListboxValue,
 
-		// Loading state
-		loadingProgress,
-		isLoading,
-
-		// Image handling
-		avatarSrc,
+		// Image handling - rune-based reactive state
+		get avatarSrc() { return avatarSrc; },
+		set avatarSrc(value) { avatarSrc = value; },
 		file,
 		saveEditedImage,
 
@@ -175,9 +168,6 @@ export const {
 	pkgBgColor,
 	drawerExpanded,
 	storeListboxValue,
-	loadingProgress,
-	isLoading,
-	avatarSrc,
 	file,
 	saveEditedImage,
 	saveFunction,
@@ -185,6 +175,12 @@ export const {
 	shouldShowNextButton,
 	validationErrors
 } = stores;
+
+// Export rune-based stores
+export const avatarSrc = {
+	get value() { return stores.avatarSrc; },
+	set(value: string) { stores.avatarSrc = value; }
+};
 
 // Export rune-based translation stores with function-like API to match existing usage
 export const translationStatus = () => stores.translationStatus;

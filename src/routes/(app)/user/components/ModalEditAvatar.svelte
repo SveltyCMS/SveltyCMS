@@ -184,7 +184,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 		</article>
 
 		<form class="modal-form {cForm}">
-			<div class="grid grid-cols-1 grid-rows-{$avatarSrc ? '1' : '2'} items-center justify-center">
+			<div class="grid grid-cols-1 grid-rows-{avatarSrc.value ? '1' : '2'} items-center justify-center">
 				<!-- Avatar Thumbnail -->
 				<Avatar
 					src={avatarSrc.value ? avatarSrc.value : '/Default_User.svg'}
@@ -227,7 +227,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 		<footer class="modal-footer {parent.regionFooter} justify-between">
 			<!-- Delete Avatar -->
-			{#if $avatarSrc !== '/Default_User.svg'}
+			{#if avatarSrc.value !== '/Default_User.svg'}
 				<button type="button" onclick={deleteAvatar} class="variant-filled-error btn">
 					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
 					<span class="hidden sm:block">{m.button_delete()}</span>

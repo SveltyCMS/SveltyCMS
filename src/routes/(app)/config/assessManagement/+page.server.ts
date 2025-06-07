@@ -7,7 +7,8 @@ import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Simplified Auth
-import { hasPermission, getAllPermissions, getAllRoles } from '@src/auth/permissions';
+import { hasPermissionWithRoles, getAllPermissions } from '@src/auth/permissions';
+import { roles } from '@root/config/roles';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -32,7 +33,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 
 		// Check user permission for access management using simplified system
-		const hasAccessPermission = hasPermission(user, 'config:accessManagement');
+		const hasAccessPermission = hasPermissionWithRoles(user, 'config:accessManagement', roles);
 
 		if (!hasAccessPermission) {
 			const message = `User ${user._id} does not have permission to access management`;
@@ -42,7 +43,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		// Fetch roles and permissions using simplified system
 		logger.debug('Fetching roles and permissions...');
-		const roles = getAllRoles();
+		const roles = roles;
 		const permissions = getAllPermissions();
 
 		logger.debug(`Roles fetched: ${roles.length}`);

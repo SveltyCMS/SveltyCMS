@@ -24,8 +24,11 @@ import { dbAdapter } from '@src/databases/db';
 import { createClient } from 'redis';
 
 // Permission Management
-import { hasPermission, registerPermission } from '@src/auth/permissions';
+import { hasPermissionWithRoles, registerPermission } from '@src/auth/permissions';
 import { PermissionAction, PermissionType } from '@src/auth/types';
+
+// Roles Configuration
+import { roles } from '@root/config/roles';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -49,9 +52,9 @@ let redisClient: ReturnType<typeof createClient> | null = null;
 const cacheClient =
 	privateEnv.USE_REDIS === true
 		? {
-				get: async (key: string) => redisClient?.get(key) || null,
-				set: async (key: string, value: string, ex: string, duration: number) => redisClient?.set(key, value, { EX: duration })
-			}
+			get: async (key: string) => redisClient?.get(key) || null,
+			set: async (key: string, value: string, ex: string, duration: number) => redisClient?.set(key, value, { EX: duration })
+		}
 		: null;
 
 if (privateEnv.USE_REDIS === true) {
@@ -103,8 +106,8 @@ async function setupGraphQL() {
             
             type Query {
                 ${Object.values(collections)
-									.map((collection) => `${collection._id}: [${collection._id}]`)
-									.join('\n')}
+				.map((collection) => `${collection._id}: [${collection._id}]`)
+				.join('\n')}
                 users: [User]
                 mediaImages: [MediaImage]
                 mediaDocuments: [MediaDocument]
@@ -128,7 +131,7 @@ async function setupGraphQL() {
 					if (!user) {
 						throw new Error('Unauthorized: No user in context');
 					}
-					const userHasPermission = hasPermission(user, 'config:accessManagement');
+					const userHasPermission = hasPermissionWithRoles(user, 'config:accessManagement', roles);
 					if (!userHasPermission) {
 						throw new Error('Forbidden: Insufficient permissions');
 					}

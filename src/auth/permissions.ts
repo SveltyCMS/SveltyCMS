@@ -10,9 +10,8 @@
 import { logger } from '@utils/logger.svelte';
 
 // Auth
-import type { User, Permission } from './types';
+import type { User, Permission, Role } from './types';
 import { corePermissions } from './corePermissions';
-import { roles } from '@root/config/roles';
 
 export interface PermissionConfig {
 	contextId: string;
@@ -46,8 +45,8 @@ export function getPermissionById(permissionId: string): Permission | undefined 
 	return permissionRegistry.get(permissionId);
 }
 
-// Check if a user has a specific permission
-export function hasPermission(user: User, permissionId: string): boolean {
+// Check if a user has a specific permission (with roles parameter to avoid circular dependency)
+export function hasPermissionWithRoles(user: User, permissionId: string, roles: Role[]): boolean {
 	const userRole = roles.find((role) => role._id === user.role);
 	if (!userRole) {
 		logger.warn(`Role not found for user: ${user.email}`);
@@ -67,7 +66,24 @@ export function hasPermission(user: User, permissionId: string): boolean {
 }
 
 // Check if a user has permission by action and type
-export function hasPermissionByAction(user: User, action: string, type: string, contextId?: string): boolean {
+export function hasPermissionByAction(user: User, action: string, type: string, contextId?: string, userRoles?: Role[]): boolean {
+	let roles: Role[] = userRoles || [];		// If no roles provided, try to get them from a global location
+	if (!userRoles) {
+		try {
+			// Try to access roles from a different location
+			if (typeof globalThis !== 'undefined' && (globalThis as unknown as { __ROLES_CACHE__?: Role[] }).__ROLES_CACHE__) {
+				roles = (globalThis as unknown as { __ROLES_CACHE__: Role[] }).__ROLES_CACHE__;
+			} else {
+				// Last resort - empty array
+				logger.warn('No roles available for permission check - defaulting to deny');
+				return false;
+			}
+		} catch (error: unknown) {
+			logger.error('Failed to load roles for hasPermissionByAction:', error);
+			return false;
+		}
+	}
+
 	const userRole = roles.find((role) => role._id === user.role);
 	if (!userRole) return false;
 
@@ -87,21 +103,16 @@ export function hasPermissionByAction(user: User, action: string, type: string, 
 	return userRole.permissions.includes(permission._id);
 }
 
-// Get permissions for a specific role
-export function getRolePermissions(roleId: string): string[] {
+// Get permissions for a specific role (with roles parameter)
+export function getRolePermissionsWithRoles(roleId: string, roles: Role[]): string[] {
 	const role = roles.find((r) => r._id === roleId);
 	return role?.permissions || [];
 }
 
-// Check if a role is admin
-export function isAdminRole(roleId: string): boolean {
+// Check if a role is admin (with roles parameter)
+export function isAdminRoleWithRoles(roleId: string, roles: Role[]): boolean {
 	const role = roles.find((r) => r._id === roleId);
 	return role?.isAdmin === true;
-}
-
-// Get all roles
-export function getAllRoles() {
-	return roles;
 }
 
 // Legacy permission config compatibility - maps old config keys to new permission IDs

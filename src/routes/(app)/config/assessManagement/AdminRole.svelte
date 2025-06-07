@@ -59,13 +59,13 @@ It provides functionality to:
 	const loadRoles = async () => {
 		try {
 			const rolesData = roleData;
-			const currentAdmin = rolesData.find((role) => role.isAdmin === true);
+			const currentAdmin = rolesData.find((role: Role) => role.isAdmin === true);
 			if (currentAdmin) {
 				currentAdminRole.set(currentAdmin._id); // Set the current admin role
 				currentAdminName.set(currentAdmin.name);
 				selectedAdminRole.set(currentAdmin._id); // Initially set the selected admin role to the current admin role
 				// Remove the current admin role from the dropdown options
-				roles.set(rolesData.filter((role) => role._id !== currentAdmin._id));
+				roles.set(rolesData.filter((role: Role) => role._id !== currentAdmin._id));
 			} else {
 				roles.set(rolesData); // If no current admin role, show all roles
 			}
@@ -82,7 +82,7 @@ It provides functionality to:
 	};
 
 	// Show corresponding Toast messages
-	function showToast(message, type) {
+	function showToast(message: string, type: 'success' | 'info' | 'error') {
 		const backgrounds = {
 			success: 'variant-filled-primary',
 			info: 'variant-filled-tertiary',
@@ -108,7 +108,7 @@ It provides functionality to:
 
 			currentAdminRole.set($selectedAdminRole);
 			try {
-				const result = roleData.map((cur) => {
+				const result = roleData.map((cur: Role) => {
 					if (cur._id === $selectedAdminRole) {
 						currentAdminName.set(cur.name);
 						return { ...cur, isAdmin: true };
@@ -118,7 +118,7 @@ It provides functionality to:
 					}
 					return cur;
 				});
-				roles.set(result.filter((cur) => !cur.isAdmin));
+				roles.set(result.filter((cur: Role) => !cur.isAdmin));
 				setRoleData(result);
 			} catch (error) {
 				showToast('Network error occurred while updating config file', 'error');

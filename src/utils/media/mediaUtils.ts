@@ -57,7 +57,7 @@ export function constructMediaUrl(mediaItem: MediaBase, size?: keyof typeof publ
 					processingTime: performance.now() - startTime
 				});
 			} catch (logError) {
-				console.error('Failed to log debug info:', logError);
+				logger.error('Failed to log debug info:', logError);
 			}
 		} else {
 			const basePath = Path.posix.join(publicEnv.MEDIA_FOLDER, mediaItem.url);
@@ -70,7 +70,7 @@ export function constructMediaUrl(mediaItem: MediaBase, size?: keyof typeof publ
 						processingTime: performance.now() - startTime
 					});
 				} catch (logError) {
-					console.error('Failed to log debug info:', logError);
+					logger.error('Failed to log debug info:', logError);
 				}
 			} else {
 				url = basePath;
@@ -80,7 +80,7 @@ export function constructMediaUrl(mediaItem: MediaBase, size?: keyof typeof publ
 						processingTime: performance.now() - startTime
 					});
 				} catch (logError) {
-					console.error('Failed to log debug info:', logError);
+					logger.error('Failed to log debug info:', logError);
 				}
 			}
 		}
@@ -145,7 +145,7 @@ export function constructUrl(
 			try {
 				logger.debug('Constructed unique path URL', { urlPath });
 			} catch (logError) {
-				console.error('Failed to log debug info:', logError);
+				logger.error('Failed to log debug info:', logError);
 			}
 			break;
 		default:
@@ -155,7 +155,7 @@ export function constructUrl(
 			try {
 				logger.debug('Constructed custom path URL', { urlPath });
 			} catch (logError) {
-				console.error('Failed to log debug info:', logError);
+				logger.error('Failed to log debug info:', logError);
 			}
 	}
 
@@ -164,7 +164,7 @@ export function constructUrl(
 		try {
 			logger.debug('Using media server URL', { url });
 		} catch (logError) {
-			console.error('Failed to log debug info:', logError);
+			logger.error('Failed to log debug info:', logError);
 		}
 		return url;
 	} else {
@@ -173,7 +173,7 @@ export function constructUrl(
 		try {
 			logger.debug('Using local media folder URL', { url });
 		} catch (logError) {
-			console.error('Failed to log debug info:', logError);
+			logger.error('Failed to log debug info:', logError);
 		}
 		return url;
 	}
@@ -219,7 +219,7 @@ export function validateMediaFile(
 				maxSizeBytes
 			});
 		} catch (logError) {
-			console.error('Failed to log debug info:', logError);
+			logger.error('Failed to log debug info:', logError);
 		}
 
 		if (!fileType || !allowedTypesPattern.test(fileType)) {
@@ -231,7 +231,7 @@ export function validateMediaFile(
 					allowedTypesPattern: allowedTypesPattern.toString()
 				});
 			} catch (logError) {
-				console.error('Failed to log warning:', logError);
+				logger.error('Failed to log warning:', logError);
 			}
 			return {
 				isValid: false,
@@ -262,7 +262,7 @@ export function validateMediaFile(
 				processingTime: performance.now() - startTime
 			});
 		} catch (logError) {
-			console.error('Failed to log debug info:', logError);
+			logger.error('Failed to log debug info:', logError);
 		}
 		return { isValid: true };
 	} catch (err) {

@@ -53,12 +53,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// Check if the user has permission to update their avatar
-		const { hasPermission } = await hasPermissionByAction(locals.user, {
-			contextId: 'user/profile',
-			name: 'Update Avatar',
-			action: 'update',
-			contextType: 'user'
-		});
+		const hasPermission = hasPermissionByAction(
+			locals.user, 
+			'update', 
+			'user', 
+			'user/profile'
+		);
 
 		if (!hasPermission) {
 			logger.error('Unauthorized to update avatar', { userId: locals.user._id });

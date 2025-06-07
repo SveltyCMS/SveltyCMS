@@ -85,7 +85,9 @@
 	import { languageTag } from '@src/paraglide/runtime';
 
 	// Define language type based on available languages
-	type AvailableLanguage = (typeof publicEnv.AVAILABLE_SYSTEM_LANGUAGES)[number];
+	type AvailableLanguage = typeof publicEnv.AVAILABLE_SYSTEM_LANGUAGES extends string[]
+		? (typeof publicEnv.AVAILABLE_SYSTEM_LANGUAGES)[number]
+		: string;
 
 	let _languageTag = $state(languageTag()); // Get the current language tag
 
@@ -96,7 +98,7 @@
 
 	// Computed values
 	const availableLanguages = $derived(
-		[...publicEnv.AVAILABLE_SYSTEM_LANGUAGES].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
+		[...(publicEnv.AVAILABLE_SYSTEM_LANGUAGES as string[])].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
 	);
 
 	const filteredLanguages = $derived(
@@ -281,10 +283,10 @@
 					class="btn-icon relative cursor-pointer flex-col items-center justify-center text-center !no-underline md:row-span-2"
 				>
 					<Avatar
-						src={$avatarSrc && $avatarSrc.startsWith('data:')
-							? $avatarSrc
-							: $avatarSrc
-								? `${$avatarSrc}${$avatarSrc.startsWith('/') ? '' : ''}?t=${Date.now()}`
+						src={avatarSrc.value && avatarSrc.value.startsWith('data:')
+							? avatarSrc.value
+							: avatarSrc.value
+								? `${avatarSrc.value}${avatarSrc.value.startsWith('/') ? '' : ''}?t=${Date.now()}`
 								: '/Default_User.svg'}
 						alt="Avatar"
 						initials="AV"
@@ -314,7 +316,7 @@
 				use:popup={SystemLanguageTooltip}
 			>
 				<div class="language-selector relative" bind:this={dropdownRef}>
-					{#if publicEnv.AVAILABLE_SYSTEM_LANGUAGES.length > 5}
+					{#if (publicEnv.AVAILABLE_SYSTEM_LANGUAGES as string[]).length > 5}
 						<button
 							class="variant-filled-surface btn-icon flex items-center justify-between uppercase text-white {uiStateManager.uiState.value
 								.leftSidebar === 'full'

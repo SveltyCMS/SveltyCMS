@@ -207,9 +207,7 @@
 													<!-- Display translation progress -->
 													<div class="text-xs font-normal">
 														({Math.round(
-															translationProgress.value[contentLanguage.value]?.translated.has(
-																`${String(collection.value?.name)}.${getFieldName(field)}`
-															)
+															translationProgress()[contentLanguage.value]?.translated.has(`${String(collection.value?.name)}.${getFieldName(field)}`)
 																? 1
 																: 0
 														)}%)
