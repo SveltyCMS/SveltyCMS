@@ -12,7 +12,7 @@ test('Test loading', async ({ page }) => {
 	await page.getByText('SveltyCMS').nth(2);
 });
 
-// Test language selection and button text
+// Test language selection and button text.
 test('check language selection and button text', async ({ page }) => {
 	await page.goto('http://localhost:4173/login');
 
