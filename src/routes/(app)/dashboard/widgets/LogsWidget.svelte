@@ -31,7 +31,7 @@
 		GAP_SIZE,
 		resizable = true,
 		onResizeCommitted,
-		onCloseRequest
+		onCloseRequest = () => {}
 	} = $props<{
 		label?: string;
 		icon?: string;

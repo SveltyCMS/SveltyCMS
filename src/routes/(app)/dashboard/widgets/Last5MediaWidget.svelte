@@ -57,10 +57,10 @@
 		media = data.data;
 	});
 
-	let { label, theme = 'light', icon = 'mdi:image-multiple' } = $props();
+	let { label, theme = 'light', icon = 'mdi:image-multiple', onCloseRequest = () => {} } = $props();
 </script>
 
-<BaseWidget {label} {theme} endpoint="/api/media" pollInterval={5000}>
+<BaseWidget {label} {theme} endpoint="/api/media" pollInterval={5000} {onCloseRequest}>
 	<section>
 		<h2>Last 5 Added Media</h2>
 		<ul>

@@ -47,7 +47,7 @@ This widget fetches and displays real-time disk usage data, including:
 	import 'chartjs-adapter-date-fns';
 
 	// Props
-	let { label = 'Disk Usage', theme = 'light', icon = 'mdi:harddisk' } = $props();
+	let { label = 'Disk Usage', theme = 'light', icon = 'mdi:harddisk', onCloseRequest = () => {} } = $props();
 
 	let data = $state<
 		| {
@@ -73,12 +73,12 @@ This widget fetches and displays real-time disk usage data, including:
 		beforeDraw(chart) {
 			const ctx = chart.ctx;
 			const { width, height } = chart;
-			const diskInfoValue = data?.diskInfo ?? {
-				totalGb: 0,
-				usedGb: 0,
-				freeGb: 0,
-				usedPercentage: 0,
-				freePercentage: 0
+			const diskInfoValue = data?.diskInfo.root ?? {
+				totalGb: 'N/A',
+				usedGb: 'N/A',
+				freeGb: 'N/A',
+				usedPercentage: 'N/A',
+				freePercentage: 'N/A'
 			};
 			ctx.save();
 			ctx.textAlign = 'center';
@@ -86,7 +86,7 @@ This widget fetches and displays real-time disk usage data, including:
 			ctx.font = '18px Arial';
 
 			// Draw total in the center
-			const formattedTotal = typeof diskInfoValue.totalGb === 'number' ? diskInfoValue.totalGb.toFixed(2) : 'N/A';
+			const formattedTotal = diskInfoValue.totalGb;
 			ctx.fillText(`${formattedTotal} GB`, width / 2, height / 2);
 
 			// Draw used and free percentages directly on the chart
@@ -99,7 +99,7 @@ This widget fetches and displays real-time disk usage data, including:
 				const posY = height / 2 + Math.sin(angle) * (height / 4);
 
 				// Ensure percentage is a number before calling toFixed()
-				const formattedPercentage = typeof percentage === 'number' ? percentage.toFixed(2) : 'N/A';
+				const formattedPercentage = percentage;
 				ctx.fillText(`${formattedPercentage}%`, posX, posY);
 			});
 
@@ -109,8 +109,8 @@ This widget fetches and displays real-time disk usage data, including:
 
 	// Initialize chart when data is available
 	$effect(() => {
-		if (chartCanvas && data?.diskInfo) {
-			const { usedGb, freeGb } = data.diskInfo;
+		if (chartCanvas && data?.diskInfo.root) {
+			const { usedGb = 0, freeGb = 0 } = data?.diskInfo.root;
 
 			const config: ChartConfiguration<'doughnut', number[], string> = {
 				type: 'doughnut',
@@ -118,7 +118,7 @@ This widget fetches and displays real-time disk usage data, including:
 					labels: ['Used', 'Free'],
 					datasets: [
 						{
-							data: [typeof usedGb === 'number' ? usedGb : 0, typeof freeGb === 'number' ? freeGb : 0],
+							data: [usedGb, freeGb],
 							backgroundColor: [
 								theme === 'dark' ? 'rgba(255, 99, 132, 0.2)' : 'rgba(255, 99, 132, 0.4)',
 								theme === 'dark' ? 'rgba(54, 162, 235, 0.2)' : 'rgba(54, 162, 235, 0.4)'
@@ -140,7 +140,7 @@ This widget fetches and displays real-time disk usage data, including:
 								label: function (context) {
 									const value = typeof context.raw === 'number' ? context.raw : 0;
 									const dataSet = context.chart.data.datasets[0].data as number[];
-									const totalGb = dataSet.reduce((a, b) => (a ?? 0) + (b ?? 0), 0);
+									const totalGb = dataSet.reduce((a, b) => (+a ?? 0) + (+b ?? 0), 0);
 									const percentage = totalGb ? (value / totalGb) * 100 : 0;
 									return `${value.toFixed(2)} GB (${percentage.toFixed(2)}%)`;
 								}
@@ -158,9 +158,9 @@ This widget fetches and displays real-time disk usage data, including:
 
 	// Update chart when data changes
 	$effect(() => {
-		if (chart && data?.diskInfo) {
-			const { usedGb, freeGb } = data.diskInfo;
-			chart.data.datasets[0].data = [typeof usedGb === 'number' ? usedGb : 0, typeof freeGb === 'number' ? freeGb : 0];
+		if (chart && data?.diskInfo.root) {
+			const { usedGb = 0, freeGb = 0 } = data.diskInfo.root;
+			chart.data.datasets[0].data = [usedGb, freeGb];
 			chart.update();
 		}
 	});
@@ -171,7 +171,7 @@ This widget fetches and displays real-time disk usage data, including:
 	});
 </script>
 
-<BaseWidget {label} {theme} endpoint="/api/systemInfo?type=disk" pollInterval={5000} bind:data {icon}>
+<BaseWidget {label} {theme} endpoint="/api/systemInfo?type=disk" pollInterval={5000} bind:data {icon} {onCloseRequest}>
 	<div
 		class="relative h-full w-full rounded-lg p-4 text-tertiary-500 transition-colors duration-300 ease-in-out dark:bg-surface-500 dark:text-primary-500"
 		aria-label="Disk Usage Widget"
@@ -187,28 +187,24 @@ This widget fetches and displays real-time disk usage data, including:
 			<p class="text-center text-surface-500">Waiting for disk data...</p>
 		{:else if !data.diskInfo}
 			<p class="text-center text-error-500">No diskInfo in API response: {JSON.stringify(data)}</p>
-		{:else if (data.diskInfo = typeof data.diskInfo.root === 'object' && data.diskInfo.root !== null ? data.diskInfo.root : typeof data.diskInfo.usedGb === 'number' && typeof data.diskInfo.freeGb === 'number' ? data.diskInfo : null)}
-			{#if data}
-				<div class="absolute bottom-5 left-0 flex w-full justify-between gap-2 px-2 text-xs">
-					<p>
-						Total: {typeof data?.diskInfo.totalGb === 'number' ? data.diskInfo.totalGb.toFixed(2) : 'N/A'} GB
-					</p>
-					<p>
-						Used: {typeof data?.diskInfo.usedGb === 'number' ? data.diskInfo.usedGb.toFixed(2) : 'N/A'} GB ({typeof data?.diskInfo.usedPercentage ===
-						'number'
-							? data.diskInfo.usedPercentage.toFixed(2)
-							: 'N/A'}%)
-					</p>
-					<p>
-						Free: {typeof data?.diskInfo.freeGb === 'number' ? data.diskInfo.freeGb.toFixed(2) : 'N/A'} GB ({typeof data?.diskInfo.freePercentage ===
-						'number'
-							? data.diskInfo.freePercentage.toFixed(2)
-							: 'N/A'}%)
-					</p>
-				</div>
-			{:else}
-				<p class="text-center text-error-500">No usable disk data: {JSON.stringify(data)}</p>
-			{/if}
+		{:else if (typeof data.diskInfo.root === 'object' && data.diskInfo.root !== null)}
+			<div class="absolute bottom-5 left-0 flex w-full justify-between gap-2 px-2 text-xs">
+				<p>
+					Total: {data.diskInfo.root.totalGb !== null ? data.diskInfo.root.totalGb : 'N/A'} GB
+				</p>
+				<p>
+					Used: {data.diskInfo.root.usedGb !== null ? data.diskInfo.root.usedGb : 'N/A'} GB ({data.diskInfo.root.usedPercentage !== null
+						? data.diskInfo.root.usedPercentage
+						: 'N/A'}%)
+				</p>
+				<p>
+					Free: {data.diskInfo.root.freeGb !== null ? data.diskInfo.root.freeGb : 'N/A'} GB ({data.diskInfo.root.freePercentage !== null
+						? data.diskInfo.root.freePercentage
+						: 'N/A'}%)
+				</p>
+			</div>
+		{:else}
+			<p class="text-center text-error-500">No usable disk data: {JSON.stringify(data)}</p>
 		{/if}
 	</div>
 </BaseWidget>

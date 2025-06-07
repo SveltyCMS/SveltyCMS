@@ -58,7 +58,7 @@ Features:
 		currentTheme: string;
 	}
 
-	let { label, currentTheme }: Props = $props();
+	let { label, currentTheme, onCloseRequest = () => {} }: Props = $props();
 
 	onMount(async () => {
 		try {

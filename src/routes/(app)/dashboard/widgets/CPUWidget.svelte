@@ -180,16 +180,13 @@
 	});
 
 	// Helper to get the latest CPU usage value
-	let latestCpuValue = $derived(fetchedData?.cpuInfo?.historicalLoad?.usage?.slice(-1)[0]?.toFixed(1) || 'N/A');
+	let historicalLoad = $derived(fetchedData?.cpuInfo?.historicalLoad?.usage)
+
+	let latestCpuValue = $derived(historicalLoad?.slice(-1)[0]?.toFixed(1) || 'N/A');
 	// Helper for average CPU usage
-	let averageCpuValue = $derived(() => {
-		const usageArray = fetchedData?.cpuInfo?.historicalLoad?.usage;
-		if (usageArray && usageArray.length > 0) {
-			const sum = usageArray.reduce((a: number, b: number) => a + b, 0);
-			return (sum / usageArray.length).toFixed(1);
-		}
-		return 'N/A';
-	});
+	let averageCpuValue = $derived(historicalLoad?.length 
+			? (historicalLoad.reduce((sum, val) => sum + val, 0) / historicalLoad.length).toFixed(1)
+			: 'N/A');
 </script>
 
 <BaseWidget

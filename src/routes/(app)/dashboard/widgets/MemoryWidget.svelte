@@ -42,7 +42,7 @@ Features:
 	import type { ChartConfiguration, Plugin, ArcElement } from 'chart.js';
 	import 'chartjs-adapter-date-fns';
 
-	let { label = 'Memory Usage', theme = 'light', icon = 'mdi:memory' } = $props();
+	let { label = 'Memory Usage', theme = 'light', icon = 'mdi:memory', onCloseRequest = () => {} } = $props();
 
 	// Chart state
 	let data: any = $state(undefined);
@@ -54,7 +54,7 @@ Features:
 		beforeDraw(chart) {
 			const ctx = chart.ctx;
 			const { width, height } = chart;
-			const memoryInfoValue = data?.memoryInfo ?? {
+			const memoryInfoValue = data?.memoryInfo.total ?? {
 				totalMemMb: 0,
 				usedMemMb: 0,
 				freeMemMb: 0,
@@ -85,7 +85,7 @@ Features:
 
 	$effect(() => {
 		if (chartCanvas && data?.memoryInfo) {
-			const { usedMemMb, freeMemMb } = data.memoryInfo;
+			const { usedMemMb, freeMemMb } = data.memoryInfo.total;
 			const config: ChartConfiguration<'doughnut', number[], string> = {
 				type: 'doughnut',
 				data: {
@@ -126,7 +126,7 @@ Features:
 	// Update chart when memory data changes
 	$effect(() => {
 		if (chart && data?.memoryInfo) {
-			const { usedMemMb, freeMemMb } = data.memoryInfo;
+			const { usedMemMb, freeMemMb } = data.memoryInfo.total;
 			chart.data.datasets[0].data = [usedMemMb, freeMemMb];
 			chart.update();
 		}
@@ -135,9 +135,11 @@ Features:
 	onDestroy(() => {
 		if (chart) chart.destroy();
 	});
+
+	$inspect(data)
 </script>
 
-<BaseWidget {label} {theme} endpoint="/api/systemInfo?type=memory" pollInterval={5000} bind:data {icon}>
+<BaseWidget {label} {theme} endpoint="/api/systemInfo?type=memory" pollInterval={5000} bind:data {icon} {onCloseRequest}>
 	<div
 		class="relative h-full w-full rounded-lg bg-surface-50 p-2 text-tertiary-500 transition-colors duration-300 ease-in-out dark:bg-surface-400 dark:text-primary-500"
 		aria-label="Memory Usage Widget"
@@ -147,14 +149,14 @@ Features:
 			Memory Usage
 		</h2>
 		<canvas bind:this={chartCanvas} class="h-full w-full p-2"></canvas>
-		{#if data?.memoryInfo}
+		{#if data?.memoryInfo.total}
 			<div class="absolute bottom-5 left-0 flex w-full justify-between gap-2 px-2 text-xs">
-				<p>Total: {(data.memoryInfo.totalMemMb / 1024).toFixed(2)} GB</p>
+				<p>Total: {(data.memoryInfo.total.totalMemMb / 1024).toFixed(2)} GB</p>
 				<p>
-					Used: {(data.memoryInfo.usedMemMb / 1024).toFixed(2)} GB ({data.memoryInfo.usedMemPercentage}%)
+					Used: {(data.memoryInfo.total.usedMemMb / 1024).toFixed(2)} GB ({data.memoryInfo.total.usedMemPercentage}%)
 				</p>
 				<p>
-					Free: {(data.memoryInfo.freeMemMb / 1024).toFixed(2)} GB ({data.memoryInfo.freeMemPercentage}%)
+					Free: {(data.memoryInfo.total.freeMemMb / 1024).toFixed(2)} GB ({data.memoryInfo.total.freeMemPercentage}%)
 				</p>
 			</div>
 		{:else}

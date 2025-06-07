@@ -39,7 +39,7 @@
 		getWidgetState: (key: string) => any;
 	};
 
-	const {
+	let {
 		label = 'Widget',
 		theme = 'light',
 		icon = undefined,
@@ -58,7 +58,7 @@
 		onDataLoaded = (_fetchedData: any) => {}, // New prop: Callback for when data is loaded
 		// Initialize `data` with $bindable() directly.
 		// Its initial value will be set from passedInitialData in an effect.
-		data = $bindable(undefined) // This is the bindable prop
+		data = $bindable() // This is the bindable prop
 	} = $props<{
 		label: string;
 		theme?: 'light' | 'dark';
@@ -84,16 +84,12 @@
 	let widgetState = $state<Record<string, any>>({});
 	let loading = $state(endpoint && !passedInitialData);
 	let error = $state<string | null>(null);
-	let internalData = $state(passedInitialData);
 
 	// Data handling effect
 	$effect(() => {
-		if (data !== undefined) {
-			// If data prop is provided (bindable), use it
-			internalData = data;
-		} else if (passedInitialData !== undefined) {
+		if (passedInitialData !== undefined) {
 			// Fallback to internal data if no bindable prop provided
-			internalData = passedInitialData;
+			data = passedInitialData;
 		}
 	});
 
@@ -119,11 +115,7 @@
 
 				const newData = await res.json();
 				if (isActive) {
-					if (data !== undefined) {
-						data.set(newData); // Only call set if data is bindable
-					} else {
-						internalData = newData; // Fallback to internal state
-					}
+					data = newData;
 					onDataLoaded(newData);
 				}
 			} catch (err) {

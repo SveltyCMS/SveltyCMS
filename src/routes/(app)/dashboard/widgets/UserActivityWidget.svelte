@@ -54,10 +54,10 @@ Features:
 		activities = users.flatMap((user) => user.activities);
 	});
 
-	let { label, theme = 'light' } = $props();
+	let { label, theme = 'light', onCloseRequest = () => {} } = $props();
 </script>
 
-<BaseWidget {label} {theme} endpoint="/api/users" pollInterval={5000}>
+<BaseWidget {label} {theme} endpoint="/api/users" pollInterval={5000} {onCloseRequest}>
 	<section>
 		<h2>Recent User Activities</h2>
 		<ul>
