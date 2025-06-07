@@ -413,7 +413,7 @@
 	"languageConfig_AVAILABLE_SYSTEM_LANGUAGE_helper": "De beschikbare talen voor de gebruikersinterface (standaard: 'en').",
 	"languageConfig_DEFAULT_SYSTEM_LANGUAGE_helper": "De standaardtaal voor de gebruikersinterface (standaard: 'en').",
 	"mediaConfig_Description": "Media-instellingen voor de site.",
-	"mediaConfig_IMAGE_SIZE_helper": "De afmetingen van afbeeldingen die de site genereert. (standaard: {sm: 600, md: 900, lg: 1200}",
+	"mediaConfig_IMAGE_SIZE_helper": "De afmetingen van afbeeldingen die de site genereert. (standaard: sm: 600, md: 900, lg: 1200)",
 	"mediaConfig_MEDIA_FOLDER_helper": "De map waarin de mediabestanden van de site worden opgeslagen. (standaard: 'mediabestanden')",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "Formaat- en kwaliteitsinstellingen voor mediabestanden. (standaard: formaat: 'origineel', kwaliteit: 80)",
 	"mediaConfig_MEDIASERVER_URL_helper": "De URL van de mediaserver. (standaard is localhost als: '')",

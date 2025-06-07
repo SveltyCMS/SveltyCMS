@@ -413,7 +413,7 @@
 	"languageConfig_AVAILABLE_SYSTEM_LANGUAGE_helper": "उपयोगकर्ता इंटरफ़ेस के लिए उपलब्ध भाषाएँ (डिफ़ॉल्ट: 'en').",
 	"languageConfig_DEFAULT_SYSTEM_LANGUAGE_helper": "उपयोगकर्ता इंटरफ़ेस के लिए डिफ़ॉल्ट भाषा (डिफ़ॉल्ट: 'en').",
 	"mediaConfig_Description": "साइट के लिए मीडिया सेटिंग्स.",
-	"mediaConfig_IMAGE_SIZE_helper": "छवियों के आकार जो साइट द्वारा उत्पन्न किए जाएंगे. (डिफ़ॉल्ट: {sm: 600, md: 900, lg: 1200}",
+	"mediaConfig_IMAGE_SIZE_helper": "छवियों के आकार जो साइट द्वारा उत्पन्न किए जाएंगे. (डिफ़ॉल्ट: sm: 600, md: 900, lg: 1200)",
 	"mediaConfig_MEDIA_FOLDER_helper": "वह फ़ोल्डर जहाँ साइट की मीडिया फ़ाइलें संग्रहीत की जाएँगी. (डिफ़ॉल्ट: 'मीडियाफ़ाइल्स')",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "मीडिया फ़ाइलों के लिए प्रारूप और गुणवत्ता सेटिंग्स. (डिफ़ॉल्ट: प्रारूप: 'मूल', गुणवत्ता: 80)",
 	"mediaConfig_MEDIASERVER_URL_helper": "मीडिया सर्वर का URL. (डिफ़ॉल्ट लोकलहोस्ट है: '')",

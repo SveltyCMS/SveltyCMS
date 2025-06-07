@@ -413,7 +413,7 @@
 	"languageConfig_AVAILABLE_SYSTEM_LANGUAGE_helper": "ユーザー インターフェイスで使用可能な言語 (デフォルト: 'en')。",
 	"languageConfig_DEFAULT_SYSTEM_LANGUAGE_helper": "ユーザー インターフェイスのデフォルト言語 (デフォルト: 'en')。",
 	"mediaConfig_Description": "サイトのメディア設定。",
-	"mediaConfig_IMAGE_SIZE_helper": "サイトが生成する画像のサイズ。(デフォルト: {sm: 600, md: 900, lg: 1200}",
+	"mediaConfig_IMAGE_SIZE_helper": "サイトが生成する画像のサイズ。(デフォルト: sm: 600, md: 900, lg: 1200)",
 	"mediaConfig_MEDIA_FOLDER_helper": "サイトのメディア ファイルが保存されるフォルダー。(デフォルト: 'mediaFiles')",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "メディア ファイルの形式と品質の設定。(デフォルト: 形式: 'オリジナル'、品質: 80)",
 	"mediaConfig_MEDIASERVER_URL_helper": "メディア サーバーの URL。(デフォルトは localhost です: '')",

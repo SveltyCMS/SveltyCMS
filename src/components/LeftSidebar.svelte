@@ -82,14 +82,14 @@
 
 	// Language and messaging setup
 	import * as m from '@src/paraglide/messages';
-	import { languageTag } from '@src/paraglide/runtime';
+	import { getLocale } from '@src/paraglide/runtime';
 
 	// Define language type based on available languages
 	type AvailableLanguage = typeof publicEnv.AVAILABLE_SYSTEM_LANGUAGES extends string[]
 		? (typeof publicEnv.AVAILABLE_SYSTEM_LANGUAGES)[number]
 		: string;
 
-	let _languageTag = $state(languageTag()); // Get the current language tag
+	let _languageTag = $state(getLocale()); // Get the current language tag
 
 	// Enhanced language selector
 	let searchQuery = $state('');

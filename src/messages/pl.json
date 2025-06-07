@@ -413,7 +413,7 @@
 	"languageConfig_AVAILABLE_SYSTEM_LANGUAGE_helper": "Dostępne języki interfejsu użytkownika (domyślnie: „en”).",
 	"languageConfig_DEFAULT_SYSTEM_LANGUAGE_helper": "Domyślny język interfejsu użytkownika (domyślnie: 'en').",
 	"mediaConfig_Description": "Ustawienia multimediów dla witryny.",
-	"mediaConfig_IMAGE_SIZE_helper": "Rozmiary obrazów, które wygeneruje witryna. (domyślnie: {sm: 600, md: 900, lg: 1200} )",
+	"mediaConfig_IMAGE_SIZE_helper": "Rozmiary obrazów, które wygeneruje witryna. (domyślnie: sm: 600, md: 900, lg: 1200) )",
 	"mediaConfig_MEDIA_FOLDER_helper": "Folder, w którym będą przechowywane pliki multimedialne witryny. (domyślnie: „pliki multimedialne”)",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "Ustawienia formatu i jakości plików multimedialnych. (domyślnie: format: „oryginalny”, jakość: 80)",
 	"mediaConfig_MEDIASERVER_URL_helper": "Adres URL serwera multimediów. (domyślnie jest to localhost jako: '')",

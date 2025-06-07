@@ -14,7 +14,7 @@ import { store } from '@utils/reactivity.svelte';
 
 // Paraglidejs
 import * as m from '@src/paraglide/messages';
-import { setLanguageTag, type AvailableLanguageTag } from '@src/paraglide/runtime';
+import { type Locale } from '@src/paraglide/runtime';
 
 // Define interfaces
 interface ValidationErrors {
@@ -33,7 +33,7 @@ export interface TranslationSet {
 }
 
 export type TranslationProgress = {
-	[key in AvailableLanguageTag]?: TranslationSet;
+	[key in Locale]?: TranslationSet;
 } & {
 	show: boolean;
 };
@@ -50,13 +50,12 @@ function getCookie(name: string): string | null {
 // Create base stores
 const createBaseStores = () => {
 	// Get initial values from cookies or use defaults
-	const initialSystemLanguage = (getCookie('systemLanguage') as AvailableLanguageTag | null) ?? publicEnv.DEFAULT_SYSTEM_LANGUAGE;
-	const initialContentLanguage = (getCookie('contentLanguage') as AvailableLanguageTag | null) ?? publicEnv.DEFAULT_CONTENT_LANGUAGE;
+	const initialSystemLanguage = (getCookie('systemLanguage') as Locale | null) ?? (publicEnv.DEFAULT_SYSTEM_LANGUAGE as Locale);
+	const initialContentLanguage = (getCookie('contentLanguage') as Locale | null) ?? (publicEnv.DEFAULT_CONTENT_LANGUAGE as Locale);
 
 	// Language and i18n
-	const systemLanguage = store<AvailableLanguageTag>(initialSystemLanguage as AvailableLanguageTag);
-	const contentLanguage = store<AvailableLanguageTag>(initialContentLanguage as AvailableLanguageTag);
-	const messages = store({ ...m });
+	const systemLanguage = store<Locale>(initialSystemLanguage);
+	const contentLanguage = store<Locale>(initialContentLanguage);
 
 	// Translation status - using Svelte 5 runes
 	let translationStatus = $state({});
@@ -65,7 +64,7 @@ const createBaseStores = () => {
 
 	// Initialize translationProgress with guaranteed structure for all languages
 	const initialTranslationProgress: TranslationProgress = { show: false };
-	for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES as AvailableLanguageTag[]) {
+	for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES as Locale[]) {
 		initialTranslationProgress[lang] = {
 			total: new Set<string>(),
 			translated: new Set<string>()
@@ -101,16 +100,12 @@ const createBaseStores = () => {
 	systemLanguage.subscribe((sysLang) => {
 		if (typeof window !== 'undefined' && sysLang) {
 			document.cookie = `systemLanguage=${sysLang}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
-			setLanguageTag(sysLang);
-			messages.set({ ...m });
 		}
 	});
 
 	contentLanguage.subscribe((contentLang) => {
 		if (typeof window !== 'undefined' && contentLang) {
 			document.cookie = `contentLanguage=${contentLang}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
-			setLanguageTag(contentLang);
-			messages.set({ ...m });
 		}
 	});
 
@@ -118,7 +113,6 @@ const createBaseStores = () => {
 		// Language and i18n
 		systemLanguage,
 		contentLanguage,
-		messages,
 
 		// Translation status - rune-based reactive state
 		get translationStatus() { return translationStatus; },
@@ -161,7 +155,6 @@ const stores = createBaseStores();
 export const {
 	systemLanguage,
 	contentLanguage,
-	messages,
 	tabSet,
 	headerActionButton,
 	headerActionButton2,

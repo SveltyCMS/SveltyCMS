@@ -413,7 +413,7 @@
 	"languageConfig_AVAILABLE_SYSTEM_LANGUAGE_helper": "प्रयोगकर्ता इन्टरफेसका लागि उपलब्ध भाषाहरू (पूर्वनिर्धारित: 'en')।",
 	"languageConfig_DEFAULT_SYSTEM_LANGUAGE_helper": "प्रयोगकर्ता इन्टरफेसको लागि पूर्वनिर्धारित भाषा (पूर्वनिर्धारित: 'en')।",
 	"mediaConfig_Description": "साइटको लागि मिडिया सेटिङहरू।",
-	"mediaConfig_IMAGE_SIZE_helper": "साइटले उत्पन्न गर्ने छविहरूको आकार। (पूर्वनिर्धारित: {sm: 600, md: 900, lg: 1200}",
+	"mediaConfig_IMAGE_SIZE_helper": "साइटले उत्पन्न गर्ने छविहरूको आकार। (पूर्वनिर्धारित: sm: 600, md: 900, lg: 1200)",
 	"mediaConfig_MEDIA_FOLDER_helper": "फोल्डर जहाँ साइटका मिडिया फाइलहरू भण्डारण गरिनेछ। (पूर्वनिर्धारित: 'mediaFiles')",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "मिडिया फाइलहरूको लागि ढाँचा र गुणस्तर सेटिङहरू। (पूर्वनिर्धारित: ढाँचा: 'मूल', गुणस्तर: 80)",
 	"mediaConfig_MEDIASERVER_URL_helper": "मिडिया सर्भरको URL। (पूर्वनिर्धारित रूपमा स्थानीय होस्ट हो: '')",

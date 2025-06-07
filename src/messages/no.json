@@ -413,7 +413,7 @@
 	"languageConfig_AVAILABLE_SYSTEM_LANGUAGE_helper": "De tilgjengelige språkene for brukergrensesnittet (standard: 'en').",
 	"languageConfig_DEFAULT_SYSTEM_LANGUAGE_helper": "Standardspråket for brukergrensesnittet (standard: 'en').",
 	"mediaConfig_Description": "Medieinnstillinger for nettstedet.",
-	"mediaConfig_IMAGE_SIZE_helper": "Størrelsene på bildene som nettstedet vil generere. (standard: {sm: 600, md: 900, lg: 1200}",
+	"mediaConfig_IMAGE_SIZE_helper": "Størrelsene på bildene som nettstedet vil generere. (standard: sm: 600, md: 900, lg: 1200)",
 	"mediaConfig_MEDIA_FOLDER_helper": "Mappen der nettstedets mediefiler vil bli lagret. (standard: 'mediaFiles')",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "Format- og kvalitetsinnstillinger for mediefiler. (standard: format: 'original', kvalitet: 80)",
 	"mediaConfig_MEDIASERVER_URL_helper": "URL-en til medieserveren. (standard er lokalvert som: '')",
