@@ -3,11 +3,10 @@
 @component
 **PermissionGuard component for permission-based access control that wraps content with conditional rendering and error handling**
 
-```tsx
+@example
 <PermissionGuard {config}>
 	<ContentToProtect />
 </PermissionGuard>
-```
 
 #### Props:
 - `config`: Permission configuration object
@@ -23,12 +22,9 @@ Features:
 <script lang="ts">
 	import { page } from '$app/state';
 
-	// Auth
+	// Auth types
 	import type { PermissionConfig } from '@src/auth/permissions';
 	import type { User } from '@src/auth/types';
-
-	// Stores
-	import { store } from '@src/utils/reactivity.svelte';
 
 	interface Props {
 		// Prop to receive permission configuration
@@ -41,6 +37,7 @@ Features:
 		children?: import('svelte').Snippet;
 	}
 
+	// Destructure props using $props()
 	let {
 		config,
 		messages = {
@@ -51,43 +48,37 @@ Features:
 		children
 	}: Props = $props();
 
-	// Create reactive stores
-	const loading = store(false);
-
-	// Reactive variables from page store with type assertions
+	// Reactive states
+	let loading = $state(false);
 	let user = $derived(page.data.user as User | undefined);
 	let permissions = $derived((page.data.permissions || {}) as Record<string, { hasPermission: boolean; isRateLimited: boolean }>);
-
-	// Computed values with stores
 	let permissionData = $derived(
 		config?.contextId
 			? permissions[config.contextId] || { hasPermission: false, isRateLimited: false }
 			: { hasPermission: false, isRateLimited: false }
 	);
 	let isAdmin = $derived(user?.role?.toLowerCase() === 'admin');
-	let hasPermission = $derived(isAdmin || permissionData.hasPermission || false);
-	let isRateLimited = $derived(permissionData.isRateLimited || false);
+	let hasPermission = $derived(isAdmin || permissionData.hasPermission);
+	let isRateLimited = $derived(permissionData.isRateLimited);
 
-	// Function to determine if content should be shown
-	let shouldShowContent = $derived(config && hasPermission && !isRateLimited && !loading());
+	// Final determination if content should be shown
+	let shouldShowContent = $derived(!!config && hasPermission && !isRateLimited && !loading);
 
-	// Debugging function (can be enabled in development)
-	// function logDebugInfo() {
-	// 	if (import.meta.env.DEV) {
-	// 		console.debug('PermissionGuard Debug Info:', {
-	// 			user,
-	// 			config,
-	// 			permissions,
-	// 			permissionData,
-	// 			hasPermission,
-	// 			isRateLimited,
-	// 			isAdmin
-	// 		});
-	// 	}
-	// }
-
-	// Call debug function (comment out in production)
-	// $: logDebugInfo();
+	$effect(() => {
+		if (import.meta.env.DEV) {
+			console.debug('PermissionGuard Debug Info:', {
+				user,
+				config,
+				permissions,
+				permissionData,
+				isAdmin,
+				hasPermission,
+				isRateLimited,
+				shouldShowContent,
+				loading
+			});
+		}
+	});
 </script>
 
 {#if shouldShowContent}

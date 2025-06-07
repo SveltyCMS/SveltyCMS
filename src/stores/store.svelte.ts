@@ -58,10 +58,10 @@ const createBaseStores = () => {
 	const contentLanguage = store<AvailableLanguageTag>(initialContentLanguage as AvailableLanguageTag);
 	const messages = store({ ...m });
 
-	// Translation status
-	const translationStatus = store({});
-	const completionStatus = store(0);
-	const translationStatusOpen = store(false);
+	// Translation status - using Svelte 5 runes
+	let translationStatus = $state({});
+	let completionStatus = $state(0);
+	let translationStatusOpen = $state(false);
 
 	// Initialize translationProgress with guaranteed structure for all languages
 	const initialTranslationProgress: TranslationProgress = { show: false };
@@ -71,7 +71,7 @@ const createBaseStores = () => {
 			translated: new Set<string>()
 		};
 	}
-	const translationProgress = store<TranslationProgress>(initialTranslationProgress);
+	let translationProgress = $state<TranslationProgress>(initialTranslationProgress);
 
 	// UI state
 	const tabSet = store(0);
@@ -124,11 +124,15 @@ const createBaseStores = () => {
 		contentLanguage,
 		messages,
 
-		// Translation status
-		translationStatus,
-		completionStatus,
-		translationStatusOpen,
-		translationProgress,
+		// Translation status - rune-based reactive state
+		get translationStatus() { return translationStatus; },
+		set translationStatus(value) { translationStatus = value; },
+		get completionStatus() { return completionStatus; },
+		set completionStatus(value) { completionStatus = value; },
+		get translationStatusOpen() { return translationStatusOpen; },
+		set translationStatusOpen(value) { translationStatusOpen = value; },
+		get translationProgress() { return translationProgress; },
+		set translationProgress(value) { translationProgress = value; },
 
 		// UI state
 		tabSet,
@@ -165,10 +169,6 @@ export const {
 	systemLanguage,
 	contentLanguage,
 	messages,
-	translationStatus,
-	completionStatus,
-	translationStatusOpen,
-	translationProgress,
 	tabSet,
 	headerActionButton,
 	headerActionButton2,
@@ -185,6 +185,18 @@ export const {
 	shouldShowNextButton,
 	validationErrors
 } = stores;
+
+// Export rune-based translation stores with function-like API to match existing usage
+export const translationStatus = () => stores.translationStatus;
+export const completionStatus = () => stores.completionStatus;
+export const translationStatusOpen = () => stores.translationStatusOpen;
+export const translationProgress = () => stores.translationProgress;
+
+// Export update functions for the rune-based stores
+export const updateTranslationStatus = (value: Record<string, unknown>) => { stores.translationStatus = value; };
+export const updateCompletionStatus = (value: number) => { stores.completionStatus = value; };
+export const updateTranslationStatusOpen = (value: boolean) => { stores.translationStatusOpen = value; };
+export const updateTranslationProgress = (value: TranslationProgress) => { stores.translationProgress = value; };
 
 // Export table headers constant
 export const tableHeaders = ['id', 'email', 'username', 'role', 'createdAt'] as const;

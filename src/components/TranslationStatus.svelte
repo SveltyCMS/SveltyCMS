@@ -22,7 +22,7 @@
 	import { contentLanguage, translationProgress } from '@stores/store.svelte';
 	import { mode } from '@src/stores/collectionStore.svelte';
 	import { ProgressBar } from '@skeletonlabs/skeleton';
-	import { tweened } from 'svelte/motion';
+	import { Tween } from 'svelte/motion';
 	import { cubicOut, quintOut } from 'svelte/easing';
 
 	// ParaglideJS
@@ -34,22 +34,22 @@
 	let completionTotals = $state({ total: 0, translated: 0 });
 
 	// Animation stores
-	const dropdownOpacity = tweened(0, {
+	const dropdownOpacity = new Tween(0, {
 		duration: 200,
 		easing: cubicOut
 	});
 
-	const dropdownScale = tweened(0.95, {
+	const dropdownScale = new Tween(0.95, {
 		duration: 200,
 		easing: cubicOut
 	});
 
-	const progressValue = tweened(0, {
+	const progressValue = new Tween(0, {
 		duration: 800,
 		easing: quintOut
 	});
 
-	const chevronRotation = tweened(0, {
+	const chevronRotation = new Tween(0, {
 		duration: 200,
 		easing: cubicOut
 	});
@@ -59,9 +59,10 @@
 
 	// Initialize progress tweens for each language
 	function initializeLanguageProgress() {
-		for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES) {
+		const availableLanguages = publicEnv.AVAILABLE_CONTENT_LANGUAGES as AvailableLanguageTag[];
+		for (const lang of availableLanguages) {
 			if (!languageProgressValues[lang]) {
-				languageProgressValues[lang] = tweened(0, {
+				languageProgressValues[lang] = new Tween(0, {
 					duration: 600,
 					easing: quintOut
 				});
@@ -72,13 +73,13 @@
 	// Animate dropdown visibility
 	$effect(() => {
 		if (isOpen) {
-			dropdownOpacity.set(1);
-			dropdownScale.set(1);
-			chevronRotation.set(180);
+			dropdownOpacity.target = 1;
+			dropdownScale.target = 1;
+			chevronRotation.target = 180;
 		} else {
-			dropdownOpacity.set(0);
-			dropdownScale.set(0.95);
-			chevronRotation.set(0);
+			dropdownOpacity.target = 0;
+			dropdownScale.target = 0.95;
+			chevronRotation.target = 0;
 		}
 	});
 
@@ -88,7 +89,7 @@
 		if (progress.show) {
 			let total = 0;
 			let translated = 0;
-			for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES) {
+			for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES as AvailableLanguageTag[]) {
 				const langProgress = progress[lang as AvailableLanguageTag];
 				if (!langProgress) continue;
 				translated += langProgress.translated.size;
@@ -98,19 +99,21 @@
 
 			// Update overall progress animation
 			const newPercentage = total > 0 ? Math.round((translated / total) * 100) : 0;
-			progressValue.set(newPercentage);
+			progressValue.target = newPercentage;
 
 			// Initialize and update individual language progress
 			initializeLanguageProgress();
-			for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES) {
+			for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES as AvailableLanguageTag[]) {
 				const langProgress = progress[lang as AvailableLanguageTag];
 				const percentage =
 					langProgress && langProgress.total.size > 0 ? Math.round((langProgress.translated.size / langProgress.total.size) * 100) : 0;
-				languageProgressValues[lang]?.set(percentage);
+				if (languageProgressValues[lang]) {
+					languageProgressValues[lang].target = percentage;
+				}
 			}
 		} else {
 			completionTotals = { total: 0, translated: 0 };
-			progressValue.set(0);
+			progressValue.target = 0;
 		}
 	});
 
@@ -123,8 +126,8 @@
 		isOpen = false;
 
 		// Add subtle feedback animation
-		chevronRotation.set(-10);
-		setTimeout(() => chevronRotation.set(0), 100);
+		chevronRotation.target = -10;
+		setTimeout(() => (chevronRotation.target = 0), 100);
 	}
 
 	function toggleDropdown() {
@@ -137,16 +140,16 @@
 		return 'bg-error-500';
 	}
 
-	function getLanguageProgress(lang: AvailableLanguageTag): number {
-		const progress = translationProgress();
-		const langProgress = progress[lang];
-		if (!langProgress || langProgress.total.size === 0) return 0;
-		return Math.round((langProgress.translated.size / langProgress.total.size) * 100);
-	}
+	// function getLanguageProgress(lang: AvailableLanguageTag): number {
+	// 	const progress = translationProgress();
+	// 	const langProgress = progress[lang];
+	// 	if (!langProgress || langProgress.total.size === 0) return 0;
+	// 	return Math.round((langProgress.translated.size / langProgress.total.size) * 100);
+	// }
 
 	// Get animated progress value for a language
 	function getAnimatedLanguageProgress(lang: string): number {
-		return languageProgressValues[lang] ? languageProgressValues[lang].get() : 0;
+		return languageProgressValues[lang] ? languageProgressValues[lang].current : 0;
 	}
 </script>
 
@@ -157,7 +160,7 @@
 		value={contentLanguage.value}
 		onchange={(e) => handleLanguageChange(e.currentTarget.value as AvailableLanguageTag)}
 	>
-		{#each publicEnv.AVAILABLE_CONTENT_LANGUAGES as lang (lang)}
+		{#each publicEnv.AVAILABLE_CONTENT_LANGUAGES as AvailableLanguageTag[] as lang (lang)}
 			<option value={lang}>{lang.toUpperCase()}</option>
 		{/each}
 	</select>
@@ -177,7 +180,7 @@
 				<iconify-icon
 					icon="mdi:chevron-down"
 					class="ml-1 h-5 w-5 transition-transform duration-200 ease-out"
-					style="transform: rotate({$chevronRotation}deg);"
+					style="transform: rotate({chevronRotation.current}deg);"
 					aria-hidden="true"
 				></iconify-icon>
 			</button>
@@ -186,9 +189,9 @@
 			<div class="mt-0.5 transition-all duration-300">
 				<ProgressBar
 					class="variant-outline-secondary transition-all duration-300 hover:shadow-sm"
-					value={$progressValue}
-					meter={getColor($progressValue)}
-					aria-label={m.translationsstatus_overall_progress({ percentage: Math.round($progressValue) })}
+					value={progressValue.current}
+					meter={getColor(progressValue.current)}
+					aria-label={m.translationsstatus_overall_progress({ percentage: Math.round(progressValue.current) })}
 				/>
 			</div>
 		</div>
@@ -203,11 +206,11 @@
 				role="menu"
 				aria-orientation="vertical"
 				aria-labelledby="options-menu"
-				style="opacity: {$dropdownOpacity}; transform: scale({$dropdownScale}); transform-origin: top right;"
+				style="opacity: {dropdownOpacity.current}; transform: scale({dropdownScale.current}); transform-origin: top right;"
 			>
 				<!-- Language Items -->
 				<div role="none" class="divide-y divide-surface-200 dark:divide-surface-400">
-					{#each publicEnv.AVAILABLE_CONTENT_LANGUAGES as lang, index (lang)}
+					{#each publicEnv.AVAILABLE_CONTENT_LANGUAGES as AvailableLanguageTag[] as lang, index (lang)}
 						<button
 							role="menuitem"
 							class="{translationProgress().show
@@ -251,11 +254,21 @@
 					<div class="{completionStatus ? 'justify-between' : 'justify-center'} flex items-center gap-3">
 						{#if completionStatus}
 							<div class="flex-1">
-								<ProgressBar class="transition-all duration-300" value={$progressValue} meter={getColor($progressValue)} aria-hidden="true" />
+								<ProgressBar
+									class="transition-all duration-300"
+									value={progressValue.current}
+									meter={getColor(progressValue.current)}
+									aria-hidden="true"
+								/>
 							</div>
 						{/if}
-						<span class="min-w-[2.5rem] text-right text-sm font-bold transition-all duration-300 {getColor($progressValue).replace('bg-', 'text-')}">
-							{Math.round($progressValue)}%
+						<span
+							class="min-w-[2.5rem] text-right text-sm font-bold transition-all duration-300 {getColor(progressValue.current).replace(
+								'bg-',
+								'text-'
+							)}"
+						>
+							{Math.round(progressValue.current)}%
 						</span>
 					</div>
 				</div>
