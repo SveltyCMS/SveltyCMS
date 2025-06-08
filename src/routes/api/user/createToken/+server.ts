@@ -37,7 +37,7 @@ import { parse } from 'valibot';
 // Roles
 import { roles } from '@root/config/roles';
 // ParaglideJS
-import { languageTag } from '@src/paraglide/runtime';
+import { getLocale } from '@src/paraglide/runtime';
 
 // Error interface for better type safety
 interface ApiError extends Error {
@@ -174,7 +174,7 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 					tokenLink: `${dev ? 'http://localhost:5173' : window.location.host}/login?regToken=${token}`,
 					expiresIn: expiresInHours,
 					expiresInLabel: `${Math.floor(expiresInHours / 24)} days`,
-					languageTag: languageTag()
+					languageTag: getLocale()
 				}
 			})
 		});

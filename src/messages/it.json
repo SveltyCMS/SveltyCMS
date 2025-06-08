@@ -413,7 +413,7 @@
 	"languageConfig_AVAILABLE_SYSTEM_LANGUAGE_helper": "Le lingue disponibili per l'interfaccia utente (impostazione predefinita: 'en').",
 	"languageConfig_DEFAULT_SYSTEM_LANGUAGE_helper": "La lingua predefinita per l'interfaccia utente (predefinita: 'en').",
 	"mediaConfig_Description": "Impostazioni multimediali per il sito.",
-	"mediaConfig_IMAGE_SIZE_helper": "Le dimensioni delle immagini che il sito genererà. (impostazione predefinita: {sm: 600, md: 900, lg: 1200}",
+	"mediaConfig_IMAGE_SIZE_helper": "Le dimensioni delle immagini che il sito genererà. (impostazione predefinita: sm: 600, md: 900, lg: 1200)",
 	"mediaConfig_MEDIA_FOLDER_helper": "La cartella in cui verranno archiviati i file multimediali del sito. (predefinito: 'mediaFiles')",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "Impostazioni di formato e qualità per i file multimediali. (predefinito: formato: 'originale', qualità: 80)",
 	"mediaConfig_MEDIASERVER_URL_helper": "L'URL del server multimediale. (l'impostazione predefinita è localhost come: '')",

@@ -413,7 +413,7 @@
 	"languageConfig_AVAILABLE_SYSTEM_LANGUAGE_helper": "Доступни језици за кориснички интерфејс (подразумевано: 'ен').",
 	"languageConfig_DEFAULT_SYSTEM_LANGUAGE_helper": "Подразумевани језик за кориснички интерфејс (подразумевано: 'ен').",
 	"mediaConfig_Description": "Подешавања медија за сајт.",
-	"mediaConfig_IMAGE_SIZE_helper": "Величине слика које ће сајт генерисати. (подразумевано: {sm: 600, md: 900, lg: 1200}",
+	"mediaConfig_IMAGE_SIZE_helper": "Величине слика које ће сајт генерисати. (подразумевано: sm: 600, md: 900, lg: 1200)",
 	"mediaConfig_MEDIA_FOLDER_helper": "Фасцикла у којој ће се чувати медијске датотеке сајта. (подразумевано: 'медиаФилес')",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "Подешавања формата и квалитета за медијске датотеке. (подразумевано: формат: 'оригинал', квалитет: 80)",
 	"mediaConfig_MEDIASERVER_URL_helper": "УРЛ сервера медија. (подразумевано је локални хост као: '')",

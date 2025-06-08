@@ -413,7 +413,7 @@
 	"languageConfig_AVAILABLE_SYSTEM_LANGUAGE_helper": "Kullanıcı arayüzü için mevcut diller (varsayılan: 'en').",
 	"languageConfig_DEFAULT_SYSTEM_LANGUAGE_helper": "Kullanıcı arayüzü için varsayılan dil (varsayılan: 'en').",
 	"mediaConfig_Description": "Site için medya ayarları.",
-	"mediaConfig_IMAGE_SIZE_helper": "Sitenin oluşturacağı görsellerin boyutları. (varsayılan: {sm: 600, md: 900, lg: 1200}",
+	"mediaConfig_IMAGE_SIZE_helper": "Sitenin oluşturacağı görsellerin boyutları. (varsayılan: sm: 600, md: 900, lg: 1200)",
 	"mediaConfig_MEDIA_FOLDER_helper": "Sitenin medya dosyalarının saklanacağı klasör. (varsayılan: 'medyaDosyaları')",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "Medya dosyaları için format ve kalite ayarları. (varsayılan: biçim: 'orijinal', kalite: 80)",
 	"mediaConfig_MEDIASERVER_URL_helper": "Medya sunucusunun URL'si. (varsayılan olarak localhost şu şekildedir: '')",

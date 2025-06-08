@@ -39,7 +39,7 @@ This component provides a streamlined interface for managing collection entries 
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { languageTag } from '@src/paraglide/runtime';
+	import { getLocale } from '@src/paraglide/runtime';
 
 	// Skeleton
 	// Skeleton
@@ -254,7 +254,7 @@ This component provides a streamlined interface for managing collection entries 
 					>
 						<iconify-icon icon="bi:clock" width="16"></iconify-icon>
 						<span class="text-sm text-tertiary-500 dark:text-primary-500">
-							{schedule ? new Date(schedule).toLocaleString(languageTag()) : 'Schedule publication...'}
+							{schedule ? new Date(schedule).toLocaleString(getLocale()) : 'Schedule publication...'}
 						</span>
 					</button>
 				</div>
@@ -315,7 +315,7 @@ This component provides a streamlined interface for managing collection entries 
 				{#if mode.value === 'create'}
 					<div class="mt-3 text-center">
 						<p class="text-xs text-surface-500">
-							{new Date().toLocaleString(languageTag(), {
+							{new Date().toLocaleString(getLocale(), {
 								year: 'numeric',
 								month: 'short',
 								day: 'numeric',

@@ -413,7 +413,7 @@
 	"languageConfig_AVAILABLE_SYSTEM_LANGUAGE_helper": "Razpoložljivi jeziki za uporabniški vmesnik (privzeto: 'en').",
 	"languageConfig_DEFAULT_SYSTEM_LANGUAGE_helper": "Privzeti jezik za uporabniški vmesnik (privzeto: 'en').",
 	"mediaConfig_Description": "Medijske nastavitve za spletno mesto.",
-	"mediaConfig_IMAGE_SIZE_helper": "Velikosti slik, ki jih bo spletno mesto ustvarilo. (privzeto: {sm: 600, md: 900, lg: 1200}",
+	"mediaConfig_IMAGE_SIZE_helper": "Velikosti slik, ki jih bo spletno mesto ustvarilo. (privzeto: sm: 600, md: 900, lg: 1200)",
 	"mediaConfig_MEDIA_FOLDER_helper": "Mapa, v kateri bodo shranjene medijske datoteke spletnega mesta. (privzeto: 'mediaFiles')",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "Nastavitve formata in kakovosti predstavnostnih datotek. (privzeto: format: 'izvirnik', kakovost: 80)",
 	"mediaConfig_MEDIASERVER_URL_helper": "URL medijskega strežnika. (privzeto je lokalni gostitelj kot: '')",

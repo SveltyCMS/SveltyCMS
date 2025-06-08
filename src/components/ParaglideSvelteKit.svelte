@@ -2,62 +2,58 @@
 @file src/components/ParaglideSvelteKit.svelte
 @component
 **ParaglideSvelteKit component for handling translations and localization.**
+
+@example
+<ParaglideSvelteKit>
+	{@render children?.()}
+</ParaglideSvelteKit>
+
+### Props
+- `children` {function} - Function to render the content
+
+### Features
+- Translatable
+- Localizable
 -->
 
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { languageTag, onSetLanguageTag, setLanguageTag } from '@src/paraglide/runtime';
-	import { systemLanguage } from '@stores/store.svelte';
 	import type { Snippet } from 'svelte';
 
-	// All available language codes from src/messages
-	type LanguageCode =
-		| 'da'
-		| 'de'
-		| 'en'
-		| 'es'
-		| 'fi'
-		| 'fr'
-		| 'hi'
-		| 'it'
-		| 'ja'
-		| 'ka'
-		| 'ne'
-		| 'nl'
-		| 'no'
-		| 'pl'
-		| 'pt'
-		| 'sl'
-		| 'sr'
-		| 'sv'
-		| 'tr'
-		| 'uk'
-		| 'ur'
-		| 'zh';
+	// Stores
+	import { systemLanguage } from '@stores/store.svelte';
+
+	// Paraglide
+	import { getLocale, setLocale, locales as availableLocales } from '@src/paraglide/runtime';
+
+	// Dynamically generate LanguageCode type from Paraglide's available locales.
+	type LanguageCode = (typeof availableLocales)[number];
 
 	let { children } = $props<{
 		children?: Snippet;
 	}>();
 
-	// Initialize the language tag
-	let _languageTag = $state(() => languageTag());
-
-	// Check if the environment is not server-side rendering (SSR)
-	if (import.meta.env.SSR === false) {
-		onSetLanguageTag((newLanguageTag) => {
-			_languageTag = () => newLanguageTag as LanguageCode;
-		});
-	}
+	let locale = $derived(getLocale())
 
 	// Effect to handle language changes
 	$effect(() => {
-		if (systemLanguage.value) {
-			setLanguageTag(systemLanguage.value); // Update the language tag
-			browser && globalThis.localStorage.setItem('systemLanguage', systemLanguage.value);
+		const desiredLang = systemLanguage.value; // Get the desired language from the store
+
+		if (desiredLang) {
+			// Ensure the desired language is one of the available locales and is different from the current
+			if (availableLocales.includes(desiredLang as any) && locale !== desiredLang) {
+				console.log(`System language changed to: ${desiredLang}. Setting Paraglide locale.`);
+				setLocale(desiredLang as LanguageCode, { reload: false });
+				// Persisting to localStorage ensures the preference is remembered across sessions/reloads.
+				if (browser) {
+					globalThis.localStorage.setItem('systemLanguage', desiredLang);
+				}
+				locale = desiredLang;
+			}
 		}
 	});
 </script>
 
-{#key _languageTag()}
+{#key locale}
 	{@render children?.()}
 {/key}

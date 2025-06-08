@@ -413,7 +413,7 @@
 	"languageConfig_AVAILABLE_SYSTEM_LANGUAGE_helper": "De tilgængelige sprog for brugergrænsefladen (standard: 'da').",
 	"languageConfig_DEFAULT_SYSTEM_LANGUAGE_helper": "Standardsproget for brugergrænsefladen (standard: 'da').",
 	"mediaConfig_Description": "Medieindstillinger for webstedet.",
-	"mediaConfig_IMAGE_SIZE_helper": "Størrelsen af billeder, som webstedet vil generere. (standard: {sm: 600, md: 900, lg: 1200}",
+	"mediaConfig_IMAGE_SIZE_helper": "Størrelsen af billeder, som webstedet vil generere. (standard: sm: 600, md: 900, lg: 1200)",
 	"mediaConfig_MEDIA_FOLDER_helper": "Mappen, hvor webstedets mediefiler vil blive gemt. (standard: 'mediaFiles')",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "Format- og kvalitetsindstillinger for mediefiler. (standard: format: 'original', kvalitet: 80)",
 	"mediaConfig_MEDIASERVER_URL_helper": "Medieserverens URL. (standard er localhost som: '')",

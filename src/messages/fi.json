@@ -413,7 +413,7 @@
 	"languageConfig_AVAILABLE_SYSTEM_LANGUAGE_helper": "Käyttöliittymän käytettävissä olevat kielet (oletus: 'en').",
 	"languageConfig_DEFAULT_SYSTEM_LANGUAGE_helper": "Käyttöliittymän oletuskieli (oletus: 'en').",
 	"mediaConfig_Description": "Sivuston mediaasetukset.",
-	"mediaConfig_IMAGE_SIZE_helper": "Sivuston luomien kuvien koot. (oletus: {sm: 600, md: 900, lg: 1200}",
+	"mediaConfig_IMAGE_SIZE_helper": "Sivuston luomien kuvien koot. (oletus: sm: 600, md: 900, lg: 1200)",
 	"mediaConfig_MEDIA_FOLDER_helper": "Kansio, johon sivuston mediatiedostot tallennetaan. (oletus: 'mediatiedostot')",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "Mediatiedostojen muoto- ja laatuasetukset. (oletus: muoto: 'alkuperäinen', laatu: 80)",
 	"mediaConfig_MEDIASERVER_URL_helper": "Mediapalvelimen URL-osoite. (oletus on localhost muodossa: '')",

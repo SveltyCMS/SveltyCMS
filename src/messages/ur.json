@@ -413,7 +413,7 @@
 	"languageConfig_AVAILABLE_SYSTEM_LANGUAGE_helper": "یوزر انٹرفیس کے لیے دستیاب زبانیں (پہلے سے طے شدہ: 'en')۔",
 	"languageConfig_DEFAULT_SYSTEM_LANGUAGE_helper": "صارف انٹرفیس کے لیے پہلے سے طے شدہ زبان (پہلے سے طے شدہ: 'en')۔",
 	"mediaConfig_Description": "سائٹ کے لیے میڈیا کی ترتیبات۔",
-	"mediaConfig_IMAGE_SIZE_helper": "تصاویر کے سائز جو سائٹ تیار کرے گی۔ (پہلے سے طے شدہ: {sm: 600, md: 900, lg: 1200} )",
+	"mediaConfig_IMAGE_SIZE_helper": "تصاویر کے سائز جو سائٹ تیار کرے گی۔ (پہلے سے طے شدہ: sm: 600, md: 900, lg: 1200) )",
 	"mediaConfig_MEDIA_FOLDER_helper": "وہ فولڈر جہاں سائٹ کی میڈیا فائلیں محفوظ کی جائیں گی۔ (پہلے سے طے شدہ: 'میڈیا فائلز')",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "میڈیا فائلوں کے لیے فارمیٹ اور معیار کی ترتیبات۔ (ڈیفالٹ: فارمیٹ: 'اصل'، معیار: 80)",
 	"mediaConfig_MEDIASERVER_URL_helper": "میڈیا سرور کا URL۔ (پہلے سے طے شدہ لوکل ہوسٹ ہے: '')",

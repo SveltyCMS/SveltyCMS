@@ -15,7 +15,7 @@ import { execSync } from 'child_process';
 import { purgeCss } from 'vite-plugin-tailwind-purgecss';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
-import { paraglide } from '@inlang/paraglide-sveltekit/vite';
+import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import svelteEmailTailwind from 'svelte-email-tailwind/vite';
 import { compile } from './src/routes/api/compile/compile';
 import { generateContentTypes } from './src/content/vite';
@@ -299,9 +299,10 @@ export default defineConfig(async () => {
         enforce: 'post'
       },
       purgeCss(), // Purge unused Tailwind CSS classes
-      paraglide({
-        project: './project.inlang', // Path to your inlang project
-        outdir: './src/paraglide' // Output directory for generated files
+      paraglideVitePlugin({
+        project: './project.inlang', // Path to your inlang project settings
+        outdir: './src/paraglide',    // This is where you specify the output directory
+        strategy: ['cookie', 'baseLocale'], // Changed to use cookie-based routing
       }),
       svelteEmailTailwind({
         pathToEmailFolder: './src/components/emails' // defaults to '/src/lib/emails'
