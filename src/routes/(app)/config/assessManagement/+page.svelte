@@ -29,6 +29,19 @@
 	// Skeleton
 	import { TabGroup, Tab } from '@skeletonlabs/skeleton';
 	import { getToastStore } from '@skeletonlabs/skeleton';
+
+	// Create local tabSet variable for binding
+	let localTabSet = $state(tabSet.value);
+
+	// Sync with store when local value changes
+	$effect(() => {
+		tabSet.set(localTabSet);
+	});
+
+	// Sync local value when store changes
+	$effect(() => {
+		localTabSet = tabSet.value;
+	});
 	const toastStore = getToastStore();
 
 	// Components
@@ -136,34 +149,34 @@
 	<div class="flex flex-col">
 		<TabGroup justify="justify-around text-tertiary-500 dark:text-primary-500" class="flex-grow">
 			<!-- User Permissions -->
-			<Tab bind:group={$tabSet} name="permissions" value={0}>
+			<Tab bind:group={localTabSet} name="permissions" value={0}>
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="mdi:shield-lock-outline" width="28" class="text-black dark:text-white"></iconify-icon>
-					<span class={$tabSet === 0 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>{m.system_permission()}</span>
+					<span class={tabSet.value === 0 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>{m.system_permission()}</span>
 				</div>
 			</Tab>
 
 			<!-- User Roles -->
-			<Tab bind:group={$tabSet} name="roles" value={1}>
+			<Tab bind:group={localTabSet} name="roles" value={1}>
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="mdi:account-group" width="28" class="text-black dark:text-white"></iconify-icon>
-					<span class={$tabSet === 1 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>{m.system_roles()}</span>
+					<span class={tabSet.value === 1 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>{m.system_roles()}</span>
 				</div>
 			</Tab>
 
 			<!-- Admin Role -->
-			<Tab bind:group={$tabSet} name="admin" value={2}>
+			<Tab bind:group={localTabSet} name="admin" value={2}>
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="mdi:account-cog" width="28" class="text-black dark:text-white"></iconify-icon>
-					<span class={$tabSet === 2 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>Admin</span>
+					<span class={tabSet.value === 2 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>Admin</span>
 				</div>
 			</Tab>
 
 			<!-- Tab Panels -->
 			<svelte:fragment slot="panel">
-				{#if $tabSet === 0}
+				{#if tabSet.value === 0}
 					<Permissions roleData={roles} {setRoleData} {updateModifiedCount} />
-				{:else if $tabSet === 1}
+				{:else if tabSet.value === 1}
 					<Roles roleData={roles} {setRoleData} {updateModifiedCount} />
 				{:else}
 					<AdminRole roleData={roles} {setRoleData} />

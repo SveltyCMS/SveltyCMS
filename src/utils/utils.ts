@@ -41,7 +41,7 @@ export const config = {
 };
 
 // Interface for GUI field configuration
-interface GuiFieldConfig {
+export interface GuiFieldConfig {
 	widget: unknown;
 	required: boolean;
 }

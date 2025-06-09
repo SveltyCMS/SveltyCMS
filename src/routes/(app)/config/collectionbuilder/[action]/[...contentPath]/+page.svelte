@@ -30,6 +30,19 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	import { initializeWidgets } from '@src/widgets';
 
+	// Create local tabSet variable for binding
+	let localTabSet = $state(tabSet.value);
+	
+	// Sync with store when local value changes
+	$effect(() => {
+		tabSet.set(localTabSet);
+	});
+	
+	// Sync local value when store changes
+	$effect(() => {
+		localTabSet = tabSet.value;
+	});
+
 	import type { User } from '@src/auth/types';
 	import type { Schema } from '@src/content/types';
 
@@ -251,22 +264,24 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	</p>
 	<!-- Required Text  -->
 	<div class="mb-2 text-center text-xs text-error-500">* {m.collection_required()}</div>
-	<TabGroup bind:group={$tabSet}>
+	<TabGroup bind:group={localTabSet}>
 		<!-- User Permissions -->
 		{#if page.data.user && page.data.user.isAdmin}
 			<!-- Edit -->
-			<Tab bind:group={$tabSet} name="default" value={0}>
+			<Tab bind:group={localTabSet} name="default" value={0}>
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="ic:baseline-edit" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					<span class:active={$tabSet === 0} class:text-tertiary-500={$tabSet === 0} class:text-primary-500={$tabSet === 0}>{m.button_edit()}</span>
+					<span class:active={tabSet.value === 0} class:text-tertiary-500={tabSet.value === 0} class:text-primary-500={tabSet.value === 0}
+						>{m.button_edit()}</span
+					>
 				</div>
 			</Tab>
 
 			<!-- Widget Fields -->
-			<Tab bind:group={$tabSet} name="widget" value={1}>
+			<Tab bind:group={localTabSet} name="widget" value={1}>
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="mdi:widgets-outline" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-					<span class:active={$tabSet === 1} class:text-tertiary-500={$tabSet === 2} class:text-primary-500={$tabSet === 2}
+					<span class:active={tabSet.value === 1} class:text-tertiary-500={tabSet.value === 2} class:text-primary-500={tabSet.value === 2}
 						>{m.collection_widgetfields()}</span
 					>
 				</div>
@@ -274,9 +289,9 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		{/if}
 
 		<!-- Tab Panels -->
-		{#if $tabSet === 0}
+		{#if tabSet.value === 0}
 			<CollectionForm data={collection.value} {handlePageTitleUpdate} />
-		{:else if $tabSet === 1}
+		{:else if tabSet.value === 1}
 			<CollectionWidget fields={collection.value?.fields} {handleCollectionSave} />
 		{/if}
 	</TabGroup>

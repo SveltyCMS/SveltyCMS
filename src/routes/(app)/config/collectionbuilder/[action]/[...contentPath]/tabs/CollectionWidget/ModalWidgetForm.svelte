@@ -23,7 +23,7 @@ It handles widget configuration, permissions, and specific options.
 	import { getModalStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 
-	let tabSet: number = $state(0);
+	let localTabSet: number = $state(0);
 
 	// Props
 
@@ -61,7 +61,9 @@ It handles widget configuration, permissions, and specific options.
 		if (confirmDelete) {
 			// Perform deletion logic here
 			collectionValue.update((c) => {
-				c.fields = c.fields.filter((field: any) => field.id !== modalData?.value.id);
+				if (c && Array.isArray(c.fields)) {
+					c.fields = c.fields.filter((field: any) => field.id !== modalData?.value.id);
+				}
 				return c;
 			});
 			modalStore.close();
@@ -87,7 +89,7 @@ It handles widget configuration, permissions, and specific options.
 		<form class={cForm}>
 			<TabGroup justify="justify-between lg:justify-start">
 				<!-- Default Tab -->
-				<Tab bind:group={tabSet} name="tab1" value={0}>
+				<Tab bind:group={localTabSet} name="tab1" value={0}>
 					<div class="flex items-center gap-1">
 						<iconify-icon icon="mdi:required" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 						<span>Default</span>
@@ -95,7 +97,7 @@ It handles widget configuration, permissions, and specific options.
 				</Tab>
 
 				<!-- Permissions Tab -->
-				<Tab bind:group={tabSet} name="tab2" value={1}>
+				<Tab bind:group={localTabSet} name="tab2" value={1}>
 					<div class="flex items-center gap-1">
 						<iconify-icon icon="mdi:security-lock" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 						<span>{m.system_permission()}</span>
@@ -104,7 +106,7 @@ It handles widget configuration, permissions, and specific options.
 
 				<!-- Specific Tab (only shown if there are specific options) -->
 				{#if specificOptions.length > 0}
-					<Tab bind:group={tabSet} name="tab3" value={2}>
+					<Tab bind:group={localTabSet} name="tab3" value={2}>
 						<div class="flex items-center gap-1">
 							<iconify-icon icon="ph:star-fill" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 							<span>Specific</span>
@@ -114,11 +116,11 @@ It handles widget configuration, permissions, and specific options.
 			</TabGroup>
 
 			<!-- Tab Panels -->
-			{#if tabSet === 0}
+			{#if localTabSet === 0}
 				<Default {guiSchema} />
-			{:else if tabSet === 1}
+			{:else if localTabSet === 1}
 				<Permission />
-			{:else if tabSet === 2}
+			{:else if localTabSet === 2}
 				<Specific />
 			{/if}
 		</form>

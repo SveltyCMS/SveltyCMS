@@ -6,6 +6,7 @@
 import type { User, WidgetId } from '@root/src/auth';
 import type { Schema, Field } from '../content/types';
 import type { SvelteComponent } from 'svelte';
+import type { GuiFieldConfig } from '@utils/utils';
 
 export type WidgetStatus = 'active' | 'inactive';
 
@@ -37,6 +38,15 @@ export interface Widget {
 export interface WidgetFunction {
 	(config: Record<string, unknown>): WidgetPlaceholder;
 	componentPath: string;
+	Name?: string;
+	GuiSchema?: Record<string, GuiFieldConfig>;
+	GraphqlSchema?: GraphqlSchema;
+	Icon?: string;
+	Description?: string;
+	aggregations?: unknown;
+	modifyRequest?: (args: ModifyRequestParams) => Promise<Record<string, unknown>>;
+	dependencies?: string[];
+	toString?: () => string;
 }
 
 export interface WidgetModule {

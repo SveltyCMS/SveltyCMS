@@ -47,14 +47,20 @@ export const collection = store<Schema | null>({} as Schema);
 let collectionValueState = $state<Record<string, unknown>>({});
 export const collectionValue = {
 	get value() { return collectionValueState; },
-	set: (newValue: Record<string, unknown>) => { collectionValueState = newValue; }
+	set: (newValue: Record<string, unknown>) => { collectionValueState = newValue; },
+	update: (fn: (value: Record<string, unknown>) => Record<string, unknown>) => {
+		collectionValueState = fn(collectionValueState);
+	}
 };
 
 // Create reactive state variables for mode
 let modeState = $state<ModeType>('view');
 export const mode = {
 	get value() { return modeState; },
-	set: (newMode: ModeType) => { modeState = newMode; }
+	set: (newMode: ModeType) => { modeState = newMode; },
+	update: (fn: (value: ModeType) => ModeType) => {
+		modeState = fn(modeState);
+	}
 };
 
 export const modifyEntry = store<(status?: keyof typeof statusMap) => Promise<void>>(() => Promise.resolve());

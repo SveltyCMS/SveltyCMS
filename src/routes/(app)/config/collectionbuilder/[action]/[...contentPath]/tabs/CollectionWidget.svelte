@@ -217,7 +217,7 @@ component
 			</button>
 		</div>
 		<div class=" flex items-center justify-between">
-			<button onclick={() => ($tabSet = 0)} type="button" aria-label={m.button_previous()} class="variant-filled-secondary btn mt-2 justify-end">
+			<button onclick={() => tabSet.set(0)} type="button" aria-label={m.button_previous()} class="variant-filled-secondary btn mt-2 justify-end">
 				{m.button_previous()}
 			</button>
 			<button
