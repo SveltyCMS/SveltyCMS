@@ -7,7 +7,7 @@
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-import type { AvailableLanguageTag } from '@src/paraglide/runtime';
+import type { Locale } from '@src/paraglide/runtime';
 
 export function getLanguageName(tag: string, displayLocale?: string): string {
 	try {
@@ -43,7 +43,7 @@ export function getLanguageNames(tag: string): { native: string; english: string
 export function setCookie(name: string, value: string, days: number): void {
 	if (name === 'systemLanguage' || name === 'contentLanguage') {
 		// Type assertion ensures value is a valid language tag
-		const lang = value as AvailableLanguageTag;
+		const lang = value as Locale;
 		logger.dev(`Setting language cookie: ${name}=${lang}`);
 	}
 

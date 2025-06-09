@@ -115,8 +115,8 @@
 
 	function recalculateBorderHeight() {
 		MENU_CONTAINER &&
-			MENU_CONTAINER.querySelectorAll('ul').forEach((el) => {
-				setBorderHeight(el);
+			MENU_CONTAINER.querySelectorAll('ul').forEach((el: Element) => {
+				setBorderHeight(el as HTMLElement);
 			});
 	}
 

@@ -34,7 +34,6 @@
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
 
 	type ActionType = 'create' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'delete' | 'test';
-	type ModifyType = 'published' | 'unpublished' | 'scheduled' | 'cloned' | 'deleted' | 'testing';
 
 	interface Props {
 		isCollectionEmpty?: boolean;

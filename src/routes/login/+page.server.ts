@@ -38,7 +38,7 @@ import type { User } from '@src/auth/types';
 
 // Stores
 import { get } from 'svelte/store';
-import { systemLanguage, type AvailableLanguageTag } from '@stores/store.svelte';
+import { systemLanguage, type Locale } from '@stores/store.svelte';
 
 // Import roles
 import { roles } from '@root/config/roles';
@@ -212,7 +212,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 						logger.info(`OAuth: First user created: ${user?.username}`);
 
 						// Send Welcome email using fetch to /api/sendMail
-						const userLang = (get(systemLanguage) as AvailableLanguageTag) || 'en';
+						const userLang = (get(systemLanguage) as Locale) || 'en';
 						const emailProps = {
 							username: googleUser.name || user?.username || '',
 							email: email,
@@ -258,7 +258,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 							lastAuthMethod: 'google'
 						});
 						logger.info(`OAuth: New non-first user created: ${newUser?.username}`);
-						const userLang = (get(systemLanguage) as AvailableLanguageTag) || 'en';
+						const userLang = (get(systemLanguage) as Locale) || 'en';
 						const emailProps = {
 							username: googleUser.name || newUser?.username || '',
 							email: email,
@@ -433,7 +433,7 @@ export const actions: Actions = {
 
 			if (resp.status && resp.user) {
 				logger.debug(`Sign Up successful for ${resp.user.username}.`);
-				const userLanguage = (get(systemLanguage) as AvailableLanguageTag) || 'en';
+				const userLanguage = (get(systemLanguage) as Locale) || 'en';
 				const emailProps = {
 					username: resp.user.username,
 					email: resp.user.email,
@@ -555,7 +555,7 @@ export const actions: Actions = {
 				const resetLink = `${baseUrl}/login?token=${checkMail.token}&email=${encodeURIComponent(email)}`;
 				logger.debug(`Reset link generated: ${resetLink}`);
 
-				const userLanguage = (get(systemLanguage) as AvailableLanguageTag) || 'en';
+				const userLanguage = (get(systemLanguage) as Locale) || 'en';
 				const emailProps = {
 					email: email,
 					token: checkMail.token,
@@ -621,7 +621,7 @@ export const actions: Actions = {
 			logger.debug(`Password reset check response`, { email, response: JSON.stringify(resp) });
 
 			if (resp.status) {
-				const userLanguage = (get(systemLanguage) as AvailableLanguageTag) || 'en';
+				const userLanguage = (get(systemLanguage) as Locale) || 'en';
 				const emailProps = {
 					username: resp.username || email,
 					email: email,

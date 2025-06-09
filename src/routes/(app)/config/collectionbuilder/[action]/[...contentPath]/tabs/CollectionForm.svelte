@@ -3,7 +3,11 @@
 @component
 **This component displays the collection form**
 
-Features:
+### Props:
+- `collection` {object} - Collection object
+- `handlePageTitleUpdate` {function} - Function to update the page title
+
+### Features:
 - Collection Name
 - Collection Icon
 - Collection Description

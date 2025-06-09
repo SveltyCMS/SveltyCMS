@@ -11,7 +11,7 @@ import {
 } from 'valibot';
 import type { InferOutput } from 'valibot';
 
-import type { AvailableLanguageTag } from '@src/paraglide/runtime';
+import type { Locale } from '@src/paraglide/runtime';
 import type { Role, Permission } from '@src/auth/types'; // Import Role and Permission types from the centralized types file
 
 /**
@@ -94,12 +94,12 @@ export const publicConfigSchema = object({
   PASSWORD_LENGTH: number([minValue(8)]), // Password Length ( default 8)
 
   // --- Content Language for database ---
-  DEFAULT_CONTENT_LANGUAGE: string([minLength(1)]) as unknown as AvailableLanguageTag,  // Default Content Language
-  AVAILABLE_CONTENT_LANGUAGES: array(string([minLength(1)]) as unknown as AvailableLanguageTag, [minLength(1)]), // Available Content Languages
+  DEFAULT_CONTENT_LANGUAGE: string([minLength(1)]) as unknown as Locale,  // Default Content Language
+  AVAILABLE_CONTENT_LANGUAGES: array(string([minLength(1)]) as unknown as Locale, [minLength(1)]), // Available Content Languages
 
   // --- System Language ---
-  AVAILABLE_SYSTEM_LANGUAGES: array(string([minLength(1)]) as unknown as AvailableLanguageTag, [minLength(1)]), // Available System Languages
-  DEFAULT_SYSTEM_LANGUAGE: string([minLength(1)]) as unknown as AvailableLanguageTag,  // Default System Language
+  AVAILABLE_SYSTEM_LANGUAGES: array(string([minLength(1)]) as unknown as Locale, [minLength(1)]), // Available System Languages
+  DEFAULT_SYSTEM_LANGUAGE: string([minLength(1)]) as unknown as Locale,  // Default System Language
 
   // --- Media configuration ---
   MEDIA_FOLDER: string([minLength(1)]),  // Media Folder where the site's media files will be stored.

@@ -31,7 +31,7 @@ import { SESSION_COOKIE_NAME } from '@src/auth';
 import { hasPermissionByAction } from '@src/auth/permissions';
 import { roles } from '@root/config/roles';
 
-import type { AvailableLanguageTag } from '@src/paraglide/runtime';
+import type { Locale } from '@src/paraglide/runtime';
 import type { User, Permission } from '@src/auth';
 // Cache
 import { getCacheStore } from '@src/cacheStore/index.server';
@@ -493,7 +493,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 		if (systemLangCookie) {
 			try {
-				systemLanguage.set(systemLangCookie as AvailableLanguageTag);
+				systemLanguage.set(systemLangCookie as Locale);
 			} catch {
 				logger.warn(`Invalid system language cookie value: ${systemLangCookie}`);
 				event.cookies.delete('systemLanguage', { path: '/' });
@@ -502,7 +502,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 		if (contentLangCookie) {
 			try {
-				contentLanguage.set(contentLangCookie as AvailableLanguageTag);
+				contentLanguage.set(contentLangCookie as Locale);
 			} catch {
 				logger.warn(`Invalid content language cookie value: ${contentLangCookie}`);
 				event.cookies.delete('contentLanguage', { path: '/' });

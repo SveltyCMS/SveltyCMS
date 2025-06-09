@@ -8,8 +8,8 @@
 <LeftSidebar />
 
 #### Props
-- `collection` {object} - Collection object
 - `mode` {object} - The current mode object from the mode store
+- `collection` {object} - The current collection object from the collection store
 
 #### Features
 - Displays collection fields

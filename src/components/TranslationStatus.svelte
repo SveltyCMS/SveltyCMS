@@ -27,7 +27,7 @@
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import type { AvailableLanguageTag } from '@src/paraglide/runtime';
+	import type { Locale } from '@src/paraglide/runtime';
 
 	// Local state management with runes
 	let isOpen = $state(false);
@@ -59,7 +59,7 @@
 
 	// Initialize progress tweens for each language
 	function initializeLanguageProgress() {
-		const availableLanguages = publicEnv.AVAILABLE_CONTENT_LANGUAGES as AvailableLanguageTag[];
+		const availableLanguages = publicEnv.AVAILABLE_CONTENT_LANGUAGES as Locale[];
 		for (const lang of availableLanguages) {
 			if (!languageProgressValues[lang]) {
 				languageProgressValues[lang] = new Tween(0, {
@@ -89,8 +89,8 @@
 		if (progress.show) {
 			let total = 0;
 			let translated = 0;
-			for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES as AvailableLanguageTag[]) {
-				const langProgress = progress[lang as AvailableLanguageTag];
+			for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES as Locale[]) {
+				const langProgress = progress[lang as Locale];
 				if (!langProgress) continue;
 				translated += langProgress.translated.size;
 				total += langProgress.total.size;
@@ -103,8 +103,8 @@
 
 			// Initialize and update individual language progress
 			initializeLanguageProgress();
-			for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES as AvailableLanguageTag[]) {
-				const langProgress = progress[lang as AvailableLanguageTag];
+			for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES as Locale[]) {
+				const langProgress = progress[lang as Locale];
 				const percentage =
 					langProgress && langProgress.total.size > 0 ? Math.round((langProgress.translated.size / langProgress.total.size) * 100) : 0;
 				if (languageProgressValues[lang]) {
@@ -121,7 +121,7 @@
 	let completionStatus = $derived(completionTotals.total > 0 ? Math.round((completionTotals.translated / completionTotals.total) * 100) : 0);
 
 	// Simplified language change handler with animation feedback
-	function handleLanguageChange(selectedLanguage: AvailableLanguageTag) {
+	function handleLanguageChange(selectedLanguage: Locale) {
 		contentLanguage.set(selectedLanguage);
 		isOpen = false;
 
@@ -140,7 +140,7 @@
 		return 'bg-error-500';
 	}
 
-	// function getLanguageProgress(lang: AvailableLanguageTag): number {
+	// function getLanguageProgress(lang: Locale): number {
 	// 	const progress = translationProgress();
 	// 	const langProgress = progress[lang];
 	// 	if (!langProgress || langProgress.total.size === 0) return 0;
@@ -158,9 +158,9 @@
 	<select
 		class="select w-full max-w-[70px] transition-all duration-200 hover:scale-105 focus:scale-105 focus:shadow-lg"
 		value={contentLanguage.value}
-		onchange={(e) => handleLanguageChange(e.currentTarget.value as AvailableLanguageTag)}
+		onchange={(e) => handleLanguageChange(e.currentTarget.value as Locale)}
 	>
-		{#each publicEnv.AVAILABLE_CONTENT_LANGUAGES as AvailableLanguageTag[] as lang (lang)}
+		{#each publicEnv.AVAILABLE_CONTENT_LANGUAGES as Locale[] as lang (lang)}
 			<option value={lang}>{lang.toUpperCase()}</option>
 		{/each}
 	</select>
@@ -210,13 +210,13 @@
 			>
 				<!-- Language Items -->
 				<div role="none" class="divide-y divide-surface-200 dark:divide-surface-400">
-					{#each publicEnv.AVAILABLE_CONTENT_LANGUAGES as AvailableLanguageTag[] as lang, index (lang)}
+					{#each publicEnv.AVAILABLE_CONTENT_LANGUAGES as Locale[] as lang, index (lang)}
 						<button
 							role="menuitem"
 							class="{translationProgress().show
 								? 'justify-between'
 								: 'justify-center'} active:scale-98 flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-all duration-200 hover:scale-[1.02] hover:bg-surface-300 dark:hover:bg-surface-600"
-							onclick={() => handleLanguageChange(lang as AvailableLanguageTag)}
+							onclick={() => handleLanguageChange(lang as Locale)}
 							aria-label={m.translationsstatus_select_language({ language: lang.toUpperCase() })}
 							style="animation-delay: {index * 50}ms;"
 						>
@@ -227,7 +227,7 @@
 								</span>
 
 								<!-- Progress Bar and Percentage -->
-								{#if translationProgress()[lang as AvailableLanguageTag]}
+								{#if translationProgress()[lang as Locale]}
 									<div class="ml-2 flex flex-1 items-center gap-2">
 										<div class="flex-1">
 											<ProgressBar

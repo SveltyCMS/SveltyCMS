@@ -7,21 +7,13 @@
 <script lang="ts">
 	import Column from './Column.svelte';
 	import { goto } from '$app/navigation';
-	import type { CollectionData } from '@src/content/types';
 
 	// Stores
-	import { mode, contentStructure } from '@root/src/stores/collectionStore.svelte';
-
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
+	import { mode } from '@stores/collectionStore.svelte';
 
 	// Svelte DND-actions
 	import { flip } from 'svelte/animate';
 	import { dndzone, type DndEvent } from 'svelte-dnd-action';
-
-	// Skeleton
-	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
-	import type { ContentNode, DatabaseId } from '@root/src/databases/dbInterface';
 	import type { DndItem } from './types';
 
 	interface Props {
@@ -31,11 +23,6 @@
 		level: number;
 		onEditCategory: (category: Partial<DndItem>) => void;
 		onUpdate: (itemId: string, parentId: string) => void;
-	}
-
-	interface CategoryUpdateResponse {
-		newCategoryName: string;
-		newCategoryIcon: string;
 	}
 
 	let { item, children = $bindable([]), level, onUpdate, isCategory = false, onEditCategory }: Props = $props();
@@ -49,7 +36,6 @@
 	let updateError = $state<string | null>(null);
 	let isUpdating = $state(false);
 
-	const modalStore = getModalStore();
 	const flipDurationMs = 200;
 
 	// Computed values

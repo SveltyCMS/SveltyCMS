@@ -52,14 +52,13 @@
 	}
 
 	let { field, value = collectionValue.value[getFieldName(field)] || {} }: Props = $props();
-	const fieldName = getFieldName(field);
-
-	const _data = $state(mode.value === 'create' ? {} : value);
-	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
 	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
-
 	let numberInput: HTMLInputElement | undefined = $state();
+
+	const fieldName = getFieldName(field);
+	const _data = $state(mode.value === 'create' ? {} : value);
+	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
 	const language = $contentLanguage;
 
 	export const WidgetData = async () => _data;

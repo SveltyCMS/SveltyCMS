@@ -25,7 +25,9 @@
 	import { getFieldName } from '@utils/utils';
 
 	// Valibot validation
-	import { string, regex, pipe, parse, type ValiError, nonEmpty } from 'valibot';
+	import { string, regex, pipe, parse, type ValiError } from 'valibot';
+
+	let { field, value = collectionValue.value[getFieldName(field)] || {} }: Props = $props();
 
 	const fieldName = getFieldName(field);
 
@@ -82,8 +84,6 @@
 		field: FieldType;
 		value?: any;
 	}
-
-	let { field, value = collectionValue.value[fieldName] || {} }: Props = $props();
 
 	onMount(() => {
 		if (field?.required && !_data[_language]) {

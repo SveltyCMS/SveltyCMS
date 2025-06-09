@@ -33,10 +33,10 @@ Features:
 	import { publicEnv } from '@root/config/public';
 
 	// Stores
+	import { get } from 'svelte/store';
 	import { uiStateManager, toggleUIElement } from '@stores/UIStore.svelte';
 	import { screenSize } from '@stores/screenSizeStore.svelte';
 	import { mode } from '@stores/collectionStore.svelte';
-	import { get } from 'svelte/store';
 
 	// Toast notifications
 	const toastStore = getToastStore();

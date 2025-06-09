@@ -157,7 +157,7 @@ Features:
 		<PermissionGuard config={permissionConfigs.emailPreviews}>
 			<a href="/email-previews" aria-label="Email Previews" class="config-btn variant-outline-tertiary dark:variant-outline-secondary">
 				<iconify-icon icon="mdi:email-outline" class="config-icon text-primary-600"></iconify-icon>
-				<p class="config-text">Email Previews</p>
+				<p class="config-text">{m.config_emailPreviews()}</p>
 			</a>
 		</PermissionGuard>
 
@@ -185,7 +185,7 @@ Features:
 		<PermissionGuard config={permissionConfigs.widgetManagement}>
 			<a href="/config/widgetManagement" aria-label="Widget Management" class="config-btn variant-ghost-primary dark:text-white">
 				<iconify-icon icon="mdi:widgets" class="config-icon"></iconify-icon>
-				<p class="config-text">Widget Management</p>
+				<p class="config-text">{m.config_widgetManagement()}</p>
 			</a>
 		</PermissionGuard>
 
@@ -193,7 +193,7 @@ Features:
 		<PermissionGuard config={permissionConfigs.themeManagement}>
 			<a href="/config/themeManagement" aria-label="Theme Management" class="config-btn variant-ghost-primary dark:text-white">
 				<iconify-icon icon="ph:layout" class="config-icon"></iconify-icon>
-				<p class="config-text">Themes</p>
+				<p class="config-text">{m.config_themeManagement()}</p>
 			</a>
 		</PermissionGuard>
 
@@ -201,7 +201,7 @@ Features:
 		<PermissionGuard config={permissionConfigs.settings}>
 			<a href="/config/systemsetting" aria-label="System Settings" class="config-btn variant-ghost-error dark:text-white">
 				<iconify-icon icon="uil:setting" class="config-icon"></iconify-icon>
-				<p class="config-text">Settings</p>
+				<p class="config-text">{m.config_settings()}</p>
 			</a>
 		</PermissionGuard>
 
@@ -209,7 +209,7 @@ Features:
 		<PermissionGuard config={permissionConfigs.accessManagement}>
 			<a href="/config/assessManagement" aria-label="Access Management" class="config-btn variant-ghost-error dark:text-white">
 				<iconify-icon icon="mdi:account-group" class="config-icon"></iconify-icon>
-				<p class="config-text">Access Management</p>
+				<p class="config-text">{m.config_accessManagement()}</p>
 			</a>
 		</PermissionGuard>
 	</div>

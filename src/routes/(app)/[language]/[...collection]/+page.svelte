@@ -16,7 +16,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	import type { User } from '@src/auth/types';
 
 	// ParaglideJS
-	import type { AvailableLanguageTag } from '@root/src/paraglide/runtime';
+	import type { Locale } from '@src/paraglide/runtime';
 
 	// Stores
 	import { page } from '$app/state';
@@ -58,13 +58,13 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	});
 
 	$effect(() => {
-		if (!(publicEnv.AVAILABLE_CONTENT_LANGUAGES as ReadonlyArray<AvailableLanguageTag>).includes(data.contentLanguage as AvailableLanguageTag)) {
+		if (!(publicEnv.AVAILABLE_CONTENT_LANGUAGES as ReadonlyArray<Locale>).includes(data.contentLanguage as Locale)) {
 			// If data.contentLanguage is invalid and contentLanguage is not already set to a valid value, fall back to 'en'
-			if (!contentLanguage.value || !(publicEnv.AVAILABLE_CONTENT_LANGUAGES as ReadonlyArray<AvailableLanguageTag>).includes(contentLanguage.value)) {
+			if (!contentLanguage.value || !(publicEnv.AVAILABLE_CONTENT_LANGUAGES as ReadonlyArray<Locale>).includes(contentLanguage.value)) {
 				contentLanguage.set('en');
 			}
 		} else {
-			contentLanguage.set(data.contentLanguage as AvailableLanguageTag);
+			contentLanguage.set(data.contentLanguage as Locale);
 		}
 	});
 

@@ -30,9 +30,6 @@
 <script lang="ts">
 	import { saveFormData } from '../utils/data';
 
-	// Types
-	import type { ModifyRequestParams } from '../widgets/types';
-
 	// Components
 	import TranslationStatus from './TranslationStatus.svelte';
 	import ScheduleModal from './ScheduleModal.svelte';

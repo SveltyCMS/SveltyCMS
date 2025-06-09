@@ -3,7 +3,10 @@
  @component
  **This component sets up and displays the collection page with nested category support**
 
- Features:
+### Props:
+ - `collection` {object} - Collection object
+
+ ### Features:
  - Collection Name
  - Collection Icon
  - Collection Description
