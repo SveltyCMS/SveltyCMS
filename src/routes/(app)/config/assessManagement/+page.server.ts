@@ -24,7 +24,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			throw redirect(302, '/login');
 		}
 
-		logger.debug(`User authenticated successfully for user: ${user._id}`);
+		logger.debug(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`);
 
 		if (!user.role) {
 			const message = `User role is missing for user ${user.email}`;
@@ -36,17 +36,17 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const hasAccessPermission = hasPermissionWithRoles(user, 'config:accessManagement', roles);
 
 		if (!hasAccessPermission) {
-			const message = `User ${user._id} does not have permission to access management`;
+			const message = `User \x1b[34m${user._id}\x1b[0m does not have permission to access management`;
 			logger.warn(message);
 			throw error(403, message);
 		}
 
 		// Fetch roles and permissions using simplified system
 		logger.debug('Fetching roles and permissions...');
-		const roles = roles;
+		const allRoles = roles;
 		const permissions = getAllPermissions();
 
-		logger.debug(`Roles fetched: ${roles.length}`);
+		logger.debug(`Roles fetched: ${allRoles.length}`);
 		logger.debug(`Permissions fetched: ${permissions.length}`);
 
 		// Prepare data to return to the client
@@ -56,7 +56,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				email: user.email,
 				role: user.role
 			},
-			roles,
+			roles: allRoles,
 			permissions
 		};
 	} catch (err) {

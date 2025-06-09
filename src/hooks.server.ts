@@ -684,7 +684,7 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 		try {
 			await cacheStore.deletePattern(`${baseCacheKey}:*`);
 			logger.debug(
-				`Invalidated API cache for keys starting with \x1b[34m${baseCacheKey}\x1b[0m after \x1b[31m${event.request.method}\x1b[0m request`
+				`Invalidated API cache for keys starting with \x1b[34m${baseCacheKey}\x1b[0m after \x1b[32m${event.request.method}\x1b[0m request`
 			);
 		} catch (err) {
 			logger.error(`Failed to invalidate API cache for ${baseCacheKey}: ${err.message}`);

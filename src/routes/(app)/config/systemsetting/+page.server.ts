@@ -33,12 +33,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 
 		// Log successful session validation
-		logger.debug(`User authenticated successfully for user: ${user._id}`);
+		logger.debug(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`);
 
 		// Check user permission for system settings
 		const hasSystemSettingsPermission = hasPermissionWithRoles(user, 'config:settings', roles);
 		if (!hasSystemSettingsPermission) {
-			const message = `User ${user._id} does not have permission to access system settings`;
+			const message = `User \x1b[34m${user._id}\x1b[0m does not have permission to access system settings`;
 			logger.warn(message);
 			throw error(403, 'Insufficient permissions');
 		}

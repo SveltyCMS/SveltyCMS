@@ -31,6 +31,25 @@ import { contentManager } from '@src/content/ContentManager';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
+/**
+ * Creates a clean GraphQL type name from collection info
+ * Uses collection name + short UUID suffix for uniqueness and readability
+ */
+function createCleanTypeName(collection: Collection): string {
+	// Get the last part of the collection name (after any slashes)
+	const baseName = collection.name.split('/').pop() || collection.name;
+	// Clean the name: remove spaces, special chars, and convert to PascalCase
+	const cleanName = baseName
+		.replace(/[^a-zA-Z0-9]/g, '')
+		.replace(/^[0-9]/, 'Collection$&') // Handle names starting with numbers
+		.replace(/^\w/, c => c.toUpperCase()); // Ensure starts with uppercase
+
+	// Use first 8 characters of UUID for uniqueness while keeping it readable
+	const shortId = collection._id.substring(0, 8);
+
+	return `${cleanName}_${shortId}`;
+}
+
 interface CollectionField {
 	widget: {
 		Name: string;
@@ -41,7 +60,7 @@ interface CollectionField {
 }
 
 interface Collection {
-	id: string;
+	_id: string;
 	name: string;
 	fields: CollectionField[];
 }
@@ -94,10 +113,20 @@ export async function registerCollections() {
 	const resolvers: ResolverContext = { Query: {} };
 	const collectionSchemas: string[] = [];
 
+	// Create a mapping from collection names to clean type names for relation widgets
+	const collectionNameMapping = new Map<string, string>();
 	for (const collection of collections as Collection[]) {
-		resolvers[collection._id] = {};
+		const cleanTypeName = createCleanTypeName(collection);
+		collectionNameMapping.set(collection.name, cleanTypeName);
+	}
+
+	for (const collection of collections as Collection[]) {
+		logger.debug(`Processing collection: \x1b[34m${collection.name}\x1b[0m, _id: \x1b[34m${collection._id}\x1b[0m`);
+		const cleanTypeName = createCleanTypeName(collection);
+		logger.debug(`Clean type name: \x1b[34m${cleanTypeName}\x1b[0m`);
+		resolvers[cleanTypeName] = {};
 		let collectionSchema = `
-            type ${collection._id} {
+            type ${cleanTypeName} {
                 _id: String
                 name: String
                 createdAt: String
@@ -113,8 +142,9 @@ export async function registerCollections() {
 
 			const schema = widget.GraphqlSchema({
 				field,
-				label: getFieldName(field, true),
-				collection
+				label: `${cleanTypeName}_${getFieldName(field)}`, // Make type ID unique with clean naming
+				collection,
+				collectionNameMapping // Pass the mapping for relation widgets
 			}) as WidgetSchema | undefined;
 
 			if (!schema) {
@@ -125,7 +155,7 @@ export async function registerCollections() {
 			// logger.debug(`Widget schema for ${field.widget.Name}:`, schema);
 
 			if (schema.resolver) {
-				deepmerge(resolvers, { [collection._id]: schema.resolver });
+				deepmerge(resolvers, { [cleanTypeName]: schema.resolver });
 			}
 
 			// Add main type
@@ -140,8 +170,9 @@ export async function registerCollections() {
 				for (const _field of field.fields) {
 					const nestedSchema = widgets[_field.widget.Name]?.GraphqlSchema?.({
 						field: _field,
-						label: getFieldName(_field, true),
-						collection
+						label: `${cleanTypeName}_${getFieldName(_field)}`, // Make nested type ID unique with clean naming
+						collection,
+						collectionNameMapping // Pass the mapping for relation widgets
 					});
 
 					if (nestedSchema) {
@@ -150,34 +181,26 @@ export async function registerCollections() {
 							typeDefsSet.add(nestedSchema.graphql);
 							logger.debug(`Added nested type: ${nestedSchema.typeID}`);
 						}
-						collectionSchema += `${getFieldName(_field, true)}: ${nestedSchema.typeID}\n`;
-						deepmerge(resolvers[collection._id], {
-							[getFieldName(_field, true)]: (parent: DocumentWithFields) => parent[getFieldName(_field)]
+						collectionSchema += `${getFieldName(_field)}: ${nestedSchema.typeID}\n`;
+						deepmerge(resolvers[cleanTypeName], {
+							[getFieldName(_field)]: (parent: DocumentWithFields) => parent[getFieldName(_field)]
 						});
 					} else {
-						logger.warn(`Nested schema not found for field: ${getFieldName(_field, true)}`);
+						logger.warn(`Nested schema not found for field: ${getFieldName(_field)}`);
 					}
 				}
 			} else {
-				collectionSchema += `${getFieldName(field, true)}: ${schema.typeID}\n`;
-				deepmerge(resolvers[collection._id], {
-					[getFieldName(field, true)]: (parent: DocumentWithFields) => parent[getFieldName(field)]
+				collectionSchema += `${getFieldName(field)}: ${schema.typeID}\n`;
+				deepmerge(resolvers[cleanTypeName], {
+					[getFieldName(field)]: (parent: DocumentWithFields) => parent[getFieldName(field)]
 				});
 			}
 		}
 		collectionSchemas.push(collectionSchema + '}\n');
 	}
 
-	// Add pagination arguments to the Query type
-	const paginationArgs = `
-        input PaginationInput {
-            page: Int = 1
-            limit: Int = 50
-        }
-    `;
-
-	const finalTypeDefs = paginationArgs + Array.from(typeDefsSet).join('\n') + collectionSchemas.join('\n');
-	//logger.debug('Final GraphQL TypeDefs:', finalTypeDefs);
+	const finalTypeDefs = Array.from(typeDefsSet).join('\n') + collectionSchemas.join('\n');
+	// logger.debug('Final GraphQL TypeDefs:', finalTypeDefs);
 
 	return {
 		typeDefs: finalTypeDefs,
@@ -196,8 +219,9 @@ export async function collectionsResolvers(cacheClient: CacheClient | null, priv
 			continue;
 		}
 
-		// Add pagination to the resolver
-		resolvers.Query[collection._id] = async (_: unknown, args: { pagination: { page: number; limit: number } }) => {
+		const cleanTypeName = createCleanTypeName(collection);
+		// Add pagination to the resolver using clean type name
+		resolvers.Query[cleanTypeName] = async (_: unknown, args: { pagination: { page: number; limit: number } }) => {
 			if (!dbAdapter) {
 				logger.error('Database adapter is not initialized');
 				throw new Error('Database adapter is not initialized');

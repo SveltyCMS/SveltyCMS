@@ -62,9 +62,9 @@ export const GuiSchema = {
 /**
  * Define MegaMenu GraphqlSchema function
  */
-export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
+export const GraphqlSchema: GraphqlSchema = ({ field, label, collection }) => {
 	const fields = field.fields;
-	const typeID = `${collection.name}_${getFieldName(field, true)}`;
+	const typeID = label; // Use the clean label passed from collections resolver
 	const types = new Set();
 	let levelCount = 0;
 
@@ -74,28 +74,29 @@ export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
 		for (const _field of level) {
 			try {
 				const fieldSchema = widgets[_field.widget.Name].GraphqlSchema?.({
-					label: `${getFieldName(_field, true)}_Level${levelCount}`,
+					field: _field,
+					label: `${label}_${getFieldName(_field)}_Level${levelCount}`, // Use clean label
 					collection
 				});
 				if (fieldSchema) {
 					types.add(fieldSchema.graphql);
 					if (levelCount > 0) {
-						children.push(`${getFieldName(_field, true)}:${fieldSchema.typeID}`);
+						children.push(`${getFieldName(_field)}:${fieldSchema.typeID}`); // Use sanitized field name
 					}
 				} else {
-					console.warn(`No GraphQL schema found for field: ${getFieldName(_field, true)}`);
+					console.warn(`No GraphQL schema found for field: ${getFieldName(_field)}`);
 				}
 			} catch (error) {
-				console.error(`Error generating GraphQL schema for field ${getFieldName(_field, true)}:`, error);
+				console.error(`Error generating GraphQL schema for field ${getFieldName(_field)}:`, error);
 			}
 		}
 
 		if (levelCount > 0) {
 			if (fields.length - levelCount > 1) {
-				children.push(`children:[${collection.name}_${getFieldName(field, true)}_Level${levelCount + 1}]`);
+				children.push(`children:[${label}_Level${levelCount + 1}]`); // Use clean label
 			}
 			try {
-				types.add(` type ${collection.name}_${getFieldName(field, true)}_Level${levelCount} { ${Array.from(children).join('\n')} } `);
+				types.add(` type ${label}_Level${levelCount} { ${Array.from(children).join('\n')} } `); // Use clean label
 			} catch (error) {
 				console.error(`Error generating GraphQL type for level ${levelCount}:`, error);
 			}
@@ -109,8 +110,8 @@ export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
 		const graphql = /* GraphQL */ `
 		${Array.from(types).join('\n')}
 		type ${typeID} {
-		  Header: ${collection.name}_Header_Level0
-		  children: [${collection.name}_${getFieldName(field, true)}_Level1]
+		  Header: ${label}_${getFieldName(fields[0][0])}_Level0
+		  children: [${label}_Level1]
 		}
 	  `;
 		return { typeID: typeID, graphql };

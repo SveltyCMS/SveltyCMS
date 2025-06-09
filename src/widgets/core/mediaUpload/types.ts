@@ -128,8 +128,9 @@ const types = Object.keys(SIZES)
 /**
  * Define MediaUpload GraphqlSchema function
  */
-export const GraphqlSchema = ({ label, collection }: { label: string; collection: string }) => {
-	// Create a type name by combining the collection ID and label
+export const GraphqlSchema = ({ label }: { label: string }) => {
+	// Use the sanitized field name as the type ID
+	const typeID = label;
 	const typeDefs = `
     type ${label} {
         id: ID!

@@ -60,9 +60,9 @@ export const GuiSchema = {
 /**
  * Define RemoteVideo GraphqlSchema function
  */
-export const GraphqlSchema: GraphqlSchema = ({ label, collection }) => {
-	// Create a type name by combining the collection ID and label
-	const typeID = `${collection._id}_${label}`;
+export const GraphqlSchema: GraphqlSchema = ({ label }) => {
+	// Use sanitized field name as GraphQL type ID
+	const typeID = label;
 
 	// Return an object containing the type name and the GraphQL schema
 	return {

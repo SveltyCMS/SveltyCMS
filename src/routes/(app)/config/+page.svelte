@@ -38,17 +38,47 @@ Features:
 	const permissionConfigs = {
 		collectionbuilder: {
 			name: 'Collection Builder',
+			description: 'Manage collections and their structure',
 			contextId: 'config:collectionManagement',
 			requiredRole: 'admin',
 			action: 'manage',
 			contextType: 'configuration'
 		},
-		graphql: { name: 'GraphQL API', contextId: 'api:graphql', requiredRole: 'developer', action: 'access', contextType: 'system' },
-		imageeditor: { name: 'Image Editor', contextId: 'content:images', requiredRole: 'editor', action: 'manage', contextType: 'system' },
-		emailPreviews: { name: 'Email Previews', contextId: 'system:admin', requiredRole: 'admin', action: 'access', contextType: 'system' },
-		dashboard: { name: 'Dashboard', contextId: 'system:dashboard', requiredRole: 'user', action: 'access', contextType: 'system' },
+		graphql: {
+			name: 'GraphQL API',
+			description: 'Access the GraphQL API',
+			contextId: 'api:graphql',
+			requiredRole: 'developer',
+			action: 'access',
+			contextType: 'system'
+		},
+		imageeditor: {
+			name: 'Image Editor',
+			description: 'Edit and manage images',
+			contextId: 'content:images',
+			requiredRole: 'editor',
+			action: 'manage',
+			contextType: 'system'
+		},
+		emailPreviews: {
+			name: 'Email Previews',
+			description: 'Preview system emails',
+			contextId: 'system:admin',
+			requiredRole: 'admin',
+			action: 'access',
+			contextType: 'system'
+		},
+		dashboard: {
+			name: 'Dashboard',
+			description: 'Access the dashboard',
+			contextId: 'system:dashboard',
+			requiredRole: 'user',
+			action: 'access',
+			contextType: 'system'
+		},
 		widgetManagement: {
 			name: 'Widget Management',
+			description: 'Manage widgets',
 			contextId: 'config:widgetManagement',
 			requiredRole: 'admin',
 			action: 'manage',
@@ -56,14 +86,23 @@ Features:
 		},
 		themeManagement: {
 			name: 'Theme Management',
+			description: 'Manage themes',
 			contextId: 'config:themeManagement',
 			requiredRole: 'admin',
 			action: 'manage',
 			contextType: 'configuration'
 		},
-		settings: { name: 'System Settings', contextId: 'system:settings', requiredRole: 'admin', action: 'manage', contextType: 'system' },
+		settings: {
+			name: 'System Settings',
+			description: 'Manage system settings',
+			contextId: 'system:settings',
+			requiredRole: 'admin',
+			action: 'manage',
+			contextType: 'system'
+		},
 		accessManagement: {
 			name: 'Access Management',
+			description: 'Manage user access and permissions',
 			contextId: 'config:accessManagement',
 			requiredRole: 'admin',
 			action: 'manage',

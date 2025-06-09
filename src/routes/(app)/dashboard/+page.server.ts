@@ -29,7 +29,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		redirect(301, '/login');
 	}
 
-	logger.debug(`User authenticated successfully: ${user._id}`);
+	logger.debug(`User authenticated successfully: \x1b[34m${user._id}\x1b[0m`);
 
 	const { _id, ...rest } = user;
 

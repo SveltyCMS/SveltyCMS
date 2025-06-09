@@ -33,6 +33,25 @@ import { roles } from '@root/config/roles';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
+/**
+ * Creates a clean GraphQL type name from collection info
+ * Uses collection name + short UUID suffix for uniqueness and readability
+ */
+function createCleanTypeName(collection: { name: string; _id: string }): string {
+	// Get the last part of the collection name (after any slashes)
+	const baseName = collection.name.split('/').pop() || collection.name;
+	// Clean the name: remove spaces, special chars, and convert to PascalCase
+	const cleanName = baseName
+		.replace(/[^a-zA-Z0-9]/g, '')
+		.replace(/^[0-9]/, 'Collection$&') // Handle names starting with numbers
+		.replace(/^\w/, c => c.toUpperCase()); // Ensure starts with uppercase
+
+	// Use first 8 characters of UUID for uniqueness while keeping it readable
+	const shortId = collection._id.substring(0, 8);
+
+	return `${cleanName}_${shortId}`;
+}
+
 // Define the access management permission configuration
 const accessManagementPermission = {
 	contextId: 'config/accessManagement',
@@ -89,9 +108,15 @@ async function cleanupRedis() {
 async function setupGraphQL() {
 	try {
 		logger.info('Setting up GraphQL schema and resolvers');
+
 		const { typeDefs: collectionsTypeDefs, collections } = await registerCollections();
 
 		const typeDefs = `
+            input PaginationInput {
+                page: Int = 1
+                limit: Int = 50
+            }
+            
             ${collectionsTypeDefs}
             ${userTypeDefs()}
             ${mediaTypeDefs()}
@@ -106,7 +131,7 @@ async function setupGraphQL() {
             
             type Query {
                 ${Object.values(collections)
-				.map((collection) => `${collection._id}: [${collection._id}]`)
+				.map((collection) => `${createCleanTypeName(collection)}: [${createCleanTypeName(collection)}]`)
 				.join('\n')}
                 users: [User]
                 mediaImages: [MediaImage]
@@ -118,7 +143,7 @@ async function setupGraphQL() {
             }
         `;
 
-		logger.debug('Generated GraphQL Schema:', typeDefs);
+		//logger.debug('Generated GraphQL Schema:', typeDefs);
 
 		const resolvers = {
 			Query: {

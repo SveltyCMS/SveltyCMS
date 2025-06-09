@@ -65,13 +65,13 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			throw redirect(302, '/login');
 		}
 
-		logger.debug(`User authenticated successfully for user: ${user._id}`);
+		logger.debug(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`);
 
 		// Check user permission for collection management
 		const collectionManagementConfig = permissionConfigs.collectionManagement;
 		const permissionCheck = await hasPermissionByAction(user, collectionManagementConfig);
 		if (!permissionCheck.hasPermission) {
-			const message = `User ${user._id} does not have permission to access collection management`;
+			const message = `User \x1b[34m${user._id}\x1b[0m does not have permission to access collection management`;
 			logger.warn(message);
 			throw error(403, 'Insufficient permissions');
 		}

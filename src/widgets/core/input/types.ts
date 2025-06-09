@@ -74,9 +74,9 @@ export const GuiSchema = {
 /**
  * Define Text GraphqlSchema function
  */
-export const GraphqlSchema: GraphqlSchema = ({ label, collection }) => {
-	// Create a type name by combining the collection ID and label
-	const typeID = `${collection._id}_${label}`;
+export const GraphqlSchema: GraphqlSchema = ({ label }) => {
+	// Use the sanitized field name as the type ID
+	const typeID = label;
 
 	const graphqlFields = publicEnv.AVAILABLE_CONTENT_LANGUAGES.map((contentLanguage) => `${contentLanguage}: String`).join('\n');
 

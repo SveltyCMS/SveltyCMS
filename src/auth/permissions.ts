@@ -55,7 +55,7 @@ export function hasPermissionWithRoles(user: User, permissionId: string, roles: 
 
 	// ADMIN OVERRIDE: Admins automatically have ALL permissions
 	if (userRole.isAdmin) {
-		logger.debug(`Admin user ${user.email} granted permission: ${permissionId}`);
+		logger.debug(`Admin user \x1b[34m${user.email}\x1b[0m granted permission: ${permissionId}`);
 		return true;
 	}
 
@@ -89,7 +89,7 @@ export function hasPermissionByAction(user: User, action: string, type: string, 
 
 	// ADMIN OVERRIDE: Admins automatically have ALL permissions
 	if (userRole.isAdmin) {
-		logger.debug(`Admin user ${user.email} granted permission for action: ${action}, type: ${type}`);
+		logger.debug(`Admin user \x1b[34m${user.email}\x1b[0m granted permission for action: ${action}, type: ${type}`);
 		return true;
 	}
 

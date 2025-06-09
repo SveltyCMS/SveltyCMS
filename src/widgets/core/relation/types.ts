@@ -68,10 +68,13 @@ export const GuiSchema = {
 /**
  * Define Relation GraphqlSchema function
  */
-export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
+export const GraphqlSchema: GraphqlSchema = ({ field, collection, collectionNameMapping }) => {
+	// Resolve the collection name to clean type name using the mapping
+	const cleanTypeName = collectionNameMapping?.get(field.relation) || field.relation;
+
 	// Return an object containing the type name and the GraphQL schema
 	return {
-		typeID: field.relation,
+		typeID: cleanTypeName,
 		graphql: '', // relation does not need its own graphql because it copies related collection type
 		resolver: {
 			[collection.name]: {
