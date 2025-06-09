@@ -27,7 +27,7 @@ import { error } from '@sveltejs/kit';
 import { getAllPermissions } from '../permissions';
 
 // Types
-import type { Permission, Role, User } from '../auth';
+import type { Permission, Role, User } from '..';
 import type { authDBInterface } from '../authDBInterface';
 import type { PaginationOption } from '../authDBInterface';
 

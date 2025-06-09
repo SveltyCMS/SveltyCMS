@@ -18,9 +18,8 @@ Features:
 
 <script lang="ts">
 	import { roles } from '@root/config/roles';
-	import type { Role } from '@src/auth/auth';
-	import { PermissionAction } from '@src/auth/auth';
-
+	import type { Role } from '@src/auth/types';
+	import { PermissionAction } from '@src/auth/types';
 	// Skeleton
 	import { getToastStore } from '@skeletonlabs/skeleton';
 
@@ -52,7 +51,8 @@ Features:
 					delete: true,
 					manage: true,
 					access: true,
-					execute: true
+					execute: true,
+					share: true
 				};
 			}
 		});
@@ -121,7 +121,8 @@ Features:
 		[PermissionAction.DELETE]: 'bi:trash-fill',
 		[PermissionAction.MANAGE]: 'bi:gear-fill',
 		[PermissionAction.ACCESS]: 'bi:key-fill',
-		[PermissionAction.EXECUTE]: 'bi:play-fill'
+		[PermissionAction.EXECUTE]: 'bi:play-fill',
+		[PermissionAction.SHARE]: 'bi:share-fill'
 	};
 </script>
 

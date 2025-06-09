@@ -23,7 +23,7 @@ It provides functionality to:
 	import { tick } from 'svelte';
 
 	// Types
-	import type { Role } from '@src/auth/auth';
+	import type { Role } from '@src/auth';
 
 	// Components
 	import Loading from '@components/Loading.svelte';

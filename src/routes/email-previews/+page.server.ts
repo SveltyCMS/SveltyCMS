@@ -15,7 +15,7 @@ import { createEmail, emailList, sendEmail } from 'svelte-email-tailwind/preview
 import type { PageData as AppPageData } from './$types';
 
 // Auth
-import type { User } from '@src/auth/auth';
+import type { User } from '@root/src/auth';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -27,7 +27,7 @@ let eventFetch: typeof globalThis.fetch;
 interface ExpectedPageData extends AppPageData {
 	user?: User | null;
 	// Properties from emailList (components, emails etc.)
-	emails?: { name: string; path: string; [key: string]: unknown }[];
+	emails?: { name: string; path: string;[key: string]: unknown }[];
 	components?: Record<string, unknown>;
 	[key: string]: unknown; // Allow other properties from emailList
 }

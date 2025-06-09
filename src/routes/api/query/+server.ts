@@ -31,7 +31,7 @@ export interface CookieData {
 
 // Auth
 import { auth } from '@src/databases/db';
-import { SESSION_COOKIE_NAME } from '@src/auth/auth';
+import { SESSION_COOKIE_NAME } from '@root/src/auth';
 
 // Collection Manager
 import { contentManager } from '@src/content/ContentManager';

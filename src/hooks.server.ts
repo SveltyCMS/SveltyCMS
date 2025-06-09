@@ -27,12 +27,12 @@ import { RateLimiter } from 'sveltekit-rate-limiter/server';
 
 // Auth and Database Adapters
 import { auth, dbInitPromise, authAdapter } from '@src/databases/db';
-import { SESSION_COOKIE_NAME } from '@src/auth/auth';
+import { SESSION_COOKIE_NAME } from '@src/auth';
 import { hasPermissionByAction } from '@src/auth/permissions';
 import { roles } from '@root/config/roles';
 
 import type { AvailableLanguageTag } from '@src/paraglide/runtime';
-import type { User, Permission } from '@src/auth/auth';
+import type { User, Permission } from '@src/auth';
 // Cache
 import { getCacheStore } from '@src/cacheStore/index.server';
 

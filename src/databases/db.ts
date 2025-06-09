@@ -26,7 +26,7 @@ import fs from 'node:fs/promises';
 import { connectToMongoDB } from './mongodb/dbconnect';
 
 // Auth
-import { Auth } from '@src/auth/auth';
+import { Auth } from '@root/src/auth';
 import { getDefaultSessionStore } from '@src/auth/sessionStore';
 
 // Adapters Interfaces

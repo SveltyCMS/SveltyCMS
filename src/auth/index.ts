@@ -1,5 +1,5 @@
 /**
- * @file src/auth/auth.ts
+ * @file src/auth/index.ts
  * @description Simplified authentication and authorization system
  *
  * This consolidated module handles:
@@ -15,8 +15,6 @@
  * - Reduced file complexity from 10+ files to 3 core files
  */
 
-// System Logger
-import { logger } from '@utils/logger.svelte';
 import { error } from '@sveltejs/kit';
 import { privateEnv } from '@root/config/private';
 import { dev } from '$app/environment';
@@ -26,6 +24,10 @@ import type { User, Role, Permission, Session, Token, SessionStore } from './typ
 
 import { roles } from '@root/config/roles';
 import { corePermissions } from './corePermissions';
+
+
+// System Logger
+import { logger } from '@utils/logger.svelte';
 
 export type { User, Role, Permission, Session, Token, SessionStore, PermissionAction, PermissionType, RolePermissions } from './types';
 export { PermissionAction, PermissionType } from './types';

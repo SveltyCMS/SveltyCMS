@@ -15,7 +15,7 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 import PermissionsSetting from '@components/PermissionsSetting.svelte';
 
 // Auth
-import type { Permission } from '@src/auth/auth';
+import type { Permission } from '@root/src/auth';
 
 /**
  * Defines RichText widget Parameters

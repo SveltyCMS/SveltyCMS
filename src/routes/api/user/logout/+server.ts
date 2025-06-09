@@ -18,7 +18,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { auth } from '@src/databases/db';
-import { SESSION_COOKIE_NAME } from '@src/auth/auth';
+import { SESSION_COOKIE_NAME } from '@root/src/auth';
 import { logger } from '@utils/logger.svelte';
 
 export const POST: RequestHandler = async ({ cookies, locals }) => {
