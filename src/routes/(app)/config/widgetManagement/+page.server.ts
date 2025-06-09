@@ -16,7 +16,8 @@ import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Auth
-import { hasPermission } from '@src/auth/permissions';
+import { hasPermissionWithRoles } from '@src/auth/permissions';
+import { roles } from '@root/config/roles';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -34,7 +35,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		logger.debug(`User authenticated successfully for user: ${user._id}`);
 
 		// Check user permission for widget management
-		const hasWidgetPermission = hasPermission(user, 'config:widgetManagement');
+		const hasWidgetPermission = hasPermissionWithRoles(user, 'config:widgetManagement', roles);
 
 		if (!hasWidgetPermission) {
 			const message = `User ${user._id} does not have permission to access widget management`;

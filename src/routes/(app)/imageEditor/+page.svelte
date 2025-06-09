@@ -14,6 +14,7 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 	// Store
 	import { page } from '$app/state';
 	import { saveEditedImage } from '@stores/store.svelte';
+	import { imageEditorStore } from '@stores/imageEditorStore.svelte';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -32,21 +33,24 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 	// Konva
 	import Konva from 'konva';
 
-	let imageFile: File | null = $state(null);
 	let selectedImage: string = '';
-	let stage: Konva.Stage | undefined = $state();
-	let layer: Konva.Layer | undefined = $state();
-	let imageNode: Konva.Image | undefined = $state();
 	let containerRef: HTMLDivElement | undefined = $state();
-	let activeState = $state('');
-	let blurActive = $state(false);
-	let updatedImageFile: File | null = null;
-	let stateHistory: string[] = [];
-	let currentStateIndex = -1;
-	let canUndo = $state(false);
-	let canRedo = $state(false);
 	// Store the original image for resetting
 	let originalImage: HTMLImageElement;
+
+	// Get store state reactively
+	const storeState = $derived(imageEditorStore.state);
+
+	// Use reactive statements for better type inference with explicit type assertions
+	let stage: Konva.Stage | null = $state(null);
+	let layer: Konva.Layer | null = $state(null);
+	let imageNode: Konva.Image | null = $state(null);
+
+	$effect(() => {
+		stage = storeState.stage as Konva.Stage | null;
+		layer = storeState.layer as Konva.Layer | null;
+		imageNode = storeState.imageNode as Konva.Image | null;
+	});
 
 	onMount(() => {
 		const { params } = page;
@@ -65,6 +69,7 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 	});
 
 	function handleResize() {
+		const { stage, imageNode } = imageEditorStore.state;
 		if (!stage || !imageNode || !originalImage || !containerRef) return;
 
 		// Update stage dimensions
@@ -84,7 +89,7 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 		imageNode.x((containerWidth - imageNode.width()) / 2);
 		imageNode.y((containerHeight - imageNode.height()) / 2);
 
-		layer?.batchDraw();
+		imageEditorStore.state.layer?.batchDraw();
 	}
 
 	function loadImageAndSetupKonva(imageSrc: string) {
@@ -120,16 +125,16 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 		const stageWidth = Math.max(1, containerWidth);
 		const stageHeight = Math.max(1, containerHeight);
 
-		stage = new Konva.Stage({
+		const stage = new Konva.Stage({
 			container: containerRef,
 			width: stageWidth,
 			height: stageHeight
 		});
 
-		layer = new Konva.Layer();
+		const layer = new Konva.Layer();
 		stage.add(layer);
 
-		imageNode = new Konva.Image({
+		const imageNode = new Konva.Image({
 			image: img,
 			x: (stageWidth - img.width * scale) / 2,
 			y: (stageHeight - img.height * scale) / 2,
@@ -140,6 +145,11 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 		layer.add(imageNode);
 		layer.draw();
 
+		// Update store with Konva objects
+		imageEditorStore.setStage(stage);
+		imageEditorStore.setLayer(layer);
+		imageEditorStore.setImageNode(imageNode);
+
 		saveState();
 	}
 
@@ -147,14 +157,15 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 		saveState();
 	}
 
-	function handleRotate(event: CustomEvent) {
-		const { angle } = event.detail;
+	function handleRotate(angle: number) {
+		const { imageNode, layer } = imageEditorStore.state;
 		imageNode?.rotation(angle);
 		layer?.batchDraw();
 	}
 
-	function handleCrop(event: CustomEvent) {
-		const { x, y, width, height, shape } = event.detail;
+	function handleCrop(data: { x: number; y: number; width: number; height: number; shape: string }) {
+		const { x, y, width, height, shape } = data;
+		const { imageNode, layer } = imageEditorStore.state;
 
 		// Apply the crop to the image
 		imageNode?.setAttrs({
@@ -171,65 +182,54 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 		});
 
 		layer?.batchDraw();
-		activeState = '';
+		imageEditorStore.setActiveState('');
 		applyEdit();
 	}
 
 	// Handle watermark applied event
 	function handleWatermarkApplied() {
-		activeState = '';
+		imageEditorStore.setActiveState('');
 		applyEdit();
 	}
 
 	// Handle text overlay applied event
 	function handleTextOverlayApplied() {
-		activeState = '';
+		imageEditorStore.setActiveState('');
 		applyEdit();
 	}
 
 	// Handle shape overlay applied event
 	function handleShapeOverlayApplied() {
-		activeState = '';
+		imageEditorStore.setActiveState('');
 		applyEdit();
 	}
 
 	// Fix for undo/redo functionality
 	function saveState() {
+		const { stage } = imageEditorStore.state;
 		if (!stage) return;
 		const state = stage.toDataURL();
-
-		// If we're not at the end of history, truncate it
-		if (currentStateIndex < stateHistory.length - 1) {
-			stateHistory = stateHistory.slice(0, currentStateIndex + 1);
-		}
-
-		stateHistory.push(state);
-		currentStateIndex = stateHistory.length - 1;
-		updateUndoRedoState();
-	}
-
-	function updateUndoRedoState() {
-		canUndo = currentStateIndex > 0;
-		canRedo = currentStateIndex < stateHistory.length - 1;
+		imageEditorStore.saveStateHistory(state);
 	}
 
 	function handleUndo() {
-		if (!canUndo) return;
-		currentStateIndex--;
-		loadState(stateHistory[currentStateIndex]);
-		updateUndoRedoState();
+		const stateData = imageEditorStore.undoState();
+		if (stateData) {
+			loadState(stateData);
+		}
 	}
 
 	function handleRedo() {
-		if (!canRedo) return;
-		currentStateIndex++;
-		loadState(stateHistory[currentStateIndex]);
-		updateUndoRedoState();
+		const stateData = imageEditorStore.redoState();
+		if (stateData) {
+			loadState(stateData);
+		}
 	}
 
 	function loadState(state: string) {
 		const img = new window.Image();
 		img.onload = () => {
+			const { imageNode, layer } = imageEditorStore.state;
 			if (imageNode) {
 				imageNode.image(img);
 				layer?.draw();
@@ -241,20 +241,21 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 	function handleImageUpload(event: Event) {
 		const target = event.target as HTMLInputElement;
 		if (target.files && target.files.length > 0) {
-			imageFile = target.files[0];
+			const imageFile = target.files[0];
+			imageEditorStore.setFile(imageFile);
 			selectedImage = URL.createObjectURL(imageFile);
 			loadImageAndSetupKonva(selectedImage);
 		}
 	}
 
 	async function handleSave() {
-		if (stage && imageFile) {
+		const { stage, file } = imageEditorStore.state;
+		if (stage && file) {
 			const dataURL = stage.toDataURL();
 			const response = await fetch(dataURL);
-			const blob = await response.blob();
-			updatedImageFile = new File([blob], imageFile.name, { type: 'image/png' });
+			await response.blob();
 
-			// You can now use updatedImageFile for other operations, such as uploading
+			// Image saved successfully
 			saveEditedImage.set(true);
 
 			// Show saved notification
@@ -269,7 +270,9 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 	}
 
 	function toggleTool(tool: string) {
-		activeState = activeState === tool ? '' : tool;
+		const currentState = imageEditorStore.state.activeState;
+		const newState = currentState === tool ? '' : tool;
+		imageEditorStore.setActiveState(newState);
 		// UI updates handled by component state
 	}
 </script>
@@ -285,14 +288,24 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 
 <div class="mb-2 flex items-center justify-between gap-2">
 	<input class="input my-2 h-10" type="file" accept="image/*" onchange={handleImageUpload} aria-label="Upload image file" />
-	{#if imageFile}
-		<button onclick={handleUndo} disabled={!canUndo} aria-label="Undo" class="variant-outline-tertiary btn-icon dark:variant-outline-secondary">
+	{#if storeState.file}
+		<button
+			onclick={handleUndo}
+			disabled={!imageEditorStore.canUndoState}
+			aria-label="Undo"
+			class="variant-outline-tertiary btn-icon dark:variant-outline-secondary"
+		>
 			<iconify-icon icon="mdi:undo" width="24" class="text-tertiary-600"></iconify-icon>
 		</button>
-		<button onclick={handleRedo} disabled={!canRedo} aria-label="Redo" class="variant-outline-tertiary btn-icon dark:variant-outline-secondary">
+		<button
+			onclick={handleRedo}
+			disabled={!imageEditorStore.canRedoState}
+			aria-label="Redo"
+			class="variant-outline-tertiary btn-icon dark:variant-outline-secondary"
+		>
 			<iconify-icon icon="mdi:redo" width="24" class="text-tertiary-600"></iconify-icon>
 		</button>
-		<button type="button" onclick={handleSave} aria-label="Save" class="variant-filled-tertiary btn-icon btn-icon dark:variant-filled-primary">
+		<button type="button" onclick={handleSave} aria-label="Save" class="variant-filled-tertiary btn-icon dark:variant-filled-primary">
 			<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
 		</button>
 	{/if}
@@ -300,73 +313,72 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 
 <!-- Image Editor Container -->
 <div class="flex h-[calc(100vh-315px)] flex-col items-center justify-center overflow-hidden border-2 border-tertiary-500" bind:this={containerRef}>
-	{#if !imageFile}
+	{#if !storeState.file}
 		<p class=" text-center text-tertiary-500 dark:text-primary-500">Please upload an image to start editing.</p>
 	{/if}
 </div>
 
+<!-- svelte-ignore a11y_missing_attribute -->
 <div class="relative">
-	{#if stage && layer && imageNode && imageFile}
+	{#if stage && layer && imageNode && storeState.file}
 		<!-- Conditionally display the tool components based on the active state -->
-		{#if activeState === 'rotate'}
+		{#if storeState.activeState === 'rotate'}
 			<Rotate
-				{stage}
-				{layer}
-				{imageNode}
-				on:rotate={handleRotate}
-				on:rotateApplied={() => {
-					activeState = '';
+				stage={stage}
+				layer={layer}
+				imageNode={imageNode}
+				onRotate={handleRotate}
+				onRotateApplied={() => {
+					imageEditorStore.setActiveState('');
 					applyEdit();
 				}}
-				on:rotateCancelled={() => {
-					activeState = '';
+				onRotateCancelled={() => {
+					imageEditorStore.setActiveState('');
 				}}
 			/>
-		{:else if activeState === 'blur'}
+		{:else if storeState.activeState === 'blur'}
 			<Blur
-				{stage}
-				{layer}
-				{imageNode}
-				on:blurApplied={() => {
-					activeState = '';
-					blurActive = false;
+				stage={stage}
+				layer={layer}
+				imageNode={imageNode}
+				onBlurApplied={() => {
+					imageEditorStore.setActiveState('');
 					applyEdit();
 				}}
-				on:blurReset={() => {
-					activeState = '';
-					blurActive = false;
+				onBlurReset={() => {
+					imageEditorStore.setActiveState('');
 				}}
 			/>
-		{:else if activeState === 'crop'}
+		{:else if storeState.activeState === 'crop'}
 			<Crop
-				{stage}
-				{layer}
-				{imageNode}
-				on:crop={handleCrop}
-				on:cancelCrop={() => {
-					activeState = '';
+				stage={stage}
+				layer={layer}
+				imageNode={imageNode}
+				onCrop={handleCrop}
+				onCancelCrop={() => {
+					imageEditorStore.setActiveState('');
 				}}
 			/>
-		{:else if activeState === 'zoom'}
+		{:else if storeState.activeState === 'zoom'}
 			<Zoom
-				{stage}
-				{layer}
-				{imageNode}
+				stage={stage}
+				layer={layer}
+				imageNode={imageNode}
 				onZoomApplied={() => {
-					activeState = '';
+					imageEditorStore.setActiveState('');
 					applyEdit();
 				}}
 				onZoomCancelled={() => {
-					activeState = '';
+					imageEditorStore.setActiveState('');
 				}}
 			/>
-		{:else if activeState === 'focalpoint'}
+		{:else if storeState.activeState === 'focalpoint'}
 			<FocalPoint
-				{stage}
-				{layer}
-				{imageNode}
-				on:focalpoint={(e) => {
-					const { x, y } = e.detail;
+				stage={stage}
+				layer={layer}
+				imageNode={imageNode}
+				onFocalpoint={(data: { x: number; y: number }) => {
+					const { x, y } = data;
 					const centerX = (stage?.width() ?? 0) / 2;
 					const centerY = (stage?.height() ?? 0) / 2;
 					imageNode?.position({
@@ -375,35 +387,35 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 					});
 					layer?.batchDraw();
 				}}
-				on:focalpointApplied={() => {
-					activeState = '';
+				onFocalpointApplied={() => {
+					imageEditorStore.setActiveState('');
 					applyEdit();
 				}}
-				on:focalpointRemoved={() => {
-					activeState = '';
+				onFocalpointRemoved={() => {
+					imageEditorStore.setActiveState('');
 					applyEdit();
 				}}
 			/>
-		{:else if activeState === 'watermark'}
+		{:else if storeState.activeState === 'watermark'}
 			<Watermark {stage} {layer} {imageNode} onExitWatermark={handleWatermarkApplied} />
-		{:else if activeState === 'filter'}
+		{:else if storeState.activeState === 'filter'}
 			<Filter
 				{stage}
 				{layer}
 				{imageNode}
-				on:filterApplied={() => {
-					activeState = '';
+				onFilterApplied={() => {
+					imageEditorStore.setActiveState('');
 					applyEdit();
 				}}
 			/>
-		{:else if activeState === 'textoverlay'}
-			<TextOverlay {stage} {layer} {imageNode} on:textOverlayApplied={handleTextOverlayApplied} />
-		{:else if activeState === 'shapeoverlay'}
-			<ShapeOverlay {stage} {layer} on:shapeOverlayApplied={handleShapeOverlayApplied} />
+		{:else if storeState.activeState === 'textoverlay'}
+			<TextOverlay {stage} {layer} {imageNode} onExitTextOverlay={handleTextOverlayApplied} />
+		{:else if storeState.activeState === 'shapeoverlay'}
+			<ShapeOverlay {stage} {layer} onExitShapeOverlay={handleShapeOverlayApplied} />
 		{/if}
 
 		<!-- Tool Controls -->
-		{#if activeState === ''}
+		{#if storeState.activeState === ''}
 			<div class="relative mt-3 flex flex-wrap items-center justify-center gap-2">
 				<button onclick={() => toggleTool('rotate')} aria-label="Rotate" class="mx-2">
 					<iconify-icon icon="mdi:rotate-right" width="24" class="text-tertiary-600"></iconify-icon>

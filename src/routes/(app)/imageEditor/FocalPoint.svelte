@@ -11,21 +11,17 @@
 
 <script lang="ts">
 	import Konva from 'konva';
-	import { createEventDispatcher } from 'svelte';
 
 	interface Props {
 		stage: Konva.Stage;
 		layer: Konva.Layer;
 		imageNode: Konva.Image;
+		onFocalpoint?: (data: { x: number; y: number }) => void;
+		onFocalpointApplied?: () => void;
+		onFocalpointRemoved?: () => void;
 	}
 
-	const dispatch = createEventDispatcher<{
-		focalpoint: { x: number; y: number };
-		focalpointApplied: void;
-		focalpointRemoved: void;
-	}>();
-
-	let { stage, layer, imageNode }: Props = $props();
+	const { stage, layer, imageNode, onFocalpoint = () => {}, onFocalpointApplied = () => {}, onFocalpointRemoved = () => {} } = $props() as Props;
 
 	let focalPoint: Konva.Group | null = $state(null);
 	let focalPointActive = $state(false);
@@ -139,7 +135,7 @@
 		relativeX = Number(relativeX.toFixed(2));
 		relativeY = Number(relativeY.toFixed(2));
 
-		dispatch('focalpoint', { x: relativeX, y: relativeY });
+		onFocalpoint({ x: relativeX, y: relativeY });
 		layer.draw();
 	}
 
@@ -150,7 +146,7 @@
 	}
 
 	function exitFocalPoint() {
-		dispatch('focalpointApplied');
+		onFocalpointApplied();
 	}
 
 	function removeFocalPoint() {
@@ -161,7 +157,7 @@
 			focalPointActive = false;
 			relativeX = 0;
 			relativeY = 0;
-			dispatch('focalpointRemoved');
+			onFocalpointRemoved();
 		}
 		layer.draw();
 	}

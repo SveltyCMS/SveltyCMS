@@ -24,7 +24,7 @@ import { dev } from '$app/environment';
 
 // Auth
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
-import { hasPermission } from '@src/auth/permissions';
+import { hasPermissionWithRoles } from '@src/auth/permissions';
 import { auth } from '@src/databases/db';
 
 // System Logger
@@ -51,7 +51,7 @@ interface ApiError extends Error {
 export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 	try {
 		// Check if the user has permission to create tokens
-		const hasUserPermission = hasPermission(locals.user, 'user.create');
+		const hasUserPermission = hasPermissionWithRoles(locals.user, 'user.create', roles);
 
 		if (!hasUserPermission) {
 			throw error(403, 'Unauthorized to create registration tokens');
@@ -77,9 +77,9 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 		if (existingTokens && existingTokens.length > 0) {
 			logger.warn('Token already exists for email:', validatedData.email);
 			return json(
-				{ 
-					success: false, 
-					message: 'A registration token already exists for this email. Please delete the existing token first or use a different email address.' 
+				{
+					success: false,
+					message: 'A registration token already exists for this email. Please delete the existing token first or use a different email address.'
 				},
 				{ status: 400 }
 			);
@@ -106,9 +106,9 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 
 		if (isNaN(expiresInHours)) {
 			return json(
-				{ 
-					success: false, 
-					message: 'Invalid expiration time. Please provide a valid time format.' 
+				{
+					success: false,
+					message: 'Invalid expiration time. Please provide a valid time format.'
 				},
 				{ status: 400 }
 			);
@@ -124,9 +124,9 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 		if (!role) {
 			logger.error('Invalid role:', validatedData.role);
 			return json(
-				{ 
-					success: false, 
-					message: 'Invalid role selected. Please choose a valid role.' 
+				{
+					success: false,
+					message: 'Invalid role selected. Please choose a valid role.'
 				},
 				{ status: 400 }
 			);
@@ -137,9 +137,9 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 		if (existingUser) {
 			logger.error('User already exists:', validatedData.email);
 			return json(
-				{ 
-					success: false, 
-					message: 'A user with this email address already exists. Please use a different email address.' 
+				{
+					success: false,
+					message: 'A user with this email address already exists. Please use a different email address.'
 				},
 				{ status: 400 }
 			);

@@ -16,7 +16,8 @@ import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Auth
-import { hasPermission } from '@src/auth/permissions';
+import { hasPermissionWithRoles } from '@src/auth/permissions';
+import { roles } from '@root/config/roles';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -34,7 +35,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		logger.debug(`User authenticated successfully for user: ${user._id}`);
 
 		// Check user permission for collection builder
-		const hasCollectionBuilderPermission = hasPermission(user, 'config:collectionbuilder');
+		const hasCollectionBuilderPermission = hasPermissionWithRoles(user, 'config:collectionbuilder', roles);
 
 		if (!hasCollectionBuilderPermission) {
 			const message = `User ${user._id} does not have permission to access collection builder`;

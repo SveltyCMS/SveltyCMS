@@ -86,7 +86,7 @@ export async function registerCollections() {
 		}
 		return true;
 	});
-	logger.debug(`Collections fetched: ${collections.map((c) => c.name).join(', ')}`);
+	// logger.debug(`Collections fetched: ${collections.map((c) => c.name).join(', ')}`);
 
 	// Track all type names to detect duplicates
 	const typeIDs = new Set<string>();
@@ -122,7 +122,7 @@ export async function registerCollections() {
 				continue;
 			}
 
-			logger.debug(`Widget schema for ${field.widget.Name}:`, schema);
+			// logger.debug(`Widget schema for ${field.widget.Name}:`, schema);
 
 			if (schema.resolver) {
 				deepmerge(resolvers, { [collection._id]: schema.resolver });
@@ -177,7 +177,7 @@ export async function registerCollections() {
     `;
 
 	const finalTypeDefs = paginationArgs + Array.from(typeDefsSet).join('\n') + collectionSchemas.join('\n');
-	logger.debug('Final GraphQL TypeDefs:', finalTypeDefs);
+	//logger.debug('Final GraphQL TypeDefs:', finalTypeDefs);
 
 	return {
 		typeDefs: finalTypeDefs,
@@ -205,7 +205,7 @@ export async function collectionsResolvers(cacheClient: CacheClient | null, priv
 
 			const { page = 1, limit = 50 } = args.pagination || {};
 			const skip = (page - 1) * limit;
-			logger.debug(`Querying ${collection._id} with page: ${page}, limit: ${limit}, skip: ${skip}`);
+			//logger.debug(`Querying ${collection._id} with page: ${page}, limit: ${limit}, skip: ${skip}`);
 
 			try {
 				const cacheKey = `${collection._id}:${page}:${limit}`;
@@ -222,7 +222,7 @@ export async function collectionsResolvers(cacheClient: CacheClient | null, priv
 				const query = { status: { $ne: 'unpublished' } };
 				const options = { sort: { createdAt: -1 }, skip, limit };
 				const dbResult = await dbAdapter.crud.findMany(collection._id, query, options);
-				logger.debug(`Database result for ${collection._id}:`, dbResult);
+				//logger.debug(`Database result for ${collection._id}:`, dbResult);
 
 				// Process dates
 				dbResult.forEach((doc: DocumentBase) => {

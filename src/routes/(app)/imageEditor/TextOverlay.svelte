@@ -19,10 +19,10 @@ The text is draggable, and the component supports multiple text overlays on the 
 		stage: Konva.Stage;
 		layer: Konva.Layer;
 		imageNode: Konva.Image;
-		'on:exitTextOverlay'?: () => void;
+		onExitTextOverlay?: () => void;
 	}
 
-	let { stage, layer, imageNode, 'on:exitTextOverlay': onExitTextOverlay = () => {} }: Props = $props();
+	const { stage, layer, imageNode, onExitTextOverlay = () => {} } = $props() as Props;
 
 	let text = $state('');
 	let fontSize = $state(24);

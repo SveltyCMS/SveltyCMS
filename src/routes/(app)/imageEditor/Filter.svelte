@@ -5,21 +5,15 @@
 -->
 <script lang="ts">
 	import Konva from 'konva';
-	import { createEventDispatcher } from 'svelte';
-
-	const dispatch = createEventDispatcher<{
-		filter: { filterType: string; value: number | boolean };
-		resetFilters: void;
-		exitFilters: void;
-		filterApplied: void;
-	}>();
 
 	interface Props {
+		stage: Konva.Stage;
 		layer: Konva.Layer;
 		imageNode: Konva.Image;
+		onFilterApplied?: () => void;
 	}
 
-	let { layer, imageNode }: Props = $props() as Props;
+	const { stage, layer, imageNode, onFilterApplied = () => {} } = $props() as Props;
 
 	$effect.root(() => {
 		return () => {
@@ -129,8 +123,7 @@
 	}
 
 	function exitFilters() {
-		dispatch('exitFilters');
-		dispatch('filterApplied');
+		onFilterApplied();
 	}
 </script>
 

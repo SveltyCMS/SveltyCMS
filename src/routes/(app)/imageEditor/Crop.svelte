@@ -15,14 +15,15 @@
 	import Konva from 'konva';
 
 	interface Props {
+		stage: Konva.Stage;
 		layer: Konva.Layer;
 		imageNode: Konva.Image;
-		onCropApplied?: () => void;
+		onCrop?: (data: { x: number; y: number; width: number; height: number; shape: string }) => void;
 		onCancelCrop?: () => void;
 		onCropReset?: () => void;
 	}
 
-	const { layer, imageNode, onCropApplied = () => {}, onCancelCrop = () => {}, onCropReset = () => {} } = $props() as Props;
+	const { stage, layer, imageNode, onCrop = () => {}, onCancelCrop = () => {}, onCropReset = () => {} } = $props() as Props;
 
 	let cropShape = $state<'rectangle' | 'square' | 'circular'>('rectangle');
 	let cropTool = $state<Konva.Rect | Konva.Circle | null>(null);
@@ -115,64 +116,17 @@
 	}
 
 	function applyCrop() {
-		if (!cropTool || !cropOverlay || !transformer) return;
+		if (!cropTool) return;
 
-		const cropCanvas = document.createElement('canvas');
-		const cropContext = cropCanvas.getContext('2d');
-
-		if (!cropContext) return;
-
-		// Get the crop area's dimensions
-		let cropX, cropY, cropWidth, cropHeight;
-
-		if (cropTool instanceof Konva.Circle) {
-			cropX = cropTool.x() - cropTool.radius();
-			cropY = cropTool.y() - cropTool.radius();
-			cropWidth = cropTool.radius() * 2;
-			cropHeight = cropTool.radius() * 2;
-
-			cropCanvas.width = cropWidth;
-			cropCanvas.height = cropHeight;
-
-			cropContext.arc(cropTool.radius(), cropTool.radius(), cropTool.radius(), 0, Math.PI * 2, false);
-			cropContext.clip();
-		} else {
-			cropX = cropTool.x();
-			cropY = cropTool.y();
-			cropWidth = cropTool.width() * cropTool.scaleX();
-			cropHeight = cropTool.height() * cropTool.scaleY();
-
-			cropCanvas.width = cropWidth;
-			cropCanvas.height = cropHeight;
-		}
-
-		// Draw the cropped area of the image onto the canvas
-		const image = imageNode.image();
-		if (image) {
-			cropContext.drawImage(image, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
-		} else {
-			console.error('Image is not loaded yet');
-		}
-
-		// Update the Konva imageNode with the cropped image
-		const croppedImage = new Image();
-		croppedImage.src = cropCanvas.toDataURL();
-
-		croppedImage.onload = () => {
-			imageNode.image(croppedImage);
-			imageNode.width(cropWidth);
-			imageNode.height(cropHeight);
-			imageNode.x(0);
-			imageNode.y(0);
-
-			// Remove crop tool and overlay
-			cropTool?.destroy();
-			cropOverlay?.destroy();
-			transformer?.destroy();
-			layer.batchDraw();
-
-			onCropApplied();
+		const cropData = {
+			x: cropTool.x(),
+			y: cropTool.y(),
+			width: cropTool.width ? cropTool.width() : (cropTool as Konva.Circle).radius() * 2,
+			height: cropTool.height ? cropTool.height() : (cropTool as Konva.Circle).radius() * 2,
+			shape: cropShape
 		};
+
+		onCrop(cropData);
 	}
 
 	function exitCrop() {

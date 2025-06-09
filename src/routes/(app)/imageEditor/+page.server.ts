@@ -13,7 +13,7 @@
 
 import type { PageServerLoad } from './$types';
 
-// System Logs
+// System Logges
 import { logger } from '@utils/logger.svelte';
 
 export const load: PageServerLoad = async ({ locals }) => {

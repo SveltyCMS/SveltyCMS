@@ -16,7 +16,8 @@ import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Auth
-import { hasPermission } from '@src/auth/permissions';
+import { hasPermissionWithRoles } from '@src/auth/permissions';
+import { roles } from '@root/config/roles';
 
 // System Logs
 import { logger } from '@utils/logger.svelte';
@@ -35,7 +36,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		logger.debug(`User authenticated successfully for user: ${user._id}`);
 
 		// Check user permission for system settings
-		const hasSystemSettingsPermission = hasPermission(user, 'config:settings');
+		const hasSystemSettingsPermission = hasPermissionWithRoles(user, 'config:settings', roles);
 		if (!hasSystemSettingsPermission) {
 			const message = `User ${user._id} does not have permission to access system settings`;
 			logger.warn(message);

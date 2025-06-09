@@ -260,6 +260,26 @@ export function getFieldName(field: Field, rawName = false): string {
 		.replace(/[^a-z0-9_]/g, '');
 }
 
+// Sanitizes field names for use in GraphQL type names
+// GraphQL type names must be valid identifiers: [A-Za-z_][A-Za-z0-9_]*
+export function sanitizeGraphQLTypeName(name: string): string {
+	if (!name) return '';
+
+	// 1. Replace spaces with underscores
+	// 2. Remove special characters except underscores
+	// 3. Ensure it starts with a letter or underscore
+	let sanitized = name
+		.replace(/\s+/g, '_')
+		.replace(/[^A-Za-z0-9_]/g, '');
+
+	// Ensure the name starts with a letter or underscore (GraphQL requirement)
+	if (sanitized && !/^[A-Za-z_]/.test(sanitized)) {
+		sanitized = `_${sanitized}`;
+	}
+
+	return sanitized || '_invalid_name';
+}
+
 // Extract data from fields
 export async function extractData(fieldsData: Record<string, Field>): Promise<Record<string, unknown>> {
 	const result: Record<string, unknown> = {};

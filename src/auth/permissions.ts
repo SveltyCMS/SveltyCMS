@@ -155,3 +155,37 @@ export function getPermissionConfig(configKey: string): PermissionConfig | null 
 		description: permission.description
 	};
 }
+
+// Validate user permission from locals.permissions array
+export function validateUserPermission(userPermissions: string[] | undefined, requiredPermission: string): boolean {
+	if (!userPermissions) {
+		logger.warn(`No user permissions provided for validation of: ${requiredPermission}`);
+		return false;
+	}
+
+	const hasPermission = userPermissions.includes(requiredPermission);
+	logger.debug(`Permission ${requiredPermission} ${hasPermission ? 'granted' : 'denied'}`);
+	return hasPermission;
+}
+
+// Legacy config map for compatibility
+export const permissionConfigs: Record<string, { contextId: string; action: string; type: string; name: string; description: string }> = {
+	collectionManagement: { contextId: 'config:collectionManagement', action: 'read', type: 'config', name: 'Collection Management', description: 'Access to collection management' },
+	collectionbuilder: { contextId: 'config:collectionbuilder', action: 'read', type: 'config', name: 'Collection Builder', description: 'Access to collection builder' },
+	graphql: { contextId: 'config:graphql', action: 'read', type: 'config', name: 'GraphQL', description: 'Access to GraphQL interface' },
+	imageeditor: { contextId: 'config:imageeditor', action: 'read', type: 'config', name: 'Image Editor', description: 'Access to image editor' },
+	dashboard: { contextId: 'config:dashboard', action: 'read', type: 'config', name: 'Dashboard', description: 'Access to dashboard' },
+	widgetManagement: { contextId: 'config:widgetManagement', action: 'read', type: 'config', name: 'Widget Management', description: 'Access to widget management' },
+	themeManagement: { contextId: 'config:themeManagement', action: 'read', type: 'config', name: 'Theme Management', description: 'Access to theme management' },
+	settings: { contextId: 'config:settings', action: 'read', type: 'config', name: 'Settings', description: 'Access to settings' },
+	accessManagement: { contextId: 'config:accessManagement', action: 'read', type: 'config', name: 'Access Management', description: 'Access to user management' },
+	adminAccess: { contextId: 'admin:access', action: 'read', type: 'admin', name: 'Admin Access', description: 'Administrative access' },
+	emailPreviews: { contextId: 'config:emailPreviews', action: 'read', type: 'config', name: 'Email Previews', description: 'Access to email previews' },
+	adminAreaPermissionConfig: { contextId: 'config:adminArea', action: 'read', type: 'config', name: 'Admin Area', description: 'Access to admin area' },
+	exportData: { contextId: 'api:exportData', action: 'export', type: 'api', name: 'Export Data', description: 'Export system data' },
+	apiUser: { contextId: 'api:user', action: 'read', type: 'api', name: 'User API', description: 'Access to user API' },
+	userCreateToken: { contextId: 'user.create', action: 'create', type: 'user', name: 'Create User Token', description: 'Create user registration tokens' }
+};
+
+// Export permissions array for compatibility
+export const permissions = getAllPermissions();

@@ -10,20 +10,16 @@
 
 <script lang="ts">
 	import Konva from 'konva';
-	import { createEventDispatcher } from 'svelte';
-
-	const dispatch = createEventDispatcher<{
-		blurReset: void;
-		blurApplied: void;
-	}>();
 
 	interface Props {
 		stage: Konva.Stage;
 		layer: Konva.Layer;
 		imageNode: Konva.Image;
+		onBlurReset?: () => void;
+		onBlurApplied?: () => void;
 	}
 
-	let { stage, layer, imageNode }: Props = $props();
+	const { stage, layer, imageNode, onBlurReset = () => {}, onBlurApplied = () => {} } = $props() as Props;
 
 	let mosaicStrength = $state(10);
 	let blurRegion: Konva.Rect;
@@ -41,9 +37,21 @@
 
 		// Cleanup function
 		return () => {
-			stage.off('mousedown touchstart');
-			stage.off('mousemove touchmove');
-			stage.off('mouseup touchend');
+			stage.off('mousedown touchstart', handleMouseDown);
+			stage.off('mousemove touchmove', handleMouseMove);
+			stage.off('mouseup touchend', handleMouseUp);
+			stage.container().style.cursor = 'default';
+			
+			// Clean up blur elements when component is destroyed
+			if (blurRegion) {
+				blurRegion.destroy();
+			}
+			if (transformer) {
+				transformer.destroy();
+			}
+			if (mosaicOverlay) {
+				mosaicOverlay.destroy();
+			}
 		};
 	});
 
@@ -200,7 +208,18 @@
 	}
 
 	function exitBlur() {
-		dispatch('blurReset');
+		// Clean up any existing blur elements before exiting
+		if (blurRegion) {
+			blurRegion.destroy();
+		}
+		if (transformer) {
+			transformer.destroy();
+		}
+		if (mosaicOverlay) {
+			mosaicOverlay.destroy();
+		}
+		layer.batchDraw();
+		onBlurReset();
 	}
 
 	function resetMosaic() {
@@ -214,12 +233,12 @@
 			mosaicOverlay.destroy();
 		}
 		layer.batchDraw();
-		dispatch('blurReset');
+		onBlurReset();
 	}
 
 	function applyFinalMosaic() {
 		applyMosaic();
-		dispatch('blurApplied');
+		onBlurApplied();
 	}
 </script>
 

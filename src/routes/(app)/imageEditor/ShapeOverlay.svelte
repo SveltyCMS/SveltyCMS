@@ -16,10 +16,10 @@ Users can adjust the fill color, stroke color, stroke width, opacity, and manage
 	interface Props {
 		stage: Konva.Stage;
 		layer: Konva.Layer;
-		'on:exitShapeOverlay'?: () => void;
+		onExitShapeOverlay?: () => void;
 	}
 
-	let { stage, layer, 'on:exitShapeOverlay': onExitShapeOverlay = () => {} }: Props = $props();
+	const { stage, layer, onExitShapeOverlay = () => {} } = $props() as Props;
 
 	let shapeType = $state('rectangle');
 	let fillColor: string = $state('#ffffff');
