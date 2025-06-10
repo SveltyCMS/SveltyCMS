@@ -11,6 +11,7 @@
   - selectedId: (Optional) The ID of the currently selected node.
   - ariaLabel: (Optional) The ARIA label for the tree element (default: "Navigation tree").
   - dir: (Optional) The text direction ('ltr' or 'rtl', default: 'ltr').
+  - showBadges: (Optional) A boolean to control the visibility of badges.
  -->
 
 <script lang="ts" module>
@@ -50,7 +51,8 @@
 		dir = 'ltr', // Default text direction
 		search = '', // Search term for filtering nodes
 		compact = false, // Flag for compact view
-		iconColorClass = 'text-error-500' // Default icon color class
+		iconColorClass = 'text-error-500', // Default icon color class
+		showBadges = false // Default to false so it's optional
 	} = $props<{
 		k: number;
 		nodes: TreeNode[];
@@ -60,6 +62,7 @@
 		search?: string;
 		compact?: boolean;
 		iconColorClass?: string;
+		showBadges?: boolean;
 	}>();
 
 	// Reactive state for nodes
@@ -168,8 +171,7 @@
 
 	// Function to focus on the first node
 	function focusFirstNode() {
-		const allNodes = Array.from(nodeMap.keys());
-		focusedNodeId = allNodes[0];
+		focusedNodeId = Array.from(nodeMap.keys())[0];
 	}
 
 	// Function to focus on the last node
@@ -202,11 +204,11 @@
 				type="button"
 				id={`node-${node.id}`}
 				class="relative flex w-full items-center gap-1.5 rounded
-					border border-surface-400 px-2 py-3 transition-all duration-200
-					hover:bg-surface-50 focus:bg-surface-50 focus-visible:outline-none
-					dark:border dark:border-transparent dark:bg-surface-500
-					dark:text-surface-200 dark:hover:bg-surface-400 dark:focus:bg-surface-500
-					{node.children ? '' : 'bg-surface-300 dark:bg-surface-700'}"
+                       border border-surface-400 px-2 py-3 transition-all duration-200
+                       hover:bg-surface-50 focus:bg-surface-50 focus-visible:outline-none
+                       dark:border dark:border-transparent dark:bg-surface-500
+                       dark:text-surface-200 dark:hover:bg-surface-400 dark:focus:bg-surface-500
+                       {node.children ? '' : 'bg-surface-300 dark:bg-surface-700'}"
 				role="treeitem"
 				aria-expanded={node.children ? node.isExpanded : undefined}
 				aria-selected={selectedId === node.id}
@@ -220,7 +222,7 @@
 					<div
 						aria-label={node.isExpanded ? 'Collapse' : 'Expand'}
 						class={`h-4 w-4 transform transition-transform duration-200
-							${node.isExpanded ? '' : dir === 'rtl' ? 'rotate-180' : 'rotate-90'}`}
+                           ${node.isExpanded ? '' : dir === 'rtl' ? 'rotate-180' : 'rotate-90'}`}
 					>
 						<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class={dir === 'rtl' ? 'scale-x-[-1]' : ''} aria-hidden="true">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -228,11 +230,11 @@
 					</div>
 
 					<!-- Badge overlay -->
-					{#if !node.isExpanded && node.badge?.count! > 0 && !compact}
+					{#if showBadges && !node.isExpanded && node.badge?.count && node.badge.count > 0}
 						<div
-							class={`badge right-1 top-0  ${!node.isExpanded ? 'absolute translate-y-1/2' : 'hidden transition-opacity'} rounded-full bg-tertiary-500/80 px-2 py-1 text-xs text-white dark:bg-primary-500/50`}
+							class={`badge absolute right-1  top-0 translate-y-1/2 rounded-full px-2 py-1 text-xs text-white ${node.badge.color || 'bg-tertiary-500/80'} dark:bg-primary-500/50`}
 						>
-							{node.badge?.count}
+							{node.badge.count}
 						</div>
 					{/if}
 				{:else}
@@ -261,13 +263,23 @@
 					<!-- Vertical line with RTL support -->
 					<div
 						class="absolute -left-0.5 top-0 h-full w-0.5 bg-gradient-to-b
-						from-surface-100 from-20% to-transparent dark:from-surface-400"
+                           from-surface-100 from-20% to-transparent dark:from-surface-400"
 					></div>
 
 					<!-- Children nodes -->
 					{#if node.isExpanded}
 						<div transition:fly|local={{ y: -10, duration: 200 }}>
-							<TreeView {k} nodes={node.children} {selectedId} ariaLabel={`Children of ${node.name}`} {dir} {search} {compact} {iconColorClass} />
+							<TreeView
+								{k}
+								nodes={node.children}
+								{selectedId}
+								ariaLabel={`Children of ${node.name}`}
+								{dir}
+								{search}
+								{compact}
+								{iconColorClass}
+								{showBadges}
+							/>
 						</div>
 					{/if}
 				</div>

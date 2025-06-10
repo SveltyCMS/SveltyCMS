@@ -1,5 +1,5 @@
 <!--
-@file src/components/system/FloatingPaths.svelte
+@file src/components/system/FloatingNav.svelte
 @component
 **Optimized Animated SVG Background Pattern Component**
 
@@ -8,7 +8,7 @@ with varying widths, opacities, and colors. Optimized for performance with
 reduced DOM complexity and efficient animations.
 
 @example
-<FloatingPaths />
+<FloatingNav />
 
 @features
 - Automatic contrasting colors based on background

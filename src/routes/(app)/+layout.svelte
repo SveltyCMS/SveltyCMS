@@ -258,11 +258,6 @@
 						<Toast />
 						<Modal />
 
-						<!-- Floating Nav -->
-						{#if $screenSize !== ScreenSize.LG && $screenSize !== ScreenSize.XL && $screenSize !== ScreenSize.XXL}
-							<FloatingNav />
-						{/if}
-
 						<!-- Show globalSearchIndex  -->
 						{#if $isSearchVisible}
 							<SearchComponent />
