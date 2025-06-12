@@ -25,6 +25,8 @@
 
 	// valibot validation
 	import * as v from 'valibot';
+	import { pipe, string, regex, transform, object, optional, boolean, number } from 'valibot';
+	import { parse } from 'valibot';
 
 	interface DateTimeField extends FieldType {
 		value?: any;
@@ -35,11 +37,11 @@
 		value?: any;
 	}
 
-	let { field }: Props = $props();
+	let { field, value = {} }: Props = $props();
 	const fieldName = getFieldName(field);
-	let value = collectionValue.value[fieldName] || (field as DateTimeField)?.value || {};
+	value = collectionValue.value[fieldName] || value;
 
-	const _data = $state(mode.value === 'create' ? {} : value);
+	const _data = $state<Record<string, string>>(mode.value === 'create' ? {} : value);
 	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
 	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
@@ -47,25 +49,35 @@
 	export const WidgetData = async () => _data;
 
 	// Define the validation schema for this widget
-	const widgetSchema = v.object({
-		value: v.pipe(v.string(), v.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Invalid date-time format, must be YYYY-MM-DDTHH:MM')),
-		db_fieldName: v.string(),
-		icon: v.optional(v.string()),
-		color: v.optional(v.string()),
-		size: v.optional(v.string()),
-		width: v.optional(v.number()),
-		required: v.optional(v.boolean())
+	const valueSchema = pipe(
+		string(),
+		regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Invalid datetime format, must be YYYY-MM-DDThh:mm'),
+		transform((value: string) => {
+			const date = new Date(value);
+			return isNaN(date.getTime()) ? value : date.toISOString().slice(0, 16);
+		})
+	);
+
+	const widgetSchema = object({
+		value: optional(valueSchema),
+		db_fieldName: string(),
+		icon: optional(string()),
+		color: optional(string()),
+		size: optional(string()),
+		width: optional(number()),
+		required: optional(boolean())
 	});
 
 	// Generic validation function that uses the provided schema to validate the input
-	function validateSchema(schema: typeof widgetSchema, data: any): string | null {
+	function validateSchema(data: unknown): string | null {
 		try {
-			v.parse(schema, data);
+			parse(widgetSchema, data);
 			validationStore.clearError(fieldName);
 			return null; // No error
 		} catch (error) {
-			if (error instanceof v.ValiError) {
-				const errorMessage = error.issues[0]?.message || 'Invalid input';
+			if ((error as v.ValiError<typeof widgetSchema>).issues) {
+				const valiError = error as v.ValiError<typeof widgetSchema>;
+				const errorMessage = valiError.issues[0]?.message || 'Invalid input';
 				validationStore.setError(fieldName, errorMessage);
 				return errorMessage;
 			}
@@ -74,10 +86,16 @@
 	}
 
 	// Debounced validation function
-	function validateInput() {
+	function validateInput(event: Event) {
+		event.preventDefault();
 		if (debounceTimeout) clearTimeout(debounceTimeout);
 		debounceTimeout = window.setTimeout(() => {
-			validationError = validateSchema(widgetSchema, { value: _data[_language] });
+			const value = _data[_language];
+			validationError = validateSchema({
+				value: value || '',
+				db_fieldName: field.db_fieldName,
+				required: field.required
+			});
 		}, 300);
 	}
 </script>

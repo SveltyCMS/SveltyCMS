@@ -309,6 +309,29 @@ export default defineConfig(async () => {
       })
     ],
 
+    // Build configuration to support top-level await and modern JavaScript features
+    build: {
+      target: 'esnext', // Support latest JavaScript features including top-level await
+      minify: 'esbuild',
+      sourcemap: true,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // Split vendor chunks for better caching
+            vendor: ['svelte', '@sveltejs/kit']
+          }
+        }
+      }
+    },
+
+    // ESBuild configuration to ensure consistency
+    esbuild: {
+      target: 'esnext',
+      supported: {
+        'top-level-await': true
+      }
+    },
+
     server: {
       fs: { allow: ['static', '.'] } // Allow serving files from specific directories
     },

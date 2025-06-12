@@ -20,7 +20,8 @@
 
 	// Stores
 	import { validationStore } from '@stores/store.svelte';
-	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
+	import { mode, collectionValue } from '@stores/collectionStore.svelte';
+	import { contentLanguage } from '@stores/store.svelte';
 
 	interface Props {
 		field: FieldType;
@@ -35,39 +36,56 @@
 	const fieldName = getFieldName(field);
 
 	// States
-	let value = $state(collectionValue[fieldName] || '');
+	let value = $state(collectionValue.value[fieldName] || '');
 	let validationError = $state<string | null>(null);
 	let debounceTimeout = $state<number | undefined>(undefined);
 	let myData = $state<any>(null);
 
 	// Get the derived value
 	const _data = $derived(mode.value === 'create' ? {} : value);
+	const _language = $derived(contentLanguage);
 
 	// Export widget data function
 	export const WidgetData = async () => _data;
 
 	// Valibot
 	import * as v from 'valibot';
+	import { pipe, transform, object, optional, string, url, boolean, number } from 'valibot';
 
-	// Define the validation schema for the remote video URL input
-	const widgetSchema = v.object({
-		value: v.optional(v.pipe(v.string(), v.minLength(1, 'Video URL is required'), v.url('Invalid URL format'))),
-		db_fieldName: v.string(),
-		icon: v.optional(v.string()),
-		color: v.optional(v.string()),
-		width: v.optional(v.number()),
-		required: v.optional(v.boolean())
+	// Define the validation schema for this widget
+	const valueSchema = pipe(
+		string(),
+		transform((value: string) => {
+			if (!value) return '';
+			// Ensure the URL has a protocol
+			if (!value.startsWith('http://') && !value.startsWith('https://')) {
+				value = 'https://' + value;
+			}
+			return value;
+		}),
+		url('Invalid URL format')
+	);
+
+	const widgetSchema = object({
+		value: optional(valueSchema),
+		db_fieldName: string(),
+		icon: optional(string()),
+		color: optional(string()),
+		size: optional(string()),
+		width: optional(number()),
+		required: optional(boolean())
 	});
 
 	// Generic validation function that uses the provided schema to validate the input
-	function validateSchema(schema: typeof widgetSchema, data: any): string | null {
+	function validateSchema(data: unknown): string | null {
 		try {
-			v.parse(schema, data);
+			v.parse(widgetSchema, data);
 			validationStore.clearError(fieldName);
 			return null; // No error
 		} catch (error) {
-			if (error instanceof v.ValiError) {
-				const errorMessage = error.issues[0]?.message || 'Invalid input';
+			if ((error as v.ValiError<typeof widgetSchema>).issues) {
+				const valiError = error as v.ValiError<typeof widgetSchema>;
+				const errorMessage = valiError.issues[0]?.message || 'Invalid input';
 				validationStore.setError(fieldName, errorMessage);
 				return errorMessage;
 			}
@@ -75,11 +93,17 @@
 		}
 	}
 
-	// Validate the input using the generic validateSchema function with debounce
-	function validateInput() {
+	// Debounced validation function
+	function handleInput(event: Event) {
+		event.preventDefault();
 		if (debounceTimeout) clearTimeout(debounceTimeout);
 		debounceTimeout = window.setTimeout(() => {
-			validationError = validateSchema(widgetSchema, { value });
+			const value = _data[_language];
+			validationError = validateSchema({
+				value: value || '',
+				db_fieldName: field.db_fieldName,
+				required: field.required
+			});
 		}, 300);
 	}
 
@@ -105,19 +129,17 @@
 </script>
 
 <div class="input-container relative mb-4">
+	<!-- URL Input -->
 	<input
 		type="url"
-		bind:value
-		onchange={handleSubmit}
-		oninput={validateInput}
-		name={field.db_fieldName}
-		id={field.db_fieldName}
-		placeholder={field.placeholder || field.db_fieldName}
-		required={field.required}
+		bind:value={_data[_language]}
+		oninput={handleInput}
+		class="input w-full text-black dark:text-primary-500"
 		class:error={!!validationError}
 		aria-invalid={!!validationError}
-		aria-describedby={validationError ? `${fieldName}-error` : undefined}
-		class="input w-full text-black dark:text-primary-500"
+		aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
+		required={field?.required}
+		placeholder="https://example.com/video"
 	/>
 
 	<!-- Error Message -->

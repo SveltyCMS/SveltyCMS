@@ -47,7 +47,6 @@
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	// Stores
 	import { uiStateManager, toggleUIElement } from '@stores/UIStore.svelte';
 	import { screenSize } from '@stores/screenSizeStore.svelte';
 
@@ -72,53 +71,38 @@
 		showBackButton = false,
 		backUrl = '',
 		truncate = true,
-		onBackClick = undefined
+		onBackClick
 	}: Props = $props();
 
-	// Text measurement canvas
 	let canvas: HTMLCanvasElement;
-	let canvasReady = $state(false);
-
-	// Handle SSR and canvas initialization
-	$effect(() => {
-		if (typeof window !== 'undefined' && canvas) {
-			canvasReady = true;
-		}
-	});
 
 	function getTextWidth(text: string, fontSize: number): number {
-		if (!canvasReady) return 0;
+		if (!canvas) return 0;
 		const context = canvas.getContext('2d');
 		if (!context) return 0;
 		context.font = `${fontSize}px sans-serif`;
 		return context.measureText(text).width;
 	}
 
-	// Track window width for reactivity
 	let windowWidth = $state(typeof window !== 'undefined' ? window.innerWidth : 1024);
 
-	// Derived values for dynamic truncation
 	let calculatedTitle = $derived(() => {
 		if (!truncate) return name;
-
 		const containerWidth = windowWidth;
 		const hamburgerWidth = uiStateManager.uiState.value.leftSidebar === 'hidden' ? 50 : 0;
 		const backButtonWidth = showBackButton ? 60 : 0;
 		const iconWidth = icon ? parseInt(iconSize) + 8 : 0;
 		const padding = 32;
 		const availableWidth = containerWidth - (hamburgerWidth + backButtonWidth + iconWidth + padding);
-
 		const fontSize = 24;
 		const textWidth = getTextWidth(name, fontSize);
-
-		if (textWidth === 0) return name; // Fallback if canvas not ready
-
+		if (textWidth === 0) return name;
 		const maxChars = Math.floor((availableWidth / textWidth) * name.length);
 		return name.length > maxChars ? name.slice(0, maxChars - 3) + '...' : name;
 	});
 
 	let titleParts = $derived(() => {
-		const currentTitle = calculatedTitle(); // Get the value
+		const currentTitle = calculatedTitle();
 		if (highlight && currentTitle.toLowerCase().includes(highlight.toLowerCase())) {
 			const regex = new RegExp(`(${highlight})`, 'gi');
 			return currentTitle.split(regex);
@@ -126,56 +110,39 @@
 		return [currentTitle];
 	});
 
-	// Back button handler
 	function handleBackClick() {
 		const defaultBehavior = () => {
-			if (backUrl) {
-				goto(backUrl);
-			} else {
-				window.history.back();
-			}
+			if (backUrl) goto(backUrl);
+			else window.history.back();
 		};
-
-		if (onBackClick) {
-			onBackClick(defaultBehavior);
-		} else {
-			defaultBehavior();
-		}
+		onBackClick ? onBackClick(defaultBehavior) : defaultBehavior();
 	}
 
-	// Simple throttle function
-	function throttle<T extends (...args: any[]) => any>(func: T, limit: number): T {
-		let inThrottle: boolean;
-		let lastResult: ReturnType<T>;
-		return function (this: ThisParameterType<T>, ...args: Parameters<T>): ReturnType<T> {
-			if (!inThrottle) {
-				inThrottle = true;
-				setTimeout(() => (inThrottle = false), limit);
-				lastResult = func.apply(this, args);
+	// Improved throttle
+	function throttle<T extends (...args: any[]) => void>(func: T, limit: number): T {
+		let lastCall = 0;
+		return function (this: any, ...args: any[]) {
+			const now = Date.now();
+			if (now - lastCall >= limit) {
+				lastCall = now;
+				func.apply(this, args);
 			}
-			return lastResult;
 		} as T;
 	}
 
-	// Throttled resize handler using the simple throttle
 	$effect(() => {
 		if (typeof window === 'undefined') return;
-
 		const resizeHandler = throttle(() => {
 			windowWidth = window.innerWidth;
-		}, 100); // Throttle to 100ms
-
+		}, 100);
 		window.addEventListener('resize', resizeHandler);
 		return () => window.removeEventListener('resize', resizeHandler);
 	});
 </script>
 
-<!-- Hidden canvas for text measurement -->
 <canvas bind:this={canvas} width="2000" height="100" style="position: absolute; visibility: hidden;"></canvas>
 
-<!-- Main component layout -->
 <div class="my-1 flex w-full items-center justify-between">
-	<!-- Left Section: Hamburger and Page Title -->
 	<div class="flex items-center">
 		{#if uiStateManager.uiState.value.leftSidebar === 'hidden'}
 			<button
@@ -187,8 +154,6 @@
 				<iconify-icon icon="mingcute:menu-fill" width="24"></iconify-icon>
 			</button>
 		{/if}
-
-		<!-- Page Title with Dynamic Truncation -->
 		<h1
 			class="transition-max-width h1 relative ml-2 flex items-center gap-1 font-bold"
 			style="font-size: clamp(1.5rem, 3vw + 1rem, 2.25rem);"
@@ -199,24 +164,18 @@
 			{#if icon}
 				<iconify-icon {icon} width={iconSize} class={`mr-1 ${iconColor} sm:mr-2`} aria-hidden="true"></iconify-icon>
 			{/if}
-
-			<!-- Visible truncated title -->
-			<span class:truncate>
+			<span>
 				{#each titleParts() as part, i}
-					<span class={i % 2 === 1 ? 'text-tertiary-500 dark:text-primary-500' : ''} style={i % 2 === 1 ? 'font-weight: 600;' : ''}>
+					<span class={i % 2 === 1 ? 'font-semibold text-tertiary-500 dark:text-primary-500' : ''}>
 						{part}
 					</span>
 				{/each}
 			</span>
-
-			<!-- Full title for SEO/screen readers -->
 			<span class="sr-only absolute inset-0 overflow-hidden whitespace-normal">
 				{name}
 			</span>
 		</h1>
 	</div>
-
-	<!-- Right Section: Back Button -->
 	{#if showBackButton}
 		<button
 			onclick={handleBackClick}

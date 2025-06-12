@@ -570,9 +570,9 @@ Features:
 		const currentCollId = currentCollection?._id;
 
 		// Detect collection change
-		if (collectionTransitionId !== (currentCollId ?? null)) {
+		if (collectionTransitionId && collectionTransitionId !== currentCollId) {
 			// Start transition
-			collectionTransitionId = currentCollId ?? null;
+			collectionTransitionId = currentCollId || null;
 
 			// If we have a valid collection, prepare stable headers
 			if (currentCollId && displayTableHeaders.length > 0) {
@@ -699,7 +699,7 @@ Features:
 				type="button"
 				onkeydown={() => {}}
 				onclick={() => (expand = !expand)}
-				class="variant-ghost-surface btn-icon sm:hidden"
+				class="variant-ghost-surface btn-icon p-1 sm:hidden"
 				aria-label="Expand/Collapse Filters"
 			>
 				<iconify-icon icon="material-symbols:filter-list-rounded" width="30"> </iconify-icon>
@@ -717,7 +717,7 @@ Features:
 			</div>
 
 			<!-- MultiButton -->
-			<div class="mt-2 w-full sm:mt-0 sm:w-auto">
+			<div class=" flex w-full items-center justify-end sm:mt-0 sm:w-auto">
 				<EntryListMultiButton {isCollectionEmpty} />
 			</div>
 		</div>

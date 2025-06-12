@@ -10,9 +10,9 @@
  */
 
 // Stores
+import { store } from '@utils/reactivity.svelte';
 import { mode } from './collectionStore.svelte';
 import { screenSize, ScreenSize } from './screenSizeStore.svelte';
-import { store } from '@utils/reactivity.svelte';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -101,24 +101,35 @@ const createUIStores = () => {
 	};
 
 	// Optimized layout handler with immediate response and smart diffing
-	function updateLayout() {
-		const currentSize = screenSize.value;
-		const isViewMode = mode.value === 'view' || mode.value === 'media';
-		const newState = getDefaultState(currentSize, isViewMode);
+	const isUpdating = store(false);
+	let lastMode = mode.value; // Track last mode value
 
-		// Only update if state actually changes
-		const prevState = uiState.value;
-		const isDifferent = Object.keys(newState).some((key) => newState[key as keyof UIState] !== prevState[key as keyof UIState]);
-		if (isDifferent) {
-			requestAnimationFrame(() => {
-				uiState.set(newState);
-			});
-			logger.debug('UIStore: Layout update', {
-				screenSize: currentSize,
-				mode: mode.value,
-				newState,
-				windowWidth: window.innerWidth
-			});
+	function updateLayout() {
+		if (isUpdating.value) return;
+		isUpdating.value = true;
+
+		try {
+			const currentSize = screenSize.value;
+			// Use lastMode instead of reading mode.value directly
+			const isViewMode = lastMode === 'view' || lastMode === 'media';
+			const newState = getDefaultState(currentSize, isViewMode);
+
+			// Only update if state actually changes
+			const prevState = uiState.value;
+			const isDifferent = Object.keys(newState).some((key) => newState[key as keyof UIState] !== prevState[key as keyof UIState]);
+			if (isDifferent) {
+				requestAnimationFrame(() => {
+					uiState.set(newState);
+				});
+				logger.debug('UIStore: Layout update', {
+					screenSize: currentSize,
+					mode: lastMode,
+					newState,
+					windowWidth: window.innerWidth
+				});
+			}
+		} finally {
+			isUpdating.value = false;
 		}
 	}
 
@@ -131,6 +142,19 @@ const createUIStores = () => {
 			resizeTimeout = null;
 		}, 100);
 	}
+
+	// Set up mode change handler
+	const originalModeSet = mode.set;
+	mode.set = (newMode) => {
+		if (newMode === lastMode) return; // Skip if mode hasn't changed
+		lastMode = newMode; // Update lastMode
+		originalModeSet(newMode);
+		// Use requestAnimationFrame to batch updates
+		requestAnimationFrame(updateLayout);
+	};
+
+	// Initial layout update
+	updateLayout();
 
 	// Toggle individual UI element visibility
 	function toggleUIElement(element: keyof UIState, state: UIVisibility) {
@@ -160,8 +184,8 @@ const createUIStores = () => {
 
 					// Add direct resize listener as fallback
 					window.addEventListener('resize', debouncedUpdateLayout);
-					modeUnsubscribe = mode.subscribe(updateLayout);
 					screenSizeUnsubscribe = screenSize.subscribe(updateLayout);
+
 					updateLayout();
 					isInitialized.set(true);
 					logger.debug('UIStore: Initialized');
