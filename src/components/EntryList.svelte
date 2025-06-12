@@ -570,9 +570,9 @@ Features:
 		const currentCollId = currentCollection?._id;
 
 		// Detect collection change
-		if (collectionTransitionId !== (currentCollId ?? null)) {
+		if (collectionTransitionId && collectionTransitionId !== currentCollId) {
 			// Start transition
-			collectionTransitionId = currentCollId ?? null;
+			collectionTransitionId = currentCollId || null;
 
 			// If we have a valid collection, prepare stable headers
 			if (currentCollId && displayTableHeaders.length > 0) {

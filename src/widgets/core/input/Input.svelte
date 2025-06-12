@@ -25,7 +25,7 @@
 	import { updateTranslationProgress, getFieldName } from '@src/utils/utils';
 
 	// Valibot validation
-	import { string, pipe, parse, type ValiError, nonEmpty, nullable } from 'valibot';
+	import { string, pipe, parse, type ValiError, nonEmpty, nullable, number, transform } from 'valibot';
 	import { contentLanguage, validationStore } from '@root/src/stores/store.svelte';
 
 	// Props
@@ -71,7 +71,13 @@
 		return result;
 	};
 
-	let validationSchema = field?.required ? pipe(string(), nonEmpty()) : nullable(string());
+	let validationSchema = field?.required
+		? pipe(
+				string(),
+				nonEmpty(),
+				transform((val) => (inputElement?.type === 'number' ? Number(val) : val))
+			)
+		: nullable(string());
 
 	// Validation function using Valibot schema
 	function validateInput(forceShowError = false) {
@@ -100,6 +106,25 @@
 								validationError = `Maximum length is ${field.maxlength}`;
 								validationStore.setError(getFieldName(field), validationError);
 								return;
+							}
+							// Add number validation if input type is number
+							if (inputElement?.type === 'number') {
+								const num = Number(newValue);
+								if (isNaN(num)) {
+									validationError = 'Invalid number format';
+									validationStore.setError(getFieldName(field), validationError);
+									return;
+								}
+								if (inputElement.min && num < Number(inputElement.min)) {
+									validationError = `Value must be at least ${inputElement.min}`;
+									validationStore.setError(getFieldName(field), validationError);
+									return;
+								}
+								if (inputElement.max && num > Number(inputElement.max)) {
+									validationError = `Value must not exceed ${inputElement.max}`;
+									validationStore.setError(getFieldName(field), validationError);
+									return;
+								}
 							}
 						}
 

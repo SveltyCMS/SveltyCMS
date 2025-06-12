@@ -377,8 +377,6 @@ Features:
 				search={debouncedSearch}
 				iconColorClass="text-error-500"
 				showBadges={isFullSidebar}
-				expandedNodes={Array.from(expandedNodes)}
-				onNodeToggle={toggleNodeExpansion}
 			></TreeView>
 		{:else}
 			<div class="p-4 text-center text-surface-500">
@@ -466,8 +464,6 @@ Features:
 				search={debouncedSearch}
 				iconColorClass="text-primary-500"
 				showBadges={isFullSidebar}
-				expandedNodes={Array.from(expandedNodes)}
-				onNodeToggle={toggleNodeExpansion}
 			></TreeView>
 		{:else}
 			<div class="p-4 text-center text-surface-500">

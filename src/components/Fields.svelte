@@ -26,7 +26,6 @@
 
 	// Auth
 	import { page } from '$app/state';
-	import type { RolePermissions } from '@src/auth/types';
 	const user = page.data.user;
 
 	// Stores
@@ -90,6 +89,38 @@
 			isFormDataInitialized = true;
 		}
 	});
+
+	// Get the collection name from the URL
+	const collectionName = page.params.contentTypes;
+
+	// Get the live preview content
+	function getLivePreviewContent() {
+		return `<div>Live Preview Content for Collection: <span class="font-bold text-tertiary-500 dark:text-primary-500">${collectionName}</span></div>`;
+	}
+
+	// Ensure fields have required properties
+	function ensureFieldProperties(field: any) {
+		if (!field) return null;
+
+		// Create a new object with all required properties
+		return {
+			...field,
+			db_fieldName: field.db_fieldName || getFieldName(field, true),
+			widget: field.widget || { Name: field.type || 'Input' },
+			permissions: field.permissions || {}
+		};
+	}
+
+	// Filter and process fields
+	let filteredFields = $derived(
+		derivedFields
+			.map(ensureFieldProperties)
+			.filter(Boolean)
+			.filter((field) => {
+				// Filter based on user permissions
+				return field && (!field.permissions || !field.permissions[user.role] || field.permissions[user.role].read);
+			})
+	);
 
 	// Preserve form data changes in snapshot for persistence across tab switches
 	$effect(() => {
@@ -156,21 +187,6 @@
 	function getTabHeaderVisibility() {
 		return user.roles !== 'admin' && !collection.value?.revision;
 	}
-
-	function filterFieldsByPermission(fields: any[], userRole: string) {
-		return fields.filter((f) => {
-			const permissions = f.permissions as RolePermissions | undefined;
-			return permissions?.[userRole]?.read !== false;
-		});
-	}
-
-	function getLivePreviewContent() {
-		// Ensure collection.value?.name is a string and handle undefined case
-		const collectionName = collection.value?.name ? String(collection.value.name) : '';
-		return `<div>Live Preview Content for Collection: <span class="font-bold text-tertiary-500 dark:text-primary-500">${collectionName}</span></div>`;
-	}
-
-	let filteredFields = $derived(filterFieldsByPermission(derivedFields, user.role));
 </script>
 
 {#if isLoading}

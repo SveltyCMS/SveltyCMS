@@ -37,7 +37,7 @@
 	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
 	import { contentStructure, collections } from '@stores/collectionStore.svelte';
 	import { uiStateManager } from '@stores/UIStore.svelte';
-	import { screenSize, ScreenSize } from '@stores/screenSizeStore.svelte';
+	import { screenSize } from '@stores/screenSizeStore.svelte';
 
 	// Components
 	import Loading from '@components/Loading.svelte';
@@ -46,7 +46,6 @@
 	import RightSidebar from '@components/RightSidebar.svelte';
 	import HeaderEdit from '@components/HeaderEdit.svelte';
 	import PageFooter from '@components/PageFooter.svelte';
-	import FloatingNav from '@components/system/FloatingNav.svelte';
 
 	// Skeleton
 	import { initializeStores, Modal, Toast, setModeUserPrefers, setModeCurrent, setInitialClassState } from '@skeletonlabs/skeleton';

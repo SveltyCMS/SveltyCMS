@@ -24,7 +24,7 @@
 	import { mode, collectionValue } from '@root/src/stores/collectionStore.svelte';
 
 	// Valibot validation
-	import { object, string, number, boolean, optional, regex, pipe, parse, type ValiError } from 'valibot';
+	import { object, string, number, boolean, optional, regex, pipe, parse, type ValiError, transform } from 'valibot';
 
 	interface Props {
 		field: FieldType;
@@ -36,7 +36,7 @@
 	const fieldName = getFieldName(field);
 	value = collectionValue.value[fieldName] || value;
 
-	const _data = $state(mode.value === 'create' ? {} : value);
+	const _data = $state<Record<string, string>>(mode.value === 'create' ? {} : value);
 	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
 	let validationError: string | null = $state(null);
 	let debounceTimeout: number | undefined;
@@ -44,7 +44,14 @@
 	export const WidgetData = async () => _data;
 
 	// Define the validation schema for this widget
-	const valueSchema = pipe(string(), regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format, must be YYYY-MM-DD'));
+	const valueSchema = pipe(
+		string(),
+		regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format, must be YYYY-MM-DD'),
+		transform((value: string) => {
+			const date = new Date(value);
+			return isNaN(date.getTime()) ? value : date.toISOString().split('T')[0];
+		})
+	);
 
 	const widgetSchema = object({
 		value: optional(valueSchema),
@@ -78,7 +85,12 @@
 		event.preventDefault();
 		if (debounceTimeout) clearTimeout(debounceTimeout);
 		debounceTimeout = window.setTimeout(() => {
-			validationError = validateSchema({ value: _data[_language] });
+			const value = _data[_language];
+			validationError = validateSchema({
+				value: value || '',
+				db_fieldName: field.db_fieldName,
+				required: field.required
+			});
 		}, 300);
 	}
 </script>
@@ -87,11 +99,13 @@
 	<!-- Date Input -->
 	<input
 		type="date"
+		bind:value={_data[_language]}
 		oninput={handleInput}
 		class="input w-full text-black dark:text-primary-500"
 		class:error={!!validationError}
 		aria-invalid={!!validationError}
 		aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
+		required={field?.required}
 	/>
 
 	<!-- Error Message -->
