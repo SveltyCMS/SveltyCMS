@@ -17,7 +17,7 @@
  *
  * Usage:
  * POST /api/user/blockUsers
- * Body: JSON array of user objects with 'id' and 'role' properties
+ * Body: JSON object with 'user_ids' property (array of user IDs)
  *
  * Note: This endpoint is secured with appropriate authentication and authorization.
  */
@@ -33,14 +33,11 @@ import { hasPermissionByAction } from '@src/auth/permissions';
 import { logger } from '@utils/logger.svelte';
 
 // Input validation
-import { array, object, string, type ValiError } from 'valibot';
+import { array, object, string, type ValiError, minLength } from 'valibot';
 
-const blockUsersSchema = array(
-	object({
-		id: string(),
-		role: string()
-	})
-);
+const blockUsersSchema = object({
+	user_ids: array(string(), [minLength(1, 'At least one user ID must be provided')])
+});
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
@@ -65,30 +62,35 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const body = await request.json();
 
 		// Validate input
-		const users = blockUsersSchema.parse(body);
+		const { user_ids } = blockUsersSchema.parse(body);
 
+		// Get all users to check admin status
 		const allUsers = await auth.getAllUsers();
 		const adminCount = allUsers.filter((user) => user.isAdmin).length;
-		let remainingAdminCount = adminCount;
 
-		for (const user of users) {
-			if (user.role === 'admin') {
-				remainingAdminCount--;
-				if (remainingAdminCount === 0) {
-					logger.warn('Attempt to block the last remaining admin.');
-					throw error(400, 'Cannot block all admins');
-				}
-			}
+		// Check how many admins would be blocked
+		const usersToBlock = allUsers.filter(user => user_ids.includes(user._id.toString()));
+		const adminsToBeBlocked = usersToBlock.filter(user => user.isAdmin).length;
 
-			await auth.invalidateAllUserSessions(user.id);
-			await auth.updateUserAttributes(user.id, { blocked: true });
-			logger.info('User blocked successfully', { userId: user.id });
+		if (adminCount - adminsToBeBlocked <= 0) {
+			logger.warn('Attempt to block the last remaining admin(s).');
+			throw error(400, 'Cannot block all admins');
 		}
 
-		logger.info('Users blocked successfully.', { blockedCount: users.length });
+		const blockedUsers = await Promise.all(
+			user_ids.map(async (user_id) => {
+				await auth.invalidateAllUserSessions(user_id);
+				await auth.updateUserAttributes(user_id, { blocked: true });
+				logger.info('User blocked successfully', { userId: user_id });
+				return user_id;
+			})
+		);
+
+		logger.info('Users blocked successfully', { blockedCount: blockedUsers.length });
 		return json({
 			success: true,
-			message: `${users.length} users blocked successfully`
+			message: `${blockedUsers.length} users blocked successfully`,
+			blockedUsers
 		});
 	} catch (err) {
 		if ((err as ValiError).issues) {

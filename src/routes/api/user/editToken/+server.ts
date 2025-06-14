@@ -30,7 +30,7 @@ import { hasPermissionByAction } from '@src/auth/permissions';
 import { logger } from '@utils/logger.svelte';
 
 // Input validation
-import { object, string, optional, email, type ValiError } from 'valibot';
+import { object, string, optional, email, boolean, type ValiError } from 'valibot';
 
 const editTokenSchema = object({
 	tokenId: string(),
@@ -39,19 +39,20 @@ const editTokenSchema = object({
 		expires: optional(string()),
 		type: optional(string()),
 		role: optional(string()),
-		user_id: optional(string())
+		user_id: optional(string()),
+		blocked: optional(boolean())
 	})
 });
 
 export const PUT: RequestHandler = async ({ request, locals }) => {
 	try {
 		// Check if the user has permission to edit tokens
-		const { hasPermission } = await hasPermissionByAction(locals.user, {
-			contextId: 'config/userManagement',
-			name: 'Edit Token',
-			action: 'manage',
-			contextType: 'system'
-		});
+		const hasPermission = hasPermissionByAction(
+			locals.user,
+			'manage',
+			'system',
+			'config/userManagement'
+		);
 
 		if (!hasPermission) {
 			throw error(403, 'Unauthorized to edit registration tokens');

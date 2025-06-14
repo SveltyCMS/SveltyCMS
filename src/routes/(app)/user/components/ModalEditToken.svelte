@@ -49,7 +49,8 @@ Manages token creation and updates with role selection and expiration settings. 
 
 	let { parent = { regionFooter: 'modal-footer p-4' }, token = '', email = '', role = 'user', expires = '7d', user_id = '' }: Props = $props();
 
-	let formElement: HTMLFormElement | null = $state(null);
+	// Form element reference
+	let formElement = $state<HTMLFormElement>();
 
 	// Form Data
 	const formData = $state({
@@ -95,14 +96,25 @@ Manages token creation and updates with role selection and expiration settings. 
 				headers: {
 					'Content-Type': 'application/json'
 				},
-				body: JSON.stringify({
-					...(isEditMode ? { tokenId: formData.token } : {}),
-					email: formData.email,
-					user_id: formData.user_id,
-					role: formData.role || 'user',
-					expiresIn: convertExpiresToHours(formData.expires) || 168, // Default to 7 days (168 hours)
-					expiresInLabel: formData.expires || '7d'
-				})
+				body: JSON.stringify(
+					isEditMode
+						? {
+								tokenId: formData.token,
+								newTokenData: {
+									email: formData.email,
+									role: formData.role || 'user',
+									expires: convertExpiresToHours(formData.expires) || 168,
+									user_id: formData.user_id
+								}
+							}
+						: {
+								email: formData.email,
+								user_id: formData.user_id,
+								role: formData.role || 'user',
+								expiresIn: convertExpiresToHours(formData.expires) || 168,
+								expiresInLabel: formData.expires || '7d'
+							}
+				)
 			});
 
 			if (response.ok) {
@@ -131,27 +143,6 @@ Manages token creation and updates with role selection and expiration settings. 
 
 				modalStore.close();
 				await invalidateAll();
-
-				// If new token created, send email
-				if (!isEditMode && responseData.token) {
-					await fetch('/api/sendMail', {
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json'
-						},
-						body: JSON.stringify({
-							email: formData.email,
-							template: 'userToken',
-							data: {
-								username: formData.user_id,
-								token: responseData.token.value,
-								expires: formData.expires,
-								role: formData.role,
-								sitename: import.meta.env.PUBLIC_SITE_NAME || 'SveltyCMS'
-							}
-						})
-					});
-				}
 			} else {
 				let errorMessage = 'Failed to update token';
 				try {
@@ -183,7 +174,7 @@ Manages token creation and updates with role selection and expiration settings. 
 				headers: {
 					'Content-Type': 'application/json'
 				},
-				body: JSON.stringify([{ token: formData.token }])
+				body: JSON.stringify({ token: formData.token })
 			});
 
 			if (response.ok) {

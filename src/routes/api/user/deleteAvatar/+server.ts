@@ -29,7 +29,6 @@ import type { RequestHandler } from './$types';
 // Auth
 import { auth } from '@src/databases/db';
 import { hasPermissionByAction } from '@src/auth/permissions';
-import { roles } from '@root/config/roles';
 
 // System logger
 import { logger } from '@utils/logger.svelte';
@@ -40,7 +39,12 @@ import { moveMediaToTrash } from '@utils/media/mediaStorage';
 export const DELETE: RequestHandler = async ({ locals }) => {
 	try {
 		// Check if the user has permission to delete their avatar
-		const hasPermission = hasPermissionByAction(locals.user, 'manage', 'user', undefined, roles);
+		const hasPermission = hasPermissionByAction(
+			locals.user,
+			'update',
+			'user',
+			'user/profile'
+		);
 
 		if (!hasPermission) {
 			throw error(403, 'Unauthorized to delete avatar');

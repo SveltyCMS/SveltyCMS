@@ -293,7 +293,7 @@ function createValidationStore() {
 	let errors = $state<ValidationErrors>({});
 
 	// Derived state that automatically recalculates when `errors` changes.
-	const isValid = $derived(Object.values(errors).every((error) => !error));
+	const isValid = $derived(() => Object.values(errors).every((error) => !error));
 
 	return {
 		// Expose reactive state directly

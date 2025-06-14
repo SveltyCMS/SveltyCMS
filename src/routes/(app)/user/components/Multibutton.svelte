@@ -71,8 +71,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			iconValue: 'bi:pencil-fill',
 			modalTitle: () => (type === 'user' ? m.adminarea_title() : m.multibuttontoken_modaltitle()),
 			modalBody: () => (type === 'user' ? 'Modify your data and then press Save.' : m.multibuttontoken_modalbody()),
-			endpoint: () => (type === 'user' ? '/api/user/updateUserAttributes' : '?/editToken'),
-			method: () => (type === 'user' ? 'PUT' : 'POST'),
+			endpoint: () => (type === 'user' ? '/api/user/updateUserAttributes' : '/api/user/editToken'),
+			method: () => 'PUT',
 			toastMessage: () => `${type === 'user' ? 'User' : 'Token'} Updated`,
 			toastBackground: 'gradient-primary'
 		},
@@ -81,7 +81,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			iconValue: 'bi:trash3-fill',
 			modalTitle: () => (type === 'user' ? m.usermodalconfirmtitle() : m.multibuttontoken_deletetitle()),
 			modalBody: () => (type === 'user' ? m.usermodalconfirmbody() : m.multibuttontoken_deletebody()),
-			endpoint: () => (type === 'user' ? '/api/user/deleteUsers' : '/api/user/deleteTokens'),
+			endpoint: () => (type === 'user' ? '/api/user/deleteUsers' : '/api/user/deleteToken'),
 			method: () => 'DELETE',
 			toastMessage: () => `${type === 'user' ? 'User' : 'Token'} Deleted`,
 			toastBackground: 'gradient-error'
@@ -91,8 +91,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			iconValue: 'material-symbols:lock',
 			modalTitle: () => (type === 'user' ? 'Please Confirm User Block' : m.multibuttontoken_blocktitle()),
 			modalBody: () => (type === 'user' ? 'Are you sure you wish to block this user?' : m.multibuttontoken_blockbody()),
-			endpoint: () => (type === 'user' ? '/api/user/blockUsers' : '?/blockToken'),
-			method: () => (type === 'user' ? 'PUT' : 'POST'),
+			endpoint: () => (type === 'user' ? '/api/user/blockUsers' : '/api/user/editToken'),
+			method: () => (type === 'user' ? 'POST' : 'PUT'),
 			toastMessage: () => `${type === 'user' ? 'User' : 'Token'} Blocked`,
 			toastBackground: 'gradient-yellow'
 		},
@@ -101,8 +101,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			iconValue: 'material-symbols:lock-open',
 			modalTitle: () => (type === 'user' ? 'Please Confirm User Unblock' : m.multibuttontoken_unblocktitle()),
 			modalBody: () => (type === 'user' ? 'Are you sure you wish to unblock this user?' : m.multibuttontoken_unblockbody()),
-			endpoint: () => (type === 'user' ? '/api/user/unblockUsers' : '?/unblockToken'),
-			method: () => (type === 'user' ? 'PUT' : 'POST'),
+			endpoint: () => (type === 'user' ? '/api/user/unblockUsers' : '/api/user/editToken'),
+			method: () => 'PUT',
 			toastMessage: () => `${type === 'user' ? 'User' : 'Token'} Unblocked`,
 			toastBackground: 'gradient-primary'
 		}
@@ -131,8 +131,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			return;
 		}
 
-		if (action === 'edit' && isMultipleSelected) {
-			showToast(`Please select only one ${type} to edit`, true);
+		if ((action === 'edit' || (type === 'token' && action === 'delete')) && isMultipleSelected) {
+			showToast(`Please select only one ${type} to ${action}`, true);
 			return;
 		}
 
@@ -170,23 +170,46 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 				if (!r) return;
 
 				try {
-					const body =
-						type === 'user'
-							? JSON.stringify(
-									isEdit
-										? { user_id: (selectedRows[0] as UserData)._id, userData: r as ModalResponse }
-										: { user_ids: selectedRows.map((row: UserData) => row._id) }
-								)
-							: JSON.stringify(
-									isEdit
-										? (r as ModalResponse) // Type assertion since r is ModalResponse for edit
-										: selectedRows.map((row: TokenData) => ({
-												token: row.token,
-												email: row.email,
-												role: row.role,
-												user_id: row.user_id
-											}))
-								);
+					let body: string;
+
+					if (type === 'user') {
+						// User operations
+						body = JSON.stringify(
+							isEdit
+								? { user_id: (selectedRows[0] as UserData)._id, newUserData: r as ModalResponse }
+								: { user_ids: selectedRows.map((row: UserData) => row._id) }
+						);
+					} else {
+						// Token operations
+						if (isEdit) {
+							// Edit single token
+							const tokenData = selectedRows[0] as TokenData;
+							body = JSON.stringify({
+								tokenId: tokenData.token,
+								newTokenData: r as ModalResponse
+							});
+						} else {
+							// Bulk operations on tokens
+							if (listboxValue === 'delete') {
+								// deleteToken for single token only
+								if (selectedRows.length !== 1) {
+									throw new Error('Please select only one token to delete');
+								}
+								const tokenData = selectedRows[0] as TokenData;
+								body = JSON.stringify({ token: tokenData.token });
+							} else if (listboxValue === 'block' || listboxValue === 'unblock') {
+								// Block/unblock uses editToken for each token
+								const tokenData = selectedRows[0] as TokenData;
+								body = JSON.stringify({
+									tokenId: tokenData.token,
+									newTokenData: { blocked: listboxValue === 'block' }
+								});
+							} else {
+								// Default fallback
+								body = JSON.stringify(selectedRows.map((row: TokenData) => row.token));
+							}
+						}
+					}
 
 					const res = await fetch(config.endpoint(), {
 						method: config.method(),

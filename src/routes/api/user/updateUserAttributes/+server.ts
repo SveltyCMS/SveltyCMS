@@ -7,15 +7,14 @@
  *
  * Features:
  * - User attribute updates using the agnostic auth interface
- * - Permission checking
  * - Input validation using Valibot
  * - Error handling and logging
  *
  * Usage:
  * PUT /api/user/updateUserAttributes
- * Body: JSON object with 'user_id' and 'userData' properties
+ * Body: JSON object with 'user_id' and 'newUserData' properties
  *
- * Note: This endpoint is secured with appropriate authentication and authorization.
+ * Note: This endpoint is secured by hooks.server.ts with appropriate authentication and authorization.
  */
 
 import { error, json } from '@sveltejs/kit';
@@ -23,8 +22,8 @@ import type { RequestHandler } from './$types';
 
 // Auth
 import { auth } from '@src/databases/db';
-import { hasPermissionByAction } from '@src/auth/permissions';
-import { PermissionAction } from '@root/src/auth';
+import { SESSION_COOKIE_NAME } from '@src/auth';
+import { getCacheStore } from '@src/cacheStore/index.server';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -49,38 +48,10 @@ const updateUserAttributesSchema = object({
 	userData: userDataSchema
 });
 
-export const PUT: RequestHandler = async ({ request, locals }) => {
+export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 	try {
 		const body = await request.json();
 		const { user_id, newUserData } = body;
-
-		// Special handling for password changes - user can only change their own password
-		if (newUserData.password && locals.user && user_id !== locals.user?._id) {
-			const hasPermission = hasPermissionByAction(
-				locals.user,
-				PermissionAction.MANAGE,
-				'system',
-				'config/userManagement'
-			);
-
-			if (!hasPermission) {
-				throw error(403, "Unauthorized to change other user's password");
-			}
-		}
-
-		// For other attribute changes, check general permission
-		if (locals.user && Object.keys(newUserData).some((key) => key !== 'password')) {
-			const hasPermission = hasPermissionByAction(
-				locals.user,
-				PermissionAction.MANAGE,
-				'system',
-				'config/userManagement'
-			);
-
-			if (!hasPermission) {
-				throw error(403, 'Unauthorized to update user attributes');
-			}
-		}
 
 		// Ensure the authentication system is initialized
 		if (!auth) {
@@ -88,18 +59,47 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 			throw error(500, 'Internal Server Error');
 		}
 
+		// Filter out empty password fields to avoid validation issues
+		const filteredUserData = { ...newUserData };
+		if (filteredUserData.password === '') {
+			delete filteredUserData.password;
+		}
+		if (filteredUserData.confirmPassword === '') {
+			delete filteredUserData.confirmPassword;
+		}
+
 		// Validate input
 		const validatedData = parse(
 			updateUserAttributesSchema,
 			{
 				user_id,
-				userData: newUserData
+				userData: filteredUserData
 			},
 			{}
 		);
 
 		// Update the user attributes using the agnostic auth interface
 		const updatedUser = await auth.updateUserAttributes(validatedData.user_id, validatedData.userData);
+
+		// If the current user is updating their own data, update the session
+		if (locals.user && locals.user._id.toString() === validatedData.user_id) {
+			// Update the session data with the new user information
+			const updatedSessionUser = { ...locals.user, ...validatedData.userData };
+			locals.user = updatedSessionUser;
+
+			// Also update the session cache if available
+			const sessionId = cookies.get(SESSION_COOKIE_NAME);
+			if (sessionId) {
+				try {
+					const cacheStore = getCacheStore();
+					const sessionData = { user: updatedSessionUser, timestamp: Date.now() };
+					await cacheStore.set(sessionId, sessionData, new Date(Date.now() + 24 * 60 * 60 * 1000)); // 24 hours
+					logger.debug(`Session cache updated for user ${validatedData.user_id}`);
+				} catch (error) {
+					logger.warn(`Failed to update session cache: ${error}`);
+				}
+			}
+		}
 
 		logger.info('User attributes updated successfully', {
 			user_id: validatedData.user_id,

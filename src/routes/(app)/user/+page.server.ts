@@ -38,15 +38,29 @@ export const load: PageServerLoad = async (event) => {
 		const isFirstUser: boolean = event.locals.isFirstUser;
 		const hasManageUsersPermission: boolean = event.locals.hasManageUsersPermission;
 
+		// Get fresh user data from database to ensure we have the latest info
+		let freshUser: User | null = user;
+		if (user) {
+			try {
+				const { auth } = await import('@src/databases/db');
+				if (auth) {
+					freshUser = await auth.getUserById(user._id.toString());
+				}
+			} catch (error) {
+				console.warn('Failed to fetch fresh user data, using session data:', error);
+				freshUser = user; // Fallback to session data
+			}
+		}
+
 		// Validate forms using SuperForms
 		const addUserForm = await superValidate(event, valibot(addUserTokenSchema));
 		const changePasswordForm = await superValidate(event, valibot(changePasswordSchema));
 
 		// Prepare user object for return, ensuring _id is a string
-		const safeUser = user
+		const safeUser = freshUser
 			? {
-				...user,
-				_id: user._id.toString(),
+				...freshUser,
+				_id: freshUser._id.toString(),
 				password: '[REDACTED]' // Ensure password is not sent to client
 			}
 			: null;

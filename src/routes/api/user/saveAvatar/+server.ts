@@ -46,17 +46,11 @@ import { getCacheStore } from '@src/cacheStore/index.server';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
-		// Validate user session
-		if (!locals.user || !locals.user._id) {
-			logger.error('No user found in session');
-			throw error(401, 'User not authenticated');
-		}
-
 		// Check if the user has permission to update their avatar
 		const hasPermission = hasPermissionByAction(
-			locals.user, 
-			'update', 
-			'user', 
+			locals.user,
+			'update',
+			'user',
 			'user/profile'
 		);
 

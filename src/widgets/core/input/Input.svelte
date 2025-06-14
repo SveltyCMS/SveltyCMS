@@ -1,7 +1,7 @@
 <!--
 @file src/widgets/core/input/Input.svelte
 @component
-**Input Widget Component for entering and editing text data in a CMS collection. Supports multilingual input, validation, and dynamic translation status updates**
+**Enhanced Input Widget Component with improved validation integration**
 
 @example
 <Input field={{ label: "Title", db_fieldName: "title", translated: true, required: true }} />
@@ -11,9 +11,11 @@
 - `value`: any (object storing input values, e.g., { en: "Hello", fr: "" })
 
 ### Features
-- **Multilingual Support**: Handles translatable fields with reactive updates to translation status.
-- **Validation**: Checks for required fields, minimum length, and custom rules, updating validation store.
-- **Error Handling**: Displays validation errors inline with accessible markup.
+- **Enhanced Validation**: Integration with improved validation store
+- **Multilingual Support**: Handles translatable fields with reactive updates
+- **Touch State Management**: Proper error display based on interaction
+- **Async Validation**: Support for server-side validation
+- **Performance Optimized**: Debounced validation with cleanup
 -->
 
 <script lang="ts">
@@ -32,26 +34,44 @@
 	interface Props {
 		field: FieldType;
 		value?: any;
+		validateOnMount?: boolean;
+		validateOnChange?: boolean;
+		validateOnBlur?: boolean;
+		debounceMs?: number;
 	}
 
-	let { field, value = $bindable({ [contentLanguage.value.toLowerCase()]: '' }) }: Props = $props();
+	let {
+		field,
+		value = $bindable({ [contentLanguage.value.toLowerCase()]: '' }),
+		validateOnMount = false,
+		validateOnChange = true,
+		validateOnBlur = true,
+		debounceMs = 300
+	}: Props = $props();
 
-	// Initialize value separately to avoid $state() in prop destructuring
+	// Field name for validation
+	const fieldName = getFieldName(field);
 
+	// Language handling
 	let _language = $derived(field?.translated ? contentLanguage.value.toLowerCase() : (publicEnv.DEFAULT_CONTENT_LANGUAGE as string).toLowerCase());
 
+	// Character count
 	let count = $derived(value[_language]?.length ?? 0);
 
+	// Track translation progress
 	track(
 		() => updateTranslationProgress(value, field),
 		() => value[_language]
 	);
 
-	// Validation and error state
-	let validationError = $state<string | null>(null);
-	let touched = $state(false);
+	// Validation state - now using the enhanced validation store
+	let inputElement: HTMLInputElement | null = null;
 	let debounceTimeout: number | undefined;
-	let inputElement: HTMLInputElement | null = null; // Used for focus management
+
+	// Get validation state from store
+	let validationError = $derived(validationStore.getTouchedError(fieldName));
+	let isValidating = $derived(validationStore.isValidating(fieldName));
+	let isTouched = $derived(validationStore.isTouched(fieldName));
 
 	// Memoized badge class calculation
 	const badgeClassCache = new Map<string, string>();
@@ -71,94 +91,154 @@
 		return result;
 	};
 
-	let validationSchema = field?.required
-		? pipe(
-				string(),
-				nonEmpty(),
-				transform((val) => (inputElement?.type === 'number' ? Number(val) : val))
-			)
-		: nullable(string());
+	// Create validation schema
+	let validationSchema = $derived(
+		field?.required
+			? pipe(
+					string(),
+					nonEmpty(),
+					transform((val) => (inputElement?.type === 'number' ? Number(val) : val))
+				)
+			: nullable(string())
+	);
 
-	// Validation function using Valibot schema
-	function validateInput(forceShowError = false) {
-		try {
-			if (debounceTimeout) clearTimeout(debounceTimeout);
-			debounceTimeout = window.setTimeout(
-				() => {
-					try {
-						const newValue = value?.[_language];
+	// Enhanced validation function
+	async function validateInput(immediate = false): Promise<string | null> {
+		const currentValue = value?.[_language];
 
-						// First validate the value exists if required
-						if (field?.required && (newValue === null || newValue === undefined || newValue === '')) {
-							validationError = 'This field is required';
-							validationStore.setError(getFieldName(field), validationError);
-							return;
+		// Clear existing timeout
+		if (debounceTimeout) {
+			clearTimeout(debounceTimeout);
+			debounceTimeout = undefined;
+		}
+
+		// Set up validation with debounce (unless immediate)
+		const doValidation = async () => {
+			validationStore.setValidating(fieldName, true);
+
+			try {
+				// Required field validation
+				if (field?.required && (currentValue === null || currentValue === undefined || currentValue === '')) {
+					const error = 'This field is required';
+					validationStore.setError(fieldName, error);
+					return error;
+				}
+
+				// Length validations
+				if (currentValue !== null && currentValue !== undefined) {
+					if (field?.minlength && currentValue.length < field.minlength) {
+						const error = `Minimum length is ${field.minlength}`;
+						validationStore.setError(fieldName, error);
+						return error;
+					}
+					if (field?.maxlength && currentValue.length > field.maxlength) {
+						const error = `Maximum length is ${field.maxlength}`;
+						validationStore.setError(fieldName, error);
+						return error;
+					}
+
+					// Number validation for number inputs
+					if (inputElement?.type === 'number') {
+						const num = Number(currentValue);
+						if (isNaN(num)) {
+							const error = 'Invalid number format';
+							validationStore.setError(fieldName, error);
+							return error;
 						}
-
-						// Then validate string constraints if value exists
-						if (newValue !== null && newValue !== undefined) {
-							if (field?.minlength && newValue.length < field.minlength) {
-								validationError = `Minimum length is ${field.minlength}`;
-								validationStore.setError(getFieldName(field), validationError);
-								return;
-							}
-							if (field?.maxlength && newValue.length > field.maxlength) {
-								validationError = `Maximum length is ${field.maxlength}`;
-								validationStore.setError(getFieldName(field), validationError);
-								return;
-							}
-							// Add number validation if input type is number
-							if (inputElement?.type === 'number') {
-								const num = Number(newValue);
-								if (isNaN(num)) {
-									validationError = 'Invalid number format';
-									validationStore.setError(getFieldName(field), validationError);
-									return;
-								}
-								if (inputElement.min && num < Number(inputElement.min)) {
-									validationError = `Value must be at least ${inputElement.min}`;
-									validationStore.setError(getFieldName(field), validationError);
-									return;
-								}
-								if (inputElement.max && num > Number(inputElement.max)) {
-									validationError = `Value must not exceed ${inputElement.max}`;
-									validationStore.setError(getFieldName(field), validationError);
-									return;
-								}
-							}
+						if (inputElement.min && num < Number(inputElement.min)) {
+							const error = `Value must be at least ${inputElement.min}`;
+							validationStore.setError(fieldName, error);
+							return error;
 						}
-
-						parse(validationSchema, newValue);
-						validationError = null;
-						validationStore.clearError(getFieldName(field));
-					} catch (error) {
-						if ((error as ValiError<typeof validationSchema>).issues) {
-							const valiError = error as ValiError<typeof validationSchema>;
-							validationError = valiError.issues[0]?.message || 'Invalid input';
-							validationStore.setError(getFieldName(field), validationError);
+						if (inputElement.max && num > Number(inputElement.max)) {
+							const error = `Value must not exceed ${inputElement.max}`;
+							validationStore.setError(fieldName, error);
+							return error;
 						}
 					}
-				},
-				forceShowError ? 0 : 300
-			);
-		} catch (error) {
-			console.error('Validation error:', error);
-			validationError = 'An unexpected error occurred during validation';
-			validationStore.setError(getFieldName(field), 'Validation error');
+				}
+
+				// Valibot schema validation
+				try {
+					parse(validationSchema, currentValue);
+					validationStore.clearError(fieldName);
+					return null;
+				} catch (error) {
+					if ((error as ValiError<typeof validationSchema>).issues) {
+						const valiError = error as ValiError<typeof validationSchema>;
+						const errorMessage = valiError.issues[0]?.message || 'Invalid input';
+						validationStore.setError(fieldName, errorMessage);
+						return errorMessage;
+					}
+					throw error;
+				}
+			} catch (error) {
+				console.error('Validation error:', error);
+				const errorMessage = 'An unexpected error occurred during validation';
+				validationStore.setError(fieldName, errorMessage);
+				return errorMessage;
+			} finally {
+				validationStore.setValidating(fieldName, false);
+			}
+		};
+
+		if (immediate) {
+			return await doValidation();
+		} else {
+			return new Promise((resolve) => {
+				debounceTimeout = window.setTimeout(async () => {
+					const result = await doValidation();
+					resolve(result);
+				}, debounceMs);
+			});
 		}
+	}
+
+	// Handle input changes
+	function handleInput() {
+		if (validateOnChange) {
+			validateInput(false);
+		}
+	}
+
+	// Handle blur events
+	async function handleBlur() {
+		validationStore.touch(fieldName);
+		if (validateOnBlur) {
+			await validateInput(true);
+		}
+	}
+
+	// Handle focus events
+	function handleFocus() {
+		// Could be used for custom focus behavior
 	}
 
 	// Cleanup function
 	$effect(() => {
 		return () => {
-			if (debounceTimeout) clearTimeout(debounceTimeout);
+			if (debounceTimeout) {
+				clearTimeout(debounceTimeout);
+			}
 			badgeClassCache.clear();
 		};
 	});
 
-	// Run initial validation when component mounts
+	// Initialize validation on mount if requested
 	$effect(() => {
-		validateInput();
+		if (validateOnMount) {
+			// Small delay to ensure component is fully mounted
+			setTimeout(() => validateInput(true), 0);
+		}
+	});
+
+	// Watch for value changes from external sources
+	$effect(() => {
+		// This effect runs when value[_language] changes
+		const currentValue = value[_language];
+		if (isTouched && validateOnChange) {
+			validateInput(false);
+		}
 	});
 </script>
 
@@ -175,15 +255,14 @@
 			bind:value={
 				() => value[_language],
 				(v) => {
-					const temp = value;
+					const temp = { ...value };
 					temp[_language] = v;
 					value = temp;
 				}
 			}
-			onblur={() => {
-				touched = true;
-				validateInput(true);
-			}}
+			oninput={handleInput}
+			onblur={handleBlur}
+			onfocus={handleFocus}
 			name={field?.db_fieldName}
 			id={field?.db_fieldName}
 			bind:this={inputElement}
@@ -195,8 +274,9 @@
 			maxlength={field?.maxlength}
 			class="input w-full flex-1 rounded-none text-black dark:text-primary-500"
 			class:error={!!validationError}
+			class:validating={isValidating}
 			aria-invalid={!!validationError}
-			aria-describedby={validationError ? `${getFieldName(field)}-error` : undefined}
+			aria-describedby={validationError ? `${fieldName}-error` : undefined}
 			aria-required={field?.required}
 			data-testid="text-input"
 		/>
@@ -228,11 +308,18 @@
 				{/if}
 			</div>
 		{/if}
+
+		<!-- Validation indicator -->
+		{#if isValidating}
+			<div class="flex items-center px-2" aria-label="Validating">
+				<div class="h-4 w-4 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+			</div>
+		{/if}
 	</div>
 
 	<!-- Error Message -->
-	{#if validationError && touched}
-		<p id={`${getFieldName(field)}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+	{#if validationError}
+		<p id={`${fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert" aria-live="polite">
 			{validationError}
 		</p>
 	{/if}
@@ -245,5 +332,21 @@
 
 	.error {
 		border-color: rgb(239 68 68);
+		box-shadow: 0 0 0 1px rgb(239 68 68);
+	}
+
+	.validating {
+		border-color: rgb(59 130 246);
+		box-shadow: 0 0 0 1px rgb(59 130 246);
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	.animate-spin {
+		animation: spin 1s linear infinite;
 	}
 </style>

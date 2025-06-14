@@ -24,7 +24,6 @@ import { dev } from '$app/environment';
 
 // Auth
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
-import { hasPermissionWithRoles } from '@src/auth/permissions';
 import { auth } from '@src/databases/db';
 
 // System Logger
@@ -50,13 +49,6 @@ interface ApiError extends Error {
 
 export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 	try {
-		// Check if the user has permission to create tokens
-		const hasUserPermission = hasPermissionWithRoles(locals.user, 'user.create', roles);
-
-		if (!hasUserPermission) {
-			throw error(403, 'Unauthorized to create registration tokens');
-		}
-
 		let body;
 		try {
 			body = await request.json();

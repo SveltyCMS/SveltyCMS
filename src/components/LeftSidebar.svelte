@@ -45,8 +45,8 @@
 	// Skeleton components and utilities
 	import { Avatar, popup, modeCurrent, type PopupSettings, setModeUserPrefers, setModeCurrent } from '@skeletonlabs/skeleton';
 
-	// Define user data and state variables
-	const user = page.data.user;
+	// Define user data and state variables - make it reactive to page data changes
+	const user = $derived(page.data.user);
 
 	// Tooltip settings
 	const UserTooltip: PopupSettings = {
