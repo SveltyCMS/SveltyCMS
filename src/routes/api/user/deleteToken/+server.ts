@@ -1,94 +1,109 @@
 /**
  * @file src/routes/api/user/deleteToken/+server.ts
- * @description API endpoint for deleting a single token.
+ * @description API endpoint for deleting a single invitation token.
  *
  * This module provides functionality to:
- * - Delete a specific token by token value
+ * - Delete a specific invitation token by token ID
  *
  * Features:
- * - Single token deletion
- * - Permission checking
- * - Input validation
- * - Error handling and logging
+ * - **Defense in Depth**: Specific permission checking for token deletion.
+ * - Single token deletion with proper validation
+ * - Error handling and comprehensive logging
  *
  * Usage:
  * DELETE /api/user/deleteToken
- * Body: JSON object with 'token' property
- *
- * Note: This endpoint is secured with appropriate authentication and authorization.
+ * Body: JSON object with 'tokenId' property
  */
 
-import { json } from '@sveltejs/kit';
+import { json, error, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { error } from '@sveltejs/kit';
 
-// Auth
+// Auth and permission helpers
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
 import { hasPermissionByAction } from '@src/auth/permissions';
+import { roles } from '@root/config/roles'; // Import static roles for fallback
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
 // Input validation
-import { object, string, type ValiError } from 'valibot';
+import { object, string, parse, type ValiError, minLength } from 'valibot';
 
+// Define the expected shape of the request body for validation.
 const deleteTokenSchema = object({
-    token: string()
+    tokenId: string([minLength(1, 'A token ID must be provided.')])
 });
 
 export const DELETE: RequestHandler = async ({ request, locals }) => {
     try {
-        // Check if user is authenticated
-        if (!locals.user) {
-            throw error(401, 'Authentication required');
-        }
-
-        // Check if the user has permission to delete tokens
+        // **SECURITY**: This endpoint now checks for a specific permission. Deleting a token
         const hasPermission = hasPermissionByAction(
             locals.user,
-            'manage',
-            'system',
-            'config/userManagement'
+            'delete', // The action being performed
+            'user',   // The context type
+            'any',    // The scope (any user)
+            locals.roles && locals.roles.length > 0 ? locals.roles : roles
         );
 
         if (!hasPermission) {
-            throw error(403, 'Unauthorized to delete tokens');
+            logger.warn('Unauthorized attempt to delete a token', { userId: locals.user?._id });
+            throw error(403, 'Forbidden: You do not have permission to delete tokens.');
         }
 
         const body = await request.json();
 
-        // Validate input
-        const validatedData = deleteTokenSchema.parse(body);
+        // Validate the request body against the schema.
+        const { tokenId } = parse(deleteTokenSchema, body);
 
         const tokenAdapter = new TokenAdapter();
 
-        // Delete the specific token
-        const result = await tokenAdapter.consumeToken(validatedData.token);
+        // Delete the specific token by ID
+        const result = await tokenAdapter.deleteToken(tokenId);
 
-        if (result.status) {
-            logger.info('Token deleted successfully', {
-                token: validatedData.token
+        if (result) {
+            logger.info('Invitation token deleted successfully', {
+                tokenId: tokenId,
+                deletedBy: locals.user?._id
             });
 
             return json({
                 success: true,
-                message: 'Token deleted successfully'
+                message: 'Invitation token deleted successfully.'
             });
         } else {
-            logger.warn('Failed to delete token', {
-                token: validatedData.token,
-                message: result.message
+            logger.warn('Failed to delete token - token not found', {
+                tokenId: tokenId,
+                requestedBy: locals.user?._id
             });
-
-            throw error(400, result.message);
+            throw error(404, 'Token not found or already deleted.');
         }
     } catch (err) {
-        if ((err as ValiError).issues) {
+        // Handle specific validation errors from Valibot.
+        if (err.name === 'ValiError') {
             const valiError = err as ValiError;
-            logger.warn('Invalid input for deleteToken API:', valiError.issues);
-            throw error(400, 'Invalid input: ' + valiError.issues.map((issue) => issue.message).join(', '));
+            const issues = valiError.issues.map((issue) => issue.message).join(', ');
+            logger.warn('Invalid input for deleteToken API:', { issues });
+            throw error(400, `Invalid input: ${issues}`);
         }
-        logger.error('Error in deleteToken API:', err);
-        throw error(500, 'Failed to delete token');
+
+        // Handle all other errors, including HTTP errors from `throw error()`.
+        const httpError = err as HttpError;
+        const status = httpError.status || 500;
+        const message = httpError.body?.message || 'An unexpected error occurred while deleting the token.';
+
+        logger.error('Error in deleteToken API:', {
+            error: message,
+            stack: err instanceof Error ? err.stack : undefined,
+            userId: locals.user?._id,
+            status
+        });
+
+        return json(
+            {
+                success: false,
+                message: status === 500 ? 'Internal Server Error' : message
+            },
+            { status }
+        );
     }
 };

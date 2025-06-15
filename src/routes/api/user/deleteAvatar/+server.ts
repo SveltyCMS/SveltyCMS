@@ -5,30 +5,24 @@
  * This module provides functionality to:
  * - Move the current avatar image for a user to the trash folder
  * - Update the user's profile to remove the avatar URL
- * - Prepare the avatar for future deletion (after 30 days in trash)
  *
  * Features:
- * - Avatar image moved to trash instead of immediate deletion
+ * - **Two-Level Permission System**: Users can delete their own avatar, admins can delete any user's avatar
  * - User profile update to remove avatar reference
- * - Permission checking to ensure user authorization
  * - Error handling and comprehensive logging
- * - Integration with trash cleanup system for eventual deletion
  *
  * Usage:
  * DELETE /api/user/deleteAvatar
- *
- * Note:
- * - This endpoint is secured with appropriate authentication and authorization.
- * - Actual deletion of the avatar file occurs after 30 days via a separate cleanup process.
- * - The user's profile is immediately updated to reflect the removal of the avatar.
+ * Body: JSON object with optional 'userId' (defaults to current user)
  */
 
-import { error, json } from '@sveltejs/kit';
+import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-// Auth
+// Auth and permission helpers
 import { auth } from '@src/databases/db';
 import { hasPermissionByAction } from '@src/auth/permissions';
+import { roles } from '@root/config/roles'; // Import static roles for fallback
 
 // System logger
 import { logger } from '@utils/logger.svelte';
@@ -36,53 +30,98 @@ import { logger } from '@utils/logger.svelte';
 // Media storage
 import { moveMediaToTrash } from '@utils/media/mediaStorage';
 
-export const DELETE: RequestHandler = async ({ locals }) => {
+export const DELETE: RequestHandler = async ({ request, locals }) => {
 	try {
-		// Check if the user has permission to delete their avatar
-		const hasPermission = hasPermissionByAction(
-			locals.user,
-			'update',
-			'user',
-			'user/profile'
-		);
+		// Parse request body to get optional target user ID
+		let targetUserId = locals.user._id; // Default to self
+		try {
+			const body = await request.json();
+			if (body.userId) {
+				targetUserId = body.userId;
+			}
+		} catch {
+			// If no body or invalid JSON, use default (self)
+		}
+
+		// **TWO-LEVEL PERMISSION SYSTEM**: Check if user is deleting their own avatar or has admin permissions
+		const isEditingSelf = locals.user._id === targetUserId;
+		let hasPermission = false;
+
+		if (isEditingSelf) {
+			// Users can always delete their own avatar
+			hasPermission = true;
+		} else {
+			// To delete another user's avatar, need admin permissions
+			hasPermission = hasPermissionByAction(
+				locals.user,
+				'update',
+				'user',
+				'any',
+				locals.roles && locals.roles.length > 0 ? locals.roles : roles
+			);
+		}
 
 		if (!hasPermission) {
-			throw error(403, 'Unauthorized to delete avatar');
+			logger.warn('Unauthorized attempt to delete avatar', {
+				requestedBy: locals.user?._id,
+				targetUserId: targetUserId
+			});
+			throw error(403, 'Forbidden: You do not have permission to delete this user\'s avatar.');
 		}
 
 		// Ensure the authentication system is initialized
 		if (!auth) {
 			logger.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error');
+			throw error(500, 'Internal Server Error: Auth system not initialized');
 		}
 
-		// Get the current user's avatar URL
-		const user = await auth.getUserById(locals.user._id);
+		const user = await auth.getUserById(targetUserId);
 
-		if (!user || !user.avatar) {
-			throw error(404, 'User or avatar not found');
+		if (!user) {
+			throw error(404, 'User not found');
 		}
 
 		if (user.avatar) {
 			try {
-				await moveMediaToTrash(user.avatar, 'media_images');
-				logger.info('Avatar moved to trash successfully', { userId: user._id });
+				await moveMediaToTrash(user.avatar);
+				logger.info('Avatar moved to trash successfully', { userId: user._id, avatar: user.avatar, deletedBy: locals.user._id });
 			} catch (moveError) {
-				logger.error(`Failed to move avatar to trash: ${moveError.message}`, { userId: user._id });
-				// If the file doesn't exist, we'll just log it and continue
+				logger.error(`Failed to move avatar file to trash: ${moveError.message}`, { userId: user._id });
+				// If the file doesn't exist, log it and continue. The goal is to remove the link.
 				if (!moveError.message.includes('Source file does not exist')) {
 					throw error(500, `Failed to move avatar to trash: ${moveError.message}`);
 				}
 			}
 		} else {
-			logger.info('No avatar to move to trash', { userId: user._id });
+			logger.info('No avatar to move to trash for user.', { userId: user._id });
+			// If there's no avatar, the operation is effectively successful.
+			return json({ success: true, message: 'No avatar to remove.' });
 		}
 
-		// Update the user's profile to remove the avatar URL
-		await auth.updateUserAttributes(locals.user._id, { avatar: null });
+		// Remove the avatar URL from the user's profile.
+		await auth.updateUserAttributes(targetUserId, { avatar: null });
+		logger.info('User avatar attribute removed from profile.', { userId: targetUserId, removedBy: locals.user._id });
+
 		return json({ success: true, message: 'Avatar removed successfully' });
-	} catch (error) {
-		console.error('Error deleting avatar:', error);
-		return json({ error: 'Failed to delete avatar' }, { status: 500 });
+
+	} catch (err) {
+		const httpError = err as HttpError;
+		const status = httpError.status || 500;
+		const message = httpError.body?.message || 'Internal Server Error';
+
+		logger.error('Error in deleteAvatar API:', {
+			error: message,
+			stack: err instanceof Error ? err.stack : undefined,
+			userId: locals.user?._id,
+			status
+		});
+
+		return json(
+			{
+				success: false,
+				message: status === 500 ? 'Internal Server Error' : message
+			},
+			{ status }
+		);
 	}
 };

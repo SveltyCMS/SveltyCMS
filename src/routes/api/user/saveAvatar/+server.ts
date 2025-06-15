@@ -1,16 +1,6 @@
 /**
- * @file src/routes/api/user/saveAvatar/		// Check if the user has permission to update their avatar
-		const hasPermission = hasPermissionByAction(
-			locals.user, 
-			'update', 
-			'user', 
-			'user/profile'
-		);
-
-		if (!hasPermission) {
-			logger.error('Unauthorized to update avatar', { userId: locals.user._id });
-			throw error(403, 'Unauthorized to update avatar');
-		}* @description API endpoint for saving a user's avatar image.
+ * @file src/routes/api/user/saveAvatar/+server.ts
+ * @description API endpoint for saving a user's avatar image.
  *
  * This module provides functionality to:
  * - Save a new avatar image for a user
@@ -20,22 +10,21 @@
  * - File upload handling
  * - Avatar image processing and storage
  * - User profile update
- * - Permission checking
+ * - **Defense in Depth**: Specific permission checking within the endpoint.
  * - Error handling and logging
  *
  * Usage:
  * POST /api/user/saveAvatar
  * Body: FormData with 'avatar' file
- *
- * Note: This endpoint is secured with appropriate authentication and authorization.
  */
 
-import { error, json } from '@sveltejs/kit';
+import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-// Auth
+// Auth and permission helpers
 import { auth } from '@src/databases/db';
 import { hasPermissionByAction } from '@src/auth/permissions';
+import { roles } from '@root/config/roles';
 
 // System logger
 import { logger } from '@utils/logger.svelte';
@@ -46,17 +35,32 @@ import { getCacheStore } from '@src/cacheStore/index.server';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
-		// Check if the user has permission to update their avatar
-		const hasPermission = hasPermissionByAction(
-			locals.user,
-			'update',
-			'user',
-			'user/profile'
-		);
+		// Check if user is updating their own avatar or has admin permissions
+		const formData = await request.formData();
+		const targetUserId = formData.get('userId') as string || locals.user._id; // Default to self if no userId provided
+		const isEditingSelf = locals.user._id === targetUserId;
+		let hasPermission = false;
+
+		if (isEditingSelf) {
+			// Users can always update their own avatar
+			hasPermission = true;
+		} else {
+			// To update another user's avatar, need admin permissions
+			hasPermission = hasPermissionByAction(
+				locals.user,
+				'update',
+				'user',
+				'any',
+				locals.roles && locals.roles.length > 0 ? locals.roles : roles
+			);
+		}
 
 		if (!hasPermission) {
-			logger.error('Unauthorized to update avatar', { userId: locals.user._id });
-			throw error(403, 'Unauthorized to update avatar');
+			logger.warn('Unauthorized attempt to update avatar', {
+				requestedBy: locals.user?._id,
+				targetUserId: targetUserId
+			});
+			throw error(403, 'Forbidden: You do not have permission to update this user\'s avatar.');
 		}
 
 		// Ensure the authentication system is initialized
@@ -65,48 +69,49 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			throw error(500, 'Internal Server Error: Auth system not initialized');
 		}
 
-		const formData = await request.formData();
 		const avatarFile = formData.get('avatar') as File | null;
 
 		if (!avatarFile) {
-			logger.error('No avatar file provided', { userId: locals.user._id });
+			logger.error('No avatar file provided', { userId: locals.user._id, targetUserId });
 			throw error(400, 'No avatar file provided');
 		}
 
-		// Validate file type
+		// Validate file type on the server as a secondary check
 		const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 		if (!allowedTypes.includes(avatarFile.type)) {
-			logger.error('Invalid file type', {
+			logger.error('Invalid file type for avatar', {
 				userId: locals.user._id,
 				fileType: avatarFile.type
 			});
 			throw error(400, 'Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.');
 		}
 
-		// Before saving new avatar, move old avatar to trash if it exists
-		const currentUser = await auth.getUserById(locals.user._id);
+		// Before saving a new avatar, move the old one to trash if it exists.
+		const currentUser = await auth.getUserById(targetUserId);
 		if (currentUser && currentUser.avatar) {
 			try {
 				const { moveMediaToTrash } = await import('@utils/media/mediaStorage');
 				await moveMediaToTrash(currentUser.avatar);
 				logger.info('Old avatar moved to trash', { userId: locals.user._id, oldAvatar: currentUser.avatar });
 			} catch (err) {
-				logger.warn('Failed to move old avatar to trash', { userId: locals.user._id, error: err });
+				// Log the error but don't block the upload if moving the old file fails.
+				logger.warn('Failed to move old avatar to trash. Proceeding with new avatar upload.', { userId: locals.user._id, error: err });
 			}
 		}
 
-		// Save the avatar image
+		// Save the new avatar image and update the user's profile
 		const avatarUrl = await saveAvatarImage(avatarFile, 'avatars');
-		// Update the user's profile with the new avatar URL
 		await auth.updateUserAttributes(locals.user._id, { avatar: avatarUrl });
 
+		// Invalidate any cached session data to reflect the change immediately.
 		const session_id = locals.session_id;
+		if (session_id) {
+			const user = await auth.validateSession(session_id);
+			const cacheStore = getCacheStore();
+			await cacheStore.set(session_id, user, new Date(Date.now() + 3600 * 1000));
+		}
 
-		const user = await auth.validateSession(session_id);
-		locals.user = user;
-		const cacheStore = getCacheStore();
-		cacheStore.set(session_id, user, new Date(Date.now() + 3600 * 1000));
-		logger.info('Avatar saved successfully', { userId: locals.user.id });
+		logger.info('Avatar saved successfully', { userId: locals.user.id, avatarUrl });
 
 		return json({
 			success: true,
@@ -114,9 +119,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			avatarUrl
 		});
 	} catch (err) {
-		const isHttpError = err instanceof Error && typeof (err as { status?: unknown }).status === 'number';
-		const status = isHttpError ? (err as { status: number }).status : 500;
-		const message = err instanceof Error ? err.message : 'Internal Server Error';
+		const httpError = err as HttpError;
+		const status = httpError.status || 500;
+		const message = httpError.body?.message || 'Internal Server Error';
 
 		logger.error('Error in saveAvatar API:', {
 			error: message,

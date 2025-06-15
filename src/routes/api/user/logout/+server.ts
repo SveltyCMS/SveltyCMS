@@ -1,71 +1,82 @@
 /**
  * @file src/routes/api/user/logout/+server.ts
- * @description API endpoint for user logout
+ * @description API endpoint for user logout.
  *
- * This endpoint handles user logout operations:
- * - Destroys the user's active session in the database
- * - Removes the session from any in-memory stores
- * - Clears the session cookie from the client
+ * This endpoint handles user logout operations by:
+ * - Destroying the user's active session on the server.
+ * - Removing the session from any in-memory stores or caches.
+ * - Clearing the session cookie from the client's browser.
  *
- * The endpoint ensures complete cleanup of session data both server-side and client-side.
- * It integrates with the SvelteKit error handling system and respects the authentication
- * flow established in hooks.server.ts.
- *
- * @throws {error} 401 - Not authenticated
- * @throws {error} 400 - No active session
- * @throws {error} 500 - Internal server error or authentication system unavailable
+ * Features:
+ * - Secure session destruction.
+ * - Reliable cookie invalidation.
+ * - Robust error handling and logging.
  */
-import { json } from '@sveltejs/kit';
+
+import { json, error, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+// Auth
 import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@root/src/auth';
+// System Logger
 import { logger } from '@utils/logger.svelte';
 
 export const POST: RequestHandler = async ({ cookies, locals }) => {
-	if (!auth) {
-		logger.error('Authentication system is not initialized');
-		return json({ success: false, message: 'Internal Server Error' }, { status: 500 });
-	}
-
-	const rawSessionId = cookies.get(SESSION_COOKIE_NAME);
-	const session_id = rawSessionId;
-
 	try {
-		if (session_id) {
-			// Destroy the session in the database and any in-memory stores
-			await auth.destroySession(session_id);
-			logger.info(`Session destroyed: ${session_id}`);
-		} else {
-			logger.warn('No active session found during logout attempt');
+		if (!auth) {
+			logger.error('Authentication system is not initialized.');
+			throw error(500, 'Internal Server Error: Auth system not initialized');
 		}
 
-		// Always clear the session cookie, even if there wasn't an active session
+		// Use the session ID from `locals` which is reliably populated by the hook.
+		const session_id = locals.session_id;
+
+		// Check if a user session actually exists for this request.
+		if (session_id && locals.user) {
+			// Destroy the session on the server-side (database, cache, etc.).
+			await auth.destroySession(session_id);
+			logger.info(`Session destroyed for user ${locals.user.email}`, { sessionId: session_id });
+		} else {
+			// If there's no session, there's nothing to destroy, but we can still log it.
+			logger.warn('Logout endpoint was called, but no active session was found.');
+		}
+
+		// Clear the session cookie from the client's browser.
+		cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+		logger.debug(`Session cookie deleted from client: ${SESSION_COOKIE_NAME}`);
+
+		// Clear the user from `locals` for the remainder of the current request lifecycle.
+		locals.user = null;
+		locals.session_id = undefined;
+
+		return json({ success: true, message: 'You have been logged out successfully.' });
+
+	} catch (err) {
+		// This block catches unexpected errors during session destruction.
+		const httpError = err as HttpError;
+		const status = httpError.status || 500;
+		const message = httpError.body?.message || 'An unexpected error occurred during logout.';
+
+		logger.error('Error during logout process:', {
+			error: message,
+			stack: err instanceof Error ? err.stack : undefined,
+			userId: locals.user?._id,
+			status
+		});
+
+		// Even if an error occurs, we still try to clear the cookie as a failsafe.
 		try {
 			cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
-			logger.debug(`Session cookie deleted: ${SESSION_COOKIE_NAME}`);
 		} catch (cookieError) {
-			logger.error(`Failed to delete session cookie: ${cookieError instanceof Error ? cookieError.message : String(cookieError)}`);
-			// Try alternative deletion method
-			try {
-				cookies.set(SESSION_COOKIE_NAME, '', {
-					path: '/',
-					expires: new Date(0),
-					maxAge: 0
-				});
-				logger.debug('Session cookie cleared using alternative method');
-			} catch (altError) {
-				logger.error(`Failed to clear session cookie with alternative method: ${altError instanceof Error ? altError.message : String(altError)}`);
-			}
+			logger.error('Failed to clear cookie during logout error handling.', { cookieError });
 		}
 
-		// Clear the user from locals
-		locals.user = null;
-
-		logger.info('User logged out successfully');
-		return json({ success: true, message: 'Logged out successfully' });
-	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : String(error);
-		logger.error('Logout error:', { error: errorMessage });
-		return json({ success: false, message: 'An error occurred during logout' }, { status: 500 });
+		return json(
+			{
+				success: false,
+				message: status === 500 ? 'Internal Server Error' : message
+			},
+			{ status }
+		);
 	}
 };

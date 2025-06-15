@@ -88,7 +88,16 @@ async function fetchAndRedirectToFirstCollection() {
 		// Initialize content manager
 		await contentManager.initialize();
 
-		// Get content structure with UUIDs
+		// First try to get the first collection directly
+		const firstCollection = await contentManager.getFirstCollection();
+		if (firstCollection && firstCollection.path) {
+			const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+			const redirectUrl = `/${defaultLanguage}${firstCollection.path}`;
+			logger.info(`Redirecting to first collection: ${firstCollection.name} (${firstCollection._id})`);
+			return redirectUrl;
+		}
+
+		// Fallback: Get content structure with UUIDs
 		let contentNodes = [];
 		try {
 			if (!contentManager) throw new Error('Content manager not initialized');
@@ -107,11 +116,26 @@ async function fetchAndRedirectToFirstCollection() {
 			return '/';
 		}
 
-		// Find first collection using UUID
-		const firstCollection = contentNodes.find((node) => node.isCollection && node._id);
-		if (firstCollection) {
-			logger.info(`Redirecting to first collection: ${firstCollection.name} (${firstCollection._id})`);
-			return `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${firstCollection._id}`;
+		// Find first collection using nodeType - sort by order or name for consistency
+		const collections = contentNodes.filter((node) => node.nodeType === 'collection' && node._id);
+		if (collections.length > 0) {
+			// Sort collections by order field (if available) or by name for consistent selection
+			const sortedCollections = collections.sort((a, b) => {
+				if (a.order !== undefined && b.order !== undefined) {
+					return a.order - b.order;
+				}
+				return (a.name || '').localeCompare(b.name || '');
+			});
+			
+			const firstCollectionNode = sortedCollections[0];
+			const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+			
+			// Use the collection's actual path if available, otherwise construct from _id
+			const collectionPath = firstCollectionNode.path || `/${firstCollectionNode._id}`;
+			const redirectUrl = `/${defaultLanguage}${collectionPath}`;
+			
+			logger.info(`Redirecting to first collection from structure: ${firstCollectionNode.name} (${firstCollectionNode._id}) at path: ${collectionPath}`);
+			return redirectUrl;
 		}
 		logger.warn('No valid collections found');
 		return '/';

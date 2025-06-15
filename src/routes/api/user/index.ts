@@ -7,20 +7,14 @@
  * - Create a new user and send a token via email (POST)
  *
  * Features:
- * - User retrieval
- * - User creation with role assignment
- * - Token generation with configurable expiration
- * - Email notification for new users
- * - Form validation using superforms
- * - Error handling and logging
+ * - **Defense in Depth**: Specific permission checks for both GET and POST.
+ * - User creation with role assignment and email notification.
+ * - Form validation using superforms.
+ * - Error handling and logging.
  *
  * Usage:
- * GET /api/user - Retrieve all users
- * POST /api/user - Create a new user
- *   Body: JSON object with 'email', 'role', and 'expiresIn' properties
- *
- * Note: Ensure proper authentication and authorization for these endpoints.
- * The email sending functionality should be properly implemented and secured.
+ * GET /api/user - Retrieve all users (requires 'read:user:all' permission)
+ * POST /api/user - Create a new user (requires 'create:user:any' permission)
  */
 
 import { json, type RequestHandler } from '@sveltejs/kit';
@@ -28,42 +22,80 @@ import { auth } from '@src/databases/db';
 import { superValidate } from 'sveltekit-superforms/server';
 import { addUserTokenSchema } from '@utils/formSchemas';
 import { valibot } from 'sveltekit-superforms/adapters';
-import { error } from '@sveltejs/kit';
+import { error, type HttpError } from '@sveltejs/kit';
+
+// Auth and permission helpers
+import { hasPermissionByAction } from '@src/auth/permissions';
+import { roles } from '@root/config/roles';
+
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async ({ locals }) => {
 	try {
 		if (!auth) {
 			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error');
 		}
 
+		// **SECURITY**: Check for specific 'read:user:all' permission.
+		// This prevents any user who gets past the hook from listing all other users.
+		// It ensures only users with explicit rights can access this sensitive data.
+		const hasPermission = hasPermissionByAction(
+			locals.user,
+			'read',
+			'user',
+			'all',
+			locals.roles && locals.roles.length > 0 ? locals.roles : roles
+		);
+
+		if (!hasPermission) {
+			logger.warn('Unauthorized attempt to list all users', { userId: locals.user?._id });
+			throw error(403, 'Forbidden: You do not have permission to list users.');
+		}
+
 		const users = await auth.getAllUsers();
-		logger.info('Fetched users successfully', { count: users.length });
+		logger.info('Fetched all users successfully', { count: users.length, requestedBy: locals.user?._id });
 		return json(users);
 	} catch (err) {
-		const errorMessage = err instanceof Error ? err.message : String(err);
-		logger.error('Error fetching users:', { error: errorMessage });
-		throw error(500, 'Internal Server Error');
+		const httpError = err as HttpError;
+		const status = httpError.status || 500;
+		const message = httpError.body?.message || 'Internal Server Error';
+		logger.error('Error fetching users:', { error: message, status });
+		throw error(status, message);
 	}
 };
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		if (!auth) {
 			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error');
+		}
+
+		// **SECURITY**: Check for specific 'create:user:any' permission.
+		// This ensures only true administrators can create new user accounts.
+		const hasPermission = hasPermissionByAction(
+			locals.user,
+			'create',
+			'user',
+			'any',
+			locals.roles && locals.roles.length > 0 ? locals.roles : roles
+		);
+
+		if (!hasPermission) {
+			logger.warn('Unauthorized attempt to create a user', { userId: locals.user?._id });
+			throw error(403, 'Forbidden: You do not have permission to create users.');
 		}
 
 		const addUserForm = await superValidate(request, valibot(addUserTokenSchema));
 		if (!addUserForm.valid) {
-			logger.warn('Invalid form data received');
+			logger.warn('Invalid form data for user creation', { errors: addUserForm.errors });
 			return json({ form: addUserForm, message: 'Invalid form data' }, { status: 400 });
 		}
 
 		const { email, role, expiresIn } = addUserForm.data;
-		logger.info('Received request to create user', { email, role });
+		logger.info('Request to create user received', { email, role, requestedBy: locals.user?._id });
 
 		const expirationTimes: Record<string, number> = {
 			'2 hrs': 7200,
@@ -80,8 +112,8 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		const existingUser = await auth.checkUser({ email });
 		if (existingUser) {
-			logger.warn('User already exists', { email });
-			return json({ message: 'User already exists' }, { status: 400 });
+			logger.warn('Attempted to create a user that already exists', { email });
+			return json({ message: 'User already exists' }, { status: 409 }); // 409 Conflict
 		}
 
 		const newUser = await auth.createUser({
@@ -95,25 +127,31 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		logger.info('User created successfully', { userId: newUser._id });
 
-		// Send the token via email
-		await sendUserToken(email, token, role, expirationTime);
+		// Send token via email. Pass the request origin for server-side fetch.
+		await sendUserToken(request.url.origin, email, token, role, expirationTime);
 
-		return json(newUser);
-	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : String(error);
-		logger.error('Error creating user', { error: errorMessage });
-		return json({ success: false, error: `Error creating user: ${errorMessage}` }, { status: 500 });
+		return json(newUser, { status: 201 }); // 201 Created
+	} catch (err) {
+		const httpError = err as HttpError;
+		const status = httpError.status || 500;
+		const message = httpError.body?.message || `Error creating user: ${err.message}`;
+		logger.error('Error creating user', { error: message, status });
+		return json({ success: false, error: message }, { status });
 	}
 };
 
-async function sendUserToken(email: string, token: string, role: string, expiresIn: number) {
+/**
+ * Sends a user token via the sendMail API.
+ * @param origin - The origin of the request (e.g., 'http://localhost:5173') for server-side fetch.
+ */
+async function sendUserToken(origin: string, email: string, token: string, role: string, expiresIn: number) {
 	try {
-		const response = await fetch('/api/sendMail', {
+		const response = await fetch(`${origin}/api/sendMail`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
 				email,
-				subject: 'User Token',
+				subject: 'You have been invited to join',
 				message: 'User Token',
 				templateName: 'userToken',
 				props: { email, token, role, expiresIn }
@@ -121,12 +159,15 @@ async function sendUserToken(email: string, token: string, role: string, expires
 		});
 
 		if (!response.ok) {
-			throw Error(`Failed to send email: ${response.statusText}`);
+			const errorBody = await response.text();
+			throw new Error(`Failed to send email: ${response.statusText} - ${errorBody}`);
 		}
 
 		logger.info('User token email sent successfully', { email });
-	} catch (error) {
-		logger.error('Error sending user token email', { error, email });
-		throw error;
+	} catch (err) {
+		logger.error('Error sending user token email', { error: err.message, email });
+		// Re-throw the error to be caught and handled by the main POST handler.
+		throw err;
 	}
 }
+
