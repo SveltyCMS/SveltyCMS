@@ -94,6 +94,10 @@ async function fetchAndRedirectToFirstCollection() {
 			return '/';
 		}
 
+		// Wait for system initialization including ContentManager
+		await dbInitPromise;
+		logger.debug('System ready, proceeding with collection retrieval');
+
 		const collection = contentManager.getFirstCollection();
 		const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
 
@@ -207,7 +211,8 @@ async function handleGoogleUser(
 
 export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => {
 	try {
-		await dbInitPromise; // Ensure initialization is complete
+		await dbInitPromise; // Wait for system initialization including ContentManager
+		logger.debug('System ready in OAuth load function');
 
 		if (!auth) {
 			logger.error('Authentication system is not initialized');

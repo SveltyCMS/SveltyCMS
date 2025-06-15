@@ -387,32 +387,5 @@ if (!initializationPromise) {
 
 // --- Full System Ready Promise (including ContentManager) ---
 
-// This function ensures ContentManager initializes *after* the core DB/Auth setup
-async function initializeFullSystem(): Promise<void> {
-	try {
-		// Wait for the core DB/Auth adapters and setup to complete
-		await initializationPromise; // Wait for the original promise
-		logger.debug('Core system initialized (dbInitPromise resolved). ContentManager already initialized as part of core setup.');
-	} catch (err) {
-		// If either initializationPromise or contentManager.initialize fails
-		logger.error(`Full system initialization failed: ${err instanceof Error ? err.message : String(err)}`);
-		// We might want to re-throw or handle this specifically
-		throw err; // Re-throw to indicate startup failure
-	}
-}
-
-// Create and export a promise that represents the *fully* initialized system
-let fullSystemPromise: Promise<void> | null = null;
-if (!fullSystemPromise) {
-	logger.debug('Creating full system ready promise...');
-	fullSystemPromise = initializeFullSystem();
-	fullSystemPromise.catch((err) => {
-		logger.error(`The fullSystemReadyPromise was rejected: ${err instanceof Error ? err.message : String(err)}`);
-		fullSystemPromise = null; // Allow potential retry?
-	});
-}
-
-// Export the promises so other modules can wait
-// dbInitPromise: Resolves when DB connection and core adapters/models are ready
-// fullSystemReadyPromise: Resolves when dbInitPromise is done AND ContentManager is initialized
-export { initializationPromise as dbInitPromise, fullSystemPromise as fullSystemReadyPromise };
+// Export the initialization promise so other modules can wait for system readiness
+export { initializationPromise as dbInitPromise };

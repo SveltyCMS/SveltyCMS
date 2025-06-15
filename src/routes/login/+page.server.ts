@@ -85,8 +85,9 @@ async function waitForAuthService(maxWaitMs: number = 10000): Promise<boolean> {
 // Helper function to fetch and redirect to the first collection
 async function fetchAndRedirectToFirstCollection() {
 	try {
-		// Initialize content manager
-		await contentManager.initialize();
+		// Wait for system initialization including ContentManager
+		await dbInitPromise;
+		logger.debug('System ready, proceeding with collection retrieval');
 
 		// First try to get the first collection directly
 		const firstCollection = await contentManager.getFirstCollection();
@@ -101,7 +102,7 @@ async function fetchAndRedirectToFirstCollection() {
 		let contentNodes = [];
 		try {
 			if (!contentManager) throw new Error('Content manager not initialized');
-			await contentManager.initialize();
+			// ContentManager should already be initialized due to dbInitPromise
 			contentNodes = contentManager.getContentStructure();
 			if (!Array.isArray(contentNodes)) {
 				logger.warn('Content structure is not an array', { type: typeof contentNodes, value: contentNodes });
@@ -126,14 +127,14 @@ async function fetchAndRedirectToFirstCollection() {
 				}
 				return (a.name || '').localeCompare(b.name || '');
 			});
-			
+
 			const firstCollectionNode = sortedCollections[0];
 			const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
-			
+
 			// Use the collection's actual path if available, otherwise construct from _id
 			const collectionPath = firstCollectionNode.path || `/${firstCollectionNode._id}`;
 			const redirectUrl = `/${defaultLanguage}${collectionPath}`;
-			
+
 			logger.info(`Redirecting to first collection from structure: ${firstCollectionNode.name} (${firstCollectionNode._id}) at path: ${collectionPath}`);
 			return redirectUrl;
 		}
@@ -143,6 +144,31 @@ async function fetchAndRedirectToFirstCollection() {
 		logger.error('Error in fetchAndRedirectToFirstCollection:', err);
 		return '/';
 	}
+}
+
+// Cached version for performance optimization
+let cachedFirstCollectionPath: string | null = null;
+let cacheExpiry: number = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+
+async function fetchAndRedirectToFirstCollectionCached(): Promise<string> {
+	const now = Date.now();
+
+	// Return cached result if still valid
+	if (cachedFirstCollectionPath && now < cacheExpiry) {
+		return cachedFirstCollectionPath;
+	}
+
+	// Fetch fresh data
+	const result = await fetchAndRedirectToFirstCollection();
+
+	// Cache the result if it's not the fallback
+	if (result !== '/') {
+		cachedFirstCollectionPath = result;
+		cacheExpiry = now + CACHE_DURATION;
+	}
+
+	return result;
 }
 
 // Define wrapped schemas for caching
@@ -334,6 +360,11 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					oauthError: 'OAuth processing failed. Please try signing in with email or contact support.'
 				};
 			} catch (oauthError) {
+				// Check if this is a SvelteKit redirect (which is expected)
+				if (oauthError instanceof Response && oauthError.status >= 300 && oauthError.status < 400) {
+					throw oauthError; // Re-throw redirects
+				}
+
 				const err = oauthError as Error;
 				logger.error(`Error during Google OAuth login process: ${err.message}`, { stack: err.stack });
 				return {
@@ -415,6 +446,8 @@ export const actions: Actions = {
 
 		let resp: { status: boolean; message?: string; user?: User } = { status: false };
 
+		let redirectPath;
+
 		try {
 			const existingUser = await auth.checkUser({ email });
 
@@ -489,10 +522,9 @@ export const actions: Actions = {
 					logger.error(`Error fetching /api/sendMail for ${resp.user.email} after signup:`, emailError);
 				}
 
-				await createSessionAndSetCookie(resp.user._id, event.cookies);
 				message(signUpForm, resp.message || 'User signed up successfully!');
-				const redirectPath = await fetchAndRedirectToFirstCollection();
-				throw redirect(303, redirectPath);
+				redirectPath = await fetchAndRedirectToFirstCollection();
+				// Don't throw redirect here - do it outside the try-catch
 			} else {
 				logger.warn(`Sign-up failed: ${resp.message || 'Unknown reason'}. Form data:`, signUpForm.data);
 				return message(signUpForm, resp.message || 'Sign-up failed. Please check your details.', { status: 400 });
@@ -501,6 +533,11 @@ export const actions: Actions = {
 			const err = e as Error;
 			logger.error('Unexpected error in signUp action:', { message: err.message, stack: err.stack });
 			return message(signUpForm, 'An unexpected server error occurred.', { status: 500 });
+		}
+
+		// Handle redirect outside try-catch
+		if (redirectPath) {
+			throw redirect(303, redirectPath);
 		}
 	},
 
@@ -519,29 +556,48 @@ export const actions: Actions = {
 	},
 
 	signIn: async (event) => {
+		const startTime = performance.now();
+
 		if (await limiter.isLimited(event)) {
 			return fail(429, { message: 'Too many requests. Please try again later.' });
 		}
-		await dbInitPromise;
+
+		// Run initialization and form validation in parallel
+		const [, signInForm] = await Promise.all([
+			dbInitPromise,
+			superValidate(event, wrappedLoginSchema)
+		]);
+
 		const authReady = await waitForAuthService();
 		if (!authReady || !auth) {
 			logger.error('Authentication system is not ready for signIn action');
-			return fail(503, { form: await superValidate(event, wrappedLoginSchema), message: 'Authentication system is not ready.' });
+			return fail(503, { form: signInForm, message: 'Authentication system is not ready.' });
 		}
 
-		const signInForm = await superValidate(event, wrappedLoginSchema);
 		if (!signInForm.valid) return fail(400, { form: signInForm });
 
 		const email = signInForm.data.email.toLowerCase();
 		const password = signInForm.data.password;
 		const isToken = signInForm.data.isToken;
 
+		let resp;
+		let redirectPath;
+
 		try {
-			const resp = await signInUser(email, password, isToken, event.cookies);
+			// Run authentication and collection path retrieval in parallel for faster response
+			const [authResult, collectionPath] = await Promise.all([
+				signInUser(email, password, isToken, event.cookies),
+				fetchAndRedirectToFirstCollectionCached() // Use cached version
+			]);
+
+			resp = authResult;
+
 			if (resp && resp.status) {
 				message(signInForm, 'Sign-in successful!');
-				const redirectPath = await fetchAndRedirectToFirstCollection();
-				throw redirect(303, redirectPath);
+				redirectPath = collectionPath;
+
+				const endTime = performance.now();
+				logger.debug(`SignIn completed in ${(endTime - startTime).toFixed(2)}ms`);
 			} else {
 				const errorMessage = resp?.message || 'Invalid credentials or an error occurred.';
 				logger.warn(`Sign-in failed`, { email, errorMessage });
@@ -551,6 +607,11 @@ export const actions: Actions = {
 			const err = e as Error;
 			logger.error(`Unexpected error in signIn action`, { email, message: err.message, stack: err.stack });
 			return message(signInForm, 'An unexpected server error occurred.', { status: 500 });
+		}
+
+		// Handle redirect outside try-catch
+		if (redirectPath) {
+			throw redirect(303, redirectPath);
 		}
 	},
 
@@ -715,11 +776,15 @@ async function signInUser(
 	try {
 		let user: User | null = null;
 		let authSuccess = false;
+
 		if (!isToken) {
 			const authResult = await auth.authenticate(email, password);
 			if (authResult && authResult.user) {
 				user = authResult.user;
 				authSuccess = true;
+				// Use the session that authenticate() already created
+				const sessionCookie = auth.createSessionCookie(authResult.sessionId);
+				cookies.set(sessionCookie.name, sessionCookie.value, { ...sessionCookie.attributes, path: '/' });
 			} else {
 				logger.warn(`Password authentication failed`, { email });
 			}
@@ -739,11 +804,28 @@ async function signInUser(
 				return { status: false, message: result.message || 'Invalid or expired token.' };
 			}
 		}
+
 		if (!authSuccess || !user || !user._id) {
 			return { status: false, message: 'Invalid credentials or authentication failed.' };
 		}
-		await createSessionAndSetCookie(user._id, cookies);
-		await auth.updateUserAttributes(user._id, { lastAuthMethod: isToken ? 'token' : 'password', lastLogin: new Date() });
+
+		// For token-based authentication, we need to create a session manually
+		// For password authentication, the session was already created by authenticate()
+		if (isToken) {
+			await createSessionAndSetCookie(user._id, cookies);
+		}
+
+		// Parallelize user attribute update for better performance
+		const updatePromise = auth.updateUserAttributes(user._id, {
+			lastAuthMethod: isToken ? 'token' : 'password',
+			lastLogin: new Date()
+		});
+
+		// Don't wait for attribute update to complete - fire and forget for better UX
+		updatePromise.catch(err => {
+			logger.error(`Failed to update user attributes for ${user._id}:`, err);
+		});
+
 		logger.info(`User logged in successfully: ${user.username} (${user._id})`);
 		return { status: true, message: 'Login successful', user };
 	} catch (error) {

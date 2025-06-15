@@ -12,7 +12,7 @@
 import { publicEnv } from '@root/config/public';
 import { redirect, error } from '@sveltejs/kit';
 import { contentManager } from '@src/content/ContentManager';
-import { fullSystemReadyPromise } from '@src/databases/db';
+import { dbInitPromise } from '@src/databases/db';
 
 import type { PageServerLoad } from './$types';
 
@@ -28,8 +28,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	try {
 		// Wait for the database connection, model creation, and initial ContentManager load
-		await fullSystemReadyPromise;
-		logger.debug('Full system is ready, proceeding with page load.');
+		await dbInitPromise;
+		logger.debug('System is ready, proceeding with page load.');
 
 		// Now ContentManager is guaranteed to be initialized and have loaded initial data
 		const collection = await contentManager.getFirstCollection();
