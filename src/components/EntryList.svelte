@@ -340,7 +340,7 @@ Features:
 					if (currentCollection?.fields) {
 						for (const field of currentCollection.fields) {
 							const fieldLabelKey = field.label;
-							const rawDataKey = getFieldName(field, true);
+							const rawDataKey = getFieldName(field, false);
 							const rawFieldName = getFieldName(field);
 							if (field.display) {
 								obj[fieldLabelKey] = await field.display({

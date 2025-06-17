@@ -69,9 +69,9 @@
 	let debounceTimeout: number | undefined;
 
 	// Get validation state from store
-	let validationError = $derived(validationStore.getTouchedError(fieldName));
-	let isValidating = $derived(validationStore.isValidating(fieldName));
-	let isTouched = $derived(validationStore.isTouched(fieldName));
+	let validationError = $derived(validationStore.getError(fieldName));
+	let isValidating = $state(false);
+	let isTouched = $state(false);
 
 	// Memoized badge class calculation
 	const badgeClassCache = new Map<string, string>();
@@ -114,7 +114,7 @@
 
 		// Set up validation with debounce (unless immediate)
 		const doValidation = async () => {
-			validationStore.setValidating(fieldName, true);
+			isValidating = true;
 
 			try {
 				// Required field validation
@@ -178,7 +178,7 @@
 				validationStore.setError(fieldName, errorMessage);
 				return errorMessage;
 			} finally {
-				validationStore.setValidating(fieldName, false);
+				isValidating = false;
 			}
 		};
 
@@ -203,7 +203,7 @@
 
 	// Handle blur events
 	async function handleBlur() {
-		validationStore.touch(fieldName);
+		isTouched = true;
 		if (validateOnBlur) {
 			await validateInput(true);
 		}

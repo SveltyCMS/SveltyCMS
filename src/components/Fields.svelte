@@ -41,6 +41,7 @@
 	// Components
 	import { widgetFunctions } from '@src/widgets';
 	import Loading from '@components/Loading.svelte';
+	import { untrack } from 'svelte';
 
 	// Props
 	interface Props {
@@ -71,9 +72,10 @@
 	let isFormDataInitialized = $state(false);
 
 	function getDefaultCollectionValue(fields: any[]) {
-		const tempCollectionValue: Record<string, any> = {};
+		const tempCollectionValue: Record<string, any> = collectionValue?.value ? collectionValue.value : {};
+
 		for (const field of fields) {
-			tempCollectionValue[getFieldName(field, true)] = collectionValue?.value ? (collectionValue.value[getFieldName(field, true)] ?? {}) : {};
+			tempCollectionValue[getFieldName(field, false)] = collectionValue?.value ? (collectionValue.value[getFieldName(field, false)] ?? {}) : {};
 		}
 		return tempCollectionValue;
 	}
@@ -82,11 +84,27 @@
 	let currentCollectionValue = $state(defaultCollectionValue);
 
 	// Initialize form data snapshot on first load or when collection changes
-	$effect(() => {
+
+	$effect.root(() => {
 		if (!isFormDataInitialized && collectionValue.value) {
 			formDataSnapshot = { ...collectionValue.value };
 			currentCollectionValue = getDefaultCollectionValue(derivedFields);
 			isFormDataInitialized = true;
+		}
+	});
+	$effect(() => {
+		if (isFormDataInitialized && localTabSet === 0) {
+			// Only sync when on edit tab to avoid unnecessary updates
+
+			formDataSnapshot = { ...untrack(() => formDataSnapshot), ...currentCollectionValue };
+		} else if (localTabSet === 0 && isFormDataInitialized && Object.keys(formDataSnapshot).length > 0) {
+			// Merge snapshot data back into currentCollectionValue when returning to edit tab
+			for (const field of derivedFields) {
+				const fieldName = getFieldName(field, false);
+				if (fieldName in formDataSnapshot) {
+					currentCollectionValue[fieldName] = formDataSnapshot[fieldName];
+				}
+			}
 		}
 	});
 
@@ -122,26 +140,8 @@
 			})
 	);
 
-	// Preserve form data changes in snapshot for persistence across tab switches
-	$effect(() => {
-		if (isFormDataInitialized && localTabSet === 0) {
-			// Only sync when on edit tab to avoid unnecessary updates
-			formDataSnapshot = { ...formDataSnapshot, ...currentCollectionValue };
-		}
-	});
-
 	// Restore form data when returning to edit tab (tab 0)
-	$effect(() => {
-		if (localTabSet === 0 && isFormDataInitialized && Object.keys(formDataSnapshot).length > 0) {
-			// Merge snapshot data back into currentCollectionValue when returning to edit tab
-			for (const field of derivedFields) {
-				const fieldName = getFieldName(field, true);
-				if (fieldName in formDataSnapshot) {
-					currentCollectionValue[fieldName] = formDataSnapshot[fieldName];
-				}
-			}
-		}
-	});
+	$effect(() => {});
 
 	// Update the main collection value store when form data changes (debounced)
 	let updateTimeout: number | null = null;
@@ -155,6 +155,10 @@
 				}));
 			}, 300) as unknown as number; // Debounce updates to avoid excessive reactivity
 		}
+	});
+
+	$effect(() => {
+		collectionValue.set(currentCollectionValue);
 	});
 
 	// Dynamic import of widget components
@@ -295,9 +299,9 @@
 												{field}
 												WidgetData={{}}
 												bind:value={
-													() => currentCollectionValue[getFieldName(field, true)],
+													() => currentCollectionValue[getFieldName(field, false)],
 													(v) => {
-														const fieldName = getFieldName(field, true);
+														const fieldName = getFieldName(field, false);
 														// Update currentCollectionValue directly - the $effect will handle persistence
 														currentCollectionValue = {
 															...currentCollectionValue,
@@ -339,7 +343,7 @@
 							lineNumbers={true}
 							text="text-xs text-left w-full"
 							buttonLabel=""
-							code={JSON.stringify(collectionValue.value, null, 2)}
+							code={JSON.stringify(formDataSnapshot, null, 2)}
 						/>
 					</div>
 					<div
