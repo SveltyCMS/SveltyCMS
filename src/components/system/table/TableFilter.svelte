@@ -21,7 +21,7 @@ This component provides a lightweight, flexible interface for table filtering, u
 	import { browser } from '$app/environment';
 
 	// Stores
-	import { translationStatusOpen } from '@stores/store.svelte';
+	import { translationStatusOpen, setTranslationStatusOpen } from '@stores/store.svelte';
 
 	// Props with types
 	let {
@@ -82,7 +82,7 @@ This component provides a lightweight, flexible interface for table filtering, u
 		if (except !== 'column') {
 			columnShow = false;
 		}
-		$translationStatusOpen = false; // Always close translation status
+		setTranslationStatusOpen(false);
 	}
 
 	// Function to cycle density
