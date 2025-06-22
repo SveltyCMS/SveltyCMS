@@ -591,7 +591,7 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 	// Check if user has required permission for this endpoint
 	const requiredPermissionName = `api:${apiEndpoint}`;
 
-	// ADMIN OVERRIDE: Admins automatically have ALL permissions
+	// ADMIN OVERRIDE: Admins have access to all API endpoints
 	const userRole = roles.find((role) => role._id === user.role);
 	const isAdmin = userRole?.isAdmin === true;
 
@@ -603,7 +603,7 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 			throw error(403, `Forbidden: You do not have the required permission ('${requiredPermissionName}') to access this API endpoint.`);
 		}
 	} else {
-		logger.debug(`Admin user \x1b[34m${user.email || user._id}\x1b[0m granted access to API \x1b[34m/api/${apiEndpoint}\x1b[0m`);
+		logger.debug(`Admin user granted access to API`, { email: user.email || user._id, apiEndpoint: `/api/${apiEndpoint}` });
 	}
 
 	// Handle GET requests with caching

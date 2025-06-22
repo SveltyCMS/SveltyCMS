@@ -14,7 +14,7 @@
  * - Log retention policy to automatically delete old log files
  */
 
-import { browser } from '$app/environment';
+import { browser, building } from '$app/environment';
 import { publicEnv } from '@root/config/public';
 
 // Check if running on the server
@@ -110,15 +110,12 @@ const getTimestamp = (): string => {
 };
 
 // Safe execution wrapper
-const safeExecute = async (fn: () => Promise<void>): Promise<void> => {
-	try {
-		await fn();
-	} catch (error) {
-		if (isServer) console.error('Error in logger function:', error);
-		// Optionally, if error tracking is enabled, report this internal logger error
-		// if (config.errorTrackingEnabled && error instanceof Error) {
-		//     // Example: reportErrorToService(error);
-		// }
+function safeExecute(fn: () => Promise<void>) {
+	if (isServer && !building) {
+		fn().catch((err) => {
+			// Use console.error directly to avoid recursive logging errors
+			console.error('Error in logger function:', err);
+		});
 	}
 };
 
@@ -217,14 +214,6 @@ const maskSensitiveData = (data: LoggableValue): LoggableValue => {
 };
 
 // Batch processing utilities
-function abortBatch(): void {
-	if (state.batchTimeout) clearTimeout(state.batchTimeout);
-	state.batchTimeout = null;
-	if (state.abortTimeout) clearTimeout(state.abortTimeout);
-	state.abortTimeout = null;
-}
-
-// Format values (colorize types like booleans, numbers)
 const processBatch = async (): Promise<void> => {
 	if (state.queue.length === 0) return;
 	const currentBatch = [...state.queue];
@@ -234,7 +223,7 @@ const processBatch = async (): Promise<void> => {
 
 	if (filteredBatch.length === 0) return;
 
-	if (isServer) {
+	if (isServer && !building) {
 		await serverFileOps.writeBatchToFile(filteredBatch);
 	}
 	if (config.customLogTarget) {
@@ -245,41 +234,29 @@ const processBatch = async (): Promise<void> => {
 };
 
 const scheduleBatchProcessing = (): void => {
-	if (!isServer) return;
+	if (!isServer || building) return;
 	if (state.batchTimeout) clearTimeout(state.batchTimeout);
 	state.batchTimeout = setTimeout(() => safeExecute(processBatch), config.batchTimeout);
 };
 
 // Server-Side Operations
-const serverModules = isServer
-	? {
-		fsPromises: import('node:fs/promises'),
-		path: import('node:path'),
-		zlib: import('node:zlib'),
-		fs: import('node:fs'),
-		stream: import('node:stream/promises')
-	}
-	: null;
-
 const serverFileOps = isServer
 	? {
-		_logStream: null as import('node:fs').WriteStream | null, // Store the write stream instance
+		_logStream: null as unknown, // Store the write stream instance
 		async _getModules() {
-			if (!serverModules) throw new Error('Server modules are not available.');
-			return {
-				fsPromises: await serverModules.fsPromises,
-				path: await serverModules.path,
-				zlib: await serverModules.zlib,
-				fs: await serverModules.fs,
-				stream: await serverModules.stream
-			};
+			const fsPromises = await import('node:fs/promises');
+			const path = await import('node:path');
+			const zlib = await import('node:zlib');
+			const fs = await import('node:fs');
+			const stream = await import('node:stream/promises');
+			return { fsPromises, path, zlib, fs, stream };
 		},
-		async getLogStream(): Promise<import('node:fs').WriteStream> {
+		async getLogStream(): Promise<unknown> {
 			const { path, fs } = await this._getModules();
 			if (!this._logStream || this._logStream.writableEnded || this._logStream.destroyed) {
 				const logFilePath = path.join(config.logDirectory, config.logFileName);
 				this._logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
-				this._logStream.on('error', (err) => {
+				this._logStream.on('error', (err: Error) => {
 					console.error('Log stream error:', err);
 					// Invalidate the stream on error to force re-initialization
 					this._logStream = null;
@@ -384,8 +361,10 @@ const serverFileOps = isServer
 					// Also ensure it's a rotated log file (ends with .gz or has a timestamp part)
 					if (stats.isFile() && stats.mtimeMs < cutoff && file !== config.logFileName) {
 						// Basic check to ensure it's a rotated log (e.g., app.log.2023-10-26T...)
-						// This regex checks for files named like 'app.log.YYYY-MM-DDTHH-MM-SS.sss' or 'app.log.YYYY-MM-DDTHH-MM-SS.sss.gz'
-						const rotatedLogPattern = new RegExp(`^${config.logFileName}\\.\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}\\.\\d{3}(\\.gz)?$`);
+						// This regex checks for files named like 'app.log.YYYY-MM-DDTHH-MM-SS-msZ' or 'app.log.YYYY-MM-DDTHH-MM-SS-msZ.gz'
+						const rotatedLogPattern = new RegExp(
+							`^${config.logFileName.replace(/[.*+?^${}()|[\\\]]/g, '\\$&')}\\.\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}-\\d{3}Z(\\.gz)?$`
+						);
 						if (rotatedLogPattern.test(file)) {
 							console.log(`Deleting old log file: ${filePath}`);
 							await fsPromises.unlink(filePath);
@@ -411,7 +390,7 @@ const serverFileOps = isServer
 				const logStream = await this.getLogStream();
 				// Use a promise-based approach for stream writes for better error handling
 				await new Promise<void>((resolve, reject) => {
-					logStream.write(logString, (err) => {
+					logStream.write(logString, (err: Error | null | undefined) => {
 						if (err) return reject(err);
 						resolve();
 					});
@@ -425,7 +404,7 @@ const serverFileOps = isServer
 					await this.initializeLogFile();
 					const logStream = await this.getLogStream();
 					await new Promise<void>((resolve, reject) => {
-						logStream.write(logString, (err) => {
+						logStream.write(logString, (err: Error | null | undefined) => {
 							if (err) return reject(err);
 							resolve();
 						});
@@ -460,38 +439,38 @@ const serverFileOps = isServer
 	};
 
 // Effects and Lifecycle
-$effect.root(() => {
-	let dailyCleanupInterval: NodeJS.Timeout | null = null;
-	if (isServer) {
-		safeExecute(serverFileOps.initializeLogFile);
-		// Schedule daily log cleanup
-		dailyCleanupInterval = setInterval(
-			() => {
-				safeExecute(serverFileOps.cleanOldLogFiles);
-			},
-			24 * 60 * 60 * 1000
-		); // Every 24 hours
-	}
-	$effect(() => {
-		if (state.queue.length >= config.batchSize) {
-			safeExecute(processBatch);
+if (isServer && !building) {
+	// Bind serverFileOps methods to ensure `this` context is correct
+	const boundInitializeLogFile = serverFileOps.initializeLogFile.bind(serverFileOps);
+	const boundCheckAndRotateLogFile = serverFileOps.checkAndRotateLogFile.bind(serverFileOps);
+	const boundCleanOldLogFiles = serverFileOps.cleanOldLogFiles.bind(serverFileOps);
+
+	// Initial setup
+	safeExecute(boundInitializeLogFile);
+	safeExecute(boundCheckAndRotateLogFile);
+
+	// Set up recurring tasks
+	const rotationInterval = setInterval(() => safeExecute(boundCheckAndRotateLogFile), config.logRotationInterval);
+	const dailyCleanupInterval = setInterval(() => safeExecute(boundCleanOldLogFiles), 24 * 60 * 60 * 1000); // Every 24 hours
+
+	// Graceful shutdown
+	process.on('exit', () => {
+		clearInterval(rotationInterval);
+		clearInterval(dailyCleanupInterval);
+		if (serverFileOps._logStream) {
+			// Attempt to flush remaining logs before exiting
+			if (state.queue.length > 0) {
+				processBatch(); // This is async, might not complete but it's worth a try
+			}
+			serverFileOps._logStream.end();
 		}
 	});
-	return () => {
-		abortBatch();
-		if (dailyCleanupInterval) {
-			clearInterval(dailyCleanupInterval); // Clean up the interval on component destroy
-		}
-		// Ensure the log stream is ended when the logger is no longer used
-		if (isServer && serverFileOps._logStream) {
-			serverFileOps._logStream.end();
-			serverFileOps._logStream = null;
-		}
-	};
-});
+}
 
 // Core Logger Function
 const log = (level: LogLevel, message: string, ...args: LoggableValue[]): void => {
+	if (building) return; // Do not log anything during the build process
+
 	// Only proceed if the log level is enabled
 	if (!isLogLevelEnabled(level)) return;
 
@@ -543,7 +522,7 @@ export const logger = {
 	},
 	setLogDirectory: (directory: string) => {
 		config.logDirectory = directory;
-		if (isServer) safeExecute(serverFileOps.initializeLogFile);
+		if (isServer && !building) safeExecute(serverFileOps.initializeLogFile);
 	},
 	setLogFileName: (fileName: string) => {
 		config.logFileName = fileName;

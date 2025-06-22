@@ -19,10 +19,13 @@
 
 <script lang="ts">
 	import { onDestroy } from 'svelte'; // untrack can be useful for effects if needed
-	import Chart from 'chart.js/auto';
+	// Chart
+	import { Chart, LineController, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler } from 'chart.js';
 	import 'chartjs-adapter-date-fns'; // Ensure date-fns is installed if you use it for formatting
-	// import { format } from 'date-fns'; // Uncomment if you use format
 
+	Chart.register(LineController, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler);
+
+	// Components
 	import BaseWidget from '../BaseWidget.svelte';
 
 	// Props passed from +page.svelte, then to BaseWidget

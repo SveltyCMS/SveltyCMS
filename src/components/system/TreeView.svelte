@@ -32,6 +32,8 @@
 			color?: string;
 		};
 		depth?: number; // Depth of the node in the tree
+		order?: number; // Order for sorting and reordering
+		nodeType?: string; // Type of node for filtering drag operations
 	}
 </script>
 
@@ -52,7 +54,9 @@
 		search = '', // Search term for filtering nodes
 		compact = false, // Flag for compact view
 		iconColorClass = 'text-error-500', // Default icon color class
-		showBadges = false // Default to false so it's optional
+		showBadges = false, // Default to false so it's optional
+		allowDragDrop = false, // Enable drag & drop functionality
+		onReorder = null // Callback for reordering nodes
 	} = $props<{
 		k: number;
 		nodes: TreeNode[];
@@ -63,11 +67,22 @@
 		compact?: boolean;
 		iconColorClass?: string;
 		showBadges?: boolean;
+		allowDragDrop?: boolean;
+		onReorder?: ((draggedId: string, targetId: string, position: 'before' | 'after' | 'inside') => void) | null;
 	}>();
 
-	// Reactive state for nodes
+	// Reactive state for nodes - update when initialNodes change
 	let nodes = $state<TreeNode[]>(initialNodes);
+	$effect(() => {
+		nodes = initialNodes;
+	});
+
 	let focusedNodeId = $state<string | null>(null);
+
+	// Drag & Drop state
+	let draggedNode = $state<TreeNode | null>(null);
+	let dragOverNode = $state<TreeNode | null>(null);
+	let dropPosition = $state<'before' | 'after' | 'inside' | null>(null);
 
 	// Filtered Memoize nodes
 	const filteredNodes = $derived.by(() => {
@@ -189,6 +204,95 @@
 			}
 		}
 	});
+
+	// Drag & Drop handlers
+	function handleDragStart(event: DragEvent, node: TreeNode) {
+		if (!allowDragDrop || node.id === 'root') return;
+		draggedNode = node;
+		if (event.dataTransfer) {
+			event.dataTransfer.effectAllowed = 'move';
+			event.dataTransfer.setData('text/plain', node.id);
+		}
+	}
+	function handleDragOver(event: DragEvent, node: TreeNode) {
+		if (!allowDragDrop || !draggedNode || draggedNode.id === node.id) return;
+
+		// Prevent dropping a folder into itself or its descendants
+		if (isDescendant(draggedNode.id, node.id)) return;
+
+		event.preventDefault();
+		if (event.dataTransfer) {
+			event.dataTransfer.dropEffect = 'move';
+		}
+
+		dragOverNode = node;
+
+		// Determine drop position based on mouse position
+		const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+		const y = event.clientY - rect.top;
+		const height = rect.height;
+
+		if (y < height * 0.25) {
+			dropPosition = 'before';
+		} else if (y > height * 0.75) {
+			dropPosition = 'after';
+		} else {
+			// Only allow 'inside' for nodes that can have children (virtual folders, not root)
+			dropPosition = node.nodeType === 'virtual' && node.id !== 'root' ? 'inside' : 'after';
+		}
+	}
+
+	// Helper function to check if a node is a descendant of another
+	function isDescendant(ancestorId: string, nodeId: string): boolean {
+		const findNodeInNodes = (nodes: TreeNode[], id: string): TreeNode | null => {
+			for (const node of nodes) {
+				if (node.id === id) return node;
+				if (node.children) {
+					const found = findNodeInNodes(node.children, id);
+					if (found) return found;
+				}
+			}
+			return null;
+		};
+
+		const ancestor = findNodeInNodes(nodes, ancestorId);
+		if (!ancestor || !ancestor.children) return false;
+
+		return ancestor.children.some((child) => child.id === nodeId || isDescendant(ancestorId, child.id));
+	}
+
+	function handleDragLeave() {
+		if (!allowDragDrop) return;
+		// Only clear if we're really leaving the node area
+		setTimeout(() => {
+			dragOverNode = null;
+			dropPosition = null;
+		}, 50);
+	}
+
+	function handleDrop(event: DragEvent, node: TreeNode) {
+		if (!allowDragDrop || !draggedNode || !dropPosition || draggedNode.id === node.id) return;
+
+		event.preventDefault();
+
+		// Call the reorder callback
+		if (onReorder) {
+			onReorder(draggedNode.id, node.id, dropPosition);
+		}
+
+		// Reset drag state
+		draggedNode = null;
+		dragOverNode = null;
+		dropPosition = null;
+	}
+
+	function handleDragEnd() {
+		if (!allowDragDrop) return;
+		// Reset drag state
+		draggedNode = null;
+		dragOverNode = null;
+		dropPosition = null;
+	}
 </script>
 
 <ul role="tree" aria-label={ariaLabel} {dir} class="rtl:space-x-revert custom-scrollbar max-h-[80vh] w-full space-y-1 overflow-y-auto">
@@ -200,6 +304,11 @@
 			aria-selected={selectedId === node.id}
 			class="group relative"
 		>
+			<!-- Drop indicator for 'before' position -->
+			{#if dragOverNode?.id === node.id && dropPosition === 'before'}
+				<div class="absolute -top-0.5 left-0 right-0 z-10 h-0.5 bg-primary-500"></div>
+			{/if}
+
 			<button
 				type="button"
 				id={`node-${node.id}`}
@@ -208,13 +317,22 @@
                        hover:bg-surface-50 focus:bg-surface-50 focus-visible:outline-none
                        dark:border dark:border-transparent dark:bg-surface-500
                        dark:text-surface-200 dark:hover:bg-surface-400 dark:focus:bg-surface-500
-                       {node.children ? '' : 'bg-surface-300 dark:bg-surface-700'}"
+                       {node.children ? '' : 'bg-surface-300 dark:bg-surface-700'}
+                       {draggedNode?.id === node.id ? 'opacity-50' : ''}
+                       {dragOverNode?.id === node.id && dropPosition === 'inside' ? 'border-primary-500 bg-primary-100 dark:bg-primary-900' : ''}
+                       {allowDragDrop && node.nodeType === 'virtual' && node.id !== 'root' ? 'cursor-move' : ''}"
 				role="treeitem"
 				aria-expanded={node.children ? node.isExpanded : undefined}
 				aria-selected={selectedId === node.id}
 				tabindex={focusedNodeId === node.id ? 0 : -1}
+				draggable={allowDragDrop && node.nodeType === 'virtual' && node.id !== 'root'}
 				onclick={() => toggleNode(node)}
 				onkeydown={(event) => handleKeyDown(event, node)}
+				ondragstart={(event) => handleDragStart(event, node)}
+				ondragover={(event) => handleDragOver(event, node)}
+				ondragleave={handleDragLeave}
+				ondrop={(event) => handleDrop(event, node)}
+				ondragend={handleDragEnd}
 				aria-controls={node.children ? `node-${node.id}-children` : undefined}
 			>
 				<!-- Expand/Collapse icon with RTL support -->
@@ -257,6 +375,11 @@
 				</span>
 			</button>
 
+			<!-- Drop indicator for 'after' position -->
+			{#if dragOverNode?.id === node.id && dropPosition === 'after'}
+				<div class="absolute -bottom-0.5 left-0 right-0 z-10 h-0.5 bg-primary-500"></div>
+			{/if}
+
 			<!-- Children nodes with RTL support -->
 			{#if node.children}
 				<div id={`node-${node.id}-children`} class="relative {compact ? 'ms-1' : 'ms-4'}" role="group" aria-labelledby={`node-${node.id}-label`}>
@@ -279,6 +402,8 @@
 								{compact}
 								{iconColorClass}
 								{showBadges}
+								{allowDragDrop}
+								{onReorder}
 							/>
 						</div>
 					{/if}

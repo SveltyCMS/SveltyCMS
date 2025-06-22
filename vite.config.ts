@@ -20,6 +20,7 @@ import svelteEmailTailwind from 'svelte-email-tailwind/vite';
 import { compile } from './src/routes/api/compile/compile';
 import { generateContentTypes } from './src/content/vite';
 import type { IncomingMessage, ServerResponse } from 'http';
+import { builtinModules } from 'module';
 
 // Validation
 import { publicConfigSchema, privateConfigSchema, validateConfig } from './config/types';
@@ -315,6 +316,7 @@ export default defineConfig(async () => {
       minify: 'esbuild',
       sourcemap: true,
       rollupOptions: {
+        external: [...builtinModules, ...builtinModules.map((m) => `node:${m}`)],
         output: {
           manualChunks: {
             // Split vendor chunks for better caching

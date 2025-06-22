@@ -20,9 +20,9 @@
 
 import { publicEnv } from '@root/config/public';
 import { privateEnv } from '@root/config/private';
+import { building } from '$app/environment';
 
-import fs from 'node:fs/promises';
-
+// MongoDB
 import { connectToMongoDB } from './mongodb/dbconnect';
 
 // Auth
@@ -181,6 +181,8 @@ async function initializeDefaultTheme(): Promise<void> {
 // Initialize the media folder
 async function initializeMediaFolder(): Promise<void> {
 	const mediaFolderPath = publicEnv.MEDIA_FOLDER;
+	if (building) return;
+	const fs = await import('node:fs/promises');
 	try {
 		logger.debug(`Checking media folder: ${mediaFolderPath}`);
 		// Check if the media folder exists
@@ -197,19 +199,45 @@ async function initializeMediaFolder(): Promise<void> {
 // Initialize virtual folders
 async function initializeVirtualFolders(): Promise<void> {
 	if (!dbAdapter) throw new Error('Cannot initialize virtual folders: dbAdapter is not available.');
+	if (!dbAdapter.systemVirtualFolder) {
+		logger.warn('systemVirtualFolder adapter not available, skipping initialization.');
+		return;
+	}
 	try {
 		logger.debug('Initializing virtual folders...');
-		const virtualFolders = await dbAdapter.systemVirtualFolder.getAll();
-		if (virtualFolders.length === 0) {
+		const systemVirtualFoldersResult = await dbAdapter.systemVirtualFolder.getAll();
+
+		if (!systemVirtualFoldersResult.success) {
+			const errorMessage =
+				systemVirtualFoldersResult.error instanceof Error
+					? systemVirtualFoldersResult.error.message
+					: String(systemVirtualFoldersResult.error);
+			throw new Error(`Failed to get virtual folders: ${errorMessage}`);
+		}
+
+		const systemVirtualFolders = systemVirtualFoldersResult.data;
+
+		if (systemVirtualFolders.length === 0) {
 			logger.info('No virtual folders found. Creating default root folder...');
 			// Create a default root folder
-			const rootFolder = await dbAdapter.systemVirtualFolder.create({
-				_id: dbAdapter.utils.generateId(),
+			const rootFolderData = {
 				name: publicEnv.MEDIA_FOLDER,
-				parent: undefined,
 				path: publicEnv.MEDIA_FOLDER,
-				type: 'folder'
-			});
+				// parentId is undefined for root folders
+				order: 0
+			};
+			const creationResult = await dbAdapter.systemVirtualFolder.create(rootFolderData);
+
+			if (!creationResult.success) {
+				const errorMessage =
+					creationResult.error instanceof Error
+						? creationResult.error.message
+						: String(creationResult.error);
+				throw new Error(`Failed to create root virtual folder: ${errorMessage}`);
+			}
+
+			const rootFolder = creationResult.data;
+
 			// Log only the essential information
 			logger.info('Default root virtual folder created:', {
 				name: rootFolder.name,
@@ -217,7 +245,7 @@ async function initializeVirtualFolders(): Promise<void> {
 				id: rootFolder._id?.toString() || 'No ID'
 			});
 		} else {
-			logger.debug(`Found \x1b[34m${virtualFolders.length}\x1b[0m virtual folders`);
+			logger.debug(`Found \x1b[34m${systemVirtualFolders.length}\x1b[0m virtual folders`);
 		}
 	} catch (err) {
 		const message = `Error initializing virtual folders: ${err instanceof Error ? err.message : String(err)}`;
@@ -244,7 +272,7 @@ async function initializeSystem(): Promise<void> {
 
 	try {
 		// 1. Connect to Database & Load Adapters (Concurrently)
-		logger.debug('Connecting to database and loading adapters...');
+		logger.debug('\x1b[33mStep 1:\x1b[0m Connecting to database and loading adapters...');
 		await Promise.all([
 			connectToMongoDB().catch((err) => {
 				logger.error(`MongoDB connection failed: ${err.message}`);
@@ -256,7 +284,7 @@ async function initializeSystem(): Promise<void> {
 			})
 		]);
 		isConnected = true; // Mark connected after DB connection succeeds
-		logger.debug('Step 1 completed: Database connected and adapters loaded');
+		logger.debug('\x1b[32mStep 1 completed:\x1b[0m Database connected and adapters loaded');
 
 		// Check if adapters loaded correctly (loadAdapters throws on critical failure)
 		if (!dbAdapter || !authAdapter) {
@@ -264,7 +292,7 @@ async function initializeSystem(): Promise<void> {
 		}
 
 		// 2. Setup Core Database Models (Essential for subsequent steps)
-		logger.debug('Step 2: Setting up core database models...');
+		logger.debug('\x1b[33mStep 2:\x1b[0m Setting up core database models...');
 		try {
 			await dbAdapter.auth.setupAuthModels();
 			logger.debug('Auth models setup complete');
@@ -273,47 +301,47 @@ async function initializeSystem(): Promise<void> {
 			logger.debug('Media models setup complete');
 
 			await dbAdapter.widgets.setupWidgetModels();
-			logger.debug('Widget models setup complete');
+			logger.debug('\x1b[32mStep 2 completed:\x1b[0 Widget models setup complete');
 		} catch (modelSetupErr) {
 			logger.error(`Database model setup failed: ${modelSetupErr.message}`);
 			throw modelSetupErr;
 		}
 
 		// 3. Initialize remaining components
-		logger.debug('Step 3: Initializing system components...');
+		logger.debug('\x1b[33mStep 3:\x1b[0m Initializing system components...');
 		try {
 			await initializeMediaFolder();
 			await initializeDefaultTheme();
 			await initializeRevisions();
 			await initializeVirtualFolders();
 			await initializeDefaultPreferences();
-			logger.debug('Step 3 completed: System components initialized');
+			logger.debug('\x1b[32mStep 3 completed:\x1b[0m System components initialized');
 		} catch (componentErr) {
 			logger.error(`Component initialization failed: ${componentErr.message}`);
 			throw componentErr;
 		}
 
 		// 4. Initialize ContentManager (loads collection schemas into memory)
-		logger.debug('Step 4: Initializing ContentManager...');
+		logger.debug('\x1b[33mStep 4:\x1b[0m Initializing ContentManager...');
 		try {
 			await contentManager.initialize();
-			logger.debug('Step 4 completed: ContentManager initialized');
+			logger.debug('\x1b[32mStep 4 completed:\x1b[0m ContentManager initialized');
 		} catch (contentErr) {
 			logger.error(`ContentManager initialization failed: ${contentErr.message}`);
 			throw contentErr;
 		}
 
 		// 5. Create Collection-Specific Database Models (ONCE after schemas are loaded)
-		logger.debug('Step 5: Creating collection-specific database models...');
+		logger.debug('\x1b[33mStep 5:\x1b[0m Creating collection-specific database models...');
 		try {
 			const { collectionMap } = await contentManager.getCollectionData(); // Get loaded schemas
 			if (!dbAdapter) throw new Error('dbAdapter not available for model creation.'); // Should not happen here
 
 			for (const schema of collectionMap.values()) {
-				logger.debug(`Creating model for collection: ${schema.name}`);
+				logger.debug(`Creating model for collection: \x1b[34m${schema.name}\x1b[0m`);
 				await dbAdapter.collection.createModel(schema as CollectionData);
 			}
-			logger.debug('Step 5 completed: Collection-specific models created');
+			logger.debug('\x1b[32mStep 5 completed:\x1b[0m Collection-specific models created');
 		} catch (modelErr) {
 			const message = `Error creating collection models: ${modelErr instanceof Error ? modelErr.message : String(modelErr)}`;
 			logger.error(message);
@@ -321,7 +349,7 @@ async function initializeSystem(): Promise<void> {
 		}
 
 		// 6. Initialize Authentication (after DB/Auth adapters and models are ready)
-		logger.debug('Step 6: Initializing Authentication...');
+		logger.debug('\x1b[33mStep 6:\x1b[0m Initializing Authentication...');
 		if (!authAdapter) {
 			throw new Error('Authentication adapter not initialized'); // Use Error instead of kit's error
 		}
@@ -346,7 +374,7 @@ async function initializeSystem(): Promise<void> {
 				throw new Error('Auth instance missing validateSession method');
 			}
 
-			logger.debug('Step 6 completed: Authentication initialized and verified');
+			logger.debug('\x1b[32mStep 6 completed:\x1b[0m Authentication initialized and verified');
 		} catch (authErr) {
 			logger.error(`Auth initialization failed: ${authErr.message}`);
 			throw authErr;
@@ -369,20 +397,25 @@ async function initializeSystem(): Promise<void> {
 	}
 }
 
-// Singleton Initialization Execution
-if (!initializationPromise) {
-	logger.debug('Creating system initialization promise...');
-	initializationPromise = initializeSystem();
+// Automatically initialize the system, but only at runtime
+if (!building) {
+	if (!initializationPromise) {
+		logger.debug('Creating system initialization promise...');
+		initializationPromise = initializeSystem();
 
-	// Handle initialization errors
-	initializationPromise.catch((err) => {
-		logger.error(`The main initializationPromise was rejected: ${err instanceof Error ? err.message : String(err)}`);
-		logger.error('Clearing initialization promise to allow retry');
-		// Ensure promise variable is cleared so retries might be possible if the app handles it
-		initializationPromise = null;
-	});
+		// Handle initialization errors
+		initializationPromise.catch((err) => {
+			logger.error(`The main initializationPromise was rejected: ${err instanceof Error ? err.message : String(err)}`);
+			logger.error('Clearing initialization promise to allow retry');
+			// Ensure promise variable is cleared so retries might be possible if the app handles it
+			initializationPromise = null;
+		});
+	} else {
+		logger.debug('Initialization promise already exists');
+	}
 } else {
-	logger.debug('Initialization promise already exists');
+	logger.debug('Skipping system initialization during build process.');
+	initializationPromise = Promise.resolve();
 }
 
 // --- Full System Ready Promise (including ContentManager) ---

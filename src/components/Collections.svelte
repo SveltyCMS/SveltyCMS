@@ -73,6 +73,7 @@ Features:
 		isLoading?: boolean;
 		hasError?: boolean;
 		depth?: number;
+		order?: number; // Add order property for sorting
 	}
 
 	// State management
@@ -82,8 +83,9 @@ Features:
 	let isLoading = $state(false);
 	let error = $state<string | null>(null);
 	let expandedNodes = $state<Set<string>>(new Set());
-	let virtualFolderNodes: CollectionTreeNode[] = $state([]);
-	let selectedVirtualFolder = $state<string | null>(null);
+	let systemVirtualFolderNodes: CollectionTreeNode[] = $state([]);
+	let selectedSystemVirtualFolder = $state<string | null>(null);
+	let hasLoadedSystemVirtualFolders = $state(false);
 
 	// Derived states
 	let nestedStructure = $derived(constructNestedStructure(contentStructure.value));
@@ -190,16 +192,17 @@ Features:
 	}
 
 	// Virtual folder loading with better error handling
-	async function loadVirtualFolders() {
+	async function loadSystemVirtualFolders() {
 		isLoading = true;
 		error = null;
+		hasLoadedSystemVirtualFolders = true; // Prevent re-loading
 
 		const createRootNode = (): CollectionTreeNode => ({
 			id: 'root',
 			name: 'Media Root',
 			path: 'mediaFiles',
 			isExpanded: true,
-			onClick: () => handleVirtualFolderSelect('root'),
+			onClick: () => handleSystemVirtualFolderSelect('root'),
 			icon: 'bi:house-door',
 			badge: { visible: false },
 			nodeType: 'virtual',
@@ -207,7 +210,8 @@ Features:
 		});
 
 		try {
-			const response = await fetch('/api/virtualFolder');
+			// Force cache bypass by adding a timestamp parameter
+			const response = await fetch(`/api/systemVirtualFolder?t=${Date.now()}`);
 
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`);
@@ -216,46 +220,91 @@ Features:
 			const data = await response.json();
 			const rootNode = createRootNode();
 
-			if (data.success && data.data.folders?.length > 0) {
-				rootNode.children = data.data.folders.map(
-					(folder: any): CollectionTreeNode => ({
+			if (data.success && data.data?.length > 0) {
+				const allFolders: any[] = data.data;
+				const folderMap = new Map<string, CollectionTreeNode>();
+
+				// Create nodes for each folder
+				allFolders.forEach((folder) => {
+					folderMap.set(folder._id, {
 						id: folder._id,
 						name: folder.name,
 						path: folder.path,
 						isExpanded: expandedNodes.has(folder._id),
-						onClick: () => handleVirtualFolderSelect(folder._id),
+						onClick: () => handleSystemVirtualFolderSelect(folder._id),
 						icon: 'bi:folder',
 						badge: {
 							visible: false,
 							count: folder.fileCount || 0
 						},
 						nodeType: 'virtual',
-						depth: 1,
-						lastModified: folder.lastModified ? new Date(folder.lastModified) : undefined
-					})
-				);
+						depth: 0, // Will be set later
+						lastModified: folder.lastModified ? new Date(folder.lastModified) : undefined,
+						children: [],
+						order: folder.order || 0 // Add order for sorting
+					});
+				});
+
+				const tree: CollectionTreeNode[] = [];
+				// Link children to parents
+				allFolders.forEach((folder) => {
+					const node = folderMap.get(folder._id)!;
+					if (folder.parentId && folderMap.has(folder.parentId)) {
+						const parent = folderMap.get(folder.parentId)!;
+						if (!parent.children) parent.children = [];
+						parent.children.push(node);
+					} else {
+						tree.push(node);
+					}
+				});
+
+				// Set depth and handle empty children
+				const setDepth = (nodes: CollectionTreeNode[], depth: number) => {
+					// Sort nodes by order first
+					nodes.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+					nodes.forEach((node) => {
+						node.depth = depth;
+						if (node.children && node.children.length > 0) {
+							setDepth(node.children, depth + 1);
+						} else {
+							node.children = undefined;
+						}
+					});
+				};
+				setDepth(tree, 1);
+
+				rootNode.children = tree;
 			}
 
-			virtualFolderNodes = [rootNode];
+			systemVirtualFolderNodes = [rootNode];
+			console.log('Virtual folders loaded successfully:', systemVirtualFolderNodes);
 		} catch (err) {
 			console.error('Failed to load virtual folders:', err);
 			error = err instanceof Error ? err.message : 'Failed to load virtual folders';
-			virtualFolderNodes = [createRootNode()];
+			systemVirtualFolderNodes = [createRootNode()];
 		} finally {
 			isLoading = false;
 		}
 	}
 
+	// Function to refresh virtual folders (public method)
+	function refreshSystemVirtualFolders() {
+		console.log('Refreshing virtual folders...');
+		hasLoadedSystemVirtualFolders = false; // Reset the flag to allow reloading
+		loadSystemVirtualFolders();
+	}
+
 	// Virtual folder selection with state management
-	function handleVirtualFolderSelect(folderId: string) {
-		selectedVirtualFolder = folderId;
+	function handleSystemVirtualFolderSelect(folderId: string) {
+		selectedSystemVirtualFolder = folderId;
 
 		if (folderId !== 'root') {
 			expandedNodes.add(folderId);
 		}
 
-		const event = new CustomEvent('virtualFolderSelected', {
-			detail: { folderId, path: virtualFolderNodes.find((n) => n.id === folderId)?.path }
+		const event = new CustomEvent('systemVirtualFolderSelected', {
+			detail: { folderId, path: systemVirtualFolderNodes.find((n) => n.id === folderId)?.path }
 		});
 		document.dispatchEvent(event);
 
@@ -301,14 +350,236 @@ Features:
 		}
 	}
 
+	// Function to reorder folders
+	async function reorderFolders(parentId: string | null, folderId: string, direction: 'up' | 'down') {
+		try {
+			// Get siblings at the same level
+			const siblings = systemVirtualFolderNodes[0]?.children || [];
+			const currentIndex = siblings.findIndex((node) => node.id === folderId);
+
+			if (currentIndex === -1) return;
+
+			const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+
+			// Check bounds
+			if (newIndex < 0 || newIndex >= siblings.length) return;
+
+			// Create order updates for affected folders
+			const orderUpdates = [];
+
+			// Swap the orders
+			const currentOrder = siblings[currentIndex].order || currentIndex;
+			const targetOrder = siblings[newIndex].order || newIndex;
+
+			orderUpdates.push({ folderId: siblings[currentIndex].id, order: targetOrder });
+			orderUpdates.push({ folderId: siblings[newIndex].id, order: currentOrder });
+
+			// Send reorder request
+			const response = await fetch('/api/systemVirtualFolder', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					action: 'reorder',
+					parentId: parentId,
+					orderUpdates: orderUpdates
+				})
+			});
+
+			if (response.ok) {
+				// Refresh the folder list to show the new order
+				refreshSystemVirtualFolders();
+			} else {
+				throw new Error('Failed to reorder folders');
+			}
+		} catch (error) {
+			console.error('Error reordering folders:', error);
+		}
+	}
+
+	// Function to handle drag & drop reordering
+	async function handleDragDropReorder(draggedId: string, targetId: string, position: 'before' | 'after' | 'inside') {
+		try {
+			console.log('Drag drop reorder:', { draggedId, targetId, position });
+
+			// Prevent dropping a folder into itself or its descendants
+			if (draggedId === targetId) {
+				console.warn('Cannot drop folder into itself');
+				return;
+			}
+
+			// Find the dragged node and target node
+			const findNodeInTree = (nodes: CollectionTreeNode[], id: string): CollectionTreeNode | null => {
+				for (const node of nodes) {
+					if (node.id === id) return node;
+					if (node.children) {
+						const found = findNodeInTree(node.children, id);
+						if (found) return found;
+					}
+				}
+				return null;
+			};
+
+			// Find parent of a node
+			const findParentInTree = (
+				nodes: CollectionTreeNode[],
+				childId: string,
+				parentNode: CollectionTreeNode | null = null
+			): CollectionTreeNode | null => {
+				for (const node of nodes) {
+					if (node.children?.some((child) => child.id === childId)) {
+						return node;
+					}
+					if (node.children) {
+						const found = findParentInTree(node.children, childId, node);
+						if (found) return found;
+					}
+				}
+				return parentNode;
+			};
+
+			// Check if dragged folder is an ancestor of target (prevent circular reference)
+			const isAncestor = (ancestorId: string, descendantId: string): boolean => {
+				const descendant = findNodeInTree(systemVirtualFolderNodes, descendantId);
+				if (!descendant) return false;
+
+				const parent = findParentInTree(systemVirtualFolderNodes, descendantId);
+				if (!parent) return false;
+
+				if (parent.id === ancestorId) return true;
+				return isAncestor(ancestorId, parent.id);
+			};
+
+			if (isAncestor(draggedId, targetId)) {
+				console.warn('Cannot move folder into its descendant');
+				return;
+			}
+
+			const draggedNode = findNodeInTree(systemVirtualFolderNodes, draggedId);
+			const targetNode = findNodeInTree(systemVirtualFolderNodes, targetId);
+
+			if (!draggedNode || !targetNode) {
+				console.error('Could not find dragged or target node');
+				return;
+			}
+
+			// Determine the new parent and calculate order updates
+			let newParentId: string | null = null;
+			let orderUpdates: Array<{ folderId: string; order: number; parentId?: string | null }> = [];
+
+			if (position === 'inside') {
+				// Moving inside the target folder - target becomes the parent
+				newParentId = targetNode.id === 'root' ? null : targetNode.id;
+
+				// Get existing children to determine the new order
+				const targetChildren = targetNode.children || [];
+				const newOrder = targetChildren.length; // Add to the end
+
+				orderUpdates.push({
+					folderId: draggedId,
+					order: newOrder,
+					parentId: newParentId
+				});
+			} else {
+				// Moving before or after the target - same parent as target
+				const targetParent = findParentInTree(systemVirtualFolderNodes, targetId);
+				newParentId = targetParent ? (targetParent.id === 'root' ? null : targetParent.id) : null;
+
+				// Get siblings at the target level
+				const siblings = targetParent ? targetParent.children || [] : systemVirtualFolderNodes[0]?.children || [];
+				const targetIndex = siblings.findIndex((node) => node.id === targetId);
+
+				if (targetIndex === -1) {
+					console.error('Target node not found in siblings');
+					return;
+				}
+
+				// Calculate new orders for affected items
+				let newOrder: number;
+				if (position === 'before') {
+					newOrder = targetIndex;
+					// Shift existing items at or after this position
+					siblings.forEach((sibling, index) => {
+						if (index >= targetIndex && sibling.id !== draggedId) {
+							orderUpdates.push({
+								folderId: sibling.id,
+								order: index + 1
+							});
+						}
+					});
+				} else {
+					// after
+					newOrder = targetIndex + 1;
+					// Shift existing items after this position
+					siblings.forEach((sibling, index) => {
+						if (index > targetIndex && sibling.id !== draggedId) {
+							orderUpdates.push({
+								folderId: sibling.id,
+								order: index + 1
+							});
+						}
+					});
+				}
+
+				orderUpdates.push({
+					folderId: draggedId,
+					order: newOrder,
+					parentId: newParentId
+				});
+			}
+
+			console.log('Sending reorder request:', { newParentId, orderUpdates });
+
+			// Send reorder request
+			const response = await fetch('/api/systemVirtualFolder', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					action: 'reorder',
+					parentId: newParentId,
+					orderUpdates: orderUpdates
+				})
+			});
+
+			if (response.ok) {
+				console.log('Drag drop reorder successful');
+				// Refresh the folder list to show the new structure
+				refreshSystemVirtualFolders();
+			} else {
+				const errorData = await response.json();
+				console.error('Failed to reorder folders via drag & drop:', errorData);
+				throw new Error(`Failed to reorder folders: ${errorData.error || 'Unknown error'}`);
+			}
+		} catch (error) {
+			console.error('Error in drag drop reorder:', error);
+		}
+	}
+
 	// Effects
 	$effect(() => {
-		if (mode.value === 'media') {
-			loadVirtualFolders();
+		if (mode.value === 'media' && !hasLoadedSystemVirtualFolders) {
+			loadSystemVirtualFolders();
 			if (!isFullSidebar) {
 				handleUILayoutToggle();
 			}
 		}
+	});
+
+	// Listen for folder creation events
+	$effect(() => {
+		const handleFolderCreated = (event: CustomEvent) => {
+			console.log('Folder created event received:', event.detail);
+			if (isMediaMode) {
+				console.log('Media mode active, refreshing system virtual folders...');
+				refreshSystemVirtualFolders();
+			}
+		};
+
+		// Listen for custom events from the media gallery
+		document.addEventListener('folderCreated', handleFolderCreated as EventListener);
+
+		return () => {
+			document.removeEventListener('folderCreated', handleFolderCreated as EventListener);
+		};
 	});
 
 	// Cleanup on unmount
@@ -419,8 +690,9 @@ Features:
 			onclick={() => {
 				collection.set(null);
 				mode.set('view');
-				selectedVirtualFolder = null;
+				selectedSystemVirtualFolder = null;
 				expandedNodes.clear(); // Clear method triggers reactivity automatically
+				hasLoadedSystemVirtualFolders = false; // Reset loading flag
 
 				if (get(screenSize) === 'sm') {
 					toggleUIElement('leftSidebar', 'hidden');
@@ -453,17 +725,19 @@ Features:
 			<div class="p-4 text-center text-error-500">
 				<iconify-icon icon="ic:outline-error" width="24"></iconify-icon>
 				<p class="mt-1 text-sm">{error}</p>
-				<button class="variant-filled-error btn btn-sm mt-2" onclick={loadVirtualFolders}> Retry </button>
+				<button class="variant-filled-error btn btn-sm mt-2" onclick={loadSystemVirtualFolders}> Retry </button>
 			</div>
-		{:else if virtualFolderNodes.length > 0}
+		{:else if systemVirtualFolderNodes.length > 0}
 			<TreeView
 				k={1}
-				nodes={virtualFolderNodes}
-				selectedId={selectedVirtualFolder}
+				nodes={systemVirtualFolderNodes}
+				selectedId={selectedSystemVirtualFolder}
 				compact={!isFullSidebar}
 				search={debouncedSearch}
 				iconColorClass="text-primary-500"
 				showBadges={isFullSidebar}
+				allowDragDrop={true}
+				onReorder={handleDragDropReorder}
 			></TreeView>
 		{:else}
 			<div class="p-4 text-center text-surface-500">

@@ -12,6 +12,7 @@
 import { privateEnv } from '@root/config/private';
 import type { RequestHandler } from '@sveltejs/kit';
 import { json } from '@sveltejs/kit';
+import { building } from '$app/environment';
 
 // GraphQL Yoga
 import { createSchema, createYoga } from 'graphql-yoga';
@@ -62,7 +63,9 @@ const accessManagementPermission = {
 };
 
 // Register the permission
-registerPermission(accessManagementPermission);
+if (!building) {
+	registerPermission(accessManagementPermission);
+}
 
 // Initialize Redis client if needed
 let redisClient: ReturnType<typeof createClient> | null = null;
@@ -76,7 +79,7 @@ const cacheClient =
 		}
 		: null;
 
-if (privateEnv.USE_REDIS === true) {
+if (!building && privateEnv.USE_REDIS === true) {
 	logger.info('Initializing Redis client');
 	// Create Redis client
 	redisClient = createClient({
@@ -186,9 +189,12 @@ async function setupGraphQL() {
 	}
 }
 
-const yogaAppPromise = setupGraphQL();
+let yogaAppPromise: Promise<ReturnType<typeof createYoga<RequestHandler>>>;
 
 const handler = async (event: RequestEvent) => {
+	if (!yogaAppPromise) {
+		yogaAppPromise = setupGraphQL();
+	}
 	try {
 		const yogaApp = await yogaAppPromise;
 		const response = await yogaApp.handleRequest(event.request, event);
@@ -206,7 +212,7 @@ const handler = async (event: RequestEvent) => {
 };
 
 // Ensure Redis is disconnected when the server shuts down
-if (typeof process !== 'undefined') {
+if (!building && typeof process !== 'undefined') {
 	process.on('SIGINT', cleanupRedis);
 	process.on('SIGTERM', cleanupRedis);
 }

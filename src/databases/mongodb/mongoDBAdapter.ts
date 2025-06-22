@@ -72,7 +72,8 @@ import type {
 	CollectionModel,
 	MediaItem,
 	ISODateString,
-	BaseEntity
+	BaseEntity,
+	SystemVirtualFolder
 } from '../dbInterface';
 import { isISODateString, dateToISODateString, stringToISODateString, normalizeDateInput } from '../../utils/dateUtils';
 
@@ -917,56 +918,117 @@ export class MongoDBAdapter implements DatabaseAdapter {
 
 	//  System Virtual Folder Management
 	systemVirtualFolder = {
-		// Create a virtual folder in the database
-		create: async (folderData: {
-			name: string;
-			parent?: string;
-			path: string;
-			icon?: string;
-			order?: number;
-			type?: 'folder' | 'collection';
-		}): Promise<Document> => {
-			const result = await SystemVirtualFolderModel.createVirtualFolder({
-				_id: this.utils.generateId(),
-				...folderData
-			});
-			if (result.success) {
-				return result.data;
-			} else {
-				logger.error('Failed to create virtual folder:', result.error);
-				throw new Error(result.error.message || 'Failed to create virtual folder');
+		create: async (folder: Omit<SystemVirtualFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<SystemVirtualFolder>> => {
+			try {
+				const folderData = {
+					...folder,
+					_id: this.utils.generateId(),
+					type: folder.type || 'folder'
+				};
+				const newFolder = new SystemVirtualFolderModel(folderData);
+				const savedFolder = await newFolder.save();
+				return { success: true, data: savedFolder.toObject() as SystemVirtualFolder };
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'VIRTUAL_FOLDER_CREATION_FAILED', 'Failed to create virtual folder') };
 			}
 		},
 
-		// Get all virtual folders
-		getAll: async (): Promise<Document[]> => {
-			const result = await SystemVirtualFolderModel.getAllVirtualFolders();
-			if (result.success) {
-				return result.data;
-			} else {
-				logger.error('Failed to get virtual folders:', result.error);
-				return [];
+		getById: async (folderId: DatabaseId): Promise<DatabaseResult<SystemVirtualFolder | null>> => {
+			try {
+				const folder = await SystemVirtualFolderModel.findById(folderId).lean().exec();
+				return { success: true, data: folder as SystemVirtualFolder | null };
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'VIRTUAL_FOLDER_FETCH_FAILED', 'Failed to get virtual folder by ID') };
 			}
 		},
 
-		// Get contents of a virtual folder
-		getContents: async (folderId: string): Promise<Document[]> => {
-			return SystemVirtualFolderModel.getVirtualFolderContents(folderId);
+		getByParentId: async (parentId: DatabaseId | null): Promise<DatabaseResult<SystemVirtualFolder[]>> => {
+			try {
+				const folders = await SystemVirtualFolderModel.find({ parentId }).sort({ order: 1 }).lean().exec();
+				return { success: true, data: folders as SystemVirtualFolder[] };
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'VIRTUAL_FOLDER_FETCH_FAILED', 'Failed to get virtual folders by parent ID') };
+			}
 		},
 
-		// Update a virtual folder
-		update: async (folderId: string, updateData: VirtualFolderUpdateData): Promise<Document | null> => {
-			return SystemVirtualFolderModel.updateVirtualFolder(folderId, updateData);
+		getAll: async (): Promise<DatabaseResult<SystemVirtualFolder[]>> => {
+			try {
+				const folders = await SystemVirtualFolderModel.find().sort({ order: 1 }).lean().exec();
+				return { success: true, data: folders as SystemVirtualFolder[] };
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'VIRTUAL_FOLDER_FETCH_FAILED', 'Failed to get all virtual folders') };
+			}
 		},
 
-		// Delete a virtual folder
-		delete: async (folderId: string): Promise<boolean> => {
-			return SystemVirtualFolderModel.deleteVirtualFolder(folderId);
+		update: async (folderId: DatabaseId, updateData: Partial<SystemVirtualFolder>): Promise<DatabaseResult<SystemVirtualFolder>> => {
+			try {
+				const updatedFolder = await SystemVirtualFolderModel.findByIdAndUpdate(folderId, updateData, { new: true }).lean().exec();
+				if (!updatedFolder) {
+					return { success: false, error: { code: 'NOT_FOUND', message: 'Folder not found' } };
+				}
+				return { success: true, data: updatedFolder as SystemVirtualFolder };
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'VIRTUAL_FOLDER_UPDATE_FAILED', 'Failed to update virtual folder') };
+			}
 		},
 
-		// Check if a virtual folder exists
+		addToFolder: async (contentId: DatabaseId, folderPath: string): Promise<DatabaseResult<void>> => {
+			try {
+				const folder = await SystemVirtualFolderModel.findOne({ path: folderPath }).exec();
+				if (!folder) {
+					return { success: false, error: { code: 'NOT_FOUND', message: 'Folder not found' } };
+				}
+				// TODO: Implement proper media file association with folders
+				// This would need to update the media collection with the folderId
+				return { success: true, data: undefined };
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'ADD_TO_FOLDER_FAILED', 'Failed to add content to folder') };
+			}
+		},
+
+		getContents: async (folderPath: string): Promise<DatabaseResult<{ folders: SystemVirtualFolder[]; files: MediaItem[] }>> => {
+			try {
+				const folder = await SystemVirtualFolderModel.findOne({ path: folderPath }).lean().exec();
+				if (!folder) {
+					return { success: false, error: { code: 'NOT_FOUND', message: 'Folder not found' } };
+				}
+
+				const subFolders = await SystemVirtualFolderModel.find({ parentId: folder._id }).lean().exec();
+				// TODO: Implement proper media file retrieval based on folderId
+				const files: MediaItem[] = [];
+
+				return {
+					success: true,
+					data: {
+						folders: subFolders as SystemVirtualFolder[],
+						files: files
+					}
+				};
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'GET_CONTENTS_FAILED', 'Failed to get folder contents') };
+			}
+		},
+
+		delete: async (folderId: DatabaseId): Promise<DatabaseResult<void>> => {
+			try {
+				const result = await SystemVirtualFolderModel.findByIdAndDelete(folderId).exec();
+				if (!result) {
+					return { success: false, error: { code: 'NOT_FOUND', message: 'Folder not found' } };
+				}
+				// Optionally, handle orphaned files here.
+				return { success: true, data: undefined };
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'VIRTUAL_FOLDER_DELETE_FAILED', 'Failed to delete virtual folder') };
+			}
+		},
+
 		exists: async (path: string): Promise<DatabaseResult<boolean>> => {
-			return SystemVirtualFolderModel.exists(path);
+			try {
+				const count = await SystemVirtualFolderModel.countDocuments({ path }).exec();
+				return { success: true, data: count > 0 };
+			} catch (error) {
+				return { success: false, error: createDatabaseError(error, 'VIRTUAL_FOLDER_EXISTS_CHECK_FAILED', 'Failed to check if virtual folder exists') };
+			}
 		}
 	};
 

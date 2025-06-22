@@ -161,14 +161,14 @@ export interface PaginationOptions {
 	sortDirection?: 'asc' | 'desc';
 }
 
-interface PaginatedResult<T> {
+export interface PaginatedResult<T> {
 	items: T[];
 	total: number;
 	page: number;
 	pageSize: number;
 }
 
-export type DatabaseResult<T> = { success: true; data: T } | { success: false; error: DatabaseError };
+export type DatabaseResult<T> = { success: true; data: T } | { success: false, error: DatabaseError };
 
 /** Error Handling **/
 export interface DatabaseError {
@@ -291,8 +291,10 @@ export interface DatabaseAdapter {
 	};
 
 	// System Virtual Folders
-	virtualFolders: {
+	systemVirtualFolder: {
 		create(folder: Omit<MediaFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaFolder>>; // Create a virtual folder
+		getById(folderId: DatabaseId): Promise<DatabaseResult<MediaFolder | null>>; // Get a virtual folder by its ID
+		getByParentId(parentId: DatabaseId | null): Promise<DatabaseResult<MediaFolder[]>>; // Get folders by parent ID
 		getAll(): Promise<DatabaseResult<MediaFolder[]>>; // Get all virtual folders
 		update(folderId: DatabaseId, updateData: Partial<MediaFolder>): Promise<DatabaseResult<MediaFolder>>; // Update a virtual folder
 		addToFolder(contentId: DatabaseId, folderPath: string): Promise<DatabaseResult<void>>; // Add content to a virtual folder
@@ -327,7 +329,7 @@ export interface DatabaseAdapter {
 export interface SystemVirtualFolder extends BaseEntity {
 	name: string;
 	path: string;
-	parent?: DatabaseId | null;
+	parentId?: DatabaseId | null;
 	icon?: string;
 	order: number;
 	type: 'folder' | 'collection';
@@ -347,8 +349,9 @@ export interface FolderContents {
 
 export interface VirtualFolderUpdateData {
 	name?: string;
-	parent?: string;
+	parentId?: DatabaseId;
 	path?: string;
+	order?: number;
 }
 
 export interface FolderResponse {
@@ -358,14 +361,14 @@ export interface FolderResponse {
 	ariaLabel: string;
 }
 
-export class VirtualFolderError extends Error {
+export class SystemVirtualFolderError extends Error {
 	constructor(
 		message: string,
 		public status: number,
 		public code: string
 	) {
 		super(message);
-		this.name = 'VirtualFolderError';
+		this.name = 'SystemVirtualFolderError';
 	}
 }
 

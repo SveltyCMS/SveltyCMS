@@ -9,9 +9,10 @@ import { logger } from './logger.svelte';
 import { publicEnv } from '@root/config/public';
 
 const getRootPath = () => {
-	// Use import.meta.path directly for Bun compatibility
-	const __dirname = path.dirname(import.meta.path);
-	return path.resolve(__dirname, '../../');
+	// Use process.cwd() which is more reliable across different runtimes
+	const cwd = process.cwd();
+	logger.debug(`getRootPath debug - process.cwd(): "${cwd}"`);
+	return cwd;
 };
 
 export async function uploadFile(file: File, folder?: string, onProgress?: (progress: number) => void) {
@@ -69,31 +70,44 @@ export async function uploadFile(file: File, folder?: string, onProgress?: (prog
 	}
 }
 
-export async function createDirectory(folder: string) {
-	// Validate folder name
-	if (!folder || !folder.trim()) {
-		throw new Error('Folder name cannot be empty');
+export async function createDirectory(relativePath: string) {
+	// Validate folder path
+	if (typeof relativePath !== 'string') {
+		// Adding a specific check for string type to prevent the error
+		throw new Error('Folder path must be a string.');
+	}
+	const trimmedPath = relativePath.trim();
+
+	// Sanitize folder name to prevent directory traversal attacks
+	const safeRelativePath = path.normalize(trimmedPath).replace(/^(\.\.(\/|\\|$))+/, '');
+
+	// Debug the path components
+	const rootPath = getRootPath();
+	const mediaFolder = publicEnv.MEDIA_FOLDER;
+	logger.debug(`createDirectory debug - rootPath: "${rootPath}", mediaFolder: "${mediaFolder}", safeRelativePath: "${safeRelativePath}"`);
+	logger.debug(`createDirectory debug - typeof rootPath: ${typeof rootPath}, typeof mediaFolder: ${typeof mediaFolder}, typeof safeRelativePath: ${typeof safeRelativePath}`);
+
+	// Validate each component before joining
+	if (typeof rootPath !== 'string') {
+		throw new Error(`getRootPath() returned non-string: ${typeof rootPath}, value: ${rootPath}`);
+	}
+	if (typeof mediaFolder !== 'string') {
+		throw new Error(`publicEnv.MEDIA_FOLDER is non-string: ${typeof mediaFolder}, value: ${mediaFolder}`);
+	}
+	if (typeof safeRelativePath !== 'string') {
+		throw new Error(`safeRelativePath is non-string: ${typeof safeRelativePath}, value: ${safeRelativePath}`);
 	}
 
-	// Sanitize folder name
-	const safeFolder = path.normalize(folder.trim()).replace(/^(\.\.(\/|\\|$))+/, '');
-	const directoryPath = path.join(getRootPath(), publicEnv.MEDIA_FOLDER, safeFolder);
+	// Construct the full absolute path
+	const directoryPath = path.join(rootPath, mediaFolder, safeRelativePath);
+	logger.debug(`createDirectory - constructed directoryPath: "${directoryPath}"`);
 
 	try {
-		// Check if directory already exists
-		try {
-			await fs.access(directoryPath);
-			throw new Error(`Directory "${safeFolder}" already exists`);
-		} catch (err) {
-			if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-				logger.warn('Unexpected error checking directory existence:', err);
-				throw err;
-			}
-			// Directory doesn't exist, proceed with creation
-		}
-
+		// The `recursive: true` option ensures that the directory is created if it
+		// doesn't exist, and it doesn't throw an error if it already exists.
+		// This makes the function idempotent.
 		await fs.mkdir(directoryPath, { recursive: true });
-		logger.info(`Directory created: ${safeFolder}`);
+		logger.info(`Directory ensured: ${directoryPath}`);
 		return {
 			success: true,
 			path: directoryPath

@@ -101,15 +101,21 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		logger.info(`Loading media gallery for folderId: ${folderId || 'root'}`);
 
 		// Fetch all virtual folders first to find the current one
-		const allVirtualFolders = await dbAdapter.systemVirtualFolder.getAll();
-		const serializedVirtualFolders = allVirtualFolders.map((folder) => convertIdToString(folder));
+		const allVirtualFoldersResult = await dbAdapter.systemVirtualFolder.getAll();
+
+		if (!allVirtualFoldersResult.success) {
+			logger.error('Failed to fetch virtual folders', allVirtualFoldersResult.error);
+			throw error(500, 'Failed to fetch virtual folders');
+		}
+
+		const serializedVirtualFolders = allVirtualFoldersResult.data.map((folder) => convertIdToString(folder));
 
 		// Determine current folder
 		const currentFolder = folderId ? serializedVirtualFolders.find((f) => f._id === folderId) || null : null;
 		logger.debug('Current folder determined:', currentFolder);
 
 		// --- Fetch Media Files based on currentFolder ---
-		const query: Record<string, string | null> = { parent: folderId || null }; // Use more specific type
+		const query: Record<string, string | null> = { folderId: folderId || null }; // Use more specific type
 		const mediaResults = await dbAdapter.crud.findMany<MediaItem>('MediaItem', query);
 
 		if (!mediaResults.success) {

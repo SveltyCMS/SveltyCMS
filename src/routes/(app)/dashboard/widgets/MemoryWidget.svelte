@@ -38,9 +38,10 @@ Features:
 
 	import BaseWidget from '../BaseWidget.svelte';
 	import { onDestroy } from 'svelte';
-	import Chart from 'chart.js/auto';
-	import type { ChartConfiguration, Plugin, ArcElement } from 'chart.js';
-	import 'chartjs-adapter-date-fns';
+	import { Chart, DoughnutController, ArcElement, Tooltip } from 'chart.js';
+	import type { ChartConfiguration, Plugin } from 'chart.js';
+
+	Chart.register(DoughnutController, ArcElement, Tooltip);
 
 	let { label = 'Memory Usage', theme = 'light', icon = 'mdi:memory' } = $props();
 
