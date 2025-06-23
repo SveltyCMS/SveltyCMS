@@ -139,6 +139,85 @@ export class TokenAdapter implements Partial<authDBInterface> {
 		}
 	}
 
+	// Delete multiple tokens by token strings
+	async deleteTokens(tokens: string[]): Promise<number> {
+		try {
+			const result = await this.TokenModel.deleteMany({ token: { $in: tokens } });
+			logger.info('Tokens deleted', { deletedCount: result.deletedCount, tokens });
+			return result.deletedCount;
+		} catch (err) {
+			const message = `Error in TokenAdapter.deleteTokens: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { tokens });
+			throw error(500, message);
+		}
+	}
+
+	// Block multiple tokens (set them as blocked/expired)
+	async blockTokens(tokens: string[]): Promise<number> {
+		try {
+			// Set tokens to expire immediately to effectively block them
+			const result = await this.TokenModel.updateMany(
+				{ token: { $in: tokens } },
+				{ expires: new Date() }
+			);
+			logger.info('Tokens blocked', { modifiedCount: result.modifiedCount, tokens });
+			return result.modifiedCount;
+		} catch (err) {
+			const message = `Error in TokenAdapter.blockTokens: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { tokens });
+			throw error(500, message);
+		}
+	}
+
+	// Unblock multiple tokens (extend their expiration)
+	async unblockTokens(tokens: string[]): Promise<number> {
+		try {
+			// Extend expiration by 7 days from now to unblock
+			const newExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+			const result = await this.TokenModel.updateMany(
+				{ token: { $in: tokens } },
+				{ expires: newExpiry }
+			);
+			logger.info('Tokens unblocked', { modifiedCount: result.modifiedCount, tokens });
+			return result.modifiedCount;
+		} catch (err) {
+			const message = `Error in TokenAdapter.unblockTokens: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { tokens });
+			throw error(500, message);
+		}
+	}
+
+	// Update a single token
+	async updateToken(token: string, updateData: Partial<{ email: string; role: string; expiresInHours: number; user_id: string }>): Promise<boolean> {
+		try {
+			const updateFields: Record<string, unknown> = {};
+
+			if (updateData.email) updateFields.email = updateData.email;
+			if (updateData.user_id) updateFields.user_id = updateData.user_id;
+			if (updateData.role) updateFields.type = updateData.role; // role maps to type in the schema
+			if (updateData.expiresInHours) {
+				updateFields.expires = new Date(Date.now() + updateData.expiresInHours * 60 * 60 * 1000);
+			}
+
+			const result = await this.TokenModel.updateOne(
+				{ token },
+				{ $set: updateFields }
+			);
+
+			if (result.matchedCount === 0) {
+				logger.warn('Token not found for update', { token });
+				throw error(404, 'Token not found');
+			}
+
+			logger.info('Token updated', { token, modifiedCount: result.modifiedCount, updateData });
+			return result.modifiedCount > 0;
+		} catch (err) {
+			const message = `Error in TokenAdapter.updateToken: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { token, updateData });
+			throw error(500, message);
+		}
+	}
+
 	// Get token data
 	async getTokenData(token: string, user_id?: string, type?: string): Promise<Token | null> {
 		try {

@@ -301,6 +301,17 @@ const getAdminDataCached = async (user: User, cacheKey: string): Promise<unknown
 	return data || [];
 };
 
+// Helper function to invalidate admin data cache - exported for use in API endpoints
+export const invalidateAdminCache = (cacheKey?: 'roles' | 'users' | 'tokens'): void => {
+	if (cacheKey) {
+		adminDataCache.delete(cacheKey);
+		logger.debug(`Admin cache invalidated for: ${cacheKey}`);
+	} else {
+		adminDataCache.clear();
+		logger.debug('All admin cache cleared');
+	}
+};
+
 // Handle static asset caching
 const handleStaticAssetCaching: Handle = async ({ event, resolve }) => {
 	if (isStaticAsset(event.url.pathname)) {

@@ -36,7 +36,7 @@ import type { ScreenSize } from '@stores/screenSizeStore.svelte';
 import type { SystemPreferences, WidgetPreference } from '@stores/systemPreferences.svelte';
 
 // Database Models
-import { ContentStructureModel } from './models/contentStructure';
+import { ContentStructureModel, registerContentStructureDiscriminators } from './models/contentStructure';
 import { DraftModel } from './models/draft';
 import { RevisionModel } from './models/revision';
 import { ThemeModel } from './models/theme';
@@ -724,9 +724,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 
 				// Register discriminators when setting up content structure model
 				if (name === 'system_content_structure') {
-					import('./models/contentStructure').then(({ registerContentStructureDiscriminators }) => {
-						registerContentStructureDiscriminators();
-					});
+					registerContentStructureDiscriminators();
 				}
 			} else {
 				logger.debug(`\x1b[34m${name}\x1b[0m model already exists.`);
