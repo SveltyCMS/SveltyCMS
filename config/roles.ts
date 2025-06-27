@@ -22,7 +22,18 @@ export const roles: Role[] = [
 		_id: 'developer',
 		name: 'Developer',
 		description: 'Developer Role - Can access some system features',
-		permissions: ['system:dashboard', 'api:graphql', 'api:collections', 'api:export', 'api:systemInfo', 'collections:read', 'content:builder'],
+		permissions: [
+			'system:dashboard',
+			'api:graphql',
+			'api:collections',
+			'api:export',
+			'api:systemInfo',
+			'api:user',
+			'api:userActivity',
+			'api:media',
+			'collections:read',
+			'content:builder'
+		],
 		icon: 'material-symbols:code',
 		color: 'gradient-pink'
 	},
@@ -37,7 +48,10 @@ export const roles: Role[] = [
 			'content:editor',
 			'content:images',
 			'system:dashboard',
-			'api:systemInfo'
+			'api:systemInfo',
+			'api:user',
+			'api:userActivity',
+			'api:media'
 		],
 		icon: 'material-symbols:edit',
 		color: 'gradient-tertiary'

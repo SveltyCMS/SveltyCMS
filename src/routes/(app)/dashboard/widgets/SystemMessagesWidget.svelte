@@ -1,6 +1,6 @@
 <!--
 @file src/routes/(app)/dashboard/widgets/SystemMessagesWidget.svelte
-@component 
+@component
 **Dashboard widget for displaying system messages with improved rendering and error handling**
 
 @example
@@ -36,17 +36,14 @@ Features:
 	import axios from 'axios';
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
 
-	// Define the structure of a system message
 	interface SystemMessage {
 		title: string;
 		timestamp: string;
 		body: string;
 	}
 
-	// Define the type of the messages array
 	let messages: SystemMessage[] = $state([]);
 
-	// Skeleton popup settings
 	const RemoveTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'Remove',
@@ -65,7 +62,6 @@ Features:
 			const response = await axios.get('/api/systemMessages');
 			messages = response.data;
 		} catch (err) {
-			console.error('Failed to fetch system messages:', err);
 			messages = [];
 		}
 	});
