@@ -18,14 +18,23 @@
 -->
 
 <script lang="ts">
-	import { onDestroy } from 'svelte'; // untrack can be useful for effects if needed
-	// Chart
+	export const widgetMeta = {
+		name: 'CPU Usage',
+		icon: 'mdi:cpu-64-bit',
+		defaultW: 1,
+		defaultH: 1,
+		validSizes: [
+			{ w: 1, h: 1 },
+			{ w: 2, h: 2 }
+		]
+	};
+
+	import { onDestroy } from 'svelte';
 	import { Chart, LineController, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler } from 'chart.js';
-	import 'chartjs-adapter-date-fns'; // Ensure date-fns is installed if you use it for formatting
+	import 'chartjs-adapter-date-fns';
 
 	Chart.register(LineController, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler);
 
-	// Components
 	import BaseWidget from '../BaseWidget.svelte';
 
 	// Props passed from +page.svelte, then to BaseWidget
@@ -53,26 +62,20 @@
 		onResizeCommitted?: (spans: { w: number; h: number }) => void;
 		onCloseRequest?: () => void;
 	}>();
-	// State for data fetched by BaseWidget
-	let fetchedData = $state<any>(undefined); // This will hold { cpuInfo: { ... } }
 
-	// Chart.js instance and canvas element
+	let currentData = $state<any>(undefined);
 	let chartInstance = $state<Chart | undefined>(undefined);
 	let chartCanvasElement = $state<HTMLCanvasElement | undefined>(undefined);
 
-	// Reactive effect to setup/update the chart when fetchedData or theme changes
-	$effect(() => {
+	function updateChart(fetchedData: any) {
 		if (!chartCanvasElement) return;
 
-		// Destructure data safely, expecting the structure from your API
 		const cpuInfo = fetchedData?.cpuInfo;
 		const historicalLoad = cpuInfo?.historicalLoad;
 		const currentLoad = cpuInfo?.currentLoad;
 
 		if (!historicalLoad || !Array.isArray(historicalLoad.usage) || !Array.isArray(historicalLoad.timestamps)) {
-			// Data not yet available or not in expected format
 			if (chartInstance) {
-				// Clear chart if data becomes invalid
 				chartInstance.data.labels = [];
 				chartInstance.data.datasets[0].data = [];
 				chartInstance.update('none');
@@ -82,10 +85,12 @@
 
 		const { usage: cpuUsageHistory = [], timestamps: timeStampHistory = [] } = historicalLoad;
 
-		// Format timestamps for chart labels (e.g., HH:mm:ss)
-		const formattedLabels = timeStampHistory.map((ts: string) => {
+		const plainCpuUsageHistory = [...cpuUsageHistory];
+		const plainTimeStampHistory = [...timeStampHistory];
+
+		const formattedLabels = plainTimeStampHistory.map((ts: string) => {
 			try {
-				return new Date(ts).toLocaleTimeString(); // Or use date-fns: format(new Date(ts), 'HH:mm:ss')
+				return new Date(ts).toLocaleTimeString();
 			} catch (e) {
 				console.warn('Invalid timestamp for chart:', ts);
 				return 'Invalid Time';
@@ -93,9 +98,8 @@
 		});
 
 		if (chartInstance) {
-			// Update existing chart
 			chartInstance.data.labels = formattedLabels;
-			chartInstance.data.datasets[0].data = cpuUsageHistory;
+			chartInstance.data.datasets[0].data = plainCpuUsageHistory;
 			// Update colors if theme changed
 			chartInstance.data.datasets[0].borderColor = theme === 'dark' ? 'rgba(75, 192, 192, 1)' : 'rgba(54, 162, 235, 1)';
 			chartInstance.data.datasets[0].backgroundColor = theme === 'dark' ? 'rgba(75, 192, 192, 0.2)' : 'rgba(54, 162, 235, 0.2)';
@@ -105,73 +109,95 @@
 			chartInstance.options.scales.y.grid.color = theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
 			chartInstance.update('none'); // Use 'none' for no animation on data update
 		} else {
-			// Create new chart instance
-			chartInstance = new Chart(chartCanvasElement, {
-				type: 'line',
-				data: {
-					labels: formattedLabels,
-					datasets: [
-						{
-							label: 'CPU Usage (%)',
-							data: cpuUsageHistory,
-							borderColor: theme === 'dark' ? 'rgba(75, 192, 192, 1)' : 'rgba(54, 162, 235, 1)',
-							backgroundColor: theme === 'dark' ? 'rgba(75, 192, 192, 0.2)' : 'rgba(54, 162, 235, 0.2)',
-							fill: true,
-							tension: 0.3, // Smooth curves
-							borderWidth: 1.5,
-							pointRadius: 0, // No points for a cleaner look
-							pointHoverRadius: 4
-						}
-					]
-				},
-				options: {
-					responsive: true,
-					maintainAspectRatio: false,
-					scales: {
-						x: {
-							ticks: {
-								color: theme === 'dark' ? '#e5e7eb' : '#4b5563', // Tailwind gray-200 / gray-600
-								maxTicksLimit: 7, // Limit number of x-axis ticks
-								autoSkip: true
+			// Destroy any existing chart on this canvas first
+			const existingChart = Chart.getChart(chartCanvasElement);
+			if (existingChart) {
+				existingChart.destroy();
+			}
+
+			try {
+				chartInstance = new Chart(chartCanvasElement, {
+					type: 'line',
+					data: {
+						labels: formattedLabels,
+						datasets: [
+							{
+								label: 'CPU Usage (%)',
+								data: plainCpuUsageHistory,
+								borderColor: theme === 'dark' ? 'rgba(75, 192, 192, 1)' : 'rgba(54, 162, 235, 1)',
+								backgroundColor: theme === 'dark' ? 'rgba(75, 192, 192, 0.2)' : 'rgba(54, 162, 235, 0.2)',
+								fill: true,
+								tension: 0.3,
+								borderWidth: 1.5,
+								pointRadius: 0,
+								pointHoverRadius: 4
+							}
+						]
+					},
+					options: {
+						responsive: true,
+						maintainAspectRatio: false,
+						scales: {
+							x: {
+								ticks: {
+									color: theme === 'dark' ? '#e5e7eb' : '#4b5563',
+									maxTicksLimit: 7,
+									autoSkip: true
+								},
+								grid: {
+									color: theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+								}
 							},
-							grid: {
-								color: theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+							y: {
+								beginAtZero: true,
+								max: 100,
+								ticks: {
+									color: theme === 'dark' ? '#e5e7eb' : '#4b5563',
+									stepSize: 25
+								},
+								grid: {
+									color: theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+								}
 							}
 						},
-						y: {
-							beginAtZero: true,
-							max: 100, // CPU percentage
-							ticks: {
-								color: theme === 'dark' ? '#e5e7eb' : '#4b5563',
-								stepSize: 25
-							},
-							grid: {
-								color: theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+						plugins: {
+							legend: { display: false },
+							tooltip: {
+								mode: 'index',
+								intersect: false,
+								callbacks: {
+									label: (context) => `CPU: ${parseFloat(context.raw as string).toFixed(1)}%`
+								}
 							}
-						}
-					},
-					plugins: {
-						legend: { display: false },
-						tooltip: {
-							mode: 'index',
-							intersect: false,
-							callbacks: {
-								label: (context) => `CPU: ${parseFloat(context.raw as string).toFixed(1)}%`
-							}
-						}
-					},
-					interaction: {
-						mode: 'nearest',
-						axis: 'x',
-						intersect: false
-					},
-					animation: {
-						// Subtle animation on initial load
-						duration: 400,
-						easing: 'easeInOutQuad'
+						},
+						interaction: {
+							mode: 'nearest',
+							axis: 'x',
+							intersect: false
+						},
+						animation: false
 					}
-				}
-			});
+				});
+			} catch (error) {
+				console.error('Failed to create chart:', error);
+				chartInstance = undefined;
+			}
+		}
+	}
+
+	function updateChartAction(canvas: HTMLCanvasElement, data: any) {
+		currentData = data;
+
+		return {
+			update(newData: any) {
+				currentData = newData;
+			}
+		};
+	}
+
+	$effect(() => {
+		if (chartCanvasElement && currentData?.cpuInfo) {
+			updateChart(currentData);
 		}
 	});
 
@@ -181,26 +207,13 @@
 			chartInstance = undefined;
 		}
 	});
-
-	// Helper to get the latest CPU usage value
-	let latestCpuValue = $derived(fetchedData?.cpuInfo?.historicalLoad?.usage?.slice(-1)[0]?.toFixed(1) || 'N/A');
-	// Helper for average CPU usage
-	let averageCpuValue = $derived(() => {
-		const usageArray = fetchedData?.cpuInfo?.historicalLoad?.usage;
-		if (usageArray && usageArray.length > 0) {
-			const sum = usageArray.reduce((a: number, b: number) => a + b, 0);
-			return (sum / usageArray.length).toFixed(1);
-		}
-		return 'N/A';
-	});
 </script>
 
 <BaseWidget
 	{label}
 	{theme}
 	endpoint="/api/systemInfo?type=cpu"
-	pollInterval={2000}
-	bind:data={fetchedData}
+	pollInterval={5000}
 	{icon}
 	{widgetId}
 	{gridCellWidth}
@@ -210,20 +223,37 @@
 	{onResizeCommitted}
 	{onCloseRequest}
 >
-	{#if fetchedData?.cpuInfo}
-		<div class="flex h-full flex-col">
-			<div class="mb-2 flex items-center justify-between px-1 text-xs text-gray-600 dark:text-gray-400">
-				<span>Current: <span class="font-semibold text-gray-800 dark:text-gray-200">{latestCpuValue}%</span></span>
-				<span>Average: <span class="font-semibold text-gray-800 dark:text-gray-200">{averageCpuValue}%</span></span>
+	{#snippet children({ data: fetchedData })}
+		{#if fetchedData?.cpuInfo}
+			<div class="flex h-full flex-col">
+				<div class="mb-2 flex items-center justify-between px-1 text-xs text-gray-600 dark:text-gray-400">
+					<span
+						>Current: <span class="font-semibold text-gray-800 dark:text-gray-200"
+							>{fetchedData?.cpuInfo?.historicalLoad?.usage?.slice(-1)[0]?.toFixed(1) || 'N/A'}%</span
+						></span
+					>
+					<span
+						>Average: <span class="font-semibold text-gray-800 dark:text-gray-200"
+							>{(() => {
+								const usageArray = fetchedData?.cpuInfo?.historicalLoad?.usage;
+								if (usageArray && usageArray.length > 0) {
+									const sum = usageArray.reduce((a: number, b: number) => a + b, 0);
+									return (sum / usageArray.length).toFixed(1);
+								}
+								return 'N/A';
+							})()}%</span
+						></span
+					>
+				</div>
+				<div class="relative min-h-[100px] flex-grow">
+					<canvas bind:this={chartCanvasElement} aria-label="CPU Usage Chart" use:updateChartAction={fetchedData}></canvas>
+				</div>
 			</div>
-			<div class="relative min-h-[100px] flex-grow">
-				<canvas bind:this={chartCanvasElement} aria-label="CPU Usage Chart"></canvas>
+		{:else}
+			<div class="flex h-full flex-col items-center justify-center text-xs text-gray-500 dark:text-gray-400">
+				<iconify-icon icon="eos-icons:loading" width="24" class="mb-1"></iconify-icon>
+				<span>Loading CPU data...</span>
 			</div>
-		</div>
-	{:else if !fetchedData}
-		<div class="flex h-full flex-col items-center justify-center text-xs text-gray-500 dark:text-gray-400">
-			<iconify-icon icon="eos-icons:loading" width="24" class="mb-1"></iconify-icon>
-			<span>Loading CPU data...</span>
-		</div>
-	{/if}
+		{/if}
+	{/snippet}
 </BaseWidget>

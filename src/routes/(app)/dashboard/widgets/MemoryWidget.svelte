@@ -43,66 +43,113 @@ Features:
 
 	Chart.register(DoughnutController, ArcElement, Tooltip);
 
-	let { label = 'Memory Usage', theme = 'light', icon = 'mdi:memory' } = $props();
+	// Props passed from +page.svelte, then to BaseWidget
+	let {
+		label = 'Memory Usage',
+		theme = 'light',
+		icon = 'mdi:memory',
+		widgetId = undefined,
+		gridCellWidth = 0,
+		ROW_HEIGHT = 0,
+		GAP_SIZE = 0,
+		resizable = true,
+		onResizeCommitted = (spans: { w: number; h: number }) => {},
+		onCloseRequest = () => {}
+	} = $props<{
+		label?: string;
+		theme?: 'light' | 'dark';
+		icon?: string;
+		widgetId?: string;
+		gridCellWidth: number;
+		ROW_HEIGHT: number;
+		GAP_SIZE: number;
+		resizable?: boolean;
+		onResizeCommitted?: (spans: { w: number; h: number }) => void;
+		onCloseRequest?: () => void;
+	}>();
 
-	// Chart state
-	let data: any = $state(undefined);
+	let currentData = $state<any>(undefined);
 	let chart = $state<Chart<'doughnut', number[], string> | undefined>(undefined);
 	let chartCanvas = $state<HTMLCanvasElement | undefined>(undefined);
 
-	const textCenterPlugin: Plugin<'doughnut'> = {
-		id: 'textCenterPlugin',
-		beforeDraw(chart) {
-			const ctx = chart.ctx;
-			const { width, height } = chart;
-			const memoryInfoValue = data?.memoryInfo ?? {
-				totalMemMb: 0,
-				usedMemMb: 0,
-				freeMemMb: 0,
-				usedMemPercentage: 0,
-				freeMemPercentage: 0
-			};
-			ctx.save();
-			ctx.textAlign = 'center';
-			ctx.textBaseline = 'middle';
-			ctx.font = '18px Arial';
+	function updateChartAction(canvas: HTMLCanvasElement, data: any) {
+		currentData = data;
 
-			// Draw total in the center
-			ctx.fillText(`${(memoryInfoValue.totalMemMb / 1024).toFixed(2)} GB`, width / 2, height / 2);
-
-			// Draw used and free percentages directly on the chart
-			chart.data.datasets[0].data.forEach((value, index) => {
-				const percentage = index === 0 ? memoryInfoValue.usedMemPercentage : memoryInfoValue.freeMemPercentage;
-				const meta = chart.getDatasetMeta(0);
-				const arc = meta.data[index] as ArcElement;
-				const angle = (arc.startAngle + arc.endAngle) / 2;
-				const posX = width / 2 + Math.cos(angle) * (width / 4);
-				const posY = height / 2 + Math.sin(angle) * (height / 4);
-				ctx.fillText(`${percentage.toFixed(2)}%`, posX, posY);
-			});
-			ctx.restore();
-		}
-	};
+		return {
+			update(newData: any) {
+				currentData = newData;
+			}
+		};
+	}
 
 	$effect(() => {
-		if (chartCanvas && data?.memoryInfo) {
-			const { usedMemMb, freeMemMb } = data.memoryInfo;
+		if (!chartCanvas || !currentData?.memoryInfo?.total) return;
+
+		const { usedMemMb, freeMemMb, usedMemPercentage, freeMemPercentage, totalMemMb } = currentData.memoryInfo.total;
+
+		const plainUsedMem = Number(usedMemMb) || 0;
+		const plainFreeMem = Number(freeMemMb) || 0;
+		const usedPercent = Number(usedMemPercentage) || 0;
+		const freePercent = Number(freeMemPercentage) || 0;
+		const totalMem = Number(totalMemMb) || 0;
+
+		if (chart) {
+			chart.data.datasets[0].data = [plainUsedMem, plainFreeMem];
+			chart.update('none');
+		} else {
+			const existingChart = Chart.getChart(chartCanvas);
+			if (existingChart) {
+				existingChart.destroy();
+			}
+
+			const memoryTextCenterPlugin: Plugin<'doughnut'> = {
+				id: 'memoryTextCenterPlugin',
+				beforeDraw(chart) {
+					const ctx = chart.ctx;
+					const { width, height } = chart;
+
+					ctx.save();
+					ctx.textAlign = 'center';
+					ctx.textBaseline = 'middle';
+					ctx.font = '18px Arial';
+					ctx.fillStyle = '#374151';
+
+					const totalMemGb = (totalMem / 1024).toFixed(2);
+					ctx.fillText(`${totalMemGb} GB`, width / 2, height / 2);
+
+					const percentages = [usedPercent, freePercent];
+					chart.data.datasets[0].data.forEach((value, index) => {
+						const percentage = percentages[index];
+						const meta = chart.getDatasetMeta(0);
+						const arc = meta.data[index] as ArcElement;
+						if (arc) {
+							const angle = (arc.startAngle + arc.endAngle) / 2;
+							const posX = width / 2 + Math.cos(angle) * (width / 4);
+							const posY = height / 2 + Math.sin(angle) * (height / 4);
+							ctx.fillText(`${percentage.toFixed(1)}%`, posX, posY);
+						}
+					});
+					ctx.restore();
+				}
+			};
+
 			const config: ChartConfiguration<'doughnut', number[], string> = {
 				type: 'doughnut',
 				data: {
 					labels: ['Used', 'Free'],
 					datasets: [
 						{
-							data: [usedMemMb, freeMemMb],
-							backgroundColor: ['rgba(255, 99, 132, 0.2)', 'rgba(54, 162, 235, 0.2)'],
+							data: [plainUsedMem, plainFreeMem],
+							backgroundColor: ['rgba(255, 99, 132, 0.7)', 'rgba(54, 162, 235, 0.7)'],
 							borderColor: ['rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)'],
-							borderWidth: 1
+							borderWidth: 2
 						}
 					]
 				},
 				options: {
 					responsive: true,
 					maintainAspectRatio: false,
+					animation: false,
 					plugins: {
 						tooltip: {
 							callbacks: {
@@ -112,24 +159,15 @@ Features:
 									const dataSet = context.chart.data.datasets[0].data as number[];
 									const totalMemMb = dataSet.reduce((a, b) => (a ?? 0) + (b ?? 0), 0);
 									const percentage = totalMemMb ? (value / totalMemMb) * 100 : 0;
-									return `${(value / 1024).toFixed(2)} GB (${percentage.toFixed(2)}%)`;
+									return `${label}: ${(value / 1024).toFixed(2)} GB (${percentage.toFixed(2)}%)`;
 								}
 							}
 						}
 					}
 				},
-				plugins: [textCenterPlugin]
+				plugins: [memoryTextCenterPlugin]
 			};
 			chart = new Chart(chartCanvas, config);
-		}
-	});
-
-	// Update chart when memory data changes
-	$effect(() => {
-		if (chart && data?.memoryInfo) {
-			const { usedMemMb, freeMemMb } = data.memoryInfo;
-			chart.data.datasets[0].data = [usedMemMb, freeMemMb];
-			chart.update();
 		}
 	});
 
@@ -138,28 +176,47 @@ Features:
 	});
 </script>
 
-<BaseWidget {label} {theme} endpoint="/api/systemInfo?type=memory" pollInterval={5000} bind:data {icon}>
-	<div
-		class="relative h-full w-full rounded-lg bg-surface-50 p-2 text-tertiary-500 transition-colors duration-300 ease-in-out dark:bg-surface-400 dark:text-primary-500"
-		aria-label="Memory Usage Widget"
-	>
-		<h2 class="flex items-center justify-center gap-2 text-center font-bold">
-			<iconify-icon icon="mdi:memory" width="20" class="text-primary-500"></iconify-icon>
-			Memory Usage
-		</h2>
-		<canvas bind:this={chartCanvas} class="h-full w-full p-2"></canvas>
-		{#if data?.memoryInfo}
-			<div class="absolute bottom-5 left-0 flex w-full justify-between gap-2 px-2 text-xs">
-				<p>Total: {(data.memoryInfo.totalMemMb / 1024).toFixed(2)} GB</p>
-				<p>
-					Used: {(data.memoryInfo.usedMemMb / 1024).toFixed(2)} GB ({data.memoryInfo.usedMemPercentage}%)
-				</p>
-				<p>
-					Free: {(data.memoryInfo.freeMemMb / 1024).toFixed(2)} GB ({data.memoryInfo.freeMemPercentage}%)
-				</p>
-			</div>
-		{:else}
-			<p class="text-center text-gray-500">No memory data available</p>
-		{/if}
-	</div>
+<BaseWidget
+	{label}
+	{theme}
+	endpoint="/api/systemInfo?type=memory"
+	pollInterval={10000}
+	{icon}
+	{widgetId}
+	{gridCellWidth}
+	{ROW_HEIGHT}
+	{GAP_SIZE}
+	{resizable}
+	{onResizeCommitted}
+	{onCloseRequest}
+>
+	{#snippet children({ data: fetchedData })}
+		<div
+			class="relative h-full w-full rounded-lg bg-surface-50 p-2 text-tertiary-500 transition-colors duration-300 ease-in-out dark:bg-surface-400 dark:text-primary-500"
+			aria-label="Memory Usage Widget"
+		>
+			<h2 class="flex items-center justify-center gap-2 text-center font-bold">
+				<iconify-icon icon="mdi:memory" width="20" class="text-primary-500"></iconify-icon>
+				Memory Usage
+			</h2>
+			<canvas bind:this={chartCanvas} class="h-full w-full p-2" use:updateChartAction={fetchedData}></canvas>
+			{#if fetchedData?.memoryInfo?.total}
+				<div class="absolute bottom-5 left-0 flex w-full justify-between gap-2 px-2 text-xs">
+					<p>Total: {((fetchedData.memoryInfo.total.totalMemMb || 0) / 1024).toFixed(2)} GB</p>
+					<p>
+						Used: {((fetchedData.memoryInfo.total.usedMemMb || 0) / 1024).toFixed(2)} GB ({(
+							fetchedData.memoryInfo.total.usedMemPercentage || 0
+						).toFixed(2)}%)
+					</p>
+					<p>
+						Free: {((fetchedData.memoryInfo.total.freeMemMb || 0) / 1024).toFixed(2)} GB ({(
+							fetchedData.memoryInfo.total.freeMemPercentage || 0
+						).toFixed(2)}%)
+					</p>
+				</div>
+			{:else}
+				<p class="text-center text-gray-500">No memory data available</p>
+			{/if}
+		</div>
+	{/snippet}
 </BaseWidget>

@@ -46,7 +46,7 @@
 		endpoint = undefined,
 		pollInterval = 0,
 		widgetId = undefined,
-		children = undefined as Snippet<[ChildSnippetProps]> | undefined,
+		children = undefined as Snippet<ChildSnippetProps> | undefined,
 
 		gridCellWidth = $bindable(0),
 		ROW_HEIGHT = $bindable(0),
@@ -66,7 +66,7 @@
 		endpoint?: string;
 		pollInterval?: number;
 		widgetId?: string;
-		children?: Snippet<[ChildSnippetProps]>;
+		children?: Snippet<ChildSnippetProps>;
 
 		gridCellWidth: number;
 		ROW_HEIGHT: number;
@@ -86,14 +86,11 @@
 	let error = $state<string | null>(null);
 	let internalData = $state(passedInitialData);
 
-	// Data handling effect
+	// Data handling effect - properly handle initial data
 	$effect(() => {
-		if (data !== undefined) {
-			// If data prop is provided (bindable), use it
-			internalData = data;
-		} else if (passedInitialData !== undefined) {
-			// Fallback to internal data if no bindable prop provided
+		if (passedInitialData !== undefined && !initialDataSet) {
 			internalData = passedInitialData;
+			initialDataSet = true;
 		}
 	});
 
@@ -119,11 +116,7 @@
 
 				const newData = await res.json();
 				if (isActive) {
-					if (data !== undefined) {
-						data.set(newData); // Only call set if data is bindable
-					} else {
-						internalData = newData; // Fallback to internal state
-					}
+					internalData = newData;
 					onDataLoaded(newData);
 				}
 			} catch (err) {
@@ -263,17 +256,17 @@
 
 	<!-- Body -->
 	<div class="widget-body relative min-h-[50px] flex-1 overflow-auto px-2 py-1">
-		{#if endpoint && loading && !data}
+		{#if endpoint && loading && !internalData}
 			<div class="loading-state absolute inset-0 flex items-center justify-center text-xs text-gray-500">Loading...</div>
-		{:else if endpoint && error && !data}
+		{:else if endpoint && error && !internalData}
 			<div class="error-state absolute inset-0 flex flex-col items-center justify-center p-2 text-center text-xs text-error-500">
 				<iconify-icon icon="mdi:alert-circle-outline" width="20" class="mb-1"></iconify-icon>
 				<span>{error}</span>
 			</div>
 		{:else if children}
-			{@render children([{ data: data, updateWidgetState, getWidgetState }])}
-		{:else if data}
-			<pre class="whitespace-pre-wrap break-all text-xs">{JSON.stringify(data, null, 2)}</pre>
+			{@render children({ data: internalData, updateWidgetState, getWidgetState })}
+		{:else if internalData}
+			<pre class="whitespace-pre-wrap break-all text-xs">{JSON.stringify(internalData, null, 2)}</pre>
 		{:else}
 			<div class="absolute inset-0 flex items-center justify-center text-xs text-gray-400">No content.</div>
 		{/if}
