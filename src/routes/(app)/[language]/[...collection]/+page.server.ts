@@ -60,7 +60,38 @@ export const load: PageServerLoad = async ({ cookies, locals, params }) => {
 
 	await contentManager.initialize();
 
-	const currentCollection = await contentManager.getCollection(`/${collection}`);
+	// Get collection data to access the mapping
+	const { collectionMap } = await contentManager.getCollectionData();
+
+	let currentCollection = null;
+	let collectionIdentifier = collection;
+
+	// Check if the collection parameter is a UUID (32 hex characters)
+	const isUUID = /^[a-f0-9]{32}$/i.test(collection);
+
+	if (isUUID) {
+		// Direct UUID lookup
+		currentCollection = await contentManager.getCollection(collection);
+	} else {
+		// Path-based lookup - need to find the UUID for this path
+		const collectionPath = `/${collection}`;
+
+		// Search through the collection map to find the collection by path
+		for (const [uuid, schemaData] of collectionMap) {
+			if (schemaData.path === collectionPath) {
+				currentCollection = await contentManager.getCollection(uuid);
+				collectionIdentifier = uuid; // Use UUID internally
+				break;
+			}
+		}
+	}
+
+	// If no collection found, return 404
+	if (!currentCollection) {
+		const message = `Collection not found: ${collection}`;
+		logger.warn(message);
+		throw error(404, message);
+	}
 
 	return {
 		theme: theme || DEFAULT_THEME,
@@ -68,7 +99,7 @@ export const load: PageServerLoad = async ({ cookies, locals, params }) => {
 		collection: {
 			module: currentCollection?.module,
 			name: currentCollection?.name,
-			_id: currentCollection?._id,
+			_id: currentCollection?._id || collectionIdentifier,
 			path: currentCollection?.path,
 			icon: currentCollection?.icon,
 			label: currentCollection?.label,

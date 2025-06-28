@@ -9,7 +9,6 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 -->
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
-	import { goto } from '$app/navigation';
 
 	// Types
 	import type { Schema } from '@src/content/types';
@@ -53,6 +52,14 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	$effect(() => {
 		// Correctly using $effect here
 		if (data.collection.name && (!collection.value || data.collection.path !== collection.value.path)) {
+			console.log('[PAGE DEBUG] Collection loading effect:', {
+				dataCollectionName: data.collection.name,
+				dataCollectionPath: data.collection.path,
+				dataCollectionId: data.collection._id,
+				currentCollectionPath: collection.value?.path,
+				currentCollectionName: collection.value?.name,
+				shouldLoad: true
+			});
 			loadCollection();
 		}
 	});
@@ -68,15 +75,27 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		}
 	});
 
-	// Handle language changes
-	$effect(() => {
-		if (!collection?.value?.name && !collection.value?.path) return;
+	// Handle language changes - TEMPORARILY DISABLED TO FIX BOOT LOOP
+	// $effect(() => {
+	// 	if (!collection?.value?.name && !collection.value?.path) return;
 
-		const newLanguage = contentLanguage.value;
-		const currentPath = page.url.pathname;
-		const newPath = `/${newLanguage}${collection.value?.path?.toString()}`;
-		if (currentPath !== newPath) goto(newPath);
-	});
+	// 	const newLanguage = contentLanguage.value;
+	// 	const currentPath = page.url.pathname;
+	// 	const newPath = `/${newLanguage}${collection.value?.path?.toString()}`;
+
+	// 	console.log('[PAGE DEBUG] Language change effect:', {
+	// 		currentPath,
+	// 		newPath,
+	// 		collectionPath: collection.value?.path,
+	// 		collectionName: collection.value?.name,
+	// 		language: newLanguage
+	// 	});
+
+	// 	if (currentPath !== newPath) {
+	// 		console.log('[PAGE DEBUG] Navigating from', currentPath, 'to', newPath);
+	// 		goto(newPath);
+	// 	}
+	// });
 
 	$effect(() => {
 		if (mode.value === 'media') {
