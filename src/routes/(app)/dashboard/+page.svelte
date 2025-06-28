@@ -237,18 +237,18 @@
 </script>
 
 <div
-	class="dashboard-container m-0 box-border flex min-h-screen w-full min-w-0 flex-1 flex-col bg-surface-100 p-0 text-neutral-900 dark:bg-surface-900 dark:text-neutral-100"
-	style="overflow-y: auto;"
+	class="dashboard-container m-0 flex min-h-screen w-full flex-col bg-surface-100 p-0 px-12 text-neutral-900 dark:bg-surface-900 dark:text-neutral-100"
+	style="overflow-x: hidden; overflow-y: auto;"
 >
 	<div class="relative z-20 m-0 flex w-full flex-col p-0">
 		<div
-			class="relative mt-6 flex w-full items-center justify-between gap-8 rounded-2xl border border-surface-200 bg-gradient-to-br from-white/90 via-surface-50/80 to-primary-50/80 px-2 py-8 shadow-2xl backdrop-blur-2xl dark:border-surface-700 dark:bg-gradient-to-br dark:from-surface-800/90 dark:via-surface-900/80 dark:to-primary-900/80 sm:px-4 md:px-8 lg:px-12"
+			class="relative mt-6 flex w-full items-center justify-between gap-8 rounded-2xl border border-surface-200 bg-gradient-to-br from-white/90 via-surface-50/80 to-primary-50/80 py-8 shadow-2xl backdrop-blur-2xl dark:border-surface-700 dark:bg-gradient-to-br dark:from-surface-800/90 dark:via-surface-900/80 dark:to-primary-900/80"
 		>
 			<div
 				class="absolute left-0 top-0 h-2 w-full animate-pulse rounded-t-xl bg-gradient-to-r from-primary-500 via-emerald-400 to-primary-400 opacity-95 dark:from-primary-600 dark:via-emerald-500 dark:to-primary-400"
 				aria-hidden="true"
 			></div>
-			<div class="flex w-full items-center justify-between gap-8">
+			<div class="flex w-full items-center justify-between gap-8 px-8">
 				<div class="flex min-w-0 flex-col gap-2">
 					<div class="flex items-center gap-4">
 						<iconify-icon icon="bi:bar-chart-line" width="40" class="text-primary-500 drop-shadow-lg dark:text-primary-400" aria-hidden="true"
@@ -330,22 +330,17 @@
 	</div>
 
 	<div class="relative m-0 w-full p-0">
-		<div class="w-full px-2 py-4 sm:px-4 md:px-8 lg:px-12">
+		<div class="w-full py-4">
 			{#if !preferencesLoaded}
 				<div class="flex h-full items-center justify-center text-lg text-gray-500" role="status" aria-live="polite">Loading preferences...</div>
 			{:else if items.length > 0}
-				<div
-					class="box-border grid w-full max-w-full grid-cols-1 gap-4 overflow-x-auto sm:grid-cols-2 lg:grid-cols-4"
-					role="grid"
-					aria-label="Dashboard widgets grid"
-					data-grid-update={gridUpdateCounter}
-				>
+				<div class="responsive-dashboard-grid grid w-full gap-4" role="grid" aria-label="Dashboard widgets grid" data-grid-update={gridUpdateCounter}>
 					{#each items as item (`${item.id}-${item.size}-${gridUpdateCounter}`)}
 						{@const SvelteComponent = widgetComponentRegistry[item.component]?.component}
 						{@const columnSpan = getColumnSpan(item.size)}
 						{#if SvelteComponent}
 							<div
-								class={`widget-container col-span-${columnSpan} box-border max-w-full overflow-hidden`}
+								class="widget-container grid-span-{columnSpan}"
 								data-widget-id={item.id}
 								data-widget-size={item.size}
 								data-column-span={columnSpan}
@@ -369,7 +364,7 @@
 							</div>
 						{:else}
 							<div
-								class={`flex h-full w-full items-center justify-center rounded-md border border-dashed border-error-500 bg-error-100 p-4 text-error-700 col-span-${columnSpan} box-border max-w-full overflow-hidden`}
+								class="flex h-full w-full items-center justify-center rounded-md border border-dashed border-error-500 bg-error-100 p-4 text-error-700 grid-span-{columnSpan}"
 								role="gridcell"
 								aria-label={item.label}
 								tabindex="0"
@@ -408,6 +403,23 @@
 </div>
 
 <style>
+	/* Grid span classes for reliable reactivity */
+	.grid-span-1 {
+		grid-column: span 1;
+	}
+
+	.grid-span-2 {
+		grid-column: span 2;
+	}
+
+	.grid-span-3 {
+		grid-column: span 3;
+	}
+
+	.grid-span-4 {
+		grid-column: span 4;
+	}
+
 	/* Gradient animation for title */
 	@keyframes gradient-x {
 		0%,
@@ -421,5 +433,22 @@
 	.animate-gradient-x {
 		background-size: 200% 200%;
 		animation: gradient-x 3s ease-in-out infinite;
+	}
+
+	/* Responsive dashboard grid */
+	.responsive-dashboard-grid {
+		display: grid;
+		gap: 1rem;
+		grid-template-columns: repeat(1, minmax(0, 1fr));
+	}
+	@media (min-width: 640px) {
+		.responsive-dashboard-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+	@media (min-width: 1024px) {
+		.responsive-dashboard-grid {
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+		}
 	}
 </style>
