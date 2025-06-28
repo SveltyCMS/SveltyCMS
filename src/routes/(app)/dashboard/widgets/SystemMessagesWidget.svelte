@@ -32,9 +32,7 @@ Features:
 		]
 	};
 
-	import { onMount } from 'svelte';
-	import axios from 'axios';
-	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	import BaseWidget from '../BaseWidget.svelte';
 
 	interface SystemMessage {
 		title: string;
@@ -42,44 +40,81 @@ Features:
 		body: string;
 	}
 
-	let messages: SystemMessage[] = $state([]);
+	let {
+		label = 'System Messages',
+		theme = 'light',
+		icon = 'mdi:message-alert',
+		widgetId = undefined,
 
-	const RemoveTooltip: PopupSettings = {
-		event: 'hover',
-		target: 'Remove',
-		placement: 'right'
-	};
+		// New sizing props
+		currentSize = '1/4',
+		availableSizes = ['1/4', '1/2', '3/4', 'full'],
+		onSizeChange = (newSize) => {},
 
-	interface Props {
-		label: string;
-		currentTheme: string;
-	}
+		// Legacy props
+		gridCellWidth = 0,
+		ROW_HEIGHT = 0,
+		GAP_SIZE = 0,
+		resizable = true,
+		onResizeCommitted = (spans: { w: number; h: number }) => {},
+		onCloseRequest = () => {}
+	} = $props<{
+		label?: string;
+		theme?: 'light' | 'dark';
+		icon?: string;
+		widgetId?: string;
 
-	let { label, currentTheme }: Props = $props();
+		// New sizing props
+		currentSize?: '1/4' | '1/2' | '3/4' | 'full';
+		availableSizes?: ('1/4' | '1/2' | '3/4' | 'full')[];
+		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
 
-	onMount(async () => {
-		try {
-			const response = await axios.get('/api/systemMessages');
-			messages = response.data;
-		} catch (err) {
-			messages = [];
-		}
-	});
+		// Legacy props
+		gridCellWidth?: number;
+		ROW_HEIGHT?: number;
+		GAP_SIZE?: number;
+		resizable?: boolean;
+		onResizeCommitted?: (spans: { w: number; h: number }) => void;
+		onCloseRequest?: () => void;
+	}>();
 </script>
 
-<div id="systemMessagesWidget" class="relative rounded-lg bg-white p-4 shadow-md dark:bg-gray-800">
-	<h3 class="mb-2 text-lg font-bold">{label} <span class="variant-filled badge">Alert</span></h3>
-	{#if messages.length > 0}
-		<ul>
-			{#each messages as message}
-				<li class="mb-1">
-					<strong>{message.title}</strong>
-					<small class="text-gray-500">({new Date(message.timestamp).toLocaleString()})</small>
-					<p>{message.body}</p>
-				</li>
-			{/each}
-		</ul>
-	{:else}
-		<p class="text-center text-gray-500">No system messages available</p>
-	{/if}
-</div>
+<BaseWidget
+	{label}
+	{theme}
+	endpoint="/api/systemMessages"
+	pollInterval={30000}
+	{icon}
+	{widgetId}
+	{currentSize}
+	{availableSizes}
+	{onSizeChange}
+	{gridCellWidth}
+	{ROW_HEIGHT}
+	{GAP_SIZE}
+	{resizable}
+	{onResizeCommitted}
+	{onCloseRequest}
+>
+	{#snippet children({ data: fetchedData })}
+		{#if fetchedData && Array.isArray(fetchedData) && fetchedData.length > 0}
+			<div class="grid gap-2" style="max-height: 180px; overflow: hidden;" role="list" aria-label="System messages">
+				{#each fetchedData.slice(0, 5) as message}
+					<div class="rounded-lg bg-surface-100/80 px-3 py-2 text-xs dark:bg-surface-700/60" role="listitem">
+						<div class="flex items-start justify-between">
+							<strong class="text-text-900 dark:text-text-100 text-sm" aria-label="Message title">{message.title}</strong>
+							<small class="text-surface-500 dark:text-surface-400" aria-label="Timestamp">{new Date(message.timestamp).toLocaleString()}</small>
+						</div>
+						<p class="mt-1 text-surface-700 dark:text-surface-300" aria-label="Message body">{message.body}</p>
+					</div>
+				{/each}
+			</div>
+		{:else}
+			<div class="flex flex-1 flex-col items-center justify-center py-6 text-xs text-gray-500 dark:text-gray-400" role="status" aria-live="polite">
+				<iconify-icon icon="mdi:alert-circle-outline" width="32" class="mb-2 text-surface-400 dark:text-surface-500" aria-hidden="true"
+				></iconify-icon>
+				<span>No system messages</span>
+			</div>
+		{/if}
+	{/snippet}
+</BaseWidget>

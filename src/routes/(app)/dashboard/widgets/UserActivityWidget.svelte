@@ -40,6 +40,13 @@ Features:
 		theme = 'light',
 		icon = 'mdi:account-group',
 		widgetId = undefined,
+
+		// New sizing props
+		currentSize = '1/4',
+		availableSizes = ['1/4', '1/2', '3/4', 'full'],
+		onSizeChange = (newSize) => {},
+
+		// Legacy props
 		gridCellWidth = 0,
 		ROW_HEIGHT = 0,
 		GAP_SIZE = 0,
@@ -51,9 +58,16 @@ Features:
 		theme?: 'light' | 'dark';
 		icon?: string;
 		widgetId?: string;
-		gridCellWidth: number;
-		ROW_HEIGHT: number;
-		GAP_SIZE: number;
+
+		// New sizing props
+		currentSize?: '1/4' | '1/2' | '3/4' | 'full';
+		availableSizes?: ('1/4' | '1/2' | '3/4' | 'full')[];
+		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
+
+		// Legacy props
+		gridCellWidth?: number;
+		ROW_HEIGHT?: number;
+		GAP_SIZE?: number;
 		resizable?: boolean;
 		onResizeCommitted?: (spans: { w: number; h: number }) => void;
 		onCloseRequest?: () => void;
@@ -67,6 +81,9 @@ Features:
 	pollInterval={30000}
 	{icon}
 	{widgetId}
+	{currentSize}
+	{availableSizes}
+	{onSizeChange}
 	{gridCellWidth}
 	{ROW_HEIGHT}
 	{GAP_SIZE}
@@ -75,44 +92,43 @@ Features:
 	{onCloseRequest}
 >
 	{#snippet children({ data: fetchedData })}
-		<div
-			class="relative h-full w-full rounded-lg bg-surface-50 p-2 text-tertiary-500 transition-colors duration-300 ease-in-out dark:bg-surface-400 dark:text-primary-500"
-			aria-label="User Activity Widget"
-		>
-			<h2 class="flex items-center justify-center gap-2 text-center font-bold">
-				<iconify-icon icon="mdi:account-group" width="20" class="text-primary-500"></iconify-icon>
-				User Activity
-			</h2>
-			{#if fetchedData && Array.isArray(fetchedData)}
-				<div class="mt-2 max-h-32 space-y-2 overflow-y-auto">
-					{#each fetchedData.slice(0, 5) as user}
-						<div class="flex items-center justify-between rounded bg-surface-100 p-2 text-xs dark:bg-surface-500">
-							<div class="flex items-center gap-2">
-								<iconify-icon icon={user.status === 'active' ? 'mdi:account-check' : 'mdi:account-clock'} class="text-primary-500"></iconify-icon>
-								<span class="font-medium">{user.email || 'Unknown User'}</span>
-							</div>
-							<div class="flex flex-col items-end">
-								<span class="capitalize text-surface-600 dark:text-surface-300">
-									{user.status}
-								</span>
-								<span class="text-xs text-surface-500 dark:text-surface-400">
-									{user.role || 'No Role'}
-								</span>
-							</div>
+		{#if fetchedData && Array.isArray(fetchedData) && fetchedData.length > 0}
+			<!-- Stats row on top -->
+			<div class="mb-2 flex items-center justify-between text-xs text-surface-600 opacity-80 dark:text-surface-400">
+				<span>Total: {fetchedData.length}</span>
+				<span class="flex items-center gap-1"
+					><span class="inline-block h-2 w-2 rounded-full bg-emerald-500"></span>Active: {fetchedData.filter((u) => u.status === 'active')
+						.length}</span
+				>
+				<span class="flex items-center gap-1"
+					><span class="inline-block h-2 w-2 rounded-full bg-yellow-400"></span>Pending: {fetchedData.filter((u) => u.status === 'pending')
+						.length}</span
+				>
+			</div>
+			<div class="grid gap-2" style="max-height: 120px; overflow: hidden;">
+				{#each fetchedData.slice(0, 5) as user}
+					<div class="flex items-center justify-between rounded-lg bg-surface-100/80 px-3 py-2 text-xs dark:bg-surface-700/60">
+						<div class="flex min-w-0 items-center gap-2">
+							{#if user.status === 'active'}
+								<span class="inline-block h-2 w-2 rounded-full bg-emerald-500" title="Online"></span>
+							{:else if user.status === 'pending'}
+								<span class="inline-block h-2 w-2 rounded-full bg-yellow-400" title="Pending"></span>
+							{:else}
+								<span class="inline-block h-2 w-2 rounded-full bg-gray-400" title={user.status}></span>
+							{/if}
+							<span class="text-text-900 dark:text-text-100 truncate font-medium" title={user.email}>{user.email || 'Unknown User'}</span>
 						</div>
-					{/each}
-				</div>
-				<div class="mt-2 flex justify-between text-center text-xs text-surface-600 dark:text-surface-400">
-					<span>Total: {fetchedData.length}</span>
-					<span>Active: {fetchedData.filter((u) => u.status === 'active').length}</span>
-					<span>Pending: {fetchedData.filter((u) => u.status === 'pending').length}</span>
-				</div>
-			{:else}
-				<div class="flex h-full flex-col items-center justify-center text-xs text-gray-500 dark:text-gray-400">
-					<iconify-icon icon="eos-icons:loading" width="24" class="mb-1"></iconify-icon>
-					<span>Loading user data...</span>
-				</div>
-			{/if}
-		</div>
+						<div class="flex flex-col items-end">
+							<span class="text-xs text-surface-500 dark:text-surface-400">{user.role || 'No Role'}</span>
+						</div>
+					</div>
+				{/each}
+			</div>
+		{:else}
+			<div class="flex flex-1 flex-col items-center justify-center py-6 text-xs text-gray-500 dark:text-gray-400">
+				<iconify-icon icon="mdi:account-off-outline" width="32" class="mb-2 text-surface-400 dark:text-surface-500"></iconify-icon>
+				<span>No user activity</span>
+			</div>
+		{/if}
 	{/snippet}
 </BaseWidget>

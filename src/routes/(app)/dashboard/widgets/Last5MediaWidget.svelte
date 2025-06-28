@@ -48,6 +48,13 @@
 		theme = 'light',
 		icon = 'mdi:image-multiple',
 		widgetId = undefined,
+
+		// New sizing props
+		currentSize = '1/4',
+		availableSizes = ['1/4', '1/2', '3/4', 'full'],
+		onSizeChange = (newSize) => {},
+
+		// Legacy props
 		gridCellWidth = 0,
 		ROW_HEIGHT = 0,
 		GAP_SIZE = 0,
@@ -59,9 +66,16 @@
 		theme?: 'light' | 'dark';
 		icon?: string;
 		widgetId?: string;
-		gridCellWidth: number;
-		ROW_HEIGHT: number;
-		GAP_SIZE: number;
+
+		// New sizing props
+		currentSize?: '1/4' | '1/2' | '3/4' | 'full';
+		availableSizes?: ('1/4' | '1/2' | '3/4' | 'full')[];
+		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
+
+		// Legacy props
+		gridCellWidth?: number;
+		ROW_HEIGHT?: number;
+		GAP_SIZE?: number;
 		resizable?: boolean;
 		onResizeCommitted?: (spans: { w: number; h: number }) => void;
 		onCloseRequest?: () => void;
@@ -95,6 +109,9 @@
 	pollInterval={30000}
 	{icon}
 	{widgetId}
+	{currentSize}
+	{availableSizes}
+	{onSizeChange}
 	{gridCellWidth}
 	{ROW_HEIGHT}
 	{GAP_SIZE}
@@ -103,47 +120,29 @@
 	{onCloseRequest}
 >
 	{#snippet children({ data: fetchedData })}
-		<div
-			class="relative h-full w-full rounded-lg bg-surface-50 p-2 text-tertiary-500 transition-colors duration-300 ease-in-out dark:bg-surface-400 dark:text-primary-500"
-			aria-label="Recent Media Widget"
-		>
-			<h2 class="flex items-center justify-center gap-2 text-center font-bold">
-				<iconify-icon icon="mdi:image-multiple" width="20" class="text-primary-500"></iconify-icon>
-				Recent Media
-			</h2>
-			{#if fetchedData && Array.isArray(fetchedData)}
-				<div class="mt-2 max-h-40 space-y-2 overflow-y-auto">
-					{#each fetchedData as file}
-						<div class="flex items-center justify-between rounded bg-surface-100 p-2 text-xs dark:bg-surface-500">
-							<div class="flex items-center gap-2">
-								<iconify-icon icon={getFileIcon(file.type)} class="text-primary-500"></iconify-icon>
-								<div class="flex flex-col">
-									<span class="max-w-32 truncate font-medium" title={file.name}>{file.name}</span>
-									<span class="text-xs text-surface-500 dark:text-surface-400">
-										{formatFileSize(file.size)}
-									</span>
-								</div>
-							</div>
-							<div class="flex flex-col items-end">
-								<span class="uppercase text-surface-600 dark:text-surface-300">
-									{file.type}
-								</span>
-								<span class="text-xs text-surface-500 dark:text-surface-400">
-									{new Date(file.modified).toLocaleDateString()}
-								</span>
+		{#if fetchedData && Array.isArray(fetchedData) && fetchedData.length > 0}
+			<div class="grid gap-2" role="list" aria-label="Last 5 media files">
+				{#each fetchedData.slice(0, 5) as file}
+					<div class="flex items-center justify-between rounded-lg bg-surface-100/80 px-3 py-2 text-xs dark:bg-surface-700/60" role="listitem">
+						<div class="flex min-w-0 items-center gap-2">
+							<iconify-icon icon={getFileIcon(file.type)} class="text-primary-400" width="18" aria-label={file.type + ' file icon'}></iconify-icon>
+							<div class="flex min-w-0 flex-col">
+								<span class="text-text-900 dark:text-text-100 truncate font-medium" title={file.name}>{file.name}</span>
+								<span class="text-xs text-surface-500 dark:text-surface-400">{formatFileSize(file.size)}</span>
 							</div>
 						</div>
-					{/each}
-				</div>
-				<div class="mt-2 text-center text-xs text-surface-600 dark:text-surface-400">
-					Total Files: {fetchedData.length}
-				</div>
-			{:else}
-				<div class="flex h-full flex-col items-center justify-center text-xs text-gray-500 dark:text-gray-400">
-					<iconify-icon icon="eos-icons:loading" width="24" class="mb-1"></iconify-icon>
-					<span>Loading media files...</span>
-				</div>
-			{/if}
-		</div>
+						<div class="flex flex-col items-end">
+							<span class="uppercase text-surface-600 dark:text-surface-300">{file.type}</span>
+							<span class="text-xs text-surface-500 dark:text-surface-400">{new Date(file.modified).toLocaleDateString()}</span>
+						</div>
+					</div>
+				{/each}
+			</div>
+		{:else}
+			<div class="flex flex-1 flex-col items-center justify-center py-6 text-xs text-gray-500 dark:text-gray-400" role="status" aria-live="polite">
+				<iconify-icon icon="mdi:file-remove-outline" width="32" class="mb-2 text-surface-400 dark:text-surface-500" aria-hidden="true"></iconify-icon>
+				<span>No media files found</span>
+			</div>
+		{/if}
 	{/snippet}
 </BaseWidget>
