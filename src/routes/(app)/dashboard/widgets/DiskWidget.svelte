@@ -56,6 +56,10 @@ This widget fetches and displays real-time disk usage data, including:
 		availableSizes = ['1/4', '1/2', '3/4', 'full'],
 		onSizeChange = (newSize) => {},
 
+		// Drag props
+		draggable = true,
+		onDragStart = (event, item, element) => {},
+
 		// Legacy props
 		gridCellWidth = 0,
 		ROW_HEIGHT = 0,
@@ -73,6 +77,10 @@ This widget fetches and displays real-time disk usage data, including:
 		currentSize?: '1/4' | '1/2' | '3/4' | 'full';
 		availableSizes?: ('1/4' | '1/2' | '3/4' | 'full')[];
 		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
+
+		// Drag props
+		draggable?: boolean;
+		onDragStart?: (event: MouseEvent, item: any, element: HTMLElement) => void;
 
 		// Legacy props
 		gridCellWidth?: number;
@@ -227,6 +235,8 @@ This widget fetches and displays real-time disk usage data, including:
 	{currentSize}
 	{availableSizes}
 	{onSizeChange}
+	{draggable}
+	{onDragStart}
 	{gridCellWidth}
 	{ROW_HEIGHT}
 	{GAP_SIZE}
@@ -284,7 +294,6 @@ This widget fetches and displays real-time disk usage data, including:
 							class="h-full w-full"
 							use:updateChartAction={fetchedData}
 							style="display: block; width: 100% !important; height: 100% !important;"
-							role="img"
 							aria-label="Disk usage bar chart"
 						></canvas>
 					</div>
@@ -362,88 +371,6 @@ This widget fetches and displays real-time disk usage data, including:
 </BaseWidget>
 
 <style>
-	:global(.disk-usage-widget) {
-		--used-percentage: 0%;
-		--free-percentage: 0%;
-		--theme-color: #2563eb;
-		--theme-bg-color: #f9fafb;
-		--theme-border-color: rgba(229, 231, 235, 0.5);
-	}
-
-	.disk-usage-widget {
-		background-color: var(--theme-bg-color);
-		border: 1px solid var(--theme-border-color);
-		border-radius: 0.5rem;
-		padding: 1rem;
-	}
-
-	.disk-usage-widget .header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 1rem;
-	}
-
-	.disk-usage-widget .title {
-		font-size: 1.25rem;
-		font-weight: 600;
-		color: var(--theme-color);
-	}
-
-	.disk-usage-widget .chart {
-		position: relative;
-		width: 100%;
-		height: 8px;
-		background-color: #e5e7eb;
-		border-radius: 0.375rem;
-		overflow: hidden;
-	}
-
-	.disk-usage-widget .chart .used {
-		position: absolute;
-		top: 0;
-		left: 0;
-		height: 100%;
-		background: linear-gradient(to right, #3b82f6, #2563eb);
-		border-top-left-radius: 0.375rem;
-		border-bottom-left-radius: 0.375rem;
-	}
-
-	.disk-usage-widget .chart .free {
-		position: absolute;
-		top: 0;
-		right: 0;
-		height: 100%;
-		background: #d1d5db;
-		border-top-right-radius: 0.375rem;
-		border-bottom-right-radius: 0.375rem;
-	}
-
-	.disk-usage-widget .stats {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-		gap: 0.5rem;
-		margin-top: 0.5rem;
-	}
-
-	.disk-usage-widget .stats .stat {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		text-align: center;
-	}
-
-	.disk-usage-widget .stats .stat .label {
-		font-size: 0.875rem;
-		color: var(--theme-color);
-	}
-
-	.disk-usage-widget .stats .stat .value {
-		font-size: 1rem;
-		font-weight: 500;
-		color: var(--theme-color);
-	}
-
 	.flex-shrink-0.space-y-3 {
 		padding-bottom: 1.25rem; /* 20px for extra bottom padding */
 	}

@@ -18,39 +18,47 @@
 	import BaseWidget from '../BaseWidget.svelte';
 	// Removed: import { Icon } from '@iconify/svelte'; // No longer needed as <iconify-icon> is used directly
 
-	// Inherit props from BaseWidget
-	const {
+	// Props passed from +page.svelte, then to BaseWidget
+	let {
 		label = 'System Logs',
+		theme = 'light',
 		icon = 'mdi:file-document-outline',
-		endpoint = '/dashboard/widgets/logs', // API endpoint to fetch logs
-		pollInterval = 15000, // Poll every 15 seconds for new logs
-		widgetId,
-		theme,
+		widgetId = undefined,
 
 		// New sizing props
-		currentSize = '1/2', // changed from '1/4'
-		availableSizes = ['1/4', '1/2', '3/4', 'full'],
+		currentSize = '1/2',
+		availableSizes = ['1/2', '3/4', 'full'],
 		onSizeChange = (newSize) => {},
 
-		// Legacy props (still needed for BaseWidget compatibility)
-		gridCellWidth,
-		ROW_HEIGHT,
-		GAP_SIZE,
+		// Drag props
+		draggable = true,
+		onDragStart = (event, item, element) => {},
+
+		// Legacy props
+		gridCellWidth = 0,
+		ROW_HEIGHT = 0,
+		GAP_SIZE = 0,
 		resizable = true,
-		onResizeCommitted,
-		onCloseRequest
+		onResizeCommitted = (spans: { w: number; h: number }) => {},
+		onCloseRequest = () => {},
+
+		// API props
+		endpoint = '/dashboard/widgets/logs',
+		pollInterval = 15000
 	} = $props<{
 		label?: string;
+		theme?: 'light' | 'dark';
 		icon?: string;
-		endpoint?: string;
-		pollInterval?: number;
-		widgetId: string;
-		theme: 'light' | 'dark';
+		widgetId?: string;
 
 		// New sizing props
-		currentSize?: '1/4' | '1/2' | '3/4' | 'full';
-		availableSizes?: ('1/4' | '1/2' | '3/4' | 'full')[];
-		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
+		currentSize?: '1/2' | '3/4' | 'full';
+		availableSizes?: ('1/2' | '3/4' | 'full')[];
+		onSizeChange?: (newSize: '1/2' | '3/4' | 'full') => void;
+
+		// Drag props
+		draggable?: boolean;
+		onDragStart?: (event: MouseEvent, item: any, element: HTMLElement) => void;
 
 		// Legacy props
 		gridCellWidth?: number;
@@ -59,6 +67,10 @@
 		resizable?: boolean;
 		onResizeCommitted?: (spans: { w: number; h: number }) => void;
 		onCloseRequest?: () => void;
+
+		// API props
+		endpoint?: string;
+		pollInterval?: number;
 	}>();
 
 	// Internal state for logs data
@@ -195,6 +207,8 @@
 	{currentSize}
 	{availableSizes}
 	{onSizeChange}
+	{draggable}
+	{onDragStart}
 	{gridCellWidth}
 	{ROW_HEIGHT}
 	{GAP_SIZE}

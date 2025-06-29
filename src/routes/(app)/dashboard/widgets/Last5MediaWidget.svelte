@@ -44,7 +44,7 @@
 	}
 
 	let {
-		label = 'Recent Media',
+		label = 'Last 5 Media',
 		theme = 'light',
 		icon = 'mdi:image-multiple',
 		widgetId = undefined,
@@ -53,6 +53,10 @@
 		currentSize = '1/4',
 		availableSizes = ['1/4', '1/2', '3/4', 'full'],
 		onSizeChange = (newSize) => {},
+
+		// Drag props
+		draggable = true,
+		onDragStart = (event, item, element) => {},
 
 		// Legacy props
 		gridCellWidth = 0,
@@ -71,6 +75,10 @@
 		currentSize?: '1/4' | '1/2' | '3/4' | 'full';
 		availableSizes?: ('1/4' | '1/2' | '3/4' | 'full')[];
 		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
+
+		// Drag props
+		draggable?: boolean;
+		onDragStart?: (event: MouseEvent, item: any, element: HTMLElement) => void;
 
 		// Legacy props
 		gridCellWidth?: number;
@@ -112,6 +120,8 @@
 	{currentSize}
 	{availableSizes}
 	{onSizeChange}
+	{draggable}
+	{onDragStart}
 	{gridCellWidth}
 	{ROW_HEIGHT}
 	{GAP_SIZE}

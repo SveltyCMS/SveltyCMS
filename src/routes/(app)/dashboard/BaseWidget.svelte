@@ -47,16 +47,13 @@
 		pollInterval = 0,
 		widgetId = undefined,
 		children = undefined as Snippet<ChildSnippetProps> | undefined,
-
-		// New props for predefined sizing
 		currentSize = '1/4' as '1/4' | '1/2' | '3/4' | 'full',
 		availableSizes = ['1/4', '1/2', '3/4', 'full'] as ('1/4' | '1/2' | '3/4' | 'full')[],
 		onSizeChange = (_newSize: '1/4' | '1/2' | '3/4' | 'full') => {},
-
-		// New props for row spanning
 		rowSpan = 1,
 		onRowSpanChange = (_newRowSpan: number) => {},
-
+		draggable = true,
+		onDragStart = (_event: MouseEvent | TouchEvent, _item: any, _element: HTMLElement) => {},
 		gridCellWidth = $bindable(0),
 		ROW_HEIGHT = $bindable(0),
 		GAP_SIZE = $bindable(0),
@@ -64,10 +61,9 @@
 		onResizeCommitted = () => {},
 		onCloseRequest = () => {},
 		initialData: passedInitialData = undefined,
-		onDataLoaded = (_fetchedData: any) => {}, // New prop: Callback for when data is loaded
-		// Initialize `data` with $bindable() directly.
-		// Its initial value will be set from passedInitialData in an effect.
-		data = $bindable(undefined) // This is the bindable prop
+		onDataLoaded = (_fetchedData: any) => {},
+		data = $bindable(undefined),
+		...rest
 	} = $props<{
 		label: string;
 		theme?: 'light' | 'dark';
@@ -76,16 +72,13 @@
 		pollInterval?: number;
 		widgetId?: string;
 		children?: Snippet<ChildSnippetProps>;
-
-		// New props for predefined sizing
 		currentSize?: '1/4' | '1/2' | '3/4' | 'full';
 		availableSizes?: ('1/4' | '1/2' | '3/4' | 'full')[];
 		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
-
-		// New props for row spanning
 		rowSpan?: number;
 		onRowSpanChange?: (newRowSpan: number) => void;
-
+		draggable?: boolean;
+		onDragStart?: (event: MouseEvent | TouchEvent, item: any, element: HTMLElement) => void;
 		gridCellWidth: number;
 		ROW_HEIGHT: number;
 		GAP_SIZE: number;
@@ -95,16 +88,15 @@
 		initialData?: any;
 		data?: any;
 		onDataLoaded?: (fetchedData: any) => void;
+		[key: string]: any;
 	}>();
 
-	// State management
 	let initialDataSet = false;
 	let widgetState = $state<Record<string, any>>({});
 	let loading = $state(endpoint && !passedInitialData);
 	let error = $state<string | null>(null);
 	let internalData = $state(passedInitialData);
 
-	// Data handling effect - properly handle initial data
 	$effect(() => {
 		if (passedInitialData !== undefined && !initialDataSet) {
 			internalData = passedInitialData;
@@ -112,26 +104,20 @@
 		}
 	});
 
-	// Data fetching effect
 	$effect(() => {
 		if (!endpoint) {
 			loading = false;
 			return;
 		}
-
 		let isActive = true;
 		let timerId: NodeJS.Timeout;
-
 		const fetchData = async () => {
 			if (!isActive) return;
-
 			loading = true;
 			error = null;
-
 			try {
 				const res = await fetch(`${endpoint}?_=${Date.now()}`);
 				if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-
 				const newData = await res.json();
 				if (isActive) {
 					internalData = newData;
@@ -146,228 +132,131 @@
 				if (isActive) loading = false;
 			}
 		};
-
 		fetchData();
-
-		if (pollInterval > 0) {
-			timerId = setInterval(fetchData, pollInterval);
-		}
-
+		if (pollInterval > 0) timerId = setInterval(fetchData, pollInterval);
 		return () => {
 			isActive = false;
 			clearInterval(timerId);
 		};
 	});
 
-	// Resize handling
 	let widgetEl: HTMLDivElement | undefined = $state();
 	let resizing = $state(false);
 	let resizeDir: string | null = $state(null);
 	let startPointer = { x: 0, y: 0 };
 	let startDimensions = { w: 0, h: 0 };
 	let currentPixelDimensions = $state({ w: 0, h: 0 });
-	let previewSize = $state<'1/4' | '1/2' | '3/4' | 'full'>('1/4'); // Preview of target size
+	let previewSize = $state<'1/4' | '1/2' | '3/4' | 'full'>('1/4');
 
 	function handleResizePointerDown(e: PointerEvent, dir: string) {
 		if (!resizable || !widgetEl) return;
 		e.preventDefault();
 		e.stopPropagation();
-
 		resizing = true;
 		resizeDir = dir;
 		startPointer = { x: e.clientX, y: e.clientY };
 		startDimensions = { w: widgetEl.offsetWidth, h: widgetEl.offsetHeight };
 		currentPixelDimensions = { ...startDimensions };
-
 		(e.target as HTMLElement).setPointerCapture(e.pointerId);
 		window.addEventListener('pointermove', handleResizePointerMove);
 		window.addEventListener('pointerup', handleResizePointerUp);
 	}
-
 	function handleResizePointerMove(e: PointerEvent) {
 		if (!resizing || !widgetEl || !resizeDir) return;
 		e.preventDefault();
-
 		const deltaX = e.clientX - startPointer.x;
 		const deltaY = e.clientY - startPointer.y;
 		let newW = startDimensions.w;
 		let newH = startDimensions.h;
-
 		if (resizeDir.includes('e')) newW += deltaX;
 		if (resizeDir.includes('w')) newW -= deltaX;
 		if (resizeDir.includes('s')) newH += deltaY;
 		if (resizeDir.includes('n')) newH -= deltaY;
-
 		const gridContainer = widgetEl.parentElement?.parentElement;
 		const gridWidth = gridContainer?.offsetWidth || 1200;
 		const gridGap = GAP_SIZE || 16;
 		const gridCols = 4;
 		const rowHeight = ROW_HEIGHT || 200;
-
 		const totalGapWidth = gridGap * (gridCols - 1);
 		const availableGridWidth = gridWidth - totalGapWidth;
 		const singleColumnWidth = availableGridWidth / gridCols;
-
 		const minVisualPx = singleColumnWidth * 0.8;
 		const maxVisualPx = gridWidth;
-
 		currentPixelDimensions = {
 			w: Math.max(minVisualPx, Math.min(maxVisualPx, newW)),
 			h: Math.max(50, newH)
 		};
-
 		const currentWidth = currentPixelDimensions.w;
 		const columnEquivalent = currentWidth / (singleColumnWidth + gridGap);
 		const rowEquivalent = currentPixelDimensions.h / (rowHeight + gridGap);
-
-		if (columnEquivalent < 1.3) {
-			previewSize = '1/4';
-		} else if (columnEquivalent < 2.3) {
-			previewSize = '1/2';
-		} else if (columnEquivalent < 3.3) {
-			previewSize = '3/4';
-		} else {
-			previewSize = 'full';
-		}
-
-		// Apply temporary styles during resize
+		if (columnEquivalent < 1.3) previewSize = '1/4';
+		else if (columnEquivalent < 2.3) previewSize = '1/2';
+		else if (columnEquivalent < 3.3) previewSize = '3/4';
+		else previewSize = 'full';
 		widgetEl.style.width = `${currentPixelDimensions.w}px`;
 		widgetEl.style.height = `${currentPixelDimensions.h}px`;
 		widgetEl.style.opacity = '0.8';
-
-		// Optionally: show a debug overlay for row span preview
 		const rowSpanPreview = Math.max(1, Math.min(4, Math.round(rowEquivalent)));
 		widgetEl.setAttribute('data-row-span-preview', rowSpanPreview.toString());
 	}
-
 	function handleResizePointerUp(e: PointerEvent) {
 		if (!resizing || !widgetEl) {
 			resizing = false;
 			return;
 		}
-
 		(e.target as HTMLElement).releasePointerCapture(e.pointerId);
 		window.removeEventListener('pointermove', handleResizePointerMove);
 		window.removeEventListener('pointerup', handleResizePointerUp);
-
-		// Use the same improved logic as in handleResizePointerMove
-		const gridContainer = widgetEl.parentElement?.parentElement; // widget-container -> grid
+		const gridContainer = widgetEl.parentElement?.parentElement;
 		const gridWidth = gridContainer?.offsetWidth || 1200;
-		const gridGap = 16; // GAP_SIZE from dashboard
-		const gridCols = 4; // GRID_COLS from dashboard
-
-		// Calculate the actual width available for one column
+		const gridGap = 16;
+		const gridCols = 4;
 		const totalGapWidth = gridGap * (gridCols - 1);
 		const availableGridWidth = gridWidth - totalGapWidth;
 		const singleColumnWidth = availableGridWidth / gridCols;
-
 		const finalWidth = currentPixelDimensions.w;
 		const finalHeight = currentPixelDimensions.h;
 		const columnEquivalent = finalWidth / (singleColumnWidth + gridGap);
 		const rowEquivalent = finalHeight / (ROW_HEIGHT + gridGap);
-
 		let newSize: '1/4' | '1/2' | '3/4' | 'full';
 		let newRowSpan = rowSpan;
-
-		// Snap to nearest size based on column equivalents
-		if (columnEquivalent < 1.3) {
-			newSize = '1/4';
-		} else if (columnEquivalent < 2.3) {
-			newSize = '1/2';
-		} else if (columnEquivalent < 3.3) {
-			newSize = '3/4';
-		} else {
-			newSize = 'full';
-		}
-
-		// Snap to nearest row span (1-4)
+		if (columnEquivalent < 1.3) newSize = '1/4';
+		else if (columnEquivalent < 2.3) newSize = '1/2';
+		else if (columnEquivalent < 3.3) newSize = '3/4';
+		else newSize = 'full';
 		newRowSpan = Math.max(1, Math.min(4, Math.round(rowEquivalent)));
-
-		console.log(
-			`BaseWidget: Resize completed - width: ${finalWidth}px, height: ${finalHeight}px, column eq: ${columnEquivalent.toFixed(2)}, row eq: ${rowEquivalent.toFixed(2)}, snapped to: ${newSize}, rowSpan: ${newRowSpan}`
-		);
-
 		onSizeChange(newSize);
 		onRowSpanChange(newRowSpan);
-
 		widgetEl.style.width = '';
 		widgetEl.style.height = '';
 		widgetEl.style.opacity = '';
 		resizing = false;
 		resizeDir = null;
 	}
-
-	// Cleanup effect
 	$effect(() => () => {
 		window.removeEventListener('pointermove', handleResizePointerMove);
 		window.removeEventListener('pointerup', handleResizePointerUp);
 	});
-
-	// Widget state management
 	function updateWidgetState(key: string, value: any) {
 		widgetState = { ...widgetState, [key]: value };
 	}
-
 	function getWidgetState(key: string) {
 		return widgetState[key];
 	}
-
-	// Size management - Custom SVG icons for intuitive size representation
-	function getSizeIconSvg(size: '1/4' | '1/2' | '3/4' | 'full'): string {
-		const baseStyle = 'fill="currentColor" stroke="currentColor" stroke-width="0.5"';
-		switch (size) {
-			case '1/4':
-				// Show 1 out of 4 segments filled with better spacing
-				return `<svg viewBox="0 0 20 16" width="14" height="14">
-					<rect x="1" y="6" width="4" height="4" ${baseStyle} opacity="1"/>
-					<rect x="6" y="6" width="4" height="4" ${baseStyle} opacity="0.15"/>
-					<rect x="11" y="6" width="4" height="4" ${baseStyle} opacity="0.15"/>
-					<rect x="16" y="6" width="3" height="4" ${baseStyle} opacity="0.15"/>
-				</svg>`;
-			case '1/2':
-				// Show 2 out of 4 segments filled with better spacing
-				return `<svg viewBox="0 0 20 16" width="14" height="14">
-					<rect x="1" y="6" width="4" height="4" ${baseStyle} opacity="1"/>
-					<rect x="6" y="6" width="4" height="4" ${baseStyle} opacity="1"/>
-					<rect x="11" y="6" width="4" height="4" ${baseStyle} opacity="0.15"/>
-					<rect x="16" y="6" width="3" height="4" ${baseStyle} opacity="0.15"/>
-				</svg>`;
-			case '3/4':
-				// Show 3 out of 4 segments filled with better spacing
-				return `<svg viewBox="0 0 20 16" width="14" height="14">
-					<rect x="1" y="6" width="4" height="4" ${baseStyle} opacity="1"/>
-					<rect x="6" y="6" width="4" height="4" ${baseStyle} opacity="1"/>
-					<rect x="11" y="6" width="4" height="4" ${baseStyle} opacity="1"/>
-					<rect x="16" y="6" width="3" height="4" ${baseStyle} opacity="0.15"/>
-				</svg>`;
-			case 'full':
-				// Show all 4 segments filled with better spacing
-				return `<svg viewBox="0 0 20 16" width="14" height="14">
-					<rect x="1" y="6" width="4" height="4" ${baseStyle} opacity="1"/>
-					<rect x="6" y="6" width="4" height="4" ${baseStyle} opacity="1"/>
-					<rect x="11" y="6" width="4" height="4" ${baseStyle} opacity="1"/>
-					<rect x="16" y="6" width="3" height="4" ${baseStyle} opacity="1"/>
-				</svg>`;
-			default:
-				return getSizeIconSvg('1/4');
-		}
-	}
-
 	function getSizeIcon(size: '1/4' | '1/2' | '3/4' | 'full'): string {
 		switch (size) {
 			case '1/4':
-				return 'mdi:table-column-width';
+				return 'mdi:view-column';
 			case '1/2':
-				return 'mdi:table-column-plus-after';
+				return 'mdi:view-list';
 			case '3/4':
-				return 'mdi:table-large';
+				return 'mdi:view-grid';
 			case 'full':
-				return 'mdi:arrow-expand-horizontal';
+				return 'mdi:view-dashboard';
 			default:
-				return 'mdi:table-column-width';
+				return 'mdi:view-column';
 		}
 	}
-
 	function getSizeLabel(size: '1/4' | '1/2' | '3/4' | 'full'): string {
 		switch (size) {
 			case '1/4':
@@ -382,75 +271,75 @@
 				return 'Small (1/4)';
 		}
 	}
-
-	function getColumnSpan(size: '1/4' | '1/2' | '3/4' | 'full'): number {
-		switch (size) {
-			case '1/4':
-				return 1;
-			case '1/2':
-				return 2;
-			case '3/4':
-				return 3;
-			case 'full':
-				return 4;
-			default:
-				return 1;
-		}
-	}
-
 	function handleSizeChange(newSize: '1/4' | '1/2' | '3/4' | 'full') {
-		console.log(`BaseWidget: Changing size from ${currentSize} to ${newSize}`);
-		// Always call onSizeChange, even if the size is the same
-		// This ensures the parent component handles the change properly
 		onSizeChange(newSize);
 	}
-
+	function handleHeaderMouseDown(event: MouseEvent | TouchEvent) {
+		if (!draggable) return;
+		const target = event.target as HTMLElement;
+		if (target.closest('button') || target.closest('input') || target.closest('select') || target.closest('a')) return;
+		onDragStart(event, { id: widgetId, size: currentSize, label, component: 'BaseWidget' }, widgetEl!);
+	}
 	const handleOffset = '-translate-x-1/2 -translate-y-1/2';
 </script>
 
-<div
+<article
 	bind:this={widgetEl}
-	class="widget-container text-text-900 dark:text-text-100 group relative flex h-full flex-col rounded-lg border border-surface-200 bg-white shadow-sm transition-all duration-150 dark:border-surface-700 dark:bg-surface-800
-        {resizing ? 'scale-[1.01] shadow-md ring-2 ring-primary-300/60' : 'hover:shadow-md'} focus-within:ring-2 focus-within:ring-primary-200"
+	class="widget-container text-text-900 dark:text-text-100 group relative flex h-full flex-col rounded-lg border border-surface-200 bg-white shadow-sm transition-all duration-150 dark:border-surface-700 dark:bg-surface-800 {resizing
+		? 'scale-[1.01] shadow-md ring-2 ring-primary-300/60'
+		: 'hover:shadow-md'} focus-within:ring-2 focus-within:ring-primary-200"
 	style="user-select: {resizing ? 'none' : 'auto'};"
 	aria-labelledby="widget-title-{widgetId || label}"
 >
-	<!-- Header -->
-	<div
+	<header
 		class="widget-header flex items-center justify-between border-b border-gray-100 bg-white py-2 pl-4 pr-2 dark:border-surface-700 dark:bg-surface-800"
+		onmousedown={handleHeaderMouseDown}
+		ontouchstart={handleHeaderMouseDown}
+		style="cursor: {draggable ? 'grab' : 'default'}; touch-action: none;"
+		role="button"
+		tabindex="0"
+		aria-label="Drag to move {label} widget"
 	>
-		<h3
+		<h2
 			id="widget-title-{widgetId || label}"
-			class="font-display text-text-900 dark:text-text-100 flex items-center gap-2 truncate text-base font-semibold tracking-tight"
+			class="text-text-900 dark:text-text-100 flex items-center gap-2 truncate font-display text-base font-semibold tracking-tight"
 		>
 			{#if icon}
 				<iconify-icon {icon} width="20" class={theme === 'light' ? 'text-tertiary-600' : 'text-primary-400'}></iconify-icon>
 			{/if}
 			<span class="truncate">{label}</span>
-		</h3>
-
+		</h2>
 		<div class="flex items-center gap-2">
-			<!-- Size option buttons -->
-			<div class="flex items-center gap-1 rounded-lg bg-gray-50 p-1 dark:bg-surface-700/80">
+			<div class="flex items-center gap-1 rounded-lg bg-gray-100 p-1.5 dark:bg-surface-600/80">
 				{#each availableSizes as size}
 					{@const isActive = currentSize === size}
-					{@const sizeIconSvg = getSizeIconSvg(size)}
+					{@const sizeIcon = getSizeIcon(size)}
 					<button
 						onclick={() => handleSizeChange(size)}
-						class="btn-icon-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary-400 {isActive
-							? 'bg-primary-500 text-white shadow-sm'
-							: 'text-text-400 hover:text-primary-500 dark:hover:text-primary-400'}"
+						class="flex h-8 w-8 items-center justify-center rounded-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-400 {isActive
+							? 'scale-105 bg-primary-500 text-white shadow-md'
+							: 'text-text-500 dark:text-text-300 hover:bg-gray-200 hover:text-primary-600 dark:hover:bg-surface-500 dark:hover:text-primary-400'}"
 						title={getSizeLabel(size)}
 						aria-label="Resize widget to {getSizeLabel(size)}"
 						data-size={size}
 						data-active={isActive}
 					>
-						{@html sizeIconSvg}
+						<div class="flex items-center gap-0.5">
+							{#each Array(4) as _, i}
+								{@const shouldHighlight =
+									(size === '1/4' && i === 0) || (size === '1/2' && i < 2) || (size === '3/4' && i < 3) || (size === 'full' && i < 4)}
+								<div
+									class="h-3 w-0.5 rounded-full transition-all duration-200 {shouldHighlight
+										? isActive
+											? 'bg-white'
+											: 'bg-current'
+										: 'bg-gray-300 dark:bg-gray-600'}"
+								></div>
+							{/each}
+						</div>
 					</button>
 				{/each}
 			</div>
-
-			<!-- Close button -->
 			<button
 				onclick={onCloseRequest}
 				class="text-text-400 btn-icon hover:text-error-500 focus:outline-none focus:ring-2 focus:ring-error-400"
@@ -459,10 +348,8 @@
 				<iconify-icon icon="mdi:close" width="18"></iconify-icon>
 			</button>
 		</div>
-	</div>
-
-	<!-- Body -->
-	<div
+	</header>
+	<section
 		class="widget-body relative min-h-[50px] flex-1 bg-white px-5 py-4 dark:bg-surface-800"
 		style="width: 100%; height: 100%; overflow: hidden; display: flex; flex-direction: column; justify-content: stretch; align-items: stretch;"
 	>
@@ -484,11 +371,8 @@
 		{:else}
 			<div class="text-text-400 absolute inset-0 flex items-center justify-center text-base">No content.</div>
 		{/if}
-	</div>
-
-	<!-- Resize handles -->
+	</section>
 	{#if resizable}
-		<!-- SE Resize Handle - Primary resize handle for width/height adjustment -->
 		<div
 			class="absolute bottom-0 right-0 z-10 cursor-se-resize opacity-0 transition-all duration-200 hover:scale-125 hover:opacity-100"
 			onpointerdown={(e) => handleResizePointerDown(e, 'se')}
@@ -499,8 +383,6 @@
 				<iconify-icon icon="mdi:resize-bottom-right" width="16" class="text-white drop-shadow"></iconify-icon>
 			</div>
 		</div>
-
-		<!-- East-only handle for width-only resizing -->
 		<div
 			class="absolute right-0 top-1/2 z-10 -translate-y-1/2 cursor-e-resize opacity-0 transition-all duration-200 hover:scale-125 hover:opacity-100"
 			onpointerdown={(e) => handleResizePointerDown(e, 'e')}
@@ -511,8 +393,6 @@
 				<iconify-icon icon="mdi:drag-horizontal" width="12" class="text-white drop-shadow"></iconify-icon>
 			</div>
 		</div>
-
-		<!-- South-only handle for height-only resizing -->
 		<div
 			class="absolute bottom-0 left-1/2 z-10 -translate-x-1/2 cursor-s-resize opacity-0 transition-all duration-200 hover:scale-125 hover:opacity-100"
 			onpointerdown={(e) => handleResizePointerDown(e, 's')}
@@ -523,13 +403,11 @@
 				<iconify-icon icon="mdi:drag-vertical" width="12" class="text-white drop-shadow"></iconify-icon>
 			</div>
 		</div>
-
-		<!-- Resize preview overlay -->
 		{#if resizing}
 			<div class="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-xl bg-primary-500/10 backdrop-blur-md">
 				<div class="mb-3 rounded-lg border border-primary-400 bg-primary-500 px-6 py-4 text-base text-white shadow-2xl">
 					<div class="flex items-center gap-4">
-						{@html getSizeIconSvg(previewSize)}
+						<iconify-icon icon={getSizeIcon(previewSize)} width="24" class="text-white drop-shadow"></iconify-icon>
 						<div class="flex flex-col">
 							<span class="font-semibold">Snap to {getSizeLabel(previewSize)}</span>
 							<span class="text-sm opacity-80">{getColumnSpan(previewSize)} of 4 columns</span>
@@ -545,44 +423,15 @@
 			</div>
 		{/if}
 	{/if}
-</div>
+</article>
 
 <style lang="postcss">
-	.widget-container {
-		transition:
-			box-shadow 0.2s ease-in-out,
-			border-color 0.2s ease-in-out,
-			background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-			transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-	}
-
-	.widget-header {
-		transition:
-			box-shadow 0.2s,
-			background 0.3s;
-		z-index: 2;
-	}
-
-	.widget-body {
-		scrollbar-width: thin;
-		scrollbar-color: theme('colors.slate.300') transparent;
-		transition: background 0.3s;
-	}
-
-	.btn-icon-sm {
-		@apply flex h-7 w-7 items-center justify-center rounded-lg;
-		min-width: 1.75rem;
-		min-height: 1.75rem;
-	}
-
 	[class*='cursor-'] iconify-icon {
 		transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1);
 	}
-
 	[class*='cursor-']:hover iconify-icon {
 		transform: scale(1.25);
 	}
-
 	[class*='cursor-']:active iconify-icon {
 		transform: scale(1);
 	}

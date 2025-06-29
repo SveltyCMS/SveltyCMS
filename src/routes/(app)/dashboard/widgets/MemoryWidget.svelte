@@ -55,6 +55,10 @@ Features:
 		availableSizes = ['1/4', '1/2', '3/4', 'full'],
 		onSizeChange = (newSize) => {},
 
+		// Drag props
+		draggable = true,
+		onDragStart = (event, item, element) => {},
+
 		// Legacy props
 		gridCellWidth = 0,
 		ROW_HEIGHT = 0,
@@ -72,6 +76,10 @@ Features:
 		currentSize?: '1/4' | '1/2' | '3/4' | 'full';
 		availableSizes?: ('1/4' | '1/2' | '3/4' | 'full')[];
 		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
+
+		// Drag props
+		draggable?: boolean;
+		onDragStart?: (event: MouseEvent, item: any, element: HTMLElement) => void;
 
 		// Legacy props
 		gridCellWidth?: number;
@@ -215,6 +223,8 @@ Features:
 	{currentSize}
 	{availableSizes}
 	{onSizeChange}
+	{draggable}
+	{onDragStart}
 	{gridCellWidth}
 	{ROW_HEIGHT}
 	{GAP_SIZE}
@@ -264,13 +274,7 @@ Features:
 				</div>
 
 				<div class="relative flex-shrink-0" style="height: calc({ROW_HEIGHT}px * 0.45); min-height: 80px; max-height: 180px;">
-					<canvas
-						bind:this={chartCanvas}
-						class="h-full w-full"
-						use:updateChartAction={fetchedData}
-						role="img"
-						aria-label="Memory usage doughnut chart"
-					></canvas>
+					<canvas bind:this={chartCanvas} class="h-full w-full" use:updateChartAction={fetchedData} aria-label="Memory usage doughnut chart"></canvas>
 				</div>
 
 				<div class="flex-shrink-0 space-y-3">

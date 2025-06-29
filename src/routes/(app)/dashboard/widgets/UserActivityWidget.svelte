@@ -46,6 +46,10 @@ Features:
 		availableSizes = ['1/4', '1/2', '3/4', 'full'],
 		onSizeChange = (newSize) => {},
 
+		// Drag props
+		draggable = true,
+		onDragStart = (event, item, element) => {},
+
 		// Legacy props
 		gridCellWidth = 0,
 		ROW_HEIGHT = 0,
@@ -63,6 +67,10 @@ Features:
 		currentSize?: '1/4' | '1/2' | '3/4' | 'full';
 		availableSizes?: ('1/4' | '1/2' | '3/4' | 'full')[];
 		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
+
+		// Drag props
+		draggable?: boolean;
+		onDragStart?: (event: MouseEvent, item: any, element: HTMLElement) => void;
 
 		// Legacy props
 		gridCellWidth?: number;
@@ -84,6 +92,8 @@ Features:
 	{currentSize}
 	{availableSizes}
 	{onSizeChange}
+	{draggable}
+	{onDragStart}
 	{gridCellWidth}
 	{ROW_HEIGHT}
 	{GAP_SIZE}

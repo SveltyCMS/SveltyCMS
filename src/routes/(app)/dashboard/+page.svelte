@@ -16,54 +16,68 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { modeCurrent } from '@skeletonlabs/skeleton';
+	import { flip } from 'svelte/animate';
 
 	// Stores
 	import { systemPreferences } from '@stores/systemPreferences.svelte';
+	import { ScreenSize } from '@stores/screenSizeStore.svelte';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
-	// BaseWidget is used by CPUWidget, DiskWidget etc. It doesn't need to be directly called in this script.
-	// import BaseWidget from './BaseWidget.svelte';
 	import CPUWidget from './widgets/CPUWidget.svelte';
 	import DiskWidget from './widgets/DiskWidget.svelte';
 	import MemoryWidget from './widgets/MemoryWidget.svelte';
 	import Last5MediaWidget from './widgets/Last5MediaWidget.svelte';
 	import UserActivityWidget from './widgets/UserActivityWidget.svelte';
 	import SystemMessagesWidget from './widgets/SystemMessagesWidget.svelte';
-	import LogsWidget from './widgets/LogsWidget.svelte'; // Import the new Logs Widget
+	import LogsWidget from './widgets/LogsWidget.svelte';
 
+	// Types
+	type WidgetSize = '1/4' | '1/2' | '3/4' | 'full';
+	type DropPosition = 'before' | 'after' | 'replace' | 'insert';
+	type KeyboardDirection = 'up' | 'down' | 'left' | 'right';
+
+	interface DashboardWidgetConfig {
+		id: string;
+		component: string;
+		label: string;
+		icon: string;
+		size: WidgetSize;
+		gridPosition: number;
+	}
+
+	interface DropIndicator {
+		index: number;
+		position: DropPosition;
+	}
+
+	interface DragState {
+		item: DashboardWidgetConfig | null;
+		element: HTMLElement | null;
+		offset: { x: number; y: number };
+		isActive: boolean;
+	}
+
+	interface KeyboardState {
+		mode: boolean;
+		selectedIndex: number | null;
+		dropTarget: number | null;
+	}
+
+	// Constants
 	const GRID_COLS = 4;
-	const ROW_HEIGHT = 400; // Double the default height
+	const ROW_HEIGHT = 400;
 	const GAP_SIZE = 16;
+	const HEADER_HEIGHT = 60;
 
+	// Props
 	interface Props {
 		data: { user: { id: string } };
 	}
 	let { data: pageData }: Props = $props();
 
-	type WidgetSize = '1/4' | '1/2' | '3/4' | 'full';
-
-	type DashboardWidgetConfig = {
-		id: string;
-		component: string;
-		label: string;
-		icon: string;
-		size: WidgetSize; // Widget size (1/4, 1/2, 3/4, full)
-		gridPosition: number; // 0-based position in the grid
-	};
-
-	let items: DashboardWidgetConfig[] = $state([]);
-	let dropdownOpen = $state(false);
-	let preferencesLoaded = $state(false);
-
-	const widgetComponentRegistry: Record<
-		string,
-		{
-			component: any;
-			name: string;
-			icon: string;
-		}
-	> = {
+	// Widget registry with improved type safety
+	const widgetComponentRegistry = {
 		CPUWidget: {
 			component: CPUWidget,
 			name: 'CPU Usage',
@@ -99,29 +113,49 @@
 			name: 'System Logs',
 			icon: 'mdi:file-document-outline'
 		}
-	};
+	} as const;
 
-	// Helper function to get grid column span based on widget size
+	// State management with improved reactivity
+	let items = $state<DashboardWidgetConfig[]>([]);
+	let dropdownOpen = $state(false);
+	let preferencesLoaded = $state(false);
+
+	// Drag and drop state
+	let dragState = $state<DragState>({
+		item: null,
+		element: null,
+		offset: { x: 0, y: 0 },
+		isActive: false
+	});
+
+	let dropIndicator = $state<DropIndicator | null>(null);
+
+	// Keyboard state
+	let keyboardState = $state<KeyboardState>({
+		mode: false,
+		selectedIndex: null,
+		dropTarget: null
+	});
+
+	// Grid update counter for reactive updates
+	let gridUpdateCounter = $state(0);
+
+	// Derived values using Svelte's reactive system
+	let currentTheme = $derived($modeCurrent ? 'light' : 'dark');
+	let availableWidgets = $derived(Object.keys(widgetComponentRegistry).filter((name) => !items.some((item) => item.component === name)));
+	let canAddMoreWidgets = $derived(availableWidgets.length > 0);
+
+	// Utility functions with improved type safety
 	function getColumnSpan(size: WidgetSize): number {
-		const span = (() => {
-			switch (size) {
-				case '1/4':
-					return 1;
-				case '1/2':
-					return 2;
-				case '3/4':
-					return 3;
-				case 'full':
-					return 4;
-				default:
-					return 1;
-			}
-		})();
-		console.log(`getColumnSpan: size="${size}" -> span=${span}`);
-		return span;
+		const spanMap: Record<WidgetSize, number> = {
+			'1/4': 1,
+			'1/2': 2,
+			'3/4': 3,
+			full: 4
+		};
+		return spanMap[size] || 1;
 	}
 
-	// Helper function to get available sizes for a widget
 	function getAvailableSizes(componentName?: string): WidgetSize[] {
 		if (componentName === 'LogsWidget') {
 			return ['1/2', '3/4', 'full'];
@@ -129,18 +163,565 @@
 		return ['1/4', '1/2', '3/4', 'full'];
 	}
 
+	// Grid calculation functions
+	function calculateGridLayout(): (string | null)[] {
+		const grid = Array(16).fill(null);
+		const sortedItems = [...items].sort((a, b) => a.gridPosition - b.gridPosition);
+
+		sortedItems.forEach((item) => {
+			const span = getColumnSpan(item.size);
+			const startCol = item.gridPosition % 4;
+			const startRow = Math.floor(item.gridPosition / 4);
+
+			for (let col = startCol; col < startCol + span && col < 4; col++) {
+				const index = startRow * 4 + col;
+				if (index >= 0 && index < 16) {
+					grid[index] = item.id;
+				}
+			}
+		});
+
+		return grid;
+	}
+
+	function findNextAvailablePosition(widgetSize: WidgetSize, startFromIndex = 0): number {
+		const span = getColumnSpan(widgetSize);
+		const grid = calculateGridLayout();
+
+		for (let i = startFromIndex; i < 16; i++) {
+			const col = i % 4;
+			const row = Math.floor(i / 4);
+
+			let canFit = true;
+			for (let j = 0; j < span; j++) {
+				const checkCol = col + j;
+				const checkIndex = row * 4 + checkCol;
+
+				if (checkCol >= 4 || checkIndex >= 16 || grid[checkIndex] !== null) {
+					canFit = false;
+					break;
+				}
+			}
+
+			if (canFit) {
+				return i;
+			}
+		}
+
+		return -1;
+	}
+
+	function recalculateGridPositions(): DashboardWidgetConfig[] {
+		const newItems = [...items];
+		let currentRow = 0;
+		let currentCol = 0;
+
+		newItems.forEach((item) => {
+			const span = getColumnSpan(item.size);
+
+			if (currentCol + span <= 4) {
+				item.gridPosition = currentRow * 4 + currentCol;
+				currentCol += span;
+			} else {
+				currentRow++;
+				currentCol = 0;
+				item.gridPosition = currentRow * 4 + currentCol;
+				currentCol += span;
+			}
+		});
+
+		return newItems;
+	}
+
+	// Event handling functions with improved error handling
+	function getClientCoordinates(event: MouseEvent | TouchEvent): { x: number; y: number } {
+		if ('touches' in event) {
+			return {
+				x: event.touches[0].clientX,
+				y: event.touches[0].clientY
+			};
+		}
+		return {
+			x: event.clientX,
+			y: event.clientY
+		};
+	}
+
+	function isInteractiveElement(target: HTMLElement): boolean {
+		return !!(target.closest('button') || target.closest('input') || target.closest('select') || target.closest('a'));
+	}
+
+	function isInHeaderArea(event: MouseEvent | TouchEvent, element: HTMLElement): boolean {
+		const coords = getClientCoordinates(event);
+		const rect = element.getBoundingClientRect();
+		const relativeY = coords.y - rect.top;
+		return relativeY <= HEADER_HEIGHT;
+	}
+
+	// Drag and drop functions with improved state management
+	function handleDragStart(event: MouseEvent | TouchEvent, item: DashboardWidgetConfig, element: HTMLElement) {
+		if (isInteractiveElement(event.target as HTMLElement) || !isInHeaderArea(event, element)) {
+			return;
+		}
+
+		event.preventDefault();
+		const coords = getClientCoordinates(event);
+		const rect = element.getBoundingClientRect();
+
+		// Update drag state
+		dragState = {
+			item,
+			element,
+			offset: {
+				x: coords.x - rect.left,
+				y: coords.y - rect.top
+			},
+			isActive: true
+		};
+
+		// Apply drag styles using Svelte's style binding
+		applyDragStyles(element, rect);
+
+		// Add global event listeners
+		addGlobalDragListeners();
+	}
+
+	function applyDragStyles(element: HTMLElement, rect: DOMRect) {
+		element.style.cssText = `
+			opacity: 0.8;
+			transform: scale(1.02);
+			z-index: 1000;
+			position: fixed;
+			pointer-events: none;
+			width: ${rect.width}px;
+			height: ${rect.height}px;
+			box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+			transition: none;
+		`;
+	}
+
+	function removeDragStyles(element: HTMLElement) {
+		element.style.cssText = '';
+	}
+
+	function addGlobalDragListeners() {
+		document.addEventListener('mousemove', handleDragMove);
+		document.addEventListener('mouseup', handleDragEnd);
+		document.addEventListener('touchmove', handleDragMove, { passive: false });
+		document.addEventListener('touchend', handleDragEnd);
+	}
+
+	function removeGlobalDragListeners() {
+		document.removeEventListener('mousemove', handleDragMove);
+		document.removeEventListener('mouseup', handleDragEnd);
+		document.removeEventListener('touchmove', handleDragMove);
+		document.removeEventListener('touchend', handleDragEnd);
+	}
+
+	function handleDragMove(event: MouseEvent | TouchEvent) {
+		if (!dragState.isActive || !dragState.element) return;
+
+		event.preventDefault();
+		const coords = getClientCoordinates(event);
+
+		// Update dragged element position
+		dragState.element.style.left = `${coords.x - dragState.offset.x}px`;
+		dragState.element.style.top = `${coords.y - dragState.offset.y}px`;
+
+		// Update drop indicator
+		updateDropIndicator(coords);
+	}
+
+	function updateDropIndicator(coords: { x: number; y: number }) {
+		// Find widget container under cursor
+		const widgetContainer = findWidgetContainerAtCoords(coords);
+
+		if (widgetContainer) {
+			const targetIndex = parseInt(widgetContainer.getAttribute('data-grid-index') || '-1');
+			if (targetIndex !== -1 && dragState.item && targetIndex !== items.findIndex((item) => item.id === dragState.item!.id)) {
+				dropIndicator = { index: targetIndex, position: 'replace' };
+				return;
+			}
+		}
+
+		// Check for empty space
+		const emptySpaceIndex = findEmptySpaceAtCoords(coords);
+		if (emptySpaceIndex !== -1) {
+			dropIndicator = { index: emptySpaceIndex, position: 'insert' };
+			return;
+		}
+
+		dropIndicator = null;
+	}
+
+	function findWidgetContainerAtCoords(coords: { x: number; y: number }): HTMLElement | null {
+		const containers = document.querySelectorAll('.widget-container');
+
+		for (const container of containers) {
+			const rect = container.getBoundingClientRect();
+			if (coords.x >= rect.left && coords.x <= rect.right && coords.y >= rect.top && coords.y <= rect.bottom) {
+				return container as HTMLElement;
+			}
+		}
+
+		return null;
+	}
+
+	function findEmptySpaceAtCoords(coords: { x: number; y: number }): number {
+		const gridContainer = document.querySelector('.responsive-dashboard-grid');
+		if (!gridContainer || !dragState.item) return -1;
+
+		const gridRect = gridContainer.getBoundingClientRect();
+		const relativeX = coords.x - gridRect.left;
+		const relativeY = coords.y - gridRect.top;
+
+		const cellWidth = gridRect.width / 4;
+		const cellHeight = ROW_HEIGHT + GAP_SIZE;
+
+		const col = Math.floor(relativeX / cellWidth);
+		const row = Math.floor(relativeY / cellHeight);
+		const gridPosition = row * 4 + col;
+
+		const isValidPosition = col >= 0 && col < 4 && row >= 0 && gridPosition >= 0 && gridPosition < 16;
+		return isValidPosition ? gridPosition : -1;
+	}
+
+	function handleDragEnd() {
+		if (!dragState.isActive || !dragState.item) return;
+
+		// Reset dragged element styles
+		if (dragState.element) {
+			removeDragStyles(dragState.element);
+		}
+
+		// Handle drop
+		if (dropIndicator && dragState.item) {
+			performDrop(dragState.item, dropIndicator);
+		}
+
+		// Reset state
+		dragState = {
+			item: null,
+			element: null,
+			offset: { x: 0, y: 0 },
+			isActive: false
+		};
+		dropIndicator = null;
+
+		// Remove global event listeners
+		removeGlobalDragListeners();
+	}
+
+	function performDrop(draggedItem: DashboardWidgetConfig, indicator: DropIndicator) {
+		const draggedIndex = items.findIndex((item) => item.id === draggedItem.id);
+		if (draggedIndex === -1) return;
+
+		const newItems = [...items];
+		const [draggedWidget] = newItems.splice(draggedIndex, 1);
+
+		if (indicator.position === 'replace') {
+			const targetIndex = indicator.index;
+
+			if (targetIndex !== draggedIndex) {
+				const [targetWidget] = newItems.splice(targetIndex > draggedIndex ? targetIndex - 1 : targetIndex, 1);
+				const insertIndex = targetIndex > draggedIndex ? targetIndex - 1 : targetIndex;
+				newItems.splice(insertIndex, 0, draggedWidget);
+				newItems.splice(draggedIndex, 0, targetWidget);
+			} else {
+				newItems.splice(draggedIndex, 0, draggedWidget);
+			}
+		} else if (indicator.position === 'insert') {
+			let newIndex = indicator.index;
+			if (newIndex > draggedIndex) {
+				newIndex--;
+			}
+			newItems.splice(newIndex, 0, draggedWidget);
+		}
+
+		items = newItems;
+		items = recalculateGridPositions();
+		gridUpdateCounter++;
+		saveLayout();
+	}
+
+	// Widget management functions
+	function resizeWidget(widgetId: string, newSize: WidgetSize) {
+		const itemIndex = items.findIndex((item) => item.id === widgetId);
+		if (itemIndex === -1) return;
+
+		const updatedWidget: DashboardWidgetConfig = {
+			...items[itemIndex],
+			size: newSize
+		};
+
+		const newItems = [...items];
+		newItems[itemIndex] = updatedWidget;
+		items = newItems;
+		items = recalculateGridPositions();
+		gridUpdateCounter++;
+		saveLayout();
+	}
+
+	function removeWidget(id: string) {
+		items = items.filter((item) => item.id !== id);
+		items = items.map((item, index) => ({ ...item, gridPosition: index }));
+		items = recalculateGridPositions();
+		saveLayout();
+	}
+
+	function resetGrid() {
+		items = [];
+		systemPreferences.clearPreferences(pageData.user.id);
+		saveLayout();
+	}
+
+	function addNewWidget(componentName: string) {
+		const componentInfo = widgetComponentRegistry[componentName as keyof typeof widgetComponentRegistry];
+		if (!componentInfo) return;
+
+		const newItem: DashboardWidgetConfig = {
+			id: crypto.randomUUID(),
+			component: componentName,
+			label: componentInfo.name,
+			icon: componentInfo.icon,
+			size: componentName === 'LogsWidget' ? '1/2' : '1/4',
+			gridPosition: items.length
+		};
+
+		items = [...items, newItem];
+		items = recalculateGridPositions();
+		saveLayout();
+		dropdownOpen = false;
+	}
+
+	// Keyboard navigation functions
+	function handleKeyDown(event: KeyboardEvent) {
+		const navigationKeys = ['Tab', 'Enter', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+		const actionKeys = ['Escape', 'Delete', 'Backspace'];
+
+		if (!keyboardState.mode && ![...navigationKeys, ...actionKeys].includes(event.key)) {
+			return;
+		}
+
+		if ([...navigationKeys, ...actionKeys].includes(event.key)) {
+			event.preventDefault();
+		}
+
+		switch (event.key) {
+			case 'Tab':
+				if (!keyboardState.mode) {
+					keyboardState.mode = true;
+					keyboardState.selectedIndex = 0;
+				}
+				break;
+
+			case 'ArrowUp':
+				handleArrowNavigation('up');
+				break;
+
+			case 'ArrowDown':
+				handleArrowNavigation('down');
+				break;
+
+			case 'ArrowLeft':
+				handleArrowNavigation('left');
+				break;
+
+			case 'ArrowRight':
+				handleArrowNavigation('right');
+				break;
+
+			case 'Enter':
+			case ' ':
+				handleEnterSpace();
+				break;
+
+			case 'Escape':
+				handleEscape();
+				break;
+
+			case 'Delete':
+			case 'Backspace':
+				handleDelete();
+				break;
+		}
+	}
+
+	function handleArrowNavigation(direction: KeyboardDirection) {
+		if (!keyboardState.mode || keyboardState.selectedIndex === null) return;
+
+		if (dragState.isActive) {
+			moveKeyboardDropTarget(direction);
+		} else {
+			moveSelection(direction);
+		}
+	}
+
+	function moveSelection(direction: KeyboardDirection) {
+		if (keyboardState.selectedIndex === null) return;
+
+		let newIndex = keyboardState.selectedIndex;
+		const currentRow = Math.floor(keyboardState.selectedIndex / 4);
+		const currentCol = keyboardState.selectedIndex % 4;
+
+		switch (direction) {
+			case 'up':
+				newIndex = Math.max(0, (currentRow - 1) * 4 + currentCol);
+				break;
+			case 'down':
+				newIndex = Math.min(items.length - 1, (currentRow + 1) * 4 + currentCol);
+				break;
+			case 'left':
+				newIndex = Math.max(0, keyboardState.selectedIndex - 1);
+				break;
+			case 'right':
+				newIndex = Math.min(items.length - 1, keyboardState.selectedIndex + 1);
+				break;
+		}
+
+		if (newIndex < items.length) {
+			keyboardState.selectedIndex = newIndex;
+		}
+	}
+
+	function moveKeyboardDropTarget(direction: KeyboardDirection) {
+		if (!dragState.isActive || keyboardState.dropTarget === null) return;
+
+		let newTarget = keyboardState.dropTarget;
+
+		switch (direction) {
+			case 'up':
+				newTarget = Math.max(0, keyboardState.dropTarget - 4);
+				break;
+			case 'down':
+				newTarget = Math.min(items.length - 1, keyboardState.dropTarget + 4);
+				break;
+			case 'left':
+				newTarget = Math.max(0, keyboardState.dropTarget - 1);
+				break;
+			case 'right':
+				newTarget = Math.min(items.length - 1, keyboardState.dropTarget + 1);
+				break;
+		}
+
+		if (newTarget !== keyboardState.dropTarget) {
+			keyboardState.dropTarget = newTarget;
+			dropIndicator = { index: newTarget, position: 'replace' };
+		}
+	}
+
+	function handleEnterSpace() {
+		if (!keyboardState.mode || keyboardState.selectedIndex === null) return;
+
+		if (dragState.isActive) {
+			confirmKeyboardDrop();
+		} else {
+			startKeyboardDrag(keyboardState.selectedIndex);
+		}
+	}
+
+	function handleEscape() {
+		if (dragState.isActive) {
+			cancelKeyboardDrag();
+		} else {
+			exitKeyboardMode();
+		}
+	}
+
+	function handleDelete() {
+		if (keyboardState.mode && keyboardState.selectedIndex !== null && !dragState.isActive) {
+			const widgetToRemove = items[keyboardState.selectedIndex];
+			removeWidget(widgetToRemove.id);
+			keyboardState.selectedIndex = Math.min(keyboardState.selectedIndex, items.length - 1);
+		}
+	}
+
+	function startKeyboardDrag(widgetIndex: number) {
+		if (widgetIndex < 0 || widgetIndex >= items.length) return;
+
+		const widget = items[widgetIndex];
+		dragState = {
+			item: widget,
+			element: null,
+			offset: { x: 0, y: 0 },
+			isActive: true
+		};
+		keyboardState.dropTarget = widgetIndex;
+		dropIndicator = { index: widgetIndex, position: 'replace' };
+	}
+
+	function cancelKeyboardDrag() {
+		dragState = {
+			item: null,
+			element: null,
+			offset: { x: 0, y: 0 },
+			isActive: false
+		};
+		keyboardState.dropTarget = null;
+		dropIndicator = null;
+	}
+
+	function exitKeyboardMode() {
+		keyboardState = {
+			mode: false,
+			selectedIndex: null,
+			dropTarget: null
+		};
+	}
+
+	function confirmKeyboardDrop() {
+		if (!dragState.isActive || !dragState.item || keyboardState.dropTarget === null) return;
+
+		const draggedIndex = items.findIndex((item) => item.id === dragState.item!.id);
+		if (draggedIndex === -1) return;
+
+		const newItems = [...items];
+		const [draggedWidget] = newItems.splice(draggedIndex, 1);
+		const targetIndex = keyboardState.dropTarget;
+
+		if (targetIndex !== draggedIndex) {
+			const [targetWidget] = newItems.splice(targetIndex > draggedIndex ? targetIndex - 1 : targetIndex, 1);
+			const insertIndex = targetIndex > draggedIndex ? targetIndex - 1 : targetIndex;
+			newItems.splice(insertIndex, 0, draggedWidget);
+			newItems.splice(draggedIndex, 0, targetWidget);
+		} else {
+			newItems.splice(draggedIndex, 0, draggedWidget);
+		}
+
+		items = newItems;
+		items = recalculateGridPositions();
+		gridUpdateCounter++;
+		saveLayout();
+
+		// Reset keyboard drag state
+		dragState = {
+			item: null,
+			element: null,
+			offset: { x: 0, y: 0 },
+			isActive: false
+		};
+		keyboardState.dropTarget = null;
+		dropIndicator = null;
+		keyboardState.selectedIndex = targetIndex;
+	}
+
+	// Lifecycle and data management
 	onMount(async () => {
 		try {
+			console.log('Loading preferences for user:', pageData.user.id);
 			await systemPreferences.loadPreferences(pageData.user.id);
-			// Load existing widgets from preferences
-			const prefsState = $systemPreferences as any;
-			const loadedItems = prefsState?.md || [];
+			const prefsState = $systemPreferences;
+			console.log('Loaded preferences state:', prefsState);
 
-			// Convert existing widgets to new simplified format
-			items = loadedItems.map((existingWidget: any, index: number): DashboardWidgetConfig => {
-				const componentInfo = widgetComponentRegistry[existingWidget.component];
-				// Set default size for LogsWidget
+			// Get widgets for medium screen size (MD)
+			const loadedWidgets = prefsState.preferences?.[ScreenSize.MD] || [];
+			console.log('Loaded widgets for MD screen size:', loadedWidgets);
+
+			// Convert WidgetPreference to DashboardWidgetConfig
+			items = loadedWidgets.map((existingWidget: any, index: number): DashboardWidgetConfig => {
+				const componentInfo = widgetComponentRegistry[existingWidget.component as keyof typeof widgetComponentRegistry];
 				let defaultSize: WidgetSize = '1/4';
+
 				if (existingWidget.component === 'LogsWidget') {
 					defaultSize = '1/2';
 				} else {
@@ -154,201 +735,203 @@
 					component: existingWidget.component,
 					label: existingWidget.label || componentInfo?.name || 'Unknown Widget',
 					icon: existingWidget.icon || componentInfo?.icon || 'mdi:help-circle',
-					size: existingWidget.size || defaultSize, // LogsWidget always gets '1/2' if not set
+					size: existingWidget.size || defaultSize,
 					gridPosition: index
 				};
 			});
+
+			console.log('Converted items:', items);
+			items = recalculateGridPositions();
 		} catch (error) {
 			console.error('Failed to load preferences:', error);
 			items = [];
 		}
+
 		preferencesLoaded = true;
+		document.addEventListener('keydown', handleKeyDown);
+
+		return () => {
+			document.removeEventListener('keydown', handleKeyDown);
+			removeGlobalDragListeners();
+		};
 	});
 
 	async function saveLayout() {
-		// Save the current layout to preferences
-		await systemPreferences.setPreference(pageData.user.id, 'md', items);
-	}
+		try {
+			console.log('Saving layout for user:', pageData.user.id);
+			console.log('Current items to save:', items);
 
-	function addNewWidget(componentName: string) {
-		const componentInfo = widgetComponentRegistry[componentName];
-		if (!componentInfo) return;
+			// Convert DashboardWidgetConfig to WidgetPreference format
+			const widgetPreferences = items.map((item) => ({
+				id: item.id,
+				component: item.component,
+				label: item.label,
+				icon: item.icon,
+				size: item.size,
+				gridPosition: item.gridPosition,
+				// Add required WidgetPreference fields
+				x: 0,
+				y: 0,
+				w: getColumnSpan(item.size),
+				h: 1,
+				movable: true,
+				resizable: true
+			}));
 
-		const newItem: DashboardWidgetConfig = {
-			id: crypto.randomUUID(),
-			component: componentName,
-			label: componentInfo.name,
-			icon: componentInfo.icon,
-			size: componentName === 'LogsWidget' ? '1/2' : '1/4', // LogsWidget always 1/2
-			gridPosition: items.length // Add to the end
-		};
-		items = [...items, newItem];
-		saveLayout();
-		dropdownOpen = false;
-	}
-
-	// Force reactive updates for grid layout
-	let gridUpdateCounter = $state(0);
-
-	function resizeWidget(widgetId: string, newSize: WidgetSize) {
-		const itemIndex = items.findIndex((item) => item.id === widgetId);
-		if (itemIndex === -1) {
-			console.warn(`Widget with id ${widgetId} not found`);
-			return;
+			console.log('Converted widget preferences:', widgetPreferences);
+			await systemPreferences.setPreference(pageData.user.id, ScreenSize.MD, widgetPreferences);
+			console.log('Layout saved successfully');
+		} catch (error) {
+			console.error('Failed to save layout:', error);
 		}
-
-		const currentWidget = items[itemIndex];
-		console.log(`Dashboard: Resizing widget ${widgetId} from ${currentWidget.size} to ${newSize}`);
-
-		const updatedWidget: DashboardWidgetConfig = {
-			...currentWidget,
-			size: newSize
-		};
-
-		const newItems = [...items];
-		newItems[itemIndex] = updatedWidget;
-		items = newItems;
-		gridUpdateCounter++;
-		saveLayout();
 	}
-
-	function removeWidget(id: string) {
-		items = items.filter((item) => item.id !== id);
-		// Reorder grid positions
-		items = items.map((item, index) => ({ ...item, gridPosition: index }));
-		saveLayout();
-	}
-
-	function resetGrid() {
-		items = [];
-		systemPreferences.clearPreferences(pageData.user.id);
-		saveLayout();
-	}
-
-	function toggleDropdown() {
-		dropdownOpen = !dropdownOpen;
-	}
-
-	let currentTheme = $derived($modeCurrent ? 'light' : 'dark');
-	let availableWidgets = $derived(Object.keys(widgetComponentRegistry).filter((name) => !items.some((item) => item.component === name)));
-	let canAddMoreWidgets = $derived(availableWidgets.length > 0);
-
-	let dndItems = $derived(items.map(({ id, size, label, component, icon }) => ({ id, size, label, component, icon })));
 </script>
 
-<div
-	class="dashboard-container m-0 flex min-h-screen w-full flex-col bg-surface-100 p-0 px-12 text-neutral-900 dark:bg-surface-900 dark:text-neutral-100"
-	style="overflow-x: hidden; overflow-y: auto;"
+<main
+	class="dashboard-container m-0 flex min-h-screen w-full flex-col bg-surface-100 p-0 text-neutral-900 dark:bg-surface-900 dark:text-neutral-100"
+	style="overflow-x: hidden; overflow-y: auto; touch-action: pan-y;"
 >
-	<div class="relative z-20 m-0 flex w-full flex-col p-0">
-		<div
-			class="relative mt-6 flex w-full items-center justify-between gap-8 rounded-2xl border border-surface-200 bg-gradient-to-br from-white/90 via-surface-50/80 to-primary-50/80 py-8 shadow-2xl backdrop-blur-2xl dark:border-surface-700 dark:bg-gradient-to-br dark:from-surface-800/90 dark:via-surface-900/80 dark:to-primary-900/80"
-		>
-			<div
-				class="absolute left-0 top-0 h-2 w-full animate-pulse rounded-t-xl bg-gradient-to-r from-primary-500 via-emerald-400 to-primary-400 opacity-95 dark:from-primary-600 dark:via-emerald-500 dark:to-primary-400"
-				aria-hidden="true"
-			></div>
-			<div class="flex w-full items-center justify-between gap-8 px-8">
-				<div class="flex min-w-0 flex-col gap-2">
-					<div class="flex items-center gap-4">
-						<iconify-icon icon="bi:bar-chart-line" width="40" class="text-primary-500 drop-shadow-lg dark:text-primary-400" aria-hidden="true"
-						></iconify-icon>
-						<h1
-							class="font-display relative text-5xl font-extrabold tracking-tight text-primary-700 drop-shadow-[0_2px_8px_rgba(16,185,129,0.10)] transition-all duration-300 dark:text-primary-200 md:text-6xl md:tracking-tighter"
-						>
-							<span class="animate-gradient-x bg-gradient-to-r from-primary-400 via-emerald-300 to-primary-500 bg-clip-text text-transparent"
-								>Dashboard</span
-							>
-						</h1>
-					</div>
-					<p class="font-display text-text-400 dark:text-text-300 ml-14 text-lg font-light tracking-wide opacity-90 md:text-xl">
-						Your system overview & quick actions
-					</p>
+	<header class="my-2 flex items-center justify-between gap-2 border-b border-surface-200 px-4 py-2 dark:border-surface-700">
+		<h1 class="sr-only">Dashboard</h1>
+		<PageTitle name="Dashboard" icon="bi:bar-chart-line" />
+		<div class="flex items-center gap-2">
+			{#if keyboardState.mode}
+				<div
+					class="flex items-center gap-2 rounded-lg bg-primary-100 px-3 py-1 text-sm text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
+				>
+					<iconify-icon icon="mdi:keyboard" width="16"></iconify-icon>
+					<span>Keyboard Mode: Arrow keys to navigate, Enter/Space to drag, Escape to exit</span>
 				</div>
-				<div class="mx-6 hidden h-20 w-px bg-surface-200 dark:bg-surface-700 md:block" aria-hidden="true"></div>
-				<div class="flex items-center gap-4">
-					{#if canAddMoreWidgets}
-						<div class="relative">
-							<button
-								onclick={toggleDropdown}
-								type="button"
-								aria-haspopup="true"
-								aria-expanded={dropdownOpen}
-								class="btn gap-2 rounded-full bg-primary-500 px-5 py-2.5 text-white shadow-lg transition-all duration-150 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-400 dark:bg-primary-600 dark:hover:bg-primary-500"
-							>
-								<iconify-icon icon="carbon:add-filled" width="22" aria-hidden="true"></iconify-icon>
-								Add Widget
-							</button>
-							{#if dropdownOpen}
-								<div
-									class="absolute right-0 z-30 mt-2 w-64 origin-top-right rounded-2xl border border-surface-200 bg-white shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none dark:border-surface-700 dark:bg-surface-800"
-									role="menu"
-									aria-label="Add widget menu"
-								>
-									<div class="border-b border-surface-100 px-4 py-3 dark:border-surface-700">
-										<p class="font-display mb-1 text-base font-semibold text-primary-700 dark:text-primary-300">Add a Widget</p>
-										<p class="text-xs text-surface-500 dark:text-surface-400">Choose a widget to add to your dashboard</p>
-									</div>
-									<div class="py-2">
-										{#each availableWidgets as componentName}
-											{@const widgetInfo = widgetComponentRegistry[componentName]}
-											<button
-												onclick={() => addNewWidget(componentName)}
-												type="button"
-												class="text-text-700 dark:text-text-200 flex w-full items-center gap-3 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-100 hover:bg-primary-50 hover:text-primary-700 focus:bg-primary-100 focus:text-primary-700 dark:hover:bg-primary-900/30 dark:hover:text-primary-300 dark:focus:bg-primary-900/40 dark:focus:text-primary-200"
-												role="menuitem"
-												aria-label={widgetInfo.name}
-											>
-												<iconify-icon icon={widgetInfo.icon} width="20" class="text-tertiary-500 dark:text-primary-400" aria-hidden="true"
-												></iconify-icon>
-												<span>{widgetInfo.name}</span>
-											</button>
-										{/each}
-									</div>
-								</div>
-							{/if}
+			{/if}
+			{#if canAddMoreWidgets}
+				<div class="relative">
+					<button
+						onclick={() => (dropdownOpen = !dropdownOpen)}
+						type="button"
+						aria-haspopup="true"
+						aria-expanded={dropdownOpen}
+						class="variant-filled-tertiary btn gap-2 !text-white dark:variant-filled-primary"
+					>
+						<iconify-icon icon="carbon:add-filled" width="20"></iconify-icon>
+						Add Widget
+					</button>
+					{#if dropdownOpen}
+						<div
+							class="absolute right-0 z-20 mt-2 w-56 origin-top-right rounded-md border border-gray-300 bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:border-gray-700 dark:bg-gray-800"
+							role="menu"
+						>
+							<div class="py-1" role="none">
+								{#each availableWidgets as componentName}
+									{@const widgetInfo = widgetComponentRegistry[componentName as keyof typeof widgetComponentRegistry]}
+									<button
+										onclick={() => addNewWidget(componentName)}
+										type="button"
+										class="flex w-full items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:text-white"
+										role="menuitem"
+									>
+										<iconify-icon icon={widgetInfo.icon} width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+										{widgetInfo.name}
+									</button>
+								{/each}
+							</div>
 						</div>
 					{/if}
-					<button
-						class="btn flex items-center gap-2 rounded-full bg-warning-500 px-5 py-2.5 font-semibold text-white shadow-lg transition-all duration-150 hover:bg-warning-600 focus:outline-none focus:ring-2 focus:ring-warning-400 dark:bg-warning-600 dark:hover:bg-warning-500"
-						onclick={resetGrid}
-						aria-label="Reset dashboard layout"
-					>
-						<iconify-icon icon="mdi:refresh" width="20" class="mr-1" aria-hidden="true"></iconify-icon>
-						Reset Layout
-					</button>
-					<button
-						onclick={() => history.back()}
-						aria-label="Back"
-						class="text-text-400 dark:text-text-300 btn-icon rounded-full border border-surface-200 bg-surface-100 shadow transition-all duration-150 hover:bg-surface-200 hover:text-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-400 dark:border-surface-700 dark:bg-surface-800 dark:hover:bg-surface-700 dark:hover:text-primary-400"
-					>
-						<iconify-icon icon="ri:arrow-left-line" width="22" aria-hidden="true"></iconify-icon>
-					</button>
 				</div>
-			</div>
+			{/if}
+			<button class="variant-outline-warning btn" onclick={resetGrid}>Reset Layout</button>
+			<button
+				onclick={() => (keyboardState.mode = !keyboardState.mode)}
+				class="variant-outline-primary btn gap-2 {keyboardState.mode
+					? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
+					: ''}"
+				title="Toggle keyboard navigation mode"
+			>
+				<iconify-icon icon="mdi:keyboard" width="16"></iconify-icon>
+				Keyboard
+			</button>
+			<button onclick={() => history.back()} aria-label="Back" class="variant-ghost-surface btn-icon">
+				<iconify-icon icon="ri:arrow-left-line" width="20"></iconify-icon>
+			</button>
 		</div>
-	</div>
+	</header>
 
 	<div class="relative m-0 w-full p-0">
-		<div class="w-full py-4">
+		<!-- Global drag overlay -->
+		{#if dragState.isActive}
+			<div class="pointer-events-none fixed inset-0 z-50 cursor-grabbing bg-black/5" style="touch-action: none;"></div>
+		{/if}
+
+		<!-- Keyboard instructions overlay -->
+		{#if keyboardState.mode && !dragState.isActive}
+			<div
+				class="fixed bottom-4 left-4 z-40 rounded-lg bg-surface-800/90 p-4 text-sm text-surface-100 shadow-lg backdrop-blur-sm dark:bg-surface-900/90"
+			>
+				<div class="mb-2 font-semibold">Keyboard Controls:</div>
+				<div class="space-y-1 text-xs">
+					<div>• <kbd class="rounded bg-surface-700 px-1">Tab</kbd> - Enter/Exit keyboard mode</div>
+					<div>• <kbd class="rounded bg-surface-700 px-1">↑↓←→</kbd> - Navigate widgets</div>
+					<div>• <kbd class="rounded bg-surface-700 px-1">Enter</kbd> or <kbd class="rounded bg-surface-700 px-1">Space</kbd> - Start drag</div>
+					<div>• <kbd class="rounded bg-surface-700 px-1">Escape</kbd> - Cancel/Exit</div>
+					<div>• <kbd class="rounded bg-surface-700 px-1">Delete</kbd> - Remove widget</div>
+				</div>
+			</div>
+		{/if}
+
+		<!-- Keyboard drag instructions -->
+		{#if keyboardState.mode && dragState.isActive}
+			<div
+				class="fixed bottom-4 left-4 z-40 rounded-lg bg-success-800/90 p-4 text-sm text-success-100 shadow-lg backdrop-blur-sm dark:bg-success-900/90"
+			>
+				<div class="mb-2 font-semibold">Dragging Widget:</div>
+				<div class="space-y-1 text-xs">
+					<div>• <kbd class="rounded bg-success-700 px-1">↑↓←→</kbd> - Move drop target</div>
+					<div>• <kbd class="rounded bg-success-700 px-1">Enter</kbd> - Confirm drop</div>
+					<div>• <kbd class="rounded bg-success-700 px-1">Escape</kbd> - Cancel drag</div>
+				</div>
+			</div>
+		{/if}
+
+		<section class="w-full py-4">
 			{#if !preferencesLoaded}
 				<div class="flex h-full items-center justify-center text-lg text-gray-500" role="status" aria-live="polite">Loading preferences...</div>
 			{:else if items.length > 0}
-				<div class="responsive-dashboard-grid grid w-full gap-4" role="grid" aria-label="Dashboard widgets grid" data-grid-update={gridUpdateCounter}>
-					{#each items as item (`${item.id}-${item.size}-${gridUpdateCounter}`)}
-						{@const SvelteComponent = widgetComponentRegistry[item.component]?.component}
+				<div
+					class="responsive-dashboard-grid relative grid w-full gap-4"
+					role="grid"
+					aria-label="Dashboard widgets grid"
+					data-grid-update={gridUpdateCounter}
+				>
+					{#each items as item, index (item.id)}
+						{@const SvelteComponent = widgetComponentRegistry[item.component as keyof typeof widgetComponentRegistry]?.component}
 						{@const columnSpan = getColumnSpan(item.size)}
-						{#if SvelteComponent}
-							<div
-								class="widget-container grid-span-{columnSpan}"
-								data-widget-id={item.id}
-								data-widget-size={item.size}
-								data-column-span={columnSpan}
-								data-grid-update={gridUpdateCounter}
-								role="gridcell"
-								aria-label={item.label}
-								tabindex="0"
-							>
+
+						<article
+							class="widget-container grid-span-{columnSpan} group relative select-none transition-all duration-200 ease-in-out {keyboardState.mode &&
+							keyboardState.selectedIndex === index
+								? 'ring-2 ring-primary-500 ring-offset-2'
+								: ''} {dragState.isActive && keyboardState.dropTarget === index ? 'ring-2 ring-success-500 ring-offset-2' : ''}"
+							data-widget-id={item.id}
+							data-widget-size={item.size}
+							data-column-span={columnSpan}
+							data-grid-index={index}
+							data-grid-update={gridUpdateCounter}
+							aria-label={item.label}
+							style="touch-action: none;"
+							animate:flip={{ duration: 200 }}
+						>
+							{#if SvelteComponent}
+								<!-- Drop indicator overlay -->
+								{#if dropIndicator && dropIndicator.index === index}
+									<div
+										class="pointer-events-none absolute inset-0 z-20 animate-pulse rounded-lg border-4 border-dashed border-primary-500 bg-primary-50/60 shadow-lg transition-all duration-200 dark:border-primary-400 dark:bg-primary-900/30"
+									>
+										<div class="flex h-full items-center justify-center">
+											<iconify-icon icon="mdi:swap-horizontal" width="24" class="animate-bounce text-primary-500 dark:text-primary-400"
+											></iconify-icon>
+										</div>
+									</div>
+								{/if}
+
 								<SvelteComponent
 									label={item.label}
 									icon={item.icon}
@@ -360,19 +943,36 @@
 									{ROW_HEIGHT}
 									{GAP_SIZE}
 									onCloseRequest={() => removeWidget(item.id)}
+									draggable={true}
+									onDragStart={(event, dragItem, element) => handleDragStart(event, item, element)}
 								/>
-							</div>
-						{:else}
-							<div
-								class="flex h-full w-full items-center justify-center rounded-md border border-dashed border-error-500 bg-error-100 p-4 text-error-700 grid-span-{columnSpan}"
-								role="gridcell"
-								aria-label={item.label}
-								tabindex="0"
-							>
-								Widget "{item.component}" not found.
-							</div>
-						{/if}
+							{:else}
+								<div
+									class="flex h-full w-full items-center justify-center rounded-md border border-dashed border-error-500 bg-error-100 p-4 text-error-700"
+								>
+									Widget "{item.component}" not found.
+								</div>
+							{/if}
+						</article>
 					{/each}
+
+					<!-- Empty space drop indicator -->
+					{#if dropIndicator && dropIndicator.position === 'insert'}
+						<div
+							class="pointer-events-none absolute z-20 animate-pulse rounded-lg border-4 border-dashed border-success-500 bg-success-50/60 shadow-lg transition-all duration-200 dark:border-success-400 dark:bg-success-900/30"
+							style="
+								left: {(dropIndicator.index % 4) * (100 / 4)}%;
+								top: {Math.floor(dropIndicator.index / 4) * (ROW_HEIGHT + GAP_SIZE)}px;
+								width: {100 / 4}%;
+								height: {ROW_HEIGHT}px;
+								transform: translateX({GAP_SIZE / 2}px) translateY({GAP_SIZE / 2}px);
+							"
+						>
+							<div class="flex h-full items-center justify-center">
+								<iconify-icon icon="mdi:plus-circle" width="32" class="animate-bounce text-success-500 dark:text-success-400"></iconify-icon>
+							</div>
+						</div>
+					{/if}
 				</div>
 			{:else if preferencesLoaded && items.length === 0}
 				<div class="mx-auto flex h-[60vh] w-full flex-col items-center justify-center text-center" role="status" aria-live="polite">
@@ -383,7 +983,7 @@
 							class="mb-6 text-primary-400 drop-shadow-lg dark:text-primary-500"
 							aria-hidden="true"
 						></iconify-icon>
-						<p class="font-display mb-2 text-2xl font-bold text-primary-700 dark:text-primary-200">Your Dashboard is Empty</p>
+						<p class="mb-2 font-display text-2xl font-bold text-primary-700 dark:text-primary-200">Your Dashboard is Empty</p>
 						<p class="mb-6 text-base text-surface-600 dark:text-surface-300">
 							Click below to add your first widget and start personalizing your dashboard experience.
 						</p>
@@ -398,9 +998,9 @@
 					</div>
 				</div>
 			{/if}
-		</div>
+		</section>
 	</div>
-</div>
+</main>
 
 <style>
 	/* Grid span classes for reliable reactivity */
@@ -418,21 +1018,6 @@
 
 	.grid-span-4 {
 		grid-column: span 4;
-	}
-
-	/* Gradient animation for title */
-	@keyframes gradient-x {
-		0%,
-		100% {
-			background-position: 0% 50%;
-		}
-		50% {
-			background-position: 100% 50%;
-		}
-	}
-	.animate-gradient-x {
-		background-size: 200% 200%;
-		animation: gradient-x 3s ease-in-out infinite;
 	}
 
 	/* Responsive dashboard grid */
