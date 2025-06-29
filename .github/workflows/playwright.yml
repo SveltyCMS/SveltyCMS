@@ -18,7 +18,7 @@ jobs:
         node-version: [latest]
         pnpm-version: [latest]
         mongodb-version: [latest]
-        test-file: ['/tests/playwright/signupfirstuser.spec.ts', '/tests/playwright/user.spec.ts']
+        test-file: ['/tests/playwright/signupfirstuser.spec.ts', '/tests/playwright/user.spec.ts', '/tests/playwright/oauth-signup-firstuser.spec.ts']
 
     steps:
       - name: Git checkout
@@ -82,7 +82,7 @@ jobs:
           privateEnv.DB_NAME: SveltyCMS
           privateEnv.DB_USER: admin
           privateEnv.DB_PASSWORD: admin
-          privateEnv.DB_RETRY_DELAY: 'false'
+          privateEnv.DB_RETRY_DELAY: 1000
           privateEnv.DB_RETRY_ATTEMPTS: 3
           privateEnv.DB_POOL_SIZE: 5
 
@@ -90,10 +90,11 @@ jobs:
           privateEnv.SMTP_PORT: ''
           privateEnv.SMTP_EMAIL: 'test@example.com'
           privateEnv.SMTP_PASSWORD: ''
+          privateEnv.SERVER_PORT: '4173'
 
-          privateEnv.USE_GOOGLE_OAUTH: 'false'
-          privateEnv.GOOGLE_CLIENT_ID: ''
-          privateEnv.GOOGLE_CLIENT_SECERT: ''
+          privateEnv.USE_GOOGLE_OAUTH: 'true'
+          privateEnv.GOOGLE_CLIENT_ID: '123456789-abcdefghijklmnopqrstuvwxyz123456.apps.googleusercontent.com'
+          privateEnv.GOOGLE_CLIENT_SECRET: 'GOCSPX-test_client_secret_for_github_actions'
 
           privateEnv.USE_REDIS: 'false'
           privateEnv.REDIS_HOST: ''
@@ -133,6 +134,7 @@ jobs:
 
           publicEnv.DEFAULT_CONTENT_LANGUAGE: 'en'
           publicEnv.AVAILABLE_CONTENT_LANGUAGES: '["en", "de", "es"]'
+          publicEnv.DEFAULT_SYSTEM_LANGUAGE: 'en'
           publicEnv.AVAILABLE_SYSTEM_LANGUAGES: '["en", "de"]'
 
           publicEnv.IMAGE_SIZES: '{ "sm": 600, "md": 900, "lg": 1200 }'
@@ -148,6 +150,7 @@ jobs:
           publicEnv.PKG: '{ VERSION: pkg.version }'
 
           publicEnv.LOG_LEVELS: '["info", "error", "warn"]'
+          publicEnv.DEMO: 'true'
 
       - uses: actions/upload-artifact@v3
         if: always()
