@@ -3,7 +3,6 @@
  * @description Server-side logic for the OAuth page.
  */
 
-import { dev } from '$app/environment';
 import { publicEnv } from '@root/config/public';
 import { error, redirect, type Cookies } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
@@ -12,18 +11,22 @@ import type { Actions, PageServerLoad } from './$types';
 import { google } from 'googleapis';
 
 //Db
-import { auth, dbAdapter, dbInitPromise } from '@src/databases/db';
+import { auth, dbInitPromise } from '@src/databases/db';
 
 // Utils
 import { saveAvatarImage } from '@utils/media/mediaStorage';
+import { getFirstCollectionRedirectUrl } from '@utils/navigation';
 
 // Stores
-import { systemLanguage } from '@stores/store.svelte';
+import { systemLanguage, type Locale } from '@stores/store.svelte';
+import { get } from 'svelte/store';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-import { googleAuth, setCredentials, generateGoogleAuthUrl } from '@src/auth/googleAuth';
-import { contentManager } from '@root/src/content/ContentManager';
+import { generateGoogleAuthUrl, getOAuthRedirectUri } from '@src/auth/googleAuth';
+
+// Import roles
+import { roles } from '@root/config/roles';
 
 // Types
 interface GoogleUserInfo {
@@ -43,80 +46,81 @@ async function sendWelcomeEmail(
 	request: Request
 ) {
 	try {
+		const userLanguage = (get(systemLanguage) as Locale) || 'en';
+		const emailProps = {
+			username,
+			email,
+			hostLink: publicEnv.HOST_PROD || `https://${request.headers.get('host')}`,
+			sitename: publicEnv.SITE_NAME || 'SveltyCMS'
+		};
+
 		await fetchFn('/api/sendMail', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
-				email,
-				subject: `Welcome to ${publicEnv.SITE_NAME}, ${username}!`,
-				message: `Welcome ${username} to ${publicEnv.SITE_NAME}`,
+				recipientEmail: email,
+				subject: `Welcome to ${emailProps.sitename}`,
 				templateName: 'welcomeUser',
-				props: {
-					username,
-					email,
-					hostLink: publicEnv.HOST_LINK || `https://${request.headers.get('host')}`
-				}
+				props: emailProps,
+				languageTag: userLanguage
 			})
 		});
-		logger.debug(`Welcome email sent to ${email}`);
+		logger.debug('Welcome email sent', { email: email });
 	} catch (err) {
 		logger.error('Error sending welcome email:', err as Error);
 	}
 }
 
 // Helper function to fetch and save Google avatar
-async function fetchAndSaveGoogleAvatar(avatarUrl: string): Promise<string | null> {
+async function fetchAndSaveGoogleAvatar(avatarUrl: string, userEmail: string): Promise<string | null> {
 	try {
+		logger.debug(`Fetching Google avatar from: ${avatarUrl}`);
+
+		// Ensure database is fully initialized before saving avatar
+		await dbInitPromise;
+
 		const response = await fetch(avatarUrl);
 		if (!response.ok) {
 			throw new Error(`Failed to fetch avatar: ${response.statusText}`);
 		}
+
 		const blob = await response.blob();
-		const avatarFile = new File([blob], 'google-avatar.jpg', { type: 'image/jpeg' });
-		const savedUrl = await saveAvatarImage(avatarFile);
+
+		// Determine the correct file type from the response
+		const contentType = response.headers.get('content-type') || 'image/jpeg';
+		let fileName = 'google-avatar.jpg';
+		let mimeType = 'image/jpeg';
+
+		if (contentType.includes('image/png')) {
+			fileName = 'google-avatar.png';
+			mimeType = 'image/png';
+		} else if (contentType.includes('image/webp')) {
+			fileName = 'google-avatar.webp';
+			mimeType = 'image/webp';
+		} else if (contentType.includes('image/gif')) {
+			fileName = 'google-avatar.gif';
+			mimeType = 'image/gif';
+		}
+
+		const avatarFile = new File([blob], fileName, { type: mimeType });
+
+		logger.debug(`Created avatar file: ${fileName}, size: ${avatarFile.size} bytes, type: ${mimeType}`);
+
+		const savedUrl = await saveAvatarImage(avatarFile, userEmail);
 
 		if (!savedUrl) {
 			throw new Error('Failed to save avatar image');
 		}
 
+		logger.debug(`Avatar saved successfully at: ${savedUrl}`);
 		return savedUrl;
 	} catch (err) {
-		logger.error('Error fetching and saving Google avatar:', err as Error);
+		logger.error('Error fetching and saving Google avatar:', {
+			error: err instanceof Error ? err.message : 'Unknown error',
+			stack: err instanceof Error ? err.stack : undefined,
+			avatarUrl
+		});
 		return null;
-	}
-}
-
-// Helper function to fetch and redirect using collection UUID
-async function fetchAndRedirectToFirstCollection() {
-	try {
-		if (!dbAdapter) {
-			logger.error('Database adapter not initialized', new Error('Database adapter not initialized'));
-			return '/';
-		}
-
-		// Wait for system initialization including ContentManager
-		await dbInitPromise;
-		logger.debug('System ready, proceeding with collection retrieval');
-
-		const collection = contentManager.getFirstCollection();
-		const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
-
-		if (!collection) {
-			logger.warn('No valid first collection found - redirecting to home');
-			return '/';
-		}
-
-		// Validate collection path exists
-		if (!collection.path) {
-			logger.error('First collection has no path defined');
-			return '/';
-		}
-
-		// Construct redirect URL using validated collection
-		return `/${defaultLanguage}${collection.path}`;
-	} catch (err) {
-		logger.error('Error in fetchAndRedirectToFirstCollection', err as Error);
-		return '/';
 	}
 }
 
@@ -145,6 +149,12 @@ async function handleGoogleUser(
 	// Check if user exists
 	let user = await auth?.checkUser({ email });
 
+	logger.debug('OAuth user lookup for email', { email: email });
+	logger.debug(`User found: ${user ? 'YES' : 'NO'}`);
+	if (user) {
+		logger.debug(`Existing user ID: ${user._id}, username: ${user.username}`);
+	}
+
 	if (!user) {
 		// Only require token for new users (not first user)
 		if (!isFirst) {
@@ -160,43 +170,77 @@ async function handleGoogleUser(
 		// Handle new user creation
 		let avatarUrl: string | null = null;
 		if (googleUser.picture) {
-			avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture);
+			logger.debug(`Attempting to save Google avatar for new user: ${googleUser.picture}`);
+			avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture, email);
+			if (avatarUrl) {
+				logger.debug(`Avatar saved for new user: ${avatarUrl}`);
+			} else {
+				logger.warn('Failed to save avatar for new user', { email: email });
+			}
+		} else {
+			logger.debug('No Google avatar provided for new user');
 		}
 
 		// Create the new user
-		user = await auth?.createUser(
-			{
-				email,
-				username: googleUser.name ?? '',
-				firstName: googleUser.given_name,
-				lastName: googleUser.family_name,
-				avatar: avatarUrl,
-				role: isFirst ? 'admin' : 'user',
-				lastAuthMethod: 'google',
-				isRegistered: true,
-				blocked: false
-			},
-			true
-		);
+		const userData = {
+			email,
+			username: googleUser.name ?? '',
+			firstName: googleUser.given_name,
+			lastName: googleUser.family_name,
+			avatar: avatarUrl,
+			role: isFirst ? roles.find(r => r.isAdmin)?._id || 'admin' : roles.find(r => r._id === 'user')?._id || 'user',
+			lastAuthMethod: 'google',
+			isRegistered: true,
+			blocked: false
+		};
+
+		logger.debug('Creating user with data:', {
+			...userData,
+			email: userData.email.replace(/(.{2}).*@(.*)/, '$1****@$2')
+		});
+
+		user = await auth?.createUser(userData, true);
 
 		// Send welcome email for new users
 		await sendWelcomeEmail(fetchFn, email, googleUser.name || '', request);
 	} else {
 		// Existing user - no token required for sign-in
-		// Update existing user's avatar if they have a Google avatar
+		logger.debug(`Existing user signing in: ${user._id}, current avatar: ${user.avatar ? 'YES' : 'NO'}`);
+
+		// Always try to update avatar from Google if available and user doesn't have one
 		let avatarUrl: string | null = null;
-		if (googleUser.picture) {
-			avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture);
+		if (googleUser.picture && (!user.avatar || user.avatar === null || user.avatar === undefined)) {
+			logger.debug(`Attempting to save Google avatar for existing user: ${googleUser.picture}`);
+			avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture, email);
+			if (avatarUrl) {
+				logger.debug(`Avatar saved for existing user: ${avatarUrl}`);
+			} else {
+				logger.warn('Failed to save avatar for existing user', { email: email });
+			}
+		} else if (googleUser.picture && user.avatar) {
+			logger.debug('User already has avatar, skipping Google avatar download');
+		} else {
+			logger.debug('No Google avatar provided for existing user');
 		}
 
-		// Update user attributes
-		await auth.updateUserAttributes(user._id.toString(), {
+		// Always update user attributes (even if avatar is null, to ensure other fields are updated)
+		const updateData = {
 			email,
 			lastAuthMethod: 'google',
-			firstName: googleUser.given_name ?? '',
-			lastName: googleUser.family_name ?? '',
-			avatar: user.avatar ? user.avatar : avatarUrl ? avatarUrl : undefined
-		});
+			firstName: googleUser.given_name ?? user.firstName ?? '',
+			lastName: googleUser.family_name ?? user.lastName ?? ''
+		};
+
+		// Only add avatar field if we have a new one
+		if (avatarUrl) {
+			updateData.avatar = avatarUrl;
+			logger.debug(`Will update user avatar to: ${avatarUrl}`);
+		}
+
+		logger.debug('Updating user attributes:', updateData);
+		await auth.updateUserAttributes(user._id.toString(), updateData);
+
+		logger.debug(`Updated user attributes for: ${user._id}`);
 	}
 
 	if (!user?._id) {
@@ -238,17 +282,42 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
 		const code = url.searchParams.get('code');
 		const state = url.searchParams.get('state');
+		const error_param = url.searchParams.get('error');
+		const error_subtype = url.searchParams.get('error_subtype');
 		const token = state ? decodeURIComponent(state) : null;
 
 		logger.debug(`Authorization code from URL: \x1b[34m${code}\x1b[0m`);
 		logger.debug(`Registration token from state: \x1b[34m${token}\x1b[0m`);
 		logger.debug(`Is First User: \x1b[34m${!firstUserExists}\x1b[0m`);
 
+		// Handle OAuth errors first
+		if (error_param) {
+			logger.error(`OAuth Error: ${error_param}`, { error_subtype, url: url.toString() });
+
+			if (error_param === 'interaction_required' || error_param === 'access_denied') {
+				// User needs to go through consent flow or cancelled
+				logger.debug('OAuth interaction required - redirecting to consent flow');
+				try {
+					const authUrl = await generateGoogleAuthUrl(token, 'consent');
+					redirect(302, authUrl);
+				} catch (err) {
+					logger.error('Error generating OAuth URL after interaction_required:', err);
+					throw error(500, 'Failed to initialize OAuth');
+				}
+			} else {
+				// Other OAuth errors
+				throw error(400, {
+					message: 'OAuth Authentication Failed',
+					details: `${error_param}: ${error_subtype || 'Unknown error'}`
+				});
+			}
+		}
+
 		// If no code is present, handle initial OAuth flow
 		if (!code && !firstUserExists) {
 			logger.debug('No first user and no code - redirecting to OAuth');
 			try {
-				const authUrl = await generateGoogleAuthUrl();
+				const authUrl = await generateGoogleAuthUrl(token, 'consent');
 				redirect(302, authUrl);
 			} catch (err) {
 				logger.error('Error generating OAuth URL:', err);
@@ -275,26 +344,68 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
 		// Process OAuth callback
 		try {
-			const googleAuthClient = await googleAuth();
-			if (!googleAuthClient) {
-				logger.error('Google OAuth client initialization failed');
-				throw error(500, 'OAuth service is not available');
-			}
+			// Debug: Let's explicitly check what we're working with
+			logger.debug(`Processing OAuth callback with code: ${code.substring(0, 20)}...`);
 
-			const redirectUri = `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`;
-			logger.debug(`Using redirect URI for token exchange: ${redirectUri}`);
+			// Import and get the private config directly
+			const { privateEnv } = await import('@root/config/private');
 
-			const { tokens } = await googleAuthClient.getToken({
-				code,
-				redirect_uri: redirectUri
+			// Create a fresh OAuth client instance specifically for token exchange
+			// Use the same environment detection logic as the OAuth URL generation
+			const redirectUri = getOAuthRedirectUri();
+
+			logger.debug(`Creating OAuth client with redirect URI: ${redirectUri}`);
+			logger.debug(`Client ID: ${privateEnv.GOOGLE_CLIENT_ID?.substring(0, 20)}...`);
+
+			const googleAuthClient = new google.auth.OAuth2(
+				privateEnv.GOOGLE_CLIENT_ID,
+				privateEnv.GOOGLE_CLIENT_SECRET,
+				redirectUri
+			);
+
+			// Try using the getToken method with explicit options to disable PKCE
+			logger.debug('Attempting to exchange authorization code for tokens...');
+
+			// Workaround for googleapis v150 bug: manually make the token request to avoid automatic PKCE injection
+			// Reference: https://github.com/googleapis/google-api-nodejs-client/issues/3681
+			const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded',
+				},
+				body: new URLSearchParams({
+					client_id: privateEnv.GOOGLE_CLIENT_ID!,
+					client_secret: privateEnv.GOOGLE_CLIENT_SECRET!,
+					code: code,
+					grant_type: 'authorization_code',
+					redirect_uri: redirectUri
+					// Explicitly NOT including code_verifier to avoid the googleapis bug
+				}).toString()
 			});
 
-			if (!tokens) {
+			if (!tokenResponse.ok) {
+				const errorData = await tokenResponse.json();
+				logger.error('Token exchange failed:', errorData);
+				throw new Error(`Token exchange failed: ${errorData.error_description || errorData.error}`);
+			}
+
+			const tokens = await tokenResponse.json();
+
+			if (!tokens || !tokens.access_token) {
 				logger.error('Failed to obtain tokens from Google');
 				throw error(500, 'Failed to authenticate with Google');
 			}
 
-			await setCredentials(tokens);
+			logger.debug('Successfully obtained tokens from Google');
+
+			// Set credentials on the OAuth client using the manually obtained tokens
+			googleAuthClient.setCredentials({
+				access_token: tokens.access_token,
+				token_type: tokens.token_type,
+				expires_in: tokens.expires_in,
+				refresh_token: tokens.refresh_token,
+				scope: tokens.scope
+			});
 
 			// Fetch Google user profile
 			const oauth2 = google.oauth2({ auth: googleAuthClient, version: 'v2' });
@@ -309,10 +420,15 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			await handleGoogleUser(googleUser as GoogleUserInfo, !firstUserExists, token, cookies, fetch, request);
 			logger.info('Successfully processed OAuth callback and created session');
 
-			// Redirect to first collection
+			// Redirect to first collection using centralized utility
+			const redirectUrl = await getFirstCollectionRedirectUrl();
+			logger.debug(`Redirecting to: \x1b[34m${redirectUrl}\x1b[0m`);
+			throw redirect(302, redirectUrl);
 		} catch (err) {
-			if ((err instanceof Error && 'status' in err && err.status === 302) || err.status === 303) {
-				throw err;
+			// Check if this is a redirect (which is expected and successful)
+			if (err && typeof err === 'object' && 'status' in err && (err.status === 302 || err.status === 303)) {
+				logger.info('OAuth processing completed successfully, redirecting user');
+				throw err; // Re-throw the redirect
 			}
 
 			const errorMessage = err instanceof Error ? err.message : 'Unknown error during OAuth callback';
@@ -334,9 +450,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			});
 		}
 	} catch (err) {
-		// Only throw error if it's not already a redirect
-		if (err instanceof Error && 'status' in err && (err.status === 302 || err.status === 303)) {
-			throw err;
+		// Check if this is a redirect (which is expected and successful)
+		if (err && typeof err === 'object' && 'status' in err && (err.status === 302 || err.status === 303)) {
+			logger.info('OAuth flow completed successfully, performing redirect');
+			throw err; // Re-throw the redirect
 		}
 
 		const errorMessage = err instanceof Error ? err.message : 'Unknown error during OAuth process';
@@ -354,9 +471,11 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 		});
 	}
 
-	const redirectUrl = await fetchAndRedirectToFirstCollection();
-	logger.debug(`Redirecting to: ${redirectUrl}`);
-	throw redirect(302, redirectUrl);
+	// If we reach this point, something went wrong - return error data
+	throw error(500, {
+		message: 'OAuth Authentication Failed',
+		details: 'Unexpected end of OAuth flow'
+	});
 };
 
 export const actions: Actions = {

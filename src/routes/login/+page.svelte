@@ -91,7 +91,9 @@ Features:
 
 	// Derived state using $derived rune
 	const availableLanguages = $derived(
-		[...publicEnv.AVAILABLE_SYSTEM_LANGUAGES].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
+		Array.isArray(publicEnv.AVAILABLE_SYSTEM_LANGUAGES) 
+			? [...publicEnv.AVAILABLE_SYSTEM_LANGUAGES].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
+			: ['en']
 	);
 
 	const filteredLanguages = $derived(
@@ -104,7 +106,9 @@ Features:
 
 	// Ensure a valid language is always used
 	const currentLanguage = $derived(
-		systemLanguage.value && publicEnv.AVAILABLE_SYSTEM_LANGUAGES.includes(systemLanguage.value) ? systemLanguage.value : 'en'
+		systemLanguage.value && Array.isArray(publicEnv.AVAILABLE_SYSTEM_LANGUAGES) && publicEnv.AVAILABLE_SYSTEM_LANGUAGES.includes(systemLanguage.value) 
+			? systemLanguage.value 
+			: 'en'
 	);
 
 	// Package version
@@ -304,7 +308,7 @@ Features:
 			class="language-selector absolute bottom-1/4 left-1/2 -translate-x-1/2 transform transition-opacity duration-300"
 			class:opacity-50={isTransitioning}
 		>
-			{#if publicEnv.AVAILABLE_SYSTEM_LANGUAGES.length > 5}
+			{#if Array.isArray(publicEnv.AVAILABLE_SYSTEM_LANGUAGES) && publicEnv.AVAILABLE_SYSTEM_LANGUAGES.length > 5}
 				<div class="relative">
 					<!-- Current Language Display -->
 					<button

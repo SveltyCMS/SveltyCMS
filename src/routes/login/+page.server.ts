@@ -31,7 +31,6 @@ import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, s
 
 // Auth
 import { auth, dbInitPromise } from '@src/databases/db';
-import { contentManager } from '@src/content/ContentManager';
 import { generateGoogleAuthUrl, googleAuth } from '@src/auth/googleAuth';
 import { google } from 'googleapis';
 import type { User } from '@src/auth/types';
@@ -45,6 +44,7 @@ import { roles } from '@root/config/roles';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
+import { getFirstCollectionRedirectUrl } from '@utils/navigation';
 
 const limiter = new RateLimiter({
 	IP: [200, 'h'], // 200 requests per hour per IP
@@ -83,67 +83,9 @@ async function waitForAuthService(maxWaitMs: number = 10000): Promise<boolean> {
 }
 
 // Helper function to fetch and redirect to the first collection
+// Now uses centralized utility for consistency
 async function fetchAndRedirectToFirstCollection() {
-	try {
-		// Wait for system initialization including ContentManager
-		await dbInitPromise;
-		logger.debug('System ready, proceeding with collection retrieval');
-
-		// First try to get the first collection directly
-		const firstCollection = await contentManager.getFirstCollection();
-		if (firstCollection && firstCollection.path) {
-			const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
-			const redirectUrl = `/${defaultLanguage}${firstCollection.path}`;
-			logger.info(`Redirecting to first collection: ${firstCollection.name} (${firstCollection._id})`);
-			return redirectUrl;
-		}
-
-		// Fallback: Get content structure with UUIDs
-		let contentNodes = [];
-		try {
-			if (!contentManager) throw new Error('Content manager not initialized');
-			// ContentManager should already be initialized due to dbInitPromise
-			contentNodes = contentManager.getContentStructure();
-			if (!Array.isArray(contentNodes)) {
-				logger.warn('Content structure is not an array', { type: typeof contentNodes, value: contentNodes });
-				contentNodes = [];
-			}
-		} catch (dbError) {
-			logger.error('Failed to fetch content structure', dbError);
-			return '/';
-		}
-		if (!contentNodes?.length) {
-			logger.warn('No collections found in content structure');
-			return '/';
-		}
-
-		// Find first collection using nodeType - sort by order or name for consistency
-		const collections = contentNodes.filter((node) => node.nodeType === 'collection' && node._id);
-		if (collections.length > 0) {
-			// Sort collections by order field (if available) or by name for consistent selection
-			const sortedCollections = collections.sort((a, b) => {
-				if (a.order !== undefined && b.order !== undefined) {
-					return a.order - b.order;
-				}
-				return (a.name || '').localeCompare(b.name || '');
-			});
-
-			const firstCollectionNode = sortedCollections[0];
-			const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
-
-			// Use the collection's actual path if available, otherwise construct from _id
-			const collectionPath = firstCollectionNode.path || `/${firstCollectionNode._id}`;
-			const redirectUrl = `/${defaultLanguage}${collectionPath}`;
-
-			logger.info(`Redirecting to first collection from structure: ${firstCollectionNode.name} (${firstCollectionNode._id}) at path: ${collectionPath}`);
-			return redirectUrl;
-		}
-		logger.warn('No valid collections found');
-		return '/';
-	} catch (err) {
-		logger.error('Error in fetchAndRedirectToFirstCollection:', err);
-		return '/';
-	}
+	return await getFirstCollectionRedirectUrl();
 }
 
 // Cached version for performance optimization
@@ -215,7 +157,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		// Use the firstUserExists value from locals (set by hooks)
 		// This avoids race conditions during initialization
 		const firstUserExists = locals.isFirstUser === false;
-		logger.debug(`In load: firstUserExists determined as: ${firstUserExists} (based on locals.isFirstUser: ${locals.isFirstUser})`);
+		logger.debug(`In load: firstUserExists determined as: /x1b[34m${firstUserExists}\x1b[0m (based on locals.isFirstUser: /x1b[34m${locals.isFirstUser}\x1b[0m)`);
 
 		const code = url.searchParams.get('code');
 		logger.debug(`Authorization code from URL: ${code}`);
@@ -266,7 +208,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 						const emailProps = {
 							username: googleUser.name || user?.username || '',
 							email: email,
-							hostLink: publicEnv.HOST_LINK || `https://${request.headers.get('host')}`,
+							hostLink: publicEnv.HOST_PROD || `https://${request.headers.get('host')}`,
 							sitename: publicEnv.SITE_NAME || 'SveltyCMS'
 						};
 						try {
@@ -292,10 +234,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 						}
 						return [user, false];
 					} else {
-						if (!privateEnv.ALLOW_REGISTRATION) {
-							logger.warn(`OAuth: Registration for new user denied (ALLOW_REGISTRATION is false)`, { email });
-							throw new Error('New user registration via OAuth is currently disabled.');
-						}
+						// For non-first users, check if we should allow registration
+						// Since ALLOW_REGISTRATION is not configured, we'll allow it by default
 						const defaultRole = roles.find((role) => role.isDefault === true) || roles.find((role) => role._id === 'user');
 						if (!defaultRole) throw new Error('Default user role not found.');
 
@@ -312,7 +252,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 						const emailProps = {
 							username: googleUser.name || newUser?.username || '',
 							email: email,
-							hostLink: publicEnv.HOST_LINK || `https://${request.headers.get('host')}`,
+							hostLink: publicEnv.HOST_PROD || `https://${request.headers.get('host')}`,
 							sitename: publicEnv.SITE_NAME || 'SveltyCMS'
 						};
 						try {
@@ -460,17 +400,14 @@ export const actions: Actions = {
 				logger.info(`Attempting to finish registration for pre-registered user: ${username}`);
 				resp = await finishRegistration(username, email, password, token, event.cookies);
 			} else if (!existingUser && !isFirst) {
-				if (!privateEnv.ALLOW_REGISTRATION) {
-					logger.warn(`Registration attempt denied (ALLOW_REGISTRATION is false)`, { email });
-					return message(signUpForm, 'New user registration is currently disabled.', { status: 403 });
-				}
+				// Since ALLOW_REGISTRATION is not configured, we'll allow registration by default
 				logger.info(`Attempting to register new non-first user: ${username}`);
 				const defaultRole = roles.find((r) => r.isDefault) || roles.find((r) => r._id === 'user');
 				if (!defaultRole) throw new Error('Default role not found for new user registration.');
 
 				// Here, 'token' might be an invite token or unused if open registration.
 				// Add validation for 'token' if it's a required invite token.
-				// For this example, we assume if ALLOW_REGISTRATION is true, they can proceed.
+				// For this example, we allow registration by default.
 				// If your system requires a general invite token, validate it here.
 
 				const newUser = await auth.createUser({
@@ -494,7 +431,7 @@ export const actions: Actions = {
 				const emailProps = {
 					username: resp.user.username,
 					email: resp.user.email,
-					hostLink: publicEnv.HOST_LINK || `https://${event.request.headers.get('host')}`,
+					hostLink: publicEnv.HOST_PROD || `https://${event.request.headers.get('host')}`,
 					sitename: publicEnv.SITE_NAME || 'SveltyCMS'
 				};
 
@@ -551,7 +488,17 @@ export const actions: Actions = {
 		if (await limiter.isLimited(event)) {
 			return fail(429, { form, message: 'Too many requests.' });
 		}
-		const authUrl = await generateGoogleAuthUrl(null, 'none');
+		const authUrl = await generateGoogleAuthUrl(null, 'consent');
+		throw redirect(303, authUrl);
+	},
+
+	signInOAuth: async (event) => {
+		if (!privateEnv.USE_GOOGLE_OAUTH) throw redirect(303, '/login');
+		if (await limiter.isLimited(event)) {
+			return fail(429, { message: 'Too many requests.' });
+		}
+		// No prompt parameter for SignIn - should provide smoother experience for returning users
+		const authUrl = await generateGoogleAuthUrl(null, undefined);
 		throw redirect(303, authUrl);
 	},
 
@@ -710,7 +657,7 @@ export const actions: Actions = {
 				const emailProps = {
 					username: resp.username || email,
 					email: email,
-					hostLink: publicEnv.HOST_LINK || `https://${event.request.headers.get('host')}`,
+					hostLink: publicEnv.HOST_PROD || `https://${event.request.headers.get('host')}`,
 					sitename: publicEnv.SITE_NAME || 'SveltyCMS'
 				};
 				try {

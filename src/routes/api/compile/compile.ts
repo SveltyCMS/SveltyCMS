@@ -384,7 +384,7 @@ async function compileFile(
 		// Steps 4, 5, 6, 7 should happen *after* getting the initial finalCode
 
 		// 4. Apply AST transformations (replaces modifyTranspiledCode and addUUIDsToWidgetFields)
-		finalCode = transformCodeWithAST(finalCode);
+		finalCode = transformCodeWithAST(finalCode, uuid);
 
 		// 5. Inject Hash and determined UUID
 		// Ensure uuid is not null here. If it is, something went wrong in determination logic.
@@ -412,7 +412,7 @@ async function compileFile(
 // --- AST Transformation Functions ---
 const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
 
-function transformCodeWithAST(code: string): string {
+function transformCodeWithAST(code: string, uuid: string): string {
 	const sourceFile = ts.createSourceFile(
 		'tempFile.js', // Temporary file name for parsing
 		code,
@@ -422,6 +422,7 @@ function transformCodeWithAST(code: string): string {
 	);
 
 	const transformationResult = ts.transform(sourceFile, [
+		(context) => schemaUuidTransformer(context, uuid), // Inject UUID into schema
 		widgetTransformer, // Apply custom transformations
 		addJsExtensionTransformer, // Add .js extensions
 		commonjsToEsModuleTransformer // Replace __filename and __dirname
@@ -608,6 +609,48 @@ const commonjsToEsModuleTransformer: ts.TransformerFactory<ts.SourceFile> = (con
 		}
 
 		return transformedFile;
+	};
+};
+
+// Transformer factory for injecting UUID into schema object
+const schemaUuidTransformer: (context: ts.TransformationContext, uuid: string) => ts.TransformerFactory<ts.SourceFile> = (context, uuid) => {
+	return (sourceFile) => {
+		const visitor = (node: ts.Node): ts.VisitResult<ts.Node> => {
+			// Look for object literals that might be schema objects
+			if (ts.isObjectLiteralExpression(node)) {
+				// Check if this object has properties that suggest it's a schema (like 'icon', 'fields', 'status', etc.)
+				const hasSchemaProperties = node.properties.some(prop =>
+					ts.isPropertyAssignment(prop) &&
+					ts.isIdentifier(prop.name) &&
+					['fields', 'icon', 'status', 'revision', 'livePreview'].includes(prop.name.text)
+				);
+
+				if (hasSchemaProperties) {
+					// Check if _id property already exists
+					const hasIdProperty = node.properties.some(prop =>
+						ts.isPropertyAssignment(prop) &&
+						ts.isIdentifier(prop.name) &&
+						prop.name.text === '_id'
+					);
+
+					if (!hasIdProperty) {
+						// Inject _id property with the UUID
+						const idProperty = ts.factory.createPropertyAssignment(
+							ts.factory.createIdentifier('_id'),
+							ts.factory.createStringLiteral(uuid)
+						);
+
+						// Add _id as the first property
+						const newProperties = [idProperty, ...node.properties];
+						return ts.factory.updateObjectLiteralExpression(node, newProperties);
+					}
+				}
+			}
+
+			return ts.visitEachChild(node, visitor, context);
+		};
+
+		return ts.visitNode(sourceFile, visitor) as ts.SourceFile;
 	};
 };
 

@@ -41,6 +41,9 @@ Features:
 	import * as m from '@src/paraglide/messages';
 	import OauthLogin from './OauthLogin.svelte';
 
+	// Screen size store
+	import { isMobile } from '@stores/screenSizeStore.svelte';
+
 	// Props
 	const {
 		active = $bindable(undefined),
@@ -365,11 +368,13 @@ Features:
 	{#if active === 0}
 		<!-- Background pattern  -->
 		<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
-			<div class="absolute inset-0">
-				<FloatingPaths position={-1} background="white" />
+			{#if !isMobile.value}
+				<div class="absolute inset-0">
+					<FloatingPaths position={-1} background="white" />
 
-				<FloatingPaths position={1} background="white" />
-			</div>
+					<FloatingPaths position={1} background="white" />
+				</div>
+			{/if}
 			>
 
 			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block">

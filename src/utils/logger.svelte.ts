@@ -81,7 +81,7 @@ const config = $state({
 	sourceFileTracking: ['fatal', 'error'] as LogLevel[],
 	masking: {
 		sensitiveKeys: ['password', 'secret', 'token', 'key'],
-		emailKeys: ['email', 'mail'],
+		emailKeys: ['email', 'mail', 'createdby', 'updatedby', 'user'],
 		customMasks: {} as Record<string, (value: string) => string>
 	} as MaskingConfig
 });
@@ -113,6 +113,11 @@ const getTimestamp = (): string => {
 function safeExecute(fn: () => Promise<void>) {
 	if (isServer && !building) {
 		fn().catch((err) => {
+			// Check if this is a Vite module runner error during HMR/restart
+			if (err instanceof Error && err.message.includes('Vite module runner has been closed')) {
+				// Silently ignore - this happens during HMR or when dev server restarts
+				return;
+			}
 			// Use console.error directly to avoid recursive logging errors
 			console.error('Error in logger function:', err);
 		});
@@ -449,12 +454,18 @@ if (isServer && !building) {
 	safeExecute(boundInitializeLogFile);
 	safeExecute(boundCheckAndRotateLogFile);
 
-	// Set up recurring tasks
+	// Set up recurring tasks with better error handling
 	const rotationInterval = setInterval(() => safeExecute(boundCheckAndRotateLogFile), config.logRotationInterval);
 	const dailyCleanupInterval = setInterval(() => safeExecute(boundCleanOldLogFiles), 24 * 60 * 60 * 1000); // Every 24 hours
 
+	// Store intervals globally for cleanup during HMR
+	if (typeof globalThis !== 'undefined') {
+		// @ts-expect-error - Adding custom property for HMR cleanup
+		globalThis.__sveltyCMSLoggerIntervals = [rotationInterval, dailyCleanupInterval];
+	}
+
 	// Graceful shutdown
-	process.on('exit', () => {
+	const cleanup = () => {
 		clearInterval(rotationInterval);
 		clearInterval(dailyCleanupInterval);
 		if (serverFileOps._logStream) {
@@ -464,7 +475,18 @@ if (isServer && !building) {
 			}
 			serverFileOps._logStream.end();
 		}
-	});
+	};
+
+	process.on('exit', cleanup);
+	process.on('SIGINT', cleanup);
+	process.on('SIGTERM', cleanup);
+
+	// Clean up any existing intervals from previous HMR cycles
+	// @ts-expect-error - Checking custom property for HMR cleanup
+	if (globalThis.__sveltyCMSLoggerIntervals) {
+		// @ts-expect-error - Accessing custom property for HMR cleanup
+		globalThis.__sveltyCMSLoggerIntervals.forEach(clearInterval);
+	}
 }
 
 // Core Logger Function

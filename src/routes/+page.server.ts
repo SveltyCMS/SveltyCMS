@@ -9,10 +9,9 @@
  * - Throws an error if there are no collections *
  */
 
-import { publicEnv } from '@root/config/public';
 import { redirect, error } from '@sveltejs/kit';
-import { contentManager } from '@src/content/ContentManager';
 import { dbInitPromise } from '@src/databases/db';
+import { getFirstCollectionRedirectUrl } from '@utils/navigation';
 
 import type { PageServerLoad } from './$types';
 
@@ -31,29 +30,15 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		await dbInitPromise;
 		logger.debug('System is ready, proceeding with page load.');
 
-		// Now ContentManager is guaranteed to be initialized and have loaded initial data
-		const collection = await contentManager.getFirstCollection();
-
-		// If there are no collections, throw a 404 error
-		if (!collection) {
-			logger.error('No collections available for redirection');
-			throw error(404, 'No collections found');
-		}
-
 		// If the current route is not the root route, simply return the user data
 		if (url.pathname !== '/') {
 			logger.debug(`Already on route ${url.pathname}`);
 			return { user: locals.user, permissions: locals.permissions };
 		}
 
-		// Get the first collection and use its UUID
+		// Get the first collection redirect URL using centralized utility
 		if (url.pathname === '/') {
-			const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
-			if (!collection) throw new Error('No First collections found');
-
-			// Construct redirect URL using UUID instead of name
-			const redirectUrl = `/${defaultLanguage}${collection.path}`;
-
+			const redirectUrl = await getFirstCollectionRedirectUrl();
 			logger.info(`Redirecting to \x1b[34m${redirectUrl}\x1b[0m`);
 			throw redirect(302, redirectUrl);
 		}

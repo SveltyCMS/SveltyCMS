@@ -86,20 +86,32 @@ Features:
 	let selectedSystemVirtualFolder = $state<string | null>(null);
 	let hasLoadedSystemVirtualFolders = $state(false);
 
-	// Derived states
-	let nestedStructure = $derived(constructNestedStructure(contentStructure.value));
+	// Derived states with memoization
+	let lastContentStructure: any = null;
+	let cachedNestedStructure: ExtendedContentNode[] = [];
+
+	let nestedStructure = $derived.by(() => {
+		// Only recalculate if content structure actually changed
+		if (contentStructure.value !== lastContentStructure) {
+			lastContentStructure = contentStructure.value;
+			cachedNestedStructure = constructNestedStructure(contentStructure.value);
+		}
+		return cachedNestedStructure;
+	});
+
 	let isMediaMode = $derived(mode.value === 'media');
 	let isFullSidebar = $derived(uiStateManager.uiState.leftSidebar === 'full');
 
-	// Debounced search effect
+	// Optimized debounced search effect
 	$effect(() => {
 		if (searchDebounceTimer) {
 			clearTimeout(searchDebounceTimer);
 		}
 
+		// Use shorter debounce for better responsiveness
 		searchDebounceTimer = setTimeout(() => {
 			debouncedSearch = search.toLowerCase().trim();
-		}, 300);
+		}, 150);
 
 		return () => {
 			if (searchDebounceTimer) {
@@ -108,17 +120,18 @@ Features:
 		};
 	});
 
-	// Collection counting with caching
-	const collectionCountCache = new Map<string, number>();
+	// Collection counting with persistent caching
+	let collectionCountCache = new Map<string, number>();
 
 	function countAllCollections(node: ExtendedContentNode): number {
-		if (collectionCountCache.has(node._id)) {
-			return collectionCountCache.get(node._id)!;
+		const cacheKey = node._id;
+		if (collectionCountCache.has(cacheKey)) {
+			return collectionCountCache.get(cacheKey)!;
 		}
 
 		let count = 0;
 		if (!node.children) {
-			collectionCountCache.set(node._id, 0);
+			collectionCountCache.set(cacheKey, 0);
 			return 0;
 		}
 
@@ -130,12 +143,39 @@ Features:
 			}
 		}
 
-		collectionCountCache.set(node._id, count);
+		collectionCountCache.set(cacheKey, count);
 		return count;
 	}
 
-	// Node mapping with better performance
+	// Clear cache when content structure changes
+	function clearCountCache() {
+		collectionCountCache.clear();
+	}
+
+	// Optimized node mapping with memoization
+	let cachedCollectionNodes: CollectionTreeNode[] = [];
+	let lastStructureVersion = '';
+
 	let collectionStructureNodes: CollectionTreeNode[] = $derived.by(() => {
+		// Create a version hash to detect real changes
+		const currentVersion = JSON.stringify({
+			structure: nestedStructure.map((n) => ({ id: n._id, name: n.name, nodeType: n.nodeType })),
+			language: contentLanguage.value,
+			selectedCollection: collection.value?._id,
+			expandedNodes: Array.from(expandedNodes).sort()
+		});
+
+		// Return cached version if nothing meaningful changed
+		if (currentVersion === lastStructureVersion && cachedCollectionNodes.length > 0) {
+			return cachedCollectionNodes;
+		}
+
+		// Clear count cache only when structure actually changes
+		if (currentVersion !== lastStructureVersion) {
+			clearCountCache();
+			lastStructureVersion = currentVersion;
+		}
+
 		function mapNode(node: ExtendedContentNode, depth = 0): CollectionTreeNode {
 			const isCategory = node.nodeType === 'category';
 			// Get translation for current language or fallback to default name
@@ -150,13 +190,13 @@ Features:
 				children = node.children.map((child) => mapNode(child, depth + 1));
 			}
 
-			// Add badge
+			// Add badge only for categories to reduce overhead
 			const badge = isCategory
 				? {
 						count: countAllCollections(node),
-						visible: true, // Always show badges for categories
+						visible: true,
 						status: node.status,
-						color: isExpanded ? 'bg-surface-400' : getStatusColor(node.status) // Grey when expanded
+						color: isExpanded ? 'bg-surface-400' : getStatusColor(node.status)
 					}
 				: undefined;
 
@@ -173,7 +213,9 @@ Features:
 			};
 		}
 
-		return nestedStructure.map((node) => mapNode(node));
+		// Cache the result
+		cachedCollectionNodes = nestedStructure.map((node) => mapNode(node));
+		return cachedCollectionNodes;
 	});
 
 	// Get status color for badges
@@ -310,14 +352,35 @@ Features:
 		console.log('Virtual folder selected:', folderId);
 	}
 
-	// Collection selection with better navigation
+	// Optimized collection selection with debouncing
+	let navigationTimeout: ReturnType<typeof setTimeout> | undefined;
+
 	function handleCollectionSelect(selectedCollection: ExtendedContentNode | Schema) {
+		// Clear any pending navigation
+		if (navigationTimeout) {
+			clearTimeout(navigationTimeout);
+		}
+
 		if ('nodeType' in selectedCollection) {
 			if (selectedCollection.nodeType === 'collection') {
+				// Check if this collection is already selected to avoid unnecessary navigation
+				const currentCollectionId = collection.value?._id;
+				const isAlreadySelected = currentCollectionId === selectedCollection._id;
+
+				if (isAlreadySelected) {
+					console.log(`[Collections] Collection ${selectedCollection.name} is already selected, skipping navigation`);
+					return;
+				}
+
+				// Immediately update UI state for responsiveness
 				mode.set('view');
 				collection.set(null);
-				goto(`/${contentLanguage.value}${selectedCollection.path?.toString()}`);
 				shouldShowNextButton.set(true);
+
+				// Debounce the actual navigation slightly to prevent rapid clicks
+				navigationTimeout = setTimeout(() => {
+					goto(`/${contentLanguage.value}${selectedCollection.path?.toString()}`);
+				}, 50);
 			} else if (selectedCollection.nodeType === 'category') {
 				toggleNodeExpansion(selectedCollection._id);
 			}
@@ -346,52 +409,6 @@ Features:
 			expandedNodes.delete(nodeId);
 		} else {
 			expandedNodes.add(nodeId);
-		}
-	}
-
-	// Function to reorder folders
-	async function reorderFolders(parentId: string | null, folderId: string, direction: 'up' | 'down') {
-		try {
-			// Get siblings at the same level
-			const siblings = systemVirtualFolderNodes[0]?.children || [];
-			const currentIndex = siblings.findIndex((node) => node.id === folderId);
-
-			if (currentIndex === -1) return;
-
-			const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-
-			// Check bounds
-			if (newIndex < 0 || newIndex >= siblings.length) return;
-
-			// Create order updates for affected folders
-			const orderUpdates = [];
-
-			// Swap the orders
-			const currentOrder = siblings[currentIndex].order || currentIndex;
-			const targetOrder = siblings[newIndex].order || newIndex;
-
-			orderUpdates.push({ folderId: siblings[currentIndex].id, order: targetOrder });
-			orderUpdates.push({ folderId: siblings[newIndex].id, order: currentOrder });
-
-			// Send reorder request
-			const response = await fetch('/api/systemVirtualFolder', {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					action: 'reorder',
-					parentId: parentId,
-					orderUpdates: orderUpdates
-				})
-			});
-
-			if (response.ok) {
-				// Refresh the folder list to show the new order
-				refreshSystemVirtualFolders();
-			} else {
-				throw new Error('Failed to reorder folders');
-			}
-		} catch (error) {
-			console.error('Error reordering folders:', error);
 		}
 	}
 
@@ -587,6 +604,9 @@ Features:
 			if (searchDebounceTimer) {
 				clearTimeout(searchDebounceTimer);
 			}
+			if (navigationTimeout) {
+				clearTimeout(navigationTimeout);
+			}
 		};
 	});
 </script>
@@ -642,7 +662,7 @@ Features:
 			<TreeView
 				k={0}
 				nodes={collectionStructureNodes}
-				selectedId={collection.value?._id ?? undefined}
+				selectedId={collection.value?._id ?? null}
 				compact={!isFullSidebar}
 				search={debouncedSearch}
 				iconColorClass="text-error-500"
