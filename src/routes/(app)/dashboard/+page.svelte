@@ -20,7 +20,7 @@
 
 	// Stores
 	import { systemPreferences } from '@stores/systemPreferences.svelte';
-	import { ScreenSize } from '@stores/screenSizeStore.svelte';
+	import { ScreenSize, screenSize } from '@stores/screenSizeStore.svelte';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -144,6 +144,105 @@
 	let currentTheme = $derived($modeCurrent ? 'light' : 'dark');
 	let availableWidgets = $derived(Object.keys(widgetComponentRegistry).filter((name) => !items.some((item) => item.component === name)));
 	let canAddMoreWidgets = $derived(availableWidgets.length > 0);
+
+	// Track the current screen size
+	let currentScreenSize = $screenSize;
+
+	// UI state for error and layout switching hint
+	let loadError = $state<string | null>(null);
+	let layoutHint = $state<string | null>(null);
+
+	// Helper: Validate widgets
+	function validateWidgets(widgets: any[]): DashboardWidgetConfig[] {
+		return (widgets || []).filter((w) => w && w.id && w.component && w.size && typeof w.gridPosition === 'number');
+	}
+
+	// Watch for screen size changes and switch layout if a saved layout exists
+	$effect(() => {
+		const prefsState = $systemPreferences;
+		const widgetsForNewSize = validateWidgets(prefsState?.preferences?.[$screenSize] || []);
+		if (preferencesLoaded && currentScreenSize === undefined) {
+			// First load: fallback to any available layout if none for current screen size
+			if (widgetsForNewSize.length > 0) {
+				layoutHint = null;
+				items = widgetsForNewSize.map((existingWidget, index) => {
+					const componentInfo = widgetComponentRegistry[existingWidget.component as keyof typeof widgetComponentRegistry];
+					let defaultSize: WidgetSize = '1/4';
+					if (existingWidget.component === 'LogsWidget') defaultSize = '1/2';
+					else {
+						if (index === 1) defaultSize = '1/2';
+						if (index === 2) defaultSize = '3/4';
+						if (index === 3) defaultSize = 'full';
+					}
+					return {
+						id: existingWidget.id || crypto.randomUUID(),
+						component: existingWidget.component,
+						label: existingWidget.label || componentInfo?.name || 'Unknown Widget',
+						icon: existingWidget.icon || componentInfo?.icon || 'mdi:help-circle',
+						size: existingWidget.size || defaultSize,
+						gridPosition: index
+					};
+				});
+				items = recalculateGridPositions();
+				currentScreenSize = $screenSize;
+			} else {
+				// Try to find a layout for any other screen size
+				const availableSizes = Object.keys(prefsState?.preferences || {}) as string[];
+				const fallbackSize = availableSizes.find((size) => validateWidgets(prefsState?.preferences?.[size]).length > 0);
+				if (fallbackSize) {
+					layoutHint = `Showing layout for ${fallbackSize} (no layout for ${$screenSize})`;
+					const fallbackWidgets = validateWidgets(prefsState.preferences[fallbackSize]);
+					// Copy fallback layout to current screen size for independent customization
+					prefsState.preferences[$screenSize] = fallbackWidgets.map((w) => ({ ...w, id: crypto.randomUUID() }));
+					items = fallbackWidgets.map((existingWidget, index) => {
+						const componentInfo = widgetComponentRegistry[existingWidget.component as keyof typeof widgetComponentRegistry];
+						let defaultSize: WidgetSize = '1/4';
+						if (existingWidget.component === 'LogsWidget') defaultSize = '1/2';
+						else {
+							if (index === 1) defaultSize = '1/2';
+							if (index === 2) defaultSize = '3/4';
+							if (index === 3) defaultSize = 'full';
+						}
+						return {
+							id: existingWidget.id || crypto.randomUUID(),
+							component: existingWidget.component,
+							label: existingWidget.label || componentInfo?.name || 'Unknown Widget',
+							icon: existingWidget.icon || componentInfo?.icon || 'mdi:help-circle',
+							size: existingWidget.size || defaultSize,
+							gridPosition: index
+						};
+					});
+					items = recalculateGridPositions();
+					currentScreenSize = $screenSize;
+				}
+			}
+		} else if (preferencesLoaded && $screenSize !== currentScreenSize) {
+			if (widgetsForNewSize.length > 0) {
+				layoutHint = null;
+				items = widgetsForNewSize.map((existingWidget, index) => {
+					const componentInfo = widgetComponentRegistry[existingWidget.component as keyof typeof widgetComponentRegistry];
+					let defaultSize: WidgetSize = '1/4';
+					if (existingWidget.component === 'LogsWidget') defaultSize = '1/2';
+					else {
+						if (index === 1) defaultSize = '1/2';
+						if (index === 2) defaultSize = '3/4';
+						if (index === 3) defaultSize = 'full';
+					}
+					return {
+						id: existingWidget.id || crypto.randomUUID(),
+						component: existingWidget.component,
+						label: existingWidget.label || componentInfo?.name || 'Unknown Widget',
+						icon: existingWidget.icon || componentInfo?.icon || 'mdi:help-circle',
+						size: existingWidget.size || defaultSize,
+						gridPosition: index
+					};
+				});
+				items = recalculateGridPositions();
+				currentScreenSize = $screenSize;
+				layoutHint = `Switched to layout for ${$screenSize}`;
+			}
+		}
+	});
 
 	// Utility functions with improved type safety
 	function getColumnSpan(size: WidgetSize): number {
@@ -708,28 +807,18 @@
 	// Lifecycle and data management
 	onMount(async () => {
 		try {
-			console.log('Loading preferences for user:', pageData.user.id);
 			await systemPreferences.loadPreferences(pageData.user.id);
 			const prefsState = $systemPreferences;
-			console.log('Loaded preferences state:', prefsState);
-
-			// Get widgets for medium screen size (MD)
-			const loadedWidgets = prefsState.preferences?.[ScreenSize.MD] || [];
-			console.log('Loaded widgets for MD screen size:', loadedWidgets);
-
-			// Convert WidgetPreference to DashboardWidgetConfig
-			items = loadedWidgets.map((existingWidget: any, index: number): DashboardWidgetConfig => {
+			const loadedWidgets = validateWidgets(prefsState?.preferences?.[ScreenSize.MD] || []);
+			items = loadedWidgets.map((existingWidget, index) => {
 				const componentInfo = widgetComponentRegistry[existingWidget.component as keyof typeof widgetComponentRegistry];
 				let defaultSize: WidgetSize = '1/4';
-
-				if (existingWidget.component === 'LogsWidget') {
-					defaultSize = '1/2';
-				} else {
+				if (existingWidget.component === 'LogsWidget') defaultSize = '1/2';
+				else {
 					if (index === 1) defaultSize = '1/2';
 					if (index === 2) defaultSize = '3/4';
 					if (index === 3) defaultSize = 'full';
 				}
-
 				return {
 					id: existingWidget.id || crypto.randomUUID(),
 					component: existingWidget.component,
@@ -739,14 +828,12 @@
 					gridPosition: index
 				};
 			});
-
-			console.log('Converted items:', items);
 			items = recalculateGridPositions();
+			loadError = null;
 		} catch (error) {
-			console.error('Failed to load preferences:', error);
 			items = [];
+			loadError = 'Failed to load dashboard preferences. Please try again.';
 		}
-
 		preferencesLoaded = true;
 		document.addEventListener('keydown', handleKeyDown);
 
@@ -758,9 +845,6 @@
 
 	async function saveLayout() {
 		try {
-			console.log('Saving layout for user:', pageData.user.id);
-			console.log('Current items to save:', items);
-
 			// Convert DashboardWidgetConfig to WidgetPreference format
 			const widgetPreferences = items.map((item) => ({
 				id: item.id,
@@ -778,12 +862,8 @@
 				resizable: true
 			}));
 
-			console.log('Converted widget preferences:', widgetPreferences);
 			await systemPreferences.setPreference(pageData.user.id, ScreenSize.MD, widgetPreferences);
-			console.log('Layout saved successfully');
-		} catch (error) {
-			console.error('Failed to save layout:', error);
-		}
+		} catch (error) {}
 	}
 </script>
 
@@ -853,6 +933,19 @@
 				<iconify-icon icon="ri:arrow-left-line" width="20"></iconify-icon>
 			</button>
 		</div>
+		{#if loadError}
+			<div class="flex w-full items-center gap-2 rounded bg-error-100 p-2 text-error-700 dark:bg-error-900 dark:text-error-200">
+				<iconify-icon icon="mdi:alert-circle" width="20"></iconify-icon>
+				<span>{loadError}</span>
+				<button class="btn-xs variant-outline-error btn ml-auto" onclick={() => location.reload()}>Retry</button>
+			</div>
+		{/if}
+		{#if layoutHint}
+			<div class="bg-info-100 text-info-700 dark:bg-info-900 dark:text-info-200 flex w-full items-center gap-2 rounded p-2">
+				<iconify-icon icon="mdi:monitor-dashboard" width="20"></iconify-icon>
+				<span>{layoutHint}</span>
+			</div>
+		{/if}
 	</header>
 
 	<div class="relative m-0 w-full p-0">

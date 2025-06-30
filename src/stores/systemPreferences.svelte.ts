@@ -9,8 +9,8 @@
  * - TypeScript support with custom WidgetPreference type
  */
 
-import { store } from '@utils/reactivity.svelte';
 import { ScreenSize } from '@stores/screenSizeStore.svelte';
+import { store } from '@utils/reactivity.svelte';
 
 // Widget preference interface
 export interface WidgetPreference {
@@ -75,14 +75,15 @@ function createPreferencesStores() {
 
 	// Helper function to get widgets for a specific screen size
 	function getScreenSizeWidgets(size: ScreenSize): WidgetPreference[] {
-		return state().preferences[size];
+		const widgets = state().preferences[size] || [];
+		return widgets.filter((w) => w && w.id && w.component && w.size && typeof w.gridPosition === 'number');
 	}
 
 	// Load preferences from server API and update store
 	async function loadPreferences(userId: string) {
 		state.update((s) => ({ ...s, isLoading: true, error: null, currentUserId: userId }));
 		try {
-			const res = await fetch('/api/systemPreferences', { method: 'GET' }); // Ensure your API endpoint matches
+			const res = await fetch(`/api/systemPreferences?userId=${encodeURIComponent(userId)}`, { method: 'GET' });
 			if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
 
 			const apiResponse = await res.json();
@@ -117,7 +118,7 @@ function createPreferencesStores() {
 			await fetch('/api/systemPreferences', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ preferences: state().preferences })
+				body: JSON.stringify({ userId, preferences: state().preferences })
 			});
 		} catch (e) {
 			console.error('Failed to persist preferences:', e);
@@ -142,7 +143,7 @@ function createPreferencesStores() {
 			await fetch('/api/systemPreferences', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ preferences: emptyPreferences })
+				body: JSON.stringify({ userId, preferences: emptyPreferences })
 			});
 		} catch (e) {
 			console.error('Failed to persist cleared preferences:', e);
