@@ -22,7 +22,7 @@ import { systemLanguage } from '@stores/store.svelte';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-import { generateGoogleAuthUrl } from '@src/auth/googleAuth';
+import { generateGoogleAuthUrl, getOAuthRedirectUri } from '@src/auth/googleAuth';
 
 // Import roles
 import { roles } from '@root/config/roles';
@@ -112,6 +112,12 @@ async function handleGoogleUser(
 
 	// Check if user exists
 	let user = await auth?.checkUser({ email });
+
+	logger.debug(`OAuth user lookup for email: ${email}`);
+	logger.debug(`User found: ${user ? 'YES' : 'NO'}`);
+	if (user) {
+		logger.debug(`Existing user ID: ${user._id}, username: ${user.username}`);
+	}
 
 	if (!user) {
 		// Only require token for new users (not first user)
@@ -273,10 +279,11 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
 			// Import and get the private config directly
 			const { privateEnv } = await import('@root/config/private');
-			const { dev } = await import('$app/environment');
 
 			// Create a fresh OAuth client instance specifically for token exchange
-			const redirectUri = `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`;
+			// Use the same environment detection logic as the OAuth URL generation
+			const redirectUri = getOAuthRedirectUri();
+
 			logger.debug(`Creating OAuth client with redirect URI: ${redirectUri}`);
 			logger.debug(`Client ID: ${privateEnv.GOOGLE_CLIENT_ID?.substring(0, 20)}...`);
 

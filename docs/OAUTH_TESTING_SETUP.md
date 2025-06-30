@@ -51,7 +51,21 @@ bun dev
 # OAuth redirect URI: http://localhost:5173/login/oauth
 ```
 
-**Important:** Always test OAuth with `bun dev` as it uses the correct localhost redirect URI.
+**Use preview server for production testing:**
+
+```bash
+# Preview server (port 4173) - For testing production builds
+bun build && bun preview
+# Navigate to: http://localhost:4173/login
+# OAuth redirect URI: http://localhost:4173/login/oauth (automatically detected)
+```
+
+**Important:**
+
+- The system automatically detects the environment and uses the correct redirect URI
+- `bun dev` uses `HOST_DEV` (http://localhost:5173)
+- `bun preview` uses localhost:4173 (auto-detected)
+- Production uses `HOST_PROD` (your actual domain)
 
 **For GitHub Actions:** The automated tests use mock OAuth responses and run against the built application (port 4173) in CI/CD.
 

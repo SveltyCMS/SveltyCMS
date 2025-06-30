@@ -24,8 +24,11 @@ export async function getFirstCollectionRedirectUrl(): Promise<string> {
         const firstCollection = await contentManager.getFirstCollection();
         if (firstCollection && firstCollection.path) {
             const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+
+            // Use the collection's path for user-friendly URLs
             const redirectUrl = `/${defaultLanguage}${firstCollection.path}`;
-            logger.info(`Redirecting to first collection: ${firstCollection.name} (${firstCollection._id})`);
+
+            logger.info(`Redirecting to first collection: ${firstCollection.name} (${firstCollection._id}) at path: ${firstCollection.path}`);
             return redirectUrl;
         }
 
