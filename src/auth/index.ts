@@ -105,19 +105,19 @@ export class Auth {
 	hasPermission(user: User, permissionId: string): boolean {
 		const userRole = this.getRoleById(user.role);
 		if (!userRole) {
-			logger.warn(`Role not found for user: \x1b[34m${user.email}\x1b[0m`);
+			logger.warn('Role not found for user', { email: user.email });
 			return false;
 		}
 
 		// ADMIN OVERRIDE: Admins automatically have ALL permissions
 		if (userRole.isAdmin) {
-			logger.debug(`Admin user \x1b[34m${user.email}\x1b[0m granted permission: \x1b[34m${permissionId}\x1b[0m`);
+			logger.debug('Admin user granted permission', { email: user.email, permissionId });
 			return true;
 		}
 
 		// Check if user's role has the specific permission
 		const hasPermission = userRole.permissions.includes(permissionId);
-		logger.debug(`Permission ${permissionId} ${hasPermission ? 'granted' : 'denied'} for user: \x1b[34m${user.email}\x1b[0m`);
+		logger.debug('Permission check for user', { permissionId, granted: hasPermission, email: user.email });
 		return hasPermission;
 	}
 
@@ -128,7 +128,7 @@ export class Auth {
 
 		// ADMIN OVERRIDE: Admins automatically have ALL permissions
 		if (userRole.isAdmin) {
-			logger.debug(`Admin user \x1b[34m${user.email}\x1b[0m granted permission for action: \x1b[34m${action}\x1b[0m, type: \x1b[34m${type}\x1b[0m`);
+			logger.debug('Admin user granted permission for action', { email: user.email, action, type });
 			return true;
 		}
 

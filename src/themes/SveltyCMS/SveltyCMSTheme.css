@@ -76,6 +76,19 @@ body {
 	@apply focus:bg-gradient-to-br focus:from-yellow-600 focus:via-yellow-500 focus:to-yellow-300 dark:focus:bg-gradient-to-br dark:focus:from-yellow-700 dark:focus:via-yellow-600 dark:focus:to-yellow-300;
 }
 
+/* warning */
+.gradient-warning {
+	@apply bg-gradient-to-br from-warning-600 via-warning-500 to-warning-300 dark:bg-gradient-to-br dark:from-warning-700 dark:via-warning-600 dark:to-warning-300;
+}
+
+.gradient-warning-hover {
+	@apply hover:bg-gradient-to-br hover:from-warning-600 hover:via-warning-500 hover:to-warning-300 dark:hover:bg-gradient-to-br dark:hover:from-warning-700 dark:hover:via-warning-600 dark:hover:to-warning-300;
+}
+
+.gradient-warning-focus {
+	@apply focus:bg-gradient-to-br focus:from-warning-600 focus:via-warning-500 focus:to-warning-300 dark:focus:bg-gradient-to-br dark:focus:from-warning-700 dark:focus:via-warning-600 dark:focus:to-warning-300;
+}
+
 /* pink */
 .gradient-pink {
 	@apply bg-gradient-to-br from-pink-700 via-pink-600 to-pink-400 dark:bg-gradient-to-br dark:from-pink-700 dark:via-pink-600 dark:to-pink-300;

@@ -4,7 +4,28 @@
 **This page is used to display the media gallery page**
 
 This page displays a collection of media files, such as images, documents, audio, and video.
-It provides a user-friendly interface for searching, filtering, and navigating through media files.
+It p			if (result.success) {
+				// Refetch all folders
+				allSystemVirtualFolders = await fetchUpdatedSystemVirtualFolders();
+				// Update current view
+				const parent = currentSystemVirtualFolder?._id ?? null;
+				systemVirtualFolders = allSystemVirtualFolders.filter((f) => f.parentId === parent);
+				
+				// Dispatch event to notify Collections component
+				const event = new CustomEvent('folderCreated', {
+					detail: { 
+						folder: result.folder,
+						parentId: parentId
+					}
+				});
+				document.dispatchEvent(event);
+				
+				toastStore.trigger({
+					message: 'Folder created successfully!',
+					background: 'variant-filled-success',
+					timeout: 3000
+				});
+			} else {er-friendly interface for searching, filtering, and navigating through media files.
 
 ### Props:
 - `mediaType` {MediaTypeEnum} - The type of media files to display.
@@ -53,15 +74,16 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 		data?: {
 			user: { _id: string; email: string; role: string } | undefined;
 			media: MediaBase[];
-			virtualFolders: SystemVirtualFolder[];
+			systemVirtualFolders: SystemVirtualFolder[];
 			currentFolder: SystemVirtualFolder | null; // Add currentFolder from load data
 		};
 	}>();
 
 	// State using runes
 	let files = $state<MediaImage[]>([]);
-	let folders = $state<SystemVirtualFolder[]>([]);
-	let currentFolder = $state<SystemVirtualFolder | null>(null);
+	let allSystemVirtualFolders = $state<SystemVirtualFolder[]>([]);
+	let systemVirtualFolders = $state<SystemVirtualFolder[]>([]);
+	let currentSystemVirtualFolder = $state<SystemVirtualFolder | null>(null);
 	let breadcrumb = $state<string[]>([]);
 
 	let globalSearchValue = $state('');
@@ -102,14 +124,27 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 		})
 	);
 
-	// Computed folders for breadcrumb
-	let breadcrumbFolders = $derived(
-		folders.map((folder) => ({
-			_id: folder._id,
-			name: folder.name,
-			path: Array.isArray(folder.path) ? folder.path : folder.path.split('/')
-		}))
-	);
+	// Computed folders for breadcrumb - create a mapping of breadcrumb paths to folder IDs
+	let breadcrumbFolders = $derived(() => {
+		if (!currentSystemVirtualFolder) return [];
+
+		const folders: { _id: string; name: string; path: string[] }[] = [];
+		let current: SystemVirtualFolder | null = currentSystemVirtualFolder;
+		const pathSegments: string[] = [];
+
+		while (current) {
+			pathSegments.unshift(current.name);
+			folders.unshift({
+				_id: current._id,
+				name: current.name,
+				path: [...pathSegments] // Copy the current path
+			});
+			// Find the parent folder
+			current = allSystemVirtualFolders.find((f) => f._id === current?.parentId) || null;
+		}
+
+		return folders;
+	});
 
 	// Handle user preferences
 	function storeUserPreference(view: 'grid' | 'table', gridSize: 'small' | 'medium' | 'large', tableSize: 'small' | 'medium' | 'large') {
@@ -124,12 +159,21 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	$effect(() => {
 		mode.set('media');
 
-		if (data && data.virtualFolders) {
-			folders = data.virtualFolders.map((folder: SystemVirtualFolder) => ({
+		if (data && data.systemVirtualFolders) {
+			systemVirtualFolders = data.systemVirtualFolders.map((folder: SystemVirtualFolder) => ({
 				...folder,
 				path: Array.isArray(folder.path) ? folder.path : folder.path?.split('/')
 			}));
 		}
+
+		// Fetch all folders for navigation and breadcrumbs
+		fetchUpdatedSystemVirtualFolders().then((all) => {
+			allSystemVirtualFolders = all;
+			// If we are at the root, update `folders` to be the top-level folders from the full list.
+			if (!currentSystemVirtualFolder) {
+				systemVirtualFolders = allSystemVirtualFolders.filter((f) => !f.parentId);
+			}
+		});
 
 		if (data && data.media) {
 			files = data.media;
@@ -143,19 +187,52 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 			gridSize = preferredGridSize as 'small' | 'medium' | 'large';
 			tableSize = preferredTableSize as 'small' | 'medium' | 'large';
 		}
-	});
 
+		// Listen for folder selection events from the Collections sidebar
+		const handleSystemVirtualFolderSelected = (event: CustomEvent) => {
+			console.log('System virtual folder selected event received:', event.detail);
+			const { folderId } = event.detail;
+			if (folderId && folderId !== 'root') {
+				openSystemVirtualFolder(folderId);
+			} else {
+				openSystemVirtualFolder(null); // Navigate to root
+			}
+		};
+
+		document.addEventListener('systemVirtualFolderSelected', handleSystemVirtualFolderSelected as EventListener);
+
+		return () => {
+			document.removeEventListener('systemVirtualFolderSelected', handleSystemVirtualFolderSelected as EventListener);
+		};
+	});
 	// Function to update breadcrumb based on current folder
 	function updateBreadcrumb() {
-		if (!currentFolder) {
+		if (!currentSystemVirtualFolder) {
 			breadcrumb = [];
 			return;
 		}
-		breadcrumb = Array.isArray(currentFolder.path) ? currentFolder.path : currentFolder.path.split('/');
+
+		// Build breadcrumb by traversing up the parent hierarchy
+		const buildBreadcrumb = (folder: SystemVirtualFolder): string[] => {
+			const path: string[] = [];
+			let current: SystemVirtualFolder | null = folder;
+
+			while (current) {
+				path.unshift(current.name); // Add folder name to the beginning
+				// Find the parent folder
+				current = allSystemVirtualFolders.find((f) => f._id === current?.parentId) || null;
+			}
+
+			return path;
+		};
+
+		breadcrumb = buildBreadcrumb(currentSystemVirtualFolder);
 	}
 
 	// Create a new folder with memoization
-	async function createFolder(folderName: string) {
+	async function createSystemVirtualFolder(folderName: string) {
+		console.log('createSystemVirtualFolder called with:', folderName);
+
 		// Validate folder name
 		if (!folderName.trim()) {
 			toastStore.trigger({
@@ -188,14 +265,17 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 
 		isLoading = true;
 		try {
-			const parentId = currentFolder?._id ?? null;
-			const response = await fetch('/api/virtualFolder', {
+			const parentId = currentSystemVirtualFolder?._id ?? null;
+			const requestBody = {
+				name: folderName.trim(),
+				parentId: parentId
+			};
+			console.log('Sending request with body:', requestBody);
+
+			const response = await fetch('/api/systemVirtualFolder', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					name: folderName.trim(),
-					parent: parentId
-				})
+				body: JSON.stringify(requestBody)
 			});
 
 			if (!response.ok) {
@@ -206,7 +286,22 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 			const result = await response.json();
 
 			if (result.success) {
-				folders = await fetchUpdatedFolders();
+				// Refetch all folders
+				allSystemVirtualFolders = await fetchUpdatedSystemVirtualFolders();
+				// Update current view
+				const parent = currentSystemVirtualFolder?._id ?? null;
+				systemVirtualFolders = allSystemVirtualFolders.filter((f) => f.parentId === parent);
+
+				// Dispatch event to notify Collections component
+				const event = new CustomEvent('folderCreated', {
+					detail: {
+						folder: result.folder,
+						parentId: parent
+					}
+				});
+				document.dispatchEvent(event);
+				console.log('Folder created event dispatched:', event.detail);
+
 				toastStore.trigger({
 					message: 'Folder created successfully',
 					background: 'variant-filled-success',
@@ -236,13 +331,13 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	}
 
 	// Fetch updated folders
-	async function fetchUpdatedFolders() {
+	async function fetchUpdatedSystemVirtualFolders() {
 		try {
-			const response = await fetch('/api/virtualFolder');
+			const response = await fetch('/api/systemVirtualFolder');
 			const result = await response.json();
 
 			if (result.success) {
-				return result.data.folders.map((folder: SystemVirtualFolder) => ({
+				return result.data.map((folder: SystemVirtualFolder) => ({
 					...folder,
 					path: Array.isArray(folder.path) ? folder.path : folder.path?.split('/')
 				}));
@@ -261,24 +356,24 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	}
 
 	// Memoized fetch for media files
-	let lastFolderId = $state<string | null>(null);
+	let lastSystemFolderId = $state<string | null>(null);
 	async function fetchMediaFiles() {
-		const folderId = currentFolder ? currentFolder._id : 'root';
+		const folderId = currentSystemVirtualFolder ? currentSystemVirtualFolder._id : 'root';
 
 		// Skip if already loading or same folder
-		if (isLoading || folderId === lastFolderId) return;
+		if (isLoading || folderId === lastSystemFolderId) return;
 
 		isLoading = true;
-		lastFolderId = folderId;
+		lastSystemFolderId = folderId;
 
 		try {
-			const { data } = await axios.get(`/api/virtualFolder/${folderId}`, {
+			const { data } = await axios.get(`/api/systemVirtualFolder/${folderId}`, {
 				timeout: 10000 // 10 second timeout
 			});
 
 			if (data.success) {
-				files = Array.isArray(data.contents?.mediaFiles) ? data.contents.mediaFiles : [];
-				folders = Array.isArray(data.contents?.subFolders) ? data.contents.subFolders : [];
+				files = Array.isArray(data.data.contents?.files) ? data.data.contents.files : [];
+				systemVirtualFolders = Array.isArray(data.data.contents?.folders) ? data.data.contents.folders : [];
 			} else {
 				throw new Error(data.error || 'Unknown error');
 			}
@@ -298,30 +393,24 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 				timeout: 5000
 			});
 			files = [];
-			folders = [];
+			systemVirtualFolders = [];
 		} finally {
 			isLoading = false;
 		}
 	}
 
 	// Open virtual folder
-	async function openFolder(folderId: string | null) {
+	async function openSystemVirtualFolder(folderId: string | null) {
 		try {
 			if (folderId === null) {
-				// Navigate to root
-				currentFolder = null;
+				currentSystemVirtualFolder = null;
 			} else {
-				// Set current folder to the selected one
-				currentFolder = folders.find((f) => f._id === folderId) || null;
+				// Set current folder to the selected one from allFolders
+				currentSystemVirtualFolder = allSystemVirtualFolders.find((f) => f._id === folderId) || null;
 			}
 
 			// Update breadcrumb based on the current folder
 			updateBreadcrumb();
-
-			// Fetch and display subfolders immediately after setting currentFolder
-			if (currentFolder) {
-				folders = await fetchUpdatedFolders();
-			}
 
 			// Fetch media files for the current folder
 			await fetchMediaFiles();
@@ -352,8 +441,10 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 		let currentFolderPath = publicEnv.MEDIA_FOLDER;
 
 		// Check if the currentFolder is set (i.e., the user is in a subfolder)
-		if (currentFolder) {
-			currentFolderPath = Array.isArray(currentFolder.path) ? currentFolder.path.join('/') : currentFolder.path;
+		if (currentSystemVirtualFolder) {
+			currentFolderPath = Array.isArray(currentSystemVirtualFolder.path)
+				? currentSystemVirtualFolder.path.join('/')
+				: currentSystemVirtualFolder.path;
 		}
 
 		const modal: ModalSettings = {
@@ -362,7 +453,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 			// Apply inline style or use a CSS class to make the current folder path display in a different color
 			body: `Creating subfolder in: <span class="text-tertiary-500 dark:text-primary-500">${currentFolderPath}</span>`, // Display the current folder path in a different color
 			response: (r: string) => {
-				if (r) createFolder(r); // Pass the new folder name to createFolder function
+				if (r) createSystemVirtualFolder(r); // Pass the new folder name to createFolder function
 			}
 		};
 
@@ -444,7 +535,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 </div>
 
 <!-- Breadcrumb Navigation -->
-<Breadcrumb {breadcrumb} folders={breadcrumbFolders} {openFolder} />
+<Breadcrumb {breadcrumb} folders={breadcrumbFolders} openFolder={openSystemVirtualFolder} />
 
 <div class="wrapper overflow-auto">
 	<div class="mb-8 flex w-full flex-col justify-center gap-1 md:hidden">

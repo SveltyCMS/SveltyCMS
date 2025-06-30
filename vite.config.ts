@@ -20,6 +20,7 @@ import svelteEmailTailwind from 'svelte-email-tailwind/vite';
 import { compile } from './src/routes/api/compile/compile';
 import { generateContentTypes } from './src/content/vite';
 import type { IncomingMessage, ServerResponse } from 'http';
+import { builtinModules } from 'module';
 
 // Validation
 import { publicConfigSchema, privateConfigSchema, validateConfig } from './config/types';
@@ -43,7 +44,7 @@ export default defineConfig(async () => {
     });
     console.error('\n💡 Running installer to generate missing configuration files...');
     try {
-      execSync('npm run installer', { stdio: 'inherit' });
+      execSync('bun run installer', { stdio: 'inherit' });
 
       // Immediately check if config files were actually created
       const stillMissingAfterInstall = configPaths.filter((config) => !existsSync(config.path));
@@ -53,7 +54,7 @@ export default defineConfig(async () => {
           console.error(`  - ${config.name}`);
         });
         console.error('\n💡 This usually happens when the installer is cancelled or fails.');
-        console.error('Please run `npm run installer` manually to complete the setup.');
+        console.error('Please run `bun run installer` manually to complete the setup.');
         console.error('👋 Exiting Vite configuration gracefully...');
         process.exit(0); // Exit gracefully instead of crashing
       }
@@ -61,7 +62,7 @@ export default defineConfig(async () => {
       console.log('✅ Installer completed successfully.');
     } catch (e) {
       console.error('❌ Error running the installer:', e);
-      console.error('Please run `npm run installer` manually to generate config files.');
+      console.error('Please run `bun run installer` manually to generate config files.');
       console.error('👋 Exiting Vite configuration gracefully...');
       process.exit(0); // Exit gracefully instead of crashing
     }
@@ -74,7 +75,7 @@ export default defineConfig(async () => {
     if (!existsSync(privateConfigPath) || !existsSync(publicConfigPath)) {
       console.error('\n❌ Config files are missing after installer check.');
       console.error('This usually means the installer was cancelled or failed.');
-      console.error('Please run `npm run installer` manually to complete the setup.');
+      console.error('Please run `bun run installer` manually to complete the setup.');
       console.error('👋 Exiting Vite configuration gracefully...');
       process.exit(0); // Exit gracefully
     }
@@ -87,7 +88,7 @@ export default defineConfig(async () => {
   } catch (importError) {
     console.error('\n❌ Failed to import config files after installer.');
     console.error('This usually means the installer was cancelled or the files are malformed.');
-    console.error('Please run `npm run installer` manually to recreate the config files.');
+    console.error('Please run `bun run installer` manually to recreate the config files.');
     console.error('👋 Exiting Vite configuration gracefully...');
     console.error('\nError details:', importError);
     process.exit(0); // Exit gracefully instead of crashing
@@ -315,6 +316,16 @@ export default defineConfig(async () => {
       minify: 'esbuild',
       sourcemap: true,
       rollupOptions: {
+        external: [
+          ...builtinModules,
+          ...builtinModules.map((m) => `node:${m}`),
+          'typescript',
+          // Additional modules that should not be bundled
+          'ts-node',
+          'ts-loader',
+          '@typescript-eslint/parser',
+          '@typescript-eslint/eslint-plugin'
+        ],
         output: {
           manualChunks: {
             // Split vendor chunks for better caching
@@ -348,7 +359,9 @@ export default defineConfig(async () => {
     },
     define: {
       __VERSION__: JSON.stringify(pkg.version), // Define global version variable from package.json
-      SUPERFORMS_LEGACY: true // Legacy flag for SuperForms (if needed)
+      SUPERFORMS_LEGACY: true, // Legacy flag for SuperForms (if needed)
+      // ES Module polyfills for Node.js globals
+      global: 'globalThis',
     }
   };
 });

@@ -384,7 +384,7 @@ async function compileFile(
 		// Steps 4, 5, 6, 7 should happen *after* getting the initial finalCode
 
 		// 4. Apply AST transformations (replaces modifyTranspiledCode and addUUIDsToWidgetFields)
-		finalCode = transformCodeWithAST(finalCode);
+		finalCode = transformCodeWithAST(finalCode, uuid);
 
 		// 5. Inject Hash and determined UUID
 		// Ensure uuid is not null here. If it is, something went wrong in determination logic.
@@ -412,7 +412,7 @@ async function compileFile(
 // --- AST Transformation Functions ---
 const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
 
-function transformCodeWithAST(code: string): string {
+function transformCodeWithAST(code: string, uuid: string): string {
 	const sourceFile = ts.createSourceFile(
 		'tempFile.js', // Temporary file name for parsing
 		code,
@@ -422,8 +422,10 @@ function transformCodeWithAST(code: string): string {
 	);
 
 	const transformationResult = ts.transform(sourceFile, [
+		(context) => schemaUuidTransformer(context, uuid), // Inject UUID into schema
 		widgetTransformer, // Apply custom transformations
-		addJsExtensionTransformer // Add .js extensions
+		addJsExtensionTransformer, // Add .js extensions
+		commonjsToEsModuleTransformer // Replace __filename and __dirname
 	]);
 
 	const transformedSourceFile = transformationResult.transformed[0];
@@ -515,6 +517,139 @@ const addJsExtensionTransformer: ts.TransformerFactory<ts.SourceFile> = (context
 			}
 			return ts.visitEachChild(node, visitor, context);
 		};
+		return ts.visitNode(sourceFile, visitor) as ts.SourceFile;
+	};
+};
+
+// Transformer factory for converting CommonJS globals to ES module equivalents
+const commonjsToEsModuleTransformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
+	return (sourceFile) => {
+		let needsFileURLToPath = false;
+
+		const visitor = (node: ts.Node): ts.VisitResult<ts.Node> => {
+			// Replace __filename with ES module equivalent
+			if (ts.isIdentifier(node) && node.text === '__filename') {
+				needsFileURLToPath = true;
+				// Create: fileURLToPath(import.meta.url)
+				return ts.factory.createCallExpression(
+					ts.factory.createIdentifier('fileURLToPath'),
+					undefined,
+					[ts.factory.createPropertyAccessExpression(
+						ts.factory.createMetaProperty(
+							ts.SyntaxKind.ImportKeyword,
+							ts.factory.createIdentifier('meta')
+						),
+						ts.factory.createIdentifier('url')
+					)]
+				);
+			}
+
+			// Replace __dirname with ES module equivalent
+			if (ts.isIdentifier(node) && node.text === '__dirname') {
+				needsFileURLToPath = true;
+				// Create: path.dirname(fileURLToPath(import.meta.url))
+				return ts.factory.createCallExpression(
+					ts.factory.createPropertyAccessExpression(
+						ts.factory.createIdentifier('path'),
+						ts.factory.createIdentifier('dirname')
+					),
+					undefined,
+					[ts.factory.createCallExpression(
+						ts.factory.createIdentifier('fileURLToPath'),
+						undefined,
+						[ts.factory.createPropertyAccessExpression(
+							ts.factory.createMetaProperty(
+								ts.SyntaxKind.ImportKeyword,
+								ts.factory.createIdentifier('meta')
+							),
+							ts.factory.createIdentifier('url')
+						)]
+					)]
+				);
+			}
+
+			return ts.visitEachChild(node, visitor, context);
+		};
+
+		const transformedFile = ts.visitNode(sourceFile, visitor) as ts.SourceFile;
+
+		// Add required imports if __filename or __dirname were used
+		if (needsFileURLToPath) {
+			const importDeclaration = ts.factory.createImportDeclaration(
+				undefined,
+				ts.factory.createImportClause(
+					false,
+					undefined,
+					ts.factory.createNamedImports([
+						ts.factory.createImportSpecifier(
+							false,
+							undefined,
+							ts.factory.createIdentifier('fileURLToPath')
+						)
+					])
+				),
+				ts.factory.createStringLiteral('url'),
+				undefined
+			);
+
+			const pathImportDeclaration = ts.factory.createImportDeclaration(
+				undefined,
+				ts.factory.createImportClause(
+					false,
+					ts.factory.createIdentifier('path'),
+					undefined
+				),
+				ts.factory.createStringLiteral('path'),
+				undefined
+			);
+
+			// Add imports at the beginning of the file
+			const statements = [importDeclaration, pathImportDeclaration, ...transformedFile.statements];
+			return ts.factory.updateSourceFile(transformedFile, statements);
+		}
+
+		return transformedFile;
+	};
+};
+
+// Transformer factory for injecting UUID into schema object
+const schemaUuidTransformer: (context: ts.TransformationContext, uuid: string) => ts.TransformerFactory<ts.SourceFile> = (context, uuid) => {
+	return (sourceFile) => {
+		const visitor = (node: ts.Node): ts.VisitResult<ts.Node> => {
+			// Look for object literals that might be schema objects
+			if (ts.isObjectLiteralExpression(node)) {
+				// Check if this object has properties that suggest it's a schema (like 'icon', 'fields', 'status', etc.)
+				const hasSchemaProperties = node.properties.some(prop =>
+					ts.isPropertyAssignment(prop) &&
+					ts.isIdentifier(prop.name) &&
+					['fields', 'icon', 'status', 'revision', 'livePreview'].includes(prop.name.text)
+				);
+
+				if (hasSchemaProperties) {
+					// Check if _id property already exists
+					const hasIdProperty = node.properties.some(prop =>
+						ts.isPropertyAssignment(prop) &&
+						ts.isIdentifier(prop.name) &&
+						prop.name.text === '_id'
+					);
+
+					if (!hasIdProperty) {
+						// Inject _id property with the UUID
+						const idProperty = ts.factory.createPropertyAssignment(
+							ts.factory.createIdentifier('_id'),
+							ts.factory.createStringLiteral(uuid)
+						);
+
+						// Add _id as the first property
+						const newProperties = [idProperty, ...node.properties];
+						return ts.factory.updateObjectLiteralExpression(node, newProperties);
+					}
+				}
+			}
+
+			return ts.visitEachChild(node, visitor, context);
+		};
+
 		return ts.visitNode(sourceFile, visitor) as ts.SourceFile;
 	};
 };

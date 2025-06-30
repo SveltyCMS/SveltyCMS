@@ -1,6 +1,5 @@
 import { processModule } from '@root/src/content/utils';
 import type { PageLoad } from './$types';
-import lodash from 'lodash';
 
 export const load: PageLoad = async ({ params, data }) => {
 	if (params.action === 'new') {
@@ -12,7 +11,9 @@ export const load: PageLoad = async ({ params, data }) => {
 	if (!selectedCollection || !selectedCollection?.schema) return;
 	// console.log('selectedCollection', selectedCollection, page.params.collection);
 
-	const collectionData = lodash.omit(data.collection, ['module']);
+	const collectionData = Object.fromEntries(
+		Object.entries(data.collection).filter(([key]) => key !== 'module')
+	);
 
 	const collection = {
 		...selectedCollection?.schema,

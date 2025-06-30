@@ -33,6 +33,61 @@ import { collection, collectionValue, mode } from '../stores/collectionStore.sve
 // System Logs
 import { logger } from '@utils/logger.svelte';
 
+// Simple in-memory cache for getData requests
+interface CacheEntry {
+  data: { entryList: Record<string, unknown>[]; pagesCount: number };
+  timestamp: number;
+  ttl: number;
+}
+
+const dataCache = new Map<string, CacheEntry>();
+const CACHE_TTL = 30000; // 30 seconds cache TTL
+
+// Helper function to generate cache key
+function generateCacheKey(query: {
+  collectionId: string;
+  page?: number;
+  limit?: number;
+  contentLanguage?: string;
+  filter?: string;
+  sort?: string;
+}): string {
+  const normalizedQuery = {
+    collectionId: query.collectionId.trim().toLowerCase(),
+    page: query.page || 1,
+    limit: query.limit || 10,
+    contentLanguage: query.contentLanguage || 'en',
+    filter: query.filter || '{}',
+    sort: query.sort || '{}'
+  };
+  return JSON.stringify(normalizedQuery);
+}
+
+// Helper function to check cache validity
+function isCacheValid(cacheEntry: CacheEntry): boolean {
+  return Date.now() - cacheEntry.timestamp < cacheEntry.ttl;
+}
+
+// Helper function to clear expired cache entries
+function clearExpiredCache(): void {
+  const now = Date.now();
+  for (const [key, entry] of dataCache.entries()) {
+    if (now - entry.timestamp >= entry.ttl) {
+      dataCache.delete(key);
+    }
+  }
+}
+
+// Function to invalidate cache for a collection (useful after updates/deletes)
+export function invalidateCollectionCache(collectionId: string): void {
+  const normalizedCollectionId = collectionId.trim().toLowerCase();
+  for (const [key] of dataCache.entries()) {
+    if (key.includes(`"collectionId":"${normalizedCollectionId}"`)) {
+      dataCache.delete(key);
+    }
+  }
+}
+
 // Helper function to handle API requests
 export async function handleRequest(data: FormData, method: string, retries = 3): Promise<unknown> {
   data.append('method', method);
@@ -73,6 +128,24 @@ export async function getData(
   },
   retries = 3
 ): Promise<{ entryList: Record<string, unknown>[]; pagesCount: number }> {
+  // Add logging to track when getData is called
+  console.log(`[CLIENT] getData called for collection: ${query.collectionId}, page: ${query.page}, limit: ${query.limit}`);
+
+  // Generate cache key and check for cached data
+  const cacheKey = generateCacheKey(query);
+  const cachedEntry = dataCache.get(cacheKey);
+
+  if (cachedEntry && isCacheValid(cachedEntry)) {
+    console.log(`[CLIENT] Cache hit for ${query.collectionId}`);
+    return cachedEntry.data;
+  }
+
+  console.log(`[CLIENT] Cache miss for ${query.collectionId}, fetching from API`);
+  console.trace('[CLIENT] getData call stack');
+
+  // Clear expired cache entries periodically
+  clearExpiredCache();
+
   // Ensure collectionId is properly formatted
   const collectionId = query.collectionId.trim().toLowerCase();
 
@@ -90,10 +163,19 @@ export async function getData(
     // Handle specific status codes that should NOT trigger a toast in the UI
     if (axios.isAxiosError(response) && (response.response?.status === 403 || response.response?.status === 404)) {
       logger.info(`getData returned status ${response.response.status} for collection ${collectionId}. Treating as no data.`);
-      return {
+      const emptyResult = {
         entryList: [],
         pagesCount: 1 // Assuming 1 page if there's no data, or 0 if your pagination handles that
       };
+
+      // Cache the empty result for a shorter time
+      dataCache.set(cacheKey, {
+        data: emptyResult,
+        timestamp: Date.now(),
+        ttl: CACHE_TTL / 2 // Cache empty results for half the normal TTL
+      });
+
+      return emptyResult;
     }
 
     // Handle empty or invalid responses, now *after* checking for special status codes
@@ -113,10 +195,20 @@ export async function getData(
       updatedAt: entry.updatedAt ? new Date(entry.updatedAt as string) : null
     }));
 
-    return {
+    const result = {
       entryList: processedEntries,
       pagesCount: response.data.pagesCount || 1
     };
+
+    // Cache the successful result
+    dataCache.set(cacheKey, {
+      data: result,
+      timestamp: Date.now(),
+      ttl: CACHE_TTL
+    });
+
+    console.log(`[CLIENT] Cached result for ${query.collectionId}`);
+    return result;
   } catch (error) {
     if (axios.isAxiosError(error)) {
       // Specifically handle 403/404 that should NOT trigger a toast
@@ -146,14 +238,24 @@ export async function getData(
 export async function addData({ data, collectionId: contentTypes }: { data: FormData; collectionId: keyof ContentTypes }) {
   data.append('collectionId', contentTypes as string);
   data.append('method', 'POST');
-  return await axios.post(`/api/query`, data, config).then((res) => res.data);
+  const result = await axios.post(`/api/query`, data, config).then((res) => res.data);
+
+  // Invalidate cache for this collection
+  invalidateCollectionCache(contentTypes as string);
+
+  return result;
 }
 
 // Function to update data in a specified collection
 export async function updateData({ data, collectionId: contentTypes }: { data: FormData; collectionId: keyof ContentTypes }) {
   data.append('collectionId', contentTypes as string);
   data.append('method', 'PATCH');
-  return await axios.post(`/api/query`, data, config).then((res) => res.data);
+  const result = await axios.post(`/api/query`, data, config).then((res) => res.data);
+
+  // Invalidate cache for this collection
+  invalidateCollectionCache(contentTypes as string);
+
+  return result;
 }
 
 // Move FormData to trash folder and delete trash files older than 30 days
@@ -165,6 +267,10 @@ export async function deleteData({ data, collectionId: contentTypes }: { data: F
     logger.debug(`Deleting data for collection: ${contentTypes}`);
     const response = await axios.post(`/api/query`, data, config);
     logger.debug(`Data deleted successfully for collection: ${contentTypes}`);
+
+    // Invalidate cache for this collection
+    invalidateCollectionCache(contentTypes);
+
     return response.data;
   } catch (err) {
     const message = `Error deleting data for collection ${contentTypes}: ${err instanceof Error ? err.message : String(err)}`;
@@ -184,7 +290,12 @@ export async function deleteData({ data, collectionId: contentTypes }: { data: F
 export async function setStatus({ data, collectionId }: { data: FormData; collectionId: keyof ContentTypes }) {
   data.append('collectionId', collectionId as string);
   data.append('method', 'SETSTATUS');
-  return await axios.post(`/api/query`, data, config).then((res) => res.data);
+  const result = await axios.post(`/api/query`, data, config).then((res) => res.data);
+
+  // Invalidate cache for this collection
+  invalidateCollectionCache(collectionId as string);
+
+  return result;
 }
 
 // Save Collections data to the database

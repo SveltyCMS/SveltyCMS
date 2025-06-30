@@ -3,7 +3,6 @@
  * @description Server-side logic for the OAuth page.
  */
 
-import { dev } from '$app/environment';
 import { publicEnv } from '@root/config/public';
 import { error, redirect, type Cookies } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
@@ -12,18 +11,21 @@ import type { Actions, PageServerLoad } from './$types';
 import { google } from 'googleapis';
 
 //Db
-import { auth, dbAdapter, dbInitPromise } from '@src/databases/db';
+import { auth, dbInitPromise } from '@src/databases/db';
 
 // Utils
 import { saveAvatarImage } from '@utils/media/mediaStorage';
+import { getFirstCollectionRedirectUrl } from '@utils/navigation';
 
 // Stores
 import { systemLanguage } from '@stores/store.svelte';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-import { googleAuth, setCredentials, generateGoogleAuthUrl } from '@src/auth/googleAuth';
-import { contentManager } from '@root/src/content/ContentManager';
+import { generateGoogleAuthUrl } from '@src/auth/googleAuth';
+
+// Import roles
+import { roles } from '@root/config/roles';
 
 // Types
 interface GoogleUserInfo {
@@ -54,7 +56,7 @@ async function sendWelcomeEmail(
 				props: {
 					username,
 					email,
-					hostLink: publicEnv.HOST_LINK || `https://${request.headers.get('host')}`
+					hostLink: publicEnv.HOST_PROD || `https://${request.headers.get('host')}`
 				}
 			})
 		});
@@ -83,40 +85,6 @@ async function fetchAndSaveGoogleAvatar(avatarUrl: string): Promise<string | nul
 	} catch (err) {
 		logger.error('Error fetching and saving Google avatar:', err as Error);
 		return null;
-	}
-}
-
-// Helper function to fetch and redirect using collection UUID
-async function fetchAndRedirectToFirstCollection() {
-	try {
-		if (!dbAdapter) {
-			logger.error('Database adapter not initialized', new Error('Database adapter not initialized'));
-			return '/';
-		}
-
-		// Wait for system initialization including ContentManager
-		await dbInitPromise;
-		logger.debug('System ready, proceeding with collection retrieval');
-
-		const collection = contentManager.getFirstCollection();
-		const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
-
-		if (!collection) {
-			logger.warn('No valid first collection found - redirecting to home');
-			return '/';
-		}
-
-		// Validate collection path exists
-		if (!collection.path) {
-			logger.error('First collection has no path defined');
-			return '/';
-		}
-
-		// Construct redirect URL using validated collection
-		return `/${defaultLanguage}${collection.path}`;
-	} catch (err) {
-		logger.error('Error in fetchAndRedirectToFirstCollection', err as Error);
-		return '/';
 	}
 }
 
@@ -171,7 +139,7 @@ async function handleGoogleUser(
 				firstName: googleUser.given_name,
 				lastName: googleUser.family_name,
 				avatar: avatarUrl,
-				role: isFirst ? 'admin' : 'user',
+				role: isFirst ? roles.find(r => r.isAdmin)?._id || 'admin' : roles.find(r => r._id === 'user')?._id || 'user',
 				lastAuthMethod: 'google',
 				isRegistered: true,
 				blocked: false
@@ -238,17 +206,42 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
 		const code = url.searchParams.get('code');
 		const state = url.searchParams.get('state');
+		const error_param = url.searchParams.get('error');
+		const error_subtype = url.searchParams.get('error_subtype');
 		const token = state ? decodeURIComponent(state) : null;
 
 		logger.debug(`Authorization code from URL: \x1b[34m${code}\x1b[0m`);
 		logger.debug(`Registration token from state: \x1b[34m${token}\x1b[0m`);
 		logger.debug(`Is First User: \x1b[34m${!firstUserExists}\x1b[0m`);
 
+		// Handle OAuth errors first
+		if (error_param) {
+			logger.error(`OAuth Error: ${error_param}`, { error_subtype, url: url.toString() });
+
+			if (error_param === 'interaction_required' || error_param === 'access_denied') {
+				// User needs to go through consent flow or cancelled
+				logger.debug('OAuth interaction required - redirecting to consent flow');
+				try {
+					const authUrl = await generateGoogleAuthUrl(token, 'consent');
+					redirect(302, authUrl);
+				} catch (err) {
+					logger.error('Error generating OAuth URL after interaction_required:', err);
+					throw error(500, 'Failed to initialize OAuth');
+				}
+			} else {
+				// Other OAuth errors
+				throw error(400, {
+					message: 'OAuth Authentication Failed',
+					details: `${error_param}: ${error_subtype || 'Unknown error'}`
+				});
+			}
+		}
+
 		// If no code is present, handle initial OAuth flow
 		if (!code && !firstUserExists) {
 			logger.debug('No first user and no code - redirecting to OAuth');
 			try {
-				const authUrl = await generateGoogleAuthUrl();
+				const authUrl = await generateGoogleAuthUrl(token, 'consent');
 				redirect(302, authUrl);
 			} catch (err) {
 				logger.error('Error generating OAuth URL:', err);
@@ -275,26 +268,67 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
 		// Process OAuth callback
 		try {
-			const googleAuthClient = await googleAuth();
-			if (!googleAuthClient) {
-				logger.error('Google OAuth client initialization failed');
-				throw error(500, 'OAuth service is not available');
-			}
+			// Debug: Let's explicitly check what we're working with
+			logger.debug(`Processing OAuth callback with code: ${code.substring(0, 20)}...`);
 
+			// Import and get the private config directly
+			const { privateEnv } = await import('@root/config/private');
+			const { dev } = await import('$app/environment');
+
+			// Create a fresh OAuth client instance specifically for token exchange
 			const redirectUri = `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`;
-			logger.debug(`Using redirect URI for token exchange: ${redirectUri}`);
+			logger.debug(`Creating OAuth client with redirect URI: ${redirectUri}`);
+			logger.debug(`Client ID: ${privateEnv.GOOGLE_CLIENT_ID?.substring(0, 20)}...`);
 
-			const { tokens } = await googleAuthClient.getToken({
-				code,
-				redirect_uri: redirectUri
+			const googleAuthClient = new google.auth.OAuth2(
+				privateEnv.GOOGLE_CLIENT_ID,
+				privateEnv.GOOGLE_CLIENT_SECRET,
+				redirectUri
+			);
+
+			// Try using the getToken method with explicit options to disable PKCE
+			logger.debug('Attempting to exchange authorization code for tokens...');
+
+			// Workaround for googleapis v150 bug: manually make the token request to avoid automatic PKCE injection
+			// Reference: https://github.com/googleapis/google-api-nodejs-client/issues/3681
+			const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded',
+				},
+				body: new URLSearchParams({
+					client_id: privateEnv.GOOGLE_CLIENT_ID!,
+					client_secret: privateEnv.GOOGLE_CLIENT_SECRET!,
+					code: code,
+					grant_type: 'authorization_code',
+					redirect_uri: redirectUri
+					// Explicitly NOT including code_verifier to avoid the googleapis bug
+				}).toString()
 			});
 
-			if (!tokens) {
+			if (!tokenResponse.ok) {
+				const errorData = await tokenResponse.json();
+				logger.error('Token exchange failed:', errorData);
+				throw new Error(`Token exchange failed: ${errorData.error_description || errorData.error}`);
+			}
+
+			const tokens = await tokenResponse.json();
+
+			if (!tokens || !tokens.access_token) {
 				logger.error('Failed to obtain tokens from Google');
 				throw error(500, 'Failed to authenticate with Google');
 			}
 
-			await setCredentials(tokens);
+			logger.debug('Successfully obtained tokens from Google');
+
+			// Set credentials on the OAuth client using the manually obtained tokens
+			googleAuthClient.setCredentials({
+				access_token: tokens.access_token,
+				token_type: tokens.token_type,
+				expires_in: tokens.expires_in,
+				refresh_token: tokens.refresh_token,
+				scope: tokens.scope
+			});
 
 			// Fetch Google user profile
 			const oauth2 = google.oauth2({ auth: googleAuthClient, version: 'v2' });
@@ -309,10 +343,15 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			await handleGoogleUser(googleUser as GoogleUserInfo, !firstUserExists, token, cookies, fetch, request);
 			logger.info('Successfully processed OAuth callback and created session');
 
-			// Redirect to first collection
+			// Redirect to first collection using centralized utility
+			const redirectUrl = await getFirstCollectionRedirectUrl();
+			logger.debug(`Redirecting to: ${redirectUrl}`);
+			throw redirect(302, redirectUrl);
 		} catch (err) {
-			if ((err instanceof Error && 'status' in err && err.status === 302) || err.status === 303) {
-				throw err;
+			// Check if this is a redirect (which is expected and successful)
+			if (err && typeof err === 'object' && 'status' in err && (err.status === 302 || err.status === 303)) {
+				logger.info('OAuth processing completed successfully, redirecting user');
+				throw err; // Re-throw the redirect
 			}
 
 			const errorMessage = err instanceof Error ? err.message : 'Unknown error during OAuth callback';
@@ -334,9 +373,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			});
 		}
 	} catch (err) {
-		// Only throw error if it's not already a redirect
-		if (err instanceof Error && 'status' in err && (err.status === 302 || err.status === 303)) {
-			throw err;
+		// Check if this is a redirect (which is expected and successful)
+		if (err && typeof err === 'object' && 'status' in err && (err.status === 302 || err.status === 303)) {
+			logger.info('OAuth flow completed successfully, performing redirect');
+			throw err; // Re-throw the redirect
 		}
 
 		const errorMessage = err instanceof Error ? err.message : 'Unknown error during OAuth process';
@@ -354,9 +394,11 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 		});
 	}
 
-	const redirectUrl = await fetchAndRedirectToFirstCollection();
-	logger.debug(`Redirecting to: ${redirectUrl}`);
-	throw redirect(302, redirectUrl);
+	// If we reach this point, something went wrong - return error data
+	throw error(500, {
+		message: 'OAuth Authentication Failed',
+		details: 'Unexpected end of OAuth flow'
+	});
 };
 
 export const actions: Actions = {

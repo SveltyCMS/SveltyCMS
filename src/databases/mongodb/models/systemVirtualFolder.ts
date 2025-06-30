@@ -18,7 +18,7 @@ export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(
 		_id: { type: String, required: true }, // UUID as per dbInterface.ts
 		name: { type: String, required: true },
 		path: { type: String, required: true, unique: true },
-		parent: { type: String, ref: 'SystemVirtualFolder' }, // Reference to parent folder
+		parentId: { type: String, ref: 'SystemVirtualFolder' }, // Reference to parent folder
 		icon: { type: String, default: 'bi:folder' },
 		order: { type: Number, default: 0 },
 		type: { type: String, enum: ['folder', 'collection'], required: true },
@@ -143,7 +143,7 @@ export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(
 				try {
 					const bulkOps = orderUpdates.map((update) => ({
 						updateOne: {
-							filter: { path: update.path, parent: parentId },
+							filter: { path: update.path, parentId: parentId },
 							update: { $set: { order: update.order } }
 						}
 					}));
@@ -179,13 +179,67 @@ export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(
 						}
 					};
 				}
+			},
+
+			// Update a virtual folder
+			async updateVirtualFolder(
+				folderId: string,
+				updateData: Partial<SystemVirtualFolder>
+			): Promise<DatabaseResult<SystemVirtualFolder>> {
+				try {
+					const folder = await this.findByIdAndUpdate(folderId, { $set: updateData }, { new: true }).lean().exec();
+					if (!folder) {
+						return { success: false, error: { code: 'VIRTUAL_FOLDER_NOT_FOUND', message: 'Folder not found' } };
+					}
+					return { success: true, data: folder as SystemVirtualFolder };
+				} catch (error) {
+					logger.error(`Error updating virtual folder: ${error.message}`);
+					return {
+						success: false,
+						error: {
+							code: 'VIRTUAL_FOLDER_UPDATE_ERROR',
+							message: 'Failed to update virtual folder',
+							details: error
+						}
+					};
+				}
+			},
+
+			// Delete a virtual folder and its children recursively
+			async deleteVirtualFolder(folderId: string): Promise<DatabaseResult<void>> {
+				try {
+					const folder = await this.findById(folderId).lean().exec();
+					if (!folder) {
+						return { success: true, data: undefined }; // Already deleted
+					}
+
+					// Find all children and grandchildren recursively based on path
+					const children = await this.find({ path: { $regex: `^${folder.path}/` } })
+						.lean()
+						.exec();
+					const folderIdsToDelete = [folder._id, ...children.map((c) => c._id)];
+
+					await this.deleteMany({ _id: { $in: folderIdsToDelete } });
+
+					return { success: true, data: undefined };
+				} catch (error) {
+					logger.error(`Error deleting virtual folder: ${error.message}`);
+					return {
+						success: false,
+						error: {
+							code: 'VIRTUAL_FOLDER_DELETE_ERROR',
+							message: 'Failed to delete virtual folder',
+							details: error
+						}
+					};
+				}
 			}
 		}
 	}
 );
 
 // Indexes
-systemVirtualFolderSchema.index({ parent: 1 });
+systemVirtualFolderSchema.index({ parentId: 1 });
 systemVirtualFolderSchema.index({ type: 1 });
 systemVirtualFolderSchema.index({ order: 1 });
 

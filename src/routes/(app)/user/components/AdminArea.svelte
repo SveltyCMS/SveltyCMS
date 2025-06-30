@@ -89,12 +89,12 @@
 
 	// Table header definitions
 	const tableHeadersUser = [
-		{ label: m.adminarea_user_id(), key: '_id' },
 		{ label: m.adminarea_blocked(), key: 'blocked' },
 		{ label: m.form_avatar(), key: 'avatar' },
 		{ label: m.form_email(), key: 'email' },
 		{ label: m.form_username(), key: 'username' },
 		{ label: m.form_role(), key: 'role' },
+		{ label: m.adminarea_user_id(), key: '_id' },
 		{ label: m.adminarea_activesession(), key: 'activeSessions' },
 		{ label: m.adminarea_lastaccess(), key: 'lastAccess' },
 		{ label: m.adminarea_createat(), key: 'createdAt' },
@@ -102,10 +102,10 @@
 	] as const;
 
 	const tableHeaderToken = [
-		{ label: m.adminarea_token(), key: 'token' },
 		{ label: m.adminarea_blocked(), key: 'blocked' },
 		{ label: m.form_email(), key: 'email' },
 		{ label: m.form_role(), key: 'role' },
+		{ label: m.adminarea_token(), key: 'token' },
 		{ label: m.adminarea_expiresin(), key: 'expires' },
 		{ label: m.adminarea_createat(), key: 'createdAt' },
 		{ label: m.adminarea_updatedat(), key: 'updatedAt' }
@@ -114,6 +114,7 @@
 	// Core state with proper initialization
 	let showUserList = $state(true);
 	let showUsertoken = $state(false);
+	let showExpiredTokens = $state(false);
 	let isLoading = $state(false);
 	let globalSearchValue = $state('');
 	let searchShow = $state(false);
@@ -126,7 +127,17 @@
 		if (showUserList) {
 			return adminData.users as UserData[];
 		} else if (showUsertoken) {
-			return adminData.tokens as TokenData[];
+			const tokens = adminData.tokens as TokenData[];
+			if (showExpiredTokens) {
+				return tokens; // Show all tokens including expired ones
+			} else {
+				// Filter out expired tokens
+				const now = new Date();
+				return tokens.filter((token) => {
+					if (!token.expires) return true; // Keep tokens without expiration
+					return new Date(token.expires) > now; // Keep only non-expired tokens
+				});
+			}
 		}
 	});
 	let filteredTableData = $state<(UserData | TokenData)[]>([]);
@@ -226,6 +237,57 @@
 			}
 		};
 		modalStore.trigger(modalSettings);
+	}
+
+	// Function to edit a specific token
+	function editToken(tokenData: TokenData) {
+		const modalSettings: ModalSettings = {
+			type: 'component',
+			title: m.multibuttontoken_modaltitle(),
+			body: m.multibuttontoken_modalbody(),
+			component: {
+				ref: ModalEditToken,
+				props: {
+					token: tokenData.token,
+					email: tokenData.email,
+					role: tokenData.role,
+					user_id: tokenData.user_id,
+					expires: convertDateToExpiresFormat(tokenData.expires)
+				}
+			},
+			response: (result) => {
+				if (result?.success === false) {
+					const t = {
+						message: `<iconify-icon icon="mdi:alert-circle" color="white" width="24" class="mr-1"></iconify-icon> ${result.error || 'Failed to update token'}`,
+						background: 'variant-filled-error',
+						timeout: 5000,
+						classes: 'border-1 !rounded-md'
+					};
+					toastStore.trigger(t);
+				}
+			}
+		};
+		modalStore.trigger(modalSettings);
+	}
+
+	// Helper function to convert Date to expires format expected by ModalEditToken
+	function convertDateToExpiresFormat(expiresDate: Date | string | null): string {
+		if (!expiresDate) return '7d'; // Default
+
+		const now = new Date();
+		const expires = new Date(expiresDate);
+		const diffMs = expires.getTime() - now.getTime();
+		const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
+		const diffDays = Math.ceil(diffHours / 24);
+
+		// Match the available options in ModalEditToken
+		if (diffHours <= 1) return '1h';
+		if (diffDays <= 1) return '1d';
+		if (diffDays <= 7) return '7d';
+		if (diffDays <= 30) return '30d';
+		if (diffDays <= 90) return '90d';
+
+		return '90d'; // Max available option
 	}
 
 	function handleDndConsider(event: any) {
@@ -337,6 +399,17 @@
 				<iconify-icon icon="material-symbols:key-outline" color="white" width="18" class="mr-1"></iconify-icon>
 				<span>{showUsertoken ? m.adminarea_hideusertoken() : m.adminarea_showtoken()}</span>
 			</button>
+
+			{#if showUsertoken}
+				<button
+					onclick={() => (showExpiredTokens = !showExpiredTokens)}
+					aria-label={showExpiredTokens ? 'Hide Expired Tokens' : 'Show Expired Tokens'}
+					class="gradient-secondary btn w-full text-white sm:max-w-xs"
+				>
+					<iconify-icon icon="material-symbols:schedule" color="white" width="18" class="mr-1"></iconify-icon>
+					<span>{showExpiredTokens ? 'Hide Expired' : 'Show Expired'}</span>
+				</button>
+			{/if}
 		</PermissionGuard>
 
 		<button
@@ -353,7 +426,7 @@
 		<Loading />
 	{:else if showUserList || showUsertoken}
 		<div class="my-4 flex flex-wrap items-center justify-between gap-1">
-			<h2 class="order-1 font-bold text-tertiary-500 dark:text-primary-500">
+			<h2 class="order-1 text-xl font-bold text-tertiary-500 dark:text-primary-500">
 				{#if showUserList}{m.adminarea_userlist()}{:else if showUsertoken}{m.adminarea_listtoken()}{/if}
 			</h2>
 
@@ -362,7 +435,7 @@
 			</div>
 
 			<div class="order-2 flex items-center justify-center sm:order-3">
-				<Multibutton {selectedRows} type={showUserList ? 'user' : 'token'} />
+				<Multibutton {selectedRows} type={showUserList ? 'user' : 'token'} totalUsers={adminData?.users?.length || 0} {currentUser} />
 			</div>
 		</div>
 
@@ -470,7 +543,18 @@
 
 					<tbody>
 						{#each filteredTableData as row, index}
-							<tr class="divide-x divide-surface-400">
+							{@const isExpired = showUsertoken && row.expires && new Date(row.expires) < new Date()}
+							<tr
+								class="divide-x divide-surface-400 {isExpired ? 'bg-error-50 opacity-60 dark:bg-error-900/20' : ''} {showUsertoken
+									? 'cursor-pointer hover:bg-surface-100 dark:hover:bg-surface-800'
+									: ''}"
+								onclick={(event) => {
+									// Only handle click if it's on a token row and not on the checkbox
+									if (showUsertoken && !(event.target as HTMLElement)?.closest('td:first-child')) {
+										editToken(row as TokenData);
+									}
+								}}
+							>
 								<TableIcons
 									checked={selectedMap[index] ?? false}
 									onCheck={(checked) => {
@@ -492,7 +576,18 @@
 										{:else if ['createdAt', 'updatedAt', 'lastAccess'].includes(header.key)}
 											{row[header.key] && row[header.key] !== null ? new Date(row[header.key]).toLocaleString() : '-'}
 										{:else if header.key === 'expires'}
-											{row[header.key] && row[header.key] !== null ? new Date(row[header.key]).toLocaleDateString() : '-'}
+											{#if row[header.key] && row[header.key] !== null}
+												{@const expirationDate = new Date(row[header.key])}
+												{@const isTokenExpired = expirationDate < new Date()}
+												<span class={isTokenExpired ? 'font-semibold text-error-500' : ''}>
+													{expirationDate.toLocaleDateString()}
+													{#if isTokenExpired}
+														<iconify-icon icon="material-symbols:warning" class="ml-1 text-error-500" width="16"></iconify-icon>
+													{/if}
+												</span>
+											{:else}
+												-
+											{/if}
 										{:else}
 											<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 											{@html row[header.key] || '-'}
@@ -507,7 +602,8 @@
 
 			<!-- Pagination  -->
 
-			<div class="mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
+			<!-- FIX: Added mb-16 for margin-bottom on mobile and other screen sizes -->
+			<div class="mb-16 mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
 				<TablePagination
 					{currentPage}
 					{pagesCount}

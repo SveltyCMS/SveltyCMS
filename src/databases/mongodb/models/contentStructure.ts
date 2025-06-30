@@ -209,7 +209,7 @@ const createDatabaseError = (error: unknown, code: string, message: string): Dat
  * Register discriminators for the content structure model
  * Ensures discriminators are only registered once and handles existing models
  */
-function registerContentStructureDiscriminators() {
+export function registerContentStructureDiscriminators() {
 	if (discriminatorsRegistered) {
 		logger.debug('CONTENT_STRUCTURE_DISCRIMINATORS_ALREADY_REGISTERED');
 		return;

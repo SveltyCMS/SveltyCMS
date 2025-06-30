@@ -15,30 +15,27 @@ Efficiently manages user data updates with validation, role selection, and delet
 -->
 
 <script lang="ts">
-	import axios from 'axios';
 	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';
 
 	// Skeleton & Stores
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+	import type { ModalComponent } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
+	const toastStore = getToastStore();
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Get data from page store
 	const { roles, user } = page.data;
-
-	// Function to check if a role is active
-	const isRoleActive = (roleName: string): boolean => {
-		return user?.role?.toLowerCase() === roleName.toLowerCase();
-	};
+	const isFirstUser = page.data.isFirstUser;
 
 	// Components
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
 
-	// Define permissions for different contexts
+	// Config for the general edit form permissions
 	const modaleEditFormConfig = {
 		name: 'Admin User Edit Form',
 		description: 'Allows admins to manage user accounts, including editing and assigning roles.',
@@ -48,10 +45,25 @@ Efficiently manages user data updates with validation, role selection, and delet
 		contextType: 'user'
 	};
 
-	const isFirstUser = page.data.isFirstUser;
+	// Config for delete permission guard
+	const deleteUserPermissionConfig = {
+		name: 'Delete User',
+		description: 'Allows deleting a user account.',
+		contextId: 'user:delete',
+		action: 'delete',
+		contextType: 'user'
+	};
 
 	// Props
-	let { parent, isGivenData = false, username = null, email = null, role = null, user_id = null } = $props();
+	interface Props {
+		parent: ModalComponent['props'] & { regionFooter?: string; onClose?: (event: MouseEvent) => void; buttonPositive?: string };
+		isGivenData?: boolean;
+		username?: string | null;
+		email?: string | null;
+		role?: string | null;
+		user_id?: string | null;
+	}
+	let { parent, isGivenData = false, username = null, email = null, role = null, user_id = null }: Props = $props();
 
 	// Form Data Initialization
 	const formData = $state({
@@ -64,59 +76,68 @@ Efficiently manages user data updates with validation, role selection, and delet
 	});
 
 	let showPassword = $state(false);
-
 	const errorStatus = $state({
 		username: { status: false, msg: '' },
 		email: { status: false, msg: '' },
 		password: { status: false, msg: '' },
 		confirm: { status: false, msg: '' }
 	});
+	const isOwnProfile = formData.user_id === user?._id || !isGivenData;
 
-	// Check if user is editing their own profile
-	const isOwnProfile = user_id === user?._id || !isGivenData;
-
-	// Form submission handler
-	function onFormSubmit(): void {
-		console.log('modal submitted.');
+	function onFormSubmit(event: SubmitEvent): void {
+		event.preventDefault();
 
 		// Validate password fields if they are filled
 		if (formData.password || formData.confirmPassword) {
 			if (formData.password !== formData.confirmPassword) {
-				errorStatus.confirm.status = true;
-				errorStatus.confirm.msg = m.formSchemas_Passwordmatch();
+				errorStatus.confirm = { status: true, msg: m.formSchemas_Passwordmatch() };
 				return;
 			}
 			if (formData.password.length < 8) {
-				errorStatus.password.status = true;
-				errorStatus.password.msg = m.formSchemas_PasswordMessage({ passwordStrength: '8' });
+				errorStatus.password = { status: true, msg: m.formSchemas_PasswordMessage({ passwordStrength: '8' }) };
 				return;
 			}
 		}
-
 		if ($modalStore[0].response) $modalStore[0].response(formData);
 		modalStore.close();
+	}
+
+	async function deleteUser() {
+		if (!formData.user_id) return;
+		try {
+			const response = await fetch('/api/user/batch', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					userIds: [formData.user_id],
+					action: 'delete'
+				})
+			});
+			const data = await response.json();
+			if (!response.ok) {
+				throw new Error(data.message || 'Failed to delete user.');
+			}
+			toastStore.trigger({
+				message: '<iconify-icon icon="mdi:check" width="24"/> User deleted successfully.',
+				background: 'gradient-tertiary',
+				timeout: 3000
+			});
+			await invalidateAll();
+			modalStore.close();
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'An unknown error occurred.';
+			toastStore.trigger({
+				message: `<iconify-icon icon="mdi:alert-circle" width="24"/> ${message}`,
+				background: 'variant-filled-error',
+				timeout: 5000
+			});
+		}
 	}
 
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
 	const cHeader = 'text-2xl font-bold';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
-
-	let formElement: HTMLFormElement | null = $state(null);
-
-	async function deleteUser() {
-		if (!formElement) return;
-
-		const formData = new FormData(formElement);
-		formData.append('id', user._id);
-
-		const res = await axios.post('?/deleteUser', formData);
-
-		if (res.status === 200) {
-			await invalidateAll();
-			modalStore.close();
-		}
-	}
 </script>
 
 {#if $modalStore[0]}
@@ -127,8 +148,8 @@ Efficiently manages user data updates with validation, role selection, and delet
 		<article class="text-center text-sm">
 			{$modalStore[0]?.body ?? '(body missing)'}
 		</article>
-		<form class="modal-form {cForm}" bind:this={formElement} id="change_user_form" onsubmit={onFormSubmit}>
-			<!-- Username field -->
+		<form class="modal-form {cForm}" id="change_user_form" onsubmit={onFormSubmit}>
+			<!-- Username -->
 			<div class="group relative z-0 mb-6 w-full">
 				<iconify-icon icon="mdi:user-circle" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
 				<FloatingInput
@@ -142,55 +163,29 @@ Efficiently manages user data updates with validation, role selection, and delet
 					autocomplete="username"
 				/>
 				{#if errorStatus.username.status}
-					<div class="absolute left-0 top-11 text-xs text-error-500">
-						{errorStatus.username.msg}
-					</div>
+					<div class="absolute left-0 top-11 text-xs text-error-500">{errorStatus.username.msg}</div>
 				{/if}
 			</div>
 
-			<!-- Admin area -->
-			{#if (isGivenData ? role : user?.role) === 'admin'}
-				<!-- Email field -->
-				<div class="group relative z-0 mb-6 w-full">
-					<iconify-icon icon="mdi:email" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
-					<FloatingInput
-						type="email"
-						name="email"
-						label={m.form_emailaddress()}
-						bind:value={formData.email}
-						onkeydown={() => (errorStatus.email.status = false)}
-						required
-						disabled
-						autocomplete="email"
-					/>
-					{#if errorStatus.email.status}
-						<div class="absolute left-0 top-11 text-xs text-error-500">
-							{errorStatus.email.msg}
-						</div>
-					{/if}
-				</div>
-			{:else}
-				<!-- Email field (non-editable for normal users) -->
-				<div class="group relative z-0 mb-6 w-full">
-					<iconify-icon icon="mdi:email" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
-					<FloatingInput
-						type="email"
-						name="email"
-						label="Email Cannot be changed"
-						bind:value={formData.email}
-						onkeydown={() => (errorStatus.email.status = false)}
-						disabled
-						autocomplete="email"
-					/>
-					{#if errorStatus.email.status}
-						<div class="absolute left-0 top-11 text-xs text-error-500">
-							{errorStatus.email.msg}
-						</div>
-					{/if}
-				</div>
-			{/if}
+			<!-- Email -->
+			<div class="group relative z-0 mb-6 w-full">
+				<iconify-icon icon="mdi:email" width="18" class="absolute left-0 top-3.5 text-gray-400"></iconify-icon>
+				<FloatingInput
+					type="email"
+					name="email"
+					label="Email"
+					bind:value={formData.email}
+					onkeydown={() => (errorStatus.email.status = false)}
+					required
+					disabled
+					autocomplete="email"
+				/>
+				{#if errorStatus.email.status}
+					<div class="absolute left-0 top-11 text-xs text-error-500">{errorStatus.email.msg}</div>
+				{/if}
+			</div>
 
-			<!-- Password Change Section - Available for own profile -->
+			<!-- Password Change Section -->
 			{#if isOwnProfile}
 				<!-- Password field -->
 				<div class="group relative z-0 mb-6 w-full">
@@ -206,9 +201,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 						autocomplete="new-password"
 					/>
 					{#if errorStatus.password.status}
-						<div class="absolute left-0 top-11 text-xs text-error-500">
-							{errorStatus.password.msg}
-						</div>
+						<div class="absolute left-0 top-11 text-xs text-error-500">{errorStatus.password.msg}</div>
 					{/if}
 				</div>
 
@@ -226,9 +219,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 						autocomplete="new-password"
 					/>
 					{#if errorStatus.confirm.status}
-						<div class="absolute left-0 top-11 text-xs text-error-500">
-							{errorStatus.confirm.msg}
-						</div>
+						<div class="absolute left-0 top-11 text-xs text-error-500">{errorStatus.confirm.msg}</div>
 					{/if}
 				</div>
 			{/if}
@@ -236,61 +227,45 @@ Efficiently manages user data updates with validation, role selection, and delet
 			<!-- Role Select -->
 			<PermissionGuard config={modaleEditFormConfig}>
 				<div class="flex flex-col gap-2 sm:flex-row">
-					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">
-						{m.form_userrole()}
-					</div>
+					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}</div>
 					<div class="flex-auto">
 						<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
 							{#if roles && roles.length > 0}
-								{#each roles as role}
+								{#each roles as r}
 									<button
 										type="button"
-										class="chip {isRoleActive(role._id) ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
-										onclick={() => {
-											formData.role = role._id;
-											console.log('Selected Role:', formData.role);
-										}}
+										class="chip {formData.role === r._id ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+										onclick={() => (formData.role = r._id)}
 									>
-										{#if isRoleActive(role._id)}
+										{#if formData.role === r._id}
 											<span><iconify-icon icon="fa:check"></iconify-icon></span>
 										{/if}
-										<span class="capitalize">{role.name}</span>
+										<span class="capitalize">{r.name}</span>
 									</button>
 								{/each}
-							{:else}
-								<p class="text-tertiary-500 dark:text-primary-500">Loading roles...</p>
 							{/if}
 						</div>
 					</div>
 				</div>
 			</PermissionGuard>
-
-			<footer class="modal-footer {parent.regionFooter} justify-between">
-				<!-- Delete User -->
-				{#if isFirstUser}
-					<button
-						type="button"
-						onclick={deleteUser}
-						class="variant-filled-error btn"
-						disabled={!isFirstUser && (!isGivenData || user._id === user_id)}
-					>
-						<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
-						<span class="hidden sm:block">{m.button_delete()}</span>
-					</button>
-				{:else}
-					<div></div>
-					<!-- Empty div when isFirstUser -->
-				{/if}
-
-				<div class="flex justify-between gap-4">
-					<!-- Cancel -->
-					<button type="button" class="variant-outline-secondary btn" onclick={() => parent.onClose()}>{m.button_cancel()}</button>
-					<!-- Save -->
-					<button type="submit" class="variant-filled-tertiary btn dark:variant-filled-primary {parent.buttonPositive}">
-						{m.button_save()}
-					</button>
-				</div>
-			</footer>
 		</form>
+		<footer class="modal-footer {parent.regionFooter} flex justify-between">
+			<!-- Delete User Button -->
+			<PermissionGuard config={deleteUserPermissionConfig}>
+				<button type="button" onclick={deleteUser} class="variant-filled-error btn" disabled={isOwnProfile || isFirstUser}>
+					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
+					<span class="hidden sm:block">{m.button_delete()}</span>
+				</button>
+			</PermissionGuard>
+
+			<div class="flex justify-end gap-4">
+				<!-- Cancel -->
+				<button type="button" class="variant-outline-secondary btn" onclick={parent.onClose}>{m.button_cancel()}</button>
+				<!-- Save -->
+				<button type="submit" form="change_user_form" class="variant-filled-tertiary btn dark:variant-filled-primary {parent.buttonPositive}">
+					{m.button_save()}
+				</button>
+			</div>
+		</footer>
 	</div>
 {/if}

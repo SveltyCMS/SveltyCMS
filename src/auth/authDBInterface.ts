@@ -30,6 +30,9 @@ export interface authDBInterface {
 	getUserByEmail(email: string): Promise<User | null>; // Get a user by email
 	getAllUsers(options?: PaginationOption): Promise<User[]>; // Get all users
 	getUserCount(filter?: Record<string, unknown>): Promise<number>; // Get the count of users
+	deleteUsers(user_ids: string[]): Promise<{ deletedCount: number }>; // Delete multiple users
+	blockUsers(user_ids: string[]): Promise<{ modifiedCount: number }>; // Block multiple users
+	unblockUsers(user_ids: string[]): Promise<{ modifiedCount: number }>; // Unblock multiple users
 
 	// Session Management Methods
 	createSession(sessionData: { user_id: string; expires: Date }): Promise<Session>; // Create a new session
@@ -39,15 +42,19 @@ export interface authDBInterface {
 	validateSession(session_id: string): Promise<User | null>; // Validate a session
 	invalidateAllUserSessions(user_id: string): Promise<void>; // Invalidate all sessions for a user
 	getActiveSessions(user_id: string): Promise<Session[]>; // Get active sessions for a user
-	getSessionTokenData(session_id: string): Promise<{ expiresAt: Date; user_id: string } | null>; // Get session token metadata
-	rotateToken(oldToken: string, expires: Date): Promise<string>; // Rotate a session token
-	cleanupRotatedSessions?(): Promise<number>; // Clean up rotated sessions past grace period
+	getSessionTokenData(session_id: string): Promise<{ expiresAt: Date; user_id: string } | null>; // Get session token data
+	rotateToken(oldToken: string, expires: Date): Promise<string>; // Rotate a token
+	cleanupRotatedSessions?(): Promise<number>; // Clean up rotated sessions
 
 	// Token Management Methods
 	createToken(data: { user_id: string; email: string; expires: Date; type: string }): Promise<string>; // Create a new token
+	updateToken(token_id: string, tokenData: Partial<Token>): Promise<Token>; // Update a token
 	validateToken(token: string, user_id?: string, type?: string): Promise<{ success: boolean; message: string; email?: string }>; // Validate a token
 	consumeToken(token: string, user_id?: string, type?: string): Promise<{ status: boolean; message: string }>; // Consume a token
 	getTokenData(token: string, user_id?: string, type?: string): Promise<Token | null>; // Get token data
 	getAllTokens(filter?: Record<string, unknown>): Promise<Token[]>; // Get all tokens
 	deleteExpiredTokens(): Promise<number>; // Delete expired tokens
+	deleteTokens(token_ids: string[]): Promise<{ deletedCount: number }>; // Delete multiple tokens
+	blockTokens(token_ids: string[]): Promise<{ modifiedCount: number }>; // Block multiple tokens
+	unblockTokens(token_ids: string[]): Promise<{ modifiedCount: number }>; // Unblock multiple tokens
 }

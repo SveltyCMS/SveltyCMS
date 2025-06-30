@@ -43,8 +43,10 @@ This widget fetches and displays real-time disk usage data, including:
 	import BaseWidget from '../BaseWidget.svelte';
 
 	// Chart
-	import Chart, { type ChartConfiguration, type Plugin, type ArcElement } from 'chart.js/auto';
-	import 'chartjs-adapter-date-fns';
+	import { Chart, DoughnutController, ArcElement, Tooltip } from 'chart.js';
+	import type { ChartConfiguration, Plugin } from 'chart.js';
+
+	Chart.register(DoughnutController, ArcElement, Tooltip);
 
 	// Props
 	let { label = 'Disk Usage', theme = 'light', icon = 'mdi:harddisk' } = $props();
@@ -68,12 +70,28 @@ This widget fetches and displays real-time disk usage data, including:
 	let chart = $state<Chart<'doughnut', number[], string> | undefined>(undefined);
 	let chartCanvas = $state<HTMLCanvasElement | undefined>(undefined);
 
+	const normalizedDiskInfo = $derived(() => {
+		if (!data?.diskInfo) return null;
+
+		// Handle cases where disk info is nested under a 'root' property
+		if (typeof data.diskInfo.root === 'object' && data.diskInfo.root !== null) {
+			return data.diskInfo.root;
+		}
+
+		// Handle cases where disk info is at the top level
+		if (typeof data.diskInfo.usedGb === 'number' && typeof data.diskInfo.freeGb === 'number') {
+			return data.diskInfo;
+		}
+
+		return null;
+	});
+
 	const textCenterPlugin: Plugin<'doughnut'> = {
 		id: 'textCenterPlugin',
 		beforeDraw(chart) {
 			const ctx = chart.ctx;
 			const { width, height } = chart;
-			const diskInfoValue = data?.diskInfo ?? {
+			const diskInfoValue = normalizedDiskInfo() ?? {
 				totalGb: 0,
 				usedGb: 0,
 				freeGb: 0,
@@ -109,8 +127,8 @@ This widget fetches and displays real-time disk usage data, including:
 
 	// Initialize chart when data is available
 	$effect(() => {
-		if (chartCanvas && data?.diskInfo) {
-			const { usedGb, freeGb } = data.diskInfo;
+		if (chartCanvas && normalizedDiskInfo()) {
+			const { usedGb, freeGb } = normalizedDiskInfo();
 
 			const config: ChartConfiguration<'doughnut', number[], string> = {
 				type: 'doughnut',
@@ -158,8 +176,8 @@ This widget fetches and displays real-time disk usage data, including:
 
 	// Update chart when data changes
 	$effect(() => {
-		if (chart && data?.diskInfo) {
-			const { usedGb, freeGb } = data.diskInfo;
+		if (chart && normalizedDiskInfo()) {
+			const { usedGb, freeGb } = normalizedDiskInfo();
 			chart.data.datasets[0].data = [typeof usedGb === 'number' ? usedGb : 0, typeof freeGb === 'number' ? freeGb : 0];
 			chart.update();
 		}
@@ -185,30 +203,26 @@ This widget fetches and displays real-time disk usage data, including:
 
 		{#if !data}
 			<p class="text-center text-surface-500">Waiting for disk data...</p>
-		{:else if !data.diskInfo}
-			<p class="text-center text-error-500">No diskInfo in API response: {JSON.stringify(data)}</p>
-		{:else if (data.diskInfo = typeof data.diskInfo.root === 'object' && data.diskInfo.root !== null ? data.diskInfo.root : typeof data.diskInfo.usedGb === 'number' && typeof data.diskInfo.freeGb === 'number' ? data.diskInfo : null)}
-			{#if data}
-				<div class="absolute bottom-5 left-0 flex w-full justify-between gap-2 px-2 text-xs">
-					<p>
-						Total: {typeof data?.diskInfo.totalGb === 'number' ? data.diskInfo.totalGb.toFixed(2) : 'N/A'} GB
-					</p>
-					<p>
-						Used: {typeof data?.diskInfo.usedGb === 'number' ? data.diskInfo.usedGb.toFixed(2) : 'N/A'} GB ({typeof data?.diskInfo.usedPercentage ===
-						'number'
-							? data.diskInfo.usedPercentage.toFixed(2)
-							: 'N/A'}%)
-					</p>
-					<p>
-						Free: {typeof data?.diskInfo.freeGb === 'number' ? data.diskInfo.freeGb.toFixed(2) : 'N/A'} GB ({typeof data?.diskInfo.freePercentage ===
-						'number'
-							? data.diskInfo.freePercentage.toFixed(2)
-							: 'N/A'}%)
-					</p>
-				</div>
-			{:else}
-				<p class="text-center text-error-500">No usable disk data: {JSON.stringify(data)}</p>
-			{/if}
+		{:else if !normalizedDiskInfo()}
+			<p class="text-center text-error-500">No usable disk data in API response: {JSON.stringify(data)}</p>
+		{:else}
+			<div class="absolute bottom-5 left-0 flex w-full justify-between gap-2 px-2 text-xs">
+				<p>
+					Total: {typeof normalizedDiskInfo().totalGb === 'number' ? normalizedDiskInfo().totalGb.toFixed(2) : 'N/A'} GB
+				</p>
+				<p>
+					Used: {typeof normalizedDiskInfo().usedGb === 'number' ? normalizedDiskInfo().usedGb.toFixed(2) : 'N/A'} GB ({typeof normalizedDiskInfo()
+						.usedPercentage === 'number'
+						? normalizedDiskInfo().usedPercentage.toFixed(2)
+						: 'N/A'}%)
+				</p>
+				<p>
+					Free: {typeof normalizedDiskInfo().freeGb === 'number' ? normalizedDiskInfo().freeGb.toFixed(2) : 'N/A'} GB ({typeof normalizedDiskInfo()
+						.freePercentage === 'number'
+						? normalizedDiskInfo().freePercentage.toFixed(2)
+						: 'N/A'}%)
+				</p>
+			</div>
 		{/if}
 	</div>
 </BaseWidget>

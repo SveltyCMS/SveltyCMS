@@ -49,19 +49,19 @@ export function getPermissionById(permissionId: string): Permission | undefined 
 export function hasPermissionWithRoles(user: User, permissionId: string, roles: Role[]): boolean {
 	const userRole = roles.find((role) => role._id === user.role);
 	if (!userRole) {
-		logger.warn(`Role not found for user: ${user.email}`);
+		logger.warn('Role not found for user', { email: user.email });
 		return false;
 	}
 
 	// ADMIN OVERRIDE: Admins automatically have ALL permissions
 	if (userRole.isAdmin) {
-		logger.debug(`Admin user \x1b[34m${user.email}\x1b[0m granted permission: ${permissionId}`);
+		logger.debug('Admin user granted permission', { email: user.email, permissionId });
 		return true;
 	}
 
 	// Check if user's role has the specific permission
 	const hasPermission = userRole.permissions.includes(permissionId);
-	logger.debug(`Permission ${permissionId} ${hasPermission ? 'granted' : 'denied'} for user: ${user.email}`);
+	logger.debug('Permission check for user', { permissionId, granted: hasPermission, email: user.email });
 	return hasPermission;
 }
 
@@ -89,7 +89,7 @@ export function hasPermissionByAction(user: User, action: string, type: string, 
 
 	// ADMIN OVERRIDE: Admins automatically have ALL permissions
 	if (userRole.isAdmin) {
-		logger.debug(`Admin user \x1b[34m${user.email}\x1b[0m granted permission for action: ${action}, type: ${type}`);
+		logger.debug('Admin user granted permission for action', { email: user.email, action, type });
 		return true;
 	}
 
@@ -137,13 +137,13 @@ export function getPermissionConfig(configKey: string): PermissionConfig | null 
 
 	const permissionId = configMap[configKey];
 	if (!permissionId) {
-		logger.warn(`Unknown permission config key: ${configKey}`);
+		logger.warn('Unknown permission config key', { configKey });
 		return null;
 	}
 
 	const permission = getPermissionById(permissionId);
 	if (!permission) {
-		logger.warn(`Permission not found for ID: ${permissionId}`);
+		logger.warn('Permission not found for ID', { permissionId });
 		return null;
 	}
 
@@ -159,12 +159,12 @@ export function getPermissionConfig(configKey: string): PermissionConfig | null 
 // Validate user permission from locals.permissions array
 export function validateUserPermission(userPermissions: string[] | undefined, requiredPermission: string): boolean {
 	if (!userPermissions) {
-		logger.warn(`No user permissions provided for validation of: ${requiredPermission}`);
+		logger.warn('No user permissions provided for validation', { requiredPermission });
 		return false;
 	}
 
 	const hasPermission = userPermissions.includes(requiredPermission);
-	logger.debug(`Permission ${requiredPermission} ${hasPermission ? 'granted' : 'denied'}`);
+	logger.debug('User permission validation', { requiredPermission, granted: hasPermission });
 	return hasPermission;
 }
 

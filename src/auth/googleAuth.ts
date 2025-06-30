@@ -63,13 +63,16 @@ async function generateGoogleAuthUrl(token?: string | null, consent: string = 'c
 
 	logger.debug(`Generating OAuth URL with base URL: ${baseUrl}`);
 
+	// Generate auth URL without PKCE parameters to avoid Google's "code_verifier or verifier is not needed" error
+	// Use 'online' access_type to prevent PKCE from being auto-enabled in newer googleapis versions
 	const authUrl = googleAuthClient.generateAuthUrl({
-		access_type: 'offline',
+		access_type: 'online', // Changed from 'offline' to 'online' to disable PKCE
 		scope: scopes.join(' '),
 		redirect_uri: baseUrl,
 		state: token ? encodeURIComponent(token) : undefined,
 		prompt: consent,
 		include_granted_scopes: true
+		// Note: Using 'online' access_type prevents PKCE parameters from being auto-added
 	});
 
 	logger.debug(`Generated OAuth URL: ${authUrl}`);

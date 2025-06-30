@@ -459,7 +459,7 @@ class ContentManager {
 
 				const normalizedPath = normalizePath(collection.path);
 				const oldNode = contentStructure[normalizedPath];
-				if (oldNode) logger.warn(`Collection  \x1b[34m${collection.name}\x1b[0m Node already exists. Updating Node`);
+				if (oldNode) logger.warn(`Collection \x1b[34m${collection.name}\x1b[0m Node already exists. Updating Node`);
 
 				const parentPath = normalizedPath === '/' ? null : normalizedPath.split('/').slice(0, -1).join('/') || '/';
 

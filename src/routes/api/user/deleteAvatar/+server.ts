@@ -86,9 +86,16 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 				await moveMediaToTrash(user.avatar);
 				logger.info('Avatar moved to trash successfully', { userId: user._id, avatar: user.avatar, deletedBy: locals.user._id });
 			} catch (moveError) {
-				logger.error(`Failed to move avatar file to trash: ${moveError.message}`, { userId: user._id });
-				// If the file doesn't exist, log it and continue. The goal is to remove the link.
-				if (!moveError.message.includes('Source file does not exist')) {
+				// If the file doesn't exist (ENOENT), log it as a warning and continue. The goal is to remove the link.
+				if (moveError.message.includes('ENOENT')) {
+					logger.warn('Avatar file not found, but proceeding to remove it from user profile.', {
+						userId: user._id,
+						avatar: user.avatar,
+						error: moveError.message
+					});
+				} else {
+					// For other errors, log as an error and stop the process.
+					logger.error(`Failed to move avatar file to trash: ${moveError.message}`, { userId: user._id });
 					throw error(500, `Failed to move avatar to trash: ${moveError.message}`);
 				}
 			}
