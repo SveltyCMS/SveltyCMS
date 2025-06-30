@@ -667,8 +667,33 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		files: {
 			upload: async (file: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaItem>> => {
 				try {
-					const result = await this.modelSetup.uploadMedia(file);
-					return result;
+					// Import the MediaModel to use for creation
+					const { MediaModel } = await import('@src/databases/mongodb/models/media');
+
+					// Generate ID using the adapter's utils
+					const mediaId = this.utils.generateId();
+
+					// Ensure required fields are present
+					if (!file.createdBy || !file.updatedBy) {
+						throw new Error('createdBy and updatedBy fields are required for media upload');
+					}
+
+					// Create the media item with generated ID and all required fields
+					const newMedia = await MediaModel.create({
+						...file,
+						_id: mediaId,
+						createdBy: file.createdBy,
+						updatedBy: file.updatedBy
+					});
+
+					// Convert to the expected format
+					const mediaWithISODates = {
+						...newMedia.toObject(),
+						createdAt: newMedia.createdAt.toISOString() as ISODateString,
+						updatedAt: newMedia.updatedAt.toISOString() as ISODateString
+					} as unknown as MediaItem;
+
+					return { success: true, data: mediaWithISODates };
 				} catch (error) {
 					logger.error('Error uploading file:', error as LoggableValue);
 					return {

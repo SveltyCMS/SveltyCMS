@@ -35,7 +35,10 @@ export const POST: RequestHandler = async ({ cookies, locals }) => {
 		if (session_id && locals.user) {
 			// Destroy the session on the server-side (database, cache, etc.).
 			await auth.destroySession(session_id);
-			logger.info(`Session destroyed for user ${locals.user.email}`, { sessionId: session_id });
+			logger.info('Session destroyed for user', {
+				email: locals.user.email,
+				sessionId: session_id
+			});
 		} else {
 			// If there's no session, there's nothing to destroy, but we can still log it.
 			logger.warn('Logout endpoint was called, but no active session was found.');

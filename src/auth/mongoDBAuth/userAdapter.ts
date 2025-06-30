@@ -72,15 +72,42 @@ export class UserAdapter implements Partial<authDBInterface> {
 	// Create a new user
 	async createUser(userData: Partial<User>): Promise<User> {
 		try {
+			// Log exactly what we received
+			logger.debug('UserAdapter.createUser received data:', {
+				...userData,
+				email: userData.email?.replace(/(.{2}).*@(.*)/, '$1****@$2'),
+				avatar: `Avatar value: "${userData.avatar}" (type: ${typeof userData.avatar}, length: ${userData.avatar?.length || 0})`
+			});
+
 			const user = new this.UserModel(userData);
+
+			// Log what the model contains before saving
+			logger.debug('UserModel before save:', {
+				email: user.email?.replace(/(.{2}).*@(.*)/, '$1****@$2'),
+				avatar: `Model avatar: "${user.avatar}" (type: ${typeof user.avatar})`,
+				hasAvatar: !!user.avatar
+			});
+
 			await user.save();
-			logger.debug(`User created:`, { email: user.email });
+
+			// Log what was actually saved
+			logger.debug('User created and saved:', {
+				_id: user._id,
+				email: user.email?.replace(/(.{2}).*@(.*)/, '$1****@$2'),
+				avatar: `Saved avatar: "${user.avatar}" (type: ${typeof user.avatar})`,
+				allFields: Object.keys(user.toObject())
+			});
+
 			const savedUser = user.toObject();
 			savedUser._id = savedUser._id.toString();
 			return savedUser as User;
 		} catch (err) {
 			const message = `Error in UserAdapter.createUser: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { email: userData.email });
+			logger.error(message, {
+				email: userData.email?.replace(/(.{2}).*@(.*)/, '$1****@$2'),
+				error: err,
+				userData: Object.keys(userData)
+			});
 			throw error(500, message);
 		}
 	}

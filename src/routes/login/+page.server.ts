@@ -157,7 +157,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		// Use the firstUserExists value from locals (set by hooks)
 		// This avoids race conditions during initialization
 		const firstUserExists = locals.isFirstUser === false;
-		logger.debug(`In load: firstUserExists determined as: ${firstUserExists} (based on locals.isFirstUser: ${locals.isFirstUser})`);
+		logger.debug(`In load: firstUserExists determined as: /x1b[34m${firstUserExists}\x1b[0m (based on locals.isFirstUser: /x1b[34m${locals.isFirstUser}\x1b[0m)`);
 
 		const code = url.searchParams.get('code');
 		logger.debug(`Authorization code from URL: ${code}`);

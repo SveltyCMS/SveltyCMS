@@ -144,7 +144,7 @@ export class Auth {
 	// Create a new user with hashed password
 	async createUser(userData: Partial<User>, oauth: boolean = false): Promise<User> {
 		try {
-			const { email, password, username, role, lastAuthMethod, isRegistered, permissions } = userData;
+			const { email, password, username, role, lastAuthMethod, isRegistered, permissions, avatar, firstName, lastName, blocked } = userData;
 
 			if (!email || (!oauth && !password)) {
 				throw error(400, 'Email and password are required to create a user');
@@ -172,7 +172,11 @@ export class Auth {
 				lastAuthMethod,
 				isRegistered,
 				failedAttempts: 0,
-				permissions
+				permissions,
+				avatar,
+				firstName,
+				lastName,
+				blocked
 			});
 
 			if (!user || !user._id) {
