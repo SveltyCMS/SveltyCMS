@@ -45,12 +45,20 @@ Features:
 	const {
 		active = $bindable(undefined),
 		FormSchemaSignUp,
+		isInviteFlow = false,
+		token = '',
+		invitedEmail = '',
+		inviteError = '',
 		onClick = () => {},
 		onPointerEnter = () => {},
 		onBack = () => {}
 	} = $props<{
 		active?: undefined | 0 | 1;
 		FormSchemaSignUp: SuperValidated<SignUpFormSchema>;
+		isInviteFlow?: boolean;
+		token?: string;
+		invitedEmail?: string;
+		inviteError?: string;
 		onClick?: () => void;
 		onPointerEnter?: () => void;
 		onBack?: () => void;
@@ -120,8 +128,16 @@ Features:
 	// URL parameter handling
 	const params = browser ? new URL(window.location.href).searchParams : new URLSearchParams('');
 
+	// Initialize form with invite data when in invite flow
 	$effect(() => {
-		if (browser && params.has('regToken')) {
+		if (isInviteFlow && invitedEmail) {
+			$form.email = invitedEmail;
+		}
+		if (isInviteFlow && token) {
+			$form.token = token;
+		}
+		// Also handle legacy URL params for backwards compatibility
+		else if (browser && params.has('regToken')) {
 			$form.token = params.get('regToken')!;
 		}
 	});
@@ -130,7 +146,15 @@ Features:
 	function handleOAuth() {
 		const form = document.createElement('form');
 		form.method = 'post';
-		form.action = '?/OAuth';
+
+		// Use signInOAuth action when in invite flow to preserve invite token
+		if (isInviteFlow && token) {
+			// Build the action URL with the invite token as a query parameter
+			form.action = `?/signInOAuth&invite_token=${encodeURIComponent(token)}`;
+		} else {
+			form.action = '?/OAuth';
+		}
+
 		document.body.appendChild(form);
 		form.submit();
 		document.body.removeChild(form);
@@ -189,11 +213,16 @@ Features:
 					<h1 class="text-3xl font-bold text-white lg:text-4xl">
 						<div class="text-xs text-surface-300"><SiteName /></div>
 						<div class="break-words lg:-mt-1">
-							{m.form_signup()}
-							{#if !firstUserExists}
-								<span class="text-2xl text-primary-500 sm:text-3xl">: Admin</span>
+							{#if isInviteFlow}
+								{m.form_signup()}
+								<span class="text-2xl text-primary-500 sm:text-3xl">: Complete Invitation</span>
 							{:else}
-								<span class="text-2xl capitalize text-primary-500 sm:text-3xl">: New User</span>
+								{m.form_signup()}
+								{#if !firstUserExists}
+									<span class="text-2xl text-primary-500 sm:text-3xl">: Admin</span>
+								{:else}
+									<span class="text-2xl capitalize text-primary-500 sm:text-3xl">: New User</span>
+								{/if}
 							{/if}
 						</div>
 					</h1>
@@ -242,11 +271,13 @@ Features:
 						icon="mdi:email"
 						iconColor="white"
 						textColor="white"
-						inputClass="text-white"
+						inputClass="text-white {isInviteFlow ? 'opacity-70' : ''}"
 						autocomplete="on"
-						onInput={(value) => ($form.email = value)}
+						disabled={isInviteFlow}
+						onInput={(value) => !isInviteFlow && ($form.email = value)}
 					/>
 					{#if $errors.email}<span class="text-xs text-error-500">{$errors.email}</span>{/if}
+					{#if isInviteFlow}<span class="text-xs text-primary-400">✓ Email pre-filled from invitation</span>{/if}
 
 					<!-- Password field -->
 					<FloatingInput
@@ -297,8 +328,8 @@ Features:
 					<!-- Password Strength Indicator -->
 					<PasswordStrength password={formValues.password} confirmPassword={formValues.confirm_password} />
 
-					{#if firstUserExists == true}
-						<!-- Registration Token -->
+					{#if firstUserExists == true && !isInviteFlow}
+						<!-- Registration Token (hidden when using invite flow) -->
 						<FloatingInput
 							id="tokensignUp"
 							name="token"
@@ -319,24 +350,38 @@ Features:
 						{#if $errors.token}
 							<span class="text-xs text-error-500">{$errors.token}</span>
 						{/if}
+					{:else if isInviteFlow}
+						<!-- Hidden token field for invite flow -->
+						<input type="hidden" name="token" value={token} />
+						<span class="text-xs text-primary-400">✓ Using invitation token</span>
 					{/if}
 
 					{#if response}
 						<span class="text-xs text-error-500">{response}</span>
 					{/if}
 
+					{#if inviteError}
+						<span class="text-xs text-error-500">{inviteError}</span>
+					{/if}
+
 					{#if !privateEnv.USE_GOOGLE_OAUTH}
 						<!-- Email SignIn only -->
-						<button type="submit" class="variant-filled btn mt-4 uppercase" aria-label={m.form_signup()}>
-							{m.form_signup()}
+						<button type="submit" class="variant-filled btn mt-4 uppercase" aria-label={isInviteFlow ? 'Accept Invitation' : m.form_signup()}>
+							{isInviteFlow ? 'Accept Invitation & Create Account' : m.form_signup()}
 							{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 						</button>
 
 						<!-- Email + OAuth signin  -->
 					{:else}
 						<div class="btn-group mt-4 border border-secondary-500 text-white [&>*+*]:border-secondary-500">
-							<button type="submit" class="btn w-3/4 rounded-none bg-surface-200 text-black hover:text-white" aria-label={m.form_signup()}>
-								<span class="w-full text-black hover:text-white">{m.form_signup()}</span>
+							<button
+								type="submit"
+								class="btn w-3/4 rounded-none bg-surface-200 text-black hover:text-white"
+								aria-label={isInviteFlow ? 'Accept Invitation' : m.form_signup()}
+							>
+								<span class="w-full text-black hover:text-white">
+									{isInviteFlow ? 'Accept Invitation' : m.form_signup()}
+								</span>
 								<!-- Loading indicators -->
 								{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 							</button>

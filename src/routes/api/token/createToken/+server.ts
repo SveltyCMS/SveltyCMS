@@ -106,11 +106,11 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 		});
 		logger.debug('Created registration token', { email: validatedData.email, expires: expires.toISOString() });
 
-		// Generate a link to the login page with the registration token as a query parameter.
-		const tokenLink = `${request.url.origin}/login?regToken=${token}`;
+		// Generate a link to the login page with the invite token as a query parameter.
+		const inviteLink = `${request.url.origin}/login?invite_token=${token}`;
 
 		// Send invitation email using the internal sendMail API.
-		const emailResponse = await fetch('/api/sendMail', {
+		const emailResponse = await fetch(`${request.url.origin}/api/sendMail`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
@@ -118,10 +118,11 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 				subject: 'Invitation to Register',
 				templateName: 'userToken',
 				props: {
+					username: '', // Will be filled by the user during signup
 					email: validatedData.email,
 					role: role.name, // Send user-friendly role name
-					token: token,
-					tokenLink: tokenLink,
+					token: token, // Include the raw token for fallback
+					tokenLink: inviteLink, // Pass the full magic link to the template
 					expiresInLabel: validatedData.expiresIn,
 					languageTag: getLocale()
 				}

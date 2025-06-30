@@ -156,53 +156,106 @@ async function handleGoogleUser(
 	}
 
 	if (!user) {
-		// Only require token for new users (not first user)
+		// Handle new user creation with invite token validation
 		if (!isFirst) {
+			// For non-first users, validate the invite token
 			if (!token) {
-				throw new Error('Registration token is required for new users');
+				throw new Error('A valid invitation is required to create an account via OAuth');
 			}
-			const tokenValidation = await auth?.validateToken(token);
-			if (!tokenValidation?.isValid) {
-				throw new Error('Invalid or expired registration token');
-			}
-		}
 
-		// Handle new user creation
-		let avatarUrl: string | null = null;
-		if (googleUser.picture) {
-			logger.debug(`Attempting to save Google avatar for new user: ${googleUser.picture}`);
-			avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture, email);
-			if (avatarUrl) {
-				logger.debug(`Avatar saved for new user: ${avatarUrl}`);
-			} else {
-				logger.warn('Failed to save avatar for new user', { email: email });
+			const tokenValidation = await auth?.validateToken(token, 'registration');
+			if (!tokenValidation?.isValid || !tokenValidation?.details) {
+				throw new Error('This invitation is invalid, expired, or has already been used');
 			}
+
+			// Check that the OAuth email matches the invited email
+			if (email.toLowerCase() !== tokenValidation.details.email.toLowerCase()) {
+				throw new Error('The Google account email does not match the invitation email');
+			}
+
+			// Use the role from the token for invited users
+			const inviteRole = tokenValidation.details.role;
+
+			// Handle new user creation with invite token
+			let avatarUrl: string | null = null;
+			if (googleUser.picture) {
+				logger.debug(`Attempting to save Google avatar for invited user: ${googleUser.picture}`);
+				avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture, email);
+				if (avatarUrl) {
+					logger.debug(`Avatar saved for invited user: ${avatarUrl}`);
+				} else {
+					logger.warn('Failed to save avatar for invited user', { email: email });
+				}
+			}
+
+			// Create the invited user with the role from the token
+			const userData = {
+				email,
+				username: googleUser.name ?? '',
+				firstName: googleUser.given_name,
+				lastName: googleUser.family_name,
+				avatar: avatarUrl,
+				role: inviteRole, // Use role from invite token
+				lastAuthMethod: 'google',
+				isRegistered: true,
+				blocked: false
+			};
+
+			logger.debug('Creating invited user with data:', {
+				...userData,
+				email: userData.email.replace(/(.{2}).*@(.*)/, '$1****@$2')
+			});
+
+			user = await auth?.createUser(userData, true);
+
+			// Consume the invite token after successful user creation
+			await auth?.consumeToken(token);
+			logger.info(`Invited user ${user?.username} created successfully via OAuth and token consumed`);
+
+			// Send welcome email for invited users
+			await sendWelcomeEmail(fetchFn, email, googleUser.name || '', request);
 		} else {
-			logger.debug('No Google avatar provided for new user');
+			// Handle first user (admin) creation - no token required
+			let avatarUrl: string | null = null;
+			if (googleUser.picture) {
+				logger.debug(`Attempting to save Google avatar for first user: ${googleUser.picture}`);
+				avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture, email);
+				if (avatarUrl) {
+					logger.debug(`Avatar saved for first user: ${avatarUrl}`);
+				} else {
+					logger.warn('Failed to save avatar for first user', { email: email });
+				}
+			}
+
+			// Create the first user (admin)
+			const adminRole = roles.find(r => r.isAdmin);
+			if (!adminRole) {
+				throw new Error('Admin role not found in roles configuration');
+			}
+
+			const userData = {
+				email,
+				username: googleUser.name ?? '',
+				firstName: googleUser.given_name,
+				lastName: googleUser.family_name,
+				avatar: avatarUrl,
+				role: adminRole._id,
+				permissions: adminRole.permissions, // Include admin permissions
+				lastAuthMethod: 'google',
+				isRegistered: true,
+				blocked: false
+			};
+
+			logger.debug('Creating first user (admin) with data:', {
+				...userData,
+				email: userData.email.replace(/(.{2}).*@(.*)/, '$1****@$2')
+			});
+
+			user = await auth?.createUser(userData, true);
+
+			// Send welcome email for new admin
+			await sendWelcomeEmail(fetchFn, email, googleUser.name || '', request);
 		}
-
-		// Create the new user
-		const userData = {
-			email,
-			username: googleUser.name ?? '',
-			firstName: googleUser.given_name,
-			lastName: googleUser.family_name,
-			avatar: avatarUrl,
-			role: isFirst ? roles.find(r => r.isAdmin)?._id || 'admin' : roles.find(r => r._id === 'user')?._id || 'user',
-			lastAuthMethod: 'google',
-			isRegistered: true,
-			blocked: false
-		};
-
-		logger.debug('Creating user with data:', {
-			...userData,
-			email: userData.email.replace(/(.{2}).*@(.*)/, '$1****@$2')
-		});
-
-		user = await auth?.createUser(userData, true);
-
-		// Send welcome email for new users
-		await sendWelcomeEmail(fetchFn, email, googleUser.name || '', request);
 	} else {
 		// Existing user - no token required for sign-in
 		logger.debug(`Existing user signing in: ${user._id}, current avatar: ${user.avatar ? 'YES' : 'NO'}`);

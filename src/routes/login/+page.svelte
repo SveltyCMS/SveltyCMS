@@ -37,7 +37,7 @@ Features:
 
 	// Check for reset password URL parameters (initially false, updated by effect)
 	let hasResetParams = $state(false);
-	
+
 	// Set Initial active state based on conditions (will be updated by effect)
 	let active = $state<undefined | 0 | 1>(
 		publicEnv.DEMO || publicEnv.SEASONS
@@ -54,7 +54,7 @@ Features:
 			const token = urlParams.get('token');
 			const email = urlParams.get('email');
 			const hasParams = !!(token && email);
-			
+
 			if (hasParams !== hasResetParams) {
 				hasResetParams = hasParams;
 				if (hasResetParams) {
@@ -91,7 +91,7 @@ Features:
 
 	// Derived state using $derived rune
 	const availableLanguages = $derived(
-		Array.isArray(publicEnv.AVAILABLE_SYSTEM_LANGUAGES) 
+		Array.isArray(publicEnv.AVAILABLE_SYSTEM_LANGUAGES)
 			? [...publicEnv.AVAILABLE_SYSTEM_LANGUAGES].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
 			: ['en']
 	);
@@ -106,8 +106,8 @@ Features:
 
 	// Ensure a valid language is always used
 	const currentLanguage = $derived(
-		systemLanguage.value && Array.isArray(publicEnv.AVAILABLE_SYSTEM_LANGUAGES) && publicEnv.AVAILABLE_SYSTEM_LANGUAGES.includes(systemLanguage.value) 
-			? systemLanguage.value 
+		systemLanguage.value && Array.isArray(publicEnv.AVAILABLE_SYSTEM_LANGUAGES) && publicEnv.AVAILABLE_SYSTEM_LANGUAGES.includes(systemLanguage.value)
+			? systemLanguage.value
 			: 'en'
 	);
 
@@ -268,6 +268,10 @@ Features:
 	<SignUp
 		bind:active
 		FormSchemaSignUp={data.signUpForm}
+		isInviteFlow={data.isInviteFlow || false}
+		token={data.token || ''}
+		invitedEmail={data.invitedEmail || ''}
+		inviteError={data.inviteError || ''}
 		onClick={handleSignUpClick}
 		onPointerEnter={handleSignUpPointerEnter}
 		onBack={resetToInitialState}

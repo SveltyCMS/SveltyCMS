@@ -3,7 +3,14 @@
  * @description API endpoints for user management.
  *
  * This module provides functionality to:
- * - Retrieve all users (GET)
+ * - Retrieve all us				props: { 
+					username: '', // Will be filled by the user during signup
+					email: email,
+					role, 
+					token: token, // Include the raw token for fallback
+					tokenLink: inviteLink,
+					expiresInLabel: expiresIn
+				}GET)
  * - Create a new user and send a token via email (POST)
  *
  * Features:
@@ -146,6 +153,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
  */
 async function sendUserToken(origin: string, email: string, token: string, role: string, expiresIn: number) {
 	try {
+		const inviteLink = `${origin}/login?invite_token=${token}`;
+
 		const response = await fetch(`${origin}/api/sendMail`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
@@ -154,7 +163,11 @@ async function sendUserToken(origin: string, email: string, token: string, role:
 				subject: 'You have been invited to join',
 				message: 'User Token',
 				templateName: 'userToken',
-				props: { email, token, role, expiresIn }
+				props: {
+					role,
+					tokenLink: inviteLink,
+					expiresInLabel: expiresIn
+				}
 			})
 		});
 

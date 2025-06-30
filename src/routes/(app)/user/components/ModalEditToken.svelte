@@ -64,7 +64,7 @@ delete endpoint, resolving the "Unexpected token" browser error.
 
 		try {
 			const isEditMode = !!formData.token;
-			const endpoint = isEditMode ? `/api/token/${formData.token}` : '/api/token';
+			const endpoint = isEditMode ? `/api/token/${formData.token}` : '/api/token/createToken';
 			const method = isEditMode ? 'PUT' : 'POST';
 
 			const body = isEditMode
