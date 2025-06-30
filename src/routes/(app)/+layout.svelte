@@ -221,15 +221,15 @@
 		<!-- Body -->
 		<div class="flex h-lvh flex-col">
 			<!-- Header (unsused)  -->
-			{#if uiStateManager.uiState.value.header !== 'hidden'}
+			{#if uiStateManager.uiState.header !== 'hidden'}
 				<header class="sticky top-0 z-10 bg-tertiary-500">Header</header>
 			{/if}
 
 			<div class="flex flex-1 overflow-hidden">
 				<!-- Sidebar Left -->
-				{#if uiStateManager.uiState.value.leftSidebar !== 'hidden'}
+				{#if uiStateManager.uiState.leftSidebar !== 'hidden'}
 					<aside
-						class="max-h-dvh {uiStateManager.uiState.value.leftSidebar === 'full'
+						class="max-h-dvh {uiStateManager.uiState.leftSidebar === 'full'
 							? 'w-[220px]'
 							: 'w-fit'} relative border-r bg-white !px-2 text-center dark:border-surface-500 dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900"
 					>
@@ -240,7 +240,7 @@
 				<!-- Content Area -->
 				<main class="relative w-full flex-1">
 					<!-- Page Header -->
-					{#if uiStateManager.uiState.value.pageheader !== 'hidden'}
+					{#if uiStateManager.uiState.pageheader !== 'hidden'}
 						<header class="sticky top-0 z-10 w-full">
 							<HeaderEdit />
 						</header>
@@ -249,7 +249,7 @@
 					<!-- Router Slot -->
 					<div
 						role="main"
-						class="relative h-full flex-grow overflow-auto {uiStateManager.uiState.value.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {$screenSize ===
+						class="relative h-full flex-grow overflow-auto {uiStateManager.uiState.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {screenSize.value ===
 						'lg'
 							? 'mb-2'
 							: 'mb-16'}"
@@ -276,7 +276,7 @@
 					</div>
 
 					<!-- Page Footer -->
-					{#if uiStateManager.uiState.value.pagefooter !== 'hidden'}
+					{#if uiStateManager.uiState.pagefooter !== 'hidden'}
 						<footer
 							class="sticky left-0 top-[calc(100%-51px)] z-10 w-full bg-surface-50 bg-gradient-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900"
 						>
@@ -286,7 +286,7 @@
 				</main>
 
 				<!-- Sidebar Right -->
-				{#if uiStateManager.uiState.value.rightSidebar !== 'hidden'}
+				{#if uiStateManager.uiState.rightSidebar !== 'hidden'}
 					<aside
 						class="max-h-dvh w-[220px] border-l bg-surface-50 bg-gradient-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
 					>
@@ -296,7 +296,7 @@
 			</div>
 
 			<!-- Footer (unsused) -->
-			{#if uiStateManager.uiState.value.footer !== 'hidden'}
+			{#if uiStateManager.uiState.footer !== 'hidden'}
 				<footer class="bg-blue-500">Footer</footer>
 			{/if}
 		</div>

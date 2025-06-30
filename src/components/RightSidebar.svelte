@@ -175,7 +175,7 @@ This component provides a streamlined interface for managing collection entries 
 
 {#if showSidebar}
 	<div class="flex h-full w-full flex-col justify-between px-3 py-4">
-		{#if $shouldShowNextButton && mode.value === 'create'}
+		{#if shouldShowNextButton.value && mode.value === 'create'}
 			<button type="button" onclick={next} aria-label="Next" class="variant-filled-primary btn w-full gap-2 shadow-lg">
 				<iconify-icon icon="carbon:next-filled" width="20" class="font-extrabold text-white"></iconify-icon>
 				{m.button_next()}
@@ -190,7 +190,7 @@ This component provides a streamlined interface for managing collection entries 
 					class:opacity-50={!validationStore.isValid || !canWrite}
 					class:cursor-not-allowed={!validationStore.isValid || !canWrite}
 					aria-label="Save entry"
-					title={validationStore.isValid ? 'Save changes' : 'Please fix validation errors before saving'}
+					title={validationStore.isValid() ? 'Save changes' : 'Please fix validation errors before saving'}
 				>
 					<iconify-icon icon="material-symbols:save" width="20" class="font-extrabold text-white"></iconify-icon>
 					{m.button_save()}
@@ -211,7 +211,7 @@ This component provides a streamlined interface for managing collection entries 
 					<div class="flex w-full flex-col gap-2">
 						<button
 							type="button"
-							onclick={modifyEntry}
+							onclick={() => modifyEntry.value}
 							disabled={!canCreate}
 							class="gradient-secondary gradient-secondary-hover btn w-full gap-2 text-white shadow-md transition-all duration-200"
 							aria-label="Clone entry"
@@ -222,7 +222,7 @@ This component provides a streamlined interface for managing collection entries 
 
 						<button
 							type="button"
-							onclick={modifyEntry}
+							onclick={() => modifyEntry.value}
 							disabled={!canDelete}
 							class="variant-filled-error btn w-full gap-2 shadow-md transition-all duration-200 hover:shadow-lg"
 							aria-label="Delete entry"

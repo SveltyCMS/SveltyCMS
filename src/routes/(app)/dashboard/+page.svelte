@@ -63,7 +63,7 @@
 	let draggedItemId: string | null = $state(null);
 	let preferencesLoaded = $state(false);
 
-	let currentScreenSize = $derived($screenSize);
+	let currentScreenSize = $derived(screenSize.value);
 	let cols = $derived(currentScreenSize === 'sm' ? 2 : currentScreenSize === 'md' ? 3 : 4);
 	let gridCellWidth = $state(0);
 

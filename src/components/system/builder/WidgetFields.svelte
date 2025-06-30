@@ -15,7 +15,7 @@
 	import { debounce } from '@utils/utils';
 
 	// Props
-	let { fields = [], onFieldsUpdate = (newFields: any[]) => {} } = $props<{
+	let { fields = [], onFieldsUpdate = (_newFields: any[]) => {} } = $props<{
 		fields: any[];
 		onFieldsUpdate: (newFields: any[]) => void;
 	}>();
@@ -193,7 +193,7 @@
 			: 'left-0 '}"
 	>
 		<div
-			class="fixed top-0 flex items-center justify-between {uiStateManager.uiState.value.leftSidebar === 'full'
+			class="fixed top-0 flex items-center justify-between {uiStateManager.uiState.leftSidebar === 'full'
 				? 'left-[220px] w-full'
 				: 'left-0 w-screen'}"
 		>

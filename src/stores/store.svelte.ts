@@ -20,7 +20,6 @@
  */
 
 import { publicEnv } from '@root/config/public';
-import { store } from '@utils/reactivity.svelte';
 
 // Paraglidejs
 import { type Locale } from '@src/paraglide/runtime';
@@ -63,8 +62,33 @@ const createBaseStores = () => {
   const initialContentLanguage = (getCookie('contentLanguage') as Locale | null) ?? (publicEnv.DEFAULT_CONTENT_LANGUAGE as Locale);
 
   // Language and i18n
-  const systemLanguage = store<Locale>(initialSystemLanguage);
-  const contentLanguage = store<Locale>(initialContentLanguage);
+  let systemLanguageState = $state<Locale>(initialSystemLanguage);
+  const systemLanguage = {
+    get value() { return systemLanguageState; },
+    set(newValue: Locale) { systemLanguageState = newValue; },
+    subscribe(fn: (value: Locale) => void) {
+      return $effect.root(() => {
+        $effect(() => {
+          fn(systemLanguageState);
+        });
+        return () => { };
+      });
+    }
+  };
+
+  let contentLanguageState = $state<Locale>(initialContentLanguage);
+  const contentLanguage = {
+    get value() { return contentLanguageState; },
+    set(newValue: Locale) { contentLanguageState = newValue; },
+    subscribe(fn: (value: Locale) => void) {
+      return $effect.root(() => {
+        $effect(() => {
+          fn(contentLanguageState);
+        });
+        return () => { };
+      });
+    }
+  };
 
   // Translation status - using Svelte 5 runes
   let translationStatus = $state({});
@@ -130,9 +154,25 @@ const createBaseStores = () => {
     }
   };
 
-  const headerActionButton = store<ConstructorOfATypedSvelteComponent | string | undefined>(undefined);
-  const headerActionButton2 = store<ConstructorOfATypedSvelteComponent | string | undefined>(undefined);
-  const pkgBgColor = store('variant-filled-primary');
+  const headerActionButton = $state<ConstructorOfATypedSvelteComponent | string | undefined>(undefined);
+  let headerActionButton2State = $state<ConstructorOfATypedSvelteComponent | string | undefined>(undefined);
+  const headerActionButton2 = {
+    get value() { return headerActionButton2State; },
+    set: (newValue: (value: any) => Promise<void>) => { headerActionButton2State = newValue; },
+    update: (fn: (value: (value: any) => Promise<void>) => (value: any) => Promise<void>) => {
+      headerActionButton2State = fn(headerActionButton2State);
+    }
+  };
+
+
+  let pkgBgColorState = $state('variant-filled-primary');
+  const pkgBgColor = {
+    get value() { return pkgBgColorState; },
+    set: (newValue: (string) => Promise<void>) => { pkgBgColorState = newValue; },
+    update: (fn: (value: (string) => Promise<void>) => (string) => Promise<void>) => {
+      pkgBgColorState = fn(pkgBgColorState);
+    }
+  };
 
   // Optimized listbox value using Svelte 5 runes for better performance
   // This uses $state for fine-grained reactivity and minimal re-renders
@@ -166,16 +206,46 @@ const createBaseStores = () => {
 
   // Image handling 
   let avatarSrc = $state('/Default_User.svg');
-  const file = store<File | null>(null);
-  const saveEditedImage = store(false);
+  const file = $state<File | null>(null);
+  const saveEditedImage = $state(false);
 
   // Save functionality
-  const saveFunction = store<SaveFunction>({
+  const saveFunction = $state<SaveFunction>({
     fn: () => { },
     reset: () => { }
   });
-  const saveLayerStore = store(async () => { });
-  const shouldShowNextButton = store(false);
+  let saveLayerStoreState = $state(async () => { });
+  const saveLayerStore = {
+    get value() { return saveLayerStoreState; },
+    set(newValue: any) {
+      if (saveLayerStoreState !== newValue) {
+        saveLayerStoreState = newValue;
+      }
+    },
+    update(fn: (value: any) => any) {
+      const newValue = fn(saveLayerStoreState);
+      if (saveLayerStoreState !== newValue) {
+        saveLayerStoreState = newValue;
+      }
+    },
+    subscribe(fn: (value: any) => void) {
+      return $effect.root(() => {
+        $effect(() => {
+          fn(saveLayerStoreState);
+        });
+        return () => { };
+      });
+    }
+  };
+
+  let shouldShowNextButtonState = $state(false);
+  const shouldShowNextButton = {
+    get value() { return shouldShowNextButtonState; },
+    set: (newValue: Boolean) => { shouldShowNextButtonState = newValue; },
+    update: (fn: (value: Boolean) => Boolean) => {
+      shouldShowNextButtonState = fn(shouldShowNextButtonState);
+    }
+  };
 
   // Validation
   // Performance Optimizations Summary:
@@ -186,7 +256,7 @@ const createBaseStores = () => {
   // 5. Type safety: Full TypeScript support with proper interfaces
 
   // Validation store with $derived for automatic validity calculation
-  const validationErrors = store<ValidationErrors>({});
+  const validationErrors = $state<ValidationErrors>({});
 
   // Use store subscriptions for cookie updates
   systemLanguage.subscribe((sysLang) => {
@@ -331,3 +401,9 @@ function createValidationStore() {
 }
 
 export const validationStore = createValidationStore();
+
+export const themeStore = {
+  get state() { return state; },
+  get theme() { return theme; },
+  // ...other getters and methods
+};

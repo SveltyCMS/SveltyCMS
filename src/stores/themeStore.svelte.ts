@@ -10,9 +10,9 @@
  * - TypeScript support with custom Theme type
  */
 
-import { store } from '@utils/reactivity.svelte';
-import type { Theme } from '@src/databases/dbInterface';
-//import { dbAdapter } from '@src/databases/db';
+// No import needed for $state/$derived in Svelte 5
+const state = $state<ThemeState>(initialState);
+const theme = $derived(state.currentTheme);
 
 // Types
 interface ThemeState {
@@ -35,15 +35,14 @@ function createThemeStores() {
 	};
 
 	// Base store
-	const state = store<ThemeState>(initialState);
+	const state = $state<ThemeState>(initialState);
 
 	// Subscribe to theme changess
-	const theme = store(state().currentTheme);
-	const hasTheme = store(!!state().currentTheme);
-	const themeName = store(state().currentTheme?.name ?? 'default');
-	const isDefault = store(state().currentTheme?.isDefault ?? false);
-	const isLoading = store(state().isLoading);
-	const error = store(state().error);
+	const hasTheme = $derived(!!state.currentTheme);
+	const themeName = $derived(state.currentTheme?.name ?? 'default');
+	const isDefault = $derived(state.currentTheme?.isDefault ?? false);
+	const isLoading = $derived(state.isLoading);
+	const error = $derived(state.error);
 
 	// Initialize theme from database
 	async function initialize() {
@@ -78,13 +77,13 @@ function createThemeStores() {
 			const themeToUpdate =
 				typeof newTheme === 'string'
 					? {
-							name: newTheme,
-							_id: '',
-							path: '',
-							isDefault: false,
-							createdAt: new Date(),
-							updatedAt: new Date()
-						}
+						name: newTheme,
+						_id: '',
+						path: '',
+						isDefault: false,
+						createdAt: new Date(),
+						updatedAt: new Date()
+					}
 					: newTheme;
 
 			// Update the theme in the database

@@ -9,7 +9,6 @@
  * 	- TypeScript support with custom Collection type
  */
 
-import { store } from '@utils/reactivity.svelte';
 import type { Schema } from '@src/content/types';
 import type { ContentNode } from '../databases/dbInterface';
 
@@ -33,15 +32,18 @@ export const statusMap = {
 } as const;
 
 // Create reactive stores 
-export const collections = store<{ [uuid: string]: Schema }>({});
-export const collectionsById = store<Map<string, Schema>>(new Map());
-export const currentCollectionId = store<string | null>(null);
+export const collections = $state<{ [uuid: string]: Schema }>({});
+export const collectionsById = $state<Map<string, Schema>>(new Map());
 
 // Keep existing stores
-export const collectionsLoading = store<boolean>(false);
-export const collectionsError = store<string | null>(null);
-export const unAssigned = store<Schema>({} as Schema);
-export const collection = store<Schema | null>({} as Schema);
+let collectionState = $state<Schema | null>({} as Schema);
+export const collection = {
+	get value() { return collectionState; },
+	set: (newValue: Schema | null) => { collectionState = newValue; },
+	update: (fn: (value: Schema | null) => Schema | null) => {
+		collectionState = fn(collectionState);
+	}
+};
 
 // Create reactive state variables for collectionValue
 let collectionValueState = $state<Record<string, unknown>>({});
@@ -63,27 +65,53 @@ export const mode = {
 	}
 };
 
-export const modifyEntry = store<(status?: keyof typeof statusMap) => Promise<void>>(() => Promise.resolve());
-export const selectedEntries = store<string[]>([]);
-export const targetWidget = store<Widget>({ permissions: {} });
+let modifyEntryState = $state<(status?: keyof typeof statusMap) => Promise<void>>(() => Promise.resolve());
+export const modifyEntry = {
+	get value() { return modifyEntryState; },
+	set: (newValue: (status?: keyof typeof statusMap) => Promise<void>) => { modifyEntryState = newValue; },
+	update: (fn: (value: (status?: keyof typeof statusMap) => Promise<void>) => (status?: keyof typeof statusMap) => Promise<void>) => {
+		modifyEntryState = fn(modifyEntryState);
+	}
+};
 
-export const contentStructure = store<ContentNode[]>([]);
+export const selectedEntries = $state<string[]>([]);
+export const targetWidget = $state<Widget>({ permissions: {} });
+
+let contentStructureState = $state<ContentNode[]>([]);
+export const contentStructure = {
+	get value() { return contentStructureState; },
+	set: (newValue: ContentNode[]) => { contentStructureState = newValue; },
+	update: (fn: (value: ContentNode[]) => ContentNode[]) => {
+		contentStructureState = fn(contentStructureState);
+	}
+};
 
 // Reactive calculations 
-export const totalCollections = store(() => Object.keys(collections.value).length);
-export const hasSelectedEntries = store(() => selectedEntries.value.length > 0);
-export const currentCollectionName = store(() => collection.value?.name);
+const totalCollections = $derived(Object.keys(collections).length);
+const hasSelectedEntries = $derived(selectedEntries.length > 0);
+const currentCollectionName = $derived(collection?.name);
+
+export function getTotalCollections() {
+	return totalCollections;
+}
+export function getHasSelectedEntries() {
+	return hasSelectedEntries;
+}
+export function getCurrentCollectionName() {
+	return currentCollectionName;
+}
 
 // Entry management
 export const entryActions = {
 	addEntry(entryId: string) {
-		selectedEntries.update((entries) => [...entries, entryId]);
+		selectedEntries.push(entryId);
 	},
 	removeEntry(entryId: string) {
-		selectedEntries.update((entries) => entries.filter((id) => id !== entryId));
+		const idx = selectedEntries.indexOf(entryId);
+		if (idx !== -1) selectedEntries.splice(idx, 1);
 	},
 	clear() {
-		selectedEntries.set([]);
+		selectedEntries.length = 0;
 	}
 };
 

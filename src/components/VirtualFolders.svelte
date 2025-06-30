@@ -33,7 +33,6 @@ Features:
 	import { publicEnv } from '@root/config/public';
 
 	// Stores
-	import { get } from 'svelte/store';
 	import { uiStateManager, toggleUIElement } from '@stores/UIStore.svelte';
 	import { screenSize } from '@stores/screenSizeStore.svelte';
 	import { mode } from '@stores/collectionStore.svelte';
@@ -212,7 +211,7 @@ Features:
 	function returnToCollections(): void {
 		mode.set('view');
 		goto('/'); // Adjust this route as needed
-		if (get(screenSize) === 'sm') {
+		if (screenSize.value === 'sm') {
 			toggleUIElement('leftSidebar', 'hidden');
 		}
 	}
@@ -225,7 +224,7 @@ Features:
 
 <div class="mt-2 overflow-y-auto">
 	<!-- Return to Collections Button -->
-	{#if uiStateManager.uiState.value.leftSidebar === 'full'}
+	{#if uiStateManager.uiState.leftSidebar === 'full'}
 		<!-- Sidebar Expanded -->
 		<button
 			onclick={returnToCollections}
@@ -259,8 +258,8 @@ Features:
 		</div>
 	{:else if folders.length > 0}
 		<div class="relative flex flex-wrap">
-			{#each folders.filter((f) => !currentFolder || f.parent === currentFolder?._id) as folder (folder._id)}
-				{#if uiStateManager.uiState.value.leftSidebar === 'full'}
+			{#each folders.filter((f) => !currentFolder || f.parentId === currentFolder?._id) as folder (folder._id)}
+				{#if uiStateManager.uiState.leftSidebar === 'full'}
 					<!-- Sidebar Expanded -->
 					<div class="nowrap variant-outline-surface flex w-full">
 						<button onclick={() => openFolder(folder._id)} aria-label={`Open folder: ${folder.name}`} class="btn flex items-center space-x-2 p-2">

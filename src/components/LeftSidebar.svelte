@@ -172,15 +172,15 @@
 			const [githubMajor, githubMinor] = githubVersion.split('.').map(Number);
 
 			if (githubMinor > localMinor) {
-				$pkgBgColor = 'variant-filled-warning';
+				pkgBgColor.set('variant-filled-warning');
 			} else if (githubMajor !== localMajor) {
-				$pkgBgColor = 'variant-filled-error';
+				pkgBgColor.set('variant-filled-error');
 			}
 		})
 		.catch((error) => {
 			console.error('Error von Github Release found:', error);
 			githubVersion = pkg;
-			$pkgBgColor = 'variant-filled-tertiary';
+			pkgBgColor.set('variant-filled-tertiary');
 		});
 
 	const toggleTheme = () => {
@@ -195,7 +195,7 @@
 		if (!page.url.href.includes('user')) {
 			mode.set('view');
 			// Only handle sidebar on mobile
-			if (get(screenSize) === 'sm') {
+			if (screenSize.value === 'sm') {
 				toggleUIElement('leftSidebar', 'hidden'); // Hide the left sidebar on mobile
 			}
 			goto('/user');
@@ -212,7 +212,7 @@
 
 <div class="flex h-full w-full flex-col justify-between">
 	<!-- Corporate Identity Full-->
-	{#if uiStateManager.uiState.value.leftSidebar === 'full'}
+	{#if uiStateManager.uiState.leftSidebar === 'full'}
 		<a href="/" aria-label="SveltyCMS Logo" class="flex pt-2 !no-underline">
 			<SveltyCMSLogo fill="red" className="h-9 -ml-2" />
 			<span class="text-token relative text-2xl font-bold"><SiteName /> </span>
@@ -239,7 +239,7 @@
 	<button
 		type="button"
 		onclick={() => {
-			const newState = uiStateManager.uiState.value.leftSidebar === 'full' ? 'collapsed' : 'full';
+			const newState = uiStateManager.uiState.leftSidebar === 'full' ? 'collapsed' : 'full';
 			toggleUIElement('leftSidebar', newState);
 			userPreferredState.set(newState);
 		}}
@@ -249,7 +249,7 @@
 		<iconify-icon
 			icon="bi:arrow-left-circle-fill"
 			width="34"
-			class={`rounded-full bg-surface-500 text-white hover:cursor-pointer hover:bg-error-600 dark:bg-white dark:text-surface-600 dark:hover:bg-error-600 ${uiStateManager.uiState.value.leftSidebar === 'full' ? 'rotate-0 rtl:rotate-180' : 'rotate-180 rtl:rotate-0'}`}
+			class={`rounded-full bg-surface-500 text-white hover:cursor-pointer hover:bg-error-600 dark:bg-white dark:text-surface-600 dark:hover:bg-error-600 ${uiStateManager.uiState.leftSidebar === 'full' ? 'rotate-0 rtl:rotate-180' : 'rotate-180 rtl:rotate-0'}`}
 		></iconify-icon>
 	</button>
 
@@ -261,12 +261,10 @@
 		<div class="mx-1 mb-1 border-0 border-t border-surface-400"></div>
 
 		<div
-			class="{uiStateManager.uiState.value.leftSidebar === 'full'
-				? 'grid-cols-3 grid-rows-3'
-				: 'grid-cols-2 grid-rows-2'} grid items-center justify-center"
+			class="{uiStateManager.uiState.leftSidebar === 'full' ? 'grid-cols-3 grid-rows-3' : 'grid-cols-2 grid-rows-2'} grid items-center justify-center"
 		>
 			<!-- Avatar with user settings -->
-			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-1 row-span-2' : 'order-1'}>
+			<div class={uiStateManager.uiState.leftSidebar === 'full' ? 'order-1 row-span-2' : 'order-1'}>
 				<button
 					use:popup={UserTooltip}
 					onclick={(e) => {
@@ -290,10 +288,10 @@
 								: '/Default_User.svg'}
 						alt="Avatar"
 						initials="AV"
-						class="mx-auto {uiStateManager.uiState.value.leftSidebar === 'full' ? 'w-[40px]' : 'w-[35px]'}"
+						class="mx-auto {uiStateManager.uiState.leftSidebar === 'full' ? 'w-[40px]' : 'w-[35px]'}"
 					/>
 					<div class="-mt-1 text-center text-[10px] uppercase text-black dark:text-white">
-						{#if uiStateManager.uiState.value.leftSidebar === 'full'}
+						{#if uiStateManager.uiState.leftSidebar === 'full'}
 							{#if user?.username}
 								<div class=" -ml-1.5">
 									{user?.username}
@@ -312,14 +310,14 @@
 
 			<!-- Enhanced System Language Selector -->
 			<div
-				class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-3 row-span-2 mx-auto pb-4' : 'order-2 mx-auto'}
+				class={uiStateManager.uiState.leftSidebar === 'full' ? 'order-3 row-span-2 mx-auto pb-4' : 'order-2 mx-auto'}
 				use:popup={SystemLanguageTooltip}
 			>
 				<div class="language-selector relative" bind:this={dropdownRef}>
 					{#if (publicEnv.AVAILABLE_SYSTEM_LANGUAGES as string[]).length > 5}
 						<button
-							class="variant-filled-surface btn-icon flex items-center justify-between uppercase text-white {uiStateManager.uiState.value
-								.leftSidebar === 'full'
+							class="variant-filled-surface btn-icon flex items-center justify-between uppercase text-white {uiStateManager.uiState.leftSidebar ===
+							'full'
 								? 'px-2.5 py-2'
 								: 'px-1.5 py-0'}"
 							onclick={(e) => {
@@ -362,7 +360,7 @@
 						<select
 							bind:value={_languageTag}
 							onchange={handleSelectChange}
-							class="variant-filled-surface !appearance-none rounded-full uppercase text-white {uiStateManager.uiState.value.leftSidebar === 'full'
+							class="variant-filled-surface !appearance-none rounded-full uppercase text-white {uiStateManager.uiState.leftSidebar === 'full'
 								? 'btn-icon px-2.5 py-2'
 								: 'btn-icon-sm px-1.5 py-0'}"
 						>
@@ -381,7 +379,7 @@
 			</div>
 
 			<!-- Light/Dark mode switch -->
-			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-2' : 'order-3'}>
+			<div class={uiStateManager.uiState.leftSidebar === 'full' ? 'order-2' : 'order-3'}>
 				<button use:popup={SwitchThemeTooltip} onclick={toggleTheme} aria-label="Toggle Theme" class="btn-icon hover:bg-surface-500 hover:text-white">
 					{#if !$modeCurrent}
 						<iconify-icon icon="bi:sun" width="22"></iconify-icon>
@@ -398,7 +396,7 @@
 			</div>
 
 			<!-- Sign Out -->
-			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-4' : 'order-4'}>
+			<div class={uiStateManager.uiState.leftSidebar === 'full' ? 'order-4' : 'order-4'}>
 				<button
 					use:popup={SignOutTooltip}
 					onclick={signOut}
@@ -418,13 +416,13 @@
 			</div>
 
 			<!-- System Configuration -->
-			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-5' : 'order-6'}>
+			<div class={uiStateManager.uiState.leftSidebar === 'full' ? 'order-5' : 'order-6'}>
 				<button
 					use:popup={ConfigTooltip}
 					onclick={() => {
 						mode.set('view');
 						handleUILayoutToggle();
-						if (get(screenSize) === 'sm') {
+						if (screenSize.value === 'sm') {
 							toggleUIElement('leftSidebar', 'hidden');
 						}
 					}}
@@ -444,7 +442,7 @@
 			</div>
 
 			<!-- Github discussions -->
-			<div class="{uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-7' : 'order-7 hidden'} ">
+			<div class="{uiStateManager.uiState.leftSidebar === 'full' ? 'order-7' : 'order-7 hidden'} ">
 				<a href="https://github.com/SveltyCMS/SveltyCMS/discussions" target="blank">
 					<button use:popup={GithubTooltip} aria-label="Github Discussions" class="btn-icon hover:bg-surface-500 hover:text-white">
 						<iconify-icon icon="grommet-icons:github" width="30"></iconify-icon>
@@ -459,11 +457,11 @@
 			</div>
 
 			<!-- CMS Version -->
-			<div class={uiStateManager.uiState.value.leftSidebar === 'full' ? 'order-6' : 'order-5'}>
+			<div class={uiStateManager.uiState.leftSidebar === 'full' ? 'order-6' : 'order-5'}>
 				<a href="https://github.com/SveltyCMS/SveltyCMS/" target="blank">
 					<span
-						class="{uiStateManager.uiState.value.leftSidebar === 'full' ? 'py-1' : 'py-0'} {$pkgBgColor} badge rounded-xl text-black hover:text-white"
-						>{#if uiStateManager.uiState.value.leftSidebar === 'full'}
+						class="{uiStateManager.uiState.leftSidebar === 'full' ? 'py-1' : 'py-0'} {pkgBgColor.value} badge rounded-xl text-black hover:text-white"
+						>{#if uiStateManager.uiState.leftSidebar === 'full'}
 							{m.applayout_version()}
 						{/if}
 						{pkg}

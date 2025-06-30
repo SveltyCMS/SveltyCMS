@@ -217,7 +217,7 @@
 >
 	<div class="flex items-center justify-start">
 		<!-- Hamburger -->
-		{#if uiStateManager.uiState.value.leftSidebar === 'hidden'}
+		{#if uiStateManager.uiState.leftSidebar === 'hidden'}
 			<button
 				type="button"
 				onclick={() => toggleUIElement('leftSidebar', screenSize.value === 'lg' ? 'full' : 'collapsed')}
@@ -230,7 +230,7 @@
 
 		<!-- Collection type with icon -->
 		{#if collection.value}
-			<div class="flex {!uiStateManager.uiState.value.leftSidebar ? 'ml-2' : 'ml-1'}">
+			<div class="flex {!uiStateManager.uiState.leftSidebar ? 'ml-2' : 'ml-1'}">
 				{#if collection.value.icon}
 					<div class="flex items-center justify-center">
 						<iconify-icon icon={collection.value.icon} width="24" class="text-error-500"></iconify-icon>
@@ -315,7 +315,7 @@
 		{/if}
 
 		<!-- Common Cancel/Reload Buttons -->
-		{#if !headerActionButton.value}
+		{#if !headerActionButton}
 			<button type="button" onclick={handleCancel} aria-label="Cancel" class="variant-ghost-surface btn-icon">
 				<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 			</button>

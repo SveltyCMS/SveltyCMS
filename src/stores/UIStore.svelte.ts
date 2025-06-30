@@ -10,7 +10,6 @@
  */
 
 // Stores
-import { store } from '@utils/reactivity.svelte';
 import { mode } from './collectionStore.svelte';
 import { screenSize, ScreenSize } from './screenSizeStore.svelte';
 
@@ -81,45 +80,43 @@ const createUIStores = () => {
 	};
 
 	// Base stores with initial states
-	const uiState = store<UIState>(getDefaultState(initialSize, mode.value === 'view' || mode.value === 'media'));
-	const userPreferred = store<UIVisibility>('collapsed');
-	const isInitialized = store(false);
+	let uiState = $state<UIState>(getDefaultState(initialSize, mode === 'view' || mode === 'media'));
+	let userPreferred = $state<UIVisibility>('collapsed');
+	let isInitialized = $state(false);
 
 	// Visibility stores (derived)
-	const visibilityStores = {
-		isLeftSidebarVisible: store(() => uiState.value.leftSidebar !== 'hidden'),
-		isRightSidebarVisible: store(() => uiState.value.rightSidebar !== 'hidden'),
-		isPageHeaderVisible: store(() => uiState.value.pageheader !== 'hidden'),
-		isPageFooterVisible: store(() => uiState.value.pagefooter !== 'hidden'),
-		isHeaderVisible: store(() => uiState.value.header !== 'hidden'),
-		isFooterVisible: store(() => uiState.value.footer !== 'hidden')
-	};
+	const isLeftSidebarVisible = $derived(uiState.leftSidebar !== 'hidden');
+	const isRightSidebarVisible = $derived(uiState.rightSidebar !== 'hidden');
+	const isPageHeaderVisible = $derived(uiState.pageheader !== 'hidden');
+	const isPageFooterVisible = $derived(uiState.pagefooter !== 'hidden');
+	const isHeaderVisible = $derived(uiState.header !== 'hidden');
+	const isFooterVisible = $derived(uiState.footer !== 'hidden');
 
 	// Batch update helper
 	const batchUpdate = (newState: Partial<UIState>) => {
-		uiState.update((current) => ({ ...current, ...newState }));
+		uiState = { ...uiState, ...newState };
 	};
 
 	// Optimized layout handler with immediate response and smart diffing
-	const isUpdating = store(false);
-	let lastMode = mode.value; // Track last mode value
+	let isUpdating = $state(false);
+	let lastMode = mode; // Track last mode value
 
 	function updateLayout() {
-		if (isUpdating.value) return;
-		isUpdating.value = true;
+		if (isUpdating) return;
+		isUpdating = true;
 
 		try {
 			const currentSize = screenSize.value;
-			// Use lastMode instead of reading mode.value directly
+			// Use lastMode instead of reading mode directly
 			const isViewMode = lastMode === 'view' || lastMode === 'media';
 			const newState = getDefaultState(currentSize, isViewMode);
 
 			// Only update if state actually changes
-			const prevState = uiState.value;
+			const prevState = uiState;
 			const isDifferent = Object.keys(newState).some((key) => newState[key as keyof UIState] !== prevState[key as keyof UIState]);
 			if (isDifferent) {
 				requestAnimationFrame(() => {
-					uiState.set(newState);
+					uiState = newState;
 				});
 				logger.debug('UIStore: Layout update', {
 					screenSize: currentSize,
@@ -129,7 +126,7 @@ const createUIStores = () => {
 				});
 			}
 		} finally {
-			isUpdating.value = false;
+			isUpdating = false;
 		}
 	}
 
@@ -164,7 +161,7 @@ const createUIStores = () => {
 	// Lazy initialization
 	let initPromise: Promise<void> | null = null;
 	function initialize() {
-		if (isInitialized.value || typeof window === 'undefined') {
+		if (isInitialized || typeof window === 'undefined') {
 			return Promise.resolve();
 		}
 
@@ -187,7 +184,7 @@ const createUIStores = () => {
 					screenSizeUnsubscribe = screenSize.subscribe(updateLayout);
 
 					updateLayout();
-					isInitialized.set(true);
+					isInitialized = true;
 					logger.debug('UIStore: Initialized');
 					resolve();
 				};
@@ -203,41 +200,38 @@ const createUIStores = () => {
 		return initPromise;
 	}
 
-	// Cleanup
 	function destroy() {
 		if (resizeObserver) {
 			resizeObserver.disconnect();
 			resizeObserver = null;
 		}
-		if (modeUnsubscribe) {
-			modeUnsubscribe();
-			modeUnsubscribe = null;
-		}
 		if (screenSizeUnsubscribe) {
 			screenSizeUnsubscribe();
 			screenSizeUnsubscribe = null;
 		}
-		window.removeEventListener('resize', debouncedUpdateLayout);
-		if (resizeTimeout) {
-			clearTimeout(resizeTimeout);
-			resizeTimeout = null;
+		if (modeUnsubscribe) {
+			modeUnsubscribe();
+			modeUnsubscribe = null;
 		}
-		initPromise = null;
+		window.removeEventListener('resize', debouncedUpdateLayout);
+		isInitialized = false;
 		logger.debug('UIStore: Destroyed');
 	}
 
 	return {
-		// Base stores
-		uiState,
-		userPreferred,
-		isInitialized,
-
-		// Derived visibility stores
-		...visibilityStores,
-
-		// Functions
-		toggleUIElement,
+		get uiState() { return uiState; },
+		get userPreferred() { return userPreferred; },
+		get isInitialized() { return isInitialized; },
+		get isLeftSidebarVisible() { return isLeftSidebarVisible; },
+		get isRightSidebarVisible() { return isRightSidebarVisible; },
+		get isPageHeaderVisible() { return isPageHeaderVisible; },
+		get isPageFooterVisible() { return isPageFooterVisible; },
+		get isHeaderVisible() { return isHeaderVisible; },
+		get isFooterVisible() { return isFooterVisible; },
+		batchUpdate,
 		updateLayout,
+		debouncedUpdateLayout,
+		toggleUIElement,
 		initialize,
 		destroy
 	};
