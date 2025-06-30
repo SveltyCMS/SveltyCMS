@@ -81,7 +81,7 @@ const config = $state({
 	sourceFileTracking: ['fatal', 'error'] as LogLevel[],
 	masking: {
 		sensitiveKeys: ['password', 'secret', 'token', 'key'],
-		emailKeys: ['email', 'mail'],
+		emailKeys: ['email', 'mail', 'createdby', 'updatedby', 'user'],
 		customMasks: {} as Record<string, (value: string) => string>
 	} as MaskingConfig
 });

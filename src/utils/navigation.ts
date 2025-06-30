@@ -28,7 +28,7 @@ export async function getFirstCollectionRedirectUrl(): Promise<string> {
             // Use the collection's path for user-friendly URLs
             const redirectUrl = `/${defaultLanguage}${firstCollection.path}`;
 
-            logger.info(`Redirecting to first collection: ${firstCollection.name} (${firstCollection._id}) at path: ${firstCollection.path}`);
+            logger.info(`Redirecting to first collection: \x1b[34m${firstCollection.name}\x1b[0m (${firstCollection._id}) at path: \x1b[34m${firstCollection.path}\x1b[0m`);
             return redirectUrl;
         }
 
@@ -69,8 +69,7 @@ export async function getFirstCollectionRedirectUrl(): Promise<string> {
             // Use the collection's actual path if available, otherwise construct from _id
             const collectionPath = firstCollectionNode.path || `/${firstCollectionNode._id}`;
             const redirectUrl = `/${defaultLanguage}${collectionPath}`;
-
-            logger.info(`Redirecting to first collection from structure: ${firstCollectionNode.name} (${firstCollectionNode._id}) at path: ${collectionPath}`);
+            logger.info(`Redirecting to first collection from structure: \x1b[34m${firstCollection.name}\x1b[0m (${firstCollection._id}) at path: \x1b[34m${firstCollection.path}\x1b[0m`);
             return redirectUrl;
         }
 

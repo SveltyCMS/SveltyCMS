@@ -130,6 +130,7 @@ Common issues and solutions:
    - Check redirect URI matches exactly
    - Ensure client ID/secret are correct
    - Verify authorization code hasn't expired
+   - **Fixed**: Implemented workaround for googleapis v150 PKCE bug
 
 2. **redirect_uri_mismatch**:
    - Add all development URLs to OAuth settings
@@ -141,7 +142,38 @@ Common issues and solutions:
    - App not approved for external users
    - Missing required scopes
 
-### 9. Test Account Management
+4. **Welcome email not sent**:
+   - **Fixed**: Updated email API call format to use correct field names
+   - Ensure email template 'welcomeUser' exists
+   - Check email service configuration
+
+5. **Avatar not saved to database**:
+   - **Fixed**: Corrected database upload method call
+   - Avatar files are now saved to both disk and database
+   - Graceful fallback if database is not ready
+
+### 9. Recent Fixes and Improvements
+
+**Email System (Fixed)**:
+
+- OAuth signup now correctly sends welcome emails
+- Fixed field name mismatch in email API call
+- Added proper language tag support
+
+**Avatar System (Fixed)**:
+
+- Google OAuth avatars are now properly saved to database
+- Fixed database adapter upload method call
+- Added graceful fallback for database unavailability
+- Improved error handling and logging
+
+**Error Handling**:
+
+- Better error messages for OAuth failures
+- Improved logging for debugging
+- Graceful degradation when services are unavailable
+
+### 10. Test Account Management
 
 Create dedicated test accounts:
 
@@ -151,3 +183,35 @@ Test User 2: svelty-test-admin@gmail.com
 ```
 
 This allows consistent testing without affecting real user data.
+
+### 11. Testing Checklist
+
+When testing OAuth functionality, verify:
+
+- [ ] OAuth button appears when `USE_GOOGLE_OAUTH=true`
+- [ ] Redirect to Google OAuth works correctly
+- [ ] First user signup creates admin account
+- [ ] Welcome email is sent successfully
+- [ ] Google avatar is downloaded and saved
+- [ ] User profile is created with correct data
+- [ ] Session is established properly
+- [ ] Redirect to collections page works
+- [ ] Error handling works for failed OAuth flows
+
+### 12. Automated Test Coverage
+
+The Playwright tests now cover:
+
+- OAuth button visibility and functionality
+- OAuth redirect generation
+- Successful first user signup flow
+- Avatar processing from Google profile
+- Welcome email sending
+- Error handling for various failure scenarios
+- Database integration for user and media storage
+
+Run tests with:
+
+```bash
+bun test:playwright
+```

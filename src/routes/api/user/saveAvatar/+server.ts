@@ -101,7 +101,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// Save the new avatar image and update the user's profile
-		const avatarUrl = await saveAvatarImage(avatarFile, 'avatars');
+		const avatarUrl = await saveAvatarImage(avatarFile);
 		await auth.updateUserAttributes(targetUserId, { avatar: avatarUrl });
 
 		// Invalidate any cached session data to reflect the change immediately.

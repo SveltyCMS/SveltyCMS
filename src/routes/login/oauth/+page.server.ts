@@ -18,7 +18,8 @@ import { saveAvatarImage } from '@utils/media/mediaStorage';
 import { getFirstCollectionRedirectUrl } from '@utils/navigation';
 
 // Stores
-import { systemLanguage } from '@stores/store.svelte';
+import { systemLanguage, type Locale } from '@stores/store.svelte';
+import { get } from 'svelte/store';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -45,45 +46,80 @@ async function sendWelcomeEmail(
 	request: Request
 ) {
 	try {
+		const userLanguage = (get(systemLanguage) as Locale) || 'en';
+		const emailProps = {
+			username,
+			email,
+			hostLink: publicEnv.HOST_PROD || `https://${request.headers.get('host')}`,
+			sitename: publicEnv.SITE_NAME || 'SveltyCMS'
+		};
+
 		await fetchFn('/api/sendMail', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
-				email,
-				subject: `Welcome to ${publicEnv.SITE_NAME}, ${username}!`,
-				message: `Welcome ${username} to ${publicEnv.SITE_NAME}`,
+				recipientEmail: email,
+				subject: `Welcome to ${emailProps.sitename}`,
 				templateName: 'welcomeUser',
-				props: {
-					username,
-					email,
-					hostLink: publicEnv.HOST_PROD || `https://${request.headers.get('host')}`
-				}
+				props: emailProps,
+				languageTag: userLanguage
 			})
 		});
-		logger.debug(`Welcome email sent to ${email}`);
+		logger.debug('Welcome email sent', { email: email });
 	} catch (err) {
 		logger.error('Error sending welcome email:', err as Error);
 	}
 }
 
 // Helper function to fetch and save Google avatar
-async function fetchAndSaveGoogleAvatar(avatarUrl: string): Promise<string | null> {
+async function fetchAndSaveGoogleAvatar(avatarUrl: string, userEmail: string): Promise<string | null> {
 	try {
+		logger.debug(`Fetching Google avatar from: ${avatarUrl}`);
+
+		// Ensure database is fully initialized before saving avatar
+		await dbInitPromise;
+
 		const response = await fetch(avatarUrl);
 		if (!response.ok) {
 			throw new Error(`Failed to fetch avatar: ${response.statusText}`);
 		}
+
 		const blob = await response.blob();
-		const avatarFile = new File([blob], 'google-avatar.jpg', { type: 'image/jpeg' });
-		const savedUrl = await saveAvatarImage(avatarFile);
+
+		// Determine the correct file type from the response
+		const contentType = response.headers.get('content-type') || 'image/jpeg';
+		let fileName = 'google-avatar.jpg';
+		let mimeType = 'image/jpeg';
+
+		if (contentType.includes('image/png')) {
+			fileName = 'google-avatar.png';
+			mimeType = 'image/png';
+		} else if (contentType.includes('image/webp')) {
+			fileName = 'google-avatar.webp';
+			mimeType = 'image/webp';
+		} else if (contentType.includes('image/gif')) {
+			fileName = 'google-avatar.gif';
+			mimeType = 'image/gif';
+		}
+
+		const avatarFile = new File([blob], fileName, { type: mimeType });
+
+		logger.debug(`Created avatar file: ${fileName}, size: ${avatarFile.size} bytes, type: ${mimeType}`);
+
+		const savedUrl = await saveAvatarImage(avatarFile, userEmail);
 
 		if (!savedUrl) {
 			throw new Error('Failed to save avatar image');
 		}
 
+		logger.debug(`Avatar saved successfully at: ${savedUrl}`);
 		return savedUrl;
 	} catch (err) {
-		logger.error('Error fetching and saving Google avatar:', err as Error);
+		logger.error('Error fetching and saving Google avatar:', {
+			error: err instanceof Error ? err.message : 'Unknown error',
+			stack: err instanceof Error ? err.stack : undefined,
+			avatarUrl
+		});
 		return null;
 	}
 }
@@ -113,7 +149,7 @@ async function handleGoogleUser(
 	// Check if user exists
 	let user = await auth?.checkUser({ email });
 
-	logger.debug(`OAuth user lookup for email: ${email}`);
+	logger.debug('OAuth user lookup for email', { email: email });
 	logger.debug(`User found: ${user ? 'YES' : 'NO'}`);
 	if (user) {
 		logger.debug(`Existing user ID: ${user._id}, username: ${user.username}`);
@@ -134,43 +170,77 @@ async function handleGoogleUser(
 		// Handle new user creation
 		let avatarUrl: string | null = null;
 		if (googleUser.picture) {
-			avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture);
+			logger.debug(`Attempting to save Google avatar for new user: ${googleUser.picture}`);
+			avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture, email);
+			if (avatarUrl) {
+				logger.debug(`Avatar saved for new user: ${avatarUrl}`);
+			} else {
+				logger.warn('Failed to save avatar for new user', { email: email });
+			}
+		} else {
+			logger.debug('No Google avatar provided for new user');
 		}
 
 		// Create the new user
-		user = await auth?.createUser(
-			{
-				email,
-				username: googleUser.name ?? '',
-				firstName: googleUser.given_name,
-				lastName: googleUser.family_name,
-				avatar: avatarUrl,
-				role: isFirst ? roles.find(r => r.isAdmin)?._id || 'admin' : roles.find(r => r._id === 'user')?._id || 'user',
-				lastAuthMethod: 'google',
-				isRegistered: true,
-				blocked: false
-			},
-			true
-		);
+		const userData = {
+			email,
+			username: googleUser.name ?? '',
+			firstName: googleUser.given_name,
+			lastName: googleUser.family_name,
+			avatar: avatarUrl,
+			role: isFirst ? roles.find(r => r.isAdmin)?._id || 'admin' : roles.find(r => r._id === 'user')?._id || 'user',
+			lastAuthMethod: 'google',
+			isRegistered: true,
+			blocked: false
+		};
+
+		logger.debug('Creating user with data:', {
+			...userData,
+			email: userData.email.replace(/(.{2}).*@(.*)/, '$1****@$2')
+		});
+
+		user = await auth?.createUser(userData, true);
 
 		// Send welcome email for new users
 		await sendWelcomeEmail(fetchFn, email, googleUser.name || '', request);
 	} else {
 		// Existing user - no token required for sign-in
-		// Update existing user's avatar if they have a Google avatar
+		logger.debug(`Existing user signing in: ${user._id}, current avatar: ${user.avatar ? 'YES' : 'NO'}`);
+
+		// Always try to update avatar from Google if available and user doesn't have one
 		let avatarUrl: string | null = null;
-		if (googleUser.picture) {
-			avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture);
+		if (googleUser.picture && (!user.avatar || user.avatar === null || user.avatar === undefined)) {
+			logger.debug(`Attempting to save Google avatar for existing user: ${googleUser.picture}`);
+			avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture, email);
+			if (avatarUrl) {
+				logger.debug(`Avatar saved for existing user: ${avatarUrl}`);
+			} else {
+				logger.warn('Failed to save avatar for existing user', { email: email });
+			}
+		} else if (googleUser.picture && user.avatar) {
+			logger.debug('User already has avatar, skipping Google avatar download');
+		} else {
+			logger.debug('No Google avatar provided for existing user');
 		}
 
-		// Update user attributes
-		await auth.updateUserAttributes(user._id.toString(), {
+		// Always update user attributes (even if avatar is null, to ensure other fields are updated)
+		const updateData = {
 			email,
 			lastAuthMethod: 'google',
-			firstName: googleUser.given_name ?? '',
-			lastName: googleUser.family_name ?? '',
-			avatar: user.avatar ? user.avatar : avatarUrl ? avatarUrl : undefined
-		});
+			firstName: googleUser.given_name ?? user.firstName ?? '',
+			lastName: googleUser.family_name ?? user.lastName ?? ''
+		};
+
+		// Only add avatar field if we have a new one
+		if (avatarUrl) {
+			updateData.avatar = avatarUrl;
+			logger.debug(`Will update user avatar to: ${avatarUrl}`);
+		}
+
+		logger.debug('Updating user attributes:', updateData);
+		await auth.updateUserAttributes(user._id.toString(), updateData);
+
+		logger.debug(`Updated user attributes for: ${user._id}`);
 	}
 
 	if (!user?._id) {
@@ -352,7 +422,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
 			// Redirect to first collection using centralized utility
 			const redirectUrl = await getFirstCollectionRedirectUrl();
-			logger.debug(`Redirecting to: ${redirectUrl}`);
+			logger.debug(`Redirecting to: \x1b[34m${redirectUrl}\x1b[0m`);
 			throw redirect(302, redirectUrl);
 		} catch (err) {
 			// Check if this is a redirect (which is expected and successful)
