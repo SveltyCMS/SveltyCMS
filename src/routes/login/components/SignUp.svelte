@@ -38,6 +38,9 @@ Features:
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
+	// Screen size store
+	import { isMobile } from '@stores/screenSizeStore.svelte';
+
 	// Props
 	const {
 		active = $bindable(undefined),
@@ -169,10 +172,12 @@ Features:
 >
 	{#if active === 1}
 		<div class="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
-			<div class="absolute inset-0">
-				<FloatingPaths position={1} background="dark" mirrorAnimation />
-				<FloatingPaths position={-1} background="dark" mirrorAnimation />
-			</div>
+			{#if !isMobile.value}
+				<div class="absolute inset-0">
+					<FloatingPaths position={1} background="dark" mirrorAnimation />
+					<FloatingPaths position={-1} background="dark" mirrorAnimation />
+				</div>
+			{/if}
 			<!-- CSS Logo -->
 			<div class="absolute left-1/2 top-[20%] hidden -translate-x-1/2 -translate-y-1/2 transform xl:block">
 				<SveltyCMSLogoFull />

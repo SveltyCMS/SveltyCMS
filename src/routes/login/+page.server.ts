@@ -492,6 +492,16 @@ export const actions: Actions = {
 		throw redirect(303, authUrl);
 	},
 
+	signInOAuth: async (event) => {
+		if (!privateEnv.USE_GOOGLE_OAUTH) throw redirect(303, '/login');
+		if (await limiter.isLimited(event)) {
+			return fail(429, { message: 'Too many requests.' });
+		}
+		// No prompt parameter for SignIn - should provide smoother experience for returning users
+		const authUrl = await generateGoogleAuthUrl(null, undefined);
+		throw redirect(303, authUrl);
+	},
+
 	signIn: async (event) => {
 		const startTime = performance.now();
 

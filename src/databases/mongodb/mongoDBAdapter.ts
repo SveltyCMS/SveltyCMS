@@ -671,6 +671,10 @@ export class MongoDBAdapter implements DatabaseAdapter {
 					return result;
 				} catch (error) {
 					logger.error('Error uploading file:', error as LoggableValue);
+					return {
+						success: false,
+						error: error instanceof Error ? error.message : 'Unknown error occurred during file upload'
+					};
 				}
 			}
 		},

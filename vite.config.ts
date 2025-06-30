@@ -362,6 +362,9 @@ export default defineConfig(async () => {
       SUPERFORMS_LEGACY: true, // Legacy flag for SuperForms (if needed)
       // ES Module polyfills for Node.js globals
       global: 'globalThis',
+    },
+    optimizeDeps: {
+      exclude: [...builtinModules, ...builtinModules.map(m => `node:${m}`)]
     }
   };
 });
