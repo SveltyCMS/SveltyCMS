@@ -1,5 +1,5 @@
 /**
- * @file src/routes/api/systemPreferences/+server.ts
+ * @file src/routes/api/dashboard/systemPreferences/+server.ts
  * @description Server-side API endpoint for saving, loading, and updating user dashboard system preferences.
  *
  * ### Usage
@@ -16,15 +16,16 @@
  * - Proper error handling and logging
  */
 
-import { json } from '@sveltejs/kit';
 import { dbAdapter } from '@src/databases/db';
+import { json } from '@sveltejs/kit';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
 export const GET = async ({ locals, url }) => {
-	const user = locals.user;
-	if (!user) {
+	// Try to get userId from query param, otherwise use locals.user
+	const userId = url.searchParams.get('userId') || locals.user?._id?.toString();
+	if (!userId) {
 		logger.warn('Unauthorized attempt to load system preferences.');
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
@@ -33,7 +34,7 @@ export const GET = async ({ locals, url }) => {
 	const widgetId = url.searchParams.get('widgetId');
 	if (widgetId) {
 		try {
-			const state = await dbAdapter.systemPreferences.getWidgetState(user._id.toString(), widgetId);
+			const state = await dbAdapter.systemPreferences.getWidgetState(userId, widgetId);
 			return json({ state });
 		} catch (e) {
 			logger.error('Failed to load widget state:', e);
@@ -43,7 +44,7 @@ export const GET = async ({ locals, url }) => {
 
 	// Default system preferences load
 	try {
-		const preferences = await dbAdapter.systemPreferences.getSystemPreferences(user._id.toString());
+		const preferences = await dbAdapter.systemPreferences.getSystemPreferences(userId);
 		return json({
 			preferences: preferences ?? {
 				SM: [],
@@ -59,18 +60,18 @@ export const GET = async ({ locals, url }) => {
 };
 
 export const POST = async ({ request, locals }) => {
-	const user = locals.user;
-	if (!user) {
+	const data = await request.json();
+	// Try to get userId from request body, otherwise use locals.user
+	const userId = data.userId || locals.user?._id?.toString();
+	if (!userId) {
 		logger.warn('Unauthorized attempt to save system preferences.');
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
-	const data = await request.json();
-
 	// Handle widget state persistence
 	if (data.widgetId && data.state) {
 		try {
-			await dbAdapter.systemPreferences.setWidgetState(user._id.toString(), data.widgetId, data.state);
+			await dbAdapter.systemPreferences.setWidgetState(userId, data.widgetId, data.state);
 			return json({ success: true });
 		} catch (e) {
 			logger.error('Failed to save widget state:', e);
@@ -81,7 +82,7 @@ export const POST = async ({ request, locals }) => {
 	// Default preferences save
 	const { preferences } = data;
 	try {
-		await dbAdapter.systemPreferences.setUserPreferences(user._id.toString(), preferences);
+		await dbAdapter.systemPreferences.setUserPreferences(userId, preferences);
 		return json({ success: true });
 	} catch (e) {
 		logger.error('Failed to save system preferences:', e);

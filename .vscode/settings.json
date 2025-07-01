@@ -3,7 +3,7 @@
 	"editor.formatOnSave": true,
 	"workbench.editor.enablePreview": true,
 	"[svelte]": {
-		"editor.defaultFormatter": "svelte.svelte-vscode"
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
 	},
 	"[json]": {
 		"editor.defaultFormatter": "vscode.json-language-features"
@@ -16,6 +16,6 @@
 	"typescript.validate.enable": false,
 	"javascript.validate.enable": false,
 	"[typescript]": {
-		"editor.defaultFormatter": "vscode.typescript-language-features"
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
 	}
 }

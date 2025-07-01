@@ -3,6 +3,8 @@
  * @description Server-side endpoint to fetch system logs with filtering and pagination.
  */
 
+import { publicEnv } from '@root/config/public';
+
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { createReadStream } from 'node:fs';
@@ -11,8 +13,9 @@ import { join } from 'node:path';
 import { createGunzip } from 'node:zlib';
 import { createInterface } from 'node:readline';
 
-// Import publicEnv to access configurable log settings
-import { publicEnv } from '@root/config/public';
+// System Logger
+import { logger } from '@utils/logger.svelte';
+
 // Import LoggableValue from the logger for more specific typing
 import type { LoggableValue } from '@utils/logger.svelte';
 
@@ -85,7 +88,7 @@ const parseLogLine = (line: string): RawLogEntry | null => {
 		} catch (e) {
 			// If parsing fails, it means the last bracketed part was not a valid JSON array.
 			// In this case, it's considered part of the message.
-			// console.warn('Failed to parse potential log args JSON:', e, { line, potentialJsonArgs });
+			logger.warn('Failed to parse potential log args JSON:', e, { line, potentialJsonArgs });
 		}
 	}
 

@@ -18,33 +18,59 @@
 	import BaseWidget from '../BaseWidget.svelte';
 	// Removed: import { Icon } from '@iconify/svelte'; // No longer needed as <iconify-icon> is used directly
 
-	// Inherit props from BaseWidget
-	const {
+	// Props passed from +page.svelte, then to BaseWidget
+	let {
 		label = 'System Logs',
+		theme = 'light',
 		icon = 'mdi:file-document-outline',
-		endpoint = '/dashboard/widgets/logs', // API endpoint to fetch logs
-		pollInterval = 15000, // Poll every 15 seconds for new logs
-		widgetId,
-		theme,
-		gridCellWidth,
-		ROW_HEIGHT,
-		GAP_SIZE,
+		widgetId = undefined,
+
+		// New sizing props
+		currentSize = '1/2',
+		availableSizes = ['1/2', '3/4', 'full'],
+		onSizeChange = (newSize) => {},
+
+		// Drag props
+		draggable = true,
+		onDragStart = (event, item, element) => {},
+
+		// Legacy props
+		gridCellWidth = 0,
+		ROW_HEIGHT = 0,
+		GAP_SIZE = 0,
 		resizable = true,
-		onResizeCommitted,
-		onCloseRequest
+		onResizeCommitted = (spans: { w: number; h: number }) => {},
+		onCloseRequest = () => {},
+
+		// API props
+		endpoint = '/dashboard/widgets/logs',
+		pollInterval = 15000
 	} = $props<{
 		label?: string;
+		theme?: 'light' | 'dark';
 		icon?: string;
-		endpoint?: string;
-		pollInterval?: number;
-		widgetId: string;
-		theme: 'light' | 'dark';
-		gridCellWidth: number;
-		ROW_HEIGHT: number;
-		GAP_SIZE: number;
+		widgetId?: string;
+
+		// New sizing props
+		currentSize?: '1/2' | '3/4' | 'full';
+		availableSizes?: ('1/2' | '3/4' | 'full')[];
+		onSizeChange?: (newSize: '1/2' | '3/4' | 'full') => void;
+
+		// Drag props
+		draggable?: boolean;
+		onDragStart?: (event: MouseEvent, item: any, element: HTMLElement) => void;
+
+		// Legacy props
+		gridCellWidth?: number;
+		ROW_HEIGHT?: number;
+		GAP_SIZE?: number;
 		resizable?: boolean;
 		onResizeCommitted?: (spans: { w: number; h: number }) => void;
 		onCloseRequest?: () => void;
+
+		// API props
+		endpoint?: string;
+		pollInterval?: number;
 	}>();
 
 	// Internal state for logs data
@@ -155,114 +181,128 @@
 				return 'text-gray-700 dark:text-gray-300';
 		}
 	};
+
+	// Place widgetMeta at the end of the <script> block
+	export const widgetMeta = {
+		name: 'System Logs',
+		icon: 'mdi:file-document-outline',
+		defaultW: 2, // 1/2 width
+		defaultH: 2,
+		validSizes: [
+			{ w: 1, h: 1 },
+			{ w: 2, h: 1 },
+			{ w: 1, h: 2 },
+			{ w: 2, h: 2 }
+		]
+	};
 </script>
 
 <BaseWidget
 	{label}
-	{icon}
+	{theme}
 	endpoint={dynamicEndpoint}
 	{pollInterval}
+	{icon}
 	{widgetId}
-	{theme}
+	{currentSize}
+	{availableSizes}
+	{onSizeChange}
+	{draggable}
+	{onDragStart}
 	{gridCellWidth}
 	{ROW_HEIGHT}
 	{GAP_SIZE}
 	{resizable}
 	{onResizeCommitted}
 	{onCloseRequest}
-	onDataLoaded={handleDataUpdate}
 >
-	<div class="flex h-full flex-col">
-		<div class="flex flex-wrap items-center gap-2">
-			<select
-				bind:value={filterLevel}
-				class="min-w-24 rounded border border-gray-300 bg-white p-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-				aria-label="Filter by log level"
-			>
-				{#each logLevelOptions as option}
-					<option value={option.value}>{option.label}</option>
-				{/each}
-			</select>
-
-			<input
-				type="text"
-				bind:value={searchText}
-				placeholder="Search message..."
-				class="flex-1 rounded border border-gray-300 bg-white p-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-				aria-label="Search log messages"
-			/>
-
-			<input
-				type="date"
-				bind:value={startDate}
-				class="rounded border border-gray-300 bg-white p-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-				aria-label="Filter by start date"
-			/>
-			<input
-				type="date"
-				bind:value={endDate}
-				class="rounded border border-gray-300 bg-white p-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-				aria-label="Filter by end date"
-			/>
-		</div>
-		<!-- Body -->
-		<div class="mt-1 flex-1 overflow-y-auto text-xs">
-			{#if logs.length === 0}
-				<div class="text-center text-surface-500 dark:text-gray-400">No log entries found.</div>
-			{:else}
-				<ul class="space-y-0.5">
-					{#each logs as logEntry (logEntry.timestamp + logEntry.message)}
-						<li class="rounded p-1 {theme === 'light' ? 'bg-gray-100' : 'bg-gray-700'}">
-							<span class="font-mono text-surface-500 dark:text-gray-400">[{logEntry.timestamp.slice(11, 19)}]</span>
-							<span class="ml-1 font-bold {getLogLevelColor(logEntry.level)}">[{logEntry.level.toUpperCase()}]</span>
-							<span class="text-text-800 dark:text-text-200 ml-1">{logEntry.message}</span>
-							{#if logEntry.args && logEntry.args.length > 0}
-								<pre class="mt-0.5 whitespace-pre-wrap break-all text-gray-600 dark:text-gray-300">{JSON.stringify(logEntry.args, null, 2)}</pre>
-							{/if}
-						</li>
+	{#snippet children({ data: fetchedData })}
+		<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" role="region" aria-label="Log controls">
+			<div class="flex flex-1 gap-2">
+				<select
+					bind:value={filterLevel}
+					class="rounded-lg border border-surface-300 bg-white px-3 py-1 text-sm text-surface-700 shadow-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100 dark:focus:border-primary-500"
+					aria-label="Filter log level"
+				>
+					{#each logLevelOptions as { value, label }}
+						<option {value}>{label}</option>
 					{/each}
-				</ul>
-			{/if}
+				</select>
+				<input
+					type="text"
+					placeholder="Search logs..."
+					bind:value={searchText}
+					class="rounded-lg border border-surface-300 bg-white px-3 py-1 text-sm text-surface-700 shadow-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100 dark:focus:border-primary-500"
+					aria-label="Search logs"
+				/>
+			</div>
+			<div class="flex items-center gap-2">
+				<input
+					type="date"
+					bind:value={startDate}
+					class="rounded-lg border border-surface-300 bg-white px-2 py-1 text-sm text-surface-700 shadow-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100 dark:focus:border-primary-500"
+					aria-label="Start date"
+				/>
+				<input
+					type="date"
+					bind:value={endDate}
+					class="rounded-lg border border-surface-300 bg-white px-2 py-1 text-sm text-surface-700 shadow-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100 dark:focus:border-primary-500"
+					aria-label="End date"
+				/>
+			</div>
 		</div>
-
-		<!-- Pagination controls -->
-		<div class="-mb-1 mt-1 flex items-center justify-between border-t {theme === 'light' ? 'border-gray-200' : 'border-gray-600'}">
-			<button
-				onclick={() => goToPage(1)}
-				disabled={currentPage === 1}
-				class="btn-icon {currentPage === 1 ? 'text-gray-400' : 'text-primary-500'}"
-				aria-label="First page"
-			>
-				<iconify-icon icon="mdi:page-first" width="18"></iconify-icon>
-			</button>
-
-			<button
-				onclick={prevPage}
-				disabled={currentPage === 1}
-				class="btn-icon {currentPage === 1 ? 'text-gray-400' : 'text-primary-500'}"
-				aria-label="Previous page"
-			>
-				<iconify-icon icon="mdi:chevron-left" width="18"></iconify-icon>
-			</button>
-
-			<span class="text-xs text-gray-700 dark:text-gray-300">Page {currentPage} of {totalPages}</span>
-
-			<button
-				onclick={nextPage}
-				disabled={currentPage === totalPages || totalPages === 0}
-				class="btn-icon {currentPage === totalPages || totalPages === 0 ? 'text-gray-400' : 'text-primary-500'}"
-				aria-label="Next page"
-			>
-				<iconify-icon icon="mdi:chevron-right" width="18"></iconify-icon>
-			</button>
-			<button
-				onclick={() => goToPage(totalPages)}
-				disabled={currentPage === totalPages || totalPages === 0}
-				class="btn-icon {currentPage === totalPages || totalPages === 0 ? 'text-gray-400' : 'text-primary-500 '}"
-				aria-label="Last page"
-			>
-				<iconify-icon icon="mdi:page-last" width="18"></iconify-icon>
-			</button>
-		</div>
-	</div>
+		{#if fetchedData && fetchedData.logs && fetchedData.logs.length > 0}
+			<div class="grid gap-2" style="max-height: 180px; overflow: hidden;" role="list" aria-label="System log entries">
+				{#each fetchedData.logs as log}
+					<div
+						class="flex items-start gap-2 rounded-lg border border-surface-200 bg-surface-100/90 px-3 py-2 text-xs dark:border-surface-700 dark:bg-surface-700/60"
+						role="listitem"
+					>
+						<iconify-icon icon="mdi:circle" width="10" class={getLogLevelColor(log.level) + ' mt-1'} aria-label={log.level + ' log level'}
+						></iconify-icon>
+						<div class="flex w-full min-w-0 flex-col">
+							<span
+								class="text-text-900 dark:text-text-100 w-full whitespace-pre-line break-words font-medium"
+								style="word-break:break-word;"
+								title={log.message}
+								aria-label={log.message}>{log.message}</span
+							>
+							<span class="text-xs text-surface-500 dark:text-surface-400">{log.level} • {new Date(log.timestamp).toLocaleTimeString()}</span>
+						</div>
+					</div>
+				{/each}
+			</div>
+			<div class="mt-2 text-center text-xs text-surface-600 opacity-80 dark:text-surface-400">
+				Total Logs: {fetchedData.total}
+			</div>
+			<div class="mt-4 flex items-center justify-between text-xs" role="navigation" aria-label="Pagination">
+				<button
+					onclick={prevPage}
+					class="rounded-lg bg-primary-500 px-3 py-1 text-white shadow-sm transition hover:bg-primary-600 disabled:bg-surface-300 disabled:text-surface-400 dark:bg-primary-600 dark:hover:bg-primary-500 dark:disabled:bg-surface-700 dark:disabled:text-surface-500"
+					disabled={fetchedData.page === 1}
+					aria-label="Previous page"
+				>
+					<iconify-icon icon="mdi:chevron-left" width="16" aria-hidden="true"></iconify-icon>
+					<span>Previous</span>
+				</button>
+				<span>
+					Page {fetchedData.page} of {fetchedData.totalPages}
+				</span>
+				<button
+					onclick={nextPage}
+					class="rounded-lg bg-primary-500 px-3 py-1 text-white shadow-sm transition hover:bg-primary-600 disabled:bg-surface-300 disabled:text-surface-400 dark:bg-primary-600 dark:hover:bg-primary-500 dark:disabled:bg-surface-700 dark:disabled:text-surface-500"
+					disabled={fetchedData.page === fetchedData.totalPages}
+					aria-label="Next page"
+				>
+					<span>Next</span>
+					<iconify-icon icon="mdi:chevron-right" width="16" aria-hidden="true"></iconify-icon>
+				</button>
+			</div>
+		{:else}
+			<div class="flex flex-1 flex-col items-center justify-center py-6 text-xs text-gray-500 dark:text-gray-400" role="status" aria-live="polite">
+				<iconify-icon icon="mdi:file-remove-outline" width="32" class="mb-2 text-surface-400 dark:text-surface-500" aria-hidden="true"></iconify-icon>
+				<span>No logs found</span>
+			</div>
+		{/if}
+	{/snippet}
 </BaseWidget>
