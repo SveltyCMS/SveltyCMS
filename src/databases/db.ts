@@ -127,9 +127,10 @@ async function loadAdapters() {
 					createToken: tokenAdapter.createToken.bind(tokenAdapter),
 					validateToken: tokenAdapter.validateToken.bind(tokenAdapter),
 					consumeToken: tokenAdapter.consumeToken.bind(tokenAdapter),
-					getTokenData: tokenAdapter.getTokenData.bind(tokenAdapter),
 					deleteExpiredTokens: tokenAdapter.deleteExpiredTokens.bind(tokenAdapter),
 					getAllTokens: tokenAdapter.getAllTokens.bind(tokenAdapter),
+					updateToken: tokenAdapter.updateToken.bind(tokenAdapter),
+					deleteTokens: tokenAdapter.deleteTokens.bind(tokenAdapter),
 
 					// Permission Management Methods (Imported)
 					getAllPermissions

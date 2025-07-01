@@ -440,5 +440,6 @@
 	"sidebar_will_publish_on": "公開予定日",
 	"siedabar_publish_options": "公開オプション",
 	"Fields_no_widgets_found": "ウィジェットが見つかりません: {name}",
-	"Fields_preview": "プレビュー"
+	"Fields_preview": "プレビュー",
+	"modal_token_deleted_successfully": "トークンが正常に削除されました"
 }

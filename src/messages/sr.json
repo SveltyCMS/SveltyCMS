@@ -440,5 +440,6 @@
 	"sidebar_will_publish_on": "Биће објављено на",
 	"siedabar_publish_options": "Опције објављивања",
 	"Fields_no_widgets_found": "Виџет није пронађен: {name}",
-	"Fields_preview": "Преглед"
+	"Fields_preview": "Преглед",
+	"modal_token_deleted_successfully": "Токен је успешно обрисан"
 }

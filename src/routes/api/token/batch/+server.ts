@@ -17,15 +17,23 @@
  * "action": "delete"
  * }
  */
+
 import { json, error, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
+// Auth
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
 import { hasPermissionByAction } from '@src/auth/permissions';
 import { roles } from '@root/config/roles';
-import { invalidateAdminCache } from '@src/hooks.server';
-import { logger } from '@utils/logger.svelte';
+
+// Validation
 import { object, array, string, picklist, parse, type ValiError, minLength } from 'valibot';
+
+// Cache invalidation
+import { invalidateAdminCache } from '@src/hooks.server';
+
+// System Logger
+import { logger } from '@utils/logger.svelte';
 
 const batchTokenActionSchema = object({
 	tokenIds: array(string([minLength(1, 'Token ID cannot be empty.')])),

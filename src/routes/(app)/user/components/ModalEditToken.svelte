@@ -9,10 +9,12 @@ delete endpoint, resolving the "Unexpected token" browser error.
 @props
 - `parent` {object} - Parent modal properties (regionFooter, onClose, buttonPositive)
 - `token` {string} - Existing token (default: '')
+- `user_id` {string} - User ID (default: '')
 - `email` {string} - Associated email (default: '')
 - `role` {string} - Token role (default: 'user')
-- `expires` {string} - Expiration date (default: '7d')
-- `user_id` {string} - User ID (default: '')
+- `username` {string} - Username (default: '')
+- `expires` {string} - Expiration date (default: '2 days')
+
 -->
 
 <script lang="ts">
@@ -38,17 +40,61 @@ delete endpoint, resolving the "Unexpected token" browser error.
 	interface Props {
 		parent: ModalComponent['props'] & { regionFooter?: string; onClose?: (event: MouseEvent) => void; buttonPositive?: string };
 		token: string;
+		user_id: string;
 		email: string;
 		role: string;
+		username: string;
 		expires: string;
-		user_id: string;
 	}
 
-	let { parent = { regionFooter: 'modal-footer p-4' }, token = '', email = '', role = 'user', expires = '7d', user_id = '' }: Props = $props();
+	let {
+		parent = { regionFooter: 'modal-footer p-4' },
+		token = '',
+		user_id = '',
+		email = '',
+		role = 'user',
+		username = '',
+		expires = ''
+	}: Props = $props();
 
-	// Form Data
-	const formData = $state({ user_id, email, token, role: role || 'user', expires: expires || '7d' });
-	const errorStatus = $state({ user_id: { status: false, msg: '' }, email: { status: false, msg: '' } });
+	// Form Data with format conversion
+	function convertLegacyFormat(expires: string): string {
+		// Convert old format to new API format
+		switch (expires) {
+			case '1h':
+				return '2 hrs'; // Map 1h to closest option
+			case '2h':
+				return '2 hrs';
+			case '12h':
+				return '12 hrs';
+			case '1d':
+				return '2 days'; // Default
+			case '2d':
+				return '2 days';
+			case '7d':
+				return '1 week'; // 7 days = 1 week
+			case '30d':
+				return '1 month'; // 30 days ≈ 1 month
+			case '90d':
+				return '1 month'; // 90 days, use 1 month as closest
+			default:
+				// If it's already in new format, return as-is
+				if (['2 hrs', '12 hrs', '2 days', '1 week', '2 weeks', '1 month'].includes(expires)) {
+					return expires;
+				}
+				return '2 days'; // Default fallback
+		}
+	}
+
+	const formData = $state({
+		user_id, // Add user_id to state
+		username,
+		email,
+		token,
+		role: role || 'user',
+		expires: !expires || expires === '' ? '2 days' : convertLegacyFormat(expires) // Force '2 days' for empty/undefined expires
+	});
+	const errorStatus = $state({ username: { status: false, msg: '' }, email: { status: false, msg: '' } });
 
 	async function onFormSubmit(event: SubmitEvent): Promise<void> {
 		event.preventDefault();
@@ -57,8 +103,8 @@ delete endpoint, resolving the "Unexpected token" browser error.
 			errorStatus.email = { status: true, msg: 'A valid email is required' };
 			return;
 		}
-		if (!formData.user_id) {
-			errorStatus.user_id = { status: true, msg: 'Username is required' };
+		if (!formData.username) {
+			errorStatus.username = { status: true, msg: 'Username is required' };
 			return;
 		}
 
@@ -72,16 +118,15 @@ delete endpoint, resolving the "Unexpected token" browser error.
 						newTokenData: {
 							email: formData.email,
 							role: formData.role,
-							expiresInHours: convertExpiresToHours(formData.expires),
-							user_id: formData.user_id
+							username: formData.username, // Add username to edit payload
+							expiresInHours: convertExpiresToHours(formData.expires)
 						}
 					}
 				: {
 						email: formData.email,
-						user_id: formData.user_id,
+						username: formData.username,
 						role: formData.role,
-						expiresIn: convertExpiresToHours(formData.expires),
-						expiresInLabel: formData.expires
+						expiresIn: formData.expires // Send the API format directly
 					};
 
 			const response = await fetch(endpoint, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -114,13 +159,9 @@ delete endpoint, resolving the "Unexpected token" browser error.
 	async function deleteToken(): Promise<void> {
 		if (!formData.token) return;
 		try {
-			const response = await fetch('/api/token/batch', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					tokenIds: [formData.token],
-					action: 'delete'
-				})
+			const response = await fetch(`/api/token/${formData.token}`, {
+				method: 'DELETE',
+				headers: { 'Content-Type': 'application/json' }
 			});
 
 			const data = await response.json();
@@ -129,26 +170,44 @@ delete endpoint, resolving the "Unexpected token" browser error.
 				throw new Error(data.message || 'Failed to delete token');
 			}
 
-			toastStore.trigger({ message: '<iconify-icon icon="mdi:check" width="24"/> Token deleted', background: 'gradient-tertiary', timeout: 3000 });
+			toastStore.trigger({
+				message: `<iconify-icon icon="mdi:check" width="24" class="mr-1"></iconify-icon> ${m.modal_token_user_deleted()}`,
+				background: 'gradient-tertiary',
+				timeout: 3000,
+				classes: 'border-1 !rounded-md'
+			});
 			modalStore.close();
 			await invalidateAll();
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Failed to delete token';
 			// This catch block will now receive a proper error message if the API fails.
 			toastStore.trigger({
-				message: `<iconify-icon icon="mdi:alert-circle" width="24"/> ${message}`,
+				message: `<iconify-icon icon="mdi:alert-circle" width="24" class="mr-1"></iconify-icon> ${message}`,
 				background: 'variant-filled-error',
-				timeout: 5000
+				timeout: 5000,
+				classes: 'border-1 !rounded-md'
 			});
 		}
 	}
 
 	function convertExpiresToHours(expires: string): number {
-		const unit = expires.slice(-1);
-		const value = parseInt(expires.slice(0, -1));
-		if (unit === 'h') return value;
-		if (unit === 'd') return value * 24;
-		return 168; // Default 7 days
+		// Convert API format back to hours for the edit endpoint
+		switch (expires) {
+			case '2 hrs':
+				return 2;
+			case '12 hrs':
+				return 12;
+			case '2 days':
+				return 48;
+			case '1 week':
+				return 168;
+			case '2 weeks':
+				return 336;
+			case '1 month':
+				return 720;
+			default:
+				return 48; // Default 2 days
+		}
 	}
 
 	// Base Classes
@@ -194,8 +253,8 @@ delete endpoint, resolving the "Unexpected token" browser error.
 							type="text"
 							name="username"
 							label={m.modaledit_tokenusername()}
-							bind:value={formData.user_id}
-							onkeydown={() => (errorStatus.user_id.status = false)}
+							bind:value={formData.username}
+							onkeydown={() => (errorStatus.username.status = false)}
 							required
 							icon="mdi:user-circle"
 						/>
@@ -207,10 +266,10 @@ delete endpoint, resolving the "Unexpected token" browser error.
 								errorStatus.email = { status: true, msg: 'Enter email first' };
 								return;
 							}
-							// Generate username from email
-							const base = formData.email.split('@')[0].replace(/[^a-z0-9]/gi, '_');
+							// Generate username from email, replacing invalid characters with an empty string
+							const base = formData.email.split('@')[0].replace(/[^a-z0-9]/gi, '');
 							const suffix = Math.floor(1000 + Math.random() * 9000);
-							formData.user_id = `${base}_${suffix}`.toLowerCase();
+							formData.username = `${base}${suffix}`.toLowerCase();
 						}}
 						class="variant-ghost-secondary btn"
 						title="Generate username from email"
@@ -219,9 +278,9 @@ delete endpoint, resolving the "Unexpected token" browser error.
 						<span class="sr-only">Auto generate username</span>
 					</button>
 				</div>
-				{#if errorStatus.user_id.status}
+				{#if errorStatus.username.status}
 					<div class="absolute left-0 top-11 text-xs text-error-500">
-						{errorStatus.user_id.msg}
+						{errorStatus.username.msg}
 					</div>
 				{/if}
 			</div>
@@ -260,24 +319,22 @@ delete endpoint, resolving the "Unexpected token" browser error.
 			<div class="group relative z-0 mb-6 w-full">
 				<label for="expires-select" class="mb-2 block text-sm font-medium text-black dark:text-white">{m.modaltokenuser_tokenvalidity()}</label>
 				<select id="expires-select" bind:value={formData.expires} class="input" aria-label="Token Validity">
-					<option value="1h">1 Hour</option>
-					<option value="1d">1 Day</option>
-					<option value="7d" selected>7 Days (default)</option>
-					<option value="30d">30 Days</option>
-					<option value="90d">90 Days</option>
+					<option value="2 hrs">2 Hours</option>
+					<option value="12 hrs">12 Hours</option>
+					<option value="2 days">2 Days (default)</option>
+					<option value="1 week">1 Week</option>
+					<option value="2 weeks">2 Weeks</option>
+					<option value="1 month">1 Month</option>
 				</select>
 			</div>
 		</form>
 
-		<footer class="modal-footer flex items-center justify-between p-4 {parent?.regionFooter ?? ''}">
+		<footer class="modal-footer flex items-center {formData.token ? 'justify-between' : 'justify-end'} p-4 {parent?.regionFooter ?? ''}">
 			<!-- Delete - Only show for existing tokens -->
 			{#if formData.token}
 				<button type="button" onclick={deleteToken} class="variant-filled-error btn">
 					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon><span class="hidden sm:block">{m.button_delete()}</span>
 				</button>
-			{:else}
-				<div></div>
-				<!-- Empty div to maintain flex spacing -->
 			{/if}
 			<div class="flex gap-2">
 				<!-- Cancel -->

@@ -440,5 +440,6 @@
 	"sidebar_will_publish_on": "Zostanie opublikowane w dniu",
 	"siedabar_publish_options": "Opcje publikacji",
 	"Fields_no_widgets_found": "Nie znaleziono widżetu: {name}",
-	"Fields_preview": "Zapowiedź"
+	"Fields_preview": "Zapowiedź",
+	"modal_token_deleted_successfully": "Token został pomyślnie usunięty"
 }

@@ -86,12 +86,13 @@ export const load: PageServerLoad = async (event) => {
 			}));
 
 			const formattedTokens = allTokens.map((token) => ({
-				_id: token._id || token.user_id, // Use _id if available, fallback to user_id
+				_id: token._id || token.user_id,
 				user_id: token.user_id,
-				token: token.token || '', // Include the actual token value
-				blocked: false, // Assuming tokens don't have a 'blocked' status
+				token: token.token || '',
+				blocked: false, // This needs to be calculated based on expiration or a specific field if available
 				email: token.email || '',
-				role: token.type || 'user', // Use token type as role, default to 'user'
+				username: token.username || '', // Ensure username is passed
+				role: token.role || 'user', // Ensure role is passed
 				expires: token.expires ? new Date(token.expires).toISOString() : null,
 				createdAt: token.createdAt ? new Date(token.createdAt).toISOString() : null,
 				updatedAt: token.updatedAt ? new Date(token.updatedAt).toISOString() : null

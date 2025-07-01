@@ -20,16 +20,19 @@
 import { json, error, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
+// Auth
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
 import { hasPermissionByAction } from '@src/auth/permissions';
 import { roles } from '@root/config/roles';
-import { invalidateAdminCache } from '@src/hooks.server';
 
-// System logger
-import { logger } from '@utils/logger.svelte';
+// Cache invalidation
+import { invalidateAdminCache } from '@src/hooks.server';
 
 // Validation
 import { object, string, number, parse, type ValiError, minLength } from 'valibot';
+
+// System logger
+import { logger } from '@utils/logger.svelte';
 
 const createTokenSchema = object({
 	email: string([minLength(1, 'Email is required.')]),

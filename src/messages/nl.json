@@ -440,5 +440,6 @@
 	"sidebar_will_publish_on": "Wordt gepubliceerd op",
 	"siedabar_publish_options": "Publicatieopties",
 	"Fields_no_widgets_found": "Widget niet gevonden: {name}",
-	"Fields_preview": "Voorvertoning"
+	"Fields_preview": "Voorvertoning",
+	"modal_token_deleted_successfully": "Token succesvol verwijderd"
 }

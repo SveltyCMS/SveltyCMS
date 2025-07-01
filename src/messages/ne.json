@@ -440,5 +440,6 @@
 	"sidebar_will_publish_on": "मा प्रकाशित हुनेछ",
 	"siedabar_publish_options": "विकल्पहरू प्रकाशित गर्नुहोस्",
 	"Fields_no_widgets_found": "विजेट फेला परेन: {name}",
-	"Fields_preview": "पूर्वावलोकन"
+	"Fields_preview": "पूर्वावलोकन",
+	"modal_token_deleted_successfully": "टोकन सफलतापूर्वक मेटाइयो"
 }

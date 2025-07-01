@@ -440,5 +440,6 @@
 	"sidebar_will_publish_on": "Blir publisert på",
 	"siedabar_publish_options": "Publiseringsalternativer",
 	"Fields_no_widgets_found": "Widget ikke funnet: {name}",
-	"Fields_preview": "Forhåndsvisning"
+	"Fields_preview": "Forhåndsvisning",
+	"modal_token_deleted_successfully": "Token slettet"
 }

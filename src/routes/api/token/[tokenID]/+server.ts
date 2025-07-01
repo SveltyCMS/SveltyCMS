@@ -19,12 +19,19 @@
 import { json, error, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
+// Auth
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
 import { hasPermissionByAction } from '@src/auth/permissions';
 import { roles } from '@root/config/roles';
-import { invalidateAdminCache } from '@src/hooks.server';
-import { logger } from '@utils/logger.svelte';
+
+// Validation
 import { object, any, parse, type ValiError } from 'valibot';
+
+// Cache invalidation
+import { invalidateAdminCache } from '@src/hooks.server';
+
+// System logger
+import { logger } from '@utils/logger.svelte';
 
 const editTokenSchema = object({
 	newTokenData: any() // Keep it flexible, specific validation can be added
@@ -60,13 +67,12 @@ export const PUT: RequestHandler = async ({ request, params, locals }) => {
 		// FIX: Using the now-defined `updateToken` method from the interface
 		await tokenAdapter.updateToken(tokenId, newTokenData);
 
-		// Invalidate the tokens cache so the updated token appears immediately in admin area
+		logger.info('Token updated successfully', { tokenId, updateData: newTokenData });
+
+		// Invalidate the tokens cache so the UI updates immediately
 		invalidateAdminCache('tokens');
 
-		logger.info(`Token ${tokenId} updated successfully`, { executedBy: locals.user?._id });
-
 		return json({ success: true, message: 'Token updated successfully.' });
-
 	} catch (err) {
 		if (err.name === 'ValiError') {
 			const valiError = err as ValiError;
