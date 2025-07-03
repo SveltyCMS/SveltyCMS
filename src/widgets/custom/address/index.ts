@@ -53,9 +53,13 @@ const widget = (params: Params & { widgetId?: string }) => {
 		helper: params.helper,
 
 		// permissions
-		permissions: params.permissions
+		permissions: params.permissions,
 
 		// widget specific
+		mapCenter: params.mapCenter || { lat: 51.34, lng: 6.57 }, // Default to Krefeld, Germany
+		zoom: params.zoom || 12,
+		defaultCountry: params.defaultCountry || 'Germany',
+		hiddenFields: params.hiddenFields || []
 	};
 
 	// Return the field and widget objects

@@ -41,7 +41,7 @@
 			stage.off('mousemove touchmove', handleMouseMove);
 			stage.off('mouseup touchend', handleMouseUp);
 			stage.container().style.cursor = 'default';
-			
+
 			// Clean up blur elements when component is destroyed
 			if (blurRegion) {
 				blurRegion.destroy();

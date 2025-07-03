@@ -55,6 +55,20 @@ export const corePermissions: Permission[] = [
 		type: PermissionType.SYSTEM,
 		description: 'Grants access to the system information API endpoints.'
 	},
+	{
+		_id: 'api:userActivity',
+		name: 'User Activity API Access',
+		action: PermissionAction.ACCESS,
+		type: PermissionType.SYSTEM,
+		description: 'Grants access to the user activity API endpoint for dashboard widgets.'
+	},
+	{
+		_id: 'api:media',
+		name: 'Media API Access',
+		action: PermissionAction.ACCESS,
+		type: PermissionType.SYSTEM,
+		description: 'Grants access to the media API endpoints.'
+	},
 
 	// Collection permissions
 	{ _id: 'collections:create', name: 'Create Collections', action: PermissionAction.CREATE, type: PermissionType.COLLECTION },

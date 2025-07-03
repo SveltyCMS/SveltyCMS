@@ -39,11 +39,7 @@ async function unwrapDbResult<T>(resultPromise: Promise<DatabaseResult<T>>): Pro
 	// If it's a database error, re-throw it with more context
 	if (isDatabaseError(result.error)) {
 		logger.error(`Database Operation Failed: ${result.error.message}`, result.error.details);
-		throw new SystemVirtualFolderError(
-			result.error.message,
-			result.error.statusCode || 500,
-			result.error.code
-		);
+		throw new SystemVirtualFolderError(result.error.message, result.error.statusCode || 500, result.error.code);
 	}
 	// Fallback for unexpected error shapes
 	throw new SystemVirtualFolderError('An unknown database error occurred', 500, 'UNKNOWN_DB_ERROR');
@@ -78,9 +74,7 @@ async function getFolderPath(folderId: DatabaseId | null): Promise<string> {
 }
 
 // Error handler wrapper for request handlers
-const handleRequest = (
-	handler: (params: { request: Request; url: URL }) => Promise<Response>
-): RequestHandler => {
+const handleRequest = (handler: (params: { request: Request; url: URL }) => Promise<Response>): RequestHandler => {
 	return async ({ request, url }) => {
 		try {
 			if (!dbAdapter) {
@@ -98,11 +92,7 @@ const handleRequest = (
 			const error =
 				err instanceof SystemVirtualFolderError
 					? err
-					: new SystemVirtualFolderError(
-						err instanceof Error ? err.message : String(err),
-						500,
-						'UNHANDLED_SERVER_ERROR'
-					);
+					: new SystemVirtualFolderError(err instanceof Error ? err.message : String(err), 500, 'UNHANDLED_SERVER_ERROR');
 			logger.error(`SystemVirtualFolderError: ${error.message}`, {
 				code: error.code,
 				status: error.status
@@ -275,9 +265,7 @@ export const PATCH: RequestHandler = handleRequest(async ({ request }) => {
 		throw new SystemVirtualFolderError('No update data provided', 400, 'NO_UPDATE_DATA');
 	}
 
-	const updatedFolder = await unwrapDbResult(
-		dbAdapter.systemVirtualFolder.update(folderId, updateData)
-	);
+	const updatedFolder = await unwrapDbResult(dbAdapter.systemVirtualFolder.update(folderId, updateData));
 
 	return json({
 		success: true,

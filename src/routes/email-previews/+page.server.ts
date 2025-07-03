@@ -27,7 +27,7 @@ let eventFetch: typeof globalThis.fetch;
 interface ExpectedPageData extends AppPageData {
 	user?: User | null;
 	// Properties from emailList (components, emails etc.)
-	emails?: { name: string; path: string;[key: string]: unknown }[];
+	emails?: { name: string; path: string; [key: string]: unknown }[];
 	components?: Record<string, unknown>;
 	[key: string]: unknown; // Allow other properties from emailList
 }

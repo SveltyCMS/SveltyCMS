@@ -1,5 +1,5 @@
 <!--
-@file: src/routes/(app)/dashboard/widgets/Last5MediaWidget.svelte
+@file src/routes/(app)/dashboard/widgets/Last5MediaWidget.svelte
 @component
 **A reusable widget component for displaying last 5 media information with improved rendering and error handling**
 
@@ -34,46 +34,125 @@
 	};
 
 	import BaseWidget from '../BaseWidget.svelte';
-	import { onMount } from 'svelte';
 
-	// Define the structure of a media document
-	interface MediaDocument {
-		createdAt: string;
-		createdBy: string;
+	interface MediaFile {
+		name: string;
+		size: number;
+		modified: string;
+		type: string;
+		url: string;
 	}
 
-	// Define the structure of a media schema
-	interface MediaSchema {
-		schemaName: string;
-		recentDocs: MediaDocument[];
+	let {
+		label = 'Last 5 Media',
+		theme = 'light',
+		icon = 'mdi:image-multiple',
+		widgetId = undefined,
+
+		// New sizing props
+		currentSize = '1/4',
+		availableSizes = ['1/4', '1/2', '3/4', 'full'],
+		onSizeChange = (newSize) => {},
+
+		// Drag props
+		draggable = true,
+		onDragStart = (event, item, element) => {},
+
+		// Legacy props
+		gridCellWidth = 0,
+		ROW_HEIGHT = 0,
+		GAP_SIZE = 0,
+		resizable = true,
+		onResizeCommitted = (spans: { w: number; h: number }) => {},
+		onCloseRequest = () => {}
+	} = $props<{
+		label?: string;
+		theme?: 'light' | 'dark';
+		icon?: string;
+		widgetId?: string;
+
+		// New sizing props
+		currentSize?: '1/4' | '1/2' | '3/4' | 'full';
+		availableSizes?: ('1/4' | '1/2' | '3/4' | 'full')[];
+		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
+
+		// Drag props
+		draggable?: boolean;
+		onDragStart?: (event: MouseEvent, item: any, element: HTMLElement) => void;
+
+		// Legacy props
+		gridCellWidth?: number;
+		ROW_HEIGHT?: number;
+		GAP_SIZE?: number;
+		resizable?: boolean;
+		onResizeCommitted?: (spans: { w: number; h: number }) => void;
+		onCloseRequest?: () => void;
+	}>();
+
+	function formatFileSize(bytes: number): string {
+		if (bytes === 0) return '0 B';
+		const k = 1024;
+		const sizes = ['B', 'KB', 'MB', 'GB'];
+		const i = Math.floor(Math.log(bytes) / Math.log(k));
+		return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 	}
 
-	// Define the type of the media array
-	let media: MediaSchema[] = $state([]);
+	function getFileIcon(type: string): string {
+		const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+		const videoTypes = ['mp4', 'mov', 'avi'];
 
-	onMount(async () => {
-		const res = await fetch('/api/media');
-		const data = await res.json();
-		media = data.data;
-	});
-
-	let { label, theme = 'light', icon = 'mdi:image-multiple' } = $props();
+		if (imageTypes.includes(type.toLowerCase())) {
+			return 'mdi:image';
+		} else if (videoTypes.includes(type.toLowerCase())) {
+			return 'mdi:video';
+		}
+		return 'mdi:file';
+	}
 </script>
 
-<BaseWidget {label} {theme} endpoint="/api/media" pollInterval={5000}>
-	<section>
-		<h2>Last 5 Added Media</h2>
-		<ul>
-			{#each media as { schemaName, recentDocs }}
-				<li>
-					<h3>{schemaName}</h3>
-					<ul>
-						{#each recentDocs as doc}
-							<li>{doc.createdAt}: {doc.createdBy}</li>
-						{/each}
-					</ul>
-				</li>
-			{/each}
-		</ul>
-	</section>
+<BaseWidget
+	{label}
+	{theme}
+	endpoint="/api/dashboard/last5media"
+	pollInterval={30000}
+	{icon}
+	{widgetId}
+	{currentSize}
+	{availableSizes}
+	{onSizeChange}
+	{draggable}
+	{onDragStart}
+	{gridCellWidth}
+	{ROW_HEIGHT}
+	{GAP_SIZE}
+	{resizable}
+	{onResizeCommitted}
+	{onCloseRequest}
+>
+	{#snippet children({ data: fetchedData })}
+		{#if fetchedData && Array.isArray(fetchedData) && fetchedData.length > 0}
+			<div class="grid gap-2" role="list" aria-label="Last 5 media files">
+				{#each fetchedData.slice(0, 5) as file}
+					<div class="flex items-center justify-between rounded-lg bg-surface-100/80 px-3 py-2 text-xs dark:bg-surface-700/60" role="listitem">
+						<div class="flex min-w-0 items-center gap-2">
+							<iconify-icon icon={getFileIcon(file.type)} class="text-primary-400" width="18" aria-label={file.type + ' file icon'}></iconify-icon>
+							<div class="flex min-w-0 flex-col">
+								<span class="text-text-900 dark:text-text-100 truncate font-medium" title={file.name}>{file.name}</span>
+								<span class="text-xs text-surface-500 dark:text-surface-400">{formatFileSize(file.size)}</span>
+							</div>
+						</div>
+						<div class="flex flex-col items-end">
+							<span class="uppercase text-surface-600 dark:text-surface-300">{file.type}</span>
+							<span class="text-xs text-surface-500 dark:text-surface-400">{new Date(file.modified).toLocaleDateString()}</span>
+						</div>
+					</div>
+				{/each}
+			</div>
+		{:else}
+			<div class="flex flex-1 flex-col items-center justify-center py-6 text-xs text-gray-500 dark:text-gray-400" role="status" aria-live="polite">
+				<iconify-icon icon="mdi:file-remove-outline" width="32" class="mb-2 text-surface-400 dark:text-surface-500" aria-hidden="true"></iconify-icon>
+				<span>No media files found</span>
+			</div>
+		{/if}
+	{/snippet}
 </BaseWidget>

@@ -47,9 +47,11 @@ export interface AddressData {
 	longitude: string | number;
 	name: string;
 	street: string;
+	addressLine2?: string; // Optional second address line
 	houseNumber: string;
 	postalCode: string;
 	city: string;
+	state?: string; // Optional state/province/region
 	country: string;
 }
 

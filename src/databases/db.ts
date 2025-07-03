@@ -127,9 +127,10 @@ async function loadAdapters() {
 					createToken: tokenAdapter.createToken.bind(tokenAdapter),
 					validateToken: tokenAdapter.validateToken.bind(tokenAdapter),
 					consumeToken: tokenAdapter.consumeToken.bind(tokenAdapter),
-					getTokenData: tokenAdapter.getTokenData.bind(tokenAdapter),
 					deleteExpiredTokens: tokenAdapter.deleteExpiredTokens.bind(tokenAdapter),
 					getAllTokens: tokenAdapter.getAllTokens.bind(tokenAdapter),
+					updateToken: tokenAdapter.updateToken.bind(tokenAdapter),
+					deleteTokens: tokenAdapter.deleteTokens.bind(tokenAdapter),
 
 					// Permission Management Methods (Imported)
 					getAllPermissions
@@ -209,9 +210,7 @@ async function initializeVirtualFolders(): Promise<void> {
 
 		if (!systemVirtualFoldersResult.success) {
 			const errorMessage =
-				systemVirtualFoldersResult.error instanceof Error
-					? systemVirtualFoldersResult.error.message
-					: String(systemVirtualFoldersResult.error);
+				systemVirtualFoldersResult.error instanceof Error ? systemVirtualFoldersResult.error.message : String(systemVirtualFoldersResult.error);
 			throw new Error(`Failed to get virtual folders: ${errorMessage}`);
 		}
 
@@ -229,10 +228,7 @@ async function initializeVirtualFolders(): Promise<void> {
 			const creationResult = await dbAdapter.systemVirtualFolder.create(rootFolderData);
 
 			if (!creationResult.success) {
-				const errorMessage =
-					creationResult.error instanceof Error
-						? creationResult.error.message
-						: String(creationResult.error);
+				const errorMessage = creationResult.error instanceof Error ? creationResult.error.message : String(creationResult.error);
 				throw new Error(`Failed to create root virtual folder: ${errorMessage}`);
 			}
 

@@ -684,7 +684,7 @@ Features:
 			onclick={() => {
 				mode.set('media');
 				goto('/mediagallery');
-				if (get(screenSize) === 'sm') {
+				if (get(screenSize) === 'SM') {
 					toggleUIElement('leftSidebar', 'hidden');
 				}
 				if (!isFullSidebar) handleUILayoutToggle();
@@ -714,7 +714,7 @@ Features:
 				expandedNodes.clear(); // Clear method triggers reactivity automatically
 				hasLoadedSystemVirtualFolders = false; // Reset loading flag
 
-				if (get(screenSize) === 'sm') {
+				if (get(screenSize) === 'SM') {
 					toggleUIElement('leftSidebar', 'hidden');
 				}
 				goto('/');

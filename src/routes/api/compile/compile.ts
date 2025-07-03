@@ -531,17 +531,12 @@ const commonjsToEsModuleTransformer: ts.TransformerFactory<ts.SourceFile> = (con
 			if (ts.isIdentifier(node) && node.text === '__filename') {
 				needsFileURLToPath = true;
 				// Create: fileURLToPath(import.meta.url)
-				return ts.factory.createCallExpression(
-					ts.factory.createIdentifier('fileURLToPath'),
-					undefined,
-					[ts.factory.createPropertyAccessExpression(
-						ts.factory.createMetaProperty(
-							ts.SyntaxKind.ImportKeyword,
-							ts.factory.createIdentifier('meta')
-						),
+				return ts.factory.createCallExpression(ts.factory.createIdentifier('fileURLToPath'), undefined, [
+					ts.factory.createPropertyAccessExpression(
+						ts.factory.createMetaProperty(ts.SyntaxKind.ImportKeyword, ts.factory.createIdentifier('meta')),
 						ts.factory.createIdentifier('url')
-					)]
-				);
+					)
+				]);
 			}
 
 			// Replace __dirname with ES module equivalent
@@ -549,22 +544,16 @@ const commonjsToEsModuleTransformer: ts.TransformerFactory<ts.SourceFile> = (con
 				needsFileURLToPath = true;
 				// Create: path.dirname(fileURLToPath(import.meta.url))
 				return ts.factory.createCallExpression(
-					ts.factory.createPropertyAccessExpression(
-						ts.factory.createIdentifier('path'),
-						ts.factory.createIdentifier('dirname')
-					),
+					ts.factory.createPropertyAccessExpression(ts.factory.createIdentifier('path'), ts.factory.createIdentifier('dirname')),
 					undefined,
-					[ts.factory.createCallExpression(
-						ts.factory.createIdentifier('fileURLToPath'),
-						undefined,
-						[ts.factory.createPropertyAccessExpression(
-							ts.factory.createMetaProperty(
-								ts.SyntaxKind.ImportKeyword,
-								ts.factory.createIdentifier('meta')
-							),
-							ts.factory.createIdentifier('url')
-						)]
-					)]
+					[
+						ts.factory.createCallExpression(ts.factory.createIdentifier('fileURLToPath'), undefined, [
+							ts.factory.createPropertyAccessExpression(
+								ts.factory.createMetaProperty(ts.SyntaxKind.ImportKeyword, ts.factory.createIdentifier('meta')),
+								ts.factory.createIdentifier('url')
+							)
+						])
+					]
 				);
 			}
 
@@ -580,13 +569,7 @@ const commonjsToEsModuleTransformer: ts.TransformerFactory<ts.SourceFile> = (con
 				ts.factory.createImportClause(
 					false,
 					undefined,
-					ts.factory.createNamedImports([
-						ts.factory.createImportSpecifier(
-							false,
-							undefined,
-							ts.factory.createIdentifier('fileURLToPath')
-						)
-					])
+					ts.factory.createNamedImports([ts.factory.createImportSpecifier(false, undefined, ts.factory.createIdentifier('fileURLToPath'))])
 				),
 				ts.factory.createStringLiteral('url'),
 				undefined
@@ -594,11 +577,7 @@ const commonjsToEsModuleTransformer: ts.TransformerFactory<ts.SourceFile> = (con
 
 			const pathImportDeclaration = ts.factory.createImportDeclaration(
 				undefined,
-				ts.factory.createImportClause(
-					false,
-					ts.factory.createIdentifier('path'),
-					undefined
-				),
+				ts.factory.createImportClause(false, ts.factory.createIdentifier('path'), undefined),
 				ts.factory.createStringLiteral('path'),
 				undefined
 			);
@@ -619,26 +598,22 @@ const schemaUuidTransformer: (context: ts.TransformationContext, uuid: string) =
 			// Look for object literals that might be schema objects
 			if (ts.isObjectLiteralExpression(node)) {
 				// Check if this object has properties that suggest it's a schema (like 'icon', 'fields', 'status', etc.)
-				const hasSchemaProperties = node.properties.some(prop =>
-					ts.isPropertyAssignment(prop) &&
-					ts.isIdentifier(prop.name) &&
-					['fields', 'icon', 'status', 'revision', 'livePreview'].includes(prop.name.text)
+				const hasSchemaProperties = node.properties.some(
+					(prop) =>
+						ts.isPropertyAssignment(prop) &&
+						ts.isIdentifier(prop.name) &&
+						['fields', 'icon', 'status', 'revision', 'livePreview'].includes(prop.name.text)
 				);
 
 				if (hasSchemaProperties) {
 					// Check if _id property already exists
-					const hasIdProperty = node.properties.some(prop =>
-						ts.isPropertyAssignment(prop) &&
-						ts.isIdentifier(prop.name) &&
-						prop.name.text === '_id'
+					const hasIdProperty = node.properties.some(
+						(prop) => ts.isPropertyAssignment(prop) && ts.isIdentifier(prop.name) && prop.name.text === '_id'
 					);
 
 					if (!hasIdProperty) {
 						// Inject _id property with the UUID
-						const idProperty = ts.factory.createPropertyAssignment(
-							ts.factory.createIdentifier('_id'),
-							ts.factory.createStringLiteral(uuid)
-						);
+						const idProperty = ts.factory.createPropertyAssignment(ts.factory.createIdentifier('_id'), ts.factory.createStringLiteral(uuid));
 
 						// Add _id as the first property
 						const newProperties = [idProperty, ...node.properties];

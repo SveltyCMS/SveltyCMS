@@ -140,12 +140,24 @@ function createImageEditorStore() {
 	}
 
 	return {
-		get state() { return state; },
-		get canUndo() { return canUndo; },
-		get canRedo() { return canRedo; },
-		get hasActiveImage() { return hasActiveImage; },
-		get canUndoState() { return canUndoState; },
-		get canRedoState() { return canRedoState; },
+		get state() {
+			return state;
+		},
+		get canUndo() {
+			return canUndo;
+		},
+		get canRedo() {
+			return canRedo;
+		},
+		get hasActiveImage() {
+			return hasActiveImage;
+		},
+		get canUndoState() {
+			return canUndoState;
+		},
+		get canRedoState() {
+			return canRedoState;
+		},
 		setFile,
 		setSaveEditedImage,
 		setStage,

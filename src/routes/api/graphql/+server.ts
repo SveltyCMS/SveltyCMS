@@ -45,7 +45,7 @@ function createCleanTypeName(collection: { name: string; _id: string }): string 
 	const cleanName = baseName
 		.replace(/[^a-zA-Z0-9]/g, '')
 		.replace(/^[0-9]/, 'Collection$&') // Handle names starting with numbers
-		.replace(/^\w/, c => c.toUpperCase()); // Ensure starts with uppercase
+		.replace(/^\w/, (c) => c.toUpperCase()); // Ensure starts with uppercase
 
 	// Use first 8 characters of UUID for uniqueness while keeping it readable
 	const shortId = collection._id.substring(0, 8);
@@ -74,9 +74,9 @@ let redisClient: ReturnType<typeof createClient> | null = null;
 const cacheClient =
 	privateEnv.USE_REDIS === true
 		? {
-			get: async (key: string) => redisClient?.get(key) || null,
-			set: async (key: string, value: string, ex: string, duration: number) => redisClient?.set(key, value, { EX: duration })
-		}
+				get: async (key: string) => redisClient?.get(key) || null,
+				set: async (key: string, value: string, ex: string, duration: number) => redisClient?.set(key, value, { EX: duration })
+			}
 		: null;
 
 if (!building && privateEnv.USE_REDIS === true) {
@@ -134,8 +134,8 @@ async function setupGraphQL() {
             
             type Query {
                 ${Object.values(collections)
-				.map((collection) => `${createCleanTypeName(collection)}: [${createCleanTypeName(collection)}]`)
-				.join('\n')}
+									.map((collection) => `${createCleanTypeName(collection)}: [${createCleanTypeName(collection)}]`)
+									.join('\n')}
                 users: [User]
                 mediaImages: [MediaImage]
                 mediaDocuments: [MediaDocument]

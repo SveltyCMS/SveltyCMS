@@ -3,8 +3,8 @@
  * @description  Role configuration file
  */
 
+import { getAllPermissions } from '../src/auth/permissions.js';
 import type { Role } from '../src/auth/types';
-import { getAllPermissions } from '../src/auth/permissions';
 
 const permissions = getAllPermissions();
 
@@ -22,7 +22,18 @@ export const roles: Role[] = [
 		_id: 'developer',
 		name: 'Developer',
 		description: 'Developer Role - Can access some system features',
-		permissions: ['system:dashboard', 'api:graphql', 'api:collections', 'api:export', 'collections:read', 'content:builder'],
+		permissions: [
+			'system:dashboard',
+			'api:graphql',
+			'api:collections',
+			'api:export',
+			'api:systemInfo',
+			'api:user',
+			'api:userActivity',
+			'api:media',
+			'collections:read',
+			'content:builder'
+		],
 		icon: 'material-symbols:code',
 		color: 'gradient-pink'
 	},
@@ -30,7 +41,18 @@ export const roles: Role[] = [
 		_id: 'editor',
 		name: 'Editor',
 		description: 'Editor Role - Collection Permissions',
-		permissions: ['collections:read', 'collections:update', 'collections:create', 'content:editor', 'content:images', 'system:dashboard'],
+		permissions: [
+			'collections:read',
+			'collections:update',
+			'collections:create',
+			'content:editor',
+			'content:images',
+			'system:dashboard',
+			'api:systemInfo',
+			'api:user',
+			'api:userActivity',
+			'api:media'
+		],
 		icon: 'material-symbols:edit',
 		color: 'gradient-tertiary'
 	},

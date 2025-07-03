@@ -4,10 +4,11 @@
  *
  * This module defines a schema and model for system-wide preferences and settings.
  */
+import type { DatabaseResult, SystemPreferences } from '@src/databases/dbInterface';
+import type { FilterQuery, Model } from 'mongoose';
+
 import mongoose from 'mongoose';
 const { Schema } = mongoose;
-import type { Model, FilterQuery } from 'mongoose';
-import type { SystemPreferences, DatabaseResult } from '@src/databases/dbInterface';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -20,6 +21,7 @@ export const systemPreferencesSchema = new Schema<SystemPreferences>(
 		value: { type: Schema.Types.Mixed }, // Value of the preference, can be any type
 		scope: { type: String, enum: ['user', 'system', 'widget'], default: 'system' }, // Scope of the preference
 		userId: { type: String, ref: 'auth_users', required: false }, // Optional userId for user-scoped preferences
+		preferences: { type: Schema.Types.Mixed }, // <-- Add this line to allow saving preferences
 		createdAt: { type: Date, default: Date.now },
 		updatedAt: { type: Date, default: Date.now }
 	},

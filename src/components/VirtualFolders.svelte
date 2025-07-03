@@ -212,7 +212,7 @@ Features:
 	function returnToCollections(): void {
 		mode.set('view');
 		goto('/'); // Adjust this route as needed
-		if (get(screenSize) === 'sm') {
+		if (get(screenSize) === 'SM') {
 			toggleUIElement('leftSidebar', 'hidden');
 		}
 	}

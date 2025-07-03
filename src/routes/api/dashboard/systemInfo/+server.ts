@@ -1,5 +1,5 @@
 /**
- * @file src/routes/api/systemInfo/+server.ts
+ * @file src/routes/api/dashboard/systemInfo/+server.ts
  * @description Enhanced API endpoint for fetching comprehensive system information.
  *
  * This module provides functionality to:
@@ -22,13 +22,13 @@
  * - Response caching to reduce system load
  *
  * Usage:
- * GET /api/systemInfo - Full system information
- * GET /api/systemInfo?type=cpu - Only CPU information
- * GET /api/systemInfo?type=disk - Only disk information
- * GET /api/systemInfo?type=memory - Only memory information
- * GET /api/systemInfo?type=network - Only network information
- * GET /api/systemInfo?type=os - Only OS information
- * GET /api/systemInfo?type=process - Only process information
+ * GET /api/dashboard/systemInfo - Full system information
+ * GET /api/dashboard/systemInfo?type=cpu - Only CPU information
+ * GET /api/dashboard/systemInfo?type=disk - Only disk information
+ * GET /api/dashboard/systemInfo?type=memory - Only memory information
+ * GET /api/dashboard/systemInfo?type=network - Only network information
+ * GET /api/dashboard/systemInfo?type=os - Only OS information
+ * GET /api/dashboard/systemInfo?type=process - Only process information
  *
  * Returns: JSON object with requested system information
  *

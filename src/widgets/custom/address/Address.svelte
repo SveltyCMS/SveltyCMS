@@ -16,6 +16,7 @@
 
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { browser } from '$app/environment';
 	import { privateEnv } from '@root/config/private';
 	import { updateTranslationProgress, getFieldName } from '@utils/utils';
 
@@ -26,19 +27,14 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Mapbox
-	import type { Map as MapboxMap } from 'mapbox-gl';
-	import mapboxgl from 'mapbox-gl';
+	// Import Mapbox CSS at the top level
 	import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
 	import 'mapbox-gl/dist/mapbox-gl.css';
-	import MapboxLanguage from '@mapbox/mapbox-gl-language';
-	import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
 
 	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
-	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
-	import { Autocomplete } from '@skeletonlabs/skeleton';
+	import { ListBox, ListBoxItem, Autocomplete } from '@skeletonlabs/skeleton';
 
 	// Valibot validation
 	import * as v from 'valibot';
@@ -47,18 +43,19 @@
 	import countries from './countries.json';
 	import type { AddressData, Country } from './types';
 
+	import type { Map as MapboxMap, Marker } from 'mapbox-gl';
+
 	// Initialize Mapbox
 	const mapboxToken = privateEnv.MAPBOX_API_TOKEN;
 	const isMapboxEnabled = privateEnv.USE_MAPBOX && mapboxToken;
 
-	// Set the Mapbox token before map initialization
-	if (isMapboxEnabled && mapboxToken) {
-		mapboxgl.accessToken = mapboxToken;
-	}
-
 	interface Props {
 		field?: Field;
 		value?: AddressData;
+		mapCenter: { lat: number; lng: number };
+		zoom: number;
+		defaultCountry: string;
+		hiddenFields: Array<string>;
 	}
 
 	const defaultAddress: AddressData = {
@@ -72,19 +69,30 @@
 		country: ''
 	};
 
-	let { field, value = defaultAddress }: Props = $props();
+	let {
+		field,
+		value = defaultAddress,
+		mapCenter = { lat: 51.34, lng: 6.57 },
+		zoom = 12,
+		defaultCountry = 'Germany',
+		hiddenFields = []
+	}: Props = $props();
 
 	const fieldName = getFieldName(field);
 
 	// State variables
 	let validationError = $state<string | null>(null);
 	let debounceTimeout: number | undefined;
-	let listboxValue = $state('Germany');
+	let listboxValue = $state(defaultCountry);
 	let searchQuery = $state('');
 	let filteredCountries = $state<Country[]>(countries as Country[]);
-	let map: MapboxMap;
+	let map: MapboxMap | null = null;
 
-	// Update filtered countries when search query changes
+	// ✅ Corrected Declaration
+	let mapContainer = $state<HTMLDivElement | undefined>();
+
+	let marker: Marker | null = null;
+
 	$effect(() => {
 		if (!searchQuery) {
 			filteredCountries = countries as Country[];
@@ -96,19 +104,16 @@
 		);
 	});
 
-	// Initialize value if needed
 	$effect(() => {
 		if (!value) {
 			value = { ...defaultAddress };
 		}
 	});
 
-	// Update translation progress
 	$effect(() => {
 		updateTranslationProgress({}, field);
 	});
 
-	// Popup settings
 	const CountryCombobox: PopupSettings = {
 		event: 'click',
 		target: 'CountryCombobox',
@@ -132,40 +137,45 @@
 		}, 300);
 	}
 
-	// Improved country search function
 	function searchCountry(event: Event) {
 		searchQuery = (event.target as HTMLInputElement).value;
 	}
 
-	function initMap() {
-		if (!isMapboxEnabled) return;
+	async function initMap() {
+		if (!isMapboxEnabled || !browser || !mapContainer) return;
 
+		// ✅ Revert to using .default for the import
+		const mapboxgl = (await import('mapbox-gl')).default;
+
+		// These other imports are correct as they are
+		const MapboxGeocoder = (await import('@mapbox/mapbox-gl-geocoder')).default;
+		const MapboxLanguage = (await import('@mapbox/mapbox-gl-language')).default;
+
+		if (mapboxToken) {
+			// ✅ Add 'as any' to bypass the faulty type definition
+			(mapboxgl as any).accessToken = mapboxToken;
+		}
+
+		// Now, 'mapboxgl' has the correct type for the rest of the function
 		map = new mapboxgl.Map({
-			container: 'map',
+			container: mapContainer,
 			style: 'mapbox://styles/mapbox/streets-v12',
-			center: [6.6054765, 51.3395072],
-			zoom: 10
-		}) as MapboxMap;
+			center: [mapCenter.lng, mapCenter.lat],
+			zoom: zoom
+		});
 
 		const language = new MapboxLanguage();
 		map.addControl(language);
 
 		const geocoder = new MapboxGeocoder({
-			accessToken: mapboxToken,
-			mapboxgl: mapboxgl
+			accessToken: String(mapboxToken ?? ''),
+			mapboxgl: mapboxgl as any
 		});
-
 		map.addControl(geocoder);
 
-		map.on('load', () => {
-			map?.resize();
-		});
+		map.on('load', () => map?.resize());
 
-		const marker = new mapboxgl.Marker({
-			draggable: true
-		})
-			.setLngLat([6.6054765, 51.3395072])
-			.addTo(map);
+		marker = new mapboxgl.Marker({ draggable: true }).setLngLat([mapCenter.lng, mapCenter.lat]).addTo(map);
 
 		marker.on('dragend', (e) => {
 			const lngLat = e.target.getLngLat();
@@ -180,8 +190,8 @@
 	}
 
 	onMount(() => {
-		const container = document.getElementById('map');
-		if (container) {
+		listboxValue = defaultCountry;
+		if (mapContainer && !hiddenFields.includes('map')) {
 			initMap();
 		}
 	});
@@ -203,8 +213,10 @@
 
 <div class="input-container relative mb-4">
 	{#if isMapboxEnabled}
+		<div id="map" bind:this={mapContainer} class="h-64 w-full"></div>
+
 		<address class="w-full" class:error={!!validationError}>
-			<div class="mb-1 flex justify-between gap-2">
+			<div class="mb-1 mt-4 flex justify-between gap-2">
 				<button aria-label={m.widget_address_getfromaddress()} class="variant-filled-primary btn btn-base rounded-md text-white">
 					<iconify-icon icon="bi:map" width="16" class="mr-2"></iconify-icon>
 					{m.widget_address_getfromaddress()}
@@ -324,7 +336,6 @@
 					aria-describedby={validationError ? `${fieldName}-error` : undefined}
 				/>
 
-				<!-- Country with search Combobox -->
 				<div>
 					<button class="input btn mt-2 w-full justify-between" use:popup={CountryCombobox}>
 						<span class="capitalize">{listboxValue ?? 'Combobox'}</span>
@@ -356,12 +367,13 @@
 			</form>
 		</address>
 
-		<!-- Error Message -->
 		{#if validationError}
-			<p id={`${fieldName}-error}`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+			<p id={`${fieldName}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
 				{validationError}
 			</p>
 		{/if}
+	{:else}
+		<p>Mapbox is not enabled. Please provide an API token.</p>
 	{/if}
 </div>
 

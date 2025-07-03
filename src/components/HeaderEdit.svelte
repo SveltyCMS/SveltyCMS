@@ -184,7 +184,7 @@
 
 			// Consistent state management with RightSidebar
 			mode.set('view');
-			toggleUIElement('leftSidebar', screenSize.value === 'lg' ? 'full' : 'collapsed');
+			toggleUIElement('leftSidebar', screenSize.value === 'LG' ? 'full' : 'collapsed');
 		} catch (err) {
 			console.error('Failed to save data:', err);
 			toastStore.trigger({
@@ -198,7 +198,7 @@
 	// function to undo the changes made by handleButtonClick
 	function handleCancel() {
 		mode.set('view');
-		toggleUIElement('leftSidebar', screenSize.value === 'lg' ? 'full' : 'collapsed');
+		toggleUIElement('leftSidebar', screenSize.value === 'LG' ? 'full' : 'collapsed');
 	}
 
 	function handleReload() {
@@ -220,7 +220,7 @@
 		{#if uiStateManager.uiState.value.leftSidebar === 'hidden'}
 			<button
 				type="button"
-				onclick={() => toggleUIElement('leftSidebar', screenSize.value === 'lg' ? 'full' : 'collapsed')}
+				onclick={() => toggleUIElement('leftSidebar', screenSize.value === 'LG' ? 'full' : 'collapsed')}
 				aria-label="Toggle Sidebar"
 				class="variant-ghost-surface btn-icon mt-1"
 			>
@@ -252,7 +252,7 @@
 
 	<div class="flex items-center justify-end gap-1 sm:gap-2 md:gap-4">
 		<!-- Mobile specific buttons -->
-		{#if screenSize.value === 'md' || screenSize.value === 'sm' || screenSize.value === 'xs'}
+		{#if screenSize.value === 'MD' || screenSize.value === 'SM' || screenSize.value === 'XS'}
 			{#if showMore}
 				<!-- Mobile: Show More Active -->
 				<button type="button" onclick={next} aria-label="Next" class="variant-filled-tertiary btn-icon dark:variant-filled-primary">
@@ -295,7 +295,7 @@
 		{/if}
 
 		<!-- Desktop specific buttons -->
-		{#if screenSize.value === 'lg'}
+		{#if screenSize.value === 'LG'}
 			<div class="hidden flex-col items-center justify-center md:flex">
 				<TranslationStatus />
 			</div>

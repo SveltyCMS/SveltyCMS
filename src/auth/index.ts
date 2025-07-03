@@ -25,7 +25,6 @@ import type { User, Role, Permission, Session, Token, SessionStore } from './typ
 import { roles } from '@root/config/roles';
 import { corePermissions } from './corePermissions';
 
-
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
