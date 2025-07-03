@@ -18,9 +18,9 @@
  * - Google OAuth2 Integration: Optionally sets up Google OAuth2 client if the client ID and secret are provided.
  */
 
-import { publicEnv } from '@root/config/public';
-import { privateEnv } from '@root/config/private';
 import { building } from '$app/environment';
+import { privateEnv } from '@root/config/private';
+import { publicEnv } from '@root/config/public';
 
 // MongoDB
 import { connectToMongoDB } from './mongodb/dbconnect';
@@ -30,17 +30,17 @@ import { Auth } from '@root/src/auth';
 import { getDefaultSessionStore } from '@src/auth/sessionStore';
 
 // Adapters Interfaces
-import type { DatabaseAdapter } from './dbInterface';
 import type { authDBInterface } from '@src/auth/authDBInterface';
+import type { DatabaseAdapter } from './dbInterface';
 
 // MongoDB Adapters
-import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
 import { SessionAdapter } from '@src/auth/mongoDBAuth/sessionAdapter';
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
+import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
 
 // Content Manager
-import { contentManager } from '@src/content/ContentManager';
 import { getAllPermissions } from '@src/auth/permissions';
+import { contentManager } from '@src/content/ContentManager';
 import type { CollectionData } from '@src/content/types';
 
 // Theme
@@ -48,9 +48,6 @@ import { DEFAULT_THEME } from '@src/databases/themeManager';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-
-// Screen Size
-import { ScreenSize } from '@src/stores/screenSizeStore.svelte.ts';
 
 // State Variables
 export let dbAdapter: DatabaseAdapter | null = null; // Database adapter
@@ -60,25 +57,6 @@ export let isConnected = false; // Database connection state (primarily for exte
 let isInitialized = false; // Initialization state
 let initializationPromise: Promise<void> | null = null; // Initialization promise
 let adaptersLoaded = false; // Internal flag
-
-// Initialize default preferences if needed
-async function initializeDefaultPreferences(): Promise<void> {
-	if (!dbAdapter) throw new Error('Cannot initialize preferences: dbAdapter is not available');
-	try {
-		logger.debug('Initializing default preferences...');
-		const existingPrefs = await dbAdapter.systemPreferences.getSystemPreferences('system');
-		// If preferences for LG screen size are missing, initialize them
-		if (!existingPrefs || !existingPrefs[ScreenSize.LG]) {
-			await dbAdapter.systemPreferences.updateSystemPreferences('system', ScreenSize.LG, []);
-			logger.info('Initialized default system preferences for LG screen size');
-		} else {
-			logger.debug('Default preferences already exist');
-		}
-	} catch (err) {
-		logger.error(`Error initializing default preferences: ${err instanceof Error ? err.message : String(err)}`);
-		throw err; // Re-throw to fail initialization
-	}
-}
 
 // Load database and authentication adapters
 async function loadAdapters() {
@@ -310,7 +288,6 @@ async function initializeSystem(): Promise<void> {
 			await initializeDefaultTheme();
 			await initializeRevisions();
 			await initializeVirtualFolders();
-			await initializeDefaultPreferences();
 			logger.debug('\x1b[32mStep 3 completed:\x1b[0m System components initialized');
 		} catch (componentErr) {
 			logger.error(`Component initialization failed: ${componentErr.message}`);

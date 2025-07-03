@@ -152,7 +152,7 @@ async function handleGoogleUser(
 	logger.debug('OAuth user lookup for email', { email: email });
 	logger.debug(`User found: ${user ? 'YES' : 'NO'}`);
 	if (user) {
-		logger.debug(`Existing user ID: ${user._id}, username: ${user.username}`);
+		logger.debug(`Existing user ID: \x1b[34m${user_id}\x1b[0m, username: ${user.username}`);
 	}
 
 	if (!user) {
@@ -293,7 +293,7 @@ async function handleGoogleUser(
 		logger.debug('Updating user attributes:', updateData);
 		await auth.updateUserAttributes(user._id.toString(), updateData);
 
-		logger.debug(`Updated user attributes for: ${user._id}`);
+		logger.debug(`Updated user attributes for: \x1b[34m${user_id}\x1b[0m`);
 	}
 
 	if (!user?._id) {
@@ -402,9 +402,6 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			// Create a fresh OAuth client instance specifically for token exchange
 			// Use the same environment detection logic as the OAuth URL generation
 			const redirectUri = getOAuthRedirectUri();
-
-			logger.debug(`Creating OAuth client with redirect URI: ${redirectUri}`);
-			logger.debug(`Client ID: ${privateEnv.GOOGLE_CLIENT_ID?.substring(0, 20)}...`);
 
 			const googleAuthClient = new google.auth.OAuth2(privateEnv.GOOGLE_CLIENT_ID, privateEnv.GOOGLE_CLIENT_SECRET, redirectUri);
 

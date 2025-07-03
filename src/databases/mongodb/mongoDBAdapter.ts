@@ -886,27 +886,6 @@ export class MongoDBAdapter implements DatabaseAdapter {
 			}
 		},
 
-		// Update preferences for a specific screen size
-		updateSystemPreferences: async (userId: string, screenSize: ScreenSize, widgets: WidgetPreference[]): Promise<void> => {
-			try {
-				// Always use key: screenSize, scope: 'system', and userId: 'system' for system-wide preferences
-				await SystemPreferencesModel.updateOne(
-					{ key: screenSize, scope: 'system', userId: 'system' },
-					{
-						$set: {
-							[`preferences.${screenSize}`]: widgets,
-							key: screenSize,
-							scope: 'system',
-							userId: 'system'
-						}
-					},
-					{ upsert: true }
-				);
-			} catch (error) {
-				throw createDatabaseError(error, 'PREFERENCES_UPDATE_ERROR', 'Failed to update preferences');
-			}
-		},
-
 		// Clear all preferences for a user
 		clearSystemPreferences: async (userId: string): Promise<void> => {
 			try {

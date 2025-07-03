@@ -5,11 +5,10 @@
  * both runtime validation and static TypeScript type generation.
  */
 
-import { object, string, number, boolean, array, optional, minLength, minValue, maxValue, literal, union, safeParse } from 'valibot';
+import { object, string, number, boolean, array, optional, minLength, minValue, maxValue, literal, union, safeParse, pipe } from 'valibot';
 import type { InferOutput } from 'valibot';
 
 import type { Locale } from '@src/paraglide/runtime';
-import type { Role, Permission } from '@src/auth/types'; // Import Role and Permission types from the centralized types file
 
 /**
  * The PRIVATE configuration for the application,
@@ -19,21 +18,21 @@ export const privateConfigSchema = object({
 	// Define the database type (Default: 'mongodb')
 	DB_TYPE: union([literal('mongodb'), literal('mariadb')]),
 
-	DB_HOST: string([minLength(1)]), // Database Host
-	DB_PORT: number([minValue(1)]), // Database Port
-	DB_NAME: string([minLength(1)]), // Database Name
-	DB_USER: string([minLength(1)]), // Database User
-	DB_PASSWORD: string([minLength(1)]), // Database Password
-	DB_RETRY_ATTEMPTS: optional(number([minValue(1)])), // Database Retry Attempts
-	DB_RETRY_DELAY: optional(number([minValue(1)])), // Database Retry Delay
-	DB_POOL_SIZE: optional(number([minValue(1)])), // Database Pool Size
+	DB_HOST: pipe(string(), minLength(1)), // Database Host
+	DB_PORT: pipe(number(), minValue(1)), // Database Port
+	DB_NAME: pipe(string(), minLength(1)), // Database Name
+	DB_USER: pipe(string(), minLength(1)), // Database User
+	DB_PASSWORD: pipe(string(), minLength(1)), // Database Password
+	DB_RETRY_ATTEMPTS: optional(pipe(number(), minValue(1))), // Database Retry Attempts
+	DB_RETRY_DELAY: optional(pipe(number(), minValue(1))), // Database Retry Delay
+	DB_POOL_SIZE: optional(pipe(number(), minValue(1))), // Database Pool Size
 
 	// --- SMTP config - See https://nodemailer.com ---
 	SMTP_HOST: optional(string()), // SMTP Host
-	SMTP_PORT: optional(number([minValue(1)])), // SMTP Port
+	SMTP_PORT: optional(pipe(number(), minValue(1))), // SMTP Port
 	SMTP_EMAIL: optional(string()), // SMTP Email
 	SMTP_PASSWORD: optional(string()), // SMTP Password
-	SERVER_PORT: optional(number([minValue(1)])), // Server Port
+	SERVER_PORT: optional(pipe(number(), minValue(1))), // Server Port
 
 	// --- Google OAuth - See https://developers.google.com/identity/protocols/oauth2/web-server ---
 	USE_GOOGLE_OAUTH: boolean(), // Enable Google OAuth. Set to `true` to enable
@@ -43,14 +42,14 @@ export const privateConfigSchema = object({
 	// --- Redis config - See https://redis.io/documentation ---
 	USE_REDIS: boolean(), // Enable Redis for caching by setting to true
 	REDIS_HOST: optional(string()), // The hostname or IP address of your Redis server.
-	REDIS_PORT: optional(number([minValue(1)])), // The port number of your Redis server.
+	REDIS_PORT: optional(pipe(number(), minValue(1))), // The port number of your Redis server.
 	REDIS_PASSWORD: optional(string()), // The password for your Redis server (if any).
 
 	// --- Session configuration ---
-	SESSION_CLEANUP_INTERVAL: optional(number([minValue(1)])), // Session Cleanup Interval
-	MAX_IN_MEMORY_SESSIONS: optional(number([minValue(1)])), // Max In Memory Sessions
-	DB_VALIDATION_PROBABILITY: optional(number([minValue(0), maxValue(1)])), // DB Validation Probability
-	SESSION_EXPIRATION_SECONDS: optional(number([minValue(1)])), // Session Expiration Seconds
+	SESSION_CLEANUP_INTERVAL: optional(pipe(number(), minValue(1))), // Session Cleanup Interval
+	MAX_IN_MEMORY_SESSIONS: optional(pipe(number(), minValue(1))), // Max In Memory Sessions
+	DB_VALIDATION_PROBABILITY: optional(pipe(number(), minValue(0), maxValue(1))), // DB Validation Probability
+	SESSION_EXPIRATION_SECONDS: optional(pipe(number(), minValue(1))), // Session Expiration Seconds
 
 	// --- Mapbox config  - See https://docs.mapbox.com/ ---
 	USE_MAPBOX: boolean(), // Enable Mapbox. Set to `true` to enable
@@ -71,11 +70,11 @@ export const privateConfigSchema = object({
 	LLM_APIS: optional(object({})),
 
 	// --- Roles and Permissions ---
-	ROLES: array(string([minLength(1)])) as unknown as Role[],
-	PERMISSIONS: array(string([minLength(1)])) as unknown as Permission[],
+	ROLES: pipe(array(pipe(string(), minLength(1))), minLength(1)),
+	PERMISSIONS: pipe(array(pipe(string(), minLength(1))), minLength(1)),
 
 	// --- Secret key for signing and verifying JSON Web Tokens (JWTs) ---
-	JWT_SECRET_KEY: string([minLength(32)])
+	JWT_SECRET_KEY: pipe(string(), minLength(32))
 });
 
 /**
@@ -83,23 +82,23 @@ export const privateConfigSchema = object({
  */
 export const publicConfigSchema = object({
 	// --- Host configuration ---
-	HOST_DEV: string([minLength(1)]), // Hostname for development eg. http://localhost:5173
-	HOST_PROD: string([minLength(1)]), // Hostname for production eg. 'mywebsite.com'
+	HOST_DEV: pipe(string(), minLength(1)), // Hostname for development eg. http://localhost:5173
+	HOST_PROD: pipe(string(), minLength(1)), // Hostname for production eg. 'mywebsite.com'
 
 	// --- Site configuration ---
-	SITE_NAME: string([minLength(1)]), // The name of the site that this CMS should get
-	PASSWORD_LENGTH: number([minValue(8)]), // Password Length ( default 8)
+	SITE_NAME: pipe(string(), minLength(1)), // The name of the site that this CMS should get
+	PASSWORD_LENGTH: pipe(number(), minValue(8)), // Password Length ( default 8)
 
 	// --- Content Language for database ---
-	DEFAULT_CONTENT_LANGUAGE: string([minLength(1)]) as unknown as Locale, // Default Content Language
-	AVAILABLE_CONTENT_LANGUAGES: array(string([minLength(1)]) as unknown as Locale, [minLength(1)]), // Available Content Languages
+	DEFAULT_CONTENT_LANGUAGE: pipe(string(), minLength(1)) as unknown as Locale, // Default Content Language
+	AVAILABLE_CONTENT_LANGUAGES: pipe(array(pipe(string(), minLength(1)) as unknown as Locale), minLength(1)), // Available Content Languages
 
 	// --- System Language ---
-	AVAILABLE_SYSTEM_LANGUAGES: array(string([minLength(1)]) as unknown as Locale, [minLength(1)]), // Available System Languages
-	DEFAULT_SYSTEM_LANGUAGE: string([minLength(1)]) as unknown as Locale, // Default System Language
+	AVAILABLE_SYSTEM_LANGUAGES: pipe(array(pipe(string(), minLength(1)) as unknown as Locale), minLength(1)), // Available System Languages
+	DEFAULT_SYSTEM_LANGUAGE: pipe(string(), minLength(1)) as unknown as Locale, // Default System Language
 
 	// --- Media configuration ---
-	MEDIA_FOLDER: string([minLength(1)]), // Media Folder where the site's media files will be stored.
+	MEDIA_FOLDER: pipe(string(), minLength(1)), // Media Folder where the site's media files will be stored.
 	/**
 	 * Determines how media files are saved on the server.
 	 * Options are: 'original', 'webp', or 'avif'.
@@ -108,13 +107,13 @@ export const publicConfigSchema = object({
 	 */
 	MEDIA_OUTPUT_FORMAT_QUALITY: object({
 		format: union([literal('original'), literal('jpg'), literal('webp'), literal('avif')]),
-		quality: number([minValue(1), maxValue(100)])
+		quality: pipe(number(), minValue(1), maxValue(100))
 	}),
 
-	MEDIASERVER_URL: optional(string([minLength(1)])), // Media Server URL
+	MEDIASERVER_URL: optional(pipe(string(), minLength(1))), // Media Server URL
 	IMAGE_SIZES: object({}), // The sizes of images that the site will generate. eg. { sm: 600, md: 900, lg: 1200 }
-	MAX_FILE_SIZE: optional(number([minValue(1)])), // MAX_FILE_SIZE
-	BODY_SIZE_LIMIT: optional(number([minValue(1)])), //Define body size limit for your Uploads eg. 100mb
+	MAX_FILE_SIZE: optional(pipe(number(), minValue(1))), // MAX_FILE_SIZE
+	BODY_SIZE_LIMIT: optional(pipe(number(), minValue(1))), //Define body size limit for your Uploads eg. 100mb
 	EXTRACT_DATA_PATH: optional(string()), // Define path to extract data
 
 	// --- Seasons Icons for login page. Set to `true` to enable ---
@@ -125,12 +124,12 @@ export const publicConfigSchema = object({
 	PKG_VERSION: optional(string()),
 
 	// --- Log Level (default: 'error') (Options: Options: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'none') ---
-	LOG_LEVELS: array(
-		union([literal('fatal'), literal('error'), literal('warn'), literal('debug'), literal('info'), literal('trace'), literal('none')]),
-		[minLength(1)]
+	LOG_LEVELS: pipe(
+		array(union([literal('fatal'), literal('error'), literal('warn'), literal('debug'), literal('info'), literal('trace'), literal('none')])),
+		minLength(1)
 	),
-	LOG_RETENTION_DAYS: optional(number([minValue(1)])), // New: Number of days to retain log files (default: 2 days)
-	LOG_ROTATION_SIZE: optional(number([minValue(1)])), // New: Max log file size before rotation in bytes (default: 5MB)
+	LOG_RETENTION_DAYS: optional(pipe(number(), minValue(1))), // New: Number of days to retain log files (default: 2 days)
+	LOG_ROTATION_SIZE: optional(pipe(number(), minValue(1))), // New: Max log file size before rotation in bytes (default: 5MB)
 
 	DEMO: optional(boolean()) // DEMO Mode for testing
 });
