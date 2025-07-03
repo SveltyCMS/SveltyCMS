@@ -250,7 +250,7 @@
 					<div
 						role="main"
 						class="relative h-full flex-grow overflow-auto {uiStateManager.uiState.value.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {$screenSize ===
-						'lg'
+						'LG'
 							? 'mb-2'
 							: 'mb-16'}"
 					>

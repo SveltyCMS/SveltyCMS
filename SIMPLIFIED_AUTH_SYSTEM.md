@@ -258,13 +258,11 @@ bun devv
 ### Common Issues
 
 1. **"Permission denied" for admin users**
-
    - Check if user role has `isAdmin: true`
    - Verify role is properly assigned to user
    - Check logs for admin override messages
 
 2. **Import errors after migration**
-
    - Update imports to use new file paths
    - Use `@src/auth/permissions` instead of old files
    - Check for circular dependencies

@@ -195,7 +195,7 @@
 		if (!page.url.href.includes('user')) {
 			mode.set('view');
 			// Only handle sidebar on mobile
-			if (get(screenSize) === 'sm') {
+			if (get(screenSize) === 'SM') {
 				toggleUIElement('leftSidebar', 'hidden'); // Hide the left sidebar on mobile
 			}
 			goto('/user');
@@ -424,7 +424,7 @@
 					onclick={() => {
 						mode.set('view');
 						handleUILayoutToggle();
-						if (get(screenSize) === 'sm') {
+						if (get(screenSize) === 'SM') {
 							toggleUIElement('leftSidebar', 'hidden');
 						}
 					}}

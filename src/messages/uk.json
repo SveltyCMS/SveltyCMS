@@ -441,5 +441,6 @@
 	"siedabar_publish_options": "Параметри публікації",
 	"Fields_no_widgets_found": "Віджет не знайдено: {name}",
 	"Fields_preview": "Попередній перегляд",
-	"modal_token_deleted_successfully": "Токен успішно видалено"
+	"modal_token_deleted_successfully": "Токен успішно видалено",
+	"modal_token_user_deleted": "Токен успішно видалено"
 }

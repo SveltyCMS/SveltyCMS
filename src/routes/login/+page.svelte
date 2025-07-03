@@ -243,17 +243,6 @@ Features:
 </script>
 
 <div class={`flex min-h-lvh w-full overflow-y-auto bg-${background} transition-colors duration-300`}>
-	<!-- Debug Overlay -->
-	<!-- <div class="space-y fixed right-4 top-4 z-50 flex flex-col items-start rounded-lg bg-gray-800 p-4 text-white shadow-lg">
-		<h2 class="pb-1 text-center text-lg font-semibold">Debug Panel</h2>
-		<p><strong>First User Exists:</strong> {firstUserExists}</p>
-		<p><strong>DEMO:</strong> {publicEnv.DEMO}</p>
-		<p><strong>SEASON:</strong> {publicEnv.SEASONS}</p>
-		<p><strong>SEASON_REGION:</strong> {publicEnv.SEASON_REGION}</p>
-		<p><strong>Active State:</strong> {active}</p>
-		<p><strong>Background:</strong> {background}</p>
-	</div> -->
-
 	<!-- SignIn and SignUp Forms -->
 	<SignIn
 		bind:active

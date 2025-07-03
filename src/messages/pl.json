@@ -441,5 +441,6 @@
 	"siedabar_publish_options": "Opcje publikacji",
 	"Fields_no_widgets_found": "Nie znaleziono widżetu: {name}",
 	"Fields_preview": "Zapowiedź",
-	"modal_token_deleted_successfully": "Token został pomyślnie usunięty"
+	"modal_token_deleted_successfully": "Token został pomyślnie usunięty",
+	"modal_token_user_deleted": "Token został pomyślnie usunięty"
 }

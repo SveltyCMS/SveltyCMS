@@ -228,7 +228,7 @@ async function handleGoogleUser(
 			}
 
 			// Create the first user (admin)
-			const adminRole = roles.find(r => r.isAdmin);
+			const adminRole = roles.find((r) => r.isAdmin);
 			if (!adminRole) {
 				throw new Error('Admin role not found in roles configuration');
 			}
@@ -317,17 +317,13 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 		}
 
 		// Extensive logging for OAuth redirect
-		logger.debug('OAuth Callback Details:');
-		logger.debug(`Full URL: ${url.toString()}`);
-		logger.debug(`Host: ${url.host}`);
-		logger.debug(`Pathname: ${url.pathname}`);
-		logger.debug(`Search Params: ${url.searchParams.toString()}`);
+		logger.debug('OAuth Callback called:');
 
 		// Check if this is the first user
 		let firstUserExists = false;
 		try {
 			firstUserExists = (await auth.getUserCount()) !== 0;
-			logger.debug(`First user exists: ${firstUserExists}`);
+			logger.debug(`First user exists: \x1b[34m${firstUserExists}\x1b[0m`);
 		} catch (err) {
 			logger.error('Error fetching user count:', err);
 			throw error(500, 'Error checking first user status');
@@ -410,11 +406,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			logger.debug(`Creating OAuth client with redirect URI: ${redirectUri}`);
 			logger.debug(`Client ID: ${privateEnv.GOOGLE_CLIENT_ID?.substring(0, 20)}...`);
 
-			const googleAuthClient = new google.auth.OAuth2(
-				privateEnv.GOOGLE_CLIENT_ID,
-				privateEnv.GOOGLE_CLIENT_SECRET,
-				redirectUri
-			);
+			const googleAuthClient = new google.auth.OAuth2(privateEnv.GOOGLE_CLIENT_ID, privateEnv.GOOGLE_CLIENT_SECRET, redirectUri);
 
 			// Try using the getToken method with explicit options to disable PKCE
 			logger.debug('Attempting to exchange authorization code for tokens...');
@@ -424,7 +416,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
 				method: 'POST',
 				headers: {
-					'Content-Type': 'application/x-www-form-urlencoded',
+					'Content-Type': 'application/x-www-form-urlencoded'
 				},
 				body: new URLSearchParams({
 					client_id: privateEnv.GOOGLE_CLIENT_ID!,

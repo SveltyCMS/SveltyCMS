@@ -441,5 +441,6 @@
 	"siedabar_publish_options": "Publicatieopties",
 	"Fields_no_widgets_found": "Widget niet gevonden: {name}",
 	"Fields_preview": "Voorvertoning",
-	"modal_token_deleted_successfully": "Token succesvol verwijderd"
+	"modal_token_deleted_successfully": "Token succesvol verwijderd",
+	"modal_token_user_deleted": "Token succesvol verwijderd"
 }

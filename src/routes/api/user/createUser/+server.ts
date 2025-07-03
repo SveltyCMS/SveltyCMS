@@ -21,7 +21,7 @@ import { auth } from '@src/databases/db';
 import { hasPermissionByAction } from '@src/auth/permissions';
 import { roles } from '@root/config/roles'; // Import static roles for fallback
 
-// System Logger 
+// System Logger
 import { logger } from '@utils/logger.svelte';
 
 // Input validation
@@ -34,17 +34,10 @@ const createUserSchema = object({
 	username: optional(string())
 });
 
-
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		// **SECURITY**: Check for specific 'create:user:any' permission.
-		const hasPermission = hasPermissionByAction(
-			locals.user,
-			'create',
-			'user',
-			'any',
-			locals.roles && locals.roles.length > 0 ? locals.roles : roles
-		);
+		const hasPermission = hasPermissionByAction(locals.user, 'create', 'user', 'any', locals.roles && locals.roles.length > 0 ? locals.roles : roles);
 
 		if (!hasPermission) {
 			logger.warn('Unauthorized attempt to create a user directly', { userId: locals.user?._id });
@@ -79,7 +72,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		// Return the newly created user data with a 201 Created status.
 		return json(newUser, { status: 201 });
-
 	} catch (err) {
 		// Handle specific validation errors from Valibot.
 		if (err.name === 'ValiError') {

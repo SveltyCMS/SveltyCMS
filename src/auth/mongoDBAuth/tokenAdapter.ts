@@ -39,7 +39,7 @@ export const TokenSchema = new Schema(
 	{ timestamps: true } // Automatically adds `createdAt` and `updatedAt` fields
 );
 
-interface TokenDocument extends Token, Document { }
+interface TokenDocument extends Token, Document {}
 
 export class TokenAdapter implements Partial<authDBInterface> {
 	private TokenModel: Model<TokenDocument>;
@@ -49,14 +49,7 @@ export class TokenAdapter implements Partial<authDBInterface> {
 		this.TokenModel = mongoose.models?.auth_tokens || mongoose.model<TokenDocument>('auth_tokens', TokenSchema);
 	}
 
-	async createToken(data: {
-		user_id: string;
-		email: string;
-		expires: Date;
-		type: string;
-		username?: string;
-		role?: string;
-	}): Promise<string> {
+	async createToken(data: { user_id: string; email: string; expires: Date; type: string; username?: string; role?: string }): Promise<string> {
 		try {
 			const token = crypto.randomBytes(32).toString('base64url'); // Generate a 44-character base64url token
 			const newToken = new this.TokenModel({
@@ -175,10 +168,7 @@ export class TokenAdapter implements Partial<authDBInterface> {
 	async blockTokens(tokens: string[]): Promise<number> {
 		try {
 			// Set tokens to expire immediately to effectively block them
-			const result = await this.TokenModel.updateMany(
-				{ token: { $in: tokens } },
-				{ expires: new Date() }
-			);
+			const result = await this.TokenModel.updateMany({ token: { $in: tokens } }, { expires: new Date() });
 			logger.info('Tokens blocked', { modifiedCount: result.modifiedCount, tokens });
 			return result.modifiedCount;
 		} catch (err) {
@@ -193,10 +183,7 @@ export class TokenAdapter implements Partial<authDBInterface> {
 		try {
 			// Extend expiration by 7 days from now to unblock
 			const newExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-			const result = await this.TokenModel.updateMany(
-				{ token: { $in: tokens } },
-				{ expires: newExpiry }
-			);
+			const result = await this.TokenModel.updateMany({ token: { $in: tokens } }, { expires: newExpiry });
 			logger.info('Tokens unblocked', { modifiedCount: result.modifiedCount, tokens });
 			return result.modifiedCount;
 		} catch (err) {

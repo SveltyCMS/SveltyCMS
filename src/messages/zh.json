@@ -441,5 +441,6 @@
 	"siedabar_publish_options": "发布选项",
 	"Fields_no_widgets_found": "未找到小部件： {name}",
 	"Fields_preview": "预览",
-	"modal_token_deleted_successfully": "令牌删除成功"
+	"modal_token_deleted_successfully": "令牌删除成功",
+	"modal_token_user_deleted": "令牌删除成功"
 }

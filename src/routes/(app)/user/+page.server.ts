@@ -59,10 +59,10 @@ export const load: PageServerLoad = async (event) => {
 		// Prepare user object for return, ensuring _id is a string
 		const safeUser = freshUser
 			? {
-				...freshUser,
-				_id: freshUser._id.toString(),
-				password: '[REDACTED]' // Ensure password is not sent to client
-			}
+					...freshUser,
+					_id: freshUser._id.toString(),
+					password: '[REDACTED]' // Ensure password is not sent to client
+				}
 			: null;
 
 		let adminData = null;
@@ -102,7 +102,6 @@ export const load: PageServerLoad = async (event) => {
 				users: formattedUsers,
 				tokens: formattedTokens
 			};
-
 		}
 
 		// Provide manageUsersPermissionConfig to the client

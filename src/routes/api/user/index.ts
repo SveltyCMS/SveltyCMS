@@ -48,13 +48,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		// **SECURITY**: Check for specific 'read:user:all' permission.
 		// This prevents any user who gets past the hook from listing all other users.
 		// It ensures only users with explicit rights can access this sensitive data.
-		const hasPermission = hasPermissionByAction(
-			locals.user,
-			'read',
-			'user',
-			'all',
-			locals.roles && locals.roles.length > 0 ? locals.roles : roles
-		);
+		const hasPermission = hasPermissionByAction(locals.user, 'read', 'user', 'all', locals.roles && locals.roles.length > 0 ? locals.roles : roles);
 
 		if (!hasPermission) {
 			logger.warn('Unauthorized attempt to list all users', { userId: locals.user?._id });
@@ -82,13 +76,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		// **SECURITY**: Check for specific 'create:user:any' permission.
 		// This ensures only true administrators can create new user accounts.
-		const hasPermission = hasPermissionByAction(
-			locals.user,
-			'create',
-			'user',
-			'any',
-			locals.roles && locals.roles.length > 0 ? locals.roles : roles
-		);
+		const hasPermission = hasPermissionByAction(locals.user, 'create', 'user', 'any', locals.roles && locals.roles.length > 0 ? locals.roles : roles);
 
 		if (!hasPermission) {
 			logger.warn('Unauthorized attempt to create a user', { userId: locals.user?._id });
@@ -183,4 +171,3 @@ async function sendUserToken(origin: string, email: string, token: string, role:
 		throw err;
 	}
 }
-

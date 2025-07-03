@@ -441,5 +441,6 @@
 	"siedabar_publish_options": "Опције објављивања",
 	"Fields_no_widgets_found": "Виџет није пронађен: {name}",
 	"Fields_preview": "Преглед",
-	"modal_token_deleted_successfully": "Токен је успешно обрисан"
+	"modal_token_deleted_successfully": "Токен је успешно обрисан",
+	"modal_token_user_deleted": "Токен је успешно обрисан"
 }

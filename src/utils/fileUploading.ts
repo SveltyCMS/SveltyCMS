@@ -85,7 +85,9 @@ export async function createDirectory(relativePath: string) {
 	const rootPath = getRootPath();
 	const mediaFolder = publicEnv.MEDIA_FOLDER;
 	logger.debug(`createDirectory debug - rootPath: "${rootPath}", mediaFolder: "${mediaFolder}", safeRelativePath: "${safeRelativePath}"`);
-	logger.debug(`createDirectory debug - typeof rootPath: ${typeof rootPath}, typeof mediaFolder: ${typeof mediaFolder}, typeof safeRelativePath: ${typeof safeRelativePath}`);
+	logger.debug(
+		`createDirectory debug - typeof rootPath: ${typeof rootPath}, typeof mediaFolder: ${typeof mediaFolder}, typeof safeRelativePath: ${typeof safeRelativePath}`
+	);
 
 	// Validate each component before joining
 	if (typeof rootPath !== 'string') {

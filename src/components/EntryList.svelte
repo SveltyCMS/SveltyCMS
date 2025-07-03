@@ -678,7 +678,7 @@ Features:
 				<button
 					type="button"
 					onkeydown={() => {}}
-					onclick={() => toggleUIElement('leftSidebar', currentScreenSize === 'lg' ? 'full' : 'collapsed')}
+					onclick={() => toggleUIElement('leftSidebar', currentScreenSize === 'LG' ? 'full' : 'collapsed')}
 					aria-label="Open Sidebar"
 					class="variant-ghost-surface btn-icon mt-1"
 				>

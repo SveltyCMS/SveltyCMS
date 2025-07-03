@@ -441,5 +441,6 @@
 	"siedabar_publish_options": "Julkaisuasetukset",
 	"Fields_no_widgets_found": "Widgetiä ei löydy: {name}",
 	"Fields_preview": "Esikatselu",
-	"modal_token_deleted_successfully": "Tunnuksen poistaminen onnistui"
+	"modal_token_deleted_successfully": "Tunnuksen poistaminen onnistui",
+	"modal_token_user_deleted": "Tunnuksen poistaminen onnistui"
 }

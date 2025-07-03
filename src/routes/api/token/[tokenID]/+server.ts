@@ -83,7 +83,12 @@ export const PUT: RequestHandler = async ({ request, params, locals }) => {
 		const httpError = err as HttpError;
 		const status = httpError.status || 500;
 		const message = httpError.body?.message || 'An unexpected error occurred.';
-		logger.error('Error in edit token API:', { error: message, stack: err instanceof Error ? err.stack : undefined, userId: locals.user?._id, status });
+		logger.error('Error in edit token API:', {
+			error: message,
+			stack: err instanceof Error ? err.stack : undefined,
+			userId: locals.user?._id,
+			status
+		});
 		return json({ success: false, message: status === 500 ? 'Internal Server Error' : message }, { status });
 	}
 };
@@ -117,13 +122,16 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 		logger.info(`Token ${tokenId} deleted successfully`, { executedBy: locals.user?._id });
 
 		return json({ success: true, message: 'Token deleted successfully.' });
-
 	} catch (err) {
 		const httpError = err as HttpError;
 		const status = httpError.status || 500;
 		const message = httpError.body?.message || 'An unexpected error occurred.';
-		logger.error('Error in delete token API:', { error: message, stack: err instanceof Error ? err.stack : undefined, userId: locals.user?._id, status });
+		logger.error('Error in delete token API:', {
+			error: message,
+			stack: err instanceof Error ? err.stack : undefined,
+			userId: locals.user?._id,
+			status
+		});
 		return json({ success: false, message: status === 500 ? 'Internal Server Error' : message }, { status });
 	}
 };
-

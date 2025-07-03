@@ -441,5 +441,6 @@
 	"siedabar_publish_options": "公開オプション",
 	"Fields_no_widgets_found": "ウィジェットが見つかりません: {name}",
 	"Fields_preview": "プレビュー",
-	"modal_token_deleted_successfully": "トークンが正常に削除されました"
+	"modal_token_deleted_successfully": "トークンが正常に削除されました",
+	"modal_token_user_deleted": "トークンが正常に削除されました"
 }

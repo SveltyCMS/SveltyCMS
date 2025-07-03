@@ -39,21 +39,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		});
 		const { userIds, action } = parse(batchUserActionSchema, body);
 
-		const hasPermission = hasPermissionByAction(
-			locals.user,
-			action,
-			'user',
-			'any',
-			locals.roles && locals.roles.length > 0 ? locals.roles : roles
-		);
+		const hasPermission = hasPermissionByAction(locals.user, action, 'user', 'any', locals.roles && locals.roles.length > 0 ? locals.roles : roles);
 
 		if (!hasPermission) {
 			logger.warn(`Unauthorized attempt to '${action}' users.`, { userId: locals.user?._id });
 			throw error(403, `Forbidden: You do not have permission to ${action} users.`);
 		}
 
-		if (userIds.some(id => id === locals.user?._id)) {
-			throw error(400, "You cannot perform batch actions on your own account.");
+		if (userIds.some((id) => id === locals.user?._id)) {
+			throw error(400, 'You cannot perform batch actions on your own account.');
 		}
 
 		const userAdapter = new UserAdapter();
@@ -76,11 +70,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		logger.info(`Batch user action '${action}' completed.`, {
 			affectedIds: userIds,
-			executedBy: locals.user?._id,
+			executedBy: locals.user?._id
 		});
 
 		return json({ success: true, message: successMessage });
-
 	} catch (err) {
 		if (err.name === 'ValiError') {
 			const valiError = err as ValiError;
@@ -91,8 +84,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const httpError = err as HttpError;
 		const status = httpError.status || 500;
 		const message = httpError.body?.message || 'An unexpected error occurred.';
-		logger.error('Error in user batch API:', { error: message, stack: err instanceof Error ? err.stack : undefined, userId: locals.user?._id, status });
+		logger.error('Error in user batch API:', {
+			error: message,
+			stack: err instanceof Error ? err.stack : undefined,
+			userId: locals.user?._id,
+			status
+		});
 		return json({ success: false, message: status === 500 ? 'Internal Server Error' : message }, { status });
 	}
 };
-

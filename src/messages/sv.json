@@ -441,5 +441,6 @@
 	"siedabar_publish_options": "Publiceringsalternativ",
 	"Fields_no_widgets_found": "Widget hittades inte: {name}",
 	"Fields_preview": "Förhandsvisning",
-	"modal_token_deleted_successfully": "Token har raderats"
+	"modal_token_deleted_successfully": "Token har raderats",
+	"modal_token_user_deleted": "Token har raderats"
 }

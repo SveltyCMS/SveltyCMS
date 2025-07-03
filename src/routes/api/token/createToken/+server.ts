@@ -34,20 +34,13 @@ import { addUserTokenSchema } from '@utils/formSchemas';
 import { parse, type ValiError } from 'valibot';
 import { v4 as uuidv4 } from 'uuid';
 
-// ParaglideJS 
+// ParaglideJS
 import { getLocale } from '@src/paraglide/runtime';
-
 
 export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 	try {
 		// **SECURITY**: Add a specific permission check.
-		const hasPermission = hasPermissionByAction(
-			locals.user,
-			'create',
-			'user',
-			'any',
-			locals.roles && locals.roles.length > 0 ? locals.roles : roles
-		);
+		const hasPermission = hasPermissionByAction(locals.user, 'create', 'user', 'any', locals.roles && locals.roles.length > 0 ? locals.roles : roles);
 
 		if (!hasPermission) {
 			logger.warn('Unauthorized attempt to create an invitation token', { userId: locals.user?._id });
@@ -166,7 +159,6 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 			message: 'Token created and email sent successfully.',
 			token: { value: token, expires: expires.toISOString() }
 		});
-
 	} catch (err) {
 		if (err.name === 'ValiError') {
 			const valiError = err as ValiError;

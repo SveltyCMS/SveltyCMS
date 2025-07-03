@@ -81,7 +81,6 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 		logger.info(`User logged in successfully: ${user.email}`, { userId: user._id });
 
 		return json({ success: true, message: 'Login successful.' });
-
 	} catch (err) {
 		// This block now only catches unexpected errors or deliberate `throw error()` calls.
 		const httpError = err as HttpError;

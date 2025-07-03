@@ -210,9 +210,7 @@ async function initializeVirtualFolders(): Promise<void> {
 
 		if (!systemVirtualFoldersResult.success) {
 			const errorMessage =
-				systemVirtualFoldersResult.error instanceof Error
-					? systemVirtualFoldersResult.error.message
-					: String(systemVirtualFoldersResult.error);
+				systemVirtualFoldersResult.error instanceof Error ? systemVirtualFoldersResult.error.message : String(systemVirtualFoldersResult.error);
 			throw new Error(`Failed to get virtual folders: ${errorMessage}`);
 		}
 
@@ -230,10 +228,7 @@ async function initializeVirtualFolders(): Promise<void> {
 			const creationResult = await dbAdapter.systemVirtualFolder.create(rootFolderData);
 
 			if (!creationResult.success) {
-				const errorMessage =
-					creationResult.error instanceof Error
-						? creationResult.error.message
-						: String(creationResult.error);
+				const errorMessage = creationResult.error instanceof Error ? creationResult.error.message : String(creationResult.error);
 				throw new Error(`Failed to create root virtual folder: ${errorMessage}`);
 			}
 

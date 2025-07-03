@@ -441,5 +441,6 @@
 	"siedabar_publish_options": "Možnosti objave",
 	"Fields_no_widgets_found": "Gradnika ni bilo mogoče najti: {name}",
 	"Fields_preview": "Predogled",
-	"modal_token_deleted_successfully": "Žeton uspešno izbrisan"
+	"modal_token_deleted_successfully": "Žeton uspešno izbrisan",
+	"modal_token_user_deleted": "Žeton uspešno izbrisan"
 }

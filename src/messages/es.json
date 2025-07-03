@@ -441,5 +441,6 @@
 	"siedabar_publish_options": "Opciones de publicación",
 	"Fields_no_widgets_found": "Widget no encontrado: {name}",
 	"Fields_preview": "Avance",
-	"modal_token_deleted_successfully": "Token eliminado exitosamente"
+	"modal_token_deleted_successfully": "Token eliminado exitosamente",
+	"modal_token_user_deleted": "Token eliminado exitosamente"
 }

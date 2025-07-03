@@ -122,7 +122,7 @@ function safeExecute(fn: () => Promise<void>) {
 			console.error('Error in logger function:', err);
 		});
 	}
-};
+}
 
 // Value formatting utilities
 const formatters = {
@@ -247,201 +247,201 @@ const scheduleBatchProcessing = (): void => {
 // Server-Side Operations
 const serverFileOps = isServer
 	? {
-		_logStream: null as unknown, // Store the write stream instance
-		async _getModules() {
-			const fsPromises = await import('node:fs/promises');
-			const path = await import('node:path');
-			const zlib = await import('node:zlib');
-			const fs = await import('node:fs');
-			const stream = await import('node:stream/promises');
-			return { fsPromises, path, zlib, fs, stream };
-		},
-		async getLogStream(): Promise<unknown> {
-			const { path, fs } = await this._getModules();
-			if (!this._logStream || this._logStream.writableEnded || this._logStream.destroyed) {
-				const logFilePath = path.join(config.logDirectory, config.logFileName);
-				this._logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
-				this._logStream.on('error', (err: Error) => {
-					console.error('Log stream error:', err);
-					// Invalidate the stream on error to force re-initialization
-					this._logStream = null;
-				});
-				this._logStream.on('finish', () => {
-					this._logStream = null; // Clear stream reference after it finishes
-				});
-			}
-			return this._logStream;
-		},
-		async initializeLogFile(): Promise<void> {
-			const { fsPromises, path } = await this._getModules();
-			const maxRetries = 3;
-			let retryCount = 0;
-
-			// Close existing stream if any before re-initializing
-			if (this._logStream) {
-				this._logStream.end();
-				this._logStream = null;
-			}
-
-			while (retryCount < maxRetries) {
-				try {
-					// Check if directory exists and is accessible
-					try {
-						await fsPromises.access(config.logDirectory);
-					} catch {
-						// Directory doesn't exist or isn't accessible - try to create it
-						await fsPromises.mkdir(config.logDirectory, {
-							recursive: true,
-							mode: 0o755 // rwxr-xr-x
-						});
-					}
-
-					// Verify directory permissions
-					const stats = await fsPromises.stat(config.logDirectory);
-					if (!stats.isDirectory()) {
-						throw new Error('Log path is not a directory');
-					}
-
-					// Initialize log file (ensure it exists)
+			_logStream: null as unknown, // Store the write stream instance
+			async _getModules() {
+				const fsPromises = await import('node:fs/promises');
+				const path = await import('node:path');
+				const zlib = await import('node:zlib');
+				const fs = await import('node:fs');
+				const stream = await import('node:stream/promises');
+				return { fsPromises, path, zlib, fs, stream };
+			},
+			async getLogStream(): Promise<unknown> {
+				const { path, fs } = await this._getModules();
+				if (!this._logStream || this._logStream.writableEnded || this._logStream.destroyed) {
 					const logFilePath = path.join(config.logDirectory, config.logFileName);
-					try {
-						await fsPromises.access(logFilePath);
-					} catch {
-						await fsPromises.writeFile(logFilePath, '', { mode: 0o644 });
-					}
-					return; // Success
-				} catch (error) {
-					retryCount++;
-					if (retryCount >= maxRetries) {
-						console.error(`Failed to initialize log directory after ${maxRetries} attempts:`, error);
-						throw error;
-					}
-					// Wait before retrying
-					await new Promise((resolve) => setTimeout(resolve, 500 * retryCount));
+					this._logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
+					this._logStream.on('error', (err: Error) => {
+						console.error('Log stream error:', err);
+						// Invalidate the stream on error to force re-initialization
+						this._logStream = null;
+					});
+					this._logStream.on('finish', () => {
+						this._logStream = null; // Clear stream reference after it finishes
+					});
 				}
-			}
-		},
-		async checkAndRotateLogFile(): Promise<void> {
-			const { fsPromises, path, zlib, fs, stream } = await this._getModules();
-			const logFilePath = path.join(config.logDirectory, config.logFileName);
-			try {
-				const stats = await fsPromises.stat(logFilePath);
-				if (stats.size < config.logRotationSize) return;
+				return this._logStream;
+			},
+			async initializeLogFile(): Promise<void> {
+				const { fsPromises, path } = await this._getModules();
+				const maxRetries = 3;
+				let retryCount = 0;
 
-				// Close the current log stream before rotation
+				// Close existing stream if any before re-initializing
 				if (this._logStream) {
 					this._logStream.end();
 					this._logStream = null;
 				}
 
-				const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-				const rotatedFilePath = `${logFilePath}.${timestamp}`;
-				await fsPromises.rename(logFilePath, rotatedFilePath);
-				await fsPromises.writeFile(logFilePath, ''); // Create a new empty log file
-
-				if (config.compressionEnabled) {
-					const source = fs.createReadStream(rotatedFilePath);
-					const destination = fs.createWriteStream(`${rotatedFilePath}.gz`);
-					await stream.pipeline(source, zlib.createGzip(), destination);
-					await fsPromises.unlink(rotatedFilePath);
-				}
-			} catch (error) {
-				// Ignore if file doesn't exist, as it will be created on next write.
-				if (error instanceof Error && 'code' in error && error.code !== 'ENOENT') {
-					console.error('Error rotating log file:', error);
-				}
-			}
-		},
-		async cleanOldLogFiles(): Promise<void> {
-			const { fsPromises, path } = await this._getModules();
-			const files = await fsPromises.readdir(config.logDirectory);
-			const now = Date.now();
-			const cutoff = now - config.logRetentionDays * 24 * 60 * 60 * 1000; // Convert days to milliseconds
-
-			for (const file of files) {
-				const filePath = path.join(config.logDirectory, file);
-				try {
-					const stats = await fsPromises.stat(filePath);
-					// Check if it's a file, older than cutoff, and not the current active log file
-					// Also ensure it's a rotated log file (ends with .gz or has a timestamp part)
-					if (stats.isFile() && stats.mtimeMs < cutoff && file !== config.logFileName) {
-						// Basic check to ensure it's a rotated log (e.g., app.log.2023-10-26T...)
-						// This regex checks for files named like 'app.log.YYYY-MM-DDTHH-MM-SS-msZ' or 'app.log.YYYY-MM-DDTHH-MM-SS-msZ.gz'
-						const rotatedLogPattern = new RegExp(
-							`^${config.logFileName.replace(/[.*+?^${}()|[\\\]]/g, '\\$&')}\\.\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}-\\d{3}Z(\\.gz)?$`
-						);
-						if (rotatedLogPattern.test(file)) {
-							console.log(`Deleting old log file: ${filePath}`);
-							await fsPromises.unlink(filePath);
+				while (retryCount < maxRetries) {
+					try {
+						// Check if directory exists and is accessible
+						try {
+							await fsPromises.access(config.logDirectory);
+						} catch {
+							// Directory doesn't exist or isn't accessible - try to create it
+							await fsPromises.mkdir(config.logDirectory, {
+								recursive: true,
+								mode: 0o755 // rwxr-xr-x
+							});
 						}
+
+						// Verify directory permissions
+						const stats = await fsPromises.stat(config.logDirectory);
+						if (!stats.isDirectory()) {
+							throw new Error('Log path is not a directory');
+						}
+
+						// Initialize log file (ensure it exists)
+						const logFilePath = path.join(config.logDirectory, config.logFileName);
+						try {
+							await fsPromises.access(logFilePath);
+						} catch {
+							await fsPromises.writeFile(logFilePath, '', { mode: 0o644 });
+						}
+						return; // Success
+					} catch (error) {
+						retryCount++;
+						if (retryCount >= maxRetries) {
+							console.error(`Failed to initialize log directory after ${maxRetries} attempts:`, error);
+							throw error;
+						}
+						// Wait before retrying
+						await new Promise((resolve) => setTimeout(resolve, 500 * retryCount));
+					}
+				}
+			},
+			async checkAndRotateLogFile(): Promise<void> {
+				const { fsPromises, path, zlib, fs, stream } = await this._getModules();
+				const logFilePath = path.join(config.logDirectory, config.logFileName);
+				try {
+					const stats = await fsPromises.stat(logFilePath);
+					if (stats.size < config.logRotationSize) return;
+
+					// Close the current log stream before rotation
+					if (this._logStream) {
+						this._logStream.end();
+						this._logStream = null;
+					}
+
+					const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+					const rotatedFilePath = `${logFilePath}.${timestamp}`;
+					await fsPromises.rename(logFilePath, rotatedFilePath);
+					await fsPromises.writeFile(logFilePath, ''); // Create a new empty log file
+
+					if (config.compressionEnabled) {
+						const source = fs.createReadStream(rotatedFilePath);
+						const destination = fs.createWriteStream(`${rotatedFilePath}.gz`);
+						await stream.pipeline(source, zlib.createGzip(), destination);
+						await fsPromises.unlink(rotatedFilePath);
 					}
 				} catch (error) {
-					// Log the error but don't stop the process
-					console.error(`Error cleaning old log file ${filePath}:`, error);
+					// Ignore if file doesn't exist, as it will be created on next write.
+					if (error instanceof Error && 'code' in error && error.code !== 'ENOENT') {
+						console.error('Error rotating log file:', error);
+					}
 				}
-			}
-		},
-		async writeBatchToFile(batch: LogEntry[]): Promise<void> {
-			// Concatenate log entries into a single string
-			const logString = batch
-				.map((entry) => `${entry.timestamp.toISOString()} [${entry.level.toUpperCase()}] ${entry.message} ${JSON.stringify(entry.args)}\n`)
-				.join('');
+			},
+			async cleanOldLogFiles(): Promise<void> {
+				const { fsPromises, path } = await this._getModules();
+				const files = await fsPromises.readdir(config.logDirectory);
+				const now = Date.now();
+				const cutoff = now - config.logRetentionDays * 24 * 60 * 60 * 1000; // Convert days to milliseconds
 
-			if (!logString) return;
+				for (const file of files) {
+					const filePath = path.join(config.logDirectory, file);
+					try {
+						const stats = await fsPromises.stat(filePath);
+						// Check if it's a file, older than cutoff, and not the current active log file
+						// Also ensure it's a rotated log file (ends with .gz or has a timestamp part)
+						if (stats.isFile() && stats.mtimeMs < cutoff && file !== config.logFileName) {
+							// Basic check to ensure it's a rotated log (e.g., app.log.2023-10-26T...)
+							// This regex checks for files named like 'app.log.YYYY-MM-DDTHH-MM-SS-msZ' or 'app.log.YYYY-MM-DDTHH-MM-SS-msZ.gz'
+							const rotatedLogPattern = new RegExp(
+								`^${config.logFileName.replace(/[.*+?^${}()|[\\\]]/g, '\\$&')}\\.\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}-\\d{3}Z(\\.gz)?$`
+							);
+							if (rotatedLogPattern.test(file)) {
+								console.log(`Deleting old log file: ${filePath}`);
+								await fsPromises.unlink(filePath);
+							}
+						}
+					} catch (error) {
+						// Log the error but don't stop the process
+						console.error(`Error cleaning old log file ${filePath}:`, error);
+					}
+				}
+			},
+			async writeBatchToFile(batch: LogEntry[]): Promise<void> {
+				// Concatenate log entries into a single string
+				const logString = batch
+					.map((entry) => `${entry.timestamp.toISOString()} [${entry.level.toUpperCase()}] ${entry.message} ${JSON.stringify(entry.args)}\n`)
+					.join('');
 
-			try {
-				// Ensure rotation happens before writing
-				await this.checkAndRotateLogFile();
-				const logStream = await this.getLogStream();
-				// Use a promise-based approach for stream writes for better error handling
-				await new Promise<void>((resolve, reject) => {
-					logStream.write(logString, (err: Error | null | undefined) => {
-						if (err) return reject(err);
-						resolve();
-					});
-				});
-			} catch (fileError) {
-				console.error('Failed to write to log file, attempting recovery:', fileError);
-				this._logStream = null; // Invalidate stream on error to force re-initialization
+				if (!logString) return;
 
 				try {
-					// Try recreating directory and file, then re-get stream and write
-					await this.initializeLogFile();
+					// Ensure rotation happens before writing
+					await this.checkAndRotateLogFile();
 					const logStream = await this.getLogStream();
+					// Use a promise-based approach for stream writes for better error handling
 					await new Promise<void>((resolve, reject) => {
 						logStream.write(logString, (err: Error | null | undefined) => {
 							if (err) return reject(err);
 							resolve();
 						});
 					});
-				} catch (recoveryError) {
-					// Fallback to console logging if all else fails
-					console.error('Log file recovery failed, falling back to console:', recoveryError);
-					for (const entry of batch) {
-						const color = TERMINAL_COLORS[LOG_LEVEL_MAP[entry.level].color];
-						const formattedArgs = entry.args.map(formatValue).join(' ');
-						console.log(
-							`${entry.timestamp.toISOString()} ${color}[${entry.level.toUpperCase()}]${TERMINAL_COLORS.reset}: ${entry.message} ${formattedArgs}`
-						);
+				} catch (fileError) {
+					console.error('Failed to write to log file, attempting recovery:', fileError);
+					this._logStream = null; // Invalidate stream on error to force re-initialization
+
+					try {
+						// Try recreating directory and file, then re-get stream and write
+						await this.initializeLogFile();
+						const logStream = await this.getLogStream();
+						await new Promise<void>((resolve, reject) => {
+							logStream.write(logString, (err: Error | null | undefined) => {
+								if (err) return reject(err);
+								resolve();
+							});
+						});
+					} catch (recoveryError) {
+						// Fallback to console logging if all else fails
+						console.error('Log file recovery failed, falling back to console:', recoveryError);
+						for (const entry of batch) {
+							const color = TERMINAL_COLORS[LOG_LEVEL_MAP[entry.level].color];
+							const formattedArgs = entry.args.map(formatValue).join(' ');
+							console.log(
+								`${entry.timestamp.toISOString()} ${color}[${entry.level.toUpperCase()}]${TERMINAL_COLORS.reset}: ${entry.message} ${formattedArgs}`
+							);
+						}
 					}
 				}
 			}
 		}
-	}
 	: {
-		// Client-side stubs
-		_logStream: null,
-		async _getModules(): Promise<unknown> {
-			return {};
-		},
-		async getLogStream(): Promise<unknown> {
-			return {};
-		},
-		async initializeLogFile(): Promise<void> { },
-		async checkAndRotateLogFile(): Promise<void> { },
-		async cleanOldLogFiles(): Promise<void> { },
-		async writeBatchToFile(): Promise<void> { }
-	};
+			// Client-side stubs
+			_logStream: null,
+			async _getModules(): Promise<unknown> {
+				return {};
+			},
+			async getLogStream(): Promise<unknown> {
+				return {};
+			},
+			async initializeLogFile(): Promise<void> {},
+			async checkAndRotateLogFile(): Promise<void> {},
+			async cleanOldLogFiles(): Promise<void> {},
+			async writeBatchToFile(): Promise<void> {}
+		};
 
 // Effects and Lifecycle
 if (isServer && !building) {

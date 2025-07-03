@@ -441,5 +441,6 @@
 	"siedabar_publish_options": "विकल्पहरू प्रकाशित गर्नुहोस्",
 	"Fields_no_widgets_found": "विजेट फेला परेन: {name}",
 	"Fields_preview": "पूर्वावलोकन",
-	"modal_token_deleted_successfully": "टोकन सफलतापूर्वक मेटाइयो"
+	"modal_token_deleted_successfully": "टोकन सफलतापूर्वक मेटाइयो",
+	"modal_token_user_deleted": "टोकन सफलतापूर्वक मेटाइयो"
 }

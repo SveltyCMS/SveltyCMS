@@ -201,7 +201,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		// Use the firstUserExists value from locals (set by hooks)
 		// This avoids race conditions during initialization
 		const firstUserExists = locals.isFirstUser === false;
-		logger.debug(`In load: firstUserExists determined as: /x1b[34m${firstUserExists}\x1b[0m (based on locals.isFirstUser: /x1b[34m${locals.isFirstUser}\x1b[0m)`);
+		logger.debug(
+			`In load: firstUserExists determined as: /x1b[34m${firstUserExists}\x1b[0m (based on locals.isFirstUser: /x1b[34m${locals.isFirstUser}\x1b[0m)`
+		);
 
 		const code = url.searchParams.get('code');
 		logger.debug(`Authorization code from URL: ${code}`);
@@ -269,7 +271,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 								})
 							});
 							if (!mailResponse.ok) {
-								logger.error(`OAuth: Failed to send welcome email via API. Status: ${mailResponse.status}`, { email, responseText: await mailResponse.text() });
+								logger.error(`OAuth: Failed to send welcome email via API. Status: ${mailResponse.status}`, {
+									email,
+									responseText: await mailResponse.text()
+								});
 							} else {
 								logger.info(`OAuth: Welcome email request sent via API`, { email });
 							}
@@ -312,10 +317,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 								})
 							});
 							if (!mailResponse.ok) {
-								logger.error(
-									`OAuth: Failed to send welcome email to new user via API. Status: ${mailResponse.status}`,
-									{ email, responseText: await mailResponse.text() }
-								);
+								logger.error(`OAuth: Failed to send welcome email to new user via API. Status: ${mailResponse.status}`, {
+									email,
+									responseText: await mailResponse.text()
+								});
 							} else {
 								logger.info(`OAuth: Welcome email request sent to new user via API`, { email });
 							}
@@ -601,10 +606,7 @@ export const actions: Actions = {
 		}
 
 		// Run initialization and form validation in parallel
-		const [, signInForm] = await Promise.all([
-			dbInitPromise,
-			superValidate(event, wrappedLoginSchema)
-		]);
+		const [, signInForm] = await Promise.all([dbInitPromise, superValidate(event, wrappedLoginSchema)]);
 
 		const authReady = await waitForAuthService();
 		if (!authReady || !auth) {
@@ -702,7 +704,10 @@ export const actions: Actions = {
 				});
 
 				if (!mailResponse.ok) {
-					logger.error(`Failed to send forgotten password email via API. Status: ${mailResponse.status}`, { email, responseText: await mailResponse.text() });
+					logger.error(`Failed to send forgotten password email via API. Status: ${mailResponse.status}`, {
+						email,
+						responseText: await mailResponse.text()
+					});
 					// Still return success but with emailSent: false to handle on frontend
 					return message(pwforgottenForm, 'Password reset email sent successfully.', { status: 200, userExists: true, emailSent: false });
 				} else {
@@ -765,7 +770,10 @@ export const actions: Actions = {
 						})
 					});
 					if (!mailResponse.ok) {
-						logger.error(`Failed to send password updated email via API. Status: ${mailResponse.status}`, { email, responseText: await mailResponse.text() });
+						logger.error(`Failed to send password updated email via API. Status: ${mailResponse.status}`, {
+							email,
+							responseText: await mailResponse.text()
+						});
 					} else {
 						logger.info(`Password updated confirmation email request sent via API`, { email });
 					}
@@ -860,7 +868,7 @@ async function signInUser(
 		});
 
 		// Don't wait for attribute update to complete - fire and forget for better UX
-		updatePromise.catch(err => {
+		updatePromise.catch((err) => {
 			logger.error(`Failed to update user attributes for ${user._id}:`, err);
 		});
 

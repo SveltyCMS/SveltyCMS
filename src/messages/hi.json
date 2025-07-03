@@ -441,5 +441,6 @@
 	"siedabar_publish_options": "प्रकाशन विकल्प",
 	"Fields_no_widgets_found": "विजेट नहीं मिला: {name}",
 	"Fields_preview": "पूर्व दर्शन",
-	"modal_token_deleted_successfully": "टोकन सफलतापूर्वक हटा दिया गया"
+	"modal_token_deleted_successfully": "टोकन सफलतापूर्वक हटा दिया गया",
+	"modal_token_user_deleted": "टोकन सफलतापूर्वक हटा दिया गया"
 }

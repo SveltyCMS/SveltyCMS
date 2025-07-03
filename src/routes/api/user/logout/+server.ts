@@ -53,7 +53,6 @@ export const POST: RequestHandler = async ({ cookies, locals }) => {
 		locals.session_id = undefined;
 
 		return json({ success: true, message: 'You have been logged out successfully.' });
-
 	} catch (err) {
 		// This block catches unexpected errors during session destruction.
 		const httpError = err as HttpError;

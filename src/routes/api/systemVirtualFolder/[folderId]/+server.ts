@@ -14,13 +14,7 @@ import { dbAdapter } from '@src/databases/db';
 import { publicEnv } from '@root/config/public';
 import { logger } from '@utils/logger.svelte';
 import { createDirectory } from '@utils/fileUploading';
-import {
-	SystemVirtualFolderError,
-	isDatabaseError,
-	type DatabaseResult,
-	type DatabaseId,
-	type MediaFolder
-} from '@src/databases/dbInterface';
+import { SystemVirtualFolderError, isDatabaseError, type DatabaseResult, type DatabaseId, type MediaFolder } from '@src/databases/dbInterface';
 
 // Utility to unwrap DatabaseResult or throw a consistent error
 async function unwrapDbResult<T>(resultPromise: Promise<DatabaseResult<T>>): Promise<T> {
@@ -30,11 +24,7 @@ async function unwrapDbResult<T>(resultPromise: Promise<DatabaseResult<T>>): Pro
 	}
 	if (isDatabaseError(result.error)) {
 		logger.error(`Database Operation Failed: ${result.error.message}`, result.error.details);
-		throw new SystemVirtualFolderError(
-			result.error.message,
-			result.error.statusCode || 500,
-			result.error.code
-		);
+		throw new SystemVirtualFolderError(result.error.message, result.error.statusCode || 500, result.error.code);
 	}
 	throw new SystemVirtualFolderError('An unknown database error occurred', 500, 'UNKNOWN_DB_ERROR');
 }
@@ -81,31 +71,18 @@ async function updateChildPaths(folderId: DatabaseId, newParentPath: string): Pr
 }
 
 // Wrapper to handle errors consistently across all request handlers.
-const handleRequest = (
-	handler: (event: {
-		request: Request;
-		params: { folderId: string };
-	}) => Promise<Response>
-): RequestHandler => {
+const handleRequest = (handler: (event: { request: Request; params: { folderId: string } }) => Promise<Response>): RequestHandler => {
 	return async ({ request, params }) => {
 		try {
 			if (!dbAdapter?.systemVirtualFolder) {
-				throw new SystemVirtualFolderError(
-					'Virtual folder functionality is not available',
-					503,
-					'VIRTUAL_FOLDERS_NOT_SUPPORTED'
-				);
+				throw new SystemVirtualFolderError('Virtual folder functionality is not available', 503, 'VIRTUAL_FOLDERS_NOT_SUPPORTED');
 			}
 			return await handler({ request, params: params as { folderId: string } });
 		} catch (err) {
 			const error =
 				err instanceof SystemVirtualFolderError
 					? err
-					: new SystemVirtualFolderError(
-						err instanceof Error ? err.message : String(err),
-						500,
-						'UNHANDLED_SERVER_ERROR'
-					);
+					: new SystemVirtualFolderError(err instanceof Error ? err.message : String(err), 500, 'UNHANDLED_SERVER_ERROR');
 			logger.error(`SystemVirtualFolderError: ${error.message}`, {
 				code: error.code,
 				status: error.status
@@ -192,8 +169,7 @@ export const POST: RequestHandler = handleRequest(async ({ request, params }) =>
 // PATCH: Update folder details (name or parent)
 export const PATCH: RequestHandler = handleRequest(async ({ request, params }) => {
 	const { folderId } = params;
-	const { name, parentId: newParentId }: { name?: string; parentId?: DatabaseId } =
-		await request.json();
+	const { name, parentId: newParentId }: { name?: string; parentId?: DatabaseId } = await request.json();
 
 	if (!name && !newParentId) {
 		throw new SystemVirtualFolderError('Either name or parentId must be provided', 400, 'NO_UPDATE_DATA');
@@ -237,9 +213,7 @@ export const PATCH: RequestHandler = handleRequest(async ({ request, params }) =
 
 	// TODO: Rename physical directory from folderToUpdate.path to newPath
 
-	const updatedFolder = await unwrapDbResult(
-		dbAdapter.systemVirtualFolder.update(folderToUpdate._id, updateData)
-	);
+	const updatedFolder = await unwrapDbResult(dbAdapter.systemVirtualFolder.update(folderToUpdate._id, updateData));
 
 	if (parentHasChanged && updatedFolder.path) {
 		await updateChildPaths(folderToUpdate._id, updatedFolder.path);
