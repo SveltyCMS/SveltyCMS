@@ -49,9 +49,7 @@ const config = {
 				'max-xl': { max: '1200px' }, // => @media (min-width: 1200px) { ... }
 				'max-2xl': { max: '1536px' } // => @media (min-width: 1536px) { ... }
 			},
-			fontFamily: {
-				display: ['"Bricolage Grotesque"', 'system-ui', 'sans-serif']
-			}
+			fontFamily: {}
 		}
 	},
 

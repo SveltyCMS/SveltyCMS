@@ -31,8 +31,7 @@
 import { v4 as uuidv4 } from 'uuid';
 
 // Stores
-import type { ScreenSize } from '@stores/screenSizeStore.svelte';
-import type { SystemPreferences, WidgetPreference } from '@stores/systemPreferences.svelte';
+import type { SystemPreferences } from '@stores/systemPreferences.svelte';
 import type { Unsubscriber } from 'svelte/store';
 
 // Database Models
@@ -883,27 +882,6 @@ export class MongoDBAdapter implements DatabaseAdapter {
 				await SystemPreferencesModel.updateOne({ isGlobal: true }, { $set: { preferences } }, { upsert: true });
 			} catch (error) {
 				throw createDatabaseError(error, 'PREFERENCES_SAVE_ERROR', 'Failed to save global preferences');
-			}
-		},
-
-		// Update preferences for a specific screen size
-		updateSystemPreferences: async (userId: string, screenSize: ScreenSize, widgets: WidgetPreference[]): Promise<void> => {
-			try {
-				// Always use key: screenSize, scope: 'system', and userId: 'system' for system-wide preferences
-				await SystemPreferencesModel.updateOne(
-					{ key: screenSize, scope: 'system', userId: 'system' },
-					{
-						$set: {
-							[`preferences.${screenSize}`]: widgets,
-							key: screenSize,
-							scope: 'system',
-							userId: 'system'
-						}
-					},
-					{ upsert: true }
-				);
-			} catch (error) {
-				throw createDatabaseError(error, 'PREFERENCES_UPDATE_ERROR', 'Failed to update preferences');
 			}
 		},
 

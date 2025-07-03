@@ -9,7 +9,6 @@
  * - TypeScript support with custom WidgetPreference type
  */
 
-import { ScreenSize } from '@stores/screenSizeStore.svelte';
 import { store } from '@utils/reactivity.svelte';
 
 // Widget preference interface
@@ -31,17 +30,9 @@ export interface WidgetPreference {
 	validSizes?: { w: number; h: number }[];
 }
 
-// User preferences interface
-export interface UserPreferences {
-	[ScreenSize.SM]: WidgetPreference[];
-	[ScreenSize.MD]: WidgetPreference[];
-	[ScreenSize.LG]: WidgetPreference[];
-	[ScreenSize.XL]: WidgetPreference[];
-}
-
 // State interface
 export interface PreferencesStoreState {
-	preferences: UserPreferences;
+	preferences: WidgetPreference[];
 	isLoading: boolean;
 	error: string | null;
 	currentUserId: string | null;
@@ -51,12 +42,7 @@ export interface PreferencesStoreState {
 function createPreferencesStores() {
 	// Initial state
 	const initialState: PreferencesStoreState = {
-		preferences: {
-			[ScreenSize.SM]: [],
-			[ScreenSize.MD]: [],
-			[ScreenSize.LG]: [],
-			[ScreenSize.XL]: []
-		},
+		preferences: [],
 		isLoading: false,
 		error: null,
 		currentUserId: null
@@ -66,18 +52,12 @@ function createPreferencesStores() {
 
 	// Derived values
 	const hasPreferences = $derived.by(() => {
-		return Object.values(state().preferences).some((widgets) => widgets.length > 0);
+		return state().preferences.length > 0;
 	});
 
 	const widgetCount = $derived.by(() => {
-		return Object.values(state().preferences).reduce((sum, widgets) => sum + widgets.length, 0);
+		return state().preferences.length;
 	});
-
-	// Helper function to get widgets for a specific screen size
-	function getScreenSizeWidgets(size: ScreenSize): WidgetPreference[] {
-		const widgets = state().preferences[size] || [];
-		return widgets.filter((w) => w && w.id && w.component && w.size && typeof w.gridPosition === 'number');
-	}
 
 	// Load preferences from server API and update store
 	async function loadPreferences(userId: string) {
@@ -87,39 +67,42 @@ function createPreferencesStores() {
 			if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
 
 			const apiResponse = await res.json();
-			const loadedPrefs = apiResponse.preferences as UserPreferences;
+			const loadedPrefs = apiResponse.preferences as WidgetPreference[];
 
 			state.update((s) => ({
 				...s,
-				preferences: loadedPrefs || initialState.preferences,
+				preferences: loadedPrefs || [],
 				isLoading: false,
 				error: null,
 				currentUserId: userId
 			}));
 		} catch (e) {
+			console.error('Failed to load preferences:', e);
 			state.update((s) => ({
 				...s,
 				isLoading: false,
 				error: e instanceof Error ? e.message : 'Failed to load preferences'
 			}));
-			console.error('Failed to load preferences:', e);
 		}
 	}
 
-	// Set preferences for a specific screen size (in-memory + persist to DB)
-	async function setPreference(userId: string, screenSizeValue: ScreenSize, widgets: WidgetPreference[]) {
+	// Set preferences (in-memory + persist to DB)
+	async function setPreference(userId: string, widgets: WidgetPreference[]) {
 		state.update((s) => ({
 			...s,
-			preferences: { ...s.preferences, [screenSizeValue]: widgets },
+			preferences: widgets,
 			currentUserId: userId
 		}));
 		// Persist to DB
 		try {
-			await fetch('/api/systemPreferences', {
+			const response = await fetch('/api/systemPreferences', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ userId, preferences: state().preferences })
+				body: JSON.stringify({ userId, preferences: widgets })
 			});
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+			}
 		} catch (e) {
 			console.error('Failed to persist preferences:', e);
 		}
@@ -127,15 +110,9 @@ function createPreferencesStores() {
 
 	// Clear all preferences (in-memory + persist to DB)
 	async function clearPreferences(userId: string) {
-		const emptyPreferences: UserPreferences = {
-			[ScreenSize.SM]: [],
-			[ScreenSize.MD]: [],
-			[ScreenSize.LG]: [],
-			[ScreenSize.XL]: []
-		};
 		state.update((s) => ({
 			...s,
-			preferences: emptyPreferences,
+			preferences: [],
 			currentUserId: userId
 		}));
 		// Persist to DB
@@ -143,7 +120,7 @@ function createPreferencesStores() {
 			await fetch('/api/systemPreferences', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ userId, preferences: emptyPreferences })
+				body: JSON.stringify({ userId, preferences: [] })
 			});
 		} catch (e) {
 			console.error('Failed to persist cleared preferences:', e);
@@ -151,24 +128,24 @@ function createPreferencesStores() {
 	}
 
 	// Add a widget to preferences (in-memory only)
-	function addWidget(userId: string, screenSizeValue: ScreenSize, widget: WidgetPreference) {
+	function addWidget(userId: string, widget: WidgetPreference) {
 		state.update((s) => {
-			const updatedWidgets = [...s.preferences[screenSizeValue], widget];
+			const updatedWidgets = [...s.preferences, widget];
 			return {
 				...s,
-				preferences: { ...s.preferences, [screenSizeValue]: updatedWidgets },
+				preferences: updatedWidgets,
 				currentUserId: userId
 			};
 		});
 	}
 
 	// Remove a widget from preferences (in-memory only)
-	function removeWidget(userId: string, screenSizeValue: ScreenSize, widgetId: string) {
+	function removeWidget(userId: string, widgetId: string) {
 		state.update((s) => {
-			const updatedWidgets = s.preferences[screenSizeValue].filter((w) => w.id !== widgetId);
+			const updatedWidgets = s.preferences.filter((w) => w.id !== widgetId);
 			return {
 				...s,
-				preferences: { ...s.preferences, [screenSizeValue]: updatedWidgets },
+				preferences: updatedWidgets,
 				currentUserId: userId
 			};
 		});
@@ -181,7 +158,6 @@ function createPreferencesStores() {
 		hasPreferences: () => hasPreferences,
 		widgetCount: () => widgetCount,
 		// Methods
-		getScreenSizeWidgets,
 		setPreference,
 		loadPreferences,
 		clearPreferences,
@@ -196,6 +172,7 @@ const stores = createPreferencesStores();
 // Export main store with full interface
 export const systemPreferences = {
 	subscribe: stores.state.subscribe,
+	getState: () => stores.state(),
 	setPreference: stores.setPreference,
 	loadPreferences: stores.loadPreferences,
 	clearPreferences: stores.clearPreferences,
@@ -204,7 +181,5 @@ export const systemPreferences = {
 };
 
 // Export derived values as functions that return the derived rune value
-export const hasPreferences = stores.hasPreferences(); // Call to get the rune value
-export const widgetCount = stores.widgetCount(); // Call to get the rune value
-// Export helper function
-export const getScreenSizeWidgets = stores.getScreenSizeWidgets;
+export const hasPreferences = stores.hasPreferences();
+export const widgetCount = stores.widgetCount();

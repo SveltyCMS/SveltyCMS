@@ -90,7 +90,7 @@ Features:
 <BaseWidget
 	{label}
 	{theme}
-	endpoint="/api/systemMessages"
+	endpoint="/api/dashboard/systemMessages"
 	pollInterval={30000}
 	{icon}
 	{widgetId}

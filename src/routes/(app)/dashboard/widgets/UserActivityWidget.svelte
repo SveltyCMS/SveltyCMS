@@ -85,7 +85,7 @@ Features:
 <BaseWidget
 	{label}
 	{theme}
-	endpoint="/api/userActivity"
+	endpoint="/api/dashboard/userActivity"
 	pollInterval={30000}
 	{icon}
 	{widgetId}

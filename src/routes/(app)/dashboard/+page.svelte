@@ -20,7 +20,6 @@
 
 	// Stores
 	import { systemPreferences } from '@stores/systemPreferences.svelte';
-	import { ScreenSize, screenSize } from '@stores/screenSizeStore.svelte';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -119,6 +118,7 @@
 	let items = $state<DashboardWidgetConfig[]>([]);
 	let dropdownOpen = $state(false);
 	let preferencesLoaded = $state(false);
+	let previewSizes = $state<Record<string, WidgetSize>>({});
 
 	// Drag and drop state
 	let dragState = $state<DragState>({
@@ -145,191 +145,12 @@
 	let availableWidgets = $derived(Object.keys(widgetComponentRegistry).filter((name) => !items.some((item) => item.component === name)));
 	let canAddMoreWidgets = $derived(availableWidgets.length > 0);
 
-	// Track the current screen size
-	let currentScreenSize = $screenSize;
-
 	// UI state for error and layout switching hint
 	let loadError = $state<string | null>(null);
-	let layoutHint = $state<string | null>(null);
 
 	// Helper: Validate widgets
 	function validateWidgets(widgets: any[]): DashboardWidgetConfig[] {
 		return (widgets || []).filter((w) => w && w.id && w.component && w.size && typeof w.gridPosition === 'number');
-	}
-
-	// Watch for screen size changes and switch layout if a saved layout exists
-	$effect(() => {
-		const prefsState = $systemPreferences;
-		const widgetsForNewSize = validateWidgets(prefsState?.preferences?.[$screenSize] || []);
-		if (preferencesLoaded && currentScreenSize === undefined) {
-			// First load: fallback to any available layout if none for current screen size
-			if (widgetsForNewSize.length > 0) {
-				layoutHint = null;
-				items = widgetsForNewSize.map((existingWidget, index) => {
-					const componentInfo = widgetComponentRegistry[existingWidget.component as keyof typeof widgetComponentRegistry];
-					let defaultSize: WidgetSize = '1/4';
-					if (existingWidget.component === 'LogsWidget') defaultSize = '1/2';
-					else {
-						if (index === 1) defaultSize = '1/2';
-						if (index === 2) defaultSize = '3/4';
-						if (index === 3) defaultSize = 'full';
-					}
-					return {
-						id: existingWidget.id || crypto.randomUUID(),
-						component: existingWidget.component,
-						label: existingWidget.label || componentInfo?.name || 'Unknown Widget',
-						icon: existingWidget.icon || componentInfo?.icon || 'mdi:help-circle',
-						size: existingWidget.size || defaultSize,
-						gridPosition: index
-					};
-				});
-				items = recalculateGridPositions();
-				currentScreenSize = $screenSize;
-			} else {
-				// Try to find a layout for any other screen size
-				const availableSizes = Object.keys(prefsState?.preferences || {}) as string[];
-				const fallbackSize = availableSizes.find((size) => validateWidgets(prefsState?.preferences?.[size]).length > 0);
-				if (fallbackSize) {
-					layoutHint = `Showing layout for ${fallbackSize} (no layout for ${$screenSize})`;
-					const fallbackWidgets = validateWidgets(prefsState.preferences[fallbackSize]);
-					// Copy fallback layout to current screen size for independent customization
-					prefsState.preferences[$screenSize] = fallbackWidgets.map((w) => ({ ...w, id: crypto.randomUUID() }));
-					items = fallbackWidgets.map((existingWidget, index) => {
-						const componentInfo = widgetComponentRegistry[existingWidget.component as keyof typeof widgetComponentRegistry];
-						let defaultSize: WidgetSize = '1/4';
-						if (existingWidget.component === 'LogsWidget') defaultSize = '1/2';
-						else {
-							if (index === 1) defaultSize = '1/2';
-							if (index === 2) defaultSize = '3/4';
-							if (index === 3) defaultSize = 'full';
-						}
-						return {
-							id: existingWidget.id || crypto.randomUUID(),
-							component: existingWidget.component,
-							label: existingWidget.label || componentInfo?.name || 'Unknown Widget',
-							icon: existingWidget.icon || componentInfo?.icon || 'mdi:help-circle',
-							size: existingWidget.size || defaultSize,
-							gridPosition: index
-						};
-					});
-					items = recalculateGridPositions();
-					currentScreenSize = $screenSize;
-				}
-			}
-		} else if (preferencesLoaded && $screenSize !== currentScreenSize) {
-			if (widgetsForNewSize.length > 0) {
-				layoutHint = null;
-				items = widgetsForNewSize.map((existingWidget, index) => {
-					const componentInfo = widgetComponentRegistry[existingWidget.component as keyof typeof widgetComponentRegistry];
-					let defaultSize: WidgetSize = '1/4';
-					if (existingWidget.component === 'LogsWidget') defaultSize = '1/2';
-					else {
-						if (index === 1) defaultSize = '1/2';
-						if (index === 2) defaultSize = '3/4';
-						if (index === 3) defaultSize = 'full';
-					}
-					return {
-						id: existingWidget.id || crypto.randomUUID(),
-						component: existingWidget.component,
-						label: existingWidget.label || componentInfo?.name || 'Unknown Widget',
-						icon: existingWidget.icon || componentInfo?.icon || 'mdi:help-circle',
-						size: existingWidget.size || defaultSize,
-						gridPosition: index
-					};
-				});
-				items = recalculateGridPositions();
-				currentScreenSize = $screenSize;
-				layoutHint = `Switched to layout for ${$screenSize}`;
-			}
-		}
-	});
-
-	// Utility functions with improved type safety
-	function getColumnSpan(size: WidgetSize): number {
-		const spanMap: Record<WidgetSize, number> = {
-			'1/4': 1,
-			'1/2': 2,
-			'3/4': 3,
-			full: 4
-		};
-		return spanMap[size] || 1;
-	}
-
-	function getAvailableSizes(componentName?: string): WidgetSize[] {
-		if (componentName === 'LogsWidget') {
-			return ['1/2', '3/4', 'full'];
-		}
-		return ['1/4', '1/2', '3/4', 'full'];
-	}
-
-	// Grid calculation functions
-	function calculateGridLayout(): (string | null)[] {
-		const grid = Array(16).fill(null);
-		const sortedItems = [...items].sort((a, b) => a.gridPosition - b.gridPosition);
-
-		sortedItems.forEach((item) => {
-			const span = getColumnSpan(item.size);
-			const startCol = item.gridPosition % 4;
-			const startRow = Math.floor(item.gridPosition / 4);
-
-			for (let col = startCol; col < startCol + span && col < 4; col++) {
-				const index = startRow * 4 + col;
-				if (index >= 0 && index < 16) {
-					grid[index] = item.id;
-				}
-			}
-		});
-
-		return grid;
-	}
-
-	function findNextAvailablePosition(widgetSize: WidgetSize, startFromIndex = 0): number {
-		const span = getColumnSpan(widgetSize);
-		const grid = calculateGridLayout();
-
-		for (let i = startFromIndex; i < 16; i++) {
-			const col = i % 4;
-			const row = Math.floor(i / 4);
-
-			let canFit = true;
-			for (let j = 0; j < span; j++) {
-				const checkCol = col + j;
-				const checkIndex = row * 4 + checkCol;
-
-				if (checkCol >= 4 || checkIndex >= 16 || grid[checkIndex] !== null) {
-					canFit = false;
-					break;
-				}
-			}
-
-			if (canFit) {
-				return i;
-			}
-		}
-
-		return -1;
-	}
-
-	function recalculateGridPositions(): DashboardWidgetConfig[] {
-		const newItems = [...items];
-		let currentRow = 0;
-		let currentCol = 0;
-
-		newItems.forEach((item) => {
-			const span = getColumnSpan(item.size);
-
-			if (currentCol + span <= 4) {
-				item.gridPosition = currentRow * 4 + currentCol;
-				currentCol += span;
-			} else {
-				currentRow++;
-				currentCol = 0;
-				item.gridPosition = currentRow * 4 + currentCol;
-				currentCol += span;
-			}
-		});
-
-		return newItems;
 	}
 
 	// Event handling functions with improved error handling
@@ -559,6 +380,46 @@
 		items = recalculateGridPositions();
 		gridUpdateCounter++;
 		saveLayout();
+
+		// Clear preview size when resize is complete
+		previewSizes = { ...previewSizes };
+		delete previewSizes[widgetId];
+	}
+
+	function handlePreviewSizeChange(widgetId: string, previewSize: WidgetSize) {
+		const resizingIndex = items.findIndex((item) => item.id === widgetId);
+
+		if (resizingIndex === -1) return;
+
+		// Check if this is clearing the preview (previewSize matches current size)
+		const currentItem = items[resizingIndex];
+		if (previewSize === currentItem.size) {
+			// Clear preview and restore original positions
+			previewSizes = { ...previewSizes };
+			delete previewSizes[widgetId];
+			items = recalculateGridPositions();
+		} else {
+			// Update preview size
+			previewSizes = { ...previewSizes, [widgetId]: previewSize };
+
+			// Recalculate grid positions with the preview size
+			const newItems = [...items];
+			const originalSize = newItems[resizingIndex].size;
+			newItems[resizingIndex] = { ...newItems[resizingIndex], size: previewSize };
+
+			// Recalculate grid positions
+			const recalculatedItems = recalculateGridPositionsWithItems(newItems);
+
+			// Update items with new positions but keep original sizes
+			items = recalculatedItems.map((item, index) => {
+				if (item.id === widgetId) {
+					return { ...item, size: originalSize }; // Keep original size for the actual widget
+				}
+				return item;
+			});
+		}
+
+		gridUpdateCounter++;
 	}
 
 	function removeWidget(id: string) {
@@ -804,12 +665,87 @@
 		keyboardState.selectedIndex = targetIndex;
 	}
 
+	// Utility functions
+	function getColumnSpan(size: WidgetSize): number {
+		const spanMap: Record<WidgetSize, number> = {
+			'1/4': 1,
+			'1/2': 2,
+			'3/4': 3,
+			full: 4
+		};
+		return spanMap[size] || 1;
+	}
+
+	function getAvailableSizes(componentName?: string): WidgetSize[] {
+		if (componentName === 'LogsWidget') {
+			return ['1/2', '3/4', 'full'];
+		}
+		return ['1/4', '1/2', '3/4', 'full'];
+	}
+
+	function recalculateGridPositions(): DashboardWidgetConfig[] {
+		return recalculateGridPositionsWithItems(items);
+	}
+
+	function recalculateGridPositionsWithItems(itemsToProcess: DashboardWidgetConfig[]): DashboardWidgetConfig[] {
+		const newItems = [...itemsToProcess];
+		const grid = Array(20).fill(null); // 20 rows should be enough
+		let maxRow = 0;
+
+		// Place each widget in the grid
+		newItems.forEach((item) => {
+			const span = getColumnSpan(item.size);
+			let placed = false;
+			let row = 0;
+			let col = 0;
+
+			// Find the first available position
+			while (!placed && row < 20) {
+				col = 0;
+				while (col + span <= 4 && !placed) {
+					// Check if this position and the next columns are available
+					let canPlace = true;
+					for (let i = 0; i < span; i++) {
+						if (grid[row * 4 + col + i] !== null) {
+							canPlace = false;
+							break;
+						}
+					}
+
+					if (canPlace) {
+						// Place the widget
+						for (let i = 0; i < span; i++) {
+							grid[row * 4 + col + i] = item.id;
+						}
+						item.gridPosition = row * 4 + col;
+						placed = true;
+						maxRow = Math.max(maxRow, row);
+					} else {
+						col++;
+					}
+				}
+				if (!placed) row++;
+			}
+
+			// If we couldn't place it, put it at the end
+			if (!placed) {
+				item.gridPosition = (maxRow + 1) * 4;
+				maxRow++;
+			}
+		});
+
+		return newItems;
+	}
+
 	// Lifecycle and data management
 	onMount(async () => {
 		try {
 			await systemPreferences.loadPreferences(pageData.user.id);
-			const prefsState = $systemPreferences;
-			const loadedWidgets = validateWidgets(prefsState?.preferences?.[ScreenSize.MD] || []);
+
+			// Get the current state from the store
+			const currentState = systemPreferences.getState();
+
+			const loadedWidgets = validateWidgets(currentState?.preferences || []);
 			items = loadedWidgets.map((existingWidget, index) => {
 				const componentInfo = widgetComponentRegistry[existingWidget.component as keyof typeof widgetComponentRegistry];
 				let defaultSize: WidgetSize = '1/4';
@@ -831,7 +767,7 @@
 			items = recalculateGridPositions();
 			loadError = null;
 		} catch (error) {
-			items = [];
+			console.error('Error loading preferences:', error);
 			loadError = 'Failed to load dashboard preferences. Please try again.';
 		}
 		preferencesLoaded = true;
@@ -853,7 +789,6 @@
 				icon: item.icon,
 				size: item.size,
 				gridPosition: item.gridPosition,
-				// Add required WidgetPreference fields
 				x: 0,
 				y: 0,
 				w: getColumnSpan(item.size),
@@ -861,9 +796,10 @@
 				movable: true,
 				resizable: true
 			}));
-
-			await systemPreferences.setPreference(pageData.user.id, ScreenSize.MD, widgetPreferences);
-		} catch (error) {}
+			await systemPreferences.setPreference(pageData.user.id, widgetPreferences);
+		} catch (error) {
+			console.error('Failed to save layout:', error);
+		}
 	}
 </script>
 
@@ -940,12 +876,6 @@
 				<button class="btn-xs variant-outline-error btn ml-auto" onclick={() => location.reload()}>Retry</button>
 			</div>
 		{/if}
-		{#if layoutHint}
-			<div class="bg-info-100 text-info-700 dark:bg-info-900 dark:text-info-200 flex w-full items-center gap-2 rounded p-2">
-				<iconify-icon icon="mdi:monitor-dashboard" width="20"></iconify-icon>
-				<span>{layoutHint}</span>
-			</div>
-		{/if}
 	</header>
 
 	<div class="relative m-0 w-full p-0">
@@ -984,7 +914,7 @@
 			</div>
 		{/if}
 
-		<section class="w-full py-4">
+		<section class="w-full px-1 py-4">
 			{#if !preferencesLoaded}
 				<div class="flex h-full items-center justify-center text-lg text-gray-500" role="status" aria-live="polite">Loading preferences...</div>
 			{:else if items.length > 0}
@@ -996,13 +926,14 @@
 				>
 					{#each items as item, index (item.id)}
 						{@const SvelteComponent = widgetComponentRegistry[item.component as keyof typeof widgetComponentRegistry]?.component}
-						{@const columnSpan = getColumnSpan(item.size)}
+						{@const effectiveSize = previewSizes[item.id] || item.size}
+						{@const columnSpan = getColumnSpan(effectiveSize)}
 
 						<article
-							class="widget-container grid-span-{columnSpan} group relative select-none transition-all duration-200 ease-in-out {keyboardState.mode &&
+							class="widget-container grid-span-{columnSpan} group relative select-none overflow-hidden rounded-lg transition-all duration-200 ease-in-out {keyboardState.mode &&
 							keyboardState.selectedIndex === index
-								? 'ring-2 ring-primary-500 ring-offset-2'
-								: ''} {dragState.isActive && keyboardState.dropTarget === index ? 'ring-2 ring-success-500 ring-offset-2' : ''}"
+								? 'ring-1 ring-primary-500'
+								: ''} {dragState.isActive && keyboardState.dropTarget === index ? 'ring-1 ring-success-500' : ''}"
 							data-widget-id={item.id}
 							data-widget-size={item.size}
 							data-column-span={columnSpan}
@@ -1033,6 +964,7 @@
 									currentSize={item.size}
 									availableSizes={getAvailableSizes(item.component)}
 									onSizeChange={(newSize) => resizeWidget(item.id, newSize)}
+									onPreviewSizeChange={(previewSize) => handlePreviewSizeChange(item.id, previewSize)}
 									{ROW_HEIGHT}
 									{GAP_SIZE}
 									onCloseRequest={() => removeWidget(item.id)}
@@ -1076,7 +1008,7 @@
 							class="mb-6 text-primary-400 drop-shadow-lg dark:text-primary-500"
 							aria-hidden="true"
 						></iconify-icon>
-						<p class="mb-2 font-display text-2xl font-bold text-primary-700 dark:text-primary-200">Your Dashboard is Empty</p>
+						<p class="mb-2 text-2xl font-bold text-primary-700 dark:text-primary-200">Your Dashboard is Empty</p>
 						<p class="mb-6 text-base text-surface-600 dark:text-surface-300">
 							Click below to add your first widget and start personalizing your dashboard experience.
 						</p>

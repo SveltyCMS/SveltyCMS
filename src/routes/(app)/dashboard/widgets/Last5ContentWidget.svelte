@@ -104,7 +104,7 @@ This widget fetches and displays real-time disk usage data, including:
 <BaseWidget
 	{label}
 	{theme}
-	endpoint="/api/last5Content"
+	endpoint="/api/dashboard/last5Content"
 	pollInterval={30000}
 	{icon}
 	{widgetId}

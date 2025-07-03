@@ -50,6 +50,7 @@
 		currentSize = '1/4' as '1/4' | '1/2' | '3/4' | 'full',
 		availableSizes = ['1/4', '1/2', '3/4', 'full'] as ('1/4' | '1/2' | '3/4' | 'full')[],
 		onSizeChange = (_newSize: '1/4' | '1/2' | '3/4' | 'full') => {},
+		onPreviewSizeChange = (_previewSize: '1/4' | '1/2' | '3/4' | 'full') => {},
 		rowSpan = 1,
 		onRowSpanChange = (_newRowSpan: number) => {},
 		draggable = true,
@@ -75,6 +76,7 @@
 		currentSize?: '1/4' | '1/2' | '3/4' | 'full';
 		availableSizes?: ('1/4' | '1/2' | '3/4' | 'full')[];
 		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
+		onPreviewSizeChange?: (previewSize: '1/4' | '1/2' | '3/4' | 'full') => void;
 		rowSpan?: number;
 		onRowSpanChange?: (newRowSpan: number) => void;
 		draggable?: boolean;
@@ -147,6 +149,19 @@
 	let startDimensions = { w: 0, h: 0 };
 	let currentPixelDimensions = $state({ w: 0, h: 0 });
 	let previewSize = $state<'1/4' | '1/2' | '3/4' | 'full'>('1/4');
+	let hoverPreviewSize = $state<'1/4' | '1/2' | '3/4' | 'full' | null>(null);
+	let showSizeMenu = $state(false);
+
+	// Utility function to get column span for widget sizes
+	function getColumnSpan(size: '1/4' | '1/2' | '3/4' | 'full'): number {
+		const spanMap: Record<'1/4' | '1/2' | '3/4' | 'full', number> = {
+			'1/4': 1,
+			'1/2': 2,
+			'3/4': 3,
+			full: 4
+		};
+		return spanMap[size] || 1;
+	}
 
 	function handleResizePointerDown(e: PointerEvent, dir: string) {
 		if (!resizable || !widgetEl) return;
@@ -193,11 +208,15 @@
 		else if (columnEquivalent < 2.3) previewSize = '1/2';
 		else if (columnEquivalent < 3.3) previewSize = '3/4';
 		else previewSize = 'full';
-		widgetEl.style.width = `${currentPixelDimensions.w}px`;
-		widgetEl.style.height = `${currentPixelDimensions.h}px`;
+		// Don't set inline styles - let CSS grid handle the layout
 		widgetEl.style.opacity = '0.8';
 		const rowSpanPreview = Math.max(1, Math.min(4, Math.round(rowEquivalent)));
 		widgetEl.setAttribute('data-row-span-preview', rowSpanPreview.toString());
+
+		// Notify parent about preview size change
+		if (onPreviewSizeChange) {
+			onPreviewSizeChange(previewSize);
+		}
 	}
 	function handleResizePointerUp(e: PointerEvent) {
 		if (!resizing || !widgetEl) {
@@ -227,15 +246,32 @@
 		newRowSpan = Math.max(1, Math.min(4, Math.round(rowEquivalent)));
 		onSizeChange(newSize);
 		onRowSpanChange(newRowSpan);
-		widgetEl.style.width = '';
-		widgetEl.style.height = '';
 		widgetEl.style.opacity = '';
+
+		// Clear preview size when resize ends
+		if (onPreviewSizeChange) {
+			onPreviewSizeChange(currentSize); // Reset to current size to clear preview
+		}
+
 		resizing = false;
 		resizeDir = null;
 	}
 	$effect(() => () => {
 		window.removeEventListener('pointermove', handleResizePointerMove);
 		window.removeEventListener('pointerup', handleResizePointerUp);
+	});
+
+	// Close size menu when clicking outside
+	$effect(() => {
+		if (showSizeMenu) {
+			const handleClickOutside = (event: MouseEvent) => {
+				if (widgetEl && !widgetEl.contains(event.target as Node)) {
+					showSizeMenu = false;
+				}
+			};
+			document.addEventListener('click', handleClickOutside);
+			return () => document.removeEventListener('click', handleClickOutside);
+		}
 	});
 	function updateWidgetState(key: string, value: any) {
 		widgetState = { ...widgetState, [key]: value };
@@ -302,7 +338,7 @@
 	>
 		<h2
 			id="widget-title-{widgetId || label}"
-			class="text-text-900 dark:text-text-100 flex items-center gap-2 truncate font-display text-base font-semibold tracking-tight"
+			class="text-text-900 dark:text-text-100 font-display flex items-center gap-2 truncate text-base font-semibold tracking-tight"
 		>
 			{#if icon}
 				<iconify-icon {icon} width="20" class={theme === 'light' ? 'text-tertiary-600' : 'text-primary-400'}></iconify-icon>
@@ -310,36 +346,49 @@
 			<span class="truncate">{label}</span>
 		</h2>
 		<div class="flex items-center gap-2">
-			<div class="flex items-center gap-1 rounded-lg bg-gray-100 p-1.5 dark:bg-surface-600/80">
-				{#each availableSizes as size}
-					{@const isActive = currentSize === size}
-					{@const sizeIcon = getSizeIcon(size)}
-					<button
-						onclick={() => handleSizeChange(size)}
-						class="flex h-8 w-8 items-center justify-center rounded-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-400 {isActive
-							? 'scale-105 bg-primary-500 text-white shadow-md'
-							: 'text-text-500 dark:text-text-300 hover:bg-gray-200 hover:text-primary-600 dark:hover:bg-surface-500 dark:hover:text-primary-400'}"
-						title={getSizeLabel(size)}
-						aria-label="Resize widget to {getSizeLabel(size)}"
-						data-size={size}
-						data-active={isActive}
+			<!-- Size Menu -->
+			<div class="relative">
+				<button
+					onclick={() => (showSizeMenu = !showSizeMenu)}
+					class="text-text-400 btn-icon hover:text-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-400"
+					aria-label="Change widget size"
+					title="Change size"
+				>
+					<iconify-icon icon="mdi:resize" width="18"></iconify-icon>
+				</button>
+
+				{#if showSizeMenu}
+					<div
+						class="absolute right-0 top-full z-50 mt-2 w-48 rounded-lg border border-surface-200 bg-white shadow-lg dark:border-surface-700 dark:bg-surface-800"
 					>
-						<div class="flex items-center gap-0.5">
-							{#each Array(4) as _, i}
-								{@const shouldHighlight =
-									(size === '1/4' && i === 0) || (size === '1/2' && i < 2) || (size === '3/4' && i < 3) || (size === 'full' && i < 4)}
-								<div
-									class="h-3 w-0.5 rounded-full transition-all duration-200 {shouldHighlight
-										? isActive
-											? 'bg-white'
-											: 'bg-current'
-										: 'bg-gray-300 dark:bg-gray-600'}"
-								></div>
+						<div class="p-2">
+							{#each availableSizes as size}
+								<button
+									onclick={() => {
+										handleSizeChange(size);
+										showSizeMenu = false;
+									}}
+									onmouseenter={() => (hoverPreviewSize = size)}
+									onmouseleave={() => (hoverPreviewSize = null)}
+									class="flex w-full items-center justify-between rounded px-3 py-2 text-sm hover:bg-surface-100 dark:hover:bg-surface-700 {currentSize ===
+									size
+										? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
+										: 'text-surface-700 dark:text-surface-300'}"
+								>
+									<div class="flex items-center gap-2">
+										<iconify-icon icon={getSizeIcon(size)} width="16"></iconify-icon>
+										<span>{getSizeLabel(size)}</span>
+									</div>
+									{#if currentSize === size}
+										<iconify-icon icon="mdi:check" width="16" class="text-primary-500"></iconify-icon>
+									{/if}
+								</button>
 							{/each}
 						</div>
-					</button>
-				{/each}
+					</div>
+				{/if}
 			</div>
+
 			<button
 				onclick={onCloseRequest}
 				class="text-text-400 btn-icon hover:text-error-500 focus:outline-none focus:ring-2 focus:ring-error-400"
@@ -419,6 +468,21 @@
 					{#each Array(4) as _, i}
 						<div class="h-2 w-10 rounded bg-primary-400/80 {i < getColumnSpan(previewSize) ? '' : 'bg-surface-200/60 dark:bg-surface-700/60'}"></div>
 					{/each}
+				</div>
+			</div>
+		{:else if hoverPreviewSize}
+			<!-- Size Preview Overlay -->
+			<div class="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-xl bg-primary-500/5 backdrop-blur-sm">
+				<div
+					class="rounded-lg border border-primary-300 bg-primary-50 px-4 py-3 text-sm text-primary-700 shadow-lg dark:border-primary-600 dark:bg-primary-900/50 dark:text-primary-300"
+				>
+					<div class="flex items-center gap-3">
+						<iconify-icon icon={getSizeIcon(hoverPreviewSize)} width="20" class="text-primary-500"></iconify-icon>
+						<div class="flex flex-col">
+							<span class="font-semibold">Preview: {getSizeLabel(hoverPreviewSize)}</span>
+							<span class="text-xs opacity-80">{getColumnSpan(hoverPreviewSize)} of 4 columns</span>
+						</div>
+					</div>
 				</div>
 			</div>
 		{/if}
