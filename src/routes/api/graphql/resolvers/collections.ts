@@ -42,7 +42,7 @@ function createCleanTypeName(collection: Collection): string {
 	const cleanName = baseName
 		.replace(/[^a-zA-Z0-9]/g, '')
 		.replace(/^[0-9]/, 'Collection$&') // Handle names starting with numbers
-		.replace(/^\w/, c => c.toUpperCase()); // Ensure starts with uppercase
+		.replace(/^\w/, (c) => c.toUpperCase()); // Ensure starts with uppercase
 
 	// Use first 8 characters of UUID for uniqueness while keeping it readable
 	const shortId = collection._id.substring(0, 8);

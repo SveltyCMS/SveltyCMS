@@ -440,5 +440,7 @@
 	"sidebar_will_publish_on": "Sarà pubblicato il",
 	"siedabar_publish_options": "Opzioni di pubblicazione",
 	"Fields_no_widgets_found": "Widget non trovato: {name}",
-	"Fields_preview": "Anteprima"
+	"Fields_preview": "Anteprima",
+	"modal_token_deleted_successfully": "Token eliminato con successo",
+	"modal_token_user_deleted": "Token eliminato con successo"
 }

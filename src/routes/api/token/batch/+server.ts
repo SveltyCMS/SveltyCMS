@@ -17,15 +17,23 @@
  * "action": "delete"
  * }
  */
+
 import { json, error, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
+// Auth
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
 import { hasPermissionByAction } from '@src/auth/permissions';
 import { roles } from '@root/config/roles';
-import { invalidateAdminCache } from '@src/hooks.server';
-import { logger } from '@utils/logger.svelte';
+
+// Validation
 import { object, array, string, picklist, parse, type ValiError, minLength } from 'valibot';
+
+// Cache invalidation
+import { invalidateAdminCache } from '@src/hooks.server';
+
+// System Logger
+import { logger } from '@utils/logger.svelte';
 
 const batchTokenActionSchema = object({
 	tokenIds: array(string([minLength(1, 'Token ID cannot be empty.')])),
@@ -39,13 +47,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		});
 		const { tokenIds, action } = parse(batchTokenActionSchema, body);
 
-		const hasPermission = hasPermissionByAction(
-			locals.user,
-			action,
-			'token',
-			'any',
-			locals.roles && locals.roles.length > 0 ? locals.roles : roles
-		);
+		const hasPermission = hasPermissionByAction(locals.user, action, 'token', 'any', locals.roles && locals.roles.length > 0 ? locals.roles : roles);
 
 		if (!hasPermission) {
 			logger.warn(`Unauthorized attempt to '${action}' tokens.`, { userId: locals.user?._id });
@@ -75,11 +77,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		logger.info(`Batch token action '${action}' completed.`, {
 			affectedIds: tokenIds,
-			executedBy: locals.user?._id,
+			executedBy: locals.user?._id
 		});
 
 		return json({ success: true, message: successMessage });
-
 	} catch (err) {
 		if (err.name === 'ValiError') {
 			const valiError = err as ValiError;
@@ -90,8 +91,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const httpError = err as HttpError;
 		const status = httpError.status || 500;
 		const message = httpError.body?.message || 'An unexpected error occurred.';
-		logger.error('Error in token batch API:', { error: message, stack: err instanceof Error ? err.stack : undefined, userId: locals.user?._id, status });
+		logger.error('Error in token batch API:', {
+			error: message,
+			stack: err instanceof Error ? err.stack : undefined,
+			userId: locals.user?._id,
+			status
+		});
 		return json({ success: false, message: status === 500 ? 'Internal Server Error' : message }, { status });
 	}
 };
-

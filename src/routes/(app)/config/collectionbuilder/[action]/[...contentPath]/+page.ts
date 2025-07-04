@@ -11,9 +11,7 @@ export const load: PageLoad = async ({ params, data }) => {
 	if (!selectedCollection || !selectedCollection?.schema) return;
 	// console.log('selectedCollection', selectedCollection, page.params.collection);
 
-	const collectionData = Object.fromEntries(
-		Object.entries(data.collection).filter(([key]) => key !== 'module')
-	);
+	const collectionData = Object.fromEntries(Object.entries(data.collection).filter(([key]) => key !== 'module'));
 
 	const collection = {
 		...selectedCollection?.schema,

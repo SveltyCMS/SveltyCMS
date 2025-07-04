@@ -448,7 +448,7 @@ export async function saveAvatarImage(file: File, userId: string = 'system'): Pr
 				createdBy: fileInfo.createdBy?.includes('@') ? fileInfo.createdBy.replace(/(.{2}).*@(.*)/, '$1****@$2') : fileInfo.createdBy,
 				updatedBy: fileInfo.updatedBy?.includes('@') ? fileInfo.updatedBy.replace(/(.{2}).*@(.*)/, '$1****@$2') : fileInfo.updatedBy,
 				user: fileInfo.user?.includes('@') ? fileInfo.user.replace(/(.{2}).*@(.*)/, '$1****@$2') : fileInfo.user,
-				versions: fileInfo.versions?.map(v => ({
+				versions: fileInfo.versions?.map((v) => ({
 					...v,
 					createdBy: v.createdBy?.includes('@') ? v.createdBy.replace(/(.{2}).*@(.*)/, '$1****@$2') : v.createdBy
 				}))

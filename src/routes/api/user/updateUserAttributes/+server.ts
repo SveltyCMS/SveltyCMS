@@ -36,9 +36,7 @@ import { object, string, email, optional, minLength, maxLength, pipe, parse, typ
 // Define the base schema for user data. The 'role' is handled separately for security.
 const baseUserDataSchema = object({
 	email: optional(pipe(string(), email())),
-	username: optional(
-		pipe(string(), minLength(2, 'Username must be at least 2 characters'), maxLength(50, 'Username must not exceed 50 characters'))
-	),
+	username: optional(pipe(string(), minLength(2, 'Username must be at least 2 characters'), maxLength(50, 'Username must not exceed 50 characters'))),
 	password: optional(pipe(string(), minLength(8, 'Password must be at least 8 characters')))
 });
 
@@ -70,13 +68,7 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 			hasPermission = true;
 		} else {
 			// To edit another user, the requesting user needs a high-level permission.
-			hasPermission = hasPermissionByAction(
-				locals.user,
-				'update',
-				'user',
-				'any',
-				locals.roles && locals.roles.length > 0 ? locals.roles : roles
-			);
+			hasPermission = hasPermissionByAction(locals.user, 'update', 'user', 'any', locals.roles && locals.roles.length > 0 ? locals.roles : roles);
 		}
 
 		if (!hasPermission) {

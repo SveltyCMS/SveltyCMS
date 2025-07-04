@@ -1,9 +1,9 @@
 /**
  * @file src/stores/collectionStore.ts
- * @description Manages the collection state 
+ * @description Manages the collection state
  *
  * Features:
- *  - Collection state management 
+ *  - Collection state management
  * 	- Asynchronous collection initialization
  * 	- Collection updating with reactive states
  * 	- TypeScript support with custom Collection type
@@ -48,8 +48,12 @@ export const collection = {
 // Create reactive state variables for collectionValue
 let collectionValueState = $state<Record<string, unknown>>({});
 export const collectionValue = {
-	get value() { return collectionValueState; },
-	set: (newValue: Record<string, unknown>) => { collectionValueState = newValue; },
+	get value() {
+		return collectionValueState;
+	},
+	set: (newValue: Record<string, unknown>) => {
+		collectionValueState = newValue;
+	},
 	update: (fn: (value: Record<string, unknown>) => Record<string, unknown>) => {
 		collectionValueState = fn(collectionValueState);
 	}
@@ -58,8 +62,12 @@ export const collectionValue = {
 // Create reactive state variables for mode
 let modeState = $state<ModeType>('view');
 export const mode = {
-	get value() { return modeState; },
-	set: (newMode: ModeType) => { modeState = newMode; },
+	get value() {
+		return modeState;
+	},
+	set: (newMode: ModeType) => {
+		modeState = newMode;
+	},
 	update: (fn: (value: ModeType) => ModeType) => {
 		modeState = fn(modeState);
 	}

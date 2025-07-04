@@ -15,7 +15,6 @@ import {
 	minLength,
 	maxLength,
 	email as emailValidator,
-	number,
 	regex,
 	object,
 	pipe,
@@ -26,7 +25,8 @@ import {
 	transform,
 	strictObject,
 	check,
-	trim
+	trim,
+	picklist
 } from 'valibot';
 
 // ParaglideJS
@@ -129,10 +129,10 @@ export const signUpOAuthFormSchema = object({
 
 // Validate New User Token Schema
 export const addUserTokenSchema = object({
+	username: usernameSchema,
 	email: emailSchema,
 	role: string(),
-	expiresIn: nullable(number()),
-	expiresInLabel: nullable(string())
+	expiresIn: picklist(['2 hrs', '12 hrs', '2 days', '1 week', '2 weeks', '1 month'])
 });
 
 // Change Password Form Schema

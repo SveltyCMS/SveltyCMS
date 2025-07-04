@@ -18,12 +18,12 @@
 
 // Enum for screen sizes (matches Tailwind CSS breakpoints)
 export enum ScreenSize {
-	XS = 'xs',
-	SM = 'sm',
-	MD = 'md',
-	LG = 'lg',
-	XL = 'xl',
-	XXL = '2xl'
+	XS = 'XS',
+	SM = 'SM',
+	MD = 'MD',
+	LG = 'LG',
+	XL = 'XL',
+	XXL = '2XL'
 }
 
 // Screen size breakpoints (Tailwind defaults)

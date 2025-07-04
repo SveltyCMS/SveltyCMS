@@ -31,24 +31,24 @@
 import { v4 as uuidv4 } from 'uuid';
 
 // Stores
-import type { Unsubscriber } from 'svelte/store';
 import type { ScreenSize } from '@stores/screenSizeStore.svelte';
 import type { SystemPreferences, WidgetPreference } from '@stores/systemPreferences.svelte';
+import type { Unsubscriber } from 'svelte/store';
+
+// Types
+import type { CollectionConfig } from '@src/content/types';
+import type { MediaType } from '@utils/media/mediaModels';
+import type { ContentStructureNode as ContentNode } from './models/contentStructure';
 
 // Database Models
 import { ContentStructureModel, registerContentStructureDiscriminators } from './models/contentStructure';
 import { DraftModel } from './models/draft';
+import { mediaSchema } from './models/media';
 import { RevisionModel } from './models/revision';
+import { SystemPreferencesModel } from './models/systemPreferences';
+import { SystemVirtualFolderModel } from './models/systemVirtualFolder';
 import { ThemeModel } from './models/theme';
 import { WidgetModel, widgetSchema } from './models/widget';
-import { mediaSchema } from './models/media';
-import { SystemVirtualFolderModel } from './models/systemVirtualFolder';
-import { SystemPreferencesModel } from './models/systemPreferences';
-
-// Types
-import type { CollectionConfig } from '@src/content/types';
-import type { ContentStructureNode as ContentNode } from './models/contentStructure';
-import type { MediaType } from '@utils/media/mediaModels';
 
 // System Logging
 import { logger, type LoggableValue } from '@utils/logger.svelte';
@@ -57,25 +57,24 @@ import { logger, type LoggableValue } from '@utils/logger.svelte';
 import '@widgets/index';
 
 // Database
-import mongoose from 'mongoose';
-import { Schema } from 'mongoose';
-import type { FilterQuery, UpdateQuery, Document, Model } from 'mongoose';
+import type { Document, FilterQuery, Model, UpdateQuery } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
+import { dateToISODateString, isISODateString, normalizeDateInput, stringToISODateString } from '../../utils/dateUtils';
 import type {
-	DatabaseId,
-	Theme,
-	Widget,
-	PaginationOptions,
-	DatabaseResult,
-	DatabaseError,
-	DatabaseAdapter,
-	CollectionModel,
-	MediaItem,
-	ISODateString,
 	BaseEntity,
-	SystemVirtualFolder
+	CollectionModel,
+	DatabaseAdapter,
+	DatabaseError,
+	DatabaseId,
+	DatabaseResult,
+	ISODateString,
+	MediaItem,
+	PaginationOptions,
+	SystemVirtualFolder,
+	Theme,
+	Widget
 } from '../dbInterface';
-import { isISODateString, dateToISODateString, stringToISODateString, normalizeDateInput } from '../../utils/dateUtils';
 
 // Utility function to handle DatabaseErrors consistently
 const createDatabaseError = (error: unknown, code: string, message: string): DatabaseError => {
@@ -667,39 +666,10 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		files: {
 			upload: async (file: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaItem>> => {
 				try {
-					// Import the MediaModel to use for creation
-					const { MediaModel } = await import('@src/databases/mongodb/models/media');
-
-					// Generate ID using the adapter's utils
-					const mediaId = this.utils.generateId();
-
-					// Ensure required fields are present
-					if (!file.createdBy || !file.updatedBy) {
-						throw new Error('createdBy and updatedBy fields are required for media upload');
-					}
-
-					// Create the media item with generated ID and all required fields
-					const newMedia = await MediaModel.create({
-						...file,
-						_id: mediaId,
-						createdBy: file.createdBy,
-						updatedBy: file.updatedBy
-					});
-
-					// Convert to the expected format
-					const mediaWithISODates = {
-						...newMedia.toObject(),
-						createdAt: newMedia.createdAt.toISOString() as ISODateString,
-						updatedAt: newMedia.updatedAt.toISOString() as ISODateString
-					} as unknown as MediaItem;
-
-					return { success: true, data: mediaWithISODates };
+					const result = await this.modelSetup.uploadMedia(file);
+					return result;
 				} catch (error) {
 					logger.error('Error uploading file:', error as LoggableValue);
-					return {
-						success: false,
-						error: error instanceof Error ? error.message : 'Unknown error occurred during file upload'
-					};
 				}
 			}
 		},
@@ -877,7 +847,8 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		// Set user preferences
 		setUserPreferences: async (userId: string, preferences: SystemPreferences): Promise<void> => {
 			try {
-				await SystemPreferencesModel.updateOne({ userId }, { $set: { preferences } }, { upsert: true });
+				const query = { key: 'dashboard', scope: 'user', userId };
+				await SystemPreferencesModel.updateOne(query, { $set: { preferences } }, { upsert: true });
 			} catch (error) {
 				throw createDatabaseError(error, 'PREFERENCES_SAVE_ERROR', 'Failed to save user preferences');
 			}
@@ -886,7 +857,10 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		// Get system preferences for a user
 		getSystemPreferences: async (userId: string): Promise<SystemPreferences | null> => {
 			try {
-				const doc = await SystemPreferencesModel.findOne({ userId }).lean().exec();
+				const query = { key: 'dashboard', scope: 'user', userId };
+
+				const doc = await SystemPreferencesModel.findOne(query).lean().exec();
+
 				return doc?.preferences ?? null;
 			} catch (error) {
 				throw createDatabaseError(error, 'PREFERENCES_LOAD_ERROR', 'Failed to load user preferences');
@@ -909,27 +883,6 @@ export class MongoDBAdapter implements DatabaseAdapter {
 				await SystemPreferencesModel.updateOne({ isGlobal: true }, { $set: { preferences } }, { upsert: true });
 			} catch (error) {
 				throw createDatabaseError(error, 'PREFERENCES_SAVE_ERROR', 'Failed to save global preferences');
-			}
-		},
-
-		// Update preferences for a specific screen size
-		updateSystemPreferences: async (userId: string, screenSize: ScreenSize, widgets: WidgetPreference[]): Promise<void> => {
-			try {
-				// Always use key: screenSize, scope: 'system', and userId: 'system' for system-wide preferences
-				await SystemPreferencesModel.updateOne(
-					{ key: screenSize, scope: 'system', userId: 'system' },
-					{
-						$set: {
-							[`preferences.${screenSize}`]: widgets,
-							key: screenSize,
-							scope: 'system',
-							userId: 'system'
-						}
-					},
-					{ upsert: true }
-				);
-			} catch (error) {
-				throw createDatabaseError(error, 'PREFERENCES_UPDATE_ERROR', 'Failed to update preferences');
 			}
 		},
 
@@ -1054,7 +1007,10 @@ export class MongoDBAdapter implements DatabaseAdapter {
 				const count = await SystemVirtualFolderModel.countDocuments({ path }).exec();
 				return { success: true, data: count > 0 };
 			} catch (error) {
-				return { success: false, error: createDatabaseError(error, 'VIRTUAL_FOLDER_EXISTS_CHECK_FAILED', 'Failed to check if virtual folder exists') };
+				return {
+					success: false,
+					error: createDatabaseError(error, 'VIRTUAL_FOLDER_EXISTS_CHECK_FAILED', 'Failed to check if virtual folder exists')
+				};
 			}
 		}
 	};

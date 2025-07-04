@@ -52,13 +52,7 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 			hasPermission = true;
 		} else {
 			// To delete another user's avatar, need admin permissions
-			hasPermission = hasPermissionByAction(
-				locals.user,
-				'update',
-				'user',
-				'any',
-				locals.roles && locals.roles.length > 0 ? locals.roles : roles
-			);
+			hasPermission = hasPermissionByAction(locals.user, 'update', 'user', 'any', locals.roles && locals.roles.length > 0 ? locals.roles : roles);
 		}
 
 		if (!hasPermission) {
@@ -66,7 +60,7 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 				requestedBy: locals.user?._id,
 				targetUserId: targetUserId
 			});
-			throw error(403, 'Forbidden: You do not have permission to delete this user\'s avatar.');
+			throw error(403, "Forbidden: You do not have permission to delete this user's avatar.");
 		}
 
 		// Ensure the authentication system is initialized
@@ -110,7 +104,6 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 		logger.info('User avatar attribute removed from profile.', { userId: targetUserId, removedBy: locals.user._id });
 
 		return json({ success: true, message: 'Avatar removed successfully' });
-
 	} catch (err) {
 		const httpError = err as HttpError;
 		const status = httpError.status || 500;

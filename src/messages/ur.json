@@ -440,5 +440,7 @@
 	"sidebar_will_publish_on": "پر شائع کیا جائے گا۔",
 	"siedabar_publish_options": "اشاعت کے اختیارات",
 	"Fields_no_widgets_found": "ویجیٹ نہیں ملا: {name}",
-	"Fields_preview": "پیش نظارہ"
+	"Fields_preview": "پیش نظارہ",
+	"modal_token_deleted_successfully": "ٹوکن کامیابی سے حذف ہو گیا۔",
+	"modal_token_user_deleted": "ٹوکن کامیابی سے حذف ہو گیا۔"
 }

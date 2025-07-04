@@ -154,10 +154,56 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			await limiter.cookieLimiter.preflight({ request, cookies });
 		}
 
+		// THE NEW "INTELLIGENT LOADER" LOGIC
+		const inviteToken = url.searchParams.get('invite_token');
+
+		if (inviteToken) {
+			// This is an invite flow!
+			const tokenData = await auth.validateToken(inviteToken, 'registration');
+
+			if (tokenData.isValid && tokenData.details) {
+				// Token is valid! Prepare the page for invite-based signup.
+				logger.info('Valid invite token detected. Preparing invite signup form.');
+
+				// Check firstUserExists for consistency
+				const firstUserExists = locals.isFirstUser === false;
+
+				return {
+					firstUserExists,
+					isInviteFlow: true,
+					token: inviteToken,
+					invitedEmail: tokenData.details.email,
+					roleId: tokenData.details.role, // Pass the roleId from the token
+					loginForm: await superValidate(wrappedLoginSchema),
+					forgotForm: await superValidate(wrappedForgotSchema),
+					resetForm: await superValidate(wrappedResetSchema),
+					signUpForm: await superValidate(wrappedSignUpSchema)
+				};
+			} else {
+				// Token is invalid, expired, or already used.
+				logger.warn('Invalid invite token detected.');
+
+				// Check firstUserExists for consistency
+				const firstUserExists = locals.isFirstUser === false;
+
+				return {
+					firstUserExists,
+					isInviteFlow: false,
+					inviteError: 'This invitation link is invalid, expired, or has already been used.',
+					loginForm: await superValidate(wrappedLoginSchema),
+					forgotForm: await superValidate(wrappedForgotSchema),
+					resetForm: await superValidate(wrappedResetSchema),
+					signUpForm: await superValidate(wrappedSignUpSchema)
+				};
+			}
+		}
+
 		// Use the firstUserExists value from locals (set by hooks)
 		// This avoids race conditions during initialization
 		const firstUserExists = locals.isFirstUser === false;
-		logger.debug(`In load: firstUserExists determined as: /x1b[34m${firstUserExists}\x1b[0m (based on locals.isFirstUser: /x1b[34m${locals.isFirstUser}\x1b[0m)`);
+		logger.debug(
+			`In load: firstUserExists determined as: /x1b[34m${firstUserExists}\x1b[0m (based on locals.isFirstUser: /x1b[34m${locals.isFirstUser}\x1b[0m)`
+		);
 
 		const code = url.searchParams.get('code');
 		logger.debug(`Authorization code from URL: ${code}`);
@@ -225,7 +271,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 								})
 							});
 							if (!mailResponse.ok) {
-								logger.error(`OAuth: Failed to send welcome email via API. Status: ${mailResponse.status}`, { email, responseText: await mailResponse.text() });
+								logger.error(`OAuth: Failed to send welcome email via API. Status: ${mailResponse.status}`, {
+									email,
+									responseText: await mailResponse.text()
+								});
 							} else {
 								logger.info(`OAuth: Welcome email request sent via API`, { email });
 							}
@@ -268,10 +317,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 								})
 							});
 							if (!mailResponse.ok) {
-								logger.error(
-									`OAuth: Failed to send welcome email to new user via API. Status: ${mailResponse.status}`,
-									{ email, responseText: await mailResponse.text() }
-								);
+								logger.error(`OAuth: Failed to send welcome email to new user via API. Status: ${mailResponse.status}`, {
+									email,
+									responseText: await mailResponse.text()
+								});
 							} else {
 								logger.info(`OAuth: Welcome email request sent to new user via API`, { email });
 							}
@@ -292,6 +341,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				}
 				logger.warn(`OAuth: User processing ended without session creation for ${googleUser.email}.`);
 				return {
+					isInviteFlow: false,
 					firstUserExists,
 					loginForm: await superValidate(wrappedLoginSchema),
 					forgotForm: await superValidate(wrappedForgotSchema),
@@ -308,6 +358,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				const err = oauthError as Error;
 				logger.error(`Error during Google OAuth login process: ${err.message}`, { stack: err.stack });
 				return {
+					isInviteFlow: false,
 					firstUserExists,
 					loginForm: await superValidate(wrappedLoginSchema),
 					forgotForm: await superValidate(wrappedForgotSchema),
@@ -318,18 +369,27 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			}
 		}
 
+		// This is a normal login flow (no invite token) - return standard forms
 		const loginForm = await superValidate(wrappedLoginSchema);
 		const forgotForm = await superValidate(wrappedForgotSchema);
 		const resetForm = await superValidate(wrappedResetSchema);
 		const signUpForm = await superValidate(wrappedSignUpSchema);
 
-		return { firstUserExists, loginForm, forgotForm, resetForm, signUpForm };
+		return {
+			isInviteFlow: false,
+			firstUserExists,
+			loginForm,
+			forgotForm,
+			resetForm,
+			signUpForm
+		};
 	} catch (initialError) {
 		const err = initialError as Error;
 		if (err instanceof Response && err.status === 302) throw err;
 
 		logger.error(`Critical error in load function: ${err.message}`, { stack: err.stack });
 		return {
+			isInviteFlow: false,
 			firstUserExists: true,
 			loginForm: await superValidate(wrappedLoginSchema),
 			forgotForm: await superValidate(wrappedForgotSchema),
@@ -360,121 +420,153 @@ export const actions: Actions = {
 			});
 		}
 
-		logger.debug('Action: signUp');
-		let isFirst = event.locals.isFirstUser === true;
-		if (event.locals.isFirstUser === undefined) {
-			try {
-				isFirst = (await auth.getUserCount()) === 0;
-			} catch (err) {
-				logger.error('Error fetching user count in signUp:', err);
-				return fail(500, { form: await superValidate(event, wrappedSignUpSchema), message: 'An error occurred.' });
-			}
-		}
-		logger.info(`SignUp action: isFirstUser check: ${isFirst}`);
-
 		const signUpForm = await superValidate(event, wrappedSignUpSchema);
 		if (!signUpForm.valid) {
 			logger.warn('SignUp form invalid:', { errors: signUpForm.errors });
 			return fail(400, { form: signUpForm });
 		}
 
-		// Validate
-		const username = signUpForm.data.username;
-		const email = signUpForm.data.email.toLowerCase().trim();
-		const password = signUpForm.data.password;
-		const token = signUpForm.data.token;
+		const { email, username, password, token } = signUpForm.data;
 
-		let resp: { status: boolean; message?: string; user?: User } = { status: false };
-
-		let redirectPath;
-
-		try {
-			const existingUser = await auth.checkUser({ email });
-
-			if (existingUser && existingUser.isRegistered) {
-				return message(signUpForm, 'This email is already registered.', { status: 409 });
-			} else if (isFirst) {
-				logger.info(`Attempting to register first user (admin): ${username}`);
-				resp = await FirstUsersignUp(username, email, password, event.cookies);
-			} else if (existingUser && !existingUser.isRegistered) {
-				logger.info(`Attempting to finish registration for pre-registered user: ${username}`);
-				resp = await finishRegistration(username, email, password, token, event.cookies);
-			} else if (!existingUser && !isFirst) {
-				// Since ALLOW_REGISTRATION is not configured, we'll allow registration by default
-				logger.info(`Attempting to register new non-first user: ${username}`);
-				const defaultRole = roles.find((r) => r.isDefault) || roles.find((r) => r._id === 'user');
-				if (!defaultRole) throw new Error('Default role not found for new user registration.');
-
-				// Here, 'token' might be an invite token or unused if open registration.
-				// Add validation for 'token' if it's a required invite token.
-				// For this example, we allow registration by default.
-				// If your system requires a general invite token, validate it here.
-
-				const newUser = await auth.createUser({
-					username,
-					email,
-					password,
-					role: defaultRole._id,
-					permissions: defaultRole.permissions,
-					isRegistered: true,
-					lastAuthMethod: 'password'
-				});
-				resp = { status: true, user: newUser, message: 'User registered successfully.' };
-				logger.info(`New non-first user ${username} registered directly.`);
-			} else {
-				resp = { status: false, message: 'User registration conditions not met.' };
+		// Check if this is the first user (admin setup)
+		let isFirst = event.locals.isFirstUser === true;
+		if (event.locals.isFirstUser === undefined) {
+			try {
+				isFirst = (await auth.getUserCount()) === 0;
+			} catch (err) {
+				logger.error('Error fetching user count in signUp:', err);
+				return fail(500, { form: signUpForm, message: 'An error occurred.' });
 			}
-
-			if (resp.status && resp.user) {
-				logger.debug(`Sign Up successful for ${resp.user.username}.`);
-				const userLanguage = (get(systemLanguage) as Locale) || 'en';
-				const emailProps = {
-					username: resp.user.username,
-					email: resp.user.email,
-					hostLink: publicEnv.HOST_PROD || `https://${event.request.headers.get('host')}`,
-					sitename: publicEnv.SITE_NAME || 'SveltyCMS'
-				};
-
-				try {
-					const mailResponse = await event.fetch('/api/sendMail', {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({
-							recipientEmail: resp.user.email,
-							subject: `Welcome to ${emailProps.sitename}`,
-							templateName: 'welcomeUser', // Make sure this template name is correct
-							props: emailProps,
-							languageTag: userLanguage
-						})
-					});
-					if (!mailResponse.ok) {
-						logger.error(
-							`Failed to send welcome email via API to ${resp.user.email} after signup. Status: ${mailResponse.status}`,
-							await mailResponse.text()
-						);
-					} else {
-						logger.info(`Welcome email request sent via API to ${resp.user.email} after signup.`);
-					}
-				} catch (emailError) {
-					logger.error(`Error fetching /api/sendMail for ${resp.user.email} after signup:`, emailError);
-				}
-
-				message(signUpForm, resp.message || 'User signed up successfully!');
-				redirectPath = await fetchAndRedirectToFirstCollection();
-				// Don't throw redirect here - do it outside the try-catch
-			} else {
-				logger.warn(`Sign-up failed: ${resp.message || 'Unknown reason'}. Form data:`, signUpForm.data);
-				return message(signUpForm, resp.message || 'Sign-up failed. Please check your details.', { status: 400 });
-			}
-		} catch (e) {
-			const err = e as Error;
-			logger.error('Unexpected error in signUp action:', { message: err.message, stack: err.stack });
-			return message(signUpForm, 'An unexpected server error occurred.', { status: 500 });
 		}
 
-		// Handle redirect outside try-catch
-		if (redirectPath) {
+		// Handle first user (admin) registration - no token required
+		if (isFirst) {
+			logger.info(`Attempting to register first user (admin): ${username}`);
+			try {
+				const resp = await FirstUsersignUp(username, email, password, event.cookies);
+
+				if (resp.status && resp.user) {
+					logger.debug(`Sign Up successful for ${resp.user.username}.`);
+					const userLanguage = (get(systemLanguage) as Locale) || 'en';
+					const emailProps = {
+						username: resp.user.username,
+						email: resp.user.email,
+						hostLink: publicEnv.HOST_PROD || `https://${event.request.headers.get('host')}`,
+						sitename: publicEnv.SITE_NAME || 'SveltyCMS'
+					};
+
+					try {
+						const mailResponse = await event.fetch('/api/sendMail', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({
+								recipientEmail: resp.user.email,
+								subject: `Welcome to ${emailProps.sitename}`,
+								templateName: 'welcomeUser',
+								props: emailProps,
+								languageTag: userLanguage
+							})
+						});
+						if (!mailResponse.ok) {
+							logger.error(
+								`Failed to send welcome email via API to ${resp.user.email} after signup. Status: ${mailResponse.status}`,
+								await mailResponse.text()
+							);
+						} else {
+							logger.info(`Welcome email request sent via API to ${resp.user.email} after signup.`);
+						}
+					} catch (emailError) {
+						logger.error(`Error fetching /api/sendMail for ${resp.user.email} after signup:`, emailError);
+					}
+
+					message(signUpForm, resp.message || 'Admin user created successfully!');
+					const redirectPath = await fetchAndRedirectToFirstCollection();
+					throw redirect(303, redirectPath);
+				} else {
+					logger.warn(`Admin sign-up failed: ${resp.message || 'Unknown reason'}`);
+					return message(signUpForm, resp.message || 'Admin sign-up failed. Please check your details.', { status: 400 });
+				}
+			} catch (e) {
+				const err = e as Error;
+				logger.error('Unexpected error in admin signUp:', { message: err.message, stack: err.stack });
+				return message(signUpForm, 'An unexpected server error occurred.', { status: 500 });
+			}
+		}
+
+		// For non-first users: The sign-up action now ONLY works for invited users.
+		// Security: This action MUST have a valid token to proceed.
+		if (!token) {
+			return message(signUpForm, 'A valid invitation is required to create an account.', { status: 403 });
+		}
+
+		const tokenData = await auth.validateToken(token, 'registration');
+		if (!tokenData.isValid || !tokenData.details) {
+			return message(signUpForm, 'This invitation is invalid, expired, or has already been used.', { status: 403 });
+		}
+
+		// Security: Check that the email in the form matches the one in the token record
+		if (email.toLowerCase() !== tokenData.details.email.toLowerCase()) {
+			return message(signUpForm, 'The provided email does not match the invitation.', { status: 403 });
+		}
+
+		try {
+			// All checks passed! Create the user.
+			const newUser = await auth.createUser({
+				email,
+				username,
+				password,
+				role: tokenData.details.role, // Use the role from the token!
+				isRegistered: true
+			});
+
+			// Invalidate the token immediately after use
+			await auth.consumeToken(token);
+
+			// Log the new user in by creating a session
+			const session = await auth.createSession({ user_id: newUser._id });
+			const sessionCookie = auth.createSessionCookie(session._id);
+			event.cookies.set(sessionCookie.name, sessionCookie.value, { ...sessionCookie.attributes, path: '/' });
+
+			// Send welcome email
+			const userLanguage = (get(systemLanguage) as Locale) || 'en';
+			const emailProps = {
+				username: newUser.username,
+				email: newUser.email,
+				hostLink: publicEnv.HOST_PROD || `https://${event.request.headers.get('host')}`,
+				sitename: publicEnv.SITE_NAME || 'SveltyCMS'
+			};
+
+			try {
+				const mailResponse = await event.fetch('/api/sendMail', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						recipientEmail: newUser.email,
+						subject: `Welcome to ${emailProps.sitename}`,
+						templateName: 'welcomeUser',
+						props: emailProps,
+						languageTag: userLanguage
+					})
+				});
+				if (!mailResponse.ok) {
+					logger.error(
+						`Failed to send welcome email via API to ${newUser.email} after invite signup. Status: ${mailResponse.status}`,
+						await mailResponse.text()
+					);
+				} else {
+					logger.info(`Welcome email sent to ${newUser.email} after invite signup.`);
+				}
+			} catch (emailError) {
+				logger.error(`Error sending welcome email for ${newUser.email}:`, emailError);
+			}
+
+			logger.info(`Invited user ${username} registered successfully and logged in.`);
+			const redirectPath = await fetchAndRedirectToFirstCollection();
 			throw redirect(303, redirectPath);
+		} catch (e) {
+			const err = e as Error;
+			logger.error('Error during invite signup:', err);
+			return message(signUpForm, err.message, { status: 500 });
 		}
 	},
 
@@ -497,8 +589,12 @@ export const actions: Actions = {
 		if (await limiter.isLimited(event)) {
 			return fail(429, { message: 'Too many requests.' });
 		}
-		// No prompt parameter for SignIn - should provide smoother experience for returning users
-		const authUrl = await generateGoogleAuthUrl(null, undefined);
+
+		// The OAuth sign-in action is now also "smart"
+		const inviteToken = event.url.searchParams.get('invite_token');
+		// If an invite token is present in the URL, pass it in the 'state' to the OAuth provider.
+		// This securely links the OAuth attempt back to our specific invitation.
+		const authUrl = await generateGoogleAuthUrl(inviteToken, undefined);
 		throw redirect(303, authUrl);
 	},
 
@@ -510,10 +606,7 @@ export const actions: Actions = {
 		}
 
 		// Run initialization and form validation in parallel
-		const [, signInForm] = await Promise.all([
-			dbInitPromise,
-			superValidate(event, wrappedLoginSchema)
-		]);
+		const [, signInForm] = await Promise.all([dbInitPromise, superValidate(event, wrappedLoginSchema)]);
 
 		const authReady = await waitForAuthService();
 		if (!authReady || !auth) {
@@ -611,7 +704,10 @@ export const actions: Actions = {
 				});
 
 				if (!mailResponse.ok) {
-					logger.error(`Failed to send forgotten password email via API. Status: ${mailResponse.status}`, { email, responseText: await mailResponse.text() });
+					logger.error(`Failed to send forgotten password email via API. Status: ${mailResponse.status}`, {
+						email,
+						responseText: await mailResponse.text()
+					});
 					// Still return success but with emailSent: false to handle on frontend
 					return message(pwforgottenForm, 'Password reset email sent successfully.', { status: 200, userExists: true, emailSent: false });
 				} else {
@@ -674,7 +770,10 @@ export const actions: Actions = {
 						})
 					});
 					if (!mailResponse.ok) {
-						logger.error(`Failed to send password updated email via API. Status: ${mailResponse.status}`, { email, responseText: await mailResponse.text() });
+						logger.error(`Failed to send password updated email via API. Status: ${mailResponse.status}`, {
+							email,
+							responseText: await mailResponse.text()
+						});
 					} else {
 						logger.info(`Password updated confirmation email request sent via API`, { email });
 					}
@@ -769,7 +868,7 @@ async function signInUser(
 		});
 
 		// Don't wait for attribute update to complete - fire and forget for better UX
-		updatePromise.catch(err => {
+		updatePromise.catch((err) => {
 			logger.error(`Failed to update user attributes for ${user._id}:`, err);
 		});
 
@@ -830,54 +929,6 @@ async function FirstUsersignUp(
 		const err = error as Error;
 		logger.error(`Error in FirstUsersignUp`, { email, message: err.message, stack: err.stack });
 		return { status: false, message: 'An internal error occurred creating the admin user.' };
-	}
-}
-
-async function finishRegistration(
-	username: string,
-	email: string,
-	password: string,
-	token: string,
-	cookies: Cookies
-): Promise<{ status: boolean; message?: string; user?: User }> {
-	logger.debug(`finishRegistration called`, { email });
-	if (!auth) {
-		logger.error('Auth system not initialized for finishRegistration');
-		return { status: false, message: 'Authentication system unavailable.' };
-	}
-	try {
-		const user = await auth.checkUser({ email });
-		if (!user || !user._id) {
-			logger.warn(`finishRegistration: User not found for token consumption`, { email });
-			return { status: false, message: 'User not found or invalid registration attempt.' };
-		}
-		if (user.isRegistered) {
-			logger.warn(`finishRegistration: User is already registered`, { email });
-			return { status: false, message: 'This account is already fully registered.' };
-		}
-		const result = await auth.consumeToken(token, user._id);
-		if (!result.status) {
-			logger.warn(`finishRegistration: Token consumption failed`, { email, message: result.message });
-			return { status: false, message: result.message || 'Invalid or expired registration token.' };
-		}
-		if (calculatePasswordStrength(password) < 1) {
-			return { status: false, message: 'Password is too weak.' };
-		}
-		await auth.updateUserAttributes(user._id, {
-			username,
-			password,
-			lastAuthMethod: 'password',
-			isRegistered: true
-		});
-		const updatedUser = await auth.checkUser({ email });
-		if (!updatedUser) throw new Error('Failed to retrieve user after update in finishRegistration.');
-		await createSessionAndSetCookie(user._id, cookies);
-		logger.info(`User ${username} finished registration and session started.`);
-		return { status: true, message: 'Registration completed successfully.', user: updatedUser };
-	} catch (error) {
-		const err = error as Error;
-		logger.error(`Error in finishRegistration`, { email, message: err.message, stack: err.stack });
-		return { status: false, message: 'An internal error occurred during registration finalization.' };
 	}
 }
 

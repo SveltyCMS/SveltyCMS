@@ -11,9 +11,11 @@
 	// Components
 	import SiteName from '@components/SiteName.svelte';
 
+	// Stores
+	import { systemLanguage } from '@stores/store.svelte';
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { systemLanguage } from '@stores/store.svelte';
 
 	// svelte-email-tailwind
 	import { Html, Head, Preview, Body, Container, Section, Text, Link, Img, Button, Hr } from 'svelte-email-tailwind';
@@ -24,21 +26,20 @@
 		role?: string;
 		token?: string;
 		tokenLink?: string;
+		expiresInLabel?: string | number;
 		languageTag?: string;
 	}
 
-	let { username = '', email = '', role = '', token = '', tokenLink, languageTag = systemLanguage.value }: Props = $props();
+	let { username = '', email = '', role = '', token = '', tokenLink = '', expiresInLabel = '', languageTag = systemLanguage.value }: Props = $props();
 
-	// Generate tokenLink if not provided
-	const finalTokenLink = tokenLink || `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login?regToken=${token}`;
+	// The tokenLink is now passed directly from the API, no need to construct it here.
 </script>
 
 <Html lang={languageTag}>
 	<Head>
-		<title>User Registration token for {publicEnv.SITE_NAME}</title>
+		<title>Invitation to join {publicEnv.SITE_NAME}</title>
 	</Head>
-
-	<Preview preview="User Registration token for {publicEnv.SITE_NAME}" />
+	<Preview preview="You have been invited to join {publicEnv.SITE_NAME}" />
 
 	<Body>
 		<Container>
@@ -58,39 +59,48 @@
 			<!-- Main Content -->
 			<Section>
 				<Text>
-					Hello {username}
+					Hello {username || 'there'},
 				</Text>
 
 				<Text>
-					You have been invited to join <strong>{publicEnv.SITE_NAME}</strong>.
+					You have been invited to join <strong>{publicEnv.SITE_NAME}</strong> as a
+					<strong>{role}</strong>. Please click the button below to create your account.
 				</Text>
 
 				<!-- User Information Box -->
-				<Section>
-					<Text>
+				<Section style={{ backgroundColor: '#f8f9fa', padding: '16px', borderRadius: '8px', margin: '16px 0' }}>
+					<Text style={{ fontSize: '14px', lineHeight: '1.5' }}>
 						<strong>{m.usertoken_email()}</strong>
 						{email}<br />
 						<strong>{m.usertoken_role()}</strong>
 						{role}<br />
+						{#if expiresInLabel}
+							<strong>{m.usertoken_valid()}</strong> {expiresInLabel}<br />
+						{/if}
 						<strong>{m.usertoken_token()}</strong>
-						{token}<br />
-						<strong>{m.usertoken_valid()}</strong>
-						{token}
+						{token || (tokenLink ? tokenLink.split('invite_token=')[1] : 'N/A')}
 					</Text>
 				</Section>
 
-				<Text>
-					<strong><center>{m.usertoken_button()}</center></strong>
-				</Text>
-
 				<!-- CTA Button -->
 				<Section>
-					<Button href={finalTokenLink} pX={24} pY={12} style={{ backgroundColor: '#22c55e', color: '#fff', borderRadius: '8px' }}>
-						{m.usertoken_createuser()}
+					<Text style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '16px' }}>
+						{m.usertoken_button()}
+					</Text>
+					<Button href={tokenLink || '#'} pX={24} pY={12} style={{ backgroundColor: '#22c55e', color: '#fff', borderRadius: '8px' }}>
+						Accept Invitation & Create Account
 					</Button>
 				</Section>
 
-				<Hr></Hr>
+				<Text>This invitation is valid for a limited time and can only be used once.</Text>
+
+				<!-- Fallback information for printed emails -->
+				<Hr />
+				<Text style={{ fontSize: '12px', color: '#666' }}>
+					<strong>Can't click the link?</strong> Go to {publicEnv.HOST_PROD || publicEnv.HOST_DEV} and use the token above during signup.
+				</Text>
+
+				<Hr />
 
 				<!-- Footer -->
 				<Section>

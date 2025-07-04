@@ -55,6 +55,7 @@
 		email: string;
 		role: string;
 		user_id: string;
+		username: string;
 		blocked: boolean;
 		expires: Date;
 		createdAt: Date;
@@ -104,6 +105,7 @@
 	const tableHeaderToken = [
 		{ label: m.adminarea_blocked(), key: 'blocked' },
 		{ label: m.form_email(), key: 'email' },
+		{ label: m.form_username(), key: 'username' },
 		{ label: m.form_role(), key: 'role' },
 		{ label: m.adminarea_token(), key: 'token' },
 		{ label: m.adminarea_expiresin(), key: 'expires' },
@@ -220,8 +222,8 @@
 					token: '',
 					email: '',
 					role: 'user',
-					expires: '7d',
-					user_id: ''
+					expires: '',
+					username: ''
 				}
 			},
 			response: (result) => {
@@ -251,7 +253,7 @@
 					token: tokenData.token,
 					email: tokenData.email,
 					role: tokenData.role,
-					user_id: tokenData.user_id,
+					username: tokenData.username,
 					expires: convertDateToExpiresFormat(tokenData.expires)
 				}
 			},

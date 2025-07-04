@@ -3,7 +3,14 @@
  * @description API endpoints for user management.
  *
  * This module provides functionality to:
- * - Retrieve all users (GET)
+ * - Retrieve all us				props: { 
+					username: '', // Will be filled by the user during signup
+					email: email,
+					role, 
+					token: token, // Include the raw token for fallback
+					tokenLink: inviteLink,
+					expiresInLabel: expiresIn
+				}GET)
  * - Create a new user and send a token via email (POST)
  *
  * Features:
@@ -41,13 +48,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		// **SECURITY**: Check for specific 'read:user:all' permission.
 		// This prevents any user who gets past the hook from listing all other users.
 		// It ensures only users with explicit rights can access this sensitive data.
-		const hasPermission = hasPermissionByAction(
-			locals.user,
-			'read',
-			'user',
-			'all',
-			locals.roles && locals.roles.length > 0 ? locals.roles : roles
-		);
+		const hasPermission = hasPermissionByAction(locals.user, 'read', 'user', 'all', locals.roles && locals.roles.length > 0 ? locals.roles : roles);
 
 		if (!hasPermission) {
 			logger.warn('Unauthorized attempt to list all users', { userId: locals.user?._id });
@@ -75,13 +76,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		// **SECURITY**: Check for specific 'create:user:any' permission.
 		// This ensures only true administrators can create new user accounts.
-		const hasPermission = hasPermissionByAction(
-			locals.user,
-			'create',
-			'user',
-			'any',
-			locals.roles && locals.roles.length > 0 ? locals.roles : roles
-		);
+		const hasPermission = hasPermissionByAction(locals.user, 'create', 'user', 'any', locals.roles && locals.roles.length > 0 ? locals.roles : roles);
 
 		if (!hasPermission) {
 			logger.warn('Unauthorized attempt to create a user', { userId: locals.user?._id });
@@ -146,6 +141,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
  */
 async function sendUserToken(origin: string, email: string, token: string, role: string, expiresIn: number) {
 	try {
+		const inviteLink = `${origin}/login?invite_token=${token}`;
+
 		const response = await fetch(`${origin}/api/sendMail`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
@@ -154,7 +151,11 @@ async function sendUserToken(origin: string, email: string, token: string, role:
 				subject: 'You have been invited to join',
 				message: 'User Token',
 				templateName: 'userToken',
-				props: { email, token, role, expiresIn }
+				props: {
+					role,
+					tokenLink: inviteLink,
+					expiresInLabel: expiresIn
+				}
 			})
 		});
 
@@ -170,4 +171,3 @@ async function sendUserToken(origin: string, email: string, token: string, role:
 		throw err;
 	}
 }
-

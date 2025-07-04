@@ -168,7 +168,7 @@ export interface PaginatedResult<T> {
 	pageSize: number;
 }
 
-export type DatabaseResult<T> = { success: true; data: T } | { success: false, error: DatabaseError };
+export type DatabaseResult<T> = { success: true; data: T } | { success: false; error: DatabaseError };
 
 /** Error Handling **/
 export interface DatabaseError {

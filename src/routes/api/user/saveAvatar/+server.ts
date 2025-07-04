@@ -37,7 +37,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		// Check if user is updating their own avatar or has admin permissions
 		const formData = await request.formData();
-		const targetUserId = formData.get('userId') as string || locals.user._id; // Default to self if no userId provided
+		const targetUserId = (formData.get('userId') as string) || locals.user._id; // Default to self if no userId provided
 		const isEditingSelf = locals.user._id === targetUserId;
 		let hasPermission = false;
 
@@ -46,13 +46,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			hasPermission = true;
 		} else {
 			// To update another user's avatar, need admin permissions
-			hasPermission = hasPermissionByAction(
-				locals.user,
-				'update',
-				'user',
-				'any',
-				locals.roles && locals.roles.length > 0 ? locals.roles : roles
-			);
+			hasPermission = hasPermissionByAction(locals.user, 'update', 'user', 'any', locals.roles && locals.roles.length > 0 ? locals.roles : roles);
 		}
 
 		if (!hasPermission) {
@@ -60,7 +54,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				requestedBy: locals.user?._id,
 				targetUserId: targetUserId
 			});
-			throw error(403, 'Forbidden: You do not have permission to update this user\'s avatar.');
+			throw error(403, "Forbidden: You do not have permission to update this user's avatar.");
 		}
 
 		// Ensure the authentication system is initialized

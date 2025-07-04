@@ -33,7 +33,7 @@
 		children?: Snippet;
 	}>();
 
-	let locale = $derived(getLocale())
+	let locale = $derived(getLocale());
 
 	// Effect to handle language changes
 	$effect(() => {

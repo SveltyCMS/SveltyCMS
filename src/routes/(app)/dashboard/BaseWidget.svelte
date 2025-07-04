@@ -46,8 +46,15 @@
 		endpoint = undefined,
 		pollInterval = 0,
 		widgetId = undefined,
-		children = undefined as Snippet<[ChildSnippetProps]> | undefined,
-
+		children = undefined as Snippet<ChildSnippetProps> | undefined,
+		currentSize = '1/4' as '1/4' | '1/2' | '3/4' | 'full',
+		availableSizes = ['1/4', '1/2', '3/4', 'full'] as ('1/4' | '1/2' | '3/4' | 'full')[],
+		onSizeChange = (_newSize: '1/4' | '1/2' | '3/4' | 'full') => {},
+		onPreviewSizeChange = (_previewSize: '1/4' | '1/2' | '3/4' | 'full') => {},
+		rowSpan = 1,
+		onRowSpanChange = (_newRowSpan: number) => {},
+		draggable = true,
+		onDragStart = (_event: MouseEvent | TouchEvent, _item: any, _element: HTMLElement) => {},
 		gridCellWidth = $bindable(0),
 		ROW_HEIGHT = $bindable(0),
 		GAP_SIZE = $bindable(0),
@@ -55,10 +62,9 @@
 		onResizeCommitted = () => {},
 		onCloseRequest = () => {},
 		initialData: passedInitialData = undefined,
-		onDataLoaded = (_fetchedData: any) => {}, // New prop: Callback for when data is loaded
-		// Initialize `data` with $bindable() directly.
-		// Its initial value will be set from passedInitialData in an effect.
-		data = $bindable(undefined) // This is the bindable prop
+		onDataLoaded = (_fetchedData: any) => {},
+		data = $bindable(undefined),
+		...rest
 	} = $props<{
 		label: string;
 		theme?: 'light' | 'dark';
@@ -66,8 +72,15 @@
 		endpoint?: string;
 		pollInterval?: number;
 		widgetId?: string;
-		children?: Snippet<[ChildSnippetProps]>;
-
+		children?: Snippet<ChildSnippetProps>;
+		currentSize?: '1/4' | '1/2' | '3/4' | 'full';
+		availableSizes?: ('1/4' | '1/2' | '3/4' | 'full')[];
+		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
+		onPreviewSizeChange?: (previewSize: '1/4' | '1/2' | '3/4' | 'full') => void;
+		rowSpan?: number;
+		onRowSpanChange?: (newRowSpan: number) => void;
+		draggable?: boolean;
+		onDragStart?: (event: MouseEvent | TouchEvent, item: any, element: HTMLElement) => void;
 		gridCellWidth: number;
 		ROW_HEIGHT: number;
 		GAP_SIZE: number;
@@ -77,53 +90,39 @@
 		initialData?: any;
 		data?: any;
 		onDataLoaded?: (fetchedData: any) => void;
+		[key: string]: any;
 	}>();
 
-	// State management
 	let initialDataSet = false;
 	let widgetState = $state<Record<string, any>>({});
 	let loading = $state(endpoint && !passedInitialData);
 	let error = $state<string | null>(null);
 	let internalData = $state(passedInitialData);
 
-	// Data handling effect
 	$effect(() => {
-		if (data !== undefined) {
-			// If data prop is provided (bindable), use it
-			internalData = data;
-		} else if (passedInitialData !== undefined) {
-			// Fallback to internal data if no bindable prop provided
+		if (passedInitialData !== undefined && !initialDataSet) {
 			internalData = passedInitialData;
+			initialDataSet = true;
 		}
 	});
 
-	// Data fetching effect
 	$effect(() => {
 		if (!endpoint) {
 			loading = false;
 			return;
 		}
-
 		let isActive = true;
 		let timerId: NodeJS.Timeout;
-
 		const fetchData = async () => {
 			if (!isActive) return;
-
 			loading = true;
 			error = null;
-
 			try {
 				const res = await fetch(`${endpoint}?_=${Date.now()}`);
 				if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-
 				const newData = await res.json();
 				if (isActive) {
-					if (data !== undefined) {
-						data.set(newData); // Only call set if data is bindable
-					} else {
-						internalData = newData; // Fallback to internal state
-					}
+					internalData = newData;
 					onDataLoaded(newData);
 				}
 			} catch (err) {
@@ -135,225 +134,368 @@
 				if (isActive) loading = false;
 			}
 		};
-
 		fetchData();
-
-		if (pollInterval > 0) {
-			timerId = setInterval(fetchData, pollInterval);
-		}
-
+		if (pollInterval > 0) timerId = setInterval(fetchData, pollInterval);
 		return () => {
 			isActive = false;
 			clearInterval(timerId);
 		};
 	});
 
-	// Resize handling
 	let widgetEl: HTMLDivElement | undefined = $state();
 	let resizing = $state(false);
 	let resizeDir: string | null = $state(null);
 	let startPointer = { x: 0, y: 0 };
 	let startDimensions = { w: 0, h: 0 };
 	let currentPixelDimensions = $state({ w: 0, h: 0 });
+	let previewSize = $state<'1/4' | '1/2' | '3/4' | 'full'>('1/4');
+	let hoverPreviewSize = $state<'1/4' | '1/2' | '3/4' | 'full' | null>(null);
+	let showSizeMenu = $state(false);
+
+	// Utility function to get column span for widget sizes
+	function getColumnSpan(size: '1/4' | '1/2' | '3/4' | 'full'): number {
+		const spanMap: Record<'1/4' | '1/2' | '3/4' | 'full', number> = {
+			'1/4': 1,
+			'1/2': 2,
+			'3/4': 3,
+			full: 4
+		};
+		return spanMap[size] || 1;
+	}
 
 	function handleResizePointerDown(e: PointerEvent, dir: string) {
 		if (!resizable || !widgetEl) return;
 		e.preventDefault();
 		e.stopPropagation();
-
 		resizing = true;
 		resizeDir = dir;
 		startPointer = { x: e.clientX, y: e.clientY };
 		startDimensions = { w: widgetEl.offsetWidth, h: widgetEl.offsetHeight };
 		currentPixelDimensions = { ...startDimensions };
-
 		(e.target as HTMLElement).setPointerCapture(e.pointerId);
 		window.addEventListener('pointermove', handleResizePointerMove);
 		window.addEventListener('pointerup', handleResizePointerUp);
 	}
-
 	function handleResizePointerMove(e: PointerEvent) {
 		if (!resizing || !widgetEl || !resizeDir) return;
 		e.preventDefault();
-
 		const deltaX = e.clientX - startPointer.x;
 		const deltaY = e.clientY - startPointer.y;
 		let newW = startDimensions.w;
 		let newH = startDimensions.h;
-
 		if (resizeDir.includes('e')) newW += deltaX;
 		if (resizeDir.includes('w')) newW -= deltaX;
 		if (resizeDir.includes('s')) newH += deltaY;
 		if (resizeDir.includes('n')) newH -= deltaY;
-
-		const minVisualPx = 50;
+		const gridContainer = widgetEl.parentElement?.parentElement;
+		const gridWidth = gridContainer?.offsetWidth || 1200;
+		const gridGap = GAP_SIZE || 16;
+		const gridCols = 4;
+		const rowHeight = ROW_HEIGHT || 200;
+		const totalGapWidth = gridGap * (gridCols - 1);
+		const availableGridWidth = gridWidth - totalGapWidth;
+		const singleColumnWidth = availableGridWidth / gridCols;
+		const minVisualPx = singleColumnWidth * 0.8;
+		const maxVisualPx = gridWidth;
 		currentPixelDimensions = {
-			w: Math.max(minVisualPx, newW),
-			h: Math.max(minVisualPx, newH)
+			w: Math.max(minVisualPx, Math.min(maxVisualPx, newW)),
+			h: Math.max(50, newH)
 		};
-		widgetEl.style.width = `${currentPixelDimensions.w}px`;
-		widgetEl.style.height = `${currentPixelDimensions.h}px`;
-	}
+		const currentWidth = currentPixelDimensions.w;
+		const columnEquivalent = currentWidth / (singleColumnWidth + gridGap);
+		const rowEquivalent = currentPixelDimensions.h / (rowHeight + gridGap);
+		if (columnEquivalent < 1.3) previewSize = '1/4';
+		else if (columnEquivalent < 2.3) previewSize = '1/2';
+		else if (columnEquivalent < 3.3) previewSize = '3/4';
+		else previewSize = 'full';
+		// Don't set inline styles - let CSS grid handle the layout
+		widgetEl.style.opacity = '0.8';
+		const rowSpanPreview = Math.max(1, Math.min(4, Math.round(rowEquivalent)));
+		widgetEl.setAttribute('data-row-span-preview', rowSpanPreview.toString());
 
+		// Notify parent about preview size change
+		if (onPreviewSizeChange) {
+			onPreviewSizeChange(previewSize);
+		}
+	}
 	function handleResizePointerUp(e: PointerEvent) {
 		if (!resizing || !widgetEl) {
 			resizing = false;
 			return;
 		}
-
 		(e.target as HTMLElement).releasePointerCapture(e.pointerId);
 		window.removeEventListener('pointermove', handleResizePointerMove);
 		window.removeEventListener('pointerup', handleResizePointerUp);
+		const gridContainer = widgetEl.parentElement?.parentElement;
+		const gridWidth = gridContainer?.offsetWidth || 1200;
+		const gridGap = 16;
+		const gridCols = 4;
+		const totalGapWidth = gridGap * (gridCols - 1);
+		const availableGridWidth = gridWidth - totalGapWidth;
+		const singleColumnWidth = availableGridWidth / gridCols;
+		const finalWidth = currentPixelDimensions.w;
+		const finalHeight = currentPixelDimensions.h;
+		const columnEquivalent = finalWidth / (singleColumnWidth + gridGap);
+		const rowEquivalent = finalHeight / (ROW_HEIGHT + gridGap);
+		let newSize: '1/4' | '1/2' | '3/4' | 'full';
+		let newRowSpan = rowSpan;
+		if (columnEquivalent < 1.3) newSize = '1/4';
+		else if (columnEquivalent < 2.3) newSize = '1/2';
+		else if (columnEquivalent < 3.3) newSize = '3/4';
+		else newSize = 'full';
+		newRowSpan = Math.max(1, Math.min(4, Math.round(rowEquivalent)));
+		onSizeChange(newSize);
+		onRowSpanChange(newRowSpan);
+		widgetEl.style.opacity = '';
 
-		if (onResizeCommitted && gridCellWidth > 0 && ROW_HEIGHT > 0) {
-			const finalWidth = currentPixelDimensions.w;
-			const finalHeight = currentPixelDimensions.h;
-			const newSpanW = Math.max(1, Math.round((finalWidth + GAP_SIZE) / (gridCellWidth + GAP_SIZE)));
-			const newSpanH = Math.max(1, Math.round((finalHeight + GAP_SIZE) / (ROW_HEIGHT + GAP_SIZE)));
-			onResizeCommitted({ w: newSpanW, h: newSpanH });
+		// Clear preview size when resize ends
+		if (onPreviewSizeChange) {
+			onPreviewSizeChange(currentSize); // Reset to current size to clear preview
 		}
 
-		widgetEl.style.width = '';
-		widgetEl.style.height = '';
 		resizing = false;
 		resizeDir = null;
 	}
-
-	// Cleanup effect
 	$effect(() => () => {
 		window.removeEventListener('pointermove', handleResizePointerMove);
 		window.removeEventListener('pointerup', handleResizePointerUp);
 	});
 
-	// Widget state management
+	// Close size menu when clicking outside
+	$effect(() => {
+		if (showSizeMenu) {
+			const handleClickOutside = (event: MouseEvent) => {
+				if (widgetEl && !widgetEl.contains(event.target as Node)) {
+					showSizeMenu = false;
+				}
+			};
+			document.addEventListener('click', handleClickOutside);
+			return () => document.removeEventListener('click', handleClickOutside);
+		}
+	});
 	function updateWidgetState(key: string, value: any) {
 		widgetState = { ...widgetState, [key]: value };
 	}
-
 	function getWidgetState(key: string) {
 		return widgetState[key];
 	}
-
+	function getSizeIcon(size: '1/4' | '1/2' | '3/4' | 'full'): string {
+		switch (size) {
+			case '1/4':
+				return 'mdi:view-column';
+			case '1/2':
+				return 'mdi:view-list';
+			case '3/4':
+				return 'mdi:view-grid';
+			case 'full':
+				return 'mdi:view-dashboard';
+			default:
+				return 'mdi:view-column';
+		}
+	}
+	function getSizeLabel(size: '1/4' | '1/2' | '3/4' | 'full'): string {
+		switch (size) {
+			case '1/4':
+				return 'Small (1/4)';
+			case '1/2':
+				return 'Medium (1/2)';
+			case '3/4':
+				return 'Large (3/4)';
+			case 'full':
+				return 'Full Width';
+			default:
+				return 'Small (1/4)';
+		}
+	}
+	function handleSizeChange(newSize: '1/4' | '1/2' | '3/4' | 'full') {
+		onSizeChange(newSize);
+	}
+	function handleHeaderMouseDown(event: MouseEvent | TouchEvent) {
+		if (!draggable) return;
+		const target = event.target as HTMLElement;
+		if (target.closest('button') || target.closest('input') || target.closest('select') || target.closest('a')) return;
+		onDragStart(event, { id: widgetId, size: currentSize, label, component: 'BaseWidget' }, widgetEl!);
+	}
 	const handleOffset = '-translate-x-1/2 -translate-y-1/2';
 </script>
 
-<div
+<article
 	bind:this={widgetEl}
-	class="widget-container group flex h-full flex-col overflow-hidden rounded border shadow-md
-        {theme === 'light' ? 'border-gray-200 bg-white text-gray-800' : 'border-gray-700 bg-gray-800 text-gray-100'}"
-	style:user-select={resizing ? 'none' : 'auto'}
+	class="widget-container text-text-900 dark:text-text-100 group relative flex h-full flex-col rounded-lg border border-surface-200 bg-white shadow-sm transition-all duration-150 dark:border-surface-700 dark:bg-surface-800 {resizing
+		? 'scale-[1.01] shadow-md ring-2 ring-primary-300/60'
+		: 'hover:shadow-md'} focus-within:ring-2 focus-within:ring-primary-200"
+	style="user-select: {resizing ? 'none' : 'auto'};"
 	aria-labelledby="widget-title-{widgetId || label}"
 >
-	<!-- Header -->
-	<div
-		class="widget-header flex items-center justify-between border-b pl-2
-            {theme === 'light' ? 'border-gray-200 bg-gray-50' : 'bg-gray-750 border-gray-700'}"
+	<header
+		class="widget-header flex items-center justify-between border-b border-gray-100 bg-white py-2 pl-4 pr-2 dark:border-surface-700 dark:bg-surface-800"
+		onmousedown={handleHeaderMouseDown}
+		ontouchstart={handleHeaderMouseDown}
+		style="cursor: {draggable ? 'grab' : 'default'}; touch-action: none;"
+		role="button"
+		tabindex="0"
+		aria-label="Drag to move {label} widget"
 	>
-		<h3 id="widget-title-{widgetId || label}" class="flex items-center gap-1.5 truncate text-sm font-medium">
+		<h2
+			id="widget-title-{widgetId || label}"
+			class="text-text-900 dark:text-text-100 font-display flex items-center gap-2 truncate text-base font-semibold tracking-tight"
+		>
 			{#if icon}
-				<iconify-icon {icon} width="16" class={theme === 'light' ? 'text-tertiary-600' : 'text-primary-400'}></iconify-icon>
+				<iconify-icon {icon} width="20" class={theme === 'light' ? 'text-tertiary-600' : 'text-primary-400'}></iconify-icon>
 			{/if}
 			<span class="truncate">{label}</span>
-		</h3>
+		</h2>
+		<div class="flex items-center gap-2">
+			<!-- Size Menu -->
+			<div class="relative">
+				<button
+					onclick={() => (showSizeMenu = !showSizeMenu)}
+					class="text-text-400 btn-icon hover:text-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-400"
+					aria-label="Change widget size"
+					title="Change size"
+				>
+					<iconify-icon icon="mdi:resize" width="18"></iconify-icon>
+				</button>
 
-		<button onclick={onCloseRequest} class="btn-icon text-gray-400" aria-label="Remove {label} widget">
-			<iconify-icon icon="mdi:close" width="18"></iconify-icon>
-		</button>
-	</div>
+				{#if showSizeMenu}
+					<div
+						class="absolute right-0 top-full z-50 mt-2 w-48 rounded-lg border border-surface-200 bg-white shadow-lg dark:border-surface-700 dark:bg-surface-800"
+					>
+						<div class="p-2">
+							{#each availableSizes as size}
+								<button
+									onclick={() => {
+										handleSizeChange(size);
+										showSizeMenu = false;
+									}}
+									onmouseenter={() => (hoverPreviewSize = size)}
+									onmouseleave={() => (hoverPreviewSize = null)}
+									class="flex w-full items-center justify-between rounded px-3 py-2 text-sm hover:bg-surface-100 dark:hover:bg-surface-700 {currentSize ===
+									size
+										? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
+										: 'text-surface-700 dark:text-surface-300'}"
+								>
+									<div class="flex items-center gap-2">
+										<iconify-icon icon={getSizeIcon(size)} width="16"></iconify-icon>
+										<span>{getSizeLabel(size)}</span>
+									</div>
+									{#if currentSize === size}
+										<iconify-icon icon="mdi:check" width="16" class="text-primary-500"></iconify-icon>
+									{/if}
+								</button>
+							{/each}
+						</div>
+					</div>
+				{/if}
+			</div>
 
-	<!-- Body -->
-	<div class="widget-body relative min-h-[50px] flex-1 overflow-auto px-2 py-1">
-		{#if endpoint && loading && !data}
-			<div class="loading-state absolute inset-0 flex items-center justify-center text-xs text-gray-500">Loading...</div>
-		{:else if endpoint && error && !data}
-			<div class="error-state absolute inset-0 flex flex-col items-center justify-center p-2 text-center text-xs text-error-500">
-				<iconify-icon icon="mdi:alert-circle-outline" width="20" class="mb-1"></iconify-icon>
+			<button
+				onclick={onCloseRequest}
+				class="text-text-400 btn-icon hover:text-error-500 focus:outline-none focus:ring-2 focus:ring-error-400"
+				aria-label="Remove {label} widget"
+			>
+				<iconify-icon icon="mdi:close" width="18"></iconify-icon>
+			</button>
+		</div>
+	</header>
+	<section
+		class="widget-body relative min-h-[50px] flex-1 bg-white px-5 py-4 dark:bg-surface-800"
+		style="width: 100%; height: 100%; overflow: hidden; display: flex; flex-direction: column; justify-content: stretch; align-items: stretch;"
+	>
+		{#if endpoint && loading && !internalData}
+			<div class="loading-state text-text-400 absolute inset-0 flex items-center justify-center text-base">Loading...</div>
+		{:else if endpoint && error && !internalData}
+			<div class="error-state absolute inset-0 flex flex-col items-center justify-center p-2 text-center text-base text-error-500">
+				<iconify-icon icon="mdi:alert-circle-outline" width="24" class="mb-1"></iconify-icon>
 				<span>{error}</span>
 			</div>
 		{:else if children}
-			{@render children([{ data: data, updateWidgetState, getWidgetState }])}
-		{:else if data}
-			<pre class="whitespace-pre-wrap break-all text-xs">{JSON.stringify(data, null, 2)}</pre>
+			{@render children({ data: internalData, updateWidgetState, getWidgetState })}
+		{:else if internalData}
+			<pre class="text-text-700 dark:text-text-200 whitespace-pre-wrap break-all text-sm" style="width: 100%; height: 100%;">{JSON.stringify(
+					internalData,
+					null,
+					2
+				)}</pre>
 		{:else}
-			<div class="absolute inset-0 flex items-center justify-center text-xs text-gray-400">No content.</div>
+			<div class="text-text-400 absolute inset-0 flex items-center justify-center text-base">No content.</div>
 		{/if}
-	</div>
-
+	</section>
 	{#if resizable}
-		<!-- SE Resize Handle -->
 		<div
-			class="absolute bottom-0 right-0 z-10 cursor-se-resize {handleOffset} translate-x-px translate-y-px"
+			class="absolute bottom-0 right-0 z-10 cursor-se-resize opacity-0 transition-all duration-200 hover:scale-125 hover:opacity-100"
 			onpointerdown={(e) => handleResizePointerDown(e, 'se')}
+			title="Drag to resize widget"
+			aria-label="Drag to resize widget"
 		>
-			<iconify-icon
-				icon="mdi:chevron-double-down-right"
-				width="16"
-				class="text-primary-500/60 hover:text-primary-600 active:text-primary-700"
-				flip={theme === 'dark' ? 'vertical' : ''}
-			></iconify-icon>
+			<div class="rounded-tl-lg bg-primary-500/90 p-2 shadow-xl ring-2 ring-primary-300/40">
+				<iconify-icon icon="mdi:resize-bottom-right" width="16" class="text-white drop-shadow"></iconify-icon>
+			</div>
 		</div>
-
-		<!-- SW Resize Handle -->
 		<div
-			class="absolute bottom-0 left-0 z-10 cursor-sw-resize {handleOffset} -translate-x-px translate-y-px"
-			onpointerdown={(e) => handleResizePointerDown(e, 'sw')}
+			class="absolute right-0 top-1/2 z-10 -translate-y-1/2 cursor-e-resize opacity-0 transition-all duration-200 hover:scale-125 hover:opacity-100"
+			onpointerdown={(e) => handleResizePointerDown(e, 'e')}
+			title="Drag to resize widget width"
+			aria-label="Drag to resize widget width"
 		>
-			<iconify-icon
-				icon="mdi:chevron-double-down-left"
-				width="16"
-				class="text-primary-500/60 hover:text-primary-600 active:text-primary-700"
-				flip={theme === 'dark' ? 'vertical' : ''}
-			></iconify-icon>
+			<div class="rounded-l-lg bg-primary-500/90 px-2 py-4 shadow-lg ring-2 ring-primary-300/40">
+				<iconify-icon icon="mdi:drag-horizontal" width="12" class="text-white drop-shadow"></iconify-icon>
+			</div>
 		</div>
-
-		<!-- NE Resize Handle -->
 		<div
-			class="absolute right-0 top-0 z-10 cursor-ne-resize {handleOffset} -translate-y-px translate-x-px"
-			onpointerdown={(e) => handleResizePointerDown(e, 'ne')}
+			class="absolute bottom-0 left-1/2 z-10 -translate-x-1/2 cursor-s-resize opacity-0 transition-all duration-200 hover:scale-125 hover:opacity-100"
+			onpointerdown={(e) => handleResizePointerDown(e, 's')}
+			title="Drag to resize widget height"
+			aria-label="Drag to resize widget height"
 		>
-			<iconify-icon
-				icon="mdi:chevron-double-up-right"
-				width="16"
-				class="text-primary-500/60 hover:text-primary-600 active:text-primary-700"
-				flip={theme === 'dark' ? 'vertical' : ''}
-			></iconify-icon>
+			<div class="rounded-t-lg bg-primary-500/90 px-4 py-1 shadow-lg ring-2 ring-primary-300/40">
+				<iconify-icon icon="mdi:drag-vertical" width="12" class="text-white drop-shadow"></iconify-icon>
+			</div>
 		</div>
-
-		<!-- NW Resize Handle -->
-		<div
-			class="absolute left-0 top-0 z-10 cursor-nw-resize {handleOffset} -translate-x-px -translate-y-px"
-			onpointerdown={(e) => handleResizePointerDown(e, 'nw')}
-		>
-			<iconify-icon
-				icon="mdi:chevron-double-up-left"
-				width="16"
-				class="text-primary-500/60 hover:text-primary-600 active:text-primary-700"
-				flip={theme === 'dark' ? 'vertical' : ''}
-			></iconify-icon>
-		</div>
+		{#if resizing}
+			<div class="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-xl bg-primary-500/10 backdrop-blur-md">
+				<div class="mb-3 rounded-lg border border-primary-400 bg-primary-500 px-6 py-4 text-base text-white shadow-2xl">
+					<div class="flex items-center gap-4">
+						<iconify-icon icon={getSizeIcon(previewSize)} width="24" class="text-white drop-shadow"></iconify-icon>
+						<div class="flex flex-col">
+							<span class="font-semibold">Snap to {getSizeLabel(previewSize)}</span>
+							<span class="text-sm opacity-80">{getColumnSpan(previewSize)} of 4 columns</span>
+							<span class="mt-1 text-xs">Row span: {widgetEl?.getAttribute('data-row-span-preview') || rowSpan}</span>
+						</div>
+					</div>
+				</div>
+				<div class="flex gap-2">
+					{#each Array(4) as _, i}
+						<div class="h-2 w-10 rounded bg-primary-400/80 {i < getColumnSpan(previewSize) ? '' : 'bg-surface-200/60 dark:bg-surface-700/60'}"></div>
+					{/each}
+				</div>
+			</div>
+		{:else if hoverPreviewSize}
+			<!-- Size Preview Overlay -->
+			<div class="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-xl bg-primary-500/5 backdrop-blur-sm">
+				<div
+					class="rounded-lg border border-primary-300 bg-primary-50 px-4 py-3 text-sm text-primary-700 shadow-lg dark:border-primary-600 dark:bg-primary-900/50 dark:text-primary-300"
+				>
+					<div class="flex items-center gap-3">
+						<iconify-icon icon={getSizeIcon(hoverPreviewSize)} width="20" class="text-primary-500"></iconify-icon>
+						<div class="flex flex-col">
+							<span class="font-semibold">Preview: {getSizeLabel(hoverPreviewSize)}</span>
+							<span class="text-xs opacity-80">{getColumnSpan(hoverPreviewSize)} of 4 columns</span>
+						</div>
+					</div>
+				</div>
+			</div>
+		{/if}
 	{/if}
-</div>
+</article>
 
 <style lang="postcss">
-	.widget-container {
-		transition:
-			box-shadow 0.2s ease-in-out,
-			border-color 0.2s ease-in-out;
-	}
-
-	.widget-body {
-		scrollbar-width: thin;
-		scrollbar-color: theme('colors.gray.300') transparent;
-	}
-
 	[class*='cursor-'] iconify-icon {
-		transition: transform 0.1s ease;
+		transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1);
 	}
-
 	[class*='cursor-']:hover iconify-icon {
-		transform: scale(1.2);
+		transform: scale(1.25);
 	}
-
 	[class*='cursor-']:active iconify-icon {
 		transform: scale(1);
 	}
