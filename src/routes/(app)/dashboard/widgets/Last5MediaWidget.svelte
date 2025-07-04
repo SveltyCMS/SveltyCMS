@@ -20,6 +20,7 @@
 -->
 
 <script lang="ts">
+	// --- Widget Metadata ---
 	export const widgetMeta = {
 		name: 'Last 5 Media',
 		icon: 'mdi:image-multiple',
@@ -35,6 +36,8 @@
 
 	import BaseWidget from '../BaseWidget.svelte';
 
+	// --- Type Definitions ---
+	// Defines the structure for a single media file entry.
 	interface MediaFile {
 		name: string;
 		size: number;
@@ -43,44 +46,40 @@
 		url: string;
 	}
 
+	// Defines the shape of the data payload fetched from the API.
+	type FetchedData = MediaFile[];
+
+	// Type alias for widget size options.
+	type Size = '1/4' | '1/2' | '3/4' | 'full';
+
+	// --- Component Props ---
 	let {
 		label = 'Last 5 Media',
 		theme = 'light',
 		icon = 'mdi:image-multiple',
 		widgetId = undefined,
-
-		// New sizing props
 		currentSize = '1/4',
 		availableSizes = ['1/4', '1/2', '3/4', 'full'],
-		onSizeChange = (newSize) => {},
-
-		// Drag props
+		// FIX: Added types and prefixed unused parameters with an underscore.
+		onSizeChange = (_newSize: Size) => {},
 		draggable = true,
-		onDragStart = (event, item, element) => {},
-
-		// Legacy props
+		onDragStart = (_event: MouseEvent, _item: any, _element: HTMLElement) => {},
 		gridCellWidth = 0,
 		ROW_HEIGHT = 0,
 		GAP_SIZE = 0,
 		resizable = true,
-		onResizeCommitted = (spans: { w: number; h: number }) => {},
+		onResizeCommitted = (_spans: { w: number; h: number }) => {},
 		onCloseRequest = () => {}
 	} = $props<{
 		label?: string;
 		theme?: 'light' | 'dark';
 		icon?: string;
 		widgetId?: string;
-
-		// New sizing props
-		currentSize?: '1/4' | '1/2' | '3/4' | 'full';
-		availableSizes?: ('1/4' | '1/2' | '3/4' | 'full')[];
-		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
-
-		// Drag props
+		currentSize?: Size;
+		availableSizes?: Size[];
+		onSizeChange?: (newSize: Size) => void;
 		draggable?: boolean;
 		onDragStart?: (event: MouseEvent, item: any, element: HTMLElement) => void;
-
-		// Legacy props
 		gridCellWidth?: number;
 		ROW_HEIGHT?: number;
 		GAP_SIZE?: number;
@@ -89,6 +88,7 @@
 		onCloseRequest?: () => void;
 	}>();
 
+	// --- Helper Functions ---
 	function formatFileSize(bytes: number): string {
 		if (bytes === 0) return '0 B';
 		const k = 1024;
@@ -129,19 +129,22 @@
 	{onResizeCommitted}
 	{onCloseRequest}
 >
-	{#snippet children({ data: fetchedData })}
+	<!-- FIX: Explicitly typed the 'data' prop from the snippet to resolve 'never' type errors. -->
+	{#snippet children({ data: fetchedData }: { data: FetchedData | undefined })}
+		<!-- This check now correctly narrows the type of 'fetchedData' to 'MediaFile[]' -->
 		{#if fetchedData && Array.isArray(fetchedData) && fetchedData.length > 0}
-			<div class="grid gap-2" role="list" aria-label="Last 5 media files">
+			<div class="grid gap-2" role="list" aria-label="Last 5 media files" style="max-height: 180px; overflow-y: auto;">
 				{#each fetchedData.slice(0, 5) as file}
 					<div class="flex items-center justify-between rounded-lg bg-surface-100/80 px-3 py-2 text-xs dark:bg-surface-700/60" role="listitem">
 						<div class="flex min-w-0 items-center gap-2">
-							<iconify-icon icon={getFileIcon(file.type)} class="text-primary-400" width="18" aria-label={file.type + ' file icon'}></iconify-icon>
+							<iconify-icon icon={getFileIcon(file.type)} class="flex-shrink-0 text-primary-400" width="18" aria-label={file.type + ' file icon'}
+							></iconify-icon>
 							<div class="flex min-w-0 flex-col">
 								<span class="text-text-900 dark:text-text-100 truncate font-medium" title={file.name}>{file.name}</span>
 								<span class="text-xs text-surface-500 dark:text-surface-400">{formatFileSize(file.size)}</span>
 							</div>
 						</div>
-						<div class="flex flex-col items-end">
+						<div class="flex flex-shrink-0 flex-col items-end pl-2">
 							<span class="uppercase text-surface-600 dark:text-surface-300">{file.type}</span>
 							<span class="text-xs text-surface-500 dark:text-surface-400">{new Date(file.modified).toLocaleDateString()}</span>
 						</div>
