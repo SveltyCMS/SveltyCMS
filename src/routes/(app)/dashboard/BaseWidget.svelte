@@ -33,16 +33,11 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 
-	// Type for the object passed to the child snippet
 	type ChildSnippetProps = {
 		data: any;
 		updateWidgetState: (key: string, value: any) => void;
 		getWidgetState: (key: string) => any;
 	};
-
-	// FIX: The Snippet generic must be an array of its arguments.
-	// The snippet receives one argument, which is an object of type ChildSnippetProps.
-	type ChildSnippet = Snippet<[ChildSnippetProps]>;
 
 	const {
 		label = 'Widget',
@@ -51,7 +46,7 @@
 		endpoint = undefined,
 		pollInterval = 0,
 		widgetId = undefined,
-		children = undefined as ChildSnippet | undefined,
+		children = undefined as Snippet<ChildSnippetProps> | undefined,
 		currentSize = '1/4' as '1/4' | '1/2' | '3/4' | 'full',
 		availableSizes = ['1/4', '1/2', '3/4', 'full'] as ('1/4' | '1/2' | '3/4' | 'full')[],
 		onSizeChange = (_newSize: '1/4' | '1/2' | '3/4' | 'full') => {},
@@ -68,8 +63,8 @@
 		onCloseRequest = () => {},
 		initialData: passedInitialData = undefined,
 		onDataLoaded = (_fetchedData: any) => {},
-		data = $bindable(undefined)
-		// FIX: Removed unused '...rest' parameter
+		data = $bindable(undefined),
+		...rest
 	} = $props<{
 		label: string;
 		theme?: 'light' | 'dark';
@@ -77,7 +72,7 @@
 		endpoint?: string;
 		pollInterval?: number;
 		widgetId?: string;
-		children?: ChildSnippet;
+		children?: Snippet<ChildSnippetProps>;
 		currentSize?: '1/4' | '1/2' | '3/4' | 'full';
 		availableSizes?: ('1/4' | '1/2' | '3/4' | 'full')[];
 		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
@@ -147,8 +142,7 @@
 		};
 	});
 
-	// FIX: Changed type from HTMLDivElement to HTMLElement to match the <article> element.
-	let widgetEl: HTMLElement | undefined = $state();
+	let widgetEl: HTMLDivElement | undefined = $state();
 	let resizing = $state(false);
 	let resizeDir: string | null = $state(null);
 	let startPointer = { x: 0, y: 0 };
@@ -322,7 +316,7 @@
 		if (target.closest('button') || target.closest('input') || target.closest('select') || target.closest('a')) return;
 		onDragStart(event, { id: widgetId, size: currentSize, label, component: 'BaseWidget' }, widgetEl!);
 	}
-	// FIX: Removed unused 'handleOffset' constant
+	const handleOffset = '-translate-x-1/2 -translate-y-1/2';
 </script>
 
 <article

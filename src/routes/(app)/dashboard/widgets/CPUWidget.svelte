@@ -6,6 +6,9 @@
 @example
 <CPUWidget label="CPU Usage" />
 
+### Props
+- `label`: The label for the widget (default: 'CPU Usage')
+
 ### Features:
 - Supports light/dark themes based on global theme settings
 - Customizable widget sizes with default and minimum size restrictions
@@ -15,7 +18,6 @@
 -->
 
 <script lang="ts">
-	// --- Widget Metadata ---
 	export const widgetMeta = {
 		name: 'CPU Usage',
 		icon: 'mdi:cpu-64-bit',
@@ -36,52 +38,46 @@
 	// Components
 	import BaseWidget from '../BaseWidget.svelte';
 
-	// --- Type Definitions ---
-	interface HistoricalLoad {
-		usage: number[];
-		timestamps: string[];
-	}
-
-	interface CpuInfo {
-		cores: number;
-		model: string;
-		historicalLoad: HistoricalLoad;
-	}
-
-	interface FetchedData {
-		cpuInfo: CpuInfo;
-	}
-
-	type Size = '1/4' | '1/2' | '3/4' | 'full';
-
-	// --- Component Props ---
+	// Props passed from +page.svelte, then to BaseWidget
 	let {
 		label = 'CPU Usage',
 		theme = 'light',
 		icon = 'mdi:cpu-64-bit',
 		widgetId = undefined,
+
+		// New sizing props
 		currentSize = '1/4',
 		availableSizes = ['1/4', '1/2', '3/4', 'full'],
-		// FIX: Added types and prefixed unused parameters with an underscore.
-		onSizeChange = (_newSize: Size) => {},
+		onSizeChange = (newSize) => {},
+
+		// Drag props
 		draggable = true,
-		onDragStart = (_event: MouseEvent, _item: any, _element: HTMLElement) => {},
+		onDragStart = (event, item, element) => {},
+
+		// Legacy props (keeping for compatibility)
 		gridCellWidth = 0,
 		ROW_HEIGHT = 0,
 		GAP_SIZE = 0,
 		resizable = true,
-		onResizeCommitted = (_spans: { w: number; h: number }) => {},
+		onResizeCommitted = (spans: { w: number; h: number }) => {},
 		onCloseRequest = () => {}
+		// initialData is NOT typically passed here, BaseWidget handles fetching
 	} = $props<{
 		label?: string;
 		theme?: 'light' | 'dark';
 		icon?: string;
 		widgetId?: string;
-		currentSize?: Size;
-		availableSizes?: Size[];
-		onSizeChange?: (newSize: Size) => void;
+
+		// New sizing props
+		currentSize?: '1/4' | '1/2' | '3/4' | 'full';
+		availableSizes?: ('1/4' | '1/2' | '3/4' | 'full')[];
+		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
+
+		// Drag props
 		draggable?: boolean;
 		onDragStart?: (event: MouseEvent, item: any, element: HTMLElement) => void;
+
+		// Legacy props
 		gridCellWidth?: number;
 		ROW_HEIGHT?: number;
 		GAP_SIZE?: number;
@@ -90,34 +86,33 @@
 		onCloseRequest?: () => void;
 	}>();
 
-	// --- State Management ---
-	let currentData = $state<FetchedData | undefined>(undefined);
-	let chartInstance = $state<Chart<'line', number[], string> | undefined>(undefined);
+	let currentData = $state<any>(undefined);
+	let chartInstance = $state<Chart | undefined>(undefined);
 	let chartCanvasElement = $state<HTMLCanvasElement | undefined>(undefined);
 
-	/**
-	 * A Svelte action to pass data from the child snippet to the parent script.
-	 */
-	// FIX: Prefixed unused 'canvas' parameter.
-	function updateChartAction(_canvas: HTMLCanvasElement, data: FetchedData | undefined) {
-		currentData = data;
-		return {
-			update(newData: FetchedData | undefined) {
-				currentData = newData;
-			}
-		};
-	}
+	function updateChart(fetchedData: any) {
+		if (!chartCanvasElement) return;
 
-	// --- Chart Logic ---
-	// This effect handles the creation and updating of the Chart.js instance.
-	$effect(() => {
-		if (!chartCanvasElement || !currentData?.cpuInfo?.historicalLoad) {
+		const cpuInfo = fetchedData?.cpuInfo;
+		const historicalLoad = cpuInfo?.historicalLoad;
+		const currentLoad = cpuInfo?.currentLoad;
+
+		if (!historicalLoad || !Array.isArray(historicalLoad.usage) || !Array.isArray(historicalLoad.timestamps)) {
+			if (chartInstance) {
+				// Clear chart if data becomes invalid
+				chartInstance.data.labels = [];
+				chartInstance.data.datasets[0].data = [];
+				chartInstance.update('none');
+			}
 			return;
 		}
 
-		const { usage: cpuUsageHistory = [], timestamps: timeStampHistory = [] } = currentData.cpuInfo.historicalLoad;
+		const { usage: cpuUsageHistory = [], timestamps: timeStampHistory = [] } = historicalLoad;
 
-		const formattedLabels = timeStampHistory.map((ts: string) => {
+		const plainCpuUsageHistory = [...cpuUsageHistory];
+		const plainTimeStampHistory = [...timeStampHistory];
+
+		const formattedLabels = plainTimeStampHistory.map((ts: string) => {
 			try {
 				return new Date(ts).toLocaleTimeString();
 			} catch (e) {
@@ -127,31 +122,19 @@
 		});
 
 		if (chartInstance) {
-			// Update existing chart for smooth transitions
+			// Update existing chart
 			chartInstance.data.labels = formattedLabels;
-			chartInstance.data.datasets[0].data = cpuUsageHistory;
-
-			// Update colors based on theme
+			chartInstance.data.datasets[0].data = plainCpuUsageHistory;
+			// Update colors if theme changed
 			chartInstance.data.datasets[0].borderColor = theme === 'dark' ? 'rgba(99, 102, 241, 1)' : 'rgba(59, 130, 246, 1)';
 			chartInstance.data.datasets[0].backgroundColor = theme === 'dark' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(59, 130, 246, 0.1)';
-
-			// FIX: Safely access nested chart options using optional chaining (?.)
-			if (chartInstance.options.scales?.x?.ticks) {
-				chartInstance.options.scales.x.ticks.color = theme === 'dark' ? '#9ca3af' : '#6b7280';
-			}
-			if (chartInstance.options.scales?.y?.ticks) {
-				chartInstance.options.scales.y.ticks.color = theme === 'dark' ? '#9ca3af' : '#6b7280';
-			}
-			if (chartInstance.options.scales?.x?.grid) {
-				chartInstance.options.scales.x.grid.color = theme === 'dark' ? 'rgba(156, 163, 175, 0.1)' : 'rgba(107, 114, 128, 0.1)';
-			}
-			if (chartInstance.options.scales?.y?.grid) {
-				chartInstance.options.scales.y.grid.color = theme === 'dark' ? 'rgba(156, 163, 175, 0.1)' : 'rgba(107, 114, 128, 0.1)';
-			}
-
+			chartInstance.options.scales.x.ticks.color = theme === 'dark' ? '#9ca3af' : '#6b7280';
+			chartInstance.options.scales.y.ticks.color = theme === 'dark' ? '#9ca3af' : '#6b7280';
+			chartInstance.options.scales.x.grid.color = theme === 'dark' ? 'rgba(156, 163, 175, 0.1)' : 'rgba(107, 114, 128, 0.1)';
+			chartInstance.options.scales.y.grid.color = theme === 'dark' ? 'rgba(156, 163, 175, 0.1)' : 'rgba(107, 114, 128, 0.1)';
 			chartInstance.update('none'); // Use 'none' for no animation on data update
 		} else {
-			// Create a new chart instance
+			// Destroy any existing chart on this canvas first
 			const existingChart = Chart.getChart(chartCanvasElement);
 			if (existingChart) {
 				existingChart.destroy();
@@ -165,7 +148,7 @@
 						datasets: [
 							{
 								label: 'CPU Usage (%)',
-								data: cpuUsageHistory,
+								data: plainCpuUsageHistory,
 								borderColor: theme === 'dark' ? 'rgba(99, 102, 241, 1)' : 'rgba(59, 130, 246, 1)',
 								backgroundColor: theme === 'dark' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(59, 130, 246, 0.1)',
 								fill: true,
@@ -183,7 +166,12 @@
 						responsive: true,
 						maintainAspectRatio: false,
 						layout: {
-							padding: { top: 10, right: 10, bottom: 10, left: 10 }
+							padding: {
+								top: 10,
+								right: 10,
+								bottom: 10,
+								left: 10
+							}
 						},
 						scales: {
 							x: {
@@ -192,14 +180,18 @@
 									color: theme === 'dark' ? '#9ca3af' : '#6b7280',
 									maxTicksLimit: 6,
 									autoSkip: true,
-									font: { size: 10 }
+									font: {
+										size: 10
+									}
 								},
 								grid: {
 									display: true,
 									color: theme === 'dark' ? 'rgba(156, 163, 175, 0.1)' : 'rgba(107, 114, 128, 0.1)',
 									lineWidth: 1
 								},
-								border: { display: false }
+								border: {
+									display: false
+								}
 							},
 							y: {
 								display: true,
@@ -209,18 +201,24 @@
 									color: theme === 'dark' ? '#9ca3af' : '#6b7280',
 									stepSize: 25,
 									callback: (value) => value + '%',
-									font: { size: 10 }
+									font: {
+										size: 10
+									}
 								},
 								grid: {
 									display: true,
 									color: theme === 'dark' ? 'rgba(156, 163, 175, 0.1)' : 'rgba(107, 114, 128, 0.1)',
 									lineWidth: 1
 								},
-								border: { display: false }
+								border: {
+									display: false
+								}
 							}
 						},
 						plugins: {
-							legend: { display: false },
+							legend: {
+								display: false
+							},
 							tooltip: {
 								enabled: true,
 								backgroundColor: theme === 'dark' ? 'rgba(17, 24, 39, 0.9)' : 'rgba(255, 255, 255, 0.9)',
@@ -235,6 +233,15 @@
 									label: (context) => `CPU: ${parseFloat(context.raw as string).toFixed(1)}%`
 								}
 							}
+						},
+						interaction: {
+							mode: 'nearest',
+							axis: 'x',
+							intersect: false
+						},
+						animation: {
+							duration: 750,
+							easing: 'easeInOutQuart'
 						}
 					}
 				});
@@ -243,12 +250,31 @@
 				chartInstance = undefined;
 			}
 		}
+	}
+
+	function updateChartAction(canvas: HTMLCanvasElement, data: any) {
+		currentData = data;
+
+		return {
+			update(newData: any) {
+				currentData = newData;
+			}
+		};
+	}
+
+	$effect(() => {
+		if (chartCanvasElement && currentData?.cpuInfo) {
+			updateChart(currentData);
+		}
 	});
 
-	// --- Lifecycle Hooks ---
 	let resizeObserver: ResizeObserver | undefined = undefined;
 
 	onMount(() => {
+		if (chartCanvasElement && chartInstance) {
+			chartInstance.resize();
+		}
+		// Observe parent for size changes
 		const parent = chartCanvasElement?.parentElement?.parentElement;
 		if (parent && typeof ResizeObserver !== 'undefined') {
 			resizeObserver = new ResizeObserver(() => {
@@ -256,15 +282,15 @@
 			});
 			resizeObserver.observe(parent);
 		}
+		return () => {
+			if (resizeObserver && parent) resizeObserver.disconnect();
+		};
 	});
 
 	onDestroy(() => {
 		if (chartInstance) {
 			chartInstance.destroy();
 			chartInstance = undefined;
-		}
-		if (resizeObserver) {
-			resizeObserver.disconnect();
 		}
 	});
 </script>
@@ -288,13 +314,11 @@
 	{onResizeCommitted}
 	{onCloseRequest}
 >
-	<!-- FIX: Explicitly typed the 'data' prop from the snippet to resolve 'never' type errors. -->
-	{#snippet children({ data: fetchedData }: { data: FetchedData | undefined })}
+	{#snippet children({ data: fetchedData })}
 		{#if fetchedData?.cpuInfo}
-			{@const usageArray = fetchedData.cpuInfo.historicalLoad?.usage || []}
-			{@const currentUsage = usageArray[usageArray.length - 1] || 0}
-			<!-- FIX: Added types to reduce function parameters -->
-			{@const averageUsage = usageArray.length > 0 ? usageArray.reduce((a: number, b: number) => a + b, 0) / usageArray.length : 0}
+			{@const currentUsage = fetchedData?.cpuInfo?.historicalLoad?.usage?.slice(-1)[0] || 0}
+			{@const usageArray = fetchedData?.cpuInfo?.historicalLoad?.usage || []}
+			{@const averageUsage = usageArray.length > 0 ? usageArray.reduce((a, b) => a + b, 0) / usageArray.length : 0}
 			{@const usageLevel = currentUsage > 80 ? 'high' : currentUsage > 50 ? 'medium' : 'low'}
 
 			<div class="flex h-full flex-col space-y-3">
@@ -348,8 +372,8 @@
 				</div>
 				{#if currentSize === '1/2' || currentSize === '3/4' || currentSize === 'full'}
 					<div class="flex justify-between text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">
-						<span>Cores: {fetchedData.cpuInfo.cores || 'N/A'}</span>
-						<span>Model: {fetchedData.cpuInfo.model?.split(' ').slice(0, 2).join(' ') || 'Unknown'}</span>
+						<span>Cores: {fetchedData?.cpuInfo?.cores || 'N/A'}</span>
+						<span>Model: {fetchedData?.cpuInfo?.model?.split(' ').slice(0, 2).join(' ') || 'Unknown'}</span>
 					</div>
 				{/if}
 			</div>

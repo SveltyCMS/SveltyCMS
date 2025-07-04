@@ -26,7 +26,6 @@ This widget fetches and displays real-time disk usage data, including:
 -->
 
 <script lang="ts">
-	// Metadata for the dashboard grid system
 	export const widgetMeta = {
 		name: 'Disk Usage',
 		icon: 'mdi:harddisk',
@@ -38,35 +37,14 @@ This widget fetches and displays real-time disk usage data, including:
 		]
 	};
 
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { Chart, BarController, BarElement, Tooltip, CategoryScale, LinearScale } from 'chart.js';
 	Chart.register(BarController, BarElement, Tooltip, CategoryScale, LinearScale);
 
 	// Components
 	import BaseWidget from '../BaseWidget.svelte';
 
-	// --- Type Definitions ---
-	// Defines the structure of the disk information object for strong type safety.
-	interface DiskInfo {
-		totalGb: number | string;
-		usedGb: number | string;
-		freeGb: number | string;
-		usedPercentage: number | string;
-		mountPoint?: string;
-		filesystem?: string;
-	}
-
-	// Defines the shape of the data fetched from the API endpoint.
-	type FetchedData = {
-		diskInfo: {
-			root: DiskInfo;
-		};
-	};
-
-	// Type alias for widget size options for cleaner code.
-	type Size = '1/4' | '1/2' | '3/4' | 'full';
-
-	// --- Component Props ---
+	// Props passed from +page.svelte, then to BaseWidget
 	let {
 		label = 'Disk Usage',
 		theme = 'light',
@@ -76,26 +54,30 @@ This widget fetches and displays real-time disk usage data, including:
 		// New sizing props
 		currentSize = '1/4',
 		availableSizes = ['1/4', '1/2', '3/4', 'full'],
-		onSizeChange = (_newSize: Size) => {},
+		onSizeChange = (newSize) => {},
+
 		// Drag props
 		draggable = true,
-		onDragStart = (_event: MouseEvent, _item: any, _element: HTMLElement) => {},
+		onDragStart = (event, item, element) => {},
+
 		// Legacy props
 		gridCellWidth = 0,
 		ROW_HEIGHT = 0,
 		GAP_SIZE = 0,
 		resizable = true,
-		onResizeCommitted = (_spans: { w: number; h: number }) => {},
+		onResizeCommitted = (spans: { w: number; h: number }) => {},
 		onCloseRequest = () => {}
 	} = $props<{
 		label?: string;
 		theme?: 'light' | 'dark';
 		icon?: string;
 		widgetId?: string;
+
 		// New sizing props
-		currentSize?: Size;
-		availableSizes?: Size[];
-		onSizeChange?: (newSize: Size) => void;
+		currentSize?: '1/4' | '1/2' | '3/4' | 'full';
+		availableSizes?: ('1/4' | '1/2' | '3/4' | 'full')[];
+		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
+
 		// Drag props
 		draggable?: boolean;
 		onDragStart?: (event: MouseEvent, item: any, element: HTMLElement) => void;
@@ -109,51 +91,52 @@ This widget fetches and displays real-time disk usage data, including:
 		onCloseRequest?: () => void;
 	}>();
 
-	// --- State Management ---
-	let currentData = $state<FetchedData | undefined>(undefined);
+	let currentData = $state<any>(undefined);
 	let chartCanvas = $state<HTMLCanvasElement | undefined>(undefined);
 	let chart = $state<Chart<'bar', number[], string> | undefined>(undefined);
 
-	function updateChartAction(_canvas: HTMLCanvasElement, data: FetchedData | undefined) {
+	function updateChartAction(canvas: HTMLCanvasElement, data: any) {
 		currentData = data;
+
 		return {
-			update(newData: FetchedData | undefined) {
+			update(newData: any) {
 				currentData = newData;
 			}
 		};
 	}
-
-	// --- Derived State for UI and Chart ---
-	const diskInfo = $derived(currentData?.diskInfo?.root);
-	const totalGB = $derived(diskInfo ? (typeof diskInfo.totalGb === 'string' ? parseFloat(diskInfo.totalGb) : diskInfo.totalGb || 0) : 0);
-	const usedGB = $derived(diskInfo ? (typeof diskInfo.usedGb === 'string' ? parseFloat(diskInfo.usedGb) : diskInfo.usedGb || 0) : 0);
-	const freeGB = $derived(diskInfo ? (typeof diskInfo.freeGb === 'string' ? parseFloat(diskInfo.freeGb) : diskInfo.freeGb || 0) : 0);
-	const usedPercentage = $derived(
-		diskInfo ? (typeof diskInfo.usedPercentage === 'string' ? parseFloat(diskInfo.usedPercentage) : diskInfo.usedPercentage || 0) : 0
-	);
-	const usageLevel = $derived(usedPercentage > 85 ? 'high' : usedPercentage > 70 ? 'medium' : 'low');
-
-	// --- Chart Logic ---
-	// This effect creates, updates, and destroys the chart instance.
+	// Move diskInfo extraction to script for chart logic
+	let diskInfo: any = undefined;
+	let totalGB = 0,
+		usedGB = 0,
+		freeGB = 0,
+		usedPercentage = 0,
+		freePercentage = 0,
+		usageLevel = 'low';
+	$effect(() => {
+		if (currentData?.diskInfo?.root) {
+			diskInfo = currentData.diskInfo.root;
+			totalGB = typeof diskInfo.totalGb === 'string' ? parseFloat(diskInfo.totalGb) : diskInfo.totalGb || 0;
+			usedGB = typeof diskInfo.usedGb === 'string' ? parseFloat(diskInfo.usedGb) : diskInfo.usedGb || 0;
+			freeGB = typeof diskInfo.freeGb === 'string' ? parseFloat(diskInfo.freeGb) : diskInfo.freeGb || 0;
+			usedPercentage = typeof diskInfo.usedPercentage === 'string' ? parseFloat(diskInfo.usedPercentage) : diskInfo.usedPercentage || 0;
+			freePercentage = 100 - usedPercentage;
+			usageLevel = usedPercentage > 85 ? 'high' : usedPercentage > 70 ? 'medium' : 'low';
+		}
+	});
 	$effect(() => {
 		if (!chartCanvas || !diskInfo) return;
+		const used = typeof diskInfo.usedGb === 'string' ? parseFloat(diskInfo.usedGb) : Number(diskInfo.usedGb) || 0;
+		const free = typeof diskInfo.freeGb === 'string' ? parseFloat(diskInfo.freeGb) : Number(diskInfo.freeGb) || 0;
+		const usedPercent = typeof diskInfo.usedPercentage === 'string' ? parseFloat(diskInfo.usedPercentage) : Number(diskInfo.usedPercentage) || 0;
+		const freePercent = 100 - usedPercent;
 
-		// Data for the chart, derived from the state
-		const used = usedGB;
-		const free = freeGB;
-		const usedPercent = usedPercentage;
-
-		// If the chart already exists, just update its data for a smooth animation.
 		if (chart) {
-			chart.data.datasets[0].data = [used];
-			chart.data.datasets[1].data = [free];
-			chart.options.scales!.x!.max = totalGB; // Update max value if total disk size changes
+			chart.data.datasets[0].data = [used, free];
 			chart.update('none');
 		} else {
-			// This plugin is specific to a 'bar' chart, so its type should reflect that.
 			const diskBarLabelPlugin = {
 				id: 'diskBarLabelPlugin',
-				afterDatasetsDraw(chart: Chart<'bar', number[], string>) {
+				afterDatasetsDraw(chart) {
 					const ctx = chart.ctx;
 					const { chartArea } = chart;
 					ctx.save();
@@ -165,8 +148,6 @@ This widget fetches and displays real-time disk usage data, including:
 					ctx.restore();
 				}
 			};
-
-			// Create a new chart instance if it doesn't exist.
 			chart = new Chart(chartCanvas, {
 				type: 'bar',
 				data: {
@@ -192,7 +173,6 @@ This widget fetches and displays real-time disk usage data, including:
 						}
 					]
 				},
-				plugins: [diskBarLabelPlugin],
 				options: {
 					indexAxis: 'y',
 					responsive: true,
@@ -234,13 +214,12 @@ This widget fetches and displays real-time disk usage data, including:
 							display: false,
 							stacked: true
 						}
-					}
+					},
+					plugins: [diskBarLabelPlugin]
 				}
 			});
 		}
 	});
-
-	// Cleanup function to destroy the chart instance when the component is unmounted.
 	onDestroy(() => {
 		if (chart) chart.destroy();
 	});
@@ -265,8 +244,16 @@ This widget fetches and displays real-time disk usage data, including:
 	{onResizeCommitted}
 	{onCloseRequest}
 >
-	{#snippet children({ data: fetchedData })}
-		{#if diskInfo}
+	{#snippet children({ data: fetchedData }: { data: FetchedData | undefined })}
+		{#if fetchedData?.diskInfo?.root}
+			{@const diskInfo = fetchedData.diskInfo.root}
+			{@const totalGB = typeof diskInfo.totalGb === 'string' ? parseFloat(diskInfo.totalGb) : diskInfo.totalGb || 0}
+			{@const usedGB = typeof diskInfo.usedGb === 'string' ? parseFloat(diskInfo.usedGb) : diskInfo.usedGb || 0}
+			{@const freeGB = typeof diskInfo.freeGb === 'string' ? parseFloat(diskInfo.freeGb) : diskInfo.freeGb || 0}
+			{@const usedPercentage = typeof diskInfo.usedPercentage === 'string' ? parseFloat(diskInfo.usedPercentage) : diskInfo.usedPercentage || 0}
+			{@const freePercentage = 100 - usedPercentage}
+			{@const usageLevel = usedPercentage > 85 ? 'high' : usedPercentage > 70 ? 'medium' : 'low'}
+
 			<div class="flex h-full flex-col justify-between space-y-3" role="region" aria-label="Disk usage statistics">
 				<div class="flex items-center justify-between">
 					<div class="flex items-center space-x-3">
@@ -291,22 +278,26 @@ This widget fetches and displays real-time disk usage data, including:
 								></iconify-icon>
 							</div>
 						</div>
-					</div>
-					<div>
-						<div class="text-2xl font-bold {theme === 'dark' ? 'text-white' : 'text-gray-900'}" aria-live="polite">{usedPercentage.toFixed(1)}%</div>
-						<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Disk Used</div>
+						<div>
+							<div class="text-2xl font-bold {theme === 'dark' ? 'text-white' : 'text-gray-900'}" aria-live="polite">
+								{usedPercentage.toFixed(1)}%
+							</div>
+							<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Disk Used</div>
+						</div>
 					</div>
 				</div>
 
-				<div class="relative flex-shrink-0" style="height: 48px; min-height: 40px; max-height: 60px; width: 100%;">
-					<canvas
-						bind:this={chartCanvas}
-						class="h-full w-full"
-						use:updateChartAction={fetchedData}
-						style="display: block; width: 100% !important; height: 100% !important;"
-						aria-label="Disk usage bar chart"
-					></canvas>
-				</div>
+				{#if diskInfo}
+					<div class="relative flex-shrink-0" style="height: 48px; min-height: 40px; max-height: 60px; width: 100%;">
+						<canvas
+							bind:this={chartCanvas}
+							class="h-full w-full"
+							use:updateChartAction={fetchedData}
+							style="display: block; width: 100% !important; height: 100% !important;"
+							aria-label="Disk usage bar chart"
+						></canvas>
+					</div>
+				{/if}
 
 				<div class="flex-shrink-0 space-y-3 pb-6">
 					<div
@@ -344,10 +335,8 @@ This widget fetches and displays real-time disk usage data, including:
 									? 'text-red-600 dark:text-red-400'
 									: usageLevel === 'medium'
 										? 'text-orange-600 dark:text-orange-400'
-										: 'text-blue-600 dark:text-blue-400'}"
+										: 'text-blue-600 dark:text-blue-400'}">{usedGB.toFixed(1)} GB</span
 							>
-								{usedGB.toFixed(1)} GB
-							</span>
 						</div>
 						{#if currentSize !== '1/4'}
 							<div class="flex flex-col space-y-1">
@@ -357,7 +346,7 @@ This widget fetches and displays real-time disk usage data, including:
 						{/if}
 					</div>
 
-					{#if (currentSize === '1/2' || currentSize === '3/4' || currentSize === 'full') && diskInfo}
+					{#if currentSize === '1/2' || currentSize === '3/4' || currentSize === 'full'}
 						<div class="flex justify-between text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mt-1 px-2 pb-4">
 							<span>Mount: {diskInfo.mountPoint || '/'}</span>
 							{#if diskInfo.filesystem}
