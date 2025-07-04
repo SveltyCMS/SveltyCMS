@@ -20,7 +20,7 @@
 
 	// Stores
 	import { systemPreferences } from '@stores/systemPreferences.svelte';
-	import { ScreenSize, screenSize } from '@stores/screenSizeStore.svelte';
+	import { screenSize } from '@stores/screenSizeStore.svelte';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -66,10 +66,12 @@
 	}
 
 	// Constants
-	const GRID_COLS = 4;
 	const ROW_HEIGHT = 400;
 	const GAP_SIZE = 16;
 	const HEADER_HEIGHT = 60;
+
+	// Derived grid properties
+	let gridCellWidth = $derived(0); // Will be calculated based on container width
 
 	// Props
 	interface Props {
@@ -125,6 +127,7 @@
 	let items = $state<DashboardWidgetConfig[]>([]);
 	let dropdownOpen = $state(false);
 	let preferencesLoaded = $state(false);
+	let searchQuery = $state('');
 
 	// Drag and drop state
 	let dragState = $state<DragState>({
@@ -147,9 +150,21 @@
 	let gridUpdateCounter = $state(0);
 
 	// Derived values using Svelte's reactive system
-	let currentTheme = $derived($modeCurrent ? 'light' : 'dark');
+	let currentTheme = $derived($modeCurrent ? 'dark' : 'light') as 'light' | 'dark';
 	let availableWidgets = $derived(Object.keys(widgetComponentRegistry).filter((name) => !items.some((item) => item.component === name)));
 	let canAddMoreWidgets = $derived(availableWidgets.length > 0);
+	let filteredWidgets = $derived(
+		availableWidgets
+			.filter((componentName) => {
+				const widgetInfo = widgetComponentRegistry[componentName as keyof typeof widgetComponentRegistry];
+				return widgetInfo.name.toLowerCase().includes(searchQuery.toLowerCase()) || componentName.toLowerCase().includes(searchQuery.toLowerCase());
+			})
+			.sort((a, b) => {
+				const nameA = widgetComponentRegistry[a as keyof typeof widgetComponentRegistry].name;
+				const nameB = widgetComponentRegistry[b as keyof typeof widgetComponentRegistry].name;
+				return nameA.localeCompare(nameB);
+			})
+	);
 
 	// Track the current screen size
 	let currentScreenSize = screenSize.value;
@@ -159,16 +174,19 @@
 	let layoutHint = $state<string | null>(null);
 
 	// Helper: Validate widgets
-	function validateWidgets(widgets: any[]): DashboardWidgetConfig[] {
-		return (widgets || []).filter((w) => w && w.id && w.component && w.size && typeof w.gridPosition === 'number');
+	function validateWidgets(widgets: any): DashboardWidgetConfig[] {
+		// Ensure widgets is an array before calling filter
+		const widgetsArray = Array.isArray(widgets) ? widgets : [];
+		return widgetsArray.filter((w) => w && w.id && w.component && w.size && typeof w.gridPosition === 'number');
 	}
 
 	// Watch for screen size changes and switch layout if a saved layout exists
 	$effect(() => {
 		const prefsState = $systemPreferences;
-		const widgetsForNewSize = validateWidgets(prefsState?.preferences?.[screenSize.value] || []);
+		// Since the API returns a simple array of preferences, we'll use that directly
+		const widgetsForNewSize = validateWidgets(prefsState?.preferences || []);
 		if (preferencesLoaded && currentScreenSize === undefined) {
-			// First load: fallback to any available layout if none for current screen size
+			// First load: use the loaded preferences
 			if (widgetsForNewSize.length > 0) {
 				layoutHint = null;
 				items = widgetsForNewSize.map((existingWidget, index) => {
@@ -185,68 +203,21 @@
 						component: existingWidget.component,
 						label: existingWidget.label || componentInfo?.name || 'Unknown Widget',
 						icon: existingWidget.icon || componentInfo?.icon || 'mdi:help-circle',
-						size: existingWidget.size || defaultSize,
-						gridPosition: index
+						size: (existingWidget as any).size || defaultSize,
+						gridPosition: (existingWidget as any).gridPosition || index
 					};
 				});
 				items = recalculateGridPositions();
 				currentScreenSize = screenSize.value;
-			} else {
-				// Try to find a layout for any other screen size
-				const availableSizes = Object.keys(prefsState?.preferences || {}) as string[];
-				const fallbackSize = availableSizes.find((size) => validateWidgets(prefsState?.preferences?.[size]).length > 0);
-				if (fallbackSize) {
-					layoutHint = `Showing layout for ${fallbackSize} (no layout for ${screenSize.value})`;
-					const fallbackWidgets = validateWidgets(prefsState.preferences[fallbackSize]);
-					// Copy fallback layout to current screen size for independent customization
-					prefsState.preferences[screenSize.value] = fallbackWidgets.map((w) => ({ ...w, id: crypto.randomUUID() }));
-					items = fallbackWidgets.map((existingWidget, index) => {
-						const componentInfo = widgetComponentRegistry[existingWidget.component as keyof typeof widgetComponentRegistry];
-						let defaultSize: WidgetSize = '1/4';
-						if (existingWidget.component === 'LogsWidget') defaultSize = '1/2';
-						else {
-							if (index === 1) defaultSize = '1/2';
-							if (index === 2) defaultSize = '3/4';
-							if (index === 3) defaultSize = 'full';
-						}
-						return {
-							id: existingWidget.id || crypto.randomUUID(),
-							component: existingWidget.component,
-							label: existingWidget.label || componentInfo?.name || 'Unknown Widget',
-							icon: existingWidget.icon || componentInfo?.icon || 'mdi:help-circle',
-							size: existingWidget.size || defaultSize,
-							gridPosition: index
-						};
-					});
-					items = recalculateGridPositions();
-					currentScreenSize = screenSize.value;
-				}
 			}
-		} else if (preferencesLoaded && screenSize.value !== currentScreenSize) {
-			if (widgetsForNewSize.length > 0) {
+		} else if (preferencesLoaded && $screenSize !== currentScreenSize) {
+			// For now, we'll use the same layout for all screen sizes
+			// In the future, we can implement screen-size-specific layouts
+			currentScreenSize = $screenSize;
+			layoutHint = `Layout updated for ${$screenSize}`;
+			setTimeout(() => {
 				layoutHint = null;
-				items = widgetsForNewSize.map((existingWidget, index) => {
-					const componentInfo = widgetComponentRegistry[existingWidget.component as keyof typeof widgetComponentRegistry];
-					let defaultSize: WidgetSize = '1/4';
-					if (existingWidget.component === 'LogsWidget') defaultSize = '1/2';
-					else {
-						if (index === 1) defaultSize = '1/2';
-						if (index === 2) defaultSize = '3/4';
-						if (index === 3) defaultSize = 'full';
-					}
-					return {
-						id: existingWidget.id || crypto.randomUUID(),
-						component: existingWidget.component,
-						label: existingWidget.label || componentInfo?.name || 'Unknown Widget',
-						icon: existingWidget.icon || componentInfo?.icon || 'mdi:help-circle',
-						size: existingWidget.size || defaultSize,
-						gridPosition: index
-					};
-				});
-				items = recalculateGridPositions();
-				currentScreenSize = screenSize.value;
-				layoutHint = `Switched to layout for ${screenSize.value}`;
-			}
+			}, 3000);
 		}
 	});
 
@@ -269,53 +240,6 @@
 	}
 
 	// Grid calculation functions
-	function calculateGridLayout(): (string | null)[] {
-		const grid = Array(16).fill(null);
-		const sortedItems = [...items].sort((a, b) => a.gridPosition - b.gridPosition);
-
-		sortedItems.forEach((item) => {
-			const span = getColumnSpan(item.size);
-			const startCol = item.gridPosition % 4;
-			const startRow = Math.floor(item.gridPosition / 4);
-
-			for (let col = startCol; col < startCol + span && col < 4; col++) {
-				const index = startRow * 4 + col;
-				if (index >= 0 && index < 16) {
-					grid[index] = item.id;
-				}
-			}
-		});
-
-		return grid;
-	}
-
-	function findNextAvailablePosition(widgetSize: WidgetSize, startFromIndex = 0): number {
-		const span = getColumnSpan(widgetSize);
-		const grid = calculateGridLayout();
-
-		for (let i = startFromIndex; i < 16; i++) {
-			const col = i % 4;
-			const row = Math.floor(i / 4);
-
-			let canFit = true;
-			for (let j = 0; j < span; j++) {
-				const checkCol = col + j;
-				const checkIndex = row * 4 + checkCol;
-
-				if (checkCol >= 4 || checkIndex >= 16 || grid[checkIndex] !== null) {
-					canFit = false;
-					break;
-				}
-			}
-
-			if (canFit) {
-				return i;
-			}
-		}
-
-		return -1;
-	}
-
 	function recalculateGridPositions(): DashboardWidgetConfig[] {
 		const newItems = [...items];
 		let currentRow = 0;
@@ -597,6 +521,7 @@
 		items = recalculateGridPositions();
 		saveLayout();
 		dropdownOpen = false;
+		searchQuery = ''; // Reset search when adding widget
 	}
 
 	// Keyboard navigation functions
@@ -811,64 +736,93 @@
 	}
 
 	// Lifecycle and data management
-	onMount(async () => {
-		try {
-			await systemPreferences.loadPreferences(pageData.user.id);
-			const prefsState = $systemPreferences;
-			const loadedWidgets = validateWidgets(prefsState?.preferences?.[ScreenSize.MD] || []);
-			items = loadedWidgets.map((existingWidget, index) => {
-				const componentInfo = widgetComponentRegistry[existingWidget.component as keyof typeof widgetComponentRegistry];
-				let defaultSize: WidgetSize = '1/4';
-				if (existingWidget.component === 'LogsWidget') defaultSize = '1/2';
-				else {
-					if (index === 1) defaultSize = '1/2';
-					if (index === 2) defaultSize = '3/4';
-					if (index === 3) defaultSize = 'full';
-				}
-				return {
-					id: existingWidget.id || crypto.randomUUID(),
-					component: existingWidget.component,
-					label: existingWidget.label || componentInfo?.name || 'Unknown Widget',
-					icon: existingWidget.icon || componentInfo?.icon || 'mdi:help-circle',
-					size: existingWidget.size || defaultSize,
-					gridPosition: index
-				};
-			});
-			items = recalculateGridPositions();
-			loadError = null;
-		} catch (error) {
-			items = [];
-			loadError = 'Failed to load dashboard preferences. Please try again.';
-		}
-		preferencesLoaded = true;
+	onMount(() => {
+		const loadData = async () => {
+			try {
+				await systemPreferences.loadPreferences(pageData.user.id);
+				const prefsState = $systemPreferences;
+				const loadedWidgets = validateWidgets(prefsState?.preferences || []);
+				items = loadedWidgets.map((existingWidget, index) => {
+					const componentInfo = widgetComponentRegistry[existingWidget.component as keyof typeof widgetComponentRegistry];
+					let defaultSize: WidgetSize = '1/4';
+					if (existingWidget.component === 'LogsWidget') defaultSize = '1/2';
+					else {
+						if (index === 1) defaultSize = '1/2';
+						if (index === 2) defaultSize = '3/4';
+						if (index === 3) defaultSize = 'full';
+					}
+					return {
+						id: existingWidget.id || crypto.randomUUID(),
+						component: existingWidget.component,
+						label: existingWidget.label || componentInfo?.name || 'Unknown Widget',
+						icon: existingWidget.icon || componentInfo?.icon || 'mdi:help-circle',
+						size: (existingWidget as any).size || defaultSize,
+						gridPosition: (existingWidget as any).gridPosition || index
+					};
+				});
+				items = recalculateGridPositions();
+				loadError = null;
+			} catch (error) {
+				items = [];
+				loadError = 'Failed to load dashboard preferences. Please try again.';
+			}
+			preferencesLoaded = true;
+		};
+
+		loadData();
+
 		document.addEventListener('keydown', handleKeyDown);
+		document.addEventListener('click', handleClickOutside);
 
 		return () => {
 			document.removeEventListener('keydown', handleKeyDown);
+			document.removeEventListener('click', handleClickOutside);
 			removeGlobalDragListeners();
 		};
 	});
 
+	// Handle clicking outside dropdown to close it
+	function handleClickOutside(event: MouseEvent) {
+		if (dropdownOpen) {
+			const dropdown = document.querySelector('.widget-dropdown');
+			const headerButton = document.querySelector('.widget-dropdown-button');
+			const emptyStateButton = document.querySelector('.empty-state-add-button');
+
+			if (
+				dropdown &&
+				!dropdown.contains(event.target as Node) &&
+				(!headerButton || !headerButton.contains(event.target as Node)) &&
+				(!emptyStateButton || !emptyStateButton.contains(event.target as Node))
+			) {
+				dropdownOpen = false;
+				searchQuery = '';
+			}
+		}
+	}
+
 	async function saveLayout() {
 		try {
 			// Convert DashboardWidgetConfig to WidgetPreference format
-			const widgetPreferences = items.map((item) => ({
-				id: item.id,
-				component: item.component,
-				label: item.label,
-				icon: item.icon,
-				size: item.size,
-				gridPosition: item.gridPosition,
-				// Add required WidgetPreference fields
-				x: 0,
-				y: 0,
-				w: getColumnSpan(item.size),
-				h: 1,
-				movable: true,
-				resizable: true
-			}));
+			const widgetPreferences = items.map(
+				(item) =>
+					({
+						id: item.id,
+						component: item.component,
+						label: item.label,
+						icon: item.icon,
+						x: 0,
+						y: 0,
+						w: getColumnSpan(item.size),
+						h: 1,
+						movable: true,
+						resizable: true,
+						// Store our custom properties as part of the object
+						size: item.size,
+						gridPosition: item.gridPosition
+					}) as any
+			);
 
-			await systemPreferences.setPreference(pageData.user.id, ScreenSize.MD, widgetPreferences);
+			await systemPreferences.setPreference(pageData.user.id, widgetPreferences);
 		} catch (error) {}
 	}
 </script>
@@ -877,9 +831,10 @@
 	class="dashboard-container m-0 flex min-h-screen w-full flex-col bg-surface-100 p-0 text-neutral-900 dark:bg-surface-900 dark:text-neutral-100"
 	style="overflow-x: hidden; overflow-y: auto; touch-action: pan-y;"
 >
-	<header class="my-2 flex items-center justify-between gap-2 border-b border-surface-200 px-4 py-2 dark:border-surface-700">
-		<h1 class="sr-only">Dashboard</h1>
-		<PageTitle name="Dashboard" icon="bi:bar-chart-line" />
+	<header class="flex items-center justify-between gap-2">
+		<div class="">
+			<PageTitle name="Dashboard" icon="bi:bar-chart-line" />
+		</div>
 
 		<div class="flex items-center gap-2">
 			{#if keyboardState.mode}
@@ -893,48 +848,105 @@
 			{#if canAddMoreWidgets}
 				<div class="relative">
 					<button
-						onclick={() => (dropdownOpen = !dropdownOpen)}
+						onclick={() => {
+							dropdownOpen = !dropdownOpen;
+							if (dropdownOpen) {
+								// Focus search input when dropdown opens
+								setTimeout(() => {
+									const searchInput = document.getElementById('widget-search');
+									if (searchInput) searchInput.focus();
+								}, 10);
+							} else {
+								searchQuery = ''; // Reset search when closing
+							}
+						}}
 						type="button"
 						aria-haspopup="true"
 						aria-expanded={dropdownOpen}
-						class="variant-filled-tertiary btn gap-2 !text-white dark:variant-filled-primary"
+						class="widget-dropdown-button variant-filled-tertiary {$screenSize === 'SM' || $screenSize === 'XS'
+							? 'btn-icon '
+							: 'btn gap-2 rounded-full'} !text-white dark:variant-filled-primary"
+						title="Add Widget"
 					>
 						<iconify-icon icon="carbon:add-filled" width="20"></iconify-icon>
-						Add Widget
+						{#if $screenSize !== 'SM' && $screenSize !== 'XS'}
+							<span>Add Widget</span>
+						{/if}
 					</button>
 					{#if dropdownOpen}
 						<div
-							class="absolute right-0 z-20 mt-2 w-56 origin-top-right rounded-md border border-gray-300 bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:border-gray-700 dark:bg-gray-800"
+							class="widget-dropdown absolute right-0 z-20 mt-2 w-72 origin-top-right rounded-md border border-gray-300 bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:border-gray-700 dark:bg-gray-800"
 							role="menu"
 						>
-							<div class="py-1" role="none">
-								{#each availableWidgets as componentName}
-									{@const widgetInfo = widgetComponentRegistry[componentName as keyof typeof widgetComponentRegistry]}
-									<button
-										onclick={() => addNewWidget(componentName)}
-										type="button"
-										class="flex w-full items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:text-white"
-										role="menuitem"
-									>
-										<iconify-icon icon={widgetInfo.icon} width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-										{widgetInfo.name}
-									</button>
-								{/each}
+							<!-- Search input -->
+							<div class="border-b border-gray-200 p-3 dark:border-gray-600">
+								<div class="relative">
+									<iconify-icon icon="mdi:magnify" width="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
+									></iconify-icon>
+									<input
+										id="widget-search"
+										type="text"
+										placeholder="Search widgets..."
+										bind:value={searchQuery}
+										class="w-full rounded-md border border-gray-300 bg-white py-2 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 dark:focus:border-primary-400 dark:focus:ring-primary-400"
+										onkeydown={(e) => {
+											if (e.key === 'Escape') {
+												dropdownOpen = false;
+												searchQuery = '';
+											} else if (e.key === 'Enter' && filteredWidgets.length > 0) {
+												addNewWidget(filteredWidgets[0]);
+											}
+										}}
+									/>
+								</div>
+							</div>
+
+							<!-- Widget list -->
+							<div class="max-h-64 overflow-y-auto py-1" role="none">
+								{#if filteredWidgets.length === 0}
+									<div class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+										{searchQuery ? 'No widgets found matching your search.' : 'No widgets available.'}
+									</div>
+								{:else}
+									{#each filteredWidgets as componentName}
+										{@const widgetInfo = widgetComponentRegistry[componentName as keyof typeof widgetComponentRegistry]}
+										<button
+											onclick={() => addNewWidget(componentName)}
+											type="button"
+											class="flex w-full items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:text-white"
+											role="menuitem"
+										>
+											<iconify-icon icon={widgetInfo.icon} width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+											<span class="truncate">{widgetInfo.name}</span>
+										</button>
+									{/each}
+								{/if}
 							</div>
 						</div>
 					{/if}
 				</div>
 			{/if}
-			<button class="variant-outline-warning btn" onclick={resetGrid}>Reset Layout</button>
+			<button
+				class="variant-outline-warning {$screenSize === 'SM' || $screenSize === 'XS' ? 'btn-icon' : 'btn'}"
+				onclick={resetGrid}
+				title="Reset Layout"
+			>
+				<iconify-icon icon="mdi:refresh" width="16"></iconify-icon>
+				{#if $screenSize !== 'SM' && $screenSize !== 'XS'}
+					<span class="ml-2">Reset Layout</span>
+				{/if}
+			</button>
 			<button
 				onclick={() => (keyboardState.mode = !keyboardState.mode)}
-				class="variant-outline-primary btn gap-2 {keyboardState.mode
+				class="variant-outline-primary {$screenSize === 'SM' || $screenSize === 'XS' ? 'btn-icon' : 'btn gap-2'} {keyboardState.mode
 					? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
 					: ''}"
 				title="Toggle keyboard navigation mode"
 			>
 				<iconify-icon icon="mdi:keyboard" width="16"></iconify-icon>
-				Keyboard
+				{#if $screenSize !== 'SM' && $screenSize !== 'XS'}
+					<span>Keyboard</span>
+				{/if}
 			</button>
 			<button onclick={() => history.back()} aria-label="Back" class="variant-ghost-surface btn-icon">
 				<iconify-icon icon="ri:arrow-left-line" width="20"></iconify-icon>
@@ -1037,14 +1049,15 @@
 									icon={item.icon}
 									theme={currentTheme}
 									widgetId={item.id}
-									currentSize={item.size}
-									availableSizes={getAvailableSizes(item.component)}
+									currentSize={item.size as any}
+									availableSizes={getAvailableSizes(item.component) as any}
 									onSizeChange={(newSize) => resizeWidget(item.id, newSize)}
+									{gridCellWidth}
 									{ROW_HEIGHT}
 									{GAP_SIZE}
 									onCloseRequest={() => removeWidget(item.id)}
 									draggable={true}
-									onDragStart={(event, dragItem, element) => handleDragStart(event, item, element)}
+									onDragStart={(event, _dragItem, element) => handleDragStart(event, item, element)}
 								/>
 							{:else}
 								<div
@@ -1088,8 +1101,22 @@
 							Click below to add your first widget and start personalizing your dashboard experience.
 						</p>
 						<button
-							class="btn rounded-full bg-primary-500 px-6 py-3 text-lg font-semibold text-white shadow-lg transition-all duration-150 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-400 dark:bg-primary-600 dark:hover:bg-primary-500"
-							onclick={() => (dropdownOpen = true)}
+							class="empty-state-add-button btn rounded-full bg-primary-500 px-6 py-3 text-lg font-semibold text-white shadow-lg transition-all duration-150 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-400 dark:bg-primary-600 dark:hover:bg-primary-500"
+							onclick={() => {
+								dropdownOpen = !dropdownOpen;
+								if (dropdownOpen) {
+									// Focus search input when dropdown opens
+									setTimeout(() => {
+										const searchInput = document.getElementById('widget-search');
+										if (searchInput) searchInput.focus();
+									}, 10);
+								} else {
+									searchQuery = ''; // Reset search when closing
+								}
+							}}
+							type="button"
+							aria-haspopup="true"
+							aria-expanded={dropdownOpen}
 							aria-label="Add widget"
 						>
 							<iconify-icon icon="mdi:plus" width="22" class="mr-2" aria-hidden="true"></iconify-icon>

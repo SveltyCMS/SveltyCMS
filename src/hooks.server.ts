@@ -312,6 +312,12 @@ export const invalidateAdminCache = (cacheKey?: 'roles' | 'users' | 'tokens'): v
 	}
 };
 
+// Helper function to invalidate user count cache - exported for use after user creation/deletion
+export const invalidateUserCountCache = (): void => {
+	userCountCache = null;
+	logger.debug('User count cache invalidated');
+};
+
 // Handle static asset caching
 const handleStaticAssetCaching: Handle = async ({ event, resolve }) => {
 	if (isStaticAsset(event.url.pathname)) {

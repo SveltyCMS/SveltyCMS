@@ -65,7 +65,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		const token = await tokenAdapter.createToken({
 			user_id: tokenData.user_id,
-			email: tokenData.email,
+			email: tokenData.email.toLowerCase(), // Normalize email to lowercase
 			expires: expiresAt,
 			type: 'registration' // Or another appropriate type
 		});

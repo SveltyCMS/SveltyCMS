@@ -1,6 +1,6 @@
 /**
- * @file src/routes/api/dashboard/media/+server.ts
- * @description API endpoint for media file listings for dashboard widgets
+ * @file src/routes/api/dashboard/last5media/+server.ts
+ * @description API endpoint for last 5 media files for dashboard widgets
  */
 
 import fs from 'fs/promises';
@@ -15,7 +15,7 @@ import { hasPermissionByAction } from '@src/auth/permissions';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-export const GET: RequestHandler = async ({ locals, url }) => {
+export const GET: RequestHandler = async ({ locals }) => {
 	try {
 		// Check if user has permission for dashboard access
 		const hasPermission = hasPermissionByAction(
@@ -27,11 +27,11 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		);
 
 		if (!hasPermission) {
-			logger.warn('Unauthorized attempt to access media data', { userId: locals.user?._id });
+			logger.warn('Unauthorized attempt to access last 5 media data', { userId: locals.user?._id });
 			throw error(403, 'Forbidden: You do not have permission to access media data.');
 		}
 
-		const limit = parseInt(url.searchParams.get('limit') || '5');
+		const limit = 5; // Fixed to 5 for this specific endpoint
 
 		try {
 			// Get media files from the mediaFiles directory
@@ -40,7 +40,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 			// Filter for image/video files and get file stats
 			const mediaFiles = [];
-			for (const file of files.slice(0, limit)) {
+			for (const file of files) {
 				try {
 					const filePath = path.join(mediaDir, file);
 					const stats = await fs.stat(filePath);
@@ -64,12 +64,15 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			// Sort by modification date (newest first)
 			mediaFiles.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
 
-			logger.info('Media files fetched successfully', {
-				count: mediaFiles.length,
+			// Return only the last 5 media files
+			const last5Media = mediaFiles.slice(0, limit);
+
+			logger.info('Last 5 media files fetched successfully', {
+				count: last5Media.length,
 				requestedBy: locals.user?._id
 			});
 
-			return json(mediaFiles.slice(0, limit));
+			return json(last5Media);
 		} catch (dirError) {
 			// If mediaFiles directory doesn't exist or can't be read, return empty array
 			logger.warn('Could not read media directory:', dirError);
@@ -79,7 +82,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		const httpError = err as { status?: number; body?: { message?: string }; message?: string };
 		const status = httpError.status || 500;
 		const message = httpError.body?.message || httpError.message || 'Internal Server Error';
-		logger.error('Error fetching media files:', { error: message, status });
+		logger.error('Error fetching last 5 media files:', { error: message, status });
 		throw error(status, message);
 	}
 };

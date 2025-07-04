@@ -49,6 +49,7 @@ const emailSchema = pipe(
 	string(),
 	trim(),
 	transform((value) => value ?? ''),
+	transform((value) => value.toLowerCase()), // Normalize email to lowercase
 	emailValidator(m.formSchemas_Emailvalid())
 );
 

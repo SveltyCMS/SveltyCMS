@@ -66,6 +66,8 @@ Features:
 
 	const pageData = page.data as PageData;
 	const firstUserExists = pageData.firstUserExists;
+	const showOAuth = pageData.showOAuth;
+	const hasExistingOAuthUsers = pageData.hasExistingOAuthUsers;
 
 	// State management
 	let tabIndex = $state(1);
@@ -125,8 +127,8 @@ Features:
 		token: $form.token || ''
 	});
 
-	// URL parameter handling
-	const params = browser ? new URL(window.location.href).searchParams : new URLSearchParams('');
+	// URL parameter handling - update params when URL changes
+	const params = $derived(browser ? new URL(window.location.href).searchParams : new URLSearchParams(''));
 
 	// Initialize form with invite data when in invite flow
 	$effect(() => {
@@ -136,14 +138,31 @@ Features:
 		if (isInviteFlow && token) {
 			$form.token = token;
 		}
-		// Also handle legacy URL params for backwards compatibility
-		else if (browser && params.has('regToken')) {
-			$form.token = params.get('regToken')!;
+		// Handle URL parameters for invite tokens (both new and legacy formats)
+		if (browser && !isInviteFlow) {
+			const inviteToken = params.get('invite_token') || params.get('regToken');
+			if (inviteToken && inviteToken !== $form.token) {
+				console.log('Setting invite token from URL:', inviteToken);
+				$form.token = inviteToken;
+			}
+		}
+		// Also check if the form was pre-filled by the server (invalid token case)
+		if (browser && formValues.token && !isInviteFlow) {
+			console.log('Form token pre-filled by server:', formValues.token);
 		}
 	});
 
 	// Event handlers
 	function handleOAuth() {
+		// Check if user needs an invitation token
+		if (!isInviteFlow && !firstUserExists && !hasExistingOAuthUsers && !formValues.token) {
+			// Show a helpful message
+			alert(
+				'⚠️ Please enter your invitation token first before using Google OAuth signup. Both email/password and OAuth registration require an invitation from an administrator.'
+			);
+			return;
+		}
+
 		const form = document.createElement('form');
 		form.method = 'post';
 
@@ -151,8 +170,11 @@ Features:
 		if (isInviteFlow && token) {
 			// Build the action URL with the invite token as a query parameter
 			form.action = `?/signInOAuth&invite_token=${encodeURIComponent(token)}`;
+		} else if (formValues.token) {
+			// User has entered a token in the form, pass it along
+			form.action = `?/signInOAuth&invite_token=${encodeURIComponent(formValues.token)}`;
 		} else {
-			form.action = '?/OAuth';
+			form.action = '?/signInOAuth';
 		}
 
 		document.body.appendChild(form);
@@ -350,6 +372,9 @@ Features:
 						{#if $errors.token}
 							<span class="text-xs text-error-500">{$errors.token}</span>
 						{/if}
+						{#if formValues.token && inviteError}
+							<span class="text-xs text-warning-400">⚠️ Token was pre-filled from URL and will validated against the server</span>
+						{/if}
 					{:else if isInviteFlow}
 						<!-- Hidden token field for invite flow -->
 						<input type="hidden" name="token" value={token} />
@@ -360,11 +385,11 @@ Features:
 						<span class="text-xs text-error-500">{response}</span>
 					{/if}
 
-					{#if inviteError}
+					{#if inviteError && !formValues.token}
 						<span class="text-xs text-error-500">{inviteError}</span>
 					{/if}
 
-					{#if !privateEnv.USE_GOOGLE_OAUTH}
+					{#if !privateEnv.USE_GOOGLE_OAUTH || !showOAuth}
 						<!-- Email SignIn only -->
 						<button type="submit" class="variant-filled btn mt-4 uppercase" aria-label={isInviteFlow ? 'Accept Invitation' : m.form_signup()}>
 							{isInviteFlow ? 'Accept Invitation & Create Account' : m.form_signup()}
@@ -391,6 +416,14 @@ Features:
 								<span class="">OAuth</span>
 							</button>
 						</div>
+
+						{#if !isInviteFlow && !firstUserExists && !hasExistingOAuthUsers}
+							<p class="mt-2 text-xs text-surface-400">
+								💡 Note: Both email/password and Google OAuth registration require an invitation token from an administrator.
+							</p>
+						{:else if !isInviteFlow && hasExistingOAuthUsers}
+							<p class="mt-2 text-xs text-surface-400">💡 Note: New user registration requires an invitation token from an administrator.</p>
+						{/if}
 					{/if}
 				</form>
 			</div>

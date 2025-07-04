@@ -20,6 +20,7 @@ Features:
 -->
 
 <script lang="ts">
+	// --- Widget Metadata ---
 	export const widgetMeta = {
 		name: 'User Activity',
 		icon: 'mdi:account-group',
@@ -35,44 +36,48 @@ Features:
 
 	import BaseWidget from '../BaseWidget.svelte';
 
+	// --- Type Definitions ---
+	// Defines the structure for a single user activity entry.
+	interface User {
+		email: string;
+		status: 'active' | 'pending' | string;
+		role: string;
+	}
+
+	// Defines the shape of the data payload fetched from the API.
+	type FetchedData = User[];
+
+	// Type alias for widget size options.
+	type Size = '1/4' | '1/2' | '3/4' | 'full';
+
+	// --- Component Props ---
 	let {
 		label = 'User Activity',
 		theme = 'light',
 		icon = 'mdi:account-group',
 		widgetId = undefined,
-
-		// New sizing props
 		currentSize = '1/4',
 		availableSizes = ['1/4', '1/2', '3/4', 'full'],
-		onSizeChange = (newSize) => {},
-
-		// Drag props
+		// FIX: Added types and prefixed unused parameters with an underscore.
+		onSizeChange = (_newSize: Size) => {},
 		draggable = true,
-		onDragStart = (event, item, element) => {},
-
-		// Legacy props
+		onDragStart = (_event: MouseEvent, _item: any, _element: HTMLElement) => {},
 		gridCellWidth = 0,
 		ROW_HEIGHT = 0,
 		GAP_SIZE = 0,
 		resizable = true,
-		onResizeCommitted = (spans: { w: number; h: number }) => {},
+		onResizeCommitted = (_spans: { w: number; h: number }) => {},
 		onCloseRequest = () => {}
 	} = $props<{
 		label?: string;
 		theme?: 'light' | 'dark';
 		icon?: string;
 		widgetId?: string;
-
-		// New sizing props
-		currentSize?: '1/4' | '1/2' | '3/4' | 'full';
-		availableSizes?: ('1/4' | '1/2' | '3/4' | 'full')[];
-		onSizeChange?: (newSize: '1/4' | '1/2' | '3/4' | 'full') => void;
-
-		// Drag props
+		currentSize?: Size;
+		availableSizes?: Size[];
+		onSizeChange?: (newSize: Size) => void;
 		draggable?: boolean;
 		onDragStart?: (event: MouseEvent, item: any, element: HTMLElement) => void;
-
-		// Legacy props
 		gridCellWidth?: number;
 		ROW_HEIGHT?: number;
 		GAP_SIZE?: number;
@@ -101,7 +106,9 @@ Features:
 	{onResizeCommitted}
 	{onCloseRequest}
 >
-	{#snippet children({ data: fetchedData })}
+	<!-- FIX: Explicitly typed the 'data' prop from the snippet to resolve 'never' type errors. -->
+	{#snippet children({ data: fetchedData }: { data: FetchedData | undefined })}
+		<!-- This check now correctly narrows the type of 'fetchedData' to 'User[]' -->
 		{#if fetchedData && Array.isArray(fetchedData) && fetchedData.length > 0}
 			<!-- Stats row on top -->
 			<div class="mb-2 flex items-center justify-between text-xs text-surface-600 opacity-80 dark:text-surface-400">
@@ -115,16 +122,16 @@ Features:
 						.length}</span
 				>
 			</div>
-			<div class="grid gap-2" style="max-height: 120px; overflow: hidden;">
+			<div class="grid gap-2" style="max-height: 120px; overflow-y: auto;">
 				{#each fetchedData.slice(0, 5) as user}
 					<div class="flex items-center justify-between rounded-lg bg-surface-100/80 px-3 py-2 text-xs dark:bg-surface-700/60">
 						<div class="flex min-w-0 items-center gap-2">
 							{#if user.status === 'active'}
-								<span class="inline-block h-2 w-2 rounded-full bg-emerald-500" title="Online"></span>
+								<span class="inline-block h-2 w-2 flex-shrink-0 rounded-full bg-emerald-500" title="Online"></span>
 							{:else if user.status === 'pending'}
-								<span class="inline-block h-2 w-2 rounded-full bg-yellow-400" title="Pending"></span>
+								<span class="inline-block h-2 w-2 flex-shrink-0 rounded-full bg-yellow-400" title="Pending"></span>
 							{:else}
-								<span class="inline-block h-2 w-2 rounded-full bg-gray-400" title={user.status}></span>
+								<span class="inline-block h-2 w-2 flex-shrink-0 rounded-full bg-gray-400" title={user.status}></span>
 							{/if}
 							<span class="text-text-900 dark:text-text-100 truncate font-medium" title={user.email}>{user.email || 'Unknown User'}</span>
 						</div>

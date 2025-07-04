@@ -23,6 +23,9 @@ import type { PageServerLoad } from './$types';
 // Rate Limiter
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
 
+// Cache invalidation
+import { invalidateUserCountCache } from '@src/hooks.server';
+
 // Superforms
 import { superValidate } from 'sveltekit-superforms/server';
 import { valibot } from 'sveltekit-superforms/adapters';
@@ -88,6 +91,51 @@ async function fetchAndRedirectToFirstCollection() {
 	return await getFirstCollectionRedirectUrl();
 }
 
+// Helper function to check if OAuth should be available
+async function shouldShowOAuth(isFirstUser: boolean, hasInviteToken: boolean): Promise<boolean> {
+	// If Google OAuth is not enabled, never show it
+	if (!privateEnv.USE_GOOGLE_OAUTH) {
+		return false;
+	}
+
+	// Always show OAuth for the first user (no invitation needed)
+	if (isFirstUser) {
+		return true;
+	}
+
+	// If there's an invite token, show OAuth (invited user can choose OAuth)
+	if (hasInviteToken) {
+		return true;
+	}
+
+	// Check if there are existing OAuth users - if so, show OAuth for sign-in
+	try {
+		await dbInitPromise;
+		if (!auth) {
+			logger.warn('Auth service not available for OAuth user check');
+			return false;
+		}
+
+		// Check for users who have signed in via OAuth (lastAuthMethod: 'google')
+		const users = await auth.listUsers(0, 1, { lastAuthMethod: 'google' });
+		const hasOAuthUsers = users && users.length > 0;
+
+		logger.debug(`OAuth users check: found ${users?.length || 0} users with lastAuthMethod 'google'`);
+
+		if (hasOAuthUsers) {
+			return true; // Show OAuth for existing OAuth users to sign in
+		}
+
+		// If no existing OAuth users, still show OAuth but it will require a token
+		// This allows users with invite tokens to enter them and use OAuth
+		return true;
+	} catch (error) {
+		logger.error('Error checking for OAuth users:', error);
+		// In case of error, be conservative but still allow OAuth with token requirement
+		return true;
+	}
+}
+
 // Cached version for performance optimization
 let cachedFirstCollectionPath: string | null = null;
 let cacheExpiry: number = 0;
@@ -132,6 +180,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			// Return fallback data instead of throwing error
 			return {
 				firstUserExists: true,
+				showOAuth: false, // Don't show OAuth if auth system isn't ready
+				hasExistingOAuthUsers: false,
 				loginForm: await superValidate(wrappedLoginSchema),
 				forgotForm: await superValidate(wrappedForgotSchema),
 				resetForm: await superValidate(wrappedResetSchema),
@@ -159,7 +209,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
 		if (inviteToken) {
 			// This is an invite flow!
-			const tokenData = await auth.validateToken(inviteToken, 'registration');
+			const tokenData = await auth.validateRegistrationToken(inviteToken);
 
 			if (tokenData.isValid && tokenData.details) {
 				// Token is valid! Prepare the page for invite-based signup.
@@ -168,9 +218,14 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				// Check firstUserExists for consistency
 				const firstUserExists = locals.isFirstUser === false;
 
+				// Check if OAuth should be shown (with invite token)
+				const showOAuth = await shouldShowOAuth(!firstUserExists, true);
+
 				return {
 					firstUserExists,
 					isInviteFlow: true,
+					showOAuth,
+					hasExistingOAuthUsers: false, // Not relevant for invite flow
 					token: inviteToken,
 					invitedEmail: tokenData.details.email,
 					roleId: tokenData.details.role, // Pass the roleId from the token
@@ -181,19 +236,31 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				};
 			} else {
 				// Token is invalid, expired, or already used.
-				logger.warn('Invalid invite token detected.');
+				// Instead of completely blocking, let the user access the form
+				// and pre-fill the token so they can see what's wrong or enter a different one
+				logger.warn('Invalid invite token detected, but allowing form access with pre-filled token.');
 
 				// Check firstUserExists for consistency
 				const firstUserExists = locals.isFirstUser === false;
 
+				// Check if OAuth should be shown (invalid invite, but has token)
+				const showOAuth = await shouldShowOAuth(!firstUserExists, true);
+
+				// Pre-fill the form with the invalid token and show a warning
+				const signUpForm = await superValidate(wrappedSignUpSchema);
+				signUpForm.data.token = inviteToken; // Pre-fill with the invalid token
+
 				return {
 					firstUserExists,
-					isInviteFlow: false,
-					inviteError: 'This invitation link is invalid, expired, or has already been used.',
+					isInviteFlow: false, // Not a proper invite flow since token is invalid
+					showOAuth,
+					hasExistingOAuthUsers: false,
+					inviteError:
+						'This invitation token appears to be invalid, expired, or already used. Please check with your administrator or enter a different token.',
 					loginForm: await superValidate(wrappedLoginSchema),
 					forgotForm: await superValidate(wrappedForgotSchema),
 					resetForm: await superValidate(wrappedResetSchema),
-					signUpForm: await superValidate(wrappedSignUpSchema)
+					signUpForm
 				};
 			}
 		}
@@ -340,9 +407,13 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					throw redirect(303, redirectPath);
 				}
 				logger.warn(`OAuth: User processing ended without session creation for ${googleUser.email}.`);
+				// Check if OAuth should be shown for error case
+				const showOAuth = await shouldShowOAuth(!firstUserExists, false);
 				return {
 					isInviteFlow: false,
 					firstUserExists,
+					showOAuth,
+					hasExistingOAuthUsers: false, // Not relevant for error case
 					loginForm: await superValidate(wrappedLoginSchema),
 					forgotForm: await superValidate(wrappedForgotSchema),
 					resetForm: await superValidate(wrappedResetSchema),
@@ -357,9 +428,13 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
 				const err = oauthError as Error;
 				logger.error(`Error during Google OAuth login process: ${err.message}`, { stack: err.stack });
+				// Check if OAuth should be shown for error case
+				const showOAuth = await shouldShowOAuth(!firstUserExists, false);
 				return {
 					isInviteFlow: false,
 					firstUserExists,
+					showOAuth,
+					hasExistingOAuthUsers: false, // Not relevant for error case
 					loginForm: await superValidate(wrappedLoginSchema),
 					forgotForm: await superValidate(wrappedForgotSchema),
 					resetForm: await superValidate(wrappedResetSchema),
@@ -375,9 +450,25 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		const resetForm = await superValidate(wrappedResetSchema);
 		const signUpForm = await superValidate(wrappedSignUpSchema);
 
+		// Check if OAuth should be shown
+		const showOAuth = await shouldShowOAuth(!firstUserExists, false);
+
+		// Check if there are existing OAuth users (for better UX messaging)
+		let hasExistingOAuthUsers = false;
+		try {
+			if (auth) {
+				const oauthUsers = await auth.listUsers(0, 1, { lastAuthMethod: 'google' });
+				hasExistingOAuthUsers = oauthUsers && oauthUsers.length > 0;
+			}
+		} catch (error) {
+			logger.error('Error checking for existing OAuth users:', error);
+		}
+
 		return {
 			isInviteFlow: false,
 			firstUserExists,
+			showOAuth,
+			hasExistingOAuthUsers,
 			loginForm,
 			forgotForm,
 			resetForm,
@@ -391,6 +482,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		return {
 			isInviteFlow: false,
 			firstUserExists: true,
+			showOAuth: false, // Don't show OAuth in error case
+			hasExistingOAuthUsers: false,
 			loginForm: await superValidate(wrappedLoginSchema),
 			forgotForm: await superValidate(wrappedForgotSchema),
 			resetForm: await superValidate(wrappedResetSchema),
@@ -447,6 +540,10 @@ export const actions: Actions = {
 
 				if (resp.status && resp.user) {
 					logger.debug(`Sign Up successful for ${resp.user.username}.`);
+
+					// Invalidate user count cache so the system knows a user now exists
+					invalidateUserCountCache();
+
 					const userLanguage = (get(systemLanguage) as Locale) || 'en';
 					const emailProps = {
 						username: resp.user.username,
@@ -487,6 +584,12 @@ export const actions: Actions = {
 					return message(signUpForm, resp.message || 'Admin sign-up failed. Please check your details.', { status: 400 });
 				}
 			} catch (e) {
+				// Check if this is a redirect (which is expected and successful)
+				if (e && typeof e === 'object' && 'status' in e && (e.status === 302 || e.status === 303)) {
+					// Re-throw the redirect - this is the expected flow
+					throw e;
+				}
+
 				const err = e as Error;
 				logger.error('Unexpected error in admin signUp:', { message: err.message, stack: err.stack });
 				return message(signUpForm, 'An unexpected server error occurred.', { status: 500 });
@@ -499,7 +602,7 @@ export const actions: Actions = {
 			return message(signUpForm, 'A valid invitation is required to create an account.', { status: 403 });
 		}
 
-		const tokenData = await auth.validateToken(token, 'registration');
+		const tokenData = await auth.validateRegistrationToken(token);
 		if (!tokenData.isValid || !tokenData.details) {
 			return message(signUpForm, 'This invitation is invalid, expired, or has already been used.', { status: 403 });
 		}
@@ -519,8 +622,11 @@ export const actions: Actions = {
 				isRegistered: true
 			});
 
+			// Invalidate user count cache so the system knows a new user now exists
+			invalidateUserCountCache();
+
 			// Invalidate the token immediately after use
-			await auth.consumeToken(token);
+			await auth.consumeRegistrationToken(token);
 
 			// Log the new user in by creating a session
 			const session = await auth.createSession({ user_id: newUser._id });
@@ -564,6 +670,12 @@ export const actions: Actions = {
 			const redirectPath = await fetchAndRedirectToFirstCollection();
 			throw redirect(303, redirectPath);
 		} catch (e) {
+			// Check if this is a redirect (which is expected and successful)
+			if (e && typeof e === 'object' && 'status' in e && (e.status === 302 || e.status === 303)) {
+				// Re-throw the redirect - this is the expected flow
+				throw e;
+			}
+
 			const err = e as Error;
 			logger.error('Error during invite signup:', err);
 			return message(signUpForm, err.message, { status: 500 });
@@ -788,6 +900,12 @@ export const actions: Actions = {
 				return message(pwresetForm, resp.message || 'Password reset failed. The link may be invalid or expired.', { status: 400 });
 			}
 		} catch (e) {
+			// Check if this is a redirect (which is expected and successful)
+			if (e && typeof e === 'object' && 'status' in e && (e.status === 302 || e.status === 303)) {
+				// Re-throw the redirect - this is the expected flow
+				throw e;
+			}
+
 			const err = e as Error;
 			logger.error(`Error in resetPW action`, { email, message: err.message, stack: err.stack });
 			return message(pwresetForm, 'An unexpected error occurred during password reset.', { status: 500 });

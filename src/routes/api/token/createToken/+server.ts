@@ -99,7 +99,7 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 		// Create a new token using the TokenAdapter
 		const token = await tokenAdapter.createToken({
 			user_id: uuidv4(), // Use uuidv4 to generate a unique user_id
-			email: validatedData.email,
+			email: validatedData.email.toLowerCase(), // Normalize email to lowercase
 			expires,
 			type: 'user-invite',
 			username: validatedData.username,
