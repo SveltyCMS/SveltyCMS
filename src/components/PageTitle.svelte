@@ -47,7 +47,7 @@
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { uiStateManager, toggleUIElement } from '@stores/UIStore.svelte';
+	import { toggleUIElement, uiStateManager } from '@stores/UIStore.svelte';
 	import { screenSize } from '@stores/screenSizeStore.svelte';
 
 	interface Props {
@@ -147,7 +147,7 @@
 		{#if uiStateManager.uiState.leftSidebar === 'hidden'}
 			<button
 				type="button"
-				onclick={() => toggleUIElement('leftSidebar', screenSize.value === 'lg' ? 'full' : 'collapsed')}
+				onclick={() => toggleUIElement('leftSidebar', screenSize.value === 'LG' ? 'full' : 'collapsed')}
 				aria-label="Open Sidebar"
 				class="variant-ghost-surface btn-icon"
 			>

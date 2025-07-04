@@ -17,37 +17,18 @@
 
 <script lang="ts">
 	// Stores
-	import { tabSet } from '@stores/store.svelte';
 	import { page } from '$app/state';
+	import { tabSet } from '@stores/store.svelte';
 	import { writable } from 'svelte/store';
-
 	// Auth
-	import Roles from './Roles.svelte';
-	import Permissions from './Permissions.svelte';
 	import AdminRole from './AdminRole.svelte';
-
+	import Permissions from './Permissions.svelte';
+	import Roles from './Roles.svelte';
 	// Skeleton
-	import { TabGroup, Tab } from '@skeletonlabs/skeleton';
-	import { getToastStore } from '@skeletonlabs/skeleton';
-
-	// Create local tabSet variable for binding
-	let localTabSet = $state(tabSet.value);
-
-	// Sync with store when local value changes
-	$effect(() => {
-		tabSet.set(localTabSet);
-	});
-
-	// Sync local value when store changes
-	$effect(() => {
-		localTabSet = tabSet.value;
-	});
-	const toastStore = getToastStore();
-
+	import { getToastStore, Tab, TabGroup } from '@skeletonlabs/skeleton';
 	// Components
-	import PageTitle from '@components/PageTitle.svelte';
 	import Loading from '@components/Loading.svelte';
-
+	import PageTitle from '@components/PageTitle.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -57,6 +38,10 @@
 	// Track the number of modified permissions
 	const modifiedCount = writable(0);
 	const modifiedPermissions = writable(false);
+
+	// Tab state for TabGroup
+	import { writable as svelteWritable } from 'svelte/store';
+	const localTabSet = svelteWritable(0);
 
 	const setRoleData = (data: any) => {
 		roles = data;
@@ -104,7 +89,7 @@
 			info: 'variant-filled-tertiary',
 			error: 'variant-filled-error'
 		};
-		toastStore.trigger({
+		getToastStore().trigger({
 			message: message,
 			background: backgrounds[type],
 			timeout: 3000,
@@ -145,39 +130,39 @@
 {#if $isLoading}
 	<Loading customTopText="Loading Admin Role..." customBottomText="" />
 {:else}
-	<!-- Full height tab group with responsive design -->
-	<div class="flex flex-col">
-		<TabGroup justify="justify-around text-tertiary-500 dark:text-primary-500" class="flex-grow">
-			<!-- User Permissions -->
-			<Tab bind:group={localTabSet} name="permissions" value={0}>
+			<Tab bind:group={$localTabSet} name="permissions" value={0}>
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="mdi:shield-lock-outline" width="28" class="text-black dark:text-white"></iconify-icon>
-					<span class={tabSet.value === 0 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>{m.system_permission()}</span>
+					<span class={$localTabSet === 0 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>{m.system_permission()}</span>
 				</div>
 			</Tab>
 
 			<!-- User Roles -->
-			<Tab bind:group={localTabSet} name="roles" value={1}>
+			<Tab bind:group={$localTabSet} name="roles" value={1}>
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="mdi:account-group" width="28" class="text-black dark:text-white"></iconify-icon>
-					<span class={tabSet.value === 1 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>{m.system_roles()}</span>
+					<span class={$localTabSet === 1 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>{m.system_roles()}</span>
 				</div>
 			</Tab>
 
 			<!-- Admin Role -->
-			<Tab bind:group={localTabSet} name="admin" value={2}>
+			<Tab bind:group={$localTabSet} name="admin" value={2}>
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="mdi:account-cog" width="28" class="text-black dark:text-white"></iconify-icon>
-					<span class={tabSet.value === 2 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>Admin</span>
+					<span class={$localTabSet === 2 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>Admin</span>
 				</div>
 			</Tab>
-
-			<!-- Tab Panels -->
+					<iconify-icon icon="mdi:account-cog" width="28" class="text-black dark:text-white"></iconify-icon>
+					<span class={tabSet.value === 2 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>Admin</span>
 			<svelte:fragment slot="panel">
-				{#if tabSet.value === 0}
+				{#if $localTabSet === 0}
 					<Permissions roleData={roles} {setRoleData} {updateModifiedCount} />
-				{:else if tabSet.value === 1}
+				{:else if $localTabSet === 1}
 					<Roles roleData={roles} {setRoleData} {updateModifiedCount} />
+				{:else}
+					<AdminRole roleData={roles} {setRoleData} />
+				{/if}
+			</svelte:fragment>
 				{:else}
 					<AdminRole roleData={roles} {setRoleData} />
 				{/if}

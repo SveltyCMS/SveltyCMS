@@ -65,7 +65,9 @@ function createScreenSizeStore() {
 	let height = $state<number>(initialHeight);
 	let currentSizeState = $state<ScreenSize>(initialSize);
 	const currentSize = {
-		get value() { return currentSizeState; },
+		get value() {
+			return currentSizeState;
+		},
 		set(newValue: ScreenSize) {
 			// Only update if value actually changed for performance
 			if (currentSizeState !== newValue) {
@@ -83,11 +85,10 @@ function createScreenSizeStore() {
 				$effect(() => {
 					fn(currentSizeState);
 				});
-				return () => { }; // cleanup function
+				return () => {}; // cleanup function
 			});
 		}
 	};
-
 
 	// Derived values using $derived rune
 	const isMobile = $derived(currentSizeState === ScreenSize.XS || currentSizeState === ScreenSize.SM);
@@ -122,7 +123,7 @@ function createScreenSizeStore() {
 	// Setup listener function
 	function setupListener(): () => void {
 		if (typeof window === 'undefined') {
-			return () => { };
+			return () => {};
 		}
 
 		const debouncedUpdate = debounce(updateScreenSize, 150);
@@ -145,13 +146,27 @@ function createScreenSizeStore() {
 	});
 
 	return {
-		get width() { return width; },
-		get height() { return height; },
-		get currentSize() { return currentSize; },
-		get isMobile() { return isMobile; },
-		get isTablet() { return isTablet; },
-		get isDesktop() { return isDesktop; },
-		get isLargeScreen() { return isLargeScreen; },
+		get width() {
+			return width;
+		},
+		get height() {
+			return height;
+		},
+		get currentSize() {
+			return currentSize;
+		},
+		get isMobile() {
+			return isMobile;
+		},
+		get isTablet() {
+			return isTablet;
+		},
+		get isDesktop() {
+			return isDesktop;
+		},
+		get isLargeScreen() {
+			return isLargeScreen;
+		},
 		setupListener
 	};
 }

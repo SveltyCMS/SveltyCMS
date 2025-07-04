@@ -494,21 +494,24 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			if (errorMessage.includes('A valid invitation is required')) {
 				throw error(403, {
 					message: 'Admin Invitation Required',
-					details: 'This CMS requires an invitation from an administrator to create any new account. Both email/password and Google OAuth registration require admin approval. Please contact the site administrator to request an invitation link.'
+					details:
+						'This CMS requires an invitation from an administrator to create any new account. Both email/password and Google OAuth registration require admin approval. Please contact the site administrator to request an invitation link.'
 				});
 			}
 
 			if (errorMessage.includes('invitation is invalid, expired, or has already been used')) {
 				throw error(403, {
 					message: 'Invalid or Expired Invitation',
-					details: 'Your invitation token is invalid, expired, or has already been used. Please request a new invitation from the administrator. Note that both email/password and OAuth registration require a valid invitation.'
+					details:
+						'Your invitation token is invalid, expired, or has already been used. Please request a new invitation from the administrator. Note that both email/password and OAuth registration require a valid invitation.'
 				});
 			}
 
 			if (errorMessage.includes('Google account email does not match the invitation email')) {
 				throw error(403, {
 					message: 'Google Account Email Mismatch',
-					details: 'The Google account email does not match the invitation email address. Please sign in with the correct Google account that matches your invitation, or contact the administrator for a new invitation with the correct email address.'
+					details:
+						'The Google account email does not match the invitation email address. Please sign in with the correct Google account that matches your invitation, or contact the administrator for a new invitation with the correct email address.'
 				});
 			}
 

@@ -21,13 +21,11 @@
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 	import type { FieldType } from '.';
-
 	// Utils
-	import { updateTranslationProgress, getFieldName } from '@src/utils/utils';
-
+	import { getFieldName, updateTranslationProgress } from '@src/utils/utils';
 	// Valibot validation
-	import { string, pipe, parse, type ValiError, nonEmpty, nullable, transform } from 'valibot';
 	import { contentLanguage, validationStore } from '@root/src/stores/store.svelte';
+	import { nonEmpty, nullable, parse, pipe, string, transform, type ValiError } from 'valibot';
 
 	// Props
 	interface Props {
@@ -233,7 +231,6 @@
 	// Watch for value changes from external sources
 	$effect(() => {
 		// This effect runs when value[_language] changes
-		const currentValue = value[_language];
 		if (isTouched && validateOnChange) {
 			validateInput(false);
 		}

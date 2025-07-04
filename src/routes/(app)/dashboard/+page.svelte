@@ -14,24 +14,22 @@
 -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { modeCurrent } from '@skeletonlabs/skeleton';
+	import { onMount } from 'svelte';
 	import { flip } from 'svelte/animate';
-
 	// Stores
-	import { systemPreferences } from '@stores/systemPreferences.svelte';
 	import { screenSize } from '@stores/screenSizeStore.svelte';
-
+	import { systemPreferences } from '@stores/systemPreferences.svelte';
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
 	import CPUWidget from './widgets/CPUWidget.svelte';
 	import DiskWidget from './widgets/DiskWidget.svelte';
-	import MemoryWidget from './widgets/MemoryWidget.svelte';
-	import Last5MediaWidget from './widgets/Last5MediaWidget.svelte';
-	import UserActivityWidget from './widgets/UserActivityWidget.svelte';
-	import SystemMessagesWidget from './widgets/SystemMessagesWidget.svelte';
-	import LogsWidget from './widgets/LogsWidget.svelte';
 	import Last5ContentWidget from './widgets/Last5ContentWidget.svelte';
+	import Last5MediaWidget from './widgets/Last5MediaWidget.svelte';
+	import LogsWidget from './widgets/LogsWidget.svelte';
+	import MemoryWidget from './widgets/MemoryWidget.svelte';
+	import SystemMessagesWidget from './widgets/SystemMessagesWidget.svelte';
+	import UserActivityWidget from './widgets/UserActivityWidget.svelte';
 
 	// Types
 	type WidgetSize = '1/4' | '1/2' | '3/4' | 'full';
@@ -184,7 +182,7 @@
 	$effect(() => {
 		const prefsState = $systemPreferences;
 		// Since the API returns a simple array of preferences, we'll use that directly
-		const widgetsForNewSize = validateWidgets(prefsState?.preferences || []);
+		const widgetsForNewSize = validateWidgets(prefsState || []);
 		if (preferencesLoaded && currentScreenSize === undefined) {
 			// First load: use the loaded preferences
 			if (widgetsForNewSize.length > 0) {
@@ -741,7 +739,7 @@
 			try {
 				await systemPreferences.loadPreferences(pageData.user.id);
 				const prefsState = $systemPreferences;
-				const loadedWidgets = validateWidgets(prefsState?.preferences || []);
+				const loadedWidgets = validateWidgets(prefsState || []);
 				items = loadedWidgets.map((existingWidget, index) => {
 					const componentInfo = widgetComponentRegistry[existingWidget.component as keyof typeof widgetComponentRegistry];
 					let defaultSize: WidgetSize = '1/4';

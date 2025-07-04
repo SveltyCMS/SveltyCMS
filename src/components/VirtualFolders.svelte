@@ -27,19 +27,14 @@ Features:
 -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { getToastStore } from '@skeletonlabs/skeleton';
 	import { goto } from '$app/navigation';
 	import { publicEnv } from '@root/config/public';
-
+	import { getToastStore } from '@skeletonlabs/skeleton';
+	import { onMount } from 'svelte';
 	// Stores
-	import { uiStateManager, toggleUIElement } from '@stores/UIStore.svelte';
-	import { screenSize } from '@stores/screenSizeStore.svelte';
+	import { toggleUIElement, uiStateManager } from '@stores/UIStore.svelte';
 	import { mode } from '@stores/collectionStore.svelte';
-
-	// Toast notifications
-	const toastStore = getToastStore();
-
+	import { screenSize } from '@stores/screenSizeStore.svelte';
 	// Import types
 	import type { SystemVirtualFolder } from '@src/databases/dbInterface';
 
@@ -81,7 +76,7 @@ Features:
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
 			error = message;
-			toastStore.trigger({
+			getToastStore().trigger({
 				message: 'Error fetching folders: ' + message,
 				background: 'variant-filled-error',
 				timeout: 5000
@@ -113,7 +108,7 @@ Features:
 
 			const result = await response.json();
 			if (result.success) {
-				toastStore.trigger({
+				getToastStore().trigger({
 					message: 'Folder created successfully',
 					background: 'variant-filled-success',
 					timeout: 3000
@@ -126,7 +121,7 @@ Features:
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
 			error = message;
-			toastStore.trigger({
+			getToastStore().trigger({
 				message: 'Error creating folder: ' + message,
 				background: 'variant-filled-error',
 				timeout: 5000
@@ -147,7 +142,7 @@ Features:
 			const result = await response.json();
 
 			if (result.success) {
-				toastStore.trigger({
+				getToastStore().trigger({
 					message: 'Folder updated successfully',
 					background: 'variant-filled-success',
 					timeout: 3000
@@ -158,7 +153,7 @@ Features:
 			}
 		} catch (error) {
 			console.error('Error updating folder:', error);
-			toastStore.trigger({
+			getToastStore().trigger({
 				message: 'Error updating folder',
 				background: 'variant-filled-error',
 				timeout: 3000
@@ -177,7 +172,7 @@ Features:
 			const result = await response.json();
 
 			if (result.success) {
-				toastStore.trigger({
+				getToastStore().trigger({
 					message: 'Folder deleted successfully',
 					background: 'variant-filled-success',
 					timeout: 3000
@@ -188,7 +183,7 @@ Features:
 			}
 		} catch (error) {
 			console.error('Error deleting folder:', error);
-			toastStore.trigger({
+			getToastStore().trigger({
 				message: 'Error deleting folder',
 				background: 'variant-filled-error',
 				timeout: 3000
@@ -211,7 +206,7 @@ Features:
 	function returnToCollections(): void {
 		mode.set('view');
 		goto('/'); // Adjust this route as needed
-		if (screenSize.value === 'sm') {
+		if (screenSize.value === 'SM') {
 			toggleUIElement('leftSidebar', 'hidden');
 		}
 	}

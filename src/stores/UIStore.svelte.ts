@@ -219,15 +219,33 @@ const createUIStores = () => {
 	}
 
 	return {
-		get uiState() { return uiState; },
-		get userPreferred() { return userPreferred; },
-		get isInitialized() { return isInitialized; },
-		get isLeftSidebarVisible() { return isLeftSidebarVisible; },
-		get isRightSidebarVisible() { return isRightSidebarVisible; },
-		get isPageHeaderVisible() { return isPageHeaderVisible; },
-		get isPageFooterVisible() { return isPageFooterVisible; },
-		get isHeaderVisible() { return isHeaderVisible; },
-		get isFooterVisible() { return isFooterVisible; },
+		get uiState() {
+			return uiState;
+		},
+		get userPreferred() {
+			return userPreferred;
+		},
+		get isInitialized() {
+			return isInitialized;
+		},
+		get isLeftSidebarVisible() {
+			return isLeftSidebarVisible;
+		},
+		get isRightSidebarVisible() {
+			return isRightSidebarVisible;
+		},
+		get isPageHeaderVisible() {
+			return isPageHeaderVisible;
+		},
+		get isPageFooterVisible() {
+			return isPageFooterVisible;
+		},
+		get isHeaderVisible() {
+			return isHeaderVisible;
+		},
+		get isFooterVisible() {
+			return isFooterVisible;
+		},
 		batchUpdate,
 		updateLayout,
 		debouncedUpdateLayout,

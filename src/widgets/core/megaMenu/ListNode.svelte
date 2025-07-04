@@ -31,17 +31,16 @@
 -->
 
 <script lang="ts">
-	import { tick } from 'svelte';
-	import type { CustomDragEvent } from './types';
-	import { currentChild } from '.';
 	import { debounce } from '@utils/utils';
+	import { tick } from 'svelte';
+	import { currentChild } from '.';
+	import type { CustomDragEvent } from './types';
 	// Self-import to replace svelte:self
 	import ListNode from './ListNode.svelte';
 
 	// Stores
-	import { updateTranslationProgress, contentLanguage, shouldShowNextButton, headerActionButton2 } from '@stores/store.svelte';
 	import { mode } from '@root/src/stores/collectionStore.svelte';
-
+	import { contentLanguage, headerActionButton2, shouldShowNextButton, updateTranslationProgress } from '@stores/store.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 

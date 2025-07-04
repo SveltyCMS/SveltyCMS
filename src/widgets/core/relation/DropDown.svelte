@@ -34,11 +34,7 @@
 	let options: Array<{ display: any; _id: any }> = $state([]);
 
 	// Use $derived for filtered options based on search
-	let filtered = $derived(
-		options.filter((item) => 
-			String(item.display).toLowerCase().includes(search.toLowerCase())
-		)
-	);
+	let filtered = $derived(options.filter((item) => String(item.display).toLowerCase().includes(search.toLowerCase())));
 
 	// Use $effect to initialize options when dropDownData changes
 	$effect(() => {

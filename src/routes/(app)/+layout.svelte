@@ -22,38 +22,33 @@
 	// Icons from https://icon-sets.iconify.design/
 	import 'iconify-icon';
 
-	import { publicEnv } from '@root/config/public';
-	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/state';
-
+	import { publicEnv } from '@root/config/public';
+	import { onDestroy, onMount } from 'svelte';
 	// Auth
 	import type { User } from '@src/auth/types';
 
 	// Utils
-	import { getTextDirection } from '@utils/utils';
 	import { isSearchVisible } from '@utils/globalSearchIndex';
-
+	import { getTextDirection } from '@utils/utils';
 	// Stores
-	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
-	import { contentStructure, collections } from '@stores/collectionStore.svelte';
-	import { uiStateManager } from '@stores/UIStore.svelte';
+	import { collections, contentStructure } from '@stores/collectionStore.svelte';
 	import { screenSize } from '@stores/screenSizeStore.svelte';
-
+	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
+	import { uiStateManager } from '@stores/UIStore.svelte';
 	// Components
-	import Loading from '@components/Loading.svelte';
-	import SearchComponent from '@components/SearchComponent.svelte';
-	import LeftSidebar from '@components/LeftSidebar.svelte';
-	import RightSidebar from '@components/RightSidebar.svelte';
 	import HeaderEdit from '@components/HeaderEdit.svelte';
+	import LeftSidebar from '@components/LeftSidebar.svelte';
+	import Loading from '@components/Loading.svelte';
 	import PageFooter from '@components/PageFooter.svelte';
-
+	import RightSidebar from '@components/RightSidebar.svelte';
+	import SearchComponent from '@components/SearchComponent.svelte';
 	// Skeleton
-	import { initializeStores, Modal, Toast, setModeUserPrefers, setModeCurrent, setInitialClassState } from '@skeletonlabs/skeleton';
-
+	import { initializeStores, Modal, setInitialClassState, setModeCurrent, setModeUserPrefers, Toast } from '@skeletonlabs/skeleton';
 	// Required for popups to function
-	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
-	import { storePopup } from '@skeletonlabs/skeleton';
+	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
 	import type { ContentNode } from '@root/src/databases/dbInterface';
+	import { storePopup } from '@skeletonlabs/skeleton';
 
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 	initializeStores();
@@ -250,7 +245,7 @@
 					<div
 						role="main"
 						class="relative h-full flex-grow overflow-auto {uiStateManager.uiState.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {screenSize.value ===
-						'lg'
+						'LG'
 							? 'mb-2'
 							: 'mb-16'}"
 					>

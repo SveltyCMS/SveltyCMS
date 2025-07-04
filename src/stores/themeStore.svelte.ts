@@ -77,13 +77,13 @@ function createThemeStores() {
 			const themeToUpdate =
 				typeof newTheme === 'string'
 					? {
-						name: newTheme,
-						_id: '',
-						path: '',
-						isDefault: false,
-						createdAt: new Date(),
-						updatedAt: new Date()
-					}
+							name: newTheme,
+							_id: '',
+							path: '',
+							isDefault: false,
+							createdAt: new Date(),
+							updatedAt: new Date()
+						}
 					: newTheme;
 
 			// Update the theme in the database

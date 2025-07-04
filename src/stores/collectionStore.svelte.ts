@@ -31,15 +31,19 @@ export const statusMap = {
 	testing: 'testing'
 } as const;
 
-// Create reactive stores 
+// Create reactive stores
 export const collections = $state<{ [uuid: string]: Schema }>({});
 export const collectionsById = $state<Map<string, Schema>>(new Map());
 
 // Keep existing stores
 let collectionState = $state<Schema | null>({} as Schema);
 export const collection = {
-	get value() { return collectionState; },
-	set: (newValue: Schema | null) => { collectionState = newValue; },
+	get value() {
+		return collectionState;
+	},
+	set: (newValue: Schema | null) => {
+		collectionState = newValue;
+	},
 	update: (fn: (value: Schema | null) => Schema | null) => {
 		collectionState = fn(collectionState);
 	}
@@ -75,8 +79,12 @@ export const mode = {
 
 let modifyEntryState = $state<(status?: keyof typeof statusMap) => Promise<void>>(() => Promise.resolve());
 export const modifyEntry = {
-	get value() { return modifyEntryState; },
-	set: (newValue: (status?: keyof typeof statusMap) => Promise<void>) => { modifyEntryState = newValue; },
+	get value() {
+		return modifyEntryState;
+	},
+	set: (newValue: (status?: keyof typeof statusMap) => Promise<void>) => {
+		modifyEntryState = newValue;
+	},
 	update: (fn: (value: (status?: keyof typeof statusMap) => Promise<void>) => (status?: keyof typeof statusMap) => Promise<void>) => {
 		modifyEntryState = fn(modifyEntryState);
 	}
@@ -87,14 +95,18 @@ export const targetWidget = $state<Widget>({ permissions: {} });
 
 let contentStructureState = $state<ContentNode[]>([]);
 export const contentStructure = {
-	get value() { return contentStructureState; },
-	set: (newValue: ContentNode[]) => { contentStructureState = newValue; },
+	get value() {
+		return contentStructureState;
+	},
+	set: (newValue: ContentNode[]) => {
+		contentStructureState = newValue;
+	},
 	update: (fn: (value: ContentNode[]) => ContentNode[]) => {
 		contentStructureState = fn(contentStructureState);
 	}
 };
 
-// Reactive calculations 
+// Reactive calculations
 const totalCollections = $derived(Object.keys(collections).length);
 const hasSelectedEntries = $derived(selectedEntries.length > 0);
 const currentCollectionName = $derived(collection?.name);

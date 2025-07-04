@@ -188,7 +188,7 @@
 {#if currentField}
 	<div
 		class="fixed -top-16 left-0 z-20 flex h-full w-full flex-col items-center justify-center overflow-auto bg-white dark:bg-surface-900 {uiStateManager
-			.uiState.value.leftSidebar === 'full'
+			.uiState.leftSidebar === 'full'
 			? 'left-[220px] '
 			: 'left-0 '}"
 	>

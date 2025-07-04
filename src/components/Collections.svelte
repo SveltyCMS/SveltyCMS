@@ -30,10 +30,10 @@ Features:
 	import type { ContentNode } from '@src/databases/dbInterface';
 
 	// Stores
-	import { contentLanguage, shouldShowNextButton } from '@stores/store.svelte';
-	import { mode, contentStructure, collection } from '@src/stores/collectionStore.svelte';
-	import { uiStateManager, toggleUIElement, handleUILayoutToggle } from '@src/stores/UIStore.svelte';
+	import { collection, contentStructure, mode } from '@src/stores/collectionStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
+	import { handleUILayoutToggle, toggleUIElement, uiStateManager } from '@src/stores/UIStore.svelte';
+	import { contentLanguage, shouldShowNextButton } from '@stores/store.svelte';
 
 	import { constructNestedStructure } from '../content/utils';
 
@@ -683,7 +683,7 @@ Features:
 			onclick={() => {
 				mode.set('media');
 				goto('/mediagallery');
-				if (screenSize.value === 'sm') {
+				if (screenSize.value === 'SM') {
 					toggleUIElement('leftSidebar', 'hidden');
 				}
 				if (!isFullSidebar) handleUILayoutToggle();
@@ -713,7 +713,7 @@ Features:
 				expandedNodes.clear(); // Clear method triggers reactivity automatically
 				hasLoadedSystemVirtualFolders = false; // Reset loading flag
 
-				if (screenSize.value === 'sm') {
+				if (screenSize.value === 'SM') {
 					toggleUIElement('leftSidebar', 'hidden');
 				}
 				goto('/');
