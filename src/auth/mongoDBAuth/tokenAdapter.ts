@@ -54,7 +54,7 @@ export class TokenAdapter implements Partial<authDBInterface> {
 			const token = crypto.randomBytes(32).toString('base64url'); // Generate a 44-character base64url token
 			const newToken = new this.TokenModel({
 				user_id: data.user_id,
-				email: data.email,
+				email: data.email.toLowerCase(), // Normalize email to lowercase
 				expires: data.expires,
 				type: data.type,
 				username: data.username,
@@ -220,6 +220,25 @@ export class TokenAdapter implements Partial<authDBInterface> {
 		} catch (err) {
 			const message = `Error in TokenAdapter.updateToken: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, { token, updateData });
+			throw error(500, message);
+		}
+	}
+
+	// Get token details by token value
+	async getTokenByValue(token: string): Promise<Token | null> {
+		try {
+			const tokenDoc = await this.TokenModel.findOne({ token }).lean();
+			return tokenDoc ? {
+				_id: tokenDoc._id.toString(),
+				user_id: tokenDoc.user_id,
+				token: tokenDoc.token,
+				email: tokenDoc.email,
+				expires: tokenDoc.expires,
+				type: tokenDoc.type
+			} : null;
+		} catch (err) {
+			const message = `Error in TokenAdapter.getTokenByValue: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { token });
 			throw error(500, message);
 		}
 	}
