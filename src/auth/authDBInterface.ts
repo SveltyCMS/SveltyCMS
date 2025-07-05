@@ -52,6 +52,7 @@ export interface authDBInterface {
 	validateToken(token: string, user_id?: string, type?: string): Promise<{ success: boolean; message: string; email?: string }>; // Validate a token
 	consumeToken(token: string, user_id?: string, type?: string): Promise<{ status: boolean; message: string }>; // Consume a token
 	getTokenData(token: string, user_id?: string, type?: string): Promise<Token | null>; // Get token data
+	getTokenByValue(token: string): Promise<Token | null>; // Get token details by token value
 	getAllTokens(filter?: Record<string, unknown>): Promise<Token[]>; // Get all tokens
 	deleteExpiredTokens(): Promise<number>; // Delete expired tokens
 	deleteTokens(token_ids: string[]): Promise<{ deletedCount: number }>; // Delete multiple tokens

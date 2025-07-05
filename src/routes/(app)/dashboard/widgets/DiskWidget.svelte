@@ -244,7 +244,7 @@ This widget fetches and displays real-time disk usage data, including:
 	{onResizeCommitted}
 	{onCloseRequest}
 >
-	{#snippet children({ data: fetchedData })}
+	{#snippet children({ data: fetchedData }: { data: FetchedData | undefined })}
 		{#if fetchedData?.diskInfo?.root}
 			{@const diskInfo = fetchedData.diskInfo.root}
 			{@const totalGB = typeof diskInfo.totalGb === 'string' ? parseFloat(diskInfo.totalGb) : diskInfo.totalGb || 0}

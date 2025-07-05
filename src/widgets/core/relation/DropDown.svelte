@@ -24,19 +24,24 @@
 	interface Props {
 		dropDownData?: any[];
 		selected?: { display: any; _id: any } | undefined;
+		showDropDown?: boolean;
 		field: FieldType | undefined;
 	}
 
-	let { dropDownData = [], selected = $bindable(undefined), field }: Props = $props();
+	let { dropDownData = [], selected = $bindable(undefined), showDropDown = $bindable(false), field }: Props = $props();
 
 	let search = $state('');
 	let options: Array<{ display: any; _id: any }> = $state([]);
 
-	// Use derived state for filtered options based on search and options
-	let filtered = $derived(options.filter((item) => String(item.display).toLowerCase().includes(search.toLowerCase())));
+	// Use $derived for filtered options based on search
+	let filtered = $derived(
+		options.filter((item) => 
+			String(item.display).toLowerCase().includes(search.toLowerCase())
+		)
+	);
 
-	// Initialize options when dropDownData changes
-	{
+	// Use $effect to initialize options when dropDownData changes
+	$effect(() => {
 		const initializeOptions = async () => {
 			const res = await Promise.all(
 				dropDownData.map(async (item) => ({
@@ -54,7 +59,7 @@
 		};
 
 		initializeOptions();
-	}
+	});
 
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Enter' || event.key === ' ') {
@@ -73,6 +78,7 @@
 			onkeydown={handleKeydown}
 			onclick={() => {
 				selected = option;
+				showDropDown = false; // Close dropdown when item is selected
 			}}
 			class="item text-token m-1 cursor-pointer border border-surface-400 bg-surface-400 p-1 text-center text-lg"
 			role="option"

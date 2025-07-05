@@ -25,6 +25,7 @@ import { logger } from '@utils/logger.svelte';
 export const GET = async ({ locals, url }) => {
 	// Try to get userId from query param, otherwise use locals.user
 	const userId = url.searchParams.get('userId') || locals.user?._id?.toString();
+
 	if (!userId) {
 		logger.warn('Unauthorized attempt to load system preferences.');
 		return json({ error: 'Unauthorized' }, { status: 401 });
@@ -45,14 +46,12 @@ export const GET = async ({ locals, url }) => {
 	// Default system preferences load
 	try {
 		const preferences = await dbAdapter.systemPreferences.getSystemPreferences(userId);
-		return json({
-			preferences: preferences ?? {
-				SM: [],
-				MD: [],
-				LG: [],
-				XL: []
-			}
-		});
+
+		// Return a flat array of widgets instead of nested preferences
+		const response = {
+			preferences: preferences || []
+		};
+		return json(response);
 	} catch (e) {
 		logger.error('Failed to load system preferences:', e);
 		return json({ error: 'Failed to load preferences' }, { status: 500 });
@@ -61,6 +60,7 @@ export const GET = async ({ locals, url }) => {
 
 export const POST = async ({ request, locals }) => {
 	const data = await request.json();
+
 	// Try to get userId from request body, otherwise use locals.user
 	const userId = data.userId || locals.user?._id?.toString();
 	if (!userId) {
@@ -87,25 +87,5 @@ export const POST = async ({ request, locals }) => {
 	} catch (e) {
 		logger.error('Failed to save system preferences:', e);
 		return json({ error: 'Failed to save preferences' }, { status: 500 });
-	}
-};
-
-export const PUT = async ({ request, locals }) => {
-	const user = locals.user;
-	if (!user) {
-		logger.warn('Unauthorized attempt to update system preferences.');
-		return json({ error: 'Unauthorized' }, { status: 401 });
-	}
-
-	try {
-		const { screenSize, widgets } = await request.json();
-		if (!screenSize || !Array.isArray(widgets)) {
-			return json({ error: 'Missing or invalid screenSize/widgets' }, { status: 400 });
-		}
-		await dbAdapter.systemPreferences.updateSystemPreferences(user._id.toString(), screenSize, widgets);
-		return json({ success: true });
-	} catch (e) {
-		logger.error('Failed to update system preferences:', e);
-		return json({ error: 'Failed to update preferences' }, { status: 500 });
 	}
 };

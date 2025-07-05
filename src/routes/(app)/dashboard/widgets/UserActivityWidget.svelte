@@ -20,6 +20,7 @@ Features:
 -->
 
 <script lang="ts">
+	// --- Widget Metadata ---
 	export const widgetMeta = {
 		name: 'User Activity',
 		icon: 'mdi:account-group',
@@ -34,36 +35,117 @@ Features:
 	};
 
 	import BaseWidget from '../BaseWidget.svelte';
-	import { onMount } from 'svelte';
 
-	interface Activity {
-		timestamp: string;
-		description: string;
-	}
-
+	// --- Type Definitions ---
+	// Defines the structure for a single user activity entry.
 	interface User {
-		activities: Activity[];
+		email: string;
+		status: 'active' | 'pending' | string;
+		role: string;
 	}
 
-	let activities: Activity[] = $state([]);
+	// Defines the shape of the data payload fetched from the API.
+	type FetchedData = User[];
 
-	onMount(async () => {
-		const res = await fetch('/api/users');
-		const users: User[] = (await res.json()).data;
-		// Assume each user has an activities field containing recent activities
-		activities = users.flatMap((user) => user.activities);
-	});
+	// Type alias for widget size options.
+	type Size = '1/4' | '1/2' | '3/4' | 'full';
 
-	let { label, theme = 'light' } = $props();
+	// --- Component Props ---
+	let {
+		label = 'User Activity',
+		theme = 'light',
+		icon = 'mdi:account-group',
+		widgetId = undefined,
+		currentSize = '1/4',
+		availableSizes = ['1/4', '1/2', '3/4', 'full'],
+		// FIX: Added types and prefixed unused parameters with an underscore.
+		onSizeChange = (_newSize: Size) => {},
+		draggable = true,
+		onDragStart = (_event: MouseEvent, _item: any, _element: HTMLElement) => {},
+		gridCellWidth = 0,
+		ROW_HEIGHT = 0,
+		GAP_SIZE = 0,
+		resizable = true,
+		onResizeCommitted = (_spans: { w: number; h: number }) => {},
+		onCloseRequest = () => {}
+	} = $props<{
+		label?: string;
+		theme?: 'light' | 'dark';
+		icon?: string;
+		widgetId?: string;
+		currentSize?: Size;
+		availableSizes?: Size[];
+		onSizeChange?: (newSize: Size) => void;
+		draggable?: boolean;
+		onDragStart?: (event: MouseEvent, item: any, element: HTMLElement) => void;
+		gridCellWidth?: number;
+		ROW_HEIGHT?: number;
+		GAP_SIZE?: number;
+		resizable?: boolean;
+		onResizeCommitted?: (spans: { w: number; h: number }) => void;
+		onCloseRequest?: () => void;
+	}>();
 </script>
 
-<BaseWidget {label} {theme} endpoint="/api/users" pollInterval={5000}>
-	<section>
-		<h2>Recent User Activities</h2>
-		<ul>
-			{#each activities as activity}
-				<li>{activity.timestamp}: {activity.description}</li>
-			{/each}
-		</ul>
-	</section>
+<BaseWidget
+	{label}
+	{theme}
+	endpoint="/api/dashboard/userActivity"
+	pollInterval={30000}
+	{icon}
+	{widgetId}
+	{currentSize}
+	{availableSizes}
+	{onSizeChange}
+	{draggable}
+	{onDragStart}
+	{gridCellWidth}
+	{ROW_HEIGHT}
+	{GAP_SIZE}
+	{resizable}
+	{onResizeCommitted}
+	{onCloseRequest}
+>
+	<!-- FIX: Explicitly typed the 'data' prop from the snippet to resolve 'never' type errors. -->
+	{#snippet children({ data: fetchedData }: { data: FetchedData | undefined })}
+		<!-- This check now correctly narrows the type of 'fetchedData' to 'User[]' -->
+		{#if fetchedData && Array.isArray(fetchedData) && fetchedData.length > 0}
+			<!-- Stats row on top -->
+			<div class="mb-2 flex items-center justify-between text-xs text-surface-600 opacity-80 dark:text-surface-400">
+				<span>Total: {fetchedData.length}</span>
+				<span class="flex items-center gap-1"
+					><span class="inline-block h-2 w-2 rounded-full bg-emerald-500"></span>Active: {fetchedData.filter((u) => u.status === 'active')
+						.length}</span
+				>
+				<span class="flex items-center gap-1"
+					><span class="inline-block h-2 w-2 rounded-full bg-yellow-400"></span>Pending: {fetchedData.filter((u) => u.status === 'pending')
+						.length}</span
+				>
+			</div>
+			<div class="grid gap-2" style="max-height: 120px; overflow-y: auto;">
+				{#each fetchedData.slice(0, 5) as user}
+					<div class="flex items-center justify-between rounded-lg bg-surface-100/80 px-3 py-2 text-xs dark:bg-surface-700/60">
+						<div class="flex min-w-0 items-center gap-2">
+							{#if user.status === 'active'}
+								<span class="inline-block h-2 w-2 flex-shrink-0 rounded-full bg-emerald-500" title="Online"></span>
+							{:else if user.status === 'pending'}
+								<span class="inline-block h-2 w-2 flex-shrink-0 rounded-full bg-yellow-400" title="Pending"></span>
+							{:else}
+								<span class="inline-block h-2 w-2 flex-shrink-0 rounded-full bg-gray-400" title={user.status}></span>
+							{/if}
+							<span class="text-text-900 dark:text-text-100 truncate font-medium" title={user.email}>{user.email || 'Unknown User'}</span>
+						</div>
+						<div class="flex flex-col items-end">
+							<span class="text-xs text-surface-500 dark:text-surface-400">{user.role || 'No Role'}</span>
+						</div>
+					</div>
+				{/each}
+			</div>
+		{:else}
+			<div class="flex flex-1 flex-col items-center justify-center py-6 text-xs text-gray-500 dark:text-gray-400">
+				<iconify-icon icon="mdi:account-off-outline" width="32" class="mb-2 text-surface-400 dark:text-surface-500"></iconify-icon>
+				<span>No user activity</span>
+			</div>
+		{/if}
+	{/snippet}
 </BaseWidget>

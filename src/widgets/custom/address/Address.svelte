@@ -15,7 +15,7 @@
 -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { privateEnv } from '@root/config/private';
 	import { updateTranslationProgress, getFieldName } from '@utils/utils';
@@ -86,12 +86,9 @@
 	let listboxValue = $state(defaultCountry);
 	let searchQuery = $state('');
 	let filteredCountries = $state<Country[]>(countries as Country[]);
-	let map: MapboxMap | null = null;
-
-	// ✅ Corrected Declaration
+	let map = $state<MapboxMap | null>(null);
 	let mapContainer = $state<HTMLDivElement | undefined>();
-
-	let marker: Marker | null = null;
+	let marker = $state<Marker | null>(null);
 
 	$effect(() => {
 		if (!searchQuery) {
@@ -114,6 +111,13 @@
 		updateTranslationProgress({}, field);
 	});
 
+	// Effect to initialize map when container becomes available
+	$effect(() => {
+		if (mapContainer && !hiddenFields.includes('map') && !map) {
+			initMap();
+		}
+	});
+
 	const CountryCombobox: PopupSettings = {
 		event: 'click',
 		target: 'CountryCombobox',
@@ -125,7 +129,13 @@
 		if (debounceTimeout) clearTimeout(debounceTimeout);
 		debounceTimeout = window.setTimeout(() => {
 			try {
-				v.parse(addressSchema, value);
+				// Convert string values to numbers for validation
+				const numericValue = {
+					...value,
+					latitude: parseFloat(String(value.latitude)) || 0,
+					longitude: parseFloat(String(value.longitude)) || 0
+				};
+				v.parse(addressSchema, numericValue);
 				validationError = null;
 				validationStore.clearError(fieldName);
 			} catch (error) {
@@ -144,55 +154,82 @@
 	async function initMap() {
 		if (!isMapboxEnabled || !browser || !mapContainer) return;
 
-		// ✅ Revert to using .default for the import
-		const mapboxgl = (await import('mapbox-gl')).default;
+		try {
+			// Vite 7 compatible dynamic imports
+			const [mapboxModule, geocoderModule, languageModule] = await Promise.all([
+				import('mapbox-gl'),
+				import('@mapbox/mapbox-gl-geocoder'),
+				import('@mapbox/mapbox-gl-language')
+			]);
 
-		// These other imports are correct as they are
-		const MapboxGeocoder = (await import('@mapbox/mapbox-gl-geocoder')).default;
-		const MapboxLanguage = (await import('@mapbox/mapbox-gl-language')).default;
+			// Handle different export patterns for Vite 7
+			const mapboxgl = 'default' in mapboxModule ? mapboxModule.default : mapboxModule;
+			const MapboxGeocoder = 'default' in geocoderModule ? geocoderModule.default : geocoderModule;
+			const MapboxLanguage = 'default' in languageModule ? languageModule.default : languageModule;
 
-		if (mapboxToken) {
-			// ✅ Add 'as any' to bypass the faulty type definition
-			(mapboxgl as any).accessToken = mapboxToken;
-		}
-
-		// Now, 'mapboxgl' has the correct type for the rest of the function
-		map = new mapboxgl.Map({
-			container: mapContainer,
-			style: 'mapbox://styles/mapbox/streets-v12',
-			center: [mapCenter.lng, mapCenter.lat],
-			zoom: zoom
-		});
-
-		const language = new MapboxLanguage();
-		map.addControl(language);
-
-		const geocoder = new MapboxGeocoder({
-			accessToken: String(mapboxToken ?? ''),
-			mapboxgl: mapboxgl as any
-		});
-		map.addControl(geocoder);
-
-		map.on('load', () => map?.resize());
-
-		marker = new mapboxgl.Marker({ draggable: true }).setLngLat([mapCenter.lng, mapCenter.lat]).addTo(map);
-
-		marker.on('dragend', (e) => {
-			const lngLat = e.target.getLngLat();
-			if (value) {
-				value.latitude = lngLat.lat.toString();
-				value.longitude = lngLat.lng.toString();
+			// Set access token
+			if (mapboxToken && 'accessToken' in mapboxgl) {
+				(mapboxgl as any).accessToken = mapboxToken;
 			}
-		});
 
-		map.addControl(new mapboxgl.NavigationControl());
-		map.addControl(new mapboxgl.FullscreenControl());
+			map = new (mapboxgl as any).Map({
+				container: mapContainer,
+				style: 'mapbox://styles/mapbox/streets-v12',
+				center: [mapCenter.lng, mapCenter.lat],
+				zoom: zoom
+			});
+
+			if (!map) return;
+
+			const language = new (MapboxLanguage as any)();
+			map.addControl(language);
+
+			const geocoder = new (MapboxGeocoder as any)({
+				accessToken: String(mapboxToken ?? ''),
+				mapboxgl: mapboxgl
+			});
+			map.addControl(geocoder);
+
+			map.on('load', () => {
+				if (map) {
+					map.resize();
+				}
+			});
+
+			marker = new (mapboxgl as any).Marker({ draggable: true }).setLngLat([mapCenter.lng, mapCenter.lat]).addTo(map);
+
+			if (marker) {
+				marker.on('dragend', (e: any) => {
+					const lngLat = e.target.getLngLat();
+					if (value) {
+						value.latitude = lngLat.lat.toString();
+						value.longitude = lngLat.lng.toString();
+					}
+				});
+			}
+
+			map.addControl(new (mapboxgl as any).NavigationControl());
+			map.addControl(new (mapboxgl as any).FullscreenControl());
+		} catch (error) {
+			console.error('Failed to load Mapbox:', error);
+		}
 	}
 
 	onMount(() => {
 		listboxValue = defaultCountry;
-		if (mapContainer && !hiddenFields.includes('map')) {
-			initMap();
+	});
+
+	onDestroy(() => {
+		if (map) {
+			map.remove();
+			map = null;
+		}
+		if (marker) {
+			marker.remove();
+			marker = null;
+		}
+		if (debounceTimeout) {
+			clearTimeout(debounceTimeout);
 		}
 	});
 

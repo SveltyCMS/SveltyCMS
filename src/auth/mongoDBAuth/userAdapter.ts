@@ -72,14 +72,20 @@ export class UserAdapter implements Partial<authDBInterface> {
 	// Create a new user
 	async createUser(userData: Partial<User>): Promise<User> {
 		try {
+			// Normalize email to lowercase if present
+			const normalizedUserData = {
+				...userData,
+				email: userData.email?.toLowerCase()
+			};
+
 			// Log exactly what we received
 			logger.debug('UserAdapter.createUser received data:', {
-				...userData,
-				email: userData.email?.replace(/(.{2}).*@(.*)/, '$1****@$2'),
-				avatar: `Avatar value: "${userData.avatar}" (type: ${typeof userData.avatar}, length: ${userData.avatar?.length || 0})`
+				...normalizedUserData,
+				email: normalizedUserData.email?.replace(/(.{2}).*@(.*)/, '$1****@$2'),
+				avatar: `Avatar value: "${normalizedUserData.avatar}" (type: ${typeof normalizedUserData.avatar}, length: ${normalizedUserData.avatar?.length || 0})`
 			});
 
-			const user = new this.UserModel(userData);
+			const user = new this.UserModel(normalizedUserData);
 
 			// Log what the model contains before saving
 			logger.debug('UserModel before save:', {
@@ -353,10 +359,11 @@ export class UserAdapter implements Partial<authDBInterface> {
 	// Get a user by email
 	async getUserByEmail(email: string): Promise<User | null> {
 		try {
-			const user = await this.UserModel.findOne({ email }).lean();
+			const normalizedEmail = email.toLowerCase();
+			const user = await this.UserModel.findOne({ email: normalizedEmail }).lean();
 			if (user) {
 				user._id = user._id.toString();
-				logger.debug(`User retrieved by email:`, { email });
+				logger.debug(`User retrieved by email:`, { email: normalizedEmail });
 				return user as User;
 			} else {
 				return null;

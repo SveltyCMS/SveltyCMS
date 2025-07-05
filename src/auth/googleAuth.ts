@@ -88,7 +88,7 @@ async function googleAuth(): Promise<OAuth2Client | null> {
 			logger.debug('Setting up Google OAuth2...');
 			const { google } = await import('googleapis');
 			const redirectUri = getOAuthRedirectUri();
-			logger.debug(`Using OAuth redirect URI: ${redirectUri}`);
+			logger.debug(`Using OAuth redirect URI: \x1b[34m${redirectUri}\x1b[0m`);
 
 			googleAuthClient = new google.auth.OAuth2(privateEnv.GOOGLE_CLIENT_ID, privateEnv.GOOGLE_CLIENT_SECRET, redirectUri);
 		}
@@ -118,8 +118,6 @@ async function generateGoogleAuthUrl(token?: string | null, promptType?: 'consen
 	const scopes = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'];
 	const baseUrl = getOAuthRedirectUri();
 
-	logger.debug(`Generating OAuth URL with base URL: ${baseUrl} and prompt: ${promptType || 'default'}`);
-
 	// Generate auth URL without PKCE parameters to avoid Google's "code_verifier or verifier is not needed" error
 	// Use 'online' access_type to prevent PKCE from being auto-enabled in newer googleapis versions
 	const authUrlOptions: Record<string, string | boolean | undefined> = {
@@ -138,7 +136,6 @@ async function generateGoogleAuthUrl(token?: string | null, promptType?: 'consen
 
 	const authUrl = googleAuthClient.generateAuthUrl(authUrlOptions);
 
-	logger.debug(`Generated OAuth URL: ${authUrl}`);
 	return authUrl;
 }
 

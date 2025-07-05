@@ -149,6 +149,9 @@ export class Auth {
 				throw error(400, 'Email and password are required to create a user');
 			}
 
+			// Normalize email to lowercase
+			const normalizedEmail = email.toLowerCase();
+
 			// Hash the password
 			let hashedPassword: string | undefined;
 			if (!oauth && password !== undefined) {
@@ -161,10 +164,10 @@ export class Auth {
 				});
 			}
 
-			logger.debug('Creating user', { email: email });
+			logger.debug('Creating user', { email: normalizedEmail });
 			// Create the user in the database
 			const user = await this.db.createUser({
-				email,
+				email: normalizedEmail,
 				password: hashedPassword,
 				username,
 				role,
@@ -402,7 +405,7 @@ export class Auth {
 	async createToken(userId: string, expires: Date, type: string = 'access'): Promise<string> {
 		const user = await this.getUserById(userId);
 		if (!user) throw new Error('User not found');
-		return await this.db.createToken({ user_id: userId, email: user.email, expires, type });
+		return await this.db.createToken({ user_id: userId, email: user.email.toLowerCase(), expires, type });
 	}
 
 	// Validate a token
@@ -417,6 +420,33 @@ export class Auth {
 		}
 	}
 
+	// Validate a registration/invite token (no user_id required since user doesn't exist yet)
+	async validateRegistrationToken(token: string): Promise<{ isValid: boolean; message: string; details?: Token }> {
+		try {
+			logger.info(`Validating registration token: ${token}`);
+			const result = await this.db.validateToken(token, undefined, 'user-invite');
+			
+			if (result.success) {
+				// Get the full token details for registration
+				const tokenDoc = await this.db.getTokenByValue(token);
+				return {
+					isValid: true,
+					message: result.message,
+					details: tokenDoc
+				};
+			} else {
+				return {
+					isValid: false,
+					message: result.message
+				};
+			}
+		} catch (err) {
+			const errMsg = err instanceof Error ? err.message : String(err);
+			logger.error(`Failed to validate registration token: ${errMsg}`);
+			throw error(500, `Failed to validate registration token: ${errMsg}`);
+		}
+	}
+
 	// Consume a token
 	async consumeToken(token: string, user_id: string, type: string = 'access'): Promise<{ status: boolean; message: string }> {
 		try {
@@ -428,6 +458,20 @@ export class Auth {
 			const errMsg = err instanceof Error ? err.message : String(err);
 			logger.error(`Failed to consume token: ${errMsg}`);
 			throw error(500, `Failed to consume token: ${errMsg}`);
+		}
+	}
+
+	// Consume a registration token (no user_id required)
+	async consumeRegistrationToken(token: string): Promise<{ status: boolean; message: string }> {
+		try {
+			logger.info(`Consuming registration token: ${token}`);
+			const consumption = await this.db.consumeToken(token, undefined, 'user-invite');
+			logger.info(`Registration token consumption result: ${consumption.message}`);
+			return consumption;
+		} catch (err) {
+			const errMsg = err instanceof Error ? err.message : String(err);
+			logger.error(`Failed to consume registration token: ${errMsg}`);
+			throw error(500, `Failed to consume registration token: ${errMsg}`);
 		}
 	}
 

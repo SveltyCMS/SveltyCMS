@@ -226,7 +226,7 @@ const getUserFromSessionId = async (session_id: string | undefined, authServiceR
 		cacheStore
 			.set(session_id, sessionData, new Date(now + CACHE_TTL))
 			.catch((err) => logger.error(`Failed to extend session cache for \x1b[34m${session_id}\x1b[0m: ${err.message}`));
-		logger.debug(`Session cache hit and extended for \x1b[34m${session_id}\x1b[0m (auth ready: ${authServiceReady})`);
+		logger.debug(`Session cache hit and extended for \x1b[34m${session_id}\x1b[0m (auth ready: \x1b[34m${authServiceReady}\x1b[0m)`);
 		sessionMetrics.lastActivity.set(session_id, now); // Update session metrics
 		return memCached.user;
 	}
@@ -310,6 +310,12 @@ export const invalidateAdminCache = (cacheKey?: 'roles' | 'users' | 'tokens'): v
 		adminDataCache.clear();
 		logger.debug('All admin cache cleared');
 	}
+};
+
+// Helper function to invalidate user count cache - exported for use after user creation/deletion
+export const invalidateUserCountCache = (): void => {
+	userCountCache = null;
+	logger.debug('User count cache invalidated');
 };
 
 // Handle static asset caching

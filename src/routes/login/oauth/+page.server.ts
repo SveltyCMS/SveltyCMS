@@ -13,6 +13,9 @@ import { google } from 'googleapis';
 //Db
 import { auth, dbInitPromise } from '@src/databases/db';
 
+// Cache invalidation
+import { invalidateUserCountCache } from '@src/hooks.server';
+
 // Utils
 import { saveAvatarImage } from '@utils/media/mediaStorage';
 import { getFirstCollectionRedirectUrl } from '@utils/navigation';
@@ -152,7 +155,7 @@ async function handleGoogleUser(
 	logger.debug('OAuth user lookup for email', { email: email });
 	logger.debug(`User found: ${user ? 'YES' : 'NO'}`);
 	if (user) {
-		logger.debug(`Existing user ID: ${user._id}, username: ${user.username}`);
+		logger.debug(`Existing user ID: \x1b[34m${user._id}\x1b[0m, username: ${user.username}`);
 	}
 
 	if (!user) {
@@ -163,7 +166,7 @@ async function handleGoogleUser(
 				throw new Error('A valid invitation is required to create an account via OAuth');
 			}
 
-			const tokenValidation = await auth?.validateToken(token, 'registration');
+			const tokenValidation = await auth?.validateRegistrationToken(token);
 			if (!tokenValidation?.isValid || !tokenValidation?.details) {
 				throw new Error('This invitation is invalid, expired, or has already been used');
 			}
@@ -208,8 +211,11 @@ async function handleGoogleUser(
 
 			user = await auth?.createUser(userData, true);
 
+			// Invalidate user count cache after user creation
+			invalidateUserCountCache();
+
 			// Consume the invite token after successful user creation
-			await auth?.consumeToken(token);
+			await auth?.consumeRegistrationToken(token);
 			logger.info(`Invited user ${user?.username} created successfully via OAuth and token consumed`);
 
 			// Send welcome email for invited users
@@ -253,6 +259,9 @@ async function handleGoogleUser(
 
 			user = await auth?.createUser(userData, true);
 
+			// Invalidate user count cache after first user (admin) creation
+			invalidateUserCountCache();
+
 			// Send welcome email for new admin
 			await sendWelcomeEmail(fetchFn, email, googleUser.name || '', request);
 		}
@@ -293,7 +302,7 @@ async function handleGoogleUser(
 		logger.debug('Updating user attributes:', updateData);
 		await auth.updateUserAttributes(user._id.toString(), updateData);
 
-		logger.debug(`Updated user attributes for: ${user._id}`);
+		logger.debug(`Updated user attributes for: \x1b[34m${user._id}\x1b[0m`);
 	}
 
 	if (!user?._id) {
@@ -403,9 +412,6 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			// Use the same environment detection logic as the OAuth URL generation
 			const redirectUri = getOAuthRedirectUri();
 
-			logger.debug(`Creating OAuth client with redirect URI: ${redirectUri}`);
-			logger.debug(`Client ID: ${privateEnv.GOOGLE_CLIENT_ID?.substring(0, 20)}...`);
-
 			const googleAuthClient = new google.auth.OAuth2(privateEnv.GOOGLE_CLIENT_ID, privateEnv.GOOGLE_CLIENT_SECRET, redirectUri);
 
 			// Try using the getToken method with explicit options to disable PKCE
@@ -484,6 +490,28 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 				token
 			});
 
+			// Provide more specific error messages based on the error type
+			if (errorMessage.includes('A valid invitation is required')) {
+				throw error(403, {
+					message: 'Admin Invitation Required',
+					details: 'This CMS requires an invitation from an administrator to create any new account. Both email/password and Google OAuth registration require admin approval. Please contact the site administrator to request an invitation link.'
+				});
+			}
+
+			if (errorMessage.includes('invitation is invalid, expired, or has already been used')) {
+				throw error(403, {
+					message: 'Invalid or Expired Invitation',
+					details: 'Your invitation token is invalid, expired, or has already been used. Please request a new invitation from the administrator. Note that both email/password and OAuth registration require a valid invitation.'
+				});
+			}
+
+			if (errorMessage.includes('Google account email does not match the invitation email')) {
+				throw error(403, {
+					message: 'Google Account Email Mismatch',
+					details: 'The Google account email does not match the invitation email address. Please sign in with the correct Google account that matches your invitation, or contact the administrator for a new invitation with the correct email address.'
+				});
+			}
+
 			// Provide more detailed error information
 			const errorDetails = err instanceof Error ? err.stack : 'No stack trace available';
 			throw error(500, {
@@ -499,6 +527,12 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 		if (err && typeof err === 'object' && 'status' in err && (err.status === 302 || err.status === 303)) {
 			logger.info('OAuth flow completed successfully, performing redirect');
 			throw err; // Re-throw the redirect
+		}
+
+		// Check if this is already a properly formatted error from inner catch blocks
+		if (err && typeof err === 'object' && 'status' in err && 'body' in err) {
+			logger.debug('Re-throwing formatted error from inner handler');
+			throw err;
 		}
 
 		const errorMessage = err instanceof Error ? err.message : 'Unknown error during OAuth process';

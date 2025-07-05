@@ -43,10 +43,12 @@ export async function main() {
 
 		// Handle user input
 		if (projectStart === 'install') {
-			await backupRestorePrompt();
+			const backupResult = await backupRestorePrompt();
 
-			// configurationPrompt now handles its own cancellations via cancelOperation
-			await configurationPrompt();
+			// Only proceed to configuration if backupRestorePrompt returns 'configuration'
+			if (backupResult === 'configuration') {
+				await configurationPrompt();
+			}
 		} else if (projectStart === 'start') {
 			await startProcess();
 		}

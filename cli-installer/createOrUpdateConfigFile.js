@@ -109,9 +109,9 @@ export async function createOrUpdateConfigFile(configData) {
             // Secret key for signing and verifying JSON Web Tokens (JWTs)
             JWT_SECRET_KEY: '${jwtSecret}', // Use the ensured secret
 
-            // Roles & permissions arrays
-            ROLES: [],
-            PERMISSIONS: [],
+            // Roles & permissions arrays (must have at least 1 item each)
+            ROLES: ${JSON.stringify(configData?.ROLES || ['admin'])},
+            PERMISSIONS: ${JSON.stringify(configData?.PERMISSIONS || ['manage'])},
         });
     `;
 
@@ -147,9 +147,9 @@ export async function createOrUpdateConfigFile(configData) {
             // Define Max File Size (default: 100mb)
             MAX_FILE_SIZE: ${formatNumber(configData?.MAX_FILE_SIZE, 104857600)}, // Aligned with system.js prompt default
 
-            // The URL of the media server (Default: '' = localhost)
+            // The URL of the media server (optional)
             // Example External Storage -  MEDIASERVER_URL: 'https://my-server.com/'
-            MEDIASERVER_URL: '${formatString(configData?.MEDIASERVER_URL)}',
+            ${configData?.MEDIASERVER_URL ? `MEDIASERVER_URL: '${formatString(configData.MEDIASERVER_URL)}',` : '// MEDIASERVER_URL: undefined, // Uncomment and set if using external media server'}
 
             // The folder where the site's media files will be stored. (Default: 'mediaFiles')
             MEDIA_FOLDER: '${formatString(configData?.MEDIA_FOLDER, 'mediaFiles')}',

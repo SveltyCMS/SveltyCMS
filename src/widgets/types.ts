@@ -4,7 +4,7 @@
  */
 
 import type { User, WidgetId } from '@root/src/auth';
-import type { Schema, Field } from '../content/types';
+import type { Schema, Field, FullField } from '../content/types';
 import type { SvelteComponent } from 'svelte';
 import type { GuiFieldConfig } from '@utils/utils';
 
@@ -27,7 +27,7 @@ export interface Widget {
 	component?: typeof SvelteComponent;
 	config?: Record<string, unknown>;
 	validateWidget: () => Promise<string | null>; // Required validation method
-	updateTranslationStatus: (value: unknown, field: Field, language: string) => void; // Required translation status
+	updateTranslationStatus: (value: unknown, field: FullField, language: string) => void; // Required translation status
 	modifyRequest?: (args: ModifyRequestParams) => Promise<Record<string, unknown>>;
 	GuiFields?: unknown;
 	Icon?: string;
@@ -36,21 +36,17 @@ export interface Widget {
 }
 
 export interface WidgetFunction {
-	(config: Record<string, unknown>): WidgetPlaceholder;
+	(config: Record<string, unknown>): Field;
 	componentPath: string;
 	Name?: string;
 	GuiSchema?: Record<string, GuiFieldConfig>;
-	GraphqlSchema?: GraphqlSchema;
+	GraphqlSchema?: GraphqlSchema; // Consider defining a proper type for this
 	Icon?: string;
 	Description?: string;
 	aggregations?: unknown;
 	modifyRequest?: (args: ModifyRequestParams) => Promise<Record<string, unknown>>;
 	dependencies?: string[];
 	toString?: () => string;
-}
-
-export interface WidgetModule {
-	default: WidgetFunction; // Default export of a widget module
 }
 
 export interface WidgetModule {

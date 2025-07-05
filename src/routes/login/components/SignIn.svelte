@@ -462,7 +462,7 @@ Features:
 									{/if}
 								</button>
 								<!-- OAuth Login -->
-								<OauthLogin />
+								<OauthLogin showOAuth={pageData.showOAuth} />
 							</div>
 
 							<!-- Row 2 -->
