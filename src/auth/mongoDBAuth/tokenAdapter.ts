@@ -12,8 +12,8 @@
  * - Integration with MongoDB through Mongoose
  */
 
-import mongoose, { Schema, Document } from 'mongoose';
-import type { Model } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
+import type { Model, Document } from 'mongoose';
 
 import crypto from 'crypto';
 import { error } from '@sveltejs/kit';

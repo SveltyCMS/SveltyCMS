@@ -10,66 +10,21 @@
 import { dev } from '$app/environment';
 import { privateEnv } from '@root/config/private';
 import { publicEnv } from '@root/config/public';
-import type { OAuth2Client } from 'google-auth-library';
-import type { Credentials } from 'google-auth-library';
+import type { Credentials, OAuth2Client } from 'google-auth-library';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
 // Utility function to determine the correct OAuth redirect URI
 function getOAuthRedirectUri(): string {
-	// Check if we're in development mode
+	// Use SvelteKit's built-in environment detection
 	if (dev) {
+		logger.debug('🔧 Development mode detected - using development host');
 		return `${publicEnv.HOST_DEV}/login/oauth`;
 	}
 
-	// For production builds, we need to detect if we're running locally (preview mode)
-	if (typeof process !== 'undefined') {
-		// Comprehensive environment detection
-		const allEnvVars = {
-			PORT: process.env.PORT,
-			NODE_ENV: process.env.NODE_ENV,
-			VITE_PREVIEW: process.env.VITE_PREVIEW,
-			PREVIEW: process.env.PREVIEW,
-			SERVER_PORT: privateEnv.SERVER_PORT,
-			dev_flag: dev,
-			argv_full: process.argv.join(' '),
-			cwd: process.cwd?.(),
-			title: process.title
-		};
-
-		logger.debug(`Full environment detection:`, allEnvVars);
-
-		// Method 1: Explicit preview environment variables
-		if (process.env.VITE_PREVIEW === 'true' || process.env.PREVIEW === 'true') {
-			logger.debug('✅ Detected preview mode via VITE_PREVIEW/PREVIEW env var - using localhost:4173');
-			return `http://localhost:4173/login/oauth`;
-		}
-
-		// Method 2: Check if running on port 4173 (default preview port)
-		const port = process.env.PORT || privateEnv.SERVER_PORT;
-		if (port === '4173' || port === 4173) {
-			logger.debug('✅ Detected preview mode via PORT 4173 - using localhost:4173');
-			return `http://localhost:4173/login/oauth`;
-		}
-
-		// Method 3: Check command line arguments for preview indicators
-		const argvString = process.argv.join(' ');
-		if (argvString.includes('preview') || argvString.includes('4173')) {
-			logger.debug('✅ Detected preview mode via command line args - using localhost:4173');
-			return `http://localhost:4173/login/oauth`;
-		}
-
-		// Method 4: If not in production and not dev, assume preview
-		const nodeEnv = process.env.NODE_ENV;
-		if (!nodeEnv || nodeEnv !== 'production') {
-			logger.debug('✅ Detected preview mode (not production env) - using localhost:4173');
-			return `http://localhost:4173/login/oauth`;
-		}
-	}
-
-	logger.debug('🚀 Using production host for OAuth redirect');
-	// Default to production host
+	// For production builds, use the production host
+	logger.debug('🚀 Production mode detected - using production host');
 	return `${publicEnv.HOST_PROD}/login/oauth`;
 }
 
@@ -139,4 +94,4 @@ async function generateGoogleAuthUrl(token?: string | null, promptType?: 'consen
 	return authUrl;
 }
 
-export { googleAuth, setCredentials, generateGoogleAuthUrl, getOAuthRedirectUri };
+export { generateGoogleAuthUrl, getOAuthRedirectUri, googleAuth, setCredentials };

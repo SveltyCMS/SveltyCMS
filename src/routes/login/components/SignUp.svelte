@@ -12,8 +12,8 @@ Features:
 -->
 
 <script lang="ts">
-	import { privateEnv } from '@root/config/private';
 	import { browser } from '$app/environment';
+	import { privateEnv } from '@root/config/private';
 
 	import type { PageData } from '../$types';
 
@@ -22,19 +22,17 @@ Features:
 
 	// Superforms
 	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
-	import { superForm } from 'sveltekit-superforms/client';
 	import type { SignUpFormSchema } from '@utils/formSchemas';
 	import type { SuperValidated } from 'sveltekit-superforms';
-
+	import { superForm } from 'sveltekit-superforms/client';
 	// Components
-	import SignupIcon from './icons/SignupIcon.svelte';
+	import PasswordStrength from '@components/PasswordStrength.svelte';
 	import SiteName from '@components/SiteName.svelte';
-	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
-	import PasswordStrength from '@components/PasswordStrength.svelte';
+	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import FloatingPaths from '@root/src/components/system/FloatingPaths.svelte';
-
+	import SignupIcon from './icons/SignupIcon.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -155,7 +153,9 @@ Features:
 	// Event handlers
 	function handleOAuth() {
 		// Check if user needs an invitation token
-		if (!isInviteFlow && !firstUserExists && !hasExistingOAuthUsers && !formValues.token) {
+		// First user (!firstUserExists) should NOT require a token
+		// Only existing users (firstUserExists) without an invite flow or token should be blocked
+		if (!isInviteFlow && firstUserExists && !hasExistingOAuthUsers && !formValues.token) {
 			// Show a helpful message
 			alert(
 				'⚠️ Please enter your invitation token first before using Google OAuth signup. Both email/password and OAuth registration require an invitation from an administrator.'
@@ -417,7 +417,7 @@ Features:
 							</button>
 						</div>
 
-						{#if !isInviteFlow && !firstUserExists && !hasExistingOAuthUsers}
+						{#if !isInviteFlow && firstUserExists && !hasExistingOAuthUsers}
 							<p class="mt-2 text-xs text-surface-400">
 								💡 Note: Both email/password and Google OAuth registration require an invitation token from an administrator.
 							</p>

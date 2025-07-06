@@ -15,11 +15,11 @@
 - Adds specific warnings about feature limitations in Dev/Testing mode, **including suitability for single-admin setups.**
 */
 
-import { Title, cancelToMainMenu } from '../cli-installer.js';
-import { isCancel, text, select, confirm, note, password, spinner } from '@clack/prompts';
-import pc from 'picocolors';
-import { configurationPrompt } from '../configuration.js';
+import { confirm, isCancel, note, password, select, spinner, text } from '@clack/prompts';
 import nodemailer from 'nodemailer';
+import pc from 'picocolors';
+import { Title, cancelToMainMenu } from '../cli-installer.js';
+import { configurationPrompt } from '../configuration.js';
 
 // Common providers and the Custom option
 const emailProviders = [
@@ -74,15 +74,14 @@ export async function configureEmail(privateConfigData = {}) {
 	Title();
 
 	note(
-		pc.yellow(`Email configuration is crucial for core CMS features like:\n`) +
-			`  • User registration and account activation\n` +
-			`  • Password reset functionality\n` +
-			`  • Sending important notifications (e.g., content updates, user messages)\n\n` +
-			`Without email configured, features requiring email will not function correctly.\n\n` +
-			pc.green('Why Email is Needed:')
-	);
+		`${pc.yellow('Email configuration is crucial for core CMS features:')}
+  • User registration and account activation
+  • Password reset functionality
+  • Important notifications and alerts
 
-	note(pc.blue('You can change this email configuration later in the CMS settings.'), pc.blue('Note:'));
+Choose your email setup mode based on your needs.`,
+		pc.green('Email Configuration:')
+	);
 
 	// Display existing configuration (excluding password)
 	if (privateConfigData.SMTP_HOST || privateConfigData.SMTP_DEV_MODE || privateConfigData.SMTP_SKIPPED) {
