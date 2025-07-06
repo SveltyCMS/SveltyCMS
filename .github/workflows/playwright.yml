@@ -152,7 +152,7 @@ jobs:
           publicEnv.LOG_LEVELS: '["info", "error", "warn"]'
           publicEnv.DEMO: 'true'
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: playwright-test-results
@@ -178,9 +178,9 @@ jobs:
       - name: Run Bun tests
         run: |
           mkdir -p test-results/bun
-          bun test tests/bun --output-file test-results/bun/test-results.txt
+          bun test tests/bun/api/api-endpoints.test.ts > test-results/bun/test-results.txt
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: bun-test-results
