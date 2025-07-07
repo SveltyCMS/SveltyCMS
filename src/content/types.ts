@@ -65,6 +65,7 @@ export interface Schema {
 	description?: string; // Optional description for the collection
 	strict?: boolean; // Optional strict mode
 	revision?: boolean; // Optional revisions
+	revisionLimit?: number; // Optional: Maximum number of revisions to keep
 	path?: string; // Path within the collections folder structure
 	permissions?: RolePermissions; // Optional permission restrictions
 	livePreview?: boolean; // Optional live preview

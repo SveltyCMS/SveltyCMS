@@ -13,6 +13,7 @@ export const schema: Schema = {
 	icon: 'fluent:rename-28-filled',
 	status: 'unpublished',
 	revision: true,
+	revisionLimit: 2, // limit  number of revisions
 	livePreview: true,
 
 	// Defined Fields that are used in your Collection

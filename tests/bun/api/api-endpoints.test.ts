@@ -9,7 +9,7 @@ import { describe, expect, it } from 'bun:test';
  * - User management endpoints
  * - Dashboard and system endpoints
  * - Media management endpoints
- * - Collections and content endpoints
+ * - Collections, content, and revisions endpoints
  * - Miscellaneous endpoints (GraphQL, Virtual Folders)
  *
  * Note: These tests expect 500 errors due to authentication middleware
@@ -194,7 +194,7 @@ describe('SveltyCMS API Endpoints', () => {
 		});
 	});
 
-	describe('Collections & Content Endpoints', () => {
+	describe('Collections, Content, & Revisions Endpoints', () => {
 		const collectionEndpoints = [
 			{ method: 'GET', path: '/api/collections', desc: 'List collections' },
 			{ method: 'POST', path: '/api/collections', desc: 'Create collection' },
@@ -226,6 +226,51 @@ describe('SveltyCMS API Endpoints', () => {
 				expect([200, 401, 404, 500]).toContain(response.status);
 
 				console.log(`✅ ${method} ${path} - Status: ${response.status}`);
+			});
+		});
+
+		describe('Revisions Endpoint (/api/query)', () => {
+			it('should handle fetching revision metadata', async () => {
+				const formData = new FormData();
+				formData.append('method', 'REVISIONS');
+				formData.append('collectionId', 'mockCollectionId');
+				formData.append('entryId', 'mockEntryId');
+				formData.append('user_id', 'mockUserId');
+				formData.append('metaOnly', 'true');
+
+				const response = await fetch(`${API_BASE_URL}/api/query`, {
+					method: 'POST',
+					body: formData
+				});
+
+				const result = await response.json();
+				expect(result).toBeDefined();
+				expect(typeof result).toBe('object');
+				expect([200, 401, 404, 500]).toContain(response.status);
+
+				console.log(`✅ POST /api/query (REVISIONS metaOnly) - Status: ${response.status}`);
+			});
+
+			it('should handle fetching a single revision with diff', async () => {
+				const formData = new FormData();
+				formData.append('method', 'REVISIONS');
+				formData.append('collectionId', 'mockCollectionId');
+				formData.append('entryId', 'mockEntryId');
+				formData.append('revisionId', 'mockRevisionId');
+				formData.append('user_id', 'mockUserId');
+				formData.append('currentData', JSON.stringify({ field: 'newValue' }));
+
+				const response = await fetch(`${API_BASE_URL}/api/query`, {
+					method: 'POST',
+					body: formData
+				});
+
+				const result = await response.json();
+				expect(result).toBeDefined();
+				expect(typeof result).toBe('object');
+				expect([200, 400, 401, 404, 500]).toContain(response.status);
+
+				console.log(`✅ POST /api/query (REVISIONS with diff) - Status: ${response.status}`);
 			});
 		});
 	});
@@ -409,3 +454,4 @@ describe('SveltyCMS API Endpoints', () => {
 		});
 	});
 });
+
