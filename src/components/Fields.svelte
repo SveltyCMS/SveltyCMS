@@ -223,7 +223,7 @@
 		try {
 			const formData = new FormData();
 			formData.append('method', 'REVISIONS');
-			formData.append('collectionId', collection.value._id);
+			formData.append('collectionId', collection.value?._id || '');
 			formData.append('entryId', String(collectionValue.value._id));
 			formData.append('revisionId', revisionId);
 			formData.append('currentData', JSON.stringify(formDataSnapshot));
@@ -256,7 +256,10 @@
 				throw new Error(result.error || 'Failed to fetch revision diff.');
 			}
 		} catch (error) {
-			toastStore.trigger({ message: `Error loading revision diff: ${error.message}`, background: 'variant-filled-error' });
+			toastStore.trigger({
+				message: `Error loading revision diff: ${error instanceof Error ? error.message : 'Unknown error'}`,
+				background: 'variant-filled-error'
+			});
 		} finally {
 			isRevisionDetailLoading = false;
 		}
@@ -285,7 +288,7 @@
 		try {
 			const formData = new FormData();
 			formData.append('method', 'PATCH');
-			formData.append('collectionId', collection.value._id);
+			formData.append('collectionId', collection.value?._id || '');
 			const revertData = { ...selectedRevisionData, _id: collectionValue.value._id };
 			formData.append('data', JSON.stringify(revertData));
 

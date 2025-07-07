@@ -22,10 +22,10 @@
  * via the API endpoint.
  */
 
-import axios from 'axios';
-import { error } from '@sveltejs/kit';
-import { obj2formData, col2formData, config, toFormData } from './utils';
 import type { ContentTypes, Schema } from '@src/types';
+import { error } from '@sveltejs/kit';
+import axios from 'axios';
+import { col2formData, config, obj2formData, toFormData } from './utils';
 
 // Store
 import { collection, collectionValue, mode } from '../stores/collectionStore.svelte';
@@ -51,6 +51,7 @@ function generateCacheKey(query: {
 	contentLanguage?: string;
 	filter?: string;
 	sort?: string;
+	_langChange?: number;
 }): string {
 	const normalizedQuery = {
 		collectionId: query.collectionId.trim().toLowerCase(),
@@ -58,7 +59,8 @@ function generateCacheKey(query: {
 		limit: query.limit || 10,
 		contentLanguage: query.contentLanguage || 'en',
 		filter: query.filter || '{}',
-		sort: query.sort || '{}'
+		sort: query.sort || '{}',
+		_langChange: query._langChange || 0
 	};
 	return JSON.stringify(normalizedQuery);
 }
@@ -125,6 +127,7 @@ export async function getData(
 		contentLanguage?: string;
 		filter?: string;
 		sort?: string;
+		_langChange?: number; // Timestamp to force cache miss on language changes
 	},
 	retries = 3
 ): Promise<{ entryList: Record<string, unknown>[]; pagesCount: number }> {
