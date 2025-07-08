@@ -330,7 +330,7 @@
 				id="translation-menu"
 				class="{translationProgress().show || completionTotals.total > 0
 					? 'w-64'
-					: 'w-48'} absolute right-0 z-10 mt-1 origin-top-right divide-y divide-surface-200 rounded-md border border-surface-300 bg-surface-100 py-1 shadow-xl ring-1 ring-black ring-opacity-5 backdrop-blur-sm focus:outline-none dark:divide-surface-400 dark:bg-surface-800"
+					: 'w-48'} absolute -right-24 z-10 mt-1 origin-top-right divide-y divide-surface-200 rounded-md border border-surface-300 bg-surface-100 py-1 shadow-xl ring-1 ring-black ring-opacity-5 backdrop-blur-sm focus:outline-none dark:divide-surface-400 dark:bg-surface-800 md:right-0"
 				role="menu"
 				aria-orientation="vertical"
 				aria-labelledby="options-menu"
