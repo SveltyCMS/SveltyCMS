@@ -165,8 +165,10 @@
 	});
 
 	$effect(() => {
+		currentCollectionValue;
+		if (!collection.value?.fields) return;
 		for (const field of collection.value?.fields) {
-			updateTranslationProgress(collectionValue.value, field);
+			updateTranslationProgress(currentCollectionValue, field);
 		}
 	});
 	// Dynamic import of widget components

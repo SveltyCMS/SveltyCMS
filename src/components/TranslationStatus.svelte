@@ -85,6 +85,7 @@
 			// Reset initialization state when collection changes
 			isInitialized = false;
 			initializeTranslationProgress(currentCollection);
+			renderLanguageProgess();
 			isInitialized = true;
 		}
 	});
@@ -135,7 +136,6 @@
 	function updateTranslationProgressFromFields(currentCollection: any, currentCollectionValue: Record<string, any>) {
 		const currentProgress = translationProgress();
 		let hasUpdates = false;
-
 		for (const lang of availableLanguages) {
 			if (!currentProgress[lang]) continue;
 
@@ -167,34 +167,36 @@
 
 		if (hasUpdates) {
 			updateTranslationProgress(currentProgress);
-			const progress = translationProgress();
-			let total = 0;
-			let translated = 0;
-			for (const lang of availableLanguages) {
-				const langProgress = progress[lang as Locale];
-				if (!langProgress) continue;
-				translated += langProgress.translated.size;
-				total += langProgress.total.size;
-			}
-			completionTotals = { total, translated };
-
-			// Update overall progress animation
-			const newPercentage = total > 0 ? Math.round((translated / total) * 100) : 0;
-			progressValue.target = newPercentage;
-
-			// Initialize and update individual language progress
-			// initializeLanguageProgress();
-			for (const lang of availableLanguages) {
-				const langProgress = progress[lang as Locale];
-				const percentage =
-					langProgress && langProgress.total.size > 0 ? Math.round((langProgress.translated.size / langProgress.total.size) * 100) : 0;
-
-				console.log('[TranslationStatus] lang:', lang, 'percentage:', percentage);
-				languageProgressValues[lang].target = percentage;
-			}
+			renderLanguageProgess();
 		}
 	}
 
+	function renderLanguageProgess() {
+		const progress = translationProgress();
+		let total = 0;
+		let translated = 0;
+		for (const lang of availableLanguages) {
+			const langProgress = progress[lang as Locale];
+			if (!langProgress) continue;
+			translated += langProgress.translated.size;
+			total += langProgress.total.size;
+		}
+		completionTotals = { total, translated };
+
+		// Update overall progress animation
+		const newPercentage = total > 0 ? Math.round((translated / total) * 100) : 0;
+		progressValue.target = newPercentage;
+
+		// Initialize and update individual language progress
+		// initializeLanguageProgress();
+		for (const lang of availableLanguages) {
+			const langProgress = progress[lang as Locale];
+			const percentage = langProgress && langProgress.total.size > 0 ? Math.round((langProgress.translated.size / langProgress.total.size) * 100) : 0;
+
+			console.log('[TranslationStatus] lang:', lang, 'percentage:', percentage);
+			languageProgressValues[lang].target = percentage;
+		}
+	}
 	// Animate dropdown visibility
 	$effect(() => {
 		if (isOpen) {
