@@ -8,10 +8,10 @@
 - Prompts for start or install
 */
 
-import { select, isCancel, note, outro } from '@clack/prompts';
-import pc from 'picocolors';
+import { isCancel, note, outro, select } from '@clack/prompts';
 import fs from 'fs';
 import path from 'path';
+import pc from 'picocolors';
 import { Title } from './cli-installer.js';
 
 export const startOrInstallPrompt = async () => {
@@ -20,7 +20,8 @@ export const startOrInstallPrompt = async () => {
 
 	// Display a note about what the user can do/select
 	note(
-		`- Use ${pc.green('arrow keys')} to navigate
+		'💡 Tip: Expand your terminal window for the best user experience\n\n' +
+			`- Use ${pc.green('arrow keys')} to navigate
 - Press ${pc.green('Enter')} to select
 - Press ${pc.green('Ctrl+C')} to cancel at any time`,
 		pc.green('Navigation Instructions:')

@@ -25,8 +25,8 @@ import { systemLanguage, type Locale } from '@stores/store.svelte';
 import { get } from 'svelte/store';
 
 // System Logger
-import { logger } from '@utils/logger.svelte';
 import { generateGoogleAuthUrl, getOAuthRedirectUri } from '@src/auth/googleAuth';
+import { logger } from '@utils/logger.svelte';
 
 // Import roles
 import { roles } from '@root/config/roles';
@@ -372,32 +372,39 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 		}
 
 		// If no code is present, handle initial OAuth flow
-		if (!code && !firstUserExists) {
-			logger.debug('No first user and no code - redirecting to OAuth');
-			try {
-				const authUrl = await generateGoogleAuthUrl(token, 'consent');
-				redirect(302, authUrl);
-			} catch (err) {
-				logger.error('Error generating OAuth URL:', err);
-				throw error(500, 'Failed to initialize OAuth');
-			}
-		}
-
-		// For non-first users without a token, show token input form
-		if (firstUserExists && !token && !code) {
-			logger.debug('First user exists, no token, no code - showing token input form');
-			return {
-				isFirstUser: !firstUserExists,
-				requiresToken: true
-			};
-		}
-
 		if (!code) {
-			logger.debug('No authorization code found, showing token input form');
-			return {
-				isFirstUser: !firstUserExists,
-				requiresToken: firstUserExists
-			};
+			// For first user (no existing users), redirect directly to OAuth
+			if (!firstUserExists) {
+				logger.debug('No first user and no code - redirecting to OAuth');
+				try {
+					const authUrl = await generateGoogleAuthUrl(token, 'consent');
+					redirect(302, authUrl);
+				} catch (err) {
+					logger.error('Error generating OAuth URL:', err);
+					throw error(500, 'Failed to initialize OAuth');
+				}
+			}
+
+			// For non-first users without a token, show token input form
+			if (firstUserExists && !token) {
+				logger.debug('First user exists, no token, no code - showing token input form');
+				return {
+					isFirstUser: !firstUserExists,
+					requiresToken: true
+				};
+			}
+
+			// For non-first users with a token, redirect to OAuth with the token
+			if (firstUserExists && token) {
+				logger.debug('First user exists, token provided, redirecting to OAuth');
+				try {
+					const authUrl = await generateGoogleAuthUrl(token, 'consent');
+					redirect(302, authUrl);
+				} catch (err) {
+					logger.error('Error generating OAuth URL:', err);
+					throw error(500, 'Failed to initialize OAuth');
+				}
+			}
 		}
 
 		// Process OAuth callback
@@ -494,21 +501,24 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			if (errorMessage.includes('A valid invitation is required')) {
 				throw error(403, {
 					message: 'Admin Invitation Required',
-					details: 'This CMS requires an invitation from an administrator to create any new account. Both email/password and Google OAuth registration require admin approval. Please contact the site administrator to request an invitation link.'
+					details:
+						'This CMS requires an invitation from an administrator to create any new account. Both email/password and Google OAuth registration require admin approval. Please contact the site administrator to request an invitation link.'
 				});
 			}
 
 			if (errorMessage.includes('invitation is invalid, expired, or has already been used')) {
 				throw error(403, {
 					message: 'Invalid or Expired Invitation',
-					details: 'Your invitation token is invalid, expired, or has already been used. Please request a new invitation from the administrator. Note that both email/password and OAuth registration require a valid invitation.'
+					details:
+						'Your invitation token is invalid, expired, or has already been used. Please request a new invitation from the administrator. Note that both email/password and OAuth registration require a valid invitation.'
 				});
 			}
 
 			if (errorMessage.includes('Google account email does not match the invitation email')) {
 				throw error(403, {
 					message: 'Google Account Email Mismatch',
-					details: 'The Google account email does not match the invitation email address. Please sign in with the correct Google account that matches your invitation, or contact the administrator for a new invitation with the correct email address.'
+					details:
+						'The Google account email does not match the invitation email address. Please sign in with the correct Google account that matches your invitation, or contact the administrator for a new invitation with the correct email address.'
 				});
 			}
 

@@ -8,7 +8,7 @@
 - Prompts for Language integration
 */
 
-import { confirm, multiselect, select, isCancel, note } from '@clack/prompts';
+import { confirm, isCancel, multiselect, note, select } from '@clack/prompts';
 import pc from 'picocolors';
 import { Title, cancelToMainMenu } from '../cli-installer.js';
 
@@ -47,7 +47,11 @@ export async function configureLanguage(configData = {}) {
 
 	// Display a note about the Language configuration
 	note(
-		`The Language configuration allows you to set the default\n` + `and available languages for both content and system interfaces.`,
+		`Configure language settings for your CMS:
+  • Default content language for new posts
+  • Available languages for multilingual content
+  • System interface language preferences
+  • Enable/disable multilingual features`,
 		pc.green('Language Configuration:')
 	);
 
@@ -152,9 +156,6 @@ export async function configureLanguage(configData = {}) {
 		AVAILABLE_SYSTEM_LANGUAGES.push(DEFAULT_SYSTEM_LANGUAGE);
 		AVAILABLE_SYSTEM_LANGUAGES = [...new Set(AVAILABLE_SYSTEM_LANGUAGES)];
 	}
-
-	// SveltyCMS Title
-	Title();
 
 	// Summary
 	note(

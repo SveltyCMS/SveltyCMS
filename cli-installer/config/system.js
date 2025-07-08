@@ -93,9 +93,11 @@ export async function configureSystem(privateConfigData = {}) {
 
 	// Display a note about the System configuration
 	note(
-		`The System configuration allows you to set essential settings for\n` +
-			`your site, such as site name, host names for development and production,\n` +
-			`password strength, body size limit, and optional seasonal settings.`,
+		`Configure essential system settings for your SveltyCMS installation:
+  • Site name and branding
+  • Development and production hostnames
+  • Security settings (JWT, password strength)
+  • File upload limits and body size restrictions`,
 		pc.green('System Configuration:')
 	);
 

@@ -1,206 +1,173 @@
 /**
  @file cli-installer/createOrUpdateConfigFile.js
- @description Create or Update Config File
-
- ### Features
- - Creates a new config file if it doesn't exist
- - Updates an existing config file
+ @description Create or Update Config File.
+ This script generates valid configuration files based on user input or sensible defaults,
+ ensuring they align with the validation schemas in `config/types.ts`.
  */
 
+import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
-import crypto from 'crypto';
 
 // Generate a random JWT secret key of specified length
-function generateRandomJWTSecret(length = 64) {
+function generateRandomJWTSecret(length = 32) {
+	// Generate 32 bytes, which results in a 64-character hex string
 	return crypto.randomBytes(length).toString('hex');
 }
 
-// Helper to format value as boolean literal
-const formatBoolean = (value) => (value ? 'true' : 'false');
-
-// Helper to format value as number literal or default
-const formatNumber = (value, defaultValue) => (value !== undefined && value !== null && !isNaN(Number(value)) ? Number(value) : defaultValue);
-
-// Helper to format value as string literal or default
-const formatString = (value, defaultValue = '') => (value !== undefined && value !== null ? String(value) : defaultValue);
-
-// Helper to format IMAGE_SIZES object
-const formatImageSizesObject = (sizes) => {
-	if (!sizes || typeof sizes !== 'object' || Object.keys(sizes).length === 0) {
-		return 'sm: 600, md: 900, lg: 1200'; // Default string if invalid/empty
+// Helper to format values. It omits the line if the value is null or undefined.
+const formatLine = (key, value, isString = true) => {
+	if (value === null || value === undefined) {
+		return `// ${key}: undefined, // Optional: Uncomment and provide a value`;
 	}
-	// Convert object back to the "key: value" string format expected by the template literal
-	return Object.entries(sizes)
-		.map(([key, value]) => `${key}: ${value}`)
-		.join(', ');
+	const formattedValue = isString ? `'${String(value)}'` : value;
+	return `${key}: ${formattedValue},`;
+};
+
+// Helper to format array values
+const formatArrayLine = (key, value, defaultValue) => {
+	const arrayToFormat = Array.isArray(value) && value.length > 0 ? value : defaultValue;
+	return `${key}: ${JSON.stringify(arrayToFormat, null, 4)},`;
 };
 
 // Create or Update Config File
 export async function createOrUpdateConfigFile(configData) {
-	// Ensure JWT secret exists if not provided
-	const jwtSecret = configData?.JWT_SECRET_KEY || generateRandomJWTSecret();
+	// Ensure JWT secret exists and is valid
+	const jwtSecret = configData?.JWT_SECRET_KEY && configData.JWT_SECRET_KEY.length >= 64 ? configData.JWT_SECRET_KEY : generateRandomJWTSecret();
+
+	// Determine default port based on DB type
+	const defaultDbPort = configData?.DB_TYPE === 'mariadb' ? 3306 : 27017;
+
 	// Generate private configuration file content
 	const privateConfigContent = `
-        /**
-         * Do not Edit as the file will be overwritten by CLI Installer!!!
-         * Use 'npm installer' to start the installer
-         *
-         * PRIVATE configuration for the application
-         */
+/**
+ * Do not Edit as the file will be overwritten by CLI Installer!!!
+ * Use 'npm run installer' to start the installer
+ *
+ * PRIVATE configuration for the application
+ */
 
-        import { createPrivateConfig } from './types';
+import { createPrivateConfig } from './types';
 
-        export const privateEnv = createPrivateConfig({
-            // Define the database type (Default: 'mongodb')
-            DB_TYPE: '${formatString(configData?.DB_TYPE, 'mongodb')}',
+export const privateEnv = createPrivateConfig({
+    // --- Database Configuration ---
+    ${formatLine('DB_TYPE', configData?.DB_TYPE || 'mongodb')}
+    ${formatLine('DB_HOST', configData?.DB_HOST || 'localhost')}
+    ${formatLine('DB_PORT', configData?.DB_PORT || defaultDbPort, false)}
+    ${formatLine('DB_NAME', configData?.DB_NAME || 'SveltyCMS')}
+    ${formatLine('DB_USER', configData?.DB_USER || 'root')}
+    ${formatLine('DB_PASSWORD', configData?.DB_PASSWORD || 'password')}
+    ${formatLine('DB_RETRY_ATTEMPTS', configData?.DB_RETRY_ATTEMPTS, false)}
+    ${formatLine('DB_RETRY_DELAY', configData?.DB_RETRY_DELAY, false)}
+    ${formatLine('DB_POOL_SIZE', configData?.DB_POOL_SIZE, false)}
 
-            // Database connection details
-            DB_HOST: '${formatString(configData?.DB_HOST)}',
-            DB_PORT: ${formatNumber(configData?.DB_PORT, null)}, // Use null default if not provided? Or specific default? Check type. Assuming null is ok.
-            DB_NAME: '${formatString(configData?.DB_NAME, 'SveltyCMS')}',
+    // --- SMTP Configuration ---
+    ${formatLine('SMTP_HOST', configData?.SMTP_HOST)}
+    ${formatLine('SMTP_PORT', configData?.SMTP_PORT, false)}
+    ${formatLine('SMTP_EMAIL', configData?.SMTP_EMAIL)}
+    ${formatLine('SMTP_PASSWORD', configData?.SMTP_PASSWORD)}
+    ${formatLine('SERVER_PORT', configData?.SERVER_PORT, false)}
 
-            // Optional database credentials
-            DB_USER: '${formatString(configData?.DB_USER)}',
-            DB_PASSWORD: '${formatString(configData?.DB_PASSWORD)}',
+    // --- Redis Caching ---
+    ${formatLine('USE_REDIS', configData?.USE_REDIS || false, false)}
+    ${formatLine('REDIS_HOST', configData?.REDIS_HOST)}
+    ${formatLine('REDIS_PORT', configData?.REDIS_PORT, false)}
+    ${formatLine('REDIS_PASSWORD', configData?.REDIS_PASSWORD)}
 
-            // Define the database retry settings
-            DB_RETRY_ATTEMPTS: ${formatNumber(configData?.DB_RETRY_ATTEMPTS, 3)}, // Default from system.js prompt
-            DB_RETRY_DELAY: ${formatNumber(configData?.DB_RETRY_DELAY, 3000)}, // Default from system.js prompt
-            DB_POOL_SIZE: ${formatNumber(configData?.DB_POOL_SIZE, 5)}, // Default from system.js prompt
+    // --- Session Management ---
+    ${formatLine('SESSION_CLEANUP_INTERVAL', configData?.SESSION_CLEANUP_INTERVAL, false)}
+    ${formatLine('MAX_IN_MEMORY_SESSIONS', configData?.MAX_IN_MEMORY_SESSIONS, false)}
+    ${formatLine('DB_VALIDATION_PROBABILITY', configData?.DB_VALIDATION_PROBABILITY, false)}
+    ${formatLine('SESSION_EXPIRATION_SECONDS', configData?.SESSION_EXPIRATION_SECONDS, false)}
 
-            // Define the SMTP server for email sending
-            SMTP_HOST: '${formatString(configData?.SMTP_HOST)}',
-            SMTP_PORT: ${formatNumber(configData?.SMTP_PORT, 587)}, // Common default
-            SMTP_EMAIL: '${formatString(configData?.SMTP_EMAIL)}',
-            SMTP_PASSWORD: '${formatString(configData?.SMTP_PASSWORD)}',
+    // --- Google OAuth ---
+    ${formatLine('USE_GOOGLE_OAUTH', configData?.USE_GOOGLE_OAUTH || false, false)}
+    ${formatLine('GOOGLE_CLIENT_ID', configData?.GOOGLE_CLIENT_ID)}
+    ${formatLine('GOOGLE_CLIENT_SECRET', configData?.GOOGLE_CLIENT_SECRET)}
 
-            // Enable Redis Caching (optional - Not full yet implemented).
-            USE_REDIS: ${formatBoolean(configData?.USE_REDIS)}, // Use boolean formatting
-            REDIS_HOST: '${formatString(configData?.REDIS_HOST, 'localhost')}',
-            REDIS_PORT: ${formatNumber(configData?.REDIS_PORT, 6379)},
-            REDIS_PASSWORD: '${formatString(configData?.REDIS_PASSWORD)}',
+    // --- Other APIs ---
+    ${formatLine('GOOGLE_API_KEY', configData?.GOOGLE_API_KEY)}
+    ${formatLine('USE_MAPBOX', configData?.USE_MAPBOX || false, false)}
+    ${formatLine('MAPBOX_API_TOKEN', configData?.MAPBOX_API_TOKEN)}
+    ${formatLine('SECRET_MAPBOX_API_TOKEN', configData?.SECRET_MAPBOX_API_TOKEN)}
+    ${formatLine('TWITCH_TOKEN', configData?.TWITCH_TOKEN)}
+    ${formatLine('USE_TIKTOK', configData?.USE_TIKTOK || false, false)}
+    ${formatLine('TIKTOK_TOKEN', configData?.TIKTOK_TOKEN)}
 
-            // Session Management configuration
-            SESSION_CLEANUP_INTERVAL: ${formatNumber(configData?.SESSION_CLEANUP_INTERVAL, 60000)},
-            MAX_IN_MEMORY_SESSIONS: ${formatNumber(configData?.MAX_IN_MEMORY_SESSIONS, 10000)},
-            DB_VALIDATION_PROBABILITY: ${formatNumber(configData?.DB_VALIDATION_PROBABILITY, 0.1)},
-            SESSION_EXPIRATION_SECONDS: ${formatNumber(configData?.SESSION_EXPIRATION_SECONDS, 3600)},
+    // --- LLM APIs ---
+    LLM_APIS: ${JSON.stringify(configData?.LLM_APIS || {}, null, 4)},
 
-            // Enable Google OAuth (optional).
-            USE_GOOGLE_OAUTH: ${formatBoolean(configData?.USE_GOOGLE_OAUTH)}, // Use boolean formatting
-            GOOGLE_CLIENT_ID: '${formatString(configData?.GOOGLE_CLIENT_ID)}',
-            GOOGLE_CLIENT_SECRET: '${formatString(configData?.GOOGLE_CLIENT_SECRET)}',
+    // --- JWT Secret ---
+    ${formatLine('JWT_SECRET_KEY', jwtSecret)}
 
-            // Google API for map & youtube (optional).
-            GOOGLE_API_KEY: '${formatString(configData?.GOOGLE_API_KEY)}',
-
-            // Mapbox (optional).
-            USE_MAPBOX: ${formatBoolean(configData?.USE_MAPBOX)}, // Use boolean formatting
-            MAPBOX_API_TOKEN: '${formatString(configData?.MAPBOX_API_TOKEN)}',
-
-            // TIKTOK_TOKEN (optional)
-            USE_TIKTOK: ${formatBoolean(configData?.USE_TIKTOK)}, // Use boolean formatting
-            TIKTOK_TOKEN: '${formatString(configData?.TIKTOK_TOKEN)}',
-
-            // Large Language Model API configurations
-            LLM_APIS: ${JSON.stringify(configData?.LLM_APIS || {}, null, 4)}, // Keep JSON stringify for object
-
-            // Secret key for signing and verifying JSON Web Tokens (JWTs)
-            JWT_SECRET_KEY: '${jwtSecret}', // Use the ensured secret
-
-            // Roles & permissions arrays (must have at least 1 item each)
-            ROLES: ${JSON.stringify(configData?.ROLES || ['admin'])},
-            PERMISSIONS: ${JSON.stringify(configData?.PERMISSIONS || ['manage'])},
-        });
-    `;
+    // --- Roles & Permissions ---
+    ${formatArrayLine('ROLES', configData?.ROLES, ['admin', 'editor'])}
+    ${formatArrayLine('PERMISSIONS', configData?.PERMISSIONS, ['manage', 'edit', 'create'])}
+});
+`;
 
 	const publicConfigContent = `
-        /**
-         * Do not Edit as the file will be overwritten by CLI Installer!!!
-         * Use 'npm installer' to start the installer
-         *
-         * PUBLIC configuration for the application
-         */
+/**
+ * Do not Edit as the file will be overwritten by CLI Installer!!!
+ * Use 'npm run installer' to start the installer
+ *
+ * PUBLIC configuration for the application
+ */
 
-        import { createPublicConfig } from './types';
+import { createPublicConfig } from './types';
 
-        export const publicEnv = createPublicConfig({
-            // The name of the site that this CMS should get. (Default: 'SveltyCMS')
-            SITE_NAME: '${configData?.SITE_NAME || 'SveltyCMS'}',
+export const publicEnv = createPublicConfig({
+    // --- Site Configuration ---
+    ${formatLine('SITE_NAME', configData?.SITE_NAME || 'SveltyCMS')}
+    ${formatLine('PASSWORD_LENGTH', configData?.PASSWORD_LENGTH || 8, false)}
 
-            // The default language for the site. (Default: 'en')
-            DEFAULT_CONTENT_LANGUAGE: '${configData?.DEFAULT_CONTENT_LANGUAGE || 'en'}',
+    // --- Language Configuration ---
+    ${formatLine('DEFAULT_CONTENT_LANGUAGE', configData?.DEFAULT_CONTENT_LANGUAGE || 'en')}
+    ${formatArrayLine('AVAILABLE_CONTENT_LANGUAGES', configData?.AVAILABLE_CONTENT_LANGUAGES, ['en', 'de'])}
+    ${formatLine('DEFAULT_SYSTEM_LANGUAGE', configData?.DEFAULT_SYSTEM_LANGUAGE || 'en')}
+    ${formatArrayLine('AVAILABLE_SYSTEM_LANGUAGES', configData?.AVAILABLE_SYSTEM_LANGUAGES, ['en', 'de', 'fr', 'es'])}
 
-            // The available languages for the site. (Default: 'en', 'de')
-            AVAILABLE_CONTENT_LANGUAGES: ${JSON.stringify(configData?.AVAILABLE_CONTENT_LANGUAGES || ['en', 'de'])},
+    // --- Media Configuration ---
+    ${formatLine('MEDIA_FOLDER', configData?.MEDIA_FOLDER || 'mediaFiles')}
+    MEDIA_OUTPUT_FORMAT_QUALITY: {
+        format: '${configData?.MEDIA_OUTPUT_FORMAT_QUALITY?.format || 'avif'}',
+        quality: ${configData?.MEDIA_OUTPUT_FORMAT_QUALITY?.quality || 80}
+    },
+    ${formatLine('MEDIASERVER_URL', configData?.MEDIASERVER_URL)}
+    IMAGE_SIZES: ${JSON.stringify(configData?.IMAGE_SIZES || { sm: 600, md: 900, lg: 1200 }, null, 4)},
+    ${formatLine('MAX_FILE_SIZE', configData?.MAX_FILE_SIZE, false)}
+    ${formatLine('BODY_SIZE_LIMIT', configData?.BODY_SIZE_LIMIT, false)}
+    ${formatLine('EXTRACT_DATA_PATH', configData?.EXTRACT_DATA_PATH)}
 
-            // The default language for the user interface. (Default: 'en')
-            DEFAULT_SYSTEM_LANGUAGE: '${configData?.DEFAULT_SYSTEM_LANGUAGE || 'en'}',
+    // --- Host Configuration ---
+    ${formatLine('HOST_DEV', configData?.HOST_DEV || 'http://localhost:5173')}
+    ${formatLine('HOST_PROD', configData?.HOST_PROD || 'https://example.com')}
 
-            // The available languages for the user interface. Restrict if Required (Default: 'en').
-            AVAILABLE_SYSTEM_LANGUAGES: ${JSON.stringify(configData?.AVAILABLE_SYSTEM_LANGUAGES || ['en'])},
+    // --- Logging ---
+    ${formatArrayLine('LOG_LEVELS', configData?.LOG_LEVELS, ['info', 'warn', 'error'])}
+    ${formatLine('LOG_RETENTION_DAYS', configData?.LOG_RETENTION_DAYS, false)}
+    ${formatLine('LOG_ROTATION_SIZE', configData?.LOG_ROTATION_SIZE, false)}
 
-            // The sizes of images that the site will generate. (Default: 'sm: 600, md: 900, lg: 1200')
-            IMAGE_SIZES: { ${formatImageSizesObject(configData?.IMAGE_SIZES)} } as const,
+    // --- Theming ---
+    ${formatLine('SEASONS', configData?.SEASONS || false, false)}
+    ${formatLine('SEASON_REGION', configData?.SEASON_REGION)}
 
-            // Define Max File Size (default: 100mb)
-            MAX_FILE_SIZE: ${formatNumber(configData?.MAX_FILE_SIZE, 104857600)}, // Aligned with system.js prompt default
-
-            // The URL of the media server (optional)
-            // Example External Storage -  MEDIASERVER_URL: 'https://my-server.com/'
-            ${configData?.MEDIASERVER_URL ? `MEDIASERVER_URL: '${formatString(configData.MEDIASERVER_URL)}',` : '// MEDIASERVER_URL: undefined, // Uncomment and set if using external media server'}
-
-            // The folder where the site's media files will be stored. (Default: 'mediaFiles')
-            MEDIA_FOLDER: '${formatString(configData?.MEDIA_FOLDER, 'mediaFiles')}',
-
-            // Media Format & Quality how images are saved on the server.
-            MEDIA_OUTPUT_FORMAT_QUALITY: {
-                format: '${formatString(configData?.MEDIA_OUTPUT_FORMAT_QUALITY?.format, 'original')}', // 'original' or 'avif', 'webp' (default: original)
-                quality: ${formatNumber(configData?.MEDIA_OUTPUT_FORMAT_QUALITY?.quality, 80)} // quality between 0 and 100 (default: 80)
-            } as const,
-
-            // Defines body size limit (Default: 1mb)
-            BODY_SIZE_LIMIT: ${formatNumber(configData?.BODY_SIZE_LIMIT, 1048576)}, // Aligned with system.js prompt default
-
-            // The path where the site's data will be extracted. (Default: './extracted_data' if enabled, '' if disabled)
-            EXTRACT_DATA_PATH: '${configData?.EXTRACT_DATA_PATH ? './extracted_data' : ''}', // Handle boolean to path string
-
-            // Define your hostname where your site is running in development/production
-            HOST_DEV: '${formatString(configData?.HOST_DEV, 'http://localhost:5173')}',
-            HOST_PROD: '${formatString(configData?.HOST_PROD, 'https://yourdomain.de')}', // Consider prompting for this default?
-
-            // Overwrite the default Password Length (Default 8)
-            PASSWORD_LENGTH: ${formatNumber(configData?.PASSWORD_LENGTH, 8)}, // Aligned with system.js prompt default
-
-            // Log Levels (Default: ['info', 'warn', 'error']) (Options: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'none')
-            LOG_LEVELS: ${JSON.stringify(configData?.LOG_LEVELS || ['info', 'warn', 'error'])}, // Aligned with system.js prompt default
-
-            // Log Retention Days (Default: 2 days)
-            LOG_RETENTION_DAYS: ${formatNumber(configData?.LOG_RETENTION_DAYS, 2)}, // New: Default to 2 days
-
-            // Log Rotation Size in bytes (Default: 5MB)
-            LOG_ROTATION_SIZE: ${formatNumber(configData?.LOG_ROTATION_SIZE, 5 * 1024 * 1024)}, // New: Default to 5MB
-
-            // Seasons/Events for login page (Default: false)
-            SEASONS: ${formatBoolean(configData?.SEASONS)}, // Use boolean formatting
-            SEASON_REGION: '${formatString(configData?.SEASON_REGION, 'Global')}', // Options: 'Europe' (European festivals), 'Asia' (Asian festivals), 'Global' (Both)
-        });
-    `;
+    // --- Demo Mode ---
+    ${formatLine('DEMO', configData?.DEMO || false, false)}
+});
+`;
 
 	try {
-		// Create or update the config directory
+		// Create the config directory if it doesn't exist
 		const configDir = path.join(process.cwd(), 'config');
 		await fs.mkdir(configDir, { recursive: true });
 
-		// Write private config file
-		await fs.writeFile(path.join(configDir, 'private.ts'), privateConfigContent, 'utf-8');
+		// Write the private and public config files
+		await fs.writeFile(path.join(configDir, 'private.ts'), privateConfigContent.trim(), 'utf-8');
+		await fs.writeFile(path.join(configDir, 'public.ts'), publicConfigContent.trim(), 'utf-8');
 
-		// Write public config file
-		await fs.writeFile(path.join(configDir, 'public.ts'), publicConfigContent, 'utf-8');
-
-		console.log('Configuration files created successfully!');
+		console.log('✅ Configuration files created successfully!');
 	} catch (error) {
-		console.error('Error creating or updating configuration files:', error);
+		console.error('❌ Error creating or updating configuration files:', error);
 	}
 }

@@ -1,5 +1,5 @@
 <!--
-@file:  src/components/EntryList.svelte
+@file:  src/components/EntryList.svelte
 @component
 **EntryList component to display collections data.**
 
@@ -23,48 +23,43 @@ Features:
 <script module lang="ts">
 	// Strict type for sort order
 	export type SortOrder = 0 | 1 | -1;
+
+	// FIX: Removed the local FieldDefinition interface to prevent type conflicts
+	// with the actual types from your project's content schema.
 </script>
 
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
-
 	// Utils
-	import { debounce as debounceUtil, getFieldName, meta_data } from '@utils/utils';
-	import { deleteData, getData, setStatus } from '@utils/data';
+	import { deleteData, getData, invalidateCollectionCache, setStatus } from '@utils/data';
 	import { formatDisplayDate } from '@utils/dateUtils';
-
+	import { debounce as debounceUtil, getFieldName, meta_data } from '@utils/utils';
 	// Types
-	import type { TableHeader, PaginationSettings } from './system/table/TablePagination.svelte';
-
+	import type { PaginationSettings, TableHeader } from './system/table/TablePagination.svelte';
 	// Stores
-	import { contentLanguage, systemLanguage } from '@stores/store.svelte';
-	import { mode, collectionValue, modifyEntry, statusMap, collection, contentStructure } from '@stores/collectionStore.svelte';
-	import { uiStateManager, toggleUIElement, handleUILayoutToggle } from '@stores/UIStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
-
+	import { collection, collectionValue, contentStructure, mode, modifyEntry, statusMap } from '@stores/collectionStore.svelte';
+	import { contentLanguage, systemLanguage } from '@stores/store.svelte';
+	import { handleUILayoutToggle, toggleUIElement, uiStateManager } from '@stores/UIStore.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Components
-	import EntryListMultiButton from './EntryList_MultiButton.svelte';
-	import TranslationStatus from '@components/TranslationStatus.svelte';
-	import TableIcons from '@components/system/table/TableIcons.svelte';
-	import TableFilter from '@components/system/table/TableFilter.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
-	import TablePagination from '@components/system/table/TablePagination.svelte';
 	import Status from '@components/system/table/Status.svelte';
+	import TableFilter from '@components/system/table/TableFilter.svelte';
+	import TableIcons from '@components/system/table/TableIcons.svelte';
+	import TablePagination from '@components/system/table/TablePagination.svelte';
+	import TranslationStatus from '@components/TranslationStatus.svelte';
+	import EntryListMultiButton from './EntryList_MultiButton.svelte';
 	import Loading from './Loading.svelte';
-
 	// Skeleton
-	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings } from '@skeletonlabs/skeleton';
-	const toastStore = getToastStore();
-	const modalStore = getModalStore();
-
+	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
 	// Svelte-dnd-action
-	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
+	import { flip } from 'svelte/animate';
 	import { v4 as uuidv4 } from 'uuid';
 
 	const flipDurationMs = 300;
@@ -203,6 +198,11 @@ Features:
 	let columnShow = $state(false);
 
 	const currentLanguage = $derived(contentLanguage.value);
+
+	// Debug effect to track language changes
+	$effect(() => {
+		console.log(`[EntryList] currentLanguage derived updated to: ${currentLanguage}`);
+	});
 	const currentSystemLanguage = $derived(systemLanguage.value);
 	const currentMode = $derived(mode.value);
 	const currentCollection = $derived(collection.value);
@@ -217,7 +217,7 @@ Features:
 	const tableHeaders = $derived.by((): TableHeader[] => {
 		if (!currentCollection?.fields) return [];
 		const schemaHeaders: TableHeader[] = currentCollection.fields.map(
-			(field): TableHeader => ({
+			(field: any): TableHeader => ({
 				id: uuidv4().replace(/-/g, ''),
 				label: field.label,
 				name: getFieldName(field),
@@ -342,6 +342,7 @@ Features:
 
 			try {
 				console.log(`[EntryList] Fetching data for collection ${currentCollId}`);
+				console.log(`[EntryList] Current language: ${currentLanguage}`);
 				const page = entryListPaginationSettings.currentPage;
 				const limit = entryListPaginationSettings.rowsPerPage;
 				const activeFilters: Record<string, string> = {};
@@ -352,18 +353,24 @@ Features:
 					entryListPaginationSettings.sorting.isSorted && entryListPaginationSettings.sorting.sortedBy
 						? { [entryListPaginationSettings.sorting.sortedBy]: entryListPaginationSettings.sorting.isSorted }
 						: {};
-				data = await getData({
+
+				const queryParams = {
 					collectionId: currentCollId,
 					page,
 					limit,
 					contentLanguage: currentLanguage,
 					filter: JSON.stringify(activeFilters),
-					sort: JSON.stringify(sortParam)
-				});
+					sort: JSON.stringify(sortParam),
+					// Add timestamp when language changed to force cache miss
+					_langChange: languageChangeTimestamp
+				};
+				console.log(`[EntryList] getData query params:`, queryParams);
+
+				data = await getData(queryParams);
 				console.log(`[EntryList] Data fetched for collection ${currentCollId}, entries: ${data?.entryList?.length || 0}`);
 			} catch (error) {
 				console.error(`Error fetching data: ${(error as Error).message}`);
-				toastStore.trigger({ message: `Error fetching data: ${(error as Error).message}`, background: 'variant-filled-error' });
+				getToastStore().trigger({ message: `Error fetching data: ${(error as Error).message}`, background: 'variant-filled-error' });
 				loadingState = 'error';
 				tableData = []; // Clear data on actual error
 				totalItems = 0;
@@ -380,11 +387,14 @@ Features:
 				data.entryList.map(async (entry) => {
 					const obj: { [key: string]: any } = { _id: entry._id }; // Ensure _id is always present
 					if (currentCollection?.fields) {
-						for (const field of currentCollection.fields) {
+						// FIX: Cast `currentCollection.fields` to `any[]` to avoid type conflicts.
+						// Runtime checks for properties like `display` and `callback` are used instead.
+						for (const field of currentCollection.fields as any[]) {
 							const fieldLabelKey = field.label;
 							const rawDataKey = getFieldName(field, false);
 							const rawFieldName = getFieldName(field);
-							if (field.display) {
+
+							if (field.display && typeof field.display === 'function') {
 								obj[fieldLabelKey] = await field.display({
 									data: entry[rawDataKey],
 									collection: currentCollId,
@@ -395,7 +405,9 @@ Features:
 							} else {
 								obj[fieldLabelKey] = entry[rawFieldName];
 							}
-							if (field.callback) field.callback({ data: entry });
+							if (field.callback && typeof field.callback === 'function') {
+								field.callback({ data: entry });
+							}
 						}
 					}
 					obj['status'] = entry.status ? entry.status.charAt(0).toUpperCase() + entry.status.slice(1) : 'N/A';
@@ -480,9 +492,11 @@ Features:
 		const rowsPerPage = entryListPaginationSettings.rowsPerPage;
 		const filters = entryListPaginationSettings.filters;
 		const sorting = entryListPaginationSettings.sorting;
+		// Track language changes that should trigger refresh
+		const language = currentLanguage;
 
 		// Read the tracked variables to ensure they're tracked
-		(void collectionId, currentPage, rowsPerPage, filters, sorting);
+		(void collectionId, currentPage, rowsPerPage, filters, sorting, language);
 
 		if (!collectionId) {
 			// No collection selected, already handled above
@@ -500,15 +514,34 @@ Features:
 		// Only refresh if this is for the same collection AND we've completed initial load
 		// Also ensure this isn't the initial setup after collection change
 		if (lastCollectionId === collectionId && hasInitialLoad && stableDataExists) {
-			console.log(`[EntryList] Pagination/filter change for collection ${collectionId}, refreshing data`);
+			console.log(`[EntryList] Pagination/filter/language change for collection ${collectionId}, language: ${language}, refreshing data`);
 			refreshDebounce(() => {
 				untrack(() => refreshTableData(true));
 			});
 		} else {
 			console.log(
-				`[EntryList] Skipping pagination refresh - lastCollectionId: ${lastCollectionId}, collectionId: ${collectionId}, hasInitialLoad: ${hasInitialLoad}, stableDataExists: ${stableDataExists}`
+				`[EntryList] Skipping pagination refresh - lastCollectionId: ${lastCollectionId}, collectionId: ${collectionId}, hasInitialLoad: ${hasInitialLoad}, stableDataExists: ${stableDataExists}, language: ${language}`
 			);
 		}
+	});
+
+	// Handle language changes specifically for cache invalidation
+	let lastLanguage = $state<string | null>(null);
+	let languageChangeTimestamp = $state<number>(Date.now());
+
+	$effect(() => {
+		const language = currentLanguage;
+		const collectionId = currentCollection?._id;
+
+		// Only invalidate cache if language actually changed and we have a collection
+		if (collectionId && lastLanguage !== null && lastLanguage !== language) {
+			console.log(`[EntryList] Language changed from ${lastLanguage} to ${language}, invalidating cache for collection ${collectionId}`);
+			invalidateCollectionCache(collectionId);
+			// Update timestamp to force cache miss
+			languageChangeTimestamp = Date.now();
+		}
+
+		lastLanguage = language;
 	});
 
 	$effect(() => {
@@ -557,7 +590,7 @@ Features:
 			// Append the status to formData
 			formData.append('status', statusMap[status]);
 			if (!currentCollection?._id) {
-				toastStore.trigger({
+				getToastStore().trigger({
 					message: 'Error: No collection selected or collection ID is missing.',
 					background: 'variant-filled-error',
 					timeout: 4000
@@ -580,7 +613,7 @@ Features:
 					case 'cloned':
 					case 'scheduled':
 						// Trigger a toast message indicating that the feature is not yet implemented
-						toastStore.trigger({
+						getToastStore().trigger({
 							message: 'Feature not yet implemented.',
 							background: 'variant-filled-error',
 							timeout: 3000
@@ -592,7 +625,7 @@ Features:
 				mode.set('view'); // Set the mode to 'view'
 			} catch (error) {
 				console.error(`Error modifying entries: ${(error as Error).message}`);
-				toastStore.trigger({ message: `Error: ${(error as Error).message}`, background: 'variant-filled-error' });
+				getToastStore().trigger({ message: `Error: ${(error as Error).message}`, background: 'variant-filled-error' });
 			}
 		};
 		// If more than one row is selected or the status is 'delete', show confirmation modal
@@ -607,7 +640,7 @@ Features:
 				buttonTextConfirm: m.button_confirm(),
 				response: handleConfirmation
 			};
-			modalStore.trigger(modalData); // Trigger the confirmation modal
+			getModalStore().trigger(modalData); // Trigger the confirmation modal
 		} else {
 			// If only one row is selected and status is not 'delete', directly proceed with modification
 			handleConfirmation(true);
@@ -818,7 +851,7 @@ Features:
 							</th>
 							<!-- Filter -->
 							{#each renderHeaders as header (header.id)}
-								<th class=""
+								<th
 									><div class="flex items-center justify-between">
 										<FloatingInput
 											type="text"
@@ -861,7 +894,7 @@ Features:
 
 						{#each renderHeaders as header (header.id)}
 							<th
-								class="cursor-pointer px-2 py-2 text-center text-xs sm:text-sm {header.name === entryListPaginationSettings.sorting.sortedBy
+								class="cursor-pointer px-2 py-1 text-center text-xs sm:text-sm {header.name === entryListPaginationSettings.sorting.sortedBy
 									? 'font-semibold text-primary-500 dark:text-secondary-400'
 									: 'text-tertiary-500 dark:text-primary-500'}"
 								onclick={() => {
@@ -896,7 +929,7 @@ Features:
 					{#if tableData.length > 0}
 						{#each tableData as entry, index (entry._id)}
 							<tr class="divide-x divide-surface-400 dark:divide-surface-700">
-								<td class="w-10 px-1 py-1 text-center">
+								<td class="w-10 text-center">
 									<TableIcons
 										checked={selectedMap[index]}
 										onCheck={(isChecked) => {
@@ -906,7 +939,7 @@ Features:
 								</td>
 								{#each renderHeaders as header (header.id)}
 									<td
-										class="px-2 py-2 text-center text-xs font-bold sm:text-sm {header.name !== 'status'
+										class="p-0 text-center text-xs font-bold sm:text-sm {header.name !== 'status'
 											? 'cursor-pointer hover:bg-primary-500/10 dark:hover:bg-secondary-500/20'
 											: ''}"
 										onclick={() => {
@@ -939,7 +972,7 @@ Features:
 		</div>
 		<!-- Pagination -->
 		<div
-			class="sticky bottom-0 left-0 right-0 mt-2 flex flex-col items-center justify-center border-t border-surface-300 bg-surface-100 px-2 py-2 dark:border-surface-700 dark:bg-surface-800 md:flex-row md:justify-between md:p-4"
+			class="sticky bottom-0 left-0 right-0 mt-1 flex flex-col items-center justify-center border-t border-surface-300 bg-surface-100 px-2 py-2 dark:border-surface-700 dark:bg-surface-800 md:flex-row md:justify-between md:p-4"
 		>
 			<TablePagination
 				bind:currentPage={entryListPaginationSettings.currentPage}

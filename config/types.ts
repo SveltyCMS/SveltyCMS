@@ -1,137 +1,126 @@
 /**
  * @file config/types.ts
  * @description Configuration schemas and types with Valibot validation.
- * The Valibot schemas serve as the single source of truth for
- * both runtime validation and static TypeScript type generation.
+ * This version is compatible with older Valibot versions by handling
+ * cross-field validation in a separate function instead of using `refine`.
+ * It maintains enhanced, developer-friendly error reporting.
  */
 
-import { object, string, number, boolean, array, optional, minLength, minValue, maxValue, literal, union, safeParse, pipe } from 'valibot';
-import type { InferOutput } from 'valibot';
+import type { BaseSchema, InferOutput, Issue } from 'valibot';
+import { array, boolean, literal, maxValue, minLength, minValue, number, object, optional, pipe, safeParse, string, union } from 'valibot';
 
 import type { Locale } from '@src/paraglide/runtime';
 
+// ----------------- CONFIGURATION SCHEMAS -----------------
+
 /**
- * The PRIVATE configuration for the application,
+ * The PRIVATE configuration for the application.
  */
 export const privateConfigSchema = object({
 	// --- Database configuration ---
-	// Define the database type (Default: 'mongodb')
-	DB_TYPE: union([literal('mongodb'), literal('mariadb')]),
-
-	DB_HOST: pipe(string(), minLength(1)), // Database Host
-	DB_PORT: pipe(number(), minValue(1)), // Database Port
-	DB_NAME: pipe(string(), minLength(1)), // Database Name
-	DB_USER: pipe(string(), minLength(1)), // Database User
-	DB_PASSWORD: pipe(string(), minLength(1)), // Database Password
-	DB_RETRY_ATTEMPTS: optional(pipe(number(), minValue(1))), // Database Retry Attempts
-	DB_RETRY_DELAY: optional(pipe(number(), minValue(1))), // Database Retry Delay
-	DB_POOL_SIZE: optional(pipe(number(), minValue(1))), // Database Pool Size
+	DB_TYPE: union([literal('mongodb'), literal('mariadb')]), // Define the database type (e.g., 'mongodb')
+	DB_HOST: pipe(string(), minLength(1, 'Database host is required.')), // Database host address
+	DB_PORT: pipe(number(), minValue(1)), // Database port number
+	DB_NAME: pipe(string(), minLength(1, 'Database name is required.')), // Database name
+	DB_USER: pipe(string(), minLength(1, 'Database user is required.')), // Database username
+	DB_PASSWORD: pipe(string(), minLength(1, 'Database password is required.')), // Database password
+	DB_RETRY_ATTEMPTS: optional(pipe(number(), minValue(1))), // Optional: Number of retry attempts on connection failure
+	DB_RETRY_DELAY: optional(pipe(number(), minValue(1))), // Optional: Delay in ms between retry attempts
+	DB_POOL_SIZE: optional(pipe(number(), minValue(1))), // Optional: Database connection pool size
 
 	// --- SMTP config - See https://nodemailer.com ---
-	SMTP_HOST: optional(string()), // SMTP Host
-	SMTP_PORT: optional(pipe(number(), minValue(1))), // SMTP Port
-	SMTP_EMAIL: optional(string()), // SMTP Email
-	SMTP_PASSWORD: optional(string()), // SMTP Password
-	SERVER_PORT: optional(pipe(number(), minValue(1))), // Server Port
+	SMTP_HOST: optional(string()), // SMTP server host for sending emails
+	SMTP_PORT: optional(pipe(number(), minValue(1))), // SMTP server port
+	SMTP_EMAIL: optional(string()), // Email address to send from
+	SMTP_PASSWORD: optional(string()), // Password for the SMTP email account
+	SERVER_PORT: optional(pipe(number(), minValue(1))), // Port for the application server
 
-	// --- Google OAuth - See https://developers.google.com/identity/protocols/oauth2/web-server ---
-	USE_GOOGLE_OAUTH: boolean(), // Enable Google OAuth. Set to `true` to enable
-	GOOGLE_CLIENT_ID: optional(string()), // Google Client ID
-	GOOGLE_CLIENT_SECRET: optional(string()), // Google Client Secret
+	// --- Google OAuth ---
+	USE_GOOGLE_OAUTH: boolean(), // Set to `true` to enable Google OAuth for login
+	GOOGLE_CLIENT_ID: optional(string()), // Google OAuth Client ID
+	GOOGLE_CLIENT_SECRET: optional(string()), // Google OAuth Client Secret
 
-	// --- Redis config - See https://redis.io/documentation ---
-	USE_REDIS: boolean(), // Enable Redis for caching by setting to true
-	REDIS_HOST: optional(string()), // The hostname or IP address of your Redis server.
-	REDIS_PORT: optional(pipe(number(), minValue(1))), // The port number of your Redis server.
-	REDIS_PASSWORD: optional(string()), // The password for your Redis server (if any).
+	// --- Redis config ---
+	USE_REDIS: boolean(), // Set to `true` to enable Redis for caching
+	REDIS_HOST: optional(string()), // Redis server host address
+	REDIS_PORT: optional(pipe(number(), minValue(1))), // Redis server port number
+	REDIS_PASSWORD: optional(string()), // Optional: Password for Redis server
 
 	// --- Session configuration ---
-	SESSION_CLEANUP_INTERVAL: optional(pipe(number(), minValue(1))), // Session Cleanup Interval
-	MAX_IN_MEMORY_SESSIONS: optional(pipe(number(), minValue(1))), // Max In Memory Sessions
-	DB_VALIDATION_PROBABILITY: optional(pipe(number(), minValue(0), maxValue(1))), // DB Validation Probability
-	SESSION_EXPIRATION_SECONDS: optional(pipe(number(), minValue(1))), // Session Expiration Seconds
+	SESSION_CLEANUP_INTERVAL: optional(pipe(number(), minValue(1))), // Interval in ms to clean up expired sessions
+	MAX_IN_MEMORY_SESSIONS: optional(pipe(number(), minValue(1))), // Maximum number of sessions to hold in memory
+	DB_VALIDATION_PROBABILITY: optional(pipe(number(), minValue(0), maxValue(1))), // Probability (0-1) of validating a session against the DB
+	SESSION_EXPIRATION_SECONDS: optional(pipe(number(), minValue(1))), // Duration in seconds until a session expires
 
-	// --- Mapbox config  - See https://docs.mapbox.com/ ---
-	USE_MAPBOX: boolean(), // Enable Mapbox. Set to `true` to enable
-	MAPBOX_API_TOKEN: optional(string()), // Public Mapbox API Token
-	SECRET_MAPBOX_API_TOKEN: optional(string()), // Secret Mapbox API Token
+	// --- Mapbox config ---
+	USE_MAPBOX: boolean(), // Set to `true` to enable Mapbox integration
+	MAPBOX_API_TOKEN: optional(string()), // Public Mapbox API token (for client-side use)
+	SECRET_MAPBOX_API_TOKEN: optional(string()), // Secret Mapbox API token (for server-side use)
 
-	// --- Google API for map & youtube ---
-	GOOGLE_API_KEY: optional(string()),
+	// --- Other APIs ---
+	GOOGLE_API_KEY: optional(string()), // Google API Key for services like Maps and YouTube
+	TWITCH_TOKEN: optional(string()), // API token for Twitch integration
+	USE_TIKTOK: optional(boolean()), // Set to `true` to enable TikTok integration
+	TIKTOK_TOKEN: optional(string()), // API token for TikTok integration
 
-	// --- TWITCH_TOKEN - See https://dev.twitch.tv/docs/authentication/ ---
-	TWITCH_TOKEN: optional(string()),
-
-	// --- TIKTOK_TOKEN - See https://dev.tiktok.com/docs/ ---
-	USE_TIKTOK: optional(boolean()),
-	TIKTOK_TOKEN: optional(string()),
-
-	// --- Large Language Model API configurations ---
-	LLM_APIS: optional(object({})),
+	// --- LLM APIs ---
+	LLM_APIS: optional(object({})), // Configuration object for Large Language Model APIs
 
 	// --- Roles and Permissions ---
-	ROLES: pipe(array(pipe(string(), minLength(1))), minLength(1)),
-	PERMISSIONS: pipe(array(pipe(string(), minLength(1))), minLength(1)),
+	ROLES: pipe(array(pipe(string(), minLength(1))), minLength(1, 'At least one role is required.')), // List of user roles available in the system
+	PERMISSIONS: pipe(array(pipe(string(), minLength(1))), minLength(1, 'At least one permission is required.')), // List of permissions available in the system
 
-	// --- Secret key for signing and verifying JSON Web Tokens (JWTs) ---
-	JWT_SECRET_KEY: pipe(string(), minLength(32))
+	// --- JWT Secret ---
+	JWT_SECRET_KEY: pipe(string(), minLength(32, 'JWT Secret Key must be at least 32 characters long for security.')) // Secret key for JWT
 });
 
 /**
- * The PUBLIC configuration for the application,
+ * The PUBLIC configuration for the application.
  */
 export const publicConfigSchema = object({
 	// --- Host configuration ---
-	HOST_DEV: pipe(string(), minLength(1)), // Hostname for development eg. http://localhost:5173
-	HOST_PROD: pipe(string(), minLength(1)), // Hostname for production eg. 'mywebsite.com'
+	HOST_DEV: pipe(string(), minLength(1)), // Development server URL (e.g., 'http://localhost:5173')
+	HOST_PROD: pipe(string(), minLength(1)), // Production server URL (e.g., 'https://mywebsite.com')
 
 	// --- Site configuration ---
-	SITE_NAME: pipe(string(), minLength(1)), // The name of the site that this CMS should get
-	PASSWORD_LENGTH: pipe(number(), minValue(8)), // Password Length ( default 8)
+	SITE_NAME: pipe(string(), minLength(1)), // The public name of the website
+	PASSWORD_LENGTH: pipe(number(), minValue(8)), // Minimum required length for user passwords
 
-	// --- Content Language for database ---
-	DEFAULT_CONTENT_LANGUAGE: pipe(string(), minLength(1)) as unknown as Locale, // Default Content Language
-	AVAILABLE_CONTENT_LANGUAGES: pipe(array(pipe(string(), minLength(1)) as unknown as Locale), minLength(1)), // Available Content Languages
-
-	// --- System Language ---
-	AVAILABLE_SYSTEM_LANGUAGES: pipe(array(pipe(string(), minLength(1)) as unknown as Locale), minLength(1)), // Available System Languages
-	DEFAULT_SYSTEM_LANGUAGE: pipe(string(), minLength(1)) as unknown as Locale, // Default System Language
+	// --- Language Configuration ---
+	DEFAULT_CONTENT_LANGUAGE: pipe(string(), minLength(1)) as BaseSchema<Locale>, // Default language for content (e.g., 'en')
+	AVAILABLE_CONTENT_LANGUAGES: pipe(array(pipe(string(), minLength(1)) as BaseSchema<Locale>), minLength(1)), // List of available content languages
+	DEFAULT_SYSTEM_LANGUAGE: pipe(string(), minLength(1)) as BaseSchema<Locale>, // Default language for the CMS interface
+	AVAILABLE_SYSTEM_LANGUAGES: pipe(array(pipe(string(), minLength(1)) as BaseSchema<Locale>), minLength(1)), // List of available interface languages
 
 	// --- Media configuration ---
-	MEDIA_FOLDER: pipe(string(), minLength(1)), // Media Folder where the site's media files will be stored.
-	/**
-	 * Determines how media files are saved on the server.
-	 * Options are: 'original', 'webp', or 'avif'.
-	 * 'original' saves the file in its original format.
-	 * 'webp' and 'avif' save the file in an optimized format using the respective codec.
-	 */
+	MEDIA_FOLDER: pipe(string(), minLength(1)), // Server path where media files are stored
 	MEDIA_OUTPUT_FORMAT_QUALITY: object({
-		format: union([literal('original'), literal('jpg'), literal('webp'), literal('avif')]),
-		quality: pipe(number(), minValue(1), maxValue(100))
+		format: union([literal('original'), literal('jpg'), literal('webp'), literal('avif')]), // Image format for output
+		quality: pipe(number(), minValue(1), maxValue(100)) // Image quality (1-100) for compressed formats
 	}),
+	MEDIASERVER_URL: optional(string()), // Optional: URL of a separate media server
+	IMAGE_SIZES: object({}), // Defines image sizes for automatic resizing (e.g., { sm: 600, md: 900 })
+	MAX_FILE_SIZE: optional(pipe(number(), minValue(1))), // Maximum file size for uploads in bytes
+	BODY_SIZE_LIMIT: optional(pipe(number(), minValue(1))), // Body size limit for server requests in bytes
+	EXTRACT_DATA_PATH: optional(string()), // Optional path for extracting data from uploads; can be empty
 
-	MEDIASERVER_URL: optional(pipe(string(), minLength(1))), // Media Server URL
-	IMAGE_SIZES: object({}), // The sizes of images that the site will generate. eg. { sm: 600, md: 900, lg: 1200 }
-	MAX_FILE_SIZE: optional(pipe(number(), minValue(1))), // MAX_FILE_SIZE
-	BODY_SIZE_LIMIT: optional(pipe(number(), minValue(1))), //Define body size limit for your Uploads eg. 100mb
-	EXTRACT_DATA_PATH: optional(string()), // Define path to extract data
+	// --- Seasons Icons for login page ---
+	SEASONS: optional(boolean()), // Set to `true` to enable seasonal themes on the login page
+	SEASON_REGION: optional(union([literal('Western_Europe'), literal('South_Asia'), literal('East_Asia'), literal('Global')])), // Region for determining seasonal themes
 
-	// --- Seasons Icons for login page. Set to `true` to enable ---
-	SEASONS: optional(boolean()),
-	SEASON_REGION: optional(union([literal('Western_Europe'), literal('South_Asia'), literal('East_Asia'), literal('Global')])), // Restricted to Western_Europe, South_Asia, or East_Asia
+	// --- Versioning ---
+	PKG_VERSION: optional(string()), // Package version, often synced with package.json for display
 
-	// --- Github VERSION synchronization to display updated ---
-	PKG_VERSION: optional(string()),
-
-	// --- Log Level (default: 'error') (Options: Options: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'none') ---
+	// --- Logging ---
 	LOG_LEVELS: pipe(
 		array(union([literal('fatal'), literal('error'), literal('warn'), literal('debug'), literal('info'), literal('trace'), literal('none')])),
 		minLength(1)
-	),
-	LOG_RETENTION_DAYS: optional(pipe(number(), minValue(1))), // New: Number of days to retain log files (default: 2 days)
-	LOG_ROTATION_SIZE: optional(pipe(number(), minValue(1))), // New: Max log file size before rotation in bytes (default: 5MB)
+	), // Defines the logging levels to be active
+	LOG_RETENTION_DAYS: optional(pipe(number(), minValue(1))), // Number of days to keep log files
+	LOG_ROTATION_SIZE: optional(pipe(number(), minValue(1))), // Maximum size of a log file in bytes before rotation
 
-	DEMO: optional(boolean()) // DEMO Mode for testing
+	// --- Demo Mode ---
+	DEMO: optional(boolean()) // Set to `true` to enable demo mode, which may restrict certain features
 });
 
 // ----------------- TYPES & HELPERS -----------------
@@ -141,206 +130,138 @@ export type PublicConfig = InferOutput<typeof publicConfigSchema>;
 export const createPrivateConfig = (arg: PrivateConfig): PrivateConfig => arg;
 export const createPublicConfig = (arg: PublicConfig): PublicConfig => arg;
 
-// ----------------- ENHANCED VALIDATION -----------------
-interface ValidationError {
-	field: string;
-	message: string;
-	received?: unknown;
-	expected?: string;
-}
+// ----------------- ENHANCED VALIDATION & LOGGING -----------------
 
 // A flag to ensure the validation start message is only logged once.
 let validationLogPrinted = false;
 
-// Format validation path for better readability
-function formatPath(path: Array<{ key: string | number }> | undefined): string {
+// Console colors for better readability
+const colors = {
+	reset: '\x1b[0m',
+	red: '\x1b[31m',
+	green: '\x1b[32m',
+	yellow: '\x1b[33m',
+	blue: '\x1b[34m',
+	magenta: '\x1b[35m',
+	cyan: '\x1b[36m',
+	white: '\x1b[37m',
+	gray: '\x1b[90m'
+};
+
+/**
+ * Formats the path of a validation issue for better readability.
+ * @param path - The path array from a Valibot issue.
+ * @returns A dot-separated string representing the field path.
+ */
+function formatPath(path: Issue['path']): string {
 	if (!path || path.length === 0) return 'root';
-	return path
-		.map((p) => p.key)
-		.filter(Boolean)
-		.join('.');
+	return path.map((p) => p.key).join('.');
 }
 
-// Enhanced validation function with detailed error reporting
-export function validateConfig(schema: unknown, config: unknown, configName: string): unknown {
-	// --- MODIFICATION START ---
-	// Only log the "Starting..." message on the first validation call.
-	if (!validationLogPrinted) {
-		console.log('🚀 Starting CMS with configuration validation...');
-		validationLogPrinted = true;
-	}
-	// --- MODIFICATION END ---
+/**
+ * Logs detailed, formatted, and colored error messages for validation failures.
+ * @param issues - An array of Valibot issues.
+ * @param configFile - The name of the configuration file being validated.
+ */
+function logValidationErrors(issues: Issue[], configFile: string): void {
+	console.error(`\n${colors.yellow}⚠️ Invalid configuration in ${colors.cyan}${configFile}${colors.reset}`);
 
-	// Warn about unknown fields (now treated as a hard error)
-	const allowedKeys = Object.keys(schema.entries || {});
-	const configKeys = Object.keys(config as object);
-	const unknownKeys = configKeys.filter((k) => !allowedKeys.includes(k));
-	if (unknownKeys.length > 0) {
-		console.error(`\n❌ ${configName} contains unknown/unexpected fields:`);
-		unknownKeys.forEach((k) => {
-			console.error(`  - ${k}`);
-		});
-		console.error('  These fields are not defined in the schema and must be removed.');
-		console.error('  Please check for typos or remove unused fields.');
-		console.error('━'.repeat(70));
-		console.error('\n💀 Server cannot start with invalid configuration.');
-		process.exit(1);
-	}
-
-	const result = safeParse(schema, config);
-
-	if (result.success) {
-		// Perform conditional validation checks - only show errors if they occur
-		return performConditionalValidation(result.output, configName);
-	} else {
-		// Determine config file path for clearer messaging
-		const configFile = configName.includes('Private') ? 'config/private.ts' : 'config/public.ts';
-
-		// Enhanced error reporting with clear file reference
-		console.error(`\n❌ ${configName} validation failed:`);
-		console.error(`📁 File: ${configFile}`);
-		console.error('━'.repeat(70));
-
-		const errors: ValidationError[] = [];
-		const missingFields: string[] = [];
-
-		// Process validation issues
-		for (const issue of result.issues) {
-			const fieldPath = formatPath(issue.path);
-			const isMissingField =
-				issue.message.toLowerCase().includes('required') || issue.message.toLowerCase().includes('missing') || issue.input === undefined;
-
-			if (isMissingField && !missingFields.includes(fieldPath)) {
-				missingFields.push(fieldPath);
-			}
-
-			errors.push({
-				field: fieldPath,
-				message: issue.message,
-				received: issue.input,
-				expected: extractExpectedType(issue.message)
-			});
+	issues.forEach((issue) => {
+		const fieldPath = formatPath(issue.path) || 'Configuration object';
+		console.error(`\n   - ${colors.white}Location:${colors.cyan} ${fieldPath}`);
+		console.error(`     ${colors.red}Error: ${issue.message}${colors.reset}`);
+		if (issue.input !== undefined) {
+			console.error(`     ${colors.magenta}Received: ${colors.red}${JSON.stringify(issue.input)}${colors.reset}`);
 		}
-
-		// Print missing fields with file context
-		if (missingFields.length > 0) {
-			console.error('\n🚫 Missing required fields:');
-			missingFields.forEach((field) => {
-				console.error(`  - In ${configFile}: ${field} is required but missing`);
-				console.error(`    💡 Add: export const ${field} = <appropriate_value>;`);
-			});
-		}
-
-		// Print validation errors with file context
-		if (errors.length > 0) {
-			console.error('\n⚠️  Validation errors:');
-			errors.forEach((error) => {
-				if (!missingFields.includes(error.field)) {
-					console.error(`  - In ${configFile}: ${error.field}`);
-					console.error(`    ❌ ${error.message}`);
-					if (error.received !== undefined) {
-						console.error(`    📥 Current value: ${JSON.stringify(error.received)}`);
-					}
-					if (error.expected) {
-						console.error(`    ✅ Expected: ${error.expected}`);
-					}
-					console.error('');
-				}
-			});
-		}
-
-		console.error('\n💡 Quick Solutions:');
-		console.error(`  • Open ${configFile} in your editor`);
-		console.error('  • Fix the validation errors listed above');
-		console.error('  • Save the file and restart the dev server');
-		console.error('  • Run `npm run installer` to regenerate config files if needed');
-		console.error('━'.repeat(70));
-		console.error('\n💀 Server cannot start with invalid configuration.');
-		process.exit(1);
-	}
+	});
 }
 
-// Extract expected type from error message
-function extractExpectedType(message: string): string {
-	if (message.includes('Expected number')) return 'number';
-	if (message.includes('Expected string')) return 'string';
-	if (message.includes('Expected boolean')) return 'boolean';
-	if (message.includes('Expected array')) return 'array';
-	if (message.includes('Expected object')) return 'object';
-	return 'valid value';
-}
-
-// Perform conditional validation checks
-function performConditionalValidation(config: unknown, configName: string): unknown {
-	// Add null/undefined check at the start - only show error if there's actually an issue
-	if (config == null || typeof config !== 'object') {
-		console.error(`\n❌ ${configName} conditional validation failed:`);
-		console.error('━'.repeat(60));
-		console.error(`  - Configuration object is ${config == null ? 'null/undefined' : `type: ${typeof config}`}`);
-		console.error('  - Expected: valid object');
-		console.error('\n🔧 Debug info:');
-		console.error(`  - Config value: ${JSON.stringify(config)}`);
-		console.error(`  - This error occurs in the conditional validation step after schema validation`);
-		console.error('\n💡 Please check your config file and restart the server.');
-		console.error('━'.repeat(60));
-		process.exit(1);
-	}
-
+/**
+ * Performs conditional validation checks that depend on multiple config values.
+ * This is used as a fallback for older Valibot versions that don't support `refine`.
+ * @param config - The successfully parsed configuration object.
+ * @returns An array of human-readable error messages.
+ */
+function performConditionalValidation(config: Record<string, any>): string[] {
 	const errors: string[] = [];
 
-	// Google OAuth validation
+	// Private Config Checks
 	if (config.USE_GOOGLE_OAUTH && (!config.GOOGLE_CLIENT_ID || !config.GOOGLE_CLIENT_SECRET)) {
-		errors.push('Google Client ID and Secret are required when Google OAuth is enabled');
+		errors.push(
+			`When ${colors.cyan}USE_GOOGLE_OAUTH${colors.reset} is true, both ${colors.cyan}GOOGLE_CLIENT_ID${colors.reset} and ${colors.cyan}GOOGLE_CLIENT_SECRET${colors.reset} are required.`
+		);
 	}
-
-	// Redis validation
 	if (config.USE_REDIS && (!config.REDIS_HOST || !config.REDIS_PORT)) {
-		errors.push('Redis host and port are required when Redis is enabled');
+		errors.push(
+			`When ${colors.cyan}USE_REDIS${colors.reset} is true, both ${colors.cyan}REDIS_HOST${colors.reset} and ${colors.cyan}REDIS_PORT${colors.reset} are required.`
+		);
 	}
-
-	// Mapbox validation
 	if (config.USE_MAPBOX && !config.MAPBOX_API_TOKEN) {
-		errors.push('Mapbox API token is required when Mapbox is enabled');
+		errors.push(`When ${colors.cyan}USE_MAPBOX${colors.reset} is true, a ${colors.cyan}MAPBOX_API_TOKEN${colors.reset} is required.`);
+	}
+	if (config.USE_TIKTOK && !config.TIKTOK_TOKEN) {
+		errors.push(`When ${colors.cyan}USE_TIKTOK${colors.reset} is true, a ${colors.cyan}TIKTOK_TOKEN${colors.reset} is required.`);
 	}
 
-	// TikTok validation
-	if (config.USE_TIKTOK === true && !config.TIKTOK_TOKEN) {
-		errors.push('TikTok token is required when TikTok is enabled');
+	// Public Config Checks
+	if (config.SEASONS && !config.SEASON_REGION) {
+		errors.push(`When ${colors.cyan}SEASONS${colors.reset} is true, a ${colors.cyan}SEASON_REGION${colors.reset} must be selected.`);
+	}
+	if (config.AVAILABLE_CONTENT_LANGUAGES && !config.AVAILABLE_CONTENT_LANGUAGES.includes(config.DEFAULT_CONTENT_LANGUAGE)) {
+		errors.push(
+			`The ${colors.cyan}DEFAULT_CONTENT_LANGUAGE${colors.reset} must be included in the ${colors.cyan}AVAILABLE_CONTENT_LANGUAGES${colors.reset} array.`
+		);
+	}
+	if (config.AVAILABLE_SYSTEM_LANGUAGES && !config.AVAILABLE_SYSTEM_LANGUAGES.includes(config.DEFAULT_SYSTEM_LANGUAGE)) {
+		errors.push(
+			`The ${colors.cyan}DEFAULT_SYSTEM_LANGUAGE${colors.reset} must be included in the ${colors.cyan}AVAILABLE_SYSTEM_LANGUAGES${colors.reset} array.`
+		);
 	}
 
-	// Language validation
-	if (
-		config.DEFAULT_CONTENT_LANGUAGE &&
-		config.AVAILABLE_CONTENT_LANGUAGES &&
-		!config.AVAILABLE_CONTENT_LANGUAGES.includes(config.DEFAULT_CONTENT_LANGUAGE)
-	) {
-		errors.push('Default content language must be one of the available content languages');
+	return errors;
+}
+
+/**
+ * The main validation function that orchestrates schema checks.
+ * @param schema - The Valibot schema to validate against.
+ * @param config - The configuration object to validate.
+ * @param configName - The name of the configuration (e.g., "Private Config").
+ * @returns The validated configuration object.
+ */
+export function validateConfig(schema: BaseSchema, config: unknown, configName: string): unknown {
+	if (!validationLogPrinted) {
+		console.log(`\n${colors.blue}🚀 Validating CMS configuration...${colors.reset}`);
+		validationLogPrinted = true;
 	}
 
-	if (
-		config.DEFAULT_SYSTEM_LANGUAGE &&
-		config.AVAILABLE_SYSTEM_LANGUAGES &&
-		!config.AVAILABLE_SYSTEM_LANGUAGES.includes(config.DEFAULT_SYSTEM_LANGUAGE)
-	) {
-		errors.push('Default system language must be one of the available system languages');
-	}
+	const result = safeParse(schema, config, { abortEarly: false });
+	const configFile = configName.includes('Private') ? 'config/private.ts' : 'config/public.ts';
 
-	// Seasons validation
-	if (config.SEASONS === true && !config.SEASON_REGION) {
-		errors.push('Season region is required when seasons are enabled');
-	}
+	if (result.success) {
+		// Perform secondary, cross-field validation
+		const conditionalErrors = performConditionalValidation(result.output as Record<string, any>);
+		if (conditionalErrors.length > 0) {
+			console.error(`\n${colors.red}❌ ${configName} validation failed with logical errors:${colors.reset}`);
+			console.error(`${colors.gray}   File: ${configFile}${colors.reset}`);
+			console.error('━'.repeat(70));
+			console.error(`\n${colors.yellow}⚠️ Logical Validation Errors:${colors.reset}`);
+			conditionalErrors.forEach((error) => {
+				console.error(`   - ${error}`);
+			});
+			console.error('\n' + '━'.repeat(70));
+			console.error(`\n${colors.red}💀 Server cannot start. Please fix the logical inconsistencies listed above.${colors.reset}\n`);
+			process.exit(1);
+		}
+		return result.output;
+	} else {
+		// Handle schema validation failures
+		console.error(`\n${colors.red}❌ ${configName} validation failed. Please check your configuration.${colors.reset}`);
+		console.error('━'.repeat(70));
 
-	// Only show errors if there are any
-	if (errors.length > 0) {
-		console.error(`\n❌ ${configName} conditional validation failed:`);
-		console.error('━'.repeat(60));
-		errors.forEach((error) => {
-			console.error(`  - ${error}`);
-		});
-		console.error('\n💡 Please update your config file and restart the server.');
-		console.error('━'.repeat(60));
+		logValidationErrors(result.issues, configFile);
+
+		console.error('\n' + '━'.repeat(70));
+		console.error(`\n${colors.red}💀 Server cannot start. Please fix the errors listed above.${colors.reset}\n`);
 		process.exit(1);
 	}
-
-	return config;
 }

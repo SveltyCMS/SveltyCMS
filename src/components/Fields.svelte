@@ -23,24 +23,23 @@
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
 	import { getFieldName } from '@utils/utils';
-
 	// Auth
 	import { page } from '$app/state';
 	const user = page.data.user;
 
 	// Stores
-	import { contentLanguage, translationProgress } from '@stores/store.svelte';
 	import { collection, collectionValue } from '@src/stores/collectionStore.svelte';
-
+	import { contentLanguage, translationProgress } from '@stores/store.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { TabGroup, Tab, CodeBlock, clipboard } from '@skeletonlabs/skeleton';
+	import { CodeBlock, Tab, TabGroup, clipboard, getToastStore } from '@skeletonlabs/skeleton';
+	const toastStore = getToastStore();
 
 	// Components
-	import { widgetFunctions } from '@src/widgets';
 	import Loading from '@components/Loading.svelte';
+	import { widgetFunctions } from '@src/widgets';
 	import { untrack } from 'svelte';
 
 	// Props
@@ -62,6 +61,14 @@
 	let localTabSet = $state(0);
 	let tabValue = $state(0);
 
+	// --- REVISIONS STATE ---
+	let revisionsMeta = $state<any[]>([]); // Stores only metadata (_id, date, user)
+	let isRevisionsLoading = $state(false); // For the initial list loading
+	let selectedRevisionId = $state(''); // The ID of the revision selected in the dropdown
+	let selectedRevisionData = $state<Record<string, any> | null>(null); // The FULL data of the selected revision
+	let isRevisionDetailLoading = $state(false); // For loading the full data of a single revision
+	let diffObject = $state<Record<string, any> | null>(null); // Holds the structured diff from the server
+
 	// Derived state
 	let derivedFields = $derived.by(() => {
 		return fields || (collection.value?.fields ?? []);
@@ -72,19 +79,18 @@
 	let isFormDataInitialized = $state(false);
 
 	function getDefaultCollectionValue(fields: any[]) {
-		const tempCollectionValue: Record<string, any> = collectionValue?.value ? collectionValue.value : {};
-
+		const tempCollectionValue: Record<string, any> = collectionValue?.value ? { ...collectionValue.value } : {};
 		for (const field of fields) {
-			tempCollectionValue[getFieldName(field, false)] = collectionValue?.value ? (collectionValue.value[getFieldName(field, false)] ?? {}) : {};
+			const fieldName = getFieldName(field, false);
+			if (!Object.prototype.hasOwnProperty.call(tempCollectionValue, fieldName)) {
+				tempCollectionValue[fieldName] = {};
+			}
 		}
 		return tempCollectionValue;
 	}
 
-	let defaultCollectionValue = getDefaultCollectionValue(fields || (collection.value?.fields ?? []));
-	let currentCollectionValue = $state(defaultCollectionValue);
-
+	let currentCollectionValue = $state(getDefaultCollectionValue(fields || (collection.value?.fields ?? [])));
 	// Initialize form data snapshot on first load or when collection changes
-
 	$effect.root(() => {
 		if (!isFormDataInitialized && collectionValue.value) {
 			formDataSnapshot = { ...collectionValue.value };
@@ -92,16 +98,16 @@
 			isFormDataInitialized = true;
 		}
 	});
+
 	$effect(() => {
 		if (isFormDataInitialized && localTabSet === 0) {
 			// Only sync when on edit tab to avoid unnecessary updates
-
 			formDataSnapshot = { ...untrack(() => formDataSnapshot), ...currentCollectionValue };
 		} else if (localTabSet === 0 && isFormDataInitialized && Object.keys(formDataSnapshot).length > 0) {
 			// Merge snapshot data back into currentCollectionValue when returning to edit tab
 			for (const field of derivedFields) {
 				const fieldName = getFieldName(field, false);
-				if (fieldName in formDataSnapshot) {
+				if (Object.prototype.hasOwnProperty.call(formDataSnapshot, fieldName)) {
 					currentCollectionValue[fieldName] = formDataSnapshot[fieldName];
 				}
 			}
@@ -134,17 +140,11 @@
 		derivedFields
 			.map(ensureFieldProperties)
 			.filter(Boolean)
-			.filter((field) => {
-				// Filter based on user permissions
-				return field && (!field.permissions || !field.permissions[user.role] || field.permissions[user.role].read);
-			})
+			.filter((field) => !field.permissions || !field.permissions[user.role] || field.permissions[user.role].read)
 	);
 
-	// Restore form data when returning to edit tab (tab 0)
-	$effect(() => {});
-
 	// Update the main collection value store when form data changes (debounced)
-	let updateTimeout: number | null = null;
+	let updateTimeout: ReturnType<typeof setTimeout> | undefined;
 	$effect(() => {
 		if (isFormDataInitialized && localTabSet === 0) {
 			if (updateTimeout) clearTimeout(updateTimeout);
@@ -153,12 +153,15 @@
 					...current,
 					...currentCollectionValue
 				}));
-			}, 300) as unknown as number; // Debounce updates to avoid excessive reactivity
+			}, 300);
 		}
 	});
 
+	// Direct sync effect to ensure collectionValue is always in sync with currentCollectionValue
 	$effect(() => {
-		collectionValue.set(currentCollectionValue);
+		if (isFormDataInitialized) {
+			collectionValue.set(currentCollectionValue);
+		}
 	});
 
 	// Dynamic import of widget components
@@ -169,23 +172,141 @@
 	// Lifecycle
 	$effect(() => {
 		isLoading = false;
-		console.log(fields);
 	});
 
-	// Reactive statements
 	$effect(() => {
-		if (!collectionValue.value) return;
-		const id = collectionValue.value._id;
-		const currentApiUrl = `${dev ? 'http://localhost:5173' : publicEnv.SITE_NAME}/api/collection/${String(collection.value?._id)}/${id}`;
-		if (apiUrl !== currentApiUrl) {
-			apiUrl = currentApiUrl;
+		if (!collectionValue.value?._id) return;
+		apiUrl = `${dev ? 'http://localhost:5173' : publicEnv.SITE_NAME}/api/collection/${String(collection.value?._id)}/${collectionValue.value._id}`;
+	});
+
+	// REVISIONS LOGIC
+	async function fetchRevisionsMeta() {
+		if (!collection.value?._id || !collectionValue.value?._id) return;
+		isRevisionsLoading = true;
+		try {
+			const formData = new FormData();
+			formData.append('method', 'REVISIONS');
+			if (collection.value && collection.value._id) {
+				formData.append('collectionId', collection.value._id);
+			}
+			formData.append('entryId', String(collectionValue.value._id));
+			formData.append('metaOnly', 'true');
+
+			const response = await fetch('/api/query', {
+				method: 'POST',
+				body: formData,
+				credentials: 'include'
+			});
+			if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+
+			const result = await response.json();
+			if (result.success) {
+				revisionsMeta = result.data || [];
+			} else {
+				throw new Error(result.error || 'Failed to fetch revision metadata.');
+			}
+		} catch (error) {
+			toastStore.trigger({
+				message: `Error fetching revisions: ${error instanceof Error ? error.message : String(error)}`,
+				background: 'variant-filled-error'
+			});
+			revisionsMeta = [];
+		} finally {
+			isRevisionsLoading = false;
+		}
+	}
+
+	async function fetchRevisionDiff(revisionId: string) {
+		if (!revisionId) return;
+		isRevisionDetailLoading = true;
+		diffObject = null;
+		try {
+			const formData = new FormData();
+			formData.append('method', 'REVISIONS');
+			formData.append('collectionId', collection.value?._id || '');
+			formData.append('entryId', String(collectionValue.value._id));
+			formData.append('revisionId', revisionId);
+			formData.append('currentData', JSON.stringify(formDataSnapshot));
+
+			const response = await fetch('/api/query', { method: 'POST', body: formData });
+			if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+
+			const result = await response.json();
+			if (result.success) {
+				diffObject = result.data;
+				// To enable revert, we also need the full original data
+				const fullRevisionResponse = await fetch('/api/query', {
+					method: 'POST',
+					body: (() => {
+						const fd = new FormData();
+						fd.append('method', 'REVISIONS');
+						if (collection.value && collection.value._id) {
+							fd.append('collectionId', collection.value._id);
+						}
+						fd.append('entryId', String(collectionValue.value._id));
+						fd.append('revisionId', revisionId);
+						return fd;
+					})()
+				});
+				const fullResult = await fullRevisionResponse.json();
+				if (fullResult.success) {
+					selectedRevisionData = fullResult.data;
+				}
+			} else {
+				throw new Error(result.error || 'Failed to fetch revision diff.');
+			}
+		} catch (error) {
+			toastStore.trigger({
+				message: `Error loading revision diff: ${error instanceof Error ? error.message : 'Unknown error'}`,
+				background: 'variant-filled-error'
+			});
+		} finally {
+			isRevisionDetailLoading = false;
+		}
+	}
+
+	$effect(() => {
+		if (localTabSet === 1 && revisionsMeta.length === 0) {
+			fetchRevisionsMeta();
 		}
 	});
 
-	// Functions and helpers
-	function handleRevert() {
-		// Implement revert logic
-		console.warn('Revert function not implemented');
+	$effect(() => {
+		if (selectedRevisionId) {
+			fetchRevisionDiff(selectedRevisionId);
+		} else {
+			diffObject = null;
+		}
+	});
+
+	async function handleRevert() {
+		if (!selectedRevisionData) {
+			toastStore.trigger({ message: 'Could not get revision data to revert. Please try again.', background: 'variant-filled-warning' });
+			return;
+		}
+
+		try {
+			const formData = new FormData();
+			formData.append('method', 'PATCH');
+			formData.append('collectionId', collection.value?._id || '');
+			const revertData = { ...selectedRevisionData, _id: collectionValue.value._id };
+			formData.append('data', JSON.stringify(revertData));
+
+			const response = await fetch('/api/query', { method: 'POST', body: formData });
+			if (!response.ok) throw new Error('Failed to revert on the server.');
+
+			const result = await response.json();
+			if (result.success) {
+				collectionValue.set(revertData);
+				formDataSnapshot = { ...revertData };
+				toastStore.trigger({ message: 'Revert successful!', background: 'variant-filled-success' });
+				localTabSet = 0;
+			} else {
+				throw new Error(result.error || 'Failed to revert.');
+			}
+		} catch (error) {
+			toastStore.trigger({ message: `Revert failed: ${error instanceof Error ? error.message : String(error)}`, background: 'variant-filled-error' });
+		}
 	}
 
 	function getTabHeaderVisibility() {
@@ -194,7 +315,7 @@
 </script>
 
 {#if isLoading}
-	<div class="flex h-lvh items-center justify-between lg:justify-start">
+	<div class="flex h-lvh items-center justify-center lg:justify-start">
 		<Loading />
 	</div>
 {:else}
@@ -221,18 +342,18 @@
 					<iconify-icon icon="pepicons-pop:countdown" width="24" class="text-tertiary-500 dark:text-primary-500"> </iconify-icon>
 					<p>
 						{m.applayout_version()}
-						<span class="variant-outline-tertiary badge rounded-full dark:variant-outline-primary">1</span>
+						<span class="variant-outline-tertiary badge rounded-full dark:variant-outline-primary">{revisionsMeta.length}</span>
 					</p>
 				</div>
 			</Tab>
 		{/if}
 
-		<!-- TODO: Should not show if livePreview is false -->
+		<!-- Other tabs... -->
 		{#if collection.value?.livePreview === true}
 			<Tab bind:group={localTabSet} name="tab3" value={2}>
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="mdi:eye-outline" width="24" class="text-tertiary-500 dark:text-primary-500"> </iconify-icon>
-					<p>{m.Fields_preview()} Experimetal</p>
+					<p>{m.Fields_preview()} Experimental</p>
 				</div>
 			</Tab>
 		{/if}
@@ -249,6 +370,7 @@
 		<!-- Tab Panels -->
 		<svelte:fragment slot="panel">
 			{#if localTabSet === 0}
+				<!-- EDIT TAB -->
 				<div class="mb-2 text-center text-xs text-error-500">{m.fields_required()}</div>
 				<div class="rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900">
 					<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
@@ -321,81 +443,76 @@
 				</div>
 			{:else if localTabSet === 1}
 				<!-- Revision tab content -->
-				<div class="mb-2 flex items-center justify-between gap-2">
-					<p class="text-center text-tertiary-500 dark:text-primary-500">
-						{m.fields_revision_compare()}
-					</p>
-					<button class="variant-outline-tertiary btn dark:variant-ghost-primary" onclick={handleRevert}>{m.fields_revision_revert()}</button>
-				</div>
-				<select class="select mb-2">
-					<option value="1">{m.fields_revision_most_recent()}</option>
-					<option value="2">February 19th 2024, 4:00 PM</option>
-				</select>
+				<div class="p-4">
+					{#if isRevisionsLoading}
+						<div class="flex justify-center p-4"><Loading /></div>
+					{:else if revisionsMeta.length === 0}
+						<p class="p-4 text-center">No revision history found for this entry.</p>
+					{:else}
+						<div class="mb-4 flex items-center justify-between gap-4">
+							<select class="select flex-grow" bind:value={selectedRevisionId}>
+								<option value="" disabled>-- Select a revision to compare --</option>
+								{#each revisionsMeta as revision (revision._id)}
+									<option value={revision._id}>
+										{new Date(revision.revision_at).toLocaleString()} by {revision.revision_by.substring(0, 8)}...
+									</option>
+								{/each}
+							</select>
+							<button class="variant-filled-primary btn" onclick={handleRevert} disabled={!selectedRevisionData || isRevisionDetailLoading}>
+								Revert to this Version
+							</button>
+						</div>
 
-				<div class="flex justify-between dark:text-white">
-					<!-- Current version -->
-					<div class="w-full text-center">
-						<p class="mb-4 sm:mb-0">{m.fields_revision_current_version()}</p>
-						<CodeBlock
-							color="text-white dark:text-primary-500"
-							language="JSON"
-							rounded="rounded-container-token"
-							lineNumbers={true}
-							text="text-xs text-left w-full"
-							buttonLabel=""
-							code={JSON.stringify(formDataSnapshot, null, 2)}
-						/>
-					</div>
-					<div
-						class="ml-1 min-h-[1em] w-px self-stretch bg-gradient-to-tr from-transparent via-neutral-500 to-transparent opacity-20 dark:opacity-100"
-					></div>
-					<!-- Revision version -->
-					<div class="ml-1 w-full text-left">
-						<p class="text-center text-tertiary-500">February 19th 2024, 4:00 PM</p>
-						<CodeBlock
-							color="text-white dark:text-primary-500"
-							language="JSON"
-							lineNumbers={true}
-							text="text-xs text-left text-white dark:text-tertiary-500"
-							buttonLabel=""
-							code={JSON.stringify(collectionValue.value, null, 2)}
-						/>
-					</div>
+						<!-- Diff Render -->
+						<div class="rounded-lg border p-4">
+							<h3 class="mb-2 text-lg font-bold">Changes from Selected Revision to Current Version</h3>
+							{#if isRevisionDetailLoading}
+								<div class="flex h-48 items-center justify-center"><Loading /></div>
+							{:else if diffObject && Object.keys(diffObject).length > 0}
+								<div class="space-y-2 font-mono text-sm">
+									{#each Object.entries(diffObject) as [key, change]}
+										<div>
+											<strong class="font-bold">{key}:</strong>
+											{#if change.status === 'modified'}
+												<div class="rounded bg-error-500/20 p-2">
+													<span class="text-error-700 dark:text-error-300">- {JSON.stringify(change.old)}</span>
+												</div>
+												<div class="mt-1 rounded bg-success-500/20 p-2">
+													<span class="text-success-700 dark:text-success-300">+ {JSON.stringify(change.new)}</span>
+												</div>
+											{:else if change.status === 'added'}
+												<div class="rounded bg-success-500/20 p-2">
+													<span class="text-success-700 dark:text-success-300">+ {JSON.stringify(change.value)}</span>
+												</div>
+											{:else if change.status === 'deleted'}
+												<div class="rounded bg-error-500/20 p-2">
+													<span class="text-error-700 dark:text-error-300">- {JSON.stringify(change.value)}</span>
+												</div>
+											{/if}
+										</div>
+									{/each}
+								</div>
+							{:else if selectedRevisionId}
+								<p class="text-center text-surface-500">No differences found between the selected revision and the current version.</p>
+							{:else}
+								<p class="text-center text-surface-500">Select a revision to see what changed.</p>
+							{/if}
+						</div>
+					{/if}
 				</div>
-			{:else if localTabSet === 2 && collection.value?.livePreview === true}
-				<!-- Live Preview tab content -->
-				<div class="wrapper">
-					<h2 class="mb-4 text-center text-xl font-bold text-tertiary-500 dark:text-primary-500">Live Preview Experimetal</h2>
-					<div class="card variant-glass-secondary mb-4 p-1 sm:p-4">
-						{@html getLivePreviewContent()}
-					</div>
-				</div>
+			{:else if localTabSet === 2}
+				<!-- LIVE PREVIEW TAB -->
+				<div class="p-4">{@html getLivePreviewContent()}</div>
 			{:else if localTabSet === 3}
-				<!-- API Json tab content -->
-				{#if collectionValue.value == null}
-					<div class="variant-ghost-error mb-4 py-2 text-center font-bold">
-						{m.fields_api_nodata()}
+				<!-- API TAB -->
+				<div class="space-y-4 p-4">
+					<div class="flex items-center gap-2">
+						<span class="font-bold">API URL:</span>
+						<input type="text" class="input flex-grow" readonly value={apiUrl} />
+						<button class="variant-ghost-surface btn" use:clipboard={apiUrl}>Copy</button>
 					</div>
-				{:else}
-					<div class="wrapper relative z-0 mb-4 flex w-full items-center justify-start gap-1">
-						<p class="flex items-center">
-							<span class="mr-1">API URL:</span>
-							<iconify-icon icon="ph:copy" use:clipboard={apiUrl} class="pb-6 text-tertiary-500 dark:text-primary-500"> </iconify-icon>
-						</p>
-						<button class="btn text-wrap text-left" onclick={() => window.open(apiUrl, '_blank')} title={apiUrl}>
-							<span class="text-wrap text-tertiary-500 dark:text-primary-500">{apiUrl}</span>
-						</button>
-					</div>
-
-					<CodeBlock
-						color="text-white dark:text-primary-500"
-						language="JSON"
-						lineNumbers={true}
-						text="text-xs w-full"
-						buttonLabel="Copy"
-						code={JSON.stringify(collectionValue.value, null, 2)}
-					/>
-				{/if}
+					<CodeBlock language="json" code={JSON.stringify(collectionValue.value, null, 2)} />
+				</div>
 			{/if}
 		</svelte:fragment>
 	</TabGroup>

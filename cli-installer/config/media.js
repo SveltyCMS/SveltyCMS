@@ -8,7 +8,7 @@
 - Prompts for Media integration
 */
 
-import { confirm, text, note, select, isCancel } from '@clack/prompts';
+import { confirm, isCancel, note, select, text } from '@clack/prompts';
 import pc from 'picocolors';
 import { Title, cancelToMainMenu } from '../cli-installer.js';
 
@@ -52,10 +52,11 @@ export async function configureMedia(privateConfigData = {}) {
 
 	// Display a note about the Media configuration
 	note(
-		`The Media configuration allows you to set the sizes for image\n` +
-			`processing, the folder for storing media files, the output\n` +
-			`format and quality for image optimization,\n` +
-			`and the media server URL.`,
+		`Configure media handling and optimization:
+  • Image processing sizes and formats
+  • Media storage folder location
+  • Image quality and optimization settings
+  • Media server URL for external hosting`,
 		pc.green('Media Configuration:')
 	);
 
