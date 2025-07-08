@@ -33,22 +33,50 @@
 	let isOpen = $state(false);
 	let completionTotals = $state({ total: 0, translated: 0 });
 	// ENHANCEMENT: Use a local state for available languages to make the component more robust.
-	let availableLanguages = $state<Locale[]>([]);
+	let availableLanguages = $derived.by<Locale[]>(() => {
+		if (publicEnv && Array.isArray(publicEnv.AVAILABLE_CONTENT_LANGUAGES)) {
+			return publicEnv.AVAILABLE_CONTENT_LANGUAGES as Locale[];
+		} else {
+			console.error('[TranslationStatus] publicEnv.AVAILABLE_CONTENT_LANGUAGES is not a valid array. Please check your configuration.', publicEnv);
+			return [];
+		}
+	});
 
-	// Track initialization state
+	// Track initialization
 	let isInitialized = $state(false);
 
+	// Animation stores
+	const dropdownOpacity = new Tween(0, {
+		duration: 200,
+		easing: cubicOut
+	});
+
+	const dropdownScale = new Tween(0.95, {
+		duration: 200,
+		easing: cubicOut
+	});
+
+	const progressValue = new Tween(0, {
+		duration: 800,
+		easing: quintOut
+	});
+
+	const chevronRotation = new Tween(0, {
+		duration: 200,
+		easing: cubicOut
+	});
+
+	// Store individual language progress values for smooth transitions
+	let languageProgressValues = $derived.by<Record<string, any>>(() => {
+		const progressValues: Record<string, any> = {};
+		for (const lang of availableLanguages) {
+			progressValues[lang] = new Tween(0, { duration: 200, easing: quintOut });
+		}
+		return progressValues;
+	});
 	// ENHANCEMENT: This effect safely loads the languages from the configuration.
 	// It checks if the data is a valid array before updating the state,
 	// preventing errors if the config is malformed or loads unexpectedly.
-	$effect(() => {
-		if (publicEnv && Array.isArray(publicEnv.AVAILABLE_CONTENT_LANGUAGES)) {
-			availableLanguages = publicEnv.AVAILABLE_CONTENT_LANGUAGES as Locale[];
-		} else {
-			console.error('[TranslationStatus] publicEnv.AVAILABLE_CONTENT_LANGUAGES is not a valid array. Please check your configuration.', publicEnv);
-			availableLanguages = [];
-		}
-	});
 
 	// Initialize translation progress tracking when collection changes
 	$effect(() => {
@@ -105,7 +133,6 @@
 
 	// Update translation progress based on current field values
 	function updateTranslationProgressFromFields(currentCollection: any, currentCollectionValue: Record<string, any>) {
-		console.log('[TranslationStatus] Updating translation progress from fields:', currentCollectionValue);
 		const currentProgress = translationProgress();
 		let hasUpdates = false;
 
@@ -130,11 +157,9 @@
 					if (isTranslated && !wasTranslated) {
 						currentProgress[lang].translated.add(fieldName);
 						hasUpdates = true;
-						console.log(`[TranslationStatus] Field ${fieldName} marked as translated for ${lang}`);
 					} else if (!isTranslated && wasTranslated) {
 						currentProgress[lang].translated.delete(fieldName);
 						hasUpdates = true;
-						console.log(`[TranslationStatus] Field ${fieldName} marked as not translated for ${lang}`);
 					}
 				}
 			}
@@ -142,62 +167,7 @@
 
 		if (hasUpdates) {
 			updateTranslationProgress(currentProgress);
-		}
-	}
-
-	// Animation stores
-	const dropdownOpacity = new Tween(0, {
-		duration: 200,
-		easing: cubicOut
-	});
-
-	const dropdownScale = new Tween(0.95, {
-		duration: 200,
-		easing: cubicOut
-	});
-
-	const progressValue = new Tween(0, {
-		duration: 800,
-		easing: quintOut
-	});
-
-	const chevronRotation = new Tween(0, {
-		duration: 200,
-		easing: cubicOut
-	});
-
-	// Store individual language progress values for smooth transitions
-	const languageProgressValues = $state<Record<string, any>>({});
-
-	// Initialize progress tweens for each language
-	function initializeLanguageProgress() {
-		for (const lang of availableLanguages) {
-			if (!languageProgressValues[lang]) {
-				languageProgressValues[lang] = new Tween(0, {
-					duration: 600,
-					easing: quintOut
-				});
-			}
-		}
-	}
-
-	// Animate dropdown visibility
-	$effect(() => {
-		if (isOpen) {
-			dropdownOpacity.target = 1;
-			dropdownScale.target = 1;
-			chevronRotation.target = 180;
-		} else {
-			dropdownOpacity.target = 0;
-			dropdownScale.target = 0.95;
-			chevronRotation.target = 0;
-		}
-	});
-
-	// Calculate completion totals when translation progress changes
-	$effect(() => {
-		const progress = translationProgress();
-		if (progress.show) {
+			const progress = translationProgress();
 			let total = 0;
 			let translated = 0;
 			for (const lang of availableLanguages) {
@@ -213,18 +183,28 @@
 			progressValue.target = newPercentage;
 
 			// Initialize and update individual language progress
-			initializeLanguageProgress();
+			// initializeLanguageProgress();
 			for (const lang of availableLanguages) {
 				const langProgress = progress[lang as Locale];
 				const percentage =
 					langProgress && langProgress.total.size > 0 ? Math.round((langProgress.translated.size / langProgress.total.size) * 100) : 0;
-				if (languageProgressValues[lang]) {
-					languageProgressValues[lang].target = percentage;
-				}
+
+				console.log('[TranslationStatus] lang:', lang, 'percentage:', percentage);
+				languageProgressValues[lang].target = percentage;
 			}
+		}
+	}
+
+	// Animate dropdown visibility
+	$effect(() => {
+		if (isOpen) {
+			dropdownOpacity.target = 1;
+			dropdownScale.target = 1;
+			chevronRotation.target = 180;
 		} else {
-			completionTotals = { total: 0, translated: 0 };
-			progressValue.target = 0;
+			dropdownOpacity.target = 0;
+			dropdownScale.target = 0.95;
+			chevronRotation.target = 0;
 		}
 	});
 
@@ -387,12 +367,12 @@
 										<div class="flex-1">
 											<ProgressBar
 												class="transition-all duration-300"
-												value={getAnimatedLanguageProgress(lang)}
-												meter={getColor(getAnimatedLanguageProgress(lang))}
+												value={getAnimatedLanguageProgress(lang) ?? 0}
+												meter={getColor(getAnimatedLanguageProgress(lang) ?? 0)}
 											/>
 										</div>
 										<span class="min-w-[2.5rem] text-right text-sm font-semibold transition-all duration-300">
-											{Math.round(getAnimatedLanguageProgress(lang))}%
+											{Math.round(getAnimatedLanguageProgress(lang) ?? 0)}%
 										</span>
 									</div>
 								{/if}

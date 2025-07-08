@@ -18,7 +18,6 @@
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { publicEnv } from '@root/config/public';
-	import { updateTranslationProgress, getFieldName } from '@utils/utils';
 
 	// Stores
 	import { contentLanguage, validationStore } from '@stores/store.svelte';
@@ -85,15 +84,6 @@
 	});
 
 	// Update _data when inputs change
-	$effect(() => {
-		_data[_language] = {
-			..._data[_language],
-			title,
-			description,
-			robotsMeta
-		};
-		updateTranslationProgress(_data, field);
-	});
 
 	onMount(() => {
 		hostUrl = window.location.origin;
