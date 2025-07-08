@@ -18,7 +18,7 @@
 	import { publicEnv } from '@root/config/public';
 	import { onMount, onDestroy, tick, untrack } from 'svelte';
 	import { v4 as uuidv4 } from 'uuid';
-	import { meta_data, debounce, getFieldName, updateTranslationProgress } from '@utils/utils';
+	import { meta_data, debounce, getFieldName } from '@utils/utils';
 	import { getTextDirection } from '@utils/utils';
 	import type { MediaImage } from '@utils/media/mediaModels';
 	import type { ComponentProps } from 'svelte';
@@ -85,13 +85,6 @@
 			const content = _data.content[_language] || value?.content?.[_language] || '';
 			editor.commands.setContent(content);
 		}
-	});
-
-	$effect(() => {
-		untrack(() => {
-			updateTranslationProgress(_data.content, field);
-		});
-		_data.content[_language];
 	});
 
 	const deb = debounce(500);
