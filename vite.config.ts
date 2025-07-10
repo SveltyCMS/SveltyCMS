@@ -7,7 +7,8 @@
  * and Paraglide integration for internationalization. The configuration also initializes
  * compilation tasks, sets up environment variables, and defines alias paths for the project.
  */
-
+import dotenv from 'dotenv';
+dotenv.config();
 import Path from 'path';
 import { resolve } from 'path';
 import { readFileSync, existsSync } from 'fs';
@@ -21,6 +22,8 @@ import { compile } from './src/routes/api/compile/compile';
 import { generateContentTypes } from './src/content/vite';
 import type { IncomingMessage, ServerResponse } from 'http';
 import { builtinModules } from 'module';
+
+
 
 // Validation
 import { publicConfigSchema, privateConfigSchema, validateConfig } from './config/types';

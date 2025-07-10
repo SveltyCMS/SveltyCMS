@@ -16,6 +16,6 @@
 	"typescript.validate.enable": false,
 	"javascript.validate.enable": false,
 	"[typescript]": {
-		"editor.defaultFormatter": "esbenp.prettier-vscode"
+		"editor.defaultFormatter": "vscode.typescript-language-features"
 	}
 }

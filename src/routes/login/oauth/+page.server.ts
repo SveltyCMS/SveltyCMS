@@ -314,29 +314,15 @@ async function handleGoogleUser(
 	const sessionCookie = auth?.createSessionCookie(session._id);
 	cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 }
-
 export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => {
 	try {
-		await dbInitPromise; // Wait for system initialization including ContentManager
+		await dbInitPromise;
 		logger.debug('System ready in OAuth load function');
+		if (!auth) throw error(500, 'Internal Server Error: Authentication system is not initialized');
 
-		if (!auth) {
-			logger.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error: Authentication system is not initialized');
-		}
-
-		// Extensive logging for OAuth redirect
 		logger.debug('OAuth Callback called:');
-
-		// Check if this is the first user
-		let firstUserExists = false;
-		try {
-			firstUserExists = (await auth.getUserCount()) !== 0;
-			logger.debug(`First user exists: \x1b[34m${firstUserExists}\x1b[0m`);
-		} catch (err) {
-			logger.error('Error fetching user count:', err);
-			throw error(500, 'Error checking first user status');
-		}
+		const firstUserExists = (await auth.getUserCount()) !== 0;
+		logger.debug(`First user exists: \x1b[34m${firstUserExists}\x1b[0m`);
 
 		const code = url.searchParams.get('code');
 		const state = url.searchParams.get('state');
@@ -351,23 +337,11 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 		// Handle OAuth errors first
 		if (error_param) {
 			logger.error(`OAuth Error: ${error_param}`, { error_subtype, url: url.toString() });
-
 			if (error_param === 'interaction_required' || error_param === 'access_denied') {
-				// User needs to go through consent flow or cancelled
-				logger.debug('OAuth interaction required - redirecting to consent flow');
-				try {
-					const authUrl = await generateGoogleAuthUrl(token, 'consent');
-					redirect(302, authUrl);
-				} catch (err) {
-					logger.error('Error generating OAuth URL after interaction_required:', err);
-					throw error(500, 'Failed to initialize OAuth');
-				}
+				const authUrl = await generateGoogleAuthUrl(token, 'consent');
+				redirect(302, authUrl);
 			} else {
-				// Other OAuth errors
-				throw error(400, {
-					message: 'OAuth Authentication Failed',
-					details: `${error_param}: ${error_subtype || 'Unknown error'}`
-				});
+				throw error(400, { message: 'OAuth Authentication Failed', details: `${error_param}: ${error_subtype || 'Unknown error'}` });
 			}
 		}
 
@@ -375,41 +349,24 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 		if (!code) {
 			// For first user (no existing users), redirect directly to OAuth
 			if (!firstUserExists) {
-				logger.debug('No first user and no code - redirecting to OAuth');
-				try {
-					const authUrl = await generateGoogleAuthUrl(token, 'consent');
-					redirect(302, authUrl);
-				} catch (err) {
-					logger.error('Error generating OAuth URL:', err);
-					throw error(500, 'Failed to initialize OAuth');
-				}
+				const authUrl = await generateGoogleAuthUrl(token, 'consent');
+				redirect(302, authUrl);
 			}
 
 			// For non-first users without a token, show token input form
 			if (firstUserExists && !token) {
-				logger.debug('First user exists, no token, no code - showing token input form');
-				return {
-					isFirstUser: !firstUserExists,
-					requiresToken: true
-				};
+				return { isFirstUser: !firstUserExists, requiresToken: true };
 			}
 
 			// For non-first users with a token, redirect to OAuth with the token
 			if (firstUserExists && token) {
-				logger.debug('First user exists, token provided, redirecting to OAuth');
-				try {
-					const authUrl = await generateGoogleAuthUrl(token, 'consent');
-					redirect(302, authUrl);
-				} catch (err) {
-					logger.error('Error generating OAuth URL:', err);
-					throw error(500, 'Failed to initialize OAuth');
-				}
+				const authUrl = await generateGoogleAuthUrl(token, 'consent');
+				redirect(302, authUrl);
 			}
 		}
 
 		// Process OAuth callback
 		try {
-			// Debug: Let's explicitly check what we're working with
 			logger.debug(`Processing OAuth callback with code: ${code.substring(0, 20)}...`);
 
 			// Import and get the private config directly
@@ -418,110 +375,50 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			// Create a fresh OAuth client instance specifically for token exchange
 			// Use the same environment detection logic as the OAuth URL generation
 			const redirectUri = getOAuthRedirectUri();
-
 			const googleAuthClient = new google.auth.OAuth2(privateEnv.GOOGLE_CLIENT_ID, privateEnv.GOOGLE_CLIENT_SECRET, redirectUri);
-
-			// Try using the getToken method with explicit options to disable PKCE
-			logger.debug('Attempting to exchange authorization code for tokens...');
-
-			// Workaround for googleapis v150 bug: manually make the token request to avoid automatic PKCE injection
-			// Reference: https://github.com/googleapis/google-api-nodejs-client/issues/3681
-			const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/x-www-form-urlencoded'
-				},
-				body: new URLSearchParams({
-					client_id: privateEnv.GOOGLE_CLIENT_ID!,
-					client_secret: privateEnv.GOOGLE_CLIENT_SECRET!,
-					code: code,
-					grant_type: 'authorization_code',
-					redirect_uri: redirectUri
-					// Explicitly NOT including code_verifier to avoid the googleapis bug
-				}).toString()
-			});
-
-			if (!tokenResponse.ok) {
-				const errorData = await tokenResponse.json();
-				logger.error('Token exchange failed:', errorData);
-				throw new Error(`Token exchange failed: ${errorData.error_description || errorData.error}`);
-			}
-
-			const tokens = await tokenResponse.json();
-
-			if (!tokens || !tokens.access_token) {
-				logger.error('Failed to obtain tokens from Google');
-				throw error(500, 'Failed to authenticate with Google');
-			}
+			const { tokens } = await googleAuthClient.getToken(code);
+			if (!tokens || !tokens.access_token) throw error(500, 'Failed to authenticate with Google');
 
 			logger.debug('Successfully obtained tokens from Google');
-
-			// Set credentials on the OAuth client using the manually obtained tokens
-			googleAuthClient.setCredentials({
-				access_token: tokens.access_token,
-				token_type: tokens.token_type,
-				expires_in: tokens.expires_in,
-				refresh_token: tokens.refresh_token,
-				scope: tokens.scope
-			});
-
+			googleAuthClient.setCredentials(tokens);
 			// Fetch Google user profile
 			const oauth2 = google.oauth2({ auth: googleAuthClient, version: 'v2' });
 			const { data: googleUser } = await oauth2.userinfo.get();
+			if (!googleUser) throw error(500, 'Could not retrieve user information');
 
-			if (!googleUser) {
-				logger.error('Failed to fetch Google user profile');
-				throw error(500, 'Could not retrieve user information');
-			}
+			// Pass the refresh token from the `tokens` object to the handler function.
+			await handleGoogleUser(googleUser as GoogleUserInfo, !firstUserExists, token, tokens.refresh_token || null, cookies, fetch, request);
 
-			// Handle user creation/update and session creation
-			await handleGoogleUser(googleUser as GoogleUserInfo, !firstUserExists, token, cookies, fetch, request);
 			logger.info('Successfully processed OAuth callback and created session');
-
 			// Redirect to first collection using centralized utility
 			const redirectUrl = await getFirstCollectionRedirectUrl();
 			logger.debug(`Redirecting to: \x1b[34m${redirectUrl}\x1b[0m`);
 			throw redirect(302, redirectUrl);
 		} catch (err) {
-			// Check if this is a redirect (which is expected and successful)
 			if (err && typeof err === 'object' && 'status' in err && (err.status === 302 || err.status === 303)) {
-				logger.info('OAuth processing completed successfully, redirecting user');
-				throw err; // Re-throw the redirect
+				throw err;
 			}
-
 			const errorMessage = err instanceof Error ? err.message : 'Unknown error during OAuth callback';
-			logger.error('OAuth callback processing error:', {
-				error: err,
-				stack: err instanceof Error ? err.stack : undefined,
-				code,
-				token
-			});
-
+			logger.error('OAuth callback processing error:', { error: err, stack: err instanceof Error ? err.stack : undefined, code, token });
 			// Provide more specific error messages based on the error type
 			if (errorMessage.includes('A valid invitation is required')) {
 				throw error(403, {
 					message: 'Admin Invitation Required',
-					details:
-						'This CMS requires an invitation from an administrator to create any new account. Both email/password and Google OAuth registration require admin approval. Please contact the site administrator to request an invitation link.'
+					details: 'This CMS requires an invitation from an administrator to create any new account.'
 				});
 			}
-
 			if (errorMessage.includes('invitation is invalid, expired, or has already been used')) {
 				throw error(403, {
 					message: 'Invalid or Expired Invitation',
-					details:
-						'Your invitation token is invalid, expired, or has already been used. Please request a new invitation from the administrator. Note that both email/password and OAuth registration require a valid invitation.'
+					details: 'Your invitation token is invalid, expired, or has already been used.'
 				});
 			}
-
 			if (errorMessage.includes('Google account email does not match the invitation email')) {
 				throw error(403, {
 					message: 'Google Account Email Mismatch',
-					details:
-						'The Google account email does not match the invitation email address. Please sign in with the correct Google account that matches your invitation, or contact the administrator for a new invitation with the correct email address.'
+					details: 'The Google account email does not match the invitation email address.'
 				});
 			}
-
 			// Provide more detailed error information
 			const errorDetails = err instanceof Error ? err.stack : 'No stack trace available';
 			throw error(500, {
@@ -544,14 +441,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			logger.debug('Re-throwing formatted error from inner handler');
 			throw err;
 		}
-
 		const errorMessage = err instanceof Error ? err.message : 'Unknown error during OAuth process';
-		logger.error('Comprehensive OAuth Error:', {
-			message: errorMessage,
-			stack: err instanceof Error ? err.stack : 'No stack trace',
-			fullError: err
-		});
-
+		logger.error('Comprehensive OAuth Error:', { message: errorMessage, stack: err instanceof Error ? err.stack : 'No stack trace', fullError: err });
 		// Provide more detailed error information for the user
 		throw error(500, {
 			message: 'OAuth Authentication Failed',
@@ -560,11 +451,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 		});
 	}
 
-	// If we reach this point, something went wrong - return error data
-	throw error(500, {
-		message: 'OAuth Authentication Failed',
-		details: 'Unexpected end of OAuth flow'
-	});
+	throw error(500, { message: 'OAuth Authentication Failed', details: 'Unexpected end of OAuth flow' });
 };
 
 export const actions: Actions = {

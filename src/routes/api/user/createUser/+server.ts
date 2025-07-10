@@ -26,6 +26,10 @@ import { logger } from '@utils/logger.svelte';
 
 // Input validation
 import { object, string, parse, email, optional, type ValiError } from 'valibot';
+// Fallback to 'user' role if missing
+if (!userData.role) {
+	userData.role = roles.find((r) => r.name === 'User')?._id || 'User';
+}
 
 // Define a schema for the incoming user data to ensure type safety and prevent invalid data.
 const createUserSchema = object({

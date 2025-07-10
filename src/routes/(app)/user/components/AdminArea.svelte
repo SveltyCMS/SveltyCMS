@@ -221,7 +221,7 @@
 				props: {
 					token: '',
 					email: '',
-					role: 'user',
+					role: 'User',
 					expires: '',
 					username: ''
 				}

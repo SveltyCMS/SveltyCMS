@@ -2,7 +2,7 @@
 	import { privateEnv } from '@root/config/private';
 
 	// Show OAuth when OAuth is enabled and an admin has sent an invitation
-	const { showOAuth = true } = $props<{
+	const { showOAuth = false } = $props<{
 		showOAuth?: boolean;
 	}>();
 </script>

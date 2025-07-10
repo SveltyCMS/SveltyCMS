@@ -43,12 +43,14 @@ import { get } from 'svelte/store';
 import { systemLanguage, type Locale } from '@stores/store.svelte';
 
 // Import roles
-import { roles } from '@root/config/roles';
+
+import { initializeRoles, roles } from '@root/config/roles';
+
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 import { getFirstCollectionRedirectUrl } from '@utils/navigation';
-
+await initializeRoles();
 const limiter = new RateLimiter({
 	IP: [200, 'h'], // 200 requests per hour per IP
 	IPUA: [100, 'm'], // 100 requests per minute per IP+User-Agent
@@ -59,6 +61,8 @@ const limiter = new RateLimiter({
 		preflight: true
 	}
 });
+
+
 
 // Password strength configuration
 const MIN_PPASSWORD_LENGTH = publicEnv.PASSWORD_LENGTH || 8;
@@ -170,17 +174,14 @@ const wrappedSignUpOAuthSchema = valibot(signUpOAuthFormSchema);
 
 export const load: PageServerLoad = async ({ url, cookies, fetch, request, locals }) => {
 	try {
-		// Ensure initialization is complete
 		await dbInitPromise;
 
-		// Wait for auth service to be ready instead of throwing error immediately
 		const authReady = await waitForAuthService();
 		if (!authReady || !auth) {
-			logger.warn('Authentication system is not ready yet, returning fallback data');
-			// Return fallback data instead of throwing error
+			logger.warn('Authentication system not ready. Returning fallback UI');
 			return {
 				firstUserExists: true,
-				showOAuth: false, // Don't show OAuth if auth system isn't ready
+				showOAuth: false,
 				hasExistingOAuthUsers: false,
 				loginForm: await superValidate(wrappedLoginSchema),
 				forgotForm: await superValidate(wrappedForgotSchema),
@@ -192,71 +193,55 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
 		if (!locals) locals = {} as App.Locals;
 
-		// Check if user is already authenticated
 		if (locals.user) {
-			logger.debug('User is already authenticated in load, attempting to redirect to collection');
 			const redirectPath = await fetchAndRedirectToFirstCollection();
 			throw redirect(302, redirectPath);
 		}
 
-		// Rate limiter preflight check
 		if (limiter.cookieLimiter?.preflight) {
 			await limiter.cookieLimiter.preflight({ request, cookies });
 		}
 
-		// THE NEW "INTELLIGENT LOADER" LOGIC
 		const inviteToken = url.searchParams.get('invite_token');
+		let inviteRole: string | undefined = undefined;
+		let invitedEmail: string | undefined = undefined;
 
 		if (inviteToken) {
-			// This is an invite flow!
 			const tokenData = await auth.validateRegistrationToken(inviteToken);
+			logger.debug('Invite token data:', tokenData);
 
 			if (tokenData.isValid && tokenData.details) {
-				// Token is valid! Prepare the page for invite-based signup.
-				logger.info('Valid invite token detected. Preparing invite signup form.');
+				inviteRole = tokenData.details.role;
+				invitedEmail = tokenData.details.email;
 
-				// Check firstUserExists for consistency
 				const firstUserExists = locals.isFirstUser === false;
-
-				// Check if OAuth should be shown (with invite token)
 				const showOAuth = await shouldShowOAuth(!firstUserExists, true);
 
 				return {
 					firstUserExists,
 					isInviteFlow: true,
 					showOAuth,
-					hasExistingOAuthUsers: false, // Not relevant for invite flow
+					hasExistingOAuthUsers: false,
 					token: inviteToken,
-					invitedEmail: tokenData.details.email,
-					roleId: tokenData.details.role, // Pass the roleId from the token
+					invitedEmail,
+					roleId: inviteRole,
 					loginForm: await superValidate(wrappedLoginSchema),
 					forgotForm: await superValidate(wrappedForgotSchema),
 					resetForm: await superValidate(wrappedResetSchema),
 					signUpForm: await superValidate(wrappedSignUpSchema)
 				};
 			} else {
-				// Token is invalid, expired, or already used.
-				// Instead of completely blocking, let the user access the form
-				// and pre-fill the token so they can see what's wrong or enter a different one
-				logger.warn('Invalid invite token detected, but allowing form access with pre-filled token.');
-
-				// Check firstUserExists for consistency
 				const firstUserExists = locals.isFirstUser === false;
-
-				// Check if OAuth should be shown (invalid invite, but has token)
 				const showOAuth = await shouldShowOAuth(!firstUserExists, true);
-
-				// Pre-fill the form with the invalid token and show a warning
 				const signUpForm = await superValidate(wrappedSignUpSchema);
-				signUpForm.data.token = inviteToken; // Pre-fill with the invalid token
+				signUpForm.data.token = inviteToken;
 
 				return {
 					firstUserExists,
-					isInviteFlow: false, // Not a proper invite flow since token is invalid
+					isInviteFlow: false,
 					showOAuth,
 					hasExistingOAuthUsers: false,
-					inviteError:
-						'This invitation token appears to be invalid, expired, or already used. Please check with your administrator or enter a different token.',
+					inviteError: 'This invitation token appears to be invalid or expired.',
 					loginForm: await superValidate(wrappedLoginSchema),
 					forgotForm: await superValidate(wrappedForgotSchema),
 					resetForm: await superValidate(wrappedResetSchema),
@@ -265,31 +250,20 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			}
 		}
 
-		// Use the firstUserExists value from locals (set by hooks)
-		// This avoids race conditions during initialization
 		const firstUserExists = locals.isFirstUser === false;
-		logger.debug(
-			`In load: firstUserExists determined as: /x1b[34m${firstUserExists}\x1b[0m (based on locals.isFirstUser: /x1b[34m${locals.isFirstUser}\x1b[0m)`
-		);
 
 		const code = url.searchParams.get('code');
-		logger.debug(`Authorization code from URL: ${code}`);
-
-		// Handle Google OAuth flow if code is present
 		if (privateEnv.USE_GOOGLE_OAUTH && code) {
-			logger.debug('Entering Google OAuth flow in load function');
 			try {
 				const googleAuthInstance = await googleAuth();
 				if (!googleAuthInstance) throw Error('Google OAuth client is not initialized');
 
-				logger.debug('Fetching tokens using authorization code...');
 				const { tokens } = await googleAuthInstance.getToken(code);
 				if (!tokens) throw new Error('Failed to retrieve Google OAuth tokens.');
 
 				googleAuthInstance.setCredentials(tokens);
 				const oauth2 = google.oauth2({ auth: googleAuthInstance, version: 'v2' });
 				const { data: googleUser } = await oauth2.userinfo.get();
-				logger.debug(`Google user information: ${JSON.stringify(googleUser)}`);
 
 				const getUser = async (): Promise<[User | null, boolean]> => {
 					const email = googleUser.email;
@@ -298,170 +272,94 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					const existingUser = await auth.checkUser({ email });
 					if (existingUser) return [existingUser, false];
 
-					const isFirst = locals.isFirstUser === true;
-					logger.info(`OAuth: isFirstUser check: ${isFirst}`);
+					// Find roles
+					const defaultRole = roles.find((r) => r.isDefault || r._id === 'user');
+					if (!defaultRole) throw new Error('Default role not found');
 
-					if (isFirst) {
-						const adminRole = roles.find((role) => role.isAdmin === true);
-						if (!adminRole) throw Error('Admin role not found in roles configuration');
+					const roleFromToken = tokenData?.details?.role;
+					const roleToAssign =
+						typeof roleFromToken === 'string' ? roleFromToken : defaultRole._id;
 
-						const user = await auth.createUser({
-							email,
-							username: googleUser.name || email.split('@')[0],
-							role: adminRole._id,
-							permissions: adminRole.permissions,
-							blocked: false,
-							isRegistered: true,
-							lastAuthMethod: 'google'
-						});
-						logger.info(`OAuth: First user created: ${user?.username}`);
+					const permissionsToUse = defaultRole.permissions;
 
-						// Send Welcome email using fetch to /api/sendMail
-						const userLang = (get(systemLanguage) as Locale) || 'en';
-						const emailProps = {
-							username: googleUser.name || user?.username || '',
-							email: email,
-							hostLink: publicEnv.HOST_PROD || `https://${request.headers.get('host')}`,
-							sitename: publicEnv.SITE_NAME || 'SveltyCMS'
-						};
-						try {
-							const mailResponse = await fetch('/api/sendMail', {
-								// Use SvelteKit's fetch
-								method: 'POST',
-								headers: { 'Content-Type': 'application/json' },
-								body: JSON.stringify({
-									recipientEmail: email,
-									subject: `Welcome to ${emailProps.sitename}`,
-									templateName: 'welcomeUser',
-									props: emailProps,
-									languageTag: userLang // Pass languageTag if your API uses it
-								})
-							});
-							if (!mailResponse.ok) {
-								logger.error(`OAuth: Failed to send welcome email via API. Status: ${mailResponse.status}`, {
-									email,
-									responseText: await mailResponse.text()
-								});
-							} else {
-								logger.info(`OAuth: Welcome email request sent via API`, { email });
-							}
-						} catch (emailError) {
-							logger.error(`OAuth: Error fetching /api/sendMail`, { email, error: emailError });
-						}
-						return [user, false];
-					} else {
-						// For non-first users, check if we should allow registration
-						// Since ALLOW_REGISTRATION is not configured, we'll allow it by default
-						const defaultRole = roles.find((role) => role.isDefault === true) || roles.find((role) => role._id === 'user');
-						if (!defaultRole) throw new Error('Default user role not found.');
+					const newUser = await auth.createUser({
+						email,
+						username: googleUser.name || email.split('@')[0],
+						role: roleToAssign,
+						permissions: permissionsToUse,
+						isRegistered: true,
+						lastAuthMethod: 'google'
+					});
 
-						const newUser = await auth.createUser({
-							email,
-							username: googleUser.name || email.split('@')[0],
-							role: defaultRole._id,
-							permissions: defaultRole.permissions,
-							isRegistered: true,
-							lastAuthMethod: 'google'
-						});
-						logger.info(`OAuth: New non-first user created: ${newUser?.username}`);
-						const userLang = (get(systemLanguage) as Locale) || 'en';
-						const emailProps = {
-							username: googleUser.name || newUser?.username || '',
-							email: email,
-							hostLink: publicEnv.HOST_PROD || `https://${request.headers.get('host')}`,
-							sitename: publicEnv.SITE_NAME || 'SveltyCMS'
-						};
-						try {
-							const mailResponse = await fetch('/api/sendMail', {
-								method: 'POST',
-								headers: { 'Content-Type': 'application/json' },
-								body: JSON.stringify({
-									recipientEmail: email,
-									subject: `Welcome to ${emailProps.sitename}`,
-									templateName: 'welcomeUser',
-									props: emailProps,
-									languageTag: userLang
-								})
-							});
-							if (!mailResponse.ok) {
-								logger.error(`OAuth: Failed to send welcome email to new user via API. Status: ${mailResponse.status}`, {
-									email,
-									responseText: await mailResponse.text()
-								});
-							} else {
-								logger.info(`OAuth: Welcome email request sent to new user via API`, { email });
-							}
-						} catch (emailError) {
-							logger.error(`OAuth: Error fetching /api/sendMail for new user`, { email, error: emailError });
-						}
-						return [newUser, false];
-					}
+					const userLang = (get(systemLanguage) as Locale) || 'en';
+					await fetch('/api/sendMail', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({
+							recipientEmail: email,
+							subject: `Welcome to ${publicEnv.SITE_NAME || 'SveltyCMS'}`,
+							templateName: 'welcomeUser',
+							props: {
+								username: newUser.username,
+								email,
+								hostLink: publicEnv.HOST_PROD || `https://${request.headers.get('host')}`,
+								sitename: publicEnv.SITE_NAME || 'SveltyCMS'
+							},
+							languageTag: userLang
+						})
+					});
+
+					return [newUser, false];
 				};
 
 				const [user] = await getUser();
-
 				if (user && user._id) {
 					await createSessionAndSetCookie(user._id, cookies);
 					await auth.updateUserAttributes(user._id, { lastAuthMethod: 'google', lastLogin: new Date() });
 					const redirectPath = await fetchAndRedirectToFirstCollection();
 					throw redirect(303, redirectPath);
 				}
-				logger.warn(`OAuth: User processing ended without session creation for ${googleUser.email}.`);
-				// Check if OAuth should be shown for error case
-				const showOAuth = await shouldShowOAuth(!firstUserExists, false);
-				return {
-					isInviteFlow: false,
-					firstUserExists,
-					showOAuth,
-					hasExistingOAuthUsers: false, // Not relevant for error case
-					loginForm: await superValidate(wrappedLoginSchema),
-					forgotForm: await superValidate(wrappedForgotSchema),
-					resetForm: await superValidate(wrappedResetSchema),
-					signUpForm: await superValidate(wrappedSignUpSchema),
-					oauthError: 'OAuth processing failed. Please try signing in with email or contact support.'
-				};
-			} catch (oauthError) {
-				// Check if this is a SvelteKit redirect (which is expected)
-				if (oauthError instanceof Response && oauthError.status >= 300 && oauthError.status < 400) {
-					throw oauthError; // Re-throw redirects
-				}
 
-				const err = oauthError as Error;
-				logger.error(`Error during Google OAuth login process: ${err.message}`, { stack: err.stack });
-				// Check if OAuth should be shown for error case
 				const showOAuth = await shouldShowOAuth(!firstUserExists, false);
 				return {
 					isInviteFlow: false,
 					firstUserExists,
 					showOAuth,
-					hasExistingOAuthUsers: false, // Not relevant for error case
+					hasExistingOAuthUsers: false,
 					loginForm: await superValidate(wrappedLoginSchema),
 					forgotForm: await superValidate(wrappedForgotSchema),
 					resetForm: await superValidate(wrappedResetSchema),
 					signUpForm: await superValidate(wrappedSignUpSchema),
-					oauthError: `OAuth failed: ${err.message}. Please try again or use email login.`
+					oauthError: 'OAuth processing failed. Please try signing in with email.'
+				};
+			} catch (error) {
+				const showOAuth = await shouldShowOAuth(!firstUserExists, false);
+				return {
+					isInviteFlow: false,
+					firstUserExists,
+					showOAuth,
+					hasExistingOAuthUsers: false,
+					loginForm: await superValidate(wrappedLoginSchema),
+					forgotForm: await superValidate(wrappedForgotSchema),
+					resetForm: await superValidate(wrappedResetSchema),
+					signUpForm: await superValidate(wrappedSignUpSchema),
+					oauthError: `OAuth failed: ${(error as Error).message}`
 				};
 			}
 		}
 
-		// This is a normal login flow (no invite token) - return standard forms
 		const loginForm = await superValidate(wrappedLoginSchema);
 		const forgotForm = await superValidate(wrappedForgotSchema);
 		const resetForm = await superValidate(wrappedResetSchema);
 		const signUpForm = await superValidate(wrappedSignUpSchema);
-
-		// Check if OAuth should be shown
 		const showOAuth = await shouldShowOAuth(!firstUserExists, false);
 
-		// Check if there are existing OAuth users (for better UX messaging)
 		let hasExistingOAuthUsers = false;
 		try {
-			if (auth) {
-				const oauthUsers = await auth.listUsers(0, 1, { lastAuthMethod: 'google' });
-				hasExistingOAuthUsers = oauthUsers && oauthUsers.length > 0;
-			}
-		} catch (error) {
-			logger.error('Error checking for existing OAuth users:', error);
+			const users = await auth.findUsers({ lastAuthMethod: 'google' }, 0, 1);
+			hasExistingOAuthUsers = users.length > 0;
+		} catch (e) {
+			logger.error('Error checking for existing OAuth users');
 		}
 
 		return {
@@ -474,24 +372,24 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			resetForm,
 			signUpForm
 		};
-	} catch (initialError) {
-		const err = initialError as Error;
-		if (err instanceof Response && err.status === 302) throw err;
-
-		logger.error(`Critical error in load function: ${err.message}`, { stack: err.stack });
+	} catch (error) {
+		const err = error as Error;
+		logger.error('Load function error:', err);
 		return {
 			isInviteFlow: false,
 			firstUserExists: true,
-			showOAuth: false, // Don't show OAuth in error case
+			showOAuth: false,
 			hasExistingOAuthUsers: false,
 			loginForm: await superValidate(wrappedLoginSchema),
 			forgotForm: await superValidate(wrappedForgotSchema),
 			resetForm: await superValidate(wrappedResetSchema),
 			signUpForm: await superValidate(wrappedSignUpSchema),
-			error: 'The login system encountered an unexpected error. Please try again later.'
+			error: 'The login system encountered an unexpected error.'
 		};
 	}
 };
+
+
 
 // Actions for SignIn and SignUp a user with form data
 export const actions: Actions = {
@@ -618,7 +516,7 @@ export const actions: Actions = {
 				email,
 				username,
 				password,
-				role: tokenData.details.role, // Use the role from the token!
+				role: roleToAssign, // Use the role from the token!
 				isRegistered: true
 			});
 
@@ -1026,16 +924,31 @@ async function FirstUsersignUp(
 		if (calculatePasswordStrength(password) < 1) {
 			return { status: false, message: 'Password is too weak.' };
 		}
+		if (!formData.role) {
+			const defaultRole = roles.find((r) => r.isDefault || r._id === 'user' || r.name === 'User');
+			if (!defaultRole) throw new Error('Default role not found');
+
+			formData.role = defaultRole._id;
+			formData.permissions = [...defaultRole.permissions]; // clone to avoid mutation
+		}
+
+		// Ensure permissions match the assigned role
+		if (!formData.permissions || formData.permissions.length === 0) {
+			const matchedRole = roles.find((r) => r._id === formData.role);
+			formData.permissions = matchedRole?.permissions || [];
+		}
+
 		const user = await auth.createUser({
-			email,
-			username,
-			password,
-			role: adminRole._id,
-			permissions: adminRole.permissions,
+			email: formData.email,
+			username: formData.username,
+			password: formData.password,
+			role: formData.role,
+			permissions: formData.permissions,
 			lastAuthMethod: 'password',
 			isRegistered: true,
 			failedAttempts: 0
 		});
+
 		if (!user || !user._id) {
 			logger.error('First user creation failed: No user object returned or missing _id.');
 			return { status: false, message: 'Failed to create admin user.' };
