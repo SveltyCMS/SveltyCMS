@@ -86,7 +86,6 @@ async function fetchAndSaveGoogleAvatar(avatarUrl: string, userEmail: string): P
 		if (!response.ok) {
 			throw new Error(`Failed to fetch avatar: ${response.statusText}`);
 		}
-
 		const blob = await response.blob();
 
 		// Determine the correct file type from the response
@@ -132,6 +131,7 @@ async function handleGoogleUser(
 	googleUser: GoogleUserInfo,
 	isFirst: boolean,
 	token: string | null,
+	refreshToken: string | null,
 	cookies: Cookies,
 	fetchFn: typeof fetch,
 	request: Request
@@ -162,34 +162,16 @@ async function handleGoogleUser(
 		// Handle new user creation with invite token validation
 		if (!isFirst) {
 			// For non-first users, validate the invite token
-			if (!token) {
-				throw new Error('A valid invitation is required to create an account via OAuth');
-			}
-
+			if (!token) throw new Error('A valid invitation is required to create an account via OAuth');
 			const tokenValidation = await auth?.validateRegistrationToken(token);
-			if (!tokenValidation?.isValid || !tokenValidation?.details) {
-				throw new Error('This invitation is invalid, expired, or has already been used');
-			}
-
+			if (!tokenValidation?.isValid || !tokenValidation?.details) throw new Error('This invitation is invalid, expired, or has already been used');
 			// Check that the OAuth email matches the invited email
-			if (email.toLowerCase() !== tokenValidation.details.email.toLowerCase()) {
+			if (email.toLowerCase() !== tokenValidation.details.email.toLowerCase())
 				throw new Error('The Google account email does not match the invitation email');
-			}
-
 			// Use the role from the token for invited users
 			const inviteRole = tokenValidation.details.role;
-
-			// Handle new user creation with invite token
 			let avatarUrl: string | null = null;
-			if (googleUser.picture) {
-				logger.debug(`Attempting to save Google avatar for invited user: ${googleUser.picture}`);
-				avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture, email);
-				if (avatarUrl) {
-					logger.debug(`Avatar saved for invited user: ${avatarUrl}`);
-				} else {
-					logger.warn('Failed to save avatar for invited user', { email: email });
-				}
-			}
+			if (googleUser.picture) avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture, email);
 
 			// Create the invited user with the role from the token
 			const userData = {
@@ -198,19 +180,15 @@ async function handleGoogleUser(
 				firstName: googleUser.given_name,
 				lastName: googleUser.family_name,
 				avatar: avatarUrl,
-				role: inviteRole, // Use role from invite token
+				role: inviteRole,
 				lastAuthMethod: 'google',
 				isRegistered: true,
-				blocked: false
+				blocked: false,
+				googleRefreshToken: refreshToken
 			};
 
-			logger.debug('Creating invited user with data:', {
-				...userData,
-				email: userData.email.replace(/(.{2}).*@(.*)/, '$1****@$2')
-			});
-
+			logger.debug('Creating invited user with data:', { ...userData, email: userData.email.replace(/(.{2}).*@(.*)/, '$1****@$2') });
 			user = await auth?.createUser(userData, true);
-
 			// Invalidate user count cache after user creation
 			invalidateUserCountCache();
 
@@ -223,21 +201,11 @@ async function handleGoogleUser(
 		} else {
 			// Handle first user (admin) creation - no token required
 			let avatarUrl: string | null = null;
-			if (googleUser.picture) {
-				logger.debug(`Attempting to save Google avatar for first user: ${googleUser.picture}`);
-				avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture, email);
-				if (avatarUrl) {
-					logger.debug(`Avatar saved for first user: ${avatarUrl}`);
-				} else {
-					logger.warn('Failed to save avatar for first user', { email: email });
-				}
-			}
-
+			if (googleUser.picture) avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture, email);
 			// Create the first user (admin)
+
 			const adminRole = roles.find((r) => r.isAdmin);
-			if (!adminRole) {
-				throw new Error('Admin role not found in roles configuration');
-			}
+			if (!adminRole) throw new Error('Admin role not found in roles configuration');
 
 			const userData = {
 				email,
@@ -246,17 +214,14 @@ async function handleGoogleUser(
 				lastName: googleUser.family_name,
 				avatar: avatarUrl,
 				role: adminRole._id,
-				permissions: adminRole.permissions, // Include admin permissions
+				permissions: adminRole.permissions,
 				lastAuthMethod: 'google',
 				isRegistered: true,
-				blocked: false
+				blocked: false,
+				googleRefreshToken: refreshToken
 			};
 
-			logger.debug('Creating first user (admin) with data:', {
-				...userData,
-				email: userData.email.replace(/(.{2}).*@(.*)/, '$1****@$2')
-			});
-
+			logger.debug('Creating first user (admin) with data:', { ...userData, email: userData.email.replace(/(.{2}).*@(.*)/, '$1****@$2') });
 			user = await auth?.createUser(userData, true);
 
 			// Invalidate user count cache after first user (admin) creation
@@ -272,17 +237,7 @@ async function handleGoogleUser(
 		// Always try to update avatar from Google if available and user doesn't have one
 		let avatarUrl: string | null = null;
 		if (googleUser.picture && (!user.avatar || user.avatar === null || user.avatar === undefined)) {
-			logger.debug(`Attempting to save Google avatar for existing user: ${googleUser.picture}`);
 			avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture, email);
-			if (avatarUrl) {
-				logger.debug(`Avatar saved for existing user: ${avatarUrl}`);
-			} else {
-				logger.warn('Failed to save avatar for existing user', { email: email });
-			}
-		} else if (googleUser.picture && user.avatar) {
-			logger.debug('User already has avatar, skipping Google avatar download');
-		} else {
-			logger.debug('No Google avatar provided for existing user');
 		}
 
 		// Always update user attributes (even if avatar is null, to ensure other fields are updated)
@@ -293,22 +248,19 @@ async function handleGoogleUser(
 			lastName: googleUser.family_name ?? user.lastName ?? ''
 		};
 
-		// Only add avatar field if we have a new one
-		if (avatarUrl) {
-			updateData.avatar = avatarUrl;
-			logger.debug(`Will update user avatar to: ${avatarUrl}`);
+		if (avatarUrl) updateData.avatar = avatarUrl;
+
+		//Store refresh token for existing user if we receive a new one.
+		if (refreshToken) {
+			updateData.googleRefreshToken = refreshToken;
 		}
 
 		logger.debug('Updating user attributes:', updateData);
 		await auth.updateUserAttributes(user._id.toString(), updateData);
-
 		logger.debug(`Updated user attributes for: \x1b[34m${user._id}\x1b[0m`);
 	}
 
-	if (!user?._id) {
-		throw new Error('User ID is missing after creation or retrieval');
-	}
-
+	if (!user?._id) throw new Error('User ID is missing after creation or retrieval');
 	// Create User Session and set cookie
 	const session = await auth?.createSession({ user_id: user._id });
 	const sessionCookie = auth?.createSessionCookie(session._id);
@@ -317,26 +269,13 @@ async function handleGoogleUser(
 
 export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => {
 	try {
-		await dbInitPromise; // Wait for system initialization including ContentManager
+		await dbInitPromise;
 		logger.debug('System ready in OAuth load function');
+		if (!auth) throw error(500, 'Internal Server Error: Authentication system is not initialized');
 
-		if (!auth) {
-			logger.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error: Authentication system is not initialized');
-		}
-
-		// Extensive logging for OAuth redirect
 		logger.debug('OAuth Callback called:');
-
-		// Check if this is the first user
-		let firstUserExists = false;
-		try {
-			firstUserExists = (await auth.getUserCount()) !== 0;
-			logger.debug(`First user exists: \x1b[34m${firstUserExists}\x1b[0m`);
-		} catch (err) {
-			logger.error('Error fetching user count:', err);
-			throw error(500, 'Error checking first user status');
-		}
+		const firstUserExists = (await auth.getUserCount()) !== 0;
+		logger.debug(`First user exists: \x1b[34m${firstUserExists}\x1b[0m`);
 
 		const code = url.searchParams.get('code');
 		const state = url.searchParams.get('state');
@@ -351,23 +290,11 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 		// Handle OAuth errors first
 		if (error_param) {
 			logger.error(`OAuth Error: ${error_param}`, { error_subtype, url: url.toString() });
-
 			if (error_param === 'interaction_required' || error_param === 'access_denied') {
-				// User needs to go through consent flow or cancelled
-				logger.debug('OAuth interaction required - redirecting to consent flow');
-				try {
-					const authUrl = await generateGoogleAuthUrl(token, 'consent');
-					redirect(302, authUrl);
-				} catch (err) {
-					logger.error('Error generating OAuth URL after interaction_required:', err);
-					throw error(500, 'Failed to initialize OAuth');
-				}
+				const authUrl = await generateGoogleAuthUrl(token, 'consent');
+				redirect(302, authUrl);
 			} else {
-				// Other OAuth errors
-				throw error(400, {
-					message: 'OAuth Authentication Failed',
-					details: `${error_param}: ${error_subtype || 'Unknown error'}`
-				});
+				throw error(400, { message: 'OAuth Authentication Failed', details: `${error_param}: ${error_subtype || 'Unknown error'}` });
 			}
 		}
 
@@ -375,41 +302,24 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 		if (!code) {
 			// For first user (no existing users), redirect directly to OAuth
 			if (!firstUserExists) {
-				logger.debug('No first user and no code - redirecting to OAuth');
-				try {
-					const authUrl = await generateGoogleAuthUrl(token, 'consent');
-					redirect(302, authUrl);
-				} catch (err) {
-					logger.error('Error generating OAuth URL:', err);
-					throw error(500, 'Failed to initialize OAuth');
-				}
+				const authUrl = await generateGoogleAuthUrl(token, 'consent');
+				redirect(302, authUrl);
 			}
 
 			// For non-first users without a token, show token input form
 			if (firstUserExists && !token) {
-				logger.debug('First user exists, no token, no code - showing token input form');
-				return {
-					isFirstUser: !firstUserExists,
-					requiresToken: true
-				};
+				return { isFirstUser: !firstUserExists, requiresToken: true };
 			}
 
 			// For non-first users with a token, redirect to OAuth with the token
 			if (firstUserExists && token) {
-				logger.debug('First user exists, token provided, redirecting to OAuth');
-				try {
-					const authUrl = await generateGoogleAuthUrl(token, 'consent');
-					redirect(302, authUrl);
-				} catch (err) {
-					logger.error('Error generating OAuth URL:', err);
-					throw error(500, 'Failed to initialize OAuth');
-				}
+				const authUrl = await generateGoogleAuthUrl(token, 'consent');
+				redirect(302, authUrl);
 			}
 		}
 
 		// Process OAuth callback
 		try {
-			// Debug: Let's explicitly check what we're working with
 			logger.debug(`Processing OAuth callback with code: ${code.substring(0, 20)}...`);
 
 			// Import and get the private config directly
@@ -418,110 +328,50 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			// Create a fresh OAuth client instance specifically for token exchange
 			// Use the same environment detection logic as the OAuth URL generation
 			const redirectUri = getOAuthRedirectUri();
-
 			const googleAuthClient = new google.auth.OAuth2(privateEnv.GOOGLE_CLIENT_ID, privateEnv.GOOGLE_CLIENT_SECRET, redirectUri);
-
-			// Try using the getToken method with explicit options to disable PKCE
-			logger.debug('Attempting to exchange authorization code for tokens...');
-
-			// Workaround for googleapis v150 bug: manually make the token request to avoid automatic PKCE injection
-			// Reference: https://github.com/googleapis/google-api-nodejs-client/issues/3681
-			const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/x-www-form-urlencoded'
-				},
-				body: new URLSearchParams({
-					client_id: privateEnv.GOOGLE_CLIENT_ID!,
-					client_secret: privateEnv.GOOGLE_CLIENT_SECRET!,
-					code: code,
-					grant_type: 'authorization_code',
-					redirect_uri: redirectUri
-					// Explicitly NOT including code_verifier to avoid the googleapis bug
-				}).toString()
-			});
-
-			if (!tokenResponse.ok) {
-				const errorData = await tokenResponse.json();
-				logger.error('Token exchange failed:', errorData);
-				throw new Error(`Token exchange failed: ${errorData.error_description || errorData.error}`);
-			}
-
-			const tokens = await tokenResponse.json();
-
-			if (!tokens || !tokens.access_token) {
-				logger.error('Failed to obtain tokens from Google');
-				throw error(500, 'Failed to authenticate with Google');
-			}
+			const { tokens } = await googleAuthClient.getToken(code);
+			if (!tokens || !tokens.access_token) throw error(500, 'Failed to authenticate with Google');
 
 			logger.debug('Successfully obtained tokens from Google');
-
-			// Set credentials on the OAuth client using the manually obtained tokens
-			googleAuthClient.setCredentials({
-				access_token: tokens.access_token,
-				token_type: tokens.token_type,
-				expires_in: tokens.expires_in,
-				refresh_token: tokens.refresh_token,
-				scope: tokens.scope
-			});
-
+			googleAuthClient.setCredentials(tokens);
 			// Fetch Google user profile
 			const oauth2 = google.oauth2({ auth: googleAuthClient, version: 'v2' });
 			const { data: googleUser } = await oauth2.userinfo.get();
+			if (!googleUser) throw error(500, 'Could not retrieve user information');
 
-			if (!googleUser) {
-				logger.error('Failed to fetch Google user profile');
-				throw error(500, 'Could not retrieve user information');
-			}
+			// Pass the refresh token from the `tokens` object to the handler function.
+			await handleGoogleUser(googleUser as GoogleUserInfo, !firstUserExists, token, tokens.refresh_token || null, cookies, fetch, request);
 
-			// Handle user creation/update and session creation
-			await handleGoogleUser(googleUser as GoogleUserInfo, !firstUserExists, token, cookies, fetch, request);
 			logger.info('Successfully processed OAuth callback and created session');
-
 			// Redirect to first collection using centralized utility
 			const redirectUrl = await getFirstCollectionRedirectUrl();
 			logger.debug(`Redirecting to: \x1b[34m${redirectUrl}\x1b[0m`);
 			throw redirect(302, redirectUrl);
 		} catch (err) {
-			// Check if this is a redirect (which is expected and successful)
 			if (err && typeof err === 'object' && 'status' in err && (err.status === 302 || err.status === 303)) {
-				logger.info('OAuth processing completed successfully, redirecting user');
-				throw err; // Re-throw the redirect
+				throw err;
 			}
-
 			const errorMessage = err instanceof Error ? err.message : 'Unknown error during OAuth callback';
-			logger.error('OAuth callback processing error:', {
-				error: err,
-				stack: err instanceof Error ? err.stack : undefined,
-				code,
-				token
-			});
-
+			logger.error('OAuth callback processing error:', { error: err, stack: err instanceof Error ? err.stack : undefined, code, token });
 			// Provide more specific error messages based on the error type
 			if (errorMessage.includes('A valid invitation is required')) {
 				throw error(403, {
 					message: 'Admin Invitation Required',
-					details:
-						'This CMS requires an invitation from an administrator to create any new account. Both email/password and Google OAuth registration require admin approval. Please contact the site administrator to request an invitation link.'
+					details: 'This CMS requires an invitation from an administrator to create any new account.'
 				});
 			}
-
 			if (errorMessage.includes('invitation is invalid, expired, or has already been used')) {
 				throw error(403, {
 					message: 'Invalid or Expired Invitation',
-					details:
-						'Your invitation token is invalid, expired, or has already been used. Please request a new invitation from the administrator. Note that both email/password and OAuth registration require a valid invitation.'
+					details: 'Your invitation token is invalid, expired, or has already been used.'
 				});
 			}
-
 			if (errorMessage.includes('Google account email does not match the invitation email')) {
 				throw error(403, {
 					message: 'Google Account Email Mismatch',
-					details:
-						'The Google account email does not match the invitation email address. Please sign in with the correct Google account that matches your invitation, or contact the administrator for a new invitation with the correct email address.'
+					details: 'The Google account email does not match the invitation email address.'
 				});
 			}
-
 			// Provide more detailed error information
 			const errorDetails = err instanceof Error ? err.stack : 'No stack trace available';
 			throw error(500, {
@@ -544,14 +394,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			logger.debug('Re-throwing formatted error from inner handler');
 			throw err;
 		}
-
 		const errorMessage = err instanceof Error ? err.message : 'Unknown error during OAuth process';
-		logger.error('Comprehensive OAuth Error:', {
-			message: errorMessage,
-			stack: err instanceof Error ? err.stack : 'No stack trace',
-			fullError: err
-		});
-
+		logger.error('Comprehensive OAuth Error:', { message: errorMessage, stack: err instanceof Error ? err.stack : 'No stack trace', fullError: err });
 		// Provide more detailed error information for the user
 		throw error(500, {
 			message: 'OAuth Authentication Failed',
@@ -560,18 +404,13 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 		});
 	}
 
-	// If we reach this point, something went wrong - return error data
-	throw error(500, {
-		message: 'OAuth Authentication Failed',
-		details: 'Unexpected end of OAuth flow'
-	});
+	throw error(500, { message: 'OAuth Authentication Failed', details: 'Unexpected end of OAuth flow' });
 };
 
 export const actions: Actions = {
 	OAuth: async ({ request }) => {
 		const data = await request.formData();
 		const token = data.get('token');
-
 		try {
 			// Generate OAuth URL with token in state parameter
 			const authUrl = await generateGoogleAuthUrl(token?.toString() || null);

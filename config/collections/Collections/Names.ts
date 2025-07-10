@@ -3,8 +3,8 @@
  * @description Collection file for Names
  */
 
-import widgets from '@widgets';
 import type { Schema } from '@root/src/content/types';
+import widgets from '@widgets';
 
 export const schema: Schema = {
 	// Collection Name comming from filename, so not needed

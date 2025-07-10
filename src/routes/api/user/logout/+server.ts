@@ -3,12 +3,14 @@
  * @description API endpoint for user logout.
  *
  * This endpoint handles user logout operations by:
+ * - Revoking the Google OAuth token if the user signed in with Google.
  * - Destroying the user's active session on the server.
  * - Removing the session from any in-memory stores or caches.
  * - Clearing the session cookie from the client's browser.
  *
  * Features:
- * - Secure session destruction.
+ * - Secure Google token revocation on logout.
+ * - Secure local session destruction.
  * - Reliable cookie invalidation.
  * - Robust error handling and logging.
  */
@@ -33,6 +35,36 @@ export const POST: RequestHandler = async ({ cookies, locals }) => {
 
 		// Check if a user session actually exists for this request.
 		if (session_id && locals.user) {
+			// Revoke Google OAuth Token 
+			// The `googleRefreshToken` would have been stored during the OAuth login flow.
+			if (locals.user.googleRefreshToken) {
+				try {
+					const refreshToken = locals.user.googleRefreshToken;
+					const response = await fetch(`https://oauth2.googleapis.com/revoke?token=${refreshToken}`, {
+						method: 'POST',
+						headers: {
+							'Content-type': 'application/x-www-form-urlencoded'
+						}
+					});
+
+					if (response.ok) {
+						logger.info('Successfully revoked Google OAuth token for user', { userId: locals.user._id });
+						// Optional: Clear the refresh token from the database so it can't be used again.
+						await auth.updateUserAttributes(locals.user._id, { googleRefreshToken: null });
+					} else {
+						const errorBody = await response.json();
+						logger.warn('Failed to revoke Google OAuth token. It may have already been revoked.', {
+							userId: locals.user._id,
+							error: errorBody
+						});
+					}
+				} catch (revokeError) {
+					// Log the error but don't block the local logout process.
+					logger.error('Error while trying to revoke Google OAuth token', { userId: locals.user._id, error: revokeError });
+				}
+			}
+			// --- END NEW LOGIC ---
+
 			// Destroy the session on the server-side (database, cache, etc.).
 			await auth.destroySession(session_id);
 			logger.info('Session destroyed for user', {
@@ -82,3 +114,4 @@ export const POST: RequestHandler = async ({ cookies, locals }) => {
 		);
 	}
 };
+

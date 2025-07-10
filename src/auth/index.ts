@@ -425,7 +425,7 @@ export class Auth {
 		try {
 			logger.info(`Validating registration token: ${token}`);
 			const result = await this.db.validateToken(token, undefined, 'user-invite');
-			
+
 			if (result.success) {
 				// Get the full token details for registration
 				const tokenDoc = await this.db.getTokenByValue(token);
