@@ -228,14 +228,16 @@ export class TokenAdapter implements Partial<authDBInterface> {
 	async getTokenByValue(token: string): Promise<Token | null> {
 		try {
 			const tokenDoc = await this.TokenModel.findOne({ token }).lean();
-			return tokenDoc ? {
-				_id: tokenDoc._id.toString(),
-				user_id: tokenDoc.user_id,
-				token: tokenDoc.token,
-				email: tokenDoc.email,
-				expires: tokenDoc.expires,
-				type: tokenDoc.type
-			} : null;
+			return tokenDoc
+				? {
+						_id: tokenDoc._id.toString(),
+						user_id: tokenDoc.user_id,
+						token: tokenDoc.token,
+						email: tokenDoc.email,
+						expires: tokenDoc.expires,
+						type: tokenDoc.type
+					}
+				: null;
 		} catch (err) {
 			const message = `Error in TokenAdapter.getTokenByValue: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, { token });

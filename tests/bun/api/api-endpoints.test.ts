@@ -454,4 +454,3 @@ describe('SveltyCMS API Endpoints', () => {
 		});
 	});
 });
-

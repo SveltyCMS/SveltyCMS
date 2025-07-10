@@ -328,13 +328,8 @@ export default defineConfig(async () => {
 					'ts-loader',
 					'@typescript-eslint/parser',
 					'@typescript-eslint/eslint-plugin'
-				],
-				output: {
-					manualChunks: {
-						// Split vendor chunks for better caching
-						vendor: ['svelte', '@sveltejs/kit']
-					}
-				}
+				]
+				// The conflicting `output.manualChunks` option has been removed.
 			}
 		},
 
@@ -371,3 +366,4 @@ export default defineConfig(async () => {
 		}
 	};
 });
+

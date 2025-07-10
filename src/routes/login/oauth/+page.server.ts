@@ -86,7 +86,6 @@ async function fetchAndSaveGoogleAvatar(avatarUrl: string, userEmail: string): P
 		if (!response.ok) {
 			throw new Error(`Failed to fetch avatar: ${response.statusText}`);
 		}
-
 		const blob = await response.blob();
 
 		// Determine the correct file type from the response
@@ -132,6 +131,7 @@ async function handleGoogleUser(
 	googleUser: GoogleUserInfo,
 	isFirst: boolean,
 	token: string | null,
+	refreshToken: string | null,
 	cookies: Cookies,
 	fetchFn: typeof fetch,
 	request: Request
@@ -162,34 +162,16 @@ async function handleGoogleUser(
 		// Handle new user creation with invite token validation
 		if (!isFirst) {
 			// For non-first users, validate the invite token
-			if (!token) {
-				throw new Error('A valid invitation is required to create an account via OAuth');
-			}
-
+			if (!token) throw new Error('A valid invitation is required to create an account via OAuth');
 			const tokenValidation = await auth?.validateRegistrationToken(token);
-			if (!tokenValidation?.isValid || !tokenValidation?.details) {
-				throw new Error('This invitation is invalid, expired, or has already been used');
-			}
-
+			if (!tokenValidation?.isValid || !tokenValidation?.details) throw new Error('This invitation is invalid, expired, or has already been used');
 			// Check that the OAuth email matches the invited email
-			if (email.toLowerCase() !== tokenValidation.details.email.toLowerCase()) {
+			if (email.toLowerCase() !== tokenValidation.details.email.toLowerCase())
 				throw new Error('The Google account email does not match the invitation email');
-			}
-
 			// Use the role from the token for invited users
 			const inviteRole = tokenValidation.details.role;
-
-			// Handle new user creation with invite token
 			let avatarUrl: string | null = null;
-			if (googleUser.picture) {
-				logger.debug(`Attempting to save Google avatar for invited user: ${googleUser.picture}`);
-				avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture, email);
-				if (avatarUrl) {
-					logger.debug(`Avatar saved for invited user: ${avatarUrl}`);
-				} else {
-					logger.warn('Failed to save avatar for invited user', { email: email });
-				}
-			}
+			if (googleUser.picture) avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture, email);
 
 			// Create the invited user with the role from the token
 			const userData = {
@@ -198,19 +180,15 @@ async function handleGoogleUser(
 				firstName: googleUser.given_name,
 				lastName: googleUser.family_name,
 				avatar: avatarUrl,
-				role: inviteRole, // Use role from invite token
+				role: inviteRole,
 				lastAuthMethod: 'google',
 				isRegistered: true,
-				blocked: false
+				blocked: false,
+				googleRefreshToken: refreshToken
 			};
 
-			logger.debug('Creating invited user with data:', {
-				...userData,
-				email: userData.email.replace(/(.{2}).*@(.*)/, '$1****@$2')
-			});
-
+			logger.debug('Creating invited user with data:', { ...userData, email: userData.email.replace(/(.{2}).*@(.*)/, '$1****@$2') });
 			user = await auth?.createUser(userData, true);
-
 			// Invalidate user count cache after user creation
 			invalidateUserCountCache();
 
@@ -223,21 +201,11 @@ async function handleGoogleUser(
 		} else {
 			// Handle first user (admin) creation - no token required
 			let avatarUrl: string | null = null;
-			if (googleUser.picture) {
-				logger.debug(`Attempting to save Google avatar for first user: ${googleUser.picture}`);
-				avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture, email);
-				if (avatarUrl) {
-					logger.debug(`Avatar saved for first user: ${avatarUrl}`);
-				} else {
-					logger.warn('Failed to save avatar for first user', { email: email });
-				}
-			}
-
+			if (googleUser.picture) avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture, email);
 			// Create the first user (admin)
+
 			const adminRole = roles.find((r) => r.isAdmin);
-			if (!adminRole) {
-				throw new Error('Admin role not found in roles configuration');
-			}
+			if (!adminRole) throw new Error('Admin role not found in roles configuration');
 
 			const userData = {
 				email,
@@ -246,17 +214,14 @@ async function handleGoogleUser(
 				lastName: googleUser.family_name,
 				avatar: avatarUrl,
 				role: adminRole._id,
-				permissions: adminRole.permissions, // Include admin permissions
+				permissions: adminRole.permissions,
 				lastAuthMethod: 'google',
 				isRegistered: true,
-				blocked: false
+				blocked: false,
+				googleRefreshToken: refreshToken
 			};
 
-			logger.debug('Creating first user (admin) with data:', {
-				...userData,
-				email: userData.email.replace(/(.{2}).*@(.*)/, '$1****@$2')
-			});
-
+			logger.debug('Creating first user (admin) with data:', { ...userData, email: userData.email.replace(/(.{2}).*@(.*)/, '$1****@$2') });
 			user = await auth?.createUser(userData, true);
 
 			// Invalidate user count cache after first user (admin) creation
@@ -272,17 +237,7 @@ async function handleGoogleUser(
 		// Always try to update avatar from Google if available and user doesn't have one
 		let avatarUrl: string | null = null;
 		if (googleUser.picture && (!user.avatar || user.avatar === null || user.avatar === undefined)) {
-			logger.debug(`Attempting to save Google avatar for existing user: ${googleUser.picture}`);
 			avatarUrl = await fetchAndSaveGoogleAvatar(googleUser.picture, email);
-			if (avatarUrl) {
-				logger.debug(`Avatar saved for existing user: ${avatarUrl}`);
-			} else {
-				logger.warn('Failed to save avatar for existing user', { email: email });
-			}
-		} else if (googleUser.picture && user.avatar) {
-			logger.debug('User already has avatar, skipping Google avatar download');
-		} else {
-			logger.debug('No Google avatar provided for existing user');
 		}
 
 		// Always update user attributes (even if avatar is null, to ensure other fields are updated)
@@ -293,22 +248,19 @@ async function handleGoogleUser(
 			lastName: googleUser.family_name ?? user.lastName ?? ''
 		};
 
-		// Only add avatar field if we have a new one
-		if (avatarUrl) {
-			updateData.avatar = avatarUrl;
-			logger.debug(`Will update user avatar to: ${avatarUrl}`);
+		if (avatarUrl) updateData.avatar = avatarUrl;
+
+		//Store refresh token for existing user if we receive a new one.
+		if (refreshToken) {
+			updateData.googleRefreshToken = refreshToken;
 		}
 
 		logger.debug('Updating user attributes:', updateData);
 		await auth.updateUserAttributes(user._id.toString(), updateData);
-
 		logger.debug(`Updated user attributes for: \x1b[34m${user._id}\x1b[0m`);
 	}
 
-	if (!user?._id) {
-		throw new Error('User ID is missing after creation or retrieval');
-	}
-
+	if (!user?._id) throw new Error('User ID is missing after creation or retrieval');
 	// Create User Session and set cookie
 	const session = await auth?.createSession({ user_id: user._id });
 	const sessionCookie = auth?.createSessionCookie(session._id);
@@ -458,7 +410,6 @@ export const actions: Actions = {
 	OAuth: async ({ request }) => {
 		const data = await request.formData();
 		const token = data.get('token');
-
 		try {
 			// Generate OAuth URL with token in state parameter
 			const authUrl = await generateGoogleAuthUrl(token?.toString() || null);

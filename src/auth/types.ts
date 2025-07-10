@@ -50,6 +50,7 @@ export interface User {
 	is2FAEnabled?: boolean; // Indicates if the user has enabled two-factor authentication
 	permissions: string[]; // Set of permissions associated with the user
 	isAdmin?: boolean; // Is the user an admin
+	googleRefreshToken?: string | null; // Stores the refresh token from Google OAuth for token revocation on logout.
 }
 
 // Role Interface
@@ -109,4 +110,135 @@ export interface SessionStore {
 	deletePattern(pattern: string): Promise<number>;
 	validateWithDB(session_id: string, dbValidationFn: (session_id: string) => Promise<User | null>): Promise<User | null>;
 	close(): Promise<void>;
+}
+
+// Collection Interface
+export interface Collection {
+	collection_id: string; // Unique identifier for the collection
+	name: string; // Name of the collection
+	permissions: PermissionId[]; // Permissions specific to this collection
+}
+
+// Cookie Type
+export type Cookie = {
+	name: string; // Name of the cookie
+	value: string; // Value of the cookie
+	attributes: {
+		// Attributes of the cookie
+		sameSite: boolean | 'lax' | 'strict' | 'none' | undefined;
+		path: string;
+		httpOnly: boolean;
+		expires: Date; // Expiration date of the cookie (ISO date string)
+		secure: boolean;
+	};
+};
+
+// RateLimit Interface
+export interface RateLimit {
+	user_id: string; // User ID the rate limit applies to
+	action: ConfigPermissionAction; // Action being rate-limited
+	limit: number; // Maximum allowed actions
+	windowMs: number; // Time window in milliseconds
+	current: number; // Current count of actions performed
+	lastActionAt: string; // Last action timestamp (ISO date string)
+}
+
+// Icon and Color Mapping for Permissions
+export const icon = {
+	create: 'bi:plus-circle-fill',
+	read: 'bi:eye-fill',
+	write: 'bi:pencil-fill',
+	delete: 'bi:trash-fill',
+	share: 'bi:share-fill'
+} as const;
+
+export const color = {
+	disabled: {
+		create: 'variant-outline-primary',
+		read: 'variant-outline-tertiary',
+		write: 'variant-outline-warning',
+		delete: 'variant-outline-error',
+		share: 'variant-outline-secondary'
+	},
+	enabled: {
+		create: 'variant-filled-primary',
+		read: 'variant-filled-tertiary',
+		write: 'variant-filled-warning',
+		delete: 'variant-filled-error',
+		share: 'variant-filled-secondary'
+	}
+} as const;
+
+// Sanitizes a permissions dictionary by removing empty roles
+export const sanitizePermissions = (permissions: Record<string, Record<string, boolean>>) => {
+	const res = Object.entries(permissions).reduce(
+		(acc, [role, actions]) => {
+			const nonEmptyActions = Object.entries(actions).reduce(
+				(actionAcc, [action, value]) => {
+					if (value !== false) {
+						actionAcc[action] = value;
+					}
+					return actionAcc;
+				},
+				{} as Record<string, boolean>
+			);
+
+			if (Object.keys(nonEmptyActions).length > 0) {
+				acc[role] = nonEmptyActions;
+			}
+			return acc;
+		},
+		{} as Record<string, Record<string, boolean>>
+	);
+
+	return Object.keys(res).length === 0 ? undefined : res;
+};
+
+// Model Interface for Generic CRUD Operations
+export interface Model<T> {
+	// Creates a new document
+	create(data: Partial<T>): Promise<T>;
+
+	// Finds a single document matching the query
+	findOne(query: Partial<T>): Promise<T | null>;
+
+	// Finds multiple documents matching the query
+	find(query: Partial<T>): Promise<T[]>;
+
+	// Updates a single document matching the query
+	updateOne(query: Partial<T>, update: Partial<T>): Promise<void>;
+
+	// Deletes a single document matching the query
+	deleteOne(query: Partial<T>): Promise<void>;
+
+	// Counts the number of documents matching the query
+	countDocuments(query?: Partial<T>): Promise<number>;
+}
+
+// Additional Types
+export type WidgetId = string; // Unique identifier for a widget
+export declare const permissionMap: Map<string, Permission>;
+export type PermissionId = string;
+export type ConfigPermissionAction = string;
+export type Field = any;
+
+// Schema Interface
+export interface Schema {
+	icon?: string; // Optional icon representing the schema
+	status?: string; // Optional status of the schema
+	revision?: boolean; // Indicates if the schema supports revisions
+	permissions?: RolePermissions; // Role-based permissions associated with the schema
+	fields: Field[]; // Array of fields defined in the schema, using the Field type from collections/types
+}
+
+// Helper to assign all permissions to a role (e.g., admin)
+export function assignAllPermissionsToRole(role: Role): void {
+	role.permissions = Array.from(permissionMap.keys());
+}
+
+// Helper to assign permissions by type or action
+export function assignPermissionsByFilter(role: Role, filter: (perm: Permission) => boolean): void {
+	role.permissions = Array.from(permissionMap.values())
+		.filter(filter)
+		.map((perm) => perm._id);
 }

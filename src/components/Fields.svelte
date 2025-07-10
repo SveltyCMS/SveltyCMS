@@ -22,7 +22,7 @@
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
-	import { getFieldName } from '@utils/utils';
+	import { getFieldName, updateTranslationProgress } from '@utils/utils';
 	// Auth
 	import { page } from '$app/state';
 	const user = page.data.user;
@@ -164,6 +164,13 @@
 		}
 	});
 
+	$effect(() => {
+		currentCollectionValue;
+		if (!collection.value?.fields) return;
+		for (const field of collection.value?.fields) {
+			updateTranslationProgress(currentCollectionValue, field);
+		}
+	});
 	// Dynamic import of widget components
 	const modules: Record<string, { default: any }> = import.meta.glob('@widgets/**/*.svelte', {
 		eager: true
@@ -398,7 +405,7 @@
 													<div class="text-xs font-normal">
 														({Math.round(
 															translationProgress()[contentLanguage.value]?.translated.has(`${String(collection.value?.name)}.${getFieldName(field)}`)
-																? 1
+																? 100
 																: 0
 														)}%)
 													</div>
