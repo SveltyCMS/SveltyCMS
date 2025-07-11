@@ -30,11 +30,10 @@ Features:
 	import type { ContentNode } from '@src/databases/dbInterface';
 
 	// Stores
-	import { get } from 'svelte/store';
-	import { contentLanguage, shouldShowNextButton } from '@stores/store.svelte';
-	import { mode, contentStructure, collection } from '@src/stores/collectionStore.svelte';
-	import { uiStateManager, toggleUIElement, handleUILayoutToggle } from '@src/stores/UIStore.svelte';
+	import { collection, contentStructure, mode } from '@src/stores/collectionStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
+	import { handleUILayoutToggle, toggleUIElement, uiStateManager } from '@src/stores/UIStore.svelte';
+	import { contentLanguage, shouldShowNextButton } from '@stores/store.svelte';
 
 	import { constructNestedStructure } from '../content/utils';
 
@@ -101,7 +100,7 @@ Features:
 	});
 
 	let isMediaMode = $derived(mode.value === 'media');
-	let isFullSidebar = $derived(uiStateManager.uiState.value.leftSidebar === 'full');
+	let isFullSidebar = $derived(uiStateManager.uiState.leftSidebar === 'full');
 
 	// Optimized debounced search effect
 	$effect(() => {
@@ -684,7 +683,7 @@ Features:
 			onclick={() => {
 				mode.set('media');
 				goto('/mediagallery');
-				if (get(screenSize) === 'SM') {
+				if (screenSize.value === 'SM') {
 					toggleUIElement('leftSidebar', 'hidden');
 				}
 				if (!isFullSidebar) handleUILayoutToggle();
@@ -714,7 +713,7 @@ Features:
 				expandedNodes.clear(); // Clear method triggers reactivity automatically
 				hasLoadedSystemVirtualFolders = false; // Reset loading flag
 
-				if (get(screenSize) === 'SM') {
+				if (screenSize.value === 'SM') {
 					toggleUIElement('leftSidebar', 'hidden');
 				}
 				goto('/');

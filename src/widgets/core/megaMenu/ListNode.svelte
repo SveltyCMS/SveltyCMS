@@ -31,17 +31,16 @@
 -->
 
 <script lang="ts">
-	import { tick } from 'svelte';
-	import type { CustomDragEvent } from './types';
-	import { currentChild } from '.';
 	import { debounce } from '@utils/utils';
+	import { tick } from 'svelte';
+	import { currentChild } from '.';
+	import type { CustomDragEvent } from './types';
 	// Self-import to replace svelte:self
 	import ListNode from './ListNode.svelte';
 
 	// Stores
-	import { translationProgress, contentLanguage, shouldShowNextButton, headerActionButton2 } from '@stores/store.svelte';
 	import { mode } from '@root/src/stores/collectionStore.svelte';
-
+	import { contentLanguage, headerActionButton2, shouldShowNextButton, updateTranslationProgress } from '@stores/store.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -92,12 +91,12 @@
 
 	$effect(() => {
 		if (showFields) {
-			$headerActionButton2 = `
+			headerActionButton2.set(`
 				<iconify-icon
 					icon="material-symbols:close"
 					width="32"
 				></iconify-icon>
-			`;
+			`);
 		}
 	});
 
@@ -383,8 +382,10 @@
 					depth = level + 1;
 					showFields = true;
 					mode.set('create');
-					translationProgress.value.show = true;
-					$shouldShowNextButton = true;
+					updateTranslationProgress({
+						show: true
+					});
+					shouldShowNextButton.set(true);
 				}}
 				aria-label="Add child item"
 				class="btn-icon dark:text-primary-500"
@@ -401,8 +402,10 @@
 				mode.set('edit');
 				depth = level;
 				showFields = true;
-				translationProgress.value.show = true;
-				$shouldShowNextButton = true;
+				updateTranslationProgress({
+					show: true
+				});
+				shouldShowNextButton.set(true);
 			}}
 			aria-label="Edit item"
 			class="btn-icon dark:text-primary-500"

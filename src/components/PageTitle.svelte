@@ -47,7 +47,7 @@
 
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { toggleUIElement, uiStateManager } from '@stores/UIStore.svelte';
+	import { uiStateManager, toggleUIElement } from '@stores/UIStore.svelte';
 	import { screenSize } from '@stores/screenSizeStore.svelte';
 
 	interface Props {
@@ -89,7 +89,7 @@
 	let calculatedTitle = $derived(() => {
 		if (!truncate) return name;
 		const containerWidth = windowWidth;
-		const hamburgerWidth = uiStateManager.uiState.value.leftSidebar === 'hidden' ? 50 : 0;
+		const hamburgerWidth = uiStateManager.uiState.leftSidebar === 'hidden' ? 50 : 0;
 		const backButtonWidth = showBackButton ? 60 : 0;
 		const iconWidth = icon ? parseInt(iconSize) + 8 : 0;
 		const padding = 32;
@@ -144,10 +144,10 @@
 
 <div class="my-1 flex w-full items-center justify-between">
 	<div class="flex items-center">
-		{#if uiStateManager.uiState.value.leftSidebar === 'hidden'}
+		{#if uiStateManager.uiState.leftSidebar === 'hidden'}
 			<button
 				type="button"
-				onclick={() => toggleUIElement('leftSidebar', screenSize() === 'LG' ? 'full' : 'collapsed')}
+				onclick={() => toggleUIElement('leftSidebar', screenSize.value === 'LG' ? 'full' : 'collapsed')}
 				aria-label="Open Sidebar"
 				class="variant-ghost-surface btn-icon"
 			>

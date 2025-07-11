@@ -22,38 +22,33 @@
 	// Icons from https://icon-sets.iconify.design/
 	import 'iconify-icon';
 
-	import { publicEnv } from '@root/config/public';
-	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/state';
-
+	import { publicEnv } from '@root/config/public';
+	import { onDestroy, onMount } from 'svelte';
 	// Auth
 	import type { User } from '@src/auth/types';
 
 	// Utils
-	import { getTextDirection } from '@utils/utils';
 	import { isSearchVisible } from '@utils/globalSearchIndex';
-
+	import { getTextDirection } from '@utils/utils';
 	// Stores
-	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
-	import { contentStructure, collections } from '@stores/collectionStore.svelte';
-	import { uiStateManager } from '@stores/UIStore.svelte';
+	import { collections, contentStructure } from '@stores/collectionStore.svelte';
 	import { screenSize } from '@stores/screenSizeStore.svelte';
-
+	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
+	import { uiStateManager } from '@stores/UIStore.svelte';
 	// Components
-	import Loading from '@components/Loading.svelte';
-	import SearchComponent from '@components/SearchComponent.svelte';
-	import LeftSidebar from '@components/LeftSidebar.svelte';
-	import RightSidebar from '@components/RightSidebar.svelte';
 	import HeaderEdit from '@components/HeaderEdit.svelte';
+	import LeftSidebar from '@components/LeftSidebar.svelte';
+	import Loading from '@components/Loading.svelte';
 	import PageFooter from '@components/PageFooter.svelte';
-
+	import RightSidebar from '@components/RightSidebar.svelte';
+	import SearchComponent from '@components/SearchComponent.svelte';
 	// Skeleton
-	import { initializeStores, Modal, Toast, setModeUserPrefers, setModeCurrent, setInitialClassState } from '@skeletonlabs/skeleton';
-
+	import { initializeStores, Modal, setInitialClassState, setModeCurrent, setModeUserPrefers, Toast } from '@skeletonlabs/skeleton';
 	// Required for popups to function
-	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
-	import { storePopup } from '@skeletonlabs/skeleton';
+	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
 	import type { ContentNode } from '@root/src/databases/dbInterface';
+	import { storePopup } from '@skeletonlabs/skeleton';
 
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 	initializeStores();
@@ -221,16 +216,16 @@
 		<!-- Body -->
 		<div class="flex h-lvh flex-col">
 			<!-- Header (unsused)  -->
-			{#if uiStateManager.uiState.value.header !== 'hidden'}
+			{#if uiStateManager.uiState.header !== 'hidden'}
 				<header class="sticky top-0 z-10 bg-tertiary-500">Header</header>
 			{/if}
 
 			<div class="flex flex-1 overflow-hidden">
 				<!-- Sidebar Left -->
-				{#if uiStateManager.uiState.value.leftSidebar !== 'hidden'}
+				{#if uiStateManager.uiState.leftSidebar !== 'hidden'}
 					<aside
-						class="max-h-dvh {uiStateManager.uiState.value.leftSidebar === 'full'
-							? 'w-[220px]'
+						class="max-h-dvh {uiStateManager.uiState.leftSidebar === 'full'
+							? 'w-[250px]'
 							: 'w-fit'} relative border-r bg-white !px-2 text-center dark:border-surface-500 dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900"
 					>
 						<LeftSidebar />
@@ -240,7 +235,7 @@
 				<!-- Content Area -->
 				<main class="relative w-full flex-1">
 					<!-- Page Header -->
-					{#if uiStateManager.uiState.value.pageheader !== 'hidden'}
+					{#if uiStateManager.uiState.pageheader !== 'hidden'}
 						<header class="sticky top-0 z-10 w-full">
 							<HeaderEdit />
 						</header>
@@ -249,7 +244,7 @@
 					<!-- Router Slot -->
 					<div
 						role="main"
-						class="relative h-full flex-grow overflow-auto {uiStateManager.uiState.value.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {$screenSize ===
+						class="relative h-full flex-grow overflow-auto {uiStateManager.uiState.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {screenSize.value ===
 						'LG'
 							? 'mb-2'
 							: 'mb-16'}"
@@ -276,7 +271,7 @@
 					</div>
 
 					<!-- Page Footer -->
-					{#if uiStateManager.uiState.value.pagefooter !== 'hidden'}
+					{#if uiStateManager.uiState.pagefooter !== 'hidden'}
 						<footer
 							class="sticky left-0 top-[calc(100%-51px)] z-10 w-full bg-surface-50 bg-gradient-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900"
 						>
@@ -286,7 +281,7 @@
 				</main>
 
 				<!-- Sidebar Right -->
-				{#if uiStateManager.uiState.value.rightSidebar !== 'hidden'}
+				{#if uiStateManager.uiState.rightSidebar !== 'hidden'}
 					<aside
 						class="max-h-dvh w-[220px] border-l bg-surface-50 bg-gradient-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
 					>
@@ -296,7 +291,7 @@
 			</div>
 
 			<!-- Footer (unsused) -->
-			{#if uiStateManager.uiState.value.footer !== 'hidden'}
+			{#if uiStateManager.uiState.footer !== 'hidden'}
 				<footer class="bg-blue-500">Footer</footer>
 			{/if}
 		</div>

@@ -9,7 +9,7 @@
  * - TypeScript support with custom WidgetPreference type
  */
 
-import { store } from '@utils/reactivity.svelte';
+import { ScreenSize } from '@stores/screenSizeStore.svelte';
 
 // Widget preference interface
 export interface WidgetPreference {
@@ -48,7 +48,7 @@ function createPreferencesStores() {
 		currentUserId: null
 	};
 
-	const state = store<PreferencesStoreState>(initialState);
+	const state = $state<PreferencesStoreState>(initialState);
 
 	// Derived values
 	const hasPreferences = $derived.by(() => {
@@ -172,7 +172,6 @@ const stores = createPreferencesStores();
 // Export main store with full interface
 export const systemPreferences = {
 	subscribe: stores.state.subscribe,
-	getState: () => stores.state(),
 	setPreference: stores.setPreference,
 	loadPreferences: stores.loadPreferences,
 	clearPreferences: stores.clearPreferences,

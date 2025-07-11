@@ -6,9 +6,6 @@ import type { WidgetFunction, WidgetModule } from './types';
 import type { GuiSchema } from './core/group/types';
 import { v4 as uuidv4 } from 'uuid'; // Import UUID generator for unique widget IDs
 
-// Reactive stores
-import { store } from '@utils/reactivity.svelte'; // Import reactive store utility
-
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
@@ -18,7 +15,7 @@ function checkDependencies(widget: WidgetFunction): boolean {
 		return true; // No dependencies, so it's valid
 	}
 	for (const dep of widget.dependencies) {
-		if (!widgetFunctions.get().has(dep)) {
+		if (!widgetFunctions.has(dep)) {
 			logger.info(`Checking dependencies for widget: ${widget.Name} - missing dependency: ${dep}`);
 			return false; // Dependency is missing
 		}
@@ -31,9 +28,10 @@ const widgets: Record<string, WidgetFunction> = {};
 
 export default widgets;
 
-// State management with reactive stores
-export const widgetFunctions = store<Map<string, WidgetFunction>>(new Map()); // Store for widget functions
-const activeWidgetList = store<Set<string>>(new Set()); // Store for active widgets
+// State management - using regular variables for SSR compatibility
+// These will be enhanced with Svelte 5 runes in client-side components
+export const widgetFunctions = new Map<string, WidgetFunction>(); // Store for widget functions
+const activeWidgetList = new Set<string>(); // Store for active widgets
 
 // init state
 let initialized = false; // Initialization status
@@ -139,9 +137,15 @@ export async function initializeWidgets(): Promise<void> {
 			}
 
 			// Update widget functions store
-			widgetFunctions.set(newWidgetFunctions);
+			widgetFunctions.clear();
+			for (const [key, value] of newWidgetFunctions) {
+				widgetFunctions.set(key, value);
+			}
 			// Set active widgets based on database status
-			activeWidgetList.set(new Set(activeWidgets));
+			activeWidgetList.clear();
+			for (const widget of activeWidgets) {
+				activeWidgetList.add(widget);
+			}
 
 			// Log Initialization Summary
 			const coreWidgets = Array.from(newWidgetFunctions.values()).filter((w) => w.__isCore);

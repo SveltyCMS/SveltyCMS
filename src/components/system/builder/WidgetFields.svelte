@@ -15,7 +15,7 @@
 	import { debounce } from '@utils/utils';
 
 	// Props
-	let { fields = [], onFieldsUpdate = (newFields: any[]) => {} } = $props<{
+	let { fields = [], onFieldsUpdate = (_newFields: any[]) => {} } = $props<{
 		fields: any[];
 		onFieldsUpdate: (newFields: any[]) => void;
 	}>();
@@ -188,12 +188,12 @@
 {#if currentField}
 	<div
 		class="fixed -top-16 left-0 z-20 flex h-full w-full flex-col items-center justify-center overflow-auto bg-white dark:bg-surface-900 {uiStateManager
-			.uiState.value.leftSidebar === 'full'
+			.uiState.leftSidebar === 'full'
 			? 'left-[220px] '
 			: 'left-0 '}"
 	>
 		<div
-			class="fixed top-0 flex items-center justify-between {uiStateManager.uiState.value.leftSidebar === 'full'
+			class="fixed top-0 flex items-center justify-between {uiStateManager.uiState.leftSidebar === 'full'
 				? 'left-[220px] w-full'
 				: 'left-0 w-screen'}"
 		>

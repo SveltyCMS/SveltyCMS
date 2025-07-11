@@ -707,7 +707,8 @@ Features:
 		<!-- Row 1 for Mobile -->
 		<div class="flex items-center justify-between">
 			<!-- Hamburger -->
-			{#if uiStateManager.uiState.value.leftSidebar === 'hidden'}
+			{console.log(uiStateManager.uiState.leftSidebar, 'uiStateManager.uiState.leftSidebar')}
+			{#if uiStateManager.uiState.leftSidebar === 'hidden'}
 				<button
 					type="button"
 					onkeydown={() => {}}
@@ -720,7 +721,7 @@ Features:
 			{/if}
 
 			<!-- Collection type with icon -->
-			<div class="mr-1 flex flex-col {!uiStateManager.uiState.value.leftSidebar ? 'ml-2' : 'ml-1 sm:ml-2'}">
+			<div class="mr-1 flex flex-col {!uiStateManager.uiState.leftSidebar ? 'ml-2' : 'ml-1 sm:ml-2'}">
 				{#if categoryName}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300 rtl:text-left">
 						{categoryName}
 					</div>
