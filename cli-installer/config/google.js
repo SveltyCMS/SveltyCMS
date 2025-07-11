@@ -8,7 +8,7 @@
 - Prompts for Google integration
 */
 
-import { confirm, note, text, isCancel, password } from '@clack/prompts';
+import { confirm, isCancel, note, password, text } from '@clack/prompts';
 import pc from 'picocolors';
 import { Title, cancelToMainMenu } from '../cli-installer.js';
 
@@ -18,8 +18,11 @@ export async function configureGoogle(privateConfigData = {}) {
 
 	// Display a note about the Google configuration
 	note(
-		`The Google configuration is used to integrate Google services such as\n` + `Google OAuth and Google API access.`,
-		pc.green('Google API Information:')
+		`Configure Google services integration:
+  • Google OAuth for user authentication
+  • Google API access for enhanced features
+  • Optional - can be configured later if needed`,
+		pc.green('Google API Configuration:')
 	);
 
 	// Display existing configuration (excluding secret)

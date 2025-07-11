@@ -18,7 +18,6 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { privateEnv } from '@root/config/private';
-	import { updateTranslationProgress, getFieldName } from '@utils/utils';
 
 	// Stores
 	import { validationStore } from '@stores/store.svelte';
@@ -105,10 +104,6 @@
 		if (!value) {
 			value = { ...defaultAddress };
 		}
-	});
-
-	$effect(() => {
-		updateTranslationProgress({}, field);
 	});
 
 	// Effect to initialize map when container becomes available

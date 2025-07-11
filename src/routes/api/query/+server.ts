@@ -8,6 +8,7 @@
  * - PATCH: Update existing entries in a collection
  * - DELETE: Remove entries from a collection
  * - SETSTATUS: Update the status of entries in a collection
+ * - REVISIONS: Get the revision history for an entry
  *
  * Features:
  * - User authentication and authorization
@@ -42,6 +43,7 @@ import { _POST } from './POST';
 import { _PATCH } from './PATCH';
 import { _DELETE } from './DELETE';
 import { _SETSTATUS } from './SETSTATUS';
+import { _REVISIONS } from './revisions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -95,7 +97,7 @@ async function checkUserPermissions(data: FormData, cookies: CookieData) {
 	}
 }
 
-// Helper function to parse request parameters
+// Helper function to parse request parameters for GET requests
 function parseRequestParameters(data: FormData) {
 	const page = parseInt(data.get('page') as string) || 1;
 	const limit = parseInt(data.get('limit') as string) || 0;
@@ -131,29 +133,18 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			contentTypes: collection_schema.name
 		});
 
-		// If user does not have read access, return 403 Forbidden response
+		// If user does not have at least read access, return 403 Forbidden response
 		if (!has_read_access) {
 			logger.warn('Forbidden access attempt', { user: user._id });
 			return new Response('Forbidden', { status: 403 });
 		}
 
-		// Parse request parameters
-		const { page, limit, filter, sort, contentLanguage } = parseRequestParameters(data);
-
-		logger.debug('Request parameters parsed', {
-			page,
-			limit,
-			filter,
-			sort,
-			contentLanguage,
-			contentTypes: collection_schema.name
-		});
-
 		let response;
 
-		// Handle different methods (GET, POST, PATCH, DELETE, SETSTATUS)
+		// Handle different methods (GET, POST, PATCH, DELETE, SETSTATUS, REVISIONS)
 		switch (method) {
-			case 'GET':
+			case 'GET': {
+				const { page, limit, filter, sort, contentLanguage } = parseRequestParameters(data);
 				response = await _GET({
 					contentLanguage,
 					filter,
@@ -164,13 +155,22 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 					page
 				});
 				break;
+			}
+			case 'REVISIONS': {
+				response = await _REVISIONS({
+					data,
+					schema: collection_schema,
+					user
+				});
+				break;
+			}
 			case 'POST':
 			case 'PATCH':
 			case 'DELETE':
 			case 'SETSTATUS': {
-				// If user does not have write access, return 403 Forbidden response
+				// For all write operations, explicitly check for write access
 				if (!has_write_access) {
-					logger.warn('Forbidden write access attempt', { user: user._id });
+					logger.warn('Forbidden write access attempt', { user: user._id, method });
 					return new Response('Forbidden', { status: 403 });
 				}
 
@@ -183,7 +183,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 				}[method];
 
 				// Call the handler and get its response
-				logger.info('Processing request', { method, user: user._id });
+				logger.info('Processing write request', { method, user: user._id });
 				response = await handler({
 					data,
 					schema: collection_schema,
@@ -197,7 +197,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 				return new Response('Method not allowed', { status: 405 });
 		}
 
-		logger.info(`Request completed`);
+		logger.info(`Request completed successfully for method: ${method}`);
 
 		return response;
 	} catch (error) {

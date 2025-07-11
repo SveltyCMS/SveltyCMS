@@ -8,12 +8,12 @@
 - Prompts for Database integration
 */
 
+import { confirm, isCancel, note, select, spinner, text } from '@clack/prompts';
+import pc from 'picocolors';
 import { Title, cancelToMainMenu } from '../cli-installer.js';
 import { configurationPrompt } from '../configuration.js';
-import { configureMongoDB } from './mongodbConfig.js';
 import { configureMariaDB } from './mariadbConfig.js';
-import { text, spinner, select, note, isCancel, confirm } from '@clack/prompts';
-import pc from 'picocolors';
+import { configureMongoDB } from './mongodbConfig.js';
 
 // Helper function to validate numeric input (using new error return)
 const validateNumber = (value, fieldName) => {
@@ -89,11 +89,12 @@ export async function configureDatabase(privateConfigData = {}) {
 
 	// Guide Note
 	note(
-		`${pc.green('Database configuration is required for SveltyCMS.')}\n\n` +
-			`This setup process will guide you through configuring\n` +
-			`your preferred database option.\n\n` +
-			`If you need further assistance, please refer to the\n` +
-			`documentation: ${pc.blue('https://docs.SveltyCMS.com/database-setup')}`,
+		`${pc.green('Database configuration is required for SveltyCMS.')}
+
+This setup will guide you through configuring your database connection.
+Choose MongoDB for the best experience with SveltyCMS.
+
+Documentation: ${pc.blue('https://docs.SveltyCMS.com/database-setup')}`,
 		pc.green('Database Configuration:')
 	);
 

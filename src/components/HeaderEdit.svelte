@@ -292,25 +292,24 @@
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30"></iconify-icon>
 				</button>
 			{/if}
-		{/if}
 
-		<!-- Desktop specific buttons -->
-		{#if screenSize.value === 'LG'}
+			<!-- Desktop specific buttons -->
+		{:else}
 			<div class="hidden flex-col items-center justify-center md:flex">
 				<TranslationStatus />
 			</div>
-			{#if ['edit', 'create'].includes(mode.value)}
-				<button
-					type="button"
-					onclick={saveData}
-					disabled={collection.value?.permissions?.[user.role]?.write === false}
-					class="variant-filled-tertiary btn dark:variant-filled-primary"
-					aria-label="Save entry"
-				>
-					<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
-					<span class="ml-1">{m.button_save()}</span>
-				</button>
-			{/if}
+			<!-- {#if ['edit', 'create'].includes(mode.value)} -->
+			<!-- 	<button -->
+			<!-- 		type="button" -->
+			<!-- 		onclick={saveData} -->
+			<!-- 		disabled={collection.value?.permissions?.[user.role]?.write === false} -->
+			<!-- 		class="variant-filled-tertiary btn dark:variant-filled-primary" -->
+			<!-- 		aria-label="Save entry" -->
+			<!-- 	> -->
+			<!-- 		<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon> -->
+			<!-- 		<span class="ml-1">{m.button_save()}</span> -->
+			<!-- 	</button> -->
+			<!-- {/if} -->
 			<!-- Desktop doesn't need the showMore toggle -->
 		{/if}
 

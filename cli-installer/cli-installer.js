@@ -12,10 +12,15 @@ import { intro, outro } from '@clack/prompts';
 import pc from 'picocolors';
 
 // Components
-import { startOrInstallPrompt } from './startOrInstallPrompt.js';
 import { backupRestorePrompt } from './backupRestore.js';
 import { configurationPrompt } from './configuration.js';
+import { startOrInstallPrompt } from './startOrInstallPrompt.js';
 import { startProcess } from './startProcess.js';
+
+// Utility function for consistent note formatting (without terminal tip)
+export const createConfigNote = (message) => {
+	return message;
+};
 
 // Function to display the welcome message and navigation instructions
 export const Title = () => {
@@ -38,6 +43,9 @@ export const cancelToMainMenu = () => {
 
 export async function main() {
 	try {
+		// Clear terminal at startup for clean experience
+		console.clear();
+
 		// Start installer
 		const projectStart = await startOrInstallPrompt(); // This handles its own exit/cancel
 

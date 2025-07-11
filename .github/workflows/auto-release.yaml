@@ -1,11 +1,12 @@
 # This workflow uses semantic-release to automatically publish new versions of your package to GitHub and npm based on commit messages
 name: Semantic Release
 
-# Triggers the workflow when a push happens
+# Triggers the workflow ONLY when a push happens to the main branch
 on:
   push:
     branches:
-      - main # Trigger the workflow only on the main branch
+      - main
+  workflow_dispatch: {} # Allows you to run this workflow manually from the Actions tab
 
 jobs:
   release:
@@ -20,32 +21,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4 # Use the checkout action to clone the repository
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4 # Use the setup-node action to install Node.js
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1 # Use the setup-bun action
         with:
-          node-version: '20'
+          bun-version: latest
 
-      - name: Install pnpm
-        run: npm install -g pnpm
-
-      - name: Cache pnpm dependencies
-        id: npm-cache
+      - name: Cache Bun dependencies
+        id: bun-cache
         uses: actions/cache@v3
         with:
-          path: ./npm-cache
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
           restore-keys: |
-            ${{ runner.os }}-node-
+            ${{ runner.os }}-bun-
 
-      - name: Update pnpm-lock.yaml
-        run: pnpm install
+      - name: Install dependencies
+        run: bun install
 
-      - name: Install dependencies & Run semantic-release
-        run: |
-          npx semantic-release
+      - name: Run semantic-release
+        run: bunx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Provide the GitHub token as an environment variable
-          # NPM_TOKEN: ${{ secrets.NPM_TOKEN }} # Uncomment this line and provide the npm token as an environment variable if you want to publish to npm as well
+          # NPM_TOKEN: ${{ secrets.NPM_TOKEN }} # Provide the npm token as an environment variable if you want to publish to npm as well
 
       - name: Update package.json version after semantic release
         # Setting an environment variables defined in github Environments
@@ -53,11 +50,13 @@ jobs:
           GIT_USER_EMAIL: '${{ env.GIT_USER_EMAIL }}'
           GIT_USER_NAME: '${{ env.GIT_USER_NAME }}'
         run: |
+          # This step uses npm to version because bun does not have a direct equivalent for `pnpm version --no-git-tag-version`
+          # setup-bun makes Node.js and npm available.
           git config user.email "${{ env.GIT_USER_EMAIL }}"
           git config user.name "${{ env.GIT_USER_NAME }}"
           git checkout ${{ github.ref }}
           git pull origin ${{ github.ref }}
-          GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}" pnpm version --no-git-tag-version --allow-same-version
+          npm version --no-git-tag-version --allow-same-version
           git add package.json
           git commit -m "chore: update package version after semantic release" || true
           git push origin ${{ github.ref }}

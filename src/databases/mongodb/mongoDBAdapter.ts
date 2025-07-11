@@ -31,8 +31,7 @@
 import { v4 as uuidv4 } from 'uuid';
 
 // Stores
-import type { ScreenSize } from '@stores/screenSizeStore.svelte';
-import type { SystemPreferences, WidgetPreference } from '@stores/systemPreferences.svelte';
+import type { SystemPreferences } from '@stores/systemPreferences.svelte';
 import type { Unsubscriber } from 'svelte/store';
 
 // Types

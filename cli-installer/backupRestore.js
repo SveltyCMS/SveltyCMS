@@ -3,13 +3,13 @@
 @description Backup and Restore Configuration Files
 */
 
+import { confirm, isCancel, note, select } from '@clack/prompts';
+import { exec as execCb } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
-import { promisify } from 'util';
-import { exec as execCb } from 'child_process';
-import { select, isCancel, note, confirm } from '@clack/prompts';
-import { Title, cancelOperation } from './cli-installer.js';
 import pc from 'picocolors';
+import { promisify } from 'util';
+import { Title, cancelOperation } from './cli-installer.js';
 
 const exec = promisify(execCb);
 
@@ -149,6 +149,15 @@ export const backupRestorePrompt = async () => {
 	// Display the title
 	Title();
 
+	// Add helpful context about backup/restore
+	note(
+		`Manage your configuration files safely:
+  • Automatic backups before making changes
+  • Restore previous configurations if needed
+  • Keep up to 5 backup versions for safety`,
+		pc.green('Backup & Restore:')
+	);
+
 	const configExists = await configFilesExist();
 
 	if (!configExists) {
@@ -181,9 +190,6 @@ export const backupRestorePrompt = async () => {
 		// Proceed to configuration
 		return 'configuration';
 	}
-
-	// Display a note about navigation instructions
-	note(`Backup the current configuration files or\n` + `restore from a previous backup.`, pc.green('Backup/Restore Options:'));
 
 	const options = [
 		{ value: 'backup', label: 'Backup Current Configuration', hint: 'Create a backup of your config files' },
