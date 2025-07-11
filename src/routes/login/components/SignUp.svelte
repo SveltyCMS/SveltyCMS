@@ -260,172 +260,173 @@ Features:
 				</div>
 
 				<!-- <SuperDebug data={$form} display={dev} /> -->
-				<form method="post" action="?/signUp" use:enhance bind:this={formElement} class="items flex flex-col gap-3" class:hide={active !== 1}>
-					<!-- Username field -->
-					<FloatingInput
-						id="usernamesignUp"
-						name="username"
-						type="text"
-						tabindex={usernameTabIndex}
-						required
-						value={formValues.username}
-						label={m.form_username()}
-						{...$constraints.username}
-						icon="mdi:user-circle"
-						iconColor="white"
-						textColor="white"
-						inputClass="text-white"
-						autocomplete="on"
-						onInput={(value) => ($form.username = value)}
-					/>
-					{#if $errors.username}<span class="text-xs text-error-500">{$errors.username}</span>{/if}
+			<form
+	method="post"
+	action="?/signUp"
+	use:enhance
+	bind:this={formElement}
+	class="items flex flex-col gap-3"
+	class:hide={active !== 1}
+>
+	<!-- Username -->
+	<FloatingInput
+		id="usernamesignUp"
+		name="username"
+		type="text"
+		tabindex={usernameTabIndex}
+		required
+		bind:value={$form.username}
+		label={m.form_username()}
+		{...$constraints.username}
+		icon="mdi:user-circle"
+		iconColor="white"
+		textColor="white"
+		inputClass="text-white"
+		autocomplete="on"
+	/>
+	{#if $errors.username}<span class="text-xs text-error-500">{$errors.username}</span>{/if}
 
-					<!-- Email field -->
-					<FloatingInput
-						id="emailsignUp"
-						name="email"
-						type="email"
-						tabindex={emailTabIndex}
-						required
-						value={formValues.email}
-						label={m.form_emailaddress()}
-						{...$constraints.email}
-						icon="mdi:email"
-						iconColor="white"
-						textColor="white"
-						inputClass="text-white {isInviteFlow ? 'opacity-70' : ''}"
-						autocomplete="on"
-						disabled={isInviteFlow}
-						onInput={(value) => !isInviteFlow && ($form.email = value)}
-					/>
-					{#if $errors.email}<span class="text-xs text-error-500">{$errors.email}</span>{/if}
-					{#if isInviteFlow}<span class="text-xs text-primary-400">✓ Email pre-filled from invitation</span>{/if}
+	<!-- Email -->
+	<FloatingInput
+		id="emailsignUp"
+		name="email"
+		type="email"
+		tabindex={emailTabIndex}
+		required
+		bind:value={$form.email}
+		label={m.form_emailaddress()}
+		{...$constraints.email}
+		icon="mdi:email"
+		iconColor="white"
+		textColor="white"
+		inputClass="text-white {isInviteFlow ? 'opacity-70' : ''}"
+		autocomplete="on"
+		disabled={isInviteFlow}
+	/>
+	{#if $errors.email}<span class="text-xs text-error-500">{$errors.email}</span>{/if}
+	{#if isInviteFlow}<span class="text-xs text-primary-400">✓ Email pre-filled from invitation</span>{/if}
 
-					<!-- Password field -->
-					<FloatingInput
-						id="passwordsignUp"
-						name="password"
-						type="password"
-						tabindex={passwordTabIndex}
-						required
-						value={formValues.password}
-						{showPassword}
-						label={m.form_password()}
-						{...$constraints.password}
-						icon="mdi:password"
-						iconColor="white"
-						textColor="white"
-						showPasswordBackgroundColor="dark"
-						inputClass="text-white"
-						autocomplete="on"
-						onInput={(value) => ($form.password = value)}
-					/>
-					{#if $errors.password}
-						<span class="text-xs text-error-500">{$errors.password}</span>
-					{/if}
+	<!-- Hidden email (ensure submission even if disabled) -->
+	{#if isInviteFlow}
+		<input type="hidden" name="email" value={$form.email} />
+	{/if}
 
-					<!-- Password Confirm -->
-					<FloatingInput
-						id="confirm_passwordsignUp"
-						name="confirm_password"
-						type="password"
-						tabindex={confirmPasswordTabIndex}
-						required
-						value={formValues.confirm_password}
-						{showPassword}
-						label={m.form_confirmpassword()}
-						{...$constraints.confirm_password}
-						icon="mdi:password"
-						iconColor="white"
-						textColor="white"
-						showPasswordBackgroundColor="dark"
-						inputClass="text-white"
-						autocomplete="on"
-						onInput={(value) => ($form.confirm_password = value)}
-					/>
-					{#if $errors.confirm_password}
-						<span class="text-xs text-error-500">{$errors.confirm_password}</span>
-					{/if}
+	<!-- Password -->
+	<FloatingInput
+		id="passwordsignUp"
+		name="password"
+		type="password"
+		tabindex={passwordTabIndex}
+		required
+		bind:value={$form.password}
+		{showPassword}
+		label={m.form_password()}
+		{...$constraints.password}
+		icon="mdi:password"
+		iconColor="white"
+		textColor="white"
+		showPasswordBackgroundColor="dark"
+		inputClass="text-white"
+		autocomplete="on"
+	/>
+	{#if $errors.password}<span class="text-xs text-error-500">{$errors.password}</span>{/if}
 
-					<!-- Password Strength Indicator -->
-					<PasswordStrength password={formValues.password} confirmPassword={formValues.confirm_password} />
+	<!-- Confirm Password -->
+	<FloatingInput
+		id="confirm_passwordsignUp"
+		name="confirm_password"
+		type="password"
+		tabindex={confirmPasswordTabIndex}
+		required
+		bind:value={$form.confirm_password}
+		{showPassword}
+		label={m.form_confirmpassword()}
+		{...$constraints.confirm_password}
+		icon="mdi:password"
+		iconColor="white"
+		textColor="white"
+		showPasswordBackgroundColor="dark"
+		inputClass="text-white"
+		autocomplete="on"
+	/>
+	{#if $errors.confirm_password}<span class="text-xs text-error-500">{$errors.confirm_password}</span>{/if}
 
-					{#if firstUserExists == true && !isInviteFlow}
-						<!-- Registration Token (hidden when using invite flow) -->
-						<FloatingInput
-							id="tokensignUp"
-							name="token"
-							type="password"
-							tabindex={tokenTabIndex}
-							required
-							value={formValues.token}
-							label={m.signup_registrationtoken()}
-							{...$constraints.token}
-							icon="mdi:key-chain"
-							iconColor="white"
-							textColor="white"
-							showPasswordBackgroundColor="dark"
-							inputClass="text-white"
-							autocomplete="off"
-							onInput={(value) => ($form.token = value)}
-						/>
-						{#if $errors.token}
-							<span class="text-xs text-error-500">{$errors.token}</span>
-						{/if}
-						{#if formValues.token && inviteError}
-							<span class="text-xs text-warning-400">⚠️ Token was pre-filled from URL and will validated against the server</span>
-						{/if}
-					{:else if isInviteFlow}
-						<!-- Hidden token field for invite flow -->
-						<input type="hidden" name="token" value={token} />
-						<span class="text-xs text-primary-400">✓ Using invitation token</span>
-					{/if}
+	<PasswordStrength password={$form.password} confirmPassword={$form.confirm_password} />
 
-					{#if response}
-						<span class="text-xs text-error-500">{response}</span>
-					{/if}
+	<!-- Token Field -->
+	{#if firstUserExists && !isInviteFlow}
+		<FloatingInput
+			id="tokensignUp"
+			name="token"
+			type="password"
+			tabindex={tokenTabIndex}
+			required
+			bind:value={$form.token}
+			label={m.signup_registrationtoken()}
+			{...$constraints.token}
+			icon="mdi:key-chain"
+			iconColor="white"
+			textColor="white"
+			showPasswordBackgroundColor="dark"
+			inputClass="text-white"
+			autocomplete="off"
+		/>
+		{#if $errors.token}<span class="text-xs text-error-500">{$errors.token}</span>{/if}
+		{#if $form.token && inviteError}
+			<span class="text-xs text-warning-400">⚠️ Token was pre-filled from URL and will be validated against the server</span>
+		{/if}
+	{:else}
+		<!-- Always include hidden token input -->
+		<input type="hidden" name="token" value={$form.token} />
+		{#if isInviteFlow}
+			<span class="text-xs text-primary-400">✓ Using invitation token</span>
+		{/if}
+	{/if}
 
-					{#if inviteError && !formValues.token}
-						<span class="text-xs text-error-500">{inviteError}</span>
-					{/if}
+	{#if response}
+		<span class="text-xs text-error-500">{response}</span>
+	{/if}
 
-					{#if !privateEnv.USE_GOOGLE_OAUTH || !showOAuth}
-						<!-- Email SignIn only -->
-						<button type="submit" class="variant-filled btn mt-4 uppercase" aria-label={isInviteFlow ? 'Accept Invitation' : m.form_signup()}>
-							{isInviteFlow ? 'Accept Invitation & Create Account' : m.form_signup()}
-							{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
-						</button>
+	{#if inviteError && !$form.token}
+		<span class="text-xs text-error-500">{inviteError}</span>
+	{/if}
 
-						<!-- Email + OAuth signin  -->
-					{:else}
-						<div class="btn-group mt-4 border border-secondary-500 text-white [&>*+*]:border-secondary-500">
-							<button
-								type="submit"
-								class="btn w-3/4 rounded-none bg-surface-200 text-black hover:text-white"
-								aria-label={isInviteFlow ? 'Accept Invitation' : m.form_signup()}
-							>
-								<span class="w-full text-black hover:text-white">
-									{isInviteFlow ? 'Accept Invitation' : m.form_signup()}
-								</span>
-								<!-- Loading indicators -->
-								{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
-							</button>
+	<!-- Submit Button -->
+	{#if !privateEnv.USE_GOOGLE_OAUTH || !showOAuth}
+		<button type="submit" class="variant-filled btn mt-4 uppercase" aria-label={isInviteFlow ? 'Accept Invitation' : m.form_signup()}>
+			{isInviteFlow ? 'Accept Invitation & Create Account' : m.form_signup()}
+			{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
+		</button>
+	{:else}
+		<div class="btn-group mt-4 border border-secondary-500 text-white [&>*+*]:border-secondary-500">
+			<button
+				type="submit"
+				class="btn w-3/4 rounded-none bg-surface-200 text-black hover:text-white"
+				aria-label={isInviteFlow ? 'Accept Invitation' : m.form_signup()}
+			>
+				<span class="w-full text-black hover:text-white">
+					{isInviteFlow ? 'Accept Invitation' : m.form_signup()}
+				</span>
+				{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
+			</button>
 
-							<button type="button" onclick={handleOAuth} aria-label="OAuth" class="btn flex w-1/4 items-center justify-center">
-								<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mr-0.5 sm:mr-2"></iconify-icon>
-								<span class="">OAuth</span>
-							</button>
-						</div>
+			<button type="button" onclick={handleOAuth} aria-label="OAuth" class="btn flex w-1/4 items-center justify-center">
+				<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mr-0.5 sm:mr-2"></iconify-icon>
+				<span>OAuth</span>
+			</button>
+		</div>
 
-						{#if !isInviteFlow && firstUserExists && !hasExistingOAuthUsers}
-							<p class="mt-2 text-xs text-surface-400">
-								💡 Note: Both email/password and Google OAuth registration require an invitation token from an administrator.
-							</p>
-						{:else if !isInviteFlow && hasExistingOAuthUsers}
-							<p class="mt-2 text-xs text-surface-400">💡 Note: New user registration requires an invitation token from an administrator.</p>
-						{/if}
-					{/if}
-				</form>
+		<!-- Notes -->
+		{#if !isInviteFlow && firstUserExists && !hasExistingOAuthUsers}
+			<p class="mt-2 text-xs text-surface-400">
+				💡 Note: Both email/password and Google OAuth registration require an invitation token from an administrator.
+			</p>
+		{:else if !isInviteFlow && hasExistingOAuthUsers}
+			<p class="mt-2 text-xs text-surface-400">💡 Note: New user registration requires an invitation token from an administrator.</p>
+		{/if}
+	{/if}
+</form>
+
 			</div>
 		</div>
 	{/if}

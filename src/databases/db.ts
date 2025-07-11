@@ -83,7 +83,7 @@ async function loadAdapters() {
 					// User Management Methods
 					createUser: userAdapter.createUser.bind(userAdapter),
 					updateUserAttributes: userAdapter.updateUserAttributes.bind(userAdapter),
-					deleteUser: userAdapter.deleteUser.bind(userAdapter),
+					deleteUsers: userAdapter.deleteUsers.bind(userAdapter),        // ✅ Add thi
 					getUserById: userAdapter.getUserById.bind(userAdapter),
 					getUserByEmail: userAdapter.getUserByEmail.bind(userAdapter),
 					getAllUsers: userAdapter.getAllUsers.bind(userAdapter),

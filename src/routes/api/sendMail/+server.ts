@@ -191,12 +191,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	// 3. Configure Nodemailer Transporter
 	const smtpPort = Number(privateEnv.SMTP_PORT);
-	const secureConnection = smtpPort === 465;
+	const secureConnection = smtpPort === 2525;
 
 	const transporter = nodemailer.createTransport({
 		host: privateEnv.SMTP_HOST,
 		port: smtpPort,
-		secure: secureConnection,
+		secure: false,
 		auth: {
 			user: privateEnv.SMTP_EMAIL,
 			pass: privateEnv.SMTP_PASSWORD
