@@ -117,7 +117,10 @@ async function shouldShowOAuth(isFirstUser: boolean, hasInviteToken: boolean): P
 		}
 
 		// Check for users who have signed in via OAuth (lastAuthMethod: 'google')
-		const users = await auth.listUsers(0, 1, { lastAuthMethod: 'google' });
+		const users = await auth.getAllUsers({
+			filter: { lastAuthMethod: 'google' },
+			limit: 1
+		});
 		const hasOAuthUsers = users && users.length > 0;
 
 		logger.debug(`OAuth users check: found ${users?.length || 0} users with lastAuthMethod 'google'`);
@@ -457,7 +460,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		let hasExistingOAuthUsers = false;
 		try {
 			if (auth) {
-				const oauthUsers = await auth.listUsers(0, 1, { lastAuthMethod: 'google' });
+				const oauthUsers = await auth.getAllUsers({
+					filter: { lastAuthMethod: 'google' },
+					limit: 1
+				});
 				hasExistingOAuthUsers = oauthUsers && oauthUsers.length > 0;
 			}
 		} catch (error) {

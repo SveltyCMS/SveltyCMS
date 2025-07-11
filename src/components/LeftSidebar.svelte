@@ -22,28 +22,27 @@
 </script>
 
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { publicEnv } from '@root/config/public';
-	import { goto, invalidateAll } from '$app/navigation';
 	import axios from 'axios';
-
 	// Import necessary utilities and types
 	import { page } from '$app/state';
 	import { getLanguageName } from '@utils/languageUtils';
-
 	// Stores
-	import { get } from 'svelte/store';
-	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store.svelte';
 	import { mode } from '@stores/collectionStore.svelte';
-	import { uiStateManager, userPreferredState, toggleUIElement, handleUILayoutToggle } from '@stores/UIStore.svelte';
 	import { screenSize } from '@stores/screenSizeStore.svelte';
-
+	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store.svelte';
+	import { handleUILayoutToggle, toggleUIElement, uiStateManager, userPreferredState } from '@stores/UIStore.svelte';
+	import { get } from 'svelte/store';
 	// Import components and utilities
-	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
-	import SiteName from '@components/SiteName.svelte';
 	import Collections from '@components/Collections.svelte';
-
+	import SiteName from '@components/SiteName.svelte';
+	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	// Skeleton components and utilities
-	import { Avatar, popup, modeCurrent, type PopupSettings, setModeUserPrefers, setModeCurrent } from '@skeletonlabs/skeleton';
+	import { Avatar, modeCurrent, popup, type PopupSettings, setModeCurrent, setModeUserPrefers } from '@skeletonlabs/skeleton';
+	// Language and messaging setup
+	import * as m from '@src/paraglide/messages';
+	import { getLocale } from '@src/paraglide/runtime';
 
 	// Define user data and state variables - make it reactive to page data changes
 	const user = $derived(page.data.user);
@@ -79,10 +78,6 @@
 		target: 'SystemLanguage',
 		placement: 'right'
 	};
-
-	// Language and messaging setup
-	import * as m from '@src/paraglide/messages';
-	import { getLocale } from '@src/paraglide/runtime';
 
 	// Define language type based on available languages
 	type AvailableLanguage = typeof publicEnv.AVAILABLE_SYSTEM_LANGUAGES extends string[]
@@ -124,8 +119,8 @@
 
 	// Event handlers
 	function handleLanguageSelection(lang: AvailableLanguage) {
-		systemLanguage.set(lang);
-		_languageTag = lang;
+		systemLanguage.set(lang as any);
+		_languageTag = lang as any;
 		isDropdownOpen = false;
 		searchQuery = '';
 	}
@@ -144,19 +139,13 @@
 				}
 			);
 
-			console.log('Logout response:', response.data);
-
-			// Always invalidate and redirect, even if the server response isn't as expected
-			await invalidateAll();
-			console.log('All data invalidated');
-			await goto('/login');
-			console.log('Redirected to login page');
+			console.log('Logout successful, redirecting to login page');
+			window.location.href = '/login';
 		} catch (error) {
 			console.error('Error during sign-out:', error instanceof Error ? error.message : 'Unknown error');
 
-			// Even if there's an error, we should still invalidate and redirect
-			await invalidateAll();
-			await goto('/login');
+			// Even if there's an error, redirect to login since logout was attempted
+			window.location.href = '/login';
 		}
 	}
 

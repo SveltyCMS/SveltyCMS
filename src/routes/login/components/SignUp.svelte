@@ -124,10 +124,10 @@ Features:
 
 	// Initialize form with invite data when in invite flow
 	$effect(() => {
-		if (isInviteFlow && invitedEmail) {
+		if (isInviteFlow && invitedEmail && $form.email !== invitedEmail) {
 			$form.email = invitedEmail;
 		}
-		if (isInviteFlow && token) {
+		if (isInviteFlow && token && $form.token !== token) {
 			$form.token = token;
 		}
 		// Handle URL parameters for invite tokens (both new and legacy formats)

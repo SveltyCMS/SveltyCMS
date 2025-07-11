@@ -204,8 +204,8 @@ describe('User API Endpoints', () => {
 		});
 	});
 
-	describe('POST /api/user/updateUserAttributes', () => {
-		let authToken: string;
+	describe('PUT /api/user/updateUserAttributes', () => {
+		let authCookies: string;
 
 		beforeEach(async () => {
 			// Create and login user
@@ -233,20 +233,24 @@ describe('User API Endpoints', () => {
 				})
 			});
 
-			const loginResult = await loginResponse.json();
-			authToken = loginResult.data.token;
+			// Extract cookies from the login response
+			const setCookieHeader = loginResponse.headers.get('set-cookie');
+			authCookies = setCookieHeader || '';
 		});
 
 		it('should update user attributes with valid token', async () => {
 			const response = await fetch(`${API_BASE_URL}/api/user/updateUserAttributes`, {
-				method: 'POST',
+				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json',
-					Authorization: `Bearer ${authToken}`
+					Cookie: authCookies
 				},
 				body: JSON.stringify({
-					firstName: 'Updated',
-					lastName: 'Name'
+					user_id: 'self', // Special identifier for self-update
+					newUserData: {
+						firstName: 'Updated',
+						lastName: 'Name'
+					}
 				})
 			});
 
@@ -257,13 +261,16 @@ describe('User API Endpoints', () => {
 
 		it('should reject request without token', async () => {
 			const response = await fetch(`${API_BASE_URL}/api/user/updateUserAttributes`, {
-				method: 'POST',
+				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({
-					firstName: 'Updated',
-					lastName: 'Name'
+					user_id: 'some-user-id',
+					newUserData: {
+						firstName: 'Updated',
+						lastName: 'Name'
+					}
 				})
 			});
 
@@ -274,14 +281,17 @@ describe('User API Endpoints', () => {
 
 		it('should reject request with invalid token', async () => {
 			const response = await fetch(`${API_BASE_URL}/api/user/updateUserAttributes`, {
-				method: 'POST',
+				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json',
-					Authorization: 'Bearer invalid-token'
+					Cookie: 'invalid-cookie'
 				},
 				body: JSON.stringify({
-					firstName: 'Updated',
-					lastName: 'Name'
+					user_id: 'some-user-id',
+					newUserData: {
+						firstName: 'Updated',
+						lastName: 'Name'
+					}
 				})
 			});
 
@@ -289,10 +299,85 @@ describe('User API Endpoints', () => {
 			expect(response.status).toBe(401);
 			expect(result.success).toBe(false);
 		});
+		it('should allow admin to update another user role', async () => {
+			// Create a second user to update
+			const createUserResponse = await fetch(`${API_BASE_URL}/api/user/createUser`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					email: 'seconduser@example.com',
+					username: 'seconduser',
+					password: 'Test123!',
+					confirm_password: 'Test123!'
+				})
+			});
+
+			const createdUser = await createUserResponse.json();
+			const secondUserId = createdUser.data._id;
+
+			// Update the second user's role as admin
+			const response = await fetch(`${API_BASE_URL}/api/user/updateUserAttributes`, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json',
+					Cookie: authCookies
+				},
+				body: JSON.stringify({
+					user_id: secondUserId,
+					newUserData: {
+						role: 'developer' // Valid role ID from config/roles.ts
+					}
+				})
+			});
+
+			const result = await response.json();
+			expect(response.status).toBe(200);
+			expect(result.success).toBe(true);
+		});
+
+		it('should prevent user from changing their own role', async () => {
+			// Get the current admin user's ID
+			const currentUserResponse = await fetch(`${API_BASE_URL}/api/user/batch`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					Cookie: authCookies
+				},
+				body: JSON.stringify({
+					operation: 'list',
+					limit: 1,
+					filter: { email: testFixtures.users.firstAdmin.email }
+				})
+			});
+
+			const currentUserResult = await currentUserResponse.json();
+			const currentUserId = currentUserResult.data[0]._id;
+
+			// Try to change own role (should fail)
+			const response = await fetch(`${API_BASE_URL}/api/user/updateUserAttributes`, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json',
+					Cookie: authCookies
+				},
+				body: JSON.stringify({
+					user_id: currentUserId, // Using the actual admin's ID
+					newUserData: {
+						role: 'developer'
+					}
+				})
+			});
+
+			const result = await response.json();
+			expect(response.status).toBe(403);
+			expect(result.success).toBe(false);
+		});
 	});
 
 	describe('POST /api/user/batch', () => {
-		let authToken: string;
+		let authCookies: string;
 
 		beforeEach(async () => {
 			// Create admin user
@@ -320,8 +405,9 @@ describe('User API Endpoints', () => {
 				})
 			});
 
-			const loginResult = await loginResponse.json();
-			authToken = loginResult.data.token;
+			// Extract cookies from the login response
+			const setCookieHeader = loginResponse.headers.get('set-cookie');
+			authCookies = setCookieHeader || '';
 		});
 
 		it('should handle batch user operations', async () => {
@@ -329,7 +415,7 @@ describe('User API Endpoints', () => {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					Authorization: `Bearer ${authToken}`
+					Cookie: authCookies
 				},
 				body: JSON.stringify({
 					operation: 'list',
