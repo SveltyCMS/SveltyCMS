@@ -225,7 +225,7 @@
 				{#if uiStateManager.uiState.leftSidebar !== 'hidden'}
 					<aside
 						class="max-h-dvh {uiStateManager.uiState.leftSidebar === 'full'
-							? 'w-[220px]'
+							? 'w-[250px]'
 							: 'w-fit'} relative border-r bg-white !px-2 text-center dark:border-surface-500 dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900"
 					>
 						<LeftSidebar />

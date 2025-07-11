@@ -35,7 +35,7 @@
 	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store.svelte';
 	import { mode } from '@stores/collectionStore.svelte';
 	import { uiStateManager, userPreferredState, toggleUIElement, handleUILayoutToggle } from '@stores/UIStore.svelte';
-	import { screenSize } from '@stores/screenSizeStore.svelte';
+	import { screenSize, ScreenSize } from '@stores/screenSizeStore.svelte';
 
 	// Import components and utilities
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
@@ -83,6 +83,7 @@
 	// Language and messaging setup
 	import * as m from '@src/paraglide/messages';
 	import { getLocale } from '@src/paraglide/runtime';
+	import type { Locale } from '@src/paraglide/runtime';
 
 	// Define language type based on available languages
 	type AvailableLanguage = typeof publicEnv.AVAILABLE_SYSTEM_LANGUAGES extends string[]
@@ -124,8 +125,8 @@
 
 	// Event handlers
 	function handleLanguageSelection(lang: AvailableLanguage) {
-		systemLanguage.set(lang);
-		_languageTag = lang;
+		systemLanguage.set(lang as Locale);
+		_languageTag = lang as Locale;
 		isDropdownOpen = false;
 		searchQuery = '';
 	}
@@ -172,15 +173,15 @@
 			const [githubMajor, githubMinor] = githubVersion.split('.').map(Number);
 
 			if (githubMinor > localMinor) {
-				pkgBgColor.set('variant-filled-warning');
+				pkgBgColor.set('variant-filled-warning' as any);
 			} else if (githubMajor !== localMajor) {
-				pkgBgColor.set('variant-filled-error');
+				pkgBgColor.set('variant-filled-error' as any);
 			}
 		})
 		.catch((error) => {
 			console.error('Error von Github Release found:', error);
 			githubVersion = pkg;
-			pkgBgColor.set('variant-filled-tertiary');
+			pkgBgColor.set('variant-filled-tertiary' as any);
 		});
 
 	const toggleTheme = () => {
@@ -195,7 +196,7 @@
 		if (!page.url.href.includes('user')) {
 			mode.set('view');
 			// Only handle sidebar on mobile
-			if (screenSize.value === 'sm') {
+			if (screenSize.value === ScreenSize.SM) {
 				toggleUIElement('leftSidebar', 'hidden'); // Hide the left sidebar on mobile
 			}
 			goto('/user');
@@ -422,7 +423,7 @@
 					onclick={() => {
 						mode.set('view');
 						handleUILayoutToggle();
-						if (screenSize.value === 'sm') {
+						if (screenSize.value === ScreenSize.SM) {
 							toggleUIElement('leftSidebar', 'hidden');
 						}
 					}}
