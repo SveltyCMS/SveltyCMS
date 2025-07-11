@@ -1,5 +1,5 @@
 <p style="border: none; margin-bottom:0; padding-bottom: 0;" align="center">
-  <img width="200" alt="SveltyCMS logo" src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS-light.png">
+  <img width="200" alt="SveltyCMS logo" src="https://github.com/SveltyCMS/SveltyCMS/blob/main/static/SveltyCMS.png">
 </p>
 
 <h1 align="center"><strong>SveltyCMS - Headless CMS with Sveltekit Power</strong></h1>
