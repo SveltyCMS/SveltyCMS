@@ -266,7 +266,6 @@ async function handleGoogleUser(
 	const sessionCookie = auth?.createSessionCookie(session._id);
 	cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 }
-
 export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => {
 	try {
 		await dbInitPromise;

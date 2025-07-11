@@ -21,7 +21,7 @@ export enum PermissionAction {
 // Permission Types
 export enum PermissionType {
 	COLLECTION = 'collection', // Collection-related permissions
-	USER = 'user', // User-related permissions
+	USER = 'User', // User-related permissions
 	CONFIGURATION = 'configuration', // Configuration-related permissions
 	SYSTEM = 'system', // System-wide permissions
 	API = 'api' // API-related permissions

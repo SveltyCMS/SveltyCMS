@@ -296,47 +296,57 @@ export class UserAdapter implements Partial<authDBInterface> {
 		}
 	}
 
-	// Block a user
-	async blockUser(user_id: string): Promise<void> {
-		try {
-			await this.UserModel.findByIdAndUpdate(user_id, {
-				blocked: true,
-				lockoutUntil: new Date().toISOString() // Set lockoutUntil to current time
-			});
-			logger.info(`User blocked: \x1b[34m${user_id}\x1b[0m`);
-		} catch (err) {
-			const message = `Error in UserAdapter.blockUser: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { user_id });
-			throw error(500, message);
-		}
+async blockUsers(user_ids: string[]): Promise<void> {
+	try {
+		await this.UserModel.updateMany(
+			{ _id: { $in: user_ids } },
+			{
+				$set: {
+					blocked: true,
+					lockoutUntil: new Date().toISOString()
+				}
+			}
+		);
+		logger.info(`Users blocked: ${user_ids.join(', ')}`);
+	} catch (err) {
+		const message = `Error in UserAdapter.blockUsers: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message, { user_ids });
+		throw error(500, message);
 	}
+}
 
-	// Unblock a user
-	async unblockUser(user_id: string): Promise<void> {
-		try {
-			await this.UserModel.findByIdAndUpdate(user_id, {
-				blocked: false,
-				lockoutUntil: null // Clear lockoutUntil
-			});
-			logger.info(`User unblocked: \x1b[34m${user_id}\x1b[0m`);
-		} catch (err) {
-			const message = `Error in UserAdapter.unblockUser: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { user_id });
-			throw error(500, message);
-		}
+async unblockUsers(user_ids: string[]): Promise<void> {
+	try {
+		await this.UserModel.updateMany(
+			{ _id: { $in: user_ids } },
+			{
+				$set: {
+					blocked: false,
+					lockoutUntil: null
+				}
+			}
+		);
+		logger.info(`Users unblocked: ${user_ids.join(', ')}`);
+	} catch (err) {
+		const message = `Error in UserAdapter.unblockUsers: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message, { user_ids });
+		throw error(500, message);
 	}
+}
 
-	// Delete a user
-	async deleteUser(user_id: string): Promise<void> {
-		try {
-			await this.UserModel.findByIdAndDelete(user_id);
-			logger.info(`User deleted: \x1b[34m${user_id}\x1b[0m`);
-		} catch (err) {
-			const message = `Error in UserAdapter.deleteUser: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { user_id });
-			throw error(500, message);
-		}
+// Batch delete users
+async deleteUsers(user_ids: string[]): Promise<void> {
+	try {
+		await this.UserModel.deleteMany({ _id: { $in: user_ids } });
+		logger.info(`Batch deleted users: \x1b[34m${user_ids.join(', ')}\x1b[0m`);
+	} catch (err) {
+		const message = `Error in UserAdapter.deleteUsers: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message, { user_ids });
+		throw error(500, message);
 	}
+}
+
+
 
 	// Get a user by ID
 	async getUserById(user_id: string): Promise<User | null> {
