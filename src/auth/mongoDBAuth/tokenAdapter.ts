@@ -34,7 +34,8 @@ export const TokenSchema = new Schema(
 		expires: { type: Date, required: true }, // Expiry timestamp of the token, required field
 		type: { type: String, required: true }, // Type of the token, required field
 		username: { type: String, required: false }, // Username associated with the token
-		role: { type: String, required: false } // Role associated with the token
+		role: { type: String, required: false }, // Role associated with the token
+		blocked: { type: Boolean, required: false, default: false } // Whether the token is blocked
 	},
 	{ timestamps: true } // Automatically adds `createdAt` and `updatedAt` fields
 );
@@ -84,6 +85,12 @@ export class TokenAdapter implements Partial<authDBInterface> {
 				return { success: false, message: 'Token is invalid' };
 			}
 
+			// Check if token is blocked
+			if (tokenDoc.blocked) {
+				logger.warn('Blocked token', { user_id: tokenDoc.user_id, type: tokenDoc.type });
+				return { success: false, message: 'Token is blocked' };
+			}
+
 			if (new Date(tokenDoc.expires) > new Date()) {
 				logger.debug('Token validated', { user_id: tokenDoc.user_id, type: tokenDoc.type });
 				return { success: true, message: 'Token is valid', email: tokenDoc.email };
@@ -109,6 +116,12 @@ export class TokenAdapter implements Partial<authDBInterface> {
 			if (!tokenDoc) {
 				logger.warn('Invalid token consumption attempt', { token });
 				return { status: false, message: 'Token is invalid' };
+			}
+
+			// Check if token was blocked
+			if (tokenDoc.blocked) {
+				logger.warn('Blocked token consumption attempt', { user_id: tokenDoc.user_id, type: tokenDoc.type });
+				return { status: false, message: 'Token is blocked' };
 			}
 
 			if (new Date(tokenDoc.expires) > new Date()) {
@@ -164,11 +177,11 @@ export class TokenAdapter implements Partial<authDBInterface> {
 		}
 	}
 
-	// Block multiple tokens (set them as blocked/expired)
+	// Block multiple tokens (set them as blocked )
 	async blockTokens(tokens: string[]): Promise<number> {
 		try {
-			// Set tokens to expire immediately to effectively block them
-			const result = await this.TokenModel.updateMany({ token: { $in: tokens } }, { expires: new Date() });
+			// Set blocked status to true
+			const result = await this.TokenModel.updateMany({ token: { $in: tokens } }, { blocked: true });
 			logger.info('Tokens blocked', { modifiedCount: result.modifiedCount, tokens });
 			return result.modifiedCount;
 		} catch (err) {
@@ -178,12 +191,11 @@ export class TokenAdapter implements Partial<authDBInterface> {
 		}
 	}
 
-	// Unblock multiple tokens (extend their expiration)
+	// Unblock multiple tokens
 	async unblockTokens(tokens: string[]): Promise<number> {
 		try {
-			// Extend expiration by 7 days from now to unblock
-			const newExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-			const result = await this.TokenModel.updateMany({ token: { $in: tokens } }, { expires: newExpiry });
+			// Set blocked status to false to unblock
+			const result = await this.TokenModel.updateMany({ token: { $in: tokens } }, { blocked: false });
 			logger.info('Tokens unblocked', { modifiedCount: result.modifiedCount, tokens });
 			return result.modifiedCount;
 		} catch (err) {
@@ -235,7 +247,12 @@ export class TokenAdapter implements Partial<authDBInterface> {
 						token: tokenDoc.token,
 						email: tokenDoc.email,
 						expires: tokenDoc.expires,
-						type: tokenDoc.type
+						type: tokenDoc.type,
+						blocked: tokenDoc.blocked,
+						username: tokenDoc.username,
+						role: tokenDoc.role,
+						createdAt: tokenDoc.createdAt,
+						updatedAt: tokenDoc.updatedAt
 					}
 				: null;
 		} catch (err) {

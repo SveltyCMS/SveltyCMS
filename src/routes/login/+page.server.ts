@@ -607,6 +607,13 @@ export const actions: Actions = {
 			return message(signUpForm, 'This invitation is invalid, expired, or has already been used.', { status: 403 });
 		}
 
+		// Debug: Log the token details to see what we're getting
+		logger.debug('Token validation result:', {
+			tokenData: tokenData.details,
+			role: tokenData.details.role,
+			email: tokenData.details.email
+		});
+
 		// Security: Check that the email in the form matches the one in the token record
 		if (email.toLowerCase() !== tokenData.details.email.toLowerCase()) {
 			return message(signUpForm, 'The provided email does not match the invitation.', { status: 403 });
@@ -618,7 +625,7 @@ export const actions: Actions = {
 				email,
 				username,
 				password,
-				role: tokenData.details.role, // Use the role from the token!
+				role: tokenData.details.role || 'user', // Use the role from the token with fallback to 'user'
 				isRegistered: true
 			});
 

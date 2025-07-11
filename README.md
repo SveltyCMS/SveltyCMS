@@ -86,11 +86,11 @@ Install stable [Node.js](https://nodejs.org/en) to get started. Then choose your
 # Install all dependencies
 npm install
 
-# Start CLI Installer
-npm run installer
-
-# Development
+# Development (CLI installer launches automatically if needed)
 npm run dev
+
+# Manual CLI Installer (optional)
+npm run installer
 
 # Build for production
 npm run build
@@ -111,11 +111,11 @@ npm install -g pnpm
 # Install all dependencies
 pnpm install
 
-# Start CLI Installer
-pnpm run installer
-
-# Development
+# Development (CLI installer launches automatically if needed)
 pnpm run dev
+
+# Manual CLI Installer (optional)
+pnpm run installer
 
 # Build for production
 pnpm run build
@@ -136,11 +136,11 @@ curl -fsSL https://bun.sh/install | bash
 # Install all dependencies
 bun install
 
-# Start CLI Installer
-bun run installer
-
-# Development
+# Development (CLI installer launches automatically if needed)
 bun run dev
+
+# Manual CLI Installer (optional)
+bun run installer
 
 # Build for production
 bun run build
@@ -151,11 +151,17 @@ bun run preview
 
 </details>
 
-### Setup via CLI Installer
+### Automated Setup via CLI Installer
 
-This project uses a flexible public/private configuration to store sensitive information, such as API keys and database passwords.
+SveltyCMS features an intelligent CLI installer that automatically launches when you start the development server without configuration files. The installer handles all setup automatically:
 
-To set up the SveltyCMS project, you just need to start the CLI Installer. Minimum requirements are a Database and Email to get started.
+- **Smart Detection**: Runs automatically via `vite.config.ts` when config files are missing
+- **Database Configuration**: Choose from MongoDB, PostgreSQL, or SQLite
+- **Admin Account Setup**: Create your first administrator account
+- **Security Configuration**: Automatic generation of secrets and keys
+- **Email & OAuth Setup**: Optional SMTP and Google OAuth configuration
+
+Simply run `bun run dev` (or npm/pnpm equivalent) and follow the interactive prompts!
 
 ### Development and Production
 

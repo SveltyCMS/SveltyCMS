@@ -15,11 +15,10 @@
 -->
 
 <script lang="ts">
-	import type { PageData } from './$types';
+	import { invalidateAll } from '$app/navigation';
 	import axios from 'axios';
 	import { onMount } from 'svelte';
-	import { invalidateAll } from '$app/navigation';
-
+	import type { PageData } from './$types';
 	// Auth
 	import type { User } from '@src/auth/types';
 
@@ -30,19 +29,16 @@
 	import '@stores/store.svelte';
 	import { avatarSrc } from '@stores/store.svelte';
 	import { triggerActionStore } from '@utils/globalSearchIndex';
-
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
 	import AdminArea from './components/AdminArea.svelte';
-
 	// Skeleton
-	import { Avatar } from '@skeletonlabs/skeleton';
+	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
+	import { Avatar, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+	import { collection } from '@src/stores/collectionStore.svelte';
 	import ModalEditAvatar from './components/ModalEditAvatar.svelte';
 	import ModalEditForm from './components/ModalEditForm.svelte';
-	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-	import { collection } from '@src/stores/collectionStore.svelte';
 
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
@@ -260,6 +256,7 @@
 			contextType: 'system',
 			description: 'Allows access to admin area for user management'
 		}}
+		silent={true}
 	>
 		<div class="wrapper2">
 			<AdminArea adminData={data.adminData} currentUser={user} />

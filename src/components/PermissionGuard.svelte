@@ -8,14 +8,21 @@
 	<ContentToProtect />
 </PermissionGuard>
 
+@example Silent mode (no error messages)
+<PermissionGuard {config} silent={true}>
+	<ContentToProtect />
+</PermissionGuard>
+
 #### Props:
 - `config`: Permission configuration object
 - `messages`: Custom messages for different scenarios
+- `silent`: If true, don't show error messages when permission is denied (default: false)
 
 Features:
 - Checks user permissions based on provided configuration
 - Handles admin roles, regular permissions, and rate limiting
 - Provides fallback content for missing configurations or insufficient permissions
+- Silent mode for security-sensitive components that shouldn't reveal their existence
 - Improved type safety and error handling
 -->
 
@@ -34,6 +41,7 @@ Features:
 			missingConfig?: string;
 			insufficientPermissions?: string;
 		};
+		silent?: boolean; // If true, don't show error messages when permission is denied
 		children?: import('svelte').Snippet;
 	}
 
@@ -45,6 +53,7 @@ Features:
 			missingConfig: 'Permission configuration is missing.',
 			insufficientPermissions: 'You do not have permission to access this content.'
 		},
+		silent = false,
 		children
 	}: Props = $props();
 
@@ -83,12 +92,12 @@ Features:
 
 {#if shouldShowContent}
 	{@render children?.()}
-{:else if config}
+{:else if !silent && config}
 	{#if isRateLimited}
 		<p class="text-warning-500" role="alert">{messages.rateLimited}</p>
 	{:else}
 		<p class="text-error-500" role="alert">{messages.insufficientPermissions}</p>
 	{/if}
-{:else}
+{:else if !silent && !config}
 	<p class="text-error-500" role="alert">{messages.missingConfig}</p>
 {/if}
