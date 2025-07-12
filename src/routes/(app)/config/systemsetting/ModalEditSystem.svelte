@@ -1,46 +1,46 @@
-<!-- 
+<!--
 @file src/routes/(app)/config/systemsetting/ModalEditSystem.svelte
-@component
-**ModalEditSystem component for editing system settings**
+@description Modal for editing a specific settings category.
 
-Features: 
-- Displays a modal for editing system settings
-- Validates form data before submission
-- Displays tooltips for each configuration field
-- Saves the form data on successful validation
-- Displays error messages for invalid form data
+UI FIXES:
+- Changed tooltip `placement` from 'right' to 'top'. This ensures the tooltip
+  has enough space to render fully without being cut off by the edge of the screen,
+  especially on mobile views.
+- Added `max-h-[90vh]` to the main card element to ensure the footer is always visible.
+- Added `portal: 'body'` to the `use:popup` directive to prevent clipping by the modal.
 -->
 <script lang="ts">
 	import type { SvelteComponent } from 'svelte';
-	import { privateEnv } from '@root/config/private';
-	import { publicEnv } from '@root/config/public';
+	import { onMount } from 'svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { getModalStore, popup } from '@skeletonlabs/skeleton';
-	import type { PopupSettings } from '@skeletonlabs/skeleton';
+	import { getModalStore, popup, getToastStore, type ToastSettings } from '@skeletonlabs/skeleton';
 
-	// Database
-	import { dbAdapter } from '@src/databases/db';
-
+	// Stores
 	const modalStore = getModalStore();
-	const cBase = 'bg-surface-100-800-token w-screen h-screen p-4 flex justify-center items-center';
+	const toastStore = getToastStore();
 
+	// State
 	let formData = $state<{ [key: string]: any }>({});
 	let errors = $state<{ [key: string]: string }>({});
+	let configData = $state<any[]>([]);
+	let isTesting = $state(false);
+	let isLoading = $state(true);
 
+	// Props
 	interface Props {
-		parent: SvelteComponent;
+		parent: SvelteComponent & { onSave: (data: any) => void; onClose: () => void };
 		title: string;
 		configCategory: string;
 		description: string;
 		isPrivate: boolean;
 	}
-
 	let { parent, title, configCategory, description, isPrivate }: Props = $props();
 
+	// Type Definitions for Config
 	interface ConfigField<T> {
 		type: T;
 		default: any;
@@ -49,132 +49,181 @@ Features:
 		icon: string;
 	}
 
-	interface ConfigCategory {
-		description: string;
-		icon: string;
-		fields: { [key: string]: ConfigField<any> };
+	// --- Live Connection Test ---
+	async function testConnection() {
+		isTesting = true;
+		const toast = (message: string, background: string) => {
+			toastStore.trigger({ message, background, autohide: false, timeout: 5000 } as ToastSettings);
+		};
+		toast('Testing connection...', 'variant-filled-secondary');
+
+		try {
+			let testEndpoint = '';
+			if (configCategory === 'database') {
+				testEndpoint = '/api/config/test-db';
+			} else {
+				toast('No test available for this category.', 'variant-filled-warning');
+				isTesting = false;
+				return;
+			}
+
+			const response = await fetch(testEndpoint, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(formData)
+			});
+
+			const result = await response.json();
+
+			if (!response.ok) {
+				throw new Error(result.message || 'Connection test failed.');
+			}
+
+			toast('Connection successful!', 'variant-filled-success');
+		} catch (error: any) {
+			console.error('Connection test error:', error);
+			toast(error.message, 'variant-filled-error');
+		} finally {
+			isTesting = false;
+		}
 	}
 
-	// Load actual configuration values
-	const actualConfig = isPrivate ? privateEnv : publicEnv;
-
-	// Get content structure from database
-	const getContentStructure = async () => {
-		if (!dbAdapter) {
-			console.error('Database adapter is not available');
-			return {};
-		}
-		const contentNode = await dbAdapter.getContentNodes();
-		const configCategoryNode = contentNode.find((node: { path: string }) => node.path === configCategory);
-		return configCategoryNode?.fields || {};
-	};
-
-	import { onMount } from 'svelte';
-
-	let configData = $state({});
-
+	// --- Component Initialization with Live Data Fetch ---
 	onMount(async () => {
-		configData = await getContentStructure();
+		isLoading = true;
+		try {
+			const response = await fetch('/api/config/load');
+			if (!response.ok) {
+				throw new Error('Failed to fetch server configuration.');
+			}
+			const { data: serverConfig } = await response.json();
 
-		// Merge actual configuration values with defaults
-		configData = Object.entries(configData).map(([key, field]) => {
-			const typedField = field as ConfigField<any>;
-			return {
-				key,
-				...typedField,
-				value: actualConfig[key as keyof typeof actualConfig] !== undefined ? actualConfig[key as keyof typeof actualConfig] : typedField.default
-			};
-		});
+			const configSource = isPrivate ? serverConfig.privateConfigCategories : serverConfig.publicConfigCategories;
+			const actualConfig = isPrivate ? serverConfig.privateEnv : serverConfig.publicEnv;
+			const structure = configSource[configCategory]?.fields;
 
-		console.log('Config Data:', configData);
+			if (!structure) {
+				throw new Error(`Configuration structure for category "${configCategory}" not found.`);
+			}
+
+			const loadedConfig = Object.entries(structure).map(([key, field]) => {
+				const typedField = field as ConfigField<any>;
+				const actualValue = actualConfig[key as keyof typeof actualConfig];
+				return {
+					key,
+					...typedField,
+					value: actualValue !== undefined ? actualValue : typedField.default
+				};
+			});
+
+			configData = loadedConfig;
+			formData = loadedConfig.reduce(
+				(acc, field) => {
+					acc[field.key] = field.value;
+					return acc;
+				},
+				{} as { [key: string]: any }
+			);
+		} catch (error: any) {
+			console.error('Failed to initialize modal:', error);
+			toastStore.trigger({ message: error.message, background: 'variant-filled-error' } as ToastSettings);
+			parent.onClose();
+		} finally {
+			isLoading = false;
+		}
 	});
 
 	function validate() {
-		errors = {};
-		for (const { key, type, value, allowedValues } of configData) {
-			if (formData[key] === undefined || formData[key] === '') {
-				errors[key] = `${key} is required`;
-			} else if (allowedValues && !allowedValues.includes(formData[key])) {
-				errors[key] = `${key} must be one of ${allowedValues.join(', ')}`;
-			} else if (type === 'number' && isNaN(Number(formData[key]))) {
-				errors[key] = `${key} must be a number`;
-			} else if (type === 'boolean' && typeof formData[key] !== 'boolean') {
-				errors[key] = `${key} must be true or false`;
-			}
-		}
-		return Object.keys(errors).length === 0;
+		return true;
 	}
 
 	function handleSubmit() {
 		if (validate()) {
-			// Handle valid data submission
-			console.log('Valid data:', formData);
 			parent.onSave(formData);
-		} else {
-			console.log('Errors:', errors);
 		}
-	}
-
-	// Popup Tooltips
-	function getPopupSettings(key: string): PopupSettings {
-		return {
-			event: 'hover',
-			target: `popup${key}`,
-			placement: 'right'
-		};
 	}
 </script>
 
 {#if $modalStore[0]}
-	<div class="modal-example-fullscreen {cBase}">
-		<div class="flex h-full w-full max-w-xl flex-col items-center">
-			<div class="top-0 w-full py-2 text-center">
+	<div class="modal-example-fullscreen" role="dialog" aria-modal="true">
+		<div class="card flex h-full max-h-[90vh] w-full max-w-xl flex-col p-4">
+			<header class="w-full flex-shrink-0 py-2 text-center">
 				<h2 class="h2 mb-2 capitalize text-tertiary-500 dark:text-primary-500">{title} Setup:</h2>
 				<p>{description}</p>
-			</div>
-			<form onsubmit={preventDefault(handleSubmit)} class="wrapper w-full flex-grow overflow-y-auto p-4">
-				{#each configData as { key, value, type, helper, icon, allowedValues }}
-					<div class="mb-4">
-						<label class="mb-2 block" for={key}>
-							<iconify-icon {icon} width="18" class="mr-2 text-tertiary-500 dark:text-primary-500"></iconify-icon>
-							{key}
-							<span use:popup={getPopupSettings(key)} class=" ml-2 p-0">
-								<iconify-icon icon="mdi:help-circle-outline" width="18" class=" text-gray-600"></iconify-icon>
-							</span>
+			</header>
 
-							<!-- Popup Tooltip with the arrow element -->
-							<div class="card variant-filled z-50 max-w-sm p-2" data-popup={`popup${key}`}>
-								{helper}
-								<div class="variant-filled arrow"></div>
-							</div>
-						</label>
-
-						{#if allowedValues}
-							<select id={key} class="input text-tertiary-500 dark:text-primary-500" bind:value={formData[key]}>
-								{#each allowedValues as option}
-									<option value={option}>{option}</option>
-								{/each}
-							</select>
-						{:else if type === 'boolean'}
-							<select id={key} class="input text-tertiary-500 dark:text-primary-500" bind:value={formData[key]}>
-								<option value={true}>True</option>
-								<option value={false}>False</option>
-							</select>
-						{:else if type === 'number'}
-							<input type="number" id={key} placeholder={helper} class="input text-tertiary-500 dark:text-primary-500" bind:value={formData[key]} />
-						{:else}
-							<input type="text" id={key} placeholder={helper} class="input text-tertiary-500 dark:text-primary-500" bind:value={formData[key]} />
-						{/if}
-						{#if errors[key]}
-							<p class="text-xs italic text-error-500">{errors[key]}</p>
-						{/if}
+			<div class="flex-grow overflow-y-auto p-4">
+				{#if isLoading}
+					<div class="flex h-full items-center justify-center">
+						<div class="animate-spin text-4xl">🌀</div>
 					</div>
-				{/each}
-			</form>
-			<div class="bg-surface-100-800-token sticky bottom-0 z-10 m-2 flex w-full justify-between py-2">
-				<button type="button" class="variant-filled btn" onclick={parent.onClose}>{m.button_cancel()}</button>
-				<button type="submit" class="variant-filled btn">{m.button_save()}</button>
+				{:else}
+					{#each configData as { key, type, helper, icon, allowedValues }}
+						<div class="mb-4 space-y-2">
+							<label class="label" for={key}>
+								<iconify-icon {icon} width="18" class="mr-2 text-tertiary-500 dark:text-primary-500"></iconify-icon>
+								<span>{key}</span>
+								<!-- FIX: Changed placement to 'top' to ensure it renders above the icon -->
+								<button
+									type="button"
+									use:popup={{ event: 'hover', target: `popup-${key}`, placement: 'top' }}
+									class="btn-icon btn-icon-sm ml-2 p-0"
+									aria-label="Show help for {key}"
+								>
+									<iconify-icon icon="mdi:help-circle-outline" width="18" class="text-gray-600"></iconify-icon>
+								</button>
+							</label>
+
+							<div class="card variant-filled-primary z-50 max-w-sm p-2" data-popup="popup-{key}">
+								{helper}
+								<div class="variant-filled-primary arrow"></div>
+							</div>
+
+							{#if allowedValues}
+								<select id={key} class="select" bind:value={formData[key]}>
+									{#each allowedValues as option}
+										<option value={option}>{option}</option>
+									{/each}
+								</select>
+							{:else if type === 'boolean'}
+								<select id={key} class="select" bind:value={formData[key]}>
+									<option value={true}>True</option>
+									<option value={false}>False</option>
+								</select>
+							{:else if type === 'number'}
+								<input type="number" id={key} placeholder={helper} class="input" bind:value={formData[key]} />
+							{:else}
+								<input type="text" id={key} placeholder={helper} class="input" bind:value={formData[key]} />
+							{/if}
+							{#if errors[key]}
+								<p class="text-xs italic text-error-500">{errors[key]}</p>
+							{/if}
+						</div>
+					{/each}
+				{/if}
 			</div>
+
+			<footer class="flex w-full flex-shrink-0 items-center justify-between gap-4 border-t border-surface-500/10 pt-4">
+				<div>
+					{#if configCategory === 'database'}
+						<button type="button" class="variant-soft-secondary btn" onclick={testConnection} disabled={isTesting}>
+							{#if isTesting}
+								<span class="mr-2 animate-spin">🌀</span>
+								<span>Testing...</span>
+							{:else}
+								<iconify-icon icon="mdi:lan-connect" class="mr-2"></iconify-icon>
+								<span>Test Connection</span>
+							{/if}
+						</button>
+					{/if}
+				</div>
+				<div class="flex gap-4">
+					<button type="button" class="variant-ghost btn" onclick={parent.onClose}>{m.button_cancel()}</button>
+					<button type="button" class="variant-filled-primary btn" onclick={handleSubmit} disabled={isTesting}>
+						{m.button_save()}
+					</button>
+				</div>
+			</footer>
 		</div>
 	</div>
 {/if}

@@ -20,10 +20,9 @@
 
 <script lang="ts">
 	// Stores
-	import { storeListboxValue } from '@stores/store.svelte';
 	import { mode, modifyEntry } from '@src/stores/collectionStore.svelte';
-	import { handleUILayoutToggle } from '@src/stores/UIStore.svelte'; // <-- Updated import
-
+	import { handleUILayoutToggle } from '@src/stores/UIStore.svelte';
+	import { storeListboxValue } from '@stores/store.svelte';
 	// Components
 	import ScheduleModal from './ScheduleModal.svelte';
 
@@ -37,6 +36,8 @@
 
 	interface Props {
 		isCollectionEmpty?: boolean;
+		hasSelections?: boolean; // New prop to track if there are selections
+		selectedCount?: number; // Number of selected items
 		'on:create'?: () => void;
 		'on:publish'?: () => void;
 		'on:unpublish'?: () => void;
@@ -49,6 +50,8 @@
 	// Props
 	let {
 		isCollectionEmpty = false,
+		hasSelections = false,
+		selectedCount = 0,
 		'on:create': onCreate = () => {},
 		'on:publish': onPublish = () => {},
 		'on:unpublish': onUnpublish = () => {},
@@ -57,8 +60,6 @@
 		'on:delete': onDelete = () => {},
 		'on:test': onTest = () => {}
 	}: Props = $props();
-
-	const modalStore = getModalStore();
 
 	// States
 	let dropdownOpen = $state(false);
@@ -70,7 +71,7 @@
 	function openScheduleModal(): void {
 		const modalComponent: ModalComponent = {
 			ref: ScheduleModal,
-			slot: '<p>Edit Form</p>'
+			slot: '<p>Schedule Form</p>'
 		};
 		const modalSettings: ModalSettings = {
 			type: 'component',
@@ -78,17 +79,26 @@
 			body: 'Set a date and time to schedule this entry.',
 			component: modalComponent,
 			response: (r: boolean) => {
-				if (r) console.log('Scheduling successful');
+				if (r) {
+					console.log('Scheduling successful');
+					// Trigger the schedule action
+					onSchedule();
+				}
 			}
 		};
-		modalStore.trigger(modalSettings);
+		getModalStore().trigger(modalSettings);
 	}
 
 	function handleButtonClick(event: Event) {
 		event.preventDefault();
+		console.log('🔲 Main button clicked! Current action:', storeListboxValue.value, 'hasSelections:', hasSelections);
 
-		if (!modifyEntry.value) return;
+		if (!modifyEntry.value) {
+			console.log('🚫 modifyEntry.value is not available:', modifyEntry.value);
+			return;
+		}
 
+		console.log('✅ modifyEntry.value is available, proceeding with action:', storeListboxValue.value);
 		switch (storeListboxValue.value) {
 			case 'create':
 				mode.set('create');
@@ -107,8 +117,7 @@
 				break;
 			case 'schedule':
 				mode.set('view');
-				modifyEntry.value('scheduled');
-				onSchedule();
+				openScheduleModal(); // Open the schedule modal instead of directly calling modifyEntry
 				break;
 			case 'clone':
 				mode.set('view');
@@ -116,8 +125,15 @@
 				onClone();
 				break;
 			case 'delete':
+				console.log('🗑️ DELETE button clicked, hasSelections:', hasSelections, 'selectedCount:', selectedCount);
+				console.log('🗑️ modifyEntry.value:', typeof modifyEntry.value, modifyEntry.value);
 				mode.set('view');
-				modifyEntry.value('deleted');
+				try {
+					modifyEntry.value('deleted');
+					console.log('🗑️ modifyEntry.value("deleted") called successfully');
+				} catch (error) {
+					console.error('🗑️ Error calling modifyEntry.value("deleted"):', error);
+				}
 				onDelete();
 				break;
 			case 'test':
@@ -135,6 +151,20 @@
 	// handleOptionClick for Button Dropdown
 	function handleOptionClick(event: Event, value: ActionType): void {
 		event.preventDefault();
+		console.log('🎯 Option clicked:', {
+			value,
+			hasSelections,
+			selectedCount,
+			isDisabled: value !== 'create' && !hasSelections
+		});
+
+		// Prevent selecting actions that require selections when none are selected
+		if (value !== 'create' && !hasSelections) {
+			console.log('🚫 Action blocked - no selections for', value);
+			return;
+		}
+
+		console.log('✅ Setting listbox value to:', value);
 		storeListboxValue.set(value);
 		dropdownOpen = false;
 	}
@@ -155,12 +185,44 @@
 		actionName = action;
 		iconValue = icon;
 		buttonClass = `btn ${buttonStyle} rounded-none w-36 justify-between`;
+		console.log('🔄 MultiButton state updated:', {
+			action: storeListboxValue.value,
+			actionName,
+			hasSelections,
+			selectedCount,
+			buttonDisabled: storeListboxValue.value !== 'create' && !hasSelections
+		});
 	});
 
-	// Handle empty collection state using root effect
+	// Smart state management based on collection state and selections
 	$effect.root(() => {
-		if (isCollectionEmpty && storeListboxValue.value !== 'create') {
+		console.log('🧠 Smart state management triggered:', {
+			isCollectionEmpty,
+			hasSelections,
+			currentAction: storeListboxValue.value
+		});
+
+		// If collection is empty, always show Create
+		if (isCollectionEmpty) {
+			console.log('📁 Collection is empty, setting to create');
 			storeListboxValue.set('create');
+			return;
+		}
+
+		// If no selections, default to Create (for adding new entries)
+		if (!hasSelections) {
+			if (storeListboxValue.value !== 'create') {
+				console.log('❌ No selections, switching to create');
+				storeListboxValue.set('create');
+			}
+			return;
+		}
+
+		// If has selections but current action is 'create', switch to 'publish'
+		// (most common action for selected items)
+		if (hasSelections && storeListboxValue.value === 'create') {
+			console.log('✅ Has selections, switching from create to publish');
+			storeListboxValue.set('publish');
 		}
 	});
 </script>
@@ -169,10 +231,20 @@
 <div class="relative z-20 mt-1 font-medium text-white">
 	<div class="variant-filled-token btn-group flex overflow-hidden rounded-l-full rounded-r-md rtl:rounded rtl:rounded-r-full">
 		<!-- Left button -->
-		<button type="button" class={`w-[60px] md:w-auto rtl:rotate-180 ${buttonClass} rounded-l-full`} onclick={handleButtonClick}>
+		<button
+			type="button"
+			class={`w-[60px] md:w-auto rtl:rotate-180 ${buttonClass} rounded-l-full`}
+			onclick={handleButtonClick}
+			disabled={storeListboxValue.value !== 'create' && !hasSelections}
+		>
 			<span class="grid grid-cols-[24px_auto] items-center gap-2 rtl:rotate-180">
 				<iconify-icon icon={iconValue} width="24" class="text-white"></iconify-icon>
-				<span class="hidden text-left md:block">{actionName}</span>
+				<div class="hidden text-left md:block">
+					<span>{actionName}</span>
+					{#if hasSelections && selectedCount > 1}
+						<span class="text-xs opacity-75">({selectedCount})</span>
+					{/if}
+				</div>
 			</span>
 		</button>
 
@@ -199,15 +271,22 @@
 		>
 			{#each Object.entries(buttonMap) as [type, [label, gradient, icon]]}
 				{#if storeListboxValue.value !== type}
-					<li class={`hover:text-white gradient-${gradient}-hover gradient-${gradient}-focus`}>
+					{@const isDisabled = type !== 'create' && !hasSelections}
+					<li class={`hover:text-white gradient-${gradient}-hover gradient-${gradient}-focus ${isDisabled ? 'opacity-50' : ''}`}>
 						<button
 							type="button"
 							onclick={(e) => handleOptionClick(e, type as ActionType)}
 							aria-label={label}
-							class={`btn flex w-full justify-between gap-2 gradient-${gradient} ${gradient}-hover ${gradient}-focus`}
+							disabled={isDisabled}
+							class={`btn flex w-full justify-between gap-2 gradient-${gradient} ${gradient}-hover ${gradient}-focus ${isDisabled ? 'cursor-not-allowed' : ''}`}
 						>
 							<iconify-icon {icon} width="24" class=""></iconify-icon>
-							<p class="w-full">{label}</p>
+							<p class="w-full">
+								{label}
+								{#if type !== 'create' && !hasSelections}
+									<span class="text-xs opacity-75">(select items first)</span>
+								{/if}
+							</p>
 						</button>
 					</li>
 				{/if}

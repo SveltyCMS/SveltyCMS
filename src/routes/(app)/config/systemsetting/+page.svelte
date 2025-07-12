@@ -1,3 +1,13 @@
+<!-- 
+@file src/routes/(app)/config/systemsetting/+page.svelte
+@description Main page for system settings.
+
+ENHANCEMENTS:
+- The `saveConfig` function now orchestrates a safer save process:
+  1. It first calls a new API endpoint to back up the current configuration.
+  2. Only on successful backup does it proceed to save the new configuration.
+  3. It provides clearer, step-by-step user feedback using toasts.
+-->
 <script lang="ts">
 	import { privateConfigCategories, publicConfigCategories } from '@root/config/guiConfig';
 
@@ -6,76 +16,73 @@
 
 	// Skeleton
 	import ModalEditSystem from './ModalEditSystem.svelte';
-	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalComponent, ModalSettings, ToastSettings } from '@skeletonlabs/skeleton';
+	import { getToastStore, getModalStore, type ToastSettings } from '@skeletonlabs/skeleton';
+	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
+	// --- ENHANCED SAVE PROCESS ---
 	async function saveConfig(configData: { [key: string]: any }, isPrivate: boolean) {
+		const toast = (message: string, background: string) => {
+			toastStore.trigger({ message, background } as ToastSettings);
+		};
+
 		try {
-			const response = await fetch('/api/save-config', {
+			// Step 1: Back up the current configuration
+			toast('Backing up current configuration...', 'variant-filled-secondary');
+			const backupResponse = await fetch('/api/config/backup', { method: 'POST' });
+
+			if (!backupResponse.ok) {
+				const backupResult = await backupResponse.json();
+				throw new Error(backupResult.message || 'Failed to create configuration backup.');
+			}
+			toast('Backup successful!', 'variant-filled-success');
+
+			// Step 2: Save the new configuration
+			toast('Saving new configuration...', 'variant-filled-secondary');
+			const saveResponse = await fetch('/api/save-config', {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ configData, isPrivate })
 			});
-			const result = await response.json();
-			if (result.success) {
-				toastStore.trigger({
-					message: 'Configuration saved successfully!',
-					background: 'bg-success'
-				} as ToastSettings);
 
-				// Trigger a restart API route
-				await triggerRestart();
-			} else {
-				toastStore.trigger({
-					message: 'Failed to save configuration.',
-					background: 'bg-error'
-				} as ToastSettings);
+			if (!saveResponse.ok) {
+				const saveResult = await saveResponse.json();
+				throw new Error(saveResult.message || 'Failed to save configuration.');
 			}
-		} catch (error) {
-			console.error('Error saving configuration:', error);
-			toastStore.trigger({
-				message: 'Error saving configuration.',
-				background: 'bg-error'
-			} as ToastSettings);
+			toast('Configuration saved successfully!', 'variant-filled-success');
+
+			// Step 3: Trigger server restart
+			await triggerRestart();
+		} catch (error: any) {
+			console.error('Error in save process:', error);
+			toast(error.message, 'variant-filled-error');
 		}
 	}
 
 	async function triggerRestart() {
+		const toast = (message: string, background: string) => {
+			toastStore.trigger({ message, background } as ToastSettings);
+		};
 		try {
-			const response = await fetch('/api/restart', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				}
-			});
+			toast('Triggering server restart...', 'variant-filled-secondary');
+			const response = await fetch('/api/restart', { method: 'POST' });
 			const result = await response.json();
+
 			if (result.success) {
-				toastStore.trigger({
-					message: 'Server restart triggered successfully!',
-					background: 'bg-success'
-				} as ToastSettings);
+				toast('Server restart triggered successfully!', 'variant-filled-success');
 			} else {
-				toastStore.trigger({
-					message: 'Failed to trigger server restart.',
-					background: 'bg-error'
-				} as ToastSettings);
+				throw new Error('Failed to trigger server restart.');
 			}
-		} catch (error) {
+		} catch (error: any) {
 			console.error('Error triggering server restart:', error);
-			toastStore.trigger({
-				message: 'Error triggering server restart.',
-				background: 'bg-error'
-			} as ToastSettings);
+			toast(error.message, 'variant-filled-error');
 		}
 	}
 
 	// Modal Edit System
-	function openModal(title, configCategory, description, isPrivate): void {
+	function openModal(title: string, configCategory: string, description: string, isPrivate: boolean): void {
 		const modalComponent: ModalComponent = {
 			ref: ModalEditSystem,
 			props: {
@@ -120,23 +127,25 @@
 <PageTitle name="System Settings" icon="uil:setting" showBackButton={true} backUrl="/config" />
 
 <div class="my-4">
-	<div class="wrapper !bg-error-500 text-center">
-		<p>Current in Development!!! For testing purposes only</p>
-		<p>Environment Data is only shown to role admin</p>
+	<div class="alert variant-soft-warning text-center">
+		<iconify-icon icon="mdi:alert" class="text-2xl" />
+		<div>
+			<p class="font-bold">Caution: For Administrators Only</p>
+			<p>Changes made here directly affect the server configuration and can cause instability if not done correctly.</p>
+		</div>
 	</div>
 </div>
 
-<div class="my-2 mt-2 grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3">
+<div class="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
 	{#each categories as { name, category, config, isPrivate }}
 		<button
-			onclick={() => openModal(name, category, config.description, isPrivate)}
+			on:click={() => openModal(name, category, config.description, isPrivate)}
 			aria-label={config.description}
-			class="variant-outline-primary btn flex items-center justify-center gap-2"
+			class="btn variant-outline-primary flex h-24 flex-col items-center justify-center gap-2 text-center"
 		>
-			<div class="grid grid-cols-1 justify-items-center">
-				<iconify-icon icon={config.icon} width="28" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-				<span class="capitalize">{name}</span>
-			</div>
+			<iconify-icon icon={config.icon} class="text-3xl text-tertiary-500 dark:text-primary-500"></iconify-icon>
+			<span class="capitalize">{name}</span>
 		</button>
 	{/each}
 </div>
+

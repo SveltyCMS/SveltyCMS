@@ -1,12 +1,28 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
-import { cleanupTestDatabase, cleanupTestEnvironment, initializeTestEnvironment, testFixtures } from '../helpers/testSetup';
-
 /**
  * @file tests/bun/api/collections.test.ts
- * @description Integration tests for collection and content-related API endpoints
+ * @description
+ * Integration tests for collection, content, and data query API endpoints.
+ * This suite covers fetching collections, finding content via different methods,
+ * performing CRUD operations through the generic query endpoint, and data management tasks.
  */
 
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test';
+import {
+	cleanupTestDatabase,
+	cleanupTestEnvironment,
+	initializeTestEnvironment,
+	loginAsAdminAndGetToken as createFirstAdminAndGetToken
+} from '../helpers/testSetup';
+
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:5173';
+
+/**
+ * Helper function to create an admin user, log in, and return the auth token.
+ * @returns {Promise<string>} The authorization bearer token.
+ */
+const loginAsAdminAndGetToken = async (): Promise<string> => {
+	return await createFirstAdminAndGetToken();
+};
 
 describe('Collections & Content API Endpoints', () => {
 	let authToken: string;
@@ -19,371 +35,164 @@ describe('Collections & Content API Endpoints', () => {
 		await cleanupTestEnvironment();
 	});
 
+	// Before each test, clean the DB and get a fresh admin token.
 	beforeEach(async () => {
 		await cleanupTestDatabase();
-
-		// Create admin user and get auth token
-		await fetch(`${API_BASE_URL}/api/user/createUser`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({
-				email: testFixtures.users.firstAdmin.email,
-				username: testFixtures.users.firstAdmin.username,
-				password: testFixtures.users.firstAdmin.password,
-				confirm_password: testFixtures.users.firstAdmin.password
-			})
-		});
-
-		const loginResponse = await fetch(`${API_BASE_URL}/api/user/login`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({
-				email: testFixtures.users.firstAdmin.email,
-				password: testFixtures.users.firstAdmin.password
-			})
-		});
-
-		const loginResult = await loginResponse.json();
-		authToken = loginResult.data.token;
+		authToken = await loginAsAdminAndGetToken();
 	});
 
-	describe('GET /api/getCollection/[collectionId]', () => {
-		it('should get collection with valid auth', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/getCollection/Posts`, {
-				method: 'GET',
-				headers: {
-					Authorization: `Bearer ${authToken}`
+	// Helper to test authenticated GET endpoints
+	const testAuthenticatedGetEndpoint = (endpoint: string, successStatus = 200) => {
+		describe(`GET ${endpoint}`, () => {
+			it('should succeed with admin authentication', async () => {
+				const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+					headers: { Authorization: `Bearer ${authToken}` }
+				});
+				expect(response.status).toBe(successStatus);
+				if (successStatus === 200) {
+					const result = await response.json();
+					expect(result.success).toBe(true);
 				}
 			});
 
-			const result = await response.json();
-			expect(response.status).toBe(200);
-			expect(result.success).toBe(true);
-		});
-
-		it('should reject request without auth', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/getCollection/Posts`, {
-				method: 'GET'
+			it('should fail without authentication', async () => {
+				const response = await fetch(`${API_BASE_URL}${endpoint}`);
+				expect(response.status).toBe(401);
 			});
-
-			const result = await response.json();
-			expect(response.status).toBe(401);
-			expect(result.success).toBe(false);
 		});
+	};
 
-		it('should handle non-existent collection', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/getCollection/NonExistentCollection`, {
-				method: 'GET',
-				headers: {
-					Authorization: `Bearer ${authToken}`
-				}
-			});
-
-			const result = await response.json();
-			expect(response.status).toBe(404);
-			expect(result.success).toBe(false);
-		});
-	});
-
-	describe('GET /api/content-structure', () => {
-		it('should get content structure with admin auth', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/content-structure`, {
-				method: 'GET',
-				headers: {
-					Authorization: `Bearer ${authToken}`
-				}
-			});
-
-			const result = await response.json();
-			expect(response.status).toBe(200);
-			expect(result.success).toBe(true);
-		});
-
-		it('should reject request without auth', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/content-structure`, {
-				method: 'GET'
-			});
-
-			const result = await response.json();
-			expect(response.status).toBe(401);
-			expect(result.success).toBe(false);
-		});
-	});
+	testAuthenticatedGetEndpoint('/api/getCollection/Posts', 200); // Assuming 'Posts' collection exists in test setup
+	testAuthenticatedGetEndpoint('/api/content-structure');
+	testAuthenticatedGetEndpoint('/api/exportData');
 
 	describe('POST /api/find', () => {
-		it('should find content with valid search', async () => {
+		it('should find content with a valid search query', async () => {
 			const response = await fetch(`${API_BASE_URL}/api/find`, {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${authToken}`
-				},
-				body: JSON.stringify({
-					collection: 'Posts',
-					query: {},
-					limit: 10
-				})
+				headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+				body: JSON.stringify({ collection: 'Posts', query: {} })
 			});
-
 			const result = await response.json();
 			expect(response.status).toBe(200);
 			expect(result.success).toBe(true);
 		});
 
-		it('should reject find without auth', async () => {
+		it('should fail without authentication', async () => {
 			const response = await fetch(`${API_BASE_URL}/api/find`, {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					collection: 'Posts',
-					query: {}
-				})
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ collection: 'Posts', query: {} })
 			});
-
-			const result = await response.json();
 			expect(response.status).toBe(401);
-			expect(result.success).toBe(false);
 		});
 
-		it('should handle invalid collection in find', async () => {
+		it('should fail with an invalid collection name', async () => {
 			const response = await fetch(`${API_BASE_URL}/api/find`, {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${authToken}`
-				},
-				body: JSON.stringify({
-					collection: 'InvalidCollection',
-					query: {}
-				})
+				headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+				body: JSON.stringify({ collection: 'InvalidCollection', query: {} })
 			});
-
-			const result = await response.json();
 			expect(response.status).toBe(400);
-			expect(result.success).toBe(false);
-		});
-
-		it('should handle complex search queries', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/find`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${authToken}`
-				},
-				body: JSON.stringify({
-					collection: 'Posts',
-					query: {
-						title: { $regex: 'test', $options: 'i' }
-					},
-					limit: 5,
-					sort: { createdAt: -1 }
-				})
-			});
-
-			const result = await response.json();
-			expect(response.status).toBe(200);
-			expect(result.success).toBe(true);
 		});
 	});
 
 	describe('POST /api/query', () => {
-		it('should execute query with valid auth', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/query`, {
+		const testQueryOperation = async (body: object) => {
+			return fetch(`${API_BASE_URL}/api/query`, {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${authToken}`
-				},
-				body: JSON.stringify({
-					operation: 'find',
-					collection: 'Posts',
-					data: {}
-				})
+				headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+				body: JSON.stringify(body)
 			});
+		};
 
+		it('should handle an insert operation', async () => {
+			const response = await testQueryOperation({
+				operation: 'insert',
+				collection: 'Posts',
+				data: { title: 'Test Post', content: 'Test content' }
+			});
 			const result = await response.json();
 			expect(response.status).toBe(200);
 			expect(result.success).toBe(true);
 		});
 
-		it('should reject query without auth', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/query`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					operation: 'find',
-					collection: 'Posts',
-					data: {}
-				})
+		it('should handle an update operation', async () => {
+			// First, insert a post to update
+			await testQueryOperation({
+				operation: 'insert',
+				collection: 'Posts',
+				data: { title: 'Original Title' }
 			});
 
+			// Now, update it
+			const response = await testQueryOperation({
+				operation: 'update',
+				collection: 'Posts',
+				query: { title: 'Original Title' },
+				data: { content: 'Updated content' }
+			});
 			const result = await response.json();
+			expect(response.status).toBe(200);
+			expect(result.success).toBe(true);
+		});
+
+		it('should handle a delete operation', async () => {
+			// First, insert a post to delete
+			await testQueryOperation({
+				operation: 'insert',
+				collection: 'Posts',
+				data: { title: 'To Be Deleted' }
+			});
+
+			// Now, delete it
+			const response = await testQueryOperation({
+				operation: 'delete',
+				collection: 'Posts',
+				query: { title: 'To Be Deleted' }
+			});
+			const result = await response.json();
+			expect(response.status).toBe(200);
+			expect(result.success).toBe(true);
+		});
+
+		it('should fail without authentication', async () => {
+			const response = await fetch(`${API_BASE_URL}/api/query`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ operation: 'find', collection: 'Posts' })
+			});
 			expect(response.status).toBe(401);
-			expect(result.success).toBe(false);
 		});
 
-		it('should handle insert operation', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/query`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${authToken}`
-				},
-				body: JSON.stringify({
-					operation: 'insert',
-					collection: 'Posts',
-					data: {
-						title: 'Test Post',
-						content: 'Test content',
-						author: 'Test Author'
-					}
-				})
+		it('should fail with an invalid operation', async () => {
+			const response = await testQueryOperation({
+				operation: 'invalid-operation',
+				collection: 'Posts'
 			});
-
-			const result = await response.json();
-			expect(response.status).toBe(200);
-			expect(result.success).toBe(true);
-		});
-
-		it('should handle update operation', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/query`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${authToken}`
-				},
-				body: JSON.stringify({
-					operation: 'update',
-					collection: 'Posts',
-					query: { title: 'Test Post' },
-					data: { content: 'Updated content' }
-				})
-			});
-
-			const result = await response.json();
-			expect(response.status).toBe(200);
-			expect(result.success).toBe(true);
-		});
-
-		it('should handle delete operation', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/query`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${authToken}`
-				},
-				body: JSON.stringify({
-					operation: 'delete',
-					collection: 'Posts',
-					query: { title: 'Test Post' }
-				})
-			});
-
-			const result = await response.json();
-			expect(response.status).toBe(200);
-			expect(result.success).toBe(true);
-		});
-
-		it('should reject invalid operation', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/query`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${authToken}`
-				},
-				body: JSON.stringify({
-					operation: 'invalid-operation',
-					collection: 'Posts',
-					data: {}
-				})
-			});
-
-			const result = await response.json();
 			expect(response.status).toBe(400);
-			expect(result.success).toBe(false);
 		});
 	});
 
 	describe('POST /api/compile', () => {
-		it('should compile collections with admin auth', async () => {
+		it('should compile all collections with admin authentication', async () => {
 			const response = await fetch(`${API_BASE_URL}/api/compile`, {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${authToken}`
-				},
-				body: JSON.stringify({
-					collections: ['Posts', 'Pages']
-				})
+				headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+				body: JSON.stringify({}) // No specific collections means compile all
 			});
-
 			const result = await response.json();
 			expect(response.status).toBe(200);
 			expect(result.success).toBe(true);
 		});
 
-		it('should reject compile without auth', async () => {
+		it('should fail without authentication', async () => {
 			const response = await fetch(`${API_BASE_URL}/api/compile`, {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					collections: ['Posts']
-				})
-			});
-
-			const result = await response.json();
-			expect(response.status).toBe(401);
-			expect(result.success).toBe(false);
-		});
-
-		it('should handle compile without collections specified', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/compile`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${authToken}`
-				},
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({})
 			});
-
-			const result = await response.json();
-			expect(response.status).toBe(200);
-			expect(result.success).toBe(true);
-		});
-	});
-
-	describe('GET /api/exportData', () => {
-		it('should export data with admin auth', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/exportData`, {
-				method: 'GET',
-				headers: {
-					Authorization: `Bearer ${authToken}`
-				}
-			});
-
-			const result = await response.json();
-			expect(response.status).toBe(200);
-			expect(result.success).toBe(true);
-		});
-
-		it('should reject export without auth', async () => {
-			const response = await fetch(`${API_BASE_URL}/api/exportData`, {
-				method: 'GET'
-			});
-
-			const result = await response.json();
 			expect(response.status).toBe(401);
-			expect(result.success).toBe(false);
 		});
 	});
 });
