@@ -21,7 +21,7 @@ export enum PermissionAction {
 // Permission Types
 export enum PermissionType {
 	COLLECTION = 'collection', // Collection-related permissions
-	USER = 'user', // User-related permissions
+	USER = 'User', // User-related permissions
 	CONFIGURATION = 'configuration', // Configuration-related permissions
 	SYSTEM = 'system', // System-wide permissions
 	API = 'api' // API-related permissions
@@ -100,6 +100,11 @@ export interface Token {
 	email: string; // Email associated with the token
 	expires: Date; // When the session expires (ISO date string)
 	type: string; // Type of the token (e.g., 'create', 'register', 'reset')
+	blocked?: boolean; // Whether the token is blocked
+	username?: string; // Username associated with the token
+	role?: string; // Role associated with the token
+	createdAt?: Date; // When the token was created
+	updatedAt?: Date; // When the token was last updated
 }
 
 // Session Store Interface

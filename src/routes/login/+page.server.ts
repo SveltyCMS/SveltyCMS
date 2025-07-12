@@ -117,7 +117,10 @@ async function shouldShowOAuth(isFirstUser: boolean, hasInviteToken: boolean): P
 		}
 
 		// Check for users who have signed in via OAuth (lastAuthMethod: 'google')
-		const users = await auth.listUsers(0, 1, { lastAuthMethod: 'google' });
+		const users = await auth.getAllUsers({
+			filter: { lastAuthMethod: 'google' },
+			limit: 1
+		});
 		const hasOAuthUsers = users && users.length > 0;
 
 		logger.debug(`OAuth users check: found ${users?.length || 0} users with lastAuthMethod 'google'`);
@@ -457,7 +460,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		let hasExistingOAuthUsers = false;
 		try {
 			if (auth) {
-				const oauthUsers = await auth.listUsers(0, 1, { lastAuthMethod: 'google' });
+				const oauthUsers = await auth.getAllUsers({
+					filter: { lastAuthMethod: 'google' },
+					limit: 1
+				});
 				hasExistingOAuthUsers = oauthUsers && oauthUsers.length > 0;
 			}
 		} catch (error) {
@@ -607,6 +613,13 @@ export const actions: Actions = {
 			return message(signUpForm, 'This invitation is invalid, expired, or has already been used.', { status: 403 });
 		}
 
+		// Debug: Log the token details to see what we're getting
+		logger.debug('Token validation result:', {
+			tokenData: tokenData.details,
+			role: tokenData.details.role,
+			email: tokenData.details.email
+		});
+
 		// Security: Check that the email in the form matches the one in the token record
 		if (email.toLowerCase() !== tokenData.details.email.toLowerCase()) {
 			return message(signUpForm, 'The provided email does not match the invitation.', { status: 403 });
@@ -618,7 +631,7 @@ export const actions: Actions = {
 				email,
 				username,
 				password,
-				role: tokenData.details.role, // Use the role from the token!
+				role: tokenData.details.role || 'user', // Use the role from the token with fallback to 'user'
 				isRegistered: true
 			});
 

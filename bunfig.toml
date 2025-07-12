@@ -1,0 +1,5 @@
+# bunfig.toml
+
+[test]
+# This tells Bun to run our mock file before executing any tests.
+preload = ["./tests/bun/helpers/sveltekit-mocks.ts"]

@@ -113,7 +113,7 @@
 <BaseWidget
 	{label}
 	{theme}
-	endpoint="/api/dashboard/last5media"
+	endpoint="/api/dashboard/media"
 	pollInterval={30000}
 	{icon}
 	{widgetId}

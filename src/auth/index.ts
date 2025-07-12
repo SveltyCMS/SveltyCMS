@@ -15,12 +15,12 @@
  * - Reduced file complexity from 10+ files to 3 core files
  */
 
-import { error } from '@sveltejs/kit';
-import { privateEnv } from '@root/config/private';
 import { dev } from '$app/environment';
+import { privateEnv } from '@root/config/private';
+import { error } from '@sveltejs/kit';
 
 import type { authDBInterface } from './authDBInterface';
-import type { User, Role, Permission, Session, Token, SessionStore } from './types';
+import type { Permission, Role, Session, SessionStore, Token, User } from './types';
 
 import { roles } from '@root/config/roles';
 import { corePermissions } from './corePermissions';
@@ -28,8 +28,8 @@ import { corePermissions } from './corePermissions';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-export type { User, Role, Permission, Session, Token, SessionStore, PermissionAction, PermissionType, RolePermissions } from './types';
 export { PermissionAction, PermissionType } from './types';
+export type { Permission, PermissionAction, PermissionType, Role, RolePermissions, Session, SessionStore, Token, User } from './types';
 
 // Import argon2 and related constants
 let argon2: typeof import('argon2') | null = null;
@@ -538,7 +538,7 @@ export class Auth {
 	}
 
 	// Update user attributes
-	async updateUserAttributes(user_id: string, attributes: Partial<User>): Promise<void> {
+	async updateUserAttributes(user_id: string, attributes: Partial<User>): Promise<User> {
 		try {
 			if (attributes.password && typeof window === 'undefined') {
 				if (!argon2) {
@@ -553,8 +553,9 @@ export class Auth {
 			if (attributes.email === null) {
 				attributes.email = undefined;
 			}
-			await this.db.updateUserAttributes(user_id, attributes);
+			const updatedUser = await this.db.updateUserAttributes(user_id, attributes);
 			logger.info(`User attributes updated for user ID: \x1b[34m${user_id}\x1b[0m`);
+			return updatedUser;
 		} catch (err) {
 			const errMsg = err instanceof Error ? err.message : String(err);
 			logger.error(`Failed to update user attributes: ${errMsg}`);

@@ -52,7 +52,8 @@
 		autocomplete = null as string | null,
 		onClick,
 		onInput,
-		onkeydown
+		onkeydown,
+		onPaste
 	} = $props<{
 		value?: string;
 		showPassword?: boolean;
@@ -75,6 +76,7 @@
 		onClick?: ((event: MouseEvent) => void) | undefined;
 		onInput?: ((value: string) => void) | undefined;
 		onkeydown?: ((event: KeyboardEvent) => void) | undefined;
+		onPaste?: ((event: ClipboardEvent) => void) | undefined;
 	}>();
 
 	// State
@@ -130,6 +132,7 @@
 		{autocomplete}
 		onclick={handleClick}
 		oninput={(e) => onInput?.(e.currentTarget.value)}
+		onpaste={onPaste}
 		{onkeydown}
 		type={effectiveType}
 		class="peer block w-full appearance-none border-0 border-b-2 border-surface-300 bg-transparent pl-6 text-{textColor} focus:border-tertiary-600 focus:outline-none focus:ring-0 disabled:opacity-50 dark:border-surface-400 dark:focus:border-tertiary-500 {inputClass}"

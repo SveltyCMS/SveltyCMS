@@ -15,11 +15,12 @@
  * - Robust error handling and logging.
  */
 
-import { json, error, type HttpError } from '@sveltejs/kit';
+import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 // Auth
-import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@root/src/auth';
+import { getCacheStore } from '@src/cacheStore/index.server';
+import { auth } from '@src/databases/db';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
@@ -35,7 +36,7 @@ export const POST: RequestHandler = async ({ cookies, locals }) => {
 
 		// Check if a user session actually exists for this request.
 		if (session_id && locals.user) {
-			// Revoke Google OAuth Token 
+			// Revoke Google OAuth Token
 			// The `googleRefreshToken` would have been stored during the OAuth login flow.
 			if (locals.user.googleRefreshToken) {
 				try {
@@ -66,7 +67,17 @@ export const POST: RequestHandler = async ({ cookies, locals }) => {
 			// --- END NEW LOGIC ---
 
 			// Destroy the session on the server-side (database, cache, etc.).
-			await auth.destroySession(session_id);
+			await auth.deleteSession(session_id);
+
+			// Also clear the session from cache
+			try {
+				const cacheStore = getCacheStore();
+				await cacheStore.delete(session_id);
+				logger.debug(`Session cache cleared for session: ${session_id}`);
+			} catch (cacheError) {
+				logger.warn(`Failed to clear session cache: ${cacheError}`);
+			}
+
 			logger.info('Session destroyed for user', {
 				email: locals.user.email,
 				sessionId: session_id
@@ -77,7 +88,12 @@ export const POST: RequestHandler = async ({ cookies, locals }) => {
 		}
 
 		// Clear the session cookie from the client's browser.
-		cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+		cookies.delete(SESSION_COOKIE_NAME, {
+			path: '/',
+			httpOnly: true,
+			secure: false, // Set to true in production with HTTPS
+			sameSite: 'lax'
+		});
 		logger.debug(`Session cookie deleted from client: ${SESSION_COOKIE_NAME}`);
 
 		// Clear the user from `locals` for the remainder of the current request lifecycle.
@@ -114,4 +130,3 @@ export const POST: RequestHandler = async ({ cookies, locals }) => {
 		);
 	}
 };
-

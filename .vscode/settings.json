@@ -17,5 +17,11 @@
 	"javascript.validate.enable": false,
 	"[typescript]": {
 		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	},
+	// Prevent auto-removal of imports/unused variables
+	"typescript.preferences.organizeImports": "off",
+	"editor.codeActionsOnSave": {
+		"source.organizeImports": "never",
+		"source.removeUnused": "never"
 	}
 }

@@ -35,7 +35,6 @@
 
 	Chart.register(LineController, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler);
 
-	// Components
 	import BaseWidget from '../BaseWidget.svelte';
 
 	// Props passed from +page.svelte, then to BaseWidget
@@ -99,7 +98,6 @@
 
 		if (!historicalLoad || !Array.isArray(historicalLoad.usage) || !Array.isArray(historicalLoad.timestamps)) {
 			if (chartInstance) {
-				// Clear chart if data becomes invalid
 				chartInstance.data.labels = [];
 				chartInstance.data.datasets[0].data = [];
 				chartInstance.update('none');
@@ -122,7 +120,6 @@
 		});
 
 		if (chartInstance) {
-			// Update existing chart
 			chartInstance.data.labels = formattedLabels;
 			chartInstance.data.datasets[0].data = plainCpuUsageHistory;
 			// Update colors if theme changed
@@ -372,8 +369,8 @@
 				</div>
 				{#if currentSize === '1/2' || currentSize === '3/4' || currentSize === 'full'}
 					<div class="flex justify-between text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">
-						<span>Cores: {fetchedData?.cpuInfo?.cores || 'N/A'}</span>
-						<span>Model: {fetchedData?.cpuInfo?.model?.split(' ').slice(0, 2).join(' ') || 'Unknown'}</span>
+						<span>Cores: {fetchedData?.cpuInfo?.cores?.count || 'N/A'}</span>
+						<span>Model: {fetchedData?.cpuInfo?.cores?.perCore?.[0]?.model?.split(' ').slice(0, 2).join(' ') || 'Unknown'}</span>
 					</div>
 				{/if}
 			</div>

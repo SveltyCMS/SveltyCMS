@@ -18,14 +18,14 @@
  * }
  */
 
-import { json, error, type HttpError } from '@sveltejs/kit';
+import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
+import { roles } from '@root/config/roles';
 import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
 import { hasPermissionByAction } from '@src/auth/permissions';
-import { roles } from '@root/config/roles';
 import { logger } from '@utils/logger.svelte';
-import { object, array, string, picklist, parse, type ValiError, minLength } from 'valibot';
+import { array, minLength, object, parse, picklist, string, type ValiError } from 'valibot';
 
 const batchUserActionSchema = object({
 	userIds: array(string([minLength(1, 'User ID cannot be empty.')])),
@@ -72,6 +72,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			affectedIds: userIds,
 			executedBy: locals.user?._id
 		});
+
+		// Invalidate admin cache since user data has changed
+		const { invalidateAdminCache } = await import('@src/hooks.server');
+		invalidateAdminCache('users');
 
 		return json({ success: true, message: successMessage });
 	} catch (err) {

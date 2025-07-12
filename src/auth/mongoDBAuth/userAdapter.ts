@@ -17,8 +17,8 @@
  * Usage:
  * Utilized by the auth system to manage user accounts in a MongoDB database
  */
-import mongoose, { Schema } from 'mongoose';
 import type { Model } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
 import { roles as configRoles } from '@root/config/roles';
 import { error } from '@sveltejs/kit';
@@ -28,8 +28,7 @@ import { getAllPermissions } from '../permissions';
 
 // Types
 import type { Permission, Role, User } from '..';
-import type { authDBInterface } from '../authDBInterface';
-import type { PaginationOption } from '../authDBInterface';
+import type { authDBInterface, PaginationOption } from '../authDBInterface';
 
 // System Logging
 import { logger } from '@utils/logger.svelte';
@@ -326,6 +325,42 @@ export class UserAdapter implements Partial<authDBInterface> {
 		}
 	}
 
+	// Block multiple users
+	async blockUsers(userIds: string[]): Promise<void> {
+		try {
+			await this.UserModel.updateMany(
+				{ _id: { $in: userIds } },
+				{
+					blocked: true,
+					lockoutUntil: new Date().toISOString() // Set lockoutUntil to current time
+				}
+			);
+			logger.info(`Users blocked: \x1b[34m${userIds.join(', ')}\x1b[0m`);
+		} catch (err) {
+			const message = `Error in UserAdapter.blockUsers: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { userIds });
+			throw error(500, message);
+		}
+	}
+
+	// Unblock multiple users
+	async unblockUsers(userIds: string[]): Promise<void> {
+		try {
+			await this.UserModel.updateMany(
+				{ _id: { $in: userIds } },
+				{
+					blocked: false,
+					lockoutUntil: null // Clear lockoutUntil
+				}
+			);
+			logger.info(`Users unblocked: \x1b[34m${userIds.join(', ')}\x1b[0m`);
+		} catch (err) {
+			const message = `Error in UserAdapter.unblockUsers: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { userIds });
+			throw error(500, message);
+		}
+	}
+
 	// Delete a user
 	async deleteUser(user_id: string): Promise<void> {
 		try {
@@ -334,6 +369,18 @@ export class UserAdapter implements Partial<authDBInterface> {
 		} catch (err) {
 			const message = `Error in UserAdapter.deleteUser: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, { user_id });
+			throw error(500, message);
+		}
+	}
+
+	// Delete multiple users
+	async deleteUsers(userIds: string[]): Promise<void> {
+		try {
+			await this.UserModel.deleteMany({ _id: { $in: userIds } });
+			logger.info(`Users deleted: \x1b[34m${userIds.join(', ')}\x1b[0m`);
+		} catch (err) {
+			const message = `Error in UserAdapter.deleteUsers: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { userIds });
 			throw error(500, message);
 		}
 	}

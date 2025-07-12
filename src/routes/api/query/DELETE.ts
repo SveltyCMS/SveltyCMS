@@ -36,7 +36,7 @@ import { logger } from '@utils/logger.svelte';
 export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {
 	const start = performance.now();
 	try {
-		logger.debug(`DELETE request received for schema: \x1b[34m${schema.id}\x1b[0m, user_id: \x1b[34m${user._id}\x1b[0m`);
+		logger.debug(`DELETE request received for schema: \x1b[34m${schema._id}\x1b[0m, user_id: \x1b[34m${user._id}\x1b[0m`);
 
 		// Ensure the database adapter is initialized
 

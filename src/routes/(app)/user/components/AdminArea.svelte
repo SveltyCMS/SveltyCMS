@@ -11,29 +11,26 @@
 	import { avatarSrc } from '@stores/store.svelte';
 
 	// Components
-	import Multibutton from './Multibutton.svelte';
-	import TableIcons from '@components/system/table/TableIcons.svelte';
-	import TableFilter from '@components/system/table/TableFilter.svelte';
+	import Loading from '@components/Loading.svelte';
+	import PermissionGuard from '@components/PermissionGuard.svelte';
+	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import Boolean from '@components/system/table/Boolean.svelte';
 	import Role from '@components/system/table/Role.svelte';
-	import Loading from '@components/Loading.svelte';
-	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
+	import TableFilter from '@components/system/table/TableFilter.svelte';
+	import TableIcons from '@components/system/table/TableIcons.svelte';
 	import TablePagination from '@components/system/table/TablePagination.svelte';
-	import PermissionGuard from '@components/PermissionGuard.svelte';
 	import ModalEditToken from './ModalEditToken.svelte';
-
+	import Multibutton from './Multibutton.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { Avatar } from '@skeletonlabs/skeleton';
-	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings } from '@skeletonlabs/skeleton';
-
+	import { Avatar, clipboard, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
 	// Svelte-dnd-action
-	import { flip } from 'svelte/animate';
-	import { dndzone } from 'svelte-dnd-action';
 	import { PermissionAction, PermissionType } from '@root/src/auth/types';
+	import { dndzone } from 'svelte-dnd-action';
+	import { flip } from 'svelte/animate';
 
 	// Types
 	interface UserData {
@@ -87,6 +84,18 @@
 	const toastStore = getToastStore();
 	const waitFilter = debounce(300);
 	const flipDurationMs = 300;
+
+	// Clipboard copy handler
+	function onClipboard(data: { action: string; response: any }) {
+		if (data.action === 'copy') {
+			toastStore.trigger({
+				message: 'User ID copied to clipboard',
+				background: 'variant-filled-success',
+				timeout: 2000,
+				classes: 'border-1 !rounded-md'
+			});
+		}
+	}
 
 	// Table header definitions
 	const tableHeadersUser = [
@@ -290,6 +299,99 @@
 		if (diffDays <= 90) return '90d';
 
 		return '90d'; // Max available option
+	}
+
+	// Toggle user blocked status - always show confirmation modal (like Multibutton)
+	async function toggleUserBlocked(user: UserData) {
+		if (!user._id) return;
+
+		// Prevent admins from blocking themselves
+		if (currentUser && user._id === currentUser._id) {
+			toastStore.trigger({
+				message: 'You cannot block your own account',
+				background: 'variant-filled-warning',
+				timeout: 3000,
+				classes: 'border-1 !rounded-md'
+			});
+			return;
+		}
+
+		const action = user.blocked ? 'unblock' : 'block';
+		const actionPastTense = user.blocked ? 'unblocked' : 'blocked';
+
+		// Always show confirmation modal (same logic as Multibutton) with enhanced styling using theme colors
+		const actionColor = user.blocked ? 'text-success-500' : 'text-error-500';
+		const actionWord = user.blocked ? 'Unblock' : 'Block';
+
+		const modalTitle = `Please Confirm User <span class="${actionColor} font-bold">${actionWord}</span>`;
+		const modalBody = user.blocked
+			? `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> user <span class="text-tertiary-500 font-medium">${user.email}</span>? This will allow them to access the system again.`
+			: `Are you sure you want to <span class="text-error-500 font-semibold">block</span> user <span class="text-tertiary-500 font-medium">${user.email}</span>? This will prevent them from accessing the system.`;
+
+		const modalSettings: ModalSettings = {
+			type: 'confirm',
+			title: modalTitle,
+			body: modalBody,
+			buttonTextConfirm: actionWord,
+			buttonTextCancel: 'Cancel',
+			// Custom button styling based on action
+			...(user.blocked
+				? { meta: { buttonConfirmClasses: 'variant-filled-warning' } }
+				: { meta: { buttonConfirmClasses: 'bg-pink-500 hover:bg-pink-600 text-white' } }),
+			response: async (confirmed: boolean) => {
+				if (confirmed) {
+					await performBlockAction(user, action, actionPastTense);
+				}
+			}
+		};
+		modalStore.trigger(modalSettings);
+	}
+
+	async function performBlockAction(user: UserData, action: string, actionPastTense: string) {
+		try {
+			const response = await fetch('/api/user/batch', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					userIds: [user._id],
+					action: action
+				})
+			});
+
+			const result = await response.json();
+
+			if (result.success) {
+				// Update the user in the data by creating a new adminData object to trigger reactivity
+				if (adminData) {
+					const updatedUsers = adminData.users.map((u: UserData) => (u._id === user._id ? { ...u, blocked: !u.blocked } : u));
+
+					// Create a new adminData object to trigger reactivity
+					adminData = {
+						...adminData,
+						users: updatedUsers
+					};
+				}
+
+				toastStore.trigger({
+					message: `User ${actionPastTense} successfully`,
+					background: 'variant-filled-success',
+					timeout: 3000,
+					classes: 'border-1 !rounded-md'
+				});
+			} else {
+				throw new Error(result.message || `Failed to ${action} user`);
+			}
+		} catch (err) {
+			const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+			toastStore.trigger({
+				message: `Failed to ${action} user: ${errorMessage}`,
+				background: 'variant-filled-error',
+				timeout: 5000,
+				classes: 'border-1 !rounded-md'
+			});
+		}
 	}
 
 	function handleDndConsider(event: any) {
@@ -566,7 +668,18 @@
 								{#each displayTableHeaders.filter((header) => header.visible) as header}
 									<td class="text-center">
 										{#if header.key === 'blocked'}
-											<Boolean value={!!row[header.key]} />
+											{#if showUserList}
+												<button
+													onclick={() => toggleUserBlocked(row as UserData)}
+													class="btn-sm cursor-pointer rounded-md p-1 transition-all duration-200 hover:scale-105 hover:bg-surface-200 hover:shadow-md dark:hover:bg-surface-600"
+													aria-label={row.blocked ? 'Click to unblock user' : 'Click to block user'}
+													title={row.blocked ? 'Click to unblock user' : 'Click to block user'}
+												>
+													<Boolean value={!!row[header.key]} />
+												</button>
+											{:else}
+												<Boolean value={!!row[header.key]} />
+											{/if}
 										{:else if showUserList && header.key === 'avatar'}
 											<!-- Use reactive avatarSrc for current user, otherwise use row data -->
 											<Avatar
@@ -575,6 +688,32 @@
 											/>
 										{:else if header.key === 'role'}
 											<Role value={row[header.key]} />
+										{:else if header.key === '_id'}
+											<!-- User ID with clipboard functionality -->
+											<div class="flex items-center justify-center gap-2">
+												<span class="font-mono text-sm">{row[header.key]}</span>
+												<button
+													use:clipboard={row[header.key]}
+													class="variant-ghost btn-icon btn-icon-sm hover:variant-filled-tertiary"
+													aria-label="Copy User ID"
+													title="Copy User ID to clipboard"
+												>
+													<iconify-icon icon="oui:copy-clipboard" class="" width="16"></iconify-icon>
+												</button>
+											</div>
+										{:else if header.key === 'token'}
+											<!-- Token with clipboard functionality -->
+											<div class="flex items-center justify-center gap-2">
+												<span class="max-w-[200px] truncate font-mono text-sm">{row[header.key]}</span>
+												<button
+													use:clipboard={row[header.key]}
+													class="variant-ghost btn-icon btn-icon-sm hover:variant-filled-tertiary"
+													aria-label="Copy Token"
+													title="Copy Token to clipboard"
+												>
+													<iconify-icon icon="oui:copy-clipboard" class="" width="16"></iconify-icon>
+												</button>
+											</div>
 										{:else if ['createdAt', 'updatedAt', 'lastAccess'].includes(header.key)}
 											{row[header.key] && row[header.key] !== null ? new Date(row[header.key]).toLocaleString() : '-'}
 										{:else if header.key === 'expires'}
