@@ -369,8 +369,8 @@
 				</div>
 				{#if currentSize === '1/2' || currentSize === '3/4' || currentSize === 'full'}
 					<div class="flex justify-between text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">
-						<span>Cores: {fetchedData?.cpuInfo?.cores || 'N/A'}</span>
-						<span>Model: {fetchedData?.cpuInfo?.model?.split(' ').slice(0, 2).join(' ') || 'Unknown'}</span>
+						<span>Cores: {fetchedData?.cpuInfo?.cores?.count || 'N/A'}</span>
+						<span>Model: {fetchedData?.cpuInfo?.cores?.perCore?.[0]?.model?.split(' ').slice(0, 2).join(' ') || 'Unknown'}</span>
 					</div>
 				{/if}
 			</div>

@@ -47,7 +47,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 						mediaFiles.push({
 							name: file,
 							size: stats.size,
-							modified: stats.mtime,
+							modified: stats.mtime.toISOString(),
 							type: ext.startsWith('.') ? ext.slice(1) : ext,
 							url: `/mediaFiles/${file}`
 						});
@@ -64,11 +64,10 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 				count: mediaFiles.length,
 				requestedBy: locals.user?._id
 			});
-
 			return json(mediaFiles.slice(0, limit));
 		} catch (dirError) {
-			// If mediaFiles directory doesn't exist or can't be read, return empty array
 			logger.warn('Could not read media directory:', dirError);
+			// Return empty array if directory cannot be read
 			return json([]);
 		}
 	} catch (err) {
