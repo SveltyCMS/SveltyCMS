@@ -244,7 +244,7 @@
 					<!-- Router Slot -->
 					<div
 						role="main"
-						class="relative h-full flex-grow overflow-y-auto overflow-x-hidden {uiStateManager.uiState.value.leftSidebar === 'full'
+						class="relative flex-grow overflow-x-hidden {uiStateManager.uiState.value.leftSidebar === 'full'
 							? 'mx-2'
 							: 'mx-1'} {$screenSize === 'LG' ? 'mb-2' : 'mb-16'}"
 					>

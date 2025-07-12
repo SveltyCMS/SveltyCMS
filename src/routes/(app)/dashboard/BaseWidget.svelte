@@ -346,49 +346,6 @@
 			<span class="truncate">{label}</span>
 		</h2>
 		<div class="flex items-center gap-2">
-			<!-- Size Menu -->
-			<div class="relative">
-				<button
-					onclick={() => (showSizeMenu = !showSizeMenu)}
-					class="text-text-400 btn-icon hover:text-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-400"
-					aria-label="Change widget size"
-					title="Change size"
-				>
-					<iconify-icon icon="mdi:resize" width="18"></iconify-icon>
-				</button>
-
-				{#if showSizeMenu}
-					<div
-						class="absolute right-0 top-full z-50 mt-2 w-48 rounded-lg border border-surface-200 bg-white shadow-lg dark:border-surface-700 dark:bg-surface-800"
-					>
-						<div class="p-2">
-							{#each availableSizes as size}
-								<button
-									onclick={() => {
-										handleSizeChange(size);
-										showSizeMenu = false;
-									}}
-									onmouseenter={() => (hoverPreviewSize = size)}
-									onmouseleave={() => (hoverPreviewSize = null)}
-									class="flex w-full items-center justify-between rounded px-3 py-2 text-sm hover:bg-surface-100 dark:hover:bg-surface-700 {currentSize ===
-									size
-										? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
-										: 'text-surface-700 dark:text-surface-300'}"
-								>
-									<div class="flex items-center gap-2">
-										<iconify-icon icon={getSizeIcon(size)} width="16"></iconify-icon>
-										<span>{getSizeLabel(size)}</span>
-									</div>
-									{#if currentSize === size}
-										<iconify-icon icon="mdi:check" width="16" class="text-primary-500"></iconify-icon>
-									{/if}
-								</button>
-							{/each}
-						</div>
-					</div>
-				{/if}
-			</div>
-
 			<button
 				onclick={onCloseRequest}
 				class="text-text-400 btn-icon hover:text-error-500 focus:outline-none focus:ring-2 focus:ring-error-400"

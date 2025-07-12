@@ -3,8 +3,8 @@
  * @description API endpoint for recent content data for dashboard widgets
  */
 
-import type { RequestHandler } from './$types';
 import { error, json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 
 // Auth
 import { roles } from '@root/config/roles';
@@ -39,17 +39,23 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 			// Extract recent content from collections
 			const recentContent = [];
-			for (const collection of contentStructure) {
-				if (collection.entries && Array.isArray(collection.entries)) {
-					for (const entry of collection.entries.slice(0, Math.ceil(limit / contentStructure.length))) {
-						recentContent.push({
-							id: entry.id || entry._id,
-							title: entry.title || entry.name || 'Untitled',
-							collection: collection.name,
-							createdAt: entry.createdAt || entry.created || new Date().toISOString(),
-							createdBy: entry.createdBy || entry.author || 'Unknown',
-							status: entry.status || 'published'
-						});
+
+			if (contentStructure && Array.isArray(contentStructure)) {
+				for (const collection of contentStructure) {
+					if (collection.entries && Array.isArray(collection.entries)) {
+						// Take a proportional amount from each collection, but at least 1
+						const itemsPerCollection = Math.max(1, Math.ceil(limit / contentStructure.length));
+
+						for (const entry of collection.entries.slice(0, itemsPerCollection)) {
+							recentContent.push({
+								id: entry.id || entry._id || `${collection.name}_${Math.random().toString(36).substr(2, 9)}`,
+								title: entry.title || entry.name || entry.label || 'Untitled',
+								collection: collection.name || collection.label || 'Unknown Collection',
+								createdAt: entry.createdAt || entry.created || entry.date || new Date().toISOString(),
+								createdBy: entry.createdBy || entry.author || entry.creator || 'Unknown',
+								status: entry.status || entry.state || 'published'
+							});
+						}
 					}
 				}
 			}
@@ -62,30 +68,11 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 				count: limitedContent.length,
 				requestedBy: locals.user?._id
 			});
-
 			return json(limitedContent);
 		} catch (contentError) {
 			logger.warn('Could not fetch content data:', contentError);
-			// Return mock data if content manager fails
-			const mockContent = [
-				{
-					id: '1',
-					title: 'Welcome Post',
-					collection: 'Posts',
-					createdAt: new Date().toISOString(),
-					createdBy: 'System',
-					status: 'published'
-				},
-				{
-					id: '2',
-					title: 'Getting Started',
-					collection: 'Pages',
-					createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-					createdBy: 'Admin',
-					status: 'draft'
-				}
-			];
-			return json(mockContent);
+			// Return empty array if content manager fails
+			return json([]);
 		}
 	} catch (err) {
 		const httpError = err as { status?: number; body?: { message?: string }; message?: string };
