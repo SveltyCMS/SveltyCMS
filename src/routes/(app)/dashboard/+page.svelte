@@ -847,8 +847,8 @@
 </script>
 
 <main
-	class="dashboard-container m-0 flex min-h-screen w-full flex-col bg-surface-100 p-0 text-neutral-900 dark:bg-surface-900 dark:text-neutral-100"
-	style="overflow-x: hidden; overflow-y: auto; touch-action: pan-y;"
+	class="dashboard-container m-0 flex w-full flex-col bg-surface-100 p-0 text-neutral-900 dark:bg-surface-900 dark:text-neutral-100"
+	style="overflow-x: hidden; touch-action: pan-y;"
 >
 	<header class="my-2 flex items-center justify-between gap-2 border-b border-surface-200 px-4 py-2 dark:border-surface-700">
 		<h1 class="sr-only">Dashboard</h1>
