@@ -228,7 +228,7 @@ This widget fetches and displays real-time disk usage data, including:
 <BaseWidget
 	{label}
 	{theme}
-	endpoint="/api/systemInfo?type=disk"
+	endpoint="/api/dashboard/systemInfo?type=disk"
 	pollInterval={10000}
 	{icon}
 	{widgetId}
@@ -244,7 +244,7 @@ This widget fetches and displays real-time disk usage data, including:
 	{onResizeCommitted}
 	{onCloseRequest}
 >
-	{#snippet children({ data: fetchedData })}
+	{#snippet children({ data: fetchedData }: { data: FetchedData | undefined })}
 		{#if fetchedData?.diskInfo?.root}
 			{@const diskInfo = fetchedData.diskInfo.root}
 			{@const totalGB = typeof diskInfo.totalGb === 'string' ? parseFloat(diskInfo.totalGb) : diskInfo.totalGb || 0}

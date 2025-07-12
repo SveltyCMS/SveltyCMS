@@ -40,12 +40,6 @@
 		expanded?: boolean;
 	}
 
-	interface RelationData {
-		_id: string;
-		display: string;
-		[key: string]: any;
-	}
-
 	let { field, expanded = $bindable(false) }: Props = $props();
 
 	const fieldName = getFieldName(field);
@@ -80,7 +74,7 @@
 					data = await extractData(fieldsData);
 				} else if (entryMode === 'choose') {
 					if (typeof value === 'string') {
-						data = await findById(value, relationCollection?.name || '');
+						data = await findById(value, String(relationCollection?.name || ''));
 					} else {
 						data = value;
 					}
@@ -144,7 +138,7 @@
 	async function openDropDown() {
 		if (!field) return;
 		const result = await getData({
-			contentTypes: field.relation as any,
+			collectionId: String(field.relation || ''),
 			limit: 10
 		});
 		dropDownData = result.entryList;
@@ -236,7 +230,7 @@
 	{:else if !expanded && showDropDown}
 		<DropDown {dropDownData} {field} bind:selected bind:showDropDown />
 	{:else}
-		<Fields fields={relationCollection?.fields} root={false} bind:fieldsData customData={relation_entry} />
+		<Fields fields={relationCollection?.fields} root={false} customData={relation_entry} />
 		{(($saveFunction.fn = save), '')}
 	{/if}
 

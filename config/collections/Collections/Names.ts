@@ -3,8 +3,8 @@
  * @description Collection file for Names
  */
 
-import widgets from '@widgets';
 import type { Schema } from '@root/src/content/types';
+import widgets from '@widgets';
 
 export const schema: Schema = {
 	// Collection Name comming from filename, so not needed
@@ -13,6 +13,7 @@ export const schema: Schema = {
 	icon: 'fluent:rename-28-filled',
 	status: 'unpublished',
 	revision: true,
+	revisionLimit: 2, // limit  number of revisions
 	livePreview: true,
 
 	// Defined Fields that are used in your Collection

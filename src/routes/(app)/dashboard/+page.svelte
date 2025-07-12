@@ -20,6 +20,7 @@
 
 	// Stores
 	import { systemPreferences } from '@stores/systemPreferences.svelte';
+	import { screenSize } from '@stores/screenSizeStore.svelte';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -30,6 +31,7 @@
 	import UserActivityWidget from './widgets/UserActivityWidget.svelte';
 	import SystemMessagesWidget from './widgets/SystemMessagesWidget.svelte';
 	import LogsWidget from './widgets/LogsWidget.svelte';
+	import Last5ContentWidget from './widgets/Last5ContentWidget.svelte';
 
 	// Types
 	type WidgetSize = '1/4' | '1/2' | '3/4' | 'full';
@@ -64,10 +66,12 @@
 	}
 
 	// Constants
-	const GRID_COLS = 4;
 	const ROW_HEIGHT = 400;
 	const GAP_SIZE = 16;
 	const HEADER_HEIGHT = 60;
+
+	// Derived grid properties
+	let gridCellWidth = $derived(0); // Will be calculated based on container width
 
 	// Props
 	interface Props {
@@ -91,6 +95,11 @@
 			component: MemoryWidget,
 			name: 'Memory Usage',
 			icon: 'mdi:memory'
+		},
+		Last5ContentWidget: {
+			component: Last5ContentWidget,
+			name: 'Last 5 Content',
+			icon: 'mdi:image-multiple'
 		},
 		Last5MediaWidget: {
 			component: Last5MediaWidget,
@@ -118,7 +127,7 @@
 	let items = $state<DashboardWidgetConfig[]>([]);
 	let dropdownOpen = $state(false);
 	let preferencesLoaded = $state(false);
-	let previewSizes = $state<Record<string, WidgetSize>>({});
+	let searchQuery = $state('');
 
 	// Drag and drop state
 	let dragState = $state<DragState>({
@@ -141,16 +150,116 @@
 	let gridUpdateCounter = $state(0);
 
 	// Derived values using Svelte's reactive system
-	let currentTheme = $derived($modeCurrent ? 'light' : 'dark');
+	let currentTheme = $derived($modeCurrent ? 'dark' : 'light') as 'light' | 'dark';
 	let availableWidgets = $derived(Object.keys(widgetComponentRegistry).filter((name) => !items.some((item) => item.component === name)));
 	let canAddMoreWidgets = $derived(availableWidgets.length > 0);
+	let filteredWidgets = $derived(
+		availableWidgets
+			.filter((componentName) => {
+				const widgetInfo = widgetComponentRegistry[componentName as keyof typeof widgetComponentRegistry];
+				return widgetInfo.name.toLowerCase().includes(searchQuery.toLowerCase()) || componentName.toLowerCase().includes(searchQuery.toLowerCase());
+			})
+			.sort((a, b) => {
+				const nameA = widgetComponentRegistry[a as keyof typeof widgetComponentRegistry].name;
+				const nameB = widgetComponentRegistry[b as keyof typeof widgetComponentRegistry].name;
+				return nameA.localeCompare(nameB);
+			})
+	);
+
+	// Track the current screen size
+	let currentScreenSize = $screenSize;
 
 	// UI state for error and layout switching hint
 	let loadError = $state<string | null>(null);
+	let layoutHint = $state<string | null>(null);
 
 	// Helper: Validate widgets
-	function validateWidgets(widgets: any[]): DashboardWidgetConfig[] {
-		return (widgets || []).filter((w) => w && w.id && w.component && w.size && typeof w.gridPosition === 'number');
+	function validateWidgets(widgets: any): DashboardWidgetConfig[] {
+		// Ensure widgets is an array before calling filter
+		const widgetsArray = Array.isArray(widgets) ? widgets : [];
+		return widgetsArray.filter((w) => w && w.id && w.component && w.size && typeof w.gridPosition === 'number');
+	}
+
+	// Watch for screen size changes and switch layout if a saved layout exists
+	$effect(() => {
+		const prefsState = $systemPreferences;
+		// Since the API returns a simple array of preferences, we'll use that directly
+		const widgetsForNewSize = validateWidgets(prefsState?.preferences || []);
+		if (preferencesLoaded && currentScreenSize === undefined) {
+			// First load: use the loaded preferences
+			if (widgetsForNewSize.length > 0) {
+				layoutHint = null;
+				items = widgetsForNewSize.map((existingWidget, index) => {
+					const componentInfo = widgetComponentRegistry[existingWidget.component as keyof typeof widgetComponentRegistry];
+					let defaultSize: WidgetSize = '1/4';
+					if (existingWidget.component === 'LogsWidget') defaultSize = '1/2';
+					else {
+						if (index === 1) defaultSize = '1/2';
+						if (index === 2) defaultSize = '3/4';
+						if (index === 3) defaultSize = 'full';
+					}
+					return {
+						id: existingWidget.id || crypto.randomUUID(),
+						component: existingWidget.component,
+						label: existingWidget.label || componentInfo?.name || 'Unknown Widget',
+						icon: existingWidget.icon || componentInfo?.icon || 'mdi:help-circle',
+						size: (existingWidget as any).size || defaultSize,
+						gridPosition: (existingWidget as any).gridPosition || index
+					};
+				});
+				items = recalculateGridPositions();
+				currentScreenSize = $screenSize;
+			}
+		} else if (preferencesLoaded && $screenSize !== currentScreenSize) {
+			// For now, we'll use the same layout for all screen sizes
+			// In the future, we can implement screen-size-specific layouts
+			currentScreenSize = $screenSize;
+			layoutHint = `Layout updated for ${$screenSize}`;
+			setTimeout(() => {
+				layoutHint = null;
+			}, 3000);
+		}
+	});
+
+	// Utility functions with improved type safety
+	function getColumnSpan(size: WidgetSize): number {
+		const spanMap: Record<WidgetSize, number> = {
+			'1/4': 1,
+			'1/2': 2,
+			'3/4': 3,
+			full: 4
+		};
+		return spanMap[size] || 1;
+	}
+
+	function getAvailableSizes(componentName?: string): WidgetSize[] {
+		if (componentName === 'LogsWidget') {
+			return ['1/2', '3/4', 'full'];
+		}
+		return ['1/4', '1/2', '3/4', 'full'];
+	}
+
+	// Grid calculation functions
+	function recalculateGridPositions(): DashboardWidgetConfig[] {
+		const newItems = [...items];
+		let currentRow = 0;
+		let currentCol = 0;
+
+		newItems.forEach((item) => {
+			const span = getColumnSpan(item.size);
+
+			if (currentCol + span <= 4) {
+				item.gridPosition = currentRow * 4 + currentCol;
+				currentCol += span;
+			} else {
+				currentRow++;
+				currentCol = 0;
+				item.gridPosition = currentRow * 4 + currentCol;
+				currentCol += span;
+			}
+		});
+
+		return newItems;
 	}
 
 	// Event handling functions with improved error handling
@@ -380,46 +489,6 @@
 		items = recalculateGridPositions();
 		gridUpdateCounter++;
 		saveLayout();
-
-		// Clear preview size when resize is complete
-		previewSizes = { ...previewSizes };
-		delete previewSizes[widgetId];
-	}
-
-	function handlePreviewSizeChange(widgetId: string, previewSize: WidgetSize) {
-		const resizingIndex = items.findIndex((item) => item.id === widgetId);
-
-		if (resizingIndex === -1) return;
-
-		// Check if this is clearing the preview (previewSize matches current size)
-		const currentItem = items[resizingIndex];
-		if (previewSize === currentItem.size) {
-			// Clear preview and restore original positions
-			previewSizes = { ...previewSizes };
-			delete previewSizes[widgetId];
-			items = recalculateGridPositions();
-		} else {
-			// Update preview size
-			previewSizes = { ...previewSizes, [widgetId]: previewSize };
-
-			// Recalculate grid positions with the preview size
-			const newItems = [...items];
-			const originalSize = newItems[resizingIndex].size;
-			newItems[resizingIndex] = { ...newItems[resizingIndex], size: previewSize };
-
-			// Recalculate grid positions
-			const recalculatedItems = recalculateGridPositionsWithItems(newItems);
-
-			// Update items with new positions but keep original sizes
-			items = recalculatedItems.map((item, index) => {
-				if (item.id === widgetId) {
-					return { ...item, size: originalSize }; // Keep original size for the actual widget
-				}
-				return item;
-			});
-		}
-
-		gridUpdateCounter++;
 	}
 
 	function removeWidget(id: string) {
@@ -452,6 +521,7 @@
 		items = recalculateGridPositions();
 		saveLayout();
 		dropdownOpen = false;
+		searchQuery = ''; // Reset search when adding widget
 	}
 
 	// Keyboard navigation functions
@@ -665,141 +735,95 @@
 		keyboardState.selectedIndex = targetIndex;
 	}
 
-	// Utility functions
-	function getColumnSpan(size: WidgetSize): number {
-		const spanMap: Record<WidgetSize, number> = {
-			'1/4': 1,
-			'1/2': 2,
-			'3/4': 3,
-			full: 4
-		};
-		return spanMap[size] || 1;
-	}
-
-	function getAvailableSizes(componentName?: string): WidgetSize[] {
-		if (componentName === 'LogsWidget') {
-			return ['1/2', '3/4', 'full'];
-		}
-		return ['1/4', '1/2', '3/4', 'full'];
-	}
-
-	function recalculateGridPositions(): DashboardWidgetConfig[] {
-		return recalculateGridPositionsWithItems(items);
-	}
-
-	function recalculateGridPositionsWithItems(itemsToProcess: DashboardWidgetConfig[]): DashboardWidgetConfig[] {
-		const newItems = [...itemsToProcess];
-		const grid = Array(20).fill(null); // 20 rows should be enough
-		let maxRow = 0;
-
-		// Place each widget in the grid
-		newItems.forEach((item) => {
-			const span = getColumnSpan(item.size);
-			let placed = false;
-			let row = 0;
-			let col = 0;
-
-			// Find the first available position
-			while (!placed && row < 20) {
-				col = 0;
-				while (col + span <= 4 && !placed) {
-					// Check if this position and the next columns are available
-					let canPlace = true;
-					for (let i = 0; i < span; i++) {
-						if (grid[row * 4 + col + i] !== null) {
-							canPlace = false;
-							break;
-						}
-					}
-
-					if (canPlace) {
-						// Place the widget
-						for (let i = 0; i < span; i++) {
-							grid[row * 4 + col + i] = item.id;
-						}
-						item.gridPosition = row * 4 + col;
-						placed = true;
-						maxRow = Math.max(maxRow, row);
-					} else {
-						col++;
-					}
-				}
-				if (!placed) row++;
-			}
-
-			// If we couldn't place it, put it at the end
-			if (!placed) {
-				item.gridPosition = (maxRow + 1) * 4;
-				maxRow++;
-			}
-		});
-
-		return newItems;
-	}
-
 	// Lifecycle and data management
-	onMount(async () => {
-		try {
-			await systemPreferences.loadPreferences(pageData.user.id);
+	onMount(() => {
+		const loadData = async () => {
+			try {
+				await systemPreferences.loadPreferences(pageData.user.id);
+				const prefsState = $systemPreferences;
+				const loadedWidgets = validateWidgets(prefsState?.preferences || []);
+				items = loadedWidgets.map((existingWidget, index) => {
+					const componentInfo = widgetComponentRegistry[existingWidget.component as keyof typeof widgetComponentRegistry];
+					let defaultSize: WidgetSize = '1/4';
+					if (existingWidget.component === 'LogsWidget') defaultSize = '1/2';
+					else {
+						if (index === 1) defaultSize = '1/2';
+						if (index === 2) defaultSize = '3/4';
+						if (index === 3) defaultSize = 'full';
+					}
+					return {
+						id: existingWidget.id || crypto.randomUUID(),
+						component: existingWidget.component,
+						label: existingWidget.label || componentInfo?.name || 'Unknown Widget',
+						icon: existingWidget.icon || componentInfo?.icon || 'mdi:help-circle',
+						size: (existingWidget as any).size || defaultSize,
+						gridPosition: (existingWidget as any).gridPosition || index
+					};
+				});
+				items = recalculateGridPositions();
+				loadError = null;
+			} catch (error) {
+				items = [];
+				loadError = 'Failed to load dashboard preferences. Please try again.';
+			}
+			preferencesLoaded = true;
+		};
 
-			// Get the current state from the store
-			const currentState = systemPreferences.getState();
+		loadData();
 
-			const loadedWidgets = validateWidgets(currentState?.preferences || []);
-			items = loadedWidgets.map((existingWidget, index) => {
-				const componentInfo = widgetComponentRegistry[existingWidget.component as keyof typeof widgetComponentRegistry];
-				let defaultSize: WidgetSize = '1/4';
-				if (existingWidget.component === 'LogsWidget') defaultSize = '1/2';
-				else {
-					if (index === 1) defaultSize = '1/2';
-					if (index === 2) defaultSize = '3/4';
-					if (index === 3) defaultSize = 'full';
-				}
-				return {
-					id: existingWidget.id || crypto.randomUUID(),
-					component: existingWidget.component,
-					label: existingWidget.label || componentInfo?.name || 'Unknown Widget',
-					icon: existingWidget.icon || componentInfo?.icon || 'mdi:help-circle',
-					size: existingWidget.size || defaultSize,
-					gridPosition: index
-				};
-			});
-			items = recalculateGridPositions();
-			loadError = null;
-		} catch (error) {
-			console.error('Error loading preferences:', error);
-			loadError = 'Failed to load dashboard preferences. Please try again.';
-		}
-		preferencesLoaded = true;
 		document.addEventListener('keydown', handleKeyDown);
+		document.addEventListener('click', handleClickOutside);
 
 		return () => {
 			document.removeEventListener('keydown', handleKeyDown);
+			document.removeEventListener('click', handleClickOutside);
 			removeGlobalDragListeners();
 		};
 	});
 
+	// Handle clicking outside dropdown to close it
+	function handleClickOutside(event: MouseEvent) {
+		if (dropdownOpen) {
+			const dropdown = document.querySelector('.widget-dropdown');
+			const headerButton = document.querySelector('.widget-dropdown-button');
+			const emptyStateButton = document.querySelector('.empty-state-add-button');
+
+			if (
+				dropdown &&
+				!dropdown.contains(event.target as Node) &&
+				(!headerButton || !headerButton.contains(event.target as Node)) &&
+				(!emptyStateButton || !emptyStateButton.contains(event.target as Node))
+			) {
+				dropdownOpen = false;
+				searchQuery = '';
+			}
+		}
+	}
+
 	async function saveLayout() {
 		try {
 			// Convert DashboardWidgetConfig to WidgetPreference format
-			const widgetPreferences = items.map((item) => ({
-				id: item.id,
-				component: item.component,
-				label: item.label,
-				icon: item.icon,
-				size: item.size,
-				gridPosition: item.gridPosition,
-				x: 0,
-				y: 0,
-				w: getColumnSpan(item.size),
-				h: 1,
-				movable: true,
-				resizable: true
-			}));
+			const widgetPreferences = items.map(
+				(item) =>
+					({
+						id: item.id,
+						component: item.component,
+						label: item.label,
+						icon: item.icon,
+						x: 0,
+						y: 0,
+						w: getColumnSpan(item.size),
+						h: 1,
+						movable: true,
+						resizable: true,
+						// Store our custom properties as part of the object
+						size: item.size,
+						gridPosition: item.gridPosition
+					}) as any
+			);
+
 			await systemPreferences.setPreference(pageData.user.id, widgetPreferences);
-		} catch (error) {
-			console.error('Failed to save layout:', error);
-		}
+		} catch (error) {}
 	}
 </script>
 
@@ -807,9 +831,11 @@
 	class="dashboard-container m-0 flex min-h-screen w-full flex-col bg-surface-100 p-0 text-neutral-900 dark:bg-surface-900 dark:text-neutral-100"
 	style="overflow-x: hidden; overflow-y: auto; touch-action: pan-y;"
 >
-	<header class="my-2 flex items-center justify-between gap-2 border-b border-surface-200 px-4 py-2 dark:border-surface-700">
-		<h1 class="sr-only">Dashboard</h1>
-		<PageTitle name="Dashboard" icon="bi:bar-chart-line" />
+	<header class="flex items-center justify-between gap-2">
+		<div class="">
+			<PageTitle name="Dashboard" icon="bi:bar-chart-line" />
+		</div>
+
 		<div class="flex items-center gap-2">
 			{#if keyboardState.mode}
 				<div
@@ -822,48 +848,105 @@
 			{#if canAddMoreWidgets}
 				<div class="relative">
 					<button
-						onclick={() => (dropdownOpen = !dropdownOpen)}
+						onclick={() => {
+							dropdownOpen = !dropdownOpen;
+							if (dropdownOpen) {
+								// Focus search input when dropdown opens
+								setTimeout(() => {
+									const searchInput = document.getElementById('widget-search');
+									if (searchInput) searchInput.focus();
+								}, 10);
+							} else {
+								searchQuery = ''; // Reset search when closing
+							}
+						}}
 						type="button"
 						aria-haspopup="true"
 						aria-expanded={dropdownOpen}
-						class="variant-filled-tertiary btn gap-2 !text-white dark:variant-filled-primary"
+						class="widget-dropdown-button variant-filled-tertiary {$screenSize === 'SM' || $screenSize === 'XS'
+							? 'btn-icon '
+							: 'btn gap-2 rounded-full'} !text-white dark:variant-filled-primary"
+						title="Add Widget"
 					>
 						<iconify-icon icon="carbon:add-filled" width="20"></iconify-icon>
-						Add Widget
+						{#if $screenSize !== 'SM' && $screenSize !== 'XS'}
+							<span>Add Widget</span>
+						{/if}
 					</button>
 					{#if dropdownOpen}
 						<div
-							class="absolute right-0 z-20 mt-2 w-56 origin-top-right rounded-md border border-gray-300 bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:border-gray-700 dark:bg-gray-800"
+							class="widget-dropdown absolute right-0 z-20 mt-2 w-72 origin-top-right rounded-md border border-gray-300 bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:border-gray-700 dark:bg-gray-800"
 							role="menu"
 						>
-							<div class="py-1" role="none">
-								{#each availableWidgets as componentName}
-									{@const widgetInfo = widgetComponentRegistry[componentName as keyof typeof widgetComponentRegistry]}
-									<button
-										onclick={() => addNewWidget(componentName)}
-										type="button"
-										class="flex w-full items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:text-white"
-										role="menuitem"
-									>
-										<iconify-icon icon={widgetInfo.icon} width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-										{widgetInfo.name}
-									</button>
-								{/each}
+							<!-- Search input -->
+							<div class="border-b border-gray-200 p-3 dark:border-gray-600">
+								<div class="relative">
+									<iconify-icon icon="mdi:magnify" width="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
+									></iconify-icon>
+									<input
+										id="widget-search"
+										type="text"
+										placeholder="Search widgets..."
+										bind:value={searchQuery}
+										class="w-full rounded-md border border-gray-300 bg-white py-2 pl-10 pr-4 text-sm text-gray-900 placeholder-gray-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 dark:focus:border-primary-400 dark:focus:ring-primary-400"
+										onkeydown={(e) => {
+											if (e.key === 'Escape') {
+												dropdownOpen = false;
+												searchQuery = '';
+											} else if (e.key === 'Enter' && filteredWidgets.length > 0) {
+												addNewWidget(filteredWidgets[0]);
+											}
+										}}
+									/>
+								</div>
+							</div>
+
+							<!-- Widget list -->
+							<div class="max-h-64 overflow-y-auto py-1" role="none">
+								{#if filteredWidgets.length === 0}
+									<div class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+										{searchQuery ? 'No widgets found matching your search.' : 'No widgets available.'}
+									</div>
+								{:else}
+									{#each filteredWidgets as componentName}
+										{@const widgetInfo = widgetComponentRegistry[componentName as keyof typeof widgetComponentRegistry]}
+										<button
+											onclick={() => addNewWidget(componentName)}
+											type="button"
+											class="flex w-full items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:text-white"
+											role="menuitem"
+										>
+											<iconify-icon icon={widgetInfo.icon} width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+											<span class="truncate">{widgetInfo.name}</span>
+										</button>
+									{/each}
+								{/if}
 							</div>
 						</div>
 					{/if}
 				</div>
 			{/if}
-			<button class="variant-outline-warning btn" onclick={resetGrid}>Reset Layout</button>
+			<button
+				class="variant-outline-warning {$screenSize === 'SM' || $screenSize === 'XS' ? 'btn-icon' : 'btn'}"
+				onclick={resetGrid}
+				title="Reset Layout"
+			>
+				<iconify-icon icon="mdi:refresh" width="16"></iconify-icon>
+				{#if $screenSize !== 'SM' && $screenSize !== 'XS'}
+					<span class="ml-2">Reset Layout</span>
+				{/if}
+			</button>
 			<button
 				onclick={() => (keyboardState.mode = !keyboardState.mode)}
-				class="variant-outline-primary btn gap-2 {keyboardState.mode
+				class="variant-outline-primary {$screenSize === 'SM' || $screenSize === 'XS' ? 'btn-icon' : 'btn gap-2'} {keyboardState.mode
 					? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
 					: ''}"
 				title="Toggle keyboard navigation mode"
 			>
 				<iconify-icon icon="mdi:keyboard" width="16"></iconify-icon>
-				Keyboard
+				{#if $screenSize !== 'SM' && $screenSize !== 'XS'}
+					<span>Keyboard</span>
+				{/if}
 			</button>
 			<button onclick={() => history.back()} aria-label="Back" class="variant-ghost-surface btn-icon">
 				<iconify-icon icon="ri:arrow-left-line" width="20"></iconify-icon>
@@ -874,6 +957,12 @@
 				<iconify-icon icon="mdi:alert-circle" width="20"></iconify-icon>
 				<span>{loadError}</span>
 				<button class="btn-xs variant-outline-error btn ml-auto" onclick={() => location.reload()}>Retry</button>
+			</div>
+		{/if}
+		{#if layoutHint}
+			<div class="bg-info-100 text-info-700 dark:bg-info-900 dark:text-info-200 flex w-full items-center gap-2 rounded p-2">
+				<iconify-icon icon="mdi:monitor-dashboard" width="20"></iconify-icon>
+				<span>{layoutHint}</span>
 			</div>
 		{/if}
 	</header>
@@ -914,7 +1003,7 @@
 			</div>
 		{/if}
 
-		<section class="w-full px-1 py-4">
+		<section class="w-full py-4">
 			{#if !preferencesLoaded}
 				<div class="flex h-full items-center justify-center text-lg text-gray-500" role="status" aria-live="polite">Loading preferences...</div>
 			{:else if items.length > 0}
@@ -926,14 +1015,13 @@
 				>
 					{#each items as item, index (item.id)}
 						{@const SvelteComponent = widgetComponentRegistry[item.component as keyof typeof widgetComponentRegistry]?.component}
-						{@const effectiveSize = previewSizes[item.id] || item.size}
-						{@const columnSpan = getColumnSpan(effectiveSize)}
+						{@const columnSpan = getColumnSpan(item.size)}
 
 						<article
-							class="widget-container grid-span-{columnSpan} group relative select-none overflow-hidden rounded-lg transition-all duration-200 ease-in-out {keyboardState.mode &&
+							class="widget-container grid-span-{columnSpan} group relative select-none transition-all duration-200 ease-in-out {keyboardState.mode &&
 							keyboardState.selectedIndex === index
-								? 'ring-1 ring-primary-500'
-								: ''} {dragState.isActive && keyboardState.dropTarget === index ? 'ring-1 ring-success-500' : ''}"
+								? 'ring-2 ring-primary-500 ring-offset-2'
+								: ''} {dragState.isActive && keyboardState.dropTarget === index ? 'ring-2 ring-success-500 ring-offset-2' : ''}"
 							data-widget-id={item.id}
 							data-widget-size={item.size}
 							data-column-span={columnSpan}
@@ -961,15 +1049,15 @@
 									icon={item.icon}
 									theme={currentTheme}
 									widgetId={item.id}
-									currentSize={item.size}
-									availableSizes={getAvailableSizes(item.component)}
+									currentSize={item.size as any}
+									availableSizes={getAvailableSizes(item.component) as any}
 									onSizeChange={(newSize) => resizeWidget(item.id, newSize)}
-									onPreviewSizeChange={(previewSize) => handlePreviewSizeChange(item.id, previewSize)}
+									{gridCellWidth}
 									{ROW_HEIGHT}
 									{GAP_SIZE}
 									onCloseRequest={() => removeWidget(item.id)}
 									draggable={true}
-									onDragStart={(event, dragItem, element) => handleDragStart(event, item, element)}
+									onDragStart={(event, _dragItem, element) => handleDragStart(event, item, element)}
 								/>
 							{:else}
 								<div
@@ -1008,13 +1096,27 @@
 							class="mb-6 text-primary-400 drop-shadow-lg dark:text-primary-500"
 							aria-hidden="true"
 						></iconify-icon>
-						<p class="mb-2 text-2xl font-bold text-primary-700 dark:text-primary-200">Your Dashboard is Empty</p>
+						<p class="font-display mb-2 text-2xl font-bold">Your Dashboard is Empty</p>
 						<p class="mb-6 text-base text-surface-600 dark:text-surface-300">
 							Click below to add your first widget and start personalizing your dashboard experience.
 						</p>
 						<button
-							class="btn rounded-full bg-primary-500 px-6 py-3 text-lg font-semibold text-white shadow-lg transition-all duration-150 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-400 dark:bg-primary-600 dark:hover:bg-primary-500"
-							onclick={() => (dropdownOpen = true)}
+							class="empty-state-add-button btn rounded-full bg-primary-500 px-6 py-3 text-lg font-semibold text-white shadow-lg transition-all duration-150 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-400 dark:bg-primary-600 dark:hover:bg-primary-500"
+							onclick={() => {
+								dropdownOpen = !dropdownOpen;
+								if (dropdownOpen) {
+									// Focus search input when dropdown opens
+									setTimeout(() => {
+										const searchInput = document.getElementById('widget-search');
+										if (searchInput) searchInput.focus();
+									}, 10);
+								} else {
+									searchQuery = ''; // Reset search when closing
+								}
+							}}
+							type="button"
+							aria-haspopup="true"
+							aria-expanded={dropdownOpen}
 							aria-label="Add widget"
 						>
 							<iconify-icon icon="mdi:plus" width="22" class="mr-2" aria-hidden="true"></iconify-icon>

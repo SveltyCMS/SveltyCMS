@@ -48,8 +48,8 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 		const hasPermission = hasPermissionByAction(
 			locals.user,
 			'update', // The action being performed
-			'user',   // The context type
-			'any',    // The scope
+			'user', // The context type
+			'any', // The scope
 			locals.roles && locals.roles.length > 0 ? locals.roles : roles
 		);
 
@@ -72,7 +72,7 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 
 		// If a new role is provided, validate it exists.
 		if (newTokenData.role) {
-			const roleExists = roles.some(r => r._id === newTokenData.role);
+			const roleExists = roles.some((r) => r._id === newTokenData.role);
 			if (!roleExists) {
 				throw error(400, 'The provided role ID is invalid.');
 			}
@@ -82,7 +82,10 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 		// If a new expiration is provided, calculate the new Date object.
 		if (newTokenData.expires) {
 			const expirationInSeconds: Record<string, number> = {
-				'2 hrs': 7200, '12 hrs': 43200, '2 days': 172800, '1 week': 604800
+				'2 hrs': 7200,
+				'12 hrs': 43200,
+				'2 days': 172800,
+				'1 week': 604800
 			};
 			const seconds = expirationInSeconds[newTokenData.expires];
 			dataToUpdate.expires = new Date(Date.now() + seconds * 1000);

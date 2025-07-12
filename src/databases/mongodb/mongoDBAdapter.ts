@@ -34,6 +34,11 @@ import { v4 as uuidv4 } from 'uuid';
 import type { SystemPreferences } from '@stores/systemPreferences.svelte';
 import type { Unsubscriber } from 'svelte/store';
 
+// Types
+import type { CollectionConfig } from '@src/content/types';
+import type { MediaType } from '@utils/media/mediaModels';
+import type { ContentStructureNode as ContentNode } from './models/contentStructure';
+
 // Database Models
 import { ContentStructureModel, registerContentStructureDiscriminators } from './models/contentStructure';
 import { DraftModel } from './models/draft';
@@ -43,11 +48,6 @@ import { SystemPreferencesModel } from './models/systemPreferences';
 import { SystemVirtualFolderModel } from './models/systemVirtualFolder';
 import { ThemeModel } from './models/theme';
 import { WidgetModel, widgetSchema } from './models/widget';
-
-// Types
-import type { CollectionConfig } from '@src/content/types';
-import type { MediaType } from '@utils/media/mediaModels';
-import type { ContentStructureNode as ContentNode } from './models/contentStructure';
 
 // System Logging
 import { logger, type LoggableValue } from '@utils/logger.svelte';

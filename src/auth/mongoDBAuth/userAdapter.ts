@@ -17,8 +17,8 @@
  * Usage:
  * Utilized by the auth system to manage user accounts in a MongoDB database
  */
-import mongoose, { Schema } from 'mongoose';
 import type { Model } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
 import { roles as configRoles } from '@root/config/roles';
 import { error } from '@sveltejs/kit';
@@ -28,8 +28,7 @@ import { getAllPermissions } from '../permissions';
 
 // Types
 import type { Permission, Role, User } from '..';
-import type { authDBInterface } from '../authDBInterface';
-import type { PaginationOption } from '../authDBInterface';
+import type { authDBInterface, PaginationOption } from '../authDBInterface';
 
 // System Logging
 import { logger } from '@utils/logger.svelte';
@@ -72,15 +71,48 @@ export class UserAdapter implements Partial<authDBInterface> {
 	// Create a new user
 	async createUser(userData: Partial<User>): Promise<User> {
 		try {
-			const user = new this.UserModel(userData);
+			// Normalize email to lowercase if present
+			const normalizedUserData = {
+				...userData,
+				email: userData.email?.toLowerCase()
+			};
+
+			// Log exactly what we received
+			logger.debug('UserAdapter.createUser received data:', {
+				...normalizedUserData,
+				email: normalizedUserData.email?.replace(/(.{2}).*@(.*)/, '$1****@$2'),
+				avatar: `Avatar value: "${normalizedUserData.avatar}" (type: ${typeof normalizedUserData.avatar}, length: ${normalizedUserData.avatar?.length || 0})`
+			});
+
+			const user = new this.UserModel(normalizedUserData);
+
+			// Log what the model contains before saving
+			logger.debug('UserModel before save:', {
+				email: user.email?.replace(/(.{2}).*@(.*)/, '$1****@$2'),
+				avatar: `Model avatar: "${user.avatar}" (type: ${typeof user.avatar})`,
+				hasAvatar: !!user.avatar
+			});
+
 			await user.save();
-			logger.debug(`User created:`, { email: user.email });
+
+			// Log what was actually saved
+			logger.debug('User created and saved:', {
+				_id: user._id,
+				email: user.email?.replace(/(.{2}).*@(.*)/, '$1****@$2'),
+				avatar: `Saved avatar: "${user.avatar}" (type: ${typeof user.avatar})`,
+				allFields: Object.keys(user.toObject())
+			});
+
 			const savedUser = user.toObject();
 			savedUser._id = savedUser._id.toString();
 			return savedUser as User;
 		} catch (err) {
 			const message = `Error in UserAdapter.createUser: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { email: userData.email });
+			logger.error(message, {
+				email: userData.email?.replace(/(.{2}).*@(.*)/, '$1****@$2'),
+				error: err,
+				userData: Object.keys(userData)
+			});
 			throw error(500, message);
 		}
 	}
@@ -293,6 +325,42 @@ export class UserAdapter implements Partial<authDBInterface> {
 		}
 	}
 
+	// Block multiple users
+	async blockUsers(userIds: string[]): Promise<void> {
+		try {
+			await this.UserModel.updateMany(
+				{ _id: { $in: userIds } },
+				{
+					blocked: true,
+					lockoutUntil: new Date().toISOString() // Set lockoutUntil to current time
+				}
+			);
+			logger.info(`Users blocked: \x1b[34m${userIds.join(', ')}\x1b[0m`);
+		} catch (err) {
+			const message = `Error in UserAdapter.blockUsers: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { userIds });
+			throw error(500, message);
+		}
+	}
+
+	// Unblock multiple users
+	async unblockUsers(userIds: string[]): Promise<void> {
+		try {
+			await this.UserModel.updateMany(
+				{ _id: { $in: userIds } },
+				{
+					blocked: false,
+					lockoutUntil: null // Clear lockoutUntil
+				}
+			);
+			logger.info(`Users unblocked: \x1b[34m${userIds.join(', ')}\x1b[0m`);
+		} catch (err) {
+			const message = `Error in UserAdapter.unblockUsers: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { userIds });
+			throw error(500, message);
+		}
+	}
+
 	// Delete a user
 	async deleteUser(user_id: string): Promise<void> {
 		try {
@@ -301,6 +369,18 @@ export class UserAdapter implements Partial<authDBInterface> {
 		} catch (err) {
 			const message = `Error in UserAdapter.deleteUser: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message, { user_id });
+			throw error(500, message);
+		}
+	}
+
+	// Delete multiple users
+	async deleteUsers(userIds: string[]): Promise<void> {
+		try {
+			await this.UserModel.deleteMany({ _id: { $in: userIds } });
+			logger.info(`Users deleted: \x1b[34m${userIds.join(', ')}\x1b[0m`);
+		} catch (err) {
+			const message = `Error in UserAdapter.deleteUsers: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { userIds });
 			throw error(500, message);
 		}
 	}
@@ -326,10 +406,11 @@ export class UserAdapter implements Partial<authDBInterface> {
 	// Get a user by email
 	async getUserByEmail(email: string): Promise<User | null> {
 		try {
-			const user = await this.UserModel.findOne({ email }).lean();
+			const normalizedEmail = email.toLowerCase();
+			const user = await this.UserModel.findOne({ email: normalizedEmail }).lean();
 			if (user) {
 				user._id = user._id.toString();
-				logger.debug(`User retrieved by email:`, { email });
+				logger.debug(`User retrieved by email:`, { email: normalizedEmail });
 				return user as User;
 			} else {
 				return null;

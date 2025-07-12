@@ -32,12 +32,12 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 
 	// Create local tabSet variable for binding
 	let localTabSet = $state(tabSet.value);
-	
+
 	// Sync with store when local value changes
 	$effect(() => {
 		tabSet.set(localTabSet);
 	});
-	
+
 	// Sync local value when store changes
 	$effect(() => {
 		localTabSet = tabSet.value;

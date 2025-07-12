@@ -1,274 +1,279 @@
 /** 
-@file cli-installer/config/database.js
-@description Configuration prompts for the Database section
-
-### Features
-- Displays a note about the Database configuration
-- Displays existing configuration (password hidden)
-- Prompts for Database integration
+@file cli-installer/backupRestore.js
+@description Backup and Restore Configuration Files
 */
 
-import { Title, cancelOperation } from './cli-installer.js';
-import { configurationPrompt } from './configuration.js';
-import { configureMongoDB } from './config/mongodbConfig.js';
-import { configureMariaDB } from './config/mariadbConfig.js';
-import { text, spinner, select, note, isCancel, confirm } from '@clack/prompts';
+import { confirm, isCancel, note, select } from '@clack/prompts';
+import { exec as execCb } from 'child_process';
+import fs from 'fs/promises';
+import path from 'path';
 import pc from 'picocolors';
+import { promisify } from 'util';
+import { Title, cancelOperation } from './cli-installer.js';
 
-// Helper function to validate numeric input (using new error return)
-const validateNumber = (value, fieldName) => {
-	if (value === null || value === undefined || value === '') return { message: `${fieldName} is required.` };
-	const num = Number(value);
-	if (isNaN(num) || !Number.isInteger(num) || num < 0) {
-		return { message: `${fieldName} must be a non-negative integer.` };
-	}
-	// Return undefined if valid (as per clack docs for new error type)
-	return undefined;
-};
+const exec = promisify(execCb);
 
-// Helper function to test database connection
-async function testDatabaseConnection(dbType, { host, port, user, password, database }) {
-	if (dbType === 'mongodb') {
-		const mongoose = await import('mongoose');
-		try {
-			// Log connection parameters for debugging
-			//console.log('Connection parameters:', { host, port, user,password, database });
+const CONFIG_DIR = path.join(process.cwd(), 'config');
+const BACKUP_DIR = path.join(CONFIG_DIR, 'backup');
+const BACKUP_LIMIT = 5; // Max number of backup pairs (private + public)
 
-			// Construct the MongoDB connection string dynamically
-			let connectionString;
-			if (host.startsWith('mongodb+srv://')) {
-				// Atlas connection
-				connectionString = `mongodb+srv://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host.replace('mongodb+srv://', '')}/${database}?retryWrites=true&w=majority`;
-			} else {
-				// Local connection
-				if (user && password) {
-					connectionString = `mongodb://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host.replace('mongodb://', '')}${port ? `:${port}` : ''}/${database}?authSource=admin&retryWrites=true&w=majority`;
-				} else {
-					connectionString = `mongodb://${host.replace('mongodb://', '')}${port ? `:${port}` : ''}/${database}?retryWrites=true&w=majority`;
-				}
-			}
-			console.log('Connecting to MongoDB with connection string:', connectionString);
-
-			// Connect to MongoDB
-			await mongoose.default.connect(connectionString);
-			await mongoose.default.connection.db.admin().ping();
-			return true;
-		} catch (error) {
-			console.error('MongoDB connection error:', error);
-			throw Error(`MongoDB connection failed: ${error.message}`);
-		}
-	} else if (dbType === 'mariadb') {
-		const mariadb = await import('mariadb');
-		try {
-			const connection = await mariadb.createConnection({
-				host,
-				port,
-				user,
-				password,
-				database
-			});
-			await connection.end();
-			return true;
-		} catch (error) {
-			throw Error(`MariaDB connection failed: ${error.message}`);
+async function ensureDir(dir) {
+	try {
+		await fs.mkdir(dir, { recursive: true });
+	} catch (error) {
+		if (error.code !== 'EEXIST') {
+			console.error(`Error creating directory ${dir}:`, error);
+			throw error;
 		}
 	}
-	return false;
 }
 
-export async function backupRestorePrompt(privateConfigData = {}) {
-	// SveltyCMS Title
+// Format the date to a human-readable format
+function formatTimestamp(date) {
+	const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+	return new Intl.DateTimeFormat('en-US', options).format(date).replace(/[:]/g, '-').replace(/[,]/g, '').replace(/ /g, '_');
+}
+
+// Backup Config Files with timestamp
+export async function backupConfigFiles() {
+	const timestamp = formatTimestamp(new Date());
+
+	try {
+		await ensureDir(BACKUP_DIR);
+
+		const privateBackup = path.join(BACKUP_DIR, `private.backup.${timestamp}.ts`);
+		const publicBackup = path.join(BACKUP_DIR, `public.backup.${timestamp}.ts`);
+
+		await fs.copyFile(path.join(CONFIG_DIR, 'private.ts'), privateBackup);
+		await fs.copyFile(path.join(CONFIG_DIR, 'public.ts'), publicBackup);
+
+		// Limit backups to BACKUP_LIMIT
+		const files = await fs.readdir(BACKUP_DIR);
+		const backups = files
+			.filter((file) => file.startsWith('private.backup') || file.startsWith('public.backup'))
+			.sort()
+			.reverse();
+
+		if (backups.length > BACKUP_LIMIT * 2) {
+			const toDelete = backups.slice(BACKUP_LIMIT * 2);
+			for (const file of toDelete) {
+				await fs.unlink(path.join(BACKUP_DIR, file));
+			}
+		}
+
+		return { privateBackup, publicBackup };
+	} catch (error) {
+		console.error('Error creating backup:', error);
+		throw error;
+	}
+}
+
+// Restore Config Files
+export async function restoreConfigFiles() {
+	try {
+		const files = await fs.readdir(BACKUP_DIR);
+		const backups = files
+			.filter((file) => file.startsWith('private.backup') || file.startsWith('public.backup'))
+			.sort()
+			.reverse();
+
+		const timestamps = [...new Set(backups.map((file) => file.split('.')[2]))];
+		const choices = timestamps.map((timestamp) => ({
+			name: new Date(timestamp.replace(/-/g, ':')).toString(),
+			value: timestamp
+		}));
+
+		const selectedTimestamp = await select({
+			message: 'Select a backup to restore:',
+			options: choices
+		});
+
+		if (selectedTimestamp) {
+			await fs.copyFile(path.join(BACKUP_DIR, `private.backup.${selectedTimestamp}.ts`), path.join(CONFIG_DIR, 'private.ts'));
+			await fs.copyFile(path.join(BACKUP_DIR, `public.backup.${selectedTimestamp}.ts`), path.join(CONFIG_DIR, 'public.ts'));
+			console.log('Restore completed successfully!');
+		} else {
+			console.log('Restore cancelled.');
+		}
+	} catch (error) {
+		console.error('Error restoring backup:', error);
+	}
+}
+
+// Check if backup files exist
+async function backupFilesExist() {
+	try {
+		await ensureDir(BACKUP_DIR);
+		const files = await fs.readdir(BACKUP_DIR);
+		return files.some((file) => file.startsWith('private.backup') || file.startsWith('public.backup'));
+	} catch {
+		return false;
+	}
+}
+
+// Check if config files exist
+async function configFilesExist() {
+	const privateConfigPath = path.join(CONFIG_DIR, 'private.ts');
+	const publicConfigPath = path.join(CONFIG_DIR, 'public.ts');
+
+	const privateExists = await fs
+		.stat(privateConfigPath)
+		.then(() => true)
+		.catch(() => false);
+	const publicExists = await fs
+		.stat(publicConfigPath)
+		.then(() => true)
+		.catch(() => false);
+
+	return privateExists || publicExists;
+}
+
+// Database Backup (Example for MongoDB)
+export async function backupDatabase(dbHost, dbName) {
+	const timestamp = formatTimestamp(new Date());
+	const backupFile = path.join(BACKUP_DIR, `db-backup-${dbName}-${timestamp}.gz`);
+
+	try {
+		await ensureDir(BACKUP_DIR);
+		await exec(`mongodump --uri=${dbHost}/${dbName} --archive=${backupFile} --gzip`);
+		console.log(`Database backup completed: ${backupFile}`);
+		return backupFile;
+	} catch (error) {
+		console.error('Error creating database backup:', error);
+		throw error;
+	}
+}
+
+// Prompt to Backup or Restore
+export const backupRestorePrompt = async () => {
+	// Display the title
 	Title();
 
-	// Guide Note
+	// Add helpful context about backup/restore
 	note(
-		`${pc.green('Database configuration is required for SveltyCMS.')}\n\n` +
-			`This setup process will guide you through configuring\n` +
-			`your preferred database option.\n\n` +
-			`If you need further assistance, please refer to the\n` +
-			`documentation: ${pc.blue('https://docs.SveltyCMS.com/database-setup')}`,
-		pc.green('Database Configuration:')
+		`Manage your configuration files safely:
+  • Automatic backups before making changes
+  • Restore previous configurations if needed
+  • Keep up to 5 backup versions for safety`,
+		pc.green('Backup & Restore:')
 	);
 
-	// Configure SveltyCMS
-	const projectDatabase = await select({
-		message: 'Choose your database option:',
-		initialValue: privateConfigData.DB_TYPE || 'mongodb',
-		options: [
-			{
-				value: 'mongodb',
-				label: 'MongoDB',
-				hint: 'Recommended - Supports MongoDB Atlas, Docker, and Local'
-			}
-			// { value: 'mariadb', label: 'MariaDB (Alpha)', hint: 'Supports Docker and Local - Not ready for production' },
-			// { value: 'other', label: 'Other', hint: 'More databases will be available soon' }
-		],
-		required: true
-	});
+	const configExists = await configFilesExist();
 
-	if (isCancel(projectDatabase)) {
-		await cancelOperation();
-		return;
+	if (!configExists) {
+		// Skip backup and restore if no config files exist
+		note(pc.green('No existing configuration found. Default configuration loaded. Please complete the required setup.'), pc.green('Fresh Install:'));
+
+		return 'configuration';
 	}
 
-	let dbConfig = {};
+	const backupsExist = await backupFilesExist();
 
-	if (projectDatabase === 'mongodb') {
-		dbConfig = await configureMongoDB(privateConfigData);
-	} else if (projectDatabase === 'mariadb') {
-		dbConfig = await configureMariaDB(privateConfigData);
-	} else if (projectDatabase === 'other') {
-		note(
-			`We're actively working on adding support for more\n` +
-				`database options.\n\n` +
-				`Please check back soon or refer to the documentation\n` +
-				`for manual setup instructions: ${pc.blue('https://docs.SveltyCMS.com/docs/database-setup')}`,
-			pc.green('Database Option Not Available Yet')
-		);
-		await configurationPrompt(); // Restart the configuration process
-		return;
-	}
+	if (!backupsExist) {
+		// Automatically backup if no backups exist
+		const { privateBackup, publicBackup } = await backupConfigFiles();
+		const shortPrivateBackup = path.relative(process.cwd(), privateBackup);
+		const shortPublicBackup = path.relative(process.cwd(), publicBackup);
 
-	// Advanced Database Settings
-	const advanced = await confirm({
-		message: 'Would you like to configure advanced settings?',
-		initialValue: false // Set to false by default to streamline the process
-	});
+		note(`Private: ${pc.green(shortPrivateBackup)}\n` + `Public: ${pc.green(shortPublicBackup)}`, pc.green('Backup completed successfully:'));
 
-	if (advanced && projectDatabase === 'mongodb') {
-		const retryAttempts = await text({
-			message: 'Enter number of retry attempts for MongoDB:',
-			placeholder: '3',
-			initialValue: privateConfigData.DB_RETRY_ATTEMPTS || '3',
-			validate: (value) => validateNumber(value, 'Retry attempts')
-		});
-		if (isCancel(retryAttempts)) {
-			await cancelOperation();
-			return;
-		}
-
-		const retryDelay = await text({
-			message: 'Enter delay between retries in milliseconds:',
-			placeholder: '3000',
-			initialValue: privateConfigData.DB_RETRY_DELAY || '3000',
-			validate: (value) => validateNumber(value, 'Retry delay')
-		});
-		if (isCancel(retryDelay)) {
-			await cancelOperation();
-			return;
-		}
-
-		const poolSize = await text({
-			message: 'Enter the MongoDB connection pool size:',
-			placeholder: '5',
-			initialValue: privateConfigData.DB_POOL_SIZE || '5',
-			validate: (value) => validateNumber(value, 'Pool size')
-		});
-		if (isCancel(poolSize)) {
-			await cancelOperation();
-			return;
-		}
-
-		privateConfigData = {
-			...privateConfigData,
-			DB_RETRY_ATTEMPTS: retryAttempts,
-			DB_RETRY_DELAY: retryDelay,
-			DB_POOL_SIZE: poolSize
-		};
-	} else {
-		privateConfigData = {
-			...privateConfigData,
-			DB_RETRY_ATTEMPTS: privateConfigData.DB_RETRY_ATTEMPTS || '3',
-			DB_RETRY_DELAY: privateConfigData.DB_RETRY_DELAY || '3000',
-			DB_POOL_SIZE: privateConfigData.DB_POOL_SIZE || '5'
-		};
-	}
-
-	// Test the database connection
-	let isConnectionSuccessful = false;
-	const s = spinner();
-	try {
-		s.start(`Testing ${projectDatabase} connection...`, { indicator: 'line' }); // Added indicator
-		// Ensure all required parameters are provided
-		if (!dbConfig.DB_HOST || !dbConfig.DB_NAME) {
-			throw new Error('Missing required database configuration');
-		}
-		isConnectionSuccessful = await testDatabaseConnection(projectDatabase, {
-			host: dbConfig.DB_HOST,
-			port: dbConfig.DB_PORT,
-			user: dbConfig.DB_USER,
-			password: dbConfig.DB_PASSWORD,
-			database: dbConfig.DB_NAME
-		});
-		s.stop();
-	} catch (error) {
-		s.stop();
-		console.error(pc.red('Database connection error:'), error);
-		note(
-			`${pc.red(`${projectDatabase} connection failed:`)}\n${error.message}\n\nPlease check your connection details (host, port, user, password, database name) and ensure the database server is running and accessible.`,
-			pc.red('Connection Error')
-		);
-	}
-
-	if (isConnectionSuccessful) {
-		note(`${pc.green(`${projectDatabase} connection successful!`)}`, pc.green('Connection Test Result'));
-	} else {
-		// Error message already shown in the catch block
-		const retry = await confirm({
-			message: 'Connection failed. Do you want to re-enter the connection details?',
+		const confirmProceed = await confirm({
+			message: 'Do you want to proceed to configuration?',
 			initialValue: true
 		});
 
-		if (isCancel(retry) || !retry) {
-			await cancelOperation(); // Use standardized cancel operation
+		if (!confirmProceed) {
+			await cancelOperation();
 			return;
-		} else {
-			// Pass the potentially updated privateConfigData (with advanced settings) back
-			return backupRestorePrompt(privateConfigData);
 		}
+
+		// Proceed to configuration
+		return 'configuration';
 	}
 
-	// Summary note before saving
-	note(
-		`DB_TYPE: ${pc.green(projectDatabase)}\n` +
-			`DB_HOST: ${pc.green(dbConfig.DB_HOST)}\n` +
-			`DB_PORT: ${pc.green(dbConfig.DB_PORT)}\n` +
-			`DB_NAME: ${pc.green(dbConfig.DB_NAME)}\n` +
-			(dbConfig.DB_USER ? `DB_USER: ${pc.green(dbConfig.DB_USER)}\n` : '') +
-			(dbConfig.DB_PASSWORD ? `DB_PASSWORD: ${pc.green(dbConfig.DB_PASSWORD)}\n` : '') +
-			`\nAdvanced Configuration:\n` +
-			`DB_RETRY_ATTEMPTS: ${pc.green(privateConfigData.DB_RETRY_ATTEMPTS)}\n` +
-			`DB_RETRY_DELAY: ${pc.green(privateConfigData.DB_RETRY_DELAY)}\n` +
-			`DB_POOL_SIZE: ${pc.green(privateConfigData.DB_POOL_SIZE)}`,
-		pc.green('Review your Database configuration:')
-	);
+	const options = [
+		{ value: 'backup', label: 'Backup Current Configuration', hint: 'Create a backup of your config files' },
+		{ value: 'restore', label: 'Restore from Backup', hint: 'Restore configuration files from a previous backup' },
+		{ value: 'database', label: 'Backup your Database', hint: 'Create a backup of your SveltyCMS database' },
+		{ value: 'Exit', label: 'Exit to Installer', hint: 'Exit the SveltyCMS installer' }
+	];
 
-	const confirmSave = await confirm({
-		message: 'Save this database configuration?',
-		initialValue: true
+	const choice = await select({
+		message: 'What would you like to do?',
+		options
 	});
 
-	if (isCancel(confirmSave)) {
+	if (isCancel(choice)) {
 		await cancelOperation();
 		return;
 	}
 
-	if (!confirmSave) {
-		note('Configuration not saved.', pc.yellow('Action Cancelled'));
-		await cancelOperation(); // Return to main config menu
-		return;
-	}
-	// If confirmed, proceed to return the config object
+	switch (choice) {
+		case 'backup': {
+			const { privateBackup, publicBackup } = await backupConfigFiles();
+			const shortPrivateBackup = path.relative(process.cwd(), privateBackup);
+			const shortPublicBackup = path.relative(process.cwd(), publicBackup);
 
-	return {
-		DB_TYPE: projectDatabase,
-		DB_HOST: dbConfig.DB_HOST,
-		DB_PORT: dbConfig.DB_PORT,
-		DB_NAME: dbConfig.DB_NAME,
-		DB_USER: dbConfig.DB_USER,
-		DB_PASSWORD: dbConfig.DB_PASSWORD,
-		DB_RETRY_ATTEMPTS: privateConfigData.DB_RETRY_ATTEMPTS,
-		DB_RETRY_DELAY: privateConfigData.DB_RETRY_DELAY,
-		DB_POOL_SIZE: privateConfigData.DB_POOL_SIZE
-	};
-}
+			note(`Private: ${pc.green(shortPrivateBackup)}\n` + `Public: ${pc.green(shortPublicBackup)}`, pc.green('Backup completed successfully:'));
+
+			const confirmProceed = await confirm({
+				message: 'Do you want to proceed to configuration?',
+				initialValue: true
+			});
+
+			if (!confirmProceed) {
+				await cancelOperation();
+				return;
+			}
+			break;
+		}
+		case 'restore':
+			await restoreConfigFiles();
+			break;
+		case 'database': {
+			// Prompt for database credentials
+			const dbHost = await select({
+				message: 'Enter your database host:',
+				options: [
+					{ value: 'localhost', label: 'localhost' },
+					{ value: 'custom', label: 'Custom' }
+				]
+			});
+
+			let dbHostCustom = dbHost;
+			if (dbHost === 'custom') {
+				dbHostCustom = await select({
+					message: 'Enter the custom database host:',
+					options: []
+				});
+			}
+
+			const dbName = await select({
+				message: 'Enter your database name:',
+				options: []
+			});
+
+			const dbBackupFile = await backupDatabase(dbHostCustom, dbName);
+
+			note(`File: ${pc.green(dbBackupFile)}`, pc.green('Database backup completed successfully:'));
+
+			const confirmProceed = await confirm({
+				message: 'Do you want to proceed to configuration?',
+				initialValue: true
+			});
+
+			if (!confirmProceed) {
+				await cancelOperation();
+				return;
+			}
+			break;
+		}
+		case 'exit':
+			await cancelOperation();
+			return;
+		default:
+			console.log('Invalid choice.');
+			return;
+	}
+	return 'configuration';
+};

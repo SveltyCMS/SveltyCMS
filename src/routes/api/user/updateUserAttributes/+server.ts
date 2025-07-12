@@ -21,24 +21,22 @@ import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Auth and permission helpers
-import { auth } from '@src/databases/db';
-import { SESSION_COOKIE_NAME } from '@src/auth';
-import { getCacheStore } from '@src/cacheStore/index.server';
-import { hasPermissionByAction } from '@src/auth/permissions';
 import { roles } from '@root/config/roles'; // Import static roles for fallback
+import { SESSION_COOKIE_NAME } from '@src/auth';
+import { hasPermissionByAction } from '@src/auth/permissions';
+import { getCacheStore } from '@src/cacheStore/index.server';
+import { auth } from '@src/databases/db';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
 // Input validation
-import { object, string, email, optional, minLength, maxLength, pipe, parse, type BaseSchema, type ValiError } from 'valibot';
+import { email, maxLength, minLength, object, optional, parse, pipe, string, type BaseSchema, type ValiError } from 'valibot';
 
 // Define the base schema for user data. The 'role' is handled separately for security.
 const baseUserDataSchema = object({
 	email: optional(pipe(string(), email())),
-	username: optional(
-		pipe(string(), minLength(2, 'Username must be at least 2 characters'), maxLength(50, 'Username must not exceed 50 characters'))
-	),
+	username: optional(pipe(string(), minLength(2, 'Username must be at least 2 characters'), maxLength(50, 'Username must not exceed 50 characters'))),
 	password: optional(pipe(string(), minLength(8, 'Password must be at least 8 characters')))
 });
 
@@ -47,6 +45,12 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 		if (!auth) {
 			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error: Auth system not initialized');
+		}
+
+		// Check if user is authenticated
+		if (!locals.user) {
+			logger.warn('Unauthenticated request to updateUserAttributes');
+			throw error(401, 'Unauthorized: Please log in to continue');
 		}
 
 		const body = await request.json();
@@ -70,13 +74,7 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 			hasPermission = true;
 		} else {
 			// To edit another user, the requesting user needs a high-level permission.
-			hasPermission = hasPermissionByAction(
-				locals.user,
-				'update',
-				'user',
-				'any',
-				locals.roles && locals.roles.length > 0 ? locals.roles : roles
-			);
+			hasPermission = hasPermissionByAction(locals.user, 'update', 'user', 'any', locals.roles && locals.roles.length > 0 ? locals.roles : roles);
 		}
 
 		if (!hasPermission) {
@@ -107,6 +105,14 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 		// Update user attributes in the database.
 		const updatedUser = await auth.updateUserAttributes(userIdToUpdate, validatedData);
 
+		if (!updatedUser) {
+			logger.error('updateUserAttributes returned null/undefined', {
+				userIdToUpdate,
+				validatedData
+			});
+			throw error(500, 'Failed to update user attributes');
+		}
+
 		// If the current user updated their own data, invalidate their session cache to reflect changes immediately.
 		if (isEditingSelf) {
 			const sessionId = cookies.get(SESSION_COOKIE_NAME);
@@ -121,6 +127,10 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 				}
 			}
 		}
+
+		// Invalidate admin cache since user data has changed
+		const { invalidateAdminCache } = await import('@src/hooks.server');
+		invalidateAdminCache('users');
 
 		logger.info('User attributes updated successfully', {
 			user_id: userIdToUpdate,

@@ -440,5 +440,7 @@
 	"sidebar_will_publish_on": "გამოქვეყნდება",
 	"siedabar_publish_options": "გამოქვეყნების ოფციები",
 	"Fields_no_widgets_found": "ვიჯეტი ვერ მოიძებნა: {name}",
-	"Fields_preview": "გადახედვა"
+	"Fields_preview": "გადახედვა",
+	"modal_token_deleted_successfully": "ჟეტონი წარმატებით წაიშალა",
+	"modal_token_user_deleted": "ჟეტონი წარმატებით წაიშალა"
 }

@@ -8,24 +8,24 @@
 - Prompts for configuration using grouped options
 */
 
-import { isCancel, select, confirm, note, outro } from '@clack/prompts'; // Removed unused 'group'
-import pc from 'picocolors';
+import { confirm, isCancel, note, outro, select } from '@clack/prompts'; // Removed unused 'group'
 import fs from 'fs';
 import path from 'path';
+import pc from 'picocolors';
 
 import { Title, cancelOperation } from './cli-installer.js';
 import { createOrUpdateConfigFile } from './createOrUpdateConfigFile.js';
 
 import { configureDatabase } from './config/database.js';
 import { configureEmail } from './config/email.js';
-import { configureLanguage } from './config/language.js';
-import { configureSystem } from './config/system.js';
-import { configureMedia } from './config/media.js';
 import { configureGoogle } from './config/google.js';
-import { configureRedis } from './config/redis.js';
-import { configureMapbox } from './config/mapbox.js';
-import { configureTiktok } from './config/tiktok.js';
+import { configureLanguage } from './config/language.js';
 import { configureLLM } from './config/llm.js';
+import { configureMapbox } from './config/mapbox.js';
+import { configureMedia } from './config/media.js';
+import { configureRedis } from './config/redis.js';
+import { configureSystem } from './config/system.js';
+import { configureTiktok } from './config/tiktok.js';
 
 const REQUIRED_FIELDS = {
 	database: 'DB_HOST',
@@ -48,7 +48,7 @@ const OPTIONS = [
 	{ value: 'Redis', label: 'Redis', hint: 'Configure Redis cache' },
 	{ value: 'Mapbox', label: 'Mapbox', hint: 'Configure Mapbox API' },
 	{ value: 'Tiktok', label: 'Tiktok', hint: 'Configure Tiktok API' },
-	{ value: 'LLM', label: 'LLM	', hint: 'Define LLMAPI' }, // Note: Tab character in 'LLM	' might be intentional or a typo
+	{ value: 'LLM', label: 'LLM', hint: 'Define LLM API' },
 	{ value: 'Exit', label: 'Save & Exit', hint: 'Save & Exit the installer' }
 ];
 
@@ -139,8 +139,9 @@ async function handleExit(configData) {
 export const configurationPrompt = async () => {
 	Title();
 	note(
-		`${pc.green('Database')} and ${pc.green('Email')} configurations are required.\n` + `Other configurations are optional.`,
-		pc.green('Configuration Instructions:')
+		`${pc.green('Database')} and ${pc.green('Email')} configurations are required.
+Other configurations are optional but enhance functionality.`,
+		pc.green('Configuration Menu:')
 	);
 
 	let configData = {};
@@ -154,6 +155,14 @@ export const configurationPrompt = async () => {
 
 	let exitConfirmed = false;
 	do {
+		// Clear screen and show menu each time user returns to configuration menu
+		Title();
+		note(
+			`${pc.green('Database')} and ${pc.green('Email')} configurations are required.
+Other configurations are optional but enhance functionality.`,
+			pc.green('Configuration Menu:')
+		);
+
 		// Use the flat OPTIONS array with select
 		const selectedOption = await select({
 			message: 'Configure SveltyCMS - Pick a Category (* Required)',

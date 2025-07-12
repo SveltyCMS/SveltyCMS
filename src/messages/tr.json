@@ -440,5 +440,7 @@
 	"sidebar_will_publish_on": "Yayımlanacak",
 	"siedabar_publish_options": "Yayımlama Seçenekleri",
 	"Fields_no_widgets_found": "Widget bulunamadı: {name}",
-	"Fields_preview": "Önizleme"
+	"Fields_preview": "Önizleme",
+	"modal_token_deleted_successfully": "Jeton başarıyla silindi",
+	"modal_token_user_deleted": "Jeton başarıyla silindi"
 }

@@ -1,10 +1,15 @@
 name: Playwright and Bun Tests
 
+# Trigger on pushes to main and next, and on Pull Requests to main
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - next
   pull_request:
-    branches: [main]
+    branches:
+      - main
+  workflow_dispatch: {}
 
 jobs:
   test:
@@ -15,33 +20,31 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        node-version: [latest]
-        pnpm-version: [latest]
         mongodb-version: [latest]
-        test-file: ['/tests/playwright/signupfirstuser.spec.ts', '/tests/playwright/user.spec.ts']
+        test-file: ['/tests/playwright/signupfirstuser.spec.ts', '/tests/playwright/user.spec.ts', '/tests/playwright/oauth-signup-firstuser.spec.ts']
 
     steps:
       - name: Git checkout
         id: checkout
         uses: actions/checkout@v4
 
-      - name: Cache pnpm dependencies and Playwright browsers
+      - name: Setup Bun
+        id: setup-bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Cache Bun dependencies and Playwright browsers
         id: cache
         uses: actions/cache@v3
         with:
           path: |
-            ./pnpm-cache
-            ./node_modules/playwright
-          key: ${{ runner.OS }}-pnpm-playwright-${{ hashFiles('**/pnpm-lock.yaml') }}
+            ~/.bun/install/cache
+            ~/.cache/ms-playwright
+          key: ${{ runner.OS }}-bun-playwright-${{ hashFiles('**/bun.lockb') }}
           restore-keys: |
-            ${{ runner.OS }}-pnpm-playwright-
+            ${{ runner.OS }}-bun-playwright-
         continue-on-error: true
-
-      - name: Install Node.js ${{ matrix.node-version }} and pnpm ${{ matrix.pnpm-version }}
-        id: setup-node
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
 
       - name: Start MongoDB v${{ matrix.mongodb-version }}
         id: mongodb
@@ -54,25 +57,22 @@ jobs:
           mongodb-port: 27017
         if: ${{ github.event_name != 'pull_request' }}
 
-      - name: Install pnpm
-        run: npm install -g pnpm
-
-      - name: Install dependencies & Build Languages
+      - name: Install dependencies
         id: install
-        run: pnpm install
+        run: bun install
 
       - name: Install Playwright Browsers
         id: install-playwright
-        run: npx playwright install --with-deps
+        run: bunx playwright install --with-deps
 
       - name: Run local server
-        run: pnpm run build && pnpm run preview &
+        run: bun run build && bun run preview &
 
       - name: Run Playwright tests
         run: |
           mkdir -p test-results/playwright
           for file in ${{ matrix.test-file }}; do
-            npx playwright test $file --workers 10 --output=test-results/playwright &
+            bunx playwright test $file --workers 10 --output=test-results/playwright &
           done
           wait
         env:
@@ -82,7 +82,7 @@ jobs:
           privateEnv.DB_NAME: SveltyCMS
           privateEnv.DB_USER: admin
           privateEnv.DB_PASSWORD: admin
-          privateEnv.DB_RETRY_DELAY: 'false'
+          privateEnv.DB_RETRY_DELAY: 1000
           privateEnv.DB_RETRY_ATTEMPTS: 3
           privateEnv.DB_POOL_SIZE: 5
 
@@ -90,10 +90,11 @@ jobs:
           privateEnv.SMTP_PORT: ''
           privateEnv.SMTP_EMAIL: 'test@example.com'
           privateEnv.SMTP_PASSWORD: ''
+          privateEnv.SERVER_PORT: '4173'
 
-          privateEnv.USE_GOOGLE_OAUTH: 'false'
-          privateEnv.GOOGLE_CLIENT_ID: ''
-          privateEnv.GOOGLE_CLIENT_SECERT: ''
+          privateEnv.USE_GOOGLE_OAUTH: 'true'
+          privateEnv.GOOGLE_CLIENT_ID: '123456789-abcdefghijklmnopqrstuvwxyz123456.apps.googleusercontent.com'
+          privateEnv.GOOGLE_CLIENT_SECRET: 'GOCSPX-test_client_secret_for_github_actions'
 
           privateEnv.USE_REDIS: 'false'
           privateEnv.REDIS_HOST: ''
@@ -133,6 +134,7 @@ jobs:
 
           publicEnv.DEFAULT_CONTENT_LANGUAGE: 'en'
           publicEnv.AVAILABLE_CONTENT_LANGUAGES: '["en", "de", "es"]'
+          publicEnv.DEFAULT_SYSTEM_LANGUAGE: 'en'
           publicEnv.AVAILABLE_SYSTEM_LANGUAGES: '["en", "de"]'
 
           publicEnv.IMAGE_SIZES: '{ "sm": 600, "md": 900, "lg": 1200 }'
@@ -148,8 +150,9 @@ jobs:
           publicEnv.PKG: '{ VERSION: pkg.version }'
 
           publicEnv.LOG_LEVELS: '["info", "error", "warn"]'
+          publicEnv.DEMO: 'true'
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: playwright-test-results
@@ -175,9 +178,9 @@ jobs:
       - name: Run Bun tests
         run: |
           mkdir -p test-results/bun
-          bun test tests/bun --output-file test-results/bun/test-results.txt
+          bun test tests/bun/api/api-endpoints.test.ts > test-results/bun/test-results.txt
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: bun-test-results

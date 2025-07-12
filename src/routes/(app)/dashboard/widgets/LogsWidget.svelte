@@ -216,7 +216,7 @@
 	{onResizeCommitted}
 	{onCloseRequest}
 >
-	{#snippet children({ data: fetchedData })}
+	{#snippet children({ data: fetchedData }: { data: FetchedData | undefined })}
 		<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" role="region" aria-label="Log controls">
 			<div class="flex flex-1 gap-2">
 				<select
@@ -277,7 +277,7 @@
 			</div>
 			<div class="mt-4 flex items-center justify-between text-xs" role="navigation" aria-label="Pagination">
 				<button
-					on:click={prevPage}
+					onclick={prevPage}
 					class="rounded-lg bg-primary-500 px-3 py-1 text-white shadow-sm transition hover:bg-primary-600 disabled:bg-surface-300 disabled:text-surface-400 dark:bg-primary-600 dark:hover:bg-primary-500 dark:disabled:bg-surface-700 dark:disabled:text-surface-500"
 					disabled={fetchedData.page === 1}
 					aria-label="Previous page"
@@ -289,7 +289,7 @@
 					Page {fetchedData.page} of {fetchedData.totalPages}
 				</span>
 				<button
-					on:click={nextPage}
+					onclick={nextPage}
 					class="rounded-lg bg-primary-500 px-3 py-1 text-white shadow-sm transition hover:bg-primary-600 disabled:bg-surface-300 disabled:text-surface-400 dark:bg-primary-600 dark:hover:bg-primary-500 dark:disabled:bg-surface-700 dark:disabled:text-surface-500"
 					disabled={fetchedData.page === fetchedData.totalPages}
 					aria-label="Next page"

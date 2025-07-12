@@ -356,10 +356,15 @@ export async function saveRemoteMedia(fileUrl: string, contentTypes: string, use
 /**
  * Saves an avatar image to disk and database
  */
-export async function saveAvatarImage(file: File): Promise<string> {
+export async function saveAvatarImage(file: File, userId: string = 'system'): Promise<string> {
 	try {
 		if (!file) throw new Error('No file provided');
-		if (!dbAdapter) throw new Error('Database adapter not initialized');
+
+		// Check if database adapter is available, but don't fail if it's not fully ready
+		const isDatabaseReady = dbAdapter && dbAdapter.utils && typeof dbAdapter.utils.generateId === 'function';
+		if (!isDatabaseReady) {
+			logger.warn('Database adapter not fully ready - avatar will be saved to disk only');
+		}
 
 		const fs = await getFs();
 		const avatarsPath = Path.join(process.cwd(), 'static', 'avatars');
@@ -374,8 +379,8 @@ export async function saveAvatarImage(file: File): Promise<string> {
 		const { fileNameWithoutExt, ext } = getSanitizedFileName(file.name);
 		const sanitizedBlobName = sanitize(fileNameWithoutExt);
 
-		// Check for existing avatar by hash
-		const existingFile = dbAdapter ? await dbAdapter.crud.findOne('media_images', { hash, category: 'avatar' }) : null;
+		// Check for existing avatar by hash only if database is ready
+		const existingFile = isDatabaseReady ? await dbAdapter.crud.findOne('media_images', { hash, category: 'avatar' }) : null;
 		if (existingFile) {
 			let fileUrl = existingFile.url;
 			if (publicEnv.MEDIASERVER_URL) {
@@ -417,12 +422,14 @@ export async function saveAvatarImage(file: File): Promise<string> {
 			mimeType,
 			createdAt: now,
 			updatedAt: now,
+			createdBy: userId,
+			updatedBy: userId,
 			versions: [
 				{
 					version: 1,
 					url: avatarUrl,
 					createdAt: now,
-					createdBy: 'system'
+					createdBy: userId
 				}
 			],
 			thumbnail: { url: avatarUrl, width, height },
@@ -430,17 +437,51 @@ export async function saveAvatarImage(file: File): Promise<string> {
 			thumbnails: Object.assign({}, { [Object.keys(publicEnv.IMAGE_SIZES)[0] || 'avatar']: { url: avatarUrl, width, height } }),
 			width,
 			height,
-			user: 'system',
+			user: userId,
 			access: { permissions: [Permission.Read, Permission.Write] },
 			category: 'avatar' // for easy filtering
 		};
 
-		logger.info('Avatar image saved to database', { fileInfo });
-		await dbAdapter.media.files.upload({ _id: dbAdapter.utils.generateId(), ...fileInfo });
+		logger.info('Avatar image prepared for database save', {
+			fileInfo: {
+				...fileInfo,
+				createdBy: fileInfo.createdBy?.includes('@') ? fileInfo.createdBy.replace(/(.{2}).*@(.*)/, '$1****@$2') : fileInfo.createdBy,
+				updatedBy: fileInfo.updatedBy?.includes('@') ? fileInfo.updatedBy.replace(/(.{2}).*@(.*)/, '$1****@$2') : fileInfo.updatedBy,
+				user: fileInfo.user?.includes('@') ? fileInfo.user.replace(/(.{2}).*@(.*)/, '$1****@$2') : fileInfo.user,
+				versions: fileInfo.versions?.map((v) => ({
+					...v,
+					createdBy: v.createdBy?.includes('@') ? v.createdBy.replace(/(.{2}).*@(.*)/, '$1****@$2') : v.createdBy
+				}))
+			}
+		});
+
+		// Try to upload to database only if it's ready
+		if (isDatabaseReady) {
+			try {
+				// Don't include _id, createdAt, updatedAt as they'll be added by the upload method
+				const uploadResult = await dbAdapter.media.files.upload(fileInfo);
+
+				if (!uploadResult.success) {
+					logger.error('Failed to upload avatar to database:', uploadResult.error);
+					logger.warn('Avatar file saved to disk but not to database metadata');
+				} else {
+					logger.debug('Avatar successfully saved to database');
+				}
+			} catch (dbError) {
+				logger.error('Database upload failed for avatar:', {
+					error: dbError instanceof Error ? dbError.message : String(dbError),
+					stack: dbError instanceof Error ? dbError.stack : undefined
+				});
+				logger.warn('Proceeding with avatar URL despite database upload failure');
+			}
+		} else {
+			logger.info('Database not ready - skipping avatar metadata save');
+		}
 
 		let fileUrl = avatarUrl;
 		// For serving to the client, prepend /mediaFiles/
 		fileUrl = `/mediaFiles/${avatarUrl}`;
+		logger.debug('Avatar URL for user database:', { avatarUrl: fileUrl });
 		return fileUrl;
 	} catch (err) {
 		const error = err instanceof Error ? err : new Error('Unknown error occurred');

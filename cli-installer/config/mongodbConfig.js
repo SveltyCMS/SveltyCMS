@@ -10,7 +10,7 @@
 
 import { text, note, isCancel, select, password } from '@clack/prompts';
 import pc from 'picocolors';
-import { cancelToMainMenu } from '../cli-installer.js';
+import { Title, cancelToMainMenu } from '../cli-installer.js';
 
 // Helper function to validate port number
 const validatePort = (value) => {
@@ -27,6 +27,9 @@ const validateRequired = (value, fieldName) => {
 };
 
 export async function configureMongoDB(privateConfigData = {}) {
+	// Clear screen for clean interface
+	Title();
+
 	// Display existing configuration if present (password hidden)
 	if (privateConfigData.DB_TYPE === 'mongodb' && privateConfigData.DB_HOST) {
 		note(

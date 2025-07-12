@@ -324,9 +324,9 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 		<!-- Conditionally display the tool components based on the active state -->
 		{#if storeState.activeState === 'rotate'}
 			<Rotate
-				stage={stage}
-				layer={layer}
-				imageNode={imageNode}
+				{stage}
+				{layer}
+				{imageNode}
 				onRotate={handleRotate}
 				onRotateApplied={() => {
 					imageEditorStore.setActiveState('');
@@ -338,9 +338,9 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 			/>
 		{:else if storeState.activeState === 'blur'}
 			<Blur
-				stage={stage}
-				layer={layer}
-				imageNode={imageNode}
+				{stage}
+				{layer}
+				{imageNode}
 				onBlurApplied={() => {
 					imageEditorStore.setActiveState('');
 					applyEdit();
@@ -351,9 +351,9 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 			/>
 		{:else if storeState.activeState === 'crop'}
 			<Crop
-				stage={stage}
-				layer={layer}
-				imageNode={imageNode}
+				{stage}
+				{layer}
+				{imageNode}
 				onCrop={handleCrop}
 				onCancelCrop={() => {
 					imageEditorStore.setActiveState('');
@@ -361,9 +361,9 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 			/>
 		{:else if storeState.activeState === 'zoom'}
 			<Zoom
-				stage={stage}
-				layer={layer}
-				imageNode={imageNode}
+				{stage}
+				{layer}
+				{imageNode}
 				onZoomApplied={() => {
 					imageEditorStore.setActiveState('');
 					applyEdit();
@@ -374,9 +374,9 @@ Users can upload an image, applying various editing tools (crop, blur, rotate, z
 			/>
 		{:else if storeState.activeState === 'focalpoint'}
 			<FocalPoint
-				stage={stage}
-				layer={layer}
-				imageNode={imageNode}
+				{stage}
+				{layer}
+				{imageNode}
 				onFocalpoint={(data: { x: number; y: number }) => {
 					const { x, y } = data;
 					const centerX = (stage?.width() ?? 0) / 2;

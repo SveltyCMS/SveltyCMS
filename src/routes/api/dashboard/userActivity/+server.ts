@@ -1,14 +1,18 @@
 /**
- * @file src/routes/api/userActivity/+server.ts
+ * @file src/routes/api/dashboard/userActivity/+server.ts
  * @description API endpoint for user activity data for dashboard widgets
  */
 
+import { error, json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+
+// Auth
+import { auth } from '@src/databases/db';
 import { roles } from '@root/config/roles';
 import { hasPermissionByAction } from '@src/auth/permissions';
-import { auth } from '@src/databases/db';
-import { error, json } from '@sveltejs/kit';
+
+// System Logger
 import { logger } from '@utils/logger.svelte';
-import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ locals }) => {
 	try {

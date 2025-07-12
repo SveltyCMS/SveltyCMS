@@ -22,38 +22,33 @@
 	// Icons from https://icon-sets.iconify.design/
 	import 'iconify-icon';
 
-	import { publicEnv } from '@root/config/public';
-	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/state';
-
+	import { publicEnv } from '@root/config/public';
+	import { onDestroy, onMount } from 'svelte';
 	// Auth
 	import type { User } from '@src/auth/types';
 
 	// Utils
-	import { getTextDirection } from '@utils/utils';
 	import { isSearchVisible } from '@utils/globalSearchIndex';
-
+	import { getTextDirection } from '@utils/utils';
 	// Stores
-	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
-	import { contentStructure, collections } from '@stores/collectionStore.svelte';
-	import { uiStateManager } from '@stores/UIStore.svelte';
+	import { collections, contentStructure } from '@stores/collectionStore.svelte';
 	import { screenSize } from '@stores/screenSizeStore.svelte';
-
+	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
+	import { uiStateManager } from '@stores/UIStore.svelte';
 	// Components
-	import Loading from '@components/Loading.svelte';
-	import SearchComponent from '@components/SearchComponent.svelte';
-	import LeftSidebar from '@components/LeftSidebar.svelte';
-	import RightSidebar from '@components/RightSidebar.svelte';
 	import HeaderEdit from '@components/HeaderEdit.svelte';
+	import LeftSidebar from '@components/LeftSidebar.svelte';
+	import Loading from '@components/Loading.svelte';
 	import PageFooter from '@components/PageFooter.svelte';
-
+	import RightSidebar from '@components/RightSidebar.svelte';
+	import SearchComponent from '@components/SearchComponent.svelte';
 	// Skeleton
-	import { initializeStores, Modal, Toast, setModeUserPrefers, setModeCurrent, setInitialClassState } from '@skeletonlabs/skeleton';
-
+	import { initializeStores, Modal, setInitialClassState, setModeCurrent, setModeUserPrefers, Toast } from '@skeletonlabs/skeleton';
 	// Required for popups to function
-	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
-	import { storePopup } from '@skeletonlabs/skeleton';
+	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
 	import type { ContentNode } from '@root/src/databases/dbInterface';
+	import { storePopup } from '@skeletonlabs/skeleton';
 
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 	initializeStores();
@@ -219,13 +214,13 @@
 		{@render children?.()}
 	{:else}
 		<!-- Body -->
-		<div class="flex h-lvh flex-col">
+		<div class="flex h-lvh flex-col overflow-x-hidden">
 			<!-- Header (unsused)  -->
 			{#if uiStateManager.uiState.value.header !== 'hidden'}
 				<header class="sticky top-0 z-10 bg-tertiary-500">Header</header>
 			{/if}
 
-			<div class="flex flex-1 overflow-hidden">
+			<div class="flex flex-1 overflow-x-hidden overflow-y-hidden">
 				<!-- Sidebar Left -->
 				{#if uiStateManager.uiState.value.leftSidebar !== 'hidden'}
 					<aside
@@ -238,7 +233,7 @@
 				{/if}
 
 				<!-- Content Area -->
-				<main class="relative w-full flex-1">
+				<main class="relative w-full min-w-0 flex-1 overflow-x-hidden">
 					<!-- Page Header -->
 					{#if uiStateManager.uiState.value.pageheader !== 'hidden'}
 						<header class="sticky top-0 z-10 w-full">
@@ -249,10 +244,9 @@
 					<!-- Router Slot -->
 					<div
 						role="main"
-						class="relative h-full flex-grow overflow-auto {uiStateManager.uiState.value.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {$screenSize ===
-						'lg'
-							? 'mb-2'
-							: 'mb-16'}"
+						class="relative h-full flex-grow overflow-y-auto overflow-x-hidden {uiStateManager.uiState.value.leftSidebar === 'full'
+							? 'mx-2'
+							: 'mx-1'} {$screenSize === 'LG' ? 'mb-2' : 'mb-16'}"
 					>
 						<Toast />
 						<Modal />

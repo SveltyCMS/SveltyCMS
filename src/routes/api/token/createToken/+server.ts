@@ -26,24 +26,21 @@ import { roles } from '@root/config/roles'; // Import static roles for fallback
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
+// Cache invalidation
+import { invalidateAdminCache } from '@src/hooks.server';
+
 // Input validation
 import { addUserTokenSchema } from '@utils/formSchemas';
 import { parse, type ValiError } from 'valibot';
+import { v4 as uuidv4 } from 'uuid';
 
-// ParaglideJS 
+// ParaglideJS
 import { getLocale } from '@src/paraglide/runtime';
 
-
-export const POST: RequestHandler = async ({ request, locals, fetch }) => {
+export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 	try {
 		// **SECURITY**: Add a specific permission check.
-		const hasPermission = hasPermissionByAction(
-			locals.user,
-			'create',
-			'user',
-			'any',
-			locals.roles && locals.roles.length > 0 ? locals.roles : roles
-		);
+		const hasPermission = hasPermissionByAction(locals.user, 'create', 'user', 'any', locals.roles && locals.roles.length > 0 ? locals.roles : roles);
 
 		if (!hasPermission) {
 			logger.warn('Unauthorized attempt to create an invitation token', { userId: locals.user?._id });
@@ -79,9 +76,18 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 			throw error(409, 'An invitation token for this email already exists. Please delete the existing token first.');
 		}
 
+		// Find the role object to get its name for the email template
+		const roleInfo = roles.find((r) => r._id === validatedData.role);
+		const roleName = roleInfo ? roleInfo.name : validatedData.role; // Fallback to role ID if not found
+
 		// Define expiration times based on the schema's allowed values.
 		const expirationInSeconds: Record<string, number> = {
-			'2 hrs': 7200, '12 hrs': 43200, '2 days': 172800, '1 week': 604800
+			'2 hrs': 7200,
+			'12 hrs': 43200,
+			'2 days': 172800,
+			'1 week': 604800,
+			'2 weeks': 1209600,
+			'1 month': 2592000
 		};
 		const expiresInSeconds = expirationInSeconds[validatedData.expiresIn];
 		if (!expiresInSeconds) {
@@ -90,38 +96,44 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 
 		const expires = new Date(Date.now() + expiresInSeconds * 1000);
 
-		// Find the role object based on the role ID from the request.
-		const role = roles.find((r) => r._id === validatedData.role);
-		if (!role) {
-			logger.error('Invalid role ID provided for token creation', { roleId: validatedData.role });
-			throw error(400, 'Invalid role selected.');
+		// Create a new token using the TokenAdapter
+		const token = await tokenAdapter.createToken({
+			user_id: uuidv4(), // Use uuidv4 to generate a unique user_id
+			email: validatedData.email.toLowerCase(), // Normalize email to lowercase
+			expires,
+			type: 'user-invite',
+			username: validatedData.username,
+			role: validatedData.role
+		});
+
+		if (!token) {
+			logger.error('Failed to create token for email', { email: validatedData.email });
+			throw error(500, 'Internal Server Error: Token creation failed.');
 		}
 
-		// Create a registration token.
-		const token = await tokenAdapter.createToken({
-			user_id: crypto.randomUUID(), // Temporary ID until user registers
-			email: validatedData.email,
-			expires,
-			type: 'registration'
-		});
-		logger.debug('Created registration token', { email: validatedData.email, expires: expires.toISOString() });
+		logger.info('Token created successfully', { email: validatedData.email });
 
-		// Generate a link to the login page with the registration token as a query parameter.
-		const tokenLink = `${request.url.origin}/login?regToken=${token}`;
+		// Generate a link to the login page with the invite token as a query parameter.
+		const origin = url.origin;
+		const inviteLink = `${origin}/login?invite_token=${token}`;
 
 		// Send invitation email using the internal sendMail API.
-		const emailResponse = await fetch('/api/sendMail', {
+		const emailApiUrl = `${origin}/api/sendMail`;
+
+		// Send invitation email using the internal sendMail API.
+		const emailResponse = await fetch(emailApiUrl, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
-				email: validatedData.email,
+				recipientEmail: validatedData.email, // Changed from 'email' to 'recipientEmail'
 				subject: 'Invitation to Register',
 				templateName: 'userToken',
 				props: {
+					username: '', // Will be filled by the user during signup
 					email: validatedData.email,
-					role: role.name, // Send user-friendly role name
-					token: token,
-					tokenLink: tokenLink,
+					role: roleName, // Send user-friendly role name
+					token: token, // Include the raw token for fallback
+					tokenLink: inviteLink, // Pass the full magic link to the template
 					expiresInLabel: validatedData.expiresIn,
 					languageTag: getLocale()
 				}
@@ -136,7 +148,10 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 			throw error(500, emailError.message || 'Failed to send invitation email.');
 		}
 
-		logger.info('Token created and email sent successfully', { email: validatedData.email, role: role.name });
+		logger.info('Token created and email sent successfully', { email: validatedData.email, role: roleName });
+
+		// Invalidate the admin cache for tokens so the UI refreshes immediately
+		invalidateAdminCache('tokens');
 
 		// Return success response
 		return json({
@@ -144,7 +159,6 @@ export const POST: RequestHandler = async ({ request, locals, fetch }) => {
 			message: 'Token created and email sent successfully.',
 			token: { value: token, expires: expires.toISOString() }
 		});
-
 	} catch (err) {
 		if (err.name === 'ValiError') {
 			const valiError = err as ValiError;

@@ -18,7 +18,6 @@
 	import { onMount, onDestroy } from 'svelte';
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
-	import { updateTranslationProgress, getFieldName } from '@utils/utils';
 
 	// Stores
 	import { validationStore } from '@stores/store.svelte';
@@ -26,6 +25,7 @@
 
 	// Valibot validation
 	import { string, email as emailValidator, pipe, parse, type ValiError } from 'valibot';
+	import { getFieldName } from '@root/src/utils/utils';
 
 	interface Props {
 		field: FieldType;
@@ -46,9 +46,6 @@
 	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
 
 	// Update translation progress when data changes
-	$effect(() => {
-		updateTranslationProgress(_data, field);
-	});
 
 	// Create validation schema for email
 	const emailSchema = pipe(string(), emailValidator('Please enter a valid email address'));

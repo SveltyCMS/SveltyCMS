@@ -24,7 +24,7 @@ export default defineConfig({
 	/* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
 	use: {
 		/* Base URL to use in actions like `await page.goto('/')`. */
-		baseURL: 'http://localhost:4173',
+		baseURL: process.env.CI ? 'http://localhost:4173' : 'http://localhost:5173',
 
 		launchOptions: {
 			slowMo: parseInt(process.env.SLOW_MO || '0')
@@ -73,10 +73,10 @@ export default defineConfig({
 		}
 	],
 
-	/* Run your local dev server before starting the tests using bun*/
+	/* Run your local dev server before starting the tests */
 	webServer: {
-		command: 'npm run build && npm run preview',
-		port: 4173,
+		command: process.env.CI ? 'bun run build && bun run preview' : 'bun run dev',
+		port: process.env.CI ? 4173 : 5173,
 		timeout: 240000, // Timeout in milliseconds
 		reuseExistingServer: !process.env.CI
 	}

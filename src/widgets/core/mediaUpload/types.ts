@@ -168,15 +168,15 @@ export const GraphqlSchema = ({ label }: { label: string }) => {
     input Create${label}Input {
         name: String
         ${Object.keys(GuiSchema)
-			.map((field) => `${field}: ${getType(GuiSchema[field].widget)}`)
-			.join('\n')}
+					.map((field) => `${field}: ${getType(GuiSchema[field].widget)}`)
+					.join('\n')}
     }
 
     input Update${label}Input {
         name: String
         ${Object.keys(GuiSchema)
-			.map((field) => `${field}: ${getType(GuiSchema[field].widget)}`)
-			.join('\n')}
+					.map((field) => `${field}: ${getType(GuiSchema[field].widget)}`)
+					.join('\n')}
     }
     `;
 

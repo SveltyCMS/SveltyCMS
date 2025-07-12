@@ -216,7 +216,7 @@ Features:
 <BaseWidget
 	{label}
 	{theme}
-	endpoint="/api/systemInfo?type=memory"
+	endpoint="/api/dashboard/systemInfo?type=memory"
 	pollInterval={10000}
 	{icon}
 	{widgetId}
@@ -232,7 +232,7 @@ Features:
 	{onResizeCommitted}
 	{onCloseRequest}
 >
-	{#snippet children({ data: fetchedData })}
+	{#snippet children({ data: fetchedData }: { data: FetchedData | undefined })}
 		{#if fetchedData?.memoryInfo?.total}
 			{@const totalMemGB = (fetchedData.memoryInfo.total.totalMemMb || 0) / 1024}
 			{@const usedMemGB = (fetchedData.memoryInfo.total.usedMemMb || 0) / 1024}

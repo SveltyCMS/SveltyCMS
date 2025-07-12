@@ -10,11 +10,23 @@
 import { dev } from '$app/environment';
 import { privateEnv } from '@root/config/private';
 import { publicEnv } from '@root/config/public';
-import type { OAuth2Client } from 'google-auth-library';
-import type { Credentials } from 'google-auth-library';
+import type { Credentials, OAuth2Client } from 'google-auth-library';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
+
+// Utility function to determine the correct OAuth redirect URI
+function getOAuthRedirectUri(): string {
+	// Use SvelteKit's built-in environment detection
+	if (dev) {
+		logger.debug('🔧 Development mode detected - using development host');
+		return `${publicEnv.HOST_DEV}/login/oauth`;
+	}
+
+	// For production builds, use the production host
+	logger.debug('🚀 Production mode detected - using production host');
+	return `${publicEnv.HOST_PROD}/login/oauth`;
+}
 
 // Google OAuth
 let googleAuthClient: OAuth2Client | null = null;
@@ -30,8 +42,8 @@ async function googleAuth(): Promise<OAuth2Client | null> {
 		if (!googleAuthClient) {
 			logger.debug('Setting up Google OAuth2...');
 			const { google } = await import('googleapis');
-			const redirectUri = `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`;
-			logger.debug(`Using OAuth redirect URI: ${redirectUri}`);
+			const redirectUri = getOAuthRedirectUri();
+			logger.debug(`Using OAuth redirect URI: \x1b[34m${redirectUri}\x1b[0m`);
 
 			googleAuthClient = new google.auth.OAuth2(privateEnv.GOOGLE_CLIENT_ID, privateEnv.GOOGLE_CLIENT_SECRET, redirectUri);
 		}
@@ -52,28 +64,34 @@ async function setCredentials(credentials: Credentials): Promise<void> {
 	}
 }
 
-async function generateGoogleAuthUrl(token?: string | null, consent: string = 'consent'): Promise<string> {
+async function generateGoogleAuthUrl(token?: string | null, promptType?: 'consent' | 'none' | 'select_account'): Promise<string> {
 	const googleAuthClient = await googleAuth();
 	if (!googleAuthClient) {
 		throw new Error('Google OAuth is not initialized');
 	}
 
 	const scopes = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'];
-	const baseUrl = `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`;
+	const baseUrl = getOAuthRedirectUri();
 
-	logger.debug(`Generating OAuth URL with base URL: ${baseUrl}`);
-
-	const authUrl = googleAuthClient.generateAuthUrl({
-		access_type: 'offline',
+	// Generate auth URL without PKCE parameters to avoid Google's "code_verifier or verifier is not needed" error
+	// Use 'online' access_type to prevent PKCE from being auto-enabled in newer googleapis versions
+	const authUrlOptions: Record<string, string | boolean | undefined> = {
+		access_type: 'online', // Changed from 'offline' to 'online' to disable PKCE
 		scope: scopes.join(' '),
 		redirect_uri: baseUrl,
 		state: token ? encodeURIComponent(token) : undefined,
-		prompt: consent,
 		include_granted_scopes: true
-	});
+		// Note: Using 'online' access_type prevents PKCE parameters from being auto-added
+	};
 
-	logger.debug(`Generated OAuth URL: ${authUrl}`);
+	// Only add prompt if explicitly specified
+	if (promptType) {
+		authUrlOptions.prompt = promptType;
+	}
+
+	const authUrl = googleAuthClient.generateAuthUrl(authUrlOptions);
+
 	return authUrl;
 }
 
-export { googleAuth, setCredentials, generateGoogleAuthUrl };
+export { generateGoogleAuthUrl, getOAuthRedirectUri, googleAuth, setCredentials };

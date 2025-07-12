@@ -23,11 +23,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	import { storeListboxValue } from '@stores/store.svelte';
 
 	// Skeleton
-	import { popup } from '@skeletonlabs/skeleton';
-	import type { PopupSettings } from '@skeletonlabs/skeleton';
-	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
-	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
+	import type { ModalComponent, ModalSettings, PopupSettings } from '@skeletonlabs/skeleton';
+	import { getModalStore, getToastStore, ListBox, ListBoxItem, popup } from '@skeletonlabs/skeleton';
 	import ModalEditForm from './ModalEditForm.svelte';
 	import ModalEditToken from './ModalEditToken.svelte';
 
@@ -36,6 +33,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		username: string;
 		email: string;
 		role: string;
+		blocked: boolean;
 	}
 
 	interface TokenData {
@@ -141,34 +139,79 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			buttonClass: 'gradient-error',
 			hoverClass: 'gradient-error-hover',
 			iconValue: 'bi:trash3-fill',
-			modalTitle: () => (type === 'user' ? m.usermodalconfirmtitle() : m.multibuttontoken_deletetitle()),
-			modalBody: () => `Are you sure you want to delete ${selectedRows.length} ${type}(s)?`,
+			modalTitle: () => {
+				if (type === 'user') {
+					return `Please Confirm User <span class="text-error-500 font-bold">Deletion</span>`;
+				}
+				return m.multibuttontoken_deletetitle();
+			},
+			modalBody: () => {
+				if (type === 'user') {
+					if (selectedRows.length === 1) {
+						const user = selectedRows[0] as UserData;
+						return `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> user <span class="text-tertiary-500 font-medium">${user.email}</span>? This action cannot be undone and will permanently remove the user from the system.`;
+					} else {
+						return `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> <span class="text-tertiary-500 font-medium">${selectedRows.length} users</span>? This action cannot be undone and will permanently remove all selected users from the system.`;
+					}
+				}
+				return `Are you sure you want to delete ${selectedRows.length} ${type}(s)?`;
+			},
 			endpoint: () => (type === 'user' ? '/api/user/batch' : '/api/token/batch'),
 			method: () => 'POST',
 			toastMessage: () => `${type === 'user' ? 'Users' : 'Tokens'} Deleted`,
-			toastBackground: 'gradient-error'
+			toastBackground: 'variant-filled-success'
 		},
 		block: {
 			buttonClass: 'gradient-pink',
 			hoverClass: 'gradient-yellow-hover',
 			iconValue: 'material-symbols:lock',
-			modalTitle: () => (type === 'user' ? 'Please Confirm User Block' : m.multibuttontoken_blocktitle()),
-			modalBody: () => `Are you sure you want to block ${selectedRows.length} ${type}(s)?`,
+			modalTitle: () => {
+				if (type === 'user') {
+					return `Please Confirm User <span class="text-error-500 font-bold">Block</span>`;
+				}
+				return m.multibuttontoken_blocktitle();
+			},
+			modalBody: () => {
+				if (type === 'user') {
+					if (selectedRows.length === 1) {
+						const user = selectedRows[0] as UserData;
+						return `Are you sure you want to <span class="text-error-500 font-semibold">block</span> user <span class="text-tertiary-500 font-medium">${user.email}</span>? This will prevent them from accessing the system.`;
+					} else {
+						return `Are you sure you want to <span class="text-error-500 font-semibold">block</span> <span class="text-tertiary-500 font-medium">${selectedRows.length} users</span>? This will prevent them from accessing the system.`;
+					}
+				}
+				return `Are you sure you want to block ${selectedRows.length} ${type}(s)?`;
+			},
 			endpoint: () => (type === 'user' ? '/api/user/batch' : '/api/token/batch'),
 			method: () => 'POST',
 			toastMessage: () => `${type === 'user' ? 'Users' : 'Tokens'} Blocked`,
-			toastBackground: 'gradient-yellow'
+			toastBackground: 'variant-filled-success'
 		},
 		unblock: {
 			buttonClass: 'gradient-yellow',
 			hoverClass: 'gradient-primary-hover',
 			iconValue: 'material-symbols:lock-open',
-			modalTitle: () => (type === 'user' ? 'Please Confirm User Unblock' : m.multibuttontoken_unblocktitle()),
-			modalBody: () => `Are you sure you want to unblock ${selectedRows.length} ${type}(s)?`,
+			modalTitle: () => {
+				if (type === 'user') {
+					return `Please Confirm User <span class="text-success-500 font-bold">Unblock</span>`;
+				}
+				return m.multibuttontoken_unblocktitle();
+			},
+			modalBody: () => {
+				if (type === 'user') {
+					if (selectedRows.length === 1) {
+						const user = selectedRows[0] as UserData;
+						return `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> user <span class="text-tertiary-500 font-medium">${user.email}</span>? This will allow them to access the system again.`;
+					} else {
+						return `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> <span class="text-tertiary-500 font-medium">${selectedRows.length} users</span>? This will allow them to access the system again.`;
+					}
+				}
+				return `Are you sure you want to unblock ${selectedRows.length} ${type}(s)?`;
+			},
 			endpoint: () => (type === 'user' ? '/api/user/batch' : '/api/token/batch'),
 			method: () => 'POST',
 			toastMessage: () => `${type === 'user' ? 'Users' : 'Tokens'} Unblocked`,
-			toastBackground: 'gradient-primary'
+			toastBackground: 'variant-filled-success'
 		}
 	} as const;
 
@@ -204,6 +247,27 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		if (action === 'edit' && isMultipleSelected) {
 			showToast(`Please select only one ${type} to edit`, true);
 			return;
+		}
+
+		// Smart validation for block/unblock actions on users
+		if (type === 'user' && (action === 'block' || action === 'unblock')) {
+			const users = selectedRows as UserData[];
+
+			if (action === 'block') {
+				// Check if any selected users are unblocked (can be blocked)
+				const hasUnblockedUsers = users.some((user) => !user.blocked);
+				if (!hasUnblockedUsers) {
+					showToast('All selected users are already blocked', true);
+					return;
+				}
+			} else if (action === 'unblock') {
+				// Check if any selected users are blocked (can be unblocked)
+				const hasBlockedUsers = users.some((user) => user.blocked);
+				if (!hasBlockedUsers) {
+					showToast('All selected users are already unblocked', true);
+					return;
+				}
+			}
 		}
 
 		// Additional validation for token editing
@@ -245,6 +309,18 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			type: isEdit ? 'component' : 'confirm',
 			title: config.modalTitle(),
 			body: config.modalBody(),
+			buttonTextConfirm: isEdit ? 'Save' : action.toUpperCase(),
+			buttonTextCancel: 'Cancel',
+			// Custom button styling based on action
+			...(action === 'delete' && {
+				buttonTextConfirm: 'Delete'
+			}),
+			...(action === 'block' && {
+				buttonTextConfirm: 'Block'
+			}),
+			...(action === 'unblock' && {
+				buttonTextConfirm: 'Unblock'
+			}),
 			...(isEdit && { component: modalComponent }),
 			response: async (r: ModalResponse | boolean) => {
 				if (!r) return;
@@ -302,7 +378,31 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 					}
 
 					const data = await res.json();
-					showToast(data.message || config.toastMessage(), false, config.toastBackground);
+
+					// Generate smart toast message based on what actually changed
+					let toastMessage = data.message || config.toastMessage();
+
+					if (isEdit && type === 'user' && r && typeof r === 'object' && '_changes' in r) {
+						const changes = (r as any)._changes as string[];
+						if (changes && changes.length > 0) {
+							const changeDescriptions = changes.map((change) => {
+								if (change === 'username') return 'username updated';
+								if (change === 'password') return 'password updated';
+								if (change.startsWith('role (')) return change.replace('role (', 'role changed from ').replace(')', '');
+								return change;
+							});
+
+							if (changeDescriptions.length === 1) {
+								toastMessage = `User ${changeDescriptions[0]}.`;
+							} else if (changeDescriptions.length === 2) {
+								toastMessage = `User ${changeDescriptions[0]} and ${changeDescriptions[1]}.`;
+							} else {
+								toastMessage = `User updated: ${changeDescriptions.join(', ')}.`;
+							}
+						}
+					}
+
+					showToast(toastMessage, false, config.toastBackground);
 					await invalidateAll();
 				} catch (error) {
 					console.error(`Error during action '${action}' for type '${type}':`, error);

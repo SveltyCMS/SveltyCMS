@@ -6,6 +6,7 @@
  */
 import type { DatabaseResult, SystemPreferences } from '@src/databases/dbInterface';
 import type { FilterQuery, Model } from 'mongoose';
+
 import mongoose from 'mongoose';
 const { Schema } = mongoose;
 

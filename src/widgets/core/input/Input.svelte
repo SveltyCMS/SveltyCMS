@@ -24,7 +24,7 @@
 
 	// Utils
 	import { track } from '@src/utils/reactivity.svelte';
-	import { updateTranslationProgress, getFieldName } from '@src/utils/utils';
+	import { getFieldName } from '@src/utils/utils';
 
 	// Valibot validation
 	import { string, pipe, parse, type ValiError, nonEmpty, nullable, transform } from 'valibot';
@@ -57,12 +57,6 @@
 
 	// Character count
 	let count = $derived(value[_language]?.length ?? 0);
-
-	// Track translation progress
-	track(
-		() => updateTranslationProgress(value, field),
-		() => value[_language]
-	);
 
 	// Validation state - now using the enhanced validation store
 	let inputElement: HTMLInputElement | null = null;

@@ -46,7 +46,7 @@ export const GuiSchema = {
 	width: { widget: Input, required: false },
 
 	// Permissions
-	permissions: { widget: PermissionsSetting, required: false },
+	permissions: { widget: PermissionsSetting, required: false }
 
 	// Widget Specific parameters
 };

@@ -440,5 +440,7 @@
 	"sidebar_will_publish_on": "প্রকাশিত হবে",
 	"siedabar_publish_options": "প্রকাশের বিকল্পগুলি",
 	"Fields_no_widgets_found": "উইজেটটি পাওয়া যায়নি: {name}",
-	"Fields_preview": "প্রিভিউ"
+	"Fields_preview": "প্রিভিউ",
+	"modal_token_deleted_successfully": "টোকেন সফলভাবে মুছে ফেলা হয়েছে",
+	"modal_token_user_deleted": "টোকেন সফলভাবে মুছে ফেলা হয়েছে"
 }

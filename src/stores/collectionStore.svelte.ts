@@ -1,9 +1,9 @@
 /**
  * @file src/stores/collectionStore.ts
- * @description Manages the collection state 
+ * @description Manages the collection state
  *
  * Features:
- *  - Collection state management 
+ *  - Collection state management
  * 	- Asynchronous collection initialization
  * 	- Collection updating with reactive states
  * 	- TypeScript support with custom Collection type
@@ -32,7 +32,7 @@ export const statusMap = {
 	testing: 'testing'
 } as const;
 
-// Create reactive stores 
+// Create reactive stores
 export const collections = store<{ [uuid: string]: Schema }>({});
 export const collectionsById = store<Map<string, Schema>>(new Map());
 export const currentCollectionId = store<string | null>(null);
@@ -46,8 +46,12 @@ export const collection = store<Schema | null>({} as Schema);
 // Create reactive state variables for collectionValue
 let collectionValueState = $state<Record<string, unknown>>({});
 export const collectionValue = {
-	get value() { return collectionValueState; },
-	set: (newValue: Record<string, unknown>) => { collectionValueState = newValue; },
+	get value() {
+		return collectionValueState;
+	},
+	set: (newValue: Record<string, unknown>) => {
+		collectionValueState = newValue;
+	},
 	update: (fn: (value: Record<string, unknown>) => Record<string, unknown>) => {
 		collectionValueState = fn(collectionValueState);
 	}
@@ -56,8 +60,12 @@ export const collectionValue = {
 // Create reactive state variables for mode
 let modeState = $state<ModeType>('view');
 export const mode = {
-	get value() { return modeState; },
-	set: (newMode: ModeType) => { modeState = newMode; },
+	get value() {
+		return modeState;
+	},
+	set: (newMode: ModeType) => {
+		modeState = newMode;
+	},
 	update: (fn: (value: ModeType) => ModeType) => {
 		modeState = fn(modeState);
 	}
@@ -69,7 +77,7 @@ export const targetWidget = store<Widget>({ permissions: {} });
 
 export const contentStructure = store<ContentNode[]>([]);
 
-// Reactive calculations 
+// Reactive calculations
 export const totalCollections = store(() => Object.keys(collections.value).length);
 export const hasSelectedEntries = store(() => selectedEntries.value.length > 0);
 export const currentCollectionName = store(() => collection.value?.name);

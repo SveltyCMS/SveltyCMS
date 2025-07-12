@@ -295,7 +295,7 @@
 <BaseWidget
 	{label}
 	{theme}
-	endpoint="/api/systemInfo?type=cpu"
+	endpoint="/api/dashboard/systemInfo?type=cpu"
 	pollInterval={5000}
 	{icon}
 	{widgetId}

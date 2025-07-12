@@ -21,7 +21,7 @@ This component provides a lightweight, flexible interface for table filtering, u
 	import { browser } from '$app/environment';
 
 	// Stores
-	import { translationStatusOpen, setTranslationStatusOpen } from '@stores/store.svelte';
+	import { setTranslationStatusOpen } from '@stores/store.svelte';
 
 	// Props with types
 	let {

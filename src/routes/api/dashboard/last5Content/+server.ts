@@ -1,14 +1,19 @@
 /**
- * @file src/routes/api/last5Content/+server.ts
+ * @file src/routes/api/dashboard/last5Content/+server.ts
  * @description API endpoint for recent content data for dashboard widgets
  */
 
-import { roles } from '@root/config/roles';
-import { contentManager } from '@root/src/content/ContentManager';
-import { hasPermissionByAction } from '@src/auth/permissions';
-import { error, json } from '@sveltejs/kit';
-import { logger } from '@utils/logger.svelte';
 import type { RequestHandler } from './$types';
+import { error, json } from '@sveltejs/kit';
+
+// Auth
+import { roles } from '@root/config/roles';
+import { hasPermissionByAction } from '@src/auth/permissions';
+
+import { contentManager } from '@root/src/content/ContentManager';
+
+// System Logger
+import { logger } from '@utils/logger.svelte';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	try {

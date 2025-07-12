@@ -14,25 +14,25 @@
  * - Session metrics cleanup
  */
 
-import { privateEnv } from '@root/config/private';
-import { redirect, error, type Handle, type RequestEvent } from '@sveltejs/kit';
-import { sequence } from '@sveltejs/kit/hooks';
 import { building } from '$app/environment';
+import { privateEnv } from '@root/config/private';
+import { error, redirect, type Handle, type RequestEvent } from '@sveltejs/kit';
+import { sequence } from '@sveltejs/kit/hooks';
 
 // Stores
-import { systemLanguage, contentLanguage } from '@stores/store.svelte';
+import { contentLanguage, systemLanguage } from '@stores/store.svelte';
 
 // Rate Limiter
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
 
 // Auth and Database Adapters
-import { auth, dbInitPromise, authAdapter } from '@src/databases/db';
+import { roles } from '@root/config/roles';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import { hasPermissionByAction } from '@src/auth/permissions';
-import { roles } from '@root/config/roles';
+import { auth, authAdapter, dbInitPromise } from '@src/databases/db';
 
+import type { Permission, User } from '@src/auth';
 import type { Locale } from '@src/paraglide/runtime';
-import type { User, Permission } from '@src/auth';
 // Cache
 import { getCacheStore } from '@src/cacheStore/index.server';
 
@@ -226,7 +226,7 @@ const getUserFromSessionId = async (session_id: string | undefined, authServiceR
 		cacheStore
 			.set(session_id, sessionData, new Date(now + CACHE_TTL))
 			.catch((err) => logger.error(`Failed to extend session cache for \x1b[34m${session_id}\x1b[0m: ${err.message}`));
-		logger.debug(`Session cache hit and extended for \x1b[34m${session_id}\x1b[0m (auth ready: ${authServiceReady})`);
+		logger.debug(`Session cache hit and extended for \x1b[34m${session_id}\x1b[0m (auth ready: \x1b[34m${authServiceReady}\x1b[0m)`);
 		sessionMetrics.lastActivity.set(session_id, now); // Update session metrics
 		return memCached.user;
 	}
@@ -310,6 +310,12 @@ export const invalidateAdminCache = (cacheKey?: 'roles' | 'users' | 'tokens'): v
 		adminDataCache.clear();
 		logger.debug('All admin cache cleared');
 	}
+};
+
+// Helper function to invalidate user count cache - exported for use after user creation/deletion
+export const invalidateUserCountCache = (): void => {
+	userCountCache = null;
+	logger.debug('User count cache invalidated');
 };
 
 // Handle static asset caching
@@ -585,6 +591,13 @@ const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEve
 		logger.warn(`Could not determine API endpoint from path: ${event.url.pathname}`);
 		throw error(400, 'Invalid API path');
 	}
+
+	// SPECIAL CASE: Logout should always be allowed regardless of permissions
+	if (event.url.pathname === '/api/user/logout') {
+		logger.debug('Logout endpoint accessed - bypassing permission checks');
+		return resolve(event);
+	}
+
 	const cacheStore = getCacheStore();
 	const now = Date.now();
 

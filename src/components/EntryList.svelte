@@ -1,5 +1,5 @@
 <!--
-@file:  src/components/EntryList.svelte
+@file:  src/components/EntryList.svelte
 @component
 **EntryList component to display collections data.**
 
@@ -23,48 +23,43 @@ Features:
 <script module lang="ts">
 	// Strict type for sort order
 	export type SortOrder = 0 | 1 | -1;
+
+	// FIX: Removed the local FieldDefinition interface to prevent type conflicts
+	// with the actual types from your project's content schema.
 </script>
 
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
-
 	// Utils
-	import { debounce as debounceUtil, getFieldName, meta_data } from '@utils/utils';
-	import { deleteData, getData, setStatus } from '@utils/data';
+	import { deleteData, getData, invalidateCollectionCache, setStatus } from '@utils/data';
 	import { formatDisplayDate } from '@utils/dateUtils';
-
+	import { debounce as debounceUtil, getFieldName, meta_data } from '@utils/utils';
 	// Types
-	import type { TableHeader, PaginationSettings } from './system/table/TablePagination.svelte';
-
+	import type { PaginationSettings, TableHeader } from './system/table/TablePagination.svelte';
 	// Stores
-	import { contentLanguage, systemLanguage } from '@stores/store.svelte';
-	import { mode, collectionValue, modifyEntry, statusMap, collection, contentStructure } from '@stores/collectionStore.svelte';
-	import { uiStateManager, toggleUIElement, handleUILayoutToggle } from '@stores/UIStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
-
+	import { collection, collectionValue, contentStructure, mode, modifyEntry, statusMap } from '@stores/collectionStore.svelte';
+	import { contentLanguage, systemLanguage } from '@stores/store.svelte';
+	import { handleUILayoutToggle, toggleUIElement, uiStateManager } from '@stores/UIStore.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Components
-	import EntryListMultiButton from './EntryList_MultiButton.svelte';
-	import TranslationStatus from '@components/TranslationStatus.svelte';
-	import TableIcons from '@components/system/table/TableIcons.svelte';
-	import TableFilter from '@components/system/table/TableFilter.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
-	import TablePagination from '@components/system/table/TablePagination.svelte';
 	import Status from '@components/system/table/Status.svelte';
+	import TableFilter from '@components/system/table/TableFilter.svelte';
+	import TableIcons from '@components/system/table/TableIcons.svelte';
+	import TablePagination from '@components/system/table/TablePagination.svelte';
+	import TranslationStatus from '@components/TranslationStatus.svelte';
+	import EntryListMultiButton from './EntryList_MultiButton.svelte';
 	import Loading from './Loading.svelte';
-
 	// Skeleton
-	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings } from '@skeletonlabs/skeleton';
-	const toastStore = getToastStore();
-	const modalStore = getModalStore();
-
+	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
 	// Svelte-dnd-action
-	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
+	import { flip } from 'svelte/animate';
 	import { v4 as uuidv4 } from 'uuid';
 
 	const flipDurationMs = 300;
@@ -88,12 +83,26 @@ Features:
 		filters: {}, // Will be populated by an effect based on tableHeaders
 		displayTableHeaders: []
 	});
-
 	let entryListPaginationSettings = $state<PaginationSettings>(defaultPaginationSettings(collection.value?._id ?? null));
+
+	// Collection-specific initialization to track initial loads per collection
+	let lastCollectionId = $state<string | null>(null);
+	let isCollectionChanging = $state(false);
+	let isInitializing = $state(false); // Flag to prevent pagination effect during initial load
 
 	$effect(() => {
 		// Load settings from localStorage when collectionId changes
 		const currentCollId = collection.value?._id;
+
+		// Only process if collection actually changed
+		if (lastCollectionId === currentCollId) return;
+
+		console.log(`[EntryList] Collection changed from ${lastCollectionId} to ${currentCollId}`);
+
+		// Set flags to prevent pagination effect from triggering during collection change
+		isCollectionChanging = true;
+		isInitializing = true;
+
 		if (browser && currentCollId) {
 			const savedSettings = localStorage.getItem(`entryListPaginationSettings_${currentCollId}`);
 			let newSettings: PaginationSettings = defaultPaginationSettings(currentCollId);
@@ -131,25 +140,57 @@ Features:
 				}
 			}
 			entryListPaginationSettings = { ...newSettings }; // Create new object for reactivity
+
+			// Reset loading state for new collection and update tracking
+			untrack(() => {
+				lastCollectionId = currentCollId;
+				hasInitialLoad = false;
+				stableDataExists = false;
+				loadingState = 'loading';
+			});
+
+			// Trigger data load for new collection
+			console.log(`[EntryList] Loading data for collection ${currentCollId}`);
+			untrack(() => refreshTableData(true));
+
+			// Clear flag after a longer timeout to ensure pagination effect doesn't trigger
+			setTimeout(() => {
+				isCollectionChanging = false;
+				// Clear initializing flag after data has been loaded and processed
+				setTimeout(() => {
+					isInitializing = false;
+				}, 50);
+			}, 100);
 		} else if (!currentCollId) {
 			// No collection selected, reset to defaults for a null collectionId
+			console.log(`[EntryList] No collection selected, resetting state`);
 			entryListPaginationSettings = defaultPaginationSettings(null);
+			untrack(() => {
+				lastCollectionId = null;
+				hasInitialLoad = false;
+				stableDataExists = false;
+				loadingState = 'idle';
+				tableData = [];
+				pagesCount = 1;
+				totalItems = 0;
+				Object.keys(selectedMap).forEach((key) => delete selectedMap[key]);
+				SelectAll = false;
+			});
+			// Clear flag after timeout for consistency
+			setTimeout(() => {
+				isCollectionChanging = false;
+				isInitializing = false;
+			}, 100);
 		}
 	});
 
 	// Enhanced loading state management for flicker-free transitions
-	let loadingState = $state<'idle' | 'switching' | 'fetching' | 'error'>('idle');
-	let previousTableData = $state<any[]>([]);
-	let loadingTimer: ReturnType<typeof setTimeout> | undefined;
+	let loadingState = $state<'idle' | 'loading' | 'error'>('idle');
+	let dataVersion = $state(0); // Version counter for data changes
 
-	// Collection transition management to prevent flicker
-	let collectionTransitionId = $state<string | null>(null);
-	let stableHeaders = $state<TableHeader[]>([]);
-	let stableVisibleHeaders = $state<TableHeader[]>([]);
-
-	// Computed loading states for backward compatibility and improved UX
-	let isLoading = $derived(loadingState === 'switching');
-	let isDataFetching = $derived(loadingState === 'fetching');
+	// Simplified stable state management
+	let stableDataExists = $state(false);
+	let hasInitialLoad = $state(false);
 
 	let globalSearchValue = $state('');
 	let expand = $state(false);
@@ -157,16 +198,26 @@ Features:
 	let columnShow = $state(false);
 
 	const currentLanguage = $derived(contentLanguage.value);
+
+	// Debug effect to track language changes
+	$effect(() => {
+		console.log(`[EntryList] currentLanguage derived updated to: ${currentLanguage}`);
+	});
 	const currentSystemLanguage = $derived(systemLanguage.value);
 	const currentMode = $derived(mode.value);
 	const currentCollection = $derived(collection.value);
 	const currentScreenSize = $derived(screenSize.value);
 
+	// Computed loading states - simplified for better UX
+	let isLoading = $derived(loadingState === 'loading');
+	// Only show spinner on very first load or when no collection is selected
+	let showLoadingSpinner = $derived(loadingState === 'loading' && !hasInitialLoad && !currentCollection?._id);
+
 	// Defines the structure of table headers based on the current collection's schema
 	const tableHeaders = $derived.by((): TableHeader[] => {
 		if (!currentCollection?.fields) return [];
 		const schemaHeaders: TableHeader[] = currentCollection.fields.map(
-			(field): TableHeader => ({
+			(field: any): TableHeader => ({
 				id: uuidv4().replace(/-/g, ''),
 				label: field.label,
 				name: getFieldName(field),
@@ -268,18 +319,18 @@ Features:
 	const selectedMap: Record<string, boolean> = $state({}); // Using string keys for index
 
 	async function refreshTableData(fetchNewData = true): Promise<void> {
-		// Clear loading timer
-		if (loadingTimer) clearTimeout(loadingTimer);
-
 		// Get current collection
 		const currentCollId = currentCollection?._id;
+
+		console.log(`[EntryList] refreshTableData called for collection ${currentCollId}, fetchNewData: ${fetchNewData}`);
 
 		// If no collection, clear data and reset state
 		if (!currentCollId) {
 			tableData = [];
 			pagesCount = 1;
 			totalItems = 0;
-			loadingState = 'idle'; // No error, just no collection selected
+			loadingState = 'idle';
+			stableDataExists = false;
 			Object.keys(selectedMap).forEach((key) => delete selectedMap[key]);
 			SelectAll = false;
 			return;
@@ -287,17 +338,11 @@ Features:
 
 		// Fetch data
 		if (fetchNewData) {
-			// Store previous data for flicker-free transitions
-			if (tableData.length > 0) {
-				previousTableData = [...tableData];
-			}
-
-			loadingState = 'fetching';
-			loadingTimer = setTimeout(() => {
-				loadingState = 'switching';
-			}, 150); // Reduced delay for better UX
+			loadingState = 'loading';
 
 			try {
+				console.log(`[EntryList] Fetching data for collection ${currentCollId}`);
+				console.log(`[EntryList] Current language: ${currentLanguage}`);
 				const page = entryListPaginationSettings.currentPage;
 				const limit = entryListPaginationSettings.rowsPerPage;
 				const activeFilters: Record<string, string> = {};
@@ -308,25 +353,29 @@ Features:
 					entryListPaginationSettings.sorting.isSorted && entryListPaginationSettings.sorting.sortedBy
 						? { [entryListPaginationSettings.sorting.sortedBy]: entryListPaginationSettings.sorting.isSorted }
 						: {};
-				data = await getData({
+
+				const queryParams = {
 					collectionId: currentCollId,
 					page,
 					limit,
 					contentLanguage: currentLanguage,
 					filter: JSON.stringify(activeFilters),
-					sort: JSON.stringify(sortParam)
-				});
+					sort: JSON.stringify(sortParam),
+					// Add timestamp when language changed to force cache miss
+					_langChange: languageChangeTimestamp
+				};
+				console.log(`[EntryList] getData query params:`, queryParams);
 
-				// If getData returns successfully, but data is undefined, set loadingState to 'error'
+				data = await getData(queryParams);
+				console.log(`[EntryList] Data fetched for collection ${currentCollId}, entries: ${data?.entryList?.length || 0}`);
 			} catch (error) {
 				console.error(`Error fetching data: ${(error as Error).message}`);
-				// This toast is for actual fetch errors (e.g., network, 403, 500)
-				toastStore.trigger({ message: `Error fetching data: ${(error as Error).message}`, background: 'variant-filled-error' });
-				loadingState = 'error'; // Indicate an error state
-				if (loadingTimer) clearTimeout(loadingTimer);
+				getToastStore().trigger({ message: `Error fetching data: ${(error as Error).message}`, background: 'variant-filled-error' });
+				loadingState = 'error';
 				tableData = []; // Clear data on actual error
 				totalItems = 0;
 				pagesCount = 1;
+				stableDataExists = false;
 				return;
 			}
 		}
@@ -338,11 +387,14 @@ Features:
 				data.entryList.map(async (entry) => {
 					const obj: { [key: string]: any } = { _id: entry._id }; // Ensure _id is always present
 					if (currentCollection?.fields) {
-						for (const field of currentCollection.fields) {
+						// FIX: Cast `currentCollection.fields` to `any[]` to avoid type conflicts.
+						// Runtime checks for properties like `display` and `callback` are used instead.
+						for (const field of currentCollection.fields as any[]) {
 							const fieldLabelKey = field.label;
 							const rawDataKey = getFieldName(field, false);
 							const rawFieldName = getFieldName(field);
-							if (field.display) {
+
+							if (field.display && typeof field.display === 'function') {
 								obj[fieldLabelKey] = await field.display({
 									data: entry[rawDataKey],
 									collection: currentCollId,
@@ -353,7 +405,9 @@ Features:
 							} else {
 								obj[fieldLabelKey] = entry[rawFieldName];
 							}
-							if (field.callback) field.callback({ data: entry });
+							if (field.callback && typeof field.callback === 'function') {
+								field.callback({ data: entry });
+							}
 						}
 					}
 					obj['status'] = entry.status ? entry.status.charAt(0).toUpperCase() + entry.status.slice(1) : 'N/A';
@@ -362,11 +416,13 @@ Features:
 					return obj;
 				})
 			);
+			stableDataExists = tableData.length > 0;
 		} else {
 			// If data.entryList is not an array or is null/undefined after a successful fetch (e.g. no data),
 			// ensure tableData is empty. This handles the case where `getData` returns an empty
 			// object or an object without entryList when no data is present.
 			tableData = [];
+			stableDataExists = false;
 		}
 
 		// Reset selections when data changes
@@ -398,7 +454,8 @@ Features:
 		}
 
 		loadingState = 'idle';
-		if (loadingTimer) clearTimeout(loadingTimer);
+		hasInitialLoad = true;
+		dataVersion++;
 	}
 
 	function savePaginationSettings() {
@@ -427,32 +484,64 @@ Features:
 	const refreshDebounce = debounceUtil(200);
 
 	$effect(() => {
-		// Debounced data refresh when critical settings change
-		// Track only the variables that should trigger a refresh
+		// Debounced data refresh when pagination/filter settings change (but NOT for collection changes)
+		// Track only the variables that should trigger a refresh for the SAME collection
 		const collectionId = currentCollection?._id;
 		// Track pagination settings that should trigger refresh
 		const currentPage = entryListPaginationSettings.currentPage;
 		const rowsPerPage = entryListPaginationSettings.rowsPerPage;
 		const filters = entryListPaginationSettings.filters;
 		const sorting = entryListPaginationSettings.sorting;
+		// Track language changes that should trigger refresh
+		const language = currentLanguage;
 
 		// Read the tracked variables to ensure they're tracked
-		void collectionId, currentPage, rowsPerPage, filters, sorting;
+		(void collectionId, currentPage, rowsPerPage, filters, sorting, language);
 
 		if (!collectionId) {
-			untrack(() => {
-				tableData = [];
-				pagesCount = 1;
-				totalItems = 0;
-				Object.keys(selectedMap).forEach((key) => delete selectedMap[key]);
-				SelectAll = false;
-			});
+			// No collection selected, already handled above
 			return;
 		}
 
-		refreshDebounce(() => {
-			untrack(() => refreshTableData(true));
-		});
+		// Skip if we're in the middle of a collection change or initializing
+		if (isCollectionChanging || isInitializing) {
+			console.log(
+				`[EntryList] Skipping pagination refresh during collection change (isCollectionChanging: ${isCollectionChanging}, isInitializing: ${isInitializing})`
+			);
+			return;
+		}
+
+		// Only refresh if this is for the same collection AND we've completed initial load
+		// Also ensure this isn't the initial setup after collection change
+		if (lastCollectionId === collectionId && hasInitialLoad && stableDataExists) {
+			console.log(`[EntryList] Pagination/filter/language change for collection ${collectionId}, language: ${language}, refreshing data`);
+			refreshDebounce(() => {
+				untrack(() => refreshTableData(true));
+			});
+		} else {
+			console.log(
+				`[EntryList] Skipping pagination refresh - lastCollectionId: ${lastCollectionId}, collectionId: ${collectionId}, hasInitialLoad: ${hasInitialLoad}, stableDataExists: ${stableDataExists}, language: ${language}`
+			);
+		}
+	});
+
+	// Handle language changes specifically for cache invalidation
+	let lastLanguage = $state<string | null>(null);
+	let languageChangeTimestamp = $state<number>(Date.now());
+
+	$effect(() => {
+		const language = currentLanguage;
+		const collectionId = currentCollection?._id;
+
+		// Only invalidate cache if language actually changed and we have a collection
+		if (collectionId && lastLanguage !== null && lastLanguage !== language) {
+			console.log(`[EntryList] Language changed from ${lastLanguage} to ${language}, invalidating cache for collection ${collectionId}`);
+			invalidateCollectionCache(collectionId);
+			// Update timestamp to force cache miss
+			languageChangeTimestamp = Date.now();
+		}
+
+		lastLanguage = language;
 	});
 
 	$effect(() => {
@@ -501,7 +590,7 @@ Features:
 			// Append the status to formData
 			formData.append('status', statusMap[status]);
 			if (!currentCollection?._id) {
-				toastStore.trigger({
+				getToastStore().trigger({
 					message: 'Error: No collection selected or collection ID is missing.',
 					background: 'variant-filled-error',
 					timeout: 4000
@@ -524,7 +613,7 @@ Features:
 					case 'cloned':
 					case 'scheduled':
 						// Trigger a toast message indicating that the feature is not yet implemented
-						toastStore.trigger({
+						getToastStore().trigger({
 							message: 'Feature not yet implemented.',
 							background: 'variant-filled-error',
 							timeout: 3000
@@ -536,7 +625,7 @@ Features:
 				mode.set('view'); // Set the mode to 'view'
 			} catch (error) {
 				console.error(`Error modifying entries: ${(error as Error).message}`);
-				toastStore.trigger({ message: `Error: ${(error as Error).message}`, background: 'variant-filled-error' });
+				getToastStore().trigger({ message: `Error: ${(error as Error).message}`, background: 'variant-filled-error' });
 			}
 		};
 		// If more than one row is selected or the status is 'delete', show confirmation modal
@@ -551,7 +640,7 @@ Features:
 				buttonTextConfirm: m.button_confirm(),
 				response: handleConfirmation
 			};
-			modalStore.trigger(modalData); // Trigger the confirmation modal
+			getModalStore().trigger(modalData); // Trigger the confirmation modal
 		} else {
 			// If only one row is selected and status is not 'delete', directly proceed with modification
 			handleConfirmation(true);
@@ -565,61 +654,17 @@ Features:
 		const pathSegments = currentCollection.path?.split('/').filter(Boolean);
 		return pathSegments?.slice(0, -1).join(' >') || '';
 	});
-	// Collection change detection and transition management
-	$effect(() => {
-		const currentCollId = currentCollection?._id;
 
-		// Detect collection change
-		if (collectionTransitionId && collectionTransitionId !== currentCollId) {
-			// Start transition
-			collectionTransitionId = currentCollId || null;
-
-			// If we have a valid collection, prepare stable headers
-			if (currentCollId && displayTableHeaders.length > 0) {
-				// Keep current stable headers during transition
-				if (stableHeaders.length === 0) {
-					stableHeaders = [...displayTableHeaders];
-					stableVisibleHeaders = [...visibleTableHeaders];
-				}
-			} else {
-				// No collection or no headers, clear stable headers
-				stableHeaders = [];
-				stableVisibleHeaders = [];
-			}
-		}
-	});
-
-	// Commit new headers only after data is ready or confirmed empty
-	$effect(() => {
-		if (collectionTransitionId && loadingState === 'idle') {
-			// Transition complete, commit new headers
-			stableHeaders = [...displayTableHeaders];
-			stableVisibleHeaders = [...visibleTableHeaders];
-			collectionTransitionId = null;
-		}
-	});
-
-	// Enhanced collection state management for better UX - prevent flicker when switching collections
-	let isCollectionEmpty = $derived(tableData.length === 0 && loadingState === 'idle' && collectionTransitionId === null);
-	// shouldShowTable: Show table if current collection is selected, no transition, and either there's data, OR
-	// we're fetching new data but still have previous data to display (to prevent flicker).
-	let shouldShowTable = $derived(
-		currentCollection?._id && collectionTransitionId === null && (tableData.length > 0 || (isDataFetching && previousTableData.length > 0))
-	);
-
-	// shouldShowNoDataMessage: Show message if current collection is selected, no transition,
-	// loading is idle (finished fetching), tableData is empty, and we are not currently fetching or generally loading.
+	// Simplified rendering state management - no flicker
+	// Show content as soon as we have a collection, even if still loading
+	let shouldShowContent = $derived(currentCollection?._id && (hasInitialLoad || loadingState === 'loading'));
+	let shouldShowTable = $derived(shouldShowContent && (stableDataExists || tableData.length > 0) && loadingState !== 'loading');
 	let shouldShowNoDataMessage = $derived(
-		currentCollection?._id &&
-			collectionTransitionId === null &&
-			loadingState === 'idle' &&
-			tableData.length === 0 &&
-			!isDataFetching && // Explicitly not fetching
-			!isLoading // Explicitly not in a "switching" loading state
+		shouldShowContent && !isLoading && tableData.length === 0 && loadingState === 'idle' && hasInitialLoad && stableDataExists === false // Only show when we've confirmed no data exists
 	);
 
-	// Use stable headers during transitions to prevent flicker
-	let renderHeaders = $derived(collectionTransitionId !== null ? stableVisibleHeaders : visibleTableHeaders);
+	// Use regular visibleTableHeaders - no need for complex transition logic
+	let renderHeaders = $derived(visibleTableHeaders);
 
 	function handleColumnVisibilityToggle(headerToToggle: TableHeader) {
 		displayTableHeaders = displayTableHeaders.map((h) => (h.id === headerToToggle.id ? { ...h, visible: !h.visible } : h));
@@ -654,9 +699,9 @@ Features:
 </script>
 
 <!--Table -->
-{#if isLoading && !isDataFetching}
+{#if showLoadingSpinner}
 	<Loading />
-{:else}
+{:else if shouldShowContent}
 	<!-- Header -->
 	<div class="mb-2 flex justify-between dark:text-white">
 		<!-- Row 1 for Mobile -->
@@ -666,7 +711,7 @@ Features:
 				<button
 					type="button"
 					onkeydown={() => {}}
-					onclick={() => toggleUIElement('leftSidebar', currentScreenSize === 'lg' ? 'full' : 'collapsed')}
+					onclick={() => toggleUIElement('leftSidebar', currentScreenSize === 'LG' ? 'full' : 'collapsed')}
 					aria-label="Open Sidebar"
 					class="variant-ghost-surface btn-icon mt-1"
 				>
@@ -718,7 +763,7 @@ Features:
 
 			<!-- MultiButton -->
 			<div class=" flex w-full items-center justify-end sm:mt-0 sm:w-auto">
-				<EntryListMultiButton {isCollectionEmpty} />
+				<EntryListMultiButton isCollectionEmpty={!stableDataExists && tableData.length === 0} />
 			</div>
 		</div>
 	</div>
@@ -769,8 +814,10 @@ Features:
 		</div>
 	{/if}
 
-	{#if isDataFetching && !isLoading && collectionTransitionId === null}
-		<div class="py-4 text-center text-sm text-gray-500">Fetching updated data...</div>
+	{#if isLoading && hasInitialLoad && tableData.length === 0}
+		<div class="py-4 text-center text-sm text-gray-500">Loading data...</div>
+	{:else if isLoading && hasInitialLoad}
+		<div class="py-2 text-center text-xs text-gray-400">Refreshing...</div>
 	{/if}
 
 	{#if shouldShowTable}
@@ -804,7 +851,7 @@ Features:
 							</th>
 							<!-- Filter -->
 							{#each renderHeaders as header (header.id)}
-								<th class=""
+								<th
 									><div class="flex items-center justify-between">
 										<FloatingInput
 											type="text"
@@ -847,7 +894,7 @@ Features:
 
 						{#each renderHeaders as header (header.id)}
 							<th
-								class="cursor-pointer px-2 py-2 text-center text-xs sm:text-sm {header.name === entryListPaginationSettings.sorting.sortedBy
+								class="cursor-pointer px-2 py-1 text-center text-xs sm:text-sm {header.name === entryListPaginationSettings.sorting.sortedBy
 									? 'font-semibold text-primary-500 dark:text-secondary-400'
 									: 'text-tertiary-500 dark:text-primary-500'}"
 								onclick={() => {
@@ -882,7 +929,7 @@ Features:
 					{#if tableData.length > 0}
 						{#each tableData as entry, index (entry._id)}
 							<tr class="divide-x divide-surface-400 dark:divide-surface-700">
-								<td class="w-10 px-1 py-1 text-center">
+								<td class="w-10 text-center">
 									<TableIcons
 										checked={selectedMap[index]}
 										onCheck={(isChecked) => {
@@ -892,7 +939,7 @@ Features:
 								</td>
 								{#each renderHeaders as header (header.id)}
 									<td
-										class="px-2 py-2 text-center text-xs font-bold sm:text-sm {header.name !== 'status'
+										class="p-0 text-center text-xs font-bold sm:text-sm {header.name !== 'status'
 											? 'cursor-pointer hover:bg-primary-500/10 dark:hover:bg-secondary-500/20'
 											: ''}"
 										onclick={() => {
@@ -917,7 +964,7 @@ Features:
 								{/each}
 							</tr>
 						{/each}
-					{:else if !isDataFetching}
+					{:else if !isLoading}
 						<tr><td colspan={renderHeaders.length + 1} class="py-10 text-center text-gray-500">No entries found.</td></tr>
 					{/if}
 				</tbody>
@@ -925,7 +972,7 @@ Features:
 		</div>
 		<!-- Pagination -->
 		<div
-			class="sticky bottom-0 left-0 right-0 mt-2 flex flex-col items-center justify-center border-t border-surface-300 bg-surface-100 px-2 py-2 dark:border-surface-700 dark:bg-surface-800 md:flex-row md:justify-between md:p-4"
+			class="sticky bottom-0 left-0 right-0 mt-1 flex flex-col items-center justify-center border-t border-surface-300 bg-surface-100 px-2 py-2 dark:border-surface-700 dark:bg-surface-800 md:flex-row md:justify-between md:p-4"
 		>
 			<TablePagination
 				bind:currentPage={entryListPaginationSettings.currentPage}
@@ -933,10 +980,18 @@ Features:
 				{pagesCount}
 				{totalItems}
 				onUpdatePage={(page) => {
+					if (isCollectionChanging || isInitializing) {
+						console.log(`[EntryList] Skipping onUpdatePage during collection change/initialization`);
+						return;
+					}
 					entryListPaginationSettings.currentPage = page;
 					refreshTableData(true);
 				}}
 				onUpdateRowsPerPage={(rows) => {
+					if (isCollectionChanging || isInitializing) {
+						console.log(`[EntryList] Skipping onUpdateRowsPerPage during collection change/initialization`);
+						return;
+					}
 					//console.log('Rows per page updated to:', rows);
 					entryListPaginationSettings.rowsPerPage = rows;
 					entryListPaginationSettings.currentPage = 1;

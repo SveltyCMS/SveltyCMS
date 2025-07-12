@@ -49,9 +49,9 @@
 	}
 
 	// States
-	let searchResults: SearchResult[] = $state([]);
+	let searchResults = $state<SearchResult[]>([]);
 	let searchQuery = $state('');
-	let inputRef: HTMLInputElement | null = $state(null);
+	let inputRef = $state<HTMLInputElement | null>(null);
 	let selectedIndex = $state(-1); // Track the currently selected result
 
 	// Debounce function for search optimization
@@ -106,7 +106,7 @@
 					result.keywords.some((keyword) => keyword.toUpperCase().includes(upperQuery))
 				);
 			})
-			.sort((a, b) => a.distance - b.distance);
+			.sort((a, b) => a.distance! - b.distance!);
 
 		// Update state with top 5 results
 		searchResults = results.slice(0, 5);
@@ -138,7 +138,7 @@
 	}
 
 	// Keyboard navigation handler
-	function onKeyDown(event: KeyboardEvent) {
+	function handleKeyDown(event: KeyboardEvent) {
 		switch (event.key) {
 			case 'Escape':
 				if ($isSearchVisible) {
@@ -162,6 +162,11 @@
 				}
 				break;
 		}
+	}
+
+	// Handle input changes
+	function handleInput() {
+		debouncedFuzzySearch(searchQuery);
 	}
 
 	// Close search on outside click
@@ -188,8 +193,8 @@
 		<input
 			bind:value={searchQuery}
 			bind:this={inputRef}
-			oninput={() => debouncedFuzzySearch(searchQuery)}
-			onkeydown={onKeyDown}
+			oninput={handleInput}
+			onkeydown={handleKeyDown}
 			type="search"
 			placeholder="Global Search ..."
 			aria-label="Search input"

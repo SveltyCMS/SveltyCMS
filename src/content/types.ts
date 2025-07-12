@@ -3,6 +3,7 @@
  * @description Content Type Definition for Content Manager
  */
 
+import type { WidgetPlaceholder } from '@src/widgets/types';
 import type widgets from '@widgets';
 import type { ModifyRequestParams } from '@widgets';
 
@@ -17,8 +18,8 @@ export type WidgetTypes = (typeof widgets)[WidgetKeys];
 // Field value types
 export type FieldValue = string | number | boolean | null | Record<string, unknown> | Array<unknown>;
 
-// Extended field type with display and callback properties
-export type Field = {
+// Extended field definition
+export interface Field {
 	widget: WidgetTypes;
 	type: WidgetKeys;
 	config: WidgetTypes;
@@ -36,7 +37,10 @@ export type Field = {
 	}) => Promise<string> | string;
 	callback?: (args: { data: Record<string, FieldValue> }) => void;
 	modifyRequest?: (args: ModifyRequestParams) => Promise<object>;
-};
+}
+
+// Field definition
+export type FieldDefinition = Field | WidgetPlaceholder;
 
 // Collection Registry - defines all available collections
 export const CollectionRegistry = {
@@ -61,12 +65,13 @@ export interface Schema {
 	description?: string; // Optional description for the collection
 	strict?: boolean; // Optional strict mode
 	revision?: boolean; // Optional revisions
+	revisionLimit?: number; // Optional: Maximum number of revisions to keep
 	path?: string; // Path within the collections folder structure
 	permissions?: RolePermissions; // Optional permission restrictions
 	livePreview?: boolean; // Optional live preview
 	status?: 'draft' | 'published' | 'unpublished' | 'scheduled' | 'cloned'; // Optional default status
 	links?: Array<ContentTypes>; // Optional links to other collections
-	fields: Field[]; // Collection fields
+	fields: FieldDefinition[]; // Collection fields
 	translations?: Translation[]; // Optional translations with enhanced metadata
 }
 
@@ -109,13 +114,12 @@ export interface CollectionData {
 	livePreview?: boolean; // Optional live preview
 	strict?: boolean; // Optional strict mode
 	revision?: boolean; // Optional revisions
-	fields: Field[]; // Collection fields
+	fields: FieldDefinition[]; // Collection fields
 	description?: string; // Optional description
 	slug?: string; // Optional slug
 	status?: 'draft' | 'published' | 'unpublished' | 'scheduled' | 'cloned'; // Optional status
 	links?: Array<ContentTypes>; // Optional links to other collections
 }
 
-// Collection types
-
-export type ContentTypes = {};
+// Collection types for collections registry
+export type ContentTypes = keyof typeof CollectionRegistry;

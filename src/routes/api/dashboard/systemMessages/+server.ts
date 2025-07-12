@@ -1,15 +1,19 @@
 /**
- * @file src/routes/api/systemMessages/+server.ts
+ * @file src/routes/api/dashboard/systemMessages/+server.ts
  * @description API endpoint for system messages for dashboard widgets
  */
 
-import { roles } from '@root/config/roles';
-import { hasPermissionByAction } from '@src/auth/permissions';
-import { error, json } from '@sveltejs/kit';
-import { logger } from '@utils/logger.svelte';
 import fs from 'fs/promises';
 import path from 'path';
 import type { RequestHandler } from './$types';
+import { error, json } from '@sveltejs/kit';
+
+// Auth
+import { roles } from '@root/config/roles';
+import { hasPermissionByAction } from '@src/auth/permissions';
+
+// System Logger
+import { logger } from '@utils/logger.svelte';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	try {
