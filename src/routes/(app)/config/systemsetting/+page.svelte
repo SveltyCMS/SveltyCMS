@@ -128,7 +128,7 @@ ENHANCEMENTS:
 
 <div class="my-4">
 	<div class="alert variant-soft-warning text-center">
-		<iconify-icon icon="mdi:alert" class="text-2xl" />
+		<iconify-icon icon="mdi:alert" class="text-2xl"></iconify-icon>
 		<div>
 			<p class="font-bold">Caution: For Administrators Only</p>
 			<p>Changes made here directly affect the server configuration and can cause instability if not done correctly.</p>
@@ -141,11 +141,10 @@ ENHANCEMENTS:
 		<button
 			on:click={() => openModal(name, category, config.description, isPrivate)}
 			aria-label={config.description}
-			class="btn variant-outline-primary flex h-24 flex-col items-center justify-center gap-2 text-center"
+			class="variant-outline-primary btn flex h-24 flex-col items-center justify-center gap-2 text-center"
 		>
 			<iconify-icon icon={config.icon} class="text-3xl text-tertiary-500 dark:text-primary-500"></iconify-icon>
 			<span class="capitalize">{name}</span>
 		</button>
 	{/each}
 </div>
-
