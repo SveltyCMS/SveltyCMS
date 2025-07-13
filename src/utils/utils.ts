@@ -3,21 +3,13 @@
  * @description A comprehensive utility module for the SvelteKit CMS project.
  *
  * This file contains a wide range of utility functions and helpers used throughout the application, including:
- * - Form data handling and conversion (obj2formData, col2formData)
- * - File and media operations (sanitize, formatBytes, deleteOldTrashFiles)
- * - Date and time formatting (convertTimestampToDateString, formatUptime, ReadableExpireIn)
- * - Data manipulation and validation (extractData, deepCopy, validateValibot)
+ * - File and media operations (sanitize, formatBytes)
+ * - Date and time formatting (convertTimestampToDateString, formatUptime)
+ * - Data manipulation and validation (deepCopy, validateValibot)
  * - Internationalization helpers (getTextDirection, updateTranslationProgress)
- * - Database operations (find, findById)
  * - UI-related utilities (getGuiFields, motion)
  * - String manipulation (pascalToCamelCase, getEditDistance)
  * - And various other helper functions
- *
- * The module also defines important constants and types used across the application.
- *
- * @requires various - Including fs, axios, valibot, and custom types/interfaces
- * @requires @stores/store - For accessing Svelte stores
- * @requires @root/config/public - For accessing public environment variables
  *
  * @exports numerous utility functions and constants
  */
@@ -25,7 +17,7 @@
 import { publicEnv } from '@root/config/public';
 import axios from 'axios';
 import * as v from 'valibot';
-import type { BaseIssue, BaseSchema } from 'valibot';
+import type { BaseIssue, BaseSchema, Field } from 'valibot';
 
 // Stores
 import { get } from 'svelte/store';
@@ -33,12 +25,6 @@ import { translationProgress, updateTranslationProgress as updateTranslationStor
 
 // System Logger
 import { logger, type LoggableValue } from '@utils/logger.svelte';
-
-export const config = {
-	headers: {
-		'Content-Type': 'multipart/form-data'
-	}
-};
 
 // Interface for GUI field configuration
 export interface GuiFieldConfig {
@@ -65,64 +51,9 @@ export const getGuiFields = (fieldParams: Record<string, unknown>, GuiSchema: Re
 	return guiFields;
 };
 
-// Function to convert an object to form data
-export const obj2formData = (obj: Record<string, unknown>) => {
-	const formData = new FormData();
-
-	const transformValue = (key: string, value: unknown): string | Blob => {
-		if (value instanceof Blob) {
-			return value;
-		} else if (typeof value === 'object' && value !== null) {
-			return JSON.stringify(value);
-		} else if (typeof value === 'boolean' || typeof value === 'number') {
-			return value.toString();
-		} else if (value === null || value === undefined) {
-			return '';
-		}
-		return String(value);
-	};
-
-	for (const key in obj) {
-		const value = obj[key];
-		if (value !== undefined) {
-			formData.append(key, transformValue(key, value));
-		}
-	}
-
-	return formData;
-};
-
-// Converts data to FormData object with optimized file handling and type safety
-export const col2formData = async (getData: Record<string, () => Promise<unknown> | unknown>): Promise<FormData> => {
-	const formData = new FormData();
-
-	const processValue = async (value: unknown): Promise<string | Blob> => {
-		if (value instanceof Blob) return value;
-		if (value instanceof Promise) {
-			const resolvedValue = await value;
-			return processValue(resolvedValue);
-		}
-		if (value instanceof Object) {
-			return JSON.stringify(value);
-		}
-		return String(value);
-	};
-
-	const appendToForm = async () => {
-		for (const [key, getter] of Object.entries(getData)) {
-			const value = getter();
-			const processedValue = await processValue(value);
-			formData.append(key, processedValue);
-		}
-	};
-
-	await appendToForm();
-	return formData;
-};
-
 // Helper function to sanitize file names
 export function sanitize(str: string) {
-	return str.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+	return str.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_.]/g, ''); // Keep dots for extensions
 }
 
 // Get the environment variables for image sizes
@@ -153,15 +84,6 @@ export function parse<T>(obj: unknown): T {
 	}
 	return result as T;
 }
-
-// Convert an object to form data
-export const toFormData = (obj: Record<string, string | number | boolean>): FormData => {
-	const formData = new FormData();
-	for (const [key, value] of Object.entries(obj)) {
-		formData.append(key, String(value));
-	}
-	return formData;
-};
 
 // Converts fields to schema object
 interface SchemaField {
@@ -291,7 +213,7 @@ export async function extractData(fieldsData: Record<string, Field>): Promise<Re
 	return result;
 }
 
-function deepCopy<T>(obj: T): T {
+export function deepCopy<T>(obj: T): T {
 	if (obj === null || typeof obj !== 'object') {
 		return obj;
 	}
@@ -404,7 +326,7 @@ export function updateTranslationProgress(data, field) {
 	if (!fieldName || !field?.translated) {
 		return; // Exit if field name is invalid or field is not translatable
 	}
-	let current = translationProgress();
+	const current = translationProgress();
 	// Ensure 'show' property exists or initialize it
 	if (typeof current.show === 'undefined') {
 		current.show = false; // Or true, depending on desired initial state
@@ -654,92 +576,6 @@ export const pascalToCamelCase = (str: string): string => {
 	if (!str) return str;
 	return str.charAt(0).toLowerCase() + str.slice(1);
 };
-
-// Collection name conflict checking types
-interface CollectionNameCheck {
-	exists: boolean;
-	suggestions?: string[];
-	conflictPath?: string;
-}
-
-export async function checkCollectionNameConflict(name: string, collectionsPath: string): Promise<CollectionNameCheck> {
-	try {
-		// Handle relative paths by joining with process.cwd()
-		const absolutePath = path.isAbsolute(collectionsPath) ? collectionsPath : path.join(process.cwd(), collectionsPath);
-
-		const files = await getAllCollectionFiles(absolutePath);
-		const existingNames = new Set<string>();
-		let conflictPath: string | undefined;
-
-		// Build set of existing names and check for conflict
-		for (const file of files) {
-			const fileName = path.basename(file, '.ts');
-			if (fileName === name) {
-				// Convert absolute path to relative for display
-				conflictPath = path.relative(process.cwd(), file);
-			}
-			existingNames.add(fileName);
-		}
-
-		if (conflictPath) {
-			// Generate suggestions if there's a conflict
-			const suggestions = generateNameSuggestions(name, existingNames);
-			return { exists: true, suggestions, conflictPath };
-		}
-
-		return { exists: false };
-	} catch (error) {
-		console.error('Error checking collection name:', error);
-		return { exists: false };
-	}
-}
-
-async function getAllCollectionFiles(dir: string): Promise<string[]> {
-	const files: string[] = [];
-	const entries = await fs.readdir(dir, { withFileTypes: true });
-
-	for (const entry of entries) {
-		const fullPath = path.join(dir, entry.name);
-		if (entry.isDirectory()) {
-			files.push(...(await getAllCollectionFiles(fullPath)));
-		} else if (
-			entry.isFile() &&
-			entry.name.endsWith('.ts') &&
-			!entry.name.startsWith('_') &&
-			!['index.ts', 'types.ts', 'ContentManager.ts'].includes(entry.name)
-		) {
-			files.push(fullPath);
-		}
-	}
-
-	return files;
-}
-
-function generateNameSuggestions(name: string, existingNames: Set<string>): string[] {
-	const suggestions: string[] = [];
-
-	// Try adding numbers
-	let counter = 1;
-	while (suggestions.length < 3 && counter <= 99) {
-		const suggestion = `${name}${counter}`;
-		if (!existingNames.has(suggestion)) {
-			suggestions.push(suggestion);
-		}
-		counter++;
-	}
-
-	// Try adding prefixes/suffixes if we need more suggestions
-	const commonPrefixes = ['New', 'Alt', 'Copy'];
-	for (const prefix of commonPrefixes) {
-		if (suggestions.length >= 5) break;
-		const suggestion = `${prefix}${name}`;
-		if (!existingNames.has(suggestion)) {
-			suggestions.push(suggestion);
-		}
-	}
-
-	return suggestions;
-}
 
 // Type assertion helper - used for widget type assertions
 export function asAny<T>(value: unknown): T {

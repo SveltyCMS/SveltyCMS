@@ -3,50 +3,38 @@
 @component
 **ScheduleModal component for scheduling actions on entries**
 
+This is a "dumb" UI component. Its only responsibility is to collect a date,
+time, and action from the user and return it via the modal's response function.
+It does not contain any API logic itself.
+
 Features:
-- Schedule publish, unpublish, delete actions
 - Date and time picker for scheduling
 - Action type selection
-- Responsive design
-- Accessibility improvements
-- Error handling and validation
-- Improved type safety
-
-Usage:
-Import and use <ScheduleModal /> in your Svelte application.
-Ensure that the necessary stores and utility functions are available.
+- Responsive design & Accessibility
+- Form validation
 -->
 
 <script lang="ts">
-	import { page } from '$app/state';
-	import { modifyEntry, selectedEntries, collectionValue, collection } from '@src/stores/collectionStore.svelte';
-	import { saveFormData } from '../utils/data';
-
-	// Auth
-	import type { User } from '@src/auth/types';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
 	import { getModalStore } from '@skeletonlabs/skeleton';
 
-	const modalStore = getModalStore();
-
 	// Props
 	interface Props {
 		/** Exposes parent props to this component. */
 		parent: any;
 	}
-
 	let { parent }: Props = $props();
 
-	const user: User = page.data.user;
-
-	type ActionType = 'published' | 'unpublished' | 'deleted' | 'scheduled' | 'cloned' | 'testing';
+	// --- Component State ---
+	const modalStore = getModalStore();
+	type ActionType = 'published' | 'unpublished' | 'deleted';
 
 	let scheduleDate: string = $state('');
-	let action: ActionType = $state(($modalStore[0]?.meta?.initialAction as ActionType) || 'scheduled');
+	// Default to 'published' if no initial action is provided
+	let action: ActionType = $state(($modalStore[0]?.meta?.initialAction as ActionType) || 'published');
 	let errorMessage: string = $state('');
 
 	const actionOptions: Array<{ value: ActionType; label: string }> = [
@@ -55,75 +43,60 @@ Ensure that the necessary stores and utility functions are available.
 		{ value: 'deleted', label: m.button_delete() }
 	];
 
-	let isFormValid = $derived(scheduleDate !== '' && action !== undefined);
+	let isFormValid = $derived(scheduleDate !== '');
 
+	/**
+	 * Validates the form fields and sets an error message if invalid.
+	 */
 	function validateForm(): boolean {
 		if (!scheduleDate) {
-			errorMessage = 'Please select a date and time';
+			errorMessage = 'Please select a date and time.';
 			return false;
 		}
 		if (new Date(scheduleDate) < new Date()) {
-			errorMessage = 'Scheduled time must be in the future';
+			errorMessage = 'Scheduled time must be in the future.';
 			return false;
 		}
 		errorMessage = '';
 		return true;
 	}
 
-	async function onFormSubmit(): Promise<void> {
-		if (!validateForm()) return;
-
-		try {
-			// Update the modal response with the schedule data
-			if ($modalStore[0].response) {
-				$modalStore[0].response({
-					date: scheduleDate,
-					action: 'schedule'
-				});
-			}
-
-			// If we have selected entries, update them
-			if ($selectedEntries && $selectedEntries.length > 0) {
-				const scheduledTime = new Date(scheduleDate).getTime();
-
-				for (const entryId of $selectedEntries) {
-					const entry = collectionValue.value[entryId];
-					if (!entry) continue;
-
-					const updateData = {
-						_id: entryId,
-						_scheduled: scheduledTime,
-						_scheduledAction: action,
-						status: 'scheduled'
-					};
-
-					// Create a FormData object to match the expected type
-					const formData = new FormData();
-					Object.entries(updateData).forEach(([key, value]) => {
-						formData.append(key, value.toString());
-					});
-
-					await saveFormData({
-						data: formData,
-						_collection: collection.value,
-						_mode: 'edit',
-						id: entryId,
-						user: user
-					});
-				}
-
-				$modifyEntry(action);
-			}
-
-			modalStore.close();
-		} catch (error) {
-			console.error('Error scheduling entries:', error);
-			errorMessage = 'An error occurred while scheduling. Please try again.';
-		}
+	/**
+	 * Handles the form submission.
+	 * If the form is valid, it passes the data back to the component that opened the modal.
+	 */
+	function onFormSubmit(event: SubmitEvent): void {
+		event.preventDefault();
+		handleSubmission();
 	}
 
-	// Base Classes
-	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
+	/**
+	 * Handles the button click submission.
+	 */
+	function onButtonClick(): void {
+		handleSubmission();
+	}
+
+	/**
+	 * Common submission logic for both form submit and button click.
+	 */
+	function handleSubmission(): void {
+		if (!validateForm()) return;
+
+		// The component that opened the modal is responsible for handling this response.
+		if ($modalStore[0]?.response) {
+			$modalStore[0].response({
+				date: scheduleDate,
+				action: 'schedule' // We always return 'schedule' as the primary action type from this modal
+			});
+		}
+
+		// Close the modal
+		modalStore.close();
+	}
+
+	// --- Base Classes ---
+	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white dark:bg-surface-800';
 	const cHeader = 'text-2xl font-bold';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 </script>
@@ -151,7 +124,7 @@ Ensure that the necessary stores and utility functions are available.
 			</label>
 
 			<label class="label">
-				<span>Action Type</span>
+				<span>Action on Scheduled Time</span>
 				<select bind:value={action} class="select" required>
 					{#each actionOptions as option}
 						<option value={option.value}>{option.label}</option>
@@ -168,7 +141,7 @@ Ensure that the necessary stores and utility functions are available.
 			<button type="button" class="btn {parent?.buttonNeutral}" onclick={parent?.onClose} aria-label="Cancel scheduling">
 				{m.button_cancel()}
 			</button>
-			<button type="submit" class="btn {parent?.buttonPositive}" onclick={onFormSubmit} disabled={!isFormValid} aria-label="Save schedule">
+			<button type="button" class="btn {parent?.buttonPositive}" onclick={onButtonClick} disabled={!isFormValid} aria-label="Save schedule">
 				{m.button_save()}
 			</button>
 		</footer>

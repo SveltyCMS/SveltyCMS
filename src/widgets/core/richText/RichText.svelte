@@ -3,20 +3,25 @@
 @component
 **RichText TipTap widget component**
 
-@example
-<RichText label="RichText" db_fieldName="richText" required={true} />
+This component has been updated for Tiptap v3 and includes several UX enhancements.
 
 ### Props
 - `field`: FieldType
 - `value`: any
+- `WidgetData`: bindable property to pass data to the parent
 
 ### Features
 - Translatable
+- Enhanced image resizing with aspect ratio lock (Shift key)
+- Improved link editing workflow with a prompt
+- Clearer visual feedback for active buttons and uploads
+- Better mobile experience with a collapsible toolbar
+- Robust validation and image deletion logic
 -->
 
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
-	import { onMount, onDestroy, tick, untrack } from 'svelte';
+	import { onMount, onDestroy, tick } from 'svelte';
 	import { v4 as uuidv4 } from 'uuid';
 	import { meta_data, debounce, getFieldName } from '@utils/utils';
 	import { getTextDirection } from '@utils/utils';
@@ -32,18 +37,13 @@
 	// Components
 	import DropDown from './components/DropDown.svelte';
 	import ColorSelector from './components/ColorSelector.svelte';
-	import ImageResize from './extensions/ImageResize';
 	import ImageDescription from './components/ImageDescription.svelte';
 	import FileInput from '@components/system/inputs/FileInput.svelte';
 	import VideoDialog from './components/VideoDialog.svelte';
 
-	// TipTap
-	import StarterKit from '@tiptap/starter-kit';
+	// TipTap v3 Imports
 	import { Editor, Extension } from '@tiptap/core';
-	import TextStyle from './extensions/TextStyle';
-	import TextAlign from '@tiptap/extension-text-align';
-	import FontFamily from '@tiptap/extension-font-family';
-	import Color from '@tiptap/extension-color';
+	import StarterKit from '@tiptap/starter-kit';
 	import Link from '@tiptap/extension-link';
 	import Youtube from '@tiptap/extension-youtube';
 	import CharacterCount from '@tiptap/extension-character-count';
@@ -51,48 +51,55 @@
 	import TableRow from '@tiptap/extension-table-row';
 	import TableCell from '@tiptap/extension-table-cell';
 	import TableHeader from '@tiptap/extension-table-header';
+	import TextAlign from '@tiptap/extension-text-align';
+	import FontFamily from '@tiptap/extension-font-family';
+	import Color from '@tiptap/extension-color';
+	import ImageResize from './extensions/ImageResize'; // Updated for v3
+	import TextStyle from './extensions/TextStyle'; // Custom extension
 
 	// Props
-	let showMobileMenu = $state(false);
-	let element = $state<HTMLElement | null>(null);
-	let editor = $state<Editor | null>(null);
-	let showImageDialog = $state(false);
-	let showVideoDialog = $state(false);
-	let images = $state<Record<string, File>>({});
-	let active_dropDown = $state('');
-	let validationError = $state<string | null>(null);
-
-	interface Props {
-		field: FieldType;
-		value?: any;
-		WidgetData?: any;
-	}
-
 	let {
 		field,
 		value = collectionValue.value[getFieldName(field)] || { content: {}, header: {} },
 		WidgetData = $bindable(async () => ({ images, data: _data }))
-	}: Props = $props();
+	}: {
+		field: FieldType;
+		value?: any;
+		WidgetData?: any;
+	} = $props();
 
-	let _data = $state(mode.value === 'create' ? { content: {}, header: {} } : value);
+	// State
+	let element: HTMLElement | null = $state(null);
+	let editor: Editor | null = $state(null);
+	let showImageDialog = $state(false);
+	let showVideoDialog = $state(false);
+	let images: Record<string, File> = $state({});
+	let active_dropDown = $state('');
+	let validationError = $state<string | null>(null);
+	let showMobileMenu = $state(false);
+	let isUploading = $state(false);
+	let _data = $state(mode.value === 'create' ? { content: {}, header: {} } : { ...value });
 
 	// Language handling
-	let _language = $derived(field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE);
+	const _language = $derived(field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE);
 
-	// Update editor content when language changes
+	// Update editor content when language or initial value changes
 	$effect(() => {
 		if (editor && _language) {
-			const content = _data.content[_language] || value?.content?.[_language] || '';
-			editor.commands.setContent(content);
+			const newContent = _data.content?.[_language] || '';
+			if (editor.getHTML() !== newContent) {
+				editor.commands.setContent(newContent, false);
+			}
 		}
 	});
 
-	const deb = debounce(500);
+	const debouncedUpdate = debounce(500);
 
-	// Validation function
+	// Validation
 	function validateContent() {
 		const fieldId = getFieldName(field);
-		if (field?.required && (!_data.content[_language] || _data.content[_language] === '<p></p>')) {
+		const content = _data.content?.[_language] || '';
+		if (field?.required && (!content || content === '<p></p>')) {
 			validationError = 'Content is required';
 			validationStore.setError(fieldId, validationError);
 			return false;
@@ -106,16 +113,23 @@
 		if (!element) return;
 
 		editor = new Editor({
-			parseOptions: { preserveWhitespace: 'full' },
 			element: element,
 			extensions: [
-				StarterKit,
-				Link,
+				StarterKit.configure({
+					// Disable default hard break to use Shift+Enter for soft breaks
+					hardBreak: false
+				}),
+				Link.configure({
+					openOnClick: false, // Open links in a new tab, but don't follow them in the editor
+					autolink: true
+				}),
 				TextStyle,
 				FontFamily,
 				Color,
-				Youtube,
-				ImageResize,
+				Youtube.configure({
+					nocookie: true
+				}),
+				ImageResize, // The v3 compatible extension
 				CharacterCount,
 				Table.configure({
 					resizable: true
@@ -126,320 +140,187 @@
 				TextAlign.configure({
 					types: ['heading', 'paragraph', 'image']
 				}),
-
 				Extension.create({
-					name: 'Tab',
+					name: 'TabHandler',
 					addKeyboardShortcuts() {
 						return {
-							Tab: () => {
-								return this.editor.commands.insertContent('\t');
-							}
+							Tab: () => this.editor.commands.insertContent('\t')
 						};
 					}
 				})
 			],
-
-			content: _data.content[_language] || value?.content?.[_language] || '',
+			content: _data.content?.[_language] || '',
 			editorProps: {
 				attributes: {
+					class: 'prose dark:prose-invert prose-sm sm:prose-base lg:prose-lg xl:prose-2xl m-5 focus:outline-none',
 					dir: getTextDirection(_language)
 				}
 			},
-
-			onUpdate: () => {
-				active_dropDown = ''; // force re-render for active states
-				deb(() => {
-					if (!editor) return;
-					let content = editor.getHTML();
-					content == '<p></p>' && (content = '');
-					_data.content[_language] = content;
+			onUpdate: ({ editor: currentEditor }) => {
+				active_dropDown = ''; // Force reactivity for active states
+				debouncedUpdate(() => {
+					let html = currentEditor.getHTML();
+					_data.content[_language] = html === '<p></p>' ? '' : html;
 					validateContent();
 				});
 			},
-
 			onTransaction: ({ transaction }) => {
 				handleImageDeletes(transaction);
 			}
 		});
 
-		// Focus the editor after initialization
 		tick().then(() => {
 			editor?.commands.focus('start');
+			validateContent(); // Initial validation check
 		});
 	});
 
 	function handleImageDeletes(transaction: any) {
-		const getImageIds = (fragment: any) => {
-			let srcs = new Set<string>();
-			let obj = new Map<string, { id: string; src: string }>();
-			fragment.forEach((node: any) => {
-				if (node.type.name === 'image') {
-					srcs.add(node.attrs.media_image);
-					obj.set(node.attrs.id, { id: node.attrs.id, src: node.attrs.src });
+		if (!transaction.docChanged) return;
+
+		const getMediaIds = (doc: any): Set<string> => {
+			const ids = new Set<string>();
+			doc.descendants((node: any) => {
+				if (node.type.name === 'image' && node.attrs['data-media-id']) {
+					ids.add(node.attrs['data-media-id']);
 				}
 			});
-			return { srcs, obj };
+			return ids;
 		};
 
-		let current = getImageIds(transaction.doc.content);
-		let previous = getImageIds(transaction.before.content);
-		// Determine which images were deleted
-		let deletedImageSrcs = [...previous.srcs].filter((src) => src && !current.srcs.has(src)) as string[];
-		for (let obj of previous.obj) {
-			if (!current.obj.has(obj[0])) {
-				images[obj[0]] && delete images[obj[0]];
-			}
-		}
+		const previousIds = getMediaIds(transaction.before);
+		const currentIds = getMediaIds(transaction.doc);
+		const deletedIds = [...previousIds].filter((id) => !currentIds.has(id));
 
-		if (deletedImageSrcs.length > 0) {
-			meta_data.add('media_images_remove', deletedImageSrcs);
+		if (deletedIds.length > 0) {
+			deletedIds.forEach((id) => {
+				if (images[id]) {
+					delete images[id];
+				}
+			});
+			meta_data.add('media_images_remove', deletedIds);
 		}
 	}
 
 	onDestroy(() => {
-		if (editor) {
-			editor.destroy();
-		}
+		editor?.destroy();
 	});
 
-	// Text Types
-	let textTypes: ComponentProps<typeof DropDown>['items'] = $derived.by(() => {
-		editor;
+	// --- Toolbar Items ---
+
+	const textTypes: ComponentProps<typeof DropDown>['items'] = $derived.by(() => {
+		if (!editor) return [];
 		return [
-			{
-				name: 'Paragraph',
-				icon: 'bi:paragraph',
-				active: () => editor?.isActive('paragraph') ?? false,
-				onClick: () => editor?.chain().focus().setParagraph().run()
-			},
-			{
-				name: 'Heading',
-				icon: 'bi:type-h1',
-				active: () => editor?.isActive('heading', { level: 1 }) ?? false,
-				onClick: () => editor?.chain().focus().toggleHeading({ level: 1 }).run()
-			},
-			{
-				name: 'Heading',
-				icon: 'bi:type-h2',
-				active: () => editor?.isActive('heading', { level: 2 }) ?? false,
-				onClick: () => editor?.chain().focus().toggleHeading({ level: 2 }).run()
-			},
-			{
-				name: 'Heading',
-				icon: 'bi:type-h3',
-				active: () => editor?.isActive('heading', { level: 3 }) ?? false,
-				onClick: () => editor?.chain().focus().toggleHeading({ level: 3 }).run()
-			},
-			{
-				name: 'Heading',
-				icon: 'bi:type-h4',
-				active: () => editor?.isActive('heading', { level: 4 }) ?? false,
-				onClick: () => editor?.chain().focus().toggleHeading({ level: 4 }).run()
-			}
+			{ name: 'Paragraph', icon: 'bi:paragraph', active: () => editor.isActive('paragraph'), onClick: () => editor.chain().focus().setParagraph().run() },
+			{ name: 'Heading 1', icon: 'bi:type-h1', active: () => editor.isActive('heading', { level: 1 }), onClick: () => editor.chain().focus().toggleHeading({ level: 1 }).run() },
+			{ name: 'Heading 2', icon: 'bi:type-h2', active: () => editor.isActive('heading', { level: 2 }), onClick: () => editor.chain().focus().toggleHeading({ level: 2 }).run() },
+			{ name: 'Heading 3', icon: 'bi:type-h3', active: () => editor.isActive('heading', { level: 3 }), onClick: () => editor.chain().focus().toggleHeading({ level: 3 }).run() },
+			{ name: 'Heading 4', icon: 'bi:type-h4', active: () => editor.isActive('heading', { level: 4 }), onClick: () => editor.chain().focus().toggleHeading({ level: 4 }).run() }
 		];
 	});
 
-	// Fonts
-	let fonts: ComponentProps<typeof DropDown>['items'] = $derived.by(() => {
-		editor;
+	const fonts: ComponentProps<typeof DropDown>['items'] = $derived.by(() => {
+		if (!editor) return [];
+		const fontList = ['Arial', 'Verdana', 'Tahoma', 'Times New Roman', 'Georgia', 'Garamond'];
+		return fontList.map((font) => ({
+			name: font,
+			active: () => editor.isActive('textStyle', { fontFamily: font }),
+			onClick: () => editor.chain().focus().setFontFamily(font).run()
+		}));
+	});
+
+	const alignText: ComponentProps<typeof DropDown>['items'] = $derived.by(() => {
+		if (!editor) return [];
 		return [
-			{
-				name: 'Arial',
-				active: () => editor?.isActive('textStyle', { fontFamily: 'Arial' }) ?? false,
-				onClick: () => editor?.chain().focus().setFontFamily('Arial').run()
-			},
-			{
-				name: 'Verdana',
-				active: () => editor?.isActive('textStyle', { fontFamily: 'Verdana' }) ?? false,
-				onClick: () => editor?.chain().focus().setFontFamily('Verdana').run()
-			},
-			{
-				name: 'Tahoma',
-				active: () => editor?.isActive('textStyle', { fontFamily: 'Tahoma' }) ?? false,
-				onClick: () => editor?.chain().focus().setFontFamily('Tahoma').run()
-			},
-			{
-				name: 'Times New Roman',
-				active: () => editor?.isActive('textStyle', { fontFamily: 'Times New Roman' }) ?? false,
-				onClick: () => editor?.chain().focus().setFontFamily('Times New Roman').run()
-			},
-			{
-				name: 'Georgia',
-				active: () => editor?.isActive('textStyle', { fontFamily: 'Georgia' }) ?? false,
-				onClick: () => editor?.chain().focus().setFontFamily('Georgia').run()
-			},
-			{
-				name: 'Garamond',
-				active: () => editor?.isActive('textStyle', { fontFamily: 'Garamond' }) ?? false,
-				onClick: () => editor?.chain().focus().setFontFamily('Garamond').run()
-			}
+			{ name: 'Left', icon: 'fa6-solid:align-left', active: () => editor.isActive({ textAlign: 'left' }), onClick: () => editor.chain().focus().setTextAlign('left').run() },
+			{ name: 'Center', icon: 'fa6-solid:align-center', active: () => editor.isActive({ textAlign: 'center' }), onClick: () => editor.chain().focus().setTextAlign('center').run() },
+			{ name: 'Right', icon: 'fa6-solid:align-right', active: () => editor.isActive({ textAlign: 'right' }), onClick: () => editor.chain().focus().setTextAlign('right').run() },
+			{ name: 'Justify', icon: 'fa6-solid:align-justify', active: () => editor.isActive({ textAlign: 'justify' }), onClick: () => editor.chain().focus().setTextAlign('justify').run() }
 		];
 	});
 
-	// Alignment
-	let alignText: ComponentProps<typeof DropDown>['items'] = $derived.by(() => {
-		editor;
+	const inserts: ComponentProps<typeof DropDown>['items'] = $derived.by(() => {
+		if (!editor) return [];
 		return [
-			{
-				name: 'left',
-				icon: 'fa6-solid:align-left',
-				active: () => editor?.isActive({ textAlign: 'left' }) ?? false,
-				onClick: () => editor?.chain().focus().setTextAlign('left').run()
-			},
-			{
-				name: 'right',
-				icon: 'fa6-solid:align-right',
-				active: () => editor?.isActive({ textAlign: 'right' }) ?? false,
-				onClick: () => editor?.chain().focus().setTextAlign('right').run()
-			},
-			{
-				name: 'center',
-				icon: 'fa6-solid:align-center',
-				active: () => editor?.isActive({ textAlign: 'center' }) ?? false,
-				onClick: () => editor?.chain().focus().setTextAlign('center').run()
-			},
-			{
-				name: 'justify',
-				icon: 'fa6-solid:align-justify',
-				active: () => editor?.isActive({ textAlign: 'justify' }) ?? false,
-				onClick: () => editor?.chain().focus().setTextAlign('justify').run()
-			}
+			{ name: 'Image', icon: 'fa6-solid:image', onClick: () => (showImageDialog = true), active: () => editor.isActive('image') },
+			{ name: 'Video', icon: 'fa6-solid:video', onClick: () => (showVideoDialog = true), active: () => editor.isActive('youtube') },
+			{ name: 'Table', icon: 'bi:table', onClick: () => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(), active: () => editor.isActive('table') }
 		];
 	});
 
-	// Insert
-	let inserts: ComponentProps<typeof DropDown>['items'] = $derived.by(() => {
-		editor;
+	const floats: ComponentProps<typeof DropDown>['items'] = $derived.by(() => {
+		if (!editor) return [];
 		return [
-			{
-				name: 'image',
-				icon: 'fa6-solid:image',
-				onClick: () => {
-					showImageDialog = true;
-				},
-				active: () => editor?.isActive('image') ?? false
-			},
-			{
-				name: 'video',
-				icon: 'fa6-solid:video',
-				onClick: () => {
-					showVideoDialog = true;
-				},
-				active: () => editor?.isActive('video') ?? false
-			},
-			{
-				name: 'table',
-				icon: 'bi:table',
-				onClick: () => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
-				active: () => editor?.isActive('table') ?? false
-			}
+			{ name: 'Wrap Left', icon: 'teenyicons:align-left-solid', onClick: () => editor.chain().focus().setImageFloat('left').run(), active: () => editor.isActive('image', { float: 'left' }) },
+			{ name: 'Wrap Right', icon: 'teenyicons:align-right-solid', onClick: () => editor.chain().focus().setImageFloat('right').run(), active: () => editor.isActive('image', { float: 'right' }) },
+			{ name: 'Unwrap', icon: 'mdi:filter-remove', onClick: () => editor.chain().focus().setImageFloat('unset').run(), active: () => editor.isActive('image', { float: 'unset' }) }
 		];
 	});
 
-	// Float
-	let floats: ComponentProps<typeof DropDown>['items'] = $derived.by(() => {
-		editor;
-		return [
-			{
-				name: 'wrap left',
-				icon: 'teenyicons:align-left-solid',
-				onClick: () => editor?.chain().focus().setImageFloat('left').run(),
-				active: () => false
-			},
-			{
-				name: 'wrap right',
-				icon: 'teenyicons:align-right-solid',
-				onClick: () => editor?.chain().focus().setImageFloat('right').run(),
-				active: () => false
-			},
-			{
-				name: 'unwrap',
-				icon: 'mdi:filter-remove',
-				onClick: () => editor?.chain().focus().setImageFloat('unset').run(),
-				active: () => false
-			}
-		];
-	});
+	// --- Toolbar Logic ---
 
-	// Font Size
-	let fontSize = $state(16);
+	let fontSize = $state('16');
 	$effect(() => {
 		if (!editor || !element) return;
-		fontSize =
-			editor.getAttributes('textStyle').fontSize ||
-			window.getComputedStyle(window.getSelection()?.focusNode?.parentElement || element).fontSize.replace('px', '');
+		const currentSize = editor.getAttributes('textStyle').fontSize;
+		if (currentSize) {
+			fontSize = currentSize;
+		} else {
+			// Fallback to computed style if no explicit size is set
+			const selection = window.getSelection();
+			if (selection?.focusNode?.parentElement) {
+				fontSize = window.getComputedStyle(selection.focusNode.parentElement).fontSize.replace('px', '');
+			}
+		}
 	});
 
-	// Show button
-	function show(
-		button: 'textType' | 'font' | 'align' | 'insert' | 'float' | 'color' | 'bold' | 'italic' | 'strike' | 'link' | 'fontSize' | 'description'
-	) {
+	function show(button: string) {
 		if (!editor) return false;
-		if (editor.isActive('image')) {
-			return ['float', 'align', 'description'].includes(button);
-		}
-		if (['description', 'float'].includes(button)) {
-			return false;
-		}
+		const isImageActive = editor.isActive('image');
+		if (['float', 'align', 'description'].includes(button)) return isImageActive;
+		if (isImageActive) return false;
 		return true;
 	}
 
-	function handleFontSizeDecrease() {
-		fontSize--;
+	function handleFontSizeChange(e: Event) {
+		const target = e.target as HTMLInputElement;
+		fontSize = target.value;
 		editor?.chain().focus().setFontSize(fontSize).run();
 	}
 
-	function handleFontSizeIncrease() {
-		fontSize++;
-		editor?.chain().focus().setFontSize(fontSize).run();
-	}
-
-	function handleBoldClick() {
-		editor?.chain().focus().toggleBold().run();
-	}
-
-	function handleItalicClick() {
-		editor?.chain().focus().toggleItalic().run();
-	}
-
-	function handleStrikeClick() {
-		editor?.chain().focus().toggleStrike().run();
-	}
-
-	function handleLinkClick() {
-		editor?.chain().focus().toggleLink({ href: 'https://google.com' }).run();
-	}
-
-	let isUploading = $state(false);
-	let uploadTimeout: ReturnType<typeof setTimeout> | null = null;
-
-	function handleFileChange(value: File | MediaImage) {
+	function setLink() {
 		if (!editor) return;
+		const previousUrl = editor.getAttributes('link').href;
+		const url = window.prompt('URL', previousUrl);
 
-		let url;
-		// Start a timer to show loader only if upload is slow (e.g. > 700ms)
-		if (uploadTimeout) clearTimeout(uploadTimeout);
-		isUploading = false;
-		uploadTimeout = setTimeout(() => {
-			isUploading = true;
-		}, 700);
+		if (url === null) return; // User cancelled
+		if (url === '') {
+			editor.chain().focus().extendMarkRange('link').unsetLink().run();
+			return;
+		}
+		editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+	}
 
-		if (value instanceof File) {
-			url = URL.createObjectURL(value);
-			let image_id = uuidv4().replace(/-/g, '');
-			images[image_id] = value;
-			editor.chain().focus().setImage({ src: url, id: image_id }).run();
-			// Simulate upload delay for UX
+	async function handleFileChange(value: File | MediaImage) {
+		if (!editor || !value) return;
+
+		isUploading = true;
+		showImageDialog = false;
+
+		try {
+			if (value instanceof File) {
+				const url = URL.createObjectURL(value);
+				const mediaId = uuidv4().replace(/-/g, '');
+				images[mediaId] = value;
+				editor.chain().focus().setImage({ src: url, alt: value.name, 'data-media-id': mediaId }).run();
+			} else {
+				editor.chain().focus().setImage({ src: value.url, 'data-media-id': value._id }).run();
+			}
+		} finally {
+			// Give a brief moment for the user to see the loader
 			setTimeout(() => {
 				isUploading = false;
-				if (uploadTimeout) clearTimeout(uploadTimeout);
-			}, 500);
-		} else {
-			// Use the MediaImage url property directly
-			url = value.url;
-			editor.chain().focus().setImage({ src: url, storage_image: value._id }).run();
-			isUploading = false;
-			if (uploadTimeout) clearTimeout(uploadTimeout);
+			}, 300);
 		}
 	}
 </script>
@@ -457,21 +338,21 @@
 	/>
 
 	<!-- Rich Text Editor -->
-	<div class="m-auto flex max-h-[500px] w-full flex-col items-center gap-2 overflow-auto">
+	<div class="m-auto flex w-full flex-col items-center gap-2 overflow-auto rounded-lg border border-surface-300 dark:border-surface-700">
 		{#if editor}
 			<!-- Toolbar -->
 			<div
-				class="sticky top-0 z-10 my-1 flex w-full flex-wrap items-center justify-center gap-1 bg-surface-500"
+				class="sticky top-0 z-10 flex w-full flex-wrap items-center gap-x-2 gap-y-1 border-b border-surface-300 bg-surface-100 p-2 dark:border-surface-700 dark:bg-surface-800"
 				role="toolbar"
 				aria-label="Rich text editor toolbar"
 			>
 				{#if isMobile.value}
-					<button onclick={() => (showMobileMenu = !showMobileMenu)} class="btn" aria-label="Toggle toolbar menu" aria-expanded={showMobileMenu}>
+					<button onclick={() => (showMobileMenu = !showMobileMenu)} class="btn-icon" aria-label="Toggle toolbar menu" aria-expanded={showMobileMenu}>
 						<iconify-icon icon="mdi:menu" width="22"></iconify-icon>
 					</button>
 				{/if}
 
-				<div class="flex flex-wrap gap-1" class:hidden={isMobile.value && !showMobileMenu}>
+				<div class="flex flex-wrap items-center gap-x-2 gap-y-1" class:hidden={isMobile.value && !showMobileMenu}>
 					<!-- TextType -->
 					<DropDown show={show('textType')} items={textTypes} label="Text" bind:active={active_dropDown} />
 					<!-- Font -->
@@ -479,199 +360,166 @@
 					<!-- Color -->
 					<ColorSelector
 						show={show('color')}
-						color={editor?.getAttributes('textStyle').color || '#000000'}
-						onChange={(color) => editor?.chain().focus().setColor(color).run()}
+						color={editor.getAttributes('textStyle').color || '#000000'}
+						onChange={(color) => editor.chain().focus().setColor(color).run()}
 						bind:active={active_dropDown}
 					/>
-
+					<!-- Font Size -->
 					<div class="flex items-center" class:hidden={!show('fontSize')} role="group" aria-label="Font size controls">
-						<!-- Size -->
-						<button
-							onclick={handleFontSizeDecrease}
-							onkeydown={(e) => e.key === 'Enter' && handleFontSizeDecrease()}
-							aria-label="Decrease Font Size"
-							class="btn"
-							tabindex="0"
-						>
-							<iconify-icon icon="bi:dash-lg" width="22"></iconify-icon>
-						</button>
-
 						<input
-							type="text"
-							class="w-12 text-center text-sm text-black outline-none"
-							bind:value={fontSize}
+							type="number"
+							class="w-14 rounded-md border border-surface-300 bg-surface-50 p-1 text-center text-sm text-black outline-none focus:ring-2 focus:ring-primary-500 dark:border-surface-600 dark:bg-surface-700 dark:text-white"
+							value={fontSize}
+							onchange={handleFontSizeChange}
 							aria-label="Font size"
-							role="spinbutton"
-							aria-valuenow={fontSize}
-							aria-valuemin="1"
-							aria-valuemax="100"
+							min="8"
+							max="96"
 						/>
+					</div>
 
-						<button
-							onclick={handleFontSizeIncrease}
-							onkeydown={(e) => e.key === 'Enter' && handleFontSizeIncrease()}
-							aria-label="Increase Font Size"
-							class="btn"
-							tabindex="0"
-						>
-							<iconify-icon icon="bi:plus-lg" width="22"></iconify-icon>
+					<!-- Formatting Buttons -->
+					<div class="flex items-center divide-x divide-surface-300 rounded-md border border-surface-300 dark:divide-surface-600 dark:border-surface-600" role="group" aria-label="Text formatting">
+						<button class="btn-toolbar" class:hidden={!show('bold')} onclick={() => editor.chain().focus().toggleBold().run()} aria-pressed={editor.isActive('bold')} class:active={editor.isActive('bold')} title="Bold (Ctrl+B)" aria-label="Bold">
+							<iconify-icon icon="bi:type-bold" width="22"></iconify-icon>
+						</button>
+						<button class="btn-toolbar" class:hidden={!show('italic')} onclick={() => editor.chain().focus().toggleItalic().run()} aria-pressed={editor.isActive('italic')} class:active={editor.isActive('italic')} title="Italic (Ctrl+I)" aria-label="Italic">
+							<iconify-icon icon="bi:type-italic" width="22"></iconify-icon>
+						</button>
+						<button class="btn-toolbar" class:hidden={!show('strike')} onclick={() => editor.chain().focus().toggleStrike().run()} aria-pressed={editor.isActive('strike')} class:active={editor.isActive('strike')} title="Strikethrough" aria-label="Strikethrough">
+							<iconify-icon icon="bi:type-strikethrough" width="22"></iconify-icon>
+						</button>
+						<button class="btn-toolbar" class:hidden={!show('link')} onclick={setLink} aria-pressed={editor.isActive('link')} class:active={editor.isActive('link')} title="Link" aria-label="Link">
+							<iconify-icon icon="bi:link-45deg" width="20"></iconify-icon>
+						</button>
+					</div>
+
+					<!-- Align -->
+					<DropDown show={show('align')} items={alignText} label="Align" bind:active={active_dropDown} />
+					<!-- Insert -->
+					<DropDown show={show('insert')} items={inserts} icon="typcn:plus" label="Insert" bind:active={active_dropDown} />
+					<!-- Float -->
+					<DropDown show={show('float')} items={floats} icon="grommet-icons:text-wrap" label="Wrap" bind:active={active_dropDown} />
+
+					<!-- Image Description -->
+					<ImageDescription
+						show={show('description')}
+						value={editor.getAttributes('image')?.description}
+						onSubmit={(description) => editor.chain().focus().setImageDescription(description).run()}
+						bind:active={active_dropDown}
+					/>
+				</div>
+
+				<!-- History & Status -->
+				<div class="ml-auto flex items-center gap-2">
+					<!-- History -->
+					<div class="flex items-center divide-x divide-surface-300 rounded-md border border-surface-300 dark:divide-surface-600 dark:border-surface-600" role="group" aria-label="History actions">
+						<button class="btn-toolbar" onclick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Undo (Ctrl+Z)" aria-label="Undo">
+							<iconify-icon icon="mdi:undo" width="22"></iconify-icon>
+						</button>
+						<button class="btn-toolbar" onclick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} title="Redo (Ctrl+Y)" aria-label="Redo">
+							<iconify-icon icon="mdi:redo" width="22"></iconify-icon>
 						</button>
 					</div>
 				</div>
 			</div>
 
-			<div class="divide-x" role="group" aria-label="Text formatting">
-				<!-- Bold -->
-				<button
-					class:hidden={!show('bold')}
-					onclick={handleBoldClick}
-					onkeydown={(e) => e.key === 'Enter' && handleBoldClick()}
-					aria-label="Bold"
-					aria-pressed={editor?.isActive('bold') ?? false}
-					class:active={editor?.isActive('bold') ?? false}
-					tabindex="0"
+			<!-- Editor Container -->
+			<div class="relative min-h-[400px] w-full flex-grow">
+				{#if isUploading}
+					<div class="absolute inset-0 z-20 flex items-center justify-center bg-black bg-opacity-50">
+						<div class="loader"></div>
+						<span class="ml-4 text-white">Uploading...</span>
+					</div>
+				{/if}
+				<div
+					bind:this={element}
+					role="textbox"
+					class="h-full w-full cursor-text"
+					class:error-outline={!!validationError}
+					aria-label="Rich text editor content"
+					aria-multiline="true"
+					aria-required={!!field?.required}
+					dir={getTextDirection(_language) as 'ltr' | 'rtl'}
 				>
-					<iconify-icon icon="bi:type-bold" width="22"></iconify-icon>
-				</button>
-
-				<!-- Italic -->
-				<button
-					class:hidden={!show('italic')}
-					onclick={handleItalicClick}
-					onkeydown={(e) => e.key === 'Enter' && handleItalicClick()}
-					aria-label="Italic"
-					aria-pressed={editor?.isActive('italic') ?? false}
-					class:active={editor?.isActive('italic') ?? false}
-					tabindex="0"
-				>
-					<iconify-icon icon="bi:type-italic" width="22"></iconify-icon>
-				</button>
-
-				<!-- Strikethrough -->
-				<button
-					class:hidden={!show('strike')}
-					onclick={handleStrikeClick}
-					onkeydown={(e) => e.key === 'Enter' && handleStrikeClick()}
-					aria-label="Strikethrough"
-					aria-pressed={editor?.isActive('strike') ?? false}
-					class:active={editor?.isActive('strike') ?? false}
-					tabindex="0"
-				>
-					<iconify-icon icon="bi:type-strikethrough" width="22"></iconify-icon>
-				</button>
-
-				<!-- Link -->
-				<button
-					class:hidden={!show('link')}
-					onclick={handleLinkClick}
-					onkeydown={(e) => e.key === 'Enter' && handleLinkClick()}
-					aria-label="Link"
-					aria-pressed={editor?.isActive('link') ?? false}
-					class:active={editor?.isActive('link') ?? false}
-					tabindex="0"
-				>
-					<iconify-icon icon="bi:link-45deg" width="20"></iconify-icon>
-				</button>
+					<!-- Editor content will be inserted here by TipTap -->
+				</div>
 			</div>
 
-			<!-- Align -->
-			<DropDown show={show('align')} items={alignText} label="Align" bind:active={active_dropDown} />
-			<!-- Insert -->
-			<DropDown show={show('insert')} items={inserts} icon="typcn:plus" label="Insert" bind:active={active_dropDown} />
-			<!-- Float -->
-			<DropDown show={show('float')} items={floats} icon="grommet-icons:text-wrap" label="Text Wrap" bind:active={active_dropDown} />
-
-			<!-- Image Description -->
-			<ImageDescription
-				show={show('description')}
-				value={editor?.getAttributes('image')?.description}
-				onSubmit={(description) => editor?.chain().focus().setImageDescription(description).run()}
-				bind:active={active_dropDown}
-			/>
-
-			<!-- Image -->
-			<FileInput show={showImageDialog} on:change={handleFileChange} className="fixed left-1/2 top-0 z-10 -translate-x-1/2 bg-white" />
-
-			<!-- Video -->
-			<VideoDialog bind:show={showVideoDialog} {editor} />
-
-			<div class="divide-x" role="group" aria-label="History actions">
-				<button
-					onclick={() => editor?.chain().focus().undo().run()}
-					onkeydown={(e) => e.key === 'Enter' && editor?.chain().focus().undo().run()}
-					aria-label="Undo"
-					class="btn"
-					tabindex="0"
-					disabled={!editor?.can().undo()}
-				>
-					<iconify-icon icon="mdi:undo" width="22"></iconify-icon>
-				</button>
-
-				<button
-					onclick={() => editor?.chain().focus().redo().run()}
-					onkeydown={(e) => e.key === 'Enter' && editor?.chain().focus().redo().run()}
-					aria-label="Redo"
-					class="btn"
-					tabindex="0"
-					disabled={!editor?.can().redo()}
-				>
-					<iconify-icon icon="mdi:redo" width="22"></iconify-icon>
-				</button>
-			</div>
-
-			<!-- Character Count -->
-			<div class="ml-auto p-2 text-xs text-gray-500 dark:text-gray-400">
+			<!-- Footer with Character Count -->
+			<div class="w-full border-t border-surface-300 bg-surface-50 p-2 text-right text-xs text-gray-500 dark:border-surface-700 dark:bg-surface-800 dark:text-gray-400">
 				{editor.storage.characterCount?.characters() || 0} characters | {editor.storage.characterCount?.words() || 0} words
 			</div>
 		{/if}
-
-		<!-- Editor Container -->
-		<div
-			bind:this={element}
-			role="textbox"
-			tabindex="0"
-			class="min-h-[calc(100vh-80px)] w-full flex-grow cursor-text overflow-auto dark:text-white"
-			class:error={!!validationError}
-			aria-label="Rich text editor"
-			aria-multiline="true"
-			aria-required={!!field?.required}
-			dir={getTextDirection(_language) as 'ltr' | 'rtl'}
-		>
-			<!-- Editor content will be inserted here by TipTap -->
-		</div>
 	</div>
+
+	<!-- Modals -->
+	<FileInput show={showImageDialog} onchange={handleFileChange} onclose={() => (showImageDialog = false)} />
+	<VideoDialog bind:show={showVideoDialog} {editor} />
 
 	<!-- Error Message -->
 	{#if validationError}
-		<p id={`${getFieldName(field)}-error`} class="absolute bottom-[-1rem] left-0 w-full text-center text-xs text-error-500" role="alert">
+		<p id={`${getFieldName(field)}-error`} class="mt-1 w-full text-center text-sm text-error-500" role="alert">
 			{validationError}
 		</p>
 	{/if}
 </div>
 
 <style lang="postcss">
-	button.active {
-		color: rgb(0, 255, 123);
+	.btn-toolbar {
+		@apply p-2 transition-colors duration-200 hover:bg-surface-200 disabled:cursor-not-allowed disabled:text-surface-400 dark:hover:bg-surface-700 dark:disabled:text-surface-500;
 	}
-
-	:global(.tiptap) {
-		outline: none;
+	.btn-toolbar.active {
+		@apply bg-primary-500 text-white;
 	}
-
-	:global(.ProseMirror-selectednode img) {
-		box-shadow: 0px 0px 4px 0px #34363699 inset;
+	.btn-icon {
+		@apply rounded-md p-2 transition-colors duration-200 hover:bg-surface-200 dark:hover:bg-surface-700;
 	}
-
-	:global(.dark .ProseMirror),
-	:global(.dark .ProseMirror *) {
-		color: white !important;
+	.error-outline {
+		@apply ring-2 ring-error-500 ring-offset-2;
 	}
-
 	.input-container {
 		min-height: 2.5rem;
 	}
-
 	.error {
 		border-color: rgb(239 68 68);
 	}
+
+	/* Tiptap Specific Styles */
+	:global(.tiptap) {
+		@apply h-full;
+	}
+	:global(.ProseMirror-selectednode) {
+		@apply outline outline-2 outline-primary-500;
+	}
+	:global(.dark .ProseMirror) {
+		color: white;
+	}
+	:global(.dark .ProseMirror p) {
+		color: white;
+	}
+	:global(.dark .ProseMirror h1),
+	:global(.dark .ProseMirror h2),
+	:global(.dark .ProseMirror h3),
+	:global(.dark .ProseMirror h4) {
+		color: white;
+	}
+
+	/* Loader animation */
+	.loader {
+		border: 4px solid #f3f3f3;
+		border-top: 4px solid #3498db;
+		border-radius: 50%;
+		width: 40px;
+		height: 40px;
+		animation: spin 1s linear infinite;
+	}
+	@keyframes spin {
+		0% {
+			transform: rotate(0deg);
+		}
+		100% {
+			transform: rotate(360deg);
+		}
+	}
 </style>
+

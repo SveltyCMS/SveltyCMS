@@ -31,4 +31,3 @@ export async function POST() {
 		return json({ success: false, message: `Backup failed: ${error.message}` }, { status: 500 });
 	}
 }
-

@@ -75,10 +75,8 @@ export async function POST({ request }) {
 
 		console.log(`Successfully updated configuration file: ${filePath}`);
 		return json({ success: true, message: 'Configuration saved successfully.' });
-
 	} catch (error: any) {
 		console.error(`Error saving configuration to ${filePath}:`, error);
 		return json({ success: false, message: `Failed to save config: ${error.message}` }, { status: 500 });
 	}
 }
-

@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file src/widgets/core/relation/Relation.svelte
 @component
 **Relation widget component to display relation field**
@@ -6,7 +6,7 @@
 @example
 <Relation label="Relation" db_fieldName="relation" required={true} />
 
-### Props	
+### Props
 - `field`: FieldType
 - `value`: any
 
@@ -29,7 +29,7 @@
 	import type { FieldType } from '.';
 
 	// Utils
-	import { getData, saveFormData } from '@utils/data';
+	import { getData, addData, updateData } from '@utils/data';
 	import { extractData, findById, getFieldName } from '@utils/utils';
 
 	// Valibot validation
@@ -158,21 +158,17 @@
 
 		try {
 			if (entryMode === 'create') {
-				const result = await saveFormData({
-					data: fieldsData,
-					_collection: relationCollection,
-					_mode: 'create'
-				});
+				// FIX: Cast the result to the expected type to resolve the 'unknown' error.
+				const result = (await addData(field?.relation, fieldsData)) as { _id: string }[];
 				relation_id = result[0]?._id || '';
 			} else if (entryMode === 'choose') {
 				relation_id = selected?._id || '';
 			} else if (entryMode === 'edit' && relation_entry?._id) {
-				const result = await saveFormData({
-					data: fieldsData,
-					_collection: relationCollection,
-					_mode: 'edit',
-					id: relation_entry._id
-				});
+				// FIX: Cast the result to the expected type to resolve the 'unknown' error.
+				const result = (await updateData(field?.relation, {
+					...fieldsData,
+					_id: relation_entry._id
+				})) as { _id: string }[];
 				relation_id = result[0]?._id || '';
 			}
 
@@ -246,8 +242,4 @@
 	.input-container {
 		min-height: 2.5rem;
 	}
-
-	/* .error {
-		border-color: rgb(239 68 68);
-	} */
 </style>

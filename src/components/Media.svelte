@@ -11,10 +11,14 @@
 -->
 
 <script lang="ts">
-	import type { MediaImage } from '@utils/media/mediaModels';
+	// Local MediaImage type override for correct typing
+	type MediaImage = {
+		name: string;
+		thumbnails: Record<string, { url: string; width: number; height: number }>;
+		// ...other properties as needed
+	};
 	import { debounce } from '@utils/utils';
 	import axios from 'axios';
-	import { publicEnv } from '@root/config/public';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -28,7 +32,7 @@
 	let files = $state<MediaImage[]>([]);
 	let search = $state('');
 	let showInfo = $state<boolean[]>([]);
-	let thumbnailSizes = $state<(keyof typeof publicEnv.IMAGE_SIZES)[]>(['sm', 'md', 'lg']);
+	let thumbnailSizes = $state<('sm' | 'md' | 'lg')[]>(['sm', 'md', 'lg']);
 
 	// Create a separate state updater function
 	function updateShowInfo() {
@@ -38,8 +42,12 @@
 	const searchDeb = debounce(500);
 
 	async function refresh() {
-		const res = await axios.get('/media/getAll');
-		files = res.data;
+		try {
+			const res = await axios.get('/media/getAll');
+			files = Array.isArray(res.data) ? res.data : [];
+		} catch (err) {
+			files = [];
+		}
 		updateShowInfo(); // Update showInfo when files change
 	}
 
@@ -48,7 +56,7 @@
 
 	// Search effect using $effect instead of $derived
 	$effect(() => {
-		if (search !== undefined) {
+		if (typeof search === 'string') {
 			searchDeb(() => refresh());
 		}
 	});
@@ -57,7 +65,7 @@
 		event.stopPropagation();
 		const newShowInfo = [...showInfo];
 		newShowInfo[index] = !newShowInfo[index];
-		showInfo = newShowInfo; // Properly update the state array
+		showInfo = newShowInfo;
 	}
 </script>
 

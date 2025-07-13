@@ -14,21 +14,21 @@ import path from 'path';
 
 // Helper to construct a cache-busted path for dynamic import
 function getFreshPath(modulePath) {
-    // Convert a file system path to a file:// URL that import() can use
-    const fileUrl = pathToFileURL(modulePath).href;
-    // Append a unique query string to prevent caching
-    return `${fileUrl}?v=${Date.now()}`;
+	// Convert a file system path to a file:// URL that import() can use
+	const fileUrl = pathToFileURL(modulePath).href;
+	// Append a unique query string to prevent caching
+	return `${fileUrl}?v=${Date.now()}`;
 }
 
 export async function GET() {
 	try {
-        // Resolve absolute paths from the project root directory
-        const projectRoot = process.cwd();
-        const privateConfigPath = path.join(projectRoot, 'config', 'private.ts');
-        const publicConfigPath = path.join(projectRoot, 'config', 'public.ts');
-        const guiConfigPath = path.join(projectRoot, 'config', 'guiConfig.ts');
+		// Resolve absolute paths from the project root directory
+		const projectRoot = process.cwd();
+		const privateConfigPath = path.join(projectRoot, 'config', 'private.ts');
+		const publicConfigPath = path.join(projectRoot, 'config', 'public.ts');
+		const guiConfigPath = path.join(projectRoot, 'config', 'guiConfig.ts');
 
-        // Dynamically import the modules to get the latest versions from disk
+		// Dynamically import the modules to get the latest versions from disk
 		const { privateEnv } = await import(getFreshPath(privateConfigPath));
 		const { publicEnv } = await import(getFreshPath(publicConfigPath));
 		const { privateConfigCategories, publicConfigCategories } = await import(getFreshPath(guiConfigPath));
@@ -41,10 +41,8 @@ export async function GET() {
 			publicConfigCategories
 		};
 		return json({ success: true, data: payload });
-
 	} catch (error) {
 		console.error('Failed to dynamically load configuration:', error);
 		return json({ success: false, message: 'Could not load server configuration from disk.' }, { status: 500 });
 	}
 }
-

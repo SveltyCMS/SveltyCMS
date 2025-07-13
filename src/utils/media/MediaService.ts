@@ -5,7 +5,18 @@
 
 import mime from 'mime-types';
 import { error } from '@sveltejs/kit';
-import Path from 'path';
+
+// Browser-compatible path utilities
+const pathUtils = {
+	posix: {
+		join: (...paths: string[]) => {
+			return paths.filter(Boolean).join('/').replace(/\/+/g, '/');
+		}
+	},
+	join: (...paths: string[]) => {
+		return paths.filter(Boolean).join('/').replace(/\/+/g, '/');
+	}
+};
 
 // Database Interface
 import type { DatabaseId, dbInterface, ISODateString, MediaItem } from '@src/databases/dbInterface';
@@ -15,7 +26,6 @@ import type { MediaType, MediaBase, MediaAccess } from './mediaModels';
 import { MediaTypeEnum } from './mediaModels';
 import { saveFileToDisk, saveResizedImages } from './mediaStorage';
 import { hashFileContent, getSanitizedFileName } from './mediaProcessing';
-import { validateMediaFile } from './mediaUtils';
 
 // Permission Management
 import { validateUserPermission as checkMediaAccess } from '@src/auth/permissions';
@@ -25,7 +35,6 @@ import { logger } from '@utils/logger.svelte';
 
 // Media Cache
 import { mediaCache } from '@src/databases/mediaCache';
-import { v4 as uuidv4 } from 'uuid';
 
 // Extended MediaBase interface to include thumbnails
 interface MediaBaseWithThumbnails extends MediaBase {
@@ -107,7 +116,7 @@ export class MediaService {
 			// Save original image in 'original' subfolder
 			const originalSubfolder = 'original';
 			const originalFileName = `${sanitizedFileName}-${hash}.${ext}`;
-			const originalUrl = Path.posix.join(basePath, originalSubfolder, originalFileName);
+			const originalUrl = pathUtils.posix.join(basePath, originalSubfolder, originalFileName);
 
 			logger.debug('Saving original file', {
 				originalUrl,
@@ -133,7 +142,7 @@ export class MediaService {
 				type: MediaTypeEnum.Image,
 				name: sanitizedFileName,
 				hash,
-				path: Path.join(basePath, originalSubfolder),
+				path: pathUtils.join(basePath, originalSubfolder),
 				url: originalUrl,
 				mimeType,
 				size: buffer.length,

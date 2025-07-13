@@ -1,38 +1,17 @@
-<!-- 
-@file src/routes/(app)/mediagallery/+page.svelte 
-@component 
+<!--
+@file: src/routes/(app)/mediagallery/+page.svelte
+@component
 **This page is used to display the media gallery page**
 
 This page displays a collection of media files, such as images, documents, audio, and video.
-It p			if (result.success) {
-				// Refetch all folders
-				allSystemVirtualFolders = await fetchUpdatedSystemVirtualFolders();
-				// Update current view
-				const parent = currentSystemVirtualFolder?._id ?? null;
-				systemVirtualFolders = allSystemVirtualFolders.filter((f) => f.parentId === parent);
-				
-				// Dispatch event to notify Collections component
-				const event = new CustomEvent('folderCreated', {
-					detail: { 
-						folder: result.folder,
-						parentId: parentId
-					}
-				});
-				document.dispatchEvent(event);
-				
-				toastStore.trigger({
-					message: 'Folder created successfully!',
-					background: 'variant-filled-success',
-					timeout: 3000
-				});
-			} else {er-friendly interface for searching, filtering, and navigating through media files.
+It provides a user-friendly interface for searching, filtering, and navigating through media files.
 
 ### Props:
 - `mediaType` {MediaTypeEnum} - The type of media files to display.
 - `media` {MediaBase[]} - An array of media files to be displayed.
 
 ### Events:
-- `mediaDeleted` - Emitted when a media file is deleted.	
+- `mediaDeleted` - Emitted when a media file is deleted.
 
 ### Features:
 - Displays a collection of media files based on the specified media type.
@@ -48,7 +27,6 @@ It p			if (result.success) {
 	import { mode } from '@src/stores/collectionStore.svelte';
 
 	// Utils & Media
-	import { config, toFormData } from '@utils/utils';
 	import { MediaTypeEnum, type MediaImage, type MediaBase } from '@utils/media/mediaModels';
 	import { publicEnv } from '@root/config/public';
 
@@ -97,6 +75,13 @@ It p			if (result.success) {
 		label: string;
 	};
 
+	// FIX: Define a clear type for the folder structure used by the breadcrumb
+	type Folder = {
+		_id: string;
+		name: string;
+		path: string[];
+	};
+
 	// Media types with proper typing
 	const mediaTypes: MediaTypeOption[] = [
 		{ value: 'All', label: 'ALL' },
@@ -124,11 +109,15 @@ It p			if (result.success) {
 		})
 	);
 
-	// Computed folders for breadcrumb - create a mapping of breadcrumb paths to folder IDs
-	let breadcrumbFolders = $derived(() => {
-		if (!currentSystemVirtualFolder) return [];
+	// FIX: Use $state and $effect to prevent type mismatch with the Breadcrumb component
+	let breadcrumbFolders = $state<Folder[]>([]);
+	$effect(() => {
+		if (!currentSystemVirtualFolder) {
+			breadcrumbFolders = [];
+			return;
+		}
 
-		const folders: { _id: string; name: string; path: string[] }[] = [];
+		const folders: Folder[] = [];
 		let current: SystemVirtualFolder | null = currentSystemVirtualFolder;
 		const pathSegments: string[] = [];
 
@@ -143,7 +132,7 @@ It p			if (result.success) {
 			current = allSystemVirtualFolders.find((f) => f._id === current?.parentId) || null;
 		}
 
-		return folders;
+		breadcrumbFolders = folders;
 	});
 
 	// Handle user preferences
@@ -463,11 +452,16 @@ It p			if (result.success) {
 	// Handle delete image
 	async function handleDeleteImage(file: MediaBase) {
 		try {
-			const q = toFormData({ method: 'POST', image: file._id ?? '' });
-			const response = await axios.post('?/api/mediaHandler/', q, {
-				...config,
+			// FIX: Create FormData directly, removing dependency on old utils
+			const formData = new FormData();
+			formData.append('method', 'POST');
+			formData.append('image', file._id ?? '');
+
+			// FIX: Remove `config` and call axios directly. The browser will set the correct headers for FormData.
+			const response = await axios.post('?/api/mediaHandler/', formData, {
 				withCredentials: true // This ensures cookies are sent with the request
 			});
+
 			const result = response.data;
 			if (result?.success) {
 				toastStore.trigger({

@@ -789,7 +789,7 @@
 			items = recalculateGridPositions();
 			loadError = null;
 		} catch (error) {
-				items = [];
+			items = [];
 			loadError = 'Failed to load dashboard preferences. Please try again.';
 		}
 		preferencesLoaded = true;

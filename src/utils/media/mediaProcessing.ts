@@ -6,7 +6,6 @@
 import { publicEnv } from '@root/config/public';
 import { error } from '@sveltejs/kit';
 import mime from 'mime-types';
-import { Buffer } from 'buffer';
 import { sha256, sanitize } from '@utils/utils';
 import { MediaTypeEnum } from './mediaModels';
 import type { ImageMetadata, MediaImage, MediaAccess, Thumbnail } from './mediaModels';
@@ -90,7 +89,7 @@ export async function hashFileContent(buffer: ArrayBuffer): Promise<string> {
 			firstBytes: new Uint8Array(buffer).slice(0, 4).join(',')
 		});
 
-		const hash = (await sha256(Buffer.from(buffer))).slice(0, 20);
+		const hash = (await sha256(new Uint8Array(buffer))).slice(0, 20);
 
 		logger.debug('File content hashed successfully', {
 			hash,
@@ -234,7 +233,7 @@ export async function saveImage(file: File, destination: string, userId: string,
 
 		// Save the original image
 		logger.debug('Saving original image file');
-		const originalBuffer = Buffer.from(await file.arrayBuffer());
+		const originalBuffer = new Uint8Array(await file.arrayBuffer());
 		await fs.promises.writeFile(originalPath, originalBuffer);
 		logger.debug('Original image saved successfully', {
 			path: originalPath,
@@ -244,7 +243,7 @@ export async function saveImage(file: File, destination: string, userId: string,
 		// Immediately generate and save the thumbnail
 		logger.debug('Generating thumbnail image');
 		const thumbnailBlob = await resizeImage(file, 150, 150);
-		const thumbnailBuffer = Buffer.from(await thumbnailBlob.arrayBuffer());
+		const thumbnailBuffer = new Uint8Array(await thumbnailBlob.arrayBuffer());
 		logger.debug('Saving thumbnail image file');
 		await fs.promises.writeFile(thumbnailPath, thumbnailBuffer);
 		logger.debug('Thumbnail image saved successfully', {
@@ -281,7 +280,7 @@ export async function saveImage(file: File, destination: string, userId: string,
 				const resizedBlob = await resizeImage(file, width, height);
 				const path = Path.join(destination, 'images', name, newFileName);
 				await fs.promises.mkdir(Path.dirname(path), { recursive: true });
-				const resizedBuffer = Buffer.from(await resizedBlob.arrayBuffer());
+				const resizedBuffer = new Uint8Array(await resizedBlob.arrayBuffer());
 				await fs.promises.writeFile(path, resizedBuffer);
 
 				thumbnails[name] = {
@@ -361,7 +360,7 @@ export async function saveDocument(file: File, destination: string): Promise<str
 		logger.info(`Saving document to ${fullPath}`);
 
 		// Here you would typically use a file system API or cloud storage service to save the file
-		await fs.promises.writeFile(fullPath, Buffer.from(await file.arrayBuffer()));
+		await fs.promises.writeFile(fullPath, new Uint8Array(await file.arrayBuffer()));
 
 		return fullPath;
 	} catch (err) {
@@ -383,7 +382,7 @@ export async function saveAudio(file: File, destination: string): Promise<string
 
 		logger.info(`Saving audio to ${fullPath}`);
 
-		await fs.promises.writeFile(fullPath, Buffer.from(await file.arrayBuffer()));
+		await fs.promises.writeFile(fullPath, new Uint8Array(await file.arrayBuffer()));
 
 		return fullPath;
 	} catch (err) {
@@ -405,7 +404,7 @@ export async function saveVideo(file: File, destination: string): Promise<string
 
 		logger.info(`Saving video to ${fullPath}`);
 
-		await fs.promises.writeFile(fullPath, Buffer.from(await file.arrayBuffer()));
+		await fs.promises.writeFile(fullPath, new Uint8Array(await file.arrayBuffer()));
 
 		return fullPath;
 	} catch (err) {

@@ -1,8 +1,45 @@
 {
 	"name": "sveltycms",
-	"description": "A powerful Headless CMS with sveltekit power",
+	"description": "An open-source, developer-first, and powerful Headless CMS built with SvelteKit. Designed for speed, flexibility, and an exceptional developer experience (DX).",
 	"version": "0.0.5",
 	"type": "module",
+	"homepage": "https://SveltyCMS.com",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/SveltyCMS/SveltyCMS"
+	},
+	"bugs": {
+		"url": "https://github.com/SveltyCMS/SveltyCMS/issues"
+	},
+	"keywords": [
+		"svelte",
+		"sveltekit",
+		"cms",
+		"headless-cms",
+		"svelte-cms",
+		"sveltekit-cms",
+		"sveltycms",
+		"content-management-system",
+		"wysiwyg",
+		"rich-text-editor",
+		"tiptap",
+		"drizzle-orm",
+		"mongodb",
+		"fast-cms",
+		"open-source",
+		"developer-experience",
+		"dxp",
+		"i18n",
+		"paraglide-js",
+		"graphql",
+		"tailwind",
+		"skeleton-ui"
+	],
+	"engines": {
+		"node": ">=18.0.0",
+		"bun": ">=1.0.0"
+	},
 	"scripts": {
 		"-- INSTALLER -----------------------------------------": "",
 		"installer": "node cli-installer/cli-installer.js",
@@ -10,7 +47,7 @@
 		"dev": "vite dev",
 		"devv": "LAUNCH_EDITOR='code' vite --open",
 		"-- BUILD ---------------------------------------------": "",
-		"build": "bun run vite build",
+		"build": "vite build",
 		"-- CHECK & TEST ---------------------------------------": "",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --threshold error",
 		"check:watch": " svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
@@ -22,47 +59,13 @@
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write .",
 		"-- OTHER ----------------------------------------------": "",
-		"preview": "bun run vite preview",
+		"preview": "vite preview",
 		"paraglide": "paraglide-js compile --project ./project.inlang",
 		"translate": "bun x @inlang/cli machine translate --project ./project.inlang",
 		"db:push": "drizzle-kit push",
 		"db:migrate": "drizzle-kit migrate",
 		"db:studio": "drizzle-kit studio"
 	},
-	"license": "MIT",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/SveltyCMS/SveltyCMS"
-	},
-	"bugs": {
-		"url": "https://github.com/SveltyCMS/SveltyCMS/issues"
-	},
-	"keywords": [
-		"cms",
-		"content-management-system",
-		"DXP Digital",
-		"Developer Experience Platform",
-		"inlang",
-		"i18n",
-		"internationalization",
-		"paraglide-js",
-		"headless",
-		"headless-cms",
-		"graphql",
-		"skeleton",
-		"svelte",
-		"svelte-cms",
-		"sveltekit",
-		"sveltekit_cms",
-		"sveltycms",
-		"fast_cms",
-		"oauth",
-		"tailwind",
-		"tailwindcss",
-		"rich-text-editor",
-		"tiptap",
-		"mongodb"
-	],
 	"devDependencies": {
 		"@clack/prompts": "^0.11.0",
 		"@iconify/svelte": "^5.0.0",

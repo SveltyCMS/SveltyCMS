@@ -1,5 +1,5 @@
 <!--
-@file:  src/components/EntryList.svelte
+@file: src/components/EntryList.svelte
 @component
 **EntryList component to display collections data.**
 
@@ -196,6 +196,7 @@ Features:
 	// Simplified stable state management
 	let stableDataExists = $state(false);
 	let hasInitialLoad = $state(false);
+	let showDeleted = $state(false);
 
 	let globalSearchValue = $state('');
 	let expand = $state(false);
@@ -350,10 +351,19 @@ Features:
 				console.log(`[EntryList] Current language: ${currentLanguage}`);
 				const page = entryListPaginationSettings.currentPage;
 				const limit = entryListPaginationSettings.rowsPerPage;
-				const activeFilters: Record<string, string> = {};
+				const activeFilters: Record<string, any> = {};
 				for (const key in entryListPaginationSettings.filters) {
 					if (entryListPaginationSettings.filters[key]) activeFilters[key] = entryListPaginationSettings.filters[key];
 				}
+
+				// Conditionally add the filter for deleted status
+				if (!showDeleted) {
+					activeFilters.status = { $ne: 'deleted' };
+				} else {
+					// If we are showing deleted items, ensure no other status filter is conflicting.
+					delete activeFilters.status;
+				}
+
 				const sortParam =
 					entryListPaginationSettings.sorting.isSorted && entryListPaginationSettings.sorting.sortedBy
 						? { [entryListPaginationSettings.sorting.sortedBy]: entryListPaginationSettings.sorting.isSorted }
@@ -364,8 +374,8 @@ Features:
 					page,
 					limit,
 					contentLanguage: currentLanguage,
-					filter: JSON.stringify(activeFilters),
-					sort: JSON.stringify(sortParam),
+					filter: activeFilters,
+					sort: sortParam,
 					// Add timestamp when language changed to force cache miss
 					_langChange: languageChangeTimestamp
 				};
@@ -389,7 +399,8 @@ Features:
 		if (data?.entryList && Array.isArray(data.entryList)) {
 			tableData = await Promise.all(
 				data.entryList.map(async (entry) => {
-					const obj: { [key: string]: any } = { _id: entry._id }; // Ensure _id is always present
+					// Add raw_status to hold the original status string
+					const obj: { [key: string]: any } = { _id: entry._id, raw_status: entry.status || 'N/A' }; // Ensure _id is always present
 					if (currentCollection?.fields) {
 						// FIX: Cast `currentCollection.fields` to `any[]` to avoid type conflicts.
 						// Runtime checks for properties like `display` and `callback` are used instead.
@@ -498,9 +509,11 @@ Features:
 		const sorting = entryListPaginationSettings.sorting;
 		// Track language changes that should trigger refresh
 		const language = currentLanguage;
+		// Track showDeleted state changes
+		const includeDeleted = showDeleted;
 
 		// Read the tracked variables to ensure they're tracked
-		(void collectionId, currentPage, rowsPerPage, filters, sorting, language);
+		(void collectionId, currentPage, rowsPerPage, filters, sorting, language, includeDeleted);
 
 		if (!collectionId) {
 			// No collection selected, already handled above
@@ -518,13 +531,15 @@ Features:
 		// Only refresh if this is for the same collection AND we've completed initial load
 		// Also ensure this isn't the initial setup after collection change
 		if (lastCollectionId === collectionId && hasInitialLoad && stableDataExists) {
-			console.log(`[EntryList] Pagination/filter/language change for collection ${collectionId}, language: ${language}, refreshing data`);
+			console.log(
+				`[EntryList] Pagination/filter/language change for collection ${collectionId}, language: ${language}, showDeleted: ${includeDeleted}, refreshing data`
+			);
 			refreshDebounce(() => {
 				untrack(() => refreshTableData(true));
 			});
 		} else {
 			console.log(
-				`[EntryList] Skipping pagination refresh - lastCollectionId: ${lastCollectionId}, collectionId: ${collectionId}, hasInitialLoad: ${hasInitialLoad}, stableDataExists: ${stableDataExists}, language: ${language}`
+				`[EntryList] Skipping pagination refresh - lastCollectionId: ${lastCollectionId}, collectionId: ${collectionId}, hasInitialLoad: ${hasInitialLoad}, stableDataExists: ${stableDataExists}, language: ${language}, showDeleted: ${includeDeleted}`
 			);
 		}
 	});
@@ -595,12 +610,7 @@ Features:
 		// Function to handle confirmation modal response
 		const handleConfirmation = async (confirm: boolean) => {
 			if (!confirm) return;
-			// Initialize a new FormData object
-			const formData = new FormData();
-			// Append the IDs of the items to be modified to formData
-			formData.append('ids', JSON.stringify(modifyList));
-			// Append the status to formData
-			formData.append('status', statusMap[status]);
+
 			if (!currentCollection?._id) {
 				toastStore.trigger({
 					message: 'Error: No collection selected or collection ID is missing.',
@@ -609,38 +619,73 @@ Features:
 				});
 				return;
 			}
+
 			try {
-				// Call the appropriate API endpoint based on the status
-				switch (status) {
-					case 'deleted':
-						// If the status is 'deleted', call the delete endpoint
-						await deleteData({ data: formData, collectionId: currentCollection._id });
-						break;
-					case 'published':
-						// If the status is 'published', call the setStatus endpoint
-						await setStatus({ data: formData, collectionId: currentCollection._id });
-						break;
-					case 'unpublished':
-						// If the status is 'unpublished', call the setStatus endpoint
-						await setStatus({ data: formData, collectionId: currentCollection._id });
-						break;
-					case 'testing':
-						// If the status is 'testing', call the setStatus endpoint
-						await setStatus({ data: formData, collectionId: currentCollection._id });
-						break;
-					case 'scheduled':
-						// If the status is 'scheduled', call the setStatus endpoint
-						await setStatus({ data: formData, collectionId: currentCollection._id });
-						break;
-					case 'cloned':
-						// Trigger a toast message indicating that the feature is not yet implemented
-						toastStore.trigger({
-							message: 'Clone feature not yet implemented.',
-							background: 'variant-filled-error',
-							timeout: 3000
-						});
-						break;
+				// Handle cloned status separately since it's not implemented
+				if (status === 'cloned') {
+					toastStore.trigger({
+						message: 'Clone feature not yet implemented.',
+						background: 'variant-filled-error',
+						timeout: 3000
+					});
+					return;
 				}
+
+				// Handle testing status separately since it's not supported by setStatus
+				if (status === 'testing') {
+					toastStore.trigger({
+						message: 'Testing status is not yet supported.',
+						background: 'variant-filled-error',
+						timeout: 3000
+					});
+					return;
+				}
+
+				// Check if we're trying to delete entries that are already marked as deleted
+				if (status === 'deleted') {
+					// Get the raw status of selected entries to determine if they're already deleted
+					const selectedEntries = modifyList.map((id) => tableData.find((entry) => entry._id === id)).filter(Boolean);
+
+					const alreadyDeletedEntries = selectedEntries.filter((entry) => entry.raw_status === 'deleted');
+
+					if (alreadyDeletedEntries.length > 0) {
+						// Some entries are already deleted - offer permanent deletion
+						const permanentDeleteModal: ModalSettings = {
+							type: 'confirm',
+							title: 'Permanent Deletion',
+							body: `${alreadyDeletedEntries.length} of the selected entries are already archived. Do you want to permanently delete them? This action cannot be undone.`,
+							buttonTextCancel: 'Cancel',
+							buttonTextConfirm: 'Permanently Delete',
+							response: async (confirmPermanent: boolean) => {
+								if (confirmPermanent) {
+									// Permanently delete the already-deleted entries
+									const permanentDeleteIds = alreadyDeletedEntries.map((entry) => entry._id);
+
+									await deleteData(currentCollection._id, permanentDeleteIds);
+
+									// Soft delete the remaining entries (if any)
+									const remainingIds = modifyList.filter((id) => !permanentDeleteIds.includes(id));
+
+									if (remainingIds.length > 0) {
+										await setStatus(currentCollection._id, remainingIds, statusMap[status]);
+									}
+
+									toastStore.trigger({
+										message: `${permanentDeleteIds.length} entries permanently deleted, ${remainingIds.length} entries archived.`,
+										background: 'variant-filled-success'
+									});
+								}
+								refreshTableData(true);
+								mode.set('view');
+							}
+						};
+						modalStore.trigger(permanentDeleteModal);
+						return;
+					}
+				}
+
+				// Standard soft delete/status change for all other cases
+				await setStatus(currentCollection._id, modifyList, statusMap[status]);
 
 				refreshTableData(true); // Refresh the collection
 				mode.set('view'); // Set the mode to 'view'
@@ -778,7 +823,7 @@ Features:
 
 			<!-- Table Filter with Translation Content Language -->
 			<div class="relative mt-1 hidden items-center justify-center gap-2 sm:flex">
-				<TableFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density={entryListPaginationSettings.density} />
+				<TableFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density={entryListPaginationSettings.density} bind:showDeleted />
 				<TranslationStatus />
 			</div>
 
@@ -796,7 +841,7 @@ Features:
 	<!-- Table  Start-->
 	{#if expand}
 		<div class="mb-2 flex items-center justify-center sm:hidden">
-			<TableFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density={entryListPaginationSettings.density} />
+			<TableFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density={entryListPaginationSettings.density} bind:showDeleted />
 		</div>
 	{/if}
 
@@ -1001,7 +1046,7 @@ Features:
 										}}
 									>
 										{#if header.name === 'status'}
-											<Status value={entry[header.label]} />
+											<Status value={entry.raw_status} />
 										{:else if typeof entry[header.label] === 'object' && entry[header.label] !== null}
 											{@html entry[header.label][currentLanguage] || '-'}
 										{:else}

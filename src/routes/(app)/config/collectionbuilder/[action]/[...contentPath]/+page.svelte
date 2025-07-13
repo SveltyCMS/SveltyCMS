@@ -1,15 +1,16 @@
-<!-- 
+<!--
 @files src/routes/(app)/config/collectionbuilder/[...contentTypes]/+page.svelte
-@component  
+@component
 **This component sets up and displays the collection page.**
 It provides a user-friendly interface for creating, editing, and deleting collections.
 -->
+
 <script lang="ts">
-	import axios from 'axios';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 
-	import { obj2formData } from '@utils/utils';
+	// Import the data service functions
+	import { addData, updateData, deleteData } from '@utils/data';
 
 	// Stores
 	import { page } from '$app/state';
@@ -44,7 +45,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	});
 
 	import type { User } from '@src/auth/types';
-	import type { Schema } from '@src/content/types';
+	import type { Schema } from '@src/content/types'; // FIX: Removed unused 'Field' import
 
 	const modalStore = getModalStore();
 	const toastStore = getToastStore();
@@ -75,17 +76,6 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		else {
 			// Set to null for new collections as _id is required in Schema
 			collection.set(null);
-			/* Potential alternative if you need a placeholder object:
-			collection.set({
-				_id: '', // Use an empty string or generate a temporary client-side ID if needed later
-				name: '',
-				icon: '',
-				description: '',
-				status: 'unpublished',
-				slug: '',
-				fields: []
-			});
-			*/
 		}
 	}
 
@@ -129,10 +119,19 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	// Import validation store
 	import { validationStore } from '@src/stores/store.svelte';
 
+	// Create a derived state to process fields into the correct type for the widget
+	let widgetFields = $derived(
+		collection.value?.fields?.map((f: any) => ({
+			...f,
+			widget: f.widget || { Name: f.type || 'Input' },
+			type: f.type || 'text',
+			config: f.config || {},
+			label: f.label || 'Unnamed Field'
+		})) || []
+	);
+
 	// Function to save data by sending a POST request
 	async function handleCollectionSave() {
-		console.log(collection.value, name, page.params);
-
 		// Check validation errors before submission
 		if (validationStore.errors && Object.keys(validationStore.errors).length > 0) {
 			toastStore.trigger({
@@ -143,86 +142,83 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 			return;
 		}
 
-		// Prepare form data
-		const data =
-			mode.value == 'edit'
-				? obj2formData({
-						originalName: collection.value?.name,
-						name: name,
-						icon: collection.value?.icon,
-						status: collection.value?.status,
-						slug: collection.value?.slug,
-						description: collection.value?.description,
-						permissions: collection.value?.permissions,
-						fields: collection.value?.fields
-					})
-				: obj2formData({
-						name: name,
-						icon: collection.value?.icon,
-						status: collection.value?.status,
-						slug: collection.value?.slug,
-						description: collection.value?.description,
-						permissions: collection.value?.permissions,
-						fields: collection.value?.fields
-					});
+		// Prepare the data object
+		const collectionData = {
+			_id: collection.value?._id, // Important for updates
+			originalName: mode.value === 'edit' ? collection.value?.name : undefined,
+			name: name,
+			icon: collection.value?.icon,
+			status: collection.value?.status,
+			slug: collection.value?.slug,
+			description: collection.value?.description,
+			permissions: collection.value?.permissions,
+			fields: collection.value?.fields
+		};
 
-		// Send the form data to the server
-		const resp = await axios.post(`?/saveCollection`, data, {
-			headers: {
-				'Content-Type': 'multipart/form-data'
+		try {
+			if (mode.value === 'edit') {
+				// Use the updateData service function
+				await updateData('collections', collectionData);
+			} else {
+				// Use the addData service function
+				await addData('collections', collectionData);
 			}
-		});
 
-		if (resp.data.status === 200) {
 			// Trigger the toast
-			const t = {
+			toastStore.trigger({
 				message: "Collection Saved. You're all set to build your content.",
-				// Provide any utility or variant background style:
 				background: 'variant-filled-primary',
 				timeout: 3000,
-				// Add your custom classes here:
 				classes: 'border-1 !rounded-md'
-			};
-			toastStore.trigger(t);
+			});
+		} catch (error) {
+			toastStore.trigger({
+				message: `Error saving collection: ${error instanceof Error ? error.message : 'Unknown error'}`,
+				background: 'variant-filled-error'
+			});
 		}
 	}
 
 	function handleCollectionDelete() {
-		console.log('Delete collection:', collection.value?.name);
+		const collectionName = collection.value?.name;
+		if (!collectionName) return;
+
 		// Define the confirmation modal
 		const confirmModal: ModalSettings = {
 			type: 'confirm',
 			title: 'Please Confirm',
 			body: 'Are you sure you wish to delete this collection?',
-			response: (r: boolean) => {
+			response: async (r: boolean) => {
 				if (r) {
-					// Send the form data to the server
-					axios.post(`?/deleteCollections`, obj2formData({ contentTypes: collection.value?.name }), {
-						headers: {
-							'Content-Type': 'multipart/form-data'
+					try {
+						// FIX: Add a guard to ensure collection.value and its _id exist
+						if (!collection.value?._id) {
+							throw new Error('Collection ID is missing, cannot delete.');
 						}
-					});
+						// Use the deleteData service function
+						await deleteData('collections', [collection.value._id]);
 
-					// Trigger the toast
-					const t = {
-						message: 'Collection Deleted.',
-						// Provide any utility or variant background style:
-						background: 'variant-filled-error',
-						timeout: 3000,
-						// Add your custom classes here:
-						classes: 'border-1 !rounded-md'
-					};
-					toastStore.trigger(t);
-					goto(`/collection`);
+						// Trigger the toast
+						toastStore.trigger({
+							message: 'Collection Deleted.',
+							background: 'variant-filled-error',
+							timeout: 3000,
+							classes: 'border-1 !rounded-md'
+						});
+						goto(`/collection`);
+					} catch (error) {
+						toastStore.trigger({
+							message: `Error deleting collection: ${error instanceof Error ? error.message : 'Unknown error'}`,
+							background: 'variant-filled-error'
+						});
+					}
 				} else {
-					// User cancelled, do not delete
 					console.log('User cancelled deletion.');
 				}
 			}
 		};
 		// Trigger the confirmation modal
 		modalStore.trigger(confirmModal);
-		// Close the modal
 	}
 
 	onMount(() => {
@@ -262,7 +258,7 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 	<p class="mb-2 hidden text-center text-tertiary-500 dark:text-primary-500 sm:block">
 		{m.collection_helptext()}
 	</p>
-	<!-- Required Text  -->
+	<!-- Required Text 	-->
 	<div class="mb-2 text-center text-xs text-error-500">* {m.collection_required()}</div>
 	<TabGroup bind:group={localTabSet}>
 		<!-- User Permissions -->
@@ -292,7 +288,8 @@ It provides a user-friendly interface for creating, editing, and deleting collec
 		{#if tabSet.value === 0}
 			<CollectionForm data={collection.value} {handlePageTitleUpdate} />
 		{:else if tabSet.value === 1}
-			<CollectionWidget fields={collection.value?.fields} {handleCollectionSave} />
+			<!-- FIX: Pass the correctly typed fields to the component -->
+			<CollectionWidget fields={widgetFields} {handleCollectionSave} />
 		{/if}
 	</TabGroup>
 </div>

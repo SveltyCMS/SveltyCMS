@@ -23,7 +23,6 @@
 	import type { FieldType } from '.';
 
 	// Utils
-	import { track } from '@src/utils/reactivity.svelte';
 	import { getFieldName } from '@src/utils/utils';
 
 	// Valibot validation
@@ -229,7 +228,6 @@
 	// Watch for value changes from external sources
 	$effect(() => {
 		// This effect runs when value[_language] changes
-		const currentValue = value[_language];
 		if (isTouched && validateOnChange) {
 			validateInput(false);
 		}

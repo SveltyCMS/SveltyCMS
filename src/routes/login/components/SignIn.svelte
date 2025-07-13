@@ -34,7 +34,7 @@ Features:
 	import FloatingPaths from '@root/src/components/system/FloatingPaths.svelte';
 
 	// Skeleton
-	import { Toast, getToastStore } from '@skeletonlabs/skeleton';
+	import { getToastStore } from '@skeletonlabs/skeleton';
 	const toastStore = getToastStore();
 
 	// ParaglideJS
@@ -351,8 +351,6 @@ Features:
 
 	const baseClasses = 'hover relative flex items-center';
 </script>
-
-<Toast />
 
 <section
 	onclick={handleFormClick}

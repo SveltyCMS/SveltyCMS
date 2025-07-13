@@ -18,7 +18,7 @@ export async function POST({ request }) {
 			} else {
 				connectionString = `mongodb://${encodeURIComponent(DB_USER)}:${encodeURIComponent(DB_PASSWORD)}@${DB_HOST.replace('mongodb://', '')}:${DB_PORT}/${DB_NAME}?authSource=admin`;
 			}
-			
+
 			// Mongoose caches connections, so we create a new one to test.
 			const testConnection = await mongoose.createConnection(connectionString).asPromise();
 			await testConnection.db.admin().ping();
@@ -37,7 +37,7 @@ export async function POST({ request }) {
 				port: DB_PORT,
 				user: DB_USER,
 				password: DB_PASSWORD,
-				database: DB_NAME,
+				database: DB_NAME
 			});
 			await connection.ping();
 			return json({ success: true, message: 'MariaDB connection successful!' });
@@ -51,4 +51,3 @@ export async function POST({ request }) {
 
 	return json({ success: false, message: 'Invalid database type provided.' }, { status: 400 });
 }
-
