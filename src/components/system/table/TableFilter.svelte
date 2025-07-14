@@ -30,7 +30,8 @@ This component provides a lightweight, flexible interface for table filtering, u
 		filterShow = $bindable(false),
 		columnShow = $bindable(false),
 		density = $bindable('normal'),
-		densityOptions = $bindable(['compact', 'normal', 'comfortable'])
+		densityOptions = $bindable(['compact', 'normal', 'comfortable']),
+		showDeleted = $bindable(false)
 	} = $props<{
 		globalSearchValue?: string;
 		searchShow?: boolean;
@@ -38,6 +39,7 @@ This component provides a lightweight, flexible interface for table filtering, u
 		columnShow?: boolean;
 		density?: string;
 		densityOptions?: string[];
+		showDeleted?: boolean;
 	}>();
 
 	// Storage key for user settings
@@ -167,6 +169,14 @@ This component provides a lightweight, flexible interface for table filtering, u
 	>
 		<iconify-icon icon="carbon:filter-edit" width="24" class={filterShow ? 'text-primary-500' : ''}></iconify-icon>
 	</button>
+
+	{#if filterShow}
+		<!-- Show Deleted Checkbox (only when filter is expanded) -->
+		<label class="ml-2 flex cursor-pointer items-center gap-2 text-sm">
+			<input type="checkbox" bind:checked={showDeleted} />
+			Show Deleted
+		</label>
+	{/if}
 
 	<!-- Column Order & Visibility -->
 	<button

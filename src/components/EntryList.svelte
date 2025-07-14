@@ -196,6 +196,7 @@ Features:
 	// Simplified stable state management
 	let stableDataExists = $state(false);
 	let hasInitialLoad = $state(false);
+	let showDeleted = $state(false);
 
 	let globalSearchValue = $state('');
 	let expand = $state(false);
@@ -354,6 +355,14 @@ Features:
 				for (const key in entryListPaginationSettings.filters) {
 					if (entryListPaginationSettings.filters[key]) activeFilters[key] = entryListPaginationSettings.filters[key];
 				}
+				// Conditionally add the filter for deleted status
+				if (!showDeleted) {
+					activeFilters.status = JSON.stringify({ $ne: 'deleted' });
+				} else {
+					// If we are showing deleted items, ensure no other status filter is conflicting.
+					delete activeFilters.status;
+				}
+
 				const sortParam =
 					entryListPaginationSettings.sorting.isSorted && entryListPaginationSettings.sorting.sortedBy
 						? { [entryListPaginationSettings.sorting.sortedBy]: entryListPaginationSettings.sorting.isSorted }
@@ -389,7 +398,7 @@ Features:
 		if (data?.entryList && Array.isArray(data.entryList)) {
 			tableData = await Promise.all(
 				data.entryList.map(async (entry) => {
-					const obj: { [key: string]: any } = { _id: entry._id }; // Ensure _id is always present
+					const obj: { [key: string]: any } = { _id: entry._id, raw_status: entry.status || 'N/A' }; // Ensure _id is always present
 					if (currentCollection?.fields) {
 						// FIX: Cast `currentCollection.fields` to `any[]` to avoid type conflicts.
 						// Runtime checks for properties like `display` and `callback` are used instead.
@@ -1001,7 +1010,7 @@ Features:
 										}}
 									>
 										{#if header.name === 'status'}
-											<Status value={entry[header.label]} />
+											<Status value={entry.raw_status} />
 										{:else if typeof entry[header.label] === 'object' && entry[header.label] !== null}
 											{@html entry[header.label][currentLanguage] || '-'}
 										{:else}

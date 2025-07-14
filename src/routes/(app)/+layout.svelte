@@ -1,8 +1,7 @@
 <!--
 @file src/routes/(app)/+layout.svelte
 @component
-**This component renders the entire app with improved loading strategy and dynamic theme management**
-
+**This component renders the main application layout with a persistent state for UI components.**
 ## Props:
 - `theme` {string} - The theme of the website
 
@@ -33,7 +32,7 @@
 	import { getTextDirection } from '@utils/utils';
 	// Stores
 	import { collections, contentStructure } from '@stores/collectionStore.svelte';
-	import { screenSize } from '@stores/screenSizeStore.svelte';
+	import { isMobile, screenSize } from '@stores/screenSizeStore.svelte';
 	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
 	import { uiStateManager } from '@stores/UIStore.svelte';
 	// Components
@@ -43,15 +42,15 @@
 	import PageFooter from '@components/PageFooter.svelte';
 	import RightSidebar from '@components/RightSidebar.svelte';
 	import SearchComponent from '@components/SearchComponent.svelte';
+	import FloatingNav from '@components/system/FloatingNav.svelte';
 	// Skeleton
-	import { initializeStores, Modal, setInitialClassState, setModeCurrent, setModeUserPrefers, Toast } from '@skeletonlabs/skeleton';
+	import { Modal, setInitialClassState, setModeCurrent, setModeUserPrefers, Toast } from '@skeletonlabs/skeleton';
 	// Required for popups to function
 	import { arrow, autoUpdate, computePosition, flip, offset, shift } from '@floating-ui/dom';
 	import type { ContentNode } from '@root/src/databases/dbInterface';
 	import { storePopup } from '@skeletonlabs/skeleton';
 
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
-	initializeStores();
 
 	interface Props {
 		children?: import('svelte').Snippet;
@@ -201,79 +200,65 @@
 </svelte:head>
 
 {#if loadError}
-	<div class="text-error-500">
-		An error occurred: {loadError.message}
-	</div>
+	<div class="text-error-500">An error occurred: {loadError.message}</div>
 {:else if !isCollectionsLoaded}
-	<div class="flex h-lvh items-center justify-between lg:justify-start">
-		<Loading />
-	</div>
+	<div class="flex h-lvh items-center justify-center"><Loading /></div>
 {:else}
-	<!-- hack as root +layout cannot be overwritten ? -->
-	{#if page.url.pathname === '/login'}
-		{@render children?.()}
-	{:else}
+	<!-- This outer div is a good container for overlays -->
+	<div class="relative h-lvh w-full">
+		<!-- Background and Overlay components live here, outside the main content flow -->
+		{#if $isMobile}
+			<FloatingNav />
+		{/if}
+		<Toast />
+		<Modal />
+		{#if $isSearchVisible}
+			<SearchComponent />
+		{/if}
+
 		<!-- Body -->
-		<div class="flex h-lvh flex-col overflow-x-hidden">
-			<!-- Header (unsused)  -->
+		<div class="flex h-lvh flex-col overflow-hidden">
+			<!-- Header (unused) -->
 			{#if uiStateManager.uiState.value.header !== 'hidden'}
 				<header class="sticky top-0 z-10 bg-tertiary-500">Header</header>
 			{/if}
 
-			<div class="flex flex-1 overflow-x-hidden overflow-y-hidden">
+			<div class="flex flex-1 overflow-hidden">
 				<!-- Sidebar Left -->
 				{#if uiStateManager.uiState.value.leftSidebar !== 'hidden'}
 					<aside
 						class="max-h-dvh {uiStateManager.uiState.value.leftSidebar === 'full'
 							? 'w-[220px]'
-							: 'w-fit'} relative border-r bg-white !px-2 text-center dark:border-surface-500 dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900"
+							: 'w-fit'} relative z-10 border-r bg-white !px-2 text-center dark:border-surface-500 dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900"
 					>
 						<LeftSidebar />
 					</aside>
 				{/if}
 
 				<!-- Content Area -->
-				<main class="relative w-full min-w-0 flex-1 overflow-x-hidden">
+				<main class="relative z-0 w-full min-w-0 flex-1 overflow-y-auto">
 					<!-- Page Header -->
 					{#if uiStateManager.uiState.value.pageheader !== 'hidden'}
-						<header class="sticky top-0 z-10 w-full">
-							<HeaderEdit />
-						</header>
+						<header class="sticky top-0 z-10 w-full"><HeaderEdit /></header>
 					{/if}
 
 					<!-- Router Slot -->
 					<div
 						role="main"
-						class="relative flex-grow overflow-x-hidden {uiStateManager.uiState.value.leftSidebar === 'full'
-							? 'mx-2'
-							: 'mx-1'} {$screenSize === 'LG' ? 'mb-2' : 'mb-16'}"
+						class="relative flex-grow {uiStateManager.uiState.value.leftSidebar === 'full' ? 'mx-2' : 'mx-1'} {$screenSize === 'LG'
+							? 'mb-2'
+							: 'mb-16'}"
 					>
-						<Toast />
-						<Modal />
-
-						<!-- Show globalSearchIndex  -->
-						{#if $isSearchVisible}
-							<SearchComponent />
-						{/if}
-
 						{#if isLoading}
-							<div class="flex h-screen items-center justify-center">
-								<Loading />
-							</div>
+							<div class="flex h-screen items-center justify-center"><Loading /></div>
 						{:else}
 							{@render children?.()}
 						{/if}
-
-						{#if isNonCriticalDataLoaded}
-							<!-- Non-critical data components -->
-						{/if}
 					</div>
 
-					<!-- Page Footer -->
+					<!-- Page Footer (Mobile Nav) -->
 					{#if uiStateManager.uiState.value.pagefooter !== 'hidden'}
-						<footer
-							class="sticky left-0 top-[calc(100%-51px)] z-10 w-full bg-surface-50 bg-gradient-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900"
-						>
+						<footer class="sticky bottom-0 z-20 w-full bg-surface-50 bg-gradient-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900">
 							<PageFooter />
 						</footer>
 					{/if}
@@ -282,17 +267,17 @@
 				<!-- Sidebar Right -->
 				{#if uiStateManager.uiState.value.rightSidebar !== 'hidden'}
 					<aside
-						class="max-h-dvh w-[220px] border-l bg-surface-50 bg-gradient-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
+						class="z-10 max-h-dvh w-[220px] border-l bg-surface-50 bg-gradient-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
 					>
 						<RightSidebar />
 					</aside>
 				{/if}
 			</div>
 
-			<!-- Footer (unsused) -->
+			<!-- Footer (unused) -->
 			{#if uiStateManager.uiState.value.footer !== 'hidden'}
 				<footer class="bg-blue-500">Footer</footer>
 			{/if}
 		</div>
-	{/if}
+	</div>
 {/if}

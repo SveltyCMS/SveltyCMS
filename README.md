@@ -77,7 +77,7 @@ cd SveltyCMS
 
 ### Install all dependencies
 
-Install stable [Node.js](https://nodejs.org/en) to get started. Then choose your preferred package manager:
+Install STABLE [Node.js](https://nodejs.org/en) to get started. Then choose your preferred package manager:
 
 <details open>
 <summary><b>npm</b></summary>

@@ -28,7 +28,7 @@
 	import '../app.postcss';
 
 	// Initializing Skeleton stores
-	import { initializeStores } from '@skeletonlabs/skeleton';
+	import { initializeStores, Toast } from '@skeletonlabs/skeleton';
 
 	initializeStores();
 
@@ -71,6 +71,8 @@
 	<meta property="twitter:domain" content={page.url.origin} />
 	<meta property="twitter:url" content={page.url.href} />
 </svelte:head>
+
+<Toast />
 
 <ParaglideSvelteKit>
 	{@render children?.()}

@@ -1,4 +1,4 @@
-/** 
+/**
 @file cli-installer/cli-installer.js
 @description SveltyCMS CLI Installer
 
@@ -8,6 +8,8 @@
 - Handles user input
 */
 
+import fs from 'fs';
+import path from 'path';
 import { intro, outro } from '@clack/prompts';
 import pc from 'picocolors';
 
@@ -42,6 +44,26 @@ export const cancelToMainMenu = () => {
 };
 
 export async function main() {
+	// --- Dynamic Version Check ---
+	try {
+		const packageJsonPath = path.resolve(process.cwd(), 'package.json');
+		const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+		const requiredVersionString = packageJson.engines.node;
+		const requiredMajorVersion = parseInt(requiredVersionString.match(/\d+/)[0], 10);
+		const currentMajorVersion = parseInt(process.version.slice(1).split('.')[0], 10);
+
+		if (currentMajorVersion < requiredMajorVersion) {
+			console.clear();
+			intro(`${pc.bgRed(pc.white(pc.bold(' SveltyCMS Environment Error ')))}`);
+			outro(`Node.js version ${requiredVersionString} is required, but you're using ${process.version}.\nPlease update Node.js and run the installer again.`);
+			process.exit(1);
+		}
+	} catch (error) {
+		outro(`Could not read or parse package.json to check Node version. Error: ${error.message}`);
+		process.exit(1);
+	}
+	// --- End of Check ---
+
 	try {
 		// Clear terminal at startup for clean experience
 		console.clear();
