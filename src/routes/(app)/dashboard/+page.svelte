@@ -152,16 +152,9 @@
 	let availableWidgets = $derived(Object.keys(widgetComponentRegistry).filter((name) => !items.some((item) => item.component === name)));
 	let canAddMoreWidgets = $derived(availableWidgets.length > 0);
 	let filteredWidgets = $derived(
-		availableWidgets
-			.filter((componentName) => {
-				const widgetInfo = widgetComponentRegistry[componentName as keyof typeof widgetComponentRegistry];
-				return widgetInfo.name.toLowerCase().includes(searchQuery.toLowerCase()) || componentName.toLowerCase().includes(searchQuery.toLowerCase());
-			})
-			.sort((a, b) => {
-				const nameA = widgetComponentRegistry[a as keyof typeof widgetComponentRegistry].name;
-				const nameB = widgetComponentRegistry[b as keyof typeof widgetComponentRegistry].name;
-				return nameA.localeCompare(nameB);
-			})
+		availableWidgets.filter((name) =>
+			name.toLowerCase().includes(searchQuery.toLowerCase())
+		)
 	);
 
 	// Track the current screen size
@@ -169,6 +162,21 @@
 
 	// UI state for error and layout switching hint
 	let loadError = $state<string | null>(null);
+
+	// Search state
+	let searchQuery = $state('');
+	let searchInput: HTMLInputElement | null = null;
+
+	function handleDropdownOpen() {
+		dropdownOpen = !dropdownOpen;
+		if (dropdownOpen) {
+			setTimeout(() => {
+				if (searchInput) searchInput.focus();
+			}, 10);
+		} else {
+			searchQuery = '';
+		}
+	}
 
 	// Helper: Validate widgets
 	function validateWidgets(widgets: any[]): DashboardWidgetConfig[] {
@@ -865,33 +873,45 @@
 			{#if canAddMoreWidgets}
 				<div class="relative">
 					<button
-						onclick={() => (dropdownOpen = !dropdownOpen)}
+						onclick={handleDropdownOpen}
 						type="button"
 						aria-haspopup="true"
 						aria-expanded={dropdownOpen}
-						class="variant-filled-tertiary btn gap-2 !text-white dark:variant-filled-primary"
+						class="widget-dropdown-button btn rounded-full bg-primary-500 px-5 py-2 shadow-lg text-white font-semibold flex items-center gap-2 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-400 dark:bg-primary-600 dark:hover:bg-primary-500"
+						title="Add Widget"
 					>
 						<iconify-icon icon="carbon:add-filled" width="20"></iconify-icon>
-						Add Widget
+						{#if $screenSize !== 'SM' && $screenSize !== 'XS'}
+							<span>Add Widget</span>
+						{/if}
 					</button>
 					{#if dropdownOpen}
-						<div
-							class="absolute right-0 z-20 mt-2 w-56 origin-top-right rounded-md border border-gray-300 bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:border-gray-700 dark:bg-gray-800"
-							role="menu"
-						>
-							<div class="py-1" role="none">
-								{#each availableWidgets as componentName}
-									{@const widgetInfo = widgetComponentRegistry[componentName as keyof typeof widgetComponentRegistry]}
-									<button
-										onclick={() => addNewWidget(componentName)}
-										type="button"
-										class="flex w-full items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:text-white"
-										role="menuitem"
-									>
-										<iconify-icon icon={widgetInfo.icon} width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-										{widgetInfo.name}
-									</button>
-								{/each}
+						<div role="menu" class="widget-dropdown absolute right-0 z-30 mt-2 w-72 rounded-xl border border-gray-200 bg-white shadow-2xl dark:bg-surface-900 dark:border-gray-700">
+							<div class="border-b border-gray-200 p-4 bg-gray-50 rounded-t-xl dark:border-gray-700 dark:bg-surface-800">
+								<input
+									bind:this={searchInput}
+									type="text"
+									class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-400 focus:outline-none dark:border-gray-700 dark:bg-surface-800 dark:text-surface-100"
+									placeholder="Search widgets..."
+									bind:value={searchQuery}
+									aria-label="Search widgets"
+								/>
+							</div>
+							<div class="max-h-64 overflow-y-auto py-1 bg-white dark:bg-surface-900 rounded-b-xl">
+								{#if filteredWidgets.length > 0}
+									{#each filteredWidgets as widgetName}
+										<button
+											class="w-full px-4 py-2 text-left flex items-center gap-2 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors rounded-md"
+											onclick={() => addNewWidget(widgetName)}
+											type="button"
+										>
+											<iconify-icon icon={widgetComponentRegistry[widgetName]?.icon} width="20" class="text-primary-500 dark:text-primary-400" />
+											<span class="ml-2">{widgetComponentRegistry[widgetName]?.name}</span>
+										</button>
+									{/each}
+								{:else}
+									<div class="px-4 py-2 text-sm text-gray-500">No widgets found.</div>
+								{/if}
 							</div>
 						</div>
 					{/if}
