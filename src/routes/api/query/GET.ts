@@ -90,15 +90,18 @@ export async function _GET({
 		const aggregations: AggregationPipeline[] = [];
 
 		// Add status filter based on user permissions
-		const isAdmin = user?.permissions?.includes('admin');
+		const isAdmin =
+			user?.isAdmin || user?.role === 'admin' || user?.permissions?.includes('system:admin') || user?.permissions?.includes('admin:access');
+		console.log(`🔑 [GET] Admin check: user.isAdmin:`, user?.isAdmin, 'user.role:', user?.role, 'final isAdmin:', isAdmin);
 		if (!isAdmin) {
+			console.log(`🚫 [GET] Non-admin user - filtering to published only`);
 			aggregations.push({
 				$match: {
 					status: 'published'
 				}
 			});
 		} else {
-			logger.info(`Admin user \x1b[34m${user._id}\x1b[0m accessing collection \x1b[34m${schema._id}\x1b[0m with full status visibility`);
+			console.log(`✅ [GET] Admin user ${user._id} accessing collection ${schema._id} with full status visibility`);
 		}
 		const skip = (page - 1) * limit; // Calculate the number of documents to skip for pagination
 

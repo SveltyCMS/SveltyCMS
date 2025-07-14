@@ -31,21 +31,16 @@
 	import { saveFormData } from '../utils/data';
 
 	// Components
-	import TranslationStatus from './TranslationStatus.svelte';
 	import ScheduleModal from './ScheduleModal.svelte';
-
+	import TranslationStatus from './TranslationStatus.svelte';
 	// Skeleton
 	import { getModalStore, getToastStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
-	const modalStore = getModalStore();
-	const toastStore = getToastStore();
-
 	// Stores
 	import { page } from '$app/state';
 	import { collection, collectionValue, mode, modifyEntry, statusMap } from '@src/stores/collectionStore.svelte';
-	import { uiStateManager, toggleUIElement } from '@src/stores/UIStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
-	import { contentLanguage, tabSet, headerActionButton, validationStore } from '@stores/store.svelte';
-
+	import { toggleUIElement, uiStateManager } from '@src/stores/UIStore.svelte';
+	import { contentLanguage, headerActionButton, tabSet, validationStore } from '@stores/store.svelte';
 	// Auth
 	import type { User } from '@src/auth/types';
 	let user = $derived(page.data.user as User);
@@ -111,7 +106,7 @@
 				}
 			}
 		};
-		modalStore.trigger(modalSettings);
+		getModalStore().trigger(modalSettings);
 	}
 
 	$effect(() => {
@@ -125,9 +120,10 @@
 		if (mode.value === 'view') {
 			tempData = {};
 		}
-		if (mode.value === 'edit' && collectionValue.value?.status === statusMap.published) {
-			modifyEntry.value?.(statusMap.unpublished);
-		}
+		// Removed automatic unpublishing logic - now handled in EntryList for better UX
+		// if (mode.value === 'edit' && collectionValue.value?.status === statusMap.published) {
+		// 	modifyEntry.value?.(statusMap.unpublished);
+		// }
 	});
 
 	$effect(() => {
@@ -147,7 +143,7 @@
 		// Use the reactive validation store; no need to re-validate here
 		if (!validationStore.isValid) {
 			console.warn('Save blocked due to validation errors.');
-			toastStore.trigger({
+			getToastStore().trigger({
 				message: 'Please fix validation errors before saving',
 				background: 'variant-filled-error',
 				timeout: 3000
@@ -187,7 +183,7 @@
 			toggleUIElement('leftSidebar', screenSize.value === 'LG' ? 'full' : 'collapsed');
 		} catch (err) {
 			console.error('Failed to save data:', err);
-			toastStore.trigger({
+			getToastStore().trigger({
 				message: 'Failed to save data',
 				background: 'variant-filled-error',
 				timeout: 3000

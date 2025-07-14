@@ -12,8 +12,8 @@
  * - Comprehensive error handling and logging
  */
 
-import type { Schema } from '@src/content/types';
 import type { User } from '@src/auth/types';
+import type { Schema } from '@src/content/types';
 
 // Database
 import { dbAdapter } from '@src/databases/db';
@@ -25,7 +25,7 @@ import { logger } from '@utils/logger.svelte';
 export const _SETSTATUS = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {
 	const start = performance.now();
 	try {
-		logger.debug(`SETSTATUS request received for schema: ${schema.id}`, { user: user._id });
+		logger.debug(`SETSTATUS request received for schema: ${schema._id}`, { user: user._id });
 
 		// Ensure the database adapter is initialized
 		if (!dbAdapter) {
@@ -36,7 +36,7 @@ export const _SETSTATUS = async ({ data, schema, user }: { data: FormData; schem
 		}
 
 		// Validate schema ID
-		if (!schema.id) {
+		if (!schema._id) {
 			logger.error('Invalid or undefined schema ID.');
 			return new Response('Invalid or undefined schema ID.', { status: 400 });
 		}
@@ -49,13 +49,13 @@ export const _SETSTATUS = async ({ data, schema, user }: { data: FormData; schem
 				status: 500
 			});
 		}
-		const collection = await dbAdapter.collection.getModel(schema.id);
+		const collection = await dbAdapter.collection.getModel(schema._id);
 		const modelDuration = performance.now() - modelStart;
 		logger.debug(`Collection models retrieved in ${modelDuration.toFixed(2)}ms`);
 
 		// Check if the collection exists
 		if (!collection) {
-			logger.error(`Collection not found for schema ID: ${schema.id}`);
+			logger.error(`Collection not found for schema ID: ${schema._id}`);
 			return new Response('Collection not found', { status: 404 });
 		}
 
@@ -143,7 +143,7 @@ export const _SETSTATUS = async ({ data, schema, user }: { data: FormData; schem
 		const duration = performance.now() - start;
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 		const errorStack = error instanceof Error ? error.stack : '';
-		logger.error(`SETSTATUS operation failed after ${duration.toFixed(2)}ms for schema ID: ${schema.id}: ${errorMessage}`, {
+		logger.error(`SETSTATUS operation failed after ${duration.toFixed(2)}ms for schema ID: ${schema._id}: ${errorMessage}`, {
 			user: user._id,
 			stack: errorStack
 		});

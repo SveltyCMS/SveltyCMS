@@ -57,6 +57,11 @@ Features:
 	// Skeleton
 	import type { ModalSettings } from '@skeletonlabs/skeleton';
 	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+
+	// Initialize stores for modal  & toast
+	const modalStore = getModalStore();
+	const toastStore = getToastStore();
+
 	// Svelte-dnd-action
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
@@ -191,6 +196,7 @@ Features:
 	// Simplified stable state management
 	let stableDataExists = $state(false);
 	let hasInitialLoad = $state(false);
+	let showDeleted = $state(false);
 
 	let globalSearchValue = $state('');
 	let expand = $state(false);
@@ -349,6 +355,14 @@ Features:
 				for (const key in entryListPaginationSettings.filters) {
 					if (entryListPaginationSettings.filters[key]) activeFilters[key] = entryListPaginationSettings.filters[key];
 				}
+				// Conditionally add the filter for deleted status
+				if (!showDeleted) {
+					activeFilters.status = JSON.stringify({ $ne: 'deleted' });
+				} else {
+					// If we are showing deleted items, ensure no other status filter is conflicting.
+					delete activeFilters.status;
+				}
+
 				const sortParam =
 					entryListPaginationSettings.sorting.isSorted && entryListPaginationSettings.sorting.sortedBy
 						? { [entryListPaginationSettings.sorting.sortedBy]: entryListPaginationSettings.sorting.isSorted }
@@ -364,13 +378,12 @@ Features:
 					// Add timestamp when language changed to force cache miss
 					_langChange: languageChangeTimestamp
 				};
-				console.log(`[EntryList] getData query params:`, queryParams);
 
 				data = await getData(queryParams);
 				console.log(`[EntryList] Data fetched for collection ${currentCollId}, entries: ${data?.entryList?.length || 0}`);
 			} catch (error) {
 				console.error(`Error fetching data: ${(error as Error).message}`);
-				getToastStore().trigger({ message: `Error fetching data: ${(error as Error).message}`, background: 'variant-filled-error' });
+				toastStore.trigger({ message: `Error fetching data: ${(error as Error).message}`, background: 'variant-filled-error' });
 				loadingState = 'error';
 				tableData = []; // Clear data on actual error
 				totalItems = 0;
@@ -385,7 +398,7 @@ Features:
 		if (data?.entryList && Array.isArray(data.entryList)) {
 			tableData = await Promise.all(
 				data.entryList.map(async (entry) => {
-					const obj: { [key: string]: any } = { _id: entry._id }; // Ensure _id is always present
+					const obj: { [key: string]: any } = { _id: entry._id, raw_status: entry.status || 'N/A' }; // Ensure _id is always present
 					if (currentCollection?.fields) {
 						// FIX: Cast `currentCollection.fields` to `any[]` to avoid type conflicts.
 						// Runtime checks for properties like `display` and `callback` are used instead.
@@ -552,6 +565,14 @@ Features:
 				collectionValue.set({});
 			});
 		}
+
+		// Clear selections when entering edit mode (editing specific entry)
+		if (currentMode === 'edit') {
+			untrack(() => {
+				Object.keys(selectedMap).forEach((key) => delete selectedMap[key]);
+				SelectAll = false;
+			});
+		}
 	});
 
 	function process_selectAllRows(selectAllState: boolean) {
@@ -563,10 +584,8 @@ Features:
 		process_selectAllRows(SelectAll);
 	});
 
-	$effect(() => {
-		// Update general UI mode based on row selection
-		mode.set(Object.values(selectedMap).some((isSelected) => isSelected) ? 'modify' : 'view');
-	});
+	// Track selection state without changing mode automatically
+	let hasSelections = $derived(Object.values(selectedMap).some((isSelected) => isSelected));
 
 	// Tick Row - modify STATUS of an Entry
 	modifyEntry.set(async (status?: keyof typeof statusMap): Promise<void> => {
@@ -579,7 +598,9 @@ Features:
 			isSelected && modifyList.push(tableData[Number(index)]._id);
 		}
 		// If no rows are selected, return
-		if (modifyList.length === 0) return Promise.resolve();
+		if (modifyList.length === 0) {
+			return Promise.resolve();
+		}
 		// Function to handle confirmation modal response
 		const handleConfirmation = async (confirm: boolean) => {
 			if (!confirm) return;
@@ -590,7 +611,7 @@ Features:
 			// Append the status to formData
 			formData.append('status', statusMap[status]);
 			if (!currentCollection?._id) {
-				getToastStore().trigger({
+				toastStore.trigger({
 					message: 'Error: No collection selected or collection ID is missing.',
 					background: 'variant-filled-error',
 					timeout: 4000
@@ -605,16 +626,25 @@ Features:
 						await deleteData({ data: formData, collectionId: currentCollection._id });
 						break;
 					case 'published':
+						// If the status is 'published', call the setStatus endpoint
+						await setStatus({ data: formData, collectionId: currentCollection._id });
+						break;
 					case 'unpublished':
+						// If the status is 'unpublished', call the setStatus endpoint
+						await setStatus({ data: formData, collectionId: currentCollection._id });
+						break;
 					case 'testing':
-						// If the status is 'testing', call the publish endpoint
+						// If the status is 'testing', call the setStatus endpoint
+						await setStatus({ data: formData, collectionId: currentCollection._id });
+						break;
+					case 'scheduled':
+						// If the status is 'scheduled', call the setStatus endpoint
 						await setStatus({ data: formData, collectionId: currentCollection._id });
 						break;
 					case 'cloned':
-					case 'scheduled':
 						// Trigger a toast message indicating that the feature is not yet implemented
-						getToastStore().trigger({
-							message: 'Feature not yet implemented.',
+						toastStore.trigger({
+							message: 'Clone feature not yet implemented.',
 							background: 'variant-filled-error',
 							timeout: 3000
 						});
@@ -625,7 +655,7 @@ Features:
 				mode.set('view'); // Set the mode to 'view'
 			} catch (error) {
 				console.error(`Error modifying entries: ${(error as Error).message}`);
-				getToastStore().trigger({ message: `Error: ${(error as Error).message}`, background: 'variant-filled-error' });
+				toastStore.trigger({ message: `Error: ${(error as Error).message}`, background: 'variant-filled-error' });
 			}
 		};
 		// If more than one row is selected or the status is 'delete', show confirmation modal
@@ -640,7 +670,7 @@ Features:
 				buttonTextConfirm: m.button_confirm(),
 				response: handleConfirmation
 			};
-			getModalStore().trigger(modalData); // Trigger the confirmation modal
+			modalStore.trigger(modalData); // Trigger the confirmation modal
 		} else {
 			// If only one row is selected and status is not 'delete', directly proceed with modification
 			handleConfirmation(true);
@@ -763,7 +793,11 @@ Features:
 
 			<!-- MultiButton -->
 			<div class=" flex w-full items-center justify-end sm:mt-0 sm:w-auto">
-				<EntryListMultiButton isCollectionEmpty={!stableDataExists && tableData.length === 0} />
+				<EntryListMultiButton
+					isCollectionEmpty={tableData.length === 0}
+					{hasSelections}
+					selectedCount={Object.values(selectedMap).filter(Boolean).length}
+				/>
 			</div>
 		</div>
 	</div>
@@ -940,21 +974,43 @@ Features:
 								{#each renderHeaders as header (header.id)}
 									<td
 										class="p-0 text-center text-xs font-bold sm:text-sm {header.name !== 'status'
-											? 'cursor-pointer hover:bg-primary-500/10 dark:hover:bg-secondary-500/20'
+											? 'cursor-pointer transition-colors duration-200 hover:bg-primary-500/10 dark:hover:bg-secondary-500/20'
 											: ''}"
+										title={header.name !== 'status' ? 'Click to edit this entry' : ''}
 										onclick={() => {
 											if (header.name !== 'status') {
 												const originalEntry = data?.entryList.find((e) => e._id === entry._id);
 												if (originalEntry) {
+													// Load the entry data into collectionValue
 													collectionValue.set(originalEntry);
+
+													// Set mode to edit
 													mode.set('edit');
+
+													// If the entry is published, automatically set it to unpublished
+													// This follows CMS best practices where editing published content
+													// creates a draft that needs to be republished
+													if (originalEntry.status === 'published') {
+														// Update the local collectionValue to unpublished status
+														collectionValue.update((current) => ({
+															...current,
+															status: 'unpublished'
+														})); // Show user feedback about the status change
+														toastStore.trigger({
+															message: 'Entry moved to draft mode for editing. Republish when ready.',
+															background: 'variant-filled-warning',
+															timeout: 4000
+														});
+													}
+
+													// Trigger UI layout change to show edit interface
 													handleUILayoutToggle();
 												}
 											}
 										}}
 									>
 										{#if header.name === 'status'}
-											<Status value={entry[header.label]} />
+											<Status value={entry.raw_status} />
 										{:else if typeof entry[header.label] === 'object' && entry[header.label] !== null}
 											{@html entry[header.label][currentLanguage] || '-'}
 										{:else}
