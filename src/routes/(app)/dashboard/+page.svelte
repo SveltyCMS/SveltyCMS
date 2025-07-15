@@ -17,6 +17,7 @@
 	import { onMount } from 'svelte';
 	import { modeCurrent } from '@skeletonlabs/skeleton';
 	import { flip } from 'svelte/animate';
+	import { m } from '@src/paraglide/messages';
 
 	// Stores
 	import { systemPreferences } from '@stores/systemPreferences.svelte';
@@ -81,42 +82,42 @@
 	const widgetComponentRegistry = {
 		CPUWidget: {
 			component: CPUWidget,
-			name: 'CPU Usage',
+			name: m.cpuWidget_label(),
 			icon: 'mdi:cpu-64-bit'
 		},
 		DiskWidget: {
 			component: DiskWidget,
-			name: 'Disk Usage',
+			name: m.diskWidget_label(),
 			icon: 'mdi:harddisk'
 		},
 		MemoryWidget: {
 			component: MemoryWidget,
-			name: 'Memory Usage',
+			name: m.memoryWidget_label(),
 			icon: 'mdi:memory'
 		},
 		Last5ContentWidget: {
 			component: Last5ContentWidget,
-			name: 'Last 5 Content',
+			name: m.last5ContentWidget_label(),
 			icon: 'mdi:image-multiple'
 		},
 		Last5MediaWidget: {
 			component: Last5MediaWidget,
-			name: 'Last 5 Media',
+			name: m.last5MediaWidget_label(),
 			icon: 'mdi:image-multiple'
 		},
 		UserActivityWidget: {
 			component: UserActivityWidget,
-			name: 'User Activity',
+			name: m.userActivityWidget_label(),
 			icon: 'mdi:account-group'
 		},
 		SystemMessagesWidget: {
 			component: SystemMessagesWidget,
-			name: 'System Messages',
+			name: m.systemMessagesWidget_label(),
 			icon: 'mdi:message-alert'
 		},
 		LogsWidget: {
 			component: LogsWidget,
-			name: 'System Logs',
+			name: m.logsWidget_label(),
 			icon: 'mdi:file-document-outline'
 		}
 	} as const;
@@ -152,16 +153,9 @@
 	let availableWidgets = $derived(Object.keys(widgetComponentRegistry).filter((name) => !items.some((item) => item.component === name)));
 	let canAddMoreWidgets = $derived(availableWidgets.length > 0);
 	let filteredWidgets = $derived(
-		availableWidgets
-			.filter((componentName) => {
-				const widgetInfo = widgetComponentRegistry[componentName as keyof typeof widgetComponentRegistry];
-				return widgetInfo.name.toLowerCase().includes(searchQuery.toLowerCase()) || componentName.toLowerCase().includes(searchQuery.toLowerCase());
-			})
-			.sort((a, b) => {
-				const nameA = widgetComponentRegistry[a as keyof typeof widgetComponentRegistry].name;
-				const nameB = widgetComponentRegistry[b as keyof typeof widgetComponentRegistry].name;
-				return nameA.localeCompare(nameB);
-			})
+		availableWidgets.filter((name) =>
+			name.toLowerCase().includes(searchQuery.toLowerCase())
+		)
 	);
 
 	// Track the current screen size
@@ -169,6 +163,21 @@
 
 	// UI state for error and layout switching hint
 	let loadError = $state<string | null>(null);
+
+	// Search state
+	let searchQuery = $state('');
+	let searchInput: HTMLInputElement | null = null;
+
+	function handleDropdownOpen() {
+		dropdownOpen = !dropdownOpen;
+		if (dropdownOpen) {
+			setTimeout(() => {
+				if (searchInput) searchInput.focus();
+			}, 10);
+		} else {
+			searchQuery = '';
+		}
+	}
 
 	// Helper: Validate widgets
 	function validateWidgets(widgets: any[]): DashboardWidgetConfig[] {
@@ -852,7 +861,7 @@
 >
 	<header class="my-2 flex items-center justify-between gap-2 border-b border-surface-200 px-4 py-2 dark:border-surface-700">
 		<h1 class="sr-only">Dashboard</h1>
-		<PageTitle name="Dashboard" icon="bi:bar-chart-line" />
+		<PageTitle name={m.dashboard_title()} icon="bi:bar-chart-line" />
 		<div class="flex items-center gap-2">
 			{#if keyboardState.mode}
 				<div
@@ -865,50 +874,62 @@
 			{#if canAddMoreWidgets}
 				<div class="relative">
 					<button
-						onclick={() => (dropdownOpen = !dropdownOpen)}
+						onclick={handleDropdownOpen}
 						type="button"
 						aria-haspopup="true"
 						aria-expanded={dropdownOpen}
-						class="variant-filled-tertiary btn gap-2 !text-white dark:variant-filled-primary"
+						class="widget-dropdown-button btn rounded-full bg-primary-500 px-5 py-2 shadow-lg text-white font-semibold flex items-center gap-2 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-400 dark:bg-primary-600 dark:hover:bg-primary-500"
+						title={m.dashboard_addWidget()}
 					>
 						<iconify-icon icon="carbon:add-filled" width="20"></iconify-icon>
-						Add Widget
+						{#if $screenSize !== 'SM' && $screenSize !== 'XS'}
+							<span>{m.dashboard_addWidget()}</span>
+						{/if}
 					</button>
 					{#if dropdownOpen}
-						<div
-							class="absolute right-0 z-20 mt-2 w-56 origin-top-right rounded-md border border-gray-300 bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:border-gray-700 dark:bg-gray-800"
-							role="menu"
-						>
-							<div class="py-1" role="none">
-								{#each availableWidgets as componentName}
-									{@const widgetInfo = widgetComponentRegistry[componentName as keyof typeof widgetComponentRegistry]}
-									<button
-										onclick={() => addNewWidget(componentName)}
-										type="button"
-										class="flex w-full items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:text-white"
-										role="menuitem"
-									>
-										<iconify-icon icon={widgetInfo.icon} width="18" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-										{widgetInfo.name}
-									</button>
-								{/each}
+						<div role="menu" class="widget-dropdown absolute right-0 z-30 mt-2 w-72 rounded-xl border border-gray-200 bg-white shadow-2xl dark:bg-surface-900 dark:border-gray-700">
+							<div class="border-b border-gray-200 p-4 bg-gray-50 rounded-t-xl dark:border-gray-700 dark:bg-surface-800">
+								<input
+									bind:this={searchInput}
+									type="text"
+									class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-400 focus:outline-none dark:border-gray-700 dark:bg-surface-800 dark:text-surface-100"
+									placeholder={m.dashboard_searchWidgets()}
+									bind:value={searchQuery}
+									aria-label={m.dashboard_searchWidgets()}
+								/>
+							</div>
+							<div class="max-h-64 overflow-y-auto py-1 bg-white dark:bg-surface-900 rounded-b-xl">
+								{#if filteredWidgets.length > 0}
+									{#each filteredWidgets as widgetName}
+										<button
+											class="w-full px-4 py-2 text-left flex items-center gap-2 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors rounded-md"
+											onclick={() => addNewWidget(widgetName)}
+											type="button"
+										>
+											<iconify-icon icon={widgetComponentRegistry[widgetName]?.icon} width="20" class="text-primary-500 dark:text-primary-400" />
+											<span class="ml-2">{widgetComponentRegistry[widgetName]?.name}</span>
+										</button>
+									{/each}
+								{:else}
+									<div class="px-4 py-2 text-sm text-gray-500">{m.dashboard_noWidgetsFound()}</div>
+								{/if}
 							</div>
 						</div>
 					{/if}
 				</div>
 			{/if}
-			<button class="variant-outline-warning btn" onclick={resetGrid}>Reset Layout</button>
+			<button class="variant-outline-warning btn" onclick={resetGrid}>{m.dashboard_resetLayout()}</button>
 			<button
 				onclick={() => (keyboardState.mode = !keyboardState.mode)}
 				class="variant-outline-primary btn gap-2 {keyboardState.mode
 					? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
 					: ''}"
-				title="Toggle keyboard navigation mode"
+				title={m.dashboard_toggleKeyboardMode()}
 			>
 				<iconify-icon icon="mdi:keyboard" width="16"></iconify-icon>
-				Keyboard
+				{m.dashboard_keyboard()}
 			</button>
-			<button onclick={() => history.back()} aria-label="Back" class="variant-ghost-surface btn-icon">
+			<button onclick={() => history.back()} aria-label={m.dashboard_back()} class="variant-ghost-surface btn-icon">
 				<iconify-icon icon="ri:arrow-left-line" width="20"></iconify-icon>
 			</button>
 		</div>
@@ -916,7 +937,7 @@
 			<div class="flex w-full items-center gap-2 rounded bg-error-100 p-2 text-error-700 dark:bg-error-900 dark:text-error-200">
 				<iconify-icon icon="mdi:alert-circle" width="20"></iconify-icon>
 				<span>{loadError}</span>
-				<button class="btn-xs variant-outline-error btn ml-auto" onclick={() => location.reload()}>Retry</button>
+				<button class="btn-xs variant-outline-error btn ml-auto" onclick={() => location.reload()}>{m.dashboard_retry()}</button>
 			</div>
 		{/if}
 	</header>
@@ -959,7 +980,7 @@
 
 		<section class="w-full px-1 py-4">
 			{#if !preferencesLoaded}
-				<div class="flex h-full items-center justify-center text-lg text-gray-500" role="status" aria-live="polite">Loading preferences...</div>
+				<div class="flex h-full items-center justify-center text-lg text-gray-500" role="status" aria-live="polite">{m.dashboard_loadingPreferences()}</div>
 			{:else if items.length > 0}
 				<div
 					class="responsive-dashboard-grid relative grid w-full gap-4"
@@ -1051,17 +1072,17 @@
 							class="mb-6 text-primary-400 drop-shadow-lg dark:text-primary-500"
 							aria-hidden="true"
 						></iconify-icon>
-						<p class="mb-2 text-2xl font-bold text-primary-700 dark:text-primary-200">Your Dashboard is Empty</p>
+						<p class="mb-2 text-2xl font-bold text-primary-700 dark:text-primary-200">{m.dashboard_emptyTitle()}</p>
 						<p class="mb-6 text-base text-surface-600 dark:text-surface-300">
-							Click below to add your first widget and start personalizing your dashboard experience.
+							{m.dashboard_emptyDescription()}
 						</p>
 						<button
 							class="btn rounded-full bg-primary-500 px-6 py-3 text-lg font-semibold text-white shadow-lg transition-all duration-150 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-400 dark:bg-primary-600 dark:hover:bg-primary-500"
 							onclick={() => (dropdownOpen = true)}
-							aria-label="Add widget"
+							aria-label={m.dashboard_addWidget()}
 						>
 							<iconify-icon icon="mdi:plus" width="22" class="mr-2" aria-hidden="true"></iconify-icon>
-							Add Widget
+							{m.dashboard_addWidget()}
 						</button>
 					</div>
 				</div>

@@ -3,6 +3,10 @@
 	"description": "A powerful Headless CMS with sveltekit power",
 	"version": "0.0.5",
 	"type": "module",
+	"engines": {
+		"node": ">=18.0.0",
+		"bun": ">=1.0.0"
+	},
 	"scripts": {
 		"-- INSTALLER -----------------------------------------": "",
 		"installer": "node cli-installer/cli-installer.js",
@@ -30,6 +34,7 @@
 		"db:studio": "drizzle-kit studio"
 	},
 	"license": "MIT",
+	"homepage": "https://SveltyCMS.com",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/SveltyCMS/SveltyCMS"
@@ -45,11 +50,13 @@
 		"inlang",
 		"i18n",
 		"internationalization",
+		"fast-cms",
 		"paraglide-js",
 		"headless",
 		"headless-cms",
 		"graphql",
 		"skeleton",
+		"skeleton-ui",
 		"svelte",
 		"svelte-cms",
 		"sveltekit",
@@ -61,6 +68,7 @@
 		"tailwindcss",
 		"rich-text-editor",
 		"tiptap",
+		"wysiwyg",
 		"mongodb"
 	],
 	"devDependencies": {

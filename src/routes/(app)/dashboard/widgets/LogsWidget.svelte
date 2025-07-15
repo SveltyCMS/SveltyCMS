@@ -17,10 +17,11 @@
 <script lang="ts">
 	import BaseWidget from '../BaseWidget.svelte';
 	// Removed: import { Icon } from '@iconify/svelte'; // No longer needed as <iconify-icon> is used directly
+	import { m } from '@src/paraglide/messages';
 
 	// Props passed from +page.svelte, then to BaseWidget
 	let {
-		label = 'System Logs',
+		label = m.logsWidget_label(),
 		theme = 'light',
 		icon = 'mdi:file-document-outline',
 		widgetId = undefined,
@@ -153,13 +154,13 @@
 
 	// Log level options for the dropdown
 	const logLevelOptions = [
-		{ value: 'all', label: 'All Levels' },
-		{ value: 'fatal', label: 'Fatal' },
-		{ value: 'error', label: 'Error' },
-		{ value: 'warn', label: 'Warn' },
-		{ value: 'info', label: 'Info' },
-		{ value: 'debug', label: 'Debug' },
-		{ value: 'trace', label: 'Trace' }
+		{ value: 'all', label: m.logsWidget_allLevels() },
+		{ value: 'fatal', label: m.logsWidget_fatal() },
+		{ value: 'error', label: m.logsWidget_error() },
+		{ value: 'warn', label: m.logsWidget_warn() },
+		{ value: 'info', label: m.logsWidget_info() },
+		{ value: 'debug', label: m.logsWidget_debug() },
+		{ value: 'trace', label: m.logsWidget_trace() }
 	];
 
 	// Function to determine log entry text color based on level
@@ -217,12 +218,12 @@
 	{onCloseRequest}
 >
 	{#snippet children({ data: fetchedData }: { data: FetchedData | undefined })}
-		<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" role="region" aria-label="Log controls">
+		<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" role="region" aria-label={m.logsWidget_controlsAriaLabel()}>
 			<div class="flex flex-1 gap-2">
 				<select
 					bind:value={filterLevel}
 					class="rounded-lg border border-surface-300 bg-white px-3 py-1 text-sm text-surface-700 shadow-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100 dark:focus:border-primary-500"
-					aria-label="Filter log level"
+					aria-label={m.logsWidget_filterLevelAriaLabel()}
 				>
 					{#each logLevelOptions as { value, label }}
 						<option {value}>{label}</option>
@@ -230,10 +231,10 @@
 				</select>
 				<input
 					type="text"
-					placeholder="Search logs..."
+					placeholder={m.logsWidget_searchPlaceholder()}
 					bind:value={searchText}
 					class="rounded-lg border border-surface-300 bg-white px-3 py-1 text-sm text-surface-700 shadow-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100 dark:focus:border-primary-500"
-					aria-label="Search logs"
+					aria-label={m.logsWidget_searchAriaLabel()}
 				/>
 			</div>
 			<div class="flex items-center gap-2">
@@ -241,67 +242,67 @@
 					type="date"
 					bind:value={startDate}
 					class="rounded-lg border border-surface-300 bg-white px-2 py-1 text-sm text-surface-700 shadow-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100 dark:focus:border-primary-500"
-					aria-label="Start date"
+					aria-label={m.logsWidget_startDateAriaLabel()}
 				/>
 				<input
 					type="date"
 					bind:value={endDate}
 					class="rounded-lg border border-surface-300 bg-white px-2 py-1 text-sm text-surface-700 shadow-sm focus:border-primary-400 focus:ring-2 focus:ring-primary-200 dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100 dark:focus:border-primary-500"
-					aria-label="End date"
+					aria-label={m.logsWidget_endDateAriaLabel()}
 				/>
 			</div>
 		</div>
 		{#if fetchedData && fetchedData.logs && fetchedData.logs.length > 0}
-			<div class="grid gap-2" style="max-height: 180px; overflow: hidden;" role="list" aria-label="System log entries">
+			<div class="grid gap-2" style="max-height: 180px; overflow: hidden;" role="list" aria-label={m.logsWidget_logEntriesAriaLabel()}>
 				{#each fetchedData.logs as log}
 					<div
 						class="flex items-start gap-2 rounded-lg border border-surface-200 bg-surface-100/90 px-3 py-2 text-xs dark:border-surface-700 dark:bg-surface-700/60"
 						role="listitem"
 					>
-						<iconify-icon icon="mdi:circle" width="10" class={getLogLevelColor(log.level) + ' mt-1'} aria-label={log.level + ' log level'}
+						<iconify-icon icon="mdi:circle" width="10" class={getLogLevelColor(log.level) + ' mt-1'} aria-label={m.logsWidget_logLevelIconAriaLabel({level: log.level})}
 						></iconify-icon>
 						<div class="flex w-full min-w-0 flex-col">
 							<span
 								class="text-text-900 dark:text-text-100 w-full whitespace-pre-line break-words font-medium"
 								style="word-break:break-word;"
 								title={log.message}
-								aria-label={log.message}>{log.message}</span
+								aria-label={m.logsWidget_logMessageAriaLabel({message: log.message})}>{log.message}</span
 							>
-							<span class="text-xs text-surface-500 dark:text-surface-400">{log.level} • {new Date(log.timestamp).toLocaleTimeString()}</span>
+							<span class="text-xs text-surface-500 dark:text-surface-400">{m.logsWidget_logMeta({level: log.level, time: new Date(log.timestamp).toLocaleTimeString()})}</span>
 						</div>
 					</div>
 				{/each}
 			</div>
 			<div class="mt-2 text-center text-xs text-surface-600 opacity-80 dark:text-surface-400">
-				Total Logs: {fetchedData.total}
+				{m.logsWidget_totalLogs({total: fetchedData.total})}
 			</div>
-			<div class="mt-4 flex items-center justify-between text-xs" role="navigation" aria-label="Pagination">
+			<div class="mt-4 flex items-center justify-between text-xs" role="navigation" aria-label={m.logsWidget_paginationAriaLabel()}>
 				<button
 					onclick={prevPage}
 					class="rounded-lg bg-primary-500 px-3 py-1 text-white shadow-sm transition hover:bg-primary-600 disabled:bg-surface-300 disabled:text-surface-400 dark:bg-primary-600 dark:hover:bg-primary-500 dark:disabled:bg-surface-700 dark:disabled:text-surface-500"
 					disabled={fetchedData.page === 1}
-					aria-label="Previous page"
+					aria-label={m.logsWidget_prevPageAriaLabel()}
 				>
 					<iconify-icon icon="mdi:chevron-left" width="16" aria-hidden="true"></iconify-icon>
-					<span>Previous</span>
+					<span>{m.logsWidget_prevPage()}</span>
 				</button>
 				<span>
-					Page {fetchedData.page} of {fetchedData.totalPages}
+					{m.logsWidget_pageOf({page: fetchedData.page, totalPages: fetchedData.totalPages})}
 				</span>
 				<button
 					onclick={nextPage}
 					class="rounded-lg bg-primary-500 px-3 py-1 text-white shadow-sm transition hover:bg-primary-600 disabled:bg-surface-300 disabled:text-surface-400 dark:bg-primary-600 dark:hover:bg-primary-500 dark:disabled:bg-surface-700 dark:disabled:text-surface-500"
 					disabled={fetchedData.page === fetchedData.totalPages}
-					aria-label="Next page"
+					aria-label={m.logsWidget_nextPageAriaLabel()}
 				>
-					<span>Next</span>
+					<span>{m.logsWidget_nextPage()}</span>
 					<iconify-icon icon="mdi:chevron-right" width="16" aria-hidden="true"></iconify-icon>
 				</button>
 			</div>
 		{:else}
 			<div class="flex flex-1 flex-col items-center justify-center py-6 text-xs text-gray-500 dark:text-gray-400" role="status" aria-live="polite">
 				<iconify-icon icon="mdi:file-remove-outline" width="32" class="mb-2 text-surface-400 dark:text-surface-500" aria-hidden="true"></iconify-icon>
-				<span>No logs found</span>
+				<span>{m.logsWidget_noLogsFound()}</span>
 			</div>
 		{/if}
 	{/snippet}

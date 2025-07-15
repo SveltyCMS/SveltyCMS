@@ -32,6 +32,8 @@
 	import { onDestroy, onMount } from 'svelte';
 	import { Chart, LineController, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler } from 'chart.js';
 	import 'chartjs-adapter-date-fns';
+	import { getLocale } from '@src/paraglide/runtime';
+	import { m } from '@src/paraglide/messages';
 
 	Chart.register(LineController, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler);
 
@@ -39,7 +41,7 @@
 
 	// Props passed from +page.svelte, then to BaseWidget
 	let {
-		label = 'CPU Usage',
+		label = m.cpuWidget_label(),
 		theme = 'light',
 		icon = 'mdi:cpu-64-bit',
 		widgetId = undefined,
@@ -88,6 +90,7 @@
 	let currentData = $state<any>(undefined);
 	let chartInstance = $state<Chart | undefined>(undefined);
 	let chartCanvasElement = $state<HTMLCanvasElement | undefined>(undefined);
+	let _languageTag = $state(getLocale());
 
 	function updateChart(fetchedData: any) {
 		if (!chartCanvasElement) return;
@@ -336,11 +339,11 @@
 							</div>
 							<span class="text-lg font-bold {theme === 'dark' ? 'text-white' : 'text-gray-900'}">{currentUsage.toFixed(1)}%</span>
 						</div>
-						<span class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Current Usage</span>
+						<span class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">{m.cpuWidget_currentUsage()}</span>
 					</div>
 					<div class="text-right">
 						<div class="text-sm font-semibold {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">{averageUsage.toFixed(1)}%</div>
-						<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Average</div>
+						<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">{m.cpuWidget_average()}</div>
 					</div>
 				</div>
 				<div class="space-y-2">
@@ -360,19 +363,17 @@
 					<div class="relative h-full w-full">
 						<canvas
 							bind:this={chartCanvasElement}
-							aria-label="CPU Usage Chart"
+							aria-label={m.cpuWidget_chartAriaLabel()}
 							use:updateChartAction={fetchedData}
 							class="h-full w-full"
 							style="display: block; width: 100% !important; height: 100% !important;"
 						></canvas>
 					</div>
 				</div>
-				{#if currentSize === '1/2' || currentSize === '3/4' || currentSize === 'full'}
-					<div class="flex justify-between text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">
-						<span>Cores: {fetchedData?.cpuInfo?.cores?.count || 'N/A'}</span>
-						<span>Model: {fetchedData?.cpuInfo?.cores?.perCore?.[0]?.model?.split(' ').slice(0, 2).join(' ') || 'Unknown'}</span>
-					</div>
-				{/if}
+				<div class="flex justify-between text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">
+					<span>{m.cpuWidget_cores({count: fetchedData?.cpuInfo?.cores?.count || 'N/A'})}</span>
+					<span>{m.cpuWidget_model({model: fetchedData?.cpuInfo?.cores?.perCore?.[0]?.model?.split(' ').slice(0, 2).join(' ') || 'Unknown'})}</span>
+				</div>
 			</div>
 		{:else}
 			<div class="flex h-full flex-col items-center justify-center space-y-3">
@@ -380,8 +381,8 @@
 					<div class="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"></div>
 				</div>
 				<div class="text-center">
-					<div class="text-sm font-medium {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">Loading CPU data</div>
-					<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Please wait...</div>
+					<div class="text-sm font-medium {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">{m.cpuWidget_loading()}</div>
+					<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">{m.cpuWidget_pleaseWait()}</div>
 				</div>
 			</div>
 		{/if}

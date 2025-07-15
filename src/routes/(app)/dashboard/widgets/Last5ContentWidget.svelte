@@ -26,6 +26,8 @@ This widget fetches and displays the latest content items, including:
 -->
 
 <script lang="ts">
+	import { m } from '@src/paraglide/messages';
+
 	export const widgetMeta = {
 		name: 'Last 5 Content',
 		icon: 'mdi:file-document-multiple',
@@ -53,7 +55,7 @@ This widget fetches and displays the latest content items, including:
 	type FetchedData = ContentItem[] | undefined;
 
 	let {
-		label = 'Last 5 Content',
+		label = m.last5ContentWidget_label(),
 		theme = 'light',
 		icon = 'mdi:file-document-multiple',
 		widgetId = undefined,
@@ -152,7 +154,7 @@ This widget fetches and displays the latest content items, including:
 >
 	{#snippet children({ data: fetchedData }: { data: FetchedData })}
 		{#if fetchedData && Array.isArray(fetchedData) && fetchedData.length > 0}
-			<div class="grid gap-2" style="max-height: 180px; overflow-y: auto;" role="list" aria-label="Last 5 content items">
+			<div class="grid gap-2" style="max-height: 180px; overflow-y: auto;" role="list" aria-label={m.last5ContentWidget_listAriaLabel()}>
 				{#each fetchedData.slice(0, 5) as content (content.id)}
 					<div class="flex items-center justify-between rounded-lg bg-surface-100/80 px-3 py-2 text-xs dark:bg-surface-700/60" role="listitem">
 						<div class="flex min-w-0 items-center gap-2">
@@ -160,22 +162,22 @@ This widget fetches and displays the latest content items, including:
 								icon={getStatusIcon(content.status)}
 								class="flex-shrink-0 text-primary-400"
 								width="18"
-								aria-label={content.status + ' status icon'}
+								aria-label={m.last5ContentWidget_statusIconAriaLabel({status: content.status})}
 							></iconify-icon>
 							<div class="flex min-w-0 flex-col">
-								<span class="text-text-900 dark:text-text-100 truncate font-medium" title={content.title}>
+								<span class="text-text-900 dark:text-text-100 truncate font-medium" title={content.title} aria-label={m.last5ContentWidget_titleAriaLabel()}>
 									{content.title}
 								</span>
-								<span class="text-xs text-surface-500 dark:text-surface-400" title={content.collection}>
+								<span class="text-xs text-surface-500 dark:text-surface-400" title={content.collection} aria-label={m.last5ContentWidget_collectionAriaLabel()}>
 									{content.collection}
 								</span>
 							</div>
 						</div>
 						<div class="flex flex-col items-end">
-							<span class="uppercase text-xs font-medium {getStatusColorClass(content.status)}">
+							<span class="uppercase text-xs font-medium {getStatusColorClass(content.status)}" aria-label={m.last5ContentWidget_statusAriaLabel({status: content.status})}>
 								{content.status}
 							</span>
-							<span class="text-xs text-surface-500 dark:text-surface-400" title={`Created: ${formatDate(content.createdAt)}`}>
+							<span class="text-xs text-surface-500 dark:text-surface-400" title={`Created: ${formatDate(content.createdAt)}`} aria-label={m.last5ContentWidget_createdAtAriaLabel()}>
 								{formatDate(content.createdAt)}
 							</span>
 						</div>
@@ -190,7 +192,7 @@ This widget fetches and displays the latest content items, including:
 					class="mb-2 text-surface-400 dark:text-surface-500"
 					aria-hidden="true"
 				></iconify-icon>
-				<span>No content found</span>
+				<span>{m.last5ContentWidget_noContentFound()}</span>
 			</div>
 		{/if}
 	{/snippet}
