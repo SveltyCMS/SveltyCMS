@@ -21,9 +21,9 @@ import { json } from '@sveltejs/kit';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-import * as v from 'valibot';
 
-// --- Validation Schemas ---
+// --- Validation  ---
+import * as v from 'valibot';
 
 const WidgetSchema = v.object({
 	id: v.string(),
@@ -44,6 +44,11 @@ const UpdateScreenBodySchema = v.object({
 	widgets: v.array(WidgetSchema)
 });
 
+const WidgetStateBodySchema = v.object({
+	widgetId: v.string(),
+	state: v.record(v.string(), v.any())
+});
+
 // --- API Handlers ---
 
 export const GET = async ({ locals, url }) => {
@@ -53,9 +58,22 @@ export const GET = async ({ locals, url }) => {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
+	const widgetId = url.searchParams.get('widgetId');
+
+	// Handle request for a single widget's state
+	if (widgetId) {
+		try {
+			const state = await dbAdapter.systemPreferences.getWidgetState(userId, widgetId);
+			return json({ state: state ?? {} });
+		} catch (e) {
+			logger.error(`Failed to load widget state for widgetId: ${widgetId}`, e);
+			return json({ error: 'Failed to load widget state' }, { status: 500 });
+		}
+	}
+
+	// Handle request for all dashboard preferences
 	try {
 		const preferences = await dbAdapter.systemPreferences.getSystemPreferences(userId);
-		// Provide a default empty structure if no preferences are found
 		return json({
 			preferences: preferences ?? { SM: [], MD: [], LG: [], XL: [] }
 		});
@@ -68,24 +86,39 @@ export const GET = async ({ locals, url }) => {
 export const POST = async ({ request, locals }) => {
 	const userId = locals.user?._id?.toString();
 	if (!userId) {
-		logger.warn('Unauthorized attempt to save system preferences.');
+		logger.warn('Unauthorized attempt to save data.');
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
 	const data = await request.json();
-	const result = v.safeParse(SavePreferencesBodySchema, data);
 
-	if (!result.success) {
-		return json({ error: 'Invalid preferences data.', issues: result.issues }, { status: 400 });
+	// Try to parse as widget state first
+	const widgetStateResult = v.safeParse(WidgetStateBodySchema, data);
+	if (widgetStateResult.success) {
+		try {
+			const { widgetId, state } = widgetStateResult.output;
+			await dbAdapter.systemPreferences.setWidgetState(userId, widgetId, state);
+			return json({ success: true, message: 'Widget state saved.' }, { status: 200 });
+		} catch (e) {
+			logger.error('Failed to save widget state:', e);
+			return json({ error: 'Failed to save widget state' }, { status: 500 });
+		}
 	}
 
-	try {
-		await dbAdapter.systemPreferences.setUserPreferences(userId, result.output.preferences);
-		return json({ success: true }, { status: 200 });
-	} catch (e) {
-		logger.error('Failed to save system preferences:', e);
-		return json({ error: 'Failed to save preferences' }, { status: 500 });
+	// If not widget state, try to parse as full preferences
+	const preferencesResult = v.safeParse(SavePreferencesBodySchema, data);
+	if (preferencesResult.success) {
+		try {
+			await dbAdapter.systemPreferences.setUserPreferences(userId, preferencesResult.output.preferences);
+			return json({ success: true, message: 'Preferences saved.' }, { status: 200 });
+		} catch (e) {
+			logger.error('Failed to save system preferences:', e);
+			return json({ error: 'Failed to save preferences' }, { status: 500 });
+		}
 	}
+
+	// If neither schema matches, return a validation error
+	return json({ error: 'Invalid request data.', issues: preferencesResult.issues }, { status: 400 });
 };
 
 export const PUT = async ({ request, locals }) => {

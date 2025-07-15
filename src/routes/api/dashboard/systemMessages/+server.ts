@@ -1,114 +1,135 @@
 /**
  * @file src/routes/api/dashboard/systemMessages/+server.ts
- * @description API endpoint for system messages for dashboard widgets
+ * @description API endpoint for system messages for dashboard widgets.
+ *
+ * ### Features
+ * - **Secure Authorization:** Access is controlled centrally by `src/hooks.server.ts`.
+ * - **High-Performance Log Reading:** Efficiently reads only the end of the log file.
+ * - **Input Validation:** Safely validates and caps the `limit` query parameter.
  */
 
 import fs from 'fs/promises';
 import path from 'path';
+import crypto from 'crypto';
 import type { RequestHandler } from './$types';
 import { error, json } from '@sveltejs/kit';
 
 // Auth
-import { roles } from '@root/config/roles';
-import { hasPermissionByAction } from '@src/auth/permissions';
+import { auth } from '@src/databases/db';
+
+// Validation
+import * as v from 'valibot';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-export const GET: RequestHandler = async ({ locals, url }) => {
+// --- Types, Constants & Schemas ---
+
+type SystemMessage = {
+	id: string;
+	title: string;
+	message: string;
+	level: string;
+	timestamp: string;
+	type: 'error' | 'warning' | 'info';
+};
+
+const MAX_MESSAGES_LIMIT = 50;
+const LOG_FILE_PATH = path.join(process.cwd(), 'logs', 'app.log');
+
+const QuerySchema = v.object({
+	limit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(MAX_MESSAGES_LIMIT)), 5)
+});
+
+const LOG_LINE_REGEX = /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}Z?) \S+ \[(\w+)\]: (.+)$/;
+
+// --- Helper Functions ---
+
+async function readLastLines(filePath: string, maxLines: number): Promise<string[]> {
 	try {
-		// Check if user has permission for dashboard access
-		const hasPermission = hasPermissionByAction(
-			locals.user,
-			'access',
-			'system',
-			'dashboard',
-			locals.roles && locals.roles.length > 0 ? locals.roles : roles
-		);
+		const handle = await fs.open(filePath, 'r');
+		const { size } = await handle.stat();
+		const bufferSize = Math.min(1024 * 4, size);
+		const buffer = Buffer.alloc(bufferSize);
+		let position = size;
+		let lines: string[] = [];
+		let collectedData = '';
 
-		if (!hasPermission) {
-			logger.warn('Unauthorized attempt to access system messages', { userId: locals.user?._id });
-			throw error(403, 'Forbidden: You do not have permission to access system messages.');
-		}
-
-		const limit = parseInt(url.searchParams.get('limit') || '5');
-
-		try {
-			// Try to read system logs for recent messages
-			const logFile = path.join(process.cwd(), 'logs', 'app.log');
-			const logContent = await fs.readFile(logFile, 'utf-8');
-			const logLines = logContent
-				.split('\n')
-				.filter((line) => line.trim())
-				.slice(-20);
-
-			const messages = [];
-			for (const line of logLines.slice(-limit)) {
-				try {
-					// Parse log format: timestamp level message
-					const match = line.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\.\d+ \S+ \[(\w+)\]: (.+)$/);
-					if (match) {
-						const [, timestamp, level, message] = match;
-						messages.push({
-							id: Date.now() + Math.random(),
-							title: `${level.toUpperCase()} Message`,
-							message: message.substring(0, 100) + (message.length > 100 ? '...' : ''),
-							level: level.toLowerCase(),
-							timestamp: timestamp,
-							type: level.toLowerCase() === 'error' ? 'error' : level.toLowerCase() === 'warn' ? 'warning' : 'info'
-						});
-					}
-				} catch {
-					// Skip invalid log lines
-				}
+		while (lines.length < maxLines && position > 0) {
+			const readPosition = Math.max(0, position - bufferSize);
+			const bytesToRead = position - readPosition;
+			await handle.read(buffer, 0, bytesToRead, readPosition);
+			collectedData = buffer.toString('utf-8', 0, bytesToRead) + collectedData;
+			const currentLines = collectedData.split('\n');
+			if (position === size && currentLines[currentLines.length - 1] === '') {
+				currentLines.pop();
 			}
-
-			if (messages.length === 0) {
-				// Return default system status if no log messages
-				messages.push({
-					id: 1,
-					title: 'System Status',
-					message: 'System is running normally',
-					level: 'info',
-					timestamp: new Date().toISOString(),
-					type: 'info'
-				});
-			}
-
-			logger.info('System messages fetched successfully', {
-				count: messages.length,
-				requestedBy: locals.user?._id
-			});
-
-			return json(messages);
-		} catch (logError) {
-			logger.warn('Could not read system logs:', logError);
-			// Return default system messages if log reading fails
-			const defaultMessages = [
-				{
-					id: 1,
-					title: 'System Online',
-					message: 'SveltyCMS is running normally',
-					level: 'info',
-					timestamp: new Date().toISOString(),
-					type: 'info'
-				},
-				{
-					id: 2,
-					title: 'Welcome',
-					message: 'Dashboard widgets are functioning properly',
-					level: 'info',
-					timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-					type: 'info'
-				}
-			];
-			return json(defaultMessages);
+			lines = currentLines.slice(-maxLines);
+			position = readPosition;
 		}
+		await handle.close();
+		return lines;
 	} catch (err) {
-		const httpError = err as { status?: number; body?: { message?: string }; message?: string };
-		const status = httpError.status || 500;
-		const message = httpError.body?.message || httpError.message || 'Internal Server Error';
-		logger.error('Error fetching system messages:', { error: message, status });
-		throw error(status, message);
+		logger.warn(`Could not read log file at: ${filePath}`, err);
+		return [];
+	}
+}
+
+// --- API Handler ---
+
+export const GET: RequestHandler = async ({ locals, url }) => {
+	// Initial Check for Auth
+	if (!auth) {
+		logger.error('Authentication system is not initialized');
+		throw error(500, 'Internal Server Error: Auth service unavailable.');
+	}
+
+	try {
+		const query = v.parse(QuerySchema, {
+			limit: Number(url.searchParams.get('limit')) || undefined
+		});
+
+		const logLines = await readLastLines(LOG_FILE_PATH, query.limit);
+
+		const messages: SystemMessage[] = logLines
+			.map((line): SystemMessage | null => {
+				const match = line.match(LOG_LINE_REGEX);
+				if (!match) return null;
+				const [, timestamp, level, message] = match;
+				const lowerLevel = level.toLowerCase();
+				return {
+					id: crypto.randomUUID(),
+					title: `${level.toUpperCase()} Message`,
+					message: message.substring(0, 100) + (message.length > 100 ? '...' : ''),
+					level: lowerLevel,
+					timestamp,
+					type: lowerLevel === 'error' ? 'error' : lowerLevel === 'warn' ? 'warning' : 'info'
+				};
+			})
+			.filter((msg): msg is SystemMessage => msg !== null);
+
+		if (messages.length === 0) {
+			messages.push({
+				id: crypto.randomUUID(),
+				title: 'System Status',
+				message: 'System is running normally. No recent critical messages.',
+				level: 'info',
+				timestamp: new Date().toISOString(),
+				type: 'info'
+			});
+		}
+
+		logger.info('System messages fetched successfully', {
+			count: messages.length,
+			requestedBy: locals.user?._id
+		});
+
+		return json(messages);
+	} catch (err) {
+		if (err instanceof v.ValiError) {
+			return json({ error: 'Invalid "limit" parameter.', issues: err.issues }, { status: 400 });
+		}
+		logger.error('An unexpected error occurred while fetching system messages:', err);
+		throw error(500, 'An unexpected error occurred.');
 	}
 };

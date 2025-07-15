@@ -1,84 +1,84 @@
 /**
  * @file src/routes/api/dashboard/last5Content/+server.ts
- * @description API endpoint for recent content data for dashboard widgets
+ * @description API endpoint for recent content data for dashboard widgets.
  */
 
 import { error, json } from '@sveltejs/kit';
+import crypto from 'crypto';
 import type { RequestHandler } from './$types';
-
-// Auth
-import { roles } from '@root/config/roles';
-import { hasPermissionByAction } from '@src/auth/permissions';
 
 import { contentManager } from '@root/src/content/ContentManager';
 
+// Validation
+import * as v from 'valibot';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
+// --- Schemas for Validation ---
+
+const QuerySchema = v.object({
+	limit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(20)), 5)
+});
+
+const ContentItemSchema = v.object({
+	id: v.string(),
+	title: v.string(),
+	collection: v.string(),
+	createdAt: v.date(),
+	createdBy: v.string(),
+	status: v.string()
+});
+
+// --- API Handler ---
+
 export const GET: RequestHandler = async ({ locals, url }) => {
 	try {
-		// Check if user has permission for dashboard access
-		const hasPermission = hasPermissionByAction(
-			locals.user,
-			'access',
-			'system',
-			'dashboard',
-			locals.roles && locals.roles.length > 0 ? locals.roles : roles
-		);
+		// 1. Validate Input
+		const query = v.parse(QuerySchema, {
+			limit: Number(url.searchParams.get('limit')) || undefined
+		});
 
-		if (!hasPermission) {
-			logger.warn('Unauthorized attempt to access content data', { userId: locals.user?._id });
-			throw error(403, 'Forbidden: You do not have permission to access content data.');
+		// 2. Fetch and Normalize Data
+		const { contentStructure } = await contentManager.getCollectionData();
+		let allEntries: any[] = [];
+
+		if (Array.isArray(contentStructure)) {
+			// Flatten all entries from all collections into a single array
+			allEntries = contentStructure.flatMap((collection) =>
+				(collection.entries ?? []).map((entry: any) => ({
+					...entry,
+					collectionName: collection.name || collection.label || 'Unknown Collection'
+				}))
+			);
 		}
 
-		const limit = parseInt(url.searchParams.get('limit') || '5');
+		// 3. Sort by date to find the most recent entries
+		allEntries.sort((a, b) => {
+			const dateA = new Date(a.createdAt || a.created || a.date || 0).getTime();
+			const dateB = new Date(b.createdAt || b.created || b.date || 0).getTime();
+			return dateB - dateA;
+		});
 
-		try {
-			// Get collection data from content manager
-			const { contentStructure } = await contentManager.getCollectionData();
+		// 4. Transform and Validate the final data structure
+		const recentContent = allEntries.slice(0, query.limit).map((entry) => ({
+			id: entry.id || entry._id || crypto.randomUUID(),
+			title: entry.title || entry.name || entry.label || 'Untitled',
+			collection: entry.collectionName,
+			createdAt: new Date(entry.createdAt || entry.created || entry.date || new Date()),
+			createdBy: entry.createdBy || entry.author || entry.creator || 'Unknown',
+			status: entry.status || entry.state || 'published'
+		}));
 
-			// Extract recent content from collections
-			const recentContent = [];
+		const validatedData = v.parse(v.array(ContentItemSchema), recentContent);
 
-			if (contentStructure && Array.isArray(contentStructure)) {
-				for (const collection of contentStructure) {
-					if (collection.entries && Array.isArray(collection.entries)) {
-						// Take a proportional amount from each collection, but at least 1
-						const itemsPerCollection = Math.max(1, Math.ceil(limit / contentStructure.length));
-
-						for (const entry of collection.entries.slice(0, itemsPerCollection)) {
-							recentContent.push({
-								id: entry.id || entry._id || `${collection.name}_${Math.random().toString(36).substr(2, 9)}`,
-								title: entry.title || entry.name || entry.label || 'Untitled',
-								collection: collection.name || collection.label || 'Unknown Collection',
-								createdAt: entry.createdAt || entry.created || entry.date || new Date().toISOString(),
-								createdBy: entry.createdBy || entry.author || entry.creator || 'Unknown',
-								status: entry.status || entry.state || 'published'
-							});
-						}
-					}
-				}
-			}
-
-			// Sort by creation date (newest first) and limit results
-			recentContent.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-			const limitedContent = recentContent.slice(0, limit);
-
-			logger.info('Content data fetched successfully', {
-				count: limitedContent.length,
-				requestedBy: locals.user?._id
-			});
-			return json(limitedContent);
-		} catch (contentError) {
-			logger.warn('Could not fetch content data:', contentError);
-			// Return empty array if content manager fails
-			return json([]);
-		}
+		logger.info('Recent content fetched successfully', { count: validatedData.length, requestedBy: locals.user?._id });
+		return json(validatedData);
 	} catch (err) {
-		const httpError = err as { status?: number; body?: { message?: string }; message?: string };
-		const status = httpError.status || 500;
-		const message = httpError.body?.message || httpError.message || 'Internal Server Error';
-		logger.error('Error fetching content data:', { error: message, status });
-		throw error(status, message);
+		if (err instanceof v.ValiError) {
+			logger.error('Content data failed validation', { error: err.issues });
+			throw error(500, 'Internal Server Error: Could not prepare content data.');
+		}
+		logger.error('Error fetching recent content:', err);
+		throw error(500, 'An unexpected error occurred.');
 	}
 };
