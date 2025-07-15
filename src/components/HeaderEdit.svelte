@@ -26,18 +26,23 @@
  - Cancel and reload functionality for editing mode
  - Full dark mode support with theme-based styling
 -->
-
 <script lang="ts">
-	import { saveFormData } from '../utils/data';
+	// mport apiRequest for general requests, and entryActions for specific entity actions
+	import { apiRequest } from '@utils/apiClient';
+	import { deleteCurrentEntry, setEntryStatus, cloneCurrentEntry } from '@utils/entryActions'; // Directly use these specific actions
 
 	// Components
 	import ScheduleModal from './ScheduleModal.svelte';
 	import TranslationStatus from './TranslationStatus.svelte';
 	// Skeleton
 	import { getModalStore, getToastStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
+	// Initialize stores at the top level, during component initialization.
+	const modalStore = getModalStore();
+	const toastStore = getToastStore();
+
 	// Stores
 	import { page } from '$app/state';
-	import { collection, collectionValue, mode, modifyEntry, statusMap } from '@src/stores/collectionStore.svelte';
+	import { collection, collectionValue, mode, statusMap } from '@src/stores/collectionStore.svelte';
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 	import { toggleUIElement, uiStateManager } from '@src/stores/UIStore.svelte';
 	import { contentLanguage, headerActionButton, tabSet, validationStore } from '@stores/store.svelte';
@@ -84,13 +89,13 @@
 	function openScheduleModal(): void {
 		const modalComponent: ModalComponent = {
 			ref: ScheduleModal,
-			slot: '<p>Edit Form</p>'
+			slot: '<p>Edit Form</p>' // Note: This slot content usually overrides ScheduleModal's own content, consider if truly desired.
 		};
 
 		const modalSettings: ModalSettings = {
 			type: 'component',
-			title: 'Scheduler',
-			body: 'Set a date and time to schedule this entry.',
+			title: m.scheduler_title(),
+			body: m.scheduler_body(),
 			component: modalComponent,
 			response: (r: ScheduleResponse | boolean) => {
 				if (typeof r === 'object' && 'date' in r) {
@@ -106,7 +111,7 @@
 				}
 			}
 		};
-		getModalStore().trigger(modalSettings);
+		modalStore.trigger(modalSettings);
 	}
 
 	$effect(() => {
@@ -120,10 +125,6 @@
 		if (mode.value === 'view') {
 			tempData = {};
 		}
-		// Removed automatic unpublishing logic - now handled in EntryList for better UX
-		// if (mode.value === 'edit' && collectionValue.value?.status === statusMap.published) {
-		// 	modifyEntry.value?.(statusMap.unpublished);
-		// }
 	});
 
 	$effect(() => {
@@ -138,53 +139,48 @@
 
 	// Save form data with validation
 	async function saveData() {
-		if (!collection.value) return;
-
-		// Use the reactive validation store; no need to re-validate here
-		if (!validationStore.isValid) {
-			console.warn('Save blocked due to validation errors.');
-			getToastStore().trigger({
-				message: 'Please fix validation errors before saving',
-				background: 'variant-filled-error',
-				timeout: 3000
+		const currentCollection = collection.value;
+		if (!currentCollection?._id) {
+			// Ensure collection and its ID exist
+			toastStore.trigger({
+				message: m.save_no_collection_error(),
+				background: 'variant-filled-error'
 			});
 			return;
 		}
 
-		// Use a snapshot of the current reactive store values for saving
-		const currentCollection = collection.value;
-		const dataToSave = { ...collectionValue.value };
-
-		// Add or update system fields
-		if (mode.value === 'create') {
-			dataToSave.createdBy = user?.username ?? 'system';
+		if (!validationStore.isValid) {
+			console.warn('Save blocked due to validation errors.');
+			toastStore.trigger({
+				message: m.validation_fix_before_save(),
+				background: 'variant-filled-error'
+			});
+			return;
 		}
+
+		const dataToSave = { ...collectionValue.value };
+		if (mode.value === 'create') dataToSave.createdBy = user?.username ?? 'system';
 		dataToSave.updatedBy = user?.username ?? 'system';
 
-		// Handle schedule information
 		if (schedule && schedule.trim() !== '') {
 			dataToSave._scheduled = new Date(schedule).getTime();
 		} else {
 			delete dataToSave._scheduled;
 		}
 
-		// Save data
-		try {
-			await saveFormData({
-				data: dataToSave, // Pass the plain object directly
-				_collection: currentCollection,
-				_mode: mode.value,
-				id: dataToSave._id as string | undefined,
-				user
-			});
+		const method = mode.value === 'create' ? 'POST' : 'PATCH';
 
-			// Consistent state management with RightSidebar
+		try {
+			// Use apiRequest directly for saving, as entryActions covers specific non-save actions.
+			await apiRequest(method, currentCollection._id, dataToSave);
+
+			toastStore.trigger({ message: m.save_success(), background: 'variant-filled-success' });
 			mode.set('view');
 			toggleUIElement('leftSidebar', screenSize.value === 'LG' ? 'full' : 'collapsed');
 		} catch (err) {
 			console.error('Failed to save data:', err);
-			getToastStore().trigger({
-				message: 'Failed to save data',
+			toastStore.trigger({
+				message: (err as Error).message || 'An unexpected error occurred.',
 				background: 'variant-filled-error',
 				timeout: 3000
 			});
@@ -198,12 +194,7 @@
 	}
 
 	function handleReload() {
-		mode.set('edit');
-	}
-
-	// Handle entry modifications
-	function handleModifyEntry(status: keyof typeof statusMap) {
-		modifyEntry.value?.(status);
+		mode.set('edit'); // Keeps it in edit mode, maybe just re-renders
 	}
 </script>
 
@@ -212,7 +203,6 @@
 	class:border-b={!showMore}
 >
 	<div class="flex items-center justify-start">
-		<!-- Hamburger -->
 		{#if uiStateManager.uiState.value.leftSidebar === 'hidden'}
 			<button
 				type="button"
@@ -224,7 +214,6 @@
 			</button>
 		{/if}
 
-		<!-- Collection type with icon -->
 		{#if collection.value}
 			<div class="flex {!uiStateManager.uiState.value.leftSidebar ? 'ml-2' : 'ml-1'}">
 				{#if collection.value.icon}
@@ -247,16 +236,13 @@
 	</div>
 
 	<div class="flex items-center justify-end gap-1 sm:gap-2 md:gap-4">
-		<!-- Mobile specific buttons -->
 		{#if screenSize.value === 'MD' || screenSize.value === 'SM' || screenSize.value === 'XS'}
 			{#if showMore}
-				<!-- Mobile: Show More Active -->
 				<button type="button" onclick={next} aria-label="Next" class="variant-filled-tertiary btn-icon dark:variant-filled-primary">
 					<iconify-icon icon="carbon:next-filled" width="24" class="text-white"></iconify-icon>
 					<span class="hidden lg:block">{m.button_next()}</span>
 				</button>
 
-				<!-- Show More toggle remains visible -->
 				<button
 					type="button"
 					onclick={() => (showMore = !showMore)}
@@ -266,12 +252,10 @@
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30"></iconify-icon>
 				</button>
 			{:else}
-				<!-- Mobile: Show More Inactive -->
 				<div class="flex-col items-center justify-center md:flex">
 					<TranslationStatus />
 				</div>
 
-				<!-- Save Content -->
 				{#if ['edit', 'create'].includes(mode.value)}
 					<button
 						type="button"
@@ -283,33 +267,16 @@
 						<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon>
 					</button>
 				{/if}
-				<!-- DropDown to show more Buttons -->
 				<button type="button" onclick={() => (showMore = !showMore)} aria-label="Show more actions" class="variant-ghost-surface btn-icon">
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30"></iconify-icon>
 				</button>
 			{/if}
-
-			<!-- Desktop specific buttons -->
 		{:else}
 			<div class="hidden flex-col items-center justify-center md:flex">
 				<TranslationStatus />
 			</div>
-			<!-- {#if ['edit', 'create'].includes(mode.value)} -->
-			<!-- 	<button -->
-			<!-- 		type="button" -->
-			<!-- 		onclick={saveData} -->
-			<!-- 		disabled={collection.value?.permissions?.[user.role]?.write === false} -->
-			<!-- 		class="variant-filled-tertiary btn dark:variant-filled-primary" -->
-			<!-- 		aria-label="Save entry" -->
-			<!-- 	> -->
-			<!-- 		<iconify-icon icon="material-symbols:save" width="24" class="text-white"></iconify-icon> -->
-			<!-- 		<span class="ml-1">{m.button_save()}</span> -->
-			<!-- 	</button> -->
-			<!-- {/if} -->
-			<!-- Desktop doesn't need the showMore toggle -->
 		{/if}
 
-		<!-- Common Cancel/Reload Buttons -->
 		{#if !headerActionButton.value}
 			<button type="button" onclick={handleCancel} aria-label="Cancel" class="variant-ghost-surface btn-icon">
 				<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
@@ -324,13 +291,11 @@
 
 {#if showMore}
 	<div class="-mx-2 mb-2 flex flex-col items-center justify-center gap-3 border-b pt-2">
-		<!-- Action Buttons -->
 		<div class="flex items-center justify-center gap-3">
 			<div class="flex flex-col items-center justify-center">
-				<!-- Delete Content -->
 				<button
 					type="button"
-					onclick={() => handleModifyEntry(statusMap.deleted)}
+					onclick={deleteCurrentEntry}
 					disabled={collection.value?.permissions?.[user.role]?.delete === false}
 					class="gradient-error gradient-error-hover gradient-error-focus btn-icon"
 					aria-label="Delete entry"
@@ -339,13 +304,12 @@
 				</button>
 			</div>
 
-			<!-- Clone Content -->
 			{#if mode.value == 'edit'}
 				{#if collectionValue.value?.status == statusMap.unpublished}
 					<div class="flex flex-col items-center justify-center">
 						<button
 							type="button"
-							onclick={() => handleModifyEntry(statusMap.published)}
+							onclick={() => setEntryStatus('published')}
 							disabled={!(collection.value?.permissions?.[user.role]?.write && collection.value?.permissions?.[user.role]?.create)}
 							class="gradient-tertiary gradient-tertiary-hover gradient-tertiary-focus btn-icon"
 							aria-label="Publish entry"
@@ -369,7 +333,7 @@
 					<div class="flex flex-col items-center justify-center">
 						<button
 							type="button"
-							onclick={() => handleModifyEntry(statusMap.unpublished)}
+							onclick={() => setEntryStatus('unpublished')}
 							disabled={!collection.value?.permissions?.[user.role]?.write}
 							class="gradient-yellow gradient-yellow-hover gradient-yellow-focus btn-icon"
 							aria-label="Unpublish entry"
@@ -382,7 +346,7 @@
 				<div class="flex flex-col items-center justify-center">
 					<button
 						type="button"
-						onclick={() => handleModifyEntry(statusMap.cloned)}
+						onclick={cloneCurrentEntry}
 						disabled={!(collection.value?.permissions?.[user.role]?.write && collection.value?.permissions?.[user.role]?.create)}
 						aria-label="Clone entry"
 						class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn-icon"
@@ -393,9 +357,7 @@
 			{/if}
 		</div>
 
-		<!-- Info Section -->
 		<div class="w-full px-4">
-			<!-- Created At -->
 			<div class="mt-2 flex w-full flex-col items-start justify-center">
 				<p class="mb-1 text-sm">Created At</p>
 				<input
@@ -406,18 +368,18 @@
 				/>
 			</div>
 
-			<!-- Schedule Info -->
 			{#if schedule}
 				<div class="mt-2 text-sm text-tertiary-500">
-					Will be published on {new Date(schedule).toLocaleString()}
+					Will publish on: {new Date(schedule).toLocaleString()}
 				</div>
 			{/if}
 
-			<!-- User Info -->
 			<div class="mt-2 text-sm">
 				<p>Created by: {collectionValue.value?.createdBy || user.username}</p>
 				{#if collectionValue.value?.updatedBy}
-					<p class="text-tertiary-500">Last updated by {collectionValue.value.updatedBy}</p>
+					<p class="text-tertiary-500">
+						Last updated by: {collectionValue.value.updatedBy}
+					</p>
 				{/if}
 			</div>
 		</div>

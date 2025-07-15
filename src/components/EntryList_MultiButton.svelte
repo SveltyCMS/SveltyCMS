@@ -20,7 +20,7 @@
 
 <script lang="ts">
 	// Stores
-	import { mode, modifyEntry } from '@src/stores/collectionStore.svelte';
+	import { mode, collectionValue } from '@src/stores/collectionStore.svelte';
 	import { handleUILayoutToggle } from '@src/stores/UIStore.svelte';
 	import { storeListboxValue } from '@stores/store.svelte';
 	// Components
@@ -32,19 +32,22 @@
 	// Skeleton
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
 
+	// Initialize the modal store at the top level.
+	const modalStore = getModalStore();
+
 	type ActionType = 'create' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'delete' | 'test';
 
 	interface Props {
 		isCollectionEmpty?: boolean;
-		hasSelections?: boolean; // New prop to track if there are selections
-		selectedCount?: number; // Number of selected items
-		'on:create'?: () => void;
-		'on:publish'?: () => void;
-		'on:unpublish'?: () => void;
-		'on:schedule'?: () => void;
-		'on:clone'?: () => void;
-		'on:delete'?: () => void;
-		'on:test'?: () => void;
+		hasSelections?: boolean;
+		selectedCount?: number;
+		create?: () => void;
+		publish?: () => void;
+		unpublish?: () => void;
+		schedule?: () => void;
+		clone?: () => void;
+		delete?: () => void;
+		test?: () => void;
 	}
 
 	// Props
@@ -52,13 +55,13 @@
 		isCollectionEmpty = false,
 		hasSelections = false,
 		selectedCount = 0,
-		'on:create': onCreate = () => {},
-		'on:publish': onPublish = () => {},
-		'on:unpublish': onUnpublish = () => {},
-		'on:schedule': onSchedule = () => {},
-		'on:clone': onClone = () => {},
-		'on:delete': onDelete = () => {},
-		'on:test': onTest = () => {}
+		create = () => {},
+		publish = () => {},
+		unpublish = () => {},
+		schedule = () => {},
+		clone = () => {},
+		delete: deleteAction = () => {}, // 'delete' is a reserved keyword
+		test = () => {}
 	}: Props = $props();
 
 	// States
@@ -69,103 +72,76 @@
 
 	// Modal Trigger - Schedule
 	function openScheduleModal(): void {
-		const modalComponent: ModalComponent = {
-			ref: ScheduleModal,
-			slot: '<p>Schedule Form</p>'
-		};
+		const modalComponent: ModalComponent = { ref: ScheduleModal };
 		const modalSettings: ModalSettings = {
 			type: 'component',
 			title: 'Scheduler',
 			body: 'Set a date and time to schedule this entry.',
 			component: modalComponent,
 			response: (r: boolean) => {
-				if (r) {
-					console.log('Scheduling successful');
-					// Trigger the schedule action
-					onSchedule();
-				}
+				if (r) schedule();
 			}
 		};
-		getModalStore().trigger(modalSettings);
+		// Use the initialized `modalStore` constant.
+		modalStore.trigger(modalSettings);
 	}
 
+	// his function only calls the event handlers that the parent component (`EntryList.svelte`) listens for
 	function handleButtonClick(event: Event) {
 		event.preventDefault();
-		console.log('🔲 Main button clicked! Current action:', storeListboxValue.value, 'hasSelections:', hasSelections);
 
-		if (!modifyEntry.value) {
-			console.log('🚫 modifyEntry.value is not available:', modifyEntry.value);
-			return;
-		}
-
-		console.log('✅ modifyEntry.value is available, proceeding with action:', storeListboxValue.value);
+		// This function now only calls the parent's event handlers.
 		switch (storeListboxValue.value) {
 			case 'create':
+				collectionValue.set({});
 				mode.set('create');
 				handleUILayoutToggle();
-				onCreate();
+				create();
 				break;
 			case 'publish':
-				mode.set('view');
-				modifyEntry.value('published');
-				onPublish();
+				publish(); // Emit the 'publish' event.
 				break;
 			case 'unpublish':
-				mode.set('view');
-				modifyEntry.value('unpublished');
-				onUnpublish();
+				unpublish(); // Emit the 'unpublish' event.
 				break;
 			case 'schedule':
-				mode.set('view');
-				openScheduleModal(); // Open the schedule modal instead of directly calling modifyEntry
+				openScheduleModal(); // Open the modal, which will call onSchedule.
 				break;
 			case 'clone':
-				mode.set('view');
-				modifyEntry.value('cloned');
-				onClone();
+				clone(); // Emit the 'clone' event.
 				break;
 			case 'delete':
-				console.log('🗑️ DELETE button clicked, hasSelections:', hasSelections, 'selectedCount:', selectedCount);
-				console.log('🗑️ modifyEntry.value:', typeof modifyEntry.value, modifyEntry.value);
-				mode.set('view');
-				try {
-					modifyEntry.value('deleted');
-					console.log('🗑️ modifyEntry.value("deleted") called successfully');
-				} catch (error) {
-					console.error('🗑️ Error calling modifyEntry.value("deleted"):', error);
-				}
-				onDelete();
+				deleteAction(); // Emit the 'delete' event.
 				break;
 			case 'test':
-				mode.set('view');
-				modifyEntry.value('testing');
-				onTest();
-				break;
-			default:
+				test(); // Emit the 'test' event.
 				break;
 		}
-
 		dropdownOpen = false;
 	}
 
 	// handleOptionClick for Button Dropdown
 	function handleOptionClick(event: Event, value: ActionType): void {
 		event.preventDefault();
-		console.log('🎯 Option clicked:', {
-			value,
-			hasSelections,
-			selectedCount,
-			isDisabled: value !== 'create' && !hasSelections
-		});
-
 		// Prevent selecting actions that require selections when none are selected
 		if (value !== 'create' && !hasSelections) {
-			console.log('🚫 Action blocked - no selections for', value);
 			return;
 		}
 
-		console.log('✅ Setting listbox value to:', value);
+		// Set the action for the main button
 		storeListboxValue.set(value);
+
+		// For destructive actions or actions that open modals, handle them immediately.
+		// The main button click will handle the rest.
+		switch (value) {
+			case 'schedule':
+				openScheduleModal();
+				break;
+			case 'delete':
+				deleteAction();
+				break;
+		}
+
 		dropdownOpen = false;
 	}
 
@@ -181,30 +157,16 @@
 
 	// Update button display when storeListboxValue changes using root effect
 	$effect(() => {
-		let [action, buttonStyle, icon] = buttonMap[storeListboxValue.value as ActionType] || ['', '', '', ''];
+		const [action, buttonStyle, icon] = buttonMap[storeListboxValue.value as ActionType] || ['', '', '', ''];
 		actionName = action;
 		iconValue = icon;
 		buttonClass = `btn ${buttonStyle} rounded-none w-36 justify-between`;
-		console.log('🔄 MultiButton state updated:', {
-			action: storeListboxValue.value,
-			actionName,
-			hasSelections,
-			selectedCount,
-			buttonDisabled: storeListboxValue.value !== 'create' && !hasSelections
-		});
 	});
 
 	// Smart state management based on collection state and selections
 	$effect.root(() => {
-		console.log('🧠 Smart state management triggered:', {
-			isCollectionEmpty,
-			hasSelections,
-			currentAction: storeListboxValue.value
-		});
-
 		// If collection is empty, always show Create
 		if (isCollectionEmpty) {
-			console.log('📁 Collection is empty, setting to create');
 			storeListboxValue.set('create');
 			return;
 		}
@@ -212,16 +174,13 @@
 		// If no selections, default to Create (for adding new entries)
 		if (!hasSelections) {
 			if (storeListboxValue.value !== 'create') {
-				console.log('❌ No selections, switching to create');
 				storeListboxValue.set('create');
 			}
 			return;
 		}
 
 		// If has selections but current action is 'create', switch to 'publish'
-		// (most common action for selected items)
 		if (hasSelections && storeListboxValue.value === 'create') {
-			console.log('✅ Has selections, switching from create to publish');
 			storeListboxValue.set('publish');
 		}
 	});

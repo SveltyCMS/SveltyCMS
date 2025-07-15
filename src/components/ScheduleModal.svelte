@@ -23,7 +23,6 @@ Features:
 
 	// Props
 	interface Props {
-		/** Exposes parent props to this component. */
 		parent: any;
 	}
 	let { parent }: Props = $props();
@@ -33,9 +32,20 @@ Features:
 	type ActionType = 'published' | 'unpublished' | 'deleted';
 
 	let scheduleDate: string = $state('');
+	let scheduleDateOnly: string = $state('');
+	let scheduleTimeOnly: string = $state('');
 	// Default to 'published' if no initial action is provided
 	let action: ActionType = $state(($modalStore[0]?.meta?.initialAction as ActionType) || 'published');
 	let errorMessage: string = $state('');
+
+	// Combine date and time into a single string for validation and submission
+	$effect(() => {
+		if (scheduleDateOnly && scheduleTimeOnly) {
+			scheduleDate = `${scheduleDateOnly}T${scheduleTimeOnly}`;
+		} else {
+			scheduleDate = '';
+		}
+	});
 
 	const actionOptions: Array<{ value: ActionType; label: string }> = [
 		{ value: 'published', label: m.entrylist_multibutton_publish() },
@@ -70,16 +80,12 @@ Features:
 		handleSubmission();
 	}
 
-	/**
-	 * Handles the button click submission.
-	 */
+	// Handles the button click submission
 	function onButtonClick(): void {
 		handleSubmission();
 	}
 
-	/**
-	 * Common submission logic for both form submit and button click.
-	 */
+	//  Common submission logic for both form submit and button click
 	function handleSubmission(): void {
 		if (!validateForm()) return;
 
@@ -87,7 +93,7 @@ Features:
 		if ($modalStore[0]?.response) {
 			$modalStore[0].response({
 				date: scheduleDate,
-				action: 'schedule' // We always return 'schedule' as the primary action type from this modal
+				action: action // Pass the selected action
 			});
 		}
 
@@ -111,19 +117,33 @@ Features:
 		</article>
 
 		<form class="modal-form {cForm}" onsubmit={onFormSubmit}>
-			<label class="label">
-				<span>Schedule Date and Time</span>
-				<input
-					type="datetime-local"
-					bind:value={scheduleDate}
-					class="input"
-					required
-					min={new Date().toISOString().slice(0, 16)}
-					aria-describedby="schedule-date-error"
-				/>
-			</label>
+			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+				<label class="label">
+					<span>Schedule Date</span>
+					<input
+						type="date"
+						bind:value={scheduleDateOnly}
+						class="input"
+						required
+						min={new Date().toISOString().split('T')[0]}
+						aria-describedby="schedule-date-error"
+						onclick={(e) => (e.currentTarget as HTMLInputElement).showPicker()}
+					/>
+				</label>
+				<label class="label">
+					<span>Schedule Time</span>
+					<input
+						type="time"
+						bind:value={scheduleTimeOnly}
+						class="input"
+						required
+						aria-describedby="schedule-date-error"
+						onclick={(e) => (e.currentTarget as HTMLInputElement).showPicker()}
+					/>
+				</label>
+			</div>
 
-			<label class="label">
+			<label class="label mt-4">
 				<span>Action on Scheduled Time</span>
 				<select bind:value={action} class="select" required>
 					{#each actionOptions as option}

@@ -1,11 +1,13 @@
-import { test, expect } from '@playwright/test';
-
 /**
- * Test for OAuth first user signup functionality
- *
- * This test suite mocks the OAuth flow to avoid relying on real OAuth credentials
- * in CI/CD environments while still testing the OAuth integration logic.
+ * @file tests/playwright/oauth-signup-firstuser.spec.ts
+ * @description Playwright end-to-end tests for OAuth first user signup and configuration in SveltyCMS.
+ *   - Mocks the OAuth flow to avoid real credentials in CI/CD
+ *   - Verifies OAuth button visibility and Google icon
+ *   - Tests OAuth redirect and callback handling (success and error cases)
+ *   - Simulates avatar processing and email sending during signup
+ *   - Checks for proper error handling and configuration in different environments
  */
+import { test, expect } from '@playwright/test';
 
 test.describe('OAuth First User Signup', () => {
 	test.beforeEach(async ({ page }) => {

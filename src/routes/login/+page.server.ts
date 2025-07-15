@@ -43,7 +43,8 @@ import { get } from 'svelte/store';
 import { systemLanguage, type Locale } from '@stores/store.svelte';
 
 // Import roles
-import { roles } from '@root/config/roles';
+import { initializeRoles, roles } from '@root/config/roles';
+await initializeRoles();
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

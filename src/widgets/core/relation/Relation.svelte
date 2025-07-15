@@ -29,8 +29,8 @@
 	import type { FieldType } from '.';
 
 	// Utils
-	import { getData, saveFormData } from '@utils/data';
-	import { extractData, findById, getFieldName } from '@utils/utils';
+	import { apiRequest, getData } from '@utils/apiClient';
+	import { extractData, getFieldName } from '@utils/utils';
 
 	// Valibot validation
 	import * as v from 'valibot';
@@ -74,7 +74,12 @@
 					data = await extractData(fieldsData);
 				} else if (entryMode === 'choose') {
 					if (typeof value === 'string') {
-						data = await findById(value, String(relationCollection?.name || ''));
+						const result = await getData({
+							collectionId: String(relationCollection?._id || ''),
+							filter: JSON.stringify({ _id: value }),
+							limit: 1
+						});
+						data = result.entryList[0];
 					} else {
 						data = value;
 					}
@@ -148,31 +153,24 @@
 
 	function save() {
 		expanded = false;
-		$saveFunction.reset();
+		saveFunction.value.reset();
 		validateInput();
 	}
 
 	export const WidgetData = async () => {
 		let relation_id = '';
-		if (!field) return;
+		if (!field || !relationCollection?._id) return;
 
 		try {
 			if (entryMode === 'create') {
-				const result = await saveFormData({
-					data: fieldsData,
-					_collection: relationCollection,
-					_mode: 'create'
-				});
+				const result = (await apiRequest('POST', relationCollection._id, fieldsData)) as { _id: string }[];
 				relation_id = result[0]?._id || '';
 			} else if (entryMode === 'choose') {
 				relation_id = selected?._id || '';
 			} else if (entryMode === 'edit' && relation_entry?._id) {
-				const result = await saveFormData({
-					data: fieldsData,
-					_collection: relationCollection,
-					_mode: 'edit',
-					id: relation_entry._id
-				});
+				const result = (await apiRequest('PATCH', relationCollection._id, { ...fieldsData, _id: relation_entry._id })) as {
+					_id: string;
+				}[];
 				relation_id = result[0]?._id || '';
 			}
 

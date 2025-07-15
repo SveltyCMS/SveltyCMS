@@ -8,7 +8,6 @@
  * - Date and time formatting (convertTimestampToDateString, formatUptime, ReadableExpireIn)
  * - Data manipulation and validation (extractData, deepCopy, validateValibot)
  * - Internationalization helpers (getTextDirection, updateTranslationProgress)
- * - Database operations (find, findById)
  * - UI-related utilities (getGuiFields, motion)
  * - String manipulation (pascalToCamelCase, getEditDistance)
  * - And various other helper functions
@@ -23,7 +22,6 @@
  */
 
 import { publicEnv } from '@root/config/public';
-import axios from 'axios';
 import * as v from 'valibot';
 import type { BaseIssue, BaseSchema } from 'valibot';
 
@@ -180,55 +178,6 @@ export const fieldsToSchema = (fields: SchemaField[]): Record<string, unknown> =
 
 	return schema;
 };
-
-// Finds documents in collection that match query
-export async function find(query: object, contentTypes: string) {
-	if (!contentTypes) {
-		logger.warn('find called without a collection name');
-		return;
-	}
-	const _query = JSON.stringify(query);
-	try {
-		logger.debug(`Calling /api/find for collection: /x1b[34m${contentTypes}\x1b[0m with query: /x1b[34m${_query}\x1b[0m`);
-		const response = await axios.get(`/api/find?collection=${contentTypes}&query=${_query}`);
-		logger.debug(`Received response from /api/find for collection: /x1b[34m${contentTypes}\x1b[0m`);
-		return response.data;
-	} catch (err) {
-		logger.error(`Error in find function for collection /x1b[34m${contentTypes}/x1b[0m:`, err as LoggableValue);
-		if (axios.isAxiosError(err)) {
-			logger.error('Axios error details:', {
-				response: err.response?.data,
-				status: err.response?.status,
-				headers: err.response?.headers
-			});
-		}
-		throw err; // Re-throw the error after logging
-	}
-}
-
-// Finds document in collection with specified ID
-export async function findById(id: string, contentTypes: string) {
-	if (!id || !contentTypes) {
-		logger.warn(`findById called with invalid parameters. ID: /x1b[34m${id}\x1b[0m, Collection: /x1b[34m${contentTypes}\x1b[0m`);
-		return;
-	}
-	try {
-		logger.debug(`Calling /api/find for collection: /x1b[34m${contentTypes}\x1b[0m with ID: /x1b[34m${id}\x1b[0m`);
-		const response = await axios.get(`/api/find?collection=${contentTypes}&id=${id}`);
-		logger.debug(`Received response from /api/find for collection: ${contentTypes}\x1b[0m with ID: ${id}\x1b[0m`);
-		return response.data;
-	} catch (err) {
-		logger.error(`Error in findById function for collection /x1b[34m${contentTypes}\x1b[0m and ID /x1b[34m${id}\x1b[0m:`, err as LoggableValue);
-		if (axios.isAxiosError(err)) {
-			logger.error('Axios error details:', {
-				response: err.response?.data,
-				status: err.response?.status,
-				headers: err.response?.headers
-			});
-		}
-		throw err; // Re-throw the error after logging
-	}
-}
 
 // Returns field's database field name or label
 export function getFieldName(field: Field, rawName = false): string {
@@ -404,7 +353,7 @@ export function updateTranslationProgress(data, field) {
 	if (!fieldName || !field?.translated) {
 		return; // Exit if field name is invalid or field is not translatable
 	}
-	let current = translationProgress();
+	const current = translationProgress();
 	// Ensure 'show' property exists or initialize it
 	if (typeof current.show === 'undefined') {
 		current.show = false; // Or true, depending on desired initial state

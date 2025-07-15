@@ -62,7 +62,7 @@ const createBaseStores = () => {
 	const initialSystemLanguage = (getCookie('systemLanguage') as Locale | null) ?? (publicEnv.DEFAULT_SYSTEM_LANGUAGE as Locale);
 	const initialContentLanguage = (getCookie('contentLanguage') as Locale | null) ?? (publicEnv.DEFAULT_CONTENT_LANGUAGE as Locale);
 
-	// Language and i18n
+	// Language and ParaglideJS i18n
 	const systemLanguage = store<Locale>(initialSystemLanguage);
 	const contentLanguage = store<Locale>(initialContentLanguage);
 
@@ -208,7 +208,7 @@ const createBaseStores = () => {
 	});
 
 	return {
-		// Language and i18n
+		// Language and ParaglideJS i18n
 		systemLanguage,
 		contentLanguage,
 

@@ -21,7 +21,17 @@ jobs:
       fail-fast: true
       matrix:
         mongodb-version: [latest]
-        test-file: ['/tests/playwright/signupfirstuser.spec.ts', '/tests/playwright/user.spec.ts', '/tests/playwright/oauth-signup-firstuser.spec.ts']
+        test-file:
+          [
+            '/tests/playwright/signupfirstuser.spec.ts',
+            '/tests/playwright/user.spec.ts',
+            '/tests/playwright/oauth-signup-firstuser.spec.ts',
+            '/tests/playwright/collection.spec.ts',
+            '/tests/playwright/language.spec.ts',
+            '/tests/playwright/login.spec.ts',
+            '/tests/playwright/permission-change.spec.ts',
+            '/tests/playwright/user-crud.spec.ts'
+          ]
 
     steps:
       - name: Git checkout

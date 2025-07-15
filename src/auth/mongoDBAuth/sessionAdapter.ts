@@ -25,9 +25,11 @@ import { error } from '@sveltejs/kit';
 import type { Session, User } from '../types';
 import type { authDBInterface } from '../authDBInterface';
 
+// Auth
+import { UserAdapter } from './userAdapter';
+
 // System Logging
 import { logger } from '@utils/logger.svelte';
-import { UserAdapter } from './userAdapter';
 
 // Define the Session schema
 export const SessionSchema = new Schema(

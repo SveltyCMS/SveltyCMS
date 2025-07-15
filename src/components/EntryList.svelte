@@ -21,22 +21,18 @@ Features:
 -->
 
 <script module lang="ts">
-	// Strict type for sort order
-	export type SortOrder = 0 | 1 | -1;
-
-	// FIX: Removed the local FieldDefinition interface to prevent type conflicts
-	// with the actual types from your project's content schema.
+	export type SortOrder = 0 | 1 | -1; // Strict type for sort order
 </script>
 
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
 	// Utils
-	import { deleteData, getData, invalidateCollectionCache, setStatus } from '@utils/data';
+	import { apiRequest, getData, invalidateCollectionCache } from '@utils/apiClient';
 	import { formatDisplayDate } from '@utils/dateUtils';
 	import { debounce as debounceUtil, getFieldName, meta_data } from '@utils/utils';
 	// Types
-	import type { PaginationSettings, TableHeader } from './system/table/TablePagination.svelte';
+	import type { PaginationSettings, TableHeader } from '@components/system/table/TablePagination.svelte';
 	// Stores
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 	import { collection, collectionValue, contentStructure, mode, modifyEntry, statusMap } from '@stores/collectionStore.svelte';
@@ -191,7 +187,6 @@ Features:
 
 	// Enhanced loading state management for flicker-free transitions
 	let loadingState = $state<'idle' | 'loading' | 'error'>('idle');
-	let dataVersion = $state(0); // Version counter for data changes
 
 	// Simplified stable state management
 	let stableDataExists = $state(false);
@@ -403,12 +398,11 @@ Features:
 						// FIX: Cast `currentCollection.fields` to `any[]` to avoid type conflicts.
 						// Runtime checks for properties like `display` and `callback` are used instead.
 						for (const field of currentCollection.fields as any[]) {
-							const fieldLabelKey = field.label;
+							const fieldNameKey = getFieldName(field);
 							const rawDataKey = getFieldName(field, false);
-							const rawFieldName = getFieldName(field);
 
 							if (field.display && typeof field.display === 'function') {
-								obj[fieldLabelKey] = await field.display({
+								obj[fieldNameKey] = await field.display({
 									data: entry[rawDataKey],
 									collection: currentCollId,
 									field,
@@ -416,7 +410,13 @@ Features:
 									contentLanguage: currentLanguage
 								});
 							} else {
-								obj[fieldLabelKey] = entry[rawFieldName];
+								// Handle cases where data might be a string '[object Object]'
+								if (typeof entry[fieldNameKey] === 'string' && entry[fieldNameKey].includes('[object Object]')) {
+									// Fallback to the raw data which should be the actual object
+									obj[fieldNameKey] = entry[rawDataKey];
+								} else {
+									obj[fieldNameKey] = entry[fieldNameKey];
+								}
 							}
 							if (field.callback && typeof field.callback === 'function') {
 								field.callback({ data: entry });
@@ -460,7 +460,13 @@ Features:
 		// Adjust currentPage if it's out of bounds after data refresh
 		if (entryListPaginationSettings.currentPage > pagesCount && pagesCount > 0) {
 			entryListPaginationSettings.currentPage = pagesCount;
-		} else if (entryListPaginationSettings.currentPage <= 0 && pagesCount >= 1) {
+			// By returning here, we stop the current function and let the main $effect
+			// trigger a single, clean refresh with the corrected page number. This breaks the loop.
+			return;
+		}
+
+		// No change needed for the other conditions, they don't cause loops.
+		if (entryListPaginationSettings.currentPage <= 0 && pagesCount >= 1) {
 			entryListPaginationSettings.currentPage = 1;
 		} else if (pagesCount === 0 && entryListPaginationSettings.currentPage !== 1) {
 			entryListPaginationSettings.currentPage = 1;
@@ -468,7 +474,6 @@ Features:
 
 		loadingState = 'idle';
 		hasInitialLoad = true;
-		dataVersion++;
 	}
 
 	function savePaginationSettings() {
@@ -590,91 +595,86 @@ Features:
 	// Tick Row - modify STATUS of an Entry
 	modifyEntry.set(async (status?: keyof typeof statusMap): Promise<void> => {
 		if (!status) return Promise.resolve();
-		// Initialize an array to store the IDs of the items to be modified
+
+		// Filter out items that are already in the target status
 		const modifyList: Array<string> = [];
-		// Loop over the selectedMap object
 		for (const [index, isSelected] of Object.entries(selectedMap)) {
-			// If the item is ticked, add its ID to the modifyList
-			isSelected && modifyList.push(tableData[Number(index)]._id);
+			if (isSelected) {
+				const entry = tableData[Number(index)];
+				if (entry.raw_status !== status) {
+					modifyList.push(entry._id);
+				}
+			}
 		}
-		// If no rows are selected, return
+
 		if (modifyList.length === 0) {
-			return Promise.resolve();
+			toastStore.trigger({
+				message: `Selected items are already in '${status}' state or no items selected.`,
+				background: 'variant-filled-warning'
+			});
+			return;
 		}
+
 		// Function to handle confirmation modal response
 		const handleConfirmation = async (confirm: boolean) => {
 			if (!confirm) return;
-			// Initialize a new FormData object
-			const formData = new FormData();
-			// Append the IDs of the items to be modified to formData
-			formData.append('ids', JSON.stringify(modifyList));
-			// Append the status to formData
-			formData.append('status', statusMap[status]);
 			if (!currentCollection?._id) {
-				toastStore.trigger({
-					message: 'Error: No collection selected or collection ID is missing.',
-					background: 'variant-filled-error',
-					timeout: 4000
-				});
+				toastStore.trigger({ message: 'No collection selected', background: 'variant-filled-error' });
 				return;
 			}
 			try {
-				// Call the appropriate API endpoint based on the status
-				switch (status) {
-					case 'deleted':
-						// If the status is 'deleted', call the delete endpoint
-						await deleteData({ data: formData, collectionId: currentCollection._id });
-						break;
-					case 'published':
-						// If the status is 'published', call the setStatus endpoint
-						await setStatus({ data: formData, collectionId: currentCollection._id });
-						break;
-					case 'unpublished':
-						// If the status is 'unpublished', call the setStatus endpoint
-						await setStatus({ data: formData, collectionId: currentCollection._id });
-						break;
-					case 'testing':
-						// If the status is 'testing', call the setStatus endpoint
-						await setStatus({ data: formData, collectionId: currentCollection._id });
-						break;
-					case 'scheduled':
-						// If the status is 'scheduled', call the setStatus endpoint
-						await setStatus({ data: formData, collectionId: currentCollection._id });
-						break;
-					case 'cloned':
-						// Trigger a toast message indicating that the feature is not yet implemented
-						toastStore.trigger({
-							message: 'Clone feature not yet implemented.',
-							background: 'variant-filled-error',
-							timeout: 3000
-						});
-						break;
-				}
-
-				refreshTableData(true); // Refresh the collection
-				mode.set('view'); // Set the mode to 'view'
-			} catch (error) {
-				console.error(`Error modifying entries: ${(error as Error).message}`);
-				toastStore.trigger({ message: `Error: ${(error as Error).message}`, background: 'variant-filled-error' });
+				await apiRequest('SETSTATUS', currentCollection._id, {
+					ids: modifyList,
+					status: statusMap[status]
+				});
+				// Invalidate cache and refresh the table data
+				invalidateCollectionCache(currentCollection._id);
+				refreshTableData();
+				// Show a success toast
+				toastStore.trigger({ message: `Successfully set status to ${status}`, background: 'variant-filled-success' });
+			} catch (e) {
+				toastStore.trigger({
+					message: `Error setting status: ${(e as Error).message}`,
+					background: 'variant-filled-error'
+				});
 			}
 		};
-		// If more than one row is selected or the status is 'delete', show confirmation modal
-		if (modifyList.length > 1 || status === 'deleted') {
-			const modalData: ModalSettings = {
-				type: 'confirm',
-				title: m.entrylist_title(),
-				body: m.entrylist_body({
-					status: `<span class="text-text-tertiary-500 dark:text-primary-500">${status.charAt(0).toUpperCase()}${status.slice(1)}</span>`
-				}),
-				buttonTextCancel: m.button_cancel(),
-				buttonTextConfirm: m.button_confirm(),
-				response: handleConfirmation
-			};
-			modalStore.trigger(modalData); // Trigger the confirmation modal
-		} else {
-			// If only one row is selected and status is not 'delete', directly proceed with modification
-			handleConfirmation(true);
+
+		const itemCount = modifyList.length;
+		const itemText = itemCount === 1 ? 'item' : 'items';
+
+		let actionText: string;
+		let modalClass = '';
+
+		switch (status) {
+			case 'published':
+				actionText = 'Publish';
+				modalClass = 'modal-confirm-publish';
+				break;
+			case 'unpublished':
+				actionText = 'Unpublish';
+				modalClass = 'modal-confirm-unpublish';
+				break;
+			case 'testing':
+				actionText = 'Test';
+				modalClass = 'modal-confirm-test';
+				break;
+			default:
+				actionText = status.charAt(0).toUpperCase() + status.slice(1);
+				break;
 		}
+
+		// Define modal settings
+		const modal: ModalSettings = {
+			type: 'confirm',
+			title: `Confirm ${actionText}`,
+			body: `Are you sure you want to set status to '${status}' for ${itemCount} ${itemText}?`,
+			response: (r: boolean) => handleConfirmation(r),
+			buttonTextConfirm: actionText,
+			modalClasses: modalClass
+		};
+		// Trigger the modal
+		modalStore.trigger(modal);
 	});
 
 	let categoryName = $derived.by(() => {
@@ -685,12 +685,145 @@ Features:
 		return pathSegments?.slice(0, -1).join(' >') || '';
 	});
 
-	// Simplified rendering state management - no flicker
+	// Functions to handle actions from EntryListMultiButton
+	function onPublish() {
+		modifyEntry.value('published');
+	}
+	function onUnpublish() {
+		modifyEntry.value('unpublished');
+	}
+	function onSchedule() {
+		const selectedIds = Object.entries(selectedMap)
+			.filter(([, isSelected]) => isSelected)
+			.map(([index]) => tableData[Number(index)]._id);
+
+		if (selectedIds.length === 0) {
+			toastStore.trigger({ message: 'Please select items to schedule.', background: 'variant-filled-warning' });
+			return;
+		}
+
+		const modal: ModalSettings = {
+			type: 'component',
+			component: 'ScheduleModal',
+			title: 'Schedule Action',
+			body: `Select a date, time, and action for the ${selectedIds.length} selected item(s).`,
+			response: async (data: { date: string; action: 'published' | 'unpublished' | 'deleted' } | undefined) => {
+				if (!data || !currentCollection?._id) return;
+
+				try {
+					await apiRequest('SCHEDULE', currentCollection._id, {
+						ids: selectedIds,
+						schedule: {
+							date: data.date,
+							action: data.action
+						}
+					});
+					toastStore.trigger({ message: 'Items scheduled successfully.', background: 'variant-filled-success' });
+					invalidateCollectionCache(currentCollection._id);
+					refreshTableData();
+				} catch (e) {
+					toastStore.trigger({ message: `Error scheduling items: ${(e as Error).message}`, background: 'variant-filled-error' });
+				}
+			}
+		};
+		modalStore.trigger(modal);
+	}
+	function onDelete() {
+		if (!currentCollection?._id) {
+			toastStore.trigger({ message: 'No collection selected.', background: 'variant-filled-error' });
+			return;
+		}
+		const selectedIds = Object.entries(selectedMap)
+			.filter(([, isSelected]) => isSelected)
+			.map(([index]) => tableData[Number(index)]._id);
+
+		if (selectedIds.length === 0) {
+			toastStore.trigger({ message: 'Please select items to delete.', background: 'variant-filled-warning' });
+			return;
+		}
+
+		const itemCount = selectedIds.length;
+		const itemText = itemCount === 1 ? 'item' : 'items';
+
+		const modal: ModalSettings = {
+			type: 'confirm',
+			title: 'Confirm Deletion',
+			body: `Are you sure you want to delete ${itemCount} ${itemText}? This action cannot be undone.`,
+			response: async (confirmed: boolean) => {
+				if (confirmed) {
+					if (!currentCollection?._id) return;
+					try {
+						await apiRequest('DELETE', currentCollection._id, { ids: JSON.stringify(selectedIds) });
+						toastStore.trigger({ message: 'Items deleted successfully.', background: 'variant-filled-success' });
+						invalidateCollectionCache(currentCollection._id); // Invalidate cache
+						refreshTableData(); // Refresh data to show changes
+					} catch (e) {
+						toastStore.trigger({ message: `Error deleting items: ${(e as Error).message}`, background: 'variant-filled-error' });
+					}
+				}
+			},
+			buttonTextConfirm: 'Delete',
+			modalClasses: 'modal-confirm-delete'
+		};
+		modalStore.trigger(modal);
+	}
+	function onTest() {
+		// Assuming 'testing' is a valid status
+		modifyEntry.value('testing');
+	}
+	function onClone() {
+		if (!currentCollection?._id) {
+			toastStore.trigger({ message: 'No collection selected.', background: 'variant-filled-error' });
+			return;
+		}
+		const selectedEntries = Object.entries(selectedMap)
+			.filter(([, isSelected]) => isSelected)
+			.map(([index]) => tableData[Number(index)]);
+
+		if (selectedEntries.length === 0) {
+			toastStore.trigger({ message: 'Please select item(s) to clone.', background: 'variant-filled-warning' });
+			return;
+		}
+
+		const itemCount = selectedEntries.length;
+		const itemText = itemCount === 1 ? 'item' : 'items';
+
+		const modal: ModalSettings = {
+			type: 'confirm',
+			title: 'Confirm Clone',
+			body: `Are you sure you want to clone ${itemCount} ${itemText}?`,
+			response: async (confirmed: boolean) => {
+				if (confirmed) {
+					if (!currentCollection?._id) return;
+					try {
+						const clonePromises = selectedEntries.map((entry) => {
+							const clonedPayload = { ...entry };
+							delete clonedPayload._id; // Remove original ID
+							delete clonedPayload.createdAt;
+							delete clonedPayload.updatedAt;
+							clonedPayload.status = 'unpublished';
+							return apiRequest('POST', currentCollection!._id, clonedPayload);
+						});
+						await Promise.all(clonePromises);
+						toastStore.trigger({ message: 'Items cloned successfully.', background: 'variant-filled-success' });
+						invalidateCollectionCache(currentCollection._id); // Invalidate cache
+						refreshTableData();
+					} catch (e) {
+						toastStore.trigger({ message: `Error cloning items: ${(e as Error).message}`, background: 'variant-filled-error' });
+					}
+				}
+			},
+			buttonTextConfirm: 'Clone',
+			modalClasses: 'modal-confirm-clone'
+		};
+		modalStore.trigger(modal);
+	}
+
 	// Show content as soon as we have a collection, even if still loading
 	let shouldShowContent = $derived(currentCollection?._id && (hasInitialLoad || loadingState === 'loading'));
 	let shouldShowTable = $derived(shouldShowContent && (stableDataExists || tableData.length > 0) && loadingState !== 'loading');
 	let shouldShowNoDataMessage = $derived(
-		shouldShowContent && !isLoading && tableData.length === 0 && loadingState === 'idle' && hasInitialLoad && stableDataExists === false // Only show when we've confirmed no data exists
+		shouldShowContent && !isLoading && tableData.length === 0 && loadingState === 'idle' && hasInitialLoad && stableDataExists === false
 	);
 
 	// Use regular visibleTableHeaders - no need for complex transition logic
@@ -797,6 +930,12 @@ Features:
 					isCollectionEmpty={tableData.length === 0}
 					{hasSelections}
 					selectedCount={Object.values(selectedMap).filter(Boolean).length}
+					publish={onPublish}
+					unpublish={onUnpublish}
+					schedule={onSchedule}
+					delete={onDelete}
+					test={onTest}
+					clone={onClone}
 				/>
 			</div>
 		</div>
@@ -919,9 +1058,6 @@ Features:
 								checked={SelectAll}
 								onCheck={(checked) => {
 									SelectAll = checked;
-									tableData.forEach((_, index) => {
-										selectedMap[index] = checked;
-									});
 								}}
 							/>
 						</td>
@@ -1011,10 +1147,10 @@ Features:
 									>
 										{#if header.name === 'status'}
 											<Status value={entry.raw_status} />
-										{:else if typeof entry[header.label] === 'object' && entry[header.label] !== null}
-											{@html entry[header.label][currentLanguage] || '-'}
+										{:else if typeof entry[header.name] === 'object' && entry[header.name] !== null}
+											{@html entry[header.name][currentLanguage] || '-'}
 										{:else}
-											{@html entry[header.label] || '-'}
+											{@html entry[header.name] || '-'}
 										{/if}
 									</td>
 								{/each}
@@ -1035,7 +1171,7 @@ Features:
 				bind:rowsPerPage={entryListPaginationSettings.rowsPerPage}
 				{pagesCount}
 				{totalItems}
-				onUpdatePage={(page) => {
+				onUpdatePage={(page: number) => {
 					if (isCollectionChanging || isInitializing) {
 						console.log(`[EntryList] Skipping onUpdatePage during collection change/initialization`);
 						return;
@@ -1043,7 +1179,7 @@ Features:
 					entryListPaginationSettings.currentPage = page;
 					refreshTableData(true);
 				}}
-				onUpdateRowsPerPage={(rows) => {
+				onUpdateRowsPerPage={(rows: number) => {
 					if (isCollectionChanging || isInitializing) {
 						console.log(`[EntryList] Skipping onUpdateRowsPerPage during collection change/initialization`);
 						return;
@@ -1072,5 +1208,20 @@ Features:
 	}
 	div::-webkit-scrollbar {
 		width: 10px;
+	}
+	:global(.modal-confirm-publish .btn-confirm) {
+		@apply bg-success-500 text-white;
+	}
+	:global(.modal-confirm-unpublish .btn-confirm) {
+		@apply bg-warning-500 text-white;
+	}
+	:global(.modal-confirm-delete .btn-confirm) {
+		@apply bg-error-500 text-white;
+	}
+	:global(.modal-confirm-clone .btn-confirm) {
+		@apply bg-secondary-500 text-white;
+	}
+	:global(.modal-confirm-test .btn-confirm) {
+		@apply bg-secondary-500 text-white;
 	}
 </style>

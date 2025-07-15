@@ -8,13 +8,15 @@ import type { PageServerLoad } from './$types';
 
 // Simplified Auth
 import { hasPermissionWithRoles, getAllPermissions } from '@src/auth/permissions';
-import { roles } from '@root/config/roles';
+import { initializeRoles, roles } from '@root/config/roles';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {
+		await initializeRoles(); // Await role initialization
+
 		logger.debug('Starting load function for access management page');
 
 		const { user } = locals;

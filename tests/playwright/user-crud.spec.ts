@@ -1,3 +1,11 @@
+/**
+ * @file tests/playwright/user-crud.spec.ts
+ * @description Playwright end-to-end tests for user management CRUD flows in SveltyCMS.
+ *   - Admin login
+ *   - Read and edit user profile
+ *   - Delete, block, and unblock users
+ *   - Invite user via email and accept invitation
+ */
 import { test, expect } from '@playwright/test';
 
 test.describe('User Management Flow', () => {
