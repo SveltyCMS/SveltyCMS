@@ -151,11 +151,7 @@
 	let currentTheme = $derived($modeCurrent ? 'light' : 'dark');
 	let availableWidgets = $derived(Object.keys(widgetComponentRegistry).filter((name) => !items.some((item) => item.component === name)));
 	let canAddMoreWidgets = $derived(availableWidgets.length > 0);
-	let filteredWidgets = $derived(
-		availableWidgets.filter((name) =>
-			name.toLowerCase().includes(searchQuery.toLowerCase())
-		)
-	);
+	let filteredWidgets = $derived(availableWidgets.filter((name) => name.toLowerCase().includes(searchQuery.toLowerCase())));
 
 	// Track the current screen size
 	let currentScreenSize = $screenSize;
@@ -165,7 +161,10 @@
 
 	// Search state
 	let searchQuery = $state('');
-	let searchInput: HTMLInputElement | null = null;
+	let searchInput = $state<HTMLInputElement | null>(null);
+
+	// Reference to the main container for boundary checks
+	let mainContainerEl = $state<HTMLElement | null>(null);
 
 	function handleDropdownOpen() {
 		dropdownOpen = !dropdownOpen;
@@ -262,27 +261,39 @@
 	}
 
 	function removeGlobalDragListeners() {
-		document.removeEventListener('mousemove', handleDragMove);
-		document.removeEventListener('mouseup', handleDragEnd);
-		document.removeEventListener('touchmove', handleDragMove);
-		document.removeEventListener('touchend', handleDragEnd);
+		window.removeEventListener('mousemove', handleDragMove);
+		window.removeEventListener('touchmove', handleDragMove);
+		window.removeEventListener('mouseup', handleDragEnd);
+		window.removeEventListener('touchend', handleDragEnd);
 	}
 
 	function handleDragMove(event: MouseEvent | TouchEvent) {
-		if (!dragState.isActive || !dragState.element) return;
+		if (!dragState.isActive || !dragState.element || !mainContainerEl) return;
 
 		event.preventDefault();
 		const coords = getClientCoordinates(event);
+		const containerRect = mainContainerEl.getBoundingClientRect();
+		const elementRect = dragState.element.getBoundingClientRect();
 
-		// Update dragged element position
-		dragState.element.style.left = `${coords.x - dragState.offset.x}px`;
-		dragState.element.style.top = `${coords.y - dragState.offset.y}px`;
+		// Calculate the new position
+		let newX = coords.x - dragState.offsetX;
+		let newY = coords.y - dragState.offsetY;
 
-		// Update drop indicator
-		updateDropIndicator(coords);
+		// Clamp the position within the main container's boundaries
+		newX = Math.max(containerRect.left, Math.min(newX, containerRect.right - elementRect.width));
+		newY = Math.max(containerRect.top, Math.min(newY, containerRect.bottom - elementRect.height));
+
+		// Apply the new position
+		dragState.element.style.left = `${newX}px`;
+		dragState.element.style.top = `${newY}px`;
+
+		// Update the drop indicator
+		updateDropIndicator({ x: newX + elementRect.width / 2, y: newY + elementRect.height / 2 });
 	}
 
 	function updateDropIndicator(coords: { x: number; y: number }) {
+		if (!dragState.isActive) return;
+
 		// Find widget container under cursor
 		const widgetContainer = findWidgetContainerAtCoords(coords);
 
@@ -768,41 +779,43 @@
 	}
 
 	// Lifecycle and data management
-	onMount(async () => {
-		try {
-			await systemPreferences.loadPreferences(pageData.user.id);
+	onMount(() => {
+		(async () => {
+			try {
+				await systemPreferences.loadPreferences(pageData.user.id);
 
-			// Get the current state from the store
-			const currentState = systemPreferences.getState();
+				// Get the current state from the store
+				const currentState = systemPreferences.getState();
 
-			const loadedWidgets = validateWidgets(currentState?.preferences || []);
-			items = loadedWidgets.map((existingWidget, index) => {
-				const componentInfo = widgetComponentRegistry[existingWidget.component as keyof typeof widgetComponentRegistry];
-				let defaultSize: WidgetSize = '1/4';
-				if (existingWidget.component === 'LogsWidget') defaultSize = '1/2';
-				else {
-					if (index === 1) defaultSize = '1/2';
-					if (index === 2) defaultSize = '3/4';
-					if (index === 3) defaultSize = 'full';
-				}
-				return {
-					id: existingWidget.id || crypto.randomUUID(),
-					component: existingWidget.component,
-					label: existingWidget.label || componentInfo?.name || 'Unknown Widget',
-					icon: existingWidget.icon || componentInfo?.icon || 'mdi:help-circle',
-					size: existingWidget.size || defaultSize,
-					gridPosition: index
-				};
-			});
-			items = recalculateGridPositions();
-			loadError = null;
-		} catch (error) {
+				const loadedWidgets = validateWidgets(currentState?.preferences || []);
+				items = loadedWidgets.map((existingWidget, index) => {
+					const componentInfo = widgetComponentRegistry[existingWidget.component as keyof typeof widgetComponentRegistry];
+					let defaultSize: WidgetSize = '1/4';
+					if (existingWidget.component === 'LogsWidget') defaultSize = '1/2';
+					else {
+						if (index === 1) defaultSize = '1/2';
+						if (index === 2) defaultSize = '3/4';
+						if (index === 3) defaultSize = 'full';
+					}
+					return {
+						id: existingWidget.id || crypto.randomUUID(),
+						component: existingWidget.component,
+						label: existingWidget.label || componentInfo?.name || 'Unknown Widget',
+						icon: existingWidget.icon || componentInfo?.icon || 'mdi:help-circle',
+						size: existingWidget.size || defaultSize,
+						gridPosition: index
+					};
+				});
+				items = recalculateGridPositions();
+				loadError = null;
+			} catch (error) {
 				items = [];
-			loadError = 'Failed to load dashboard preferences. Please try again.';
-		}
-		preferencesLoaded = true;
-		document.addEventListener('keydown', handleKeyDown);
-		document.addEventListener('click', handleClickOutside);
+				loadError = 'Failed to load dashboard preferences. Please try again.';
+			}
+			preferencesLoaded = true;
+			document.addEventListener('keydown', handleKeyDown);
+			document.addEventListener('click', handleClickOutside);
+		})();
 
 		return () => {
 			document.removeEventListener('keydown', handleKeyDown);
@@ -854,12 +867,9 @@
 	}
 </script>
 
-<main
-	class="dashboard-container m-0 flex w-full flex-col bg-surface-100 p-0 text-neutral-900 dark:bg-surface-900 dark:text-neutral-100"
-	style="overflow-x: hidden; touch-action: pan-y;"
->
-	<header class="my-2 flex items-center justify-between gap-2 border-b border-surface-200 px-4 py-2 dark:border-surface-700">
-		<h1 class="sr-only">Dashboard</h1>
+<main bind:this={mainContainerEl} style="overflow-x: hidden; touch-action: pan-y;" class="relative">
+	<!-- Header with controls -->
+	<header class="flex items-center justify-between gap-2">
 		<PageTitle name="Dashboard" icon="bi:bar-chart-line" />
 		<div class="flex items-center gap-2">
 			{#if keyboardState.mode}
@@ -877,7 +887,9 @@
 						type="button"
 						aria-haspopup="true"
 						aria-expanded={dropdownOpen}
-						class="widget-dropdown-button btn rounded-full bg-primary-500 px-5 py-2 shadow-lg text-white font-semibold flex items-center gap-2 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-400 dark:bg-primary-600 dark:hover:bg-primary-500"
+						class="widget-dropdown-button {$screenSize === 'SM' || $screenSize === 'XS'
+							? 'variant-filled-primary btn-icon'
+							: 'variant-filled-primary btn'}"
 						title="Add Widget"
 					>
 						<iconify-icon icon="carbon:add-filled" width="20"></iconify-icon>
@@ -886,8 +898,11 @@
 						{/if}
 					</button>
 					{#if dropdownOpen}
-						<div role="menu" class="widget-dropdown absolute right-0 z-30 mt-2 w-72 rounded-xl border border-gray-200 bg-white shadow-2xl dark:bg-surface-900 dark:border-gray-700">
-							<div class="border-b border-gray-200 p-4 bg-gray-50 rounded-t-xl dark:border-gray-700 dark:bg-surface-800">
+						<div
+							role="menu"
+							class="widget-dropdown absolute right-0 z-30 mt-2 w-72 rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-surface-900"
+						>
+							<div class="rounded-t-xl border-b border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-surface-800">
 								<input
 									bind:this={searchInput}
 									type="text"
@@ -897,15 +912,16 @@
 									aria-label="Search widgets"
 								/>
 							</div>
-							<div class="max-h-64 overflow-y-auto py-1 bg-white dark:bg-surface-900 rounded-b-xl">
+							<div class="max-h-64 overflow-y-auto rounded-b-xl bg-white py-1 dark:bg-surface-900">
 								{#if filteredWidgets.length > 0}
 									{#each filteredWidgets as widgetName}
 										<button
-											class="w-full px-4 py-2 text-left flex items-center gap-2 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors rounded-md"
+											class="flex w-full items-center gap-2 rounded-md px-4 py-2 text-left transition-colors hover:bg-primary-100 dark:hover:bg-primary-900/30"
 											onclick={() => addNewWidget(widgetName)}
 											type="button"
 										>
-											<iconify-icon icon={widgetComponentRegistry[widgetName]?.icon} width="20" class="text-primary-500 dark:text-primary-400" />
+											<iconify-icon icon={widgetComponentRegistry[widgetName]?.icon} width="20" class="text-primary-500 dark:text-primary-400"
+											></iconify-icon>
 											<span class="ml-2">{widgetComponentRegistry[widgetName]?.name}</span>
 										</button>
 									{/each}
@@ -917,16 +933,30 @@
 					{/if}
 				</div>
 			{/if}
-			<button class="variant-outline-warning btn" onclick={resetGrid}>Reset Layout</button>
+			<button
+				class={$screenSize === 'SM' || $screenSize === 'XS' ? 'variant-outline-warning btn-icon' : 'variant-outline-warning btn'}
+				onclick={resetGrid}
+				aria-label="Reset Layout"
+			>
+				<iconify-icon icon="mdi:refresh" width="20"></iconify-icon>
+				{#if $screenSize !== 'SM' && $screenSize !== 'XS'}
+					<span>Reset Layout</span>
+				{/if}
+			</button>
 			<button
 				onclick={() => (keyboardState.mode = !keyboardState.mode)}
-				class="variant-outline-primary btn gap-2 {keyboardState.mode
+				class="{$screenSize === 'SM' || $screenSize === 'XS'
+					? 'variant-outline-primary btn-icon'
+					: 'variant-outline-primary btn gap-2'} {keyboardState.mode
 					? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
 					: ''}"
 				title="Toggle keyboard navigation mode"
+				aria-label="Toggle keyboard navigation mode"
 			>
 				<iconify-icon icon="mdi:keyboard" width="16"></iconify-icon>
-				Keyboard
+				{#if $screenSize !== 'SM' && $screenSize !== 'XS'}
+					<span>Keyboard</span>
+				{/if}
 			</button>
 			<button onclick={() => history.back()} aria-label="Back" class="variant-ghost-surface btn-icon">
 				<iconify-icon icon="ri:arrow-left-line" width="20"></iconify-icon>
@@ -982,7 +1012,7 @@
 				<div class="flex h-full items-center justify-center text-lg text-gray-500" role="status" aria-live="polite">Loading preferences...</div>
 			{:else if items.length > 0}
 				<div
-					class="responsive-dashboard-grid relative grid w-full gap-4"
+					class="responsive-dashboard-grid relative grid w-full gap-2"
 					role="grid"
 					aria-label="Dashboard widgets grid"
 					data-grid-update={gridUpdateCounter}
@@ -993,7 +1023,7 @@
 						{@const columnSpan = getColumnSpan(effectiveSize)}
 
 						<article
-							class="widget-container grid-span-{columnSpan} group relative select-none overflow-hidden rounded-lg transition-all duration-200 ease-in-out {keyboardState.mode &&
+							class="widget-container grid-span-{columnSpan} group relative select-none overflow-hidden rounded-md transition-all duration-200 ease-in-out {keyboardState.mode &&
 							keyboardState.selectedIndex === index
 								? 'ring-1 ring-primary-500'
 								: ''} {dragState.isActive && keyboardState.dropTarget === index ? 'ring-1 ring-success-500' : ''}"
@@ -1049,12 +1079,12 @@
 						<div
 							class="pointer-events-none absolute z-20 animate-pulse rounded-lg border-4 border-dashed border-success-500 bg-success-50/60 shadow-lg transition-all duration-200 dark:border-success-400 dark:bg-success-900/30"
 							style="
-								left: {(dropIndicator.index % 4) * (100 / 4)}%;
-								top: {Math.floor(dropIndicator.index / 4) * (ROW_HEIGHT + GAP_SIZE)}px;
-								width: {100 / 4}%;
-								height: {ROW_HEIGHT}px;
-								transform: translateX({GAP_SIZE / 2}px) translateY({GAP_SIZE / 2}px);
-							"
+                                left: {(dropIndicator.index % 4) * (100 / 4)}%;
+                                top: {Math.floor(dropIndicator.index / 4) * (ROW_HEIGHT + GAP_SIZE)}px;
+                                width: {100 / 4}%;
+                                height: {ROW_HEIGHT}px;
+                                transform: translateX({GAP_SIZE / 2}px) translateY({GAP_SIZE / 2}px);
+                            "
 						>
 							<div class="flex h-full items-center justify-center">
 								<iconify-icon icon="mdi:plus-circle" width="32" class="animate-bounce text-success-500 dark:text-success-400"></iconify-icon>

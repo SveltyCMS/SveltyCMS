@@ -21,37 +21,43 @@ import { json } from '@sveltejs/kit';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
+import * as v from 'valibot';
+
+// --- Validation Schemas ---
+
+const WidgetSchema = v.object({
+	id: v.string(),
+	component: v.string(),
+	label: v.string(),
+	icon: v.string(),
+	size: v.enum(['1/4', '1/2', '3/4', 'full']),
+	gridPosition: v.number()
+	// NOTE: We don't need to validate x,y,w,h,movable etc. as they are for client-side libraries and not persisted.
+});
+
+const SavePreferencesBodySchema = v.object({
+	preferences: v.array(WidgetSchema)
+});
+
+const UpdateScreenBodySchema = v.object({
+	screenSize: v.enum(['SM', 'MD', 'LG', 'XL']),
+	widgets: v.array(WidgetSchema)
+});
+
+// --- API Handlers ---
 
 export const GET = async ({ locals, url }) => {
-	// Try to get userId from query param, otherwise use locals.user
-	const userId = url.searchParams.get('userId') || locals.user?._id?.toString();
+	const userId = locals.user?._id?.toString();
 	if (!userId) {
 		logger.warn('Unauthorized attempt to load system preferences.');
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
-	// Handle widget state requests
-	const widgetId = url.searchParams.get('widgetId');
-	if (widgetId) {
-		try {
-			const state = await dbAdapter.systemPreferences.getWidgetState(userId, widgetId);
-			return json({ state });
-		} catch (e) {
-			logger.error('Failed to load widget state:', e);
-			return json({ error: 'Failed to load widget state' }, { status: 500 });
-		}
-	}
-
-	// Default system preferences load
 	try {
 		const preferences = await dbAdapter.systemPreferences.getSystemPreferences(userId);
+		// Provide a default empty structure if no preferences are found
 		return json({
-			preferences: preferences ?? {
-				SM: [],
-				MD: [],
-				LG: [],
-				XL: []
-			}
+			preferences: preferences ?? { SM: [], MD: [], LG: [], XL: [] }
 		});
 	} catch (e) {
 		logger.error('Failed to load system preferences:', e);
@@ -60,30 +66,22 @@ export const GET = async ({ locals, url }) => {
 };
 
 export const POST = async ({ request, locals }) => {
-	const data = await request.json();
-	// Try to get userId from request body, otherwise use locals.user
-	const userId = data.userId || locals.user?._id?.toString();
+	const userId = locals.user?._id?.toString();
 	if (!userId) {
 		logger.warn('Unauthorized attempt to save system preferences.');
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
-	// Handle widget state persistence
-	if (data.widgetId && data.state) {
-		try {
-			await dbAdapter.systemPreferences.setWidgetState(userId, data.widgetId, data.state);
-			return json({ success: true });
-		} catch (e) {
-			logger.error('Failed to save widget state:', e);
-			return json({ error: 'Failed to save widget state' }, { status: 500 });
-		}
+	const data = await request.json();
+	const result = v.safeParse(SavePreferencesBodySchema, data);
+
+	if (!result.success) {
+		return json({ error: 'Invalid preferences data.', issues: result.issues }, { status: 400 });
 	}
 
-	// Default preferences save
-	const { preferences } = data;
 	try {
-		await dbAdapter.systemPreferences.setUserPreferences(userId, preferences);
-		return json({ success: true });
+		await dbAdapter.systemPreferences.setUserPreferences(userId, result.output.preferences);
+		return json({ success: true }, { status: 200 });
 	} catch (e) {
 		logger.error('Failed to save system preferences:', e);
 		return json({ error: 'Failed to save preferences' }, { status: 500 });
@@ -91,19 +89,23 @@ export const POST = async ({ request, locals }) => {
 };
 
 export const PUT = async ({ request, locals }) => {
-	const user = locals.user;
-	if (!user) {
+	const userId = locals.user?._id?.toString();
+	if (!userId) {
 		logger.warn('Unauthorized attempt to update system preferences.');
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
 
+	const data = await request.json();
+	const result = v.safeParse(UpdateScreenBodySchema, data);
+
+	if (!result.success) {
+		return json({ error: 'Missing or invalid screenSize/widgets.', issues: result.issues }, { status: 400 });
+	}
+
 	try {
-		const { screenSize, widgets } = await request.json();
-		if (!screenSize || !Array.isArray(widgets)) {
-			return json({ error: 'Missing or invalid screenSize/widgets' }, { status: 400 });
-		}
-		await dbAdapter.systemPreferences.updateSystemPreferences(user._id.toString(), screenSize, widgets);
-		return json({ success: true });
+		const { screenSize, widgets } = result.output;
+		await dbAdapter.systemPreferences.updateSystemPreferences(userId, screenSize, widgets);
+		return json({ success: true }, { status: 200 });
 	} catch (e) {
 		logger.error('Failed to update system preferences:', e);
 		return json({ error: 'Failed to update preferences' }, { status: 500 });

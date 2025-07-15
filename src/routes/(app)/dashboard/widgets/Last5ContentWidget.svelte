@@ -87,6 +87,7 @@ This widget fetches and displays the latest content items, including:
 	}>();
 
 	function getStatusIcon(status: string): string {
+		if (!status) return 'mdi:file-document'; // Guard against undefined status
 		switch (status.toLowerCase()) {
 			case 'published':
 				return 'mdi:check-circle';
@@ -118,6 +119,7 @@ This widget fetches and displays the latest content items, including:
 	}
 
 	function getStatusColorClass(status: string): string {
+		if (!status) return 'text-surface-600 dark:text-surface-300'; // Guard against undefined status
 		switch (status.toLowerCase()) {
 			case 'published':
 				return 'text-green-600 dark:text-green-400';
@@ -172,7 +174,7 @@ This widget fetches and displays the latest content items, including:
 							</div>
 						</div>
 						<div class="flex flex-col items-end">
-							<span class="uppercase text-xs font-medium {getStatusColorClass(content.status)}">
+							<span class="text-xs font-medium uppercase {getStatusColorClass(content.status)}">
 								{content.status}
 							</span>
 							<span class="text-xs text-surface-500 dark:text-surface-400" title={`Created: ${formatDate(content.createdAt)}`}>
@@ -184,11 +186,7 @@ This widget fetches and displays the latest content items, including:
 			</div>
 		{:else}
 			<div class="flex flex-1 flex-col items-center justify-center py-6 text-xs text-gray-500 dark:text-gray-400" role="status" aria-live="polite">
-				<iconify-icon
-					icon="mdi:file-document-outline"
-					width="32"
-					class="mb-2 text-surface-400 dark:text-surface-500"
-					aria-hidden="true"
+				<iconify-icon icon="mdi:file-document-outline" width="32" class="mb-2 text-surface-400 dark:text-surface-500" aria-hidden="true"
 				></iconify-icon>
 				<span>No content found</span>
 			</div>

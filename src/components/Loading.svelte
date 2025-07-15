@@ -51,7 +51,12 @@ Features:
 	});
 </script>
 
-<div class="absolute inset-0 flex items-center justify-center shadow-2xl" role="status" aria-live="polite" aria-label="Loading content, please wait">
+<div
+	class="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/50 shadow-2xl backdrop-blur-sm"
+	role="status"
+	aria-live="polite"
+	aria-label="Loading content, please wait"
+>
 	{#if isAnimating}
 		<div class="relative h-[150px] w-[150px] rounded-full border-[7px] border-error-500 border-x-transparent" id="loader"></div>
 		<div class="absolute h-[170px] w-[170px] rounded-full border-[6px] border-success-400 border-x-transparent" id="loader2"></div>

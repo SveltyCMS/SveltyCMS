@@ -324,7 +324,7 @@ This widget fetches and displays real-time disk usage data, including:
 					</div>
 
 					<div class="grid {currentSize === '1/4' ? 'grid-cols-2' : 'grid-cols-3'} mt-2 gap-3 pb-2 text-xs">
-						<div class="flex flex-col space-y-1">
+						<div class="flex flex-col space-y-1 text-center">
 							<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Total</span>
 							<span class="font-semibold {theme === 'dark' ? 'text-white' : 'text-gray-900'}">{totalGB.toFixed(1)} GB</span>
 						</div>

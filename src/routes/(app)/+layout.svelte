@@ -32,7 +32,7 @@
 	import { getTextDirection } from '@utils/utils';
 	// Stores
 	import { collections, contentStructure } from '@stores/collectionStore.svelte';
-	import { isMobile, screenSize } from '@stores/screenSizeStore.svelte';
+	import { isDesktop, screenSize } from '@stores/screenSizeStore.svelte';
 	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
 	import { uiStateManager } from '@stores/UIStore.svelte';
 	// Components
@@ -65,9 +65,7 @@
 	let { children, data }: Props = $props();
 
 	// State variables
-	let isLoading = $state(true);
 	let isCollectionsLoaded = $state(false);
-	let isNonCriticalDataLoaded = $state(false);
 	let loadError = $state<Error | null>(null);
 	let mediaQuery: MediaQueryList;
 
@@ -79,7 +77,6 @@
 
 		if (hasContentStructure || hasCollections) {
 			isCollectionsLoaded = true;
-			isLoading = false;
 		}
 	});
 
@@ -101,18 +98,10 @@
 			//console.log('contentStructure', data.contentStructure);
 			contentStructure.set(data.contentStructure);
 			isCollectionsLoaded = true;
-			isLoading = false;
 		} catch (error) {
 			console.error('Error loading collections:', error);
 			loadError = error instanceof Error ? error : new Error('Unknown error occurred while loading collections');
-			isLoading = false; // Stop loading even if there's an error
 		}
-	}
-
-	// Function to load non-critical data
-	async function loadNonCriticalData() {
-		await new Promise((resolve) => setTimeout(resolve, 2000));
-		isNonCriticalDataLoaded = true;
 	}
 
 	// Theme management
@@ -158,7 +147,6 @@
 
 		// Initialize data
 		initializeCollections();
-		loadNonCriticalData();
 	});
 
 	onDestroy(() => {
@@ -201,13 +189,14 @@
 
 {#if loadError}
 	<div class="text-error-500">An error occurred: {loadError.message}</div>
-{:else if !isCollectionsLoaded}
-	<div class="flex h-lvh items-center justify-center"><Loading /></div>
 {:else}
 	<!-- This outer div is a good container for overlays -->
 	<div class="relative h-lvh w-full">
 		<!-- Background and Overlay components live here, outside the main content flow -->
-		{#if $isMobile}
+		{#if !isCollectionsLoaded}
+			<Loading />
+		{/if}
+		{#if !isDesktop}
 			<FloatingNav />
 		{/if}
 		<Toast />
@@ -249,11 +238,7 @@
 							? 'mb-2'
 							: 'mb-16'}"
 					>
-						{#if isLoading}
-							<div class="flex h-screen items-center justify-center"><Loading /></div>
-						{:else}
-							{@render children?.()}
-						{/if}
+						{@render children?.()}
 					</div>
 
 					<!-- Page Footer (Mobile Nav) -->

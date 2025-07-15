@@ -279,7 +279,7 @@ Features:
 
 				<div class="flex-shrink-0 space-y-3">
 					<div class="grid {currentSize === '1/4' ? 'grid-cols-2' : 'grid-cols-3'} gap-3 text-xs">
-						<div class="flex flex-col space-y-1">
+						<div class="flex flex-col space-y-1 text-center">
 							<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Total</span>
 							<span class="font-semibold {theme === 'dark' ? 'text-white' : 'text-gray-900'}">{totalMemGB.toFixed(1)} GB</span>
 						</div>

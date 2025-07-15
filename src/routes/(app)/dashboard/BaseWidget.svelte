@@ -341,22 +341,18 @@
 			class="text-text-900 dark:text-text-100 font-display flex items-center gap-2 truncate text-base font-semibold tracking-tight"
 		>
 			{#if icon}
-				<iconify-icon {icon} width="20" class={theme === 'light' ? 'text-tertiary-600' : 'text-primary-400'}></iconify-icon>
+				<iconify-icon {icon} width="24" class={theme === 'light' ? 'text-tertiary-600' : 'text-primary-400'}></iconify-icon>
 			{/if}
 			<span class="truncate">{label}</span>
 		</h2>
 		<div class="flex items-center gap-2">
-			<button
-				onclick={onCloseRequest}
-				class="text-text-400 btn-icon hover:text-error-500 focus:outline-none focus:ring-2 focus:ring-error-400"
-				aria-label="Remove {label} widget"
-			>
+			<button onclick={onCloseRequest} class="variant-outlined btn-icon" aria-label="Remove {label} widget">
 				<iconify-icon icon="mdi:close" width="18"></iconify-icon>
 			</button>
 		</div>
 	</header>
 	<section
-		class="widget-body relative min-h-[50px] flex-1 bg-white px-5 py-4 dark:bg-surface-800"
+		class="widget-body relative min-h-[50px] flex-1 bg-white px-5 py-2 dark:bg-surface-800"
 		style="width: 100%; height: 100%; overflow: hidden; display: flex; flex-direction: column; justify-content: stretch; align-items: stretch;"
 	>
 		{#if endpoint && loading && !internalData}

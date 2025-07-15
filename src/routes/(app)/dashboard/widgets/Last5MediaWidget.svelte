@@ -98,6 +98,7 @@
 	}
 
 	function getFileIcon(type: string): string {
+		if (!type) return 'mdi:file'; // Guard against undefined type
 		const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
 		const videoTypes = ['mp4', 'mov', 'avi'];
 
