@@ -35,6 +35,7 @@ Features:
 	};
 
 	import BaseWidget from '../BaseWidget.svelte';
+	import { m } from '@src/paraglide/messages';
 
 	// --- Type Definitions ---
 	// Defines the structure for a single user activity entry.
@@ -52,7 +53,7 @@ Features:
 
 	// --- Component Props ---
 	let {
-		label = 'User Activity',
+		label = m.userActivityWidget_label(),
 		theme = 'light',
 		icon = 'mdi:account-group',
 		widgetId = undefined,
@@ -106,45 +107,40 @@ Features:
 	{onResizeCommitted}
 	{onCloseRequest}
 >
-	<!-- FIX: Explicitly typed the 'data' prop from the snippet to resolve 'never' type errors. -->
 	{#snippet children({ data: fetchedData }: { data: FetchedData | undefined })}
-		<!-- This check now correctly narrows the type of 'fetchedData' to 'User[]' -->
 		{#if fetchedData && Array.isArray(fetchedData) && fetchedData.length > 0}
-			<!-- Stats row on top -->
-			<div class="mb-2 flex items-center justify-between text-xs text-surface-600 opacity-80 dark:text-surface-400">
-				<span>Total: {fetchedData.length}</span>
+			<div class="mb-2 flex items-center justify-between text-xs text-surface-600 opacity-80 dark:text-surface-400" aria-label={m.userActivityWidget_statsAriaLabel()}>
+				<span>{m.userActivityWidget_totalLabel({total: fetchedData.length})}</span>
 				<span class="flex items-center gap-1"
-					><span class="inline-block h-2 w-2 rounded-full bg-emerald-500"></span>Active: {fetchedData.filter((u) => u.status === 'active')
-						.length}</span
+					><span class="inline-block h-2 w-2 rounded-full bg-emerald-500"></span>{m.userActivityWidget_activeLabel({count: fetchedData.filter((u) => u.status === 'active').length})}</span
 				>
 				<span class="flex items-center gap-1"
-					><span class="inline-block h-2 w-2 rounded-full bg-yellow-400"></span>Pending: {fetchedData.filter((u) => u.status === 'pending')
-						.length}</span
+					><span class="inline-block h-2 w-2 rounded-full bg-yellow-400"></span>{m.userActivityWidget_pendingLabel({count: fetchedData.filter((u) => u.status === 'pending').length})}</span
 				>
 			</div>
-			<div class="grid gap-2" style="max-height: 120px; overflow-y: auto;">
+			<div class="grid gap-2" style="max-height: 120px; overflow-y: auto;" role="list" aria-label={m.userActivityWidget_userListAriaLabel()}>
 				{#each fetchedData.slice(0, 5) as user}
-					<div class="flex items-center justify-between rounded-lg bg-surface-100/80 px-3 py-2 text-xs dark:bg-surface-700/60">
+					<div class="flex items-center justify-between rounded-lg bg-surface-100/80 px-3 py-2 text-xs dark:bg-surface-700/60" role="listitem">
 						<div class="flex min-w-0 items-center gap-2">
 							{#if user.status === 'active'}
-								<span class="inline-block h-2 w-2 flex-shrink-0 rounded-full bg-emerald-500" title="Online"></span>
+								<span class="inline-block h-2 w-2 flex-shrink-0 rounded-full bg-emerald-500" title={m.userActivityWidget_onlineTitle()}></span>
 							{:else if user.status === 'pending'}
-								<span class="inline-block h-2 w-2 flex-shrink-0 rounded-full bg-yellow-400" title="Pending"></span>
+								<span class="inline-block h-2 w-2 flex-shrink-0 rounded-full bg-yellow-400" title={m.userActivityWidget_pendingTitle()}></span>
 							{:else}
 								<span class="inline-block h-2 w-2 flex-shrink-0 rounded-full bg-gray-400" title={user.status}></span>
 							{/if}
-							<span class="text-text-900 dark:text-text-100 truncate font-medium" title={user.email}>{user.email || 'Unknown User'}</span>
+							<span class="text-text-900 dark:text-text-100 truncate font-medium" title={user.email}>{user.email || m.userActivityWidget_unknownUser()}</span>
 						</div>
 						<div class="flex flex-col items-end">
-							<span class="text-xs text-surface-500 dark:text-surface-400">{user.role || 'No Role'}</span>
+							<span class="text-xs text-surface-500 dark:text-surface-400">{user.role || m.userActivityWidget_noRole()}</span>
 						</div>
 					</div>
 				{/each}
 			</div>
 		{:else}
-			<div class="flex flex-1 flex-col items-center justify-center py-6 text-xs text-gray-500 dark:text-gray-400">
-				<iconify-icon icon="mdi:account-off-outline" width="32" class="mb-2 text-surface-400 dark:text-surface-500"></iconify-icon>
-				<span>No user activity</span>
+			<div class="flex flex-1 flex-col items-center justify-center py-6 text-xs text-gray-500 dark:text-gray-400" role="status" aria-live="polite">
+				<iconify-icon icon="mdi:account-off-outline" width="32" class="mb-2 text-surface-400 dark:text-surface-500" aria-hidden="true"></iconify-icon>
+				<span>{m.userActivityWidget_noActivity()}</span>
 			</div>
 		{/if}
 	{/snippet}

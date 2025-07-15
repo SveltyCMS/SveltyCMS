@@ -34,6 +34,7 @@
 	};
 
 	import BaseWidget from '../BaseWidget.svelte';
+	import { m } from '@src/paraglide/messages';
 
 	interface MediaFile {
 		name: string;
@@ -44,7 +45,7 @@
 	}
 
 	let {
-		label = 'Last 5 Media',
+		label = m.last5MediaWidget_label(),
 		theme = 'light',
 		icon = 'mdi:image-multiple',
 		widgetId = undefined,
@@ -131,19 +132,19 @@
 >
 	{#snippet children({ data: fetchedData })}
 		{#if fetchedData && Array.isArray(fetchedData) && fetchedData.length > 0}
-			<div class="grid gap-2" role="list" aria-label="Last 5 media files">
+			<div class="grid gap-2" role="list" aria-label={m.last5MediaWidget_ariaLabel()}>
 				{#each fetchedData.slice(0, 5) as file}
 					<div class="flex items-center justify-between rounded-lg bg-surface-100/80 px-3 py-2 text-xs dark:bg-surface-700/60" role="listitem">
 						<div class="flex min-w-0 items-center gap-2">
-							<iconify-icon icon={getFileIcon(file.type)} class="text-primary-400" width="18" aria-label={file.type + ' file icon'}></iconify-icon>
+							<iconify-icon icon={getFileIcon(file.type)} class="text-primary-400" width="18" aria-label={m.last5MediaWidget_fileIconAriaLabel({type: file.type})}></iconify-icon>
 							<div class="flex min-w-0 flex-col">
 								<span class="text-text-900 dark:text-text-100 truncate font-medium" title={file.name}>{file.name}</span>
-								<span class="text-xs text-surface-500 dark:text-surface-400">{formatFileSize(file.size)}</span>
+								<span class="text-xs text-surface-500 dark:text-surface-400">{m.last5MediaWidget_fileSize({size: formatFileSize(file.size)})}</span>
 							</div>
 						</div>
 						<div class="flex flex-col items-end">
-							<span class="uppercase text-surface-600 dark:text-surface-300">{file.type}</span>
-							<span class="text-xs text-surface-500 dark:text-surface-400">{new Date(file.modified).toLocaleDateString()}</span>
+							<span class="uppercase text-surface-600 dark:text-surface-300">{m.last5MediaWidget_fileType({type: file.type})}</span>
+							<span class="text-xs text-surface-500 dark:text-surface-400">{m.last5MediaWidget_fileModified({date: new Date(file.modified).toLocaleDateString()})}</span>
 						</div>
 					</div>
 				{/each}
@@ -151,7 +152,7 @@
 		{:else}
 			<div class="flex flex-1 flex-col items-center justify-center py-6 text-xs text-gray-500 dark:text-gray-400" role="status" aria-live="polite">
 				<iconify-icon icon="mdi:file-remove-outline" width="32" class="mb-2 text-surface-400 dark:text-surface-500" aria-hidden="true"></iconify-icon>
-				<span>No media files found</span>
+				<span>{m.last5MediaWidget_noFilesFound()}</span>
 			</div>
 		{/if}
 	{/snippet}

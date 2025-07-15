@@ -43,10 +43,11 @@ This widget fetches and displays real-time disk usage data, including:
 
 	// Components
 	import BaseWidget from '../BaseWidget.svelte';
+	import { m } from '@src/paraglide/messages';
 
 	// Props passed from +page.svelte, then to BaseWidget
 	let {
-		label = 'Disk Usage',
+		label = m.diskWidget_label(),
 		theme = 'light',
 		icon = 'mdi:harddisk',
 		widgetId = undefined,
@@ -154,7 +155,7 @@ This widget fetches and displays real-time disk usage data, including:
 					labels: ['Disk'],
 					datasets: [
 						{
-							label: 'Used',
+							label: m.diskWidget_usedLabel(),
 							data: [used],
 							backgroundColor: usedPercent > 85 ? 'rgba(239, 68, 68, 0.8)' : usedPercent > 70 ? 'rgba(245, 158, 11, 0.8)' : 'rgba(59, 130, 246, 0.8)',
 							borderRadius: 8,
@@ -163,7 +164,7 @@ This widget fetches and displays real-time disk usage data, including:
 							stack: 'disk'
 						},
 						{
-							label: 'Free',
+							label: m.diskWidget_freeLabel(),
 							data: [free],
 							backgroundColor: theme === 'dark' ? 'rgba(75, 85, 99, 0.4)' : 'rgba(229, 231, 235, 0.6)',
 							borderRadius: 8,
@@ -282,7 +283,7 @@ This widget fetches and displays real-time disk usage data, including:
 							<div class="text-2xl font-bold {theme === 'dark' ? 'text-white' : 'text-gray-900'}" aria-live="polite">
 								{usedPercentage.toFixed(1)}%
 							</div>
-							<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Disk Used</div>
+							<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">{m.diskWidget_used()}</div>
 						</div>
 					</div>
 				</div>
@@ -294,7 +295,7 @@ This widget fetches and displays real-time disk usage data, including:
 							class="h-full w-full"
 							use:updateChartAction={fetchedData}
 							style="display: block; width: 100% !important; height: 100% !important;"
-							aria-label="Disk usage bar chart"
+							aria-label={m.diskWidget_chartAriaLabel()}
 						></canvas>
 					</div>
 				{/if}
@@ -302,7 +303,7 @@ This widget fetches and displays real-time disk usage data, including:
 				<div class="flex-shrink-0 space-y-3 pb-6">
 					<div
 						class="relative h-6 overflow-hidden rounded-full {theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}"
-						aria-label="Disk usage progress bar"
+						aria-label={m.diskWidget_progressAriaLabel()}
 					>
 						<div
 							class="h-full rounded-full transition-all duration-700 ease-out {usageLevel === 'high'
@@ -318,18 +319,18 @@ This widget fetches and displays real-time disk usage data, including:
 						></div>
 						<div class="pointer-events-none absolute inset-0 flex items-center justify-center">
 							<span class="text-xs font-semibold text-white drop-shadow-sm">
-								Used: {usedGB.toFixed(1)} GB &nbsp;|&nbsp; Free: {freeGB.toFixed(1)} GB
+								{m.diskWidget_usedLabel()}: {usedGB.toFixed(1)} GB &nbsp;|&nbsp; {m.diskWidget_freeLabel()}: {freeGB.toFixed(1)} GB
 							</span>
 						</div>
 					</div>
 
 					<div class="grid {currentSize === '1/4' ? 'grid-cols-2' : 'grid-cols-3'} mt-2 gap-3 pb-2 text-xs">
 						<div class="flex flex-col space-y-1">
-							<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Total</span>
+							<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>{m.diskWidget_total()}</span>
 							<span class="font-semibold {theme === 'dark' ? 'text-white' : 'text-gray-900'}">{totalGB.toFixed(1)} GB</span>
 						</div>
 						<div class="flex flex-col space-y-1">
-							<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Used</span>
+							<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>{m.diskWidget_used()}</span>
 							<span
 								class="font-semibold {usageLevel === 'high'
 									? 'text-red-600 dark:text-red-400'
@@ -340,7 +341,7 @@ This widget fetches and displays real-time disk usage data, including:
 						</div>
 						{#if currentSize !== '1/4'}
 							<div class="flex flex-col space-y-1">
-								<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Free</span>
+								<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>{m.diskWidget_free()}</span>
 								<span class="font-semibold {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">{freeGB.toFixed(1)} GB</span>
 							</div>
 						{/if}
@@ -348,9 +349,9 @@ This widget fetches and displays real-time disk usage data, including:
 
 					{#if currentSize === '1/2' || currentSize === '3/4' || currentSize === 'full'}
 						<div class="flex justify-between text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mt-1 px-2 pb-4">
-							<span>Mount: {diskInfo.mountPoint || '/'}</span>
+							<span>{m.diskWidget_mount()}: {diskInfo.mountPoint || '/'}</span>
 							{#if diskInfo.filesystem}
-								<span>FS: {diskInfo.filesystem}</span>
+								<span>{m.diskWidget_filesystem()}: {diskInfo.filesystem}</span>
 							{/if}
 						</div>
 					{/if}
@@ -362,8 +363,8 @@ This widget fetches and displays real-time disk usage data, including:
 					<div class="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" aria-hidden="true"></div>
 				</div>
 				<div class="text-center">
-					<div class="text-sm font-medium {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">Loading disk data</div>
-					<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Please wait...</div>
+					<div class="text-sm font-medium {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">{m.diskWidget_loading()}</div>
+					<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">{m.diskWidget_pleaseWait()}</div>
 				</div>
 			</div>
 		{/if}

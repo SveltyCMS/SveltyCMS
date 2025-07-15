@@ -40,12 +40,13 @@ Features:
 	import { onDestroy } from 'svelte';
 	import { Chart, DoughnutController, ArcElement, Tooltip } from 'chart.js';
 	import type { ChartConfiguration, Plugin } from 'chart.js';
+	import { m } from '@src/paraglide/messages';
 
 	Chart.register(DoughnutController, ArcElement, Tooltip);
 
 	// Props passed from +page.svelte, then to BaseWidget
 	let {
-		label = 'Memory Usage',
+		label = m.memoryWidget_label(),
 		theme = 'light',
 		icon = 'mdi:memory',
 		widgetId = undefined,
@@ -240,7 +241,7 @@ Features:
 			{@const usedPercentage = fetchedData.memoryInfo.total.usedMemPercentage || 0}
 			{@const usageLevel = usedPercentage > 80 ? 'high' : usedPercentage > 60 ? 'medium' : 'low'}
 
-			<div class="flex h-full flex-col justify-between space-y-3" role="region" aria-label="Memory usage statistics">
+			<div class="flex h-full flex-col justify-between space-y-3" role="region" aria-label={m.memoryWidget_statsAriaLabel()}>
 				<div class="flex items-center justify-between">
 					<div class="flex items-center space-x-3">
 						<div class="relative">
@@ -260,7 +261,7 @@ Features:
 										: usageLevel === 'medium'
 											? 'text-yellow-600 dark:text-yellow-400'
 											: 'text-green-600 dark:text-green-400'}
-									aria-label="Memory icon"
+									aria-label={m.memoryWidget_iconAriaLabel()}
 								></iconify-icon>
 							</div>
 						</div>
@@ -268,23 +269,23 @@ Features:
 							<div class="text-2xl font-bold {theme === 'dark' ? 'text-white' : 'text-gray-900'}" aria-live="polite">
 								{usedPercentage.toFixed(1)}%
 							</div>
-							<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Memory Used</div>
+							<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">{m.memoryWidget_usedLabel()}</div>
 						</div>
 					</div>
 				</div>
 
 				<div class="relative flex-shrink-0" style="height: calc({ROW_HEIGHT}px * 0.45); min-height: 80px; max-height: 180px;">
-					<canvas bind:this={chartCanvas} class="h-full w-full" use:updateChartAction={fetchedData} aria-label="Memory usage doughnut chart"></canvas>
+					<canvas bind:this={chartCanvas} class="h-full w-full" use:updateChartAction={fetchedData} aria-label={m.memoryWidget_chartAriaLabel()}></canvas>
 				</div>
 
 				<div class="flex-shrink-0 space-y-3">
 					<div class="grid {currentSize === '1/4' ? 'grid-cols-2' : 'grid-cols-3'} gap-3 text-xs">
 						<div class="flex flex-col space-y-1">
-							<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Total</span>
+							<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>{m.memoryWidget_totalLabel()}</span>
 							<span class="font-semibold {theme === 'dark' ? 'text-white' : 'text-gray-900'}">{totalMemGB.toFixed(1)} GB</span>
 						</div>
 						<div class="flex flex-col space-y-1">
-							<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Used</span>
+							<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>{m.memoryWidget_usedLabel()}</span>
 							<span
 								class="font-semibold {usageLevel === 'high'
 									? 'text-red-600 dark:text-red-400'
@@ -295,7 +296,7 @@ Features:
 						</div>
 						{#if currentSize !== '1/4'}
 							<div class="flex flex-col space-y-1">
-								<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Free</span>
+								<span class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>{m.memoryWidget_freeLabel()}</span>
 								<span class="font-semibold {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">{freeMemGB.toFixed(1)} GB</span>
 							</div>
 						{/if}
@@ -308,8 +309,8 @@ Features:
 					<div class="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" aria-hidden="true"></div>
 				</div>
 				<div class="text-center">
-					<div class="text-sm font-medium {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">Loading memory data</div>
-					<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">Please wait...</div>
+					<div class="text-sm font-medium {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">{m.memoryWidget_loadingLabel()}</div>
+					<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">{m.memoryWidget_pleaseWait()}</div>
 				</div>
 			</div>
 		{/if}
