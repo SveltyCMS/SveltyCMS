@@ -6,19 +6,21 @@ import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { browser } from '$app/environment';
 import { contentManager } from '@src/content/ContentManager';
 import { dbAdapter } from '@src/databases/db';
+import { checkApiPermission } from '@api/permissions';
 
 // Redis
 import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/redis';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-import type { ContentNode } from '@root/src/databases/dbInterface';
-import { contentStructure } from '@root/src/stores/collectionStore.svelte';
 import type { ContentNodeOperation } from '@root/src/content/types';
 
 const CACHE_TTL = 300; // 5 minutes
 
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, cookies }) => {
+	// Check permissions using centralized system
+	await checkApiPermission(cookies, 'content:read');
+
 	try {
 		const action = url.searchParams.get('action');
 		logger.debug('GET request received', { action });
@@ -83,7 +85,10 @@ export const GET: RequestHandler = async ({ url }) => {
 	}
 };
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, cookies }) => {
+	// Check permissions using centralized system
+	await checkApiPermission(cookies, 'content:update');
+
 	try {
 		const data = await request.json();
 		const action = data.action;
@@ -132,7 +137,10 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 };
 
-export const PUT: RequestHandler = async ({ request }) => {
+export const PUT: RequestHandler = async ({ request, cookies }) => {
+	// Check permissions using centralized system
+	await checkApiPermission(cookies, 'content:update');
+
 	try {
 		const { _id, updates } = await request.json();
 

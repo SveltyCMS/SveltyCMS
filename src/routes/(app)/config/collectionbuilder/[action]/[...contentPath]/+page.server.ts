@@ -28,7 +28,7 @@ import type { PageServerLoad } from './$types';
 
 // Collections
 import { contentManager } from '@src/content/ContentManager';
-import { compile } from '@src/routes/api/compile/compile';
+import { compile } from '@src/utils/compilation/compile';
 
 // Widgets
 import widgets from '@widgets';

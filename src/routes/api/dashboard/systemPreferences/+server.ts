@@ -19,6 +19,9 @@
 import { dbAdapter } from '@src/databases/db';
 import { json } from '@sveltejs/kit';
 
+// Auth
+import { checkApiPermission } from '@src/routes/api/permissions';
+
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
@@ -52,11 +55,28 @@ const WidgetStateBodySchema = v.object({
 // --- API Handlers ---
 
 export const GET = async ({ locals, url }) => {
-	const userId = locals.user?._id?.toString();
-	if (!userId) {
-		logger.warn('Unauthorized attempt to load system preferences.');
-		return json({ error: 'Unauthorized' }, { status: 401 });
+	// Check dashboard permissions
+	const permissionResult = await checkApiPermission(locals.user, {
+		resource: 'dashboard',
+		action: 'read'
+	});
+
+	if (!permissionResult.hasPermission) {
+		logger.warn('Unauthorized attempt to load system preferences', {
+			userId: locals.user?._id,
+			error: permissionResult.error
+		});
+		return json(
+			{
+				error: permissionResult.error || 'Forbidden'
+			},
+			{
+				status: permissionResult.error?.includes('Authentication') ? 401 : 403
+			}
+		);
 	}
+
+	const userId = locals.user._id.toString();
 
 	const widgetId = url.searchParams.get('widgetId');
 
@@ -84,11 +104,28 @@ export const GET = async ({ locals, url }) => {
 };
 
 export const POST = async ({ request, locals }) => {
-	const userId = locals.user?._id?.toString();
-	if (!userId) {
-		logger.warn('Unauthorized attempt to save data.');
-		return json({ error: 'Unauthorized' }, { status: 401 });
+	// Check dashboard permissions
+	const permissionResult = await checkApiPermission(locals.user, {
+		resource: 'dashboard',
+		action: 'write'
+	});
+
+	if (!permissionResult.hasPermission) {
+		logger.warn('Unauthorized attempt to save system preferences', {
+			userId: locals.user?._id,
+			error: permissionResult.error
+		});
+		return json(
+			{
+				error: permissionResult.error || 'Forbidden'
+			},
+			{
+				status: permissionResult.error?.includes('Authentication') ? 401 : 403
+			}
+		);
 	}
+
+	const userId = locals.user._id.toString();
 
 	const data = await request.json();
 
@@ -122,11 +159,28 @@ export const POST = async ({ request, locals }) => {
 };
 
 export const PUT = async ({ request, locals }) => {
-	const userId = locals.user?._id?.toString();
-	if (!userId) {
-		logger.warn('Unauthorized attempt to update system preferences.');
-		return json({ error: 'Unauthorized' }, { status: 401 });
+	// Check dashboard permissions
+	const permissionResult = await checkApiPermission(locals.user, {
+		resource: 'dashboard',
+		action: 'update'
+	});
+
+	if (!permissionResult.hasPermission) {
+		logger.warn('Unauthorized attempt to update system preferences', {
+			userId: locals.user?._id,
+			error: permissionResult.error
+		});
+		return json(
+			{
+				error: permissionResult.error || 'Forbidden'
+			},
+			{
+				status: permissionResult.error?.includes('Authentication') ? 401 : 403
+			}
+		);
 	}
+
+	const userId = locals.user._id.toString();
 
 	const data = await request.json();
 	const result = v.safeParse(UpdateScreenBodySchema, data);

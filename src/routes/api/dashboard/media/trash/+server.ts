@@ -7,30 +7,15 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
-import { auth } from '@src/databases/db';
-import { SESSION_COOKIE_NAME } from '@src/auth';
+import { checkApiPermission } from '@api/permissions';
 import { moveMediaToTrash } from '@utils/media/mediaStorage';
 import { logger } from '@utils/logger.svelte';
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
-	const session_id = cookies.get(SESSION_COOKIE_NAME);
-	if (!session_id) {
-		logger.warn('No session ID found during file trash operation');
-		throw error(401, 'Unauthorized');
-	}
-
-	if (!auth) {
-		logger.error('Auth service is not initialized');
-		throw error(500, 'Auth service not available');
-	}
+	// Check permissions using centralized system
+	await checkApiPermission(cookies, 'media:delete');
 
 	try {
-		const user = await auth.validateSession(session_id);
-		if (!user) {
-			logger.warn('Invalid session during file trash operation');
-			throw error(401, 'Unauthorized');
-		}
-
 		const { url, contentTypes } = await request.json();
 		if (!url || !contentTypes) {
 			throw error(400, 'URL and collection types are required');

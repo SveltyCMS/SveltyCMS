@@ -32,6 +32,7 @@ import { logger } from '@utils/logger.svelte';
 
 // Types
 import type { User } from '@src/auth/types';
+import { roles } from '@root/config/roles';
 
 interface DatabaseCollection {
 	name: string;
@@ -52,8 +53,15 @@ interface CollectionResponse {
 export const GET: RequestHandler = async ({ locals }) => {
 	try {
 		// Check if the user has the necessary permissions
-		if (!locals.permissions.includes('data:export') && !locals.user.isAdmin) {
-			logger.warn('User lacks required permission: data:export');
+		const userRole = roles.find((role) => role._id === locals.user?.role);
+		const isAdmin = userRole?.isAdmin === true;
+
+		if (!locals.permissions.includes('data:export') && !isAdmin) {
+			logger.warn('User lacks required permission: data:export', {
+				userId: locals.user?._id,
+				userRole: locals.user?.role,
+				isAdmin
+			});
 			throw error(403, 'Forbidden: Insufficient permissions');
 		}
 		logger.debug('User has permission to export data');

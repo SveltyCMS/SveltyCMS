@@ -19,17 +19,36 @@
 import { dbAdapter } from '@src/databases/db';
 import { json } from '@sveltejs/kit';
 
+// Auth
+import { checkApiPermission } from '@src/routes/api/permissions';
+
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
 export const GET = async ({ locals, url }) => {
-	// Try to get userId from query param, otherwise use locals.user
-	const userId = url.searchParams.get('userId') || locals.user?._id?.toString();
+	// Check system preferences permissions
+	const permissionResult = await checkApiPermission(locals.user, {
+		resource: 'systemPreferences',
+		action: 'read'
+	});
 
-	if (!userId) {
-		logger.warn('Unauthorized attempt to load system preferences.');
-		return json({ error: 'Unauthorized' }, { status: 401 });
+	if (!permissionResult.hasPermission) {
+		logger.warn('Unauthorized attempt to load system preferences', {
+			userId: locals.user?._id,
+			error: permissionResult.error
+		});
+		return json(
+			{
+				error: permissionResult.error || 'Forbidden'
+			},
+			{
+				status: permissionResult.error?.includes('Authentication') ? 401 : 403
+			}
+		);
 	}
+
+	// Try to get userId from query param, otherwise use locals.user
+	const userId = url.searchParams.get('userId') || locals.user._id.toString();
 
 	// Handle widget state requests
 	const widgetId = url.searchParams.get('widgetId');

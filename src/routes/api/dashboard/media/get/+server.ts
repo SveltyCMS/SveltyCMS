@@ -6,6 +6,7 @@
 
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
+import { checkApiPermission } from '@api/permissions';
 
 // Media
 import { getFile } from '@utils/media/mediaStorage';
@@ -13,13 +14,9 @@ import { getFile } from '@utils/media/mediaStorage';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-export const GET: RequestHandler = async ({ url, locals }) => {
-	const user = locals.user;
-
-	if (!user) {
-		logger.warn('No authenticated user found during media retrieval');
-		return json({ success: false, error: 'Unauthorized' }, { status: 401 });
-	}
+export const GET: RequestHandler = async ({ url, cookies }) => {
+	// Check permissions using centralized system
+	await checkApiPermission(cookies, 'media:read');
 
 	try {
 		const fileUrl = url.searchParams.get('url');

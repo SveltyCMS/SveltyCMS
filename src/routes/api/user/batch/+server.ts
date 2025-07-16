@@ -21,9 +21,8 @@
 import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-import { roles } from '@root/config/roles';
 import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
-import { hasPermissionByAction } from '@src/auth/permissions';
+import { checkApiPermission } from '@src/routes/api/permissions';
 import { logger } from '@utils/logger.svelte';
 import { array, minLength, object, parse, picklist, string, type ValiError } from 'valibot';
 
@@ -39,11 +38,24 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		});
 		const { userIds, action } = parse(batchUserActionSchema, body);
 
-		const hasPermission = hasPermissionByAction(locals.user, action, 'user', 'any', locals.roles && locals.roles.length > 0 ? locals.roles : roles);
+		// Map batch actions to permission actions
+		const actionMap: Record<string, string> = {
+			delete: 'delete',
+			block: 'update',
+			unblock: 'update'
+		};
 
-		if (!hasPermission) {
-			logger.warn(`Unauthorized attempt to '${action}' users.`, { userId: locals.user?._id });
-			throw error(403, `Forbidden: You do not have permission to ${action} users.`);
+		const permissionResult = await checkApiPermission(locals.user, {
+			resource: 'user',
+			action: actionMap[action]
+		});
+
+		if (!permissionResult.hasPermission) {
+			logger.warn(`Unauthorized attempt to '${action}' users`, {
+				userId: locals.user?._id,
+				error: permissionResult.error
+			});
+			throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
 		}
 
 		if (userIds.some((id) => id === locals.user?._id)) {

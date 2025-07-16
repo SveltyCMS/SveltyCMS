@@ -1,5 +1,5 @@
 /**
- * @file src/routes/api/query/modifyRequest.ts
+ * @file src/routes/api/collections/modifyRequest.ts
  * @description Utility function for modifying request data based on field widgets.
  *
  * This module provides functionality to:
@@ -15,7 +15,7 @@
  * - Detailed logging for debugging purposes
  *
  * Usage:
- * Called by various query handlers (GET, POST, etc.) to modify request data
+ * Called by various collection handlers (GET, POST, etc.) to modify request data
  * before final processing or database operations.
  */
 

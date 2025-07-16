@@ -17,7 +17,7 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import svelteEmailTailwind from 'svelte-email-tailwind/vite';
-import { compile } from './src/routes/api/compile/compile';
+import { compile } from './src/utils/compilation/compile';
 import { generateContentTypes } from './src/content/vite';
 import type { IncomingMessage, ServerResponse } from 'http';
 import { builtinModules } from 'module';
@@ -363,4 +363,3 @@ export default defineConfig(async () => {
 		}
 	};
 });
-

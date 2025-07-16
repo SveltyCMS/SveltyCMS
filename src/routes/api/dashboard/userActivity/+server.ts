@@ -13,6 +13,8 @@ import type { RequestHandler } from './$types';
 
 // Auth
 import { auth } from '@src/databases/db';
+import { checkApiPermission } from '@src/routes/api/permissions';
+
 // Validation
 import * as v from 'valibot';
 
@@ -36,6 +38,20 @@ type UserActivity = v.Output<typeof UserActivitySchema>;
 // --- API Handler ---
 
 export const GET: RequestHandler = async ({ locals }) => {
+	// Check dashboard permissions
+	const permissionResult = await checkApiPermission(locals.user, {
+		resource: 'dashboard',
+		action: 'read'
+	});
+
+	if (!permissionResult.hasPermission) {
+		logger.warn('Unauthorized attempt to access user activity data', {
+			userId: locals.user?._id,
+			error: permissionResult.error
+		});
+		throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
+	}
+
 	// Initial Check for Auth
 	if (!auth) {
 		logger.error('Authentication system is not initialized');

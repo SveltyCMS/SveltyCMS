@@ -330,9 +330,15 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 			logger.debug('Running in production mode');
 			let files: string[] = [];
 			try {
-				files = browser ? (await axios.get('/api/getCollections')).data : await getCollectionFiles();
-				if (!Array.isArray(files)) {
-					logger.error(`Files is not an array: ${JSON.stringify(files)}`);
+				// Use new collections endpoint
+				const collectionsResponse = browser ? (await axios.get('/api/collections')).data : await getCollectionFiles();
+				if (collectionsResponse.success && Array.isArray(collectionsResponse.data.collections)) {
+					files = collectionsResponse.data.collections.map(c => `${c.name}.js`);
+				} else if (Array.isArray(collectionsResponse)) {
+					// Fallback for old format
+					files = collectionsResponse;
+				} else {
+					logger.error(`Collections response is not valid: ${JSON.stringify(collectionsResponse)}`);
 					files = [];
 				}
 			} catch (error) {
@@ -353,7 +359,7 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 								try {
 									const collectionModule =
 										typeof window !== 'undefined'
-											? (await axios.get(`/api/getCollection?fileName=${file}?_t=${Math.floor(Date.now() / 1000)}`)).data
+											? (await axios.get(`/api/collections/${name}?includeFields=true&_t=${Math.floor(Date.now() / 1000)}`)).data
 											: await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${file}`);
 
 									await processModule(name, collectionModule, file);

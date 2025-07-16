@@ -26,6 +26,7 @@ import { createClient } from 'redis';
 
 // Permission Management
 import { hasPermissionWithRoles, registerPermission } from '@src/auth/permissions';
+import { checkApiPermission } from '@src/routes/api/permissions';
 import { PermissionAction, PermissionType } from '@src/auth/types';
 
 // Roles Configuration
@@ -192,6 +193,28 @@ async function setupGraphQL() {
 let yogaAppPromise: Promise<ReturnType<typeof createYoga<RequestHandler>>>;
 
 const handler = async (event: RequestEvent) => {
+	// Check GraphQL API permissions
+	const permissionResult = await checkApiPermission(event.locals.user, {
+		resource: 'graphql',
+		action: 'read'
+	});
+
+	if (!permissionResult.hasPermission) {
+		logger.warn('Unauthorized attempt to access GraphQL API', {
+			userId: event.locals.user?._id,
+			error: permissionResult.error
+		});
+		return json(
+			{
+				success: false,
+				error: permissionResult.error || 'Forbidden'
+			},
+			{
+				status: permissionResult.error?.includes('Authentication') ? 401 : 403
+			}
+		);
+	}
+
 	if (!yogaAppPromise) {
 		yogaAppPromise = setupGraphQL();
 	}

@@ -48,6 +48,7 @@ import { SystemPreferencesModel } from './models/systemPreferences';
 import { SystemVirtualFolderModel } from './models/systemVirtualFolder';
 import { ThemeModel } from './models/theme';
 import { WidgetModel, widgetSchema } from './models/widget';
+import { MongoQueryBuilder } from './MongoQueryBuilder';
 
 // System Logging
 import { logger, type LoggableValue } from '@utils/logger.svelte';
@@ -70,6 +71,7 @@ import type {
 	ISODateString,
 	MediaItem,
 	PaginationOptions,
+	QueryBuilder,
 	SystemVirtualFolder,
 	Theme,
 	Widget
@@ -1036,6 +1038,12 @@ export class MongoDBAdapter implements DatabaseAdapter {
 			throw new Error('Method not implemented.');
 		}
 	};
+
+	// Query Builder Entry Point
+	queryBuilder<T extends BaseEntity>(collection: string): QueryBuilder<T> {
+		const model = mongoose.model<T>(collection);
+		return new MongoQueryBuilder<T>(model);
+	}
 
 	//  Disconnect Method
 	// Disconnect from MongoDB

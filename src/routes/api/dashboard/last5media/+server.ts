@@ -7,6 +7,10 @@ import fs from 'fs/promises';
 import path from 'path';
 import type { RequestHandler } from './$types';
 import { error, json } from '@sveltejs/kit';
+
+// Auth
+import { checkApiPermission } from '@src/routes/api/permissions';
+
 // Validation
 import * as v from 'valibot';
 // System Logger
@@ -30,6 +34,20 @@ type MediaItem = v.Output<typeof MediaItemSchema>;
 // --- API Handler ---
 
 export const GET: RequestHandler = async ({ locals }) => {
+	// Check dashboard permissions
+	const permissionResult = await checkApiPermission(locals.user, {
+		resource: 'dashboard',
+		action: 'read'
+	});
+
+	if (!permissionResult.hasPermission) {
+		logger.warn('Unauthorized attempt to access media data', {
+			userId: locals.user?._id,
+			error: permissionResult.error
+		});
+		throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
+	}
+
 	try {
 		const limit = 5;
 		const dirEntries = await fs.readdir(MEDIA_DIR, { withFileTypes: true });

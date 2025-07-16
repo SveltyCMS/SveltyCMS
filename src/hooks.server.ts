@@ -31,7 +31,7 @@ import { SESSION_COOKIE_NAME } from '@src/auth';
 import { hasPermissionByAction } from '@src/auth/permissions';
 import { auth, authAdapter, dbInitPromise } from '@src/databases/db';
 
-import type { Permission, User } from '@src/auth';
+import type { User } from '@src/auth';
 import type { Locale } from '@src/paraglide/runtime';
 // Cache
 import { getCacheStore } from '@src/cacheStore/index.server';
@@ -41,7 +41,6 @@ import { logger } from '@utils/logger.svelte';
 
 // Cache TTLs
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
-const API_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const SESSION_TTL = CACHE_TTL; // Align session TTL with cache TTL
 const USER_PERM_CACHE_TTL = 60 * 1000; // 1 minute for permissions cache
 const USER_COUNT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes for user count cache
@@ -172,7 +171,6 @@ const getPerformanceEmoji = (responseTime: number): string => {
 
 // Session and Permission Caches
 const sessionCache = new Map<string, { user: User; timestamp: number }>();
-const userPermissionCache = new Map<string, { permissions: Permission[]; timestamp: number }>();
 const lastRefreshAttempt = new Map<string, number>();
 
 // Optimized user count getter with caching
@@ -473,13 +471,17 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 		// Only load admin data when needed and cache it
 		if (authServiceReady && event.locals.user) {
-			// Load basic permission check efficiently
-			const userHasManagePermission = hasPermissionByAction(user, 'manage', 'user', undefined, roles);
+			// Check admin status properly from role
+			const userRole = roles.find((role) => role._id === user?.role);
+			const isAdmin = userRole?.isAdmin === true;
+
+			// Load basic permission check efficiently - admin override
+			const userHasManagePermission = isAdmin || hasPermissionByAction(user, 'manage', 'user', undefined, roles);
 
 			event.locals.hasManageUsersPermission = userHasManagePermission;
 
 			// Only load heavy admin data if user is admin or has permission AND it's needed
-			if ((user.isAdmin || userHasManagePermission) && (isApi || event.url.pathname.includes('/admin') || event.url.pathname.includes('/user'))) {
+			if ((isAdmin || userHasManagePermission) && (isApi || event.url.pathname.includes('/admin') || event.url.pathname.includes('/user'))) {
 				// Load admin data with caching
 				const [roles, users, tokens] = await Promise.all([
 					getAdminDataCached(user, 'roles'),
@@ -548,11 +550,6 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 				logger.debug(`Authenticated user on public route \x1b[34m${event.url.pathname}\x1b[0m. Redirecting to home.`);
 				throw redirect(302, '/');
 			}
-
-			if (isApi && event.locals.user && !isPublic) {
-				logger.debug('Handling API request for authenticated user');
-				return handleApiRequest(event, resolve, event.locals.user);
-			}
 		} else {
 			// Auth service not ready - allow through but log
 			logger.debug(`Auth service not ready, allowing request to \x1b[34m${event.url.pathname}\x1b[0m`);
@@ -581,140 +578,6 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 		throw error(500, 'Internal Server Error');
 	}
-};
-
-// Handle API requests with optimized caching
-const handleApiRequest = async (event: RequestEvent, resolve: (event: RequestEvent) => Promise<Response>, user: User): Promise<Response> => {
-	const apiEndpoint = event.url.pathname.split('/api/')[1]?.split('/')[0];
-
-	if (!apiEndpoint) {
-		logger.warn(`Could not determine API endpoint from path: ${event.url.pathname}`);
-		throw error(400, 'Invalid API path');
-	}
-
-	// SPECIAL CASE: Logout should always be allowed regardless of permissions
-	if (event.url.pathname === '/api/user/logout') {
-		logger.debug('Logout endpoint accessed - bypassing permission checks');
-		return resolve(event);
-	}
-
-	const cacheStore = getCacheStore();
-	const now = Date.now();
-
-	let userPerms = userPermissionCache.get(user._id)?.permissions;
-	if (!userPerms || now - (userPermissionCache.get(user._id)?.timestamp || 0) > USER_PERM_CACHE_TTL) {
-		try {
-			userPerms = user.permissions;
-			userPermissionCache.set(user._id, { permissions: userPerms, timestamp: now });
-		} catch (permError) {
-			logger.error(`Failed to get user permissions for API check: ${permError.message}`);
-			throw error(500, 'Failed to verify API permissions');
-		}
-	}
-
-	// Check if user has required permission for this endpoint
-	const requiredPermissionName = `api:${apiEndpoint}`;
-
-	// ADMIN OVERRIDE: Admins have access to all API endpoints
-	const userRole = roles.find((role) => role._id === user.role);
-	const isAdmin = userRole?.isAdmin === true;
-
-	if (!isAdmin) {
-		const permissionExists = userPerms.some((p) => p === requiredPermissionName);
-		if (!permissionExists) {
-			// If the user *lacks* the specific API permission
-			logger.warn(`User \x1b[34m${user._id}\x1b[0m denied access to API /api/${apiEndpoint} due to missing permission: ${requiredPermissionName}`);
-			throw error(403, `Forbidden: You do not have the required permission ('${requiredPermissionName}') to access this API endpoint.`);
-		}
-	} else {
-		logger.debug(`Admin user granted access to API`, { email: user.email || user._id, apiEndpoint: `/api/${apiEndpoint}` });
-	}
-
-	// Handle GET requests with caching
-	if (event.request.method === 'GET') {
-		const cacheKey = `api:${apiEndpoint}:${user._id}:${event.url.search}`; // Include query params in cache key
-		try {
-			const cached = await cacheStore.get<{
-				data: unknown;
-				timestamp: number;
-				headers: Record<string, string>;
-			}>(cacheKey);
-			if (cached && now - cached.timestamp < API_CACHE_TTL) {
-				// Check cache TTL
-				logger.debug(`Cache hit for API GET \x1b[34m${cacheKey}\x1b[0m`);
-				return new Response(JSON.stringify(cached.data), {
-					status: 200,
-					headers: { ...cached.headers, 'Content-Type': 'application/json', 'X-Cache': 'hit' }
-				});
-			}
-		} catch (cacheGetError) {
-			logger.warn(`Error fetching from API cache for \x1b[31m${cacheKey}\x1b[0m: ${cacheGetError.message}`);
-		}
-
-		const response = await resolve(event);
-
-		// GraphQL might have its own complex caching
-		if (apiEndpoint === 'graphql') {
-			response.headers.append('X-Cache', 'miss');
-			return response;
-		}
-
-		if (response.ok) {
-			try {
-				const responseBody = await response.json();
-				await cacheStore.set(
-					cacheKey,
-					{
-						data: responseBody,
-						timestamp: now,
-						headers: Object.fromEntries(response.headers)
-					},
-					new Date(now + API_CACHE_TTL)
-				);
-				// Return a new Response with the updated headers
-				return new Response(JSON.stringify(responseBody), {
-					status: response.status,
-					headers: {
-						...Object.fromEntries(response.headers),
-						'Content-Type': 'application/json',
-						'X-Cache': 'miss'
-					}
-				});
-			} catch (processingError) {
-				logger.error(
-					`Error processing API GET response for \x1b[34m/api/${apiEndpoint}\x1b[0m (user: \x1b[31m${user._id}\x1b[0m): ${processingError.message}`
-				);
-				return new Response(
-					JSON.stringify({
-						error: 'Failed to process API response',
-						message: processingError.message,
-						endpoint: `/api/${apiEndpoint}`
-					}),
-					{
-						status: 500,
-						headers: { 'Content-Type': 'application/json' }
-					}
-				);
-			}
-		}
-		return response;
-	}
-
-	// Handle non-GET requests (POST, PUT, DELETE etc.) with cache invalidation
-	const response = await resolve(event);
-
-	if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(event.request.method) && response.ok) {
-		const baseCacheKey = `api:${apiEndpoint}:${user._id}`;
-		try {
-			await cacheStore.deletePattern(`${baseCacheKey}:*`);
-			logger.debug(
-				`Invalidated API cache for keys starting with \x1b[34m${baseCacheKey}\x1b[0m after \x1b[32m${event.request.method}\x1b[0m request`
-			);
-		} catch (err) {
-			logger.error(`Failed to invalidate API cache for ${baseCacheKey}: ${err.message}`);
-		}
-	}
-	return response;
 };
 
 // Add security headers to the response

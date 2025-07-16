@@ -19,8 +19,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
 
 // Auth
-import { hasPermissionByAction } from '@src/auth/permissions';
-import { getAllPermissions } from '@src/auth/permissions';
+import { checkApiPermission } from '@src/routes/api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -46,22 +45,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			throw error(400, 'Invalid search query');
 		}
 
-		// Check API permissions
-		const permissions = await getAllPermissions();
-		const requiredPermission = permissions.find((p) => p._id === 'api:search');
+		// Check API permissions using centralized system
+		const permissionResult = await checkApiPermission(locals.user, {
+			resource: 'search',
+			action: 'read'
+		});
 
-		if (requiredPermission) {
-			const { hasPermission } = await hasPermissionByAction(locals.user, {
-				contextId: 'api:search',
-				name: 'Access Search API',
-				action: requiredPermission.action,
-				contextType: requiredPermission.type
+		if (!permissionResult.hasPermission) {
+			logger.warn('Unauthorized attempt to access search API', {
+				userId: locals.user?._id,
+				error: permissionResult.error
 			});
-
-			if (!hasPermission) {
-				logger.warn(`User ${locals.user?._id} attempted to access search API without permission`);
-				throw error(403, 'Forbidden: Insufficient permissions');
-			}
+			throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
 		}
 
 		// Perform search across all collections
@@ -69,21 +64,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const skip = (page - 1) * limit;
 
 		for (const [collectionName, collection] of collections) {
-			// Check collection-specific permissions
-			const collectionPermission = permissions.find((p) => p._id === `collection:${collectionName}:read`);
-
-			if (collectionPermission) {
-				const { hasPermission } = await hasPermissionByAction(locals.user, {
-					contextId: `collection:${collectionName}`,
-					name: `Read ${collectionName} Collection`,
-					action: collectionPermission.action,
-					contextType: collectionPermission.type
-				});
-
-				if (!hasPermission) {
-					continue;
-				}
-			}
+			// For now, if user has general search access, they can search all collections
+			// TODO: Add collection-specific search permissions if needed
 
 			// Perform search on collection
 			const searchResults = await collection.search({

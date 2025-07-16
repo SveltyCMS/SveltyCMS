@@ -56,6 +56,7 @@ export async function initializeRoles(): Promise<void> {
 				'content:images',
 				'system:dashboard',
 				'api:systemInfo',
+				'api:collections',
 				'api:user',
 				'api:userActivity',
 				'api:media'

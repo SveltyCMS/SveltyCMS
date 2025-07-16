@@ -5,8 +5,12 @@
 import { json } from '@sveltejs/kit';
 import mongoose from 'mongoose';
 import mariadb from 'mariadb';
+import { checkApiPermission } from '@api/permissions';
 
-export async function POST({ request }) {
+export async function POST({ request, cookies }) {
+	// Check permissions using centralized system
+	await checkApiPermission(cookies, 'config:settings');
+
 	const config = await request.json();
 	const { DB_TYPE, DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME } = config;
 
@@ -18,7 +22,7 @@ export async function POST({ request }) {
 			} else {
 				connectionString = `mongodb://${encodeURIComponent(DB_USER)}:${encodeURIComponent(DB_PASSWORD)}@${DB_HOST.replace('mongodb://', '')}:${DB_PORT}/${DB_NAME}?authSource=admin`;
 			}
-			
+
 			// Mongoose caches connections, so we create a new one to test.
 			const testConnection = await mongoose.createConnection(connectionString).asPromise();
 			await testConnection.db.admin().ping();
@@ -37,7 +41,7 @@ export async function POST({ request }) {
 				port: DB_PORT,
 				user: DB_USER,
 				password: DB_PASSWORD,
-				database: DB_NAME,
+				database: DB_NAME
 			});
 			await connection.ping();
 			return json({ success: true, message: 'MariaDB connection successful!' });
@@ -51,4 +55,3 @@ export async function POST({ request }) {
 
 	return json({ success: false, message: 'Invalid database type provided.' }, { status: 400 });
 }
-

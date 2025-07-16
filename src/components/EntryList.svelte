@@ -28,7 +28,7 @@ Features:
 	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
 	// Utils
-	import { apiRequest, getData, invalidateCollectionCache } from '@utils/apiClient';
+	import { apiRequest, getData, invalidateCollectionCache, updateStatus } from '@utils/apiClient';
 	import { formatDisplayDate } from '@utils/dateUtils';
 	import { debounce as debounceUtil, getFieldName, meta_data } from '@utils/utils';
 	// Types
@@ -352,7 +352,7 @@ Features:
 				}
 				// Conditionally add the filter for deleted status
 				if (!showDeleted) {
-					activeFilters.status = JSON.stringify({ $ne: 'deleted' });
+					activeFilters.status = '!=deleted';
 				} else {
 					// If we are showing deleted items, ensure no other status filter is conflicting.
 					delete activeFilters.status;
@@ -623,10 +623,11 @@ Features:
 				return;
 			}
 			try {
-				await apiRequest('SETSTATUS', currentCollection._id, {
-					ids: modifyList,
-					status: statusMap[status]
-				});
+				// Use new status endpoint for batch updates
+				// Pick first entry ID as base for endpoint, pass other IDs in body
+				const firstEntryId = modifyList[0];
+				await updateStatus(currentCollection._id, firstEntryId, statusMap[status], modifyList);
+
 				// Invalidate cache and refresh the table data
 				invalidateCollectionCache(currentCollection._id);
 				refreshTableData();
@@ -711,13 +712,9 @@ Features:
 				if (!data || !currentCollection?._id) return;
 
 				try {
-					await apiRequest('SCHEDULE', currentCollection._id, {
-						ids: selectedIds,
-						schedule: {
-							date: data.date,
-							action: data.action
-						}
-					});
+					// Use the updateStatus function to set status to 'scheduled' with scheduling metadata
+					// For now, we'll set status to 'scheduled' - later we can enhance the status endpoint to support scheduling fields
+					await updateStatus(currentCollection._id, selectedIds[0], 'scheduled', selectedIds);
 					toastStore.trigger({ message: 'Items scheduled successfully.', background: 'variant-filled-success' });
 					invalidateCollectionCache(currentCollection._id);
 					refreshTableData();
@@ -753,7 +750,9 @@ Features:
 				if (confirmed) {
 					if (!currentCollection?._id) return;
 					try {
-						await apiRequest('DELETE', currentCollection._id, { ids: JSON.stringify(selectedIds) });
+						// Delete each item individually using the new RESTful endpoints
+						const deletePromises = selectedIds.map((entryId) => apiRequest('DELETE', currentCollection!._id, {}, entryId));
+						await Promise.all(deletePromises);
 						toastStore.trigger({ message: 'Items deleted successfully.', background: 'variant-filled-success' });
 						invalidateCollectionCache(currentCollection._id); // Invalidate cache
 						refreshTableData(); // Refresh data to show changes
@@ -896,6 +895,11 @@ Features:
 					{#if currentCollection?.name}
 						<div class="flex max-w-[85px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
 							{currentCollection.name}
+						</div>
+					{/if}
+					{#if hasSelections}
+						<div class="mt-1 text-xs text-primary-500 dark:text-secondary-400 sm:ml-2 sm:mt-0">
+							{Object.values(selectedMap).filter(Boolean).length} selected
 						</div>
 					{/if}
 				</div>
@@ -1053,13 +1057,20 @@ Features:
 					{/if}
 
 					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-						<td class="w-10 pl-3">
-							<TableIcons
-								checked={SelectAll}
-								onCheck={(checked) => {
-									SelectAll = checked;
-								}}
-							/>
+						<td class="w-10 pl-3 {hasSelections ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}">
+							<div class="flex flex-col items-center">
+								<TableIcons
+									checked={SelectAll}
+									onCheck={(checked) => {
+										SelectAll = checked;
+									}}
+								/>
+								{#if hasSelections && !SelectAll}
+									<span class="mt-1 text-xs text-primary-500 dark:text-secondary-400">
+										{Object.values(selectedMap).filter(Boolean).length}
+									</span>
+								{/if}
+							</div>
 						</td>
 
 						{#each renderHeaders as header (header.id)}
@@ -1098,8 +1109,8 @@ Features:
 				<tbody>
 					{#if tableData.length > 0}
 						{#each tableData as entry, index (entry._id)}
-							<tr class="divide-x divide-surface-400 dark:divide-surface-700">
-								<td class="w-10 text-center">
+							<tr class="divide-x divide-surface-400 dark:divide-surface-700 {selectedMap[index] ? 'bg-primary-500/5 dark:bg-secondary-500/10' : ''}">
+								<td class="w-10 text-center {selectedMap[index] ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}">
 									<TableIcons
 										checked={selectedMap[index]}
 										onCheck={(isChecked) => {

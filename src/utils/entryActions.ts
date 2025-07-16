@@ -3,7 +3,7 @@
  * @description Centralized functions for performing actions on single collection entries.
  */
 
-import { apiRequest } from './apiClient';
+import { apiRequest, updateStatus } from './apiClient';
 // Stores
 import { collection, mode, collectionValue } from '@stores/collectionStore.svelte';
 // Skeleton
@@ -67,7 +67,8 @@ export async function setEntryStatus(newStatus: 'published' | 'unpublished' | 's
 	}
 
 	try {
-		await apiRequest('SETSTATUS', coll._id, { ids: JSON.stringify([entry._id]), status: newStatus });
+		// Use new status endpoint
+		await updateStatus(coll._id, entry._id, newStatus);
 		collectionValue.update((cv) => ({ ...cv, status: newStatus }));
 		toastStore.trigger({
 			message: m.entry_status_updated({ status: newStatus }),

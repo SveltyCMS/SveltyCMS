@@ -10,6 +10,7 @@ import { json } from '@sveltejs/kit';
 import fs from 'fs/promises';
 import path from 'path';
 import { pathToFileURL } from 'url';
+import { checkApiPermission } from '@api/permissions';
 
 // Helper to get a fresh, non-cached module
 async function importFresh(modulePath) {
@@ -52,7 +53,10 @@ export const ${configObjectName} = ${createConfigFunctionName}({
 	return content;
 }
 
-export async function POST({ request }) {
+export async function POST({ request, cookies }) {
+	// Check permissions using centralized system
+	await checkApiPermission(cookies, 'config:settings');
+
 	const { configData, isPrivate } = await request.json();
 	const configDir = path.join(process.cwd(), 'config');
 	const filePath = path.join(configDir, isPrivate ? 'private.ts' : 'public.ts');
@@ -75,10 +79,8 @@ export async function POST({ request }) {
 
 		console.log(`Successfully updated configuration file: ${filePath}`);
 		return json({ success: true, message: 'Configuration saved successfully.' });
-
 	} catch (error: any) {
 		console.error(`Error saving configuration to ${filePath}:`, error);
 		return json({ success: false, message: `Failed to save config: ${error.message}` }, { status: 500 });
 	}
 }
-

@@ -1,5 +1,5 @@
 /**
- * @file src/routes/api/compile/compile.ts
+ * @file src/utils/compilation/compile.ts
  * @description Compiles TypeScript files from the collections folder into JavaScript files using vite with custom AST transformations
  *
  * Features:

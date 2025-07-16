@@ -21,9 +21,8 @@ import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Auth and permission helpers
-import { roles } from '@root/config/roles'; // Import static roles for fallback
 import { SESSION_COOKIE_NAME } from '@src/auth';
-import { hasPermissionByAction } from '@src/auth/permissions';
+import { checkApiPermission } from '@src/routes/api/permissions';
 import { getCacheStore } from '@src/cacheStore/index.server';
 import { auth } from '@src/databases/db';
 
@@ -73,8 +72,21 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 			// A user always has permission to update their own profile.
 			hasPermission = true;
 		} else {
-			// To edit another user, the requesting user needs a high-level permission.
-			hasPermission = hasPermissionByAction(locals.user, 'update', 'user', 'any', locals.roles && locals.roles.length > 0 ? locals.roles : roles);
+			// To edit another user, use centralized permission system
+			const permissionResult = await checkApiPermission(locals.user, {
+				resource: 'user',
+				action: 'update'
+			});
+			hasPermission = permissionResult.hasPermission;
+
+			if (!hasPermission && permissionResult.error) {
+				logger.warn('Unauthorized attempt to update user attributes.', {
+					requestedBy: locals.user?._id,
+					targetUserId: userIdToUpdate,
+					error: permissionResult.error
+				});
+				throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error);
+			}
 		}
 
 		if (!hasPermission) {

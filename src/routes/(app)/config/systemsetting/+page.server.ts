@@ -36,10 +36,20 @@ export const load: PageServerLoad = async ({ locals }) => {
 		logger.debug(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`);
 
 		// Check user permission for system settings
-		const hasSystemSettingsPermission = hasPermissionWithRoles(user, 'config:settings', roles);
+		// First check if user is admin (explicit check)
+		const userRole = roles.find((role) => role._id === user.role);
+		const isAdmin = userRole?.isAdmin === true;
+
+		const hasSystemSettingsPermission = isAdmin || hasPermissionWithRoles(user, 'config:settings', roles);
+
 		if (!hasSystemSettingsPermission) {
-			const message = `User \x1b[34m${user._id}\x1b[0m does not have permission to access system settings`;
-			logger.warn(message);
+			const message = `User ${user._id} does not have permission to access system settings`;
+			logger.warn(message, {
+				userRole: user.role,
+				isAdmin,
+				availableRoles: roles.map((r) => r._id),
+				roleFound: !!userRole
+			});
 			throw error(403, 'Insufficient permissions');
 		}
 

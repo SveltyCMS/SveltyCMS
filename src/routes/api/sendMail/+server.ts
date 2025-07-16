@@ -37,6 +37,9 @@ import type { ComponentType } from 'svelte';
 // Environment variables for SMTP configuration
 import { privateEnv } from '@root/config/private';
 
+// Auth
+import { checkApiPermission } from '@src/routes/api/permissions';
+
 // Nodemailer for actual email sending
 import nodemailer from 'nodemailer';
 import type Mail from 'nodemailer/lib/mailer';
@@ -127,6 +130,20 @@ function createErrorResponse(message: string, status: number = 500) {
 
 // --- POST Handler ---
 export const POST: RequestHandler = async ({ request, locals }) => {
+	// Check sendMail permissions
+	const permissionResult = await checkApiPermission(locals.user, {
+		resource: 'sendMail',
+		action: 'write'
+	});
+
+	if (!permissionResult.hasPermission) {
+		logger.warn('Unauthorized attempt to send email', {
+			userId: locals.user?._id,
+			error: permissionResult.error
+		});
+		return createErrorResponse(permissionResult.error || 'Forbidden', permissionResult.error?.includes('Authentication') ? 401 : 403);
+	}
+
 	logger.debug(`User '${locals.user?.username || 'Unknown (hook issue or public access attempt)'}' calling /api/sendMail`);
 
 	let requestBody: {

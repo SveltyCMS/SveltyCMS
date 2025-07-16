@@ -200,8 +200,11 @@
 				<iconify-icon icon={iconValue} width="24" class="text-white"></iconify-icon>
 				<div class="hidden text-left md:block">
 					<span>{actionName}</span>
-					{#if hasSelections && selectedCount > 1}
-						<span class="text-xs opacity-75">({selectedCount})</span>
+					{#if hasSelections && selectedCount > 0}
+						<span class="text-xs opacity-75">
+							({selectedCount}
+							{selectedCount === 1 ? 'item' : 'items'})
+						</span>
 					{/if}
 				</div>
 			</span>
@@ -244,6 +247,8 @@
 								{label}
 								{#if type !== 'create' && !hasSelections}
 									<span class="text-xs opacity-75">(select items first)</span>
+								{:else if type !== 'create' && hasSelections && selectedCount > 1}
+									<span class="text-xs opacity-75">({selectedCount} items)</span>
 								{/if}
 							</p>
 						</button>

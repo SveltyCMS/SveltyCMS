@@ -30,6 +30,7 @@ import * as ts from 'typescript';
 // Authorization
 import { dbInitPromise } from '@src/databases/db';
 import { getAllPermissions } from '@src/auth/permissions';
+import { checkApiPermission } from '@src/routes/api/permissions';
 import { roles } from '@root/config/roles';
 
 // System Logger
@@ -43,12 +44,30 @@ const MAX_ROLE_NAME_LENGTH = 50;
 const ROLE_NAME_PATTERN = /^[a-zA-Z0-9-_\s]+$/;
 
 export const POST: RequestHandler = async ({ request, locals }) => {
+	// Check permission management permissions
+	const permissionResult = await checkApiPermission(locals.user, {
+		resource: 'permissions',
+		action: 'update'
+	});
+
+	if (!permissionResult.hasPermission) {
+		logger.warn('Unauthorized attempt to update permissions', {
+			userId: locals.user?._id,
+			error: permissionResult.error
+		});
+		return json(
+			{
+				success: false,
+				error: permissionResult.error || 'Forbidden'
+			},
+			{
+				status: permissionResult.error?.includes('Authentication') ? 401 : 403
+			}
+		);
+	}
+
 	// Authorization check
 	const user = locals.user;
-	if (!user) {
-		logger.warn('Unauthorized attempt to update permissions - no user');
-		return json({ success: false, error: 'Unauthorized' }, { status: 403 });
-	}
 
 	// Check if user has admin role
 	const userRole = roles.find((role) => role._id === user.role);

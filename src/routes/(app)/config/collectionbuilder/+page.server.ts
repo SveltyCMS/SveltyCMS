@@ -35,11 +35,24 @@ export const load: PageServerLoad = async ({ locals }) => {
 		logger.debug(`User authenticated successfully for user: \x1b[34m${user._id}\x1b[0m`);
 
 		// Check user permission for collection builder
+		logger.debug('Permission check details', {
+			userId: user._id,
+			userRole: user.role,
+			availableRoles: roles.length,
+			checkingPermission: 'config:collectionbuilder'
+		});
+
 		const hasCollectionBuilderPermission = hasPermissionWithRoles(user, 'config:collectionbuilder', roles);
 
 		if (!hasCollectionBuilderPermission) {
-			const message = `User \x1b[34m${user._id}\x1b[0m does not have permission to access collection builder`;
-			logger.warn(message);
+			const userRole = roles.find((r) => r._id === user.role);
+			logger.warn('Permission denied for collection builder', {
+				userId: user._id,
+				userRole: user.role,
+				roleFound: !!userRole,
+				isAdmin: userRole?.isAdmin,
+				rolePermissions: userRole?.permissions?.length || 0
+			});
 			throw error(403, 'Insufficient permissions');
 		}
 

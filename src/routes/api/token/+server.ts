@@ -17,7 +17,7 @@
  * "expiresInLabel": "7d"
  * }
  */
-import { json, error, type HttpError } from '@sveltejs/kit';
+import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Auth
@@ -29,10 +29,11 @@ import { roles } from '@root/config/roles';
 import { invalidateAdminCache } from '@src/hooks.server';
 
 // Validation
-import { object, string, number, parse, type ValiError, minLength } from 'valibot';
+import { object, string, number, parse, minLength } from 'valibot';
 
 // System logger
 import { logger } from '@utils/logger.svelte';
+import { logApiStart, logApiSuccess, logApiError, logApiAuthFailure, logApiValidationError } from '@utils/apiLogger';
 
 const createTokenSchema = object({
 	email: string([minLength(1, 'Email is required.')]),
@@ -42,7 +43,10 @@ const createTokenSchema = object({
 	expiresInLabel: string()
 });
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+export const POST: RequestHandler = async (event) => {
+	const { context, startTime } = logApiStart(event);
+	const { request, locals } = event;
+
 	try {
 		const hasPermission = hasPermissionByAction(
 			locals.user,
@@ -53,15 +57,44 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		);
 
 		if (!hasPermission) {
-			logger.warn(`Unauthorized attempt to create a token.`, { userId: locals.user?._id });
+			logApiAuthFailure(context, startTime, 'forbidden', 'Insufficient permissions to create tokens');
+			logger.warn(`Unauthorized token creation attempt`, {
+				userId: locals.user?._id,
+				userEmail: locals.user?.email,
+				requiredPermission: 'create:token'
+			});
 			throw error(403, 'Forbidden: You do not have permission to create tokens.');
 		}
 
 		const body = await request.json();
-		const tokenData = parse(createTokenSchema, body);
+
+		let tokenData;
+		try {
+			tokenData = parse(createTokenSchema, body);
+		} catch (err) {
+			if (err.name === 'ValiError') {
+				const validationErrors = err.issues?.map((issue) => `${issue.path?.join('.')}: ${issue.message}`) || ['Invalid data'];
+				logApiValidationError(context, startTime, validationErrors, body);
+				logger.warn(`Token creation validation failed`, {
+					userId: locals.user?._id,
+					validationErrors,
+					providedFields: Object.keys(body || {})
+				});
+				throw error(400, 'Validation Error: ' + validationErrors.join(', '));
+			}
+			throw err;
+		}
 
 		const tokenAdapter = new TokenAdapter();
 		const expiresAt = new Date(Date.now() + tokenData.expiresIn * 60 * 60 * 1000);
+
+		logger.debug(`Creating token for user`, {
+			targetUserId: tokenData.user_id,
+			targetEmail: tokenData.email,
+			role: tokenData.role,
+			expiresIn: tokenData.expiresIn,
+			createdBy: locals.user?._id
+		});
 
 		const token = await tokenAdapter.createToken({
 			user_id: tokenData.user_id,
@@ -73,25 +106,36 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		// Invalidate the tokens cache so the new token appears immediately in admin area
 		invalidateAdminCache('tokens');
 
-		logger.info(`Token created successfully`, { token, executedBy: locals.user?._id });
+		const responseData = {
+			success: true,
+			token: { value: token, expires: expiresAt.toISOString() }
+		};
 
-		return json({ success: true, token: { value: token, expires: expiresAt.toISOString() } }, { status: 201 });
-	} catch (err) {
-		if (err.name === 'ValiError') {
-			const valiError = err as ValiError;
-			const issues = valiError.issues.map((issue) => issue.message).join(', ');
-			logger.warn('Invalid input for create token API:', { issues });
-			throw error(400, `Invalid input: ${issues}`);
-		}
-		const httpError = err as HttpError;
-		const status = httpError.status || 500;
-		const message = httpError.body?.message || 'An unexpected error occurred.';
-		logger.error('Error in create token API:', {
-			error: message,
-			stack: err instanceof Error ? err.stack : undefined,
-			userId: locals.user?._id,
-			status
+		logApiSuccess(context, startTime, 201, body, JSON.stringify(responseData).length);
+
+		logger.info(`Token created successfully`, {
+			tokenId: token,
+			targetUserId: tokenData.user_id,
+			targetEmail: tokenData.email,
+			role: tokenData.role,
+			expiresAt: expiresAt.toISOString(),
+			createdBy: locals.user?._id,
+			duration: `${(performance.now() - startTime).toFixed(2)}ms`
 		});
-		return json({ success: false, message: status === 500 ? 'Internal Server Error' : message }, { status });
+
+		return json(responseData, { status: 201 });
+	} catch (err) {
+		if (err.status) {
+			// Re-throw SvelteKit errors (they're already logged)
+			throw err;
+		}
+
+		logApiError(context, startTime, err, 500, event.request.body);
+		logger.error(`Unexpected error in token creation endpoint`, {
+			userId: locals.user?._id,
+			error: err.message,
+			stack: err.stack
+		});
+		throw error(500, 'Failed to create token: ' + err.message);
 	}
 };

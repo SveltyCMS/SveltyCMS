@@ -18,8 +18,7 @@ import { json, error, type HttpError } from '@sveltejs/kit';
 
 // Auth and permission helpers
 import { auth } from '@src/databases/db';
-import { hasPermissionByAction } from '@src/auth/permissions';
-import { roles } from '@root/config/roles'; // Import static roles for fallback
+import { checkApiPermission } from '@src/routes/api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -36,12 +35,18 @@ const createUserSchema = object({
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
-		// **SECURITY**: Check for specific 'create:user:any' permission.
-		const hasPermission = hasPermissionByAction(locals.user, 'create', 'user', 'any', locals.roles && locals.roles.length > 0 ? locals.roles : roles);
+		// **SECURITY**: Check for user create permission using centralized system
+		const permissionResult = await checkApiPermission(locals.user, {
+			resource: 'user',
+			action: 'create'
+		});
 
-		if (!hasPermission) {
-			logger.warn('Unauthorized attempt to create a user directly', { userId: locals.user?._id });
-			throw error(403, 'Forbidden: You do not have permission to create users.');
+		if (!permissionResult.hasPermission) {
+			logger.warn('Unauthorized attempt to create user', {
+				userId: locals.user?._id,
+				error: permissionResult.error
+			});
+			throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
 		}
 
 		if (!auth) {

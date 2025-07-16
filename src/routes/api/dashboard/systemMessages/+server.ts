@@ -15,7 +15,7 @@ import type { RequestHandler } from './$types';
 import { error, json } from '@sveltejs/kit';
 
 // Auth
-import { auth } from '@src/databases/db';
+import { checkApiPermission } from '@src/routes/api/permissions';
 
 // Validation
 import * as v from 'valibot';
@@ -78,10 +78,18 @@ async function readLastLines(filePath: string, maxLines: number): Promise<string
 // --- API Handler ---
 
 export const GET: RequestHandler = async ({ locals, url }) => {
-	// Initial Check for Auth
-	if (!auth) {
-		logger.error('Authentication system is not initialized');
-		throw error(500, 'Internal Server Error: Auth service unavailable.');
+	// Check dashboard permissions
+	const permissionResult = await checkApiPermission(locals.user, {
+		resource: 'dashboard',
+		action: 'read'
+	});
+
+	if (!permissionResult.hasPermission) {
+		logger.warn('Unauthorized attempt to access system messages', {
+			userId: locals.user?._id,
+			error: permissionResult.error
+		});
+		throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
 	}
 
 	try {

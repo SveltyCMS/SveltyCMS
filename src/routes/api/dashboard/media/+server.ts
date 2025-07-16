@@ -3,28 +3,29 @@
  * @description API endpoint for media file listings for dashboard widgets
  */
 
-import { roles } from '@root/config/roles';
-import { hasPermissionByAction } from '@src/auth/permissions';
 import { error, json } from '@sveltejs/kit';
 import { logger } from '@utils/logger.svelte';
 import fs from 'fs/promises';
 import path from 'path';
 import type { RequestHandler } from './$types';
 
+// Auth
+import { checkApiPermission } from '@src/routes/api/permissions';
+
 export const GET: RequestHandler = async ({ locals, url }) => {
 	try {
-		// Check if user has permission for dashboard access
-		const hasPermission = hasPermissionByAction(
-			locals.user,
-			'access',
-			'system',
-			'dashboard',
-			locals.roles && locals.roles.length > 0 ? locals.roles : roles
-		);
+		// Check if user has permission for dashboard access using centralized system
+		const permissionResult = await checkApiPermission(locals.user, {
+			resource: 'dashboard',
+			action: 'read'
+		});
 
-		if (!hasPermission) {
-			logger.warn('Unauthorized attempt to access media data', { userId: locals.user?._id });
-			throw error(403, 'Forbidden: You do not have permission to access media data.');
+		if (!permissionResult.hasPermission) {
+			logger.warn('Unauthorized attempt to access media data', {
+				userId: locals.user?._id,
+				error: permissionResult.error
+			});
+			throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
 		}
 
 		const limit = parseInt(url.searchParams.get('limit') || '5');

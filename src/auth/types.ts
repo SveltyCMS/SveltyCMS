@@ -12,6 +12,7 @@ export enum PermissionAction {
 	READ = 'read', // Grants the ability to read or view a resource or record.
 	UPDATE = 'update', // Grants the ability to modify or update an existing resource or record.
 	DELETE = 'delete', // Grants the ability to remove or delete a resource or record.
+	WRITE = 'write', // Grants the ability to write or modify a resource or record.
 	MANAGE = 'manage', // Grants overarching control over a resource or area, typically used for admin purposes.
 	SHARE = 'share', // Grants the ability to share a resource or record with others, typically used for collaboration.
 	ACCESS = 'access', // Grants basic access to a resource or area, typically used for admin purposes.
@@ -21,7 +22,7 @@ export enum PermissionAction {
 // Permission Types
 export enum PermissionType {
 	COLLECTION = 'collection', // Collection-related permissions
-	USER = 'User', // User-related permissions
+	USER = 'user', // User-related permissions
 	CONFIGURATION = 'configuration', // Configuration-related permissions
 	SYSTEM = 'system', // System-wide permissions
 	API = 'api' // API-related permissions

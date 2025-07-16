@@ -15,6 +15,74 @@ export const corePermissions: Permission[] = [
 	{ _id: 'system:admin', name: 'Admin Access', action: PermissionAction.MANAGE, type: PermissionType.SYSTEM },
 	{ _id: 'system:settings', name: 'Settings Management', action: PermissionAction.MANAGE, type: PermissionType.SYSTEM },
 
+	// Dashboard resource permissions
+	{ _id: 'dashboard:read', name: 'Dashboard Read Access', action: PermissionAction.READ, type: PermissionType.SYSTEM, contextId: 'dashboard' },
+	{ _id: 'dashboard:write', name: 'Dashboard Write Access', action: PermissionAction.WRITE, type: PermissionType.SYSTEM, contextId: 'dashboard' },
+	{ _id: 'dashboard:update', name: 'Dashboard Update Access', action: PermissionAction.UPDATE, type: PermissionType.SYSTEM, contextId: 'dashboard' },
+
+	// SendMail resource permissions
+	{ _id: 'sendMail:write', name: 'Send Mail Access', action: PermissionAction.WRITE, type: PermissionType.SYSTEM, contextId: 'sendMail' },
+
+	// Permissions management resource permissions
+	{ _id: 'permissions:update', name: 'Update Permissions', action: PermissionAction.UPDATE, type: PermissionType.SYSTEM, contextId: 'permissions' },
+
+	// System preferences resource permissions
+	{
+		_id: 'systemPreferences:read',
+		name: 'Read System Preferences',
+		action: PermissionAction.READ,
+		type: PermissionType.SYSTEM,
+		contextId: 'systemPreferences'
+	},
+	{
+		_id: 'systemPreferences:write',
+		name: 'Write System Preferences',
+		action: PermissionAction.WRITE,
+		type: PermissionType.SYSTEM,
+		contextId: 'systemPreferences'
+	},
+
+	// Search resource permissions
+	{ _id: 'search:read', name: 'Search Access', action: PermissionAction.READ, type: PermissionType.SYSTEM, contextId: 'search' },
+
+	// GraphQL resource permissions
+	{ _id: 'graphql:read', name: 'GraphQL API Access', action: PermissionAction.READ, type: PermissionType.SYSTEM, contextId: 'graphql' },
+
+	// Media resource permissions
+	{ _id: 'media:read', name: 'Media Read Access', action: PermissionAction.READ, type: PermissionType.SYSTEM, contextId: 'media' },
+	{ _id: 'media:write', name: 'Media Write Access', action: PermissionAction.WRITE, type: PermissionType.SYSTEM, contextId: 'media' },
+	{ _id: 'media:delete', name: 'Media Delete Access', action: PermissionAction.DELETE, type: PermissionType.SYSTEM, contextId: 'media' },
+
+	// User management permissions
+	{ _id: 'user:create', name: 'User Create Access', action: PermissionAction.CREATE, type: PermissionType.SYSTEM, contextId: 'user' },
+	{ _id: 'user:read', name: 'User Read Access', action: PermissionAction.READ, type: PermissionType.SYSTEM, contextId: 'user' },
+	{ _id: 'user:update', name: 'User Update Access', action: PermissionAction.WRITE, type: PermissionType.SYSTEM, contextId: 'user' },
+	{ _id: 'user:delete', name: 'User Delete Access', action: PermissionAction.DELETE, type: PermissionType.SYSTEM, contextId: 'user' },
+
+	// Collections management permissions
+	{ _id: 'collections:read', name: 'Collections Read Access', action: PermissionAction.READ, type: PermissionType.SYSTEM, contextId: 'collections' },
+	{
+		_id: 'collections:write',
+		name: 'Collections Write Access',
+		action: PermissionAction.WRITE,
+		type: PermissionType.SYSTEM,
+		contextId: 'collections'
+	},
+	{
+		_id: 'collections:create',
+		name: 'Collections Create Access',
+		action: PermissionAction.CREATE,
+		type: PermissionType.SYSTEM,
+		contextId: 'collections'
+	},
+	{
+		_id: 'collections:delete',
+		name: 'Collections Delete Access',
+		action: PermissionAction.DELETE,
+		type: PermissionType.SYSTEM,
+		contextId: 'collections'
+	},
+
 	// API permissions
 	{ _id: 'api:graphql', name: 'GraphQL API Access', action: PermissionAction.ACCESS, type: PermissionType.SYSTEM },
 	{ _id: 'api:collections', name: 'Collections API Access', action: PermissionAction.ACCESS, type: PermissionType.SYSTEM },
@@ -71,19 +139,18 @@ export const corePermissions: Permission[] = [
 	},
 
 	// Collection permissions
-	{ _id: 'collections:create', name: 'Create Collections', action: PermissionAction.CREATE, type: PermissionType.COLLECTION },
-	{ _id: 'collections:read', name: 'Read Collections', action: PermissionAction.READ, type: PermissionType.COLLECTION },
-	{ _id: 'collections:update', name: 'Update Collections', action: PermissionAction.UPDATE, type: PermissionType.COLLECTION },
-	{ _id: 'collections:delete', name: 'Delete Collections', action: PermissionAction.DELETE, type: PermissionType.COLLECTION },
+	{ _id: 'collection:create', name: 'Create Collection Entries', action: PermissionAction.CREATE, type: PermissionType.COLLECTION },
+	{ _id: 'collection:read', name: 'Read Collection Entries', action: PermissionAction.READ, type: PermissionType.COLLECTION },
+	{ _id: 'collection:update', name: 'Update Collection Entries', action: PermissionAction.UPDATE, type: PermissionType.COLLECTION },
+	{ _id: 'collection:delete', name: 'Delete Collection Entries', action: PermissionAction.DELETE, type: PermissionType.COLLECTION },
 
 	// Content permissions
 	{ _id: 'content:editor', name: 'Content Editor', action: PermissionAction.MANAGE, type: PermissionType.SYSTEM },
 	{ _id: 'content:builder', name: 'Content Builder', action: PermissionAction.MANAGE, type: PermissionType.SYSTEM },
 	{ _id: 'content:images', name: 'Image Management', action: PermissionAction.MANAGE, type: PermissionType.SYSTEM },
 
-	// User management permissions
+	// User management permissions (consolidated)
 	{ _id: 'user:manage', name: 'Manage Users', action: PermissionAction.MANAGE, type: PermissionType.USER },
-	{ _id: 'user:create', name: 'Create Users', action: PermissionAction.CREATE, type: PermissionType.USER },
 	{
 		_id: 'user.create',
 		name: 'Create User Tokens',

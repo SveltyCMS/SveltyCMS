@@ -28,7 +28,7 @@ import { ensureWidgetsInitialized } from '@src/widgets';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 import { constructContentPaths, generateCategoryNodesFromPaths, processModule } from './utils';
-import { compile } from '../routes/api/compile/compile';
+import { compile } from '../utils/compilation/compile';
 
 interface CacheEntry<T> {
 	value: T;

@@ -197,11 +197,9 @@
 				formData.append('collectionId', collection.value._id);
 			}
 			formData.append('entryId', String(collectionValue.value._id));
-			formData.append('metaOnly', 'true');
-
-			const response = await fetch('/api/query', {
-				method: 'POST',
-				body: formData,
+			// Use new revisions endpoint for metadata
+			const response = await fetch(`/api/collections/${collection.value?._id}/${collectionValue.value._id}/revisions?metaOnly=true`, {
+				method: 'GET',
 				credentials: 'include'
 			});
 			if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
@@ -228,32 +226,20 @@
 		isRevisionDetailLoading = true;
 		diffObject = null;
 		try {
-			const formData = new FormData();
-			formData.append('method', 'REVISIONS');
-			formData.append('collectionId', collection.value?._id || '');
-			formData.append('entryId', String(collectionValue.value._id));
-			formData.append('revisionId', revisionId);
-			formData.append('currentData', JSON.stringify(formDataSnapshot));
-
-			const response = await fetch('/api/query', { method: 'POST', body: formData });
+			// Use new revisions endpoint for diff comparison
+			const response = await fetch(`/api/collections/${collection.value?._id}/${collectionValue.value._id}/revisions?revisionId=${revisionId}&compareWith=current&currentData=${encodeURIComponent(JSON.stringify(formDataSnapshot))}`, {
+				method: 'GET',
+				credentials: 'include'
+			});
 			if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
 
 			const result = await response.json();
 			if (result.success) {
 				diffObject = result.data;
 				// To enable revert, we also need the full original data
-				const fullRevisionResponse = await fetch('/api/query', {
-					method: 'POST',
-					body: (() => {
-						const fd = new FormData();
-						fd.append('method', 'REVISIONS');
-						if (collection.value && collection.value._id) {
-							fd.append('collectionId', collection.value._id);
-						}
-						fd.append('entryId', String(collectionValue.value._id));
-						fd.append('revisionId', revisionId);
-						return fd;
-					})()
+				const fullRevisionResponse = await fetch(`/api/collections/${collection.value?._id}/${collectionValue.value._id}/revisions?revisionId=${revisionId}`, {
+					method: 'GET',
+					credentials: 'include'
 				});
 				const fullResult = await fullRevisionResponse.json();
 				if (fullResult.success) {
@@ -293,13 +279,17 @@
 		}
 
 		try {
-			const formData = new FormData();
-			formData.append('method', 'PATCH');
-			formData.append('collectionId', collection.value?._id || '');
 			const revertData = { ...selectedRevisionData, _id: collectionValue.value._id };
-			formData.append('data', JSON.stringify(revertData));
 
-			const response = await fetch('/api/query', { method: 'POST', body: formData });
+			// Use new PATCH endpoint for revert
+			const response = await fetch(`/api/collections/${collection.value?._id}/${collectionValue.value._id}`, {
+				method: 'PATCH',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(revertData),
+				credentials: 'include'
+			});
 			if (!response.ok) throw new Error('Failed to revert on the server.');
 
 			const result = await response.json();
