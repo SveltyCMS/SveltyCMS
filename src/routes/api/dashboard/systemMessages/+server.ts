@@ -1,6 +1,6 @@
 /**
  * @file src/routes/api/dashboard/systemMessages/+server.ts
- * @description API endpoint for system messages for dashboard widgets.
+ * @description API endpoint for system messages for dashboard widgets
  *
  * ### Features
  * - **Secure Authorization:** Access is controlled centrally by `src/hooks.server.ts`.
@@ -15,16 +15,15 @@ import type { RequestHandler } from './$types';
 import { error, json } from '@sveltejs/kit';
 
 // Auth
-import { checkApiPermission } from '@src/routes/api/permissions';
-
-// Validation
-import * as v from 'valibot';
+import { checkApiPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-// --- Types, Constants & Schemas ---
+// Validation
+import * as v from 'valibot';
 
+// --- Types, Constants & Schemas ---
 type SystemMessage = {
 	id: string;
 	title: string;

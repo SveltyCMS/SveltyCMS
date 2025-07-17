@@ -151,7 +151,7 @@ export function getPermissionConfig(configKey: string): PermissionConfig | null 
 		contextId: permission.contextId || permissionId,
 		name: permission.name,
 		action: permission.action,
-		contextType: permission.type,
+		contextType: permission.type || '',
 		description: permission.description
 	};
 }

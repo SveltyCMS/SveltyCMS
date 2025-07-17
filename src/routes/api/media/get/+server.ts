@@ -2,10 +2,21 @@
  * @file src/routes/api/media/get/+server.ts
  * @description
  * API endpoint for retrieving media files.
+ *
+ * @example GET /api/media/get?url=https://example.com/image.jpg
+ *
+ * Features:
+ * - Centralized permission checking for media access
+ * - Requires authentication and media read permissions
+ * - Admin override for unrestricted access
+ * - Secure file retrieval with proper headers
  */
 
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
+
+// Permissions
+import { checkApiPermission } from '@api/permissions';
 
 // Media
 import { getFile } from '@utils/media/mediaStorage';
@@ -14,11 +25,18 @@ import { getFile } from '@utils/media/mediaStorage';
 import { logger } from '@utils/logger.svelte';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-	const user = locals.user;
+	// Use centralized permission checking
+	const permissionResult = await checkApiPermission(locals.user, {
+		resource: 'media',
+		action: 'read'
+	});
 
-	if (!user) {
-		logger.warn('No authenticated user found during media retrieval');
-		return json({ success: false, error: 'Unauthorized' }, { status: 401 });
+	if (!permissionResult.hasPermission) {
+		logger.warn('Unauthorized attempt to retrieve media file', {
+			userId: locals.user?._id,
+			error: permissionResult.error
+		});
+		throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
 	}
 
 	try {
@@ -29,6 +47,12 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 		const buffer = await getFile(fileUrl);
 
+		logger.debug('Media file retrieved successfully', {
+			fileUrl,
+			fileSize: buffer.length,
+			userId: locals.user?._id
+		});
+
 		return new Response(buffer, {
 			headers: {
 				'Content-Type': 'application/octet-stream',
@@ -38,7 +62,10 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		});
 	} catch (err) {
 		const message = `Error retrieving file: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
+		logger.error(message, {
+			fileUrl: url.searchParams.get('url'),
+			userId: locals.user?._id
+		});
 		throw error(500, message);
 	}
 };

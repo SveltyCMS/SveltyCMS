@@ -11,6 +11,8 @@
 import { json } from '@sveltejs/kit';
 import { pathToFileURL } from 'url';
 import path from 'path';
+
+// Auth
 import { checkApiPermission } from '@api/permissions';
 
 // Helper to construct a cache-busted path for dynamic import

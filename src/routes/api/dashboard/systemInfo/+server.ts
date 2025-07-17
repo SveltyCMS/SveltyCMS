@@ -44,8 +44,8 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { performance } from 'perf_hooks';
 
-// Auth
-import { checkApiPermission } from '@src/routes/api/permissions';
+// Permissions
+import { checkApiPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

@@ -37,7 +37,7 @@
 		if (publicEnv && Array.isArray(publicEnv.AVAILABLE_CONTENT_LANGUAGES)) {
 			return publicEnv.AVAILABLE_CONTENT_LANGUAGES as Locale[];
 		} else {
-			console.error('[TranslationStatus] publicEnv.AVAILABLE_CONTENT_LANGUAGES is not a valid array. Please check your configuration.', publicEnv);
+			// console.error('[TranslationStatus] publicEnv.AVAILABLE_CONTENT_LANGUAGES is not a valid array. Please check your configuration.', publicEnv);
 			return [];
 		}
 	});
@@ -102,7 +102,7 @@
 
 	// Initialize translation progress with all translatable fields
 	function initializeTranslationProgress(currentCollection: any) {
-		console.log('[TranslationStatus] Initializing translation progress for collection:', currentCollection.name);
+		// console.log('[TranslationStatus] Initializing translation progress for collection:', currentCollection.name);
 		const currentProgress = translationProgress();
 		let hasTranslatableFields = false;
 
@@ -121,14 +121,14 @@
 					const fieldName = `${currentCollection.name}.${getFieldName(field)}`;
 					currentProgress[lang].total.add(fieldName);
 					hasTranslatableFields = true;
-					console.log(`[TranslationStatus] Added translatable field: ${fieldName} for language: ${lang}`);
+					// console.log(`[TranslationStatus] Added translatable field: ${fieldName} for language: ${lang}`);
 				}
 			}
 		}
 
 		// Show translation progress if there are translatable fields
 		currentProgress.show = hasTranslatableFields;
-		console.log('[TranslationStatus] Translation progress show:', currentProgress.show, 'hasTranslatableFields:', hasTranslatableFields);
+		// console.log('[TranslationStatus] Translation progress show:', currentProgress.show, 'hasTranslatableFields:', hasTranslatableFields);
 		updateTranslationProgress(currentProgress);
 	}
 
@@ -188,12 +188,11 @@
 		progressValue.target = newPercentage;
 
 		// Initialize and update individual language progress
-		// initializeLanguageProgress();
 		for (const lang of availableLanguages) {
 			const langProgress = progress[lang as Locale];
 			const percentage = langProgress && langProgress.total.size > 0 ? Math.round((langProgress.translated.size / langProgress.total.size) * 100) : 0;
 
-			console.log('[TranslationStatus] lang:', lang, 'percentage:', percentage);
+			// console.log('[TranslationStatus] lang:', lang, 'percentage:', percentage);
 			languageProgressValues[lang].target = percentage;
 		}
 	}
@@ -215,7 +214,7 @@
 
 	// Simplified language change handler with animation feedback
 	function handleLanguageChange(selectedLanguage: Locale) {
-		console.log('[TranslationStatus] Language change:', selectedLanguage);
+		// console.log('[TranslationStatus] Language change:', selectedLanguage);
 		contentLanguage.set(selectedLanguage);
 		isOpen = false;
 
@@ -237,7 +236,7 @@
 	function handleViewModeLanguageChange(event: Event) {
 		const target = event.target as HTMLSelectElement;
 		const selectedLanguage = target.value as Locale;
-		console.log('[TranslationStatus] View mode language change:', selectedLanguage);
+		// console.log('[TranslationStatus] View mode language change:', selectedLanguage);
 
 		// Update the content language store
 		contentLanguage.set(selectedLanguage);
@@ -269,9 +268,9 @@
 	const currentLanguage = $derived(contentLanguage.value);
 
 	// Debug effect to track language changes
-	$effect(() => {
-		console.log('[TranslationStatus] Current language updated to:', currentLanguage);
-	});
+	// $effect(() => {
+	// 	console.log('[TranslationStatus] Current language updated to:', currentLanguage);
+	// });
 </script>
 
 {#if mode.value === 'view'}

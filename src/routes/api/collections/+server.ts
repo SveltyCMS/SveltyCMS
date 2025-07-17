@@ -12,9 +12,13 @@
  */
 
 import { json, error, type RequestHandler } from '@sveltejs/kit';
+
+// Auth
 import { contentManager } from '@src/content/ContentManager';
+import { hasCollectionPermission } from '@api/permissions';
+
+// System Logger
 import { logger } from '@utils/logger.svelte';
-import { hasCollectionPermission } from '../permissions';
 
 // GET: Lists all collections accessible to the user
 export const GET: RequestHandler = async ({ locals, url }) => {

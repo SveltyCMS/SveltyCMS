@@ -2,6 +2,15 @@
  * @file src/routes/api/media/process/+server.ts
  * @description
  * API endpoint for processing media files.
+ *
+ * @example POST /api/media/process
+ *
+ * Features:
+ * - Granular permission checking based on operation type
+ * - Operation-specific security (read/write/delete permissions)
+ * - Admin override for all operations
+ * - Supports metadata extraction, file saving, and deletion
+ * - Comprehensive error handling and logging
  */
 
 import { json } from '@sveltejs/kit';
@@ -10,7 +19,7 @@ import { error } from '@sveltejs/kit';
 
 // Auth
 import { dbAdapter } from '@src/databases/db';
-import { checkApiPermission } from '@src/routes/api/permissions';
+import { checkApiPermission } from '@api/permissions';
 
 // Media Processing
 import { extractMetadata } from '@utils/media/mediaProcessing';
@@ -52,52 +61,64 @@ function getMediaService(): MediaService {
 }
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	// Check media write permissions
-	const permissionResult = await checkApiPermission(locals.user, {
-		resource: 'media',
-		action: 'write'
-	});
-
-	if (!permissionResult.hasPermission) {
-		logger.warn('Unauthorized attempt to process media', {
-			userId: locals.user?._id,
-			error: permissionResult.error
-		});
-		return json(
-			{
-				success: false,
-				error: permissionResult.error || 'Forbidden'
-			},
-			{
-				status: permissionResult.error?.includes('Authentication') ? 401 : 403
-			}
-		);
-	}
-
 	const user = locals.user;
 
 	try {
 		const formData = await request.formData();
-		const file = formData.get('files');
 		const processType = formData.get('processType');
-
-		// Validate file and file.name
-		if (!file || !(file instanceof File)) {
-			logger.warn('No valid file received for processing');
-			return json({ success: false, error: 'No valid file received' }, { status: 400 });
-		}
-		if (!file.name || typeof file.name !== 'string') {
-			logger.warn('File name is missing or invalid', { file });
-			return json({ success: false, error: 'Invalid file name' }, { status: 400 });
-		}
 
 		if (!processType || typeof processType !== 'string') {
 			logger.warn('No process type specified');
 			return json({ success: false, error: 'Process type not specified' }, { status: 400 });
 		}
 
-		// Log file details for debugging
-		logger.debug('Processing file:', { name: file.name, size: file.size, type: file.type });
+		// Check appropriate permissions based on operation type
+		let requiredAction: 'read' | 'write' | 'delete';
+		switch (processType) {
+			case 'metadata':
+				requiredAction = 'read';
+				break;
+			case 'save':
+				requiredAction = 'write';
+				break;
+			case 'delete':
+				requiredAction = 'delete';
+				break;
+			default:
+				throw error(400, `Unsupported process type: ${processType}`);
+		}
+
+		// Check media permissions based on the specific operation
+		const permissionResult = await checkApiPermission(locals.user, {
+			resource: 'media',
+			action: requiredAction
+		});
+
+		if (!permissionResult.hasPermission) {
+			logger.warn(`Unauthorized attempt to ${processType} media`, {
+				userId: locals.user?._id,
+				processType,
+				requiredAction,
+				error: permissionResult.error
+			});
+			throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
+		}
+
+		const file = formData.get('files');
+
+		// Validate file for operations that need it
+		if (['save', 'metadata'].includes(processType)) {
+			if (!file || !(file instanceof File)) {
+				logger.warn('No valid file received for processing');
+				return json({ success: false, error: 'No valid file received' }, { status: 400 });
+			}
+			if (!file.name || typeof file.name !== 'string') {
+				logger.warn('File name is missing or invalid', { file });
+				return json({ success: false, error: 'Invalid file name' }, { status: 400 });
+			}
+			// Log file details for debugging
+			logger.debug('Processing file:', { name: file.name, size: file.size, type: file.type });
+		}
 
 		// Initialize MediaService
 		const mediaService = getMediaService();

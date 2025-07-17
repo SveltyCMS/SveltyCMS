@@ -50,7 +50,7 @@ Features:
 		children?: ExtendedContentNode[];
 		lastModified?: Date;
 		fileCount?: number;
-		status?: 'draft' | 'published' | 'archived';
+		status?: 'draft' | 'publish' | 'archive';
 	}
 
 	// Tree node interface with additional properties
@@ -63,7 +63,7 @@ Features:
 		icon?: string;
 		badge?: {
 			count?: number;
-			status?: 'draft' | 'published' | 'archived';
+			status?: 'draft' | 'publish' | 'archive';
 			color?: string;
 			visible?: boolean;
 		};
@@ -222,11 +222,11 @@ Features:
 	// Get status color for badges
 	function getStatusColor(status?: string): string {
 		switch (status) {
-			case 'published':
+			case 'publish':
 				return 'bg-success-500';
 			case 'draft':
 				return 'bg-warning-500';
-			case 'archived':
+			case 'archive':
 				return 'bg-surface-500';
 			default:
 				return 'bg-primary-500';

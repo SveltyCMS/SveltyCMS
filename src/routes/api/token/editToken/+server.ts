@@ -20,9 +20,9 @@ import { json, error, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Auth and permission helpers
-import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
-import { hasPermissionByAction } from '@src/auth/permissions';
-import { roles } from '@root/config/roles'; // Import static roles for fallback
+// Auth (Database Agnostic)
+import { auth } from '@src/databases/db';
+import { checkApiPermission } from '@api/permissions'; // Import static roles for fallback
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -44,18 +44,23 @@ const editTokenSchema = object({
 
 export const PUT: RequestHandler = async ({ request, locals }) => {
 	try {
-		// **SECURITY**: This endpoint now checks for a specific permission.
-		const hasPermission = hasPermissionByAction(
-			locals.user,
-			'update', // The action being performed
-			'user', // The context type
-			'any', // The scope
-			locals.roles && locals.roles.length > 0 ? locals.roles : roles
-		);
+		// **SECURITY**: Check permissions for token editing
+		const permissionResult = await checkApiPermission(locals.user, {
+			resource: 'system',
+			action: 'write'
+		});
 
-		if (!hasPermission) {
-			logger.warn('Unauthorized attempt to edit a token', { userId: locals.user?._id });
-			throw error(403, 'Forbidden: You do not have permission to edit tokens.');
+		if (!permissionResult.hasPermission) {
+			logger.warn('Unauthorized attempt to edit a token', {
+				userId: locals.user?._id,
+				error: permissionResult.error
+			});
+			return json(
+				{
+					error: permissionResult.error || 'Forbidden: You do not have permission to edit tokens.'
+				},
+				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
+			);
 		}
 
 		const body = await request.json();
@@ -91,10 +96,13 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 			dataToUpdate.expires = new Date(Date.now() + seconds * 1000);
 		}
 
-		const tokenAdapter = new TokenAdapter();
+		if (!auth) {
+			logger.error('Database authentication adapter not initialized');
+			throw error(500, 'Database authentication not available');
+		}
 
 		// Update the token with the sanitized and validated data.
-		const updatedToken = await tokenAdapter.updateToken(tokenId, dataToUpdate);
+		const updatedToken = await auth.updateToken(tokenId, dataToUpdate);
 
 		if (!updatedToken) {
 			throw error(404, 'Token not found or could not be updated.');

@@ -22,9 +22,11 @@ import { json, error, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Auth
+// Auth (Database Agnostic)
+import { auth } from '@src/databases/db';
+// TODO: Remove once blockTokens/unblockTokens are added to database-agnostic interface
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
-import { hasPermissionByAction } from '@src/auth/permissions';
-import { roles } from '@root/config/roles';
+import { checkApiPermission } from '@api/permissions';
 
 // Validation
 import { object, array, string, picklist, parse, type ValiError, minLength } from 'valibot';
@@ -47,29 +49,51 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		});
 		const { tokenIds, action } = parse(batchTokenActionSchema, body);
 
-		const hasPermission = hasPermissionByAction(locals.user, action, 'token', 'any', locals.roles && locals.roles.length > 0 ? locals.roles : roles);
+		// Check permissions for token batch operations
+		const permissionResult = await checkApiPermission(locals.user, {
+			resource: 'system',
+			action: action === 'delete' ? 'delete' : 'write'
+		});
 
-		if (!hasPermission) {
-			logger.warn(`Unauthorized attempt to '${action}' tokens.`, { userId: locals.user?._id });
-			throw error(403, `Forbidden: You do not have permission to ${action} tokens.`);
+		if (!permissionResult.hasPermission) {
+			logger.warn(`Unauthorized attempt to '${action}' tokens`, {
+				userId: locals.user?._id,
+				error: permissionResult.error
+			});
+			return json(
+				{
+					error: permissionResult.error || `Forbidden: You do not have permission to ${action} tokens.`
+				},
+				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
+			);
 		}
 
-		const tokenAdapter = new TokenAdapter();
+		if (!auth) {
+			logger.error('Database authentication adapter not initialized');
+			throw error(500, 'Database authentication not available');
+		}
 		let successMessage = '';
 
 		switch (action) {
-			case 'delete':
-				await tokenAdapter.deleteTokens(tokenIds);
+			case 'delete': {
+				await auth.deleteTokens(tokenIds);
 				successMessage = 'Tokens deleted successfully.';
 				break;
-			case 'block':
+			}
+			case 'block': {
+				// TODO: Add blockTokens to database-agnostic interface
+				const tokenAdapter = new TokenAdapter();
 				await tokenAdapter.blockTokens(tokenIds);
 				successMessage = 'Tokens blocked successfully.';
 				break;
-			case 'unblock':
-				await tokenAdapter.unblockTokens(tokenIds);
+			}
+			case 'unblock': {
+				// TODO: Add unblockTokens to database-agnostic interface
+				const tokenAdapter2 = new TokenAdapter();
+				await tokenAdapter2.unblockTokens(tokenIds);
 				successMessage = 'Tokens unblocked successfully.';
 				break;
+			}
 		}
 
 		// Invalidate the tokens cache so changes appear immediately in admin area

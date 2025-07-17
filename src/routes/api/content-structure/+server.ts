@@ -1,9 +1,21 @@
 /**
  * @file src/routes/api/content-structure/+server.ts
  * @description Unified API endpoint for managing content structure metadata
+ *
+ *  @example GET /api/content-structure?operation=getContentStructure
+ *
+ * Features:
+ *    * Lists all collections accessible to the current user
+ *    * Filters collections based on user permissions
+ *    * Provides collection metadata and configuration
+ *
  */
 import { json, error, type RequestHandler } from '@sveltejs/kit';
 import { browser } from '$app/environment';
+
+import type { ContentNodeOperation } from '@root/src/content/types';
+
+// Auth
 import { contentManager } from '@src/content/ContentManager';
 import { dbAdapter } from '@src/databases/db';
 import { checkApiPermission } from '@api/permissions';
@@ -13,13 +25,24 @@ import { isRedisEnabled, getCache, setCache, clearCache } from '@src/databases/r
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-import type { ContentNodeOperation } from '@root/src/content/types';
 
 const CACHE_TTL = 300; // 5 minutes
 
-export const GET: RequestHandler = async ({ url, cookies }) => {
+export const GET: RequestHandler = async ({ url, locals }) => {
 	// Check permissions using centralized system
-	await checkApiPermission(cookies, 'content:read');
+	const permissionResult = await checkApiPermission(locals.user, {
+		resource: 'system',
+		action: 'read'
+	});
+
+	if (!permissionResult.hasPermission) {
+		return json(
+			{
+				error: permissionResult.error || 'Forbidden'
+			},
+			{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
+		);
+	}
 
 	try {
 		const action = url.searchParams.get('action');
@@ -43,7 +66,6 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 				const { contentStructure: contentNodes } = await contentManager.getCollectionData();
 
 				// Process collections with UUIDs
-				// Process categories with UUIDs
 				response = {
 					contentStructure: contentNodes
 				};
@@ -85,9 +107,21 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 	}
 };
 
-export const POST: RequestHandler = async ({ request, cookies }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	// Check permissions using centralized system
-	await checkApiPermission(cookies, 'content:update');
+	const permissionResult = await checkApiPermission(locals.user, {
+		resource: 'system',
+		action: 'write'
+	});
+
+	if (!permissionResult.hasPermission) {
+		return json(
+			{
+				error: permissionResult.error || 'Forbidden'
+			},
+			{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
+		);
+	}
 
 	try {
 		const data = await request.json();
@@ -137,9 +171,21 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 	}
 };
 
-export const PUT: RequestHandler = async ({ request, cookies }) => {
+export const PUT: RequestHandler = async ({ request, locals }) => {
 	// Check permissions using centralized system
-	await checkApiPermission(cookies, 'content:update');
+	const permissionResult = await checkApiPermission(locals.user, {
+		resource: 'system',
+		action: 'write'
+	});
+
+	if (!permissionResult.hasPermission) {
+		return json(
+			{
+				error: permissionResult.error || 'Forbidden'
+			},
+			{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
+		);
+	}
 
 	try {
 		const { _id, updates } = await request.json();

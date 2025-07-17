@@ -99,7 +99,7 @@ This version includes corrections for permission contexts and link typos.
 			icon: 'icon-park-outline:shopping-bag',
 			classes: 'variant-ghost-primary dark:text-white',
 			target: '_blank',
-			permission: null 
+			permission: null
 		},
 		{
 			id: 'widgetManagement',
@@ -209,4 +209,3 @@ This version includes corrections for permission contexts and link typos.
 		@apply w-full truncate text-xs font-medium uppercase lg:text-sm;
 	}
 </style>
-

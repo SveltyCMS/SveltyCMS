@@ -36,12 +36,16 @@
 	import BaseWidget from '../BaseWidget.svelte';
 
 	interface MediaFile {
+		id: string;
 		name: string;
 		size: number;
 		modified: string;
 		type: string;
 		url: string;
+		createdBy?: string;
 	}
+
+	type FetchedData = MediaFile[] | undefined;
 
 	let {
 		label = 'Last 5 Media',
@@ -97,6 +101,24 @@
 		return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 	}
 
+	function formatDate(dateString: string): string {
+		try {
+			const date = new Date(dateString);
+			return date.toLocaleDateString('en-US', {
+				month: 'short',
+				day: 'numeric',
+				year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+			});
+		} catch (error) {
+			return 'Unknown';
+		}
+	}
+
+	function formatAuthor(author: string): string {
+		// Truncate long author names
+		return author && author.length > 12 ? author.substring(0, 12) + '...' : author || 'Unknown';
+	}
+
 	function getFileIcon(type: string): string {
 		if (!type) return 'mdi:file'; // Guard against undefined type
 		const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
@@ -130,21 +152,30 @@
 	{onResizeCommitted}
 	{onCloseRequest}
 >
-	{#snippet children({ data: fetchedData })}
+	{#snippet children({ data: fetchedData }: { data: FetchedData })}
 		{#if fetchedData && Array.isArray(fetchedData) && fetchedData.length > 0}
-			<div class="grid gap-2" role="list" aria-label="Last 5 media files">
-				{#each fetchedData.slice(0, 5) as file}
+			<div class="grid gap-2" style="max-height: 180px; overflow-y: auto;" role="list" aria-label="Last 5 media files">
+				{#each fetchedData.slice(0, 5) as file (file.id || file.name)}
 					<div class="flex items-center justify-between rounded-lg bg-surface-100/80 px-3 py-2 text-xs dark:bg-surface-700/60" role="listitem">
 						<div class="flex min-w-0 items-center gap-2">
-							<iconify-icon icon={getFileIcon(file.type)} class="text-primary-400" width="18" aria-label={file.type + ' file icon'}></iconify-icon>
+							<iconify-icon icon={getFileIcon(file.type)} class="flex-shrink-0 text-primary-400" width="18" aria-label={file.type + ' file icon'}
+							></iconify-icon>
 							<div class="flex min-w-0 flex-col">
-								<span class="text-text-900 dark:text-text-100 truncate font-medium" title={file.name}>{file.name}</span>
-								<span class="text-xs text-surface-500 dark:text-surface-400">{formatFileSize(file.size)}</span>
+								<span class="text-text-900 dark:text-text-100 truncate font-medium" title={file.name}>
+									{file.name}
+								</span>
+								<span class="text-xs text-surface-500 dark:text-surface-400" title={`Size: ${formatFileSize(file.size)}`}>
+									{formatFileSize(file.size)}
+								</span>
 							</div>
 						</div>
 						<div class="flex flex-col items-end">
-							<span class="uppercase text-surface-600 dark:text-surface-300">{file.type}</span>
-							<span class="text-xs text-surface-500 dark:text-surface-400">{new Date(file.modified).toLocaleDateString()}</span>
+							<span class="text-xs font-medium uppercase text-surface-600 dark:text-surface-300">
+								{file.type}
+							</span>
+							<span class="text-xs text-surface-500 dark:text-surface-400" title={`Modified: ${formatDate(file.modified)}`}>
+								{formatDate(file.modified)}
+							</span>
 						</div>
 					</div>
 				{/each}

@@ -12,10 +12,23 @@
  */
 
 import { json, error, type RequestHandler } from '@sveltejs/kit';
+
+// Databases
 import { dbAdapter } from '@src/databases/db';
+
+// Auth
 import { contentManager } from '@src/content/ContentManager';
+import { hasCollectionPermission } from '@api/permissions';
+
+// Helper function to normalize collection names for database operations
+const normalizeCollectionName = (collectionId: string): string => {
+	// Remove hyphens from UUID for MongoDB collection naming
+	const cleanId = collectionId.replace(/-/g, '');
+	return `collection_${cleanId}`;
+};
+
+// System Logger
 import { logger } from '@utils/logger.svelte';
-import { hasCollectionPermission } from '../../../../permissions';
 
 // PATCH: Updates entry status
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
@@ -35,7 +48,16 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	}
 
 	try {
-		const body = await request.json();
+		// Debug logging for request body
+		let body;
+		try {
+			body = await request.json();
+			logger.debug(`PATCH /api/collections/${params.collectionId}/${params.entryId}/status - Request body:`, body);
+		} catch (parseError) {
+			logger.error(`Failed to parse request body: ${parseError.message}`);
+			throw error(400, 'Invalid JSON in request body');
+		}
+
 		const { status, entries } = body;
 
 		if (!status) {
@@ -43,12 +65,17 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		}
 
 		// Validate status value
-		const validStatuses = ['draft', 'published', 'archived', 'pending', 'scheduled'];
+		// Note: 'draft' is only for data entered but never saved (auto-save scenarios)
+		// ActionType mapping: 'publish' action, 'unpublish' action, 'schedule' action
+		const validStatuses = ['draft', 'publish', 'unpublish', 'schedule', 'test', 'archived'];
 		if (!validStatuses.includes(status)) {
 			throw error(400, `Invalid status. Must be one of: ${validStatuses.join(', ')}`);
 		}
 
 		let results = [];
+
+		// Get normalized collection name for database operations
+		const normalizedCollectionId = normalizeCollectionName(schema._id);
 
 		if (entries && Array.isArray(entries)) {
 			// Batch status update
@@ -61,7 +88,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 					statusChangedBy: locals.user._id
 				};
 
-				const result = await dbAdapter.crud.update(schema.name, entryId, updateData);
+				const result = await dbAdapter.crud.update(normalizedCollectionId, entryId, updateData);
 
 				if (result.success) {
 					results.push({ entryId, success: true, data: result.data });
@@ -79,7 +106,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 				statusChangedBy: locals.user._id
 			};
 
-			const result = await dbAdapter.crud.update(schema.name, params.entryId, updateData);
+			const result = await dbAdapter.crud.update(normalizedCollectionId, params.entryId, updateData);
 
 			if (!result.success) {
 				throw error(500, result.error.message);
@@ -111,10 +138,18 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			performance: { duration }
 		});
 	} catch (e) {
-		if (e.status) throw e; // Re-throw SvelteKit errors
+		if (e.status) {
+			logger.error(`Status update error (${e.status}): ${e.body?.message || e.message}`);
+			throw e; // Re-throw SvelteKit errors
+		}
 
 		const duration = performance.now() - start;
-		logger.error(`Failed to update status: ${e.message} in ${duration.toFixed(2)}ms`);
+		logger.error(`Failed to update status: ${e.message} in ${duration.toFixed(2)}ms`, {
+			error: e,
+			stack: e.stack,
+			collectionId: params.collectionId,
+			entryId: params.entryId
+		});
 		throw error(500, 'Internal Server Error');
 	}
 };

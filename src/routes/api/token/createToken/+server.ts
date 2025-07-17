@@ -17,11 +17,9 @@
 import { json, error, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-// Auth and permission helpers
-import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
+// Auth (Database Agnostic)
 import { auth } from '@src/databases/db';
-import { hasPermissionByAction } from '@src/auth/permissions';
-import { roles } from '@root/config/roles'; // Import static roles for fallback
+import { checkApiPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -39,12 +37,23 @@ import { getLocale } from '@src/paraglide/runtime';
 
 export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 	try {
-		// **SECURITY**: Add a specific permission check.
-		const hasPermission = hasPermissionByAction(locals.user, 'create', 'user', 'any', locals.roles && locals.roles.length > 0 ? locals.roles : roles);
+		// **SECURITY**: Check permissions for token creation
+		const permissionResult = await checkApiPermission(locals.user, {
+			resource: 'system',
+			action: 'write'
+		});
 
-		if (!hasPermission) {
-			logger.warn('Unauthorized attempt to create an invitation token', { userId: locals.user?._id });
-			throw error(403, 'Forbidden: You do not have permission to create user tokens.');
+		if (!permissionResult.hasPermission) {
+			logger.warn('Unauthorized attempt to create an invitation token', {
+				userId: locals.user?._id,
+				error: permissionResult.error
+			});
+			return json(
+				{
+					error: permissionResult.error || 'Forbidden: You do not have permission to create user tokens.'
+				},
+				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
+			);
 		}
 
 		if (!auth) {
@@ -67,10 +76,13 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 		}
 
 		// Check if an invitation token already exists for this email.
-		const tokenAdapter = new TokenAdapter();
+		if (!auth) {
+			logger.error('Database authentication adapter not initialized');
+			throw error(500, 'Database authentication not available');
+		}
 		// Check if a token already exists for this email
 
-		const existingTokens = await tokenAdapter.getAllTokens({ email: validatedData.email });
+		const existingTokens = await auth.getAllTokens({ email: validatedData.email });
 		if (existingTokens && existingTokens.length > 0) {
 			logger.warn('Attempted to create a token for an email that already has one', { email: validatedData.email });
 			throw error(409, 'An invitation token for this email already exists. Please delete the existing token first.');
@@ -96,8 +108,8 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 
 		const expires = new Date(Date.now() + expiresInSeconds * 1000);
 
-		// Create a new token using the TokenAdapter
-		const token = await tokenAdapter.createToken({
+		// Create a new token using the database-agnostic auth adapter
+		const token = await auth.createToken({
 			user_id: uuidv4(), // Use uuidv4 to generate a unique user_id
 			email: validatedData.email.toLowerCase(), // Normalize email to lowercase
 			expires,
@@ -144,7 +156,7 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 		if (!emailResponse.ok) {
 			const emailError = await emailResponse.json();
 			logger.error('Failed to send invitation email, rolling back token creation.', { email: validatedData.email, error: emailError });
-			await tokenAdapter.consumeToken(token);
+			await auth.consumeToken(token);
 			throw error(500, emailError.message || 'Failed to send invitation email.');
 		}
 

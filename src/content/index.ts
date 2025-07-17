@@ -333,7 +333,7 @@ async function getImports(recompile: boolean = false): Promise<Record<ContentTyp
 				// Use new collections endpoint
 				const collectionsResponse = browser ? (await axios.get('/api/collections')).data : await getCollectionFiles();
 				if (collectionsResponse.success && Array.isArray(collectionsResponse.data.collections)) {
-					files = collectionsResponse.data.collections.map(c => `${c.name}.js`);
+					files = collectionsResponse.data.collections.map((c) => `${c.name}.js`);
 				} else if (Array.isArray(collectionsResponse)) {
 					// Fallback for old format
 					files = collectionsResponse;

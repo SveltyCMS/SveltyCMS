@@ -10,6 +10,8 @@ import { json } from '@sveltejs/kit';
 import fs from 'fs/promises';
 import path from 'path';
 import { pathToFileURL } from 'url';
+
+// Auth
 import { checkApiPermission } from '@api/permissions';
 
 // Helper to get a fresh, non-cached module

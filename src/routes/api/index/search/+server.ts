@@ -18,8 +18,8 @@ import { dbAdapter, dbInitPromise } from '@src/databases/db';
 import type { RequestHandler } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
 
-// Auth
-import { checkApiPermission } from '@src/routes/api/permissions';
+// Permissions
+import { checkApiPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

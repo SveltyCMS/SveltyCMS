@@ -19,8 +19,8 @@
 import { dbAdapter } from '@src/databases/db';
 import { json } from '@sveltejs/kit';
 
-// Auth
-import { checkApiPermission } from '@src/routes/api/permissions';
+// Permissions
+import { checkApiPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

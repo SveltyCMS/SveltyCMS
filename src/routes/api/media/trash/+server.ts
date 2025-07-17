@@ -1,22 +1,51 @@
 /**
  * @file src/routes/api/media/trash/+server.ts
  * @description
- * API endpoint for changing the access of a media file.
+ * API endpoint for changing the access of a media file
+ *
+ * @example POST /api/media/trash
+ *
+ * Features:
+ * - Secure, granular access control per operation
+ * - Automatic metadata updates on modification (updatedBy)
+ * - ModifyRequest support for widget-based data processing
+ * - Status-based access control for non-admin users
  */
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
+
+// Permission checking
+import { checkApiPermission } from '@api/permissions';
+
+// Auth
 import { auth } from '@src/databases/db';
-import { SESSION_COOKIE_NAME } from '@src/auth';
+
+// Media Processing
 import { moveMediaToTrash } from '@utils/media/mediaStorage';
+
+// System Logger
 import { logger } from '@utils/logger.svelte';
 
-export const POST: RequestHandler = async ({ request, cookies }) => {
-	const session_id = cookies.get(SESSION_COOKIE_NAME);
-	if (!session_id) {
-		logger.warn('No session ID found during file trash operation');
-		throw error(401, 'Unauthorized');
+export const POST: RequestHandler = async ({ request, locals }) => {
+	// Check permissions for media deletion/trash operations
+	const permissionResult = await checkApiPermission(locals.user, {
+		resource: 'media',
+		action: 'delete'
+	});
+
+	if (!permissionResult.hasPermission) {
+		logger.warn('Unauthorized media trash operation attempt', {
+			userId: locals.user?._id,
+			error: permissionResult.error
+		});
+		return json(
+			{
+				error: permissionResult.error || 'Forbidden'
+			},
+			{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
+		);
 	}
 
 	if (!auth) {
@@ -25,12 +54,6 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 	}
 
 	try {
-		const user = await auth.validateSession(session_id);
-		if (!user) {
-			logger.warn('Invalid session during file trash operation');
-			throw error(401, 'Unauthorized');
-		}
-
 		const { url, contentTypes } = await request.json();
 		if (!url || !contentTypes) {
 			throw error(400, 'URL and collection types are required');

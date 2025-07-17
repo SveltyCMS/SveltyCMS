@@ -6,9 +6,29 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
+// Permission checking
+import { checkApiPermission } from '@api/permissions';
+
 // GET: List all virtual folders
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async ({ locals }) => {
 	try {
+		// Check permissions first
+		const permissionResult = await checkApiPermission(locals.user, {
+			resource: 'system',
+			action: 'read'
+		});
+
+		if (!permissionResult.hasPermission) {
+			return json(
+				{
+					success: false,
+					error: permissionResult.error || 'Forbidden',
+					code: 'PERMISSION_DENIED'
+				},
+				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
+			);
+		}
+
 		// For fresh installations, return empty array
 		// In production, this would query the database for virtual folders
 		return json({
@@ -29,8 +49,25 @@ export const GET: RequestHandler = async () => {
 };
 
 // POST: Create a new virtual folder
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
+		// Check permissions first
+		const permissionResult = await checkApiPermission(locals.user, {
+			resource: 'system',
+			action: 'write'
+		});
+
+		if (!permissionResult.hasPermission) {
+			return json(
+				{
+					success: false,
+					error: permissionResult.error || 'Forbidden',
+					code: 'PERMISSION_DENIED'
+				},
+				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
+			);
+		}
+
 		const data = await request.json();
 
 		// For now, just return a placeholder response

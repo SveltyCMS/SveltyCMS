@@ -12,10 +12,16 @@
  */
 
 import { json, error, type RequestHandler } from '@sveltejs/kit';
-import { contentManager } from '@src/content/ContentManager';
-import { logger } from '@utils/logger.svelte';
-import { hasCollectionPermission } from '../../../../../permissions';
+
+// Databases
 import { dbAdapter } from '@src/databases/db';
+
+// Auth
+import { contentManager } from '@src/content/ContentManager';
+import { hasCollectionPermission } from '@api/permissions';
+
+// System Logger
+import { logger } from '@utils/logger.svelte';
 
 // GET: Retrieves revision history for an entry
 export const GET: RequestHandler = async ({ locals, params, url }) => {

@@ -29,13 +29,13 @@ Features:
 
 	// --- Component State ---
 	const modalStore = getModalStore();
-	type ActionType = 'published' | 'unpublished' | 'deleted';
+	type ActionType = 'publish' | 'unpublish' | 'delete';
 
 	let scheduleDate: string = $state('');
 	let scheduleDateOnly: string = $state('');
 	let scheduleTimeOnly: string = $state('');
-	// Default to 'published' if no initial action is provided
-	let action: ActionType = $state(($modalStore[0]?.meta?.initialAction as ActionType) || 'published');
+	// Default to 'publish' if no initial action is provided
+	let action: ActionType = $state(($modalStore[0]?.meta?.initialAction as ActionType) || 'publish');
 	let errorMessage: string = $state('');
 
 	// Combine date and time into a single string for validation and submission
@@ -48,9 +48,9 @@ Features:
 	});
 
 	const actionOptions: Array<{ value: ActionType; label: string }> = [
-		{ value: 'published', label: m.entrylist_multibutton_publish() },
-		{ value: 'unpublished', label: m.entrylist_multibutton_unpublish() },
-		{ value: 'deleted', label: m.button_delete() }
+		{ value: 'publish', label: m.entrylist_multibutton_publish() },
+		{ value: 'unpublish', label: m.entrylist_multibutton_unpublish() },
+		{ value: 'delete', label: m.button_delete() }
 	];
 
 	let isFormValid = $derived(scheduleDate !== '');

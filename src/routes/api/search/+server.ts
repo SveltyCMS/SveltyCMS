@@ -15,13 +15,13 @@
 import { json, error, type RequestHandler } from '@sveltejs/kit';
 
 // Auth
-import { hasCollectionPermission } from '../permissions';
+import { hasCollectionPermission } from '@api/permissions';
 import { roles } from '@root/config/roles';
 
 // Databases & Api
 import { dbAdapter } from '@src/databases/db';
 import { contentManager } from '@src/content/ContentManager';
-import { modifyRequest } from '@src/routes/api/collections/modifyRequest';
+import { modifyRequest } from '@api/collections/modifyRequest';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';

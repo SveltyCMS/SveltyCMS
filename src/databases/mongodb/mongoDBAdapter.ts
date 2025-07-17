@@ -57,10 +57,10 @@ import { logger, type LoggableValue } from '@utils/logger.svelte';
 import '@widgets/index';
 
 // Database
-import type { Document, FilterQuery, Model, UpdateQuery } from 'mongoose';
+import type { Document, FilterQuery, Model } from 'mongoose';
 import mongoose, { Schema } from 'mongoose';
 
-import { dateToISODateString, isISODateString, normalizeDateInput, stringToISODateString } from '../../utils/dateUtils';
+import { dateToISODateString, normalizeDateInput } from '../../utils/dateUtils';
 import type {
 	BaseEntity,
 	CollectionModel,
@@ -68,7 +68,6 @@ import type {
 	DatabaseError,
 	DatabaseId,
 	DatabaseResult,
-	ISODateString,
 	MediaItem,
 	PaginationOptions,
 	QueryBuilder,
@@ -110,6 +109,16 @@ export class MongoDBAdapter implements DatabaseAdapter {
 				error: createDatabaseError(error, 'CONNECTION_ERROR', 'MongoDB connection failed')
 			};
 		}
+	}
+
+	// Helper function to normalize collection names for UUID-based collections
+	private normalizeCollectionName(collection: string): string {
+		if (collection.startsWith('collection_')) {
+			return collection;
+		}
+		// Remove hyphens from UUID to match the database naming convention
+		const normalizedUuid = collection.replace(/-/g, '');
+		return `collection_${normalizedUuid}`;
 	}
 
 	//  Utility Methods
@@ -386,7 +395,8 @@ export class MongoDBAdapter implements DatabaseAdapter {
 				schema.set('backgroundIndexing', true);
 				// Create and return the new model
 				const model = mongoose.model(collectionName, schema);
-				logger.debug(`Collection model \x1b[34m${collectionName}\x1b[0m created successfully.`);
+				logger.info(`Collection model ${collectionName} created successfully with ${collection.fields?.length || 0} fields.`);
+				logger.debug(`Model registered in mongoose.models as: ${collectionName}`);
 				this.collection.models.set(collectionUuid, model);
 				return model;
 			} catch (error) {
@@ -400,106 +410,260 @@ export class MongoDBAdapter implements DatabaseAdapter {
 	//  CRUD Operations
 	crud = {
 		// Implementing findOne method
-		findOne: async <T extends DocumentContent>(
+		// Implementing findOne method to match dbInterface signature
+		findOne: async <T extends BaseEntity>(
 			collection: string,
-			query: FilterQuery<T>
-		): Promise<(T & { createdAt?: ISODateString; updatedAt?: ISODateString }) | null> => {
+			query: Partial<T>,
+			options?: { fields?: (keyof T)[] }
+		): Promise<DatabaseResult<T | null>> => {
 			try {
-				const model = mongoose.models[collection] as Model<T>;
-				if (!model) {
-					logger.error(`Collection ${collection} does not exist.`);
-					throw new Error(`Collection ${collection} does not exist.`);
-				}
-				const result = await model.findOne(query).lean().exec();
-				if (result && result.createdAt) {
-					result.createdAt = dateToISODateString(new Date(result.createdAt));
-				}
-				if (result && result.updatedAt) {
-					result.updatedAt = dateToISODateString(new Date(result.updatedAt));
-				}
-				return result;
-			} catch (error) {
-				logger.error(`Error in findOne for collection ${collection}:`, { error });
-				throw new Error(`Error in findOne for collection ${collection}`);
-			}
-		},
+				// Ensure collection name is properly formatted for UUID-based collections
+				const collectionName = collection.startsWith('collection_') ? collection : `collection_${collection}`;
 
-		// Implementing findMany method
-		findMany: async <T extends BaseEntity>(
-			collection: string,
-			query: FilterQuery<T>
-		): Promise<DatabaseResult<(T & { createdAt: ISODateString; updatedAt: ISODateString })[]>> => {
-			try {
-				const model = mongoose.models[collection] as Model<T>;
+				const model = mongoose.models[collectionName] as Model<T>;
 				if (!model) {
-					logger.error(`findMany failed. Collection ${collection} does not exist.`);
-					throw new Error(`findMany failed. Collection ${collection} does not exist.`);
+					logger.error(`findOne failed. Collection ${collectionName} does not exist.`);
+					return {
+						success: false,
+						error: createDatabaseError(
+							new Error(`Collection ${collectionName} not found`),
+							'COLLECTION_NOT_FOUND',
+							`findOne failed. Collection ${collectionName} does not exist.`
+						)
+					};
 				}
-				const results = await model.find(query).lean().exec();
+
+				let mongoQuery = model.findOne(query as FilterQuery<T>);
+
+				// Apply field selection if provided
+				if (options?.fields && options.fields.length > 0) {
+					const fieldsObj = options.fields.reduce(
+						(acc, field) => {
+							acc[field as string] = 1;
+							return acc;
+						},
+						{} as Record<string, number>
+					);
+					mongoQuery = mongoQuery.select(fieldsObj);
+				}
+
+				const result = await mongoQuery.lean().exec();
+
+				if (!result) {
+					return {
+						success: true,
+						data: null
+					};
+				}
+
+				// Convert dates to ISO strings
+				const processedResult = {
+					...result,
+					createdAt: result.createdAt ? dateToISODateString(new Date(result.createdAt)) : undefined,
+					updatedAt: result.updatedAt ? dateToISODateString(new Date(result.updatedAt)) : undefined
+				} as T;
 
 				return {
 					success: true,
-					data: results.map((result) => {
-						if (result.createdAt) {
-							result.createdAt = dateToISODateString(new Date(result.createdAt));
-						}
-						if (result.updatedAt) {
-							result.updatedAt = dateToISODateString(new Date(result.updatedAt));
-						}
-						return result;
-					})
+					data: processedResult
+				};
+			} catch (error) {
+				logger.error(`Error in findOne for collection ${collection}:`, { error });
+				return {
+					success: false,
+					error: createDatabaseError(error, 'FIND_ONE_ERROR', `Error in findOne for collection ${collection}: ${error.message}`)
+				};
+			}
+		},
+
+		// Implementing findMany method to match dbInterface signature
+		findMany: async <T extends BaseEntity>(
+			collection: string,
+			query: Partial<T>,
+			options?: { limit?: number; offset?: number; fields?: (keyof T)[] }
+		): Promise<DatabaseResult<T[]>> => {
+			try {
+				// Ensure collection name is properly formatted for UUID-based collections
+				const collectionName = collection.startsWith('collection_') ? collection : `collection_${collection}`;
+
+				const model = mongoose.models[collectionName] as Model<T>;
+				if (!model) {
+					logger.error(`findMany failed. Collection ${collectionName} does not exist.`);
+					return {
+						success: false,
+						error: createDatabaseError(
+							new Error(`Collection ${collectionName} not found`),
+							'COLLECTION_NOT_FOUND',
+							`findMany failed. Collection ${collectionName} does not exist.`
+						)
+					};
+				}
+
+				let mongoQuery = model.find(query as FilterQuery<T>);
+
+				// Apply field selection if provided
+				if (options?.fields && options.fields.length > 0) {
+					const fieldsObj = options.fields.reduce(
+						(acc, field) => {
+							acc[field as string] = 1;
+							return acc;
+						},
+						{} as Record<string, number>
+					);
+					mongoQuery = mongoQuery.select(fieldsObj);
+				}
+
+				// Apply pagination if provided
+				if (options?.offset) {
+					mongoQuery = mongoQuery.skip(options.offset);
+				}
+				if (options?.limit) {
+					mongoQuery = mongoQuery.limit(options.limit);
+				}
+
+				const results = await mongoQuery.lean().exec();
+
+				// Convert dates to ISO strings
+				const processedResults = results.map((result) => ({
+					...result,
+					createdAt: result.createdAt ? dateToISODateString(new Date(result.createdAt)) : undefined,
+					updatedAt: result.updatedAt ? dateToISODateString(new Date(result.updatedAt)) : undefined
+				})) as T[];
+
+				return {
+					success: true,
+					data: processedResults
 				};
 			} catch (error) {
 				logger.error(`Error in findMany for collection ${collection}:`, { error });
-				throw new Error(`Error in findMany for collection ${collection}`);
+				return {
+					success: false,
+					error: createDatabaseError(error, 'FIND_MANY_ERROR', `Error in findMany for collection ${collection}: ${error.message}`)
+				};
 			}
 		},
 		// Implementing insertOne method
-		insert: async <T extends DocumentContent = DocumentContent>(collection: string, doc: Partial<T>): Promise<T> => {
+		insert: async <T extends DocumentContent = DocumentContent>(collection: string, doc: Partial<T>): Promise<DatabaseResult<T>> => {
 			try {
-				const model = mongoose.models[collection] as Model<T>;
+				// Ensure collection name is properly formatted for UUID-based collections
+				const collectionName = collection.startsWith('collection_') ? collection : `collection_${collection}`;
+
+				const model = mongoose.models[collectionName] as Model<T>;
 				if (!model) {
-					logger.error(`insert failed. Collection ${collection} does not exist.`);
-					throw new Error(`insert failed. Collection ${collection} does not exist.`);
+					logger.error(`insert failed. Collection ${collectionName} does not exist in mongoose.models`);
+					logger.debug(`Available models: ${Object.keys(mongoose.models).join(', ')}`);
+					return {
+						success: false,
+						error: createDatabaseError(
+							new Error(`Collection ${collectionName} not found`),
+							'COLLECTION_NOT_FOUND',
+							`insert failed. Collection ${collectionName} does not exist.`
+						)
+					};
 				}
+
+				// Generate ID if not provided and ensure it's a string
+				const documentId = doc._id || this.utils.generateId();
 
 				// Validate and normalize date fields
 				const now = new Date();
 				const validatedDoc = {
 					...doc,
+					_id: documentId,
 					createdAt: doc.createdAt ? normalizeDateInput(doc.createdAt) : dateToISODateString(now),
 					updatedAt: doc.updatedAt ? normalizeDateInput(doc.updatedAt) : dateToISODateString(now)
 				};
 
-				return await model.create(validatedDoc);
+				logger.debug(`Attempting to insert document into ${collectionName}`, { docId: documentId });
+				const result = await model.create(validatedDoc);
+				logger.info(`Successfully inserted document into ${collectionName}`, { docId: documentId });
+
+				return {
+					success: true,
+					data: result
+				};
 			} catch (error) {
-				if (error.name === 'ValidationError' && error.message.includes('Cast to date failed')) {
-					const invalidFields = Object.keys(error.errors).filter((key) => error.errors[key].kind === 'Date');
-					logger.error(`Invalid date values provided for fields: ${invalidFields.join(', ')}`);
-					throw new Error(`Invalid date values provided for fields: ${invalidFields.join(', ')}`);
+				// More detailed error handling
+				if (error.name === 'ValidationError') {
+					const validationErrors = error.errors
+						? Object.keys(error.errors).map((key) => ({
+								field: key,
+								message: error.errors[key].message,
+								kind: error.errors[key].kind
+							}))
+						: [];
+
+					logger.error(`Validation error inserting into ${collection}:`, {
+						message: error.message,
+						validationErrors,
+						document: doc
+					});
+					return {
+						success: false,
+						error: createDatabaseError(error, 'VALIDATION_ERROR', `Validation error: ${error.message}`)
+					};
 				}
-				logger.error(`Error inserting document into ${collection}:`, { error });
-				throw new Error(`Error inserting document into ${collection}`);
+
+				if (error.code === 11000) {
+					logger.error(`Duplicate key error inserting into ${collection}:`, {
+						message: error.message,
+						keyPattern: error.keyPattern,
+						keyValue: error.keyValue
+					});
+					return {
+						success: false,
+						error: createDatabaseError(error, 'DUPLICATE_KEY_ERROR', `Duplicate key error: ${error.message}`)
+					};
+				}
+
+				// Log full error details
+				logger.error(`Error inserting document into ${collection}:`, {
+					message: error.message,
+					name: error.name,
+					code: error.code,
+					stack: error.stack,
+					fullError: error
+				});
+				return {
+					success: false,
+					error: createDatabaseError(error, 'INSERT_ERROR', `Error inserting document into ${collection}: ${error.message}`)
+				};
 			}
 		},
 
 		// Implementing insertMany method
-		insertMany: async <T extends DocumentContent = DocumentContent>(collection: string, docs: Partial<T>[]): Promise<T[]> => {
+		insertMany: async <T extends DocumentContent = DocumentContent>(collection: string, docs: Partial<T>[]): Promise<DatabaseResult<T[]>> => {
 			try {
-				const model = mongoose.models[collection] as Model<T>;
+				// Ensure collection name is properly formatted for UUID-based collections
+				const collectionName = collection.startsWith('collection_') ? collection : `collection_${collection}`;
+
+				const model = mongoose.models[collectionName] as Model<T>;
 				if (!model) {
-					logger.error(`insertMany failed. Collection ${collection} does not exist.`);
-					throw new Error(`insertMany failed. Collection ${collection} does not exist.`);
+					logger.error(`insertMany failed. Collection ${collectionName} does not exist.`);
+					return {
+						success: false,
+						error: createDatabaseError(
+							new Error(`Collection ${collectionName} not found`),
+							'COLLECTION_NOT_FOUND',
+							`insertMany failed. Collection ${collectionName} does not exist.`
+						)
+					};
 				}
 
 				// Validate and normalize date fields for all docs
 				const now = new Date();
 				const validatedDocs = docs.map((doc) => ({
 					...doc,
-					createdAt: doc.createdAt ? normalizeDateInput(doc.createdAt) : now,
-					updatedAt: doc.updatedAt ? normalizeDateInput(doc.updatedAt) : now
+					_id: doc._id || this.utils.generateId(),
+					createdAt: doc.createdAt ? normalizeDateInput(doc.createdAt) : dateToISODateString(now),
+					updatedAt: doc.updatedAt ? normalizeDateInput(doc.updatedAt) : dateToISODateString(now)
 				}));
-				return await model.insertMany(validatedDocs);
+
+				const results = await model.insertMany(validatedDocs);
+				return {
+					success: true,
+					data: results
+				};
 			} catch (error) {
 				if (error && error.name === 'ValidationError') {
 					const invalidFields = error.errors ? Object.keys(error.errors) : [];
@@ -508,125 +672,423 @@ export class MongoDBAdapter implements DatabaseAdapter {
 						fields: invalidFields,
 						errors: error.errors
 					});
+					return {
+						success: false,
+						error: createDatabaseError(error, 'VALIDATION_ERROR', `insertMany ValidationError: ${error.message}`)
+					};
 				} else {
 					logger.error(`Error inserting many documents into ${collection}:`, {
 						message: error?.message,
 						stack: error?.stack,
 						error
 					});
+					return {
+						success: false,
+						error: createDatabaseError(error, 'INSERT_MANY_ERROR', `Error inserting many documents into ${collection}`)
+					};
 				}
-				throw new Error(`Error inserting many documents into ${collection}`);
 			}
 		},
 
-		// Implementing updateOne method
+		// Implementing update method to match dbInterface signature
 		update: async <T extends DocumentContent = DocumentContent>(
 			collection: string,
-			query: FilterQuery<T>,
-			update: UpdateQuery<T>
-		): Promise<T & { createdAt?: ISODateString; updatedAt?: ISODateString }> => {
+			id: DatabaseId,
+			data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>
+		): Promise<DatabaseResult<T>> => {
 			try {
-				const model = mongoose.models[collection] as Model<T>;
+				// Ensure collection name is properly formatted for UUID-based collections
+				const collectionName = collection.startsWith('collection_') ? collection : `collection_${collection}`;
+
+				const model = mongoose.models[collectionName] as Model<T>;
 				if (!model) {
-					logger.error(`updateOne failed. Collection ${collection} does not exist.`);
-					throw new Error(`updateOne failed. Collection ${collection} does not exist.`);
+					logger.error(`update failed. Collection ${collectionName} does not exist.`);
+					return {
+						success: false,
+						error: createDatabaseError(
+							new Error(`Collection ${collectionName} not found`),
+							'COLLECTION_NOT_FOUND',
+							`update failed. Collection ${collectionName} does not exist.`
+						)
+					};
 				}
 
-				// Validate and normalize date fields in update
-				if (update.$set) {
-					if (update.$set.createdAt && !isISODateString(update.$set.createdAt)) {
-						update.$set.createdAt = stringToISODateString(update.$set.createdAt);
-					}
-					if (update.$set.updatedAt) {
-						update.$set.updatedAt = dateToISODateString(new Date());
-					}
-				}
+				// Create query and update objects
+				const query = { _id: id };
+				const updateData = {
+					...data,
+					updatedAt: dateToISODateString(new Date())
+				};
 
-				const result = await model.findOneAndUpdate(query, update, { new: true, strict: false }).lean().exec();
+				logger.debug(`Attempting to update document ${id} in ${collectionName}`, {
+					query,
+					updateData: Object.keys(updateData)
+				});
+
+				const result = await model.findOneAndUpdate(query, { $set: updateData }, { new: true, strict: false }).lean().exec();
 
 				if (!result) {
-					throw new Error(`No document found to update with query: ${JSON.stringify(query)}`);
+					logger.warn(`No document found to update with id: ${id} in ${collectionName}`);
+					return {
+						success: false,
+						error: createDatabaseError(
+							new Error(`No document found with id: ${id}`),
+							'DOCUMENT_NOT_FOUND',
+							`No document found to update with id: ${id}`
+						)
+					};
 				}
 
 				// Convert dates to ISO strings
-				if (result.createdAt) {
-					result.createdAt = dateToISODateString(new Date(result.createdAt));
-				}
-				if (result.updatedAt) {
-					result.updatedAt = dateToISODateString(new Date(result.updatedAt));
-				}
+				const processedResult = {
+					...result,
+					createdAt: result.createdAt ? dateToISODateString(new Date(result.createdAt)) : undefined,
+					updatedAt: result.updatedAt ? dateToISODateString(new Date(result.updatedAt)) : undefined
+				} as T;
 
-				return result;
+				logger.info(`Successfully updated document ${id} in ${collectionName}`);
+				return {
+					success: true,
+					data: processedResult
+				};
 			} catch (error) {
-				logger.error(`Error updating document in ${collection}:`, { error });
-				throw new Error(`Error updating document in ${collection}`);
+				logger.error(`Error updating document ${id} in ${collectionName}:`, { error });
+				return {
+					success: false,
+					error: createDatabaseError(error, 'UPDATE_ERROR', `Error updating document ${id} in ${collectionName}: ${error.message}`)
+				};
 			}
 		},
 
 		// Implementing updateMany method
 		updateMany: async <T extends DocumentContent = DocumentContent>(
 			collection: string,
-			query: FilterQuery<T>,
-			update: UpdateQuery<T>
-		): Promise<T[]> => {
+			query: Partial<T>,
+			data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>
+		): Promise<DatabaseResult<{ modifiedCount: number }>> => {
 			try {
-				const model = mongoose.models[collection] as Model<T>;
+				// Ensure collection name is properly formatted for UUID-based collections
+				const collectionName = collection.startsWith('collection_') ? collection : `collection_${collection}`;
+
+				const model = mongoose.models[collectionName] as Model<T>;
 				if (!model) {
-					logger.error(`updateMany failed. Collection ${collection} does not exist.`);
-					throw new Error(`updateMany failed. Collection ${collection} does not exist.`);
+					logger.error(`updateMany failed. Collection ${collectionName} does not exist.`);
+					return {
+						success: false,
+						error: createDatabaseError(
+							new Error(`Collection ${collectionName} not found`),
+							'COLLECTION_NOT_FOUND',
+							`updateMany failed. Collection ${collectionName} does not exist.`
+						)
+					};
 				}
-				return await model.updateMany(query, update, { strict: false }).lean().exec();
+
+				const updateData = {
+					...data,
+					updatedAt: dateToISODateString(new Date())
+				};
+
+				const result = await model.updateMany(query, { $set: updateData }, { strict: false }).exec();
+
+				logger.info(`Successfully updated ${result.modifiedCount} documents in ${collectionName}`);
+				return {
+					success: true,
+					data: { modifiedCount: result.modifiedCount }
+				};
 			} catch (error) {
 				logger.error(`Error updating many documents in ${collection}:`, { error });
-				throw new Error(`Error updating many documents in ${collection}`);
-			}
-		},
-
-		// Implementing deleteOne method
-		deleteOne: async (collection: string, query: FilterQuery<Document>): Promise<number> => {
-			try {
-				const model = mongoose.models[collection] as Model<Document>;
-				if (!model) {
-					throw new Error(`Collection ${collection} not found`);
-				}
-
-				const result = await model.deleteOne(query).exec();
-				return result.deletedCount ?? 0;
-			} catch (error) {
-				logger.error(`Error deleting document from ${collection}:`, { error });
-				throw new Error(`Error deleting document from ${collection}`);
-			}
-		},
-
-		// Implementing deleteMany method
-		deleteMany: async (collection: string, query: FilterQuery<Document>): Promise<number> => {
-			try {
-				const model = mongoose.models[collection] as Model<Document>;
-				if (!model) {
-					throw new Error(`Collection ${collection} not found`);
-				}
-
-				const result = await model.deleteMany(query).exec();
-				return result.deletedCount ?? 0;
-			} catch (error) {
-				logger.error(`Error deleting many documents from ${collection}:`, { error });
-				throw new Error(`Error deleting many documents from ${collection}`);
+				return {
+					success: false,
+					error: createDatabaseError(error, 'UPDATE_MANY_ERROR', `Error updating many documents in ${collection}: ${error.message}`)
+				};
 			}
 		},
 
 		// Implementing countDocuments method
 		countDocuments: async (collection: string, query: FilterQuery<Document> = {}): Promise<number> => {
 			try {
-				const model = mongoose.models[collection] as Model<Document>;
+				// Ensure collection name is properly formatted for UUID-based collections
+				const collectionName = collection.startsWith('collection_') ? collection : `collection_${collection}`;
+
+				const model = mongoose.models[collectionName] as Model<Document>;
 				if (!model) {
-					logger.error(`countDocuments failed. Collection ${collection} does not exist.`);
-					throw new Error(`countDocuments failed. Collection ${collection} does not exist.`);
+					logger.error(`countDocuments failed. Collection ${collectionName} does not exist.`);
+					throw new Error(`countDocuments failed. Collection ${collectionName} does not exist.`);
 				}
 
 				return await model.countDocuments(query).exec();
 			} catch (error) {
 				logger.error(`Error counting documents in ${collection}:`, { error });
 				throw new Error(`Error counting documents in ${collection}`);
+			}
+		},
+
+		// Implementing delete method to match dbInterface signature
+		delete: async (collection: string, id: DatabaseId): Promise<DatabaseResult<void>> => {
+			try {
+				// Ensure collection name is properly formatted for UUID-based collections
+				const collectionName = collection.startsWith('collection_') ? collection : `collection_${collection}`;
+
+				const model = mongoose.models[collectionName] as Model<Document>;
+				if (!model) {
+					logger.error(`delete failed. Collection ${collectionName} does not exist.`);
+					return {
+						success: false,
+						error: createDatabaseError(
+							new Error(`Collection ${collectionName} not found`),
+							'COLLECTION_NOT_FOUND',
+							`delete failed. Collection ${collectionName} does not exist.`
+						)
+					};
+				}
+
+				const result = await model.deleteOne({ _id: id }).exec();
+
+				if (result.deletedCount === 0) {
+					logger.warn(`No document found to delete with id: ${id} in ${collectionName}`);
+					return {
+						success: false,
+						error: createDatabaseError(
+							new Error(`No document found with id: ${id}`),
+							'DOCUMENT_NOT_FOUND',
+							`No document found to delete with id: ${id}`
+						)
+					};
+				}
+
+				logger.info(`Successfully deleted document ${id} from ${collectionName}`);
+				return {
+					success: true,
+					data: undefined
+				};
+			} catch (error) {
+				logger.error(`Error deleting document ${id} from ${collection}:`, { error });
+				return {
+					success: false,
+					error: createDatabaseError(error, 'DELETE_ERROR', `Error deleting document ${id} from ${collection}: ${error.message}`)
+				};
+			}
+		},
+
+		// Implementing findByIds method for batch operations
+		findByIds: async <T extends BaseEntity>(
+			collection: string,
+			ids: DatabaseId[],
+			options?: { fields?: (keyof T)[] }
+		): Promise<DatabaseResult<T[]>> => {
+			try {
+				// Ensure collection name is properly formatted for UUID-based collections
+				const collectionName = collection.startsWith('collection_') ? collection : `collection_${collection}`;
+
+				const model = mongoose.models[collectionName] as Model<T>;
+				if (!model) {
+					logger.error(`findByIds failed. Collection ${collectionName} does not exist.`);
+					return {
+						success: false,
+						error: createDatabaseError(
+							new Error(`Collection ${collectionName} not found`),
+							'COLLECTION_NOT_FOUND',
+							`findByIds failed. Collection ${collectionName} does not exist.`
+						)
+					};
+				}
+
+				let query = model.find({ _id: { $in: ids } });
+
+				// Apply field selection if provided
+				if (options?.fields && options.fields.length > 0) {
+					const fieldsObj = options.fields.reduce(
+						(acc, field) => {
+							acc[field as string] = 1;
+							return acc;
+						},
+						{} as Record<string, number>
+					);
+					query = query.select(fieldsObj);
+				}
+
+				const results = await query.lean().exec();
+
+				// Convert dates to ISO strings
+				const processedResults = results.map((result) => ({
+					...result,
+					createdAt: result.createdAt ? dateToISODateString(new Date(result.createdAt)) : undefined,
+					updatedAt: result.updatedAt ? dateToISODateString(new Date(result.updatedAt)) : undefined
+				})) as T[];
+
+				logger.debug(`Found ${processedResults.length}/${ids.length} documents in ${collectionName}`);
+				return {
+					success: true,
+					data: processedResults
+				};
+			} catch (error) {
+				logger.error(`Error finding documents by IDs in ${collection}:`, { error });
+				return {
+					success: false,
+					error: createDatabaseError(error, 'FIND_BY_IDS_ERROR', `Error finding documents by IDs in ${collection}: ${error.message}`)
+				};
+			}
+		},
+
+		// Implementing upsert method
+		upsert: async <T extends BaseEntity>(
+			collection: string,
+			query: Partial<T>,
+			data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>
+		): Promise<DatabaseResult<T>> => {
+			try {
+				// Ensure collection name is properly formatted for UUID-based collections
+				const collectionName = collection.startsWith('collection_') ? collection : `collection_${collection}`;
+
+				const model = mongoose.models[collectionName] as Model<T>;
+				if (!model) {
+					logger.error(`upsert failed. Collection ${collectionName} does not exist.`);
+					return {
+						success: false,
+						error: createDatabaseError(
+							new Error(`Collection ${collectionName} not found`),
+							'COLLECTION_NOT_FOUND',
+							`upsert failed. Collection ${collectionName} does not exist.`
+						)
+					};
+				}
+
+				const now = new Date();
+				const upsertData = {
+					...data,
+					updatedAt: dateToISODateString(now)
+				};
+
+				// Set createdAt only if document doesn't exist
+				const existingDoc = await model.findOne(query).lean().exec();
+				if (!existingDoc) {
+					upsertData.createdAt = dateToISODateString(now);
+					if (!upsertData._id) {
+						upsertData._id = this.utils.generateId();
+					}
+				}
+
+				const result = await model.findOneAndUpdate(query, { $set: upsertData }, { new: true, upsert: true, strict: false }).lean().exec();
+
+				// Convert dates to ISO strings
+				const processedResult = {
+					...result,
+					createdAt: result.createdAt ? dateToISODateString(new Date(result.createdAt)) : undefined,
+					updatedAt: result.updatedAt ? dateToISODateString(new Date(result.updatedAt)) : undefined
+				} as T;
+
+				logger.info(`Successfully upserted document in ${collectionName}`);
+				return {
+					success: true,
+					data: processedResult
+				};
+			} catch (error) {
+				logger.error(`Error upserting document in ${collection}:`, { error });
+				return {
+					success: false,
+					error: createDatabaseError(error, 'UPSERT_ERROR', `Error upserting document in ${collection}: ${error.message}`)
+				};
+			}
+		},
+
+		// Implementing upsertMany method
+		upsertMany: async <T extends BaseEntity>(
+			collection: string,
+			items: Array<{ query: Partial<T>; data: Omit<T, '_id' | 'createdAt' | 'updatedAt'> }>
+		): Promise<DatabaseResult<T[]>> => {
+			try {
+				// Ensure collection name is properly formatted for UUID-based collections
+				const collectionName = collection.startsWith('collection_') ? collection : `collection_${collection}`;
+
+				const model = mongoose.models[collectionName] as Model<T>;
+				if (!model) {
+					logger.error(`upsertMany failed. Collection ${collectionName} does not exist.`);
+					return {
+						success: false,
+						error: createDatabaseError(
+							new Error(`Collection ${collectionName} not found`),
+							'COLLECTION_NOT_FOUND',
+							`upsertMany failed. Collection ${collectionName} does not exist.`
+						)
+					};
+				}
+
+				const results: T[] = [];
+				const now = new Date();
+
+				for (const item of items) {
+					const upsertData = {
+						...item.data,
+						updatedAt: dateToISODateString(now)
+					};
+
+					// Set createdAt only if document doesn't exist
+					const existingDoc = await model.findOne(item.query).lean().exec();
+					if (!existingDoc) {
+						upsertData.createdAt = dateToISODateString(now);
+						if (!upsertData._id) {
+							upsertData._id = this.utils.generateId();
+						}
+					}
+
+					const result = await model.findOneAndUpdate(item.query, { $set: upsertData }, { new: true, upsert: true, strict: false }).lean().exec();
+
+					// Convert dates to ISO strings
+					const processedResult = {
+						...result,
+						createdAt: result.createdAt ? dateToISODateString(new Date(result.createdAt)) : undefined,
+						updatedAt: result.updatedAt ? dateToISODateString(new Date(result.updatedAt)) : undefined
+					} as T;
+
+					results.push(processedResult);
+				}
+
+				logger.info(`Successfully upserted ${results.length} documents in ${collectionName}`);
+				return {
+					success: true,
+					data: results
+				};
+			} catch (error) {
+				logger.error(`Error upserting many documents in ${collection}:`, { error });
+				return {
+					success: false,
+					error: createDatabaseError(error, 'UPSERT_MANY_ERROR', `Error upserting many documents in ${collection}: ${error.message}`)
+				};
+			}
+		},
+
+		// Update deleteMany to match interface signature
+		deleteMany: async (collection: string, query: Partial<BaseEntity>): Promise<DatabaseResult<{ deletedCount: number }>> => {
+			try {
+				// Ensure collection name is properly formatted for UUID-based collections
+				const collectionName = collection.startsWith('collection_') ? collection : `collection_${collection}`;
+
+				const model = mongoose.models[collectionName] as Model<BaseEntity>;
+				if (!model) {
+					logger.error(`deleteMany failed. Collection ${collectionName} does not exist.`);
+					return {
+						success: false,
+						error: createDatabaseError(
+							new Error(`Collection ${collectionName} not found`),
+							'COLLECTION_NOT_FOUND',
+							`deleteMany failed. Collection ${collectionName} does not exist.`
+						)
+					};
+				}
+
+				const result = await model.deleteMany(query).exec();
+
+				logger.info(`Successfully deleted ${result.deletedCount} documents from ${collectionName}`);
+				return {
+					success: true,
+					data: { deletedCount: result.deletedCount || 0 }
+				};
+			} catch (error) {
+				logger.error(`Error deleting many documents from ${collection}:`, { error });
+				return {
+					success: false,
+					error: createDatabaseError(error, 'DELETE_MANY_ERROR', `Error deleting many documents from ${collection}: ${error.message}`)
+				};
 			}
 		}
 	};
@@ -1041,8 +1503,20 @@ export class MongoDBAdapter implements DatabaseAdapter {
 
 	// Query Builder Entry Point
 	queryBuilder<T extends BaseEntity>(collection: string): QueryBuilder<T> {
-		const model = mongoose.model<T>(collection);
-		return new MongoQueryBuilder<T>(model);
+		try {
+			// Check if model exists before creating query builder
+			if (!mongoose.models[collection]) {
+				logger.error(`QueryBuilder failed: Model ${collection} not found in mongoose.models`);
+				logger.debug(`Available models: ${Object.keys(mongoose.models).join(', ')}`);
+				throw new Error(`Model ${collection} not found`);
+			}
+
+			const model = mongoose.models[collection] as Model<T>;
+			return new MongoQueryBuilder<T>(model);
+		} catch (error) {
+			logger.error(`Error creating QueryBuilder for collection ${collection}:`, { error });
+			throw error;
+		}
 	}
 
 	//  Disconnect Method

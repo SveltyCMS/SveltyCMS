@@ -22,8 +22,11 @@
  */
 
 import { publicEnv } from '@root/config/public';
-import * as v from 'valibot';
+
 import type { BaseIssue, BaseSchema } from 'valibot';
+import type { Field } from '@src/content/types';
+import fs from 'fs/promises';
+import path from 'path';
 
 // Stores
 import { get } from 'svelte/store';
@@ -31,6 +34,9 @@ import { translationProgress, updateTranslationProgress as updateTranslationStor
 
 // System Logger
 import { logger, type LoggableValue } from '@utils/logger.svelte';
+
+// Validation
+import * as v from 'valibot';
 
 export const config = {
 	headers: {
@@ -67,7 +73,7 @@ export const getGuiFields = (fieldParams: Record<string, unknown>, GuiSchema: Re
 export const obj2formData = (obj: Record<string, unknown>) => {
 	const formData = new FormData();
 
-	const transformValue = (key: string, value: unknown): string | Blob => {
+	const transformValue = (value: unknown): string | Blob => {
 		if (value instanceof Blob) {
 			return value;
 		} else if (typeof value === 'object' && value !== null) {
@@ -346,7 +352,7 @@ export function ReadableExpireIn(expiresIn: string) {
 	return `${daysText} ${hoursText} ${minutesText}`.trim();
 }
 
-export function updateTranslationProgress(data, field) {
+export function updateTranslationProgress(data: unknown, field: unknown) {
 	const languages = publicEnv.AVAILABLE_CONTENT_LANGUAGES;
 	const fieldName = getFieldName(field); // Get the unique field name
 

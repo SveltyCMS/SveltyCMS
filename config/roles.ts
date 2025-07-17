@@ -70,8 +70,7 @@ export async function initializeRoles(): Promise<void> {
 			description: 'User Role - No Permissions',
 			permissions: [],
 			icon: 'material-symbols:person',
-			color: 'gradient-secondary',
-			isDefault: true // Required for fallback logic
+			color: 'gradient-secondary'
 		}
 	];
 }

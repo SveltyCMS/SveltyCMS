@@ -69,7 +69,7 @@ export interface Schema {
 	path?: string; // Path within the collections folder structure
 	permissions?: RolePermissions; // Optional permission restrictions
 	livePreview?: boolean; // Optional live preview
-	status?: 'draft' | 'published' | 'unpublished' | 'scheduled' | 'cloned'; // Optional default status
+	status?: 'draft' | 'publish' | 'unpublish' | 'schedule' | 'clone'; // Optional default status
 	links?: Array<ContentTypes>; // Optional links to other collections
 	fields: FieldDefinition[]; // Collection fields
 	translations?: Translation[]; // Optional translations with enhanced metadata
@@ -117,7 +117,7 @@ export interface CollectionData {
 	fields: FieldDefinition[]; // Collection fields
 	description?: string; // Optional description
 	slug?: string; // Optional slug
-	status?: 'draft' | 'published' | 'unpublished' | 'scheduled' | 'cloned'; // Optional status
+	status?: 'draft' | 'publish' | 'unpublish' | 'schedule' | 'clone'; // Optional status
 	links?: Array<ContentTypes>; // Optional links to other collections
 }
 

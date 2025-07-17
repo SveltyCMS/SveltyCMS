@@ -1,6 +1,15 @@
 /**
  * @file src/routes/api/theme/update-theme/+server.ts
- * @description Server-side handler for updating the current theme.
+ * @description Server-side handler for updating the current theme
+ *
+ * @example POST /api/theme/update-theme
+ *
+ * Features:
+ * - Updates the current theme based on the provided theme name in the request body
+ * - Checks if the user has permission to update the theme
+ * - Throws an error if the theme does not exist in the database
+ * - Throws an error if the theme update fails
+ * - Returns the updated theme in the response
  */
 
 import type { RequestHandler } from './$types';
@@ -9,6 +18,9 @@ import { dbAdapter } from '@src/databases/db';
 import type { Theme } from '@src/databases/dbInterface';
 import { json, error } from '@sveltejs/kit';
 
+// Permission checking
+import { checkApiPermission } from '@api/permissions';
+
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
@@ -16,10 +28,23 @@ import { logger } from '@utils/logger.svelte';
 const themeManager = ThemeManager.getInstance();
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	// Authenticate and authorize the user
-	if (!locals.user || !locals.hasManageUsersPermission) {
-		logger.warn(`Unauthorized attempt to update theme by user: ${locals.user ? locals.user.id : 'unknown'}`);
-		throw error(401, 'Unauthorized');
+	// Check permissions using centralized system
+	const permissionResult = await checkApiPermission(locals.user, {
+		resource: 'system',
+		action: 'write'
+	});
+
+	if (!permissionResult.hasPermission) {
+		logger.warn(`Unauthorized attempt to update theme`, {
+			userId: locals.user?._id,
+			error: permissionResult.error
+		});
+		return json(
+			{
+				error: permissionResult.error || 'Forbidden'
+			},
+			{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
+		);
 	}
 
 	// Parse the request body

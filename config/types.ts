@@ -6,10 +6,8 @@
  * It maintains enhanced, developer-friendly error reporting.
  */
 
-import type { BaseSchema, InferOutput, Issue } from 'valibot';
+import type { BaseSchema, InferOutput } from 'valibot';
 import { array, boolean, literal, maxValue, minLength, minValue, number, object, optional, pipe, safeParse, string, union } from 'valibot';
-
-import type { Locale } from '@src/paraglide/runtime';
 
 // ----------------- CONFIGURATION SCHEMAS -----------------
 
@@ -87,10 +85,10 @@ export const publicConfigSchema = object({
 	PASSWORD_LENGTH: pipe(number(), minValue(8)), // Minimum required length for user passwords
 
 	// --- Language Configuration ---
-	DEFAULT_CONTENT_LANGUAGE: pipe(string(), minLength(1)) as BaseSchema<Locale>, // Default language for content (e.g., 'en')
-	AVAILABLE_CONTENT_LANGUAGES: pipe(array(pipe(string(), minLength(1)) as BaseSchema<Locale>), minLength(1)), // List of available content languages
-	DEFAULT_SYSTEM_LANGUAGE: pipe(string(), minLength(1)) as BaseSchema<Locale>, // Default language for the CMS interface
-	AVAILABLE_SYSTEM_LANGUAGES: pipe(array(pipe(string(), minLength(1)) as BaseSchema<Locale>), minLength(1)), // List of available interface languages
+	DEFAULT_CONTENT_LANGUAGE: pipe(string(), minLength(1)), // Default language for content (e.g., 'en')
+	AVAILABLE_CONTENT_LANGUAGES: pipe(array(pipe(string(), minLength(1))), minLength(1)), // List of available content languages
+	DEFAULT_SYSTEM_LANGUAGE: pipe(string(), minLength(1)), // Default language for the CMS interface
+	AVAILABLE_SYSTEM_LANGUAGES: pipe(array(pipe(string(), minLength(1))), minLength(1)), // List of available interface languages
 
 	// --- Media configuration ---
 	MEDIA_FOLDER: pipe(string(), minLength(1)), // Server path where media files are stored
@@ -155,7 +153,7 @@ const colors = {
  */
 function formatPath(path: Issue['path']): string {
 	if (!path || path.length === 0) return 'root';
-	return path.map((p) => p.key).join('.');
+	return path.map((p: { key: string }) => p.key).join('.');
 }
 
 /**
@@ -182,7 +180,7 @@ function logValidationErrors(issues: Issue[], configFile: string): void {
  * @param config - The successfully parsed configuration object.
  * @returns An array of human-readable error messages.
  */
-function performConditionalValidation(config: Record<string, any>): string[] {
+function performConditionalValidation(config: Record<string, unknown>): string[] {
 	const errors: string[] = [];
 
 	// Private Config Checks
@@ -228,7 +226,7 @@ function performConditionalValidation(config: Record<string, any>): string[] {
  * @param configName - The name of the configuration (e.g., "Private Config").
  * @returns The validated configuration object.
  */
-export function validateConfig(schema: BaseSchema, config: unknown, configName: string): unknown {
+export function validateConfig(schema: BaseSchema<unknown, unknown, BaseIssue<unknown>>, config: unknown, configName: string): unknown {
 	if (!validationLogPrinted) {
 		console.log(`\n${colors.blue}🚀 Validating CMS configuration...${colors.reset}`);
 		validationLogPrinted = true;
@@ -239,7 +237,7 @@ export function validateConfig(schema: BaseSchema, config: unknown, configName: 
 
 	if (result.success) {
 		// Perform secondary, cross-field validation
-		const conditionalErrors = performConditionalValidation(result.output as Record<string, any>);
+		const conditionalErrors = performConditionalValidation(result.output as Record<string, unknown>);
 		if (conditionalErrors.length > 0) {
 			console.error(`\n${colors.red}❌ ${configName} validation failed with logical errors:${colors.reset}`);
 			console.error(`${colors.gray}   File: ${configFile}${colors.reset}`);

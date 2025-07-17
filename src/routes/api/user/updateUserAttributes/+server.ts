@@ -22,7 +22,7 @@ import type { RequestHandler } from './$types';
 
 // Auth and permission helpers
 import { SESSION_COOKIE_NAME } from '@src/auth';
-import { checkApiPermission } from '@src/routes/api/permissions';
+import { checkApiPermission } from '@api/permissions';
 import { getCacheStore } from '@src/cacheStore/index.server';
 import { auth } from '@src/databases/db';
 

@@ -24,6 +24,12 @@ import { dbAdapter } from '@src/databases/db';
 // System Logs
 import { logger } from '@utils/logger.svelte';
 
+// Permissions
+import { checkApiPermission } from '@api/permissions';
+
+// Types
+import type { User } from '@src/auth/types';
+
 // Registers media schemas dynamically.
 export function mediaTypeDefs() {
 	return `
@@ -72,12 +78,33 @@ interface PaginationArgs {
 	};
 }
 
+// GraphQL context type
+interface GraphQLContext {
+	user?: User;
+}
+
 // GraphQL parent type for media resolvers
 type MediaResolverParent = unknown;
 
 // Builds resolvers for querying media data with pagination support.
 export function mediaResolvers() {
-	const fetchWithPagination = async (contentTypes: string, pagination: { page: number; limit: number }) => {
+	const fetchWithPagination = async (contentTypes: string, pagination: { page: number; limit: number }, context: GraphQLContext) => {
+		// Check media permissions
+		if (!context.user) {
+			logger.warn(`GraphQL: No user in context for media type ${contentTypes}`);
+			throw new Error('Authentication required');
+		}
+
+		const permissionResult = await checkApiPermission(context.user, {
+			resource: 'media',
+			action: 'read'
+		});
+
+		if (!permissionResult.hasPermission) {
+			logger.warn(`GraphQL: User ${context.user._id} denied access to media type ${contentTypes}`);
+			throw new Error(`Access denied: ${permissionResult.error || 'Insufficient permissions for media access'}`);
+		}
+
 		if (!dbAdapter) {
 			logger.error('Database adapter is not initialized');
 			throw Error('Database adapter is not initialized');
@@ -97,10 +124,15 @@ export function mediaResolvers() {
 	};
 
 	return {
-		mediaImages: async (_: MediaResolverParent, args: PaginationArgs) => await fetchWithPagination('media_images', args.pagination),
-		mediaDocuments: async (_: MediaResolverParent, args: PaginationArgs) => await fetchWithPagination('media_documents', args.pagination),
-		mediaAudio: async (_: MediaResolverParent, args: PaginationArgs) => await fetchWithPagination('media_audio', args.pagination),
-		mediaVideos: async (_: MediaResolverParent, args: PaginationArgs) => await fetchWithPagination('media_videos', args.pagination),
-		mediaRemote: async (_: MediaResolverParent, args: PaginationArgs) => await fetchWithPagination('media_remote', args.pagination)
+		mediaImages: async (_: MediaResolverParent, args: PaginationArgs, context: GraphQLContext) =>
+			await fetchWithPagination('media_images', args.pagination, context),
+		mediaDocuments: async (_: MediaResolverParent, args: PaginationArgs, context: GraphQLContext) =>
+			await fetchWithPagination('media_documents', args.pagination, context),
+		mediaAudio: async (_: MediaResolverParent, args: PaginationArgs, context: GraphQLContext) =>
+			await fetchWithPagination('media_audio', args.pagination, context),
+		mediaVideos: async (_: MediaResolverParent, args: PaginationArgs, context: GraphQLContext) =>
+			await fetchWithPagination('media_videos', args.pagination, context),
+		mediaRemote: async (_: MediaResolverParent, args: PaginationArgs, context: GraphQLContext) =>
+			await fetchWithPagination('media_remote', args.pagination, context)
 	};
 }

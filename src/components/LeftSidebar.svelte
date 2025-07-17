@@ -131,7 +131,7 @@
 			console.log('Starting sign-out process...');
 
 			// Call the logout API endpoint
-			const response = await axios.post(
+			await axios.post(
 				'/api/user/logout',
 				{},
 				{

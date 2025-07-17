@@ -1,36 +1,71 @@
 /**
  * @file src/databases/dbInterface.ts
- * @description **Database Agnostic Interface for SveltyCMS - CRUD & QueryBuilder Focused**
+ * @description High-Performance Agnostic Database Interface for SveltyCMS
  *
- * **Database interaction is primarily driven by explicit CRUD operations and the QueryBuilder.**
- * **Use QueryBuilder for ALL general data retrieval (lists, filters, sorts, pagination).**
- * **Direct methods in feature interfaces are limited to essential CRUD actions and specific operations.**
+ * This contract defines a truly agnostic, performance-optimized data layer with these key principles:
  *
- * **Performance Note:** This QueryBuilder is designed for general data retrieval and aims for database agnosticism. For optimal performance in complex scenarios or when leveraging database-specific features (like MongoDB Aggregation or advanced SQL features), direct database-specific queries or extending this interface might be necessary.  Avoid using function-based filters in `where` for database queries as it can lead to significant performance issues.
+ * 1. **Single Database Call Optimization**: All operations are designed to minimize round trips
+ * 2. **Standardized DatabaseResult<T>**: Consistent error handling without exceptions
+ * 3. **Batch Operations First**: Prefer bulk operations over individual calls
+ * 4. **Query Optimization**: Built-in query optimization hints and strategies
+ * 5. **Connection Pooling Ready**: Interface supports connection pooling patterns
+ * 6. **Cache-Friendly**: Operations designed to work with caching layers
  *
- * Features:
- * - Full UUID support (v4) for all entities
- * - ISO 8601 date string handling
- * - QueryBuilder for ALL general data retrieval (non-CRUD list/find operations)
- * - Transaction support
- * - Strict type definitions
- * - Error handling standardization
- * - Database-agnostic design (with performance considerations for complex queries)
- * - System Virtual folder management
- * - Content versioning (drafts/revisions)
- * - Pagination utilities
- * - Preferences management
- *
- * Design Principles (Optimized for general use, with caveats for complex scenarios):
- * 1. Consistent ID handling (UUIDv4 across all DBs)
- * 2. Date handling as ISO strings in application layer
- * 3. QueryBuilder is the EXCLUSIVE method for general data retrieval.
- * 4. Direct methods are reserved for explicit CRUD actions and specific use-cases.
- * 5. Clear separation of read/write operations
- * 6. Type safety throughout interface
+ * Performance Features:
+ * - Batch CRUD operations to reduce network round trips
+ * - Query result streaming for large datasets
+ * - Connection pooling and reuse patterns
+ * - Built-in query optimization hints
+ * - Lazy loading and selective field fetching
+ * - Efficient pagination with cursor-based navigation
+ * - Bulk validation and constraint checking
  */
 
 import type { Schema } from '../content/types';
+
+/** Performance and Query Optimization Types **/
+export interface QueryOptimizationHints {
+	useIndex?: string[]; // Suggest specific indexes to use
+	maxExecutionTime?: number; // Maximum query execution time in milliseconds
+	readPreference?: 'primary' | 'secondary' | 'nearest'; // For replica sets
+	batchSize?: number; // Optimal batch size for large operations
+	streaming?: boolean; // Enable result streaming for large datasets
+}
+
+export interface ConnectionPoolOptions {
+	maxConnections?: number;
+	minConnections?: number;
+	connectionTimeout?: number;
+	idleTimeout?: number;
+	retryAttempts?: number;
+}
+
+export interface DatabaseCapabilities {
+	supportsTransactions: boolean;
+	supportsIndexing: boolean;
+	supportsFullTextSearch: boolean;
+	supportsAggregation: boolean;
+	supportsStreaming: boolean;
+	supportsPartitioning: boolean;
+	maxBatchSize: number;
+	maxQueryComplexity: number;
+}
+
+/** Performance Monitoring and Caching **/
+export interface PerformanceMetrics {
+	queryCount: number;
+	averageQueryTime: number;
+	slowQueries: Array<{ query: string; duration: number; timestamp: Date }>;
+	cacheHitRate: number;
+	connectionPoolUsage: number;
+}
+
+export interface CacheOptions {
+	ttl?: number; // Time to live in seconds
+	tags?: string[]; // Cache tags for invalidation
+	key?: string; // Custom cache key
+	enabled?: boolean;
+}
 
 /** Core Types **/
 export type DatabaseId = string & { readonly __brand: unique symbol }; // Unique identifier type
@@ -159,16 +194,44 @@ export interface PaginationOptions {
 	pageSize?: number;
 	sortField?: string;
 	sortDirection?: 'asc' | 'desc';
+	cursor?: string; // For cursor-based pagination (more efficient for large datasets)
+	includeTotalCount?: boolean; // Option to skip expensive total count calculation
 }
 
 export interface PaginatedResult<T> {
 	items: T[];
-	total: number;
-	page: number;
+	total?: number; // Optional for performance when includeTotalCount is false
+	page?: number;
 	pageSize: number;
+	hasNextPage: boolean;
+	hasPreviousPage: boolean;
+	nextCursor?: string; // For cursor-based pagination
+	previousCursor?: string;
 }
 
-export type DatabaseResult<T> = { success: true; data: T } | { success: false; error: DatabaseError };
+export interface BatchOperation<T> {
+	operation: 'insert' | 'update' | 'delete' | 'upsert';
+	collection: string;
+	data?: Partial<T>;
+	query?: Partial<T>;
+	id?: DatabaseId;
+}
+
+export interface BatchResult<T> {
+	success: boolean;
+	results: Array<DatabaseResult<T>>;
+	totalProcessed: number;
+	errors: DatabaseError[];
+}
+
+export type DatabaseResult<T> = { success: true; data: T; meta?: QueryMeta } | { success: false; error: DatabaseError };
+
+export interface QueryMeta {
+	executionTime?: number; // Query execution time in milliseconds
+	recordsExamined?: number; // Number of records examined (for optimization)
+	indexesUsed?: string[]; // Indexes used by the query
+	cached?: boolean; // Whether result came from cache
+}
 
 /** Error Handling **/
 export interface DatabaseError {
@@ -181,16 +244,49 @@ export interface DatabaseError {
 
 /** Query Builder Interface **/
 export interface QueryBuilder<T = unknown> {
-	where(conditions: Partial<T>): this; // Add filtering conditions based on document/record properties
-	limit(value: number): this; // Limit the number of results
-	skip(value: number): this; // Skip a number of results
-	sort<K extends keyof T>(field: K, direction: 'asc' | 'desc'): this; // Sort results by a field - type safe field
-	project<K extends keyof T>(fields: Partial<Record<K, boolean>>): this; // Select specific fields - type safe fields
-	distinct<K extends keyof T>(field?: K): this; // Allow specifying a field for distinct, make it optional for now
-	paginate(options: PaginationOptions): this; // Apply pagination options
-	count(): Promise<DatabaseResult<number>>; // Count matching records
-	execute(): Promise<DatabaseResult<T[]>>; // Execute the query and return results
-	findOne(): Promise<DatabaseResult<T | null>>; // Execute and return a single document, or null if not found
+	// Filtering and conditions
+	where(conditions: Partial<T> | ((item: T) => boolean)): this;
+	whereIn<K extends keyof T>(field: K, values: T[K][]): this;
+	whereNotIn<K extends keyof T>(field: K, values: T[K][]): this;
+	whereBetween<K extends keyof T>(field: K, min: T[K], max: T[K]): this;
+	whereNull<K extends keyof T>(field: K): this;
+	whereNotNull<K extends keyof T>(field: K): this;
+
+	// Text search
+	search(query: string, fields?: (keyof T)[]): this;
+
+	// Pagination and limits
+	limit(value: number): this;
+	skip(value: number): this;
+	paginate(options: PaginationOptions): this;
+
+	// Sorting
+	sort<K extends keyof T>(field: K, direction: 'asc' | 'desc'): this;
+	orderBy<K extends keyof T>(sorts: Array<{ field: K; direction: 'asc' | 'desc' }>): this;
+
+	// Field selection
+	select<K extends keyof T>(fields: K[]): this;
+	exclude<K extends keyof T>(fields: K[]): this;
+
+	// Aggregation
+	distinct<K extends keyof T>(field?: K): this;
+	groupBy<K extends keyof T>(field: K): this;
+
+	// Performance optimization
+	hint(hints: QueryOptimizationHints): this;
+	timeout(milliseconds: number): this;
+
+	// Execution methods
+	count(): Promise<DatabaseResult<number>>;
+	exists(): Promise<DatabaseResult<boolean>>;
+	execute(): Promise<DatabaseResult<T[]>>;
+	stream(): Promise<DatabaseResult<AsyncIterable<T>>>; // For large datasets
+	findOne(): Promise<DatabaseResult<T | null>>;
+	findOneOrFail(): Promise<DatabaseResult<T>>;
+
+	// Batch operations
+	updateMany(data: Partial<T>): Promise<DatabaseResult<{ modifiedCount: number }>>;
+	deleteMany(): Promise<DatabaseResult<{ deletedCount: number }>>;
 }
 
 /** Supporting Interfaces **/
@@ -199,27 +295,49 @@ export interface DatabaseTransaction {
 	rollback(): Promise<DatabaseResult<void>>; // Roll back the transaction
 }
 
-/** Main Database Adapter Interface **/
+/** Database Adapter Interface **/
 export interface DatabaseAdapter {
-	// Core Connection Management
-	connect(): Promise<DatabaseResult<void>>; // Establish a database connection
-	disconnect(): Promise<DatabaseResult<void>>; // Terminate the database connection
-	isConnected(): boolean; // Check if the connection is active
+	// Performance and Capabilities
+	getCapabilities(): DatabaseCapabilities;
+
+	// Connection Management with Pooling
+	connect(poolOptions?: ConnectionPoolOptions): Promise<DatabaseResult<void>>;
+	disconnect(): Promise<DatabaseResult<void>>;
+	isConnected(): boolean;
+	getConnectionHealth(): Promise<DatabaseResult<{ healthy: boolean; latency: number; activeConnections: number }>>;
 
 	// Transaction Support
-	transaction<T>(fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>): Promise<DatabaseResult<T>>; // Execute a function within a transaction
+	transaction<T>(
+		fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>,
+		options?: { timeout?: number; isolationLevel?: string }
+	): Promise<DatabaseResult<T>>;
 
-	//Auth
+	// High-Performance Batch Operations
+	batch: {
+		execute<T>(operations: BatchOperation<T>[]): Promise<DatabaseResult<BatchResult<T>>>;
+		bulkInsert<T extends BaseEntity>(collection: string, items: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<T[]>>;
+		bulkUpdate<T extends BaseEntity>(
+			collection: string,
+			updates: Array<{ id: DatabaseId; data: Partial<T> }>
+		): Promise<DatabaseResult<{ modifiedCount: number }>>;
+		bulkDelete(collection: string, ids: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>>;
+		bulkUpsert<T extends BaseEntity>(collection: string, items: Array<Partial<T> & { id?: DatabaseId }>): Promise<DatabaseResult<T[]>>;
+	};
+
+	// Auth
 	auth: {
-		// Set up authentication models
 		setupAuthModels(): Promise<void>;
 	};
 
-	// System Preferences
+	//  System Preferences
 	systemPreferences: {
-		get<T>(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<T>>; // Retrieve a preference value
-		set<T>(key: string, value: T, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>>; // Set a preference value
-		delete(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>>; // Delete a preference
+		get<T>(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<T>>;
+		getMany<T>(keys: string[], scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<Record<string, T>>>;
+		set<T>(key: string, value: T, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>>;
+		setMany<T>(preferences: Array<{ key: string; value: T; scope?: 'user' | 'system'; userId?: DatabaseId }>): Promise<DatabaseResult<void>>;
+		delete(key: string, scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>>;
+		deleteMany(keys: string[], scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>>;
+		clear(scope?: 'user' | 'system', userId?: DatabaseId): Promise<DatabaseResult<void>>;
 	};
 
 	// Theme Management
@@ -242,19 +360,32 @@ export interface DatabaseAdapter {
 		delete(widgetId: DatabaseId): Promise<DatabaseResult<void>>; // Delete a widget
 	};
 
-	// Media Management
+	//  Media Management
 	media: {
 		setupMediaModels(): Promise<void>;
 		files: {
-			upload(file: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaItem>>; // Upload a media file
-			delete(fileId: DatabaseId): Promise<DatabaseResult<void>>; // Delete a media file
-			getByFolder(folderId?: DatabaseId): Promise<DatabaseResult<MediaItem[]>>; // Specialized: Get files in a folder
-			search(query: string): Promise<DatabaseResult<MediaItem[]>>; // Specialized: Search files
+			upload(file: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaItem>>;
+			uploadMany(files: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<MediaItem[]>>;
+			delete(fileId: DatabaseId): Promise<DatabaseResult<void>>;
+			deleteMany(fileIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>>;
+			getByFolder(folderId?: DatabaseId, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<MediaItem>>>;
+			search(query: string, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<MediaItem>>>;
+			getMetadata(fileIds: DatabaseId[]): Promise<DatabaseResult<Record<string, MediaMetadata>>>;
+			updateMetadata(fileId: DatabaseId, metadata: Partial<MediaMetadata>): Promise<DatabaseResult<MediaItem>>;
+			move(fileIds: DatabaseId[], targetFolderId?: DatabaseId): Promise<DatabaseResult<{ movedCount: number }>>;
+			duplicate(fileId: DatabaseId, newName?: string): Promise<DatabaseResult<MediaItem>>;
 		};
 		folders: {
-			create(folder: Omit<MediaFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaFolder>>; // Create a media folder
-			delete(folderId: DatabaseId): Promise<DatabaseResult<void>>; // Delete a media folder
-			getTree(): Promise<DatabaseResult<MediaFolder[]>>; // Specialized: Get folder tree
+			create(folder: Omit<MediaFolder, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaFolder>>;
+			createMany(folders: Omit<MediaFolder, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<MediaFolder[]>>;
+			delete(folderId: DatabaseId): Promise<DatabaseResult<void>>;
+			deleteMany(folderIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>>;
+			getTree(maxDepth?: number): Promise<DatabaseResult<MediaFolder[]>>;
+			getFolderContents(
+				folderId?: DatabaseId,
+				options?: PaginationOptions
+			): Promise<DatabaseResult<{ folders: MediaFolder[]; files: MediaItem[]; totalCount: number }>>;
+			move(folderId: DatabaseId, targetParentId?: DatabaseId): Promise<DatabaseResult<MediaFolder>>;
 		};
 	};
 
@@ -265,28 +396,36 @@ export interface DatabaseAdapter {
 		deleteModel(id: string): Promise<void>;
 	};
 
-	// Content Management
+	// Content Management with Batch Operations
 	content: {
 		nodes: {
-			getStructure(mode: 'flat' | 'nested', filter?: Partial<ContentNode>): Promise<DatabaseResult<ContentNode[]>>; // Retrieve content structure
-			upsertContentStructureNode(node: Omit<ContentNode, 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNode>>; // Create a content node
-			create(node: Omit<ContentNode, 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNode>>; // Create a content node
-			update(path: string, changes: Partial<ContentNode>): Promise<DatabaseResult<ContentNode>>; // Update a content node
-			bulkUpdate(updates: { path: string; changes: Partial<ContentNode> }[]): Promise<DatabaseResult<ContentNode[]>>; // Bulk update content nodes
-			delete(path: string): Promise<DatabaseResult<void>>; // Delete a content node
+			getStructure(mode: 'flat' | 'nested', filter?: Partial<ContentNode>): Promise<DatabaseResult<ContentNode[]>>;
+			upsertContentStructureNode(node: Omit<ContentNode, 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNode>>;
+			create(node: Omit<ContentNode, 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentNode>>;
+			createMany(nodes: Omit<ContentNode, 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<ContentNode[]>>;
+			update(path: string, changes: Partial<ContentNode>): Promise<DatabaseResult<ContentNode>>;
+			bulkUpdate(updates: { path: string; changes: Partial<ContentNode> }[]): Promise<DatabaseResult<ContentNode[]>>;
+			delete(path: string): Promise<DatabaseResult<void>>;
+			deleteMany(paths: string[]): Promise<DatabaseResult<{ deletedCount: number }>>;
+			reorder(nodeUpdates: Array<{ path: string; newOrder: number }>): Promise<DatabaseResult<ContentNode[]>>;
 		};
 		drafts: {
-			create(draft: Omit<ContentDraft, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentDraft>>; // Create a content draft
-			update(draftId: DatabaseId, data: unknown): Promise<DatabaseResult<ContentDraft>>; // Update a content draft
-			publish(draftId: DatabaseId): Promise<DatabaseResult<void>>; // Publish a content draft
-			getForContent(contentId: DatabaseId): Promise<DatabaseResult<ContentDraft[]>>; // Specialized: Get drafts for specific content
-			delete(draftId: DatabaseId): Promise<DatabaseResult<void>>; // Delete a content draft
+			create(draft: Omit<ContentDraft, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentDraft>>;
+			createMany(drafts: Omit<ContentDraft, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<ContentDraft[]>>;
+			update(draftId: DatabaseId, data: unknown): Promise<DatabaseResult<ContentDraft>>;
+			publish(draftId: DatabaseId): Promise<DatabaseResult<void>>;
+			publishMany(draftIds: DatabaseId[]): Promise<DatabaseResult<{ publishedCount: number }>>;
+			getForContent(contentId: DatabaseId, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<ContentDraft>>>;
+			delete(draftId: DatabaseId): Promise<DatabaseResult<void>>;
+			deleteMany(draftIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>>;
 		};
 		revisions: {
-			create(revision: Omit<ContentRevision, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentRevision>>; // Create a content revision
-			getHistory(contentId: DatabaseId): Promise<DatabaseResult<ContentRevision[]>>; // Specialized: Get revision history for content
-			restore(revisionId: DatabaseId): Promise<DatabaseResult<void>>; // Restore a content revision
-			delete(revisionId: DatabaseId): Promise<DatabaseResult<void>>; // Delete a content revision
+			create(revision: Omit<ContentRevision, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<ContentRevision>>;
+			getHistory(contentId: DatabaseId, options?: PaginationOptions): Promise<DatabaseResult<PaginatedResult<ContentRevision>>>;
+			restore(revisionId: DatabaseId): Promise<DatabaseResult<void>>;
+			delete(revisionId: DatabaseId): Promise<DatabaseResult<void>>;
+			deleteMany(revisionIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>>;
+			cleanup(contentId: DatabaseId, keepLatest: number): Promise<DatabaseResult<{ deletedCount: number }>>;
 		};
 	};
 
@@ -311,18 +450,90 @@ export interface DatabaseAdapter {
 		createPagination<T>(items: T[], options: PaginationOptions): PaginatedResult<T>; // Paginate items (in-memory utility)
 	};
 
-	// Core CRUD Operations - Centralized - For direct document manipulation by ID or unique query
+	//  CRUD Operations
 	crud: {
-		findOne<T extends BaseEntity>(collection: string, query: Partial<T>): Promise<DatabaseResult<T | null>>; // Find a single document by query
-		findMany<T extends BaseEntity>(collection: string, query: Partial<T>): Promise<DatabaseResult<T[]>>; // Find multiple documents by query
-		insert<T extends BaseEntity>(collection: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<T>>; // Create a new document
-		insertMany<T extends BaseEntity>(collection: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<T[]>>; // Create multiple documents
-		update<T extends BaseEntity>(collection: string, id: DatabaseId, data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<T>>; // Update a document by ID
+		// Single operations
+		findOne<T extends BaseEntity>(collection: string, query: Partial<T>, options?: { fields?: (keyof T)[] }): Promise<DatabaseResult<T | null>>;
+		findMany<T extends BaseEntity>(
+			collection: string,
+			query: Partial<T>,
+			options?: { limit?: number; offset?: number; fields?: (keyof T)[] }
+		): Promise<DatabaseResult<T[]>>;
+		insert<T extends BaseEntity>(collection: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<T>>;
+		update<T extends BaseEntity>(collection: string, id: DatabaseId, data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>): Promise<DatabaseResult<T>>;
+		delete(collection: string, id: DatabaseId): Promise<DatabaseResult<void>>;
 
-		delete(collection: string, id: DatabaseId): Promise<DatabaseResult<void>>; // Delete a document by ID
+		// Batch operations
+		findByIds<T extends BaseEntity>(collection: string, ids: DatabaseId[], options?: { fields?: (keyof T)[] }): Promise<DatabaseResult<T[]>>;
+		insertMany<T extends BaseEntity>(collection: string, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>[]): Promise<DatabaseResult<T[]>>;
+		updateMany<T extends BaseEntity>(
+			collection: string,
+			query: Partial<T>,
+			data: Partial<Omit<T, 'createdAt' | 'updatedAt'>>
+		): Promise<DatabaseResult<{ modifiedCount: number }>>;
+		deleteMany(collection: string, query: Partial<BaseEntity>): Promise<DatabaseResult<{ deletedCount: number }>>;
+
+		// Upsert operations
+		upsert<T extends BaseEntity>(collection: string, query: Partial<T>, data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<T>>;
+		upsertMany<T extends BaseEntity>(
+			collection: string,
+			items: Array<{ query: Partial<T>; data: Omit<T, '_id' | 'createdAt' | 'updatedAt'> }>
+		): Promise<DatabaseResult<T[]>>;
+
+		// Aggregation and analysis
+		count(collection: string, query?: Partial<BaseEntity>): Promise<DatabaseResult<number>>;
+		exists(collection: string, query: Partial<BaseEntity>): Promise<DatabaseResult<boolean>>;
+		aggregate<R>(collection: string, pipeline: unknown[]): Promise<DatabaseResult<R[]>>;
 	};
-	// Query Builder Entry Point -
-	queryBuilder<T extends BaseEntity>(collection: string): QueryBuilder<T>; // Instantiate a query builder for a collection
+
+	// Query Builder Entry Point with Collection Data Loading
+	queryBuilder<T extends BaseEntity>(collection: string): QueryBuilder<T>;
+
+	// Performance and Monitoring
+	performance: {
+		getMetrics(): Promise<DatabaseResult<PerformanceMetrics>>;
+		clearMetrics(): Promise<DatabaseResult<void>>;
+		enableProfiling(enabled: boolean): Promise<DatabaseResult<void>>;
+		getSlowQueries(limit?: number): Promise<DatabaseResult<Array<{ query: string; duration: number; timestamp: Date }>>>;
+	};
+
+	// Caching Layer Integration
+	cache: {
+		get<T>(key: string): Promise<DatabaseResult<T | null>>;
+		set<T>(key: string, value: T, options?: CacheOptions): Promise<DatabaseResult<void>>;
+		delete(key: string): Promise<DatabaseResult<void>>;
+		clear(tags?: string[]): Promise<DatabaseResult<void>>;
+		invalidateCollection(collection: string): Promise<DatabaseResult<void>>;
+	};
+
+	// Collection Data Access (Optimized for your exportData use case)
+	getCollectionData(
+		collectionName: string,
+		options?: {
+			limit?: number;
+			offset?: number;
+			fields?: string[];
+			includeMetadata?: boolean;
+		}
+	): Promise<
+		DatabaseResult<{
+			data: unknown[];
+			metadata?: {
+				totalCount: number;
+				schema?: unknown;
+				indexes?: string[];
+			};
+		}>
+	>;
+
+	// Bulk Collection Operations
+	getMultipleCollectionData(
+		collectionNames: string[],
+		options?: {
+			limit?: number;
+			fields?: string[];
+		}
+	): Promise<DatabaseResult<Record<string, unknown[]>>>;
 }
 
 /** Virtual Folder Types **/

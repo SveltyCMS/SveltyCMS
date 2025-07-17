@@ -24,12 +24,12 @@ interface Widget {
 
 // Status map for various collection states
 export const statusMap = {
-	deleted: 'deleted',
-	published: 'published',
-	unpublished: 'unpublished',
-	scheduled: 'scheduled',
-	cloned: 'cloned',
-	testing: 'testing'
+	delete: 'delete',
+	publish: 'publish',
+	unpublish: 'unpublish',
+	schedule: 'schedule',
+	clone: 'clone',
+	test: 'test'
 } as const;
 
 // Create reactive stores

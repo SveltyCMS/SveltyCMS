@@ -6,9 +6,29 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
+// Permission checking
+import { checkApiPermission } from '@api/permissions';
+
 // GET: Get a specific virtual folder by ID
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
 	try {
+		// Check permissions first
+		const permissionResult = await checkApiPermission(locals.user, {
+			resource: 'system',
+			action: 'read'
+		});
+
+		if (!permissionResult.hasPermission) {
+			return json(
+				{
+					success: false,
+					error: permissionResult.error || 'Forbidden',
+					code: 'PERMISSION_DENIED'
+				},
+				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
+			);
+		}
+
 		const { folderId } = params;
 
 		// For fresh installations, return not found
@@ -33,8 +53,25 @@ export const GET: RequestHandler = async ({ params }) => {
 };
 
 // PUT: Update a specific virtual folder
-export const PUT: RequestHandler = async ({ params, request }) => {
+export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	try {
+		// Check permissions first
+		const permissionResult = await checkApiPermission(locals.user, {
+			resource: 'system',
+			action: 'write'
+		});
+
+		if (!permissionResult.hasPermission) {
+			return json(
+				{
+					success: false,
+					error: permissionResult.error || 'Forbidden',
+					code: 'PERMISSION_DENIED'
+				},
+				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
+			);
+		}
+
 		const { folderId } = params;
 		const data = await request.json();
 
@@ -61,8 +98,25 @@ export const PUT: RequestHandler = async ({ params, request }) => {
 };
 
 // DELETE: Delete a specific virtual folder
-export const DELETE: RequestHandler = async ({ params }) => {
+export const DELETE: RequestHandler = async ({ params, locals }) => {
 	try {
+		// Check permissions first
+		const permissionResult = await checkApiPermission(locals.user, {
+			resource: 'system',
+			action: 'delete'
+		});
+
+		if (!permissionResult.hasPermission) {
+			return json(
+				{
+					success: false,
+					error: permissionResult.error || 'Forbidden',
+					code: 'PERMISSION_DENIED'
+				},
+				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
+			);
+		}
+
 		const { folderId } = params;
 
 		// For now, just return a placeholder response

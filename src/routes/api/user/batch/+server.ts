@@ -21,10 +21,17 @@
 import { error, json, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
+// Auth
+// Auth (Database Agnostic)
+// TODO: Remove once batch user operations are added to database-agnostic interface
 import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
-import { checkApiPermission } from '@src/routes/api/permissions';
-import { logger } from '@utils/logger.svelte';
+import { checkApiPermission } from '@api/permissions';
+
+// Validation
 import { array, minLength, object, parse, picklist, string, type ValiError } from 'valibot';
+
+// System Logger
+import { logger } from '@utils/logger.svelte';
 
 const batchUserActionSchema = object({
 	userIds: array(string([minLength(1, 'User ID cannot be empty.')])),

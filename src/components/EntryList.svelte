@@ -98,7 +98,7 @@ Features:
 		// Only process if collection actually changed
 		if (lastCollectionId === currentCollId) return;
 
-		console.log(`[EntryList] Collection changed from ${lastCollectionId} to ${currentCollId}`);
+		// console.log(`[EntryList] Collection changed from ${lastCollectionId} to ${currentCollId}`);
 
 		// Set flags to prevent pagination effect from triggering during collection change
 		isCollectionChanging = true;
@@ -151,7 +151,7 @@ Features:
 			});
 
 			// Trigger data load for new collection
-			console.log(`[EntryList] Loading data for collection ${currentCollId}`);
+			// console.log(`[EntryList] Loading data for collection ${currentCollId}`);
 			untrack(() => refreshTableData(true));
 
 			// Clear flag after a longer timeout to ensure pagination effect doesn't trigger
@@ -164,7 +164,7 @@ Features:
 			}, 100);
 		} else if (!currentCollId) {
 			// No collection selected, reset to defaults for a null collectionId
-			console.log(`[EntryList] No collection selected, resetting state`);
+			// console.log(`[EntryList] No collection selected, resetting state`);
 			entryListPaginationSettings = defaultPaginationSettings(null);
 			untrack(() => {
 				lastCollectionId = null;
@@ -201,9 +201,9 @@ Features:
 	const currentLanguage = $derived(contentLanguage.value);
 
 	// Debug effect to track language changes
-	$effect(() => {
-		console.log(`[EntryList] currentLanguage derived updated to: ${currentLanguage}`);
-	});
+	// $effect(() => {
+	// 	console.log(`[EntryList] currentLanguage derived updated to: ${currentLanguage}`);
+	// });
 	const currentSystemLanguage = $derived(systemLanguage.value);
 	const currentMode = $derived(mode.value);
 	const currentCollection = $derived(collection.value);
@@ -323,7 +323,7 @@ Features:
 		// Get current collection
 		const currentCollId = currentCollection?._id;
 
-		console.log(`[EntryList] refreshTableData called for collection ${currentCollId}, fetchNewData: ${fetchNewData}`);
+		// console.log(`[EntryList] refreshTableData called for collection ${currentCollId}, fetchNewData: ${fetchNewData}`);
 
 		// If no collection, clear data and reset state
 		if (!currentCollId) {
@@ -342,8 +342,8 @@ Features:
 			loadingState = 'loading';
 
 			try {
-				console.log(`[EntryList] Fetching data for collection ${currentCollId}`);
-				console.log(`[EntryList] Current language: ${currentLanguage}`);
+				// console.log(`[EntryList] Fetching data for collection ${currentCollId}`);
+				// console.log(`[EntryList] Current language: ${currentLanguage}`);
 				const page = entryListPaginationSettings.currentPage;
 				const limit = entryListPaginationSettings.rowsPerPage;
 				const activeFilters: Record<string, string> = {};
@@ -375,7 +375,7 @@ Features:
 				};
 
 				data = await getData(queryParams);
-				console.log(`[EntryList] Data fetched for collection ${currentCollId}, entries: ${data?.entryList?.length || 0}`);
+				// console.log(`[EntryList] Data fetched for collection ${currentCollId}, entries: ${data?.entryList?.length || 0}`);
 			} catch (error) {
 				console.error(`Error fetching data: ${(error as Error).message}`);
 				toastStore.trigger({ message: `Error fetching data: ${(error as Error).message}`, background: 'variant-filled-error' });
@@ -523,16 +523,16 @@ Features:
 
 		// Skip if we're in the middle of a collection change or initializing
 		if (isCollectionChanging || isInitializing) {
-			console.log(
-				`[EntryList] Skipping pagination refresh during collection change (isCollectionChanging: ${isCollectionChanging}, isInitializing: ${isInitializing})`
-			);
+			// console.log(
+			// 	`[EntryList] Skipping pagination refresh during collection change (isCollectionChanging: ${isCollectionChanging}, isInitializing: ${isInitializing})`
+			// );
 			return;
 		}
 
 		// Only refresh if this is for the same collection AND we've completed initial load
 		// Also ensure this isn't the initial setup after collection change
 		if (lastCollectionId === collectionId && hasInitialLoad && stableDataExists) {
-			console.log(`[EntryList] Pagination/filter/language change for collection ${collectionId}, language: ${language}, refreshing data`);
+			// console.log(`[EntryList] Pagination/filter/language change for collection ${collectionId}, language: ${language}, refreshing data`);
 			refreshDebounce(() => {
 				untrack(() => refreshTableData(true));
 			});
@@ -553,7 +553,7 @@ Features:
 
 		// Only invalidate cache if language actually changed and we have a collection
 		if (collectionId && lastLanguage !== null && lastLanguage !== language) {
-			console.log(`[EntryList] Language changed from ${lastLanguage} to ${language}, invalidating cache for collection ${collectionId}`);
+			// console.log(`[EntryList] Language changed from ${lastLanguage} to ${language}, invalidating cache for collection ${collectionId}`);
 			invalidateCollectionCache(collectionId);
 			// Update timestamp to force cache miss
 			languageChangeTimestamp = Date.now();
@@ -648,15 +648,15 @@ Features:
 		let modalClass = '';
 
 		switch (status) {
-			case 'published':
+			case 'publish':
 				actionText = 'Publish';
 				modalClass = 'modal-confirm-publish';
 				break;
-			case 'unpublished':
+			case 'unpublish':
 				actionText = 'Unpublish';
 				modalClass = 'modal-confirm-unpublish';
 				break;
-			case 'testing':
+			case 'test':
 				actionText = 'Test';
 				modalClass = 'modal-confirm-test';
 				break;
@@ -688,10 +688,10 @@ Features:
 
 	// Functions to handle actions from EntryListMultiButton
 	function onPublish() {
-		modifyEntry.value('published');
+		modifyEntry.value('publish');
 	}
 	function onUnpublish() {
-		modifyEntry.value('unpublished');
+		modifyEntry.value('unpublish');
 	}
 	function onSchedule() {
 		const selectedIds = Object.entries(selectedMap)
@@ -708,13 +708,13 @@ Features:
 			component: 'ScheduleModal',
 			title: 'Schedule Action',
 			body: `Select a date, time, and action for the ${selectedIds.length} selected item(s).`,
-			response: async (data: { date: string; action: 'published' | 'unpublished' | 'deleted' } | undefined) => {
+			response: async (data: { date: string; action: 'publish' | 'unpublish' | 'delete' } | undefined) => {
 				if (!data || !currentCollection?._id) return;
 
 				try {
 					// Use the updateStatus function to set status to 'scheduled' with scheduling metadata
 					// For now, we'll set status to 'scheduled' - later we can enhance the status endpoint to support scheduling fields
-					await updateStatus(currentCollection._id, selectedIds[0], 'scheduled', selectedIds);
+					await updateStatus(currentCollection._id, selectedIds[0], 'schedule', selectedIds);
 					toastStore.trigger({ message: 'Items scheduled successfully.', background: 'variant-filled-success' });
 					invalidateCollectionCache(currentCollection._id);
 					refreshTableData();
@@ -767,8 +767,8 @@ Features:
 		modalStore.trigger(modal);
 	}
 	function onTest() {
-		// Assuming 'testing' is a valid status
-		modifyEntry.value('testing');
+		// Assuming 'test' is a valid status
+		modifyEntry.value('test');
 	}
 	function onClone() {
 		if (!currentCollection?._id) {
@@ -800,7 +800,7 @@ Features:
 							delete clonedPayload._id; // Remove original ID
 							delete clonedPayload.createdAt;
 							delete clonedPayload.updatedAt;
-							clonedPayload.status = 'unpublished';
+							clonedPayload.status = 'unpublish';
 							return apiRequest('POST', currentCollection!._id, clonedPayload);
 						});
 						await Promise.all(clonePromises);
@@ -895,11 +895,6 @@ Features:
 					{#if currentCollection?.name}
 						<div class="flex max-w-[85px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
 							{currentCollection.name}
-						</div>
-					{/if}
-					{#if hasSelections}
-						<div class="mt-1 text-xs text-primary-500 dark:text-secondary-400 sm:ml-2 sm:mt-0">
-							{Object.values(selectedMap).filter(Boolean).length} selected
 						</div>
 					{/if}
 				</div>
@@ -1057,7 +1052,7 @@ Features:
 					{/if}
 
 					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-						<td class="w-10 pl-3 {hasSelections ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}">
+						<td class="w-10 {hasSelections ? 'bg-primary-500/10 dark:bg-secondary-500/20' : ''}">
 							<div class="flex flex-col items-center">
 								<TableIcons
 									checked={SelectAll}
@@ -1065,11 +1060,6 @@ Features:
 										SelectAll = checked;
 									}}
 								/>
-								{#if hasSelections && !SelectAll}
-									<span class="mt-1 text-xs text-primary-500 dark:text-secondary-400">
-										{Object.values(selectedMap).filter(Boolean).length}
-									</span>
-								{/if}
 							</div>
 						</td>
 
@@ -1134,14 +1124,14 @@ Features:
 													// Set mode to edit
 													mode.set('edit');
 
-													// If the entry is published, automatically set it to unpublished
-													// This follows CMS best practices where editing published content
-													// creates a draft that needs to be republished
-													if (originalEntry.status === 'published') {
-														// Update the local collectionValue to unpublished status
+													// If the entry is publish, automatically set it to unpublish
+													// This follows CMS best practices where editing publish content
+													// creates a draft that needs to be republish
+													if (originalEntry.status === 'publish') {
+														// Update the local collectionValue to unpublish status
 														collectionValue.update((current) => ({
 															...current,
-															status: 'unpublished'
+															status: 'unpublish'
 														})); // Show user feedback about the status change
 														toastStore.trigger({
 															message: 'Entry moved to draft mode for editing. Republish when ready.',
@@ -1184,7 +1174,7 @@ Features:
 				{totalItems}
 				onUpdatePage={(page: number) => {
 					if (isCollectionChanging || isInitializing) {
-						console.log(`[EntryList] Skipping onUpdatePage during collection change/initialization`);
+						// console.log(`[EntryList] Skipping onUpdatePage during collection change/initialization`);
 						return;
 					}
 					entryListPaginationSettings.currentPage = page;
@@ -1192,7 +1182,7 @@ Features:
 				}}
 				onUpdateRowsPerPage={(rows: number) => {
 					if (isCollectionChanging || isInitializing) {
-						console.log(`[EntryList] Skipping onUpdateRowsPerPage during collection change/initialization`);
+						// console.log(`[EntryList] Skipping onUpdateRowsPerPage during collection change/initialization`);
 						return;
 					}
 					//console.log('Rows per page updated to:', rows);

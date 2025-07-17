@@ -20,10 +20,9 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-// Auth
-import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
-import { hasPermissionByAction } from '@src/auth/permissions';
-import { roles } from '@root/config/roles';
+// Auth (Database Agnostic)
+import { auth } from '@src/databases/db';
+import { checkApiPermission } from '@api/permissions';
 
 // Cache invalidation
 import { invalidateAdminCache } from '@src/hooks.server';
@@ -33,7 +32,6 @@ import { object, string, number, parse, minLength } from 'valibot';
 
 // System logger
 import { logger } from '@utils/logger.svelte';
-import { logApiStart, logApiSuccess, logApiError, logApiAuthFailure, logApiValidationError } from '@utils/apiLogger';
 
 const createTokenSchema = object({
 	email: string([minLength(1, 'Email is required.')]),
@@ -44,26 +42,27 @@ const createTokenSchema = object({
 });
 
 export const POST: RequestHandler = async (event) => {
-	const { context, startTime } = logApiStart(event);
 	const { request, locals } = event;
 
 	try {
-		const hasPermission = hasPermissionByAction(
-			locals.user,
-			'create',
-			'token',
-			'any',
-			locals.roles && locals.roles.length > 0 ? locals.roles : roles
-		);
+		// Check permissions for token creation
+		const permissionResult = await checkApiPermission(locals.user, {
+			resource: 'system',
+			action: 'write'
+		});
 
-		if (!hasPermission) {
-			logApiAuthFailure(context, startTime, 'forbidden', 'Insufficient permissions to create tokens');
+		if (!permissionResult.hasPermission) {
 			logger.warn(`Unauthorized token creation attempt`, {
 				userId: locals.user?._id,
 				userEmail: locals.user?.email,
-				requiredPermission: 'create:token'
+				error: permissionResult.error
 			});
-			throw error(403, 'Forbidden: You do not have permission to create tokens.');
+			return json(
+				{
+					error: permissionResult.error || 'Forbidden: You do not have permission to create tokens.'
+				},
+				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
+			);
 		}
 
 		const body = await request.json();
@@ -74,7 +73,6 @@ export const POST: RequestHandler = async (event) => {
 		} catch (err) {
 			if (err.name === 'ValiError') {
 				const validationErrors = err.issues?.map((issue) => `${issue.path?.join('.')}: ${issue.message}`) || ['Invalid data'];
-				logApiValidationError(context, startTime, validationErrors, body);
 				logger.warn(`Token creation validation failed`, {
 					userId: locals.user?._id,
 					validationErrors,
@@ -85,7 +83,11 @@ export const POST: RequestHandler = async (event) => {
 			throw err;
 		}
 
-		const tokenAdapter = new TokenAdapter();
+		if (!auth) {
+			logger.error('Database authentication adapter not initialized');
+			throw error(500, 'Database authentication not available');
+		}
+
 		const expiresAt = new Date(Date.now() + tokenData.expiresIn * 60 * 60 * 1000);
 
 		logger.debug(`Creating token for user`, {
@@ -96,7 +98,7 @@ export const POST: RequestHandler = async (event) => {
 			createdBy: locals.user?._id
 		});
 
-		const token = await tokenAdapter.createToken({
+		const token = await auth.createToken({
 			user_id: tokenData.user_id,
 			email: tokenData.email.toLowerCase(), // Normalize email to lowercase
 			expires: expiresAt,
@@ -111,16 +113,13 @@ export const POST: RequestHandler = async (event) => {
 			token: { value: token, expires: expiresAt.toISOString() }
 		};
 
-		logApiSuccess(context, startTime, 201, body, JSON.stringify(responseData).length);
-
 		logger.info(`Token created successfully`, {
 			tokenId: token,
 			targetUserId: tokenData.user_id,
 			targetEmail: tokenData.email,
 			role: tokenData.role,
 			expiresAt: expiresAt.toISOString(),
-			createdBy: locals.user?._id,
-			duration: `${(performance.now() - startTime).toFixed(2)}ms`
+			createdBy: locals.user?._id
 		});
 
 		return json(responseData, { status: 201 });
@@ -130,7 +129,6 @@ export const POST: RequestHandler = async (event) => {
 			throw err;
 		}
 
-		logApiError(context, startTime, err, 500, event.request.body);
 		logger.error(`Unexpected error in token creation endpoint`, {
 			userId: locals.user?._id,
 			error: err.message,

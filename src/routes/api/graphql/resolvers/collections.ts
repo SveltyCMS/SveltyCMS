@@ -31,6 +31,12 @@ import { contentManager } from '@src/content/ContentManager';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
+// Permissions
+import { hasCollectionPermission } from '@api/permissions';
+
+// Types
+import type { User } from '@src/auth/types';
+
 /**
  * Creates a clean GraphQL type name from collection info
  * Uses collection name + short UUID suffix for uniqueness and readability
@@ -221,7 +227,18 @@ export async function collectionsResolvers(cacheClient: CacheClient | null, priv
 
 		const cleanTypeName = createCleanTypeName(collection);
 		// Add pagination to the resolver using clean type name
-		resolvers.Query[cleanTypeName] = async (_: unknown, args: { pagination: { page: number; limit: number } }) => {
+		resolvers.Query[cleanTypeName] = async (_: unknown, args: { pagination: { page: number; limit: number } }, context: { user?: User }) => {
+			// Check collection permissions
+			if (!context.user) {
+				logger.warn(`GraphQL: No user in context for collection ${collection._id}`);
+				throw new Error('Authentication required');
+			}
+
+			if (!hasCollectionPermission(context.user, collection._id, 'read')) {
+				logger.warn(`GraphQL: User ${context.user._id} denied access to collection ${collection._id}`);
+				throw new Error(`Access denied: Insufficient permissions for collection '${collection.name}'`);
+			}
+
 			if (!dbAdapter) {
 				logger.error('Database adapter is not initialized');
 				throw new Error('Database adapter is not initialized');

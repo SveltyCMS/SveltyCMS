@@ -23,6 +23,7 @@
 	import { mode, collectionValue } from '@src/stores/collectionStore.svelte';
 	import { handleUILayoutToggle } from '@src/stores/UIStore.svelte';
 	import { storeListboxValue } from '@stores/store.svelte';
+
 	// Components
 	import ScheduleModal from './ScheduleModal.svelte';
 
@@ -198,13 +199,13 @@
 		>
 			<span class="grid grid-cols-[24px_auto] items-center gap-2 rtl:rotate-180">
 				<iconify-icon icon={iconValue} width="24" class="text-white"></iconify-icon>
-				<div class="hidden text-left md:block">
-					<span>{actionName}</span>
+				<div class="hidden h-6 text-left md:flex md:flex-col md:justify-center">
+					<div class="leading-tight">{actionName}</div>
 					{#if hasSelections && selectedCount > 0}
-						<span class="text-xs opacity-75">
+						<div class="text-center text-xs leading-tight">
 							({selectedCount}
 							{selectedCount === 1 ? 'item' : 'items'})
-						</span>
+						</div>
 					{/if}
 				</div>
 			</span>
@@ -246,7 +247,7 @@
 							<p class="w-full">
 								{label}
 								{#if type !== 'create' && !hasSelections}
-									<span class="text-xs opacity-75">(select items first)</span>
+									<span class="text-xs opacity-75"></span>
 								{:else if type !== 'create' && hasSelections && selectedCount > 1}
 									<span class="text-xs opacity-75">({selectedCount} items)</span>
 								{/if}

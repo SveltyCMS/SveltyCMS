@@ -8,8 +8,8 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
 
-// Auth
-import { checkApiPermission } from '@src/routes/api/permissions';
+// Permissions
+import { checkApiPermission } from '@api/permissions';
 
 // Media
 import { saveAvatarImage } from '@utils/media/mediaStorage';

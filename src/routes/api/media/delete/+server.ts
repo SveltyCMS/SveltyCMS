@@ -1,15 +1,22 @@
 /**
  * @file src/routes/api/media/delete/+server.ts
  * @description
- * API endpoint for changing the access of a media file.
+ * API endpoint for changing the access of a media file
+ *
+ * @example DELETE /api/media/delete
+ *
+ * Features:
+ * - Secure, granular access control per operation
+ * - Automatic metadata updates on modification (updatedBy)
+ * - ModifyRequest support for widget-based data processing
+ * - Status-based access control for non-admin users
  */
 
-import { json } from '@sveltejs/kit';
+import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { error } from '@sveltejs/kit';
 
-// Auth
-import { checkApiPermission } from '@src/routes/api/permissions';
+// Permissions
+import { checkApiPermission } from '@api/permissions';
 
 // Media
 import { deleteFile } from '@utils/media/mediaStorage';

@@ -50,10 +50,10 @@
 		aria-labelledby={checked ? 'true' : 'false'}
 		role="checkbox"
 		class="flex h-[26px] w-[26px] items-center justify-center rounded border-[3px] bg-white dark:bg-transparent
-			{iconStatus === 'unpublished' ? 'border-yellow-500' : ''}
-			{iconStatus === 'published' ? 'border-primary-500' : ''}
-			{iconStatus === 'scheduled' ? 'border-pink-500' : ''}
-			{iconStatus === 'testing' ? 'border-red-500' : ''}
+			{iconStatus === 'unpublish' ? 'border-yellow-500' : ''}
+			{iconStatus === 'publish' ? 'border-primary-500' : ''}
+			{iconStatus === 'schedule' ? 'border-pink-500' : ''}
+			{iconStatus === 'test' ? 'border-red-500' : ''}
 			{iconStatus === undefined ? 'border-surface-800' : ''} 
 			{!iconStatus ? 'dark:border-surface-400' : ''}"
 	>

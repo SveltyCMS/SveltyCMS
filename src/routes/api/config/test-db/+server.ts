@@ -3,13 +3,25 @@
  * @description API endpoint to test database connection settings.
  */
 import { json } from '@sveltejs/kit';
-import mongoose from 'mongoose';
+// Database drivers for connection testing
 import mariadb from 'mariadb';
+import mongoose from 'mongoose';
+// Auth
 import { checkApiPermission } from '@api/permissions';
 
-export async function POST({ request, cookies }) {
+export async function POST({ request, locals }) {
 	// Check permissions using centralized system
-	await checkApiPermission(cookies, 'config:settings');
+	const permissionResult = await checkApiPermission(locals.user, {
+		resource: 'system',
+		action: 'write'
+	});
+
+	if (!permissionResult.hasPermission) {
+		return json(
+			{ error: permissionResult.error || 'Forbidden: Insufficient permissions to test database connection' },
+			{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
+		);
+	}
 
 	const config = await request.json();
 	const { DB_TYPE, DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME } = config;
@@ -29,9 +41,10 @@ export async function POST({ request, cookies }) {
 			await testConnection.close(); // Close the temporary connection
 
 			return json({ success: true, message: 'MongoDB connection successful!' });
-		} catch (error: any) {
+		} catch (error: unknown) {
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			console.error('MongoDB test connection error:', error);
-			return json({ success: false, message: `MongoDB connection failed: ${error.message}` }, { status: 400 });
+			return json({ success: false, message: `MongoDB connection failed: ${errorMessage}` }, { status: 400 });
 		}
 	} else if (DB_TYPE === 'mariadb') {
 		let connection;
@@ -45,9 +58,10 @@ export async function POST({ request, cookies }) {
 			});
 			await connection.ping();
 			return json({ success: true, message: 'MariaDB connection successful!' });
-		} catch (error: any) {
+		} catch (error: unknown) {
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 			console.error('MariaDB test connection error:', error);
-			return json({ success: false, message: `MariaDB connection failed: ${error.message}` }, { status: 400 });
+			return json({ success: false, message: `MariaDB connection failed: ${errorMessage}` }, { status: 400 });
 		} finally {
 			if (connection) await connection.end();
 		}

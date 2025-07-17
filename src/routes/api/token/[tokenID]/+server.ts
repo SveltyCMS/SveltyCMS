@@ -20,9 +20,9 @@ import { json, error, type HttpError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Auth
-import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
-import { hasPermissionByAction } from '@src/auth/permissions';
-import { roles } from '@root/config/roles';
+// Auth (Database Agnostic)
+import { auth } from '@src/databases/db';
+import { checkApiPermission } from '@api/permissions';
 
 // Validation
 import { object, any, parse, type ValiError } from 'valibot';
@@ -44,17 +44,23 @@ export const PUT: RequestHandler = async ({ request, params, locals }) => {
 			throw error(400, 'Token ID is required in the URL path.');
 		}
 
-		const hasPermission = hasPermissionByAction(
-			locals.user,
-			'update',
-			'token',
-			'any',
-			locals.roles && locals.roles.length > 0 ? locals.roles : roles
-		);
+		// Check permissions for token editing
+		const permissionResult = await checkApiPermission(locals.user, {
+			resource: 'system',
+			action: 'write'
+		});
 
-		if (!hasPermission) {
-			logger.warn(`Unauthorized attempt to edit token ${tokenId}.`, { userId: locals.user?._id });
-			throw error(403, 'Forbidden: You do not have permission to edit tokens.');
+		if (!permissionResult.hasPermission) {
+			logger.warn(`Unauthorized attempt to edit token ${tokenId}`, {
+				userId: locals.user?._id,
+				error: permissionResult.error
+			});
+			return json(
+				{
+					error: permissionResult.error || 'Forbidden: You do not have permission to edit tokens.'
+				},
+				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
+			);
 		}
 
 		const body = await request.json().catch(() => {
@@ -62,10 +68,13 @@ export const PUT: RequestHandler = async ({ request, params, locals }) => {
 		});
 		const { newTokenData } = parse(editTokenSchema, body);
 
-		const tokenAdapter = new TokenAdapter();
+		if (!auth) {
+			logger.error('Database authentication adapter not initialized');
+			throw error(500, 'Database authentication not available');
+		}
 
 		// FIX: Using the now-defined `updateToken` method from the interface
-		await tokenAdapter.updateToken(tokenId, newTokenData);
+		await auth.updateToken(tokenId, newTokenData);
 
 		logger.info('Token updated successfully', { tokenId, updateData: newTokenData });
 
@@ -100,17 +109,23 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 			throw error(400, 'Token ID is required in the URL path.');
 		}
 
-		const hasPermission = hasPermissionByAction(
-			locals.user,
-			'delete',
-			'token',
-			'any',
-			locals.roles && locals.roles.length > 0 ? locals.roles : roles
-		);
+		// Check permissions for token deletion
+		const permissionResult = await checkApiPermission(locals.user, {
+			resource: 'system',
+			action: 'delete'
+		});
 
-		if (!hasPermission) {
-			logger.warn(`Unauthorized attempt to delete token ${tokenId}.`, { userId: locals.user?._id });
-			throw error(403, 'Forbidden: You do not have permission to delete tokens.');
+		if (!permissionResult.hasPermission) {
+			logger.warn(`Unauthorized attempt to delete token ${tokenId}`, {
+				userId: locals.user?._id,
+				error: permissionResult.error
+			});
+			return json(
+				{
+					error: permissionResult.error || 'Forbidden: You do not have permission to delete tokens.'
+				},
+				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
+			);
 		}
 
 		const tokenAdapter = new TokenAdapter();

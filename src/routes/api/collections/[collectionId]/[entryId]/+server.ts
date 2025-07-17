@@ -1,19 +1,11 @@
 /**
- * @file srcimport { json, error, type RequestHandler } from '@sveltejs/kit';
-import { dbAdapter } from '@src/databases/db';
-import { contentManager } from '@src/content/ContentManager';
-import { logger } from '@utils/logger.svelte';
-import { hasCollectionPermission } from '../../permissions';
-import { modifyRequest } from '../modifyRequest';
-import { roles } from '@root/config/roles';s/api/collections/[collectionId]/[entryId]/+server.ts
+ * @file src/routes/api/collections/[collectionId]/[entryId]/+server.ts
  * @description API endpoint for reading, updating, and deleting a single collection entry
  *
  * @example for get/patch/delete single entry:   /api/collections/:collectionId/:entryId
  *
- * Feat	}
-};
-
-// DELETE: Removes an entry from a collectionandles GET, PATCH, and DELETE verbs for full CRUD on a single entry
+ * Features:
+ *    * Handles GET, PATCH, and DELETE verbs for full CRUD on a single entry
  *    * Secure, granular access control per operation
  *    * Automatic metadata updates on modification (updatedBy)
  *    * ModifyRequest support for widget-based data processing
@@ -21,11 +13,24 @@ import { roles } from '@root/config/roles';s/api/collections/[collectionId]/[ent
  */
 
 import { json, error, type RequestHandler } from '@sveltejs/kit';
+
+// Databases
 import { dbAdapter } from '@src/databases/db';
+
+// Auth
 import { contentManager } from '@src/content/ContentManager';
+import { hasCollectionPermission } from '@api/permissions';
+import { modifyRequest } from '@api/collections/modifyRequest';
+
+// Helper function to normalize collection names for database operations
+const normalizeCollectionName = (collectionId: string): string => {
+	// Remove hyphens from UUID for MongoDB collection naming
+	const cleanId = collectionId.replace(/-/g, '');
+	return `collection_${cleanId}`;
+};
+
+// System Logger
 import { logger } from '@utils/logger.svelte';
-import { hasCollectionPermission } from '../../../permissions';
-import { modifyRequest } from '../../modifyRequest';
 
 // GET: Retrieves a single entry by its ID
 export const GET: RequestHandler = async ({ locals, params }) => {
@@ -57,7 +62,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 
 		if (!(await hasCollectionPermission(locals.user, 'read', schema))) {
 			logger.warn(`${endpoint} - Access forbidden`, {
-				collection: schema.name,
+				collection: schema._id,
 				entryId: params.entryId,
 				userId: locals.user._id,
 				userEmail: locals.user.email,
@@ -71,7 +76,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 
 		if (!result.success) {
 			logger.error(`${endpoint} - Database findOne failed`, {
-				collection: schema.name,
+				collection: schema._id,
 				entryId: params.entryId,
 				operation: 'findOne',
 				error: result.error.message,
@@ -82,7 +87,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 
 		if (!result.data) {
 			logger.info(`${endpoint} - Entry not found`, {
-				collection: schema.name,
+				collection: schema._id,
 				entryId: params.entryId,
 				userId: locals.user._id
 			});
@@ -92,9 +97,9 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 		// Check if user can access this specific entry (status-based)
 		const userRole = roles.find((role) => role._id === locals.user.role);
 		const isAdmin = userRole?.isAdmin === true;
-		if (!isAdmin && result.data.status !== 'published') {
+		if (!isAdmin && result.data.status !== 'publish') {
 			logger.warn(`${endpoint} - Non-admin user attempted to access unpublished entry`, {
-				collection: schema.name,
+				collection: schema._id,
 				entryId: params.entryId,
 				entryStatus: result.data.status,
 				userId: locals.user._id,
@@ -115,13 +120,13 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 				type: 'GET'
 			});
 			logger.debug(`${endpoint} - ModifyRequest processing completed`, {
-				collection: schema.name,
+				collection: schema._id,
 				entryId: params.entryId,
 				userId: locals.user._id
 			});
 		} catch (modifyError) {
 			logger.warn(`${endpoint} - ModifyRequest processing failed`, {
-				collection: schema.name,
+				collection: schema._id,
 				entryId: params.entryId,
 				error: modifyError.message,
 				userId: locals.user._id
@@ -136,7 +141,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 		};
 
 		logger.info(`${endpoint} - Entry retrieved successfully`, {
-			collection: schema.name,
+			collection: schema._id,
 			entryId: params.entryId,
 			entryStatus: result.data.status,
 			userId: locals.user._id,
@@ -204,7 +209,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
 		if (!(await hasCollectionPermission(locals.user, 'write', schema))) {
 			logger.warn(`${endpoint} - Access forbidden`, {
-				collection: schema.name,
+				collection: schema._id,
 				entryId: params.entryId,
 				userId: locals.user._id,
 				userEmail: locals.user.email,
@@ -220,7 +225,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		if (contentType?.includes('application/json')) {
 			body = await request.json();
 			logger.debug(`${endpoint} - Received JSON update request`, {
-				collection: schema.name,
+				collection: schema._id,
 				entryId: params.entryId,
 				userId: locals.user._id,
 				updateFields: Object.keys(body || {})
@@ -229,7 +234,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			const formData = await request.formData();
 			body = Object.fromEntries(formData.entries());
 			logger.debug(`${endpoint} - Received FormData update request`, {
-				collection: schema.name,
+				collection: schema._id,
 				entryId: params.entryId,
 				userId: locals.user._id,
 				fieldCount: Object.keys(body || {}).length
@@ -237,7 +242,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		} else {
 			logger.warn(`${endpoint} - Unsupported content type`, {
 				contentType,
-				collection: schema.name,
+				collection: schema._id,
 				entryId: params.entryId,
 				userId: locals.user._id
 			});
@@ -262,13 +267,13 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 				type: 'PATCH'
 			});
 			logger.debug(`${endpoint} - ModifyRequest pre-processing completed`, {
-				collection: schema.name,
+				collection: schema._id,
 				entryId: params.entryId,
 				userId: locals.user._id
 			});
 		} catch (modifyError) {
 			logger.warn(`${endpoint} - ModifyRequest pre-processing failed`, {
-				collection: schema.name,
+				collection: schema._id,
 				entryId: params.entryId,
 				error: modifyError.message,
 				userId: locals.user._id
@@ -280,7 +285,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
 		if (!result.success) {
 			logger.error(`${endpoint} - Database update failed`, {
-				collection: schema.name,
+				collection: schema._id,
 				entryId: params.entryId,
 				operation: 'update',
 				error: result.error.message,
@@ -291,7 +296,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
 		if (!result.data) {
 			logger.info(`${endpoint} - Entry not found for update`, {
-				collection: schema.name,
+				collection: schema._id,
 				entryId: params.entryId,
 				userId: locals.user._id
 			});
@@ -306,7 +311,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		};
 
 		logger.info(`${endpoint} - Entry updated successfully`, {
-			collection: schema.name,
+			collection: schema._id,
 			entryId: params.entryId,
 			updatedFields: Object.keys(body || {}),
 			userId: locals.user._id,
@@ -376,7 +381,7 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 
 		if (!(await hasCollectionPermission(locals.user, 'write', schema))) {
 			logger.warn(`${endpoint} - Access forbidden`, {
-				collection: schema.name,
+				collection: schema._id,
 				entryId: params.entryId,
 				userId: locals.user._id,
 				userEmail: locals.user.email,
@@ -385,22 +390,32 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 			throw error(403, 'Forbidden');
 		}
 
-		const collectionName = `collection_${schema._id}`;
-		const result = await dbAdapter.crud.deleteOne(collectionName, { _id: params.entryId });
+		// Get normalized collection name for database operations
+		const normalizedCollectionId = normalizeCollectionName(schema._id);
+		const result = await dbAdapter.crud.delete(normalizedCollectionId, params.entryId);
 
-		if (result === 0) {
-			logger.info(`${endpoint} - Entry not found for deletion`, {
-				collection: schema.name,
+		if (!result.success) {
+			if (result.error.message.includes('not found')) {
+				logger.info(`${endpoint} - Entry not found for deletion`, {
+					collection: schema._id,
+					entryId: params.entryId,
+					userId: locals.user._id
+				});
+				throw error(404, 'Entry not found');
+			}
+			logger.error(`${endpoint} - Database deletion failed`, {
+				error: result.error.message,
+				collection: schema._id,
 				entryId: params.entryId,
 				userId: locals.user._id
 			});
-			throw error(404, 'Entry not found');
+			throw error(500, 'Failed to delete entry');
 		}
 
 		const duration = performance.now() - startTime;
 
 		logger.info(`${endpoint} - Entry deleted successfully`, {
-			collection: schema.name,
+			collection: schema._id,
 			entryId: params.entryId,
 			userId: locals.user._id,
 			userEmail: locals.user.email,

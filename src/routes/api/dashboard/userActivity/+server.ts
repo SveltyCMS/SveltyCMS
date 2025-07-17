@@ -1,6 +1,6 @@
 /**
  * @file src/routes/api/dashboard/userActivity/+server.ts
- * @description API endpoint for user activity data for dashboard widgets.
+ * @description API endpoint for user activity data for dashboard widgets
  *
  * ### Features
  * - **Secure Authorization:** Access is controlled centrally by `src/hooks.server.ts`.
@@ -11,15 +11,15 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-// Auth
+// Auth / Permissions
 import { auth } from '@src/databases/db';
-import { checkApiPermission } from '@src/routes/api/permissions';
-
-// Validation
-import * as v from 'valibot';
+import { checkApiPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
+
+// Validation
+import * as v from 'valibot';
 
 // --- Schema for the outgoing API data ---
 const UserActivitySchema = v.object({

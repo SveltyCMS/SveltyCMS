@@ -1,14 +1,34 @@
 /**
  * @file src/routes/api/media/+server.ts
- * @description API endpoint for media file operations and listings
+ * @description API endpoint for media file operations and listings using database-agnostic adapter
+ *
+ * @example GET /api/media?limit=5
+ *
+ * Features:
+ * - Database-agnostic media file retrieval
+ * - Secure, granular access control per operation
+ * - Efficient pagination and sorting
+ * - Consistent error handling with DatabaseResult<T>
  */
 
-import { checkApiPermission } from '@src/routes/api/permissions';
 import { error, json } from '@sveltejs/kit';
-import { logger } from '@utils/logger.svelte';
-import fs from 'fs/promises';
-import path from 'path';
 import type { RequestHandler } from './$types';
+
+// Database
+import { dbAdapter } from '@src/databases/db';
+
+// Permissions
+import { checkApiPermission } from '@api/permissions';
+
+// System Logger
+import { logger } from '@utils/logger.svelte';
+
+// Validation
+import * as v from 'valibot';
+
+const QuerySchema = v.object({
+	limit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(50)), 5)
+});
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	try {
@@ -26,49 +46,50 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			throw error(permissionResult.error?.includes('Authentication') ? 401 : 403, permissionResult.error || 'Forbidden');
 		}
 
-		const limit = parseInt(url.searchParams.get('limit') || '5');
+		// Validate query parameters
+		const query = v.parse(QuerySchema, {
+			limit: Number(url.searchParams.get('limit')) || undefined
+		});
 
-		try {
-			// Get media files from the mediaFiles directory
-			const mediaDir = path.join(process.cwd(), 'mediaFiles');
-			const files = await fs.readdir(mediaDir);
+		if (!dbAdapter) {
+			logger.error('Database adapter not available');
+			throw error(500, 'Database connection unavailable');
+		}
 
-			// Filter for image/video files and get file stats
-			const mediaFiles = [];
-			for (const file of files.slice(0, limit)) {
-				try {
-					const filePath = path.join(mediaDir, file);
-					const stats = await fs.stat(filePath);
-					const ext = path.extname(file).toLowerCase();
+		// Use database-agnostic adapter to get media files
+		const result = await dbAdapter.media.files.getByFolder(undefined, {
+			page: 1,
+			pageSize: query.limit,
+			sortField: 'updatedAt',
+			sortDirection: 'desc'
+		});
 
-					// Only include common media file types
-					if (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.mov', '.avi'].includes(ext)) {
-						mediaFiles.push({
-							name: file,
-							size: stats.size,
-							modified: stats.mtime.toISOString(),
-							type: ext.startsWith('.') ? ext.slice(1) : ext,
-							url: `/mediaFiles/${file}`
-						});
-					}
-				} catch (fileError) {
-					logger.warn('Error reading file stats:', { file, error: fileError });
-				}
-			}
-
-			// Sort by modification date (newest first)
-			mediaFiles.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
-
-			logger.info('Media files fetched successfully', {
-				count: mediaFiles.length,
+		if (!result.success) {
+			logger.error('Failed to fetch media files from database', {
+				error: result.error,
 				requestedBy: locals.user?._id
 			});
-			return json(mediaFiles.slice(0, limit));
-		} catch (dirError) {
-			logger.warn('Could not read media directory:', dirError);
-			// Return empty array if directory cannot be read
-			return json([]);
+			throw error(500, 'Failed to retrieve media files');
 		}
+
+		// Transform the data to match widget expectations
+		const mediaFiles = result.data.items.map((file) => ({
+			id: file._id,
+			name: file.filename,
+			size: file.size,
+			modified: file.updatedAt,
+			type: file.mimeType.split('/')[1] || 'unknown',
+			url: file.path,
+			createdBy: file.createdBy
+		}));
+
+		logger.info('Media files fetched successfully via database adapter', {
+			count: mediaFiles.length,
+			total: result.data.total,
+			requestedBy: locals.user?._id
+		});
+
+		return json(mediaFiles);
 	} catch (err) {
 		const httpError = err as { status?: number; body?: { message?: string }; message?: string };
 		const status = httpError.status || 500;

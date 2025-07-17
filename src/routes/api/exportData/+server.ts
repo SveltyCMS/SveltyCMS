@@ -15,24 +15,33 @@
  * Usage:
  * GET /api/exportData
  * Requires: Admin authentication or specific roles with appropriate permissions
+ *
+ * @example GET /api/exportData
+ *
+ * Features:
+ * - Authenticates the user (admin or specific roles with permissions)
+ * - Retrieves data from all collections
+ * - Writes the data to a file specified by EXTRACT_DATA_PATH
  */
 
 import { promises as fs } from 'fs';
 import path from 'path';
+import { error } from '@sveltejs/kit';
 
 import type { RequestHandler } from './$types';
 import { publicEnv } from '@root/config/public';
-import { _GET } from '@api/query/GET';
+
+// Database adapter for collection queries
+import { dbAdapter } from '@src/databases/db';
 
 // Stores
 import { collections } from '@stores/collectionStore.svelte';
 
+// Permissions
+import { checkApiPermission } from '@api/permissions';
+
 // System Logger
 import { logger } from '@utils/logger.svelte';
-
-// Types
-import type { User } from '@src/auth/types';
-import { roles } from '@root/config/roles';
 
 interface DatabaseCollection {
 	name: string;
@@ -46,28 +55,27 @@ interface CollectionEntry {
 	[key: string]: unknown;
 }
 
-interface CollectionResponse {
-	entryList: CollectionEntry[];
-}
-
 export const GET: RequestHandler = async ({ locals }) => {
 	try {
-		// Check if the user has the necessary permissions
-		const userRole = roles.find((role) => role._id === locals.user?.role);
-		const isAdmin = userRole?.isAdmin === true;
+		// Use centralized permission checking
+		const permissionResult = await checkApiPermission(locals.user, {
+			resource: 'system',
+			action: 'read'
+		});
 
-		if (!locals.permissions.includes('data:export') && !isAdmin) {
-			logger.warn('User lacks required permission: data:export', {
+		if (!permissionResult.hasPermission) {
+			logger.warn('Data export permission denied', {
 				userId: locals.user?._id,
 				userRole: locals.user?.role,
-				isAdmin
+				error: permissionResult.error
 			});
-			throw error(403, 'Forbidden: Insufficient permissions');
+			throw error(403, permissionResult.error || 'Forbidden: Insufficient permissions');
 		}
+
 		logger.debug('User has permission to export data');
 
 		// Fetch data from all collections concurrently
-		const data = await fetchAllCollectionData(collections.value, locals.user);
+		const data = await fetchAllCollectionData(collections.value);
 
 		// Ensure the EXTRACT_DATA_PATH environment variable is configured
 		if (!publicEnv.EXTRACT_DATA_PATH) {
@@ -95,13 +103,20 @@ export const GET: RequestHandler = async ({ locals }) => {
 };
 
 // Fetches data from all collections concurrently
-async function fetchAllCollectionData(collections: Record<string, DatabaseCollection>, user: User) {
+async function fetchAllCollectionData(collections: Record<string, DatabaseCollection>) {
 	const fetchPromises = Object.values(collections).map(async (collection: DatabaseCollection) => {
 		const name = collection.name;
 		logger.debug(`Fetching data for collection: ${name}`);
-		const response = await _GET({ schema: collection, user });
-		const { entryList } = (await response.json()) as CollectionResponse;
-		return [name, entryList];
+
+		try {
+			// Use the database adapter to fetch collection entries
+			const result = await dbAdapter.getCollectionData(name);
+			const entryList = result.success ? result.data : [];
+			return [name, entryList];
+		} catch (error) {
+			logger.error(`Error fetching data for collection ${name}:`, error);
+			return [name, []]; // Return empty array if collection fetch fails
+		}
 	});
 
 	const results = await Promise.all(fetchPromises);

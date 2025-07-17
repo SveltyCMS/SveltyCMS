@@ -17,6 +17,9 @@ import type { PageData as AppPageData } from './$types';
 // Auth
 import type { User } from '@root/src/auth';
 
+// Roles
+import { roles } from '@root/config/roles';
+
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
@@ -39,7 +42,11 @@ export async function load({ locals, fetch }: { locals: App.Locals; fetch: typeo
 	eventFetch = fetch;
 
 	// Permission check: only allow admins to view email previews
-	if (!userData || !userData.isAdmin) {
+	// Determine admin status properly by checking role
+	const userRole = roles.find((role) => role._id === userData?.role);
+	const isAdmin = Boolean(userRole?.isAdmin);
+
+	if (!userData || !isAdmin) {
 		logger.warn(`Unauthorized attempt to access email previews by user: ${userData?.username || 'Guest'}`);
 	}
 

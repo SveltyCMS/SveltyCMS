@@ -103,7 +103,7 @@
 					if (r.action === 'schedule') {
 						const newValue = {
 							...collectionValue.value,
-							status: statusMap.scheduled as StatusType,
+							status: statusMap.schedule as StatusType,
 							_scheduled: new Date(r.date).getTime()
 						};
 						collectionValue.set(newValue);
@@ -169,10 +169,21 @@
 		}
 
 		const method = mode.value === 'create' ? 'POST' : 'PATCH';
+		const entryId = mode.value === 'edit' ? (dataToSave._id as string) : undefined;
+
+		// Validation for edit mode - ensure we have an entryId
+		if (mode.value === 'edit' && !entryId) {
+			console.error('No entry ID found for edit operation');
+			toastStore.trigger({
+				message: 'Cannot update entry: No entry ID found',
+				background: 'variant-filled-error'
+			});
+			return;
+		}
 
 		try {
 			// Use apiRequest directly for saving, as entryActions covers specific non-save actions.
-			await apiRequest(method, currentCollection._id, dataToSave);
+			await apiRequest(method, currentCollection._id, dataToSave, entryId);
 
 			toastStore.trigger({ message: m.save_success(), background: 'variant-filled-success' });
 			mode.set('view');
@@ -305,11 +316,11 @@
 			</div>
 
 			{#if mode.value == 'edit'}
-				{#if collectionValue.value?.status == statusMap.unpublished}
+				{#if collectionValue.value?.status == statusMap.unpublish}
 					<div class="flex flex-col items-center justify-center">
 						<button
 							type="button"
-							onclick={() => setEntryStatus('published')}
+							onclick={() => setEntryStatus('publish')}
 							disabled={!(collection.value?.permissions?.[user.role]?.write && collection.value?.permissions?.[user.role]?.create)}
 							class="gradient-tertiary gradient-tertiary-hover gradient-tertiary-focus btn-icon"
 							aria-label="Publish entry"
@@ -333,7 +344,7 @@
 					<div class="flex flex-col items-center justify-center">
 						<button
 							type="button"
-							onclick={() => setEntryStatus('unpublished')}
+							onclick={() => setEntryStatus('unpublish')}
 							disabled={!collection.value?.permissions?.[user.role]?.write}
 							class="gradient-yellow gradient-yellow-hover gradient-yellow-focus btn-icon"
 							aria-label="Unpublish entry"

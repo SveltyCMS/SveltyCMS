@@ -55,7 +55,9 @@ export async function main() {
 		if (currentMajorVersion < requiredMajorVersion) {
 			console.clear();
 			intro(`${pc.bgRed(pc.white(pc.bold(' SveltyCMS Environment Error ')))}`);
-			outro(`Node.js version ${requiredVersionString} is required, but you're using ${process.version}.\nPlease update Node.js and run the installer again.`);
+			outro(
+				`Node.js version ${requiredVersionString} is required, but you're using ${process.version}.\nPlease update Node.js and run the installer again.`
+			);
 			process.exit(1);
 		}
 	} catch (error) {

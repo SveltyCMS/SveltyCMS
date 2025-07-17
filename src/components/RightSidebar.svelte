@@ -52,12 +52,12 @@ This component provides a streamlined interface for managing collection entries 
 	const { user } = page.data;
 
 	// --- State Management ---
-	let isPublished = $state(false);
+	let isPublish = $state(false);
 	let schedule = $state('');
 
 	$effect(() => {
 		const cv = collectionValue.value;
-		isPublished = cv?.status === 'published';
+		isPublish = cv?.status === 'publish';
 		schedule = cv?._scheduled ? new Date(Number(cv._scheduled)).toISOString().slice(0, 16) : '';
 	});
 
@@ -88,7 +88,7 @@ This component provides a streamlined interface for managing collection entries 
 					if (r.action === 'schedule') {
 						collectionValue.update((cv) => ({
 							...cv,
-							status: 'scheduled',
+							status: 'schedule',
 							_scheduled: new Date(r.date).getTime()
 						}));
 					}
@@ -99,10 +99,10 @@ This component provides a streamlined interface for managing collection entries 
 	}
 
 	function toggleStatus() {
-		isPublished = !isPublished;
+		isPublish = !isPublish;
 		collectionValue.update((cv) => ({
 			...cv,
-			status: isPublished ? 'published' : 'unpublished',
+			status: isPublish ? 'publish' : 'unpublish',
 			updatedAt: new Date()
 		}));
 	}
@@ -161,7 +161,7 @@ This component provides a streamlined interface for managing collection entries 
 					class:opacity-50={!validationStore.isValid || !canWrite}
 					class:cursor-not-allowed={!validationStore.isValid || !canWrite}
 					aria-label="Save entry"
-					title={validationStore.isValid ? 'Save changes' : 'Please fix validation errors before saving'}
+					title={validationStore.isValid() ? 'Save changes' : 'Please fix validation errors before saving'}
 				>
 					<iconify-icon icon="material-symbols:save" width="20" class="font-extrabold text-white"></iconify-icon>
 					{m.button_save()}
@@ -169,11 +169,11 @@ This component provides a streamlined interface for managing collection entries 
 
 				<div class="gradient-secondary btn w-full gap-2 shadow-md">
 					<Toggles
-						label={isPublished ? m.status_published() : m.status_unpublished()}
-						labelColor={isPublished ? 'text-primary-500' : 'text-error-500'}
+						label={isPublish ? m.status_publish() : m.status_unpublish()}
+						labelColor={isPublish ? 'text-primary-500' : 'text-error-500'}
 						iconOn="ic:baseline-check-circle"
 						iconOff="material-symbols:close"
-						bind:value={isPublished}
+						bind:value={isPublish}
 						onChange={toggleStatus}
 					/>
 				</div>

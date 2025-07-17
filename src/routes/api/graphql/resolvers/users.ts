@@ -20,6 +20,9 @@
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
+// Permissions
+import { checkApiPermission } from '@api/permissions';
+
 // Types
 import type { dbInterface } from '@src/databases/dbInterface';
 import type { User } from '@src/auth/types';
@@ -87,7 +90,23 @@ export function userTypeDefs() {
 
 // Resolvers with pagination support
 export function userResolvers(dbAdapter: dbInterface) {
-	const fetchWithPagination = async (contentTypes: string, pagination: { page: number; limit: number }) => {
+	const fetchWithPagination = async (contentTypes: string, pagination: { page: number; limit: number }, context: { user?: User }) => {
+		// Check user permissions - only users with user management permissions should see user data
+		if (!context.user) {
+			logger.warn(`GraphQL: No user in context for ${contentTypes}`);
+			throw new Error('Authentication required');
+		}
+
+		const permissionResult = await checkApiPermission(context.user, {
+			resource: 'users',
+			action: 'read'
+		});
+
+		if (!permissionResult.hasPermission) {
+			logger.warn(`GraphQL: User ${context.user._id} denied access to ${contentTypes}`);
+			throw new Error(`Access denied: ${permissionResult.error || 'Insufficient permissions for user data access'}`);
+		}
+
 		if (!dbAdapter) {
 			logger.error('Database adapter is not initialized');
 			throw Error('Database adapter is not initialized');
@@ -107,6 +126,7 @@ export function userResolvers(dbAdapter: dbInterface) {
 	};
 
 	return {
-		users: async (_: unknown, args: { pagination: { page: number; limit: number } }) => await fetchWithPagination('auth_users', args.pagination)
+		users: async (_: unknown, args: { pagination: { page: number; limit: number } }, context: { user?: User }) =>
+			await fetchWithPagination('auth_users', args.pagination, context)
 	};
 }

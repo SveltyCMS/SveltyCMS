@@ -81,7 +81,8 @@
 	function getDefaultCollectionValue(fields: any[]) {
 		const tempCollectionValue: Record<string, any> = collectionValue?.value ? { ...collectionValue.value } : {};
 		for (const field of fields) {
-			const fieldName = getFieldName(field, false);
+			const safeField = ensureFieldProperties(field);
+			const fieldName = getFieldName(safeField, false);
 			if (!Object.prototype.hasOwnProperty.call(tempCollectionValue, fieldName)) {
 				tempCollectionValue[fieldName] = {};
 			}
@@ -106,7 +107,8 @@
 		} else if (localTabSet === 0 && isFormDataInitialized && Object.keys(formDataSnapshot).length > 0) {
 			// Merge snapshot data back into currentCollectionValue when returning to edit tab
 			for (const field of derivedFields) {
-				const fieldName = getFieldName(field, false);
+				const safeField = ensureFieldProperties(field);
+				const fieldName = getFieldName(safeField, false);
 				if (Object.prototype.hasOwnProperty.call(formDataSnapshot, fieldName)) {
 					currentCollectionValue[fieldName] = formDataSnapshot[fieldName];
 				}
@@ -227,20 +229,26 @@
 		diffObject = null;
 		try {
 			// Use new revisions endpoint for diff comparison
-			const response = await fetch(`/api/collections/${collection.value?._id}/${collectionValue.value._id}/revisions?revisionId=${revisionId}&compareWith=current&currentData=${encodeURIComponent(JSON.stringify(formDataSnapshot))}`, {
-				method: 'GET',
-				credentials: 'include'
-			});
+			const response = await fetch(
+				`/api/collections/${collection.value?._id}/${collectionValue.value._id}/revisions?revisionId=${revisionId}&compareWith=current&currentData=${encodeURIComponent(JSON.stringify(formDataSnapshot))}`,
+				{
+					method: 'GET',
+					credentials: 'include'
+				}
+			);
 			if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
 
 			const result = await response.json();
 			if (result.success) {
 				diffObject = result.data;
 				// To enable revert, we also need the full original data
-				const fullRevisionResponse = await fetch(`/api/collections/${collection.value?._id}/${collectionValue.value._id}/revisions?revisionId=${revisionId}`, {
-					method: 'GET',
-					credentials: 'include'
-				});
+				const fullRevisionResponse = await fetch(
+					`/api/collections/${collection.value?._id}/${collectionValue.value._id}/revisions?revisionId=${revisionId}`,
+					{
+						method: 'GET',
+						credentials: 'include'
+					}
+				);
 				const fullResult = await fullRevisionResponse.json();
 				if (fullResult.success) {
 					selectedRevisionData = fullResult.data;
@@ -371,8 +379,9 @@
 				<div class="mb-2 text-center text-xs text-error-500">{m.fields_required()}</div>
 				<div class="rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900">
 					<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
-						{#each filteredFields as field (field.db_fieldName || field.id || field.label || field.name)}
-							{#if field.widget}
+						{#each filteredFields as rawField (rawField.db_fieldName || rawField.id || rawField.label || rawField.name)}
+							{#if rawField.widget}
+								{@const field = ensureFieldProperties(rawField)}
 								<div
 									class="mx-auto text-center {!field?.width ? 'w-full ' : 'max-md:!w-full'}"
 									style={'min-width:min(300px,100%);' + (field.width ? `width:calc(${Math.floor(100 / field?.width)}% - 0.5rem)` : '')}
@@ -420,7 +429,8 @@
 												bind:value={
 													() => currentCollectionValue[getFieldName(field, false)],
 													(v) => {
-														const fieldName = getFieldName(field, false);
+														const safeField = ensureFieldProperties(field);
+														const fieldName = getFieldName(safeField, false);
 														// Update currentCollectionValue directly - the $effect will handle persistence
 														currentCollectionValue = {
 															...currentCollectionValue,

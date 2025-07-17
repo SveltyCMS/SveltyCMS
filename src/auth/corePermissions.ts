@@ -59,6 +59,16 @@ export const corePermissions: Permission[] = [
 	{ _id: 'user:update', name: 'User Update Access', action: PermissionAction.WRITE, type: PermissionType.SYSTEM, contextId: 'user' },
 	{ _id: 'user:delete', name: 'User Delete Access', action: PermissionAction.DELETE, type: PermissionType.SYSTEM, contextId: 'user' },
 
+	// System resource permissions (used by tokens, themes, content-structure, etc.)
+	{ _id: 'system:read', name: 'System Read Access', action: PermissionAction.READ, type: PermissionType.SYSTEM, contextId: 'system' },
+	{ _id: 'system:write', name: 'System Write Access', action: PermissionAction.WRITE, type: PermissionType.SYSTEM, contextId: 'system' },
+	{ _id: 'system:delete', name: 'System Delete Access', action: PermissionAction.DELETE, type: PermissionType.SYSTEM, contextId: 'system' },
+
+	// Users resource permissions (used by avatar management, user listing, etc.)
+	{ _id: 'users:read', name: 'Users Read Access', action: PermissionAction.READ, type: PermissionType.SYSTEM, contextId: 'users' },
+	{ _id: 'users:write', name: 'Users Write Access', action: PermissionAction.WRITE, type: PermissionType.SYSTEM, contextId: 'users' },
+	{ _id: 'users:delete', name: 'Users Delete Access', action: PermissionAction.DELETE, type: PermissionType.SYSTEM, contextId: 'users' },
+
 	// Collections management permissions
 	{ _id: 'collections:read', name: 'Collections Read Access', action: PermissionAction.READ, type: PermissionType.SYSTEM, contextId: 'collections' },
 	{

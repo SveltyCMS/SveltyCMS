@@ -15,6 +15,9 @@ import { getFirstCollectionRedirectUrl } from '@utils/navigation';
 
 import type { PageServerLoad } from './$types';
 
+// Roles
+import { roles } from '@root/config/roles';
+
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
@@ -33,7 +36,18 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		// If the current route is not the root route, simply return the user data
 		if (url.pathname !== '/') {
 			logger.debug(`Already on route ${url.pathname}`);
-			return { user: locals.user, permissions: locals.permissions };
+
+			// Determine admin status properly by checking role
+			const userRole = roles.find((role) => role._id === locals.user?.role);
+			const isAdmin = Boolean(userRole?.isAdmin);
+
+			return {
+				user: {
+					...locals.user,
+					isAdmin
+				},
+				permissions: locals.permissions
+			};
 		}
 
 		// Get the first collection redirect URL using centralized utility

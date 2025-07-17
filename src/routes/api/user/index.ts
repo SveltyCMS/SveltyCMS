@@ -32,8 +32,7 @@ import { valibot } from 'sveltekit-superforms/adapters';
 import { error, type HttpError } from '@sveltejs/kit';
 
 // Auth and permission helpers
-import { hasPermissionByAction } from '@src/auth/permissions';
-import { roles } from '@root/config/roles';
+import { checkApiPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -48,11 +47,23 @@ export const GET: RequestHandler = async ({ locals }) => {
 		// **SECURITY**: Check for specific 'read:user:all' permission.
 		// This prevents any user who gets past the hook from listing all other users.
 		// It ensures only users with explicit rights can access this sensitive data.
-		const hasPermission = hasPermissionByAction(locals.user, 'read', 'user', 'all', locals.roles && locals.roles.length > 0 ? locals.roles : roles);
+		// **SECURITY**: Check permissions for listing users
+		const permissionResult = await checkApiPermission(locals.user, {
+			resource: 'users',
+			action: 'read'
+		});
 
-		if (!hasPermission) {
-			logger.warn('Unauthorized attempt to list all users', { userId: locals.user?._id });
-			throw error(403, 'Forbidden: You do not have permission to list users.');
+		if (!permissionResult.hasPermission) {
+			logger.warn('Unauthorized attempt to list all users', {
+				userId: locals.user?._id,
+				error: permissionResult.error
+			});
+			return json(
+				{
+					error: permissionResult.error || 'Forbidden: You do not have permission to list users.'
+				},
+				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
+			);
 		}
 
 		const users = await auth.getAllUsers();
@@ -74,13 +85,23 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			throw error(500, 'Internal Server Error');
 		}
 
-		// **SECURITY**: Check for specific 'create:user:any' permission.
-		// This ensures only true administrators can create new user accounts.
-		const hasPermission = hasPermissionByAction(locals.user, 'create', 'user', 'any', locals.roles && locals.roles.length > 0 ? locals.roles : roles);
+		// **SECURITY**: Check permissions for creating users
+		const permissionResult = await checkApiPermission(locals.user, {
+			resource: 'users',
+			action: 'write'
+		});
 
-		if (!hasPermission) {
-			logger.warn('Unauthorized attempt to create a user', { userId: locals.user?._id });
-			throw error(403, 'Forbidden: You do not have permission to create users.');
+		if (!permissionResult.hasPermission) {
+			logger.warn('Unauthorized attempt to create a user', {
+				userId: locals.user?._id,
+				error: permissionResult.error
+			});
+			return json(
+				{
+					error: permissionResult.error || 'Forbidden: You do not have permission to create users.'
+				},
+				{ status: permissionResult.error?.includes('Authentication') ? 401 : 403 }
+			);
 		}
 
 		const addUserForm = await superValidate(request, valibot(addUserTokenSchema));

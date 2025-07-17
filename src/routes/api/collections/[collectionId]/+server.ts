@@ -14,19 +14,21 @@
  */
 
 import { json, error, type RequestHandler } from '@sveltejs/kit';
+
+// Databases
 import { dbAdapter } from '@src/databases/db';
-import { contentManager } from '@src/content/ContentManager';
-import { logger } from '@utils/logger.svelte';
-import { hasCollectionPermission } from '../../permissions';
-import { modifyRequest } from '../modifyRequest';
 import type { BaseEntity } from '@src/databases/dbInterface';
+
+// Auth
+import { contentManager } from '@src/content/ContentManager';
+import { hasCollectionPermission } from '@api/permissions';
+import { modifyRequest } from '@api/collections/modifyRequest';
 import { roles, initializeRoles } from '@root/config/roles';
 
-/**
- * GET: Lists entries in a collection with pagination, filtering, and sorting
- * All logic is pushed to the database via the QueryBuilder
- * Example: /api/collections/posts?pageSize=10&sortField=title&filter={"published":true}
- */
+// System Logger
+import { logger } from '@utils/logger.svelte';
+
+// GET: Lists entries in a collection with pagination, filtering, and sorting
 export const GET: RequestHandler = async ({ locals, params, url }) => {
 	const startTime = performance.now();
 	const endpoint = `GET /api/collections/${params.collectionId}`;
@@ -35,10 +37,9 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 	await initializeRoles();
 
 	// Get user's role and determine admin status properly
-	// Use roles from locals (populated by hooks.server.ts) for most up-to-date data
 	const availableRoles = locals.roles && locals.roles.length > 0 ? locals.roles : roles;
 	const userRole = availableRoles.find((role) => role._id === locals.user?.role);
-	const isAdmin = userRole?.isAdmin === true;
+	const isAdmin = Boolean(userRole?.isAdmin);
 
 	// Debug logging to understand the role lookup issue
 	logger.debug(`Role lookup for user ${locals.user?._id}`, {
@@ -46,6 +47,8 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		availableRoles: availableRoles.map((r) => ({ id: r._id, isAdmin: r.isAdmin })),
 		foundRole: userRole,
 		isAdmin: isAdmin,
+		isAdminRaw: userRole?.isAdmin,
+		isAdminType: typeof userRole?.isAdmin,
 		rolesSource: locals.roles && locals.roles.length > 0 ? 'locals' : 'import'
 	});
 
@@ -78,7 +81,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 
 		if (!(await hasCollectionPermission(locals.user, 'read', schema, availableRoles))) {
 			logger.warn(`${endpoint} - Access forbidden`, {
-				collection: schema.name,
+				collection: schema._id,
 				userId: locals.user._id,
 				userEmail: locals.user.email,
 				userRole: locals.user.role
@@ -98,14 +101,14 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 				filter = JSON.parse(filterParam);
 				logger.debug(`${endpoint} - Applied filter`, {
 					filter,
-					collection: schema.name,
+					collection: schema._id,
 					userId: locals.user._id
 				});
 			} catch (parseError) {
 				logger.warn(`${endpoint} - Invalid filter parameter`, {
 					filterParam,
 					parseError: parseError.message,
-					collection: schema.name,
+					collection: schema._id,
 					userId: locals.user._id
 				});
 				throw error(400, 'Invalid filter parameter');
@@ -117,8 +120,22 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 			filter = { ...filter, status: 'published' };
 			logger.debug(`${endpoint} - Applied status filter for non-admin user`, {
 				userId: locals.user._id,
-				collection: schema.name,
-				userRole: locals.user.role
+				collection: schema._id,
+				userRole: locals.user.role,
+				isAdmin: isAdmin,
+				statusFilter: 'published'
+			});
+		} else {
+			// For admin users, remove any status filtering from the original filter
+			const { status, ...adminFilter } = filter;
+			filter = adminFilter;
+			logger.debug(`${endpoint} - Admin user - removed status filter`, {
+				userId: locals.user._id,
+				collection: schema._id,
+				userRole: locals.user.role,
+				isAdmin: isAdmin,
+				originalFilter: { ...filter, status },
+				adminFilter: filter
 			});
 		}
 
@@ -135,7 +152,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 
 		if (!result.success) {
 			logger.error(`${endpoint} - Database query failed`, {
-				collection: schema.name,
+				collection: schema._id,
 				collectionId: schema._id,
 				operation: 'execute',
 				error: result.error.message,
@@ -145,7 +162,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		}
 		if (!countResult.success) {
 			logger.error(`${endpoint} - Database count failed`, {
-				collection: schema.name,
+				collection: schema._id,
 				collectionId: schema._id,
 				operation: 'count',
 				error: countResult.error.message,
@@ -167,13 +184,13 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 					type: 'GET'
 				});
 				logger.debug(`${endpoint} - ModifyRequest completed`, {
-					collection: schema.name,
+					collection: schema._id,
 					processedCount: processedData.length,
 					userId: locals.user._id
 				});
 			} catch (modifyError) {
 				logger.warn(`${endpoint} - ModifyRequest failed`, {
-					collection: schema.name,
+					collection: schema._id,
 					error: modifyError.message,
 					userId: locals.user._id,
 					itemCount: processedData.length
@@ -195,7 +212,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		};
 
 		logger.info(`${endpoint} - Request completed successfully`, {
-			collection: schema.name,
+			collection: schema._id,
 			userId: locals.user._id,
 			itemCount: processedData.length,
 			totalCount,
@@ -262,7 +279,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 
 		if (!(await hasCollectionPermission(locals.user, 'write', schema))) {
 			logger.warn(`${endpoint} - Access forbidden`, {
-				collection: schema.name,
+				collection: schema._id,
 				userId: locals.user._id,
 				userEmail: locals.user.email,
 				userRole: locals.user.role
@@ -277,7 +294,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		if (contentType?.includes('application/json')) {
 			body = await request.json();
 			logger.debug(`${endpoint} - Received JSON request body`, {
-				collection: schema.name,
+				collection: schema._id,
 				userId: locals.user._id,
 				bodyKeys: Object.keys(body || {})
 			});
@@ -285,14 +302,14 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 			const formData = await request.formData();
 			body = Object.fromEntries(formData.entries());
 			logger.debug(`${endpoint} - Received FormData request body`, {
-				collection: schema.name,
+				collection: schema._id,
 				userId: locals.user._id,
 				fieldCount: Object.keys(body || {}).length
 			});
 		} else {
 			logger.warn(`${endpoint} - Unsupported content type`, {
 				contentType,
-				collection: schema.name,
+				collection: schema._id,
 				userId: locals.user._id
 			});
 			throw error(400, 'Unsupported content type');
@@ -319,12 +336,12 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 				type: 'POST'
 			});
 			logger.debug(`${endpoint} - ModifyRequest pre-processing completed`, {
-				collection: schema.name,
+				collection: schema._id,
 				userId: locals.user._id
 			});
 		} catch (modifyError) {
 			logger.warn(`${endpoint} - ModifyRequest pre-processing failed`, {
-				collection: schema.name,
+				collection: schema._id,
 				error: modifyError.message,
 				userId: locals.user._id
 			});
@@ -336,7 +353,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 
 		if (!result.success) {
 			logger.error(`${endpoint} - Database insert failed`, {
-				collection: schema.name,
+				collection: schema._id,
 				operation: 'insert',
 				error: result.error.message,
 				userId: locals.user._id
@@ -352,7 +369,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		};
 
 		logger.info(`${endpoint} - Entry created successfully`, {
-			collection: schema.name,
+			collection: schema._id,
 			userId: locals.user._id,
 			entryId: result.data._id,
 			entryStatus: result.data.status,

@@ -1,15 +1,27 @@
 /**
  * @file src/routes/api/media/remote/+server.ts
  * @description
- * API endpoint for saving remote media files.
+ * API endpoint for saving remote media files
+ *
+ * @example POST /api/media/remote
+ *
+ * Features:
+ * - Secure, granular access control per operation
+ * - Status-based access control for non-admin users
+ * - ModifyRequest support for widget-based data processing
+ * - Status-based access control for non-admin users
  */
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
+
+// Auth
 import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import { saveRemoteMedia } from '@utils/media/mediaStorage';
+
+// System Logger
 import { logger } from '@utils/logger.svelte';
 
 export const POST: RequestHandler = async ({ request, cookies }) => {

@@ -23,8 +23,7 @@ import type { RequestHandler } from './$types';
 
 // Auth and permission helpers
 import { auth } from '@src/databases/db';
-import { hasPermissionByAction } from '@src/auth/permissions';
-import { roles } from '@root/config/roles';
+import { checkApiPermission } from '@api/permissions';
 
 // System logger
 import { logger } from '@utils/logger.svelte';
@@ -46,7 +45,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			hasPermission = true;
 		} else {
 			// To update another user's avatar, need admin permissions
-			hasPermission = hasPermissionByAction(locals.user, 'update', 'user', 'any', locals.roles && locals.roles.length > 0 ? locals.roles : roles);
+			const permissionResult = await checkApiPermission(locals.user, {
+				resource: 'users',
+				action: 'write'
+			});
+			hasPermission = permissionResult.hasPermission;
 		}
 
 		if (!hasPermission) {
@@ -54,7 +57,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				requestedBy: locals.user?._id,
 				targetUserId: targetUserId
 			});
-			throw error(403, "Forbidden: You do not have permission to update this user's avatar.");
+			return json(
+				{
+					error: "Forbidden: You do not have permission to update this user's avatar."
+				},
+				{ status: 403 }
+			);
 		}
 
 		// Ensure the authentication system is initialized

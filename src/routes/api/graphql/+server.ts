@@ -24,9 +24,9 @@ import { dbAdapter } from '@src/databases/db';
 // Redis
 import { createClient } from 'redis';
 
-// Permission Management
+// Auth / Permission
 import { hasPermissionWithRoles, registerPermission } from '@src/auth/permissions';
-import { checkApiPermission } from '@src/routes/api/permissions';
+import { checkApiPermission } from '@api/permissions';
 import { PermissionAction, PermissionType } from '@src/auth/types';
 
 // Roles Configuration
@@ -35,10 +35,7 @@ import { roles } from '@root/config/roles';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-/**
- * Creates a clean GraphQL type name from collection info
- * Uses collection name + short UUID suffix for uniqueness and readability
- */
+// Creates a clean GraphQL type name from collection info
 function createCleanTypeName(collection: { name: string; _id: string }): string {
 	// Get the last part of the collection name (after any slashes)
 	const baseName = collection.name.split('/').pop() || collection.name;

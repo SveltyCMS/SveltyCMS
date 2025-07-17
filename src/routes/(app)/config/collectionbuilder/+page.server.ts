@@ -58,12 +58,17 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		const { contentStructure } = await contentManager.getCollectionData();
 
-		// Return user data
+		// Determine admin status properly by checking role
+		const userRole = roles.find((role) => role._id === user.role);
+		const isAdmin = Boolean(userRole?.isAdmin);
+
+		// Return user data with proper admin status
 		const { _id, ...rest } = user;
 		return {
 			user: {
 				id: _id.toString(),
-				...rest
+				...rest,
+				isAdmin // Add the properly calculated admin status
 			},
 			contentStructure
 		};

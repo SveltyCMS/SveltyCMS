@@ -28,7 +28,7 @@
 		badge?: {
 			visible?: boolean;
 			count?: number;
-			status?: 'draft' | 'published' | 'archived';
+			status?: 'draft' | 'publish' | 'archive' | 'schedule' | 'delete' | 'clone' | 'test';
 			color?: string;
 		};
 		depth?: number; // Depth of the node in the tree

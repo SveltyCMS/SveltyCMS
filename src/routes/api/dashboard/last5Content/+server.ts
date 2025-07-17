@@ -1,25 +1,31 @@
 /**
  * @file src/routes/api/dashboard/last5Content/+server.ts
  * @description API endpoint for recent content data for dashboard widgets.
+ *
+ * @example GET /api/dashboard/last5Content
+ *
+ * Features:
+ * - **Secure Authorization:** Access is controlled centrally by `src/hooks.server.ts`.
+ * - **High-Performance Log Reading:** Efficiently reads only the end of the log file.
+ * - **Input Validation:** Safely validates and caps the `limit` query parameter.
  */
 
 import { error, json } from '@sveltejs/kit';
 import crypto from 'crypto';
 import type { RequestHandler } from './$types';
 
-import { contentManager } from '@root/src/content/ContentManager';
+import { contentManager } from '@src/content/ContentManager';
 import { dbAdapter } from '@src/databases/db';
 
-// Auth
-import { checkApiPermission } from '@src/routes/api/permissions';
-import { hasCollectionPermission } from '@src/routes/api/permissions';
+// Permissions
+import { checkApiPermission } from '@api/permissions';
+import { hasCollectionPermission } from '@api/permissions';
 
-// Validation
-import * as v from 'valibot';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-// --- Schemas for Validation ---
+// Validation
+import * as v from 'valibot';
 
 const QuerySchema = v.object({
 	limit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(20)), 5)
@@ -78,30 +84,13 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			try {
 				const collectionName = `collection_${collection._id}`;
 
-				// Use database aggregation to get only the recent items we need
-				const result = await dbAdapter.find(
-					collectionName,
-					{},
-					{
-						sort: { createdAt: -1 }, // Sort by creation date descending
-						limit: query.limit, // Only get what we need per collection
-						projection: {
-							// Only select fields we need
-							_id: 1,
-							title: 1,
-							name: 1,
-							label: 1,
-							createdAt: 1,
-							created: 1,
-							date: 1,
-							createdBy: 1,
-							author: 1,
-							creator: 1,
-							status: 1,
-							state: 1
-						}
-					}
-				);
+				// Use database-agnostic query builder for efficient querying
+				const result = await dbAdapter
+					.queryBuilder(collectionName)
+					.select(['_id', 'title', 'name', 'label', 'createdAt', 'created', 'date', 'createdBy', 'author', 'creator', 'status', 'state'])
+					.sort('createdAt', 'desc')
+					.limit(query.limit)
+					.execute();
 
 				if (result.success && result.data && Array.isArray(result.data)) {
 					return result.data.map((entry: Record<string, unknown>) => ({
@@ -136,7 +125,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			collection: entry.collectionName,
 			createdAt: new Date(entry.createdAt || entry.created || entry.date || new Date()),
 			createdBy: entry.createdBy || entry.author || entry.creator || 'Unknown',
-			status: entry.status || entry.state || 'published'
+			status: entry.status || entry.state || 'publish'
 		}));
 
 		const validatedData = v.parse(v.array(ContentItemSchema), recentContent);

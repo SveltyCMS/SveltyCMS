@@ -1,25 +1,24 @@
 /**
  * @file src/routes/api/dashboard/last5media/+server.ts
- * @description API endpoint for last 5 media files for dashboard widgets.
+ * @description API endpoint for last 5 media files for dashboard widgets using database-agnostic adapter.
  */
 
-import fs from 'fs/promises';
-import path from 'path';
 import type { RequestHandler } from './$types';
 import { error, json } from '@sveltejs/kit';
 
-// Auth
-import { checkApiPermission } from '@src/routes/api/permissions';
+// Database
+import { dbAdapter } from '@src/databases/db';
 
-// Validation
-import * as v from 'valibot';
+// Auth
+import { checkApiPermission } from '@api/permissions';
+
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-// --- Types, Constants & Schemas ---
+// Validation
+import * as v from 'valibot';
 
-const MEDIA_DIR = path.join(process.cwd(), 'mediaFiles');
-const SUPPORTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.mov', 'svg'];
+// --- Types & Schemas ---
 
 const MediaItemSchema = v.object({
 	name: v.string(),
@@ -28,8 +27,6 @@ const MediaItemSchema = v.object({
 	type: v.string(),
 	url: v.string()
 });
-
-type MediaItem = v.Output<typeof MediaItemSchema>;
 
 // --- API Handler ---
 
@@ -49,48 +46,47 @@ export const GET: RequestHandler = async ({ locals }) => {
 	}
 
 	try {
-		const limit = 5;
-		const dirEntries = await fs.readdir(MEDIA_DIR, { withFileTypes: true });
+		if (!dbAdapter) {
+			logger.error('Database adapter not available');
+			throw error(500, 'Database connection unavailable');
+		}
 
-		// 1. Concurrently get stats for all supported files
-		const fileStatPromises = dirEntries
-			.filter((entry) => {
-				const ext = path.extname(entry.name).toLowerCase();
-				return entry.isFile() && SUPPORTED_EXTENSIONS.includes(ext);
-			})
-			.map(async (entry) => {
-				try {
-					const stats = await fs.stat(path.join(MEDIA_DIR, entry.name));
-					const ext = path.extname(entry.name).slice(1).toLowerCase();
-					return {
-						name: entry.name,
-						size: stats.size,
-						modified: stats.mtime,
-						type: ext,
-						url: `/mediaFiles/${entry.name}`
-					};
-				} catch (fileError) {
-					logger.warn('Error reading file stats:', { file: entry.name, error: fileError });
-					return null; // Return null for files that fail to be read
-				}
+		// Use database-agnostic adapter to get recent media files
+		const result = await dbAdapter.media.files.getByFolder(undefined, {
+			page: 1,
+			pageSize: 5,
+			sortField: 'updatedAt',
+			sortDirection: 'desc'
+		});
+
+		if (!result.success) {
+			logger.error('Failed to fetch media files from database', {
+				error: result.error,
+				requestedBy: locals.user?._id
 			});
+			// Return empty array instead of throwing error for dashboard widgets
+			return json([]);
+		}
 
-		const allMedia = (await Promise.all(fileStatPromises)).filter(Boolean) as MediaItem[];
+		// Transform the data to match the expected format
+		const recentMedia = result.data.items.map((file) => ({
+			name: file.filename,
+			size: file.size,
+			modified: new Date(file.updatedAt),
+			type: file.mimeType.split('/')[1] || 'unknown',
+			url: file.path
+		}));
 
-		// 2. Sort by modification date
-		allMedia.sort((a, b) => b.modified.getTime() - a.modified.getTime());
-
-		// 3. Slice and validate final data
-		const recentMedia = allMedia.slice(0, limit);
 		const validatedData = v.parse(v.array(MediaItemSchema), recentMedia);
 
-		logger.info('Recent media fetched successfully', { count: validatedData.length, requestedBy: locals.user?._id });
+		logger.info('Recent media fetched successfully via database adapter', {
+			count: validatedData.length,
+			total: result.data.total,
+			requestedBy: locals.user?._id
+		});
+
 		return json(validatedData);
 	} catch (err) {
-		if (err.code === 'ENOENT') {
-			logger.warn(`Media directory not found at: ${MEDIA_DIR}`);
-			return json([]); // Directory doesn't exist, return empty array
-		}
 		if (err instanceof v.ValiError) {
 			logger.error('Media data failed validation', { error: err.issues });
 			throw error(500, 'Internal Server Error: Could not prepare media data.');

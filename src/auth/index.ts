@@ -28,7 +28,7 @@ import { corePermissions } from './corePermissions';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-export { PermissionAction, PermissionType } from './types';
+export { checkPermissions, checkRolePermissions, hasPermission, getUserRole, getUserRoles } from './permissions';
 export type { Permission, PermissionAction, PermissionType, Role, RolePermissions, Session, SessionStore, Token, User } from './types';
 
 // Import argon2 and related constants
@@ -618,6 +618,46 @@ export function isAdmin(user: User): boolean {
 
 export function hasRole(user: User, roleName: string): boolean {
 	return user.role.toLowerCase() === roleName.toLowerCase();
+}
+
+// Helper functions for backwards compatibility
+export async function hashPassword(password: string): Promise<string> {
+	if (typeof window !== 'undefined') {
+		throw new Error('Password hashing is only available on the server');
+	}
+
+	const argon2Module = await import('argon2');
+	return argon2Module.hash(password, {
+		memory: 65536,
+		time: 3,
+		parallelism: 4,
+		type: argon2Module.argon2id
+	});
+}
+
+export async function verifyPassword(password: string, hash: string): Promise<boolean> {
+	if (typeof window !== 'undefined') {
+		throw new Error('Password verification is only available on the server');
+	}
+
+	const argon2Module = await import('argon2');
+	return argon2Module.verify(hash, password);
+}
+
+export function generateRandomToken(length: number = 32): string {
+	const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+	let result = '';
+	for (let i = 0; i < length; i++) {
+		result += chars.charAt(Math.floor(Math.random() * chars.length));
+	}
+	return result;
+}
+
+export function generateTokenWithExpiry(expirationMinutes: number = 60): { token: string; expires: Date } {
+	return {
+		token: generateRandomToken(),
+		expires: new Date(Date.now() + expirationMinutes * 60 * 1000)
+	};
 }
 
 // Export session cookie name

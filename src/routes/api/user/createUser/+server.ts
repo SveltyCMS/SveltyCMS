@@ -18,7 +18,7 @@ import { json, error, type HttpError } from '@sveltejs/kit';
 
 // Auth and permission helpers
 import { auth } from '@src/databases/db';
-import { checkApiPermission } from '@src/routes/api/permissions';
+import { checkApiPermission } from '@api/permissions';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -35,7 +35,7 @@ const createUserSchema = object({
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
-		// **SECURITY**: Check for user create permission using centralized system
+		// Check for user create permission using centralized system
 		const permissionResult = await checkApiPermission(locals.user, {
 			resource: 'user',
 			action: 'create'
