@@ -16,6 +16,7 @@ import type { RequestHandler } from './$types';
 
 import { contentManager } from '@src/content/ContentManager';
 import { dbAdapter } from '@src/databases/db';
+import { StatusTypes } from '@src/content/types';
 
 // Permissions
 import { checkApiPermission } from '@api/permissions';
@@ -125,7 +126,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			collection: entry.collectionName,
 			createdAt: new Date(entry.createdAt || entry.created || entry.date || new Date()),
 			createdBy: entry.createdBy || entry.author || entry.creator || 'Unknown',
-			status: entry.status || entry.state || 'publish'
+			status: entry.status || entry.state || StatusTypes.publish
 		}));
 
 		const validatedData = v.parse(v.array(ContentItemSchema), recentContent);

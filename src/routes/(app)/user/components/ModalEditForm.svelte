@@ -36,7 +36,6 @@ Efficiently manages user data updates with validation, role selection, and delet
 		name: 'Admin User Edit Form',
 		description: 'Allows admins to manage user accounts, including editing and assigning roles.',
 		contextId: 'user:manage',
-		requiredRole: 'admin',
 		action: 'manage',
 		contextType: 'user'
 	};
@@ -84,6 +83,10 @@ Efficiently manages user data updates with validation, role selection, and delet
 	});
 	const isOwnProfile = formData.user_id === user?._id || !isGivenData;
 	const canChangePassword = isOwnProfile || user?.isAdmin;
+
+	// Check if user has delete permission for layout purposes
+	const hasDeletePermission = user?.isAdmin || user?.role === 'admin';
+	const showDeleteButton = hasDeletePermission && !isOwnProfile && !isFirstUser;
 
 	function onFormSubmit(event: SubmitEvent): void {
 		event.preventDefault();
@@ -155,14 +158,19 @@ Efficiently manages user data updates with validation, role selection, and delet
 				})
 			});
 			const data = await response.json();
+
 			if (!response.ok) {
 				throw new Error(data.message || 'Failed to delete user.');
 			}
+
+			// Use the success message from the API response
+			const successMessage = data.message || 'User deleted successfully.';
 			toastStore.trigger({
-				message: '<iconify-icon icon="mdi:check" width="24"/> User deleted successfully.',
-				background: 'gradient-tertiary',
+				message: `<iconify-icon icon="mdi:check" width="24"/> ${successMessage}`,
+				background: 'variant-filled-success',
 				timeout: 3000
 			});
+
 			await invalidateAll();
 			modalStore.close();
 		} catch (err) {
@@ -277,7 +285,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 			{/if}
 
 			<!-- Role Select -->
-			<PermissionGuard config={modaleEditFormConfig}>
+			<PermissionGuard config={modaleEditFormConfig} silent={true}>
 				<div class="flex flex-col gap-2 sm:flex-row">
 					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}</div>
 					<div class="flex-auto">
@@ -301,16 +309,18 @@ Efficiently manages user data updates with validation, role selection, and delet
 				</div>
 			</PermissionGuard>
 		</form>
-		<footer class="modal-footer {parent.regionFooter} flex justify-between">
+		<footer class="modal-footer {parent.regionFooter} flex {showDeleteButton ? 'justify-between' : 'justify-end'}">
 			<!-- Delete User Button -->
-			<PermissionGuard config={deleteUserPermissionConfig}>
-				<button type="button" onclick={deleteUser} class="variant-filled-error btn" disabled={isOwnProfile || isFirstUser}>
-					<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
-					<span class="hidden sm:block">{m.button_delete()}</span>
-				</button>
-			</PermissionGuard>
+			{#if showDeleteButton}
+				<PermissionGuard config={deleteUserPermissionConfig} silent={true}>
+					<button type="button" onclick={deleteUser} class="variant-filled-error btn">
+						<iconify-icon icon="icomoon-free:bin" width="24"></iconify-icon>
+						<span class="hidden sm:block">{m.button_delete()}</span>
+					</button>
+				</PermissionGuard>
+			{/if}
 
-			<div class="flex justify-end gap-4">
+			<div class="flex gap-4">
 				<!-- Cancel -->
 				<button type="button" class="variant-outline-secondary btn" onclick={parent.onClose}>{m.button_cancel()}</button>
 				<!-- Save -->

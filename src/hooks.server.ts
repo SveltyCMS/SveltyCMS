@@ -26,7 +26,7 @@ import { contentLanguage, systemLanguage } from '@stores/store.svelte';
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
 
 // Auth and Database Adapters
-import { roles } from '@root/config/roles';
+import { roles, initializeRoles } from '@root/config/roles';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import { hasPermissionByAction } from '@src/auth/permissions';
 import { auth, authAdapter, dbInitPromise } from '@src/databases/db';
@@ -281,7 +281,13 @@ const getAdminDataCached = async (user: User, cacheKey: string): Promise<unknown
 	if (auth) {
 		try {
 			if (cacheKey === 'roles') {
+				// First try to get roles from the database
 				data = await auth.getAllRoles();
+				// If no roles in database, initialize and use the config roles
+				if (!data || data.length === 0) {
+					await initializeRoles();
+					data = roles;
+				}
 			} else if (cacheKey === 'users') {
 				data = await auth.getAllUsers();
 			} else if (cacheKey === 'tokens') {
@@ -293,6 +299,25 @@ const getAdminDataCached = async (user: User, cacheKey: string): Promise<unknown
 			}
 		} catch (err) {
 			logger.warn(`Failed to load admin data (${cacheKey}): ${err.message}`);
+			// If it's roles and we failed, try to use the config roles as fallback
+			if (cacheKey === 'roles') {
+				try {
+					await initializeRoles();
+					data = roles;
+				} catch (roleErr) {
+					logger.warn(`Failed to initialize config roles: ${roleErr.message}`);
+				}
+			}
+		}
+	} else {
+		// If auth is not available, use config roles as fallback
+		if (cacheKey === 'roles') {
+			try {
+				await initializeRoles();
+				data = roles;
+			} catch (roleErr) {
+				logger.warn(`Failed to initialize config roles: ${roleErr.message}`);
+			}
 		}
 	}
 
@@ -493,14 +518,21 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 				event.locals.allUsers = users;
 				event.locals.allTokens = tokens;
 			} else {
-				// Set empty defaults to avoid undefined errors
-				event.locals.roles = [];
+				// Always load roles for user interface (needed for modals and forms)
+				// But only load users/tokens for admin users
+				event.locals.roles = await getAdminDataCached(user, 'roles');
 				event.locals.allUsers = [];
 				event.locals.allTokens = [];
 			}
 		} else {
-			// Set safe defaults when auth service not ready
-			event.locals.roles = [];
+			// Set safe defaults when auth service not ready, but still try to load roles
+			try {
+				await initializeRoles();
+				event.locals.roles = roles;
+			} catch (err) {
+				logger.warn('Failed to initialize roles in hooks:', err);
+				event.locals.roles = [];
+			}
 			event.locals.hasManageUsersPermission = false;
 			event.locals.allUsers = [];
 			event.locals.allTokens = [];

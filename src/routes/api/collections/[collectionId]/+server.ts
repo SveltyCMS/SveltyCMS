@@ -320,9 +320,8 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 			...body,
 			createdBy: locals.user._id,
 			updatedBy: locals.user._id,
-			status: body.status || 'draft',
-			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString()
+			status: body.status || 'draft'
+			// Note: createdAt and updatedAt are automatically set by the database adapter
 		};
 
 		// Apply modifyRequest for pre-processing

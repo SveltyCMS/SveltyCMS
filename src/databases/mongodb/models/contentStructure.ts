@@ -8,6 +8,7 @@
 import mongoose, { Schema } from 'mongoose';
 import type { Model } from 'mongoose';
 import type { Translation, ContentNode, DatabaseResult, DatabaseError } from '@src/databases/dbInterface';
+import { StatusTypes } from '@src/content/types';
 
 // Flag to track if discriminators have been registered
 let discriminatorsRegistered = false;
@@ -39,7 +40,7 @@ export const contentStructureSchemaDefinition = {
 	slug: { type: String }, // Slug for the content
 	status: {
 		type: String,
-		enum: ['draft', 'publish', 'unpublish', 'schedule', 'clone']
+		enum: Object.values(StatusTypes)
 	},
 	links: [{ type: String }],
 	createdAt: { type: Date, default: Date.now }, // Default createdAt timestamp

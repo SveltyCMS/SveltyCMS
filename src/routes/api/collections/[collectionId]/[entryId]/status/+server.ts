@@ -82,10 +82,9 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			for (const entryId of entries) {
 				const updateData = {
 					status,
-					updatedBy: locals.user._id,
-					updatedAt: new Date().toISOString(),
-					statusChangedAt: new Date().toISOString(),
-					statusChangedBy: locals.user._id
+					updatedBy: locals.user._id
+					// Note: updatedAt is automatically set by the database adapter
+					// Removed duplicate statusChangedAt and statusChangedBy fields
 				};
 
 				const result = await dbAdapter.crud.update(normalizedCollectionId, entryId, updateData);
@@ -100,10 +99,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			// Single entry status update
 			const updateData = {
 				status,
-				updatedBy: locals.user._id,
-				updatedAt: new Date().toISOString(),
-				statusChangedAt: new Date().toISOString(),
-				statusChangedBy: locals.user._id
+				updatedBy: locals.user._id
 			};
 
 			const result = await dbAdapter.crud.update(normalizedCollectionId, params.entryId, updateData);

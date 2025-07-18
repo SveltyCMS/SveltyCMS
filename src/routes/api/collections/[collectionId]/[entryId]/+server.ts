@@ -252,8 +252,8 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		// Prepare update data with metadata
 		const updateData = {
 			...body,
-			updatedBy: locals.user._id,
-			updatedAt: new Date().toISOString()
+			updatedBy: locals.user._id
+			// Note: updatedAt is automatically set by the database adapter
 		};
 
 		// Apply modifyRequest for pre-processing

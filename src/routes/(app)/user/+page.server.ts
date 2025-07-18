@@ -96,7 +96,6 @@ export const load: PageServerLoad = async (event) => {
 				token: token.token || '',
 				blocked: false, // This needs to be calculated based on expiration or a specific field if available
 				email: token.email || '',
-				username: token.username || '', // Ensure username is passed
 				role: token.role || 'user', // Ensure role is passed
 				expires: token.expires ? new Date(token.expires).toISOString() : null,
 				createdAt: token.createdAt ? new Date(token.createdAt).toISOString() : null,

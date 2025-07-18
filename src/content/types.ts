@@ -18,6 +18,19 @@ export type WidgetTypes = (typeof widgets)[WidgetKeys];
 // Field value types
 export type FieldValue = string | number | boolean | null | Record<string, unknown> | Array<unknown>;
 
+// Status types for collections and entries
+export const StatusTypes = {
+	draft: 'draft',
+	publish: 'publish',
+	unpublish: 'unpublish',
+	schedule: 'schedule',
+	clone: 'clone',
+	test: 'test',
+	delete: 'delete'
+} as const;
+
+export type StatusType = (typeof StatusTypes)[keyof typeof StatusTypes];
+
 // Extended field definition
 export interface Field {
 	widget: WidgetTypes;
@@ -69,7 +82,7 @@ export interface Schema {
 	path?: string; // Path within the collections folder structure
 	permissions?: RolePermissions; // Optional permission restrictions
 	livePreview?: boolean; // Optional live preview
-	status?: 'draft' | 'publish' | 'unpublish' | 'schedule' | 'clone'; // Optional default status
+	status?: StatusType; // Optional default status
 	links?: Array<ContentTypes>; // Optional links to other collections
 	fields: FieldDefinition[]; // Collection fields
 	translations?: Translation[]; // Optional translations with enhanced metadata
@@ -117,9 +130,10 @@ export interface CollectionData {
 	fields: FieldDefinition[]; // Collection fields
 	description?: string; // Optional description
 	slug?: string; // Optional slug
-	status?: 'draft' | 'publish' | 'unpublish' | 'schedule' | 'clone'; // Optional status
+	status?: StatusType; // Optional status
 	links?: Array<ContentTypes>; // Optional links to other collections
 }
 
 // Collection types for collections registry
-export type ContentTypes = keyof typeof CollectionRegistry;
+
+export type ContentTypes = {};

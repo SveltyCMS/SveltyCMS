@@ -15,6 +15,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import { createEventDispatcher } from 'svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -73,6 +74,60 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	let isDisabled = $derived(selectedRows.length === 0);
 	let isMultipleSelected = $derived(selectedRows.length > 1);
 
+	// Smart state detection for block/unblock actions
+	let blockState = $derived(() => {
+		if (selectedRows.length === 0) return null;
+
+		if (type === 'user') {
+			const users = selectedRows as UserData[];
+			const blockedCount = users.filter((user) => user.blocked).length;
+			const unblockedCount = users.filter((user) => !user.blocked).length;
+
+			if (blockedCount === users.length) return 'all-blocked';
+			if (unblockedCount === users.length) return 'all-unblocked';
+			return 'mixed';
+		} else {
+			const tokens = selectedRows as TokenData[];
+			const blockedCount = tokens.filter((token) => token.blocked).length;
+			const unblockedCount = tokens.filter((token) => !token.blocked).length;
+
+			if (blockedCount === tokens.length) return 'all-blocked';
+			if (unblockedCount === tokens.length) return 'all-unblocked';
+			return 'mixed';
+		}
+	});
+
+	// Available actions based on current state
+	let availableActions = $derived(() => {
+		const baseActions: ActionType[] = ['edit', 'delete'];
+		const currentBlockState = blockState();
+
+		if (currentBlockState === 'all-blocked') {
+			return [...baseActions, 'unblock'];
+		} else if (currentBlockState === 'all-unblocked') {
+			return [...baseActions, 'block'];
+		} else if (currentBlockState === 'mixed') {
+			return [...baseActions, 'block', 'unblock'];
+		}
+
+		return baseActions;
+	});
+
+	// Auto-adjust listboxValue when selection changes
+	$effect(() => {
+		if (selectedRows.length > 0 && !availableActions().includes(listboxValue)) {
+			const currentBlockState = blockState();
+			// If current action is not available, switch to the most appropriate one
+			if (currentBlockState === 'all-blocked' && listboxValue === 'block') {
+				listboxValue = 'unblock';
+			} else if (currentBlockState === 'all-unblocked' && listboxValue === 'unblock') {
+				listboxValue = 'block';
+			} else if (!availableActions().includes(listboxValue)) {
+				listboxValue = 'edit'; // Default fallback
+			}
+		}
+	});
+
 	// Check if delete should be disabled for users
 	let isDeleteDisabled = $derived(
 		type === 'user' &&
@@ -84,6 +139,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 	const modalStore = getModalStore();
 	const toastStore = getToastStore();
+	const dispatch = createEventDispatcher();
 
 	// Helper function to convert Date to expires format expected by ModalEditToken
 	function convertDateToExpiresFormat(expiresDate: Date | string | null): string {
@@ -143,7 +199,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 				if (type === 'user') {
 					return `Please Confirm User <span class="text-error-500 font-bold">Deletion</span>`;
 				}
-				return m.multibuttontoken_deletetitle();
+				return `Please Confirm Token <span class="text-error-500 font-bold">Deletion</span>`;
 			},
 			modalBody: () => {
 				if (type === 'user') {
@@ -153,8 +209,14 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 					} else {
 						return `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> <span class="text-tertiary-500 font-medium">${selectedRows.length} users</span>? This action cannot be undone and will permanently remove all selected users from the system.`;
 					}
+				} else {
+					if (selectedRows.length === 1) {
+						const token = selectedRows[0] as TokenData;
+						return `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> token for <span class="text-tertiary-500 font-medium">${token.email}</span>? This action cannot be undone and will permanently remove the token from the system.`;
+					} else {
+						return `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> <span class="text-tertiary-500 font-medium">${selectedRows.length} tokens</span>? This action cannot be undone and will permanently remove all selected tokens from the system.`;
+					}
 				}
-				return `Are you sure you want to delete ${selectedRows.length} ${type}(s)?`;
 			},
 			endpoint: () => (type === 'user' ? '/api/user/batch' : '/api/token/batch'),
 			method: () => 'POST',
@@ -169,7 +231,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 				if (type === 'user') {
 					return `Please Confirm User <span class="text-error-500 font-bold">Block</span>`;
 				}
-				return m.multibuttontoken_blocktitle();
+				return `Please Confirm Token <span class="text-error-500 font-bold">Block</span>`;
 			},
 			modalBody: () => {
 				if (type === 'user') {
@@ -179,8 +241,15 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 					} else {
 						return `Are you sure you want to <span class="text-error-500 font-semibold">block</span> <span class="text-tertiary-500 font-medium">${selectedRows.length} users</span>? This will prevent them from accessing the system.`;
 					}
+				} else {
+					// Token blocking with enhanced styling
+					if (selectedRows.length === 1) {
+						const token = selectedRows[0] as TokenData;
+						return `Are you sure you want to <span class="text-error-500 font-semibold">block</span> token for <span class="text-tertiary-500 font-medium">${token.email}</span>? This will prevent the token from being used.`;
+					} else {
+						return `Are you sure you want to <span class="text-error-500 font-semibold">block</span> <span class="text-tertiary-500 font-medium">${selectedRows.length} tokens</span>? This will prevent them from being used.`;
+					}
 				}
-				return `Are you sure you want to block ${selectedRows.length} ${type}(s)?`;
 			},
 			endpoint: () => (type === 'user' ? '/api/user/batch' : '/api/token/batch'),
 			method: () => 'POST',
@@ -195,7 +264,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 				if (type === 'user') {
 					return `Please Confirm User <span class="text-success-500 font-bold">Unblock</span>`;
 				}
-				return m.multibuttontoken_unblocktitle();
+				return `Please Confirm Token <span class="text-success-500 font-bold">Unblock</span>`;
 			},
 			modalBody: () => {
 				if (type === 'user') {
@@ -205,8 +274,15 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 					} else {
 						return `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> <span class="text-tertiary-500 font-medium">${selectedRows.length} users</span>? This will allow them to access the system again.`;
 					}
+				} else {
+					// Token unblocking with enhanced styling
+					if (selectedRows.length === 1) {
+						const token = selectedRows[0] as TokenData;
+						return `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> token for <span class="text-tertiary-500 font-medium">${token.email}</span>? This will allow the token to be used again.`;
+					} else {
+						return `Are you sure you want to <span class="text-success-500 font-semibold">unblock</span> <span class="text-tertiary-500 font-medium">${selectedRows.length} tokens</span>? This will allow them to be used again.`;
+					}
 				}
-				return `Are you sure you want to unblock ${selectedRows.length} ${type}(s)?`;
 			},
 			endpoint: () => (type === 'user' ? '/api/user/batch' : '/api/token/batch'),
 			method: () => 'POST',
@@ -249,24 +325,15 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			return;
 		}
 
-		// Smart validation for block/unblock actions on users
-		if (type === 'user' && (action === 'block' || action === 'unblock')) {
-			const users = selectedRows as UserData[];
-
-			if (action === 'block') {
-				// Check if any selected users are unblocked (can be blocked)
-				const hasUnblockedUsers = users.some((user) => !user.blocked);
-				if (!hasUnblockedUsers) {
-					showToast('All selected users are already blocked', true);
-					return;
-				}
-			} else if (action === 'unblock') {
-				// Check if any selected users are blocked (can be unblocked)
-				const hasBlockedUsers = users.some((user) => user.blocked);
-				if (!hasBlockedUsers) {
-					showToast('All selected users are already unblocked', true);
-					return;
-				}
+		// Check if action is available (shouldn't happen with smart UI, but good safeguard)
+		if (!availableActions().includes(action)) {
+			const currentBlockState = blockState();
+			if (currentBlockState === 'all-blocked' && action === 'block') {
+				showToast('All selected items are already blocked', true);
+				return;
+			} else if (currentBlockState === 'all-unblocked' && action === 'unblock') {
+				showToast('All selected items are already unblocked', true);
+				return;
 			}
 		}
 
@@ -313,13 +380,16 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			buttonTextCancel: 'Cancel',
 			// Custom button styling based on action
 			...(action === 'delete' && {
-				buttonTextConfirm: 'Delete'
+				buttonTextConfirm: 'Delete',
+				meta: { buttonConfirmClasses: 'bg-error-500 hover:bg-error-600 text-white' }
 			}),
 			...(action === 'block' && {
-				buttonTextConfirm: 'Block'
+				buttonTextConfirm: 'Block',
+				meta: { buttonConfirmClasses: 'bg-pink-500 hover:bg-pink-600 text-white' }
 			}),
 			...(action === 'unblock' && {
-				buttonTextConfirm: 'Unblock'
+				buttonTextConfirm: 'Unblock',
+				meta: { buttonConfirmClasses: 'variant-filled-warning' }
 			}),
 			...(isEdit && { component: modalComponent }),
 			response: async (r: ModalResponse | boolean) => {
@@ -403,6 +473,15 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 					}
 
 					showToast(toastMessage, false, config.toastBackground);
+
+					// Dispatch token update event for parent component to handle local state updates
+					if (type === 'token' && (action === 'block' || action === 'unblock')) {
+						dispatch('tokenUpdate', {
+							tokenIds: selectedRows.map((row: UserData | TokenData) => (row as TokenData).token),
+							action: action
+						});
+					}
+
 					await invalidateAll();
 				} catch (error) {
 					console.error(`Error during action '${action}' for type '${type}':`, error);
@@ -455,15 +534,21 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 <!-- Dropdown/Listbox -->
 <div class="overflow-hiddens card z-10 w-48 rounded-sm bg-surface-500 text-white" data-popup="Combobox" role="menu" aria-label="Available actions">
 	<ListBox rounded="rounded-sm" active="variant-filled-primary" hover="hover:bg-surface-300" class="divide-y">
-		{#each Object.entries(actionConfig) as [action, config]}
-			{#if action !== listboxValue}
-				<ListBoxItem bind:group={listboxValue} name="medium" value={action} active="variant-filled-primary" hover={config.hoverClass} role="menuitem">
-					{#snippet lead()}
-						<iconify-icon icon={config.iconValue} width="20" class="mr-1" role="presentation" aria-hidden="true"></iconify-icon>
-					{/snippet}
-					{action}
-				</ListBoxItem>
-			{/if}
+		{#each availableActions().filter((action) => action !== listboxValue) as action}
+			{@const actionKey = action as ActionType}
+			<ListBoxItem
+				bind:group={listboxValue}
+				name="medium"
+				value={action}
+				active="variant-filled-primary"
+				hover={actionConfig[actionKey].hoverClass}
+				role="menuitem"
+			>
+				{#snippet lead()}
+					<iconify-icon icon={actionConfig[actionKey].iconValue} width="20" class="mr-1" role="presentation" aria-hidden="true"></iconify-icon>
+				{/snippet}
+				{action}
+			</ListBoxItem>
 		{/each}
 	</ListBox>
 </div>

@@ -13,6 +13,9 @@
 -->
 
 <script lang="ts">
+	// Import StatusTypes for centralized status management
+	import { StatusTypes } from '@src/content/types';
+	
 	// Stores
 	import { storeListboxValue } from '@stores/store.svelte';
 
@@ -50,10 +53,10 @@
 		aria-labelledby={checked ? 'true' : 'false'}
 		role="checkbox"
 		class="flex h-[26px] w-[26px] items-center justify-center rounded border-[3px] bg-white dark:bg-transparent
-			{iconStatus === 'unpublish' ? 'border-yellow-500' : ''}
-			{iconStatus === 'publish' ? 'border-primary-500' : ''}
-			{iconStatus === 'schedule' ? 'border-pink-500' : ''}
-			{iconStatus === 'test' ? 'border-red-500' : ''}
+			{iconStatus === StatusTypes.unpublish ? 'border-yellow-500' : ''}
+			{iconStatus === StatusTypes.publish ? 'border-primary-500' : ''}
+			{iconStatus === StatusTypes.schedule ? 'border-pink-500' : ''}
+			{iconStatus === StatusTypes.test ? 'border-red-500' : ''}
 			{iconStatus === undefined ? 'border-surface-800' : ''} 
 			{!iconStatus ? 'dark:border-surface-400' : ''}"
 	>

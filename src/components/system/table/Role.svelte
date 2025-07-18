@@ -15,17 +15,19 @@
 
 <script lang="ts">
 	// Auth
-	import { roles as configRoles } from '@root/config/roles';
+	import { roles as configRoles, initializeRoles } from '@root/config/roles';
 	import type { Role } from '@src/auth';
 
-	let roles = $state<Role[]>(configRoles);
+	let roles = $state<Role[]>([]);
 
 	// Ensure roles is an array
 	let { value } = $props<{ value: string }>();
 
 	// Initialize roles from config
 	$effect(() => {
-		roles = configRoles;
+		initializeRoles().then(() => {
+			roles = configRoles;
+		});
 	});
 
 	// Determine if the roles array is defined and has the required elements

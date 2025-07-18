@@ -27,6 +27,9 @@ This component provides a streamlined interface for managing collection entries 
 	import { apiRequest } from '../utils/apiClient';
 	// Correctly import the new, direct action handlers
 	import { cloneCurrentEntry, deleteCurrentEntry } from '../utils/entryActions';
+	
+	// Import StatusTypes for centralized status management
+	import { StatusTypes } from '@src/content/types';
 
 	// Stores
 	import { page } from '$app/state';
@@ -57,7 +60,7 @@ This component provides a streamlined interface for managing collection entries 
 
 	$effect(() => {
 		const cv = collectionValue.value;
-		isPublish = cv?.status === 'publish';
+		isPublish = cv?.status === StatusTypes.publish;
 		schedule = cv?._scheduled ? new Date(Number(cv._scheduled)).toISOString().slice(0, 16) : '';
 	});
 
@@ -88,7 +91,7 @@ This component provides a streamlined interface for managing collection entries 
 					if (r.action === 'schedule') {
 						collectionValue.update((cv) => ({
 							...cv,
-							status: 'schedule',
+							status: StatusTypes.schedule,
 							_scheduled: new Date(r.date).getTime()
 						}));
 					}
@@ -102,7 +105,7 @@ This component provides a streamlined interface for managing collection entries 
 		isPublish = !isPublish;
 		collectionValue.update((cv) => ({
 			...cv,
-			status: isPublish ? 'publish' : 'unpublish',
+			status: isPublish ? StatusTypes.publish : StatusTypes.unpublish,
 			updatedAt: new Date()
 		}));
 	}

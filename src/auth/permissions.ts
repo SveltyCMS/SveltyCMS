@@ -232,6 +232,13 @@ export const permissionConfigs: Record<string, { contextId: string; action: stri
 		type: 'user',
 		name: 'Create User Token',
 		description: 'Create user registration tokens'
+	},
+	userManage: {
+		contextId: 'user:manage',
+		action: 'manage',
+		type: 'user',
+		name: 'User Management',
+		description: 'Manage user accounts and roles'
 	}
 };
 

@@ -225,7 +225,7 @@
 				{/if}
 
 				<!-- Content Area -->
-				<main class="relative z-0 w-full min-w-0 flex-1 overflow-y-auto">
+				<main class="relative z-0 w-full min-w-0 flex-1">
 					<!-- Page Header -->
 					{#if uiStateManager.uiState.value.pageheader !== 'hidden'}
 						<header class="sticky top-0 z-10 w-full"><HeaderEdit /></header>

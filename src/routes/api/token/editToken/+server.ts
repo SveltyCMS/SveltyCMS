@@ -22,7 +22,8 @@ import type { RequestHandler } from './$types';
 // Auth and permission helpers
 // Auth (Database Agnostic)
 import { auth } from '@src/databases/db';
-import { checkApiPermission } from '@api/permissions'; // Import static roles for fallback
+import { checkApiPermission } from '@api/permissions';
+import { roles, initializeRoles } from '@root/config/roles';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -74,6 +75,9 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 		}
 
 		const dataToUpdate: { role?: string; expires?: Date } = {};
+
+		// Initialize roles to ensure they are available
+		await initializeRoles();
 
 		// If a new role is provided, validate it exists.
 		if (newTokenData.role) {

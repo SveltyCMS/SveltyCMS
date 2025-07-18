@@ -6,7 +6,7 @@
 import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-// Simplified Auth
+// Auth
 import { hasPermissionWithRoles, getAllPermissions } from '@src/auth/permissions';
 import { initializeRoles, roles } from '@root/config/roles';
 

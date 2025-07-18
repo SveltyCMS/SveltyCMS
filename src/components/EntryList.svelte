@@ -33,6 +33,7 @@ Features:
 	import { debounce as debounceUtil, getFieldName, meta_data } from '@utils/utils';
 	// Types
 	import type { PaginationSettings, TableHeader } from '@components/system/table/TablePagination.svelte';
+	import { StatusTypes } from '@src/content/types';
 	// Stores
 	import { screenSize } from '@src/stores/screenSizeStore.svelte';
 	import { collection, collectionValue, contentStructure, mode, modifyEntry, statusMap } from '@stores/collectionStore.svelte';
@@ -648,15 +649,15 @@ Features:
 		let modalClass = '';
 
 		switch (status) {
-			case 'publish':
+			case StatusTypes.publish:
 				actionText = 'Publish';
 				modalClass = 'modal-confirm-publish';
 				break;
-			case 'unpublish':
+			case StatusTypes.unpublish:
 				actionText = 'Unpublish';
 				modalClass = 'modal-confirm-unpublish';
 				break;
-			case 'test':
+			case StatusTypes.test:
 				actionText = 'Test';
 				modalClass = 'modal-confirm-test';
 				break;
@@ -688,10 +689,10 @@ Features:
 
 	// Functions to handle actions from EntryListMultiButton
 	function onPublish() {
-		modifyEntry.value('publish');
+		modifyEntry.value(StatusTypes.publish);
 	}
 	function onUnpublish() {
-		modifyEntry.value('unpublish');
+		modifyEntry.value(StatusTypes.unpublish);
 	}
 	function onSchedule() {
 		const selectedIds = Object.entries(selectedMap)
@@ -714,7 +715,7 @@ Features:
 				try {
 					// Use the updateStatus function to set status to 'scheduled' with scheduling metadata
 					// For now, we'll set status to 'scheduled' - later we can enhance the status endpoint to support scheduling fields
-					await updateStatus(currentCollection._id, selectedIds[0], 'schedule', selectedIds);
+					await updateStatus(currentCollection._id, selectedIds[0], StatusTypes.schedule, selectedIds);
 					toastStore.trigger({ message: 'Items scheduled successfully.', background: 'variant-filled-success' });
 					invalidateCollectionCache(currentCollection._id);
 					refreshTableData();
@@ -800,7 +801,7 @@ Features:
 							delete clonedPayload._id; // Remove original ID
 							delete clonedPayload.createdAt;
 							delete clonedPayload.updatedAt;
-							clonedPayload.status = 'unpublish';
+							clonedPayload.status = StatusTypes.unpublish;
 							return apiRequest('POST', currentCollection!._id, clonedPayload);
 						});
 						await Promise.all(clonePromises);
@@ -1127,11 +1128,11 @@ Features:
 													// If the entry is publish, automatically set it to unpublish
 													// This follows CMS best practices where editing publish content
 													// creates a draft that needs to be republish
-													if (originalEntry.status === 'publish') {
+													if (originalEntry.status === StatusTypes.publish) {
 														// Update the local collectionValue to unpublish status
 														collectionValue.update((current) => ({
 															...current,
-															status: 'unpublish'
+															status: StatusTypes.unpublish
 														})); // Show user feedback about the status change
 														toastStore.trigger({
 															message: 'Entry moved to draft mode for editing. Republish when ready.',

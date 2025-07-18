@@ -27,9 +27,11 @@
  - Full dark mode support with theme-based styling
 -->
 <script lang="ts">
-	// mport apiRequest for general requests, and entryActions for specific entity actions
+	// Import apiRequest for general requests, and entryActions for specific entity actions
 	import { apiRequest } from '@utils/apiClient';
 	import { deleteCurrentEntry, setEntryStatus, cloneCurrentEntry } from '@utils/entryActions'; // Directly use these specific actions
+	// Types
+	import { StatusTypes } from '@src/content/types';
 
 	// Components
 	import ScheduleModal from './ScheduleModal.svelte';
@@ -48,6 +50,8 @@
 	import { contentLanguage, headerActionButton, tabSet, validationStore } from '@stores/store.svelte';
 	// Auth
 	import type { User } from '@src/auth/types';
+	// Types
+	import type { StatusType } from '@src/content/types';
 	let user = $derived(page.data.user as User);
 
 	// ParaglideJS
@@ -57,9 +61,6 @@
 		date: string;
 		action: string;
 	}
-
-	// Define StatusType based on statusMap values
-	type StatusType = (typeof statusMap)[keyof typeof statusMap];
 
 	interface CollectionData extends Record<string, any> {
 		_id?: string;
@@ -103,7 +104,7 @@
 					if (r.action === 'schedule') {
 						const newValue = {
 							...collectionValue.value,
-							status: statusMap.schedule as StatusType,
+							status: StatusTypes.schedule,
 							_scheduled: new Date(r.date).getTime()
 						};
 						collectionValue.set(newValue);
@@ -320,7 +321,7 @@
 					<div class="flex flex-col items-center justify-center">
 						<button
 							type="button"
-							onclick={() => setEntryStatus('publish')}
+							onclick={() => setEntryStatus(StatusTypes.publish)}
 							disabled={!(collection.value?.permissions?.[user.role]?.write && collection.value?.permissions?.[user.role]?.create)}
 							class="gradient-tertiary gradient-tertiary-hover gradient-tertiary-focus btn-icon"
 							aria-label="Publish entry"
@@ -344,7 +345,7 @@
 					<div class="flex flex-col items-center justify-center">
 						<button
 							type="button"
-							onclick={() => setEntryStatus('unpublish')}
+							onclick={() => setEntryStatus(StatusTypes.unpublish)}
 							disabled={!collection.value?.permissions?.[user.role]?.write}
 							class="gradient-yellow gradient-yellow-hover gradient-yellow-focus btn-icon"
 							aria-label="Unpublish entry"

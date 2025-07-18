@@ -76,7 +76,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		switch (action) {
 			case 'delete': {
-				await auth.deleteTokens(tokenIds);
+				// TODO: Add deleteTokens to database-agnostic interface
+				const tokenAdapter = new TokenAdapter();
+				await tokenAdapter.deleteTokens(tokenIds);
 				successMessage = 'Tokens deleted successfully.';
 				break;
 			}
@@ -89,8 +91,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			}
 			case 'unblock': {
 				// TODO: Add unblockTokens to database-agnostic interface
-				const tokenAdapter2 = new TokenAdapter();
-				await tokenAdapter2.unblockTokens(tokenIds);
+				const tokenAdapter = new TokenAdapter();
+				await tokenAdapter.unblockTokens(tokenIds);
 				successMessage = 'Tokens unblocked successfully.';
 				break;
 			}

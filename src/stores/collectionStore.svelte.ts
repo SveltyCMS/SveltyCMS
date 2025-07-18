@@ -11,7 +11,9 @@
 
 import { store } from '@utils/reactivity.svelte';
 import type { Schema } from '@src/content/types';
+import { StatusTypes } from '@src/content/types';
 import type { ContentNode } from '../databases/dbInterface';
+import { SvelteMap } from 'svelte/reactivity';
 
 // Define types
 type ModeType = 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
@@ -23,18 +25,11 @@ interface Widget {
 }
 
 // Status map for various collection states
-export const statusMap = {
-	delete: 'delete',
-	publish: 'publish',
-	unpublish: 'unpublish',
-	schedule: 'schedule',
-	clone: 'clone',
-	test: 'test'
-} as const;
+export const statusMap = StatusTypes;
 
 // Create reactive stores
 export const collections = store<{ [uuid: string]: Schema }>({});
-export const collectionsById = store<Map<string, Schema>>(new Map());
+export const collectionsById = store<SvelteMap<string, Schema>>(new SvelteMap());
 export const currentCollectionId = store<string | null>(null);
 
 // Keep existing stores

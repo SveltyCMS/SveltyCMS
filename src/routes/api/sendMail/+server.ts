@@ -130,21 +130,28 @@ function createErrorResponse(message: string, status: number = 500) {
 
 // --- POST Handler ---
 export const POST: RequestHandler = async ({ request, locals }) => {
-	// Check sendMail permissions
-	const permissionResult = await checkApiPermission(locals.user, {
-		resource: 'sendMail',
-		action: 'write'
-	});
+	// Check for internal API calls (from createToken API)
+	const isInternalCall = request.headers.get('x-internal-call') === 'true';
 
-	if (!permissionResult.hasPermission) {
-		logger.warn('Unauthorized attempt to send email', {
-			userId: locals.user?._id,
-			error: permissionResult.error
+	// Check sendMail permissions (skip for internal calls)
+	if (!isInternalCall) {
+		const permissionResult = await checkApiPermission(locals.user, {
+			resource: 'sendMail',
+			action: 'write'
 		});
-		return createErrorResponse(permissionResult.error || 'Forbidden', permissionResult.error?.includes('Authentication') ? 401 : 403);
-	}
 
-	logger.debug(`User '${locals.user?.username || 'Unknown (hook issue or public access attempt)'}' calling /api/sendMail`);
+		if (!permissionResult.hasPermission) {
+			logger.warn('Unauthorized attempt to send email', {
+				userId: locals.user?._id,
+				error: permissionResult.error
+			});
+			return createErrorResponse(permissionResult.error || 'Forbidden', permissionResult.error?.includes('Authentication') ? 401 : 403);
+		}
+
+		logger.debug(`User '${locals.user?.username || 'Unknown (hook issue or public access attempt)'}' calling /api/sendMail`);
+	} else {
+		logger.debug('Internal API call to /api/sendMail');
+	}
 
 	let requestBody: {
 		recipientEmail: string;

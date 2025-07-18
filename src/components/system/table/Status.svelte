@@ -13,6 +13,9 @@ Value can be: publish, unpublish, schedule, delete, clone, test, draft
 -->
 
 <script lang="ts">
+	// Import StatusTypes for centralized status management
+	import { StatusTypes } from '@src/content/types';
+	
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -24,42 +27,42 @@ Value can be: publish, unpublish, schedule, delete, clone, test, draft
 <!-- Display different badges for different statuses -->
 <div
 	class="grid w-full max-w-full grid-cols-1 items-center justify-start overflow-hidden rounded py-1.5 text-left text-white sm:grid-cols-2
-		{value === 'publish'
+		{value === StatusTypes.publish
 		? 'gradient-primary'
-		: value === 'unpublish'
+		: value === StatusTypes.unpublish
 			? 'gradient-yellow'
-			: value === 'schedule'
+			: value === StatusTypes.schedule
 				? 'gradient-pink'
-				: value === 'delete'
+				: value === StatusTypes.delete
 					? 'bg-surface-500 text-white'
-					: value === 'clone'
+					: value === StatusTypes.clone
 						? 'gradient-secondary'
-						: value === 'test'
+						: value === StatusTypes.test
 							? 'gradient-error'
-							: value === 'draft'
+							: value === StatusTypes.draft
 								? 'variant-ghost text-surface-900-50-token'
 								: 'badge'} rounded text-center"
 	title={`Status: ${value}`}
 >
-	{#if value === 'publish'}
+	{#if value === StatusTypes.publish}
 		<iconify-icon icon="bi:hand-thumbs-up-fill" width="20" class="mx-auto"></iconify-icon>
 		<p class="hidden sm:block">{m.entrylist_multibutton_publish()}</p>
-	{:else if value === 'unpublish'}
+	{:else if value === StatusTypes.unpublish}
 		<iconify-icon icon="bi:pause-circle" width="20" class="mx-auto"></iconify-icon>
 		<p class="hidden sm:block">{m.entrylist_multibutton_unpublish()}</p>
-	{:else if value === 'schedule'}
+	{:else if value === StatusTypes.schedule}
 		<iconify-icon icon="bi:clock" width="20" class="mx-auto"></iconify-icon>
 		<p class="hidden sm:block">{m.entrylist_multibutton_schedule()}</p>
-	{:else if value === 'delete'}
+	{:else if value === StatusTypes.delete}
 		<iconify-icon icon="bi:trash3-fill" width="20" class="mx-auto"></iconify-icon>
 		<p class="hidden sm:block">Deleted</p>
-	{:else if value === 'clone'}
+	{:else if value === StatusTypes.clone}
 		<iconify-icon icon="bi:clipboard-data-fill" width="20" class="mx-auto"></iconify-icon>
 		<p class="hidden sm:block">{m.entrylist_multibutton_clone()}</p>
-	{:else if value === 'test'}
+	{:else if value === StatusTypes.test}
 		<iconify-icon icon="icon-park-outline:preview-open" width="20" class="mx-auto"></iconify-icon>
 		<p class="hidden sm:block">{m.entrylist_multibutton_testing()}</p>
-	{:else if value === 'draft'}
+	{:else if value === StatusTypes.draft}
 		<iconify-icon icon="bi:pencil-square" width="20" class="mx-auto"></iconify-icon>
 		<p class="hidden sm:block">Draft</p>
 	{:else}

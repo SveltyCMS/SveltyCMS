@@ -20,6 +20,7 @@ import type { RequestHandler } from './$types';
 // Auth (Database Agnostic)
 import { auth } from '@src/databases/db';
 import { checkApiPermission } from '@api/permissions';
+import { roles, initializeRoles } from '@root/config/roles';
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
@@ -68,31 +69,30 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 		const validatedData = parse(addUserTokenSchema, body);
 		logger.debug('Validated data:', validatedData);
 
-		// Check if a user with this email already exists in the main user collection.
-		const existingUser = await auth.checkUser({ email: validatedData.email });
+		// Initialize roles and validate the selected role
+		await initializeRoles();
+		const roleInfo = roles.find((r) => r._id === validatedData.role);
+		if (!roleInfo) {
+			throw error(400, 'Invalid role selected.');
+		}
+
+		// Quick checks (fail fast)
+		const [existingUser, existingTokens] = await Promise.all([
+			auth.checkUser({ email: validatedData.email }),
+			auth.getAllTokens({ email: validatedData.email })
+		]);
+
 		if (existingUser) {
 			logger.warn('Attempted to create token for an already existing user', { email: validatedData.email });
 			throw error(409, 'A user with this email address already exists.');
 		}
 
-		// Check if an invitation token already exists for this email.
-		if (!auth) {
-			logger.error('Database authentication adapter not initialized');
-			throw error(500, 'Database authentication not available');
-		}
-		// Check if a token already exists for this email
-
-		const existingTokens = await auth.getAllTokens({ email: validatedData.email });
 		if (existingTokens && existingTokens.length > 0) {
 			logger.warn('Attempted to create a token for an email that already has one', { email: validatedData.email });
 			throw error(409, 'An invitation token for this email already exists. Please delete the existing token first.');
 		}
 
-		// Find the role object to get its name for the email template
-		const roleInfo = roles.find((r) => r._id === validatedData.role);
-		const roleName = roleInfo ? roleInfo.name : validatedData.role; // Fallback to role ID if not found
-
-		// Define expiration times based on the schema's allowed values.
+		// Calculate expiration date
 		const expirationInSeconds: Record<string, number> = {
 			'2 hrs': 7200,
 			'12 hrs': 43200,
@@ -105,16 +105,14 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 		if (!expiresInSeconds) {
 			throw error(400, 'Invalid expiration value provided.');
 		}
-
 		const expires = new Date(Date.now() + expiresInSeconds * 1000);
 
-		// Create a new token using the database-agnostic auth adapter
-		const token = await auth.createToken({
-			user_id: uuidv4(), // Use uuidv4 to generate a unique user_id
-			email: validatedData.email.toLowerCase(), // Normalize email to lowercase
+		// Create token with pre-generated user_id for when user actually registers
+		const token = await auth.db.createToken({
+			user_id: uuidv4(), // This will be used when the user actually registers
+			email: validatedData.email.toLowerCase(),
 			expires,
 			type: 'user-invite',
-			username: validatedData.username,
 			role: validatedData.role
 		});
 
@@ -125,42 +123,47 @@ export const POST: RequestHandler = async ({ request, locals, fetch, url }) => {
 
 		logger.info('Token created successfully', { email: validatedData.email });
 
-		// Generate a link to the login page with the invite token as a query parameter.
-		const origin = url.origin;
-		const inviteLink = `${origin}/login?invite_token=${token}`;
+		// Generate invitation link
+		const inviteLink = `${url.origin}/login?invite_token=${token}`;
 
-		// Send invitation email using the internal sendMail API.
-		const emailApiUrl = `${origin}/api/sendMail`;
-
-		// Send invitation email using the internal sendMail API.
-		const emailResponse = await fetch(emailApiUrl, {
+		// Send invitation email
+		const emailResponse = await fetch(`${url.origin}/api/sendMail`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			headers: {
+				'Content-Type': 'application/json',
+				'x-internal-call': 'true' // Mark as internal call to bypass auth
+			},
 			body: JSON.stringify({
-				recipientEmail: validatedData.email, // Changed from 'email' to 'recipientEmail'
+				recipientEmail: validatedData.email,
 				subject: 'Invitation to Register',
 				templateName: 'userToken',
 				props: {
-					username: '', // Will be filled by the user during signup
 					email: validatedData.email,
-					role: roleName, // Send user-friendly role name
-					token: token, // Include the raw token for fallback
-					tokenLink: inviteLink, // Pass the full magic link to the template
+					role: roleInfo.name, // Use the role name for display
+					token: token,
+					tokenLink: inviteLink,
 					expiresInLabel: validatedData.expiresIn,
 					languageTag: getLocale()
 				}
 			})
 		});
 
-		// If sending the email fails, roll back by deleting the created token.
+		// Handle email sending failure
 		if (!emailResponse.ok) {
 			const emailError = await emailResponse.json();
-			logger.error('Failed to send invitation email, rolling back token creation.', { email: validatedData.email, error: emailError });
+			logger.error('Failed to send invitation email, rolling back token creation.', {
+				email: validatedData.email,
+				error: emailError
+			});
+			// Rollback: delete the created token
 			await auth.consumeToken(token);
 			throw error(500, emailError.message || 'Failed to send invitation email.');
 		}
 
-		logger.info('Token created and email sent successfully', { email: validatedData.email, role: roleName });
+		logger.info('Token created and email sent successfully', {
+			email: validatedData.email,
+			role: roleInfo.name
+		});
 
 		// Invalidate the admin cache for tokens so the UI refreshes immediately
 		invalidateAdminCache('tokens');

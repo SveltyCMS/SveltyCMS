@@ -19,6 +19,9 @@
 -->
 
 <script lang="ts">
+	// Types
+	import { StatusTypes } from '@src/content/types';
+
 	// Stores
 	import { mode, collectionValue } from '@src/stores/collectionStore.svelte';
 	import { handleUILayoutToggle } from '@src/stores/UIStore.svelte';
@@ -36,7 +39,7 @@
 	// Initialize the modal store at the top level.
 	const modalStore = getModalStore();
 
-	type ActionType = 'create' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'delete' | 'test';
+	type ActionType = 'create' | keyof typeof StatusTypes;
 
 	interface Props {
 		isCollectionEmpty?: boolean;
@@ -99,22 +102,22 @@
 				handleUILayoutToggle();
 				create();
 				break;
-			case 'publish':
-				publish(); // Emit the 'publish' event.
+			case StatusTypes.publish:
+				openPublishModal(); // Open colorful confirmation modal
 				break;
-			case 'unpublish':
-				unpublish(); // Emit the 'unpublish' event.
+			case StatusTypes.unpublish:
+				openUnpublishModal(); // Open colorful confirmation modal
 				break;
-			case 'schedule':
+			case StatusTypes.schedule:
 				openScheduleModal(); // Open the modal, which will call onSchedule.
 				break;
-			case 'clone':
-				clone(); // Emit the 'clone' event.
+			case StatusTypes.clone:
+				openCloneModal(); // Open colorful confirmation modal
 				break;
-			case 'delete':
-				deleteAction(); // Emit the 'delete' event.
+			case StatusTypes.delete:
+				openDeleteModal(); // Open colorful confirmation modal
 				break;
-			case 'test':
+			case StatusTypes.test:
 				test(); // Emit the 'test' event.
 				break;
 		}
@@ -132,18 +135,110 @@
 		// Set the action for the main button
 		storeListboxValue.set(value);
 
-		// For destructive actions or actions that open modals, handle them immediately.
-		// The main button click will handle the rest.
+		// For actions that require confirmation, handle them immediately.
 		switch (value) {
-			case 'schedule':
+			case StatusTypes.schedule:
 				openScheduleModal();
 				break;
-			case 'delete':
-				deleteAction();
+			case StatusTypes.delete:
+				openDeleteModal();
+				break;
+			case StatusTypes.publish:
+				openPublishModal();
+				break;
+			case StatusTypes.unpublish:
+				openUnpublishModal();
+				break;
+			case StatusTypes.clone:
+				openCloneModal();
 				break;
 		}
 
 		dropdownOpen = false;
+	}
+
+	// Enhanced Delete Modal with colorful styling
+	function openDeleteModal(): void {
+		const modalSettings: ModalSettings = {
+			type: 'confirm',
+			title: `Please Confirm Entry <span class="text-error-500 font-bold">Deletion</span>`,
+			body:
+				selectedCount === 1
+					? `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> this entry? This action cannot be undone and will permanently remove the entry from the system.`
+					: `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> <span class="text-tertiary-500 font-medium">${selectedCount} entries</span>? This action cannot be undone and will permanently remove all selected entries from the system.`,
+			buttonTextConfirm: 'Delete',
+			buttonTextCancel: 'Cancel',
+			meta: { buttonConfirmClasses: 'bg-error-500 hover:bg-error-600 text-white' },
+			response: (confirmed: boolean) => {
+				if (confirmed) {
+					deleteAction();
+				}
+			}
+		};
+		modalStore.trigger(modalSettings);
+	}
+
+	// Enhanced Publish Modal with colorful styling
+	function openPublishModal(): void {
+		const modalSettings: ModalSettings = {
+			type: 'confirm',
+			title: `Please Confirm Entry <span class="text-primary-500 font-bold">Publication</span>`,
+			body:
+				selectedCount === 1
+					? `Are you sure you want to <span class="text-primary-500 font-semibold">publish</span> this entry? This will make it visible to the public.`
+					: `Are you sure you want to <span class="text-primary-500 font-semibold">publish</span> <span class="text-tertiary-500 font-medium">${selectedCount} entries</span>? This will make all selected entries visible to the public.`,
+			buttonTextConfirm: 'Publish',
+			buttonTextCancel: 'Cancel',
+			meta: { buttonConfirmClasses: 'bg-primary-500 hover:bg-primary-600 text-white' },
+			response: (confirmed: boolean) => {
+				if (confirmed) {
+					publish();
+				}
+			}
+		};
+		modalStore.trigger(modalSettings);
+	}
+
+	// Enhanced Unpublish Modal with colorful styling
+	function openUnpublishModal(): void {
+		const modalSettings: ModalSettings = {
+			type: 'confirm',
+			title: `Please Confirm Entry <span class="text-yellow-500 font-bold">Unpublication</span>`,
+			body:
+				selectedCount === 1
+					? `Are you sure you want to <span class="text-yellow-500 font-semibold">unpublish</span> this entry? This will hide it from the public.`
+					: `Are you sure you want to <span class="text-yellow-500 font-semibold">unpublish</span> <span class="text-tertiary-500 font-medium">${selectedCount} entries</span>? This will hide all selected entries from the public.`,
+			buttonTextConfirm: 'Unpublish',
+			buttonTextCancel: 'Cancel',
+			meta: { buttonConfirmClasses: 'bg-yellow-500 hover:bg-yellow-600 text-white' },
+			response: (confirmed: boolean) => {
+				if (confirmed) {
+					unpublish();
+				}
+			}
+		};
+		modalStore.trigger(modalSettings);
+	}
+
+	// Enhanced Clone Modal with colorful styling
+	function openCloneModal(): void {
+		const modalSettings: ModalSettings = {
+			type: 'confirm',
+			title: `Please Confirm Entry <span class="text-secondary-500 font-bold">Cloning</span>`,
+			body:
+				selectedCount === 1
+					? `Are you sure you want to <span class="text-secondary-500 font-semibold">clone</span> this entry? This will create a duplicate copy.`
+					: `Are you sure you want to <span class="text-secondary-500 font-semibold">clone</span> <span class="text-tertiary-500 font-medium">${selectedCount} entries</span>? This will create duplicate copies of all selected entries.`,
+			buttonTextConfirm: 'Clone',
+			buttonTextCancel: 'Cancel',
+			meta: { buttonConfirmClasses: 'bg-secondary-500 hover:bg-secondary-600 text-white' },
+			response: (confirmed: boolean) => {
+				if (confirmed) {
+					clone();
+				}
+			}
+		};
+		modalStore.trigger(modalSettings);
 	}
 
 	const buttonMap: Record<ActionType, [string, string, string, string]> = {
@@ -153,7 +248,8 @@
 		schedule: [m.entrylist_multibutton_schedule(), 'gradient-pink', 'bi:clock', 'text-pink-500'],
 		clone: [m.entrylist_multibutton_clone(), 'gradient-secondary', 'bi:clipboard-data-fill', 'text-secondary-500'],
 		delete: [m.button_delete(), 'gradient-error', 'bi:trash3-fill', 'text-error-500'],
-		test: [m.entrylist_multibutton_testing(), 'gradient-error', 'icon-park-outline:preview-open', 'text-error-500']
+		test: [m.entrylist_multibutton_testing(), 'gradient-error', 'icon-park-outline:preview-open', 'text-error-500'],
+		draft: [m.entrylist_multibutton_draft ? m.entrylist_multibutton_draft() : 'Draft', 'gradient-gray', 'bi:pencil', 'text-gray-500']
 	};
 
 	// Update button display when storeListboxValue changes using root effect

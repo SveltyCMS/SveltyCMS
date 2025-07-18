@@ -22,6 +22,8 @@ import type { RequestHandler } from './$types';
 // Auth
 // Auth (Database Agnostic)
 import { auth } from '@src/databases/db';
+// TODO: Remove once updateToken is added to database-agnostic interface
+import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
 import { checkApiPermission } from '@api/permissions';
 
 // Validation
@@ -73,8 +75,9 @@ export const PUT: RequestHandler = async ({ request, params, locals }) => {
 			throw error(500, 'Database authentication not available');
 		}
 
-		// FIX: Using the now-defined `updateToken` method from the interface
-		await auth.updateToken(tokenId, newTokenData);
+		// TODO: Use database-agnostic interface once updateToken is implemented
+		const tokenAdapter = new TokenAdapter();
+		await tokenAdapter.updateToken(tokenId, newTokenData);
 
 		logger.info('Token updated successfully', { tokenId, updateData: newTokenData });
 

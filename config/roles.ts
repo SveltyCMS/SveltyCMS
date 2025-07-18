@@ -59,7 +59,8 @@ export async function initializeRoles(): Promise<void> {
 				'api:collections',
 				'api:user',
 				'api:userActivity',
-				'api:media'
+				'api:media',
+				'user:manage' // Allow editors to manage users
 			],
 			icon: 'material-symbols:edit',
 			color: 'gradient-tertiary'

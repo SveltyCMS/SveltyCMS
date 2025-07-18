@@ -4,6 +4,8 @@
  */
 
 import { apiRequest, updateStatus } from './apiClient';
+// Types
+import { StatusTypes, type StatusType } from '@src/content/types';
 // Stores
 import { collection, mode, collectionValue } from '@stores/collectionStore.svelte';
 // Skeleton
@@ -52,8 +54,7 @@ export async function deleteCurrentEntry() {
 }
 
 // Changes the status of the currently active entry
-export async function setEntryStatus(newStatus: 'publish' | 'unpublish' | 'schedule' | 'deleted' | 'test') {
-	// Added 'deleted' and 'test' if they are statuses
+export async function setEntryStatus(newStatus: StatusType) {
 	const toastStore = getToastStore();
 
 	const entry = collectionValue.value;
@@ -98,7 +99,7 @@ export async function cloneCurrentEntry() {
 		delete clonedPayload._id; // Ensure new entry gets a new ID
 		delete clonedPayload.createdAt; // New entry has new creation date
 		delete clonedPayload.updatedAt; // New entry has new update date
-		clonedPayload.status = 'unpublish'; // Cloned entries should typically start as unpublished
+		clonedPayload.status = StatusTypes.unpublish; // Cloned entries should typically start as unpublish
 
 		await apiRequest('POST', coll._id, clonedPayload);
 		toastStore.trigger({ message: m.entry_cloned_success(), background: 'variant-filled-success' });
