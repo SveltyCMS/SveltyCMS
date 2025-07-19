@@ -27,7 +27,7 @@ This component provides a streamlined interface for managing collection entries 
 	import { apiRequest } from '../utils/apiClient';
 	// Correctly import the new, direct action handlers
 	import { cloneCurrentEntry, deleteCurrentEntry } from '../utils/entryActions';
-	
+
 	// Import StatusTypes for centralized status management
 	import { StatusTypes } from '@src/content/types';
 
@@ -119,9 +119,17 @@ This component provides a streamlined interface for managing collection entries 
 		const dataToSave = { ...collectionValue.value };
 		if (!currentCollection) return;
 
-		if (mode.value === 'create') dataToSave.createdBy = user?.username ?? 'system';
+		// Set metadata for all saves
+		if (mode.value === 'create') {
+			dataToSave.createdBy = user?.username ?? 'system';
+			// Apply collection schema defaults for new entries
+			if (!dataToSave.status && currentCollection?.status) {
+				dataToSave.status = currentCollection.status;
+			}
+		}
 		dataToSave.updatedBy = user?.username ?? 'system';
 
+		// Handle scheduling if set
 		if (schedule && schedule.trim() !== '') {
 			dataToSave._scheduled = new Date(schedule).getTime();
 		} else {

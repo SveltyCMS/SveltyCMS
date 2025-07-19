@@ -677,40 +677,80 @@ Features:
 		};
 
 		const itemCount = modifyList.length;
-		const itemText = itemCount === 1 ? 'item' : 'items';
+		const itemText = itemCount === 1 ? 'entry' : 'entries';
 
-		let actionText: string;
-		let modalClass = '';
+		let modalSettings: ModalSettings;
 
 		switch (status) {
 			case StatusTypes.publish:
-				actionText = 'Publish';
-				modalClass = 'modal-confirm-publish';
+				modalSettings = {
+					type: 'confirm',
+					title: `Please Confirm Entry <span class="text-primary-500 font-bold">Publication</span>`,
+					body:
+						itemCount === 1
+							? `Are you sure you want to <span class="text-primary-500 font-semibold">publish</span> this entry? This will make it visible to the public.`
+							: `Are you sure you want to <span class="text-primary-500 font-semibold">publish</span> <span class="text-tertiary-500 font-medium">${itemCount} entries</span>? This will make all selected entries visible to the public.`,
+					buttonTextConfirm: 'Publish',
+					buttonTextCancel: 'Cancel',
+					meta: { buttonConfirmClasses: 'bg-primary-500 hover:bg-primary-600 text-white' },
+					response: (r: boolean) => handleConfirmation(r)
+				};
 				break;
 			case StatusTypes.unpublish:
-				actionText = 'Unpublish';
-				modalClass = 'modal-confirm-unpublish';
+				modalSettings = {
+					type: 'confirm',
+					title: `Please Confirm Entry <span class="text-yellow-500 font-bold">Unpublication</span>`,
+					body:
+						itemCount === 1
+							? `Are you sure you want to <span class="text-yellow-500 font-semibold">unpublish</span> this entry? This will hide it from the public.`
+							: `Are you sure you want to <span class="text-yellow-500 font-semibold">unpublish</span> <span class="text-tertiary-500 font-medium">${itemCount} entries</span>? This will hide all selected entries from the public.`,
+					buttonTextConfirm: 'Unpublish',
+					buttonTextCancel: 'Cancel',
+					meta: { buttonConfirmClasses: 'bg-yellow-500 hover:bg-yellow-600 text-white' },
+					response: (r: boolean) => handleConfirmation(r)
+				};
 				break;
 			case StatusTypes.test:
-				actionText = 'Test';
-				modalClass = 'modal-confirm-test';
+				modalSettings = {
+					type: 'confirm',
+					title: `Please Confirm Entry <span class="text-secondary-500 font-bold">Testing</span>`,
+					body:
+						itemCount === 1
+							? `Are you sure you want to <span class="text-secondary-500 font-semibold">test</span> this entry?`
+							: `Are you sure you want to <span class="text-secondary-500 font-semibold">test</span> <span class="text-tertiary-500 font-medium">${itemCount} entries</span>?`,
+					buttonTextConfirm: 'Test',
+					buttonTextCancel: 'Cancel',
+					meta: { buttonConfirmClasses: 'bg-secondary-500 hover:bg-secondary-600 text-white' },
+					response: (r: boolean) => handleConfirmation(r)
+				};
+				break;
+			case StatusTypes.schedule:
+				modalSettings = {
+					type: 'confirm',
+					title: `Please Confirm Entry <span class="text-pink-500 font-bold">Scheduling</span>`,
+					body:
+						itemCount === 1
+							? `Are you sure you want to <span class="text-pink-500 font-semibold">schedule</span> this entry?`
+							: `Are you sure you want to <span class="text-pink-500 font-semibold">schedule</span> <span class="text-tertiary-500 font-medium">${itemCount} entries</span>?`,
+					buttonTextConfirm: 'Schedule',
+					buttonTextCancel: 'Cancel',
+					meta: { buttonConfirmClasses: 'bg-pink-500 hover:bg-pink-600 text-white' },
+					response: (r: boolean) => handleConfirmation(r)
+				};
 				break;
 			default:
-				actionText = status.charAt(0).toUpperCase() + status.slice(1);
+				const actionText = status.charAt(0).toUpperCase() + status.slice(1);
+				modalSettings = {
+					type: 'confirm',
+					title: `Confirm ${actionText}`,
+					body: `Are you sure you want to set status to '${status}' for ${itemCount} ${itemText}?`,
+					response: (r: boolean) => handleConfirmation(r),
+					buttonTextConfirm: actionText
+				};
 				break;
 		}
-
-		// Define modal settings
-		const modal: ModalSettings = {
-			type: 'confirm',
-			title: `Confirm ${actionText}`,
-			body: `Are you sure you want to set status to '${status}' for ${itemCount} ${itemText}?`,
-			response: (r: boolean) => handleConfirmation(r),
-			buttonTextConfirm: actionText,
-			modalClasses: modalClass
-		};
 		// Trigger the modal
-		modalStore.trigger(modal);
+		modalStore.trigger(modalSettings);
 	});
 
 	let categoryName = $derived.by(() => {
@@ -723,43 +763,106 @@ Features:
 
 	// Functions to handle actions from EntryListMultiButton
 	function onPublish() {
+		console.log('onPublish called - will show modal');
 		modifyEntry.value(StatusTypes.publish);
 	}
 	function onUnpublish() {
+		console.log('onUnpublish called - will show modal');
 		modifyEntry.value(StatusTypes.unpublish);
 	}
 	function onSchedule() {
+		console.log('onSchedule called - will show modal');
+		modifyEntry.value(StatusTypes.schedule);
+	}
+
+	// Direct action functions for MultiButton (bypass modals)
+	async function executePublish() {
+		console.log('executePublish called - should execute directly without modal');
+		await executeStatusChange(StatusTypes.publish);
+	}
+	async function executeUnpublish() {
+		console.log('executeUnpublish called - should execute directly without modal');
+		await executeStatusChange(StatusTypes.unpublish);
+	}
+	async function executeSchedule() {
+		console.log('executeSchedule called - should execute directly without modal');
+		await executeStatusChange(StatusTypes.schedule);
+	}
+	async function executeTest() {
+		console.log('executeTest called - should execute directly without modal');
+		await executeStatusChange('test');
+	}
+
+	// Helper function to execute status changes without modals
+	async function executeStatusChange(status: keyof typeof statusMap) {
+		if (!currentCollection?._id) {
+			toastStore.trigger({ message: 'No collection selected', background: 'variant-filled-error' });
+			return;
+		}
+
+		// Filter out items that are already in the target status
+		const modifyList: Array<string> = [];
+		for (const [index, isSelected] of Object.entries(selectedMap)) {
+			if (isSelected) {
+				const entry = tableData[Number(index)];
+				if (entry.raw_status !== status) {
+					modifyList.push(entry._id);
+				}
+			}
+		}
+
+		if (modifyList.length === 0) {
+			toastStore.trigger({
+				message: `Selected items are already in '${status}' state or no items selected.`,
+				background: 'variant-filled-warning'
+			});
+			return;
+		}
+
+		try {
+			// Use new status endpoint for batch updates
+			const firstEntryId = modifyList[0];
+			await updateStatus(currentCollection._id, firstEntryId, statusMap[status], modifyList);
+
+			// Invalidate cache and refresh the table data
+			invalidateCollectionCache(currentCollection._id);
+			refreshTableData();
+			// Show a success toast
+			toastStore.trigger({ message: `Successfully set status to ${status}`, background: 'variant-filled-success' });
+		} catch (e) {
+			toastStore.trigger({
+				message: `Error setting status: ${(e as Error).message}`,
+				background: 'variant-filled-error'
+			});
+		}
+	}
+	async function executeDelete() {
+		console.log('executeDelete called - should execute directly without modal');
+		if (!currentCollection?._id) {
+			toastStore.trigger({ message: 'No collection selected.', background: 'variant-filled-error' });
+			return;
+		}
 		const selectedIds = Object.entries(selectedMap)
 			.filter(([, isSelected]) => isSelected)
 			.map(([index]) => tableData[Number(index)]._id);
 
 		if (selectedIds.length === 0) {
-			toastStore.trigger({ message: 'Please select items to schedule.', background: 'variant-filled-warning' });
+			toastStore.trigger({ message: 'Please select items to delete.', background: 'variant-filled-warning' });
 			return;
 		}
 
-		const modal: ModalSettings = {
-			type: 'component',
-			component: 'ScheduleModal',
-			title: 'Schedule Action',
-			body: `Select a date, time, and action for the ${selectedIds.length} selected item(s).`,
-			response: async (data: { date: string; action: 'publish' | 'unpublish' | 'delete' } | undefined) => {
-				if (!data || !currentCollection?._id) return;
-
-				try {
-					// Use the updateStatus function to set status to 'scheduled' with scheduling metadata
-					// For now, we'll set status to 'scheduled' - later we can enhance the status endpoint to support scheduling fields
-					await updateStatus(currentCollection._id, selectedIds[0], StatusTypes.schedule, selectedIds);
-					toastStore.trigger({ message: 'Items scheduled successfully.', background: 'variant-filled-success' });
-					invalidateCollectionCache(currentCollection._id);
-					refreshTableData();
-				} catch (e) {
-					toastStore.trigger({ message: `Error scheduling items: ${(e as Error).message}`, background: 'variant-filled-error' });
-				}
-			}
-		};
-		modalStore.trigger(modal);
+		try {
+			// Delete each item individually using the new RESTful endpoints
+			const deletePromises = selectedIds.map((entryId) => apiRequest('DELETE', currentCollection!._id, {}, entryId));
+			await Promise.all(deletePromises);
+			toastStore.trigger({ message: 'Items deleted successfully.', background: 'variant-filled-success' });
+			invalidateCollectionCache(currentCollection._id); // Invalidate cache
+			refreshTableData(); // Refresh data to show changes
+		} catch (e) {
+			toastStore.trigger({ message: `Error deleting items: ${(e as Error).message}`, background: 'variant-filled-error' });
+		}
 	}
+
 	function onDelete() {
 		if (!currentCollection?._id) {
 			toastStore.trigger({ message: 'No collection selected.', background: 'variant-filled-error' });
@@ -964,11 +1067,11 @@ Features:
 					isCollectionEmpty={tableData.length === 0}
 					{hasSelections}
 					selectedCount={Object.values(selectedMap).filter(Boolean).length}
-					publish={onPublish}
-					unpublish={onUnpublish}
-					schedule={onSchedule}
-					delete={onDelete}
-					test={onTest}
+					publish={executePublish}
+					unpublish={executeUnpublish}
+					schedule={executeSchedule}
+					delete={executeDelete}
+					test={executeTest}
 					clone={onClone}
 				/>
 			</div>
@@ -1147,10 +1250,52 @@ Features:
 									<td
 										class="p-0 text-center text-xs font-bold sm:text-sm {header.name !== 'status'
 											? 'cursor-pointer transition-colors duration-200 hover:bg-primary-500/10 dark:hover:bg-secondary-500/20'
-											: ''}"
-										title={header.name !== 'status' ? 'Click to edit this entry' : ''}
+											: 'cursor-pointer transition-colors duration-200 hover:bg-warning-500/10 dark:hover:bg-warning-500/20'}"
+										title={header.name !== 'status' ? 'Click to edit this entry' : 'Click to change status'}
 										onclick={() => {
-											if (header.name !== 'status') {
+											if (header.name === 'status') {
+												// console.log('🎯 Status column clicked for entry:', entry._id, 'current status:', entry.raw_status);
+
+												// Handle status column click - select this entry and show status change modal
+												// First, clear all other selections and select only this entry
+												Object.keys(selectedMap).forEach((key) => {
+													selectedMap[key] = false;
+												});
+												selectedMap[index] = true;
+												// console.log('✅ Entry selected:', selectedMap);
+
+												// Get current status and determine next logical status
+												const currentStatus = entry.raw_status;
+												let nextStatus;
+
+												// Define status progression logic
+												switch (currentStatus) {
+													case 'draft':
+													case StatusTypes.draft:
+														nextStatus = StatusTypes.publish;
+														break;
+													case 'publish':
+													case StatusTypes.publish:
+														nextStatus = StatusTypes.unpublish;
+														break;
+													case 'unpublish':
+													case StatusTypes.unpublish:
+														nextStatus = StatusTypes.publish;
+														break;
+													case 'schedule':
+													case StatusTypes.schedule:
+														nextStatus = StatusTypes.publish;
+														break;
+													default:
+														nextStatus = StatusTypes.publish;
+														break;
+												}
+
+												// console.log(`🔄 Status change: ${currentStatus} → ${nextStatus}`);
+
+												// Trigger the status change modal
+												modifyEntry.value(nextStatus);
+											} else {
 												const originalEntry = data?.entryList.find((e) => e._id === entry._id);
 												if (originalEntry) {
 													// Load the entry data into collectionValue
@@ -1244,20 +1389,5 @@ Features:
 	}
 	div::-webkit-scrollbar {
 		width: 10px;
-	}
-	:global(.modal-confirm-publish .btn-confirm) {
-		@apply bg-success-500 text-white;
-	}
-	:global(.modal-confirm-unpublish .btn-confirm) {
-		@apply bg-warning-500 text-white;
-	}
-	:global(.modal-confirm-delete .btn-confirm) {
-		@apply bg-error-500 text-white;
-	}
-	:global(.modal-confirm-clone .btn-confirm) {
-		@apply bg-secondary-500 text-white;
-	}
-	:global(.modal-confirm-test .btn-confirm) {
-		@apply bg-secondary-500 text-white;
 	}
 </style>

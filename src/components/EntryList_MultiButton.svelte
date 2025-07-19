@@ -97,6 +97,7 @@
 		// This function now only calls the parent's event handlers.
 		switch (storeListboxValue.value) {
 			case 'create':
+				// Initialize empty entry - status will be set by HeaderEdit save logic
 				collectionValue.set({});
 				mode.set('create');
 				handleUILayoutToggle();
@@ -135,25 +136,7 @@
 		// Set the action for the main button
 		storeListboxValue.set(value);
 
-		// For actions that require confirmation, handle them immediately.
-		switch (value) {
-			case StatusTypes.schedule:
-				openScheduleModal();
-				break;
-			case StatusTypes.delete:
-				openDeleteModal();
-				break;
-			case StatusTypes.publish:
-				openPublishModal();
-				break;
-			case StatusTypes.unpublish:
-				openUnpublishModal();
-				break;
-			case StatusTypes.clone:
-				openCloneModal();
-				break;
-		}
-
+		// No immediate action needed - let the user click the main button to trigger the action
 		dropdownOpen = false;
 	}
 
@@ -192,6 +175,8 @@
 			meta: { buttonConfirmClasses: 'bg-primary-500 hover:bg-primary-600 text-white' },
 			response: (confirmed: boolean) => {
 				if (confirmed) {
+					console.log('MultiButton publish modal confirmed, calling publish function...');
+					// Call publish but prevent the EntryList modal from showing
 					publish();
 				}
 			}

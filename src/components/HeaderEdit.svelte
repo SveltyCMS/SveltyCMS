@@ -160,9 +160,18 @@
 		}
 
 		const dataToSave = { ...collectionValue.value };
-		if (mode.value === 'create') dataToSave.createdBy = user?.username ?? 'system';
+
+		// Set metadata for all saves
+		if (mode.value === 'create') {
+			dataToSave.createdBy = user?.username ?? 'system';
+			// Apply collection schema defaults for new entries
+			if (!dataToSave.status && currentCollection?.status) {
+				dataToSave.status = currentCollection.status;
+			}
+		}
 		dataToSave.updatedBy = user?.username ?? 'system';
 
+		// Handle scheduling if set
 		if (schedule && schedule.trim() !== '') {
 			dataToSave._scheduled = new Date(schedule).getTime();
 		} else {
