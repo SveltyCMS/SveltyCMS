@@ -10,7 +10,7 @@
  */
 
 import { privateEnv } from '@root/config/private';
-import type { RequestHandler } from '@sveltejs/kit';
+import type { RequestHandler, RequestEvent } from '@sveltejs/kit';
 import { json } from '@sveltejs/kit';
 import { building } from '$app/environment';
 
@@ -146,9 +146,12 @@ async function setupGraphQL() {
 
 		//logger.debug('Generated GraphQL Schema:', typeDefs);
 
+		const collectionsResolversObj = await collectionsResolvers(cacheClient, privateEnv);
+		// logger.debug('Collections resolvers keys:', Object.keys(collectionsResolversObj));
+
 		const resolvers = {
 			Query: {
-				...(await collectionsResolvers(cacheClient, privateEnv)),
+				...collectionsResolversObj.Query,
 				...userResolvers(dbAdapter),
 				...mediaResolvers(dbAdapter),
 				accessManagementPermission: async (_, __, context) => {
@@ -163,8 +166,20 @@ async function setupGraphQL() {
 					}
 					return accessManagementPermission;
 				}
-			}
+			},
+			// Spread the collection type resolvers (field resolvers for each collection)
+			...Object.keys(collectionsResolversObj)
+				.filter((key) => key !== 'Query')
+				.reduce(
+					(acc, key) => {
+						acc[key] = collectionsResolversObj[key];
+						return acc;
+					},
+					{} as Record<string, Record<string, unknown>>
+				)
 		};
+
+		// logger.debug('Final resolvers keys:', Object.keys(resolvers));
 
 		const yogaApp = createYoga<RequestHandler>({
 			schema: createSchema({

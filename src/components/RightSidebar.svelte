@@ -137,8 +137,10 @@ This component provides a streamlined interface for managing collection entries 
 		}
 
 		const method = mode.value === 'create' ? 'POST' : 'PATCH';
+		const entryId = mode.value === 'edit' ? (dataToSave._id as string) : undefined;
+
 		try {
-			await apiRequest(method, currentCollection._id, dataToSave);
+			await apiRequest(method, currentCollection._id, dataToSave, entryId);
 			mode.set('view');
 			handleUILayoutToggle();
 		} catch (err) {

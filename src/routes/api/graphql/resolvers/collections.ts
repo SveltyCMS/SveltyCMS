@@ -111,7 +111,14 @@ export async function registerCollections() {
 		}
 		return true;
 	});
-	// logger.debug(`Collections fetched: ${collections.map((c) => c.name).join(', ')}`);
+	logger.debug(
+		`Collections loaded for GraphQL:`,
+		collections.map((c) => ({
+			name: c.name,
+			id: c._id,
+			cleanTypeName: createCleanTypeName(c)
+		}))
+	);
 
 	// Track all type names to detect duplicates
 	const typeIDs = new Set<string>();
@@ -131,14 +138,12 @@ export async function registerCollections() {
 		const cleanTypeName = createCleanTypeName(collection);
 		logger.debug(`Clean type name: \x1b[34m${cleanTypeName}\x1b[0m`);
 		resolvers[cleanTypeName] = {};
+		// Start with type definition but no fields yet
 		let collectionSchema = `
             type ${cleanTypeName} {
-                _id: String
-                name: String
-                createdAt: String
-                updatedAt: String
         `;
 
+		// First, add all the collection-specific data fields
 		for (const field of collection.fields) {
 			const widget = widgets[field.widget.Name];
 			if (!widget || !widget.GraphqlSchema) {
@@ -187,7 +192,7 @@ export async function registerCollections() {
 							typeDefsSet.add(nestedSchema.graphql);
 							logger.debug(`Added nested type: ${nestedSchema.typeID}`);
 						}
-						collectionSchema += `${getFieldName(_field)}: ${nestedSchema.typeID}\n`;
+						collectionSchema += `                ${getFieldName(_field)}: ${nestedSchema.typeID}\n`;
 						deepmerge(resolvers[cleanTypeName], {
 							[getFieldName(_field)]: (parent: DocumentWithFields) => parent[getFieldName(_field)]
 						});
@@ -196,17 +201,32 @@ export async function registerCollections() {
 					}
 				}
 			} else {
-				collectionSchema += `${getFieldName(field)}: ${schema.typeID}\n`;
+				collectionSchema += `                ${getFieldName(field)}: ${schema.typeID}\n`;
 				deepmerge(resolvers[cleanTypeName], {
 					[getFieldName(field)]: (parent: DocumentWithFields) => parent[getFieldName(field)]
 				});
 			}
 		}
-		collectionSchemas.push(collectionSchema + '}\n');
+
+		// Then add the system/metadata fields at the end
+		collectionSchema += `
+                _id: String
+				status: String
+                createdAt: String
+                updatedAt: String
+                createdBy: String
+                updatedBy: String
+            }`;
+
+		// Debug: Log the generated schema
+		logger.debug(`Generated schema for ${cleanTypeName}:`, collectionSchema);
+
+		collectionSchemas.push(collectionSchema + '\n');
 	}
 
 	const finalTypeDefs = Array.from(typeDefsSet).join('\n') + collectionSchemas.join('\n');
 	// logger.debug('Final GraphQL TypeDefs:', finalTypeDefs);
+	// logger.debug('Final Resolvers keys:', Object.keys(resolvers));
 
 	return {
 		typeDefs: finalTypeDefs,
@@ -260,13 +280,40 @@ export async function collectionsResolvers(cacheClient: CacheClient | null, priv
 				}
 
 				// Query database
-				const query = { status: { $ne: 'unpublished' } };
-				const options = { sort: { createdAt: -1 }, skip, limit };
+				// For testing: show all records regardless of status
+				// In production, you might want to filter by status
+				const query = {};
+				const options = { limit, offset: skip };
 				const dbResult = await dbAdapter.crud.findMany(collection._id, query, options);
-				//logger.debug(`Database result for ${collection._id}:`, dbResult);
+				logger.debug(`GraphQL Query Debug for ${collection._id}:`, {
+					collectionName: collection.name,
+					collectionId: collection._id,
+					cleanTypeName: createCleanTypeName(collection),
+					query,
+					options,
+					success: dbResult.success,
+					dataType: typeof dbResult.data,
+					isArray: Array.isArray(dbResult.data),
+					dataLength: dbResult.data?.length,
+					error: dbResult.error
+				});
+
+				if (!dbResult.success) {
+					logger.error(`Database query failed for ${collection._id}:`, dbResult.error);
+					throw new Error(`Database query failed: ${dbResult.error?.message || 'Unknown error'}`);
+				}
+
+				// Ensure dbResult.data is an array
+				let resultArray: DocumentBase[];
+				if (Array.isArray(dbResult.data)) {
+					resultArray = dbResult.data as DocumentBase[];
+				} else {
+					logger.warn(`Unexpected database result format for ${collection._id}:`, dbResult.data);
+					resultArray = [];
+				}
 
 				// Process dates
-				dbResult.forEach((doc: DocumentBase) => {
+				resultArray.forEach((doc: DocumentBase) => {
 					try {
 						doc.createdAt = doc.createdAt ? new Date(doc.createdAt).toISOString() : new Date().toISOString();
 						doc.updatedAt = doc.updatedAt ? new Date(doc.updatedAt).toISOString() : doc.createdAt;
@@ -279,11 +326,11 @@ export async function collectionsResolvers(cacheClient: CacheClient | null, priv
 
 				// Cache the result
 				if (privateEnv.USE_REDIS && cacheClient) {
-					await cacheClient.set(cacheKey, JSON.stringify(dbResult), 'EX', 60 * 60);
+					await cacheClient.set(cacheKey, JSON.stringify(resultArray), 'EX', 60 * 60);
 					logger.debug(`Cache set for ${cacheKey}`);
 				}
 
-				return dbResult;
+				return resultArray;
 			} catch (error) {
 				const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 				logger.error(`Error fetching data for ${collection._id}: ${errorMessage}`);
@@ -292,5 +339,5 @@ export async function collectionsResolvers(cacheClient: CacheClient | null, priv
 		};
 	}
 
-	return resolvers.Query;
+	return resolvers;
 }
