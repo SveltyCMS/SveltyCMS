@@ -82,7 +82,7 @@ export class SessionAdapter implements Partial<authDBInterface> {
 			// Then create the new session
 			const session = new this.SessionModel(sessionData);
 			await session.save();
-			logger.info(`Session created for user: ${sessionData.user_id}`);
+			logger.info(`Session created for user: \x1b[34m${sessionData.user_id}\x1b[0m`);
 			return this.formatSession(session.toObject());
 		} catch (err) {
 			const message = `Error in SessionAdapter.createSession: ${err instanceof Error ? err.message : String(err)}`;

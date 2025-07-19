@@ -8,10 +8,11 @@
  * - Redirects to the first collection with the correct language
  * - Throws an error if there are no collections *
  */
+import { publicEnv } from '@root/config/public';
 
 import { redirect, error } from '@sveltejs/kit';
 import { dbInitPromise } from '@src/databases/db';
-import { getFirstCollectionRedirectUrl } from '@utils/navigation';
+import { contentManager } from '@root/src/content/ContentManager';
 
 import type { PageServerLoad } from './$types';
 
@@ -21,7 +22,7 @@ import { roles } from '@root/config/roles';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-export const load: PageServerLoad = async ({ locals, url }) => {
+export const load: PageServerLoad = async ({ locals, url, request }) => {
 	// Unauthenticated users should be redirected to the login page
 	if (!locals.user) {
 		logger.debug('User is not authenticated, redirecting to login');
@@ -50,10 +51,51 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			};
 		}
 
-		// Get the first collection redirect URL using centralized utility
+		// Get the first collection redirect URL
 		if (url.pathname === '/') {
-			const redirectUrl = await getFirstCollectionRedirectUrl();
+			await dbInitPromise;
+			const firstCollection = contentManager.getFirstCollection();
+			let redirectUrl = '/';
+
+			if (firstCollection && firstCollection.path) {
+				const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+				redirectUrl = `/${defaultLanguage}${firstCollection.path}`;
+			} else {
+				// Fallback: Get content structure
+				const contentNodes = contentManager.getContentStructure();
+				if (Array.isArray(contentNodes) && contentNodes.length > 0) {
+					const collections = contentNodes.filter((node) => node.nodeType === 'collection' && node._id);
+					if (collections.length > 0) {
+						const sortedCollections = collections.sort((a, b) => {
+							if (a.order !== undefined && b.order !== undefined) {
+								return a.order - b.order;
+							}
+							return (a.name || '').localeCompare(b.name || '');
+						});
+						const firstCollectionNode = sortedCollections[0];
+						const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+						const collectionPath = firstCollectionNode.path || `/${firstCollectionNode._id}`;
+						redirectUrl = `/${defaultLanguage}${collectionPath}`;
+					}
+				}
+			}
+
 			logger.info(`Redirecting to \x1b[34m${redirectUrl}\x1b[0m`);
+
+			// Prefetch first collection data for instant loading when navigating to root (fire and forget)
+			if (redirectUrl !== '/') {
+				import('@utils/collections-prefetch')
+					.then(({ prefetchFirstCollectionData }) => {
+						const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+						prefetchFirstCollectionData(defaultLanguage, fetch, request).catch((err) => {
+							logger.debug('Prefetch failed during root redirect:', err);
+						});
+					})
+					.catch(() => {
+						// Silently fail if prefetch module can't be loaded
+					});
+			}
+
 			throw redirect(302, redirectUrl);
 		}
 	} catch (err) {

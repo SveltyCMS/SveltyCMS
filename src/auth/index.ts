@@ -333,7 +333,6 @@ export class Auth {
 	// Get session token data
 	async getSessionTokenData(session_id: string): Promise<{ expiresAt: Date; user_id: string } | null> {
 		try {
-			logger.debug(`Fetching session token data for session ID: \x1b[34m${session_id}\x1b[0m`);
 			return await this.db.getSessionTokenData(session_id);
 		} catch (err) {
 			const errMsg = err instanceof Error ? err.message : String(err);

@@ -240,6 +240,34 @@ Features:
 	function handleDropdownToggle() {
 		isDropdownOpen = !isDropdownOpen;
 	}
+
+	// Prefetch when active state changes to SignIn (0) or SignUp (1)
+	$effect(() => {
+		if (active !== undefined) {
+			console.log(`[DEBUG] Active state changed to: ${active}, triggering prefetch...`);
+
+			// Call prefetch action on the server
+			fetch('/login?/prefetch', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded'
+				},
+				body: new URLSearchParams({
+					lang: systemLanguage.value || 'en'
+				})
+			})
+				.then((response) => {
+					if (response.ok) {
+						console.log('[DEBUG] Prefetch action completed successfully');
+					} else {
+						console.log('[DEBUG] Prefetch action failed:', response.status);
+					}
+				})
+				.catch((err) => {
+					console.log('[DEBUG] Prefetch fetch error:', err);
+				});
+		}
+	});
 </script>
 
 <div class={`flex min-h-lvh w-full overflow-y-auto bg-${background} transition-colors duration-300`}>

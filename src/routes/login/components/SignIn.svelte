@@ -81,8 +81,12 @@ Features:
 	// URL handling
 	const current_url = $state(browser ? window.location.href : '');
 
+	// State for improved spinner control
+	let isSubmitting = $state(false);
+	let isAuthenticating = $state(false);
+
 	// Login form setup
-	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaLogin, {
+	const { form, constraints, allErrors, errors, enhance } = superForm(FormSchemaLogin, {
 		id: 'login',
 		// Clear form on success.
 		resetForm: true,
@@ -104,23 +108,42 @@ Features:
 
 				formElement?.classList.add('wiggle');
 				setTimeout(() => formElement?.classList.remove('wiggle'), 300);
+				return;
 			}
+
+			// Set submitting state for better UX
+			isSubmitting = true;
+			isAuthenticating = true;
 		},
 
 		onResult: ({ result, cancel }) => {
+			// Reset submitting state
+			isSubmitting = false;
+
 			if (result.type === 'redirect') {
+				// Keep authenticating state for redirect phase
+				isAuthenticating = true;
+
 				// Trigger the toast
 				toastStore.trigger({
 					message: m.signin_signinsuccess(),
 					// Provide any utility or variant background style:
 					background: 'variant-filled-primary',
-					timeout: 4000,
+					timeout: 1500, // Reduced timeout for faster UX
 					// Add your custom classes here:
 					classes: 'border-1 !rounded-md'
 				});
 
+				// Clear authenticating state immediately for faster navigation
+				setTimeout(() => {
+					isAuthenticating = false;
+				}, 100);
+
 				return;
 			}
+
+			// Reset all states on error
+			isAuthenticating = false;
 			cancel();
 
 			// Trigger the toast
@@ -147,8 +170,7 @@ Features:
 		constraints: forgotConstraints,
 		allErrors: forgotAllErrors,
 		errors: forgotErrors,
-		enhance: forgotEnhance,
-		delayed: forgotDelayed
+		enhance: forgotEnhance
 	} = superForm(FormSchemaForgot, {
 		id: 'forgot',
 		resetForm: true,
@@ -163,15 +185,22 @@ Features:
 			}
 
 			// handle login form submission
-			if ($allErrors.length > 0) {
+			if ($forgotAllErrors.length > 0) {
 				cancel();
 
 				formElement?.classList.add('wiggle');
 				setTimeout(() => formElement?.classList.remove('wiggle'), 300);
+				return;
 			}
+
+			// Set submitting state
+			isSubmitting = true;
 		},
 
 		onResult: ({ result, cancel }) => {
+			// Reset submitting state
+			isSubmitting = false;
+
 			// handle forgot form result
 			if (result.type === 'error') {
 				// Transform the array of error messages into a single string
@@ -259,8 +288,7 @@ Features:
 		constraints: resetConstraints,
 		allErrors: resetAllErrors,
 		errors: resetErrors,
-		enhance: resetEnhance,
-		delayed: resetDelayed
+		enhance: resetEnhance
 	} = superForm(FormSchemaReset, {
 		id: 'reset',
 		resetForm: true,
@@ -270,12 +298,19 @@ Features:
 		multipleSubmits: 'prevent',
 
 		onSubmit: ({ cancel }) => {
-			if ($allErrors.length > 0) {
+			if ($resetAllErrors.length > 0) {
 				cancel();
+				return;
 			}
+
+			// Set submitting state
+			isSubmitting = true;
 		},
 
 		onResult: ({ result, cancel }) => {
+			// Reset submitting state
+			isSubmitting = false;
+
 			// update variables to display login page
 			PWreset = false;
 			PWforgot = false;
@@ -454,8 +489,8 @@ Features:
 							<div class="flex w-full justify-between gap-2 sm:w-auto">
 								<button type="submit" form="signin-form" class="variant-filled-surface btn w-full sm:w-auto" aria-label={m.form_signin()}>
 									{m.form_signin()}
-									<!-- Loading indicators -->
-									{#if $delayed}
+									<!-- Optimized loading indicators -->
+									{#if isSubmitting || isAuthenticating}
 										<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6 invert filter" />
 									{/if}
 								</button>
@@ -516,12 +551,11 @@ Features:
 							<div class="mt-4 flex items-center justify-between">
 								<button type="submit" class="variant-filled-surface btn" aria-label={m.form_resetpassword()}>
 									{m.form_resetpassword()}
+									<!-- Optimized loading indicators -->
+									{#if isSubmitting}
+										<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6 invert filter" />
+									{/if}
 								</button>
-
-								<!-- Loading indicators -->
-								{#if $forgotDelayed}
-									<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6 invert filter" />
-								{/if}
 
 								<!-- Back button  -->
 								<button
@@ -620,8 +654,8 @@ Features:
 							<div class="mt-4 flex items-center justify-between">
 								<button type="submit" aria-label={m.signin_savenewpassword()} class="variant-filled-surface btn ml-2 mt-6">
 									{m.signin_savenewpassword()}
-									<!-- Loading indicators -->
-									{#if $resetDelayed}
+									<!-- Optimized loading indicators -->
+									{#if isSubmitting}
 										<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />
 									{/if}
 								</button>

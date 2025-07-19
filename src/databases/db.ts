@@ -243,11 +243,14 @@ async function initializeSystem(): Promise<void> {
 		logger.debug('System already initialized. Skipping.');
 		return;
 	}
+
+	const systemStartTime = performance.now();
 	logger.info('Starting SvelteCMS System Initialization...');
 
 	try {
 		// 1. Connect to Database & Load Adapters (Concurrently)
-		logger.debug('\x1b[33mStep 1:\x1b[0m Connecting to database and loading adapters...');
+		const step1StartTime = performance.now();
+
 		await Promise.all([
 			connectToMongoDB().catch((err) => {
 				logger.error(`MongoDB connection failed: ${err.message}`);
@@ -259,63 +262,78 @@ async function initializeSystem(): Promise<void> {
 			})
 		]);
 		isConnected = true; // Mark connected after DB connection succeeds
-		logger.debug('\x1b[32mStep 1 completed:\x1b[0m Database connected and adapters loaded');
+		const step1Time = performance.now() - step1StartTime;
+		logger.debug(`\x1b[32mStep 1 completed:\x1b[0m Database connected and adapters loaded in \x1b[32m${step1Time.toFixed(2)}ms\x1b[0m`);
 
 		// Check if adapters loaded correctly (loadAdapters throws on critical failure)
 		if (!dbAdapter || !authAdapter) {
 			throw new Error('Database or Authentication adapter failed to load.');
 		}
 
-		// 2. Setup Core Database Models (Essential for subsequent steps)
-		logger.debug('\x1b[33mStep 2:\x1b[0m Setting up core database models...');
+		// 2. Setup Core Database Models (Essential for subsequent steps) - Run in parallel
+		const step2StartTime = performance.now();
+
 		try {
-			await dbAdapter.auth.setupAuthModels();
-			logger.debug('Auth models setup complete');
+			await Promise.all([
+				dbAdapter.auth.setupAuthModels().then(() => logger.debug('Auth models setup complete')),
+				dbAdapter.media.setupMediaModels().then(() => logger.debug('Media models setup complete')),
+				dbAdapter.widgets.setupWidgetModels().then(() => logger.debug('Widget models setup complete'))
+			]);
 
-			await dbAdapter.media.setupMediaModels();
-			logger.debug('Media models setup complete');
-
-			await dbAdapter.widgets.setupWidgetModels();
-			logger.debug('\x1b[32mStep 2 completed:\x1b[0 Widget models setup complete');
+			const step2Time = performance.now() - step2StartTime;
+			logger.debug(`\x1b[32mStep 2 completed:\x1b[0m Database models setup in \x1b[32m${step2Time.toFixed(2)}ms\x1b[0m`);
 		} catch (modelSetupErr) {
 			logger.error(`Database model setup failed: ${modelSetupErr.message}`);
 			throw modelSetupErr;
 		}
 
-		// 3. Initialize remaining components
-		logger.debug('\x1b[33mStep 3:\x1b[0m Initializing system components...');
+		// 3. Initialize remaining components in parallel
+		const step3StartTime = performance.now();
+
 		try {
-			await initializeMediaFolder();
-			await initializeDefaultTheme();
-			await initializeRevisions();
-			await initializeVirtualFolders();
-			logger.debug('\x1b[32mStep 3 completed:\x1b[0m System components initialized');
+			await Promise.all([initializeMediaFolder(), initializeDefaultTheme(), initializeRevisions(), initializeVirtualFolders()]);
+
+			const step3Time = performance.now() - step3StartTime;
+			logger.debug(`\x1b[32mStep 3 completed:\x1b[0m System components initialized in \x1b[32m${step3Time.toFixed(2)}ms\x1b[0m`);
 		} catch (componentErr) {
 			logger.error(`Component initialization failed: ${componentErr.message}`);
 			throw componentErr;
 		}
 
 		// 4. Initialize ContentManager (loads collection schemas into memory)
-		logger.debug('\x1b[33mStep 4:\x1b[0m Initializing ContentManager...');
+		const step4StartTime = performance.now();
+
 		try {
 			await contentManager.initialize();
-			logger.debug('\x1b[32mStep 4 completed:\x1b[0m ContentManager initialized');
+			const step4Time = performance.now() - step4StartTime;
+			logger.debug(`\x1b[32mStep 4 completed:\x1b[0m ContentManager initialized in \x1b[32m${step4Time.toFixed(2)}ms\x1b[0m`);
 		} catch (contentErr) {
 			logger.error(`ContentManager initialization failed: ${contentErr.message}`);
 			throw contentErr;
 		}
 
 		// 5. Create Collection-Specific Database Models (ONCE after schemas are loaded)
-		logger.debug('\x1b[33mStep 5:\x1b[0m Creating collection-specific database models...');
+		const step5StartTime = performance.now();
+
 		try {
 			const { collectionMap } = await contentManager.getCollectionData(); // Get loaded schemas
 			if (!dbAdapter) throw new Error('dbAdapter not available for model creation.'); // Should not happen here
 
-			for (const schema of collectionMap.values()) {
-				logger.debug(`Creating model for collection: \x1b[34m${schema.name}\x1b[0m`);
-				await dbAdapter.collection.createModel(schema as CollectionData);
+			// Create models in parallel batches to avoid overwhelming the database
+			const schemas = Array.from(collectionMap.values());
+			const batchSize = 5; // Process 5 models at a time
+
+			for (let i = 0; i < schemas.length; i += batchSize) {
+				const batch = schemas.slice(i, i + batchSize);
+				await Promise.all(
+					batch.map(async (schema) => {
+						await dbAdapter.collection.createModel(schema as CollectionData);
+					})
+				);
 			}
-			logger.debug('\x1b[32mStep 5 completed:\x1b[0m Collection-specific models created');
+
+			const step5Time = performance.now() - step5StartTime;
+			logger.debug(`\x1b[32mStep 5 completed:\x1b[0m Collection-specific models created in \x1b[32m${step5Time.toFixed(2)}ms\x1b[0m`);
 		} catch (modelErr) {
 			const message = `Error creating collection models: ${modelErr instanceof Error ? modelErr.message : String(modelErr)}`;
 			logger.error(message);
@@ -323,7 +341,8 @@ async function initializeSystem(): Promise<void> {
 		}
 
 		// 6. Initialize Authentication (after DB/Auth adapters and models are ready)
-		logger.debug('\x1b[33mStep 6:\x1b[0m Initializing Authentication...');
+		const step6StartTime = performance.now();
+
 		if (!authAdapter) {
 			throw new Error('Authentication adapter not initialized'); // Use Error instead of kit's error
 		}
@@ -348,7 +367,8 @@ async function initializeSystem(): Promise<void> {
 				throw new Error('Auth instance missing validateSession method');
 			}
 
-			logger.debug('\x1b[32mStep 6 completed:\x1b[0m Authentication initialized and verified');
+			const step6Time = performance.now() - step6StartTime;
+			logger.debug(`\x1b[32mStep 6 completed:\x1b[0m Authentication initialized and verified in \x1b[32m${step6Time.toFixed(2)}ms\x1b[0m`);
 		} catch (authErr) {
 			logger.error(`Auth initialization failed: ${authErr.message}`);
 			throw authErr;
@@ -357,7 +377,8 @@ async function initializeSystem(): Promise<void> {
 		isInitialized = true;
 		isConnected = true;
 
-		logger.info('System initialization completed successfully! All systems ready.');
+		const totalTime = performance.now() - systemStartTime;
+		logger.info(`🚀 System initialization completed successfully in \x1b[32m${totalTime.toFixed(2)}ms\x1b[0m! All systems ready.`);
 	} catch (err) {
 		const message = `CRITICAL: System initialization failed: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message);

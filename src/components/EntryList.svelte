@@ -364,19 +364,53 @@ Features:
 						? { [entryListPaginationSettings.sorting.sortedBy]: entryListPaginationSettings.sorting.isSorted }
 						: {};
 
-				const queryParams = {
-					collectionId: currentCollId,
-					page,
-					limit,
-					contentLanguage: currentLanguage,
-					filter: JSON.stringify(activeFilters),
-					sort: JSON.stringify(sortParam),
-					// Add timestamp when language changed to force cache miss
-					_langChange: languageChangeTimestamp
-				};
+				// Check for prefetched data first (only for first page with default filters/sorting)
+				let usedPrefetchedData = false;
+				console.log(`[EntryList] Checking prefetch conditions: page=${page}, limit=${limit}, activeFilters=`, activeFilters, 'sortParam=', sortParam);
+				if (
+					page === 1 &&
+					limit === 10 &&
+					Object.keys(activeFilters).length === 1 &&
+					activeFilters.status === '!=deleted' &&
+					(!sortParam || Object.keys(sortParam).length === 0 || sortParam.createdAt === -1)
+				) {
+					console.log(`[EntryList] ✅ Prefetch conditions met for collection ${currentCollId}`);
+					// Try to get prefetched data
+					try {
+						const { getCachedCollectionData } = await import('@utils/collections-prefetch');
+						const prefetchedData = getCachedCollectionData(currentCollId, currentLanguage);
 
-				data = await getData(queryParams);
-				// console.log(`[EntryList] Data fetched for collection ${currentCollId}, entries: ${data?.entryList?.length || 0}`);
+						if (prefetchedData) {
+							data = prefetchedData;
+							usedPrefetchedData = true;
+							console.log(`[EntryList] 🚀 Using prefetched data for collection ${currentCollId}`);
+						} else {
+							console.log(`[EntryList] ⚠️ No prefetched data found for collection ${currentCollId}, language ${currentLanguage}`);
+						}
+					} catch (prefetchError) {
+						// Silently fail and continue with normal fetching
+						console.log(`[EntryList] Prefetch check failed, continuing with normal fetch:`, prefetchError);
+					}
+				} else {
+					console.log(`[EntryList] ❌ Prefetch conditions NOT met for collection ${currentCollId}`);
+				}
+
+				// If no prefetched data available, fetch normally
+				if (!usedPrefetchedData) {
+					const queryParams = {
+						collectionId: currentCollId,
+						page,
+						limit,
+						contentLanguage: currentLanguage,
+						filter: JSON.stringify(activeFilters),
+						sort: JSON.stringify(sortParam),
+						// Add timestamp when language changed to force cache miss
+						_langChange: languageChangeTimestamp
+					};
+
+					data = await getData(queryParams);
+				}
+				// console.log(`[EntryList] Data ${usedPrefetchedData ? 'prefetched' : 'fetched'} for collection ${currentCollId}, entries: ${data?.entryList?.length || 0}`);
 			} catch (error) {
 				console.error(`Error fetching data: ${(error as Error).message}`);
 				toastStore.trigger({ message: `Error fetching data: ${(error as Error).message}`, background: 'variant-filled-error' });

@@ -72,6 +72,8 @@ Features:
 	let response = $state<any>(undefined);
 	let formElement = $state<HTMLFormElement | null>(null);
 	let showPassword = $state(false);
+	let isSubmitting = $state(false);
+	let isRedirecting = $state(false);
 
 	// Pre-calculate tab indices
 	const usernameTabIndex = 1;
@@ -81,7 +83,7 @@ Features:
 	const tokenTabIndex = 5;
 
 	// Form setup with Svelte 5 optimizations
-	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaSignUp, {
+	const { form, constraints, allErrors, errors, enhance } = superForm(FormSchemaSignUp, {
 		id: 'signup',
 		// Clear form on success.
 		resetForm: true,
@@ -95,13 +97,31 @@ Features:
 		onSubmit: ({ cancel }) => {
 			if ($allErrors.length > 0) {
 				cancel();
+				return;
 			}
+
+			// Set submitting state for better UX
+			isSubmitting = true;
 		},
 
 		onResult: ({ result, cancel }) => {
+			// Reset submitting state
+			isSubmitting = false;
+
 			if (result.type == 'redirect') {
+				// Set redirecting state for brief period
+				isRedirecting = true;
+
+				// Clear redirecting state after brief delay to allow redirect
+				setTimeout(() => {
+					isRedirecting = false;
+				}, 1000);
+
 				return;
 			}
+
+			// Reset redirecting state on non-redirect
+			isRedirecting = false;
 			cancel();
 
 			// add wiggle animation to form element
@@ -387,7 +407,7 @@ Features:
 						<!-- Email SignIn only -->
 						<button type="submit" class="variant-filled btn mt-4 uppercase" aria-label={isInviteFlow ? 'Accept Invitation' : m.form_signup()}>
 							{isInviteFlow ? 'Accept Invitation & Create Account' : m.form_signup()}
-							{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
+							{#if isSubmitting || isRedirecting}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 						</button>
 
 						<!-- Email + OAuth signin  -->
@@ -402,7 +422,7 @@ Features:
 									{isInviteFlow ? 'Accept Invitation' : m.form_signup()}
 								</span>
 								<!-- Loading indicators -->
-								{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
+								{#if isSubmitting || isRedirecting}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 							</button>
 
 							<button type="button" onclick={handleOAuth} aria-label="OAuth" class="btn flex w-1/4 items-center justify-center">

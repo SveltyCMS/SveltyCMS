@@ -224,7 +224,6 @@ const getUserFromSessionId = async (session_id: string | undefined, authServiceR
 		cacheStore
 			.set(session_id, sessionData, new Date(now + CACHE_TTL))
 			.catch((err) => logger.error(`Failed to extend session cache for \x1b[34m${session_id}\x1b[0m: ${err.message}`));
-		logger.debug(`Session cache hit and extended for \x1b[34m${session_id}\x1b[0m (auth ready: \x1b[34m${authServiceReady}\x1b[0m)`);
 		sessionMetrics.lastActivity.set(session_id, now); // Update session metrics
 		return memCached.user;
 	}
@@ -236,7 +235,6 @@ const getUserFromSessionId = async (session_id: string | undefined, authServiceR
 			if (redisCached && now - redisCached.timestamp < CACHE_TTL) {
 				// Ensure redis cache isn't stale if TTLs differ
 				sessionCache.set(session_id, redisCached); // Populate in-memory cache
-				logger.debug(`Redis cache hit for session \x1b[34m${session_id}\x1b[0m`);
 				sessionMetrics.lastActivity.set(session_id, now);
 				return redisCached.user;
 			}
@@ -257,7 +255,6 @@ const getUserFromSessionId = async (session_id: string | undefined, authServiceR
 			const sessionData = { user, timestamp: now };
 			sessionCache.set(session_id, sessionData);
 			await cacheStore.set(session_id, sessionData, new Date(now + CACHE_TTL));
-			logger.debug(`Session validated and cached for \x1b[34m${session_id}\x1b[0m`);
 			sessionMetrics.lastActivity.set(session_id, now);
 			return user;
 		}

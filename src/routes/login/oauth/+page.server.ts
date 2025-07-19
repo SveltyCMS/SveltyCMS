@@ -18,7 +18,7 @@ import { invalidateUserCountCache } from '@src/hooks.server';
 
 // Utils
 import { saveAvatarImage } from '@utils/media/mediaStorage';
-import { getFirstCollectionRedirectUrl } from '@utils/navigation';
+import { contentManager } from '@root/src/content/ContentManager';
 
 // Stores
 import { systemLanguage, type Locale } from '@stores/store.svelte';
@@ -343,8 +343,26 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			await handleGoogleUser(googleUser as GoogleUserInfo, !firstUserExists, token, tokens.refresh_token || null, cookies, fetch, request);
 
 			logger.info('Successfully processed OAuth callback and created session');
-			// Redirect to first collection using centralized utility
-			const redirectUrl = await getFirstCollectionRedirectUrl();
+
+			// Prefetch first collection data for instant loading (fire and forget)
+			import('@utils/collections-prefetch')
+				.then(({ prefetchFirstCollectionData }) => {
+					const userLanguage = url.searchParams.get('lang') || publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+					prefetchFirstCollectionData(userLanguage, fetch, request).catch((err) => {
+						logger.debug('Prefetch failed during OAuth callback:', err);
+					});
+				})
+				.catch(() => {
+					// Silently fail if prefetch module can't be loaded
+				});
+
+			// Redirect to first collection
+			let redirectUrl = '/';
+			const firstCollection = contentManager.getFirstCollection();
+			if (firstCollection && firstCollection.path) {
+				const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+				redirectUrl = `/${defaultLanguage}${firstCollection.path}`;
+			}
 			logger.debug(`Redirecting to: \x1b[34m${redirectUrl}\x1b[0m`);
 			throw redirect(302, redirectUrl);
 		} catch (err) {

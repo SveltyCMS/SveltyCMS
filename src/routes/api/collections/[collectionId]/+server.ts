@@ -42,25 +42,25 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 	const isAdmin = Boolean(userRole?.isAdmin);
 
 	// Debug logging to understand the role lookup issue
-	logger.debug(`Role lookup for user ${locals.user?._id}`, {
-		userRoleId: locals.user?.role,
-		availableRoles: availableRoles.map((r) => ({ id: r._id, isAdmin: r.isAdmin })),
-		foundRole: userRole,
-		isAdmin: isAdmin,
-		isAdminRaw: userRole?.isAdmin,
-		isAdminType: typeof userRole?.isAdmin,
-		rolesSource: locals.roles && locals.roles.length > 0 ? 'locals' : 'import'
-	});
+	// logger.debug(`Role lookup for user ${locals.user?._id}`, {
+	// 	userRoleId: locals.user?.role,
+	// 	availableRoles: availableRoles.map((r) => ({ id: r._id, isAdmin: r.isAdmin })),
+	// 	foundRole: userRole,
+	// 	isAdmin: isAdmin,
+	// 	isAdminRaw: userRole?.isAdmin,
+	// 	isAdminType: typeof userRole?.isAdmin,
+	// 	rolesSource: locals.roles && locals.roles.length > 0 ? 'locals' : 'import'
+	// });
 
-	logger.info(`${endpoint} - Request started`, {
-		userId: locals.user?._id,
-		userEmail: locals.user?.email,
-		userRole: locals.user?.role,
-		isAdmin: isAdmin,
-		ip: url.searchParams.get('__ip') || 'unknown',
-		params: params,
-		queryParams: Object.fromEntries(url.searchParams.entries())
-	});
+	// logger.info(`${endpoint} - Request started`, {
+	// 	userId: locals.user?._id,
+	// 	userEmail: locals.user?.email,
+	// 	userRole: locals.user?.role,
+	// 	isAdmin: isAdmin,
+	// 	ip: url.searchParams.get('__ip') || 'unknown',
+	// 	params: params,
+	// 	queryParams: Object.fromEntries(url.searchParams.entries())
+	// });
 
 	try {
 		if (!locals.user) {
@@ -99,13 +99,13 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		if (filterParam) {
 			try {
 				filter = JSON.parse(filterParam);
-				logger.debug(`${endpoint} - Applied filter`, {
+				logger.debug(`\x1b[34m${endpoint}\x1b[0m - Applied filter`, {
 					filter,
 					collection: schema._id,
 					userId: locals.user._id
 				});
 			} catch (parseError) {
-				logger.warn(`${endpoint} - Invalid filter parameter`, {
+				logger.warn(`\x1b[34m${endpoint}\x1b[0m - Invalid filter parameter`, {
 					filterParam,
 					parseError: parseError.message,
 					collection: schema._id,
@@ -118,7 +118,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		// Status filtering - non-admin users only see published content
 		if (!isAdmin) {
 			filter = { ...filter, status: 'published' };
-			logger.debug(`${endpoint} - Applied status filter for non-admin user`, {
+			logger.debug(`\x1b[34m${endpoint}\x1b[0m - Applied status filter for non-admin user`, {
 				userId: locals.user._id,
 				collection: schema._id,
 				userRole: locals.user.role,
@@ -129,7 +129,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 			// For admin users, remove any status filtering from the original filter
 			const { status, ...adminFilter } = filter;
 			filter = adminFilter;
-			logger.debug(`${endpoint} - Admin user - removed status filter`, {
+			logger.debug(`\x1b[34m${endpoint}\x1b[0m - Admin user - removed status filter`, {
 				userId: locals.user._id,
 				collection: schema._id,
 				userRole: locals.user.role,
@@ -151,7 +151,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 		const [result, countResult] = await Promise.all([query.execute(), dbAdapter.queryBuilder(collectionName).where(filter).count()]);
 
 		if (!result.success) {
-			logger.error(`${endpoint} - Database query failed`, {
+			logger.error(`\x1b[34m${endpoint}\x1b[0m - Database query failed`, {
 				collection: schema._id,
 				collectionId: schema._id,
 				operation: 'execute',
@@ -161,7 +161,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 			throw new Error(result.error.message);
 		}
 		if (!countResult.success) {
-			logger.error(`${endpoint} - Database count failed`, {
+			logger.error(`\x1b[34m${endpoint}\x1b[0m - Database count failed`, {
 				collection: schema._id,
 				collectionId: schema._id,
 				operation: 'count',
@@ -183,13 +183,13 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 					user: locals.user,
 					type: 'GET'
 				});
-				logger.debug(`${endpoint} - ModifyRequest completed`, {
+				logger.debug(`\x1b[34m${endpoint}\x1b[0m - ModifyRequest completed`, {
 					collection: schema._id,
 					processedCount: processedData.length,
 					userId: locals.user._id
 				});
 			} catch (modifyError) {
-				logger.warn(`${endpoint} - ModifyRequest failed`, {
+				logger.warn(`\x1b[34m${endpoint}\x1b[0m - ModifyRequest failed`, {
 					collection: schema._id,
 					error: modifyError.message,
 					userId: locals.user._id,

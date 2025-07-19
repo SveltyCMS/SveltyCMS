@@ -78,23 +78,57 @@ class ContentManager {
 		// }
 	}
 
-	// Initialize the collection manager
+	// Initialize the collection manager with performance optimizations
 	public async initialize(): Promise<void> {
 		if (this.initialized) return;
+
+		const initStartTime = performance.now();
 		logger.debug('Initializing ContentManager...');
 
 		try {
-			// First, ensure widgets are initialized
-			await ensureWidgetsInitialized();
+			// Check if we have cached collections in Redis first
+			let collections: Schema[] | null = null;
+			if (isRedisEnabled()) {
+				try {
+					collections = await getCache<Schema[]>('cms:all_collections');
+					if (collections && collections.length > 0) {
+						logger.debug(`Loaded ${collections.length} collections from Redis cache`);
 
-			// Then load collections
-			await this.waitForInitialization();
+						// Populate in-memory structures from cache
+						for (const schema of collections) {
+							this.collectionMapId.set(schema._id, schema);
+							if (!this.firstCollection) this.firstCollection = schema;
+						}
+						this.loadedCollections = collections;
 
+						// Still need to ensure widgets are initialized in parallel
+						await ensureWidgetsInitialized();
+
+						const cacheTime = performance.now() - initStartTime;
+						logger.info(`🚀 ContentManager initialized from cache in \x1b[32m${cacheTime.toFixed(2)}ms\x1b[0m`);
+						this.initialized = true;
+						return;
+					}
+				} catch (cacheErr) {
+					logger.debug('Redis cache miss or error, proceeding with file loading:', cacheErr);
+				}
+			}
+
+			// If no cache, run full initialization in parallel
+			await Promise.all([
+				ensureWidgetsInitialized(), // Ensure widgets are initialized
+				this.waitForInitialization() // Wait for any dependencies
+			]);
+
+			// Load collections with optimized batching
 			await this.updateCollections(true);
-			logger.debug('Content Manager Collections updated');
+
+			const totalTime = performance.now() - initStartTime;
+			logger.info(`📦 ContentManager fully initialized in \x1b[32m${totalTime.toFixed(2)}ms\x1b[0m`);
 			this.initialized = true;
 		} catch (error) {
-			logger.error('Initialization failed:', error);
+			logger.error('ContentManager initialization failed:', error);
+			this.initialized = false; // Reset on failure to allow retry
 			throw error;
 		}
 	}
@@ -108,9 +142,10 @@ class ContentManager {
 			contentStructure: this.contentStructure
 		};
 	}
-	// Load collections
+	// Load collections with optimized batching and caching
 	private async loadCollections(): Promise<Schema[]> {
 		try {
+			const loadStartTime = performance.now();
 			// Server-side collection loading
 			const collections: Schema[] = [];
 			const compiledDirectoryPath = import.meta.env.VITE_COLLECTIONS_FOLDER || 'compiledCollections';
@@ -121,58 +156,107 @@ class ContentManager {
 				throw new Error('Database service unavailable');
 			}
 
-			for (const filePath of files) {
-				try {
-					const content = await this.readFile(filePath);
-					const moduleData = await processModule(content);
+			logger.debug(`Loading ${files.length} collection files...`);
 
-					if (!moduleData?.schema) continue;
+			// Process files in batches for better performance
+			const batchSize = 10; // Process 10 files at a time
+			const batches: string[][] = [];
 
-					const schema = moduleData.schema as Schema;
-					const filePathName = filePath
-						.split('/')
-						.pop()
-						?.replace(/\.(ts|js)$/, '');
-					if (!filePathName) continue;
+			for (let i = 0; i < files.length; i += batchSize) {
+				batches.push(files.slice(i, i + batchSize));
+			}
 
-					const path = this.extractPathFromFilePath(filePath);
+			let processedCount = 0;
 
-					const processed: Schema = {
-						...schema,
-						_id: schema._id!, // Always use the ID from the compiled schema
-						name: schema.name || filePathName,
-						label: schema.label || filePathName,
-						path: path,
-						icon: schema.icon || 'iconoir:info-empty',
-						fields: schema.fields || [],
-						permissions: schema.permissions || {},
-						livePreview: schema.livePreview || false,
-						strict: schema.strict || false,
-						revision: schema.revision || false,
-						description: schema.description || '',
-						slug: schema.slug || filePathName.toLowerCase()
-					};
+			// Process each batch in parallel
+			for (const [batchIndex, batch] of batches.entries()) {
+				const batchStartTime = performance.now();
 
-					// The function only creates models during first run
-					if (!dbAdapter.collection) {
-						logger.error('Collection service not initialized');
-						throw new Error('Collection service unavailable');
+				const batchResults = await Promise.allSettled(
+					batch.map(async (filePath) => {
+						try {
+							// Check cache first to avoid file I/O
+							const cachedSchema = await this.getCacheValue<Schema>(filePath, this.collectionCache);
+							if (cachedSchema) {
+								logger.debug(`Cache hit for collection: ${filePath}`);
+								return cachedSchema;
+							}
+
+							const content = await this.readFile(filePath);
+							const moduleData = await processModule(content);
+
+							if (!moduleData?.schema) {
+								logger.warn(`No schema found in ${filePath}`);
+								return null;
+							}
+
+							const schema = moduleData.schema as Schema;
+							const filePathName = filePath
+								.split('/')
+								.pop()
+								?.replace(/\.(ts|js)$/, '');
+							if (!filePathName) return null;
+
+							const path = this.extractPathFromFilePath(filePath);
+
+							const processed: Schema = {
+								...schema,
+								_id: schema._id!, // Always use the ID from the compiled schema
+								name: schema.name || filePathName,
+								label: schema.label || filePathName,
+								path: path,
+								icon: schema.icon || 'iconoir:info-empty',
+								fields: schema.fields || [],
+								permissions: schema.permissions || {},
+								livePreview: schema.livePreview || false,
+								strict: schema.strict || false,
+								revision: schema.revision || false,
+								description: schema.description || '',
+								slug: schema.slug || filePathName.toLowerCase()
+							};
+
+							// Cache the compiled schema to avoid re-processing
+							await this.setCacheValue(filePath, processed, this.collectionCache);
+
+							return processed;
+						} catch (err) {
+							logger.error(`Failed to process file ${filePath}:`, err);
+							return null;
+						}
+					})
+				);
+
+				// Process successful results
+				for (const result of batchResults) {
+					if (result.status === 'fulfilled' && result.value) {
+						const schema = result.value;
+
+						// The function only creates models during first run
+						if (!dbAdapter.collection) {
+							logger.error('Collection service not initialized');
+							throw new Error('Collection service unavailable');
+						}
+
+						try {
+							const model = await dbAdapter.collection.createModel(schema as CollectionData);
+							if (!model) {
+								logger.error(`Database model creation failed for ${schema.name} ${schema.path}`);
+								throw new Error('Model creation failed');
+							} else {
+								if (!this.firstCollection) this.firstCollection = schema;
+								collections.push(schema);
+								this.collectionMapId.set(schema._id, schema);
+								processedCount++;
+							}
+						} catch (modelErr) {
+							logger.error(`Model creation failed for ${schema.name}:`, modelErr);
+							continue; // Skip failed models but continue processing
+						}
 					}
-					const model = await dbAdapter.collection.createModel(processed as CollectionData);
-					if (!model) {
-						logger.error(`Database model creation failed for ${schema.name} ${schema.path}`);
-						throw new Error('Model creation failed');
-					} else {
-						if (!this.firstCollection) this.firstCollection = processed;
-						collections.push(processed);
-						this.collectionMapId.set(schema._id, processed);
-					}
-
-					await this.setCacheValue(filePath, processed, this.collectionCache);
-				} catch (err) {
-					logger.error(`Failed to process file ${filePath}:`, err);
-					continue;
 				}
+
+				const batchTime = performance.now() - batchStartTime;
+				logger.debug(`Batch ${batchIndex + 1}/${batches.length} processed ${batch.length} files in ${batchTime.toFixed(2)}ms`);
 			}
 
 			// Cache in Redis if available
@@ -181,7 +265,10 @@ class ContentManager {
 			}
 
 			this.loadedCollections = collections;
-			logger.debug('Content Manager Collections loaded');
+			const totalTime = performance.now() - loadStartTime;
+			logger.info(
+				`📦 Loaded ${processedCount} collections in \x1b[32m${totalTime.toFixed(2)}ms\x1b[0m (${(totalTime / processedCount).toFixed(2)}ms per collection)`
+			);
 			return collections;
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : String(err);
@@ -459,7 +546,6 @@ class ContentManager {
 
 				const normalizedPath = normalizePath(collection.path);
 				const oldNode = contentStructure[normalizedPath];
-				if (oldNode) logger.warn(`Collection \x1b[34m${collection.name}\x1b[0m Node already exists. Updating Node`);
 
 				const parentPath = normalizedPath === '/' ? null : normalizedPath.split('/').slice(0, -1).join('/') || '/';
 
@@ -482,7 +568,6 @@ class ContentManager {
 				this.contentNodeMap.set(collection._id, { ...currentNode, path: normalizedPath });
 			}
 
-			logger.debug('Content Manager SysContentStructure loaded');
 			// Cache in Redis if available
 			if (isRedisEnabled()) {
 				await setCache('cms:categories', categoryNodes, REDIS_TTL);
@@ -606,13 +691,10 @@ class ContentManager {
 
 		try {
 			const allFiles = await getAllFiles(compiledDirectoryPath);
-			logger.debug('All files found recursively', {
-				Categories: compiledDirectoryPath,
-				Collections: allFiles.filter((file) => file.endsWith('.js'))
-			});
-
 			// Filter the list to only include .js files
 			const filteredFiles = allFiles.filter((file) => file.endsWith('.js'));
+
+			logger.debug(`Found \x1b[34m${filteredFiles.length}\x1b[0m collection files in \x1b[34m${compiledDirectoryPath}\x1b[0m`);
 
 			// Return the full paths
 			return filteredFiles;

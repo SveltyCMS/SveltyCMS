@@ -67,7 +67,7 @@ export const POST: RequestHandler = async ({ cookies, locals }) => {
 			// --- END NEW LOGIC ---
 
 			// Destroy the session on the server-side (database, cache, etc.).
-			await auth.deleteSession(session_id);
+			await auth.destroySession(session_id);
 
 			// Also clear the session from cache
 			try {

@@ -39,12 +39,6 @@ const createUIStores = () => {
 
 	// Tailored default state based on screen size and mode
 	const getDefaultState = (size: ScreenSize, isViewMode: boolean): UIState => {
-		// Debug log current state
-		logger.debug('UIStore: Calculating default state', {
-			screenSize: size,
-			isViewMode
-		});
-
 		// Mobile behavior (<768px)
 		if (size === ScreenSize.XS || size === ScreenSize.SM) {
 			return {

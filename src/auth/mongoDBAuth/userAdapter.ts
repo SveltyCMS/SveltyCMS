@@ -122,10 +122,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 		try {
 			const user = await this.UserModel.findByIdAndUpdate(user_id, userData, { new: true }).lean();
 			if (!user) {
-				throw error(404, `User not found for ID: ${user_id}`);
+				throw error(404, `User not found for ID: \x1b[34m${user_id}\x1b[0m`);
 			}
 			user._id = user._id.toString();
-			logger.debug(`User attributes updated: ${user_id}`);
+			logger.debug(`User attributes updated: \x1b[34m${user_id}\x1b[0m`);
 			return user as User;
 		} catch (err) {
 			const message = `Error in UserAdapter.updateUserAttributes: ${err instanceof Error ? err.message : String(err)}`;

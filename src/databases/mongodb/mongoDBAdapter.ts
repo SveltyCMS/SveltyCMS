@@ -292,15 +292,13 @@ export class MongoDBAdapter implements DatabaseAdapter {
 			try {
 				// Generate UUID if not provided
 				const collectionUuid = collection._id || this.utils.generateId();
-				logger.debug(`Using UUID for collection: \x1b[34m${collectionUuid}\x1b[0m`);
 
 				// Ensure collection name is prefixed with collection_
 				const collectionName = `collection_${collectionUuid}`;
-				logger.debug(`Creating collection model with name: \x1b[34m${collectionName}\x1b[0m`);
 
 				// Return existing model if it exists
 				if (mongoose.models[collectionName]) {
-					logger.debug(`Model \x1b[34m${collectionName}\x1b[0m already exists in Mongoose, returning existing model`);
+					logger.debug(`Model \x1b[34m${collectionName}\x1b[0m already exists in Mongoose`);
 					this.collection.models.set(collectionUuid, mongoose.models[collectionName]);
 					return mongoose.models[collectionName] as CollectionModel;
 				}
@@ -309,11 +307,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 				if (mongoose.modelNames().includes(collectionName)) {
 					delete mongoose.models[collectionName];
 					delete (mongoose as mongoose.Mongoose & { modelSchemas: { [key: string]: mongoose.Schema } }).modelSchemas[collectionName];
-				}
-
-				logger.debug(`Collection \x1b[34m${collectionName}\x1b[0m does not exist in Mongoose, creating new model`);
-
-				// Base schema definition for the main collection
+				} // Base schema definition for the main collection
 				const schemaDefinition: Record<string, unknown> = {
 					_id: { type: String },
 					status: { type: String, default: 'draft' },
@@ -325,7 +319,6 @@ export class MongoDBAdapter implements DatabaseAdapter {
 
 				// Process fields if they exist
 				if (collection.fields && Array.isArray(collection.fields)) {
-					logger.debug(`Processing \x1b[34m${collection.fields.length}\x1b[0m fields for \x1b[34m${collectionName}\x1b[0m`);
 					for (const field of collection.fields) {
 						try {
 							// Generate fieldKey from label if db_fieldName is not present
@@ -396,7 +389,6 @@ export class MongoDBAdapter implements DatabaseAdapter {
 				// Create and return the new model
 				const model = mongoose.model(collectionName, schema);
 				logger.info(`Collection model ${collectionName} created successfully with ${collection.fields?.length || 0} fields.`);
-				logger.debug(`Model registered in mongoose.models as: ${collectionName}`);
 				this.collection.models.set(collectionUuid, model);
 				return model;
 			} catch (error) {
@@ -1123,7 +1115,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 			mediaSchemas.forEach((schemaName) => {
 				this.modelSetup.setupModel(schemaName, mediaSchema);
 			});
-			logger.info('Media models set up successfully.');
+			logger.info('\x1b[34m$Media models\x1b[0m set up successfully.');
 		},
 
 		files: {

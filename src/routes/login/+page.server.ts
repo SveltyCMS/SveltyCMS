@@ -48,7 +48,9 @@ await initializeRoles();
 
 // System Logger
 import { logger } from '@utils/logger.svelte';
-import { getFirstCollectionRedirectUrl } from '@utils/navigation';
+
+// Content Manager for redirects
+import { contentManager } from '@root/src/content/ContentManager';
 
 const limiter = new RateLimiter({
 	IP: [200, 'h'], // 200 requests per hour per IP
@@ -87,9 +89,58 @@ async function waitForAuthService(maxWaitMs: number = 10000): Promise<boolean> {
 }
 
 // Helper function to fetch and redirect to the first collection
-// Now uses centralized utility for consistency
-async function fetchAndRedirectToFirstCollection() {
-	return await getFirstCollectionRedirectUrl();
+async function fetchAndRedirectToFirstCollection(): Promise<string> {
+	try {
+		// Wait for system initialization including ContentManager
+		await dbInitPromise;
+		logger.debug('System ready, proceeding with collection retrieval');
+
+		// Get the first collection
+		const firstCollection = contentManager.getFirstCollection();
+		if (firstCollection && firstCollection.path) {
+			const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+			const redirectUrl = `/${defaultLanguage}${firstCollection.path}`;
+
+			logger.info(`Redirecting to first collection: ${firstCollection.name} (${firstCollection._id}) at path: ${firstCollection.path}`);
+
+			return redirectUrl;
+		}
+
+		// Fallback: Get content structure with UUIDs
+		const contentNodes = contentManager.getContentStructure();
+		if (!Array.isArray(contentNodes) || !contentNodes.length) {
+			logger.warn('No collections found in content structure');
+			return '/';
+		}
+
+		// Find first collection using nodeType - sort by order or name for consistency
+		const collections = contentNodes.filter((node) => node.nodeType === 'collection' && node._id);
+		if (collections.length > 0) {
+			const sortedCollections = collections.sort((a, b) => {
+				if (a.order !== undefined && b.order !== undefined) {
+					return a.order - b.order;
+				}
+				return (a.name || '').localeCompare(b.name || '');
+			});
+
+			const firstCollectionNode = sortedCollections[0];
+			const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+			const collectionPath = firstCollectionNode.path || `/${firstCollectionNode._id}`;
+			const redirectUrl = `/${defaultLanguage}${collectionPath}`;
+
+			logger.info(
+				`Redirecting to first collection from structure: ${firstCollectionNode.name} (${firstCollectionNode._id}) at path: ${collectionPath}`
+			);
+
+			return redirectUrl;
+		}
+
+		logger.warn('No valid collections found');
+		return '/';
+	} catch (err) {
+		logger.error('Error in fetchAndRedirectToFirstCollection:', err);
+		return '/';
+	}
 }
 
 // Helper function to check if OAuth should be available
@@ -124,7 +175,7 @@ async function shouldShowOAuth(isFirstUser: boolean, hasInviteToken: boolean): P
 		});
 		const hasOAuthUsers = users && users.length > 0;
 
-		logger.debug(`OAuth users check: found ${users?.length || 0} users with lastAuthMethod 'google'`);
+		logger.debug(`OAuth users check: found \x1b[34m${users?.length || 0}\x1b[0m users with lastAuthMethod \x1b[34m'google'\x1b[0m`);
 
 		if (hasOAuthUsers) {
 			return true; // Show OAuth for existing OAuth users to sign in
@@ -270,14 +321,13 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		}
 
 		// Use the firstUserExists value from locals (set by hooks)
-		// This avoids race conditions during initialization
 		const firstUserExists = locals.isFirstUser === false;
 		logger.debug(
-			`In load: firstUserExists determined as: /x1b[34m${firstUserExists}\x1b[0m (based on locals.isFirstUser: /x1b[34m${locals.isFirstUser}\x1b[0m)`
+			`In load: firstUserExists determined as: \x1b[34m${firstUserExists}\x1b[0m (based on locals.isFirstUser: \x1b[34m${locals.isFirstUser}\x1b[0m)`
 		);
 
 		const code = url.searchParams.get('code');
-		logger.debug(`Authorization code from URL: ${code}`);
+		logger.debug(`Authorization code from URL: \x1b[34m${code ?? 'none'}\x1b[0m`);
 
 		// Handle Google OAuth flow if code is present
 		if (privateEnv.USE_GOOGLE_OAUTH && code) {
@@ -355,7 +405,6 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 						return [user, false];
 					} else {
 						// For non-first users, check if we should allow registration
-						// Since ALLOW_REGISTRATION is not configured, we'll allow it by default
 						const defaultRole = roles.find((role) => role.isDefault === true) || roles.find((role) => role._id === 'user');
 						if (!defaultRole) throw new Error('Default user role not found.');
 
@@ -584,6 +633,19 @@ export const actions: Actions = {
 					}
 
 					message(signUpForm, resp.message || 'Admin user created successfully!');
+
+					// Fetch and cache first collection data for instant loading (fire and forget)
+					import('@utils/collections-prefetch')
+						.then(({ fetchAndCacheCollectionData }) => {
+							const userLanguage = event.url.searchParams.get('lang') || 'en';
+							fetchAndCacheCollectionData(userLanguage, event.fetch, event.request).catch((err) => {
+								logger.debug('Data caching failed during first user signup:', err);
+							});
+						})
+						.catch(() => {
+							// Silently fail if module can't be loaded
+						});
+
 					const redirectPath = await fetchAndRedirectToFirstCollection();
 					throw redirect(303, redirectPath);
 				} else {
@@ -681,6 +743,19 @@ export const actions: Actions = {
 			}
 
 			logger.info(`Invited user ${username} registered successfully and logged in.`);
+
+			// Fetch and cache first collection data for instant loading (fire and forget)
+			import('@utils/collections-prefetch')
+				.then(({ fetchAndCacheCollectionData }) => {
+					const userLanguage = (get(systemLanguage) as Locale) || 'en';
+					fetchAndCacheCollectionData(userLanguage, event.fetch, event.request).catch((err) => {
+						logger.debug('Data caching failed during invited user signup:', err);
+					});
+				})
+				.catch(() => {
+					// Silently fail if module can't be loaded
+				});
+
 			const redirectPath = await fetchAndRedirectToFirstCollection();
 			throw redirect(303, redirectPath);
 		} catch (e) {
@@ -761,6 +836,18 @@ export const actions: Actions = {
 			if (resp && resp.status) {
 				message(signInForm, 'Sign-in successful!');
 				redirectPath = collectionPath;
+
+				// Fetch and cache first collection data for instant loading (fire and forget)
+				import('@utils/collections-prefetch')
+					.then(({ fetchAndCacheCollectionData }) => {
+						const userLanguage = event.url.searchParams.get('lang') || 'en';
+						fetchAndCacheCollectionData(userLanguage, event.fetch, event.request).catch((err) => {
+							logger.debug('Data caching failed during sign-in:', err);
+						});
+					})
+					.catch(() => {
+						// Silently fail if module can't be loaded
+					});
 
 				const endTime = performance.now();
 				logger.debug(`SignIn completed in ${(endTime - startTime).toFixed(2)}ms`);
@@ -923,6 +1010,30 @@ export const actions: Actions = {
 			const err = e as Error;
 			logger.error(`Error in resetPW action`, { email, message: err.message, stack: err.stack });
 			return message(pwresetForm, 'An unexpected error occurred during password reset.', { status: 500 });
+		}
+	},
+
+	prefetch: async (event) => {
+		// This action is called when user switches to SignIn/SignUp components
+		// to get collection info for later data fetching after authentication
+		try {
+			const userLanguage = event.url.searchParams.get('lang') || 'en';
+			logger.info(`Collection lookup triggered for language: ${userLanguage}`);
+
+			// Import and call lookup function (no data fetching, just collection info)
+			const { getFirstCollectionInfo } = await import('@utils/collections-prefetch');
+			const collectionInfo = await getFirstCollectionInfo(userLanguage);
+
+			if (collectionInfo) {
+				logger.info(`Collection lookup completed successfully: ${collectionInfo.name}`);
+				return { success: true, collection: collectionInfo };
+			} else {
+				logger.debug('No collection found');
+				return { success: false, error: 'No collection available' };
+			}
+		} catch (err) {
+			logger.debug('Collection lookup failed:', err);
+			return { success: false, error: 'Collection lookup failed' };
 		}
 	}
 };
