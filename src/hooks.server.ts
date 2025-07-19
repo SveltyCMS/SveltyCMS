@@ -328,7 +328,7 @@ const getAdminDataCached = async (user: User, cacheKey: string): Promise<unknown
 export const invalidateAdminCache = (cacheKey?: 'roles' | 'users' | 'tokens'): void => {
 	if (cacheKey) {
 		adminDataCache.delete(cacheKey);
-		logger.debug(`Admin cache invalidated for: ${cacheKey}`);
+		logger.debug(`Admin cache invalidated for: \x1b[31m${cacheKey}\x1b[0`);
 	} else {
 		adminDataCache.clear();
 		logger.debug('All admin cache cleared');

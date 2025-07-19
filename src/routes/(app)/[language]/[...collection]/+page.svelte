@@ -3,7 +3,7 @@
 @component
 **This component handles the content and logic for a specific page within the application**
 
-Features:
+## Features:
 It dynamically fetches and displays data based on the current language and collection route parameters. 
 It also handles navigation, mode switching (view, edit, create, media), and SEO metadata for the page.
 -->

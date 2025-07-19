@@ -178,7 +178,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return createErrorResponse('Invalid recipient email address format.', 400);
 	}
 
-	logger.info('Processing email request via API:', { recipientEmail, subject, templateName, lang: languageTag });
+	// logger.info('Processing email request via API:', { recipientEmail, subject, templateName, lang: languageTag });
 
 	// 1. Get the email template component dynamically
 	const SelectedTemplateComponent = await getEmailTemplate(templateName);
@@ -236,7 +236,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	if (process.env.NODE_ENV === 'development') {
 		try {
 			await transporter.verify();
-			logger.debug('SMTP connection verified successfully by /api/sendMail.');
+			logger.info(`SMTP connection verified successfully by \x1b[34m/api/sendMail\x1b[0m`);
 		} catch (err) {
 			const verifyError = err as Error;
 			logger.warn('SMTP connection verification failed in /api/sendMail:', { error: verifyError.message });
@@ -258,7 +258,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// 5. Send Email
 	try {
 		const info = await transporter.sendMail(mailOptions);
-		logger.info('Email sent successfully via Nodemailer from /api/sendMail:', {
+		logger.info('Email sent successfully via Nodemailer from \x1b[34m/api/sendMail\x1b[0m:', {
 			recipientEmail,
 			subject,
 			templateName,
@@ -268,7 +268,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return json({ success: true, message: 'Email sent successfully.' });
 	} catch (err) {
 		const sendError = err as Error;
-		logger.error('Nodemailer failed to send email from /api/sendMail:', {
+		logger.error('Nodemailer failed to send email from \x1b[34m/api/sendMail\x1b[0m:', {
 			recipientEmail,
 			subject,
 			templateName,
