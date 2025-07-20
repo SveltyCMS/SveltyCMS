@@ -51,6 +51,7 @@ import { logger } from '@utils/logger.svelte';
 
 // Content Manager for redirects
 import { contentManager } from '@root/src/content/ContentManager';
+import { getFirstCollectionInfo, fetchAndCacheCollectionData } from '@utils/collections-prefetch';
 
 const limiter = new RateLimiter({
 	IP: [200, 'h'], // 200 requests per hour per IP
@@ -508,6 +509,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		// Check if OAuth should be shown
 		const showOAuth = await shouldShowOAuth(!firstUserExists, false);
 
+		// ENHANCEMENT: Pre-emptively get the info for the first collection.
+		// This tells us where the user will likely go after logging in and can be shown in the UI.
+		const firstCollection = await getFirstCollectionInfo(url.searchParams.get('lang') || 'en');
+
 		// Check if there are existing OAuth users (for better UX messaging)
 		let hasExistingOAuthUsers = false;
 		try {
@@ -527,6 +532,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			firstUserExists,
 			showOAuth,
 			hasExistingOAuthUsers,
+			firstCollection, // Pass collection info to the client
 			loginForm,
 			forgotForm,
 			resetForm,
@@ -542,6 +548,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			firstUserExists: true,
 			showOAuth: false, // Don't show OAuth in error case
 			hasExistingOAuthUsers: false,
+			firstCollection: null, // No collection info in error case
 			loginForm: await superValidate(wrappedLoginSchema),
 			forgotForm: await superValidate(wrappedForgotSchema),
 			resetForm: await superValidate(wrappedResetSchema),
@@ -636,17 +643,12 @@ export const actions: Actions = {
 
 					message(signUpForm, resp.message || 'Admin user created successfully!');
 
-					// Fetch and cache first collection data for instant loading (fire and forget)
-					import('@utils/collections-prefetch')
-						.then(({ fetchAndCacheCollectionData }) => {
-							const userLanguage = event.url.searchParams.get('lang') || 'en';
-							fetchAndCacheCollectionData(userLanguage, event.fetch, event.request).catch((err) => {
-								logger.debug('Data caching failed during first user signup:', err);
-							});
-						})
-						.catch(() => {
-							// Silently fail if module can't be loaded
-						});
+					// ENHANCEMENT: Trigger the data prefetch immediately after successful signup.
+					// This is a non-blocking call to warm up the cache for the next page load.
+					const userLanguage = event.url.searchParams.get('lang') || 'en';
+					fetchAndCacheCollectionData(userLanguage, event.fetch, event.request).catch((err) => {
+						logger.debug('Data caching failed during first user signup:', err);
+					});
 
 					const redirectPath = await fetchAndRedirectToFirstCollection();
 					throw redirect(303, redirectPath);
@@ -839,17 +841,11 @@ export const actions: Actions = {
 				message(signInForm, 'Sign-in successful!');
 				redirectPath = collectionPath;
 
-				// Fetch and cache first collection data for instant loading (fire and forget)
-				import('@utils/collections-prefetch')
-					.then(({ fetchAndCacheCollectionData }) => {
-						const userLanguage = event.url.searchParams.get('lang') || 'en';
-						fetchAndCacheCollectionData(userLanguage, event.fetch, event.request).catch((err) => {
-							logger.debug('Data caching failed during sign-in:', err);
-						});
-					})
-					.catch(() => {
-						// Silently fail if module can't be loaded
-					});
+				// Trigger the data prefetch immediately after successful login.
+				const userLanguage = event.url.searchParams.get('lang') || 'en';
+				fetchAndCacheCollectionData(userLanguage, event.fetch, event.request).catch((err) => {
+					logger.debug('Data caching failed during sign-in:', err);
+				});
 
 				const endTime = performance.now();
 				logger.debug(`SignIn completed in ${(endTime - startTime).toFixed(2)}ms`);

@@ -28,7 +28,22 @@ import { corePermissions } from './corePermissions';
 // System Logger
 import { logger } from '@utils/logger.svelte';
 
-export { checkPermissions, checkRolePermissions, hasPermission, getUserRole, getUserRoles } from './permissions';
+export {
+	hasPermissionWithRoles as hasPermission,
+	hasPermissionByAction,
+	getRolePermissionsWithRoles as checkRolePermissions,
+	isAdminRoleWithRoles,
+	validateUserPermission,
+	registerPermission,
+	getAllPermissions,
+	getPermissionById,
+	getPermissionConfig,
+	permissionConfigs,
+	permissions,
+	checkPermissions,
+	getUserRole,
+	getUserRoles
+} from './permissions';
 export type { Permission, PermissionAction, PermissionType, Role, RolePermissions, Session, SessionStore, Token, User } from './types';
 
 // Import argon2 and related constants

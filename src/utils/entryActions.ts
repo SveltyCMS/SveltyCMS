@@ -1,6 +1,15 @@
 /**
  * @file src/utils/entryActions.ts
- * @description Centralized functions for performing actions on single collection entries.
+ * @description Centralized functions for performing actions on collection entries.
+ * This separates business logic from the UI components.
+ *
+ * Features:
+ * - Handles single and batch operations for status changes, deletion, and cloning.
+ * - Provides clear user feedback via modals and toasts.
+ * - Contains all API request logic for entry manipulation.
+ * - **FIXED**: `deleteEntries` now correctly handles both archiving and permanent deletion.
+ * - **FIXED**: `cloneEntries` correctly prepares the payload for new entries.
+ * - **FIXED**: `setEntriesStatus` can now accept an optional payload for actions like scheduling.
  */
 
 import { publicEnv } from '@root/config/public';
@@ -14,15 +23,118 @@ import { StatusTypes } from '@src/content/types';
 import { collection, mode, collectionValue } from '@stores/collectionStore.svelte';
 
 // Skeleton
-import { getModalStore, getToastStore, type ModalSettings } from '@skeletonlabs/skeleton';
+import type { ModalSettings, ModalStore, ToastStore } from '@skeletonlabs/skeleton';
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
 
+// Sets the status for one or more entries
+export async function setEntriesStatus(
+	entryIds: string[],
+	status: StatusType,
+	onSuccess: () => void,
+	toastStore: ToastStore,
+	payload: Record<string, unknown> = {}
+) {
+	if (entryIds.length === 0) {
+		toastStore.trigger({ message: 'Please select at least one entry.', background: 'variant-filled-warning' });
+		return;
+	}
+
+	const collId = collection.value?._id;
+	if (!collId) return;
+
+	try {
+		// For status updates, we can use the dedicated batch update endpoint for efficiency.
+		const updatePayload = { status, ...payload };
+		await apiRequest('PATCH', collId, updatePayload, entryIds[0], { batchIds: entryIds });
+
+		toastStore.trigger({ message: `Successfully set status to ${status} for ${entryIds.length} item(s).`, background: 'variant-filled-success' });
+		onSuccess();
+	} catch (e) {
+		toastStore.trigger({ message: `Error setting status: ${(e as Error).message}`, background: 'variant-filled-error' });
+	}
+}
+
+// Deletes or archives one or more entries
+export async function deleteEntries(
+	entryIds: string[],
+	isPermanentDelete: boolean,
+	onSuccess: () => void,
+	modalStore: ModalStore,
+	toastStore: ToastStore
+) {
+	if (entryIds.length === 0) {
+		toastStore.trigger({ message: 'Please select at least one entry to delete.', background: 'variant-filled-warning' });
+		return;
+	}
+
+	const collId = collection.value?._id;
+	if (!collId) return;
+
+	const isArchiving = publicEnv.USE_ARCHIVE_ON_DELETE && !isPermanentDelete;
+	const actionText = isArchiving ? 'archive' : 'permanently delete';
+
+	const modal: ModalSettings = {
+		type: 'confirm',
+		title: `Confirm ${isArchiving ? 'Archiving' : 'Deletion'}`,
+		body: `Are you sure you want to ${actionText} ${entryIds.length} item(s)?`,
+		response: async (confirmed: boolean) => {
+			if (confirmed) {
+				try {
+					if (isArchiving) {
+						// Archive by setting status
+						await setEntriesStatus(entryIds, StatusTypes.archive, onSuccess, toastStore);
+					} else {
+						// Permanent deletion
+						const deletePromises = entryIds.map((id) => apiRequest('DELETE', collId, {}, id));
+						await Promise.all(deletePromises);
+						toastStore.trigger({ message: 'Items permanently deleted.', background: 'variant-filled-success' });
+						onSuccess();
+					}
+				} catch (e) {
+					toastStore.trigger({ message: `Error ${actionText}ing items: ${(e as Error).message}`, background: 'variant-filled-error' });
+				}
+			}
+		},
+		buttonTextConfirm: isArchiving ? 'Archive' : 'Delete',
+		meta: { buttonConfirmClasses: 'bg-error-500 hover:bg-error-600 text-white' }
+	};
+	modalStore.trigger(modal);
+}
+
+//  Clones one or more entries
+export async function cloneEntries(rawEntries: Record<string, unknown>[], onSuccess: () => void, toastStore: ToastStore) {
+	if (rawEntries.length === 0) {
+		toastStore.trigger({ message: 'Please select at least one entry to clone.', background: 'variant-filled-warning' });
+		return;
+	}
+
+	const collId = collection.value?._id;
+	if (!collId) return;
+
+	try {
+		const clonePromises = rawEntries.map((entry) => {
+			const clonedPayload = { ...entry };
+			// Remove fields that should be unique to the new entry
+			delete clonedPayload._id;
+			delete clonedPayload.createdAt;
+			delete clonedPayload.updatedAt;
+			// Set the status to 'clone' and add a reference to the original
+			clonedPayload.status = StatusTypes.clone;
+			clonedPayload.clonedFrom = entry._id;
+			return apiRequest('POST', collId, clonedPayload);
+		});
+		await Promise.all(clonePromises);
+		toastStore.trigger({ message: `${rawEntries.length} item(s) cloned successfully.`, background: 'variant-filled-success' });
+		onSuccess();
+	} catch (e) {
+		toastStore.trigger({ message: `Error cloning items: ${(e as Error).message}`, background: 'variant-filled-error' });
+	}
+}
+
 // Deletes the currently active entry after confirmation
-export async function deleteCurrentEntry() {
-	const modalStore = getModalStore();
-	const toastStore = getToastStore();
+export async function deleteCurrentEntry(modalStore: ModalStore, toastStore: ToastStore) {
 	const entry = collectionValue.value;
 	const coll = collection.value;
 	if (!entry?._id || !coll?._id) {
@@ -67,9 +179,7 @@ export async function deleteCurrentEntry() {
 	modalStore.trigger(modalSettings);
 }
 
-export async function permanentlyDeleteEntry(entryId: string) {
-	const modalStore = getModalStore();
-	const toastStore = getToastStore();
+export async function permanentlyDeleteEntry(entryId: string, modalStore: ModalStore, toastStore: ToastStore) {
 	const coll = collection.value;
 	if (!entryId || !coll?._id) {
 		toastStore.trigger({
@@ -78,15 +188,7 @@ export async function permanentlyDeleteEntry(entryId: string) {
 		});
 		return;
 	}
-	// TODO: Get current user role - replace this with proper user role check
-	// const userRole = roles.find((role) => role._id === currentUser?.role);
-	// if (!userRole?.isAdmin) {
-	// 	toastStore.trigger({
-	// 		message: 'Only admins can permanently delete archived entries.',
-	// 		background: 'variant-filled-error'
-	// 	});
-	// 	return;
-	// }
+
 	const modalSettings: ModalSettings = {
 		type: 'confirm',
 		title: 'Confirm Permanent Deletion',
@@ -113,8 +215,7 @@ export async function permanentlyDeleteEntry(entryId: string) {
 	modalStore.trigger(modalSettings);
 }
 
-export async function setEntryStatus(newStatus: StatusType) {
-	const toastStore = getToastStore();
+export async function setEntryStatus(newStatus: StatusType, toastStore: ToastStore) {
 	const entry = collectionValue.value;
 	const coll = collection.value;
 	if (!entry?._id || !coll?._id) {
@@ -147,9 +248,7 @@ export async function setEntryStatus(newStatus: StatusType) {
 }
 
 // Schedule entry for future publication
-export async function scheduleCurrentEntry(scheduledDate?: Date) {
-	const modalStore = getModalStore();
-	const toastStore = getToastStore();
+export async function scheduleCurrentEntry(modalStore: ModalStore, toastStore: ToastStore, scheduledDate?: Date) {
 	const entry = collectionValue.value;
 	const coll = collection.value;
 
@@ -213,9 +312,7 @@ export async function scheduleCurrentEntry(scheduledDate?: Date) {
 }
 
 // Clones the currently active entry
-export async function cloneCurrentEntry() {
-	const modalStore = getModalStore();
-	const toastStore = getToastStore();
+export async function cloneCurrentEntry(modalStore: ModalStore, toastStore: ToastStore) {
 	const entry = collectionValue.value;
 	const coll = collection.value;
 	if (!entry || !coll?._id) {
@@ -265,8 +362,7 @@ export async function cloneCurrentEntry() {
 	modalStore.trigger(modalSettings);
 }
 
-export async function saveEntry(entryData: Record<string, unknown>, publish: boolean = false) {
-	const toastStore = getToastStore();
+export async function saveEntry(entryData: Record<string, unknown>, toastStore: ToastStore, publish: boolean = false) {
 	const coll = collection.value;
 	if (!entryData._id || !coll?._id) {
 		toastStore.trigger({ message: 'No entry or collection selected.', background: 'variant-filled-warning' });
@@ -312,9 +408,7 @@ export function getHasUnsavedChanges(): boolean {
 }
 
 // Save current data as draft when user tries to leave
-export async function saveDraftAndLeave(): Promise<boolean> {
-	const modalStore = getModalStore();
-	const toastStore = getToastStore();
+export async function saveDraftAndLeave(modalStore: ModalStore, toastStore: ToastStore): Promise<boolean> {
 	const entry = collectionValue.value;
 	const coll = collection.value;
 

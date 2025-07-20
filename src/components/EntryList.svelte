@@ -28,9 +28,11 @@ Features:
 	import { browser } from '$app/environment';
 	import { untrack } from 'svelte';
 	// Utils
-	import { apiRequest, getData, invalidateCollectionCache, updateStatus } from '@utils/apiClient';
+	import { getData, invalidateCollectionCache } from '@utils/apiClient';
+	import { getCachedCollectionData } from '@utils/collections-prefetch';
 	import { formatDisplayDate } from '@utils/dateUtils';
 	import { debounce as debounceUtil, getFieldName, meta_data } from '@utils/utils';
+	import { cloneEntries, deleteEntries, setEntriesStatus } from '@utils/entryActions'; // Import centralized actions
 	// Config
 	import { publicEnv } from '@root/config/public';
 	// Types
@@ -41,6 +43,7 @@ Features:
 	import { collection, collectionValue, contentStructure, mode, modifyEntry, statusMap } from '@stores/collectionStore.svelte';
 	import { contentLanguage, systemLanguage } from '@stores/store.svelte';
 	import { handleUILayoutToggle, toggleUIElement, uiStateManager } from '@stores/UIStore.svelte';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -101,8 +104,6 @@ Features:
 		// Only process if collection actually changed
 		if (lastCollectionId === currentCollId) return;
 
-		// console.log(`[EntryList] Collection changed from ${lastCollectionId} to ${currentCollId}`);
-
 		// Set flags to prevent pagination effect from triggering during collection change
 		isCollectionChanging = true;
 		isInitializing = true;
@@ -154,7 +155,6 @@ Features:
 			});
 
 			// Trigger data load for new collection
-			// console.log(`[EntryList] Loading data for collection ${currentCollId}`);
 			untrack(() => refreshTableData(true));
 
 			// Clear flag after a longer timeout to ensure pagination effect doesn't trigger
@@ -167,7 +167,6 @@ Features:
 			}, 100);
 		} else if (!currentCollId) {
 			// No collection selected, reset to defaults for a null collectionId
-			// console.log(`[EntryList] No collection selected, resetting state`);
 			entryListPaginationSettings = defaultPaginationSettings(null);
 			untrack(() => {
 				lastCollectionId = null;
@@ -194,7 +193,8 @@ Features:
 	// Simplified stable state management
 	let stableDataExists = $state(false);
 	let hasInitialLoad = $state(false);
-	let showDeleted = $state(false);
+	let showDeleted = $state(false); // Controls whether to view active or archived entries
+	let rawData = $state<{ entryList: any[]; pagesCount?: number; totalItems?: number } | undefined>();
 
 	let globalSearchValue = $state('');
 	let expand = $state(false);
@@ -202,11 +202,6 @@ Features:
 	let columnShow = $state(false);
 
 	const currentLanguage = $derived(contentLanguage.value);
-
-	// Debug effect to track language changes
-	// $effect(() => {
-	// 	console.log(`[EntryList] currentLanguage derived updated to: ${currentLanguage}`);
-	// });
 	const currentSystemLanguage = $derived(systemLanguage.value);
 	const currentMode = $derived(mode.value);
 	const currentCollection = $derived(collection.value);
@@ -326,8 +321,6 @@ Features:
 		// Get current collection
 		const currentCollId = currentCollection?._id;
 
-		// console.log(`[EntryList] refreshTableData called for collection ${currentCollId}, fetchNewData: ${fetchNewData}`);
-
 		// If no collection, clear data and reset state
 		if (!currentCollId) {
 			tableData = [];
@@ -343,10 +336,9 @@ Features:
 		// Fetch data
 		if (fetchNewData) {
 			loadingState = 'loading';
+			globalLoadingStore.startLoading(loadingOperations.dataFetch);
 
 			try {
-				// console.log(`[EntryList] Fetching data for collection ${currentCollId}`);
-				// console.log(`[EntryList] Current language: ${currentLanguage}`);
 				const page = entryListPaginationSettings.currentPage;
 				const limit = entryListPaginationSettings.rowsPerPage;
 				const activeFilters: Record<string, string> = {};
@@ -368,15 +360,13 @@ Features:
 
 				// Check for prefetched data first (only for first page with default filters/sorting)
 				let usedPrefetchedData = false;
-				console.log(`[EntryList] Checking prefetch conditions: page=${page}, limit=${limit}, activeFilters=`, activeFilters, 'sortParam=', sortParam);
 				if (
 					page === 1 &&
-					limit === 10 &&
+					[5, 10, 20].includes(limit) && // Allow prefetching for common page sizes
 					Object.keys(activeFilters).length === 1 &&
 					activeFilters.status === '!=deleted' &&
 					(!sortParam || Object.keys(sortParam).length === 0 || sortParam.createdAt === -1)
 				) {
-					console.log(`[EntryList] ✅ Prefetch conditions met for collection ${currentCollId}`);
 					// Try to get prefetched data
 					try {
 						const { getCachedCollectionData } = await import('@utils/collections-prefetch');
@@ -385,16 +375,11 @@ Features:
 						if (prefetchedData) {
 							data = prefetchedData;
 							usedPrefetchedData = true;
-							console.log(`[EntryList] 🚀 Using prefetched data for collection ${currentCollId}`);
 						} else {
-							console.log(`[EntryList] ⚠️ No prefetched data found for collection ${currentCollId}, language ${currentLanguage}`);
 						}
 					} catch (prefetchError) {
-						// Silently fail and continue with normal fetching
-						console.log(`[EntryList] Prefetch check failed, continuing with normal fetch:`, prefetchError);
+						// Silently continue if prefetch fails
 					}
-				} else {
-					console.log(`[EntryList] ❌ Prefetch conditions NOT met for collection ${currentCollId}`);
 				}
 
 				// If no prefetched data available, fetch normally
@@ -412,6 +397,10 @@ Features:
 
 					data = await getData(queryParams);
 				}
+
+				// Store raw data for actions like cloning
+				rawData = data;
+
 				// console.log(`[EntryList] Data ${usedPrefetchedData ? 'prefetched' : 'fetched'} for collection ${currentCollId}, entries: ${data?.entryList?.length || 0}`);
 			} catch (error) {
 				console.error(`Error fetching data: ${(error as Error).message}`);
@@ -422,18 +411,18 @@ Features:
 				pagesCount = 1;
 				stableDataExists = false;
 				return;
+			} finally {
+				globalLoadingStore.stopLoading(loadingOperations.dataFetch);
 			}
 		}
 
-		// Process data only if 'data' is available and 'entryList' is an array.
-		// Otherwise, ensure tableData is empty.
+		//  Process data
 		if (data?.entryList && Array.isArray(data.entryList)) {
 			tableData = await Promise.all(
 				data.entryList.map(async (entry) => {
 					const obj: { [key: string]: any } = { _id: entry._id, raw_status: entry.status || 'N/A' }; // Ensure _id is always present
 					if (currentCollection?.fields) {
-						// FIX: Cast `currentCollection.fields` to `any[]` to avoid type conflicts.
-						// Runtime checks for properties like `display` and `callback` are used instead.
+						// Process each field
 						for (const field of currentCollection.fields as any[]) {
 							const fieldNameKey = getFieldName(field);
 							const rawDataKey = getFieldName(field, false);
@@ -468,9 +457,7 @@ Features:
 			);
 			stableDataExists = tableData.length > 0;
 		} else {
-			// If data.entryList is not an array or is null/undefined after a successful fetch (e.g. no data),
-			// ensure tableData is empty. This handles the case where `getData` returns an empty
-			// object or an object without entryList when no data is present.
+			// If data.entryList is not an array, clear tableData
 			tableData = [];
 			stableDataExists = false;
 		}
@@ -560,23 +547,16 @@ Features:
 
 		// Skip if we're in the middle of a collection change or initializing
 		if (isCollectionChanging || isInitializing) {
-			// console.log(
-			// 	`[EntryList] Skipping pagination refresh during collection change (isCollectionChanging: ${isCollectionChanging}, isInitializing: ${isInitializing})`
-			// );
 			return;
 		}
 
 		// Only refresh if this is for the same collection AND we've completed initial load
 		// Also ensure this isn't the initial setup after collection change
 		if (lastCollectionId === collectionId && hasInitialLoad && stableDataExists) {
-			// console.log(`[EntryList] Pagination/filter/language change for collection ${collectionId}, language: ${language}, refreshing data`);
 			refreshDebounce(() => {
 				untrack(() => refreshTableData(true));
 			});
 		} else {
-			console.log(
-				`[EntryList] Skipping pagination refresh - lastCollectionId: ${lastCollectionId}, collectionId: ${collectionId}, hasInitialLoad: ${hasInitialLoad}, stableDataExists: ${stableDataExists}, language: ${language}`
-			);
 		}
 	});
 
@@ -777,16 +757,53 @@ Features:
 		return pathSegments?.slice(0, -1).join(' >') || '';
 	});
 
-	// Functions to handle actions from EntryListMultiButton
-	function onPublish() {
+	// --- Actions ---
+	// Getters for selected entry data, used by action functions
+	const getSelectedIds = () =>
+		Object.entries(selectedMap)
+			.filter(([, isSelected]) => isSelected)
+			.map(([index]) => tableData[Number(index)]._id);
+
+	const getSelectedRawEntries = () =>
+		Object.entries(selectedMap)
+			.filter(([, isSelected]) => isSelected)
+			.map(([index]) => {
+				const selectedId = tableData[Number(index)]._id;
+				return rawData?.entryList.find((rawEntry) => rawEntry._id === selectedId);
+			})
+			.filter(Boolean); // Filter out any potential undefined values
+
+	// Callback function to refresh data after an action is successful
+	const onActionSuccess = () => {
+		invalidateCollectionCache(collection.value!._id);
+		refreshTableData();
+	};
+
+	// Handlers that call the centralized action functions
+	const onPublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.publish, onActionSuccess, toastStore);
+	const onUnpublish = () => setEntriesStatus(getSelectedIds(), StatusTypes.unpublish, onActionSuccess, toastStore);
+	const onTest = () => setEntriesStatus(getSelectedIds(), 'test', onActionSuccess, toastStore);
+	const onDelete = () => deleteEntries(getSelectedIds(), showDeleted, onActionSuccess, modalStore, toastStore);
+	const onClone = () => cloneEntries(getSelectedRawEntries(), onActionSuccess, toastStore);
+
+	// FIX: Schedule handler now correctly processes date and calls the action
+	const onSchedule = (date: string, action: string) => {
+		const payload = { _scheduled: new Date(date).getTime() };
+		// The `action` variable from the modal can be used here if your backend
+		// needs to know what kind of scheduled action to perform (e.g., scheduled publish vs. scheduled delete)
+		setEntriesStatus(getSelectedIds(), StatusTypes.schedule, onActionSuccess, toastStore, payload);
+	};
+
+	// Functions to handle actions from EntryListMultiButton (legacy compatibility)
+	function legacyOnPublish() {
 		console.log('onPublish called - will show modal');
 		modifyEntry.value(StatusTypes.publish);
 	}
-	function onUnpublish() {
+	function legacyOnUnpublish() {
 		console.log('onUnpublish called - will show modal');
 		modifyEntry.value(StatusTypes.unpublish);
 	}
-	function onSchedule() {
+	function legacyOnSchedule() {
 		console.log('onSchedule called - will show modal');
 		modifyEntry.value(StatusTypes.schedule);
 	}
@@ -895,112 +912,9 @@ Features:
 			});
 		}
 	}
-
-	function onDelete() {
-		if (!currentCollection?._id) {
-			toastStore.trigger({ message: 'No collection selected.', background: 'variant-filled-error' });
-			return;
-		}
-		const selectedIds = Object.entries(selectedMap)
-			.filter(([, isSelected]) => isSelected)
-			.map(([index]) => tableData[Number(index)]._id);
-
-		if (selectedIds.length === 0) {
-			toastStore.trigger({ message: 'Please select items to delete.', background: 'variant-filled-warning' });
-			return;
-		}
-
-		const itemCount = selectedIds.length;
-		const itemText = itemCount === 1 ? 'item' : 'items';
-		const isArchiving = publicEnv.USE_ARCHIVE_ON_DELETE;
-
-		const modal: ModalSettings = {
-			type: 'confirm',
-			title: `Confirm ${isArchiving ? 'Archive' : 'Deletion'}`,
-			body: isArchiving
-				? `Are you sure you want to archive ${itemCount} ${itemText}? Archived items can be restored later.`
-				: `Are you sure you want to delete ${itemCount} ${itemText}? This action cannot be undone.`,
-			response: async (confirmed: boolean) => {
-				if (confirmed) {
-					if (!currentCollection?._id) return;
-					try {
-						if (isArchiving) {
-							// Archive entries by setting status to archive
-							const archivePromises = selectedIds.map((entryId) => updateStatus(currentCollection!._id, entryId, StatusTypes.archive));
-							await Promise.all(archivePromises);
-							toastStore.trigger({ message: 'Items archived successfully.', background: 'variant-filled-success' });
-						} else {
-							// Permanently delete entries
-							const deletePromises = selectedIds.map((entryId) => apiRequest('DELETE', currentCollection!._id, {}, entryId));
-							await Promise.all(deletePromises);
-							toastStore.trigger({ message: 'Items deleted successfully.', background: 'variant-filled-success' });
-						}
-						invalidateCollectionCache(currentCollection._id); // Invalidate cache
-						refreshTableData(); // Refresh data to show changes
-					} catch (e) {
-						toastStore.trigger({
-							message: `Error ${isArchiving ? 'archiving' : 'deleting'} items: ${(e as Error).message}`,
-							background: 'variant-filled-error'
-						});
-					}
-				}
-			},
-			buttonTextConfirm: isArchiving ? 'Archive' : 'Delete',
-			modalClasses: isArchiving ? 'modal-confirm-archive' : 'modal-confirm-delete'
-		};
-		modalStore.trigger(modal);
-	}
-	function onTest() {
-		// Assuming 'test' is a valid status
-		modifyEntry.value('test');
-	}
-	function onClone() {
-		if (!currentCollection?._id) {
-			toastStore.trigger({ message: 'No collection selected.', background: 'variant-filled-error' });
-			return;
-		}
-		const selectedEntries = Object.entries(selectedMap)
-			.filter(([, isSelected]) => isSelected)
-			.map(([index]) => tableData[Number(index)]);
-
-		if (selectedEntries.length === 0) {
-			toastStore.trigger({ message: 'Please select item(s) to clone.', background: 'variant-filled-warning' });
-			return;
-		}
-
-		const itemCount = selectedEntries.length;
-		const itemText = itemCount === 1 ? 'item' : 'items';
-
-		const modal: ModalSettings = {
-			type: 'confirm',
-			title: 'Confirm Clone',
-			body: `Are you sure you want to clone ${itemCount} ${itemText}?`,
-			response: async (confirmed: boolean) => {
-				if (confirmed) {
-					if (!currentCollection?._id) return;
-					try {
-						const clonePromises = selectedEntries.map((entry) => {
-							const clonedPayload = { ...entry };
-							delete clonedPayload._id; // Remove original ID
-							delete clonedPayload.createdAt;
-							delete clonedPayload.updatedAt;
-							clonedPayload.status = StatusTypes.clone; // Use correct clone status
-							clonedPayload.clonedFrom = entry._id; // Reference to original entry
-							return apiRequest('POST', currentCollection!._id, clonedPayload);
-						});
-						await Promise.all(clonePromises);
-						toastStore.trigger({ message: 'Items cloned successfully.', background: 'variant-filled-success' });
-						invalidateCollectionCache(currentCollection._id); // Invalidate cache
-						refreshTableData();
-					} catch (e) {
-						toastStore.trigger({ message: `Error cloning items: ${(e as Error).message}`, background: 'variant-filled-error' });
-					}
-				}
-			},
-			buttonTextConfirm: 'Clone',
-			modalClasses: 'modal-confirm-clone'
-		};
-		modalStore.trigger(modal);
+	// Legacy onClone function - now calls centralized action
+	function legacyOnClone() {
+		onClone();
 	}
 
 	// Show content as soon as we have a collection, even if still loading
@@ -1115,11 +1029,12 @@ Features:
 					{hasSelections}
 					selectedCount={Object.values(selectedMap).filter(Boolean).length}
 					selectedStatuses={selectedEntriesStatuses}
-					publish={executePublish}
-					unpublish={executeUnpublish}
-					schedule={executeSchedule}
-					delete={executeDelete}
-					test={executeTest}
+					bind:showDeleted
+					publish={onPublish}
+					unpublish={onUnpublish}
+					schedule={onSchedule}
+					delete={onDelete}
+					test={onTest}
 					clone={onClone}
 				/>
 			</div>

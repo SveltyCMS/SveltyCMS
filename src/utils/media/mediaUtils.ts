@@ -1,10 +1,16 @@
 /**
  * @file utils/media/mediaUtils.ts
- * @description Contains utility functions for media operations.
+ * @description Contains utility functions for media operations
+ *
+ * @example import { getBrowserMimeType } from '@utils/media/mediaUtils';
+ *
+ * Features:
+ * - getBrowserMimeType: Returns the MIME type of a file based on its name
+ * - constructUrl: Constructs a URL for a media file
+ * - validateMediaFile: Validates a media file against allowed types and size limits
+ * - getSanitizedFileName: Sanitizes a file name to remove special characters
  */
 
-import mime from 'mime-types';
-import Path from 'path';
 import { publicEnv } from '@root/config/public';
 import { sanitize, formatBytes } from '@utils/utils';
 import type { MediaBase } from '@utils/media/mediaModels';
@@ -12,6 +18,62 @@ import { removeExtension } from '../utils';
 
 // System Logger
 import { logger } from '../logger.svelte';
+
+// Browser-compatible MIME type lookup
+function getBrowserMimeType(fileName: string): string | null {
+	const extension = fileName.toLowerCase().split('.').pop();
+	if (!extension) return null;
+
+	const mimeTypes: Record<string, string> = {
+		// Images
+		jpg: 'image/jpeg',
+		jpeg: 'image/jpeg',
+		png: 'image/png',
+		gif: 'image/gif',
+		webp: 'image/webp',
+		svg: 'image/svg+xml',
+		avif: 'image/avif',
+		bmp: 'image/bmp',
+		ico: 'image/x-icon',
+
+		// Documents
+		pdf: 'application/pdf',
+		doc: 'application/msword',
+		docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+		xls: 'application/vnd.ms-excel',
+		xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+		ppt: 'application/vnd.ms-powerpoint',
+		pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+		txt: 'text/plain',
+		rtf: 'application/rtf',
+
+		// Audio
+		mp3: 'audio/mpeg',
+		wav: 'audio/wav',
+		ogg: 'audio/ogg',
+		aac: 'audio/aac',
+		flac: 'audio/flac',
+		m4a: 'audio/mp4',
+
+		// Video
+		mp4: 'video/mp4',
+		webm: 'video/webm',
+		mkv: 'video/x-matroska',
+		avi: 'video/x-msvideo',
+		mov: 'video/quicktime',
+		wmv: 'video/x-ms-wmv',
+		flv: 'video/x-flv',
+
+		// Archives
+		zip: 'application/zip',
+		rar: 'application/vnd.rar',
+		'7z': 'application/x-7z-compressed',
+		tar: 'application/x-tar',
+		gz: 'application/gzip'
+	};
+
+	return mimeTypes[extension] || null;
+}
 
 // Convert IMAGE_SIZES to an array of size configurations
 const imageSizes: Array<{ name: string; width: number; height: number }> = Object.keys(publicEnv.IMAGE_SIZES).map((key) => ({
@@ -31,8 +93,6 @@ export const mediaCategories = {
 
 // Constructs the full media URL based on the environment.
 export function constructMediaUrl(mediaItem: MediaBase, size?: keyof typeof publicEnv.IMAGE_SIZES): string {
-	const startTime = performance.now();
-
 	if (!mediaItem?.url) {
 		const message = 'Media item is missing required url property';
 		try {
@@ -51,37 +111,12 @@ export function constructMediaUrl(mediaItem: MediaBase, size?: keyof typeof publ
 
 		if (publicEnv.MEDIASERVER_URL) {
 			url = `${publicEnv.MEDIASERVER_URL}/${mediaItem.url}`;
-			try {
-				logger.debug('Constructed media server URL', {
-					url,
-					processingTime: performance.now() - startTime
-				});
-			} catch (logError) {
-				logger.error('Failed to log debug info:', logError);
-			}
 		} else {
-			const basePath = Path.posix.join(publicEnv.MEDIA_FOLDER, mediaItem.url);
+			const basePath = `${publicEnv.MEDIA_FOLDER}/${mediaItem.url}`.replace(/\/+/g, '/');
 			if (size && 'thumbnails' in mediaItem && mediaItem.thumbnails && mediaItem.thumbnails[size]) {
 				url = mediaItem.thumbnails[size].url;
-				try {
-					logger.debug('Using thumbnail URL', {
-						size,
-						url,
-						processingTime: performance.now() - startTime
-					});
-				} catch (logError) {
-					logger.error('Failed to log debug info:', logError);
-				}
 			} else {
 				url = basePath;
-				try {
-					logger.debug('Using base media URL', {
-						basePath,
-						processingTime: performance.now() - startTime
-					});
-				} catch (logError) {
-					logger.error('Failed to log debug info:', logError);
-				}
 			}
 		}
 
@@ -142,11 +177,7 @@ export function constructUrl(
 			urlPath = size
 				? `${sanitize(contentTypes)}/sizes/${size}/${sanitize(fileName)}-${hash}.${format}`
 				: `${sanitize(contentTypes)}/original/${sanitize(fileName)}-${hash}.${format}`;
-			try {
-				logger.debug('Constructed global path URL', { urlPath });
-			} catch (logError) {
-				logger.error('Failed to log debug info:', logError);
-			}
+			// logger.debug('Constructed global path URL', { urlPath });
 			break;
 		case 'unique':
 			urlPath = `${sanitize(contentTypes)}/original/${sanitize(fileName)}-${hash}.${format}`;
@@ -208,6 +239,28 @@ export function getMediaUrl(mediaItem: MediaBase, contentTypes: string, size?: k
 	}
 }
 
+// Safe version for use in reactive contexts (Svelte 5 derived expressions)
+export function getMediaUrlSafe(mediaItem: MediaBase, contentTypes: string, size?: keyof typeof publicEnv.IMAGE_SIZES): string {
+	try {
+		if (!mediaItem?.path || !mediaItem?.hash || !mediaItem?.filename) {
+			return ''; // Return empty string instead of throwing
+		}
+		if (!contentTypes) {
+			return '';
+		}
+
+		const fileName = removeExtension(mediaItem.filename);
+		const format = mediaItem.filename.split('.').slice(-1)[0];
+		if (!format) {
+			return '';
+		}
+		return constructUrl(mediaItem.path, mediaItem.hash, fileName, format, contentTypes, size);
+	} catch {
+		// Don't log errors in reactive context to avoid state mutations
+		return ''; // Return empty string instead of throwing
+	}
+}
+
 // Validates a media file against allowed types and size limits
 export function validateMediaFile(
 	file: File,
@@ -217,7 +270,7 @@ export function validateMediaFile(
 	const startTime = performance.now();
 
 	try {
-		const fileType = mime.lookup(file.name) || file.type;
+		const fileType = getBrowserMimeType(file.name) || file.type;
 		try {
 			logger.debug('Validating media file', {
 				fileName: file.name,

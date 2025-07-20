@@ -46,6 +46,7 @@ It p			if (result.success) {
 
 	// Stores
 	import { mode } from '@src/stores/collectionStore.svelte';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 
 	// Utils & Media
 	import { config, toFormData } from '@utils/utils';
@@ -264,6 +265,7 @@ It p			if (result.success) {
 		}
 
 		isLoading = true;
+		globalLoadingStore.startLoading(loadingOperations.dataFetch);
 		try {
 			const parentId = currentSystemVirtualFolder?._id ?? null;
 			const requestBody = {
@@ -327,6 +329,7 @@ It p			if (result.success) {
 			});
 		} finally {
 			isLoading = false;
+			globalLoadingStore.stopLoading(loadingOperations.dataFetch);
 		}
 	}
 
@@ -364,6 +367,7 @@ It p			if (result.success) {
 		if (isLoading || folderId === lastSystemFolderId) return;
 
 		isLoading = true;
+		globalLoadingStore.startLoading(loadingOperations.dataFetch);
 		lastSystemFolderId = folderId;
 
 		try {
@@ -396,6 +400,7 @@ It p			if (result.success) {
 			systemVirtualFolders = [];
 		} finally {
 			isLoading = false;
+			globalLoadingStore.stopLoading(loadingOperations.dataFetch);
 		}
 	}
 

@@ -1,7 +1,7 @@
 <!--
 @file src/components/Fields.svelte
 @component
-**Fields component that renders collection fields to enter/edit & display data per language revision management, live preview, and API data display**
+**Fields component that renders collection fields for data entry and provides revision history.**
 
 @example
 <Fields />
@@ -34,8 +34,9 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
-	import { CodeBlock, Tab, TabGroup, clipboard, getToastStore } from '@skeletonlabs/skeleton';
+	import { CodeBlock, Tab, TabGroup, clipboard, getToastStore, getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 	const toastStore = getToastStore();
+	const modalStore = getModalStore();
 
 	// Components
 	import Loading from '@components/Loading.svelte';
@@ -280,38 +281,46 @@
 		}
 	});
 
+	// FIX: The handleRevert function now correctly updates the global store.
 	async function handleRevert() {
 		if (!selectedRevisionData) {
-			toastStore.trigger({ message: 'Could not get revision data to revert. Please try again.', background: 'variant-filled-warning' });
+			toastStore.trigger({ message: 'No revision data selected to revert to.', background: 'variant-filled-warning' });
 			return;
 		}
 
-		try {
-			const revertData = { ...selectedRevisionData, _id: collectionValue.value._id };
+		// Create a confirmation modal before reverting
+		const modal: ModalSettings = {
+			type: 'confirm',
+			title: 'Confirm Revert',
+			body: 'Are you sure you want to revert to this version? Any unsaved changes in the current form will be lost.',
+			response: async (confirmed: boolean) => {
+				if (confirmed) {
+					try {
+						// On confirmation, update the global collectionValue store with the revision data.
+						// This will cause the "Edit" tab to automatically reflect the reverted state.
+						const revertData = { ...selectedRevisionData };
 
-			// Use new PATCH endpoint for revert
-			const response = await fetch(`/api/collections/${collection.value?._id}/${collectionValue.value._id}`, {
-				method: 'PATCH',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify(revertData),
-				credentials: 'include'
-			});
-			if (!response.ok) throw new Error('Failed to revert on the server.');
+						// It's important to keep the original _id of the entry we are editing
+						revertData._id = collectionValue.value._id;
 
-			const result = await response.json();
-			if (result.success) {
-				collectionValue.set(revertData);
-				formDataSnapshot = { ...revertData };
-				toastStore.trigger({ message: 'Revert successful!', background: 'variant-filled-success' });
-				localTabSet = 0;
-			} else {
-				throw new Error(result.error || 'Failed to revert.');
-			}
-		} catch (error) {
-			toastStore.trigger({ message: `Revert failed: ${error instanceof Error ? error.message : String(error)}`, background: 'variant-filled-error' });
-		}
+						collectionValue.set(revertData);
+						formDataSnapshot = { ...revertData };
+
+						toastStore.trigger({ message: 'Content has been reverted. Please save your changes.', background: 'variant-filled-success' });
+
+						// Switch the user back to the edit tab to see the changes
+						localTabSet = 0;
+					} catch (error) {
+						toastStore.trigger({
+							message: `Revert failed: ${error instanceof Error ? error.message : String(error)}`,
+							background: 'variant-filled-error'
+						});
+					}
+				}
+			},
+			buttonTextConfirm: 'Revert'
+		};
+		modalStore.trigger(modal);
 	}
 
 	function getTabHeaderVisibility() {

@@ -21,7 +21,7 @@ import type { Actions, PageServerLoad } from './$types';
 import mime from 'mime-types';
 import { saveImage, saveDocument, saveAudio, saveVideo } from '@utils/media/mediaProcessing';
 import { constructUrl } from '@utils/media/mediaUtils';
-import type { MediaItem, SystemVirtualFolder } from '@root/src/databases/dbInterface';
+import type { SystemVirtualFolder } from '@root/src/databases/dbInterface';
 import type { MediaAccess } from '@root/src/utils/media/mediaModels';
 
 // Auth
@@ -30,7 +30,6 @@ import { dbAdapter } from '@src/databases/db';
 // System Logger
 import { logger, type LoggableValue } from '@utils/logger.svelte';
 
-// Helper function to convert _id and other nested objects to string
 interface StackItem {
 	parent: Record<string, unknown> | Array<unknown> | null;
 	key: string;
@@ -114,17 +113,48 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		const currentFolder = folderId ? serializedVirtualFolders.find((f) => f._id === folderId) || null : null;
 		logger.debug('Current folder determined:', currentFolder);
 
-		// --- Fetch Media Files based on currentFolder ---
-		const query: Record<string, string | null> = { folderId: folderId || null }; // Use more specific type
-		const mediaResults = await dbAdapter.crud.findMany<MediaItem>('MediaItem', query);
+		// Fetch from all media collections since MediaItem doesn't exist
+		const mediaCollections = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
+		const allMediaResults: Record<string, unknown>[] = [];
 
-		if (!mediaResults.success) {
-			logger.error(`Failed to fetch media items: ${mediaResults.error}`);
-			throw error(500, 'Failed to fetch media items');
+		for (const collection of mediaCollections) {
+			try {
+				const query: Record<string, string | null> = { folderId: folderId || null };
+				const result = await dbAdapter.crud.findMany(collection, query);
+
+				if (result.success && result.data) {
+					// Add collection type to each item for processing
+					const itemsWithType = result.data.map((item: Record<string, unknown>) => ({
+						...item,
+						collection: collection
+					}));
+					allMediaResults.push(...itemsWithType);
+				}
+			} catch (collectionError) {
+				// Log but don't fail if a collection doesn't exist
+				logger.warn(`Collection ${collection} not found or error fetching:`, collectionError);
+			}
 		}
 
+		logger.info(`Fetched \x1b[31m${allMediaResults.length}\x1b[0m total media items from all collections`);
+
+		if (allMediaResults.length === 0) {
+			logger.info('No media items found in any collection');
+		}
+
+		// Deduplicate media items by hash since same items might exist in multiple collections
+		const deduplicatedMedia = allMediaResults.reduce((acc: Record<string, unknown>[], item) => {
+			const existingItem = acc.find((existing) => existing.hash === item.hash);
+			if (!existingItem) {
+				acc.push(item);
+			}
+			return acc;
+		}, []);
+
+		logger.info(`After deduplication: \x1b[31m${deduplicatedMedia.length}\x1b[0m unique media items`);
+
 		// Process and flatten media results - Filter and validate media items before processing
-		const processedMedia = mediaResults.data
+		const processedMedia = deduplicatedMedia
 			.filter((item) => {
 				if (!item) return false;
 				const isValid =
@@ -172,10 +202,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			})
 			.filter((item): item is NonNullable<typeof item> => item !== null);
 
-		logger.info(`Fetched \x1b[34m${processedMedia.length}\x1b[0m media items for folder ${folderId || 'root'}`);
-		logger.info(`Fetched \x1b[34m${serializedVirtualFolders.length}\x1b[0m total virtual folders`);
+		logger.info(`Fetched ${processedMedia.length} media items for folder ${folderId || 'root'}`);
+		logger.info(`Fetched ${serializedVirtualFolders.length} total virtual folders`);
 
-		logger.debug('Media gallery data and virtual folders loaded successfully');
 		const returnData = {
 			user: {
 				// Ensure user data is serializable
@@ -184,12 +213,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				avatar: user.avatar
 			},
 			media: processedMedia, // Use the processed and filtered media
-			virtualFolders: serializedVirtualFolders as SystemVirtualFolder[], // All folders for the VirtualFolders component
+			systemVirtualFolders: serializedVirtualFolders as SystemVirtualFolder[], // All folders for the VirtualFolders component
 			currentFolder: currentFolder as SystemVirtualFolder | null // The specific folder object for the current view
 		};
-
-		// Added Debugging: Log the returnData
-		logger.debug('Returning data from load function:', returnData);
 
 		return returnData;
 	} catch (err) {

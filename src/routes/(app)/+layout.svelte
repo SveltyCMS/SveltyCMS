@@ -22,6 +22,7 @@
 	import 'iconify-icon';
 
 	import { page } from '$app/state';
+	import { beforeNavigate, afterNavigate } from '$app/navigation';
 	import { publicEnv } from '@root/config/public';
 	import { onDestroy, onMount } from 'svelte';
 	// Auth
@@ -35,6 +36,7 @@
 	import { isDesktop, screenSize } from '@stores/screenSizeStore.svelte';
 	import { avatarSrc, systemLanguage } from '@stores/store.svelte';
 	import { uiStateManager } from '@stores/UIStore.svelte';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 	// Components
 	import HeaderEdit from '@components/HeaderEdit.svelte';
 	import LeftSidebar from '@components/LeftSidebar.svelte';
@@ -68,6 +70,9 @@
 	let isCollectionsLoaded = $state(false);
 	let loadError = $state<Error | null>(null);
 	let mediaQuery: MediaQueryList;
+
+	// Derived state for showing loading
+	let shouldShowLoading = $derived(!isCollectionsLoaded || globalLoadingStore.isLoading);
 
 	// Update collection loaded state when contentStructure or collections change
 	$effect(() => {
@@ -151,6 +156,27 @@
 		initializeCollections();
 	});
 
+	// Navigation loading handlers
+	beforeNavigate(({ from, to }) => {
+		// Only show loading for actual page changes, not hash changes
+		if (from && to && from.route.id !== to.route.id) {
+			globalLoadingStore.startLoading(loadingOperations.navigation);
+		}
+	});
+
+	afterNavigate(() => {
+		// Stop navigation loading
+		globalLoadingStore.stopLoading(loadingOperations.navigation);
+
+		// Clear any stale loading operations after navigation
+		setTimeout(() => {
+			// Only clear if no other operations are running
+			if (globalLoadingStore.loadingStack.size === 1 && globalLoadingStore.isLoadingReason(loadingOperations.navigation)) {
+				globalLoadingStore.stopLoading(loadingOperations.navigation);
+			}
+		}, 100);
+	});
+
 	onDestroy(() => {
 		// Cleanup: remove event listeners
 		mediaQuery?.removeEventListener('change', updateThemeBasedOnSystemPreference);
@@ -195,8 +221,23 @@
 	<!-- This outer div is a good container for overlays -->
 	<div class="relative h-lvh w-full">
 		<!-- Background and Overlay components live here, outside the main content flow -->
-		{#if !isCollectionsLoaded}
-			<Loading />
+		{#if shouldShowLoading}
+			<Loading
+				customTopText={!isCollectionsLoaded
+					? 'Initializing'
+					: globalLoadingStore.loadingReason === loadingOperations.navigation
+						? 'Navigating'
+						: globalLoadingStore.loadingReason === loadingOperations.dataFetch
+							? 'Loading data'
+							: globalLoadingStore.loadingReason === loadingOperations.authentication
+								? 'Authenticating'
+								: globalLoadingStore.loadingReason === loadingOperations.initialization
+									? 'Initializing'
+									: globalLoadingStore.loadingReason === loadingOperations.formSubmission
+										? 'Submitting'
+										: 'Loading'}
+				customBottomText={!isCollectionsLoaded ? 'Loading application...' : 'Please wait'}
+			/>
 		{/if}
 		{#if !isDesktop}
 			<FloatingNav />

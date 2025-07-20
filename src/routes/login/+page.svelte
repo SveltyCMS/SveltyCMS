@@ -25,6 +25,7 @@ Features:
 	// Stores
 	import { systemLanguage } from '@stores/store.svelte';
 	import { getLanguageName } from '@utils/languageUtils';
+	import { globalLoadingStore, loadingOperations } from '@stores/loadingStore.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -34,6 +35,7 @@ Features:
 
 	// State Management
 	const firstUserExists = $state(data.firstUserExists);
+	const firstCollection = $state(data.firstCollection);
 
 	// Check for reset password URL parameters (initially false, updated by effect)
 	let hasResetParams = $state(false);
@@ -398,6 +400,17 @@ Features:
 
 		<!-- CMS Version -->
 		{#if !isDropdownOpen}
+			<!-- Collection Preview -->
+			{#if firstCollection && (active === 0 || active === 1)}
+				<div
+					class="absolute bottom-16 left-1/2 z-0 flex min-w-[200px] max-w-[300px] -translate-x-1/2 transform flex-col items-center gap-2 rounded-lg bg-gradient-to-r from-surface-50/10 to-[#242728]/10 p-3 text-center transition-opacity duration-300"
+					class:opacity-50={isTransitioning}
+				>
+					<div class="text-xs text-gray-300">After login, you'll go to:</div>
+					<div class="text-sm font-medium text-white">{firstCollection.name}</div>
+				</div>
+			{/if}
+
 			<a
 				href="https://github.com/SveltyCMS/SveltyCMS"
 				target="_blank"
