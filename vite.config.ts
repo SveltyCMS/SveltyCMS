@@ -23,7 +23,7 @@ import type { IncomingMessage, ServerResponse } from 'http';
 import { builtinModules } from 'module';
 
 // Validation
-import { publicConfigSchema, privateConfigSchema, validateConfig } from './config/types';
+import { publicConfigSchema, privateConfigSchema, validateConfig } from './config/types.ts';
 
 export default defineConfig(async () => {
 	// Config file paths
@@ -81,8 +81,8 @@ export default defineConfig(async () => {
 		}
 
 		// Use dynamic import to avoid cache issues
-		const publicModule = await import('./config/public');
-		const privateModule = await import('./config/private');
+		const publicModule = await import(publicConfigPath);
+		const privateModule = await import(privateConfigPath);
 		actualPublicConfig = publicModule.publicEnv;
 		actualPrivateConfig = privateModule.privateEnv;
 	} catch (importError) {

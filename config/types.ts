@@ -6,7 +6,7 @@
  * It maintains enhanced, developer-friendly error reporting.
  */
 
-import type { BaseSchema, InferOutput } from 'valibot';
+import type { BaseSchema, InferOutput, BaseIssue, Issue } from 'valibot';
 import { array, boolean, literal, maxValue, minLength, minValue, number, object, optional, pipe, safeParse, string, union } from 'valibot';
 
 // ----------------- CONFIGURATION SCHEMAS -----------------
@@ -87,8 +87,8 @@ export const publicConfigSchema = object({
 	// --- Language Configuration ---
 	DEFAULT_CONTENT_LANGUAGE: pipe(string(), minLength(1)), // Default language for content (e.g., 'en')
 	AVAILABLE_CONTENT_LANGUAGES: pipe(array(pipe(string(), minLength(1))), minLength(1)), // List of available content languages
-	DEFAULT_SYSTEM_LANGUAGE: pipe(string(), minLength(1)), // Default language for the CMS interface
-	AVAILABLE_SYSTEM_LANGUAGES: pipe(array(pipe(string(), minLength(1))), minLength(1)), // List of available interface languages
+	BASE_LOCALE: pipe(string(), minLength(1)), // Default/base locale for the CMS interface (from inlang)
+	LOCALES: pipe(array(pipe(string(), minLength(1))), minLength(1)), // List of available interface locales (from inlang)
 
 	// --- Media configuration ---
 	MEDIA_FOLDER: pipe(string(), minLength(1)), // Server path where media files are stored
@@ -100,7 +100,8 @@ export const publicConfigSchema = object({
 	IMAGE_SIZES: object({}), // Defines image sizes for automatic resizing (e.g., { sm: 600, md: 900 })
 	MAX_FILE_SIZE: optional(pipe(number(), minValue(1))), // Maximum file size for uploads in bytes
 	BODY_SIZE_LIMIT: optional(pipe(number(), minValue(1))), // Body size limit for server requests in bytes
-	EXTRACT_DATA_PATH: optional(string()), // Optional path for extracting data from uploads; can be empty
+	EXTRACT_DATA_PATH: optional(string()), // Optional file path where exported collection data will be written (e.g., './exports/data.json')
+	USE_ARCHIVE_ON_DELETE: optional(boolean()), // Set to `true` to enable archiving instead of permanent deletion
 
 	// --- Seasons Icons for login page ---
 	SEASONS: optional(boolean()), // Set to `true` to enable seasonal themes on the login page
@@ -111,9 +112,19 @@ export const publicConfigSchema = object({
 
 	// --- Logging ---
 	LOG_LEVELS: pipe(
-		array(union([literal('fatal'), literal('error'), literal('warn'), literal('debug'), literal('info'), literal('trace'), literal('none')])),
+		array(
+			union([
+				literal('none'), // No logger output will be generated (fastest performance)
+				literal('error'), // Application errors and exceptions that need investigation
+				literal('info'), // General informational messages about application flow
+				literal('warn'), // Warning messages about potential issues or deprecated features
+				literal('debug'), // Detailed debugging information for development (verbose)
+				literal('fatal'), // Critical system failures that require immediate attention
+				literal('trace') // Most detailed tracing information for deep debugging (very verbose)
+			])
+		),
 		minLength(1)
-	), // Defines the logging levels to be active
+	), // Defines the logging levels to be active. Default: ['error'] for production efficiency
 	LOG_RETENTION_DAYS: optional(pipe(number(), minValue(1))), // Number of days to keep log files
 	LOG_ROTATION_SIZE: optional(pipe(number(), minValue(1))), // Maximum size of a log file in bytes before rotation
 
@@ -205,15 +216,17 @@ function performConditionalValidation(config: Record<string, unknown>): string[]
 	if (config.SEASONS && !config.SEASON_REGION) {
 		errors.push(`When ${colors.cyan}SEASONS${colors.reset} is true, a ${colors.cyan}SEASON_REGION${colors.reset} must be selected.`);
 	}
-	if (config.AVAILABLE_CONTENT_LANGUAGES && !config.AVAILABLE_CONTENT_LANGUAGES.includes(config.DEFAULT_CONTENT_LANGUAGE)) {
+	if (
+		config.AVAILABLE_CONTENT_LANGUAGES &&
+		Array.isArray(config.AVAILABLE_CONTENT_LANGUAGES) &&
+		!config.AVAILABLE_CONTENT_LANGUAGES.includes(config.DEFAULT_CONTENT_LANGUAGE)
+	) {
 		errors.push(
 			`The ${colors.cyan}DEFAULT_CONTENT_LANGUAGE${colors.reset} must be included in the ${colors.cyan}AVAILABLE_CONTENT_LANGUAGES${colors.reset} array.`
 		);
 	}
-	if (config.AVAILABLE_SYSTEM_LANGUAGES && !config.AVAILABLE_SYSTEM_LANGUAGES.includes(config.DEFAULT_SYSTEM_LANGUAGE)) {
-		errors.push(
-			`The ${colors.cyan}DEFAULT_SYSTEM_LANGUAGE${colors.reset} must be included in the ${colors.cyan}AVAILABLE_SYSTEM_LANGUAGES${colors.reset} array.`
-		);
+	if (config.LOCALES && Array.isArray(config.LOCALES) && !config.LOCALES.includes(config.BASE_LOCALE)) {
+		errors.push(`The ${colors.cyan}BASE_LOCALE${colors.reset} must be included in the ${colors.cyan}LOCALES${colors.reset} array.`);
 	}
 
 	return errors;

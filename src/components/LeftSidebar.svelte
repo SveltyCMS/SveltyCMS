@@ -80,9 +80,7 @@
 	};
 
 	// Define language type based on available languages
-	type AvailableLanguage = typeof publicEnv.AVAILABLE_SYSTEM_LANGUAGES extends string[]
-		? (typeof publicEnv.AVAILABLE_SYSTEM_LANGUAGES)[number]
-		: string;
+	type AvailableLanguage = typeof publicEnv.LOCALES extends string[] ? (typeof publicEnv.LOCALES)[number] : string;
 
 	let _languageTag = $state(getLocale()); // Get the current language tag
 
@@ -93,7 +91,7 @@
 
 	// Computed values
 	const availableLanguages = $derived(
-		[...(publicEnv.AVAILABLE_SYSTEM_LANGUAGES as string[])].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
+		[...(publicEnv.LOCALES as string[])].sort((a, b) => getLanguageName(a, 'en').localeCompare(getLanguageName(b, 'en')))
 	);
 
 	const filteredLanguages = $derived(
@@ -305,7 +303,7 @@
 				use:popup={SystemLanguageTooltip}
 			>
 				<div class="language-selector relative" bind:this={dropdownRef}>
-					{#if (publicEnv.AVAILABLE_SYSTEM_LANGUAGES as string[]).length > 5}
+					{#if (publicEnv.LOCALES as string[]).length > 5}
 						<button
 							class="variant-filled-surface btn-icon flex items-center justify-between uppercase text-white {uiStateManager.uiState.value
 								.leftSidebar === 'full'

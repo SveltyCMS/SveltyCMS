@@ -26,7 +26,7 @@ This component provides a streamlined interface for managing collection entries 
 <script lang="ts">
 	import { apiRequest } from '../utils/apiClient';
 	// Correctly import the new, direct action handlers
-	import { cloneCurrentEntry, deleteCurrentEntry } from '../utils/entryActions';
+	import { cloneCurrentEntry, deleteCurrentEntry, scheduleCurrentEntry } from '../utils/entryActions';
 
 	// Import StatusTypes for centralized status management
 	import { StatusTypes } from '@src/content/types';

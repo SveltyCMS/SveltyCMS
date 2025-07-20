@@ -67,7 +67,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		// Validate status value
 		// Note: 'draft' is only for data entered but never saved (auto-save scenarios)
 		// ActionType mapping: 'publish' action, 'unpublish' action, 'schedule' action
-		const validStatuses = ['draft', 'publish', 'unpublish', 'schedule', 'test', 'archived'];
+		const validStatuses = ['draft', 'publish', 'unpublish', 'schedule', 'test', 'archive'];
 		if (!validStatuses.includes(status)) {
 			throw error(400, `Invalid status. Must be one of: ${validStatuses.join(', ')}`);
 		}

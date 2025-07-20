@@ -25,7 +25,6 @@ import { logger } from '@utils/logger.svelte';
 
 // Media Cache
 import { mediaCache } from '@src/databases/mediaCache';
-import { v4 as uuidv4 } from 'uuid';
 
 // Extended MediaBase interface to include thumbnails
 interface MediaBaseWithThumbnails extends MediaBase {
@@ -179,6 +178,18 @@ export class MediaService {
 		if (!file) {
 			const message = 'File is required';
 			logger.error(message, {
+				processingTime: performance.now() - startTime
+			});
+			throw Error(message);
+		}
+
+		// Validate the media file before processing
+		const validation = validateMediaFile(file, this.mimeTypePattern, 50 * 1024 * 1024); // 50MB limit
+		if (!validation.isValid) {
+			const message = `File validation failed: ${validation.message}`;
+			logger.error(message, {
+				fileName: file.name,
+				fileSize: file.size,
 				processingTime: performance.now() - startTime
 			});
 			throw Error(message);

@@ -409,8 +409,18 @@ export class MongoDBAdapter implements DatabaseAdapter {
 			options?: { fields?: (keyof T)[] }
 		): Promise<DatabaseResult<T | null>> => {
 			try {
-				// Ensure collection name is properly formatted for UUID-based collections
-				const collectionName = collection.startsWith('collection_') ? collection : `collection_${collection}`;
+				// Handle collection naming: media collections use direct names, others get collection_ prefix
+				let collectionName: string;
+				if (collection.startsWith('media_') || collection.startsWith('auth_')) {
+					// Media and auth collections use their direct names
+					collectionName = collection;
+				} else if (collection.startsWith('collection_')) {
+					// Already has prefix
+					collectionName = collection;
+				} else {
+					// Content collections get the collection_ prefix
+					collectionName = `collection_${collection}`;
+				}
 
 				const model = mongoose.models[collectionName] as Model<T>;
 				if (!model) {
@@ -475,8 +485,18 @@ export class MongoDBAdapter implements DatabaseAdapter {
 			options?: { limit?: number; offset?: number; fields?: (keyof T)[] }
 		): Promise<DatabaseResult<T[]>> => {
 			try {
-				// Ensure collection name is properly formatted for UUID-based collections
-				const collectionName = collection.startsWith('collection_') ? collection : `collection_${collection}`;
+				// Handle collection naming: media collections use direct names, others get collection_ prefix
+				let collectionName: string;
+				if (collection.startsWith('media_') || collection.startsWith('auth_')) {
+					// Media and auth collections use their direct names
+					collectionName = collection;
+				} else if (collection.startsWith('collection_')) {
+					// Already has prefix
+					collectionName = collection;
+				} else {
+					// Content collections get the collection_ prefix
+					collectionName = `collection_${collection}`;
+				}
 
 				const model = mongoose.models[collectionName] as Model<T>;
 				if (!model) {
@@ -537,8 +557,18 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		// Implementing insertOne method
 		insert: async <T extends DocumentContent = DocumentContent>(collection: string, doc: Partial<T>): Promise<DatabaseResult<T>> => {
 			try {
-				// Ensure collection name is properly formatted for UUID-based collections
-				const collectionName = collection.startsWith('collection_') ? collection : `collection_${collection}`;
+				// Handle collection naming: media collections use direct names, others get collection_ prefix
+				let collectionName: string;
+				if (collection.startsWith('media_') || collection.startsWith('auth_')) {
+					// Media and auth collections use their direct names
+					collectionName = collection;
+				} else if (collection.startsWith('collection_')) {
+					// Already has prefix
+					collectionName = collection;
+				} else {
+					// Content collections get the collection_ prefix
+					collectionName = `collection_${collection}`;
+				}
 
 				const model = mongoose.models[collectionName] as Model<T>;
 				if (!model) {
@@ -626,8 +656,18 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		// Implementing insertMany method
 		insertMany: async <T extends DocumentContent = DocumentContent>(collection: string, docs: Partial<T>[]): Promise<DatabaseResult<T[]>> => {
 			try {
-				// Ensure collection name is properly formatted for UUID-based collections
-				const collectionName = collection.startsWith('collection_') ? collection : `collection_${collection}`;
+				// Handle collection naming: media collections use direct names, others get collection_ prefix
+				let collectionName: string;
+				if (collection.startsWith('media_') || collection.startsWith('auth_')) {
+					// Media and auth collections use their direct names
+					collectionName = collection;
+				} else if (collection.startsWith('collection_')) {
+					// Already has prefix
+					collectionName = collection;
+				} else {
+					// Content collections get the collection_ prefix
+					collectionName = `collection_${collection}`;
+				}
 
 				const model = mongoose.models[collectionName] as Model<T>;
 				if (!model) {
@@ -1125,6 +1165,14 @@ export class MongoDBAdapter implements DatabaseAdapter {
 					return result;
 				} catch (error) {
 					logger.error('Error uploading file:', error as LoggableValue);
+					return {
+						success: false,
+						error: {
+							code: 'MEDIA_UPLOAD_ERROR',
+							message: 'Failed to upload media file',
+							details: error
+						}
+					};
 				}
 			}
 		},
@@ -1182,6 +1230,55 @@ export class MongoDBAdapter implements DatabaseAdapter {
 				}
 			} else {
 				logger.debug(`\x1b[34m${name}\x1b[0m model already exists.`);
+			}
+		},
+
+		// Upload media method
+		uploadMedia: async (file: Omit<MediaItem, '_id' | 'createdAt' | 'updatedAt'>): Promise<DatabaseResult<MediaItem>> => {
+			try {
+				// For avatars, we need to use a specific collection
+				const collectionName = 'media_images';
+				const model = mongoose.models[collectionName];
+
+				if (!model) {
+					// Try to setup the model if it doesn't exist
+					this.setupModel(collectionName, mediaSchema);
+					const newModel = mongoose.models[collectionName];
+					if (!newModel) {
+						throw new Error(`Failed to create model for collection: ${collectionName}`);
+					}
+				}
+
+				const mediaItem = {
+					...file,
+					_id: new mongoose.Types.ObjectId().toString(),
+					createdAt: new Date(),
+					updatedAt: new Date()
+				} as MediaItem;
+
+				const savedMedia = await mongoose.models[collectionName].create(mediaItem);
+
+				return {
+					success: true,
+					data: {
+						...savedMedia.toObject(),
+						createdAt: savedMedia.createdAt.toISOString(),
+						updatedAt: savedMedia.updatedAt.toISOString()
+					} as MediaItem
+				};
+			} catch (error) {
+				logger.error('Error in uploadMedia:', {
+					error: error instanceof Error ? error.message : String(error),
+					stack: error instanceof Error ? error.stack : undefined
+				});
+				return {
+					success: false,
+					error: {
+						code: 'MEDIA_UPLOAD_ERROR',
+						message: 'Failed to upload media',
+						details: error
+					}
+				};
 			}
 		}
 	};

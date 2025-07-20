@@ -31,6 +31,8 @@ Features:
 	import { apiRequest, getData, invalidateCollectionCache, updateStatus } from '@utils/apiClient';
 	import { formatDisplayDate } from '@utils/dateUtils';
 	import { debounce as debounceUtil, getFieldName, meta_data } from '@utils/utils';
+	// Config
+	import { publicEnv } from '@root/config/public';
 	// Types
 	import type { PaginationSettings, TableHeader } from '@components/system/table/TablePagination.svelte';
 	import { StatusTypes } from '@src/content/types';
@@ -627,6 +629,20 @@ Features:
 	// Track selection state without changing mode automatically
 	let hasSelections = $derived(Object.values(selectedMap).some((isSelected) => isSelected));
 
+	// Get the statuses of currently selected entries
+	let selectedEntriesStatuses = $derived(() => {
+		const statuses: string[] = [];
+		for (const [index, isSelected] of Object.entries(selectedMap)) {
+			if (isSelected) {
+				const entry = tableData[Number(index)];
+				if (entry?.status) {
+					statuses.push(entry.status.toLowerCase());
+				}
+			}
+		}
+		return statuses;
+	});
+
 	// Tick Row - modify STATUS of an Entry
 	modifyEntry.set(async (status?: keyof typeof statusMap): Promise<void> => {
 		if (!status) return Promise.resolve();
@@ -685,7 +701,7 @@ Features:
 			case StatusTypes.publish:
 				modalSettings = {
 					type: 'confirm',
-					title: `Please Confirm Entry <span class="text-primary-500 font-bold">Publication</span>`,
+					title: `Please Confirm <span class="text-primary-500 font-bold">Publication</span>`,
 					body:
 						itemCount === 1
 							? `Are you sure you want to <span class="text-primary-500 font-semibold">publish</span> this entry? This will make it visible to the public.`
@@ -699,7 +715,7 @@ Features:
 			case StatusTypes.unpublish:
 				modalSettings = {
 					type: 'confirm',
-					title: `Please Confirm Entry <span class="text-yellow-500 font-bold">Unpublication</span>`,
+					title: `Please Confirm <span class="text-yellow-500 font-bold">Unpublication</span>`,
 					body:
 						itemCount === 1
 							? `Are you sure you want to <span class="text-yellow-500 font-semibold">unpublish</span> this entry? This will hide it from the public.`
@@ -713,7 +729,7 @@ Features:
 			case StatusTypes.test:
 				modalSettings = {
 					type: 'confirm',
-					title: `Please Confirm Entry <span class="text-secondary-500 font-bold">Testing</span>`,
+					title: `Please Confirm <span class="text-secondary-500 font-bold">Testing</span>`,
 					body:
 						itemCount === 1
 							? `Are you sure you want to <span class="text-secondary-500 font-semibold">test</span> this entry?`
@@ -727,7 +743,7 @@ Features:
 			case StatusTypes.schedule:
 				modalSettings = {
 					type: 'confirm',
-					title: `Please Confirm Entry <span class="text-pink-500 font-bold">Scheduling</span>`,
+					title: `Please Confirm <span class="text-pink-500 font-bold">Scheduling</span>`,
 					body:
 						itemCount === 1
 							? `Are you sure you want to <span class="text-pink-500 font-semibold">schedule</span> this entry?`
@@ -852,14 +868,31 @@ Features:
 		}
 
 		try {
-			// Delete each item individually using the new RESTful endpoints
-			const deletePromises = selectedIds.map((entryId) => apiRequest('DELETE', currentCollection!._id, {}, entryId));
-			await Promise.all(deletePromises);
-			toastStore.trigger({ message: 'Items deleted successfully.', background: 'variant-filled-success' });
+			// Check if admin has requested permanent deletion (flag set by admin modal)
+			const forcePermantentDelete = (globalThis as any).__adminPermanentDelete === true;
+
+			if (publicEnv.USE_ARCHIVE_ON_DELETE && !forcePermantentDelete) {
+				// Archive entries by setting status to archive
+				const archivePromises = selectedIds.map((entryId) => updateStatus(currentCollection!._id, entryId, StatusTypes.archive));
+				await Promise.all(archivePromises);
+				toastStore.trigger({ message: 'Items archived successfully.', background: 'variant-filled-success' });
+			} else {
+				// Permanently delete entries (either when archiving is disabled or admin forces deletion)
+				const deletePromises = selectedIds.map((entryId) => apiRequest('DELETE', currentCollection!._id, {}, entryId));
+				await Promise.all(deletePromises);
+				toastStore.trigger({
+					message: forcePermantentDelete ? 'Items permanently deleted from database.' : 'Items deleted successfully.',
+					background: 'variant-filled-success'
+				});
+			}
 			invalidateCollectionCache(currentCollection._id); // Invalidate cache
 			refreshTableData(); // Refresh data to show changes
 		} catch (e) {
-			toastStore.trigger({ message: `Error deleting items: ${(e as Error).message}`, background: 'variant-filled-error' });
+			const actionText = publicEnv.USE_ARCHIVE_ON_DELETE && !(globalThis as any).__adminPermanentDelete ? 'archiving' : 'deleting';
+			toastStore.trigger({
+				message: `Error ${actionText} items: ${(e as Error).message}`,
+				background: 'variant-filled-error'
+			});
 		}
 	}
 
@@ -879,28 +912,41 @@ Features:
 
 		const itemCount = selectedIds.length;
 		const itemText = itemCount === 1 ? 'item' : 'items';
+		const isArchiving = publicEnv.USE_ARCHIVE_ON_DELETE;
 
 		const modal: ModalSettings = {
 			type: 'confirm',
-			title: 'Confirm Deletion',
-			body: `Are you sure you want to delete ${itemCount} ${itemText}? This action cannot be undone.`,
+			title: `Confirm ${isArchiving ? 'Archive' : 'Deletion'}`,
+			body: isArchiving
+				? `Are you sure you want to archive ${itemCount} ${itemText}? Archived items can be restored later.`
+				: `Are you sure you want to delete ${itemCount} ${itemText}? This action cannot be undone.`,
 			response: async (confirmed: boolean) => {
 				if (confirmed) {
 					if (!currentCollection?._id) return;
 					try {
-						// Delete each item individually using the new RESTful endpoints
-						const deletePromises = selectedIds.map((entryId) => apiRequest('DELETE', currentCollection!._id, {}, entryId));
-						await Promise.all(deletePromises);
-						toastStore.trigger({ message: 'Items deleted successfully.', background: 'variant-filled-success' });
+						if (isArchiving) {
+							// Archive entries by setting status to archive
+							const archivePromises = selectedIds.map((entryId) => updateStatus(currentCollection!._id, entryId, StatusTypes.archive));
+							await Promise.all(archivePromises);
+							toastStore.trigger({ message: 'Items archived successfully.', background: 'variant-filled-success' });
+						} else {
+							// Permanently delete entries
+							const deletePromises = selectedIds.map((entryId) => apiRequest('DELETE', currentCollection!._id, {}, entryId));
+							await Promise.all(deletePromises);
+							toastStore.trigger({ message: 'Items deleted successfully.', background: 'variant-filled-success' });
+						}
 						invalidateCollectionCache(currentCollection._id); // Invalidate cache
 						refreshTableData(); // Refresh data to show changes
 					} catch (e) {
-						toastStore.trigger({ message: `Error deleting items: ${(e as Error).message}`, background: 'variant-filled-error' });
+						toastStore.trigger({
+							message: `Error ${isArchiving ? 'archiving' : 'deleting'} items: ${(e as Error).message}`,
+							background: 'variant-filled-error'
+						});
 					}
 				}
 			},
-			buttonTextConfirm: 'Delete',
-			modalClasses: 'modal-confirm-delete'
+			buttonTextConfirm: isArchiving ? 'Archive' : 'Delete',
+			modalClasses: isArchiving ? 'modal-confirm-archive' : 'modal-confirm-delete'
 		};
 		modalStore.trigger(modal);
 	}
@@ -938,7 +984,8 @@ Features:
 							delete clonedPayload._id; // Remove original ID
 							delete clonedPayload.createdAt;
 							delete clonedPayload.updatedAt;
-							clonedPayload.status = StatusTypes.unpublish;
+							clonedPayload.status = StatusTypes.clone; // Use correct clone status
+							clonedPayload.clonedFrom = entry._id; // Reference to original entry
 							return apiRequest('POST', currentCollection!._id, clonedPayload);
 						});
 						await Promise.all(clonePromises);
@@ -1067,6 +1114,7 @@ Features:
 					isCollectionEmpty={tableData.length === 0}
 					{hasSelections}
 					selectedCount={Object.values(selectedMap).filter(Boolean).length}
+					selectedStatuses={selectedEntriesStatuses}
 					publish={executePublish}
 					unpublish={executeUnpublish}
 					schedule={executeSchedule}

@@ -59,7 +59,7 @@ function getCookie(name: string): string | null {
 // Create base stores
 const createBaseStores = () => {
 	// Get initial values from cookies or use defaults
-	const initialSystemLanguage = (getCookie('systemLanguage') as Locale | null) ?? (publicEnv.DEFAULT_SYSTEM_LANGUAGE as Locale);
+	const initialSystemLanguage = (getCookie('systemLanguage') as Locale | null) ?? (publicEnv.BASE_LOCALE as Locale);
 	const initialContentLanguage = (getCookie('contentLanguage') as Locale | null) ?? (publicEnv.DEFAULT_CONTENT_LANGUAGE as Locale);
 
 	// Language and ParaglideJS i18n

@@ -139,6 +139,14 @@ export function constructUrl(
 
 	switch (path) {
 		case 'global':
+			urlPath = size
+				? `${sanitize(contentTypes)}/sizes/${size}/${sanitize(fileName)}-${hash}.${format}`
+				: `${sanitize(contentTypes)}/original/${sanitize(fileName)}-${hash}.${format}`;
+			try {
+				logger.debug('Constructed global path URL', { urlPath });
+			} catch (logError) {
+				logger.error('Failed to log debug info:', logError);
+			}
 			break;
 		case 'unique':
 			urlPath = `${sanitize(contentTypes)}/original/${sanitize(fileName)}-${hash}.${format}`;

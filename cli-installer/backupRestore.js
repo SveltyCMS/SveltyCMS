@@ -3,7 +3,7 @@
 @description Backup and Restore Configuration Files
 */
 
-import { confirm, isCancel, note, select } from '@clack/prompts';
+import { confirm, isCancel, note, select, text } from '@clack/prompts';
 import { exec as execCb } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
@@ -236,22 +236,45 @@ export const backupRestorePrompt = async () => {
 				message: 'Enter your database host:',
 				options: [
 					{ value: 'localhost', label: 'localhost' },
-					{ value: 'custom', label: 'Custom' }
+					{ value: 'custom', label: 'Custom host address' }
 				]
 			});
 
-			let dbHostCustom = dbHost;
-			if (dbHost === 'custom') {
-				dbHostCustom = await select({
-					message: 'Enter the custom database host:',
-					options: []
-				});
+			if (isCancel(dbHost)) {
+				await cancelOperation();
+				return;
 			}
 
-			const dbName = await select({
+			let dbHostCustom = dbHost;
+			if (dbHost === 'custom') {
+				dbHostCustom = await text({
+					message: 'Enter the custom database host:',
+					placeholder: 'mongodb://localhost:27017',
+					validate(value) {
+						if (!value || value.length === 0) return 'Database host is required!';
+						return undefined;
+					}
+				});
+
+				if (isCancel(dbHostCustom)) {
+					await cancelOperation();
+					return;
+				}
+			}
+
+			const dbName = await text({
 				message: 'Enter your database name:',
-				options: []
+				placeholder: 'sveltycms',
+				validate(value) {
+					if (!value || value.length === 0) return 'Database name is required!';
+					return undefined;
+				}
 			});
+
+			if (isCancel(dbName)) {
+				await cancelOperation();
+				return;
+			}
 
 			const dbBackupFile = await backupDatabase(dbHostCustom, dbName);
 
@@ -261,6 +284,11 @@ export const backupRestorePrompt = async () => {
 				message: 'Do you want to proceed to configuration?',
 				initialValue: true
 			});
+
+			if (isCancel(confirmProceed)) {
+				await cancelOperation();
+				return;
+			}
 
 			if (!confirmProceed) {
 				await cancelOperation();

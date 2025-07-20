@@ -29,7 +29,7 @@
 <script lang="ts">
 	// Import apiRequest for general requests, and entryActions for specific entity actions
 	import { apiRequest } from '@utils/apiClient';
-	import { deleteCurrentEntry, setEntryStatus, cloneCurrentEntry } from '@utils/entryActions'; // Directly use these specific actions
+	import { deleteCurrentEntry, setEntryStatus, cloneCurrentEntry, scheduleCurrentEntry } from '@utils/entryActions'; // Directly use these specific actions
 	// Types
 	import { StatusTypes } from '@src/content/types';
 

@@ -94,8 +94,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		if (currentUser && currentUser.avatar) {
 			try {
 				const { moveMediaToTrash } = await import('@utils/media/mediaStorage');
-				await moveMediaToTrash(currentUser.avatar);
-				logger.info('Old avatar moved to trash', { userId: targetUserId, oldAvatar: currentUser.avatar });
+				// Clean the avatar path to remove any duplicate media folder prefixes
+				let avatarPath = currentUser.avatar;
+				if (avatarPath.startsWith('/')) {
+					avatarPath = avatarPath.substring(1);
+				}
+				if (avatarPath.startsWith('mediaFiles/')) {
+					avatarPath = avatarPath.substring('mediaFiles/'.length);
+				}
+				await moveMediaToTrash(avatarPath);
+				logger.info('Old avatar moved to trash', { userId: targetUserId, oldAvatar: avatarPath });
 			} catch (err) {
 				// Log the error but don't block the upload if moving the old file fails.
 				logger.warn('Failed to move old avatar to trash. Proceeding with new avatar upload.', { userId: targetUserId, error: err });
@@ -103,7 +111,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		// Save the new avatar image and update the user's profile
-		const avatarUrl = await saveAvatarImage(avatarFile);
+		const avatarUrl = await saveAvatarImage(avatarFile, targetUserId);
 		await auth.updateUserAttributes(targetUserId, { avatar: avatarUrl });
 
 		// Invalidate any cached session data to reflect the change immediately.

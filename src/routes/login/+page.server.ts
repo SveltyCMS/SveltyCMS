@@ -101,7 +101,9 @@ async function fetchAndRedirectToFirstCollection(): Promise<string> {
 			const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
 			const redirectUrl = `/${defaultLanguage}${firstCollection.path}`;
 
-			logger.info(`Redirecting to first collection: ${firstCollection.name} (${firstCollection._id}) at path: ${firstCollection.path}`);
+			logger.info(
+				`Redirecting to first collection: \x1b[34m${firstCollection.name}\x1b[0m (${firstCollection._id}) at path: \x1b[34m${firstCollection.path}\x1b[0m`
+			);
 
 			return redirectUrl;
 		}
@@ -129,7 +131,7 @@ async function fetchAndRedirectToFirstCollection(): Promise<string> {
 			const redirectUrl = `/${defaultLanguage}${collectionPath}`;
 
 			logger.info(
-				`Redirecting to first collection from structure: ${firstCollectionNode.name} (${firstCollectionNode._id}) at path: ${collectionPath}`
+				`Redirecting to first collection from structure: \x1b[34m${firstCollectionNode.name}\x1b[0m (${firstCollectionNode._id}) at path: \x1b[34m${collectionPath}\x1b[0m`
 			);
 
 			return redirectUrl;
@@ -392,7 +394,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 								})
 							});
 							if (!mailResponse.ok) {
-								logger.error(`OAuth: Failed to send welcome email via API. Status: ${mailResponse.status}`, {
+								logger.error(`OAuth: Failed to send welcome email via API. Status: \x1b[34m${mailResponse.status}\x1b[0m`, {
 									email,
 									responseText: await mailResponse.text()
 								});
@@ -437,7 +439,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 								})
 							});
 							if (!mailResponse.ok) {
-								logger.error(`OAuth: Failed to send welcome email to new user via API. Status: ${mailResponse.status}`, {
+								logger.error(`OAuth: Failed to send welcome email to new user via API. Status: \x1b[34m${mailResponse.status}\x1b[0m`, {
 									email,
 									responseText: await mailResponse.text()
 								});
@@ -622,7 +624,7 @@ export const actions: Actions = {
 						});
 						if (!mailResponse.ok) {
 							logger.error(
-								`Failed to send welcome email via API to ${resp.user.email} after signup. Status: ${mailResponse.status}`,
+								`Failed to send welcome email via API to ${resp.user.email} after signup. Status: \x1b[34m${mailResponse.status}\x1b[0m`,
 								await mailResponse.text()
 							);
 						} else {
@@ -732,7 +734,7 @@ export const actions: Actions = {
 				});
 				if (!mailResponse.ok) {
 					logger.error(
-						`Failed to send welcome email via API to ${newUser.email} after invite signup. Status: ${mailResponse.status}`,
+						`Failed to send welcome email via API to ${newUser.email} after invite signup. Status: \x1b[34m${mailResponse.status}\x1b[0m`,
 						await mailResponse.text()
 					);
 				} else {
