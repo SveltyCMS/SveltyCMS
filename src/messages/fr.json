@@ -461,5 +461,6 @@
 	"set_status_error": "Échec de la mise à jour du statut : {error}",
 	"clone_entry_no_selection_error": "Impossible de cloner : aucune entrée n'est sélectionnée.",
 	"entry_cloned_success": "Entrée clonée avec succès.",
-	"clone_entry_error": "Échec du clonage de l'entrée : {error}"
+	"clone_entry_error": "Échec du clonage de l'entrée : {error}",
+	"clone_entry_body": "Êtes-vous sûr de vouloir cloner cette entrée ? Une nouvelle copie sera créée."
 }

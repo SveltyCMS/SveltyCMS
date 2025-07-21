@@ -461,5 +461,6 @@
 	"set_status_error": "Klarte ikke å oppdatere status: {error}",
 	"clone_entry_no_selection_error": "Kan ikke klone: Ingen oppføring er valgt.",
 	"entry_cloned_success": "Oppføringen er klonet.",
-	"clone_entry_error": "Klarte ikke å klone oppføringen: {error}"
+	"clone_entry_error": "Klarte ikke å klone oppføringen: {error}",
+	"clone_entry_body": "Er du sikker på at du vil klone denne oppføringen? En ny kopi vil bli opprettet."
 }

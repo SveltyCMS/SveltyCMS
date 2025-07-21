@@ -461,5 +461,6 @@
 	"set_status_error": "Failed to update status: {error}",
 	"clone_entry_no_selection_error": "Cannot clone: No entry is selected.",
 	"entry_cloned_success": "Entry cloned successfully.",
-	"clone_entry_error": "Failed to clone entry: {error}"
+	"clone_entry_error": "Failed to clone entry: {error}",
+	"clone_entry_body": "Are you sure you want to clone this entry? A new copy will be created."
 }

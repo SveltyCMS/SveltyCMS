@@ -40,7 +40,8 @@ import type { User } from '@src/auth/types';
 
 // Stores
 import { get } from 'svelte/store';
-import { systemLanguage, type Locale } from '@stores/store.svelte';
+import { systemLanguage } from '@stores/store.svelte';
+import type { Locale } from '@src/paraglide/runtime';
 
 // Import roles
 import { initializeRoles, roles } from '@root/config/roles';
@@ -89,62 +90,63 @@ async function waitForAuthService(maxWaitMs: number = 10000): Promise<boolean> {
 	return false;
 }
 
-// Helper function to fetch and redirect to the first collection
-async function fetchAndRedirectToFirstCollection(): Promise<string> {
+// --- START: Updated Language-Aware Redirect Functions ---
+
+// Cache redirect paths per language for performance optimization
+const cachedFirstCollectionPaths = new Map<Locale, { path: string; expiry: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+
+/**
+ * Constructs a redirect URL to the first available collection, prefixed with the given language.
+ * @param language The validated user language (e.g., 'en', 'de').
+ */
+async function fetchAndRedirectToFirstCollection(language: Locale): Promise<string> {
 	try {
-		// Wait for system initialization including ContentManager
 		await dbInitPromise;
-		logger.debug('System ready, proceeding with collection retrieval');
+		logger.debug(`Fetching first collection path for language: ${language}`);
 
-		// Get the first collection
 		const firstCollection = contentManager.getFirstCollection();
-		if (firstCollection && firstCollection.path) {
-			const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
-			const redirectUrl = `/${defaultLanguage}${firstCollection.path}`;
-
-			logger.info(
-				`Redirecting to first collection: \x1b[34m${firstCollection.name}\x1b[0m (${firstCollection._id}) at path: \x1b[34m${firstCollection.path}\x1b[0m`
-			);
-
+		if (firstCollection?.path) {
+			const redirectUrl = `/${language}${firstCollection.path}`;
+			logger.info(`Redirecting to first collection: \x1b[34m${firstCollection.name}\x1b[0m at path: \x1b[34m${redirectUrl}\x1b[0m`);
 			return redirectUrl;
 		}
 
-		// Fallback: Get content structure with UUIDs
-		const contentNodes = contentManager.getContentStructure();
-		if (!Array.isArray(contentNodes) || !contentNodes.length) {
-			logger.warn('No collections found in content structure');
-			return '/';
-		}
-
-		// Find first collection using nodeType - sort by order or name for consistency
-		const collections = contentNodes.filter((node) => node.nodeType === 'collection' && node._id);
-		if (collections.length > 0) {
-			const sortedCollections = collections.sort((a, b) => {
-				if (a.order !== undefined && b.order !== undefined) {
-					return a.order - b.order;
-				}
-				return (a.name || '').localeCompare(b.name || '');
-			});
-
-			const firstCollectionNode = sortedCollections[0];
-			const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
-			const collectionPath = firstCollectionNode.path || `/${firstCollectionNode._id}`;
-			const redirectUrl = `/${defaultLanguage}${collectionPath}`;
-
-			logger.info(
-				`Redirecting to first collection from structure: \x1b[34m${firstCollectionNode.name}\x1b[0m (${firstCollectionNode._id}) at path: \x1b[34m${collectionPath}\x1b[0m`
-			);
-
-			return redirectUrl;
-		}
-
-		logger.warn('No valid collections found');
-		return '/';
+		logger.warn('No collections found via getFirstCollection(), falling back to structure scan.');
+		return '/'; // Fallback if no collections are configured
 	} catch (err) {
 		logger.error('Error in fetchAndRedirectToFirstCollection:', err);
-		return '/';
+		return '/'; // Fallback on error
 	}
 }
+
+/**
+ * A cached version of fetchAndRedirectToFirstCollection to avoid redundant lookups.
+ * The cache is language-aware.
+ * @param language The validated user language.
+ */
+async function fetchAndRedirectToFirstCollectionCached(language: Locale): Promise<string> {
+	const now = Date.now();
+	const cachedEntry = cachedFirstCollectionPaths.get(language);
+
+	// Return cached result if still valid
+	if (cachedEntry && now < cachedEntry.expiry) {
+		logger.debug(`Returning cached path for language '${language}': ${cachedEntry.path}`);
+		return cachedEntry.path;
+	}
+
+	// Fetch fresh data
+	const result = await fetchAndRedirectToFirstCollection(language);
+
+	// Cache the result if it's not the fallback path
+	if (result !== '/') {
+		cachedFirstCollectionPaths.set(language, { path: result, expiry: now + CACHE_DURATION });
+		logger.debug(`Cached new path for language '${language}': ${result}`);
+	}
+
+	return result;
+}
+// --- END: Updated Language-Aware Redirect Functions ---
 
 // Helper function to check if OAuth should be available
 async function shouldShowOAuth(isFirstUser: boolean, hasInviteToken: boolean): Promise<boolean> {
@@ -194,31 +196,6 @@ async function shouldShowOAuth(isFirstUser: boolean, hasInviteToken: boolean): P
 	}
 }
 
-// Cached version for performance optimization
-let cachedFirstCollectionPath: string | null = null;
-let cacheExpiry: number = 0;
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
-
-async function fetchAndRedirectToFirstCollectionCached(): Promise<string> {
-	const now = Date.now();
-
-	// Return cached result if still valid
-	if (cachedFirstCollectionPath && now < cacheExpiry) {
-		return cachedFirstCollectionPath;
-	}
-
-	// Fetch fresh data
-	const result = await fetchAndRedirectToFirstCollection();
-
-	// Cache the result if it's not the fallback
-	if (result !== '/') {
-		cachedFirstCollectionPath = result;
-		cacheExpiry = now + CACHE_DURATION;
-	}
-
-	return result;
-}
-
 // Define wrapped schemas for caching
 const wrappedLoginSchema = valibot(loginFormSchema);
 const wrappedForgotSchema = valibot(forgotFormSchema);
@@ -227,6 +204,13 @@ const wrappedSignUpSchema = valibot(signUpFormSchema);
 const wrappedSignUpOAuthSchema = valibot(signUpOAuthFormSchema);
 
 export const load: PageServerLoad = async ({ url, cookies, fetch, request, locals }) => {
+	// --- START: Language Validation Logic ---
+	const langFromStore = get(systemLanguage) as Locale | null;
+	// Use PUBLIC_ENV.LOCALES for validation, fallback to BASE_LOCALE
+	const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
+	const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
+	// --- END: Language Validation Logic ---
+
 	try {
 		// Ensure initialization is complete
 		await dbInitPromise;
@@ -253,7 +237,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		// Check if user is already authenticated
 		if (locals.user) {
 			logger.debug('User is already authenticated in load, attempting to redirect to collection');
-			const redirectPath = await fetchAndRedirectToFirstCollection();
+			const redirectPath = await fetchAndRedirectToFirstCollection(userLanguage);
 			throw redirect(302, redirectPath);
 		}
 
@@ -374,7 +358,6 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 						logger.info(`OAuth: First user created: ${user?.username}`);
 
 						// Send Welcome email using fetch to /api/sendMail
-						const userLang = (get(systemLanguage) as Locale) || 'en';
 						const emailProps = {
 							username: googleUser.name || user?.username || '',
 							email: email,
@@ -391,7 +374,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 									subject: `Welcome to ${emailProps.sitename}`,
 									templateName: 'welcomeUser',
 									props: emailProps,
-									languageTag: userLang // Pass languageTag if your API uses it
+									languageTag: userLanguage // Pass languageTag if your API uses it
 								})
 							});
 							if (!mailResponse.ok) {
@@ -420,7 +403,6 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 							lastAuthMethod: 'google'
 						});
 						logger.info(`OAuth: New non-first user created: ${newUser?.username}`);
-						const userLang = (get(systemLanguage) as Locale) || 'en';
 						const emailProps = {
 							username: googleUser.name || newUser?.username || '',
 							email: email,
@@ -436,7 +418,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 									subject: `Welcome to ${emailProps.sitename}`,
 									templateName: 'welcomeUser',
 									props: emailProps,
-									languageTag: userLang
+									languageTag: userLanguage
 								})
 							});
 							if (!mailResponse.ok) {
@@ -459,7 +441,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				if (user && user._id) {
 					await createSessionAndSetCookie(user._id, cookies);
 					await auth.updateUserAttributes(user._id, { lastAuthMethod: 'google', lastLogin: new Date() });
-					const redirectPath = await fetchAndRedirectToFirstCollection();
+					const redirectPath = await fetchAndRedirectToFirstCollection(userLanguage);
 					throw redirect(303, redirectPath);
 				}
 				logger.warn(`OAuth: User processing ended without session creation for ${googleUser.email}.`);
@@ -511,7 +493,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
 		// ENHANCEMENT: Pre-emptively get the info for the first collection.
 		// This tells us where the user will likely go after logging in and can be shown in the UI.
-		const firstCollection = await getFirstCollectionInfo(url.searchParams.get('lang') || 'en');
+		const firstCollection = await getFirstCollectionInfo(userLanguage);
 
 		// Check if there are existing OAuth users (for better UX messaging)
 		let hasExistingOAuthUsers = false;
@@ -561,6 +543,13 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 // Actions for SignIn and SignUp a user with form data
 export const actions: Actions = {
 	signUp: async (event) => {
+		// --- START: Language Validation Logic ---
+		const langFromStore = get(systemLanguage) as Locale | null;
+		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
+		logger.debug(`Validated user language for sign-up: ${userLanguage}`);
+		// --- END: Language Validation Logic ---
+
 		if (await limiter.isLimited(event)) {
 			return fail(429, { message: 'Too many requests. Please try again later.' });
 		}
@@ -609,7 +598,6 @@ export const actions: Actions = {
 					// Invalidate user count cache so the system knows a user now exists
 					invalidateUserCountCache();
 
-					const userLanguage = (get(systemLanguage) as Locale) || 'en';
 					const emailProps = {
 						username: resp.user.username,
 						email: resp.user.email,
@@ -645,12 +633,11 @@ export const actions: Actions = {
 
 					// ENHANCEMENT: Trigger the data prefetch immediately after successful signup.
 					// This is a non-blocking call to warm up the cache for the next page load.
-					const userLanguage = event.url.searchParams.get('lang') || 'en';
 					fetchAndCacheCollectionData(userLanguage, event.fetch, event.request).catch((err) => {
 						logger.debug('Data caching failed during first user signup:', err);
 					});
 
-					const redirectPath = await fetchAndRedirectToFirstCollection();
+					const redirectPath = await fetchAndRedirectToFirstCollection(userLanguage);
 					throw redirect(303, redirectPath);
 				} else {
 					logger.warn(`Admin sign-up failed: ${resp.message || 'Unknown reason'}`);
@@ -714,7 +701,6 @@ export const actions: Actions = {
 			event.cookies.set(sessionCookie.name, sessionCookie.value, { ...sessionCookie.attributes, path: '/' });
 
 			// Send welcome email
-			const userLanguage = (get(systemLanguage) as Locale) || 'en';
 			const emailProps = {
 				username: newUser.username,
 				email: newUser.email,
@@ -751,7 +737,6 @@ export const actions: Actions = {
 			// Fetch and cache first collection data for instant loading (fire and forget)
 			import('@utils/collections-prefetch')
 				.then(({ fetchAndCacheCollectionData }) => {
-					const userLanguage = (get(systemLanguage) as Locale) || 'en';
 					fetchAndCacheCollectionData(userLanguage, event.fetch, event.request).catch((err) => {
 						logger.debug('Data caching failed during invited user signup:', err);
 					});
@@ -760,7 +745,7 @@ export const actions: Actions = {
 					// Silently fail if module can't be loaded
 				});
 
-			const redirectPath = await fetchAndRedirectToFirstCollection();
+			const redirectPath = await fetchAndRedirectToFirstCollection(userLanguage);
 			throw redirect(303, redirectPath);
 		} catch (e) {
 			// Check if this is a redirect (which is expected and successful)
@@ -804,6 +789,13 @@ export const actions: Actions = {
 	},
 
 	signIn: async (event) => {
+		// --- START: Language Validation Logic ---
+		const langFromStore = get(systemLanguage) as Locale | null;
+		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
+		logger.debug(`Validated user language for sign-in: ${userLanguage}`);
+		// --- END: Language Validation Logic ---
+
 		const startTime = performance.now();
 
 		if (await limiter.isLimited(event)) {
@@ -832,7 +824,7 @@ export const actions: Actions = {
 			// Run authentication and collection path retrieval in parallel for faster response
 			const [authResult, collectionPath] = await Promise.all([
 				signInUser(email, password, isToken, event.cookies),
-				fetchAndRedirectToFirstCollectionCached() // Use cached version
+				fetchAndRedirectToFirstCollectionCached(userLanguage) // Use cached version
 			]);
 
 			resp = authResult;
@@ -842,7 +834,6 @@ export const actions: Actions = {
 				redirectPath = collectionPath;
 
 				// Trigger the data prefetch immediately after successful login.
-				const userLanguage = event.url.searchParams.get('lang') || 'en';
 				fetchAndCacheCollectionData(userLanguage, event.fetch, event.request).catch((err) => {
 					logger.debug('Data caching failed during sign-in:', err);
 				});
@@ -867,6 +858,12 @@ export const actions: Actions = {
 	},
 
 	forgotPW: async (event) => {
+		// --- START: Language Validation Logic ---
+		const langFromStore = get(systemLanguage) as Locale | null;
+		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
+		// --- END: Language Validation Logic ---
+
 		if (await limiter.isLimited(event)) {
 			return fail(429, { message: 'Too many requests.' });
 		}
@@ -891,7 +888,6 @@ export const actions: Actions = {
 				const resetLink = `${baseUrl}/login?token=${checkMail.token}&email=${encodeURIComponent(email)}`;
 				logger.debug(`Reset link generated: ${resetLink}`);
 
-				const userLanguage = (get(systemLanguage) as Locale) || 'en';
 				const emailProps = {
 					email: email,
 					token: checkMail.token,
@@ -938,6 +934,12 @@ export const actions: Actions = {
 	},
 
 	resetPW: async (event) => {
+		// --- START: Language Validation Logic ---
+		const langFromStore = get(systemLanguage) as Locale | null;
+		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
+		// --- END: Language Validation Logic ---
+
 		if (await limiter.isLimited(event)) {
 			return fail(429, { message: 'Too many requests.' });
 		}
@@ -960,7 +962,6 @@ export const actions: Actions = {
 			logger.debug(`Password reset check response`, { email, response: JSON.stringify(resp) });
 
 			if (resp.status) {
-				const userLanguage = (get(systemLanguage) as Locale) || 'en';
 				const emailProps = {
 					username: resp.username || email,
 					email: email,
@@ -1012,10 +1013,15 @@ export const actions: Actions = {
 	},
 
 	prefetch: async (event) => {
+		// --- START: Language Validation Logic ---
+		const langFromStore = get(systemLanguage) as Locale | null;
+		const supportedLocales = (publicEnv.LOCALES || [publicEnv.BASE_LOCALE]) as Locale[];
+		const userLanguage = langFromStore && supportedLocales.includes(langFromStore) ? langFromStore : (publicEnv.BASE_LOCALE as Locale);
+		// --- END: Language Validation Logic ---
+
 		// This action is called when user switches to SignIn/SignUp components
 		// to get collection info for later data fetching after authentication
 		try {
-			const userLanguage = event.url.searchParams.get('lang') || 'en';
 			logger.info(`Collection lookup triggered for language: ${userLanguage}`);
 
 			// Import and call lookup function (no data fetching, just collection info)

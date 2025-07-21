@@ -461,5 +461,6 @@
 	"set_status_error": "Nie udało się zaktualizować statusu: {error}",
 	"clone_entry_no_selection_error": "Nie można klonować: Nie wybrano żadnego wpisu.",
 	"entry_cloned_success": "Wpis sklonowano pomyślnie.",
-	"clone_entry_error": "Nie udało się sklonować wpisu: {error}"
+	"clone_entry_error": "Nie udało się sklonować wpisu: {error}",
+	"clone_entry_body": "Czy na pewno chcesz sklonować ten wpis? Zostanie utworzona nowa kopia."
 }

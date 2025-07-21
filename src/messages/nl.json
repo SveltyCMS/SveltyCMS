@@ -461,5 +461,6 @@
 	"set_status_error": "Status kan niet worden bijgewerkt: {error}",
 	"clone_entry_no_selection_error": "Kan niet klonen: Er is geen item geselecteerd.",
 	"entry_cloned_success": "Item succesvol gekloond.",
-	"clone_entry_error": "Het klonen van de invoer is mislukt: {error}"
+	"clone_entry_error": "Het klonen van de invoer is mislukt: {error}",
+	"clone_entry_body": "Weet u zeker dat u dit item wilt klonen? Er wordt een nieuwe kopie gemaakt."
 }

@@ -461,5 +461,6 @@
 	"set_status_error": "Impossibile aggiornare lo stato: {error}",
 	"clone_entry_no_selection_error": "Impossibile clonare: nessuna voce selezionata.",
 	"entry_cloned_success": "Voce clonata con successo.",
-	"clone_entry_error": "Impossibile clonare la voce: {error}"
+	"clone_entry_error": "Impossibile clonare la voce: {error}",
+	"clone_entry_body": "Vuoi davvero clonare questa voce? Verrà creata una nuova copia."
 }

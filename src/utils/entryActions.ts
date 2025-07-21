@@ -7,9 +7,9 @@
  * - Handles single and batch operations for status changes, deletion, and cloning.
  * - Provides clear user feedback via modals and toasts.
  * - Contains all API request logic for entry manipulation.
- * - **FIXED**: `deleteEntries` now correctly handles both archiving and permanent deletion.
- * - **FIXED**: `cloneEntries` correctly prepares the payload for new entries.
- * - **FIXED**: `setEntriesStatus` can now accept an optional payload for actions like scheduling.
+ * - `deleteEntries` now correctly handles both archiving and permanent deletion.
+ * - `cloneEntries` correctly prepares the payload for new entries.
+ * - `setEntriesStatus` can now accept an optional payload for actions like scheduling.
  */
 
 import { publicEnv } from '@root/config/public';

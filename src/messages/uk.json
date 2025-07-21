@@ -461,5 +461,6 @@
 	"set_status_error": "Не вдалося оновити статус: {error}",
 	"clone_entry_no_selection_error": "Неможливо клонувати: запис не вибрано.",
 	"entry_cloned_success": "Запис успішно клоновано.",
-	"clone_entry_error": "Не вдалося клонувати запис: {error}"
+	"clone_entry_error": "Не вдалося клонувати запис: {error}",
+	"clone_entry_body": "Ви впевнені, що хочете клонувати цей запис? Буде створено нову копію."
 }
